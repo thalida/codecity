@@ -4,10 +4,11 @@
 //
 // Preact component: SourcePicker (signal-driven).
 
-import { useState } from 'preact/hooks';
+import { useEffect, useRef, useState } from 'preact/hooks';
 import type { Signal } from '@preact/signals';
 import { listRecents, removeRecent } from '@/state/runtime/sourceRecents';
 import { clearManifestCache } from '@/api/manifest';
+import { srcKind } from '@/utils/sources';
 import { LucideIcon } from './LucideIcon';
 import { LUCIDE_ICON_BASE_URL } from '@/constants';
 import { SOURCE_PICKER, closeSourcePicker, submitNewSource } from '@/state/runtime/uiState';
@@ -30,8 +31,7 @@ export enum SourceTab {
  *  and recents icon selection — the backend is the source of truth for what
  *  a source actually is. */
 export function inferSourceTab(src: string): SourceTab {
-  const gitLike = /:\/\//.test(src) || /^[^@]+@[^:]+:/.test(src);
-  return gitLike ? SourceTab.Git : SourceTab.Local;
+  return srcKind(src) === 'git' ? SourceTab.Git : SourceTab.Local;
 }
 
 export interface SourcePayload {
@@ -51,7 +51,6 @@ export interface OpenOpts {
 // ── Preact component state shape ────────────────────────────────────────────
 
 export interface SourcePickerState {
-  open: boolean;
   dismissible: boolean;
   activeTab: SourceTab;
   prefillSrc: string;
@@ -70,13 +69,36 @@ export interface SourcePickerComponentProps {
 
 export function SourcePickerComponent({ state, onSubmit, onClose }: SourcePickerComponentProps) {
   const s = state.value;
-  if (!s.open) return null;
 
+  // This component is only mounted while the picker is visible — the parent
+  // (<SourcePicker> / the signal wrapper) renders null when closed, which
+  // unmounts us and resets these useState inputs on the next open. So there is
+  // no `open` flag and no conditional early return: hooks always run.
   const [activeTab, setActiveTab] = useState<SourceTab>(s.activeTab);
   const [urlValue, setUrlValue] = useState(s.activeTab === SourceTab.Git ? s.prefillSrc : '');
   const [branchValue, setBranchValue] = useState(s.prefillBranch);
   const [pathValue, setPathValue] = useState(s.activeTab === SourceTab.Local ? s.prefillSrc : '');
   const [skipCache, setSkipCache] = useState(false);
+  const urlInputRef = useRef<HTMLInputElement>(null);
+  const pathInputRef = useRef<HTMLInputElement>(null);
+
+  // Escape dismisses the modal when it's dismissible.
+  useEffect(() => {
+    if (!s.dismissible) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [s.dismissible, onClose]);
+
+  // Focus (and select) the active tab's input on mount and on tab switch, so
+  // the user can type/paste immediately.
+  useEffect(() => {
+    const el = activeTab === SourceTab.Local ? pathInputRef.current : urlInputRef.current;
+    el?.focus();
+    el?.select();
+  }, [activeTab]);
 
   const urlParams = new URLSearchParams(window.location.search);
   const currentSrc = urlParams.get('src') ?? '';
@@ -104,8 +126,8 @@ export function SourcePickerComponent({ state, onSubmit, onClose }: SourcePicker
     if (!confirmed) return;
     removeRecent(src, branch);
     clearManifestCache(src, branch);
-    // Force re-render by re-opening with same state
-    state.value = { ...state.value };
+    // No manual re-render needed: removeRecent mutates the RECENTS signal, which
+    // this component reads via listRecents(), so the list re-renders on its own.
   }
 
   const showFormFields = !((!s.allowLocalRepos) && activeTab === SourceTab.Local);
@@ -149,6 +171,7 @@ export function SourcePickerComponent({ state, onSubmit, onClose }: SourcePicker
             <div class="modal-field">
               <label>URL</label>
               <input
+                ref={urlInputRef}
                 data-field="url"
                 type="text"
                 autoComplete="off"
@@ -176,6 +199,7 @@ export function SourcePickerComponent({ state, onSubmit, onClose }: SourcePicker
               <div class="modal-field">
                 <label>Path</label>
                 <input
+                  ref={pathInputRef}
                   data-field="path"
                   type="text"
                   autoComplete="off"
@@ -301,9 +325,11 @@ export function SourcePicker() {
   const prefillSrc = prefill?.src ?? '';
 
   const pickerState: SourcePickerState = {
-    open: true,
     dismissible: opts.dismissible ?? false,
-    activeTab: prefillSrc ? inferSourceTab(prefillSrc) : SourceTab.Git,
+    // Only default to the Local tab when local repos are enabled — otherwise a
+    // local-path prefill would land on the disabled-Local dead-end view.
+    activeTab:
+      prefillSrc && serverCfg.allowLocalRepos ? inferSourceTab(prefillSrc) : SourceTab.Git,
     prefillSrc,
     prefillBranch: prefill?.branch ?? '',
     error: opts.error ?? null,

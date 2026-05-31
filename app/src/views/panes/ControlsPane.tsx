@@ -33,7 +33,7 @@ import { EffectsSection } from './controls/EffectsSection';
 import { FilePreviewSection } from './controls/FilePreviewSection';
 import { DebugSection } from './controls/DebugSection';
 import { ActionsBar } from './controls/ActionsBar';
-import { PaneHeader } from '@/views/components/PaneHeader';
+import { Pane } from '@/views/components/Pane';
 
 export interface ControlsPaneProps {
   onClose?: () => void;
@@ -62,26 +62,29 @@ export function ControlsPane({
   }, [collapsed]);
 
   return (
-    <div ref={paneRef} class="pane controls-pane">
-      <PaneHeader title="Settings" onClose={onClose} />
-      <div class="pane-body pane-body--padded">
-        <ShortcutsSection />
-        <UpdatesSection />
-        <SceneSection />
-        <IslandSection />
-        <BuildingsSection />
-        <StreetsSection />
-        <GemSection />
-        <TreesSection />
-        <FirefliesSection />
-        <EffectsSection />
-        <FilePreviewSection />
-        <DebugSection
-          onRunCollisionCheck={onRunCollisionCheck}
-          onRunStemDiagnostic={onRunStemDiagnostic}
-        />
-      </div>
-      <ActionsBar />
-    </div>
+    <Pane
+      paneClass="controls-pane"
+      title="Settings"
+      onClose={onClose}
+      bodyClass="pane-body--padded"
+      footerSlot={<ActionsBar />}
+      paneRef={paneRef}
+    >
+      <ShortcutsSection />
+      <UpdatesSection />
+      <SceneSection />
+      <IslandSection />
+      <BuildingsSection />
+      <StreetsSection />
+      <GemSection />
+      <TreesSection />
+      <FirefliesSection />
+      <EffectsSection />
+      <FilePreviewSection />
+      <DebugSection
+        onRunCollisionCheck={onRunCollisionCheck}
+        onRunStemDiagnostic={onRunStemDiagnostic}
+      />
+    </Pane>
   );
 }

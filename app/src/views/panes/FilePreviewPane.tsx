@@ -100,7 +100,10 @@ export function FilePreviewPane({ state, onClose, onFocus }: FilePreviewPaneProp
     }
     const section = _makePreviewSection(file);
     if (section) host.appendChild(section);
-  }, [file?.fullPath, file?.path]);
+    // Key on the file object, not just its path: a live-update poll yields a
+    // fresh FileNode with the same path but changed content/size, and re-
+    // selecting it must re-fetch/re-render rather than show stale bytes.
+  }, [file]);
 
   const badge = file ? (
     <span

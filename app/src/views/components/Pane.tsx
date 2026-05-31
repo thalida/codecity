@@ -36,6 +36,12 @@ export interface PaneProps {
   /** Ref to the `.pane-body` element — for panes that mount body content
    *  imperatively (e.g. FilePreviewPane's highlight.js output). */
   bodyRef?: Ref<HTMLDivElement>;
+  /** Content rendered AFTER the body (e.g. ControlsPane's sticky action bar),
+   *  outside the scrolling body region. */
+  footerSlot?: ComponentChildren;
+  /** Ref to the outer `.pane` element — for panes that need to query their own
+   *  DOM (e.g. ControlsPane collapsing its `<details>` sections). */
+  paneRef?: Ref<HTMLDivElement>;
   children?: ComponentChildren;
 }
 
@@ -51,11 +57,13 @@ export function Pane({
   closeTitle,
   bodyClass,
   bodyRef,
+  footerSlot,
+  paneRef,
   children,
 }: PaneProps) {
   const ownsBody = bodyClass !== undefined || bodyRef !== undefined;
   return (
-    <div class={paneClass ? `pane ${paneClass}` : 'pane'}>
+    <div class={paneClass ? `pane ${paneClass}` : 'pane'} ref={paneRef}>
       <PaneHeader
         title={title ?? ''}
         titleSlot={titleSlot}
@@ -73,6 +81,7 @@ export function Pane({
       ) : (
         children
       )}
+      {footerSlot}
     </div>
   );
 }

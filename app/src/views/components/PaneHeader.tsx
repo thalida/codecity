@@ -50,7 +50,13 @@ export function PaneHeader({
           class="btn-icon btn-icon--text"
           title={focusTitle}
           aria-label={focusTitle}
-          onClick={() => onFocus()}
+          onClick={(e) => {
+            // Blur so a subsequent Space/Enter doesn't re-activate this button
+            // (re-firing focus) — let those keystrokes fall through to the
+            // document-level canvas keydown handler.
+            (e.currentTarget as HTMLButtonElement).blur();
+            onFocus();
+          }}
         >
           <LucideIcon name="focus" />
         </button>

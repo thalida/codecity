@@ -37,11 +37,14 @@ export function signatureUrl(): string {
  *  submit path). `manifestUrl()` reads the page URL; this takes the source
  *  directly. */
 export function manifestUrlFor(opts: { src: string; branch?: string; noCache?: boolean }): string {
-  const u = new URL('/api/manifest', window.location.origin);
-  u.searchParams.set('src', opts.src);
-  if (opts.branch) u.searchParams.set('branch', opts.branch);
-  if (opts.noCache) u.searchParams.set('no_cache', 'true');
-  return u.toString();
+  // Delegate param assembly to buildApiUrl (single source of truth for the
+  // src/branch/no_cache query contract); just feed it an explicit search
+  // string instead of the page's location.search.
+  const search = new URLSearchParams({ src: opts.src });
+  if (opts.branch) search.set('branch', opts.branch);
+  return buildApiUrl('/api/manifest', search.toString(), window.location.origin, {
+    noCache: opts.noCache,
+  });
 }
 
 // ── NDJSON streaming reader ──────────────────────────────────────────────

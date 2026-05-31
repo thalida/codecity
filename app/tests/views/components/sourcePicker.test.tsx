@@ -26,8 +26,9 @@ describe('SourcePicker', () => {
   // takes a container we own here.
   function createPicker(opts: { allowLocalRepos: boolean }): void {
     allowLocalRepos = opts.allowLocalRepos;
+    // "Closed" = nothing mounted, mirroring the production wrapper which renders
+    // null when the picker isn't visible. open() mounts the component.
     state = signal<SourcePickerState>({
-      open: false,
       dismissible: false,
       activeTab: SourceTab.Git,
       prefillSrc: '',
@@ -35,17 +36,12 @@ describe('SourcePicker', () => {
       error: null,
       allowLocalRepos,
     });
-    act(() => {
-      render(<SourcePickerComponent state={state} onSubmit={onSubmit} onClose={onClose} />, container);
-    });
   }
 
-  // Maps the factory's `.open(opts)` onto a state-signal write. The component's
-  // form inputs are useState-backed and initialised on MOUNT from state, so to
-  // get fresh inputs on each open() we first close (open:false → component
-  // returns null and unmounts) then re-open. This mirrors the production
-  // signal wrapper, which returns null when the picker is closed so the
-  // component fully unmounts and its useState resets on the next open.
+  // Maps the factory's `.open(opts)` onto a mount. The component's form inputs
+  // are useState-backed and seeded on MOUNT from state, so to get fresh inputs
+  // each open() we unmount (render null) then mount fresh — mirroring the
+  // production wrapper, which renders null when the picker is closed.
   async function open(opts: OpenOpts = {}): Promise<void> {
     const prefillSrc = opts.prefill?.src ?? '';
     // Tab derivation mirrors the factory's deriveTabFromPrefill: a prefill
@@ -60,22 +56,20 @@ describe('SourcePicker', () => {
       activeTab = inferSourceTab(prefillSrc);
     }
 
-    // Force unmount so useState re-initialises on the re-open.
-    act(() => {
-      state.value = { ...state.value, open: false };
-    });
+    // Unmount any prior render so useState re-initialises on re-open (mirrors
+    // the production wrapper returning null when closed), then mount fresh.
+    act(() => render(null, container));
     await flush();
-
+    state.value = {
+      dismissible: opts.dismissible ?? false,
+      activeTab,
+      prefillSrc,
+      prefillBranch: opts.prefill?.branch ?? '',
+      error: opts.error ?? null,
+      allowLocalRepos,
+    };
     act(() => {
-      state.value = {
-        open: true,
-        dismissible: opts.dismissible ?? false,
-        activeTab,
-        prefillSrc,
-        prefillBranch: opts.prefill?.branch ?? '',
-        error: opts.error ?? null,
-        allowLocalRepos,
-      };
+      render(<SourcePickerComponent state={state} onSubmit={onSubmit} onClose={onClose} />, container);
     });
     await flush();
   }

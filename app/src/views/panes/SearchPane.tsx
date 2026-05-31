@@ -16,7 +16,7 @@
 // every keystroke.
 
 import type { VNode } from 'preact';
-import { useState } from 'preact/hooks';
+import { useMemo, useState } from 'preact/hooks';
 import type { Signal } from '@preact/signals';
 import { NodeKind } from '@/types';
 import type { DirNode, FileNode, Manifest, TreeNode } from '@/types';
@@ -44,7 +44,9 @@ export interface SearchPaneProps {
 
 export function SearchPane({ manifest, onClose, onSelect, onFocus }: SearchPaneProps) {
   const [query, setQuery] = useState('');
-  const files = _flattenFiles(manifest.value);
+  // Flatten once per manifest, not per keystroke — _flattenFiles is an O(N)
+  // tree walk and setQuery re-renders on every character typed.
+  const files = useMemo(() => _flattenFiles(manifest.value), [manifest.value]);
   const trimmed = query.trim();
   const results = trimmed ? _searchFiles(trimmed, files) : null;
 
