@@ -31,6 +31,13 @@ import { runAppLogic } from '../../appLogic';
 function SourcePickerShell() {
   // Build SourcePickerState from our two runtime signals.
   const sp = SOURCE_PICKER.value;
+
+  // Return null (instead of letting the child render null) so the
+  // SourcePickerComponent fully unmounts when the modal closes — its
+  // useState-backed form inputs reset on the next open. Returning null
+  // from the child only would keep it mounted with stale form state.
+  if (!sp.visible) return null;
+
   const serverCfg = SERVER_CONFIG.value;
   const opts = sp.opts ?? {};
   const prefill = opts.prefill;
