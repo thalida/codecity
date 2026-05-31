@@ -30,8 +30,16 @@ interface ExtensionStats {
 }
 
 /** Walk a directory's descendant subtree and aggregate by extension.
- *  Treats missing/empty extension as '(none)'. */
+ *  Treats missing/empty extension as '(none)'.
+ *
+ *  Memoized by the DirNode reference. A fresh manifest produces fresh
+ *  node objects, so a manifest swap implicitly invalidates the cache;
+ *  re-selecting the same directory in the same manifest is O(1). */
+const _aggCache = new WeakMap<DirNode, ExtensionStats[]>();
+
 function aggregateExtensions(d: DirNode): ExtensionStats[] {
+  const hit = _aggCache.get(d);
+  if (hit) return hit;
   const byExt = new Map<string, { count: number; size: number }>();
   function walk(node: TreeNode): void {
     if (node.type === NodeKind.File) {
@@ -48,7 +56,9 @@ function aggregateExtensions(d: DirNode): ExtensionStats[] {
     }
   }
   walk(d);
-  return Array.from(byExt, ([ext, v]) => ({ ext, ...v })).sort((a, b) => b.count - a.count);
+  const result = Array.from(byExt, ([ext, v]) => ({ ext, ...v })).sort((a, b) => b.count - a.count);
+  _aggCache.set(d, result);
+  return result;
 }
 
 // ── State shape for Preact component ─────────────────────────────────────────
