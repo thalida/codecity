@@ -2,11 +2,13 @@
 // the app boot logic via runAppLogic() in a useEffect.
 //
 // Layout:
-//   <AppHeader>               — reads SCENE_HANDLE + SOURCE_INFO
+//   <AppHeader>                  — reads SCENE_HANDLE + SOURCE_INFO
 //   <main id="app-body">
-//     <div id="left-sidebar"> — populated by showLeftSidebar (in runAppLogic)
-//     <div id="center-pane">  — canvas (scene started by runAppLogic)
-//     <div id="right-sidebar"> — populated by mountRightSidebarReactions
+//     <LeftSidebarShell>         — <aside> owned by LeftSidebar; imperative
+//                                  showLeftSidebar populates it inside runAppLogic
+//     <CenterPane>                — canvas (scene started by runAppLogic)
+//     <RightSidebarShell>        — <aside> owned by RightSidebar; mounted
+//                                  panes managed by mountRightSidebarReactions
 //   </main>
 //   <AppFooter>               — reads signals directly
 //   <SourcePicker />          — reads SOURCE_PICKER + SERVER_CONFIG directly
@@ -16,6 +18,8 @@ import { useEffect } from 'preact/hooks';
 import { AppHeader } from './AppHeader';
 import { AppFooter } from './AppFooter';
 import { CenterPane } from './CenterPane';
+import { LeftSidebarShell } from './LeftSidebar';
+import { RightSidebarShell } from './RightSidebar';
 import { SourcePicker } from '../components/SourcePicker';
 import { LoadingOverlay } from '../components/LoadingOverlay';
 import { HljsThemeLink } from '../components/HljsThemeLink';
@@ -66,9 +70,9 @@ export function App() {
         onFocus={onFocus}
       />
       <main id="app-body">
-        <div id="left-sidebar" />
+        <LeftSidebarShell />
         <CenterPane />
-        <div id="right-sidebar" />
+        <RightSidebarShell />
       </main>
       <AppFooter />
       <SourcePicker />

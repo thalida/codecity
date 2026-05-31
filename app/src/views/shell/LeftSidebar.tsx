@@ -59,8 +59,22 @@ export interface LeftSidebarState {
   collapsed: boolean;
 }
 
-// ── Preact component ─────────────────────────────────────────────────────────
-// Used when App.tsx mounts <LeftSidebar /> directly (Phase 3e+).
+// ── Shell wrapper — owns the <aside id="left-sidebar"> element ───────────────
+// App.tsx renders <LeftSidebarShell />, not a bare placeholder div. The
+// imperative showLeftSidebar() factory still does the heavy lifting (activity
+// bar, pane panel, resize handle, world reactions); this just gives the
+// component ownership of its outer DOM node so App.tsx's tree matches the
+// rendered hierarchy. Phase 3e will fold the imperative factory into this
+// component.
+
+export function LeftSidebarShell() {
+  return <aside id={DOM_IDS.LEFT_SIDEBAR} />;
+}
+
+// ── Preact activity-bar component ────────────────────────────────────────────
+// Used by the imperative factory below to render the activity bar via Preact
+// while the rest of the sidebar still goes through imperative DOM. Will be
+// the top-level component once the imperative path is fully ported.
 // The activity bar icons are rendered as JSX; pane visibility is driven by
 // the activeTab + collapsed state read from the signal.
 

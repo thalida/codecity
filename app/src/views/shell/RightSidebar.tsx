@@ -117,9 +117,22 @@ function _clearMountedPane(sidebar: HTMLElement): void {
   }
 }
 
-// ── Preact component ─────────────────────────────────────────────────────────
-// Used when App.tsx mounts RightSidebar directly (Phase 3e+). The component
-// reads the state signal and applies DOM mutations via useEffect.
+// ── Shell wrapper — owns the <aside id="right-sidebar"> element ──────────────
+// App.tsx renders <RightSidebarShell />, not a bare placeholder div. The
+// imperative show/hideRightSidebar + mountRightSidebarReactions still do the
+// heavy lifting (resize handle, pane mount, world reactions); this just gives
+// the component ownership of its outer DOM node so App.tsx's tree matches
+// the rendered hierarchy. Phase 3e will fold the imperative path into this
+// component.
+
+export function RightSidebarShell() {
+  return <aside id={DOM_IDS.RIGHT_SIDEBAR} />;
+}
+
+// ── Preact pane-mount component (used by an in-progress port) ────────────────
+// Reads the state signal and applies DOM mutations via useEffect. The factory
+// below is the live path today; this component is unused until App.tsx is
+// rewritten to drive the right sidebar via a state signal.
 
 interface RightSidebarProps {
   state: ReadonlySignal<RightSidebarState>;
