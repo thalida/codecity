@@ -225,11 +225,17 @@ describe('buildCommitPane', () => {
   });
 
   // ── Busyness label ────────────────────────────────────────────────────────
+  // Tests pass explicit busynessThresholds so the label logic is exercised
+  // deterministically. In production the thresholds are derived per-repo
+  // from manifest.commits via dailyCommitThresholds() — see rightSidebar.tsx.
+
+  const TEST_THRESHOLDS = { avg: 3, busy: 8 };
 
   it('labels sameDayTotal=1 as a Light day', async () => {
     const { pane, api } = buildCommitPane({});
     api.setCommit(COMMIT, {
       sameDayTotal: 1,
+      busynessThresholds: TEST_THRESHOLDS,
       color: '#abc',
       now: new Date('2026-05-24T12:00:00Z'),
     });
@@ -242,6 +248,7 @@ describe('buildCommitPane', () => {
     const { pane, api } = buildCommitPane({});
     api.setCommit(COMMIT, {
       sameDayTotal: 5,
+      busynessThresholds: TEST_THRESHOLDS,
       color: '#abc',
       now: new Date('2026-05-24T12:00:00Z'),
     });
@@ -254,6 +261,7 @@ describe('buildCommitPane', () => {
     const { pane, api } = buildCommitPane({});
     api.setCommit(COMMIT, {
       sameDayTotal: 20,
+      busynessThresholds: TEST_THRESHOLDS,
       color: '#abc',
       now: new Date('2026-05-24T12:00:00Z'),
     });

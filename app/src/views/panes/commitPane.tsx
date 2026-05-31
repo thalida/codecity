@@ -38,15 +38,25 @@ export interface SetCommitOpts {
   sameDayTotal?: number;
   /** CSS color for the same-day swatch, e.g. "#5e8a3a". */
   color?: string;
+  /**
+   * Repo-relative thresholds for the busyness label. `count >= busy` →
+   * "Busy"; `count >= avg` → "Avg"; otherwise "Light". Derived via
+   * `dailyCommitThresholds(manifest.commits)` by the caller so the
+   * label reflects this repo's own activity, not global magic numbers.
+   */
+  busynessThresholds?: { avg: number; busy: number };
   /** Injected for testability of relative age. Defaults to new Date(). */
   now?: Date;
 }
 
 const SHORT_SHA_LEN = 7;
 
-function _busynessLabel(count: number): 'Light' | 'Avg' | 'Busy' {
-  if (count >= 8) return 'Busy';
-  if (count >= 3) return 'Avg';
+function _busynessLabel(
+  count: number,
+  thresholds: { avg: number; busy: number } = { avg: 1, busy: 1 }
+): 'Light' | 'Avg' | 'Busy' {
+  if (count >= thresholds.busy) return 'Busy';
+  if (count >= thresholds.avg) return 'Avg';
   return 'Light';
 }
 
@@ -56,6 +66,8 @@ export interface CommitPaneState {
   commit: CommitEntry | null;
   remoteUrl?: string | null;
   sameDayTotal?: number;
+  /** See SetCommitOpts.busynessThresholds. */
+  busynessThresholds?: { avg: number; busy: number };
   color?: string;
   now?: Date;
 }
@@ -69,7 +81,14 @@ export interface CommitPaneProps {
 // ── Preact component ─────────────────────────────────────────────────────────
 
 export function CommitPane({ state, onClose, onFocus }: CommitPaneProps) {
-  const { commit, remoteUrl, sameDayTotal = 0, color, now = new Date() } = state.value;
+  const {
+    commit,
+    remoteUrl,
+    sameDayTotal = 0,
+    busynessThresholds = { avg: 1, busy: 1 },
+    color,
+    now = new Date(),
+  } = state.value;
 
   type BodyState =
     | { kind: 'loading' }
@@ -126,7 +145,7 @@ export function CommitPane({ state, onClose, onFocus }: CommitPaneProps) {
 
   const shortSha = commit.sha.slice(0, SHORT_SHA_LEN);
   const url = remoteUrl ? commitUrl(remoteUrl, commit.sha) : null;
-  const label = _busynessLabel(sameDayTotal);
+  const label = _busynessLabel(sameDayTotal, busynessThresholds);
   const commitWord = sameDayTotal === 1 ? 'commit' : 'commits';
 
   return (
@@ -307,6 +326,7 @@ export function buildCommitPane(opts: BuildCommitPaneOpts = {}) {
     commit: CommitEntry,
     remoteUrl: string | null,
     sameDayTotal: number,
+    busynessThresholds: { avg: number; busy: number },
     color: string | undefined,
     now: Date
   ): void {
@@ -367,7 +387,7 @@ export function buildCommitPane(opts: BuildCommitPaneOpts = {}) {
         swatch.style.backgroundColor = color;
         sameDayEl.appendChild(swatch);
       }
-      const label = _busynessLabel(sameDayTotal);
+      const label = _busynessLabel(sameDayTotal, busynessThresholds);
       const commitWord = sameDayTotal === 1 ? 'commit' : 'commits';
       sameDayEl.appendChild(document.createTextNode(`${label} day: ${sameDayTotal} ${commitWord}`));
       // Hover tooltip carries the full date so the "that day" context isn't
@@ -395,6 +415,7 @@ export function buildCommitPane(opts: BuildCommitPaneOpts = {}) {
     commit: CommitEntry,
     remoteUrl: string | null,
     sameDayTotal: number,
+    busynessThresholds: { avg: number; busy: number },
     color: string | undefined,
     now: Date
   ): void {
@@ -426,7 +447,7 @@ export function buildCommitPane(opts: BuildCommitPaneOpts = {}) {
     // Render the skeleton synchronously — every piece of metadata that
     // lives in the manifest goes in immediately. Body slot starts as a
     // loading placeholder.
-    _renderSkeleton(commit, remoteUrl, sameDayTotal, color, now);
+    _renderSkeleton(commit, remoteUrl, sameDayTotal, busynessThresholds, color, now);
 
     // Cache hit → body slot resolves synchronously, in the same tick as
     // the skeleton. No Loading… flicker.
@@ -460,9 +481,10 @@ export function buildCommitPane(opts: BuildCommitPaneOpts = {}) {
     }
     const remoteUrl = opts.remoteUrl ?? null;
     const sameDayTotal = opts.sameDayTotal ?? 0;
+    const busynessThresholds = opts.busynessThresholds ?? { avg: 1, busy: 1 };
     const color = opts.color;
     const now = opts.now ?? new Date();
-    _renderCommit(commit, remoteUrl, sameDayTotal, color, now);
+    _renderCommit(commit, remoteUrl, sameDayTotal, busynessThresholds, color, now);
   }
 
   setCommit(null);

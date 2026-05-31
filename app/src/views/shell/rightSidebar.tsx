@@ -20,7 +20,7 @@ import { SCENE_HANDLE } from '@/state/runtime/scene';
 import { buildFilePreviewPane, humanLanguageFor } from '@/views/panes/filePreviewPane';
 import { buildCommitPane } from '@/views/panes/commitPane';
 import { buildStreetPane } from '@/views/panes/streetPane';
-import { sameDayCommitCount } from '@/utils/commit';
+import { sameDayCommitCount, dailyCommitThresholds } from '@/utils/commit';
 
 // Persistent width range (in px) for the right sidebar drag handle.
 const SIDEBAR_MIN_WIDTH = 280;
@@ -221,8 +221,14 @@ export function mountRightSidebarReactions(): () => void {
       if (sel && sel.kind === NodeKind.Commit) {
         const commits = m?.commits ?? [];
         const sameDayTotal = sameDayCommitCount(sel.commit, commits);
+        const busynessThresholds = dailyCommitThresholds(commits);
         const color = world?.getTrees()?.colorForSha(sel.commit.sha) ?? undefined;
-        commitPane.api.setCommit(sel.commit, { remoteUrl: remote, sameDayTotal, color });
+        commitPane.api.setCommit(sel.commit, {
+          remoteUrl: remote,
+          sameDayTotal,
+          busynessThresholds,
+          color,
+        });
       } else {
         commitPane.api.setCommit(null);
       }
@@ -273,8 +279,14 @@ export function mountRightSidebarReactions(): () => void {
         const remote = m?.repo?.remote_url ?? null;
         const commits = m?.commits ?? [];
         const sameDayTotal = sameDayCommitCount(sel.commit, commits);
+        const busynessThresholds = dailyCommitThresholds(commits);
         const color = handle.world.getTrees()?.colorForSha(sel.commit.sha) ?? undefined;
-        commitPane.api.setCommit(sel.commit, { remoteUrl: remote, sameDayTotal, color });
+        commitPane.api.setCommit(sel.commit, {
+          remoteUrl: remote,
+          sameDayTotal,
+          busynessThresholds,
+          color,
+        });
       }
       // Refresh street pane data when directory is selected and manifest updated.
       if (sidebarPane === 'street' && sel?.kind === NodeKind.Directory) {
