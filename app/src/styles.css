@@ -610,13 +610,21 @@ h6 {
   color: var(--cc-accent-bg);
   cursor: default;
 }
-/* Section and subgroup reset variants push themselves to the right end of
- * their summary row. The <summary> carries .row which is already display:flex,
- * so margin-left:auto is sufficient. */
+/* Section and subgroup reset variants are siblings of <summary> (not
+ * descendants — interactive elements inside <summary> fail a11y rules)
+ * and absolute-positioned over the right edge of the summary row. The
+ * parent <details> carries position:relative below to anchor them. */
 .controls-section-reset,
 .controls-subgroup-reset {
-  margin-left: auto;
+  position: absolute;
+  top: var(--cc-space-1); /* aligned with summary's flex row vertical centre */
+  right: var(--cc-space-3);
   flex-shrink: 0;
+  z-index: 1;
+}
+.controls-section,
+.theme-subgroup-collapsible {
+  position: relative;
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════

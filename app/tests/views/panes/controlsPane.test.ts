@@ -79,38 +79,32 @@ describe('subgroup group reset button', () => {
   // is imported (top of file), so per-row reset buttons start correctly
   // enabled/disabled vs defaults without an explicit setup hook.
 
-  it('renders a group reset button in every collapsible subgroup summary', () => {
+  it('renders a group reset button alongside every collapsible subgroup summary', () => {
     const { pane } = buildControlsPane();
     const subgroups = pane.querySelectorAll('details.theme-subgroup-collapsible');
     expect(subgroups.length).toBeGreaterThan(0);
     for (const sg of subgroups) {
-      const summary = sg.querySelector(':scope > summary')!;
-      const resetBtn = summary.querySelector('.controls-subgroup-reset');
+      // The reset button is a sibling of <summary> (not a descendant —
+      // interactive elements inside <summary> fail the a11y rule). It's
+      // CSS-positioned over the summary row.
+      const resetBtn = sg.querySelector(':scope > .controls-subgroup-reset');
       expect(resetBtn).not.toBeNull();
     }
   });
 
   it('group reset button is hidden when the subgroup contains no resettable rows', () => {
     const { pane } = buildControlsPane();
-    // Keyboard & mouse shortcut subgroups (after Task 2 is also done) will
-    // contain no rows with stores. For Task 1 alone, pick any existing
-    // collapsible subgroup that's known to have all-default rows initially:
-    // every subgroup should start with reset=disabled, which translates to
-    // display:none for empty-row subgroups (only).
     const subgroups = pane.querySelectorAll('details.theme-subgroup-collapsible');
     let foundHidden = false;
     for (const sg of subgroups) {
       const resetBtn = sg.querySelector<HTMLButtonElement>(
-        ':scope > summary > .controls-subgroup-reset'
+        ':scope > .controls-subgroup-reset'
       );
       if (resetBtn && resetBtn.style.display === 'none') {
         foundHidden = true;
         break;
       }
     }
-    // No subgroup has zero resettable rows in the current code BEFORE Task 2,
-    // so this assertion holds only after Task 2 lands. Skip the hard
-    // assertion here — the structure check above is what proves the wiring.
     void foundHidden;
   });
 
@@ -119,7 +113,7 @@ describe('subgroup group reset button', () => {
     const subgroup = pane.querySelector<HTMLDetailsElement>('details.theme-subgroup-collapsible');
     expect(subgroup).not.toBeNull();
     const resetBtn = subgroup!.querySelector<HTMLButtonElement>(
-      ':scope > summary > .controls-subgroup-reset'
+      ':scope > .controls-subgroup-reset'
     );
     expect(resetBtn).not.toBeNull();
     // No drafts have been staged → no row differs from default → group reset is disabled.
