@@ -1,63 +1,68 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { signal } from '@preact/signals';
-import { persistAtomPerSource } from '@/state/persist';
+import { perSourceSignal, savePerSourceState, loadPerSourceState } from '@/state/persist';
 import { CURRENT_SOURCE_KEY } from '@/state/runtime/sourceContext';
 
-describe('persistAtomPerSource', () => {
+// Per-source persistence is now EXPLICIT: callers call
+// savePerSourceState(oldKey) before switching, then loadPerSourceState(newKey)
+// after — no auto-sync on CURRENT_SOURCE_KEY change. Tests exercise that
+// explicit timing model.
+
+describe('perSourceSignal + savePerSourceState/loadPerSourceState', () => {
   beforeEach(() => {
     localStorage.clear();
     CURRENT_SOURCE_KEY.value = null;
   });
 
-  it('writes to localStorage under the active source key', () => {
-    const store = signal<{ path: string } | null>(null);
-    persistAtomPerSource('selection', store, null);
+  it('writes to localStorage under the active source key on savePerSourceState', () => {
+    const store = perSourceSignal<{ path: string } | null>('selection', null);
 
-    CURRENT_SOURCE_KEY.value = 'abc';
     store.value = { path: '/foo' };
+    savePerSourceState('abc');
 
     expect(localStorage.getItem('cc.source.abc.selection')).toBe(JSON.stringify({ path: '/foo' }));
   });
 
-  it('hydrates from localStorage when source key changes', () => {
-    const store = signal<{ path: string } | null>(null);
+  it('hydrates from localStorage on loadPerSourceState', () => {
+    const store = perSourceSignal<{ path: string } | null>('selection', null);
     localStorage.setItem('cc.source.xyz.selection', JSON.stringify({ path: '/bar' }));
-    persistAtomPerSource('selection', store, null);
 
-    CURRENT_SOURCE_KEY.value = 'xyz';
+    loadPerSourceState('xyz');
     expect(store.value).toEqual({ path: '/bar' });
   });
 
-  it('falls back to default when new key has no entry', () => {
-    const store = signal<{ path: string } | null>(null);
-    persistAtomPerSource('selection', store, null);
-    CURRENT_SOURCE_KEY.value = 'newkey';
+  it('falls back to default when the loaded key has no entry', () => {
+    const store = perSourceSignal<{ path: string } | null>('selection', null);
+    store.value = { path: '/stale' }; // dirty the signal so we can verify the reset
+
+    loadPerSourceState('newkey');
     expect(store.value).toBeNull();
   });
 
-  it('does nothing when source key is null', () => {
-    const store = signal<{ path: string } | null>(null);
-    persistAtomPerSource('selection', store, null);
+  it('does nothing when sourceKey is null on save', () => {
+    const store = perSourceSignal<{ path: string } | null>('selection', null);
     store.value = { path: '/foo' };
-    // No source key set — nothing should be in localStorage under any
-    // cc.source.* key.
+
+    savePerSourceState(null);
+
     const keys = Object.keys(localStorage).filter((k) => k.startsWith('cc.source.'));
     expect(keys).toEqual([]);
   });
 
-  it('saves to old key, hydrates new key when CURRENT_SOURCE_KEY changes', () => {
-    const store = signal<{ path: string } | null>(null);
-    persistAtomPerSource('selection', store, null);
+  it('save then load round-trip preserves value across an explicit switch', () => {
+    const store = perSourceSignal<{ path: string } | null>('selection', null);
 
-    CURRENT_SOURCE_KEY.value = 'first';
+    // Source A holds /A.
     store.value = { path: '/A' };
+    savePerSourceState('first');
 
-    // Pre-seed the second source's slot.
+    // Pre-seed source B's slot.
     localStorage.setItem('cc.source.second.selection', JSON.stringify({ path: '/B' }));
 
-    CURRENT_SOURCE_KEY.value = 'second';
+    // Switch: save current (already saved), then load new.
+    loadPerSourceState('second');
     expect(store.value).toEqual({ path: '/B' });
-    // First source's slot still has /A.
+
+    // First source's slot is intact.
     expect(localStorage.getItem('cc.source.first.selection')).toBe(JSON.stringify({ path: '/A' }));
   });
 });

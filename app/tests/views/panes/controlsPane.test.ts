@@ -1,7 +1,8 @@
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { buildControlsPane } from '@/views/panes/controlsPane';
-import { attachPersistence } from '@/state/persist';
-import * as Config from '@/state/settings/index';
+// Importing the settings barrel triggers every persistedSignal() registration
+// at module-load (used by getDefault / forEachRegisteredStore inside controlsPane).
+import '@/state/settings/index';
 
 describe('buildControlsPane', () => {
   it('returns a pane with the Settings header + Keyboard & mouse section first', () => {
@@ -74,13 +75,9 @@ describe('buildControlsPane', () => {
 });
 
 describe('subgroup group reset button', () => {
-  beforeAll(() => {
-    // Register store defaults so per-row reset buttons correctly start
-    // disabled (values match defaults) and the group reset follows suit.
-    // In production, main.ts calls attachPersistence(Config) at boot;
-    // unit tests must call it explicitly since main.ts is not imported.
-    attachPersistence(Config);
-  });
+  // Persisted-signal registration happens at module load when settings/index
+  // is imported (top of file), so per-row reset buttons start correctly
+  // enabled/disabled vs defaults without an explicit setup hook.
 
   it('renders a group reset button in every collapsible subgroup summary', () => {
     const { pane } = buildControlsPane();
