@@ -21,6 +21,12 @@ import { hostingIconSvg, alertIconSvg, folderIconSvg } from './hostingIcons';
 
 // ── Public types ────────────────────────────────────────────────────────────
 
+/** Which tab of the picker is active. Matches NodeKind-style enum convention. */
+export enum SourceTab {
+  Git = 'git',
+  Local = 'local',
+}
+
 export interface SourcePayload {
   src: string;
   branch?: string;
@@ -45,7 +51,7 @@ export interface SourcePicker {
 export interface SourcePickerState {
   open: boolean;
   dismissible: boolean;
-  activeTab: 'local' | 'git';
+  activeTab: SourceTab;
   prefillSrc: string;
   prefillBranch: string;
   error: string | null;
@@ -64,10 +70,10 @@ export function SourcePickerComponent({ state, onSubmit, onClose }: SourcePicker
   const s = state.value;
   if (!s.open) return null;
 
-  const [activeTab, setActiveTab] = useState<'local' | 'git'>(s.activeTab);
-  const [urlValue, setUrlValue] = useState(s.activeTab === 'git' ? s.prefillSrc : '');
+  const [activeTab, setActiveTab] = useState<SourceTab>(s.activeTab);
+  const [urlValue, setUrlValue] = useState(s.activeTab === SourceTab.Git ? s.prefillSrc : '');
   const [branchValue, setBranchValue] = useState(s.prefillBranch);
-  const [pathValue, setPathValue] = useState(s.activeTab === 'local' ? s.prefillSrc : '');
+  const [pathValue, setPathValue] = useState(s.activeTab === SourceTab.Local ? s.prefillSrc : '');
   const [skipCache, setSkipCache] = useState(false);
 
   const urlParams = new URLSearchParams(window.location.search);
@@ -77,9 +83,9 @@ export function SourcePickerComponent({ state, onSubmit, onClose }: SourcePicker
   const isGitLike = (src: string) => /:\/\//.test(src) || /^[^@]+@[^:]+:/.test(src);
 
   function handleSubmit() {
-    const src = activeTab === 'local' ? pathValue.trim() : urlValue.trim();
+    const src = activeTab === SourceTab.Local ? pathValue.trim() : urlValue.trim();
     if (!src) return;
-    const branch = activeTab === 'git' ? (branchValue.trim() || undefined) : undefined;
+    const branch = activeTab === SourceTab.Git ? (branchValue.trim() || undefined) : undefined;
     onSubmit({ src, branch, skipCache: skipCache || undefined });
   }
 
@@ -101,7 +107,7 @@ export function SourcePickerComponent({ state, onSubmit, onClose }: SourcePicker
     state.value = { ...state.value };
   }
 
-  const showFormFields = !((!s.allowLocalRepos) && activeTab === 'local');
+  const showFormFields = !((!s.allowLocalRepos) && activeTab === SourceTab.Local);
   const trashMaskUrl = `url(${LUCIDE_ICON_BASE_URL}trash-2.svg)`;
 
   return (
@@ -123,22 +129,22 @@ export function SourcePickerComponent({ state, onSubmit, onClose }: SourcePicker
             <button
               type="button"
               data-tab="git"
-              class={activeTab === 'git' ? 'active' : ''}
-              onClick={() => setActiveTab('git')}
+              class={activeTab === SourceTab.Git ? 'active' : ''}
+              onClick={() => setActiveTab(SourceTab.Git)}
             >
               Git URL
             </button>
             <button
               type="button"
               data-tab="local"
-              class={activeTab === 'local' ? 'active' : ''}
-              onClick={() => setActiveTab('local')}
+              class={activeTab === SourceTab.Local ? 'active' : ''}
+              onClick={() => setActiveTab(SourceTab.Local)}
             >
               Local path
             </button>
           </div>
 
-          <div data-pane="git" style={{ display: activeTab === 'git' ? 'block' : 'none' }}>
+          <div data-pane="git" style={{ display: activeTab === SourceTab.Git ? 'block' : 'none' }}>
             <div class="modal-field">
               <label>URL</label>
               <input
@@ -164,7 +170,7 @@ export function SourcePickerComponent({ state, onSubmit, onClose }: SourcePicker
             </div>
           </div>
 
-          <div data-pane="local" style={{ display: activeTab === 'local' ? 'block' : 'none' }}>
+          <div data-pane="local" style={{ display: activeTab === SourceTab.Local ? 'block' : 'none' }}>
             {s.allowLocalRepos ? (
               <div class="modal-field">
                 <label>Path</label>
@@ -297,7 +303,7 @@ export function SourcePicker() {
   const pickerState: SourcePickerState = {
     open: true,
     dismissible: opts.dismissible ?? false,
-    activeTab: prefillSrc && !isGitLike(prefillSrc) ? 'local' : 'git',
+    activeTab: prefillSrc && !isGitLike(prefillSrc) ? SourceTab.Local : SourceTab.Git,
     prefillSrc,
     prefillBranch: prefill?.branch ?? '',
     error: opts.error ?? null,
@@ -342,17 +348,17 @@ export function createSourcePicker(opts: {
   }
 
   let dismissible = false;
-  let activeTab: 'local' | 'git' = 'git';
+  let activeTab: SourceTab = SourceTab.Git;
   const allowLocalRepos = opts.allowLocalRepos;
 
   function isGitLike(s: string): boolean {
     return /:\/\//.test(s) || /^[^@]+@[^:]+:/.test(s);
   }
 
-  function deriveTabFromPrefill(p?: SourcePayload): 'local' | 'git' {
-    if (!p) return 'git';
-    if (!allowLocalRepos) return 'git';
-    return isGitLike(p.src) ? 'git' : 'local';
+  function deriveTabFromPrefill(p?: SourcePayload): SourceTab {
+    if (!p) return SourceTab.Git;
+    if (!allowLocalRepos) return SourceTab.Git;
+    return isGitLike(p.src) ? SourceTab.Git : SourceTab.Local;
   }
 
   function render(o: OpenOpts) {
@@ -381,16 +387,16 @@ export function createSourcePicker(opts: {
             ${o.error ? `<div class="modal-error">${escapeHtml(o.error)}</div>` : ''}
             <div class="modal-tabs">
               <button type="button" data-tab="git"
-                class="${activeTab === 'git' ? 'active' : ''}">Git URL</button>
+                class="${activeTab === SourceTab.Git ? 'active' : ''}">Git URL</button>
               <button type="button" data-tab="local"
-                class="${activeTab === 'local' ? 'active' : ''}">Local path</button>
+                class="${activeTab === SourceTab.Local ? 'active' : ''}">Local path</button>
             </div>
 
-            <div data-pane="git" style="display: ${activeTab === 'git' ? 'block' : 'none'};">
+            <div data-pane="git" style="display: ${activeTab === SourceTab.Git ? 'block' : 'none'};">
               <div class="modal-field">
                 <label>URL</label>
                 <input data-field="url" type="text" autocomplete="off" spellcheck="false"
-                  value="${activeTab === 'git' ? escapeAttr(prefillSrc) : ''}">
+                  value="${activeTab === SourceTab.Git ? escapeAttr(prefillSrc) : ''}">
               </div>
               <div class="modal-field">
                 <label>Branch</label>
@@ -400,14 +406,14 @@ export function createSourcePicker(opts: {
               </div>
             </div>
 
-            <div data-pane="local" style="display: ${activeTab === 'local' ? 'block' : 'none'};">
+            <div data-pane="local" style="display: ${activeTab === SourceTab.Local ? 'block' : 'none'};">
               ${
                 allowLocalRepos
                   ? `
               <div class="modal-field">
                 <label>Path</label>
                 <input data-field="path" type="text" autocomplete="off" spellcheck="false"
-                  value="${activeTab === 'local' ? escapeAttr(prefillSrc) : ''}">
+                  value="${activeTab === SourceTab.Local ? escapeAttr(prefillSrc) : ''}">
               </div>`
                   : `
               <div class="modal-warning">
@@ -426,7 +432,7 @@ export function createSourcePicker(opts: {
                  nothing submittable, so this whole block is hidden —
                  Recents stays so the user can still pick a git recent. -->
             <div data-form-fields style="display: ${
-              !allowLocalRepos && activeTab === 'local' ? 'none' : ''
+              !allowLocalRepos && activeTab === SourceTab.Local ? 'none' : ''
             };">
               <div class="modal-field">
                 <label>
@@ -504,16 +510,16 @@ export function createSourcePicker(opts: {
     // Tab switching
     root!.querySelectorAll<HTMLButtonElement>('[data-tab]').forEach((btn) => {
       btn.addEventListener('click', () => {
-        activeTab = btn.dataset.tab as 'local' | 'git';
+        activeTab = btn.dataset.tab as SourceTab;
         (root!.querySelector('[data-pane="local"]') as HTMLElement).style.display =
-          activeTab === 'local' ? 'block' : 'none';
+          activeTab === SourceTab.Local ? 'block' : 'none';
         (root!.querySelector('[data-pane="git"]') as HTMLElement).style.display =
-          activeTab === 'git' ? 'block' : 'none';
+          activeTab === SourceTab.Git ? 'block' : 'none';
         // The form-fields block is hidden on the disabled-Local view —
         // mirror that here so switching tabs keeps the modal coherent.
         const formFields = root!.querySelector('[data-form-fields]') as HTMLElement | null;
         if (formFields) {
-          formFields.style.display = !allowLocalRepos && activeTab === 'local' ? 'none' : '';
+          formFields.style.display = !allowLocalRepos && activeTab === SourceTab.Local ? 'none' : '';
         }
         root!.querySelectorAll<HTMLButtonElement>('[data-tab]').forEach((b) => {
           b.classList.toggle('active', b === btn);
@@ -576,13 +582,13 @@ export function createSourcePicker(opts: {
 
   function submitFromForm(): void {
     const src =
-      activeTab === 'local'
+      activeTab === SourceTab.Local
         ? ((root!.querySelector('[data-field="path"]') as HTMLInputElement | null)?.value.trim() ??
           '')
         : (root!.querySelector('[data-field="url"]') as HTMLInputElement).value.trim();
     if (!src) return;
     const branch =
-      activeTab === 'git'
+      activeTab === SourceTab.Git
         ? (root!.querySelector('[data-field="branch"]') as HTMLInputElement).value.trim() ||
           undefined
         : undefined;
@@ -593,7 +599,7 @@ export function createSourcePicker(opts: {
   }
 
   function focusActiveInput(): void {
-    const sel = activeTab === 'local' ? '[data-field="path"]' : '[data-field="url"]';
+    const sel = activeTab === SourceTab.Local ? '[data-field="path"]' : '[data-field="url"]';
     (root!.querySelector(sel) as HTMLInputElement | null)?.focus();
   }
 
