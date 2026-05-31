@@ -18,6 +18,7 @@ import { AppFooter } from './appFooter';
 import { CenterPane } from './CenterPane';
 import { SourcePicker } from '../components/sourcePicker';
 import { LoadingOverlay } from '../components/loadingOverlay';
+import { HljsThemeLink } from '../components/HljsThemeLink';
 import { SCENE_HANDLE } from '@/state/runtime/scene';
 import { NodeKind } from '@/types';
 import { runAppLogic } from '../../appLogic';
@@ -72,6 +73,7 @@ export function App() {
       <AppFooter />
       <SourcePicker />
       <LoadingOverlay />
+      <HljsThemeLink />
     </>
   );
 }

@@ -4,7 +4,6 @@
 
 import './liveStatusBridge'; // self-installs its effect at module load
 
-import { SYNTAX_THEME } from '../state/settings/prefs/syntaxTheme';
 import { sourceKey, CURRENT_SOURCE_KEY } from '../state/runtime/sourceContext';
 import { loadPerSourceState } from '../state/persist';
 import { LAST_UPDATED_AT } from '../state/runtime/liveStatus';
@@ -12,7 +11,6 @@ import { openSourcePicker } from '../state/runtime/uiState';
 import { getServerConfig } from '../api/config';
 import { SERVER_CONFIG } from '../state/runtime/serverConfig';
 import { setupLiveUpdates } from '../state/runtime/liveUpdates';
-import { applyHljsTheme } from '../utils/syntaxTheme';
 import { labelFromManifest } from '../utils/sources';
 import { EMPTY_MANIFEST } from '../utils/emptyManifest';
 
@@ -22,7 +20,8 @@ import { setupSidebars } from './sidebarSetup';
 import { SCENE_HANDLE } from '../state/runtime/scene';
 
 export async function bootApp(): Promise<() => void> {
-  SYNTAX_THEME.subscribe(applyHljsTheme);
+  // Syntax theme is now driven by <HljsThemeLink /> in App.tsx — no subscribe
+  // here. The link element follows SYNTAX_THEME.value automatically.
 
   const qp = new URLSearchParams(window.location.search);
   if (qp.has('src')) {
