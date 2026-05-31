@@ -4,9 +4,8 @@
 // on the first manifest event; writes SCENE_HANDLE + SOURCE_INFO.
 
 import { SCENE_HANDLE } from '../state/runtime/scene';
-import { SOURCE_INFO } from '../state/runtime/sourceInfo';
+import { SOURCE_INFO, sourceKey, CURRENT_SOURCE_KEY } from '../state/runtime/activeSource';
 import { savePerSourceState, loadPerSourceState } from '../state/persist';
-import { sourceKey, CURRENT_SOURCE_KEY } from '../state/runtime/sourceContext';
 import { attachCommitReactions } from '../state/reactions';
 import {
   showLoadingOverlay,

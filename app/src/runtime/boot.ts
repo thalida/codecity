@@ -4,7 +4,7 @@
 
 import './liveStatusBridge'; // self-installs its effect at module load
 
-import { sourceKey, CURRENT_SOURCE_KEY } from '../state/runtime/sourceContext';
+import { sourceKey, CURRENT_SOURCE_KEY } from '../state/runtime/activeSource';
 import { loadPerSourceState } from '../state/persist';
 import { LAST_UPDATED_AT, setupLiveUpdates } from '../state/runtime/manifestPoll';
 import { openSourcePicker } from '../state/runtime/uiState';

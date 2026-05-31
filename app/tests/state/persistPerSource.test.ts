@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { perSourceSignal, savePerSourceState, loadPerSourceState } from '@/state/persist';
-import { CURRENT_SOURCE_KEY } from '@/state/runtime/sourceContext';
+import { CURRENT_SOURCE_KEY } from '@/state/runtime/activeSource';
 
 // Per-source persistence is now EXPLICIT: callers call
 // savePerSourceState(oldKey) before switching, then loadPerSourceState(newKey)

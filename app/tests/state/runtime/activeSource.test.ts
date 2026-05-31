@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { sourceKey, CURRENT_SOURCE_KEY } from '@/state/runtime/sourceContext';
+import { sourceKey, CURRENT_SOURCE_KEY } from '@/state/runtime/activeSource';
 
 describe('sourceKey', () => {
   it('is deterministic for the same (src, branch)', () => {

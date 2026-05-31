@@ -17,7 +17,7 @@ import { ExtensionBadge } from '../components/badge';
 import { toHttpsRepoUrl } from '@/utils/sources';
 import { applyMiddleEllipsis } from '@/utils/middleEllipsis';
 import { SCENE_HANDLE } from '@/state/runtime/scene';
-import { SOURCE_INFO } from '@/state/runtime/sourceInfo';
+import { SOURCE_INFO } from '@/state/runtime/activeSource';
 import { openSourcePicker } from '@/state/runtime/uiState';
 import { NodeKind } from '@/types';
 
