@@ -266,7 +266,7 @@ function HeaderTitle({
           );
         })}
       </div>
-      <CopyButton text={sel.fullPath || sel.path} />
+      <CopyButton text={sel.path} />
     </>
   );
 }
