@@ -1,198 +1,253 @@
-// state/persist.ts — Mirrors every settings store to localStorage so the
-// Settings UI's tweaks survive a page reload. localStorage holds ONLY values
-// that differ from the original defaults, so a fresh / cleared install starts
-// with no entries at all and resetting a value back to its default removes
-// the entry. This makes per-row reset icons trivial (just resetKey(...)) and
-// keeps localStorage small.
+// state/persist.ts — Signals-native persistence layer.
 //
-// Storage layout: one localStorage key per store, prefixed with `cc.`:
-//   cc.SIDEWALK_COLORS = '{"HOVER":"#ff0080"}'   ← only the changed key
+// Storage layout: one localStorage key per signal, prefixed with `cc.`:
+//   cc.SKY = '{"COLOR":"#ff0080"}'   ← object diff (only changed keys)
+//   cc.LIVE_UPDATES = '{"ENABLED":true}'
 //
-// On boot, hydrates each store from its persisted overrides BEFORE any
-// consumer reads. On every change, re-serializes the diff (or removes the
-// entry entirely if no keys differ).
+// Object-valued signals persist only keys that differ from their default
+// (diff-vs-default), so a fresh install starts with no entries and resetting
+// a value back to its default removes the entry.
 //
-// Keep this module side-effect-free until `attachPersistence()` is called —
-// tests + non-browser environments shouldn't touch localStorage.
+// Per-source slots: cc.source.<key>.<baseName> — see perSourceSignal().
+// Save/load are explicit on source switch; no auto-slot-swap effects.
 
-import { effect, untracked } from '@preact/signals';
+import { signal, computed, effect } from '@preact/signals';
 import type { Signal } from '@preact/signals';
 import { STORAGE_PREFIX, STORAGE_PER_SOURCE_PREFIX } from '@/constants';
-import { CURRENT_SOURCE_KEY } from '@/state/runtime/sourceContext';
 
-// Defaults snapshotted at attach time, BEFORE hydration. These are what the
-// "reset to default" UI restores to and what the diff-vs-default check uses.
-// `any` here is deliberate: each store has a different value shape and
-// the diff/reset code is generic across all of them. Tightening to a
-// `Record<string, Signal>` would require carrying through generic
-// parameters that don't actually buy us anything at the boundary.
-const _DEFAULTS_BY_NAME: Record<string, any> = {};
-// Map from store reference → its registered name (so callers that already
-// hold a store ref can ask "what's the default for this key?").
-const _NAME_BY_STORE: WeakMap<object, string> | null =
-  typeof WeakMap !== 'undefined' ? new WeakMap() : null;
-// Reverse lookup so Reset-all can push defaults back into every registered
-// store without needing a separate registry from callers.
-const _STORE_BY_NAME: Record<string, any> = {};
+// ── Internal registries ────────────────────────────────────────────────────
+const _SIGNALS: Map<string, Signal<any>> = new Map();
+const _DEFAULTS: Map<string, any> = new Map();
 
-// Listeners notified after ANY config store changes its persisted state.
-// The Reset-all button uses this to update its enabled/disabled state in
-// real time as values are tweaked or reset.
-const _changeListeners: Array<() => void> = [];
+// Per-source registry: { baseName, signal, defaultValue }
+interface PerSourceEntry<T> { baseName: string; signal: Signal<T>; defaultValue: T }
+const _PER_SOURCE: Set<PerSourceEntry<any>> = new Set();
 
-function _emitChange() {
-  for (const listener of _changeListeners) {
-    try {
-      listener();
-    } catch (_) {
-      /* noop */
-    }
-  }
-}
-
-function _safeGet(name: string): unknown {
+// ── Storage helpers ────────────────────────────────────────────────────────
+function _safeGet(key: string): unknown {
   try {
-    const raw = localStorage.getItem(STORAGE_PREFIX + name);
+    const raw = localStorage.getItem(STORAGE_PREFIX + key);
     return raw == null ? null : JSON.parse(raw);
-  } catch (_) {
-    return null;
-  }
+  } catch { return null; }
 }
 
-function _safeSet(name: string, value: unknown): void {
-  try {
-    localStorage.setItem(STORAGE_PREFIX + name, JSON.stringify(value));
-  } catch (_) {
-    // Quota exceeded / private mode — silently drop. Live mutation still works.
-  }
+function _safeSet(key: string, value: unknown): void {
+  try { localStorage.setItem(STORAGE_PREFIX + key, JSON.stringify(value)); } catch { /* quota / private mode */ }
 }
 
-function _safeRemove(name: string): void {
-  try {
-    localStorage.removeItem(STORAGE_PREFIX + name);
-  } catch (_) {
-    /* noop */
-  }
+function _safeRemove(key: string): void {
+  try { localStorage.removeItem(STORAGE_PREFIX + key); } catch { /* noop */ }
 }
 
-// Deep value-equality good enough for our config values: primitives, plain
-// objects, arrays. JSON round-trip avoids hand-rolling a comparator and
-// handles every shape we put in stores.
+// Deep-equality via JSON round-trip — handles every shape we put in signals.
 function _equal(a: unknown, b: unknown): boolean {
   if (a === b) return true;
-  try {
-    return JSON.stringify(a) === JSON.stringify(b);
-  } catch (_) {
-    return false;
-  }
+  try { return JSON.stringify(a) === JSON.stringify(b); } catch { return false; }
 }
 
 function _clone<T>(v: T): T {
-  try {
-    return JSON.parse(JSON.stringify(v));
-  } catch (_) {
-    return v;
-  }
+  try { return JSON.parse(JSON.stringify(v)); } catch { return v; }
 }
 
-// Hydrate one store from localStorage if a value is persisted, then start
-// streaming future changes back. Plain consts (no signal .value accessor)
-// are silently skipped so callers can sweep `import * as Config` blindly.
-export function persistStore(name: string, store: any): void {
-  if (typeof localStorage === 'undefined') return;
-  // Only process signals (objects with a `.value` property and `.brand`).
-  // Non-signal exports (plain consts, functions, type re-exports) are skipped.
+// Hydrate a plain value from localStorage onto `defaultValue`.
+// Object-valued: merge saved diff keys (skip unknown keys — schema evolution).
+// Scalar/array: replace whole value.
+function _hydrate<T>(saved: unknown, defaultValue: T): T {
+  if (
+    defaultValue !== null &&
+    typeof defaultValue === 'object' &&
+    !Array.isArray(defaultValue) &&
+    saved !== null &&
+    typeof saved === 'object' &&
+    !Array.isArray(saved)
+  ) {
+    const merged: Record<string, unknown> = { ...(defaultValue as Record<string, unknown>) };
+    for (const k in saved as object) {
+      if (!Object.hasOwn(saved as object, k)) continue;
+      if (!Object.hasOwn(defaultValue as object, k)) continue; // skip removed keys
+      merged[k] = (saved as Record<string, unknown>)[k];
+    }
+    return merged as T;
+  }
+  return saved as T;
+}
+
+// Serialize: for object-valued signals emit only keys that differ from default.
+// For scalar/array signals emit the whole value.
+function _serialize<T>(value: T, defaultValue: T): unknown {
+  if (
+    value !== null &&
+    typeof value === 'object' &&
+    !Array.isArray(value) &&
+    defaultValue !== null &&
+    typeof defaultValue === 'object' &&
+    !Array.isArray(defaultValue)
+  ) {
+    const diff: Record<string, unknown> = {};
+    let any = false;
+    for (const k in value as object) {
+      if (!Object.hasOwn(value as object, k)) continue;
+      if (!Object.hasOwn(defaultValue as object, k)) continue;
+      if (!_equal((value as Record<string, unknown>)[k], (defaultValue as Record<string, unknown>)[k])) {
+        diff[k] = (value as Record<string, unknown>)[k];
+        any = true;
+      }
+    }
+    return any ? diff : null; // null signals "remove entry"
+  }
+  return _equal(value, defaultValue) ? null : value;
+}
+
+// ── Public: per-signal persistence ────────────────────────────────────────
+
+/**
+ * Create a signal whose value is persisted in localStorage. Hydrates from
+ * storage immediately at module load. Writes back on every change (diff-vs-
+ * default for object-valued signals; whole value for scalar/array).
+ *
+ * The `key` string is the localStorage suffix after `cc.` — keep it stable
+ * across deploys so existing users don't lose their settings.
+ */
+export function persistedSignal<T>(key: string, defaultValue: T): Signal<T> {
+  if (typeof localStorage === 'undefined') {
+    // SSR / test environment without localStorage — return a plain signal.
+    const s = signal<T>(defaultValue);
+    _DEFAULTS.set(key, defaultValue);
+    _SIGNALS.set(key, s);
+    return s;
+  }
+  const saved = _safeGet(key);
+  const initial = saved !== null ? _hydrate(saved, defaultValue) : defaultValue;
+  const s = signal<T>(initial);
+  _DEFAULTS.set(key, _clone(defaultValue));
+  _SIGNALS.set(key, s);
+
+  effect(() => {
+    const v = s.value;
+    const serialized = _serialize(v, defaultValue);
+    if (serialized === null) _safeRemove(key);
+    else _safeSet(key, serialized);
+  });
+
+  return s;
+}
+
+/**
+ * `persistStore(key, store)` — registers a pre-existing signal with the
+ * persistence layer. Hydrates from storage and sets up the write effect.
+ * Used by tests (drafts.test.ts) and by code that can't call persistedSignal
+ * at definition time (e.g. PICKER_SELECTION_KEY which is perSourceSignal).
+ *
+ * This is intentionally kept as an escape hatch; new code should use
+ * persistedSignal() at definition time instead.
+ */
+export function persistStore(key: string, store: Signal<any>): void {
   if (!store || typeof store !== 'object' || !('value' in store)) return;
+  const defaultValue = _clone(store.value);
+  _DEFAULTS.set(key, defaultValue);
+  _SIGNALS.set(key, store);
 
-  // Snapshot the original (pre-hydration) defaults. This is what reset
-  // restores to and what the diff-vs-default check compares against.
-  const defaults = _clone(store.value);
-  _DEFAULTS_BY_NAME[name] = defaults;
-  _STORE_BY_NAME[name] = store;
-  if (_NAME_BY_STORE) _NAME_BY_STORE.set(store, name);
+  if (typeof localStorage === 'undefined') return;
+  const saved = _safeGet(key);
+  if (saved !== null) store.value = _hydrate(saved, defaultValue);
 
-  const saved = _safeGet(name);
-  const initialState = store.value;
-  // A signal is treated as a "map" (object with per-key diffs) when its value
-  // is a non-null, non-array plain object. Everything else (primitives,
-  // arrays) is treated as an "atom" (whole-value persistence).
-  const isMap =
-    initialState &&
-    typeof initialState === 'object' &&
-    !Array.isArray(initialState);
+  effect(() => {
+    const v = store.value;
+    const serialized = _serialize(v, defaultValue);
+    if (serialized === null) _safeRemove(key);
+    else _safeSet(key, serialized);
+  });
+}
 
-  if (isMap) {
-    // Object-typed signal — saved is a partial diff; restore each saved key.
-    // Skip keys that aren't in the current defaults (a previous version of
-    // the app may have persisted a key that's since been removed; ignoring
-    // those entries lets the schema evolve without piling stale data into
-    // the live store).
-    if (saved && typeof saved === 'object' && !Array.isArray(saved)) {
-      const merged: Record<string, unknown> = { ...initialState };
-      for (const k in saved as object) {
-        if (!Object.hasOwn(saved as object, k)) continue;
-        if (!Object.hasOwn(defaults, k)) continue;
-        merged[k] = (saved as Record<string, unknown>)[k];
-      }
-      store.value = merged;
-    }
-    // On change, write the diff (only keys that exist in defaults AND
-    // differ from them). Same skip-unknown-keys rule.
-    effect(() => {
-      const state = store.value;
-      const diff: Record<string, unknown> = {};
-      let any = false;
-      for (const sk in state) {
-        if (!Object.hasOwn(state, sk)) continue;
-        if (!Object.hasOwn(defaults, sk)) continue;
-        if (!_equal(state[sk], defaults[sk])) {
-          diff[sk] = state[sk];
-          any = true;
-        }
-      }
-      if (any) _safeSet(name, diff);
-      else _safeRemove(name);
-      _emitChange();
-    });
+// ── Public: per-source persistence ────────────────────────────────────────
+
+function _perSourceKey(sourceKey: string, baseName: string): string {
+  return `${STORAGE_PER_SOURCE_PREFIX}${sourceKey}.${baseName}`;
+}
+
+function _hydrateOne<T>(s: Signal<T>, baseName: string, defaultValue: T, sourceKey: string | null): void {
+  if (sourceKey === null || typeof localStorage === 'undefined') {
+    s.value = defaultValue;
+    return;
+  }
+  const raw = localStorage.getItem(_perSourceKey(sourceKey, baseName));
+  if (raw !== null) {
+    try { s.value = JSON.parse(raw) as T; }
+    catch { s.value = defaultValue; }
   } else {
-    // Primitive / array signal — single value. Saved replaces the whole thing.
-    if (saved !== null) store.value = saved;
-    effect(() => {
-      const v = store.value;
-      if (_equal(v, defaults)) _safeRemove(name);
-      else _safeSet(name, v);
-      _emitChange();
-    });
+    s.value = defaultValue;
   }
 }
 
-// Bind every config store to localStorage. Call once at boot, BEFORE
-// startRenderLoop so consumers see hydrated values during scene build.
-export function attachPersistence(stores: Record<string, any>): void {
-  for (const name in stores) {
-    if (Object.hasOwn(stores, name)) {
-      persistStore(name, stores[name]);
+/**
+ * Create a signal whose value is scoped to the current source key. The initial
+ * value is the defaultValue (no hydration at call time — hydration happens via
+ * loadPerSourceState after CURRENT_SOURCE_KEY is set). Callers must call
+ * savePerSourceState(oldKey) BEFORE switching sources and loadPerSourceState(newKey)
+ * AFTER setting the new source key.
+ */
+export function perSourceSignal<T>(baseName: string, defaultValue: T): Signal<T> {
+  const s = signal<T>(defaultValue);
+  const entry: PerSourceEntry<T> = { baseName, signal: s, defaultValue };
+  _PER_SOURCE.add(entry as PerSourceEntry<any>);
+  return s;
+}
+
+/** Persist ALL per-source signals' current values under `sourceKey`.
+ *  Call BEFORE changing CURRENT_SOURCE_KEY. No-op when sourceKey is null. */
+export function savePerSourceState(sourceKey: string | null): void {
+  if (sourceKey === null || typeof localStorage === 'undefined') return;
+  for (const entry of _PER_SOURCE) {
+    try {
+      localStorage.setItem(
+        _perSourceKey(sourceKey, entry.baseName),
+        JSON.stringify(entry.signal.value)
+      );
+    } catch { /* quota / private mode */ }
+  }
+}
+
+/** Hydrate ALL per-source signals from `sourceKey`.
+ *  Call AFTER setting the new CURRENT_SOURCE_KEY. */
+export function loadPerSourceState(sourceKey: string | null): void {
+  for (const entry of _PER_SOURCE) {
+    _hydrateOne(entry.signal, entry.baseName, entry.defaultValue, sourceKey);
+  }
+}
+
+// ── Public: derived state ──────────────────────────────────────────────────
+
+/** True when ANY registered persistedSignal holds a non-default value.
+ *  Replaces the old _changeListeners + onAnyChange + hasAnyOverrides() pattern.
+ *  The Reset-all button reads HAS_ANY_NON_DEFAULT.value for its enabled state. */
+export const HAS_ANY_NON_DEFAULT = computed(() => {
+  for (const [key, s] of _SIGNALS) {
+    const def = _DEFAULTS.get(key);
+    if (!_equal(s.value, def)) return true;
+  }
+  return false;
+});
+
+// ── Public: getDefault / resetKey / clearPersistence / forEachRegisteredStore ─
+
+// Loose signal-like type used at the boundary with drafts.ts / controlsPane
+// which have their own local interface types (SignalLike, MapLikeStore).
+// These are always real @preact/signals Signal instances at runtime.
+type AnySignalLike = { value: any };
+
+/** Return the pre-hydration default for a signal, or a keyed sub-default. */
+export function getDefault(store: AnySignalLike, key?: string): any {
+  for (const [k, s] of _SIGNALS) {
+    if ((s as unknown) === store) {
+      const def = _DEFAULTS.get(k);
+      return key === undefined ? def : (def ? def[key] : undefined);
     }
   }
+  return undefined;
 }
 
-// getDefault(store, key) -> the originally-defined default for that key.
-//   For object-valued signals: pass the key name. Returns the keyed default.
-//   For scalar signals: omit `key`. Returns the whole default value.
-// Returns undefined if the store wasn't registered via persistStore.
-export function getDefault(store: any, key?: string): any {
-  if (!_NAME_BY_STORE) return undefined;
-  const name = _NAME_BY_STORE.get(store);
-  if (!name) return undefined;
-  const d = _DEFAULTS_BY_NAME[name];
-  if (key === undefined) return d;
-  return d ? d[key] : undefined;
-}
-
-// resetKey(store, key) — restore a single key (object-valued signal) or the
-// whole signal to its registered default. The signal's effect installed above
-// then removes the localStorage entry if no keys differ anymore.
-export function resetKey(store: any, key?: string): void {
+/** Reset a single key (object-signal) or whole signal to its default. */
+export function resetKey(store: AnySignalLike, key?: string): void {
   const defaultVal = getDefault(store, key);
   if (defaultVal === undefined) return;
   if (key !== undefined && store.value && typeof store.value === 'object' && !Array.isArray(store.value)) {
@@ -202,147 +257,20 @@ export function resetKey(store: any, key?: string): void {
   }
 }
 
-// hasAnyOverrides() — true if at least one persisted config store has a
-// non-default value. The Reset-all button uses this to decide whether it
-// should be enabled. Scoped to the stores we actually registered, so
-// unrelated cc.* keys (e.g. cc.sidebarWidth) don't influence it.
-export function hasAnyOverrides(): boolean {
-  if (typeof localStorage === 'undefined') return false;
-  for (const name in _DEFAULTS_BY_NAME) {
-    if (!Object.hasOwn(_DEFAULTS_BY_NAME, name)) continue;
-    try {
-      if (localStorage.getItem(STORAGE_PREFIX + name) != null) return true;
-    } catch (_) {
-      /* ignore */
-    }
-  }
-  return false;
-}
-
-// onAnyChange(cb) — call cb() any time any registered config store's
-// persisted state changes (including being reset back to default).
-// Returns an unsubscribe function.
-export function onAnyChange(cb: () => void): () => void {
-  if (typeof cb !== 'function') return function () {};
-  _changeListeners.push(cb);
-  return function () {
-    const idx = _changeListeners.indexOf(cb);
-    if (idx >= 0) _changeListeners.splice(idx, 1);
-  };
-}
-
-// Wipe every persisted config slot — the panic "reset everything" path.
-// Only touches stores we registered, so UI prefs (e.g. cc.sidebarWidth)
-// survive a Reset-all.
-//
-// Pushes defaults back into each store rather than just nuking localStorage:
-// the store's effect installed above then drops the localStorage entry on
-// its own, AND consumers (live-poll loop, scene, controls UI) see the change
-// live instead of waiting for a page reload.
+/** Reset ALL registered signals to their defaults (the "Reset all" action). */
 export function clearPersistence(): void {
-  for (const name in _DEFAULTS_BY_NAME) {
-    if (!Object.hasOwn(_DEFAULTS_BY_NAME, name)) continue;
-    const store = _STORE_BY_NAME[name];
-    const defaults = _DEFAULTS_BY_NAME[name];
-    if (!store) continue;
-    store.value = _clone(defaults);
+  for (const [key, s] of _SIGNALS) {
+    const def = _DEFAULTS.get(key);
+    if (def !== undefined) s.value = _clone(def);
   }
 }
 
-// forEachRegisteredStore(cb) — visit every store registered via
-// persistStore / attachPersistence. `defaults` is the pre-hydration
-// snapshot (what reset restores to). Used by config/drafts.ts.
+/** Visit every registered signal. Used by drafts.ts for stageResetAll. */
 export function forEachRegisteredStore(
-  cb: (name: string, store: any, defaults: any) => void
+  cb: (name: string, store: AnySignalLike, defaults: any) => void
 ): void {
-  for (const name in _DEFAULTS_BY_NAME) {
-    if (!Object.hasOwn(_DEFAULTS_BY_NAME, name)) continue;
-    const store = _STORE_BY_NAME[name];
-    if (!store) continue;
-    cb(name, store, _DEFAULTS_BY_NAME[name]);
+  for (const [key, s] of _SIGNALS) {
+    const def = _DEFAULTS.get(key);
+    cb(key, s as AnySignalLike, def);
   }
-}
-
-// ---------------------------------------------------------------------------
-// Per-source persistence — scoped to a (source, baseName) slot in localStorage
-// ---------------------------------------------------------------------------
-
-function perSourceKey(sourceKey: string, baseName: string): string {
-  return `${STORAGE_PER_SOURCE_PREFIX}${sourceKey}.${baseName}`;
-}
-
-/**
- * Wire a writable signal to per-source localStorage persistence. The signal's
- * value is stored under `cc.source.<sourceKey>.<baseName>` and rehydrated
- * whenever CURRENT_SOURCE_KEY changes.
- *
- * - When CURRENT_SOURCE_KEY is null, the signal is not persisted (writes
- *   don't reach localStorage; reads return whatever the signal currently holds).
- * - On CURRENT_SOURCE_KEY change: the current signal value is saved to the
- *   OLD key, then the signal is set to whatever is stored under the NEW key
- *   (or `defaultValue` if absent).
- * - Direct signal writes propagate to the active source key's slot.
- */
-export function persistAtomPerSource<T>(
-  baseName: string,
-  store: Signal<T>,
-  defaultValue: T
-): void {
-  let lastKey: string | null = CURRENT_SOURCE_KEY.value;
-
-  // Hydrate at attach time if a key is already set (e.g., URL had ?src=).
-  if (lastKey !== null) {
-    const raw = localStorage.getItem(perSourceKey(lastKey, baseName));
-    if (raw !== null) {
-      try {
-        store.value = JSON.parse(raw) as T;
-      } catch {
-        store.value = defaultValue;
-      }
-    } else {
-      store.value = defaultValue;
-    }
-  }
-
-  // Write effect: only tracks `store.value`. Reads the current source key
-  // without tracking it (untracked) so that source-key transitions don't
-  // trigger a premature write that would overwrite the slot we're about to
-  // hydrate from in the key-change effect below.
-  effect(() => {
-    const value = store.value;
-    const k = untracked(() => CURRENT_SOURCE_KEY.value);
-    if (k === null) return;
-    localStorage.setItem(perSourceKey(k, baseName), JSON.stringify(value));
-  });
-
-  effect(() => {
-    const nextKey = CURRENT_SOURCE_KEY.value;
-    if (nextKey === lastKey) return;
-    // Save current signal to OLD slot only when transitioning between two real
-    // keys. On key→null (source unloaded) we skip the write: the
-    // store effect above already persisted the latest value
-    // whenever the signal was last mutated, so a redundant write here would
-    // cause stale-subscriber cross-test pollution and isn't needed.
-    if (lastKey !== null && nextKey !== null) {
-      // .peek() not .value — this effect should only re-run on key change,
-      // not on store writes (which the write effect above already persists).
-      localStorage.setItem(perSourceKey(lastKey, baseName), JSON.stringify(store.peek()));
-    }
-    // Hydrate signal from NEW slot.
-    if (nextKey !== null) {
-      const raw = localStorage.getItem(perSourceKey(nextKey, baseName));
-      if (raw !== null) {
-        try {
-          store.value = JSON.parse(raw) as T;
-        } catch {
-          store.value = defaultValue;
-        }
-      } else {
-        store.value = defaultValue;
-      }
-    } else {
-      store.value = defaultValue;
-    }
-    lastKey = nextKey;
-  });
 }
