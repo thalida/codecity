@@ -1,11 +1,12 @@
-// runtime/sidebarSetup.ts — Mounts left + right sidebars after the scene
-// handle is available. Called once from the boot orchestrator after
-// streamInitialManifest completes.
+// runtime/sidebarSetup.ts — Mounts the right sidebar's selection-driven
+// reactions. The left sidebar is now a self-contained Preact component
+// (see views/shell/LeftSidebar.tsx) that reads SCENE_HANDLE directly,
+// so it no longer needs imperative setup here. App.tsx mounts it as
+// JSX. The right sidebar still has imperative pane-mount logic (#36
+// will port that next), so its setup stays here for now.
 
-import { NodeKind } from '../types';
 import type { Manifest } from '../types';
 import type { SceneHandle } from './manifestStream';
-import { showLeftSidebar } from '../views/shell/LeftSidebar';
 import { mountRightSidebarReactions } from '../views/shell/RightSidebar';
 
 export interface SidebarSetupResult {
@@ -13,60 +14,20 @@ export interface SidebarSetupResult {
 }
 
 /**
- * Mount the left and right sidebars with scene-handle callbacks.
- * Returns a dispose() that tears them down on App unmount.
+ * Mount the right sidebar's selection-driven reactions. Returns a
+ * dispose() that tears them down on App unmount.
+ *
+ * The `handle` and `initialManifest` args are accepted for symmetry
+ * with the previous left+right setup signature; the right sidebar
+ * reaction setup reads SCENE_HANDLE itself.
  */
 export function setupSidebars(
-  handle: SceneHandle,
-  initialManifest: Manifest
+  _handle: SceneHandle,
+  _initialManifest: Manifest
 ): SidebarSetupResult {
-  const leftSidebarApi = showLeftSidebar(initialManifest, {
-    onResetView() { handle.rig.reset(); },
-    applyTheme: handle.applyTheme ?? (() => {}),
-    onTreeSelect(node) {
-      if (!node?.path) return;
-      handle.picker.selectByPath(node.path);
-    },
-    onTreeFocus(node) {
-      if (!node?.path) return;
-      if (node.type === NodeKind.File) {
-        const b = handle.world.getBuildingByPath(node.path);
-        if (b) handle.rig.focusBuilding(b.mesh, b.building);
-      } else if (node.type === NodeKind.Directory) {
-        const st = handle.world.getStreetByDir(node.path);
-        if (st) handle.rig.focusStreet(st, null);
-      }
-    },
-    onTreeHover(node) {
-      if (!node?.path) return;
-      if (node.type === NodeKind.File) {
-        const b = handle.world.getBuildingByPath(node.path);
-        if (!b) return;
-        handle.picker.setHover({ kind: NodeKind.File, mesh: b.mesh, data: b.building, file: b.building.file });
-      } else if (node.type === NodeKind.Directory) {
-        const sw = handle.world.getSidewalkByDir(node.path);
-        const st = handle.world.getStreetByDir(node.path);
-        if (!sw || !st || !st.dir) return;
-        handle.picker.setHover({ kind: NodeKind.Directory, sidewalk: sw, street: st, dir: st.dir });
-      }
-    },
-    onTreeHoverEnd() { handle.picker.setHover(null); },
-    onSearchSelect(path) { handle.picker.selectByPath(path); },
-    onSearchFocus(path) {
-      const b = handle.world.getBuildingByPath(path);
-      if (b) handle.rig.focusBuilding(b.mesh, b.building);
-    },
-    onRunCollisionCheck: () => handle.world.runCollisionCheck(),
-    onRunStemDiagnostic: () => handle.world.runStemPlacementDiagnostic(),
-  });
-
   const disposeRightSidebar = mountRightSidebarReactions();
-
   return {
     dispose() {
-      if (leftSidebarApi && 'dispose' in leftSidebarApi) {
-        (leftSidebarApi as { dispose(): void }).dispose();
-      }
       disposeRightSidebar();
     },
   };

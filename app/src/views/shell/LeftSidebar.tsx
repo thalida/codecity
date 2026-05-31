@@ -1,107 +1,141 @@
-// views/shell/leftSidebar.tsx — Mounts the left-side activity bar
-// (VSCode-style) and the stacked panes it switches between. Owns:
-//   - active-tab state
-//   - collapsed/expanded state (clicking the active icon collapses; the ×
-//     in the panel header also collapses; persisted in localStorage)
+// views/shell/LeftSidebar.tsx — VSCode-style left sidebar.
+//
+// Owns:
+//   - active-tab state (which pane is mounted)
+//   - collapsed/expanded state (clicking the active icon collapses; the
+//     × in the panel header also collapses; persisted in localStorage)
 //   - drag-to-resize handle on the sidebar's right edge (also persisted)
+//   - SCENE_HANDLE subscription: forwards picker selection/hover into
+//     the tree pane's signals, plus translates tree clicks into
+//     picker.selectByPath + rig.focusX
+//
+// Full Preact: <aside id="left-sidebar"> is rendered directly. The
+// four panes are signal-driven Preact components mounted as JSX
+// children — no imperative buildXPane factories on the active path.
+// The factories survive (#10) for external consumers / tests until
+// they too are ported.
 
-import { signal, effect } from '@preact/signals';
-import type { ReadonlySignal } from '@preact/signals';
-import { buildTreePane } from '@/views/panes/TreePane';
-import { buildInfoPane } from '@/views/panes/InfoPane';
-import { buildControlsPane } from '@/views/panes/ControlsPane';
-import { buildSearchPane } from '@/views/panes/SearchPane';
-import { ACTIVITY_BAR_TABS, DOM_IDS, LUCIDE_ICON_BASE_URL, STORAGE_KEYS } from '@/constants';
+import { signal, useComputed, useSignal, useSignalEffect } from '@preact/signals';
+import { useEffect, useRef } from 'preact/hooks';
+import {
+  ACTIVITY_BAR_TABS,
+  DOM_IDS,
+  LUCIDE_ICON_BASE_URL,
+  STORAGE_KEYS,
+} from '@/constants';
 import { SidebarTab, NodeKind } from '@/types';
-import type { DirNode, Manifest, TreeNode } from '@/types';
+import type { DirNode, Manifest, PickTarget, TreeNode } from '@/types';
 import { persistedSignal } from '@/state/persist';
-
-// Persistent boolean for the left-sidebar collapsed state. Key matches the
-// pre-Phase-3.5 storage slot ('cc.sidebarCollapsed'), so users keep their
-// state across the upgrade. Old encoding was '1' / removed; new encoding is
-// JSON true / null — readback of '1' parses as truthy and gets rewritten as
-// true on the next toggle.
-const SIDEBAR_COLLAPSED = persistedSignal<boolean>('sidebarCollapsed', false);
 import { SCENE_HANDLE } from '@/state/runtime/scene';
+import { EMPTY_MANIFEST } from '@/constants/manifest';
+import { TreePane } from '@/views/panes/TreePane';
+import { InfoPane } from '@/views/panes/InfoPane';
+import { SearchPane } from '@/views/panes/SearchPane';
+import { ControlsPane } from '@/views/panes/ControlsPane';
+
+// Persistent boolean for the left-sidebar collapsed state.
+const SIDEBAR_COLLAPSED = persistedSignal<boolean>('sidebarCollapsed', false);
 
 const SIDEBAR_MIN_WIDTH = 280;
 const SIDEBAR_MAX_WIDTH = 600;
 
-interface ShowLeftSidebarOpts {
-  /** fn() the Settings UI used to call after every input edit. Now driven by config/hotReload.js subscriptions when the user clicks Save; this option is accepted for caller compatibility but is no longer forwarded to the controls panel. */
-  applyTheme?: () => void;
-  /** fn() called when the user clicks the "Run collision check" debug button. */
-  onRunCollisionCheck?: () => void;
-  /** fn() called when the user clicks the "Diagnose stem placement" debug button. */
-  onRunStemDiagnostic?: () => void;
-  /** Initial active tab. Defaults to SidebarTab.Tree. */
-  initialTab?: SidebarTab;
-  /** fn(node) called when the user single-clicks a tree row. */
-  onTreeSelect?: (node: TreeNode) => void;
-  /** fn(node) called when the user double-clicks a tree row. */
-  onTreeFocus?: (node: TreeNode) => void;
-  /** fn(node) on row mouseenter. */
-  onTreeHover?: (node: TreeNode) => void;
-  /** fn(node) on row mouseleave. */
-  onTreeHoverEnd?: (node: TreeNode) => void;
-  /** fn(path) when the user single-clicks a search result. Host routes to picker.selectByPath. */
-  onSearchSelect?: (path: string) => void;
-  /** fn(path) when the user double-clicks a search result. Host routes to rig.focusBuilding. */
-  onSearchFocus?: (path: string) => void;
-  /** Older callback kept accepted for compatibility with coordinator callsites. */
-  onResetView?: () => void;
+// ── Helpers ──────────────────────────────────────────────────────────
+
+function _pathOf(target: PickTarget | null): string | null {
+  if (!target) return null;
+  if (target.kind === NodeKind.File) return target.file?.path ?? null;
+  if (target.kind === NodeKind.Directory) return target.dir?.path ?? null;
+  return null;
 }
 
-// ── State shape ───────────────────────────────────────────────────────────────
+// Manifest signal: shared by all four panes. Updated when SCENE_HANDLE
+// gets a new world (initial source apply or live-update poll). Lives
+// outside the component so that consumers in the SearchPane / TreePane
+// can react to changes without remounting the pane.
+const MANIFEST_SIG = signal<Manifest | DirNode | { tree?: unknown; [k: string]: unknown } | null>(
+  EMPTY_MANIFEST
+);
 
-export interface LeftSidebarState {
+// One-shot subscription to SCENE_HANDLE that mirrors manifest changes
+// into MANIFEST_SIG. Installed at module load so it's live before
+// LeftSidebar mounts.
+let _manifestBridgeInstalled = false;
+function _installManifestBridge(): void {
+  if (_manifestBridgeInstalled) return;
+  _manifestBridgeInstalled = true;
+  let _worldUnsub: (() => void) | null = null;
+  SCENE_HANDLE.subscribe((handle) => {
+    if (_worldUnsub) {
+      _worldUnsub();
+      _worldUnsub = null;
+    }
+    if (!handle) {
+      MANIFEST_SIG.value = EMPTY_MANIFEST;
+      return;
+    }
+    MANIFEST_SIG.value = handle.world.getManifest() ?? EMPTY_MANIFEST;
+    _worldUnsub = handle.world.onChange(() => {
+      MANIFEST_SIG.value = handle.world.getManifest() ?? EMPTY_MANIFEST;
+    });
+  });
+}
+_installManifestBridge();
+
+// Older legacy localStorage keys that earlier code wrote per-section
+// open/closed state under. Once on app boot we wipe them so they don't
+// linger forever in stale browsers.
+function _clearLegacyControlsState(): void {
+  if (typeof localStorage === 'undefined') return;
+  try {
+    const toRemove: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && (key.startsWith('controls.section.') || key.startsWith('controls.subgroup.'))) {
+        toRemove.push(key);
+      }
+    }
+    for (const key of toRemove) localStorage.removeItem(key);
+  } catch (_) {
+    /* private mode / quota — skip */
+  }
+}
+
+function _persistWidth(w: number): void {
+  if (typeof localStorage === 'undefined') return;
+  try {
+    localStorage.setItem(STORAGE_KEYS.SIDEBAR_WIDTH, String(w));
+  } catch (_) {
+    /* quota / private — drop */
+  }
+}
+
+function _readPersistedWidth(): number | null {
+  if (typeof localStorage === 'undefined') return null;
+  try {
+    const raw = localStorage.getItem(STORAGE_KEYS.SIDEBAR_WIDTH);
+    if (raw == null) return null;
+    const w = parseFloat(raw);
+    if (!Number.isFinite(w)) return null;
+    return Math.min(SIDEBAR_MAX_WIDTH, Math.max(SIDEBAR_MIN_WIDTH, w));
+  } catch (_) {
+    return null;
+  }
+}
+
+// ── ActivityBar sub-component ────────────────────────────────────────
+
+interface ActivityBarProps {
   activeTab: SidebarTab;
   collapsed: boolean;
+  onIconClick: (tab: SidebarTab) => void;
 }
 
-// ── Shell wrapper — owns the <aside id="left-sidebar"> element ───────────────
-// App.tsx renders <LeftSidebarShell />, not a bare placeholder div. The
-// imperative showLeftSidebar() factory still does the heavy lifting (activity
-// bar, pane panel, resize handle, world reactions); this just gives the
-// component ownership of its outer DOM node so App.tsx's tree matches the
-// rendered hierarchy. Phase 3e will fold the imperative factory into this
-// component.
-
-export function LeftSidebarShell() {
-  return <aside id={DOM_IDS.LEFT_SIDEBAR} />;
-}
-
-// ── Preact activity-bar component ────────────────────────────────────────────
-// Used by the imperative factory below to render the activity bar via Preact
-// while the rest of the sidebar still goes through imperative DOM. Will be
-// the top-level component once the imperative path is fully ported.
-// The activity bar icons are rendered as JSX; pane visibility is driven by
-// the activeTab + collapsed state read from the signal.
-
-export interface LeftSidebarProps {
-  state: ReadonlySignal<LeftSidebarState>;
-  /** Map of tabId → pane DOM element (from 3b/3c buildXPane factories). */
-  panes: Record<string, HTMLElement>;
-  /** Called when an activity-bar icon is clicked. */
-  onIconClick: (tabId: string) => void;
-}
-
-export function LeftSidebar({ state, panes, onIconClick }: LeftSidebarProps) {
-  const { activeTab, collapsed } = state.value;
-
-  // Sync pane visibility (signal-driven; runs on every render that reads .value)
-  for (const id in panes) {
-    if (Object.hasOwn(panes, id)) {
-      panes[id].style.display = id === activeTab ? '' : 'none';
-    }
-  }
-
-  const iconBase = LUCIDE_ICON_BASE_URL;
+function ActivityBar({ activeTab, collapsed, onIconClick }: ActivityBarProps) {
   const tabs = ACTIVITY_BAR_TABS;
   const topTabs = tabs.filter((t) => t.placement !== 'bottom');
   const bottomTabs = tabs.filter((t) => t.placement === 'bottom');
 
-  function renderTab(tab: (typeof tabs)[number]) {
+  const renderTab = (tab: (typeof tabs)[number]) => {
     const isActive = !collapsed && tab.id === activeTab;
     return (
       <button
@@ -117,13 +151,13 @@ export function LeftSidebar({ state, panes, onIconClick }: LeftSidebarProps) {
         <span
           class="activity-bar-glyph"
           style={{
-            maskImage: `url(${iconBase}${tab.icon})`,
-            webkitMaskImage: `url(${iconBase}${tab.icon})`,
+            maskImage: `url(${LUCIDE_ICON_BASE_URL}${tab.icon})`,
+            WebkitMaskImage: `url(${LUCIDE_ICON_BASE_URL}${tab.icon})`,
           }}
         />
       </button>
     );
-  }
+  };
 
   return (
     <div class="activity-bar">
@@ -133,312 +167,247 @@ export function LeftSidebar({ state, panes, onIconClick }: LeftSidebarProps) {
   );
 }
 
-// ── Resize handle helpers ─────────────────────────────────────────────────────
+// ── ResizeHandle sub-component ───────────────────────────────────────
 
-function _buildResizeHandle(sidebar: HTMLElement): HTMLDivElement {
-  const handle = document.createElement('div');
-  handle.className = 'sidebar-resize-handle';
-  handle.setAttribute('role', 'separator');
-  handle.setAttribute('aria-orientation', 'vertical');
-  handle.title = 'Drag to resize';
+interface ResizeHandleProps {
+  targetRef: { current: HTMLElement | null };
+}
 
-  let dragging = false;
-  handle.addEventListener('pointerdown', (e) => {
-    dragging = true;
-    handle.classList.add('dragging');
-    handle.setPointerCapture(e.pointerId);
+function ResizeHandle({ targetRef }: ResizeHandleProps) {
+  const dragging = useRef(false);
+
+  const onPointerDown = (e: PointerEvent) => {
+    dragging.current = true;
+    (e.currentTarget as HTMLElement).classList.add('dragging');
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
     e.preventDefault();
-  });
-  handle.addEventListener('pointermove', (e) => {
-    if (!dragging) return;
+  };
+
+  const onPointerMove = (e: PointerEvent) => {
+    if (!dragging.current || !targetRef.current) return;
     let w = e.clientX;
     if (w < SIDEBAR_MIN_WIDTH) w = SIDEBAR_MIN_WIDTH;
     if (w > SIDEBAR_MAX_WIDTH) w = SIDEBAR_MAX_WIDTH;
-    sidebar.style.width = `${w}px`;
-  });
-  handle.addEventListener('pointerup', (e) => {
-    if (!dragging) return;
-    dragging = false;
-    handle.classList.remove('dragging');
-    handle.releasePointerCapture(e.pointerId);
-    _persistWidth(parseFloat(sidebar.style.width) || sidebar.offsetWidth);
-  });
-  return handle;
-}
-
-function _applyPersistedWidth(sidebar: HTMLElement): void {
-  if (typeof localStorage === 'undefined') return;
-  try {
-    const raw = localStorage.getItem(STORAGE_KEYS.SIDEBAR_WIDTH);
-    if (raw == null) return;
-    let w = parseFloat(raw);
-    if (!Number.isFinite(w)) return;
-    if (w < SIDEBAR_MIN_WIDTH) w = SIDEBAR_MIN_WIDTH;
-    if (w > SIDEBAR_MAX_WIDTH) w = SIDEBAR_MAX_WIDTH;
-    sidebar.style.width = `${w}px`;
-  } catch (_) {
-    /* private mode / no storage — silently fall back to CSS default */
-  }
-}
-
-function _persistWidth(w: number): void {
-  if (typeof localStorage === 'undefined') return;
-  try {
-    localStorage.setItem(STORAGE_KEYS.SIDEBAR_WIDTH, String(w));
-  } catch (_) {
-    /* quota / private — drop */
-  }
-}
-
-// Remove any localStorage entries written by earlier versions of the controls
-// pane that persisted the open/closed state of individual sections.
-function _clearLegacyControlsState(): void {
-  if (typeof localStorage === 'undefined') return;
-  try {
-    const toRemove: string[] = [];
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i);
-      if (key && (key.startsWith('controls.section.') || key.startsWith('controls.subgroup.'))) {
-        toRemove.push(key);
-      }
-    }
-    for (const key of toRemove) localStorage.removeItem(key);
-  } catch (_) {
-    /* private mode / quota — silently skip */
-  }
-}
-
-// ── Backward-compat shim ──────────────────────────────────────────────────────
-// Phase 3e will delete this once App.tsx mounts <LeftSidebar /> directly.
-// The shim keeps synchronous DOM mutations for test compatibility.
-
-// showLeftSidebar(manifest, opts) -> { setSelectedTreePath, setHoveredTreePath, ... }
-export function showLeftSidebar(
-  manifest: Manifest | { tree: unknown; [k: string]: unknown },
-  opts: ShowLeftSidebarOpts = {}
-) {
-  const noop = () => {};
-  const container = document.getElementById(DOM_IDS.LEFT_SIDEBAR);
-  if (!container) return { setSelectedTreePath: noop, setHoveredTreePath: noop };
-
-  while (container.firstChild) container.removeChild(container.firstChild);
-
-  _clearLegacyControlsState();
-  _applyPersistedWidth(container);
-
-  const activityBar = document.createElement('div');
-  activityBar.className = 'activity-bar';
-
-  const panel = document.createElement('div');
-  panel.className = 'pane';
-
-  const paneOnClose = () => _setCollapsed(true);
-  const treeBundle = buildTreePane(manifest, {
-    onClose: paneOnClose,
-    onSelect: opts.onTreeSelect,
-    onFocus: opts.onTreeFocus,
-    onHover: opts.onTreeHover,
-    onHoverEnd: opts.onTreeHoverEnd,
-  });
-  const infoBundle = buildInfoPane(manifest, { onClose: paneOnClose });
-  const searchBundle = buildSearchPane(manifest, {
-    onClose: paneOnClose,
-    onSelect: opts.onSearchSelect,
-    onFocus: opts.onSearchFocus,
-  });
-  const controlsBundle = buildControlsPane({
-    onClose: paneOnClose,
-    onRunCollisionCheck: opts.onRunCollisionCheck,
-    onRunStemDiagnostic: opts.onRunStemDiagnostic,
-  });
-  const panes: Record<string, HTMLElement> = {};
-  panes[SidebarTab.Tree] = treeBundle.pane;
-  panes[SidebarTab.Search] = searchBundle.pane;
-  panes[SidebarTab.Info] = infoBundle.pane;
-  panes[SidebarTab.Controls] = controlsBundle.pane;
-
-  for (const key in panes) {
-    if (Object.hasOwn(panes, key)) {
-      panel.appendChild(panes[key]);
-    }
-  }
-
-  let activeTab: SidebarTab =
-    opts.initialTab === SidebarTab.Controls ? SidebarTab.Controls : SidebarTab.Tree;
-
-  const _treeRoot = ((manifest as { tree?: unknown }).tree || manifest) as TreeNode | DirNode;
-  const _manifestIsEmpty =
-    !('children' in _treeRoot) ||
-    (((_treeRoot as DirNode).children?.length ?? 0) === 0 && !_treeRoot.name);
-  let collapsed = _manifestIsEmpty ? true : !!SIDEBAR_COLLAPSED.value;
-  const iconBtns: Record<string, HTMLButtonElement> = {};
-
-  // Signal backing the Preact activity bar — updated on state changes.
-  const state = signal<LeftSidebarState>({ activeTab, collapsed });
-
-  const topGroup = document.createElement('div');
-  topGroup.className = 'activity-bar-group activity-bar-top';
-  const bottomGroup = document.createElement('div');
-  bottomGroup.className = 'activity-bar-group activity-bar-bottom';
-
-  const iconBase = LUCIDE_ICON_BASE_URL;
-  const tabs = ACTIVITY_BAR_TABS;
-  for (let i = 0; i < tabs.length; i++) {
-    const tab = tabs[i];
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = 'activity-bar-icon';
-    btn.dataset.tab = tab.id;
-    btn.title = tab.title;
-    btn.setAttribute('aria-label', tab.title);
-
-    const glyph = document.createElement('span');
-    glyph.className = 'activity-bar-glyph';
-    glyph.style.maskImage = `url(${iconBase}${tab.icon})`;
-    glyph.style.webkitMaskImage = `url(${iconBase}${tab.icon})`;
-    btn.appendChild(glyph);
-
-    iconBtns[tab.id] = btn;
-
-    (function (tabId) {
-      btn.addEventListener('click', () => {
-        _onIconClick(tabId);
-      });
-    })(tab.id);
-
-    const group = tab.placement === 'bottom' ? bottomGroup : topGroup;
-    group.appendChild(btn);
-  }
-
-  activityBar.appendChild(topGroup);
-  activityBar.appendChild(bottomGroup);
-
-  function _onIconClick(tabId: string): void {
-    if (!panes[tabId]) return;
-    if (!collapsed && tabId === activeTab) {
-      _setCollapsed(true);
-      return;
-    }
-    if (collapsed) _setCollapsed(false);
-    _setActive(tabId);
-  }
-
-  function _setActive(tabId: string): void {
-    if (!panes[tabId]) return;
-    const prev = activeTab;
-    activeTab = tabId as SidebarTab;
-    state.value = { ...state.value, activeTab };
-    _refreshActiveStates();
-    if (activeTab === SidebarTab.Search) {
-      requestAnimationFrame(() => searchBundle.api.focus());
-    }
-    if (activeTab === SidebarTab.Controls && prev !== SidebarTab.Controls) {
-      controlsBundle.resetCollapsed();
-    }
-  }
-
-  function _setCollapsed(value: boolean): void {
-    const wasCollapsed = collapsed;
-    collapsed = value;
-    state.value = { ...state.value, collapsed };
-    container.classList.toggle('is-collapsed', collapsed);
-    _refreshActiveStates();
-    SIDEBAR_COLLAPSED.value = collapsed;
-    if (wasCollapsed && !collapsed && activeTab === SidebarTab.Controls) {
-      controlsBundle.resetCollapsed();
-    }
-  }
-
-  function _refreshActiveStates() {
-    for (const id in panes) {
-      if (!Object.hasOwn(panes, id)) continue;
-      panes[id].style.display = id === activeTab ? '' : 'none';
-    }
-    for (const iid in iconBtns) {
-      if (!Object.hasOwn(iconBtns, iid)) continue;
-      const isActive = !collapsed && iid === activeTab;
-      iconBtns[iid].classList.toggle('active', isActive);
-      iconBtns[iid].setAttribute('aria-pressed', String(isActive));
-    }
-  }
-
-  _refreshActiveStates();
-
-  container.classList.toggle('is-collapsed', collapsed);
-
-  container.appendChild(activityBar);
-  container.appendChild(panel);
-  container.appendChild(_buildResizeHandle(container));
-
-  // ── Signal-driven tree highlight + manifest refresh ────────────────────────
-  // Subscribe to SCENE_HANDLE so that once the scene mounts, picker changes
-  // drive tree highlights without the coordinator needing to wire them up.
-  // Using .peek() for the handle itself (we only want to react to picker
-  // selection/hover changes, not to scene remounts) would miss the initial
-  // handle assignment — so we read SCENE_HANDLE.value to establish tracking
-  // for the assignment, and read picker.selection/hover.value inside the
-  // same effect to track those fine-grained changes.
-  //
-  // Over-tracking note: reading both .selection.value and .hover.value in
-  // one effect means any hover change also fires the selection highlight
-  // path (and vice versa). That's intentional here — tree highlights for
-  // both selection and hover are computed from the same two signals and
-  // should stay in sync.
-  const _pathOf = (target: import('@/types').PickTarget | null): string | null => {
-    if (!target) return null;
-    if (target.kind === NodeKind.File) return target.file?.path ?? null;
-    if (target.kind === NodeKind.Directory) return target.dir?.path ?? null;
-    return null;
+    targetRef.current.style.width = `${w}px`;
   };
 
-  const _selUnsub = effect(() => {
+  const onPointerUp = (e: PointerEvent) => {
+    if (!dragging.current || !targetRef.current) return;
+    dragging.current = false;
+    (e.currentTarget as HTMLElement).classList.remove('dragging');
+    (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
+    _persistWidth(parseFloat(targetRef.current.style.width) || targetRef.current.offsetWidth);
+  };
+
+  return (
+    <div
+      class="sidebar-resize-handle"
+      role="separator"
+      aria-orientation="vertical"
+      title="Drag to resize"
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={onPointerUp}
+    />
+  );
+}
+
+// ── Main component ───────────────────────────────────────────────────
+
+export function LeftSidebar() {
+  const sidebarRef = useRef<HTMLElement>(null);
+  const activeTab = useSignal<SidebarTab>(SidebarTab.Tree);
+  const collapsed = useSignal<boolean>(SIDEBAR_COLLAPSED.value);
+
+  // Tree selection + hover paths, derived from picker signals.
+  const selectedPath = useSignal<string | null>(null);
+  const hoveredPath = useSignal<string | null>(null);
+  // Stable expansion-state signal for the tree pane. The TreePane
+  // component itself drives this via its selection→ancestor-chain
+  // effect, so we just need a long-lived signal to pass in.
+  const treeExpanded = useSignal<Set<string>>(new Set());
+
+  // Mirror picker.selection.value → selectedPath. Re-runs on every
+  // SCENE_HANDLE swap and every picker change.
+  useSignalEffect(() => {
     const handle = SCENE_HANDLE.value;
     if (!handle) {
-      treeBundle.api.setSelectedPath(null);
+      selectedPath.value = null;
       return;
     }
-    const sel = handle.picker.selection.value;
-    treeBundle.api.setSelectedPath(_pathOf(sel));
+    selectedPath.value = _pathOf(handle.picker.selection.value);
   });
 
-  const _hovUnsub = effect(() => {
+  useSignalEffect(() => {
     const handle = SCENE_HANDLE.value;
     if (!handle) {
-      treeBundle.api.setHoveredPath(null);
+      hoveredPath.value = null;
       return;
     }
-    const hov = handle.picker.hover.value;
-    treeBundle.api.setHoveredPath(_pathOf(hov));
+    hoveredPath.value = _pathOf(handle.picker.hover.value);
   });
 
-  const _manifestUnsub = effect(() => {
-    const handle = SCENE_HANDLE.value;
+  // Persist collapsed → localStorage via the persistedSignal.
+  useSignalEffect(() => {
+    SIDEBAR_COLLAPSED.value = collapsed.value;
+  });
+
+  // One-time setup: clear legacy localStorage keys + apply persisted width.
+  useEffect(() => {
+    _clearLegacyControlsState();
+    const w = _readPersistedWidth();
+    if (w != null && sidebarRef.current) {
+      sidebarRef.current.style.width = `${w}px`;
+    }
+  }, []);
+
+  // Auto-collapse when the manifest has no content (cold-boot empty state).
+  // The activity bar stays visible but the panel is hidden.
+  const isEmptyManifest = useComputed(() => {
+    const m = MANIFEST_SIG.value as { tree?: TreeNode | DirNode } | TreeNode | DirNode | null;
+    if (!m) return true;
+    const tree = ('tree' in (m as object) ? (m as { tree?: TreeNode | DirNode }).tree : m) as
+      | TreeNode
+      | DirNode
+      | undefined;
+    if (!tree || !tree.name) {
+      if (!tree || !('children' in tree)) return true;
+      return ((tree as DirNode).children?.length ?? 0) === 0;
+    }
+    return false;
+  });
+
+  const onIconClick = (tab: SidebarTab) => {
+    if (!collapsed.value && tab === activeTab.value) {
+      collapsed.value = true;
+      return;
+    }
+    if (collapsed.value) collapsed.value = false;
+    activeTab.value = tab;
+  };
+
+  const onPaneClose = () => {
+    collapsed.value = true;
+  };
+
+  // Tree event handlers — bound to the current SCENE_HANDLE at call
+  // time so they always operate on the live scene.
+  const onTreeSelect = (node: TreeNode) => {
+    if (!node?.path) return;
+    SCENE_HANDLE.peek()?.picker.selectByPath(node.path);
+  };
+  const onTreeFocus = (node: TreeNode) => {
+    if (!node?.path) return;
+    const handle = SCENE_HANDLE.peek();
     if (!handle) return;
-    // Subscribe to world onChange is not signal-based; we subscribe via the
-    // world.onChange() API and store the cleanup. This effect re-subscribes
-    // when SCENE_HANDLE changes (e.g. on a source switch that remounts CenterPane).
-    let _worldUnsub: (() => void) | null = null;
-    _worldUnsub = handle.world.onChange(() => {
-      const m = handle.world.getManifest();
-      if (infoBundle.api.setManifest) infoBundle.api.setManifest(m);
-      if (treeBundle.api.setManifest) treeBundle.api.setManifest(m);
-      if (searchBundle.api.setManifest) searchBundle.api.setManifest(m);
-    });
-    return () => {
-      if (_worldUnsub) _worldUnsub();
-    };
-  });
-
-  return {
-    setSelectedTreePath: treeBundle.api.setSelectedPath,
-    setHoveredTreePath: treeBundle.api.setHoveredPath,
-    setInfoManifest: infoBundle.api.setManifest,
-    setTreeManifest: treeBundle.api.setManifest,
-    setSearchManifest: searchBundle.api.setManifest,
-    dispose() {
-      if (typeof _selUnsub === 'function') _selUnsub();
-      if (typeof _hovUnsub === 'function') _hovUnsub();
-      if (typeof _manifestUnsub === 'function') _manifestUnsub();
-    },
+    if (node.type === NodeKind.File) {
+      const b = handle.world.getBuildingByPath(node.path);
+      if (b) handle.rig.focusBuilding(b.mesh, b.building);
+    } else if (node.type === NodeKind.Directory) {
+      const st = handle.world.getStreetByDir(node.path);
+      if (st) handle.rig.focusStreet(st, null);
+    }
   };
+  const onTreeHover = (node: TreeNode) => {
+    if (!node?.path) return;
+    const handle = SCENE_HANDLE.peek();
+    if (!handle) return;
+    if (node.type === NodeKind.File) {
+      const b = handle.world.getBuildingByPath(node.path);
+      if (!b) return;
+      handle.picker.setHover({
+        kind: NodeKind.File,
+        mesh: b.mesh,
+        data: b.building,
+        file: b.building.file,
+        instanceId: b.instanceId,
+      });
+    } else if (node.type === NodeKind.Directory) {
+      const sw = handle.world.getSidewalkByDir(node.path);
+      const st = handle.world.getStreetByDir(node.path);
+      if (!sw || !st || !st.dir) return;
+      handle.picker.setHover({
+        kind: NodeKind.Directory,
+        sidewalk: sw,
+        street: st,
+        dir: st.dir,
+      });
+    }
+  };
+  const onTreeHoverEnd = () => {
+    SCENE_HANDLE.peek()?.picker.setHover(null);
+  };
+  const onSearchSelect = (path: string) => {
+    SCENE_HANDLE.peek()?.picker.selectByPath(path);
+  };
+  const onSearchFocus = (path: string) => {
+    const handle = SCENE_HANDLE.peek();
+    if (!handle) return;
+    const b = handle.world.getBuildingByPath(path);
+    if (b) handle.rig.focusBuilding(b.mesh, b.building);
+  };
+  const onRunCollisionCheck = () => {
+    SCENE_HANDLE.peek()?.world.runCollisionCheck();
+  };
+  const onRunStemDiagnostic = () => {
+    SCENE_HANDLE.peek()?.world.runStemPlacementDiagnostic();
+  };
+
+  // Effective collapsed: forced when manifest is empty.
+  const effectiveCollapsed = collapsed.value || isEmptyManifest.value;
+  const tab = activeTab.value;
+
+  return (
+    <aside
+      ref={sidebarRef}
+      id={DOM_IDS.LEFT_SIDEBAR}
+      class={effectiveCollapsed ? 'is-collapsed' : ''}
+    >
+      <ActivityBar
+        activeTab={tab}
+        collapsed={effectiveCollapsed}
+        onIconClick={onIconClick}
+      />
+      <div class="pane">
+        {tab === SidebarTab.Tree && (
+          <TreePane
+            manifest={MANIFEST_SIG}
+            selectedPath={selectedPath}
+            hoveredPath={hoveredPath}
+            expanded={treeExpanded}
+            rootPath={(MANIFEST_SIG.value as { tree?: TreeNode })?.tree?.path ?? ''}
+            onClose={onPaneClose}
+            onSelect={onTreeSelect}
+            onFocus={onTreeFocus}
+            onHover={onTreeHover}
+            onHoverEnd={onTreeHoverEnd}
+          />
+        )}
+        {tab === SidebarTab.Search && (
+          <SearchPane
+            manifest={MANIFEST_SIG}
+            onClose={onPaneClose}
+            onSelect={onSearchSelect}
+            onFocus={onSearchFocus}
+          />
+        )}
+        {tab === SidebarTab.Info && (
+          <InfoPane manifest={MANIFEST_SIG} onClose={onPaneClose} />
+        )}
+        {tab === SidebarTab.Controls && (
+          <ControlsPane
+            onClose={onPaneClose}
+            onRunCollisionCheck={onRunCollisionCheck}
+            onRunStemDiagnostic={onRunStemDiagnostic}
+          />
+        )}
+      </div>
+      <ResizeHandle targetRef={sidebarRef} />
+    </aside>
+  );
 }
+
+// LeftSidebarShell is the old name App.tsx used to render the bare
+// <aside> placeholder. With the full Preact port, it's now an alias
+// for the real LeftSidebar component.
+export const LeftSidebarShell = LeftSidebar;

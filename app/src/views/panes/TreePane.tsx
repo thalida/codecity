@@ -218,6 +218,21 @@ export function TreePane({
   const treeSig = useComputed(() => _treeRoot(manifest.value));
   const tree = treeSig.value;
 
+  // Selection → expansion bridge. Subscribes via useEffect so the
+  // production JSX usage (LeftSidebar mounts <TreePane /> directly) gets
+  // automatic ancestor-chain expansion when picker selection moves.
+  // buildTreePane (the imperative shim) sets up its own pre-mount
+  // bridge for tests — this effect is idempotent on top of that.
+  useEffect(() => {
+    function apply() {
+      const p = selectedPath.value;
+      expanded.value = p == null ? new Set([rootPath]) : _ancestorChain(p, rootPath);
+    }
+    apply();
+    const unsubSel = selectedPath.subscribe(apply);
+    return unsubSel;
+  }, [rootPath]);
+
   const noChildren = !tree || !('children' in tree) || ((tree as DirNode).children?.length ?? 0) === 0;
 
   return (
