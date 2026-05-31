@@ -15,6 +15,7 @@ import hljs from 'highlight.js/lib/common';
 import { ASPHALT, BUILDING_PALETTE } from '@/state/settings';
 import { PreviewKind } from '@/types';
 import type { FileNode } from '@/types';
+import { fileUrl, fetchFileText } from '@/api/file';
 import { makeLucideIcon } from '@/views/components/icon';
 import { buildPaneHeader } from '@/views/components/paneHeader';
 import { makeExtensionBadge } from '@/views/components/badge';
@@ -372,15 +373,12 @@ function _previewKind(file: FileNode | { extension?: string }): PreviewKind {
   return PreviewKind.Text;
 }
 
-function _fileApiUrl(file: FileNode): string {
-  const p = file.fullPath || '';
-  return `/api/file?path=${encodeURIComponent(p)}`;
-}
+// _fileApiUrl removed — callers use fileUrl() / fetchFileText() from api/file.ts.
 
 function _makePreviewSection(file: FileNode | null): HTMLElement | null {
   if (!file || !file.fullPath) return null;
 
-  const url = _fileApiUrl(file);
+  const url = fileUrl(file.fullPath || '');
   const kind = _previewKind(file);
 
   if (kind === PreviewKind.Image) {
@@ -432,11 +430,7 @@ function _makePreviewSection(file: FileNode | null): HTMLElement | null {
   const shell = document.createElement('div');
   shell.className = 'pane preview-shell';
 
-  fetch(url)
-    .then((resp) => {
-      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-      return resp.text();
-    })
+  fetchFileText(file.fullPath || '')
     .then(
       (text) =>
         new Promise<void>((resolve) => {

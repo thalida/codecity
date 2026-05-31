@@ -7,6 +7,7 @@
 import { useState, useEffect } from 'preact/hooks';
 import { effect } from '@preact/signals';
 import type { Signal } from '@preact/signals';
+import { fetchFileText } from '@/api/file';
 import { marked } from 'marked';
 import { NodeKind } from '@/types';
 import type { DirNode, FileNode, Manifest, TreeNode } from '@/types';
@@ -84,12 +85,7 @@ export function InfoPane({ manifest, onClose }: InfoPaneProps) {
         return;
       }
       setBody({ kind: 'loading' });
-      const url = `/api/file?path=${encodeURIComponent(readme.fullPath)}`;
-      fetch(url)
-        .then((resp) => {
-          if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-          return resp.text();
-        })
+      fetchFileText(readme.fullPath)
         .then((text) => {
           if (!cancelled) setBody({ kind: 'markdown', html: marked.parse(text) as string });
         })
@@ -266,12 +262,7 @@ export function buildInfoPane(
       return;
     }
     const myReq = ++reqId;
-    const url = `/api/file?path=${encodeURIComponent(readme.fullPath)}`;
-    fetch(url)
-      .then((resp) => {
-        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-        return resp.text();
-      })
+    fetchFileText(readme.fullPath)
       .then((text) => {
         if (myReq !== reqId) return; // stale — newer render in flight
         _renderMarkdown(text);

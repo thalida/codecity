@@ -80,3 +80,15 @@ export async function* streamManifest(
   }
   if (buf.trim()) yield JSON.parse(buf) as ScanStreamEvent;
 }
+
+/**
+ * Clear the server-side scan cache for one (src, branch) pair. Best-effort —
+ * failures are swallowed (cache-clear is a UX nicety, not a correctness path).
+ */
+export function clearManifestCache(src: string, branch?: string): void {
+  const url = new URL('/api/manifest/cache', window.location.origin);
+  url.searchParams.set('src', src);
+  if (branch) url.searchParams.set('branch', branch);
+  fetch(url.toString(), { method: 'DELETE' }).catch(() => {});
+}
+

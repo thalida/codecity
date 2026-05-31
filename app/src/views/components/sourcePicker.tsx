@@ -9,6 +9,7 @@
 import { useState } from 'preact/hooks';
 import type { Signal } from '@preact/signals';
 import { listRecents, removeRecent } from '@/state/runtime/sourceRecents';
+import { clearManifestCache } from '@/api/manifest';
 import { LUCIDE_ICON_BASE_URL } from '@/constants';
 import { SOURCE_PICKER, closeSourcePicker } from '@/state/runtime/uiState';
 import { SERVER_CONFIG } from '@/state/runtime/serverConfig';
@@ -118,10 +119,7 @@ export function SourcePickerComponent({ state, onSubmit, onClose }: SourcePicker
     );
     if (!confirmed) return;
     removeRecent(src, branch);
-    const cacheUrl = new URL('/api/manifest/cache', window.location.origin);
-    cacheUrl.searchParams.set('src', src);
-    if (branch) cacheUrl.searchParams.set('branch', branch);
-    fetch(cacheUrl.toString(), { method: 'DELETE' }).catch(() => {});
+    clearManifestCache(src, branch);
     // Force re-render by re-opening with same state
     state.value = { ...state.value };
   }
@@ -576,15 +574,8 @@ export function createSourcePicker(opts: {
         if (!confirmed) return;
 
         removeRecent(src, branch);
-        // Best-effort: also drop the server-side manifest cache for this
-        // source so re-adding it triggers a fresh scan. Fire-and-forget;
-        // failure here is not user-visible and doesn't block the UI.
-        const cacheUrl = new URL('/api/manifest/cache', window.location.origin);
-        cacheUrl.searchParams.set('src', src);
-        if (branch) cacheUrl.searchParams.set('branch', branch);
-        fetch(cacheUrl.toString(), { method: 'DELETE' }).catch(() => {
-          /* swallow — the user already saw the recent disappear */
-        });
+        // Best-effort cache clear so re-adding triggers a fresh scan.
+        clearManifestCache(src, branch);
         render({ dismissible });
       });
     });
