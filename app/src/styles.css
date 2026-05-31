@@ -855,7 +855,7 @@ canvas {
 
 /* ── Sidebar shell ──────────────────────────────────────────────────────────── */
 
-#sidebar {
+#right-sidebar {
   position: relative;
   flex: 0 0 auto;
   /* Closed by default — width 0, animates open via the .open rule below.
@@ -873,7 +873,7 @@ canvas {
   z-index: 100;
 }
 
-#sidebar.open {
+#right-sidebar.open {
   width: var(--sidebar-width, 360px);
   min-width: 280px;
   max-width: 70vw;
@@ -1212,27 +1212,27 @@ canvas {
    Webkit (Chrome / Safari / Edge) uses ::-webkit-scrollbar*; Firefox uses
    scrollbar-width / scrollbar-color (set further down on the scrolling
    children that actually overflow). */
-#sidebar ::-webkit-scrollbar,
-#tree-sidebar ::-webkit-scrollbar {
+#right-sidebar ::-webkit-scrollbar,
+#left-sidebar ::-webkit-scrollbar {
   width: 4px;
 }
-#sidebar ::-webkit-scrollbar-track,
-#tree-sidebar ::-webkit-scrollbar-track {
+#right-sidebar ::-webkit-scrollbar-track,
+#left-sidebar ::-webkit-scrollbar-track {
   background: transparent;
 }
-#sidebar ::-webkit-scrollbar-thumb,
-#tree-sidebar ::-webkit-scrollbar-thumb {
+#right-sidebar ::-webkit-scrollbar-thumb,
+#left-sidebar ::-webkit-scrollbar-thumb {
   background: var(--cc-border-input);
   border-radius: var(--cc-radius-sm);
 }
-#sidebar ::-webkit-scrollbar-thumb:hover,
-#tree-sidebar ::-webkit-scrollbar-thumb:hover {
+#right-sidebar ::-webkit-scrollbar-thumb:hover,
+#left-sidebar ::-webkit-scrollbar-thumb:hover {
   background: var(--cc-track-hover);
 }
 
 /* Firefox */
-#sidebar .editor-body,
-#sidebar .code-editor {
+#right-sidebar .editor-body,
+#right-sidebar .code-editor {
   scrollbar-width: thin;
   scrollbar-color: var(--cc-border-input) transparent;
 }
@@ -1298,7 +1298,7 @@ canvas {
 /* Default width is set inline by leftSidebar.js after reading localStorage,
  * so users can drag the right-edge handle to resize and the chosen width
  * persists across reloads. The CSS fallback is the no-localStorage default. */
-#tree-sidebar {
+#left-sidebar {
   position: relative;
   flex: 0 0 auto;
   width: 360px; /* 44px activity bar + 316px panel; resizable */
@@ -1315,7 +1315,7 @@ canvas {
 /* Until showLeftSidebar populates the tree, the empty container would
    show as a lighter strip on the left during the manifest fetch / scene
    build. Hide it while empty so the initial paint is just the header. */
-#tree-sidebar:empty {
+#left-sidebar:empty {
   display: none;
 }
 
@@ -1323,16 +1323,16 @@ canvas {
  * 6px hit zone makes it easy to grab. */
 /* Resize handle rules consolidated with .sidebar-resize-handle-right above. */
 
-/* Collapsed: just the activity bar shows. Inline width on #tree-sidebar
+/* Collapsed: just the activity bar shows. Inline width on #left-sidebar
  * (set by the resize handle) is overridden by !important so we get the
  * narrow width without having to clear/restore the inline style on
  * every toggle. */
-#tree-sidebar.is-collapsed {
+#left-sidebar.is-collapsed {
   width: 44px !important;
   min-width: 44px;
 }
-#tree-sidebar.is-collapsed > .pane,
-#tree-sidebar.is-collapsed .sidebar-resize-handle {
+#left-sidebar.is-collapsed > .pane,
+#left-sidebar.is-collapsed .sidebar-resize-handle {
   display: none;
 }
 
@@ -1991,10 +1991,10 @@ canvas {
 }
 
 /* Scrollbar for tree */
-/* Webkit scrollbar rules consolidated with #sidebar earlier in the file.
+/* Webkit scrollbar rules consolidated with #right-sidebar earlier in the file.
    This block only sets the Firefox scrollbar style on the actual
-   scrolling child of #tree-sidebar. */
-#tree-sidebar .tree-root {
+   scrolling child of #left-sidebar. */
+#left-sidebar .tree-root {
   scrollbar-width: thin;
   scrollbar-color: var(--cc-border-input) transparent;
 }
@@ -2223,7 +2223,7 @@ canvas {
 /* Scrollbar tuned to match the tree pane's. The search pane's body
    uses .pane-body; the info pane's body adds the .info-body marker so
    this Firefox scrollbar rule can target it specifically. */
-#tree-sidebar .search-pane > .pane-body {
+#left-sidebar .search-pane > .pane-body {
   scrollbar-width: thin;
   scrollbar-color: var(--cc-border-input) transparent;
 }
@@ -2237,7 +2237,7 @@ canvas {
 .info-body > .empty-state {
   flex: 1 1 auto;
 }
-#tree-sidebar .info-body {
+#left-sidebar .info-body {
   scrollbar-width: thin;
   scrollbar-color: var(--cc-border-input) transparent;
 }

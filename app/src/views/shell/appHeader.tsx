@@ -397,23 +397,31 @@ export function AppHeader({
     };
   }
 
+  // AppHeader owns its <header> tag and the 3-column grid (see styles.css
+  // #app-header rule for the layout). #app-header-right is reserved for
+  // future right-side controls.
   return (
-    <>
-      <HeaderLeft
-        rootLabel={si.label}
-        branch={si.branch}
-        sourceUrl={si.sourceUrl}
-        onResetView={onResetView}
-        onSwitchSource={onSwitchSource ?? (() => openSourcePicker({ dismissible: true }))}
-      />
-      <HeaderTitle
-        sel={sel}
-        rootLabel={si.label}
-        rootPath={rootPath}
-        onSegmentClick={onSegmentClick}
-        onFocus={onFocus}
-      />
-    </>
+    <header id="app-header">
+      <div id="app-header-left">
+        <HeaderLeft
+          rootLabel={si.label}
+          branch={si.branch}
+          sourceUrl={si.sourceUrl}
+          onResetView={onResetView}
+          onSwitchSource={onSwitchSource ?? (() => openSourcePicker({ dismissible: true }))}
+        />
+      </div>
+      <div id="app-title">
+        <HeaderTitle
+          sel={sel}
+          rootLabel={si.label}
+          rootPath={rootPath}
+          onSegmentClick={onSegmentClick}
+          onFocus={onFocus}
+        />
+      </div>
+      <div id="app-header-right" />
+    </header>
   );
 }
 

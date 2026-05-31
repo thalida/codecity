@@ -198,7 +198,7 @@ export function showLeftSidebar(
   opts: ShowLeftSidebarOpts = {}
 ) {
   const noop = () => {};
-  const container = document.getElementById(DOM_IDS.TREE_SIDEBAR);
+  const container = document.getElementById(DOM_IDS.LEFT_SIDEBAR);
   if (!container) return { setSelectedTreePath: noop, setHoveredTreePath: noop };
 
   while (container.firstChild) container.removeChild(container.firstChild);
@@ -429,6 +429,6 @@ export function showLeftSidebar(
  * Kept for API symmetry with rightSidebar.
  */
 export function hideLeftSidebar(): void {
-  const container = document.getElementById(DOM_IDS.TREE_SIDEBAR);
+  const container = document.getElementById(DOM_IDS.LEFT_SIDEBAR);
   if (container) container.classList.add('is-collapsed');
 }

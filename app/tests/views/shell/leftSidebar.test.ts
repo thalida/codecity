@@ -17,7 +17,7 @@ describe('showLeftSidebar', () => {
 
   beforeEach(() => {
     container = document.createElement('div');
-    container.id = 'tree-sidebar';
+    container.id = 'left-sidebar';
     document.body.appendChild(container);
   });
 
@@ -76,7 +76,7 @@ describe('showLeftSidebar', () => {
     expect(container.querySelector<HTMLElement>('.controls-pane')!.style.display).toBe('');
   });
 
-  it('does nothing if #tree-sidebar is missing', () => {
+  it('does nothing if #left-sidebar is missing', () => {
     document.body.removeChild(container);
     expect(() => showLeftSidebar({ tree: TEST_TREE })).not.toThrow();
     // Re-add so afterEach can remove it

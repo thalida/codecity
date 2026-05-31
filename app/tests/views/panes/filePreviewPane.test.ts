@@ -5,7 +5,7 @@ import { NodeKind } from '@/types';
 import type { FileNode } from '@/types';
 
 function resetDom() {
-  document.body.innerHTML = '<div id="sidebar"></div>';
+  document.body.innerHTML = '<div id="right-sidebar"></div>';
 }
 
 const FILE_NODE: FileNode = {
@@ -117,18 +117,18 @@ describe('buildFilePreviewPane', () => {
 describe('showRightSidebar / hideRightSidebar', () => {
   beforeEach(resetDom);
 
-  it('mounts a pane and adds .open to #sidebar', () => {
+  it('mounts a pane and adds .open to #right-sidebar', () => {
     const { pane } = buildFilePreviewPane();
     showRightSidebar(pane);
-    expect(document.getElementById('sidebar')!.classList.contains('open')).toBe(true);
-    expect(document.querySelector('#sidebar > .pane')).toBe(pane);
+    expect(document.getElementById('right-sidebar')!.classList.contains('open')).toBe(true);
+    expect(document.querySelector('#right-sidebar > .pane')).toBe(pane);
   });
 
   it('does not duplicate the pane when called twice with the same pane', () => {
     const { pane } = buildFilePreviewPane();
     showRightSidebar(pane);
     showRightSidebar(pane);
-    expect(document.querySelectorAll('#sidebar > .pane').length).toBe(1);
+    expect(document.querySelectorAll('#right-sidebar > .pane').length).toBe(1);
   });
 
   it('swaps the pane when called with a different pane', () => {
@@ -136,7 +136,7 @@ describe('showRightSidebar / hideRightSidebar', () => {
     const b = buildFilePreviewPane().pane;
     showRightSidebar(a);
     showRightSidebar(b);
-    const panes = document.querySelectorAll('#sidebar > .pane');
+    const panes = document.querySelectorAll('#right-sidebar > .pane');
     expect(panes.length).toBe(1);
     expect(panes[0]).toBe(b);
   });
@@ -145,11 +145,11 @@ describe('showRightSidebar / hideRightSidebar', () => {
     const { pane } = buildFilePreviewPane();
     showRightSidebar(pane);
     hideRightSidebar();
-    expect(document.getElementById('sidebar')!.classList.contains('open')).toBe(false);
-    expect(document.querySelector('#sidebar > .pane')).toBe(pane);
+    expect(document.getElementById('right-sidebar')!.classList.contains('open')).toBe(false);
+    expect(document.querySelector('#right-sidebar > .pane')).toBe(pane);
   });
 
-  it('does nothing if #sidebar is missing', () => {
+  it('does nothing if #right-sidebar is missing', () => {
     document.body.innerHTML = '';
     const { pane } = buildFilePreviewPane();
     expect(() => showRightSidebar(pane)).not.toThrow();

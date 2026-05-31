@@ -285,14 +285,14 @@ export function AppFooter() {
   }
 
   return (
-    <>
+    <footer id="app-footer">
       <div class="app-footer-section app-footer-left">
         <FooterStatusSection status={status} />
       </div>
       <div class="app-footer-section app-footer-right">
         <FooterSelectionSection selection={selection} />
       </div>
-    </>
+    </footer>
   );
 }
 

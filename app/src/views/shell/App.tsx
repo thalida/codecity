@@ -147,28 +147,20 @@ export function App() {
 
   return (
     <>
-      <header id="app-header">
-        <div id="app-header-left">
-          <AppHeader
-            onSegmentClick={onSegmentClick}
-            onSwitchSource={onSwitchSource}
-            onResetView={onResetView}
-            onFocus={onFocus}
-          />
-        </div>
-        <div id="app-title" />
-        <div id="app-header-right" />
-      </header>
+      <AppHeader
+        onSegmentClick={onSegmentClick}
+        onSwitchSource={onSwitchSource}
+        onResetView={onResetView}
+        onFocus={onFocus}
+      />
       <main id="app-body">
-        <div id="tree-sidebar" />
+        <div id="left-sidebar" />
         <div id="center-pane">
           <canvas id="city" />
         </div>
-        <div id="sidebar" />
+        <div id="right-sidebar" />
       </main>
-      <footer id="app-footer">
-        <AppFooter />
-      </footer>
+      <AppFooter />
       <SourcePickerShell />
       <LoadingOverlayShell />
     </>

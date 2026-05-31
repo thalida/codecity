@@ -2,8 +2,8 @@
 
 export const DOM_IDS = {
   CANVAS: 'city',
-  TREE_SIDEBAR: 'tree-sidebar',
-  FILE_SIDEBAR: 'sidebar',
+  LEFT_SIDEBAR: 'left-sidebar',
+  RIGHT_SIDEBAR: 'right-sidebar',
   HOVER_TOOLTIP: 'hover-tooltip',
   APP_TITLE: 'app-title',
 } as const;

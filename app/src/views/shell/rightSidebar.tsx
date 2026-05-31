@@ -302,7 +302,7 @@ export function mountRightSidebarReactions(): () => void {
  * re-append. Passing a different pane swaps the mounted one.
  */
 export function showRightSidebar(pane: HTMLElement): void {
-  const sidebar = document.getElementById(DOM_IDS.FILE_SIDEBAR);
+  const sidebar = document.getElementById(DOM_IDS.RIGHT_SIDEBAR);
   if (!sidebar) return;
 
   _ensureResizeHandle(sidebar);
@@ -322,6 +322,6 @@ export function showRightSidebar(pane: HTMLElement): void {
  * without rebuilding.
  */
 export function hideRightSidebar(): void {
-  const sidebar = document.getElementById(DOM_IDS.FILE_SIDEBAR);
+  const sidebar = document.getElementById(DOM_IDS.RIGHT_SIDEBAR);
   if (sidebar) sidebar.classList.remove('open');
 }
