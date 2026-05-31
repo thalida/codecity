@@ -21,7 +21,7 @@
 import * as THREE from 'three';
 import { NodeKind } from '@/types';
 import type { DirNode, FileNode, Manifest, TreeNode } from '@/types';
-import { FILE_ICON_CDN_BASE } from '@/constants/fileIcons';
+import { ICON_CDN_BASE } from '@/constants/fileIcons';
 import { getFileIconName } from '@/utils/fileIcons';
 
 // Atlas is 2048×2048 with 128-px slots → up to 16×16 = 256 unique
@@ -171,6 +171,6 @@ function _drawIconInto(
       }
     };
     img.onerror = () => reject(new Error(`icon load failed: ${iconName}`));
-    img.src = `${FILE_ICON_CDN_BASE}${iconName}.svg`;
+    img.src = `${ICON_CDN_BASE}${iconName}.svg`;
   });
 }

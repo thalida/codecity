@@ -13,7 +13,7 @@
 import * as THREE from 'three';
 import { BuildingOrient } from '@/types/index';
 import { AD_PANEL, BLOOM, BUILDING_DIMENSIONS } from '@/state/settings/index';
-import { RENDER_ORDERS } from '@/constants';
+import { RENDER_ORDERS } from '@/scene/renderOrders';
 import { mediaKindOf, MediaKind } from './adPanels';
 import { AdPanelTextureArray, MAX_PAGES as AD_PANEL_MAX_PAGES } from './adPanelTextureArray';
 import type { Building } from '@/types/index';

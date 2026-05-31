@@ -29,7 +29,7 @@ export function computePathLinewidthPixels(pct: number): number {
   const minWidth = Math.min(...tiers.map((t) => t.width));
   return minWidth * (pct / 100);
 }
-import { RENDER_ORDERS } from '@/constants';
+import { RENDER_ORDERS } from '@/scene/renderOrders';
 import { NodeKind } from '@/types';
 import { computePathPoints } from '@/scene/utils/path';
 import type { createWorld } from '@/scene/world';

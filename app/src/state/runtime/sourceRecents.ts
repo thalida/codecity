@@ -3,9 +3,7 @@
 // one-click reload rows.
 
 import { persistedSignal } from '@/state/persist';
-
-const KEY = 'codecity:recents';
-const MAX = 10;
+import { PERSISTED_KEYS, MAX_RECENT_SOURCES } from '@/constants';
 
 export interface RecentSource {
   src: string; // exactly what was typed / passed; goes into ?src=
@@ -20,7 +18,7 @@ export interface RecentSource {
 }
 
 /** Persisted list of recently-opened sources. Hydrates at module load. */
-export const RECENTS = persistedSignal<RecentSource[]>(KEY, []);
+export const RECENTS = persistedSignal<RecentSource[]>(PERSISTED_KEYS.RECENTS, []);
 
 export function listRecents(): RecentSource[] {
   return RECENTS.value;
@@ -28,8 +26,8 @@ export function listRecents(): RecentSource[] {
 
 /**
  * Push (or update) an entry. Dedupes by (src, branch ?? ''). The pushed
- * entry becomes the most-recent. List is capped at MAX entries (oldest
- * dropped).
+ * entry becomes the most-recent. List is capped at MAX_RECENT_SOURCES
+ * entries (oldest dropped).
  *
  * Special case for `branchIsDefault`: when an entry's branch was filled
  * in from the manifest's resolved HEAD (the user didn't type one), we
@@ -47,7 +45,7 @@ export function pushRecent(entry: Omit<RecentSource, 'lastOpenedAt'>): void {
     return true;
   });
   filtered.unshift({ ...entry, lastOpenedAt: now });
-  RECENTS.value = filtered.slice(0, MAX);
+  RECENTS.value = filtered.slice(0, MAX_RECENT_SOURCES);
 }
 
 /** Drop the entry matching (src, branch). No-op if not present. */

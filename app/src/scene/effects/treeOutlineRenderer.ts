@@ -21,7 +21,7 @@ import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
 
 import { TREE_OUTLINE } from '@/state/settings/components/trees';
 import { RAINBOW } from '@/state/settings/effects/effects';
-import { RENDER_ORDERS } from '@/constants';
+import { RENDER_ORDERS } from '@/scene/renderOrders';
 import { NodeKind } from '@/types';
 import { buildCanopyEdges } from '@/scene/components/trees/treeRenderer';
 import type { PickTarget } from '@/types/picker';

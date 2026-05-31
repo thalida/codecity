@@ -31,7 +31,7 @@ import * as THREE from 'three';
 
 import { BUILDING_DIMENSIONS } from '@/state/settings/components/buildings';
 import { REPO_LABEL } from '@/state/settings/components/repoLabel';
-import { RENDER_ORDERS } from '@/constants';
+import { RENDER_ORDERS } from '@/scene/renderOrders';
 
 import vertSrc from './holoQuad.vert.glsl?raw';
 import beamFragSrc from './holoBeam.frag.glsl?raw';

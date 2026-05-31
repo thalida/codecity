@@ -8,6 +8,10 @@ import { SidebarTab } from '@/types/ui';
  */
 export const LUCIDE_ICON_BASE_URL = 'https://cdn.jsdelivr.net/npm/lucide-static@latest/icons/';
 
+/** Max number of recently-opened sources kept in the source-picker MRU list
+ *  (oldest dropped past this). */
+export const MAX_RECENT_SOURCES = 10;
+
 /**
  * Activity-bar tab definitions (left-side icon strip). Each entry maps
  * a tab id to the Lucide icon filename + the tooltip title. `placement`

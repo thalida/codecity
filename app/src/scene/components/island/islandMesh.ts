@@ -13,7 +13,7 @@ import { ISLAND_GEOMETRY, ISLAND_MATERIALS } from '@/state/settings/components/i
 import { getWorldBounds, type WorldBounds } from '@/scene/layout/worldBounds';
 import { buildIslandGeometry, type IslandBuildParams } from './islandGeometry';
 import { createIslandMaterial } from './islandShader';
-import { RENDER_ORDERS } from '@/constants';
+import { RENDER_ORDERS } from '@/scene/renderOrders';
 
 const ISLAND_TOP_Y = -2.0; // Increased from -0.5 for z-fighting prevention (4x separation from city y=0)
 

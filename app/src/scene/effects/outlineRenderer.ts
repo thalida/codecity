@@ -23,7 +23,7 @@ import { LineSegmentsGeometry } from 'three/addons/lines/LineSegmentsGeometry.js
 import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
 
 import { BUILDING_OUTLINE, RAINBOW } from '@/state/settings/index';
-import { RENDER_ORDERS } from '@/constants';
+import { RENDER_ORDERS } from '@/scene/renderOrders';
 import { NodeKind } from '@/types';
 import { UNIT_BOX_EDGE_POSITIONS } from '@/scene/world';
 import { getBuildingTilt } from '@/scene/components/buildings/buildingTilt';

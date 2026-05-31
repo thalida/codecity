@@ -21,3 +21,12 @@ export const STORAGE_KEYS = {
   /** Left sidebar collapsed state ('true' iff collapsed). */
   SIDEBAR_COLLAPSED: `${STORAGE_PREFIX}sidebarCollapsed`,
 } as const;
+
+/** Base keys for persistedSignal()-backed stores. Unlike STORAGE_KEYS above
+ *  (raw localStorage access, fully-qualified with STORAGE_PREFIX), these are
+ *  BARE suffixes — persistedSignal() prepends STORAGE_PREFIX itself, so the
+ *  effective slot is e.g. `cc.recents`. */
+export const PERSISTED_KEYS = {
+  /** Recently-opened sources list (source-picker MRU). */
+  RECENTS: 'recents',
+} as const;

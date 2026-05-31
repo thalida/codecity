@@ -17,7 +17,40 @@
 //   error    — fatal mid-stream failure; client should surface and stop.
 
 import type { Manifest } from '@/types/manifest';
-import { buildApiUrl, type BuildApiUrlOpts } from './';
+// ── URL helper ───────────────────────────────────────────────────────────
+
+export interface BuildApiUrlOpts {
+  noCache?: boolean;
+}
+
+/**
+ * Build the URL for a server endpoint, forwarding the page's `src`
+ * (and optional `branch`) params. When `opts.noCache` is true,
+ * appends `no_cache=true` to force a fresh scan on this request.
+ * When no `src` is present, returns the endpoint URL without any
+ * source params — boot uses this to detect "no source picked yet".
+ *
+ * Pure function (no `window` access) so the endpoint wrappers below can
+ * bind it to live `window.location.*` values while this helper stays
+ * directly unit-testable.
+ */
+export function buildApiUrl(
+  endpoint: string,
+  pageSearch: string,
+  origin: string,
+  opts: BuildApiUrlOpts = {}
+): string {
+  const qp = new URLSearchParams(pageSearch);
+  const u = new URL(endpoint, origin);
+  if (qp.has('src')) {
+    u.searchParams.set('src', qp.get('src')!);
+    if (qp.has('branch')) u.searchParams.set('branch', qp.get('branch')!);
+  }
+  if (opts.noCache) {
+    u.searchParams.set('no_cache', 'true');
+  }
+  return u.toString();
+}
 
 // ── Endpoint URL builders ────────────────────────────────────────────────
 

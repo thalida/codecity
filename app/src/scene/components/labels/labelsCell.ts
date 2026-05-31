@@ -16,7 +16,7 @@
 
 import * as THREE from 'three';
 import { LABEL_TYPOGRAPHY } from '@/state/settings/index';
-import { RENDER_ORDERS } from '@/constants';
+import { RENDER_ORDERS } from '@/scene/renderOrders';
 import type { Building } from '@/types/index';
 import type { CellTile } from '../../layout/cellTile';
 import type { LabelAtlasResult } from './labelAtlas';

@@ -24,7 +24,7 @@
 
 import * as THREE from 'three';
 import { TREES } from '@/state/settings/components/trees';
-import { RENDER_ORDERS } from '@/constants';
+import { RENDER_ORDERS } from '@/scene/renderOrders';
 import type { TreePlacement } from './treePlacement';
 import type { CommitEntry } from '@/types';
 import {

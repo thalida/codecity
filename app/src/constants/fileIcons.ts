@@ -9,9 +9,6 @@
 const ICON_VERSION = '5.30.0';
 export const ICON_CDN_BASE = `https://cdn.jsdelivr.net/npm/material-icon-theme@${ICON_VERSION}/icons/`;
 
-/** Alias re-export — older call sites import the same URL under this name. */
-export const FILE_ICON_CDN_BASE = ICON_CDN_BASE;
-
 // Material's `document` glyph has more visual weight than the plain
 // `file` outline — feels at home next to the colorful per-type icons
 // instead of looking like an unloved placeholder. The onerror handler

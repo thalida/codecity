@@ -22,7 +22,7 @@
 import * as THREE from 'three';
 import { effect } from '@preact/signals';
 import { NodeKind } from '@/types';
-import { RENDER_ORDERS } from '@/constants';
+import { RENDER_ORDERS } from '@/scene/renderOrders';
 import type { createWorld } from '@/scene/world';
 import type { createPicker } from '@/scene/system/picker';
 import type { FileTarget } from '@/types';

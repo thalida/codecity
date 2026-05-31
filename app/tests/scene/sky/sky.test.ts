@@ -8,7 +8,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import * as THREE from 'three';
 import { createSky } from '@/scene/components/sky/sky';
 import { SKY, SKY_STARS } from '@/state/settings/components/sky';
-import { RENDER_ORDERS } from '@/constants';
+import { RENDER_ORDERS } from '@/scene/renderOrders';
 
 function resetStores() {
   SKY.value = {

@@ -24,7 +24,7 @@
 import * as THREE from 'three';
 import { SKY, SKY_STARS } from '@/state/settings/components/sky';
 import { CAMERA_PERSPECTIVE } from '@/state/settings/system/cameraRig';
-import { RENDER_ORDERS } from '@/constants';
+import { RENDER_ORDERS } from '@/scene/renderOrders';
 
 import skyVertSrc from './sky.vert.glsl?raw';
 import skyFragSrc from './sky.frag.glsl?raw';

@@ -5,6 +5,7 @@ import {
   removeRecent,
   RECENTS,
 } from '@/state/runtime/sourceRecents';
+import { STORAGE_PREFIX, PERSISTED_KEYS } from '@/constants';
 
 describe('sourceRecents', () => {
   beforeEach(() => {
@@ -68,7 +69,7 @@ describe('sourceRecents', () => {
   });
 
   it('recovers gracefully from corrupt storage', () => {
-    localStorage.setItem('codecity:recents', '{not valid json');
+    localStorage.setItem(STORAGE_PREFIX + PERSISTED_KEYS.RECENTS, '{not valid json');
     expect(listRecents()).toEqual([]);
     // And pushing still works.
     pushRecent({ src: '/foo', label: 'foo' });

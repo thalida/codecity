@@ -17,7 +17,7 @@
 
 import * as THREE from 'three';
 import { ASPHALT, LABEL_TYPOGRAPHY } from '@/state/settings/components/streets';
-import { RENDER_ORDERS } from '@/constants';
+import { RENDER_ORDERS } from '@/scene/renderOrders';
 import { NodeKind, StreetAxis } from '@/types';
 import type { Street } from '@/types';
 

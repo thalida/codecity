@@ -28,7 +28,7 @@
 
 import * as THREE from 'three';
 import { FOOTPRINT } from '@/state/settings/components/footprint';
-import { RENDER_ORDERS } from '@/constants';
+import { RENDER_ORDERS } from '@/scene/renderOrders';
 import { StreetAxis } from '@/types';
 import type { Building, CityLayout, Street } from '@/types';
 

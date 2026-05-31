@@ -14,7 +14,7 @@ import type { TreePlacement } from '@/scene/components/trees/treePlacement';
 import { TREES } from '@/state/settings/components/trees';
 import { BUILDING_DIMENSIONS } from '@/state/settings/components/buildings';
 import { LIGHTING } from '@/state/settings/components/lighting';
-import { RENDER_ORDERS } from '@/constants';
+import { RENDER_ORDERS } from '@/scene/renderOrders';
 import type { CommitEntry } from '@/types';
 import { commits as buildCommits } from './_commitFixtures';
 
