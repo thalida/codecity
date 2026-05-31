@@ -19,7 +19,7 @@
 // UI tweaks apply immediately without restart — there's no module-level
 // cache of any of these.
 
-import { signal } from '@preact/signals';
+import { persistedSignal } from '@/state/persist';
 
 export interface AnimationTimingConfig {
   BASE_DURATION_MS: number;
@@ -27,7 +27,7 @@ export interface AnimationTimingConfig {
   BUILDING_TRANSITION_MS: number;
 }
 
-export const ANIMATION_TIMING = signal<AnimationTimingConfig>({
+export const ANIMATION_TIMING = persistedSignal<AnimationTimingConfig>('ANIMATION_TIMING', {
   BASE_DURATION_MS: 500,
   EASING_POWER: 3,
   BUILDING_TRANSITION_MS: 375,

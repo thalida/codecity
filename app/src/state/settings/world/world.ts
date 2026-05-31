@@ -3,7 +3,7 @@
 // visuals (island materials, sky color, etc.) live in their own
 // component config.
 
-import { signal } from '@preact/signals';
+import { persistedSignal } from '@/state/persist';
 
 export interface WorldConfig {
   /** Padding past the city's bounding box as a percentage of the city's
@@ -12,7 +12,7 @@ export interface WorldConfig {
   GROUND_BUFFER_PERCENT: number;
 }
 
-export const WORLD = signal<WorldConfig>({
+export const WORLD = persistedSignal<WorldConfig>('WORLD', {
   // 0% by default — the island polygon already has a built-in sqrt(2) ×
   // 1/cos(π/N) expansion past the city bbox so the city is comfortably
   // contained without extra padding. Users dial this up if they want
@@ -41,7 +41,7 @@ export interface SceneColorsConfig {
 // FOG_ENABLED off → uFogIntensity uniform is forced to 0 (the shader's
 // mix() then returns the original color unchanged). Other knobs stay
 // in config so flipping ENABLED back restores the haze.
-export const SCENE_COLORS = signal<SceneColorsConfig>({
+export const SCENE_COLORS = persistedSignal<SceneColorsConfig>('SCENE_COLORS', {
   FOG_ENABLED: true,
   FOG_COLOR: '#0f0821',
   FOG_INTENSITY: 0.8,

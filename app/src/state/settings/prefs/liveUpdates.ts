@@ -9,14 +9,14 @@
 // can't ddos the local server, and an absurdly large one can't disable
 // the feature in disguise.
 
-import { signal } from '@preact/signals';
+import { persistedSignal } from '@/state/persist';
 
 export interface LiveUpdatesConfig {
   ENABLED: boolean;
   POLL_SECONDS: number;
 }
 
-export const LIVE_UPDATES = signal<LiveUpdatesConfig>({
+export const LIVE_UPDATES = persistedSignal<LiveUpdatesConfig>('LIVE_UPDATES', {
   ENABLED: false,
   POLL_SECONDS: 10,
 });

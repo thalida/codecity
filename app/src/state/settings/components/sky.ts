@@ -10,13 +10,13 @@
 //   SKY_STARS — hashed point-star field rendered across the full
 //                sphere (including below the horizon line).
 
-import { signal } from '@preact/signals';
+import { persistedSignal } from '@/state/persist';
 
 export interface SkyConfig {
   COLOR: string;
 }
 
-export const SKY = signal<SkyConfig>({
+export const SKY = persistedSignal<SkyConfig>('SKY', {
   // Near-black with a faint plum cast — reads as deep space, not pure
   // black, so HDR-bloomed buildings and stars retain contrast.
   COLOR: '#010005',
@@ -27,7 +27,7 @@ export interface SkyStarsConfig {
   DENSITY: number;
 }
 
-export const SKY_STARS = signal<SkyStarsConfig>({
+export const SKY_STARS = persistedSignal<SkyStarsConfig>('SKY_STARS', {
   ENABLED: true,
   // 0.0075 — user-tuned default that lands ~680 stars across the
   // upper hemisphere. With stars now drawn across the full sphere

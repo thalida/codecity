@@ -27,7 +27,7 @@
 //                     look; other colors fold the aberration into the
 //                     chosen hue.
 
-import { signal } from '@preact/signals';
+import { persistedSignal } from '@/state/persist';
 
 export interface RepoLabelConfig {
   ENABLED: boolean;
@@ -39,7 +39,7 @@ export interface RepoLabelConfig {
   TEXT_COLOR: string;
 }
 
-export const REPO_LABEL = signal<RepoLabelConfig>({
+export const REPO_LABEL = persistedSignal<RepoLabelConfig>('REPO_LABEL', {
   ENABLED: true,
   HEIGHT_PCT: 85,
   // Tuned by eye to feel like a substantial banner above the city

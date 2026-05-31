@@ -3,7 +3,7 @@
 // packed (tiers + gaps). Asphalt color + sidewalk variants are applied on Save
 // via applyTheme(); label typography + tiers + gaps are rebuild-required.
 
-import { signal } from '@preact/signals';
+import { persistedSignal } from '@/state/persist';
 
 // ─── Asphalt (the inner stripe of every street) ──────────────────────────
 // COLOR is applied on Save via applyTheme(). Width and length are derived: width = street
@@ -16,7 +16,7 @@ export interface AsphaltConfig {
   WIDTH_FRAC: number;
 }
 
-export const ASPHALT = signal<AsphaltConfig>({
+export const ASPHALT = persistedSignal<AsphaltConfig>('ASPHALT', {
   COLOR: '#313544',
   WIDTH_FRAC: 0.6,
 });
@@ -32,7 +32,7 @@ export interface SidewalkColorsConfig {
   SELECTED: string;
 }
 
-export const SIDEWALK_COLORS = signal<SidewalkColorsConfig>({
+export const SIDEWALK_COLORS = persistedSignal<SidewalkColorsConfig>('SIDEWALK_COLORS', {
   DEFAULT: '#4b5163',
   HOVER: '#6d6e74',
   SELECTED: '#ffffff',
@@ -54,7 +54,7 @@ export interface LabelTypographyConfig {
   ELEVATION: number;
 }
 
-export const LABEL_TYPOGRAPHY = signal<LabelTypographyConfig>({
+export const LABEL_TYPOGRAPHY = persistedSignal<LabelTypographyConfig>('LABEL_TYPOGRAPHY', {
   FILL: '#ffffff',
   STROKE: 'rgba(8, 9, 14, 0.95)',
   FONT_FAMILY: 'Inter, "SF Mono", sans-serif',
@@ -74,7 +74,7 @@ export interface PathLineConfig {
   OPACITY: number;
 }
 
-export const PATH_LINE = signal<PathLineConfig>({
+export const PATH_LINE = persistedSignal<PathLineConfig>('PATH_LINE', {
   LINEWIDTH_PCT: 15,
   ELEVATION: 0.3, // Y position above ground
   OPACITY: 0.95,
@@ -94,7 +94,7 @@ export interface HoverPathLineConfig {
   ELEVATION: number;
 }
 
-export const HOVER_PATH_LINE = signal<HoverPathLineConfig>({
+export const HOVER_PATH_LINE = persistedSignal<HoverPathLineConfig>('HOVER_PATH_LINE', {
   COLOR: '#ffffff',
   OPACITY: 0.25,
   ELEVATION: 0.25, // sits just below PATH_LINE so the rainbow stays on top
@@ -110,7 +110,7 @@ export interface StreetTier {
   width: number;
 }
 
-export const STREET_TIERS = signal<StreetTier[]>([
+export const STREET_TIERS = persistedSignal<StreetTier[]>('STREET_TIERS', [
   { min_descendants: 0, width: 32 },
   { min_descendants: 4, width: 48 },
   { min_descendants: 8, width: 80 },
@@ -131,7 +131,7 @@ export interface StreetLayoutConfig {
   PARENT_JOIN_PAD: number;
 }
 
-export const STREET_LAYOUT = signal<StreetLayoutConfig>({
+export const STREET_LAYOUT = persistedSignal<StreetLayoutConfig>('STREET_LAYOUT', {
   CHILD_GAP: 8,
   ROOT_END_PAD: 8,
   PARENT_JOIN_PAD: 8,

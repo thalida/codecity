@@ -25,7 +25,7 @@
 //   - TRUNK: height = TRUNK_HEIGHT_FRAC × canopy height; radius =
 //     TRUNK_RADIUS_FRAC_OF_CANOPY × canopy radius.
 
-import { signal } from '@preact/signals';
+import { persistedSignal } from '@/state/persist';
 
 export interface TreesConfig {
   /** Master toggle — when false no trees are placed or rendered. */
@@ -114,7 +114,7 @@ export interface TreesConfig {
   TREE_WIDTH_AGE_FLOOR: number;
 }
 
-export const TREES = signal<TreesConfig>({
+export const TREES = persistedSignal<TreesConfig>('TREES', {
   TREES_ENABLED: true,
 
   EDGE_INSET_PERCENT: 1,
@@ -159,7 +159,7 @@ export interface TreeOutlineConfig {
   SELECTED_OPACITY: number;
 }
 
-export const TREE_OUTLINE = signal<TreeOutlineConfig>({
+export const TREE_OUTLINE = persistedSignal<TreeOutlineConfig>('TREE_OUTLINE', {
   WIDTH: 1,
   HOVER_COLOR: '#ffffff',
   HOVER_OPACITY: 0.5,

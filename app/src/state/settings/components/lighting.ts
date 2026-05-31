@@ -3,7 +3,7 @@
 // building fragment shader. Persisted via attachPersistence(Config) at boot
 // and wired through refreshBuildingMaterial() on every change.
 
-import { signal } from '@preact/signals';
+import { persistedSignal } from '@/state/persist';
 
 // Sun direction expressed in spherical coordinates rather than a raw vec3
 // because users tweak "where the sun is" more naturally as
@@ -32,7 +32,7 @@ export interface LightingConfig {
   SUN_CONTRAST: number;
 }
 
-export const LIGHTING = signal<LightingConfig>({
+export const LIGHTING = persistedSignal<LightingConfig>('LIGHTING', {
   SUN_AZIMUTH_DEG: 51,
   SUN_ELEVATION_DEG: 58,
   AMBIENT: 0.72,

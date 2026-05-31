@@ -11,7 +11,7 @@
 // are rejected by the existing rbush overlap check — no extra
 // gradient logic required.
 
-import { signal } from '@preact/signals';
+import { persistedSignal } from '@/state/persist';
 
 export interface FootprintConfig {
   /** Master toggle. When false, the InstancedMesh is still built but
@@ -34,7 +34,7 @@ export interface FootprintConfig {
   COLOR: string;
 }
 
-export const FOOTPRINT = signal<FootprintConfig>({
+export const FOOTPRINT = persistedSignal<FootprintConfig>('FOOTPRINT', {
   ENABLED: true,
   HALO_WIDTH: 24,
   // 2.0 × 24 = 48 wu radius. Above 1.0 means the rounding extends

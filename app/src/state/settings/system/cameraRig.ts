@@ -11,7 +11,7 @@
 // are inlined as private consts in main.ts; they're algorithm tuning,
 // not designer dials.)
 
-import { signal } from '@preact/signals';
+import { persistedSignal } from '@/state/persist';
 
 // ─── Camera lens ───────────────────────────────────────────────────────────
 export interface CameraPerspectiveConfig {
@@ -20,7 +20,7 @@ export interface CameraPerspectiveConfig {
   FAR: number;
 }
 
-export const CAMERA_PERSPECTIVE = signal<CameraPerspectiveConfig>({
+export const CAMERA_PERSPECTIVE = persistedSignal<CameraPerspectiveConfig>('CAMERA_PERSPECTIVE', {
   FOV: 45, // vertical field-of-view in degrees
   NEAR: 1,
   FAR: 20000,
@@ -35,7 +35,7 @@ export interface CameraControlsConfig {
   INITIAL_DISTANCE_MULT: number;
 }
 
-export const CAMERA_CONTROLS = signal<CameraControlsConfig>({
+export const CAMERA_CONTROLS = persistedSignal<CameraControlsConfig>('CAMERA_CONTROLS', {
   DAMPING_FACTOR: 0.08, // OrbitControls inertia (higher = snappier)
   MAX_POLAR_ANGLE_FRAC: 0.49, // × Math.PI; how close to vertical orbit can go
   MIN_DISTANCE: 30, // closest zoom (world units)
@@ -64,7 +64,7 @@ export interface CameraAnimationConfig {
   STREET_FOCUS_ELEVATION_DEG: number;
 }
 
-export const CAMERA_ANIMATION = signal<CameraAnimationConfig>({
+export const CAMERA_ANIMATION = persistedSignal<CameraAnimationConfig>('CAMERA_ANIMATION', {
   BUILDING_FOCUS_DISTANCE_MULT: 1.6, // padding multiplier on the fitted distance
   BUILDING_FOCUS_DISTANCE_OFFSET: 4,
   STREET_FOCUS_LENGTH_FRAC: 0.65, // visible street length = full × this

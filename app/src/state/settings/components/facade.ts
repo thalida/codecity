@@ -18,7 +18,7 @@
 // for ranges. Degenerate inputs (e.g. WINDOW_COLS_MAX=0, SLAB_HEIGHT_FRAC=1)
 // render visually weird but do not crash.
 
-import { signal } from '@preact/signals';
+import { persistedSignal } from '@/state/persist';
 
 export interface FacadeGeometryConfig {
   // SHADER-DRIVEN (refresh uniforms, no rebuild required)
@@ -35,7 +35,7 @@ export interface FacadeGeometryConfig {
   DOOR_WIDTH_FRAC: number; // 0-1 — door width as a fraction of the building's own width
 }
 
-export const FACADE_GEOMETRY = signal<FacadeGeometryConfig>({
+export const FACADE_GEOMETRY = persistedSignal<FacadeGeometryConfig>('FACADE_GEOMETRY', {
   SLAB_HEIGHT_FRAC: 0.05,
   WINDOW_WIDTH_FRAC: 0.5,
   WINDOW_HEIGHT_FRAC: 0.45,
@@ -59,7 +59,7 @@ export interface FacadeDetailConfig {
   ROOF_BORDER_LIGHTNESS_DELTA: number; // -100..100 (default -15)
 }
 
-export const FACADE_DETAIL = signal<FacadeDetailConfig>({
+export const FACADE_DETAIL = persistedSignal<FacadeDetailConfig>('FACADE_DETAIL', {
   SLAB_LIGHTNESS_DELTA: -10,
   DOOR_LIGHTNESS_DELTA: -50,
   ROOF_BORDER_LIGHTNESS_DELTA: -10,
@@ -82,7 +82,7 @@ export interface WindowLightingConfig {
   LIT_FRESHNESS_EXPONENT: number;
 }
 
-export const WINDOW_LIGHTING = signal<WindowLightingConfig>({
+export const WINDOW_LIGHTING = persistedSignal<WindowLightingConfig>('WINDOW_LIGHTING', {
   UNLIT_LIGHTNESS_DELTA: -4,
   GAP_BASE_THRESHOLD: 0.25,
   GAP_AGE_BONUS: 0.5,

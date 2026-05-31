@@ -6,7 +6,7 @@
 //
 // All fields applied on Save via applyTheme() — islandMesh.applyConfig() pulls fresh values.
 
-import { signal } from '@preact/signals';
+import { persistedSignal } from '@/state/persist';
 
 export interface IslandGeometryConfig {
   ENABLED: boolean;
@@ -26,7 +26,7 @@ export interface IslandMaterialsConfig {
   HEMI_GROUND_COLOR: string; // cool "from below" tone
 }
 
-export const ISLAND_GEOMETRY = signal<IslandGeometryConfig>({
+export const ISLAND_GEOMETRY = persistedSignal<IslandGeometryConfig>('ISLAND_GEOMETRY', {
   ENABLED: true,
   SIDES: 32,
   IRREGULARITY: 0.12,
@@ -36,7 +36,7 @@ export const ISLAND_GEOMETRY = signal<IslandGeometryConfig>({
   GRASS_THICKNESS: 0.025, // 2.5% of island radius — visible but subtle band
 });
 
-export const ISLAND_MATERIALS = signal<IslandMaterialsConfig>({
+export const ISLAND_MATERIALS = persistedSignal<IslandMaterialsConfig>('ISLAND_MATERIALS', {
   GRASS_COLOR: '#18341f', // deep forest green
   GRASS_SIDE_COLOR: '#214529', // brighter than GRASS_COLOR to compensate for sideways-facing hemi lighting
   ROCK_COLOR: '#71778e', // cool slate/granite

@@ -4,7 +4,7 @@
 // Persisted via attachPersistence (Config barrel) so the choice survives
 // sessions.
 
-import { signal } from '@preact/signals';
+import { persistedSignal } from '@/state/persist';
 
 export interface SyntaxThemeOption {
   value: string;
@@ -44,7 +44,7 @@ export const SYNTAX_THEME_OPTIONS: SyntaxThemeOption[] = [
 // the <link> is injected into <head> after styles.css (higher specificity
 // wins when cascade order is equal and these are the same specificity).
 export const SYNTAX_THEME_DEFAULT = 'atom-one-dark';
-export const SYNTAX_THEME = signal<string>(SYNTAX_THEME_DEFAULT);
+export const SYNTAX_THEME = persistedSignal<string>('SYNTAX_THEME', SYNTAX_THEME_DEFAULT);
 
 // Theme-picker writes directly to this signal (no draft layer — the CSS
 // link swaps instantly). stageResetAll() reads this flag and resets
