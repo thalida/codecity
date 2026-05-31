@@ -269,16 +269,3 @@ export function RightSidebar() {
   );
 }
 
-// Alias for App.tsx's existing import. RightSidebarShell used to render
-// a bare placeholder; the full Preact port replaces it with the real
-// component.
-export const RightSidebarShell = RightSidebar;
-
-// ── No-op stub for the imperative bridge ─────────────────────────────
-// runtime/sidebarSetup.ts still calls mountRightSidebarReactions for
-// symmetry with the previous flow. The Preact component now subscribes
-// to SCENE_HANDLE itself, so this returns a no-op dispose.
-
-export function mountRightSidebarReactions(): () => void {
-  return () => {};
-}

@@ -406,8 +406,3 @@ export function LeftSidebar() {
     </aside>
   );
 }
-
-// LeftSidebarShell is the old name App.tsx used to render the bare
-// <aside> placeholder. With the full Preact port, it's now an alias
-// for the real LeftSidebar component.
-export const LeftSidebarShell = LeftSidebar;

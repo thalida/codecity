@@ -2,24 +2,22 @@
 // the app boot logic via runAppLogic() in a useEffect.
 //
 // Layout:
-//   <AppHeader>                  — reads SCENE_HANDLE + SOURCE_INFO
+//   <AppHeader>          — reads SCENE_HANDLE + SOURCE_INFO
 //   <main id="app-body">
-//     <LeftSidebarShell>         — <aside> owned by LeftSidebar; imperative
-//                                  showLeftSidebar populates it inside runAppLogic
-//     <CenterPane>                — canvas (scene started by runAppLogic)
-//     <RightSidebarShell>        — <aside> owned by RightSidebar; mounted
-//                                  panes managed by mountRightSidebarReactions
+//     <LeftSidebar>      — self-subscribes to SCENE_HANDLE + picker
+//     <CenterPane>       — canvas (scene started by runAppLogic)
+//     <RightSidebar>     — self-subscribes to SCENE_HANDLE + picker
 //   </main>
-//   <AppFooter>               — reads signals directly
-//   <SourcePicker />          — reads SOURCE_PICKER + SERVER_CONFIG directly
-//   <LoadingOverlay />        — reads LOADING_OVERLAY directly
+//   <AppFooter>          — reads signals directly
+//   <SourcePicker />     — reads SOURCE_PICKER + SERVER_CONFIG directly
+//   <LoadingOverlay />   — reads LOADING_OVERLAY directly
 
 import { useEffect } from 'preact/hooks';
 import { AppHeader } from './AppHeader';
 import { AppFooter } from './AppFooter';
 import { CenterPane } from './CenterPane';
-import { LeftSidebarShell } from './LeftSidebar';
-import { RightSidebarShell } from './RightSidebar';
+import { LeftSidebar } from './LeftSidebar';
+import { RightSidebar } from './RightSidebar';
 import { SourcePicker } from '../components/SourcePicker';
 import { LoadingOverlay } from '../components/LoadingOverlay';
 import { HljsThemeLink } from '../components/HljsThemeLink';
@@ -65,9 +63,9 @@ export function App() {
         onFocus={onFocus}
       />
       <main id="app-body">
-        <LeftSidebarShell />
+        <LeftSidebar />
         <CenterPane />
-        <RightSidebarShell />
+        <RightSidebar />
       </main>
       <AppFooter />
       <SourcePicker />
