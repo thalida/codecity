@@ -200,9 +200,6 @@ export function CommitPane({ state, onClose, onFocus }: CommitPaneProps) {
             {`${label} day: ${sameDayTotal} ${commitWord}`}
           </div>
         )}
-        {!remoteUrl && (
-          <div class="commit-no-remote">No remote configured</div>
-        )}
         <div class="commit-message-body-slot">
           {bodyState.kind === 'loading' && (
             <div class="commit-message-body-slot--loading">Loading…</div>
@@ -323,7 +320,6 @@ export function buildCommitPane(opts: BuildCommitPaneOpts = {}) {
 
   function _renderSkeleton(
     commit: CommitEntry,
-    remoteUrl: string | null,
     sameDayTotal: number,
     busynessThresholds: { avg: number; busy: number },
     color: string | undefined,
@@ -395,14 +391,6 @@ export function buildCommitPane(opts: BuildCommitPaneOpts = {}) {
       body.appendChild(sameDayEl);
     }
 
-    // ── No-remote hint (only when no remote configured) ───────────────
-    if (!remoteUrl) {
-      const note = document.createElement('div');
-      note.className = 'commit-no-remote';
-      note.textContent = 'No remote configured';
-      body.appendChild(note);
-    }
-
     // ── Body slot (mutable region for loading / text / error / hidden) ─
     const bodySlot = document.createElement('div');
     bodySlot.className = 'commit-message-body-slot';
@@ -446,7 +434,7 @@ export function buildCommitPane(opts: BuildCommitPaneOpts = {}) {
     // Render the skeleton synchronously — every piece of metadata that
     // lives in the manifest goes in immediately. Body slot starts as a
     // loading placeholder.
-    _renderSkeleton(commit, remoteUrl, sameDayTotal, busynessThresholds, color, now);
+    _renderSkeleton(commit, sameDayTotal, busynessThresholds, color, now);
 
     // Cache hit → body slot resolves synchronously, in the same tick as
     // the skeleton. No Loading… flicker.

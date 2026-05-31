@@ -81,14 +81,16 @@ describe('buildCommitPane', () => {
     expect(pane.querySelector('.commit-meta .commit-files')!.textContent).toBe('1 file changed');
   });
 
-  it('hides the open link and shows a no-remote hint when remoteUrl is null', async () => {
+  it('hides the open link when remoteUrl is null', async () => {
     const { pane, api } = buildCommitPane({});
     api.setCommit(COMMIT, { remoteUrl: null, now: new Date('2026-05-24T12:00:00Z') });
     // Open link check is synchronous (set in header before fetch).
     expect(pane.querySelector('.text-pane-title .commit-open')).toBeNull();
     await new Promise((r) => setTimeout(r, 0));
     await new Promise((r) => setTimeout(r, 0));
-    expect(pane.querySelector('.commit-no-remote')).not.toBeNull();
+    // Absence of a remote is reflected by the missing open link alone —
+    // no "No remote configured" hint copy.
+    expect(pane.textContent ?? '').not.toContain('No remote configured');
   });
 
   it('setCommit(null) returns to the empty state', async () => {

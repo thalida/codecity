@@ -2990,7 +2990,6 @@ canvas {
            than the title since they're secondary metadata)
          .commit-meta (age · files)
          .commit-same-day (busyness + N commits that day)
-         .commit-no-remote (when no remote configured)
          .commit-message-body-slot — mutable region holding the lazy body
            (loading hint / <pre> body / error / hidden). The slot lives
            at the bottom so body load doesn't shift content above it. */
@@ -3014,12 +3013,6 @@ canvas {
    Inherits .btn-icon + .btn-icon--link (24×24, muted, hover overlay). */
 .commit-open {
   flex-shrink: 0;
-}
-
-.commit-no-remote {
-  color: var(--cc-text-muted);
-  font-size: var(--cc-font-lg); /* 12px */
-  font-style: italic;
 }
 
 .commit-author {
