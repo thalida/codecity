@@ -24,7 +24,6 @@ import { SourcePicker } from '../components/SourcePicker';
 import { LoadingOverlay } from '../components/LoadingOverlay';
 import { HljsThemeLink } from '../components/HljsThemeLink';
 import { SCENE_HANDLE } from '@/state/runtime/scene';
-import { NodeKind } from '@/types';
 import { runAppLogic } from '../../appLogic';
 
 export function App() {
@@ -54,11 +53,7 @@ export function App() {
   function onFocus() {
     const handle = SCENE_HANDLE.peek();
     if (!handle) return;
-    const sel = handle.picker.selection.peek();
-    if (!sel) return;
-    if (sel.kind === NodeKind.File) handle.rig.focusBuilding(sel.mesh, sel.data);
-    else if (sel.kind === NodeKind.Directory) handle.rig.focusStreet(sel.street, null);
-    else if (sel.kind === NodeKind.Commit) handle.rig.focusTree(sel.commit.sha);
+    handle.rig.focusSelection(handle.picker.selection.peek());
   }
 
   return (

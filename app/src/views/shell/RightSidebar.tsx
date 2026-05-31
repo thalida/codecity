@@ -180,7 +180,7 @@ export function mountRightSidebarReactions(): () => void {
   // same thing" silently does nothing.
   function _closePane(): void {
     sidebarPane = null;
-    SCENE_HANDLE.peek()?.picker.setSelection(null);
+    SCENE_HANDLE.peek()?.picker.clearSelection();
     _renderSidebar();
   }
 

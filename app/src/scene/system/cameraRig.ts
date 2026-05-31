@@ -14,6 +14,8 @@
 //   rig.focusBuilding(mesh, building)     // F or dblclick on a building
 //   rig.focusStreet(street, hitPoint)     // dblclick on a street
 //   rig.focusTree(sha)                    // F or dblclick on a tree (commit)
+//   rig.focusSelection(pickTarget)        // dispatches to one of the above
+//                                         //   based on the PickTarget kind
 //   rig.dispose()
 //
 // First-frame framing is one-shot by construction: frameToBbox is not on
@@ -28,8 +30,8 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { CAMERA_PERSPECTIVE, CAMERA_CONTROLS, ANIMATION_TIMING } from '@/state/settings/index';
 import { CURRENT_SOURCE_KEY } from '@/state/runtime/activeSource';
-import { StreetAxis } from '@/types';
-import type { Building, Street } from '@/types';
+import { NodeKind, StreetAxis } from '@/types';
+import type { Building, PickTarget, Street } from '@/types';
 import type { createWorld } from '../world';
 
 /** Floor on controls.maxDistance regardless of city size. Tiny-but-tall
@@ -507,6 +509,17 @@ export function createCameraRig({
     _focusTopDown(center, span, span, b.height, BUILDING_FOCUS_RATIO);
   }
 
+  /** Single entry-point for "focus the camera on whatever is selected".
+   *  Dispatches to focusBuilding / focusStreet / focusTree based on the
+   *  PickTarget kind. Lives on the scene side so view code doesn't have
+   *  to know about the per-target focus mechanics. */
+  function focusSelection(sel: PickTarget | null): void {
+    if (!sel) return;
+    if (sel.kind === NodeKind.File) focusBuilding(sel.mesh, sel.data);
+    else if (sel.kind === NodeKind.Directory) focusStreet(sel.street, null);
+    else if (sel.kind === NodeKind.Commit) focusTree(sel.commit.sha);
+  }
+
   function dispose() {
     if (typeof controls.dispose === 'function') controls.dispose();
   }
@@ -520,6 +533,7 @@ export function createCameraRig({
     focusBuilding,
     focusStreet,
     focusTree,
+    focusSelection,
     dispose,
   };
 }

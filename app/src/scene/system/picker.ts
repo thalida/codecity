@@ -226,6 +226,13 @@ export function createPicker({
     selection.value = sel;
   }
 
+  /** Convenience for "deselect everything" — equivalent to setSelection(null)
+   *  but gives view-side code a self-documenting verb instead of a magic
+   *  null argument. */
+  function clearSelection(): void {
+    selection.value = null;
+  }
+
   // Resolve a path string (file or directory) to a live target and set
   // it as the selection. Used by tree-row clicks and breadcrumb-segment
   // clicks. No-op if the path doesn't match anything.
@@ -360,6 +367,7 @@ export function createPicker({
     selectionKey: PICKER_SELECTION_KEY,
     setHover,
     setSelection,
+    clearSelection,
     selectByPath,
     pickAt,
     interpretHit,
