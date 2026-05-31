@@ -49,6 +49,12 @@ export const LOADING_OVERLAY = signal<LoadingOverlayState>({
   stepTails: {},
 });
 
+// Setters use .peek() rather than .value to read the prior state — these
+// functions are sometimes called from inside other effects (e.g. the
+// REBUILD_STATUS → 'decorating' bridge), and a tracked `.value` read
+// would auto-subscribe that effect to LOADING_OVERLAY, producing a cycle
+// when the same effect later writes back.
+
 export function showLoadingOverlay(opts: LoadingOverlayShowOpts): void {
   const initialStep: LoadingStep = opts.kind === 'local' ? 'scanning' : 'resolving';
   LOADING_OVERLAY.value = {
@@ -61,20 +67,23 @@ export function showLoadingOverlay(opts: LoadingOverlayShowOpts): void {
 }
 
 export function hideLoadingOverlay(): void {
-  LOADING_OVERLAY.value = { ...LOADING_OVERLAY.value, visible: false };
+  LOADING_OVERLAY.value = { ...LOADING_OVERLAY.peek(), visible: false };
 }
 
 export function setLoadingStep(step: LoadingStep): void {
-  LOADING_OVERLAY.value = { ...LOADING_OVERLAY.value, activeStep: step };
+  const prev = LOADING_OVERLAY.peek();
+  if (prev.activeStep === step) return;
+  LOADING_OVERLAY.value = { ...prev, activeStep: step };
 }
 
 export function setLoadingPendingLabel(label: string | null): void {
-  LOADING_OVERLAY.value = { ...LOADING_OVERLAY.value, pendingLabel: label };
+  LOADING_OVERLAY.value = { ...LOADING_OVERLAY.peek(), pendingLabel: label };
 }
 
 export function setLoadingStepTail(step: LoadingStep, tail: string | null): void {
+  const prev = LOADING_OVERLAY.peek();
   LOADING_OVERLAY.value = {
-    ...LOADING_OVERLAY.value,
-    stepTails: { ...LOADING_OVERLAY.value.stepTails, [step]: tail },
+    ...prev,
+    stepTails: { ...prev.stepTails, [step]: tail },
   };
 }

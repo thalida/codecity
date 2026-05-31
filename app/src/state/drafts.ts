@@ -9,6 +9,7 @@
 // Storage shape: Map<storeRef, Map<key | null, value>>. For scalar-valued
 // signals (no sub-key), key = null and the inner map has at most one entry.
 
+import { signal } from '@preact/signals';
 import { forEachRegisteredStore, getDefault } from './persist';
 
 interface SignalLike {
@@ -21,7 +22,17 @@ type DraftKey = string | null;
 const _drafts: Map<SignalLike, Map<DraftKey, unknown>> = new Map();
 const _listeners: Array<() => void> = [];
 
+/**
+ * Monotonic revision counter — bumped on every draft mutation
+ * (set / stage / commit / discard). Preact components read this with
+ * `DRAFTS_REV.value` to make `getEffective` lookups reactive: pair it
+ * with a `store.value` read in the same render and the component
+ * re-renders on either a draft change or an underlying signal change.
+ */
+export const DRAFTS_REV = signal(0);
+
 function _emit(): void {
+  DRAFTS_REV.value++;
   for (const cb of _listeners) {
     try {
       cb();
