@@ -7,6 +7,5 @@ export * from './building';
 export * from './street';
 export * from './scene';
 export * from './picker';
-export * from './preview';
 export * from './animation';
 export * from './ui';

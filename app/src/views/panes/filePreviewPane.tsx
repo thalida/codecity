@@ -13,8 +13,20 @@ import type { Signal } from '@preact/signals';
 import { effect } from '@preact/signals';
 import hljs from 'highlight.js/lib/common';
 import { ASPHALT, BUILDING_PALETTE } from '@/state/settings';
-import { PreviewKind } from '@/types';
 import type { FileNode } from '@/types';
+
+/**
+ * What kind of preview a file gets in the right sidebar. Decided by
+ * extension; 'text' is the catch-all (rendered with syntax highlighting,
+ * or "Binary file" if the bytes don't decode as UTF-8).
+ */
+export enum PreviewKind {
+  Image = 'image',
+  Video = 'video',
+  Audio = 'audio',
+  Pdf = 'pdf',
+  Text = 'text',
+}
 import { fileUrl, fetchFileText } from '@/api/file';
 import { makeLucideIcon } from '@/views/components/icon';
 import { buildPaneHeader } from '@/views/components/paneHeader';
