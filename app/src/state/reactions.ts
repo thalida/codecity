@@ -1,36 +1,27 @@
-// state/reactions.ts — every settings store classified as either
-// "rebuild-required" or "material-only", and wired to the matching
-// reaction that fires once when the user clicks Save in the Controls pane.
+// state/reactions.ts — Settings-change → scene-rebuild / material-refresh wiring.
 //
-// All widgets in the Controls pane write to the draft layer
-// (`configDrafts.setDraft`). Nothing touches the real store until Save
-// calls `configDrafts.commit()`, which fires every queued `.value =` write
-// in a synchronous burst. Each write triggers any signal effect
-// registered below — that is the ONLY moment these reactions run.
+// Two computed signatures drive ONE effect each:
+//   REBUILD_SIGNATURE    → scheduleRebuild   (full applyManifest)
+//   MATERIAL_REFRESH_SIGNATURE → refreshMaterials (applyTheme only)
 //
-//   rebuild-required → world.applyManifest(getManifest()) for a full
-//                       geometry + layout recompute via the layout worker.
-//   material-only    → applyTheme() — synchronous material / uniform
-//                       refreshes on the existing scene meshes.
-//
-// Adding a new config row is a one-line entry in the appropriate set
-// below — the reactions pick it up automatically.
+// For stores that are split-routed (some keys rebuild, others refresh), the
+// computed reads ONLY the relevant keys so the wrong effect doesn't fire.
 
-import { effect } from '@preact/signals';
-import type { Signal } from '@preact/signals';
+import { computed, effect } from '@preact/signals';
 
 import { REBUILD_STATUS, LAST_REBUILD_ERROR, LAST_UPDATED_AT } from '@/state/runtime/liveStatus';
 
 import {
-  // Rebuild-required (affects layout or geometry):
+  // Rebuild-required (full store):
   BUILDING_DIMENSIONS,
   BUILDING_PALETTE,
   STREET_LAYOUT,
   STREET_TIERS,
   GEM_SIZING,
   AD_PANEL,
+  LABEL_TYPOGRAPHY,
 
-  // Material-only (live material updates only):
+  // Material-only (full store):
   SCENE_COLORS,
   SIDEWALK_COLORS,
   ASPHALT,
@@ -41,55 +32,25 @@ import {
   GEM_APPEARANCE,
   GEM_FACE_PALETTE,
   GEM_GLOW,
-  LABEL_TYPOGRAPHY,
   BLOOM,
   LIGHTING,
   FACADE_DETAIL,
   WINDOW_LIGHTING,
-
-  // Mixed (subscribed to BOTH lists — see below):
-  FACADE_GEOMETRY,
-
-  // Cyberpunk Valley — sky (uniform-only, no rebuild):
   SKY,
   SKY_STARS,
-
-  // Cyberpunk Valley — world sizing (GROUND_BUFFER_PERCENT → rebuild;
-  // visual island config lives in ISLAND.* → material-only via island.refresh()):
-  WORLD,
-
-  // Cyberpunk Valley — trees (structural in TREES → rebuild):
-  TREES,
-
-  // Cyberpunk Valley — tree hover/select outlines (material-only via
-  // treeOutlineRenderer.refreshMaterials() inside applyTheme()):
+  REPO_LABEL,
   TREE_OUTLINE,
 
-  // Cyberpunk Valley — footprint (HALO_WIDTH bakes into instance
-  // matrices → rebuild; COLOR/ENABLED → material-only via footprint.refresh()):
+  // Split-routed (specific keys below):
+  FACADE_GEOMETRY,
+  TREES,
   FOOTPRINT,
-
-  // Cyberpunk Valley — floating repo-name label (all keys material-only
-  // via repoLabel.refresh() inside applyTheme()):
-  REPO_LABEL,
+  WORLD,
 } from '@/state/settings/index';
-import {
-  // Cyberpunk Valley — island geometry and materials
-  // (all material-only via island.refresh() inside applyTheme()):
-  ISLAND_GEOMETRY,
-  ISLAND_MATERIALS,
-} from '@/state/settings/components/island';
-import {
-  // Cyberpunk Valley — fireflies (structural: visibility is determined at
-  // creation time by reading FIREFLIES_ENABLED, so any change requires a
-  // full rebuild — there is no refresh() hot-path):
-  FIREFLIES,
-} from '@/state/settings/components/fireflies';
+import { ISLAND_GEOMETRY, ISLAND_MATERIALS } from '@/state/settings/components/island';
+import { FIREFLIES } from '@/state/settings/components/fireflies';
 
 // Min-dwell for the 'rebuilding' indicator on the material-only path.
-// applyTheme() is synchronous and finishes within microseconds, so without
-// a forced floor the user never sees the yellow flash. ~220 ms is long
-// enough to register visually but short enough to feel snappy.
 const HOT_REBUILD_MIN_DWELL_MS = 220;
 
 interface CommitReactionsOpts {
@@ -101,53 +62,155 @@ interface CommitReactionsOpts {
   applyTheme: () => void;
 }
 
-/**
- * Helper that mimics nanostores' listenKeys() — fires `cb` only when any of
- * the listed keys in the object-valued signal change value, and skips the
- * initial fire. Returns a disposer.
- */
-function listenKeys<T extends object>(
-  store: Signal<T>,
-  keys: (keyof T)[],
-  cb: (value: T) => void
-): () => void {
-  let prev: Partial<T> = {};
-  for (const k of keys) {
-    prev[k] = store.value[k];
-  }
-  let armed = false;
-  const dispose = effect(() => {
-    const v = store.value;
-    // Read all watched keys to establish tracking.
-    const snapshots: Partial<T> = {};
-    for (const k of keys) {
-      snapshots[k] = v[k];
-    }
-    if (!armed) {
-      armed = true;
-      // Store initial snapshot but don't fire.
-      prev = snapshots;
-      return;
-    }
-    let changed = false;
-    for (const k of keys) {
-      if (snapshots[k] !== prev[k]) {
-        changed = true;
-        break;
-      }
-    }
-    if (changed) {
-      prev = snapshots;
-      cb(v);
-    }
-  });
-  return dispose;
-}
+// ── Rebuild signature ─────────────────────────────────────────────────────
+// Reads every signal whose change requires a full applyManifest.
+// Split-routed stores contribute only their structural keys.
+const REBUILD_SIGNATURE = computed(() => ({
+  // Full-store rebuild triggers:
+  buildingDimensions: BUILDING_DIMENSIONS.value,
+  buildingPalette: BUILDING_PALETTE.value,
+  streetLayout: STREET_LAYOUT.value,
+  streetTiers: STREET_TIERS.value,
+  gemSizing: GEM_SIZING.value,
+  adPanel: AD_PANEL.value,
+  labelTypography: LABEL_TYPOGRAPHY.value,
+
+  // FACADE_GEOMETRY — only the JS-driven keys that bake into per-instance
+  // attributes (WINDOW_COLS_MAX, WIDTH_PER_WINDOW_COL, DOOR_WIDTH_FRAC).
+  // The shader-side *_FRAC keys live in MATERIAL_REFRESH_SIGNATURE.
+  facadeGeometry: {
+    windowColsMax: FACADE_GEOMETRY.value.WINDOW_COLS_MAX,
+    widthPerWindowCol: FACADE_GEOMETRY.value.WIDTH_PER_WINDOW_COL,
+    doorWidthFrac: FACADE_GEOMETRY.value.DOOR_WIDTH_FRAC,
+  },
+
+  // TREES — structural keys only (height/width range, facet counts, trunk
+  // fractions, density, shading, inset, scatter footprint, age-width floor).
+  // Color + trunk color + age-desat keys live in MATERIAL_REFRESH_SIGNATURE.
+  trees: {
+    minHeight: TREES.value.TREE_MIN_HEIGHT,
+    maxHeight: TREES.value.TREE_MAX_HEIGHT,
+    minWidth: TREES.value.TREE_MIN_WIDTH,
+    maxWidth: TREES.value.TREE_MAX_WIDTH,
+    facetsLow: TREES.value.TREE_FACETS_LOW,
+    facetsMid: TREES.value.TREE_FACETS_MID,
+    facetsHigh: TREES.value.TREE_FACETS_HIGH,
+    trunkHeightFrac: TREES.value.TRUNK_HEIGHT_FRAC,
+    trunkRadiusFrac: TREES.value.TRUNK_RADIUS_FRAC_OF_CANOPY,
+    canopyOverlapFrac: TREES.value.CANOPY_TRUNK_OVERLAP_FRAC,
+    shadingStrength: TREES.value.TREE_SHADING_STRENGTH,
+    edgeInset: TREES.value.EDGE_INSET_PERCENT,
+    densityFalloff: TREES.value.TREE_DENSITY_FALLOFF,
+    scatterFootprint: TREES.value.SCATTER_FOOTPRINT_FRAC_OF_MAX_WIDTH,
+    widthAgeFloor: TREES.value.TREE_WIDTH_AGE_FLOOR,
+  },
+
+  // FOOTPRINT — only HALO_WIDTH bakes into per-instance Matrix4 data.
+  // COLOR + ENABLED + CORNER_RADIUS live in MATERIAL_REFRESH_SIGNATURE.
+  footprintHaloWidth: FOOTPRINT.value.HALO_WIDTH,
+
+  // WORLD — GROUND_BUFFER_PERCENT changes the island size and foliage
+  // sampling region; requires a full rebuild.
+  groundBufferPercent: WORLD.value.GROUND_BUFFER_PERCENT,
+
+  // ISLAND_GEOMETRY shape keys — changing the polygon silhouette
+  // invalidates the tree point-in-polygon rejection pass.
+  // ENABLED (flips group.visible) lives in MATERIAL_REFRESH_SIGNATURE.
+  islandGeometry: {
+    sides: ISLAND_GEOMETRY.value.SIDES,
+    irregularity: ISLAND_GEOMETRY.value.IRREGULARITY,
+    tiers: ISLAND_GEOMETRY.value.TIERS,
+    depth: ISLAND_GEOMETRY.value.DEPTH,
+    roundness: ISLAND_GEOMETRY.value.ROUNDNESS,
+    grassThickness: ISLAND_GEOMETRY.value.GRASS_THICKNESS,
+  },
+
+  // FIREFLIES structural keys — FIREFLIES_ENABLED gates orb creation;
+  // SCALE_MIN/MAX bake into per-instance data; ORBIT_RING_ENABLED and
+  // ORBIT_RING_THICKNESS bake into TubeGeometry at creation time.
+  // Animation/brightness keys live in MATERIAL_REFRESH_SIGNATURE.
+  fireflies: {
+    enabled: FIREFLIES.value.FIREFLIES_ENABLED,
+    scaleMin: FIREFLIES.value.SCALE_MIN,
+    scaleMax: FIREFLIES.value.SCALE_MAX,
+    orbitRingEnabled: FIREFLIES.value.ORBIT_RING_ENABLED,
+    orbitRingThickness: FIREFLIES.value.ORBIT_RING_THICKNESS,
+  },
+}));
+
+// ── Material-refresh signature ────────────────────────────────────────────
+// Reads every signal whose change requires only applyTheme (no full rebuild).
+// Split-routed stores contribute only their material/uniform keys.
+const MATERIAL_REFRESH_SIGNATURE = computed(() => ({
+  // Full-store material triggers:
+  sceneColors: SCENE_COLORS.value,
+  sidewalkColors: SIDEWALK_COLORS.value,
+  asphalt: ASPHALT.value,
+  buildingOutline: BUILDING_OUTLINE.value,
+  buildingAging: BUILDING_AGING.value,
+  pathLine: PATH_LINE.value,
+  hoverPathLine: HOVER_PATH_LINE.value,
+  gemAppearance: GEM_APPEARANCE.value,
+  gemFacePalette: GEM_FACE_PALETTE.value,
+  gemGlow: GEM_GLOW.value,
+  bloom: BLOOM.value,
+  lighting: LIGHTING.value,
+  facadeDetail: FACADE_DETAIL.value,
+  windowLighting: WINDOW_LIGHTING.value,
+  sky: SKY.value,
+  skyStars: SKY_STARS.value,
+  islandMaterials: ISLAND_MATERIALS.value,
+  repoLabel: REPO_LABEL.value,
+  treeOutline: TREE_OUTLINE.value,
+
+  // FACADE_GEOMETRY — shader-side *_FRAC keys only; JS-driven keys are
+  // in REBUILD_SIGNATURE.
+  facadeGeometry: {
+    slabHeightFrac: FACADE_GEOMETRY.value.SLAB_HEIGHT_FRAC,
+    windowWidthFrac: FACADE_GEOMETRY.value.WINDOW_WIDTH_FRAC,
+    windowHeightFrac: FACADE_GEOMETRY.value.WINDOW_HEIGHT_FRAC,
+    windowMarginFrac: FACADE_GEOMETRY.value.WINDOW_MARGIN_FRAC,
+    doorHeightFrac: FACADE_GEOMETRY.value.DOOR_HEIGHT_FRAC,
+    roofBorderFrac: FACADE_GEOMETRY.value.ROOF_BORDER_FRAC,
+  },
+
+  // TREES — color + visibility + trunk color + age-desat keys only.
+  trees: {
+    enabled: TREES.value.TREES_ENABLED,
+    colorBusyDay: TREES.value.TREE_COLOR_BUSY_DAY,
+    colorSoloDay: TREES.value.TREE_COLOR_SOLO_DAY,
+    trunkColor: TREES.value.TREE_TRUNK_COLOR,
+    ageDesatEnabled: TREES.value.TREE_AGE_DESAT_ENABLED,
+    ageSatMin: TREES.value.TREE_AGE_SATURATION_MIN,
+    ageSatMax: TREES.value.TREE_AGE_SATURATION_MAX,
+  },
+
+  // FOOTPRINT — COLOR + ENABLED + CORNER_RADIUS pushed via footprint.refresh().
+  footprint: {
+    enabled: FOOTPRINT.value.ENABLED,
+    cornerRadius: FOOTPRINT.value.CORNER_RADIUS,
+    color: FOOTPRINT.value.COLOR,
+  },
+
+  // ISLAND_GEOMETRY — ENABLED only (flips group.visible via island.refresh()).
+  // Shape keys are in REBUILD_SIGNATURE.
+  islandGeometryEnabled: ISLAND_GEOMETRY.value.ENABLED,
+
+  // FIREFLIES — animation/brightness uniforms pushed via fireflies.refresh().
+  fireflies: {
+    orbitSpeed: FIREFLIES.value.ORBIT_SPEED,
+    bobAmplitude: FIREFLIES.value.BOB_AMPLITUDE,
+    bobSpeed: FIREFLIES.value.BOB_SPEED,
+    pulseAmplitude: FIREFLIES.value.PULSE_AMPLITUDE,
+    pulseSpeed: FIREFLIES.value.PULSE_SPEED,
+    emissionStrength: FIREFLIES.value.EMISSION_STRENGTH,
+    flickerAmount: FIREFLIES.value.FLICKER_AMOUNT,
+  },
+}));
 
 export function attachCommitReactions({ world, applyTheme }: CommitReactionsOpts): () => void {
-  // Signal effects fire synchronously with the current value when called.
-  // We wait until all subscriptions are wired before allowing reactions
-  // to run, so the initial fire doesn't trigger a wasteful rebuild.
+  // Effects fire synchronously on first call. Suppress reactions until all
+  // subscriptions are wired so the initial fire doesn't trigger a rebuild.
   let armed = false;
 
   let hotIdleTimer: ReturnType<typeof setTimeout> | 0 = 0;
@@ -156,12 +219,11 @@ export function attachCommitReactions({ world, applyTheme }: CommitReactionsOpts
     if (!armed) return;
     REBUILD_STATUS.value = 'rebuilding';
     try {
-      // Config changes that hit this path always invalidate the layout
-      // cache: the manifest didn't change but a layout-affecting config
-      // value did, so reuseLayoutFrom would skip the recompute and the
-      // change would have no visible effect (building dims, street widths,
-      // street layout, gem sizing, label typography). Live-update polls
-      // never trigger scheduleRebuild so they keep using the cache.
+      // Config changes that hit this path always invalidate the layout cache:
+      // the manifest didn't change but a layout-affecting config value did,
+      // so reuseLayoutFrom would skip the recompute and the change would
+      // have no visible effect. Live-update polls never trigger scheduleRebuild
+      // so they keep using the cache.
       world.invalidateLayoutCache();
       const manifest = world.getManifest();
       if (manifest) {
@@ -186,10 +248,9 @@ export function attachCommitReactions({ world, applyTheme }: CommitReactionsOpts
       LAST_REBUILD_ERROR.value = err instanceof Error ? err.message : String(err);
       return;
     }
-    // applyTheme is synchronous; hold the 'rebuilding' indicator on
-    // screen for a min-dwell so the user can see the yellow flash.
-    // Only transition if no rebuild is also in flight — applyManifest's
-    // own try/catch owns the final state in that case.
+    // applyTheme is synchronous; hold the 'rebuilding' indicator for a
+    // min-dwell so the user sees the yellow flash. Only transition if no
+    // rebuild is also in flight — applyManifest owns the final state then.
     hotIdleTimer = setTimeout(() => {
       hotIdleTimer = 0;
       if (REBUILD_STATUS.value === 'rebuilding') {
@@ -200,201 +261,18 @@ export function attachCommitReactions({ world, applyTheme }: CommitReactionsOpts
     }, HOT_REBUILD_MIN_DWELL_MS);
   }
 
-  const rebuildStores: Signal<any>[] = [
-    BUILDING_DIMENSIONS,
-    BUILDING_PALETTE,
-    STREET_LAYOUT,
-    STREET_TIERS,
-    GEM_SIZING,
-    // AD_PANEL: margin / offset / placeholder bake into per-mesh
-    // PlaneGeometry + MeshBasicMaterial calls inside createAdPanel().
-    // Slider changes only take effect on the next applyManifest →
-    // rebuild required.
-    AD_PANEL,
-    // LABEL_TYPOGRAPHY: all keys (text/outline color, outline width, label
-    // size) trigger a full applyManifest() rebuild. The old per-texture
-    // regenerateLabelTexture hot-path is removed (Task 20); for v1, a
-    // full rebuild on label-typography change is acceptable — Save on
-    // label-typography change is rare.
-    LABEL_TYPOGRAPHY,
-    // FACADE_GEOMETRY: WINDOW_COLS_MAX / WIDTH_PER_WINDOW_COL /
-    // DOOR_WIDTH_FRAC bake into per-instance attributes
-    // (buf.cols / buf.doorWidth), so a change requires re-running
-    // buildBuildingInstanceBuffer via applyManifest. The shader-side
-    // keys (SLAB/WINDOW/DOOR/ROOF_*_FRAC) are also pushed via the
-    // materialOnlyStores entry below — split-routing the same store
-    // keeps the wiring trivial. If the rebuild churn ever becomes a
-    // perf concern we can switch to listenKeys to gate scheduleRebuild
-    // on just the three JS keys.
-    FACADE_GEOMETRY,
-    // TREES is intentionally NOT here as a whole-store subscription:
-    // color + visibility + trunk-color keys live in materialOnlyStores and
-    // refresh via trees.refresh(); structural keys (height range,
-    // shape toggles, shading strength, inset, footprint) get narrow
-    // listenKeys subscriptions below.
-    //
-    // FOOTPRINT is intentionally NOT here as a whole-store subscription:
-    // only HALO_WIDTH is structural, and we gate it via listenKeys below.
-    // COLOR + ENABLED live in materialOnlyStores and refresh via footprint.refresh().
-    //
-  ];
+  const unsubRebuild = effect(() => {
+    void REBUILD_SIGNATURE.value; // establish tracking
+    if (!armed) return;
+    void scheduleRebuild();
+  });
 
-  const materialOnlyStores: Signal<any>[] = [
-    SCENE_COLORS,
-    SIDEWALK_COLORS,
-    ASPHALT,
-    BUILDING_OUTLINE,
-    BUILDING_AGING,
-    PATH_LINE,
-    HOVER_PATH_LINE,
-    GEM_APPEARANCE,
-    GEM_FACE_PALETTE,
-    GEM_GLOW,
-    BLOOM,
-    LIGHTING,
-    // FACADE_GEOMETRY: shader-side keys (SLAB/WINDOW/DOOR/ROOF_*_FRAC)
-    // are pushed through refreshBuildingMaterial() — Save on these
-    // gives immediate visual feedback without waiting for the rebuild
-    // triggered from rebuildStores above.
-    FACADE_GEOMETRY,
-    // FACADE_DETAIL and WINDOW_LIGHTING are pure shader uniforms (no
-    // per-instance attributes), so they live exclusively in materialOnlyStores —
-    // refreshBuildingMaterial() pushes them on every Save.
-    FACADE_DETAIL,
-    WINDOW_LIGHTING,
-    // SKY_* — pure uniform refreshes via sky.refresh() inside applyTheme().
-    // No rebuild path; the sky is a single mesh whose shader uniforms are
-    // mutated in place. Master ENABLED toggle on SKY flips mesh.visible
-    // (also handled by sky.refresh()).
-    SKY,
-    SKY_STARS,
-    // WORLD: only GROUND_BUFFER_PERCENT remains; it gets a narrow
-    // listenKeys subscription below so the slider doesn't trigger a
-    // spurious applyManifest for non-structural changes.
-    WORLD,
-    // TREES color + visibility + trunk color. trees.refresh() rewrites
-    // per-instance colors and material color; the structural keys are
-    // gated to scheduleRebuild via listenKeys below.
-    TREES,
-    // FOOTPRINT.COLOR + FOOTPRINT.ENABLED are pushed via
-    // footprint.refresh() inside applyTheme() — no rebuild required.
-    // FOOTPRINT.HALO_WIDTH gets a narrow listenKeys subscription below so
-    // the color slider doesn't trigger a spurious applyManifest.
-    FOOTPRINT,
-    // ISLAND_* — all keys are material-only via island.refresh() inside
-    // applyTheme(). Geometry changes (SIDES, IRREGULARITY, TIERS, DEPTH)
-    // trigger a cheap vertex-count rebuild inside refresh() → setBounds();
-    // material keys push uniforms directly. No full rebuild needed.
-    ISLAND_GEOMETRY,
-    ISLAND_MATERIALS,
-    // REPO_LABEL — every key (ENABLED, STYLE, HEIGHT_ABOVE_CITY,
-    // ANIMATION_SPEED, OPACITY) is pushed via
-    // repoLabel.refresh() inside applyTheme(). STYLE triggers a cheap
-    // mesh swap inside refresh(); the others update uniforms or the
-    // group transform directly. No applyManifest rebuild needed.
-    REPO_LABEL,
-    // TREE_OUTLINE — WIDTH, HOVER_COLOR, HOVER_OPACITY, SELECTED_OPACITY
-    // all push through treeOutlineRenderer.refreshMaterials() inside
-    // applyTheme(). No rebuild needed.
-    TREE_OUTLINE,
-    // FIREFLIES — split-routed (mirrors TREES): animation/brightness keys
-    // (BOB_AMPLITUDE, BOB_SPEED, PULSE_AMPLITUDE, PULSE_SPEED, ORBIT_SPEED,
-    // EMISSION_STRENGTH, FLICKER_AMOUNT) are pure uniforms pushed via
-    // fireflies.refresh() inside applyTheme(). Structural keys
-    // (FIREFLIES_ENABLED, SCALE_MIN, SCALE_MAX) get a narrow
-    // listenKeys subscription below that triggers a full rebuild.
-    FIREFLIES,
-  ];
+  const unsubMaterials = effect(() => {
+    void MATERIAL_REFRESH_SIGNATURE.value; // establish tracking
+    if (!armed) return;
+    refreshMaterials();
+  });
 
-  const unsubs: Array<() => void> = [];
-
-  // Wire whole-store reactions. effect() fires immediately with current
-  // value; we guard with `armed` until all effects are registered.
-  for (const store of rebuildStores) {
-    unsubs.push(
-      effect(() => {
-        void store.value; // track this signal
-        scheduleRebuild();
-      })
-    );
-  }
-  for (const store of materialOnlyStores) {
-    unsubs.push(
-      effect(() => {
-        void store.value; // track this signal
-        refreshMaterials();
-      })
-    );
-  }
-  // HALO_WIDTH bakes into per-instance Matrix4 data at createCityFootprint
-  // time, so changing it requires a full applyManifest rebuild. The other
-  // FOOTPRINT keys (COLOR, ENABLED) are handled by the materialOnlyStores
-  // subscription above; gating the rebuild on HALO_WIDTH alone avoids a
-  // wasted rebuild on every color drag.
-  unsubs.push(listenKeys(FOOTPRINT, ['HALO_WIDTH'], scheduleRebuild));
-  // TREES structural keys: every one of these either changes geometry
-  // (height range, shading strength) or per-shape allocation (shape
-  // toggles) or the placement pass (inset, footprint). All require a
-  // full applyManifest rebuild. Color + trunk color live on the
-  // refresh path via the TREES materialOnlyStores subscription above.
-  // TREES_ENABLED is intentionally excluded — it only flips mesh.visible
-  // via trees.refresh() (trees are placed regardless of visibility).
-  unsubs.push(
-    listenKeys(
-      TREES,
-      [
-        'TREE_MIN_HEIGHT',
-        'TREE_MAX_HEIGHT',
-        'TREE_MIN_WIDTH',
-        'TREE_MAX_WIDTH',
-        'TREE_FACETS_LOW',
-        'TREE_FACETS_MID',
-        'TREE_FACETS_HIGH',
-        'TRUNK_HEIGHT_FRAC',
-        'TRUNK_RADIUS_FRAC_OF_CANOPY',
-        'CANOPY_TRUNK_OVERLAP_FRAC',
-        'TREE_SHADING_STRENGTH',
-        'EDGE_INSET_PERCENT',
-        'TREE_DENSITY_FALLOFF',
-        'SCATTER_FOOTPRINT_FRAC_OF_MAX_WIDTH',
-        'TREE_WIDTH_AGE_FLOOR',
-      ],
-      scheduleRebuild
-    )
-  );
-  // GROUND_BUFFER_PERCENT changes the island size (and therefore
-  // the foliage sampling region), so it requires a full rebuild.
-  // Visual island config lives in ISLAND.* and is hot-patched via island.refresh().
-  unsubs.push(listenKeys(WORLD, ['GROUND_BUFFER_PERCENT'], scheduleRebuild));
-  // ISLAND_GEOMETRY shape keys change the polygon silhouette the tree
-  // placement uses for its point-in-polygon rejection. island.refresh()
-  // rebuilds the island mesh, but trees were placed against the OLD
-  // polygon — they need a re-place via applyManifest. ENABLED is
-  // excluded since it just flips group.visible (no shape change).
-  unsubs.push(
-    listenKeys(
-      ISLAND_GEOMETRY,
-      ['SIDES', 'IRREGULARITY', 'TIERS', 'DEPTH', 'ROUNDNESS', 'GRASS_THICKNESS'],
-      scheduleRebuild
-    )
-  );
-  // FIREFLIES structural keys: ENABLED gates orb creation at createFireflies()
-  // call time; SCALE_MIN/MAX bake into per-instance data;
-  // ORBIT_RING_ENABLED takes the no-op interface path in createOrbitRings
-  // when false, so toggling it also needs a full rebuild.
-  // ORBIT_RING_THICKNESS bakes into TubeGeometry tube radius — refresh()
-  // only updates material colors, so thickness changes require regenerating
-  // the geometry on the next hover/select swap.
-  // The remaining keys (animation, brightness) fall through to the
-  // materialOnlyStores subscription above and are hot-applied via
-  // fireflies.refresh() → rings.refresh().
-  unsubs.push(
-    listenKeys(
-      FIREFLIES,
-      ['FIREFLIES_ENABLED', 'SCALE_MIN', 'SCALE_MAX', 'ORBIT_RING_ENABLED', 'ORBIT_RING_THICKNESS'],
-      scheduleRebuild
-    )
-  );
   armed = true;
 
   return function dispose() {
@@ -403,13 +281,7 @@ export function attachCommitReactions({ world, applyTheme }: CommitReactionsOpts
       clearTimeout(hotIdleTimer);
       hotIdleTimer = 0;
     }
-    for (const unsub of unsubs) {
-      try {
-        if (typeof unsub === 'function') unsub();
-      } catch (_) {
-        /* noop */
-      }
-    }
-    unsubs.length = 0;
+    unsubRebuild();
+    unsubMaterials();
   };
 }
