@@ -15,6 +15,7 @@
 import { useEffect } from 'preact/hooks';
 import { AppHeader } from './appHeader';
 import { AppFooter } from './appFooter';
+import { CenterPane } from './CenterPane';
 import { SourcePicker } from '../components/sourcePicker';
 import { LoadingOverlay } from '../components/loadingOverlay';
 import { SCENE_HANDLE } from '@/state/runtime/scene';
@@ -65,9 +66,7 @@ export function App() {
       />
       <main id="app-body">
         <div id="left-sidebar" />
-        <div id="center-pane">
-          <canvas id="city" />
-        </div>
+        <CenterPane />
         <div id="right-sidebar" />
       </main>
       <AppFooter />
