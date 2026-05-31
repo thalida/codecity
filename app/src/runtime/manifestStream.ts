@@ -27,7 +27,7 @@ import { setIconAtlas } from '../scene/components/buildings/buildings';
 import { setCellIconAtlas } from '../scene/components/buildings/buildingsCell';
 import { startRenderLoop, _applyDisplayLabel } from '../scene/renderLoop';
 import { pushRecent } from '../state/runtime/sourceRecents';
-import { setupLiveUpdates } from '../state/runtime/liveUpdates';
+import { setupLiveUpdates } from '../state/runtime/manifestPoll';
 import type { SourcePayload } from '../views/components/sourcePicker';
 
 export type SceneHandle = Awaited<ReturnType<typeof startRenderLoop>>;

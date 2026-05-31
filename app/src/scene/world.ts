@@ -81,7 +81,7 @@ import {
   SCENE_COLORS,
   SIDEWALK_COLORS,
 } from '@/state/settings/index';
-import { REBUILD_STATUS } from '@/state/runtime/liveStatus';
+import { REBUILD_STATUS } from '@/state/runtime/manifestPoll';
 import type {
   Building,
   CityBbox,

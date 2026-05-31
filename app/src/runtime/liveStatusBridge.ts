@@ -7,7 +7,7 @@
 // Self-contained: no exports, no external callers.
 
 import { effect } from '@preact/signals';
-import { REBUILD_STATUS } from '../state/runtime/liveStatus';
+import { REBUILD_STATUS } from '../state/runtime/manifestPoll';
 import { setLoadingStep } from '../state/runtime/uiState';
 
 effect(() => {

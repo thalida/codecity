@@ -22,7 +22,7 @@ import { DateSource, NodeKind } from '@/types';
 import { formatShortDate, formatRelativeAgeShort } from '@/utils/dates';
 import { SCENE_HANDLE } from '@/state/runtime/scene';
 import { LIVE_UPDATES } from '@/state/settings/index';
-import { REBUILD_STATUS, LAST_REBUILD_ERROR, LAST_UPDATED_AT } from '@/state/runtime/liveStatus';
+import { REBUILD_STATUS, LAST_REBUILD_ERROR, LAST_UPDATED_AT } from '@/state/runtime/manifestPoll';
 import { humanLanguageFor } from '@/views/panes/filePreviewPane';
 
 interface FooterFileSelection {
@@ -56,7 +56,7 @@ export type FooterSelection = FooterFileSelection | FooterDirectorySelection;
 export interface FooterStatus {
   /** True when live-poll is active; renders as `live`. False renders as `paused`. */
   liveEnabled: boolean;
-  /** Must remain in sync with `RebuildStatus` in `liveStatus.ts` (intentional decoupling). */
+  /** Must remain in sync with `RebuildStatus` in `manifestPoll.ts` (intentional decoupling). */
   rebuildStatus: 'idle' | 'rebuilding' | 'decorating' | 'error';
   /** Epoch millis of the most recent successful rebuild; 0 ⇒ unknown. */
   lastUpdatedAt: number;

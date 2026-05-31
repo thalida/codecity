@@ -9,7 +9,7 @@
 
 import { computed, effect } from '@preact/signals';
 
-import { REBUILD_STATUS, LAST_REBUILD_ERROR, LAST_UPDATED_AT } from '@/state/runtime/liveStatus';
+import { REBUILD_STATUS, LAST_REBUILD_ERROR, LAST_UPDATED_AT } from '@/state/runtime/manifestPoll';
 
 import {
   // Rebuild-required (full store):

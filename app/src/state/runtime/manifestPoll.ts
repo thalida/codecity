@@ -1,10 +1,20 @@
-// state/runtime/liveUpdates.ts — Live-update poll loop. When LIVE_UPDATES.ENABLED flips
-// on we start re-fetching the manifest at the user-configured interval;
-// when its signature changes vs. the last render, we hand the new manifest
-// to world.applyManifest, which rebuilds the city in place. Camera +
-// selection survive because picker.selectionKey is persisted and
-// re-resolved on every world rebuild, and cameraRig keeps its pose
-// across applyManifest calls (no re-frame).
+// state/runtime/manifestPoll.ts — World-rebuild status signals + the live-update
+// poll loop. These two pieces always travel together: the poll loop is the
+// primary writer of REBUILD_STATUS / LAST_REBUILD_ERROR, and the manual
+// refresh entrypoint exposed here (refreshManifest) routes back into the
+// same fetch+apply path the poll uses.
+//
+// Lives OUTSIDE state/settings/ on purpose: these atoms are session-only
+// and must NOT be persisted to localStorage. If REBUILD_STATUS were
+// rehydrated, the poll's status-gated logic would strand the footer on
+// "rebuilding…" forever after a mid-fetch reload.
+//
+// Two writers feed the same atoms:
+//   - setupLiveUpdates() below — live-poll fetch + applyManifest
+//   - scheduleRebuild() in state/settings/hotReload.ts — save-driven applyManifest
+//
+// LAST_UPDATED_AT is written by the coordinator on every applied
+// manifest (initial paint + each successful poll that swapped state).
 //
 // Two-stage poll: each tick first hits /api/manifest/signature (cheap —
 // stat-only walk, no file content reads, no per-file git history) and
@@ -13,11 +23,49 @@
 // only flipped during the actual manifest fetch so the footer's
 // "rebuilding…" indicator only lights up when there's real work.
 
-import { effect } from '@preact/signals';
+import { signal, effect } from '@preact/signals';
 import { LIVE_UPDATES, POLL_SECONDS_MIN, POLL_SECONDS_MAX } from '@/state/settings/index';
-import { REBUILD_STATUS, LAST_REBUILD_ERROR, setRefreshManifest } from '@/state/runtime/liveStatus';
 import { manifestUrl, signatureUrl, streamManifest } from '@/api/manifest';
 import { _applyDisplayLabel, startRenderLoop } from '@/scene/renderLoop';
+
+// ── Rebuild status signals ───────────────────────────────────────────
+
+/**
+ * State of the most recent (or current) world rebuild.
+ *   'rebuilding' — applyManifest is constructing the city (streets,
+ *                  buildings, gem).
+ *   'decorating' — the city is already in the scene; the deferred
+ *                  decoration pass (trees, future mesa bounds, etc.)
+ *                  is still in flight. Only emitted when at least one
+ *                  decoration layer is enabled.
+ */
+export type RebuildStatus = 'idle' | 'rebuilding' | 'decorating' | 'error';
+
+export const REBUILD_STATUS = signal<RebuildStatus>('idle');
+
+/** Error message from the most recent failed rebuild; null when idle/success. */
+export const LAST_REBUILD_ERROR = signal<string | null>(null);
+
+/** Epoch millis of the most recent manifest apply (initial or via poll). */
+export const LAST_UPDATED_AT = signal<number>(0);
+
+// ── Manual refresh action ────────────────────────────────────────────
+// The footer's refresh button (and any future "force re-sync" UI) goes
+// through this single chokepoint so the live-poll plumbing stays the
+// only place that owns fetch + applyManifest. setupLiveUpdates registers
+// its `refreshFromToggle` here during boot; anything that wants to "act
+// like a fresh page load" just calls refreshManifest().
+
+let _refreshHandler: (() => Promise<void>) | null = null;
+
+/** Trigger a fresh manifest fetch + apply. Resolves when the rebuild
+ *  finishes (or immediately, when no handler has been registered yet —
+ *  which only happens during boot, before setupLiveUpdates runs). */
+export async function refreshManifest(): Promise<void> {
+  if (_refreshHandler) await _refreshHandler();
+}
+
+// ── Live-update poll loop ────────────────────────────────────────────
 
 function _clampPollSeconds(s: number | unknown): number {
   if (typeof s !== 'number' || !isFinite(s)) return POLL_SECONDS_MIN;
@@ -49,7 +97,7 @@ export function setupLiveUpdates(
   // the toggle handler funnel through here so the footer indicator
   // behaves identically. A non-2xx response or a JSON parse error
   // resolves to 'error' with the message captured in LAST_REBUILD_ERROR.
-  async function refreshManifest(): Promise<void> {
+  async function fetchAndApply(): Promise<void> {
     REBUILD_STATUS.value = 'rebuilding';
     try {
       for await (const event of streamManifest(manifestUrl())) {
@@ -88,13 +136,13 @@ export function setupLiveUpdates(
         if (!sigResp.ok) break;
         const sig: SignatureResponse | null = await sigResp.json();
         if (!sig?.signature || sig.signature === lastSignature) break;
-        await refreshManifest();
+        await fetchAndApply();
       } while (needsRefresh);
     } catch (_) {
       // Signature-fetch errors (network blip on the cheap probe) are
       // intentionally not surfaced through REBUILD_STATUS — no rebuild
       // attempt happened. The next tick retries. Only failures inside
-      // refreshManifest (the full fetch + applyManifest) populate the
+      // fetchAndApply (the full fetch + applyManifest) populate the
       // error indicator.
     } finally {
       inFlight = false;
@@ -113,7 +161,7 @@ export function setupLiveUpdates(
     try {
       do {
         needsRefresh = false;
-        await refreshManifest();
+        await fetchAndApply();
       } while (needsRefresh);
     } catch {
       /* keep polling */
@@ -134,10 +182,10 @@ export function setupLiveUpdates(
     }
   }
 
-  // Expose the manual-refresh entrypoint to anything outside the
-  // live-poll loop (e.g. the footer's refresh button) so they can
-  // trigger the same fetch+apply chain without re-implementing it.
-  setRefreshManifest(refreshFromToggle);
+  // Register the manual-refresh entrypoint so anything outside the
+  // live-poll loop (e.g. the footer's refresh button) can trigger the
+  // same fetch+apply chain without re-implementing it.
+  _refreshHandler = refreshFromToggle;
 
   // effect() fires the callback synchronously with the current value
   // the instant it is called. We arm the effect AFTER registering it —

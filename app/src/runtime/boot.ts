@@ -6,11 +6,10 @@ import './liveStatusBridge'; // self-installs its effect at module load
 
 import { sourceKey, CURRENT_SOURCE_KEY } from '../state/runtime/sourceContext';
 import { loadPerSourceState } from '../state/persist';
-import { LAST_UPDATED_AT } from '../state/runtime/liveStatus';
+import { LAST_UPDATED_AT, setupLiveUpdates } from '../state/runtime/manifestPoll';
 import { openSourcePicker } from '../state/runtime/uiState';
 import { getServerConfig } from '../api/config';
 import { SERVER_CONFIG } from '../state/runtime/serverConfig';
-import { setupLiveUpdates } from '../state/runtime/liveUpdates';
 import { labelFromManifest } from '../utils/sources';
 import { EMPTY_MANIFEST } from '../constants/manifest';
 
