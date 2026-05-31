@@ -160,11 +160,20 @@ export function mountRightSidebarReactions(): () => void {
   type SidebarPane = 'file' | 'commit' | 'street' | null;
   let sidebarPane: SidebarPane = null;
 
+  // Close-button handler shared by every pane: clear the picker selection
+  // alongside the local sidebarPane state. Without clearing the selection
+  // signal, re-clicking the same building / tree / street wouldn't fire
+  // the selection effect below (signals dedupe by reference), and the
+  // sidebar would stay closed — confusing UX where "click → close → click
+  // same thing" silently does nothing.
+  function _closePane(): void {
+    sidebarPane = null;
+    SCENE_HANDLE.peek()?.picker.setSelection(null);
+    _renderSidebar();
+  }
+
   const filePreview = buildFilePreviewPane({
-    onClose() {
-      sidebarPane = null;
-      _renderSidebar();
-    },
+    onClose: _closePane,
     onFocus(file) {
       const handle = SCENE_HANDLE.peek();
       if (!handle) return;
@@ -174,10 +183,7 @@ export function mountRightSidebarReactions(): () => void {
   });
 
   const commitPane = buildCommitPane({
-    onClose() {
-      sidebarPane = null;
-      _renderSidebar();
-    },
+    onClose: _closePane,
     onFocus(c) {
       const handle = SCENE_HANDLE.peek();
       if (handle) handle.rig.focusTree(c.sha);
@@ -185,10 +191,7 @@ export function mountRightSidebarReactions(): () => void {
   });
 
   const streetPane = buildStreetPane({
-    onClose() {
-      sidebarPane = null;
-      _renderSidebar();
-    },
+    onClose: _closePane,
     onFocus(d) {
       const handle = SCENE_HANDLE.peek();
       if (!handle) return;
