@@ -43,7 +43,9 @@ function SourcePickerShell() {
   pickerState.value = {
     open: sp.visible,
     dismissible: opts.dismissible ?? false,
-    activeTab: isGitLike(prefillSrc) ? 'git' : 'local',
+    // Default tab is git. Only switch to local when the prefill clearly
+    // looks like a local path (non-empty AND not a git-shaped URL).
+    activeTab: prefillSrc && !isGitLike(prefillSrc) ? 'local' : 'git',
     prefillSrc,
     prefillBranch: prefill?.branch ?? '',
     error: opts.error ?? null,
