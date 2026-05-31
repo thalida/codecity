@@ -1,15 +1,18 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { render } from 'preact';
-import { FileIcon } from '@/views/components/FileIcon';
-import { FolderIcon } from '@/views/components/FolderIcon';
+import { NodeIcon } from '@/views/components/NodeIcon';
+import { NodeKind } from '@/types';
 import { flush } from '../../_helpers/preact';
 
-// jsdom doesn't actually fetch the icon src — we just validate the
-// URL the component picks. The `data-icon-name` data attribute on the
-// rendered <img> exposes the resolved icon basename to tests without
-// having to parse the URL.
+// jsdom doesn't actually fetch the icon src — we just validate the URL the
+// component picks. The `data-icon-name` data attribute on the rendered <img>
+// exposes the resolved icon basename to tests without parsing the URL.
+//
+// NodeIcon dispatches on node.type: a node without type (or any non-directory
+// type) is treated as a file; type === NodeKind.Directory picks the folder
+// resolver.
 
-describe('FileIcon', () => {
+describe('NodeIcon — files', () => {
   let container: HTMLDivElement;
 
   beforeEach(() => {
@@ -23,7 +26,7 @@ describe('FileIcon', () => {
   });
 
   it('maps by extension (.ts → typescript)', async () => {
-    render(<FileIcon file={{ name: 'coordinator.ts', extension: '.ts' }} />, container);
+    render(<NodeIcon node={{ name: 'coordinator.ts', extension: '.ts' }} />, container);
     await flush();
     const img = container.querySelector('img') as HTMLImageElement;
     expect(img.tagName).toBe('IMG');
@@ -33,35 +36,35 @@ describe('FileIcon', () => {
   });
 
   it('prefers the filename map over the extension map (package.json → nodejs, not json)', async () => {
-    render(<FileIcon file={{ name: 'package.json', extension: '.json' }} />, container);
+    render(<NodeIcon node={{ name: 'package.json', extension: '.json' }} />, container);
     await flush();
     const img = container.querySelector('img') as HTMLImageElement;
     expect(img.dataset.iconName).toBe('nodejs');
   });
 
   it('handles extensionless filename hints (Dockerfile → docker)', async () => {
-    render(<FileIcon file={{ name: 'Dockerfile', extension: '' }} />, container);
+    render(<NodeIcon node={{ name: 'Dockerfile', extension: '' }} />, container);
     await flush();
     const img = container.querySelector('img') as HTMLImageElement;
     expect(img.dataset.iconName).toBe('docker');
   });
 
   it('matches filename map case-insensitively (.GITIGNORE → git)', async () => {
-    render(<FileIcon file={{ name: '.GITIGNORE', extension: '' }} />, container);
+    render(<NodeIcon node={{ name: '.GITIGNORE', extension: '' }} />, container);
     await flush();
     const img = container.querySelector('img') as HTMLImageElement;
     expect(img.dataset.iconName).toBe('git');
   });
 
   it('falls back to the generic document icon for unknown extensions', async () => {
-    render(<FileIcon file={{ name: 'weird.qux', extension: '.qux' }} />, container);
+    render(<NodeIcon node={{ name: 'weird.qux', extension: '.qux' }} />, container);
     await flush();
     const img = container.querySelector('img') as HTMLImageElement;
     expect(img.dataset.iconName).toBe('document');
   });
 
   it('exposes empty alt + lazy loading for the decorative image', async () => {
-    render(<FileIcon file={{ name: 'a.ts', extension: '.ts' }} />, container);
+    render(<NodeIcon node={{ name: 'a.ts', extension: '.ts' }} />, container);
     await flush();
     const img = container.querySelector('img') as HTMLImageElement;
     expect(img.alt).toBe('');
@@ -71,7 +74,7 @@ describe('FileIcon', () => {
   });
 });
 
-describe('FolderIcon', () => {
+describe('NodeIcon — directories', () => {
   let container: HTMLDivElement;
 
   beforeEach(() => {
@@ -85,7 +88,7 @@ describe('FolderIcon', () => {
   });
 
   it('maps recognized folder names (src → folder-src)', async () => {
-    render(<FolderIcon dir={{ name: 'src' }} />, container);
+    render(<NodeIcon node={{ name: 'src', type: NodeKind.Directory }} />, container);
     await flush();
     const img = container.querySelector('img') as HTMLImageElement;
     expect(img.dataset.iconName).toBe('folder-src');
@@ -93,14 +96,14 @@ describe('FolderIcon', () => {
   });
 
   it('matches case-insensitively (Tests → folder-test)', async () => {
-    render(<FolderIcon dir={{ name: 'Tests' }} />, container);
+    render(<NodeIcon node={{ name: 'Tests', type: NodeKind.Directory }} />, container);
     await flush();
     const img = container.querySelector('img') as HTMLImageElement;
     expect(img.dataset.iconName).toBe('folder-test');
   });
 
   it('falls back to the generic folder for unknown names', async () => {
-    render(<FolderIcon dir={{ name: 'idk-whatever' }} />, container);
+    render(<NodeIcon node={{ name: 'idk-whatever', type: NodeKind.Directory }} />, container);
     await flush();
     const img = container.querySelector('img') as HTMLImageElement;
     expect(img.dataset.iconName).toBe('folder');

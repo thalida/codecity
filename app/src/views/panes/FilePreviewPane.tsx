@@ -31,7 +31,6 @@ import { LucideIcon } from '@/views/components/LucideIcon';
 import { Pane, PaneEmpty } from '@/views/components/Pane';
 import { makeExtensionBadge } from '@/views/components/Badge';
 import { formatBytes } from '@/utils/bytes';
-import { escapeHtml } from '@/utils/html';
 import { languageFor } from '@/utils/syntaxLanguages';
 
 // Auto-load images/video/audio/PDF (browser handles streaming + memory).
@@ -175,8 +174,8 @@ function CodeEditor({ text, file }: CodeEditorProps) {
         highlightHtml = hljs.highlightAuto(text).value;
       }
     } catch (_) {
-      // Highlighter blew up — fall back to plain escaped text.
-      highlightHtml = escapeHtml(text);
+      // Highlighter blew up — leave highlightHtml null so the render
+      // falls back to the plain (JSX-escaped) text branch below.
     }
   }
 
@@ -202,12 +201,14 @@ function CodeEditor({ text, file }: CodeEditorProps) {
           </div>
         )}
         <pre class="code-editor-pre">
-          {skipHighlight ? (
+          {highlightHtml === null ? (
+            // skipHighlight, or the highlighter threw — render plain text;
+            // JSX escapes it automatically (no manual escapeHtml needed).
             <code class="code-editor-code">{text}</code>
           ) : (
             <code
               class="code-editor-code hljs"
-              dangerouslySetInnerHTML={{ __html: highlightHtml ?? '' }}
+              dangerouslySetInnerHTML={{ __html: highlightHtml }}
             />
           )}
         </pre>

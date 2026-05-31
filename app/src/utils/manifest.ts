@@ -1,28 +1,15 @@
-// utils/manifest.ts — Pure predicates over the Manifest / DirNode shape.
-// Used by views and runtime alike to ask "what does this manifest mean?"
-// without reaching into the type structure inline. The sentinel value
-// itself lives in constants/manifest.ts; this module is about behaviour.
+// utils/manifest.ts — Pure predicates over the Manifest shape.
 
-import type { DirNode, Manifest, TreeNode } from '../types';
+import { EMPTY_MANIFEST } from '@/constants/manifest';
 
 /**
- * True when the manifest represents the cold-boot EMPTY_MANIFEST shape
- * (root tree has no name and no children). Used to distinguish "no
- * project loaded yet" from "project loaded but has no content of
- * interest" so callers can show the right empty-state copy.
- *
- * Accepts a few wider shapes so legacy callers passing partial objects
- * (e.g. just a DirNode, or a bag with a `tree` field of unknown shape)
- * still get a sensible answer.
+ * True when nothing meaningful is loaded — either the value is absent or it
+ * is the cold-boot sentinel. The "no project loaded" state is always
+ * represented by the shared EMPTY_MANIFEST reference (set when there's no
+ * ?src, on a load error, or before the first manifest is applied), so an
+ * identity check is exact — no structural guessing. A real loaded project
+ * is never === EMPTY_MANIFEST.
  */
-export function isEmptyManifest(
-  m: Manifest | DirNode | { tree?: unknown; [k: string]: unknown } | null
-): boolean {
-  if (!m) return true;
-  const tree = (('tree' in m && (m as Manifest).tree) || m) as TreeNode | DirNode;
-  if (!tree.name) {
-    if (!('children' in tree)) return true;
-    return ((tree as DirNode).children?.length ?? 0) === 0;
-  }
-  return false;
+export function isEmptyManifest(m: unknown): boolean {
+  return m == null || m === EMPTY_MANIFEST;
 }

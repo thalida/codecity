@@ -43,11 +43,11 @@ export function AppHeader({
 
   let sel: HeaderSelection | null = null;
   if (pickerSel?.kind === NodeKind.Commit) {
-    sel = { kind: 'commit', sha: pickerSel.commit.sha, authors: pickerSel.commit.authors };
+    sel = { kind: NodeKind.Commit, sha: pickerSel.commit.sha, authors: pickerSel.commit.authors };
   } else if (pickerSel?.kind === NodeKind.File) {
     const node = pickerSel.file;
     sel = {
-      kind: 'file',
+      kind: NodeKind.File,
       path: node.path || node.fullPath || node.name || '',
       fullPath: node.fullPath || '',
       extension: node.extension || '',
@@ -56,7 +56,7 @@ export function AppHeader({
   } else if (pickerSel?.kind === NodeKind.Directory) {
     const node = pickerSel.dir;
     sel = {
-      kind: 'dir',
+      kind: NodeKind.Directory,
       path: node.path || node.fullPath || node.name || '',
       fullPath: node.fullPath || '',
       isDir: true,

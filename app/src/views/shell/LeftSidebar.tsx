@@ -28,6 +28,7 @@ import type { DirNode, Manifest, PickTarget, TreeNode } from '@/types';
 import { persistedSignal } from '@/state/persist';
 import { SCENE_HANDLE } from '@/state/runtime/scene';
 import { EMPTY_MANIFEST } from '@/constants/manifest';
+import { isEmptyManifest } from '@/utils/manifest';
 import { TreePane } from '@/views/panes/TreePane';
 import { InfoPane } from '@/views/panes/InfoPane';
 import { SearchPane } from '@/views/panes/SearchPane';
@@ -266,19 +267,7 @@ export function LeftSidebar() {
 
   // Auto-collapse when the manifest has no content (cold-boot empty state).
   // The activity bar stays visible but the panel is hidden.
-  const isEmptyManifest = useComputed(() => {
-    const m = MANIFEST_SIG.value as { tree?: TreeNode | DirNode } | TreeNode | DirNode | null;
-    if (!m) return true;
-    const tree = ('tree' in (m as object) ? (m as { tree?: TreeNode | DirNode }).tree : m) as
-      | TreeNode
-      | DirNode
-      | undefined;
-    if (!tree || !tree.name) {
-      if (!tree || !('children' in tree)) return true;
-      return ((tree as DirNode).children?.length ?? 0) === 0;
-    }
-    return false;
-  });
+  const manifestIsEmpty = useComputed(() => isEmptyManifest(MANIFEST_SIG.value));
 
   const onIconClick = (tab: SidebarTab) => {
     if (!collapsed.value && tab === activeTab.value) {
@@ -328,7 +317,7 @@ export function LeftSidebar() {
   };
 
   // Effective collapsed: forced when manifest is empty.
-  const effectiveCollapsed = collapsed.value || isEmptyManifest.value;
+  const effectiveCollapsed = collapsed.value || manifestIsEmpty.value;
   const tab = activeTab.value;
 
   return (

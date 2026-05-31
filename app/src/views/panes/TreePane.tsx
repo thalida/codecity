@@ -13,11 +13,10 @@ import { effect, signal, useComputed } from '@preact/signals';
 import type { ReadonlySignal, Signal } from '@preact/signals';
 import { useEffect, useRef } from 'preact/hooks';
 import { NodeKind } from '@/types';
-import type { DirNode, FileNode, Manifest, TreeNode } from '@/types';
+import type { DirNode, Manifest, TreeNode } from '@/types';
 import { LucideIcon } from '@/views/components/LucideIcon';
 import { GemIcon } from '@/views/components/GemIcon';
-import { FileIcon } from '@/views/components/FileIcon';
-import { FolderIcon } from '@/views/components/FolderIcon';
+import { NodeIcon } from '@/views/components/NodeIcon';
 import { Pane, PaneEmpty } from '@/views/components/Pane';
 
 // ── Helpers ──────────────────────────────────────────────────────────
@@ -152,13 +151,11 @@ function TreeItem({
             )}
           </span>
         )}
-        {/* Glyph: root uses the brand gem (monochrome); other dirs the
-            Material folder icon; files the Material file icon. */}
-        {isDir
-          ? isRoot
-            ? <GemIcon simple class="tree-root-glyph" />
-            : <FolderIcon dir={node as DirNode} />
-          : <FileIcon file={node as FileNode} />}
+        {/* Glyph: root uses the brand gem (monochrome); every other node
+            gets its Material file/folder icon (NodeIcon dispatches on type). */}
+        {isDir && isRoot
+          ? <GemIcon simple class="tree-root-glyph" />
+          : <NodeIcon node={node} />}
         <span class="tree-label">{node.name || ''}</span>
       </div>
       {isDir && isExpanded && children.length > 0 && (

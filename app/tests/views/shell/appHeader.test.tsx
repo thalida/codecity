@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render } from 'preact';
 import { HeaderTitle } from '@/views/shell/header/HeaderTitle';
 import type { HeaderSelection } from '@/views/shell/header/HeaderTitle';
+import { NodeKind } from '@/types';
 
 function mountTitle(sel: HeaderSelection | null, onFocus?: () => void) {
   document.body.innerHTML = '<div id="app-title"></div>';
@@ -27,7 +28,7 @@ describe('HeaderTitle commit selection', () => {
     const onFocus = vi.fn();
     const title = mountTitle(
       {
-        kind: 'commit',
+        kind: NodeKind.Commit,
         sha: 'a1b2c3d4567890abcdef1234567890abcdef1234',
         authors: ['Alice Author'],
       },
@@ -49,7 +50,7 @@ describe('HeaderTitle commit selection', () => {
 
   it('renders "<primary> (+N)" for multi-author commits', () => {
     const title = mountTitle({
-      kind: 'commit',
+      kind: NodeKind.Commit,
       sha: 'a1b2c3d4567890abcdef1234567890abcdef1234',
       authors: ['Alice Author', 'Bob Builder', 'Carol Coder'],
     });
@@ -60,7 +61,7 @@ describe('HeaderTitle commit selection', () => {
 
   it('renders just "<primary>" with no (+N) suffix for single-author commits', () => {
     const title = mountTitle({
-      kind: 'commit',
+      kind: NodeKind.Commit,
       sha: 'a1b2c3d4567890abcdef1234567890abcdef1234',
       authors: ['Solo Author'],
     });

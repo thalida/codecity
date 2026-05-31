@@ -9,6 +9,7 @@
 
 import { Fragment } from 'preact';
 import { useEffect, useRef } from 'preact/hooks';
+import { NodeKind } from '@/types';
 import { ASPHALT, BUILDING_PALETTE } from '@/state/settings';
 import { LucideIcon } from '@/views/components/LucideIcon';
 import { ExtensionBadge } from '@/views/components/Badge';
@@ -17,14 +18,14 @@ import { applyMiddleEllipsis } from '@/utils/middleEllipsis';
 
 export type HeaderSelection =
   | {
-      kind: 'file' | 'dir';
+      kind: NodeKind.File | NodeKind.Directory;
       path: string;
       fullPath?: string;
       extension?: string;
       isDir?: boolean;
     }
   | {
-      kind: 'commit';
+      kind: NodeKind.Commit;
       sha: string;
       authors: string[];
     };
@@ -62,7 +63,7 @@ export function HeaderTitle({ sel, rootLabel, rootPath, onSegmentClick, onFocus 
   if (!sel) return null;
 
   const focusTitle =
-    sel.kind === 'commit' ? 'Focus camera on commit (F)' : 'Focus camera on selection (F)';
+    sel.kind === NodeKind.Commit ? 'Focus camera on commit (F)' : 'Focus camera on selection (F)';
   const focusBtn = onFocus ? (
     <button
       type="button"
@@ -75,7 +76,7 @@ export function HeaderTitle({ sel, rootLabel, rootPath, onSegmentClick, onFocus 
     </button>
   ) : null;
 
-  if (sel.kind === 'commit') {
+  if (sel.kind === NodeKind.Commit) {
     const primary = sel.authors[0] || '(unknown)';
     const coAuthorCount = Math.max(0, sel.authors.length - 1);
     const authorText = coAuthorCount > 0 ? ` · ${primary} (+${coAuthorCount})` : ` · ${primary}`;
