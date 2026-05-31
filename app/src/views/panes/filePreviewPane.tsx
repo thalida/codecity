@@ -19,10 +19,8 @@ import { fileUrl, fetchFileText } from '@/api/file';
 import { makeLucideIcon } from '@/views/components/icon';
 import { buildPaneHeader } from '@/views/components/paneHeader';
 import { makeExtensionBadge } from '@/views/components/badge';
-
-// Binary-unit thresholds for human-readable file size formatting.
-const BYTES_PER_KB = 1024;
-const BYTES_PER_MB = 1024 * 1024;
+import { formatBytes } from '@/utils/bytes';
+import { escapeHtml } from '@/utils/html';
 
 // Auto-load images/video/audio/PDF (browser handles streaming + memory).
 // Auto-load text up to the server's own ceiling — kept in sync with
@@ -353,15 +351,6 @@ export function humanLanguageFor(file: FileNode): string {
   return labels[key] || key;
 }
 
-/**
- * Format a byte count into a human-readable string. e.g. "512 B", "3.4 KB", "1.2 MB"
- */
-function formatBytes(bytes: number): string {
-  if (bytes < BYTES_PER_KB) return `${bytes} B`;
-  if (bytes < BYTES_PER_MB) return `${(bytes / BYTES_PER_KB).toFixed(1)} KB`;
-  return `${(bytes / BYTES_PER_MB).toFixed(1)} MB`;
-}
-
 function _previewKind(file: FileNode | { extension?: string }): PreviewKind {
   const ext = (file.extension || '').toLowerCase();
   if (IMAGE_EXTS.includes(ext)) return PreviewKind.Image;
@@ -544,7 +533,7 @@ function _buildCodeEditor(text: string, file: FileNode): HTMLElement {
       }
     } catch (_) {
       // Highlighter blew up — fall back to plain escaped text.
-      html = _escapeHtml(text);
+      html = escapeHtml(text);
     }
     code.innerHTML = html;
     code.classList.add('hljs');
@@ -573,8 +562,4 @@ function _languageFor(file: { extension?: string; name?: string }): string | nul
   const name = (file.name || '').toLowerCase();
   if (NAME_LANG[name]) return NAME_LANG[name];
   return null;
-}
-
-function _escapeHtml(s: string): string {
-  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }

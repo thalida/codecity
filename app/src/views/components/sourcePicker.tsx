@@ -14,6 +14,7 @@ import { LucideIcon } from './icon';
 import { LUCIDE_ICON_BASE_URL } from '@/constants';
 import { SOURCE_PICKER, closeSourcePicker } from '@/state/runtime/uiState';
 import { SERVER_CONFIG } from '@/state/runtime/serverConfig';
+import { escapeHtml, escapeAttr } from '@/utils/html';
 
 // ── Hosting-site SVG icons ───────────────────────────────────────────────────
 
@@ -616,16 +617,3 @@ export function createSourcePicker(opts: {
   };
 }
 
-// ── HTML escape helpers (used by the backward-compat factory) ───────────────
-
-function escapeHtml(s: string): string {
-  return s
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-}
-function escapeAttr(s: string): string {
-  return escapeHtml(s);
-}

@@ -13,6 +13,7 @@ import type { DirNode, FileNode, TreeNode } from '@/types';
 import { makeLucideIcon } from '@/views/components/icon';
 import { buildPaneHeader } from '@/views/components/paneHeader';
 import { makeExtensionBadge } from '@/views/components/badge';
+import { formatBytes } from '@/utils/bytes';
 import { ASPHALT, BUILDING_PALETTE } from '@/state/settings';
 
 interface BuildStreetPaneOpts {
@@ -26,15 +27,6 @@ interface ExtensionStats {
   ext: string;
   count: number;
   size: number;
-}
-
-const BYTES_PER_KB = 1024;
-const BYTES_PER_MB = 1024 * 1024;
-
-function formatBytes(n: number): string {
-  if (n < BYTES_PER_KB) return `${n} B`;
-  if (n < BYTES_PER_MB) return `${(n / BYTES_PER_KB).toFixed(1)} KB`;
-  return `${(n / BYTES_PER_MB).toFixed(1)} MB`;
 }
 
 /** Walk a directory's descendant subtree and aggregate by extension.

@@ -20,6 +20,7 @@ import { render } from 'preact';
 import { useEffect } from 'preact/hooks';
 import { DateSource, NodeKind } from '@/types';
 import { formatShortDate, formatRelativeAgeShort } from '@/utils/dates';
+import { formatBytes } from '@/utils/bytes';
 import { SCENE_HANDLE } from '@/state/runtime/scene';
 import { LIVE_UPDATES } from '@/state/settings/index';
 import { REBUILD_STATUS, LAST_REBUILD_ERROR, LAST_UPDATED_AT } from '@/state/runtime/manifestPoll';
@@ -70,14 +71,6 @@ interface AppFooterState {
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
-
-const BYTES_PER_KB = 1024;
-const BYTES_PER_MB = 1024 * 1024;
-function _formatBytes(bytes: number): string {
-  if (bytes < BYTES_PER_KB) return `${bytes} B`;
-  if (bytes < BYTES_PER_MB) return `${(bytes / BYTES_PER_KB).toFixed(1)} KB`;
-  return `${(bytes / BYTES_PER_MB).toFixed(1)} MB`;
-}
 
 /**
  * Build a directory-count item showing both direct-children and recursive
@@ -190,7 +183,7 @@ function FooterSelectionSection({ selection }: FooterSelectionSectionProps) {
   if (selection.kind === NodeKind.File) {
     if (selection.language) items.push({ text: selection.language });
     if (selection.lines != null) items.push({ text: `${selection.lines} lines` });
-    if (selection.size != null) items.push({ text: _formatBytes(selection.size) });
+    if (selection.size != null) items.push({ text: formatBytes(selection.size) });
     if (selection.modified) {
       const relMod = `modified ${formatRelativeAgeShort(new Date(selection.modified).getTime(), Date.now())}`;
       const absMod = `modified ${formatShortDate(selection.modified)}`;
@@ -207,7 +200,7 @@ function FooterSelectionSection({ selection }: FooterSelectionSectionProps) {
     if (filesItem) items.push(filesItem);
     const dirsItem = _directoryCountItem(selection.directDirs, selection.totalDirs, 'dirs');
     if (dirsItem) items.push(dirsItem);
-    if (selection.size != null) items.push({ text: _formatBytes(selection.size) });
+    if (selection.size != null) items.push({ text: formatBytes(selection.size) });
   }
 
   return (
