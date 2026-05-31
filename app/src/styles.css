@@ -1112,11 +1112,6 @@ canvas {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.app-footer-source {
-  margin-left: var(--cc-space-2);
-  color: var(--cc-text-ghost);
-  font-size: var(--cc-font-sm);
-}
 
 /* Shared muted-dot separator. Used between metadata items in the left
  * (selection) section and between the branch + repo link in the center

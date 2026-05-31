@@ -16,7 +16,7 @@
 
 import { useSignal } from '@preact/signals';
 import { useEffect } from 'preact/hooks';
-import { DateSource, NodeKind } from '@/types';
+import { NodeKind } from '@/types';
 import { formatShortDate, formatRelativeAgeShort } from '@/utils/dates';
 import { formatBytes } from '@/utils/bytes';
 import { SCENE_HANDLE } from '@/state/runtime/scene';
@@ -33,7 +33,6 @@ interface FooterFileSelection {
   size?: number | null;
   modified?: string | null;
   created?: string | null;
-  dateSource?: DateSource;
 }
 
 interface FooterDirectorySelection {
@@ -93,15 +92,13 @@ function _directoryCountItem(
 
 interface FooterItemData {
   text: string;
-  source?: string;
   title?: string;
 }
 
-function FooterItem({ text, source, title }: FooterItemData) {
+function FooterItem({ text, title }: FooterItemData) {
   return (
     <span class="app-footer-item" title={title ?? ''}>
       {text}
-      {source && <span class="app-footer-source">({source})</span>}
     </span>
   );
 }
@@ -180,12 +177,12 @@ function FooterSelectionSection({ selection }: FooterSelectionSectionProps) {
     if (selection.modified) {
       const relMod = `modified ${formatRelativeAgeShort(new Date(selection.modified).getTime(), Date.now())}`;
       const absMod = `modified ${formatShortDate(selection.modified)}`;
-      items.push({ text: relMod, source: selection.dateSource, title: absMod });
+      items.push({ text: relMod, title: absMod });
     }
     if (selection.created) {
       const relCre = `created ${formatRelativeAgeShort(new Date(selection.created).getTime(), Date.now())}`;
       const absCre = `created ${formatShortDate(selection.created)}`;
-      items.push({ text: relCre, source: selection.dateSource, title: absCre });
+      items.push({ text: relCre, title: absCre });
     }
   } else if (selection.kind === NodeKind.Directory) {
     items.push({ text: 'Directory' });
@@ -246,7 +243,6 @@ export function AppFooter() {
   let selection: FooterSelection | null = null;
   if (target?.kind === NodeKind.File) {
     const f = target.file;
-    const hasGit = !!(f.git && (f.git.created || f.git.modified));
     selection = {
       kind: NodeKind.File,
       extension: f.extension || '',
@@ -255,7 +251,6 @@ export function AppFooter() {
       size: f.size || 0,
       modified: (f.git && f.git.modified) || f.modified || null,
       created: (f.git && f.git.created) || f.created || null,
-      dateSource: hasGit ? DateSource.Git : DateSource.Filesystem,
     };
   } else if (target?.kind === NodeKind.Directory) {
     const d = target.dir;
