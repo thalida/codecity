@@ -15,6 +15,7 @@
 // The fader writes iFade on each CellTile.detailMesh (vec3 layout).
 
 import * as THREE from 'three';
+import { effect } from '@preact/signals';
 import { BUILDING_FADE } from '@/state/settings/index';
 import type { BuildingFadeConfig } from '@/state/settings/components/buildings';
 import { FadeDetail, NodeKind } from '@/types';
@@ -219,19 +220,20 @@ export function createBuildingFader({
     }
   }
 
-  // Subscribe to selection and hover. Either change triggers a full sweep.
-  // Unsubscribe handles are kept so dispose() can clean them up.
-  const _unsubSel = picker.selection.subscribe(() => _sweepAll());
-  const _unsubHov = picker.hover.subscribe(() => _sweepAll());
+  // Selection / hover / config changes all trigger a full sweep. Separate
+  // effects per signal keep tracking narrow.
+  const _unsubSel = effect(() => { picker.selection.value; _sweepAll(); });
+  const _unsubHov = effect(() => { picker.hover.value; _sweepAll(); });
 
-  // Re-sweep after a manifest rebuild — new blocks have fresh iFade
-  // buffers (opacity=1.0, silhouette=0, outlineOpacity=0) and the current selection still applies.
+  // Re-sweep after a manifest rebuild — new blocks start with fresh iFade
+  // buffers (opacity=1.0, silhouette=0, outlineOpacity=0) and the current
+  // selection still applies.
   const _unsubChange = world.onChange(() => _sweepAll());
 
   // BUILDING_FADE config (tier thresholds, body opacity, detail mode)
-  // controls every value _sweepAll reads. Resweep on any change so
-  // dragging a slider in the controls pane updates the scene live.
-  const _unsubCfg = BUILDING_FADE.subscribe(() => _sweepAll());
+  // controls every value _sweepAll reads. Resweep on any change so dragging
+  // a slider in the controls pane updates the scene live.
+  const _unsubCfg = effect(() => { BUILDING_FADE.value; _sweepAll(); });
 
   // update() kept as a no-op for API compatibility: main.ts calls
   // fader.update(0) in the animation loop. With the subscription-driven

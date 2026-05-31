@@ -16,6 +16,7 @@
 // page reload is an implicit discard.
 
 import { useEffect, useRef } from 'preact/hooks';
+import { effect } from '@preact/signals';
 import {
   // Scene (ground haze / fog)
   SCENE_COLORS,
@@ -1263,7 +1264,7 @@ function _buildFilePreviewSection(): HTMLElement {
     sel.value = v;
     resetBtn.disabled = v === SYNTAX_THEME_DEFAULT;
   };
-  SYNTAX_THEME.subscribe(refresh);
+  effect(() => { void SYNTAX_THEME.value; refresh(); });
 
   const row = document.createElement('label');
   row.className = 'theme-row';
@@ -1707,7 +1708,7 @@ function _makeResetButton(
     btn.disabled = keys.every((k) => _isEqual(getEffective(store, k), getDefault(store, k)));
   }
   refresh();
-  store.subscribe(refresh);
+  effect(() => { void store.value; refresh(); });
   subscribeDrafts(refresh);
   return btn;
 }
@@ -1760,7 +1761,7 @@ function _color(
     const hex = _toHexInputValue(getEffective(store, key));
     if (input.value.toLowerCase() !== hex) input.value = hex;
   };
-  store.subscribe(refresh);
+  effect(() => { void store.value; refresh(); });
   subscribeDrafts(refresh);
   return _row(label, input, store, [key], opts);
 }
@@ -1789,7 +1790,7 @@ function _number(
     const s = String(getEffective(store, key));
     if (input.value !== s && document.activeElement !== input) input.value = s;
   };
-  store.subscribe(refresh);
+  effect(() => { void store.value; refresh(); });
   subscribeDrafts(refresh);
   return _row(label, input, store, [key], opts);
 }
@@ -1821,7 +1822,7 @@ function _slider(
       refs.readout.textContent = _formatNumberForStep(v, step);
     }
   };
-  store.subscribe(refresh);
+  effect(() => { void store.value; refresh(); });
   subscribeDrafts(refresh);
   return _row(label, control, store, [key], opts);
 }
@@ -1880,7 +1881,7 @@ function _nestedSlider(
       if (swatch) swatch.style.background = `hsl(${v}, 80%, 55%)`;
     }
   };
-  store.subscribe(refresh);
+  effect(() => { void store.value; refresh(); });
   subscribeDrafts(refresh);
 
   const rowOpts: ControlOpts = { ...opts };
@@ -1924,7 +1925,7 @@ function _tierWidthSlider(index: number, minDescendants: number): HTMLLabelEleme
       refs.readout.textContent = _formatNumberForStep(v, 1);
     }
   };
-  STREET_TIERS.subscribe(refresh);
+  effect(() => { void STREET_TIERS.value; refresh(); });
   subscribeDrafts(refresh);
 
   const rowOpts: ControlOpts = {
@@ -1964,7 +1965,7 @@ function _makeTierWidthResetButton(index: number): HTMLButtonElement {
     btn.disabled = _isEqual(v, defaultVal);
   }
   refresh();
-  STREET_TIERS.subscribe(refresh);
+  effect(() => { void STREET_TIERS.value; refresh(); });
   subscribeDrafts(refresh);
   return btn;
 }
@@ -2003,7 +2004,7 @@ function _makeNestedResetButton(
     btn.disabled = _isEqual(v, defaultVal);
   }
   refresh();
-  store.subscribe(refresh);
+  effect(() => { void store.value; refresh(); });
   subscribeDrafts(refresh);
   return btn;
 }
@@ -2042,7 +2043,7 @@ function _select(
     }
   };
   refresh();
-  store.subscribe(refresh);
+  effect(() => { void store.value; refresh(); });
   subscribeDrafts(refresh);
   return _row(label, wrap, store, [key], opts);
 }
@@ -2065,7 +2066,7 @@ function _toggle(
     const v = !!getEffective(store, key);
     if (input.checked !== v) input.checked = v;
   };
-  store.subscribe(refresh);
+  effect(() => { void store.value; refresh(); });
   subscribeDrafts(refresh);
   return _row(label, input, store, [key], opts);
 }
@@ -2157,7 +2158,7 @@ function _rangePair(
     }
     if (changed) paint();
   };
-  store.subscribe(refresh);
+  effect(() => { void store.value; refresh(); });
   subscribeDrafts(refresh);
 
   const wrap = document.createElement('span');

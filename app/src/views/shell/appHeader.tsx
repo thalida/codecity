@@ -82,11 +82,11 @@ function _copy(text: string, btn: HTMLButtonElement): void {
   }
   if (navigator.clipboard && navigator.clipboard.writeText) {
     navigator.clipboard.writeText(text).then(flash, () => {
-      _legacyCopy(text);
+      _fallbackCopy(text);
       flash();
     });
   } else {
-    _legacyCopy(text);
+    _fallbackCopy(text);
     flash();
   }
 }
@@ -112,7 +112,7 @@ function _withBranchPath(repoHttpsUrl: string, branch: string): string {
   return repoHttpsUrl;
 }
 
-function _legacyCopy(text: string): void {
+function _fallbackCopy(text: string): void {
   const ta = document.createElement('textarea');
   ta.value = text;
   ta.style.position = 'fixed';

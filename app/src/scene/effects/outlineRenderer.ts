@@ -17,6 +17,7 @@
 // changes into the two outline materials.
 
 import * as THREE from 'three';
+import { effect } from '@preact/signals';
 import { LineSegments2 } from 'three/addons/lines/LineSegments2.js';
 import { LineSegmentsGeometry } from 'three/addons/lines/LineSegmentsGeometry.js';
 import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
@@ -183,11 +184,10 @@ export function createOutlineRenderer({
     _selectedColors[k + 5] = _tmpHsl.b;
   }
 
-  // ── Reactive: show/hide outlines on selection / hover changes ───────
-  //
-  // On a selection change we snap the outline into place immediately so
-  // there is no one-frame lag before update() runs.
-  picker.selection.subscribe((sel) => {
+  // Show/hide outlines on selection / hover changes. Snap into place
+  // synchronously so there's no one-frame lag before update() runs.
+  effect(() => {
+    const sel = picker.selection.value;
     if (sel && sel.kind === NodeKind.File) {
       _syncOutlineToTarget(selectedOutline, sel);
       selectedOutline.visible = true;
@@ -196,12 +196,14 @@ export function createOutlineRenderer({
     }
   });
 
-  // For the hover-vs-selection dedup we compare by file path rather than
-  // mesh reference — in the InstancedMesh world all buildings in the same
-  // block share the same mesh object, so reference comparison would wrongly
-  // hide the hover outline for any two buildings in the same block.
-  picker.hover.subscribe((h) => {
-    const sel = picker.selection.value;
+  // Hover-vs-selection dedup compares by file path (not mesh reference) —
+  // InstancedMesh buildings in the same block share the same mesh, so a
+  // reference comparison would hide the hover outline for any second
+  // building in the block. .peek() the selection so this effect re-runs
+  // ONLY on hover change, not selection change.
+  effect(() => {
+    const h = picker.hover.value;
+    const sel = picker.selection.peek();
     const selPath = sel?.kind === NodeKind.File ? sel.file?.path : null;
     if (h && h.kind === NodeKind.File && h.file?.path !== selPath) {
       _syncOutlineToTarget(hoverOutline, h);

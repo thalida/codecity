@@ -5,6 +5,7 @@
 // edit to the README on disk shows up here without a page reload.
 
 import { useState, useEffect } from 'preact/hooks';
+import { effect } from '@preact/signals';
 import type { Signal } from '@preact/signals';
 import { marked } from 'marked';
 import { NodeKind } from '@/types';
@@ -97,11 +98,9 @@ export function InfoPane({ manifest, onClose }: InfoPaneProps) {
         });
     };
 
-    doFetch(manifest.value);
-
-    // Subscribe to future manifest changes
-    const unsub = manifest.subscribe((m) => {
-      doFetch(m);
+    // effect() fires once immediately + on every manifest change.
+    const unsub = effect(() => {
+      doFetch(manifest.value);
     });
 
     return () => {

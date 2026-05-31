@@ -5,6 +5,7 @@
 // syntax theme, live updates, URL handling, persistence wiring).
 
 import * as THREE from 'three';
+import { effect } from '@preact/signals';
 
 import {
   ASPHALT,
@@ -372,36 +373,25 @@ export async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manif
     getRootName: () => world.getRoot()?.name ?? null,
   });
 
-  // Sidewalk tints are scene-state that follow selection / hover. Subscribe
-  // directly to picker so the tint refresh fires alongside the renderers.
-  picker.selection.subscribe(() => {
-    _refreshSidewalkTints();
-  });
-  picker.hover.subscribe(() => {
-    _refreshSidewalkTints();
-  });
+  // Sidewalk tints follow selection / hover. Two effects keep tracking
+  // narrow — one signal per effect, no over-tracking.
+  effect(() => { picker.selection.value; _refreshSidewalkTints(); });
+  effect(() => { picker.hover.value; _refreshSidewalkTints(); });
 
-  // Firefly hover / select boost. Always re-fetches world.getFireflies() so
-  // the subscription stays valid across world rebuilds — the new renderer
-  // starts with uniforms at -1 (no highlight), and the next subscription
-  // fire will push the current hover/selection into it.
-  picker.hover.subscribe((h) => {
+  // Firefly hover / select boost. Re-fetches world.getFireflies() each fire
+  // so the wiring survives world rebuilds (new renderer starts with -1
+  // uniforms and the next signal change pushes current hover/selection in).
+  effect(() => {
+    const h = picker.hover.value;
     const fireflies = world.getFireflies();
     if (!fireflies) return;
-    if (h && h.kind === NodeKind.Commit) {
-      fireflies.setHoveredCommit(h.commit.sha);
-    } else {
-      fireflies.setHoveredCommit(null);
-    }
+    fireflies.setHoveredCommit(h && h.kind === NodeKind.Commit ? h.commit.sha : null);
   });
-  picker.selection.subscribe((sel) => {
+  effect(() => {
+    const sel = picker.selection.value;
     const fireflies = world.getFireflies();
     if (!fireflies) return;
-    if (sel && sel.kind === NodeKind.Commit) {
-      fireflies.setSelectedCommit(sel.commit.sha);
-    } else {
-      fireflies.setSelectedCommit(null);
-    }
+    fireflies.setSelectedCommit(sel && sel.kind === NodeKind.Commit ? sel.commit.sha : null);
   });
 
   // -- 8. Render loop --------------------------------------------------------

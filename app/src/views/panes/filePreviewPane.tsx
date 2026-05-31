@@ -10,6 +10,7 @@
 // views/shell/rightSidebar.ts.
 
 import type { Signal } from '@preact/signals';
+import { effect } from '@preact/signals';
 import hljs from 'highlight.js/lib/common';
 import { ASPHALT, BUILDING_PALETTE } from '@/state/settings';
 import { PreviewKind } from '@/types';
@@ -259,8 +260,8 @@ export function buildFilePreviewPane(opts: BuildFilePreviewPaneOpts = {}) {
   const _onConfigChange = () => {
     if (_ready) _renderBadge();
   };
-  BUILDING_PALETTE.subscribe(_onConfigChange);
-  ASPHALT.subscribe(_onConfigChange);
+  effect(() => { void BUILDING_PALETTE.value; _onConfigChange(); });
+  effect(() => { void ASPHALT.value; _onConfigChange(); });
   _ready = true;
 
   function setFile(
