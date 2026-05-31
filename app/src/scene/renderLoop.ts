@@ -121,9 +121,9 @@ export async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manif
   // -- 5. Picker (raycaster + hover/selection state) --------------------------
   // Picker owns the hover + selection atoms (consumed below by the
   // outline / path-line / fader / sidebar code via subscription).
-  // Selection persistence is wired in the boot block before startRenderLoop
-  // runs — the saved {kind, path} key is hydrated into PICKER_SELECTION_KEY
-  // before this picker resolves it against the freshly-built city.
+  // The selection key is in-memory only (not persisted): it starts null on
+  // a fresh load and is re-resolved against each freshly-built city so the
+  // selection survives in-session rebuilds.
   const picker = createPicker({ canvas, camera, world });
 
   // -- 6. Per-frame visual modules ---------------------------------------------

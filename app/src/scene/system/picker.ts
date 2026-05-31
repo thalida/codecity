@@ -24,30 +24,30 @@
 //   { kind: NodeKind.Directory, sidewalk, street, dir }
 //   { kind: NodeKind.Commit,    mesh, instanceId, commit }
 //
-// Selection persistence
-// ---------------------
-// PICKER_SELECTION_KEY (exported, perSourceSignal) holds the persistable form, a
+// Selection key (in-memory only)
+// ------------------------------
+// PICKER_SELECTION_KEY holds the path/sha form of the current selection, a
 // tagged union over the same three discriminators carried by selection:
 //   { kind: NodeKind.File,      path: string }
 //   { kind: NodeKind.Directory, path: string }
 //   { kind: NodeKind.Commit,    sha: string }
-// Stored under cc.source.<sourceKey>.selection; save/load called explicitly
-// by appLogic on source switch. One-way derivation: selection is the source
-// of truth; whenever it changes, picker writes the matching key. On
-// world.onChange, the key is re-resolved to a live selection (or cleared if
-// the path is gone), so a rebuild that loses a node clears it too.
+// One-way derivation: selection is the source of truth; whenever it changes,
+// picker writes the matching key. On world.onChange the key is re-resolved to
+// a live selection (or cleared if the path is gone) so an in-session rebuild
+// — a settings change recreates the city's meshes — keeps the selected node
+// alive instead of leaving a dangling mesh ref. The key is NOT persisted: a
+// fresh page load starts with no selection, and nothing is remembered across
+// sessions or source switches.
 
 import * as THREE from 'three';
 import { signal, effect } from '@preact/signals';
 import { NodeKind } from '@/types';
-import { perSourceSignal } from '@/state/persist';
 
 import type { PickTarget, PickerWorld, PickerSelectionKey } from '@/types';
 
-// Per-source selection key — persisted under cc.source.<key>.selection.
-// Hydrated/saved explicitly by appLogic via loadPerSourceState/savePerSourceState
-// on source switch. Defaults to null (no selection) for a new source.
-export const PICKER_SELECTION_KEY = perSourceSignal<PickerSelectionKey | null>('selection', null);
+// In-memory selection key. Reset to null on a fresh load; survives in-session
+// world rebuilds via the re-resolution below. Never written to localStorage.
+export const PICKER_SELECTION_KEY = signal<PickerSelectionKey | null>(null);
 
 export function createPicker({
   canvas,
@@ -97,12 +97,14 @@ export function createPicker({
 
   // ── Selection → key derivation ────────────────────────────────────
   // selection is the source of truth. Any time it changes, we recompute
-  // PICKER_SELECTION_KEY so the persistence layer sees the new key.
+  // PICKER_SELECTION_KEY so the re-resolution below has the current anchor.
   // No code path writes to both signals simultaneously.
   //
-  // NOTE: effect() fires immediately with the current value.
-  // We suppress the initial fire so we don't clobber the key that was
-  // hydrated by loadPerSourceState before this picker was created.
+  // _suspendKeyDerive guards against feedback: it's raised while
+  // _resolveKeyToSelection writes selection.value, so that write doesn't
+  // re-fire this effect and overwrite the key mid-resolution. The initial
+  // fire is suppressed for the same reason (the key starts null on a fresh
+  // load — nothing to derive yet).
   let _suspendKeyDerive = true;
   const _disposeSelectionEffect = effect(() => {
     const sel = selection.value;
@@ -213,8 +215,7 @@ export function createPicker({
     _clearHoverOnRebuild();
     _resolveKeyToSelection();
   });
-  // Also resolve once now in case the key was hydrated by loadPerSourceState
-  // before this picker was created.
+  // Resolve once now (key starts null → selection cleared + pickables primed).
   _resolveKeyToSelection();
 
   // ── Public setters ─────────────────────────────────────────────────

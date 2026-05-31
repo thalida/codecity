@@ -5,7 +5,6 @@
 
 import { SCENE_HANDLE } from '../state/runtime/scene';
 import { SOURCE_INFO, sourceKey, CURRENT_SOURCE_KEY } from '../state/runtime/activeSource';
-import { savePerSourceState, loadPerSourceState } from '../state/persist';
 import { attachCommitReactions } from '../state/reactions';
 import {
   showLoadingOverlay,
@@ -233,10 +232,8 @@ export async function applyNewSource(opts: ApplyNewSourceOpts): Promise<void> {
     pageUrl.searchParams.delete('git_window');
     history.replaceState(null, '', pageUrl.toString());
 
-    // Per-source persistence
-    savePerSourceState(CURRENT_SOURCE_KEY.value);
+    // Track the active source key (cameraRig resets the camera on change).
     CURRENT_SOURCE_KEY.value = sourceKey(payload.src, payload.branch);
-    loadPerSourceState(CURRENT_SOURCE_KEY.value);
 
     // Icon atlas
     try {

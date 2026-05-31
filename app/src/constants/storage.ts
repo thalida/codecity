@@ -8,11 +8,6 @@
 
 export const STORAGE_PREFIX = 'cc.';
 
-/** Per-source key namespace: `cc.source.<sourceKey>.<baseName>`. Used by
- *  persistAtomPerSource so each loaded source gets an isolated localStorage
- *  slot for its picker selection. */
-export const STORAGE_PER_SOURCE_PREFIX = `${STORAGE_PREFIX}source.`;
-
 export const STORAGE_KEYS = {
   /** Right (file-preview) sidebar drag-handle width in px. */
   FILE_SIDEBAR_WIDTH: `${STORAGE_PREFIX}fileSidebarWidth`,

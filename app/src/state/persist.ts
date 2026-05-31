@@ -7,21 +7,14 @@
 // Object-valued signals persist only keys that differ from their default
 // (diff-vs-default), so a fresh install starts with no entries and resetting
 // a value back to its default removes the entry.
-//
-// Per-source slots: cc.source.<key>.<baseName> — see perSourceSignal().
-// Save/load are explicit on source switch; no auto-slot-swap effects.
 
 import { signal, computed, effect } from '@preact/signals';
 import type { Signal } from '@preact/signals';
-import { STORAGE_PREFIX, STORAGE_PER_SOURCE_PREFIX } from '@/constants';
+import { STORAGE_PREFIX } from '@/constants';
 
 // ── Internal registries ────────────────────────────────────────────────────
 const _SIGNALS: Map<string, Signal<any>> = new Map();
 const _DEFAULTS: Map<string, any> = new Map();
-
-// Per-source registry: { baseName, signal, defaultValue }
-interface PerSourceEntry<T> { baseName: string; signal: Signal<T>; defaultValue: T }
-const _PER_SOURCE: Set<PerSourceEntry<any>> = new Set();
 
 // ── Storage helpers ────────────────────────────────────────────────────────
 function _safeGet(key: string): unknown {
@@ -135,8 +128,8 @@ export function persistedSignal<T>(key: string, defaultValue: T): Signal<T> {
 /**
  * `persistStore(key, store)` — registers a pre-existing signal with the
  * persistence layer. Hydrates from storage and sets up the write effect.
- * Used by tests (drafts.test.ts) and by code that can't call persistedSignal
- * at definition time (e.g. PICKER_SELECTION_KEY which is perSourceSignal).
+ * Used by tests (drafts.test.ts) to register a pre-existing signal with the
+ * persistence layer.
  *
  * This is intentionally kept as an escape hatch; new code should use
  * persistedSignal() at definition time instead.
@@ -157,62 +150,6 @@ export function persistStore(key: string, store: Signal<any>): void {
     if (serialized === null) _safeRemove(key);
     else _safeSet(key, serialized);
   });
-}
-
-// ── Public: per-source persistence ────────────────────────────────────────
-
-function _perSourceKey(sourceKey: string, baseName: string): string {
-  return `${STORAGE_PER_SOURCE_PREFIX}${sourceKey}.${baseName}`;
-}
-
-function _hydrateOne<T>(s: Signal<T>, baseName: string, defaultValue: T, sourceKey: string | null): void {
-  if (sourceKey === null || typeof localStorage === 'undefined') {
-    s.value = defaultValue;
-    return;
-  }
-  const raw = localStorage.getItem(_perSourceKey(sourceKey, baseName));
-  if (raw !== null) {
-    try { s.value = JSON.parse(raw) as T; }
-    catch { s.value = defaultValue; }
-  } else {
-    s.value = defaultValue;
-  }
-}
-
-/**
- * Create a signal whose value is scoped to the current source key. The initial
- * value is the defaultValue (no hydration at call time — hydration happens via
- * loadPerSourceState after CURRENT_SOURCE_KEY is set). Callers must call
- * savePerSourceState(oldKey) BEFORE switching sources and loadPerSourceState(newKey)
- * AFTER setting the new source key.
- */
-export function perSourceSignal<T>(baseName: string, defaultValue: T): Signal<T> {
-  const s = signal<T>(defaultValue);
-  const entry: PerSourceEntry<T> = { baseName, signal: s, defaultValue };
-  _PER_SOURCE.add(entry as PerSourceEntry<any>);
-  return s;
-}
-
-/** Persist ALL per-source signals' current values under `sourceKey`.
- *  Call BEFORE changing CURRENT_SOURCE_KEY. No-op when sourceKey is null. */
-export function savePerSourceState(sourceKey: string | null): void {
-  if (sourceKey === null || typeof localStorage === 'undefined') return;
-  for (const entry of _PER_SOURCE) {
-    try {
-      localStorage.setItem(
-        _perSourceKey(sourceKey, entry.baseName),
-        JSON.stringify(entry.signal.value)
-      );
-    } catch { /* quota / private mode */ }
-  }
-}
-
-/** Hydrate ALL per-source signals from `sourceKey`.
- *  Call AFTER setting the new CURRENT_SOURCE_KEY. */
-export function loadPerSourceState(sourceKey: string | null): void {
-  for (const entry of _PER_SOURCE) {
-    _hydrateOne(entry.signal, entry.baseName, entry.defaultValue, sourceKey);
-  }
 }
 
 // ── Public: derived state ──────────────────────────────────────────────────

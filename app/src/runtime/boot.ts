@@ -5,7 +5,6 @@
 import './liveStatusBridge'; // self-installs its effect at module load
 
 import { sourceKey, CURRENT_SOURCE_KEY } from '../state/runtime/activeSource';
-import { loadPerSourceState } from '../state/persist';
 import { LAST_UPDATED_AT, setupLiveUpdates } from '../state/runtime/manifestPoll';
 import { openSourcePicker } from '../state/runtime/uiState';
 import { getServerConfig } from '../api/config';
@@ -25,7 +24,6 @@ export async function bootApp(): Promise<() => void> {
   const qp = new URLSearchParams(window.location.search);
   if (qp.has('src')) {
     CURRENT_SOURCE_KEY.value = sourceKey(qp.get('src')!, qp.get('branch') ?? undefined);
-    loadPerSourceState(CURRENT_SOURCE_KEY.value);
   }
 
   const canvas = document.getElementById('city') as HTMLCanvasElement | null;
