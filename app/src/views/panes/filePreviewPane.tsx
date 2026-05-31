@@ -9,10 +9,7 @@
 // sidebar shell (resize, open/close, persisted width) — that's
 // views/shell/rightSidebar.ts.
 
-import { h } from 'preact';
 import type { Signal } from '@preact/signals';
-import { signal } from '@preact/signals';
-import { render } from 'preact';
 import hljs from 'highlight.js/lib/common';
 import { ASPHALT, BUILDING_PALETTE } from '@/state/settings';
 import { PreviewKind } from '@/types';

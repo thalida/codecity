@@ -6,9 +6,7 @@
 // Backward-compat factory: createSourcePicker (imperative DOM; callers in
 // main.ts/coordinator use this until Phase 3c ports them).
 
-import { h } from 'preact';
 import { useState } from 'preact/hooks';
-import { signal } from '@preact/signals';
 import type { Signal } from '@preact/signals';
 import { listRecents, removeRecent } from '@/state/runtime/sourceRecents';
 import { LUCIDE_ICON_BASE_URL } from '@/constants';

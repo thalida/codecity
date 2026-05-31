@@ -5,7 +5,6 @@
 //     in the panel header also collapses; persisted in localStorage)
 //   - drag-to-resize handle on the sidebar's right edge (also persisted)
 
-import { h } from 'preact';
 import { signal, effect } from '@preact/signals';
 import type { ReadonlySignal } from '@preact/signals';
 import { buildTreePane } from '@/views/panes/treePane';

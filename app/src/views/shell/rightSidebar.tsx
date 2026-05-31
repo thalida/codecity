@@ -10,14 +10,13 @@
 // different pane swaps it. Body-level rendering lives in the pane, not
 // here — see views/panes/filePreviewPane.tsx.
 
-import { h } from 'preact';
-import { signal, effect } from '@preact/signals';
+import { effect } from '@preact/signals';
 import type { ReadonlySignal } from '@preact/signals';
 import { useEffect } from 'preact/hooks';
 import { DOM_IDS, STORAGE_KEYS } from '@/constants';
 import { NodeKind } from '@/types';
 import { SCENE_HANDLE } from '@/state/runtime/scene';
-import { buildFilePreviewPane, humanLanguageFor } from '@/views/panes/filePreviewPane';
+import { buildFilePreviewPane } from '@/views/panes/filePreviewPane';
 import { buildCommitPane } from '@/views/panes/commitPane';
 import { buildStreetPane } from '@/views/panes/streetPane';
 import { sameDayCommitCount, dailyCommitThresholds } from '@/utils/commit';

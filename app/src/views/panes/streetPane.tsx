@@ -7,10 +7,7 @@
 // setDirectory) so the coordinator can swap panes in the right sidebar
 // without churn.
 
-import { h } from 'preact';
 import type { Signal } from '@preact/signals';
-import { signal } from '@preact/signals';
-import { render } from 'preact';
 import { NodeKind } from '@/types';
 import type { DirNode, FileNode, TreeNode } from '@/types';
 import { makeLucideIcon } from '@/views/components/icon';

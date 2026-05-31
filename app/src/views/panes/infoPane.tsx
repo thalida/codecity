@@ -4,11 +4,8 @@
 // manifest is re-applied (which happens on live-update polling), so an
 // edit to the README on disk shows up here without a page reload.
 
-import { h } from 'preact';
 import { useState, useEffect } from 'preact/hooks';
-import { signal } from '@preact/signals';
 import type { Signal } from '@preact/signals';
-import { render } from 'preact';
 import { marked } from 'marked';
 import { NodeKind } from '@/types';
 import type { DirNode, FileNode, Manifest, TreeNode } from '@/types';

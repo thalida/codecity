@@ -6,7 +6,7 @@
 //
 // When no path is selected (or only the root), #app-title is empty.
 
-import { h, Fragment } from 'preact';
+import { Fragment } from 'preact';
 import { signal } from '@preact/signals';
 import type { ReadonlySignal } from '@preact/signals';
 import { render } from 'preact';

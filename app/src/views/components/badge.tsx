@@ -15,7 +15,6 @@
 // Backward-compat factory: makeExtensionBadge (still used by panes/shell
 // until Phases 3c/3d port them).
 
-import { h } from 'preact';
 import { getHue } from '@/scene/components/buildings/buildingColor';
 
 const TEXT_DARK = '#0a0b10';

@@ -14,7 +14,6 @@
 // via setCommit) so the coordinator can swap panes in the right
 // sidebar without churn.
 
-import { h } from 'preact';
 import { useState, useEffect, useRef } from 'preact/hooks';
 import type { Signal } from '@preact/signals';
 import type { CommitEntry } from '@/types';

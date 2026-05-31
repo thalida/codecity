@@ -14,7 +14,6 @@
 //
 // The refresh/reset-view button has moved to the header (far right).
 
-import { h } from 'preact';
 import { signal, useSignal } from '@preact/signals';
 import type { ReadonlySignal } from '@preact/signals';
 import { render } from 'preact';

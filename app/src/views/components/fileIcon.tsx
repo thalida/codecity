@@ -13,7 +13,6 @@
 // Backward-compat factories: makeFileIcon, makeFolderIcon (used by panes/
 // shell until Phases 3c/3d port them).
 
-import { h } from 'preact';
 import { NodeKind } from '@/types';
 import type { DirNode, FileNode } from '@/types';
 

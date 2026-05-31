@@ -3,7 +3,6 @@
 // files+dirs intermingled — see layout.js _layoutDir) and stays
 // bidirectionally synced with the scene's current selection.
 
-import { h } from 'preact';
 import type { Signal } from '@preact/signals';
 import { NodeKind } from '@/types';
 import type { DirNode, Manifest, TreeNode } from '@/types';

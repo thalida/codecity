@@ -11,7 +11,6 @@
 // Backward-compat factories: makeLucideIcon, makeGemIcon (still used by
 // panes/shell until Phases 3c/3d port them).
 
-import { h } from 'preact';
 import { LUCIDE_ICON_BASE_URL } from '@/constants';
 
 // ── Props interfaces ────────────────────────────────────────────────────────

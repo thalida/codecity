@@ -1,7 +1,7 @@
 // cameraRig.test.ts — verifies that all four focus actions land the camera
 // at ~80° elevation centered on the expected target.
 
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import * as THREE from 'three';
 import { createCameraRig } from '@/scene/system/cameraRig';
 import { BuildingOrient, NodeKind, StreetAxis } from '@/types';

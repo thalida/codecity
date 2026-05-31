@@ -15,7 +15,6 @@
 // or world.applyManifest). Discard clears drafts without touching stores;
 // page reload is an implicit discard.
 
-import { h } from 'preact';
 import { useEffect, useRef } from 'preact/hooks';
 import {
   // Scene (ground haze / fog)

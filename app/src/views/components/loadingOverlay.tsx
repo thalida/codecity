@@ -31,8 +31,6 @@
 // Backward-compat factory: createLoadingOverlay (imperative DOM; callers in
 // main.ts use this until Phase 3c ports them).
 
-import { h } from 'preact';
-import { signal } from '@preact/signals';
 import type { Signal } from '@preact/signals';
 
 export type LoadingStep =
