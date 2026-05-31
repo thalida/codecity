@@ -19,6 +19,7 @@ import { EMPTY_MANIFEST } from '../utils/emptyManifest';
 import { streamInitialManifest } from './manifestStream';
 import { installSourcePickerBridge } from './sourcePickerBridge';
 import { setupSidebars } from './sidebarSetup';
+import { SCENE_HANDLE } from '../state/runtime/scene';
 
 export async function bootApp(): Promise<() => void> {
   SYNTAX_THEME.subscribe(applyHljsTheme);
@@ -78,5 +79,6 @@ export async function bootApp(): Promise<() => void> {
   return function dispose() {
     disposePickerBridge();
     sidebars.dispose();
+    SCENE_HANDLE.value = null;
   };
 }
