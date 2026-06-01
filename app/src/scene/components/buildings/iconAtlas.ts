@@ -1,6 +1,6 @@
 // scene/components/buildings/iconAtlas.ts — Build a single texture atlas of Material Icon
 // Theme SVGs so each building's roof can render its file icon via the
-// shader. The same fileIcon.ts resolver the tree uses is consulted
+// shader. The same fileIcons.ts resolver the tree uses is consulted
 // here, so a given file shows the SAME icon in the file tree and on
 // its building's roof.
 //

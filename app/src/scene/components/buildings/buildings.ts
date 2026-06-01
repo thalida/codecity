@@ -29,7 +29,7 @@ import {
 // (SLAB/WINDOW/DOOR/ROOF_*_FRAC) are pushed through uniforms — see
 // refreshBuildingMaterial(); the JS-side keys read below feed into baked
 // per-instance attributes, so changes to them trigger a full rebuild via
-// hotReload.ts.
+// state/settingsReactions.ts.
 // ---------------------------------------------------------------------------
 
 // ---------------------------------------------------------------------------
@@ -44,7 +44,7 @@ import buildingFragSrc from './building.frag.glsl?raw';
 // pattern ensures we don't accumulate materials on each rebuild.
 let _sharedMaterial: THREE.ShaderMaterial | null = null;
 
-// The icon atlas the buildings sample for roof glyphs. main.ts builds
+// The icon atlas the buildings sample for roof glyphs. useCity.ts builds
 // it after the initial manifest fetch and pushes it in via
 // setIconAtlas before the first applyManifest, so the very first
 // frame already has roof icons. Stays null while it's still loading
@@ -227,7 +227,7 @@ export function refreshBuildingMaterial(): void {
   _sharedMaterial.uniforms.uSunContrast.value = LIGHTING_SUN_CONTRAST;
   // Procedural facade geometry (FACADE_GEOMETRY store) — shader-side keys.
   // The JS-side keys (WINDOW_COLS_MAX, WIDTH_PER_WINDOW_COL, DOOR_WIDTH_FRAC) require a full
-  // rebuild because they bake into per-instance attributes; hotReload.ts
+  // rebuild because they bake into per-instance attributes; state/settingsReactions.ts
   // routes the whole store through scheduleRebuild so the uniforms here
   // are kept fresh on the next rebuild without separate plumbing.
   const facade = FACADE.value;

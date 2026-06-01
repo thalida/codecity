@@ -1,5 +1,5 @@
 // state/stores/settings/syntaxTheme.ts — User-selected highlight.js syntax theme.
-// Subscribed in main.ts to swap a <link id="hljs-theme"> element's href
+// Rendered by the HljsThemeLink component to swap a <link id="hljs-theme"> element's href
 // so the CSS theme applies immediately without a page reload or re-render.
 // Persisted via attachPersistence (Config barrel) so the choice survives
 // sessions.

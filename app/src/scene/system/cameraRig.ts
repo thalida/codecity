@@ -213,7 +213,7 @@ export function createCameraRig({
     // Default framing direction: place the camera BEHIND the gem along
     // the root street's long axis (the street extends in +X for X-oriented
     // or +Z for Y-oriented; the gem sits at the low end — see
-    // engine.ts:createRootGem) at a moderate elevation with a slight
+    // scene/components/gem/gem.ts:createRootGem) at a moderate elevation with a slight
     // lateral offset so the view reads as 3D oblique rather than face-on
     // down the road. FRAMING_DIR_Y (1.0) → ~44° elevation after the
     // lateral mix; FRAMING_DIR_LATERAL (0.3) → ~15° azimuth off the
@@ -333,7 +333,7 @@ export function createCameraRig({
     // Also snap to the default pose whenever the source itself changed:
     // we MUST wait until the new world's manifest is in place (onChange
     // fires inside applyManifest), because CURRENT_SOURCE_KEY can be
-    // updated before applyManifest runs (see applyNewSource in main.ts —
+    // updated before applyManifest runs (see applyNewSource in useCity.ts —
     // SOURCE_KEY.set lands BEFORE the final applyManifest call). Running
     // reset() on the SOURCE_KEY subscribe directly would snap to the
     // previous repo's stale initialCamPos.

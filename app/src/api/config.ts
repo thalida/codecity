@@ -1,6 +1,6 @@
 // api/config.ts — One-shot fetch of /api/config, memoized.
 //
-// Read once at boot in main.ts and passed into UI components that need
+// Read once at boot in useCity.ts and passed into UI components that need
 // to know server-side feature flags (currently: whether local-repo
 // sources are permitted). Any fetch / parse failure fails closed —
 // we prefer to render the "local is disabled" UI than to expose a

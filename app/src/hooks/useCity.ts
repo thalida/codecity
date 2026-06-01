@@ -40,7 +40,7 @@ import {
   closeSourcePicker,
   registerSourceApplier,
 } from '@/state/stores/ui';
-import { srcKind, labelFromUrl, labelFromManifest } from '@/utils/sources';
+import { srcKind, SourceKind, labelFromUrl, labelFromManifest } from '@/utils/sources';
 import { applyPendingTitle } from '@/utils/pendingTitle';
 import { EMPTY_MANIFEST } from '@/constants/manifest';
 import { LoadingStep } from '@/constants';
@@ -157,7 +157,7 @@ async function streamInitialManifest(canvas: HTMLCanvasElement): Promise<Initial
       SOURCE_INFO.value = {
         label: labelFromManifest(m) ?? m.tree?.name ?? '',
         branch: _resolvedBranch,
-        sourceUrl: srcKind(_bootSrc) === 'git' ? _bootSrc : undefined,
+        sourceUrl: srcKind(_bootSrc) === SourceKind.Git ? _bootSrc : undefined,
       };
     }
     if (handle === null) throw new Error('No manifest received');
@@ -237,7 +237,7 @@ async function applyNewSource(opts: ApplyNewSourceOpts): Promise<void> {
         SOURCE_INFO.value = {
           label: labelFromManifest(event.manifest) ?? event.manifest.tree?.name ?? '',
           branch: payload.branch,
-          sourceUrl: srcKind(payload.src) === 'git' ? payload.src : undefined,
+          sourceUrl: srcKind(payload.src) === SourceKind.Git ? payload.src : undefined,
         };
       }
       manifest = event.manifest;
@@ -280,7 +280,7 @@ async function applyNewSource(opts: ApplyNewSourceOpts): Promise<void> {
     SOURCE_INFO.value = {
       label: labelFromManifest(manifest) ?? manifest.tree?.name ?? '',
       branch: resolvedBranch,
-      sourceUrl: srcKind(payload.src) === 'git' ? payload.src : undefined,
+      sourceUrl: srcKind(payload.src) === SourceKind.Git ? payload.src : undefined,
     };
 
     // Live updates — start on first successful load, or update signature on switch

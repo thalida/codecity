@@ -1,8 +1,9 @@
 // scene/renderLoop.ts — Scene + rendering pipeline. Builds the city scene,
 // renderer, camera, post-fx, picker, fader, outlines, ghosts, paths,
-// animator, and drives the per-frame animate loop. Extracted from main.ts
-// so that main.ts is purely site-level orchestration (source picker,
-// syntax theme, live updates, URL handling, persistence wiring).
+// animator, and drives the per-frame animate loop. Extracted from the old
+// main.ts monolith so the entry layer (main.tsx) and useCity stay purely
+// site-level orchestration (source picker, syntax theme, live updates, URL
+// handling, persistence wiring).
 
 import * as THREE from 'three';
 import { effect } from '@preact/signals';
@@ -217,7 +218,7 @@ export async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manif
     postFx.refresh();
     // Cyberpunk Valley sky — pulls fresh SKY_* uniforms (sky color,
     // star density, twinkle params). Hot-reloaded via the
-    // hotStores route in app/config/hotReload.ts.
+    // hotStores route in state/settingsReactions.ts.
     world.getSky().refresh();
     // Floating repo-name label — pulls fresh STYLE/ENABLED/OPACITY/
     // HEIGHT_ABOVE_CITY/ANIMATION_SPEED. Swaps the active style mesh

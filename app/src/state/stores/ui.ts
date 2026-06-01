@@ -1,9 +1,10 @@
 // state/stores/ui.ts — Signals controlling global modal/overlay
 // visibility. Components read these to show/hide themselves; callers
 // write them to open/close. Replaces the imperative `picker.open()` /
-// `loadingOverlay.show()` pattern from boot.ts.
+// `loadingOverlay.show()` boot-time pattern.
 
 import { signal } from '@preact/signals';
+import { SourceKind } from '@/utils/sources';
 
 // These are the UI-state CONTRACTS the views render against. They live here (in
 // state) so state/ stays view-independent — the SourcePicker / LoadingOverlay
@@ -27,7 +28,7 @@ export interface OpenOpts {
 
 /** Options for showing the loading overlay. */
 export interface LoadingOverlayShowOpts {
-  kind: 'git' | 'local';
+  kind: SourceKind;
   label: string;
   branch?: string;
 }
@@ -119,7 +120,7 @@ export const LOADING_OVERLAY = signal<LoadingOverlayState>({
 // when the same effect later writes back.
 
 export function showLoadingOverlay(opts: LoadingOverlayShowOpts): void {
-  const initialStep: LoadingStep = opts.kind === 'local' ? LoadingStep.Scanning : LoadingStep.Resolving;
+  const initialStep: LoadingStep = opts.kind === SourceKind.Local ? LoadingStep.Scanning : LoadingStep.Resolving;
   LOADING_OVERLAY.value = {
     visible: true,
     showOpts: opts,

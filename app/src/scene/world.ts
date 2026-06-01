@@ -319,7 +319,7 @@ function _buildWorld(layout: CityLayout) {
   };
 }
 
-// `canvas` is unused; kept in the signature so call sites (main.ts, tests)
+// `canvas` is unused; kept in the signature so call sites (useCity.ts, tests)
 // don't have to change. outlineRenderer takes the canvas directly via its
 // own factory now, so world no longer needs to forward it — the param
 // can be dropped if a downstream pass cleans up the call sites.
@@ -396,7 +396,7 @@ export function createWorld(_canvas: HTMLCanvasElement) {
   let latestWorldBounds: WorldBounds | null = null;
 
   // The flat ground meshes (sidewalks, paths, asphalt) all use single
-  // MeshBasicMaterial; main.ts's color-update path reads
+  // MeshBasicMaterial; renderLoop.ts's color-update path reads
   // `mesh.material.color` directly. Typing them with a single material
   // (rather than the default `Material | Material[]`) keeps that
   // callsite's `.material.color` access working.
@@ -407,7 +407,7 @@ export function createWorld(_canvas: HTMLCanvasElement) {
   let asphaltMeshes: FlatMesh[] = [];
   let rootGem: THREE.Group | null = null;
   // rootGem children expose `.material.{color,opacity}` directly to the
-  // applyTheme code in main.ts; type with single-material variants so
+  // applyTheme code in renderLoop.ts; type with single-material variants so
   // those member accesses remain checked rather than `Material |
   // Material[]`-shaped.
   let rootGemBody: THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial> | null = null;
@@ -888,7 +888,7 @@ export function createWorld(_canvas: HTMLCanvasElement) {
 
     for (const b of newBuildings) {
       // Building.file is always a FileNode (directories become streets,
-      // not buildings — see layoutV4.ts).
+      // not buildings — see scene/layout/layout.ts).
       b.color = getBuildingColor(
         b.file as unknown as Parameters<typeof getBuildingColor>[0],
         newDateRanges
@@ -1261,7 +1261,7 @@ export function createWorld(_canvas: HTMLCanvasElement) {
     invalidateLayoutCache,
 
     /**
-     * Cyberpunk Valley sky reference. Exposed so main.ts's applyTheme()
+     * Cyberpunk Valley sky reference. Exposed so renderLoop.ts's applyTheme()
      * can call sky.refresh() on Save (via applyTheme()) and the render loop can call
      * sky.tick(dtSeconds) each frame.
      */
@@ -1270,7 +1270,7 @@ export function createWorld(_canvas: HTMLCanvasElement) {
     },
 
     /**
-     * Floating repo-name label reference. Exposed so main.ts's
+     * Floating repo-name label reference. Exposed so renderLoop.ts's
      * applyTheme() can call repoLabel.refresh() on Save and the
      * render loop can call repoLabel.tick(dtSeconds, camera) each frame.
      */
@@ -1290,7 +1290,7 @@ export function createWorld(_canvas: HTMLCanvasElement) {
     /**
      * Cyberpunk Valley trees reference. Rebuilt per applyManifest, so
      * this returns null until the first manifest has been applied.
-     * main.ts's applyTheme() guards with `?.refresh()` to handle the
+     * renderLoop.ts's applyTheme() guards with `?.refresh()` to handle the
      * pre-manifest case.
      */
     getTrees(): Trees | null {
@@ -1309,7 +1309,7 @@ export function createWorld(_canvas: HTMLCanvasElement) {
     /**
      * Cyberpunk Valley city footprint reference. Rebuilt per
      * applyManifest; null until the first manifest has been applied.
-     * main.ts's applyTheme() guards with `?.refresh()`.
+     * renderLoop.ts's applyTheme() guards with `?.refresh()`.
      */
     getCityFootprint(): CityFootprint | null {
       return _cityFootprint;

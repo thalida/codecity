@@ -16,14 +16,14 @@
 // is masked by its neighbor — outer silhouette corners read as
 // rounded; internal "step" corners still composite continuously.
 //
-// Lifecycle matches createWorldFloor / createTrees / createBushes:
+// Lifecycle matches the other scene-component factories (e.g. createTrees):
 //
 //   const fp = createCityFootprint(layout);
 //   scene.add(fp.group);
 //   fp.refresh();   // on applyTheme() — color + radius + visibility
 //   fp.dispose();   // on rebuild / scene teardown
 //
-// Structural changes (HALO_WIDTH) trigger a rebuild via hotReload.ts;
+// Structural changes (HALO_WIDTH) trigger a rebuild via state/settingsReactions.ts;
 // refresh() handles COLOR, CORNER_RADIUS, and ENABLED only.
 
 import * as THREE from 'three';

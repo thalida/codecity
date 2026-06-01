@@ -235,7 +235,7 @@ export function createBuildingFader({
   // a slider in the controls pane updates the scene live.
   const _unsubCfg = effect(() => { void BUILDING_FADE.value; _sweepAll(); });
 
-  // update() kept as a no-op for API compatibility: main.ts calls
+  // update() kept as a no-op for API compatibility: renderLoop.ts calls
   // fader.update(0) in the animation loop. With the subscription-driven
   // model, all real work is done on change events, not per-frame.
   function update(_dtMs: number): void {

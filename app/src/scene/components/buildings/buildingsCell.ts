@@ -89,7 +89,7 @@ function getOrCreateBuildingMaterial(
 
 // ---------------------------------------------------------------------------
 // Icon atlas — module-level cache, mirroring the pattern in buildings.ts.
-// main.ts pushes the atlas in after buildIconAtlas() resolves, before the
+// useCity.ts pushes the atlas in after buildIconAtlas() resolves, before the
 // first applyManifest call. If not set, iIconUV.xy stays (-1, -1) and the
 // shader skips the atlas sample (no crash, just no roof icon).
 // ---------------------------------------------------------------------------
@@ -98,7 +98,7 @@ let _atlas: IconAtlas | null = null;
 
 /**
  * Register the icon atlas for this module's cell building factory.
- * Must be called (alongside buildings.ts's setIconAtlas) from main.ts
+ * Must be called (alongside buildings.ts's setIconAtlas) from useCity.ts
  * after buildIconAtlas() resolves so roof icons appear in cell mode.
  */
 export function setCellIconAtlas(atlas: IconAtlas | null): void {
@@ -232,7 +232,7 @@ export function writeBuildingToSlot(cell: CellTile, b: Building): void {
   }
 
   // --- Window column counts ---
-  // Mirror createBuildingMesh in engine.ts:
+  // Mirror the window-column counts in buildings.ts:
   //   ±X faces (east/west walls) span depth d → cols_ew from d
   //   ±Z faces (north/south walls) span width w → cols_ns from w
   const colsEW = Math.max(1, Math.min(windowColsMax, Math.floor(b.d / widthPerWindowCol)));

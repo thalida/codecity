@@ -20,7 +20,7 @@
 // `refresh()` rewrites per-instance color attributes + visibility +
 // trunk color from TREES without rebuilding the meshes. Anything that
 // changes geometry sizes (height/width range, trunk fractions, shading
-// strength) goes through the rebuild path in hotReload.ts.
+// strength) goes through the rebuild path in state/settingsReactions.ts.
 
 import * as THREE from 'three';
 import { TREES } from '@/state/stores/settings/trees';

@@ -54,7 +54,7 @@ export type FooterSelection = FooterFileSelection | FooterDirectorySelection;
 export interface FooterStatus {
   /** True when live-poll is active; renders as `live`. False renders as `paused`. */
   liveEnabled: boolean;
-  /** The current world-rebuild status; shared type from `manifestPoll.ts`. */
+  /** The current world-rebuild status; shared type from `state/stores/manifest.ts`. */
   rebuildStatus: RebuildStatus;
   /** Epoch millis of the most recent successful rebuild; 0 ⇒ unknown. */
   lastUpdatedAt: number;

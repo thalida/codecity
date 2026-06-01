@@ -8,8 +8,8 @@ import { SidebarTab } from '@/types/ui';
 export const MAX_RECENT_SOURCES = 10;
 
 /**
- * Activity-bar tab definitions (left-side icon strip). Each entry maps a tab
- * id to a Lucide glyph name (registered in constants/lucideIcons.ts) + the
+ * Activity-bar tab definitions (left-side icon strip). Each entry pairs a tab
+ * id with its Lucide glyph component (imported from lucide-preact) + the
  * tooltip title. `placement` splits the bar into a top group and a bottom
  * group — top entries stack from the top, bottom entries pin to the bottom.
  * Not designer-tunable — part of the app's structural definition.

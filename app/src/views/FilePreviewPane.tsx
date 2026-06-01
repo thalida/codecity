@@ -6,7 +6,7 @@
 //
 // The pane renders a `.editor-body` body declaratively via JSX. It owns
 // nothing about the sidebar shell (resize, open/close, persisted width) —
-// that's layout/rightSidebar.ts.
+// that's layout/RightSidebar.tsx.
 
 import type { Signal } from '@preact/signals';
 import { useState, useEffect } from 'preact/hooks';

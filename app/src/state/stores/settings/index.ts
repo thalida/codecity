@@ -12,8 +12,8 @@
 //
 // Component renderers (scene/components/*) import from these stores
 // rather than owning their own config. The Settings UI
-// (views/controlsPane.ts) also reads + mutates through the same
-// stores, with the optional draft layer in state/configDrafts.ts
+// (views/ControlsPane) also reads + mutates through the same
+// stores, with the optional draft layer in state/settingsDrafts.ts
 // staging edits before commit.
 //
 // Reading values:
