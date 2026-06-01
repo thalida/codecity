@@ -40,10 +40,7 @@ export * from './syntaxTheme';
 
 // ── World (background + sizing) ───────────────────────────────────────
 
-// ── Visual components ─────────────────────────────────────────────────
-// Converted, schema-driven stores live flat in this folder; the remaining
-// not-yet-migrated stores stay under components/ until their conversion.
-export * from './components/lighting';
+// ── Visual components (all schema-driven, flat in this folder) ────────
 export * from './streets';
 export * from './buildings';
 export * from './facade';

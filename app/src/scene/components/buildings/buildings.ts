@@ -12,11 +12,16 @@ import {
   BUILDINGS,
   BUILDING_DIMENSIONS,
   FACADE,
-  LIGHTING,
   SCENE,
 } from '@/state/settings/index';
 import type { IconAtlas } from './iconAtlas';
 import { writeSunDir } from '@/scene/components/lighting/sunDir';
+import {
+  LIGHTING_SUN_AZIMUTH_DEG,
+  LIGHTING_SUN_ELEVATION_DEG,
+  LIGHTING_AMBIENT,
+  LIGHTING_SUN_CONTRAST,
+} from '@/constants/lighting';
 
 // ---------------------------------------------------------------------------
 // Per-instance facade attributes (window column count + door width) are
@@ -113,16 +118,16 @@ function getBuildingMaterial(): THREE.ShaderMaterial {
           ? (BUILDINGS.value.TILT_DEGREES * Math.PI) / 180
           : 0,
       },
-      // Scene directional lighting (LIGHTING store). uSunDirWorld is
-      // re-initialised below from the current LIGHTING values so the
+      // Scene directional lighting (fixed LIGHTING_* constants). uSunDirWorld is
+      // re-initialised below from those constants so the
       // first frame already has the configured sun direction; the
       // ambient and contrast scalars are seeded inline. The (0,1,0)
       // placeholder gives an overhead sun if _writeSunDir somehow
       // doesn't run, rather than the all-faces-shadow look a zero
       // vector would produce.
       uSunDirWorld: { value: new THREE.Vector3(0, 1, 0) },
-      uAmbient: { value: LIGHTING.value.AMBIENT },
-      uSunContrast: { value: LIGHTING.value.SUN_CONTRAST },
+      uAmbient: { value: LIGHTING_AMBIENT },
+      uSunContrast: { value: LIGHTING_SUN_CONTRAST },
       // Procedural facade geometry (FACADE_GEOMETRY store). Seeded from
       // the current store snapshot so the first frame renders with the
       // configured values; refreshBuildingMaterial() pushes updates on
@@ -158,7 +163,11 @@ function getBuildingMaterial(): THREE.ShaderMaterial {
       uLitFreshnessExponent: { value: FACADE.value.LIT_FRESHNESS_EXPONENT },
     },
   });
-  writeSunDir(_sharedMaterial.uniforms.uSunDirWorld.value as THREE.Vector3);
+  writeSunDir(
+    _sharedMaterial.uniforms.uSunDirWorld.value as THREE.Vector3,
+    LIGHTING_SUN_AZIMUTH_DEG,
+    LIGHTING_SUN_ELEVATION_DEG
+  );
   return _sharedMaterial;
 }
 
@@ -208,11 +217,14 @@ export function refreshBuildingMaterial(): void {
   _sharedMaterial.uniforms.uTiltMaxRad.value = aging.TILT_ENABLED
     ? (aging.TILT_DEGREES * Math.PI) / 180
     : 0;
-  // Scene directional lighting (LIGHTING store).
-  const lighting = LIGHTING.value;
-  writeSunDir(_sharedMaterial.uniforms.uSunDirWorld.value as THREE.Vector3);
-  _sharedMaterial.uniforms.uAmbient.value = lighting.AMBIENT;
-  _sharedMaterial.uniforms.uSunContrast.value = lighting.SUN_CONTRAST;
+  // Scene directional lighting (fixed constants — re-seed idempotently).
+  writeSunDir(
+    _sharedMaterial.uniforms.uSunDirWorld.value as THREE.Vector3,
+    LIGHTING_SUN_AZIMUTH_DEG,
+    LIGHTING_SUN_ELEVATION_DEG
+  );
+  _sharedMaterial.uniforms.uAmbient.value = LIGHTING_AMBIENT;
+  _sharedMaterial.uniforms.uSunContrast.value = LIGHTING_SUN_CONTRAST;
   // Procedural facade geometry (FACADE_GEOMETRY store) — shader-side keys.
   // The JS-side keys (WINDOW_COLS_MAX, WIDTH_PER_WINDOW_COL, DOOR_WIDTH_FRAC) require a full
   // rebuild because they bake into per-instance attributes; hotReload.ts

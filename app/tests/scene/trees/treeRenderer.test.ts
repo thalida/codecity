@@ -13,7 +13,6 @@ import { createTreeRenderer, type Trees } from '@/scene/components/trees/treeRen
 import type { TreePlacement } from '@/scene/components/trees/treePlacement';
 import { TREES } from '@/state/settings/trees';
 import { BUILDING_DIMENSIONS } from '@/state/settings/buildings';
-import { LIGHTING } from '@/state/settings/components/lighting';
 import { RENDER_ORDERS } from '@/scene/renderOrders';
 import type { CommitEntry } from '@/types';
 import { commits as buildCommits } from './_commitFixtures';
@@ -544,58 +543,28 @@ describe('createTreeRenderer()', () => {
   });
 
   describe('tree shading sun direction', () => {
-    it('bakes vertex colors that respond to LIGHTING.SUN_AZIMUTH_DEG changes', () => {
-      // Bake at the first sun direction, capture canopy shading.
+    it('bakes directional facet shading (canopy vertex colors are non-uniform)', () => {
+      // The sun position is now a fixed constant (constants/lighting), so we
+      // verify the bake actually applies directional shading: facets pointing
+      // toward vs away from the sun get different brightness. (The sun-angle →
+      // direction math itself is covered by sunDir.test.)
       resetStores();
-      LIGHTING.value = {
-        SUN_AZIMUTH_DEG: 51,
-        SUN_ELEVATION_DEG: 58,
-        AMBIENT: 0.72,
-        SUN_CONTRAST: 0.5,
-      };
       const placements = [placement(0, 0, 1, 0)];
       const commits = buildCommits({ date: '2026-01-01', files: 1 });
       trees = createTreeRenderer(placements, commits, BUSY);
       const canopyInst = findCanopyInstance(trees.group, 0);
       expect(canopyInst).not.toBeNull();
-      const colorAttr1 = canopyInst!.mesh.geometry.getAttribute('color') as THREE.BufferAttribute;
-      // Collect all colors to compare distribution
-      const colors1: number[] = [];
-      for (let i = 0; i < colorAttr1.count; i++) {
-        colors1.push(colorAttr1.getX(i));
+      const colorAttr = canopyInst!.mesh.geometry.getAttribute('color') as THREE.BufferAttribute;
+      const xs: number[] = [];
+      for (let i = 0; i < colorAttr.count; i++) {
+        const x = colorAttr.getX(i);
+        if (!Number.isNaN(x)) xs.push(x);
       }
       trees.dispose();
 
-      // Move the sun 90° azimuth. Vertices should have different shading.
-      LIGHTING.value = {
-        SUN_AZIMUTH_DEG: 141, // 51 + 90
-        SUN_ELEVATION_DEG: 58,
-        AMBIENT: 0.72,
-        SUN_CONTRAST: 0.5,
-      };
-      trees = createTreeRenderer(placements, commits, BUSY);
-      const canopyInst2 = findCanopyInstance(trees.group, 0);
-      expect(canopyInst2).not.toBeNull();
-      const colorAttr2 = canopyInst2!.mesh.geometry.getAttribute('color') as THREE.BufferAttribute;
-      const colors2: number[] = [];
-      for (let i = 0; i < colorAttr2.count; i++) {
-        colors2.push(colorAttr2.getX(i));
-      }
-      trees.dispose();
-
-      // Verify at least one vertex has different shading between the two sun directions
-      expect(colors1.length).toBeGreaterThan(0);
-      expect(colors2.length).toBe(colors1.length);
-      let foundDifference = false;
-      for (let i = 0; i < colors1.length; i++) {
-        if (!Number.isNaN(colors1[i]) && !Number.isNaN(colors2[i])) {
-          if (Math.abs(colors1[i] - colors2[i]) > 0.001) {
-            foundDifference = true;
-            break;
-          }
-        }
-      }
-      expect(foundDifference).toBe(true);
+      expect(xs.length).toBeGreaterThan(0);
+      // Directional sun shading + vertical gradient → a real brightness spread.
+      expect(Math.max(...xs) - Math.min(...xs)).toBeGreaterThan(0.001);
     });
   });
 });

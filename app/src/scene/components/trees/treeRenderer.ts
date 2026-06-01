@@ -37,7 +37,8 @@ import {
   type SizeRange,
 } from './treeEncoding';
 import { interpolateOklch } from '@/scene/utils/color/colors';
-import { sunDirFromLighting } from '@/scene/components/lighting/sunDir';
+import { sunDir } from '@/scene/components/lighting/sunDir';
+import { LIGHTING_SUN_AZIMUTH_DEG, LIGHTING_SUN_ELEVATION_DEG } from '@/constants/lighting';
 
 export interface Trees {
   group: THREE.Group;
@@ -183,11 +184,9 @@ export function buildCanopyEdges(detail: DetailLevel): THREE.EdgesGeometry {
  *  vertex colors with the per-instance color (age lerp), so the same
  *  tree gets both an age-driven hue AND clear facet definition. */
 function bakeVertexShading(geom: THREE.BufferGeometry, strength: number): void {
-  // Sun direction sourced from LIGHTING config (shared with buildings
+  // Sun direction from the fixed LIGHTING constants (shared with buildings
   // and the island mesh) so the scene agrees on where the sun is.
-  // Note: trees bake shading at geometry-build time, so re-bake is
-  // required (already happens on config change) to pick up new values.
-  const sun = sunDirFromLighting();
+  const sun = sunDir(LIGHTING_SUN_AZIMUTH_DEG, LIGHTING_SUN_ELEVATION_DEG);
   const LIGHT_X = sun.x;
   const LIGHT_Y = sun.y;
   const LIGHT_Z = sun.z;
