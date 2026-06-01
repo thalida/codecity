@@ -8,7 +8,7 @@ import {
   setLoadingStep,
   setLoadingPendingLabel,
   setLoadingStepTail,
-} from '@/state/runtime/uiState';
+} from '@/state/stores/ui';
 import { LoadingStep } from '@/constants';
 import { flush } from '../../_helpers/preact';
 

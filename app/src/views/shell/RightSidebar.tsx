@@ -22,7 +22,7 @@ import { useEffect, useRef, useState } from 'preact/hooks';
 import { DOM_IDS, STORAGE_KEYS } from '@/constants';
 import { NodeKind } from '@/types';
 import type { CommitEntry, DirNode, FileNode } from '@/types';
-import { SCENE_HANDLE } from '@/state/runtime/scene';
+import { SCENE_HANDLE } from '@/state/stores/scene';
 import { FilePreviewPane } from '@/views/panes/FilePreviewPane';
 import type { FilePreviewPaneState } from '@/views/panes/FilePreviewPane';
 import { CommitPane } from '@/views/panes/CommitPane';

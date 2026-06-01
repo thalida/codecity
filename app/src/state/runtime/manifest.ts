@@ -7,7 +7,7 @@
 
 import { signal, effect } from '@preact/signals';
 import type { Manifest, DirNode } from '@/types';
-import { SCENE_HANDLE } from './scene';
+import { SCENE_HANDLE } from '@/state/stores/scene';
 import { LAST_UPDATED_AT } from './manifestPoll';
 import { EMPTY_MANIFEST } from '@/constants/manifest';
 import { isEmptyManifest } from '@/utils/manifest';

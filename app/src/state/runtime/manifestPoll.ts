@@ -27,7 +27,7 @@ import { signal, effect } from '@preact/signals';
 import { LIVE_UPDATES } from '@/state/stores/settings/index';
 import { manifestUrl, signatureUrl, streamManifest } from '@/api/manifest';
 import { _applyDisplayLabel, startRenderLoop } from '@/scene/renderLoop';
-import { setLoadingStep } from '@/state/runtime/uiState';
+import { setLoadingStep } from '@/state/stores/ui';
 import { LoadingStep } from '@/constants';
 
 // ── Rebuild status signals ───────────────────────────────────────────

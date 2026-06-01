@@ -8,7 +8,7 @@ import {
   inferSourceTab,
 } from '@/views/components/SourcePicker';
 import type { SourcePickerState, SourcePayload, OpenOpts } from '@/views/components/SourcePicker';
-import { pushRecent, RECENTS } from '@/state/runtime/sourceRecents';
+import { pushRecent, RECENTS } from '@/state/stores/source';
 import { flush } from '../../_helpers/preact';
 
 describe('SourcePicker', () => {

@@ -40,7 +40,7 @@ import {
   CAMERA_BASE_DURATION_MS,
   CAMERA_EASING_POWER,
 } from '@/constants/camera';
-import { CURRENT_SOURCE_KEY } from '@/state/runtime/activeSource';
+import { CURRENT_SOURCE_KEY } from '@/state/stores/source';
 import { NodeKind, StreetAxis } from '@/types';
 import type { Building, PickTarget, Street } from '@/types';
 import type { createWorld } from '../world';

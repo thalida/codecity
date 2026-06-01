@@ -21,8 +21,8 @@ import { RightSidebar } from './RightSidebar';
 import { SourcePicker } from '../components/SourcePicker';
 import { LoadingOverlay } from '../components/LoadingOverlay';
 import { HljsThemeLink } from '../components/HljsThemeLink';
-import { SCENE_HANDLE } from '@/state/runtime/scene';
-import { openSourcePickerForCurrentSource } from '@/state/runtime/uiState';
+import { SCENE_HANDLE } from '@/state/stores/scene';
+import { openSourcePickerForCurrentSource } from '@/state/stores/ui';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 
 export function App() {

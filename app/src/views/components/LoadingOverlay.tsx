@@ -11,7 +11,7 @@
 // (cloning, scanning, skeleton, building) or the client-side decoration pass —
 // no wall-clock timers. The step vocabulary lives in constants/loadingSteps.
 
-import { LOADING_OVERLAY } from '@/state/runtime/uiState';
+import { LOADING_OVERLAY } from '@/state/stores/ui';
 import { LoadingStep, LOADING_STEPS, LOADING_STEP_LABELS } from '@/constants';
 
 export interface LoadingOverlayShowOpts {

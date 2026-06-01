@@ -8,15 +8,15 @@
 // state/runtime/manifest.ts) — no imperative onChange handler here. The syntax
 // theme is driven by <HljsThemeLink /> in App.tsx.
 
-import { sourceKey, CURRENT_SOURCE_KEY } from './activeSource';
+import { sourceKey, CURRENT_SOURCE_KEY } from '@/state/stores/source';
 import { setupLiveUpdates } from './manifestPoll';
-import { openSourcePicker } from './uiState';
+import { openSourcePicker } from '@/state/stores/ui';
 import { getServerConfig } from '@/api/config';
-import { SERVER_CONFIG } from './serverConfig';
+import { SERVER_CONFIG } from '@/state/stores/serverConfig';
 import { EMPTY_MANIFEST } from '@/constants/manifest';
 import { streamInitialManifest } from './manifestStream';
 import { installSourcePickerBridge } from './sourcePickerBridge';
-import { SCENE_HANDLE } from './scene';
+import { SCENE_HANDLE } from '@/state/stores/scene';
 
 export async function bootApp(canvas: HTMLCanvasElement): Promise<() => void> {
   const qp = new URLSearchParams(window.location.search);

@@ -19,7 +19,7 @@ import { useEffect } from 'preact/hooks';
 import { NodeKind } from '@/types';
 import { formatShortDate, formatRelativeAgeShort } from '@/utils/dates';
 import { formatBytes } from '@/utils/bytes';
-import { SCENE_HANDLE } from '@/state/runtime/scene';
+import { SCENE_HANDLE } from '@/state/stores/scene';
 import { LIVE_UPDATES } from '@/state/stores/settings/index';
 import { REBUILD_STATUS, LAST_REBUILD_ERROR, LAST_UPDATED_AT, type RebuildStatus } from '@/state/runtime/manifestPoll';
 import { humanLanguageFor } from '@/utils/syntaxLanguages';

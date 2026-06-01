@@ -1,4 +1,4 @@
-// state/runtime/uiState.ts — Signals controlling global modal/overlay
+// state/stores/ui.ts — Signals controlling global modal/overlay
 // visibility. Components read these to show/hide themselves; callers
 // write them to open/close. Replaces the imperative `picker.open()` /
 // `loadingOverlay.show()` pattern from boot.ts.

@@ -7,9 +7,9 @@
 // installSourcePickerBridge() is called once from the boot orchestrator after
 // streamInitialManifest() completes.
 
-import { openSourcePicker, closeSourcePicker, registerSourceApplier } from './uiState';
+import { openSourcePicker, closeSourcePicker, registerSourceApplier } from '@/state/stores/ui';
 import { applyNewSource } from './manifestStream';
-import type { SceneHandle } from './scene';
+import type { SceneHandle } from '@/state/stores/scene';
 
 export interface SourcePickerBridgeOpts {
   getHandle: () => SceneHandle;

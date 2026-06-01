@@ -3,8 +3,8 @@
 // Writes LOADING_OVERLAY signals as phases arrive; starts the render loop
 // on the first manifest event; writes SCENE_HANDLE + SOURCE_INFO.
 
-import { SCENE_HANDLE, type SceneHandle } from './scene';
-import { SOURCE_INFO, sourceKey, CURRENT_SOURCE_KEY } from './activeSource';
+import { SCENE_HANDLE, type SceneHandle } from '@/state/stores/scene';
+import { SOURCE_INFO, sourceKey, CURRENT_SOURCE_KEY } from '@/state/stores/source';
 import { attachCommitReactions } from '@/state/reactions';
 import {
   showLoadingOverlay,
@@ -12,7 +12,7 @@ import {
   setLoadingStep,
   setLoadingPendingLabel,
   setLoadingStepTail,
-} from './uiState';
+} from '@/state/stores/ui';
 import type { Manifest } from '@/types';
 
 import { manifestUrl, manifestUrlFor, streamManifest } from '@/api/manifest';
@@ -23,7 +23,7 @@ import { buildIconAtlas } from '@/scene/components/buildings/iconAtlas';
 import { setIconAtlas } from '@/scene/components/buildings/buildings';
 import { setCellIconAtlas } from '@/scene/components/buildings/buildingsCell';
 import { startRenderLoop, _applyDisplayLabel } from '@/scene/renderLoop';
-import { pushRecent } from './sourceRecents';
+import { pushRecent } from '@/state/stores/source';
 import { setupLiveUpdates } from './manifestPoll';
 import type { SourcePayload } from '@/views/components/SourcePicker';
 import { LoadingStep } from '@/constants';

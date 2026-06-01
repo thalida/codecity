@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { render } from 'preact';
 import { signal } from '@preact/signals';
 import { RightSidebar } from '@/views/shell/RightSidebar';
-import { SCENE_HANDLE } from '@/state/runtime/scene';
+import { SCENE_HANDLE } from '@/state/stores/scene';
 import { NodeKind } from '@/types';
 import type { FileNode, PickTarget } from '@/types';
 import { flush } from '../../_helpers/preact';

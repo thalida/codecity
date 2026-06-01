@@ -6,12 +6,12 @@
 
 import { useEffect, useRef, useState } from 'preact/hooks';
 import type { Signal } from '@preact/signals';
-import { listRecents, removeRecent } from '@/state/runtime/sourceRecents';
+import { listRecents, removeRecent } from '@/state/stores/source';
 import { clearManifestCache } from '@/api/manifest';
 import { srcKind } from '@/utils/sources';
 import { Folder, Trash2, TriangleAlert, X } from 'lucide-preact';
-import { SOURCE_PICKER, closeSourcePicker, submitNewSource } from '@/state/runtime/uiState';
-import { SERVER_CONFIG } from '@/state/runtime/serverConfig';
+import { SOURCE_PICKER, closeSourcePicker, submitNewSource } from '@/state/stores/ui';
+import { SERVER_CONFIG } from '@/state/stores/serverConfig';
 
 // ── Hosting-site SVG icons ───────────────────────────────────────────────────
 

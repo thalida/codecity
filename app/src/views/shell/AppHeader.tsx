@@ -8,9 +8,9 @@
 //   #app-title         — HeaderTitle (badge + breadcrumb / commit chip)
 //   #app-header-right  — reserved slot, currently unused
 
-import { SCENE_HANDLE } from '@/state/runtime/scene';
-import { SOURCE_INFO } from '@/state/runtime/activeSource';
-import { openSourcePicker } from '@/state/runtime/uiState';
+import { SCENE_HANDLE } from '@/state/stores/scene';
+import { SOURCE_INFO } from '@/state/stores/source';
+import { openSourcePicker } from '@/state/stores/ui';
 import { NodeKind } from '@/types';
 import { HeaderLeft } from './header/HeaderLeft';
 import { HeaderTitle } from './header/HeaderTitle';

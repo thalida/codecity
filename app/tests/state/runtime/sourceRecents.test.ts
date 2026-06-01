@@ -4,7 +4,7 @@ import {
   pushRecent,
   removeRecent,
   RECENTS,
-} from '@/state/runtime/sourceRecents';
+} from '@/state/stores/source';
 import { STORAGE_PREFIX, PERSISTED_KEYS } from '@/constants';
 
 describe('sourceRecents', () => {
