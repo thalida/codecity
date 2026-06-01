@@ -5,6 +5,7 @@
 
 import { Fragment } from 'preact';
 import { Focus } from 'lucide-preact';
+import { KEY_BINDINGS } from '@/constants';
 import { ExtensionBadge } from '@/components/Badge';
 import { CopyButton } from '@/components/CopyButton';
 import { useMiddleEllipsis } from '@/hooks/useMiddleEllipsis';
@@ -45,6 +46,7 @@ export function PathBreadcrumbs({
   const isFileSel = !isDir;
   const segs = path.split('/').filter(Boolean);
   let acc = '';
+  const focusTitle = `Focus camera on selection (${KEY_BINDINGS.FOCUS_SELECTION.label})`;
 
   return (
     <>
@@ -52,8 +54,8 @@ export function PathBreadcrumbs({
         <button
           type="button"
           class="btn-icon btn-icon--no-drag"
-          title="Focus camera on selection (F)"
-          aria-label="Focus camera on selection (F)"
+          title={focusTitle}
+          aria-label={focusTitle}
           onClick={() => onFocus()}
         >
           <Focus class="lucide-icon" />

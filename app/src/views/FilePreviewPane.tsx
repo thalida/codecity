@@ -29,6 +29,7 @@ export enum PreviewKind {
 import { fileUrl, fetchFileText } from '@/api/file';
 import { FileWarning, FileX, Info, MousePointerClick } from 'lucide-preact';
 import { Pane, PaneEmpty } from '@/components/Pane';
+import { KEY_BINDINGS } from '@/constants';
 import { ExtensionBadge } from '@/components/Badge';
 import { formatBytes } from '@/utils/bytes';
 import { languageFor } from '@/utils/syntaxLanguages';
@@ -289,7 +290,7 @@ export function FilePreviewPane({ state, onClose, onFocus }: FilePreviewPaneProp
       mono
       prefixSlot={badge}
       onFocus={file && typeof onFocus === 'function' ? () => onFocus(file) : undefined}
-      focusTitle="Focus the camera on this file (F)"
+      focusTitle={`Focus the camera on this file (${KEY_BINDINGS.FOCUS_SELECTION.label})`}
       onClose={onClose}
       bodyClass="editor-body"
     >

@@ -3,6 +3,7 @@
 
 import { Focus } from 'lucide-preact';
 import { CopyButton } from '@/components/CopyButton';
+import { KEY_BINDINGS } from '@/constants';
 
 export interface CommitChipProps {
   sha: string;
@@ -17,6 +18,7 @@ export function CommitChip({ sha, authors, onFocus }: CommitChipProps) {
   const primary = list[0] || '(unknown)';
   const coAuthorCount = Math.max(0, list.length - 1);
   const authorText = coAuthorCount > 0 ? ` · ${primary} (+${coAuthorCount})` : ` · ${primary}`;
+  const focusTitle = `Focus camera on commit (${KEY_BINDINGS.FOCUS_SELECTION.label})`;
 
   return (
     <>
@@ -24,8 +26,8 @@ export function CommitChip({ sha, authors, onFocus }: CommitChipProps) {
         <button
           type="button"
           class="btn-icon btn-icon--no-drag"
-          title="Focus camera on commit (F)"
-          aria-label="Focus camera on commit (F)"
+          title={focusTitle}
+          aria-label={focusTitle}
           onClick={() => onFocus()}
         >
           <Focus class="lucide-icon" />

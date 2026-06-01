@@ -10,6 +10,7 @@
 import type { Signal } from '@preact/signals';
 import type { DirNode, ExtBreakdownEntry } from '@/types';
 import { Pane, PaneEmpty } from '@/components/Pane';
+import { KEY_BINDINGS } from '@/constants';
 import { Route } from 'lucide-preact';
 import { ExtensionBadge } from '@/components/Badge';
 import { formatBytes } from '@/utils/bytes';
@@ -61,7 +62,7 @@ export function StreetPane({ state, onClose, onFocus }: StreetPaneProps) {
       paneClass="street-pane"
       title={leaf}
       onFocus={typeof onFocus === 'function' ? () => onFocus(d) : undefined}
-      focusTitle="Focus the camera on this road (F)"
+      focusTitle={`Focus the camera on this road (${KEY_BINDINGS.FOCUS_SELECTION.label})`}
       onClose={onClose}
       bodyClass="street-body"
     >

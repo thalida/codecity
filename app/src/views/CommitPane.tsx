@@ -19,6 +19,7 @@ import type { Signal } from '@preact/signals';
 import type { CommitEntry } from '@/types';
 import { ExternalLink, GitCommitHorizontal } from 'lucide-preact';
 import { Pane, PaneEmpty } from '@/components/Pane';
+import { KEY_BINDINGS } from '@/constants';
 import { commitUrl } from '@/utils/commit';
 import { formatRelativeAge, formatFullDate } from '@/utils/dates';
 import { fetchCommitDetail } from '@/api/commit';
@@ -149,7 +150,7 @@ export function CommitPane({ state, onClose, onFocus }: CommitPaneProps) {
       paneClass="commit-pane"
       titleSlot={titleSlot}
       onFocus={typeof onFocus === 'function' ? () => onFocus(commit) : undefined}
-      focusTitle="Focus the camera on this commit (F)"
+      focusTitle={`Focus the camera on this commit (${KEY_BINDINGS.FOCUS_SELECTION.label})`}
       onClose={onClose}
       bodyClass="commit-body"
     >
