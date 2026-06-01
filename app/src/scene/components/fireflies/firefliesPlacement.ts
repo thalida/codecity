@@ -84,7 +84,7 @@ export function placeFireflies(
   // credit toward firefly scale.
   const counts = new Map<string, number>();
   for (const c of commits) {
-    for (const author of c.authors) {
+    for (const author of c.authors ?? []) {
       counts.set(author, (counts.get(author) ?? 0) + 1);
     }
   }
@@ -167,7 +167,7 @@ export function placeFireflies(
     const canopyRadius = treeRadius(p.commitIndex);
     const height = treeHeight(p.commitIndex);
 
-    for (const author of commit.authors) {
+    for (const author of commit.authors ?? []) {
       const rng = seededRng(`${commit.sha}:${author}`);
       const pulseRng = seededRng(`${commit.sha}:p:${author}`);
       const color = colorForAuthor(author);

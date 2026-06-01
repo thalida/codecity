@@ -9,8 +9,7 @@ import type { Signal } from '@preact/signals';
 import { listRecents, removeRecent } from '@/state/runtime/sourceRecents';
 import { clearManifestCache } from '@/api/manifest';
 import { srcKind } from '@/utils/sources';
-import { LucideIcon } from './LucideIcon';
-import { LUCIDE_ICON_BASE_URL } from '@/constants';
+import { Folder, Trash2, TriangleAlert, X } from 'lucide-preact';
 import { SOURCE_PICKER, closeSourcePicker, submitNewSource } from '@/state/runtime/uiState';
 import { SERVER_CONFIG } from '@/state/runtime/serverConfig';
 
@@ -131,7 +130,6 @@ export function SourcePickerComponent({ state, onSubmit, onClose }: SourcePicker
   }
 
   const showFormFields = !((!s.allowLocalRepos) && activeTab === SourceTab.Local);
-  const trashMaskUrl = `url(${LUCIDE_ICON_BASE_URL}trash-2.svg)`;
 
   return (
     <div class="modal-backdrop" onClick={(e) => {
@@ -142,7 +140,7 @@ export function SourcePickerComponent({ state, onSubmit, onClose }: SourcePicker
           <span>Open project</span>
           {s.dismissible && (
             <button class="btn-icon btn-icon--lg" data-action="close" aria-label="Close" onClick={onClose}>
-              <LucideIcon name="x" />
+              <X class="lucide-icon" />
             </button>
           )}
         </div>
@@ -280,9 +278,9 @@ export function SourcePickerComponent({ state, onSubmit, onClose }: SourcePicker
                     >
                       <span class="recent-icon">
                         {isDisabled ? (
-                          <LucideIcon name="triangle-alert" />
+                          <TriangleAlert class="lucide-icon" />
                         ) : isLocal ? (
-                          <LucideIcon name="folder" />
+                          <Folder class="lucide-icon" />
                         ) : (
                           <HostingIcon src={r.src} />
                         )}
@@ -300,11 +298,7 @@ export function SourcePickerComponent({ state, onSubmit, onClose }: SourcePicker
                       aria-label="Remove from recents"
                       onClick={() => handleRecentRemove(r.src, r.branch)}
                     >
-                      <span
-                        class="lucide-icon"
-                        aria-hidden="true"
-                        style={{ maskImage: trashMaskUrl, WebkitMaskImage: trashMaskUrl }}
-                      />
+                      <Trash2 class="lucide-icon" />
                     </button>
                   </div>
                 );

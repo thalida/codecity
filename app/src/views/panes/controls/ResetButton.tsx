@@ -2,7 +2,7 @@
 // Disabled when every bound key already equals its registered default;
 // click stages a reset (Save still required to commit).
 
-import { LucideIcon } from '@/views/components/LucideIcon';
+import { RotateCcw } from 'lucide-preact';
 import { stageReset } from '@/state/drafts';
 import { useAnyDiffersFromDefault, useDefault } from './hooks';
 
@@ -47,7 +47,7 @@ export function ResetButton({ store, keys }: ResetButtonProps) {
         for (const k of keys) stageReset(store, k);
       }}
     >
-      <LucideIcon name="rotate-ccw" />
+      <RotateCcw class="lucide-icon" />
     </button>
   );
 }

@@ -17,7 +17,7 @@
 import { useState, useEffect, useRef } from 'preact/hooks';
 import type { Signal } from '@preact/signals';
 import type { CommitEntry } from '@/types';
-import { LucideIcon } from '@/views/components/LucideIcon';
+import { ExternalLink, GitCommitHorizontal } from 'lucide-preact';
 import { Pane, PaneEmpty } from '@/views/components/Pane';
 import { commitUrl } from '@/utils/commit';
 import { formatRelativeAge, formatFullDate } from '@/utils/dates';
@@ -113,7 +113,7 @@ export function CommitPane({ state, onClose, onFocus }: CommitPaneProps) {
     return (
       <Pane paneClass="commit-pane" title="Commit" onClose={onClose} bodyClass="commit-body">
         <PaneEmpty
-          icon="git-commit-horizontal"
+          icon={GitCommitHorizontal}
           title="No commit"
           sub="Select a tree in the city to inspect its commit."
         />
@@ -138,7 +138,7 @@ export function CommitPane({ state, onClose, onFocus }: CommitPaneProps) {
           title="Open this commit on the origin remote"
           aria-label="Open commit on origin"
         >
-          <LucideIcon name="external-link" />
+          <ExternalLink class="lucide-icon" />
         </a>
       )}
     </>
@@ -154,7 +154,7 @@ export function CommitPane({ state, onClose, onFocus }: CommitPaneProps) {
       bodyClass="commit-body"
     >
         <div class="commit-message-subject">{commit.subject || '(no subject)'}</div>
-        {commit.authors.map((author) => (
+        {(commit.authors ?? []).map((author) => (
           <div key={author} class="commit-author">
             <span class="commit-author-dot" style={{ backgroundColor: colorForAuthor(author).hex }} />
             <span class="commit-author-name">{author || '(unknown)'}</span>

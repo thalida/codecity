@@ -21,7 +21,7 @@ import { Toggle } from '@/views/components/Toggle';
 import { SegmentedSelect } from '@/views/components/SegmentedSelect';
 import type { SegmentedSelectOption } from '@/views/components/SegmentedSelect';
 import { RangePair } from '@/views/components/RangePair';
-import { LucideIcon } from '@/views/components/LucideIcon';
+import { RotateCcw } from 'lucide-preact';
 import { Row } from './Row';
 import { useEffective, useDefault } from './hooks';
 
@@ -222,7 +222,7 @@ function NestedResetButton({
         setDraft(store, parentKey, merged);
       }}
     >
-      <LucideIcon name="rotate-ccw" />
+      <RotateCcw class="lucide-icon" />
     </button>
   );
 }
@@ -298,7 +298,7 @@ function TierWidthResetButton({ index }: { index: number }) {
         setDraft(STREET_TIERS, null, next);
       }}
     >
-      <LucideIcon name="rotate-ccw" />
+      <RotateCcw class="lucide-icon" />
     </button>
   );
 }

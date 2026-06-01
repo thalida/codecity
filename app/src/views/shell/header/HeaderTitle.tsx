@@ -10,7 +10,7 @@
 import { Fragment } from 'preact';
 import { NodeKind } from '@/types';
 import { ASPHALT, BUILDING_PALETTE } from '@/state/settings';
-import { LucideIcon } from '@/views/components/LucideIcon';
+import { Focus } from 'lucide-preact';
 import { ExtensionBadge } from '@/views/components/Badge';
 import { CopyButton } from '@/views/components/CopyButton';
 import { useMiddleEllipsis } from '@/hooks';
@@ -59,13 +59,16 @@ export function HeaderTitle({ sel, rootLabel, rootPath, onSegmentClick, onFocus 
       aria-label={focusTitle}
       onClick={() => onFocus()}
     >
-      <LucideIcon name="focus" />
+      <Focus class="lucide-icon" />
     </button>
   ) : null;
 
   if (sel.kind === NodeKind.Commit) {
-    const primary = sel.authors[0] || '(unknown)';
-    const coAuthorCount = Math.max(0, sel.authors.length - 1);
+    // Guard against commits whose authors are missing (e.g. a manifest from
+    // a cache that dropped the field) so the header degrades instead of crashing.
+    const authors = sel.authors ?? [];
+    const primary = authors[0] || '(unknown)';
+    const coAuthorCount = Math.max(0, authors.length - 1);
     const authorText = coAuthorCount > 0 ? ` · ${primary} (+${coAuthorCount})` : ` · ${primary}`;
     return (
       <>

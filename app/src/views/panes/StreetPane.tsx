@@ -10,6 +10,7 @@
 import type { Signal } from '@preact/signals';
 import type { DirNode, ExtBreakdownEntry } from '@/types';
 import { Pane, PaneEmpty } from '@/views/components/Pane';
+import { Route } from 'lucide-preact';
 import { ExtensionBadge } from '@/views/components/Badge';
 import { formatBytes } from '@/utils/bytes';
 import { ASPHALT, BUILDING_PALETTE } from '@/state/settings';
@@ -37,7 +38,7 @@ export function StreetPane({ state, onClose, onFocus }: StreetPaneProps) {
     return (
       <Pane paneClass="street-pane" title="Road" onClose={onClose} bodyClass="street-body">
         <PaneEmpty
-          icon="route"
+          icon={Route}
           title="No road selected"
           sub="Select a road in the city to inspect it here."
         />
@@ -50,7 +51,10 @@ export function StreetPane({ state, onClose, onFocus }: StreetPaneProps) {
     d.name ||
     'Road';
 
-  const stats = d.descendants_ext_breakdown;
+  // Backend-computed (api/scan.py). Guard against a manifest that predates
+  // the field (stale cache / skeleton / in-flight) so a missing breakdown
+  // renders an empty section instead of crashing the pane.
+  const stats = d.descendants_ext_breakdown ?? [];
 
   return (
     <Pane

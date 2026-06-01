@@ -27,7 +27,7 @@ export enum PreviewKind {
   Text = 'text',
 }
 import { fileUrl, fetchFileText } from '@/api/file';
-import { LucideIcon } from '@/views/components/LucideIcon';
+import { FileWarning, FileX, Info, MousePointerClick } from 'lucide-preact';
 import { Pane, PaneEmpty } from '@/views/components/Pane';
 import { ExtensionBadge } from '@/views/components/Badge';
 import { formatBytes } from '@/utils/bytes';
@@ -130,7 +130,7 @@ function FileTextPreview({ file }: FileTextPreviewProps) {
     <div class="pane preview-shell">
       {textState.kind === TextStateKind.Error ? (
         <PaneEmpty
-          icon="file-warning"
+          icon={FileWarning}
           title="Couldn't load this file"
           sub={textState.message}
         />
@@ -188,7 +188,7 @@ function CodeEditor({ text, file }: CodeEditorProps) {
     <div class="code-editor-shell">
       {(skipHighlight || skipGutter) && (
         <div class="code-editor-banner">
-          <LucideIcon name="info" />
+          <Info class="lucide-icon" />
           <span>{bannerText}</span>
         </div>
       )}
@@ -223,7 +223,7 @@ function _previewBody(file: FileNode | null) {
   if (!file) {
     return (
       <PaneEmpty
-        icon="mouse-pointer-click"
+        icon={MousePointerClick}
         title="Nothing to preview"
         sub="Select a file in the city to inspect it here."
       />
@@ -252,7 +252,7 @@ function _previewBody(file: FileNode | null) {
   if (size != null && size > TEXT_PREVIEW_MAX_BYTES) {
     return (
       <PaneEmpty
-        icon="file-x"
+        icon={FileX}
         title="File too large to preview"
         sub={`Cap is ${formatBytes(TEXT_PREVIEW_MAX_BYTES)} — this file is ${formatBytes(size)}.`}
       />

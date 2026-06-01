@@ -10,7 +10,7 @@
 // for every "nothing selected / nothing to show" empty state.
 
 import type { ComponentChildren, Ref } from 'preact';
-import { LucideIcon } from './LucideIcon';
+import type { LucideIcon } from 'lucide-preact';
 import { PaneHeader } from './PaneHeader';
 
 export interface PaneProps {
@@ -87,18 +87,19 @@ export function Pane({
 }
 
 export interface PaneEmptyProps {
-  /** Lucide icon basename; omit for a text-only empty state. */
-  icon?: string;
+  /** Lucide glyph component (e.g. `FolderOpen` from lucide-preact); omit for
+   *  a text-only empty state. */
+  icon?: LucideIcon;
   title: string;
   sub?: string;
   /** Large variant (bigger icon) — the default for selection panes. */
   large?: boolean;
 }
 
-export function PaneEmpty({ icon, title, sub, large = true }: PaneEmptyProps) {
+export function PaneEmpty({ icon: Icon, title, sub, large = true }: PaneEmptyProps) {
   return (
     <div class={large ? 'empty-state empty-state--lg' : 'empty-state'}>
-      {icon && <LucideIcon name={icon} />}
+      {Icon && <Icon class="lucide-icon" />}
       <p class="text-card-title">{title}</p>
       {sub && <p class="text-card-sub">{sub}</p>}
     </div>

@@ -8,7 +8,7 @@ import {
   SYNTAX_THEME_DEFAULT,
   SYNTAX_THEME_OPTIONS,
 } from '@/state/settings/index';
-import { LucideIcon } from '@/views/components/LucideIcon';
+import { RotateCcw } from 'lucide-preact';
 import { Section } from './Section';
 
 export function FilePreviewSection() {
@@ -47,7 +47,7 @@ export function FilePreviewSection() {
               SYNTAX_THEME.value = SYNTAX_THEME_DEFAULT;
             }}
           >
-            <LucideIcon name="rotate-ccw" />
+            <RotateCcw class="lucide-icon" />
           </button>
         </span>
       </label>

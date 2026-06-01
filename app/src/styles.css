@@ -1391,20 +1391,14 @@ canvas {
   background: var(--cc-accent-bg-soft);
 }
 
-/* Lucide SVG icons rendered via CSS mask-image so they pick up currentColor.
- * Each consumer sets its own size + color via parent CSS. .activity-bar-glyph
- * keeps its 20px footprint; .lucide-icon is the smaller inline default for
- * tree rows + buttons. */
+/* Lucide icons render as inline SVG (lucide-preact) with stroke=currentColor,
+ * so they inherit the parent's text color — no mask needed. These rules just
+ * size them (CSS width/height override the SVG's own 24px attrs).
+ * .activity-bar-glyph keeps its 20px footprint; .lucide-icon is the smaller
+ * inline default for tree rows + buttons. */
 .activity-bar-glyph,
 .lucide-icon {
   display: inline-block;
-  background-color: currentColor;
-  -webkit-mask-size: contain;
-  mask-size: contain;
-  -webkit-mask-repeat: no-repeat;
-  mask-repeat: no-repeat;
-  -webkit-mask-position: center;
-  mask-position: center;
 }
 .activity-bar-glyph {
   display: block;

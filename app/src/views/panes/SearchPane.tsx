@@ -20,7 +20,7 @@ import { useMemo, useState } from 'preact/hooks';
 import type { Signal } from '@preact/signals';
 import { NodeKind } from '@/types';
 import type { DirNode, FileNode, Manifest, TreeNode } from '@/types';
-import { LucideIcon } from '@/views/components/LucideIcon';
+import { Search, SearchX } from 'lucide-preact';
 import { Pane, PaneEmpty } from '@/views/components/Pane';
 
 const MAX_RESULTS = 50;
@@ -53,7 +53,7 @@ export function SearchPane({ manifest, onClose, onSelect, onFocus }: SearchPaneP
   return (
     <Pane paneClass="search-pane" title="Search" onClose={onClose}>
       <div class="search-input-wrap">
-        <LucideIcon name="search" class="search-input-icon" />
+        <Search class="lucide-icon search-input-icon" />
         <input
           type="search"
           class="form-input search-input"
@@ -66,13 +66,13 @@ export function SearchPane({ manifest, onClose, onSelect, onFocus }: SearchPaneP
         {!trimmed && (
           <PaneEmpty
             large={false}
-            icon="search"
+            icon={Search}
             title="Start typing to search files"
             sub="Matches the full project-relative path, including the file extension."
           />
         )}
         {trimmed && results && results.length === 0 && (
-          <PaneEmpty large={false} icon="search-x" title="No files match" sub={`No path matches "${trimmed}".`} />
+          <PaneEmpty large={false} icon={SearchX} title="No files match" sub={`No path matches "${trimmed}".`} />
         )}
         {results && results.length > 0 && (
           <ul class="search-results">

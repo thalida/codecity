@@ -8,7 +8,7 @@
 
 import type { ComponentChildren } from 'preact';
 import { useRef } from 'preact/hooks';
-import { LucideIcon } from '@/views/components/LucideIcon';
+import { ChevronRight, RotateCcw } from 'lucide-preact';
 import { useHasAnyResettableRow } from './hooks';
 
 export interface CollapsibleSubgroupProps {
@@ -26,7 +26,7 @@ export function CollapsibleSubgroup({ name, children }: CollapsibleSubgroupProps
   return (
     <details ref={ref} class="theme-subgroup theme-subgroup-collapsible">
       <summary class="row row--bleed text-label text-label--muted">
-        <LucideIcon name="chevron-right" class="theme-subgroup-chevron" />
+        <ChevronRight class="lucide-icon theme-subgroup-chevron" />
         <span class="theme-subgroup-label-text">{name}</span>
         <button
           type="button"
@@ -46,7 +46,7 @@ export function CollapsibleSubgroup({ name, children }: CollapsibleSubgroupProps
               });
           }}
         >
-          <LucideIcon name="rotate-ccw" />
+          <RotateCcw class="lucide-icon" />
         </button>
       </summary>
       {children}

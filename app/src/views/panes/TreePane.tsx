@@ -13,7 +13,7 @@ import type { ReadonlySignal, Signal } from '@preact/signals';
 import { useEffect, useRef } from 'preact/hooks';
 import { NodeKind } from '@/types';
 import type { DirNode, Manifest, TreeNode } from '@/types';
-import { LucideIcon } from '@/views/components/LucideIcon';
+import { ChevronDown, ChevronRight, FolderOpen } from 'lucide-preact';
 import { GemIcon } from '@/views/components/GemIcon';
 import { NodeIcon } from '@/views/components/NodeIcon';
 import { Pane, PaneEmpty } from '@/views/components/Pane';
@@ -138,15 +138,16 @@ function TreeItem({
               toggleExpanded();
             }}
           >
-            <LucideIcon
-              name={isExpanded ? 'chevron-down' : 'chevron-right'}
-              class="tree-icon tree-icon-dir"
-            />
+            {isExpanded ? (
+              <ChevronDown class="lucide-icon tree-icon tree-icon-dir" />
+            ) : (
+              <ChevronRight class="lucide-icon tree-icon tree-icon-dir" />
+            )}
           </span>
         ) : (
           <span class="tree-chevron">
             {isDir && isRoot && (
-              <LucideIcon name="chevron-down" class="tree-icon tree-icon-dir" />
+              <ChevronDown class="lucide-icon tree-icon tree-icon-dir" />
             )}
           </span>
         )}
@@ -232,7 +233,7 @@ export function TreePane({
     <Pane paneClass="tree-pane" title="Explorer" onClose={onClose}>
       {noChildren ? (
         <PaneEmpty
-          icon="folder-open"
+          icon={FolderOpen}
           title={tree?.name ? 'Empty repository' : 'No project loaded'}
           sub={tree?.name ? 'This project has no files yet.' : 'Open one to explore its file tree.'}
         />

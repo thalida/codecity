@@ -5,7 +5,7 @@
 // execCommand fallback.
 
 import { useState, useRef, useEffect } from 'preact/hooks';
-import { LucideIcon } from './LucideIcon';
+import { Copy } from 'lucide-preact';
 
 // How long the "Copied!" badge lingers after the copy button is clicked.
 const COPY_FEEDBACK_DURATION_MS = 1500;
@@ -46,7 +46,7 @@ export function CopyButton({ text, label = 'Copy path' }: CopyButtonProps) {
       aria-label={label}
       onClick={onClick}
     >
-      <LucideIcon name="copy" />
+      <Copy class="lucide-icon" />
     </button>
   );
 }

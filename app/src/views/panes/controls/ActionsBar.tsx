@@ -5,7 +5,7 @@
 // stages every overridden value back to its default — user still must
 // Save to apply.
 
-import { LucideIcon } from '@/views/components/LucideIcon';
+import { RotateCcw } from 'lucide-preact';
 import {
   commit as commitDrafts,
   discard as discardDrafts,
@@ -80,7 +80,7 @@ export function ActionsBar() {
           disabled={!canReset}
           onClick={() => stageResetAll()}
         >
-          <LucideIcon name="rotate-ccw" class="controls-button-icon" />
+          <RotateCcw class="lucide-icon controls-button-icon" />
           Reset all
         </button>
       </div>

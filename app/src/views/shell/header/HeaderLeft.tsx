@@ -6,7 +6,7 @@
 // All three pieces are simple JSX — no internal state — so they stay
 // as a single component rather than split further.
 
-import { LucideIcon } from '@/views/components/LucideIcon';
+import { ChevronDown, ExternalLink, Map } from 'lucide-preact';
 import { GemIcon } from '@/views/components/GemIcon';
 import { toHttpsRepoUrl } from '@/utils/sources';
 
@@ -75,10 +75,10 @@ export function HeaderLeft({ rootLabel, branch, sourceUrl, onResetView, onSwitch
             if (onSwitchSource) onSwitchSource();
           }}
         >
-          <LucideIcon name="map" />
+          <Map class="lucide-icon" />
           <span class="btn-chip-label">{rootLabel}</span>
           {branch && <span class="app-header-branch-pill">@{branch}</span>}
-          <LucideIcon name="chevron-down" class="btn-chip-chevron" />
+          <ChevronDown class="lucide-icon btn-chip-chevron" />
         </button>
       )}
       {repoLinkHref && (
@@ -90,7 +90,7 @@ export function HeaderLeft({ rootLabel, branch, sourceUrl, onResetView, onSwitch
           aria-label="Open repository in a new tab"
           title={repoLinkTitle ?? ''}
         >
-          <LucideIcon name="external-link" />
+          <ExternalLink class="lucide-icon" />
         </a>
       )}
     </>

@@ -12,7 +12,7 @@
 
 import { type ComponentChildren } from 'preact';
 import { useRef } from 'preact/hooks';
-import { LucideIcon } from '@/views/components/LucideIcon';
+import { ChevronRight, RotateCcw } from 'lucide-preact';
 import { useHasAnyResettableRow } from './hooks';
 
 export interface SectionProps {
@@ -34,7 +34,7 @@ export function Section({ name, hint, children }: SectionProps) {
   return (
     <details ref={ref} class="controls-section">
       <summary class="row row--bleed controls-section-summary">
-        <LucideIcon name="chevron-right" class="controls-section-chevron" />
+        <ChevronRight class="lucide-icon controls-section-chevron" />
         <span class="text-label">{name}</span>
         <button
           type="button"
@@ -54,7 +54,7 @@ export function Section({ name, hint, children }: SectionProps) {
               });
           }}
         >
-          <LucideIcon name="rotate-ccw" />
+          <RotateCcw class="lucide-icon" />
         </button>
       </summary>
       {hint && <div class="controls-section-hint">{hint}</div>}

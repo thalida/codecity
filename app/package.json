@@ -37,7 +37,6 @@
     "eslint-config-prettier": "^10.1.8",
     "globals": "^17.6.0",
     "jsdom": "^29.0.2",
-    "lucide-static": "1.17.0",
     "material-icon-theme": "5.30.0",
     "prettier": "^3.8.3",
     "typescript": "^6.0.3",
@@ -48,6 +47,7 @@
   "dependencies": {
     "@preact/signals": "^2.9.1",
     "highlight.js": "^11.11.1",
+    "lucide-preact": "^1.17.0",
     "marked": "^18.0.3",
     "preact": "^10.29.2",
     "rbush": "^4.0.1",

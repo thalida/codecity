@@ -20,7 +20,6 @@ import { useEffect, useRef, useState } from 'preact/hooks';
 import {
   ACTIVITY_BAR_TABS,
   DOM_IDS,
-  LUCIDE_ICON_BASE_URL,
   STORAGE_KEYS,
 } from '@/constants';
 import { SidebarTab, NodeKind } from '@/types';
@@ -152,13 +151,7 @@ function ActivityBar({ activeTab, collapsed, onIconClick }: ActivityBarProps) {
         aria-pressed={isActive}
         onClick={() => onIconClick(tab.id)}
       >
-        <span
-          class="activity-bar-glyph"
-          style={{
-            maskImage: `url(${LUCIDE_ICON_BASE_URL}${tab.icon})`,
-            WebkitMaskImage: `url(${LUCIDE_ICON_BASE_URL}${tab.icon})`,
-          }}
-        />
+        <tab.icon class="activity-bar-glyph" />
       </button>
     );
   };

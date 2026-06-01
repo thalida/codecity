@@ -8,6 +8,7 @@ import { useState, useEffect } from 'preact/hooks';
 import { effect } from '@preact/signals';
 import type { Signal } from '@preact/signals';
 import { fetchFileText } from '@/api/file';
+import { BookOpen, FileWarning, FolderOpen } from 'lucide-preact';
 import { Marked } from 'marked';
 import { NodeKind } from '@/types';
 import type { DirNode, FileNode, Manifest } from '@/types';
@@ -123,17 +124,17 @@ export function InfoPane({ manifest, onClose }: InfoPaneProps) {
   return (
     <Pane paneClass="info-pane" title="Info" onClose={onClose} bodyClass="info-body">
       {body.kind === InfoBodyKind.NoProject && (
-        <PaneEmpty icon="folder-open" title="No project loaded" sub="Open one to read its README." />
+        <PaneEmpty icon={FolderOpen} title="No project loaded" sub="Open one to read its README." />
       )}
       {body.kind === InfoBodyKind.NoReadme && (
         <PaneEmpty
-          icon="book-open"
+          icon={BookOpen}
           title="No README"
           sub="Add a README at the project root to fill this panel."
         />
       )}
       {body.kind === InfoBodyKind.Error && (
-        <PaneEmpty icon="file-warning" title="Couldn't load README" sub={body.message} />
+        <PaneEmpty icon={FileWarning} title="Couldn't load README" sub={body.message} />
       )}
       {body.kind === InfoBodyKind.Markdown && (
         <article class="info-markdown" dangerouslySetInnerHTML={{ __html: body.html }} />

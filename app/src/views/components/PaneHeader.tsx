@@ -5,7 +5,7 @@
 // identical and adding a new pane is a one-call affair.
 
 import type { ComponentChildren } from 'preact';
-import { LucideIcon } from './LucideIcon';
+import { Focus, X } from 'lucide-preact';
 
 // ── Props interface ─────────────────────────────────────────────────────────
 
@@ -58,7 +58,7 @@ export function PaneHeader({
             onFocus();
           }}
         >
-          <LucideIcon name="focus" />
+          <Focus class="lucide-icon" />
         </button>
       )}
       {prefixSlot ?? null}
@@ -71,7 +71,7 @@ export function PaneHeader({
           aria-label={closeTitle}
           onClick={() => onClose()}
         >
-          <LucideIcon name="x" />
+          <X class="lucide-icon" />
         </button>
       )}
     </div>
