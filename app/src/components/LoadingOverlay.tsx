@@ -14,11 +14,8 @@
 import { LOADING_OVERLAY } from '@/state/stores/ui';
 import { LoadingStep, LOADING_STEPS, LOADING_STEP_LABELS } from '@/constants';
 
-export interface LoadingOverlayShowOpts {
-  kind: 'git' | 'local';
-  label: string;
-  branch?: string;
-}
+// LoadingOverlayShowOpts (the show() contract) lives in state/stores/ui, so
+// state stays view-independent.
 
 // ── Internal state shape (for Preact component) ─────────────────────────────
 

@@ -10,7 +10,12 @@ import { listRecents, removeRecent } from '@/state/stores/source';
 import { clearManifestCache } from '@/api/manifest';
 import { srcKind } from '@/utils/sources';
 import { Folder, Trash2, TriangleAlert, X } from 'lucide-preact';
-import { SOURCE_PICKER, closeSourcePicker, submitNewSource } from '@/state/stores/ui';
+import {
+  SOURCE_PICKER,
+  closeSourcePicker,
+  submitNewSource,
+  type SourcePayload,
+} from '@/state/stores/ui';
 import { SERVER_CONFIG } from '@/state/stores/serverConfig';
 
 // ── Hosting-site SVG icons ───────────────────────────────────────────────────
@@ -33,19 +38,8 @@ export function inferSourceTab(src: string): SourceTab {
   return srcKind(src) === 'git' ? SourceTab.Git : SourceTab.Local;
 }
 
-export interface SourcePayload {
-  src: string;
-  branch?: string;
-  /** When true, this open forces a fresh scan (server-side ?no_cache=1).
-   *  Not persisted — re-opening from a recent uses cached scan by default. */
-  skipCache?: boolean;
-}
-
-export interface OpenOpts {
-  prefill?: SourcePayload;
-  dismissible?: boolean; // default: false
-  error?: string;
-}
+// SourcePayload / OpenOpts (the picker's submit + open contracts) live in
+// state/stores/ui — see the import above — so state stays view-independent.
 
 // ── Preact component state shape ────────────────────────────────────────────
 

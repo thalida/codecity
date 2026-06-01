@@ -4,8 +4,33 @@
 // `loadingOverlay.show()` pattern from boot.ts.
 
 import { signal } from '@preact/signals';
-import type { OpenOpts, SourcePayload } from '@/views/SourcePicker';
-import type { LoadingOverlayShowOpts } from '@/components/LoadingOverlay';
+
+// These are the UI-state CONTRACTS the views render against. They live here (in
+// state) so state/ stays view-independent — the SourcePicker / LoadingOverlay
+// components import them from here, not the other way around.
+
+/** What the source picker submits when the user opens a project. */
+export interface SourcePayload {
+  src: string;
+  branch?: string;
+  /** When true, this open forces a fresh scan (server-side ?no_cache=1).
+   *  Not persisted — re-opening from a recent uses cached scan by default. */
+  skipCache?: boolean;
+}
+
+/** Options for opening the source picker. */
+export interface OpenOpts {
+  prefill?: SourcePayload;
+  dismissible?: boolean; // default: false
+  error?: string;
+}
+
+/** Options for showing the loading overlay. */
+export interface LoadingOverlayShowOpts {
+  kind: 'git' | 'local';
+  label: string;
+  branch?: string;
+}
 
 // ── Source picker ────────────────────────────────────────────────────────────
 

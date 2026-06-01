@@ -17,7 +17,14 @@
 import { computed, type Signal } from '@preact/signals';
 import { persistedSignal, getDefault } from '@/state/persist';
 import { deepEqual } from '@/utils/deep';
-import type { SegmentedSelectOption } from '@/components/SegmentedSelect';
+
+/** A Select field's choices. Defined here (not imported from the view's
+ *  SegmentedSelect) so state/ stays view-independent — the option array a
+ *  store declares is structurally identical to what the widget renders. */
+export interface SelectOption {
+  value: string;
+  label: string;
+}
 
 export enum FieldKind {
   Slider = 'slider',
@@ -60,7 +67,7 @@ export interface FieldDef<T = unknown> {
   min?: number;
   max?: number;
   step?: number;
-  options?: SegmentedSelectOption[];
+  options?: SelectOption[];
 }
 
 /** A store's fields: a flat key → FieldDef map. */
