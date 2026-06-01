@@ -1,4 +1,4 @@
-// components/HeaderBreadcrumb.tsx — Header title slot for a selected
+// components/PathBreadcrumbs.tsx — Header title slot for a selected
 // file/dir: a focus button + extension badge + clickable path breadcrumb +
 // copy-path button. The breadcrumb owns a ResizeObserver (useMiddleEllipsis)
 // that middle-truncates the path to fit the header width.
@@ -10,7 +10,7 @@ import { CopyButton } from '@/components/CopyButton';
 import { useMiddleEllipsis } from '@/hooks/useMiddleEllipsis';
 import { STREETS, BUILDINGS } from '@/state/stores/settings';
 
-export interface HeaderBreadcrumbProps {
+export interface PathBreadcrumbsProps {
   /** Selected path relative to the project root. */
   path: string;
   /** File extension (for the badge hue); ignored for directories. */
@@ -22,14 +22,14 @@ export interface HeaderBreadcrumbProps {
   onFocus?: () => void;
 }
 
-export function HeaderBreadcrumb({
+export function PathBreadcrumbs({
   path,
   extension,
   isDir,
   rootLabel,
   onSegmentClick,
   onFocus,
-}: HeaderBreadcrumbProps) {
+}: PathBreadcrumbsProps) {
   const crumbsRef = useMiddleEllipsis<HTMLDivElement>(
     {
       segmentClass: 'app-header-seg',

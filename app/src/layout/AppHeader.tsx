@@ -1,11 +1,11 @@
 // layout/AppHeader.tsx — Sitewide top header. Composition shell only: derives
 // display state from runtime signals and slots the header sub-components into a
-// 3-column grid. The slot widgets are components/ (CommitChip, HeaderBreadcrumb,
+// 3-column grid. The slot widgets are components/ (CommitChip, PathBreadcrumbs,
 // ProjectSwitcher, RepoLink, ResetViewButton); this file owns only the grid.
 //
 // Layout (left → right):
 //   #app-header-left  — ResetViewButton + ProjectSwitcher + RepoLink
-//   #app-title        — CommitChip | HeaderBreadcrumb (per current selection)
+//   #app-title        — CommitChip | PathBreadcrumbs (per current selection)
 //   #app-header-right — reserved slot, currently unused
 
 import type { ComponentChildren } from 'preact';
@@ -17,7 +17,7 @@ import { ResetViewButton } from '@/components/ResetViewButton';
 import { ProjectSwitcher } from '@/components/ProjectSwitcher';
 import { RepoLink } from '@/components/RepoLink';
 import { CommitChip } from '@/components/CommitChip';
-import { HeaderBreadcrumb } from '@/components/HeaderBreadcrumb';
+import { PathBreadcrumbs } from '@/components/PathBreadcrumbs';
 
 export interface AppHeaderProps {
   /** Fires when the user clicks a breadcrumb segment. */
@@ -55,7 +55,7 @@ export function AppHeader({
     const extension = pickerSel.kind === NodeKind.File ? pickerSel.file.extension || '' : undefined;
     if (path && path !== rootPath) {
       title = (
-        <HeaderBreadcrumb
+        <PathBreadcrumbs
           path={path}
           extension={extension}
           isDir={isDir}
