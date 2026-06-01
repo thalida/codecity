@@ -12,8 +12,8 @@ import { EMPTY_MANIFEST } from '../constants/manifest';
 // signal (useDocumentTitle hook + the LAST_UPDATED_AT effect in
 // state/runtime/manifest.ts) — no imperative onChange handler here.
 
-import { streamInitialManifest } from './manifestStream';
-import { installSourcePickerBridge } from './sourcePickerBridge';
+import { streamInitialManifest } from '../state/runtime/manifestStream';
+import { installSourcePickerBridge } from '../state/runtime/sourcePickerBridge';
 import { SCENE_HANDLE } from '../state/runtime/scene';
 
 export async function bootApp(): Promise<() => void> {

@@ -1,34 +1,31 @@
-// runtime/manifestStream.ts — Owns the NDJSON streaming loop for manifest
+// state/runtime/manifestStream.ts — Owns the NDJSON streaming loop for manifest
 // fetches. Called during initial boot and on each user-submitted new source.
 // Writes LOADING_OVERLAY signals as phases arrive; starts the render loop
 // on the first manifest event; writes SCENE_HANDLE + SOURCE_INFO.
 
-import { SCENE_HANDLE } from '../state/runtime/scene';
-import { SOURCE_INFO, sourceKey, CURRENT_SOURCE_KEY } from '../state/runtime/activeSource';
-import { attachCommitReactions } from '../state/reactions';
+import { SCENE_HANDLE, type SceneHandle } from './scene';
+import { SOURCE_INFO, sourceKey, CURRENT_SOURCE_KEY } from './activeSource';
+import { attachCommitReactions } from '@/state/reactions';
 import {
   showLoadingOverlay,
   hideLoadingOverlay,
   setLoadingStep,
   setLoadingPendingLabel,
   setLoadingStepTail,
-} from '../state/runtime/uiState';
-import type { Manifest } from '../types';
+} from './uiState';
+import type { Manifest } from '@/types';
 
-import { manifestUrl, manifestUrlFor } from '../api/manifest';
-import { streamManifest } from '../api/manifest';
-import { srcKind, labelFromUrl, labelFromManifest } from '../utils/sources';
-import { applyPendingTitle } from '../utils/pendingTitle';
-import { EMPTY_MANIFEST } from '../constants/manifest';
-import { buildIconAtlas } from '../scene/components/buildings/iconAtlas';
-import { setIconAtlas } from '../scene/components/buildings/buildings';
-import { setCellIconAtlas } from '../scene/components/buildings/buildingsCell';
-import { startRenderLoop, _applyDisplayLabel } from '../scene/renderLoop';
-import { pushRecent } from '../state/runtime/sourceRecents';
-import { setupLiveUpdates } from '../state/runtime/manifestPoll';
-import type { SourcePayload } from '../views/components/SourcePicker';
-
-export type SceneHandle = Awaited<ReturnType<typeof startRenderLoop>>;
+import { manifestUrl, manifestUrlFor, streamManifest } from '@/api/manifest';
+import { srcKind, labelFromUrl, labelFromManifest } from '@/utils/sources';
+import { applyPendingTitle } from '@/utils/pendingTitle';
+import { EMPTY_MANIFEST } from '@/constants/manifest';
+import { buildIconAtlas } from '@/scene/components/buildings/iconAtlas';
+import { setIconAtlas } from '@/scene/components/buildings/buildings';
+import { setCellIconAtlas } from '@/scene/components/buildings/buildingsCell';
+import { startRenderLoop, _applyDisplayLabel } from '@/scene/renderLoop';
+import { pushRecent } from './sourceRecents';
+import { setupLiveUpdates } from './manifestPoll';
+import type { SourcePayload } from '@/views/components/SourcePicker';
 
 // ── Shared progress-event helpers ────────────────────────────────────────────
 

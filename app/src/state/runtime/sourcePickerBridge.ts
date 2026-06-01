@@ -1,4 +1,4 @@
-// runtime/sourcePickerBridge.ts — Registers the apply-new-source handler that
+// state/runtime/sourcePickerBridge.ts — Registers the apply-new-source handler that
 // the picker UI invokes via submitNewSource(). The handler needs the live
 // scene + live-update handles, which only exist after boot, so it's wired here
 // rather than in the view. No window globals — the picker calls submitNewSource
@@ -7,9 +7,9 @@
 // installSourcePickerBridge() is called once from the boot orchestrator after
 // streamInitialManifest() completes.
 
-import { openSourcePicker, closeSourcePicker, registerSourceApplier } from '../state/runtime/uiState';
+import { openSourcePicker, closeSourcePicker, registerSourceApplier } from './uiState';
 import { applyNewSource } from './manifestStream';
-import type { SceneHandle } from './manifestStream';
+import type { SceneHandle } from './scene';
 
 export interface SourcePickerBridgeOpts {
   getHandle: () => SceneHandle;
