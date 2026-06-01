@@ -5,10 +5,15 @@
 // Schema-driven (see state/settings/schema): each field states its own route.
 // The big per-extension hue default lives in constants/buildings.ts.
 
-import { persistedSignal } from '@/state/persist';
 import { settingSignal, FieldKind, ChangeRoute, type ConfigOf, type FieldMap } from '@/state/settings/schema';
 import { DEFAULT_HUE_EXT_MAP } from '@/constants/buildings';
 import { FadeDetail } from '@/types';
+
+const FADE_DETAIL_OPTIONS = [
+  { value: FadeDetail.Full, label: 'Full' },
+  { value: FadeDetail.Silhouette, label: 'Silhouette' },
+  { value: FadeDetail.Hidden, label: 'Hidden' },
+];
 
 // ─── Dimensions ────────────────────────────────────────────────────────────
 // Floors and width are BOTH normalized against the project's own range:
@@ -119,59 +124,42 @@ export type BuildingsConfig = ConfigOf<typeof BUILDINGS_FIELDS>;
 // (full detail, default body + outline opacity) regardless of which tier
 // it would otherwise sit in — hover acts as a "preview the selection" state.
 //
-// All applied on Save via applyTheme().
-export interface BuildingFadeConfig {
-  DEFAULT_DETAIL: FadeDetail;
-  DEFAULT_OUTLINE: boolean;
-  DEFAULT_BODY_OPACITY: number;
-  DEFAULT_OUTLINE_OPACITY: number;
-  LEVEL1_DETAIL: FadeDetail;
-  LEVEL1_OUTLINE: boolean;
-  LEVEL1_BODY_OPACITY: number;
-  LEVEL1_OUTLINE_OPACITY: number;
-  LEVEL2_DETAIL: FadeDetail;
-  LEVEL2_OUTLINE: boolean;
-  LEVEL2_BODY_OPACITY: number;
-  LEVEL2_OUTLINE_OPACITY: number;
-  LEVEL3_DETAIL: FadeDetail;
-  LEVEL3_OUTLINE: boolean;
-  LEVEL3_BODY_OPACITY: number;
-  LEVEL3_OUTLINE_OPACITY: number;
-  LEVEL4_DETAIL: FadeDetail;
-  LEVEL4_OUTLINE: boolean;
-  LEVEL4_BODY_OPACITY: number;
-  LEVEL4_OUTLINE_OPACITY: number;
-}
-
-export const BUILDING_FADE = persistedSignal<BuildingFadeConfig>('BUILDING_FADE', {
-  // Default tier — applies to the selected/hovered building itself
-  // and to every building when nothing is selected (idle state).
-  DEFAULT_DETAIL: FadeDetail.Full,
-  DEFAULT_OUTLINE: false,
-  DEFAULT_BODY_OPACITY: 1.0,
-  DEFAULT_OUTLINE_OPACITY: 1.0,
+// All fields route Live: the fade is applied by buildingFader's own effect
+// (which subscribes to BUILDING_FADE directly), not the generic applyTheme — so
+// routeSignature must NOT also fire a material refresh on a fade change.
+const BUILDING_FADE_FIELDS = {
+  // Default tier — the selected/hovered building itself, and every building
+  // when nothing is selected (idle).
+  DEFAULT_DETAIL: { route: ChangeRoute.Live, kind: FieldKind.Select, default: FadeDetail.Full, options: FADE_DETAIL_OPTIONS, label: 'Detail',
+    tip: 'Full = textured walls + windows + doors. Silhouette = solid-color box. Hidden = body invisible (only outline can show).' },
+  DEFAULT_OUTLINE: { route: ChangeRoute.Live, kind: FieldKind.Toggle, default: false, label: 'Outline', tip: 'Show the wireframe edge overlay.' },
+  DEFAULT_BODY_OPACITY: { route: ChangeRoute.Live, kind: FieldKind.Slider, default: 1.0, min: 0, max: 1, step: 0.05, label: 'Body opacity', tip: 'Opacity for the body / silhouette layer.' },
+  DEFAULT_OUTLINE_OPACITY: { route: ChangeRoute.Live, kind: FieldKind.Slider, default: 1.0, min: 0, max: 1, step: 0.05, label: 'Outline opacity', tip: 'Opacity for the wireframe outline layer (only visible if Outline is on).' },
 
   // Level 1 — same dir as the selection (or the dir's direct files).
-  LEVEL1_DETAIL: FadeDetail.Full,
-  LEVEL1_OUTLINE: false,
-  LEVEL1_BODY_OPACITY: 1.0,
-  LEVEL1_OUTLINE_OPACITY: 1.0,
+  LEVEL1_DETAIL: { route: ChangeRoute.Live, kind: FieldKind.Select, default: FadeDetail.Full, options: FADE_DETAIL_OPTIONS, label: 'Detail' },
+  LEVEL1_OUTLINE: { route: ChangeRoute.Live, kind: FieldKind.Toggle, default: false, label: 'Outline' },
+  LEVEL1_BODY_OPACITY: { route: ChangeRoute.Live, kind: FieldKind.Slider, default: 1.0, min: 0, max: 1, step: 0.05, label: 'Body opacity' },
+  LEVEL1_OUTLINE_OPACITY: { route: ChangeRoute.Live, kind: FieldKind.Slider, default: 1.0, min: 0, max: 1, step: 0.05, label: 'Outline opacity' },
 
   // Level 2 — one directory deeper than the selection.
-  LEVEL2_DETAIL: FadeDetail.Silhouette,
-  LEVEL2_OUTLINE: true,
-  LEVEL2_BODY_OPACITY: 0.75,
-  LEVEL2_OUTLINE_OPACITY: 0.5,
+  LEVEL2_DETAIL: { route: ChangeRoute.Live, kind: FieldKind.Select, default: FadeDetail.Silhouette, options: FADE_DETAIL_OPTIONS, label: 'Detail' },
+  LEVEL2_OUTLINE: { route: ChangeRoute.Live, kind: FieldKind.Toggle, default: true, label: 'Outline' },
+  LEVEL2_BODY_OPACITY: { route: ChangeRoute.Live, kind: FieldKind.Slider, default: 0.75, min: 0, max: 1, step: 0.05, label: 'Body opacity' },
+  LEVEL2_OUTLINE_OPACITY: { route: ChangeRoute.Live, kind: FieldKind.Slider, default: 0.5, min: 0, max: 1, step: 0.05, label: 'Outline opacity' },
 
   // Level 3 — deeper descendants (two or more directories below).
-  LEVEL3_DETAIL: FadeDetail.Silhouette,
-  LEVEL3_OUTLINE: true,
-  LEVEL3_BODY_OPACITY: 0.25,
-  LEVEL3_OUTLINE_OPACITY: 0.5,
+  LEVEL3_DETAIL: { route: ChangeRoute.Live, kind: FieldKind.Select, default: FadeDetail.Silhouette, options: FADE_DETAIL_OPTIONS, label: 'Detail' },
+  LEVEL3_OUTLINE: { route: ChangeRoute.Live, kind: FieldKind.Toggle, default: true, label: 'Outline' },
+  LEVEL3_BODY_OPACITY: { route: ChangeRoute.Live, kind: FieldKind.Slider, default: 0.25, min: 0, max: 1, step: 0.05, label: 'Body opacity' },
+  LEVEL3_OUTLINE_OPACITY: { route: ChangeRoute.Live, kind: FieldKind.Slider, default: 0.5, min: 0, max: 1, step: 0.05, label: 'Outline opacity' },
 
   // Level 4 — outside the selection's subtree entirely.
-  LEVEL4_DETAIL: FadeDetail.Silhouette,
-  LEVEL4_OUTLINE: true,
-  LEVEL4_BODY_OPACITY: 0.05,
-  LEVEL4_OUTLINE_OPACITY: 0.5,
-});
+  LEVEL4_DETAIL: { route: ChangeRoute.Live, kind: FieldKind.Select, default: FadeDetail.Silhouette, options: FADE_DETAIL_OPTIONS, label: 'Detail' },
+  LEVEL4_OUTLINE: { route: ChangeRoute.Live, kind: FieldKind.Toggle, default: true, label: 'Outline' },
+  LEVEL4_BODY_OPACITY: { route: ChangeRoute.Live, kind: FieldKind.Slider, default: 0.05, min: 0, max: 1, step: 0.05, label: 'Body opacity' },
+  LEVEL4_OUTLINE_OPACITY: { route: ChangeRoute.Live, kind: FieldKind.Slider, default: 0.5, min: 0, max: 1, step: 0.05, label: 'Outline opacity' },
+} satisfies FieldMap;
+
+export const BUILDING_FADE = settingSignal('BUILDING_FADE', BUILDING_FADE_FIELDS);
+export type BuildingFadeConfig = ConfigOf<typeof BUILDING_FADE_FIELDS>;
