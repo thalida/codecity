@@ -50,26 +50,3 @@ export const CAMERA_CONTROLS = persistedSignal<CameraControlsConfig>('CAMERA_CON
   // < 1 lands the camera closer to the gem).
 });
 
-// ─── Camera focus framing ──────────────────────────────────────────────────
-// Geometric framing parameters for building / street focus actions — how
-// far away the camera lands, how much of the street fits on screen, etc.
-// Read fresh per gesture so changes apply immediately without restart.
-export interface CameraAnimationConfig {
-  BUILDING_FOCUS_DISTANCE_MULT: number;
-  BUILDING_FOCUS_DISTANCE_OFFSET: number;
-  STREET_FOCUS_LENGTH_FRAC: number;
-  STREET_FOCUS_WIDTH_MULT: number;
-  STREET_FOCUS_ALTITUDE_BLDG_MULT: number;
-  STREET_FOCUS_ALTITUDE_FLOOR: number;
-  STREET_FOCUS_ELEVATION_DEG: number;
-}
-
-export const CAMERA_ANIMATION = persistedSignal<CameraAnimationConfig>('CAMERA_ANIMATION', {
-  BUILDING_FOCUS_DISTANCE_MULT: 1.6, // padding multiplier on the fitted distance
-  BUILDING_FOCUS_DISTANCE_OFFSET: 4,
-  STREET_FOCUS_LENGTH_FRAC: 0.65, // visible street length = full × this
-  STREET_FOCUS_WIDTH_MULT: 4, // visible street width = street width × this
-  STREET_FOCUS_ALTITUDE_BLDG_MULT: 1.4, // altitude floor = max bldg height × this
-  STREET_FOCUS_ALTITUDE_FLOOR: 50, // …plus this constant
-  STREET_FOCUS_ELEVATION_DEG: 87, // near-vertical (just under polar limit)
-});
