@@ -17,6 +17,7 @@ import type { Signal } from '@preact/signals';
 import type { ComponentChildren } from 'preact';
 import { Section } from '../Section';
 import { CollapsibleSubgroup } from '../CollapsibleSubgroup';
+import { Subgroup } from '../Subgroup';
 import { Field } from '../Field';
 
 // ── Node types ───────────────────────────────────────────────────────────────
@@ -33,12 +34,14 @@ export function field<T>(store: Signal<T>, key: keyof T & string): FieldRef {
   return { store: store as Signal<unknown>, key };
 }
 
-/** A subgroup: a labeled, collapsible container that nests further groups
- *  and/or field refs. */
+/** A subgroup: a labeled container that nests further groups and/or field
+ *  refs. Collapsible (a <details>) by default; set collapsible:false for a
+ *  plain always-open labeled group (the old <Subgroup>). */
 export interface GroupNode {
   key: string;
   label: string;
   description?: string;
+  collapsible?: boolean;
   children: SectionChild[];
 }
 
@@ -63,10 +66,11 @@ function isGroup(child: SectionChild): child is GroupNode {
 
 function renderChild(child: SectionChild): ComponentChildren {
   if (isGroup(child)) {
+    const Wrapper = child.collapsible === false ? Subgroup : CollapsibleSubgroup;
     return (
-      <CollapsibleSubgroup name={child.label} key={child.key}>
+      <Wrapper name={child.label} key={child.key}>
         {child.children.map(renderChild)}
-      </CollapsibleSubgroup>
+      </Wrapper>
     );
   }
   return <Field store={child.store} fieldKey={child.key} key={`${child.key}`} />;

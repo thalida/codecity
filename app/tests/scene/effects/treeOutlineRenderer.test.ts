@@ -7,8 +7,8 @@ import * as THREE from 'three';
 import { signal } from '@preact/signals';
 import { LineSegmentsGeometry } from 'three/addons/lines/LineSegmentsGeometry.js';
 import { createTreeOutlineRenderer } from '@/scene/effects/treeOutlineRenderer';
-import { TREE_OUTLINE } from '@/state/settings/components/trees';
-import { RAINBOW } from '@/state/settings/effects/effects';
+import { TREES } from '@/state/settings/trees';
+import { RAINBOW } from '@/state/settings/effects';
 import { NodeKind } from '@/types';
 import type { PickTarget } from '@/types/picker';
 
@@ -60,11 +60,12 @@ function commitTarget(sha: string): PickTarget {
 
 describe('treeOutlineRenderer', () => {
   beforeEach(() => {
-    TREE_OUTLINE.value = {
-      WIDTH: 3,
-      HOVER_COLOR: '#ffffff',
-      HOVER_OPACITY: 0.5,
-      SELECTED_OPACITY: 1.0,
+    TREES.value = {
+      ...TREES.value,
+      OUTLINE_WIDTH: 3,
+      OUTLINE_HOVER_COLOR: '#ffffff',
+      OUTLINE_HOVER_OPACITY: 0.5,
+      OUTLINE_SELECTED_OPACITY: 1.0,
     };
     RAINBOW.value = { SPEED: 0.001, SATURATION: 1, LIGHTNESS: 0.5 };
   });
@@ -179,11 +180,12 @@ describe('treeOutlineRenderer', () => {
       picker,
       getTrees: () => fakeTrees('a', new THREE.Matrix4()),
     });
-    TREE_OUTLINE.value = {
-      WIDTH: 7,
-      HOVER_COLOR: '#ff00ff',
-      HOVER_OPACITY: 0.25,
-      SELECTED_OPACITY: 0.9,
+    TREES.value = {
+      ...TREES.value,
+      OUTLINE_WIDTH: 7,
+      OUTLINE_HOVER_COLOR: '#ff00ff',
+      OUTLINE_HOVER_OPACITY: 0.25,
+      OUTLINE_SELECTED_OPACITY: 0.9,
     };
     r.refreshMaterials();
     expect((r.hoverOutline.material as { linewidth: number }).linewidth).toBe(7);

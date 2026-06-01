@@ -7,7 +7,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import * as THREE from 'three';
 import { createTreeRenderer } from '@/scene/components/trees/treeRenderer';
 import type { TreePlacement } from '@/scene/components/trees/treePlacement';
-import { TREES } from '@/state/settings/components/trees';
+import { TREES } from '@/state/settings/trees';
 import { BUILDING_DIMENSIONS } from '@/state/settings/components/buildings';
 import type { CommitEntry } from '@/types';
 
@@ -17,26 +17,30 @@ const BUSY = { avg: 1, busy: 1 };
 
 function resetStores() {
   TREES.value = {
-    TREES_ENABLED: true,
+    ENABLED: true,
     EDGE_INSET_PERCENT: 8,
-    TREE_DENSITY_FALLOFF: 0,
-    TREE_MIN_HEIGHT: 48,
-    TREE_MAX_HEIGHT: 144,
-    TREE_MIN_WIDTH: 32,
-    TREE_MAX_WIDTH: 128,
-    TREE_FACETS_LOW: 5,
-    TREE_FACETS_MID: 8,
-    TREE_FACETS_HIGH: 12,
+    DENSITY_FALLOFF: 0,
+    MIN_HEIGHT: 48,
+    MAX_HEIGHT: 144,
+    MIN_WIDTH: 32,
+    MAX_WIDTH: 128,
+    FACETS_LOW: 5,
+    FACETS_MID: 8,
+    FACETS_HIGH: 12,
     TRUNK_HEIGHT_FRAC: 0.25,
-    TRUNK_RADIUS_FRAC_OF_CANOPY: 0.15,
+    TRUNK_RADIUS_FRAC: 0.15,
     CANOPY_TRUNK_OVERLAP_FRAC: 0.7,
-    TREE_COLOR_BUSY_DAY: '#0a2613',
-    TREE_COLOR_SOLO_DAY: '#a8d68a',
-    TREE_SHADING_STRENGTH: 0.65,
-    TREE_TRUNK_COLOR: '#120c08',
-    TREE_AGE_DESAT_ENABLED: false,
-    TREE_AGE_SATURATION: [20, 100],
-    TREE_WIDTH_AGE_FLOOR: 1.0,
+    COLOR_BUSY_DAY: '#0a2613',
+    COLOR_SOLO_DAY: '#a8d68a',
+    SHADING_STRENGTH: 0.65,
+    TRUNK_COLOR: '#120c08',
+    AGE_DESAT_ENABLED: false,
+    AGE_SATURATION: [20, 100],
+    WIDTH_AGE_FLOOR: 1.0,
+    OUTLINE_WIDTH: 1,
+    OUTLINE_HOVER_COLOR: '#ffffff',
+    OUTLINE_HOVER_OPACITY: 0.5,
+    OUTLINE_SELECTED_OPACITY: 0.75,
   };
   BUILDING_DIMENSIONS.value = {
     MIN_FLOORS: 2,
@@ -218,11 +222,11 @@ describe('Trees commit lookups', () => {
     expect(trees.getInstanceTransform('f'.repeat(40), out)).toBe(false);
   });
 
-  it('TREE_WIDTH_AGE_FLOOR = 1.0 preserves file-driven canopy width unchanged', () => {
+  it('WIDTH_AGE_FLOOR = 1.0 preserves file-driven canopy width unchanged', () => {
     // Two commits, same file count, different ages. With floor=1.0 the
     // attenuation is constant 1, so both trees should have the same
     // canopy XZ scale.
-    TREES.value = { ...TREES.value, TREE_WIDTH_AGE_FLOOR: 1.0 };
+    TREES.value = { ...TREES.value, WIDTH_AGE_FLOOR: 1.0 };
     const commits = [commit(0), commit(1)];
     // Force same file count so file-driven radius matches.
     commits[0].files = 5;
@@ -245,12 +249,12 @@ describe('Trees commit lookups', () => {
     expect(s0.z).toBeCloseTo(s1.z, 3);
   });
 
-  it('TREE_WIDTH_AGE_FLOOR = 0.5 halves the shortest tree canopy width', () => {
+  it('WIDTH_AGE_FLOOR = 0.5 halves the shortest tree canopy width', () => {
     // Three commits, same file count. With ageT mapping oldest→0, newest→1,
     // the renderer assigns commits[2] (newest) min height (heightRatio=0)
     // → attenuation = 0.5; commits[0] (oldest) max height (heightRatio=1)
     // → attenuation = 1.
-    TREES.value = { ...TREES.value, TREE_WIDTH_AGE_FLOOR: 0.5 };
+    TREES.value = { ...TREES.value, WIDTH_AGE_FLOOR: 0.5 };
     const commits = [commit(0), commit(1), commit(2)];
     for (const c of commits) c.files = 5;
     const placements = [placement(0, 0), placement(1, 1), placement(2, 2)];
@@ -273,8 +277,8 @@ describe('Trees commit lookups', () => {
     expect(sNew.z).toBeCloseTo(sOld.z * 0.5, 2);
   });
 
-  it('TREE_WIDTH_AGE_FLOOR = 0.0 produces near-zero width on shortest tree', () => {
-    TREES.value = { ...TREES.value, TREE_WIDTH_AGE_FLOOR: 0.0 };
+  it('WIDTH_AGE_FLOOR = 0.0 produces near-zero width on shortest tree', () => {
+    TREES.value = { ...TREES.value, WIDTH_AGE_FLOOR: 0.0 };
     const commits = [commit(0), commit(1), commit(2)];
     for (const c of commits) c.files = 5;
     const placements = [placement(0, 0), placement(1, 1), placement(2, 2)];
@@ -328,12 +332,12 @@ describe('Trees commit lookups', () => {
   });
 
   it('degenerate height range (min == max) does not produce NaN canopy matrices', () => {
-    // When TREE_MIN_HEIGHT == TREE_MAX_HEIGHT, the heightRatio computation
+    // When MIN_HEIGHT == MAX_HEIGHT, the heightRatio computation
     // would divide by zero without a clamp. Verify the renderer constructs
     // and all canopy instance matrix elements stay finite.
-    TREES.value = { ...TREES.value, TREE_MIN_HEIGHT: 32 };
-    TREES.value = { ...TREES.value, TREE_MAX_HEIGHT: 32 };
-    TREES.value = { ...TREES.value, TREE_WIDTH_AGE_FLOOR: 0.5 };
+    TREES.value = { ...TREES.value, MIN_HEIGHT: 32 };
+    TREES.value = { ...TREES.value, MAX_HEIGHT: 32 };
+    TREES.value = { ...TREES.value, WIDTH_AGE_FLOOR: 0.5 };
     const commits = [commit(0), commit(1)];
     const placements = [placement(0, 0), placement(1, 1)];
     const trees = createTreeRenderer(placements, commits, BUSY);

@@ -24,7 +24,7 @@
 // "rebuilding…" indicator only lights up when there's real work.
 
 import { signal, effect } from '@preact/signals';
-import { LIVE_UPDATES, POLL_SECONDS_MIN, POLL_SECONDS_MAX } from '@/state/settings/index';
+import { LIVE_UPDATES } from '@/state/settings/index';
 import { manifestUrl, signatureUrl, streamManifest } from '@/api/manifest';
 import { _applyDisplayLabel, startRenderLoop } from '@/scene/renderLoop';
 import { setLoadingStep } from '@/state/runtime/uiState';
@@ -78,6 +78,13 @@ export async function refreshManifest(): Promise<void> {
 }
 
 // ── Live-update poll loop ────────────────────────────────────────────
+
+// Hard bounds for the user-set poll interval. 1s floor — the server does a real
+// filesystem walk per poll, so tighter just burns CPU. 60s ceiling — beyond
+// that "live" stops feeling live. Not user-tunable, so they live here (the only
+// consumer) rather than in the settings store.
+const POLL_SECONDS_MIN = 1;
+const POLL_SECONDS_MAX = 60;
 
 function _clampPollSeconds(s: number | unknown): number {
   if (typeof s !== 'number' || !isFinite(s)) return POLL_SECONDS_MIN;

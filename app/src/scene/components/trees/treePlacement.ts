@@ -24,7 +24,7 @@
 
 import RBush from 'rbush';
 import * as THREE from 'three';
-import { TREES } from '@/state/settings/components/trees';
+import { TREES } from '@/state/settings/trees';
 import { FOOTPRINT } from '@/state/settings/components/footprint';
 import { BUILDING_DIMENSIONS } from '@/state/settings/components/buildings';
 import { ISLAND_GEOMETRY } from '@/state/settings/components/island';
@@ -147,7 +147,7 @@ export function placeTrees(
   options: PlaceTreesOptions = { commitCount: 0 }
 ): TreePlacement[] {
   const cfg = TREES.value;
-  if (!cfg.TREES_ENABLED) return [];
+  if (!cfg.ENABLED) return [];
 
   const bbox = bboxOverride ?? layout.bbox;
   if (!bbox) return [];
@@ -210,7 +210,7 @@ export function placeTrees(
   // sampling region's edge. `maxFalloffDist` is the largest possible
   // distance from the city bbox within the sampling region — used to
   // normalize the per-candidate distance into [0,1].
-  const falloffPower = Math.max(0, cfg.TREE_DENSITY_FALLOFF);
+  const falloffPower = Math.max(0, cfg.DENSITY_FALLOFF);
   const worldMinX = bounds.cx - sampleHalfW;
   const worldMaxX = bounds.cx + sampleHalfW;
   const worldMinZ = bounds.cz - sampleHalfD;

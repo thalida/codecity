@@ -234,7 +234,7 @@ export async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manif
     // hot-update without a manifest rebuild.
     world.getIsland().refresh();
 
-    // Cyberpunk Valley trees — pushes fresh TREE_GREENS + TREE_TRUNK_COLOR
+    // Cyberpunk Valley trees — pushes fresh TREE_GREENS + TRUNK_COLOR
     // into per-instance color buffers. Null until the first manifest applies.
     world.getTrees()?.refresh();
     // Cyberpunk Valley fireflies — pushes fresh BOB/PULSE/EMISSION/FLICKER/

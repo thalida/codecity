@@ -4,14 +4,14 @@
 // canopy widths driven by commit file count (more files = wider) and
 // canopy facet counts also driven by file count (more files = higher
 // subdivision), and canopy colors that interpolate between
-// TREE_COLOR_SOLO_DAY (solo-commit days) and TREE_COLOR_BUSY_DAY (busy days) by
+// COLOR_SOLO_DAY (solo-commit days) and COLOR_BUSY_DAY (busy days) by
 // commits-per-day.
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import * as THREE from 'three';
 import { createTreeRenderer, type Trees } from '@/scene/components/trees/treeRenderer';
 import type { TreePlacement } from '@/scene/components/trees/treePlacement';
-import { TREES } from '@/state/settings/components/trees';
+import { TREES } from '@/state/settings/trees';
 import { BUILDING_DIMENSIONS } from '@/state/settings/components/buildings';
 import { LIGHTING } from '@/state/settings/components/lighting';
 import { RENDER_ORDERS } from '@/scene/renderOrders';
@@ -20,26 +20,30 @@ import { commits as buildCommits } from './_commitFixtures';
 
 function resetStores() {
   TREES.value = {
-    TREES_ENABLED: true,
+    ENABLED: true,
     EDGE_INSET_PERCENT: 8,
-    TREE_DENSITY_FALLOFF: 0,
-    TREE_MIN_HEIGHT: 48,
-    TREE_MAX_HEIGHT: 144,
-    TREE_MIN_WIDTH: 32,
-    TREE_MAX_WIDTH: 128,
-    TREE_FACETS_LOW: 5,
-    TREE_FACETS_MID: 8,
-    TREE_FACETS_HIGH: 12,
+    DENSITY_FALLOFF: 0,
+    MIN_HEIGHT: 48,
+    MAX_HEIGHT: 144,
+    MIN_WIDTH: 32,
+    MAX_WIDTH: 128,
+    FACETS_LOW: 5,
+    FACETS_MID: 8,
+    FACETS_HIGH: 12,
     TRUNK_HEIGHT_FRAC: 0.25,
-    TRUNK_RADIUS_FRAC_OF_CANOPY: 0.15,
+    TRUNK_RADIUS_FRAC: 0.15,
     CANOPY_TRUNK_OVERLAP_FRAC: 0.7,
-    TREE_COLOR_BUSY_DAY: '#0a2613',
-    TREE_COLOR_SOLO_DAY: '#a8d68a',
-    TREE_SHADING_STRENGTH: 0.65,
-    TREE_TRUNK_COLOR: '#120c08',
-    TREE_AGE_DESAT_ENABLED: false,
-    TREE_AGE_SATURATION: [20, 100],
-    TREE_WIDTH_AGE_FLOOR: 1.0,
+    COLOR_BUSY_DAY: '#0a2613',
+    COLOR_SOLO_DAY: '#a8d68a',
+    SHADING_STRENGTH: 0.65,
+    TRUNK_COLOR: '#120c08',
+    AGE_DESAT_ENABLED: false,
+    AGE_SATURATION: [20, 100],
+    WIDTH_AGE_FLOOR: 1.0,
+    OUTLINE_WIDTH: 1,
+    OUTLINE_HOVER_COLOR: '#ffffff',
+    OUTLINE_HOVER_OPACITY: 0.5,
+    OUTLINE_SELECTED_OPACITY: 0.75,
   };
   BUILDING_DIMENSIONS.value = {
     MIN_FLOORS: 2,
@@ -165,22 +169,22 @@ describe('createTreeRenderer()', () => {
     }
   });
 
-  it('honors TREES_ENABLED visibility toggle on build', () => {
-    TREES.value = { ...TREES.value, TREES_ENABLED: false };
+  it('honors ENABLED visibility toggle on build', () => {
+    TREES.value = { ...TREES.value, ENABLED: false };
     trees = createTreeRenderer([placement(0, 0, 1, 0)], makeCommits(1), BUSY);
     for (const m of [...canopyMeshes(trees.group), trunkMesh(trees.group)]) {
       expect(m.visible).toBe(false);
     }
   });
 
-  it('refresh() flips visibility on TREES_ENABLED change', () => {
+  it('refresh() flips visibility on ENABLED change', () => {
     trees = createTreeRenderer([placement(0, 0, 1, 0)], makeCommits(1), BUSY);
-    TREES.value = { ...TREES.value, TREES_ENABLED: false };
+    TREES.value = { ...TREES.value, ENABLED: false };
     trees.refresh();
     for (const m of [...canopyMeshes(trees.group), trunkMesh(trees.group)]) {
       expect(m.visible).toBe(false);
     }
-    TREES.value = { ...TREES.value, TREES_ENABLED: true };
+    TREES.value = { ...TREES.value, ENABLED: true };
     trees.refresh();
     for (const m of [...canopyMeshes(trees.group), trunkMesh(trees.group)]) {
       expect(m.visible).toBe(true);
@@ -206,7 +210,7 @@ describe('createTreeRenderer()', () => {
     expect(instanceScale(trunk, 2).y).toBeCloseTo(minH * 0.25, 3);
   });
 
-  it('trunk XZ scale tracks per-tree canopy radius via TRUNK_RADIUS_FRAC_OF_CANOPY', () => {
+  it('trunk XZ scale tracks per-tree canopy radius via TRUNK_RADIUS_FRAC', () => {
     const commits = buildCommits(
       { date: '2026-01-01', files: 1 }, // min files → min canopy radius
       { date: '2026-01-11', files: 5 }, // mid
@@ -289,9 +293,9 @@ describe('createTreeRenderer()', () => {
   it('per-instance color interpolates between SOLO_DAY (solo day) and BUSY_DAY (busy day) by COMMITS-PER-DAY', () => {
     // Three days with 1, 2, and 4 commits. With thresholds {avg:2, busy:4}
     // the gradient anchors:
-    //   - solo day (count=1)      → t=0   → TREE_COLOR_SOLO_DAY
+    //   - solo day (count=1)      → t=0   → COLOR_SOLO_DAY
     //   - mid day  (count=2 = avg) → t=0.5
-    //   - busy day (count=4 = busy)→ t=1   → TREE_COLOR_BUSY_DAY
+    //   - busy day (count=4 = busy)→ t=1   → COLOR_BUSY_DAY
     const commits = buildCommits(
       { date: '2026-01-01', files: 5 }, // solo day
       { date: '2026-01-10', files: 5 }, // mid day, commit A
@@ -370,7 +374,7 @@ describe('createTreeRenderer()', () => {
   });
 
   it('vertex shading strength=0 yields uniform white vertex colors', () => {
-    TREES.value = { ...TREES.value, TREE_SHADING_STRENGTH: 0 };
+    TREES.value = { ...TREES.value, SHADING_STRENGTH: 0 };
     trees = createTreeRenderer([placement(0, 0, 1, 0)], makeCommits(1), BUSY);
     for (const m of canopyMeshes(trees.group)) {
       const colorAttr = m.geometry.getAttribute('color');
@@ -387,9 +391,9 @@ describe('createTreeRenderer()', () => {
     const meshesBefore = [...canopyMeshes(trees.group), trunkMesh(trees.group)];
     const geomsBefore = meshesBefore.map((m) => m.geometry);
 
-    TREES.value = { ...TREES.value, TREE_COLOR_BUSY_DAY: '#000000' };
-    TREES.value = { ...TREES.value, TREE_COLOR_SOLO_DAY: '#ffffff' };
-    TREES.value = { ...TREES.value, TREE_TRUNK_COLOR: '#ff0000' };
+    TREES.value = { ...TREES.value, COLOR_BUSY_DAY: '#000000' };
+    TREES.value = { ...TREES.value, COLOR_SOLO_DAY: '#ffffff' };
+    TREES.value = { ...TREES.value, TRUNK_COLOR: '#ff0000' };
     trees.refresh();
 
     const meshesAfter = [...canopyMeshes(trees.group), trunkMesh(trees.group)];
@@ -434,7 +438,7 @@ describe('createTreeRenderer()', () => {
       return hsl.s;
     }
 
-    it('TREE_AGE_DESAT_ENABLED=false: canopy color matches raw OKLCH-interpolated base', () => {
+    it('AGE_DESAT_ENABLED=false: canopy color matches raw OKLCH-interpolated base', () => {
       // Two commits on different dates so each is a solo day.
       // With desat OFF, the instance color must equal the raw OKLCH-interpolated
       // value (no saturation scaling applied). We verify by rebuilding once with
@@ -452,8 +456,8 @@ describe('createTreeRenderer()', () => {
       trees.dispose();
 
       // Build with desat ON + extreme min (0 → fully gray).
-      TREES.value = { ...TREES.value, TREE_AGE_DESAT_ENABLED: true };
-      TREES.value = { ...TREES.value, TREE_AGE_SATURATION: [0, 100] };
+      TREES.value = { ...TREES.value, AGE_DESAT_ENABLED: true };
+      TREES.value = { ...TREES.value, AGE_SATURATION: [0, 100] };
       trees = createTreeRenderer(placements, testCommits, BUSY);
       const onColor = instanceColor(trees.group, 0).clone();
 
@@ -466,7 +470,7 @@ describe('createTreeRenderer()', () => {
       expect(offHsl.s).toBeGreaterThan(onHsl.s + 0.01);
     });
 
-    it('TREE_AGE_DESAT_ENABLED=true: oldest commit saturation is reduced by minFactor relative to no-desat base', () => {
+    it('AGE_DESAT_ENABLED=true: oldest commit saturation is reduced by minFactor relative to no-desat base', () => {
       // Build once without desat to capture the base saturation, then again
       // with desat ON and verify the oldest commit's saturation is base * minFactor.
       const testCommits = buildCommits(
@@ -481,8 +485,8 @@ describe('createTreeRenderer()', () => {
       trees.dispose();
 
       // Now build with desat ON.
-      TREES.value = { ...TREES.value, TREE_AGE_DESAT_ENABLED: true };
-      TREES.value = { ...TREES.value, TREE_AGE_SATURATION: [20, 100] };
+      TREES.value = { ...TREES.value, AGE_DESAT_ENABLED: true };
+      TREES.value = { ...TREES.value, AGE_SATURATION: [20, 100] };
       trees = createTreeRenderer(placements, testCommits, BUSY);
 
       const oldestS = instanceSaturation(trees.group, 0);
@@ -490,7 +494,7 @@ describe('createTreeRenderer()', () => {
       expect(oldestS).toBeCloseTo(baseS * 0.2, 3);
     });
 
-    it('TREE_AGE_DESAT_ENABLED=true: newest commit saturation is reduced by maxFactor relative to no-desat base', () => {
+    it('AGE_DESAT_ENABLED=true: newest commit saturation is reduced by maxFactor relative to no-desat base', () => {
       const testCommits = buildCommits(
         { date: '2026-01-01', files: 5 }, // oldest
         { date: '2026-01-21', files: 5 } // newest → ageT=1 → factor = MAX/100
@@ -503,8 +507,8 @@ describe('createTreeRenderer()', () => {
       trees.dispose();
 
       // Build with desat ON, MAX=100 → factor=1.00 → no change to newest.
-      TREES.value = { ...TREES.value, TREE_AGE_DESAT_ENABLED: true };
-      TREES.value = { ...TREES.value, TREE_AGE_SATURATION: [20, 100] };
+      TREES.value = { ...TREES.value, AGE_DESAT_ENABLED: true };
+      TREES.value = { ...TREES.value, AGE_SATURATION: [20, 100] };
       trees = createTreeRenderer(placements, testCommits, BUSY);
 
       const newestS = instanceSaturation(trees.group, 1);
@@ -512,9 +516,9 @@ describe('createTreeRenderer()', () => {
       expect(newestS).toBeCloseTo(baseNewestS * 1.0, 3);
     });
 
-    it('refresh() re-applies new TREE_AGE_DESAT_ENABLED config — colors differ after toggle', () => {
-      TREES.value = { ...TREES.value, TREE_AGE_DESAT_ENABLED: true };
-      TREES.value = { ...TREES.value, TREE_AGE_SATURATION: [20, 100] };
+    it('refresh() re-applies new AGE_DESAT_ENABLED config — colors differ after toggle', () => {
+      TREES.value = { ...TREES.value, AGE_DESAT_ENABLED: true };
+      TREES.value = { ...TREES.value, AGE_SATURATION: [20, 100] };
 
       const testCommits = buildCommits(
         { date: '2026-01-01', files: 5 }, // oldest → will have reduced saturation
@@ -527,7 +531,7 @@ describe('createTreeRenderer()', () => {
       const sWithDesat = instanceSaturation(trees.group, 0);
 
       // Flip desat OFF and refresh.
-      TREES.value = { ...TREES.value, TREE_AGE_DESAT_ENABLED: false };
+      TREES.value = { ...TREES.value, AGE_DESAT_ENABLED: false };
       trees.refresh();
 
       // Capture saturation of oldest tree with desat OFF.

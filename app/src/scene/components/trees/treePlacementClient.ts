@@ -8,7 +8,7 @@
 
 import { placeTrees, type TreePlacement } from './treePlacement';
 import { MSG } from './treePlacementProtocol';
-import { TREES, type TreesConfig } from '@/state/settings/components/trees';
+import { TREES, type TreesConfig } from '@/state/settings/trees';
 import { BUILDING_DIMENSIONS, type BuildingDimensionsConfig } from '@/state/settings/components/buildings';
 import { FOOTPRINT, type FootprintConfig } from '@/state/settings/components/footprint';
 import { ISLAND_GEOMETRY, type IslandGeometryConfig } from '@/state/settings/components/island';

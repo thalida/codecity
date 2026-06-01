@@ -10,8 +10,8 @@
 
 import type { CommitEntry } from '@/types';
 import type { TreePlacement } from '@/scene/components/trees/treePlacement';
-import { TREES } from '@/state/settings/components/trees';
-import { FIREFLIES } from '@/state/settings/components/fireflies';
+import { TREES } from '@/state/settings/trees';
+import { FIREFLIES } from '@/state/settings/fireflies';
 import {
   computeAgeRange,
   computeSizeRange,
@@ -116,10 +116,10 @@ export function placeFireflies(
   }
 
   const cfg = TREES.value;
-  const minHeight = cfg.TREE_MIN_HEIGHT;
-  const maxHeight = cfg.TREE_MAX_HEIGHT;
-  const minRadius = cfg.TREE_MIN_WIDTH / 2;
-  const maxRadius = cfg.TREE_MAX_WIDTH / 2;
+  const minHeight = cfg.MIN_HEIGHT;
+  const maxHeight = cfg.MAX_HEIGHT;
+  const minRadius = cfg.MIN_WIDTH / 2;
+  const maxRadius = cfg.MAX_WIDTH / 2;
 
   const ageRange = computeAgeRange(commits);
   const sizeRange = computeSizeRange(commits);
@@ -139,7 +139,7 @@ export function placeFireflies(
   }
 
   /** Canopy XZ radius for tree at index i, mirroring treeRenderer's perTreeRadius.
-   *  Includes age-attenuation (TREE_WIDTH_AGE_FLOOR) so short young trees
+   *  Includes age-attenuation (WIDTH_AGE_FLOOR) so short young trees
    *  aren't adult-wide. */
   function treeRadius(commitIndex: number): number {
     const commit = commits[commitIndex];
@@ -153,7 +153,7 @@ export function placeFireflies(
     const heightRange = Math.max(0.001, maxHeight - minHeight);
     const h = treeHeight(commitIndex);
     const heightRatio = (h - minHeight) / heightRange;
-    const floor = Math.max(0, Math.min(1, cfg.TREE_WIDTH_AGE_FLOOR));
+    const floor = Math.max(0, Math.min(1, cfg.WIDTH_AGE_FLOOR));
     const ageAttenuation = floor + (1 - floor) * heightRatio;
     return baseRadius * ageAttenuation;
   }

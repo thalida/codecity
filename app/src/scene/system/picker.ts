@@ -181,7 +181,7 @@ export function createPicker({
       _suspendKeyDerive = false;
       return;
     }
-    // trees is null when the manifest hasn't applied yet or TREES_ENABLED
+    // trees is null when the manifest hasn't applied yet or ENABLED
     // is off. Either way, the SHA can't be located, so we clear — same
     // collapse rule the File / Directory branches use when their
     // path lookup misses.

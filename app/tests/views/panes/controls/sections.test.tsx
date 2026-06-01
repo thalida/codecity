@@ -2,7 +2,7 @@ import { describe, it, expect, afterEach } from 'vitest';
 import { render } from 'preact';
 import { DynamicSection, type SectionChild, type FieldRef } from '@/views/panes/controls/sections';
 import { TREES_SECTION } from '@/views/panes/controls/sections/trees';
-import { TREES, TREE_OUTLINE } from '@/state/settings/components/trees';
+import { TREES } from '@/state/settings/trees';
 import { getFieldKeys } from '@/state/settings/schema';
 import { flush } from '../../../_helpers/preact';
 
@@ -17,20 +17,16 @@ function collectRefs(children: SectionChild[]): FieldRef[] {
 }
 
 describe('TREES_SECTION placement', () => {
-  it('places every TREES + TREE_OUTLINE field exactly once', () => {
+  it('places every TREES field (incl. folded outline) exactly once', () => {
     const refs = collectRefs(TREES_SECTION.children ?? []);
-
-    const treesPlaced = refs.filter((r) => r.store === (TREES as unknown)).map((r) => r.key);
-    const outlinePlaced = refs.filter((r) => r.store === (TREE_OUTLINE as unknown)).map((r) => r.key);
+    const placed = refs.map((r) => r.key);
 
     // Every defined (tunable) field is placed …
-    expect(treesPlaced.slice().sort()).toEqual(getFieldKeys(TREES as object).sort());
-    expect(outlinePlaced.slice().sort()).toEqual(getFieldKeys(TREE_OUTLINE as object).sort());
+    expect(placed.slice().sort()).toEqual(getFieldKeys(TREES as object).sort());
     // … and none is placed twice.
-    expect(new Set(treesPlaced).size).toBe(treesPlaced.length);
-    expect(new Set(outlinePlaced).size).toBe(outlinePlaced.length);
-    // Every ref points at a store we recognise (no stray stores).
-    expect(refs.length).toBe(treesPlaced.length + outlinePlaced.length);
+    expect(new Set(placed).size).toBe(placed.length);
+    // Every ref points at the TREES store (no stray stores).
+    expect(refs.every((r) => r.store === (TREES as unknown))).toBe(true);
   });
 });
 

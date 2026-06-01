@@ -39,7 +39,6 @@ import {
   SKY,
   SKY_STARS,
   REPO_LABEL,
-  TREE_OUTLINE,
 
   // Split-routed (specific keys below):
   FACADE_GEOMETRY,
@@ -48,7 +47,7 @@ import {
   WORLD,
 } from '@/state/settings/index';
 import { ISLAND_GEOMETRY, ISLAND_MATERIALS } from '@/state/settings/components/island';
-import { FIREFLIES } from '@/state/settings/components/fireflies';
+import { FIREFLIES } from '@/state/settings/fireflies';
 
 // Min-dwell for the 'rebuilding' indicator on the material-only path.
 const HOT_REBUILD_MIN_DWELL_MS = 220;
@@ -88,20 +87,20 @@ const REBUILD_SIGNATURE = computed(() => ({
   // fractions, density, shading, inset, scatter footprint, age-width floor).
   // Color + trunk color + age-desat keys live in MATERIAL_REFRESH_SIGNATURE.
   trees: {
-    minHeight: TREES.value.TREE_MIN_HEIGHT,
-    maxHeight: TREES.value.TREE_MAX_HEIGHT,
-    minWidth: TREES.value.TREE_MIN_WIDTH,
-    maxWidth: TREES.value.TREE_MAX_WIDTH,
-    facetsLow: TREES.value.TREE_FACETS_LOW,
-    facetsMid: TREES.value.TREE_FACETS_MID,
-    facetsHigh: TREES.value.TREE_FACETS_HIGH,
+    minHeight: TREES.value.MIN_HEIGHT,
+    maxHeight: TREES.value.MAX_HEIGHT,
+    minWidth: TREES.value.MIN_WIDTH,
+    maxWidth: TREES.value.MAX_WIDTH,
+    facetsLow: TREES.value.FACETS_LOW,
+    facetsMid: TREES.value.FACETS_MID,
+    facetsHigh: TREES.value.FACETS_HIGH,
     trunkHeightFrac: TREES.value.TRUNK_HEIGHT_FRAC,
-    trunkRadiusFrac: TREES.value.TRUNK_RADIUS_FRAC_OF_CANOPY,
+    trunkRadiusFrac: TREES.value.TRUNK_RADIUS_FRAC,
     canopyOverlapFrac: TREES.value.CANOPY_TRUNK_OVERLAP_FRAC,
-    shadingStrength: TREES.value.TREE_SHADING_STRENGTH,
+    shadingStrength: TREES.value.SHADING_STRENGTH,
     edgeInset: TREES.value.EDGE_INSET_PERCENT,
-    densityFalloff: TREES.value.TREE_DENSITY_FALLOFF,
-    widthAgeFloor: TREES.value.TREE_WIDTH_AGE_FLOOR,
+    densityFalloff: TREES.value.DENSITY_FALLOFF,
+    widthAgeFloor: TREES.value.WIDTH_AGE_FLOOR,
   },
 
   // FOOTPRINT — only HALO_WIDTH bakes into per-instance Matrix4 data.
@@ -124,12 +123,12 @@ const REBUILD_SIGNATURE = computed(() => ({
     grassThickness: ISLAND_GEOMETRY.value.GRASS_THICKNESS,
   },
 
-  // FIREFLIES structural keys — FIREFLIES_ENABLED gates orb creation;
+  // FIREFLIES structural keys — ENABLED gates orb creation;
   // SCALE_MIN/MAX bake into per-instance data; ORBIT_RING_ENABLED and
   // ORBIT_RING_THICKNESS bake into TubeGeometry at creation time.
   // Animation/brightness keys live in MATERIAL_REFRESH_SIGNATURE.
   fireflies: {
-    enabled: FIREFLIES.value.FIREFLIES_ENABLED,
+    enabled: FIREFLIES.value.ENABLED,
     scaleMin: FIREFLIES.value.SCALE_MIN,
     scaleMax: FIREFLIES.value.SCALE_MAX,
     orbitRingEnabled: FIREFLIES.value.ORBIT_RING_ENABLED,
@@ -160,7 +159,15 @@ const MATERIAL_REFRESH_SIGNATURE = computed(() => ({
   skyStars: SKY_STARS.value,
   islandMaterials: ISLAND_MATERIALS.value,
   repoLabel: REPO_LABEL.value,
-  treeOutline: TREE_OUTLINE.value,
+
+  // Tree outline (folded into TREES as OUTLINE_* keys) — re-tints/re-widths
+  // the hover/selected wireframe via treeOutlineRenderer.refreshMaterials().
+  treeOutline: {
+    width: TREES.value.OUTLINE_WIDTH,
+    hoverColor: TREES.value.OUTLINE_HOVER_COLOR,
+    hoverOpacity: TREES.value.OUTLINE_HOVER_OPACITY,
+    selectedOpacity: TREES.value.OUTLINE_SELECTED_OPACITY,
+  },
 
   // FACADE_GEOMETRY — shader-side *_FRAC keys only; JS-driven keys are
   // in REBUILD_SIGNATURE.
@@ -175,13 +182,13 @@ const MATERIAL_REFRESH_SIGNATURE = computed(() => ({
 
   // TREES — color + visibility + trunk color + age-desat keys only.
   trees: {
-    enabled: TREES.value.TREES_ENABLED,
-    colorBusyDay: TREES.value.TREE_COLOR_BUSY_DAY,
-    colorSoloDay: TREES.value.TREE_COLOR_SOLO_DAY,
-    trunkColor: TREES.value.TREE_TRUNK_COLOR,
-    ageDesatEnabled: TREES.value.TREE_AGE_DESAT_ENABLED,
-    ageSatMin: TREES.value.TREE_AGE_SATURATION[0],
-    ageSatMax: TREES.value.TREE_AGE_SATURATION[1],
+    enabled: TREES.value.ENABLED,
+    colorBusyDay: TREES.value.COLOR_BUSY_DAY,
+    colorSoloDay: TREES.value.COLOR_SOLO_DAY,
+    trunkColor: TREES.value.TRUNK_COLOR,
+    ageDesatEnabled: TREES.value.AGE_DESAT_ENABLED,
+    ageSatMin: TREES.value.AGE_SATURATION[0],
+    ageSatMax: TREES.value.AGE_SATURATION[1],
   },
 
   // FOOTPRINT — COLOR + ENABLED + CORNER_RADIUS pushed via footprint.refresh().

@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import * as THREE from 'three';
 import { createFireflies } from '@/scene/components/fireflies/fireflies';
-import { FIREFLIES } from '@/state/settings/components/fireflies';
+import { FIREFLIES } from '@/state/settings/fireflies';
 import type { CommitEntry } from '@/types';
 import type { TreePlacement } from '@/scene/components/trees/treePlacement';
 
@@ -89,15 +89,15 @@ describe('createFireflies', () => {
     f.dispose();
   });
 
-  it('returns an empty group when FIREFLIES_ENABLED is false', () => {
-    const orig = FIREFLIES.value.FIREFLIES_ENABLED;
-    FIREFLIES.value = { ...FIREFLIES.value, FIREFLIES_ENABLED: false };
+  it('returns an empty group when ENABLED is false', () => {
+    const orig = FIREFLIES.value.ENABLED;
+    FIREFLIES.value = { ...FIREFLIES.value, ENABLED: false };
     try {
       const f = createFireflies(PLACEMENTS, COMMITS);
       expect(f.group.children.length).toBe(0);
       f.dispose();
     } finally {
-      FIREFLIES.value = { ...FIREFLIES.value, FIREFLIES_ENABLED: orig };
+      FIREFLIES.value = { ...FIREFLIES.value, ENABLED: orig };
     }
   });
 

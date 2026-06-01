@@ -1054,7 +1054,7 @@ export function createWorld(_canvas: HTMLCanvasElement) {
     // GPU upload blocks the main thread. For large repos this gap is
     // the difference between a snappy rebuild and a multi-hundred-ms
     // freeze.
-    const treesEnabled = TREES.value.TREES_ENABLED;
+    const treesEnabled = TREES.value.ENABLED;
     if (_trees) {
       _trees.dispose();
       _trees = null;

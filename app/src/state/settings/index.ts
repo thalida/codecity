@@ -40,7 +40,7 @@ export * from './system/inputHandlers';
 export * from './system/tooltip';
 
 // ── App-level user preferences ────────────────────────────────────────
-export * from './prefs/liveUpdates';
+export * from './updates';
 export * from './prefs/syntaxTheme';
 
 // ── World (background + sizing) ───────────────────────────────────────
@@ -56,9 +56,9 @@ export * from './components/adPanels';
 export * from './components/gem';
 export * from './components/island';
 export * from './components/footprint';
-export * from './components/trees';
-export * from './components/fireflies';
+export * from './trees';
+export * from './fireflies';
 export * from './components/repoLabel';
 
 // ── Cross-cutting visual effects ──────────────────────────────────────
-export * from './effects/effects';
+export * from './effects';

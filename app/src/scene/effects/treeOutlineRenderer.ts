@@ -19,8 +19,8 @@ import { LineSegments2 } from 'three/addons/lines/LineSegments2.js';
 import { LineSegmentsGeometry } from 'three/addons/lines/LineSegmentsGeometry.js';
 import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
 
-import { TREE_OUTLINE } from '@/state/settings/components/trees';
-import { RAINBOW } from '@/state/settings/effects/effects';
+import { TREES } from '@/state/settings/trees';
+import { RAINBOW } from '@/state/settings/effects';
 import { RENDER_ORDERS } from '@/scene/renderOrders';
 import { NodeKind } from '@/types';
 import { buildCanopyEdges } from '@/scene/components/trees/treeRenderer';
@@ -49,7 +49,7 @@ interface CreateArgs {
 }
 
 export function createTreeOutlineRenderer({ canvas, scene, picker, getTrees }: CreateArgs) {
-  const _cfg = TREE_OUTLINE.value;
+  const _cfg = TREES.value;
 
   // Build one EdgesGeometry per detail tier. The active outline mesh
   // points at whichever tier matches the active tree's mesh on snap.
@@ -65,10 +65,10 @@ export function createTreeOutlineRenderer({ canvas, scene, picker, getTrees }: C
 
   // ── Hover outline ─────────────────────────────────────────────────────
   const hoverLineMat = new LineMaterial({
-    color: new THREE.Color(_cfg.HOVER_COLOR),
-    linewidth: _cfg.WIDTH,
+    color: new THREE.Color(_cfg.OUTLINE_HOVER_COLOR),
+    linewidth: _cfg.OUTLINE_WIDTH,
     transparent: true,
-    opacity: _cfg.HOVER_OPACITY,
+    opacity: _cfg.OUTLINE_HOVER_OPACITY,
     depthTest: true,
     worldUnits: false,
   });
@@ -82,9 +82,9 @@ export function createTreeOutlineRenderer({ canvas, scene, picker, getTrees }: C
   // ── Selected outline (rainbow vertex colors) ──────────────────────────
   const selectedLineMat = new LineMaterial({
     vertexColors: true,
-    linewidth: _cfg.WIDTH,
+    linewidth: _cfg.OUTLINE_WIDTH,
     transparent: true,
-    opacity: _cfg.SELECTED_OPACITY,
+    opacity: _cfg.OUTLINE_SELECTED_OPACITY,
     depthTest: true,
     worldUnits: false,
   });
@@ -211,12 +211,12 @@ export function createTreeOutlineRenderer({ canvas, scene, picker, getTrees }: C
   }
 
   function refreshMaterials(): void {
-    const c = TREE_OUTLINE.value;
-    hoverLineMat.color.set(c.HOVER_COLOR);
-    hoverLineMat.linewidth = c.WIDTH;
-    hoverLineMat.opacity = c.HOVER_OPACITY;
-    selectedLineMat.linewidth = c.WIDTH;
-    selectedLineMat.opacity = c.SELECTED_OPACITY;
+    const c = TREES.value;
+    hoverLineMat.color.set(c.OUTLINE_HOVER_COLOR);
+    hoverLineMat.linewidth = c.OUTLINE_WIDTH;
+    hoverLineMat.opacity = c.OUTLINE_HOVER_OPACITY;
+    selectedLineMat.linewidth = c.OUTLINE_WIDTH;
+    selectedLineMat.opacity = c.OUTLINE_SELECTED_OPACITY;
   }
 
   function onResize(): void {

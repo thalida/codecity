@@ -31,7 +31,7 @@
 
 import { NodeKind } from '@/types';
 import type { CityBbox, CityLayout } from '@/types';
-import { TREES } from '@/state/settings/components/trees';
+import { TREES } from '@/state/settings/trees';
 import { BUILDING_DIMENSIONS } from '@/state/settings/components/buildings';
 
 /** Builds a CityBbox from extents, deriving cx/cy/width/depth. */
@@ -106,26 +106,30 @@ export function mkDir(name: string, children: any[]): any {
 /** Resets the TREES config map to deterministic test defaults. */
 export function resetTreesConfig(): void {
   TREES.value = {
-    TREES_ENABLED: true,
+    ENABLED: true,
     EDGE_INSET_PERCENT: 8,
-    TREE_DENSITY_FALLOFF: 0,
-    TREE_MIN_HEIGHT: 48,
-    TREE_MAX_HEIGHT: 144,
-    TREE_MIN_WIDTH: 32,
-    TREE_MAX_WIDTH: 128,
-    TREE_FACETS_LOW: 5,
-    TREE_FACETS_MID: 8,
-    TREE_FACETS_HIGH: 12,
+    DENSITY_FALLOFF: 0,
+    MIN_HEIGHT: 48,
+    MAX_HEIGHT: 144,
+    MIN_WIDTH: 32,
+    MAX_WIDTH: 128,
+    FACETS_LOW: 5,
+    FACETS_MID: 8,
+    FACETS_HIGH: 12,
     TRUNK_HEIGHT_FRAC: 0.25,
-    TRUNK_RADIUS_FRAC_OF_CANOPY: 0.15,
+    TRUNK_RADIUS_FRAC: 0.15,
     CANOPY_TRUNK_OVERLAP_FRAC: 0.7,
-    TREE_COLOR_BUSY_DAY: '#0a2613',
-    TREE_COLOR_SOLO_DAY: '#a8d68a',
-    TREE_SHADING_STRENGTH: 0.35,
-    TREE_TRUNK_COLOR: '#4a3220',
-    TREE_AGE_DESAT_ENABLED: false,
-    TREE_AGE_SATURATION: [20, 100],
-    TREE_WIDTH_AGE_FLOOR: 1.0,
+    COLOR_BUSY_DAY: '#0a2613',
+    COLOR_SOLO_DAY: '#a8d68a',
+    SHADING_STRENGTH: 0.35,
+    TRUNK_COLOR: '#4a3220',
+    AGE_DESAT_ENABLED: false,
+    AGE_SATURATION: [20, 100],
+    WIDTH_AGE_FLOOR: 1.0,
+    OUTLINE_WIDTH: 1,
+    OUTLINE_HOVER_COLOR: '#ffffff',
+    OUTLINE_HOVER_OPACITY: 0.5,
+    OUTLINE_SELECTED_OPACITY: 0.75,
   };
 }
 

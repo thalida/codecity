@@ -21,18 +21,18 @@
 
 import { useEffect, useRef } from 'preact/hooks';
 import { ShortcutsSection } from './controls/ShortcutsSection';
-import { UpdatesSection } from './controls/UpdatesSection';
 import { SceneSection } from './controls/SceneSection';
 import { IslandSection } from './controls/IslandSection';
 import { BuildingsSection } from './controls/BuildingsSection';
 import { StreetsSection } from './controls/StreetsSection';
 import { GemSection } from './controls/GemSection';
-import { FirefliesSection } from './controls/FirefliesSection';
-import { EffectsSection } from './controls/EffectsSection';
 import { FilePreviewSection } from './controls/FilePreviewSection';
 import { DebugSection } from './controls/DebugSection';
 import { DynamicSection, type SectionNode } from './controls/sections';
 import { TREES_SECTION } from './controls/sections/trees';
+import { EFFECTS_SECTION } from './controls/sections/effects';
+import { FIREFLIES_SECTION } from './controls/sections/fireflies';
+import { UPDATES_SECTION } from './controls/sections/updates';
 import { ActionsBar } from './controls/ActionsBar';
 import { Pane } from '@/views/components/Pane';
 
@@ -69,15 +69,15 @@ export function ControlsPane({
   // needs the run-* callbacks passed down here.)
   const sections: SectionNode[] = [
     { key: 'shortcuts', render: <ShortcutsSection /> },
-    { key: 'updates', render: <UpdatesSection /> },
+    UPDATES_SECTION,
     { key: 'scene', render: <SceneSection /> },
     { key: 'island', render: <IslandSection /> },
     { key: 'buildings', render: <BuildingsSection /> },
     { key: 'streets', render: <StreetsSection /> },
     { key: 'gem', render: <GemSection /> },
     TREES_SECTION,
-    { key: 'fireflies', render: <FirefliesSection /> },
-    { key: 'effects', render: <EffectsSection /> },
+    FIREFLIES_SECTION,
+    EFFECTS_SECTION,
     { key: 'file-preview', render: <FilePreviewSection /> },
     {
       key: 'debug',

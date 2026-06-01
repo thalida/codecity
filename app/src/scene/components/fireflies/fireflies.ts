@@ -8,7 +8,7 @@ import { createFireflyRenderer, type FireflyRenderer } from './firefliesRenderer
 import { createOrbitRings } from './orbitRings';
 import type { TreePlacement } from '@/scene/components/trees/treePlacement';
 import type { CommitEntry } from '@/types';
-import { FIREFLIES } from '@/state/settings/components/fireflies';
+import { FIREFLIES } from '@/state/settings/fireflies';
 
 /** Public handle returned by createFireflies. Extends the renderer with
  *  sha-based hover/select methods so callers don't need to manage the
@@ -35,7 +35,7 @@ export function createFireflies(
 
   // Master config gate. When disabled, return an empty parent group so the
   // caller's group is still safe to add/dispose.
-  if (!FIREFLIES.value.FIREFLIES_ENABLED) {
+  if (!FIREFLIES.value.ENABLED) {
     const stub = createFireflyRenderer([]);
     return {
       group: parent,

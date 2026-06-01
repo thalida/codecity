@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { placeFireflies } from '@/scene/components/fireflies/firefliesPlacement';
-import { FIREFLIES } from '@/state/settings/components/fireflies';
+import { FIREFLIES } from '@/state/settings/fireflies';
 import type { CommitEntry } from '@/types';
 import type { TreePlacement } from '@/scene/components/trees/treePlacement';
 
@@ -52,8 +52,8 @@ describe('placeFireflies', () => {
     // commits + TREES config. With two commits (files=1 and files=2) the
     // derived canopy radius is near the config midpoint (~24 world units)
     // and height is near TREE_MIN/MAX midpoint (~52 world units with new 96 max).
-    // Use loose bounds: orbitRadius ≤ TREE_MAX_WIDTH / 2 * 1.5 and
-    // height ≤ TREE_MAX_HEIGHT * 1.4.
+    // Use loose bounds: orbitRadius ≤ MAX_WIDTH / 2 * 1.5 and
+    // height ≤ MAX_HEIGHT * 1.4.
     const MAX_RADIUS_BOUND = (64 / 2) * 1.5; // 48
     const MAX_HEIGHT_BOUND = 96 * 1.4; // ~134.4
     const p = placement(0, 100, 200);

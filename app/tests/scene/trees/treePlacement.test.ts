@@ -2,7 +2,7 @@
 
 import { describe, it, expect, beforeEach } from 'vitest';
 import { placeTrees, type TreePlacement } from '@/scene/components/trees/treePlacement';
-import { TREES } from '@/state/settings/components/trees';
+import { TREES } from '@/state/settings/trees';
 import type { CityLayout } from '@/types';
 import {
   bbox,
@@ -18,8 +18,8 @@ describe('placeTrees (commit-driven)', () => {
     resetBuildingsConfig();
   });
 
-  it('returns empty when TREES_ENABLED is false', () => {
-    TREES.value = { ...TREES.value, TREES_ENABLED: false };
+  it('returns empty when ENABLED is false', () => {
+    TREES.value = { ...TREES.value, ENABLED: false };
     expect(
       placeTrees(emptyLayout(bbox(-100, -100, 100, 100)), undefined, { commitCount: 10 })
     ).toEqual([]);
