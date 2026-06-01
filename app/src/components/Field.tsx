@@ -7,7 +7,7 @@
 // duplicated in JSX now lives once in the store schema.
 
 import { FieldKind, getFieldDef } from '@/state/settingsSchema';
-import { useField } from '@/hooks/useField';
+import { useField } from '@/hooks/useSettings';
 import { Row } from './Row';
 import { TierWidthsField } from './TierWidthsField';
 import { HueMapField } from './HueMapField';

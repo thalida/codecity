@@ -1,18 +1,45 @@
-// hooks/useSettings.ts — Reactive bridge between widget components
-// and the draft layer. Widgets render with the "effective" value (draft if
-// pending, else committed) and re-render whenever EITHER source changes.
+// hooks/useSettings.ts — Preact hooks bridging settings widgets to the draft
+// layer (state/settingsDrafts) and registered defaults (state/persist). They're
+// all thin reactive wrappers over the same two sources: each reads the
+// "effective" value (pending draft if any, else committed) and re-renders
+// whenever EITHER changes — the store signal via store.value, and the draft
+// layer via DRAFTS_REV (bumped on every mutation in state/settingsDrafts).
 //
-// Both reads are auto-tracked by Preact: store.value via the signal itself,
-// and the draft layer via DRAFTS_REV which is bumped on every mutation in
-// state/drafts.
+// Same layer, different granularity:
+//   useField                — per-field binding ({ value, onCommit }); <Field> uses it.
+//   useEffective / useDefault — a field's effective value / its registered default.
+//   useDiffersFromDefault / useAnyDiffersFromDefault / useAnyResettable
+//                           — reset-button enabled state over one or more fields.
 
-import { getEffective, DRAFTS_REV } from '@/state/settingsDrafts';
+import { getEffective, setDraft, DRAFTS_REV } from '@/state/settingsDrafts';
 import { getDefault } from '@/state/persist';
 import { deepEqual } from '@/utils/deep';
 
 interface SignalLike {
   get value(): any;
   set value(v: any);
+}
+
+/** The reactive binding for a single settings field: its effective value plus
+ *  an onCommit that stages a draft. The generic <Field> renders from this. */
+export interface FieldBinding<T> {
+  value: T;
+  onCommit: (v: T) => void;
+}
+
+/**
+ * Bind one settings field to the draft layer. Returns the effective value
+ * (pending draft if any, else committed) and an onCommit that stages a draft.
+ * Tracks both the store signal and DRAFTS_REV so the component re-renders when
+ * either the underlying value or a draft changes.
+ */
+export function useField<T = unknown>(store: SignalLike, key: string): FieldBinding<T> {
+  void store.value;
+  void DRAFTS_REV.value;
+  return {
+    value: getEffective(store, key) as T,
+    onCommit: (v: T) => setDraft(store, key, v),
+  };
 }
 
 /** A (store, key) the reset machinery can act on — the structural shape of a
