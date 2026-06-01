@@ -3,11 +3,11 @@ import { render } from 'preact';
 import { act } from 'preact/test-utils';
 import { signal } from '@preact/signals';
 import {
-  SourcePickerComponent,
+  SourcePickerModal,
   SourceTab,
   inferSourceTab,
-} from '@/components/SourcePicker';
-import type { SourcePickerState, SourcePayload, OpenOpts } from '@/components/SourcePicker';
+} from '@/views/SourcePicker';
+import type { SourcePickerState, SourcePayload, OpenOpts } from '@/views/SourcePicker';
 import { pushRecent, RECENTS } from '@/state/stores/source';
 import { flush } from '../../_helpers/preact';
 
@@ -67,7 +67,7 @@ describe('SourcePicker', () => {
       allowLocalRepos,
     };
     act(() => {
-      render(<SourcePickerComponent state={state} onSubmit={onSubmit} onClose={onClose} />, container);
+      render(<SourcePickerModal state={state} onSubmit={onSubmit} onClose={onClose} />, container);
     });
     await flush();
   }
@@ -226,7 +226,7 @@ describe('SourcePicker', () => {
       backdrop.click(); // target === currentTarget → triggers close
     });
     expect(onClose).toHaveBeenCalledTimes(2);
-    // NOTE: the factory also closed on Escape; SourcePickerComponent has no
+    // NOTE: the factory also closed on Escape; SourcePickerModal has no
     // keydown listener, so the Escape branch of the original test is dropped
     // — there is no component behaviour to assert.
   });

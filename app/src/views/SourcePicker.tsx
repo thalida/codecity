@@ -15,7 +15,7 @@ import { SERVER_CONFIG } from '@/state/stores/serverConfig';
 
 // ── Hosting-site SVG icons ───────────────────────────────────────────────────
 
-import { HostingIcon } from './HostingIcon';
+import { HostingIcon } from '@/components/HostingIcon';
 
 // ── Public types ────────────────────────────────────────────────────────────
 
@@ -58,7 +58,7 @@ export interface SourcePickerState {
   allowLocalRepos: boolean;
 }
 
-export interface SourcePickerComponentProps {
+export interface SourcePickerModalProps {
   state: Signal<SourcePickerState>;
   onSubmit: (s: SourcePayload) => void;
   onClose: () => void;
@@ -66,7 +66,7 @@ export interface SourcePickerComponentProps {
 
 // ── Preact component ────────────────────────────────────────────────────────
 
-export function SourcePickerComponent({ state, onSubmit, onClose }: SourcePickerComponentProps) {
+export function SourcePickerModal({ state, onSubmit, onClose }: SourcePickerModalProps) {
   const s = state.value;
 
   // This component is only mounted while the picker is visible — the parent
@@ -313,7 +313,7 @@ export function SourcePickerComponent({ state, onSubmit, onClose }: SourcePicker
 
 // ── Signal-driven top-level component ──────────────────────────────────────
 // Reads SOURCE_PICKER + SERVER_CONFIG directly. App.tsx renders <SourcePicker />
-// with no props. Returns null when the picker is closed so SourcePickerComponent
+// with no props. Returns null when the picker is closed so SourcePickerModal
 // fully unmounts — its useState-backed form inputs reset on the next open.
 
 export function SourcePicker() {
@@ -337,7 +337,7 @@ export function SourcePicker() {
     allowLocalRepos: serverCfg.allowLocalRepos,
   };
 
-  // Wrap pickerState in a minimal signal-like object so SourcePickerComponent's
+  // Wrap pickerState in a minimal signal-like object so SourcePickerModal's
   // `state.value` read works. The force-re-render write (on recent-remove) is
   // no longer needed: removeRecent writes to RECENTS signal which Preact tracks.
   const stateSignal = {
@@ -346,7 +346,7 @@ export function SourcePicker() {
   } as Signal<SourcePickerState>;
 
   return (
-    <SourcePickerComponent
+    <SourcePickerModal
       state={stateSignal}
       onSubmit={(payload) => submitNewSource(payload)}
       onClose={() => closeSourcePicker()}

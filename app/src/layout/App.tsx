@@ -18,7 +18,7 @@ import { AppFooter } from './AppFooter';
 import { CenterPane } from './CenterPane';
 import { LeftSidebar } from './LeftSidebar';
 import { RightSidebar } from './RightSidebar';
-import { SourcePicker } from '@/components/SourcePicker';
+import { SourcePicker } from '@/views/SourcePicker';
 import { LoadingOverlay } from '@/components/LoadingOverlay';
 import { HljsThemeLink } from '@/components/HljsThemeLink';
 import { SCENE_HANDLE } from '@/state/stores/scene';

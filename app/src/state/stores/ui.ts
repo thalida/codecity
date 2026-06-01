@@ -4,7 +4,7 @@
 // `loadingOverlay.show()` pattern from boot.ts.
 
 import { signal } from '@preact/signals';
-import type { OpenOpts, SourcePayload } from '@/components/SourcePicker';
+import type { OpenOpts, SourcePayload } from '@/views/SourcePicker';
 import type { LoadingOverlayShowOpts } from '@/components/LoadingOverlay';
 
 // ── Source picker ────────────────────────────────────────────────────────────
