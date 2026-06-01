@@ -27,12 +27,12 @@ import { IslandSection } from './controls/IslandSection';
 import { BuildingsSection } from './controls/BuildingsSection';
 import { StreetsSection } from './controls/StreetsSection';
 import { GemSection } from './controls/GemSection';
-import { DynamicSection } from './controls/sections';
-import { TREES_SECTION } from './controls/sections/trees';
 import { FirefliesSection } from './controls/FirefliesSection';
 import { EffectsSection } from './controls/EffectsSection';
 import { FilePreviewSection } from './controls/FilePreviewSection';
 import { DebugSection } from './controls/DebugSection';
+import { DynamicSection, type SectionNode } from './controls/sections';
+import { TREES_SECTION } from './controls/sections/trees';
 import { ActionsBar } from './controls/ActionsBar';
 import { Pane } from '@/views/components/Pane';
 
@@ -62,6 +62,34 @@ export function ControlsPane({
     });
   }, [collapsed]);
 
+  // Top-level section order. Schema-driven sections are SectionNodes (rendered
+  // by DynamicSection); not-yet-migrated ones are bespoke components carried as
+  // `render`. As each section is converted its entry flips from a render shim
+  // to its imported *_SECTION node. (DebugSection stays a render entry — it
+  // needs the run-* callbacks passed down here.)
+  const sections: SectionNode[] = [
+    { key: 'shortcuts', render: <ShortcutsSection /> },
+    { key: 'updates', render: <UpdatesSection /> },
+    { key: 'scene', render: <SceneSection /> },
+    { key: 'island', render: <IslandSection /> },
+    { key: 'buildings', render: <BuildingsSection /> },
+    { key: 'streets', render: <StreetsSection /> },
+    { key: 'gem', render: <GemSection /> },
+    TREES_SECTION,
+    { key: 'fireflies', render: <FirefliesSection /> },
+    { key: 'effects', render: <EffectsSection /> },
+    { key: 'file-preview', render: <FilePreviewSection /> },
+    {
+      key: 'debug',
+      render: (
+        <DebugSection
+          onRunCollisionCheck={onRunCollisionCheck}
+          onRunStemDiagnostic={onRunStemDiagnostic}
+        />
+      ),
+    },
+  ];
+
   return (
     <Pane
       paneClass="controls-pane"
@@ -71,21 +99,9 @@ export function ControlsPane({
       footerSlot={<ActionsBar />}
       paneRef={paneRef}
     >
-      <ShortcutsSection />
-      <UpdatesSection />
-      <SceneSection />
-      <IslandSection />
-      <BuildingsSection />
-      <StreetsSection />
-      <GemSection />
-      <DynamicSection node={TREES_SECTION} />
-      <FirefliesSection />
-      <EffectsSection />
-      <FilePreviewSection />
-      <DebugSection
-        onRunCollisionCheck={onRunCollisionCheck}
-        onRunStemDiagnostic={onRunStemDiagnostic}
-      />
+      {sections.map((node) => (
+        <DynamicSection key={node.key} node={node} />
+      ))}
     </Pane>
   );
 }

@@ -44,13 +44,14 @@ export interface GroupNode {
 
 export type SectionChild = GroupNode | FieldRef;
 
-/** A top-level panel section: schema-driven (children) or bespoke (render). */
+/** A top-level panel section: schema-driven (label + children) or bespoke
+ *  (render — a not-yet-migrated *Section component, which supplies its own
+ *  header, so `label` is unused there). */
 export interface SectionNode {
   key: string;
-  label: string;
+  label?: string;
   description?: string;
   children?: SectionChild[];
-  /** Bespoke sections (Shortcuts, Debug) render a component instead of fields. */
   render?: ComponentChildren;
 }
 
@@ -75,7 +76,7 @@ function renderChild(child: SectionChild): ComponentChildren {
 export function DynamicSection({ node }: { node: SectionNode }) {
   if (node.render) return <>{node.render}</>;
   return (
-    <Section name={node.label} hint={node.description}>
+    <Section name={node.label ?? ''} hint={node.description}>
       {(node.children ?? []).map(renderChild)}
     </Section>
   );
