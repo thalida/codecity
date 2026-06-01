@@ -10,7 +10,8 @@
 // signals (no sub-key), key = null and the inner map has at most one entry.
 
 import { signal } from '@preact/signals';
-import { forEachRegisteredStore, getDefault, deepEqual, deepClone } from './persist';
+import { forEachRegisteredStore, getDefault } from './persist';
+import { deepEqual, deepClone } from '@/utils/deep';
 
 interface SignalLike {
   get value(): any;

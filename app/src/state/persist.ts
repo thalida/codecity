@@ -11,6 +11,7 @@
 import { signal, computed, effect } from '@preact/signals';
 import type { Signal } from '@preact/signals';
 import { STORAGE_PREFIX } from '@/constants';
+import { deepEqual, deepClone } from '@/utils/deep';
 
 // ── Registry ───────────────────────────────────────────────────────────────
 // One map keyed by the store signal itself; each entry holds the persisted
@@ -34,19 +35,6 @@ function _safeSet(key: string, value: unknown): void {
 
 function _safeRemove(key: string): void {
   try { localStorage.removeItem(STORAGE_PREFIX + key); } catch { /* noop */ }
-}
-
-// Deep-equality / deep-clone via JSON round-trip — handles every shape we put
-// in signals. Exported as the single source of value comparison + cloning for
-// the whole state/controls layer (drafts, controls hooks, ActionsBar) so the
-// helper isn't re-implemented per file.
-export function deepEqual(a: unknown, b: unknown): boolean {
-  if (a === b) return true;
-  try { return JSON.stringify(a) === JSON.stringify(b); } catch { return false; }
-}
-
-export function deepClone<T>(v: T): T {
-  try { return JSON.parse(JSON.stringify(v)); } catch { return v; }
 }
 
 // Hydrate a plain value from localStorage onto `defaultValue`.

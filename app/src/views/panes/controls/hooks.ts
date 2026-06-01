@@ -9,7 +9,8 @@
 import { useLayoutEffect, useState } from 'preact/hooks';
 import type { RefObject } from 'preact';
 import { getEffective, DRAFTS_REV } from '@/state/drafts';
-import { getDefault, deepEqual } from '@/state/persist';
+import { getDefault } from '@/state/persist';
+import { deepEqual } from '@/utils/deep';
 
 interface SignalLike {
   get value(): any;

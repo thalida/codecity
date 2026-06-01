@@ -14,7 +14,8 @@ import {
   DRAFTS_REV,
   getEffective,
 } from '@/state/drafts';
-import { forEachRegisteredStore, HAS_ANY_NON_DEFAULT, deepEqual } from '@/state/persist';
+import { forEachRegisteredStore, HAS_ANY_NON_DEFAULT } from '@/state/persist';
+import { deepEqual } from '@/utils/deep';
 
 interface MapLikeStore {
   get value(): any;
