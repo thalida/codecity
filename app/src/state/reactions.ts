@@ -2,7 +2,7 @@
 //
 // Two string-valued computed signatures drive ONE effect each:
 //   REBUILD_SIGNATURE          → scheduleRebuild   (full applyManifest)
-//   MATERIAL_REFRESH_SIGNATURE → refreshMaterials  (applyTheme only)
+//   REFRESH_SIGNATURE → refreshMaterials  (applyTheme only)
 //
 // They're GENERATED from each settings field's `route` metadata
 // (ChangeRoute.Rebuild | Refresh | Live) via routeSignature() — no hand-kept
@@ -111,12 +111,12 @@ function legacyRefreshSig(): string {
 // compiles every schema-driven (settingSignal) field with that route; the
 // legacy chunk covers stores not yet on the schema.
 //   REBUILD_SIGNATURE          → scheduleRebuild   (full applyManifest)
-//   MATERIAL_REFRESH_SIGNATURE → refreshMaterials  (applyTheme only)
+//   REFRESH_SIGNATURE → refreshMaterials  (applyTheme only)
 // (route: Live fields are in neither — read per-frame / driven elsewhere.)
 const REBUILD_SIGNATURE = computed(
   () => routeSignature(ChangeRoute.Rebuild) + legacyRebuildSig()
 );
-const MATERIAL_REFRESH_SIGNATURE = computed(
+const REFRESH_SIGNATURE = computed(
   () => routeSignature(ChangeRoute.Refresh) + legacyRefreshSig()
 );
 
@@ -188,7 +188,7 @@ export function attachCommitReactions({ world, applyTheme }: CommitReactionsOpts
   });
 
   const unsubMaterials = effect(() => {
-    void MATERIAL_REFRESH_SIGNATURE.value; // establish tracking
+    void REFRESH_SIGNATURE.value; // establish tracking
     if (!armed) return;
     untracked(() => refreshMaterials());
   });
