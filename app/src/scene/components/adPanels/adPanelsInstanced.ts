@@ -12,7 +12,8 @@
 
 import * as THREE from 'three';
 import { BuildingOrient } from '@/types/index';
-import { AD_PANEL, BLOOM, BUILDING_DIMENSIONS } from '@/state/settings/index';
+import { FACADE, BLOOM, BUILDING_DIMENSIONS } from '@/state/settings/index';
+import { AD_ERROR_COLOR } from '@/constants/buildings';
 import { RENDER_ORDERS } from '@/scene/renderOrders';
 import { mediaKindOf, MediaKind } from './adPanels';
 import { AdPanelTextureArray, MAX_PAGES as AD_PANEL_MAX_PAGES } from './adPanelTextureArray';
@@ -113,13 +114,13 @@ export class InstancedAdPanels {
     const geo = new THREE.PlaneGeometry(1, 1);
 
     // Material — GLSL3 required for sampler2DArray.
-    const adCfg = AD_PANEL.value;
+    const adCfg = FACADE.value;
     const placeholderColor = new THREE.Color(adCfg.AD_PLACEHOLDER_COLOR);
     // Cached for markBuildingErrored — recolors a panel slot's iColor
     // when its image load/decode/upload fails permanently. Stored without
     // emission multiply; uEmissionBoost in the shader applies uniformly to
     // both placeholder and error colors so brightness stays consistent.
-    this._errorColor = new THREE.Color(adCfg.AD_ERROR_COLOR);
+    this._errorColor = new THREE.Color(AD_ERROR_COLOR);
 
     const bloomCfg = BLOOM.value;
     const mat = new THREE.ShaderMaterial({
@@ -252,7 +253,7 @@ export class InstancedAdPanels {
       return null;
     }
 
-    const cfg = AD_PANEL.value;
+    const cfg = FACADE.value;
     const dims = BUILDING_DIMENSIONS.value;
 
     // Aspect ratio: clamp degenerate or missing metadata to a square.

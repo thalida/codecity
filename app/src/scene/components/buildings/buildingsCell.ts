@@ -10,7 +10,7 @@
 // index/position buffers).
 
 import * as THREE from 'three';
-import { FACADE_GEOMETRY } from '@/state/settings/index';
+import { FACADE } from '@/state/settings/index';
 import { BuildingOrient } from '@/types/index';
 import buildingVertSrc from './building.vert.glsl?raw';
 import buildingFragSrc from './building.frag.glsl?raw';
@@ -210,7 +210,7 @@ export function writeBuildingToSlot(cell: CellTile, b: Building): void {
   const mesh = cell.detailMesh;
 
   // --- Config snapshot (mirrors buildBuildingInstanceBuffer) ---
-  const facade = FACADE_GEOMETRY.value;
+  const facade = FACADE.value;
   const windowColsMax = facade.WINDOW_COLS_MAX;
   const widthPerWindowCol = facade.WIDTH_PER_WINDOW_COL;
   const doorWidthFrac = facade.DOOR_WIDTH_FRAC;

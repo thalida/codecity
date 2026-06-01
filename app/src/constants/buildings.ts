@@ -11,6 +11,11 @@
 // jsdelivr (v5.30.0). Mixed-palette icons (Erlang, Clojure, Python) get the
 // more distinctive hue.
 
+// Ad-panel tint shown after a permanent image load/decode failure (sticky).
+// Never a UI control — the placeholder color (transient/loading) is tunable in
+// FACADE; this failure color is fixed.
+export const AD_ERROR_COLOR = '#3a1d1d';
+
 export const DEFAULT_HUE_EXT_MAP: Record<string, number> = {
   // JS family
   '.js': 45, // javascript: #ffca28 amber

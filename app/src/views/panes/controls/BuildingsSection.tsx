@@ -7,13 +7,8 @@ import {
   BUILDING_DIMENSIONS,
   BUILDINGS,
   BUILDING_FADE,
+  FACADE,
 } from '@/state/settings/index';
-import {
-  FACADE_GEOMETRY,
-  FACADE_DETAIL,
-  WINDOW_LIGHTING,
-} from '@/state/settings/components/facade';
-import { AD_PANEL } from '@/state/settings/components/adPanels';
 import { FadeDetail } from '@/types';
 import { getDefault } from '@/state/persist';
 import { Section } from './Section';
@@ -143,54 +138,54 @@ export function BuildingsSection() {
 
       <CollapsibleSubgroup name="Facade">
         <CollapsibleSubgroup name="Geometry">
-          <SliderField label="Slab thickness × floor" store={FACADE_GEOMETRY} fieldKey="SLAB_HEIGHT_FRAC" min={0} max={0.4} step={0.01}
+          <SliderField label="Slab thickness × floor" store={FACADE} fieldKey="SLAB_HEIGHT_FRAC" min={0} max={0.4} step={0.01}
             tip="Floor-slab strip height as a fraction of one floor. Above 0.4 the slab eats more than the floor's window band — the facade reads as horizontal banding instead of windowed." />
-          <SliderField label="Window width × cell" store={FACADE_GEOMETRY} fieldKey="WINDOW_WIDTH_FRAC" min={0} max={1} step={0.01}
+          <SliderField label="Window width × cell" store={FACADE} fieldKey="WINDOW_WIDTH_FRAC" min={0} max={1} step={0.01}
             tip="Window width as a fraction of its grid cell." />
-          <SliderField label="Window height × floor" store={FACADE_GEOMETRY} fieldKey="WINDOW_HEIGHT_FRAC" min={0} max={1} step={0.01}
+          <SliderField label="Window height × floor" store={FACADE} fieldKey="WINDOW_HEIGHT_FRAC" min={0} max={1} step={0.01}
             tip="Window height as a fraction of one floor." />
-          <SliderField label="Window margin × face" store={FACADE_GEOMETRY} fieldKey="WINDOW_MARGIN_FRAC" min={0} max={0.2} step={0.005}
+          <SliderField label="Window margin × face" store={FACADE} fieldKey="WINDOW_MARGIN_FRAC" min={0} max={0.2} step={0.005}
             tip="Horizontal margin per edge of the window grid, as a fraction of face width. Above 0.2 there is only room for ~3 window columns on a typical building." />
-          <SliderField label="Door height × floor" store={FACADE_GEOMETRY} fieldKey="DOOR_HEIGHT_FRAC" min={0} max={1} step={0.01}
+          <SliderField label="Door height × floor" store={FACADE} fieldKey="DOOR_HEIGHT_FRAC" min={0} max={1} step={0.01}
             tip="Door height as a fraction of one floor." />
-          <SliderField label="Roof border × face" store={FACADE_GEOMETRY} fieldKey="ROOF_BORDER_FRAC" min={0} max={0.1} step={0.005}
+          <SliderField label="Roof border × face" store={FACADE} fieldKey="ROOF_BORDER_FRAC" min={0} max={0.1} step={0.005}
             tip="Width of the roof border strip, as a fraction of the face. Above 0.1 (10% of face width) the border eats into the icon area at the top of the facade." />
-          <NumberField label="Max window columns" store={FACADE_GEOMETRY} fieldKey="WINDOW_COLS_MAX" min={1} max={10} step={1}
+          <NumberField label="Max window columns" store={FACADE} fieldKey="WINDOW_COLS_MAX" min={1} max={10} step={1}
             tip="Hard cap on window columns per face. Rebuild required. Above 10 the window grid becomes too dense to read at typical zoom." />
-          <NumberField label="Width per window col" store={FACADE_GEOMETRY} fieldKey="WIDTH_PER_WINDOW_COL" min={1} max={32} step={1}
+          <NumberField label="Width per window col" store={FACADE} fieldKey="WIDTH_PER_WINDOW_COL" min={1} max={32} step={1}
             tip="World-unit width allotted per window column (cols = floor(buildingWidth / this)). Rebuild required. Above 32 world units per column, small buildings end up with zero windows." />
-          <SliderField label="Door width" store={FACADE_GEOMETRY} fieldKey="DOOR_WIDTH_FRAC" min={0} max={1} step={0.05}
+          <SliderField label="Door width" store={FACADE} fieldKey="DOOR_WIDTH_FRAC" min={0} max={1} step={0.05}
             tip="Door width as a fraction of the building's own width. Bigger buildings get proportionally wider doors. Rebuild required." />
         </CollapsibleSubgroup>
 
         <CollapsibleSubgroup name="Contrast (HSL lightness Δ)">
-          <SliderField label="Floor slab" store={FACADE_DETAIL} fieldKey="SLAB_LIGHTNESS_DELTA" min={-100} max={100} step={1}
+          <SliderField label="Floor slab" store={FACADE} fieldKey="SLAB_LIGHTNESS_DELTA" min={-100} max={100} step={1}
             tip="Lightness offset for the floor-slab strip, in HSL percentage points (negative darkens)." />
-          <SliderField label="Door" store={FACADE_DETAIL} fieldKey="DOOR_LIGHTNESS_DELTA" min={-100} max={100} step={1}
+          <SliderField label="Door" store={FACADE} fieldKey="DOOR_LIGHTNESS_DELTA" min={-100} max={100} step={1}
             tip="Lightness offset for the door (negative darkens)." />
-          <SliderField label="Roof border" store={FACADE_DETAIL} fieldKey="ROOF_BORDER_LIGHTNESS_DELTA" min={-100} max={100} step={1}
+          <SliderField label="Roof border" store={FACADE} fieldKey="ROOF_BORDER_LIGHTNESS_DELTA" min={-100} max={100} step={1}
             tip="Lightness offset for the roof border strip (negative darkens)." />
         </CollapsibleSubgroup>
 
         <CollapsibleSubgroup name="Window lighting">
-          <SliderField label="Unlit pane lightness Δ" store={WINDOW_LIGHTING} fieldKey="UNLIT_LIGHTNESS_DELTA" min={-20} max={20} step={1}
+          <SliderField label="Unlit pane lightness Δ" store={FACADE} fieldKey="UNLIT_LIGHTNESS_DELTA" min={-20} max={20} step={1}
             tip="HSL lightness offset applied to unlit panes (relative to the building hue)." />
-          <SliderField label="Gap fraction (base)" store={WINDOW_LIGHTING} fieldKey="GAP_BASE_THRESHOLD" min={0} max={1} step={0.01}
+          <SliderField label="Gap fraction (base)" store={FACADE} fieldKey="GAP_BASE_THRESHOLD" min={0} max={1} step={0.01}
             tip="Base fraction of cells with no window at all (architectural gaps)." />
-          <SliderField label="Gap fraction (age bonus)" store={WINDOW_LIGHTING} fieldKey="GAP_AGE_BONUS" min={0} max={1} step={0.01}
+          <SliderField label="Gap fraction (age bonus)" store={FACADE} fieldKey="GAP_AGE_BONUS" min={0} max={1} step={0.01}
             tip="Extra empty-cell fraction added for the oldest building (interpolates down to 0 for the newest)." />
-          <SliderField label="Lit-window dim curve" store={WINDOW_LIGHTING} fieldKey="LIT_FRESHNESS_EXPONENT" min={1} max={4} step={0.1}
+          <SliderField label="Lit-window dim curve" store={FACADE} fieldKey="LIT_FRESHNESS_EXPONENT" min={1} max={4} step={0.1}
             tip="Exponent on the recency curve that drives lit-window count + HDR emission. 1 = linear; higher dims mid-age buildings faster so only the freshest ones glow. Beyond 4 only the newest ~6% of files visibly emit (exponent applied to recency)." />
-          <ColorField label="Old building glow" store={WINDOW_LIGHTING} fieldKey="DIM_GLOW_COLOR"
+          <ColorField label="Old building glow" store={FACADE} fieldKey="DIM_GLOW_COLOR"
             tip="Warm-amber tint that lit panes drift toward as the file ages (created-date axis, not last-modified)." />
         </CollapsibleSubgroup>
 
         <CollapsibleSubgroup name="Ad panels (media files)">
-          <SliderField label="Side margin × width" store={AD_PANEL} fieldKey="AD_SIDE_MARGIN_FRAC" min={0} max={0.4} step={0.01}
+          <SliderField label="Side margin × width" store={FACADE} fieldKey="AD_SIDE_MARGIN_FRAC" min={0} max={0.4} step={0.01}
             tip="Horizontal margin on each side of the building width — controls how much building wall is visible to the left and right of the ad. Above 0.4 the margins consume more than 80% of the face and the ad becomes a sliver." />
-          <SliderField label="Bottom offset × floors" store={AD_PANEL} fieldKey="AD_BOTTOM_OFFSET_FLOORS" min={0} max={3} step={0.1}
+          <SliderField label="Bottom offset × floors" store={FACADE} fieldKey="AD_BOTTOM_OFFSET_FLOORS" min={0} max={3} step={0.1}
             tip="Ad bottom edge sits this many floor heights above the ground — guarantees the door (0.75 of a floor tall) stays uncovered. 1.0 leaves a clean strip; raise it to lift the ad higher on the building." />
-          <ColorField label="Placeholder color" store={AD_PANEL} fieldKey="AD_PLACEHOLDER_COLOR"
+          <ColorField label="Placeholder color" store={FACADE} fieldKey="AD_PLACEHOLDER_COLOR"
             tip="Color shown on the ad plane while the texture is loading (or if the load fails)." />
         </CollapsibleSubgroup>
       </CollapsibleSubgroup>
