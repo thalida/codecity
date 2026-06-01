@@ -11,7 +11,7 @@ import { MSG } from './treePlacementProtocol';
 import { TREES, type TreesConfig } from '@/state/settings/trees';
 import { BUILDING_DIMENSIONS, type BuildingDimensionsConfig } from '@/state/settings/components/buildings';
 import { FOOTPRINT, type FootprintConfig } from '@/state/settings/components/footprint';
-import { ISLAND_GEOMETRY, type IslandGeometryConfig } from '@/state/settings/components/island';
+import { ISLAND, type IslandConfig } from '@/state/settings/island';
 import { WORLD, type WorldConfig } from '@/state/settings/world/world';
 import type { CityBbox, CityLayout } from '@/types';
 
@@ -24,7 +24,7 @@ interface ConfigSnapshot {
   trees: TreesConfig;
   buildingDims: BuildingDimensionsConfig;
   footprint: FootprintConfig;
-  islandGeo: IslandGeometryConfig;
+  islandGeo: IslandConfig;
   world: WorldConfig;
 }
 
@@ -43,7 +43,7 @@ function _snapshot(): ConfigSnapshot {
     trees: TREES.value,
     buildingDims: BUILDING_DIMENSIONS.value,
     footprint: FOOTPRINT.value,
-    islandGeo: ISLAND_GEOMETRY.value,
+    islandGeo: ISLAND.value,
     world: WORLD.value,
   };
 }

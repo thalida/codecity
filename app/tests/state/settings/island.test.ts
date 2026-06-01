@@ -1,11 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { ISLAND_GEOMETRY, ISLAND_MATERIALS } from '@/state/settings/components/island';
+import { ISLAND } from '@/state/settings/island';
 
 describe('ISLAND config defaults', () => {
   it('GEOMETRY exposes the expected keys with the right types', () => {
     // Asserting shape, not specific values — tuning the production
     // defaults shouldn't break this test.
-    const g = ISLAND_GEOMETRY.value;
+    const g = ISLAND.value;
     expect(typeof g.ENABLED).toBe('boolean');
     expect(typeof g.SIDES).toBe('number');
     expect(typeof g.IRREGULARITY).toBe('number');
@@ -16,7 +16,7 @@ describe('ISLAND config defaults', () => {
   });
 
   it('MATERIALS provides grass + rock + hemispheric lighting colors', () => {
-    const m = ISLAND_MATERIALS.value;
+    const m = ISLAND.value;
     expect(m.GRASS_COLOR).toMatch(/^#[0-9a-f]{6}$/i);
     expect(m.GRASS_SIDE_COLOR).toMatch(/^#[0-9a-f]{6}$/i);
     expect(m.ROCK_COLOR).toMatch(/^#[0-9a-f]{6}$/i);

@@ -46,7 +46,7 @@ import {
   FOOTPRINT,
   WORLD,
 } from '@/state/settings/index';
-import { ISLAND_GEOMETRY, ISLAND_MATERIALS } from '@/state/settings/components/island';
+import { ISLAND } from '@/state/settings/island';
 import { FIREFLIES } from '@/state/settings/fireflies';
 
 // Min-dwell for the 'rebuilding' indicator on the material-only path.
@@ -115,12 +115,12 @@ const REBUILD_SIGNATURE = computed(() => ({
   // invalidates the tree point-in-polygon rejection pass.
   // ENABLED (flips group.visible) lives in MATERIAL_REFRESH_SIGNATURE.
   islandGeometry: {
-    sides: ISLAND_GEOMETRY.value.SIDES,
-    irregularity: ISLAND_GEOMETRY.value.IRREGULARITY,
-    tiers: ISLAND_GEOMETRY.value.TIERS,
-    depth: ISLAND_GEOMETRY.value.DEPTH,
-    roundness: ISLAND_GEOMETRY.value.ROUNDNESS,
-    grassThickness: ISLAND_GEOMETRY.value.GRASS_THICKNESS,
+    sides: ISLAND.value.SIDES,
+    irregularity: ISLAND.value.IRREGULARITY,
+    tiers: ISLAND.value.TIERS,
+    depth: ISLAND.value.DEPTH,
+    roundness: ISLAND.value.ROUNDNESS,
+    grassThickness: ISLAND.value.GRASS_THICKNESS,
   },
 
   // FIREFLIES structural keys — ENABLED gates orb creation;
@@ -157,8 +157,17 @@ const MATERIAL_REFRESH_SIGNATURE = computed(() => ({
   windowLighting: WINDOW_LIGHTING.value,
   sky: SKY.value,
   skyStars: SKY_STARS.value,
-  islandMaterials: ISLAND_MATERIALS.value,
   repoLabel: REPO_LABEL.value,
+
+  // ISLAND material keys only (the shape keys are in REBUILD_SIGNATURE, so
+  // reading the whole store here would double-route a geometry change).
+  islandMaterials: {
+    grassColor: ISLAND.value.GRASS_COLOR,
+    grassSideColor: ISLAND.value.GRASS_SIDE_COLOR,
+    rockColor: ISLAND.value.ROCK_COLOR,
+    hemiSkyColor: ISLAND.value.HEMI_SKY_COLOR,
+    hemiGroundColor: ISLAND.value.HEMI_GROUND_COLOR,
+  },
 
   // Tree outline (folded into TREES as OUTLINE_* keys) — re-tints/re-widths
   // the hover/selected wireframe via treeOutlineRenderer.refreshMaterials().
@@ -200,7 +209,7 @@ const MATERIAL_REFRESH_SIGNATURE = computed(() => ({
 
   // ISLAND_GEOMETRY — ENABLED only (flips group.visible via island.refresh()).
   // Shape keys are in REBUILD_SIGNATURE.
-  islandGeometryEnabled: ISLAND_GEOMETRY.value.ENABLED,
+  islandGeometryEnabled: ISLAND.value.ENABLED,
 
   // FIREFLIES — animation/brightness uniforms pushed via fireflies.refresh().
   fireflies: {

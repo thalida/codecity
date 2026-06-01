@@ -27,14 +27,14 @@ import * as THREE from 'three';
 import { TREES } from '@/state/settings/trees';
 import { FOOTPRINT } from '@/state/settings/components/footprint';
 import { BUILDING_DIMENSIONS } from '@/state/settings/components/buildings';
-import { ISLAND_GEOMETRY } from '@/state/settings/components/island';
+import { ISLAND } from '@/state/settings/island';
 import { getWorldBounds } from '../../layout/worldBounds';
 import { buildTopPolygon, pointInIslandPolygon } from '../island/islandGeometry';
 import { islandSeedFromBounds } from '../island/islandMesh';
 import { StreetAxis } from '@/types';
 import { gemAnchorXZ } from '../../utils/gemAnchor';
 import type { Building, CityBbox, CityLayout, Street } from '@/types';
-import type { IslandGeometryConfig } from '@/state/settings/components/island';
+import type { IslandConfig } from '@/state/settings/island';
 
 // Rejection-sampling footprint half-size as a fraction of BUILDING_DIMENSIONS
 // .MAX_WIDTH — a fixed placement-tuning constant, not user-tunable (it lived in
@@ -69,7 +69,7 @@ export interface PlaceTreesOptions {
    *  which can't read the main-thread store directly). When omitted,
    *  the live ISLAND_GEOMETRY store is read. Pass null to disable the
    *  polygon rejection pass (e.g. in non-island tests). */
-  islandGeoOverride?: IslandGeometryConfig | null;
+  islandGeoOverride?: IslandConfig | null;
 }
 
 /** Hard ceiling on grid resolution. Caps total iterations + accepted
@@ -195,9 +195,9 @@ export function placeTrees(
   // only the smaller bounds rect, leaving the polygon's expanded edges
   // empty. Worst-case polygon vertex sits at halfWidth × baseScale ×
   // (1 + IRREGULARITY) (outward jitter), so sample to that extent.
-  const sides = options.islandGeoOverride?.SIDES ?? ISLAND_GEOMETRY.value.SIDES;
+  const sides = options.islandGeoOverride?.SIDES ?? ISLAND.value.SIDES;
   const irregularity =
-    options.islandGeoOverride?.IRREGULARITY ?? ISLAND_GEOMETRY.value.IRREGULARITY;
+    options.islandGeoOverride?.IRREGULARITY ?? ISLAND.value.IRREGULARITY;
   // Irregularity is now reductive (vertices shrink inward), so the polygon's
   // max extent is bounded by the unjittered baseScale — no (1 + irregularity)
   // expansion factor needed.
@@ -235,7 +235,7 @@ export function placeTrees(
   // of IRREGULARITY (which makes edges sit at varying distances from origin).
   let islandPolygon: THREE.Vector3[] | null = null;
   if (options.islandGeoOverride !== null) {
-    const islandGeo = options.islandGeoOverride ?? ISLAND_GEOMETRY.value;
+    const islandGeo = options.islandGeoOverride ?? ISLAND.value;
     if (islandGeo.ENABLED) {
       const rawPolygon = buildTopPolygon({
         sides: islandGeo.SIDES,

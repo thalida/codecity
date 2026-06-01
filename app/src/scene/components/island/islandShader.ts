@@ -6,7 +6,7 @@
 // day/night cycle.
 
 import * as THREE from 'three';
-import { ISLAND_MATERIALS } from '@/state/settings/components/island';
+import { ISLAND } from '@/state/settings/island';
 
 const vertSrc = /* glsl */ `
 attribute vec3 color;
@@ -57,7 +57,7 @@ void main() {
 `;
 
 export function createIslandMaterial(): THREE.ShaderMaterial {
-  const mats = ISLAND_MATERIALS.value;
+  const mats = ISLAND.value;
   return new THREE.ShaderMaterial({
     vertexShader: vertSrc,
     fragmentShader: fragSrc,

@@ -9,7 +9,7 @@ import { TREES, type TreesConfig } from '@/state/settings/trees';
 import { BUILDING_DIMENSIONS, type BuildingDimensionsConfig } from '@/state/settings/components/buildings';
 import { FOOTPRINT, type FootprintConfig } from '@/state/settings/components/footprint';
 import { WORLD, type WorldConfig } from '@/state/settings/world/world';
-import type { IslandGeometryConfig } from '@/state/settings/components/island';
+import type { IslandConfig } from '@/state/settings/island';
 import type { CityBbox, CityLayout } from '@/types';
 
 type TreesValue = TreesConfig;
@@ -32,7 +32,7 @@ interface PlaceRequest {
     footprint: FootprintValue;
     /** Island geometry config snapshot — used to rebuild the island polygon
      *  inside the worker without touching main-thread stores. */
-    islandGeo: IslandGeometryConfig;
+    islandGeo: IslandConfig;
     /** World sizing snapshot — getWorldBounds() inside placeTrees reads
      *  WORLD.GROUND_BUFFER_PERCENT, which would otherwise stay at the
      *  worker's default value (workers have their own nanostore state

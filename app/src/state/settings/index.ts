@@ -54,7 +54,7 @@ export * from './components/buildings';
 export * from './components/facade';
 export * from './components/adPanels';
 export * from './components/gem';
-export * from './components/island';
+export * from './island';
 export * from './components/footprint';
 export * from './trees';
 export * from './fireflies';
