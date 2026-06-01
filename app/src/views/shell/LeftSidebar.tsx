@@ -26,7 +26,7 @@ import { SidebarTab, NodeKind } from '@/types';
 import type { PickTarget, TreeNode } from '@/types';
 import { persistedSignal } from '@/state/persist';
 import { SCENE_HANDLE } from '@/state/stores/scene';
-import { MANIFEST } from '@/state/runtime/manifest';
+import { MANIFEST } from '@/state/stores/manifest';
 import { isEmptyManifest } from '@/utils/manifest';
 import { TreePane } from '@/views/panes/TreePane';
 import { InfoPane } from '@/views/panes/InfoPane';

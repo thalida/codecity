@@ -3,12 +3,12 @@
 // plain "codecity" otherwise. Called once from <App />.
 //
 // This replaces the imperative world.onChange → document.title assignment that
-// lived in runtime/boot.ts. The "(pending) — codecity" title shown mid-load is
+// lived in the boot sequence (now useCity). The "(pending) — codecity" title shown mid-load is
 // still set by applyPendingTitle() during streaming; once a manifest lands,
 // MANIFEST updates and this effect overwrites it with the final title.
 
 import { useSignalEffect } from '@preact/signals';
-import { MANIFEST } from '@/state/runtime/manifest';
+import { MANIFEST } from '@/state/stores/manifest';
 import { labelFromManifest } from '@/utils/sources';
 import type { Manifest } from '@/types';
 

@@ -76,7 +76,7 @@ import {
   TREES,
   SCENE,
 } from '@/state/stores/settings/index';
-import { REBUILD_STATUS } from '@/state/runtime/manifestPoll';
+import { REBUILD_STATUS } from '@/state/stores/manifest';
 import type {
   Building,
   CityBbox,

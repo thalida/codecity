@@ -44,7 +44,7 @@ export function openSourcePickerForCurrentSource(): void {
 // Apply-new-source handler. The boot wiring (sourcePickerBridge) registers the
 // function that actually fetches + applies a source — it needs the live scene
 // and live-update handles. The picker UI calls submitNewSource(); no window
-// globals. Same register/invoke shape as manifestPoll's refreshManifest.
+// globals. Same register/invoke shape as stores/manifest's refreshManifest.
 let _sourceApplier: ((payload: SourcePayload) => void) | null = null;
 
 /** Register the apply-new-source handler; returns an unregister fn. */
