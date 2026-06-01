@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { settingSignal, getFieldDef, getFieldKeys, FieldKind, ChangeRoute } from '@/state/settings/schema';
+import { settingSignal, getFieldDef, getFieldKeys, FieldKind, ChangeRoute } from '@/state/schema';
 import { getDefault } from '@/state/persist';
 
 // settingSignal derives the persisted default object from each field's

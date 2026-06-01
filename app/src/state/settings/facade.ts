@@ -2,7 +2,7 @@
 // FACADE store: window/door/roof geometry, HSL contrast deltas, per-cell window
 // lighting, and the media-building ad panels (folded in here).
 //
-// Schema-driven (see state/settings/schema); each field states its own route:
+// Schema-driven (see state/schema); each field states its own route:
 //   • Geometry shader-side (*_FRAC), all detail + window-lighting keys → Refresh
 //     (refreshBuildingMaterial pushes uniforms; cheap).
 //   • Geometry JS-side (WINDOW_COLS_MAX, WIDTH_PER_WINDOW_COL, DOOR_WIDTH_FRAC)
@@ -13,7 +13,7 @@
 // but never crash. AD_ERROR_COLOR (load-failure tint) was never a UI control,
 // so it lives in constants/buildings.ts.
 
-import { settingSignal, FieldKind, ChangeRoute, type ConfigOf, type FieldMap } from '@/state/settings/schema';
+import { settingSignal, FieldKind, ChangeRoute, type ConfigOf, type FieldMap } from '@/state/schema';
 
 const FACADE_FIELDS = {
   // ── Geometry — shader-side (*_FRAC), refresh ──

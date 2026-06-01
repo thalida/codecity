@@ -6,7 +6,7 @@
 // SliderField/ToggleField/SelectField/RangePairField) — the metadata they
 // duplicated in JSX now lives once in the store schema.
 
-import { FieldKind, getFieldDef } from '@/state/settings/schema';
+import { FieldKind, getFieldDef } from '@/state/schema';
 import { useField } from '@/hooks/useField';
 import { useEffective, useDefault } from './hooks';
 import { setDraft } from '@/state/drafts';

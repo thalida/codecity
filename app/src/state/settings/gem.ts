@@ -9,10 +9,10 @@
 //   REPO_LABEL — the floating holographic repo-name banner; its own feature
 //                with its own component (repoLabel.ts), kept separate.
 //
-// Schema-driven (see state/settings/schema). Non-tunable layout constants
+// Schema-driven (see state/schema). Non-tunable layout constants
 // (gem hover-lift, gem clearance) were evicted to their consumers.
 
-import { settingSignal, FieldKind, ChangeRoute, type ConfigOf, type FieldMap } from '@/state/settings/schema';
+import { settingSignal, FieldKind, ChangeRoute, type ConfigOf, type FieldMap } from '@/state/schema';
 import { oklchToHex } from '@/scene/utils/color/colors';
 
 // Default face palette: an OKLCH rainbow (perceptually uniform) at 8 evenly

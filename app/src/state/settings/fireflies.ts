@@ -3,9 +3,9 @@
 // Glowing motes that orbit each commit-tree, colored per author. BOB is the
 // y-axis sinusoid the shader applies to displace each orb; PULSE is a
 // brightness modulation; per-author commit-count scaling is always on (tune
-// spread via SCALE_MIN/MAX). Schema-driven (see state/settings/schema).
+// spread via SCALE_MIN/MAX). Schema-driven (see state/schema).
 
-import { settingSignal, FieldKind, ChangeRoute, type ConfigOf, type FieldMap } from '@/state/settings/schema';
+import { settingSignal, FieldKind, ChangeRoute, type ConfigOf, type FieldMap } from '@/state/schema';
 
 const FIREFLIES_FIELDS = {
   ENABLED: { route: ChangeRoute.Rebuild, kind: FieldKind.Toggle, default: true, label: 'Fireflies enabled',

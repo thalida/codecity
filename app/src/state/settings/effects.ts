@@ -3,10 +3,10 @@
 // place means tweaking the look (e.g. "slower rainbows") doesn't require
 // chasing the same values through per-target stores.
 //
-// Schema-driven (see state/settings/schema). Both consumers read fresh per
+// Schema-driven (see state/schema). Both consumers read fresh per
 // frame, so changes are hot.
 
-import { settingSignal, FieldKind, ChangeRoute, type ConfigOf, type FieldMap } from '@/state/settings/schema';
+import { settingSignal, FieldKind, ChangeRoute, type ConfigOf, type FieldMap } from '@/state/schema';
 
 // Chasing-rainbow used by BOTH the selected building's neon outline and the
 // gem→selection neon path line. Hue cycles at SPEED rad/ms; SATURATION +

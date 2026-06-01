@@ -7,11 +7,11 @@
 //   COLOR   ← COMMITS-PER-DAY (solo-day vs busy-day interpolation), optionally
 //             age-desaturated toward gray for older commits.
 //
-// Schema-driven (see state/settings/schema): a flat field map per store; the
+// Schema-driven (see state/schema): a flat field map per store; the
 // persisted defaults + the config TYPE are both derived from it. How these
 // fields are grouped in the Settings panel lives in views/panes/controls.
 
-import { settingSignal, FieldKind, ChangeRoute, type ConfigOf, type FieldMap } from '@/state/settings/schema';
+import { settingSignal, FieldKind, ChangeRoute, type ConfigOf, type FieldMap } from '@/state/schema';
 
 const TREES_FIELDS = {
   ENABLED: { route: ChangeRoute.Refresh, kind: FieldKind.Toggle, default: true, label: 'Trees enabled',

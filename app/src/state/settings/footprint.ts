@@ -11,9 +11,9 @@
 // are rejected by the existing rbush overlap check — no extra
 // gradient logic required.
 
-import { settingSignal, FieldKind, ChangeRoute, type ConfigOf, type FieldMap } from '@/state/settings/schema';
+import { settingSignal, FieldKind, ChangeRoute, type ConfigOf, type FieldMap } from '@/state/schema';
 
-// Schema-driven (see state/settings/schema), but stays its own object store
+// Schema-driven (see state/schema), but stays its own object store
 // because HALO_WIDTH is threaded into the tree-placement worker. HALO_WIDTH
 // bakes into per-instance Matrix4 data → rebuild; ENABLED / CORNER_RADIUS /
 // COLOR are material/visibility updates → refresh.

@@ -13,7 +13,7 @@
 import { computed, effect, untracked } from '@preact/signals';
 
 import { REBUILD_STATUS, LAST_REBUILD_ERROR, LAST_UPDATED_AT } from '@/state/runtime/manifestPoll';
-import { routeSignature, ChangeRoute } from '@/state/settings/schema';
+import { routeSignature, ChangeRoute } from '@/state/schema';
 
 // Min-dwell for the 'rebuilding' indicator on the material-only path.
 const HOT_REBUILD_MIN_DWELL_MS = 220;

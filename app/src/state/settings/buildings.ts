@@ -2,10 +2,10 @@
 // dimensions (own worker-threaded store), the BUILDINGS visual store (palette
 // + outline + aging + transition timing), and the selection-fade tier matrix.
 //
-// Schema-driven (see state/settings/schema): each field states its own route.
+// Schema-driven (see state/schema): each field states its own route.
 // The big per-extension hue default lives in constants/buildings.ts.
 
-import { settingSignal, FieldKind, ChangeRoute, type ConfigOf, type FieldMap } from '@/state/settings/schema';
+import { settingSignal, FieldKind, ChangeRoute, type ConfigOf, type FieldMap } from '@/state/schema';
 import { DEFAULT_HUE_EXT_MAP } from '@/constants/buildings';
 import { FadeDetail } from '@/types';
 

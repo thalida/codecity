@@ -4,10 +4,10 @@
 // (keeping the worker snapshot lean) — not a backdrop visual; the Settings
 // panel still groups it under "Ground sizing" via sections/scene.ts.
 //
-// Schema-driven (see state/settings/schema). Sky/stars/fog are all material-
+// Schema-driven (see state/schema). Sky/stars/fog are all material-
 // refresh (applyTheme); GROUND_BUFFER_PERCENT triggers a rebuild.
 
-import { settingSignal, FieldKind, ChangeRoute, type ConfigOf, type FieldMap } from '@/state/settings/schema';
+import { settingSignal, FieldKind, ChangeRoute, type ConfigOf, type FieldMap } from '@/state/schema';
 
 const SCENE_FIELDS = {
   // ── Sky ──

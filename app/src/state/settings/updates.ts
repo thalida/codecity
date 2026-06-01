@@ -3,10 +3,10 @@
 // when the manifest's signature changes (the tree's mtime/size state shifted).
 //
 // Default OFF so the tool stays cheap when nobody's actively editing.
-// Schema-driven (see state/settings/schema); POLL_SECONDS is clamped to a
+// Schema-driven (see state/schema); POLL_SECONDS is clamped to a
 // hard [min, max] range at the caller (manifestPoll), where those bounds live.
 
-import { settingSignal, FieldKind, ChangeRoute, type ConfigOf, type FieldMap } from '@/state/settings/schema';
+import { settingSignal, FieldKind, ChangeRoute, type ConfigOf, type FieldMap } from '@/state/schema';
 
 const LIVE_UPDATES_FIELDS = {
   ENABLED: { route: ChangeRoute.Live, kind: FieldKind.Toggle, default: false, label: 'Enabled',

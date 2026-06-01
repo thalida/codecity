@@ -1,4 +1,4 @@
-// state/settings/schema.ts — Schema-driven settings core.
+// state/schema.ts — Schema-driven settings core.
 //
 // A setting store is a FLAT map of field definitions: each key carries what
 // the field intrinsically *is* (kind, default, label, tip, bounds/options) —
