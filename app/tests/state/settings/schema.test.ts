@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { settingSignal, getFieldDef, getFieldKeys, FieldKind } from '@/state/settings/schema';
+import { settingSignal, getFieldDef, getFieldKeys, FieldKind, ChangeRoute } from '@/state/settings/schema';
 import { getDefault } from '@/state/persist';
 
 // settingSignal derives the persisted default object from each field's
@@ -8,9 +8,9 @@ import { getDefault } from '@/state/persist';
 
 describe('settingSignal', () => {
   const STORE = settingSignal('TEST_SCHEMA_STORE', {
-    A: { kind: FieldKind.Slider, default: 5, min: 0, max: 10, step: 1, label: 'A' },
-    B: { kind: FieldKind.Toggle, default: true, label: 'B' },
-    C: { kind: FieldKind.RangePair, default: [1, 2] as [number, number], min: 0, max: 9, step: 1, label: 'C' },
+    A: { route: ChangeRoute.Refresh, kind: FieldKind.Slider, default: 5, min: 0, max: 10, step: 1, label: 'A' },
+    B: { route: ChangeRoute.Refresh, kind: FieldKind.Toggle, default: true, label: 'B' },
+    C: { route: ChangeRoute.Refresh, kind: FieldKind.RangePair, default: [1, 2] as [number, number], min: 0, max: 9, step: 1, label: 'C' },
   });
 
   it('derives the flat default object from field defaults', () => {

@@ -27,11 +27,26 @@ export enum FieldKind {
   RangePair = 'rangePair',
 }
 
+/** What changing a field requires the scene to do. Drives reactions.ts's
+ *  rebuild/material-refresh signatures (auto-generated from this metadata):
+ *   Refresh — applyTheme only (material/uniform update). The default.
+ *   Rebuild — full world applyManifest (structural/geometry/layout change).
+ *   Live    — neither; read fresh per frame (e.g. gem/firefly animation) or
+ *             driven elsewhere (e.g. live-update polling). */
+export enum ChangeRoute {
+  Refresh = 'refresh',
+  Rebuild = 'rebuild',
+  Live = 'live',
+}
+
 /** One field's intrinsic definition. `default`'s type flows through to the
  *  store's config type (see ConfigOf). min/max/step apply to numeric kinds;
- *  options to Select. */
+ *  options to Select. `route` is REQUIRED — every field states what changing it
+ *  triggers, so the store file is legible at a glance and reactions.ts can
+ *  generate its rebuild/refresh signatures from it. */
 export interface FieldDef<T = unknown> {
   kind: FieldKind;
+  route: ChangeRoute;
   default: T;
   label: string;
   tip?: string;
@@ -48,8 +63,10 @@ export type FieldMap = Record<string, FieldDef>;
  *  { KEY: typeof KEY.default }. */
 export type ConfigOf<F extends FieldMap> = { [K in keyof F]: F[K]['default'] };
 
-// store signal → its field map, for (store, key) lookups from the panel.
-const _FIELDS = new WeakMap<object, FieldMap>();
+// store signal → its field map, for (store, key) lookups from the panel and
+// for reactions' route-driven signatures. A Map (not WeakMap) so it's
+// iterable; the stores are module-level singletons, never GC'd.
+const _FIELDS = new Map<object, FieldMap>();
 
 /**
  * Create a persisted settings store from a flat field map. Derives the default
@@ -81,4 +98,30 @@ export function getFieldDef(store: object, key: string): FieldDef | undefined {
 export function getFieldKeys(store: object): string[] {
   const map = _FIELDS.get(store);
   return map ? Object.keys(map) : [];
+}
+
+interface ValueStore {
+  value: Record<string, unknown>;
+}
+
+/**
+ * Build a change-signature string over every registered settingSignal field
+ * whose `route` matches (default Refresh). The returned string changes iff a
+ * routed field's value changes — so a computed wrapping this notifies (and the
+ * reaction fires) ONLY for the relevant route, with no cross-firing.
+ *
+ * Reads each matching field's `store.value[key]`, which subscribes the calling
+ * computed to that store. Call inside reactions' computed().
+ */
+export function routeSignature(route: ChangeRoute): string {
+  let sig = '';
+  for (const [store, fields] of _FIELDS) {
+    const v = (store as ValueStore).value;
+    for (const key in fields) {
+      if (fields[key].route === route) {
+        sig += `${key}=${JSON.stringify(v[key])};`;
+      }
+    }
+  }
+  return sig;
 }
