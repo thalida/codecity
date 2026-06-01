@@ -2,8 +2,6 @@
 // once the canvas is in the DOM. Composes all runtime modules and returns a
 // dispose() for cleanup on unmount.
 
-import './liveStatusBridge'; // self-installs its effect at module load
-
 import { sourceKey, CURRENT_SOURCE_KEY } from '../state/runtime/activeSource';
 import { LAST_UPDATED_AT, setupLiveUpdates } from '../state/runtime/manifestPoll';
 import { openSourcePicker } from '../state/runtime/uiState';
@@ -14,7 +12,6 @@ import { EMPTY_MANIFEST } from '../constants/manifest';
 
 import { streamInitialManifest } from './manifestStream';
 import { installSourcePickerBridge } from './sourcePickerBridge';
-import { setupSidebars } from './sidebarSetup';
 import { SCENE_HANDLE } from '../state/runtime/scene';
 
 export async function bootApp(): Promise<() => void> {
@@ -41,8 +38,6 @@ export async function bootApp(): Promise<() => void> {
   if (qp.has('src') && !initialError && initialManifest !== EMPTY_MANIFEST) {
     _liveUpdates = setupLiveUpdates(handle, initialManifest.signature);
   }
-
-  const sidebars = setupSidebars(handle, initialManifest);
 
   handle.world.onChange(() => {
     const m = handle.world.getManifest();
@@ -74,7 +69,6 @@ export async function bootApp(): Promise<() => void> {
 
   return function dispose() {
     disposePickerBridge();
-    sidebars.dispose();
     SCENE_HANDLE.value = null;
   };
 }

@@ -30,7 +30,7 @@
 // Preact component: LoadingOverlay — signal-driven, reads LOADING_OVERLAY and
 // is mounted by App.tsx. State is driven by the uiState helpers
 // (showLoadingOverlay / setLoadingStep / setLoadingStepTail / …) called from
-// the manifest-stream consumer and liveStatusBridge.
+// the manifest-stream consumer and the REBUILD_STATUS bridge in manifestPoll.
 
 import { LOADING_OVERLAY } from '@/state/runtime/uiState';
 

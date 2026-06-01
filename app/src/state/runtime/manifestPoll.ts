@@ -27,6 +27,7 @@ import { signal, effect } from '@preact/signals';
 import { LIVE_UPDATES, POLL_SECONDS_MIN, POLL_SECONDS_MAX } from '@/state/settings/index';
 import { manifestUrl, signatureUrl, streamManifest } from '@/api/manifest';
 import { _applyDisplayLabel, startRenderLoop } from '@/scene/renderLoop';
+import { setLoadingStep } from '@/state/runtime/uiState';
 
 // ── Rebuild status signals ───────────────────────────────────────────
 
@@ -42,6 +43,16 @@ import { _applyDisplayLabel, startRenderLoop } from '@/scene/renderLoop';
 export type RebuildStatus = 'idle' | 'rebuilding' | 'decorating' | 'error';
 
 export const REBUILD_STATUS = signal<RebuildStatus>('idle');
+
+// Bridge REBUILD_STATUS → loading overlay. When the deferred decoration pass
+// starts (REBUILD_STATUS → 'decorating'), advance the overlay's active step so
+// users see "Adding decorations…". Colocated here next to its source signal
+// rather than in a standalone runtime/ bridge module; installs once at import.
+effect(() => {
+  if (REBUILD_STATUS.value === 'decorating') {
+    setLoadingStep('decorating');
+  }
+});
 
 /** Error message from the most recent failed rebuild; null when idle/success. */
 export const LAST_REBUILD_ERROR = signal<string | null>(null);
