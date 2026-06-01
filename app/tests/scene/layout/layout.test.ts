@@ -10,7 +10,7 @@ import {
 import type { Rect } from '@/scene/layout/layout';
 import { BUILDING_DIMENSIONS } from '@/state/settings/index';
 import { BuildingOrient, NodeKind, StreetAxis } from '@/types';
-import type { BuildingDimensionsConfig } from '@/state/settings/components/buildings';
+import type { BuildingDimensionsConfig } from '@/state/settings/buildings';
 import type { StreetTier } from '@/state/settings/streets';
 import {
   assertNoOverlap,

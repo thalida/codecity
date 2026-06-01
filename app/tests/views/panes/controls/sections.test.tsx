@@ -4,8 +4,17 @@ import { DynamicSection, type SectionChild, type FieldRef } from '@/views/panes/
 import { TREES_SECTION } from '@/views/panes/controls/sections/trees';
 import { STREETS_SECTION } from '@/views/panes/controls/sections/streets';
 import { FOOTPRINT_SECTION } from '@/views/panes/controls/sections/footprint';
+import { BUILDINGS_SECTION } from '@/views/panes/controls/sections/buildings';
 import { TREES } from '@/state/settings/trees';
-import { STREETS, STREET_TIERS, STREET_LAYOUT } from '@/state/settings/index';
+import {
+  STREETS,
+  STREET_TIERS,
+  STREET_LAYOUT,
+  BUILDING_DIMENSIONS,
+  BUILDINGS,
+  FACADE,
+  BUILDING_FADE,
+} from '@/state/settings/index';
 import { FOOTPRINT } from '@/state/settings/footprint';
 import { getFieldKeys } from '@/state/settings/schema';
 import { flush } from '../../../_helpers/preact';
@@ -57,6 +66,22 @@ describe('FOOTPRINT_SECTION placement', () => {
     expect(placed.slice().sort()).toEqual(getFieldKeys(FOOTPRINT as object).sort());
     expect(new Set(placed).size).toBe(placed.length);
     expect(refs.every((r) => r.store === (FOOTPRINT as unknown))).toBe(true);
+  });
+});
+
+describe('BUILDINGS_SECTION placement', () => {
+  it('places every field of all four building stores exactly once', () => {
+    const refs = collectRefs(BUILDINGS_SECTION.children ?? []);
+    const stores = [BUILDING_DIMENSIONS, BUILDINGS, FACADE, BUILDING_FADE];
+    let total = 0;
+    for (const store of stores) {
+      const placed = refs.filter((r) => r.store === (store as unknown)).map((r) => r.key);
+      expect(placed.slice().sort()).toEqual(getFieldKeys(store as object).sort());
+      expect(new Set(placed).size).toBe(placed.length); // none twice
+      total += getFieldKeys(store as object).length;
+    }
+    // No refs point at a store outside the four.
+    expect(refs.length).toBe(total);
   });
 });
 

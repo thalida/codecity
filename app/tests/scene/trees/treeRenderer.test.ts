@@ -12,7 +12,7 @@ import * as THREE from 'three';
 import { createTreeRenderer, type Trees } from '@/scene/components/trees/treeRenderer';
 import type { TreePlacement } from '@/scene/components/trees/treePlacement';
 import { TREES } from '@/state/settings/trees';
-import { BUILDING_DIMENSIONS } from '@/state/settings/components/buildings';
+import { BUILDING_DIMENSIONS } from '@/state/settings/buildings';
 import { LIGHTING } from '@/state/settings/components/lighting';
 import { RENDER_ORDERS } from '@/scene/renderOrders';
 import type { CommitEntry } from '@/types';

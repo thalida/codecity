@@ -22,7 +22,7 @@ import {
   STREET_TIERS,
 } from '@/state/settings/index';
 import type { StreetLayoutConfig, StreetTier } from '@/state/settings/streets';
-import type { BuildingDimensionsConfig } from '@/state/settings/components/buildings';
+import type { BuildingDimensionsConfig } from '@/state/settings/buildings';
 import type { GemSizingConfig } from '@/state/settings/gem';
 import { layoutCity, makeHeightContext, recomputeBuildingDimensions } from './layout';
 import type { Manifest, CityLayout, FileNode, TreeNode } from '@/types';

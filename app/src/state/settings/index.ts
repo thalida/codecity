@@ -45,7 +45,7 @@ export * from './syntaxTheme';
 // not-yet-migrated stores stay under components/ until their conversion.
 export * from './components/lighting';
 export * from './streets';
-export * from './components/buildings';
+export * from './buildings';
 export * from './facade';
 export * from './gem';
 export * from './island';

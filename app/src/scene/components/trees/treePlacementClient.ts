@@ -9,7 +9,7 @@
 import { placeTrees, type TreePlacement } from './treePlacement';
 import { MSG } from './treePlacementProtocol';
 import { TREES, type TreesConfig } from '@/state/settings/trees';
-import { BUILDING_DIMENSIONS, type BuildingDimensionsConfig } from '@/state/settings/components/buildings';
+import { BUILDING_DIMENSIONS, type BuildingDimensionsConfig } from '@/state/settings/buildings';
 import { FOOTPRINT, type FootprintConfig } from '@/state/settings/footprint';
 import { ISLAND, type IslandConfig } from '@/state/settings/island';
 import { WORLD, type WorldConfig } from '@/state/settings/scene';
