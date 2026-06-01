@@ -18,7 +18,7 @@
 
 import type { DirNode, FileNode, TreeNode } from '@/types';
 import { NodeKind } from '@/types';
-import { ICON_CDN_BASE } from '@/constants/fileIcons';
+import { MATERIAL_ICON_URLS } from '@/constants/materialIcons';
 import { getFileIconName, getFolderIconName } from '@/utils/fileIcons';
 
 export interface NodeIconProps {
@@ -34,7 +34,7 @@ export function NodeIcon({ node }: NodeIconProps) {
   return (
     <img
       class="file-icon"
-      src={`${ICON_CDN_BASE}${iconName}.svg`}
+      src={MATERIAL_ICON_URLS[iconName]}
       alt=""
       loading="lazy"
       data-icon-name={iconName}

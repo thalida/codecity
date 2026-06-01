@@ -17,8 +17,7 @@
     "tests/visual/**/*",
     "tests/scene/utils/color/hsl-glsl-parity.test.ts",
     "tests/scene/components/buildings/building-shader.test.ts",
-    "tests/scene/sky/skyShader.test.ts",
-    "tests/constants/icons.test.ts"
+    "tests/scene/sky/skyShader.test.ts"
   ],
   "exclude": ["node_modules"]
 }

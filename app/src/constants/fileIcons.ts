@@ -1,13 +1,9 @@
 // constants/fileIcons.ts — Material Icon Theme (MIT) lookup tables.
 // Static data, no behavior: file-extension / exact-filename / folder-name
 // → Material icon basename. The resolver that reads them lives in
-// utils/fileIcons.ts; the <img> renderers live in views/components/fileIcon.tsx.
-
-// Pinned to a version so the CDN's `latest` rolling tag can't surprise
-// us with a removed icon or renamed file. Bump deliberately when
-// adopting new icons; otherwise treat it as a fixed dependency.
-const ICON_VERSION = '5.30.0';
-export const ICON_CDN_BASE = `https://cdn.jsdelivr.net/npm/material-icon-theme@${ICON_VERSION}/icons/`;
+// utils/fileIcons.ts; constants/materialIcons.ts maps each basename to a
+// bundled SVG URL (imported from the pinned material-icon-theme package, no
+// runtime CDN), and NodeIcon / iconAtlas render them.
 
 // Material's `document` glyph has more visual weight than the plain
 // `file` outline — feels at home next to the colorful per-type icons

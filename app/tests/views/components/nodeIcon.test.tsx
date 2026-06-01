@@ -32,7 +32,9 @@ describe('NodeIcon — files', () => {
     expect(img.tagName).toBe('IMG');
     expect(img.classList.contains('file-icon')).toBe(true);
     expect(img.dataset.iconName).toBe('typescript');
-    expect(img.src).toContain('typescript.svg');
+    // src is now a Vite-bundled asset URL (not a CDN path), so assert it
+    // resolved to *something* rather than the old filename pattern.
+    expect(img.src).toBeTruthy();
   });
 
   it('prefers the filename map over the extension map (package.json → nodejs, not json)', async () => {
@@ -92,7 +94,7 @@ describe('NodeIcon — directories', () => {
     await flush();
     const img = container.querySelector('img') as HTMLImageElement;
     expect(img.dataset.iconName).toBe('folder-src');
-    expect(img.src).toContain('folder-src.svg');
+    expect(img.src).toBeTruthy();
   });
 
   it('matches case-insensitively (Tests → folder-test)', async () => {

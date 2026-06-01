@@ -55,8 +55,6 @@
     // time — checked by tsconfig.node.json which adds @types/node.
     "tests/scene/utils/color/hsl-glsl-parity.test.ts",
     "tests/scene/components/buildings/building-shader.test.ts",
-    "tests/scene/sky/skyShader.test.ts",
-    // Reads node_modules + public/ at test time to validate icon names.
-    "tests/constants/icons.test.ts"
+    "tests/scene/sky/skyShader.test.ts"
   ]
 }

@@ -1,17 +1,14 @@
-// Guard test: every Material file/folder icon name referenced in the maps
-// must actually exist, so a typo or an upstream rename can't silently ship a
-// blank/broken glyph (the file icons load by name from the pinned
-// material-icon-theme CDN, so a bad name 404s at runtime — invisible to
-// typecheck/lint). This is the class of bug that produced the broken scene/
-// + state/ folder icons (folder-3d / folder-redux didn't exist at @5.30.0).
+// Guard test: every Material icon basename the resolvers (utils/fileIcons.ts)
+// can produce must be bundled in MATERIAL_ICON_URLS — otherwise an edit to a
+// lookup map that adds a new icon without regenerating constants/materialIcons
+// would ship a broken <img>/atlas glyph (undefined URL). This is the class of
+// bug that produced the blank scene/ + state/ folder icons.
 //
-// Lucide UI glyphs need no equivalent test: they're imported as components
-// from lucide-preact (see constants/lucideIcons usage removed in favor of
-// direct imports), so a wrong name fails at BUILD, not at runtime.
+// The generated `?url` imports in materialIcons.ts are themselves build-checked
+// against the pinned material-icon-theme package — a name with no file fails
+// the build. Lucide glyphs need no test at all: they're imported as components.
 
 import { describe, it, expect } from 'vitest';
-import { existsSync } from 'node:fs';
-import { join } from 'node:path';
 import {
   EXT_ICON,
   NAME_ICON,
@@ -21,12 +18,9 @@ import {
   HARD_FALLBACK_FILE,
   HARD_FALLBACK_FOLDER,
 } from '@/constants/fileIcons';
+import { MATERIAL_ICON_URLS } from '@/constants/materialIcons';
 
-// vitest runs with cwd = app/. The runtime fetches the same pinned version
-// from the CDN, so validating against the installed package is faithful.
-const MATERIAL_ICONS = join(process.cwd(), 'node_modules/material-icon-theme/icons');
-
-describe('material-icon-theme: every referenced icon name exists', () => {
+describe('material icons: every resolvable name is bundled', () => {
   const names = [
     ...new Set<string>([
       ...Object.values(EXT_ICON),
@@ -39,11 +33,7 @@ describe('material-icon-theme: every referenced icon name exists', () => {
     ]),
   ].sort();
 
-  it('the material-icon-theme package is installed', () => {
-    expect(existsSync(MATERIAL_ICONS)).toBe(true);
-  });
-
-  it.each(names)('%s.svg exists', (name) => {
-    expect(existsSync(join(MATERIAL_ICONS, `${name}.svg`))).toBe(true);
+  it.each(names)('%s → bundled URL', (name) => {
+    expect(MATERIAL_ICON_URLS[name]).toBeTruthy();
   });
 });
