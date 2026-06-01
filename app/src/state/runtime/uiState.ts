@@ -69,7 +69,7 @@ export function submitNewSource(payload: SourcePayload): void {
 
 // ── Loading overlay ──────────────────────────────────────────────────────────
 
-import type { LoadingStep } from '../../views/components/LoadingOverlay';
+import { LoadingStep } from '@/constants';
 
 export interface LoadingOverlayState {
   visible: boolean;
@@ -94,7 +94,7 @@ export const LOADING_OVERLAY = signal<LoadingOverlayState>({
 // when the same effect later writes back.
 
 export function showLoadingOverlay(opts: LoadingOverlayShowOpts): void {
-  const initialStep: LoadingStep = opts.kind === 'local' ? 'scanning' : 'resolving';
+  const initialStep: LoadingStep = opts.kind === 'local' ? LoadingStep.Scanning : LoadingStep.Resolving;
   LOADING_OVERLAY.value = {
     visible: true,
     showOpts: opts,

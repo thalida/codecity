@@ -26,20 +26,21 @@ import { startRenderLoop, _applyDisplayLabel } from '@/scene/renderLoop';
 import { pushRecent } from './sourceRecents';
 import { setupLiveUpdates } from './manifestPoll';
 import type { SourcePayload } from '@/views/components/SourcePicker';
+import { LoadingStep } from '@/constants';
 
 // ── Shared progress-event helpers ────────────────────────────────────────────
 
 function _handleProgressEvent(event: { phase: string; percent?: number; stage?: string; files_scanned?: number }): void {
   if (event.phase === 'cloning') {
-    setLoadingStep('cloning');
+    setLoadingStep(LoadingStep.Cloning);
     if (event.percent !== undefined) {
       const stage = event.stage ? ` (${event.stage})` : '';
-      setLoadingStepTail('cloning', `${event.percent}%${stage}`);
+      setLoadingStepTail(LoadingStep.Cloning, `${event.percent}%${stage}`);
     }
   } else if (event.phase === 'scanning') {
-    setLoadingStep('scanning');
+    setLoadingStep(LoadingStep.Scanning);
     if (event.files_scanned !== undefined) {
-      setLoadingStepTail('scanning', `${event.files_scanned.toLocaleString()} files`);
+      setLoadingStepTail(LoadingStep.Scanning, `${event.files_scanned.toLocaleString()} files`);
     }
   }
 }
@@ -102,9 +103,9 @@ export async function streamInitialManifest(canvas: HTMLCanvasElement): Promise<
       }
 
       const m = event.manifest;
-      setLoadingStepTail('cloning', null);
-      setLoadingStepTail('scanning', null);
-      setLoadingStep(event.phase === 'skeleton' ? 'skeleton' : 'building');
+      setLoadingStepTail(LoadingStep.Cloning, null);
+      setLoadingStepTail(LoadingStep.Scanning, null);
+      setLoadingStep(event.phase === 'skeleton' ? LoadingStep.Skeleton : LoadingStep.Building);
 
       if (handle === null) {
         try {
@@ -204,9 +205,9 @@ export async function applyNewSource(opts: ApplyNewSourceOpts): Promise<void> {
         continue;
       }
 
-      setLoadingStepTail('cloning', null);
-      setLoadingStepTail('scanning', null);
-      setLoadingStep(event.phase === 'skeleton' ? 'skeleton' : 'building');
+      setLoadingStepTail(LoadingStep.Cloning, null);
+      setLoadingStepTail(LoadingStep.Scanning, null);
+      setLoadingStep(event.phase === 'skeleton' ? LoadingStep.Skeleton : LoadingStep.Building);
 
       if (event.phase === 'skeleton') {
         _applyDisplayLabel(event.manifest);

@@ -9,6 +9,7 @@ import {
   setLoadingPendingLabel,
   setLoadingStepTail,
 } from '@/state/runtime/uiState';
+import { LoadingStep } from '@/constants';
 import { flush } from '../../_helpers/preact';
 
 // The overlay is now a signal-driven Preact component (App.tsx mounts a
@@ -90,7 +91,7 @@ describe('LoadingOverlay', () => {
   it('setLoadingStep marks previous steps done and target active', async () => {
     showLoadingOverlay({ kind: 'git', label: 'x/y' });
     await flush();
-    setLoadingStep('building');
+    setLoadingStep(LoadingStep.Building);
     await flush();
     expect(container.querySelector('[data-step="building"]')?.getAttribute('data-state')).toBe(
       'active'
@@ -152,7 +153,7 @@ describe('LoadingOverlay', () => {
 
   it('renders a tail string next to a step row', async () => {
     showLoadingOverlay({ kind: 'git', label: 'owner/repo' });
-    setLoadingStepTail('cloning', '45% (receiving)');
+    setLoadingStepTail(LoadingStep.Cloning, '45% (receiving)');
     await flush();
     const cloningRow = container.querySelector('[data-step="cloning"]');
     expect(cloningRow?.textContent).toContain('45%');
@@ -161,9 +162,9 @@ describe('LoadingOverlay', () => {
 
   it('replaces an existing tail string with a new one', async () => {
     showLoadingOverlay({ kind: 'git', label: 'owner/repo' });
-    setLoadingStepTail('cloning', '10%');
+    setLoadingStepTail(LoadingStep.Cloning, '10%');
     await flush();
-    setLoadingStepTail('cloning', '80%');
+    setLoadingStepTail(LoadingStep.Cloning, '80%');
     await flush();
     const cloningRow = container.querySelector('[data-step="cloning"]');
     expect(cloningRow?.textContent).toContain('80%');
@@ -172,9 +173,9 @@ describe('LoadingOverlay', () => {
 
   it('clears the tail when set to null', async () => {
     showLoadingOverlay({ kind: 'git', label: 'owner/repo' });
-    setLoadingStepTail('cloning', '45%');
+    setLoadingStepTail(LoadingStep.Cloning, '45%');
     await flush();
-    setLoadingStepTail('cloning', null);
+    setLoadingStepTail(LoadingStep.Cloning, null);
     await flush();
     const cloningRow = container.querySelector('[data-step="cloning"]');
     expect(cloningRow?.textContent).not.toContain('45%');

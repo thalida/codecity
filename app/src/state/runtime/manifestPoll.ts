@@ -28,6 +28,7 @@ import { LIVE_UPDATES, POLL_SECONDS_MIN, POLL_SECONDS_MAX } from '@/state/settin
 import { manifestUrl, signatureUrl, streamManifest } from '@/api/manifest';
 import { _applyDisplayLabel, startRenderLoop } from '@/scene/renderLoop';
 import { setLoadingStep } from '@/state/runtime/uiState';
+import { LoadingStep } from '@/constants';
 
 // ── Rebuild status signals ───────────────────────────────────────────
 
@@ -50,7 +51,7 @@ export const REBUILD_STATUS = signal<RebuildStatus>('idle');
 // rather than in a standalone runtime/ bridge module; installs once at import.
 effect(() => {
   if (REBUILD_STATUS.value === 'decorating') {
-    setLoadingStep('decorating');
+    setLoadingStep(LoadingStep.Decorating);
   }
 });
 
