@@ -39,7 +39,7 @@ export * from './system/animator';
 // ── App-level user preferences ────────────────────────────────────────
 export * from './updates';
 export * from './scene';
-export * from './prefs/syntaxTheme';
+export * from './syntaxTheme';
 
 // ── World (background + sizing) ───────────────────────────────────────
 
