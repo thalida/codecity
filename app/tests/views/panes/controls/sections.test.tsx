@@ -1,6 +1,7 @@
 import { describe, it, expect, afterEach } from 'vitest';
 import { render } from 'preact';
-import { GeneratedSection, TREES_SECTION, type SectionChild, type FieldRef } from '@/views/panes/controls/sections';
+import { DynamicSection, type SectionChild, type FieldRef } from '@/views/panes/controls/sections';
+import { TREES_SECTION } from '@/views/panes/controls/sections/trees';
 import { TREES, TREE_OUTLINE } from '@/state/settings/components/trees';
 import { getFieldKeys } from '@/state/settings/schema';
 import { flush } from '../../../_helpers/preact';
@@ -33,7 +34,7 @@ describe('TREES_SECTION placement', () => {
   });
 });
 
-describe('GeneratedSection rendering', () => {
+describe('DynamicSection rendering', () => {
   let container: HTMLDivElement;
   afterEach(() => {
     if (container) {
@@ -45,7 +46,7 @@ describe('GeneratedSection rendering', () => {
   it('renders the section title, the subgroup labels, and one row per field', async () => {
     container = document.createElement('div');
     document.body.appendChild(container);
-    render(<GeneratedSection node={TREES_SECTION} />, container);
+    render(<DynamicSection node={TREES_SECTION} />, container);
     await flush();
 
     // Section + subgroup headers.
