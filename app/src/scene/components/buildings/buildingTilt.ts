@@ -10,7 +10,7 @@
 //   theta     = seed × 2π   (seed = seedFromPath(file.path), in [0, 1))
 //
 // The shader path is fast and toggle-friendly (uTiltMaxRad goes to 0
-// when BUILDING_AGING.TILT_ENABLED flips off). But the outline mesh and
+// when BUILDINGS.TILT_ENABLED flips off). But the outline mesh and
 // the picker raycast both need the SAME shear on the CPU side — the
 // outline must visibly skew with the building, and click targets need
 // to hit the leaned silhouette, not the un-leaned AABB.
@@ -21,7 +21,7 @@
 // or an inverse-shear ray transform (picker).
 
 import * as THREE from 'three';
-import { BUILDING_AGING } from '@/state/settings/components/buildings';
+import { BUILDINGS } from '@/state/settings/components/buildings';
 import type { Building } from '@/types';
 
 /**
@@ -51,11 +51,11 @@ const ZERO_TILT: BuildingTilt = { tiltX: 0, tiltZ: 0 };
 /**
  * Compute the (tiltX, tiltZ) shear coefficients for a building, matching
  * exactly what the vertex shader applies. Returns `{0, 0}` when
- * BUILDING_AGING.TILT_ENABLED is off, when the building has no file (no
+ * BUILDINGS.TILT_ENABLED is off, when the building has no file (no
  * stable seed source), or when the building has no createdAge signal.
  */
 export function getBuildingTilt(b: Building): BuildingTilt {
-  const aging = BUILDING_AGING.value;
+  const aging = BUILDINGS.value;
   if (!aging.TILT_ENABLED) return ZERO_TILT;
   if (!b.file) return ZERO_TILT;
   const createdAge = b.createdAge ?? 0;
@@ -101,7 +101,7 @@ export function attachLeanAwareRaycast(mesh: THREE.InstancedMesh): void {
   mesh.raycast = function (raycaster, intersects) {
     if (!mesh.visible) return;
 
-    const aging = BUILDING_AGING.value;
+    const aging = BUILDINGS.value;
     const tiltMaxRad = aging.TILT_ENABLED ? (aging.TILT_DEGREES * Math.PI) / 180 : 0;
 
     const iIconUV = mesh.geometry.getAttribute('iIconUV') as

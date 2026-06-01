@@ -13,7 +13,7 @@
 //                     rainbow color cycle on selectedOutline
 //
 // Subscribes to picker.hover and picker.selection (toggle visibility).
-// refreshMaterials() is called by applyTheme() to push BUILDING_OUTLINE config
+// refreshMaterials() is called by applyTheme() to push BUILDINGS config
 // changes into the two outline materials.
 
 import * as THREE from 'three';
@@ -22,7 +22,7 @@ import { LineSegments2 } from 'three/addons/lines/LineSegments2.js';
 import { LineSegmentsGeometry } from 'three/addons/lines/LineSegmentsGeometry.js';
 import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
 
-import { BUILDING_OUTLINE, RAINBOW } from '@/state/settings/index';
+import { BUILDINGS, RAINBOW } from '@/state/settings/index';
 import { RENDER_ORDERS } from '@/scene/renderOrders';
 import { NodeKind } from '@/types';
 import { UNIT_BOX_EDGE_POSITIONS } from '@/scene/world';
@@ -42,16 +42,16 @@ export function createOutlineRenderer({
   world: ReturnType<typeof createWorld>;
   picker: ReturnType<typeof createPicker>;
 }) {
-  const _bo = BUILDING_OUTLINE.value;
+  const _bo = BUILDINGS.value;
 
   // ── Hover outline (single shared mesh, retransformed per frame) ─────
   const _unitEdgesGeo = new LineSegmentsGeometry();
   _unitEdgesGeo.setPositions(UNIT_BOX_EDGE_POSITIONS);
   const hoverLineMat = new LineMaterial({
-    color: new THREE.Color(_bo.HOVER_COLOR),
-    linewidth: _bo.WIDTH,
+    color: new THREE.Color(_bo.OUTLINE_HOVER_COLOR),
+    linewidth: _bo.OUTLINE_WIDTH,
     transparent: true,
-    opacity: _bo.HOVER_OPACITY,
+    opacity: _bo.OUTLINE_HOVER_OPACITY,
     depthTest: true,
     worldUnits: false,
   });
@@ -65,9 +65,9 @@ export function createOutlineRenderer({
   // ── Selected outline (per-vertex rainbow chasing) ───────────────────
   const selectedLineMat = new LineMaterial({
     vertexColors: true,
-    linewidth: _bo.WIDTH,
+    linewidth: _bo.OUTLINE_WIDTH,
     transparent: true,
-    opacity: _bo.SELECTED_OPACITY,
+    opacity: _bo.OUTLINE_SELECTED_OPACITY,
     depthTest: true,
     worldUnits: false,
   });
@@ -255,15 +255,15 @@ export function createOutlineRenderer({
     }
   }
 
-  // applyTheme() coordinator hook: push fresh BUILDING_OUTLINE values
+  // applyTheme() coordinator hook: push fresh BUILDINGS values
   // into the two outline materials we own.
   function refreshMaterials(): void {
-    const outline = BUILDING_OUTLINE.value;
-    hoverLineMat.color.set(outline.HOVER_COLOR);
-    hoverLineMat.linewidth = outline.WIDTH;
-    hoverLineMat.opacity = outline.HOVER_OPACITY;
-    selectedLineMat.linewidth = outline.WIDTH;
-    selectedLineMat.opacity = outline.SELECTED_OPACITY;
+    const outline = BUILDINGS.value;
+    hoverLineMat.color.set(outline.OUTLINE_HOVER_COLOR);
+    hoverLineMat.linewidth = outline.OUTLINE_WIDTH;
+    hoverLineMat.opacity = outline.OUTLINE_HOVER_OPACITY;
+    selectedLineMat.linewidth = outline.OUTLINE_WIDTH;
+    selectedLineMat.opacity = outline.OUTLINE_SELECTED_OPACITY;
   }
 
   // Window-resize hook. LineMaterial needs the current canvas size for

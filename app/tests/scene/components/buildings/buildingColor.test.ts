@@ -7,13 +7,13 @@ import {
   getBuildingColor,
   getModifiedAge,
 } from '@/scene/components/buildings/buildingColor';
-import { BUILDING_PALETTE } from '@/state/settings/index';
-import type { BuildingPaletteConfig } from '@/state/settings/components/buildings';
+import { BUILDINGS } from '@/state/settings/index';
+import type { BuildingsConfig } from '@/state/settings/components/buildings';
 import { NodeKind } from '@/types';
 import type { RangeStat } from '@/types';
 
 // Test palette + saturation/lightness ranges. Mutated into the
-// BUILDING_PALETTE store by beforeEach; restored by afterEach.
+// BUILDINGS store by beforeEach; restored by afterEach.
 const TEST_HUE_EXT_MAP: Record<string, number> = {
   '.ts': 215,
   '.js': 220,
@@ -24,11 +24,11 @@ const TEST_HUE_EXT_MAP: Record<string, number> = {
 const TEST_SAT_RANGE: RangeStat = { min: 20, max: 100 };
 const TEST_LIGHT_RANGE: RangeStat = { min: 25, max: 70 };
 
-let _origPalette: BuildingPaletteConfig | null = null;
+let _origPalette: BuildingsConfig | null = null;
 beforeEach(() => {
-  _origPalette = { ...BUILDING_PALETTE.value };
-  BUILDING_PALETTE.value = {
-    ...BUILDING_PALETTE.value,
+  _origPalette = { ...BUILDINGS.value };
+  BUILDINGS.value = {
+    ...BUILDINGS.value,
     HUE_EXT_MAP: TEST_HUE_EXT_MAP,
     SATURATION_MIN: TEST_SAT_RANGE.min,
     SATURATION_MAX: TEST_SAT_RANGE.max,
@@ -38,7 +38,7 @@ beforeEach(() => {
 });
 afterEach(() => {
   if (!_origPalette) return;
-  BUILDING_PALETTE.value = _origPalette;
+  BUILDINGS.value = _origPalette;
 });
 
 const TEST_TREE = {

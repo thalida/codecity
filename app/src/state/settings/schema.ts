@@ -28,6 +28,9 @@ export enum FieldKind {
   /** An ordered array of { min_descendants, width } street tiers — one width
    *  slider per tier. The field's value is the whole array (see STREET_TIERS). */
   TierWidths = 'tierWidths',
+  /** A { key: hue } map — one 0–359° hue slider per key, with a swatch preview.
+   *  The field's value is the whole object (see BUILDINGS.HUE_EXT_MAP). */
+  HueMap = 'hueMap',
 }
 
 /** What changing a field requires the scene to do. Drives reactions.ts's

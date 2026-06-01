@@ -28,7 +28,6 @@
 
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { ANIMATION_TIMING } from '@/state/settings/index';
 import {
   CAMERA_FOV,
   CAMERA_NEAR,
@@ -38,6 +37,8 @@ import {
   CAMERA_MIN_DISTANCE,
   CAMERA_MAX_DISTANCE_MULT,
   CAMERA_INITIAL_DISTANCE_MULT,
+  CAMERA_BASE_DURATION_MS,
+  CAMERA_EASING_POWER,
 } from '@/constants/camera';
 import { CURRENT_SOURCE_KEY } from '@/state/runtime/activeSource';
 import { NodeKind, StreetAxis } from '@/types';
@@ -51,7 +52,7 @@ import type { createWorld } from '../world';
  *  can always pull back to a comfortable cinematic viewing distance. */
 const MIN_MAX_DISTANCE = 8000;
 
-// Per-action duration ratios relative to ANIMATION_TIMING.BASE_DURATION_MS.
+// Per-action duration ratios relative to CAMERA_BASE_DURATION_MS.
 // These tune the per-gesture feel — a Recenter should feel snappier than a
 // building-focus tween, etc. Multiplied by BASE_DURATION_MS at action time
 // so dragging the base in Settings scales every camera animation in lock-
@@ -367,7 +368,7 @@ export function createCameraRig({
     const startTarget = controls.target.clone();
     const startCamPos = camera.position.clone();
     const t0 = performance.now();
-    const easingPower = ANIMATION_TIMING.value.EASING_POWER;
+    const easingPower = CAMERA_EASING_POWER;
 
     function step() {
       if (camAnimToken !== token) return;
@@ -425,7 +426,7 @@ export function createCameraRig({
     _animateCamera(
       p.clone(),
       camera.position.clone().add(delta),
-      ANIMATION_TIMING.value.BASE_DURATION_MS * RECENTER_RATIO
+      CAMERA_BASE_DURATION_MS * RECENTER_RATIO
     );
   }
 
@@ -487,7 +488,7 @@ export function createCameraRig({
     _animateCamera(
       center.clone(),
       newCamPos,
-      ANIMATION_TIMING.value.BASE_DURATION_MS * durationRatio
+      CAMERA_BASE_DURATION_MS * durationRatio
     );
   }
 

@@ -11,7 +11,7 @@
 import type { Signal } from '@preact/signals';
 import { useState, useEffect } from 'preact/hooks';
 import hljs from 'highlight.js/lib/common';
-import { STREETS, BUILDING_PALETTE } from '@/state/settings';
+import { STREETS, BUILDINGS } from '@/state/settings';
 import type { FileNode } from '@/types';
 
 /**
@@ -267,7 +267,7 @@ function _previewBody(file: FileNode | null) {
 
 export function FilePreviewPane({ state, onClose, onFocus }: FilePreviewPaneProps) {
   const { file } = state.value;
-  const huePalette = BUILDING_PALETTE.value.HUE_EXT_MAP || {};
+  const huePalette = BUILDINGS.value.HUE_EXT_MAP || {};
   const asphaltColor = STREETS.value.ASPHALT_COLOR;
 
   const leaf = file

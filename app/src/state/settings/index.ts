@@ -33,9 +33,6 @@
 // CDN URL, activity-bar tab list, etc.) live OUTSIDE this barrel —
 // see src/constants/ or inlined private consts in their consumer.
 
-// ── System (camera, input, animation, tooltip) ───────────────────────
-export * from './system/animator';
-
 // ── App-level user preferences ────────────────────────────────────────
 export * from './updates';
 export * from './scene';

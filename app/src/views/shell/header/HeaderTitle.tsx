@@ -9,7 +9,7 @@
 
 import { Fragment } from 'preact';
 import { NodeKind } from '@/types';
-import { STREETS, BUILDING_PALETTE } from '@/state/settings';
+import { STREETS, BUILDINGS } from '@/state/settings';
 import { Focus } from 'lucide-preact';
 import { ExtensionBadge } from '@/views/components/Badge';
 import { CopyButton } from '@/views/components/CopyButton';
@@ -86,7 +86,7 @@ export function HeaderTitle({ sel, rootLabel, rootPath, onSegmentClick, onFocus 
   if (!hasSel) return null;
 
   // Palette reads — auto-tracked via .value in render
-  const huePalette = BUILDING_PALETTE.value.HUE_EXT_MAP || {};
+  const huePalette = BUILDINGS.value.HUE_EXT_MAP || {};
   const asphaltColor = STREETS.value.ASPHALT_COLOR;
   const isFileSel = !sel.isDir;
   const segs = sel.path.split('/').filter(Boolean);

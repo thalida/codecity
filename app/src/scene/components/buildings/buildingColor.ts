@@ -10,10 +10,10 @@
 // the file has existed in the repo. That drives grime + tilt + lit-window
 // glow color in the shader, independent of recent edits.
 //
-// Tunables come from BUILDING_PALETTE in config/building.ts. Tests
+// Tunables come from BUILDINGS in config/building.ts. Tests
 // mutate the store via .setKey() in setup + restore in teardown.
 
-import { BUILDING_PALETTE } from '@/state/settings/components/buildings';
+import { BUILDINGS } from '@/state/settings/components/buildings';
 import { NodeKind } from '@/types';
 
 // Structural shapes match what real Manifest tree / FileNode supply but
@@ -272,7 +272,7 @@ export function getBuildingColor(file: FileLike, dateRanges: DateRangeStrings): 
   // Prefer git dates, fall back to filesystem dates
   const modified = (file.git && file.git.modified) || file.modified || null;
 
-  const palette = BUILDING_PALETTE.value;
+  const palette = BUILDINGS.value;
   const h = getHue(file.extension || '', palette.HUE_EXT_MAP);
   // Saturation and lightness both key off LAST-MODIFIED, normalized
   // against the repo's MODIFIED-date range (modifiedMin/Max). This

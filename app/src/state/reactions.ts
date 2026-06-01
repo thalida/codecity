@@ -21,10 +21,7 @@ import { routeSignature, ChangeRoute } from '@/state/settings/schema';
 // Buildings are migrated. Every converted store routes automatically from its
 // per-field `route` metadata via routeSignature() — no manual entry here.
 import {
-  BUILDING_PALETTE,
   AD_PANEL,
-  BUILDING_OUTLINE,
-  BUILDING_AGING,
   LIGHTING,
   FACADE_DETAIL,
   WINDOW_LIGHTING,
@@ -50,7 +47,6 @@ interface CommitReactionsOpts {
 // relevant route.
 function legacyRebuildSig(): string {
   return JSON.stringify({
-    buildingPalette: BUILDING_PALETTE.value,
     adPanel: AD_PANEL.value,
     // FACADE_GEOMETRY JS-driven keys (bake into per-instance attributes).
     facadeGeometry: {
@@ -63,8 +59,6 @@ function legacyRebuildSig(): string {
 
 function legacyRefreshSig(): string {
   return JSON.stringify({
-    buildingOutline: BUILDING_OUTLINE.value,
-    buildingAging: BUILDING_AGING.value,
     lighting: LIGHTING.value,
     facadeDetail: FACADE_DETAIL.value,
     windowLighting: WINDOW_LIGHTING.value,

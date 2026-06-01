@@ -9,9 +9,8 @@
 import * as THREE from 'three';
 import {
   BLOOM,
-  BUILDING_AGING,
+  BUILDINGS,
   BUILDING_DIMENSIONS,
-  BUILDING_OUTLINE,
   FACADE_DETAIL,
   FACADE_GEOMETRY,
   LIGHTING,
@@ -81,7 +80,7 @@ function getBuildingMaterial(): THREE.ShaderMaterial {
     uniforms: {
       // Hidden-tier wireframe thickness in screen-pixels. Updated by
       // refreshBuildingMaterial() on Save via applyTheme().
-      uOutlineWidth: { value: BUILDING_OUTLINE.value.WIDTH },
+      uOutlineWidth: { value: BUILDINGS.value.OUTLINE_WIDTH },
       // Atlas of file-type icons; sampled per-instance via iIconUV for
       // the roof face. Null until the atlas builds — the shader gates
       // sampling behind iIconUV.x >= 0.
@@ -106,14 +105,14 @@ function getBuildingMaterial(): THREE.ShaderMaterial {
       // from windows; higher = brighter glow on new buildings.
       uWindowEmissionBoost: { value: BLOOM.value.WINDOW_EMISSION },
       // Age-driven decay uniforms (createdAge-gated, independent of
-      // modifiedAge). See BUILDING_AGING config.
+      // modifiedAge). See BUILDINGS (aging) config.
       uGrimeIntensity: {
-        value: BUILDING_AGING.value.GRIME_ENABLED ? BUILDING_AGING.value.GRIME_INTENSITY : 0,
+        value: BUILDINGS.value.GRIME_ENABLED ? BUILDINGS.value.GRIME_INTENSITY : 0,
       },
-      uGrimeCoverage: { value: BUILDING_AGING.value.GRIME_COVERAGE },
+      uGrimeCoverage: { value: BUILDINGS.value.GRIME_COVERAGE },
       uTiltMaxRad: {
-        value: BUILDING_AGING.value.TILT_ENABLED
-          ? (BUILDING_AGING.value.TILT_DEGREES * Math.PI) / 180
+        value: BUILDINGS.value.TILT_ENABLED
+          ? (BUILDINGS.value.TILT_DEGREES * Math.PI) / 180
           : 0,
       },
       // Scene directional lighting (LIGHTING store). uSunDirWorld is
@@ -180,7 +179,7 @@ export function getSharedBuildingUniforms(): Record<string, THREE.IUniform> {
 }
 
 /**
- * applyTheme() coordinator hook: push fresh BUILDING_OUTLINE.WIDTH into
+ * applyTheme() coordinator hook: push fresh BUILDINGS.OUTLINE_WIDTH into
  * the shared building material's uOutlineWidth uniform so the Hidden-tier
  * wireframe thickness honors live config edits.
  */
@@ -188,7 +187,7 @@ export function refreshBuildingMaterial(): void {
   if (!_sharedMaterial) return;
   const sceneCfg = SCENE.value;
   const bloomCfg = BLOOM.value;
-  _sharedMaterial.uniforms.uOutlineWidth.value = BUILDING_OUTLINE.value.WIDTH;
+  _sharedMaterial.uniforms.uOutlineWidth.value = BUILDINGS.value.OUTLINE_WIDTH;
   // Height fog: uFogEnabled drives the GLSL branch; uFogIntensity is also
   // zeroed when disabled so the mix() is a no-op even if the bool branch
   // ever short-circuits differently on a given driver.
@@ -205,7 +204,7 @@ export function refreshBuildingMaterial(): void {
   _sharedMaterial.uniforms.uWindowEmissionBoost.value = bloomCfg.ENABLED
     ? bloomCfg.WINDOW_EMISSION
     : 0;
-  const aging = BUILDING_AGING.value;
+  const aging = BUILDINGS.value;
   _sharedMaterial.uniforms.uGrimeIntensity.value = aging.GRIME_ENABLED ? aging.GRIME_INTENSITY : 0;
   _sharedMaterial.uniforms.uGrimeCoverage.value = aging.GRIME_COVERAGE;
   _sharedMaterial.uniforms.uTiltMaxRad.value = aging.TILT_ENABLED

@@ -5,10 +5,8 @@
 
 import {
   BUILDING_DIMENSIONS,
-  BUILDING_PALETTE,
-  BUILDING_OUTLINE,
+  BUILDINGS,
   BUILDING_FADE,
-  BUILDING_AGING,
 } from '@/state/settings/index';
 import {
   FACADE_GEOMETRY,
@@ -16,7 +14,6 @@ import {
   WINDOW_LIGHTING,
 } from '@/state/settings/components/facade';
 import { AD_PANEL } from '@/state/settings/components/adPanels';
-import { ANIMATION_TIMING } from '@/state/settings/system/animator';
 import { FadeDetail } from '@/types';
 import { getDefault } from '@/state/persist';
 import { Section } from './Section';
@@ -86,7 +83,7 @@ function FadeTier({
 }
 
 export function BuildingsSection() {
-  const hueDefaults = (getDefault(BUILDING_PALETTE, 'HUE_EXT_MAP') as Record<string, number>) || {};
+  const hueDefaults = (getDefault(BUILDINGS, 'HUE_EXT_MAP') as Record<string, number>) || {};
   const hueExtensions = Object.keys(hueDefaults).sort();
 
   return (
@@ -106,14 +103,14 @@ export function BuildingsSection() {
       </CollapsibleSubgroup>
 
       <CollapsibleSubgroup name="Transitions">
-        <NumberField label="Enter / refresh (ms)" store={ANIMATION_TIMING} fieldKey="BUILDING_TRANSITION_MS" min={50} max={3000} step={10}
+        <NumberField label="Enter / refresh (ms)" store={BUILDINGS} fieldKey="BUILDING_TRANSITION_MS" min={50} max={3000} step={10}
           tip="Fade-in / stay duration for buildings as they enter on initial render or refresh when the manifest changes. Above 3000ms tweens feel sluggish; below 50ms reads as a hard cut." />
       </CollapsibleSubgroup>
 
       <CollapsibleSubgroup name="Color palette (HSL)">
-        <RangePairField label="Saturation range" store={BUILDING_PALETTE} minKey="SATURATION_MIN" maxKey="SATURATION_MAX" min={0} max={100} step={5}
+        <RangePairField label="Saturation range" store={BUILDINGS} minKey="SATURATION_MIN" maxKey="SATURATION_MAX" min={0} max={100} step={5}
           tip="HSL saturation range — older files tend to MIN, newly-created tend to MAX." />
-        <RangePairField label="Lightness range" store={BUILDING_PALETTE} minKey="LIGHTNESS_MIN" maxKey="LIGHTNESS_MAX" min={0} max={100} step={5}
+        <RangePairField label="Lightness range" store={BUILDINGS} minKey="LIGHTNESS_MIN" maxKey="LIGHTNESS_MAX" min={0} max={100} step={5}
           tip="HSL lightness range — recently-modified files tend to MAX (brighter); stale files tend to MIN." />
       </CollapsibleSubgroup>
 
@@ -122,7 +119,7 @@ export function BuildingsSection() {
           <NestedSliderField
             key={ext}
             label={ext}
-            store={BUILDING_PALETTE}
+            store={BUILDINGS}
             parentKey="HUE_EXT_MAP"
             subKey={ext}
             min={0}
@@ -135,12 +132,12 @@ export function BuildingsSection() {
       </CollapsibleSubgroup>
 
       <CollapsibleSubgroup name="Outlines">
-        <NumberField label="Linewidth" store={BUILDING_OUTLINE} fieldKey="WIDTH" min={1} max={10} step={1}
+        <NumberField label="Linewidth" store={BUILDINGS} fieldKey="OUTLINE_WIDTH" min={1} max={10} step={1}
           tip="Pixel thickness shared by per-building, hover, and selected outlines. Above 10 pixels the wireframe occludes facade detail; below 1 it vanishes at typical zoom." />
-        <ColorField label="Hover color" store={BUILDING_OUTLINE} fieldKey="HOVER_COLOR"
+        <ColorField label="Hover color" store={BUILDINGS} fieldKey="OUTLINE_HOVER_COLOR"
           tip="Outline color when the cursor is over a building." />
-        <SliderField label="Hover opacity" store={BUILDING_OUTLINE} fieldKey="HOVER_OPACITY" min={0} max={1} step={0.05} />
-        <SliderField label="Selected opacity" store={BUILDING_OUTLINE} fieldKey="SELECTED_OPACITY" min={0} max={1} step={0.05}
+        <SliderField label="Hover opacity" store={BUILDINGS} fieldKey="OUTLINE_HOVER_OPACITY" min={0} max={1} step={0.05} />
+        <SliderField label="Selected opacity" store={BUILDINGS} fieldKey="OUTLINE_SELECTED_OPACITY" min={0} max={1} step={0.05}
           tip="Selected outline uses an animated rainbow color — see Effects > Rainbow." />
       </CollapsibleSubgroup>
 
@@ -200,18 +197,18 @@ export function BuildingsSection() {
 
       <CollapsibleSubgroup name="Aging">
         <CollapsibleSubgroup name="Grime streaks">
-          <ToggleField label="Enabled" store={BUILDING_AGING} fieldKey="GRIME_ENABLED"
+          <ToggleField label="Enabled" store={BUILDINGS} fieldKey="GRIME_ENABLED"
             tip="Vertical streaks of darker color falling from the top of each face on aged buildings. Off → clean facades regardless of age." />
-          <SliderField label="Intensity" store={BUILDING_AGING} fieldKey="GRIME_INTENSITY" min={0} max={1} step={0.05}
+          <SliderField label="Intensity" store={BUILDINGS} fieldKey="GRIME_INTENSITY" min={0} max={1} step={0.05}
             tip="How dark each streak gets. 0 = invisible; 1 = strongly darkened wall color." />
-          <SliderField label="Coverage" store={BUILDING_AGING} fieldKey="GRIME_COVERAGE" min={0} max={1} step={0.05}
+          <SliderField label="Coverage" store={BUILDINGS} fieldKey="GRIME_COVERAGE" min={0} max={1} step={0.05}
             tip="Fraction of vertical bands the oldest building shows as streaky. Lower = sparser streaks; higher = nearly every band weathers." />
         </CollapsibleSubgroup>
 
         <CollapsibleSubgroup name="Tilt">
-          <ToggleField label="Enabled" store={BUILDING_AGING} fieldKey="TILT_ENABLED"
+          <ToggleField label="Enabled" store={BUILDINGS} fieldKey="TILT_ENABLED"
             tip="Small lean around the base, proportional to createdAge. Each building leans in a stable hashed direction. Off → all buildings stand perfectly upright." />
-          <SliderField label="Max degrees" store={BUILDING_AGING} fieldKey="TILT_DEGREES" min={0} max={10} step={0.1}
+          <SliderField label="Max degrees" store={BUILDINGS} fieldKey="TILT_DEGREES" min={0} max={10} step={0.1}
             tip="Maximum lean angle (degrees) applied to the oldest building. Newer buildings interpolate down to 0. Above 10° buildings visually clip into their neighbors." />
         </CollapsibleSubgroup>
       </CollapsibleSubgroup>
