@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { render } from 'preact';
-import { LeftSidebar } from '@/views/shell/LeftSidebar';
+import { LeftSidebar } from '@/layout/LeftSidebar';
 import { SCENE_HANDLE } from '@/state/stores/scene';
 import { flush } from '../../_helpers/preact';
 

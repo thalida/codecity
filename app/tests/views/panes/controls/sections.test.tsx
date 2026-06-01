@@ -1,10 +1,10 @@
 import { describe, it, expect, afterEach } from 'vitest';
 import { render } from 'preact';
-import { DynamicSection, type SectionChild, type FieldRef } from '@/views/panes/controls/sections';
-import { TREES_SECTION } from '@/views/panes/controls/sections/trees';
-import { STREETS_SECTION } from '@/views/panes/controls/sections/streets';
-import { FOOTPRINT_SECTION } from '@/views/panes/controls/sections/footprint';
-import { BUILDINGS_SECTION } from '@/views/panes/controls/sections/buildings';
+import { DynamicSection, type SectionChild, type FieldRef } from '@/views/controls/sections';
+import { TREES_SECTION } from '@/views/controls/sections/trees';
+import { STREETS_SECTION } from '@/views/controls/sections/streets';
+import { FOOTPRINT_SECTION } from '@/views/controls/sections/footprint';
+import { BUILDINGS_SECTION } from '@/views/controls/sections/buildings';
 import { TREES } from '@/state/stores/settings/trees';
 import {
   STREETS,

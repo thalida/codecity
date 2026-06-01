@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { render } from 'preact';
 import { signal } from '@preact/signals';
-import { StreetPane } from '@/views/panes/StreetPane';
-import type { StreetPaneState } from '@/views/panes/StreetPane';
+import { StreetPane } from '@/views/StreetPane';
+import type { StreetPaneState } from '@/views/StreetPane';
 import { NodeKind } from '@/types';
 import type { DirNode, FileNode, ExtBreakdownEntry } from '@/types';
 import { flush } from '../../_helpers/preact';

@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { render } from 'preact';
 import { act } from 'preact/test-utils';
-import { ControlsPane } from '@/views/panes/ControlsPane';
+import { ControlsPane } from '@/views/ControlsPane';
 // Importing the settings barrel triggers every persistedSignal() registration
 // at module-load (used by getDefault / forEachRegisteredStore inside the
 // controls sections).

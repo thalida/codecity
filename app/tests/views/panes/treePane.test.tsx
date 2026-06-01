@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { render } from 'preact';
 import { act } from 'preact/test-utils';
 import { signal } from '@preact/signals';
-import { TreePane } from '@/views/panes/TreePane';
+import { TreePane } from '@/views/TreePane';
 import type { Manifest, DirNode, TreeNode } from '@/types';
 import { flush } from '../../_helpers/preact';
 

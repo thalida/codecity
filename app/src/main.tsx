@@ -4,7 +4,7 @@
 
 import { render } from 'preact';
 import './styles.css';
-import { App } from './views/shell/App';
+import { App } from '@/layout/App';
 
 // Re-export so tests that import from '@/main' continue to resolve.
 export { applyPendingTitle } from './utils/pendingTitle';

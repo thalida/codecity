@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { render } from 'preact';
 import { signal } from '@preact/signals';
-import { SearchPane } from '@/views/panes/SearchPane';
+import { SearchPane } from '@/views/SearchPane';
 import { NodeKind } from '@/types';
 import { flush } from '../../_helpers/preact';
 

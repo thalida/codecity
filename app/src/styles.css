@@ -1417,7 +1417,7 @@ canvas {
  * Flexbox keeps the two vertically centered against each other regardless
  * of the title's font metrics or the button's size; no manual top/left
  * positioning math needed. */
-/* Shared header row built by views/shell/paneHeader.ts. Every pane —
+/* Shared header row built by layout/paneHeader.ts. Every pane —
  * left sidebar's Tree/Search/Info/Controls and the right sidebar's
  * file-preview — mounts this same DOM so they look identical and
  * adding a pane is a single buildPaneHeader() call. */

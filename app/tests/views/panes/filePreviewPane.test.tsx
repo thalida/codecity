@@ -2,8 +2,8 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { render } from 'preact';
 import { act } from 'preact/test-utils';
 import { signal } from '@preact/signals';
-import { FilePreviewPane } from '@/views/panes/FilePreviewPane';
-import type { FilePreviewPaneState } from '@/views/panes/FilePreviewPane';
+import { FilePreviewPane } from '@/views/FilePreviewPane';
+import type { FilePreviewPaneState } from '@/views/FilePreviewPane';
 import { NodeKind } from '@/types';
 import type { FileNode } from '@/types';
 // Settling a FilePreviewPane render for a TEXT file involves three interleaved

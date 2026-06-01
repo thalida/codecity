@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render } from 'preact';
-import { HeaderTitle } from '@/views/shell/header/HeaderTitle';
-import type { HeaderSelection } from '@/views/shell/header/HeaderTitle';
+import { HeaderTitle } from '@/layout/header/HeaderTitle';
+import type { HeaderSelection } from '@/layout/header/HeaderTitle';
 import { NodeKind } from '@/types';
 
 function mountTitle(sel: HeaderSelection | null, onFocus?: () => void) {

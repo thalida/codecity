@@ -12,7 +12,7 @@
 // separate default object, no hand-written interface to drift.
 //
 // Arrangement (which section/subgroup a field sits in, nesting, order) is NOT
-// here — that lives in the controls UI layer (views/panes/controls/sections).
+// here — that lives in the controls UI layer (views/controls/sections).
 
 import type { Signal } from '@preact/signals';
 import { persistedSignal } from '@/state/persist';

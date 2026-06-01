@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { render } from 'preact';
 import { signal } from '@preact/signals';
-import { RightSidebar } from '@/views/shell/RightSidebar';
+import { RightSidebar } from '@/layout/RightSidebar';
 import { SCENE_HANDLE } from '@/state/stores/scene';
 import { NodeKind } from '@/types';
 import type { FileNode, PickTarget } from '@/types';
