@@ -8,7 +8,7 @@
 // (diff-vs-default), so a fresh install starts with no entries and resetting
 // a value back to its default removes the entry.
 
-import { signal, computed, effect } from '@preact/signals';
+import { signal, effect } from '@preact/signals';
 import type { Signal } from '@preact/signals';
 import { STORAGE_PREFIX } from '@/constants';
 import { deepEqual, deepClone } from '@/utils/deep';
@@ -118,37 +118,17 @@ export function persistedSignal<T>(key: string, defaultValue: T): Signal<T> {
   return s;
 }
 
-// ── Public: derived state ──────────────────────────────────────────────────
-
-/** True when ANY registered persistedSignal holds a non-default value.
- *  Replaces the old _changeListeners + onAnyChange + hasAnyOverrides() pattern.
- *  The Reset-all button reads HAS_ANY_NON_DEFAULT.value for its enabled state. */
-export const HAS_ANY_NON_DEFAULT = computed(() => {
-  for (const [s, entry] of _STORES) {
-    if (!deepEqual(s.value, entry.default)) return true;
-  }
-  return false;
-});
-
-// ── Public: getDefault / forEachRegisteredStore ─
-
+// ── Public: getDefault ───────────────────────────────────────────────────────
 // Loose signal-like type used at the boundary with drafts.ts / the controls
 // layer, which have their own local SignalLike interface. These are always
 // real @preact/signals Signal instances at runtime.
 type AnySignalLike = { value: any };
 
-/** Return the pre-hydration default for a signal, or a keyed sub-default. */
+/** Return the pre-hydration default for a signal, or a keyed sub-default. Works
+ *  for any persisted store (this is the one cross-cutting concern persist owns;
+ *  "which stores are settings" lives in state/schema). */
 export function getDefault(store: AnySignalLike, key?: string): any {
   const entry = _STORES.get(store as Signal<any>);
   if (!entry) return undefined;
   return key === undefined ? entry.default : (entry.default ? entry.default[key] : undefined);
-}
-
-/** Visit every registered signal. Used by drafts.ts for stageResetAll. */
-export function forEachRegisteredStore(
-  cb: (store: AnySignalLike, defaults: any) => void
-): void {
-  for (const [s, entry] of _STORES) {
-    cb(s as AnySignalLike, entry.default);
-  }
 }

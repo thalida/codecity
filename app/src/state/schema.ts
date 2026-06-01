@@ -14,8 +14,9 @@
 // Arrangement (which section/subgroup a field sits in, nesting, order) is NOT
 // here — that lives in the controls UI layer (views/ControlsPane/partials).
 
-import type { Signal } from '@preact/signals';
-import { persistedSignal } from '@/state/persist';
+import { computed, type Signal } from '@preact/signals';
+import { persistedSignal, getDefault } from '@/state/persist';
+import { deepEqual } from '@/utils/deep';
 import type { SegmentedSelectOption } from '@/components/SegmentedSelect';
 
 export enum FieldKind {
@@ -74,6 +75,37 @@ export type ConfigOf<F extends FieldMap> = { [K in keyof F]: F[K]['default'] };
 // iterable; the stores are module-level singletons, never GC'd.
 const _FIELDS = new Map<object, FieldMap>();
 
+// The set of stores the SETTINGS panel owns — every settingSignal store, plus a
+// few hand-registered ones (e.g. SYNTAX_THEME, a direct-write setting). This is
+// deliberately NARROWER than persist's all-persisted registry: the panel's
+// "Reset all" / draft / non-default machinery iterates ONLY these, so
+// non-settings persisted state (recents, sidebar width/collapsed) is never
+// reset or counted by the settings UI.
+const _SETTING_STORES = new Set<object>();
+
+/** Register a store as panel-owned settings (so Reset-all / draft staging act
+ *  on it). settingSignal calls this automatically; direct-write settings that
+ *  don't use settingSignal (e.g. SYNTAX_THEME) call it explicitly. */
+export function markSettingStore(store: object): void {
+  _SETTING_STORES.add(store);
+}
+
+/** Visit every settings store (settingSignal + hand-registered). The settings
+ *  draft/reset machinery uses this instead of persist.forEachRegisteredStore. */
+export function forEachSettingStore(cb: (store: { value: unknown }) => void): void {
+  for (const s of _SETTING_STORES) cb(s as { value: unknown });
+}
+
+/** True when ANY settings store holds a (committed) non-default value — drives
+ *  the Reset-all button's enabled state. Scoped to settings stores only. */
+export const HAS_ANY_NON_DEFAULT = computed(() => {
+  for (const s of _SETTING_STORES) {
+    const store = s as { value: unknown };
+    if (!deepEqual(store.value, getDefault(store))) return true;
+  }
+  return false;
+});
+
 /**
  * Create a persisted settings store from a flat field map. Derives the default
  * object from each field's `default`, wraps persistedSignal (so persistence,
@@ -91,6 +123,7 @@ export function settingSignal<F extends FieldMap>(key: string, fields: F): Signa
   }
   const sig = persistedSignal<ConfigOf<F>>(key, def);
   _FIELDS.set(sig, fields);
+  _SETTING_STORES.add(sig);
   return sig;
 }
 

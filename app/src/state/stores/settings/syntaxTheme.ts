@@ -5,6 +5,7 @@
 // sessions.
 
 import { persistedSignal } from '@/state/persist';
+import { markSettingStore } from '@/state/schema';
 
 export interface SyntaxThemeOption {
   value: string;
@@ -50,3 +51,8 @@ export const SYNTAX_THEME = persistedSignal<string>('SYNTAX_THEME', SYNTAX_THEME
 // link swaps instantly). stageResetAll() reads this flag and resets
 // directly too, so "Reset all" doesn't leave behind a phantom draft.
 (SYNTAX_THEME as unknown as { _skipDrafts?: boolean })._skipDrafts = true;
+
+// SYNTAX_THEME is a setting (it lives in the File Preview section) but uses a
+// plain persistedSignal rather than settingSignal, so register it explicitly so
+// "Reset all" still resets it (non-settings persisted state is NOT registered).
+markSettingStore(SYNTAX_THEME);

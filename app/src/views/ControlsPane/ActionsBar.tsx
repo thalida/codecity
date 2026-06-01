@@ -14,7 +14,7 @@ import {
   anyResettable,
   DRAFTS_REV,
 } from '@/state/drafts';
-import { HAS_ANY_NON_DEFAULT } from '@/state/persist';
+import { HAS_ANY_NON_DEFAULT } from '@/state/schema';
 
 export function ActionsBar() {
   // Reactive tracking: both signals participate so the bar re-renders on

@@ -10,7 +10,8 @@
 // signals (no sub-key), key = null and the inner map has at most one entry.
 
 import { signal } from '@preact/signals';
-import { forEachRegisteredStore, getDefault } from './persist';
+import { getDefault } from './persist';
+import { forEachSettingStore } from './schema';
 import { deepEqual, deepClone } from '@/utils/deep';
 
 interface SignalLike {
@@ -78,7 +79,8 @@ export function stageReset(store: SignalLike, key: DraftKey): void {
 
 export function stageResetAll(): void {
   let touched = false;
-  forEachRegisteredStore((store, defaults) => {
+  forEachSettingStore((store) => {
+    const defaults = getDefault(store);
     // Direct-write signals (e.g. SYNTAX_THEME) bypass the draft layer on
     // user input — the widget writes straight to the signal for instant
     // visual feedback. Reset all must do the same, otherwise it leaves
@@ -119,7 +121,8 @@ export function stageResetAll(): void {
  *  DRAFTS_REV.value + the committed signals (see ActionsBar). */
 export function anyResettable(): boolean {
   let any = false;
-  forEachRegisteredStore((store, defaults) => {
+  forEachSettingStore((store) => {
+    const defaults = getDefault(store);
     if (any) return;
     if ((store as { _skipDrafts?: boolean })._skipDrafts) {
       if (!deepEqual((store as SignalLike).value, defaults)) any = true;

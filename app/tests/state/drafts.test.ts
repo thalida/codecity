@@ -12,6 +12,7 @@ import {
   _resetForTests,
 } from '@/state/drafts';
 import { persistedSignal } from '@/state/persist';
+import { markSettingStore } from '@/state/schema';
 
 interface FooConfig {
   COLOR: string;
@@ -31,6 +32,10 @@ describe('drafts', () => {
     _resetForTests();
     FOO = persistedSignal<FooConfig>('TEST_FOO', { COLOR: '#000000', COUNT: 1 });
     BAR = persistedSignal<number>('TEST_BAR', 10);
+    // Real settings stores are auto-marked by settingSignal; these raw
+    // persistedSignals must opt in so stageResetAll/anyResettable act on them.
+    markSettingStore(FOO);
+    markSettingStore(BAR);
   });
 
   describe('setDraft + getEffective + isDirty', () => {
@@ -155,6 +160,21 @@ describe('drafts', () => {
       // Discard everything; nothing changes in committed stores.
       discard();
       expect(BAR.value).toBe(42);
+    });
+
+    it('leaves NON-settings persisted stores untouched (recents / sidebar bug)', () => {
+      // A plain persistedSignal NOT marked as a setting — e.g. RECENTS or the
+      // sidebar-collapsed flag — must survive a settings "Reset all".
+      const RECENTS_LIKE = persistedSignal<number[]>('TEST_NON_SETTING', []);
+      RECENTS_LIKE.value = [1, 2, 3];
+      FOO.value = { ...FOO.value, COUNT: 9 }; // a real (marked) setting differs
+      stageResetAll();
+      // anyResettable + the reset only see settings stores, so RECENTS_LIKE is
+      // never staged. FOO (marked) is.
+      expect(getEffective(FOO, 'COUNT')).toBe(1);
+      expect(getEffective(RECENTS_LIKE, null)).toEqual([1, 2, 3]);
+      commit();
+      expect(RECENTS_LIKE.value).toEqual([1, 2, 3]); // not wiped
     });
   });
 
