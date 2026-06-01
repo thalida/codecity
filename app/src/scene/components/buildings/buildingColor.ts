@@ -13,7 +13,7 @@
 // Tunables come from BUILDINGS in config/building.ts. Tests
 // mutate the store via .setKey() in setup + restore in teardown.
 
-import { BUILDINGS } from '@/state/settings/buildings';
+import { BUILDINGS } from '@/state/stores/settings/buildings';
 import { NodeKind } from '@/types';
 
 // Structural shapes match what real Manifest tree / FileNode supply but

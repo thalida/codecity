@@ -21,7 +21,7 @@
 // or an inverse-shear ray transform (picker).
 
 import * as THREE from 'three';
-import { BUILDINGS } from '@/state/settings/buildings';
+import { BUILDINGS } from '@/state/stores/settings/buildings';
 import type { Building } from '@/types';
 
 /**

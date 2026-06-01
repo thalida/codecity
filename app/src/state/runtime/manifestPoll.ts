@@ -4,14 +4,14 @@
 // refresh entrypoint exposed here (refreshManifest) routes back into the
 // same fetch+apply path the poll uses.
 //
-// Lives OUTSIDE state/settings/ on purpose: these atoms are session-only
+// Lives OUTSIDE state/stores/settings/ on purpose: these atoms are session-only
 // and must NOT be persisted to localStorage. If REBUILD_STATUS were
 // rehydrated, the poll's status-gated logic would strand the footer on
 // "rebuilding…" forever after a mid-fetch reload.
 //
 // Two writers feed the same atoms:
 //   - setupLiveUpdates() below — live-poll fetch + applyManifest
-//   - scheduleRebuild() in state/settings/hotReload.ts — save-driven applyManifest
+//   - scheduleRebuild() in state/stores/settings/hotReload.ts — save-driven applyManifest
 //
 // LAST_UPDATED_AT is written by the coordinator on every applied
 // manifest (initial paint + each successful poll that swapped state).
@@ -24,7 +24,7 @@
 // "rebuilding…" indicator only lights up when there's real work.
 
 import { signal, effect } from '@preact/signals';
-import { LIVE_UPDATES } from '@/state/settings/index';
+import { LIVE_UPDATES } from '@/state/stores/settings/index';
 import { manifestUrl, signatureUrl, streamManifest } from '@/api/manifest';
 import { _applyDisplayLabel, startRenderLoop } from '@/scene/renderLoop';
 import { setLoadingStep } from '@/state/runtime/uiState';

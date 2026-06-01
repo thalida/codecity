@@ -28,7 +28,7 @@
 // cannot conflict by construction.
 
 import * as THREE from 'three';
-import { BUILDINGS } from '@/state/settings/index';
+import { BUILDINGS } from '@/state/stores/settings/index';
 import type { Building, WorldDiff } from '@/types';
 import type { createWorld } from '../world';
 

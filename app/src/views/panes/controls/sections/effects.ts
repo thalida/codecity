@@ -1,6 +1,6 @@
 // views/panes/controls/sections/effects.ts — Effects section declaration.
 import { field, type SectionNode } from '.';
-import { RAINBOW, BLOOM } from '@/state/settings/effects';
+import { RAINBOW, BLOOM } from '@/state/stores/settings/effects';
 
 export const EFFECTS_SECTION: SectionNode = {
   key: 'effects',

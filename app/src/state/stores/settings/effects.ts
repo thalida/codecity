@@ -1,4 +1,4 @@
-// state/settings/effects.ts — Cross-cutting visual effects shared
+// state/stores/settings/effects.ts — Cross-cutting visual effects shared
 // between multiple consumers (rainbow chase + HDR bloom). Keeping them in one
 // place means tweaking the look (e.g. "slower rainbows") doesn't require
 // chasing the same values through per-target stores.

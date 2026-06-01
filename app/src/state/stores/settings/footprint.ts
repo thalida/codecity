@@ -1,4 +1,4 @@
-// state/settings/footprint.ts — Cyberpunk Valley city footprint configuration.
+// state/stores/settings/footprint.ts — Cyberpunk Valley city footprint configuration.
 //
 // One InstancedMesh per layout rect (buildings + streets + paths),
 // each scaled up by HALO_WIDTH world units in both axes, painted with

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { ISLAND } from '@/state/settings/island';
+import { ISLAND } from '@/state/stores/settings/island';
 
 describe('ISLAND config defaults', () => {
   it('GEOMETRY exposes the expected keys with the right types', () => {

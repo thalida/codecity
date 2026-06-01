@@ -6,7 +6,7 @@
 // day/night cycle.
 
 import * as THREE from 'three';
-import { ISLAND } from '@/state/settings/island';
+import { ISLAND } from '@/state/stores/settings/island';
 
 const vertSrc = /* glsl */ `
 attribute vec3 color;

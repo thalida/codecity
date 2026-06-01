@@ -24,17 +24,17 @@
 
 import RBush from 'rbush';
 import * as THREE from 'three';
-import { TREES } from '@/state/settings/trees';
-import { FOOTPRINT } from '@/state/settings/footprint';
-import { BUILDING_DIMENSIONS } from '@/state/settings/buildings';
-import { ISLAND } from '@/state/settings/island';
+import { TREES } from '@/state/stores/settings/trees';
+import { FOOTPRINT } from '@/state/stores/settings/footprint';
+import { BUILDING_DIMENSIONS } from '@/state/stores/settings/buildings';
+import { ISLAND } from '@/state/stores/settings/island';
 import { getWorldBounds } from '../../layout/worldBounds';
 import { buildTopPolygon, pointInIslandPolygon } from '../island/islandGeometry';
 import { islandSeedFromBounds } from '../island/islandMesh';
 import { StreetAxis } from '@/types';
 import { gemAnchorXZ } from '../../utils/gemAnchor';
 import type { Building, CityBbox, CityLayout, Street } from '@/types';
-import type { IslandConfig } from '@/state/settings/island';
+import type { IslandConfig } from '@/state/stores/settings/island';
 
 // Rejection-sampling footprint half-size as a fraction of BUILDING_DIMENSIONS
 // .MAX_WIDTH — a fixed placement-tuning constant, not user-tunable (it lived in

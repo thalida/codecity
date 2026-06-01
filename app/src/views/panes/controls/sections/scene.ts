@@ -2,7 +2,7 @@
 // holds the backdrop visuals (sky/stars/fog); WORLD holds the ground-sizing
 // knob — both placed here as arrangement.
 import { field, type SectionNode } from '.';
-import { SCENE, WORLD } from '@/state/settings/scene';
+import { SCENE, WORLD } from '@/state/stores/settings/scene';
 
 export const SCENE_SECTION: SectionNode = {
   key: 'scene',

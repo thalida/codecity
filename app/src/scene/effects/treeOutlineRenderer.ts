@@ -19,8 +19,8 @@ import { LineSegments2 } from 'three/addons/lines/LineSegments2.js';
 import { LineSegmentsGeometry } from 'three/addons/lines/LineSegmentsGeometry.js';
 import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
 
-import { TREES } from '@/state/settings/trees';
-import { RAINBOW } from '@/state/settings/effects';
+import { TREES } from '@/state/stores/settings/trees';
+import { RAINBOW } from '@/state/stores/settings/effects';
 import { RENDER_ORDERS } from '@/scene/renderOrders';
 import { NodeKind } from '@/types';
 import { buildCanopyEdges } from '@/scene/components/trees/treeRenderer';

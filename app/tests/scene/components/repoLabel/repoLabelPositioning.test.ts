@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import * as THREE from 'three';
 import { createRepoLabel } from '@/scene/components/repoLabel/repoLabel';
-import { REPO_LABEL } from '@/state/settings/gem';
+import { REPO_LABEL } from '@/state/stores/settings/gem';
 import { resetBuildingsConfig } from '../../../_helpers/cityFixtures';
 
 // Positioning math below assumes BUILDING_DIMENSIONS.MAX_FLOORS=96,

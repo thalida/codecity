@@ -5,7 +5,7 @@
 // arrangement only; the four stores (BUILDING_DIMENSIONS, BUILDINGS, FACADE,
 // BUILDING_FADE) own each field.
 import { field, type SectionNode } from '.';
-import { BUILDING_DIMENSIONS, BUILDINGS, FACADE, BUILDING_FADE } from '@/state/settings/index';
+import { BUILDING_DIMENSIONS, BUILDINGS, FACADE, BUILDING_FADE } from '@/state/stores/settings/index';
 
 // One selection-fade tier subgroup (DEFAULT / LEVEL1..4).
 function fadeTier(label: string, prefix: 'DEFAULT' | 'LEVEL1' | 'LEVEL2' | 'LEVEL3' | 'LEVEL4') {

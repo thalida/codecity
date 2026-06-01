@@ -15,7 +15,7 @@
 // the shared atlas built by buildLabelAtlas() from labelAtlas.ts.
 
 import * as THREE from 'three';
-import { STREETS } from '@/state/settings/index';
+import { STREETS } from '@/state/stores/settings/index';
 import { LABEL_ELEVATION } from '@/constants/streets';
 import { RENDER_ORDERS } from '@/scene/renderOrders';
 import type { Building } from '@/types/index';

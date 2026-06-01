@@ -7,7 +7,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import * as THREE from 'three';
 import { createSky } from '@/scene/components/sky/sky';
-import { SCENE } from '@/state/settings/scene';
+import { SCENE } from '@/state/stores/settings/scene';
 import { RENDER_ORDERS } from '@/scene/renderOrders';
 
 function resetStores() {

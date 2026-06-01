@@ -27,7 +27,7 @@
 // refresh() handles COLOR, CORNER_RADIUS, and ENABLED only.
 
 import * as THREE from 'three';
-import { FOOTPRINT } from '@/state/settings/footprint';
+import { FOOTPRINT } from '@/state/stores/settings/footprint';
 import { RENDER_ORDERS } from '@/scene/renderOrders';
 import { StreetAxis } from '@/types';
 import type { Building, CityLayout, Street } from '@/types';

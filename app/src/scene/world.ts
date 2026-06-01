@@ -62,7 +62,7 @@ import type { Island } from './components/island/islandMesh';
 import { getWorldBounds, type WorldBounds } from './layout/worldBounds';
 import { createCityFootprint } from './components/footprint/footprint';
 import type { CityFootprint } from './components/footprint/footprint';
-import { FOOTPRINT } from '@/state/settings/footprint';
+import { FOOTPRINT } from '@/state/stores/settings/footprint';
 import {
   getBuildingColor,
   getCreatedAge,
@@ -75,7 +75,7 @@ import {
   GEM_SIZING,
   TREES,
   SCENE,
-} from '@/state/settings/index';
+} from '@/state/stores/settings/index';
 import { REBUILD_STATUS } from '@/state/runtime/manifestPoll';
 import type {
   Building,

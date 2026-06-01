@@ -31,8 +31,8 @@
 
 import { NodeKind } from '@/types';
 import type { CityBbox, CityLayout } from '@/types';
-import { TREES } from '@/state/settings/trees';
-import { BUILDING_DIMENSIONS } from '@/state/settings/buildings';
+import { TREES } from '@/state/stores/settings/trees';
+import { BUILDING_DIMENSIONS } from '@/state/stores/settings/buildings';
 
 /** Builds a CityBbox from extents, deriving cx/cy/width/depth. */
 export function bbox(minX: number, minY: number, maxX: number, maxY: number): CityBbox {

@@ -7,8 +7,8 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import * as THREE from 'three';
 import { createTreeRenderer } from '@/scene/components/trees/treeRenderer';
 import type { TreePlacement } from '@/scene/components/trees/treePlacement';
-import { TREES } from '@/state/settings/trees';
-import { BUILDING_DIMENSIONS } from '@/state/settings/buildings';
+import { TREES } from '@/state/stores/settings/trees';
+import { BUILDING_DIMENSIONS } from '@/state/stores/settings/buildings';
 import type { CommitEntry } from '@/types';
 
 // Busyness thresholds only affect tree COLOR; these commit-lookup tests don't

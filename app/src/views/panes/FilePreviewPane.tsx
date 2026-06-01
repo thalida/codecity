@@ -11,7 +11,7 @@
 import type { Signal } from '@preact/signals';
 import { useState, useEffect } from 'preact/hooks';
 import hljs from 'highlight.js/lib/common';
-import { STREETS, BUILDINGS } from '@/state/settings';
+import { STREETS, BUILDINGS } from '@/state/stores/settings';
 import type { FileNode } from '@/types';
 
 /**

@@ -13,7 +13,7 @@ import { Pane, PaneEmpty } from '@/views/components/Pane';
 import { Route } from 'lucide-preact';
 import { ExtensionBadge } from '@/views/components/Badge';
 import { formatBytes } from '@/utils/bytes';
-import { STREETS, BUILDINGS } from '@/state/settings';
+import { STREETS, BUILDINGS } from '@/state/stores/settings';
 
 // ── State shape for Preact component ─────────────────────────────────────────
 

@@ -3,7 +3,7 @@
 // (kind/label/tip/bounds/default) lives with the store; this is arrangement only.
 
 import { field, type SectionNode } from '.';
-import { TREES } from '@/state/settings/trees';
+import { TREES } from '@/state/stores/settings/trees';
 
 export const TREES_SECTION: SectionNode = {
   key: 'trees',

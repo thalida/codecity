@@ -29,8 +29,8 @@
 
 import * as THREE from 'three';
 
-import { BUILDING_DIMENSIONS } from '@/state/settings/buildings';
-import { REPO_LABEL } from '@/state/settings/gem';
+import { BUILDING_DIMENSIONS } from '@/state/stores/settings/buildings';
+import { REPO_LABEL } from '@/state/stores/settings/gem';
 import { RENDER_ORDERS } from '@/scene/renderOrders';
 
 import vertSrc from './holoQuad.vert.glsl?raw';

@@ -1,4 +1,4 @@
-// state/settings/trees.ts — Commit-driven tree configuration.
+// state/stores/settings/trees.ts — Commit-driven tree configuration.
 //
 // One tree per commit, scattered around the world floor (denser near the city)
 // sorted by distance to the gem (oldest commit closest). Visual signals:

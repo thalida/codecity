@@ -1,4 +1,4 @@
-// state/settings/scene.ts — Scene backdrop (sky color, stars, atmospheric fog)
+// state/stores/settings/scene.ts — Scene backdrop (sky color, stars, atmospheric fog)
 // as one flat SCENE store, plus the WORLD ground-sizing store. WORLD stays
 // separate because it's a layout value threaded into the tree-placement worker
 // (keeping the worker snapshot lean) — not a backdrop visual; the Settings

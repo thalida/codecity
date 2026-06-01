@@ -20,10 +20,10 @@ import {
   BUILDING_DIMENSIONS,
   GEM_SIZING,
   STREET_TIERS,
-} from '@/state/settings/index';
-import type { StreetLayoutConfig, StreetTier } from '@/state/settings/streets';
-import type { BuildingDimensionsConfig } from '@/state/settings/buildings';
-import type { GemSizingConfig } from '@/state/settings/gem';
+} from '@/state/stores/settings/index';
+import type { StreetLayoutConfig, StreetTier } from '@/state/stores/settings/streets';
+import type { BuildingDimensionsConfig } from '@/state/stores/settings/buildings';
+import type { GemSizingConfig } from '@/state/stores/settings/gem';
 import { layoutCity, makeHeightContext, recomputeBuildingDimensions } from './layout';
 import type { Manifest, CityLayout, FileNode, TreeNode } from '@/types';
 

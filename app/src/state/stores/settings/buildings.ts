@@ -1,4 +1,4 @@
-// state/settings/buildings.ts — Everything about a building:
+// state/stores/settings/buildings.ts — Everything about a building:
 // dimensions (own worker-threaded store), the BUILDINGS visual store (palette
 // + outline + aging + transition timing), and the selection-fade tier matrix.
 //

@@ -7,8 +7,8 @@ import * as THREE from 'three';
 import { signal } from '@preact/signals';
 import { LineSegmentsGeometry } from 'three/addons/lines/LineSegmentsGeometry.js';
 import { createTreeOutlineRenderer } from '@/scene/effects/treeOutlineRenderer';
-import { TREES } from '@/state/settings/trees';
-import { RAINBOW } from '@/state/settings/effects';
+import { TREES } from '@/state/stores/settings/trees';
+import { RAINBOW } from '@/state/stores/settings/effects';
 import { NodeKind } from '@/types';
 import type { PickTarget } from '@/types/picker';
 

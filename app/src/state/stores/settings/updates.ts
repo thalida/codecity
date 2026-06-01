@@ -1,4 +1,4 @@
-// state/settings/updates.ts — Live-update polling. When ENABLED, the
+// state/stores/settings/updates.ts — Live-update polling. When ENABLED, the
 // frontend re-fetches /api/manifest every POLL_SECONDS and re-renders in place
 // when the manifest's signature changes (the tree's mtime/size state shifted).
 //

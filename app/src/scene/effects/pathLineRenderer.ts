@@ -14,7 +14,7 @@ import { LineSegments2 } from 'three/addons/lines/LineSegments2.js';
 import { LineSegmentsGeometry } from 'three/addons/lines/LineSegmentsGeometry.js';
 import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
 
-import { STREETS, RAINBOW, STREET_TIERS } from '@/state/settings/index';
+import { STREETS, RAINBOW, STREET_TIERS } from '@/state/stores/settings/index';
 import { PATH_LINE_ELEVATION, HOVER_PATH_LINE_ELEVATION } from '@/constants/streets';
 
 /**

@@ -1,7 +1,7 @@
 // views/panes/controls/sections/island.ts — Island section declaration. One
 // ISLAND store; the Geometry/Materials subgroups are arrangement only.
 import { field, type SectionNode } from '.';
-import { ISLAND } from '@/state/settings/island';
+import { ISLAND } from '@/state/stores/settings/island';
 
 export const ISLAND_SECTION: SectionNode = {
   key: 'island',

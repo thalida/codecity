@@ -1,4 +1,4 @@
-// state/settings/island.ts — Floating-island world-plane configuration: one
+// state/stores/settings/island.ts — Floating-island world-plane configuration: one
 // flat store for the whole island (silhouette/depth geometry + baked vertex
 // colors + hemispheric lighting). The Geometry/Materials split is purely a
 // Settings-panel grouping, declared in sections/island.ts — not separate

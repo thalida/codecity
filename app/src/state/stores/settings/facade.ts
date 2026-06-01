@@ -1,4 +1,4 @@
-// state/settings/facade.ts — Procedural facade rendering controls as one flat
+// state/stores/settings/facade.ts — Procedural facade rendering controls as one flat
 // FACADE store: window/door/roof geometry, HSL contrast deltas, per-cell window
 // lighting, and the media-building ad panels (folded in here).
 //

@@ -5,7 +5,7 @@ import { TREES_SECTION } from '@/views/panes/controls/sections/trees';
 import { STREETS_SECTION } from '@/views/panes/controls/sections/streets';
 import { FOOTPRINT_SECTION } from '@/views/panes/controls/sections/footprint';
 import { BUILDINGS_SECTION } from '@/views/panes/controls/sections/buildings';
-import { TREES } from '@/state/settings/trees';
+import { TREES } from '@/state/stores/settings/trees';
 import {
   STREETS,
   STREET_TIERS,
@@ -14,8 +14,8 @@ import {
   BUILDINGS,
   FACADE,
   BUILDING_FADE,
-} from '@/state/settings/index';
-import { FOOTPRINT } from '@/state/settings/footprint';
+} from '@/state/stores/settings/index';
+import { FOOTPRINT } from '@/state/stores/settings/footprint';
 import { getFieldKeys } from '@/state/schema';
 import { flush } from '../../../_helpers/preact';
 

@@ -1,4 +1,4 @@
-// state/settings/gem.ts — Root-of-repo gem + its repo-label hologram.
+// state/stores/settings/gem.ts — Root-of-repo gem + its repo-label hologram.
 //
 // Three stores, all in the Gem panel section:
 //   GEM        — the gem's VISUAL config (shape/appearance/face palette/

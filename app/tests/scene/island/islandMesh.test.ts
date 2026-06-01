@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { describe, it, expect, beforeEach } from 'vitest';
 import { createIsland } from '@/scene/components/island/islandMesh';
-import { ISLAND } from '@/state/settings/island';
+import { ISLAND } from '@/state/stores/settings/island';
 import { RENDER_ORDERS } from '@/scene/renderOrders';
 
 describe('createIsland', () => {

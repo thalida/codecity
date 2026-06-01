@@ -1,4 +1,4 @@
-// state/settings/index.ts — Single source of truth for every user-tunable atom.
+// state/stores/settings/index.ts — Single source of truth for every user-tunable atom.
 //
 // Configs are grouped on disk by where they're consumed, with file
 // names mirroring the consumer:

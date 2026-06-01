@@ -5,7 +5,7 @@
 // no manual <link> element management.
 
 import { createPortal } from 'preact/compat';
-import { SYNTAX_THEME } from '@/state/settings/syntaxTheme';
+import { SYNTAX_THEME } from '@/state/stores/settings/syntaxTheme';
 
 const HLJS_VERSION = '11.11.1';
 

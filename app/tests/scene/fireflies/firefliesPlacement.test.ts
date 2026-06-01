@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { placeFireflies } from '@/scene/components/fireflies/firefliesPlacement';
-import { FIREFLIES } from '@/state/settings/fireflies';
+import { FIREFLIES } from '@/state/stores/settings/fireflies';
 import type { CommitEntry } from '@/types';
 import type { TreePlacement } from '@/scene/components/trees/treePlacement';
 

@@ -7,7 +7,7 @@ import {
   SYNTAX_THEME,
   SYNTAX_THEME_DEFAULT,
   SYNTAX_THEME_OPTIONS,
-} from '@/state/settings/index';
+} from '@/state/stores/settings/index';
 import { RotateCcw } from 'lucide-preact';
 import { Section } from './Section';
 

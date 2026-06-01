@@ -9,7 +9,7 @@
 
 import * as THREE from 'three';
 import { RENDER_ORDERS } from '@/scene/renderOrders';
-import { FIREFLIES } from '@/state/settings/fireflies';
+import { FIREFLIES } from '@/state/stores/settings/fireflies';
 import type { FireflyPlacement } from './firefliesPlacement';
 import vertexShader from './fireflies.vert.glsl?raw';
 import fragmentShader from './fireflies.frag.glsl?raw';

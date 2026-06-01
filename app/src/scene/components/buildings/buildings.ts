@@ -13,7 +13,7 @@ import {
   BUILDING_DIMENSIONS,
   FACADE,
   SCENE,
-} from '@/state/settings/index';
+} from '@/state/stores/settings/index';
 import type { IconAtlas } from './iconAtlas';
 import { writeSunDir } from '@/scene/components/lighting/sunDir';
 import {

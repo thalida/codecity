@@ -3,7 +3,7 @@
 // inflated outward from every layout rect. Its own top-level section (sits
 // after Streets) — the slab frames the whole city, it isn't a street surface.
 import { field, type SectionNode } from '.';
-import { FOOTPRINT } from '@/state/settings/footprint';
+import { FOOTPRINT } from '@/state/stores/settings/footprint';
 
 export const FOOTPRINT_SECTION: SectionNode = {
   key: 'footprint',

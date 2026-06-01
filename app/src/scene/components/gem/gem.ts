@@ -11,7 +11,7 @@
 // just builds the static structure; mutation lives elsewhere.
 
 import * as THREE from 'three';
-import { GEM, GEM_SIZING } from '@/state/settings/gem';
+import { GEM, GEM_SIZING } from '@/state/stores/settings/gem';
 import { NodeKind } from '@/types';
 import { gemAnchorXZ } from '../../utils/gemAnchor';
 import type { Street } from '@/types';

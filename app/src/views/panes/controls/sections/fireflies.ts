@@ -1,6 +1,6 @@
 // views/panes/controls/sections/fireflies.ts — Fireflies section declaration.
 import { field, type SectionNode } from '.';
-import { FIREFLIES } from '@/state/settings/fireflies';
+import { FIREFLIES } from '@/state/stores/settings/fireflies';
 
 export const FIREFLIES_SECTION: SectionNode = {
   key: 'fireflies',

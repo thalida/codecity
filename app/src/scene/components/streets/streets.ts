@@ -4,7 +4,7 @@
 // the curved ends.
 
 import * as THREE from 'three';
-import { STREETS } from '@/state/settings/streets';
+import { STREETS } from '@/state/stores/settings/streets';
 import { ASPHALT_WIDTH_FRAC } from '@/constants/streets';
 import { RENDER_ORDERS } from '@/scene/renderOrders';
 import { CapStyle, JoinSide, NodeKind, StreetAxis } from '@/types';

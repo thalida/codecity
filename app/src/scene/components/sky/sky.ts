@@ -22,7 +22,7 @@
 // then composites everything on top.
 
 import * as THREE from 'three';
-import { SCENE } from '@/state/settings/scene';
+import { SCENE } from '@/state/stores/settings/scene';
 import { CAMERA_FAR } from '@/constants/camera';
 import { RENDER_ORDERS } from '@/scene/renderOrders';
 

@@ -4,7 +4,7 @@
 // default values are tunable and shouldn't break this test when changed.
 
 import { describe, it, expect } from 'vitest';
-import { SCENE } from '@/state/settings/scene';
+import { SCENE } from '@/state/stores/settings/scene';
 
 describe('SCENE sky/stars keys', () => {
   it('exposes the expected keys with the right types', () => {

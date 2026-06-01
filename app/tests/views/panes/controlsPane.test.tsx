@@ -5,7 +5,7 @@ import { ControlsPane } from '@/views/panes/ControlsPane';
 // Importing the settings barrel triggers every persistedSignal() registration
 // at module-load (used by getDefault / forEachRegisteredStore inside the
 // controls sections).
-import '@/state/settings/index';
+import '@/state/stores/settings/index';
 import { flush } from '../../_helpers/preact';
 
 describe('ControlsPane', () => {

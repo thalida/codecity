@@ -5,11 +5,11 @@
 // DOM, no three.js references.
 
 import { placeTrees, type TreePlacement } from './treePlacement';
-import { TREES, type TreesConfig } from '@/state/settings/trees';
-import { BUILDING_DIMENSIONS, type BuildingDimensionsConfig } from '@/state/settings/buildings';
-import { FOOTPRINT, type FootprintConfig } from '@/state/settings/footprint';
-import { WORLD, type WorldConfig } from '@/state/settings/scene';
-import type { IslandConfig } from '@/state/settings/island';
+import { TREES, type TreesConfig } from '@/state/stores/settings/trees';
+import { BUILDING_DIMENSIONS, type BuildingDimensionsConfig } from '@/state/stores/settings/buildings';
+import { FOOTPRINT, type FootprintConfig } from '@/state/stores/settings/footprint';
+import { WORLD, type WorldConfig } from '@/state/stores/settings/scene';
+import type { IslandConfig } from '@/state/stores/settings/island';
 import type { CityBbox, CityLayout } from '@/types';
 
 type TreesValue = TreesConfig;

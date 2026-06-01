@@ -1,4 +1,4 @@
-// state/settings/fireflies.ts — committer-fireflies tunables.
+// state/stores/settings/fireflies.ts — committer-fireflies tunables.
 //
 // Glowing motes that orbit each commit-tree, colored per author. BOB is the
 // y-axis sinusoid the shader applies to displace each orb; PULSE is a

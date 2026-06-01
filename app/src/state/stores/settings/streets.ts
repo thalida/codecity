@@ -1,4 +1,4 @@
-// state/settings/streets.ts — Everything visual + layout-y about a
+// state/stores/settings/streets.ts — Everything visual + layout-y about a
 // street: asphalt, sidewalks, road labels, and the two route-highlight path
 // lines (STREETS, schema-driven), plus how streets are sized + packed
 // (STREET_TIERS + STREET_LAYOUT, worker-threaded object stores).

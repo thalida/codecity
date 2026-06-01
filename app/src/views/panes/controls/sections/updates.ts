@@ -1,6 +1,6 @@
 // views/panes/controls/sections/updates.ts — Scan & Updates section declaration.
 import { field, type SectionNode } from '.';
-import { LIVE_UPDATES } from '@/state/settings/updates';
+import { LIVE_UPDATES } from '@/state/stores/settings/updates';
 
 export const UPDATES_SECTION: SectionNode = {
   key: 'updates',

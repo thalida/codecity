@@ -8,7 +8,7 @@ import {
   AdPanelTextureArray,
   PANEL_TEX_SIZE,
 } from '@/scene/components/adPanels/adPanelTextureArray';
-import { BLOOM } from '@/state/settings/index';
+import { BLOOM } from '@/state/stores/settings/index';
 import { BuildingOrient, NodeKind } from '@/types/index';
 import type { Building } from '@/types/index';
 

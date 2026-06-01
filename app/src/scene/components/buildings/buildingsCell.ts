@@ -10,7 +10,7 @@
 // index/position buffers).
 
 import * as THREE from 'three';
-import { FACADE } from '@/state/settings/index';
+import { FACADE } from '@/state/stores/settings/index';
 import { BuildingOrient } from '@/types/index';
 import buildingVertSrc from './building.vert.glsl?raw';
 import buildingFragSrc from './building.frag.glsl?raw';

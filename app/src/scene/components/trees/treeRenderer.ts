@@ -23,7 +23,7 @@
 // strength) goes through the rebuild path in hotReload.ts.
 
 import * as THREE from 'three';
-import { TREES } from '@/state/settings/trees';
+import { TREES } from '@/state/stores/settings/trees';
 import { RENDER_ORDERS } from '@/scene/renderOrders';
 import type { TreePlacement } from './treePlacement';
 import type { CommitEntry, BusynessThresholds } from '@/types';

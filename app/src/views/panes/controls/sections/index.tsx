@@ -1,5 +1,5 @@
 // views/panes/controls/sections/index.tsx — The controls panel's ARRANGEMENT
-// layer (the components + helpers). Stores (state/settings) own what each field
+// layer (the components + helpers). Stores (state/stores/settings) own what each field
 // *is*; this owns where each field *sits*.
 //
 // - field(store, key): a typed (store, key) reference — a wrong key is a

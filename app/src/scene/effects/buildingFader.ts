@@ -16,8 +16,8 @@
 
 import * as THREE from 'three';
 import { effect } from '@preact/signals';
-import { BUILDING_FADE } from '@/state/settings/index';
-import type { BuildingFadeConfig } from '@/state/settings/buildings';
+import { BUILDING_FADE } from '@/state/stores/settings/index';
+import type { BuildingFadeConfig } from '@/state/stores/settings/buildings';
 import { FadeDetail, NodeKind } from '@/types';
 import type { DirNode, FileNode, PickTarget } from '@/types';
 import { parentDirPath } from '@/scene/utils/path';

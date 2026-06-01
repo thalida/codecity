@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { REPO_LABEL } from '@/state/settings/gem';
+import { REPO_LABEL } from '@/state/stores/settings/gem';
 
 describe('REPO_LABEL config store', () => {
   beforeEach(() => {

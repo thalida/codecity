@@ -19,8 +19,8 @@ import {
   BUILDING_DIMENSIONS,
   STREET_LAYOUT,
   GEM_SIZING,
-} from '@/state/settings/index';
-import type { StreetTier } from '@/state/settings/streets';
+} from '@/state/stores/settings/index';
+import type { StreetTier } from '@/state/stores/settings/streets';
 import { BuildingOrient, JoinSide, NodeKind, StreetAxis } from '@/types';
 import type { Building, CityLayout, RangeStat, Street } from '@/types';
 import { parentDirPath } from '../utils/path';

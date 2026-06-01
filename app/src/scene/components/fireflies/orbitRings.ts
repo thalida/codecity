@@ -24,8 +24,8 @@
 //   dispose():  drop both slots' geometries + materials.
 
 import * as THREE from 'three';
-import { FIREFLIES } from '@/state/settings/fireflies';
-import { RAINBOW } from '@/state/settings/effects';
+import { FIREFLIES } from '@/state/stores/settings/fireflies';
+import { RAINBOW } from '@/state/stores/settings/effects';
 import type { FireflyPlacement } from './firefliesPlacement';
 
 const TUBULAR_SEGMENTS = 96; // segments around the loop

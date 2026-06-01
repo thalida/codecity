@@ -2,7 +2,7 @@
 // stores (GEM visual, GEM_SIZING layout, REPO_LABEL feature); the subgroups
 // below are arrangement only.
 import { field, type SectionNode } from '.';
-import { GEM, GEM_SIZING, REPO_LABEL } from '@/state/settings/gem';
+import { GEM, GEM_SIZING, REPO_LABEL } from '@/state/stores/settings/gem';
 
 export const GEM_SECTION: SectionNode = {
   key: 'gem',

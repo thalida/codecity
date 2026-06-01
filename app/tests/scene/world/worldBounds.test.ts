@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { getWorldBounds } from '@/scene/layout/worldBounds';
-import { WORLD } from '@/state/settings/scene';
+import { WORLD } from '@/state/stores/settings/scene';
 import { bbox } from '../../_helpers/cityFixtures';
 
 // All formulas below assume the default GROUND_BUFFER_PERCENT of 30 and

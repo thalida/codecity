@@ -11,12 +11,12 @@ import {
   STREETS,
   GEM,
   BLOOM,
-} from '../state/settings/index';
+} from '../state/stores/settings/index';
 import { GEM_HOVER_LIFT_FRAC } from '@/scene/components/gem/gem';
 import { NodeKind, StreetAxis } from '../types';
 import type { Manifest } from '../types';
 
-import { SCENE } from '@/state/settings/scene';
+import { SCENE } from '@/state/stores/settings/scene';
 import { createWorld } from './world';
 import { refreshBuildingMaterial } from './components/buildings/buildings';
 import { createCameraRig } from './system/cameraRig';

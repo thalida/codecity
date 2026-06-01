@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { attachCommitReactions } from '@/state/reactions';
-import { TREES } from '@/state/settings/trees';
-import { GEM } from '@/state/settings/gem';
+import { TREES } from '@/state/stores/settings/trees';
+import { GEM } from '@/state/stores/settings/gem';
 
 // Routing contract: a "rebuild" key change → world.applyManifest; a "refresh"
 // (material) key change → applyTheme only (NOT applyManifest); a "live" key
