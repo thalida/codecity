@@ -1,4 +1,4 @@
-// views/components/Toggle.tsx — Thin <input type="checkbox"> wrapper.
+// components/Toggle.tsx — Thin <input type="checkbox"> wrapper.
 
 export interface ToggleProps {
   checked: boolean;

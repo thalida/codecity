@@ -1,4 +1,4 @@
-// views/components/HljsThemeLink.tsx — Signals-native replacement for the
+// components/HljsThemeLink.tsx — Signals-native replacement for the
 // old imperative applyHljsTheme(). Renders a <link rel=stylesheet> into
 // document.head via Preact's createPortal so the syntax-highlighting CSS
 // follows the SYNTAX_THEME signal automatically — no module-load effect,

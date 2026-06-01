@@ -1,7 +1,7 @@
 // utils/fileIcons.ts — Pure resolvers from a file/dir node to its
 // Material icon basename. Reads the lookup tables in constants/fileIcons.ts.
 // Used by the building-roof icon atlas and the tree/preview <img> renderers
-// in views/components/fileIcon.tsx so both key off the same names.
+// in components/fileIcon.tsx so both key off the same names.
 
 import type { DirNode, FileNode } from '../types';
 import { EXT_ICON, NAME_ICON, FOLDER_ICON, GENERIC_FILE, GENERIC_FOLDER } from '../constants/fileIcons';

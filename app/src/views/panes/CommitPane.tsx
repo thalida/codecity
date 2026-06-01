@@ -18,7 +18,7 @@ import { useState, useEffect, useRef } from 'preact/hooks';
 import type { Signal } from '@preact/signals';
 import type { CommitEntry } from '@/types';
 import { ExternalLink, GitCommitHorizontal } from 'lucide-preact';
-import { Pane, PaneEmpty } from '@/views/components/Pane';
+import { Pane, PaneEmpty } from '@/components/Pane';
 import { commitUrl } from '@/utils/commit';
 import { formatRelativeAge, formatFullDate } from '@/utils/dates';
 import { fetchCommitDetail } from '@/api/commit';

@@ -1,4 +1,4 @@
-// views/components/ColorInput.tsx — Thin <input type="color"> wrapper.
+// components/ColorInput.tsx — Thin <input type="color"> wrapper.
 // HTML's color input only accepts `#rrggbb`; the app's colors are always
 // hex, so we normalize through a pure helper (no DOM probe).
 

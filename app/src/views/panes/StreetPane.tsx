@@ -9,9 +9,9 @@
 
 import type { Signal } from '@preact/signals';
 import type { DirNode, ExtBreakdownEntry } from '@/types';
-import { Pane, PaneEmpty } from '@/views/components/Pane';
+import { Pane, PaneEmpty } from '@/components/Pane';
 import { Route } from 'lucide-preact';
-import { ExtensionBadge } from '@/views/components/Badge';
+import { ExtensionBadge } from '@/components/Badge';
 import { formatBytes } from '@/utils/bytes';
 import { STREETS, BUILDINGS } from '@/state/stores/settings';
 

@@ -45,7 +45,7 @@ import { applyPendingTitle } from '@/utils/pendingTitle';
 import { EMPTY_MANIFEST } from '@/constants/manifest';
 import { LoadingStep } from '@/constants';
 import type { Manifest } from '@/types';
-import type { SourcePayload } from '@/views/components/SourcePicker';
+import type { SourcePayload } from '@/components/SourcePicker';
 
 // ── Shared progress-event helper ─────────────────────────────────────
 

@@ -13,12 +13,12 @@ import { setDraft } from '@/state/drafts';
 import type { StreetTier } from '@/state/stores/settings/streets';
 import { RotateCcw } from 'lucide-preact';
 import { Row } from './Row';
-import { ColorInput } from '@/views/components/ColorInput';
-import { NumberInput } from '@/views/components/NumberInput';
-import { Slider } from '@/views/components/Slider';
-import { Toggle } from '@/views/components/Toggle';
-import { SegmentedSelect } from '@/views/components/SegmentedSelect';
-import { RangePair } from '@/views/components/RangePair';
+import { ColorInput } from '@/components/ColorInput';
+import { NumberInput } from '@/components/NumberInput';
+import { Slider } from '@/components/Slider';
+import { Toggle } from '@/components/Toggle';
+import { SegmentedSelect } from '@/components/SegmentedSelect';
+import { RangePair } from '@/components/RangePair';
 
 interface SignalLike {
   get value(): unknown;

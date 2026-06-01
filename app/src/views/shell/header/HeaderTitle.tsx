@@ -11,8 +11,8 @@ import { Fragment } from 'preact';
 import { NodeKind } from '@/types';
 import { STREETS, BUILDINGS } from '@/state/stores/settings';
 import { Focus } from 'lucide-preact';
-import { ExtensionBadge } from '@/views/components/Badge';
-import { CopyButton } from '@/views/components/CopyButton';
+import { ExtensionBadge } from '@/components/Badge';
+import { CopyButton } from '@/components/CopyButton';
 import { useMiddleEllipsis } from '@/hooks';
 
 export type HeaderSelection =

@@ -1,4 +1,4 @@
-// views/components/Slider.tsx — Range slider with live readout.
+// components/Slider.tsx — Range slider with live readout.
 // `step` controls the readout precision (a step of 0.0001 shows 4 decimals;
 // integer steps drop the decimal).
 

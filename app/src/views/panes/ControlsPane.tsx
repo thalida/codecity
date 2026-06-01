@@ -36,7 +36,7 @@ import { STREETS_SECTION } from './controls/sections/streets';
 import { FOOTPRINT_SECTION } from './controls/sections/footprint';
 import { BUILDINGS_SECTION } from './controls/sections/buildings';
 import { ActionsBar } from './controls/ActionsBar';
-import { Pane } from '@/views/components/Pane';
+import { Pane } from '@/components/Pane';
 
 export interface ControlsPaneProps {
   onClose?: () => void;

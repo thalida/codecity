@@ -1,4 +1,4 @@
-// views/components/GemIcon.tsx — The codecity gem icon, painted as a
+// components/GemIcon.tsx — The codecity gem icon, painted as a
 // background-image SVG so the per-face fills render directly. Default
 // is full multicolor (/gem.svg, same source as the favicon). The
 // `simple` prop swaps to a grayscale variant (/gem-simple.svg) for

@@ -1,4 +1,4 @@
-// views/components/RangePair.tsx — Dual-thumb range slider with a single
+// components/RangePair.tsx — Dual-thumb range slider with a single
 // readout ("lo – hi"). Used for paired min/max settings where the two
 // values share a track and the user drags either thumb. When the user
 // drags one past the other, the laggard snaps so lo ≤ hi is maintained.

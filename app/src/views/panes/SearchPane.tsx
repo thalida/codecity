@@ -21,7 +21,7 @@ import type { Signal } from '@preact/signals';
 import { NodeKind } from '@/types';
 import type { DirNode, FileNode, Manifest, TreeNode } from '@/types';
 import { Search, SearchX } from 'lucide-preact';
-import { Pane, PaneEmpty } from '@/views/components/Pane';
+import { Pane, PaneEmpty } from '@/components/Pane';
 
 const MAX_RESULTS = 50;
 const WORD_BOUNDARY_RE = /[/_\-.]/;

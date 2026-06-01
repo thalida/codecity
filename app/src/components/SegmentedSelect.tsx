@@ -1,4 +1,4 @@
-// views/components/SegmentedSelect.tsx — Segmented radio: one button per
+// components/SegmentedSelect.tsx — Segmented radio: one button per
 // option, the selected option carries .is-active. Used for enum-valued
 // settings (e.g. tier-spacing mode, layout strategy).
 

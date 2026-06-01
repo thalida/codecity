@@ -1,4 +1,4 @@
-// views/components/CopyButton.tsx — Small icon button that copies `text` to
+// components/CopyButton.tsx — Small icon button that copies `text` to
 // the clipboard and flashes a brief "Copied!" state on itself (a CSS-side
 // .is-copied modifier toggled from component state). Uses the async
 // Clipboard API; secure contexts always provide it, so there's no legacy

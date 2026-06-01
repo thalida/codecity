@@ -1,4 +1,4 @@
-// views/components/badge.tsx — Shared builder for the small pill that shows
+// components/badge.tsx — Shared builder for the small pill that shows
 // "what kind of thing am I looking at": a file extension (color-coded
 // from the same hue palette the city uses) or a generic "dir" badge
 // (painted with the asphalt color). Used by both the floating header

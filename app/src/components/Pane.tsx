@@ -1,4 +1,4 @@
-// views/components/Pane.tsx — Generic pane chrome shared by every
+// components/Pane.tsx — Generic pane chrome shared by every
 // sidebar pane (Tree, Search, Info, Controls on the left; File, Commit,
 // Street on the right). Owns the outer `.pane` wrapper, the header (via
 // <PaneHeader>), and — when given a `bodyClass`/`bodyRef` — the scrolling

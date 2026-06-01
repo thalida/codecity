@@ -7,7 +7,7 @@
 // as a single component rather than split further.
 
 import { ChevronDown, ExternalLink, Map } from 'lucide-preact';
-import { GemIcon } from '@/views/components/GemIcon';
+import { GemIcon } from '@/components/GemIcon';
 import { toHttpsRepoUrl } from '@/utils/sources';
 
 /**

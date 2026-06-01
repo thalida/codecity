@@ -743,7 +743,7 @@ h6 {
    instead of being collapsed to currentColor. Same 1em sizing as
    .lucide-icon so it slots into header buttons without throwing off
    alignment. The .lucide-icon mask path is the simple monochrome variant;
-   see the GemIcon component in views/components/GemIcon.tsx. */
+   see the GemIcon component in components/GemIcon.tsx. */
 .gem-icon {
   display: inline-block;
   width: 1em;

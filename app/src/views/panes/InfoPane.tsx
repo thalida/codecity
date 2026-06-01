@@ -12,7 +12,7 @@ import { BookOpen, FileWarning, FolderOpen } from 'lucide-preact';
 import { Marked } from 'marked';
 import { NodeKind } from '@/types';
 import type { DirNode, FileNode, Manifest } from '@/types';
-import { Pane, PaneEmpty } from '@/views/components/Pane';
+import { Pane, PaneEmpty } from '@/components/Pane';
 import { isEmptyManifest } from '@/utils/manifest';
 import { resolveReadmeAssetUrl } from '@/utils/readmeAssets';
 

@@ -28,8 +28,8 @@ export enum PreviewKind {
 }
 import { fileUrl, fetchFileText } from '@/api/file';
 import { FileWarning, FileX, Info, MousePointerClick } from 'lucide-preact';
-import { Pane, PaneEmpty } from '@/views/components/Pane';
-import { ExtensionBadge } from '@/views/components/Badge';
+import { Pane, PaneEmpty } from '@/components/Pane';
+import { ExtensionBadge } from '@/components/Badge';
 import { formatBytes } from '@/utils/bytes';
 import { languageFor } from '@/utils/syntaxLanguages';
 

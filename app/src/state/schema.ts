@@ -16,7 +16,7 @@
 
 import type { Signal } from '@preact/signals';
 import { persistedSignal } from '@/state/persist';
-import type { SegmentedSelectOption } from '@/views/components/SegmentedSelect';
+import type { SegmentedSelectOption } from '@/components/SegmentedSelect';
 
 export enum FieldKind {
   Slider = 'slider',

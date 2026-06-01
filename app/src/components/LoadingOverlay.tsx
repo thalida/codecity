@@ -1,4 +1,4 @@
-// views/components/LoadingOverlay.tsx — Centered spinner + stepped progress
+// components/LoadingOverlay.tsx — Centered spinner + stepped progress
 // indicator shown whenever a manifest is being fetched or applied. Reused for
 // cold-boot loads and source-picker submits so the user sees the same UI
 // regardless of entry point.

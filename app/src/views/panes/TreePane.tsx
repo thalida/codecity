@@ -14,9 +14,9 @@ import { useEffect, useRef } from 'preact/hooks';
 import { NodeKind } from '@/types';
 import type { DirNode, Manifest, TreeNode } from '@/types';
 import { ChevronDown, ChevronRight, FolderOpen } from 'lucide-preact';
-import { GemIcon } from '@/views/components/GemIcon';
-import { NodeIcon } from '@/views/components/NodeIcon';
-import { Pane, PaneEmpty } from '@/views/components/Pane';
+import { GemIcon } from '@/components/GemIcon';
+import { NodeIcon } from '@/components/NodeIcon';
+import { Pane, PaneEmpty } from '@/components/Pane';
 
 // ── Helpers ──────────────────────────────────────────────────────────
 

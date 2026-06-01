@@ -1,4 +1,4 @@
-// views/components/HostingIcon.tsx — Brand glyph for a git-hosting provider
+// components/HostingIcon.tsx — Brand glyph for a git-hosting provider
 // (GitHub, GitLab, Bitbucket) with a generic globe fallback, picked from a
 // source URL and rendered inline as JSX (no innerHTML). Brand glyphs only —
 // for UI affordances elsewhere use <LucideIcon name=… />.

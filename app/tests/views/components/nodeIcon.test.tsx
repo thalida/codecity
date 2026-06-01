@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { render } from 'preact';
-import { NodeIcon } from '@/views/components/NodeIcon';
+import { NodeIcon } from '@/components/NodeIcon';
 import { NodeKind } from '@/types';
 import { flush } from '../../_helpers/preact';
 

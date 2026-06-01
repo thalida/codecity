@@ -1,4 +1,4 @@
-// views/components/NumberInput.tsx — Thin <input type="number"> wrapper.
+// components/NumberInput.tsx — Thin <input type="number"> wrapper.
 // Validates parseFloat → onCommit only when the parse succeeds, so partial
 // edits (an empty string while the user is mid-type) don't fire.
 

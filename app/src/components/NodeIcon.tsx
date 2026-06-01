@@ -1,4 +1,4 @@
-// views/components/NodeIcon.tsx — VSCode-style file/folder icon (Material
+// components/NodeIcon.tsx — VSCode-style file/folder icon (Material
 // Icon Theme, MIT). One component for both tree node kinds: dispatch on
 // node.type — directories resolve a folder-* icon keyed by directory name
 // (folder-src, folder-config, folder-test, …); files resolve by filename /
