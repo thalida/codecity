@@ -3,10 +3,15 @@
 import { SidebarTab } from '@/types/ui';
 
 /**
- * Lucide icon CDN base. Tree glyphs, activity-bar tabs, and the sidebar
- * close button all reference per-icon SVG filenames relative to this URL.
+ * Lucide icon base path. Tree glyphs, activity-bar tabs, and the sidebar
+ * close button reference per-icon SVG filenames relative to this URL. The
+ * icons are vendored under app/public/icons/lucide/ (copied from the pinned
+ * lucide-static devDependency) and served by the app itself — no runtime CDN
+ * dependency, so the local Docker tool works offline and can't be surprised by
+ * an upstream icon rename. The icons-exist guard test keeps the vendored set
+ * in sync with the names referenced in code.
  */
-export const LUCIDE_ICON_BASE_URL = 'https://cdn.jsdelivr.net/npm/lucide-static@latest/icons/';
+export const LUCIDE_ICON_BASE_URL = '/icons/lucide/';
 
 /** Max number of recently-opened sources kept in the source-picker MRU list
  *  (oldest dropped past this). */
