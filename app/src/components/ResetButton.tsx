@@ -5,7 +5,7 @@
 import { RotateCcw } from 'lucide-preact';
 import { stageReset } from '@/state/settingsDrafts';
 import { getDefault } from '@/state/persist';
-import { useAnyDiffersFromDefault } from '@/hooks/useControls';
+import { useAnyDiffersFromDefault } from '@/hooks/useSettings';
 
 interface SignalLike {
   get value(): any;

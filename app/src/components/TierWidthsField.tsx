@@ -3,7 +3,7 @@
 // reset. The field's value is the whole StreetTier[]; every edit commits a fresh
 // array via the draft layer. Dispatched from <Field> for TierWidths-kind fields.
 
-import { useEffective, useDefault } from '@/hooks/useControls';
+import { useEffective, useDefault } from '@/hooks/useSettings';
 import { setDraft } from '@/state/settingsDrafts';
 import type { StreetTier } from '@/state/stores/settings/streets';
 import { RotateCcw } from 'lucide-preact';
