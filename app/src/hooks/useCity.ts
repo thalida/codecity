@@ -13,7 +13,14 @@ import { useEffect } from 'preact/hooks';
 import type { RefObject } from 'preact';
 import { effect } from '@preact/signals';
 
-import { manifestUrl, manifestUrlFor, signatureUrl, streamManifest } from '@/api/manifest';
+import {
+  manifestUrl,
+  manifestUrlFor,
+  signatureUrl,
+  streamManifest,
+  ScanPhase,
+  type ScanProgressEvent,
+} from '@/api/manifest';
 import { getServerConfig } from '@/api/config';
 import { startRenderLoop, _applyDisplayLabel } from '@/scene/renderLoop';
 import { buildIconAtlas } from '@/scene/components/buildings/iconAtlas';
@@ -49,19 +56,14 @@ import type { SourcePayload } from '@/state/stores/ui';
 
 // ── Shared progress-event helper ─────────────────────────────────────
 
-function _handleProgressEvent(event: {
-  phase: string;
-  percent?: number;
-  stage?: string;
-  files_scanned?: number;
-}): void {
-  if (event.phase === 'cloning') {
+function _handleProgressEvent(event: ScanProgressEvent): void {
+  if (event.phase === ScanPhase.Cloning) {
     setLoadingStep(LoadingStep.Cloning);
     if (event.percent !== undefined) {
       const stage = event.stage ? ` (${event.stage})` : '';
       setLoadingStepTail(LoadingStep.Cloning, `${event.percent}%${stage}`);
     }
-  } else if (event.phase === 'scanning') {
+  } else if (event.phase === ScanPhase.Scanning) {
     setLoadingStep(LoadingStep.Scanning);
     if (event.files_scanned !== undefined) {
       setLoadingStepTail(LoadingStep.Scanning, `${event.files_scanned.toLocaleString()} files`);
@@ -111,7 +113,7 @@ async function streamInitialManifest(canvas: HTMLCanvasElement): Promise<Initial
   try {
     let _pendingTitleSet = false;
     for await (const event of streamManifest(manifestUrl())) {
-      if (event.phase === 'error') throw new Error(event.error);
+      if (event.phase === ScanPhase.Error) throw new Error(event.error);
 
       if (!_pendingTitleSet && 'display_root' in event && event.display_root) {
         applyPendingTitle(event.display_root);
@@ -119,7 +121,7 @@ async function streamInitialManifest(canvas: HTMLCanvasElement): Promise<Initial
         _pendingTitleSet = true;
       }
 
-      if (event.phase === 'cloning' || event.phase === 'scanning') {
+      if (event.phase === ScanPhase.Cloning || event.phase === ScanPhase.Scanning) {
         _handleProgressEvent(event);
         continue;
       }
@@ -127,7 +129,7 @@ async function streamInitialManifest(canvas: HTMLCanvasElement): Promise<Initial
       const m = event.manifest;
       setLoadingStepTail(LoadingStep.Cloning, null);
       setLoadingStepTail(LoadingStep.Scanning, null);
-      setLoadingStep(event.phase === 'skeleton' ? LoadingStep.Skeleton : LoadingStep.Building);
+      setLoadingStep(event.phase === ScanPhase.Skeleton ? LoadingStep.Skeleton : LoadingStep.Building);
 
       if (handle === null) {
         try {
@@ -214,7 +216,7 @@ async function applyNewSource(opts: ApplyNewSourceOpts): Promise<void> {
     let _pendingTitleSet = false;
 
     for await (const event of streamManifest(url)) {
-      if (event.phase === 'error') throw new Error(event.error);
+      if (event.phase === ScanPhase.Error) throw new Error(event.error);
 
       if (!_pendingTitleSet && 'display_root' in event && event.display_root) {
         applyPendingTitle(event.display_root);
@@ -222,16 +224,16 @@ async function applyNewSource(opts: ApplyNewSourceOpts): Promise<void> {
         _pendingTitleSet = true;
       }
 
-      if (event.phase === 'cloning' || event.phase === 'scanning') {
+      if (event.phase === ScanPhase.Cloning || event.phase === ScanPhase.Scanning) {
         _handleProgressEvent(event);
         continue;
       }
 
       setLoadingStepTail(LoadingStep.Cloning, null);
       setLoadingStepTail(LoadingStep.Scanning, null);
-      setLoadingStep(event.phase === 'skeleton' ? LoadingStep.Skeleton : LoadingStep.Building);
+      setLoadingStep(event.phase === ScanPhase.Skeleton ? LoadingStep.Skeleton : LoadingStep.Building);
 
-      if (event.phase === 'skeleton') {
+      if (event.phase === ScanPhase.Skeleton) {
         _applyDisplayLabel(event.manifest);
         await handle.world.applyManifest(event.manifest);
         SOURCE_INFO.value = {
@@ -349,11 +351,11 @@ function setupLiveUpdates(
     REBUILD_STATUS.value = 'rebuilding';
     try {
       for await (const event of streamManifest(manifestUrl())) {
-        if (event.phase === 'error') throw new Error(event.error);
+        if (event.phase === ScanPhase.Error) throw new Error(event.error);
         // Live-update path: skip skeleton. The city is already drawn; applying
         // a skeleton would animate every building to placeholder heights and
         // back on every save. Only the final tweens into the new state.
-        if (event.phase !== 'final') continue;
+        if (event.phase !== ScanPhase.Final) continue;
         const m = event.manifest;
         if (m?.signature) {
           lastSignature = m.signature;

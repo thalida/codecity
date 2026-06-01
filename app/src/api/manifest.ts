@@ -82,19 +82,38 @@ export function manifestUrlFor(opts: { src: string; branch?: string; noCache?: b
 
 // ── NDJSON streaming reader ──────────────────────────────────────────────
 
+// The phases the NDJSON scan stream advances through. String values are the
+// wire form the server emits. (Distinct from constants/loadingSteps' LoadingStep,
+// which is the UI step vocabulary — there's no 'building' phase: the Final event
+// drives the "Building city" step.)
+export enum ScanPhase {
+  Cloning = 'cloning',
+  Scanning = 'scanning',
+  Skeleton = 'skeleton',
+  Final = 'final',
+  Error = 'error',
+}
+
 // One variant per discriminant value so TS narrows cleanly through
-// `if (event.phase === 'cloning' || event.phase === 'scanning')` etc.
+// `if (event.phase === ScanPhase.Cloning || event.phase === ScanPhase.Scanning)` etc.
 export type ScanStreamEvent =
   | {
-      phase: 'cloning';
+      phase: ScanPhase.Cloning;
       display_root?: string;
       stage?: 'receiving' | 'resolving' | 'counting';
       percent?: number;
     }
-  | { phase: 'scanning'; display_root?: string; files_scanned?: number }
-  | { phase: 'skeleton'; manifest: Manifest }
-  | { phase: 'final'; manifest: Manifest }
-  | { phase: 'error'; error: string };
+  | { phase: ScanPhase.Scanning; display_root?: string; files_scanned?: number }
+  | { phase: ScanPhase.Skeleton; manifest: Manifest }
+  | { phase: ScanPhase.Final; manifest: Manifest }
+  | { phase: ScanPhase.Error; error: string };
+
+/** The non-terminal progress events that carry loading-step detail (clone
+ *  percent, files scanned). The shared progress helper consumes these. */
+export type ScanProgressEvent = Extract<
+  ScanStreamEvent,
+  { phase: ScanPhase.Cloning | ScanPhase.Scanning }
+>;
 
 export async function* streamManifest(
   url: string,
