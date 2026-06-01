@@ -1,71 +1,45 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render } from 'preact';
-import { HeaderTitle } from '@/layout/header/HeaderTitle';
-import type { HeaderSelection } from '@/layout/header/HeaderTitle';
-import { NodeKind } from '@/types';
+import { CommitChip } from '@/layout/header/CommitChip';
 
-function mountTitle(sel: HeaderSelection | null, onFocus?: () => void) {
+function mountChip(sha: string, authors: string[], onFocus?: () => void) {
   document.body.innerHTML = '<div id="app-title"></div>';
   const slot = document.getElementById('app-title')!;
-  render(
-    <HeaderTitle
-      sel={sel}
-      rootLabel="demo"
-      rootPath=""
-      onFocus={onFocus}
-    />,
-    slot
-  );
+  render(<CommitChip sha={sha} authors={authors} onFocus={onFocus} />, slot);
   return slot;
 }
 
-describe('HeaderTitle commit selection', () => {
+describe('CommitChip', () => {
   beforeEach(() => {
     document.body.innerHTML = '';
   });
 
   it('renders Commit <short-sha> · <author> with focus + copy buttons', () => {
     const onFocus = vi.fn();
-    const title = mountTitle(
-      {
-        kind: NodeKind.Commit,
-        sha: 'a1b2c3d4567890abcdef1234567890abcdef1234',
-        authors: ['Alice Author'],
-      },
-      onFocus
-    );
-    expect(title.textContent).toContain('Commit');
-    expect(title.textContent).toContain('a1b2c3d');
-    expect(title.textContent).toContain('Alice Author');
-    const focusBtn = title.querySelector('button[aria-label*="Focus" i]') as HTMLButtonElement;
+    const slot = mountChip('a1b2c3d4567890abcdef1234567890abcdef1234', ['Alice Author'], onFocus);
+    expect(slot.textContent).toContain('Commit');
+    expect(slot.textContent).toContain('a1b2c3d');
+    expect(slot.textContent).toContain('Alice Author');
+    const focusBtn = slot.querySelector('button[aria-label*="Focus" i]') as HTMLButtonElement;
     expect(focusBtn).not.toBeNull();
     focusBtn.click();
     expect(onFocus).toHaveBeenCalledTimes(1);
   });
 
-  it('renders empty when sel is null', () => {
-    const title = mountTitle(null);
-    expect(title.textContent).toBe('');
-  });
-
   it('renders "<primary> (+N)" for multi-author commits', () => {
-    const title = mountTitle({
-      kind: NodeKind.Commit,
-      sha: 'a1b2c3d4567890abcdef1234567890abcdef1234',
-      authors: ['Alice Author', 'Bob Builder', 'Carol Coder'],
-    });
-    expect(title.textContent).toContain('Alice Author (+2)');
-    expect(title.textContent).not.toContain('Bob Builder');
-    expect(title.textContent).not.toContain('Carol Coder');
+    const slot = mountChip('a1b2c3d4567890abcdef1234567890abcdef1234', [
+      'Alice Author',
+      'Bob Builder',
+      'Carol Coder',
+    ]);
+    expect(slot.textContent).toContain('Alice Author (+2)');
+    expect(slot.textContent).not.toContain('Bob Builder');
+    expect(slot.textContent).not.toContain('Carol Coder');
   });
 
   it('renders just "<primary>" with no (+N) suffix for single-author commits', () => {
-    const title = mountTitle({
-      kind: NodeKind.Commit,
-      sha: 'a1b2c3d4567890abcdef1234567890abcdef1234',
-      authors: ['Solo Author'],
-    });
-    expect(title.textContent).toContain('Solo Author');
-    expect(title.textContent).not.toContain('(+');
+    const slot = mountChip('a1b2c3d4567890abcdef1234567890abcdef1234', ['Solo Author']);
+    expect(slot.textContent).toContain('Solo Author');
+    expect(slot.textContent).not.toContain('(+');
   });
 });

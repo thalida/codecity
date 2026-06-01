@@ -1,22 +1,22 @@
-// layout/AppHeader.tsx — Sitewide top header. Composition shell only:
-// derives display state from runtime signals and slots the two sub-components
-// (HeaderLeft, HeaderTitle) into a 3-column grid. Sub-components live in
-// ./header/ next door — split out per the #34 cleanup.
+// layout/AppHeader.tsx — Sitewide top header. Composition shell only: derives
+// display state from runtime signals and slots the header sub-components into a
+// 3-column grid. Sub-components live in ./header/.
 //
 // Layout (left → right):
-//   #app-header-left   — HeaderLeft (reset-view, project chip, repo link)
-//   #app-title         — HeaderTitle (badge + breadcrumb / commit chip)
-//   #app-header-right  — reserved slot, currently unused
+//   #app-header-left  — ResetViewButton + ProjectSwitcher + RepoLink
+//   #app-title        — CommitChip | HeaderBreadcrumb (per current selection)
+//   #app-header-right — reserved slot, currently unused
 
+import type { ComponentChildren } from 'preact';
 import { SCENE_HANDLE } from '@/state/stores/scene';
 import { SOURCE_INFO } from '@/state/stores/source';
 import { openSourcePicker } from '@/state/stores/ui';
 import { NodeKind } from '@/types';
-import { HeaderLeft } from './header/HeaderLeft';
-import { HeaderTitle } from './header/HeaderTitle';
-import type { HeaderSelection } from './header/HeaderTitle';
-
-export type { HeaderSelection } from './header/HeaderTitle';
+import { ResetViewButton } from './header/ResetViewButton';
+import { ProjectSwitcher } from './header/ProjectSwitcher';
+import { RepoLink } from './header/RepoLink';
+import { CommitChip } from './header/CommitChip';
+import { HeaderBreadcrumb } from './header/HeaderBreadcrumb';
 
 export interface AppHeaderProps {
   /** Fires when the user clicks a breadcrumb segment. */
@@ -25,7 +25,7 @@ export interface AppHeaderProps {
   onSwitchSource?: () => void;
   /** Fires when the user clicks the reset-view (gem) button. */
   onResetView?: () => void;
-  /** Fires when the user clicks the focus button next to the selected path. */
+  /** Fires when the user clicks the focus button next to the selection. */
   onFocus?: () => void;
 }
 
@@ -38,51 +38,47 @@ export function AppHeader({
   const si = SOURCE_INFO.value;
   const handle = SCENE_HANDLE.value;
   const pickerSel = handle?.picker.selection.value ?? null;
-  const rootNode = handle?.world.getRoot() ?? null;
-  const rootPath = rootNode?.path ?? '';
+  const rootPath = handle?.world.getRoot()?.path ?? '';
 
-  let sel: HeaderSelection | null = null;
+  // Build the title-slot content from the current selection. Null/root-only
+  // selections render nothing.
+  let title: ComponentChildren = null;
   if (pickerSel?.kind === NodeKind.Commit) {
-    sel = { kind: NodeKind.Commit, sha: pickerSel.commit.sha, authors: pickerSel.commit.authors };
-  } else if (pickerSel?.kind === NodeKind.File) {
-    const node = pickerSel.file;
-    sel = {
-      kind: NodeKind.File,
-      path: node.path || node.fullPath || node.name || '',
-      fullPath: node.fullPath || '',
-      extension: node.extension || '',
-      isDir: false,
-    };
-  } else if (pickerSel?.kind === NodeKind.Directory) {
-    const node = pickerSel.dir;
-    sel = {
-      kind: NodeKind.Directory,
-      path: node.path || node.fullPath || node.name || '',
-      fullPath: node.fullPath || '',
-      isDir: true,
-    };
-  }
-
-  return (
-    <header id="app-header">
-      <div id="app-header-left">
-        <HeaderLeft
-          rootLabel={si.label}
-          branch={si.branch}
-          sourceUrl={si.sourceUrl}
-          onResetView={onResetView}
-          onSwitchSource={onSwitchSource ?? (() => openSourcePicker({ dismissible: true }))}
-        />
-      </div>
-      <div id="app-title">
-        <HeaderTitle
-          sel={sel}
+    title = (
+      <CommitChip sha={pickerSel.commit.sha} authors={pickerSel.commit.authors} onFocus={onFocus} />
+    );
+  } else if (pickerSel?.kind === NodeKind.File || pickerSel?.kind === NodeKind.Directory) {
+    const isDir = pickerSel.kind === NodeKind.Directory;
+    const node = isDir ? pickerSel.dir : pickerSel.file;
+    const path = node.path || node.fullPath || node.name || '';
+    const extension = pickerSel.kind === NodeKind.File ? pickerSel.file.extension || '' : undefined;
+    if (path && path !== rootPath) {
+      title = (
+        <HeaderBreadcrumb
+          path={path}
+          extension={extension}
+          isDir={isDir}
           rootLabel={si.label}
           rootPath={rootPath}
           onSegmentClick={onSegmentClick}
           onFocus={onFocus}
         />
+      );
+    }
+  }
+
+  return (
+    <header id="app-header">
+      <div id="app-header-left">
+        <ResetViewButton onResetView={onResetView} />
+        <ProjectSwitcher
+          rootLabel={si.label}
+          branch={si.branch}
+          onSwitchSource={onSwitchSource ?? (() => openSourcePicker({ dismissible: true }))}
+        />
+        <RepoLink sourceUrl={si.sourceUrl} branch={si.branch} />
       </div>
+      <div id="app-title">{title}</div>
       <div id="app-header-right" />
     </header>
   );
