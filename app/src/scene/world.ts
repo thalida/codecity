@@ -1148,7 +1148,7 @@ export function createWorld(_canvas: HTMLCanvasElement) {
       }
       if (generationAtDefer !== _currentGeneration) return;
 
-      _trees = createTrees(treePlacements, manifest.commits ?? null);
+      _trees = createTrees(treePlacements, manifest.commits ?? null, manifest.busyness ?? { avg: 1, busy: 1 });
       scene.add(_trees.group);
       _fireflies = createFireflies(treePlacements, manifest.commits ?? null);
       scene.add(_fireflies.group);

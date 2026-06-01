@@ -33,4 +33,5 @@ export const EMPTY_MANIFEST: Manifest = {
     dirty: false,
   },
   commits: [],
+  busyness: { avg: 1, busy: 1 },
 };

@@ -12,10 +12,14 @@
 
 import { createTreeRenderer, type Trees } from './treeRenderer';
 import type { TreePlacement } from './treePlacement';
-import type { CommitEntry } from '@/types';
+import type { CommitEntry, BusynessThresholds } from '@/types';
 
-export function createTrees(placements: TreePlacement[], commits: CommitEntry[] | null): Trees {
-  return createTreeRenderer(placements, commits);
+export function createTrees(
+  placements: TreePlacement[],
+  commits: CommitEntry[] | null,
+  busyness: BusynessThresholds
+): Trees {
+  return createTreeRenderer(placements, commits, busyness);
 }
 
 export type { Trees };

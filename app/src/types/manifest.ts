@@ -138,6 +138,21 @@ export interface Manifest {
   /** Per-commit metadata, oldest-first. `[]` when the repo has zero
    *  commits. */
   commits: CommitEntry[];
+  /** Repo-relative per-day commit-count thresholds, computed on the backend.
+   *  Both the scene tree-color gradient and the commit pane's busyness label
+   *  read these so they agree. */
+  busyness: BusynessThresholds;
+}
+
+/**
+ * Per-day commit-count thresholds (commits/day). A day with >= busy commits
+ * reads as "Busy", >= avg as "Average", else "Quiet". `avg` is the median
+ * commits/day; `busy` is the 75th percentile (clamped to avg+1). Computed
+ * once on the backend (see api/scan.py) from the commit history.
+ */
+export interface BusynessThresholds {
+  avg: number;
+  busy: number;
 }
 
 /**

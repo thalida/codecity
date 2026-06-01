@@ -57,6 +57,10 @@ function placement(x: number, y: number, seed: number, commitIndex: number): Tre
   return { x, y, seed, commitIndex };
 }
 
+// Default busyness thresholds for color-ramp anchoring (now passed in from
+// the manifest; the renderer no longer derives them).
+const BUSY = { avg: 1, busy: 1 };
+
 function makeCommits(n: number, filesAt: (i: number) => number = (i) => i + 1): CommitEntry[] {
   const entries: { date: string; files: number }[] = [];
   for (let i = 0; i < n; i++) {
@@ -126,7 +130,7 @@ describe('createTreeRenderer()', () => {
 
   it('builds at most one canopy mesh per detail level (d0/d1/d2) plus trunk', () => {
     const placements = [placement(0, 0, 1, 0), placement(20, 0, 2, 1), placement(0, 20, 3, 2)];
-    trees = createTreeRenderer(placements, makeCommits(3));
+    trees = createTreeRenderer(placements, makeCommits(3), BUSY);
     const names = trees.group.children.map((c) => c.name).sort();
     expect(names).toContain('tree-trunk');
     const canopyNames = names.filter((n) => n.startsWith('tree-canopy-'));
@@ -144,20 +148,20 @@ describe('createTreeRenderer()', () => {
       placement(0, 20, 3, 2),
       placement(20, 20, 4, 0),
     ];
-    trees = createTreeRenderer(placements, makeCommits(3));
+    trees = createTreeRenderer(placements, makeCommits(3), BUSY);
     const totalCanopy = canopyMeshes(trees.group).reduce((acc, m) => acc + m.count, 0);
     expect(totalCanopy).toBe(placements.length);
     expect(trunkMesh(trees.group).count).toBe(placements.length);
   });
 
   it('handles an empty placement list', () => {
-    trees = createTreeRenderer([], makeCommits(0));
+    trees = createTreeRenderer([], makeCommits(0), BUSY);
     expect(canopyMeshes(trees.group).length).toBe(0);
     expect(trunkMesh(trees.group).count).toBe(0);
   });
 
   it('puts foliage meshes at PARK_FOLIAGE render order', () => {
-    trees = createTreeRenderer([placement(0, 0, 1, 0)], makeCommits(1));
+    trees = createTreeRenderer([placement(0, 0, 1, 0)], makeCommits(1), BUSY);
     for (const m of [...canopyMeshes(trees.group), trunkMesh(trees.group)]) {
       expect(m.renderOrder).toBe(RENDER_ORDERS.PARK_FOLIAGE);
     }
@@ -165,14 +169,14 @@ describe('createTreeRenderer()', () => {
 
   it('honors TREES_ENABLED visibility toggle on build', () => {
     TREES.value = { ...TREES.value, TREES_ENABLED: false };
-    trees = createTreeRenderer([placement(0, 0, 1, 0)], makeCommits(1));
+    trees = createTreeRenderer([placement(0, 0, 1, 0)], makeCommits(1), BUSY);
     for (const m of [...canopyMeshes(trees.group), trunkMesh(trees.group)]) {
       expect(m.visible).toBe(false);
     }
   });
 
   it('refresh() flips visibility on TREES_ENABLED change', () => {
-    trees = createTreeRenderer([placement(0, 0, 1, 0)], makeCommits(1));
+    trees = createTreeRenderer([placement(0, 0, 1, 0)], makeCommits(1), BUSY);
     TREES.value = { ...TREES.value, TREES_ENABLED: false };
     trees.refresh();
     for (const m of [...canopyMeshes(trees.group), trunkMesh(trees.group)]) {
@@ -192,7 +196,7 @@ describe('createTreeRenderer()', () => {
       { date: '2026-01-21', files: 5 } // newest → min height
     );
     const placements = [placement(0, 0, 1, 0), placement(20, 0, 2, 1), placement(0, 20, 3, 2)];
-    trees = createTreeRenderer(placements, commits);
+    trees = createTreeRenderer(placements, commits, BUSY);
 
     const trunk = trunkMesh(trees.group);
     const minH = 48;
@@ -211,7 +215,7 @@ describe('createTreeRenderer()', () => {
       { date: '2026-01-21', files: 9 } // max files → max canopy radius
     );
     const placements = [placement(0, 0, 1, 0), placement(20, 0, 2, 1), placement(0, 20, 3, 2)];
-    trees = createTreeRenderer(placements, commits);
+    trees = createTreeRenderer(placements, commits, BUSY);
 
     const trunk = trunkMesh(trees.group);
     const minR = 32 / 2;
@@ -230,7 +234,7 @@ describe('createTreeRenderer()', () => {
       { date: '2026-01-21', files: 9 }
     );
     const placements = [placement(0, 0, 1, 0), placement(20, 0, 2, 1)];
-    trees = createTreeRenderer(placements, commits);
+    trees = createTreeRenderer(placements, commits, BUSY);
     const minR = 32 / 2;
     const maxR = 128 / 2;
 
@@ -243,7 +247,7 @@ describe('createTreeRenderer()', () => {
   });
 
   it('canopy overlaps the top of the trunk by CANOPY_TRUNK_OVERLAP_FRAC', () => {
-    trees = createTreeRenderer([placement(0, 0, 1, 0)], makeCommits(1));
+    trees = createTreeRenderer([placement(0, 0, 1, 0)], makeCommits(1), BUSY);
     const canopy = canopyMeshes(trees.group)[0];
     const trunk = trunkMesh(trees.group);
     const canopyBaseY = instancePosition(canopy, 0).y;
@@ -254,7 +258,7 @@ describe('createTreeRenderer()', () => {
 
   it('CANOPY_TRUNK_OVERLAP_FRAC=0 puts canopy base exactly on trunk top', () => {
     TREES.value = { ...TREES.value, CANOPY_TRUNK_OVERLAP_FRAC: 0 };
-    trees = createTreeRenderer([placement(0, 0, 1, 0)], makeCommits(1));
+    trees = createTreeRenderer([placement(0, 0, 1, 0)], makeCommits(1), BUSY);
     const canopy = canopyMeshes(trees.group)[0];
     const trunk = trunkMesh(trees.group);
     expect(instancePosition(canopy, 0).y).toBeCloseTo(instanceScale(trunk, 0).y, 4);
@@ -267,7 +271,7 @@ describe('createTreeRenderer()', () => {
       { date: '2026-01-21', files: 9 } // sizeT=1   → detail 2
     );
     const placements = [placement(0, 0, 1, 0), placement(20, 0, 2, 1), placement(0, 20, 3, 2)];
-    trees = createTreeRenderer(placements, commits);
+    trees = createTreeRenderer(placements, commits, BUSY);
 
     const a = findCanopyInstance(trees.group, 0);
     const b = findCanopyInstance(trees.group, 1);
@@ -285,10 +289,11 @@ describe('createTreeRenderer()', () => {
   });
 
   it('per-instance color interpolates between SOLO_DAY (solo day) and BUSY_DAY (busy day) by COMMITS-PER-DAY', () => {
-    // Three days with 1, 2, and 4 commits respectively. After log-norm:
-    //   - solo day (count=1) → t=0 → TREE_COLOR_SOLO_DAY
-    //   - busy day (count=4) → t=1 → TREE_COLOR_BUSY_DAY
-    //   - mid day (count=2)  → t≈0.5 between log1p(1) and log1p(4)
+    // Three days with 1, 2, and 4 commits. With thresholds {avg:2, busy:4}
+    // the gradient anchors:
+    //   - solo day (count=1)      → t=0   → TREE_COLOR_SOLO_DAY
+    //   - mid day  (count=2 = avg) → t=0.5
+    //   - busy day (count=4 = busy)→ t=1   → TREE_COLOR_BUSY_DAY
     const commits = buildCommits(
       { date: '2026-01-01', files: 5 }, // solo day
       { date: '2026-01-10', files: 5 }, // mid day, commit A
@@ -307,7 +312,7 @@ describe('createTreeRenderer()', () => {
       placement(40, 20, 6, 5),
       placement(60, 20, 7, 6),
     ];
-    trees = createTreeRenderer(placements, commits);
+    trees = createTreeRenderer(placements, commits, { avg: 2, busy: 4 });
 
     const oldColor = new THREE.Color();
     const newColor = new THREE.Color();
@@ -343,7 +348,7 @@ describe('createTreeRenderer()', () => {
 
   it('all trees render at midpoint values when commits is null', () => {
     const placements = [placement(0, 0, 1, 0), placement(20, 0, 2, 1)];
-    trees = createTreeRenderer(placements, null);
+    trees = createTreeRenderer(placements, null, BUSY);
 
     const trunk = trunkMesh(trees.group);
     const midH = (48 + 144) / 2;
@@ -357,7 +362,7 @@ describe('createTreeRenderer()', () => {
   });
 
   it('canopy geometry carries a baked color attribute (vertex shading)', () => {
-    trees = createTreeRenderer([placement(0, 0, 1, 0)], makeCommits(1));
+    trees = createTreeRenderer([placement(0, 0, 1, 0)], makeCommits(1), BUSY);
     for (const m of canopyMeshes(trees.group)) {
       const colorAttr = m.geometry.getAttribute('color');
       expect(colorAttr).toBeDefined();
@@ -368,7 +373,7 @@ describe('createTreeRenderer()', () => {
 
   it('vertex shading strength=0 yields uniform white vertex colors', () => {
     TREES.value = { ...TREES.value, TREE_SHADING_STRENGTH: 0 };
-    trees = createTreeRenderer([placement(0, 0, 1, 0)], makeCommits(1));
+    trees = createTreeRenderer([placement(0, 0, 1, 0)], makeCommits(1), BUSY);
     for (const m of canopyMeshes(trees.group)) {
       const colorAttr = m.geometry.getAttribute('color');
       for (let i = 0; i < colorAttr.count; i++) {
@@ -380,7 +385,7 @@ describe('createTreeRenderer()', () => {
   });
 
   it('refresh() updates color endpoints without rebuilding meshes', () => {
-    trees = createTreeRenderer([placement(0, 0, 1, 0)], makeCommits(1));
+    trees = createTreeRenderer([placement(0, 0, 1, 0)], makeCommits(1), BUSY);
     const meshesBefore = [...canopyMeshes(trees.group), trunkMesh(trees.group)];
     const geomsBefore = meshesBefore.map((m) => m.geometry);
 
@@ -397,7 +402,7 @@ describe('createTreeRenderer()', () => {
   });
 
   it('dispose() releases geometry and materials', () => {
-    trees = createTreeRenderer([placement(0, 0, 1, 0)], makeCommits(1));
+    trees = createTreeRenderer([placement(0, 0, 1, 0)], makeCommits(1), BUSY);
     const tracked: Array<{ name: string; disposed: boolean }> = [];
     for (const child of trees.group.children) {
       const mesh = child as THREE.InstancedMesh;
@@ -444,7 +449,7 @@ describe('createTreeRenderer()', () => {
       const placements = [placement(0, 0, 1, 0), placement(20, 0, 2, 1)];
 
       // Build with desat OFF (set in resetStores).
-      trees = createTreeRenderer(placements, testCommits);
+      trees = createTreeRenderer(placements, testCommits, BUSY);
       const offColor = instanceColor(trees.group, 0).clone();
       trees.dispose();
 
@@ -452,7 +457,7 @@ describe('createTreeRenderer()', () => {
       TREES.value = { ...TREES.value, TREE_AGE_DESAT_ENABLED: true };
       TREES.value = { ...TREES.value, TREE_AGE_SATURATION_MIN: 0 };
       TREES.value = { ...TREES.value, TREE_AGE_SATURATION_MAX: 100 };
-      trees = createTreeRenderer(placements, testCommits);
+      trees = createTreeRenderer(placements, testCommits, BUSY);
       const onColor = instanceColor(trees.group, 0).clone();
 
       // The OFF color must differ from the gray-forced ON color (oldest commit).
@@ -474,7 +479,7 @@ describe('createTreeRenderer()', () => {
       const placements = [placement(0, 0, 1, 0), placement(20, 0, 2, 1)];
 
       // Capture base saturation with desat OFF (resetStores sets it false).
-      trees = createTreeRenderer(placements, testCommits);
+      trees = createTreeRenderer(placements, testCommits, BUSY);
       const baseS = instanceSaturation(trees.group, 0);
       trees.dispose();
 
@@ -482,7 +487,7 @@ describe('createTreeRenderer()', () => {
       TREES.value = { ...TREES.value, TREE_AGE_DESAT_ENABLED: true };
       TREES.value = { ...TREES.value, TREE_AGE_SATURATION_MIN: 20 };
       TREES.value = { ...TREES.value, TREE_AGE_SATURATION_MAX: 100 };
-      trees = createTreeRenderer(placements, testCommits);
+      trees = createTreeRenderer(placements, testCommits, BUSY);
 
       const oldestS = instanceSaturation(trees.group, 0);
       // oldest → ageT=0 → factor = 20/100 = 0.20
@@ -497,7 +502,7 @@ describe('createTreeRenderer()', () => {
       const placements = [placement(0, 0, 1, 0), placement(20, 0, 2, 1)];
 
       // Capture base saturation with desat OFF.
-      trees = createTreeRenderer(placements, testCommits);
+      trees = createTreeRenderer(placements, testCommits, BUSY);
       const baseNewestS = instanceSaturation(trees.group, 1);
       trees.dispose();
 
@@ -505,7 +510,7 @@ describe('createTreeRenderer()', () => {
       TREES.value = { ...TREES.value, TREE_AGE_DESAT_ENABLED: true };
       TREES.value = { ...TREES.value, TREE_AGE_SATURATION_MIN: 20 };
       TREES.value = { ...TREES.value, TREE_AGE_SATURATION_MAX: 100 };
-      trees = createTreeRenderer(placements, testCommits);
+      trees = createTreeRenderer(placements, testCommits, BUSY);
 
       const newestS = instanceSaturation(trees.group, 1);
       // newest → ageT=1 → factor = 100/100 = 1.00 → saturation unchanged
@@ -522,7 +527,7 @@ describe('createTreeRenderer()', () => {
         { date: '2026-01-21', files: 5 } // newest
       );
       const placements = [placement(0, 0, 1, 0), placement(20, 0, 2, 1)];
-      trees = createTreeRenderer(placements, testCommits);
+      trees = createTreeRenderer(placements, testCommits, BUSY);
 
       // Capture saturation of oldest tree with desat ON.
       const sWithDesat = instanceSaturation(trees.group, 0);
@@ -552,7 +557,7 @@ describe('createTreeRenderer()', () => {
       };
       const placements = [placement(0, 0, 1, 0)];
       const commits = buildCommits({ date: '2026-01-01', files: 1 });
-      trees = createTreeRenderer(placements, commits);
+      trees = createTreeRenderer(placements, commits, BUSY);
       const canopyInst = findCanopyInstance(trees.group, 0);
       expect(canopyInst).not.toBeNull();
       const colorAttr1 = canopyInst!.mesh.geometry.getAttribute('color') as THREE.BufferAttribute;
@@ -570,7 +575,7 @@ describe('createTreeRenderer()', () => {
         AMBIENT: 0.72,
         SUN_CONTRAST: 0.5,
       };
-      trees = createTreeRenderer(placements, commits);
+      trees = createTreeRenderer(placements, commits, BUSY);
       const canopyInst2 = findCanopyInstance(trees.group, 0);
       expect(canopyInst2).not.toBeNull();
       const colorAttr2 = canopyInst2!.mesh.geometry.getAttribute('color') as THREE.BufferAttribute;

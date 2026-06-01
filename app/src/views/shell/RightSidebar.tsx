@@ -29,7 +29,7 @@ import { CommitPane } from '@/views/panes/CommitPane';
 import type { CommitPaneState } from '@/views/panes/CommitPane';
 import { StreetPane } from '@/views/panes/StreetPane';
 import type { StreetPaneState } from '@/views/panes/StreetPane';
-import { sameDayCommitCount, dailyCommitThresholds } from '@/utils/commit';
+import { sameDayCommitCount } from '@/utils/commit';
 
 // Persistent width range (in px) for the right sidebar drag handle.
 const SIDEBAR_MIN_WIDTH = 280;
@@ -133,7 +133,7 @@ function _installSceneBridge(): void {
       commit,
       remoteUrl: m?.repo?.remote_url ?? null,
       sameDayTotal: sameDayCommitCount(commit, commits),
-      busynessThresholds: dailyCommitThresholds(commits),
+      busynessThresholds: m?.busyness ?? { avg: 1, busy: 1 },
       color: handle?.world.getTrees()?.colorForSha(commit.sha) ?? undefined,
     };
   }

@@ -26,7 +26,7 @@ import * as THREE from 'three';
 import { TREES } from '@/state/settings/components/trees';
 import { RENDER_ORDERS } from '@/scene/renderOrders';
 import type { TreePlacement } from './treePlacement';
-import type { CommitEntry } from '@/types';
+import type { CommitEntry, BusynessThresholds } from '@/types';
 import {
   computeAgeRange,
   computeSizeRange,
@@ -237,7 +237,8 @@ interface CanopyMeshRecord {
 
 export function createTreeRenderer(
   placements: TreePlacement[],
-  commits: CommitEntry[] | null
+  commits: CommitEntry[] | null,
+  busyness: BusynessThresholds
 ): Trees {
   let cfg = TREES.value;
 
@@ -314,7 +315,7 @@ export function createTreeRenderer(
   function perTreeColor(i: number, target: THREE.Color): void {
     let t = 0.5;
     if (commits && placements[i].commitIndex >= 0 && placements[i].commitIndex < commits.length) {
-      t = dailyCountTByIndex(dailyCounts, placements[i].commitIndex);
+      t = dailyCountTByIndex(dailyCounts, placements[i].commitIndex, busyness);
     }
     interpolateOklch(soloDayColor, busyDayColor, t, target);
 
