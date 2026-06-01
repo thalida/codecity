@@ -7,7 +7,7 @@ import { Fragment } from 'preact';
 import { Focus } from 'lucide-preact';
 import { ExtensionBadge } from '@/components/Badge';
 import { CopyButton } from '@/components/CopyButton';
-import { useMiddleEllipsis } from '@/hooks';
+import { useMiddleEllipsis } from '@/hooks/useMiddleEllipsis';
 import { STREETS, BUILDINGS } from '@/state/stores/settings';
 
 export interface HeaderBreadcrumbProps {
