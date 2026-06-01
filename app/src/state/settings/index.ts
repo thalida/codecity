@@ -41,13 +41,12 @@ export * from './system/tooltip';
 
 // ── App-level user preferences ────────────────────────────────────────
 export * from './updates';
+export * from './scene';
 export * from './prefs/syntaxTheme';
 
 // ── World (background + sizing) ───────────────────────────────────────
-export * from './world/world';
 
 // ── Visual components ─────────────────────────────────────────────────
-export * from './components/sky';
 export * from './components/lighting';
 export * from './components/streets';
 export * from './components/buildings';

@@ -7,16 +7,15 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import * as THREE from 'three';
 import { createSky } from '@/scene/components/sky/sky';
-import { SKY, SKY_STARS } from '@/state/settings/components/sky';
+import { SCENE } from '@/state/settings/scene';
 import { RENDER_ORDERS } from '@/scene/renderOrders';
 
 function resetStores() {
-  SKY.value = {
-    COLOR: '#010005',
-  };
-  SKY_STARS.value = {
-    ENABLED: true,
-    DENSITY: 0.0075,
+  SCENE.value = {
+    ...SCENE.value,
+    SKY_COLOR: '#010005',
+    STARS_ENABLED: true,
+    STARS_DENSITY: 0.0075,
   };
 }
 
@@ -64,8 +63,7 @@ describe('createSky()', () => {
   });
 
   it('refresh() pushes fresh config values into uniforms', () => {
-    SKY_STARS.value = { ...SKY_STARS.value, DENSITY: 0.01 };
-    SKY.value = { ...SKY.value, COLOR: '#ffffff' };
+    SCENE.value = { ...SCENE.value, STARS_DENSITY: 0.01, SKY_COLOR: '#ffffff' };
     sky.refresh();
     const mat = sky.mesh.material as THREE.ShaderMaterial;
     expect(mat.uniforms.uStarDensity.value).toBeCloseTo(0.01);

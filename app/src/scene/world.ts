@@ -69,7 +69,6 @@ import {
   getModifiedAge,
   getDateRanges,
 } from './components/buildings/buildingColor';
-import { SKY } from '@/state/settings/components/sky';
 import {
   ASPHALT,
   GEM_APPEARANCE,
@@ -78,7 +77,7 @@ import {
   GEM_SIZING,
   LABEL_TYPOGRAPHY,
   TREES,
-  SCENE_COLORS,
+  SCENE,
   SIDEWALK_COLORS,
 } from '@/state/settings/index';
 import { REBUILD_STATUS } from '@/state/runtime/manifestPoll';
@@ -254,7 +253,7 @@ function _buildWorld(layout: CityLayout) {
   // All visual values (street colors, sidewalk default, label fill/stroke,
   // gem edge color, etc.) come from the named exports of @/config.
   const scene = new THREE.Scene();
-  scene.background = new THREE.Color(SKY.value.COLOR);
+  scene.background = new THREE.Color(SCENE.value.SKY_COLOR);
 
   // Streets + their labels
   const streets = layout.streets || [];
@@ -336,7 +335,7 @@ export function createWorld(_canvas: HTMLCanvasElement) {
 
   // Persistent across applyManifest calls.
   const scene = new THREE.Scene();
-  scene.background = new THREE.Color(SKY.value.COLOR);
+  scene.background = new THREE.Color(SCENE.value.SKY_COLOR);
 
   // Cyberpunk Valley sky — built ONCE here, lives at scene root for
   // the lifetime of the world. Not rebuilt per applyManifest
@@ -469,7 +468,7 @@ export function createWorld(_canvas: HTMLCanvasElement) {
 
   // computeScenicConfigHash collects the current values of every store whose
   // output is baked into buildWorld meshes:
-  //   - SCENE_COLORS  : FOG_* keys baked into building shader uniforms
+  //   - SCENE  : FOG_* keys baked into building shader uniforms
   //   - ASPHALT       : COLOR + WIDTH_FRAC baked into asphalt geometry/material
   //   - SIDEWALK_COLORS: DEFAULT baked into sidewalk materials
   //   - LABEL_TYPOGRAPHY: all keys baked into label canvas textures + geometry
@@ -481,7 +480,12 @@ export function createWorld(_canvas: HTMLCanvasElement) {
   // PATH_LINE / HOVER_PATH_LINE are live Line2 meshes, not built by buildWorld.
   function computeScenicConfigHash(): string {
     return JSON.stringify({
-      sceneColors: SCENE_COLORS.value,
+      fog: {
+        FOG_ENABLED: SCENE.value.FOG_ENABLED,
+        FOG_COLOR: SCENE.value.FOG_COLOR,
+        FOG_INTENSITY: SCENE.value.FOG_INTENSITY,
+        FOG_HEIGHT_FRAC: SCENE.value.FOG_HEIGHT_FRAC,
+      },
       asphalt: ASPHALT.value,
       sidewalkColors: SIDEWALK_COLORS.value,
       labelTypography: LABEL_TYPOGRAPHY.value,
@@ -1027,7 +1031,7 @@ export function createWorld(_canvas: HTMLCanvasElement) {
       rootGemEdges = cellBuilt.rootGemEdges || null;
 
       for (const child of [...cellBuilt.scene.children]) scene.add(child);
-      scene.background = new THREE.Color(SKY.value.COLOR);
+      scene.background = new THREE.Color(SCENE.value.SKY_COLOR);
 
       // Remove per-building meshes that buildWorld emits — the cell
       // path replaces them with InstancedMesh cells. Keep streetLabels:

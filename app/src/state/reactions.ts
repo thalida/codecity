@@ -22,7 +22,7 @@ import {
   LABEL_TYPOGRAPHY,
 
   // Material-only (full store):
-  SCENE_COLORS,
+  SCENE,
   SIDEWALK_COLORS,
   ASPHALT,
   BUILDING_OUTLINE,
@@ -36,8 +36,6 @@ import {
   LIGHTING,
   FACADE_DETAIL,
   WINDOW_LIGHTING,
-  SKY,
-  SKY_STARS,
   REPO_LABEL,
 
   // Split-routed (specific keys below):
@@ -141,7 +139,7 @@ const REBUILD_SIGNATURE = computed(() => ({
 // Split-routed stores contribute only their material/uniform keys.
 const MATERIAL_REFRESH_SIGNATURE = computed(() => ({
   // Full-store material triggers:
-  sceneColors: SCENE_COLORS.value,
+  scene: SCENE.value, // sky color + stars + fog (all material-refresh)
   sidewalkColors: SIDEWALK_COLORS.value,
   asphalt: ASPHALT.value,
   buildingOutline: BUILDING_OUTLINE.value,
@@ -155,8 +153,6 @@ const MATERIAL_REFRESH_SIGNATURE = computed(() => ({
   lighting: LIGHTING.value,
   facadeDetail: FACADE_DETAIL.value,
   windowLighting: WINDOW_LIGHTING.value,
-  sky: SKY.value,
-  skyStars: SKY_STARS.value,
   repoLabel: REPO_LABEL.value,
 
   // ISLAND material keys only (the shape keys are in REBUILD_SIGNATURE, so

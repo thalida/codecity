@@ -15,7 +15,7 @@ import {
   FACADE_DETAIL,
   FACADE_GEOMETRY,
   LIGHTING,
-  SCENE_COLORS,
+  SCENE,
   WINDOW_LIGHTING,
 } from '@/state/settings/index';
 import type { IconAtlas } from './iconAtlas';
@@ -65,7 +65,7 @@ export function setIconAtlas(atlas: IconAtlas | null): void {
 function _computeFogHeight(): number {
   const dims = BUILDING_DIMENSIONS.value;
   const maxHeight = Math.max(1, dims.MAX_FLOORS * dims.FLOOR_HEIGHT);
-  return SCENE_COLORS.value.FOG_HEIGHT_FRAC * maxHeight;
+  return SCENE.value.FOG_HEIGHT_FRAC * maxHeight;
 }
 
 function getBuildingMaterial(): THREE.ShaderMaterial {
@@ -95,11 +95,11 @@ function getBuildingMaterial(): THREE.ShaderMaterial {
       // convention as uDimGlowColor.
       // uFogEnabled drives the boolean branch in the shared fog chunk;
       // uFogIntensity is still set to 0 when disabled (belt-and-suspenders).
-      uFogEnabled: { value: SCENE_COLORS.value.FOG_ENABLED },
+      uFogEnabled: { value: SCENE.value.FOG_ENABLED },
       uFogColor: {
-        value: new THREE.Color().setStyle(SCENE_COLORS.value.FOG_COLOR, THREE.LinearSRGBColorSpace),
+        value: new THREE.Color().setStyle(SCENE.value.FOG_COLOR, THREE.LinearSRGBColorSpace),
       },
-      uFogIntensity: { value: SCENE_COLORS.value.FOG_INTENSITY },
+      uFogIntensity: { value: SCENE.value.FOG_INTENSITY },
       uFogHeight: { value: _computeFogHeight() },
       // Extra HDR emission applied to the freshest building's lit
       // windows on top of a baseline 1.0. 0 = no bloom contribution
@@ -186,7 +186,7 @@ export function getSharedBuildingUniforms(): Record<string, THREE.IUniform> {
  */
 export function refreshBuildingMaterial(): void {
   if (!_sharedMaterial) return;
-  const sceneCfg = SCENE_COLORS.value;
+  const sceneCfg = SCENE.value;
   const bloomCfg = BLOOM.value;
   _sharedMaterial.uniforms.uOutlineWidth.value = BUILDING_OUTLINE.value.WIDTH;
   // Height fog: uFogEnabled drives the GLSL branch; uFogIntensity is also

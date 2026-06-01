@@ -2,7 +2,7 @@
 // buildings, and any other shader that wants atmospheric depth.
 //
 // Height fog: dense near y=0, thinning with altitude. Driven by
-//   SCENE_COLORS.FOG_* in @/config/view.js. Buildings and the island consume this.
+//   SCENE.FOG_* in @/config/view.js. Buildings and the island consume this.
 //
 // This module exports ONLY the GLSL strings. Each consumer wires its
 // own uniforms — we don't centralize uniform defaults here because

@@ -21,7 +21,7 @@ import {
 import { NodeKind, StreetAxis } from '../types';
 import type { Manifest } from '../types';
 
-import { SKY } from '@/state/settings/components/sky';
+import { SCENE } from '@/state/settings/scene';
 import { createWorld } from './world';
 import { refreshBuildingMaterial } from './components/buildings/buildings';
 import { createCameraRig } from './system/cameraRig';
@@ -213,7 +213,7 @@ export async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manif
       mesh.material.color.setHex(asphaltHex);
     }
 
-    scene.background = new THREE.Color(SKY.value.COLOR);
+    scene.background = new THREE.Color(SCENE.value.SKY_COLOR);
 
     outlineRenderer.refreshMaterials();
     treeOutlineRenderer.refreshMaterials();
