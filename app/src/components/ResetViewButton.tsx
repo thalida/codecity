@@ -3,6 +3,7 @@
 // nothing when no reset handler is wired (pre-boot).
 
 import { GemIcon } from '@/components/GemIcon';
+import { KEY_BINDINGS } from '@/constants';
 
 export interface ResetViewButtonProps {
   onResetView?: () => void;
@@ -14,7 +15,7 @@ export function ResetViewButton({ onResetView }: ResetViewButtonProps) {
     <button
       type="button"
       class="btn-icon btn-icon--no-drag"
-      title="Reset view (R)"
+      title={`Reset view (${KEY_BINDINGS.RESET_VIEW.label})`}
       aria-label="Reset view"
       onClick={() => onResetView()}
     >
