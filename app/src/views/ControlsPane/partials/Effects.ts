@@ -1,4 +1,4 @@
-// views/controls/sections/effects.ts — Effects section declaration.
+// views/ControlsPane/partials/effects.ts — Effects section declaration.
 import { field, type SectionNode } from '.';
 import { RAINBOW, BLOOM } from '@/state/stores/settings/effects';
 

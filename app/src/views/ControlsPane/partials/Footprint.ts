@@ -1,4 +1,4 @@
-// views/controls/sections/footprint.ts — City footprint section
+// views/ControlsPane/partials/footprint.ts — City footprint section
 // declaration. The dark paved apron slab that follows the city silhouette,
 // inflated outward from every layout rect. Its own top-level section (sits
 // after Streets) — the slab frames the whole city, it isn't a street surface.

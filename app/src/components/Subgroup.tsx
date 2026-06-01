@@ -1,4 +1,4 @@
-// views/controls/Subgroup.tsx — Non-collapsible labeled group of
+// views/ControlsPane/Subgroup.tsx — Non-collapsible labeled group of
 // rows. Used to cluster related rows under a header (e.g. "Stars" inside
 // the Scene section).
 

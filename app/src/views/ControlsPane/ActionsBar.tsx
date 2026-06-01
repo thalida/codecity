@@ -1,4 +1,4 @@
-// views/controls/ActionsBar.tsx — Sticky bottom three-button bar.
+// views/ControlsPane/ActionsBar.tsx — Sticky bottom three-button bar.
 // Reset all (left) | Discard · Save (right). Widgets write to the draft
 // layer; Save commits to stores (triggers existing persist + commit-
 // reaction subscriptions). Discard drops pending drafts. Reset all

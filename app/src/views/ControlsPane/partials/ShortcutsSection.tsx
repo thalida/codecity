@@ -1,4 +1,4 @@
-// views/controls/ShortcutsSection.tsx — Static cheat-sheet for
+// views/ControlsPane/ShortcutsSection.tsx — Static cheat-sheet for
 // keyboard and mouse shortcuts. No draft binding — this is reference
 // material rendered straight from KEY_BINDINGS plus hard-coded mouse
 // affordances.

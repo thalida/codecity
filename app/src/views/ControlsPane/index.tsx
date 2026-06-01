@@ -20,22 +20,22 @@
 // reopens fresh.
 
 import { useEffect, useRef } from 'preact/hooks';
-import { ShortcutsSection } from './controls/ShortcutsSection';
+import { ShortcutsSection } from './partials/ShortcutsSection';
 
-import { FilePreviewSection } from './controls/FilePreviewSection';
-import { DebugSection } from './controls/DebugSection';
-import { DynamicSection, type SectionNode } from './controls/sections';
-import { TREES_SECTION } from './controls/sections/trees';
-import { EFFECTS_SECTION } from './controls/sections/effects';
-import { FIREFLIES_SECTION } from './controls/sections/fireflies';
-import { UPDATES_SECTION } from './controls/sections/updates';
-import { ISLAND_SECTION } from './controls/sections/island';
-import { SCENE_SECTION } from './controls/sections/scene';
-import { GEM_SECTION } from './controls/sections/gem';
-import { STREETS_SECTION } from './controls/sections/streets';
-import { FOOTPRINT_SECTION } from './controls/sections/footprint';
-import { BUILDINGS_SECTION } from './controls/sections/buildings';
-import { ActionsBar } from './controls/ActionsBar';
+import { FilePreviewSection } from './partials/FilePreviewSection';
+import { DebugSection } from './partials/DebugSection';
+import { DynamicSection, type SectionNode } from './partials';
+import { TREES_SECTION } from './partials/Trees';
+import { EFFECTS_SECTION } from './partials/Effects';
+import { FIREFLIES_SECTION } from './partials/Fireflies';
+import { UPDATES_SECTION } from './partials/Updates';
+import { ISLAND_SECTION } from './partials/Island';
+import { SCENE_SECTION } from './partials/Scene';
+import { GEM_SECTION } from './partials/Gem';
+import { STREETS_SECTION } from './partials/Streets';
+import { FOOTPRINT_SECTION } from './partials/Footprint';
+import { BUILDINGS_SECTION } from './partials/Buildings';
+import { ActionsBar } from './ActionsBar';
 import { Pane } from '@/components/Pane';
 
 export interface ControlsPaneProps {

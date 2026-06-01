@@ -1,4 +1,4 @@
-// views/controls/sections/streets.ts — Streets section declaration.
+// views/ControlsPane/partials/streets.ts — Streets section declaration.
 // Road sizing + packing (STREET_TIERS, STREET_LAYOUT) and the asphalt /
 // sidewalk / label / path-line visuals (STREETS) that paint on top. Subgroups
 // are arrangement only; the stores own each field. (The city footprint slab is

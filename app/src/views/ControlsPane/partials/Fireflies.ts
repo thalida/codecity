@@ -1,4 +1,4 @@
-// views/controls/sections/fireflies.ts — Fireflies section declaration.
+// views/ControlsPane/partials/fireflies.ts — Fireflies section declaration.
 import { field, type SectionNode } from '.';
 import { FIREFLIES } from '@/state/stores/settings/fireflies';
 

@@ -1,4 +1,4 @@
-// views/controls/FilePreviewSection.tsx — Syntax-highlight theme
+// views/ControlsPane/FilePreviewSection.tsx — Syntax-highlight theme
 // picker. Writes directly to SYNTAX_THEME (no draft layer — the CSS
 // link element swaps instantly, no Save required). Mirrors the
 // rotate-ccw reset affordance but wired to the SYNTAX_THEME signal.

@@ -1,4 +1,4 @@
-// views/controls/CollapsibleSubgroup.tsx — Same visual shell as Subgroup
+// views/ControlsPane/CollapsibleSubgroup.tsx — Same visual shell as Subgroup
 // but the body is a <details> so users can collapse long lists (e.g.
 // per-extension hue rows) or nested groups (Buildings > Facade).
 //

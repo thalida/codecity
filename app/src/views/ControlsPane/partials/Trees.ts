@@ -1,4 +1,4 @@
-// views/controls/sections/trees.ts — Trees section declaration: where
+// views/ControlsPane/partials/trees.ts — Trees section declaration: where
 // each TREES field sits in the Settings panel. Field metadata
 // (kind/label/tip/bounds/default) lives with the store; this is arrangement only.
 

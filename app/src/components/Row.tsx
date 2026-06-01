@@ -1,4 +1,4 @@
-// views/controls/Row.tsx — Labeled form row used by every control
+// views/ControlsPane/Row.tsx — Labeled form row used by every control
 // widget. Renders the label, the control element passed in `children`,
 // and (when `store` + `keys` are provided) a reset icon next to the
 // control that stages-reset on click.

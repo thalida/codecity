@@ -1,4 +1,4 @@
-// views/controls/sections/index.tsx — The controls panel's ARRANGEMENT
+// views/ControlsPane/partials/index.tsx — The controls panel's ARRANGEMENT
 // layer (the components + helpers). Stores (state/stores/settings) own what each field
 // *is*; this owns where each field *sits*.
 //

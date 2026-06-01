@@ -1,4 +1,4 @@
-// views/controls/sections/gem.ts — Root gem section declaration. Three
+// views/ControlsPane/partials/gem.ts — Root gem section declaration. Three
 // stores (GEM visual, GEM_SIZING layout, REPO_LABEL feature); the subgroups
 // below are arrangement only.
 import { field, type SectionNode } from '.';

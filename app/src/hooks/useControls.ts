@@ -1,4 +1,4 @@
-// views/controls/hooks.ts — Reactive bridge between widget components
+// views/ControlsPane/hooks.ts — Reactive bridge between widget components
 // and the draft layer. Widgets render with the "effective" value (draft if
 // pending, else committed) and re-render whenever EITHER source changes.
 //

@@ -1,4 +1,4 @@
-// views/controls/DebugSection.tsx — Developer-only diagnostics.
+// views/ControlsPane/DebugSection.tsx — Developer-only diagnostics.
 // Output goes to the browser console. Each button is rendered only
 // when its callback is provided; either or both may be present.
 

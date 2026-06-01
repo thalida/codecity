@@ -1,4 +1,4 @@
-// views/controls/sections/buildings.ts — Buildings section declaration.
+// views/ControlsPane/partials/buildings.ts — Buildings section declaration.
 // Per-file boxes: height from line count, width from byte size, color from
 // extension + age. The largest section — layout, transitions, palette,
 // per-extension hues, outlines, facade, aging, selection fade. Subgroups are

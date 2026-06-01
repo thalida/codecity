@@ -1,4 +1,4 @@
-// views/controls/Section.tsx — Top-level collapsible section in the
+// views/ControlsPane/Section.tsx — Top-level collapsible section in the
 // settings panel. Header row contains the section name plus a reset icon that
 // stages-resets every field in the section. The section reset is shown only
 // when the section has resettable fields (`resetKeys`) and enabled iff at least
