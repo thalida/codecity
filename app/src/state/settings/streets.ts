@@ -1,4 +1,4 @@
-// state/settings/components/streets.ts — Everything visual + layout-y about a
+// state/settings/streets.ts — Everything visual + layout-y about a
 // street: asphalt, sidewalks, road labels, and the two route-highlight path
 // lines (STREETS, schema-driven), plus how streets are sized + packed
 // (STREET_TIERS + STREET_LAYOUT, worker-threaded object stores).
@@ -11,7 +11,6 @@
 // Designer constants that were never UI controls (asphalt width fraction,
 // label font/elevation, path-line elevations) live in constants/streets.ts.
 
-import { persistedSignal } from '@/state/persist';
 import { settingSignal, FieldKind, ChangeRoute, type ConfigOf, type FieldMap } from '@/state/settings/schema';
 
 // ─── Street surface + label + path-line visuals (one flat store) ───────────
@@ -55,36 +54,42 @@ export type StreetsConfig = ConfigOf<typeof STREETS_FIELDS>;
 // ─── Street width tiers ────────────────────────────────────────────────────
 // Step-function mapping a directory's descendant count to its street width.
 // The first matching tier from the top wins. Wider streets read as more
-// important directories from the air. Stored as an atom because it's an
-// ordered array, not a key/value map.
+// important directories from the air. Worker-threaded (the layout worker reads
+// it), so it stays its own object store; the ordered array lives under the
+// single TIERS field (FieldKind.TierWidths renders one width slider per tier).
 export interface StreetTier {
   min_descendants: number;
   width: number;
 }
 
-export const STREET_TIERS = persistedSignal<StreetTier[]>('STREET_TIERS', [
+const DEFAULT_STREET_TIERS: StreetTier[] = [
   { min_descendants: 0, width: 32 },
   { min_descendants: 4, width: 48 },
   { min_descendants: 8, width: 80 },
   { min_descendants: 16, width: 96 },
   { min_descendants: 32, width: 128 },
-]);
+];
+
+const STREET_TIERS_FIELDS = {
+  TIERS: { route: ChangeRoute.Rebuild, kind: FieldKind.TierWidths, default: DEFAULT_STREET_TIERS, label: 'Street width tiers',
+    tip: 'World-unit width per descendant-count tier. Wider streets read as more important directories from the air. Rebuild on change.' },
+} satisfies FieldMap;
+
+export const STREET_TIERS = settingSignal('STREET_TIERS', STREET_TIERS_FIELDS);
+export type StreetTiersConfig = ConfigOf<typeof STREET_TIERS_FIELDS>;
 
 // ─── Street layout / packing distances (world units) ──────────────────────
-// How buildings + child streets are packed along their parent street.
-//   CHILD_GAP        — between sibling children (file or subdir) on a street
-//   ROOT_END_PAD     — fallback pad at each end of the root street (which
-//                      has no parent intersection to size against)
-//   PARENT_JOIN_PAD  — extra clear space where a child street meets its parent
-// All rebuild-required (changing any of these reshapes the entire layout).
-export interface StreetLayoutConfig {
-  CHILD_GAP: number;
-  ROOT_END_PAD: number;
-  PARENT_JOIN_PAD: number;
-}
+// How buildings + child streets are packed along their parent street. All
+// rebuild-required (changing any of these reshapes the entire layout), and
+// worker-threaded (the layout worker reads them) so it stays its own store.
+const STREET_LAYOUT_FIELDS = {
+  CHILD_GAP: { route: ChangeRoute.Rebuild, kind: FieldKind.Number, default: 8, min: 0, max: 50, step: 1, label: 'Sibling gap',
+    tip: 'Distance between sibling children (file or subdir) packed along a street. 50 world units is roughly two MAX_WIDTH building footprints — beyond this streets balloon noticeably.' },
+  ROOT_END_PAD: { route: ChangeRoute.Rebuild, kind: FieldKind.Number, default: 8, min: 0, max: 50, step: 1, label: 'Root end pad',
+    tip: 'Fallback pad at each end of the root street (which has no parent intersection). 50 world units is roughly two MAX_WIDTH building footprints — beyond this streets balloon noticeably.' },
+  PARENT_JOIN_PAD: { route: ChangeRoute.Rebuild, kind: FieldKind.Number, default: 8, min: 0, max: 50, step: 1, label: 'Parent join pad',
+    tip: 'Extra clear space where a child street meets its parent. 50 world units is roughly two MAX_WIDTH building footprints — beyond this streets balloon noticeably.' },
+} satisfies FieldMap;
 
-export const STREET_LAYOUT = persistedSignal<StreetLayoutConfig>('STREET_LAYOUT', {
-  CHILD_GAP: 8,
-  ROOT_END_PAD: 8,
-  PARENT_JOIN_PAD: 8,
-});
+export const STREET_LAYOUT = settingSignal('STREET_LAYOUT', STREET_LAYOUT_FIELDS);
+export type StreetLayoutConfig = ConfigOf<typeof STREET_LAYOUT_FIELDS>;

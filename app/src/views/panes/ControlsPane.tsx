@@ -23,7 +23,6 @@ import { useEffect, useRef } from 'preact/hooks';
 import { ShortcutsSection } from './controls/ShortcutsSection';
 
 import { BuildingsSection } from './controls/BuildingsSection';
-import { StreetsSection } from './controls/StreetsSection';
 
 import { FilePreviewSection } from './controls/FilePreviewSection';
 import { DebugSection } from './controls/DebugSection';
@@ -35,6 +34,8 @@ import { UPDATES_SECTION } from './controls/sections/updates';
 import { ISLAND_SECTION } from './controls/sections/island';
 import { SCENE_SECTION } from './controls/sections/scene';
 import { GEM_SECTION } from './controls/sections/gem';
+import { STREETS_SECTION } from './controls/sections/streets';
+import { FOOTPRINT_SECTION } from './controls/sections/footprint';
 import { ActionsBar } from './controls/ActionsBar';
 import { Pane } from '@/views/components/Pane';
 
@@ -75,7 +76,8 @@ export function ControlsPane({
     SCENE_SECTION,
     ISLAND_SECTION,
     { key: 'buildings', render: <BuildingsSection /> },
-    { key: 'streets', render: <StreetsSection /> },
+    STREETS_SECTION,
+    FOOTPRINT_SECTION,
     GEM_SECTION,
     TREES_SECTION,
     FIREFLIES_SECTION,

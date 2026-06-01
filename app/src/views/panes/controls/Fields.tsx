@@ -9,11 +9,8 @@
 //   RangePairField  — single-key fields on a flat signal.
 //   NestedSliderField — slider bound to store.value[parentKey][subKey];
 //                       writes merge other sub-keys back in.
-//   TierWidthSliderField — special-case for STREET_TIERS, which is an
-//                          array of { min_descendants, width } objects.
 
 import { setDraft } from '@/state/drafts';
-import { STREET_TIERS } from '@/state/settings/index';
 import { ColorInput } from '@/views/components/ColorInput';
 import { NumberInput } from '@/views/components/NumberInput';
 import { Slider } from '@/views/components/Slider';
@@ -268,75 +265,4 @@ export function NestedSliderField({
   );
 }
 
-// ── Tier-width slider (STREET_TIERS array) ────────────────────────────
-
-function TierWidthResetButton({ index }: { index: number }) {
-  const defaultArr = useDefault<Array<{ min_descendants: number; width: number }>>(
-    STREET_TIERS,
-    null
-  ) as unknown as Array<{ min_descendants: number; width: number }> | undefined;
-  const defaultVal = (defaultArr ?? [])[index]?.width;
-  const currentArr = useEffective<Array<{ min_descendants: number; width: number }>>(
-    STREET_TIERS,
-    null
-  ) as unknown as Array<{ min_descendants: number; width: number }>;
-  const currentVal = (currentArr ?? [])[index]?.width;
-  const disabled = currentVal === defaultVal;
-
-  return (
-    <button
-      type="button"
-      class="theme-row-reset"
-      title={`Default: ${_formatDefaultValue(defaultVal)}`}
-      aria-label="Reset to default"
-      disabled={disabled}
-      onClick={(e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        const next = currentArr.slice();
-        next[index] = { min_descendants: currentArr[index].min_descendants, width: defaultVal };
-        setDraft(STREET_TIERS, null, next);
-      }}
-    >
-      <RotateCcw class="lucide-icon" />
-    </button>
-  );
-}
-
-export interface TierWidthSliderFieldProps {
-  index: number;
-  minDescendants: number;
-}
-
-export function TierWidthSliderField({ index, minDescendants }: TierWidthSliderFieldProps) {
-  const arr = useEffective<Array<{ min_descendants: number; width: number }>>(
-    STREET_TIERS,
-    null
-  ) as unknown as Array<{ min_descendants: number; width: number }>;
-  const value = (arr ?? [])[index]?.width;
-  const label = `${minDescendants}+ descendants`;
-  const tip =
-    'World-unit width for streets in this descendant-count tier. Above ~256 streets overwhelm building footprints; below 1 they disappear.';
-  const fullTip = `${label} — ${tip}`;
-
-  return (
-    <label class="theme-row" title={fullTip}>
-      <span class="theme-row-label" title={fullTip}>{label}</span>
-      <span class="theme-row-control">
-        <Slider
-          value={value}
-          min={1}
-          max={256}
-          step={1}
-          onCommit={(v) => {
-            const next = arr.slice();
-            next[index] = { min_descendants: arr[index].min_descendants, width: v };
-            setDraft(STREET_TIERS, null, next);
-          }}
-        />
-        <TierWidthResetButton index={index} />
-      </span>
-    </label>
-  );
-}
 

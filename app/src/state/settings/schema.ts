@@ -25,6 +25,9 @@ export enum FieldKind {
   Toggle = 'toggle',
   Select = 'select',
   RangePair = 'rangePair',
+  /** An ordered array of { min_descendants, width } street tiers — one width
+   *  slider per tier. The field's value is the whole array (see STREET_TIERS). */
+  TierWidths = 'tierWidths',
 }
 
 /** What changing a field requires the scene to do. Drives reactions.ts's

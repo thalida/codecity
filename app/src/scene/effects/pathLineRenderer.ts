@@ -25,7 +25,7 @@ import { PATH_LINE_ELEVATION, HOVER_PATH_LINE_ELEVATION } from '@/constants/stre
  * so this keeps lines proportional to the narrowest street at any zoom.
  */
 export function computePathLinewidthPixels(pct: number): number {
-  const tiers = STREET_TIERS.value;
+  const tiers = STREET_TIERS.value.TIERS;
   if (!tiers.length) return pct / 100; // degenerate fallback
   const minWidth = Math.min(...tiers.map((t) => t.width));
   return minWidth * (pct / 100);

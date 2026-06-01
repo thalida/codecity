@@ -11,25 +11,29 @@ afterEach(() => {
 
 describe('computePathLinewidthPixels', () => {
   it('multiplies smallest street tier width by pct/100', () => {
-    STREET_TIERS.value = [
-      { min_descendants: 0, width: 10 },
-      { min_descendants: 4, width: 4 },
-      { min_descendants: 8, width: 6 },
-    ];
+    STREET_TIERS.value = {
+      TIERS: [
+        { min_descendants: 0, width: 10 },
+        { min_descendants: 4, width: 4 },
+        { min_descendants: 8, width: 6 },
+      ],
+    };
     // min width = 4; 4 * 25/100 = 1.0
     expect(computePathLinewidthPixels(25)).toBeCloseTo(1.0);
   });
 
   it('default 10% with smallest width 4 produces 0.4', () => {
-    STREET_TIERS.value = [
-      { min_descendants: 0, width: 10 },
-      { min_descendants: 4, width: 4 },
-    ];
+    STREET_TIERS.value = {
+      TIERS: [
+        { min_descendants: 0, width: 10 },
+        { min_descendants: 4, width: 4 },
+      ],
+    };
     expect(computePathLinewidthPixels(10)).toBeCloseTo(0.4);
   });
 
   it('returns pct/100 as fallback when tiers array is empty', () => {
-    STREET_TIERS.value = [];
+    STREET_TIERS.value = { TIERS: [] };
     // degenerate fallback: pct / 100
     expect(computePathLinewidthPixels(50)).toBeCloseTo(0.5);
   });

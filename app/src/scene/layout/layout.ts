@@ -20,7 +20,7 @@ import {
   STREET_LAYOUT,
   GEM_SIZING,
 } from '@/state/settings/index';
-import type { StreetTier } from '@/state/settings/components/streets';
+import type { StreetTier } from '@/state/settings/streets';
 import { BuildingOrient, JoinSide, NodeKind, StreetAxis } from '@/types';
 import type { Building, CityLayout, RangeStat, Street } from '@/types';
 import { parentDirPath } from '../utils/path';
@@ -168,7 +168,7 @@ interface ManifestLike {
 // the tier with the highest min_descendants that `count` meets. The last
 // tier (largest min_descendants) acts as the catch-all for big directories.
 export function getStreetWidth(count: number, tiers?: StreetTier[]): number {
-  const arr = tiers && tiers.length ? tiers : STREET_TIERS.value;
+  const arr = tiers && tiers.length ? tiers : STREET_TIERS.value.TIERS;
   let chosen = arr[0].width;
   for (let i = 0; i < arr.length; i++) {
     if (count >= arr[i].min_descendants) chosen = arr[i].width;
@@ -1298,7 +1298,7 @@ function _layoutCityInternal(
 // -----------------------------------------------------------------------------
 export function _streetWidthForDir(dir: DirLike | null | undefined): number {
   const count = (dir && (dir.descendants_count || dir.children_count)) || 0;
-  return getStreetWidth(count, STREET_TIERS.value);
+  return getStreetWidth(count, STREET_TIERS.value.TIERS);
 }
 
 // -----------------------------------------------------------------------------

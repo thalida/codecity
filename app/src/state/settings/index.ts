@@ -44,14 +44,16 @@ export * from './syntaxTheme';
 // ── World (background + sizing) ───────────────────────────────────────
 
 // ── Visual components ─────────────────────────────────────────────────
+// Converted, schema-driven stores live flat in this folder; the remaining
+// not-yet-migrated stores stay under components/ until their conversion.
 export * from './components/lighting';
-export * from './components/streets';
+export * from './streets';
 export * from './components/buildings';
 export * from './components/facade';
 export * from './components/adPanels';
 export * from './gem';
 export * from './island';
-export * from './components/footprint';
+export * from './footprint';
 export * from './trees';
 export * from './fireflies';
 

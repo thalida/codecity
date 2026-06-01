@@ -90,7 +90,7 @@ describe('placeTrees (commit-driven)', () => {
   });
 
   it('rejects candidates inside the FOOTPRINT halo around a layout rect', async () => {
-    const { FOOTPRINT } = await import('@/state/settings/components/footprint.js');
+    const { FOOTPRINT } = await import('@/state/settings/footprint.js');
     FOOTPRINT.value = { ...FOOTPRINT.value, HALO_WIDTH: 100 };
 
     const bb = bbox(-500, -500, 500, 500);

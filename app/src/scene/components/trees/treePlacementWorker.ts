@@ -7,7 +7,7 @@
 import { placeTrees, type TreePlacement } from './treePlacement';
 import { TREES, type TreesConfig } from '@/state/settings/trees';
 import { BUILDING_DIMENSIONS, type BuildingDimensionsConfig } from '@/state/settings/components/buildings';
-import { FOOTPRINT, type FootprintConfig } from '@/state/settings/components/footprint';
+import { FOOTPRINT, type FootprintConfig } from '@/state/settings/footprint';
 import { WORLD, type WorldConfig } from '@/state/settings/scene';
 import type { IslandConfig } from '@/state/settings/island';
 import type { CityBbox, CityLayout } from '@/types';

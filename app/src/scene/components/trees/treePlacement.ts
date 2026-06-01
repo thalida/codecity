@@ -25,7 +25,7 @@
 import RBush from 'rbush';
 import * as THREE from 'three';
 import { TREES } from '@/state/settings/trees';
-import { FOOTPRINT } from '@/state/settings/components/footprint';
+import { FOOTPRINT } from '@/state/settings/footprint';
 import { BUILDING_DIMENSIONS } from '@/state/settings/components/buildings';
 import { ISLAND } from '@/state/settings/island';
 import { getWorldBounds } from '../../layout/worldBounds';

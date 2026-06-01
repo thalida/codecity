@@ -62,7 +62,7 @@ import type { Island } from './components/island/islandMesh';
 import { getWorldBounds, type WorldBounds } from './layout/worldBounds';
 import { createCityFootprint } from './components/footprint/footprint';
 import type { CityFootprint } from './components/footprint/footprint';
-import { FOOTPRINT } from '@/state/settings/components/footprint';
+import { FOOTPRINT } from '@/state/settings/footprint';
 import {
   getBuildingColor,
   getCreatedAge,

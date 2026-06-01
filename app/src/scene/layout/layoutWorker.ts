@@ -10,7 +10,7 @@ import {
   GEM_SIZING,
   STREET_TIERS,
 } from '@/state/settings/index';
-import type { StreetLayoutConfig, StreetTier } from '@/state/settings/components/streets';
+import type { StreetLayoutConfig, StreetTier } from '@/state/settings/streets';
 import type { BuildingDimensionsConfig } from '@/state/settings/components/buildings';
 import type { GemSizingConfig } from '@/state/settings/gem';
 import type { Manifest } from '@/types';
@@ -36,7 +36,7 @@ function _applySnapshot(snap: LayoutRequest['configSnapshot']): void {
   STREET_LAYOUT.value = { ...STREET_LAYOUT.value, ...snap.streetLayout };
   BUILDING_DIMENSIONS.value = { ...BUILDING_DIMENSIONS.value, ...snap.buildingDimensions };
   GEM_SIZING.value = { ...GEM_SIZING.value, ...snap.gemSizing };
-  STREET_TIERS.value = snap.streetTiers;
+  STREET_TIERS.value = { TIERS: snap.streetTiers };
 }
 
 self.addEventListener('message', (event: MessageEvent<LayoutRequest>) => {

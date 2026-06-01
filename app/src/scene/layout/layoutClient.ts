@@ -21,7 +21,7 @@ import {
   GEM_SIZING,
   STREET_TIERS,
 } from '@/state/settings/index';
-import type { StreetLayoutConfig, StreetTier } from '@/state/settings/components/streets';
+import type { StreetLayoutConfig, StreetTier } from '@/state/settings/streets';
 import type { BuildingDimensionsConfig } from '@/state/settings/components/buildings';
 import type { GemSizingConfig } from '@/state/settings/gem';
 import { layoutCity, makeHeightContext, recomputeBuildingDimensions } from './layout';
@@ -120,7 +120,7 @@ function _snapshot(): ConfigSnapshot {
     streetLayout: STREET_LAYOUT.value,
     buildingDimensions: BUILDING_DIMENSIONS.value,
     gemSizing: GEM_SIZING.value,
-    streetTiers: STREET_TIERS.value,
+    streetTiers: STREET_TIERS.value.TIERS,
   };
 }
 

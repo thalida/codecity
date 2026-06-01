@@ -24,15 +24,12 @@ import {
   BUILDING_DIMENSIONS,
   BUILDING_PALETTE,
   AD_PANEL,
-  STREET_LAYOUT,
-  STREET_TIERS,
   BUILDING_OUTLINE,
   BUILDING_AGING,
   LIGHTING,
   FACADE_DETAIL,
   WINDOW_LIGHTING,
   FACADE_GEOMETRY,
-  FOOTPRINT,
 } from '@/state/settings/index';
 
 // Min-dwell for the 'rebuilding' indicator on the material-only path.
@@ -50,14 +47,12 @@ interface CommitReactionsOpts {
 // Legacy (not-yet-schema) stores' routing, hand-listed until they're converted.
 // Each returns a JSON string that changes iff one of its keys changes; the
 // computeds below concatenate this with the auto-generated routeSignature().
-// Split-routed legacy stores (FACADE_GEOMETRY, FOOTPRINT) contribute only the
-// keys for the relevant route.
+// Split-routed legacy store FACADE_GEOMETRY contributes only the keys for the
+// relevant route.
 function legacyRebuildSig(): string {
   return JSON.stringify({
     buildingDimensions: BUILDING_DIMENSIONS.value,
     buildingPalette: BUILDING_PALETTE.value,
-    streetLayout: STREET_LAYOUT.value,
-    streetTiers: STREET_TIERS.value,
     adPanel: AD_PANEL.value,
     // FACADE_GEOMETRY JS-driven keys (bake into per-instance attributes).
     facadeGeometry: {
@@ -65,8 +60,6 @@ function legacyRebuildSig(): string {
       widthPerWindowCol: FACADE_GEOMETRY.value.WIDTH_PER_WINDOW_COL,
       doorWidthFrac: FACADE_GEOMETRY.value.DOOR_WIDTH_FRAC,
     },
-    // FOOTPRINT.HALO_WIDTH bakes into per-instance Matrix4 data.
-    footprintHaloWidth: FOOTPRINT.value.HALO_WIDTH,
   });
 }
 
@@ -85,12 +78,6 @@ function legacyRefreshSig(): string {
       windowMarginFrac: FACADE_GEOMETRY.value.WINDOW_MARGIN_FRAC,
       doorHeightFrac: FACADE_GEOMETRY.value.DOOR_HEIGHT_FRAC,
       roofBorderFrac: FACADE_GEOMETRY.value.ROOF_BORDER_FRAC,
-    },
-    // FOOTPRINT material keys (ENABLED + CORNER_RADIUS + COLOR).
-    footprint: {
-      enabled: FOOTPRINT.value.ENABLED,
-      cornerRadius: FOOTPRINT.value.CORNER_RADIUS,
-      color: FOOTPRINT.value.COLOR,
     },
   });
 }
