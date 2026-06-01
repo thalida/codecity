@@ -1,18 +1,18 @@
-// App.tsx — Composition root. Mounts all shell components and kicks off
-// the app boot logic via runAppLogic() in a useEffect.
+// App.tsx — Composition root. Mounts all shell components. The scene is booted
+// by <CenterPane /> (which owns the canvas); App just keeps document.title in
+// sync and wires the header callbacks to the live SCENE_HANDLE.
 //
 // Layout:
 //   <AppHeader>          — reads SCENE_HANDLE + SOURCE_INFO
 //   <main id="app-body">
 //     <LeftSidebar>      — self-subscribes to SCENE_HANDLE + picker
-//     <CenterPane>       — canvas (scene started by runAppLogic)
+//     <CenterPane>       — owns the canvas + boots the scene
 //     <RightSidebar>     — self-subscribes to SCENE_HANDLE + picker
 //   </main>
 //   <AppFooter>          — reads signals directly
 //   <SourcePicker />     — reads SOURCE_PICKER + SERVER_CONFIG directly
 //   <LoadingOverlay />   — reads LOADING_OVERLAY directly
 
-import { useEffect } from 'preact/hooks';
 import { AppHeader } from './AppHeader';
 import { AppFooter } from './AppFooter';
 import { CenterPane } from './CenterPane';
@@ -24,23 +24,9 @@ import { HljsThemeLink } from '../components/HljsThemeLink';
 import { SCENE_HANDLE } from '@/state/runtime/scene';
 import { openSourcePickerForCurrentSource } from '@/state/runtime/uiState';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
-import { runAppLogic } from '../../appLogic';
 
 export function App() {
   useDocumentTitle();
-
-  useEffect(() => {
-    let disposeLogic: (() => void) | undefined;
-    let cancelled = false;
-    runAppLogic().then((dispose) => {
-      if (!cancelled) disposeLogic = dispose;
-      else dispose();
-    });
-    return () => {
-      cancelled = true;
-      disposeLogic?.();
-    };
-  }, []);
 
   function onSegmentClick(path: string) {
     SCENE_HANDLE.peek()?.picker.selectByPath(path);

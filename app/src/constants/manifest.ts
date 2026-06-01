@@ -1,6 +1,6 @@
-// utils/emptyManifest.ts — Sentinel empty manifest used when no source is
-// loaded (cold boot with no ?src= param, or error recovery). Shared by
-// boot.ts / appLogic.ts and tests that need a minimal Manifest value.
+// constants/manifest.ts — Sentinel empty manifest used when no source is
+// loaded (cold boot with no ?src= param, or error recovery). Shared by the
+// boot / manifest-stream modules and tests that need a minimal Manifest value.
 
 import { NodeKind } from '../types';
 import type { Manifest } from '../types';

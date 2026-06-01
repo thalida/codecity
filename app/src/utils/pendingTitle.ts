@@ -3,8 +3,8 @@
 // on the FIRST event that carries display_root so the tab title shows the
 // project being loaded before any manifest exists.
 //
-// Exported here (rather than in boot.ts) so pendingTitle.test.ts can import
-// it cleanly, and so boot.ts / appLogic.ts can re-export it for backward compat.
+// Lives in utils/ (not in a boot module) so pendingTitle.test.ts and main.tsx
+// can import it directly.
 
 import { labelFromUrl } from './sources';
 
