@@ -6,7 +6,7 @@
 // Schema-driven (see state/schema); POLL_SECONDS is clamped to a
 // hard [min, max] range at the caller (manifestPoll), where those bounds live.
 
-import { settingSignal, FieldKind, ChangeRoute, type ConfigOf, type FieldMap } from '@/state/schema';
+import { settingSignal, FieldKind, ChangeRoute, type ConfigOf, type FieldMap } from '@/state/settingsSchema';
 
 const LIVE_UPDATES_FIELDS = {
   ENABLED: { route: ChangeRoute.Live, kind: FieldKind.Toggle, default: false, label: 'Enabled',

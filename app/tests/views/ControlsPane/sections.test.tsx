@@ -16,7 +16,7 @@ import {
   BUILDING_FADE,
 } from '@/state/stores/settings/index';
 import { FOOTPRINT } from '@/state/stores/settings/footprint';
-import { getFieldKeys } from '@/state/schema';
+import { getFieldKeys } from '@/state/settingsSchema';
 import { flush } from '../../_helpers/preact';
 
 // Walk a section's node tree and collect every field reference (depth-first).

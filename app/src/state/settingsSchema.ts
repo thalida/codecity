@@ -1,4 +1,4 @@
-// state/schema.ts — Schema-driven settings core.
+// state/settingsSchema.ts — Schema-driven settings core.
 //
 // A setting store is a FLAT map of field definitions: each key carries what
 // the field intrinsically *is* (kind, default, label, tip, bounds/options) —
@@ -41,7 +41,7 @@ export enum FieldKind {
   HueMap = 'hueMap',
 }
 
-/** What changing a field requires the scene to do. Drives reactions.ts's
+/** What changing a field requires the scene to do. Drives settingsReactions.ts's
  *  rebuild/material-refresh signatures (auto-generated from this metadata):
  *   Refresh — applyTheme only (material/uniform update). The default.
  *   Rebuild — full world applyManifest (structural/geometry/layout change).
@@ -56,7 +56,7 @@ export enum ChangeRoute {
 /** One field's intrinsic definition. `default`'s type flows through to the
  *  store's config type (see ConfigOf). min/max/step apply to numeric kinds;
  *  options to Select. `route` is REQUIRED — every field states what changing it
- *  triggers, so the store file is legible at a glance and reactions.ts can
+ *  triggers, so the store file is legible at a glance and settingsReactions.ts can
  *  generate its rebuild/refresh signatures from it. */
 export interface FieldDef<T = unknown> {
   kind: FieldKind;

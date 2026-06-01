@@ -10,9 +10,9 @@ import {
   isDirty,
   DRAFTS_REV,
   _resetForTests,
-} from '@/state/drafts';
+} from '@/state/settingsDrafts';
 import { persistedSignal } from '@/state/persist';
-import { markSettingStore } from '@/state/schema';
+import { markSettingStore } from '@/state/settingsSchema';
 
 interface FooConfig {
   COLOR: string;

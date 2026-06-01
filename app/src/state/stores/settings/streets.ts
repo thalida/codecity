@@ -5,13 +5,13 @@
 //
 // Asphalt + sidewalk + path-line fields are material-refresh (applyTheme);
 // the label fields are rebuild-required (label textures bake at build time).
-// Each field states its own route — reactions.ts derives its rebuild/refresh
+// Each field states its own route — settingsReactions.ts derives its rebuild/refresh
 // signatures from that metadata (see state/schema).
 //
 // Designer constants that were never UI controls (asphalt width fraction,
 // label font/elevation, path-line elevations) live in constants/streets.ts.
 
-import { settingSignal, FieldKind, ChangeRoute, type ConfigOf, type FieldMap } from '@/state/schema';
+import { settingSignal, FieldKind, ChangeRoute, type ConfigOf, type FieldMap } from '@/state/settingsSchema';
 
 // ─── Street surface + label + path-line visuals (one flat store) ───────────
 // Keys are prefixed by sub-feature (ASPHALT_ / SIDEWALK_ / LABEL_ / PATH_ /

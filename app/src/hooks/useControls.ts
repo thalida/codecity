@@ -6,7 +6,7 @@
 // and the draft layer via DRAFTS_REV which is bumped on every mutation in
 // state/drafts.
 
-import { getEffective, DRAFTS_REV } from '@/state/drafts';
+import { getEffective, DRAFTS_REV } from '@/state/settingsDrafts';
 import { getDefault } from '@/state/persist';
 import { deepEqual } from '@/utils/deep';
 

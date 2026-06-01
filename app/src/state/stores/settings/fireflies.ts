@@ -5,7 +5,7 @@
 // brightness modulation; per-author commit-count scaling is always on (tune
 // spread via SCALE_MIN/MAX). Schema-driven (see state/schema).
 
-import { settingSignal, FieldKind, ChangeRoute, type ConfigOf, type FieldMap } from '@/state/schema';
+import { settingSignal, FieldKind, ChangeRoute, type ConfigOf, type FieldMap } from '@/state/settingsSchema';
 
 const FIREFLIES_FIELDS = {
   ENABLED: { route: ChangeRoute.Rebuild, kind: FieldKind.Toggle, default: true, label: 'Fireflies enabled',

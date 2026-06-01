@@ -119,7 +119,7 @@ export function persistedSignal<T>(key: string, defaultValue: T): Signal<T> {
 }
 
 // ── Public: getDefault ───────────────────────────────────────────────────────
-// Loose signal-like type used at the boundary with drafts.ts / the controls
+// Loose signal-like type used at the boundary with settingsDrafts.ts / the controls
 // layer, which have their own local SignalLike interface. These are always
 // real @preact/signals Signal instances at runtime.
 type AnySignalLike = { value: any };

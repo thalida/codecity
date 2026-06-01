@@ -10,7 +10,7 @@
 
 import { type ComponentChildren } from 'preact';
 import { ChevronRight, RotateCcw } from 'lucide-preact';
-import { stageReset } from '@/state/drafts';
+import { stageReset } from '@/state/settingsDrafts';
 import { useAnyResettable, type ResettableRef } from '@/hooks/useControls';
 
 export interface SectionProps {

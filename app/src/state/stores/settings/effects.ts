@@ -6,7 +6,7 @@
 // Schema-driven (see state/schema). Both consumers read fresh per
 // frame, so changes are hot.
 
-import { settingSignal, FieldKind, ChangeRoute, type ConfigOf, type FieldMap } from '@/state/schema';
+import { settingSignal, FieldKind, ChangeRoute, type ConfigOf, type FieldMap } from '@/state/settingsSchema';
 
 // Chasing-rainbow used by BOTH the selected building's neon outline and the
 // gem→selection neon path line. Hue cycles at SPEED rad/ms; SATURATION +

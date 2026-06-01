@@ -6,7 +6,7 @@
 // The generic <Field> uses this; it replaces the per-component useEffective +
 // setDraft wiring the old Fields.tsx variants each repeated.
 
-import { getEffective, setDraft, DRAFTS_REV } from '@/state/drafts';
+import { getEffective, setDraft, DRAFTS_REV } from '@/state/settingsDrafts';
 
 interface SignalLike {
   get value(): unknown;

@@ -3,7 +3,7 @@
 // click stages a reset (Save still required to commit).
 
 import { RotateCcw } from 'lucide-preact';
-import { stageReset } from '@/state/drafts';
+import { stageReset } from '@/state/settingsDrafts';
 import { useAnyDiffersFromDefault, useDefault } from '@/hooks/useControls';
 
 interface SignalLike {

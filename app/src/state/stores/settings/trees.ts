@@ -11,7 +11,7 @@
 // persisted defaults + the config TYPE are both derived from it. How these
 // fields are grouped in the Settings panel lives in views/controls.
 
-import { settingSignal, FieldKind, ChangeRoute, type ConfigOf, type FieldMap } from '@/state/schema';
+import { settingSignal, FieldKind, ChangeRoute, type ConfigOf, type FieldMap } from '@/state/settingsSchema';
 
 const TREES_FIELDS = {
   ENABLED: { route: ChangeRoute.Refresh, kind: FieldKind.Toggle, default: true, label: 'Trees enabled',

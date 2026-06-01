@@ -11,7 +11,7 @@
 //     ActionsBar       — sticky bottom: Reset all (left) · Discard · Save (right)
 //
 // Per-row affordance: every input mutates a single in-memory draft
-// layer (state/drafts.ts). Save commits drafts to the real signals,
+// layer (state/settingsDrafts.ts). Save commits drafts to the real signals,
 // which triggers the existing reaction effects (applyTheme or
 // world.applyManifest). Discard clears drafts without touching
 // signals. Section / collapsible-subgroup open state is intentionally

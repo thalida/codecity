@@ -12,7 +12,7 @@
 // Schema-driven (see state/schema). Non-tunable layout constants
 // (gem hover-lift, gem clearance) were evicted to their consumers.
 
-import { settingSignal, FieldKind, ChangeRoute, type ConfigOf, type FieldMap } from '@/state/schema';
+import { settingSignal, FieldKind, ChangeRoute, type ConfigOf, type FieldMap } from '@/state/settingsSchema';
 import { oklchToHex } from '@/scene/utils/color/colors';
 
 // Default face palette: an OKLCH rainbow (perceptually uniform) at 8 evenly

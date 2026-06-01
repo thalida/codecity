@@ -7,7 +7,7 @@
 // Schema-driven (see state/schema). Sky/stars/fog are all material-
 // refresh (applyTheme); GROUND_BUFFER_PERCENT triggers a rebuild.
 
-import { settingSignal, FieldKind, ChangeRoute, type ConfigOf, type FieldMap } from '@/state/schema';
+import { settingSignal, FieldKind, ChangeRoute, type ConfigOf, type FieldMap } from '@/state/settingsSchema';
 
 const SCENE_FIELDS = {
   // ── Sky ──

@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { attachCommitReactions } from '@/state/reactions';
+import { attachCommitReactions } from '@/state/settingsReactions';
 import { TREES } from '@/state/stores/settings/trees';
 import { GEM } from '@/state/stores/settings/gem';
 

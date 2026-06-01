@@ -5,7 +5,7 @@
 // sessions.
 
 import { persistedSignal } from '@/state/persist';
-import { markSettingStore } from '@/state/schema';
+import { markSettingStore } from '@/state/settingsSchema';
 
 export interface SyntaxThemeOption {
   value: string;

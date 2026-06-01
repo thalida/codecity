@@ -5,7 +5,7 @@
 // stores. Schema-driven (see state/schema); applied on Save via
 // applyTheme() — islandMesh.applyConfig() pulls fresh values.
 
-import { settingSignal, FieldKind, ChangeRoute, type ConfigOf, type FieldMap } from '@/state/schema';
+import { settingSignal, FieldKind, ChangeRoute, type ConfigOf, type FieldMap } from '@/state/settingsSchema';
 
 const ISLAND_FIELDS = {
   // ── Geometry ──

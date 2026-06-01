@@ -13,8 +13,8 @@ import {
   stageResetAll,
   anyResettable,
   DRAFTS_REV,
-} from '@/state/drafts';
-import { HAS_ANY_NON_DEFAULT } from '@/state/schema';
+} from '@/state/settingsDrafts';
+import { HAS_ANY_NON_DEFAULT } from '@/state/settingsSchema';
 
 export function ActionsBar() {
   // Reactive tracking: both signals participate so the bar re-renders on

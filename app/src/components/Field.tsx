@@ -6,10 +6,10 @@
 // SliderField/ToggleField/SelectField/RangePairField) — the metadata they
 // duplicated in JSX now lives once in the store schema.
 
-import { FieldKind, getFieldDef } from '@/state/schema';
+import { FieldKind, getFieldDef } from '@/state/settingsSchema';
 import { useField } from '@/hooks/useField';
 import { useEffective, useDefault } from '@/hooks/useControls';
-import { setDraft } from '@/state/drafts';
+import { setDraft } from '@/state/settingsDrafts';
 import type { StreetTier } from '@/state/stores/settings/streets';
 import { RotateCcw } from 'lucide-preact';
 import { Row } from './Row';

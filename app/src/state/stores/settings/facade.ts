@@ -13,7 +13,7 @@
 // but never crash. AD_ERROR_COLOR (load-failure tint) was never a UI control,
 // so it lives in constants/buildings.ts.
 
-import { settingSignal, FieldKind, ChangeRoute, type ConfigOf, type FieldMap } from '@/state/schema';
+import { settingSignal, FieldKind, ChangeRoute, type ConfigOf, type FieldMap } from '@/state/settingsSchema';
 
 const FACADE_FIELDS = {
   // ── Geometry — shader-side (*_FRAC), refresh ──

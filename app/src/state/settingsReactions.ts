@@ -1,4 +1,4 @@
-// state/reactions.ts — Settings-change → scene-rebuild / material-refresh wiring.
+// state/settingsReactions.ts — Settings-change → scene-rebuild / material-refresh wiring.
 //
 // Two string-valued computed signatures drive ONE effect each:
 //   REBUILD_SIGNATURE          → scheduleRebuild   (full applyManifest)
@@ -13,7 +13,7 @@
 import { computed, effect, untracked } from '@preact/signals';
 
 import { REBUILD_STATUS, LAST_REBUILD_ERROR, LAST_UPDATED_AT } from '@/state/stores/manifest';
-import { routeSignature, ChangeRoute } from '@/state/schema';
+import { routeSignature, ChangeRoute } from '@/state/settingsSchema';
 
 // Min-dwell for the 'rebuilding' indicator on the material-only path.
 const HOT_REBUILD_MIN_DWELL_MS = 220;

@@ -1,4 +1,4 @@
-// state/drafts.ts — in-memory draft layer between the controls panel
+// state/settingsDrafts.ts — in-memory draft layer between the controls panel
 // and the real signals. Widgets read getEffective() and write
 // setDraft(); the Save button calls commit() to flush every draft into
 // its signal (which triggers the existing persist + commit-reaction
@@ -11,7 +11,7 @@
 
 import { signal } from '@preact/signals';
 import { getDefault } from './persist';
-import { forEachSettingStore } from './schema';
+import { forEachSettingStore } from './settingsSchema';
 import { deepEqual, deepClone } from '@/utils/deep';
 
 interface SignalLike {
