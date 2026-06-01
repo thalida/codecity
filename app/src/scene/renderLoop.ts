@@ -8,9 +8,7 @@ import * as THREE from 'three';
 import { effect } from '@preact/signals';
 
 import {
-  ASPHALT,
-  SIDEWALK_COLORS,
-  LABEL_TYPOGRAPHY,
+  STREETS,
   GEM,
   BLOOM,
 } from '../state/settings/index';
@@ -160,10 +158,10 @@ export async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manif
   // the per-frame tint loop calls material.color.setHex() without
   // re-parsing every frame. applyTheme() refreshes these whenever the
   // Settings UI mutates SIDEWALK_COLORS.
-  const _swc0 = SIDEWALK_COLORS.value;
-  let SIDEWALK_HOVER_COLOR = new THREE.Color(_swc0.HOVER).getHex();
-  let SIDEWALK_SELECTED_COLOR = new THREE.Color(_swc0.SELECTED).getHex();
-  let SIDEWALK_DEFAULT_COLOR = new THREE.Color(_swc0.DEFAULT).getHex();
+  const _swc0 = STREETS.value;
+  let SIDEWALK_HOVER_COLOR = new THREE.Color(_swc0.SIDEWALK_HOVER).getHex();
+  let SIDEWALK_SELECTED_COLOR = new THREE.Color(_swc0.SIDEWALK_SELECTED).getHex();
+  let SIDEWALK_DEFAULT_COLOR = new THREE.Color(_swc0.SIDEWALK_DEFAULT).getHex();
 
   // _refreshSidewalkTints() — repaint every sidewalk's material.color
   // based on the current picker.selection / picker.hover state.
@@ -193,18 +191,18 @@ export async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manif
   // (BUILDING_FADE.*, HOVER.COMMIT_MS) are read fresh each frame and
   // don't need anything here.
   function applyTheme(): void {
-    const sidewalk = SIDEWALK_COLORS.value;
+    const sidewalk = STREETS.value;
 
-    SIDEWALK_HOVER_COLOR = new THREE.Color(sidewalk.HOVER).getHex();
-    SIDEWALK_SELECTED_COLOR = new THREE.Color(sidewalk.SELECTED).getHex();
-    SIDEWALK_DEFAULT_COLOR = new THREE.Color(sidewalk.DEFAULT).getHex();
+    SIDEWALK_HOVER_COLOR = new THREE.Color(sidewalk.SIDEWALK_HOVER).getHex();
+    SIDEWALK_SELECTED_COLOR = new THREE.Color(sidewalk.SIDEWALK_SELECTED).getHex();
+    SIDEWALK_DEFAULT_COLOR = new THREE.Color(sidewalk.SIDEWALK_DEFAULT).getHex();
     const streetPickables = world.getStreetPickables();
     for (const sw of streetPickables) {
       sw.userData.origColor = SIDEWALK_DEFAULT_COLOR;
     }
     _refreshSidewalkTints();
 
-    const asphaltHex = new THREE.Color(ASPHALT.value.COLOR).getHex();
+    const asphaltHex = new THREE.Color(STREETS.value.ASPHALT_COLOR).getHex();
     const asphaltMeshes = world.getAsphaltMeshes();
     for (const mesh of asphaltMeshes) {
       mesh.material.color.setHex(asphaltHex);
@@ -329,12 +327,12 @@ export async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manif
       }
     }
 
-    const labelCfg = LABEL_TYPOGRAPHY.value;
+    const labelCfg = STREETS.value;
     const streetLabels = world.getStreetLabels();
     for (const lg of streetLabels) {
       const origFrac = lg.userData.origHeightFrac;
       if (origFrac && lg.children[0]) {
-        const s = labelCfg.HEIGHT_FRAC / origFrac;
+        const s = labelCfg.LABEL_HEIGHT_FRAC / origFrac;
         lg.children[0].scale.set(s, s, 1);
       }
     }

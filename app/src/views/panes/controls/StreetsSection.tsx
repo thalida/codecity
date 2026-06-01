@@ -3,11 +3,7 @@
 // visuals that paint on top.
 
 import {
-  ASPHALT,
-  SIDEWALK_COLORS,
-  LABEL_TYPOGRAPHY,
-  PATH_LINE,
-  HOVER_PATH_LINE,
+  STREETS,
   STREET_LAYOUT,
   STREET_TIERS,
 } from '@/state/settings/index';
@@ -41,7 +37,7 @@ export function StreetsSection() {
       </CollapsibleSubgroup>
 
       <CollapsibleSubgroup name="Asphalt">
-        <ColorField label="Color" store={ASPHALT} fieldKey="COLOR"
+        <ColorField label="Color" store={STREETS} fieldKey="ASPHALT_COLOR"
           tip="Color of the inner road stripe. Live." />
       </CollapsibleSubgroup>
 
@@ -57,33 +53,33 @@ export function StreetsSection() {
       </CollapsibleSubgroup>
 
       <CollapsibleSubgroup name="Sidewalk colors">
-        <ColorField label="Default" store={SIDEWALK_COLORS} fieldKey="DEFAULT"
+        <ColorField label="Default" store={STREETS} fieldKey="SIDEWALK_DEFAULT"
           tip="Resting tint on every sidewalk." />
-        <ColorField label="Hover" store={SIDEWALK_COLORS} fieldKey="HOVER"
+        <ColorField label="Hover" store={STREETS} fieldKey="SIDEWALK_HOVER"
           tip="When the cursor is over a street." />
-        <ColorField label="Selected" store={SIDEWALK_COLORS} fieldKey="SELECTED"
+        <ColorField label="Selected" store={STREETS} fieldKey="SIDEWALK_SELECTED"
           tip="When a street (directory) is selected." />
       </CollapsibleSubgroup>
 
       <CollapsibleSubgroup name="Street labels">
-        <ColorField label="Text color" store={LABEL_TYPOGRAPHY} fieldKey="FILL"
+        <ColorField label="Text color" store={STREETS} fieldKey="LABEL_FILL"
           tip="Text color of the names painted on each road." />
-        <ColorField label="Outline color" store={LABEL_TYPOGRAPHY} fieldKey="STROKE"
+        <ColorField label="Outline color" store={STREETS} fieldKey="LABEL_STROKE"
           tip="Outline color of the label text — typically darker than the fill so the label reads against any asphalt color." />
-        <SliderField label="Outline width" store={LABEL_TYPOGRAPHY} fieldKey="STROKE_WIDTH_FRAC" min={0} max={0.5} step={0.01}
+        <SliderField label="Outline width" store={STREETS} fieldKey="LABEL_STROKE_WIDTH_FRAC" min={0} max={0.5} step={0.01}
           tip="Text outline thickness, as a fraction of the rendered character height. Above 0.5 the stroke overwhelms the glyph fill." />
-        <SliderField label="Label size" store={LABEL_TYPOGRAPHY} fieldKey="HEIGHT_FRAC" min={0} max={2} step={0.05}
+        <SliderField label="Label size" store={STREETS} fieldKey="LABEL_HEIGHT_FRAC" min={0} max={2} step={0.05}
           tip="Label height as a fraction of the street width. Wider streets get bigger labels. Above 2× the street width labels clip into adjacent rows." />
       </CollapsibleSubgroup>
 
       <CollapsibleSubgroup name="Path lines">
-        <SliderField label="Line width %" store={PATH_LINE} fieldKey="LINEWIDTH_PCT" min={1} max={50} step={1}
+        <SliderField label="Line width %" store={STREETS} fieldKey="PATH_LINEWIDTH_PCT" min={1} max={50} step={1}
           tip="Shared thickness for both the rainbow selection line and the hover-preview line, as a % of the narrowest street tier width." />
-        <SliderField label="Selection opacity" store={PATH_LINE} fieldKey="OPACITY" min={0} max={1} step={0.05}
+        <SliderField label="Selection opacity" store={STREETS} fieldKey="PATH_OPACITY" min={0} max={1} step={0.05}
           tip="Selection-line transparency. 0 = invisible; 1 = solid." />
-        <ColorField label="Hover preview color" store={HOVER_PATH_LINE} fieldKey="COLOR"
+        <ColorField label="Hover preview color" store={STREETS} fieldKey="HOVER_PATH_COLOR"
           tip="Solid color of the hover-preview line. Faded white by default so it reads as a draft, not the committed selection." />
-        <SliderField label="Hover preview opacity" store={HOVER_PATH_LINE} fieldKey="OPACITY" min={0} max={1} step={0.05}
+        <SliderField label="Hover preview opacity" store={STREETS} fieldKey="HOVER_PATH_OPACITY" min={0} max={1} step={0.05}
           tip="Hover-preview transparency. 0 = invisible; 1 = solid." />
       </CollapsibleSubgroup>
     </Section>

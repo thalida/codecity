@@ -70,13 +70,11 @@ import {
   getDateRanges,
 } from './components/buildings/buildingColor';
 import {
-  ASPHALT,
+  STREETS,
   GEM,
   GEM_SIZING,
-  LABEL_TYPOGRAPHY,
   TREES,
   SCENE,
-  SIDEWALK_COLORS,
 } from '@/state/settings/index';
 import { REBUILD_STATUS } from '@/state/runtime/manifestPoll';
 import type {
@@ -467,9 +465,9 @@ export function createWorld(_canvas: HTMLCanvasElement) {
   // computeScenicConfigHash collects the current values of every store whose
   // output is baked into buildWorld meshes:
   //   - SCENE  : FOG_* keys baked into building shader uniforms
-  //   - ASPHALT       : COLOR + WIDTH_FRAC baked into asphalt geometry/material
-  //   - SIDEWALK_COLORS: DEFAULT baked into sidewalk materials
-  //   - LABEL_TYPOGRAPHY: all keys baked into label canvas textures + geometry
+  //   - STREETS       : ASPHALT_COLOR + SIDEWALK_* baked into street materials,
+  //                     LABEL_* baked into label canvas textures + geometry.
+  //                     (Path-line keys are live Line2 materials, not baked.)
   //   - GEM_SIZING    : RADIUS_AS_STREET_FRAC / MIN_RADIUS / HOVER_LIFT_FRAC
   //                     baked into gem geometry and position
   //   - GEM_FACE_PALETTE: vertex colors baked into gem polyhedron BufferAttribute
@@ -484,9 +482,16 @@ export function createWorld(_canvas: HTMLCanvasElement) {
         FOG_INTENSITY: SCENE.value.FOG_INTENSITY,
         FOG_HEIGHT_FRAC: SCENE.value.FOG_HEIGHT_FRAC,
       },
-      asphalt: ASPHALT.value,
-      sidewalkColors: SIDEWALK_COLORS.value,
-      labelTypography: LABEL_TYPOGRAPHY.value,
+      streets: {
+        ASPHALT_COLOR: STREETS.value.ASPHALT_COLOR,
+        SIDEWALK_DEFAULT: STREETS.value.SIDEWALK_DEFAULT,
+        SIDEWALK_HOVER: STREETS.value.SIDEWALK_HOVER,
+        SIDEWALK_SELECTED: STREETS.value.SIDEWALK_SELECTED,
+        LABEL_FILL: STREETS.value.LABEL_FILL,
+        LABEL_STROKE: STREETS.value.LABEL_STROKE,
+        LABEL_STROKE_WIDTH_FRAC: STREETS.value.LABEL_STROKE_WIDTH_FRAC,
+        LABEL_HEIGHT_FRAC: STREETS.value.LABEL_HEIGHT_FRAC,
+      },
       gemSizing: GEM_SIZING.value,
       // GEM shape + appearance + face palette + glow (NOT the per-frame
       // animation keys, which don't affect the built scene).

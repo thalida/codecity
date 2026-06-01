@@ -1,104 +1,56 @@
-// state/settings/street.js — Everything visual + layout-y about a street: asphalt,
-// sidewalks, road labels, the neon path line, and how streets are sized +
-// packed (tiers + gaps). Asphalt color + sidewalk variants are applied on Save
-// via applyTheme(); label typography + tiers + gaps are rebuild-required.
+// state/settings/components/streets.ts — Everything visual + layout-y about a
+// street: asphalt, sidewalks, road labels, and the two route-highlight path
+// lines (STREETS, schema-driven), plus how streets are sized + packed
+// (STREET_TIERS + STREET_LAYOUT, worker-threaded object stores).
+//
+// Asphalt + sidewalk + path-line fields are material-refresh (applyTheme);
+// the label fields are rebuild-required (label textures bake at build time).
+// Each field states its own route — reactions.ts derives its rebuild/refresh
+// signatures from that metadata (see state/settings/schema).
+//
+// Designer constants that were never UI controls (asphalt width fraction,
+// label font/elevation, path-line elevations) live in constants/streets.ts.
 
 import { persistedSignal } from '@/state/persist';
+import { settingSignal, FieldKind, ChangeRoute, type ConfigOf, type FieldMap } from '@/state/settings/schema';
 
-// ─── Asphalt (the inner stripe of every street) ──────────────────────────
-// COLOR is applied on Save via applyTheme(). Width and length are derived: width = street
-// width × WIDTH_FRAC; length is whatever keeps the asphalt cap circle
-// concentric with the sidewalk cap circle (length - 2 × sidewalkStrip).
-// Both are designer constants — not surfaced as UI controls because they
-// shape geometry and the user should never break concentric caps.
-export interface AsphaltConfig {
-  COLOR: string;
-  WIDTH_FRAC: number;
-}
+// ─── Street surface + label + path-line visuals (one flat store) ───────────
+// Keys are prefixed by sub-feature (ASPHALT_ / SIDEWALK_ / LABEL_ / PATH_ /
+// HOVER_PATH_) so the flat map stays unambiguous where names would collide
+// (COLOR, OPACITY, …). The route differs per group: LABEL_* rebuilds (the
+// label canvas dims depend on them); everything else refreshes.
+const STREETS_FIELDS = {
+  ASPHALT_COLOR: { route: ChangeRoute.Refresh, kind: FieldKind.Color, default: '#313544', label: 'Color',
+    tip: 'Color of the inner road stripe. Live.' },
 
-export const ASPHALT = persistedSignal<AsphaltConfig>('ASPHALT', {
-  COLOR: '#313544',
-  WIDTH_FRAC: 0.6,
-});
+  SIDEWALK_DEFAULT: { route: ChangeRoute.Refresh, kind: FieldKind.Color, default: '#4b5163', label: 'Default',
+    tip: 'Resting tint on every sidewalk.' },
+  SIDEWALK_HOVER: { route: ChangeRoute.Refresh, kind: FieldKind.Color, default: '#6d6e74', label: 'Hover',
+    tip: 'When the cursor is over a street.' },
+  SIDEWALK_SELECTED: { route: ChangeRoute.Refresh, kind: FieldKind.Color, default: '#ffffff', label: 'Selected',
+    tip: 'When a street (directory) is selected.' },
 
-// ─── Sidewalk tints ────────────────────────────────────────────────────────
-// DEFAULT is the resting tint; HOVER / SELECTED are state-driven recolors
-// (cursor, current selection). All applied on Save via applyTheme(). Lineage from the root
-// gem to the current selection is shown only by the neon path line — no
-// sidewalk recolor for path streets.
-export interface SidewalkColorsConfig {
-  DEFAULT: string;
-  HOVER: string;
-  SELECTED: string;
-}
+  LABEL_FILL: { route: ChangeRoute.Rebuild, kind: FieldKind.Color, default: '#ffffff', label: 'Text color',
+    tip: 'Text color of the names painted on each road.' },
+  LABEL_STROKE: { route: ChangeRoute.Rebuild, kind: FieldKind.Color, default: 'rgba(8, 9, 14, 0.95)', label: 'Outline color',
+    tip: 'Outline color of the label text — typically darker than the fill so the label reads against any asphalt color.' },
+  LABEL_STROKE_WIDTH_FRAC: { route: ChangeRoute.Rebuild, kind: FieldKind.Slider, default: 0.2, min: 0, max: 0.5, step: 0.01, label: 'Outline width',
+    tip: 'Text outline thickness, as a fraction of the rendered character height. Above 0.5 the stroke overwhelms the glyph fill.' },
+  LABEL_HEIGHT_FRAC: { route: ChangeRoute.Rebuild, kind: FieldKind.Slider, default: 0.5, min: 0, max: 2, step: 0.05, label: 'Label size',
+    tip: 'Label height as a fraction of the street width. Wider streets get bigger labels. Above 2× the street width labels clip into adjacent rows.' },
 
-export const SIDEWALK_COLORS = persistedSignal<SidewalkColorsConfig>('SIDEWALK_COLORS', {
-  DEFAULT: '#4b5163',
-  HOVER: '#6d6e74',
-  SELECTED: '#ffffff',
-});
+  PATH_LINEWIDTH_PCT: { route: ChangeRoute.Refresh, kind: FieldKind.Slider, default: 15, min: 1, max: 50, step: 1, label: 'Line width %',
+    tip: 'Shared thickness for both the rainbow selection line and the hover-preview line, as a % of the narrowest street tier width.' },
+  PATH_OPACITY: { route: ChangeRoute.Refresh, kind: FieldKind.Slider, default: 0.95, min: 0, max: 1, step: 0.05, label: 'Selection opacity',
+    tip: 'Selection-line transparency. 0 = invisible; 1 = solid.' },
+  HOVER_PATH_COLOR: { route: ChangeRoute.Refresh, kind: FieldKind.Color, default: '#ffffff', label: 'Hover preview color',
+    tip: 'Solid color of the hover-preview line. Faded white by default so it reads as a draft, not the committed selection.' },
+  HOVER_PATH_OPACITY: { route: ChangeRoute.Refresh, kind: FieldKind.Slider, default: 0.25, min: 0, max: 1, step: 0.05, label: 'Hover preview opacity',
+    tip: 'Hover-preview transparency. 0 = invisible; 1 = solid.' },
+} satisfies FieldMap;
 
-// ─── Street label typography ──────────────────────────────────────────────
-// Names painted along each road. COLORS (FILL, STROKE) are applied on Save
-// via applyTheme() but the label TEXTURE is regenerated on change. FONT /
-// HEIGHT changes are rebuild-required since the canvas dims depend on them.
-// FONT_SIZE_PX, CANVAS_PADDING_FRAC, MIN_SCALE, SPACING_MULT, SPACING_FLOOR
-// are hardcoded in the consuming modules (streetLabels.ts, labelAtlas.ts).
-export interface LabelTypographyConfig {
-  FILL: string;
-  STROKE: string;
-  FONT_FAMILY: string;
-  FONT_WEIGHT: number;
-  STROKE_WIDTH_FRAC: number; // outline stroke width as fraction of FONT_SIZE_PX (default 1/6 ≈ 32px at 192px font)
-  HEIGHT_FRAC: number;
-  ELEVATION: number;
-}
-
-export const LABEL_TYPOGRAPHY = persistedSignal<LabelTypographyConfig>('LABEL_TYPOGRAPHY', {
-  FILL: '#ffffff',
-  STROKE: 'rgba(8, 9, 14, 0.95)',
-  FONT_FAMILY: 'Inter, "SF Mono", sans-serif',
-  FONT_WEIGHT: 700,
-  STROKE_WIDTH_FRAC: 0.2,
-  HEIGHT_FRAC: 0.5, // label plane height = street width × this
-  ELEVATION: 0, // lift above asphalt (rarely tweaked; not in UI)
-});
-
-// ─── Neon path line (gem → selection) ──────────────────────────────────────
-// Tracing the lineage from the root gem through each parent street to the
-// current selection. Rainbow color cycle is shared with the selected building
-// outline — see RAINBOW in config/effects.js.
-export interface PathLineConfig {
-  LINEWIDTH_PCT: number; // 1–50, default 15 — % of smallest street tier width
-  ELEVATION: number;
-  OPACITY: number;
-}
-
-export const PATH_LINE = persistedSignal<PathLineConfig>('PATH_LINE', {
-  LINEWIDTH_PCT: 15,
-  ELEVATION: 0.3, // Y position above ground
-  OPACITY: 0.95,
-});
-
-// ─── Hover preview path line (gem → hovered target) ───────────────────────
-// A draft / "what would happen if I clicked here" version of PATH_LINE,
-// drawn while the cursor is over a hovered building or street. Always
-// on (cannot be disabled). Solid color (not rainbow) and faded so it
-// reads as a preview, not the committed selection. Shares line width
-// with PATH_LINE so both lines move together when the slider changes.
-// Suppressed when hover matches the current selection (would just
-// overlap the rainbow line).
-export interface HoverPathLineConfig {
-  COLOR: string;
-  OPACITY: number;
-  ELEVATION: number;
-}
-
-export const HOVER_PATH_LINE = persistedSignal<HoverPathLineConfig>('HOVER_PATH_LINE', {
-  COLOR: '#ffffff',
-  OPACITY: 0.25,
-  ELEVATION: 0.25, // sits just below PATH_LINE so the rainbow stays on top
-});
+export const STREETS = settingSignal('STREETS', STREETS_FIELDS);
+export type StreetsConfig = ConfigOf<typeof STREETS_FIELDS>;
 
 // ─── Street width tiers ────────────────────────────────────────────────────
 // Step-function mapping a directory's descendant count to its street width.

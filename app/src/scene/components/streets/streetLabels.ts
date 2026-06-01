@@ -16,7 +16,8 @@
 // the camera orbits to the "upside-down" side.
 
 import * as THREE from 'three';
-import { ASPHALT, LABEL_TYPOGRAPHY } from '@/state/settings/components/streets';
+import { STREETS } from '@/state/settings/components/streets';
+import { ASPHALT_WIDTH_FRAC, LABEL_FONT_FAMILY, LABEL_FONT_WEIGHT, LABEL_ELEVATION } from '@/constants/streets';
 import { RENDER_ORDERS } from '@/scene/renderOrders';
 import { NodeKind, StreetAxis } from '@/types';
 import type { Street } from '@/types';
@@ -44,12 +45,12 @@ function _buildLabelTexture(
   // High source resolution so close-zoom doesn't reveal bilinear blur.
   // The world-space plane size is unchanged — we're just packing more
   // texels into the same footprint.
-  const label = LABEL_TYPOGRAPHY.value;
-  const fontSpec = `${label.FONT_WEIGHT} ${LABEL_FONT_SIZE_PX}px ${label.FONT_FAMILY}`;
+  const streets = STREETS.value;
+  const fontSpec = `${LABEL_FONT_WEIGHT} ${LABEL_FONT_SIZE_PX}px ${LABEL_FONT_FAMILY}`;
   const measure = document.createElement('canvas').getContext('2d')!;
   measure.font = fontSpec;
   const paddingPx = Math.round(LABEL_FONT_SIZE_PX * LABEL_CANVAS_PADDING_FRAC);
-  const strokeWidthPx = Math.round(LABEL_FONT_SIZE_PX * label.STROKE_WIDTH_FRAC);
+  const strokeWidthPx = Math.round(LABEL_FONT_SIZE_PX * streets.LABEL_STROKE_WIDTH_FRAC);
   const canvasH = LABEL_FONT_SIZE_PX + paddingPx * 2;
 
   let renderText = text;
@@ -71,9 +72,9 @@ function _buildLabelTexture(
   ctx.textBaseline = LABEL_TEXT_BASELINE as CanvasTextBaseline;
 
   ctx.lineWidth = strokeWidthPx;
-  ctx.strokeStyle = label.STROKE;
+  ctx.strokeStyle = streets.LABEL_STROKE;
   ctx.strokeText(renderText, canvas.width / 2, canvas.height / 2);
-  ctx.fillStyle = label.FILL;
+  ctx.fillStyle = streets.LABEL_FILL;
   ctx.fillText(renderText, canvas.width / 2, canvas.height / 2);
 
   const tex = new THREE.CanvasTexture(canvas);
@@ -107,8 +108,7 @@ export function createStreetLabels(street: Street): THREE.Group[] {
   const text = street.label || '';
   if (!text) return [];
 
-  const label = LABEL_TYPOGRAPHY.value;
-  const asphaltCfg = ASPHALT.value;
+  const streets = STREETS.value;
   const orders = RENDER_ORDERS;
 
   // Usable road length: the rectangular label sits along the flat middle of
@@ -117,7 +117,7 @@ export function createStreetLabels(street: Street): THREE.Group[] {
   // streets.ts for the concentric-cap math); we further subtract the
   // asphalt cap diameter so the label's corners don't poke out where the
   // pill rounds off.
-  const asphaltWidth = street.width * asphaltCfg.WIDTH_FRAC;
+  const asphaltWidth = street.width * ASPHALT_WIDTH_FRAC;
   const sidewalkStrip = (street.width - asphaltWidth) / 2;
   const asphaltLength = Math.max(0, street.length - 2 * sidewalkStrip);
   const usableLength = Math.max(0, asphaltLength - asphaltWidth);
@@ -126,7 +126,7 @@ export function createStreetLabels(street: Street): THREE.Group[] {
   // Natural sizing: height scales with street width, width follows from the
   // text's aspect ratio. Then fit to usableLength: shrink uniformly down to
   // LABEL_MIN_SCALE; below that, truncate with an ellipsis instead.
-  const naturalHeight = street.width * label.HEIGHT_FRAC;
+  const naturalHeight = street.width * streets.LABEL_HEIGHT_FRAC;
   let info = _buildLabelTexture(text);
   let worldH = naturalHeight;
   let worldW = worldH * info.aspect;
@@ -185,7 +185,7 @@ export function createStreetLabels(street: Street): THREE.Group[] {
     group.add(plane);
     // Lift a tiny amount off the asphalt to avoid coplanar z-fighting, while
     // staying well below building tops so buildings still occlude the label.
-    group.position.set(sx, label.ELEVATION, sz);
+    group.position.set(sx, LABEL_ELEVATION, sz);
     // Base rotation per orientation. For y-streets the label's reading
     // direction needs to run along scene-Z, so rotate the group 90°.
     group.userData.baseRotY = street.orientation === StreetAxis.Y ? -Math.PI / 2 : 0;
@@ -196,7 +196,7 @@ export function createStreetLabels(street: Street): THREE.Group[] {
     // and HEIGHT_FRAC (plane.scale recomputed from streetWidth × frac).
     group.userData.streetWidth = street.width;
     group.userData.textureAspect = info.aspect;
-    group.userData.origHeightFrac = label.HEIGHT_FRAC;
+    group.userData.origHeightFrac = streets.LABEL_HEIGHT_FRAC;
     labels.push(group);
   }
   return labels;

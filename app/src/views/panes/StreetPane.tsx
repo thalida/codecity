@@ -13,7 +13,7 @@ import { Pane, PaneEmpty } from '@/views/components/Pane';
 import { Route } from 'lucide-preact';
 import { ExtensionBadge } from '@/views/components/Badge';
 import { formatBytes } from '@/utils/bytes';
-import { ASPHALT, BUILDING_PALETTE } from '@/state/settings';
+import { STREETS, BUILDING_PALETTE } from '@/state/settings';
 
 // ── State shape for Preact component ─────────────────────────────────────────
 
@@ -32,7 +32,7 @@ export interface StreetPaneProps {
 export function StreetPane({ state, onClose, onFocus }: StreetPaneProps) {
   const { directory: d } = state.value;
   const huePalette = BUILDING_PALETTE.value.HUE_EXT_MAP || {};
-  const asphaltColor = ASPHALT.value.COLOR;
+  const asphaltColor = STREETS.value.ASPHALT_COLOR;
 
   if (!d) {
     return (

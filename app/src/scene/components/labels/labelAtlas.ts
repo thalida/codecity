@@ -12,11 +12,20 @@
 // from the atlas (writeLabelToSlot will treat missing rects as
 // zero-scale, i.e. invisible). The renderer warns but does not crash.
 
-import type { LabelTypographyConfig } from '@/state/settings/index';
-
 // ---------------------------------------------------------------------------
 // Public types
 // ---------------------------------------------------------------------------
+
+/** The label-text descriptor the atlas rasteriser needs: typeface + ink. This
+ *  is decoupled from the STREETS settings store on purpose — the atlas is a
+ *  pure text→pages packer, fed these values by its caller (and by tests). */
+export interface LabelTypography {
+  FONT_FAMILY: string;
+  FONT_WEIGHT: number;
+  FILL: string;
+  STROKE: string;
+  STROKE_WIDTH_FRAC: number;
+}
 
 export interface LabelAtlasRect {
   page: number;
@@ -101,7 +110,7 @@ function truncateWithHash(s: string, maxLen: number): string {
  */
 export function buildLabelAtlas(
   uniqueTexts: string[],
-  typography: LabelTypographyConfig
+  typography: LabelTypography
 ): LabelAtlasResult {
   if (uniqueTexts.length === 0) {
     return { pages: [], rectByText: new Map() };

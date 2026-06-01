@@ -14,7 +14,8 @@ import { LineSegments2 } from 'three/addons/lines/LineSegments2.js';
 import { LineSegmentsGeometry } from 'three/addons/lines/LineSegmentsGeometry.js';
 import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
 
-import { PATH_LINE, HOVER_PATH_LINE, RAINBOW, STREET_TIERS } from '@/state/settings/index';
+import { STREETS, RAINBOW, STREET_TIERS } from '@/state/settings/index';
+import { PATH_LINE_ELEVATION, HOVER_PATH_LINE_ELEVATION } from '@/constants/streets';
 
 /**
  * Converts a LINEWIDTH_PCT percentage (1–50) into an actual pixel linewidth
@@ -47,10 +48,10 @@ export function createPathLineRenderer({
   picker: ReturnType<typeof createPicker>;
 }) {
   // ── Selection path line (rainbow vertex colors) ────────────────────
-  const _pl = PATH_LINE.value;
+  const _pl = STREETS.value;
   const pathLineMat = new LineMaterial({
     vertexColors: true,
-    linewidth: computePathLinewidthPixels(_pl.LINEWIDTH_PCT),
+    linewidth: computePathLinewidthPixels(_pl.PATH_LINEWIDTH_PCT),
     transparent: true,
     opacity: 0.0,
     depthTest: true,
@@ -72,8 +73,8 @@ export function createPathLineRenderer({
   // ── Hover preview path line (single solid color, faded) ────────────
   // Width is shared with the selection line — reads PATH_LINE.LINEWIDTH_PCT.
   const hoverPathLineMat = new LineMaterial({
-    color: HOVER_PATH_LINE.value.COLOR,
-    linewidth: computePathLinewidthPixels(PATH_LINE.value.LINEWIDTH_PCT),
+    color: STREETS.value.HOVER_PATH_COLOR,
+    linewidth: computePathLinewidthPixels(STREETS.value.PATH_LINEWIDTH_PCT),
     transparent: true,
     opacity: 0.0,
     depthTest: true,
@@ -116,7 +117,7 @@ export function createPathLineRenderer({
       pathSegmentCount = 0;
       return;
     }
-    const elev = PATH_LINE.value.ELEVATION;
+    const elev = PATH_LINE_ELEVATION;
     const flat: number[] = [];
     for (let i = 0; i < pts.length - 1; i++) {
       const a = pts[i],
@@ -135,14 +136,14 @@ export function createPathLineRenderer({
     if (_pathColorsBuf.length !== pathSegmentCount * 6) {
       _pathColorsBuf = new Float32Array(pathSegmentCount * 6);
     }
-    pathLineMat.opacity = PATH_LINE.value.OPACITY;
+    pathLineMat.opacity = STREETS.value.PATH_OPACITY;
     pathLine.visible = true;
   }
 
   function _updateHoverPathLine(): void {
     const hov = picker.hover.value;
     const gemPos = world.getGemWorldPos();
-    const cfg = HOVER_PATH_LINE.value;
+    const cfg = STREETS.value;
     function hide() {
       hoverPathLine.visible = false;
       hoverPathLineMat.opacity = 0;
@@ -152,7 +153,7 @@ export function createPathLineRenderer({
     if (_isHoverSameAsSelection()) return hide();
     const pts = computePathPoints(hov, { x: gemPos.x, z: gemPos.z }, world.getStreetsByDirMap());
     if (pts.length < 2) return hide();
-    const elev = cfg.ELEVATION;
+    const elev = HOVER_PATH_LINE_ELEVATION;
     const flat: number[] = [];
     for (let i = 0; i < pts.length - 1; i++) {
       const a = pts[i],
@@ -163,7 +164,7 @@ export function createPathLineRenderer({
     hoverPathLineGeo = new LineSegmentsGeometry();
     hoverPathLineGeo.setPositions(flat);
     hoverPathLine.geometry = hoverPathLineGeo;
-    hoverPathLineMat.opacity = cfg.OPACITY;
+    hoverPathLineMat.opacity = cfg.HOVER_PATH_OPACITY;
     hoverPathLine.visible = true;
   }
 
@@ -214,12 +215,11 @@ export function createPathLineRenderer({
   }
 
   function refreshMaterials(): void {
-    const pl = PATH_LINE.value;
-    pathLineMat.linewidth = computePathLinewidthPixels(pl.LINEWIDTH_PCT);
-    if (pathLine.visible) pathLineMat.opacity = pl.OPACITY;
-    const hpl = HOVER_PATH_LINE.value;
-    hoverPathLineMat.color.set(hpl.COLOR);
-    hoverPathLineMat.linewidth = computePathLinewidthPixels(PATH_LINE.value.LINEWIDTH_PCT);
+    const pl = STREETS.value;
+    pathLineMat.linewidth = computePathLinewidthPixels(pl.PATH_LINEWIDTH_PCT);
+    if (pathLine.visible) pathLineMat.opacity = pl.PATH_OPACITY;
+    hoverPathLineMat.color.set(pl.HOVER_PATH_COLOR);
+    hoverPathLineMat.linewidth = computePathLinewidthPixels(pl.PATH_LINEWIDTH_PCT);
     _updateHoverPathLine();
   }
 

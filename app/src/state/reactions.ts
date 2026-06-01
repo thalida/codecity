@@ -24,15 +24,10 @@ import {
   BUILDING_DIMENSIONS,
   BUILDING_PALETTE,
   AD_PANEL,
-  LABEL_TYPOGRAPHY,
   STREET_LAYOUT,
   STREET_TIERS,
-  SIDEWALK_COLORS,
-  ASPHALT,
   BUILDING_OUTLINE,
   BUILDING_AGING,
-  PATH_LINE,
-  HOVER_PATH_LINE,
   LIGHTING,
   FACADE_DETAIL,
   WINDOW_LIGHTING,
@@ -64,7 +59,6 @@ function legacyRebuildSig(): string {
     streetLayout: STREET_LAYOUT.value,
     streetTiers: STREET_TIERS.value,
     adPanel: AD_PANEL.value,
-    labelTypography: LABEL_TYPOGRAPHY.value,
     // FACADE_GEOMETRY JS-driven keys (bake into per-instance attributes).
     facadeGeometry: {
       windowColsMax: FACADE_GEOMETRY.value.WINDOW_COLS_MAX,
@@ -78,12 +72,8 @@ function legacyRebuildSig(): string {
 
 function legacyRefreshSig(): string {
   return JSON.stringify({
-    sidewalkColors: SIDEWALK_COLORS.value,
-    asphalt: ASPHALT.value,
     buildingOutline: BUILDING_OUTLINE.value,
     buildingAging: BUILDING_AGING.value,
-    pathLine: PATH_LINE.value,
-    hoverPathLine: HOVER_PATH_LINE.value,
     lighting: LIGHTING.value,
     facadeDetail: FACADE_DETAIL.value,
     windowLighting: WINDOW_LIGHTING.value,

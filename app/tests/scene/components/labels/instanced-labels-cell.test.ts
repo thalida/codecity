@@ -1,20 +1,12 @@
 import { describe, it, expect, vi } from 'vitest';
 import * as THREE from 'three';
-import { LABEL_TYPOGRAPHY } from '@/state/settings/index';
 import { buildLabelAtlas } from '@/scene/components/labels/labelAtlas';
 import { attachLabelMeshToCell, writeLabelToSlot } from '@/scene/components/labels/labelsCell';
 import type { CellTile } from '@/scene/layout/cellTile';
 import { NodeKind } from '@/types/index';
-import { TYPOGRAPHY as BASE_TYPOGRAPHY } from '../../../_helpers/typography';
+import { LABEL_ELEVATION } from '@/constants/streets';
+import { TYPOGRAPHY } from '../../../_helpers/typography';
 import { building } from '../../../_helpers/buildingFixture';
-
-// ---------------------------------------------------------------------------
-// Minimal typography config for tests
-// ---------------------------------------------------------------------------
-// Cell tests place a mesh in the world and assert on Y, so override
-// ELEVATION (the helper's default is 0 for the atlas-only tests).
-
-const TYPOGRAPHY = { ...BASE_TYPOGRAPHY, ELEVATION: 0.5 };
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -184,9 +176,8 @@ describe('writeLabelToSlot', () => {
     const pos = new THREE.Vector3();
     pos.setFromMatrixPosition(tmpM);
 
-    // y should equal b.h + LABEL_TYPOGRAPHY.get().ELEVATION (runtime config, default = 0).
-    const configElevation = LABEL_TYPOGRAPHY.value.ELEVATION;
-    expect(pos.y).toBeCloseTo(b.h + configElevation);
+    // y should equal b.h + LABEL_ELEVATION (the evicted designer constant, 0).
+    expect(pos.y).toBeCloseTo(b.h + LABEL_ELEVATION);
     expect(pos.x).toBeCloseTo(b.x);
     expect(pos.z).toBeCloseTo(b.y);
   });
