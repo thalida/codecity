@@ -8,6 +8,14 @@
 // (startRenderLoop / world.applyManifest) + the session stores (loading
 // overlay, source info, rebuild status). api/ stays free of scene/UI deps;
 // this hook owns the apply-to-scene + overlay translation.
+//
+// Shape of the file, top to bottom:
+//   1. small helpers shared by the two stream entry points (pumpManifestStream,
+//      startScene, resolveBranch, setSourceInfo, loadIconAtlas, syncUrlToSource)
+//   2. streamInitialManifest — cold-boot load from ?src
+//   3. applyNewSource        — user picks a new source in the picker
+//   4. setupLiveUpdates      — the background poll loop + its ENABLED gate
+//   5. bootCity / useCity    — wire it all together on mount
 
 import { useEffect } from 'preact/hooks';
 import type { RefObject } from 'preact';
@@ -54,8 +62,9 @@ import { LoadingStep } from '@/constants';
 import type { Manifest } from '@/types';
 import type { SourcePayload } from '@/state/stores/ui';
 
-// ── Shared progress-event helper ─────────────────────────────────────
+// ── Shared helpers ───────────────────────────────────────────────────
 
+/** Map a cloning/scanning progress event to the loading-overlay step + tail. */
 function _handleProgressEvent(event: ScanProgressEvent): void {
   if (event.phase === ScanPhase.Cloning) {
     setLoadingStep(LoadingStep.Cloning);
@@ -71,6 +80,103 @@ function _handleProgressEvent(event: ScanProgressEvent): void {
   }
 }
 
+/**
+ * Consume a manifest stream, driving the UI side-effects both entry points
+ * share — throw on an error event, set the pending-title once, route
+ * cloning/scanning to the progress helper, and advance the loading step — then
+ * invoke onManifest for each skeleton/final manifest event so the caller can do
+ * its phase-specific scene work. Returns the final manifest; throws if the
+ * stream ends without yielding one.
+ */
+async function pumpManifestStream(
+  url: string,
+  onManifest: (manifest: Manifest, phase: ScanPhase.Skeleton | ScanPhase.Final) => Promise<void> | void
+): Promise<Manifest> {
+  let lastManifest: Manifest | null = null;
+  let titleApplied = false;
+
+  for await (const event of streamManifest(url)) {
+    if (event.phase === ScanPhase.Error) throw new Error(event.error);
+
+    if (!titleApplied && 'display_root' in event && event.display_root) {
+      applyPendingTitle(event.display_root);
+      setLoadingPendingLabel(labelFromUrl(event.display_root));
+      titleApplied = true;
+    }
+
+    if (event.phase === ScanPhase.Cloning || event.phase === ScanPhase.Scanning) {
+      _handleProgressEvent(event);
+      continue;
+    }
+
+    // Skeleton or final: the cloning/scanning progress tails are done.
+    setLoadingStepTail(LoadingStep.Cloning, null);
+    setLoadingStepTail(LoadingStep.Scanning, null);
+    setLoadingStep(event.phase === ScanPhase.Skeleton ? LoadingStep.Skeleton : LoadingStep.Building);
+
+    await onManifest(event.manifest, event.phase);
+    lastManifest = event.manifest;
+  }
+
+  if (!lastManifest) throw new Error('No manifest received');
+  return lastManifest;
+}
+
+/** Start the render loop for `manifest`, publish the handle, and wire the
+ *  settings-commit reactions. The three steps every scene-start path repeats. */
+async function startScene(canvas: HTMLCanvasElement, manifest: Manifest): Promise<SceneHandle> {
+  const handle = await startRenderLoop(canvas, manifest);
+  SCENE_HANDLE.value = handle;
+  attachCommitReactions({ world: handle.world, applyTheme: handle.applyTheme });
+  return handle;
+}
+
+/**
+ * Resolve which branch label to show and whether it's the repo default. The
+ * server sometimes reports a non-branch (detached HEAD, "(no branch)", names
+ * with spaces) — treat those as "no branch". An explicitly requested branch
+ * always wins and is never considered the default.
+ */
+function resolveBranch(manifest: Manifest, requested?: string): { branch?: string; isDefault: boolean } {
+  const mb = manifest.repo.branch;
+  const looksReal = !!mb && !/\s/.test(mb) && !mb.startsWith('(') && !mb.startsWith('detached');
+  return {
+    branch: requested ?? (looksReal ? mb! : undefined),
+    isDefault: !requested && looksReal,
+  };
+}
+
+/** Publish SOURCE_INFO so the header renders its project chip. */
+function setSourceInfo(src: string, manifest: Manifest, branch?: string): void {
+  SOURCE_INFO.value = {
+    label: labelFromManifest(manifest) ?? manifest.tree?.name ?? '',
+    branch,
+    sourceUrl: srcKind(src) === SourceKind.Git ? src : undefined,
+  };
+}
+
+/** Build the building-roof icon atlas from a manifest and install it. Failures
+ *  are non-fatal — roofs just render without glyphs. */
+async function loadIconAtlas(manifest: Manifest): Promise<void> {
+  try {
+    const atlas = await buildIconAtlas(manifest);
+    setIconAtlas(atlas);
+    setCellIconAtlas(atlas);
+  } catch (err) {
+    console.warn('[codecity] icon atlas build failed; roofs will render without icons', err);
+  }
+}
+
+/** Reflect the applied source in the page URL so reload/share reopens it. */
+function syncUrlToSource(payload: SourcePayload): void {
+  const url = new URL(window.location.href);
+  url.searchParams.set('src', payload.src);
+  if (payload.branch) url.searchParams.set('branch', payload.branch);
+  else url.searchParams.delete('branch');
+  url.searchParams.delete('git_window');
+  history.replaceState(null, '', url.toString());
+}
+
 // ── Initial boot stream ──────────────────────────────────────────────
 
 interface InitialStreamResult {
@@ -80,102 +186,58 @@ interface InitialStreamResult {
 }
 
 /**
- * Run the initial manifest stream on cold boot. Reads ?src from the URL, shows
- * the loading overlay, builds the scene on the first manifest event, and writes
- * SOURCE_INFO. Returns the final manifest, scene handle, and any error (on
- * error the scene is started with EMPTY_MANIFEST). With no ?src, starts the
- * render loop empty and returns immediately.
+ * Run the initial manifest stream on cold boot. With no ?src, starts an empty
+ * scene and returns immediately. Otherwise shows the loading overlay, builds the
+ * scene from the first manifest event and applies later ones, and writes
+ * SOURCE_INFO. On any failure the returned error is set and the scene falls back
+ * to EMPTY_MANIFEST — a live scene handle is always returned.
  */
 async function streamInitialManifest(canvas: HTMLCanvasElement): Promise<InitialStreamResult> {
   const qp = new URLSearchParams(window.location.search);
-  const hasSrc = qp.has('src');
+  const bootSrc = qp.get('src');
 
-  let initialManifest: Manifest = EMPTY_MANIFEST;
-  let initialError: string | null = null;
-  let handle: SceneHandle | null = null;
-
-  if (!hasSrc) {
-    handle = await startRenderLoop(canvas, EMPTY_MANIFEST);
-    SCENE_HANDLE.value = handle;
-    attachCommitReactions({ world: handle.world, applyTheme: handle.applyTheme });
-    return { manifest: initialManifest, handle, error: null };
+  if (!bootSrc) {
+    const handle = await startScene(canvas, EMPTY_MANIFEST);
+    return { manifest: EMPTY_MANIFEST, handle, error: null };
   }
 
-  const _bootSrc = qp.get('src')!;
-  const _bootBranch = qp.get('branch') ?? undefined;
-
+  const bootBranch = qp.get('branch') ?? undefined;
   showLoadingOverlay({
-    kind: srcKind(_bootSrc),
-    label: labelFromUrl(_bootSrc) ?? _bootSrc,
-    branch: _bootBranch,
+    kind: srcKind(bootSrc),
+    label: labelFromUrl(bootSrc) ?? bootSrc,
+    branch: bootBranch,
   });
 
+  let handle: SceneHandle | null = null;
+  let manifest: Manifest = EMPTY_MANIFEST;
+  let error: string | null = null;
+
   try {
-    let _pendingTitleSet = false;
-    for await (const event of streamManifest(manifestUrl())) {
-      if (event.phase === ScanPhase.Error) throw new Error(event.error);
-
-      if (!_pendingTitleSet && 'display_root' in event && event.display_root) {
-        applyPendingTitle(event.display_root);
-        setLoadingPendingLabel(labelFromUrl(event.display_root));
-        _pendingTitleSet = true;
-      }
-
-      if (event.phase === ScanPhase.Cloning || event.phase === ScanPhase.Scanning) {
-        _handleProgressEvent(event);
-        continue;
-      }
-
-      const m = event.manifest;
-      setLoadingStepTail(LoadingStep.Cloning, null);
-      setLoadingStepTail(LoadingStep.Scanning, null);
-      setLoadingStep(event.phase === ScanPhase.Skeleton ? LoadingStep.Skeleton : LoadingStep.Building);
-
+    manifest = await pumpManifestStream(manifestUrl(), async (m) => {
+      // Build the scene from the first manifest event, then apply later events
+      // into it. The atlas only needs building once (from that first manifest).
       if (handle === null) {
-        try {
-          const _builtAtlas = await buildIconAtlas(m);
-          setIconAtlas(_builtAtlas);
-          setCellIconAtlas(_builtAtlas);
-        } catch (err) {
-          console.warn('[codecity] icon atlas build failed; roofs will render without icons', err);
-        }
-        handle = await startRenderLoop(canvas, m);
-        SCENE_HANDLE.value = handle;
-        attachCommitReactions({ world: handle.world, applyTheme: handle.applyTheme });
+        await loadIconAtlas(m);
+        handle = await startScene(canvas, m);
       } else {
         _applyDisplayLabel(m);
         await handle.world.applyManifest(m);
       }
-      initialManifest = m;
-
-      // Populate SOURCE_INFO so AppHeader renders its project chip.
-      const _manifestBranch = m.repo.branch;
-      const _looksLikeRealBranch =
-        !!_manifestBranch &&
-        !/\s/.test(_manifestBranch) &&
-        !_manifestBranch.startsWith('(') &&
-        !_manifestBranch.startsWith('detached');
-      const _resolvedBranch = _bootBranch ?? (_looksLikeRealBranch ? _manifestBranch! : undefined);
-      SOURCE_INFO.value = {
-        label: labelFromManifest(m) ?? m.tree?.name ?? '',
-        branch: _resolvedBranch,
-        sourceUrl: srcKind(_bootSrc) === SourceKind.Git ? _bootSrc : undefined,
-      };
-    }
-    if (handle === null) throw new Error('No manifest received');
+      setSourceInfo(bootSrc, m, resolveBranch(m, bootBranch).branch);
+    });
   } catch (err) {
-    initialError = err instanceof Error ? err.message : String(err);
-    if (handle === null) {
-      handle = await startRenderLoop(canvas, EMPTY_MANIFEST);
-      SCENE_HANDLE.value = handle;
-      attachCommitReactions({ world: handle.world, applyTheme: handle.applyTheme });
-    }
-    initialManifest = EMPTY_MANIFEST;
+    error = err instanceof Error ? err.message : String(err);
+    // manifest stays EMPTY_MANIFEST (its initial value).
   } finally {
     hideLoadingOverlay();
   }
 
-  return { manifest: initialManifest, handle: handle!, error: initialError };
+  // Guarantee a live scene exists even if the stream never produced one.
+  if (handle === null) {
+    handle = await startScene(canvas, EMPTY_MANIFEST);
+  }
+
+  return { manifest, handle, error };
 }
 
 // ── New-source stream (user-submitted via source picker) ─────────────
@@ -191,9 +253,10 @@ interface ApplyNewSourceOpts {
 }
 
 /**
- * Stream a new source submitted from the source picker. Updates the scene,
- * SOURCE_INFO, URL params, and per-source persistence; manages live-updates
- * startup. Calls onError (dismissible) if streaming fails.
+ * Stream a new source submitted from the source picker into the existing scene:
+ * paint the skeleton as it arrives, then apply the final manifest and update the
+ * URL, SOURCE_INFO, per-source persistence, and live-updates. Calls onError
+ * (dismissible) if streaming fails.
  */
 async function applyNewSource(opts: ApplyNewSourceOpts): Promise<void> {
   const { handle, payload, pendingSkipCache, liveUpdatesHandle, onLiveUpdatesStarted, onError } = opts;
@@ -206,97 +269,42 @@ async function applyNewSource(opts: ApplyNewSourceOpts): Promise<void> {
   });
 
   try {
-    const url = manifestUrlFor({
-      src: payload.src,
-      branch: payload.branch,
-      noCache: pendingSkipCache,
+    const url = manifestUrlFor({ src: payload.src, branch: payload.branch, noCache: pendingSkipCache });
+
+    // Paint the skeleton as soon as it arrives so the user sees structure; the
+    // final manifest (the pump's return value) carries real heights + signature
+    // and is applied below.
+    const manifest = await pumpManifestStream(url, async (m, phase) => {
+      if (phase === ScanPhase.Skeleton) {
+        _applyDisplayLabel(m);
+        await handle.world.applyManifest(m);
+        setSourceInfo(payload.src, m, payload.branch);
+      }
     });
 
-    let manifest: Manifest | null = null;
-    let _pendingTitleSet = false;
-
-    for await (const event of streamManifest(url)) {
-      if (event.phase === ScanPhase.Error) throw new Error(event.error);
-
-      if (!_pendingTitleSet && 'display_root' in event && event.display_root) {
-        applyPendingTitle(event.display_root);
-        setLoadingPendingLabel(labelFromUrl(event.display_root));
-        _pendingTitleSet = true;
-      }
-
-      if (event.phase === ScanPhase.Cloning || event.phase === ScanPhase.Scanning) {
-        _handleProgressEvent(event);
-        continue;
-      }
-
-      setLoadingStepTail(LoadingStep.Cloning, null);
-      setLoadingStepTail(LoadingStep.Scanning, null);
-      setLoadingStep(event.phase === ScanPhase.Skeleton ? LoadingStep.Skeleton : LoadingStep.Building);
-
-      if (event.phase === ScanPhase.Skeleton) {
-        _applyDisplayLabel(event.manifest);
-        await handle.world.applyManifest(event.manifest);
-        SOURCE_INFO.value = {
-          label: labelFromManifest(event.manifest) ?? event.manifest.tree?.name ?? '',
-          branch: payload.branch,
-          sourceUrl: srcKind(payload.src) === SourceKind.Git ? payload.src : undefined,
-        };
-      }
-      manifest = event.manifest;
-    }
-    if (!manifest) throw new Error('No manifest received');
-
-    // Update URL
-    const pageUrl = new URL(window.location.href);
-    pageUrl.searchParams.set('src', payload.src);
-    if (payload.branch) pageUrl.searchParams.set('branch', payload.branch);
-    else pageUrl.searchParams.delete('branch');
-    pageUrl.searchParams.delete('git_window');
-    history.replaceState(null, '', pageUrl.toString());
-
-    // Track the active source key (cameraRig resets the camera on change).
+    syncUrlToSource(payload);
+    // cameraRig resets the camera when the active source key changes.
     CURRENT_SOURCE_KEY.value = sourceKey(payload.src, payload.branch);
 
-    // Icon atlas
-    try {
-      const _builtAtlas = await buildIconAtlas(manifest);
-      setIconAtlas(_builtAtlas);
-      setCellIconAtlas(_builtAtlas);
-    } catch (err) {
-      console.warn('[codecity] icon atlas build failed', err);
-    }
-
-    // Final manifest apply
+    await loadIconAtlas(manifest);
     _applyDisplayLabel(manifest);
     await handle.world.applyManifest(manifest);
 
-    const manifestBranch = manifest.repo.branch;
-    const looksLikeRealBranch =
-      !!manifestBranch &&
-      !/\s/.test(manifestBranch) &&
-      !manifestBranch.startsWith('(') &&
-      !manifestBranch.startsWith('detached');
-    const resolvedBranch = payload.branch ?? (looksLikeRealBranch ? manifestBranch! : undefined);
-    const branchIsDefault = !payload.branch && looksLikeRealBranch;
+    const { branch, isDefault } = resolveBranch(manifest, payload.branch);
+    setSourceInfo(payload.src, manifest, branch);
 
-    SOURCE_INFO.value = {
-      label: labelFromManifest(manifest) ?? manifest.tree?.name ?? '',
-      branch: resolvedBranch,
-      sourceUrl: srcKind(payload.src) === SourceKind.Git ? payload.src : undefined,
-    };
-
-    // Live updates — start on first successful load, or update signature on switch
-    if (liveUpdatesHandle !== null) {
+    // Live updates: the first successful load starts the poll loop; later
+    // source switches just hand the running loop the new signature.
+    if (liveUpdatesHandle) {
       liveUpdatesHandle.setSignature(manifest.signature);
     } else {
-      const liveApi = setupLiveUpdates(handle, manifest.signature);
-      onLiveUpdatesStarted(liveApi);
+      onLiveUpdatesStarted(setupLiveUpdates(handle, manifest.signature));
     }
 
     pushRecent({
       src: payload.src,
-      branch: resolvedBranch,
-      branchIsDefault,
+      branch,
+      branchIsDefault: isDefault,
       label: labelFromUrl(payload.src) ?? payload.src,
     });
   } catch (err) {
@@ -305,7 +313,6 @@ async function applyNewSource(opts: ApplyNewSourceOpts): Promise<void> {
       payload,
       error: err instanceof Error ? err.message : String(err),
     });
-    return;
   } finally {
     hideLoadingOverlay();
   }
@@ -334,7 +341,7 @@ interface SignatureResponse {
  * Start the live-update poll loop for the given scene handle. Two-stage poll:
  * each tick hits the cheap /signature endpoint and only fetches the full
  * manifest when it changed. Registers the manual-refresh chokepoint
- * (refreshManifest) and arms a LIVE_UPDATES.ENABLED effect to start/stop.
+ * (refreshManifest) and gates the timer on LIVE_UPDATES.ENABLED.
  */
 function setupLiveUpdates(
   handle: SceneHandle,
@@ -425,21 +432,18 @@ function setupLiveUpdates(
     }
   }
 
-  // Register the manual-refresh entrypoint (footer refresh button) so it
-  // funnels through the same fetch+apply chain.
+  // The footer refresh button funnels through the same fetch+apply chain.
   registerRefreshHandler(refreshFromToggle);
 
-  // effect() fires synchronously on call; arm AFTER registering so the initial
-  // synthetic fire is suppressed (same pattern as attachCommitReactions).
-  let _liveUpdatesArmed = false;
+  // LIVE_UPDATES gates the loop: ENABLED turns polling on/off, POLL_SECONDS sets
+  // the interval. effect() runs the body once immediately — doing the initial
+  // start if enabled at boot — and re-runs on every change to either field.
+  // start() is idempotent (it stop()s first), so a POLL_SECONDS change just
+  // re-arms the timer at the new interval.
   effect(() => {
-    const val = LIVE_UPDATES.value;
-    if (!_liveUpdatesArmed) return;
-    if (val.ENABLED) start();
+    if (LIVE_UPDATES.value.ENABLED) start();
     else stop();
   });
-  _liveUpdatesArmed = true;
-  if (LIVE_UPDATES.value.ENABLED) start();
 
   return {
     setSignature(sig: string) {
