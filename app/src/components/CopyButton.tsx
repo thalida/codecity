@@ -8,14 +8,20 @@ import { useState, useRef, useEffect } from 'preact/hooks';
 import { Copy } from 'lucide-preact';
 
 // How long the "Copied!" badge lingers after the copy button is clicked.
-const COPY_FEEDBACK_DURATION_MS = 1500;
+const DEFAULT_COPY_FEEDBACK_DURATION_MS = 1500;
 
 export interface CopyButtonProps {
   text: string;
   label?: string;
+  /** How long the "Copied!" state lingers after a click, in ms. */
+  feedbackDurationMs?: number;
 }
 
-export function CopyButton({ text, label = 'Copy path' }: CopyButtonProps) {
+export function CopyButton({
+  text,
+  label = 'Copy path',
+  feedbackDurationMs = DEFAULT_COPY_FEEDBACK_DURATION_MS,
+}: CopyButtonProps) {
   const [copied, setCopied] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -27,7 +33,7 @@ export function CopyButton({ text, label = 'Copy path' }: CopyButtonProps) {
   const flash = () => {
     setCopied(true);
     if (timer.current) clearTimeout(timer.current);
-    timer.current = setTimeout(() => setCopied(false), COPY_FEEDBACK_DURATION_MS);
+    timer.current = setTimeout(() => setCopied(false), feedbackDurationMs);
   };
 
   const onClick = () => {

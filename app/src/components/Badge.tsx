@@ -14,17 +14,13 @@
 import { getHue } from '@/scene/components/buildings/buildingColor';
 import { parseHex, hslToRgb, pickContrastingText } from '@/utils/colors';
 
-// Badge color palette. The file badge's CSS rule paints the background
-// with `hsl(var(--badge-hue), 60%, 35%)` — these constants mirror those
-// values so the JS-side luminance check matches what the user sees.
-const TEXT_DARK = '#0a0b10';
-const TEXT_LIGHT = '#f4f6ff';
-const FILE_BADGE_SATURATION = 0.6;
-const FILE_BADGE_LIGHTNESS = 0.35;
-
-function contrastingText(rgb: [number, number, number] | null): string {
-  return pickContrastingText(rgb, TEXT_DARK, TEXT_LIGHT);
-}
+// Badge color palette defaults. The file badge's CSS rule paints the background
+// with `hsl(var(--badge-hue), 60%, 35%)` — the saturation/lightness defaults
+// mirror those values so the JS-side luminance check matches what the user sees.
+const DEFAULT_TEXT_DARK = '#0a0b10';
+const DEFAULT_TEXT_LIGHT = '#f4f6ff';
+const DEFAULT_FILE_BADGE_SATURATION = 0.6;
+const DEFAULT_FILE_BADGE_LIGHTNESS = 0.35;
 
 // ── Props interface ─────────────────────────────────────────────────────────
 
@@ -33,11 +29,31 @@ export interface ExtensionBadgeProps {
   isDir: boolean;
   huePalette: Record<string, number>;
   asphaltColor: string;
+  /** Label color used on bright backgrounds. */
+  textDark?: string;
+  /** Label color used on dark backgrounds. */
+  textLight?: string;
+  /** Saturation (0–1) for the file badge's hue → RGB luminance check. */
+  fileBadgeSaturation?: number;
+  /** Lightness (0–1) for the file badge's hue → RGB luminance check. */
+  fileBadgeLightness?: number;
 }
 
 // ── Preact component ────────────────────────────────────────────────────────
 
-export function ExtensionBadge({ extension, isDir, huePalette, asphaltColor }: ExtensionBadgeProps) {
+export function ExtensionBadge({
+  extension,
+  isDir,
+  huePalette,
+  asphaltColor,
+  textDark = DEFAULT_TEXT_DARK,
+  textLight = DEFAULT_TEXT_LIGHT,
+  fileBadgeSaturation = DEFAULT_FILE_BADGE_SATURATION,
+  fileBadgeLightness = DEFAULT_FILE_BADGE_LIGHTNESS,
+}: ExtensionBadgeProps) {
+  const contrastingText = (rgb: [number, number, number] | null): string =>
+    pickContrastingText(rgb, textDark, textLight);
+
   if (isDir) {
     return (
       <span
@@ -53,7 +69,7 @@ export function ExtensionBadge({ extension, isDir, huePalette, asphaltColor }: E
   }
   const label = (extension || '').replace(/^\./, '').slice(0, 4) || 'file';
   const hue = getHue(extension ?? '', huePalette);
-  const color = contrastingText(hslToRgb(hue, FILE_BADGE_SATURATION, FILE_BADGE_LIGHTNESS));
+  const color = contrastingText(hslToRgb(hue, fileBadgeSaturation, fileBadgeLightness));
   return (
     <span
       class="path-badge"
