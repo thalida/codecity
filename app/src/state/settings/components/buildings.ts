@@ -5,6 +5,7 @@
 // geometry / facade textures). OUTLINE + FADE are applied on Save via applyTheme().
 
 import { persistedSignal } from '@/state/persist';
+import { settingSignal, FieldKind, ChangeRoute, type ConfigOf, type FieldMap } from '@/state/settings/schema';
 import { FadeDetail } from '@/types';
 
 // ─── Dimensions ────────────────────────────────────────────────────────────
@@ -15,25 +16,27 @@ import { FadeDetail } from '@/types';
 // "size ceiling" anchor that punishes small repos with thin buildings or
 // crushes large repos to all-the-same width.
 //
-// DISTANCE_FROM_ROAD is the gap perpendicular to the street between the
-// building wall and the street edge. Same for every building.
-export interface BuildingDimensionsConfig {
-  MIN_FLOORS: number;
-  MAX_FLOORS: number;
-  FLOOR_HEIGHT: number;
-  MIN_WIDTH: number;
-  MAX_WIDTH: number;
-  DISTANCE_FROM_ROAD: number;
-}
+// MIN/MAX are kept as separate scalar keys (not one RangePair array) because
+// the layout/placement math reads each independently — same as TREES width.
+// Worker-threaded (layout + tree-placement workers reconstruct it), so it
+// stays its own object store. All rebuild-required.
+const BUILDING_DIMENSIONS_FIELDS = {
+  MIN_FLOORS: { route: ChangeRoute.Rebuild, kind: FieldKind.Slider, default: 2, min: 1, max: 200, step: 1, label: 'Min floors',
+    tip: "Floors for the smallest file in the project (fewest lines). Sqrt-interpolated up to Max across the project's line-count range." },
+  MAX_FLOORS: { route: ChangeRoute.Rebuild, kind: FieldKind.Slider, default: 64, min: 1, max: 200, step: 1, label: 'Max floors',
+    tip: 'Floors for the largest file (most lines). Above ~200 the tallest buildings dwarf the city.' },
+  FLOOR_HEIGHT: { route: ChangeRoute.Rebuild, kind: FieldKind.Number, default: 16, min: 1, max: 50, step: 1, label: 'Floor height',
+    tip: 'Vertical world units per floor (multiplier on the floor count). Above 50 the floor-to-width aspect breaks readability.' },
+  MIN_WIDTH: { route: ChangeRoute.Rebuild, kind: FieldKind.Slider, default: 8, min: 1, max: 200, step: 1, label: 'Min width',
+    tip: "Footprint width for the smallest file (fewest bytes). Log-interpolated up to Max across the project's byte-size range. Footprints are square (depth = width)." },
+  MAX_WIDTH: { route: ChangeRoute.Rebuild, kind: FieldKind.Slider, default: 96, min: 1, max: 200, step: 1, label: 'Max width',
+    tip: 'Footprint width for the largest file (most bytes).' },
+  DISTANCE_FROM_ROAD: { route: ChangeRoute.Rebuild, kind: FieldKind.Number, default: 8, min: 0, max: 50, step: 1, label: 'Distance from road',
+    tip: 'Gap between the building wall and the street edge. Same for every building.' },
+} satisfies FieldMap;
 
-export const BUILDING_DIMENSIONS = persistedSignal<BuildingDimensionsConfig>('BUILDING_DIMENSIONS', {
-  MIN_FLOORS: 2,
-  MAX_FLOORS: 64,
-  FLOOR_HEIGHT: 16, // scene units per floor
-  MIN_WIDTH: 8,
-  MAX_WIDTH: 96,
-  DISTANCE_FROM_ROAD: 8, // distance from building wall to street edge
-});
+export const BUILDING_DIMENSIONS = settingSignal('BUILDING_DIMENSIONS', BUILDING_DIMENSIONS_FIELDS);
+export type BuildingDimensionsConfig = ConfigOf<typeof BUILDING_DIMENSIONS_FIELDS>;
 
 // ─── Color palette (HSL) ───────────────────────────────────────────────────
 // Hue comes from HUE_EXT_MAP keyed by file extension; saturation and
