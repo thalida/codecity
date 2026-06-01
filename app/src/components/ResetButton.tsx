@@ -4,7 +4,8 @@
 
 import { RotateCcw } from 'lucide-preact';
 import { stageReset } from '@/state/settingsDrafts';
-import { useAnyDiffersFromDefault, useDefault } from '@/hooks/useControls';
+import { getDefault } from '@/state/persist';
+import { useAnyDiffersFromDefault } from '@/hooks/useControls';
 
 interface SignalLike {
   get value(): any;
@@ -17,22 +18,30 @@ function _formatDefaultValue(v: unknown): string {
   return String(v);
 }
 
-export interface ResetButtonProps {
-  store: SignalLike;
-  /** Keys this row covers. 1 for single widgets; 2 for range-pair. */
-  keys: string[];
+/** Default title: "Default: a – b – …" over however many keys the row covers,
+ *  or "Reset to default" when there's nothing to show. Scales to any key count
+ *  — no per-arity special-casing. */
+function _defaultTitle(defaults: unknown[]): string {
+  if (defaults.length === 0) return 'Reset to default';
+  return `Default: ${defaults.map(_formatDefaultValue).join(' – ')}`;
 }
 
-export function ResetButton({ store, keys }: ResetButtonProps) {
+export interface ResetButtonProps {
+  store: SignalLike;
+  /** Keys this row covers — one for single widgets, two for range-pair, any
+   *  number for multi-value rows. */
+  keys: string[];
+  /** Override the hover title. Receives each key's registered default in
+   *  `keys` order. Defaults to {@link _defaultTitle}. */
+  formatTitle?: (defaults: unknown[]) => string;
+}
+
+export function ResetButton({ store, keys, formatTitle = _defaultTitle }: ResetButtonProps) {
   const hasDiff = useAnyDiffersFromDefault(store, keys);
-  const def0 = useDefault(store, keys[0] ?? null);
-  const def1 = useDefault(store, keys[1] ?? null);
-  const title =
-    keys.length === 1
-      ? `Default: ${_formatDefaultValue(def0)}`
-      : keys.length === 2
-        ? `Default: ${_formatDefaultValue(def0)} – ${_formatDefaultValue(def1)}`
-        : 'Reset to default';
+  // getDefault is a static read (no subscription), so mapping over keys is
+  // safe here — unlike a use*() hook, it isn't subject to rules-of-hooks.
+  const defaults = keys.map((k) => getDefault(store, k));
+  const title = formatTitle(defaults);
 
   return (
     <button
