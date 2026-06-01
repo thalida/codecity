@@ -2,28 +2,7 @@
 // repo (at the current branch) in a new tab. Renders nothing for local sources.
 
 import { ExternalLink } from 'lucide-preact';
-import { toHttpsRepoUrl } from '@/utils/sources';
-
-/**
- * Append a branch-tree path to a forge HTTPS URL so the link opens the branch
- * instead of the repo root.
- */
-function _withBranchPath(repoHttpsUrl: string, branch: string): string {
-  const ref = encodeURIComponent(branch);
-  if (/codeberg\.org|forgejo|gitea/i.test(repoHttpsUrl)) {
-    return `${repoHttpsUrl}/src/branch/${ref}`;
-  }
-  if (/github\.com|sr\.ht/i.test(repoHttpsUrl)) {
-    return `${repoHttpsUrl}/tree/${ref}`;
-  }
-  if (/gitlab\.com/i.test(repoHttpsUrl)) {
-    return `${repoHttpsUrl}/-/tree/${ref}`;
-  }
-  if (/bitbucket\.org/i.test(repoHttpsUrl)) {
-    return `${repoHttpsUrl}/src/${ref}`;
-  }
-  return repoHttpsUrl;
-}
+import { toHttpsRepoUrl, repoUrlForBranch } from '@/utils/sources';
 
 export interface RepoLinkProps {
   sourceUrl: string | undefined;
@@ -32,7 +11,8 @@ export interface RepoLinkProps {
 
 export function RepoLink({ sourceUrl, branch }: RepoLinkProps) {
   if (!sourceUrl) return null;
-  const href = branch ? _withBranchPath(toHttpsRepoUrl(sourceUrl), branch) : toHttpsRepoUrl(sourceUrl);
+  const repoUrl = toHttpsRepoUrl(sourceUrl);
+  const href = branch ? repoUrlForBranch(repoUrl, branch) : repoUrl;
   const title = branch ? `Open repo at @${branch}` : `Open repo: ${sourceUrl}`;
   return (
     <a

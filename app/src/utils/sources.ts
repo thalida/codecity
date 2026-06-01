@@ -3,11 +3,12 @@
 // label, manifest → label).
 //
 // Public surface:
-//   - srcKind(src)           — SourceKind (Git | Local) discriminator.
-//   - toHttpsRepoUrl(src)    — canonical https URL from any repo URL form.
-//   - labelFromUrl(src)      — pure URL/path → "owner/repo" or basename.
-//   - labelFromManifest(m)   — manifest-aware: display_root, remote_url,
-//                              or tree.name fallback.
+//   - srcKind(src)               — SourceKind (Git | Local) discriminator.
+//   - toHttpsRepoUrl(src)        — canonical https URL from any repo URL form.
+//   - repoUrlForBranch(url, ref) — forge URL pointing at a branch tree.
+//   - labelFromUrl(src)          — pure URL/path → "owner/repo" or basename.
+//   - labelFromManifest(m)       — manifest-aware: display_root, remote_url,
+//                                  or tree.name fallback.
 
 import type { Manifest } from '@/types/manifest';
 
@@ -41,6 +42,29 @@ export function toHttpsRepoUrl(src: string): string {
     return `https://${host}/${path}`;
   }
   return src;
+}
+
+/**
+ * Append a branch-tree path to a forge HTTPS URL so a link opens the given
+ * branch instead of the repo root. The path shape is forge-specific (GitHub
+ * `/tree`, GitLab `/-/tree`, Gitea/Forgejo/Codeberg `/src/branch`, Bitbucket
+ * `/src`); unrecognised hosts get the bare repo URL back.
+ */
+export function repoUrlForBranch(repoHttpsUrl: string, branch: string): string {
+  const ref = encodeURIComponent(branch);
+  if (/codeberg\.org|forgejo|gitea/i.test(repoHttpsUrl)) {
+    return `${repoHttpsUrl}/src/branch/${ref}`;
+  }
+  if (/github\.com|sr\.ht/i.test(repoHttpsUrl)) {
+    return `${repoHttpsUrl}/tree/${ref}`;
+  }
+  if (/gitlab\.com/i.test(repoHttpsUrl)) {
+    return `${repoHttpsUrl}/-/tree/${ref}`;
+  }
+  if (/bitbucket\.org/i.test(repoHttpsUrl)) {
+    return `${repoHttpsUrl}/src/${ref}`;
+  }
+  return repoHttpsUrl;
 }
 
 /**

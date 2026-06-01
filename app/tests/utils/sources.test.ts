@@ -1,5 +1,12 @@
 import { describe, it, expect } from 'vitest';
-import { labelFromManifest, labelFromUrl, srcKind, SourceKind, toHttpsRepoUrl } from '@/utils/sources';
+import {
+  labelFromManifest,
+  labelFromUrl,
+  srcKind,
+  SourceKind,
+  toHttpsRepoUrl,
+  repoUrlForBranch,
+} from '@/utils/sources';
 import type { Manifest } from '@/types/manifest';
 
 // Test helper: build the minimal Manifest shape labelFromManifest reads,
@@ -107,6 +114,47 @@ describe('toHttpsRepoUrl', () => {
 
   it('converts ssh URLs to https form', () => {
     expect(toHttpsRepoUrl('git@github.com:foo/bar.git')).toBe('https://github.com/foo/bar');
+  });
+});
+
+describe('repoUrlForBranch', () => {
+  it('uses /tree for GitHub and sr.ht', () => {
+    expect(repoUrlForBranch('https://github.com/foo/bar', 'main')).toBe(
+      'https://github.com/foo/bar/tree/main'
+    );
+    expect(repoUrlForBranch('https://sr.ht/~foo/bar', 'main')).toBe(
+      'https://sr.ht/~foo/bar/tree/main'
+    );
+  });
+
+  it('uses /-/tree for GitLab', () => {
+    expect(repoUrlForBranch('https://gitlab.com/foo/bar', 'dev')).toBe(
+      'https://gitlab.com/foo/bar/-/tree/dev'
+    );
+  });
+
+  it('uses /src/branch for Gitea/Forgejo/Codeberg', () => {
+    expect(repoUrlForBranch('https://codeberg.org/foo/bar', 'main')).toBe(
+      'https://codeberg.org/foo/bar/src/branch/main'
+    );
+  });
+
+  it('uses /src for Bitbucket', () => {
+    expect(repoUrlForBranch('https://bitbucket.org/foo/bar', 'main')).toBe(
+      'https://bitbucket.org/foo/bar/src/main'
+    );
+  });
+
+  it('encodes slashes and other special chars in the branch ref', () => {
+    expect(repoUrlForBranch('https://github.com/foo/bar', 'feature/x')).toBe(
+      'https://github.com/foo/bar/tree/feature%2Fx'
+    );
+  });
+
+  it('returns the bare repo URL for unrecognised hosts', () => {
+    expect(repoUrlForBranch('https://example.com/foo/bar', 'main')).toBe(
+      'https://example.com/foo/bar'
+    );
   });
 });
 
