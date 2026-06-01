@@ -1728,9 +1728,10 @@ canvas {
   flex: 0 1 auto;
   min-width: 0;
   max-width: 55%;
-  display: flex;
-  align-items: center;
-  gap: var(--cc-space-3);
+  /* display:block (not flex) so text-overflow:ellipsis actually renders the
+   * "…" — a flex container ellipsizes none of its own text. Labels are
+   * text-only, so no flex layout is needed here. */
+  display: block;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
