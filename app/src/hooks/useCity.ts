@@ -44,7 +44,7 @@ import {
   pushRecent,
 } from '@/state/stores/source';
 import { SERVER_CONFIG } from '@/state/stores/serverConfig';
-import { REBUILD_STATUS, LAST_REBUILD_ERROR, registerRefreshHandler } from '@/state/stores/manifest';
+import { REBUILD_STATUS, RebuildStatus, LAST_REBUILD_ERROR, registerRefreshHandler } from '@/state/stores/manifest';
 import {
   showLoadingOverlay,
   hideLoadingOverlay,
@@ -355,7 +355,7 @@ function setupLiveUpdates(
   // Single fetch+apply path. Flips REBUILD_STATUS to 'rebuilding' for the
   // duration so the footer indicator behaves identically for poll + toggle.
   async function fetchAndApply(): Promise<void> {
-    REBUILD_STATUS.value = 'rebuilding';
+    REBUILD_STATUS.value = RebuildStatus.Rebuilding;
     try {
       for await (const event of streamManifest(manifestUrl())) {
         if (event.phase === ScanPhase.Error) throw new Error(event.error);
@@ -370,10 +370,10 @@ function setupLiveUpdates(
           await handle.world.applyManifest(m);
         }
       }
-      REBUILD_STATUS.value = 'idle';
+      REBUILD_STATUS.value = RebuildStatus.Idle;
       LAST_REBUILD_ERROR.value = null;
     } catch (err) {
-      REBUILD_STATUS.value = 'error';
+      REBUILD_STATUS.value = RebuildStatus.Error;
       LAST_REBUILD_ERROR.value = err instanceof Error ? err.message : String(err);
     }
   }

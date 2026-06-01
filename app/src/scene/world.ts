@@ -76,7 +76,7 @@ import {
   TREES,
   SCENE,
 } from '@/state/stores/settings/index';
-import { REBUILD_STATUS } from '@/state/stores/manifest';
+import { REBUILD_STATUS, RebuildStatus } from '@/state/stores/manifest';
 import type {
   Building,
   CityBbox,
@@ -1144,7 +1144,7 @@ export function createWorld(_canvas: HTMLCanvasElement) {
       const cityHeightAtDefer = cityHeight;
       const foliageBbox: CityBbox = sceneBbox;
 
-      REBUILD_STATUS.value = 'decorating';
+      REBUILD_STATUS.value = RebuildStatus.Decorating;
       // rAF lets the browser START the next frame; setTimeout(0)
       // then yields the task so the browser can COMPLETE the paint
       // before foliage work begins.
@@ -1193,7 +1193,7 @@ export function createWorld(_canvas: HTMLCanvasElement) {
         });
       }
 
-      REBUILD_STATUS.value = 'idle';
+      REBUILD_STATUS.value = RebuildStatus.Idle;
     }
   }
 

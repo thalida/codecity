@@ -12,7 +12,7 @@
 
 import { computed, effect, untracked } from '@preact/signals';
 
-import { REBUILD_STATUS, LAST_REBUILD_ERROR, LAST_UPDATED_AT } from '@/state/stores/manifest';
+import { REBUILD_STATUS, RebuildStatus, LAST_REBUILD_ERROR, LAST_UPDATED_AT } from '@/state/stores/manifest';
 import { routeSignature, ChangeRoute } from '@/state/settingsSchema';
 
 // Min-dwell for the 'rebuilding' indicator on the material-only path.
@@ -46,7 +46,7 @@ export function attachCommitReactions({ world, applyTheme }: CommitReactionsOpts
 
   async function scheduleRebuild() {
     if (!armed) return;
-    REBUILD_STATUS.value = 'rebuilding';
+    REBUILD_STATUS.value = RebuildStatus.Rebuilding;
     try {
       // Config changes that hit this path always invalidate the layout cache:
       // the manifest didn't change but a layout-affecting config value did,
@@ -58,10 +58,10 @@ export function attachCommitReactions({ world, applyTheme }: CommitReactionsOpts
       if (manifest) {
         await world.applyManifest(manifest);
       }
-      REBUILD_STATUS.value = 'idle';
+      REBUILD_STATUS.value = RebuildStatus.Idle;
       LAST_REBUILD_ERROR.value = null;
     } catch (err) {
-      REBUILD_STATUS.value = 'error';
+      REBUILD_STATUS.value = RebuildStatus.Error;
       LAST_REBUILD_ERROR.value = err instanceof Error ? err.message : String(err);
     }
   }
@@ -69,11 +69,11 @@ export function attachCommitReactions({ world, applyTheme }: CommitReactionsOpts
   function refreshMaterials() {
     if (!armed) return;
     if (hotIdleTimer) clearTimeout(hotIdleTimer);
-    REBUILD_STATUS.value = 'rebuilding';
+    REBUILD_STATUS.value = RebuildStatus.Rebuilding;
     try {
       applyTheme();
     } catch (err) {
-      REBUILD_STATUS.value = 'error';
+      REBUILD_STATUS.value = RebuildStatus.Error;
       LAST_REBUILD_ERROR.value = err instanceof Error ? err.message : String(err);
       return;
     }
@@ -82,8 +82,8 @@ export function attachCommitReactions({ world, applyTheme }: CommitReactionsOpts
     // rebuild is also in flight — applyManifest owns the final state then.
     hotIdleTimer = setTimeout(() => {
       hotIdleTimer = 0;
-      if (REBUILD_STATUS.value === 'rebuilding') {
-        REBUILD_STATUS.value = 'idle';
+      if (REBUILD_STATUS.value === RebuildStatus.Rebuilding) {
+        REBUILD_STATUS.value = RebuildStatus.Idle;
         LAST_REBUILD_ERROR.value = null;
         LAST_UPDATED_AT.value = Date.now();
       }

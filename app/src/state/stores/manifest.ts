@@ -52,14 +52,19 @@ _installBridge();
 
 /**
  * State of the most recent (or current) world rebuild.
- *   'rebuilding' — applyManifest is constructing the city (streets,
- *                  buildings, gem).
- *   'decorating' — the city is already in the scene; the deferred
- *                  decoration pass (trees, etc.) is still in flight.
+ *   Rebuilding — applyManifest is constructing the city (streets,
+ *                buildings, gem).
+ *   Decorating — the city is already in the scene; the deferred
+ *                decoration pass (trees, etc.) is still in flight.
  */
-export type RebuildStatus = 'idle' | 'rebuilding' | 'decorating' | 'error';
+export enum RebuildStatus {
+  Idle = 'idle',
+  Rebuilding = 'rebuilding',
+  Decorating = 'decorating',
+  Error = 'error',
+}
 
-export const REBUILD_STATUS = signal<RebuildStatus>('idle');
+export const REBUILD_STATUS = signal<RebuildStatus>(RebuildStatus.Idle);
 
 /** Error message from the most recent failed rebuild; null when idle/success. */
 export const LAST_REBUILD_ERROR = signal<string | null>(null);
@@ -70,7 +75,7 @@ export const LAST_UPDATED_AT = signal<number>(0);
 // Bridge REBUILD_STATUS → loading overlay: when the deferred decoration pass
 // starts, advance the overlay's active step so users see "Adding decorations…".
 effect(() => {
-  if (REBUILD_STATUS.value === 'decorating') {
+  if (REBUILD_STATUS.value === RebuildStatus.Decorating) {
     setLoadingStep(LoadingStep.Decorating);
   }
 });

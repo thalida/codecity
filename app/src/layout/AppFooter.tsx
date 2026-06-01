@@ -21,7 +21,7 @@ import { formatShortDate, formatRelativeAgeShort } from '@/utils/dates';
 import { formatBytes } from '@/utils/bytes';
 import { SCENE_HANDLE } from '@/state/stores/scene';
 import { LIVE_UPDATES } from '@/state/stores/settings/index';
-import { REBUILD_STATUS, LAST_REBUILD_ERROR, LAST_UPDATED_AT, type RebuildStatus } from '@/state/stores/manifest';
+import { REBUILD_STATUS, RebuildStatus, LAST_REBUILD_ERROR, LAST_UPDATED_AT } from '@/state/stores/manifest';
 import { humanLanguageFor } from '@/utils/syntaxLanguages';
 
 interface FooterFileSelection {
@@ -58,7 +58,7 @@ export interface FooterStatus {
   rebuildStatus: RebuildStatus;
   /** Epoch millis of the most recent successful rebuild; 0 ⇒ unknown. */
   lastUpdatedAt: number;
-  /** Surfaced as the indicator's `title` (hover tooltip) when rebuildStatus === 'error'. */
+  /** Surfaced as the indicator's `title` (hover tooltip) when rebuildStatus is Error. */
   errorMessage: string | null;
 }
 
@@ -111,48 +111,73 @@ interface FooterStatusSectionProps {
   status: FooterStatus | null;
 }
 
+// CSS modifier classes for the combined status dot/detail (see styles.css).
+// Named so the className composition reads without inline magic strings.
+enum BuildClass {
+  Rebuilding = 'is-rebuilding',
+  Ready = 'is-ready',
+  Error = 'is-error',
+}
+enum LiveClass {
+  Live = 'is-live',
+  Paused = 'is-paused',
+}
+
+// Static detail-text copy. Dynamic variants (relative age, "error: <msg>") are
+// composed inline below.
+const DETAIL_TEXT = {
+  rebuilding: 'rebuilding…',
+  decorating: 'decorating…',
+  error: 'error',
+  // Guard for unit tests / any path that reads status before LAST_UPDATED_AT
+  // is seeded.
+  ready: 'ready',
+} as const;
+
 function FooterStatusSection({ status }: FooterStatusSectionProps) {
   if (!status) return <span class="app-footer-status" />;
 
-  let buildModifier: 'is-rebuilding' | 'is-ready' | 'is-error';
+  let buildClass: BuildClass;
   let detailText: string;
-  if (status.rebuildStatus === 'rebuilding') {
-    buildModifier = 'is-rebuilding';
-    detailText = 'rebuilding…';
-  } else if (status.rebuildStatus === 'decorating') {
-    buildModifier = 'is-rebuilding';
-    detailText = 'decorating…';
-  } else if (status.rebuildStatus === 'error') {
-    buildModifier = 'is-error';
-    detailText = status.errorMessage ? `error: ${status.errorMessage}` : 'error';
-  } else {
-    buildModifier = 'is-ready';
-    // 'ready' literal is a guard for unit tests or any code path that
-    // calls setStatus before LAST_UPDATED_AT is seeded.
-    detailText =
-      status.lastUpdatedAt > 0
-        ? formatRelativeAgeShort(status.lastUpdatedAt, Date.now())
-        : 'ready';
+  switch (status.rebuildStatus) {
+    case RebuildStatus.Rebuilding:
+      buildClass = BuildClass.Rebuilding;
+      detailText = DETAIL_TEXT.rebuilding;
+      break;
+    case RebuildStatus.Decorating:
+      buildClass = BuildClass.Rebuilding;
+      detailText = DETAIL_TEXT.decorating;
+      break;
+    case RebuildStatus.Error:
+      buildClass = BuildClass.Error;
+      detailText = status.errorMessage ? `error: ${status.errorMessage}` : DETAIL_TEXT.error;
+      break;
+    default: // Idle
+      buildClass = BuildClass.Ready;
+      detailText =
+        status.lastUpdatedAt > 0
+          ? formatRelativeAgeShort(status.lastUpdatedAt, Date.now())
+          : DETAIL_TEXT.ready;
   }
 
-  const liveModifier = status.liveEnabled ? 'is-live' : 'is-paused';
+  const liveClass = status.liveEnabled ? LiveClass.Live : LiveClass.Paused;
 
   // Compose hover tooltip
   const liveLabel = `Live updates: ${status.liveEnabled ? 'on' : 'off'}`;
   let titleText: string;
-  if (status.rebuildStatus === 'error' && status.errorMessage) {
+  if (status.rebuildStatus === RebuildStatus.Error && status.errorMessage) {
     titleText = `${liveLabel} · error: ${status.errorMessage}`;
-  } else if (status.rebuildStatus === 'idle' && status.lastUpdatedAt > 0) {
+  } else if (status.rebuildStatus === RebuildStatus.Idle && status.lastUpdatedAt > 0) {
     titleText = `${liveLabel} · rebuilt ${detailText}`;
-  } else if (status.rebuildStatus === 'rebuilding') {
-    titleText = `${liveLabel} · rebuilding…`;
+  } else if (status.rebuildStatus === RebuildStatus.Rebuilding) {
+    titleText = `${liveLabel} · ${DETAIL_TEXT.rebuilding}`;
   } else {
     titleText = liveLabel;
   }
 
   return (
     <span
-      class={`app-footer-status ${buildModifier} ${liveModifier}`}
+      class={`app-footer-status ${buildClass} ${liveClass}`}
       title={titleText}
       aria-label={titleText}
     >
