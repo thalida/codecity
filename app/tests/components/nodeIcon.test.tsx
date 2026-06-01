@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { render } from 'preact';
 import { NodeIcon } from '@/components/NodeIcon';
 import { NodeKind } from '@/types';
-import { flush } from '../../_helpers/preact';
+import { flush } from '../_helpers/preact';
 
 // jsdom doesn't actually fetch the icon src — we just validate the URL the
 // component picks. The `data-icon-name` data attribute on the rendered <img>

@@ -9,7 +9,7 @@ import {
 } from '@/views/SourcePicker';
 import type { SourcePickerState, SourcePayload, OpenOpts } from '@/views/SourcePicker';
 import { pushRecent, RECENTS } from '@/state/stores/source';
-import { flush } from '../../_helpers/preact';
+import { flush } from '../_helpers/preact';
 
 describe('SourcePicker', () => {
   let container: HTMLDivElement;

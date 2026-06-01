@@ -12,7 +12,7 @@ import type { FileNode } from '@/types';
 // requestAnimationFrame that builds the code editor. jsdom's rAF fires on a
 // ~16ms timer, so draining only microtasks races the rAF callback — drainAsync
 // alternates microtask drains with real macrotask yields to cover all hops.
-import { drainAsync } from '../../_helpers/preact';
+import { drainAsync } from '../_helpers/preact';
 
 const FILE_NODE: FileNode = {
   name: 'index.ts',

@@ -3,7 +3,7 @@ import { render } from 'preact';
 import { signal } from '@preact/signals';
 import { SearchPane } from '@/views/SearchPane';
 import { NodeKind } from '@/types';
-import { flush } from '../../_helpers/preact';
+import { flush } from '../_helpers/preact';
 
 // Minimal manifest fixture — fields that the search pane reads:
 // tree.children[].path, .name, .type. Extras carried so it parses as a

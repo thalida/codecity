@@ -5,7 +5,7 @@ import { StreetPane } from '@/views/StreetPane';
 import type { StreetPaneState } from '@/views/StreetPane';
 import { NodeKind } from '@/types';
 import type { DirNode, FileNode, ExtBreakdownEntry } from '@/types';
-import { flush } from '../../_helpers/preact';
+import { flush } from '../_helpers/preact';
 
 // Mirror the backend's per-dir extension aggregation (api/scan.py) so test
 // fixtures carry a realistic descendants_ext_breakdown — StreetPane reads

@@ -5,7 +5,7 @@ import { RightSidebar } from '@/layout/RightSidebar';
 import { SCENE_HANDLE } from '@/state/stores/scene';
 import { NodeKind } from '@/types';
 import type { FileNode, PickTarget } from '@/types';
-import { flush } from '../../_helpers/preact';
+import { flush } from '../_helpers/preact';
 
 const FILE_NODE: FileNode = {
   name: 'index.ts',

@@ -10,7 +10,7 @@ import {
   setLoadingStepTail,
 } from '@/state/stores/ui';
 import { LoadingStep } from '@/constants';
-import { flush } from '../../_helpers/preact';
+import { flush } from '../_helpers/preact';
 
 // The overlay is now a signal-driven Preact component (App.tsx mounts a
 // single <LoadingOverlay/>); state is driven by the uiState helpers that

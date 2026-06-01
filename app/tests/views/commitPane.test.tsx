@@ -9,7 +9,7 @@ import type { CommitEntry } from '@/types';
 // or rejects on a non-ok response) and Preact picking up the resulting
 // useState change. drainAsync alternates microtask + macrotask yields to
 // cover both the success and the longer reject path deterministically.
-import { drainAsync } from '../../_helpers/preact';
+import { drainAsync } from '../_helpers/preact';
 
 const COMMIT: CommitEntry = {
   date: '2026-03-12',

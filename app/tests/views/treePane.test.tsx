@@ -4,7 +4,7 @@ import { act } from 'preact/test-utils';
 import { signal } from '@preact/signals';
 import { TreePane } from '@/views/TreePane';
 import type { Manifest, DirNode, TreeNode } from '@/types';
-import { flush } from '../../_helpers/preact';
+import { flush } from '../_helpers/preact';
 
 type TreeLike = Manifest | DirNode | { tree?: unknown; [k: string]: unknown };
 
