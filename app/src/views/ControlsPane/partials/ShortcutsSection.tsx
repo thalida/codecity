@@ -4,7 +4,7 @@
 // affordances.
 
 import { Section } from '@/components/Section';
-import { CollapsibleSubgroup } from '@/components/CollapsibleSubgroup';
+import { Subgroup } from '@/components/Subgroup';
 import { KEY_BINDINGS } from '@/constants';
 
 interface ShortcutItem {
@@ -67,9 +67,9 @@ export function ShortcutsSection() {
       name="Keyboard & mouse"
       hint="Quick reference for cursor actions and keyboard shortcuts."
     >
-      <CollapsibleSubgroup name="General">
+      <Subgroup name="General">
         <ShortcutsList items={GENERAL_SHORTCUTS} />
-      </CollapsibleSubgroup>
+      </Subgroup>
     </Section>
   );
 }

@@ -95,7 +95,7 @@ export function useAnyDiffersFromDefault(store: SignalLike, keys: string[]): boo
  * True iff ANY of `refs` (across one or more stores) has an effective value
  * differing from its default. Draft-aware — tracks DRAFTS_REV + each store's
  * value, so it re-runs on any draft or committed change. Used by the
- * Section / CollapsibleSubgroup reset buttons over their descendant fields
+ * Section / Subgroup reset buttons over their descendant fields
  * (replaces the old DOM-scrape that read each `.theme-row-reset`'s disabled).
  */
 export function useAnyResettable(refs: ResettableRef[]): boolean {

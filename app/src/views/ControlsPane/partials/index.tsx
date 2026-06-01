@@ -7,7 +7,7 @@
 // - SectionNode / GroupNode: the recursive section → subgroup → field tree.
 //   Groups nest arbitrarily (Buildings › Aging › Tilt is just depth).
 // - DynamicSection: one recursive renderer that turns a node into the existing
-//   Section / CollapsibleSubgroup / Field shells, replacing the hand-written
+//   Section / Subgroup / Field shells, replacing the hand-written
 //   *Section.tsx files.
 //
 // Per-section declarations live in sibling files (./trees, …) and import field()
@@ -16,7 +16,6 @@
 import type { Signal } from '@preact/signals';
 import type { ComponentChildren } from 'preact';
 import { Section } from '@/components/Section';
-import { CollapsibleSubgroup } from '@/components/CollapsibleSubgroup';
 import { Subgroup } from '@/components/Subgroup';
 import { Field } from '@/components/Field';
 
@@ -78,19 +77,19 @@ function collectRefs(children: SectionChild[]): FieldRef[] {
 function renderChild(child: SectionChild): ComponentChildren {
   if (isGroup(child)) {
     const kids = child.children.map(renderChild);
-    // Plain (non-collapsible) groups carry no reset. Collapsible ones reset
-    // every field beneath them, draft-driven via resetKeys.
-    if (child.collapsible === false) {
-      return (
-        <Subgroup name={child.label} key={child.key}>
-          {kids}
-        </Subgroup>
-      );
-    }
+    // Collapsible by default — a <details> that resets every field beneath it
+    // (draft-driven via resetKeys). collapsible:false renders a plain group
+    // with no reset.
+    const collapsible = child.collapsible !== false;
     return (
-      <CollapsibleSubgroup name={child.label} resetKeys={collectRefs(child.children)} key={child.key}>
+      <Subgroup
+        name={child.label}
+        collapsible={collapsible}
+        resetKeys={collapsible ? collectRefs(child.children) : undefined}
+        key={child.key}
+      >
         {kids}
-      </CollapsibleSubgroup>
+      </Subgroup>
     );
   }
   return <Field store={child.store} fieldKey={child.key} key={`${child.key}`} />;
