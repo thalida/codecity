@@ -15,7 +15,7 @@
 // The factories survive (#10) for external consumers / tests until
 // they too are ported.
 
-import { effect, signal, useComputed, useSignal, useSignalEffect } from '@preact/signals';
+import { useComputed, useSignal, useSignalEffect } from '@preact/signals';
 import { useEffect, useRef, useState } from 'preact/hooks';
 import {
   ACTIVITY_BAR_TABS,
@@ -23,10 +23,10 @@ import {
   STORAGE_KEYS,
 } from '@/constants';
 import { SidebarTab, NodeKind } from '@/types';
-import type { DirNode, Manifest, PickTarget, TreeNode } from '@/types';
+import type { PickTarget, TreeNode } from '@/types';
 import { persistedSignal } from '@/state/persist';
 import { SCENE_HANDLE } from '@/state/runtime/scene';
-import { EMPTY_MANIFEST } from '@/constants/manifest';
+import { MANIFEST } from '@/state/runtime/manifest';
 import { isEmptyManifest } from '@/utils/manifest';
 import { TreePane } from '@/views/panes/TreePane';
 import { InfoPane } from '@/views/panes/InfoPane';
@@ -47,42 +47,6 @@ function _pathOf(target: PickTarget | null): string | null {
   if (target.kind === NodeKind.Directory) return target.dir?.path ?? null;
   return null;
 }
-
-// Manifest signal: shared by all four panes. Updated when SCENE_HANDLE
-// gets a new world (initial source apply or live-update poll). Lives
-// outside the component so that consumers in the SearchPane / TreePane
-// can react to changes without remounting the pane.
-const MANIFEST_SIG = signal<Manifest | DirNode | { tree?: unknown; [k: string]: unknown } | null>(
-  EMPTY_MANIFEST
-);
-
-// One-shot subscription to SCENE_HANDLE that mirrors manifest changes
-// into MANIFEST_SIG. Installed at module load so it's live before
-// LeftSidebar mounts.
-let _manifestBridgeInstalled = false;
-function _installManifestBridge(): void {
-  if (_manifestBridgeInstalled) return;
-  _manifestBridgeInstalled = true;
-  let _worldUnsub: (() => void) | null = null;
-  // effect() (not .subscribe) — tracks SCENE_HANDLE only; world.onChange is a
-  // custom emitter, not a signal, so it stays an explicit subscription.
-  effect(() => {
-    const handle = SCENE_HANDLE.value;
-    if (_worldUnsub) {
-      _worldUnsub();
-      _worldUnsub = null;
-    }
-    if (!handle) {
-      MANIFEST_SIG.value = EMPTY_MANIFEST;
-      return;
-    }
-    MANIFEST_SIG.value = handle.world.getManifest() ?? EMPTY_MANIFEST;
-    _worldUnsub = handle.world.onChange(() => {
-      MANIFEST_SIG.value = handle.world.getManifest() ?? EMPTY_MANIFEST;
-    });
-  });
-}
-_installManifestBridge();
 
 // Older legacy localStorage keys that earlier code wrote per-section
 // open/closed state under. Once on app boot we wipe them so they don't
@@ -263,7 +227,7 @@ export function LeftSidebar() {
 
   // Auto-collapse when the manifest has no content (cold-boot empty state).
   // The activity bar stays visible but the panel is hidden.
-  const manifestIsEmpty = useComputed(() => isEmptyManifest(MANIFEST_SIG.value));
+  const manifestIsEmpty = useComputed(() => isEmptyManifest(MANIFEST.value));
 
   const onIconClick = (tab: SidebarTab) => {
     if (!collapsed.value && tab === activeTab.value) {
@@ -330,11 +294,11 @@ export function LeftSidebar() {
       <div class="pane">
         {tab === SidebarTab.Tree && (
           <TreePane
-            manifest={MANIFEST_SIG}
+            manifest={MANIFEST}
             selectedPath={selectedPath}
             hoveredPath={hoveredPath}
             expanded={treeExpanded}
-            rootPath={(MANIFEST_SIG.value as { tree?: TreeNode })?.tree?.path ?? ''}
+            rootPath={(MANIFEST.value as { tree?: TreeNode })?.tree?.path ?? ''}
             onClose={onPaneClose}
             onSelect={onTreeSelect}
             onFocus={onTreeFocus}
@@ -344,14 +308,14 @@ export function LeftSidebar() {
         )}
         {tab === SidebarTab.Search && (
           <SearchPane
-            manifest={MANIFEST_SIG}
+            manifest={MANIFEST}
             onClose={onPaneClose}
             onSelect={onSearchSelect}
             onFocus={onSearchFocus}
           />
         )}
         {tab === SidebarTab.Info && (
-          <InfoPane manifest={MANIFEST_SIG} onClose={onPaneClose} />
+          <InfoPane manifest={MANIFEST} onClose={onPaneClose} />
         )}
         {tab === SidebarTab.Controls && (
           <ControlsPane
