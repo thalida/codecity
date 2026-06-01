@@ -1,6 +1,7 @@
 // layout/AppHeader.tsx — Sitewide top header. Composition shell only: derives
 // display state from runtime signals and slots the header sub-components into a
-// 3-column grid. Sub-components live in ./header/.
+// 3-column grid. The slot widgets are components/ (CommitChip, HeaderBreadcrumb,
+// ProjectSwitcher, RepoLink, ResetViewButton); this file owns only the grid.
 //
 // Layout (left → right):
 //   #app-header-left  — ResetViewButton + ProjectSwitcher + RepoLink
@@ -12,11 +13,11 @@ import { SCENE_HANDLE } from '@/state/stores/scene';
 import { SOURCE_INFO } from '@/state/stores/source';
 import { openSourcePicker } from '@/state/stores/ui';
 import { NodeKind } from '@/types';
-import { ResetViewButton } from './header/ResetViewButton';
-import { ProjectSwitcher } from './header/ProjectSwitcher';
-import { RepoLink } from './header/RepoLink';
-import { CommitChip } from './header/CommitChip';
-import { HeaderBreadcrumb } from './header/HeaderBreadcrumb';
+import { ResetViewButton } from '@/components/ResetViewButton';
+import { ProjectSwitcher } from '@/components/ProjectSwitcher';
+import { RepoLink } from '@/components/RepoLink';
+import { CommitChip } from '@/components/CommitChip';
+import { HeaderBreadcrumb } from '@/components/HeaderBreadcrumb';
 
 export interface AppHeaderProps {
   /** Fires when the user clicks a breadcrumb segment. */

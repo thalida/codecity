@@ -1,4 +1,4 @@
-// layout/header/CommitChip.tsx — Header title slot for a selected commit:
+// components/CommitChip.tsx — Header title slot for a selected commit:
 // a focus button + "Commit <short-sha> · <author> (+N)" + copy-SHA button.
 
 import { Focus } from 'lucide-preact';

@@ -1,4 +1,4 @@
-// layout/header/HeaderBreadcrumb.tsx — Header title slot for a selected
+// components/HeaderBreadcrumb.tsx — Header title slot for a selected
 // file/dir: a focus button + extension badge + clickable path breadcrumb +
 // copy-path button. The breadcrumb owns a ResizeObserver (useMiddleEllipsis)
 // that middle-truncates the path to fit the header width.

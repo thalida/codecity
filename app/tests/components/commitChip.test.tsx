@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render } from 'preact';
-import { CommitChip } from '@/layout/header/CommitChip';
+import { CommitChip } from '@/components/CommitChip';
 
 function mountChip(sha: string, authors: string[], onFocus?: () => void) {
   document.body.innerHTML = '<div id="app-title"></div>';

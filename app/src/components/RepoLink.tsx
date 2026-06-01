@@ -1,4 +1,4 @@
-// layout/header/RepoLink.tsx — External-link icon that opens the loaded git
+// components/RepoLink.tsx — External-link icon that opens the loaded git
 // repo (at the current branch) in a new tab. Renders nothing for local sources.
 
 import { ExternalLink } from 'lucide-preact';

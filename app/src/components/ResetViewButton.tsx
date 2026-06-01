@@ -1,4 +1,4 @@
-// layout/header/ResetViewButton.tsx — The gem button at the header's left edge.
+// components/ResetViewButton.tsx — The gem button at the header's left edge.
 // Doubles as the app logo: clicking it resets the camera view (R). Renders
 // nothing when no reset handler is wired (pre-boot).
 

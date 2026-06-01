@@ -1,4 +1,4 @@
-// layout/header/ProjectSwitcher.tsx — The project chip: icon + label + optional
+// components/ProjectSwitcher.tsx — The project chip: icon + label + optional
 // @branch pill + chevron. Click opens the source picker to switch projects.
 // Renders nothing until a project is loaded (no label).
 
