@@ -3,7 +3,7 @@
 // label, manifest → label).
 //
 // Public surface:
-//   - srcKind(src)           — 'git' | 'local' discriminator.
+//   - srcKind(src)           — SourceKind (Git | Local) discriminator.
 //   - toHttpsRepoUrl(src)    — canonical https URL from any repo URL form.
 //   - labelFromUrl(src)      — pure URL/path → "owner/repo" or basename.
 //   - labelFromManifest(m)   — manifest-aware: display_root, remote_url,
@@ -11,11 +11,18 @@
 
 import type { Manifest } from '@/types/manifest';
 
+/** What kind of thing a source string points at: a remote git URL or an
+ *  on-disk local path. The string values are the wire/persisted form. */
+export enum SourceKind {
+  Git = 'git',
+  Local = 'local',
+}
+
 /** Classify a source string as a git URL or a local path. Git URLs are
  *  recognised by either a scheme (https://, ssh://, etc.) or the
  *  scp-style `user@host:path` form. Anything else is local. */
-export function srcKind(src: string): 'git' | 'local' {
-  return /:\/\//.test(src) || /^[^@]+@[^:]+:/.test(src) ? 'git' : 'local';
+export function srcKind(src: string): SourceKind {
+  return /:\/\//.test(src) || /^[^@]+@[^:]+:/.test(src) ? SourceKind.Git : SourceKind.Local;
 }
 
 /**

@@ -1,6 +1,6 @@
 // views/SourcePicker.tsx — Modal for picking the active source (local path or
 // git URL). Owns its own DOM, mounted into #source-picker-root. Recents
-// are pulled from sourceRecents.ts each time the modal renders.
+// are pulled from state/stores/source.ts each time the modal renders.
 //
 // Preact component: SourcePicker (signal-driven).
 
@@ -8,7 +8,7 @@ import { useEffect, useRef, useState } from 'preact/hooks';
 import type { Signal } from '@preact/signals';
 import { listRecents, removeRecent } from '@/state/stores/source';
 import { clearManifestCache } from '@/api/manifest';
-import { srcKind } from '@/utils/sources';
+import { srcKind, SourceKind } from '@/utils/sources';
 import { Folder, Trash2, TriangleAlert, X } from 'lucide-preact';
 import {
   SOURCE_PICKER,
@@ -35,7 +35,7 @@ export enum SourceTab {
  *  and recents icon selection — the backend is the source of truth for what
  *  a source actually is. */
 export function inferSourceTab(src: string): SourceTab {
-  return srcKind(src) === 'git' ? SourceTab.Git : SourceTab.Local;
+  return srcKind(src) === SourceKind.Git ? SourceTab.Git : SourceTab.Local;
 }
 
 // SourcePayload / OpenOpts (the picker's submit + open contracts) live in

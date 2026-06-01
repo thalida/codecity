@@ -28,6 +28,15 @@ export const LOADING_STEPS: readonly LoadingStep[] = [
   LoadingStep.Decorating,
 ];
 
+// A step row's progress relative to the active step: not yet reached, the one
+// in progress, or already finished. The string values are the `data-state`
+// attribute the overlay renders and the CSS (`li[data-state='…']`) styles.
+export enum LoadingStepState {
+  Pending = 'pending',
+  Active = 'active',
+  Done = 'done',
+}
+
 // Human-readable label for each step.
 export const LOADING_STEP_LABELS: Record<LoadingStep, string> = {
   [LoadingStep.Resolving]: 'Resolving source',

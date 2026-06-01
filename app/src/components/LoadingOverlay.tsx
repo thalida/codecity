@@ -12,7 +12,8 @@
 // no wall-clock timers. The step vocabulary lives in constants/loadingSteps.
 
 import { LOADING_OVERLAY } from '@/state/stores/ui';
-import { LoadingStep, LOADING_STEPS, LOADING_STEP_LABELS } from '@/constants';
+import { SourceKind } from '@/utils/sources';
+import { LoadingStep, LoadingStepState, LOADING_STEPS, LOADING_STEP_LABELS } from '@/constants';
 
 // LoadingOverlayShowOpts (the show() contract) lives in state/stores/ui, so
 // state stays view-independent.
@@ -21,7 +22,7 @@ import { LoadingStep, LOADING_STEPS, LOADING_STEP_LABELS } from '@/constants';
 
 export interface OverlayState {
   visible: boolean;
-  kind: 'git' | 'local' | null;
+  kind: SourceKind | null;
   branch: string | null;
   activeStep: LoadingStep | null;
   pendingLabel: string | null;
@@ -58,18 +59,18 @@ export function LoadingOverlay() {
         </div>
         <ol class="loading-steps">
           {LOADING_STEPS.map((step) => {
-            const isLocal = s.kind === 'local';
+            const isLocal = s.kind === SourceKind.Local;
             if (isLocal && (step === LoadingStep.Resolving || step === LoadingStep.Cloning)) {
               return (
-                <li key={step} data-step={step} data-state="pending" style={{ display: 'none' }}>
+                <li key={step} data-step={step} data-state={LoadingStepState.Pending} style={{ display: 'none' }}>
                   {LOADING_STEP_LABELS[step]}
                 </li>
               );
             }
             const thisIdx = LOADING_STEPS.indexOf(step);
-            let stepState: 'pending' | 'active' | 'done' = 'pending';
-            if (thisIdx < activeIdx) stepState = 'done';
-            else if (thisIdx === activeIdx) stepState = 'active';
+            let stepState: LoadingStepState = LoadingStepState.Pending;
+            if (thisIdx < activeIdx) stepState = LoadingStepState.Done;
+            else if (thisIdx === activeIdx) stepState = LoadingStepState.Active;
             const tail = s.stepTails[step];
             return (
               <li key={step} data-step={step} data-state={stepState}>

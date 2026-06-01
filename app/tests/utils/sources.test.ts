@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { labelFromManifest, labelFromUrl, srcKind, toHttpsRepoUrl } from '@/utils/sources';
+import { labelFromManifest, labelFromUrl, srcKind, SourceKind, toHttpsRepoUrl } from '@/utils/sources';
 import type { Manifest } from '@/types/manifest';
 
 // Test helper: build the minimal Manifest shape labelFromManifest reads,
@@ -112,14 +112,14 @@ describe('toHttpsRepoUrl', () => {
 
 describe('srcKind', () => {
   it('classifies https URLs as git', () => {
-    expect(srcKind('https://github.com/foo/bar.git')).toBe('git');
+    expect(srcKind('https://github.com/foo/bar.git')).toBe(SourceKind.Git);
   });
   it('classifies SSH URLs as git', () => {
-    expect(srcKind('git@github.com:foo/bar.git')).toBe('git');
+    expect(srcKind('git@github.com:foo/bar.git')).toBe(SourceKind.Git);
   });
   it('classifies local paths as local', () => {
-    expect(srcKind('/Users/x/repo')).toBe('local');
-    expect(srcKind('./relative')).toBe('local');
-    expect(srcKind('bare-name')).toBe('local');
+    expect(srcKind('/Users/x/repo')).toBe(SourceKind.Local);
+    expect(srcKind('./relative')).toBe(SourceKind.Local);
+    expect(srcKind('bare-name')).toBe(SourceKind.Local);
   });
 });
