@@ -748,13 +748,15 @@ def _serve_manifest(handler: BaseHTTPRequestHandler, query: str) -> None:
     try:
         _stream_events(handler, _events(), cancel_event)
 
-        # Only cache on successful completion AND only when use_cache.
+        # Always write the cache on a successful scan — `use_cache` only
+        # controls whether we READ from it. A skip-cache (no_cache) scan still
+        # persists its fresh result, so the next normal load is served the
+        # up-to-date manifest instead of a stale one.
         final_manifest = state["final_manifest"]
         scan_target = state["scan_target"]
         sig = state["sig"]
         if (
-            use_cache
-            and final_manifest is not None
+            final_manifest is not None
             and scan_target is not None
             and sig is not None
         ):

@@ -411,7 +411,10 @@ def _collect_git_metadata(
     tracked = _collect_tracked_set(root)
     _log(f"    {len(tracked)} tracked entries (files + dirs)")
 
-    if use_cache and head_sha:
+    # Always write the cache (only `head_sha` is required to key it) —
+    # `use_cache` gates the READ above, not the write. A skip-cache scan
+    # still refreshes the cache so the next normal run is up to date.
+    if head_sha:
         try:
             cache_save_git_history(root, head_sha, created, modified, commits)
         except OSError:
@@ -806,26 +809,27 @@ def _populate_file_metadata(
                 raise
         _log(f"    read {len(miss_paths)}/{len(miss_paths)} files")
 
-    if use_cache:
-        # Union-merge: start from the loaded cache (preserves entries
-        # for files not visited this scan, e.g. when .codecityignore flips)
-        # and overwrite with current values for everything we did visit.
-        for node in nodes:
-            entry: FileEntry = {
-                "size": node["size"],
-                "mtime": _node_mtime(node),
-                "lines": node["lines"],
-                "binary": node["binary"],
-                "ext": node["extension"],
-            }
-            if "media_width" in node and "media_height" in node:
-                entry["media_width"] = node["media_width"]
-                entry["media_height"] = node["media_height"]
-            cache_entries[node["path"]] = entry
-        try:
-            cache_save_files(abs_root, cache_entries)
-        except OSError:
-            pass
+    # Always write the file-stat cache — `use_cache` gates only the READ.
+    # On a warm scan cache_entries holds the loaded cache, so this is a
+    # union-merge (preserves entries for files not visited this scan, e.g.
+    # when .codecityignore flips); on a skip-cache scan it starts empty and
+    # records exactly the files this fresh scan visited.
+    for node in nodes:
+        entry: FileEntry = {
+            "size": node["size"],
+            "mtime": _node_mtime(node),
+            "lines": node["lines"],
+            "binary": node["binary"],
+            "ext": node["extension"],
+        }
+        if "media_width" in node and "media_height" in node:
+            entry["media_width"] = node["media_width"]
+            entry["media_height"] = node["media_height"]
+        cache_entries[node["path"]] = entry
+    try:
+        cache_save_files(abs_root, cache_entries)
+    except OSError:
+        pass
 
 
 def _iter_file_nodes(tree: DirNode) -> Iterator[FileNode]:

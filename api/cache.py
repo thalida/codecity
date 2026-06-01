@@ -71,7 +71,13 @@ _GIT_HISTORY_CACHE_VERSION = 11
 # top-level busyness thresholds. Pre-v3 cached manifests lack both, so
 # consumers (street view, commit-pane busyness label, scene tree color)
 # would mis-render until a fresh scan; bumping forces the re-cache.
-_MANIFEST_SCHEMA_VERSION = 3
+# v4: a latent bug in cache_load_git_history dropped each commit's authors
+# + subject when reconstructing from the git-history cache. It never bit
+# until the v3 bump invalidated the manifest blobs and forced a re-scan that
+# rebuilds commits FROM that cache — which then cached author-less manifests
+# (fireflies/header crash on commit.authors). The loader is fixed; this bump
+# discards the polluted v3 blobs so a normal load re-scans correctly.
+_MANIFEST_SCHEMA_VERSION = 4
 # Composite cache version: invalidates when EITHER the manifest
 # schema OR the git-history cache shape changes. Stored as a string
 # in the cache file's `version` field; the loader's equality check
@@ -239,11 +245,26 @@ def cache_load_git_history(
         date = c.get("date")
         files = c.get("files")
         sha = c.get("sha")
+        authors = c.get("authors")
+        subject = c.get("subject")
+        # Reconstruct the FULL CommitEntry — authors + subject are part of the
+        # shape (v9/v11) and manifest consumers (fireflies iterate authors,
+        # the commit pane shows subject) break without them. Drop any commit
+        # missing/malformed on any field rather than emit a partial entry.
         if (isinstance(date, str)
                 and isinstance(files, int) and not isinstance(files, bool)
                 and isinstance(sha, str)
-                and _SHA_HEX_RE.fullmatch(sha) is not None):
-            commits.append({"date": date, "files": files, "sha": sha})
+                and _SHA_HEX_RE.fullmatch(sha) is not None
+                and isinstance(authors, list)
+                and all(isinstance(a, str) for a in authors)
+                and isinstance(subject, str)):
+            commits.append({
+                "date": date,
+                "files": files,
+                "sha": sha,
+                "authors": authors,
+                "subject": subject,
+            })
     return created, modified, commits
 
 

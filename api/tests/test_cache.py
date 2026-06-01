@@ -119,6 +119,37 @@ class GitHistoryCacheTests(CacheTestBase):
         result = cache_mod.cache_load_git_history(root, "abc123")
         self.assertEqual(result, (created, modified, []))
 
+    def test_round_trips_full_commit_entries(self) -> None:
+        # The loader must reconstruct the WHOLE CommitEntry — authors +
+        # subject included. A previous bug dropped them, so commits loaded
+        # from a warm cache had no `authors`, crashing the fireflies
+        # consumer (`for author of c.authors`). Round-trip a populated commit.
+        root = Path("/some/repo")
+        commits = [
+            {
+                "date": "2024-01-01",
+                "files": 3,
+                "sha": "a" * 40,
+                "authors": ["Alice", "Bob"],
+                "subject": "Initial commit",
+            },
+            {
+                "date": "2024-01-02",
+                "files": 1,
+                "sha": "b" * 40,
+                "authors": [],
+                "subject": "Empty-authors edge case",
+            },
+        ]
+        cache_mod.cache_save_git_history(root, "head1", {}, {}, commits)
+        result = cache_mod.cache_load_git_history(root, "head1")
+        assert result is not None
+        _, _, loaded = result
+        self.assertEqual(loaded, commits)
+        # Every loaded commit carries an iterable authors list.
+        for c in loaded:
+            self.assertIsInstance(c["authors"], list)
+
     def test_miss_on_different_head(self) -> None:
         root = Path("/some/repo")
         cache_mod.cache_save_git_history(root, "abc123", {}, {}, [])
@@ -178,8 +209,10 @@ class GitHistoryCacheTests(CacheTestBase):
         """Round-trip a small commits list through the cache."""
         root = Path("/some/repo")
         commits: list[CommitEntry] = [
-            {"date": "2024-01-01", "files": 3, "sha": "a" * 40},
-            {"date": "2024-02-15", "files": 7, "sha": "b" * 40},
+            {"date": "2024-01-01", "files": 3, "sha": "a" * 40,
+             "authors": ["Alice"], "subject": "first"},
+            {"date": "2024-02-15", "files": 7, "sha": "b" * 40,
+             "authors": ["Bob", "Carol"], "subject": "second"},
         ]
         cache_mod.cache_save_git_history(
             root, head_sha="abc",
@@ -208,26 +241,41 @@ class GitHistoryCacheTests(CacheTestBase):
             "created": {},
             "modified": {},
             "commits": [
-                {"date": "2024-01-01", "files": 3, "sha": sha_a},   # valid
+                {"date": "2024-01-01", "files": 3, "sha": sha_a,
+                 "authors": ["Alice"], "subject": "ok"},              # valid
                 "not a dict",                                         # dropped: not a dict
-                {"date": 12345, "files": 5, "sha": sha_a},           # dropped: date not str
-                {"date": "2024-02-01", "sha": sha_a},                # dropped: missing files
-                {"date": "2024-03-01", "files": True, "sha": sha_a}, # dropped: files is bool
-                {"files": 4, "sha": sha_a},                          # dropped: missing date
-                {"date": "2024-04-01", "files": 7},                  # dropped: missing sha
-                {"date": "2024-05-01", "files": 2, "sha": "short"},  # dropped: sha too short
-                {"date": "2024-05-15", "files": 4, "sha": "Z" * 40}, # sha contains non-hex characters
-                {"date": "2024-06-01", "files": 1, "sha": sha_b},    # valid
+                {"date": 12345, "files": 5, "sha": sha_a,
+                 "authors": [], "subject": "x"},                      # dropped: date not str
+                {"date": "2024-02-01", "sha": sha_a,
+                 "authors": [], "subject": "x"},                      # dropped: missing files
+                {"date": "2024-03-01", "files": True, "sha": sha_a,
+                 "authors": [], "subject": "x"},                      # dropped: files is bool
+                {"files": 4, "sha": sha_a,
+                 "authors": [], "subject": "x"},                      # dropped: missing date
+                {"date": "2024-04-01", "files": 7,
+                 "authors": [], "subject": "x"},                      # dropped: missing sha
+                {"date": "2024-05-01", "files": 2, "sha": "short",
+                 "authors": [], "subject": "x"},                      # dropped: sha too short
+                {"date": "2024-05-15", "files": 4, "sha": "Z" * 40,
+                 "authors": [], "subject": "x"},                      # dropped: non-hex sha
+                {"date": "2024-07-01", "files": 1, "sha": sha_a,
+                 "authors": "Alice", "subject": "x"},                 # dropped: authors not a list
+                {"date": "2024-08-01", "files": 1, "sha": sha_a,
+                 "authors": ["Alice"]},                               # dropped: missing subject
+                {"date": "2024-06-01", "files": 1, "sha": sha_b,
+                 "authors": ["Bob"], "subject": "ok2"},               # valid
             ],
         }), encoding="utf-8")
         loaded = cache_mod.cache_load_git_history(root, "abc")
         self.assertIsNotNone(loaded)
         assert loaded is not None
         _created, _modified, commits = loaded
-        # Only the two well-formed entries survive.
+        # Only the two well-formed entries survive (with authors + subject).
         self.assertEqual(commits, [
-            {"date": "2024-01-01", "files": 3, "sha": sha_a},
-            {"date": "2024-06-01", "files": 1, "sha": sha_b},
+            {"date": "2024-01-01", "files": 3, "sha": sha_a,
+             "authors": ["Alice"], "subject": "ok"},
+            {"date": "2024-06-01", "files": 1, "sha": sha_b,
+             "authors": ["Bob"], "subject": "ok2"},
         ])
 
     def test_git_history_rejects_old_version(self):
