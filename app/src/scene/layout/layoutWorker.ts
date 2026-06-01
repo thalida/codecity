@@ -12,7 +12,7 @@ import {
 } from '@/state/settings/index';
 import type { StreetLayoutConfig, StreetTier } from '@/state/settings/components/streets';
 import type { BuildingDimensionsConfig } from '@/state/settings/components/buildings';
-import type { GemSizingConfig } from '@/state/settings/components/gem';
+import type { GemSizingConfig } from '@/state/settings/gem';
 import type { Manifest } from '@/types';
 import type { CityLayout } from '@/types';
 

@@ -17,6 +17,7 @@ import {
   BUILDING_PALETTE,
   STREET_LAYOUT,
   STREET_TIERS,
+  GEM,
   GEM_SIZING,
   AD_PANEL,
   LABEL_TYPOGRAPHY,
@@ -29,9 +30,6 @@ import {
   BUILDING_AGING,
   PATH_LINE,
   HOVER_PATH_LINE,
-  GEM_APPEARANCE,
-  GEM_FACE_PALETTE,
-  GEM_GLOW,
   BLOOM,
   LIGHTING,
   FACADE_DETAIL,
@@ -69,6 +67,7 @@ const REBUILD_SIGNATURE = computed(() => ({
   streetLayout: STREET_LAYOUT.value,
   streetTiers: STREET_TIERS.value,
   gemSizing: GEM_SIZING.value,
+  gemSides: GEM.value.SIDES, // polyhedron face count → geometry rebuild
   adPanel: AD_PANEL.value,
   labelTypography: LABEL_TYPOGRAPHY.value,
 
@@ -146,9 +145,24 @@ const MATERIAL_REFRESH_SIGNATURE = computed(() => ({
   buildingAging: BUILDING_AGING.value,
   pathLine: PATH_LINE.value,
   hoverPathLine: HOVER_PATH_LINE.value,
-  gemAppearance: GEM_APPEARANCE.value,
-  gemFacePalette: GEM_FACE_PALETTE.value,
-  gemGlow: GEM_GLOW.value,
+  // GEM material keys only — appearance + face palette + glow. SIDES is a
+  // rebuild trigger (above) and the animation keys are read per-frame (not via
+  // applyTheme), so neither belongs in the material signature.
+  gem: {
+    edgeColor: GEM.value.EDGE_COLOR,
+    bodyOpacity: GEM.value.BODY_OPACITY,
+    faces: [
+      GEM.value.FACE_1, GEM.value.FACE_2, GEM.value.FACE_3, GEM.value.FACE_4,
+      GEM.value.FACE_5, GEM.value.FACE_6, GEM.value.FACE_7, GEM.value.FACE_8,
+    ],
+    glowEnabled: GEM.value.GLOW_ENABLED,
+    glowInnerScale: GEM.value.GLOW_INNER_SCALE,
+    glowInnerOpacity: GEM.value.GLOW_INNER_OPACITY,
+    glowOuterScale: GEM.value.GLOW_OUTER_SCALE,
+    glowOuterOpacity: GEM.value.GLOW_OUTER_OPACITY,
+    glowAnimateColors: GEM.value.GLOW_ANIMATE_COLORS,
+    glowCyclePeriod: GEM.value.GLOW_CYCLE_PERIOD_SECONDS,
+  },
   bloom: BLOOM.value,
   lighting: LIGHTING.value,
   facadeDetail: FACADE_DETAIL.value,

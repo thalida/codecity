@@ -28,6 +28,11 @@ import { isMediaFile } from '../components/adPanels/adPanels';
 import { WorldOccupancy, WorldRectKind } from './worldOccupancy';
 import type { WorldRect } from './worldOccupancy';
 
+// Dead-space pad past the gem at the root street's origin end, as a multiple of
+// the gem's diameter. Fixed, not user-tunable (was in GEM_SIZING but never
+// exposed as a control).
+const GEM_CLEARANCE_AS_GEM_WIDTH_FRAC = 1.0;
+
 // Structural shapes — kept lenient so test fixtures (which omit fields the
 // helpers don't read, like name/path on intermediate nodes) stay
 // compatible. Real callers pass full Manifest / TreeNode / FileNode
@@ -724,7 +729,7 @@ export function estimateDirReaches(
     : Math.max(rootEndPad, openEndPad);
   const gemRadius = Math.max(myStreetWidth * gemRadiusFrac, gemSizing.MIN_RADIUS);
   const gemDiameter = gemRadius * 2;
-  const gemClearance = gemDiameter * gemSizing.CLEARANCE_AS_GEM_WIDTH_FRAC;
+  const gemClearance = gemDiameter * GEM_CLEARANCE_AS_GEM_WIDTH_FRAC;
   const originPad = !parentStreetWidth
     ? Math.max(endPad, myStreetWidth * (0.5 + gemRadiusFrac) + gemClearance)
     : joinEndBaseline;
@@ -843,7 +848,7 @@ function _layoutDir(
   // pad never under-reserves for a narrow root street.
   const gemRadius = Math.max(myStreetWidth * gemRadiusFrac, gemSizing.MIN_RADIUS);
   const gemDiameter = gemRadius * 2;
-  const gemClearance = gemDiameter * gemSizing.CLEARANCE_AS_GEM_WIDTH_FRAC;
+  const gemClearance = gemDiameter * GEM_CLEARANCE_AS_GEM_WIDTH_FRAC;
   const originPad = !parentStreetWidth
     ? Math.max(endPad, myStreetWidth * (0.5 + gemRadiusFrac) + gemClearance)
     : joinEndBaseline;

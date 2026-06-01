@@ -52,12 +52,11 @@ export * from './components/streets';
 export * from './components/buildings';
 export * from './components/facade';
 export * from './components/adPanels';
-export * from './components/gem';
+export * from './gem';
 export * from './island';
 export * from './components/footprint';
 export * from './trees';
 export * from './fireflies';
-export * from './components/repoLabel';
 
 // ── Cross-cutting visual effects ──────────────────────────────────────
 export * from './effects';

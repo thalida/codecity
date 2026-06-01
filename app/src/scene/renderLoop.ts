@@ -11,13 +11,10 @@ import {
   ASPHALT,
   SIDEWALK_COLORS,
   LABEL_TYPOGRAPHY,
-  GEM_ANIMATION,
-  GEM_APPEARANCE,
-  GEM_FACE_PALETTE,
-  GEM_GLOW,
-  GEM_SIZING,
+  GEM,
   BLOOM,
 } from '../state/settings/index';
+import { GEM_HOVER_LIFT_FRAC } from '@/scene/components/gem/gem';
 import { NodeKind, StreetAxis } from '../types';
 import type { Manifest } from '../types';
 
@@ -253,7 +250,7 @@ export async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manif
     // until the first manifest with media files applies.
     world.getAdPanels()?.refresh();
 
-    const gemAppearance = GEM_APPEARANCE.value;
+    const gemAppearance = GEM.value;
     const rootGemEdges = world.getRootGemEdges();
     const rootGemBody = world.getRootGemBody();
     const rootGem = world.getRootGem();
@@ -276,7 +273,7 @@ export async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manif
     // baked at construction. Rewrite it in place on Save so palette tweaks
     // take effect without a full applyManifest rebuild.
     if (rootGemBody?.geometry?.attributes.color) {
-      const palette = GEM_FACE_PALETTE.value;
+      const palette = GEM.value;
       const paletteHexes = [
         palette.FACE_1,
         palette.FACE_2,
@@ -308,7 +305,7 @@ export async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manif
       colorAttr.needsUpdate = true;
     }
     if (rootGem && rootGem.userData.streetWidth != null) {
-      const hoverFrac = GEM_SIZING.value.HOVER_LIFT_FRAC;
+      const hoverFrac = GEM_HOVER_LIFT_FRAC;
       rootGem.userData.baseY = rootGem.userData.radius + rootGem.userData.streetWidth * hoverFrac;
     }
 
@@ -316,19 +313,19 @@ export async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manif
     // is driven per-frame by the render loop (palette cycle), so we
     // don't touch it here.
     if (rootGem && rootGem.userData.radius != null) {
-      const glowCfg = GEM_GLOW.value;
+      const glowCfg = GEM.value;
       const r = rootGem.userData.radius as number;
       const inner = rootGem.userData.innerGlowSprite as THREE.Sprite | null;
       const outer = rootGem.userData.outerGlowSprite as THREE.Sprite | null;
       if (inner) {
-        inner.visible = glowCfg.ENABLED;
-        inner.scale.set(r * glowCfg.INNER_SCALE, r * glowCfg.INNER_SCALE, 1);
-        (inner.material as THREE.SpriteMaterial).opacity = glowCfg.INNER_OPACITY;
+        inner.visible = glowCfg.GLOW_ENABLED;
+        inner.scale.set(r * glowCfg.GLOW_INNER_SCALE, r * glowCfg.GLOW_INNER_SCALE, 1);
+        (inner.material as THREE.SpriteMaterial).opacity = glowCfg.GLOW_INNER_OPACITY;
       }
       if (outer) {
-        outer.visible = glowCfg.ENABLED;
-        outer.scale.set(r * glowCfg.OUTER_SCALE, r * glowCfg.OUTER_SCALE, 1);
-        (outer.material as THREE.SpriteMaterial).opacity = glowCfg.OUTER_OPACITY;
+        outer.visible = glowCfg.GLOW_ENABLED;
+        outer.scale.set(r * glowCfg.GLOW_OUTER_SCALE, r * glowCfg.GLOW_OUTER_SCALE, 1);
+        (outer.material as THREE.SpriteMaterial).opacity = glowCfg.GLOW_OUTER_OPACITY;
       }
     }
 
@@ -474,7 +471,7 @@ export async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manif
     _orientLabelsForCamera(world.getStreetLabels(), camera, labelRight);
     const rootGem = world.getRootGem();
     if (rootGem) {
-      const gemAnim = GEM_ANIMATION.value;
+      const gemAnim = GEM.value;
       const t = (performance.now() - startTime) / 1000;
       rootGem.rotation.y = t * gemAnim.ROTATION_SPEED;
       // BOB_AMPLITUDE_FRAC is read live each frame so the slider
@@ -495,12 +492,12 @@ export async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manif
       // is on; otherwise fall back to the gem's EDGE_COLOR. Two halos
       // cycle on different phases so the gem reads with two colors at
       // any moment, blending as they cross.
-      const glowCfg = GEM_GLOW.value;
+      const glowCfg = GEM.value;
       const inner = rootGem.userData.innerGlowSprite as THREE.Sprite | null;
       const outer = rootGem.userData.outerGlowSprite as THREE.Sprite | null;
       if (inner || outer) {
-        if (glowCfg.ANIMATE_COLORS) {
-          const palette = GEM_FACE_PALETTE.value;
+        if (glowCfg.GLOW_ANIMATE_COLORS) {
+          const palette = GEM.value;
           const hexes = [
             palette.FACE_1,
             palette.FACE_2,
@@ -511,13 +508,13 @@ export async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manif
             palette.FACE_7,
             palette.FACE_8,
           ];
-          const period = Math.max(0.001, glowCfg.CYCLE_PERIOD_SECONDS);
+          const period = Math.max(0.001, glowCfg.GLOW_CYCLE_PERIOD_SECONDS);
           if (inner)
             _setPaletteColor((inner.material as THREE.SpriteMaterial).color, hexes, t, period, 0);
           if (outer)
             _setPaletteColor((outer.material as THREE.SpriteMaterial).color, hexes, t, period, 0.5);
         } else {
-          const edge = GEM_APPEARANCE.value.EDGE_COLOR;
+          const edge = GEM.value.EDGE_COLOR;
           if (inner) (inner.material as THREE.SpriteMaterial).color.set(edge);
           if (outer) (outer.material as THREE.SpriteMaterial).color.set(edge);
         }

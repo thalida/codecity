@@ -11,15 +11,14 @@
 // just builds the static structure; mutation lives elsewhere.
 
 import * as THREE from 'three';
-import {
-  GEM_SIZING,
-  GEM_FACE_PALETTE,
-  GEM_APPEARANCE,
-  GEM_GLOW,
-} from '@/state/settings/components/gem';
+import { GEM, GEM_SIZING } from '@/state/settings/gem';
 import { NodeKind } from '@/types';
 import { gemAnchorXZ } from '../../utils/gemAnchor';
 import type { Street } from '@/types';
+
+// Gem hover-lift as a fraction of street width — fixed, not user-tunable
+// (was in GEM_SIZING but never exposed as a control). Shared with renderLoop.
+export const GEM_HOVER_LIFT_FRAC = 0.5;
 
 // Procedural glow texture: a single-channel radial gradient drawn on a
 // canvas, used as the alpha map for the gem's sprite halo. Cached at
@@ -68,7 +67,7 @@ function _makeGlowTexture(): THREE.CanvasTexture | null {
 // layout reserves — see GEM_SIZING).
 export function createRootGem(street: Street): THREE.Group {
   const sizing = GEM_SIZING.value;
-  const appearance = GEM_APPEARANCE.value;
+  const appearance = GEM.value;
   const edgeColor = appearance.EDGE_COLOR;
   const group = new THREE.Group();
 
@@ -79,7 +78,7 @@ export function createRootGem(street: Street): THREE.Group {
   // that pad.
   const radiusFrac = sizing.RADIUS_AS_STREET_FRAC;
   const minRadius = sizing.MIN_RADIUS;
-  const hoverFrac = sizing.HOVER_LIFT_FRAC;
+  const hoverFrac = GEM_HOVER_LIFT_FRAC;
 
   let radius = street.width * radiusFrac;
   if (radius < minRadius) radius = minRadius;
@@ -93,7 +92,7 @@ export function createRootGem(street: Street): THREE.Group {
   const gemZ = anchor.y;
 
   // ---- Gem: per-face colored polyhedron -------------------------------------
-  const sides = GEM_SIZING.value.SIDES;
+  const sides = GEM.value.SIDES;
   let geo: THREE.BufferGeometry;
   switch (sides) {
     case '4':
@@ -108,7 +107,7 @@ export function createRootGem(street: Street): THREE.Group {
       break;
   }
 
-  const palette = GEM_FACE_PALETTE.value;
+  const palette = GEM.value;
   const paletteHexes = [
     palette.FACE_1,
     palette.FACE_2,
@@ -179,7 +178,7 @@ export function createRootGem(street: Street): THREE.Group {
   //
   // Skipped when _makeGlowTexture returns null (jsdom test env).
   const gem = new THREE.Group();
-  const glowCfg = GEM_GLOW.value;
+  const glowCfg = GEM.value;
   const glowTex = _makeGlowTexture();
   let innerGlowSprite: THREE.Sprite | null = null;
   let outerGlowSprite: THREE.Sprite | null = null;
@@ -189,7 +188,7 @@ export function createRootGem(street: Street): THREE.Group {
         map: glowTex,
         color: new THREE.Color(edgeColor),
         transparent: true,
-        opacity: glowCfg.INNER_OPACITY,
+        opacity: glowCfg.GLOW_INNER_OPACITY,
         blending: THREE.AdditiveBlending,
         depthWrite: false,
         // Depth test ON: the halo must be occluded by opaque foreground
@@ -200,8 +199,8 @@ export function createRootGem(street: Street): THREE.Group {
         depthTest: true,
       })
     );
-    innerGlowSprite.scale.set(radius * glowCfg.INNER_SCALE, radius * glowCfg.INNER_SCALE, 1);
-    innerGlowSprite.visible = glowCfg.ENABLED;
+    innerGlowSprite.scale.set(radius * glowCfg.GLOW_INNER_SCALE, radius * glowCfg.GLOW_INNER_SCALE, 1);
+    innerGlowSprite.visible = glowCfg.GLOW_ENABLED;
     // Glow is purely visual — never absorbs hover / click. Sprites are
     // raycast-pickable by default, so override with a no-op.
     innerGlowSprite.raycast = () => {};
@@ -211,7 +210,7 @@ export function createRootGem(street: Street): THREE.Group {
         map: glowTex,
         color: new THREE.Color(edgeColor),
         transparent: true,
-        opacity: glowCfg.OUTER_OPACITY,
+        opacity: glowCfg.GLOW_OUTER_OPACITY,
         blending: THREE.AdditiveBlending,
         depthWrite: false,
         // Depth test OFF on the OUTER halo only: this big atmospheric
@@ -224,8 +223,8 @@ export function createRootGem(street: Street): THREE.Group {
         depthTest: false,
       })
     );
-    outerGlowSprite.scale.set(radius * glowCfg.OUTER_SCALE, radius * glowCfg.OUTER_SCALE, 1);
-    outerGlowSprite.visible = glowCfg.ENABLED;
+    outerGlowSprite.scale.set(radius * glowCfg.GLOW_OUTER_SCALE, radius * glowCfg.GLOW_OUTER_SCALE, 1);
+    outerGlowSprite.visible = glowCfg.GLOW_ENABLED;
     outerGlowSprite.raycast = () => {};
 
     // Draw outer halo first (largest, softest), then inner, then the

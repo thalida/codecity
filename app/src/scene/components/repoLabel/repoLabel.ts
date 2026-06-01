@@ -30,7 +30,7 @@
 import * as THREE from 'three';
 
 import { BUILDING_DIMENSIONS } from '@/state/settings/components/buildings';
-import { REPO_LABEL } from '@/state/settings/components/repoLabel';
+import { REPO_LABEL } from '@/state/settings/gem';
 import { RENDER_ORDERS } from '@/scene/renderOrders';
 
 import vertSrc from './holoQuad.vert.glsl?raw';

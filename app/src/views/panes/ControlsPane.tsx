@@ -24,7 +24,7 @@ import { ShortcutsSection } from './controls/ShortcutsSection';
 
 import { BuildingsSection } from './controls/BuildingsSection';
 import { StreetsSection } from './controls/StreetsSection';
-import { GemSection } from './controls/GemSection';
+
 import { FilePreviewSection } from './controls/FilePreviewSection';
 import { DebugSection } from './controls/DebugSection';
 import { DynamicSection, type SectionNode } from './controls/sections';
@@ -34,6 +34,7 @@ import { FIREFLIES_SECTION } from './controls/sections/fireflies';
 import { UPDATES_SECTION } from './controls/sections/updates';
 import { ISLAND_SECTION } from './controls/sections/island';
 import { SCENE_SECTION } from './controls/sections/scene';
+import { GEM_SECTION } from './controls/sections/gem';
 import { ActionsBar } from './controls/ActionsBar';
 import { Pane } from '@/views/components/Pane';
 
@@ -75,7 +76,7 @@ export function ControlsPane({
     ISLAND_SECTION,
     { key: 'buildings', render: <BuildingsSection /> },
     { key: 'streets', render: <StreetsSection /> },
-    { key: 'gem', render: <GemSection /> },
+    GEM_SECTION,
     TREES_SECTION,
     FIREFLIES_SECTION,
     EFFECTS_SECTION,
