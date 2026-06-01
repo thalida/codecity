@@ -738,21 +738,15 @@ h6 {
   opacity: 0.7;
 }
 
-/* .gem-icon — the codecity gem rendered as a full-color SVG background
-   image (not a CSS mask), so the per-face palette colors render directly
-   instead of being collapsed to currentColor. Same 1em sizing as
-   .lucide-icon so it slots into header buttons without throwing off
-   alignment. The .lucide-icon mask path is the simple monochrome variant;
-   see the GemIcon component in components/GemIcon.tsx. */
+/* .gem-icon — sizing for the codecity gem, an inline <svg> whose per-face
+   palette fills render directly (see the GemIcon component in
+   components/GemIcon.tsx). Same 1em sizing as .lucide-icon so it slots into
+   header buttons without throwing off alignment. */
 .gem-icon {
   display: inline-block;
   width: 1em;
   height: 1em;
   vertical-align: -0.15em;
-  background-image: url(/gem.svg);
-  background-size: contain;
-  background-repeat: no-repeat;
-  background-position: center;
 }
 
 /* ── Base ───────────────────────────────────────────────────────────────────── */

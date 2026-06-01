@@ -1,7 +1,10 @@
 // components/HostingIcon.tsx — Brand glyph for a git-hosting provider
 // (GitHub, GitLab, Bitbucket) with a generic globe fallback, picked from a
-// source URL and rendered inline as JSX (no innerHTML). Brand glyphs only —
-// for UI affordances elsewhere use <LucideIcon name=… />.
+// source URL and rendered inline as JSX (no innerHTML). The brand glyphs are
+// inlined because lucide dropped brand icons; the generic fallback is lucide's
+// <Globe>.
+
+import { Globe } from 'lucide-preact';
 
 export interface HostingIconProps {
   /** Source URL — provider is sniffed from the host. */
@@ -32,30 +35,10 @@ function BitbucketGlyph() {
   );
 }
 
-function GlobeGlyph() {
-  return (
-    <svg
-      width="16"
-      height="16"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      stroke-width="2"
-      stroke-linecap="round"
-      stroke-linejoin="round"
-      aria-hidden="true"
-    >
-      <circle cx="12" cy="12" r="10" />
-      <path d="M2 12h20" />
-      <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
-    </svg>
-  );
-}
-
 export function HostingIcon({ src }: HostingIconProps) {
   const lower = src.toLowerCase();
   if (/github\.com/.test(lower)) return <GithubGlyph />;
   if (/gitlab\.com/.test(lower) || /\.gitlab\.io/.test(lower)) return <GitlabGlyph />;
   if (/bitbucket\.org/.test(lower)) return <BitbucketGlyph />;
-  return <GlobeGlyph />;
+  return <Globe width={16} height={16} aria-hidden="true" />;
 }
