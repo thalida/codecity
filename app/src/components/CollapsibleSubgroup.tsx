@@ -9,7 +9,7 @@
 import type { ComponentChildren } from 'preact';
 import { ChevronRight, RotateCcw } from 'lucide-preact';
 import { stageReset } from '@/state/drafts';
-import { useAnyResettable, type ResettableRef } from './hooks';
+import { useAnyResettable, type ResettableRef } from '@/hooks/useControls';
 
 export interface CollapsibleSubgroupProps {
   name: string;

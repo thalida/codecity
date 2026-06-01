@@ -9,7 +9,7 @@ import {
   SYNTAX_THEME_OPTIONS,
 } from '@/state/stores/settings/index';
 import { RotateCcw } from 'lucide-preact';
-import { Section } from './Section';
+import { Section } from '@/components/Section';
 
 export function FilePreviewSection() {
   const current = SYNTAX_THEME.value;

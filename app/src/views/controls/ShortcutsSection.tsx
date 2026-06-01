@@ -3,8 +3,8 @@
 // material rendered straight from KEY_BINDINGS plus hard-coded mouse
 // affordances.
 
-import { Section } from './Section';
-import { CollapsibleSubgroup } from './CollapsibleSubgroup';
+import { Section } from '@/components/Section';
+import { CollapsibleSubgroup } from '@/components/CollapsibleSubgroup';
 import { KEY_BINDINGS } from '@/constants';
 
 interface ShortcutItem {

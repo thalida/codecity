@@ -15,10 +15,10 @@
 
 import type { Signal } from '@preact/signals';
 import type { ComponentChildren } from 'preact';
-import { Section } from '../Section';
-import { CollapsibleSubgroup } from '../CollapsibleSubgroup';
-import { Subgroup } from '../Subgroup';
-import { Field } from '../Field';
+import { Section } from '@/components/Section';
+import { CollapsibleSubgroup } from '@/components/CollapsibleSubgroup';
+import { Subgroup } from '@/components/Subgroup';
+import { Field } from '@/components/Field';
 
 // ── Node types ───────────────────────────────────────────────────────────────
 

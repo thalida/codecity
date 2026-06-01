@@ -8,7 +8,7 @@
 
 import { FieldKind, getFieldDef } from '@/state/schema';
 import { useField } from '@/hooks/useField';
-import { useEffective, useDefault } from './hooks';
+import { useEffective, useDefault } from '@/hooks/useControls';
 import { setDraft } from '@/state/drafts';
 import type { StreetTier } from '@/state/stores/settings/streets';
 import { RotateCcw } from 'lucide-preact';
