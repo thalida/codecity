@@ -1,4 +1,4 @@
-// scene/inputHandlers.ts — pointer / dblclick / keydown / resize
+// scene/system/inputHandlers.ts — pointer / dblclick / keydown / resize
 // wiring. Translates DOM events into picker and cameraRig calls.
 //
 // Public contract:

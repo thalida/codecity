@@ -1,4 +1,4 @@
-// views/ControlsPane/Field.tsx — One generic settings row, driven entirely
+// components/Field.tsx — One generic settings row, driven entirely
 // by the field's schema definition (looked up by store + key). Dispatches on
 // `kind` to the right primitive and wraps it in a Row (label + tip + reset).
 //

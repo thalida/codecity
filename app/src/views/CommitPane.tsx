@@ -1,4 +1,4 @@
-// views/commitPane.tsx — right-sidebar pane shown when a tree
+// views/CommitPane.tsx — right-sidebar pane shown when a tree
 // (commit) is selected in the city. Shows the short SHA (in the pane
 // header title), author, full commit message (subject + lazy-fetched
 // body), relative age, files changed, same-day commit count with a

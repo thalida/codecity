@@ -1,4 +1,4 @@
-// scene/instanced/adPanelTextureArray.ts — Paged DataArrayTexture manager
+// scene/components/adPanels/adPanelTextureArray.ts — Paged DataArrayTexture manager
 // for instanced ad panels. Each media file (image or video) gets one
 // "flat layer" index in the caller's view; internally that flat index is
 // split into (page, localLayer) so we can use multiple smaller

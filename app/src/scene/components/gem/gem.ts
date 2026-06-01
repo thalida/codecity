@@ -1,4 +1,4 @@
-// gem.ts — The root gem. A floating, slowly-spinning polyhedron with
+// scene/components/gem/gem.ts — The root gem. A floating, slowly-spinning polyhedron with
 // per-face vertex colors and a two-layer additive sprite halo.
 //
 // One gem per scene: it marks the layout's root street as the "you are

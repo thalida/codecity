@@ -1,4 +1,4 @@
-// scene/island/islandMesh.ts — Public API for the floating-island
+// scene/components/island/islandMesh.ts — Public API for the floating-island
 // world-plane module. Replaces createWorldFloor() (worldFloor.ts).
 //
 // Lifecycle:

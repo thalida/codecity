@@ -1,4 +1,4 @@
-// views/streetPane.tsx — right-sidebar pane shown when a directory
+// views/StreetPane.tsx — right-sidebar pane shown when a directory
 // (road) is selected in the city. Shows direct + descendant child
 // counts and a sorted breakdown of every file extension in the
 // descendant subtree.

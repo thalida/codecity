@@ -1,4 +1,4 @@
-// scene/trees/trees.ts — Trees subsystem orchestrator. Thin
+// scene/components/trees/trees.ts — Trees subsystem orchestrator. Thin
 // pass-through from a precomputed TreePlacement[] + the manifest's
 // commit list to a Trees lifecycle handle.
 //

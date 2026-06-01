@@ -1,4 +1,4 @@
-// scene/fireflies/fireflies.ts — Fireflies subsystem orchestrator.
+// scene/components/fireflies/fireflies.ts — Fireflies subsystem orchestrator.
 // Thin pass-through from TreePlacement[] + commits to a renderer
 // lifecycle handle. Mirrors trees/trees.ts.
 

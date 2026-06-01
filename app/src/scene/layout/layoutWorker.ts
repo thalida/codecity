@@ -1,4 +1,4 @@
-// scene/layoutWorker.ts — Web Worker entry point. Receives a manifest
+// scene/layout/layoutWorker.ts — Web Worker entry point. Receives a manifest
 // + a snapshot of the four config stores layoutCity reads, populates
 // the worker's local store instances, runs the layout, posts the
 // result back. Pure compute, no DOM or THREE.* references.

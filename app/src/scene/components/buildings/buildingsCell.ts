@@ -1,4 +1,4 @@
-// scene/instanced/buildingsCell.ts — Cell-aware building InstancedMesh
+// scene/components/buildings/buildingsCell.ts — Cell-aware building InstancedMesh
 // factory. Replaces the per-block factory in buildings.ts for the
 // spatial-grid rendering path.
 //

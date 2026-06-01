@@ -1,4 +1,4 @@
-// views/ControlsPane/partials/updates.ts — Scan & Updates section declaration.
+// views/ControlsPane/partials/Updates.ts — Scan & Updates section declaration.
 import { field, type SectionNode } from '.';
 import { LIVE_UPDATES } from '@/state/stores/settings/updates';
 

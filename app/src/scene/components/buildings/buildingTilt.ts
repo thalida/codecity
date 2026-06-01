@@ -1,4 +1,4 @@
-// scene/instanced/buildingTilt.ts — single source of truth for the
+// scene/components/buildings/buildingTilt.ts — single source of truth for the
 // per-building lean angle.
 //
 // The lean is implemented as a Y-driven XZ shear in building.vert.glsl:

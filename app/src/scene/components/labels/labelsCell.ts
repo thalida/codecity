@@ -1,4 +1,4 @@
-// scene/instanced/labelsCell.ts — Cell-aware label InstancedMesh factory.
+// scene/components/labels/labelsCell.ts — Cell-aware label InstancedMesh factory.
 //
 // Replaces the per-block approach in labels.ts for the spatial-grid
 // rendering path. Geometry + ShaderMaterial are constructed once

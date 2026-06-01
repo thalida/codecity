@@ -1,4 +1,4 @@
-// views/ControlsPane.tsx — "Controls" tab in the left sidebar.
+// views/ControlsPane/index.tsx — "Controls" tab in the left sidebar.
 //
 // Composition shell. The body content lives in per-section components
 // under ./controls/; this file just lays out the section order and the

@@ -1,4 +1,4 @@
-// views/ControlsPane/partials/scene.ts — Scene section declaration. SCENE
+// views/ControlsPane/partials/Scene.ts — Scene section declaration. SCENE
 // holds the backdrop visuals (sky/stars/fog); WORLD holds the ground-sizing
 // knob — both placed here as arrangement.
 import { field, type SectionNode } from '.';

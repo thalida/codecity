@@ -1,4 +1,4 @@
-// scene/shaders/registerShaderChunks.ts — Register our project's GLSL
+// scene/utils/color/registerShaderChunks.ts — Register our project's GLSL
 // chunks with THREE.ShaderChunk so #include <name> resolves natively.
 //
 // Import this module ONCE at scene init (before any ShaderMaterial is

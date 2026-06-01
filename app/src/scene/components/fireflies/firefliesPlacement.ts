@@ -1,4 +1,4 @@
-// scene/fireflies/firefliesPlacement.ts — given a TreePlacement[]
+// scene/components/fireflies/firefliesPlacement.ts — given a TreePlacement[]
 // and the manifest commit list, emit one firefly orb per distinct
 // author of each commit (primary + Co-authored-by trailers).
 // Position is deterministic (seeded by commit SHA + author name) so

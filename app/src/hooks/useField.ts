@@ -1,4 +1,4 @@
-// src/hooks/useField.ts — Bind a single settings field to the draft layer.
+// hooks/useField.ts — Bind a single settings field to the draft layer.
 //
 // Returns the effective value (pending draft if any, else committed) and an
 // onCommit that stages a draft. Tracks both the store signal and DRAFTS_REV so

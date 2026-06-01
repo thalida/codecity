@@ -1,4 +1,4 @@
-// scene/instanced/adPanelsInstanced.ts — Instanced ad panels for media
+// scene/components/adPanels/adPanelsInstanced.ts — Instanced ad panels for media
 // buildings. A single InstancedMesh backed by a DataArrayTexture (one
 // layer per media file). Each media building gets 4 panel slots, one
 // per face (S/N/E/W).

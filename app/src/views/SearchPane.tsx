@@ -1,4 +1,4 @@
-// views/searchPane.tsx — "Search" tab in the left sidebar. A
+// views/SearchPane.tsx — "Search" tab in the left sidebar. A
 // path-search over the project's files. Indexes the flat list of files
 // from the manifest tree; each keystroke runs the matcher across the
 // index and renders the top-N results. Clicking a result fires

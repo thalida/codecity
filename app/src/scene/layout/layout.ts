@@ -1,4 +1,4 @@
-// layout.ts — Street/building placement algorithm. Pure data output,
+// scene/layout/layout.ts — Street/building placement algorithm. Pure data output,
 // no DOM or Three.js.
 //   Building: { x, y, w, d, h, color, file, orient }
 //   Street:   { x, y, w, d, label, dir }

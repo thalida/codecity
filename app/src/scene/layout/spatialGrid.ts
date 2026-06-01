@@ -1,4 +1,4 @@
-// scene/spatialGrid.ts — Maps the layout world plane (XZ) onto a
+// scene/layout/spatialGrid.ts — Maps the layout world plane (XZ) onto a
 // fixed-cell-size 2D grid. Cells are the rendering primitive: each
 // owns a detail InstancedMesh, an optional label InstancedMesh, and
 // merged sidewalk geometry. Grid math is pure: worldToCell,

@@ -1,4 +1,4 @@
-// scene/fireflies/firefliesRenderer.ts — one InstancedMesh of
+// scene/components/fireflies/firefliesRenderer.ts — one InstancedMesh of
 // additive-blended smooth icospheres. Per-instance color + phase. The bob
 // animation lives in the vertex shader so the CPU never re-writes matrices.
 //

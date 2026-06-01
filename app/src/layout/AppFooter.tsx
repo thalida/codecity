@@ -1,4 +1,4 @@
-// layout/appFooter.tsx — Sitewide bottom status bar. Two sections:
+// layout/AppFooter.tsx — Sitewide bottom status bar. Two sections:
 //   left   — combined status indicator: [dot] detail-text
 //            One dot, two channels of state:
 //              color    — rebuild state (green=idle, yellow=rebuilding,

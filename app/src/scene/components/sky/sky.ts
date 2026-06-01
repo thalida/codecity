@@ -1,4 +1,4 @@
-// scene/sky/sky.ts — Cyberpunk Valley procedural sky factory.
+// scene/components/sky/sky.ts — Cyberpunk Valley procedural sky factory.
 //
 // Builds one global inverted-icosphere mesh that wraps the entire
 // scene. The fragment shader writes a flat uSkyColor across the

@@ -1,4 +1,4 @@
-// scene/instanced/buildings.ts — Shared building material + icon atlas.
+// scene/components/buildings/buildings.ts — Shared building material + icon atlas.
 //
 // Owns the singleton ShaderMaterial used by every cell's detail mesh
 // (scene/instanced/buildingsCell.ts attaches per-cell instance buffers to a

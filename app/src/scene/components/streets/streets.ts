@@ -1,4 +1,4 @@
-// streets.ts — Street rendering: two stacked pill-shaped slabs
+// scene/components/streets/streets.ts — Street rendering: two stacked pill-shaped slabs
 // (sidewalk + asphalt) per directory street. Concentric caps so the
 // visible sidewalk strip is uniform around the perimeter, including
 // the curved ends.

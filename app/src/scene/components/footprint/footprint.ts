@@ -1,4 +1,4 @@
-// scene/cityFootprint/footprint.ts — Cyberpunk Valley city footprint.
+// scene/components/footprint/footprint.ts — Cyberpunk Valley city footprint.
 //
 // One InstancedMesh of axis-aligned quads on the XZ plane, one
 // instance per (building | street | path) rect from the CityLayout.

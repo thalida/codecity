@@ -1,4 +1,4 @@
-// scene/postFx.ts — HDR bloom pipeline for cyberpunk neon glow.
+// scene/system/postFx.ts — HDR bloom pipeline for cyberpunk neon glow.
 //
 // Why HDR (HalfFloatType render targets):
 // The building fragment shader writes a per-pixel emission multiplier

@@ -1,4 +1,4 @@
-// components/paneHeader.tsx — Shared header bar used by every pane
+// components/PaneHeader.tsx — Shared header bar used by every pane
 // (Tree, Search, Info, Controls on the left sidebar; file-preview on
 // the right). Single source of truth for the `.pane-header` row +
 // `.text-pane-title` + `.pane-header-close` triplet, so the panes look

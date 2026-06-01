@@ -1,4 +1,4 @@
-// scene/instanced/labelAtlas.ts — Shared atlas builder for label text.
+// scene/components/labels/labelAtlas.ts — Shared atlas builder for label text.
 //
 // Extracted from labels.ts so that both the per-block label factory
 // (labels.ts) and the cell-aware label factory (labelsCell.ts) can

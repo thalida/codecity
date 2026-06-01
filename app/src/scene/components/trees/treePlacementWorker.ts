@@ -1,4 +1,4 @@
-// scene/trees/treePlacementWorker.ts — Web Worker entry for tree
+// scene/components/trees/treePlacementWorker.ts — Web Worker entry for tree
 // placement. Receives a CityLayout + bbox + a snapshot of the config
 // stores placeTrees() reads, populates the worker's local stores,
 // runs the scan, posts back the TreePlacement[]. Pure compute, no

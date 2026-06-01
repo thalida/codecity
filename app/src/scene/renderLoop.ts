@@ -1,4 +1,4 @@
-// renderLoop.ts — Scene + rendering pipeline. Builds the city scene,
+// scene/renderLoop.ts — Scene + rendering pipeline. Builds the city scene,
 // renderer, camera, post-fx, picker, fader, outlines, ghosts, paths,
 // animator, and drives the per-frame animate loop. Extracted from main.ts
 // so that main.ts is purely site-level orchestration (source picker,

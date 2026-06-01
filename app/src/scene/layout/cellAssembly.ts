@@ -1,4 +1,4 @@
-// scene/cellAssembly.ts — Wires SpatialGrid + CellTile + per-cell
+// scene/layout/cellAssembly.ts — Wires SpatialGrid + CellTile + per-cell
 // building factory into a complete scene-ready set of cells given a
 // layout. Called from world.ts.
 //

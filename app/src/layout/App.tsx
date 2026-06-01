@@ -1,4 +1,4 @@
-// App.tsx — Composition root. Mounts all shell components. The scene is booted
+// layout/App.tsx — Composition root. Mounts all shell components. The scene is booted
 // by <CenterPane /> (which owns the canvas); App just keeps document.title in
 // sync and wires the header callbacks to the live SCENE_HANDLE.
 //

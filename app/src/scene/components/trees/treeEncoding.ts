@@ -1,4 +1,4 @@
-// scene/trees/treeEncoding.ts — pure helpers turning commit metadata
+// scene/components/trees/treeEncoding.ts — pure helpers turning commit metadata
 // into [0,1] normalized signals (age / size / commits-per-day). The
 // renderer uses these to pick per-tree heights, widths, and colors.
 //

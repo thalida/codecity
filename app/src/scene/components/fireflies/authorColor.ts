@@ -1,4 +1,4 @@
-// scene/fireflies/authorColor.ts — deterministic per-author color.
+// scene/components/fireflies/authorColor.ts — deterministic per-author color.
 //
 // FNV-1a hash of the UTF-8 bytes of the author name → hue in
 // [0, 360). Fixed lightness/chroma so every author gets a bright,

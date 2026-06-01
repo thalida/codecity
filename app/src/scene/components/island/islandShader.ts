@@ -1,4 +1,4 @@
-// scene/island/islandShader.ts — ShaderMaterial for the floating island.
+// scene/components/island/islandShader.ts — ShaderMaterial for the floating island.
 //
 // Hemispheric lighting model: warm HEMI_SKY_COLOR from +Y, cool
 // HEMI_GROUND_COLOR from -Y, blended by normal.y. No sun direction

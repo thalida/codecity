@@ -1,4 +1,4 @@
-// scene/cameraRig.ts — owns the perspective camera, OrbitControls,
+// scene/system/cameraRig.ts — owns the perspective camera, OrbitControls,
 // initial framing, and the focus/reset animations (R key reset,
 // F key focus-on-selection, dblclick focus).
 //

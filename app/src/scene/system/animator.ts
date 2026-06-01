@@ -1,4 +1,4 @@
-// scene/animator.ts — tween queue for entering / staying transitions
+// scene/system/animator.ts — tween queue for entering / staying transitions
 // when world.applyManifest swaps in a new manifest.
 //
 // Subscribes to world.onChange. For every entering building, starts

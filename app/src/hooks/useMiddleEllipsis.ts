@@ -1,4 +1,4 @@
-// src/hooks/useMiddleEllipsis.ts — Preact hook around the middle-ellipsis
+// hooks/useMiddleEllipsis.ts — Preact hook around the middle-ellipsis
 // DOM-measurement utility (utils/middleEllipsis). Returns a ref to attach to
 // the inline breadcrumb container; re-applies truncation on mount, whenever
 // `deps` change, and on header/parent resize (via a ResizeObserver).

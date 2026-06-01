@@ -1,4 +1,4 @@
-// views/ControlsPane/ResetButton.tsx — Per-row reset icon.
+// components/ResetButton.tsx — Per-row reset icon.
 // Disabled when every bound key already equals its registered default;
 // click stages a reset (Save still required to commit).
 

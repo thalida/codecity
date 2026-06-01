@@ -1,4 +1,4 @@
-// scene/fireflies/orbitRings.ts — selection/hover ring around the tree
+// scene/components/fireflies/orbitRings.ts — selection/hover ring around the tree
 // for the currently hovered + currently selected commits.
 //
 // Shape: two slots (hover + selected). Each slot owns N Meshes — one

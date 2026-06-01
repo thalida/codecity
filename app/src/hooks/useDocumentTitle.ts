@@ -1,4 +1,4 @@
-// src/hooks/useDocumentTitle.ts — Keeps document.title in sync with the
+// hooks/useDocumentTitle.ts — Keeps document.title in sync with the
 // canonical MANIFEST signal: "{label} — codecity" once a project is loaded,
 // plain "codecity" otherwise. Called once from <App />.
 //

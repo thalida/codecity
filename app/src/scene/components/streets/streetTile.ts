@@ -1,4 +1,4 @@
-// scene/instanced/streetTile.ts — Build a single merged static
+// scene/components/streets/streetTile.ts — Build a single merged static
 // BufferGeometry per CellTile containing all sidewalk rects whose
 // centroid falls inside the cell. Replaces per-directory sidewalk
 // meshes. Geometry is built once at scene construction; vertex
