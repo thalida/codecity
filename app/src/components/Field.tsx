@@ -8,11 +8,9 @@
 
 import { FieldKind, getFieldDef } from '@/state/settingsSchema';
 import { useField } from '@/hooks/useField';
-import { useEffective, useDefault } from '@/hooks/useControls';
-import { setDraft } from '@/state/settingsDrafts';
-import type { StreetTier } from '@/state/stores/settings/streets';
-import { RotateCcw } from 'lucide-preact';
 import { Row } from './Row';
+import { TierWidthsField } from './TierWidthsField';
+import { HueMapField } from './HueMapField';
 import { ColorInput } from '@/components/ColorInput';
 import { NumberInput } from '@/components/NumberInput';
 import { Slider } from '@/components/Slider';
@@ -28,109 +26,6 @@ interface SignalLike {
 export interface FieldProps {
   store: SignalLike;
   fieldKey: string;
-}
-
-// Renders the STREET_TIERS array (FieldKind.TierWidths): one width slider per
-// tier, each with its own per-tier reset. The field's value is the whole
-// StreetTier[]; every edit commits a fresh array via the draft layer.
-function TierWidthsField({ store, fieldKey }: FieldProps) {
-  const tiers = useEffective<StreetTier[]>(store, fieldKey) ?? [];
-  const defaults = useDefault<StreetTier[]>(store, fieldKey) ?? [];
-  const commit = (next: StreetTier[]) => setDraft(store, fieldKey, next);
-
-  return (
-    <>
-      {tiers.map((tier, i) => {
-        const label = `${tier.min_descendants}+ descendants`;
-        const tip = `${label} — World-unit width for streets in this descendant-count tier. Above ~256 streets overwhelm building footprints; below 1 they disappear.`;
-        const defaultWidth = defaults[i]?.width;
-        const disabled = tier.width === defaultWidth;
-        return (
-          <label class="theme-row" title={tip} key={`tier-${i}`}>
-            <span class="theme-row-label" title={tip}>{label}</span>
-            <span class="theme-row-control">
-              <Slider
-                value={tier.width}
-                min={1}
-                max={256}
-                step={1}
-                onCommit={(v) => {
-                  const next = tiers.slice();
-                  next[i] = { ...tiers[i], width: v };
-                  commit(next);
-                }}
-              />
-              <button
-                type="button"
-                class="theme-row-reset"
-                title={`Default: ${defaultWidth}`}
-                aria-label="Reset to default"
-                disabled={disabled}
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  const next = tiers.slice();
-                  next[i] = { ...tiers[i], width: defaultWidth };
-                  commit(next);
-                }}
-              >
-                <RotateCcw class="lucide-icon" />
-              </button>
-            </span>
-          </label>
-        );
-      })}
-    </>
-  );
-}
-
-// Renders a { key: hue } map (FieldKind.HueMap): one 0–359° hue slider per key
-// with a swatch preview + per-key reset. The field's value is the whole object;
-// every edit commits a fresh merged object via the draft layer.
-function HueMapField({ store, fieldKey }: FieldProps) {
-  const map = useEffective<Record<string, number>>(store, fieldKey) ?? {};
-  const defaults = useDefault<Record<string, number>>(store, fieldKey) ?? {};
-  const commit = (next: Record<string, number>) => setDraft(store, fieldKey, next);
-
-  return (
-    <>
-      {Object.keys(map).sort().map((k) => {
-        const value = map[k];
-        const defaultVal = defaults[k];
-        const disabled = value === defaultVal;
-        const tip = `${k} — Hue (0–359°) for files with this extension.`;
-        return (
-          <label class="theme-row" title={tip} key={k}>
-            <span class="theme-row-label" title={tip}>{k}</span>
-            <span class="theme-row-control">
-              <Slider
-                value={value}
-                min={0}
-                max={359}
-                step={1}
-                onCommit={(v) => commit({ ...map, [k]: v })}
-              />
-              <span class="theme-hue-preview" style={{ background: `hsl(${value}, 80%, 55%)` }} />
-              <button
-                type="button"
-                class="theme-row-reset"
-                title={`Default: ${defaultVal}`}
-                aria-label="Reset to default"
-                disabled={disabled}
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  commit({ ...map, [k]: defaultVal });
-                }}
-              >
-                <RotateCcw class="lucide-icon" />
-              </button>
-            </span>
-          </label>
-        );
-      })}
-    </>
-  );
 }
 
 export function Field({ store, fieldKey }: FieldProps) {
