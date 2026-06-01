@@ -48,25 +48,6 @@ function _pathOf(target: PickTarget | null): string | null {
   return null;
 }
 
-// Older legacy localStorage keys that earlier code wrote per-section
-// open/closed state under. Once on app boot we wipe them so they don't
-// linger forever in stale browsers.
-function _clearLegacyControlsState(): void {
-  if (typeof localStorage === 'undefined') return;
-  try {
-    const toRemove: string[] = [];
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i);
-      if (key && (key.startsWith('controls.section.') || key.startsWith('controls.subgroup.'))) {
-        toRemove.push(key);
-      }
-    }
-    for (const key of toRemove) localStorage.removeItem(key);
-  } catch (_) {
-    /* private mode / quota — skip */
-  }
-}
-
 function _persistWidth(w: number): void {
   if (typeof localStorage === 'undefined') return;
   try {
@@ -216,9 +197,8 @@ export function LeftSidebar() {
     SIDEBAR_COLLAPSED.value = collapsed.value;
   });
 
-  // One-time setup: clear legacy localStorage keys + apply persisted width.
+  // One-time setup: apply the persisted sidebar width.
   useEffect(() => {
-    _clearLegacyControlsState();
     const w = _readPersistedWidth();
     if (w != null && sidebarRef.current) {
       sidebarRef.current.style.width = `${w}px`;
