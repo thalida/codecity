@@ -34,8 +34,10 @@ from .cache import (
 )
 from .media import probe_media_dims
 from .types import (
+    BusynessThresholds,
     CommitEntry,
     DirNode,
+    ExtBreakdownEntry,
     FileEntry,
     FileNode,
     GitMeta,
@@ -901,6 +903,7 @@ class _DirFrame:
         "pending_entries", "files", "subdirs",
         "descendants_count", "descendants_file_count",
         "descendants_dir_count", "descendants_size",
+        "ext_breakdown",
     )
 
     def __init__(self, abs_dir: str, rel_dir: str) -> None:
@@ -921,6 +924,9 @@ class _DirFrame:
         self.descendants_file_count = 0
         self.descendants_dir_count = 0
         self.descendants_size = 0
+        # ext (lowercase, "(none)" if absent) -> [count, total_size], over
+        # all descendant files. Merged up from child frames as they pop.
+        self.ext_breakdown: dict[str, list[int]] = {}
 
 
 def _build_tree(
@@ -971,6 +977,13 @@ def _build_tree(
                 top.descendants_count += 1
                 top.descendants_file_count += 1
                 top.descendants_size += node["size"]
+                ext = (node["extension"] or "(none)").lower()
+                bucket = top.ext_breakdown.get(ext)
+                if bucket is None:
+                    top.ext_breakdown[ext] = [1, node["size"]]
+                else:
+                    bucket[0] += 1
+                    bucket[1] += node["size"]
                 heartbeat.tick()
             elif entry.is_dir(follow_symlinks=False):
                 # Descend by pushing a new frame; rollup happens when it
@@ -982,6 +995,13 @@ def _build_tree(
         # (root) or attach to the parent.
         finished = stack.pop()
         children: list[FileNode | DirNode] = [*finished.files, *finished.subdirs]
+        # Sort by count desc, then ext asc for deterministic output.
+        ext_breakdown_out: list[ExtBreakdownEntry] = [
+            {"ext": ext, "count": cnt, "size": size}
+            for ext, (cnt, size) in sorted(
+                finished.ext_breakdown.items(), key=lambda kv: (-kv[1][0], kv[0])
+            )
+        ]
         node_out: DirNode = {
             "name": finished.name,
             "type": NodeKind.DIRECTORY,
@@ -994,6 +1014,7 @@ def _build_tree(
             "descendants_file_count": finished.descendants_file_count,
             "descendants_dir_count": finished.descendants_dir_count,
             "descendants_size": finished.descendants_size,
+            "descendants_ext_breakdown": ext_breakdown_out,
             "children": children,
         }
         if not stack:
@@ -1004,6 +1025,14 @@ def _build_tree(
         parent.descendants_file_count += node_out["descendants_file_count"]
         parent.descendants_dir_count += 1 + node_out["descendants_dir_count"]
         parent.descendants_size += node_out["descendants_size"]
+        # Merge the child's per-extension breakdown up into the parent.
+        for ext, (cnt, size) in finished.ext_breakdown.items():
+            bucket = parent.ext_breakdown.get(ext)
+            if bucket is None:
+                parent.ext_breakdown[ext] = [cnt, size]
+            else:
+                bucket[0] += cnt
+                bucket[1] += size
 
 
 # ── Public entry ─────────────────────────────────────────────────────────────
@@ -1038,6 +1067,27 @@ def compute_tree_signature(tree_root: dict) -> str:
     return h.hexdigest()
 
 
+def _compute_busyness(commits: list[CommitEntry]) -> BusynessThresholds:
+    """Repo-relative per-day commit-count thresholds. avg = median commits/day
+    (over days with >= 1 commit); busy = 75th percentile, clamped to avg+1 so
+    the three bands stay distinct. Both the scene tree-color gradient and the
+    commit pane's label read these, so a busy day looks consistent in both.
+    Returns {avg:1, busy:1} for an empty history so consumers needn't guard."""
+    if not commits:
+        return {"avg": 1, "busy": 1}
+    per_day: dict[str, int] = {}
+    for c in commits:
+        per_day[c["date"]] = per_day.get(c["date"], 0) + 1
+    counts = sorted(per_day.values())
+
+    def _quantile(p: float) -> int:
+        return counts[min(len(counts) - 1, int(len(counts) * p))]
+
+    avg = _quantile(0.5)
+    busy = max(_quantile(0.75), avg + 1)
+    return {"avg": avg, "busy": busy}
+
+
 def _wrap_manifest(
     root_abs: str, tree: DirNode, sig: Any, tree_signature: str,
     repo_info: RepoInfo, commits: list[CommitEntry],
@@ -1056,6 +1106,7 @@ def _wrap_manifest(
         "tree": tree,
         "repo": repo_info,
         "commits": commits,
+        "busyness": _compute_busyness(commits),
     }
 
 

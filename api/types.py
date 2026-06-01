@@ -57,6 +57,17 @@ class FileNode(TypedDict):
     media_height: NotRequired[int]
 
 
+class ExtBreakdownEntry(TypedDict):
+    """One file-extension bucket within a directory's descendant breakdown.
+    `ext` is the lowercase extension (e.g. ".ts") or "(none)" for files with
+    no extension. Computed once during the tree walk so the UI's street view
+    reads it instead of re-walking the subtree on every selection."""
+
+    ext: str
+    count: int
+    size: int
+
+
 class DirNode(TypedDict):
     """One directory in the manifest tree. children may be empty."""
 
@@ -72,6 +83,10 @@ class DirNode(TypedDict):
     descendants_file_count: int
     descendants_dir_count: int
     descendants_size: int
+    # Per-extension counts/sizes aggregated over ALL descendant files,
+    # sorted by count desc (ext asc tiebreak). Baked here so the street
+    # view reads it directly. Empty list for directories with no files.
+    descendants_ext_breakdown: list[ExtBreakdownEntry]
 
 
 TreeNode = FileNode | DirNode
@@ -109,6 +124,18 @@ class CommitEntry(TypedDict):
     subject: str
 
 
+class BusynessThresholds(TypedDict):
+    """Repo-relative per-day commit-count thresholds (commits/day), computed
+    once from the commit history. A day with >= busy commits reads as "Busy",
+    >= avg as "Average", else "Quiet". The scene tree-color gradient and the
+    commit pane's label both read these, so a busy day looks consistent in
+    both. `avg` is the median commits/day (over days with >= 1 commit); `busy`
+    is the 75th percentile, clamped to avg+1 so the bands stay distinct."""
+
+    avg: int
+    busy: int
+
+
 class Manifest(TypedDict):
     """Top-level manifest emitted by scan_tree(). What /api/manifest
     returns and what the web app's CityScene.applyManifest consumes."""
@@ -120,6 +147,7 @@ class Manifest(TypedDict):
     tree: DirNode
     repo: RepoInfo
     commits: list[CommitEntry]
+    busyness: BusynessThresholds
     display_root: NotRequired[str]
 
 

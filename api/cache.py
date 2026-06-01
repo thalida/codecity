@@ -67,7 +67,11 @@ _GIT_HISTORY_CACHE_VERSION = 11
 # ALWAYS_SKIP. Cached manifests that observed lockfiles (or that came
 # from include_all=true scans) would no longer match a fresh scan;
 # bumping forces every repo to re-cache and drops the orphans.
-_MANIFEST_SCHEMA_VERSION = 2
+# v3: DirNode gained descendants_ext_breakdown and the manifest gained
+# top-level busyness thresholds. Pre-v3 cached manifests lack both, so
+# consumers (street view, commit-pane busyness label, scene tree color)
+# would mis-render until a fresh scan; bumping forces the re-cache.
+_MANIFEST_SCHEMA_VERSION = 3
 # Composite cache version: invalidates when EITHER the manifest
 # schema OR the git-history cache shape changes. Stored as a string
 # in the cache file's `version` field; the loader's equality check
