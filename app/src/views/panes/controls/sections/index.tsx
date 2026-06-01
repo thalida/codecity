@@ -64,13 +64,33 @@ function isGroup(child: SectionChild): child is GroupNode {
 
 // ── Renderer ──────────────────────────────────────────────────────────────────
 
+/** Collect every field ref under a node tree (depth-first) — the fields a
+ *  section/group reset button stages-resets. */
+function collectRefs(children: SectionChild[]): FieldRef[] {
+  const out: FieldRef[] = [];
+  for (const c of children) {
+    if (isGroup(c)) out.push(...collectRefs(c.children));
+    else out.push(c);
+  }
+  return out;
+}
+
 function renderChild(child: SectionChild): ComponentChildren {
   if (isGroup(child)) {
-    const Wrapper = child.collapsible === false ? Subgroup : CollapsibleSubgroup;
+    const kids = child.children.map(renderChild);
+    // Plain (non-collapsible) groups carry no reset. Collapsible ones reset
+    // every field beneath them, draft-driven via resetKeys.
+    if (child.collapsible === false) {
+      return (
+        <Subgroup name={child.label} key={child.key}>
+          {kids}
+        </Subgroup>
+      );
+    }
     return (
-      <Wrapper name={child.label} key={child.key}>
-        {child.children.map(renderChild)}
-      </Wrapper>
+      <CollapsibleSubgroup name={child.label} resetKeys={collectRefs(child.children)} key={child.key}>
+        {kids}
+      </CollapsibleSubgroup>
     );
   }
   return <Field store={child.store} fieldKey={child.key} key={`${child.key}`} />;
@@ -80,7 +100,7 @@ function renderChild(child: SectionChild): ComponentChildren {
 export function DynamicSection({ node }: { node: SectionNode }) {
   if (node.render) return <>{node.render}</>;
   return (
-    <Section name={node.label ?? ''} hint={node.description}>
+    <Section name={node.label ?? ''} hint={node.description} resetKeys={collectRefs(node.children ?? [])}>
       {(node.children ?? []).map(renderChild)}
     </Section>
   );

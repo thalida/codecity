@@ -11,56 +11,20 @@ import {
   discard as discardDrafts,
   isDirty as draftsAreDirty,
   stageResetAll,
+  anyResettable,
   DRAFTS_REV,
-  getEffective,
 } from '@/state/drafts';
-import { forEachRegisteredStore, HAS_ANY_NON_DEFAULT } from '@/state/persist';
-import { deepEqual } from '@/utils/deep';
-
-interface MapLikeStore {
-  get value(): any;
-  set?(value: any): void;
-  setKey?(key: string, value: any): void;
-  subscribe(listener: (state: any) => void): () => void;
-}
-
-function _canResetAll(): boolean {
-  let canReset = false;
-  forEachRegisteredStore((store, defaults) => {
-    if (canReset) return;
-    if (
-      defaults &&
-      typeof defaults === 'object' &&
-      !Array.isArray(defaults) &&
-      typeof (store as MapLikeStore).setKey === 'function'
-    ) {
-      for (const k in defaults) {
-        if (!Object.hasOwn(defaults, k)) continue;
-        if (
-          !deepEqual(
-            getEffective(store as MapLikeStore, k),
-            (defaults as Record<string, unknown>)[k]
-          )
-        ) {
-          canReset = true;
-          return;
-        }
-      }
-    } else if (!deepEqual(getEffective(store as MapLikeStore, null), defaults)) {
-      canReset = true;
-    }
-  });
-  return canReset;
-}
+import { HAS_ANY_NON_DEFAULT } from '@/state/persist';
 
 export function ActionsBar() {
   // Reactive tracking: both signals participate so the bar re-renders on
-  // either a draft change or a committed-value change.
+  // either a draft change or a committed-value change. anyResettable() then
+  // computes the draft-aware answer (effective vs default across all stores).
   void DRAFTS_REV.value;
   void HAS_ANY_NON_DEFAULT.value;
 
   const dirty = draftsAreDirty();
-  const canReset = _canResetAll();
+  const canReset = anyResettable();
 
   return (
     <div class="controls-actions">

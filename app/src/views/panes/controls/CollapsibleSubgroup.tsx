@@ -1,53 +1,52 @@
-// views/panes/controls/CollapsibleSubgroup.tsx — Same visual shell as
-// Subgroup but body is a <details> so users can collapse long lists
-// (e.g. per-extension hue rows) or nested groups (Buildings > Facade).
+// views/panes/controls/CollapsibleSubgroup.tsx — Same visual shell as Subgroup
+// but the body is a <details> so users can collapse long lists (e.g.
+// per-extension hue rows) or nested groups (Buildings > Facade).
 //
-// Carries a group-level reset that stages-resets every descendant row.
-// Identical pattern to Section's reset (queries `.theme-row-reset`
-// descendants, delegates click). Hidden when no descendant has a reset.
+// Carries a group-level reset that stages-resets every field under it, shown
+// only when `resetKeys` is non-empty and enabled iff one differs from default —
+// both computed from the draft layer (no DOM scraping).
 
 import type { ComponentChildren } from 'preact';
-import { useRef } from 'preact/hooks';
 import { ChevronRight, RotateCcw } from 'lucide-preact';
-import { useHasAnyResettableRow } from './hooks';
+import { stageReset } from '@/state/drafts';
+import { useAnyResettable, type ResettableRef } from './hooks';
 
 export interface CollapsibleSubgroupProps {
   name: string;
+  /** The (store, key) refs of every field under this group. Drives the reset
+   *  button; omit to render no group reset. */
+  resetKeys?: ResettableRef[];
   children: ComponentChildren;
 }
 
-export function CollapsibleSubgroup({ name, children }: CollapsibleSubgroupProps) {
-  const ref = useRef<HTMLDetailsElement>(null);
-  const { hasResettable, canReset } = useHasAnyResettableRow(ref);
+export function CollapsibleSubgroup({ name, resetKeys, children }: CollapsibleSubgroupProps) {
+  const keys = resetKeys ?? [];
+  const canReset = useAnyResettable(keys);
 
   // Reset button lives INSIDE <summary> (flex child, margin-left:auto) so it
   // stays visible when the subgroup is collapsed; preventDefault +
   // stopPropagation keep it from toggling the disclosure.
   return (
-    <details ref={ref} class="theme-subgroup theme-subgroup-collapsible">
+    <details class="theme-subgroup theme-subgroup-collapsible">
       <summary class="row row--bleed text-label text-label--muted">
         <ChevronRight class="lucide-icon theme-subgroup-chevron" />
         <span class="theme-subgroup-label-text">{name}</span>
-        <button
-          type="button"
-          class="controls-subgroup-reset"
-          title={`Reset all values in ${name} to defaults`}
-          aria-label="Reset group to defaults"
-          disabled={!hasResettable || !canReset}
-          style={hasResettable ? undefined : { display: 'none' }}
-          onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            if (!ref.current) return;
-            ref.current
-              .querySelectorAll<HTMLButtonElement>('.theme-row-reset')
-              .forEach((b) => {
-                if (!b.disabled) b.click();
-              });
-          }}
-        >
-          <RotateCcw class="lucide-icon" />
-        </button>
+        {keys.length > 0 && (
+          <button
+            type="button"
+            class="controls-subgroup-reset"
+            title={`Reset all values in ${name} to defaults`}
+            aria-label="Reset group to defaults"
+            disabled={!canReset}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              for (const r of keys) stageReset(r.store, r.key);
+            }}
+          >
+            <RotateCcw class="lucide-icon" />
+          </button>
+        )}
       </summary>
       {children}
     </details>

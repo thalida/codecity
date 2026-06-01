@@ -154,43 +154,23 @@ describe('subgroup group reset button', () => {
   // is imported (top of file), so per-row reset buttons start correctly
   // enabled/disabled vs defaults without an explicit setup hook.
 
-  it('renders a group reset button alongside every collapsible subgroup summary', () => {
+  it('renders a draft-driven group reset for collapsible subgroups that have fields', () => {
     const pane = mount();
     const subgroups = pane.querySelectorAll('details.theme-subgroup-collapsible');
+    const resetBtns = pane.querySelectorAll('.controls-subgroup-reset');
     expect(subgroups.length).toBeGreaterThan(0);
-    for (const sg of subgroups) {
-      // The reset button lives inside <summary> (flex child, margin-left:auto)
-      // so it stays visible when the subgroup is collapsed.
-      const resetBtn = sg.querySelector(':scope > summary > .controls-subgroup-reset');
-      expect(resetBtn).not.toBeNull();
-    }
+    expect(resetBtns.length).toBeGreaterThan(0);
+    // Field-less subgroups (e.g. the Shortcuts "General" list) render NO reset
+    // button at all — not a hidden one — so there are fewer buttons than groups.
+    expect(resetBtns.length).toBeLessThan(subgroups.length);
   });
 
-  it('group reset button is hidden when the subgroup contains no resettable rows', () => {
+  it('group reset buttons are disabled when nothing differs from default', () => {
     const pane = mount();
-    const subgroups = pane.querySelectorAll('details.theme-subgroup-collapsible');
-    let foundHidden = false;
-    for (const sg of subgroups) {
-      const resetBtn = sg.querySelector<HTMLButtonElement>(
-        ':scope > summary > .controls-subgroup-reset'
-      );
-      if (resetBtn && resetBtn.style.display === 'none') {
-        foundHidden = true;
-        break;
-      }
-    }
-    void foundHidden;
-  });
-
-  it('group reset button is disabled when all descendant rows are at defaults', () => {
-    const pane = mount();
-    const subgroup = pane.querySelector<HTMLDetailsElement>('details.theme-subgroup-collapsible');
-    expect(subgroup).not.toBeNull();
-    const resetBtn = subgroup!.querySelector<HTMLButtonElement>(
-      ':scope > summary > .controls-subgroup-reset'
-    );
-    expect(resetBtn).not.toBeNull();
-    // No drafts have been staged → no row differs from default → group reset is disabled.
-    expect(resetBtn!.disabled).toBe(true);
+    const resetBtns = pane.querySelectorAll<HTMLButtonElement>('.controls-subgroup-reset');
+    expect(resetBtns.length).toBeGreaterThan(0);
+    // No drafts staged → no field differs from default → every group reset is
+    // disabled (computed from the draft layer, not the DOM).
+    for (const b of resetBtns) expect(b.disabled).toBe(true);
   });
 });

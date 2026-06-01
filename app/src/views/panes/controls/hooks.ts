@@ -6,8 +6,6 @@
 // and the draft layer via DRAFTS_REV which is bumped on every mutation in
 // state/drafts.
 
-import { useLayoutEffect, useState } from 'preact/hooks';
-import type { RefObject } from 'preact';
 import { getEffective, DRAFTS_REV } from '@/state/drafts';
 import { getDefault } from '@/state/persist';
 import { deepEqual } from '@/utils/deep';
@@ -15,6 +13,13 @@ import { deepEqual } from '@/utils/deep';
 interface SignalLike {
   get value(): any;
   set value(v: any);
+}
+
+/** A (store, key) the reset machinery can act on — the structural shape of a
+ *  controls FieldRef. */
+export interface ResettableRef {
+  store: SignalLike;
+  key: string;
 }
 
 type DraftKey = string | null;
@@ -60,40 +65,14 @@ export function useAnyDiffersFromDefault(store: SignalLike, keys: string[]): boo
 }
 
 /**
- * Aggregate state for a Section / CollapsibleSubgroup reset button.
- *   hasResettable — at least one descendant <button.theme-row-reset> exists.
- *                   Sections with no resettable rows (Shortcuts, Debug)
- *                   render no section reset button at all.
- *   canReset      — at least one descendant reset button is currently
- *                   enabled (i.e. at least one row differs from default).
- *
- * Queries the DOM (via the passed ref) on every draft-rev tick and re-reads
- * each descendant button's `.disabled` state. Cheaper than rebuilding a
- * cross-component subscription tree and matches the original imperative
- * approach. Reading DRAFTS_REV.value makes the hook re-run whenever any
- * draft changes anywhere.
+ * True iff ANY of `refs` (across one or more stores) has an effective value
+ * differing from its default. Draft-aware — tracks DRAFTS_REV + each store's
+ * value, so it re-runs on any draft or committed change. Used by the
+ * Section / CollapsibleSubgroup reset buttons over their descendant fields
+ * (replaces the old DOM-scrape that read each `.theme-row-reset`'s disabled).
  */
-export function useHasAnyResettableRow(
-  ref: RefObject<HTMLElement | null>
-): { hasResettable: boolean; canReset: boolean } {
+export function useAnyResettable(refs: ResettableRef[]): boolean {
   void DRAFTS_REV.value;
-  const [state, setState] = useState({ hasResettable: false, canReset: false });
-
-  useLayoutEffect(() => {
-    if (!ref.current) return;
-    // Microtask: per-row reset buttons re-render their `disabled` state on
-    // the same DRAFTS_REV tick; reading synchronously here would see stale
-    // values. queueMicrotask runs after the current render flush.
-    queueMicrotask(() => {
-      if (!ref.current) return;
-      const rowResets = ref.current.querySelectorAll<HTMLButtonElement>('.theme-row-reset');
-      const hasResettable = rowResets.length > 0;
-      const canReset = hasResettable && Array.from(rowResets).some((b: HTMLButtonElement) => !b.disabled);
-      setState((prev) =>
-        prev.hasResettable === hasResettable && prev.canReset === canReset ? prev : { hasResettable, canReset }
-      );
-    });
-  });
-
-  return state;
+  for (const r of refs) void r.store.value; // subscribe to each store
+  return refs.some((r) => !deepEqual(getEffective(r.store, r.key), getDefault(r.store, r.key)));
 }

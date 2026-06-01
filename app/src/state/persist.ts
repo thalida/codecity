@@ -132,9 +132,9 @@ export const HAS_ANY_NON_DEFAULT = computed(() => {
 
 // ── Public: getDefault / forEachRegisteredStore ─
 
-// Loose signal-like type used at the boundary with drafts.ts / controlsPane
-// which have their own local interface types (SignalLike, MapLikeStore).
-// These are always real @preact/signals Signal instances at runtime.
+// Loose signal-like type used at the boundary with drafts.ts / the controls
+// layer, which have their own local SignalLike interface. These are always
+// real @preact/signals Signal instances at runtime.
 type AnySignalLike = { value: any };
 
 /** Return the pre-hydration default for a signal, or a keyed sub-default. */

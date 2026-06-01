@@ -1,61 +1,56 @@
 // views/panes/controls/Section.tsx — Top-level collapsible section in the
-// settings panel. Header row contains the section name plus a reset
-// icon that stages-resets EVERY row in the section. Section reset is
-// enabled iff at least one descendant row's reset is enabled (i.e., at
-// least one row differs from its default). The reset uses the same
-// per-row reset buttons as the registry — clicking the section reset
-// just delegates to each child reset's click handler.
+// settings panel. Header row contains the section name plus a reset icon that
+// stages-resets every field in the section. The section reset is shown only
+// when the section has resettable fields (`resetKeys`) and enabled iff at least
+// one of them differs from its default — both computed from the draft layer (no
+// DOM scraping). Clicking stages a reset for each field; Save still applies.
 //
-// Open/closed state is intentionally NOT persisted: the left sidebar
-// resets every <details> to closed each time the Controls tab becomes
-// visible so the panel always opens fresh.
+// Open/closed state is intentionally NOT persisted: the left sidebar resets
+// every <details> to closed when the Controls tab becomes visible.
 
 import { type ComponentChildren } from 'preact';
-import { useRef } from 'preact/hooks';
 import { ChevronRight, RotateCcw } from 'lucide-preact';
-import { useHasAnyResettableRow } from './hooks';
+import { stageReset } from '@/state/drafts';
+import { useAnyResettable, type ResettableRef } from './hooks';
 
 export interface SectionProps {
   name: string;
   hint?: string;
+  /** The (store, key) refs of every field under this section. Drives the
+   *  header reset button; omit (bespoke sections) to render no section reset. */
+  resetKeys?: ResettableRef[];
   children: ComponentChildren;
 }
 
-export function Section({ name, hint, children }: SectionProps) {
-  const ref = useRef<HTMLDetailsElement>(null);
-  const sectionState = useHasAnyResettableRow(ref);
+export function Section({ name, hint, resetKeys, children }: SectionProps) {
+  const keys = resetKeys ?? [];
+  const canReset = useAnyResettable(keys);
 
   // Reset button lives INSIDE <summary> (flex child, margin-left:auto) so it
   // stays visible when the section is collapsed — a closed <details> hides
   // its non-summary children. preventDefault + stopPropagation on click keep
-  // it from toggling the disclosure. (A button inside summary is nested
-  // interactive content; the click guards make it behave, and the
-  // collapsed-visibility requirement outweighs the lint.)
+  // it from toggling the disclosure.
   return (
-    <details ref={ref} class="controls-section">
+    <details class="controls-section">
       <summary class="row row--bleed controls-section-summary">
         <ChevronRight class="lucide-icon controls-section-chevron" />
         <span class="text-label">{name}</span>
-        <button
-          type="button"
-          class="controls-section-reset"
-          title="Reset all values in this section to defaults"
-          aria-label="Reset section to defaults"
-          disabled={!sectionState.hasResettable || !sectionState.canReset}
-          style={sectionState.hasResettable ? undefined : { display: 'none' }}
-          onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            if (!ref.current) return;
-            ref.current
-              .querySelectorAll<HTMLButtonElement>('.theme-row-reset')
-              .forEach((b) => {
-                if (!b.disabled) b.click();
-              });
-          }}
-        >
-          <RotateCcw class="lucide-icon" />
-        </button>
+        {keys.length > 0 && (
+          <button
+            type="button"
+            class="controls-section-reset"
+            title="Reset all values in this section to defaults"
+            aria-label="Reset section to defaults"
+            disabled={!canReset}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              for (const r of keys) stageReset(r.store, r.key);
+            }}
+          >
+            <RotateCcw class="lucide-icon" />
+          </button>
+        )}
       </summary>
       {hint && <div class="controls-section-hint">{hint}</div>}
       {children}

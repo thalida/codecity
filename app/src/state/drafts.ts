@@ -113,6 +113,33 @@ export function stageResetAll(): void {
   if (touched) _emit();
 }
 
+/** True iff "Reset all" would change anything — i.e. any registered store has
+ *  an effective (draft-aware) value differing from its default. Same iteration
+ *  as stageResetAll, but read-only. Callers wanting reactivity should also read
+ *  DRAFTS_REV.value + the committed signals (see ActionsBar). */
+export function anyResettable(): boolean {
+  let any = false;
+  forEachRegisteredStore((store, defaults) => {
+    if (any) return;
+    if ((store as { _skipDrafts?: boolean })._skipDrafts) {
+      if (!deepEqual((store as SignalLike).value, defaults)) any = true;
+      return;
+    }
+    if (defaults && typeof defaults === 'object' && !Array.isArray(defaults)) {
+      for (const k in defaults) {
+        if (!Object.hasOwn(defaults, k)) continue;
+        if (!deepEqual(getEffective(store as SignalLike, k), (defaults as Record<string, unknown>)[k])) {
+          any = true;
+          return;
+        }
+      }
+    } else if (!deepEqual(getEffective(store as SignalLike, null), defaults)) {
+      any = true;
+    }
+  });
+  return any;
+}
+
 // Same write logic as setDraft but defers the _emit() call. Used by
 // stageResetAll so a single fan-out happens after the whole sweep.
 function _stageWithoutEmit(store: SignalLike, key: DraftKey, value: unknown): void {
