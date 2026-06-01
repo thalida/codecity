@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { signal } from '@preact/signals';
+import type { Signal } from '@preact/signals';
 import {
   setDraft,
   getEffective,
@@ -11,7 +11,7 @@ import {
   DRAFTS_REV,
   _resetForTests,
 } from '@/state/drafts';
-import { persistStore } from '@/state/persist';
+import { persistedSignal } from '@/state/persist';
 
 interface FooConfig {
   COLOR: string;
@@ -19,19 +19,18 @@ interface FooConfig {
 }
 
 describe('drafts', () => {
-  let FOO: ReturnType<typeof signal<FooConfig>>;
-  let BAR: ReturnType<typeof signal<number>>;
+  let FOO: Signal<FooConfig>;
+  let BAR: Signal<number>;
 
   beforeEach(() => {
-    // Each test gets fresh stores + fresh draft state. Re-registering
-    // the same name overwrites the prior registration (snapshot is
-    // taken at persistStore time, before any setKey).
+    // Each test gets fresh stores + fresh draft state. persistedSignal
+    // creates + registers the store; the default snapshot is taken here,
+    // before any setKey. Re-using the same name overwrites the prior
+    // registration.
     localStorage.clear();
     _resetForTests();
-    FOO = signal<FooConfig>({ COLOR: '#000000', COUNT: 1 });
-    BAR = signal<number>(10);
-    persistStore('TEST_FOO', FOO);
-    persistStore('TEST_BAR', BAR);
+    FOO = persistedSignal<FooConfig>('TEST_FOO', { COLOR: '#000000', COUNT: 1 });
+    BAR = persistedSignal<number>('TEST_BAR', 10);
   });
 
   describe('setDraft + getEffective + isDirty', () => {

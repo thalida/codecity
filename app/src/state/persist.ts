@@ -125,33 +125,6 @@ export function persistedSignal<T>(key: string, defaultValue: T): Signal<T> {
   return s;
 }
 
-/**
- * `persistStore(key, store)` — registers a pre-existing signal with the
- * persistence layer. Hydrates from storage and sets up the write effect.
- * Used by tests (drafts.test.ts) to register a pre-existing signal with the
- * persistence layer.
- *
- * This is intentionally kept as an escape hatch; new code should use
- * persistedSignal() at definition time instead.
- */
-export function persistStore(key: string, store: Signal<any>): void {
-  if (!store || typeof store !== 'object' || !('value' in store)) return;
-  const defaultValue = _clone(store.value);
-  _DEFAULTS.set(key, defaultValue);
-  _SIGNALS.set(key, store);
-
-  if (typeof localStorage === 'undefined') return;
-  const saved = _safeGet(key);
-  if (saved !== null) store.value = _hydrate(saved, defaultValue);
-
-  effect(() => {
-    const v = store.value;
-    const serialized = _serialize(v, defaultValue);
-    if (serialized === null) _safeRemove(key);
-    else _safeSet(key, serialized);
-  });
-}
-
 // ── Public: derived state ──────────────────────────────────────────────────
 
 /** True when ANY registered persistedSignal holds a non-default value.
