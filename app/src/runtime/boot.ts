@@ -3,12 +3,14 @@
 // dispose() for cleanup on unmount.
 
 import { sourceKey, CURRENT_SOURCE_KEY } from '../state/runtime/activeSource';
-import { LAST_UPDATED_AT, setupLiveUpdates } from '../state/runtime/manifestPoll';
+import { setupLiveUpdates } from '../state/runtime/manifestPoll';
 import { openSourcePicker } from '../state/runtime/uiState';
 import { getServerConfig } from '../api/config';
 import { SERVER_CONFIG } from '../state/runtime/serverConfig';
-import { labelFromManifest } from '../utils/sources';
 import { EMPTY_MANIFEST } from '../constants/manifest';
+// document.title + LAST_UPDATED_AT are now derived from the canonical MANIFEST
+// signal (useDocumentTitle hook + the LAST_UPDATED_AT effect in
+// state/runtime/manifest.ts) — no imperative onChange handler here.
 
 import { streamInitialManifest } from './manifestStream';
 import { installSourcePickerBridge } from './sourcePickerBridge';
@@ -37,18 +39,6 @@ export async function bootApp(): Promise<() => void> {
   let _liveUpdates: { setSignature(sig: string): void } | null = null;
   if (qp.has('src') && !initialError && initialManifest !== EMPTY_MANIFEST) {
     _liveUpdates = setupLiveUpdates(handle, initialManifest.signature);
-  }
-
-  handle.world.onChange(() => {
-    const m = handle.world.getManifest();
-    const label = labelFromManifest(m) ?? m?.tree?.name ?? '';
-    document.title = label ? `${label} — codecity` : 'codecity';
-    LAST_UPDATED_AT.value = Date.now();
-  });
-  if (initialManifest !== EMPTY_MANIFEST) {
-    const label = labelFromManifest(initialManifest) ?? initialManifest.tree?.name ?? '';
-    document.title = label ? `${label} — codecity` : 'codecity';
-    LAST_UPDATED_AT.value = Date.now();
   }
 
   const disposePickerBridge = installSourcePickerBridge({

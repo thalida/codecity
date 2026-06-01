@@ -23,9 +23,12 @@ import { LoadingOverlay } from '../components/LoadingOverlay';
 import { HljsThemeLink } from '../components/HljsThemeLink';
 import { SCENE_HANDLE } from '@/state/runtime/scene';
 import { openSourcePickerForCurrentSource } from '@/state/runtime/uiState';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { runAppLogic } from '../../appLogic';
 
 export function App() {
+  useDocumentTitle();
+
   useEffect(() => {
     let disposeLogic: (() => void) | undefined;
     let cancelled = false;

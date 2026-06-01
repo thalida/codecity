@@ -8,7 +8,9 @@
 import { signal, effect } from '@preact/signals';
 import type { Manifest, DirNode } from '@/types';
 import { SCENE_HANDLE } from './scene';
+import { LAST_UPDATED_AT } from './manifestPoll';
 import { EMPTY_MANIFEST } from '@/constants/manifest';
+import { isEmptyManifest } from '@/utils/manifest';
 
 export const MANIFEST = signal<Manifest | DirNode | { tree?: unknown; [k: string]: unknown } | null>(
   EMPTY_MANIFEST
@@ -38,3 +40,12 @@ function _installBridge(): void {
   });
 }
 _installBridge();
+
+// Record when a (non-empty) manifest is applied — drives the footer's
+// "last updated" readout. Previously bumped imperatively in boot's
+// world.onChange handler; now derived from the canonical MANIFEST signal.
+effect(() => {
+  if (!isEmptyManifest(MANIFEST.value)) {
+    LAST_UPDATED_AT.value = Date.now();
+  }
+});
