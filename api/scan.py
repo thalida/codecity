@@ -1102,6 +1102,7 @@ def _wrap_manifest(
     has placeholder lines/binary set by _force_skeleton_placeholders;
     final has the real per-file metadata). The envelope shape is the
     same either way."""
+    _annotate_same_day_totals(commits)
     return {
         "root": root_abs,
         "scanned_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
@@ -1112,6 +1113,18 @@ def _wrap_manifest(
         "commits": commits,
         "busyness": _compute_busyness(commits),
     }
+
+
+def _annotate_same_day_totals(commits: list[CommitEntry]) -> None:
+    """In-place: set each commit's same_day_total to the number of commits
+    sharing its calendar date. A derived aggregate (like busyness), so it's
+    baked at wrap time rather than during git collection — both the commit
+    pane's badge and the scene tree-color read this one field (#35)."""
+    per_day: dict[str, int] = {}
+    for c in commits:
+        per_day[c["date"]] = per_day.get(c["date"], 0) + 1
+    for c in commits:
+        c["same_day_total"] = per_day[c["date"]]
 
 
 def _force_skeleton_placeholders(node: DirNode | FileNode) -> None:

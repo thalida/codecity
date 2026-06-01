@@ -62,6 +62,7 @@ function commit(i: number): CommitEntry {
     sha: `${i.toString(16).padStart(8, '0')}${'0'.repeat(32)}`,
     authors: [`Author ${i}`],
     subject: `commit ${i}`,
+    same_day_total: 1, // each commit is on a distinct date
   };
 }
 

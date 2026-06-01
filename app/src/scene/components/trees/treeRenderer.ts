@@ -30,13 +30,11 @@ import type { CommitEntry, BusynessThresholds } from '@/types';
 import {
   computeAgeRange,
   computeSizeRange,
-  computeDailyCounts,
   ageT,
   sizeT,
   dailyCountTByIndex,
   type AgeRange,
   type SizeRange,
-  type DailyCounts,
 } from './treeEncoding';
 import { interpolateOklch } from '@/scene/utils/color/colors';
 import { sunDirFromLighting } from '@/scene/components/lighting/sunDir';
@@ -257,7 +255,6 @@ export function createTreeRenderer(
 
   const ageRange: AgeRange = computeAgeRange(commits);
   const sizeRange: SizeRange = computeSizeRange(commits);
-  const dailyCounts: DailyCounts = computeDailyCounts(commits);
 
   // HEIGHT is driven by AGE: older commits grow taller. ageT=0 (oldest)
   // → max height; ageT=1 (newest) → min height. Degenerate cases
@@ -315,7 +312,7 @@ export function createTreeRenderer(
   function perTreeColor(i: number, target: THREE.Color): void {
     let t = 0.5;
     if (commits && placements[i].commitIndex >= 0 && placements[i].commitIndex < commits.length) {
-      t = dailyCountTByIndex(dailyCounts, placements[i].commitIndex, busyness);
+      t = dailyCountTByIndex(commits, placements[i].commitIndex, busyness);
     }
     interpolateOklch(soloDayColor, busyDayColor, t, target);
 

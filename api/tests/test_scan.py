@@ -15,6 +15,7 @@ from tempfile import TemporaryDirectory
 import pytest
 
 from api.scan import (
+    _annotate_same_day_totals,
     _compute_busyness,
     _extension,
     _is_binary,
@@ -226,6 +227,24 @@ class ComputeBusynessTests(unittest.TestCase):
                          {"avg": 2, "busy": 3})
 
 
+class AnnotateSameDayTotalsTests(unittest.TestCase):
+    def test_sets_per_day_group_size_on_each_commit(self):
+        # Three commits on 01-01, one on 01-02.
+        commits = [
+            {"date": "2026-01-01", "files": 1, "sha": "0" * 40, "authors": [], "subject": ""},
+            {"date": "2026-01-01", "files": 1, "sha": "1" * 40, "authors": [], "subject": ""},
+            {"date": "2026-01-01", "files": 1, "sha": "2" * 40, "authors": [], "subject": ""},
+            {"date": "2026-01-02", "files": 1, "sha": "3" * 40, "authors": [], "subject": ""},
+        ]
+        _annotate_same_day_totals(commits)
+        self.assertEqual([c["same_day_total"] for c in commits], [3, 3, 3, 1])
+
+    def test_empty_history_is_a_noop(self):
+        commits: list = []
+        _annotate_same_day_totals(commits)
+        self.assertEqual(commits, [])
+
+
 class ScanTreeIntegrationTests(_CacheRedirectMixin, unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -302,6 +321,20 @@ class ScanTreeIntegrationTests(_CacheRedirectMixin, unittest.TestCase):
         self.assertIsInstance(b["busy"], int)
         # Bands stay distinct: busy is always at least avg + 1.
         self.assertGreaterEqual(b["busy"], b["avg"] + 1)
+
+    def test_same_day_total_baked_on_every_commit(self):
+        m = _final_manifest(str(FIXTURE))
+        commits = m["commits"]
+        self.assertGreater(len(commits), 0)
+        # Recompute the per-day grouping independently and assert each
+        # commit's baked same_day_total matches (>= 1, includes self).
+        per_day: dict[str, int] = {}
+        for c in commits:
+            per_day[c["date"]] = per_day.get(c["date"], 0) + 1
+        for c in commits:
+            self.assertIn("same_day_total", c)
+            self.assertEqual(c["same_day_total"], per_day[c["date"]])
+            self.assertGreaterEqual(c["same_day_total"], 1)
 
     def test_signature_present_and_stable(self):
         m1 = _final_manifest(str(FIXTURE))

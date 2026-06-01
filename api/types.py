@@ -115,13 +115,18 @@ class CommitEntry(TypedDict):
     distinct authors for this commit — primary (git's %an) at index 0,
     Co-authored-by trailer names following. Emails stripped (privacy).
     subject is git %s — the first line of the commit message only;
-    body is fetched lazily via /api/commit."""
+    body is fetched lazily via /api/commit. same_day_total is the number
+    of commits sharing this commit's calendar date (>= 1, includes self),
+    baked once at manifest-wrap so the commit pane's busyness badge and the
+    scene tree-color both read one consistent value instead of each
+    recomputing the per-day grouping."""
 
     date: str   # "YYYY-MM-DD"
     files: int
     sha: str
     authors: list[str]
     subject: str
+    same_day_total: int
 
 
 class BusynessThresholds(TypedDict):

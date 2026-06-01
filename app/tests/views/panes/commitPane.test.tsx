@@ -17,6 +17,7 @@ const COMMIT: CommitEntry = {
   sha: 'a1b2c3d4567890abcdef1234567890abcdef1234',
   authors: ['Alice Author'],
   subject: 'fix(scan): handle empty repos cleanly',
+  same_day_total: 4,
 };
 
 // setCommit(commit, opts) on the old factory maps to assigning the signal
@@ -352,6 +353,7 @@ describe('CommitPane', () => {
       sha: 'a1b2c3d4567890abcdef1234567890abcdef1234',
       authors: ['Alice Author', 'Bob Builder', 'Carol Coder'],
       subject: 'feat: team effort',
+      same_day_total: 4,
     };
     mount();
     await setCommit(multi, { now: new Date('2026-05-24T12:00:00Z') });

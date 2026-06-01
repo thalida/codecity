@@ -114,6 +114,10 @@ export interface CommitEntry {
   authors: string[];
   /** First line of the commit message. */
   subject: string;
+  /** Number of commits sharing this commit's calendar date (≥ 1, includes
+   *  self). Baked by the backend at manifest-wrap so the commit pane's
+   *  busyness badge and the scene tree-color read one consistent value. */
+  same_day_total: number;
 }
 
 export interface Manifest {

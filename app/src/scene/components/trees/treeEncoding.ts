@@ -82,30 +82,6 @@ export function sizeT(commit: CommitEntry, range: SizeRange): number {
   return clamp01((commit.files - range.min) / range.span);
 }
 
-export interface DailyCounts {
-  /** Per-commit count of commits sharing that commit's calendar date.
-   *  Same length as the input commits array; counts[i] = N when commit i
-   *  shares its date with N-1 other commits (so counts[i] >= 1 for any
-   *  valid commit). */
-  counts: number[];
-}
-
-/** Group commits by `date` (YYYY-MM-DD) and assign each commit the size of
- *  its day-group, in a single O(n) pass. The per-day count is mapped to the
- *  color-ramp t by dailyCountT(), anchored on the repo's backend-computed
- *  busyness thresholds. */
-export function computeDailyCounts(commits: CommitEntry[] | null): DailyCounts {
-  if (!commits || commits.length === 0) return { counts: [] };
-  const byDate = new Map<string, number>();
-  for (let i = 0; i < commits.length; i++) {
-    const d = commits[i].date;
-    byDate.set(d, (byDate.get(d) ?? 0) + 1);
-  }
-  const counts = new Array<number>(commits.length);
-  for (let i = 0; i < commits.length; i++) counts[i] = byDate.get(commits[i].date) ?? 0;
-  return { counts };
-}
-
 /**
  * Map a per-day commit count to the tree-color ramp t in [0, 1], anchored on
  * the repo's busyness thresholds so the gradient agrees with the commit
@@ -127,13 +103,14 @@ export function dailyCountT(count: number, thresholds: BusynessThresholds): numb
   return busy <= avg ? 1 : clamp01(0.5 + (0.5 * (count - avg)) / (busy - avg));
 }
 
-/** Convenience: daily-count-T by commit index, anchored on the repo's
- *  busyness thresholds. Out-of-range indices return 0.5 (neutral). */
+/** Convenience: daily-count-T for the commit at `idx`, reading the
+ *  backend-baked same_day_total and anchoring on the repo's busyness
+ *  thresholds. Out-of-range indices (or null commits) return 0.5 (neutral). */
 export function dailyCountTByIndex(
-  dc: DailyCounts,
+  commits: CommitEntry[] | null,
   idx: number,
   thresholds: BusynessThresholds
 ): number {
-  if (idx < 0 || idx >= dc.counts.length) return 0.5;
-  return dailyCountT(dc.counts[idx], thresholds);
+  if (!commits || idx < 0 || idx >= commits.length) return 0.5;
+  return dailyCountT(commits[idx].same_day_total, thresholds);
 }

@@ -77,7 +77,10 @@ _GIT_HISTORY_CACHE_VERSION = 11
 # rebuilds commits FROM that cache — which then cached author-less manifests
 # (fireflies/header crash on commit.authors). The loader is fixed; this bump
 # discards the polluted v3 blobs so a normal load re-scans correctly.
-_MANIFEST_SCHEMA_VERSION = 4
+# v5: each CommitEntry gained same_day_total (commits sharing its date),
+# baked at wrap time so the commit pane + scene tree-color read one field
+# instead of recomputing the per-day grouping. Pre-v5 blobs lack it.
+_MANIFEST_SCHEMA_VERSION = 5
 # Composite cache version: invalidates when EITHER the manifest
 # schema OR the git-history cache shape changes. Stored as a string
 # in the cache file's `version` field; the loader's equality check

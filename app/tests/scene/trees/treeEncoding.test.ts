@@ -7,7 +7,6 @@ import { describe, it, expect } from 'vitest';
 import {
   computeAgeRange,
   computeSizeRange,
-  computeDailyCounts,
   ageT,
   sizeT,
   dailyCountT,
@@ -92,7 +91,7 @@ describe('ageT()', () => {
           files: 1,
           sha: 'a'.repeat(40),
           authors: ['Test Author'],
-          subject: 'test commit',
+          subject: 'test commit', same_day_total: 1,
         },
         zero
       )
@@ -108,7 +107,7 @@ describe('ageT()', () => {
           files: 1,
           sha: 'a'.repeat(40),
           authors: ['Test Author'],
-          subject: 'test commit',
+          subject: 'test commit', same_day_total: 1,
         },
         range
       )
@@ -120,7 +119,7 @@ describe('ageT()', () => {
           files: 1,
           sha: 'a'.repeat(40),
           authors: ['Test Author'],
-          subject: 'test commit',
+          subject: 'test commit', same_day_total: 1,
         },
         range
       )
@@ -148,48 +147,11 @@ describe('sizeT()', () => {
           files: 1,
           sha: 'a'.repeat(40),
           authors: ['Test Author'],
-          subject: 'test commit',
+          subject: 'test commit', same_day_total: 1,
         },
         zero
       )
     ).toBe(0.5);
-  });
-});
-
-describe('computeDailyCounts()', () => {
-  it('counts commits per calendar date in oldest-first order', () => {
-    const dc = computeDailyCounts(
-      buildCommits(
-        { date: '2026-01-01', files: 1 },
-        { date: '2026-01-02', files: 1 },
-        { date: '2026-01-02', files: 1 },
-        { date: '2026-01-02', files: 1 }
-      )
-    );
-    expect(dc.counts).toEqual([1, 3, 3, 3]);
-  });
-
-  it('null commits → empty counts', () => {
-    expect(computeDailyCounts(null).counts).toEqual([]);
-  });
-
-  it('empty commits → empty counts', () => {
-    expect(computeDailyCounts([]).counts).toEqual([]);
-  });
-
-  it('single-commit history → [1]', () => {
-    expect(computeDailyCounts(buildCommits({ date: '2026-01-01', files: 1 })).counts).toEqual([1]);
-  });
-
-  it('all-same-day → every count equal', () => {
-    const dc = computeDailyCounts(
-      buildCommits(
-        { date: '2026-01-01', files: 1 },
-        { date: '2026-01-01', files: 1 },
-        { date: '2026-01-01', files: 1 }
-      )
-    );
-    expect(dc.counts).toEqual([3, 3, 3]);
   });
 });
 
@@ -227,28 +189,32 @@ describe('dailyCountT()', () => {
 });
 
 describe('dailyCountTByIndex()', () => {
-  const dc = computeDailyCounts(
-    buildCommits(
-      { date: '2026-01-01', files: 1 }, // count=1 → t=0
-      { date: '2026-01-15', files: 1 }, // count=1 → t=0 (unique date)
-      { date: '2026-02-01', files: 1 }, // count=1 (no other Feb 1)
-      { date: '2026-03-01', files: 1 }, // count=4 → t=1
-      { date: '2026-03-01', files: 1 },
-      { date: '2026-03-01', files: 1 },
-      { date: '2026-03-01', files: 1 }
-    )
+  // _commitFixtures bakes same_day_total from the date grouping (mirroring the
+  // backend), so these dates produce same_day_total = {1,1,1,4,4,4,4}.
+  const cs = buildCommits(
+    { date: '2026-01-01', files: 1 }, // same_day_total=1 → t=0
+    { date: '2026-01-15', files: 1 }, // 1 → t=0 (unique date)
+    { date: '2026-02-01', files: 1 }, // 1 (no other Feb 1)
+    { date: '2026-03-01', files: 1 }, // 4 → t=1
+    { date: '2026-03-01', files: 1 },
+    { date: '2026-03-01', files: 1 },
+    { date: '2026-03-01', files: 1 }
   );
   const thresholds = { avg: 2, busy: 4 };
 
   it('maps single-commit days to 0 and busiest days to 1', () => {
-    expect(dailyCountTByIndex(dc, 0, thresholds)).toBe(0);
-    expect(dailyCountTByIndex(dc, 1, thresholds)).toBe(0);
-    expect(dailyCountTByIndex(dc, 3, thresholds)).toBe(1);
-    expect(dailyCountTByIndex(dc, 6, thresholds)).toBe(1);
+    expect(dailyCountTByIndex(cs, 0, thresholds)).toBe(0);
+    expect(dailyCountTByIndex(cs, 1, thresholds)).toBe(0);
+    expect(dailyCountTByIndex(cs, 3, thresholds)).toBe(1);
+    expect(dailyCountTByIndex(cs, 6, thresholds)).toBe(1);
   });
 
   it('out-of-range index returns 0.5', () => {
-    expect(dailyCountTByIndex(dc, -1, thresholds)).toBe(0.5);
-    expect(dailyCountTByIndex(dc, 99, thresholds)).toBe(0.5);
+    expect(dailyCountTByIndex(cs, -1, thresholds)).toBe(0.5);
+    expect(dailyCountTByIndex(cs, 99, thresholds)).toBe(0.5);
+  });
+
+  it('null commits returns 0.5', () => {
+    expect(dailyCountTByIndex(null, 0, thresholds)).toBe(0.5);
   });
 });
