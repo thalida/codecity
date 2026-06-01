@@ -10,7 +10,10 @@
 //   handlers.dispose();
 
 import * as THREE from 'three';
-import { INPUT_TIMING } from '@/state/settings/index';
+// Pointer input timing — fixed, not user-tunable.
+const INPUT_CLICK_MOVE_THRESHOLD_PX = 5;
+const INPUT_CLICK_TIME_THRESHOLD_MS = 400;
+const INPUT_HOVER_COMMIT_MS = 35;
 import { KEY_BINDINGS, TEXT_INPUT_TAGS } from '@/constants';
 import { NodeKind } from '@/types';
 import type { PickTarget } from '@/types';
@@ -171,7 +174,7 @@ export function createInputHandlers({
       const toCommit = _hoverPending;
       _hoverPending = null;
       if (!_sameHover(toCommit, picker.hover.value)) picker.setHover(toCommit);
-    }, INPUT_TIMING.value.HOVER_COMMIT_MS);
+    }, INPUT_HOVER_COMMIT_MS);
   }
 
   function _handlePick(clientX: number, clientY: number): void {
@@ -249,10 +252,9 @@ export function createInputHandlers({
     const dx = ev.clientX - downX;
     const dy = ev.clientY - downY;
     const dtime = Date.now() - downTime;
-    const input = INPUT_TIMING.value;
-    const moveSq = input.CLICK_MOVE_THRESHOLD_PX * input.CLICK_MOVE_THRESHOLD_PX;
+    const moveSq = INPUT_CLICK_MOVE_THRESHOLD_PX * INPUT_CLICK_MOVE_THRESHOLD_PX;
     if (dx * dx + dy * dy > moveSq) return;
-    if (dtime > input.CLICK_TIME_THRESHOLD_MS) return;
+    if (dtime > INPUT_CLICK_TIME_THRESHOLD_MS) return;
     _handlePick(ev.clientX, ev.clientY);
   });
 

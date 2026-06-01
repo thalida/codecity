@@ -10,7 +10,9 @@
 // driven by Three.js pointer events rather than React-tree state — the
 // imperative API IS the right interface for this component.
 
-import { TOOLTIP } from '@/state/settings/index';
+// Tooltip placement — fixed, not user-tunable.
+const TOOLTIP_OFFSET_PX = 14;
+const TOOLTIP_VIEWPORT_MARGIN_PX = 4;
 import { DOM_IDS } from '@/constants';
 
 let _el: HTMLElement | null = null;
@@ -38,9 +40,8 @@ export function showTooltip(text: string, x: number, y: number): void {
 // on every pointermove.
 export function moveTooltip(x: number, y: number): void {
   if (!_el) return;
-  const cfg = TOOLTIP.value;
-  const OFFSET = cfg.OFFSET_PX;
-  const MARGIN = cfg.VIEWPORT_MARGIN_PX;
+  const OFFSET = TOOLTIP_OFFSET_PX;
+  const MARGIN = TOOLTIP_VIEWPORT_MARGIN_PX;
   const w = _el.offsetWidth;
   const h = _el.offsetHeight;
   const vw = window.innerWidth;

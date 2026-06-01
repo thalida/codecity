@@ -28,7 +28,17 @@
 
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { CAMERA_PERSPECTIVE, CAMERA_CONTROLS, ANIMATION_TIMING } from '@/state/settings/index';
+import { ANIMATION_TIMING } from '@/state/settings/index';
+import {
+  CAMERA_FOV,
+  CAMERA_NEAR,
+  CAMERA_FAR,
+  CAMERA_DAMPING_FACTOR,
+  CAMERA_MAX_POLAR_ANGLE_FRAC,
+  CAMERA_MIN_DISTANCE,
+  CAMERA_MAX_DISTANCE_MULT,
+  CAMERA_INITIAL_DISTANCE_MULT,
+} from '@/constants/camera';
 import { CURRENT_SOURCE_KEY } from '@/state/runtime/activeSource';
 import { NodeKind, StreetAxis } from '@/types';
 import type { Building, PickTarget, Street } from '@/types';
@@ -84,24 +94,22 @@ export function createCameraRig({
   canvas: HTMLCanvasElement;
   world: ReturnType<typeof createWorld>;
 }) {
-  const perspective = CAMERA_PERSPECTIVE.value;
   const W = canvas.clientWidth;
   const H = canvas.clientHeight;
   const camera = new THREE.PerspectiveCamera(
-    perspective.FOV,
+    CAMERA_FOV,
     W / Math.max(1, H),
-    perspective.NEAR,
-    perspective.FAR
+    CAMERA_NEAR,
+    CAMERA_FAR
   );
 
-  const cameraControlsCfg = CAMERA_CONTROLS.value;
   const controls = new OrbitControls(camera, canvas);
   controls.enableDamping = true;
-  controls.dampingFactor = cameraControlsCfg.DAMPING_FACTOR;
+  controls.dampingFactor = CAMERA_DAMPING_FACTOR;
   controls.screenSpacePanning = false;
   controls.zoomToCursor = true;
-  controls.maxPolarAngle = Math.PI * cameraControlsCfg.MAX_POLAR_ANGLE_FRAC;
-  controls.minDistance = cameraControlsCfg.MIN_DISTANCE;
+  controls.maxPolarAngle = Math.PI * CAMERA_MAX_POLAR_ANGLE_FRAC;
+  controls.minDistance = CAMERA_MIN_DISTANCE;
   controls.mouseButtons = {
     LEFT: THREE.MOUSE.ROTATE,
     MIDDLE: THREE.MOUSE.DOLLY,
@@ -158,7 +166,7 @@ export function createCameraRig({
     // previous formula was worldDist × MAX_DISTANCE_MULT which kept
     // small cities cramped because worldDist was itself small.
     controls.maxDistance = Math.max(
-      worldRadius * cameraControlsCfg.MAX_DISTANCE_MULT,
+      worldRadius * CAMERA_MAX_DISTANCE_MULT,
       MIN_MAX_DISTANCE
     );
 
@@ -170,7 +178,7 @@ export function createCameraRig({
     // (CAMERA_PERSPECTIVE.FAR × 0.95) so the sphere never gets clipped
     // at the corners of small-repo viewports.
     const dynamicFar = controls.maxDistance * 2 + worldRadius * 2;
-    const skySphereExtent = CAMERA_PERSPECTIVE.value.FAR * 0.95;
+    const skySphereExtent = CAMERA_FAR * 0.95;
     camera.far = Math.max(dynamicFar, skySphereExtent);
     camera.updateProjectionMatrix();
 
@@ -200,7 +208,7 @@ export function createCameraRig({
     // Distance from width: the existing "city neighborhood readable on
     // screen" framing. INITIAL_DISTANCE_MULT (<1) tightens the sphere fit
     // intentionally; tuned for the typical city shape.
-    const widthDist = (framingRadius / Math.sin(halfFov)) * cameraControlsCfg.INITIAL_DISTANCE_MULT;
+    const widthDist = (framingRadius / Math.sin(halfFov)) * CAMERA_INITIAL_DISTANCE_MULT;
     // Default framing direction: place the camera BEHIND the gem along
     // the root street's long axis (the street extends in +X for X-oriented
     // or +Z for Y-oriented; the gem sits at the low end — see

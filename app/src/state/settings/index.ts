@@ -34,10 +34,7 @@
 // see src/constants/ or inlined private consts in their consumer.
 
 // ── System (camera, input, animation, tooltip) ───────────────────────
-export * from './system/cameraRig';
 export * from './system/animator';
-export * from './system/inputHandlers';
-export * from './system/tooltip';
 
 // ── App-level user preferences ────────────────────────────────────────
 export * from './updates';

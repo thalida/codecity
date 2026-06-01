@@ -23,7 +23,7 @@
 
 import * as THREE from 'three';
 import { SCENE } from '@/state/settings/scene';
-import { CAMERA_PERSPECTIVE } from '@/state/settings/system/cameraRig';
+import { CAMERA_FAR } from '@/constants/camera';
 import { RENDER_ORDERS } from '@/scene/renderOrders';
 
 import skyVertSrc from './sky.vert.glsl?raw';
@@ -80,7 +80,7 @@ export function createSky(): Sky {
   // camera FAR plane is itself a fixed user config (default 20000)
   // and changes only require a fresh boot, so this radius does not
   // need to track FAR live.
-  const radius = CAMERA_PERSPECTIVE.value.FAR * RADIUS_FAR_FRAC;
+  const radius = CAMERA_FAR * RADIUS_FAR_FRAC;
 
   const geometry = new THREE.IcosahedronGeometry(radius, ICOSAHEDRON_DETAIL);
 
