@@ -12,9 +12,13 @@ import { signal, computed, effect } from '@preact/signals';
 import type { Signal } from '@preact/signals';
 import { STORAGE_PREFIX } from '@/constants';
 
-// ── Internal registries ────────────────────────────────────────────────────
-const _SIGNALS: Map<string, Signal<any>> = new Map();
-const _DEFAULTS: Map<string, any> = new Map();
+// ── Registry ───────────────────────────────────────────────────────────────
+// One map keyed by the store signal itself; each entry holds the persisted
+// key name (localStorage suffix) and the pre-hydration default. Keying by the
+// signal (not the name) makes getDefault / HAS_ANY_NON_DEFAULT /
+// forEachRegisteredStore direct lookups — no reverse name↔signal scan.
+interface StoreEntry { name: string; default: any; }
+const _STORES: Map<Signal<any>, StoreEntry> = new Map();
 
 // ── Storage helpers ────────────────────────────────────────────────────────
 function _safeGet(key: string): unknown {
@@ -32,13 +36,16 @@ function _safeRemove(key: string): void {
   try { localStorage.removeItem(STORAGE_PREFIX + key); } catch { /* noop */ }
 }
 
-// Deep-equality via JSON round-trip — handles every shape we put in signals.
-function _equal(a: unknown, b: unknown): boolean {
+// Deep-equality / deep-clone via JSON round-trip — handles every shape we put
+// in signals. Exported as the single source of value comparison + cloning for
+// the whole state/controls layer (drafts, controls hooks, ActionsBar) so the
+// helper isn't re-implemented per file.
+export function deepEqual(a: unknown, b: unknown): boolean {
   if (a === b) return true;
   try { return JSON.stringify(a) === JSON.stringify(b); } catch { return false; }
 }
 
-function _clone<T>(v: T): T {
+export function deepClone<T>(v: T): T {
   try { return JSON.parse(JSON.stringify(v)); } catch { return v; }
 }
 
@@ -81,14 +88,14 @@ function _serialize<T>(value: T, defaultValue: T): unknown {
     for (const k in value as object) {
       if (!Object.hasOwn(value as object, k)) continue;
       if (!Object.hasOwn(defaultValue as object, k)) continue;
-      if (!_equal((value as Record<string, unknown>)[k], (defaultValue as Record<string, unknown>)[k])) {
+      if (!deepEqual((value as Record<string, unknown>)[k], (defaultValue as Record<string, unknown>)[k])) {
         diff[k] = (value as Record<string, unknown>)[k];
         any = true;
       }
     }
     return any ? diff : null; // null signals "remove entry"
   }
-  return _equal(value, defaultValue) ? null : value;
+  return deepEqual(value, defaultValue) ? null : value;
 }
 
 // ── Public: per-signal persistence ────────────────────────────────────────
@@ -105,15 +112,13 @@ export function persistedSignal<T>(key: string, defaultValue: T): Signal<T> {
   if (typeof localStorage === 'undefined') {
     // SSR / test environment without localStorage — return a plain signal.
     const s = signal<T>(defaultValue);
-    _DEFAULTS.set(key, defaultValue);
-    _SIGNALS.set(key, s);
+    _STORES.set(s, { name: key, default: deepClone(defaultValue) });
     return s;
   }
   const saved = _safeGet(key);
   const initial = saved !== null ? _hydrate(saved, defaultValue) : defaultValue;
   const s = signal<T>(initial);
-  _DEFAULTS.set(key, _clone(defaultValue));
-  _SIGNALS.set(key, s);
+  _STORES.set(s, { name: key, default: deepClone(defaultValue) });
 
   effect(() => {
     const v = s.value;
@@ -131,9 +136,8 @@ export function persistedSignal<T>(key: string, defaultValue: T): Signal<T> {
  *  Replaces the old _changeListeners + onAnyChange + hasAnyOverrides() pattern.
  *  The Reset-all button reads HAS_ANY_NON_DEFAULT.value for its enabled state. */
 export const HAS_ANY_NON_DEFAULT = computed(() => {
-  for (const [key, s] of _SIGNALS) {
-    const def = _DEFAULTS.get(key);
-    if (!_equal(s.value, def)) return true;
+  for (const [s, entry] of _STORES) {
+    if (!deepEqual(s.value, entry.default)) return true;
   }
   return false;
 });
@@ -147,21 +151,16 @@ type AnySignalLike = { value: any };
 
 /** Return the pre-hydration default for a signal, or a keyed sub-default. */
 export function getDefault(store: AnySignalLike, key?: string): any {
-  for (const [k, s] of _SIGNALS) {
-    if ((s as unknown) === store) {
-      const def = _DEFAULTS.get(k);
-      return key === undefined ? def : (def ? def[key] : undefined);
-    }
-  }
-  return undefined;
+  const entry = _STORES.get(store as Signal<any>);
+  if (!entry) return undefined;
+  return key === undefined ? entry.default : (entry.default ? entry.default[key] : undefined);
 }
 
 /** Visit every registered signal. Used by drafts.ts for stageResetAll. */
 export function forEachRegisteredStore(
-  cb: (name: string, store: AnySignalLike, defaults: any) => void
+  cb: (store: AnySignalLike, defaults: any) => void
 ): void {
-  for (const [key, s] of _SIGNALS) {
-    const def = _DEFAULTS.get(key);
-    cb(key, s as AnySignalLike, def);
+  for (const [s, entry] of _STORES) {
+    cb(s as AnySignalLike, entry.default);
   }
 }

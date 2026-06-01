@@ -10,7 +10,7 @@
 // signals (no sub-key), key = null and the inner map has at most one entry.
 
 import { signal } from '@preact/signals';
-import { forEachRegisteredStore, getDefault } from './persist';
+import { forEachRegisteredStore, getDefault, deepEqual, deepClone } from './persist';
 
 interface SignalLike {
   get value(): any;
@@ -35,23 +35,6 @@ function _emit(): void {
   DRAFTS_REV.value++;
 }
 
-function _equal(a: unknown, b: unknown): boolean {
-  if (a === b) return true;
-  try {
-    return JSON.stringify(a) === JSON.stringify(b);
-  } catch (_) {
-    return false;
-  }
-}
-
-function _clone<T>(v: T): T {
-  try {
-    return JSON.parse(JSON.stringify(v));
-  } catch (_) {
-    return v;
-  }
-}
-
 function _committedValue(store: SignalLike, key: DraftKey): unknown {
   const state = store.value;
   if (key === null) return state;
@@ -61,7 +44,7 @@ function _committedValue(store: SignalLike, key: DraftKey): unknown {
 export function setDraft(store: SignalLike, key: DraftKey, value: unknown): void {
   const committed = _committedValue(store, key);
   let perStore = _drafts.get(store);
-  if (_equal(value, committed)) {
+  if (deepEqual(value, committed)) {
     // Drop the entry — leaving "dirty" only when pending differs from committed.
     if (perStore && perStore.has(key)) {
       perStore.delete(key);
@@ -74,7 +57,7 @@ export function setDraft(store: SignalLike, key: DraftKey, value: unknown): void
     perStore = new Map();
     _drafts.set(store, perStore);
   }
-  perStore.set(key, _clone(value));
+  perStore.set(key, deepClone(value));
   _emit();
 }
 
@@ -94,14 +77,14 @@ export function stageReset(store: SignalLike, key: DraftKey): void {
 
 export function stageResetAll(): void {
   let touched = false;
-  forEachRegisteredStore((_name, store, defaults) => {
+  forEachRegisteredStore((store, defaults) => {
     // Direct-write signals (e.g. SYNTAX_THEME) bypass the draft layer on
     // user input — the widget writes straight to the signal for instant
     // visual feedback. Reset all must do the same, otherwise it leaves
     // a phantom draft that the user has to Save to clear.
     if ((store as { _skipDrafts?: boolean })._skipDrafts) {
       const s = store as SignalLike;
-      if (!_equal(s.value, defaults)) {
+      if (!deepEqual(s.value, defaults)) {
         s.value = defaults;
       }
       return;
@@ -114,13 +97,13 @@ export function stageResetAll(): void {
       // Object-valued signal: stage each sub-key whose effective value differs from default.
       for (const k in defaults) {
         if (!Object.hasOwn(defaults, k)) continue;
-        if (_equal(getEffective(store as SignalLike, k), defaults[k])) continue;
+        if (deepEqual(getEffective(store as SignalLike, k), defaults[k])) continue;
         _stageWithoutEmit(store as SignalLike, k, defaults[k]);
         touched = true;
       }
     } else {
       // Scalar / array signal: stage whole default if effective differs.
-      if (!_equal(getEffective(store as SignalLike, null), defaults)) {
+      if (!deepEqual(getEffective(store as SignalLike, null), defaults)) {
         _stageWithoutEmit(store as SignalLike, null, defaults);
         touched = true;
       }
@@ -134,7 +117,7 @@ export function stageResetAll(): void {
 function _stageWithoutEmit(store: SignalLike, key: DraftKey, value: unknown): void {
   const committed = _committedValue(store, key);
   let perStore = _drafts.get(store);
-  if (_equal(value, committed)) {
+  if (deepEqual(value, committed)) {
     if (perStore && perStore.has(key)) {
       perStore.delete(key);
       if (perStore.size === 0) _drafts.delete(store);
@@ -145,7 +128,7 @@ function _stageWithoutEmit(store: SignalLike, key: DraftKey, value: unknown): vo
     perStore = new Map();
     _drafts.set(store, perStore);
   }
-  perStore.set(key, _clone(value));
+  perStore.set(key, deepClone(value));
 }
 
 export function commit(): void {

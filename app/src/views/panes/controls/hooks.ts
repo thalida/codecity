@@ -9,7 +9,7 @@
 import { useLayoutEffect, useState } from 'preact/hooks';
 import type { RefObject } from 'preact';
 import { getEffective, DRAFTS_REV } from '@/state/drafts';
-import { getDefault } from '@/state/persist';
+import { getDefault, deepEqual } from '@/state/persist';
 
 interface SignalLike {
   get value(): any;
@@ -44,7 +44,7 @@ export function useDefault<T = unknown>(store: SignalLike, key: DraftKey): T {
 export function useDiffersFromDefault(store: SignalLike, key: DraftKey): boolean {
   const eff = useEffective(store, key);
   const def = useDefault(store, key);
-  return !_isEqual(eff, def);
+  return !deepEqual(eff, def);
 }
 
 /**
@@ -55,16 +55,7 @@ export function useDiffersFromDefault(store: SignalLike, key: DraftKey): boolean
 export function useAnyDiffersFromDefault(store: SignalLike, keys: string[]): boolean {
   void store.value;
   void DRAFTS_REV.value;
-  return keys.some((k) => !_isEqual(getEffective(store, k), getDefault(store, k)));
-}
-
-function _isEqual(a: unknown, b: unknown): boolean {
-  if (a === b) return true;
-  try {
-    return JSON.stringify(a) === JSON.stringify(b);
-  } catch (_) {
-    return false;
-  }
+  return keys.some((k) => !deepEqual(getEffective(store, k), getDefault(store, k)));
 }
 
 /**

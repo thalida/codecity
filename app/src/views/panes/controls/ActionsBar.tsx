@@ -14,7 +14,7 @@ import {
   DRAFTS_REV,
   getEffective,
 } from '@/state/drafts';
-import { forEachRegisteredStore, HAS_ANY_NON_DEFAULT } from '@/state/persist';
+import { forEachRegisteredStore, HAS_ANY_NON_DEFAULT, deepEqual } from '@/state/persist';
 
 interface MapLikeStore {
   get value(): any;
@@ -23,18 +23,9 @@ interface MapLikeStore {
   subscribe(listener: (state: any) => void): () => void;
 }
 
-function _isEqual(a: unknown, b: unknown): boolean {
-  if (a === b) return true;
-  try {
-    return JSON.stringify(a) === JSON.stringify(b);
-  } catch (_) {
-    return false;
-  }
-}
-
 function _canResetAll(): boolean {
   let canReset = false;
-  forEachRegisteredStore((_name, store, defaults) => {
+  forEachRegisteredStore((store, defaults) => {
     if (canReset) return;
     if (
       defaults &&
@@ -45,7 +36,7 @@ function _canResetAll(): boolean {
       for (const k in defaults) {
         if (!Object.hasOwn(defaults, k)) continue;
         if (
-          !_isEqual(
+          !deepEqual(
             getEffective(store as MapLikeStore, k),
             (defaults as Record<string, unknown>)[k]
           )
@@ -54,7 +45,7 @@ function _canResetAll(): boolean {
           return;
         }
       }
-    } else if (!_isEqual(getEffective(store as MapLikeStore, null), defaults)) {
+    } else if (!deepEqual(getEffective(store as MapLikeStore, null), defaults)) {
       canReset = true;
     }
   });
