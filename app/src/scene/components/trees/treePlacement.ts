@@ -36,6 +36,11 @@ import { gemAnchorXZ } from '../../utils/gemAnchor';
 import type { Building, CityBbox, CityLayout, Street } from '@/types';
 import type { IslandGeometryConfig } from '@/state/settings/components/island';
 
+// Rejection-sampling footprint half-size as a fraction of BUILDING_DIMENSIONS
+// .MAX_WIDTH — a fixed placement-tuning constant, not user-tunable (it lived in
+// the TREES settings store but was never exposed as a control).
+const SCATTER_FOOTPRINT_FRAC_OF_MAX_WIDTH = 0.5;
+
 interface Rect {
   minX: number;
   minY: number;
@@ -168,7 +173,7 @@ export function placeTrees(
   const hasRects = rects.length > 0;
 
   const dims = BUILDING_DIMENSIONS.value;
-  const halfFoot = (cfg.SCATTER_FOOTPRINT_FRAC_OF_MAX_WIDTH * dims.MAX_WIDTH) / 2;
+  const halfFoot = (SCATTER_FOOTPRINT_FRAC_OF_MAX_WIDTH * dims.MAX_WIDTH) / 2;
 
   const bounds = getWorldBounds(bbox, options.cityHeight ?? 0);
   const center = gemCenterFromLayout(layout, bbox);

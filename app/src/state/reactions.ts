@@ -101,7 +101,6 @@ const REBUILD_SIGNATURE = computed(() => ({
     shadingStrength: TREES.value.TREE_SHADING_STRENGTH,
     edgeInset: TREES.value.EDGE_INSET_PERCENT,
     densityFalloff: TREES.value.TREE_DENSITY_FALLOFF,
-    scatterFootprint: TREES.value.SCATTER_FOOTPRINT_FRAC_OF_MAX_WIDTH,
     widthAgeFloor: TREES.value.TREE_WIDTH_AGE_FLOOR,
   },
 
@@ -181,8 +180,8 @@ const MATERIAL_REFRESH_SIGNATURE = computed(() => ({
     colorSoloDay: TREES.value.TREE_COLOR_SOLO_DAY,
     trunkColor: TREES.value.TREE_TRUNK_COLOR,
     ageDesatEnabled: TREES.value.TREE_AGE_DESAT_ENABLED,
-    ageSatMin: TREES.value.TREE_AGE_SATURATION_MIN,
-    ageSatMax: TREES.value.TREE_AGE_SATURATION_MAX,
+    ageSatMin: TREES.value.TREE_AGE_SATURATION[0],
+    ageSatMax: TREES.value.TREE_AGE_SATURATION[1],
   },
 
   // FOOTPRINT — COLOR + ENABLED + CORNER_RADIUS pushed via footprint.refresh().

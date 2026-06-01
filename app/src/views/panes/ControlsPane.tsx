@@ -27,7 +27,7 @@ import { IslandSection } from './controls/IslandSection';
 import { BuildingsSection } from './controls/BuildingsSection';
 import { StreetsSection } from './controls/StreetsSection';
 import { GemSection } from './controls/GemSection';
-import { TreesSection } from './controls/TreesSection';
+import { GeneratedSection, TREES_SECTION } from './controls/sections';
 import { FirefliesSection } from './controls/FirefliesSection';
 import { EffectsSection } from './controls/EffectsSection';
 import { FilePreviewSection } from './controls/FilePreviewSection';
@@ -77,7 +77,7 @@ export function ControlsPane({
       <BuildingsSection />
       <StreetsSection />
       <GemSection />
-      <TreesSection />
+      <GeneratedSection node={TREES_SECTION} />
       <FirefliesSection />
       <EffectsSection />
       <FilePreviewSection />

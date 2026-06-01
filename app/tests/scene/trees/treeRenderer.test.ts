@@ -33,14 +33,12 @@ function resetStores() {
     TRUNK_HEIGHT_FRAC: 0.25,
     TRUNK_RADIUS_FRAC_OF_CANOPY: 0.15,
     CANOPY_TRUNK_OVERLAP_FRAC: 0.7,
-    SCATTER_FOOTPRINT_FRAC_OF_MAX_WIDTH: 0.5,
     TREE_COLOR_BUSY_DAY: '#0a2613',
     TREE_COLOR_SOLO_DAY: '#a8d68a',
     TREE_SHADING_STRENGTH: 0.65,
     TREE_TRUNK_COLOR: '#120c08',
     TREE_AGE_DESAT_ENABLED: false,
-    TREE_AGE_SATURATION_MIN: 20,
-    TREE_AGE_SATURATION_MAX: 100,
+    TREE_AGE_SATURATION: [20, 100],
     TREE_WIDTH_AGE_FLOOR: 1.0,
   };
   BUILDING_DIMENSIONS.value = {
@@ -455,8 +453,7 @@ describe('createTreeRenderer()', () => {
 
       // Build with desat ON + extreme min (0 → fully gray).
       TREES.value = { ...TREES.value, TREE_AGE_DESAT_ENABLED: true };
-      TREES.value = { ...TREES.value, TREE_AGE_SATURATION_MIN: 0 };
-      TREES.value = { ...TREES.value, TREE_AGE_SATURATION_MAX: 100 };
+      TREES.value = { ...TREES.value, TREE_AGE_SATURATION: [0, 100] };
       trees = createTreeRenderer(placements, testCommits, BUSY);
       const onColor = instanceColor(trees.group, 0).clone();
 
@@ -485,8 +482,7 @@ describe('createTreeRenderer()', () => {
 
       // Now build with desat ON.
       TREES.value = { ...TREES.value, TREE_AGE_DESAT_ENABLED: true };
-      TREES.value = { ...TREES.value, TREE_AGE_SATURATION_MIN: 20 };
-      TREES.value = { ...TREES.value, TREE_AGE_SATURATION_MAX: 100 };
+      TREES.value = { ...TREES.value, TREE_AGE_SATURATION: [20, 100] };
       trees = createTreeRenderer(placements, testCommits, BUSY);
 
       const oldestS = instanceSaturation(trees.group, 0);
@@ -508,8 +504,7 @@ describe('createTreeRenderer()', () => {
 
       // Build with desat ON, MAX=100 → factor=1.00 → no change to newest.
       TREES.value = { ...TREES.value, TREE_AGE_DESAT_ENABLED: true };
-      TREES.value = { ...TREES.value, TREE_AGE_SATURATION_MIN: 20 };
-      TREES.value = { ...TREES.value, TREE_AGE_SATURATION_MAX: 100 };
+      TREES.value = { ...TREES.value, TREE_AGE_SATURATION: [20, 100] };
       trees = createTreeRenderer(placements, testCommits, BUSY);
 
       const newestS = instanceSaturation(trees.group, 1);
@@ -519,8 +514,7 @@ describe('createTreeRenderer()', () => {
 
     it('refresh() re-applies new TREE_AGE_DESAT_ENABLED config — colors differ after toggle', () => {
       TREES.value = { ...TREES.value, TREE_AGE_DESAT_ENABLED: true };
-      TREES.value = { ...TREES.value, TREE_AGE_SATURATION_MIN: 20 };
-      TREES.value = { ...TREES.value, TREE_AGE_SATURATION_MAX: 100 };
+      TREES.value = { ...TREES.value, TREE_AGE_SATURATION: [20, 100] };
 
       const testCommits = buildCommits(
         { date: '2026-01-01', files: 5 }, // oldest → will have reduced saturation

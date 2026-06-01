@@ -323,8 +323,8 @@ export function createTreeRenderer(
       placements[i].commitIndex < commits.length
     ) {
       const aT = ageT(commits[placements[i].commitIndex], ageRange);
-      const minFactor = cfg.TREE_AGE_SATURATION_MIN / 100;
-      const maxFactor = cfg.TREE_AGE_SATURATION_MAX / 100;
+      const minFactor = cfg.TREE_AGE_SATURATION[0] / 100;
+      const maxFactor = cfg.TREE_AGE_SATURATION[1] / 100;
       const factor = minFactor + aT * (maxFactor - minFactor);
       // Skip the HSL roundtrip when factor is effectively 1 — the newest
       // commit at MAX=100 lands here, saving one getHSL+setHSL per tree.
