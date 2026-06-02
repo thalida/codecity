@@ -41,12 +41,11 @@ import buildingFragSrc from './building.frag.glsl?raw';
 // pattern ensures we don't accumulate materials on each rebuild.
 let _sharedMaterial: THREE.ShaderMaterial | null = null;
 
-// The icon atlas the buildings sample for roof glyphs. useCity.ts builds
-// it after the initial manifest fetch and pushes it in via
-// setIconAtlas before the first applyManifest, so the very first
-// frame already has roof icons. Stays null while it's still loading
-// or if the atlas build failed — the shader treats iconUV.x < 0 as
-// "no icon" and just paints the base roof color.
+// The icon atlas the buildings sample for roof glyphs. world.applyManifest
+// builds it (gated on tree_signature) and pushes it in via setIconAtlas before
+// the cell pass, so the buildings have it as they're constructed. Stays null
+// while it's still loading or if the atlas build failed — the shader treats
+// iconUV.x < 0 as "no icon" and just paints the base roof color.
 let _atlas: IconAtlas | null = null;
 
 export function setIconAtlas(atlas: IconAtlas | null): void {

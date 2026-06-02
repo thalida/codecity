@@ -32,7 +32,10 @@ import { LineSegments2 } from 'three/addons/lines/LineSegments2.js';
 import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
 
 import { registerShaderChunks } from './utils/color/registerShaderChunks';
-import { getSharedBuildingUniforms } from './components/buildings/buildings';
+import { getSharedBuildingUniforms, setIconAtlas } from './components/buildings/buildings';
+import { setCellIconAtlas } from './components/buildings/buildingsCell';
+import { buildIconAtlas } from './components/buildings/iconAtlas';
+import { labelFromManifest } from '@/utils/sources';
 import { disposeLabelMaterials } from './components/labels/labels';
 import { buildCellsFromLayout } from './layout/cellAssembly';
 import type { CellTile } from './layout/cellTile';
@@ -443,6 +446,12 @@ export function createWorld(_canvas: HTMLCanvasElement) {
   let _cachedLayoutTreeSig: string | null = null;
   let _cachedLayout: CityLayout | null = null;
 
+  // tree_signature of the manifest the building-roof icon atlas was last built
+  // for. The atlas is rebuilt only when this changes (see applyManifest) — the
+  // build is expensive, and most re-applies (settings rebuilds) reuse the same
+  // manifest.
+  let _lastAtlasTreeSig: string | null = null;
+
   // Scenic state cache: tracks the tree_signature that was used the last time
   // buildWorld ran successfully (in the cell branch). When the layout is
   // reused AND this signature matches the current manifest's tree_signature,
@@ -827,6 +836,16 @@ export function createWorld(_canvas: HTMLCanvasElement) {
     newManifest: Manifest | { tree: unknown; [k: string]: unknown }
   ): Promise<void> {
     const myGeneration = ++_currentGeneration;
+    const newManifestTyped = newManifest as Manifest;
+
+    // Friendly display name: rewrite tree.name to the human label derived from
+    // display_root/remote_url BEFORE building, so every downstream consumer
+    // (root street label, tree root row, footer, document.title) shows it
+    // instead of the cache-dir hash. Cheap + idempotent.
+    const _friendlyName = labelFromManifest(newManifestTyped);
+    if (newManifestTyped.tree && _friendlyName) {
+      newManifestTyped.tree.name = _friendlyName;
+    }
 
     const prev: PrevState = {
       streetPickables,
@@ -841,10 +860,28 @@ export function createWorld(_canvas: HTMLCanvasElement) {
 
     _emit(beforeChangeCbs, prev);
 
+    // Refresh the building-roof icon atlas when the file structure changed.
+    // Building it is expensive (one fetch+draw per unique icon), so gate on the
+    // structure-only tree_signature: settings-driven rebuilds re-apply the same
+    // manifest (skip), while initial load / a new source / a live-update poll
+    // with new or renamed files rebuild it. Done before the cell pass below so
+    // the buildings sample the right glyphs.
+    const _atlasTreeSig = newManifestTyped.tree_signature ?? '';
+    if (_atlasTreeSig !== _lastAtlasTreeSig) {
+      try {
+        const atlas = await buildIconAtlas(newManifestTyped);
+        if (myGeneration !== _currentGeneration) return; // superseded mid-build
+        _lastAtlasTreeSig = _atlasTreeSig;
+        setIconAtlas(atlas);
+        setCellIconAtlas(atlas);
+      } catch (err) {
+        console.warn('[codecity] icon atlas build failed; roofs will render without icons', err);
+      }
+    }
+
     // ---- Phase 1: compute the new layout off-thread via layoutClient.
     // A later applyManifest can preempt us by bumping _currentGeneration;
     // layoutClient signals that via a 'superseded' rejection.
-    const newManifestTyped = newManifest as Manifest;
     // Use the server-computed tree_signature as the layout-cache key.
     // It is structure-only (paths + nesting, NO mtime/size), so it is
     // stable across skeleton/final events for the same scan.

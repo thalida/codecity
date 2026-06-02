@@ -11,7 +11,7 @@
 //
 // Shape of the file, top to bottom:
 //   1. small helpers shared by the two stream entry points (pumpManifestStream,
-//      startScene, resolveBranch, setSourceInfo, loadIconAtlas, syncUrlToSource)
+//      startScene, resolveBranch, setSourceInfo, syncUrlToSource)
 //   2. streamInitialManifest — cold-boot load from ?src
 //   3. applyNewSource        — user picks a new source in the picker
 //   4. setupLiveUpdates      — the background poll loop + its ENABLED gate
@@ -30,10 +30,7 @@ import {
   type ScanProgressEvent,
 } from '@/api/manifest';
 import { getServerConfig } from '@/api/config';
-import { startRenderLoop, _applyDisplayLabel } from '@/scene/renderLoop';
-import { buildIconAtlas } from '@/scene/components/buildings/iconAtlas';
-import { setIconAtlas } from '@/scene/components/buildings/buildings';
-import { setCellIconAtlas } from '@/scene/components/buildings/buildingsCell';
+import { startRenderLoop } from '@/scene/renderLoop';
 import { attachCommitReactions } from '@/state/settingsReactions';
 import { LIVE_UPDATES } from '@/state/stores/settings/updates';
 import { SCENE_HANDLE, type SceneHandle } from '@/state/stores/scene';
@@ -156,18 +153,6 @@ function setSourceInfo(src: string, manifest: Manifest, branch?: string): void {
   };
 }
 
-/** Build the building-roof icon atlas from a manifest and install it. Failures
- *  are non-fatal — roofs just render without glyphs. */
-async function loadIconAtlas(manifest: Manifest): Promise<void> {
-  try {
-    const atlas = await buildIconAtlas(manifest);
-    setIconAtlas(atlas);
-    setCellIconAtlas(atlas);
-  } catch (err) {
-    console.warn('[codecity] icon atlas build failed; roofs will render without icons', err);
-  }
-}
-
 /** Reflect the applied source in the page URL so reload/share reopens it. */
 function syncUrlToSource(payload: SourcePayload): void {
   const url = new URL(window.location.href);
@@ -215,12 +200,11 @@ async function streamInitialManifest(canvas: HTMLCanvasElement): Promise<Initial
   try {
     manifest = await pumpManifestStream(manifestUrl(), async (m) => {
       // Build the scene from the first manifest event, then apply later events
-      // into it. The atlas only needs building once (from that first manifest).
+      // into it. applyManifest (via startScene → startRenderLoop) handles the
+      // display-label rewrite + icon-atlas build internally.
       if (handle === null) {
-        await loadIconAtlas(m);
         handle = await startScene(canvas, m);
       } else {
-        _applyDisplayLabel(m);
         await handle.world.applyManifest(m);
       }
       setSourceInfo(bootSrc, m, resolveBranch(m, bootBranch).branch);
@@ -276,7 +260,6 @@ async function applyNewSource(opts: ApplyNewSourceOpts): Promise<void> {
     // and is applied below.
     const manifest = await pumpManifestStream(url, async (m, phase) => {
       if (phase === ScanPhase.Skeleton) {
-        _applyDisplayLabel(m);
         await handle.world.applyManifest(m);
         setSourceInfo(payload.src, m, payload.branch);
       }
@@ -286,8 +269,6 @@ async function applyNewSource(opts: ApplyNewSourceOpts): Promise<void> {
     // cameraRig resets the camera when the active source key changes.
     CURRENT_SOURCE_KEY.value = sourceKey(payload.src, payload.branch);
 
-    await loadIconAtlas(manifest);
-    _applyDisplayLabel(manifest);
     await handle.world.applyManifest(manifest);
 
     const { branch, isDefault } = resolveBranch(manifest, payload.branch);
@@ -366,7 +347,6 @@ function setupLiveUpdates(
         const m = event.manifest;
         if (m?.signature) {
           lastSignature = m.signature;
-          _applyDisplayLabel(m);
           await handle.world.applyManifest(m);
         }
       }

@@ -30,20 +30,6 @@ import { createPathLineRenderer } from './effects/pathLineRenderer';
 import { showTooltip, hideTooltip } from './effects/tooltip';
 import { createPostFx } from './system/postFx';
 import { registerRenderer as registerAdPanelRenderer } from './components/adPanels/adPanelTextureArray';
-import { labelFromManifest } from '@/utils/sources';
-
-// Rewrite manifest.tree.name to the friendly label derived from display_root
-// so that every downstream consumer (root street label, file tree root row,
-// footer name, document.title) shows the human-readable source name instead
-// of the cache-directory hash. Server returns the cache path as `root`; this
-// client-side mutation is the single point of policy. Must be called BEFORE
-// applyManifest so the scene is built with the correct name from the start.
-export function _applyDisplayLabel(manifest: Manifest): void {
-  const friendly = labelFromManifest(manifest);
-  if (manifest.tree && friendly) {
-    manifest.tree.name = friendly;
-  }
-}
 
 export async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manifest) {
   // Every visual / layout tunable comes from the named exports of
@@ -60,7 +46,6 @@ export async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manif
   // every other module reads world directly through accessors.
   const world = createWorld(canvas);
   const scene = world.scene;
-  _applyDisplayLabel(manifest);
 
   // -- 2. Renderer (created BEFORE applyManifest) ------------------------------
   // applyManifest's cell pass creates InstancedAdPanels and immediately
