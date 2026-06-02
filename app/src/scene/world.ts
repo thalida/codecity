@@ -319,7 +319,7 @@ function _buildWorld(layout: CityLayout) {
   };
 }
 
-// `canvas` is unused; kept in the signature so call sites (useCity.ts, tests)
+// `canvas` is unused; kept in the signature so call sites (useCityScene, tests)
 // don't have to change. outlineRenderer takes the canvas directly via its
 // own factory now, so world no longer needs to forward it — the param
 // can be dropped if a downstream pass cleans up the call sites.

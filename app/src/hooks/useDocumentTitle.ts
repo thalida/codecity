@@ -3,7 +3,7 @@
 // plain "codecity" otherwise. Called once from <App />.
 //
 // This replaces the imperative world.onChange → document.title assignment that
-// lived in the boot sequence (now useCity). The "(pending) — codecity" title shown mid-load is
+// lived in the boot sequence (now useManifestSource). The "(pending) — codecity" title shown mid-load is
 // still set by applyPendingTitle() during streaming; once a manifest lands,
 // MANIFEST updates and this effect overwrites it with the final title.
 

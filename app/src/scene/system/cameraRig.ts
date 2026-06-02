@@ -333,7 +333,7 @@ export function createCameraRig({
     // Also snap to the default pose whenever the source itself changed:
     // we MUST wait until the new world's manifest is in place (onChange
     // fires inside applyManifest), because CURRENT_SOURCE_KEY can be
-    // updated before applyManifest runs (see applyNewSource in useCity.ts —
+    // updated before applyManifest runs (see applyNewSource in useManifestSource —
     // SOURCE_KEY.set lands BEFORE the final applyManifest call). Running
     // reset() on the SOURCE_KEY subscribe directly would snap to the
     // previous repo's stale initialCamPos.

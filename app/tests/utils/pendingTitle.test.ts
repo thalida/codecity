@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { applyPendingTitle } from '@/utils/pendingTitle';
 
-// applyPendingTitle is called from useCity's manifest-stream loop with the
+// applyPendingTitle is called from useManifestSource's manifest-stream loop with the
 // `display_root` field on the first cloning/scanning event the server emits.
 // It sets document.title to "{label} (pending) — codecity" so the user sees
 // the project name before the manifest arrives. Coordinator's title-swap

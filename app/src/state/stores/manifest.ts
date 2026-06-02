@@ -5,7 +5,7 @@
 //
 // MANIFEST is the source of truth, written by the fetch layer; view code (and
 // the scene render-effect) read it reactively. The fetch+apply that drives
-// rebuilds lives in the useCity hook; this module only holds the resulting
+// rebuilds lives in the useManifestSource hook; this module only holds the resulting
 // state + the refresh chokepoint the hook registers into.
 
 import { signal, effect } from '@preact/signals';
@@ -71,7 +71,7 @@ effect(() => {
 
 // ── Manual refresh chokepoint ────────────────────────────────────────
 // The footer's refresh button (and any future "force re-sync" UI) calls
-// refreshManifest(); the useCity hook's live-poll setup registers the actual
+// refreshManifest(); the useManifestSource hook's live-poll setup registers the actual
 // fetch+apply handler here. Same register/invoke shape as stores/ui's
 // source-applier — the view triggers an action without importing the hook.
 

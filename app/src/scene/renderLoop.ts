@@ -1,7 +1,7 @@
 // scene/renderLoop.ts — Scene + rendering pipeline. Builds the city scene,
 // renderer, camera, post-fx, picker, fader, outlines, ghosts, paths,
 // animator, and drives the per-frame animate loop. Extracted from the old
-// main.ts monolith so the entry layer (main.tsx) and useCity stay purely
+// main.ts monolith so the entry layer (main.tsx) and useCityScene stay purely
 // site-level orchestration (source picker, syntax theme, live updates, URL
 // handling, persistence wiring).
 

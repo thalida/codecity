@@ -98,7 +98,7 @@ let _atlas: IconAtlas | null = null;
 
 /**
  * Register the icon atlas for this module's cell building factory.
- * Must be called (alongside buildings.ts's setIconAtlas) from useCity.ts
+ * Must be called (alongside buildings.ts's setIconAtlas) from world.applyManifest
  * after buildIconAtlas() resolves so roof icons appear in cell mode.
  */
 export function setCellIconAtlas(atlas: IconAtlas | null): void {
