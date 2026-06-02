@@ -24,9 +24,11 @@ import { HljsThemeLink } from '@/components/HljsThemeLink';
 import { selectPath, resetView, focusCurrentSelection } from '@/state/stores/scene';
 import { openSourcePickerForCurrentSource } from '@/state/stores/ui';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
+import { useManifestSource } from '@/hooks/useManifestSource';
 
 export function App() {
   useDocumentTitle();
+  useManifestSource();
 
   return (
     <>
