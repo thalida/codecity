@@ -41,11 +41,13 @@ import { ControlsPane } from '@/views/ControlsPane';
 const LEFT_SIDEBAR_COLLAPSED = persistedSignal<boolean>(PERSISTED_KEYS.LEFT_SIDEBAR_COLLAPSED, false);
 const LEFT_SIDEBAR_WIDTH = persistedSignal<number | null>(PERSISTED_KEYS.LEFT_SIDEBAR_WIDTH, null);
 
-const SIDEBAR_MIN_WIDTH = 280;
-const SIDEBAR_MAX_WIDTH = 600;
+// Defaults for the drag-resize width bounds (px) — overridable via LeftSidebar
+// props.
+const DEFAULT_MIN_WIDTH = 280;
+const DEFAULT_MAX_WIDTH = 600;
 
-function _clampWidth(w: number): number {
-  return Math.min(SIDEBAR_MAX_WIDTH, Math.max(SIDEBAR_MIN_WIDTH, w));
+function _clampWidth(w: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, w));
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────
@@ -100,9 +102,11 @@ function ActivityBar({ activeTab, collapsed, onIconClick }: ActivityBarProps) {
 
 interface ResizeHandleProps {
   targetRef: { current: HTMLElement | null };
+  minWidth: number;
+  maxWidth: number;
 }
 
-function ResizeHandle({ targetRef }: ResizeHandleProps) {
+function ResizeHandle({ targetRef, minWidth, maxWidth }: ResizeHandleProps) {
   // `dragging` is a ref (sync guard for pointermove — no stale-closure race);
   // `isDragging` is state, driving the visual `.dragging` class declaratively.
   const dragging = useRef(false);
@@ -117,10 +121,7 @@ function ResizeHandle({ targetRef }: ResizeHandleProps) {
 
   const onPointerMove = (e: PointerEvent) => {
     if (!dragging.current || !targetRef.current) return;
-    let w = e.clientX;
-    if (w < SIDEBAR_MIN_WIDTH) w = SIDEBAR_MIN_WIDTH;
-    if (w > SIDEBAR_MAX_WIDTH) w = SIDEBAR_MAX_WIDTH;
-    targetRef.current.style.width = `${w}px`;
+    targetRef.current.style.width = `${_clampWidth(e.clientX, minWidth, maxWidth)}px`;
   };
 
   const onPointerUp = (e: PointerEvent) => {
@@ -147,7 +148,17 @@ function ResizeHandle({ targetRef }: ResizeHandleProps) {
 
 // ── Main component ───────────────────────────────────────────────────
 
-export function LeftSidebar() {
+export interface LeftSidebarProps {
+  /** Min drag-resize width in px. Defaults to DEFAULT_MIN_WIDTH (280). */
+  minWidth?: number;
+  /** Max drag-resize width in px. Defaults to DEFAULT_MAX_WIDTH (600). */
+  maxWidth?: number;
+}
+
+export function LeftSidebar({
+  minWidth = DEFAULT_MIN_WIDTH,
+  maxWidth = DEFAULT_MAX_WIDTH,
+}: LeftSidebarProps = {}) {
   const sidebarRef = useRef<HTMLElement>(null);
   const activeTab = useSignal<SidebarTab>(SidebarTab.Tree);
   const collapsed = useSignal<boolean>(LEFT_SIDEBAR_COLLAPSED.value);
@@ -190,7 +201,7 @@ export function LeftSidebar() {
   useEffect(() => {
     const w = LEFT_SIDEBAR_WIDTH.peek();
     if (w != null && sidebarRef.current) {
-      sidebarRef.current.style.width = `${_clampWidth(w)}px`;
+      sidebarRef.current.style.width = `${_clampWidth(w, minWidth, maxWidth)}px`;
     }
   }, []);
 
@@ -295,7 +306,7 @@ export function LeftSidebar() {
           />
         )}
       </div>
-      <ResizeHandle targetRef={sidebarRef} />
+      <ResizeHandle targetRef={sidebarRef} minWidth={minWidth} maxWidth={maxWidth} />
     </aside>
   );
 }
