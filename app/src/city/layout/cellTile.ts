@@ -1,5 +1,5 @@
 // scene/layout/cellTile.ts — The rendering primitive for the spatial-grid
-// model. Each CellTile owns up to three meshes (detail, label, street)
+// model. Each CellTile owns up to two meshes (detail, street)
 // plus a slot table. The InstancedMesh objects are preallocated to
 // `capacity`; unused slots have zero-scale matrix so they don't render.
 // Slot reuse is tracked via `freeSlots`.
@@ -24,12 +24,11 @@ export interface CellTile {
   freeSlots: number[];
 
   detailMesh: THREE.InstancedMesh;
-  labelMesh: THREE.InstancedMesh | null;
   streetMesh: THREE.Mesh | null; // assembled separately by cellAssembly
 
   buildings: (Building | null)[];
 
-  /** Set of directories that have buildings in this cell — for label rendering. */
+  /** Set of directories that have buildings in this cell. */
   dirs: Set<DirNode>;
 }
 
@@ -65,7 +64,6 @@ export function createEmptyCellTile(grid: SpatialGrid, cellId: number, capacity:
     used: 0,
     freeSlots: [],
     detailMesh,
-    labelMesh: null,
     streetMesh: null,
     buildings: new Array(capacity).fill(null),
     dirs: new Set(),
@@ -92,10 +90,6 @@ export function freeSlot(cell: CellTile, slotId: number): void {
   const zero = new THREE.Matrix4().makeScale(0, 0, 0);
   cell.detailMesh.setMatrixAt(slotId, zero);
   cell.detailMesh.instanceMatrix.needsUpdate = true;
-  if (cell.labelMesh) {
-    cell.labelMesh.setMatrixAt(slotId, zero);
-    cell.labelMesh.instanceMatrix.needsUpdate = true;
-  }
   cell.buildings[slotId] = null;
   cell.freeSlots.push(slotId);
 }

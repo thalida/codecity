@@ -82,7 +82,7 @@ describe('buildCellsFromLayout', () => {
     expect(out.sceneRoot.children.length).toBe(2);
   });
 
-  it('each occupied cell has a detailMesh and no labelMesh until attached', () => {
+  it('each occupied cell has a detailMesh', () => {
     const bounds = { minX: 0, maxX: 50, minZ: 0, maxZ: 50 };
     const buildings = [building({ x: 5, y: 5 })];
     const out = buildCellsFromLayout(bounds, buildings, EMPTY_UNIFORMS);
@@ -90,8 +90,6 @@ describe('buildCellsFromLayout', () => {
     expect(out.cells.size).toBe(1);
     const [cell] = out.cells.values();
     expect(cell.detailMesh).toBeDefined();
-    // labelMesh is null until attachLabelMeshToCell is called.
-    expect(cell.labelMesh).toBeNull();
   });
 
   it('no Mesh (street tile) is added to sceneRoot — only InstancedMeshes', () => {

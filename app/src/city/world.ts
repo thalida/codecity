@@ -1,5 +1,5 @@
 // scene/world.ts — owns the persistent THREE.Scene plus every
-// manifest-bound mesh (buildings, streets, labels, paths, asphalt, root
+// manifest-bound mesh (buildings, streets, paths, asphalt, root
 // gem) and the lookup maps consumers use to reach them by path.
 //
 // Public contract:
@@ -36,7 +36,6 @@ import { getSharedBuildingUniforms, setIconAtlas } from './components/buildings/
 import { setCellIconAtlas } from './components/buildings/buildingsCell';
 import { buildIconAtlas } from './components/buildings/iconAtlas';
 import { labelFromManifest } from '@/utils/sources';
-import { disposeLabelMaterials } from './components/labels/labels';
 import { buildCellsFromLayout } from './layout/cellAssembly';
 import type { CellTile } from './layout/cellTile';
 import { BuildingIndex } from './components/buildings/buildingIndex';
@@ -243,8 +242,8 @@ export const __test = {
 // Composes the streets / street labels / root gem component factories
 // into a fresh THREE.Scene and returns the lookup tables createWorld
 // needs to wire interaction + post-processing.
-// Per-cell instanced building/label/adPanel meshes are NOT built here —
-// scene/layout/cellAssembly.ts handles those once the layout is in hand.
+// Per-cell instanced building/adPanel meshes are NOT built here —
+// city/layout/cellAssembly.ts handles those once the layout is in hand.
 function _buildWorld(layout: CityLayout) {
   // All visual values (street colors, sidewalk default, label fill/stroke,
   // gem edge color, etc.) come from the named exports of @/config.
@@ -585,7 +584,7 @@ export function createWorld(_canvas: HTMLCanvasElement) {
     const d = obj as unknown as DisposableObj;
     if (d.geometry?.dispose) d.geometry.dispose();
     // Skip material disposal for meshes whose material is module-owned and
-    // shared across cell tiles (buildingsCell.ts / labelsCell.ts factories).
+    // shared across cell tiles (buildingsCell.ts factory).
     if (!obj.userData?.sharedMaterial) {
       const mats = Array.isArray(d.material) ? d.material : d.material ? [d.material] : [];
       for (const m of mats) {
@@ -622,10 +621,6 @@ export function createWorld(_canvas: HTMLCanvasElement) {
   }
 
   function _disposeAllManifestState() {
-    // Cached label materials (keyed by atlas textures) are released so the
-    // next applyManifest builds a fresh set.
-    disposeLabelMaterials();
-
     for (const m of streetPickables) _removeAndDispose(m);
     for (const m of streetLabels) _removeAndDispose(m);
     for (const m of asphaltMeshes) _removeAndDispose(m);

@@ -1,8 +1,7 @@
-// Canonical Building test factory — replaces 5 variant factories that had
+// Canonical Building test factory — replaces 4 variant factories that had
 // begun to drift across:
 //   - app/tests/city/cellAssembly.test.ts            (fakeBuilding, `as Building`)
 //   - app/tests/city/instanced-buildings-cell.test.ts (fakeBuilding, `as Building`)
-//   - app/tests/city/instanced-labels-cell.test.ts   (makeFakeBuilding, typed)
 //   - app/tests/city/buildingIndex.test.ts           (makeBuilding, `as unknown as Building`)
 //   - app/tests/city/trees/treePlacement.test.ts     (makeBuilding, `as never`)
 //
