@@ -36,14 +36,19 @@ import { Sidebar, SidebarSide } from '@/components/Sidebar';
 // The width range is enforced by #right-sidebar.open's CSS min-width/max-width.
 const RIGHT_SIDEBAR_WIDTH = persistedSignal<number | null>(PERSISTED_KEYS.RIGHT_SIDEBAR_WIDTH, null);
 
-type SidebarPaneKind = 'file' | 'commit' | 'street' | null;
+/** Which pane the right sidebar is showing, from the current picker selection. */
+enum SidebarPaneKind {
+  File = 'file',
+  Commit = 'commit',
+  Street = 'street',
+}
 
 // ── Pane state signals (module-level so they survive remounts) ────────
 
 const FILE_STATE: Signal<FilePreviewPaneState> = signal({ file: null });
 const COMMIT_STATE: Signal<CommitPaneState> = signal({ commit: null });
 const STREET_STATE: Signal<StreetPaneState> = signal({ directory: null });
-const ACTIVE_KIND: Signal<SidebarPaneKind> = signal(null);
+const ACTIVE_KIND: Signal<SidebarPaneKind | null> = signal(null);
 
 // One-shot subscription installed at module load. Reads picker
 // selection + world.onChange to populate the three pane state signals
@@ -87,13 +92,13 @@ function _installSceneBridge(): void {
     }
     if (sel.kind === NodeKind.File) {
       FILE_STATE.value = { file: sel.file };
-      ACTIVE_KIND.value = 'file';
+      ACTIVE_KIND.value = SidebarPaneKind.File;
     } else if (sel.kind === NodeKind.Commit) {
       _refreshCommitState(sel.commit);
-      ACTIVE_KIND.value = 'commit';
+      ACTIVE_KIND.value = SidebarPaneKind.Commit;
     } else if (sel.kind === NodeKind.Directory) {
       _refreshStreetState(sel.dir);
-      ACTIVE_KIND.value = 'street';
+      ACTIVE_KIND.value = SidebarPaneKind.Street;
     } else {
       ACTIVE_KIND.value = null;
     }
@@ -121,9 +126,9 @@ function _installSceneBridge(): void {
       // Refresh whatever pane is currently showing so it picks up new
       // manifest data (commit lookup, street dir reference) without
       // changing the active kind.
-      if (ACTIVE_KIND.peek() === 'commit' && sel?.kind === NodeKind.Commit) {
+      if (ACTIVE_KIND.peek() === SidebarPaneKind.Commit && sel?.kind === NodeKind.Commit) {
         _refreshCommitState(sel.commit);
-      } else if (ACTIVE_KIND.peek() === 'street' && sel?.kind === NodeKind.Directory) {
+      } else if (ACTIVE_KIND.peek() === SidebarPaneKind.Street && sel?.kind === NodeKind.Directory) {
         _refreshStreetState(sel.dir);
       }
     });
@@ -182,13 +187,13 @@ export function RightSidebar() {
       class={open ? 'open' : ''}
       widthSignal={RIGHT_SIDEBAR_WIDTH}
     >
-      {kind === 'file' && (
+      {kind === SidebarPaneKind.File && (
         <FilePreviewPane state={FILE_STATE} onClose={onClose} onFocus={onFileFocus} />
       )}
-      {kind === 'commit' && (
+      {kind === SidebarPaneKind.Commit && (
         <CommitPane state={COMMIT_STATE} onClose={onClose} onFocus={onCommitFocus} />
       )}
-      {kind === 'street' && (
+      {kind === SidebarPaneKind.Street && (
         <StreetPane state={STREET_STATE} onClose={onClose} onFocus={onStreetFocus} />
       )}
     </Sidebar>
