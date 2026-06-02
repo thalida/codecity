@@ -47,12 +47,14 @@ export function useCityScene(canvasRef: RefObject<HTMLCanvasElement | null>): vo
             LAST_REBUILD_ERROR.value = null;
             // Explicit camera reset on a SOURCE change. The fetch layer publishes
             // CURRENT_SOURCE; we read it here (the view layer) and snap the camera
-            // to the freshly-framed default pose once the new world is built. Skip
-            // the first real source (null → first): that initial framing is the
-            // rig's own _frameToBbox job, not a "switch". Live-updates / settings
-            // rebuilds keep the same source key, so they never reset.
+            // to the freshly-framed default pose once the new world is built. This
+            // fires on the FIRST loaded source too: cameraRig's one-shot _frameToBbox
+            // can't be relied on for it (with no ?src the empty world renders first
+            // and spends it), and on every later switch. _captureFraming always
+            // targets the latest (final) city, so resetting here frames it correctly.
+            // Live-updates / settings rebuilds keep the same source key → no reset.
             const cur = CURRENT_SOURCE_KEY.peek();
-            if (lastSourceKey !== null && cur !== null && cur !== lastSourceKey) {
+            if (cur !== null && cur !== lastSourceKey) {
               handle.resetView();
             }
             lastSourceKey = cur;
