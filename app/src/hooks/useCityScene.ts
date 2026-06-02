@@ -6,7 +6,7 @@
 import { useEffect } from 'preact/hooks';
 import type { RefObject } from 'preact';
 import { effect } from '@preact/signals';
-import { startRenderLoop } from '@/scene/renderLoop';
+import { startRenderLoop } from '@/city/renderLoop';
 import { attachCommitReactions } from '@/state/settingsReactions';
 import { SCENE_HANDLE } from '@/state/stores/scene';
 import {

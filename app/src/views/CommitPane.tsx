@@ -23,7 +23,7 @@ import { KEY_BINDINGS } from '@/constants/keyboard';
 import { commitUrl } from '@/utils/commit';
 import { formatRelativeAge, formatFullDate } from '@/utils/dates';
 import { fetchCommitDetail } from '@/api/commit';
-import { colorForAuthor } from '@/scene/components/fireflies/authorColor';
+import { colorForAuthor } from '@/city/components/fireflies/authorColor';
 
 const SHORT_SHA_LEN = 7;
 

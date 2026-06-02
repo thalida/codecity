@@ -1,10 +1,10 @@
 // Canonical Building test factory — replaces 5 variant factories that had
 // begun to drift across:
-//   - app/tests/scene/cellAssembly.test.ts            (fakeBuilding, `as Building`)
-//   - app/tests/scene/instanced-buildings-cell.test.ts (fakeBuilding, `as Building`)
-//   - app/tests/scene/instanced-labels-cell.test.ts   (makeFakeBuilding, typed)
-//   - app/tests/scene/buildingIndex.test.ts           (makeBuilding, `as unknown as Building`)
-//   - app/tests/scene/trees/treePlacement.test.ts     (makeBuilding, `as never`)
+//   - app/tests/city/cellAssembly.test.ts            (fakeBuilding, `as Building`)
+//   - app/tests/city/instanced-buildings-cell.test.ts (fakeBuilding, `as Building`)
+//   - app/tests/city/instanced-labels-cell.test.ts   (makeFakeBuilding, typed)
+//   - app/tests/city/buildingIndex.test.ts           (makeBuilding, `as unknown as Building`)
+//   - app/tests/city/trees/treePlacement.test.ts     (makeBuilding, `as never`)
 //
 // The `as Building` / `as unknown as Building` / `as never` casts in the
 // prior versions were not load-bearing — every variant actually produced a

@@ -11,7 +11,7 @@
 // light text on dark backgrounds. That keeps the label readable no
 // matter what colors the user picks in Controls.
 
-import { getHue } from '@/scene/components/buildings/buildingColor';
+import { getHue } from '@/city/components/buildings/buildingColor';
 import { parseHex, hslToRgb, pickContrastingText } from '@/utils/colors';
 
 // Badge color palette defaults. The file badge's CSS rule paints the background

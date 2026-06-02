@@ -4,7 +4,7 @@
 // Null until CenterPane's useEffect resolves.
 
 import { signal } from '@preact/signals';
-import type { startRenderLoop } from '../../scene/renderLoop';
+import type { startRenderLoop } from '../../city/renderLoop';
 
 export type SceneHandle = Awaited<ReturnType<typeof startRenderLoop>>;
 

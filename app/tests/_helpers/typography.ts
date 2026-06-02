@@ -5,7 +5,7 @@
 // tests cheap and deterministic. It matches buildLabelAtlas's LabelTypography
 // param (typeface + ink only; placement like elevation is not the atlas's job).
 
-import type { LabelTypography } from '@/scene/components/labels/labelAtlas';
+import type { LabelTypography } from '@/city/components/labels/labelAtlas';
 
 export const TYPOGRAPHY: LabelTypography = {
   FONT_FAMILY: 'sans-serif',
