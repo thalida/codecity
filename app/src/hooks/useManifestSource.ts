@@ -21,7 +21,7 @@
 //   4. setupLiveUpdates      — the background poll loop + its ENABLED gate
 //   5. useManifestSource     — wire it all together on mount
 
-import { useEffect, useCallback, useRef } from 'preact/hooks';
+import { useEffect, useCallback } from 'preact/hooks';
 import { effect } from '@preact/signals';
 
 import {
@@ -214,17 +214,15 @@ async function streamInitialManifest(): Promise<InitialStreamResult> {
 interface ApplyNewSourceOpts {
   payload: SourcePayload;
   pendingSkipCache: boolean;
-  /** Existing live-updates handle if already running, null if not yet started. */
-  liveUpdatesHandle: { setSignature(sig: string): void } | null;
-  onLiveUpdatesStarted: (api: { setSignature(sig: string): void }) => void;
   onError: (opts: { dismissible: boolean; payload: SourcePayload; error: string }) => void;
 }
 
 /**
  * Stream a new source submitted from the source picker: WRITE the skeleton into
  * MANIFEST as it arrives (the render layer paints it), then write the final
- * manifest and update the URL, SOURCE_INFO, per-source persistence, and
- * live-updates. Calls onError (dismissible) if streaming fails.
+ * manifest and update the URL, SOURCE_INFO, and per-source persistence. The
+ * always-running poll loop picks up the new MANIFEST.signature on its own — no
+ * live-update wiring here. Calls onError (dismissible) if streaming fails.
  *
  * Scene-free: where the old useCity called handle.world.resetCache() before
  * streaming, that call is intentionally dropped. resetCache only nulls the
@@ -234,7 +232,7 @@ interface ApplyNewSourceOpts {
  * caches and disposes/rebuilds the ad panels. Nothing is left stale.
  */
 async function applyNewSource(opts: ApplyNewSourceOpts): Promise<void> {
-  const { payload, pendingSkipCache, liveUpdatesHandle, onLiveUpdatesStarted, onError } = opts;
+  const { payload, pendingSkipCache, onError } = opts;
 
   showLoadingOverlay({
     kind: srcKind(payload.src),
@@ -263,14 +261,6 @@ async function applyNewSource(opts: ApplyNewSourceOpts): Promise<void> {
 
     const { branch, isDefault } = resolveBranch(manifest, payload.branch);
     setSourceInfo(payload.src, manifest, branch);
-
-    // Live updates: the first successful load starts the poll loop; later
-    // source switches just hand the running loop the new signature.
-    if (liveUpdatesHandle) {
-      liveUpdatesHandle.setSignature(manifest.signature);
-    } else {
-      onLiveUpdatesStarted(setupLiveUpdates(manifest.signature));
-    }
 
     pushRecent({
       src: payload.src,
@@ -311,23 +301,19 @@ interface SignatureResponse {
 
 /**
  * Start the live-update poll loop. Two-stage poll: each tick hits the cheap
- * /signature endpoint and only fetches the full manifest when it changed. On the
- * final event of a fetch it WRITES MANIFEST — the render effect applies it and
- * owns the Rebuilding/Decorating/Idle status. A live-update FETCH/network
- * failure (the stream throws) is surfaced through REBUILD_STATUS=Error +
- * LAST_REBUILD_ERROR here, distinct from the render-owned apply error.
- * Gates the timer on LIVE_UPDATES.ENABLED.
+ * /signature endpoint and only fetches the full manifest when it differs from
+ * the currently-applied manifest's signature (read from the canonical MANIFEST
+ * signal — no private mirror). On the final event of a fetch it WRITES MANIFEST;
+ * the render effect applies it and owns Rebuilding/Decorating/Idle. A live-update
+ * FETCH/network failure is surfaced via REBUILD_STATUS=Error + LAST_REBUILD_ERROR
+ * (distinct from the render-owned apply error). The loop no-ops until a source is
+ * loaded (MANIFEST non-empty). Returns a dispose fn (stop timer + tear down the
+ * ENABLED effect). Gated on LIVE_UPDATES.ENABLED.
  */
-function setupLiveUpdates(
-  initialSignature: string
-): { setSignature(sig: string): void } {
-  let lastSignature = initialSignature || '';
+function setupLiveUpdates(): () => void {
   let timer: number | null = null;
   let inFlight = false;
 
-  // Single fetch+publish path. Writes MANIFEST on the final event; the render
-  // effect applies it and owns the rebuild status. A network/stream failure is
-  // reported here as a fetch error (distinct from the render apply error).
   async function fetchAndApply(): Promise<void> {
     try {
       for await (const event of streamManifest(manifestUrl())) {
@@ -337,10 +323,7 @@ function setupLiveUpdates(
         // back on every save. Only the final tweens into the new state.
         if (event.phase !== ScanPhase.Final) continue;
         const m = event.manifest;
-        if (m?.signature) {
-          lastSignature = m.signature;
-          setManifest(m);
-        }
+        if (m?.signature) setManifest(m);
       }
     } catch (err) {
       REBUILD_STATUS.value = RebuildStatus.Error;
@@ -348,20 +331,23 @@ function setupLiveUpdates(
     }
   }
 
-  // Poll tick: cheap signature first, full manifest only on change.
+  // Poll tick: cheap signature first, full manifest only when it differs from
+  // the applied manifest's signature. No-op until a source is loaded.
   async function tick(): Promise<void> {
     if (inFlight) return;
+    const current = MANIFEST.peek();
+    if (isEmptyManifest(current)) return; // nothing loaded yet
+    const applied = (current as Manifest).signature;
     inFlight = true;
     try {
       const sigResp = await fetch(signatureUrl());
       if (!sigResp.ok) return;
       const sig: SignatureResponse | null = await sigResp.json();
-      if (!sig?.signature || sig.signature === lastSignature) return;
+      if (!sig?.signature || sig.signature === applied) return;
       await fetchAndApply();
     } catch (_) {
-      // Signature-fetch errors (network blip on the cheap probe) are not
-      // surfaced through REBUILD_STATUS — no rebuild attempt happened. The
-      // next tick retries.
+      // Cheap-probe network blip: no rebuild attempted, so not surfaced. Next
+      // tick retries.
     } finally {
       inFlight = false;
     }
@@ -379,20 +365,14 @@ function setupLiveUpdates(
     }
   }
 
-  // LIVE_UPDATES gates the loop: ENABLED turns polling on/off, POLL_SECONDS sets
-  // the interval. effect() runs the body once immediately — doing the initial
-  // start if enabled at boot — and re-runs on every change to either field.
-  // start() is idempotent (it stop()s first), so a POLL_SECONDS change just
-  // re-arms the timer at the new interval.
-  effect(() => {
+  const disposeEnabledEffect = effect(() => {
     if (LIVE_UPDATES.value.ENABLED) start();
     else stop();
   });
 
-  return {
-    setSignature(sig: string) {
-      lastSignature = sig;
-    },
+  return () => {
+    stop();
+    disposeEnabledEffect();
   };
 }
 
@@ -403,22 +383,14 @@ function setupLiveUpdates(
  * ?src into MANIFEST, fetch the server config, and start live updates.
  * Scene-free — the render layer (useCityScene) consumes MANIFEST and paints the
  * scene. RETURNS the source-picker submit handler so App can pass it down to
- * <SourcePicker> as a prop (no global register/invoke channel). The handler
- * closes over a ref holding the mutable live-updates handle, so a single stable
- * callback can read/write whatever the boot/first-submit started.
+ * <SourcePicker> as a prop (no global register/invoke channel).
  */
 export function useManifestSource(): (payload: SourcePayload) => void {
-  const liveUpdatesRef = useRef<{ setSignature(s: string): void } | null>(null);
-
   const submitSource = useCallback((payload: SourcePayload) => {
     closeSourcePicker();
     applyNewSource({
       payload,
       pendingSkipCache: !!payload.skipCache,
-      liveUpdatesHandle: liveUpdatesRef.current,
-      onLiveUpdatesStarted(api) {
-        liveUpdatesRef.current = api;
-      },
       onError({ dismissible, payload: errPayload, error }) {
         openSourcePicker({ dismissible, prefill: errPayload, error });
       },
@@ -427,6 +399,7 @@ export function useManifestSource(): (payload: SourcePayload) => void {
 
   useEffect(() => {
     let cancelled = false;
+    let disposeLiveUpdates: (() => void) | null = null;
     (async () => {
       const qp = new URLSearchParams(window.location.search);
       if (qp.has(URL_PARAMS.SRC)) {
@@ -436,9 +409,11 @@ export function useManifestSource(): (payload: SourcePayload) => void {
       if (cancelled) return;
       const serverConfig = await getServerConfig();
       SERVER_CONFIG.value = { allowLocalRepos: serverConfig.allowLocalRepos };
-      if (qp.has(URL_PARAMS.SRC) && !initialError && !isEmptyManifest(MANIFEST.peek())) {
-        liveUpdatesRef.current = setupLiveUpdates((MANIFEST.peek() as Manifest).signature);
-      }
+
+      // One poll loop for the app's lifetime. It no-ops until MANIFEST is
+      // non-empty and re-reads MANIFEST.signature each tick, so it covers the
+      // initial source AND every later switch with no re-wiring.
+      disposeLiveUpdates = setupLiveUpdates();
 
       if (initialError) {
         openSourcePicker({
@@ -452,6 +427,7 @@ export function useManifestSource(): (payload: SourcePayload) => void {
     })();
     return () => {
       cancelled = true;
+      disposeLiveUpdates?.();
     };
   }, []);
 
