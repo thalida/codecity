@@ -12,6 +12,7 @@ import { SCENE_HANDLE } from '@/state/stores/scene';
 import { MANIFEST, REBUILD_STATUS, RebuildStatus, LAST_REBUILD_ERROR } from '@/state/stores/manifest';
 import { EMPTY_MANIFEST } from '@/constants/manifest';
 import { isEmptyManifest } from '@/utils/manifest';
+import { CURRENT_SOURCE_KEY } from '@/state/stores/source';
 import type { Manifest } from '@/types';
 
 export function useCityScene(canvasRef: RefObject<HTMLCanvasElement | null>): void {
@@ -36,12 +37,26 @@ export function useCityScene(canvasRef: RefObject<HTMLCanvasElement | null>): vo
       // a render-apply error. During cold-boot / source-switch loads the loading
       // overlay is also up; the brief Rebuilding state is truthful (the world is
       // being built) and clears as soon as the apply completes.
+      // Explicit camera reset on a SOURCE change. The fetch layer publishes
+      // CURRENT_SOURCE; we read it here (the view layer) and snap the camera to
+      // the freshly-framed default pose once the new world is built. Skip the
+      // very first real source (null → first): that initial framing is the rig's
+      // own _frameToBbox job, not a "switch". Live-updates / settings rebuilds
+      // keep the same source key, so they never reset.
+      let lastSourceKey: string | null = null;
       unsubApply = effect(() => {
         const m = MANIFEST.value as Manifest;
         if (isEmptyManifest(m)) return; // nothing to build yet
         REBUILD_STATUS.value = RebuildStatus.Rebuilding;
         void handle.world.applyManifest(m).then(
-          () => { LAST_REBUILD_ERROR.value = null; },
+          () => {
+            LAST_REBUILD_ERROR.value = null;
+            const cur = CURRENT_SOURCE_KEY.peek();
+            if (lastSourceKey !== null && cur !== null && cur !== lastSourceKey) {
+              handle.resetView();
+            }
+            lastSourceKey = cur;
+          },
           (err) => {
             REBUILD_STATUS.value = RebuildStatus.Error;
             LAST_REBUILD_ERROR.value = err instanceof Error ? err.message : String(err);

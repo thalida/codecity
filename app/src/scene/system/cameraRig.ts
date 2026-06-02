@@ -40,7 +40,6 @@ import {
   CAMERA_BASE_DURATION_MS,
   CAMERA_EASING_POWER,
 } from '@/constants/camera';
-import { CURRENT_SOURCE_KEY } from '@/state/stores/source';
 import { NodeKind, StreetAxis } from '@/types';
 import type { Building, PickTarget, Street } from '@/types';
 import type { createWorld } from '../world';
@@ -329,23 +328,13 @@ export function createCameraRig({
     camera.lookAt(initialTarget);
     controls.target.copy(initialTarget);
 
-    // Re-frame on every manifest swap so R always fits the current city.
-    // Also snap to the default pose whenever the source itself changed:
-    // we MUST wait until the new world's manifest is in place (onChange
-    // fires inside applyManifest), because CURRENT_SOURCE_KEY can be
-    // updated before applyManifest runs (see applyNewSource in useManifestSource —
-    // SOURCE_KEY.set lands BEFORE the final applyManifest call). Running
-    // reset() on the SOURCE_KEY subscribe directly would snap to the
-    // previous repo's stale initialCamPos.
+    // Re-frame on every manifest swap so R (reset) always fits the current
+    // city. The decision to actually SNAP the camera on a source change lives
+    // in the render layer (useCityScene), which calls reset() explicitly — this
+    // rig is source-agnostic.
     if (!_rebuildSubscribed) {
-      let _lastSourceKey = CURRENT_SOURCE_KEY.value;
       world.onChange(() => {
         _captureFraming();
-        const cur = CURRENT_SOURCE_KEY.value;
-        if (cur !== null && cur !== _lastSourceKey) {
-          _lastSourceKey = cur;
-          reset();
-        }
       });
       _rebuildSubscribed = true;
     }
