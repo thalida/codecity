@@ -18,7 +18,10 @@ import { deepEqual, deepClone } from '@/utils/deep';
 // key name (localStorage suffix) and the pre-hydration default. Keying by the
 // signal (not the name) makes getDefault / HAS_ANY_NON_DEFAULT /
 // forEachRegisteredStore direct lookups — no reverse name↔signal scan.
-interface StoreEntry { name: string; default: any; }
+interface StoreEntry {
+  name: string;
+  default: any;
+}
 const _STORES: Map<Signal<any>, StoreEntry> = new Map();
 
 // ── Storage helpers ────────────────────────────────────────────────────────
@@ -26,15 +29,25 @@ function _safeGet(key: string): unknown {
   try {
     const raw = localStorage.getItem(STORAGE_PREFIX + key);
     return raw == null ? null : JSON.parse(raw);
-  } catch { return null; }
+  } catch {
+    return null;
+  }
 }
 
 function _safeSet(key: string, value: unknown): void {
-  try { localStorage.setItem(STORAGE_PREFIX + key, JSON.stringify(value)); } catch { /* quota / private mode */ }
+  try {
+    localStorage.setItem(STORAGE_PREFIX + key, JSON.stringify(value));
+  } catch {
+    /* quota / private mode */
+  }
 }
 
 function _safeRemove(key: string): void {
-  try { localStorage.removeItem(STORAGE_PREFIX + key); } catch { /* noop */ }
+  try {
+    localStorage.removeItem(STORAGE_PREFIX + key);
+  } catch {
+    /* noop */
+  }
 }
 
 // Hydrate a plain value from localStorage onto `defaultValue`.
@@ -76,7 +89,12 @@ function _serialize<T>(value: T, defaultValue: T): unknown {
     for (const k in value as object) {
       if (!Object.hasOwn(value as object, k)) continue;
       if (!Object.hasOwn(defaultValue as object, k)) continue;
-      if (!deepEqual((value as Record<string, unknown>)[k], (defaultValue as Record<string, unknown>)[k])) {
+      if (
+        !deepEqual(
+          (value as Record<string, unknown>)[k],
+          (defaultValue as Record<string, unknown>)[k]
+        )
+      ) {
         diff[k] = (value as Record<string, unknown>)[k];
         any = true;
       }
@@ -130,5 +148,5 @@ type AnySignalLike = { value: any };
 export function getDefault(store: AnySignalLike, key?: string): any {
   const entry = _STORES.get(store as Signal<any>);
   if (!entry) return undefined;
-  return key === undefined ? entry.default : (entry.default ? entry.default[key] : undefined);
+  return key === undefined ? entry.default : entry.default ? entry.default[key] : undefined;
 }

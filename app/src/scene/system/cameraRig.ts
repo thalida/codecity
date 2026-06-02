@@ -165,10 +165,7 @@ export function createCameraRig({
     // predictable regardless of city shape. Comment-on-history: the
     // previous formula was worldDist × MAX_DISTANCE_MULT which kept
     // small cities cramped because worldDist was itself small.
-    controls.maxDistance = Math.max(
-      worldRadius * CAMERA_MAX_DISTANCE_MULT,
-      MIN_MAX_DISTANCE
-    );
+    controls.maxDistance = Math.max(worldRadius * CAMERA_MAX_DISTANCE_MULT, MIN_MAX_DISTANCE);
 
     // Far clip: covers the farthest point a fully-zoomed-out camera can
     // see (maxDistance past target, plus the world's own radius). Set
@@ -474,11 +471,7 @@ export function createCameraRig({
     );
 
     camera.up.set(0, 1, 0);
-    _animateCamera(
-      center.clone(),
-      newCamPos,
-      CAMERA_BASE_DURATION_MS * durationRatio
-    );
+    _animateCamera(center.clone(), newCamPos, CAMERA_BASE_DURATION_MS * durationRatio);
   }
 
   function focusBuilding(_mesh: THREE.Object3D, b: Building): void {

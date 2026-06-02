@@ -12,7 +12,13 @@
 
 import { computed, effect, untracked } from '@preact/signals';
 
-import { MANIFEST, REBUILD_STATUS, RebuildStatus, LAST_REBUILD_ERROR, LAST_UPDATED_AT } from '@/state/stores/manifest';
+import {
+  MANIFEST,
+  REBUILD_STATUS,
+  RebuildStatus,
+  LAST_REBUILD_ERROR,
+  LAST_UPDATED_AT,
+} from '@/state/stores/manifest';
 import { routeSignature, ChangeRoute } from '@/state/settingsSchema';
 import { isEmptyManifest } from '@/utils/manifest';
 import type { Manifest } from '@/types';

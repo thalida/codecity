@@ -32,17 +32,31 @@ function makeSceneHandle() {
   const hover = signal<PickTarget | null>(null);
   return {
     world: {
-      getManifest() { return null; },
-      onChange() { return () => {}; },
-      getTrees() { return null; },
-      getBuildingByPath() { return null; },
-      getStreetByDir() { return null; },
+      getManifest() {
+        return null;
+      },
+      onChange() {
+        return () => {};
+      },
+      getTrees() {
+        return null;
+      },
+      getBuildingByPath() {
+        return null;
+      },
+      getStreetByDir() {
+        return null;
+      },
     },
     picker: {
       selection,
       hover,
-      clearSelection() { selection.value = null; },
-      setSelection(t: PickTarget | null) { selection.value = t; },
+      clearSelection() {
+        selection.value = null;
+      },
+      setSelection(t: PickTarget | null) {
+        selection.value = t;
+      },
     },
     rig: {
       focusBuilding() {},

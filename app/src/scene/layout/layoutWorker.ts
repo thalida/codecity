@@ -4,10 +4,7 @@
 // result back. Pure compute, no DOM or THREE.* references.
 
 import { layoutCity } from './layout';
-import {
-  STREET_LAYOUT,
-  STREET_TIERS,
-} from '@/state/stores/settings/streets';
+import { STREET_LAYOUT, STREET_TIERS } from '@/state/stores/settings/streets';
 import { BUILDING_DIMENSIONS } from '@/state/stores/settings/buildings';
 import { GEM_SIZING } from '@/state/stores/settings/gem';
 import type { StreetLayoutConfig, StreetTier } from '@/state/stores/settings/streets';

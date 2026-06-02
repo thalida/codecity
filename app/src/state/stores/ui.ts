@@ -93,7 +93,8 @@ export const LOADING_OVERLAY = signal<LoadingOverlayState>({
 // when the same effect later writes back.
 
 export function showLoadingOverlay(opts: LoadingOverlayShowOpts): void {
-  const initialStep: LoadingStep = opts.kind === SourceKind.Local ? LoadingStep.Scanning : LoadingStep.Resolving;
+  const initialStep: LoadingStep =
+    opts.kind === SourceKind.Local ? LoadingStep.Scanning : LoadingStep.Resolving;
   LOADING_OVERLAY.value = {
     visible: true,
     showOpts: opts,

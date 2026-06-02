@@ -20,9 +20,11 @@ import { Pane, PaneEmpty } from '@/components/Pane';
 
 // ── Helpers ──────────────────────────────────────────────────────────
 
-function _treeRoot(m: Manifest | DirNode | { tree?: unknown; [k: string]: unknown } | null): TreeNode | null {
+function _treeRoot(
+  m: Manifest | DirNode | { tree?: unknown; [k: string]: unknown } | null
+): TreeNode | null {
   if (!m) return null;
-  return (('tree' in m && (m as Manifest).tree) || (m as TreeNode));
+  return ('tree' in m && (m as Manifest).tree) || (m as TreeNode);
 }
 
 /** Set of paths to expand so `targetPath` is visible (target + ancestors). */
@@ -146,16 +148,12 @@ function TreeItem({
           </span>
         ) : (
           <span class="tree-chevron">
-            {isDir && isRoot && (
-              <ChevronDown class="lucide-icon tree-icon tree-icon-dir" />
-            )}
+            {isDir && isRoot && <ChevronDown class="lucide-icon tree-icon tree-icon-dir" />}
           </span>
         )}
         {/* Glyph: root uses the brand gem (monochrome); every other node
             gets its Material file/folder icon (NodeIcon dispatches on type). */}
-        {isDir && isRoot
-          ? <GemIcon simple class="tree-root-glyph" />
-          : <NodeIcon node={node} />}
+        {isDir && isRoot ? <GemIcon simple class="tree-root-glyph" /> : <NodeIcon node={node} />}
         <span class="tree-label">{node.name || ''}</span>
       </div>
       {isDir && isExpanded && children.length > 0 && (
@@ -227,7 +225,8 @@ export function TreePane({
     });
   }, [rootPath]);
 
-  const noChildren = !tree || !('children' in tree) || ((tree as DirNode).children?.length ?? 0) === 0;
+  const noChildren =
+    !tree || !('children' in tree) || ((tree as DirNode).children?.length ?? 0) === 0;
 
   return (
     <Pane paneClass="tree-pane" title="Explorer" onClose={onClose}>

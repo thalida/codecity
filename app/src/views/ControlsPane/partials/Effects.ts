@@ -10,7 +10,11 @@ export const EFFECTS_SECTION: SectionNode = {
     {
       key: 'rainbow',
       label: 'Rainbow (selected outline + path line)',
-      children: [field(RAINBOW, 'SPEED'), field(RAINBOW, 'SATURATION'), field(RAINBOW, 'LIGHTNESS')],
+      children: [
+        field(RAINBOW, 'SPEED'),
+        field(RAINBOW, 'SATURATION'),
+        field(RAINBOW, 'LIGHTNESS'),
+      ],
     },
     {
       key: 'bloom',

@@ -49,9 +49,7 @@ export function StreetPane({ state, onClose, onFocus }: StreetPaneProps) {
   }
 
   const leaf =
-    (d.path && d.path !== '.' ? d.path.split('/').filter(Boolean).pop() : null) ||
-    d.name ||
-    'Road';
+    (d.path && d.path !== '.' ? d.path.split('/').filter(Boolean).pop() : null) || d.name || 'Road';
 
   // Backend-computed (api/scan.py). Guard against a manifest that predates
   // the field (stale cache / skeleton / in-flight) so a missing breakdown
@@ -67,45 +65,40 @@ export function StreetPane({ state, onClose, onFocus }: StreetPaneProps) {
       onClose={onClose}
       bodyClass="street-body"
     >
-        <div class="street-counts">
-          <div class="street-counts-col">
-            <div class="street-counts-h">Direct</div>
-            <div class="street-counts-row">
-              <span class="street-counts-v">{String(d.children_file_count ?? 0)}</span>
-              <span class="street-counts-k">files</span>
-            </div>
-            <div class="street-counts-row">
-              <span class="street-counts-v">{String(d.children_dir_count ?? 0)}</span>
-              <span class="street-counts-k">dirs</span>
-            </div>
+      <div class="street-counts">
+        <div class="street-counts-col">
+          <div class="street-counts-h">Direct</div>
+          <div class="street-counts-row">
+            <span class="street-counts-v">{String(d.children_file_count ?? 0)}</span>
+            <span class="street-counts-k">files</span>
           </div>
-          <div class="street-counts-col">
-            <div class="street-counts-h">Descendants</div>
-            <div class="street-counts-row">
-              <span class="street-counts-v">{String(d.descendants_file_count ?? 0)}</span>
-              <span class="street-counts-k">files</span>
-            </div>
-            <div class="street-counts-row">
-              <span class="street-counts-v">{String(d.descendants_dir_count ?? 0)}</span>
-              <span class="street-counts-k">dirs</span>
-            </div>
+          <div class="street-counts-row">
+            <span class="street-counts-v">{String(d.children_dir_count ?? 0)}</span>
+            <span class="street-counts-k">dirs</span>
           </div>
         </div>
-        {stats.length > 0 && (
-          <>
-            <div class="street-ext-h">By extension</div>
-            <div class="street-ext-list">
-              {stats.map((s) => (
-                <StreetExtRow
-                  key={s.ext}
-                  s={s}
-                  huePalette={huePalette}
-                  asphaltColor={asphaltColor}
-                />
-              ))}
-            </div>
-          </>
-        )}
+        <div class="street-counts-col">
+          <div class="street-counts-h">Descendants</div>
+          <div class="street-counts-row">
+            <span class="street-counts-v">{String(d.descendants_file_count ?? 0)}</span>
+            <span class="street-counts-k">files</span>
+          </div>
+          <div class="street-counts-row">
+            <span class="street-counts-v">{String(d.descendants_dir_count ?? 0)}</span>
+            <span class="street-counts-k">dirs</span>
+          </div>
+        </div>
+      </div>
+      {stats.length > 0 && (
+        <>
+          <div class="street-ext-h">By extension</div>
+          <div class="street-ext-list">
+            {stats.map((s) => (
+              <StreetExtRow key={s.ext} s={s} huePalette={huePalette} asphaltColor={asphaltColor} />
+            ))}
+          </div>
+        </>
+      )}
     </Pane>
   );
 }
@@ -130,7 +123,9 @@ function StreetExtRow({
       />
       <span class="street-ext-label">{s.ext}</span>
       <span class="street-ext-count">{`${s.count} file${s.count === 1 ? '' : 's'}`}</span>
-      <span class="street-ext-sep" aria-hidden="true">·</span>
+      <span class="street-ext-sep" aria-hidden="true">
+        ·
+      </span>
       <span class="street-ext-size">{formatBytes(s.size)}</span>
     </div>
   );

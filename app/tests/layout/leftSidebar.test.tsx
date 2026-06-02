@@ -103,9 +103,9 @@ describe('LeftSidebar', () => {
     expect(container.querySelector('.tree-pane')).toBeNull();
     expect(container.querySelector('.controls-pane')).not.toBeNull();
     expect(
-      container.querySelector('.activity-bar-icon[data-tab="controls"]')!.classList.contains(
-        'active'
-      )
+      container
+        .querySelector('.activity-bar-icon[data-tab="controls"]')!
+        .classList.contains('active')
     ).toBe(true);
   });
 });

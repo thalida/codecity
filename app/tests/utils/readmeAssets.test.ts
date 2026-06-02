@@ -42,7 +42,9 @@ describe('resolveReadmeAssetUrl', () => {
   });
 
   it('passes protocol-relative and data URLs through untouched', () => {
-    expect(resolveReadmeAssetUrl('//cdn.example.com/x.png', README)).toBe('//cdn.example.com/x.png');
+    expect(resolveReadmeAssetUrl('//cdn.example.com/x.png', README)).toBe(
+      '//cdn.example.com/x.png'
+    );
     expect(resolveReadmeAssetUrl('data:image/png;base64,AAAA', README)).toBe(
       'data:image/png;base64,AAAA'
     );

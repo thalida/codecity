@@ -17,7 +17,12 @@
 import { LOADING_OVERLAY } from '@/state/stores/ui';
 import { PENDING_SOURCE_LABEL } from '@/state/stores/source';
 import { SourceKind } from '@/utils/sources';
-import { LoadingStep, LoadingStepState, LOADING_STEPS, LOADING_STEP_LABELS } from '@/constants/loadingSteps';
+import {
+  LoadingStep,
+  LoadingStepState,
+  LOADING_STEPS,
+  LOADING_STEP_LABELS,
+} from '@/constants/loadingSteps';
 
 // LoadingOverlayShowOpts (the show() contract) lives in state/stores/ui, so
 // state stays view-independent.
@@ -65,7 +70,12 @@ export function LoadingOverlay() {
             const isLocal = s.kind === SourceKind.Local;
             if (isLocal && (step === LoadingStep.Resolving || step === LoadingStep.Cloning)) {
               return (
-                <li key={step} data-step={step} data-state={LoadingStepState.Pending} style={{ display: 'none' }}>
+                <li
+                  key={step}
+                  data-step={step}
+                  data-state={LoadingStepState.Pending}
+                  style={{ display: 'none' }}
+                >
                   {LOADING_STEP_LABELS[step]}
                 </li>
               );

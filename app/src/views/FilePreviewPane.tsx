@@ -123,7 +123,9 @@ function FileTextPreview({ file }: FileTextPreviewProps) {
         });
       }
     );
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
     // Key on fullPath: a live-update poll yields a fresh FileNode with the
     // same path but changed content, and re-selecting it must re-fetch.
   }, [file.fullPath]);
@@ -131,11 +133,7 @@ function FileTextPreview({ file }: FileTextPreviewProps) {
   return (
     <div class="pane preview-shell">
       {textState.kind === TextStateKind.Error ? (
-        <PaneEmpty
-          icon={FileWarning}
-          title="Couldn't load this file"
-          sub={textState.message}
-        />
+        <PaneEmpty icon={FileWarning} title="Couldn't load this file" sub={textState.message} />
       ) : textState.kind === TextStateKind.Text ? (
         <CodeEditor text={textState.text} file={file} />
       ) : null}
@@ -198,7 +196,9 @@ function CodeEditor({ text, file }: CodeEditorProps) {
         {!skipGutter && (
           <div class="code-editor-gutter">
             {Array.from({ length: lineCount }, (_, i) => (
-              <span key={i} class="code-editor-ln">{i + 1}</span>
+              <span key={i} class="code-editor-ln">
+                {i + 1}
+              </span>
             ))}
           </div>
         )}
@@ -273,7 +273,7 @@ export function FilePreviewPane({ state, onClose, onFocus }: FilePreviewPaneProp
   const asphaltColor = STREETS.value.ASPHALT_COLOR;
 
   const leaf = file
-    ? ((file.path ?? '').split('/').filter(Boolean).pop() || file.name || 'No file')
+    ? (file.path ?? '').split('/').filter(Boolean).pop() || file.name || 'No file'
     : 'No file';
 
   const badge = file ? (

@@ -99,7 +99,11 @@ function renderChild(child: SectionChild): ComponentChildren {
 export function DynamicSection({ node }: { node: SectionNode }) {
   if (node.render) return <>{node.render}</>;
   return (
-    <Section name={node.label ?? ''} hint={node.description} resetKeys={collectRefs(node.children ?? [])}>
+    <Section
+      name={node.label ?? ''}
+      hint={node.description}
+      resetKeys={collectRefs(node.children ?? [])}
+    >
       {(node.children ?? []).map(renderChild)}
     </Section>
   );

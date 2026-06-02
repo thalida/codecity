@@ -42,7 +42,10 @@ import { Sidebar, SidebarSide } from '@/components/Sidebar';
 // abstraction) so persistence/hydration is handled for us — no hand-rolled
 // localStorage. Width is null until the user first drags the resize handle
 // (null ⇒ fall back to the CSS default width).
-const LEFT_SIDEBAR_COLLAPSED = persistedSignal<boolean>(PERSISTED_KEYS.LEFT_SIDEBAR_COLLAPSED, false);
+const LEFT_SIDEBAR_COLLAPSED = persistedSignal<boolean>(
+  PERSISTED_KEYS.LEFT_SIDEBAR_COLLAPSED,
+  false
+);
 const LEFT_SIDEBAR_WIDTH = persistedSignal<number | null>(PERSISTED_KEYS.LEFT_SIDEBAR_WIDTH, null);
 
 // ── Helpers ──────────────────────────────────────────────────────────
@@ -174,11 +177,7 @@ export function LeftSidebar() {
       class={effectiveCollapsed ? 'is-collapsed' : ''}
       widthSignal={LEFT_SIDEBAR_WIDTH}
     >
-      <ActivityBar
-        activeTab={tab}
-        collapsed={effectiveCollapsed}
-        onIconClick={onIconClick}
-      />
+      <ActivityBar activeTab={tab} collapsed={effectiveCollapsed} onIconClick={onIconClick} />
       <div class="pane">
         {tab === SidebarTab.Tree && (
           <TreePane
@@ -202,9 +201,7 @@ export function LeftSidebar() {
             onFocus={focusPath}
           />
         )}
-        {tab === SidebarTab.Info && (
-          <InfoPane manifest={MANIFEST} onClose={onPaneClose} />
-        )}
+        {tab === SidebarTab.Info && <InfoPane manifest={MANIFEST} onClose={onPaneClose} />}
         {tab === SidebarTab.Controls && (
           <ControlsPane
             onClose={onPaneClose}

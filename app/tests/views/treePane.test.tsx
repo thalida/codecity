@@ -128,7 +128,9 @@ describe('TreePane', () => {
     expect(expandedDir.classList.contains('tree-expanded')).toBe(true);
     expect(expandedDir.querySelector(':scope > .tree-list')).not.toBeNull();
 
-    const expandedChevron = expandedDir.querySelector<HTMLElement>(':scope > .row > .tree-chevron')!;
+    const expandedChevron = expandedDir.querySelector<HTMLElement>(
+      ':scope > .row > .tree-chevron'
+    )!;
     expandedChevron.click();
     await flush();
 
@@ -267,7 +269,9 @@ describe('TreePane', () => {
     selectedPath.value = null;
     await flush();
     expect(pane.querySelectorAll('.tree-selected').length).toBe(0);
-    expect(pane.querySelector('[data-path="src"]')!.classList.contains('tree-collapsed')).toBe(true);
+    expect(pane.querySelector('[data-path="src"]')!.classList.contains('tree-collapsed')).toBe(
+      true
+    );
     expect(pane.querySelector('[data-path="."]')!.classList.contains('tree-expanded')).toBe(true);
   });
 
@@ -378,6 +382,8 @@ describe('TreePane', () => {
 
     hoveredPath.value = 'src/utils.ts';
     await flush();
-    expect(pane.querySelector('[data-path="src"]')!.classList.contains('tree-collapsed')).toBe(true);
+    expect(pane.querySelector('[data-path="src"]')!.classList.contains('tree-collapsed')).toBe(
+      true
+    );
   });
 });

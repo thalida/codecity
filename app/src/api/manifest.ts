@@ -45,7 +45,8 @@ export function buildApiUrl(
   const u = new URL(endpoint, origin);
   if (qp.has(URL_PARAMS.SRC)) {
     u.searchParams.set(URL_PARAMS.SRC, qp.get(URL_PARAMS.SRC)!);
-    if (qp.has(URL_PARAMS.BRANCH)) u.searchParams.set(URL_PARAMS.BRANCH, qp.get(URL_PARAMS.BRANCH)!);
+    if (qp.has(URL_PARAMS.BRANCH))
+      u.searchParams.set(URL_PARAMS.BRANCH, qp.get(URL_PARAMS.BRANCH)!);
   }
   if (opts.noCache) {
     u.searchParams.set(URL_PARAMS.NO_CACHE, 'true');
@@ -159,4 +160,3 @@ export function clearManifestCache(src: string, branch?: string): void {
   if (branch) url.searchParams.set(URL_PARAMS.BRANCH, branch);
   fetch(url.toString(), { method: 'DELETE' }).catch(() => {});
 }
-

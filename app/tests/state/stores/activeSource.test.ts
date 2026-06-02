@@ -1,5 +1,13 @@
 import { describe, it, expect, afterEach } from 'vitest';
-import { sourceKey, CURRENT_SOURCE_KEY, CURRENT_SOURCE, SOURCE_INFO, setCurrentSource, listRecents, RECENTS } from '@/state/stores/source';
+import {
+  sourceKey,
+  CURRENT_SOURCE_KEY,
+  CURRENT_SOURCE,
+  SOURCE_INFO,
+  setCurrentSource,
+  listRecents,
+  RECENTS,
+} from '@/state/stores/source';
 import { setManifest } from '@/state/stores/manifest';
 import { EMPTY_MANIFEST } from '@/constants/manifest';
 import type { Manifest } from '@/types';
@@ -90,7 +98,8 @@ describe('setCurrentSource', () => {
 
   it('sets CURRENT_SOURCE and records a recent with the resolved branch', () => {
     setCurrentSource('https://github.com/o/r', undefined, {
-      tree: { name: 'r' }, repo: { branch: 'main' },
+      tree: { name: 'r' },
+      repo: { branch: 'main' },
     } as unknown as Manifest);
     expect(CURRENT_SOURCE.value).toEqual({ src: 'https://github.com/o/r', branch: undefined });
     const recents = listRecents();
@@ -101,7 +110,8 @@ describe('setCurrentSource', () => {
 
   it('keeps an explicitly-requested branch and marks it non-default', () => {
     setCurrentSource('https://github.com/o/r', 'dev', {
-      tree: { name: 'r' }, repo: { branch: 'dev' },
+      tree: { name: 'r' },
+      repo: { branch: 'dev' },
     } as unknown as Manifest);
     expect(CURRENT_SOURCE.value).toEqual({ src: 'https://github.com/o/r', branch: 'dev' });
     expect(listRecents()[0].branchIsDefault).toBe(false);

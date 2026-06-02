@@ -59,7 +59,9 @@ describe('FilePreviewPane', () => {
     // every fetch to a small text body so the code editor renders without a
     // real server. Individual tests can override globalThis.fetch.
     globalThis.fetch = (async () =>
-      new Response('export const x = 1;\nconst y = 2;\n', { status: 200 })) as unknown as typeof fetch;
+      new Response('export const x = 1;\nconst y = 2;\n', {
+        status: 200,
+      })) as unknown as typeof fetch;
   });
 
   afterEach(() => {
@@ -153,7 +155,11 @@ describe('FilePreviewPane', () => {
     render(null, container);
 
     let closed = false;
-    mount({ onClose: () => { closed = true; } });
+    mount({
+      onClose: () => {
+        closed = true;
+      },
+    });
     const btn = container.querySelector(
       '.pane-header .btn-icon--text:last-child'
     ) as HTMLButtonElement | null;

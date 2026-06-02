@@ -12,10 +12,7 @@ export interface DebugSectionProps {
 export function DebugSection({ onRunCollisionCheck, onRunStemDiagnostic }: DebugSectionProps) {
   if (!onRunCollisionCheck && !onRunStemDiagnostic) return null;
   return (
-    <Section
-      name="Debug"
-      hint="Developer-only diagnostics. Output goes to the browser console."
-    >
+    <Section name="Debug" hint="Developer-only diagnostics. Output goes to the browser console.">
       {onRunCollisionCheck && (
         <div class="theme-row">
           <button

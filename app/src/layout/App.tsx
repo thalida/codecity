@@ -25,7 +25,11 @@ import { SourcePicker } from '@/views/SourcePicker';
 import { LoadingOverlay } from '@/components/LoadingOverlay';
 import { HljsThemeLink } from '@/components/HljsThemeLink';
 import { selectPath, resetView, focusCurrentSelection } from '@/state/stores/scene';
-import { openSourcePicker, openSourcePickerForCurrentSource, closeSourcePicker } from '@/state/stores/ui';
+import {
+  openSourcePicker,
+  openSourcePickerForCurrentSource,
+  closeSourcePicker,
+} from '@/state/stores/ui';
 import { SOURCE_ERROR } from '@/state/stores/source';
 import { MANIFEST } from '@/state/stores/manifest';
 import { isEmptyManifest } from '@/utils/manifest';
@@ -81,7 +85,10 @@ export function App() {
       </main>
       <AppFooter />
       <SourcePicker
-        onSubmit={(p) => { dismissPicker(); submitSource(p); }}
+        onSubmit={(p) => {
+          dismissPicker();
+          submitSource(p);
+        }}
         onClose={dismissPicker}
       />
       <LoadingOverlay />

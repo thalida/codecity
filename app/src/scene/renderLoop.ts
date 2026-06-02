@@ -354,8 +354,14 @@ export async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manif
 
   // Sidewalk tints follow selection / hover. Two effects keep tracking
   // narrow — one signal per effect, no over-tracking.
-  effect(() => { void picker.selection.value; _refreshSidewalkTints(); });
-  effect(() => { void picker.hover.value; _refreshSidewalkTints(); });
+  effect(() => {
+    void picker.selection.value;
+    _refreshSidewalkTints();
+  });
+  effect(() => {
+    void picker.hover.value;
+    _refreshSidewalkTints();
+  });
 
   // Firefly hover / select boost. Re-fetches world.getFireflies() each fire
   // so the wiring survives world rebuilds (new renderer starts with -1

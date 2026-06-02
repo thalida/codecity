@@ -2,11 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { render } from 'preact';
 import { act } from 'preact/test-utils';
 import { signal } from '@preact/signals';
-import {
-  SourcePickerModal,
-  SourceTab,
-  inferSourceTab,
-} from '@/views/SourcePicker';
+import { SourcePickerModal, SourceTab, inferSourceTab } from '@/views/SourcePicker';
 import type { SourcePickerState } from '@/views/SourcePicker';
 import type { SourcePayload, OpenOpts } from '@/state/stores/ui';
 import { pushRecent, RECENTS } from '@/state/stores/source';
@@ -236,7 +232,9 @@ describe('SourcePicker', () => {
     createPicker({ allowLocalRepos: true });
     await open({ prefill: { src: 'https://github.com/o/r', branch: 'develop' } });
     expect(
-      (container.querySelector('[data-tab="git"]') as HTMLButtonElement).classList.contains('active')
+      (container.querySelector('[data-tab="git"]') as HTMLButtonElement).classList.contains(
+        'active'
+      )
     ).toBe(true);
     expect((container.querySelector('[data-field="url"]') as HTMLInputElement).value).toBe(
       'https://github.com/o/r'

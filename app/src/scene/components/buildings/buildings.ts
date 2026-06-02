@@ -110,9 +110,7 @@ function getBuildingMaterial(): THREE.ShaderMaterial {
       },
       uGrimeCoverage: { value: BUILDINGS.value.GRIME_COVERAGE },
       uTiltMaxRad: {
-        value: BUILDINGS.value.TILT_ENABLED
-          ? (BUILDINGS.value.TILT_DEGREES * Math.PI) / 180
-          : 0,
+        value: BUILDINGS.value.TILT_ENABLED ? (BUILDINGS.value.TILT_DEGREES * Math.PI) / 180 : 0,
       },
       // Scene directional lighting (fixed LIGHTING_* constants). uSunDirWorld is
       // re-initialised below from those constants so the
@@ -151,10 +149,7 @@ function getBuildingMaterial(): THREE.ShaderMaterial {
       // hardcoded vec3(0.5, 0.4, 0.15) was sRGB), so we pass the hex bytes
       // through unchanged.
       uDimGlowColor: {
-        value: new THREE.Color().setStyle(
-          FACADE.value.DIM_GLOW_COLOR,
-          THREE.LinearSRGBColorSpace
-        ),
+        value: new THREE.Color().setStyle(FACADE.value.DIM_GLOW_COLOR, THREE.LinearSRGBColorSpace),
       },
       uLitFreshnessExponent: { value: FACADE.value.LIT_FRESHNESS_EXPONENT },
     },

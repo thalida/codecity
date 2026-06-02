@@ -505,9 +505,14 @@ export function createWorld(_canvas: HTMLCanvasElement) {
         SIDES: GEM.value.SIDES,
         EDGE_COLOR: GEM.value.EDGE_COLOR,
         BODY_OPACITY: GEM.value.BODY_OPACITY,
-        FACE_1: GEM.value.FACE_1, FACE_2: GEM.value.FACE_2, FACE_3: GEM.value.FACE_3,
-        FACE_4: GEM.value.FACE_4, FACE_5: GEM.value.FACE_5, FACE_6: GEM.value.FACE_6,
-        FACE_7: GEM.value.FACE_7, FACE_8: GEM.value.FACE_8,
+        FACE_1: GEM.value.FACE_1,
+        FACE_2: GEM.value.FACE_2,
+        FACE_3: GEM.value.FACE_3,
+        FACE_4: GEM.value.FACE_4,
+        FACE_5: GEM.value.FACE_5,
+        FACE_6: GEM.value.FACE_6,
+        FACE_7: GEM.value.FACE_7,
+        FACE_8: GEM.value.FACE_8,
         GLOW_ENABLED: GEM.value.GLOW_ENABLED,
         GLOW_INNER_SCALE: GEM.value.GLOW_INNER_SCALE,
         GLOW_INNER_OPACITY: GEM.value.GLOW_INNER_OPACITY,
@@ -1203,7 +1208,11 @@ export function createWorld(_canvas: HTMLCanvasElement) {
       }
       if (generationAtDefer !== _currentGeneration) return;
 
-      _trees = createTrees(treePlacements, manifest.commits ?? null, manifest.busyness ?? { avg: 1, busy: 1 });
+      _trees = createTrees(
+        treePlacements,
+        manifest.commits ?? null,
+        manifest.busyness ?? { avg: 1, busy: 1 }
+      );
       scene.add(_trees.group);
       _fireflies = createFireflies(treePlacements, manifest.commits ?? null);
       scene.add(_fireflies.group);

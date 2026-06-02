@@ -15,8 +15,7 @@
  * Yield once to let Preact flush a microtask-scheduled re-render.
  * Sufficient for synchronous-ish signal/state updates triggered by an event.
  */
-export const flush = (): Promise<void> =>
-  new Promise<void>((resolve) => setTimeout(resolve, 0));
+export const flush = (): Promise<void> => new Promise<void>((resolve) => setTimeout(resolve, 0));
 
 /**
  * Settle a render that depends on async work (a fetch() chain → useState →

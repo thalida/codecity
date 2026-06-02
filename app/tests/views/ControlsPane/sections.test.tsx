@@ -6,11 +6,7 @@ import { STREETS_SECTION } from '@/views/ControlsPane/partials/Streets';
 import { FOOTPRINT_SECTION } from '@/views/ControlsPane/partials/Footprint';
 import { BUILDINGS_SECTION } from '@/views/ControlsPane/partials/Buildings';
 import { TREES } from '@/state/stores/settings/trees';
-import {
-  STREETS,
-  STREET_TIERS,
-  STREET_LAYOUT,
-} from '@/state/stores/settings/streets';
+import { STREETS, STREET_TIERS, STREET_LAYOUT } from '@/state/stores/settings/streets';
 import { BUILDING_DIMENSIONS, BUILDINGS, BUILDING_FADE } from '@/state/stores/settings/buildings';
 import { FACADE } from '@/state/stores/settings/facade';
 import { FOOTPRINT } from '@/state/stores/settings/footprint';

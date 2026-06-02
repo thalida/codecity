@@ -66,8 +66,12 @@ export function applyMiddleEllipsis(
 ): void {
   if (segments.length <= 2) return;
 
-  segments.forEach((s) => { s.style.display = ''; });
-  separators.forEach((s) => { s.style.display = ''; });
+  segments.forEach((s) => {
+    s.style.display = '';
+  });
+  separators.forEach((s) => {
+    s.style.display = '';
+  });
   _removeEllipsis(container, opts.ellipsisClass);
 
   if (container.scrollWidth <= container.clientWidth) return;

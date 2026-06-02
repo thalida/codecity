@@ -22,7 +22,9 @@ if (missing.length) {
 }
 
 const camel = (s) => s.replace(/-([a-z0-9])/g, (_, c) => c.toUpperCase());
-const imports = names.map((n) => `import ${camel(n)} from 'material-icon-theme/icons/${n}.svg?url';`).join('\n');
+const imports = names
+  .map((n) => `import ${camel(n)} from 'material-icon-theme/icons/${n}.svg?url';`)
+  .join('\n');
 // Property shorthand when the basename is already a valid identifier equal to
 // the import var (e.g. `audio`); quoted "key: var" for hyphenated names
 // (e.g. `'folder-src': folderSrc`). Keeps the output eslint-clean

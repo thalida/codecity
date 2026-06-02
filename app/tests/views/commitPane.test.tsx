@@ -518,7 +518,9 @@ describe('CommitPane', () => {
       (container.querySelector(
         '.pane-header .btn-icon[aria-label="Focus the camera on this commit (F)"]'
       ) as HTMLButtonElement | null) ??
-      (container.querySelector('.pane-header button[aria-label*="Focus"]') as HTMLButtonElement | null);
+      (container.querySelector(
+        '.pane-header button[aria-label*="Focus"]'
+      ) as HTMLButtonElement | null);
     expect(focusBtn).not.toBeNull();
     focusBtn!.click();
     expect(onFocus).toHaveBeenCalledTimes(1);

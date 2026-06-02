@@ -27,9 +27,7 @@ export interface NodeIconProps {
 
 export function NodeIcon({ node }: NodeIconProps) {
   const isDir = node.type === NodeKind.Directory;
-  const iconName = isDir
-    ? getFolderIconName(node as DirNode)
-    : getFileIconName(node as FileNode);
+  const iconName = isDir ? getFolderIconName(node as DirNode) : getFileIconName(node as FileNode);
   const label = node.name || '';
   return (
     <img

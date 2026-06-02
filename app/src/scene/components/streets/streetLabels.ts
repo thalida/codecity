@@ -17,7 +17,12 @@
 
 import * as THREE from 'three';
 import { STREETS } from '@/state/stores/settings/streets';
-import { ASPHALT_WIDTH_FRAC, LABEL_FONT_FAMILY, LABEL_FONT_WEIGHT, LABEL_ELEVATION } from '@/constants/streets';
+import {
+  ASPHALT_WIDTH_FRAC,
+  LABEL_FONT_FAMILY,
+  LABEL_FONT_WEIGHT,
+  LABEL_ELEVATION,
+} from '@/constants/streets';
 import { RENDER_ORDERS } from '@/scene/renderOrders';
 import { NodeKind, StreetAxis } from '@/types';
 import type { Street } from '@/types';

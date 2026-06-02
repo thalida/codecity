@@ -16,41 +16,45 @@ export function HueMapField({ store, fieldKey }: FieldProps) {
 
   return (
     <>
-      {Object.keys(map).sort().map((k) => {
-        const value = map[k];
-        const defaultVal = defaults[k];
-        const disabled = value === defaultVal;
-        const tip = `${k} — Hue (0–359°) for files with this extension.`;
-        return (
-          <label class="theme-row" title={tip} key={k}>
-            <span class="theme-row-label" title={tip}>{k}</span>
-            <span class="theme-row-control">
-              <Slider
-                value={value}
-                min={0}
-                max={359}
-                step={1}
-                onCommit={(v) => commit({ ...map, [k]: v })}
-              />
-              <span class="theme-hue-preview" style={{ background: `hsl(${value}, 80%, 55%)` }} />
-              <button
-                type="button"
-                class="theme-row-reset"
-                title={`Default: ${defaultVal}`}
-                aria-label="Reset to default"
-                disabled={disabled}
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  commit({ ...map, [k]: defaultVal });
-                }}
-              >
-                <RotateCcw class="lucide-icon" />
-              </button>
-            </span>
-          </label>
-        );
-      })}
+      {Object.keys(map)
+        .sort()
+        .map((k) => {
+          const value = map[k];
+          const defaultVal = defaults[k];
+          const disabled = value === defaultVal;
+          const tip = `${k} — Hue (0–359°) for files with this extension.`;
+          return (
+            <label class="theme-row" title={tip} key={k}>
+              <span class="theme-row-label" title={tip}>
+                {k}
+              </span>
+              <span class="theme-row-control">
+                <Slider
+                  value={value}
+                  min={0}
+                  max={359}
+                  step={1}
+                  onCommit={(v) => commit({ ...map, [k]: v })}
+                />
+                <span class="theme-hue-preview" style={{ background: `hsl(${value}, 80%, 55%)` }} />
+                <button
+                  type="button"
+                  class="theme-row-reset"
+                  title={`Default: ${defaultVal}`}
+                  aria-label="Reset to default"
+                  disabled={disabled}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    commit({ ...map, [k]: defaultVal });
+                  }}
+                >
+                  <RotateCcw class="lucide-icon" />
+                </button>
+              </span>
+            </label>
+          );
+        })}
     </>
   );
 }

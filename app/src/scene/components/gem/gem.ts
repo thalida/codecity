@@ -199,7 +199,11 @@ export function createRootGem(street: Street): THREE.Group {
         depthTest: true,
       })
     );
-    innerGlowSprite.scale.set(radius * glowCfg.GLOW_INNER_SCALE, radius * glowCfg.GLOW_INNER_SCALE, 1);
+    innerGlowSprite.scale.set(
+      radius * glowCfg.GLOW_INNER_SCALE,
+      radius * glowCfg.GLOW_INNER_SCALE,
+      1
+    );
     innerGlowSprite.visible = glowCfg.GLOW_ENABLED;
     // Glow is purely visual — never absorbs hover / click. Sprites are
     // raycast-pickable by default, so override with a no-op.
@@ -223,7 +227,11 @@ export function createRootGem(street: Street): THREE.Group {
         depthTest: false,
       })
     );
-    outerGlowSprite.scale.set(radius * glowCfg.GLOW_OUTER_SCALE, radius * glowCfg.GLOW_OUTER_SCALE, 1);
+    outerGlowSprite.scale.set(
+      radius * glowCfg.GLOW_OUTER_SCALE,
+      radius * glowCfg.GLOW_OUTER_SCALE,
+      1
+    );
     outerGlowSprite.visible = glowCfg.GLOW_ENABLED;
     outerGlowSprite.raycast = () => {};
 

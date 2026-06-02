@@ -19,9 +19,9 @@ import { isEmptyManifest } from '@/utils/manifest';
 // Source of truth written by the fetch layer (useManifestSource). The scene
 // (useCityScene's render effect) is a CONSUMER of this signal — it is not
 // derived from world.onChange.
-export const MANIFEST = signal<Manifest | DirNode | { tree?: unknown; [k: string]: unknown } | null>(
-  EMPTY_MANIFEST
-);
+export const MANIFEST = signal<
+  Manifest | DirNode | { tree?: unknown; [k: string]: unknown } | null
+>(EMPTY_MANIFEST);
 
 /** Set the current manifest (skeleton, final, or live-update). Single writer
  *  used by the fetch layer; views + the scene render-effect read MANIFEST. */

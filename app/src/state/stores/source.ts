@@ -14,7 +14,13 @@ import { PERSISTED_KEYS } from '@/constants/storage';
 import { MAX_RECENT_SOURCES } from '@/constants/ui';
 import { URL_PARAMS } from '@/constants/urlParams';
 import { MANIFEST } from '@/state/stores/manifest';
-import { labelFromManifest, srcKind, SourceKind, resolveBranch, labelFromUrl } from '@/utils/sources';
+import {
+  labelFromManifest,
+  srcKind,
+  SourceKind,
+  resolveBranch,
+  labelFromUrl,
+} from '@/utils/sources';
 import { isEmptyManifest } from '@/utils/manifest';
 import type { Manifest } from '@/types';
 
@@ -52,7 +58,10 @@ export const CURRENT_SOURCE = signal<{ src: string; branch?: string } | null>(nu
  * open the source picker (the hook does NOT manage the picker). App clears it
  * when the user acts on the picker (submit/close).
  */
-export const SOURCE_ERROR = signal<{ error: string; prefill?: { src: string; branch?: string } } | null>(null);
+export const SOURCE_ERROR = signal<{
+  error: string;
+  prefill?: { src: string; branch?: string };
+} | null>(null);
 
 /**
  * The currently-loaded source's stable hash, or null when no source is loaded.
@@ -159,7 +168,11 @@ export function pushRecent(entry: Omit<RecentSource, 'lastOpenedAt'>): void {
  * render layer's camera-reset all derive from) AND record it in recents with
  * the manifest-resolved branch. Single commit point for boot + switch.
  */
-export function setCurrentSource(src: string, branch: string | undefined, manifest: Manifest): void {
+export function setCurrentSource(
+  src: string,
+  branch: string | undefined,
+  manifest: Manifest
+): void {
   CURRENT_SOURCE.value = { src, branch };
   const { branch: resolvedBranch, isDefault } = resolveBranch(manifest, branch);
   pushRecent({

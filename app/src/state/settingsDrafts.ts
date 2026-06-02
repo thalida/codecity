@@ -92,11 +92,7 @@ export function stageResetAll(): void {
       }
       return;
     }
-    if (
-      defaults &&
-      typeof defaults === 'object' &&
-      !Array.isArray(defaults)
-    ) {
+    if (defaults && typeof defaults === 'object' && !Array.isArray(defaults)) {
       // Object-valued signal: stage each sub-key whose effective value differs from default.
       for (const k in defaults) {
         if (!Object.hasOwn(defaults, k)) continue;
@@ -131,7 +127,9 @@ export function anyResettable(): boolean {
     if (defaults && typeof defaults === 'object' && !Array.isArray(defaults)) {
       for (const k in defaults) {
         if (!Object.hasOwn(defaults, k)) continue;
-        if (!deepEqual(getEffective(store as SignalLike, k), (defaults as Record<string, unknown>)[k])) {
+        if (
+          !deepEqual(getEffective(store as SignalLike, k), (defaults as Record<string, unknown>)[k])
+        ) {
           any = true;
           return;
         }

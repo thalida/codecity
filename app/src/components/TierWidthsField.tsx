@@ -24,7 +24,9 @@ export function TierWidthsField({ store, fieldKey }: FieldProps) {
         const disabled = tier.width === defaultWidth;
         return (
           <label class="theme-row" title={tip} key={`tier-${i}`}>
-            <span class="theme-row-label" title={tip}>{label}</span>
+            <span class="theme-row-label" title={tip}>
+              {label}
+            </span>
             <span class="theme-row-control">
               <Slider
                 value={tier.width}

@@ -14,10 +14,7 @@
 // querying a WorldOccupancy structure for the smallest stem offset that
 // keeps the new geometry from intersecting anything already placed.
 
-import {
-  STREET_TIERS,
-  STREET_LAYOUT,
-} from '@/state/stores/settings/streets';
+import { STREET_TIERS, STREET_LAYOUT } from '@/state/stores/settings/streets';
 import { BUILDING_DIMENSIONS } from '@/state/stores/settings/buildings';
 import { GEM_SIZING } from '@/state/stores/settings/gem';
 import type { StreetTier } from '@/state/stores/settings/streets';

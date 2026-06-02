@@ -29,7 +29,9 @@ export function Row({ label, tip, store, keys, children }: RowProps) {
   const fullTip = tip ? `${label} — ${tip}` : label;
   return (
     <label class="theme-row" title={fullTip}>
-      <span class="theme-row-label" title={fullTip}>{label}</span>
+      <span class="theme-row-label" title={fullTip}>
+        {label}
+      </span>
       <span class="theme-row-control">
         {children}
         {store && keys && keys.length > 0 && <ResetButton store={store} keys={keys} />}

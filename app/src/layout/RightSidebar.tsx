@@ -41,7 +41,10 @@ import { Sidebar, SidebarSide } from '@/components/Sidebar';
 // Persisted drag-handle width via persistedSignal (the store abstraction) —
 // null until the user first drags (null ⇒ fall back to the CSS default width).
 // The width range is enforced by #right-sidebar.open's CSS min-width/max-width.
-const RIGHT_SIDEBAR_WIDTH = persistedSignal<number | null>(PERSISTED_KEYS.RIGHT_SIDEBAR_WIDTH, null);
+const RIGHT_SIDEBAR_WIDTH = persistedSignal<number | null>(
+  PERSISTED_KEYS.RIGHT_SIDEBAR_WIDTH,
+  null
+);
 
 /** Which pane the right sidebar is showing, from the current picker selection. */
 enum SidebarPaneKind {
@@ -155,4 +158,3 @@ export function RightSidebar() {
     </Sidebar>
   );
 }
-

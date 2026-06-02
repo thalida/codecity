@@ -27,8 +27,14 @@ export const GEM_SECTION: SectionNode = {
       key: 'face-colors',
       label: 'Face colors',
       children: [
-        field(GEM, 'FACE_1'), field(GEM, 'FACE_2'), field(GEM, 'FACE_3'), field(GEM, 'FACE_4'),
-        field(GEM, 'FACE_5'), field(GEM, 'FACE_6'), field(GEM, 'FACE_7'), field(GEM, 'FACE_8'),
+        field(GEM, 'FACE_1'),
+        field(GEM, 'FACE_2'),
+        field(GEM, 'FACE_3'),
+        field(GEM, 'FACE_4'),
+        field(GEM, 'FACE_5'),
+        field(GEM, 'FACE_6'),
+        field(GEM, 'FACE_7'),
+        field(GEM, 'FACE_8'),
       ],
     },
     {

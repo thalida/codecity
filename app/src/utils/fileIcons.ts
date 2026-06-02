@@ -4,7 +4,13 @@
 // in components/NodeIcon.tsx so both key off the same names.
 
 import type { DirNode, FileNode } from '../types';
-import { EXT_ICON, NAME_ICON, FOLDER_ICON, GENERIC_FILE, GENERIC_FOLDER } from '../constants/fileIcons';
+import {
+  EXT_ICON,
+  NAME_ICON,
+  FOLDER_ICON,
+  GENERIC_FILE,
+  GENERIC_FOLDER,
+} from '../constants/fileIcons';
 
 /**
  * Resolve the Material icon basename for a file node. Lookup order:

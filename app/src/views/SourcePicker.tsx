@@ -11,10 +11,7 @@ import { clearManifestCache } from '@/api/manifest';
 import { srcKind, SourceKind } from '@/utils/sources';
 import { URL_PARAMS } from '@/constants/urlParams';
 import { Folder, Trash2, TriangleAlert, X } from 'lucide-preact';
-import {
-  SOURCE_PICKER,
-  type SourcePayload,
-} from '@/state/stores/ui';
+import { SOURCE_PICKER, type SourcePayload } from '@/state/stores/ui';
 import { SERVER_CONFIG } from '@/state/stores/serverConfig';
 
 // ── Hosting-site SVG icons ───────────────────────────────────────────────────
@@ -100,7 +97,7 @@ export function SourcePickerModal({ state, onSubmit, onClose }: SourcePickerModa
   function handleSubmit() {
     const src = activeTab === SourceTab.Local ? pathValue.trim() : urlValue.trim();
     if (!src) return;
-    const branch = activeTab === SourceTab.Git ? (branchValue.trim() || undefined) : undefined;
+    const branch = activeTab === SourceTab.Git ? branchValue.trim() || undefined : undefined;
     onSubmit({ src, branch, skipCache: skipCache || undefined });
   }
 
@@ -122,17 +119,25 @@ export function SourcePickerModal({ state, onSubmit, onClose }: SourcePickerModa
     // this component reads via listRecents(), so the list re-renders on its own.
   }
 
-  const showFormFields = !((!s.allowLocalRepos) && activeTab === SourceTab.Local);
+  const showFormFields = !(!s.allowLocalRepos && activeTab === SourceTab.Local);
 
   return (
-    <div class="modal-backdrop" onClick={(e) => {
-      if (s.dismissible && e.target === e.currentTarget) onClose();
-    }}>
+    <div
+      class="modal-backdrop"
+      onClick={(e) => {
+        if (s.dismissible && e.target === e.currentTarget) onClose();
+      }}
+    >
       <div class="modal-card" role="dialog" aria-modal="true" aria-label="Open project">
         <div class="modal-header">
           <span>Open project</span>
           {s.dismissible && (
-            <button class="btn-icon btn-icon--lg" data-action="close" aria-label="Close" onClick={onClose}>
+            <button
+              class="btn-icon btn-icon--lg"
+              data-action="close"
+              aria-label="Close"
+              onClick={onClose}
+            >
               <X class="lucide-icon" />
             </button>
           )}
@@ -185,7 +190,10 @@ export function SourcePickerModal({ state, onSubmit, onClose }: SourcePickerModa
             </div>
           </div>
 
-          <div data-pane="local" style={{ display: activeTab === SourceTab.Local ? 'block' : 'none' }}>
+          <div
+            data-pane="local"
+            style={{ display: activeTab === SourceTab.Local ? 'block' : 'none' }}
+          >
             {s.allowLocalRepos ? (
               <div class="modal-field">
                 <label>Path</label>
@@ -203,10 +211,9 @@ export function SourcePickerModal({ state, onSubmit, onClose }: SourcePickerModa
               <div class="modal-warning">
                 <strong>Local repositories are disabled</strong>
                 <p>
-                  codecity is running without{' '}
-                  <code>CODECITY_ALLOW_LOCAL_REPOS=1</code>.
-                  Restart the container with the env var set and a read-only mount of the
-                  directory you want to load.
+                  codecity is running without <code>CODECITY_ALLOW_LOCAL_REPOS=1</code>. Restart the
+                  container with the env var set and a read-only mount of the directory you want to
+                  load.
                 </p>
                 <p>
                   <a
@@ -229,8 +236,8 @@ export function SourcePickerModal({ state, onSubmit, onClose }: SourcePickerModa
                   type="checkbox"
                   checked={skipCache}
                   onChange={(e) => setSkipCache((e.target as HTMLInputElement).checked)}
-                />
-                {' '}Skip cache (fresh scan)
+                />{' '}
+                Skip cache (fresh scan)
               </label>
             </div>
             <div class="modal-actions">
@@ -250,7 +257,11 @@ export function SourcePickerModal({ state, onSubmit, onClose }: SourcePickerModa
                 const disabledTitle = isDisabled
                   ? 'Local repos are disabled. Restart codecity with CODECITY_ALLOW_LOCAL_REPOS=1 to load this.'
                   : '';
-                const rowClasses = ['recent-row', isActive && 'recent-row--active', isDisabled && 'recent-row--disabled']
+                const rowClasses = [
+                  'recent-row',
+                  isActive && 'recent-row--active',
+                  isDisabled && 'recent-row--disabled',
+                ]
                   .filter(Boolean)
                   .join(' ');
                 const subParts = [r.src];
@@ -329,8 +340,7 @@ export function SourcePicker({ onSubmit, onClose }: SourcePickerProps) {
     dismissible: opts.dismissible ?? false,
     // Only default to the Local tab when local repos are enabled — otherwise a
     // local-path prefill would land on the disabled-Local dead-end view.
-    activeTab:
-      prefillSrc && serverCfg.allowLocalRepos ? inferSourceTab(prefillSrc) : SourceTab.Git,
+    activeTab: prefillSrc && serverCfg.allowLocalRepos ? inferSourceTab(prefillSrc) : SourceTab.Git,
     prefillSrc,
     prefillBranch: prefill?.branch ?? '',
     error: opts.error ?? null,
@@ -341,8 +351,12 @@ export function SourcePicker({ onSubmit, onClose }: SourcePickerProps) {
   // `state.value` read works. The force-re-render write (on recent-remove) is
   // no longer needed: removeRecent writes to RECENTS signal which Preact tracks.
   const stateSignal = {
-    get value() { return pickerState; },
-    set value(_: SourcePickerState) { /* re-renders via RECENTS signal */ },
+    get value() {
+      return pickerState;
+    },
+    set value(_: SourcePickerState) {
+      /* re-renders via RECENTS signal */
+    },
   } as Signal<SourcePickerState>;
 
   return <SourcePickerModal state={stateSignal} onSubmit={onSubmit} onClose={onClose} />;

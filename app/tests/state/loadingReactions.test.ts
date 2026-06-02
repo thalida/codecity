@@ -8,8 +8,13 @@ import { LoadingStep } from '@/constants/loadingSteps';
 
 describe('loadingReactions', () => {
   let dispose: () => void;
-  beforeEach(() => { dispose = attachLoadingReactions(); });
-  afterEach(() => { dispose(); SCAN_PROGRESS.value = null; });
+  beforeEach(() => {
+    dispose = attachLoadingReactions();
+  });
+  afterEach(() => {
+    dispose();
+    SCAN_PROGRESS.value = null;
+  });
 
   it('shows the overlay immediately on a just-started (phase null) load', () => {
     SCAN_PROGRESS.value = { kind: SourceKind.Git, label: 'r', phase: null };
@@ -30,7 +35,13 @@ describe('loadingReactions', () => {
   });
 
   it('sets a cloning tail from percent/stage', () => {
-    SCAN_PROGRESS.value = { kind: SourceKind.Git, label: 'r', phase: ScanPhase.Cloning, percent: 45, stage: 'Receiving' };
+    SCAN_PROGRESS.value = {
+      kind: SourceKind.Git,
+      label: 'r',
+      phase: ScanPhase.Cloning,
+      percent: 45,
+      stage: 'Receiving',
+    };
     expect(LOADING_OVERLAY.value.activeStep).toBe(LoadingStep.Cloning);
     expect(LOADING_OVERLAY.value.stepTails[LoadingStep.Cloning]).toContain('45%');
   });

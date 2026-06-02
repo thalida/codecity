@@ -35,11 +35,7 @@ import {
 } from '@/api/manifest';
 import { getServerConfig } from '@/api/config';
 import { LIVE_UPDATES } from '@/state/stores/settings/updates';
-import {
-  PENDING_SOURCE_LABEL,
-  SOURCE_ERROR,
-  setCurrentSource,
-} from '@/state/stores/source';
+import { PENDING_SOURCE_LABEL, SOURCE_ERROR, setCurrentSource } from '@/state/stores/source';
 import { SERVER_CONFIG } from '@/state/stores/serverConfig';
 import {
   MANIFEST,
@@ -69,7 +65,10 @@ import type { SourcePayload } from '@/state/stores/ui';
 async function pumpManifestStream(
   url: string,
   meta: { kind: SourceKind; label: string; branch?: string },
-  onManifest: (manifest: Manifest, phase: ScanPhase.Skeleton | ScanPhase.Final) => Promise<void> | void
+  onManifest: (
+    manifest: Manifest,
+    phase: ScanPhase.Skeleton | ScanPhase.Final
+  ) => Promise<void> | void
 ): Promise<Manifest> {
   let lastManifest: Manifest | null = null;
 

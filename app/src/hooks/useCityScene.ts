@@ -9,7 +9,12 @@ import { effect } from '@preact/signals';
 import { startRenderLoop } from '@/scene/renderLoop';
 import { attachCommitReactions } from '@/state/settingsReactions';
 import { SCENE_HANDLE } from '@/state/stores/scene';
-import { MANIFEST, REBUILD_STATUS, RebuildStatus, LAST_REBUILD_ERROR } from '@/state/stores/manifest';
+import {
+  MANIFEST,
+  REBUILD_STATUS,
+  RebuildStatus,
+  LAST_REBUILD_ERROR,
+} from '@/state/stores/manifest';
 import { EMPTY_MANIFEST } from '@/constants/manifest';
 import { isEmptyManifest } from '@/utils/manifest';
 import { CURRENT_SOURCE_KEY } from '@/state/stores/source';
@@ -28,7 +33,10 @@ export function useCityScene(canvasRef: RefObject<HTMLCanvasElement | null>): vo
     startRenderLoop(canvas, EMPTY_MANIFEST).then((handle) => {
       if (disposed) return;
       SCENE_HANDLE.value = handle;
-      disposeReactions = attachCommitReactions({ world: handle.world, applyTheme: handle.applyTheme });
+      disposeReactions = attachCommitReactions({
+        world: handle.world,
+        applyTheme: handle.applyTheme,
+      });
 
       // Apply MANIFEST → scene on every change. world.applyManifest owns its own
       // skeleton→final tween + the Decorating→Idle status; this effect flips the

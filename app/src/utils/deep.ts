@@ -11,9 +11,17 @@
 
 export function deepEqual(a: unknown, b: unknown): boolean {
   if (a === b) return true;
-  try { return JSON.stringify(a) === JSON.stringify(b); } catch { return false; }
+  try {
+    return JSON.stringify(a) === JSON.stringify(b);
+  } catch {
+    return false;
+  }
 }
 
 export function deepClone<T>(v: T): T {
-  try { return JSON.parse(JSON.stringify(v)); } catch { return v; }
+  try {
+    return JSON.parse(JSON.stringify(v));
+  } catch {
+    return v;
+  }
 }

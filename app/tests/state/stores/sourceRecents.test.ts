@@ -1,10 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import {
-  listRecents,
-  pushRecent,
-  removeRecent,
-  RECENTS,
-} from '@/state/stores/source';
+import { listRecents, pushRecent, removeRecent, RECENTS } from '@/state/stores/source';
 import { STORAGE_PREFIX, PERSISTED_KEYS } from '@/constants/storage';
 
 describe('sourceRecents', () => {

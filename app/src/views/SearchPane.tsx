@@ -72,7 +72,12 @@ export function SearchPane({ manifest, onClose, onSelect, onFocus }: SearchPaneP
           />
         )}
         {trimmed && results && results.length === 0 && (
-          <PaneEmpty large={false} icon={SearchX} title="No files match" sub={`No path matches "${trimmed}".`} />
+          <PaneEmpty
+            large={false}
+            icon={SearchX}
+            title="No files match"
+            sub={`No path matches "${trimmed}".`}
+          />
         )}
         {results && results.length > 0 && (
           <ul class="search-results">
@@ -81,15 +86,17 @@ export function SearchPane({ manifest, onClose, onSelect, onFocus }: SearchPaneP
                 key={file.path}
                 class="search-result"
                 tabIndex={0}
-                onClick={() => { if (onSelect && file.path) onSelect(file.path); }}
-                onDblClick={() => { if (onFocus && file.path) onFocus(file.path); }}
+                onClick={() => {
+                  if (onSelect && file.path) onSelect(file.path);
+                }}
+                onDblClick={() => {
+                  if (onFocus && file.path) onFocus(file.path);
+                }}
                 onKeyDown={(e: KeyboardEvent) => {
                   if (e.key === 'Enter' && onSelect && file.path) onSelect(file.path);
                 }}
               >
-                <span class="search-result-path">
-                  {_highlightJsx(file.path, match.positions)}
-                </span>
+                <span class="search-result-path">{_highlightJsx(file.path, match.positions)}</span>
               </li>
             ))}
           </ul>

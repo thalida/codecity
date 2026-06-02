@@ -91,9 +91,7 @@ export function InfoPane({ manifest, onClose }: InfoPaneProps) {
   useEffect(() => {
     let cancelled = false;
 
-    const doFetch = (
-      m: Manifest | DirNode | { tree?: unknown; [k: string]: unknown } | null
-    ) => {
+    const doFetch = (m: Manifest | DirNode | { tree?: unknown; [k: string]: unknown } | null) => {
       if (isEmptyManifest(m)) {
         setBody({ kind: InfoBodyKind.NoProject });
         return;
@@ -107,10 +105,12 @@ export function InfoPane({ manifest, onClose }: InfoPaneProps) {
       const readmePath = readme.fullPath;
       fetchFileText(readmePath)
         .then((text) => {
-          if (!cancelled) setBody({ kind: InfoBodyKind.Markdown, html: _renderReadme(text, readmePath) });
+          if (!cancelled)
+            setBody({ kind: InfoBodyKind.Markdown, html: _renderReadme(text, readmePath) });
         })
         .catch((err) => {
-          if (!cancelled) setBody({ kind: InfoBodyKind.Error, message: (err && err.message) || 'Unknown error' });
+          if (!cancelled)
+            setBody({ kind: InfoBodyKind.Error, message: (err && err.message) || 'Unknown error' });
         });
     };
 

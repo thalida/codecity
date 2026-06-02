@@ -21,7 +21,12 @@ import { formatShortDate, formatRelativeAgeShort } from '@/utils/dates';
 import { formatBytes } from '@/utils/bytes';
 import { SCENE_HANDLE } from '@/state/stores/scene';
 import { LIVE_UPDATES } from '@/state/stores/settings/updates';
-import { REBUILD_STATUS, RebuildStatus, LAST_REBUILD_ERROR, LAST_UPDATED_AT } from '@/state/stores/manifest';
+import {
+  REBUILD_STATUS,
+  RebuildStatus,
+  LAST_REBUILD_ERROR,
+  LAST_UPDATED_AT,
+} from '@/state/stores/manifest';
 import { humanLanguageFor } from '@/utils/syntaxLanguages';
 
 interface FooterFileSelection {
@@ -300,4 +305,3 @@ export function AppFooter() {
     </footer>
   );
 }
-

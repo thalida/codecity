@@ -137,8 +137,7 @@ function buildCanopyGeometry(detail: DetailLevel): THREE.BufferGeometry {
   //     as a smooth dome rather than a sharp spike.
   const profile = CANOPY_PROFILE as THREE.Vector2[];
   const cfg = TREES.value;
-  const segments =
-    detail === 0 ? cfg.FACETS_LOW : detail === 1 ? cfg.FACETS_MID : cfg.FACETS_HIGH;
+  const segments = detail === 0 ? cfg.FACETS_LOW : detail === 1 ? cfg.FACETS_MID : cfg.FACETS_HIGH;
   const geom = new THREE.LatheGeometry(profile, segments);
   // Non-indexed + flat normals so the baked per-vertex shading reads
   // as discrete facets (each face shaded uniformly).
@@ -157,8 +156,7 @@ function buildCanopyGeometry(detail: DetailLevel): THREE.BufferGeometry {
  *  Consumed by `scene/effects/treeOutlineRenderer.ts`. */
 export function buildCanopyEdges(detail: DetailLevel): THREE.EdgesGeometry {
   const cfg = TREES.value;
-  const segments =
-    detail === 0 ? cfg.FACETS_LOW : detail === 1 ? cfg.FACETS_MID : cfg.FACETS_HIGH;
+  const segments = detail === 0 ? cfg.FACETS_LOW : detail === 1 ? cfg.FACETS_MID : cfg.FACETS_HIGH;
   const lathe = new THREE.LatheGeometry(CANOPY_PROFILE as THREE.Vector2[], segments);
   // Default 1° threshold keeps any edge whose adjacent face normals differ
   // by >1° — for the canopy this means ring boundaries (profile slope

@@ -26,9 +26,12 @@ export function CopyButton({
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Clear a pending reset timer on unmount so it can't fire after teardown.
-  useEffect(() => () => {
-    if (timer.current) clearTimeout(timer.current);
-  }, []);
+  useEffect(
+    () => () => {
+      if (timer.current) clearTimeout(timer.current);
+    },
+    []
+  );
 
   const flash = () => {
     setCopied(true);

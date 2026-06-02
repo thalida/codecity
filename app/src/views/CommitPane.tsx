@@ -81,7 +81,6 @@ export function CommitPane({ state, onClose, onFocus }: CommitPaneProps) {
     now = new Date(),
   } = state.value;
 
-
   const [bodyState, setBodyState] = useState<BodyState>({ kind: CommitBodyKind.Loading });
   const bodyCache = useRef(new Map<string, string>());
 
@@ -90,7 +89,11 @@ export function CommitPane({ state, onClose, onFocus }: CommitPaneProps) {
     const sha = commit.sha;
     const cached = bodyCache.current.get(sha);
     if (cached !== undefined) {
-      setBodyState(cached.trim() ? { kind: CommitBodyKind.Text, body: cached } : { kind: CommitBodyKind.Hidden });
+      setBodyState(
+        cached.trim()
+          ? { kind: CommitBodyKind.Text, body: cached }
+          : { kind: CommitBodyKind.Hidden }
+      );
       return;
     }
     setBodyState({ kind: CommitBodyKind.Loading });
@@ -100,14 +103,20 @@ export function CommitPane({ state, onClose, onFocus }: CommitPaneProps) {
         if (cancelled) return;
         const bodyText = detail.body ?? '';
         bodyCache.current.set(sha, bodyText);
-        setBodyState(bodyText.trim() ? { kind: CommitBodyKind.Text, body: bodyText } : { kind: CommitBodyKind.Hidden });
+        setBodyState(
+          bodyText.trim()
+            ? { kind: CommitBodyKind.Text, body: bodyText }
+            : { kind: CommitBodyKind.Hidden }
+        );
       },
       (err) => {
         if (cancelled) return;
         setBodyState({ kind: CommitBodyKind.Error, err });
       }
     );
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [commit?.sha]);
 
   if (!commit) {
@@ -154,42 +163,46 @@ export function CommitPane({ state, onClose, onFocus }: CommitPaneProps) {
       onClose={onClose}
       bodyClass="commit-body"
     >
-        <div class="commit-message-subject">{commit.subject || '(no subject)'}</div>
-        {(commit.authors ?? []).map((author) => (
-          <div key={author} class="commit-author">
-            <span class="commit-author-dot" style={{ backgroundColor: colorForAuthor(author).hex }} />
-            <span class="commit-author-name">{author || '(unknown)'}</span>
-          </div>
-        ))}
-        <div class="commit-meta">
-          <span class="commit-age" title={commit.date}>{formatRelativeAge(commit.date, now)}</span>
-          <span class="commit-meta-sep" aria-hidden="true">·</span>
-          <span class="commit-files">{`${commit.files} file${commit.files === 1 ? '' : 's'} changed`}</span>
+      <div class="commit-message-subject">{commit.subject || '(no subject)'}</div>
+      {(commit.authors ?? []).map((author) => (
+        <div key={author} class="commit-author">
+          <span class="commit-author-dot" style={{ backgroundColor: colorForAuthor(author).hex }} />
+          <span class="commit-author-name">{author || '(unknown)'}</span>
         </div>
-        {sameDayTotal > 0 && (
-          <div
-            class="commit-same-day"
-            title={`${sameDayTotal} ${commitWord} on ${formatFullDate(commit.date)}`}
-          >
-            {color && <span class="commit-swatch" style={{ backgroundColor: color }} />}
-            {`${label} day: ${sameDayTotal} ${commitWord}`}
+      ))}
+      <div class="commit-meta">
+        <span class="commit-age" title={commit.date}>
+          {formatRelativeAge(commit.date, now)}
+        </span>
+        <span class="commit-meta-sep" aria-hidden="true">
+          ·
+        </span>
+        <span class="commit-files">{`${commit.files} file${commit.files === 1 ? '' : 's'} changed`}</span>
+      </div>
+      {sameDayTotal > 0 && (
+        <div
+          class="commit-same-day"
+          title={`${sameDayTotal} ${commitWord} on ${formatFullDate(commit.date)}`}
+        >
+          {color && <span class="commit-swatch" style={{ backgroundColor: color }} />}
+          {`${label} day: ${sameDayTotal} ${commitWord}`}
+        </div>
+      )}
+      <div class="commit-message-body-slot">
+        {bodyState.kind === CommitBodyKind.Loading && (
+          <div class="commit-message-body-slot--loading">Loading…</div>
+        )}
+        {bodyState.kind === CommitBodyKind.Text && (
+          <pre class="commit-message-body">{bodyState.body}</pre>
+        )}
+        {bodyState.kind === CommitBodyKind.Error && (
+          <div class="commit-message-body-slot--error">
+            <div class="commit-message-error">
+              {`Failed to load message: ${bodyState.err instanceof Error ? bodyState.err.message : String(bodyState.err)}`}
+            </div>
           </div>
         )}
-        <div class="commit-message-body-slot">
-          {bodyState.kind === CommitBodyKind.Loading && (
-            <div class="commit-message-body-slot--loading">Loading…</div>
-          )}
-          {bodyState.kind === CommitBodyKind.Text && (
-            <pre class="commit-message-body">{bodyState.body}</pre>
-          )}
-          {bodyState.kind === CommitBodyKind.Error && (
-            <div class="commit-message-body-slot--error">
-              <div class="commit-message-error">
-                {`Failed to load message: ${bodyState.err instanceof Error ? bodyState.err.message : String(bodyState.err)}`}
-              </div>
-            </div>
-          )}
-        </div>
+      </div>
     </Pane>
   );
 }

@@ -14,7 +14,8 @@ import { Section } from '@/components/Section';
 export function FilePreviewSection() {
   const current = SYNTAX_THEME.value;
   const defaultLabel =
-    SYNTAX_THEME_OPTIONS.find((o) => o.value === SYNTAX_THEME_DEFAULT)?.label ?? SYNTAX_THEME_DEFAULT;
+    SYNTAX_THEME_OPTIONS.find((o) => o.value === SYNTAX_THEME_DEFAULT)?.label ??
+    SYNTAX_THEME_DEFAULT;
   const isDefault = current === SYNTAX_THEME_DEFAULT;
 
   return (

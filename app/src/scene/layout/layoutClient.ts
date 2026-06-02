@@ -15,10 +15,7 @@
 // dimensions) is recomputed from the new manifest. This is the cheap
 // path for skeleton→final transitions and live updates.
 
-import {
-  STREET_LAYOUT,
-  STREET_TIERS,
-} from '@/state/stores/settings/streets';
+import { STREET_LAYOUT, STREET_TIERS } from '@/state/stores/settings/streets';
 import { BUILDING_DIMENSIONS } from '@/state/stores/settings/buildings';
 import { GEM_SIZING } from '@/state/stores/settings/gem';
 import type { StreetLayoutConfig, StreetTier } from '@/state/stores/settings/streets';

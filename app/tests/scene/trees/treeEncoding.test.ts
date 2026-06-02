@@ -91,7 +91,8 @@ describe('ageT()', () => {
           files: 1,
           sha: 'a'.repeat(40),
           authors: ['Test Author'],
-          subject: 'test commit', same_day_total: 1,
+          subject: 'test commit',
+          same_day_total: 1,
         },
         zero
       )
@@ -107,7 +108,8 @@ describe('ageT()', () => {
           files: 1,
           sha: 'a'.repeat(40),
           authors: ['Test Author'],
-          subject: 'test commit', same_day_total: 1,
+          subject: 'test commit',
+          same_day_total: 1,
         },
         range
       )
@@ -119,7 +121,8 @@ describe('ageT()', () => {
           files: 1,
           sha: 'a'.repeat(40),
           authors: ['Test Author'],
-          subject: 'test commit', same_day_total: 1,
+          subject: 'test commit',
+          same_day_total: 1,
         },
         range
       )
@@ -147,7 +150,8 @@ describe('sizeT()', () => {
           files: 1,
           sha: 'a'.repeat(40),
           authors: ['Test Author'],
-          subject: 'test commit', same_day_total: 1,
+          subject: 'test commit',
+          same_day_total: 1,
         },
         zero
       )
