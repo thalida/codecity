@@ -10,18 +10,18 @@
 // This module consumes the PURE fetch primitives in @/api/manifest
 // (streamManifest/urls) and drives the session stores: it WRITES the canonical
 // SCAN_PROGRESS signal while a source loads (the loading overlay is a REACTION to
-// it — see state/loadingReactions; this layer never pokes LOADING_OVERLAY), plus
-// CURRENT_SOURCE and per-source persistence. The header chip (SOURCE_INFO) is a
-// computed off CURRENT_SOURCE + MANIFEST — this layer never writes it. It writes
-// REBUILD_STATUS=Error only for a live-update FETCH/network failure — a distinct
-// concern from the render layer's apply error.
+// it — see state/loadingReactions; this layer never pokes LOADING_OVERLAY). On a
+// successful load it commits the source via setCurrentSource (CURRENT_SOURCE +
+// recents) — this layer never writes CURRENT_SOURCE directly. The header chip
+// (SOURCE_INFO) is a computed off CURRENT_SOURCE + MANIFEST — this layer never
+// writes it. It writes REBUILD_STATUS=Error only for a live-update FETCH/network
+// failure — a distinct concern from the render layer's apply error.
 //
 // Shape of the file, top to bottom:
-//   1. pumpManifestStream — the helper shared by the two stream entry points
-//   2. streamInitialManifest — cold-boot load from ?src
-//   3. applyNewSource        — user picks a new source in the picker
-//   4. setupLiveUpdates      — the background poll loop + its ENABLED gate
-//   5. useManifestSource     — wire it all together on mount
+//   1. pumpManifestStream — the helper shared by the stream entry points
+//   2. loadSource         — the one canonical load (cold boot + user switch)
+//   3. setupLiveUpdates   — the background poll loop + its ENABLED gate
+//   4. useManifestSource  — wire it all together on mount
 
 import { useEffect, useCallback } from 'preact/hooks';
 import { effect } from '@preact/signals';
@@ -36,10 +36,9 @@ import {
 import { getServerConfig } from '@/api/config';
 import { LIVE_UPDATES } from '@/state/stores/settings/updates';
 import {
-  CURRENT_SOURCE,
   PENDING_SOURCE_LABEL,
   SOURCE_ERROR,
-  pushRecent,
+  setCurrentSource,
 } from '@/state/stores/source';
 import { SERVER_CONFIG } from '@/state/stores/serverConfig';
 import {
@@ -50,7 +49,7 @@ import {
   LAST_REBUILD_ERROR,
 } from '@/state/stores/manifest';
 import { SCAN_PROGRESS } from '@/state/stores/scanProgress';
-import { srcKind, labelFromUrl, resolveBranch, SourceKind } from '@/utils/sources';
+import { srcKind, labelFromUrl, SourceKind } from '@/utils/sources';
 import { isEmptyManifest } from '@/utils/manifest';
 import { URL_PARAMS } from '@/constants/urlParams';
 import type { Manifest } from '@/types';
@@ -107,107 +106,34 @@ async function pumpManifestStream(
   return lastManifest;
 }
 
-// ── Initial boot stream ──────────────────────────────────────────────
-
-interface InitialStreamResult {
-  error: string | null;
-}
-
-/**
- * Run the initial manifest stream on cold boot. With no ?src, returns
- * immediately (MANIFEST stays EMPTY_MANIFEST — the render layer paints an empty
- * scene). Otherwise sets SCAN_PROGRESS (which the loading-overlay reaction shows)
- * and WRITES each manifest event into MANIFEST (the render layer applies them).
- * On any failure the returned error is set and MANIFEST is left at its current
- * (empty) value.
- */
-async function streamInitialManifest(): Promise<InitialStreamResult> {
-  const qp = new URLSearchParams(window.location.search);
-  const bootSrc = qp.get(URL_PARAMS.SRC);
-
-  if (!bootSrc) {
-    return { error: null };
-  }
-
-  const bootBranch = qp.get(URL_PARAMS.BRANCH) ?? undefined;
-  const meta = { kind: srcKind(bootSrc), label: labelFromUrl(bootSrc) ?? bootSrc, branch: bootBranch };
+// ── Canonical source load (cold-boot + user switch) ──────────────────
+// The one way to load a source: overlay → stream skeleton+final into MANIFEST
+// → on success commit the source (CURRENT_SOURCE + recents) → on failure write
+// SOURCE_ERROR. Scene-free + UI-free: it publishes canonical signals only; the
+// render layer applies MANIFEST and resets the camera, App coordinates the
+// picker off SOURCE_ERROR. (The live-update poll below is a SEPARATE op — a
+// background refresh of the current source that shares only the MANIFEST sink.)
+async function loadSource(payload: SourcePayload): Promise<void> {
+  const meta = {
+    kind: srcKind(payload.src),
+    label: labelFromUrl(payload.src) ?? payload.src,
+    branch: payload.branch,
+  };
   SCAN_PROGRESS.value = { ...meta, phase: null }; // show overlay immediately
 
-  let error: string | null = null;
-
   try {
-    // Write each manifest event (skeleton, then final) into MANIFEST; the
-    // render layer applies whatever MANIFEST holds. The display-label rewrite +
-    // icon-atlas build happen inside world.applyManifest on the render side.
-    await pumpManifestStream(manifestUrl(), meta, (m) => {
+    const url = manifestUrlFor({
+      src: payload.src,
+      branch: payload.branch,
+      noCache: !!payload.skipCache,
+    });
+    // Publish skeleton + final as they stream; the render layer paints them.
+    const manifest = await pumpManifestStream(url, meta, (m) => {
       setManifest(m);
     });
-  } catch (err) {
-    error = err instanceof Error ? err.message : String(err);
-    // MANIFEST stays at its current (empty) value.
-  } finally {
-    SCAN_PROGRESS.value = null;
-    PENDING_SOURCE_LABEL.value = null;
-  }
-
-  return { error };
-}
-
-// ── New-source stream (user-submitted via source picker) ─────────────
-
-interface ApplyNewSourceOpts {
-  payload: SourcePayload;
-  pendingSkipCache: boolean;
-}
-
-/**
- * Stream a new source submitted from the source picker: WRITE the skeleton into
- * MANIFEST as it arrives (the render layer paints it), then write the final
- * manifest, publish CURRENT_SOURCE (which drives the URL + the SOURCE_INFO
- * computed), and update per-source persistence. The always-running poll loop
- * picks up the new MANIFEST.signature on its own — no live-update wiring here.
- * On a streaming failure it WRITES the canonical SOURCE_ERROR signal (App reacts
- * to it to reopen the picker — this layer never touches the picker UI).
- *
- * Scene-free: where the old useCity called handle.world.resetCache() before
- * streaming, that call is intentionally dropped. resetCache only nulls the
- * tree_signature-keyed layout/scenic caches and disposes the instanced ad
- * panels — and a new source has a different tree_signature, so applyManifest's
- * full-rebuild path (cache miss + scenic-reuse guard miss) already busts those
- * caches and disposes/rebuilds the ad panels. Nothing is left stale.
- */
-async function applyNewSource(opts: ApplyNewSourceOpts): Promise<void> {
-  const { payload, pendingSkipCache } = opts;
-
-  const meta = { kind: srcKind(payload.src), label: labelFromUrl(payload.src) ?? payload.src, branch: payload.branch };
-  SCAN_PROGRESS.value = { ...meta, phase: null }; // show overlay immediately
-
-  try {
-    const url = manifestUrlFor({ src: payload.src, branch: payload.branch, noCache: pendingSkipCache });
-
-    // Publish the skeleton as soon as it arrives so the user sees structure; the
-    // final manifest (the pump's return value) carries real heights + signature
-    // and is published below.
-    const manifest = await pumpManifestStream(url, meta, (m, phase) => {
-      if (phase === ScanPhase.Skeleton) {
-        setManifest(m);
-      }
-    });
-
-    // Publish the applied source: drives CURRENT_SOURCE_KEY (camera reset),
-    // the page URL (reload/share), and SOURCE_INFO — all derived from this.
-    CURRENT_SOURCE.value = { src: payload.src, branch: payload.branch };
-
-    setManifest(manifest);
-
-    const { branch, isDefault } = resolveBranch(manifest, payload.branch);
-
-    pushRecent({
-      src: payload.src,
-      branch,
-      branchIsDefault: isDefault,
-      label: labelFromUrl(payload.src) ?? payload.src,
-    });
+    // Success: commit the loaded source. Order vs setManifest no longer matters
+    // — the camera reset is an explicit render-layer reaction now.
+    setCurrentSource(payload.src, payload.branch, manifest);
   } catch (err) {
     SOURCE_ERROR.value = {
       error: err instanceof Error ? err.message : String(err),
@@ -328,7 +254,7 @@ function setupLiveUpdates(): () => void {
  */
 export function useManifestSource(): (payload: SourcePayload) => void {
   const submitSource = useCallback((payload: SourcePayload) => {
-    applyNewSource({ payload, pendingSkipCache: !!payload.skipCache });
+    void loadSource(payload);
   }, []);
 
   useEffect(() => {
@@ -337,27 +263,19 @@ export function useManifestSource(): (payload: SourcePayload) => void {
     (async () => {
       const qp = new URLSearchParams(window.location.search);
       if (qp.has(URL_PARAMS.SRC)) {
-        CURRENT_SOURCE.value = {
+        await loadSource({
           src: qp.get(URL_PARAMS.SRC)!,
           branch: qp.get(URL_PARAMS.BRANCH) ?? undefined,
-        };
+        });
       }
-      const { error: initialError } = await streamInitialManifest();
       if (cancelled) return;
+
       const serverConfig = await getServerConfig();
       SERVER_CONFIG.value = { allowLocalRepos: serverConfig.allowLocalRepos };
 
-      // One poll loop for the app's lifetime. It no-ops until MANIFEST is
-      // non-empty and re-reads MANIFEST.signature each tick, so it covers the
-      // initial source AND every later switch with no re-wiring.
+      // One poll loop for the app's lifetime; no-ops until MANIFEST is non-empty,
+      // re-reads MANIFEST.signature each tick (covers boot + every switch).
       disposeLiveUpdates = setupLiveUpdates();
-
-      if (initialError) {
-        SOURCE_ERROR.value = {
-          error: initialError,
-          prefill: { src: qp.get(URL_PARAMS.SRC)!, branch: qp.get(URL_PARAMS.BRANCH) ?? undefined },
-        };
-      }
       // No ?src on cold boot → App opens the picker (the hook doesn't manage UI).
     })();
     return () => {

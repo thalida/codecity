@@ -14,7 +14,7 @@ import { PERSISTED_KEYS } from '@/constants/storage';
 import { MAX_RECENT_SOURCES } from '@/constants/ui';
 import { URL_PARAMS } from '@/constants/urlParams';
 import { MANIFEST } from '@/state/stores/manifest';
-import { labelFromManifest, srcKind, SourceKind, resolveBranch } from '@/utils/sources';
+import { labelFromManifest, srcKind, SourceKind, resolveBranch, labelFromUrl } from '@/utils/sources';
 import { isEmptyManifest } from '@/utils/manifest';
 import type { Manifest } from '@/types';
 
@@ -151,6 +151,23 @@ export function pushRecent(entry: Omit<RecentSource, 'lastOpenedAt'>): void {
   });
   filtered.unshift({ ...entry, lastOpenedAt: now });
   RECENTS.value = filtered.slice(0, MAX_RECENT_SOURCES);
+}
+
+/**
+ * Commit a successfully-loaded source: set CURRENT_SOURCE (the canonical
+ * applied-source signal that the URL, CURRENT_SOURCE_KEY, SOURCE_INFO, and the
+ * render layer's camera-reset all derive from) AND record it in recents with
+ * the manifest-resolved branch. Single commit point for boot + switch.
+ */
+export function setCurrentSource(src: string, branch: string | undefined, manifest: Manifest): void {
+  CURRENT_SOURCE.value = { src, branch };
+  const { branch: resolvedBranch, isDefault } = resolveBranch(manifest, branch);
+  pushRecent({
+    src,
+    branch: resolvedBranch,
+    branchIsDefault: isDefault,
+    label: labelFromUrl(src) ?? src,
+  });
 }
 
 /** Drop the entry matching (src, branch). No-op if not present. */
