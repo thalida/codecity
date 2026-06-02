@@ -47,7 +47,6 @@ import {
   REBUILD_STATUS,
   RebuildStatus,
   LAST_REBUILD_ERROR,
-  registerRefreshHandler,
 } from '@/state/stores/manifest';
 import {
   showLoadingOverlay,
@@ -314,8 +313,7 @@ interface SignatureResponse {
  * owns the Rebuilding/Decorating/Idle status. A live-update FETCH/network
  * failure (the stream throws) is surfaced through REBUILD_STATUS=Error +
  * LAST_REBUILD_ERROR here, distinct from the render-owned apply error.
- * Registers the manual-refresh chokepoint (refreshManifest) and gates the timer
- * on LIVE_UPDATES.ENABLED.
+ * Gates the timer on LIVE_UPDATES.ENABLED.
  */
 function setupLiveUpdates(
   initialSignature: string
@@ -323,7 +321,6 @@ function setupLiveUpdates(
   let lastSignature = initialSignature || '';
   let timer: number | null = null;
   let inFlight = false;
-  let needsRefresh = false;
 
   // Single fetch+publish path. Writes MANIFEST on the final event; the render
   // effect applies it and owns the rebuild status. A network/stream failure is
@@ -353,38 +350,15 @@ function setupLiveUpdates(
     if (inFlight) return;
     inFlight = true;
     try {
-      do {
-        needsRefresh = false;
-        const sigResp = await fetch(signatureUrl());
-        if (!sigResp.ok) break;
-        const sig: SignatureResponse | null = await sigResp.json();
-        if (!sig?.signature || sig.signature === lastSignature) break;
-        await fetchAndApply();
-      } while (needsRefresh);
+      const sigResp = await fetch(signatureUrl());
+      if (!sigResp.ok) return;
+      const sig: SignatureResponse | null = await sigResp.json();
+      if (!sig?.signature || sig.signature === lastSignature) return;
+      await fetchAndApply();
     } catch (_) {
       // Signature-fetch errors (network blip on the cheap probe) are not
       // surfaced through REBUILD_STATUS — no rebuild attempt happened. The
       // next tick retries.
-    } finally {
-      inFlight = false;
-    }
-  }
-
-  // Toggle/refresh handler: bypass the cheap check (the manifest WILL differ),
-  // deferring to the inFlight gate so the two paths can't trample each other.
-  async function refreshFromToggle(): Promise<void> {
-    if (inFlight) {
-      needsRefresh = true;
-      return;
-    }
-    inFlight = true;
-    try {
-      do {
-        needsRefresh = false;
-        await fetchAndApply();
-      } while (needsRefresh);
-    } catch {
-      /* keep polling */
     } finally {
       inFlight = false;
     }
@@ -401,9 +375,6 @@ function setupLiveUpdates(
       timer = null;
     }
   }
-
-  // The footer refresh button funnels through the same fetch+publish chain.
-  registerRefreshHandler(refreshFromToggle);
 
   // LIVE_UPDATES gates the loop: ENABLED turns polling on/off, POLL_SECONDS sets
   // the interval. effect() runs the body once immediately — doing the initial

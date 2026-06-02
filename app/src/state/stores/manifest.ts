@@ -5,8 +5,8 @@
 //
 // MANIFEST is the source of truth, written by the fetch layer; view code (and
 // the scene render-effect) read it reactively. The fetch+apply that drives
-// rebuilds lives in the useManifestSource hook; this module only holds the resulting
-// state + the refresh chokepoint the hook registers into.
+// rebuilds lives in the useManifestSource hook; this module only holds the
+// resulting state.
 
 import { signal, effect } from '@preact/signals';
 import type { Manifest, DirNode } from '@/types';
@@ -68,25 +68,3 @@ effect(() => {
     LAST_UPDATED_AT.value = Date.now();
   }
 });
-
-// ── Manual refresh chokepoint ────────────────────────────────────────
-// The footer's refresh button (and any future "force re-sync" UI) calls
-// refreshManifest(); the useManifestSource hook's live-poll setup registers the actual
-// fetch+apply handler here. Same register/invoke shape as stores/ui's
-// source-applier — the view triggers an action without importing the hook.
-
-let _refreshHandler: (() => Promise<void>) | null = null;
-
-/** Register the fetch+apply handler; returns an unregister fn. */
-export function registerRefreshHandler(fn: () => Promise<void>): () => void {
-  _refreshHandler = fn;
-  return () => {
-    if (_refreshHandler === fn) _refreshHandler = null;
-  };
-}
-
-/** Trigger a fresh manifest fetch + apply. Resolves immediately (no-op) before
- *  the handler is registered, which only happens during boot. */
-export async function refreshManifest(): Promise<void> {
-  if (_refreshHandler) await _refreshHandler();
-}
