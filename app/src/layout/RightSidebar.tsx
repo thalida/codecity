@@ -16,13 +16,13 @@
 // world.onChange subscription updates the state signals so the panes
 // stay fresh through live-update polls.
 
-import { effect, signal, useComputed, useSignal, useSignalEffect } from '@preact/signals';
-import type { Signal } from '@preact/signals';
+import { useComputed, useSignal, useSignalEffect } from '@preact/signals';
 import { DOM_IDS, PERSISTED_KEYS } from '@/constants';
 import { NodeKind } from '@/types';
 import type { CommitEntry, DirNode, FileNode } from '@/types';
 import { persistedSignal } from '@/state/persist';
-import { SCENE_HANDLE } from '@/state/stores/scene';
+import { SCENE_HANDLE, type SceneHandle } from '@/state/stores/scene';
+import { MANIFEST } from '@/state/stores/manifest';
 import { FilePreviewPane } from '@/views/FilePreviewPane';
 import type { FilePreviewPaneState } from '@/views/FilePreviewPane';
 import { CommitPane } from '@/views/CommitPane';
@@ -43,98 +43,26 @@ enum SidebarPaneKind {
   Street = 'street',
 }
 
-// ── Pane state signals (module-level so they survive remounts) ────────
+// ── Pane view-state derivation ───────────────────────────────────────
+// The commit/street panes need bits that aren't plain manifest fields (tree
+// color, busyness thresholds, remote URL, the live street lookup), so they're
+// computed from the scene handle. Pure helpers — the component's effect calls
+// them and writes the result into component-local signals.
 
-const FILE_STATE: Signal<FilePreviewPaneState> = signal({ file: null });
-const COMMIT_STATE: Signal<CommitPaneState> = signal({ commit: null });
-const STREET_STATE: Signal<StreetPaneState> = signal({ directory: null });
-const ACTIVE_KIND: Signal<SidebarPaneKind | null> = signal(null);
-
-// One-shot subscription installed at module load. Reads picker
-// selection + world.onChange to populate the three pane state signals
-// and the ACTIVE_KIND signal.
-let _sceneBridgeInstalled = false;
-function _installSceneBridge(): void {
-  if (_sceneBridgeInstalled) return;
-  _sceneBridgeInstalled = true;
-
-  let _selUnsub: (() => void) | null = null;
-  let _worldUnsub: (() => void) | null = null;
-
-  function _refreshCommitState(commit: CommitEntry): void {
-    const handle = SCENE_HANDLE.peek();
-    const m = handle?.world.getManifest();
-    COMMIT_STATE.value = {
-      commit,
-      remoteUrl: m?.repo?.remote_url ?? null,
-      sameDayTotal: commit.same_day_total,
-      busynessThresholds: m?.busyness ?? { avg: 1, busy: 1 },
-      color: handle?.world.getTrees()?.colorForSha(commit.sha) ?? undefined,
-    };
-  }
-
-  function _refreshStreetState(dir: DirNode): void {
-    const handle = SCENE_HANDLE.peek();
-    const refreshed = handle?.world.getStreetByDir(dir.path);
-    STREET_STATE.value = { directory: refreshed?.dir ?? dir };
-  }
-
-  // Read picker.selection on every change → populate pane state.
-  function _applySelection(handle: ReturnType<typeof SCENE_HANDLE.peek>): void {
-    if (!handle) {
-      ACTIVE_KIND.value = null;
-      return;
-    }
-    const sel = handle.picker.selection.peek();
-    if (!sel) {
-      ACTIVE_KIND.value = null;
-      return;
-    }
-    if (sel.kind === NodeKind.File) {
-      FILE_STATE.value = { file: sel.file };
-      ACTIVE_KIND.value = SidebarPaneKind.File;
-    } else if (sel.kind === NodeKind.Commit) {
-      _refreshCommitState(sel.commit);
-      ACTIVE_KIND.value = SidebarPaneKind.Commit;
-    } else if (sel.kind === NodeKind.Directory) {
-      _refreshStreetState(sel.dir);
-      ACTIVE_KIND.value = SidebarPaneKind.Street;
-    } else {
-      ACTIVE_KIND.value = null;
-    }
-  }
-
-  // effect() (not .subscribe) — the outer tracks SCENE_HANDLE; the inner
-  // tracks picker.selection (both signals). world.onChange is a custom emitter
-  // and stays an explicit subscription. The inner effect's disposer is held in
-  // _selUnsub and torn down when the handle swaps.
-  effect(() => {
-    const handle = SCENE_HANDLE.value;
-    if (_selUnsub) { _selUnsub(); _selUnsub = null; }
-    if (_worldUnsub) { _worldUnsub(); _worldUnsub = null; }
-    if (!handle) {
-      ACTIVE_KIND.value = null;
-      return;
-    }
-    // Fires immediately (covering the initial selection) + on each change.
-    _selUnsub = effect(() => {
-      void handle.picker.selection.value;
-      _applySelection(handle);
-    });
-    _worldUnsub = handle.world.onChange(() => {
-      const sel = handle.picker.selection.peek();
-      // Refresh whatever pane is currently showing so it picks up new
-      // manifest data (commit lookup, street dir reference) without
-      // changing the active kind.
-      if (ACTIVE_KIND.peek() === SidebarPaneKind.Commit && sel?.kind === NodeKind.Commit) {
-        _refreshCommitState(sel.commit);
-      } else if (ACTIVE_KIND.peek() === SidebarPaneKind.Street && sel?.kind === NodeKind.Directory) {
-        _refreshStreetState(sel.dir);
-      }
-    });
-  });
+function commitStateFor(handle: SceneHandle, commit: CommitEntry): CommitPaneState {
+  const m = handle.world.getManifest();
+  return {
+    commit,
+    remoteUrl: m?.repo?.remote_url ?? null,
+    sameDayTotal: commit.same_day_total,
+    busynessThresholds: m?.busyness ?? { avg: 1, busy: 1 },
+    color: handle.world.getTrees()?.colorForSha(commit.sha) ?? undefined,
+  };
 }
-_installSceneBridge();
+
+function streetStateFor(handle: SceneHandle, dir: DirNode): StreetPaneState {
+  return { directory: handle.world.getStreetByDir(dir.path)?.dir ?? dir };
+}
 
 // ── Main component ───────────────────────────────────────────────────
 
@@ -145,18 +73,48 @@ export function RightSidebar() {
   // (signals dedupe by reference).
   const userClosed = useSignal(false);
 
-  // Clear userClosed any time ACTIVE_KIND becomes null (picker cleared
-  // by something other than the close button — keyboard, click on empty
-  // space, etc.).
+  // Pane view-state, derived from the picker selection + the manifest.
+  const fileState = useSignal<FilePreviewPaneState>({ file: null });
+  const commitState = useSignal<CommitPaneState>({ commit: null });
+  const streetState = useSignal<StreetPaneState>({ directory: null });
+  const activeKind = useSignal<SidebarPaneKind | null>(null);
+
+  // One effect drives everything: it re-runs on a selection change OR a
+  // manifest change (MANIFEST mirrors world.onChange, so live-update polls
+  // refresh the open pane's enriched data). Replaces the old module-level
+  // bridge + its manual world.onChange subscription.
   useSignalEffect(() => {
-    if (ACTIVE_KIND.value !== null && userClosed.value) {
+    void MANIFEST.value; // re-derive enriched state on live-update rebuilds
+    const handle = SCENE_HANDLE.value;
+    const sel = handle?.picker.selection.value ?? null;
+    if (!handle || !sel) {
+      activeKind.value = null;
+      return;
+    }
+    if (sel.kind === NodeKind.File) {
+      fileState.value = { file: sel.file };
+      activeKind.value = SidebarPaneKind.File;
+    } else if (sel.kind === NodeKind.Commit) {
+      commitState.value = commitStateFor(handle, sel.commit);
+      activeKind.value = SidebarPaneKind.Commit;
+    } else if (sel.kind === NodeKind.Directory) {
+      streetState.value = streetStateFor(handle, sel.dir);
+      activeKind.value = SidebarPaneKind.Street;
+    } else {
+      activeKind.value = null;
+    }
+  });
+
+  // Re-open after a manual close once a fresh selection arrives.
+  useSignalEffect(() => {
+    if (activeKind.value !== null && userClosed.value) {
       userClosed.value = false;
     }
   });
 
   // Effective open state: true when there's an active pane AND the user
   // hasn't closed it. The .open class drives the CSS transition.
-  const isOpen = useComputed(() => ACTIVE_KIND.value !== null && !userClosed.value);
+  const isOpen = useComputed(() => activeKind.value !== null && !userClosed.value);
 
   const onClose = () => {
     userClosed.value = true;
@@ -175,7 +133,7 @@ export function RightSidebar() {
     SCENE_HANDLE.peek()?.focusByPath(dir.path);
   };
 
-  const kind = ACTIVE_KIND.value;
+  const kind = activeKind.value;
   const open = isOpen.value;
 
   return (
@@ -186,13 +144,13 @@ export function RightSidebar() {
       widthSignal={RIGHT_SIDEBAR_WIDTH}
     >
       {kind === SidebarPaneKind.File && (
-        <FilePreviewPane state={FILE_STATE} onClose={onClose} onFocus={onFileFocus} />
+        <FilePreviewPane state={fileState} onClose={onClose} onFocus={onFileFocus} />
       )}
       {kind === SidebarPaneKind.Commit && (
-        <CommitPane state={COMMIT_STATE} onClose={onClose} onFocus={onCommitFocus} />
+        <CommitPane state={commitState} onClose={onClose} onFocus={onCommitFocus} />
       )}
       {kind === SidebarPaneKind.Street && (
-        <StreetPane state={STREET_STATE} onClose={onClose} onFocus={onStreetFocus} />
+        <StreetPane state={streetState} onClose={onClose} onFocus={onStreetFocus} />
       )}
     </Sidebar>
   );
