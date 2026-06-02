@@ -553,7 +553,19 @@ export async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manif
   // attachCommitReactions can dispatch material refreshes, and the
   // shell components can read picker.selection / picker.hover via
   // SCENE_HANDLE signal.
-  return { world, applyTheme, picker, rig, resetView };
+  return {
+    world,
+    applyTheme,
+    picker,
+    rig,
+    resetView,
+    /** Focus the camera on the node at `path`: resolve via the picker, dispatch
+     *  to the rig. The single-call focus equivalent of picker.selectByPath /
+     *  hoverByPath, so callers needn't reach into both subsystems. */
+    focusByPath(path: string): void {
+      rig.focusSelection(picker.targetForPath(path));
+    },
+  };
 }
 
 // Cycle a THREE.Color in place through a palette of [r,g,b] triples,

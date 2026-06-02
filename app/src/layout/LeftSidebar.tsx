@@ -153,9 +153,7 @@ export function LeftSidebar() {
   };
   const onTreeFocus = (node: TreeNode) => {
     if (!node?.path) return;
-    const handle = SCENE_HANDLE.peek();
-    if (!handle) return;
-    handle.rig.focusSelection(handle.picker.targetForPath(node.path));
+    SCENE_HANDLE.peek()?.focusByPath(node.path);
   };
   const onTreeHover = (node: TreeNode) => {
     if (!node?.path) return;
@@ -168,9 +166,7 @@ export function LeftSidebar() {
     SCENE_HANDLE.peek()?.picker.selectByPath(path);
   };
   const onSearchFocus = (path: string) => {
-    const handle = SCENE_HANDLE.peek();
-    if (!handle) return;
-    handle.rig.focusSelection(handle.picker.targetForPath(path));
+    SCENE_HANDLE.peek()?.focusByPath(path);
   };
   const onRunCollisionCheck = () => {
     SCENE_HANDLE.peek()?.world.runCollisionCheck();

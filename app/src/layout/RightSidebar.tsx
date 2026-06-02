@@ -164,8 +164,7 @@ export function RightSidebar() {
   };
 
   const onFileFocus = (file: FileNode) => {
-    const handle = SCENE_HANDLE.peek();
-    handle?.rig.focusSelection(handle.picker.targetForPath(file.path));
+    SCENE_HANDLE.peek()?.focusByPath(file.path);
   };
 
   const onCommitFocus = (commit: CommitEntry) => {
@@ -173,8 +172,7 @@ export function RightSidebar() {
   };
 
   const onStreetFocus = (dir: DirNode) => {
-    const handle = SCENE_HANDLE.peek();
-    handle?.rig.focusSelection(handle.picker.targetForPath(dir.path));
+    SCENE_HANDLE.peek()?.focusByPath(dir.path);
   };
 
   const kind = ACTIVE_KIND.value;
