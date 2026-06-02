@@ -14,7 +14,7 @@ import { NodeKind } from '@/types';
 import type { DirNode, FileNode, Manifest } from '@/types';
 import { Pane, PaneEmpty } from '@/components/Pane';
 import { isEmptyManifest } from '@/utils/manifest';
-import { resolveReadmeAssetUrl } from '@/utils/readmeAssets';
+import { resolveReadmeAssetUrl, rewriteHtmlImageUrls } from '@/utils/readmeAssets';
 
 /**
  * Render README markdown to HTML, rewriting relative image refs to route
@@ -29,6 +29,10 @@ function _renderReadme(text: string, readmeFullPath: string): string {
     walkTokens(token) {
       if (token.type === 'image') {
         token.href = resolveReadmeAssetUrl(token.href, readmeFullPath);
+      } else if (token.type === 'html') {
+        // READMEs often use raw <img src="…"> (for width/align) rather than
+        // markdown ![](…); those arrive as html tokens, not image tokens.
+        token.text = rewriteHtmlImageUrls(token.text, readmeFullPath);
       }
     },
   });

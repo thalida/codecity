@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { resolveReadmeAssetUrl } from '@/utils/readmeAssets';
+import { resolveReadmeAssetUrl, rewriteHtmlImageUrls } from '@/utils/readmeAssets';
 import { fileUrl } from '@/api/file';
 
 const README = '/cache/repo/README.md';
@@ -50,5 +50,42 @@ describe('resolveReadmeAssetUrl', () => {
 
   it('returns an empty href unchanged', () => {
     expect(resolveReadmeAssetUrl('', README)).toBe('');
+  });
+});
+
+describe('rewriteHtmlImageUrls', () => {
+  it('rewrites a relative <img src> (with other attributes) through /api/file', () => {
+    const html = '<img src=".github/readme/banner.png" alt="banner" width="100%" />';
+    expect(rewriteHtmlImageUrls(html, README)).toBe(
+      `<img src="${fileUrl('/cache/repo/.github/readme/banner.png')}" alt="banner" width="100%" />`
+    );
+  });
+
+  it('handles single-quoted src', () => {
+    const html = "<img alt='x' src='docs/demo.gif'>";
+    expect(rewriteHtmlImageUrls(html, README)).toBe(
+      `<img alt='x' src='${fileUrl('/cache/repo/docs/demo.gif')}'>`
+    );
+  });
+
+  it('rewrites multiple <img> tags in one fragment', () => {
+    const html = '<img src="a.png"><p>x</p><img src="b.png">';
+    expect(rewriteHtmlImageUrls(html, README)).toBe(
+      `<img src="${fileUrl('/cache/repo/a.png')}"><p>x</p><img src="${fileUrl('/cache/repo/b.png')}">`
+    );
+  });
+
+  it('leaves absolute src untouched', () => {
+    const html = '<img src="https://img.shields.io/badge/x.svg" alt="badge">';
+    expect(rewriteHtmlImageUrls(html, README)).toBe(html);
+  });
+
+  it('does not touch non-img tags or data-src', () => {
+    expect(rewriteHtmlImageUrls('<a href="docs/x.png">link</a>', README)).toBe(
+      '<a href="docs/x.png">link</a>'
+    );
+    expect(rewriteHtmlImageUrls('<img data-src="docs/x.png" src="real.png">', README)).toBe(
+      `<img data-src="docs/x.png" src="${fileUrl('/cache/repo/real.png')}">`
+    );
   });
 });

@@ -37,3 +37,24 @@ export function resolveReadmeAssetUrl(href: string, readmeFullPath: string): str
   }
   return fileUrl(segs.join('/'));
 }
+
+// Matches the src="…" / src='…' of a raw-HTML <img> tag. The leading whitespace
+// before `src` keeps it from matching attributes like `data-src`.
+const _IMG_SRC = /(<img\b[^>]*?\ssrc\s*=\s*)(["'])(.*?)\2/gi;
+
+/**
+ * Rewrite the `src` of any raw-HTML <img> tags in a rendered-README HTML
+ * fragment, the same way resolveReadmeAssetUrl handles markdown image refs.
+ *
+ * READMEs commonly use `<img src="…">` directly (for width/align control) rather
+ * than markdown `![](…)`. marked emits those as `html` tokens, which the
+ * image-token hook never sees — so their relative paths would 404 against the
+ * app origin. Run this on the text of each html token.
+ */
+export function rewriteHtmlImageUrls(html: string, readmeFullPath: string): string {
+  return html.replace(
+    _IMG_SRC,
+    (_full, prefix: string, quote: string, src: string) =>
+      `${prefix}${quote}${resolveReadmeAssetUrl(src, readmeFullPath)}${quote}`
+  );
+}
