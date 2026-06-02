@@ -173,7 +173,6 @@ function syncUrlToSource(payload: SourcePayload): void {
   url.searchParams.set('src', payload.src);
   if (payload.branch) url.searchParams.set('branch', payload.branch);
   else url.searchParams.delete('branch');
-  url.searchParams.delete('git_window');
   history.replaceState(null, '', url.toString());
 }
 
