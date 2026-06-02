@@ -1,5 +1,8 @@
 import { describe, it, expect, afterEach } from 'vitest';
-import { sourceKey, CURRENT_SOURCE_KEY, CURRENT_SOURCE } from '@/state/stores/source';
+import { sourceKey, CURRENT_SOURCE_KEY, CURRENT_SOURCE, SOURCE_INFO } from '@/state/stores/source';
+import { setManifest } from '@/state/stores/manifest';
+import { EMPTY_MANIFEST } from '@/constants/manifest';
+import type { Manifest } from '@/types';
 
 describe('sourceKey', () => {
   it('is deterministic for the same (src, branch)', () => {
@@ -48,5 +51,32 @@ describe('CURRENT_SOURCE → CURRENT_SOURCE_KEY (derived)', () => {
     const u = new URL(window.location.href);
     expect(u.searchParams.get('src')).toBe('/foo');
     expect(u.searchParams.has('branch')).toBe(false);
+  });
+});
+
+describe('SOURCE_INFO (derived from MANIFEST + CURRENT_SOURCE)', () => {
+  afterEach(() => {
+    CURRENT_SOURCE.value = null;
+    setManifest(EMPTY_MANIFEST);
+  });
+
+  it('is empty when nothing is applied', () => {
+    CURRENT_SOURCE.value = null;
+    setManifest(EMPTY_MANIFEST);
+    expect(SOURCE_INFO.value).toEqual({ label: '', branch: undefined, sourceUrl: undefined });
+  });
+
+  it('exposes the git URL as sourceUrl for a git source', () => {
+    CURRENT_SOURCE.value = { src: 'https://github.com/o/r', branch: 'main' };
+    setManifest({ tree: { name: 'r' }, repo: { branch: 'main' } } as unknown as Manifest);
+    expect(SOURCE_INFO.value.sourceUrl).toBe('https://github.com/o/r');
+    expect(SOURCE_INFO.value.branch).toBe('main');
+    expect(SOURCE_INFO.value.label).toBe('r');
+  });
+
+  it('has no sourceUrl for a local path source', () => {
+    CURRENT_SOURCE.value = { src: '/Users/me/proj' };
+    setManifest({ tree: { name: 'proj' }, repo: {} } as unknown as Manifest);
+    expect(SOURCE_INFO.value.sourceUrl).toBeUndefined();
   });
 });

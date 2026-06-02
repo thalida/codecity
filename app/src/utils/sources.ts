@@ -118,3 +118,21 @@ export function labelFromManifest(m: Manifest | null | undefined): string | null
   }
   return m.tree?.name ?? null;
 }
+
+/**
+ * Resolve which branch label to show and whether it's the repo default. The
+ * server sometimes reports a non-branch (detached HEAD, "(no branch)", names
+ * with spaces) — treat those as "no branch". An explicitly requested branch
+ * always wins and is never considered the default.
+ */
+export function resolveBranch(
+  manifest: { repo: { branch?: string } },
+  requested?: string
+): { branch?: string; isDefault: boolean } {
+  const mb = manifest.repo.branch;
+  const looksReal = !!mb && !/\s/.test(mb) && !mb.startsWith('(') && !mb.startsWith('detached');
+  return {
+    branch: requested ?? (looksReal ? mb! : undefined),
+    isDefault: !requested && looksReal,
+  };
+}

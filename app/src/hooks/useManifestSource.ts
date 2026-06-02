@@ -8,14 +8,14 @@
 // the apply (Rebuilding/Decorating/Idle + render-apply Error).
 //
 // This module consumes the PURE fetch primitives in @/api/manifest
-// (streamManifest/urls) and drives the session stores (loading overlay, source
-// info, per-source persistence). It writes REBUILD_STATUS=Error only for a
-// live-update FETCH/network failure — a distinct concern from the render layer's
-// apply error.
+// (streamManifest/urls) and drives the session stores (loading overlay,
+// CURRENT_SOURCE, per-source persistence). The header chip (SOURCE_INFO) is a
+// computed off CURRENT_SOURCE + MANIFEST — this layer never writes it. It writes
+// REBUILD_STATUS=Error only for a live-update FETCH/network failure — a distinct
+// concern from the render layer's apply error.
 //
 // Shape of the file, top to bottom:
-//   1. small helpers shared by the two stream entry points (pumpManifestStream,
-//      resolveBranch, setSourceInfo)
+//   1. pumpManifestStream — the helper shared by the two stream entry points
 //   2. streamInitialManifest — cold-boot load from ?src
 //   3. applyNewSource        — user picks a new source in the picker
 //   4. setupLiveUpdates      — the background poll loop + its ENABLED gate
@@ -35,7 +35,6 @@ import {
 import { getServerConfig } from '@/api/config';
 import { LIVE_UPDATES } from '@/state/stores/settings/updates';
 import {
-  SOURCE_INFO,
   CURRENT_SOURCE,
   PENDING_SOURCE_LABEL,
   pushRecent,
@@ -56,7 +55,7 @@ import {
   openSourcePicker,
   closeSourcePicker,
 } from '@/state/stores/ui';
-import { srcKind, SourceKind, labelFromUrl, labelFromManifest } from '@/utils/sources';
+import { srcKind, labelFromUrl, resolveBranch } from '@/utils/sources';
 import { isEmptyManifest } from '@/utils/manifest';
 import { LoadingStep } from '@/constants/loadingSteps';
 import { URL_PARAMS } from '@/constants/urlParams';
@@ -125,30 +124,6 @@ async function pumpManifestStream(
   return lastManifest;
 }
 
-/**
- * Resolve which branch label to show and whether it's the repo default. The
- * server sometimes reports a non-branch (detached HEAD, "(no branch)", names
- * with spaces) — treat those as "no branch". An explicitly requested branch
- * always wins and is never considered the default.
- */
-function resolveBranch(manifest: Manifest, requested?: string): { branch?: string; isDefault: boolean } {
-  const mb = manifest.repo.branch;
-  const looksReal = !!mb && !/\s/.test(mb) && !mb.startsWith('(') && !mb.startsWith('detached');
-  return {
-    branch: requested ?? (looksReal ? mb! : undefined),
-    isDefault: !requested && looksReal,
-  };
-}
-
-/** Publish SOURCE_INFO so the header renders its project chip. */
-function setSourceInfo(src: string, manifest: Manifest, branch?: string): void {
-  SOURCE_INFO.value = {
-    label: labelFromManifest(manifest) ?? manifest.tree?.name ?? '',
-    branch,
-    sourceUrl: srcKind(src) === SourceKind.Git ? src : undefined,
-  };
-}
-
 // ── Initial boot stream ──────────────────────────────────────────────
 
 interface InitialStreamResult {
@@ -158,10 +133,9 @@ interface InitialStreamResult {
 /**
  * Run the initial manifest stream on cold boot. With no ?src, returns
  * immediately (MANIFEST stays EMPTY_MANIFEST — the render layer paints an empty
- * scene). Otherwise shows the loading overlay, WRITES each manifest event into
- * MANIFEST (the render layer applies them), and writes SOURCE_INFO. On any
- * failure the returned error is set and MANIFEST is left at its current
- * (empty) value.
+ * scene). Otherwise shows the loading overlay and WRITES each manifest event
+ * into MANIFEST (the render layer applies them). On any failure the returned
+ * error is set and MANIFEST is left at its current (empty) value.
  */
 async function streamInitialManifest(): Promise<InitialStreamResult> {
   const qp = new URLSearchParams(window.location.search);
@@ -186,7 +160,6 @@ async function streamInitialManifest(): Promise<InitialStreamResult> {
     // icon-atlas build happen inside world.applyManifest on the render side.
     await pumpManifestStream(manifestUrl(), (m) => {
       setManifest(m);
-      setSourceInfo(bootSrc, m, resolveBranch(m, bootBranch).branch);
     });
   } catch (err) {
     error = err instanceof Error ? err.message : String(err);
@@ -210,9 +183,10 @@ interface ApplyNewSourceOpts {
 /**
  * Stream a new source submitted from the source picker: WRITE the skeleton into
  * MANIFEST as it arrives (the render layer paints it), then write the final
- * manifest and update the URL, SOURCE_INFO, and per-source persistence. The
- * always-running poll loop picks up the new MANIFEST.signature on its own — no
- * live-update wiring here. Calls onError (dismissible) if streaming fails.
+ * manifest, publish CURRENT_SOURCE (which drives the URL + the SOURCE_INFO
+ * computed), and update per-source persistence. The always-running poll loop
+ * picks up the new MANIFEST.signature on its own — no live-update wiring here.
+ * Calls onError (dismissible) if streaming fails.
  *
  * Scene-free: where the old useCity called handle.world.resetCache() before
  * streaming, that call is intentionally dropped. resetCache only nulls the
@@ -239,7 +213,6 @@ async function applyNewSource(opts: ApplyNewSourceOpts): Promise<void> {
     const manifest = await pumpManifestStream(url, (m, phase) => {
       if (phase === ScanPhase.Skeleton) {
         setManifest(m);
-        setSourceInfo(payload.src, m, payload.branch);
       }
     });
 
@@ -250,7 +223,6 @@ async function applyNewSource(opts: ApplyNewSourceOpts): Promise<void> {
     setManifest(manifest);
 
     const { branch, isDefault } = resolveBranch(manifest, payload.branch);
-    setSourceInfo(payload.src, manifest, branch);
 
     pushRecent({
       src: payload.src,

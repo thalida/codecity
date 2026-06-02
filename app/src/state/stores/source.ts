@@ -2,9 +2,10 @@
 // current source's stable key + display info, the per-(src,branch) hash used to
 // namespace per-source localStorage slots, and the recently-opened list.
 //
-// CURRENT_SOURCE_KEY / SOURCE_INFO are session-scoped (set on every successful
-// source apply; persistence happens *keyed by* CURRENT_SOURCE_KEY rather than
-// re-hydrating these). RECENTS is persisted — but that's an implementation
+// CURRENT_SOURCE is session-scoped (set on every successful source apply);
+// CURRENT_SOURCE_KEY + SOURCE_INFO derive from it (the latter also from
+// MANIFEST). Persistence happens *keyed by* CURRENT_SOURCE_KEY rather than
+// re-hydrating these. RECENTS is persisted — but that's an implementation
 // detail of one field on the same topic, not a separate concern.
 
 import { signal, computed, effect } from '@preact/signals';
@@ -12,6 +13,10 @@ import { persistedSignal } from '@/state/persist';
 import { PERSISTED_KEYS } from '@/constants/storage';
 import { MAX_RECENT_SOURCES } from '@/constants/ui';
 import { URL_PARAMS } from '@/constants/urlParams';
+import { MANIFEST } from '@/state/stores/manifest';
+import { labelFromManifest, srcKind, SourceKind, resolveBranch } from '@/utils/sources';
+import { isEmptyManifest } from '@/utils/manifest';
+import type { Manifest } from '@/types';
 
 // ── sourceKey: stable short hash of (src, branch) ────────────────────
 
@@ -81,10 +86,18 @@ export interface SourceInfo {
   sourceUrl: string | undefined;
 }
 
-export const SOURCE_INFO = signal<SourceInfo>({
-  label: '',
-  branch: undefined,
-  sourceUrl: undefined,
+export const SOURCE_INFO = computed<SourceInfo>(() => {
+  const cur = CURRENT_SOURCE.value;
+  const m = MANIFEST.value;
+  if (!cur || isEmptyManifest(m)) {
+    return { label: '', branch: undefined, sourceUrl: undefined };
+  }
+  const manifest = m as Manifest;
+  return {
+    label: labelFromManifest(manifest) ?? manifest.tree?.name ?? '',
+    branch: resolveBranch(manifest, cur.branch).branch,
+    sourceUrl: srcKind(cur.src) === SourceKind.Git ? cur.src : undefined,
+  };
 });
 
 // ── Recently-opened sources (persisted) ──────────────────────────────
