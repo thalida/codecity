@@ -9,7 +9,7 @@ import {
   setLoadingPendingLabel,
   setLoadingStepTail,
 } from '@/state/stores/ui';
-import { LoadingStep } from '@/constants';
+import { LoadingStep } from '@/constants/loadingSteps';
 import { SourceKind } from '@/utils/sources';
 import { flush } from '../_helpers/preact';
 

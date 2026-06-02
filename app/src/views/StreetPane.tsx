@@ -10,7 +10,7 @@
 import type { ReadonlySignal } from '@preact/signals';
 import type { DirNode, ExtBreakdownEntry } from '@/types';
 import { Pane, PaneEmpty } from '@/components/Pane';
-import { KEY_BINDINGS } from '@/constants';
+import { KEY_BINDINGS } from '@/constants/keyboard';
 import { Route } from 'lucide-preact';
 import { ExtensionBadge } from '@/components/Badge';
 import { formatBytes } from '@/utils/bytes';

@@ -58,7 +58,7 @@ import {
 import { srcKind, SourceKind, labelFromUrl, labelFromManifest } from '@/utils/sources';
 import { applyPendingTitle } from '@/utils/pendingTitle';
 import { EMPTY_MANIFEST } from '@/constants/manifest';
-import { LoadingStep } from '@/constants';
+import { LoadingStep } from '@/constants/loadingSteps';
 import type { Manifest } from '@/types';
 import type { SourcePayload } from '@/state/stores/ui';
 

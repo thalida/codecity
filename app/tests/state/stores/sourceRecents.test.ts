@@ -5,7 +5,7 @@ import {
   removeRecent,
   RECENTS,
 } from '@/state/stores/source';
-import { STORAGE_PREFIX, PERSISTED_KEYS } from '@/constants';
+import { STORAGE_PREFIX, PERSISTED_KEYS } from '@/constants/storage';
 
 describe('sourceRecents', () => {
   beforeEach(() => {

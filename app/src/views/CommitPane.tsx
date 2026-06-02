@@ -19,7 +19,7 @@ import type { ReadonlySignal } from '@preact/signals';
 import type { CommitEntry } from '@/types';
 import { ExternalLink, GitCommitHorizontal } from 'lucide-preact';
 import { Pane, PaneEmpty } from '@/components/Pane';
-import { KEY_BINDINGS } from '@/constants';
+import { KEY_BINDINGS } from '@/constants/keyboard';
 import { commitUrl } from '@/utils/commit';
 import { formatRelativeAge, formatFullDate } from '@/utils/dates';
 import { fetchCommitDetail } from '@/api/commit';

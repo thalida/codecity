@@ -3,7 +3,7 @@
 
 import { Focus } from 'lucide-preact';
 import { CopyButton } from '@/components/CopyButton';
-import { KEY_BINDINGS } from '@/constants';
+import { KEY_BINDINGS } from '@/constants/keyboard';
 
 export interface CommitChipProps {
   sha: string;

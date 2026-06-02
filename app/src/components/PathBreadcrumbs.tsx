@@ -5,7 +5,7 @@
 
 import { Fragment } from 'preact';
 import { Focus } from 'lucide-preact';
-import { KEY_BINDINGS } from '@/constants';
+import { KEY_BINDINGS } from '@/constants/keyboard';
 import { ExtensionBadge } from '@/components/Badge';
 import { CopyButton } from '@/components/CopyButton';
 import { useMiddleEllipsis } from '@/hooks/useMiddleEllipsis';

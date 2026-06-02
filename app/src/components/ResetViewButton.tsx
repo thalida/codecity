@@ -3,7 +3,7 @@
 // nothing when no reset handler is wired (pre-boot).
 
 import { GemIcon } from '@/components/GemIcon';
-import { KEY_BINDINGS } from '@/constants';
+import { KEY_BINDINGS } from '@/constants/keyboard';
 
 export interface ResetViewButtonProps {
   onResetView?: () => void;

@@ -17,7 +17,7 @@
 // stay fresh through live-update polls.
 
 import { useComputed, useSignal, useSignalEffect } from '@preact/signals';
-import { PERSISTED_KEYS } from '@/constants';
+import { PERSISTED_KEYS } from '@/constants/storage';
 import { NodeKind } from '@/types';
 import type { CommitEntry, DirNode, FileNode } from '@/types';
 import { persistedSignal } from '@/state/persist';

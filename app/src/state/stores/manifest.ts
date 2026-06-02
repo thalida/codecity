@@ -13,7 +13,7 @@ import { signal, effect } from '@preact/signals';
 import type { Manifest, DirNode } from '@/types';
 import { SCENE_HANDLE } from '@/state/stores/scene';
 import { setLoadingStep } from '@/state/stores/ui';
-import { LoadingStep } from '@/constants';
+import { LoadingStep } from '@/constants/loadingSteps';
 import { EMPTY_MANIFEST } from '@/constants/manifest';
 import { isEmptyManifest } from '@/utils/manifest';
 

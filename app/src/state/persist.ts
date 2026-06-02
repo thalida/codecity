@@ -10,7 +10,7 @@
 
 import { signal, effect } from '@preact/signals';
 import type { Signal } from '@preact/signals';
-import { STORAGE_PREFIX } from '@/constants';
+import { STORAGE_PREFIX } from '@/constants/storage';
 import { deepEqual, deepClone } from '@/utils/deep';
 
 // ── Registry ───────────────────────────────────────────────────────────────

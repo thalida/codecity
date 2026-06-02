@@ -13,7 +13,7 @@
 
 import { LOADING_OVERLAY } from '@/state/stores/ui';
 import { SourceKind } from '@/utils/sources';
-import { LoadingStep, LoadingStepState, LOADING_STEPS, LOADING_STEP_LABELS } from '@/constants';
+import { LoadingStep, LoadingStepState, LOADING_STEPS, LOADING_STEP_LABELS } from '@/constants/loadingSteps';
 
 // LoadingOverlayShowOpts (the show() contract) lives in state/stores/ui, so
 // state stays view-independent.

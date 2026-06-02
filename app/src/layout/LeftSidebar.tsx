@@ -16,11 +16,8 @@
 // they too are ported.
 
 import { useComputed, useSignal, useSignalEffect } from '@preact/signals';
-import {
-  ACTIVITY_BAR_TABS,
-  PERSISTED_KEYS,
-  TabPlacement,
-} from '@/constants';
+import { ACTIVITY_BAR_TABS, TabPlacement } from '@/constants/ui';
+import { PERSISTED_KEYS } from '@/constants/storage';
 import { SidebarTab, NodeKind } from '@/types';
 import type { PickTarget, TreeNode } from '@/types';
 import { persistedSignal } from '@/state/persist';

@@ -5,7 +5,7 @@
 
 import { Section } from '@/components/Section';
 import { Subgroup } from '@/components/Subgroup';
-import { KEY_BINDINGS } from '@/constants';
+import { KEY_BINDINGS } from '@/constants/keyboard';
 
 interface ShortcutItem {
   kbd?: string[];

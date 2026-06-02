@@ -9,7 +9,8 @@
 
 import { signal } from '@preact/signals';
 import { persistedSignal } from '@/state/persist';
-import { PERSISTED_KEYS, MAX_RECENT_SOURCES } from '@/constants';
+import { PERSISTED_KEYS } from '@/constants/storage';
+import { MAX_RECENT_SOURCES } from '@/constants/ui';
 
 // ── sourceKey: stable short hash of (src, branch) ────────────────────
 

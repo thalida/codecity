@@ -95,7 +95,7 @@ export function submitNewSource(payload: SourcePayload): void {
 
 // ── Loading overlay ──────────────────────────────────────────────────────────
 
-import { LoadingStep } from '@/constants';
+import { LoadingStep } from '@/constants/loadingSteps';
 
 export interface LoadingOverlayState {
   visible: boolean;
