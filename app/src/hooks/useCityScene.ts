@@ -42,22 +42,23 @@ export function useCityScene(canvasRef: RefObject<HTMLCanvasElement | null>): vo
         const m = MANIFEST.value as Manifest;
         if (isEmptyManifest(m)) return; // nothing to build yet
         REBUILD_STATUS.value = RebuildStatus.Rebuilding;
+        // Capture the applied source at apply-START. The fetch layer commits
+        // CURRENT_SOURCE between the skeleton and the FINAL manifest, so a changed
+        // key here marks the final apply of a (re)load — the one moment to frame
+        // the new city. The preceding skeleton apply still sees the old/empty key
+        // → no reframe; live-updates / settings rebuilds keep the same key → none.
+        const cur = CURRENT_SOURCE_KEY.peek();
+        const shouldReframe = cur !== null && cur !== lastSourceKey;
         void handle.world.applyManifest(m).then(
           () => {
             LAST_REBUILD_ERROR.value = null;
-            // Explicit camera reset on a SOURCE change. The fetch layer publishes
-            // CURRENT_SOURCE; we read it here (the view layer) and snap the camera
-            // to the freshly-framed default pose once the new world is built. This
-            // fires on the FIRST loaded source too: cameraRig's one-shot _frameToBbox
-            // can't be relied on for it (with no ?src the empty world renders first
-            // and spends it), and on every later switch. _captureFraming always
-            // targets the latest (final) city, so resetting here frames it correctly.
-            // Live-updates / settings rebuilds keep the same source key → no reset.
-            const cur = CURRENT_SOURCE_KEY.peek();
-            if (cur !== null && cur !== lastSourceKey) {
+            if (shouldReframe) {
+              // Explicit, traceable camera reframe (view layer owns this). The new
+              // world is built, so resetView snaps to its freshly-captured default
+              // pose (cameraRig._captureFraming ran during this apply).
               handle.resetView();
+              lastSourceKey = cur;
             }
-            lastSourceKey = cur;
           },
           (err) => {
             REBUILD_STATUS.value = RebuildStatus.Error;

@@ -127,13 +127,17 @@ async function loadSource(payload: SourcePayload): Promise<void> {
       branch: payload.branch,
       noCache: !!payload.skipCache,
     });
-    // Publish skeleton + final as they stream; the render layer paints them.
-    const manifest = await pumpManifestStream(url, meta, (m) => {
-      setManifest(m);
+    // Publish the skeleton as it streams (early structure, behind the overlay);
+    // the final is published below, AFTER committing the source.
+    const manifest = await pumpManifestStream(url, meta, (m, phase) => {
+      if (phase === ScanPhase.Skeleton) setManifest(m);
     });
-    // Success: commit the loaded source. Order vs setManifest no longer matters
-    // — the camera reset is an explicit render-layer reaction now.
+    // Commit the source BEFORE publishing the final manifest. The render layer's
+    // camera-reframe reaction keys off CURRENT_SOURCE captured at apply-START, so
+    // the new key must be live for the FINAL apply (the one to frame on) and NOT
+    // for the preceding skeleton apply (which must not reframe).
     setCurrentSource(payload.src, payload.branch, manifest);
+    setManifest(manifest);
   } catch (err) {
     SOURCE_ERROR.value = {
       error: err instanceof Error ? err.message : String(err),
