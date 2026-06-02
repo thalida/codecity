@@ -15,10 +15,10 @@ import { LoadingStep } from '@/constants/loadingSteps';
 import { EMPTY_MANIFEST } from '@/constants/manifest';
 import { isEmptyManifest } from '@/utils/manifest';
 
-// ── Canonical manifest mirror ────────────────────────────────────────
-// Source of truth written by the fetch layer (useManifestSource, added later).
-// The scene (CenterPane's render effect) is a CONSUMER of this signal — it is no
-// longer derived from world.onChange.
+// ── Canonical manifest signal ────────────────────────────────────────
+// Source of truth written by the fetch layer (useManifestSource). The scene
+// (useCityScene's render effect) is a CONSUMER of this signal — it is not
+// derived from world.onChange.
 export const MANIFEST = signal<Manifest | DirNode | { tree?: unknown; [k: string]: unknown } | null>(
   EMPTY_MANIFEST
 );

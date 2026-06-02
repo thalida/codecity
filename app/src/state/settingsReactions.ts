@@ -12,15 +12,16 @@
 
 import { computed, effect, untracked } from '@preact/signals';
 
-import { REBUILD_STATUS, RebuildStatus, LAST_REBUILD_ERROR, LAST_UPDATED_AT } from '@/state/stores/manifest';
+import { MANIFEST, REBUILD_STATUS, RebuildStatus, LAST_REBUILD_ERROR, LAST_UPDATED_AT } from '@/state/stores/manifest';
 import { routeSignature, ChangeRoute } from '@/state/settingsSchema';
+import { isEmptyManifest } from '@/utils/manifest';
+import type { Manifest } from '@/types';
 
 // Min-dwell for the 'rebuilding' indicator on the material-only path.
 const HOT_REBUILD_MIN_DWELL_MS = 220;
 
 interface CommitReactionsOpts {
   world: {
-    getManifest(): unknown;
     applyManifest(m: unknown): Promise<void>;
     invalidateLayoutCache(): void;
   };
@@ -54,9 +55,14 @@ export function attachCommitReactions({ world, applyTheme }: CommitReactionsOpts
       // have no visible effect. Live-update polls never trigger scheduleRebuild
       // so they keep using the cache.
       world.invalidateLayoutCache();
-      const manifest = world.getManifest();
-      if (manifest) {
-        await world.applyManifest(manifest);
+      // Re-apply the current MANIFEST (the fetch layer's source of truth) with
+      // the new settings + invalidated layout cache. peek() — NOT .value — so
+      // the rebuild effect tracks ONLY REBUILD_SIGNATURE; a tracked read would
+      // subscribe it to MANIFEST and double-apply alongside useCityScene's
+      // render effect on every manifest change.
+      const manifest = MANIFEST.peek();
+      if (!isEmptyManifest(manifest)) {
+        await world.applyManifest(manifest as Manifest);
       }
       REBUILD_STATUS.value = RebuildStatus.Idle;
       LAST_REBUILD_ERROR.value = null;

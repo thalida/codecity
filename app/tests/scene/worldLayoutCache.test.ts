@@ -9,8 +9,8 @@
 // recorder so we can assert ordering:
 //   1) invalidateLayoutCache() runs BEFORE applyManifest() on each
 //      rebuildStore commit.
-//   2) The manifest passed to applyManifest is whatever getManifest()
-//      returned at that moment.
+//   2) The manifest passed to applyManifest is the current MANIFEST signal
+//      (the fetch layer's source of truth), read via peek() at that moment.
 //
 // Pre-fix: configCommitReactions never called invalidateLayoutCache(),
 // so this test fails with `["applyManifest"]` instead of
@@ -18,7 +18,10 @@
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { attachCommitReactions } from '@/state/settingsReactions';
+import { setManifest } from '@/state/stores/manifest';
+import { EMPTY_MANIFEST } from '@/constants/manifest';
 import { STREET_LAYOUT } from '@/state/stores/settings/streets';
+import type { Manifest } from '@/types';
 
 describe('configCommitReactions invalidates layout cache before applyManifest', () => {
   let calls: string[];
@@ -38,15 +41,15 @@ describe('configCommitReactions invalidates layout cache before applyManifest', 
     detach = null;
     // Restore so other tests don't see a drifted CHILD_GAP.
     STREET_LAYOUT.value = { ...STREET_LAYOUT.value, CHILD_GAP: originalChildGap };
+    setManifest(EMPTY_MANIFEST);
   });
 
   it('calls world.invalidateLayoutCache() BEFORE world.applyManifest() on a rebuildStore commit', async () => {
     const stubManifest = { tree_signature: 'abc', tree: { type: 'directory', children: [] } };
+    // Seed the source of truth: scheduleRebuild reads MANIFEST.peek().
+    setManifest(stubManifest as unknown as Manifest);
 
     const world = {
-      getManifest() {
-        return stubManifest;
-      },
       async applyManifest(m: unknown) {
         calls.push('applyManifest');
         appliedManifests.push(m);

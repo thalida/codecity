@@ -1,7 +1,10 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { attachCommitReactions } from '@/state/settingsReactions';
+import { setManifest } from '@/state/stores/manifest';
+import { EMPTY_MANIFEST } from '@/constants/manifest';
 import { TREES } from '@/state/stores/settings/trees';
 import { GEM } from '@/state/stores/settings/gem';
+import type { Manifest } from '@/types';
 
 // Routing contract: a "rebuild" key change → world.applyManifest; a "refresh"
 // (material) key change → applyTheme only (NOT applyManifest); a "live" key
@@ -15,9 +18,11 @@ describe('attachCommitReactions routing', () => {
   beforeEach(() => {
     manifestCalls = 0;
     themeCalls = 0;
+    // scheduleRebuild reads MANIFEST (the source of truth) via peek(); seed a
+    // non-empty manifest so the rebuild path actually calls applyManifest.
+    setManifest({ tree: {} } as unknown as Manifest);
     detach = attachCommitReactions({
       world: {
-        getManifest: () => ({}),
         applyManifest: async () => {
           manifestCalls++;
         },
@@ -29,7 +34,10 @@ describe('attachCommitReactions routing', () => {
     });
   });
 
-  afterEach(() => detach());
+  afterEach(() => {
+    detach();
+    setManifest(EMPTY_MANIFEST);
+  });
 
   const flush = async () => {
     await Promise.resolve();

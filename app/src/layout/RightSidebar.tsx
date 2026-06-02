@@ -13,8 +13,9 @@
 //
 // Full Preact: <aside id="right-sidebar"> is rendered directly. The
 // three panes are real Preact components driven by signal state. The
-// world.onChange subscription updates the state signals so the panes
-// stay fresh through live-update polls.
+// pane view-state is computed from the picker selection + the MANIFEST
+// signal (the fetch layer's source of truth), so the panes re-derive
+// automatically when a live-update poll publishes a fresh manifest.
 
 import { useComputed, useSignal, useSignalEffect } from '@preact/signals';
 import { PERSISTED_KEYS } from '@/constants/storage';
@@ -81,8 +82,9 @@ export function RightSidebar() {
 
   // Pane view-state, derived from the picker selection + manifest. Computeds
   // (read during render) so it's pure render-time reactivity — no effect
-  // writing signals, no module-level bridge, no manual world.onChange (MANIFEST
-  // already mirrors it, so a live-update rebuild re-derives the enriched panes).
+  // writing signals, no module-level bridge, no manual world.onChange — they
+  // read the MANIFEST signal (the fetch layer's source of truth), so a
+  // live-update poll re-derives the enriched panes.
   const activeKind = useComputed<SidebarPaneKind | null>(() => {
     const sel = SCENE_HANDLE.value?.picker.selection.value ?? null;
     if (sel?.kind === NodeKind.File) return SidebarPaneKind.File;
