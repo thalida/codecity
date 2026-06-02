@@ -21,6 +21,7 @@ import {
   ACTIVITY_BAR_TABS,
   DOM_IDS,
   PERSISTED_KEYS,
+  TabPlacement,
 } from '@/constants';
 import { SidebarTab, NodeKind } from '@/types';
 import type { PickTarget, TreeNode } from '@/types';
@@ -66,8 +67,8 @@ interface ActivityBarProps {
 
 function ActivityBar({ activeTab, collapsed, onIconClick }: ActivityBarProps) {
   const tabs = ACTIVITY_BAR_TABS;
-  const topTabs = tabs.filter((t) => t.placement !== 'bottom');
-  const bottomTabs = tabs.filter((t) => t.placement === 'bottom');
+  const topTabs = tabs.filter((t) => t.placement !== TabPlacement.Bottom);
+  const bottomTabs = tabs.filter((t) => t.placement === TabPlacement.Bottom);
 
   const renderTab = (tab: (typeof tabs)[number]) => {
     const isActive = !collapsed && tab.id === activeTab;

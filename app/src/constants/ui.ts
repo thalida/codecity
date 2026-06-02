@@ -14,17 +14,23 @@ export const MAX_RECENT_SOURCES = 10;
  * group — top entries stack from the top, bottom entries pin to the bottom.
  * Not designer-tunable — part of the app's structural definition.
  */
+/** Which group of the activity bar a tab pins to. Default (unset) is Top. */
+export enum TabPlacement {
+  Top = 'top',
+  Bottom = 'bottom',
+}
+
 export interface ActivityBarTab {
   id: SidebarTab;
   /** Lucide glyph component (lucide-preact). */
   icon: LucideIcon;
   title: string;
-  placement?: 'top' | 'bottom';
+  placement?: TabPlacement;
 }
 
 export const ACTIVITY_BAR_TABS: readonly ActivityBarTab[] = [
   { id: SidebarTab.Tree, icon: FolderTree, title: 'Tree' },
   { id: SidebarTab.Search, icon: Search, title: 'Search' },
   { id: SidebarTab.Info, icon: Info, title: 'Info' },
-  { id: SidebarTab.Controls, icon: Settings2, title: 'Settings', placement: 'bottom' },
+  { id: SidebarTab.Controls, icon: Settings2, title: 'Settings', placement: TabPlacement.Bottom },
 ] as const;
