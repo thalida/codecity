@@ -5,6 +5,7 @@
 
 import { signal } from '@preact/signals';
 import { SourceKind } from '@/utils/sources';
+import { URL_PARAMS } from '@/constants/urlParams';
 
 // These are the UI-state CONTRACTS the views render against. They live here (in
 // state) so state/ stays view-independent — the SourcePicker / LoadingOverlay
@@ -61,8 +62,8 @@ export function openSourcePickerForCurrentSource(): void {
   const cur = new URLSearchParams(window.location.search);
   openSourcePicker({
     dismissible: true,
-    prefill: cur.has('src')
-      ? { src: cur.get('src')!, branch: cur.get('branch') ?? undefined }
+    prefill: cur.has(URL_PARAMS.SRC)
+      ? { src: cur.get(URL_PARAMS.SRC)!, branch: cur.get(URL_PARAMS.BRANCH) ?? undefined }
       : undefined,
   });
 }

@@ -9,6 +9,7 @@ import type { Signal } from '@preact/signals';
 import { listRecents, removeRecent } from '@/state/stores/source';
 import { clearManifestCache } from '@/api/manifest';
 import { srcKind, SourceKind } from '@/utils/sources';
+import { URL_PARAMS } from '@/constants/urlParams';
 import { Folder, Trash2, TriangleAlert, X } from 'lucide-preact';
 import {
   SOURCE_PICKER,
@@ -94,8 +95,8 @@ export function SourcePickerModal({ state, onSubmit, onClose }: SourcePickerModa
   }, [activeTab]);
 
   const urlParams = new URLSearchParams(window.location.search);
-  const currentSrc = urlParams.get('src') ?? '';
-  const currentBranch = urlParams.get('branch') ?? '';
+  const currentSrc = urlParams.get(URL_PARAMS.SRC) ?? '';
+  const currentBranch = urlParams.get(URL_PARAMS.BRANCH) ?? '';
   const recents = listRecents();
 
   function handleSubmit() {

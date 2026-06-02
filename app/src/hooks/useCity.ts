@@ -59,6 +59,7 @@ import { srcKind, SourceKind, labelFromUrl, labelFromManifest } from '@/utils/so
 import { applyPendingTitle } from '@/utils/pendingTitle';
 import { EMPTY_MANIFEST } from '@/constants/manifest';
 import { LoadingStep } from '@/constants/loadingSteps';
+import { URL_PARAMS } from '@/constants/urlParams';
 import type { Manifest } from '@/types';
 import type { SourcePayload } from '@/state/stores/ui';
 
@@ -170,9 +171,9 @@ async function loadIconAtlas(manifest: Manifest): Promise<void> {
 /** Reflect the applied source in the page URL so reload/share reopens it. */
 function syncUrlToSource(payload: SourcePayload): void {
   const url = new URL(window.location.href);
-  url.searchParams.set('src', payload.src);
-  if (payload.branch) url.searchParams.set('branch', payload.branch);
-  else url.searchParams.delete('branch');
+  url.searchParams.set(URL_PARAMS.SRC, payload.src);
+  if (payload.branch) url.searchParams.set(URL_PARAMS.BRANCH, payload.branch);
+  else url.searchParams.delete(URL_PARAMS.BRANCH);
   history.replaceState(null, '', url.toString());
 }
 
@@ -193,14 +194,14 @@ interface InitialStreamResult {
  */
 async function streamInitialManifest(canvas: HTMLCanvasElement): Promise<InitialStreamResult> {
   const qp = new URLSearchParams(window.location.search);
-  const bootSrc = qp.get('src');
+  const bootSrc = qp.get(URL_PARAMS.SRC);
 
   if (!bootSrc) {
     const handle = await startScene(canvas, EMPTY_MANIFEST);
     return { manifest: EMPTY_MANIFEST, handle, error: null };
   }
 
-  const bootBranch = qp.get('branch') ?? undefined;
+  const bootBranch = qp.get(URL_PARAMS.BRANCH) ?? undefined;
   showLoadingOverlay({
     kind: srcKind(bootSrc),
     label: labelFromUrl(bootSrc) ?? bootSrc,
@@ -455,8 +456,8 @@ function setupLiveUpdates(
 
 async function bootCity(canvas: HTMLCanvasElement): Promise<() => void> {
   const qp = new URLSearchParams(window.location.search);
-  if (qp.has('src')) {
-    CURRENT_SOURCE_KEY.value = sourceKey(qp.get('src')!, qp.get('branch') ?? undefined);
+  if (qp.has(URL_PARAMS.SRC)) {
+    CURRENT_SOURCE_KEY.value = sourceKey(qp.get(URL_PARAMS.SRC)!, qp.get(URL_PARAMS.BRANCH) ?? undefined);
   }
 
   const { manifest: initialManifest, handle, error: initialError } =
@@ -466,7 +467,7 @@ async function bootCity(canvas: HTMLCanvasElement): Promise<() => void> {
   SERVER_CONFIG.value = { allowLocalRepos: serverConfig.allowLocalRepos };
 
   let liveUpdates: { setSignature(sig: string): void } | null = null;
-  if (qp.has('src') && !initialError && initialManifest !== EMPTY_MANIFEST) {
+  if (qp.has(URL_PARAMS.SRC) && !initialError && initialManifest !== EMPTY_MANIFEST) {
     liveUpdates = setupLiveUpdates(handle, initialManifest.signature);
   }
 
@@ -492,10 +493,10 @@ async function bootCity(canvas: HTMLCanvasElement): Promise<() => void> {
   if (initialError) {
     openSourcePicker({
       dismissible: false,
-      prefill: { src: qp.get('src')!, branch: qp.get('branch') ?? undefined },
+      prefill: { src: qp.get(URL_PARAMS.SRC)!, branch: qp.get(URL_PARAMS.BRANCH) ?? undefined },
       error: initialError,
     });
-  } else if (!qp.has('src')) {
+  } else if (!qp.has(URL_PARAMS.SRC)) {
     openSourcePicker({ dismissible: false });
   }
 

@@ -17,6 +17,7 @@
 //   error    — fatal mid-stream failure; client should surface and stop.
 
 import type { Manifest } from '@/types/manifest';
+import { URL_PARAMS } from '@/constants/urlParams';
 // ── URL helper ───────────────────────────────────────────────────────────
 
 export interface BuildApiUrlOpts {
@@ -42,12 +43,12 @@ export function buildApiUrl(
 ): string {
   const qp = new URLSearchParams(pageSearch);
   const u = new URL(endpoint, origin);
-  if (qp.has('src')) {
-    u.searchParams.set('src', qp.get('src')!);
-    if (qp.has('branch')) u.searchParams.set('branch', qp.get('branch')!);
+  if (qp.has(URL_PARAMS.SRC)) {
+    u.searchParams.set(URL_PARAMS.SRC, qp.get(URL_PARAMS.SRC)!);
+    if (qp.has(URL_PARAMS.BRANCH)) u.searchParams.set(URL_PARAMS.BRANCH, qp.get(URL_PARAMS.BRANCH)!);
   }
   if (opts.noCache) {
-    u.searchParams.set('no_cache', 'true');
+    u.searchParams.set(URL_PARAMS.NO_CACHE, 'true');
   }
   return u.toString();
 }
@@ -73,8 +74,8 @@ export function manifestUrlFor(opts: { src: string; branch?: string; noCache?: b
   // Delegate param assembly to buildApiUrl (single source of truth for the
   // src/branch/no_cache query contract); just feed it an explicit search
   // string instead of the page's location.search.
-  const search = new URLSearchParams({ src: opts.src });
-  if (opts.branch) search.set('branch', opts.branch);
+  const search = new URLSearchParams({ [URL_PARAMS.SRC]: opts.src });
+  if (opts.branch) search.set(URL_PARAMS.BRANCH, opts.branch);
   return buildApiUrl('/api/manifest', search.toString(), window.location.origin, {
     noCache: opts.noCache,
   });
@@ -154,8 +155,8 @@ export async function* streamManifest(
  */
 export function clearManifestCache(src: string, branch?: string): void {
   const url = new URL('/api/manifest/cache', window.location.origin);
-  url.searchParams.set('src', src);
-  if (branch) url.searchParams.set('branch', branch);
+  url.searchParams.set(URL_PARAMS.SRC, src);
+  if (branch) url.searchParams.set(URL_PARAMS.BRANCH, branch);
   fetch(url.toString(), { method: 'DELETE' }).catch(() => {});
 }
 
