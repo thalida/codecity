@@ -18,7 +18,6 @@
 import { useComputed, useSignal, useSignalEffect } from '@preact/signals';
 import {
   ACTIVITY_BAR_TABS,
-  DOM_IDS,
   PERSISTED_KEYS,
   TabPlacement,
 } from '@/constants';
@@ -173,7 +172,7 @@ export function LeftSidebar() {
 
   return (
     <Sidebar
-      id={DOM_IDS.LEFT_SIDEBAR}
+      id="left-sidebar"
       side={SidebarSide.Left}
       class={effectiveCollapsed ? 'is-collapsed' : ''}
       widthSignal={LEFT_SIDEBAR_WIDTH}

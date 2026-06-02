@@ -13,7 +13,6 @@
 // Tooltip placement — fixed, not user-tunable.
 const TOOLTIP_OFFSET_PX = 14;
 const TOOLTIP_VIEWPORT_MARGIN_PX = 4;
-import { DOM_IDS } from '@/constants';
 
 let _el: HTMLElement | null = null;
 
@@ -21,7 +20,7 @@ function _ensure(): HTMLElement {
   // Re-create if the element was removed (test teardown, HMR, etc.)
   if (_el && _el.isConnected) return _el;
   _el = document.createElement('div');
-  _el.id = DOM_IDS.HOVER_TOOLTIP;
+  _el.id = 'hover-tooltip';
   _el.style.display = 'none';
   document.body.appendChild(_el);
   return _el;

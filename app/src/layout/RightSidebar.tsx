@@ -17,7 +17,7 @@
 // stay fresh through live-update polls.
 
 import { useComputed, useSignal, useSignalEffect } from '@preact/signals';
-import { DOM_IDS, PERSISTED_KEYS } from '@/constants';
+import { PERSISTED_KEYS } from '@/constants';
 import { NodeKind } from '@/types';
 import type { CommitEntry, DirNode, FileNode } from '@/types';
 import { persistedSignal } from '@/state/persist';
@@ -136,7 +136,7 @@ export function RightSidebar() {
 
   return (
     <Sidebar
-      id={DOM_IDS.RIGHT_SIDEBAR}
+      id="right-sidebar"
       side={SidebarSide.Right}
       class={open ? 'open' : ''}
       widthSignal={RIGHT_SIDEBAR_WIDTH}
