@@ -1,4 +1,4 @@
-// scene/layout/layout.ts — Street/building placement algorithm. Pure data output,
+// city/layout/algorithm.ts — Street/building placement algorithm. Pure data output,
 // no DOM or Three.js.
 //   Building: { x, y, w, d, h, color, file, orient }
 //   Street:   { x, y, w, d, label, dir }
@@ -22,8 +22,8 @@ import { BuildingOrient, JoinSide, NodeKind, StreetAxis } from '@/types';
 import type { Building, CityLayout, RangeStat, Street } from '@/types';
 import { parentDirPath } from '../utils/path';
 import { isMediaFile } from '../components/adPanels/adPanels';
-import { WorldOccupancy, WorldRectKind } from './worldOccupancy';
-import type { WorldRect } from './worldOccupancy';
+import { WorldOccupancy, WorldRectKind } from './occupancyIndex';
+import type { WorldRect } from './occupancyIndex';
 
 // Dead-space pad past the gem at the root street's origin end, as a multiple of
 // the gem's diameter. Fixed, not user-tunable (was in GEM_SIZING but never

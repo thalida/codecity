@@ -1,9 +1,9 @@
-// scene/layout/layoutWorker.ts — Web Worker entry point. Receives a manifest
+// city/layout/worker.ts — Web Worker entry point. Receives a manifest
 // + a snapshot of the four config stores layoutCity reads, populates
 // the worker's local store instances, runs the layout, posts the
 // result back. Pure compute, no DOM or THREE.* references.
 
-import { layoutCity } from './layout';
+import { layoutCity } from './algorithm';
 import { STREET_LAYOUT, STREET_TIERS } from '@/state/stores/settings/streets';
 import { BUILDING_DIMENSIONS } from '@/state/stores/settings/buildings';
 import { GEM_SIZING } from '@/state/stores/settings/gem';

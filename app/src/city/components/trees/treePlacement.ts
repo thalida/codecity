@@ -28,7 +28,7 @@ import { TREES } from '@/state/stores/settings/trees';
 import { FOOTPRINT } from '@/state/stores/settings/footprint';
 import { BUILDING_DIMENSIONS } from '@/state/stores/settings/buildings';
 import { ISLAND } from '@/state/stores/settings/island';
-import { getWorldBounds } from '../../layout/worldBounds';
+import { getWorldBounds } from '../../utils/floorBounds';
 import { buildTopPolygon, pointInIslandPolygon } from '../island/islandGeometry';
 import { islandSeedFromBounds } from '../island/islandMesh';
 import { StreetAxis } from '@/types';

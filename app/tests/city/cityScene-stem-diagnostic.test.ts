@@ -1,10 +1,14 @@
 // world-stem-diagnostic.test.ts — _formatStemDiagnostic groups child
-import { WorldRectKind } from '@/city/layout/worldOccupancy';
+import { WorldRectKind } from '@/city/layout/occupancyIndex';
 // placements by parent road and emits a multi-line block per parent.
 
 import { describe, it, expect } from 'vitest';
 import { __test } from '@/city/world';
-import type { StemPlacementTrace, ChildPlacementTrace, VariantTrace } from '@/city/layout/layout';
+import type {
+  StemPlacementTrace,
+  ChildPlacementTrace,
+  VariantTrace,
+} from '@/city/layout/algorithm';
 
 const { _formatStemDiagnostic } = __test;
 

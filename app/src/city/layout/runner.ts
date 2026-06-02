@@ -1,4 +1,4 @@
-// scene/layout/layoutClient.ts — main-thread façade for the layout worker.
+// city/layout/runner.ts — main-thread façade for the layout worker.
 // Owns one lazily-created module Worker; exposes a Promise-based
 // `compute(manifest, opts)` API. Generates monotonic request ids and rejects
 // older pending requests when a newer one starts, so a rapid succession
@@ -21,7 +21,7 @@ import { GEM_SIZING } from '@/state/stores/settings/gem';
 import type { StreetLayoutConfig, StreetTier } from '@/state/stores/settings/streets';
 import type { BuildingDimensionsConfig } from '@/state/stores/settings/buildings';
 import type { GemSizingConfig } from '@/state/stores/settings/gem';
-import { layoutCity, makeHeightContext, recomputeBuildingDimensions } from './layout';
+import { layoutCity, makeHeightContext, recomputeBuildingDimensions } from './algorithm';
 import type { Manifest, CityLayout, FileNode, TreeNode } from '@/types';
 
 interface PendingRequest {
@@ -139,7 +139,7 @@ export function createLayoutClient(): LayoutClient {
     if (worker) return worker;
     if (typeof Worker === 'undefined') return null;
     try {
-      worker = new Worker(new URL('./layoutWorker.ts', import.meta.url), {
+      worker = new Worker(new URL('./worker.ts', import.meta.url), {
         type: 'module',
       });
     } catch (_) {

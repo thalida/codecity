@@ -1,4 +1,4 @@
-// scene/layout/worldOccupancy.ts — thin facade over rbush. Global occupancy structure
+// city/layout/occupancyIndex.ts — thin facade over rbush. Global occupancy structure
 // for the Tier B packer. Owns insert + overlap query. Knows nothing about
 // streets, sides, mirrors, or tree structure. All coordinates in world
 // frame.

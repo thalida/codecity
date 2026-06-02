@@ -10,7 +10,7 @@
 
 import * as THREE from 'three';
 import { ISLAND } from '@/state/stores/settings/island';
-import { getWorldBounds, type WorldBounds } from '@/city/layout/worldBounds';
+import { getWorldBounds, type WorldBounds } from '@/city/utils/floorBounds';
 import { buildIslandGeometry, type IslandBuildParams } from './islandGeometry';
 import { createIslandMaterial } from './islandShader';
 import { RENDER_ORDERS } from '@/city/renderOrders';

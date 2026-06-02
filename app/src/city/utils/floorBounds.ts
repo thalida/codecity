@@ -1,4 +1,4 @@
-// scene/layout/worldBounds.ts — single source of truth for the
+// city/utils/floorBounds.ts — single source of truth for the
 // rendered world's spatial extent.
 //
 // The world is a rectangle sized to fit the city bbox plus a buffer.

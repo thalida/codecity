@@ -6,8 +6,8 @@ import {
   sortForRendering,
   computeLineStats,
   __test,
-} from '@/city/layout/layout';
-import type { Rect } from '@/city/layout/layout';
+} from '@/city/layout/algorithm';
+import type { Rect } from '@/city/layout/algorithm';
 import { BUILDING_DIMENSIONS } from '@/state/stores/settings/buildings';
 import { BuildingOrient, NodeKind, StreetAxis } from '@/types';
 import type { BuildingDimensionsConfig } from '@/state/stores/settings/buildings';

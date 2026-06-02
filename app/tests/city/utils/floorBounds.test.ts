@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { getWorldBounds } from '@/city/layout/worldBounds';
+import { getWorldBounds } from '@/city/utils/floorBounds';
 import { WORLD } from '@/state/stores/settings/scene';
 import { bbox } from '../../_helpers/cityFixtures';
 
