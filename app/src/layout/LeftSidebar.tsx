@@ -16,7 +16,6 @@
 // they too are ported.
 
 import { useComputed, useSignal, useSignalEffect } from '@preact/signals';
-import { useEffect, useRef, useState } from 'preact/hooks';
 import {
   ACTIVITY_BAR_TABS,
   DOM_IDS,
@@ -33,6 +32,7 @@ import { TreePane } from '@/views/TreePane';
 import { InfoPane } from '@/views/InfoPane';
 import { SearchPane } from '@/views/SearchPane';
 import { ControlsPane } from '@/views/ControlsPane';
+import { Sidebar, SidebarSide } from '@/components/Sidebar';
 
 // Persisted left-sidebar UI state. Both go through persistedSignal (the store
 // abstraction) so persistence/hydration is handled for us — no hand-rolled
@@ -40,15 +40,6 @@ import { ControlsPane } from '@/views/ControlsPane';
 // (null ⇒ fall back to the CSS default width).
 const LEFT_SIDEBAR_COLLAPSED = persistedSignal<boolean>(PERSISTED_KEYS.LEFT_SIDEBAR_COLLAPSED, false);
 const LEFT_SIDEBAR_WIDTH = persistedSignal<number | null>(PERSISTED_KEYS.LEFT_SIDEBAR_WIDTH, null);
-
-// Defaults for the drag-resize width bounds (px) — overridable via LeftSidebar
-// props.
-const DEFAULT_MIN_WIDTH = 280;
-const DEFAULT_MAX_WIDTH = 600;
-
-function _clampWidth(w: number, min: number, max: number): number {
-  return Math.min(max, Math.max(min, w));
-}
 
 // ── Helpers ──────────────────────────────────────────────────────────
 
@@ -98,68 +89,9 @@ function ActivityBar({ activeTab, collapsed, onIconClick }: ActivityBarProps) {
   );
 }
 
-// ── ResizeHandle sub-component ───────────────────────────────────────
-
-interface ResizeHandleProps {
-  targetRef: { current: HTMLElement | null };
-  minWidth: number;
-  maxWidth: number;
-}
-
-function ResizeHandle({ targetRef, minWidth, maxWidth }: ResizeHandleProps) {
-  // `dragging` is a ref (sync guard for pointermove — no stale-closure race);
-  // `isDragging` is state, driving the visual `.dragging` class declaratively.
-  const dragging = useRef(false);
-  const [isDragging, setIsDragging] = useState(false);
-
-  const onPointerDown = (e: PointerEvent) => {
-    dragging.current = true;
-    setIsDragging(true);
-    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-    e.preventDefault();
-  };
-
-  const onPointerMove = (e: PointerEvent) => {
-    if (!dragging.current || !targetRef.current) return;
-    targetRef.current.style.width = `${_clampWidth(e.clientX, minWidth, maxWidth)}px`;
-  };
-
-  const onPointerUp = (e: PointerEvent) => {
-    if (!dragging.current || !targetRef.current) return;
-    dragging.current = false;
-    setIsDragging(false);
-    (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
-    // pointermove already clamped to [MIN, MAX]; persist the final width.
-    LEFT_SIDEBAR_WIDTH.value = parseFloat(targetRef.current.style.width) || targetRef.current.offsetWidth;
-  };
-
-  return (
-    <div
-      class={`sidebar-resize-handle${isDragging ? ' dragging' : ''}`}
-      role="separator"
-      aria-orientation="vertical"
-      title="Drag to resize"
-      onPointerDown={onPointerDown}
-      onPointerMove={onPointerMove}
-      onPointerUp={onPointerUp}
-    />
-  );
-}
-
 // ── Main component ───────────────────────────────────────────────────
 
-export interface LeftSidebarProps {
-  /** Min drag-resize width in px. Defaults to DEFAULT_MIN_WIDTH (280). */
-  minWidth?: number;
-  /** Max drag-resize width in px. Defaults to DEFAULT_MAX_WIDTH (600). */
-  maxWidth?: number;
-}
-
-export function LeftSidebar({
-  minWidth = DEFAULT_MIN_WIDTH,
-  maxWidth = DEFAULT_MAX_WIDTH,
-}: LeftSidebarProps = {}) {
-  const sidebarRef = useRef<HTMLElement>(null);
+export function LeftSidebar() {
   const activeTab = useSignal<SidebarTab>(SidebarTab.Tree);
   const collapsed = useSignal<boolean>(LEFT_SIDEBAR_COLLAPSED.value);
 
@@ -195,15 +127,6 @@ export function LeftSidebar({
   useSignalEffect(() => {
     LEFT_SIDEBAR_COLLAPSED.value = collapsed.value;
   });
-
-  // One-time setup: apply the persisted sidebar width (clamped as a guard
-  // against a corrupted stored value).
-  useEffect(() => {
-    const w = LEFT_SIDEBAR_WIDTH.peek();
-    if (w != null && sidebarRef.current) {
-      sidebarRef.current.style.width = `${_clampWidth(w, minWidth, maxWidth)}px`;
-    }
-  }, []);
 
   // Auto-collapse when the manifest has no content (cold-boot empty state).
   // The activity bar stays visible but the panel is hidden.
@@ -261,10 +184,11 @@ export function LeftSidebar({
   const tab = activeTab.value;
 
   return (
-    <aside
-      ref={sidebarRef}
+    <Sidebar
       id={DOM_IDS.LEFT_SIDEBAR}
+      side={SidebarSide.Left}
       class={effectiveCollapsed ? 'is-collapsed' : ''}
+      widthSignal={LEFT_SIDEBAR_WIDTH}
     >
       <ActivityBar
         activeTab={tab}
@@ -306,7 +230,6 @@ export function LeftSidebar({
           />
         )}
       </div>
-      <ResizeHandle targetRef={sidebarRef} minWidth={minWidth} maxWidth={maxWidth} />
-    </aside>
+    </Sidebar>
   );
 }

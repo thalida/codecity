@@ -18,7 +18,6 @@
 
 import { effect, signal, useComputed, useSignal, useSignalEffect } from '@preact/signals';
 import type { Signal } from '@preact/signals';
-import { useEffect, useRef, useState } from 'preact/hooks';
 import { DOM_IDS, PERSISTED_KEYS } from '@/constants';
 import { NodeKind } from '@/types';
 import type { CommitEntry, DirNode, FileNode } from '@/types';
@@ -30,71 +29,14 @@ import { CommitPane } from '@/views/CommitPane';
 import type { CommitPaneState } from '@/views/CommitPane';
 import { StreetPane } from '@/views/StreetPane';
 import type { StreetPaneState } from '@/views/StreetPane';
-
-// Persistent width range (in px) for the right sidebar drag handle.
-const SIDEBAR_MIN_WIDTH = 280;
-const SIDEBAR_MAX_WIDTH_RATIO = 0.7; // fraction of viewport width
+import { Sidebar, SidebarSide } from '@/components/Sidebar';
 
 // Persisted drag-handle width via persistedSignal (the store abstraction) —
 // null until the user first drags (null ⇒ fall back to the CSS default width).
+// The width range is enforced by #right-sidebar.open's CSS min-width/max-width.
 const RIGHT_SIDEBAR_WIDTH = persistedSignal<number | null>(PERSISTED_KEYS.RIGHT_SIDEBAR_WIDTH, null);
 
 type SidebarPaneKind = 'file' | 'commit' | 'street' | null;
-
-// ── Helpers ──────────────────────────────────────────────────────────
-
-// Max width is viewport-relative, so clamp at read/apply time rather than
-// storing a clamped value.
-function _clampWidth(w: number): number {
-  const maxW = Math.floor(window.innerWidth * SIDEBAR_MAX_WIDTH_RATIO);
-  return Math.min(maxW, Math.max(SIDEBAR_MIN_WIDTH, w));
-}
-
-// ── ResizeHandle (left edge of the right sidebar) ────────────────────
-
-function ResizeHandle({ targetRef }: { targetRef: { current: HTMLElement | null } }) {
-  // `dragging` is a ref (sync guard for pointermove — no stale-closure race);
-  // `isDragging` is state, driving the visual `.dragging` class declaratively.
-  const dragging = useRef(false);
-  const liveWidth = useRef(0);
-  const [isDragging, setIsDragging] = useState(false);
-
-  const onPointerDown = (e: PointerEvent) => {
-    dragging.current = true;
-    setIsDragging(true);
-    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-    e.preventDefault();
-  };
-  const onPointerMove = (e: PointerEvent) => {
-    if (!dragging.current || !targetRef.current) return;
-    let w = window.innerWidth - e.clientX;
-    const maxW = Math.floor(window.innerWidth * SIDEBAR_MAX_WIDTH_RATIO);
-    if (w < SIDEBAR_MIN_WIDTH) w = SIDEBAR_MIN_WIDTH;
-    if (w > maxW) w = maxW;
-    liveWidth.current = w;
-    targetRef.current.style.setProperty('--sidebar-width', `${w}px`);
-  };
-  const onPointerUp = (e: PointerEvent) => {
-    if (!dragging.current || !targetRef.current) return;
-    dragging.current = false;
-    setIsDragging(false);
-    (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
-    // pointermove already clamped to [MIN, maxW]; persist the final width.
-    RIGHT_SIDEBAR_WIDTH.value = liveWidth.current || targetRef.current.offsetWidth;
-  };
-
-  return (
-    <div
-      class={`sidebar-resize-handle-right${isDragging ? ' dragging' : ''}`}
-      role="separator"
-      aria-orientation="vertical"
-      title="Drag to resize"
-      onPointerDown={onPointerDown}
-      onPointerMove={onPointerMove}
-      onPointerUp={onPointerUp}
-    />
-  );
-}
 
 // ── Pane state signals (module-level so they survive remounts) ────────
 
@@ -192,7 +134,6 @@ _installSceneBridge();
 // ── Main component ───────────────────────────────────────────────────
 
 export function RightSidebar() {
-  const sidebarRef = useRef<HTMLElement>(null);
   // Local override flag — set true when the user clicks a pane's close
   // button, cleared when the picker selection becomes non-null again.
   // Without it, re-selecting the SAME node wouldn't re-open the sidebar
@@ -207,15 +148,6 @@ export function RightSidebar() {
       userClosed.value = false;
     }
   });
-
-  // Apply persisted width on mount (clamped as a guard against a corrupted
-  // stored value / a since-shrunk viewport).
-  useEffect(() => {
-    const w = RIGHT_SIDEBAR_WIDTH.peek();
-    if (w != null && sidebarRef.current) {
-      sidebarRef.current.style.setProperty('--sidebar-width', `${_clampWidth(w)}px`);
-    }
-  }, []);
 
   // Effective open state: true when there's an active pane AND the user
   // hasn't closed it. The .open class drives the CSS transition.
@@ -244,10 +176,11 @@ export function RightSidebar() {
   const open = isOpen.value;
 
   return (
-    <aside
-      ref={sidebarRef}
+    <Sidebar
       id={DOM_IDS.RIGHT_SIDEBAR}
+      side={SidebarSide.Right}
       class={open ? 'open' : ''}
+      widthSignal={RIGHT_SIDEBAR_WIDTH}
     >
       {kind === 'file' && (
         <FilePreviewPane state={FILE_STATE} onClose={onClose} onFocus={onFileFocus} />
@@ -258,8 +191,7 @@ export function RightSidebar() {
       {kind === 'street' && (
         <StreetPane state={STREET_STATE} onClose={onClose} onFocus={onStreetFocus} />
       )}
-      <ResizeHandle targetRef={sidebarRef} />
-    </aside>
+    </Sidebar>
   );
 }
 

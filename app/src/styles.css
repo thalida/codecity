@@ -1292,7 +1292,10 @@ canvas {
 #left-sidebar {
   position: relative;
   flex: 0 0 auto;
-  width: 360px; /* 44px activity bar + 316px panel; resizable */
+  /* Resizable: the drag handle mutates --sidebar-width; CSS owns `width` so the
+     handle never fights an inline style. Default 360px = 44px activity bar +
+     316px panel. */
+  width: var(--sidebar-width, 360px);
   min-width: 280px;
   max-width: 600px;
   height: 100%;
@@ -1314,12 +1317,12 @@ canvas {
  * 6px hit zone makes it easy to grab. */
 /* Resize handle rules consolidated with .sidebar-resize-handle-right above. */
 
-/* Collapsed: just the activity bar shows. Inline width on #left-sidebar
- * (set by the resize handle) is overridden by !important so we get the
- * narrow width without having to clear/restore the inline style on
- * every toggle. */
+/* Collapsed: just the activity bar shows. This rule outranks the base
+ * `#left-sidebar { width: var(--sidebar-width) }` by specificity (id+class),
+ * so the dragged width is restored automatically on un-collapse — no need to
+ * clear/restore anything. */
 #left-sidebar.is-collapsed {
-  width: 44px !important;
+  width: 44px;
   min-width: 44px;
 }
 #left-sidebar.is-collapsed > .pane,
