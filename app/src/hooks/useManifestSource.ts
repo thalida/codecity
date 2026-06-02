@@ -21,7 +21,7 @@
 //   4. setupLiveUpdates      — the background poll loop + its ENABLED gate
 //   5. useManifestSource     — wire it all together on mount
 
-import { useEffect } from 'preact/hooks';
+import { useEffect, useCallback, useRef } from 'preact/hooks';
 import { effect } from '@preact/signals';
 
 import {
@@ -57,7 +57,6 @@ import {
   setLoadingStepTail,
   openSourcePicker,
   closeSourcePicker,
-  registerSourceApplier,
 } from '@/state/stores/ui';
 import { srcKind, SourceKind, labelFromUrl, labelFromManifest } from '@/utils/sources';
 import { isEmptyManifest } from '@/utils/manifest';
@@ -427,14 +426,32 @@ function setupLiveUpdates(
 
 /**
  * Boot the manifest FETCH pipeline on mount: stream the initial manifest from
- * ?src into MANIFEST, fetch the server config, start live updates, and wire the
- * source-picker apply handler. Scene-free — the render layer (useCityScene)
- * consumes MANIFEST and paints the scene. Tears down the applier on unmount.
+ * ?src into MANIFEST, fetch the server config, and start live updates.
+ * Scene-free — the render layer (useCityScene) consumes MANIFEST and paints the
+ * scene. RETURNS the source-picker submit handler so App can pass it down to
+ * <SourcePicker> as a prop (no global register/invoke channel). The handler
+ * closes over a ref holding the mutable live-updates handle, so a single stable
+ * callback can read/write whatever the boot/first-submit started.
  */
-export function useManifestSource(): void {
+export function useManifestSource(): (payload: SourcePayload) => void {
+  const liveUpdatesRef = useRef<{ setSignature(s: string): void } | null>(null);
+
+  const submitSource = useCallback((payload: SourcePayload) => {
+    closeSourcePicker();
+    applyNewSource({
+      payload,
+      pendingSkipCache: !!payload.skipCache,
+      liveUpdatesHandle: liveUpdatesRef.current,
+      onLiveUpdatesStarted(api) {
+        liveUpdatesRef.current = api;
+      },
+      onError({ dismissible, payload: errPayload, error }) {
+        openSourcePicker({ dismissible, prefill: errPayload, error });
+      },
+    });
+  }, []);
+
   useEffect(() => {
-    let liveUpdates: { setSignature(s: string): void } | null = null;
-    let disposeApplier: (() => void) | null = null;
     let cancelled = false;
     (async () => {
       const qp = new URLSearchParams(window.location.search);
@@ -446,25 +463,8 @@ export function useManifestSource(): void {
       const serverConfig = await getServerConfig();
       SERVER_CONFIG.value = { allowLocalRepos: serverConfig.allowLocalRepos };
       if (qp.has(URL_PARAMS.SRC) && !initialError && !isEmptyManifest(MANIFEST.peek())) {
-        liveUpdates = setupLiveUpdates((MANIFEST.peek() as Manifest).signature);
+        liveUpdatesRef.current = setupLiveUpdates((MANIFEST.peek() as Manifest).signature);
       }
-      // Wire the source-picker apply handler (was sourcePickerBridge). The picker
-      // calls submitNewSource() → this applier; it needs the mutable
-      // live-updates handle, which only exists after boot.
-      disposeApplier = registerSourceApplier((payload) => {
-        closeSourcePicker();
-        applyNewSource({
-          payload,
-          pendingSkipCache: !!payload.skipCache,
-          liveUpdatesHandle: liveUpdates,
-          onLiveUpdatesStarted(api) {
-            liveUpdates = api;
-          },
-          onError({ dismissible, payload: errPayload, error }) {
-            openSourcePicker({ dismissible, prefill: errPayload, error });
-          },
-        });
-      });
 
       if (initialError) {
         openSourcePicker({
@@ -478,7 +478,8 @@ export function useManifestSource(): void {
     })();
     return () => {
       cancelled = true;
-      disposeApplier?.();
     };
   }, []);
+
+  return submitSource;
 }

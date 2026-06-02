@@ -13,8 +13,6 @@ import { URL_PARAMS } from '@/constants/urlParams';
 import { Folder, Trash2, TriangleAlert, X } from 'lucide-preact';
 import {
   SOURCE_PICKER,
-  closeSourcePicker,
-  submitNewSource,
   type SourcePayload,
 } from '@/state/stores/ui';
 import { SERVER_CONFIG } from '@/state/stores/serverConfig';
@@ -307,11 +305,18 @@ export function SourcePickerModal({ state, onSubmit, onClose }: SourcePickerModa
 }
 
 // ── Signal-driven top-level component ──────────────────────────────────────
-// Reads SOURCE_PICKER + SERVER_CONFIG directly. App.tsx renders <SourcePicker />
-// with no props. Returns null when the picker is closed so SourcePickerModal
-// fully unmounts — its useState-backed form inputs reset on the next open.
+// Reads SOURCE_PICKER + SERVER_CONFIG directly for open-state/prefill, but takes
+// onSubmit/onClose via props from App (App owns the stateful submit handler from
+// useManifestSource and the pure closeSourcePicker store action). Returns null
+// when the picker is closed so SourcePickerModal fully unmounts — its
+// useState-backed form inputs reset on the next open.
 
-export function SourcePicker() {
+export interface SourcePickerProps {
+  onSubmit: (payload: SourcePayload) => void;
+  onClose: () => void;
+}
+
+export function SourcePicker({ onSubmit, onClose }: SourcePickerProps) {
   const sp = SOURCE_PICKER.value;
   if (!sp.visible) return null;
 
@@ -340,11 +345,5 @@ export function SourcePicker() {
     set value(_: SourcePickerState) { /* re-renders via RECENTS signal */ },
   } as Signal<SourcePickerState>;
 
-  return (
-    <SourcePickerModal
-      state={stateSignal}
-      onSubmit={(payload) => submitNewSource(payload)}
-      onClose={() => closeSourcePicker()}
-    />
-  );
+  return <SourcePickerModal state={stateSignal} onSubmit={onSubmit} onClose={onClose} />;
 }

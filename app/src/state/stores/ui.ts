@@ -68,32 +68,6 @@ export function openSourcePickerForCurrentSource(): void {
   });
 }
 
-// Apply-new-source handler. The boot wiring (sourcePickerBridge) registers the
-// function that actually fetches + applies a source — it needs the live scene
-// and live-update handles. The picker UI calls submitNewSource(); no window
-// globals. Same register/invoke shape as stores/manifest's refreshManifest.
-let _sourceApplier: ((payload: SourcePayload) => void) | null = null;
-
-/** Register the apply-new-source handler; returns an unregister fn. */
-export function registerSourceApplier(fn: (payload: SourcePayload) => void): () => void {
-  if (_sourceApplier && _sourceApplier !== fn) {
-    // Re-registration (e.g. HMR or a second boot) would strand the previous
-    // applier — its unregister becomes a no-op once overwritten. Warn so the
-    // double-install is visible rather than silently routing to a stale handle.
-    console.warn('[uiState] source applier re-registered; overwriting the previous one');
-  }
-  _sourceApplier = fn;
-  return () => {
-    if (_sourceApplier === fn) _sourceApplier = null;
-  };
-}
-
-/** Submit a new source from the picker. No-op before boot registers the
- *  applier (which only happens once, during initial load). */
-export function submitNewSource(payload: SourcePayload): void {
-  _sourceApplier?.(payload);
-}
-
 // ── Loading overlay ──────────────────────────────────────────────────────────
 
 import { LoadingStep } from '@/constants/loadingSteps';

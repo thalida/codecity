@@ -22,13 +22,13 @@ import { SourcePicker } from '@/views/SourcePicker';
 import { LoadingOverlay } from '@/components/LoadingOverlay';
 import { HljsThemeLink } from '@/components/HljsThemeLink';
 import { selectPath, resetView, focusCurrentSelection } from '@/state/stores/scene';
-import { openSourcePickerForCurrentSource } from '@/state/stores/ui';
+import { openSourcePickerForCurrentSource, closeSourcePicker } from '@/state/stores/ui';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { useManifestSource } from '@/hooks/useManifestSource';
 
 export function App() {
   useDocumentTitle();
-  useManifestSource();
+  const submitSource = useManifestSource();
 
   return (
     <>
@@ -44,7 +44,7 @@ export function App() {
         <RightSidebar />
       </main>
       <AppFooter />
-      <SourcePicker />
+      <SourcePicker onSubmit={submitSource} onClose={closeSourcePicker} />
       <LoadingOverlay />
       <HljsThemeLink />
     </>
