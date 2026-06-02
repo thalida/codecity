@@ -4,7 +4,7 @@
 // are arrangement only; the stores own each field. (The city footprint slab is
 // its own top-level section — see ./footprint.)
 import { field, type SectionNode } from '.';
-import { STREETS, STREET_TIERS, STREET_LAYOUT } from '@/state/stores/settings/index';
+import { STREETS, STREET_TIERS, STREET_LAYOUT } from '@/state/stores/settings/streets';
 
 export const STREETS_SECTION: SectionNode = {
   key: 'streets',

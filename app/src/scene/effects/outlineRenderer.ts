@@ -22,7 +22,8 @@ import { LineSegments2 } from 'three/addons/lines/LineSegments2.js';
 import { LineSegmentsGeometry } from 'three/addons/lines/LineSegmentsGeometry.js';
 import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
 
-import { BUILDINGS, RAINBOW } from '@/state/stores/settings/index';
+import { BUILDINGS } from '@/state/stores/settings/buildings';
+import { RAINBOW } from '@/state/stores/settings/effects';
 import { RENDER_ORDERS } from '@/scene/renderOrders';
 import { NodeKind } from '@/types';
 import { UNIT_BOX_EDGE_POSITIONS } from '@/scene/world';

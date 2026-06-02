@@ -12,7 +12,9 @@
 
 import * as THREE from 'three';
 import { BuildingOrient } from '@/types/index';
-import { FACADE, BLOOM, BUILDING_DIMENSIONS } from '@/state/stores/settings/index';
+import { FACADE } from '@/state/stores/settings/facade';
+import { BLOOM } from '@/state/stores/settings/effects';
+import { BUILDING_DIMENSIONS } from '@/state/stores/settings/buildings';
 import { AD_ERROR_COLOR } from '@/constants/buildings';
 import { RENDER_ORDERS } from '@/scene/renderOrders';
 import { mediaKindOf, MediaKind } from './adPanels';

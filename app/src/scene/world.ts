@@ -69,13 +69,10 @@ import {
   getModifiedAge,
   getDateRanges,
 } from './components/buildings/buildingColor';
-import {
-  STREETS,
-  GEM,
-  GEM_SIZING,
-  TREES,
-  SCENE,
-} from '@/state/stores/settings/index';
+import { STREETS } from '@/state/stores/settings/streets';
+import { GEM, GEM_SIZING } from '@/state/stores/settings/gem';
+import { TREES } from '@/state/stores/settings/trees';
+import { SCENE } from '@/state/stores/settings/scene';
 import { REBUILD_STATUS, RebuildStatus } from '@/state/stores/manifest';
 import type {
   Building,

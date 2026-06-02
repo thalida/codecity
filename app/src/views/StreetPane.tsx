@@ -14,7 +14,8 @@ import { KEY_BINDINGS } from '@/constants/keyboard';
 import { Route } from 'lucide-preact';
 import { ExtensionBadge } from '@/components/Badge';
 import { formatBytes } from '@/utils/bytes';
-import { STREETS, BUILDINGS } from '@/state/stores/settings';
+import { STREETS } from '@/state/stores/settings/streets';
+import { BUILDINGS } from '@/state/stores/settings/buildings';
 
 // ── State shape for Preact component ─────────────────────────────────────────
 

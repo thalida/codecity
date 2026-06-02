@@ -20,7 +20,7 @@ import { NodeKind } from '@/types';
 import { formatShortDate, formatRelativeAgeShort } from '@/utils/dates';
 import { formatBytes } from '@/utils/bytes';
 import { SCENE_HANDLE } from '@/state/stores/scene';
-import { LIVE_UPDATES } from '@/state/stores/settings/index';
+import { LIVE_UPDATES } from '@/state/stores/settings/updates';
 import { REBUILD_STATUS, RebuildStatus, LAST_REBUILD_ERROR, LAST_UPDATED_AT } from '@/state/stores/manifest';
 import { humanLanguageFor } from '@/utils/syntaxLanguages';
 

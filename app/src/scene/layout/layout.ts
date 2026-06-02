@@ -16,10 +16,10 @@
 
 import {
   STREET_TIERS,
-  BUILDING_DIMENSIONS,
   STREET_LAYOUT,
-  GEM_SIZING,
-} from '@/state/stores/settings/index';
+} from '@/state/stores/settings/streets';
+import { BUILDING_DIMENSIONS } from '@/state/stores/settings/buildings';
+import { GEM_SIZING } from '@/state/stores/settings/gem';
 import type { StreetTier } from '@/state/stores/settings/streets';
 import { BuildingOrient, JoinSide, NodeKind, StreetAxis } from '@/types';
 import type { Building, CityLayout, RangeStat, Street } from '@/types';

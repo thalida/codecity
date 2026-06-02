@@ -18,7 +18,7 @@
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { attachCommitReactions } from '@/state/settingsReactions';
-import { STREET_LAYOUT } from '@/state/stores/settings/index';
+import { STREET_LAYOUT } from '@/state/stores/settings/streets';
 
 describe('configCommitReactions invalidates layout cache before applyManifest', () => {
   let calls: string[];

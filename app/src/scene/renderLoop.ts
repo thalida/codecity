@@ -8,11 +8,9 @@
 import * as THREE from 'three';
 import { effect } from '@preact/signals';
 
-import {
-  STREETS,
-  GEM,
-  BLOOM,
-} from '../state/stores/settings/index';
+import { STREETS } from '../state/stores/settings/streets';
+import { GEM } from '../state/stores/settings/gem';
+import { BLOOM } from '../state/stores/settings/effects';
 import { GEM_HOVER_LIFT_FRAC } from '@/scene/components/gem/gem';
 import { NodeKind, StreetAxis } from '../types';
 import type { Manifest } from '../types';

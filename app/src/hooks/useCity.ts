@@ -35,7 +35,7 @@ import { buildIconAtlas } from '@/scene/components/buildings/iconAtlas';
 import { setIconAtlas } from '@/scene/components/buildings/buildings';
 import { setCellIconAtlas } from '@/scene/components/buildings/buildingsCell';
 import { attachCommitReactions } from '@/state/settingsReactions';
-import { LIVE_UPDATES } from '@/state/stores/settings/index';
+import { LIVE_UPDATES } from '@/state/stores/settings/updates';
 import { SCENE_HANDLE, type SceneHandle } from '@/state/stores/scene';
 import {
   SOURCE_INFO,

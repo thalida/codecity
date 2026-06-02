@@ -10,11 +10,9 @@ import {
   STREETS,
   STREET_TIERS,
   STREET_LAYOUT,
-  BUILDING_DIMENSIONS,
-  BUILDINGS,
-  FACADE,
-  BUILDING_FADE,
-} from '@/state/stores/settings/index';
+} from '@/state/stores/settings/streets';
+import { BUILDING_DIMENSIONS, BUILDINGS, BUILDING_FADE } from '@/state/stores/settings/buildings';
+import { FACADE } from '@/state/stores/settings/facade';
 import { FOOTPRINT } from '@/state/stores/settings/footprint';
 import { getFieldKeys } from '@/state/settingsSchema';
 import { flush } from '../../_helpers/preact';

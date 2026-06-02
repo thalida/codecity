@@ -7,7 +7,7 @@ import {
   getBuildingColor,
   getModifiedAge,
 } from '@/scene/components/buildings/buildingColor';
-import { BUILDINGS } from '@/state/stores/settings/index';
+import { BUILDINGS } from '@/state/stores/settings/buildings';
 import type { BuildingsConfig } from '@/state/stores/settings/buildings';
 import { NodeKind } from '@/types';
 import type { RangeStat } from '@/types';

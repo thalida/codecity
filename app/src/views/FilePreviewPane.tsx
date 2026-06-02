@@ -11,7 +11,8 @@
 import type { ReadonlySignal } from '@preact/signals';
 import { useState, useEffect } from 'preact/hooks';
 import hljs from 'highlight.js/lib/common';
-import { STREETS, BUILDINGS } from '@/state/stores/settings';
+import { STREETS } from '@/state/stores/settings/streets';
+import { BUILDINGS } from '@/state/stores/settings/buildings';
 import type { FileNode } from '@/types';
 
 /**

@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach } from 'vitest';
-import { STREET_TIERS } from '@/state/stores/settings/index';
+import { STREET_TIERS } from '@/state/stores/settings/streets';
 import { computePathLinewidthPixels } from '@/scene/effects/pathLineRenderer';
 
 // Capture the original tiers so afterEach can restore them.

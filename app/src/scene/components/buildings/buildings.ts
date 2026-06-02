@@ -7,13 +7,10 @@
 // uniforms on config-store changes.
 
 import * as THREE from 'three';
-import {
-  BLOOM,
-  BUILDINGS,
-  BUILDING_DIMENSIONS,
-  FACADE,
-  SCENE,
-} from '@/state/stores/settings/index';
+import { BUILDINGS, BUILDING_DIMENSIONS } from '@/state/stores/settings/buildings';
+import { FACADE } from '@/state/stores/settings/facade';
+import { BLOOM } from '@/state/stores/settings/effects';
+import { SCENE } from '@/state/stores/settings/scene';
 import type { IconAtlas } from './iconAtlas';
 import { writeSunDir } from '@/scene/components/lighting/sunDir';
 import {

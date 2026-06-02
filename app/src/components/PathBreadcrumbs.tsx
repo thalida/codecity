@@ -9,7 +9,8 @@ import { KEY_BINDINGS } from '@/constants/keyboard';
 import { ExtensionBadge } from '@/components/Badge';
 import { CopyButton } from '@/components/CopyButton';
 import { useMiddleEllipsis } from '@/hooks/useMiddleEllipsis';
-import { STREETS, BUILDINGS } from '@/state/stores/settings';
+import { STREETS } from '@/state/stores/settings/streets';
+import { BUILDINGS } from '@/state/stores/settings/buildings';
 
 export interface PathBreadcrumbsProps {
   /** Selected path relative to the project root. */

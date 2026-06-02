@@ -2,10 +2,21 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { render } from 'preact';
 import { act } from 'preact/test-utils';
 import { ControlsPane } from '@/views/ControlsPane';
-// Importing the settings barrel triggers every persistedSignal() registration
-// at module-load (used by getDefault / forEachRegisteredStore inside the
-// controls sections).
-import '@/state/stores/settings/index';
+// Load every settings store for its registration side-effect (settingSignal
+// registers each store at module-load), so the completeness checks below see
+// every field. (Replaces the old settings-barrel side-effect import.)
+import '@/state/stores/settings/updates';
+import '@/state/stores/settings/scene';
+import '@/state/stores/settings/syntaxTheme';
+import '@/state/stores/settings/streets';
+import '@/state/stores/settings/buildings';
+import '@/state/stores/settings/facade';
+import '@/state/stores/settings/gem';
+import '@/state/stores/settings/island';
+import '@/state/stores/settings/footprint';
+import '@/state/stores/settings/trees';
+import '@/state/stores/settings/fireflies';
+import '@/state/stores/settings/effects';
 import { flush } from '../../_helpers/preact';
 
 describe('ControlsPane', () => {
