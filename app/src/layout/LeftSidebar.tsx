@@ -20,7 +20,7 @@ import { useEffect, useRef, useState } from 'preact/hooks';
 import {
   ACTIVITY_BAR_TABS,
   DOM_IDS,
-  STORAGE_KEYS,
+  PERSISTED_KEYS,
 } from '@/constants';
 import { SidebarTab, NodeKind } from '@/types';
 import type { PickTarget, TreeNode } from '@/types';
@@ -33,11 +33,19 @@ import { InfoPane } from '@/views/InfoPane';
 import { SearchPane } from '@/views/SearchPane';
 import { ControlsPane } from '@/views/ControlsPane';
 
-// Persistent boolean for the left-sidebar collapsed state.
-const SIDEBAR_COLLAPSED = persistedSignal<boolean>('sidebarCollapsed', false);
+// Persisted left-sidebar UI state. Both go through persistedSignal (the store
+// abstraction) so persistence/hydration is handled for us — no hand-rolled
+// localStorage. Width is null until the user first drags the resize handle
+// (null ⇒ fall back to the CSS default width).
+const LEFT_SIDEBAR_COLLAPSED = persistedSignal<boolean>(PERSISTED_KEYS.LEFT_SIDEBAR_COLLAPSED, false);
+const LEFT_SIDEBAR_WIDTH = persistedSignal<number | null>(PERSISTED_KEYS.LEFT_SIDEBAR_WIDTH, null);
 
 const SIDEBAR_MIN_WIDTH = 280;
 const SIDEBAR_MAX_WIDTH = 600;
+
+function _clampWidth(w: number): number {
+  return Math.min(SIDEBAR_MAX_WIDTH, Math.max(SIDEBAR_MIN_WIDTH, w));
+}
 
 // ── Helpers ──────────────────────────────────────────────────────────
 
@@ -46,28 +54,6 @@ function _pathOf(target: PickTarget | null): string | null {
   if (target.kind === NodeKind.File) return target.file?.path ?? null;
   if (target.kind === NodeKind.Directory) return target.dir?.path ?? null;
   return null;
-}
-
-function _persistWidth(w: number): void {
-  if (typeof localStorage === 'undefined') return;
-  try {
-    localStorage.setItem(STORAGE_KEYS.SIDEBAR_WIDTH, String(w));
-  } catch (_) {
-    /* quota / private — drop */
-  }
-}
-
-function _readPersistedWidth(): number | null {
-  if (typeof localStorage === 'undefined') return null;
-  try {
-    const raw = localStorage.getItem(STORAGE_KEYS.SIDEBAR_WIDTH);
-    if (raw == null) return null;
-    const w = parseFloat(raw);
-    if (!Number.isFinite(w)) return null;
-    return Math.min(SIDEBAR_MAX_WIDTH, Math.max(SIDEBAR_MIN_WIDTH, w));
-  } catch (_) {
-    return null;
-  }
 }
 
 // ── ActivityBar sub-component ────────────────────────────────────────
@@ -141,7 +127,8 @@ function ResizeHandle({ targetRef }: ResizeHandleProps) {
     dragging.current = false;
     setIsDragging(false);
     (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
-    _persistWidth(parseFloat(targetRef.current.style.width) || targetRef.current.offsetWidth);
+    // pointermove already clamped to [MIN, MAX]; persist the final width.
+    LEFT_SIDEBAR_WIDTH.value = parseFloat(targetRef.current.style.width) || targetRef.current.offsetWidth;
   };
 
   return (
@@ -162,7 +149,7 @@ function ResizeHandle({ targetRef }: ResizeHandleProps) {
 export function LeftSidebar() {
   const sidebarRef = useRef<HTMLElement>(null);
   const activeTab = useSignal<SidebarTab>(SidebarTab.Tree);
-  const collapsed = useSignal<boolean>(SIDEBAR_COLLAPSED.value);
+  const collapsed = useSignal<boolean>(LEFT_SIDEBAR_COLLAPSED.value);
 
   // Tree selection + hover paths, derived from picker signals.
   const selectedPath = useSignal<string | null>(null);
@@ -194,14 +181,15 @@ export function LeftSidebar() {
 
   // Persist collapsed → localStorage via the persistedSignal.
   useSignalEffect(() => {
-    SIDEBAR_COLLAPSED.value = collapsed.value;
+    LEFT_SIDEBAR_COLLAPSED.value = collapsed.value;
   });
 
-  // One-time setup: apply the persisted sidebar width.
+  // One-time setup: apply the persisted sidebar width (clamped as a guard
+  // against a corrupted stored value).
   useEffect(() => {
-    const w = _readPersistedWidth();
+    const w = LEFT_SIDEBAR_WIDTH.peek();
     if (w != null && sidebarRef.current) {
-      sidebarRef.current.style.width = `${w}px`;
+      sidebarRef.current.style.width = `${_clampWidth(w)}px`;
     }
   }, []);
 

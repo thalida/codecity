@@ -19,9 +19,10 @@
 import { effect, signal, useComputed, useSignal, useSignalEffect } from '@preact/signals';
 import type { Signal } from '@preact/signals';
 import { useEffect, useRef, useState } from 'preact/hooks';
-import { DOM_IDS, STORAGE_KEYS } from '@/constants';
+import { DOM_IDS, PERSISTED_KEYS } from '@/constants';
 import { NodeKind } from '@/types';
 import type { CommitEntry, DirNode, FileNode } from '@/types';
+import { persistedSignal } from '@/state/persist';
 import { SCENE_HANDLE } from '@/state/stores/scene';
 import { FilePreviewPane } from '@/views/FilePreviewPane';
 import type { FilePreviewPaneState } from '@/views/FilePreviewPane';
@@ -34,31 +35,19 @@ import type { StreetPaneState } from '@/views/StreetPane';
 const SIDEBAR_MIN_WIDTH = 280;
 const SIDEBAR_MAX_WIDTH_RATIO = 0.7; // fraction of viewport width
 
+// Persisted drag-handle width via persistedSignal (the store abstraction) —
+// null until the user first drags (null ⇒ fall back to the CSS default width).
+const RIGHT_SIDEBAR_WIDTH = persistedSignal<number | null>(PERSISTED_KEYS.RIGHT_SIDEBAR_WIDTH, null);
+
 type SidebarPaneKind = 'file' | 'commit' | 'street' | null;
 
 // ── Helpers ──────────────────────────────────────────────────────────
 
-function _persistWidth(w: number): void {
-  if (typeof localStorage === 'undefined') return;
-  try {
-    localStorage.setItem(STORAGE_KEYS.FILE_SIDEBAR_WIDTH, String(w));
-  } catch (_) {
-    /* drop */
-  }
-}
-
-function _readPersistedWidth(): number | null {
-  if (typeof localStorage === 'undefined') return null;
-  try {
-    const raw = localStorage.getItem(STORAGE_KEYS.FILE_SIDEBAR_WIDTH);
-    if (raw == null) return null;
-    const w = parseFloat(raw);
-    if (!Number.isFinite(w)) return null;
-    const maxW = Math.floor(window.innerWidth * SIDEBAR_MAX_WIDTH_RATIO);
-    return Math.min(maxW, Math.max(SIDEBAR_MIN_WIDTH, w));
-  } catch (_) {
-    return null;
-  }
+// Max width is viewport-relative, so clamp at read/apply time rather than
+// storing a clamped value.
+function _clampWidth(w: number): number {
+  const maxW = Math.floor(window.innerWidth * SIDEBAR_MAX_WIDTH_RATIO);
+  return Math.min(maxW, Math.max(SIDEBAR_MIN_WIDTH, w));
 }
 
 // ── ResizeHandle (left edge of the right sidebar) ────────────────────
@@ -90,7 +79,8 @@ function ResizeHandle({ targetRef }: { targetRef: { current: HTMLElement | null 
     dragging.current = false;
     setIsDragging(false);
     (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
-    _persistWidth(liveWidth.current || targetRef.current.offsetWidth);
+    // pointermove already clamped to [MIN, maxW]; persist the final width.
+    RIGHT_SIDEBAR_WIDTH.value = liveWidth.current || targetRef.current.offsetWidth;
   };
 
   return (
@@ -218,11 +208,12 @@ export function RightSidebar() {
     }
   });
 
-  // Apply persisted width on mount.
+  // Apply persisted width on mount (clamped as a guard against a corrupted
+  // stored value / a since-shrunk viewport).
   useEffect(() => {
-    const w = _readPersistedWidth();
+    const w = RIGHT_SIDEBAR_WIDTH.peek();
     if (w != null && sidebarRef.current) {
-      sidebarRef.current.style.setProperty('--sidebar-width', `${w}px`);
+      sidebarRef.current.style.setProperty('--sidebar-width', `${_clampWidth(w)}px`);
     }
   }, []);
 
