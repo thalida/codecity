@@ -389,3 +389,5 @@ export function createPicker({
     dispose,
   };
 }
+
+export type Picker = ReturnType<typeof createPicker>;

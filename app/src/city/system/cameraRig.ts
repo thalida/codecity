@@ -528,3 +528,5 @@ export function createCameraRig({
     dispose,
   };
 }
+
+export type CameraRig = ReturnType<typeof createCameraRig>;
