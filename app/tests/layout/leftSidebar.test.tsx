@@ -2,6 +2,8 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { render } from 'preact';
 import { LeftSidebar } from '@/layout/LeftSidebar';
 import { SCENE_HANDLE } from '@/state/stores/scene';
+import { setManifest } from '@/state/stores/manifest';
+import { EMPTY_MANIFEST } from '@/constants/manifest';
 import { flush } from '../_helpers/preact';
 
 const TEST_TREE = {
@@ -44,8 +46,10 @@ describe('LeftSidebar', () => {
   beforeEach(async () => {
     container = document.createElement('div');
     document.body.appendChild(container);
-    // Seed SCENE_HANDLE so MANIFEST_SIG picks up a manifest to render.
-    // The Preact component reads SCENE_HANDLE in a useSignalEffect.
+    // Seed MANIFEST directly (the fetch layer is the writer now that the
+    // scene→MANIFEST bridge is gone) so the sidebar has a tree to render.
+    // SCENE_HANDLE is still seeded for the picker the panes read.
+    setManifest({ tree: TEST_TREE } as never);
     SCENE_HANDLE.value = makeSceneHandle() as never;
     render(<LeftSidebar />, container);
     await flush();
@@ -55,6 +59,7 @@ describe('LeftSidebar', () => {
     render(null, container);
     document.body.removeChild(container);
     SCENE_HANDLE.value = null;
+    setManifest(EMPTY_MANIFEST as never);
   });
 
   it('mounts an activity bar with one icon per tab', () => {

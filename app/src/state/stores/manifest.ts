@@ -1,52 +1,33 @@
-// state/stores/manifest.ts — The current manifest: a canonical signal mirroring
-// the scene's loaded tree, plus the world-rebuild status that drives the
+// state/stores/manifest.ts — The current manifest: a canonical signal written
+// by the fetch layer, plus the world-rebuild status that drives the
 // footer + loading overlay. All session-scoped (never persisted — a rehydrated
 // REBUILD_STATUS would strand the footer on "rebuilding…" after a reload).
 //
-// The scene (world.getManifest()) is the source of truth; MANIFEST tracks
-// SCENE_HANDLE + world.onChange so view code reads it reactively without
-// reaching into the scene handle. The fetch+apply that drives rebuilds lives in
-// the useCity hook; this module only holds the resulting state + the refresh
-// chokepoint the hook registers into.
+// MANIFEST is the source of truth, written by the fetch layer; view code (and
+// the scene render-effect) read it reactively. The fetch+apply that drives
+// rebuilds lives in the useCity hook; this module only holds the resulting
+// state + the refresh chokepoint the hook registers into.
 
 import { signal, effect } from '@preact/signals';
 import type { Manifest, DirNode } from '@/types';
-import { SCENE_HANDLE } from '@/state/stores/scene';
 import { setLoadingStep } from '@/state/stores/ui';
 import { LoadingStep } from '@/constants/loadingSteps';
 import { EMPTY_MANIFEST } from '@/constants/manifest';
 import { isEmptyManifest } from '@/utils/manifest';
 
 // ── Canonical manifest mirror ────────────────────────────────────────
-
+// Source of truth written by the fetch layer (useManifestSource, added later).
+// The scene (CenterPane's render effect) is a CONSUMER of this signal — it is no
+// longer derived from world.onChange.
 export const MANIFEST = signal<Manifest | DirNode | { tree?: unknown; [k: string]: unknown } | null>(
   EMPTY_MANIFEST
 );
 
-let _installed = false;
-function _installBridge(): void {
-  if (_installed) return;
-  _installed = true;
-  let _worldUnsub: (() => void) | null = null;
-  // effect() tracks SCENE_HANDLE (a signal); world.onChange is a custom
-  // emitter, not a signal, so it stays an explicit subscription.
-  effect(() => {
-    const handle = SCENE_HANDLE.value;
-    if (_worldUnsub) {
-      _worldUnsub();
-      _worldUnsub = null;
-    }
-    if (!handle) {
-      MANIFEST.value = EMPTY_MANIFEST;
-      return;
-    }
-    MANIFEST.value = handle.world.getManifest() ?? EMPTY_MANIFEST;
-    _worldUnsub = handle.world.onChange(() => {
-      MANIFEST.value = handle.world.getManifest() ?? EMPTY_MANIFEST;
-    });
-  });
+/** Set the current manifest (skeleton, final, or live-update). Single writer
+ *  used by the fetch layer; views + the scene render-effect read MANIFEST. */
+export function setManifest(m: Manifest | DirNode | null): void {
+  MANIFEST.value = m ?? EMPTY_MANIFEST;
 }
-_installBridge();
 
 // ── Rebuild status ───────────────────────────────────────────────────
 
