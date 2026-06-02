@@ -15,7 +15,7 @@
 //
 // Shape of the file, top to bottom:
 //   1. small helpers shared by the two stream entry points (pumpManifestStream,
-//      resolveBranch, setSourceInfo, syncUrlToSource)
+//      resolveBranch, setSourceInfo)
 //   2. streamInitialManifest — cold-boot load from ?src
 //   3. applyNewSource        — user picks a new source in the picker
 //   4. setupLiveUpdates      — the background poll loop + its ENABLED gate
@@ -36,8 +36,7 @@ import { getServerConfig } from '@/api/config';
 import { LIVE_UPDATES } from '@/state/stores/settings/updates';
 import {
   SOURCE_INFO,
-  sourceKey,
-  CURRENT_SOURCE_KEY,
+  CURRENT_SOURCE,
   PENDING_SOURCE_LABEL,
   pushRecent,
 } from '@/state/stores/source';
@@ -150,15 +149,6 @@ function setSourceInfo(src: string, manifest: Manifest, branch?: string): void {
   };
 }
 
-/** Reflect the applied source in the page URL so reload/share reopens it. */
-function syncUrlToSource(payload: SourcePayload): void {
-  const url = new URL(window.location.href);
-  url.searchParams.set(URL_PARAMS.SRC, payload.src);
-  if (payload.branch) url.searchParams.set(URL_PARAMS.BRANCH, payload.branch);
-  else url.searchParams.delete(URL_PARAMS.BRANCH);
-  history.replaceState(null, '', url.toString());
-}
-
 // ── Initial boot stream ──────────────────────────────────────────────
 
 interface InitialStreamResult {
@@ -253,9 +243,9 @@ async function applyNewSource(opts: ApplyNewSourceOpts): Promise<void> {
       }
     });
 
-    syncUrlToSource(payload);
-    // cameraRig resets the camera when the active source key changes.
-    CURRENT_SOURCE_KEY.value = sourceKey(payload.src, payload.branch);
+    // Publish the applied source: drives CURRENT_SOURCE_KEY (camera reset),
+    // the page URL (reload/share), and SOURCE_INFO — all derived from this.
+    CURRENT_SOURCE.value = { src: payload.src, branch: payload.branch };
 
     setManifest(manifest);
 
@@ -403,7 +393,10 @@ export function useManifestSource(): (payload: SourcePayload) => void {
     (async () => {
       const qp = new URLSearchParams(window.location.search);
       if (qp.has(URL_PARAMS.SRC)) {
-        CURRENT_SOURCE_KEY.value = sourceKey(qp.get(URL_PARAMS.SRC)!, qp.get(URL_PARAMS.BRANCH) ?? undefined);
+        CURRENT_SOURCE.value = {
+          src: qp.get(URL_PARAMS.SRC)!,
+          branch: qp.get(URL_PARAMS.BRANCH) ?? undefined,
+        };
       }
       const { error: initialError } = await streamInitialManifest();
       if (cancelled) return;

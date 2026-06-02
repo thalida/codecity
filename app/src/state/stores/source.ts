@@ -7,10 +7,11 @@
 // re-hydrating these). RECENTS is persisted — but that's an implementation
 // detail of one field on the same topic, not a separate concern.
 
-import { signal } from '@preact/signals';
+import { signal, computed, effect } from '@preact/signals';
 import { persistedSignal } from '@/state/persist';
 import { PERSISTED_KEYS } from '@/constants/storage';
 import { MAX_RECENT_SOURCES } from '@/constants/ui';
+import { URL_PARAMS } from '@/constants/urlParams';
 
 // ── sourceKey: stable short hash of (src, branch) ────────────────────
 
@@ -35,11 +36,32 @@ export function sourceKey(src: string, branch?: string): string {
 
 // ── Currently-loaded source ──────────────────────────────────────────
 
+/** The applied source ({src, branch}) or null when nothing is loaded
+ *  (cold boot / picker open). Single writer: the fetch hook (useManifestSource),
+ *  on boot from ?src and on each successful new-source apply. */
+export const CURRENT_SOURCE = signal<{ src: string; branch?: string } | null>(null);
+
 /**
- * The currently-loaded source's hash, or null when no source is loaded
- * (modal-open / first boot). Set by boot and on every successful modal submit.
+ * The currently-loaded source's stable hash, or null when no source is loaded.
+ * Derived from CURRENT_SOURCE — used to namespace per-source localStorage.
  */
-export const CURRENT_SOURCE_KEY = signal<string | null>(null);
+export const CURRENT_SOURCE_KEY = computed<string | null>(() =>
+  CURRENT_SOURCE.value ? sourceKey(CURRENT_SOURCE.value.src, CURRENT_SOURCE.value.branch) : null
+);
+
+// Reflect the applied source in the page URL so reload/share reopens it. A
+// module-level effect on CURRENT_SOURCE (no imperative syncUrlToSource in the
+// fetch layer). No-ops while null (cold boot / picker open) so we never clobber
+// the URL before a source is applied.
+effect(() => {
+  const cur = CURRENT_SOURCE.value;
+  if (!cur) return;
+  const url = new URL(window.location.href);
+  url.searchParams.set(URL_PARAMS.SRC, cur.src);
+  if (cur.branch) url.searchParams.set(URL_PARAMS.BRANCH, cur.branch);
+  else url.searchParams.delete(URL_PARAMS.BRANCH);
+  history.replaceState(null, '', url.toString());
+});
 
 /**
  * Label of the source currently being LOADED (from the server's `display_root`),
