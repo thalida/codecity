@@ -38,6 +38,7 @@ import {
   SOURCE_INFO,
   sourceKey,
   CURRENT_SOURCE_KEY,
+  PENDING_SOURCE_LABEL,
   pushRecent,
 } from '@/state/stores/source';
 import { SERVER_CONFIG } from '@/state/stores/serverConfig';
@@ -59,7 +60,6 @@ import {
 } from '@/state/stores/ui';
 import { srcKind, SourceKind, labelFromUrl, labelFromManifest } from '@/utils/sources';
 import { isEmptyManifest } from '@/utils/manifest';
-import { applyPendingTitle } from '@/utils/pendingTitle';
 import { LoadingStep } from '@/constants/loadingSteps';
 import { URL_PARAMS } from '@/constants/urlParams';
 import type { Manifest } from '@/types';
@@ -102,8 +102,9 @@ async function pumpManifestStream(
     if (event.phase === ScanPhase.Error) throw new Error(event.error);
 
     if (!titleApplied && 'display_root' in event && event.display_root) {
-      applyPendingTitle(event.display_root);
-      setLoadingPendingLabel(labelFromUrl(event.display_root));
+      const pendingLabel = labelFromUrl(event.display_root) ?? null;
+      PENDING_SOURCE_LABEL.value = pendingLabel;
+      setLoadingPendingLabel(pendingLabel);
       titleApplied = true;
     }
 
@@ -202,6 +203,7 @@ async function streamInitialManifest(): Promise<InitialStreamResult> {
     // MANIFEST stays at its current (empty) value.
   } finally {
     hideLoadingOverlay();
+    PENDING_SOURCE_LABEL.value = null;
   }
 
   return { error };
@@ -284,6 +286,7 @@ async function applyNewSource(opts: ApplyNewSourceOpts): Promise<void> {
     });
   } finally {
     hideLoadingOverlay();
+    PENDING_SOURCE_LABEL.value = null;
   }
 }
 

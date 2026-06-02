@@ -1,19 +1,23 @@
-// hooks/useDocumentTitle.ts — Keeps document.title in sync with the
-// canonical MANIFEST signal: "{label} — codecity" once a project is loaded,
-// plain "codecity" otherwise. Called once from <App />.
-//
-// This replaces the imperative world.onChange → document.title assignment that
-// lived in the boot sequence (now useManifestSource). The "(pending) — codecity" title shown mid-load is
-// still set by applyPendingTitle() during streaming; once a manifest lands,
-// MANIFEST updates and this effect overwrites it with the final title.
+// hooks/useDocumentTitle.ts — The single owner of document.title. Reacts to the
+// canonical signals: while a source is LOADING it shows "{pending} (pending) —
+// codecity" (from PENDING_SOURCE_LABEL); otherwise "{label} — codecity" derived
+// from MANIFEST, or plain "codecity" when nothing is loaded. Called once from
+// <App />. (Replaces the old split where the fetch layer poked document.title
+// directly via applyPendingTitle during streaming.)
 
 import { useSignalEffect } from '@preact/signals';
 import { MANIFEST } from '@/state/stores/manifest';
+import { PENDING_SOURCE_LABEL } from '@/state/stores/source';
 import { labelFromManifest } from '@/utils/sources';
 import type { Manifest } from '@/types';
 
 export function useDocumentTitle(): void {
   useSignalEffect(() => {
+    const pending = PENDING_SOURCE_LABEL.value;
+    if (pending !== null) {
+      document.title = pending ? `${pending} (pending) — codecity` : 'codecity';
+      return;
+    }
     const m = MANIFEST.value;
     const label =
       labelFromManifest(m as Manifest | null) ??
