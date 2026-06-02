@@ -1228,6 +1228,16 @@ export function createWorld(_canvas: HTMLCanvasElement) {
       }
 
       REBUILD_STATUS.value = RebuildStatus.Idle;
+    } else {
+      // No deferred decoration pass (trees disabled, or an empty/degenerate
+      // bbox), so there's no async foliage work to await — drop straight back
+      // to Idle. Without this, a caller that flipped REBUILD_STATUS to
+      // Rebuilding (the live-update render effect in useCityScene, or a
+      // settings rebuild) would never be cleared and the footer dot would
+      // stick yellow. Superseded applies bail via the early returns inside the
+      // if-branch above and never reach here, so they can't clobber the status
+      // of a newer apply that has already taken over.
+      REBUILD_STATUS.value = RebuildStatus.Idle;
     }
   }
 

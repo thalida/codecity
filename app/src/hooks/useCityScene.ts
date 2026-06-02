@@ -9,6 +9,7 @@ import { effect } from '@preact/signals';
 import { startRenderLoop } from '@/scene/renderLoop';
 import { attachCommitReactions } from '@/state/settingsReactions';
 import { SCENE_HANDLE } from '@/state/stores/scene';
+import { LOADING_OVERLAY } from '@/state/stores/ui';
 import { MANIFEST, REBUILD_STATUS, RebuildStatus, LAST_REBUILD_ERROR } from '@/state/stores/manifest';
 import { EMPTY_MANIFEST } from '@/constants/manifest';
 import { isEmptyManifest } from '@/utils/manifest';
@@ -31,12 +32,25 @@ export function useCityScene(canvasRef: RefObject<HTMLCanvasElement | null>): vo
 
       // Apply MANIFEST → scene on every change. world.applyManifest owns its own
       // skeleton→final tween + the Decorating→Idle status; this effect owns only
-      // the Rebuilding flip (on non-initial changes) + a render-error surface.
+      // the Rebuilding flip + a render-error surface.
       let first = true;
       unsubApply = effect(() => {
         const m = MANIFEST.value as Manifest;
         if (isEmptyManifest(m)) return; // nothing to build yet
-        if (!first) REBUILD_STATUS.value = RebuildStatus.Rebuilding;
+        // Show the footer "rebuilding" dot only for changes AFTER the initial
+        // load settles — i.e. background live-updates. Two guards together:
+        //   • `first`          — the scene's very first real apply (covers the
+        //                         fast-fetch / slow-scene boot ordering where the
+        //                         overlay is already down when this effect's
+        //                         first run fires).
+        //   • overlay.visible  — the cold-boot / source-switch skeleton+final
+        //                         applies all land while the loading overlay is
+        //                         up; the overlay is their UX, so don't also
+        //                         flash the dot. peek() so this effect tracks
+        //                         only MANIFEST, never the overlay signal.
+        if (!first && !LOADING_OVERLAY.peek().visible) {
+          REBUILD_STATUS.value = RebuildStatus.Rebuilding;
+        }
         first = false;
         void handle.world.applyManifest(m).then(
           () => { LAST_REBUILD_ERROR.value = null; },
