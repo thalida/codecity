@@ -13,16 +13,18 @@
 //                     rainbow color cycle on selectedOutline
 //
 // Subscribes to picker.hover and picker.selection (toggle visibility).
-// refreshMaterials() is called by applyTheme() to push BUILDING_OUTLINE config
+// refreshMaterials() is called by applyTheme() to push BUILDINGS config
 // changes into the two outline materials.
 
 import * as THREE from 'three';
+import { effect } from '@preact/signals';
 import { LineSegments2 } from 'three/addons/lines/LineSegments2.js';
 import { LineSegmentsGeometry } from 'three/addons/lines/LineSegmentsGeometry.js';
 import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
 
-import { BUILDING_OUTLINE, RAINBOW } from '@/state/settings/index';
-import { RENDER_ORDERS } from '@/constants';
+import { BUILDINGS } from '@/state/stores/settings/buildings';
+import { RAINBOW } from '@/state/stores/settings/effects';
+import { RENDER_ORDERS } from '@/scene/renderOrders';
 import { NodeKind } from '@/types';
 import { UNIT_BOX_EDGE_POSITIONS } from '@/scene/world';
 import { getBuildingTilt } from '@/scene/components/buildings/buildingTilt';
@@ -41,16 +43,16 @@ export function createOutlineRenderer({
   world: ReturnType<typeof createWorld>;
   picker: ReturnType<typeof createPicker>;
 }) {
-  const _bo = BUILDING_OUTLINE.get();
+  const _bo = BUILDINGS.value;
 
   // ── Hover outline (single shared mesh, retransformed per frame) ─────
   const _unitEdgesGeo = new LineSegmentsGeometry();
   _unitEdgesGeo.setPositions(UNIT_BOX_EDGE_POSITIONS);
   const hoverLineMat = new LineMaterial({
-    color: new THREE.Color(_bo.HOVER_COLOR),
-    linewidth: _bo.WIDTH,
+    color: new THREE.Color(_bo.OUTLINE_HOVER_COLOR),
+    linewidth: _bo.OUTLINE_WIDTH,
     transparent: true,
-    opacity: _bo.HOVER_OPACITY,
+    opacity: _bo.OUTLINE_HOVER_OPACITY,
     depthTest: true,
     worldUnits: false,
   });
@@ -64,9 +66,9 @@ export function createOutlineRenderer({
   // ── Selected outline (per-vertex rainbow chasing) ───────────────────
   const selectedLineMat = new LineMaterial({
     vertexColors: true,
-    linewidth: _bo.WIDTH,
+    linewidth: _bo.OUTLINE_WIDTH,
     transparent: true,
-    opacity: _bo.SELECTED_OPACITY,
+    opacity: _bo.OUTLINE_SELECTED_OPACITY,
     depthTest: true,
     worldUnits: false,
   });
@@ -171,7 +173,7 @@ export function createOutlineRenderer({
   }
 
   function _setSegHueGradient(segIdx: number, hueStart: number, hueEnd: number): void {
-    const rb = RAINBOW.get();
+    const rb = RAINBOW.value;
     const k = segIdx * 6;
     _tmpHsl.setHSL(((hueStart % 1) + 1) % 1, rb.SATURATION, rb.LIGHTNESS);
     _selectedColors[k] = _tmpHsl.r;
@@ -183,11 +185,10 @@ export function createOutlineRenderer({
     _selectedColors[k + 5] = _tmpHsl.b;
   }
 
-  // ── Reactive: show/hide outlines on selection / hover changes ───────
-  //
-  // On a selection change we snap the outline into place immediately so
-  // there is no one-frame lag before update() runs.
-  picker.selection.subscribe((sel) => {
+  // Show/hide outlines on selection / hover changes. Snap into place
+  // synchronously so there's no one-frame lag before update() runs.
+  effect(() => {
+    const sel = picker.selection.value;
     if (sel && sel.kind === NodeKind.File) {
       _syncOutlineToTarget(selectedOutline, sel);
       selectedOutline.visible = true;
@@ -196,12 +197,14 @@ export function createOutlineRenderer({
     }
   });
 
-  // For the hover-vs-selection dedup we compare by file path rather than
-  // mesh reference — in the InstancedMesh world all buildings in the same
-  // block share the same mesh object, so reference comparison would wrongly
-  // hide the hover outline for any two buildings in the same block.
-  picker.hover.subscribe((h) => {
-    const sel = picker.selection.get();
+  // Hover-vs-selection dedup compares by file path (not mesh reference) —
+  // InstancedMesh buildings in the same block share the same mesh, so a
+  // reference comparison would hide the hover outline for any second
+  // building in the block. .peek() the selection so this effect re-runs
+  // ONLY on hover change, not selection change.
+  effect(() => {
+    const h = picker.hover.value;
+    const sel = picker.selection.peek();
     const selPath = sel?.kind === NodeKind.File ? sel.file?.path : null;
     if (h && h.kind === NodeKind.File && h.file?.path !== selPath) {
       _syncOutlineToTarget(hoverOutline, h);
@@ -219,7 +222,7 @@ export function createOutlineRenderer({
     // instance AND advance the rainbow color chase. Bottom + top form
     // continuous 4-edge loops; verticals take a single hue from their
     // bottom corner so the loop chase stays seamless.
-    const sel = picker.selection.get();
+    const sel = picker.selection.value;
     if (sel && sel.kind === NodeKind.File) {
       _syncOutlineToTarget(selectedOutline, sel);
       // Rainbow chase around the cube. The 12 cube edges split into 3
@@ -231,7 +234,7 @@ export function createOutlineRenderer({
       //     the quartered cycle, hinting at where the bottom/top edges
       //     start and end so the rainbow reads as continuous around the
       //     entire silhouette
-      const t = performance.now() * RAINBOW.get().SPEED;
+      const t = performance.now() * RAINBOW.value.SPEED;
       const HUE_STEPS = 4; // edges per face → quartered hue cycle
       const HUE_STEP = 1 / HUE_STEPS;
       for (let i = 0; i < HUE_STEPS; i++) {
@@ -246,22 +249,22 @@ export function createOutlineRenderer({
     }
 
     // Hover: keep transform pinned in case the building is still animating.
-    const hov = picker.hover.get();
+    const hov = picker.hover.value;
     const selPath = sel?.kind === NodeKind.File ? sel.file?.path : null;
     if (hov && hov.kind === NodeKind.File && hov.file?.path !== selPath) {
       _syncOutlineToTarget(hoverOutline, hov);
     }
   }
 
-  // applyTheme() coordinator hook: push fresh BUILDING_OUTLINE values
+  // applyTheme() coordinator hook: push fresh BUILDINGS values
   // into the two outline materials we own.
   function refreshMaterials(): void {
-    const outline = BUILDING_OUTLINE.get();
-    hoverLineMat.color.set(outline.HOVER_COLOR);
-    hoverLineMat.linewidth = outline.WIDTH;
-    hoverLineMat.opacity = outline.HOVER_OPACITY;
-    selectedLineMat.linewidth = outline.WIDTH;
-    selectedLineMat.opacity = outline.SELECTED_OPACITY;
+    const outline = BUILDINGS.value;
+    hoverLineMat.color.set(outline.OUTLINE_HOVER_COLOR);
+    hoverLineMat.linewidth = outline.OUTLINE_WIDTH;
+    hoverLineMat.opacity = outline.OUTLINE_HOVER_OPACITY;
+    selectedLineMat.linewidth = outline.OUTLINE_WIDTH;
+    selectedLineMat.opacity = outline.OUTLINE_SELECTED_OPACITY;
   }
 
   // Window-resize hook. LineMaterial needs the current canvas size for

@@ -1,4 +1,4 @@
-// scene/island/islandShader.ts — ShaderMaterial for the floating island.
+// scene/components/island/islandShader.ts — ShaderMaterial for the floating island.
 //
 // Hemispheric lighting model: warm HEMI_SKY_COLOR from +Y, cool
 // HEMI_GROUND_COLOR from -Y, blended by normal.y. No sun direction
@@ -6,7 +6,7 @@
 // day/night cycle.
 
 import * as THREE from 'three';
-import { ISLAND_MATERIALS } from '@/state/settings/components/island';
+import { ISLAND } from '@/state/stores/settings/island';
 
 const vertSrc = /* glsl */ `
 attribute vec3 color;
@@ -57,7 +57,7 @@ void main() {
 `;
 
 export function createIslandMaterial(): THREE.ShaderMaterial {
-  const mats = ISLAND_MATERIALS.get();
+  const mats = ISLAND.value;
   return new THREE.ShaderMaterial({
     vertexShader: vertSrc,
     fragmentShader: fragSrc,

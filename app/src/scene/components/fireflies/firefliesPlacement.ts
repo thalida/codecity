@@ -1,4 +1,4 @@
-// scene/fireflies/firefliesPlacement.ts — given a TreePlacement[]
+// scene/components/fireflies/firefliesPlacement.ts — given a TreePlacement[]
 // and the manifest commit list, emit one firefly orb per distinct
 // author of each commit (primary + Co-authored-by trailers).
 // Position is deterministic (seeded by commit SHA + author name) so
@@ -10,8 +10,8 @@
 
 import type { CommitEntry } from '@/types';
 import type { TreePlacement } from '@/scene/components/trees/treePlacement';
-import { TREES } from '@/state/settings/components/trees';
-import { FIREFLIES } from '@/state/settings/components/fireflies';
+import { TREES } from '@/state/stores/settings/trees';
+import { FIREFLIES } from '@/state/stores/settings/fireflies';
 import {
   computeAgeRange,
   computeSizeRange,
@@ -77,14 +77,14 @@ export function placeFireflies(
 ): FireflyPlacement[] {
   if (!commits || commits.length === 0) return [];
 
-  const fireflyConfig = FIREFLIES.get();
+  const fireflyConfig = FIREFLIES.value;
 
   // Tally per-author commit count. A co-authored commit increments
   // each distinct author's count by 1 — co-authorship counts as full
   // credit toward firefly scale.
   const counts = new Map<string, number>();
   for (const c of commits) {
-    for (const author of c.authors) {
+    for (const author of c.authors ?? []) {
       counts.set(author, (counts.get(author) ?? 0) + 1);
     }
   }
@@ -115,11 +115,11 @@ export function placeFireflies(
     }
   }
 
-  const cfg = TREES.get();
-  const minHeight = cfg.TREE_MIN_HEIGHT;
-  const maxHeight = cfg.TREE_MAX_HEIGHT;
-  const minRadius = cfg.TREE_MIN_WIDTH / 2;
-  const maxRadius = cfg.TREE_MAX_WIDTH / 2;
+  const cfg = TREES.value;
+  const minHeight = cfg.MIN_HEIGHT;
+  const maxHeight = cfg.MAX_HEIGHT;
+  const minRadius = cfg.MIN_WIDTH / 2;
+  const maxRadius = cfg.MAX_WIDTH / 2;
 
   const ageRange = computeAgeRange(commits);
   const sizeRange = computeSizeRange(commits);
@@ -139,7 +139,7 @@ export function placeFireflies(
   }
 
   /** Canopy XZ radius for tree at index i, mirroring treeRenderer's perTreeRadius.
-   *  Includes age-attenuation (TREE_WIDTH_AGE_FLOOR) so short young trees
+   *  Includes age-attenuation (WIDTH_AGE_FLOOR) so short young trees
    *  aren't adult-wide. */
   function treeRadius(commitIndex: number): number {
     const commit = commits[commitIndex];
@@ -153,7 +153,7 @@ export function placeFireflies(
     const heightRange = Math.max(0.001, maxHeight - minHeight);
     const h = treeHeight(commitIndex);
     const heightRatio = (h - minHeight) / heightRange;
-    const floor = Math.max(0, Math.min(1, cfg.TREE_WIDTH_AGE_FLOOR));
+    const floor = Math.max(0, Math.min(1, cfg.WIDTH_AGE_FLOOR));
     const ageAttenuation = floor + (1 - floor) * heightRatio;
     return baseRadius * ageAttenuation;
   }
@@ -167,7 +167,7 @@ export function placeFireflies(
     const canopyRadius = treeRadius(p.commitIndex);
     const height = treeHeight(p.commitIndex);
 
-    for (const author of commit.authors) {
+    for (const author of commit.authors ?? []) {
       const rng = seededRng(`${commit.sha}:${author}`);
       const pulseRng = seededRng(`${commit.sha}:p:${author}`);
       const color = colorForAuthor(author);

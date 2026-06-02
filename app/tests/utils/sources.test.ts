@@ -1,5 +1,12 @@
 import { describe, it, expect } from 'vitest';
-import { labelFromManifest, labelFromUrl, srcKind, toHttpsRepoUrl } from '@/utils/sources';
+import {
+  labelFromManifest,
+  labelFromUrl,
+  srcKind,
+  SourceKind,
+  toHttpsRepoUrl,
+  repoUrlForBranch,
+} from '@/utils/sources';
 import type { Manifest } from '@/types/manifest';
 
 // Test helper: build the minimal Manifest shape labelFromManifest reads,
@@ -110,16 +117,57 @@ describe('toHttpsRepoUrl', () => {
   });
 });
 
+describe('repoUrlForBranch', () => {
+  it('uses /tree for GitHub and sr.ht', () => {
+    expect(repoUrlForBranch('https://github.com/foo/bar', 'main')).toBe(
+      'https://github.com/foo/bar/tree/main'
+    );
+    expect(repoUrlForBranch('https://sr.ht/~foo/bar', 'main')).toBe(
+      'https://sr.ht/~foo/bar/tree/main'
+    );
+  });
+
+  it('uses /-/tree for GitLab', () => {
+    expect(repoUrlForBranch('https://gitlab.com/foo/bar', 'dev')).toBe(
+      'https://gitlab.com/foo/bar/-/tree/dev'
+    );
+  });
+
+  it('uses /src/branch for Gitea/Forgejo/Codeberg', () => {
+    expect(repoUrlForBranch('https://codeberg.org/foo/bar', 'main')).toBe(
+      'https://codeberg.org/foo/bar/src/branch/main'
+    );
+  });
+
+  it('uses /src for Bitbucket', () => {
+    expect(repoUrlForBranch('https://bitbucket.org/foo/bar', 'main')).toBe(
+      'https://bitbucket.org/foo/bar/src/main'
+    );
+  });
+
+  it('encodes slashes and other special chars in the branch ref', () => {
+    expect(repoUrlForBranch('https://github.com/foo/bar', 'feature/x')).toBe(
+      'https://github.com/foo/bar/tree/feature%2Fx'
+    );
+  });
+
+  it('returns the bare repo URL for unrecognised hosts', () => {
+    expect(repoUrlForBranch('https://example.com/foo/bar', 'main')).toBe(
+      'https://example.com/foo/bar'
+    );
+  });
+});
+
 describe('srcKind', () => {
   it('classifies https URLs as git', () => {
-    expect(srcKind('https://github.com/foo/bar.git')).toBe('git');
+    expect(srcKind('https://github.com/foo/bar.git')).toBe(SourceKind.Git);
   });
   it('classifies SSH URLs as git', () => {
-    expect(srcKind('git@github.com:foo/bar.git')).toBe('git');
+    expect(srcKind('git@github.com:foo/bar.git')).toBe(SourceKind.Git);
   });
   it('classifies local paths as local', () => {
-    expect(srcKind('/Users/x/repo')).toBe('local');
-    expect(srcKind('./relative')).toBe('local');
-    expect(srcKind('bare-name')).toBe('local');
+    expect(srcKind('/Users/x/repo')).toBe(SourceKind.Local);
+    expect(srcKind('./relative')).toBe(SourceKind.Local);
+    expect(srcKind('bare-name')).toBe(SourceKind.Local);
   });
 });

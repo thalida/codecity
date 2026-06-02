@@ -1,4 +1,4 @@
-// scene/trees/treePlacementClient.ts — main-thread companion to
+// scene/components/trees/treePlacementClient.ts — main-thread companion to
 // treePlacementWorker.ts. Lazily spins up the worker on first
 // compute(), sends a config snapshot + layout, returns a promise that
 // resolves to TreePlacement[]. Supersedes any pending request when a
@@ -8,11 +8,14 @@
 
 import { placeTrees, type TreePlacement } from './treePlacement';
 import { MSG } from './treePlacementProtocol';
-import { TREES } from '@/state/settings/components/trees';
-import { BUILDING_DIMENSIONS } from '@/state/settings/components/buildings';
-import { FOOTPRINT } from '@/state/settings/components/footprint';
-import { ISLAND_GEOMETRY } from '@/state/settings/components/island';
-import { WORLD } from '@/state/settings/world/world';
+import { TREES, type TreesConfig } from '@/state/stores/settings/trees';
+import {
+  BUILDING_DIMENSIONS,
+  type BuildingDimensionsConfig,
+} from '@/state/stores/settings/buildings';
+import { FOOTPRINT, type FootprintConfig } from '@/state/stores/settings/footprint';
+import { ISLAND, type IslandConfig } from '@/state/stores/settings/island';
+import { WORLD, type WorldConfig } from '@/state/stores/settings/scene';
 import type { CityBbox, CityLayout } from '@/types';
 
 interface PendingRequest {
@@ -21,11 +24,11 @@ interface PendingRequest {
 }
 
 interface ConfigSnapshot {
-  trees: ReturnType<typeof TREES.get>;
-  buildingDims: ReturnType<typeof BUILDING_DIMENSIONS.get>;
-  footprint: ReturnType<typeof FOOTPRINT.get>;
-  islandGeo: ReturnType<typeof ISLAND_GEOMETRY.get>;
-  world: ReturnType<typeof WORLD.get>;
+  trees: TreesConfig;
+  buildingDims: BuildingDimensionsConfig;
+  footprint: FootprintConfig;
+  islandGeo: IslandConfig;
+  world: WorldConfig;
 }
 
 export interface TreePlacementClient {
@@ -40,11 +43,11 @@ export interface TreePlacementClient {
 
 function _snapshot(): ConfigSnapshot {
   return {
-    trees: TREES.get(),
-    buildingDims: BUILDING_DIMENSIONS.get(),
-    footprint: FOOTPRINT.get(),
-    islandGeo: ISLAND_GEOMETRY.get(),
-    world: WORLD.get(),
+    trees: TREES.value,
+    buildingDims: BUILDING_DIMENSIONS.value,
+    footprint: FOOTPRINT.value,
+    islandGeo: ISLAND.value,
+    world: WORLD.value,
   };
 }
 

@@ -612,12 +612,12 @@ class ManifestStreamTests(unittest.TestCase):
         self.assertEqual(len(manifest_events), 1)
         self.assertEqual(manifest_events[0]["phase"], "final")
 
-    def test_no_cache_skips_lookup_and_save(self) -> None:
+    def test_no_cache_skips_lookup_but_still_writes(self) -> None:
         with TemporaryDirectory() as td:
             self._make_tiny_repo(td)
             # Warm the cache first.
             self._http.request_stream(self.server_port, f"/api/manifest?src={td}")
-            # no_cache=true should NOT serve from cache.
+            # no_cache=true should NOT serve from cache (forces a fresh scan).
             _, events = self._http.request_stream(
                 self.server_port, f"/api/manifest?src={td}&no_cache=true",
             )
@@ -625,9 +625,10 @@ class ManifestStreamTests(unittest.TestCase):
             self.assertEqual(
                 len(manifest_events), 2, "no_cache should force a fresh scan",
             )
-            # Delete the cache file and verify no_cache also skipped
-            # the save — the cache should remain absent after this
-            # request.
+            # Clear the cache, then run another no_cache scan. `use_cache`
+            # gates only the READ — a fresh scan must STILL write its result,
+            # so the next normal load is served up-to-date data instead of a
+            # stale (or absent) manifest.
             import shutil
             shutil.rmtree(self.cache_root, ignore_errors=True)
             self.cache_root.mkdir(parents=True, exist_ok=True)
@@ -635,11 +636,10 @@ class ManifestStreamTests(unittest.TestCase):
                 self.server_port, f"/api/manifest?src={td}&no_cache=true",
             )
             manifests_dir = self.cache_root / "manifests"
-            if manifests_dir.exists():
-                self.assertEqual(
-                    list(manifests_dir.iterdir()), [],
-                    "no_cache=true must not write to the manifest cache",
-                )
+            self.assertTrue(
+                manifests_dir.exists() and list(manifests_dir.iterdir()),
+                "no_cache=true must still WRITE the manifest cache (read-only flag)",
+            )
 
     def test_skeleton_has_placeholder_lines(self) -> None:
         import subprocess

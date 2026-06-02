@@ -1,5 +1,6 @@
 import { defineConfig } from 'vite';
 import { resolve } from 'node:path';
+import preact from '@preact/preset-vite';
 
 // Vite root is this directory. Build output lands in ./dist/ — the
 // Dockerfile copies app/dist/ into the runtime image's static dir, and
@@ -13,6 +14,7 @@ const appDir = import.meta.dirname;
 export default defineConfig({
   root: appDir,
   base: './',
+  plugins: [preact()],
   resolve: {
     // `@/` maps to app/src so cross-directory imports stay short and
     // survive file moves. Mirrored in tsconfig.json paths and

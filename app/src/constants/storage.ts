@@ -8,16 +8,17 @@
 
 export const STORAGE_PREFIX = 'cc.';
 
-/** Per-source key namespace: `cc.source.<sourceKey>.<baseName>`. Used by
- *  persistAtomPerSource so each loaded source gets an isolated localStorage
- *  slot for its picker selection. */
-export const STORAGE_PER_SOURCE_PREFIX = `${STORAGE_PREFIX}source.`;
-
-export const STORAGE_KEYS = {
-  /** Right (file-preview) sidebar drag-handle width in px. */
-  FILE_SIDEBAR_WIDTH: `${STORAGE_PREFIX}fileSidebarWidth`,
+/** Bare keys for persistedSignal()-backed stores. These are BARE suffixes —
+ *  persistedSignal() prepends STORAGE_PREFIX itself, so the effective slot is
+ *  e.g. `cc.recents`. All persisted UI/session state flows through here; there
+ *  is no separate raw-localStorage key table. */
+export const PERSISTED_KEYS = {
+  /** Recently-opened sources list (source-picker MRU). */
+  RECENTS: 'recents',
   /** Left (tree/info/controls) sidebar drag-handle width in px. */
-  SIDEBAR_WIDTH: `${STORAGE_PREFIX}sidebarWidth`,
-  /** Left sidebar collapsed state ('true' iff collapsed). */
-  SIDEBAR_COLLAPSED: `${STORAGE_PREFIX}sidebarCollapsed`,
+  LEFT_SIDEBAR_WIDTH: 'leftSidebarWidth',
+  /** Right (file/commit/street pane) sidebar drag-handle width in px. */
+  RIGHT_SIDEBAR_WIDTH: 'rightSidebarWidth',
+  /** Left sidebar collapsed state. */
+  LEFT_SIDEBAR_COLLAPSED: 'leftSidebarCollapsed',
 } as const;

@@ -29,9 +29,9 @@
 
 import * as THREE from 'three';
 
-import { BUILDING_DIMENSIONS } from '@/state/settings/components/buildings';
-import { REPO_LABEL } from '@/state/settings/components/repoLabel';
-import { RENDER_ORDERS } from '@/constants';
+import { BUILDING_DIMENSIONS } from '@/state/stores/settings/buildings';
+import { REPO_LABEL } from '@/state/stores/settings/gem';
+import { RENDER_ORDERS } from '@/scene/renderOrders';
 
 import vertSrc from './holoQuad.vert.glsl?raw';
 import beamFragSrc from './holoBeam.frag.glsl?raw';
@@ -168,11 +168,11 @@ export function createRepoLabel(): RepoLabel {
   // bob animation).
   function _updateBeamGeometry(): void {
     if (!beamMesh) return;
-    const cfg = REPO_LABEL.get();
+    const cfg = REPO_LABEL.value;
     const halfFont = cfg.FONT_SIZE / 2;
     const beamRadius = cfg.FONT_SIZE * BEAM_RADIUS_FRAC;
 
-    const dims = BUILDING_DIMENSIONS.get();
+    const dims = BUILDING_DIMENSIONS.value;
     const maxBldgH = dims.MAX_FLOORS * dims.FLOOR_HEIGHT;
     const heightWorld = maxBldgH * (cfg.HEIGHT_PCT / 100);
 
@@ -189,9 +189,9 @@ export function createRepoLabel(): RepoLabel {
   }
 
   function _applyTransform(): void {
-    const cfg = REPO_LABEL.get();
+    const cfg = REPO_LABEL.value;
     const halfFont = cfg.FONT_SIZE / 2;
-    const dims = BUILDING_DIMENSIONS.get();
+    const dims = BUILDING_DIMENSIONS.value;
     const maxBldgH = dims.MAX_FLOORS * dims.FLOOR_HEIGHT;
     const heightWorld = maxBldgH * (cfg.HEIGHT_PCT / 100);
     // Group origin = panel center. Panel bottom = heightWorld above the
@@ -210,13 +210,13 @@ export function createRepoLabel(): RepoLabel {
   }
 
   function _applyOpacity(): void {
-    const opacity = REPO_LABEL.get().OPACITY;
+    const opacity = REPO_LABEL.value.OPACITY;
     if (panelMat) panelMat.uniforms.uOpacity.value = opacity;
     if (beamMat) beamMat.uniforms.uOpacity.value = opacity;
   }
 
   function _applyColors(): void {
-    const cfg = REPO_LABEL.get();
+    const cfg = REPO_LABEL.value;
     if (beamMat) (beamMat.uniforms.uColor.value as THREE.Color).set(cfg.BEAM_COLOR);
     if (panelMat) (panelMat.uniforms.uTint.value as THREE.Color).set(cfg.TEXT_COLOR);
   }
@@ -260,7 +260,7 @@ export function createRepoLabel(): RepoLabel {
       depthWrite: false,
       side: THREE.DoubleSide,
       uniforms: {
-        uColor: { value: new THREE.Color(REPO_LABEL.get().BEAM_COLOR) },
+        uColor: { value: new THREE.Color(REPO_LABEL.value.BEAM_COLOR) },
         uTime: { value: 0 },
         uOpacity: { value: 1.0 },
       },
@@ -282,7 +282,7 @@ export function createRepoLabel(): RepoLabel {
       uniforms: {
         uMap: { value: textTex.texture },
         uTime: { value: 0 },
-        uTint: { value: new THREE.Color(REPO_LABEL.get().TEXT_COLOR) },
+        uTint: { value: new THREE.Color(REPO_LABEL.value.TEXT_COLOR) },
         uOpacity: { value: 1.0 },
       },
     });
@@ -334,7 +334,7 @@ export function createRepoLabel(): RepoLabel {
 
   function tick(dtSeconds: number, camera: THREE.Camera): void {
     if (!panelMesh || !panelMat) return;
-    const cfg = REPO_LABEL.get();
+    const cfg = REPO_LABEL.value;
     if (!cfg.ENABLED) return;
     const dtScaled = dtSeconds * cfg.ANIMATION_SPEED;
     panelMat.uniforms.uTime.value += dtScaled;
@@ -382,10 +382,10 @@ export function createRepoLabel(): RepoLabel {
     halfHeight: number;
   } | null {
     if (!panelMesh || !textTex) return null;
-    const cfg = REPO_LABEL.get();
+    const cfg = REPO_LABEL.value;
     if (!cfg.ENABLED) return null;
     const halfFont = cfg.FONT_SIZE / 2;
-    const dims = BUILDING_DIMENSIONS.get();
+    const dims = BUILDING_DIMENSIONS.value;
     const maxBldgH = dims.MAX_FLOORS * dims.FLOOR_HEIGHT;
     const heightWorld = maxBldgH * (cfg.HEIGHT_PCT / 100);
     // Mirror _applyTransform: panel center sits at anchor.y + heightWorld

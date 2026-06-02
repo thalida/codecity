@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { getWorldBounds } from '@/scene/layout/worldBounds';
-import { WORLD } from '@/state/settings/world/world';
+import { WORLD } from '@/state/stores/settings/scene';
 import { bbox } from '../../_helpers/cityFixtures';
 
 // All formulas below assume the default GROUND_BUFFER_PERCENT of 30 and
@@ -8,7 +8,7 @@ import { bbox } from '../../_helpers/cityFixtures';
 // stable when the defaults shift again.
 describe('worldBounds', () => {
   beforeEach(() => {
-    WORLD.setKey('GROUND_BUFFER_PERCENT', 30);
+    WORLD.value = { ...WORLD.value, GROUND_BUFFER_PERCENT: 30 };
   });
 
   it('returns fallback rectangle when bbox is null', () => {
@@ -67,7 +67,7 @@ describe('worldBounds', () => {
   });
 
   it('GROUND_BUFFER_PERCENT slider scales the buffer linearly', () => {
-    WORLD.setKey('GROUND_BUFFER_PERCENT', 60);
+    WORLD.value = { ...WORLD.value, GROUND_BUFFER_PERCENT: 60 };
     // 10000-wide. characteristic = 10000, buffer = 10000*0.60 = 6000.
     // halfWidth = 10000/2 + 6000 = 11000.
     const b = getWorldBounds(bbox(0, 0, 10000, 10000));

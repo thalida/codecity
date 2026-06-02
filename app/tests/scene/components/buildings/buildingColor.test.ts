@@ -7,13 +7,13 @@ import {
   getBuildingColor,
   getModifiedAge,
 } from '@/scene/components/buildings/buildingColor';
-import { BUILDING_PALETTE } from '@/state/settings/index';
-import type { BuildingPaletteConfig } from '@/state/settings/components/buildings';
+import { BUILDINGS } from '@/state/stores/settings/buildings';
+import type { BuildingsConfig } from '@/state/stores/settings/buildings';
 import { NodeKind } from '@/types';
 import type { RangeStat } from '@/types';
 
 // Test palette + saturation/lightness ranges. Mutated into the
-// BUILDING_PALETTE store by beforeEach; restored by afterEach.
+// BUILDINGS store by beforeEach; restored by afterEach.
 const TEST_HUE_EXT_MAP: Record<string, number> = {
   '.ts': 215,
   '.js': 220,
@@ -24,23 +24,21 @@ const TEST_HUE_EXT_MAP: Record<string, number> = {
 const TEST_SAT_RANGE: RangeStat = { min: 20, max: 100 };
 const TEST_LIGHT_RANGE: RangeStat = { min: 25, max: 70 };
 
-let _origPalette: BuildingPaletteConfig | null = null;
+let _origPalette: BuildingsConfig | null = null;
 beforeEach(() => {
-  _origPalette = { ...BUILDING_PALETTE.get() };
-  BUILDING_PALETTE.setKey('HUE_EXT_MAP', TEST_HUE_EXT_MAP);
-  BUILDING_PALETTE.setKey('SATURATION_MIN', TEST_SAT_RANGE.min);
-  BUILDING_PALETTE.setKey('SATURATION_MAX', TEST_SAT_RANGE.max);
-  BUILDING_PALETTE.setKey('LIGHTNESS_MIN', TEST_LIGHT_RANGE.min);
-  BUILDING_PALETTE.setKey('LIGHTNESS_MAX', TEST_LIGHT_RANGE.max);
+  _origPalette = { ...BUILDINGS.value };
+  BUILDINGS.value = {
+    ...BUILDINGS.value,
+    HUE_EXT_MAP: TEST_HUE_EXT_MAP,
+    SATURATION_MIN: TEST_SAT_RANGE.min,
+    SATURATION_MAX: TEST_SAT_RANGE.max,
+    LIGHTNESS_MIN: TEST_LIGHT_RANGE.min,
+    LIGHTNESS_MAX: TEST_LIGHT_RANGE.max,
+  };
 });
 afterEach(() => {
   if (!_origPalette) return;
-  const palette = _origPalette;
-  (Object.keys(palette) as Array<keyof BuildingPaletteConfig>).forEach((k) => {
-    // setKey is per-key typed; cast value to never to satisfy the union-of-fields
-    // dispatch (each key has its own value type and TS can't narrow both at once).
-    BUILDING_PALETTE.setKey(k, palette[k] as never);
-  });
+  BUILDINGS.value = _origPalette;
 });
 
 const TEST_TREE = {

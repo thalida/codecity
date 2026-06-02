@@ -1,4 +1,4 @@
-// scene/layoutClient.ts — main-thread façade for the layout worker.
+// scene/layout/layoutClient.ts — main-thread façade for the layout worker.
 // Owns one lazily-created module Worker; exposes a Promise-based
 // `compute(manifest, opts)` API. Generates monotonic request ids and rejects
 // older pending requests when a newer one starts, so a rapid succession
@@ -15,12 +15,12 @@
 // dimensions) is recomputed from the new manifest. This is the cheap
 // path for skeleton→final transitions and live updates.
 
-import {
-  STREET_LAYOUT,
-  BUILDING_DIMENSIONS,
-  GEM_SIZING,
-  STREET_TIERS,
-} from '@/state/settings/index';
+import { STREET_LAYOUT, STREET_TIERS } from '@/state/stores/settings/streets';
+import { BUILDING_DIMENSIONS } from '@/state/stores/settings/buildings';
+import { GEM_SIZING } from '@/state/stores/settings/gem';
+import type { StreetLayoutConfig, StreetTier } from '@/state/stores/settings/streets';
+import type { BuildingDimensionsConfig } from '@/state/stores/settings/buildings';
+import type { GemSizingConfig } from '@/state/stores/settings/gem';
 import { layoutCity, makeHeightContext, recomputeBuildingDimensions } from './layout';
 import type { Manifest, CityLayout, FileNode, TreeNode } from '@/types';
 
@@ -30,10 +30,10 @@ interface PendingRequest {
 }
 
 interface ConfigSnapshot {
-  streetLayout: ReturnType<typeof STREET_LAYOUT.get>;
-  buildingDimensions: ReturnType<typeof BUILDING_DIMENSIONS.get>;
-  gemSizing: ReturnType<typeof GEM_SIZING.get>;
-  streetTiers: ReturnType<typeof STREET_TIERS.get>;
+  streetLayout: StreetLayoutConfig;
+  buildingDimensions: BuildingDimensionsConfig;
+  gemSizing: GemSizingConfig;
+  streetTiers: StreetTier[];
 }
 
 export interface LayoutComputeOpts {
@@ -114,10 +114,10 @@ function reuseLayout(prior: CityLayout, newManifest: Manifest): CityLayout {
 
 function _snapshot(): ConfigSnapshot {
   return {
-    streetLayout: STREET_LAYOUT.get(),
-    buildingDimensions: BUILDING_DIMENSIONS.get(),
-    gemSizing: GEM_SIZING.get(),
-    streetTiers: STREET_TIERS.get(),
+    streetLayout: STREET_LAYOUT.value,
+    buildingDimensions: BUILDING_DIMENSIONS.value,
+    gemSizing: GEM_SIZING.value,
+    streetTiers: STREET_TIERS.value.TIERS,
   };
 }
 

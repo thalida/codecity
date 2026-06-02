@@ -3,19 +3,27 @@
 // label, manifest → label).
 //
 // Public surface:
-//   - srcKind(src)           — 'git' | 'local' discriminator.
-//   - toHttpsRepoUrl(src)    — canonical https URL from any repo URL form.
-//   - labelFromUrl(src)      — pure URL/path → "owner/repo" or basename.
-//   - labelFromManifest(m)   — manifest-aware: display_root, remote_url,
-//                              or tree.name fallback.
+//   - srcKind(src)               — SourceKind (Git | Local) discriminator.
+//   - toHttpsRepoUrl(src)        — canonical https URL from any repo URL form.
+//   - repoUrlForBranch(url, ref) — forge URL pointing at a branch tree.
+//   - labelFromUrl(src)          — pure URL/path → "owner/repo" or basename.
+//   - labelFromManifest(m)       — manifest-aware: display_root, remote_url,
+//                                  or tree.name fallback.
 
 import type { Manifest } from '@/types/manifest';
+
+/** What kind of thing a source string points at: a remote git URL or an
+ *  on-disk local path. The string values are the wire/persisted form. */
+export enum SourceKind {
+  Git = 'git',
+  Local = 'local',
+}
 
 /** Classify a source string as a git URL or a local path. Git URLs are
  *  recognised by either a scheme (https://, ssh://, etc.) or the
  *  scp-style `user@host:path` form. Anything else is local. */
-export function srcKind(src: string): 'git' | 'local' {
-  return /:\/\//.test(src) || /^[^@]+@[^:]+:/.test(src) ? 'git' : 'local';
+export function srcKind(src: string): SourceKind {
+  return /:\/\//.test(src) || /^[^@]+@[^:]+:/.test(src) ? SourceKind.Git : SourceKind.Local;
 }
 
 /**
@@ -34,6 +42,29 @@ export function toHttpsRepoUrl(src: string): string {
     return `https://${host}/${path}`;
   }
   return src;
+}
+
+/**
+ * Append a branch-tree path to a forge HTTPS URL so a link opens the given
+ * branch instead of the repo root. The path shape is forge-specific (GitHub
+ * `/tree`, GitLab `/-/tree`, Gitea/Forgejo/Codeberg `/src/branch`, Bitbucket
+ * `/src`); unrecognised hosts get the bare repo URL back.
+ */
+export function repoUrlForBranch(repoHttpsUrl: string, branch: string): string {
+  const ref = encodeURIComponent(branch);
+  if (/codeberg\.org|forgejo|gitea/i.test(repoHttpsUrl)) {
+    return `${repoHttpsUrl}/src/branch/${ref}`;
+  }
+  if (/github\.com|sr\.ht/i.test(repoHttpsUrl)) {
+    return `${repoHttpsUrl}/tree/${ref}`;
+  }
+  if (/gitlab\.com/i.test(repoHttpsUrl)) {
+    return `${repoHttpsUrl}/-/tree/${ref}`;
+  }
+  if (/bitbucket\.org/i.test(repoHttpsUrl)) {
+    return `${repoHttpsUrl}/src/${ref}`;
+  }
+  return repoHttpsUrl;
 }
 
 /**
@@ -86,4 +117,22 @@ export function labelFromManifest(m: Manifest | null | undefined): string | null
     if (fromRemote) return fromRemote;
   }
   return m.tree?.name ?? null;
+}
+
+/**
+ * Resolve which branch label to show and whether it's the repo default. The
+ * server sometimes reports a non-branch (detached HEAD, "(no branch)", names
+ * with spaces) — treat those as "no branch". An explicitly requested branch
+ * always wins and is never considered the default.
+ */
+export function resolveBranch(
+  manifest: { repo: { branch?: string } },
+  requested?: string
+): { branch?: string; isDefault: boolean } {
+  const mb = manifest.repo.branch;
+  const looksReal = !!mb && !/\s/.test(mb) && !mb.startsWith('(') && !mb.startsWith('detached');
+  return {
+    branch: requested ?? (looksReal ? mb! : undefined),
+    isDefault: !requested && looksReal,
+  };
 }

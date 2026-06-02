@@ -1,4 +1,4 @@
-// colors.ts — HSL mapping from file metadata.
+// scene/components/buildings/buildingColor.ts — HSL mapping from file metadata.
 //   Hue        → file extension          (palette; deterministic hash for unknowns)
 //   Saturation → last-modified date      (recent = vivid, stale = faded)
 //   Lightness  → last-modified date      (recent = bright, stale = dim)
@@ -10,10 +10,10 @@
 // the file has existed in the repo. That drives grime + tilt + lit-window
 // glow color in the shader, independent of recent edits.
 //
-// Tunables come from BUILDING_PALETTE in config/building.ts. Tests
+// Tunables come from BUILDINGS in config/building.ts. Tests
 // mutate the store via .setKey() in setup + restore in teardown.
 
-import { BUILDING_PALETTE } from '@/state/settings/components/buildings';
+import { BUILDINGS } from '@/state/stores/settings/buildings';
 import { NodeKind } from '@/types';
 
 // Structural shapes match what real Manifest tree / FileNode supply but
@@ -272,7 +272,7 @@ export function getBuildingColor(file: FileLike, dateRanges: DateRangeStrings): 
   // Prefer git dates, fall back to filesystem dates
   const modified = (file.git && file.git.modified) || file.modified || null;
 
-  const palette = BUILDING_PALETTE.get();
+  const palette = BUILDINGS.value;
   const h = getHue(file.extension || '', palette.HUE_EXT_MAP);
   // Saturation and lightness both key off LAST-MODIFIED, normalized
   // against the repo's MODIFIED-date range (modifiedMin/Max). This

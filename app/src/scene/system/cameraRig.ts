@@ -1,4 +1,4 @@
-// scene/cameraRig.ts — owns the perspective camera, OrbitControls,
+// scene/system/cameraRig.ts — owns the perspective camera, OrbitControls,
 // initial framing, and the focus/reset animations (R key reset,
 // F key focus-on-selection, dblclick focus).
 //
@@ -14,6 +14,8 @@
 //   rig.focusBuilding(mesh, building)     // F or dblclick on a building
 //   rig.focusStreet(street, hitPoint)     // dblclick on a street
 //   rig.focusTree(sha)                    // F or dblclick on a tree (commit)
+//   rig.focusSelection(pickTarget)        // dispatches to one of the above
+//                                         //   based on the PickTarget kind
 //   rig.dispose()
 //
 // First-frame framing is one-shot by construction: frameToBbox is not on
@@ -26,10 +28,20 @@
 
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { CAMERA_PERSPECTIVE, CAMERA_CONTROLS, ANIMATION_TIMING } from '@/state/settings/index';
-import { CURRENT_SOURCE_KEY } from '@/state/runtime/sourceContext';
-import { StreetAxis } from '@/types';
-import type { Building, Street } from '@/types';
+import {
+  CAMERA_FOV,
+  CAMERA_NEAR,
+  CAMERA_FAR,
+  CAMERA_DAMPING_FACTOR,
+  CAMERA_MAX_POLAR_ANGLE_FRAC,
+  CAMERA_MIN_DISTANCE,
+  CAMERA_MAX_DISTANCE_MULT,
+  CAMERA_INITIAL_DISTANCE_MULT,
+  CAMERA_BASE_DURATION_MS,
+  CAMERA_EASING_POWER,
+} from '@/constants/camera';
+import { NodeKind, StreetAxis } from '@/types';
+import type { Building, PickTarget, Street } from '@/types';
 import type { createWorld } from '../world';
 
 /** Floor on controls.maxDistance regardless of city size. Tiny-but-tall
@@ -39,7 +51,7 @@ import type { createWorld } from '../world';
  *  can always pull back to a comfortable cinematic viewing distance. */
 const MIN_MAX_DISTANCE = 8000;
 
-// Per-action duration ratios relative to ANIMATION_TIMING.BASE_DURATION_MS.
+// Per-action duration ratios relative to CAMERA_BASE_DURATION_MS.
 // These tune the per-gesture feel — a Recenter should feel snappier than a
 // building-focus tween, etc. Multiplied by BASE_DURATION_MS at action time
 // so dragging the base in Settings scales every camera animation in lock-
@@ -82,24 +94,22 @@ export function createCameraRig({
   canvas: HTMLCanvasElement;
   world: ReturnType<typeof createWorld>;
 }) {
-  const perspective = CAMERA_PERSPECTIVE.get();
   const W = canvas.clientWidth;
   const H = canvas.clientHeight;
   const camera = new THREE.PerspectiveCamera(
-    perspective.FOV,
+    CAMERA_FOV,
     W / Math.max(1, H),
-    perspective.NEAR,
-    perspective.FAR
+    CAMERA_NEAR,
+    CAMERA_FAR
   );
 
-  const cameraControlsCfg = CAMERA_CONTROLS.get();
   const controls = new OrbitControls(camera, canvas);
   controls.enableDamping = true;
-  controls.dampingFactor = cameraControlsCfg.DAMPING_FACTOR;
+  controls.dampingFactor = CAMERA_DAMPING_FACTOR;
   controls.screenSpacePanning = false;
   controls.zoomToCursor = true;
-  controls.maxPolarAngle = Math.PI * cameraControlsCfg.MAX_POLAR_ANGLE_FRAC;
-  controls.minDistance = cameraControlsCfg.MIN_DISTANCE;
+  controls.maxPolarAngle = Math.PI * CAMERA_MAX_POLAR_ANGLE_FRAC;
+  controls.minDistance = CAMERA_MIN_DISTANCE;
   controls.mouseButtons = {
     LEFT: THREE.MOUSE.ROTATE,
     MIDDLE: THREE.MOUSE.DOLLY,
@@ -155,10 +165,7 @@ export function createCameraRig({
     // predictable regardless of city shape. Comment-on-history: the
     // previous formula was worldDist × MAX_DISTANCE_MULT which kept
     // small cities cramped because worldDist was itself small.
-    controls.maxDistance = Math.max(
-      worldRadius * cameraControlsCfg.MAX_DISTANCE_MULT,
-      MIN_MAX_DISTANCE
-    );
+    controls.maxDistance = Math.max(worldRadius * CAMERA_MAX_DISTANCE_MULT, MIN_MAX_DISTANCE);
 
     // Far clip: covers the farthest point a fully-zoomed-out camera can
     // see (maxDistance past target, plus the world's own radius). Set
@@ -168,7 +175,7 @@ export function createCameraRig({
     // (CAMERA_PERSPECTIVE.FAR × 0.95) so the sphere never gets clipped
     // at the corners of small-repo viewports.
     const dynamicFar = controls.maxDistance * 2 + worldRadius * 2;
-    const skySphereExtent = CAMERA_PERSPECTIVE.get().FAR * 0.95;
+    const skySphereExtent = CAMERA_FAR * 0.95;
     camera.far = Math.max(dynamicFar, skySphereExtent);
     camera.updateProjectionMatrix();
 
@@ -198,11 +205,11 @@ export function createCameraRig({
     // Distance from width: the existing "city neighborhood readable on
     // screen" framing. INITIAL_DISTANCE_MULT (<1) tightens the sphere fit
     // intentionally; tuned for the typical city shape.
-    const widthDist = (framingRadius / Math.sin(halfFov)) * cameraControlsCfg.INITIAL_DISTANCE_MULT;
+    const widthDist = (framingRadius / Math.sin(halfFov)) * CAMERA_INITIAL_DISTANCE_MULT;
     // Default framing direction: place the camera BEHIND the gem along
     // the root street's long axis (the street extends in +X for X-oriented
     // or +Z for Y-oriented; the gem sits at the low end — see
-    // engine.ts:createRootGem) at a moderate elevation with a slight
+    // scene/components/gem/gem.ts:createRootGem) at a moderate elevation with a slight
     // lateral offset so the view reads as 3D oblique rather than face-on
     // down the road. FRAMING_DIR_Y (1.0) → ~44° elevation after the
     // lateral mix; FRAMING_DIR_LATERAL (0.3) → ~15° azimuth off the
@@ -318,23 +325,13 @@ export function createCameraRig({
     camera.lookAt(initialTarget);
     controls.target.copy(initialTarget);
 
-    // Re-frame on every manifest swap so R always fits the current city.
-    // Also snap to the default pose whenever the source itself changed:
-    // we MUST wait until the new world's manifest is in place (onChange
-    // fires inside applyManifest), because CURRENT_SOURCE_KEY can be
-    // updated before applyManifest runs (see applyNewSource in main.ts —
-    // SOURCE_KEY.set lands BEFORE the final applyManifest call). Running
-    // reset() on the SOURCE_KEY subscribe directly would snap to the
-    // previous repo's stale initialCamPos.
+    // Re-frame on every manifest swap so R (reset) always fits the current
+    // city. The decision to actually SNAP the camera on a source change lives
+    // in the render layer (useCityScene), which calls reset() explicitly — this
+    // rig is source-agnostic.
     if (!_rebuildSubscribed) {
-      let _lastSourceKey = CURRENT_SOURCE_KEY.get();
       world.onChange(() => {
         _captureFraming();
-        const cur = CURRENT_SOURCE_KEY.get();
-        if (cur !== null && cur !== _lastSourceKey) {
-          _lastSourceKey = cur;
-          reset();
-        }
       });
       _rebuildSubscribed = true;
     }
@@ -357,7 +354,7 @@ export function createCameraRig({
     const startTarget = controls.target.clone();
     const startCamPos = camera.position.clone();
     const t0 = performance.now();
-    const easingPower = ANIMATION_TIMING.get().EASING_POWER;
+    const easingPower = CAMERA_EASING_POWER;
 
     function step() {
       if (camAnimToken !== token) return;
@@ -415,7 +412,7 @@ export function createCameraRig({
     _animateCamera(
       p.clone(),
       camera.position.clone().add(delta),
-      ANIMATION_TIMING.get().BASE_DURATION_MS * RECENTER_RATIO
+      CAMERA_BASE_DURATION_MS * RECENTER_RATIO
     );
   }
 
@@ -474,11 +471,7 @@ export function createCameraRig({
     );
 
     camera.up.set(0, 1, 0);
-    _animateCamera(
-      center.clone(),
-      newCamPos,
-      ANIMATION_TIMING.get().BASE_DURATION_MS * durationRatio
-    );
+    _animateCamera(center.clone(), newCamPos, CAMERA_BASE_DURATION_MS * durationRatio);
   }
 
   function focusBuilding(_mesh: THREE.Object3D, b: Building): void {
@@ -507,6 +500,17 @@ export function createCameraRig({
     _focusTopDown(center, span, span, b.height, BUILDING_FOCUS_RATIO);
   }
 
+  /** Single entry-point for "focus the camera on whatever is selected".
+   *  Dispatches to focusBuilding / focusStreet / focusTree based on the
+   *  PickTarget kind. Lives on the scene side so view code doesn't have
+   *  to know about the per-target focus mechanics. */
+  function focusSelection(sel: PickTarget | null): void {
+    if (!sel) return;
+    if (sel.kind === NodeKind.File) focusBuilding(sel.mesh, sel.data);
+    else if (sel.kind === NodeKind.Directory) focusStreet(sel.street, null);
+    else if (sel.kind === NodeKind.Commit) focusTree(sel.commit.sha);
+  }
+
   function dispose() {
     if (typeof controls.dispose === 'function') controls.dispose();
   }
@@ -520,6 +524,7 @@ export function createCameraRig({
     focusBuilding,
     focusStreet,
     focusTree,
+    focusSelection,
     dispose,
   };
 }

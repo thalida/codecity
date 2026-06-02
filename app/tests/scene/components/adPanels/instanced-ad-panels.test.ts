@@ -8,7 +8,7 @@ import {
   AdPanelTextureArray,
   PANEL_TEX_SIZE,
 } from '@/scene/components/adPanels/adPanelTextureArray';
-import { BLOOM } from '@/state/settings/index';
+import { BLOOM } from '@/state/stores/settings/effects';
 import { BuildingOrient, NodeKind } from '@/types/index';
 import type { Building } from '@/types/index';
 
@@ -268,7 +268,7 @@ describe('AdPanelTextureArray storage', () => {
 describe('InstancedAdPanels emission refresh', () => {
   it('refresh() pushes BLOOM.AD_EMISSION into uEmissionBoost uniform', () => {
     const ads = new InstancedAdPanels(4);
-    BLOOM.setKey('AD_EMISSION', 2.5);
+    BLOOM.value = { ...BLOOM.value, AD_EMISSION: 2.5 };
     ads.refresh();
     const mat = ads.mesh.material as unknown as { uniforms: { uEmissionBoost: { value: number } } };
     expect(mat.uniforms.uEmissionBoost.value).toBeCloseTo(2.5);

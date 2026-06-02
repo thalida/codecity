@@ -1,20 +1,18 @@
 // treeEncoding.test.ts — pure normalization helpers shared by the
 // tree renderer: age (commit date → [0,1]), size (file count → [0,1]),
-// and commits-per-day (commits sharing the same calendar date,
-// log-normalized → [0,1]).
+// and commits-per-day (commits sharing the same calendar date, mapped to
+// [0,1] by anchoring on the repo's backend-computed busyness thresholds).
 
 import { describe, it, expect } from 'vitest';
 import {
   computeAgeRange,
   computeSizeRange,
-  computeDailyCounts,
   ageT,
   sizeT,
   dailyCountT,
   dailyCountTByIndex,
   type AgeRange,
   type SizeRange,
-  type DailyCountRange,
 } from '@/scene/components/trees/treeEncoding';
 import type { CommitEntry } from '@/types';
 import { commits as buildCommits } from './_commitFixtures';
@@ -94,6 +92,7 @@ describe('ageT()', () => {
           sha: 'a'.repeat(40),
           authors: ['Test Author'],
           subject: 'test commit',
+          same_day_total: 1,
         },
         zero
       )
@@ -110,6 +109,7 @@ describe('ageT()', () => {
           sha: 'a'.repeat(40),
           authors: ['Test Author'],
           subject: 'test commit',
+          same_day_total: 1,
         },
         range
       )
@@ -122,6 +122,7 @@ describe('ageT()', () => {
           sha: 'a'.repeat(40),
           authors: ['Test Author'],
           subject: 'test commit',
+          same_day_total: 1,
         },
         range
       )
@@ -150,6 +151,7 @@ describe('sizeT()', () => {
           sha: 'a'.repeat(40),
           authors: ['Test Author'],
           subject: 'test commit',
+          same_day_total: 1,
         },
         zero
       )
@@ -157,100 +159,66 @@ describe('sizeT()', () => {
   });
 });
 
-describe('computeDailyCounts()', () => {
-  it('counts commits per calendar date in oldest-first order', () => {
-    const dc = computeDailyCounts(
-      buildCommits(
-        { date: '2026-01-01', files: 1 },
-        { date: '2026-01-02', files: 1 },
-        { date: '2026-01-02', files: 1 },
-        { date: '2026-01-02', files: 1 }
-      )
-    );
-    expect(dc.counts).toEqual([1, 3, 3, 3]);
-    expect(dc.range.min).toBe(1);
-    expect(dc.range.max).toBe(3);
-    expect(dc.range.span).toBe(2);
-  });
-
-  it('null commits collapse the range', () => {
-    const dc = computeDailyCounts(null);
-    expect(dc.counts).toEqual([]);
-    expect(dc.range.span).toBe(0);
-  });
-
-  it('empty commits collapse the range', () => {
-    const dc = computeDailyCounts([]);
-    expect(dc.counts).toEqual([]);
-    expect(dc.range.span).toBe(0);
-  });
-
-  it('single-commit history collapses the range (min=max=1)', () => {
-    const dc = computeDailyCounts(buildCommits({ date: '2026-01-01', files: 1 }));
-    expect(dc.counts).toEqual([1]);
-    expect(dc.range.span).toBe(0);
-  });
-
-  it('all-same-day collapses the range (every count equal)', () => {
-    const dc = computeDailyCounts(
-      buildCommits(
-        { date: '2026-01-01', files: 1 },
-        { date: '2026-01-01', files: 1 },
-        { date: '2026-01-01', files: 1 }
-      )
-    );
-    expect(dc.counts).toEqual([3, 3, 3]);
-    expect(dc.range.min).toBe(3);
-    expect(dc.range.max).toBe(3);
-    expect(dc.range.span).toBe(0);
-  });
-});
-
 describe('dailyCountT()', () => {
-  it('low counts return ~0, high counts return ~1', () => {
-    const range: DailyCountRange = { min: 1, max: 100, span: 99 };
-    expect(dailyCountT(1, range)).toBeCloseTo(0, 5);
-    expect(dailyCountT(100, range)).toBeCloseTo(1, 5);
+  const thresholds = { avg: 4, busy: 8 };
+
+  it('a solo-commit day (count <= 1) maps to 0', () => {
+    expect(dailyCountT(1, thresholds)).toBe(0);
+    expect(dailyCountT(0, thresholds)).toBe(0);
   });
 
-  it('log-normalizes so middle counts land in the middle of [0,1]', () => {
-    const range: DailyCountRange = { min: 1, max: 100, span: 99 };
-    expect(dailyCountT(13, range)).toBeCloseTo(0.5, 1);
+  it('the avg threshold maps to the 0.5 midpoint', () => {
+    expect(dailyCountT(4, thresholds)).toBeCloseTo(0.5, 5);
   });
 
-  it('returns 0.5 when the range has zero span', () => {
-    expect(dailyCountT(5, { min: 5, max: 5, span: 0 })).toBe(0.5);
+  it('the busy threshold (and above) maps to 1', () => {
+    expect(dailyCountT(8, thresholds)).toBe(1);
+    expect(dailyCountT(50, thresholds)).toBe(1);
   });
 
-  it('clamps out-of-range counts to [0,1]', () => {
-    const range: DailyCountRange = { min: 2, max: 10, span: 8 };
-    expect(dailyCountT(1, range)).toBe(0);
-    expect(dailyCountT(99, range)).toBe(1);
+  it('interpolates linearly below avg: [1, avg] → [0, 0.5]', () => {
+    // count=2.5 is halfway between 1 and 4 → t = 0.25
+    expect(dailyCountT(2.5, thresholds)).toBeCloseTo(0.25, 5);
+  });
+
+  it('interpolates linearly between avg and busy: (avg, busy] → (0.5, 1]', () => {
+    // count=6 is halfway between 4 and 8 → t = 0.75
+    expect(dailyCountT(6, thresholds)).toBeCloseTo(0.75, 5);
+  });
+
+  it('degenerate thresholds (avg <= 1) stay in [0,1] without NaN', () => {
+    expect(dailyCountT(1, { avg: 1, busy: 2 })).toBe(0);
+    expect(dailyCountT(2, { avg: 1, busy: 2 })).toBe(1);
   });
 });
 
 describe('dailyCountTByIndex()', () => {
-  const dc = computeDailyCounts(
-    buildCommits(
-      { date: '2026-01-01', files: 1 }, // count=1 → t=0
-      { date: '2026-01-15', files: 1 }, // count=1 → t=0 (unique date)
-      { date: '2026-02-01', files: 1 }, // count=1 (no other Feb 1)
-      { date: '2026-03-01', files: 1 }, // count=4 → t=1
-      { date: '2026-03-01', files: 1 },
-      { date: '2026-03-01', files: 1 },
-      { date: '2026-03-01', files: 1 }
-    )
+  // _commitFixtures bakes same_day_total from the date grouping (mirroring the
+  // backend), so these dates produce same_day_total = {1,1,1,4,4,4,4}.
+  const cs = buildCommits(
+    { date: '2026-01-01', files: 1 }, // same_day_total=1 → t=0
+    { date: '2026-01-15', files: 1 }, // 1 → t=0 (unique date)
+    { date: '2026-02-01', files: 1 }, // 1 (no other Feb 1)
+    { date: '2026-03-01', files: 1 }, // 4 → t=1
+    { date: '2026-03-01', files: 1 },
+    { date: '2026-03-01', files: 1 },
+    { date: '2026-03-01', files: 1 }
   );
+  const thresholds = { avg: 2, busy: 4 };
 
-  it('maps single-commit days to ~0 and busiest days to ~1', () => {
-    expect(dailyCountTByIndex(dc, 0)).toBeCloseTo(0, 5);
-    expect(dailyCountTByIndex(dc, 1)).toBeCloseTo(0, 5);
-    expect(dailyCountTByIndex(dc, 3)).toBeCloseTo(1, 5);
-    expect(dailyCountTByIndex(dc, 6)).toBeCloseTo(1, 5);
+  it('maps single-commit days to 0 and busiest days to 1', () => {
+    expect(dailyCountTByIndex(cs, 0, thresholds)).toBe(0);
+    expect(dailyCountTByIndex(cs, 1, thresholds)).toBe(0);
+    expect(dailyCountTByIndex(cs, 3, thresholds)).toBe(1);
+    expect(dailyCountTByIndex(cs, 6, thresholds)).toBe(1);
   });
 
   it('out-of-range index returns 0.5', () => {
-    expect(dailyCountTByIndex(dc, -1)).toBe(0.5);
-    expect(dailyCountTByIndex(dc, 99)).toBe(0.5);
+    expect(dailyCountTByIndex(cs, -1, thresholds)).toBe(0.5);
+    expect(dailyCountTByIndex(cs, 99, thresholds)).toBe(0.5);
+  });
+
+  it('null commits returns 0.5', () => {
+    expect(dailyCountTByIndex(null, 0, thresholds)).toBe(0.5);
   });
 });

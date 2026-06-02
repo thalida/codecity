@@ -1,4 +1,4 @@
-// scene/worldBounds.ts — single source of truth for the
+// scene/layout/worldBounds.ts — single source of truth for the
 // rendered world's spatial extent.
 //
 // The world is a rectangle sized to fit the city bbox plus a buffer.
@@ -17,7 +17,7 @@
 // renders.
 
 import type { CityBbox } from '@/types';
-import { WORLD } from '@/state/settings/world/world';
+import { WORLD } from '@/state/stores/settings/scene';
 
 /** Fallback half-extent when no bbox is available (pre-layout,
  *  non-git smoke tests). Keeps the floor visible at the origin. */
@@ -62,7 +62,7 @@ export function getWorldBounds(
       halfDepth: FALLBACK_HALF_DIM,
     };
   }
-  const bufferFrac = WORLD.get().GROUND_BUFFER_PERCENT / 100;
+  const bufferFrac = WORLD.value.GROUND_BUFFER_PERCENT / 100;
   const characteristicSize = Math.max(bbox.width, bbox.depth, cityHeight);
   const buffer = characteristicSize * bufferFrac;
   return {

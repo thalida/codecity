@@ -15,7 +15,9 @@
 // The fader writes iFade on each CellTile.detailMesh (vec3 layout).
 
 import * as THREE from 'three';
-import { BUILDING_FADE } from '@/state/settings/index';
+import { effect } from '@preact/signals';
+import { BUILDING_FADE } from '@/state/stores/settings/buildings';
+import type { BuildingFadeConfig } from '@/state/stores/settings/buildings';
 import { FadeDetail, NodeKind } from '@/types';
 import type { DirNode, FileNode, PickTarget } from '@/types';
 import { parentDirPath } from '@/scene/utils/path';
@@ -94,7 +96,7 @@ export function createBuildingFader({
     bldgTargetFile: FileNode | null,
     dirTarget: DirNode | null,
     hoverFile: FileNode | null,
-    fadeCfg: ReturnType<typeof BUILDING_FADE.get>
+    fadeCfg: BuildingFadeConfig
   ): TierResult {
     // Hover wins — its tier values overwrite any selection/dir-tree result
     // unconditionally, so check first and skip the more expensive
@@ -160,14 +162,14 @@ export function createBuildingFader({
   }
 
   function _sweepAll(): void {
-    const sel = picker.selection.get();
-    const hov = picker.hover.get();
+    const sel = picker.selection.value;
+    const hov = picker.hover.value;
 
     const bldgTargetFile = sel && sel.kind === NodeKind.File ? sel.file : null;
     const dirTarget = _resolveDirTarget(sel, hov);
     const hoverFile = hov && hov.kind === NodeKind.File ? hov.file : null;
 
-    const fadeCfg = BUILDING_FADE.get();
+    const fadeCfg = BUILDING_FADE.value;
 
     // Collected by the cell sweep, drained into the ad-panel sweep below
     // so a media building's ad panel dims by exactly the same factor as
@@ -218,21 +220,31 @@ export function createBuildingFader({
     }
   }
 
-  // Subscribe to selection and hover. Either change triggers a full sweep.
-  // Unsubscribe handles are kept so dispose() can clean them up.
-  const _unsubSel = picker.selection.subscribe(() => _sweepAll());
-  const _unsubHov = picker.hover.subscribe(() => _sweepAll());
+  // Selection / hover / config changes all trigger a full sweep. Separate
+  // effects per signal keep tracking narrow.
+  const _unsubSel = effect(() => {
+    void picker.selection.value;
+    _sweepAll();
+  });
+  const _unsubHov = effect(() => {
+    void picker.hover.value;
+    _sweepAll();
+  });
 
-  // Re-sweep after a manifest rebuild — new blocks have fresh iFade
-  // buffers (opacity=1.0, silhouette=0, outlineOpacity=0) and the current selection still applies.
+  // Re-sweep after a manifest rebuild — new blocks start with fresh iFade
+  // buffers (opacity=1.0, silhouette=0, outlineOpacity=0) and the current
+  // selection still applies.
   const _unsubChange = world.onChange(() => _sweepAll());
 
   // BUILDING_FADE config (tier thresholds, body opacity, detail mode)
-  // controls every value _sweepAll reads. Resweep on any change so
-  // dragging a slider in the controls pane updates the scene live.
-  const _unsubCfg = BUILDING_FADE.subscribe(() => _sweepAll());
+  // controls every value _sweepAll reads. Resweep on any change so dragging
+  // a slider in the controls pane updates the scene live.
+  const _unsubCfg = effect(() => {
+    void BUILDING_FADE.value;
+    _sweepAll();
+  });
 
-  // update() kept as a no-op for API compatibility: main.ts calls
+  // update() kept as a no-op for API compatibility: renderLoop.ts calls
   // fader.update(0) in the animation loop. With the subscription-driven
   // model, all real work is done on change events, not per-frame.
   function update(_dtMs: number): void {

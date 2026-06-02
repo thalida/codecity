@@ -1,4 +1,4 @@
-// layout.ts — Street/building placement algorithm. Pure data output,
+// scene/layout/layout.ts — Street/building placement algorithm. Pure data output,
 // no DOM or Three.js.
 //   Building: { x, y, w, d, h, color, file, orient }
 //   Street:   { x, y, w, d, label, dir }
@@ -14,19 +14,21 @@
 // querying a WorldOccupancy structure for the smallest stem offset that
 // keeps the new geometry from intersecting anything already placed.
 
-import {
-  STREET_TIERS,
-  BUILDING_DIMENSIONS,
-  STREET_LAYOUT,
-  GEM_SIZING,
-} from '@/state/settings/index';
-import type { StreetTier } from '@/state/settings/components/streets';
+import { STREET_TIERS, STREET_LAYOUT } from '@/state/stores/settings/streets';
+import { BUILDING_DIMENSIONS } from '@/state/stores/settings/buildings';
+import { GEM_SIZING } from '@/state/stores/settings/gem';
+import type { StreetTier } from '@/state/stores/settings/streets';
 import { BuildingOrient, JoinSide, NodeKind, StreetAxis } from '@/types';
 import type { Building, CityLayout, RangeStat, Street } from '@/types';
 import { parentDirPath } from '../utils/path';
 import { isMediaFile } from '../components/adPanels/adPanels';
 import { WorldOccupancy, WorldRectKind } from './worldOccupancy';
 import type { WorldRect } from './worldOccupancy';
+
+// Dead-space pad past the gem at the root street's origin end, as a multiple of
+// the gem's diameter. Fixed, not user-tunable (was in GEM_SIZING but never
+// exposed as a control).
+const GEM_CLEARANCE_AS_GEM_WIDTH_FRAC = 1.0;
 
 // Structural shapes — kept lenient so test fixtures (which omit fields the
 // helpers don't read, like name/path on intermediate nodes) stay
@@ -163,7 +165,7 @@ interface ManifestLike {
 // the tier with the highest min_descendants that `count` meets. The last
 // tier (largest min_descendants) acts as the catch-all for big directories.
 export function getStreetWidth(count: number, tiers?: StreetTier[]): number {
-  const arr = tiers && tiers.length ? tiers : STREET_TIERS.get();
+  const arr = tiers && tiers.length ? tiers : STREET_TIERS.value.TIERS;
   let chosen = arr[0].width;
   for (let i = 0; i < arr.length; i++) {
     if (count >= arr[i].min_descendants) chosen = arr[i].width;
@@ -233,7 +235,7 @@ export function getBuildingDimensions(
   lineStats?: RangeStat,
   byteStats?: RangeStat
 ): { w: number; d: number; h: number; floors: number } {
-  const dims = BUILDING_DIMENSIONS.get();
+  const dims = BUILDING_DIMENSIONS.value;
   const maxFloorsCap = dims.MAX_FLOORS != null ? dims.MAX_FLOORS : 30;
 
   // ---- Floors from line count (sqrt-normalized over project range) ----
@@ -705,13 +707,13 @@ export function estimateDirReaches(
   const cached = cache.get(dir);
   if (cached) return cached;
 
-  const streetLayout = STREET_LAYOUT.get();
+  const streetLayout = STREET_LAYOUT.value;
   const childGap = streetLayout.CHILD_GAP;
   const parentJoinPad = streetLayout.PARENT_JOIN_PAD;
   const rootEndPad = streetLayout.ROOT_END_PAD;
-  const bldgDims = BUILDING_DIMENSIONS.get();
+  const bldgDims = BUILDING_DIMENSIONS.value;
   const distFromRoad = bldgDims.DISTANCE_FROM_ROAD;
-  const gemSizing = GEM_SIZING.get();
+  const gemSizing = GEM_SIZING.value;
   const gemRadiusFrac = gemSizing.RADIUS_AS_STREET_FRAC;
 
   // Padding chain — mirrors _layoutDir exactly so the estimate matches the
@@ -724,7 +726,7 @@ export function estimateDirReaches(
     : Math.max(rootEndPad, openEndPad);
   const gemRadius = Math.max(myStreetWidth * gemRadiusFrac, gemSizing.MIN_RADIUS);
   const gemDiameter = gemRadius * 2;
-  const gemClearance = gemDiameter * gemSizing.CLEARANCE_AS_GEM_WIDTH_FRAC;
+  const gemClearance = gemDiameter * GEM_CLEARANCE_AS_GEM_WIDTH_FRAC;
   const originPad = !parentStreetWidth
     ? Math.max(endPad, myStreetWidth * (0.5 + gemRadiusFrac) + gemClearance)
     : joinEndBaseline;
@@ -820,12 +822,12 @@ function _layoutDir(
    *  body exists. */
   parentFinalAlongReach?: number
 ): void {
-  // ----- Tunables (one .get() per call) -----
-  const streetLayout = STREET_LAYOUT.get();
+  // ----- Tunables (one .value per call) -----
+  const streetLayout = STREET_LAYOUT.value;
   const childGap = streetLayout.CHILD_GAP;
   const parentJoinPad = streetLayout.PARENT_JOIN_PAD;
   const rootEndPad = streetLayout.ROOT_END_PAD;
-  const bldgDims = BUILDING_DIMENSIONS.get();
+  const bldgDims = BUILDING_DIMENSIONS.value;
   const distFromRoad = bldgDims.DISTANCE_FROM_ROAD;
 
   // ----- Padding chain -----
@@ -835,15 +837,15 @@ function _layoutDir(
   const endPad = parentStreetWidth
     ? Math.max(joinEndBaseline, openEndPad)
     : Math.max(rootEndPad, openEndPad);
-  const gemSizing = GEM_SIZING.get();
+  const gemSizing = GEM_SIZING.value;
   const gemRadiusFrac = gemSizing.RADIUS_AS_STREET_FRAC;
   // Derive the plaza clearance from the gem's own diameter so the dead
   // space scales with the gem. Mirror the same MIN_RADIUS floor that
-  // engine.ts uses when sizing the actual gem geometry so the layout
+  // scene/components/gem/gem.ts uses when sizing the actual gem geometry so the layout
   // pad never under-reserves for a narrow root street.
   const gemRadius = Math.max(myStreetWidth * gemRadiusFrac, gemSizing.MIN_RADIUS);
   const gemDiameter = gemRadius * 2;
-  const gemClearance = gemDiameter * gemSizing.CLEARANCE_AS_GEM_WIDTH_FRAC;
+  const gemClearance = gemDiameter * GEM_CLEARANCE_AS_GEM_WIDTH_FRAC;
   const originPad = !parentStreetWidth
     ? Math.max(endPad, myStreetWidth * (0.5 + gemRadiusFrac) + gemClearance)
     : joinEndBaseline;
@@ -1293,7 +1295,7 @@ function _layoutCityInternal(
 // -----------------------------------------------------------------------------
 export function _streetWidthForDir(dir: DirLike | null | undefined): number {
   const count = (dir && (dir.descendants_count || dir.children_count)) || 0;
-  return getStreetWidth(count, STREET_TIERS.get());
+  return getStreetWidth(count, STREET_TIERS.value.TIERS);
 }
 
 // -----------------------------------------------------------------------------

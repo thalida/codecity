@@ -1,5 +1,5 @@
 // types/building.ts — pairs with config/building.ts (the tunables).
-// Defines the Building shape the layout step produces; engine.ts reads
+// Defines the Building shape the layout step produces; scene/world.ts reads
 // it to instantiate three.js meshes.
 
 import type { FileNode, DirNode } from './manifest';

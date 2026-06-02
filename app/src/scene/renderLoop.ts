@@ -1,26 +1,21 @@
-// renderLoop.ts — Scene + rendering pipeline. Builds the city scene,
+// scene/renderLoop.ts — Scene + rendering pipeline. Builds the city scene,
 // renderer, camera, post-fx, picker, fader, outlines, ghosts, paths,
-// animator, and drives the per-frame animate loop. Extracted from main.ts
-// so that main.ts is purely site-level orchestration (source picker,
-// syntax theme, live updates, URL handling, persistence wiring).
+// animator, and drives the per-frame animate loop. Extracted from the old
+// main.ts monolith so the entry layer (main.tsx) and useCityScene stay purely
+// site-level orchestration (source picker, syntax theme, live updates, URL
+// handling, persistence wiring).
 
 import * as THREE from 'three';
+import { effect } from '@preact/signals';
 
-import {
-  ASPHALT,
-  SIDEWALK_COLORS,
-  LABEL_TYPOGRAPHY,
-  GEM_ANIMATION,
-  GEM_APPEARANCE,
-  GEM_FACE_PALETTE,
-  GEM_GLOW,
-  GEM_SIZING,
-  BLOOM,
-} from '../state/settings/index';
+import { STREETS } from '../state/stores/settings/streets';
+import { GEM } from '../state/stores/settings/gem';
+import { BLOOM } from '../state/stores/settings/effects';
+import { GEM_HOVER_LIFT_FRAC } from '@/scene/components/gem/gem';
 import { NodeKind, StreetAxis } from '../types';
 import type { Manifest } from '../types';
 
-import { SKY } from '@/state/settings/components/sky';
+import { SCENE } from '@/state/stores/settings/scene';
 import { createWorld } from './world';
 import { refreshBuildingMaterial } from './components/buildings/buildings';
 import { createCameraRig } from './system/cameraRig';
@@ -32,24 +27,9 @@ import { createOutlineRenderer } from './effects/outlineRenderer';
 import { createTreeOutlineRenderer } from './effects/treeOutlineRenderer';
 import { createGhostRenderer } from './effects/ghostRenderer';
 import { createPathLineRenderer } from './effects/pathLineRenderer';
-import { createCoordinator } from '../coordinator';
-import { showTooltip, hideTooltip } from '../views/components/tooltip';
+import { showTooltip, hideTooltip } from './effects/tooltip';
 import { createPostFx } from './system/postFx';
 import { registerRenderer as registerAdPanelRenderer } from './components/adPanels/adPanelTextureArray';
-import { labelFromManifest } from '@/utils/sources';
-
-// Rewrite manifest.tree.name to the friendly label derived from display_root
-// so that every downstream consumer (root street label, file tree root row,
-// footer name, document.title) shows the human-readable source name instead
-// of the cache-directory hash. Server returns the cache path as `root`; this
-// client-side mutation is the single point of policy. Must be called BEFORE
-// applyManifest so the scene is built with the correct name from the start.
-export function _applyDisplayLabel(manifest: Manifest): void {
-  const friendly = labelFromManifest(manifest);
-  if (manifest.tree && friendly) {
-    manifest.tree.name = friendly;
-  }
-}
 
 export async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manifest) {
   // Every visual / layout tunable comes from the named exports of
@@ -66,7 +46,6 @@ export async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manif
   // every other module reads world directly through accessors.
   const world = createWorld(canvas);
   const scene = world.scene;
-  _applyDisplayLabel(manifest);
 
   // -- 2. Renderer (created BEFORE applyManifest) ------------------------------
   // applyManifest's cell pass creates InstancedAdPanels and immediately
@@ -121,9 +100,9 @@ export async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manif
   // -- 5. Picker (raycaster + hover/selection state) --------------------------
   // Picker owns the hover + selection atoms (consumed below by the
   // outline / path-line / fader / sidebar code via subscription).
-  // Selection persistence is wired in the boot block before startRenderLoop
-  // runs — the saved {kind, path} key is hydrated into PICKER_SELECTION_KEY
-  // before this picker resolves it against the freshly-built city.
+  // The selection key is in-memory only (not persisted): it starts null on
+  // a fresh load and is re-resolved against each freshly-built city so the
+  // selection survives in-session rebuilds.
   const picker = createPicker({ canvas, camera, world });
 
   // -- 6. Per-frame visual modules ---------------------------------------------
@@ -159,32 +138,20 @@ export async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manif
   // material.opacity), so they cannot conflict by construction.
   const animator = createAnimator({ world });
 
-  // -- 7. Sidebar coordinator (appHeader + appFooter + leftSidebar) ----------
-  // Owns the lifecycle of the three component panes and wires picker
-  // changes into their displays. Tree-row clicks/hovers/focus dispatches
-  // route back through picker + rig the same as canvas-driven actions.
-  const coordinator = createCoordinator({
-    world,
-    picker,
-    rig,
-    resetView,
-    applyTheme,
-  });
-
   // SIDEWALK_COLORS holds CSS strings; we pre-convert to numeric hex so
   // the per-frame tint loop calls material.color.setHex() without
   // re-parsing every frame. applyTheme() refreshes these whenever the
   // Settings UI mutates SIDEWALK_COLORS.
-  const _swc0 = SIDEWALK_COLORS.get();
-  let SIDEWALK_HOVER_COLOR = new THREE.Color(_swc0.HOVER).getHex();
-  let SIDEWALK_SELECTED_COLOR = new THREE.Color(_swc0.SELECTED).getHex();
-  let SIDEWALK_DEFAULT_COLOR = new THREE.Color(_swc0.DEFAULT).getHex();
+  const _swc0 = STREETS.value;
+  let SIDEWALK_HOVER_COLOR = new THREE.Color(_swc0.SIDEWALK_HOVER).getHex();
+  let SIDEWALK_SELECTED_COLOR = new THREE.Color(_swc0.SIDEWALK_SELECTED).getHex();
+  let SIDEWALK_DEFAULT_COLOR = new THREE.Color(_swc0.SIDEWALK_DEFAULT).getHex();
 
   // _refreshSidewalkTints() — repaint every sidewalk's material.color
   // based on the current picker.selection / picker.hover state.
   function _refreshSidewalkTints(): void {
-    const sel = picker.selection.get();
-    const hov = picker.hover.get();
+    const sel = picker.selection.value;
+    const hov = picker.hover.value;
     const streetPickables = world.getStreetPickables();
     for (const sw of streetPickables) {
       if (sw.userData.origColor == null) {
@@ -208,24 +175,24 @@ export async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manif
   // (BUILDING_FADE.*, HOVER.COMMIT_MS) are read fresh each frame and
   // don't need anything here.
   function applyTheme(): void {
-    const sidewalk = SIDEWALK_COLORS.get();
+    const sidewalk = STREETS.value;
 
-    SIDEWALK_HOVER_COLOR = new THREE.Color(sidewalk.HOVER).getHex();
-    SIDEWALK_SELECTED_COLOR = new THREE.Color(sidewalk.SELECTED).getHex();
-    SIDEWALK_DEFAULT_COLOR = new THREE.Color(sidewalk.DEFAULT).getHex();
+    SIDEWALK_HOVER_COLOR = new THREE.Color(sidewalk.SIDEWALK_HOVER).getHex();
+    SIDEWALK_SELECTED_COLOR = new THREE.Color(sidewalk.SIDEWALK_SELECTED).getHex();
+    SIDEWALK_DEFAULT_COLOR = new THREE.Color(sidewalk.SIDEWALK_DEFAULT).getHex();
     const streetPickables = world.getStreetPickables();
     for (const sw of streetPickables) {
       sw.userData.origColor = SIDEWALK_DEFAULT_COLOR;
     }
     _refreshSidewalkTints();
 
-    const asphaltHex = new THREE.Color(ASPHALT.get().COLOR).getHex();
+    const asphaltHex = new THREE.Color(STREETS.value.ASPHALT_COLOR).getHex();
     const asphaltMeshes = world.getAsphaltMeshes();
     for (const mesh of asphaltMeshes) {
       mesh.material.color.setHex(asphaltHex);
     }
 
-    scene.background = new THREE.Color(SKY.get().COLOR);
+    scene.background = new THREE.Color(SCENE.value.SKY_COLOR);
 
     outlineRenderer.refreshMaterials();
     treeOutlineRenderer.refreshMaterials();
@@ -234,7 +201,7 @@ export async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manif
     postFx.refresh();
     // Cyberpunk Valley sky — pulls fresh SKY_* uniforms (sky color,
     // star density, twinkle params). Hot-reloaded via the
-    // hotStores route in app/config/hotReload.ts.
+    // hotStores route in state/settingsReactions.ts.
     world.getSky().refresh();
     // Floating repo-name label — pulls fresh STYLE/ENABLED/OPACITY/
     // HEIGHT_ABOVE_CITY/ANIMATION_SPEED. Swaps the active style mesh
@@ -246,7 +213,7 @@ export async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manif
     // hot-update without a manifest rebuild.
     world.getIsland().refresh();
 
-    // Cyberpunk Valley trees — pushes fresh TREE_GREENS + TREE_TRUNK_COLOR
+    // Cyberpunk Valley trees — pushes fresh TREE_GREENS + TRUNK_COLOR
     // into per-instance color buffers. Null until the first manifest applies.
     world.getTrees()?.refresh();
     // Cyberpunk Valley fireflies — pushes fresh BOB/PULSE/EMISSION/FLICKER/
@@ -265,7 +232,7 @@ export async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manif
     // until the first manifest with media files applies.
     world.getAdPanels()?.refresh();
 
-    const gemAppearance = GEM_APPEARANCE.get();
+    const gemAppearance = GEM.value;
     const rootGemEdges = world.getRootGemEdges();
     const rootGemBody = world.getRootGemBody();
     const rootGem = world.getRootGem();
@@ -288,7 +255,7 @@ export async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manif
     // baked at construction. Rewrite it in place on Save so palette tweaks
     // take effect without a full applyManifest rebuild.
     if (rootGemBody?.geometry?.attributes.color) {
-      const palette = GEM_FACE_PALETTE.get();
+      const palette = GEM.value;
       const paletteHexes = [
         palette.FACE_1,
         palette.FACE_2,
@@ -320,7 +287,7 @@ export async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manif
       colorAttr.needsUpdate = true;
     }
     if (rootGem && rootGem.userData.streetWidth != null) {
-      const hoverFrac = GEM_SIZING.get().HOVER_LIFT_FRAC;
+      const hoverFrac = GEM_HOVER_LIFT_FRAC;
       rootGem.userData.baseY = rootGem.userData.radius + rootGem.userData.streetWidth * hoverFrac;
     }
 
@@ -328,28 +295,28 @@ export async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manif
     // is driven per-frame by the render loop (palette cycle), so we
     // don't touch it here.
     if (rootGem && rootGem.userData.radius != null) {
-      const glowCfg = GEM_GLOW.get();
+      const glowCfg = GEM.value;
       const r = rootGem.userData.radius as number;
       const inner = rootGem.userData.innerGlowSprite as THREE.Sprite | null;
       const outer = rootGem.userData.outerGlowSprite as THREE.Sprite | null;
       if (inner) {
-        inner.visible = glowCfg.ENABLED;
-        inner.scale.set(r * glowCfg.INNER_SCALE, r * glowCfg.INNER_SCALE, 1);
-        (inner.material as THREE.SpriteMaterial).opacity = glowCfg.INNER_OPACITY;
+        inner.visible = glowCfg.GLOW_ENABLED;
+        inner.scale.set(r * glowCfg.GLOW_INNER_SCALE, r * glowCfg.GLOW_INNER_SCALE, 1);
+        (inner.material as THREE.SpriteMaterial).opacity = glowCfg.GLOW_INNER_OPACITY;
       }
       if (outer) {
-        outer.visible = glowCfg.ENABLED;
-        outer.scale.set(r * glowCfg.OUTER_SCALE, r * glowCfg.OUTER_SCALE, 1);
-        (outer.material as THREE.SpriteMaterial).opacity = glowCfg.OUTER_OPACITY;
+        outer.visible = glowCfg.GLOW_ENABLED;
+        outer.scale.set(r * glowCfg.GLOW_OUTER_SCALE, r * glowCfg.GLOW_OUTER_SCALE, 1);
+        (outer.material as THREE.SpriteMaterial).opacity = glowCfg.GLOW_OUTER_OPACITY;
       }
     }
 
-    const labelCfg = LABEL_TYPOGRAPHY.get();
+    const labelCfg = STREETS.value;
     const streetLabels = world.getStreetLabels();
     for (const lg of streetLabels) {
       const origFrac = lg.userData.origHeightFrac;
       if (origFrac && lg.children[0]) {
-        const s = labelCfg.HEIGHT_FRAC / origFrac;
+        const s = labelCfg.LABEL_HEIGHT_FRAC / origFrac;
         lg.children[0].scale.set(s, s, 1);
       }
     }
@@ -385,36 +352,31 @@ export async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manif
     getRootName: () => world.getRoot()?.name ?? null,
   });
 
-  // Sidewalk tints are scene-state that follow selection / hover. Subscribe
-  // directly to picker so the tint refresh fires alongside the renderers.
-  picker.selection.subscribe(() => {
+  // Sidewalk tints follow selection / hover. Two effects keep tracking
+  // narrow — one signal per effect, no over-tracking.
+  effect(() => {
+    void picker.selection.value;
     _refreshSidewalkTints();
   });
-  picker.hover.subscribe(() => {
+  effect(() => {
+    void picker.hover.value;
     _refreshSidewalkTints();
   });
 
-  // Firefly hover / select boost. Always re-fetches world.getFireflies() so
-  // the subscription stays valid across world rebuilds — the new renderer
-  // starts with uniforms at -1 (no highlight), and the next subscription
-  // fire will push the current hover/selection into it.
-  picker.hover.subscribe((h) => {
+  // Firefly hover / select boost. Re-fetches world.getFireflies() each fire
+  // so the wiring survives world rebuilds (new renderer starts with -1
+  // uniforms and the next signal change pushes current hover/selection in).
+  effect(() => {
+    const h = picker.hover.value;
     const fireflies = world.getFireflies();
     if (!fireflies) return;
-    if (h && h.kind === NodeKind.Commit) {
-      fireflies.setHoveredCommit(h.commit.sha);
-    } else {
-      fireflies.setHoveredCommit(null);
-    }
+    fireflies.setHoveredCommit(h && h.kind === NodeKind.Commit ? h.commit.sha : null);
   });
-  picker.selection.subscribe((sel) => {
+  effect(() => {
+    const sel = picker.selection.value;
     const fireflies = world.getFireflies();
     if (!fireflies) return;
-    if (sel && sel.kind === NodeKind.Commit) {
-      fireflies.setSelectedCommit(sel.commit.sha);
-    } else {
-      fireflies.setSelectedCommit(null);
-    }
+    fireflies.setSelectedCommit(sel && sel.kind === NodeKind.Commit ? sel.commit.sha : null);
   });
 
   // -- 8. Render loop --------------------------------------------------------
@@ -497,7 +459,7 @@ export async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manif
     _orientLabelsForCamera(world.getStreetLabels(), camera, labelRight);
     const rootGem = world.getRootGem();
     if (rootGem) {
-      const gemAnim = GEM_ANIMATION.get();
+      const gemAnim = GEM.value;
       const t = (performance.now() - startTime) / 1000;
       rootGem.rotation.y = t * gemAnim.ROTATION_SPEED;
       // BOB_AMPLITUDE_FRAC is read live each frame so the slider
@@ -508,7 +470,7 @@ export async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manif
         Math.sin(t * gemAnim.BOB_FREQUENCY) *
           (rootGem.userData.radius * gemAnim.BOB_AMPLITUDE_FRAC);
       // Scale-up affordance on hover so the gem reads as clickable.
-      const hov = picker.hover.get();
+      const hov = picker.hover.value;
       const gemTargetScale = hov && hov.kind === NodeKind.Gem ? gemAnim.HOVER_SCALE : 1.0;
       const curS = rootGem.scale.x;
       const nextS = curS + (gemTargetScale - curS) * gemAnim.SCALE_LERP_SPEED;
@@ -518,12 +480,12 @@ export async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manif
       // is on; otherwise fall back to the gem's EDGE_COLOR. Two halos
       // cycle on different phases so the gem reads with two colors at
       // any moment, blending as they cross.
-      const glowCfg = GEM_GLOW.get();
+      const glowCfg = GEM.value;
       const inner = rootGem.userData.innerGlowSprite as THREE.Sprite | null;
       const outer = rootGem.userData.outerGlowSprite as THREE.Sprite | null;
       if (inner || outer) {
-        if (glowCfg.ANIMATE_COLORS) {
-          const palette = GEM_FACE_PALETTE.get();
+        if (glowCfg.GLOW_ANIMATE_COLORS) {
+          const palette = GEM.value;
           const hexes = [
             palette.FACE_1,
             palette.FACE_2,
@@ -534,13 +496,13 @@ export async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manif
             palette.FACE_7,
             palette.FACE_8,
           ];
-          const period = Math.max(0.001, glowCfg.CYCLE_PERIOD_SECONDS);
+          const period = Math.max(0.001, glowCfg.GLOW_CYCLE_PERIOD_SECONDS);
           if (inner)
             _setPaletteColor((inner.material as THREE.SpriteMaterial).color, hexes, t, period, 0);
           if (outer)
             _setPaletteColor((outer.material as THREE.SpriteMaterial).color, hexes, t, period, 0.5);
         } else {
-          const edge = GEM_APPEARANCE.get().EDGE_COLOR;
+          const edge = GEM.value.EDGE_COLOR;
           if (inner) (inner.material as THREE.SpriteMaterial).color.set(edge);
           if (outer) (outer.material as THREE.SpriteMaterial).color.set(edge);
         }
@@ -550,7 +512,7 @@ export async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manif
         // BLOOM.WINDOW_EMISSION. 1.0 = no bloom from gem; higher = more.
         // Gated on BLOOM.ENABLED so the "flat" comparison mode skips
         // the HDR push entirely.
-        const bloomCfg = BLOOM.get();
+        const bloomCfg = BLOOM.value;
         const gemEmission = bloomCfg.ENABLED ? bloomCfg.GEM_EMISSION : 1.0;
         if (gemEmission !== 1) {
           if (inner) (inner.material as THREE.SpriteMaterial).color.multiplyScalar(gemEmission);
@@ -575,11 +537,24 @@ export async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manif
   }
   animate();
 
-  // Expose world, applyTheme, and coordinator to the boot block so
-  // setupLiveUpdates can swap in fresh manifests, attachCommitReactions can
-  // dispatch material refreshes, and applyNewSource can update the header
-  // branch pill + repo link after a mid-session source switch.
-  return { world, applyTheme, coordinator };
+  // Expose world, applyTheme, picker, rig, and resetView to the boot
+  // block (App.tsx) so setupLiveUpdates can swap in fresh manifests,
+  // attachCommitReactions can dispatch material refreshes, and the
+  // shell components can read picker.selection / picker.hover via
+  // SCENE_HANDLE signal.
+  return {
+    world,
+    applyTheme,
+    picker,
+    rig,
+    resetView,
+    /** Focus the camera on the node at `path`: resolve via the picker, dispatch
+     *  to the rig. The single-call focus equivalent of picker.selectByPath /
+     *  hoverByPath, so callers needn't reach into both subsystems. */
+    focusByPath(path: string): void {
+      rig.focusSelection(picker.targetForPath(path));
+    },
+  };
 }
 
 // Cycle a THREE.Color in place through a palette of [r,g,b] triples,

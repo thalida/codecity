@@ -1,5 +1,6 @@
 import { defineConfig } from 'vitest/config';
 import { resolve } from 'node:path';
+import preact from '@preact/preset-vite';
 
 const appDir = import.meta.dirname;
 
@@ -8,6 +9,9 @@ const appDir = import.meta.dirname;
 //   - `bench` → bench/**/*.test.{js,ts}   (run by `npm run bench`)
 // `extends: true` inherits the root resolve.alias so we don't duplicate it.
 export default defineConfig({
+  // Preact plugin mirrors vite.config.js so vitest can parse JSX/TSX in
+  // source modules that tests transitively import.
+  plugins: [preact()],
   // Mirrors vite.config.js — must stay in sync so tests resolve `@/`
   // imports the same way the dev server does.
   resolve: {
@@ -21,7 +25,7 @@ export default defineConfig({
           name: 'unit',
           environment: 'jsdom',
           setupFiles: ['tests/setup.ts'],
-          include: ['tests/**/*.test.{js,ts}'],
+          include: ['tests/**/*.test.{js,ts,tsx}'],
           // jsdom + canvas tests can spike past the 5s default under parallel load.
           testTimeout: 15_000,
         },

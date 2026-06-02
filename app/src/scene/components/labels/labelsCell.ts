@@ -1,4 +1,4 @@
-// scene/instanced/labelsCell.ts — Cell-aware label InstancedMesh factory.
+// scene/components/labels/labelsCell.ts — Cell-aware label InstancedMesh factory.
 //
 // Replaces the per-block approach in labels.ts for the spatial-grid
 // rendering path. Geometry + ShaderMaterial are constructed once
@@ -15,8 +15,9 @@
 // the shared atlas built by buildLabelAtlas() from labelAtlas.ts.
 
 import * as THREE from 'three';
-import { LABEL_TYPOGRAPHY } from '@/state/settings/index';
-import { RENDER_ORDERS } from '@/constants';
+import { STREETS } from '@/state/stores/settings/streets';
+import { LABEL_ELEVATION } from '@/constants/streets';
+import { RENDER_ORDERS } from '@/scene/renderOrders';
 import type { Building } from '@/types/index';
 import type { CellTile } from '../../layout/cellTile';
 import type { LabelAtlasResult } from './labelAtlas';
@@ -145,7 +146,7 @@ export function writeLabelToSlot(cell: CellTile, b: Building, atlas: LabelAtlasR
   if (!cell.labelMesh) return;
   const slot = b.slotId!;
   const mesh = cell.labelMesh;
-  const label = LABEL_TYPOGRAPHY.get();
+  const streets = STREETS.value;
 
   const text = b.file?.name ?? '';
   const rect = text ? atlas.rectByText.get(text) : undefined;
@@ -160,7 +161,7 @@ export function writeLabelToSlot(cell: CellTile, b: Building, atlas: LabelAtlasR
   // --- Label plane sizing ---
   // Height = building footprint width × HEIGHT_FRAC; width preserves aspect.
   // Cap at 90% of building footprint so long filenames don't overflow.
-  const baseH = b.w * label.HEIGHT_FRAC;
+  const baseH = b.w * streets.LABEL_HEIGHT_FRAC;
   const baseW = baseH * rect.aspect;
   const maxW = b.w * 0.9;
   let worldH: number;
@@ -181,7 +182,7 @@ export function writeLabelToSlot(cell: CellTile, b: Building, atlas: LabelAtlasR
   m.makeScale(worldW, worldH, 1);
   const flatRot = new THREE.Matrix4().makeRotationX(-Math.PI / 2);
   m.premultiply(flatRot);
-  m.setPosition(b.x, b.h + label.ELEVATION, b.y);
+  m.setPosition(b.x, b.h + LABEL_ELEVATION, b.y);
   mesh.setMatrixAt(slot, m);
 
   // --- UV rect ---

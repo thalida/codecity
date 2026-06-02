@@ -1,4 +1,4 @@
-// scene/trees/treePlacement.ts — commit-driven tree placement.
+// scene/components/trees/treePlacement.ts — commit-driven tree placement.
 //
 // One tree per commit. Trees are scattered across the world floor
 // rectangle via a STRATIFIED GRID: the sampling region is divided
@@ -24,17 +24,22 @@
 
 import RBush from 'rbush';
 import * as THREE from 'three';
-import { TREES } from '@/state/settings/components/trees';
-import { FOOTPRINT } from '@/state/settings/components/footprint';
-import { BUILDING_DIMENSIONS } from '@/state/settings/components/buildings';
-import { ISLAND_GEOMETRY } from '@/state/settings/components/island';
+import { TREES } from '@/state/stores/settings/trees';
+import { FOOTPRINT } from '@/state/stores/settings/footprint';
+import { BUILDING_DIMENSIONS } from '@/state/stores/settings/buildings';
+import { ISLAND } from '@/state/stores/settings/island';
 import { getWorldBounds } from '../../layout/worldBounds';
 import { buildTopPolygon, pointInIslandPolygon } from '../island/islandGeometry';
 import { islandSeedFromBounds } from '../island/islandMesh';
 import { StreetAxis } from '@/types';
 import { gemAnchorXZ } from '../../utils/gemAnchor';
 import type { Building, CityBbox, CityLayout, Street } from '@/types';
-import type { IslandGeometryConfig } from '@/state/settings/components/island';
+import type { IslandConfig } from '@/state/stores/settings/island';
+
+// Rejection-sampling footprint half-size as a fraction of BUILDING_DIMENSIONS
+// .MAX_WIDTH — a fixed placement-tuning constant, not user-tunable (it lived in
+// the TREES settings store but was never exposed as a control).
+const SCATTER_FOOTPRINT_FRAC_OF_MAX_WIDTH = 0.5;
 
 interface Rect {
   minX: number;
@@ -64,7 +69,7 @@ export interface PlaceTreesOptions {
    *  which can't read the main-thread store directly). When omitted,
    *  the live ISLAND_GEOMETRY store is read. Pass null to disable the
    *  polygon rejection pass (e.g. in non-island tests). */
-  islandGeoOverride?: IslandGeometryConfig | null;
+  islandGeoOverride?: IslandConfig | null;
 }
 
 /** Hard ceiling on grid resolution. Caps total iterations + accepted
@@ -141,8 +146,8 @@ export function placeTrees(
   bboxOverride?: CityBbox,
   options: PlaceTreesOptions = { commitCount: 0 }
 ): TreePlacement[] {
-  const cfg = TREES.get();
-  if (!cfg.TREES_ENABLED) return [];
+  const cfg = TREES.value;
+  if (!cfg.ENABLED) return [];
 
   const bbox = bboxOverride ?? layout.bbox;
   if (!bbox) return [];
@@ -150,7 +155,7 @@ export function placeTrees(
   const treeTarget = Math.max(0, options.commitCount | 0);
   if (treeTarget === 0) return [];
 
-  const footprint = FOOTPRINT.get();
+  const footprint = FOOTPRINT.value;
   const halo = footprint.ENABLED ? Math.max(0, footprint.HALO_WIDTH) : 0;
 
   // Build rbush of every layout rect, inflated by the halo.
@@ -167,8 +172,8 @@ export function placeTrees(
   if (rects.length > 0) rtree.load(rects);
   const hasRects = rects.length > 0;
 
-  const dims = BUILDING_DIMENSIONS.get();
-  const halfFoot = (cfg.SCATTER_FOOTPRINT_FRAC_OF_MAX_WIDTH * dims.MAX_WIDTH) / 2;
+  const dims = BUILDING_DIMENSIONS.value;
+  const halfFoot = (SCATTER_FOOTPRINT_FRAC_OF_MAX_WIDTH * dims.MAX_WIDTH) / 2;
 
   const bounds = getWorldBounds(bbox, options.cityHeight ?? 0);
   const center = gemCenterFromLayout(layout, bbox);
@@ -190,9 +195,8 @@ export function placeTrees(
   // only the smaller bounds rect, leaving the polygon's expanded edges
   // empty. Worst-case polygon vertex sits at halfWidth × baseScale ×
   // (1 + IRREGULARITY) (outward jitter), so sample to that extent.
-  const sides = options.islandGeoOverride?.SIDES ?? ISLAND_GEOMETRY.get().SIDES;
-  const irregularity =
-    options.islandGeoOverride?.IRREGULARITY ?? ISLAND_GEOMETRY.get().IRREGULARITY;
+  const sides = options.islandGeoOverride?.SIDES ?? ISLAND.value.SIDES;
+  const irregularity = options.islandGeoOverride?.IRREGULARITY ?? ISLAND.value.IRREGULARITY;
   // Irregularity is now reductive (vertices shrink inward), so the polygon's
   // max extent is bounded by the unjittered baseScale — no (1 + irregularity)
   // expansion factor needed.
@@ -205,7 +209,7 @@ export function placeTrees(
   // sampling region's edge. `maxFalloffDist` is the largest possible
   // distance from the city bbox within the sampling region — used to
   // normalize the per-candidate distance into [0,1].
-  const falloffPower = Math.max(0, cfg.TREE_DENSITY_FALLOFF);
+  const falloffPower = Math.max(0, cfg.DENSITY_FALLOFF);
   const worldMinX = bounds.cx - sampleHalfW;
   const worldMaxX = bounds.cx + sampleHalfW;
   const worldMinZ = bounds.cz - sampleHalfD;
@@ -230,7 +234,7 @@ export function placeTrees(
   // of IRREGULARITY (which makes edges sit at varying distances from origin).
   let islandPolygon: THREE.Vector3[] | null = null;
   if (options.islandGeoOverride !== null) {
-    const islandGeo = options.islandGeoOverride ?? ISLAND_GEOMETRY.get();
+    const islandGeo = options.islandGeoOverride ?? ISLAND.value;
     if (islandGeo.ENABLED) {
       const rawPolygon = buildTopPolygon({
         sides: islandGeo.SIDES,

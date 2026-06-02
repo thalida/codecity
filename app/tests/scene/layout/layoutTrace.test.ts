@@ -217,6 +217,7 @@ describe('layoutCityWithTrace', () => {
       tree_signature: 'test-fp-1234',
       repo: { branch: null, remote_url: null, head_sha: null, head_subject: null, dirty: false },
       commits: [],
+      busyness: { avg: 1, busy: 1 },
       tree,
     };
 
@@ -291,6 +292,7 @@ describe('layoutCityWithTrace', () => {
       tree_signature: 'test-fp-5678',
       repo: { branch: null, remote_url: null, head_sha: null, head_subject: null, dirty: false },
       commits: [],
+      busyness: { avg: 1, busy: 1 },
       tree,
     };
 

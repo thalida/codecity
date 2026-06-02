@@ -1,4 +1,4 @@
-// scene/adPanels.ts — Media-file classification helpers shared by the
+// scene/components/adPanels/adPanels.ts — Media-file classification helpers shared by the
 // instanced ad-panel renderer (scene/instanced/adPanelsInstanced.ts) and
 // the layout module. Recognizes which file extensions get a media-poster
 // face rendered on their building.

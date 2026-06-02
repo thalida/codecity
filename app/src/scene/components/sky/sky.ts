@@ -1,4 +1,4 @@
-// scene/sky/sky.ts — Cyberpunk Valley procedural sky factory.
+// scene/components/sky/sky.ts — Cyberpunk Valley procedural sky factory.
 //
 // Builds one global inverted-icosphere mesh that wraps the entire
 // scene. The fragment shader writes a flat uSkyColor across the
@@ -22,9 +22,9 @@
 // then composites everything on top.
 
 import * as THREE from 'three';
-import { SKY, SKY_STARS } from '@/state/settings/components/sky';
-import { CAMERA_PERSPECTIVE } from '@/state/settings/system/cameraRig';
-import { RENDER_ORDERS } from '@/constants';
+import { SCENE } from '@/state/stores/settings/scene';
+import { CAMERA_FAR } from '@/constants/camera';
+import { RENDER_ORDERS } from '@/scene/renderOrders';
 
 import skyVertSrc from './sky.vert.glsl?raw';
 import skyFragSrc from './sky.frag.glsl?raw';
@@ -80,12 +80,11 @@ export function createSky(): Sky {
   // camera FAR plane is itself a fixed user config (default 20000)
   // and changes only require a fresh boot, so this radius does not
   // need to track FAR live.
-  const radius = CAMERA_PERSPECTIVE.get().FAR * RADIUS_FAR_FRAC;
+  const radius = CAMERA_FAR * RADIUS_FAR_FRAC;
 
   const geometry = new THREE.IcosahedronGeometry(radius, ICOSAHEDRON_DETAIL);
 
-  const sky = SKY.get();
-  const stars = SKY_STARS.get();
+  const cfg = SCENE.value;
 
   const material = new THREE.ShaderMaterial({
     vertexShader: skyVertSrc,
@@ -105,8 +104,8 @@ export function createSky(): Sky {
 
       uSkyColor: { value: new THREE.Color() },
 
-      uStarsEnabled: { value: stars.ENABLED ? 1.0 : 0.0 },
-      uStarDensity: { value: stars.DENSITY },
+      uStarsEnabled: { value: cfg.STARS_ENABLED ? 1.0 : 0.0 },
+      uStarDensity: { value: cfg.STARS_DENSITY },
       uStarSize: { value: STAR_SIZE },
       uStarBrightness: { value: STAR_BRIGHTNESS },
       uTwinkleEnabled: { value: TWINKLE_ENABLED },
@@ -114,7 +113,7 @@ export function createSky(): Sky {
       uTwinkleAmplitude: { value: TWINKLE_AMPLITUDE },
     },
   });
-  setColorFromHex(material.uniforms.uSkyColor.value as THREE.Color, sky.COLOR);
+  setColorFromHex(material.uniforms.uSkyColor.value as THREE.Color, cfg.SKY_COLOR);
 
   const mesh = new THREE.Mesh(geometry, material);
   mesh.renderOrder = RENDER_ORDERS.SKY;
@@ -122,13 +121,10 @@ export function createSky(): Sky {
   mesh.userData.cyberpunkValley = 'sky';
 
   function refresh(): void {
-    const k = SKY.get();
-    const s = SKY_STARS.get();
-
-    setColorFromHex(material.uniforms.uSkyColor.value as THREE.Color, k.COLOR);
-
-    material.uniforms.uStarsEnabled.value = s.ENABLED ? 1.0 : 0.0;
-    material.uniforms.uStarDensity.value = s.DENSITY;
+    const c = SCENE.value;
+    setColorFromHex(material.uniforms.uSkyColor.value as THREE.Color, c.SKY_COLOR);
+    material.uniforms.uStarsEnabled.value = c.STARS_ENABLED ? 1.0 : 0.0;
+    material.uniforms.uStarDensity.value = c.STARS_DENSITY;
   }
 
   function tick(dtSeconds: number): void {

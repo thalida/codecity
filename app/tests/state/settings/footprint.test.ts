@@ -1,12 +1,12 @@
 // app/tests/config/footprint.test.ts
 import { describe, it, expect } from 'vitest';
-import { FOOTPRINT } from '@/state/settings/components/footprint';
+import { FOOTPRINT } from '@/state/stores/settings/footprint';
 
 describe('FOOTPRINT', () => {
   it('exposes the expected keys with the right types', () => {
     // Asserting shape, not specific values — tuning the production
     // defaults shouldn't break this test.
-    const v = FOOTPRINT.get();
+    const v = FOOTPRINT.value;
     expect(typeof v.ENABLED).toBe('boolean');
     expect(typeof v.HALO_WIDTH).toBe('number');
     expect(typeof v.CORNER_RADIUS).toBe('number');

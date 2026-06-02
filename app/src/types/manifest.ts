@@ -48,6 +48,18 @@ export interface FileNode {
   media_height?: number;
 }
 
+/**
+ * One file-extension bucket in a directory's descendant breakdown. `ext` is
+ * the lowercase extension (".ts") or "(none)" for extensionless files.
+ * Computed once on the backend during the tree walk (see api/scan.py); the
+ * street view reads it instead of re-walking the subtree on each selection.
+ */
+export interface ExtBreakdownEntry {
+  ext: string;
+  count: number;
+  size: number;
+}
+
 export interface DirNode {
   name: string;
   type: NodeKind.Directory;
@@ -61,6 +73,9 @@ export interface DirNode {
   descendants_file_count: number;
   descendants_dir_count: number;
   descendants_size: number;
+  /** Per-extension counts/sizes over all descendant files, sorted by count
+   *  desc (ext asc tiebreak). Empty for directories with no files. */
+  descendants_ext_breakdown: ExtBreakdownEntry[];
 }
 
 export type TreeNode = FileNode | DirNode;
@@ -99,6 +114,10 @@ export interface CommitEntry {
   authors: string[];
   /** First line of the commit message. */
   subject: string;
+  /** Number of commits sharing this commit's calendar date (≥ 1, includes
+   *  self). Baked by the backend at manifest-wrap so the commit pane's
+   *  busyness badge and the scene tree-color read one consistent value. */
+  same_day_total: number;
 }
 
 export interface Manifest {
@@ -123,6 +142,21 @@ export interface Manifest {
   /** Per-commit metadata, oldest-first. `[]` when the repo has zero
    *  commits. */
   commits: CommitEntry[];
+  /** Repo-relative per-day commit-count thresholds, computed on the backend.
+   *  Both the scene tree-color gradient and the commit pane's busyness label
+   *  read these so they agree. */
+  busyness: BusynessThresholds;
+}
+
+/**
+ * Per-day commit-count thresholds (commits/day). A day with >= busy commits
+ * reads as "Busy", >= avg as "Average", else "Quiet". `avg` is the median
+ * commits/day; `busy` is the 75th percentile (clamped to avg+1). Computed
+ * once on the backend (see api/scan.py) from the commit history.
+ */
+export interface BusynessThresholds {
+  avg: number;
+  busy: number;
 }
 
 /**

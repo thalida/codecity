@@ -1,4 +1,4 @@
-// scene/instanced/labels.ts — Re-exports of the shared label atlas builder
+// scene/components/labels/labels.ts — Re-exports of the shared label atlas builder
 // + the label-material cache disposer.
 //
 // The atlas builder itself lives in labelAtlas.ts (reused by the

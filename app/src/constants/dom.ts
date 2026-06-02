@@ -1,12 +1,4 @@
-// constants/dom.ts — Top-level DOM element IDs the renderer + views target.
-
-export const DOM_IDS = {
-  CANVAS: 'city',
-  TREE_SIDEBAR: 'tree-sidebar',
-  FILE_SIDEBAR: 'sidebar',
-  HOVER_TOOLTIP: 'hover-tooltip',
-  APP_TITLE: 'app-title',
-} as const;
+// constants/dom.ts — Shared DOM-related constants.
 
 /**
  * HTML tag names whose focus state suppresses app-level keyboard shortcuts

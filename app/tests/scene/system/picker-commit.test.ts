@@ -29,6 +29,7 @@ function commit(i: number): CommitEntry {
     sha: `${i.toString(16).padStart(8, '0')}${'0'.repeat(32)}`,
     authors: [`Author ${i}`],
     subject: `commit ${i}`,
+    same_day_total: 1, // each commit is on a distinct date
   };
 }
 
@@ -109,7 +110,7 @@ beforeEach(() => {
   canvas = document.createElement('canvas');
   canvas.width = 800;
   canvas.height = 600;
-  PICKER_SELECTION_KEY.set(null);
+  PICKER_SELECTION_KEY.value = null;
 });
 
 describe('picker: tree commit picking', () => {
@@ -207,7 +208,7 @@ describe('picker: tree commit picking', () => {
       commit: commits[1],
     });
 
-    expect(PICKER_SELECTION_KEY.get()).toEqual({
+    expect(PICKER_SELECTION_KEY.value).toEqual({
       kind: NodeKind.Commit,
       sha: commits[1].sha,
     });
@@ -221,10 +222,10 @@ describe('picker: tree commit picking', () => {
     const trees = makeFakeTrees(canopy, trunk, commits);
     const world = makeWorld(trees);
 
-    PICKER_SELECTION_KEY.set({ kind: NodeKind.Commit, sha: commits[1].sha });
+    PICKER_SELECTION_KEY.value = { kind: NodeKind.Commit, sha: commits[1].sha };
     const p = createPicker({ canvas, camera: FAKE_CAMERA, world });
 
-    const sel = p.selection.get() as CommitTarget | null;
+    const sel = p.selection.value as CommitTarget | null;
     expect(sel).not.toBeNull();
     expect(sel!.kind).toBe(NodeKind.Commit);
     expect(sel!.commit).toEqual(commits[1]);
@@ -256,7 +257,7 @@ describe('picker: tree commit picking', () => {
     world.setTrees(treesB);
     world.triggerRebuild();
 
-    const sel = p.selection.get() as CommitTarget | null;
+    const sel = p.selection.value as CommitTarget | null;
     expect(sel).not.toBeNull();
     expect(sel!.kind).toBe(NodeKind.Commit);
     expect(sel!.commit).toEqual(commits[1]);
@@ -304,11 +305,11 @@ describe('picker: tree commit picking', () => {
     const trees = makeFakeTrees(canopy, trunk, commits);
     const world = makeWorld(trees);
 
-    PICKER_SELECTION_KEY.set({ kind: NodeKind.Commit, sha: 'f'.repeat(40) });
+    PICKER_SELECTION_KEY.value = { kind: NodeKind.Commit, sha: 'f'.repeat(40) };
     const p = createPicker({ canvas, camera: FAKE_CAMERA, world });
 
-    expect(p.selection.get()).toBeNull();
-    expect(PICKER_SELECTION_KEY.get()).toBeNull();
+    expect(p.selection.value).toBeNull();
+    expect(PICKER_SELECTION_KEY.value).toBeNull();
     p.dispose();
   });
 });

@@ -71,7 +71,7 @@ export interface PickerWorld {
   /** Returns the cells map. */
   getCells(): Map<number, CellTile>;
   /** Returns the Trees instance (null when no manifest applied yet
-   *  or when TREES_ENABLED is off). */
+   *  or when ENABLED is off). */
   getTrees(): {
     group: THREE.Group;
     commitForInstance(mesh: THREE.InstancedMesh, instanceId: number): CommitEntry | null;

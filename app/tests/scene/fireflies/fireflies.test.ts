@@ -1,12 +1,19 @@
 import { describe, it, expect } from 'vitest';
 import * as THREE from 'three';
 import { createFireflies } from '@/scene/components/fireflies/fireflies';
-import { FIREFLIES } from '@/state/settings/components/fireflies';
+import { FIREFLIES } from '@/state/stores/settings/fireflies';
 import type { CommitEntry } from '@/types';
 import type { TreePlacement } from '@/scene/components/trees/treePlacement';
 
 const COMMITS: CommitEntry[] = [
-  { date: '2026-01-01', files: 1, sha: 'a'.repeat(40), authors: ['Alice'], subject: 'a' },
+  {
+    date: '2026-01-01',
+    files: 1,
+    sha: 'a'.repeat(40),
+    authors: ['Alice'],
+    subject: 'a',
+    same_day_total: 1,
+  },
 ];
 
 const PLACEMENTS: TreePlacement[] = [{ x: 0, y: 0, commitIndex: 0, seed: 0 } as TreePlacement];
@@ -89,21 +96,21 @@ describe('createFireflies', () => {
     f.dispose();
   });
 
-  it('returns an empty group when FIREFLIES_ENABLED is false', () => {
-    const orig = FIREFLIES.get().FIREFLIES_ENABLED;
-    FIREFLIES.setKey('FIREFLIES_ENABLED', false);
+  it('returns an empty group when ENABLED is false', () => {
+    const orig = FIREFLIES.value.ENABLED;
+    FIREFLIES.value = { ...FIREFLIES.value, ENABLED: false };
     try {
       const f = createFireflies(PLACEMENTS, COMMITS);
       expect(f.group.children.length).toBe(0);
       f.dispose();
     } finally {
-      FIREFLIES.setKey('FIREFLIES_ENABLED', orig);
+      FIREFLIES.value = { ...FIREFLIES.value, ENABLED: orig };
     }
   });
 
   it('orbit ring is absent when ORBIT_RING_ENABLED is false', () => {
-    const orig = FIREFLIES.get().ORBIT_RING_ENABLED;
-    FIREFLIES.setKey('ORBIT_RING_ENABLED', false);
+    const orig = FIREFLIES.value.ORBIT_RING_ENABLED;
+    FIREFLIES.value = { ...FIREFLIES.value, ORBIT_RING_ENABLED: false };
     try {
       const f = createFireflies(PLACEMENTS, COMMITS);
       const ringGroup = f.group.children.find((c) => c.name === 'firefly-orbit-rings');
@@ -112,7 +119,7 @@ describe('createFireflies', () => {
       expect(ringGroup!.children.length).toBe(0);
       f.dispose();
     } finally {
-      FIREFLIES.setKey('ORBIT_RING_ENABLED', orig);
+      FIREFLIES.value = { ...FIREFLIES.value, ORBIT_RING_ENABLED: orig };
     }
   });
 

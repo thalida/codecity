@@ -1,12 +1,13 @@
 import * as THREE from 'three';
 import { describe, it, expect, beforeEach } from 'vitest';
 import { createIsland } from '@/scene/components/island/islandMesh';
-import { ISLAND_GEOMETRY } from '@/state/settings/components/island';
-import { RENDER_ORDERS } from '@/constants';
+import { ISLAND } from '@/state/stores/settings/island';
+import { RENDER_ORDERS } from '@/scene/renderOrders';
 
 describe('createIsland', () => {
   beforeEach(() => {
-    ISLAND_GEOMETRY.set({
+    ISLAND.value = {
+      ...ISLAND.value,
       ENABLED: true,
       SIDES: 12,
       IRREGULARITY: 0.18,
@@ -14,7 +15,7 @@ describe('createIsland', () => {
       DEPTH: 0.6,
       ROUNDNESS: 0.7,
       GRASS_THICKNESS: 0.025,
-    });
+    };
   });
 
   it('returns a Group with island mesh', () => {
@@ -44,11 +45,11 @@ describe('createIsland', () => {
   });
 
   it('hidden when GEOMETRY.ENABLED=false', () => {
-    ISLAND_GEOMETRY.setKey('ENABLED', false);
+    ISLAND.value = { ...ISLAND.value, ENABLED: false };
     const island = createIsland(null);
     expect(island.group.visible).toBe(false);
     island.dispose();
-    ISLAND_GEOMETRY.setKey('ENABLED', true);
+    ISLAND.value = { ...ISLAND.value, ENABLED: true };
   });
 
   it('uses RENDER_ORDERS.VALLEY_FLOOR for the island mesh', () => {

@@ -1,4 +1,4 @@
-// scene/island/islandMesh.ts — Public API for the floating-island
+// scene/components/island/islandMesh.ts — Public API for the floating-island
 // world-plane module. Replaces createWorldFloor() (worldFloor.ts).
 //
 // Lifecycle:
@@ -9,11 +9,11 @@
 //   island.dispose();
 
 import * as THREE from 'three';
-import { ISLAND_GEOMETRY, ISLAND_MATERIALS } from '@/state/settings/components/island';
+import { ISLAND } from '@/state/stores/settings/island';
 import { getWorldBounds, type WorldBounds } from '@/scene/layout/worldBounds';
 import { buildIslandGeometry, type IslandBuildParams } from './islandGeometry';
 import { createIslandMaterial } from './islandShader';
-import { RENDER_ORDERS } from '@/constants';
+import { RENDER_ORDERS } from '@/scene/renderOrders';
 
 const ISLAND_TOP_Y = -2.0; // Increased from -0.5 for z-fighting prevention (4x separation from city y=0)
 
@@ -29,7 +29,7 @@ export interface Island {
 }
 
 function buildParams(bounds: WorldBounds, seedFromBounds: number): IslandBuildParams {
-  const g = ISLAND_GEOMETRY.get();
+  const g = ISLAND.value;
   return {
     sides: g.SIDES,
     irregularity: g.IRREGULARITY,
@@ -63,11 +63,11 @@ export function createIsland(initialBounds: WorldBounds | null): Island {
   let currentBounds = initialBounds ?? getWorldBounds(null);
   const group = new THREE.Group();
   group.position.set(currentBounds.cx, ISLAND_TOP_Y, currentBounds.cz);
-  group.visible = ISLAND_GEOMETRY.get().ENABLED;
+  group.visible = ISLAND.value.ENABLED;
 
   // Island mesh.
   let params = buildParams(currentBounds, islandSeedFromBounds(currentBounds));
-  const mats = ISLAND_MATERIALS.get();
+  const mats = ISLAND.value;
   let geometry = buildIslandGeometry(params, {
     GRASS: mats.GRASS_COLOR,
     GRASS_SIDE: mats.GRASS_SIDE_COLOR,
@@ -84,7 +84,7 @@ export function createIsland(initialBounds: WorldBounds | null): Island {
     currentBounds = newBounds;
     geometry.dispose();
     params = buildParams(currentBounds, islandSeedFromBounds(currentBounds));
-    const m = ISLAND_MATERIALS.get();
+    const m = ISLAND.value;
     geometry = buildIslandGeometry(params, {
       GRASS: m.GRASS_COLOR,
       GRASS_SIDE: m.GRASS_SIDE_COLOR,
@@ -98,8 +98,8 @@ export function createIsland(initialBounds: WorldBounds | null): Island {
     // Geometry colors changed → rebuild (vertex colors are baked into the
     // geometry, not pushed through uniforms). This is cheap for ~1-2k verts.
     setBounds(currentBounds);
-    group.visible = ISLAND_GEOMETRY.get().ENABLED;
-    const mats = ISLAND_MATERIALS.get();
+    group.visible = ISLAND.value.ENABLED;
+    const mats = ISLAND.value;
     (material.uniforms.uHemiSkyColor!.value as THREE.Color).set(mats.HEMI_SKY_COLOR);
     (material.uniforms.uHemiGroundColor!.value as THREE.Color).set(mats.HEMI_GROUND_COLOR);
   }

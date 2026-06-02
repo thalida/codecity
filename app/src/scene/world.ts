@@ -32,7 +32,10 @@ import { LineSegments2 } from 'three/addons/lines/LineSegments2.js';
 import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
 
 import { registerShaderChunks } from './utils/color/registerShaderChunks';
-import { getSharedBuildingUniforms } from './components/buildings/buildings';
+import { getSharedBuildingUniforms, setIconAtlas } from './components/buildings/buildings';
+import { setCellIconAtlas } from './components/buildings/buildingsCell';
+import { buildIconAtlas } from './components/buildings/iconAtlas';
+import { labelFromManifest } from '@/utils/sources';
 import { disposeLabelMaterials } from './components/labels/labels';
 import { buildCellsFromLayout } from './layout/cellAssembly';
 import type { CellTile } from './layout/cellTile';
@@ -62,26 +65,18 @@ import type { Island } from './components/island/islandMesh';
 import { getWorldBounds, type WorldBounds } from './layout/worldBounds';
 import { createCityFootprint } from './components/footprint/footprint';
 import type { CityFootprint } from './components/footprint/footprint';
-import { FOOTPRINT } from '@/state/settings/components/footprint';
+import { FOOTPRINT } from '@/state/stores/settings/footprint';
 import {
   getBuildingColor,
   getCreatedAge,
   getModifiedAge,
   getDateRanges,
 } from './components/buildings/buildingColor';
-import { SKY } from '@/state/settings/components/sky';
-import {
-  ASPHALT,
-  GEM_APPEARANCE,
-  GEM_FACE_PALETTE,
-  GEM_GLOW,
-  GEM_SIZING,
-  LABEL_TYPOGRAPHY,
-  TREES,
-  SCENE_COLORS,
-  SIDEWALK_COLORS,
-} from '@/state/settings/index';
-import { REBUILD_STATUS } from '@/state/runtime/liveStatus';
+import { STREETS } from '@/state/stores/settings/streets';
+import { GEM, GEM_SIZING } from '@/state/stores/settings/gem';
+import { TREES } from '@/state/stores/settings/trees';
+import { SCENE } from '@/state/stores/settings/scene';
+import { REBUILD_STATUS, RebuildStatus } from '@/state/stores/manifest';
 import type {
   Building,
   CityBbox,
@@ -254,7 +249,7 @@ function _buildWorld(layout: CityLayout) {
   // All visual values (street colors, sidewalk default, label fill/stroke,
   // gem edge color, etc.) come from the named exports of @/config.
   const scene = new THREE.Scene();
-  scene.background = new THREE.Color(SKY.get().COLOR);
+  scene.background = new THREE.Color(SCENE.value.SKY_COLOR);
 
   // Streets + their labels
   const streets = layout.streets || [];
@@ -324,7 +319,7 @@ function _buildWorld(layout: CityLayout) {
   };
 }
 
-// `canvas` is unused; kept in the signature so call sites (main.ts, tests)
+// `canvas` is unused; kept in the signature so call sites (useCityScene, tests)
 // don't have to change. outlineRenderer takes the canvas directly via its
 // own factory now, so world no longer needs to forward it — the param
 // can be dropped if a downstream pass cleans up the call sites.
@@ -336,7 +331,7 @@ export function createWorld(_canvas: HTMLCanvasElement) {
 
   // Persistent across applyManifest calls.
   const scene = new THREE.Scene();
-  scene.background = new THREE.Color(SKY.get().COLOR);
+  scene.background = new THREE.Color(SCENE.value.SKY_COLOR);
 
   // Cyberpunk Valley sky — built ONCE here, lives at scene root for
   // the lifetime of the world. Not rebuilt per applyManifest
@@ -401,7 +396,7 @@ export function createWorld(_canvas: HTMLCanvasElement) {
   let latestWorldBounds: WorldBounds | null = null;
 
   // The flat ground meshes (sidewalks, paths, asphalt) all use single
-  // MeshBasicMaterial; main.ts's color-update path reads
+  // MeshBasicMaterial; renderLoop.ts's color-update path reads
   // `mesh.material.color` directly. Typing them with a single material
   // (rather than the default `Material | Material[]`) keeps that
   // callsite's `.material.color` access working.
@@ -412,7 +407,7 @@ export function createWorld(_canvas: HTMLCanvasElement) {
   let asphaltMeshes: FlatMesh[] = [];
   let rootGem: THREE.Group | null = null;
   // rootGem children expose `.material.{color,opacity}` directly to the
-  // applyTheme code in main.ts; type with single-material variants so
+  // applyTheme code in renderLoop.ts; type with single-material variants so
   // those member accesses remain checked rather than `Material |
   // Material[]`-shaped.
   let rootGemBody: THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial> | null = null;
@@ -451,6 +446,12 @@ export function createWorld(_canvas: HTMLCanvasElement) {
   let _cachedLayoutTreeSig: string | null = null;
   let _cachedLayout: CityLayout | null = null;
 
+  // tree_signature of the manifest the building-roof icon atlas was last built
+  // for. The atlas is rebuilt only when this changes (see applyManifest) — the
+  // build is expensive, and most re-applies (settings rebuilds) reuse the same
+  // manifest.
+  let _lastAtlasTreeSig: string | null = null;
+
   // Scenic state cache: tracks the tree_signature that was used the last time
   // buildWorld ran successfully (in the cell branch). When the layout is
   // reused AND this signature matches the current manifest's tree_signature,
@@ -469,10 +470,10 @@ export function createWorld(_canvas: HTMLCanvasElement) {
 
   // computeScenicConfigHash collects the current values of every store whose
   // output is baked into buildWorld meshes:
-  //   - SCENE_COLORS  : FOG_* keys baked into building shader uniforms
-  //   - ASPHALT       : COLOR + WIDTH_FRAC baked into asphalt geometry/material
-  //   - SIDEWALK_COLORS: DEFAULT baked into sidewalk materials
-  //   - LABEL_TYPOGRAPHY: all keys baked into label canvas textures + geometry
+  //   - SCENE  : FOG_* keys baked into building shader uniforms
+  //   - STREETS       : ASPHALT_COLOR + SIDEWALK_* baked into street materials,
+  //                     LABEL_* baked into label canvas textures + geometry.
+  //                     (Path-line keys are live Line2 materials, not baked.)
   //   - GEM_SIZING    : RADIUS_AS_STREET_FRAC / MIN_RADIUS / HOVER_LIFT_FRAC
   //                     baked into gem geometry and position
   //   - GEM_FACE_PALETTE: vertex colors baked into gem polyhedron BufferAttribute
@@ -481,14 +482,45 @@ export function createWorld(_canvas: HTMLCanvasElement) {
   // PATH_LINE / HOVER_PATH_LINE are live Line2 meshes, not built by buildWorld.
   function computeScenicConfigHash(): string {
     return JSON.stringify({
-      sceneColors: SCENE_COLORS.get(),
-      asphalt: ASPHALT.get(),
-      sidewalkColors: SIDEWALK_COLORS.get(),
-      labelTypography: LABEL_TYPOGRAPHY.get(),
-      gemSizing: GEM_SIZING.get(),
-      gemFacePalette: GEM_FACE_PALETTE.get(),
-      gemAppearance: GEM_APPEARANCE.get(),
-      gemGlow: GEM_GLOW.get(),
+      fog: {
+        FOG_ENABLED: SCENE.value.FOG_ENABLED,
+        FOG_COLOR: SCENE.value.FOG_COLOR,
+        FOG_INTENSITY: SCENE.value.FOG_INTENSITY,
+        FOG_HEIGHT_FRAC: SCENE.value.FOG_HEIGHT_FRAC,
+      },
+      streets: {
+        ASPHALT_COLOR: STREETS.value.ASPHALT_COLOR,
+        SIDEWALK_DEFAULT: STREETS.value.SIDEWALK_DEFAULT,
+        SIDEWALK_HOVER: STREETS.value.SIDEWALK_HOVER,
+        SIDEWALK_SELECTED: STREETS.value.SIDEWALK_SELECTED,
+        LABEL_FILL: STREETS.value.LABEL_FILL,
+        LABEL_STROKE: STREETS.value.LABEL_STROKE,
+        LABEL_STROKE_WIDTH_FRAC: STREETS.value.LABEL_STROKE_WIDTH_FRAC,
+        LABEL_HEIGHT_FRAC: STREETS.value.LABEL_HEIGHT_FRAC,
+      },
+      gemSizing: GEM_SIZING.value,
+      // GEM shape + appearance + face palette + glow (NOT the per-frame
+      // animation keys, which don't affect the built scene).
+      gem: {
+        SIDES: GEM.value.SIDES,
+        EDGE_COLOR: GEM.value.EDGE_COLOR,
+        BODY_OPACITY: GEM.value.BODY_OPACITY,
+        FACE_1: GEM.value.FACE_1,
+        FACE_2: GEM.value.FACE_2,
+        FACE_3: GEM.value.FACE_3,
+        FACE_4: GEM.value.FACE_4,
+        FACE_5: GEM.value.FACE_5,
+        FACE_6: GEM.value.FACE_6,
+        FACE_7: GEM.value.FACE_7,
+        FACE_8: GEM.value.FACE_8,
+        GLOW_ENABLED: GEM.value.GLOW_ENABLED,
+        GLOW_INNER_SCALE: GEM.value.GLOW_INNER_SCALE,
+        GLOW_INNER_OPACITY: GEM.value.GLOW_INNER_OPACITY,
+        GLOW_OUTER_SCALE: GEM.value.GLOW_OUTER_SCALE,
+        GLOW_OUTER_OPACITY: GEM.value.GLOW_OUTER_OPACITY,
+        GLOW_ANIMATE_COLORS: GEM.value.GLOW_ANIMATE_COLORS,
+        GLOW_CYCLE_PERIOD_SECONDS: GEM.value.GLOW_CYCLE_PERIOD_SECONDS,
+      },
     });
   }
 
@@ -809,6 +841,16 @@ export function createWorld(_canvas: HTMLCanvasElement) {
     newManifest: Manifest | { tree: unknown; [k: string]: unknown }
   ): Promise<void> {
     const myGeneration = ++_currentGeneration;
+    const newManifestTyped = newManifest as Manifest;
+
+    // Friendly display name: rewrite tree.name to the human label derived from
+    // display_root/remote_url BEFORE building, so every downstream consumer
+    // (root street label, tree root row, footer, document.title) shows it
+    // instead of the cache-dir hash. Cheap + idempotent.
+    const _friendlyName = labelFromManifest(newManifestTyped);
+    if (newManifestTyped.tree && _friendlyName) {
+      newManifestTyped.tree.name = _friendlyName;
+    }
 
     const prev: PrevState = {
       streetPickables,
@@ -823,10 +865,28 @@ export function createWorld(_canvas: HTMLCanvasElement) {
 
     _emit(beforeChangeCbs, prev);
 
+    // Refresh the building-roof icon atlas when the file structure changed.
+    // Building it is expensive (one fetch+draw per unique icon), so gate on the
+    // structure-only tree_signature: settings-driven rebuilds re-apply the same
+    // manifest (skip), while initial load / a new source / a live-update poll
+    // with new or renamed files rebuild it. Done before the cell pass below so
+    // the buildings sample the right glyphs.
+    const _atlasTreeSig = newManifestTyped.tree_signature ?? '';
+    if (_atlasTreeSig !== _lastAtlasTreeSig) {
+      try {
+        const atlas = await buildIconAtlas(newManifestTyped);
+        if (myGeneration !== _currentGeneration) return; // superseded mid-build
+        _lastAtlasTreeSig = _atlasTreeSig;
+        setIconAtlas(atlas);
+        setCellIconAtlas(atlas);
+      } catch (err) {
+        console.warn('[codecity] icon atlas build failed; roofs will render without icons', err);
+      }
+    }
+
     // ---- Phase 1: compute the new layout off-thread via layoutClient.
     // A later applyManifest can preempt us by bumping _currentGeneration;
     // layoutClient signals that via a 'superseded' rejection.
-    const newManifestTyped = newManifest as Manifest;
     // Use the server-computed tree_signature as the layout-cache key.
     // It is structure-only (paths + nesting, NO mtime/size), so it is
     // stable across skeleton/final events for the same scan.
@@ -867,7 +927,7 @@ export function createWorld(_canvas: HTMLCanvasElement) {
 
     for (const b of newBuildings) {
       // Building.file is always a FileNode (directories become streets,
-      // not buildings — see layoutV4.ts).
+      // not buildings — see scene/layout/layout.ts).
       b.color = getBuildingColor(
         b.file as unknown as Parameters<typeof getBuildingColor>[0],
         newDateRanges
@@ -1010,7 +1070,7 @@ export function createWorld(_canvas: HTMLCanvasElement) {
       // rect is inflated by HALO_WIDTH for the footprint pass). Only
       // expand XZ — Y stays bounded by the actual building heights so
       // cityHeight calc isn't inflated.
-      const footprintCfg = FOOTPRINT.get();
+      const footprintCfg = FOOTPRINT.value;
       if (footprintCfg.ENABLED && footprintCfg.HALO_WIDTH > 0) {
         const halo = footprintCfg.HALO_WIDTH;
         bbox.min.x -= halo;
@@ -1027,7 +1087,7 @@ export function createWorld(_canvas: HTMLCanvasElement) {
       rootGemEdges = cellBuilt.rootGemEdges || null;
 
       for (const child of [...cellBuilt.scene.children]) scene.add(child);
-      scene.background = new THREE.Color(SKY.get().COLOR);
+      scene.background = new THREE.Color(SCENE.value.SKY_COLOR);
 
       // Remove per-building meshes that buildWorld emits — the cell
       // path replaces them with InstancedMesh cells. Keep streetLabels:
@@ -1054,7 +1114,7 @@ export function createWorld(_canvas: HTMLCanvasElement) {
     // GPU upload blocks the main thread. For large repos this gap is
     // the difference between a snappy rebuild and a multi-hundred-ms
     // freeze.
-    const treesEnabled = TREES.get().TREES_ENABLED;
+    const treesEnabled = TREES.value.ENABLED;
     if (_trees) {
       _trees.dispose();
       _trees = null;
@@ -1123,7 +1183,7 @@ export function createWorld(_canvas: HTMLCanvasElement) {
       const cityHeightAtDefer = cityHeight;
       const foliageBbox: CityBbox = sceneBbox;
 
-      REBUILD_STATUS.set('decorating');
+      REBUILD_STATUS.value = RebuildStatus.Decorating;
       // rAF lets the browser START the next frame; setTimeout(0)
       // then yields the task so the browser can COMPLETE the paint
       // before foliage work begins.
@@ -1148,7 +1208,11 @@ export function createWorld(_canvas: HTMLCanvasElement) {
       }
       if (generationAtDefer !== _currentGeneration) return;
 
-      _trees = createTrees(treePlacements, manifest.commits ?? null);
+      _trees = createTrees(
+        treePlacements,
+        manifest.commits ?? null,
+        manifest.busyness ?? { avg: 1, busy: 1 }
+      );
       scene.add(_trees.group);
       _fireflies = createFireflies(treePlacements, manifest.commits ?? null);
       scene.add(_fireflies.group);
@@ -1172,7 +1236,17 @@ export function createWorld(_canvas: HTMLCanvasElement) {
         });
       }
 
-      REBUILD_STATUS.set('idle');
+      REBUILD_STATUS.value = RebuildStatus.Idle;
+    } else {
+      // No deferred decoration pass (trees disabled, or an empty/degenerate
+      // bbox), so there's no async foliage work to await — drop straight back
+      // to Idle. Without this, a caller that flipped REBUILD_STATUS to
+      // Rebuilding (the live-update render effect in useCityScene, or a
+      // settings rebuild) would never be cleared and the footer dot would
+      // stick yellow. Superseded applies bail via the early returns inside the
+      // if-branch above and never reach here, so they can't clobber the status
+      // of a newer apply that has already taken over.
+      REBUILD_STATUS.value = RebuildStatus.Idle;
     }
   }
 
@@ -1240,7 +1314,7 @@ export function createWorld(_canvas: HTMLCanvasElement) {
     invalidateLayoutCache,
 
     /**
-     * Cyberpunk Valley sky reference. Exposed so main.ts's applyTheme()
+     * Cyberpunk Valley sky reference. Exposed so renderLoop.ts's applyTheme()
      * can call sky.refresh() on Save (via applyTheme()) and the render loop can call
      * sky.tick(dtSeconds) each frame.
      */
@@ -1249,7 +1323,7 @@ export function createWorld(_canvas: HTMLCanvasElement) {
     },
 
     /**
-     * Floating repo-name label reference. Exposed so main.ts's
+     * Floating repo-name label reference. Exposed so renderLoop.ts's
      * applyTheme() can call repoLabel.refresh() on Save and the
      * render loop can call repoLabel.tick(dtSeconds, camera) each frame.
      */
@@ -1269,7 +1343,7 @@ export function createWorld(_canvas: HTMLCanvasElement) {
     /**
      * Cyberpunk Valley trees reference. Rebuilt per applyManifest, so
      * this returns null until the first manifest has been applied.
-     * main.ts's applyTheme() guards with `?.refresh()` to handle the
+     * renderLoop.ts's applyTheme() guards with `?.refresh()` to handle the
      * pre-manifest case.
      */
     getTrees(): Trees | null {
@@ -1288,7 +1362,7 @@ export function createWorld(_canvas: HTMLCanvasElement) {
     /**
      * Cyberpunk Valley city footprint reference. Rebuilt per
      * applyManifest; null until the first manifest has been applied.
-     * main.ts's applyTheme() guards with `?.refresh()`.
+     * renderLoop.ts's applyTheme() guards with `?.refresh()`.
      */
     getCityFootprint(): CityFootprint | null {
       return _cityFootprint;

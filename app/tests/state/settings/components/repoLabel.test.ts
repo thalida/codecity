@@ -1,9 +1,9 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { REPO_LABEL } from '@/state/settings/components/repoLabel';
+import { REPO_LABEL } from '@/state/stores/settings/gem';
 
 describe('REPO_LABEL config store', () => {
   beforeEach(() => {
-    REPO_LABEL.set({
+    REPO_LABEL.value = {
       ENABLED: true,
       HEIGHT_PCT: 85,
       FONT_SIZE: 128,
@@ -11,11 +11,11 @@ describe('REPO_LABEL config store', () => {
       OPACITY: 0.9,
       BEAM_COLOR: '#bfb3ff',
       TEXT_COLOR: '#ffffff',
-    });
+    };
   });
 
   it('exposes the documented default shape', () => {
-    expect(REPO_LABEL.get()).toEqual({
+    expect(REPO_LABEL.value).toEqual({
       ENABLED: true,
       HEIGHT_PCT: 85,
       FONT_SIZE: 128,

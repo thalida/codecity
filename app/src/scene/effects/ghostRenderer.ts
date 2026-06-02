@@ -20,8 +20,9 @@
 // automatically.
 
 import * as THREE from 'three';
+import { effect } from '@preact/signals';
 import { NodeKind } from '@/types';
-import { RENDER_ORDERS } from '@/constants';
+import { RENDER_ORDERS } from '@/scene/renderOrders';
 import type { createWorld } from '@/scene/world';
 import type { createPicker } from '@/scene/system/picker';
 import type { FileTarget } from '@/types';
@@ -113,8 +114,9 @@ export function createGhostRenderer({
   // Ghost is shown only when there is a file hover AND the hovered
   // building is NOT the currently selected building (same dedup rule
   // as the hover outline in outlineRenderer).
-  picker.hover.subscribe((h) => {
-    const sel = picker.selection.get();
+  const _disposeHoverEffect = effect(() => {
+    const h = picker.hover.value;
+    const sel = picker.selection.value;
     const selPath = sel?.kind === NodeKind.File ? sel.file?.path : null;
     if (h && h.kind === NodeKind.File && h.file?.path !== selPath) {
       _syncGhostToTarget(h);
@@ -126,9 +128,9 @@ export function createGhostRenderer({
 
   // Also hide the ghost when selection changes to the currently-hovered
   // building (so the ghost disappears on click without waiting for hover-end).
-  picker.selection.subscribe(() => {
-    const hov = picker.hover.get();
-    const sel = picker.selection.get();
+  const _disposeSelectionEffect = effect(() => {
+    const hov = picker.hover.value;
+    const sel = picker.selection.value;
     const selPath = sel?.kind === NodeKind.File ? sel.file?.path : null;
     if (!hov || hov.kind !== NodeKind.File || hov.file?.path === selPath) {
       ghostMesh.visible = false;
@@ -140,8 +142,8 @@ export function createGhostRenderer({
   // still animating (entering tween growing scale.y).
   function update(_dtMs: number): void {
     if (!ghostMesh.visible) return;
-    const hov = picker.hover.get();
-    const sel = picker.selection.get();
+    const hov = picker.hover.value;
+    const sel = picker.selection.value;
     const selPath = sel?.kind === NodeKind.File ? sel.file?.path : null;
     if (hov && hov.kind === NodeKind.File && hov.file?.path !== selPath) {
       _syncGhostToTarget(hov);
@@ -149,6 +151,8 @@ export function createGhostRenderer({
   }
 
   function dispose(): void {
+    _disposeHoverEffect();
+    _disposeSelectionEffect();
     if (ghostMesh.parent) ghostMesh.parent.remove(ghostMesh);
     _ghostGeo.dispose();
     _ghostMat.dispose();

@@ -11,6 +11,7 @@ function makeMinimalManifest(): Manifest {
     tree_signature: 'test-fp-1234',
     repo: { branch: null, remote_url: null, head_sha: null, head_subject: null, dirty: false },
     commits: [],
+    busyness: { avg: 1, busy: 1 },
     tree: {
       name: 'x',
       type: NodeKind.Directory,
@@ -38,6 +39,7 @@ function makeMinimalManifest(): Manifest {
       descendants_file_count: 1,
       descendants_dir_count: 0,
       descendants_size: 10,
+      descendants_ext_breakdown: [],
     },
   };
 }
@@ -85,6 +87,7 @@ describe('layoutClient', () => {
       tree_signature: 'test-fp-reuse',
       repo: { branch: null, remote_url: null, head_sha: null, head_subject: null, dirty: false },
       commits: [],
+      busyness: { avg: 1, busy: 1 },
       tree: {
         name: 'x',
         type: NodeKind.Directory,
@@ -125,6 +128,7 @@ describe('layoutClient', () => {
         descendants_file_count: 2,
         descendants_dir_count: 0,
         descendants_size: 10010,
+        descendants_ext_breakdown: [],
       },
     };
     const priorLayout = await client.compute(m1);

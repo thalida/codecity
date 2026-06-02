@@ -1,4 +1,4 @@
-// scene/trees/treeRenderer.ts — turns a TreePlacement[] + the manifest's
+// scene/components/trees/treeRenderer.ts — turns a TreePlacement[] + the manifest's
 // commit list into one InstancedMesh per canopy detail level plus a
 // shared trunk InstancedMesh.
 //
@@ -9,7 +9,7 @@
 //                          commits get more facets.
 //   tree-trunk           — round cylinder, one instance per tree. Y scale
 //                          = TRUNK_HEIGHT_FRAC × canopy height; XZ scale
-//                          = TRUNK_RADIUS_FRAC_OF_CANOPY × canopy radius.
+//                          = TRUNK_RADIUS_FRAC × canopy radius.
 //
 // Canopy geometries carry a baked per-vertex color attribute combining
 // a vertical gradient (dark base → light top) and a directional face
@@ -20,26 +20,25 @@
 // `refresh()` rewrites per-instance color attributes + visibility +
 // trunk color from TREES without rebuilding the meshes. Anything that
 // changes geometry sizes (height/width range, trunk fractions, shading
-// strength) goes through the rebuild path in hotReload.ts.
+// strength) goes through the rebuild path in state/settingsReactions.ts.
 
 import * as THREE from 'three';
-import { TREES } from '@/state/settings/components/trees';
-import { RENDER_ORDERS } from '@/constants';
+import { TREES } from '@/state/stores/settings/trees';
+import { RENDER_ORDERS } from '@/scene/renderOrders';
 import type { TreePlacement } from './treePlacement';
-import type { CommitEntry } from '@/types';
+import type { CommitEntry, BusynessThresholds } from '@/types';
 import {
   computeAgeRange,
   computeSizeRange,
-  computeDailyCounts,
   ageT,
   sizeT,
   dailyCountTByIndex,
   type AgeRange,
   type SizeRange,
-  type DailyCounts,
 } from './treeEncoding';
 import { interpolateOklch } from '@/scene/utils/color/colors';
-import { sunDirFromLighting } from '@/scene/components/lighting/sunDir';
+import { sunDir } from '@/scene/components/lighting/sunDir';
+import { LIGHTING_SUN_AZIMUTH_DEG, LIGHTING_SUN_ELEVATION_DEG } from '@/constants/lighting';
 
 export interface Trees {
   group: THREE.Group;
@@ -83,7 +82,7 @@ export interface Trees {
 
 /** Three subdivision tiers for the LatheGeometry canopy. File count
  *  drives which tier each tree lands in. Segment counts live in TREES
- *  config (TREE_FACETS_LOW / MID / HIGH) so they're user-tunable. */
+ *  config (FACETS_LOW / MID / HIGH) so they're user-tunable. */
 const DETAIL_LEVELS = [0, 1, 2] as const;
 type DetailLevel = (typeof DETAIL_LEVELS)[number];
 
@@ -137,9 +136,8 @@ function buildCanopyGeometry(detail: DetailLevel): THREE.BufferGeometry {
   //     dense vertical samples near the apex make the silhouette read
   //     as a smooth dome rather than a sharp spike.
   const profile = CANOPY_PROFILE as THREE.Vector2[];
-  const cfg = TREES.get();
-  const segments =
-    detail === 0 ? cfg.TREE_FACETS_LOW : detail === 1 ? cfg.TREE_FACETS_MID : cfg.TREE_FACETS_HIGH;
+  const cfg = TREES.value;
+  const segments = detail === 0 ? cfg.FACETS_LOW : detail === 1 ? cfg.FACETS_MID : cfg.FACETS_HIGH;
   const geom = new THREE.LatheGeometry(profile, segments);
   // Non-indexed + flat normals so the baked per-vertex shading reads
   // as discrete facets (each face shaded uniformly).
@@ -157,9 +155,8 @@ function buildCanopyGeometry(detail: DetailLevel): THREE.BufferGeometry {
  *
  *  Consumed by `scene/effects/treeOutlineRenderer.ts`. */
 export function buildCanopyEdges(detail: DetailLevel): THREE.EdgesGeometry {
-  const cfg = TREES.get();
-  const segments =
-    detail === 0 ? cfg.TREE_FACETS_LOW : detail === 1 ? cfg.TREE_FACETS_MID : cfg.TREE_FACETS_HIGH;
+  const cfg = TREES.value;
+  const segments = detail === 0 ? cfg.FACETS_LOW : detail === 1 ? cfg.FACETS_MID : cfg.FACETS_HIGH;
   const lathe = new THREE.LatheGeometry(CANOPY_PROFILE as THREE.Vector2[], segments);
   // Default 1° threshold keeps any edge whose adjacent face normals differ
   // by >1° — for the canopy this means ring boundaries (profile slope
@@ -185,11 +182,9 @@ export function buildCanopyEdges(detail: DetailLevel): THREE.EdgesGeometry {
  *  vertex colors with the per-instance color (age lerp), so the same
  *  tree gets both an age-driven hue AND clear facet definition. */
 function bakeVertexShading(geom: THREE.BufferGeometry, strength: number): void {
-  // Sun direction sourced from LIGHTING config (shared with buildings
+  // Sun direction from the fixed LIGHTING constants (shared with buildings
   // and the island mesh) so the scene agrees on where the sun is.
-  // Note: trees bake shading at geometry-build time, so re-bake is
-  // required (already happens on config change) to pick up new values.
-  const sun = sunDirFromLighting();
+  const sun = sunDir(LIGHTING_SUN_AZIMUTH_DEG, LIGHTING_SUN_ELEVATION_DEG);
   const LIGHT_X = sun.x;
   const LIGHT_Y = sun.y;
   const LIGHT_Z = sun.z;
@@ -237,18 +232,19 @@ interface CanopyMeshRecord {
 
 export function createTreeRenderer(
   placements: TreePlacement[],
-  commits: CommitEntry[] | null
+  commits: CommitEntry[] | null,
+  busyness: BusynessThresholds
 ): Trees {
-  let cfg = TREES.get();
+  let cfg = TREES.value;
 
   // Height and width in absolute world units, independent of buildings.
   // Config exposes DIAMETER for width; convert to radius for the canopy.
-  const minHeight = cfg.TREE_MIN_HEIGHT;
-  const maxHeight = cfg.TREE_MAX_HEIGHT;
-  const minRadius = cfg.TREE_MIN_WIDTH / 2;
-  const maxRadius = cfg.TREE_MAX_WIDTH / 2;
+  const minHeight = cfg.MIN_HEIGHT;
+  const maxHeight = cfg.MAX_HEIGHT;
+  const minRadius = cfg.MIN_WIDTH / 2;
+  const maxRadius = cfg.MAX_WIDTH / 2;
   const trunkHeightFrac = cfg.TRUNK_HEIGHT_FRAC;
-  const trunkRadiusFrac = cfg.TRUNK_RADIUS_FRAC_OF_CANOPY;
+  const trunkRadiusFrac = cfg.TRUNK_RADIUS_FRAC;
   // Fraction of trunk height hidden inside the canopy bottom. The
   // canopy is positioned this far below trunk-top so the trunk visibly
   // enters the canopy instead of just touching its bottom vertex.
@@ -256,7 +252,6 @@ export function createTreeRenderer(
 
   const ageRange: AgeRange = computeAgeRange(commits);
   const sizeRange: SizeRange = computeSizeRange(commits);
-  const dailyCounts: DailyCounts = computeDailyCounts(commits);
 
   // HEIGHT is driven by AGE: older commits grow taller. ageT=0 (oldest)
   // → max height; ageT=1 (newest) → min height. Degenerate cases
@@ -270,7 +265,7 @@ export function createTreeRenderer(
   }
 
   // WIDTH (canopy XZ radius) is driven by FILES: more files = wider.
-  // Attenuated by AGE via TREE_WIDTH_AGE_FLOOR so short young trees
+  // Attenuated by AGE via WIDTH_AGE_FLOOR so short young trees
   // don't render adult-wide (a brand-new commit touching many files
   // would otherwise be a squat lollipop). floor=1.0 disables the
   // attenuation (byte-identical to pre-feature rendering).
@@ -285,7 +280,7 @@ export function createTreeRenderer(
     // Clamp height range to avoid divide-by-zero when min == max.
     const heightRange = Math.max(0.001, maxHeight - minHeight);
     const heightRatio = (perTreeHeight(i) - minHeight) / heightRange;
-    const floor = Math.max(0, Math.min(1, cfg.TREE_WIDTH_AGE_FLOOR));
+    const floor = Math.max(0, Math.min(1, cfg.WIDTH_AGE_FLOOR));
     const ageAttenuation = floor + (1 - floor) * heightRatio;
     return baseRadius * ageAttenuation;
   }
@@ -302,8 +297,8 @@ export function createTreeRenderer(
   }
 
   // COLOR follows COMMITS-PER-DAY: solo-commit days interpolate toward
-  // TREE_COLOR_SOLO_DAY; busy days (many commits the same day)
-  // interpolate toward TREE_COLOR_BUSY_DAY. All commits on the
+  // COLOR_SOLO_DAY; busy days (many commits the same day)
+  // interpolate toward COLOR_BUSY_DAY. All commits on the
   // same date share a color. Log-normalized so the typical 1–10
   // commits-per-day band stays readable when one outlier day spikes to
   // 50+ commits.
@@ -314,19 +309,19 @@ export function createTreeRenderer(
   function perTreeColor(i: number, target: THREE.Color): void {
     let t = 0.5;
     if (commits && placements[i].commitIndex >= 0 && placements[i].commitIndex < commits.length) {
-      t = dailyCountTByIndex(dailyCounts, placements[i].commitIndex);
+      t = dailyCountTByIndex(commits, placements[i].commitIndex, busyness);
     }
     interpolateOklch(soloDayColor, busyDayColor, t, target);
 
     if (
-      cfg.TREE_AGE_DESAT_ENABLED &&
+      cfg.AGE_DESAT_ENABLED &&
       commits &&
       placements[i].commitIndex >= 0 &&
       placements[i].commitIndex < commits.length
     ) {
       const aT = ageT(commits[placements[i].commitIndex], ageRange);
-      const minFactor = cfg.TREE_AGE_SATURATION_MIN / 100;
-      const maxFactor = cfg.TREE_AGE_SATURATION_MAX / 100;
+      const minFactor = cfg.AGE_SATURATION[0] / 100;
+      const maxFactor = cfg.AGE_SATURATION[1] / 100;
       const factor = minFactor + aT * (maxFactor - minFactor);
       // Skip the HSL roundtrip when factor is effectively 1 — the newest
       // commit at MAX=100 lands here, saving one getHSL+setHSL per tree.
@@ -349,7 +344,7 @@ export function createTreeRenderer(
     color: 0xffffff,
     toneMapped: false,
   });
-  setColorFromHex(trunkMaterial.color, cfg.TREE_TRUNK_COLOR);
+  setColorFromHex(trunkMaterial.color, cfg.TRUNK_COLOR);
 
   const canopyMaterial = new THREE.MeshBasicMaterial({
     color: 0xffffff,
@@ -365,8 +360,8 @@ export function createTreeRenderer(
   const busyDayColor = new THREE.Color();
   const soloDayColor = new THREE.Color();
   const _tmpHsl = { h: 0, s: 0, l: 0 };
-  setColorFromHex(busyDayColor, cfg.TREE_COLOR_BUSY_DAY);
-  setColorFromHex(soloDayColor, cfg.TREE_COLOR_SOLO_DAY);
+  setColorFromHex(busyDayColor, cfg.COLOR_BUSY_DAY);
+  setColorFromHex(soloDayColor, cfg.COLOR_SOLO_DAY);
 
   const totalTrees = placements.length;
 
@@ -396,13 +391,13 @@ export function createTreeRenderer(
     const indices = buckets[detail];
     if (indices.length === 0) continue;
     const geom = buildCanopyGeometry(detail);
-    bakeVertexShading(geom, cfg.TREE_SHADING_STRENGTH);
+    bakeVertexShading(geom, cfg.SHADING_STRENGTH);
 
     const mesh = new THREE.InstancedMesh(geom, canopyMaterial, indices.length);
     mesh.name = `tree-canopy-d${detail}`;
     mesh.renderOrder = RENDER_ORDERS.PARK_FOLIAGE;
     mesh.frustumCulled = false;
-    mesh.visible = cfg.TREES_ENABLED;
+    mesh.visible = cfg.ENABLED;
     mesh.userData.meshKind = 'tree-canopy';
     mesh.userData.placementOrder = indices;
 
@@ -450,7 +445,7 @@ export function createTreeRenderer(
   trunkMesh.name = 'tree-trunk';
   trunkMesh.renderOrder = RENDER_ORDERS.PARK_FOLIAGE;
   trunkMesh.frustumCulled = false;
-  trunkMesh.visible = cfg.TREES_ENABLED;
+  trunkMesh.visible = cfg.ENABLED;
   trunkMesh.userData.meshKind = 'tree-trunk';
   trunkMesh.userData.placementOrder = trunkPlacementOrder;
 
@@ -470,19 +465,19 @@ export function createTreeRenderer(
   const group = new THREE.Group();
   group.name = 'trees';
   group.userData.cyberpunkValley = 'trees';
-  group.visible = cfg.TREES_ENABLED;
+  group.visible = cfg.ENABLED;
   for (const rec of canopyRecords) group.add(rec.mesh);
   group.add(trunkMesh);
 
   function refresh(): void {
-    cfg = TREES.get();
-    group.visible = cfg.TREES_ENABLED;
-    for (const rec of canopyRecords) rec.mesh.visible = cfg.TREES_ENABLED;
-    trunkMesh.visible = cfg.TREES_ENABLED;
+    cfg = TREES.value;
+    group.visible = cfg.ENABLED;
+    for (const rec of canopyRecords) rec.mesh.visible = cfg.ENABLED;
+    trunkMesh.visible = cfg.ENABLED;
 
-    setColorFromHex(trunkMaterial.color, cfg.TREE_TRUNK_COLOR);
-    setColorFromHex(busyDayColor, cfg.TREE_COLOR_BUSY_DAY);
-    setColorFromHex(soloDayColor, cfg.TREE_COLOR_SOLO_DAY);
+    setColorFromHex(trunkMaterial.color, cfg.TRUNK_COLOR);
+    setColorFromHex(busyDayColor, cfg.COLOR_BUSY_DAY);
+    setColorFromHex(soloDayColor, cfg.COLOR_SOLO_DAY);
 
     // Rebuild the base-color cache and sha index before re-baking so
     // colorForSha / findTreeBySha always reflect the current config colors.

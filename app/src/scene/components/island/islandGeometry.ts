@@ -1,4 +1,4 @@
-// scene/island/islandGeometry.ts — Procedural builder for the floating
+// scene/components/island/islandGeometry.ts — Procedural builder for the floating
 // island mesh.
 //
 // Approach: build a single indexed BufferGeometry containing all triangles,

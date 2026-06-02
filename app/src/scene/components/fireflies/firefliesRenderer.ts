@@ -1,4 +1,4 @@
-// scene/fireflies/firefliesRenderer.ts — one InstancedMesh of
+// scene/components/fireflies/firefliesRenderer.ts — one InstancedMesh of
 // additive-blended smooth icospheres. Per-instance color + phase. The bob
 // animation lives in the vertex shader so the CPU never re-writes matrices.
 //
@@ -8,8 +8,8 @@
 //   dispose():        clean up geometry + material + attribute buffers.
 
 import * as THREE from 'three';
-import { RENDER_ORDERS } from '@/constants';
-import { FIREFLIES } from '@/state/settings/components/fireflies';
+import { RENDER_ORDERS } from '@/scene/renderOrders';
+import { FIREFLIES } from '@/state/stores/settings/fireflies';
 import type { FireflyPlacement } from './firefliesPlacement';
 import vertexShader from './fireflies.vert.glsl?raw';
 import fragmentShader from './fireflies.frag.glsl?raw';
@@ -38,7 +38,7 @@ export function createFireflyRenderer(orbs: FireflyPlacement[]): FireflyRenderer
     };
   }
 
-  const cfg = FIREFLIES.get();
+  const cfg = FIREFLIES.value;
   const geometry = new THREE.IcosahedronGeometry(1.0, 2);
 
   // Per-instance bob phase + pulse phase + orbit params.
@@ -144,7 +144,7 @@ export function createFireflyRenderer(orbs: FireflyPlacement[]): FireflyRenderer
       uSelectedCommit.value = commitIndex ?? -1;
     },
     refresh() {
-      const next = FIREFLIES.get();
+      const next = FIREFLIES.value;
       uBobAmp.value = next.BOB_AMPLITUDE;
       uBobSpeed.value = next.BOB_SPEED;
       uPulseAmp.value = next.PULSE_AMPLITUDE;

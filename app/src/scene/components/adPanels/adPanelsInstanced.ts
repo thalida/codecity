@@ -1,4 +1,4 @@
-// scene/instanced/adPanelsInstanced.ts — Instanced ad panels for media
+// scene/components/adPanels/adPanelsInstanced.ts — Instanced ad panels for media
 // buildings. A single InstancedMesh backed by a DataArrayTexture (one
 // layer per media file). Each media building gets 4 panel slots, one
 // per face (S/N/E/W).
@@ -12,8 +12,11 @@
 
 import * as THREE from 'three';
 import { BuildingOrient } from '@/types/index';
-import { AD_PANEL, BLOOM, BUILDING_DIMENSIONS } from '@/state/settings/index';
-import { RENDER_ORDERS } from '@/constants';
+import { FACADE } from '@/state/stores/settings/facade';
+import { BLOOM } from '@/state/stores/settings/effects';
+import { BUILDING_DIMENSIONS } from '@/state/stores/settings/buildings';
+import { AD_ERROR_COLOR } from '@/constants/buildings';
+import { RENDER_ORDERS } from '@/scene/renderOrders';
 import { mediaKindOf, MediaKind } from './adPanels';
 import { AdPanelTextureArray, MAX_PAGES as AD_PANEL_MAX_PAGES } from './adPanelTextureArray';
 import type { Building } from '@/types/index';
@@ -113,15 +116,15 @@ export class InstancedAdPanels {
     const geo = new THREE.PlaneGeometry(1, 1);
 
     // Material — GLSL3 required for sampler2DArray.
-    const adCfg = AD_PANEL.get();
+    const adCfg = FACADE.value;
     const placeholderColor = new THREE.Color(adCfg.AD_PLACEHOLDER_COLOR);
     // Cached for markBuildingErrored — recolors a panel slot's iColor
     // when its image load/decode/upload fails permanently. Stored without
     // emission multiply; uEmissionBoost in the shader applies uniformly to
     // both placeholder and error colors so brightness stays consistent.
-    this._errorColor = new THREE.Color(adCfg.AD_ERROR_COLOR);
+    this._errorColor = new THREE.Color(AD_ERROR_COLOR);
 
-    const bloomCfg = BLOOM.get();
+    const bloomCfg = BLOOM.value;
     const mat = new THREE.ShaderMaterial({
       glslVersion: THREE.GLSL3,
       // AD_PANEL_MAX_PAGES injected as a shader #define so the
@@ -252,8 +255,8 @@ export class InstancedAdPanels {
       return null;
     }
 
-    const cfg = AD_PANEL.get();
-    const dims = BUILDING_DIMENSIONS.get();
+    const cfg = FACADE.value;
+    const dims = BUILDING_DIMENSIONS.value;
 
     // Aspect ratio: clamp degenerate or missing metadata to a square.
     const mw = b.file.media_width;
@@ -431,7 +434,7 @@ export class InstancedAdPanels {
    * the uniform updates without a full scene rebuild.
    */
   refresh(): void {
-    const bloomCfg = BLOOM.get();
+    const bloomCfg = BLOOM.value;
     this._material.uniforms.uEmissionBoost.value = bloomCfg.ENABLED ? bloomCfg.AD_EMISSION : 1.0;
   }
 

@@ -15,6 +15,8 @@ from tempfile import TemporaryDirectory
 import pytest
 
 from api.scan import (
+    _annotate_same_day_totals,
+    _compute_busyness,
     _extension,
     _is_binary,
     compute_tree_signature,
@@ -198,6 +200,51 @@ class BinaryDetectionTests(unittest.TestCase):
         self.assertTrue(_is_binary(p))
 
 
+class ComputeBusynessTests(unittest.TestCase):
+    @staticmethod
+    def _commits(*per_day: int) -> list:
+        # Build commits across distinct dates with the given per-day counts.
+        out = []
+        for day, n in enumerate(per_day, start=1):
+            for _ in range(n):
+                out.append({"date": f"2026-01-{day:02d}", "files": 1,
+                            "sha": "0" * 40, "authors": [], "subject": ""})
+        return out
+
+    def test_empty_history(self):
+        self.assertEqual(_compute_busyness([]), {"avg": 1, "busy": 1})
+
+    def test_percentile_bands(self):
+        # Per-day counts sorted: [1, 1, 2, 5]
+        #   avg  = q(0.50) = counts[floor(4*0.5)=2] = 2
+        #   busy = max(q(0.75)=counts[floor(4*0.75)=3]=5, avg+1=3) = 5
+        self.assertEqual(_compute_busyness(self._commits(1, 1, 2, 5)),
+                         {"avg": 2, "busy": 5})
+
+    def test_busy_clamped_to_avg_plus_one(self):
+        # Uniform 2-per-day → median 2, 75th pct 2 → busy clamps to 3.
+        self.assertEqual(_compute_busyness(self._commits(2, 2, 2, 2)),
+                         {"avg": 2, "busy": 3})
+
+
+class AnnotateSameDayTotalsTests(unittest.TestCase):
+    def test_sets_per_day_group_size_on_each_commit(self):
+        # Three commits on 01-01, one on 01-02.
+        commits = [
+            {"date": "2026-01-01", "files": 1, "sha": "0" * 40, "authors": [], "subject": ""},
+            {"date": "2026-01-01", "files": 1, "sha": "1" * 40, "authors": [], "subject": ""},
+            {"date": "2026-01-01", "files": 1, "sha": "2" * 40, "authors": [], "subject": ""},
+            {"date": "2026-01-02", "files": 1, "sha": "3" * 40, "authors": [], "subject": ""},
+        ]
+        _annotate_same_day_totals(commits)
+        self.assertEqual([c["same_day_total"] for c in commits], [3, 3, 3, 1])
+
+    def test_empty_history_is_a_noop(self):
+        commits: list = []
+        _annotate_same_day_totals(commits)
+        self.assertEqual(commits, [])
+
+
 class ScanTreeIntegrationTests(_CacheRedirectMixin, unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -222,6 +269,72 @@ class ScanTreeIntegrationTests(_CacheRedirectMixin, unittest.TestCase):
         # descendants_count = files + dirs.
         self.assertEqual(tree["descendants_count"], 15)
         self.assertGreater(tree["descendants_size"], 0)
+
+    def test_ext_breakdown_rolls_up(self):
+        m = _final_manifest(str(FIXTURE))
+        tree = m["tree"]
+        breakdown = tree["descendants_ext_breakdown"]
+        self.assertIsInstance(breakdown, list)
+        for entry in breakdown:
+            self.assertEqual(set(entry.keys()), {"ext", "count", "size"})
+        # Per-ext counts/sizes partition the descendant files exactly.
+        self.assertEqual(
+            sum(e["count"] for e in breakdown), tree["descendants_file_count"]
+        )
+        self.assertEqual(
+            sum(e["size"] for e in breakdown), tree["descendants_size"]
+        )
+        # Sorted by count descending.
+        counts = [e["count"] for e in breakdown]
+        self.assertEqual(counts, sorted(counts, reverse=True))
+        # Extension keys are lowercase, dot-prefixed; the fixture has .md files.
+        self.assertIn(".md", {e["ext"] for e in breakdown})
+
+    def test_ext_breakdown_leaf_dir_only_counts_own_files(self):
+        # A nested directory's breakdown must cover only its own subtree,
+        # not the whole repo.
+        m = _final_manifest(str(FIXTURE))
+
+        def _find_dir_with_files(node):
+            if node["type"] != "directory":
+                return None
+            if node["children_file_count"] > 0 and node["path"] != ".":
+                return node
+            for child in node["children"]:
+                found = _find_dir_with_files(child)
+                if found:
+                    return found
+            return None
+
+        sub = _find_dir_with_files(m["tree"])
+        if sub is not None:
+            self.assertEqual(
+                sum(e["count"] for e in sub["descendants_ext_breakdown"]),
+                sub["descendants_file_count"],
+            )
+
+    def test_busyness_present_in_manifest(self):
+        m = _final_manifest(str(FIXTURE))
+        b = m["busyness"]
+        self.assertEqual(set(b.keys()), {"avg", "busy"})
+        self.assertIsInstance(b["avg"], int)
+        self.assertIsInstance(b["busy"], int)
+        # Bands stay distinct: busy is always at least avg + 1.
+        self.assertGreaterEqual(b["busy"], b["avg"] + 1)
+
+    def test_same_day_total_baked_on_every_commit(self):
+        m = _final_manifest(str(FIXTURE))
+        commits = m["commits"]
+        self.assertGreater(len(commits), 0)
+        # Recompute the per-day grouping independently and assert each
+        # commit's baked same_day_total matches (>= 1, includes self).
+        per_day: dict[str, int] = {}
+        for c in commits:
+            per_day[c["date"]] = per_day.get(c["date"], 0) + 1
+        for c in commits:
+            self.assertIn("same_day_total", c)
+            self.assertEqual(c["same_day_total"], per_day[c["date"]])
+            self.assertGreaterEqual(c["same_day_total"], 1)
 
     def test_signature_present_and_stable(self):
         m1 = _final_manifest(str(FIXTURE))

@@ -9,11 +9,14 @@
 // changes into the materials.
 
 import * as THREE from 'three';
+import { effect, untracked } from '@preact/signals';
 import { LineSegments2 } from 'three/addons/lines/LineSegments2.js';
 import { LineSegmentsGeometry } from 'three/addons/lines/LineSegmentsGeometry.js';
 import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
 
-import { PATH_LINE, HOVER_PATH_LINE, RAINBOW, STREET_TIERS } from '@/state/settings/index';
+import { STREETS, STREET_TIERS } from '@/state/stores/settings/streets';
+import { RAINBOW } from '@/state/stores/settings/effects';
+import { PATH_LINE_ELEVATION, HOVER_PATH_LINE_ELEVATION } from '@/constants/streets';
 
 /**
  * Converts a LINEWIDTH_PCT percentage (1–50) into an actual pixel linewidth
@@ -23,12 +26,12 @@ import { PATH_LINE, HOVER_PATH_LINE, RAINBOW, STREET_TIERS } from '@/state/setti
  * so this keeps lines proportional to the narrowest street at any zoom.
  */
 export function computePathLinewidthPixels(pct: number): number {
-  const tiers = STREET_TIERS.get();
+  const tiers = STREET_TIERS.value.TIERS;
   if (!tiers.length) return pct / 100; // degenerate fallback
   const minWidth = Math.min(...tiers.map((t) => t.width));
   return minWidth * (pct / 100);
 }
-import { RENDER_ORDERS } from '@/constants';
+import { RENDER_ORDERS } from '@/scene/renderOrders';
 import { NodeKind } from '@/types';
 import { computePathPoints } from '@/scene/utils/path';
 import type { createWorld } from '@/scene/world';
@@ -46,10 +49,10 @@ export function createPathLineRenderer({
   picker: ReturnType<typeof createPicker>;
 }) {
   // ── Selection path line (rainbow vertex colors) ────────────────────
-  const _pl = PATH_LINE.get();
+  const _pl = STREETS.value;
   const pathLineMat = new LineMaterial({
     vertexColors: true,
-    linewidth: computePathLinewidthPixels(_pl.LINEWIDTH_PCT),
+    linewidth: computePathLinewidthPixels(_pl.PATH_LINEWIDTH_PCT),
     transparent: true,
     opacity: 0.0,
     depthTest: true,
@@ -71,8 +74,8 @@ export function createPathLineRenderer({
   // ── Hover preview path line (single solid color, faded) ────────────
   // Width is shared with the selection line — reads PATH_LINE.LINEWIDTH_PCT.
   const hoverPathLineMat = new LineMaterial({
-    color: HOVER_PATH_LINE.get().COLOR,
-    linewidth: computePathLinewidthPixels(PATH_LINE.get().LINEWIDTH_PCT),
+    color: STREETS.value.HOVER_PATH_COLOR,
+    linewidth: computePathLinewidthPixels(STREETS.value.PATH_LINEWIDTH_PCT),
     transparent: true,
     opacity: 0.0,
     depthTest: true,
@@ -88,8 +91,8 @@ export function createPathLineRenderer({
   scene.add(hoverPathLine);
 
   function _isHoverSameAsSelection(): boolean {
-    const hov = picker.hover.get();
-    const sel = picker.selection.get();
+    const hov = picker.hover.value;
+    const sel = picker.selection.value;
     if (!hov || !sel) return false;
     if (hov.kind !== sel.kind) return false;
     if (hov.kind === NodeKind.File && sel.kind === NodeKind.File) return hov.mesh === sel.mesh;
@@ -100,7 +103,7 @@ export function createPathLineRenderer({
   }
 
   function _updatePathLine(): void {
-    const sel = picker.selection.get();
+    const sel = picker.selection.value;
     const gemPos = world.getGemWorldPos();
     if (!gemPos || !sel) {
       pathLine.visible = false;
@@ -115,7 +118,7 @@ export function createPathLineRenderer({
       pathSegmentCount = 0;
       return;
     }
-    const elev = PATH_LINE.get().ELEVATION;
+    const elev = PATH_LINE_ELEVATION;
     const flat: number[] = [];
     for (let i = 0; i < pts.length - 1; i++) {
       const a = pts[i],
@@ -134,14 +137,14 @@ export function createPathLineRenderer({
     if (_pathColorsBuf.length !== pathSegmentCount * 6) {
       _pathColorsBuf = new Float32Array(pathSegmentCount * 6);
     }
-    pathLineMat.opacity = PATH_LINE.get().OPACITY;
+    pathLineMat.opacity = STREETS.value.PATH_OPACITY;
     pathLine.visible = true;
   }
 
   function _updateHoverPathLine(): void {
-    const hov = picker.hover.get();
+    const hov = picker.hover.value;
     const gemPos = world.getGemWorldPos();
-    const cfg = HOVER_PATH_LINE.get();
+    const cfg = STREETS.value;
     function hide() {
       hoverPathLine.visible = false;
       hoverPathLineMat.opacity = 0;
@@ -151,7 +154,7 @@ export function createPathLineRenderer({
     if (_isHoverSameAsSelection()) return hide();
     const pts = computePathPoints(hov, { x: gemPos.x, z: gemPos.z }, world.getStreetsByDirMap());
     if (pts.length < 2) return hide();
-    const elev = cfg.ELEVATION;
+    const elev = HOVER_PATH_LINE_ELEVATION;
     const flat: number[] = [];
     for (let i = 0; i < pts.length - 1; i++) {
       const a = pts[i],
@@ -162,16 +165,28 @@ export function createPathLineRenderer({
     hoverPathLineGeo = new LineSegmentsGeometry();
     hoverPathLineGeo.setPositions(flat);
     hoverPathLine.geometry = hoverPathLineGeo;
-    hoverPathLineMat.opacity = cfg.OPACITY;
+    hoverPathLineMat.opacity = cfg.HOVER_PATH_OPACITY;
     hoverPathLine.visible = true;
   }
 
   // Reactive: rebuild geometry on selection / hover / world change.
-  picker.selection.subscribe(() => {
+  //
+  // Two effects, each tracking only the signal it should re-run on.
+  // _updateHoverPathLine reads picker.hover.value + HOVER_PATH_LINE.value
+  // internally — if we called it directly inside the selection effect, the
+  // selection effect would also track hover/HOVER_PATH_LINE and fire on
+  // their changes (same anti-pattern as the coordinator over-tracking bug
+  // fixed in 924371c). untracked() lets the selection effect refresh the
+  // hover line on selection change (the hover line's "hide when hover ==
+  // selection" rule needs re-evaluation) WITHOUT becoming a hover/config
+  // subscriber.
+  const _disposeSelectionEffect = effect(() => {
+    void picker.selection.value;
     _updatePathLine();
-    _updateHoverPathLine();
+    untracked(_updateHoverPathLine);
   });
-  picker.hover.subscribe(() => {
+  const _disposeHoverEffect = effect(() => {
+    void picker.hover.value;
     _updateHoverPathLine();
   });
   world.onChange(() => {
@@ -182,7 +197,7 @@ export function createPathLineRenderer({
   // ── Per-frame: rainbow chase on the selection line ─────────────────
   function update(_dtMs: number): void {
     if (pathSegmentCount <= 0 || !pathLine.visible) return;
-    const rb = RAINBOW.get();
+    const rb = RAINBOW.value;
     const t = performance.now() * rb.SPEED;
     const n = pathSegmentCount;
     for (let s = 0; s < n; s++) {
@@ -201,12 +216,11 @@ export function createPathLineRenderer({
   }
 
   function refreshMaterials(): void {
-    const pl = PATH_LINE.get();
-    pathLineMat.linewidth = computePathLinewidthPixels(pl.LINEWIDTH_PCT);
-    if (pathLine.visible) pathLineMat.opacity = pl.OPACITY;
-    const hpl = HOVER_PATH_LINE.get();
-    hoverPathLineMat.color.set(hpl.COLOR);
-    hoverPathLineMat.linewidth = computePathLinewidthPixels(PATH_LINE.get().LINEWIDTH_PCT);
+    const pl = STREETS.value;
+    pathLineMat.linewidth = computePathLinewidthPixels(pl.PATH_LINEWIDTH_PCT);
+    if (pathLine.visible) pathLineMat.opacity = pl.PATH_OPACITY;
+    hoverPathLineMat.color.set(pl.HOVER_PATH_COLOR);
+    hoverPathLineMat.linewidth = computePathLinewidthPixels(pl.PATH_LINEWIDTH_PCT);
     _updateHoverPathLine();
   }
 
@@ -216,6 +230,8 @@ export function createPathLineRenderer({
   }
 
   function dispose() {
+    _disposeSelectionEffect();
+    _disposeHoverEffect();
     if (pathLine.parent) pathLine.parent.remove(pathLine);
     if (hoverPathLine.parent) hoverPathLine.parent.remove(hoverPathLine);
     if (pathLineGeo && pathLineGeo.dispose) pathLineGeo.dispose();

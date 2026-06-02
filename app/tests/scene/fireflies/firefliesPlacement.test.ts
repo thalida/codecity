@@ -1,12 +1,26 @@
 import { describe, it, expect } from 'vitest';
 import { placeFireflies } from '@/scene/components/fireflies/firefliesPlacement';
-import { FIREFLIES } from '@/state/settings/components/fireflies';
+import { FIREFLIES } from '@/state/stores/settings/fireflies';
 import type { CommitEntry } from '@/types';
 import type { TreePlacement } from '@/scene/components/trees/treePlacement';
 
 const COMMITS: CommitEntry[] = [
-  { date: '2026-01-01', files: 1, sha: 'a'.repeat(40), authors: ['Alice'], subject: 'one' },
-  { date: '2026-01-02', files: 2, sha: 'b'.repeat(40), authors: ['Bob'], subject: 'two' },
+  {
+    date: '2026-01-01',
+    files: 1,
+    sha: 'a'.repeat(40),
+    authors: ['Alice'],
+    subject: 'one',
+    same_day_total: 1,
+  },
+  {
+    date: '2026-01-02',
+    files: 2,
+    sha: 'b'.repeat(40),
+    authors: ['Bob'],
+    subject: 'two',
+    same_day_total: 1,
+  },
 ];
 
 // TreePlacement has { x, y, seed, commitIndex } — no height/radius fields.
@@ -52,8 +66,8 @@ describe('placeFireflies', () => {
     // commits + TREES config. With two commits (files=1 and files=2) the
     // derived canopy radius is near the config midpoint (~24 world units)
     // and height is near TREE_MIN/MAX midpoint (~52 world units with new 96 max).
-    // Use loose bounds: orbitRadius ≤ TREE_MAX_WIDTH / 2 * 1.5 and
-    // height ≤ TREE_MAX_HEIGHT * 1.4.
+    // Use loose bounds: orbitRadius ≤ MAX_WIDTH / 2 * 1.5 and
+    // height ≤ MAX_HEIGHT * 1.4.
     const MAX_RADIUS_BOUND = (64 / 2) * 1.5; // 48
     const MAX_HEIGHT_BOUND = 96 * 1.4; // ~134.4
     const p = placement(0, 100, 200);
@@ -121,9 +135,30 @@ describe('placeFireflies', () => {
   it('scale-by-commits assigns larger scale to authors with more commits', () => {
     // Alice has 1 commit (i=0); Bob has 2 commits (i=1, i=2).
     const commits = [
-      { date: '2026-01-01', files: 1, sha: 'a'.repeat(40), authors: ['Alice'], subject: 'a' },
-      { date: '2026-01-02', files: 1, sha: 'b'.repeat(40), authors: ['Bob'], subject: 'b1' },
-      { date: '2026-01-03', files: 1, sha: 'c'.repeat(40), authors: ['Bob'], subject: 'b2' },
+      {
+        date: '2026-01-01',
+        files: 1,
+        sha: 'a'.repeat(40),
+        authors: ['Alice'],
+        subject: 'a',
+        same_day_total: 1,
+      },
+      {
+        date: '2026-01-02',
+        files: 1,
+        sha: 'b'.repeat(40),
+        authors: ['Bob'],
+        subject: 'b1',
+        same_day_total: 1,
+      },
+      {
+        date: '2026-01-03',
+        files: 1,
+        sha: 'c'.repeat(40),
+        authors: ['Bob'],
+        subject: 'b2',
+        same_day_total: 1,
+      },
     ];
     // 1 orb per tree: orbs map 1:1 to placements for easy indexing.
     const orbs = placeFireflies(
@@ -146,8 +181,22 @@ describe('placeFireflies', () => {
   it('all orbs from the same author share the same scale', () => {
     // Use a fixture with 2 commits from the same author.
     const sameAuthor = [
-      { date: '2026-01-01', files: 1, sha: 'a'.repeat(40), authors: ['Alice'], subject: 'a1' },
-      { date: '2026-01-02', files: 1, sha: 'b'.repeat(40), authors: ['Alice'], subject: 'a2' },
+      {
+        date: '2026-01-01',
+        files: 1,
+        sha: 'a'.repeat(40),
+        authors: ['Alice'],
+        subject: 'a1',
+        same_day_total: 1,
+      },
+      {
+        date: '2026-01-02',
+        files: 1,
+        sha: 'b'.repeat(40),
+        authors: ['Alice'],
+        subject: 'a2',
+        same_day_total: 1,
+      },
     ];
     const orbs = placeFireflies([placement(0, 0, 0), placement(1, 10, 0)], sameAuthor);
     expect(orbs[0].scale).toBe(orbs[1].scale);
@@ -158,11 +207,25 @@ describe('placeFireflies', () => {
     // distribution), there's no meaningful ranking — render everyone at
     // SCALE_MAX rather than collapsing to SCALE_MIN.
     const soloAuthor = [
-      { date: '2026-01-01', files: 1, sha: 'a'.repeat(40), authors: ['Solo'], subject: 'a' },
-      { date: '2026-01-02', files: 1, sha: 'b'.repeat(40), authors: ['Solo'], subject: 'b' },
+      {
+        date: '2026-01-01',
+        files: 1,
+        sha: 'a'.repeat(40),
+        authors: ['Solo'],
+        subject: 'a',
+        same_day_total: 1,
+      },
+      {
+        date: '2026-01-02',
+        files: 1,
+        sha: 'b'.repeat(40),
+        authors: ['Solo'],
+        subject: 'b',
+        same_day_total: 1,
+      },
     ];
     const orbs = placeFireflies([placement(0, 0, 0), placement(1, 10, 0)], soloAuthor);
-    const scaleMax = FIREFLIES.get().SCALE_MAX;
+    const scaleMax = FIREFLIES.value.SCALE_MAX;
     expect(orbs[0].scale).toBe(scaleMax);
     expect(orbs[1].scale).toBe(scaleMax);
   });
@@ -175,6 +238,7 @@ describe('placeFireflies', () => {
         sha: 'a'.repeat(40),
         authors: ['Alice', 'Bob', 'Carol'],
         subject: 'team work',
+        same_day_total: 1,
       },
     ];
     const orbs = placeFireflies([placement(0, 0, 0)], multiAuthor);
@@ -190,6 +254,7 @@ describe('placeFireflies', () => {
         sha: 'a'.repeat(40),
         authors: ['Alice', 'Bob', 'Carol'],
         subject: 'team work',
+        same_day_total: 1,
       },
     ];
     const orbs = placeFireflies([placement(0, 0, 0)], multiAuthor);
@@ -206,6 +271,7 @@ describe('placeFireflies', () => {
         sha: 'a'.repeat(40),
         authors: ['Alice', 'Bob', 'Carol'],
         subject: 'team work',
+        same_day_total: 1,
       },
     ];
     const orbs = placeFireflies([placement(0, 100, 200)], multiAuthor);
@@ -232,6 +298,7 @@ describe('placeFireflies', () => {
         sha: 'a'.repeat(40),
         authors: ['Alice', 'Bob'],
         subject: 'pair',
+        same_day_total: 1,
       },
       {
         date: '2026-01-02',
@@ -239,6 +306,7 @@ describe('placeFireflies', () => {
         sha: 'b'.repeat(40),
         authors: ['Bob'],
         subject: 'solo',
+        same_day_total: 1,
       },
     ];
     const orbs = placeFireflies([placement(0, 0, 0), placement(1, 10, 0)], commits);

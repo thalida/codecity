@@ -1,4 +1,4 @@
-// scene/instanced/buildingsCell.ts — Cell-aware building InstancedMesh
+// scene/components/buildings/buildingsCell.ts — Cell-aware building InstancedMesh
 // factory. Replaces the per-block factory in buildings.ts for the
 // spatial-grid rendering path.
 //
@@ -10,14 +10,14 @@
 // index/position buffers).
 
 import * as THREE from 'three';
-import { FACADE_GEOMETRY } from '@/state/settings/index';
+import { FACADE } from '@/state/stores/settings/facade';
 import { BuildingOrient } from '@/types/index';
 import buildingVertSrc from './building.vert.glsl?raw';
 import buildingFragSrc from './building.frag.glsl?raw';
 import type { CellTile } from '../../layout/cellTile';
 import type { Building } from '@/types/index';
 import type { IconAtlas } from './iconAtlas';
-import { getFileIconName } from '@/views/components/fileIcon';
+import { getFileIconName } from '@/utils/fileIcons';
 import { seedFromPath, attachLeanAwareRaycast } from './buildingTilt';
 
 // ---------------------------------------------------------------------------
@@ -89,16 +89,16 @@ function getOrCreateBuildingMaterial(
 
 // ---------------------------------------------------------------------------
 // Icon atlas — module-level cache, mirroring the pattern in buildings.ts.
-// main.ts pushes the atlas in after buildIconAtlas() resolves, before the
-// first applyManifest call. If not set, iIconUV.xy stays (-1, -1) and the
-// shader skips the atlas sample (no crash, just no roof icon).
+// world.applyManifest pushes the atlas in (via setCellIconAtlas) before the
+// cell pass. If not set, iIconUV.xy stays (-1, -1) and the shader skips the
+// atlas sample (no crash, just no roof icon).
 // ---------------------------------------------------------------------------
 
 let _atlas: IconAtlas | null = null;
 
 /**
  * Register the icon atlas for this module's cell building factory.
- * Must be called (alongside buildings.ts's setIconAtlas) from main.ts
+ * Must be called (alongside buildings.ts's setIconAtlas) from world.applyManifest
  * after buildIconAtlas() resolves so roof icons appear in cell mode.
  */
 export function setCellIconAtlas(atlas: IconAtlas | null): void {
@@ -210,7 +210,7 @@ export function writeBuildingToSlot(cell: CellTile, b: Building): void {
   const mesh = cell.detailMesh;
 
   // --- Config snapshot (mirrors buildBuildingInstanceBuffer) ---
-  const facade = FACADE_GEOMETRY.get();
+  const facade = FACADE.value;
   const windowColsMax = facade.WINDOW_COLS_MAX;
   const widthPerWindowCol = facade.WIDTH_PER_WINDOW_COL;
   const doorWidthFrac = facade.DOOR_WIDTH_FRAC;
@@ -232,7 +232,7 @@ export function writeBuildingToSlot(cell: CellTile, b: Building): void {
   }
 
   // --- Window column counts ---
-  // Mirror createBuildingMesh in engine.ts:
+  // Mirror the window-column counts in buildings.ts:
   //   ±X faces (east/west walls) span depth d → cols_ew from d
   //   ±Z faces (north/south walls) span width w → cols_ns from w
   const colsEW = Math.max(1, Math.min(windowColsMax, Math.floor(b.d / widthPerWindowCol)));

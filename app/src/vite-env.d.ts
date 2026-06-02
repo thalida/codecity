@@ -9,3 +9,11 @@ declare module '*.glsl?raw' {
   const src: string;
   export default src;
 }
+
+// ?url imports — Vite resolves these to the asset's served URL (copying the
+// file into the build output). Used by constants/materialIcons.ts to bundle
+// the Material Icon Theme SVGs from the npm package.
+declare module '*.svg?url' {
+  const url: string;
+  export default url;
+}

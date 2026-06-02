@@ -610,9 +610,11 @@ h6 {
   color: var(--cc-accent-bg);
   cursor: default;
 }
-/* Section and subgroup reset variants push themselves to the right end of
- * their summary row. The <summary> carries .row which is already display:flex,
- * so margin-left:auto is sufficient. */
+/* Section and subgroup resets live INSIDE their <summary> (a flex row with
+ * align-items:center) so they stay visible when the section is collapsed — a
+ * closed <details> hides its non-summary children. margin-left:auto pins them
+ * to the far right; the row's flexbox centers them vertically (no magic top
+ * offsets, and immune to inter-section padding). */
 .controls-section-reset,
 .controls-subgroup-reset {
   margin-left: auto;
@@ -736,21 +738,15 @@ h6 {
   opacity: 0.7;
 }
 
-/* .gem-icon — the codecity gem rendered as a full-color SVG background
-   image (not a CSS mask), so the per-face palette colors render directly
-   instead of being collapsed to currentColor. Same 1em sizing as
-   .lucide-icon so it slots into header buttons without throwing off
-   alignment. The .lucide-icon mask path is the simple monochrome variant;
-   see makeGemIcon() in views/components/icon.ts. */
+/* .gem-icon — sizing for the codecity gem, an inline <svg> whose per-face
+   palette fills render directly (see the GemIcon component in
+   components/GemIcon.tsx). Same 1em sizing as .lucide-icon so it slots into
+   header buttons without throwing off alignment. */
 .gem-icon {
   display: inline-block;
   width: 1em;
   height: 1em;
   vertical-align: -0.15em;
-  background-image: url(/gem.svg);
-  background-size: contain;
-  background-repeat: no-repeat;
-  background-position: center;
 }
 
 /* ── Base ───────────────────────────────────────────────────────────────────── */
@@ -773,7 +769,8 @@ body {
    row underneath, and a thin footer at the bottom. The 3-pane row is
    itself a flex row — left sidebar | center canvas | right sidebar.
    The center grows/shrinks instead of the sidebars overlaying it. */
-body {
+#app {
+  height: 100%;
   display: flex;
   flex-direction: column;
   align-items: stretch;
@@ -854,7 +851,7 @@ canvas {
 
 /* ── Sidebar shell ──────────────────────────────────────────────────────────── */
 
-#sidebar {
+#right-sidebar {
   position: relative;
   flex: 0 0 auto;
   /* Closed by default — width 0, animates open via the .open rule below.
@@ -872,7 +869,7 @@ canvas {
   z-index: 100;
 }
 
-#sidebar.open {
+#right-sidebar.open {
   width: var(--sidebar-width, 360px);
   min-width: 280px;
   max-width: 70vw;
@@ -917,7 +914,7 @@ canvas {
  * section so the two stay visually in sync. File hue comes from the
  * project's hue palette via --badge-hue; the dir variant has its
  * background painted inline from ASPHALT.COLOR. Text color is set
- * inline by makeExtensionBadge() using a WCAG-luminance check so it
+ * inline by the ExtensionBadge component using a WCAG-luminance check so it
  * auto-contrasts (white-ish on dark backgrounds, near-black on light)
  * no matter what colors the user picks in Controls. */
 .path-badge {
@@ -1109,11 +1106,6 @@ canvas {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.app-footer-source {
-  margin-left: var(--cc-space-2);
-  color: var(--cc-text-ghost);
-  font-size: var(--cc-font-sm);
-}
 
 /* Shared muted-dot separator. Used between metadata items in the left
  * (selection) section and between the branch + repo link in the center
@@ -1211,27 +1203,27 @@ canvas {
    Webkit (Chrome / Safari / Edge) uses ::-webkit-scrollbar*; Firefox uses
    scrollbar-width / scrollbar-color (set further down on the scrolling
    children that actually overflow). */
-#sidebar ::-webkit-scrollbar,
-#tree-sidebar ::-webkit-scrollbar {
+#right-sidebar ::-webkit-scrollbar,
+#left-sidebar ::-webkit-scrollbar {
   width: 4px;
 }
-#sidebar ::-webkit-scrollbar-track,
-#tree-sidebar ::-webkit-scrollbar-track {
+#right-sidebar ::-webkit-scrollbar-track,
+#left-sidebar ::-webkit-scrollbar-track {
   background: transparent;
 }
-#sidebar ::-webkit-scrollbar-thumb,
-#tree-sidebar ::-webkit-scrollbar-thumb {
+#right-sidebar ::-webkit-scrollbar-thumb,
+#left-sidebar ::-webkit-scrollbar-thumb {
   background: var(--cc-border-input);
   border-radius: var(--cc-radius-sm);
 }
-#sidebar ::-webkit-scrollbar-thumb:hover,
-#tree-sidebar ::-webkit-scrollbar-thumb:hover {
+#right-sidebar ::-webkit-scrollbar-thumb:hover,
+#left-sidebar ::-webkit-scrollbar-thumb:hover {
   background: var(--cc-track-hover);
 }
 
 /* Firefox */
-#sidebar .editor-body,
-#sidebar .code-editor {
+#right-sidebar .editor-body,
+#right-sidebar .code-editor {
   scrollbar-width: thin;
   scrollbar-color: var(--cc-border-input) transparent;
 }
@@ -1297,10 +1289,13 @@ canvas {
 /* Default width is set inline by leftSidebar.js after reading localStorage,
  * so users can drag the right-edge handle to resize and the chosen width
  * persists across reloads. The CSS fallback is the no-localStorage default. */
-#tree-sidebar {
+#left-sidebar {
   position: relative;
   flex: 0 0 auto;
-  width: 360px; /* 44px activity bar + 316px panel; resizable */
+  /* Resizable: the drag handle mutates --sidebar-width; CSS owns `width` so the
+     handle never fights an inline style. Default 360px = 44px activity bar +
+     316px panel. */
+  width: var(--sidebar-width, 360px);
   min-width: 280px;
   max-width: 600px;
   height: 100%;
@@ -1314,7 +1309,7 @@ canvas {
 /* Until showLeftSidebar populates the tree, the empty container would
    show as a lighter strip on the left during the manifest fetch / scene
    build. Hide it while empty so the initial paint is just the header. */
-#tree-sidebar:empty {
+#left-sidebar:empty {
   display: none;
 }
 
@@ -1322,16 +1317,16 @@ canvas {
  * 6px hit zone makes it easy to grab. */
 /* Resize handle rules consolidated with .sidebar-resize-handle-right above. */
 
-/* Collapsed: just the activity bar shows. Inline width on #tree-sidebar
- * (set by the resize handle) is overridden by !important so we get the
- * narrow width without having to clear/restore the inline style on
- * every toggle. */
-#tree-sidebar.is-collapsed {
-  width: 44px !important;
+/* Collapsed: just the activity bar shows. This rule outranks the base
+ * `#left-sidebar { width: var(--sidebar-width) }` by specificity (id+class),
+ * so the dragged width is restored automatically on un-collapse — no need to
+ * clear/restore anything. */
+#left-sidebar.is-collapsed {
+  width: 44px;
   min-width: 44px;
 }
-#tree-sidebar.is-collapsed > .pane,
-#tree-sidebar.is-collapsed .sidebar-resize-handle {
+#left-sidebar.is-collapsed > .pane,
+#left-sidebar.is-collapsed .sidebar-resize-handle {
   display: none;
 }
 
@@ -1393,20 +1388,14 @@ canvas {
   background: var(--cc-accent-bg-soft);
 }
 
-/* Lucide SVG icons rendered via CSS mask-image so they pick up currentColor.
- * Each consumer sets its own size + color via parent CSS. .activity-bar-glyph
- * keeps its 20px footprint; .lucide-icon is the smaller inline default for
- * tree rows + buttons. */
+/* Lucide icons render as inline SVG (lucide-preact) with stroke=currentColor,
+ * so they inherit the parent's text color — no mask needed. These rules just
+ * size them (CSS width/height override the SVG's own 24px attrs).
+ * .activity-bar-glyph keeps its 20px footprint; .lucide-icon is the smaller
+ * inline default for tree rows + buttons. */
 .activity-bar-glyph,
 .lucide-icon {
   display: inline-block;
-  background-color: currentColor;
-  -webkit-mask-size: contain;
-  mask-size: contain;
-  -webkit-mask-repeat: no-repeat;
-  mask-repeat: no-repeat;
-  -webkit-mask-position: center;
-  mask-position: center;
 }
 .activity-bar-glyph {
   display: block;
@@ -1425,7 +1414,7 @@ canvas {
  * Flexbox keeps the two vertically centered against each other regardless
  * of the title's font metrics or the button's size; no manual top/left
  * positioning math needed. */
-/* Shared header row built by views/shell/paneHeader.ts. Every pane —
+/* Shared header row built by layout/paneHeader.ts. Every pane —
  * left sidebar's Tree/Search/Info/Controls and the right sidebar's
  * file-preview — mounts this same DOM so they look identical and
  * adding a pane is a single buildPaneHeader() call. */
@@ -1501,7 +1490,7 @@ canvas {
  * label, with the same hover background, border radius, and padding
  * as the tree rows so the two activity-bar tabs feel like the same UI.
  *
- * The chevron is a Lucide icon (via makeLucideIcon) rather than a
+ * The chevron is a Lucide icon (via the LucideIcon component) rather than a
  * unicode triangle — sharper at small sizes and currentColor-aware. */
 /* Style in .row + .row--bleed; this rule only hides the native disclosure
    triangle (a custom .controls-section-chevron renders instead). */
@@ -1736,9 +1725,10 @@ canvas {
   flex: 0 1 auto;
   min-width: 0;
   max-width: 55%;
-  display: flex;
-  align-items: center;
-  gap: var(--cc-space-3);
+  /* display:block (not flex) so text-overflow:ellipsis actually renders the
+   * "…" — a flex container ellipsizes none of its own text. Labels are
+   * text-only, so no flex layout is needed here. */
+  display: block;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1990,10 +1980,10 @@ canvas {
 }
 
 /* Scrollbar for tree */
-/* Webkit scrollbar rules consolidated with #sidebar earlier in the file.
+/* Webkit scrollbar rules consolidated with #right-sidebar earlier in the file.
    This block only sets the Firefox scrollbar style on the actual
-   scrolling child of #tree-sidebar. */
-#tree-sidebar .tree-root {
+   scrolling child of #left-sidebar. */
+#left-sidebar .tree-root {
   scrollbar-width: thin;
   scrollbar-color: var(--cc-border-input) transparent;
 }
@@ -2222,7 +2212,7 @@ canvas {
 /* Scrollbar tuned to match the tree pane's. The search pane's body
    uses .pane-body; the info pane's body adds the .info-body marker so
    this Firefox scrollbar rule can target it specifically. */
-#tree-sidebar .search-pane > .pane-body {
+#left-sidebar .search-pane > .pane-body {
   scrollbar-width: thin;
   scrollbar-color: var(--cc-border-input) transparent;
 }
@@ -2236,7 +2226,7 @@ canvas {
 .info-body > .empty-state {
   flex: 1 1 auto;
 }
-#tree-sidebar .info-body {
+#left-sidebar .info-body {
   scrollbar-width: thin;
   scrollbar-color: var(--cc-border-input) transparent;
 }
@@ -2989,7 +2979,6 @@ canvas {
            than the title since they're secondary metadata)
          .commit-meta (age · files)
          .commit-same-day (busyness + N commits that day)
-         .commit-no-remote (when no remote configured)
          .commit-message-body-slot — mutable region holding the lazy body
            (loading hint / <pre> body / error / hidden). The slot lives
            at the bottom so body load doesn't shift content above it. */
@@ -3013,12 +3002,6 @@ canvas {
    Inherits .btn-icon + .btn-icon--link (24×24, muted, hover overlay). */
 .commit-open {
   flex-shrink: 0;
-}
-
-.commit-no-remote {
-  color: var(--cc-text-muted);
-  font-size: var(--cc-font-lg); /* 12px */
-  font-style: italic;
 }
 
 .commit-author {

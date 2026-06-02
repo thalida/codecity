@@ -1,21 +1,24 @@
-// scene/trees/treePlacementWorker.ts — Web Worker entry for tree
+// scene/components/trees/treePlacementWorker.ts — Web Worker entry for tree
 // placement. Receives a CityLayout + bbox + a snapshot of the config
 // stores placeTrees() reads, populates the worker's local stores,
 // runs the scan, posts back the TreePlacement[]. Pure compute, no
 // DOM, no three.js references.
 
 import { placeTrees, type TreePlacement } from './treePlacement';
-import { TREES } from '@/state/settings/components/trees';
-import { BUILDING_DIMENSIONS } from '@/state/settings/components/buildings';
-import { FOOTPRINT } from '@/state/settings/components/footprint';
-import { WORLD } from '@/state/settings/world/world';
-import type { IslandGeometryConfig } from '@/state/settings/components/island';
+import { TREES, type TreesConfig } from '@/state/stores/settings/trees';
+import {
+  BUILDING_DIMENSIONS,
+  type BuildingDimensionsConfig,
+} from '@/state/stores/settings/buildings';
+import { FOOTPRINT, type FootprintConfig } from '@/state/stores/settings/footprint';
+import { WORLD, type WorldConfig } from '@/state/stores/settings/scene';
+import type { IslandConfig } from '@/state/stores/settings/island';
 import type { CityBbox, CityLayout } from '@/types';
 
-type TreesValue = ReturnType<typeof TREES.get>;
-type BuildingDimsValue = ReturnType<typeof BUILDING_DIMENSIONS.get>;
-type FootprintValue = ReturnType<typeof FOOTPRINT.get>;
-type WorldValue = ReturnType<typeof WORLD.get>;
+type TreesValue = TreesConfig;
+type BuildingDimsValue = BuildingDimensionsConfig;
+type FootprintValue = FootprintConfig;
+type WorldValue = WorldConfig;
 
 import { MSG } from './treePlacementProtocol';
 
@@ -32,7 +35,7 @@ interface PlaceRequest {
     footprint: FootprintValue;
     /** Island geometry config snapshot — used to rebuild the island polygon
      *  inside the worker without touching main-thread stores. */
-    islandGeo: IslandGeometryConfig;
+    islandGeo: IslandConfig;
     /** World sizing snapshot — getWorldBounds() inside placeTrees reads
      *  WORLD.GROUND_BUFFER_PERCENT, which would otherwise stay at the
      *  worker's default value (workers have their own nanostore state
@@ -46,18 +49,10 @@ type PlaceResponse =
   | { type: typeof MSG.RESPONSE_ERROR; id: number; message: string };
 
 function _applySnapshot(snap: PlaceRequest['configSnapshot']): void {
-  for (const k of Object.keys(snap.trees) as Array<keyof TreesValue>) {
-    TREES.setKey(k, snap.trees[k]);
-  }
-  for (const k of Object.keys(snap.buildingDims) as Array<keyof BuildingDimsValue>) {
-    BUILDING_DIMENSIONS.setKey(k, snap.buildingDims[k]);
-  }
-  for (const k of Object.keys(snap.footprint) as Array<keyof FootprintValue>) {
-    FOOTPRINT.setKey(k, snap.footprint[k]);
-  }
-  for (const k of Object.keys(snap.world) as Array<keyof WorldValue>) {
-    WORLD.setKey(k, snap.world[k]);
-  }
+  TREES.value = { ...TREES.value, ...snap.trees };
+  BUILDING_DIMENSIONS.value = { ...BUILDING_DIMENSIONS.value, ...snap.buildingDims };
+  FOOTPRINT.value = { ...FOOTPRINT.value, ...snap.footprint };
+  WORLD.value = { ...WORLD.value, ...snap.world };
 }
 
 self.addEventListener('message', (event: MessageEvent<PlaceRequest>) => {

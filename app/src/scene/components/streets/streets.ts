@@ -1,11 +1,12 @@
-// streets.ts — Street rendering: two stacked pill-shaped slabs
+// scene/components/streets/streets.ts — Street rendering: two stacked pill-shaped slabs
 // (sidewalk + asphalt) per directory street. Concentric caps so the
 // visible sidewalk strip is uniform around the perimeter, including
 // the curved ends.
 
 import * as THREE from 'three';
-import { ASPHALT, SIDEWALK_COLORS } from '@/state/settings/components/streets';
-import { RENDER_ORDERS } from '@/constants';
+import { STREETS } from '@/state/stores/settings/streets';
+import { ASPHALT_WIDTH_FRAC } from '@/constants/streets';
+import { RENDER_ORDERS } from '@/scene/renderOrders';
 import { CapStyle, JoinSide, NodeKind, StreetAxis } from '@/types';
 import type { Street } from '@/types';
 
@@ -118,10 +119,9 @@ function _buildStadiumGeometry(
 // points back to the layout street so raycaster hits can recover the
 // directory this street represents.
 export function createStreetMesh(street: StreetWithJoin, yBase: number): THREE.Group {
-  const asphaltCfg = ASPHALT.get();
-  const sidewalkCfg = SIDEWALK_COLORS.get();
+  const streets = STREETS.value;
   const group = new THREE.Group();
-  const asphaltWidth = street.width * asphaltCfg.WIDTH_FRAC;
+  const asphaltWidth = street.width * ASPHALT_WIDTH_FRAC;
   // For concentric caps the asphalt must be shorter by exactly the sidewalk
   // strip width (= (width - asphaltWidth) / 2 per side). That makes the two
   // cap circles share a center and the annular sidewalk strip keep constant
@@ -148,7 +148,7 @@ export function createStreetMesh(street: StreetWithJoin, yBase: number): THREE.G
   const orders = RENDER_ORDERS;
   const sidewalk = new THREE.Mesh(
     _buildStadiumGeometry(street.length, street.width, street.orientation, capStyle),
-    flatGroundMaterial(sidewalkCfg.DEFAULT, orders.SIDEWALK)
+    flatGroundMaterial(streets.SIDEWALK_DEFAULT, orders.SIDEWALK)
   );
   sidewalk.rotation.x = -Math.PI / 2;
   sidewalk.position.set(street.x, yBase, street.y);
@@ -160,7 +160,7 @@ export function createStreetMesh(street: StreetWithJoin, yBase: number): THREE.G
   // Asphalt — narrower, always draws on top of every sidewalk.
   const asphalt = new THREE.Mesh(
     _buildStadiumGeometry(asphaltLength, asphaltWidth, street.orientation, capStyle),
-    flatGroundMaterial(asphaltCfg.COLOR, orders.ASPHALT)
+    flatGroundMaterial(streets.ASPHALT_COLOR, orders.ASPHALT)
   );
   asphalt.rotation.x = -Math.PI / 2;
   asphalt.position.set(street.x, yBase, street.y);
