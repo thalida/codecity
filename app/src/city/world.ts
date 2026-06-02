@@ -28,8 +28,6 @@
 // trip a Three.js error.
 
 import * as THREE from 'three';
-import { LineSegments2 } from 'three/addons/lines/LineSegments2.js';
-import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
 
 import { registerShaderChunks } from './utils/color/registerShaderChunks';
 import { getSharedBuildingUniforms, setIconAtlas } from './components/buildings/buildings';
@@ -300,14 +298,8 @@ function _buildWorld(layout: CityLayout) {
     bbox.set(new THREE.Vector3(-50, 0, -50), new THREE.Vector3(50, 10, 50));
   }
 
-  // buildingMeshes is empty — per-building meshes live in cell
-  // InstancedMeshes, not on this scene. Returned for shape compatibility
-  // with world's disposal loop.
-  const buildingMeshes: THREE.Mesh[] = [];
-
   return {
     scene,
-    buildingMeshes,
     streetPickables,
     streetLabels,
     asphaltMeshes,
@@ -411,14 +403,6 @@ export function createWorld(_canvas: HTMLCanvasElement) {
   // Material[]`-shaped.
   let rootGemBody: THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial> | null = null;
   let rootGemEdges: THREE.LineSegments<THREE.BufferGeometry, THREE.LineBasicMaterial> | null = null;
-
-  // Outline / ghost stubs — kept so outlineRenderer's
-  // getBuildingOutlines() / getBuildingGhosts() calls iterate an empty
-  // list and no-op (the cell path renders outlines through a different
-  // mechanism).
-  const buildingOutlines: LineSegments2[] = [];
-  const buildingOutlineMats: LineMaterial[] = [];
-  const buildingGhosts: THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial>[] = [];
 
   let sidewalksByDirPath: Record<string, FlatMesh> = {};
   let streetsByDirPath: Record<string, Street> = {};
@@ -612,11 +596,6 @@ export function createWorld(_canvas: HTMLCanvasElement) {
   function disposeMesh(mesh: THREE.Mesh): void {
     if (!mesh || (mesh.userData && mesh.userData.disposed)) return;
     if (mesh.parent) mesh.parent.remove(mesh);
-    const paired = (mesh.userData && mesh.userData.paired) || null;
-    if (paired) {
-      if (paired.outline) _removeAndDispose(paired.outline);
-      if (paired.ghost) _removeAndDispose(paired.ghost);
-    }
     _disposeObject(mesh);
   }
 
@@ -1084,14 +1063,6 @@ export function createWorld(_canvas: HTMLCanvasElement) {
       for (const child of [...cellBuilt.scene.children]) scene.add(child);
       scene.background = new THREE.Color(SCENE.value.SKY_COLOR);
 
-      // Remove per-building meshes that buildWorld emits — the cell
-      // path replaces them with InstancedMesh cells. Keep streetLabels:
-      // they serve as our labels on the cell path too.
-      for (const bm of cellBuilt.buildingMeshes || []) {
-        if (bm.parent) bm.parent.remove(bm);
-        _disposeObject(bm);
-      }
-
       // Add the cell root (instanced building InstancedMeshes, one group per cell).
       scene.add(_cellRoot);
 
@@ -1486,20 +1457,6 @@ export function createWorld(_canvas: HTMLCanvasElement) {
     },
     getTreeBoundsBySha(sha: string) {
       return _trees?.getTreeBoundsBySha(sha) ?? null;
-    },
-
-    // Outline/ghost arrays — empty stubs returned so existing callers
-    // (outlineRenderer.refreshMaterials, outlineRenderer.onResize) iterate
-    // zero elements and no-op gracefully (cell-path outlines run via a
-    // separate mechanism).
-    getBuildingOutlines(): LineSegments2[] {
-      return buildingOutlines;
-    },
-    getBuildingOutlineMats(): LineMaterial[] {
-      return buildingOutlineMats;
-    },
-    getBuildingGhosts(): THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial>[] {
-      return buildingGhosts;
     },
 
     getBuildingByPath(p: string) {
