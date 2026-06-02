@@ -8,8 +8,10 @@
 // the apply (Rebuilding/Decorating/Idle + render-apply Error).
 //
 // This module consumes the PURE fetch primitives in @/api/manifest
-// (streamManifest/urls) and drives the session stores (loading overlay,
-// CURRENT_SOURCE, per-source persistence). The header chip (SOURCE_INFO) is a
+// (streamManifest/urls) and drives the session stores: it WRITES the canonical
+// SCAN_PROGRESS signal while a source loads (the loading overlay is a REACTION to
+// it — see state/loadingReactions; this layer never pokes LOADING_OVERLAY), plus
+// CURRENT_SOURCE and per-source persistence. The header chip (SOURCE_INFO) is a
 // computed off CURRENT_SOURCE + MANIFEST — this layer never writes it. It writes
 // REBUILD_STATUS=Error only for a live-update FETCH/network failure — a distinct
 // concern from the render layer's apply error.
@@ -30,7 +32,6 @@ import {
   signatureUrl,
   streamManifest,
   ScanPhase,
-  type ScanProgressEvent,
 } from '@/api/manifest';
 import { getServerConfig } from '@/api/config';
 import { LIVE_UPDATES } from '@/state/stores/settings/updates';
@@ -48,48 +49,30 @@ import {
   LAST_REBUILD_ERROR,
 } from '@/state/stores/manifest';
 import {
-  showLoadingOverlay,
-  hideLoadingOverlay,
-  setLoadingStep,
-  setLoadingStepTail,
   openSourcePicker,
   closeSourcePicker,
 } from '@/state/stores/ui';
-import { srcKind, labelFromUrl, resolveBranch } from '@/utils/sources';
+import { SCAN_PROGRESS } from '@/state/stores/scanProgress';
+import { srcKind, labelFromUrl, resolveBranch, SourceKind } from '@/utils/sources';
 import { isEmptyManifest } from '@/utils/manifest';
-import { LoadingStep } from '@/constants/loadingSteps';
 import { URL_PARAMS } from '@/constants/urlParams';
 import type { Manifest } from '@/types';
 import type { SourcePayload } from '@/state/stores/ui';
 
 // ── Shared helpers ───────────────────────────────────────────────────
 
-/** Map a cloning/scanning progress event to the loading-overlay step + tail. */
-function _handleProgressEvent(event: ScanProgressEvent): void {
-  if (event.phase === ScanPhase.Cloning) {
-    setLoadingStep(LoadingStep.Cloning);
-    if (event.percent !== undefined) {
-      const stage = event.stage ? ` (${event.stage})` : '';
-      setLoadingStepTail(LoadingStep.Cloning, `${event.percent}%${stage}`);
-    }
-  } else if (event.phase === ScanPhase.Scanning) {
-    setLoadingStep(LoadingStep.Scanning);
-    if (event.files_scanned !== undefined) {
-      setLoadingStepTail(LoadingStep.Scanning, `${event.files_scanned.toLocaleString()} files`);
-    }
-  }
-}
-
 /**
- * Consume a manifest stream, driving the UI side-effects both entry points
- * share — throw on an error event, set the pending-title once, route
- * cloning/scanning to the progress helper, and advance the loading step — then
- * invoke onManifest for each skeleton/final manifest event so the caller can do
- * its phase-specific publish work. Returns the final manifest; throws if the
- * stream ends without yielding one.
+ * Consume a manifest stream, writing the canonical SCAN_PROGRESS signal per
+ * event (the loading overlay is a REACTION to it — see state/loadingReactions)
+ * — throw on an error event, set the pending-title once, publish cloning/scanning
+ * progress, and write a skeleton/final SCAN_PROGRESS — then invoke onManifest for
+ * each skeleton/final manifest event so the caller can do its phase-specific
+ * publish work. Returns the final manifest; throws if the stream ends without
+ * yielding one.
  */
 async function pumpManifestStream(
   url: string,
+  meta: { kind: SourceKind; label: string; branch?: string },
   onManifest: (manifest: Manifest, phase: ScanPhase.Skeleton | ScanPhase.Final) => Promise<void> | void
 ): Promise<Manifest> {
   let lastManifest: Manifest | null = null;
@@ -107,15 +90,18 @@ async function pumpManifestStream(
     }
 
     if (event.phase === ScanPhase.Cloning || event.phase === ScanPhase.Scanning) {
-      _handleProgressEvent(event);
+      SCAN_PROGRESS.value = {
+        ...meta,
+        phase: event.phase,
+        percent: event.phase === ScanPhase.Cloning ? event.percent : undefined,
+        stage: event.phase === ScanPhase.Cloning ? event.stage : undefined,
+        filesScanned: event.phase === ScanPhase.Scanning ? event.files_scanned : undefined,
+      };
       continue;
     }
 
-    // Skeleton or final: the cloning/scanning progress tails are done.
-    setLoadingStepTail(LoadingStep.Cloning, null);
-    setLoadingStepTail(LoadingStep.Scanning, null);
-    setLoadingStep(event.phase === ScanPhase.Skeleton ? LoadingStep.Skeleton : LoadingStep.Building);
-
+    // Skeleton or final.
+    SCAN_PROGRESS.value = { ...meta, phase: event.phase };
     await onManifest(event.manifest, event.phase);
     lastManifest = event.manifest;
   }
@@ -133,9 +119,10 @@ interface InitialStreamResult {
 /**
  * Run the initial manifest stream on cold boot. With no ?src, returns
  * immediately (MANIFEST stays EMPTY_MANIFEST — the render layer paints an empty
- * scene). Otherwise shows the loading overlay and WRITES each manifest event
- * into MANIFEST (the render layer applies them). On any failure the returned
- * error is set and MANIFEST is left at its current (empty) value.
+ * scene). Otherwise sets SCAN_PROGRESS (which the loading-overlay reaction shows)
+ * and WRITES each manifest event into MANIFEST (the render layer applies them).
+ * On any failure the returned error is set and MANIFEST is left at its current
+ * (empty) value.
  */
 async function streamInitialManifest(): Promise<InitialStreamResult> {
   const qp = new URLSearchParams(window.location.search);
@@ -146,11 +133,8 @@ async function streamInitialManifest(): Promise<InitialStreamResult> {
   }
 
   const bootBranch = qp.get(URL_PARAMS.BRANCH) ?? undefined;
-  showLoadingOverlay({
-    kind: srcKind(bootSrc),
-    label: labelFromUrl(bootSrc) ?? bootSrc,
-    branch: bootBranch,
-  });
+  const meta = { kind: srcKind(bootSrc), label: labelFromUrl(bootSrc) ?? bootSrc, branch: bootBranch };
+  SCAN_PROGRESS.value = { ...meta, phase: null }; // show overlay immediately
 
   let error: string | null = null;
 
@@ -158,14 +142,14 @@ async function streamInitialManifest(): Promise<InitialStreamResult> {
     // Write each manifest event (skeleton, then final) into MANIFEST; the
     // render layer applies whatever MANIFEST holds. The display-label rewrite +
     // icon-atlas build happen inside world.applyManifest on the render side.
-    await pumpManifestStream(manifestUrl(), (m) => {
+    await pumpManifestStream(manifestUrl(), meta, (m) => {
       setManifest(m);
     });
   } catch (err) {
     error = err instanceof Error ? err.message : String(err);
     // MANIFEST stays at its current (empty) value.
   } finally {
-    hideLoadingOverlay();
+    SCAN_PROGRESS.value = null;
     PENDING_SOURCE_LABEL.value = null;
   }
 
@@ -198,11 +182,8 @@ interface ApplyNewSourceOpts {
 async function applyNewSource(opts: ApplyNewSourceOpts): Promise<void> {
   const { payload, pendingSkipCache, onError } = opts;
 
-  showLoadingOverlay({
-    kind: srcKind(payload.src),
-    label: labelFromUrl(payload.src) ?? payload.src,
-    branch: payload.branch,
-  });
+  const meta = { kind: srcKind(payload.src), label: labelFromUrl(payload.src) ?? payload.src, branch: payload.branch };
+  SCAN_PROGRESS.value = { ...meta, phase: null }; // show overlay immediately
 
   try {
     const url = manifestUrlFor({ src: payload.src, branch: payload.branch, noCache: pendingSkipCache });
@@ -210,7 +191,7 @@ async function applyNewSource(opts: ApplyNewSourceOpts): Promise<void> {
     // Publish the skeleton as soon as it arrives so the user sees structure; the
     // final manifest (the pump's return value) carries real heights + signature
     // and is published below.
-    const manifest = await pumpManifestStream(url, (m, phase) => {
+    const manifest = await pumpManifestStream(url, meta, (m, phase) => {
       if (phase === ScanPhase.Skeleton) {
         setManifest(m);
       }
@@ -237,7 +218,7 @@ async function applyNewSource(opts: ApplyNewSourceOpts): Promise<void> {
       error: err instanceof Error ? err.message : String(err),
     });
   } finally {
-    hideLoadingOverlay();
+    SCAN_PROGRESS.value = null;
     PENDING_SOURCE_LABEL.value = null;
   }
 }

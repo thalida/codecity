@@ -5,8 +5,9 @@
 //
 // Signal-driven: reads LOADING_OVERLAY and is mounted once by App.tsx. State is
 // driven by the uiState helpers (showLoadingOverlay / setLoadingStep /
-// setLoadingStepTail / hideLoadingOverlay), called from the manifest-stream
-// consumer and the REBUILD_STATUS bridge in manifestPoll. The "loading {project}"
+// setLoadingStepTail / hideLoadingOverlay), called from the SCAN_PROGRESS
+// reaction (state/loadingReactions) — which the fetch layer feeds — and the
+// REBUILD_STATUS → Decorating bridge in stores/manifest. The "loading {project}"
 // header reads PENDING_SOURCE_LABEL — the same canonical signal that drives the
 // document title — so the project name isn't duplicated into this store. Every
 // visible advancement maps to a real NDJSON phase event (cloning, scanning,

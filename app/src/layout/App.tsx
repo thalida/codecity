@@ -13,6 +13,8 @@
 //   <SourcePicker />     — reads SOURCE_PICKER + SERVER_CONFIG directly
 //   <LoadingOverlay />   — reads LOADING_OVERLAY directly
 
+import { useEffect } from 'preact/hooks';
+
 import { AppHeader } from './AppHeader';
 import { AppFooter } from './AppFooter';
 import { CenterPane } from './CenterPane';
@@ -25,10 +27,13 @@ import { selectPath, resetView, focusCurrentSelection } from '@/state/stores/sce
 import { openSourcePickerForCurrentSource, closeSourcePicker } from '@/state/stores/ui';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { useManifestSource } from '@/hooks/useManifestSource';
+import { attachLoadingReactions } from '@/state/loadingReactions';
 
 export function App() {
   useDocumentTitle();
   const submitSource = useManifestSource();
+
+  useEffect(() => attachLoadingReactions(), []);
 
   return (
     <>
