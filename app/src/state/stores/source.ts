@@ -47,6 +47,14 @@ export function sourceKey(src: string, branch?: string): string {
 export const CURRENT_SOURCE = signal<{ src: string; branch?: string } | null>(null);
 
 /**
+ * The last source-LOAD failure (cold-boot or user submit), or null when none.
+ * A canonical fetch outcome written by useManifestSource; App reacts to it to
+ * open the source picker (the hook does NOT manage the picker). App clears it
+ * when the user acts on the picker (submit/close).
+ */
+export const SOURCE_ERROR = signal<{ error: string; prefill?: { src: string; branch?: string } } | null>(null);
+
+/**
  * The currently-loaded source's stable hash, or null when no source is loaded.
  * Derived from CURRENT_SOURCE — used to namespace per-source localStorage.
  */

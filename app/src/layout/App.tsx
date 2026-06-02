@@ -14,6 +14,7 @@
 //   <LoadingOverlay />   — reads LOADING_OVERLAY directly
 
 import { useEffect } from 'preact/hooks';
+import { useSignalEffect } from '@preact/signals';
 
 import { AppHeader } from './AppHeader';
 import { AppFooter } from './AppFooter';
@@ -24,7 +25,11 @@ import { SourcePicker } from '@/views/SourcePicker';
 import { LoadingOverlay } from '@/components/LoadingOverlay';
 import { HljsThemeLink } from '@/components/HljsThemeLink';
 import { selectPath, resetView, focusCurrentSelection } from '@/state/stores/scene';
-import { openSourcePickerForCurrentSource, closeSourcePicker } from '@/state/stores/ui';
+import { openSourcePicker, openSourcePickerForCurrentSource, closeSourcePicker } from '@/state/stores/ui';
+import { SOURCE_ERROR } from '@/state/stores/source';
+import { MANIFEST } from '@/state/stores/manifest';
+import { isEmptyManifest } from '@/utils/manifest';
+import { URL_PARAMS } from '@/constants/urlParams';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { useManifestSource } from '@/hooks/useManifestSource';
 import { attachLoadingReactions } from '@/state/loadingReactions';
@@ -34,6 +39,32 @@ export function App() {
   const submitSource = useManifestSource();
 
   useEffect(() => attachLoadingReactions(), []);
+
+  // App coordinates the source picker; the fetch hook only reports outcomes.
+  const dismissPicker = () => {
+    closeSourcePicker();
+    SOURCE_ERROR.value = null;
+  };
+
+  // Cold boot with no ?src → prompt for a source (non-dismissible).
+  useEffect(() => {
+    if (!new URLSearchParams(window.location.search).has(URL_PARAMS.SRC)) {
+      openSourcePicker({ dismissible: false });
+    }
+  }, []);
+
+  // A source-load failure (boot or submit) reopens the picker. Dismissible only
+  // when a city is already loaded to fall back to (a failed FIRST pick stays
+  // non-dismissible so the app can't end up blank).
+  useSignalEffect(() => {
+    const err = SOURCE_ERROR.value;
+    if (!err) return;
+    openSourcePicker({
+      dismissible: !isEmptyManifest(MANIFEST.peek()),
+      prefill: err.prefill,
+      error: err.error,
+    });
+  });
 
   return (
     <>
@@ -49,7 +80,10 @@ export function App() {
         <RightSidebar />
       </main>
       <AppFooter />
-      <SourcePicker onSubmit={submitSource} onClose={closeSourcePicker} />
+      <SourcePicker
+        onSubmit={(p) => { dismissPicker(); submitSource(p); }}
+        onClose={dismissPicker}
+      />
       <LoadingOverlay />
       <HljsThemeLink />
     </>

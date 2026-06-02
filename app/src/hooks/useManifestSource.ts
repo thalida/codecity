@@ -38,6 +38,7 @@ import { LIVE_UPDATES } from '@/state/stores/settings/updates';
 import {
   CURRENT_SOURCE,
   PENDING_SOURCE_LABEL,
+  SOURCE_ERROR,
   pushRecent,
 } from '@/state/stores/source';
 import { SERVER_CONFIG } from '@/state/stores/serverConfig';
@@ -48,10 +49,6 @@ import {
   RebuildStatus,
   LAST_REBUILD_ERROR,
 } from '@/state/stores/manifest';
-import {
-  openSourcePicker,
-  closeSourcePicker,
-} from '@/state/stores/ui';
 import { SCAN_PROGRESS } from '@/state/stores/scanProgress';
 import { srcKind, labelFromUrl, resolveBranch, SourceKind } from '@/utils/sources';
 import { isEmptyManifest } from '@/utils/manifest';
@@ -161,7 +158,6 @@ async function streamInitialManifest(): Promise<InitialStreamResult> {
 interface ApplyNewSourceOpts {
   payload: SourcePayload;
   pendingSkipCache: boolean;
-  onError: (opts: { dismissible: boolean; payload: SourcePayload; error: string }) => void;
 }
 
 /**
@@ -170,7 +166,8 @@ interface ApplyNewSourceOpts {
  * manifest, publish CURRENT_SOURCE (which drives the URL + the SOURCE_INFO
  * computed), and update per-source persistence. The always-running poll loop
  * picks up the new MANIFEST.signature on its own — no live-update wiring here.
- * Calls onError (dismissible) if streaming fails.
+ * On a streaming failure it WRITES the canonical SOURCE_ERROR signal (App reacts
+ * to it to reopen the picker — this layer never touches the picker UI).
  *
  * Scene-free: where the old useCity called handle.world.resetCache() before
  * streaming, that call is intentionally dropped. resetCache only nulls the
@@ -180,7 +177,7 @@ interface ApplyNewSourceOpts {
  * caches and disposes/rebuilds the ad panels. Nothing is left stale.
  */
 async function applyNewSource(opts: ApplyNewSourceOpts): Promise<void> {
-  const { payload, pendingSkipCache, onError } = opts;
+  const { payload, pendingSkipCache } = opts;
 
   const meta = { kind: srcKind(payload.src), label: labelFromUrl(payload.src) ?? payload.src, branch: payload.branch };
   SCAN_PROGRESS.value = { ...meta, phase: null }; // show overlay immediately
@@ -212,11 +209,10 @@ async function applyNewSource(opts: ApplyNewSourceOpts): Promise<void> {
       label: labelFromUrl(payload.src) ?? payload.src,
     });
   } catch (err) {
-    onError({
-      dismissible: true,
-      payload,
+    SOURCE_ERROR.value = {
       error: err instanceof Error ? err.message : String(err),
-    });
+      prefill: { src: payload.src, branch: payload.branch },
+    };
   } finally {
     SCAN_PROGRESS.value = null;
     PENDING_SOURCE_LABEL.value = null;
@@ -325,19 +321,14 @@ function setupLiveUpdates(): () => void {
  * Boot the manifest FETCH pipeline on mount: stream the initial manifest from
  * ?src into MANIFEST, fetch the server config, and start live updates.
  * Scene-free — the render layer (useCityScene) consumes MANIFEST and paints the
- * scene. RETURNS the source-picker submit handler so App can pass it down to
- * <SourcePicker> as a prop (no global register/invoke channel).
+ * scene. UI-free too: it never opens/closes the source picker; on a load failure
+ * (boot or submit) it WRITES the canonical SOURCE_ERROR signal and App reacts to
+ * coordinate the picker. RETURNS the source-picker submit handler so App can pass
+ * it down to <SourcePicker> as a prop (no global register/invoke channel).
  */
 export function useManifestSource(): (payload: SourcePayload) => void {
   const submitSource = useCallback((payload: SourcePayload) => {
-    closeSourcePicker();
-    applyNewSource({
-      payload,
-      pendingSkipCache: !!payload.skipCache,
-      onError({ dismissible, payload: errPayload, error }) {
-        openSourcePicker({ dismissible, prefill: errPayload, error });
-      },
-    });
+    applyNewSource({ payload, pendingSkipCache: !!payload.skipCache });
   }, []);
 
   useEffect(() => {
@@ -362,14 +353,12 @@ export function useManifestSource(): (payload: SourcePayload) => void {
       disposeLiveUpdates = setupLiveUpdates();
 
       if (initialError) {
-        openSourcePicker({
-          dismissible: false,
-          prefill: { src: qp.get(URL_PARAMS.SRC)!, branch: qp.get(URL_PARAMS.BRANCH) ?? undefined },
+        SOURCE_ERROR.value = {
           error: initialError,
-        });
-      } else if (!qp.has(URL_PARAMS.SRC)) {
-        openSourcePicker({ dismissible: false });
+          prefill: { src: qp.get(URL_PARAMS.SRC)!, branch: qp.get(URL_PARAMS.BRANCH) ?? undefined },
+        };
       }
+      // No ?src on cold boot → App opens the picker (the hook doesn't manage UI).
     })();
     return () => {
       cancelled = true;
