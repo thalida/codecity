@@ -6,9 +6,9 @@ import {
   showLoadingOverlay,
   hideLoadingOverlay,
   setLoadingStep,
-  setLoadingPendingLabel,
   setLoadingStepTail,
 } from '@/state/stores/ui';
+import { PENDING_SOURCE_LABEL } from '@/state/stores/source';
 import { LoadingStep } from '@/constants/loadingSteps';
 import { SourceKind } from '@/utils/sources';
 import { flush } from '../_helpers/preact';
@@ -26,9 +26,9 @@ beforeEach(() => {
     visible: false,
     showOpts: null,
     activeStep: null,
-    pendingLabel: null,
     stepTails: {},
   };
+  PENDING_SOURCE_LABEL.value = null;
   container = document.createElement('div');
   document.body.appendChild(container);
   render(<LoadingOverlay />, container);
@@ -37,6 +37,7 @@ beforeEach(() => {
 afterEach(() => {
   render(null, container);
   container.remove();
+  PENDING_SOURCE_LABEL.value = null;
 });
 
 describe('LoadingOverlay', () => {
@@ -72,7 +73,7 @@ describe('LoadingOverlay', () => {
     showLoadingOverlay({ kind: SourceKind.Git, label: 'owner/repo' });
     await flush();
     // Title shows the current step (not the project name — that lives in
-    // the pending-label header set separately via setLoadingPendingLabel).
+    // the pending-label header, driven by the PENDING_SOURCE_LABEL signal).
     expect(container.textContent).toContain('Resolving source');
     expect(container.querySelector('[data-step="resolving"]')).toBeTruthy();
     expect(container.querySelector('[data-step="cloning"]')).toBeTruthy();
@@ -134,7 +135,7 @@ describe('LoadingOverlay', () => {
 
   it('renders the pending label as a header when set', async () => {
     showLoadingOverlay({ kind: SourceKind.Git, label: 'owner/repo' });
-    setLoadingPendingLabel('owner/repo');
+    PENDING_SOURCE_LABEL.value = 'owner/repo';
     await flush();
     const header = container.querySelector('.loading-pending-label');
     expect(header).not.toBeNull();
@@ -143,9 +144,9 @@ describe('LoadingOverlay', () => {
 
   it('removes the pending label when set to null', async () => {
     showLoadingOverlay({ kind: SourceKind.Git, label: 'owner/repo' });
-    setLoadingPendingLabel('owner/repo');
+    PENDING_SOURCE_LABEL.value = 'owner/repo';
     await flush();
-    setLoadingPendingLabel(null);
+    PENDING_SOURCE_LABEL.value = null;
     await flush();
     expect(container.querySelector('.loading-pending-label')).toBeNull();
   });

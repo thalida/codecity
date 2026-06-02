@@ -5,13 +5,16 @@
 //
 // Signal-driven: reads LOADING_OVERLAY and is mounted once by App.tsx. State is
 // driven by the uiState helpers (showLoadingOverlay / setLoadingStep /
-// setLoadingStepTail / setLoadingPendingLabel / hideLoadingOverlay), called
-// from the manifest-stream consumer and the REBUILD_STATUS bridge in
-// manifestPoll. Every visible advancement maps to a real NDJSON phase event
-// (cloning, scanning, skeleton, building) or the client-side decoration pass —
-// no wall-clock timers. The step vocabulary lives in constants/loadingSteps.
+// setLoadingStepTail / hideLoadingOverlay), called from the manifest-stream
+// consumer and the REBUILD_STATUS bridge in manifestPoll. The "loading {project}"
+// header reads PENDING_SOURCE_LABEL — the same canonical signal that drives the
+// document title — so the project name isn't duplicated into this store. Every
+// visible advancement maps to a real NDJSON phase event (cloning, scanning,
+// skeleton, building) or the client-side decoration pass — no wall-clock timers.
+// The step vocabulary lives in constants/loadingSteps.
 
 import { LOADING_OVERLAY } from '@/state/stores/ui';
+import { PENDING_SOURCE_LABEL } from '@/state/stores/source';
 import { SourceKind } from '@/utils/sources';
 import { LoadingStep, LoadingStepState, LOADING_STEPS, LOADING_STEP_LABELS } from '@/constants/loadingSteps';
 
@@ -25,7 +28,6 @@ export interface OverlayState {
   kind: SourceKind | null;
   branch: string | null;
   activeStep: LoadingStep | null;
-  pendingLabel: string | null;
   stepTails: Partial<Record<LoadingStep, string | null>>;
 }
 
@@ -34,12 +36,12 @@ export interface OverlayState {
 
 export function LoadingOverlay() {
   const lo = LOADING_OVERLAY.value;
+  const pendingLabel = PENDING_SOURCE_LABEL.value;
   const s: OverlayState = {
     visible: lo.visible,
     kind: lo.showOpts?.kind ?? null,
     branch: lo.showOpts?.branch ?? null,
     activeStep: lo.activeStep,
-    pendingLabel: lo.pendingLabel,
     stepTails: lo.stepTails,
   };
   if (!s.visible || !s.activeStep) return null;
@@ -50,7 +52,7 @@ export function LoadingOverlay() {
   return (
     <div class="loading-backdrop">
       <div class="loading-card">
-        {s.pendingLabel && <div class="loading-pending-label">{s.pendingLabel}</div>}
+        {pendingLabel && <div class="loading-pending-label">{pendingLabel}</div>}
         <div class="loading-spinner" />
         <div class="text-card-title is-loading" role="status" aria-live="polite">
           {LOADING_STEP_LABELS[activeStep]}

@@ -53,7 +53,6 @@ import {
   showLoadingOverlay,
   hideLoadingOverlay,
   setLoadingStep,
-  setLoadingPendingLabel,
   setLoadingStepTail,
   openSourcePicker,
   closeSourcePicker,
@@ -96,16 +95,17 @@ async function pumpManifestStream(
   onManifest: (manifest: Manifest, phase: ScanPhase.Skeleton | ScanPhase.Final) => Promise<void> | void
 ): Promise<Manifest> {
   let lastManifest: Manifest | null = null;
-  let titleApplied = false;
 
   for await (const event of streamManifest(url)) {
     if (event.phase === ScanPhase.Error) throw new Error(event.error);
 
-    if (!titleApplied && 'display_root' in event && event.display_root) {
-      const pendingLabel = labelFromUrl(event.display_root) ?? null;
-      PENDING_SOURCE_LABEL.value = pendingLabel;
-      setLoadingPendingLabel(pendingLabel);
-      titleApplied = true;
+    if ('display_root' in event && event.display_root) {
+      // The canonical "label of the source being loaded" — read by BOTH the
+      // document title (useDocumentTitle) and the loading overlay's header, so
+      // the project name isn't duplicated into the overlay store. Idempotent:
+      // @preact/signals dedupes same-value writes and display_root is stable
+      // per load, so no need to guard against repeat events.
+      PENDING_SOURCE_LABEL.value = labelFromUrl(event.display_root) ?? null;
     }
 
     if (event.phase === ScanPhase.Cloning || event.phase === ScanPhase.Scanning) {

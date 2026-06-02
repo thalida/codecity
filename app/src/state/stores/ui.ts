@@ -76,7 +76,6 @@ export interface LoadingOverlayState {
   visible: boolean;
   showOpts: LoadingOverlayShowOpts | null;
   activeStep: LoadingStep | null;
-  pendingLabel: string | null;
   stepTails: Partial<Record<LoadingStep, string | null>>;
 }
 
@@ -84,7 +83,6 @@ export const LOADING_OVERLAY = signal<LoadingOverlayState>({
   visible: false,
   showOpts: null,
   activeStep: null,
-  pendingLabel: null,
   stepTails: {},
 });
 
@@ -100,7 +98,6 @@ export function showLoadingOverlay(opts: LoadingOverlayShowOpts): void {
     visible: true,
     showOpts: opts,
     activeStep: initialStep,
-    pendingLabel: null,
     stepTails: {},
   };
 }
@@ -113,10 +110,6 @@ export function setLoadingStep(step: LoadingStep): void {
   const prev = LOADING_OVERLAY.peek();
   if (prev.activeStep === step) return;
   LOADING_OVERLAY.value = { ...prev, activeStep: step };
-}
-
-export function setLoadingPendingLabel(label: string | null): void {
-  LOADING_OVERLAY.value = { ...LOADING_OVERLAY.peek(), pendingLabel: label };
 }
 
 export function setLoadingStepTail(step: LoadingStep, tail: string | null): void {
