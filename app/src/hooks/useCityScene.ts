@@ -37,12 +37,6 @@ export function useCityScene(canvasRef: RefObject<HTMLCanvasElement | null>): vo
       // a render-apply error. During cold-boot / source-switch loads the loading
       // overlay is also up; the brief Rebuilding state is truthful (the world is
       // being built) and clears as soon as the apply completes.
-      // Explicit camera reset on a SOURCE change. The fetch layer publishes
-      // CURRENT_SOURCE; we read it here (the view layer) and snap the camera to
-      // the freshly-framed default pose once the new world is built. Skip the
-      // very first real source (null → first): that initial framing is the rig's
-      // own _frameToBbox job, not a "switch". Live-updates / settings rebuilds
-      // keep the same source key, so they never reset.
       let lastSourceKey: string | null = null;
       unsubApply = effect(() => {
         const m = MANIFEST.value as Manifest;
@@ -51,6 +45,12 @@ export function useCityScene(canvasRef: RefObject<HTMLCanvasElement | null>): vo
         void handle.world.applyManifest(m).then(
           () => {
             LAST_REBUILD_ERROR.value = null;
+            // Explicit camera reset on a SOURCE change. The fetch layer publishes
+            // CURRENT_SOURCE; we read it here (the view layer) and snap the camera
+            // to the freshly-framed default pose once the new world is built. Skip
+            // the first real source (null → first): that initial framing is the
+            // rig's own _frameToBbox job, not a "switch". Live-updates / settings
+            // rebuilds keep the same source key, so they never reset.
             const cur = CURRENT_SOURCE_KEY.peek();
             if (lastSourceKey !== null && cur !== null && cur !== lastSourceKey) {
               handle.resetView();
