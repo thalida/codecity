@@ -15,7 +15,7 @@
 // sidebar without churn.
 
 import { useState, useEffect, useRef } from 'preact/hooks';
-import type { Signal } from '@preact/signals';
+import type { ReadonlySignal } from '@preact/signals';
 import type { CommitEntry } from '@/types';
 import { ExternalLink, GitCommitHorizontal } from 'lucide-preact';
 import { Pane, PaneEmpty } from '@/components/Pane';
@@ -64,7 +64,7 @@ export interface CommitPaneState {
 }
 
 export interface CommitPaneProps {
-  state: Signal<CommitPaneState>;
+  state: ReadonlySignal<CommitPaneState>;
   onClose?: () => void;
   onFocus?: (commit: CommitEntry) => void;
 }

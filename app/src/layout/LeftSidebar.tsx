@@ -25,7 +25,15 @@ import {
 import { SidebarTab, NodeKind } from '@/types';
 import type { PickTarget, TreeNode } from '@/types';
 import { persistedSignal } from '@/state/persist';
-import { SCENE_HANDLE } from '@/state/stores/scene';
+import {
+  SCENE_HANDLE,
+  selectPath,
+  focusPath,
+  hoverPath,
+  clearHover,
+  runCollisionCheck,
+  runStemDiagnostic,
+} from '@/state/stores/scene';
 import { MANIFEST } from '@/state/stores/manifest';
 import { isEmptyManifest } from '@/utils/manifest';
 import { TreePane } from '@/views/TreePane';
@@ -147,32 +155,16 @@ export function LeftSidebar() {
 
   // Tree event handlers — bound to the current SCENE_HANDLE at call
   // time so they always operate on the live scene.
+  // Tree rows hand back a TreeNode → adapt to a path. Path/nullary handlers
+  // (search, hover-end, debug) use the scene commands directly in the JSX below.
   const onTreeSelect = (node: TreeNode) => {
-    if (!node?.path) return;
-    SCENE_HANDLE.peek()?.picker.selectByPath(node.path);
+    if (node?.path) selectPath(node.path);
   };
   const onTreeFocus = (node: TreeNode) => {
-    if (!node?.path) return;
-    SCENE_HANDLE.peek()?.focusByPath(node.path);
+    if (node?.path) focusPath(node.path);
   };
   const onTreeHover = (node: TreeNode) => {
-    if (!node?.path) return;
-    SCENE_HANDLE.peek()?.picker.hoverByPath(node.path);
-  };
-  const onTreeHoverEnd = () => {
-    SCENE_HANDLE.peek()?.picker.setHover(null);
-  };
-  const onSearchSelect = (path: string) => {
-    SCENE_HANDLE.peek()?.picker.selectByPath(path);
-  };
-  const onSearchFocus = (path: string) => {
-    SCENE_HANDLE.peek()?.focusByPath(path);
-  };
-  const onRunCollisionCheck = () => {
-    SCENE_HANDLE.peek()?.world.runCollisionCheck();
-  };
-  const onRunStemDiagnostic = () => {
-    SCENE_HANDLE.peek()?.world.runStemPlacementDiagnostic();
+    if (node?.path) hoverPath(node.path);
   };
 
   // Effective collapsed: forced when manifest is empty.
@@ -203,15 +195,15 @@ export function LeftSidebar() {
             onSelect={onTreeSelect}
             onFocus={onTreeFocus}
             onHover={onTreeHover}
-            onHoverEnd={onTreeHoverEnd}
+            onHoverEnd={clearHover}
           />
         )}
         {tab === SidebarTab.Search && (
           <SearchPane
             manifest={MANIFEST}
             onClose={onPaneClose}
-            onSelect={onSearchSelect}
-            onFocus={onSearchFocus}
+            onSelect={selectPath}
+            onFocus={focusPath}
           />
         )}
         {tab === SidebarTab.Info && (
@@ -220,8 +212,8 @@ export function LeftSidebar() {
         {tab === SidebarTab.Controls && (
           <ControlsPane
             onClose={onPaneClose}
-            onRunCollisionCheck={onRunCollisionCheck}
-            onRunStemDiagnostic={onRunStemDiagnostic}
+            onRunCollisionCheck={runCollisionCheck}
+            onRunStemDiagnostic={runStemDiagnostic}
             collapsed={effectiveCollapsed}
           />
         )}

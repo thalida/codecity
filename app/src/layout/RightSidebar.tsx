@@ -21,7 +21,13 @@ import { DOM_IDS, PERSISTED_KEYS } from '@/constants';
 import { NodeKind } from '@/types';
 import type { CommitEntry, DirNode, FileNode } from '@/types';
 import { persistedSignal } from '@/state/persist';
-import { SCENE_HANDLE, type SceneHandle } from '@/state/stores/scene';
+import {
+  SCENE_HANDLE,
+  type SceneHandle,
+  clearSelection,
+  focusPath,
+  focusCommit,
+} from '@/state/stores/scene';
 import { MANIFEST } from '@/state/stores/manifest';
 import { FilePreviewPane } from '@/views/FilePreviewPane';
 import type { FilePreviewPaneState } from '@/views/FilePreviewPane';
@@ -73,36 +79,36 @@ export function RightSidebar() {
   // (signals dedupe by reference).
   const userClosed = useSignal(false);
 
-  // Pane view-state, derived from the picker selection + the manifest.
-  const fileState = useSignal<FilePreviewPaneState>({ file: null });
-  const commitState = useSignal<CommitPaneState>({ commit: null });
-  const streetState = useSignal<StreetPaneState>({ directory: null });
-  const activeKind = useSignal<SidebarPaneKind | null>(null);
-
-  // One effect drives everything: it re-runs on a selection change OR a
-  // manifest change (MANIFEST mirrors world.onChange, so live-update polls
-  // refresh the open pane's enriched data). Replaces the old module-level
-  // bridge + its manual world.onChange subscription.
-  useSignalEffect(() => {
-    void MANIFEST.value; // re-derive enriched state on live-update rebuilds
+  // Pane view-state, derived from the picker selection + manifest. Computeds
+  // (read during render) so it's pure render-time reactivity — no effect
+  // writing signals, no module-level bridge, no manual world.onChange (MANIFEST
+  // already mirrors it, so a live-update rebuild re-derives the enriched panes).
+  const activeKind = useComputed<SidebarPaneKind | null>(() => {
+    const sel = SCENE_HANDLE.value?.picker.selection.value ?? null;
+    if (sel?.kind === NodeKind.File) return SidebarPaneKind.File;
+    if (sel?.kind === NodeKind.Commit) return SidebarPaneKind.Commit;
+    if (sel?.kind === NodeKind.Directory) return SidebarPaneKind.Street;
+    return null;
+  });
+  const fileState = useComputed<FilePreviewPaneState>(() => {
+    const sel = SCENE_HANDLE.value?.picker.selection.value ?? null;
+    return { file: sel?.kind === NodeKind.File ? sel.file : null };
+  });
+  const commitState = useComputed<CommitPaneState>(() => {
+    void MANIFEST.value; // re-derive on live-update rebuilds
     const handle = SCENE_HANDLE.value;
     const sel = handle?.picker.selection.value ?? null;
-    if (!handle || !sel) {
-      activeKind.value = null;
-      return;
-    }
-    if (sel.kind === NodeKind.File) {
-      fileState.value = { file: sel.file };
-      activeKind.value = SidebarPaneKind.File;
-    } else if (sel.kind === NodeKind.Commit) {
-      commitState.value = commitStateFor(handle, sel.commit);
-      activeKind.value = SidebarPaneKind.Commit;
-    } else if (sel.kind === NodeKind.Directory) {
-      streetState.value = streetStateFor(handle, sel.dir);
-      activeKind.value = SidebarPaneKind.Street;
-    } else {
-      activeKind.value = null;
-    }
+    return handle && sel?.kind === NodeKind.Commit
+      ? commitStateFor(handle, sel.commit)
+      : { commit: null };
+  });
+  const streetState = useComputed<StreetPaneState>(() => {
+    void MANIFEST.value;
+    const handle = SCENE_HANDLE.value;
+    const sel = handle?.picker.selection.value ?? null;
+    return handle && sel?.kind === NodeKind.Directory
+      ? streetStateFor(handle, sel.dir)
+      : { directory: null };
   });
 
   // Re-open after a manual close once a fresh selection arrives.
@@ -118,20 +124,12 @@ export function RightSidebar() {
 
   const onClose = () => {
     userClosed.value = true;
-    SCENE_HANDLE.peek()?.picker.clearSelection();
+    clearSelection();
   };
 
-  const onFileFocus = (file: FileNode) => {
-    SCENE_HANDLE.peek()?.focusByPath(file.path);
-  };
-
-  const onCommitFocus = (commit: CommitEntry) => {
-    SCENE_HANDLE.peek()?.rig.focusTree(commit.sha);
-  };
-
-  const onStreetFocus = (dir: DirNode) => {
-    SCENE_HANDLE.peek()?.focusByPath(dir.path);
-  };
+  const onFileFocus = (file: FileNode) => focusPath(file.path);
+  const onCommitFocus = (commit: CommitEntry) => focusCommit(commit.sha);
+  const onStreetFocus = (dir: DirNode) => focusPath(dir.path);
 
   const kind = activeKind.value;
   const open = isOpen.value;

@@ -7,7 +7,7 @@
 // setDirectory) so the coordinator can swap panes in the right sidebar
 // without churn.
 
-import type { Signal } from '@preact/signals';
+import type { ReadonlySignal } from '@preact/signals';
 import type { DirNode, ExtBreakdownEntry } from '@/types';
 import { Pane, PaneEmpty } from '@/components/Pane';
 import { KEY_BINDINGS } from '@/constants';
@@ -23,7 +23,7 @@ export interface StreetPaneState {
 }
 
 export interface StreetPaneProps {
-  state: Signal<StreetPaneState>;
+  state: ReadonlySignal<StreetPaneState>;
   onClose?: () => void;
   onFocus?: (dir: DirNode) => void;
 }

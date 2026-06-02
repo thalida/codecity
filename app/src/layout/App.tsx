@@ -21,35 +21,20 @@ import { RightSidebar } from './RightSidebar';
 import { SourcePicker } from '@/views/SourcePicker';
 import { LoadingOverlay } from '@/components/LoadingOverlay';
 import { HljsThemeLink } from '@/components/HljsThemeLink';
-import { SCENE_HANDLE } from '@/state/stores/scene';
+import { selectPath, resetView, focusCurrentSelection } from '@/state/stores/scene';
 import { openSourcePickerForCurrentSource } from '@/state/stores/ui';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 
 export function App() {
   useDocumentTitle();
 
-  function onSegmentClick(path: string) {
-    SCENE_HANDLE.peek()?.picker.selectByPath(path);
-  }
-  function onSwitchSource() {
-    openSourcePickerForCurrentSource();
-  }
-  function onResetView() {
-    SCENE_HANDLE.peek()?.resetView();
-  }
-  function onFocus() {
-    const handle = SCENE_HANDLE.peek();
-    if (!handle) return;
-    handle.rig.focusSelection(handle.picker.selection.peek());
-  }
-
   return (
     <>
       <AppHeader
-        onSegmentClick={onSegmentClick}
-        onSwitchSource={onSwitchSource}
-        onResetView={onResetView}
-        onFocus={onFocus}
+        onSegmentClick={selectPath}
+        onSwitchSource={openSourcePickerForCurrentSource}
+        onResetView={resetView}
+        onFocus={focusCurrentSelection}
       />
       <main id="app-body">
         <LeftSidebar />
