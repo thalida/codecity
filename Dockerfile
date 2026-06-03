@@ -12,7 +12,9 @@ FROM node:24-bookworm-slim AS web-builder
 ARG NPM_VERSION=11.6.2
 RUN npm install -g npm@${NPM_VERSION}
 WORKDIR /build
-COPY app/package.json app/package-lock.json ./
+# .npmrc carries legacy-peer-deps=true (openapi-typescript's stale peer range
+# vs TS 6) — it MUST be copied before `npm ci` or resolution fails with ERESOLVE.
+COPY app/package.json app/package-lock.json app/.npmrc ./
 RUN --mount=type=cache,target=/root/.npm \
     npm ci --no-audit --no-fund
 COPY app/ ./
