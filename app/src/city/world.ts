@@ -50,8 +50,8 @@ import type { SceneContext } from './types';
 import type { Picker } from './system/picker';
 import { createStreetMesh } from './components/streets/streets';
 import { createStreetLabels } from './components/streets/streetLabels';
-import { createSky } from './components/sky/sky';
-import type { Sky } from './components/sky/sky';
+import { createSky } from './components/sky';
+import type { Sky } from './components/sky';
 import { createRepoLabel } from './components/repoLabel/repoLabel';
 import type { RepoLabel } from './components/repoLabel/repoLabel';
 import { createTrees } from './components/trees/trees';
@@ -303,13 +303,6 @@ export function createWorld(_canvas: HTMLCanvasElement) {
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(SCENE.value.SKY_COLOR);
 
-  // Cyberpunk Valley sky — built ONCE here, lives at scene root for
-  // the lifetime of the world. Not rebuilt per applyManifest
-  // (the sky is wallpaper, independent of the manifest tree). Always
-  // rendered — the icosphere is never hidden.
-  const _sky: Sky = createSky();
-  scene.add(_sky.mesh);
-
   // Floating repo-name label — created ONCE at scene init, parallel
   // to sky and island. The group is empty (and invisible-effectively)
   // until applyManifest calls setRepoName + setAnchor.
@@ -343,6 +336,15 @@ export function createWorld(_canvas: HTMLCanvasElement) {
   // before the first animate() frame; the gem reads them only in tick().
   const _gem: Gem = createGem(_ctx as unknown as SceneContext);
   scene.add(_gem.group);
+
+  // Cyberpunk Valley sky — a self-contained scene component built ONCE here,
+  // lives at scene root for the lifetime of the world. Not rebuilt per
+  // applyManifest (the sky is wallpaper, independent of the manifest tree).
+  // Always rendered — the icosphere is never hidden. The sky's settings
+  // effect reads only SCENE signals (safe at construction); it uses nothing
+  // from `_ctx`, accepting it only for createX(ctx) composer uniformity.
+  const _sky: Sky = createSky(_ctx as unknown as SceneContext);
+  scene.add(_sky.group);
 
   // Cyberpunk Valley trees — REBUILT per applyManifest. One tree per
   // commit, placed commit-driven across the world floor.
@@ -1274,9 +1276,10 @@ export function createWorld(_canvas: HTMLCanvasElement) {
     invalidateLayoutCache,
 
     /**
-     * Cyberpunk Valley sky reference. Exposed so renderLoop.ts's applyTheme()
-     * can call sky.refresh() on Save (via applyTheme()) and the render loop can call
-     * sky.tick(dtSeconds) each frame.
+     * Cyberpunk Valley sky component. Exposed so the render loop can call
+     * sky.tick(dt, frame) each frame (star twinkle + camera follow). Settings
+     * reactivity (SKY_COLOR / stars) is owned by the component's own effect,
+     * so applyTheme() no longer touches the sky.
      */
     getSky(): Sky {
       return _sky;

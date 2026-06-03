@@ -208,10 +208,9 @@ export async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manif
     pathLineRenderer.refreshMaterials();
     refreshBuildingMaterial();
     postFx.refresh();
-    // Cyberpunk Valley sky — pulls fresh SKY_* uniforms (sky color,
-    // star density, twinkle params). Hot-reloaded via the
-    // hotStores route in state/settingsReactions.ts.
-    world.getSky().refresh();
+    // The Cyberpunk Valley sky pulls fresh SKY_* uniforms (sky color,
+    // star density) via its OWN settings effect inside the sky component,
+    // so applyTheme() no longer touches the sky.
     // Floating repo-name label — pulls fresh STYLE/ENABLED/OPACITY/
     // HEIGHT_ABOVE_CITY/ANIMATION_SPEED. Swaps the active style mesh
     // when STYLE changed; otherwise just updates uniforms + transform.
@@ -357,30 +356,26 @@ export async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manif
     camera.updateMatrixWorld();
     scene.updateMatrixWorld();
     animator.update(0); // entering / staying tweens (scale, position)
-    // Sky star twinkle — the only animation in Cyberpunk Valley.
-    // Compute dt in seconds from the same startTime the gem
-    // animation uses (no fresh timer; one wall-clock source per frame
-    // keeps everything in lockstep). The sphere-follow-camera
-    // position sync was moved to immediately before postFx.render()
-    // (see comment there); doing it mid-frame raced with scene
-    // matrix updates and during fast orbit movements caused the
-    // sphere to render at the previous frame's position, projecting
-    // an off-center sphere disc and showing scene.background as
-    // black flicker around the edges.
-    {
+    // Per-frame dt in seconds from the same startTime the gem animation
+    // uses (no fresh timer; one wall-clock source per frame keeps
+    // everything in lockstep). The sky's own twinkle + camera-follow
+    // tick runs LAST, immediately before postFx.render() (see comment
+    // there); this dt is captured here and passed to it then.
+    const _skyDt = (() => {
       const nowS = (performance.now() - startTime) / 1000;
-      const sky = world.getSky();
       const dt = _lastSkyTime === null ? 0 : Math.max(0, nowS - _lastSkyTime);
       _lastSkyTime = nowS;
-      sky.tick(dt);
-      // Island tick: updates uSunDirWorld uniform from the sun direction
-      // shared by the sky. Must run after sky.tick() so the sun direction
-      // is current before the island shader samples it.
+      return dt;
+    })();
+    {
+      // Island tick: updates uSunDirWorld uniform from the sun direction.
+      // (No ordering dependency on the sky — island.tick() is a static
+      // hemispheric-lighting no-op.)
       world.getIsland().tick();
       // Floating repo-name label tick — advances per-style uTime and
       // (for the Hologram style) rotates the text panel to face the
       // camera. Pulls the active ANIMATION_SPEED from REPO_LABEL config.
-      world.getRepoLabel().tick(dt, camera);
+      world.getRepoLabel().tick(_skyDt, camera);
     }
     fader.update(0); // body opacity per fade tier
     outlineRenderer.update(0); // hover/selected outline transforms + rainbow chase
@@ -398,17 +393,18 @@ export async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manif
       const t = (performance.now() - startTime) / 1000;
       world.getGem().tick(0, { dt: 0, time: t, camera });
     }
-    // Sync the Cyberpunk Valley sky sphere to the camera RIGHT BEFORE
-    // the render call so its world matrix is guaranteed fresh. Doing
-    // this earlier in animate() (where scene.updateMatrixWorld() also
-    // ran) caused the sphere's world matrix to be stale during fast
-    // orbit movements — visible as black flicker around the edges of
-    // an off-center sphere disc, because the camera was momentarily
-    // outside its own sky sphere.
+    // Sky tick — star twinkle (uTime += dt) AND sync the sphere to the
+    // camera. Runs RIGHT BEFORE the render call so its world matrix is
+    // guaranteed fresh. Doing the camera-follow earlier in animate()
+    // (where scene.updateMatrixWorld() also ran) caused the sphere's
+    // world matrix to be stale during fast orbit movements — visible as
+    // black flicker around the edges of an off-center sphere disc,
+    // because the camera was momentarily outside its own sky sphere.
+    // Nothing between the twinkle and the render samples uTime, so
+    // running the twinkle here (vs. mid-frame) is behavior-identical.
     {
-      const sky = world.getSky();
-      sky.mesh.position.copy(camera.position);
-      sky.mesh.updateMatrixWorld(true);
+      const t = (performance.now() - startTime) / 1000;
+      world.getSky().tick(_skyDt, { dt: _skyDt, time: t, camera });
     }
     postFx.render();
     requestAnimationFrame(animate);

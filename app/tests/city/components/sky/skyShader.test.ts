@@ -1,5 +1,5 @@
 // skyShader.test.ts — verifies the GLSL source files declare every
-// uniform / varying the JS factory (sky.ts) and the spec's render
+// uniform / varying the JS factory (index.ts) and the spec's render
 // order assume. Catches typos that would otherwise only surface as a
 // silent black sphere or a WebGL link-error console line.
 
@@ -9,7 +9,7 @@ import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const SHADERS = resolve(__dirname, '../../../src/city/components/sky');
+const SHADERS = resolve(__dirname, '../../../../src/city/components/sky');
 
 describe('sky.vert.glsl', () => {
   const src = readFileSync(resolve(SHADERS, 'sky.vert.glsl'), 'utf-8');
