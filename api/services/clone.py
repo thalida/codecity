@@ -27,7 +27,7 @@ import time
 from pathlib import Path
 from typing import Callable
 
-from api.env import env_bool
+from api.config import quiet
 from api.types import (
     BranchNotFoundError,
     CloneError,
@@ -46,7 +46,7 @@ __all__ = [
 
 
 def _log(msg: str) -> None:
-    if not env_bool("CODECITY_QUIET"):
+    if not quiet():
         print(f"[clone] {msg}", file=sys.stderr, flush=True)
 
 
