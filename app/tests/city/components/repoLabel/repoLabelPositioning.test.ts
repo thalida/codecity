@@ -1,8 +1,21 @@
+// repoLabelPositioning.test.ts — verifies the panel-center Y formula:
+//   group.position.y = anchor.y + heightWorld + FONT_SIZE / 2
+// where heightWorld = MAX_FLOORS × FLOOR_HEIGHT × HEIGHT_PCT / 100
+//                   = 96 × 16 × HEIGHT_PCT / 100 = 1536 × HEIGHT_PCT / 100
+// (panel center floats heightWorld + FONT_SIZE/2 above the floor; panel
+// bottom sits at heightWorld above the floor)
+//
+// The settings effect (replacing old refresh()) runs automatically on
+// REPO_LABEL signal mutation — tests just mutate the signal and assert
+// the updated position.
+
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import * as THREE from 'three';
-import { createRepoLabel } from '@/city/components/repoLabel/repoLabel';
+import { createRepoLabel } from '@/city/components/repoLabel';
 import { REPO_LABEL } from '@/state/stores/settings/gem';
 import { resetBuildingsConfig } from '../../../_helpers/cityFixtures';
+import type { Picker } from '@/city/system/picker';
+import type { SceneContext } from '@/city/types';
 
 // Positioning math below assumes BUILDING_DIMENSIONS.MAX_FLOORS=96,
 // FLOOR_HEIGHT=16 → maxBldgH = 1536. resetBuildingsConfig pins both so
@@ -20,17 +33,21 @@ function resetStore() {
   resetBuildingsConfig();
 }
 
-// group.position.y = anchor.y + heightWorld + FONT_SIZE / 2
-// where heightWorld = MAX_FLOORS × FLOOR_HEIGHT × HEIGHT_PCT / 100
-//                   = 96 × 16 × HEIGHT_PCT / 100 = 1536 × HEIGHT_PCT / 100
-// (panel center floats heightWorld + FONT_SIZE/2 above the floor; panel
-// bottom sits at heightWorld above the floor)
+// The repoLabel uses nothing from ctx at construction; a minimal stub suffices.
+function makeCtx(): SceneContext {
+  return {
+    scene: new THREE.Scene(),
+    picker: null as unknown as Picker,
+    camera: null as unknown as THREE.PerspectiveCamera,
+    renderer: null as unknown as THREE.WebGLRenderer,
+  } as unknown as SceneContext;
+}
 
 describe('RepoLabel positioning', () => {
   let label: ReturnType<typeof createRepoLabel>;
   beforeEach(() => {
     resetStore();
-    label = createRepoLabel();
+    label = createRepoLabel(makeCtx());
     label.setRepoName('codecity');
   });
   afterEach(() => label.dispose());
@@ -51,26 +68,23 @@ describe('RepoLabel positioning', () => {
 
   it('HEIGHT_PCT=0 places the panel bottom flush with the floor (= anchor.y)', () => {
     REPO_LABEL.value = { ...REPO_LABEL.value, HEIGHT_PCT: 0 };
-    label.refresh();
     label.setAnchor(new THREE.Vector3(0, 0, 0));
     // heightWorld = 0; panel center = 0 + 0 + 64 = 64 → panel bottom at 0
     expect(label.group.position.y).toBeCloseTo(64);
   });
 
-  it('refresh() picks up new HEIGHT_PCT without a setAnchor call', () => {
+  it('settings effect picks up new HEIGHT_PCT without a setAnchor call', () => {
     label.setAnchor(new THREE.Vector3(0, 0, 0));
     expect(label.group.position.y).toBeCloseTo(1369.6);
     // HEIGHT_PCT=50 → heightWorld = 1536 × 50/100 = 768
     REPO_LABEL.value = { ...REPO_LABEL.value, HEIGHT_PCT: 50 };
-    label.refresh();
     // 0 + 768 + 64 = 832
     expect(label.group.position.y).toBeCloseTo(832);
   });
 
-  it('refresh() picks up new FONT_SIZE without a setAnchor call', () => {
+  it('settings effect picks up new FONT_SIZE without a setAnchor call', () => {
     label.setAnchor(new THREE.Vector3(0, 0, 0));
     REPO_LABEL.value = { ...REPO_LABEL.value, FONT_SIZE: 200 };
-    label.refresh();
     // 0 + 1305.6 + 100 = 1405.6
     expect(label.group.position.y).toBeCloseTo(1405.6);
   });

@@ -1,16 +1,37 @@
-// scene/components/repoLabel/repoLabel.ts — Floating holographic
+// city/components/repoLabel/index.ts — Floating holographic
 // repo-name label. One group at the scene root, holding a vertical
 // light beam from the floor + a camera-facing billboard text panel
 // (full 3-axis billboard — pitches with camera elevation, not just yaw).
 //
-// Lifecycle (matches sky / island):
-//   const label = createRepoLabel();
+// Self-contained scene component: owns its persistent group, reacts to
+// REPO_LABEL settings via an effect (replacing the old refresh() path),
+// animates per-frame in tick() (reading REPO_LABEL.ANIMATION_SPEED), and
+// frees its own GPU resources + stops its effect in dispose(). Persistent
+// — created once at world boot, repositioned per applyManifest.
+//
+// Lifecycle (matches sky / island / gem):
+//   const label = createRepoLabel(ctx);
 //   scene.add(label.group);              // once, at world boot
 //   label.setRepoName(manifest.tree.name);
 //   label.setAnchor(gemWorldPos);
-//   label.tick(dt, camera);              // every frame
-//   label.refresh();                     // on applyTheme() — called on Save
-//   label.dispose();                     // on world teardown
+//   label.setGem(_gem.gem);
+//   label.tick(dt, frameCtx);           // every frame
+//   label.dispose();                    // on world teardown
+//
+// The settings effect replaces the old refresh() / applyTheme() path:
+// it reads REPO_LABEL (ENABLED, HEIGHT_PCT, FONT_SIZE, OPACITY,
+// BEAM_COLOR, TEXT_COLOR) and pushes fresh values into uniforms +
+// recomputes transform on every REPO_LABEL Save. It runs once at
+// construction (idempotently re-applying the same values the constructor
+// baked — before setRepoName builds meshes, the opacity/color/transform
+// calls are no-ops; subsequent effect runs see the live meshes).
+//
+// Construction-time bridge (Strategy A, same as sky/island/gem): the
+// label is built inside world.ts BEFORE the picker/camera/renderer exist.
+// The component accepts the SceneContext for createX(ctx) composer
+// uniformity but uses nothing from it; tick() reaches the camera via the
+// per-frame FrameContext. The `_ctx` arg is unused (see sky/island
+// precedents).
 //
 // Sizing:
 //   panel height = REPO_LABEL.FONT_SIZE world units (applied on Save)
@@ -28,11 +49,13 @@
 //                  the anchor.
 
 import * as THREE from 'three';
+import { effect } from '@preact/signals';
 
 import { BUILDING_DIMENSIONS } from '@/state/stores/settings/buildings';
 import { REPO_LABEL } from '@/state/stores/settings/gem';
 import { RENDER_ORDERS } from '@/city/renderOrders';
 
+import type { FrameContext, SceneComponent, SceneContext } from '../../types';
 import vertSrc from './holoQuad.vert.glsl?raw';
 import beamFragSrc from './holoBeam.frag.glsl?raw';
 import textFragSrc from './holoText.frag.glsl?raw';
@@ -63,7 +86,7 @@ const BEAM_FOOT_FALLBACK = 10;
 // width = FONT_SIZE × textureAspect.
 const PANEL_BASE_HEIGHT = 1;
 
-export interface RepoLabel {
+export interface RepoLabel extends SceneComponent {
   group: THREE.Group;
   setRepoName(name: string): void;
   setAnchor(anchor: THREE.Vector3): void;
@@ -75,9 +98,7 @@ export interface RepoLabel {
    * inset above the anchor).
    */
   setGem(gem: THREE.Object3D | null): void;
-  tick(dtSeconds: number, camera: THREE.Camera): void;
-  refresh(): void;
-  dispose(): void;
+  tick(dt: number, ctx: FrameContext): void;
   /**
    * World position + size of the floating label panel. Returned in
    * world units so the camera framing code can include the label as
@@ -138,7 +159,10 @@ function _polarFade(camera: THREE.Camera, panelWorldPos: THREE.Vector3): number 
   return 1 - t * t * (3 - 2 * t);
 }
 
-export function createRepoLabel(): RepoLabel {
+// `_ctx` is accepted for createX(ctx) composer uniformity; the repoLabel uses
+// nothing from it at construction (it reaches the camera via FrameContext
+// in tick()). The `_`-prefix matches the eslint argsIgnorePattern.
+export function createRepoLabel(_ctx: SceneContext): RepoLabel {
   const group = new THREE.Group();
   group.name = 'repoLabel';
 
@@ -149,7 +173,7 @@ export function createRepoLabel(): RepoLabel {
   let beamMat: THREE.ShaderMaterial | null = null;
 
   // Anchor state — the floor-level point the label rises from (the gem's
-  // base x/z). Cached so refresh() can re-apply HEIGHT_PCT / FONT_SIZE
+  // base x/z). Cached so the effect can re-apply HEIGHT_PCT / FONT_SIZE
   // changes without the caller having to pass the anchor again.
   let anchorX = 0;
   let anchorY = 0;
@@ -332,27 +356,36 @@ export function createRepoLabel(): RepoLabel {
     _updateBeamGeometry();
   }
 
-  function tick(dtSeconds: number, camera: THREE.Camera): void {
+  // Settings effect — reacts to REPO_LABEL changes (Save). Replaces the
+  // old refresh() call in renderLoop.applyTheme(). Reads REPO_LABEL config
+  // and pushes fresh opacity, colors, and transform into the live meshes
+  // (same writes as the old refresh(), verbatim). Runs once at
+  // construction — before setRepoName builds any meshes, so
+  // _applyOpacity/_applyColors are no-ops (null guards) and _applyTransform
+  // sets the group position/visibility only. Idempotent: subsequent
+  // setRepoName / setAnchor calls produce identical or superseding state.
+  const stopEffect = effect(() => {
+    _applyOpacity();
+    _applyColors();
+    _applyTransform();
+  });
+
+  function tick(dt: number, ctx: FrameContext): void {
     if (!panelMesh || !panelMat) return;
     const cfg = REPO_LABEL.value;
     if (!cfg.ENABLED) return;
-    const dtScaled = dtSeconds * cfg.ANIMATION_SPEED;
+    const dtScaled = dt * cfg.ANIMATION_SPEED;
     panelMat.uniforms.uTime.value += dtScaled;
     if (beamMat) beamMat.uniforms.uTime.value += dtScaled;
-    _faceCamera(panelMesh, camera);
+    _faceCamera(panelMesh, ctx.camera);
     // Track the gem's per-frame bob — the renderLoop mutates
     // gemRef.position.y each frame (sin-wave around its baseY), so the
     // beam's foot follows the gem live.
     _updateBeamGeometry();
   }
 
-  function refresh(): void {
-    _applyOpacity();
-    _applyColors();
-    _applyTransform();
-  }
-
   function dispose(): void {
+    stopEffect();
     if (panelMesh) {
       group.remove(panelMesh);
       panelMesh.geometry.dispose();
@@ -407,7 +440,6 @@ export function createRepoLabel(): RepoLabel {
     setAnchor,
     setGem,
     tick,
-    refresh,
     dispose,
     getPanelBounds,
   };

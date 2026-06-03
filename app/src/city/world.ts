@@ -52,8 +52,8 @@ import { createStreetMesh } from './components/streets/streets';
 import { createStreetLabels } from './components/streets/streetLabels';
 import { createSky } from './components/sky';
 import type { Sky } from './components/sky';
-import { createRepoLabel } from './components/repoLabel/repoLabel';
-import type { RepoLabel } from './components/repoLabel/repoLabel';
+import { createRepoLabel } from './components/repoLabel';
+import type { RepoLabel } from './components/repoLabel';
 import { createTrees } from './components/trees/trees';
 import type { Trees } from './components/trees/trees';
 import { createFireflies } from './components/fireflies/fireflies';
@@ -303,12 +303,6 @@ export function createWorld(_canvas: HTMLCanvasElement) {
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(SCENE.value.SKY_COLOR);
 
-  // Floating repo-name label — created ONCE at scene init, parallel
-  // to sky and island. The group is empty (and invisible-effectively)
-  // until applyManifest calls setRepoName + setAnchor.
-  const _repoLabel: RepoLabel = createRepoLabel();
-  scene.add(_repoLabel.group);
-
   // Root gem — a self-contained scene component built ONCE here (parallel
   // to sky/island/repoLabel); rebuild() swaps its inner mesh on full
   // applyManifest rebuilds. The gem reads the picker/camera/renderer only
@@ -346,6 +340,13 @@ export function createWorld(_canvas: HTMLCanvasElement) {
   // Uses nothing from `_ctx`; accepts it only for createX(ctx) uniformity.
   const _island: Island = createIsland(_ctx as unknown as SceneContext);
   scene.add(_island.group);
+
+  // Floating repo-name label — created ONCE at scene init, parallel
+  // to sky and island. The group is empty (and invisible-effectively)
+  // until applyManifest calls setRepoName + setAnchor. Uses nothing
+  // from `_ctx`; accepts it only for createX(ctx) composer uniformity.
+  const _repoLabel: RepoLabel = createRepoLabel(_ctx as unknown as SceneContext);
+  scene.add(_repoLabel.group);
 
   // Cyberpunk Valley trees — REBUILT per applyManifest. One tree per
   // commit, placed commit-driven across the world floor.
@@ -1121,8 +1122,10 @@ export function createWorld(_canvas: HTMLCanvasElement) {
     // Hand the live gem to the label so its beam foot tracks the
     // gem's hover height + bob animation. _gem.gem is the INNER gem
     // group whose .position.y is mutated each frame by the gem's tick().
+    // refresh() is no longer called here — the component's own effect
+    // owns REPO_LABEL config reactivity and re-runs on REPO_LABEL Save.
+    // setAnchor already calls _applyTransform() which positions the group.
     _repoLabel.setGem(_gem.gem);
-    _repoLabel.refresh();
 
     // Floor is sized from the scene's bbox + buffer. Falls back to a
     // small default at the origin when there's no city (empty manifest).
@@ -1287,9 +1290,10 @@ export function createWorld(_canvas: HTMLCanvasElement) {
     },
 
     /**
-     * Floating repo-name label reference. Exposed so renderLoop.ts's
-     * applyTheme() can call repoLabel.refresh() on Save and the
-     * render loop can call repoLabel.tick(dtSeconds, camera) each frame.
+     * Floating repo-name label reference. Exposed so the render loop
+     * can call repoLabel.tick(dt, frameCtx) each frame. The component's
+     * own effect handles REPO_LABEL config reactivity (no external refresh()
+     * needed).
      */
     getRepoLabel(): RepoLabel {
       return _repoLabel;

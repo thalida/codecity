@@ -211,10 +211,8 @@ export async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manif
     // The Cyberpunk Valley sky pulls fresh SKY_* uniforms (sky color,
     // star density) via its OWN settings effect inside the sky component,
     // so applyTheme() no longer touches the sky.
-    // Floating repo-name label — pulls fresh STYLE/ENABLED/OPACITY/
-    // HEIGHT_ABOVE_CITY/ANIMATION_SPEED. Swaps the active style mesh
-    // when STYLE changed; otherwise just updates uniforms + transform.
-    world.getRepoLabel().refresh();
+    // The floating repo-name label also owns its own settings effect, so
+    // applyTheme() no longer calls refresh() on it either.
 
     // Cyberpunk Valley trees — pushes fresh TREE_GREENS + TRUNK_COLOR
     // into per-instance color buffers. Null until the first manifest applies.
@@ -363,10 +361,11 @@ export async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manif
       return dt;
     })();
     {
-      // Floating repo-name label tick — advances per-style uTime and
-      // (for the Hologram style) rotates the text panel to face the
-      // camera. Pulls the active ANIMATION_SPEED from REPO_LABEL config.
-      world.getRepoLabel().tick(_skyDt, camera);
+      // Floating repo-name label tick — advances uTime and rotates the
+      // text panel to face the camera. Pulls ANIMATION_SPEED from
+      // REPO_LABEL config via the component's own closure.
+      const t = (performance.now() - startTime) / 1000;
+      world.getRepoLabel().tick(_skyDt, { dt: _skyDt, time: t, camera });
     }
     fader.update(0); // body opacity per fade tier
     outlineRenderer.update(0); // hover/selected outline transforms + rainbow chase
