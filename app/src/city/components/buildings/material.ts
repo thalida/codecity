@@ -1,7 +1,7 @@
-// scene/components/buildings/buildings.ts — Shared building material + icon atlas.
+// city/components/buildings/material.ts — Shared building material + icon atlas.
 //
 // Owns the singleton ShaderMaterial used by every cell's detail mesh
-// (scene/instanced/buildingsCell.ts attaches per-cell instance buffers to a
+// (buildingsCell.ts attaches per-cell instance buffers to a
 // new InstancedMesh that references this material). Also owns the icon
 // atlas reference and the refresh hook that re-applies Save-committed
 // uniforms on config-store changes.
@@ -11,7 +11,7 @@ import { BUILDINGS, BUILDING_DIMENSIONS } from '@/state/stores/settings/building
 import { FACADE } from '@/state/stores/settings/facade';
 import { BLOOM } from '@/state/stores/settings/effects';
 import { SCENE } from '@/state/stores/settings/scene';
-import type { IconAtlas } from './iconAtlas';
+import type { IconAtlas } from './atlas';
 import { writeSunDir } from '@/city/components/lighting/sunDir';
 import {
   LIGHTING_SUN_AZIMUTH_DEG,

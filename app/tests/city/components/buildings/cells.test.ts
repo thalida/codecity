@@ -1,13 +1,13 @@
-// tests/city/cellAssembly.test.ts — Tests for buildCellsFromLayout:
+// tests/city/components/buildings/cells.test.ts — Tests for buildCellsFromLayout:
 // sparse allocation, buildings-only scope, and Map-based output.
 //
 // SpatialGrid uses CELL_SIZE=12 world units per cell.
 
 import { describe, it, expect } from 'vitest';
 import * as THREE from 'three';
-import { buildCellsFromLayout } from '@/city/layout/cellAssembly';
+import { buildCellsFromLayout } from '@/city/components/buildings/cells';
 import { NodeKind } from '@/types/index';
-import { building } from '../../_helpers/buildingFixture';
+import { building } from '../../../_helpers/buildingFixture';
 
 const EMPTY_UNIFORMS: Record<string, THREE.IUniform> = {};
 

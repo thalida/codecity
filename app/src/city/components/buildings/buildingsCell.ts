@@ -1,4 +1,4 @@
-// scene/components/buildings/buildingsCell.ts — Cell-aware building InstancedMesh
+// city/components/buildings/buildingsCell.ts — Cell-aware building InstancedMesh
 // factory. Replaces the per-block factory in buildings.ts for the
 // spatial-grid rendering path.
 //
@@ -14,11 +14,11 @@ import { FACADE } from '@/state/stores/settings/facade';
 import { BuildingOrient } from '@/types/index';
 import buildingVertSrc from './building.vert.glsl?raw';
 import buildingFragSrc from './building.frag.glsl?raw';
-import type { CellTile } from '../../layout/cellTile';
+import type { CellTile } from './cellTile';
 import type { Building } from '@/types/index';
-import type { IconAtlas } from './iconAtlas';
+import type { IconAtlas } from './atlas';
 import { getFileIconName } from '@/utils/fileIcons';
-import { seedFromPath, attachLeanAwareRaycast } from './buildingTilt';
+import { seedFromPath, attachLeanAwareRaycast } from './tilt';
 
 // ---------------------------------------------------------------------------
 // Shared geometry — unit box, constructed once at module load and
@@ -189,7 +189,7 @@ export function attachBuildingMeshToCell(
 
   // Replace the default InstancedMesh raycast with one that honors the
   // vertex shader's Y-shear so click targets hit the leaned silhouette.
-  // See scene/instanced/buildingTilt.ts.
+  // See ./tilt.ts.
   attachLeanAwareRaycast(cell.detailMesh);
 }
 

@@ -1,4 +1,4 @@
-// scene/components/buildings/buildingColor.ts — HSL mapping from file metadata.
+// city/components/buildings/color.ts — HSL mapping from file metadata.
 //   Hue        → file extension          (palette; deterministic hash for unknowns)
 //   Saturation → last-modified date      (recent = vivid, stale = faded)
 //   Lightness  → last-modified date      (recent = bright, stale = dim)

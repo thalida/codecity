@@ -30,13 +30,12 @@
 import * as THREE from 'three';
 
 import { registerShaderChunks } from './utils/color/registerShaderChunks';
-import { getSharedBuildingUniforms, setIconAtlas } from './components/buildings/buildings';
-import { setCellIconAtlas } from './components/buildings/buildingsCell';
-import { buildIconAtlas } from './components/buildings/iconAtlas';
+import { buildIconAtlas } from './components/buildings/atlas';
 import { labelFromManifest } from '@/utils/sources';
-import { buildCellsFromLayout } from './layout/cellAssembly';
-import type { CellTile } from './layout/cellTile';
-import { BuildingIndex } from './components/buildings/buildingIndex';
+import type { CellTile } from './components/buildings/cellTile';
+import { BuildingIndex } from './components/buildings/pathIndex';
+import { createBuildings } from './components/buildings';
+import type { Buildings } from './components/buildings';
 import { findLayoutOverlaps } from './layout/algorithm';
 import type { LayoutOverlap } from './layout/algorithm';
 import { createLayoutClient } from './layout/runner';
@@ -66,12 +65,7 @@ import { getWorldBounds, type WorldBounds } from './utils/floorBounds';
 import { createFootprint } from './components/footprint';
 import type { Footprint } from './components/footprint';
 import { FOOTPRINT } from '@/state/stores/settings/footprint';
-import {
-  getBuildingColor,
-  getCreatedAge,
-  getModifiedAge,
-  getDateRanges,
-} from './components/buildings/buildingColor';
+import { getDateRanges } from './components/buildings/color';
 import { STREETS } from '@/state/stores/settings/streets';
 import { GEM, GEM_SIZING } from '@/state/stores/settings/gem';
 import { TREES } from '@/state/stores/settings/trees';
@@ -105,23 +99,6 @@ interface PrevState {
   /** Snapshot of building index before it is replaced. */
   buildingIndex: BuildingIndex | null;
 }
-
-// 12 edges of a unit cube as flat [x,y,z, x,y,z, ...] segment endpoints.
-// Used by Line2 outlines (rendered as triangle strips so linewidth is
-// settable in pixels — regular WebGL lines are locked to 1px). Exported
-// so the hover/selected outline meshes in main.js (and later in
-// outlineRenderer.js) share this geometry definition.
-export const UNIT_BOX_EDGE_POSITIONS = [
-  // Bottom face (y = -0.5) — 4 edges around the base.
-  -0.5, -0.5, -0.5, 0.5, -0.5, -0.5, 0.5, -0.5, -0.5, 0.5, -0.5, 0.5, 0.5, -0.5, 0.5, -0.5, -0.5,
-  0.5, -0.5, -0.5, 0.5, -0.5, -0.5, -0.5,
-  // Top face (y = 0.5) — 4 edges around the roof.
-  -0.5, 0.5, -0.5, 0.5, 0.5, -0.5, 0.5, 0.5, -0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, -0.5, 0.5, 0.5,
-  -0.5, 0.5, 0.5, -0.5, 0.5, -0.5,
-  // Vertical edges — 4 edges connecting corresponding base + roof corners.
-  -0.5, -0.5, -0.5, -0.5, 0.5, -0.5, 0.5, -0.5, -0.5, 0.5, 0.5, -0.5, 0.5, -0.5, 0.5, 0.5, 0.5, 0.5,
-  -0.5, -0.5, 0.5, -0.5, 0.5, 0.5,
-];
 
 // _formatCollisionReport(overlaps, totalRects) -> {level, summary, details}
 //
@@ -330,6 +307,26 @@ export function createWorld(_canvas: HTMLCanvasElement) {
   const _streets: Streets = createStreets(_ctx as unknown as SceneContext);
   scene.add(_streets.group);
 
+  // Buildings — PERSISTENT component; added to scene once at init, right after
+  // streets (so the transparent building/window/ad-panel draws sort relative
+  // to the ground tiles exactly as before). rebuild(layout, dateRanges) colors
+  // the buildings, assembles the per-cell InstancedMesh scene, swaps it into
+  // the persistent group (disposing the prior cell root WITHOUT freeing the
+  // SHARED building material), and rebuilds the building-by-path lookup. The
+  // component owns the shared material reactivity (its own effect) + the
+  // hover/selection fader/outline/ghost (armed on its first tick).
+  //
+  // Constructed AFTER _streets so the fader dep `() => _streets.getStreetByDir(p)`
+  // is valid. Option B (Task 12): the building DIFF + the animator stay in
+  // world — _computeDiff still emits the diff and the animator consumes it,
+  // resolving meshes through getMeshForBuilding() which delegates here. World
+  // mirrors _cells/_buildingIndex from this component after each rebuild.
+  const _buildings: Buildings = createBuildings(_ctx as unknown as SceneContext, {
+    getStreetByDir: (p) => _streets.getStreetByDir(p),
+    onChange,
+  });
+  scene.add(_buildings.group);
+
   // Generation counter: each applyManifest invocation increments this and
   // captures its own value. If _currentGeneration has advanced beyond a
   // call's captured value by the time a safe-point check runs, that call
@@ -364,20 +361,13 @@ export function createWorld(_canvas: HTMLCanvasElement) {
   let streetLabels: THREE.Group[] = [];
   let asphaltMeshes: FlatMesh[] = [];
 
-  let buildingsByPath: Record<
-    string,
-    { mesh: THREE.Mesh; building: Building; instanceId: number }
-  > = {};
-
-  // Cell-rendering state — owns the InstancedMesh-per-cell scene root.
-  let _cellRoot: THREE.Group | null = null;
+  // Cell-rendering state mirrors. The _buildings component OWNS the cell
+  // scene + lookups; world keeps these two as reassigned mirrors (set from
+  // the component after each rebuild) so the PrevState snapshot + _computeDiff
+  // building branch still read populated structures under Option B. They are
+  // never the source of truth — _buildings is.
   let _cells: Map<number, CellTile> = new Map();
   let _buildingIndex: BuildingIndex | null = null;
-  // Instanced ad panels (DataArrayTexture-backed). One instance per
-  // applyManifest call; disposed on full rebuild or resetCache.
-  let _instancedAdPanels:
-    | import('./components/adPanels/adPanelsInstanced.js').InstancedAdPanels
-    | null = null;
 
   // Layout cache: avoid redundant _layoutClient.compute() when
   // the manifest's tree shape is unchanged (e.g., skeleton → final transition).
@@ -564,30 +554,6 @@ export function createWorld(_canvas: HTMLCanvasElement) {
     // its own inner meshes on rebuild; the outer persistent groups (gem,
     // streets, footprint) are disposed via their component dispose() in
     // world.dispose().
-  }
-
-  function _buildLookups() {
-    // The sidewalk/street lookup maps moved into the _streets component
-    // (built in _streets.rebuild). The world getters delegate to it. Only
-    // the building lookup is built here.
-
-    // buildingsByPath stores the cell's InstancedMesh + slotId so the
-    // picker and other consumers can target the right per-instance attribute
-    // slot. Walks _cells (the cell-mode building store) directly.
-    buildingsByPath = {};
-    for (const cell of _cells.values()) {
-      if (!cell.detailMesh) continue;
-      for (let i = 0; i < cell.buildings.length; i++) {
-        const b = cell.buildings[i];
-        if (b?.file?.path != null) {
-          buildingsByPath[b.file.path] = {
-            mesh: cell.detailMesh as unknown as THREE.Mesh,
-            building: b,
-            instanceId: i,
-          };
-        }
-      }
-    }
   }
 
   function _computeRootStreetAndGem() {
@@ -800,8 +766,12 @@ export function createWorld(_canvas: HTMLCanvasElement) {
         const atlas = await buildIconAtlas(newManifestTyped);
         if (myGeneration !== _currentGeneration) return; // superseded mid-build
         _lastAtlasTreeSig = _atlasTreeSig;
-        setIconAtlas(atlas);
-        setCellIconAtlas(atlas);
+        // Push the atlas into the buildings component's shared material + cell
+        // factory BEFORE the cell pass below (rebuild reads it while assembling
+        // the cells). The atlas ensure stays in world (Option B): the
+        // tree_signature gate + the myGeneration supersede check above are
+        // world-owned.
+        _buildings.setAtlas(atlas);
       } catch (err) {
         console.warn('[codecity] icon atlas build failed; roofs will render without icons', err);
       }
@@ -839,71 +809,28 @@ export function createWorld(_canvas: HTMLCanvasElement) {
     }
     if (myGeneration !== _currentGeneration) return;
 
-    // ---- Phase 2: derive date ranges + color buildings on the NEW layout's
-    // building list. File refs and dimensions are already correct — layoutClient
-    // recomputed them via reuseLayout (cheap path) or the worker produced them
-    // fresh (full compute). dateRanges and the color loops don't touch the scene yet.
+    // ---- Phase 2: derive date ranges for the NEW layout. File refs and
+    // dimensions are already correct — layoutClient recomputed them via
+    // reuseLayout (cheap path) or the worker produced them fresh (full
+    // compute). The per-building color/age writes happen inside
+    // _buildings.rebuild (which receives these date ranges). Nothing here
+    // touches the scene yet.
     const newDateRanges = getDateRanges(
       newManifestTyped.tree as unknown as Parameters<typeof getDateRanges>[0]
     );
-    const newBuildings = newLayout?.buildings ?? [];
-
-    for (const b of newBuildings) {
-      // Building.file is always a FileNode (directories become streets,
-      // not buildings — see scene/layout/layout.ts).
-      b.color = getBuildingColor(
-        b.file as unknown as Parameters<typeof getBuildingColor>[0],
-        newDateRanges
-      );
-      // createdAge is independent of color: it tracks file age (creation
-      // date) so grime/weathering can mark old files even if they were
-      // recently edited.
-      b.createdAge = getCreatedAge(
-        b.file as unknown as Parameters<typeof getCreatedAge>[0],
-        newDateRanges
-      );
-      b.modifiedAge = getModifiedAge(
-        b.file as unknown as Parameters<typeof getModifiedAge>[0],
-        newDateRanges
-      );
-    }
+    // Per-building color/age writes + the cell assembly moved into
+    // _buildings.rebuild(newLayout, newDateRanges) below.
     if (myGeneration !== _currentGeneration) return;
 
     // ---- Cell rendering path ---------------------------------------------
-    // Build a SpatialGrid + CellTile scene. The atomic swap disposes the
-    // previous cell root and builds a fresh one. The layout is already
-    // correct (file refs + dimensions recomputed by layoutClient.reuseLayout
-    // on cache-hit, or freshly computed by the worker on cache-miss), so
-    // this single path handles all cases.
-
-    // Derive WorldBounds from the layout bbox. Fall back to building extents
-    // if bbox is absent (shouldn't happen for a real manifest, but safe).
-    const lb = newLayout.bbox;
-    const bounds = lb
-      ? { minX: lb.minX, maxX: lb.maxX, minZ: lb.minY, maxZ: lb.maxY }
-      : (() => {
-          let minX = 0,
-            maxX = 0,
-            minZ = 0,
-            maxZ = 0;
-          for (const b of newBuildings) {
-            if (b.x - b.w / 2 < minX) minX = b.x - b.w / 2;
-            if (b.x + b.w / 2 > maxX) maxX = b.x + b.w / 2;
-            if (b.y - b.d / 2 < minZ) minZ = b.y - b.d / 2;
-            if (b.y + b.d / 2 > maxZ) maxZ = b.y + b.d / 2;
-          }
-          return { minX, maxX, minZ, maxZ };
-        })();
-
-    // Build the cell scene (buildings only — streets/labels/paths/gem
-    // are produced by buildWorld below).
-    const cellOut = buildCellsFromLayout(bounds, newBuildings, getSharedBuildingUniforms());
-
-    if (myGeneration !== _currentGeneration) {
-      // Superseded while we were building — clean up and bail.
-      cellOut.sceneRoot.traverse(_disposeObject);
-      return;
-    }
+    // The buildings component owns the SpatialGrid + CellTile scene. It colors
+    // the buildings, assembles the cells, swaps them into its persistent group
+    // (disposing the prior cell root WITHOUT freeing the shared material), and
+    // rebuilds the building-by-path lookup. Always rebuilt (the cell root is
+    // the one thing always rebuilt — NOT scenic-gated) to reflect updated
+    // per-file metadata (colors, heights). rebuild has no internal await, so
+    // it cannot be superseded mid-build; world mirrors _cells/_buildingIndex
+    // from it AFTER (and before _computeDiff) for the Option B diff.
 
     // ---- Atomic swap ----
     //
@@ -912,8 +839,8 @@ export function createWorld(_canvas: HTMLCanvasElement) {
     // for this signature, AND none of the config stores that affect scenic
     // output have changed (same config hash), the streets/labels/paths/gem
     // meshes are already in the scene and would produce identical output —
-    // skip the dispose + rebuild. Only the cell root is always rebuilt
-    // (fast) to reflect updated per-file metadata (colors, heights).
+    // skip the dispose + rebuild. Only the buildings cell root is always
+    // rebuilt (fast) to reflect updated per-file metadata (colors, heights).
     const _currentScenicConfigHash = computeScenicConfigHash();
     const _scenicValid =
       _layoutReused &&
@@ -926,57 +853,26 @@ export function createWorld(_canvas: HTMLCanvasElement) {
     // reuse (rebuilding then would flash + realloc GPU = behavior change).
     const _didFullRebuild = !_scenicValid;
 
+    // Buildings rebuild on BOTH branches (always) — never gated by _scenicValid.
+    // setAtlas already ran above (before this) so the atlas is in the material
+    // before the cells read it.
+    await _buildings.rebuild(newLayout, newDateRanges);
+
     if (_scenicValid) {
       // Do NOT call _disposeAllManifestState() — existing streets/labels/
       // paths/gem stay in the scene unmodified. Do NOT call buildWorld.
-
-      // Dispose old cell root before the new one is swapped in.
-      if (_cellRoot) {
-        _cellRoot.traverse(_disposeObject);
-        if (_cellRoot.parent) _cellRoot.parent.remove(_cellRoot);
-      }
-      // Dispose old instanced ad panels (layout reused → new ad panels from cellOut).
-      if (_instancedAdPanels) {
-        _instancedAdPanels.dispose();
-        _instancedAdPanels = null;
-      }
-
       manifest = newManifestTyped;
       layout = newLayout;
       dateRanges = newDateRanges;
       // bbox stays from the previous buildWorld call (layout unchanged).
-
-      _cellRoot = cellOut.sceneRoot;
-      _cells = cellOut.cells;
-      _buildingIndex = cellOut.index;
-      _instancedAdPanels = cellOut.adPanels;
-
-      // Add the new cell root (instanced building InstancedMeshes + ad panels).
-      scene.add(_cellRoot);
     } else {
       // Full rebuild path: dispose existing scenic state, run buildWorld,
       // and add the new meshes to the scene.
       _disposeAllManifestState();
 
-      // Dispose old cell root if present.
-      if (_cellRoot) {
-        _cellRoot.traverse(_disposeObject);
-        if (_cellRoot.parent) _cellRoot.parent.remove(_cellRoot);
-      }
-      // Dispose old instanced ad panels before swapping in new ones.
-      if (_instancedAdPanels) {
-        _instancedAdPanels.dispose();
-        _instancedAdPanels = null;
-      }
-
       manifest = newManifestTyped;
       layout = newLayout;
       dateRanges = newDateRanges;
-
-      _cellRoot = cellOut.sceneRoot;
-      _cells = cellOut.cells;
-      _buildingIndex = cellOut.index;
-      _instancedAdPanels = cellOut.adPanels;
 
       // Rebuild the streets component's meshes (sidewalks, asphalt, labels)
       // into its persistent group (already in the scene). The component owns
@@ -1023,15 +919,20 @@ export function createWorld(_canvas: HTMLCanvasElement) {
 
       scene.background = new THREE.Color(SCENE.value.SKY_COLOR);
 
-      // Add the cell root (instanced building InstancedMeshes, one group per cell).
-      scene.add(_cellRoot);
-
       // Record that scenic state is now valid for this tree_signature + config.
       _lastBuildWorldTreeSig = _treeSig || null;
       _lastScenicConfigHash = _currentScenicConfigHash;
     }
 
-    _buildLookups();
+    // Mirror the buildings component's cells + index into world's module vars
+    // for the Option B diff. _buildings is the source of truth; world reads
+    // these mirrors in PrevState.cells (next applyManifest) + _computeDiff
+    // (below). MUST run AFTER rebuild and BEFORE _computeDiff(prev). The `prev`
+    // snapshot captured the OLD _cells at the top of applyManifest — never
+    // reassign _cells before that capture.
+    _cells = _buildings.getCells();
+    _buildingIndex = _buildings.getBuildingIndex();
+
     _computeRootStreetAndGem();
     // Rebuild the gem's inner mesh only on the full-rebuild path, matching
     // exactly when buildWorld used to build it (scenic reuse leaves the
@@ -1195,6 +1096,7 @@ export function createWorld(_canvas: HTMLCanvasElement) {
     }
     _footprint.dispose();
     _streets.dispose();
+    _buildings.dispose();
     beforeChangeCbs.length = 0;
     changeCbs.length = 0;
     _layoutClient.dispose();
@@ -1209,10 +1111,9 @@ export function createWorld(_canvas: HTMLCanvasElement) {
     // Dispose instanced ad panels so they are rebuilt from scratch on the
     // next applyManifest call (the new source may have a different set of
     // media files and a different layout, so the existing panels are stale).
-    if (_instancedAdPanels) {
-      _instancedAdPanels.dispose();
-      _instancedAdPanels = null;
-    }
+    // Now owned by the buildings component; disposeAdPanels() preserves the
+    // immediate-dispose timing.
+    _buildings.disposeAdPanels();
   }
 
   // Narrow cache-clear used by configCommitReactions before each Save-driven
@@ -1336,13 +1237,7 @@ export function createWorld(_canvas: HTMLCanvasElement) {
      * to clear the city silhouette (e.g. cameraRig.focusStreet altitude).
      */
     getMaxBuildingHeight(): number {
-      let maxH = 0;
-      for (const cell of _cells.values()) {
-        for (const b of cell.buildings) {
-          if (b && b.h > maxH) maxH = b.h;
-        }
-      }
-      return maxH;
+      return _buildings.maxHeight();
     },
     /**
      * Tallest building in the city, with its layout position + dimensions.
@@ -1352,14 +1247,7 @@ export function createWorld(_canvas: HTMLCanvasElement) {
      * `x` and `y` map to world X and Z; `h` is height along world Y.
      */
     getTallestBuilding(): { x: number; y: number; w: number; d: number; h: number } | null {
-      let tallest: Building | null = null;
-      for (const cell of _cells.values()) {
-        for (const b of cell.buildings) {
-          if (b && (!tallest || b.h > tallest.h)) tallest = b;
-        }
-      }
-      if (!tallest) return null;
-      return { x: tallest.x, y: tallest.y, w: tallest.w, d: tallest.d, h: tallest.h };
+      return _buildings.tallest();
     },
     /**
      * Per-cell detail InstancedMeshes suitable for raycasting against.
@@ -1367,11 +1255,7 @@ export function createWorld(_canvas: HTMLCanvasElement) {
      * `.instanceId` set. Used by cameraRig sightline tests.
      */
     getBuildingPickables(): THREE.Object3D[] {
-      const out: THREE.Object3D[] = [];
-      for (const cell of _cells.values()) {
-        out.push(cell.detailMesh);
-      }
-      return out;
+      return _buildings.pickables();
     },
     getStreetPickables() {
       return _streets.pickables();
@@ -1414,7 +1298,7 @@ export function createWorld(_canvas: HTMLCanvasElement) {
     },
 
     getBuildingByPath(p: string) {
-      return buildingsByPath[p] || null;
+      return _buildings.getByPath(p);
     },
     getSidewalkByDir(p: string) {
       return _streets.getSidewalkByDir(p);
@@ -1429,7 +1313,7 @@ export function createWorld(_canvas: HTMLCanvasElement) {
     // a whole `{ dirPath: street }` map. New consumers should prefer
     // the per-key getters above.
     getBuildingsByPath() {
-      return buildingsByPath;
+      return _buildings.getBuildingsByPath();
     },
     getSidewalksByDirMap() {
       return _streets.sidewalksByDirMap();
@@ -1438,34 +1322,38 @@ export function createWorld(_canvas: HTMLCanvasElement) {
       return _streets.streetsByDirMap();
     },
 
-    // Cell-mode accessors for picker + other consumers.
+    // Cell-mode accessors for picker + other consumers. Delegate to the
+    // buildings component (the source of truth); world's _cells/_buildingIndex
+    // are diff-only mirrors.
     getBuildingIndex(): BuildingIndex | null {
-      return _buildingIndex;
+      return _buildings.getBuildingIndex();
     },
     getCells(): Map<number, CellTile> {
-      return _cells;
+      return _buildings.getCells();
     },
 
     // Read-only accessor for the cell-mode ad-panel mesh manager. Used
     // by buildingFader to mirror selection-cascade body opacity onto
     // the ad-panel instances. Returns null when the current manifest
     // has no media files (no panels were created).
-    getAdPanels(): import('./components/adPanels/adPanelsInstanced.js').InstancedAdPanels | null {
-      return _instancedAdPanels;
+    getAdPanels(): import('./components/buildings/adPanelsInstanced.js').InstancedAdPanels | null {
+      return _buildings.getAdPanels();
     },
 
     // Unified mesh+slot resolver. Returns the InstancedMesh that owns this
     // building's instance and the slot index within that mesh. Resolves via
-    // Building.cellId + Building.slotId.
+    // Building.cellId + Building.slotId. Delegates to the buildings component.
     //
     // Returns null if no live mesh exists for this building (e.g. cellId/
     // slotId are unset, or the cell was disposed).
     getMeshForBuilding(b: Building): { mesh: THREE.InstancedMesh; slot: number } | null {
-      if (_cells.size > 0 && b.cellId != null && b.slotId != null) {
-        const cell = _cells.get(b.cellId);
-        if (cell?.detailMesh) return { mesh: cell.detailMesh, slot: b.slotId };
-      }
-      return null;
+      return _buildings.getMeshForBuilding(b);
+    },
+
+    /** The buildings scene component. renderLoop drives its per-frame tick()
+     *  (fader/outline/ghost + lazy picker arming) + onResize(). */
+    getBuildings(): Buildings {
+      return _buildings;
     },
   };
 }

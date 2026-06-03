@@ -3,15 +3,15 @@
 
 import { describe, it, expect, afterEach } from 'vitest';
 import * as THREE from 'three';
-import { SpatialGrid } from '@/city/layout/spatialGrid';
-import { createEmptyCellTile } from '@/city/layout/cellTile';
+import { SpatialGrid } from '@/city/components/buildings/spatialGrid';
+import { createEmptyCellTile } from '@/city/components/buildings/cellTile';
 import {
   attachBuildingMeshToCell,
   writeBuildingToSlot,
   setCellIconAtlas,
 } from '@/city/components/buildings/buildingsCell';
 import { BuildingOrient } from '@/types/index';
-import type { IconAtlas } from '@/city/components/buildings/iconAtlas';
+import type { IconAtlas } from '@/city/components/buildings/atlas';
 import { building } from '../../../_helpers/buildingFixture';
 
 // ---------------------------------------------------------------------------

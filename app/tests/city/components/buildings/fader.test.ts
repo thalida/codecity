@@ -6,7 +6,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import * as THREE from 'three';
 import { signal } from '@preact/signals';
-import { createBuildingFader } from '@/city/effects/buildingFader';
+import { createBuildingFader } from '@/city/components/buildings/fader';
 import { BUILDING_FADE } from '@/state/stores/settings/buildings';
 import { FadeDetail, NodeKind } from '@/types';
 import type { Building, DirNode, FileNode, PickTarget, Street } from '@/types';

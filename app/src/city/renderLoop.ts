@@ -13,19 +13,15 @@ import type { Manifest } from '../types';
 
 import { SCENE } from '@/state/stores/settings/scene';
 import { createWorld } from './world';
-import { refreshBuildingMaterial } from './components/buildings/buildings';
 import { createCameraRig } from './system/cameraRig';
 import { createAnimator } from './system/animator';
 import { createPicker } from './system/picker';
 import { createInputHandlers } from './system/inputHandlers';
-import { createBuildingFader } from './effects/buildingFader';
-import { createOutlineRenderer } from './effects/outlineRenderer';
 import { createTreeOutlineRenderer } from './effects/treeOutlineRenderer';
-import { createGhostRenderer } from './effects/ghostRenderer';
 import { createPathLineRenderer } from './effects/pathLineRenderer';
 import { showTooltip, hideTooltip } from './effects/tooltip';
 import { createPostFx } from './system/postFx';
-import { registerRenderer as registerAdPanelRenderer } from './components/adPanels/adPanelTextureArray';
+import { registerRenderer as registerAdPanelRenderer } from './components/buildings/adPanelTextureArray';
 
 export async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manifest) {
   // Every visual / layout tunable comes from the named exports of
@@ -114,26 +110,19 @@ export async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manif
   }
 
   // -- 6. Per-frame visual modules ---------------------------------------------
-  // Four siblings, all subscribed to picker / world so they react
-  // to selection / hover / manifest changes on their own. Animate loop
-  // drives them in field-ownership order: fader writes body opacity →
-  // outlineRenderer tracks hover/selected outline transforms + rainbow
-  // chase → ghostRenderer tracks hover ghost transform → pathLineRenderer
-  // ticks the rainbow chase on the selection line.
-  const fader = createBuildingFader({ world, picker });
-  const outlineRenderer = createOutlineRenderer({
-    canvas,
-    scene,
-    world,
-    picker,
-  });
+  // Building hover/selection overlays — the body fader, hover/selected
+  // outlines, and hover ghost — are owned by the buildings component (built
+  // inside world). The component arms them on its first tick() (once the
+  // picker is live) and drives them in field-ownership order: fader writes
+  // body opacity → outline tracks hover/selected outline transforms + rainbow
+  // chase → ghost tracks hover ghost transform. renderLoop no longer
+  // constructs them. The tree-outline + path-line renderers stay here.
   const treeOutlineRenderer = createTreeOutlineRenderer({
     canvas,
     scene,
     picker,
     getTrees: () => world.getTrees(),
   });
-  const ghostRenderer = createGhostRenderer({ scene, world, picker });
   const pathLineRenderer = createPathLineRenderer({
     canvas,
     scene,
@@ -160,10 +149,13 @@ export async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manif
 
     scene.background = new THREE.Color(SCENE.value.SKY_COLOR);
 
-    outlineRenderer.refreshMaterials();
     treeOutlineRenderer.refreshMaterials();
     pathLineRenderer.refreshMaterials();
-    refreshBuildingMaterial();
+    // The building hover/selected outline materials react to BUILDINGS Save via
+    // the outline's own theme effect (inside the buildings component), and the
+    // shared building material reacts to BUILDINGS/FACADE/SCENE/BLOOM via the
+    // component's material effect — so applyTheme() no longer calls
+    // outlineRenderer.refreshMaterials() or refreshBuildingMaterial() here.
     postFx.refresh();
     // The Cyberpunk Valley sky pulls fresh SKY_* uniforms (sky color,
     // star density) via its OWN settings effect inside the sky component,
@@ -206,7 +198,7 @@ export async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manif
       const cw = canvas.clientWidth;
       const ch = canvas.clientHeight;
       postFx.setSize(cw, ch);
-      outlineRenderer.onResize();
+      world.getBuildings().onResize();
       treeOutlineRenderer.onResize();
       pathLineRenderer.onResize();
       world.getFireflies()?.onResize(cw, ch);
@@ -263,7 +255,7 @@ export async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manif
         camera.aspect = cw / Math.max(1, ch);
         camera.updateProjectionMatrix();
         postFx.setSize(cw, ch);
-        outlineRenderer.onResize();
+        world.getBuildings().onResize();
         treeOutlineRenderer.onResize();
         pathLineRenderer.onResize();
         world.getFireflies()?.onResize(cw, ch);
@@ -301,10 +293,17 @@ export async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manif
       const t = (performance.now() - startTime) / 1000;
       world.getRepoLabel().tick(_skyDt, { dt: _skyDt, time: t, camera });
     }
-    fader.update(0); // body opacity per fade tier
-    outlineRenderer.update(0); // hover/selected outline transforms + rainbow chase
+    // Buildings overlays — fader (body opacity) → outline (hover/selected
+    // transforms + rainbow chase) → ghost (hover transform). The component
+    // arms them on its first tick (picker now live) and drives them in that
+    // order. Same slot the old fader/outline/ghost update() calls occupied;
+    // treeOutline/pathLine now run AFTER (behavior-neutral — disjoint writes,
+    // all consumed only at postFx.render below).
+    {
+      const t = (performance.now() - startTime) / 1000;
+      world.getBuildings().tick(_skyDt, { dt: _skyDt, time: t, camera });
+    }
     treeOutlineRenderer.update(0); // tree hover/selected outline transforms + rainbow chase
-    ghostRenderer.update(0); // hover ghost transform
     pathLineRenderer.update(0); // selection path line rainbow chase
     // Street labels are world-space text on the asphalt — the streets
     // component orients them toward the camera each frame (and lazily arms

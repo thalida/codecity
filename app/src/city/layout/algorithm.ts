@@ -21,7 +21,7 @@ import type { StreetTier } from '@/state/stores/settings/streets';
 import { BuildingOrient, JoinSide, NodeKind, StreetAxis } from '@/types';
 import type { Building, CityLayout, RangeStat, Street } from '@/types';
 import { parentDirPath } from '../utils/path';
-import { isMediaFile } from '../components/adPanels/adPanels';
+import { isMediaFile } from '../components/buildings/adPanels';
 import { WorldOccupancy, WorldRectKind } from './occupancyIndex';
 import type { WorldRect } from './occupancyIndex';
 

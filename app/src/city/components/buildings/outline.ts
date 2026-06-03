@@ -1,4 +1,4 @@
-// scene/effects/outlineRenderer.ts — owns:
+// city/components/buildings/outline.ts — owns:
 //   • the shared hover outline mesh (sky-blue LineSegments2 box around hovered building)
 //   • the shared selected outline mesh (rainbow-chasing LineSegments2 box)
 //
@@ -13,8 +13,8 @@
 //                     rainbow color cycle on selectedOutline
 //
 // Subscribes to picker.hover and picker.selection (toggle visibility).
-// refreshMaterials() is called by applyTheme() to push BUILDINGS config
-// changes into the two outline materials.
+// An own BUILDINGS settings effect pushes config changes into the two
+// outline materials (replaces the old refreshMaterials()/applyTheme() path).
 
 import * as THREE from 'three';
 import { effect } from '@preact/signals';
@@ -26,11 +26,17 @@ import { BUILDINGS } from '@/state/stores/settings/buildings';
 import { RAINBOW } from '@/state/stores/settings/effects';
 import { RENDER_ORDERS } from '@/city/renderOrders';
 import { NodeKind } from '@/types';
-import { UNIT_BOX_EDGE_POSITIONS } from '@/city/world';
-import { getBuildingTilt } from '@/city/components/buildings/buildingTilt';
-import type { createWorld } from '@/city/world';
+import { UNIT_BOX_EDGE_POSITIONS } from './boxEdges';
+import { getBuildingTilt } from './tilt';
+import type { CellTile } from './cellTile';
 import type { createPicker } from '@/city/system/picker';
 import type { FileTarget } from '@/types';
+
+// Narrow world surface the outline renderer needs (cell lookup only). Supplied
+// by the buildings component (cells are component-local).
+interface OutlineWorld {
+  getCells(): Map<number, CellTile>;
+}
 
 export function createOutlineRenderer({
   canvas,
@@ -40,7 +46,7 @@ export function createOutlineRenderer({
 }: {
   canvas: HTMLCanvasElement;
   scene: THREE.Scene;
-  world: ReturnType<typeof createWorld>;
+  world: OutlineWorld;
   picker: ReturnType<typeof createPicker>;
 }) {
   const _bo = BUILDINGS.value;
@@ -113,7 +119,7 @@ export function createOutlineRenderer({
   // Reading from the live InstancedMesh matrix ensures the outline tracks the
   // animator's tween position rather than snapping to layout coords. The
   // shear is then composed on top so the outline's top corners visibly drift
-  // with the building's lean (see scene/instanced/buildingTilt.ts).
+  // with the building's lean (see ./tilt.ts).
   function _syncOutlineToTarget(outline: LineSegments2, target: FileTarget): void {
     const b = target.data;
 
@@ -256,16 +262,20 @@ export function createOutlineRenderer({
     }
   }
 
-  // applyTheme() coordinator hook: push fresh BUILDINGS values
-  // into the two outline materials we own.
-  function refreshMaterials(): void {
+  // BUILDINGS theme effect — push fresh outline color/width/opacity into the
+  // two outline materials we own whenever BUILDINGS changes (Save). Replaces
+  // the outlineRenderer.refreshMaterials() call renderLoop.applyTheme() used to
+  // make. The body is verbatim the old refreshMaterials(); reading BUILDINGS
+  // .value here subscribes the effect. The constructor seeded these same
+  // values, so the first fire (at construction, during arming) is a no-op.
+  const _stopMaterials = effect(() => {
     const outline = BUILDINGS.value;
     hoverLineMat.color.set(outline.OUTLINE_HOVER_COLOR);
     hoverLineMat.linewidth = outline.OUTLINE_WIDTH;
     hoverLineMat.opacity = outline.OUTLINE_HOVER_OPACITY;
     selectedLineMat.linewidth = outline.OUTLINE_WIDTH;
     selectedLineMat.opacity = outline.OUTLINE_SELECTED_OPACITY;
-  }
+  });
 
   // Window-resize hook. LineMaterial needs the current canvas size for
   // its pixel-based linewidth shader.
@@ -277,6 +287,7 @@ export function createOutlineRenderer({
   }
 
   function dispose() {
+    _stopMaterials();
     if (hoverOutline.parent) hoverOutline.parent.remove(hoverOutline);
     if (selectedOutline.parent) selectedOutline.parent.remove(selectedOutline);
     if (_unitEdgesGeo.dispose) _unitEdgesGeo.dispose();
@@ -287,7 +298,6 @@ export function createOutlineRenderer({
 
   return {
     update,
-    refreshMaterials,
     onResize,
     dispose,
     hoverOutline,

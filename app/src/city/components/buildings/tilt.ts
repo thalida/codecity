@@ -1,4 +1,4 @@
-// scene/components/buildings/buildingTilt.ts — single source of truth for the
+// city/components/buildings/tilt.ts — single source of truth for the
 // per-building lean angle.
 //
 // The lean is implemented as a Y-driven XZ shear in building.vert.glsl:

@@ -1,4 +1,4 @@
-// scene/components/buildings/buildingIndex.ts — Lookup adapter that decouples consumers
+// city/components/buildings/pathIndex.ts — Lookup adapter that decouples consumers
 // (picker, fader, outline, animator, manifest-diff) from the
 // CellTile rendering layout. Three indexes:
 //   - byPath:      path → Building            (manifest diff, hover-by-path)

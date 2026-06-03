@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { SpatialGrid, CELL_SIZE, MIN_CELL_SIZE } from '@/city/layout/spatialGrid';
+import { SpatialGrid, CELL_SIZE, MIN_CELL_SIZE } from '@/city/components/buildings/spatialGrid';
 
 describe('SpatialGrid', () => {
   it('computes grid dimensions from world bounds', () => {

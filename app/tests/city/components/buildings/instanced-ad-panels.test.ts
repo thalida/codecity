@@ -3,11 +3,11 @@
 
 import { describe, it, expect } from 'vitest';
 import type * as THREE from 'three';
-import { InstancedAdPanels } from '@/city/components/adPanels/adPanelsInstanced';
+import { InstancedAdPanels } from '@/city/components/buildings/adPanelsInstanced';
 import {
   AdPanelTextureArray,
   PANEL_TEX_SIZE,
-} from '@/city/components/adPanels/adPanelTextureArray';
+} from '@/city/components/buildings/adPanelTextureArray';
 import { BLOOM } from '@/state/stores/settings/effects';
 import { BuildingOrient, NodeKind } from '@/types/index';
 import type { Building } from '@/types/index';

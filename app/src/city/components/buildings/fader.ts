@@ -1,4 +1,4 @@
-// scene/effects/buildingFader.ts — per-instance opacity writes for the
+// city/components/buildings/fader.ts — per-instance opacity writes for the
 // building InstancedMesh. Subscribes to picker.selection and picker.hover;
 // on either change, sweeps all cells and writes the iFade
 // InstancedBufferAttribute for each instance based on tree-distance from
@@ -21,8 +21,20 @@ import type { BuildingFadeConfig } from '@/state/stores/settings/buildings';
 import { FadeDetail, NodeKind } from '@/types';
 import type { DirNode, FileNode, PickTarget } from '@/types';
 import { parentDirPath } from '@/city/utils/path';
-import type { createWorld } from '@/city/world';
+import type { Street } from '@/types';
+import type { CellTile } from './cellTile';
+import type { InstancedAdPanels } from './adPanelsInstanced';
 import type { createPicker } from '@/city/system/picker';
+
+// Narrow world surface the fader needs. The buildings component supplies this
+// (cells + ad panels are component-local; getStreetByDir + onChange are
+// threaded from world). Decouples the fader from the full createWorld return.
+interface FaderWorld {
+  getCells(): Map<number, CellTile>;
+  getStreetByDir(path: string): Street | null;
+  getAdPanels(): InstancedAdPanels | null;
+  onChange(cb: () => void): () => void;
+}
 
 interface TierResult {
   detail: FadeDetail;
@@ -56,7 +68,7 @@ export function createBuildingFader({
   world,
   picker,
 }: {
-  world: ReturnType<typeof createWorld>;
+  world: FaderWorld;
   picker: ReturnType<typeof createPicker>;
 }) {
   function _resolveDirTarget(sel: PickTarget | null, hov: PickTarget | null): DirNode | null {

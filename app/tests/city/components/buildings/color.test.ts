@@ -6,7 +6,7 @@ import {
   getDateRanges,
   getBuildingColor,
   getModifiedAge,
-} from '@/city/components/buildings/buildingColor';
+} from '@/city/components/buildings/color';
 import { BUILDINGS } from '@/state/stores/settings/buildings';
 import type { BuildingsConfig } from '@/state/stores/settings/buildings';
 import { NodeKind } from '@/types';

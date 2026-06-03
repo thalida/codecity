@@ -1,6 +1,6 @@
-// scene/layout/cellAssembly.ts — Wires SpatialGrid + CellTile + per-cell
+// city/components/buildings/cells.ts — Wires SpatialGrid + CellTile + per-cell
 // building factory into a complete scene-ready set of cells given a
-// layout. Called from world.ts.
+// layout. Called from the buildings component (index.ts).
 //
 // Only BUILDINGS are consolidated into spatial-grid cells. Streets,
 // labels, paths, and the root gem stay on the engine-built path because
@@ -9,16 +9,10 @@
 import * as THREE from 'three';
 import { SpatialGrid, type WorldBounds } from './spatialGrid';
 import { createEmptyCellTile, type CellTile, allocateSlot } from './cellTile';
-import {
-  attachBuildingMeshToCell,
-  writeBuildingToSlot,
-} from '../components/buildings/buildingsCell';
-import {
-  InstancedAdPanels,
-  asyncLoadMediaForBuilding,
-} from '../components/adPanels/adPanelsInstanced';
-import { isMediaFile } from '../components/adPanels/adPanels';
-import { BuildingIndex } from '../components/buildings/buildingIndex';
+import { attachBuildingMeshToCell, writeBuildingToSlot } from './buildingsCell';
+import { InstancedAdPanels, asyncLoadMediaForBuilding } from './adPanelsInstanced';
+import { isMediaFile } from './adPanels';
+import { BuildingIndex } from './pathIndex';
 import type { Building } from '@/types/index';
 
 export interface CellAssemblyOutput {

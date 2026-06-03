@@ -1,4 +1,4 @@
-// scene/effects/ghostRenderer.ts — owns the single shared ghost mesh:
+// city/components/buildings/ghost.ts — owns the single shared ghost mesh:
 // a translucent solid-color box that tracks the hovered-but-not-selected
 // building per frame.
 //
@@ -23,9 +23,15 @@ import * as THREE from 'three';
 import { effect } from '@preact/signals';
 import { NodeKind } from '@/types';
 import { RENDER_ORDERS } from '@/city/renderOrders';
-import type { createWorld } from '@/city/world';
+import type { Building } from '@/types';
 import type { createPicker } from '@/city/system/picker';
 import type { FileTarget } from '@/types';
+
+// Narrow world surface the ghost needs (mesh resolver only). Supplied by the
+// buildings component.
+interface GhostWorld {
+  getMeshForBuilding(b: Building): { mesh: THREE.InstancedMesh; slot: number } | null;
+}
 
 // Opacity for the hover ghost overlay.  Intentionally light so the ghost
 // reads as a "preview" hint without obscuring the building body beneath.
@@ -45,7 +51,7 @@ export function createGhostRenderer({
   picker,
 }: {
   scene: THREE.Scene;
-  world: ReturnType<typeof createWorld>;
+  world: GhostWorld;
   picker: ReturnType<typeof createPicker>;
 }) {
   // Shared ghost mesh — a unit cube with a translucent MeshBasicMaterial.

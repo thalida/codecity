@@ -1,4 +1,4 @@
-// scene/layout/cellTile.ts — The rendering primitive for the spatial-grid
+// city/components/buildings/cellTile.ts — The rendering primitive for the spatial-grid
 // model. Each CellTile owns up to two meshes (detail, street)
 // plus a slot table. The InstancedMesh objects are preallocated to
 // `capacity`; unused slots have zero-scale matrix so they don't render.
