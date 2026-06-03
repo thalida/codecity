@@ -113,8 +113,8 @@ def redirect_cache_root(
     attribute directly — exactly what the existing _CacheRedirectMixin
     and CacheTestBase classes do.
     """
-    from api import cache as cache_mod
-    from api import clone as clone_mod
+    from api.services import cache as cache_mod
+    from api.services import clone as clone_mod
 
     cache_dir = tmp_path / "cache"
     cache_dir.mkdir(parents=True, exist_ok=True)

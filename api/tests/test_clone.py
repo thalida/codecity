@@ -16,8 +16,8 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest import mock
 
-from api import clone as clone_mod
-from api.clone import (
+from api.services import clone as clone_mod
+from api.services.clone import (
     BranchNotFoundError,
     CloneError,
     HostUnreachableError,
@@ -203,7 +203,7 @@ class CleanCloneErrorDispatcherTests(unittest.TestCase):
 
 class RunGitEnvTests(unittest.TestCase):
     def test_run_git_disables_terminal_prompt(self) -> None:
-        from api import clone as clone_mod
+        from api.services import clone as clone_mod
 
         captured = {}
 
@@ -444,7 +444,7 @@ def test_parse_clone_progress_line():
         Receiving objects:  45% (123/273), 1.20 MiB | 2.50 MiB/s
     The parser extracts (stage, percent) when matchable, else None.
     """
-    from api.clone import _parse_clone_progress_line
+    from api.services.clone import _parse_clone_progress_line
 
     cases = [
         ("Receiving objects:  45% (123/273), 1.20 MiB | 2.50 MiB/s", ("receiving", 45)),
@@ -465,7 +465,7 @@ def test_ensure_clone_emits_throttled_progress_via_callback(tmp_path):
     The invariant — callback fires with (stage, percent) tuples for
     each parseable line — is what matters."""
     from unittest.mock import MagicMock
-    from api import clone as clone_mod
+    from api.services import clone as clone_mod
 
     # \r is git's in-place rewrite separator for progress lines; the
     # drain splits on either \r or \n so we use \n here for readability.
@@ -522,7 +522,7 @@ def test_ensure_clone_emits_terminal_percent_of_each_stage(tmp_path):
     stage change AND at end-of-stream. Verify the user always sees
     100% as the final payload for each stage."""
     from unittest.mock import MagicMock
-    from api import clone as clone_mod
+    from api.services import clone as clone_mod
 
     # Many rapid progress lines per stage; the throttle will block
     # most of them. Without the flush fix, "Receiving 100%" gets

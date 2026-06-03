@@ -8,8 +8,8 @@ from pathlib import Path
 
 import pytest
 
-from api import cache as cache_mod
-from api.cache import _git_history_cache_path
+from api.services import cache as cache_mod
+from api.services.cache import _git_history_cache_path
 from api.types import CommitEntry
 
 
@@ -279,8 +279,8 @@ class GitHistoryCacheTests(CacheTestBase):
         ])
 
     def test_git_history_rejects_old_version(self):
-        from api import cache as cache_mod
-        from api.cache import (
+        from api.services import cache as cache_mod
+        from api.services.cache import (
             _git_history_cache_path,
             cache_load_git_history,
         )
@@ -364,7 +364,7 @@ class ManifestCacheTests(CacheTestBase):
         """A manifest cache file written under a prior _GIT_HISTORY_CACHE_VERSION
         must be dropped on load, because the composite version string changes
         when git-history bumps."""
-        from api.cache import (
+        from api.services.cache import (
             _manifest_cache_path,
             cache_load_manifest,
         )

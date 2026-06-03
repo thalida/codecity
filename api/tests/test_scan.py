@@ -14,7 +14,7 @@ from tempfile import TemporaryDirectory
 
 import pytest
 
-from api.scan import (
+from api.services.scan import (
     _annotate_same_day_totals,
     _compute_busyness,
     _extension,
@@ -513,7 +513,7 @@ class ScanTreeIntegrationTests(_CacheRedirectMixin, unittest.TestCase):
         """scan_tree must raise NotAGitRepoError on a non-git directory.
         Server enforces this at the HTTP boundary; the scanner check is
         defense-in-depth so direct callers fail fast."""
-        from api.scan import NotAGitRepoError
+        from api.services.scan import NotAGitRepoError
         with tempfile.TemporaryDirectory() as td:
             Path(td, "a.txt").write_text("hello")
             with self.assertRaises(NotAGitRepoError):
@@ -594,7 +594,7 @@ class LineCountCapTests(unittest.TestCase):
     an order-of-magnitude estimate is fine on huge files."""
 
     def test_exact_count_below_threshold(self):
-        from api.scan import _line_count
+        from api.services.scan import _line_count
         with tempfile.NamedTemporaryFile("wb", delete=False) as fh:
             fh.write(b"line\n" * 1000)
             small = Path(fh.name)
@@ -602,7 +602,7 @@ class LineCountCapTests(unittest.TestCase):
         self.assertEqual(_line_count(small), 1000)
 
     def test_sample_extrapolation_above_threshold(self):
-        from api.scan import _line_count
+        from api.services.scan import _line_count
         # 6 MB file with one newline every 50 bytes -> ~125k lines true.
         with tempfile.NamedTemporaryFile("wb", delete=False) as fh:
             line = b"x" * 49 + b"\n"  # 50 bytes, one newline
@@ -643,18 +643,18 @@ class BuildAuthorsListTests(unittest.TestCase):
     """
 
     def test_no_trailers_returns_primary_only(self):
-        from api.scan import _build_authors_list
+        from api.services.scan import _build_authors_list
         self.assertEqual(_build_authors_list("Alice", ""), ["Alice"])
 
     def test_two_name_bearing_trailers(self):
-        from api.scan import _build_authors_list
+        from api.services.scan import _build_authors_list
         self.assertEqual(
             _build_authors_list("Alice", "Bob <b@x>\x1fCarol <c@x>"),
             ["Alice", "Bob", "Carol"],
         )
 
     def test_primary_dedup_against_trailer(self):
-        from api.scan import _build_authors_list
+        from api.services.scan import _build_authors_list
         # Primary author repeated as a Co-authored-by trailer (cherry-
         # pick artifact) is dropped — order preserves first-seen.
         self.assertEqual(
@@ -665,25 +665,25 @@ class BuildAuthorsListTests(unittest.TestCase):
     def test_email_only_trailer_uses_local_part(self):
         # Regression-protection for the privacy fix: an email-only
         # trailer must not leak the @domain into the authors list.
-        from api.scan import _build_authors_list
+        from api.services.scan import _build_authors_list
         self.assertEqual(
             _build_authors_list("Alice", "<bot@example.com>"),
             ["Alice", "bot"],
         )
 
     def test_bracketed_value_without_at_sign_kept_verbatim(self):
-        from api.scan import _build_authors_list
+        from api.services.scan import _build_authors_list
         self.assertEqual(
             _build_authors_list("Alice", "<just-localpart>"),
             ["Alice", "just-localpart"],
         )
 
     def test_empty_brackets_dropped(self):
-        from api.scan import _build_authors_list
+        from api.services.scan import _build_authors_list
         self.assertEqual(_build_authors_list("Alice", "<>"), ["Alice"])
 
     def test_duplicate_co_author_deduped(self):
-        from api.scan import _build_authors_list
+        from api.services.scan import _build_authors_list
         self.assertEqual(
             _build_authors_list("Alice", "Bob <b@x>\x1fBob <b@x>"),
             ["Alice", "Bob"],
@@ -706,7 +706,7 @@ class GitMetadataParallelTests(_CacheRedirectMixin, unittest.TestCase):
         # go through subprocess.run. Wrap both so we catch git log
         # regardless of which API the implementation chose.
         from unittest.mock import patch
-        from api.scan import _collect_git_metadata
+        from api.services.scan import _collect_git_metadata
 
         original_run = subprocess.run
         original_popen = subprocess.Popen
@@ -733,15 +733,15 @@ class GitMetadataParallelTests(_CacheRedirectMixin, unittest.TestCase):
             _record_if_git_log(args)
             return original_popen(args, **kwargs)
 
-        with patch("api.scan.subprocess.run", side_effect=counting_run), \
-             patch("api.scan.subprocess.Popen", side_effect=counting_popen):
+        with patch("api.services.scan.subprocess.run", side_effect=counting_run), \
+             patch("api.services.scan.subprocess.Popen", side_effect=counting_popen):
             _collect_git_metadata(FIXTURE, use_cache=False)
 
         self.assertEqual(len(log_calls), 1,
                          f"expected exactly 1 git log call, got: {log_calls}")
 
     def test_collect_git_metadata_returns_commits_list(self):
-        from api.scan import _collect_git_metadata
+        from api.services.scan import _collect_git_metadata
         _created, _modified, _tracked, commits = _collect_git_metadata(
             FIXTURE, use_cache=False,
         )
@@ -772,7 +772,7 @@ class GitMetadataParallelTests(_CacheRedirectMixin, unittest.TestCase):
         second-to-last commit (the multi-author "feat: co-authored work"
         commit is newest). Subject must be the first line only; author
         must be the second author's name (not the bot)."""
-        from api.scan import _collect_git_metadata
+        from api.services.scan import _collect_git_metadata
         _c, _m, _t, commits = _collect_git_metadata(
             FIXTURE, use_cache=False,
         )
@@ -811,7 +811,7 @@ class GitMetadataParallelTests(_CacheRedirectMixin, unittest.TestCase):
         """A merge commit's combined-diff file count must be > 0, not the
         empty count git log emits by default for merges."""
         import tempfile
-        from api.scan import _collect_git_metadata
+        from api.services.scan import _collect_git_metadata
         with tempfile.TemporaryDirectory() as td:
             tdp = Path(td)
             subprocess.run(["git", "init", "-q", "-b", "main", td], check=True)
@@ -851,7 +851,7 @@ class GitMetadataParallelTests(_CacheRedirectMixin, unittest.TestCase):
         files. With `-c`, clean merges report 0; with
         `--diff-merges=first-parent` they report the side-branch diff."""
         import tempfile, subprocess
-        from api.scan import _collect_git_metadata
+        from api.services.scan import _collect_git_metadata
         with tempfile.TemporaryDirectory() as td:
             tdp = Path(td)
             subprocess.run(["git", "init", "-q", "-b", "main", td], check=True)
@@ -899,7 +899,7 @@ class GitLogRobustnessTests(_CacheRedirectMixin, unittest.TestCase):
     def test_non_utf8_author_bytes_do_not_crash(self):
         """Failure mode A: a commit with non-UTF-8 author metadata must
         parse without raising. Bytes are replaced, not crashed-on."""
-        from api.scan import _collect_git_metadata
+        from api.services.scan import _collect_git_metadata
         with TemporaryDirectory() as td:
             td_path = Path(td)
             _init_repo(td_path)
@@ -965,7 +965,7 @@ class GitLogRobustnessTests(_CacheRedirectMixin, unittest.TestCase):
         ``proc.kill()`` before ``proc.wait()``. Otherwise wait() blocks
         forever on any git child that still has buffered output."""
         from unittest.mock import patch
-        from api.scan import _collect_git_dates
+        from api.services.scan import _collect_git_dates
 
         class _FakeStdout:
             """Yields one valid line, then raises — mimics the moment
@@ -1009,7 +1009,7 @@ class GitLogRobustnessTests(_CacheRedirectMixin, unittest.TestCase):
                 return self.returncode or 0
 
         fake = _FakeProc()
-        with patch("api.scan.subprocess.Popen", return_value=fake):
+        with patch("api.services.scan.subprocess.Popen", return_value=fake):
             with self.assertRaises(UnicodeDecodeError):
                 _collect_git_dates(Path("/tmp/does-not-matter"))
         self.assertTrue(fake.killed, "cleanup must call proc.kill()")
@@ -1026,7 +1026,7 @@ class GitHistoryCacheTests(_CacheRedirectMixin, unittest.TestCase):
 
     def test_warm_run_skips_git_log(self):
         from unittest.mock import patch
-        from api.scan import _collect_git_metadata
+        from api.services.scan import _collect_git_metadata
 
         # Cold run: populates cache.
         _collect_git_metadata(FIXTURE, use_cache=True)
@@ -1040,13 +1040,13 @@ class GitHistoryCacheTests(_CacheRedirectMixin, unittest.TestCase):
             return original_run(args, **kwargs)
 
         # Warm run: must not invoke `git log` at all.
-        with patch("api.scan.subprocess.run", side_effect=counting_run):
+        with patch("api.services.scan.subprocess.run", side_effect=counting_run):
             _collect_git_metadata(FIXTURE, use_cache=True)
         self.assertEqual(log_calls, [], "expected zero git log calls on warm run")
 
     def test_use_cache_false_bypasses(self):
         from unittest.mock import patch
-        from api.scan import _collect_git_metadata
+        from api.services.scan import _collect_git_metadata
 
         _collect_git_metadata(FIXTURE, use_cache=True)  # populate
 
@@ -1066,15 +1066,15 @@ class GitHistoryCacheTests(_CacheRedirectMixin, unittest.TestCase):
             _record_if_log(args)
             return original_popen(args, **kwargs)
 
-        with patch("api.scan.subprocess.run", side_effect=counting_run), \
-             patch("api.scan.subprocess.Popen", side_effect=counting_popen):
+        with patch("api.services.scan.subprocess.run", side_effect=counting_run), \
+             patch("api.services.scan.subprocess.Popen", side_effect=counting_popen):
             _collect_git_metadata(FIXTURE, use_cache=False)
         self.assertEqual(len(log_calls), 1, "use_cache=False must run the combined log walk")
 
     def test_cache_invalidated_after_new_commit(self):
         # Make a commit, confirm next call re-walks history.
         from unittest.mock import patch
-        from api.scan import _collect_git_metadata
+        from api.services.scan import _collect_git_metadata
 
         _collect_git_metadata(FIXTURE, use_cache=True)
 
@@ -1105,8 +1105,8 @@ class GitHistoryCacheTests(_CacheRedirectMixin, unittest.TestCase):
                 _record_if_log(args)
                 return original_popen(args, **kwargs)
 
-            with patch("api.scan.subprocess.run", side_effect=counting_run), \
-                 patch("api.scan.subprocess.Popen", side_effect=counting_popen):
+            with patch("api.services.scan.subprocess.run", side_effect=counting_run), \
+                 patch("api.services.scan.subprocess.Popen", side_effect=counting_popen):
                 _collect_git_metadata(FIXTURE, use_cache=True)
             self.assertEqual(len(log_calls), 1,
                              "HEAD moved -> must re-walk")
@@ -1132,8 +1132,8 @@ class FileStatCacheTests(_CacheRedirectMixin, unittest.TestCase):
 
         _final_manifest(str(FIXTURE))  # cold: populates cache
 
-        with patch("api.scan._line_count") as line_mock, \
-             patch("api.scan._is_binary") as binary_mock:
+        with patch("api.services.scan._line_count") as line_mock, \
+             patch("api.services.scan._is_binary") as binary_mock:
             _final_manifest(str(FIXTURE))  # warm: should not call either
             self.assertEqual(line_mock.call_count, 0,
                              "warm scan must not call _line_count")
@@ -1175,7 +1175,7 @@ class FileStatCacheTests(_CacheRedirectMixin, unittest.TestCase):
                 line_calls.append(p)
                 return original_line_count(p)
 
-            with patch("api.scan._line_count", side_effect=counting_line_count):
+            with patch("api.services.scan._line_count", side_effect=counting_line_count):
                 _final_manifest(str(FIXTURE))
 
             # Only the modified file should be recomputed.
@@ -1189,7 +1189,7 @@ class FileStatCacheTests(_CacheRedirectMixin, unittest.TestCase):
 
         _final_manifest(str(FIXTURE))  # populate cache
 
-        with patch("api.scan._line_count", return_value=42) as line_mock:
+        with patch("api.services.scan._line_count", return_value=42) as line_mock:
             _final_manifest(str(FIXTURE), use_cache=False)
             # use_cache=False -> every file gets re-read
             self.assertGreater(line_mock.call_count, 0)
@@ -1198,7 +1198,7 @@ class FileStatCacheTests(_CacheRedirectMixin, unittest.TestCase):
 def _line_count_real():
     """Get the unwrapped _line_count for tests that want to call the
     real implementation while also mocking it."""
-    from api.scan import _line_count
+    from api.services.scan import _line_count
     return _line_count
 
 
@@ -1298,7 +1298,7 @@ class TreeSignatureTests(unittest.TestCase):
     def test_skeleton_and_final_manifests_share_same_tree_signature(self):
         """The same tree_signature must appear in both the skeleton and final
         manifest events for the same scan — the whole point of this feature."""
-        from api.scan import scan_tree
+        from api.services.scan import scan_tree
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)
             _init_repo(root)
@@ -1315,7 +1315,7 @@ class TreeSignatureTests(unittest.TestCase):
     def test_tree_signature_stable_when_only_metadata_changes(self):
         """tree_signature must be unchanged when only file content/lines/binary
         differs — i.e., between skeleton and final phases."""
-        from api.scan import scan_tree
+        from api.services.scan import scan_tree
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)
             _init_repo(root)
@@ -1340,7 +1340,7 @@ class ScanTreeStreamingTests(unittest.TestCase):
         return tmpdir
 
     def test_yields_skeleton_then_final(self) -> None:
-        from api.scan import scan_tree
+        from api.services.scan import scan_tree
         with TemporaryDirectory() as td:
             self._make_tiny_repo(td)
             events = list(scan_tree(td))
@@ -1349,7 +1349,7 @@ class ScanTreeStreamingTests(unittest.TestCase):
         self.assertEqual(events[1]["phase"], "final")
 
     def test_skeleton_has_placeholder_metadata(self) -> None:
-        from api.scan import scan_tree
+        from api.services.scan import scan_tree
         with TemporaryDirectory() as td:
             self._make_tiny_repo(td)
             skeleton, _final = list(scan_tree(td))
@@ -1366,7 +1366,7 @@ class ScanTreeStreamingTests(unittest.TestCase):
 
     def test_cancel_event_pre_set_raises_at_first_boundary(self) -> None:
         import threading
-        from api.scan import scan_tree, ScanCancelledError
+        from api.services.scan import scan_tree, ScanCancelledError
         with TemporaryDirectory() as td:
             self._make_tiny_repo(td)
             ev = threading.Event()
@@ -1377,7 +1377,7 @@ class ScanTreeStreamingTests(unittest.TestCase):
 
     def test_cancel_event_set_after_skeleton_raises_in_populate(self) -> None:
         import threading
-        from api.scan import scan_tree, ScanCancelledError
+        from api.services.scan import scan_tree, ScanCancelledError
         with TemporaryDirectory() as td:
             root = Path(td)
             _init_repo(root)
@@ -1451,7 +1451,7 @@ def test_heartbeat_calls_progress_callback_throttled():
     even if tick() is called rapidly."""
     import time
     from unittest.mock import MagicMock
-    from api.scan import _Heartbeat
+    from api.services.scan import _Heartbeat
 
     cb = MagicMock()
     hb = _Heartbeat(on_progress=cb)
@@ -1472,7 +1472,7 @@ def test_heartbeat_flush_emits_terminal_count():
     """flush() must emit the final seen count when the last tick was
     throttle-suppressed, so the UI never freezes at a stale value."""
     from unittest.mock import MagicMock
-    from api.scan import _Heartbeat
+    from api.services.scan import _Heartbeat
 
     cb = MagicMock()
     hb = _Heartbeat(on_progress=cb)
@@ -1500,7 +1500,7 @@ def test_heartbeat_flush_noop_when_already_emitted():
     """flush() must not re-emit a count that was already emitted."""
     import time
     from unittest.mock import MagicMock
-    from api.scan import _Heartbeat
+    from api.services.scan import _Heartbeat
 
     cb = MagicMock()
     hb = _Heartbeat(on_progress=cb)
