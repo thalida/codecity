@@ -8,8 +8,7 @@
 import * as THREE from 'three';
 import { effect } from '@preact/signals';
 
-import { STREETS } from '../state/stores/settings/streets';
-import { NodeKind, StreetAxis } from '../types';
+import { NodeKind } from '../types';
 import type { Manifest } from '../types';
 
 import { SCENE } from '@/state/stores/settings/scene';
@@ -147,36 +146,6 @@ export async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manif
   // material.opacity), so they cannot conflict by construction.
   const animator = createAnimator({ world });
 
-  // SIDEWALK_COLORS holds CSS strings; we pre-convert to numeric hex so
-  // the per-frame tint loop calls material.color.setHex() without
-  // re-parsing every frame. applyTheme() refreshes these whenever the
-  // Settings UI mutates SIDEWALK_COLORS.
-  const _swc0 = STREETS.value;
-  let SIDEWALK_HOVER_COLOR = new THREE.Color(_swc0.SIDEWALK_HOVER).getHex();
-  let SIDEWALK_SELECTED_COLOR = new THREE.Color(_swc0.SIDEWALK_SELECTED).getHex();
-  let SIDEWALK_DEFAULT_COLOR = new THREE.Color(_swc0.SIDEWALK_DEFAULT).getHex();
-
-  // _refreshSidewalkTints() — repaint every sidewalk's material.color
-  // based on the current picker.selection / picker.hover state.
-  function _refreshSidewalkTints(): void {
-    const sel = picker.selection.value;
-    const hov = picker.hover.value;
-    const streetPickables = world.getStreetPickables();
-    for (const sw of streetPickables) {
-      if (sw.userData.origColor == null) {
-        sw.userData.origColor = sw.material.color.getHex();
-      }
-      let expected = null;
-      if (sel?.kind === NodeKind.Directory && sel.sidewalk === sw) {
-        expected = SIDEWALK_SELECTED_COLOR;
-      } else if (hov?.kind === NodeKind.Directory && hov.sidewalk === sw) {
-        expected = SIDEWALK_HOVER_COLOR;
-      }
-      const swColor = expected ?? sw.userData.origColor;
-      sw.material.color.setHex(swColor);
-    }
-  }
-
   // applyTheme() — hot-apply the current values from src/config/* to every
   // material / cache that's set once at scene-build time. The Settings UI
   // mutates the config stores (SIDEWALK_COLORS, BUILDING_OUTLINE, etc.)
@@ -184,22 +153,10 @@ export async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manif
   // (BUILDING_FADE.*, HOVER.COMMIT_MS) are read fresh each frame and
   // don't need anything here.
   function applyTheme(): void {
-    const sidewalk = STREETS.value;
-
-    SIDEWALK_HOVER_COLOR = new THREE.Color(sidewalk.SIDEWALK_HOVER).getHex();
-    SIDEWALK_SELECTED_COLOR = new THREE.Color(sidewalk.SIDEWALK_SELECTED).getHex();
-    SIDEWALK_DEFAULT_COLOR = new THREE.Color(sidewalk.SIDEWALK_DEFAULT).getHex();
-    const streetPickables = world.getStreetPickables();
-    for (const sw of streetPickables) {
-      sw.userData.origColor = SIDEWALK_DEFAULT_COLOR;
-    }
-    _refreshSidewalkTints();
-
-    const asphaltHex = new THREE.Color(STREETS.value.ASPHALT_COLOR).getHex();
-    const asphaltMeshes = world.getAsphaltMeshes();
-    for (const mesh of asphaltMeshes) {
-      mesh.material.color.setHex(asphaltHex);
-    }
+    // Streets own their settings reactivity via the streets component's own
+    // theme effect (sidewalk hover/selected/default tints, asphalt color, and
+    // label height-scale all react to STREETS Save inside the component), so
+    // applyTheme() no longer touches sidewalks, asphalt, or street labels.
 
     scene.background = new THREE.Color(SCENE.value.SKY_COLOR);
 
@@ -230,16 +187,6 @@ export async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manif
 
     // The gem reacts to GEM/BLOOM Save via its own theme effect (owned by
     // the gem component), so applyTheme() no longer touches the gem.
-
-    const labelCfg = STREETS.value;
-    const streetLabels = world.getStreetLabels();
-    for (const lg of streetLabels) {
-      const origFrac = lg.userData.origHeightFrac;
-      if (origFrac && lg.children[0]) {
-        const s = labelCfg.LABEL_HEIGHT_FRAC / origFrac;
-        lg.children[0].scale.set(s, s, 1);
-      }
-    }
   }
 
   // -- 8. Pointer / keyboard / resize wiring ----------------------------------
@@ -272,16 +219,9 @@ export async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manif
     getRootName: () => world.getRoot()?.name ?? null,
   });
 
-  // Sidewalk tints follow selection / hover. Two effects keep tracking
-  // narrow — one signal per effect, no over-tracking.
-  effect(() => {
-    void picker.selection.value;
-    _refreshSidewalkTints();
-  });
-  effect(() => {
-    void picker.hover.value;
-    _refreshSidewalkTints();
-  });
+  // Sidewalk tints follow selection / hover via two picker-driven effects
+  // owned by the streets component, armed on its first tick() (once the
+  // picker is live). renderLoop no longer wires them here.
 
   // Firefly hover / select boost. Re-fetches world.getFireflies() each fire
   // so the wiring survives world rebuilds (new renderer starts with -1
@@ -305,7 +245,6 @@ export async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manif
   // null on the first frame; the first sky.tick() advances by 0 so
   // uTime stays at its initial value of 0 until the second frame.
   let _lastSkyTime: number | null = null;
-  const labelRight = new THREE.Vector3();
 
   // Reused scratch vector to avoid per-frame allocations from renderer.getSize().
   const _renderSize = new THREE.Vector2();
@@ -367,9 +306,15 @@ export async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manif
     treeOutlineRenderer.update(0); // tree hover/selected outline transforms + rainbow chase
     ghostRenderer.update(0); // hover ghost transform
     pathLineRenderer.update(0); // selection path line rainbow chase
-    // Street labels are world-space text on the asphalt — orient toward
-    // camera each frame so they remain readable from any rotation.
-    _orientLabelsForCamera(world.getStreetLabels(), camera, labelRight);
+    // Street labels are world-space text on the asphalt — the streets
+    // component orients them toward the camera each frame (and lazily arms
+    // its sidewalk-tint effects on the first tick, now that the picker is
+    // live). Same slot as the old _orientLabelsForCamera call: after
+    // pathLineRenderer.update(0), before the gem tick.
+    {
+      const t = (performance.now() - startTime) / 1000;
+      world.getStreets().tick(_skyDt, { dt: _skyDt, time: t, camera });
+    }
     // Root gem — rotation / bob / hover-scale / glow palette cycle / HDR
     // bloom push all live in the gem component's tick(). It uses absolute
     // time (frame.time), not dt, and reads hover via the SceneContext picker
@@ -414,44 +359,6 @@ export async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manif
       rig.focusSelection(picker.targetForPath(path));
     },
   };
-}
-
-// Keep flat street labels readable at any orbit. Flip decision comes from the
-// camera's world-right vector (matrixWorld column 0), not position — at top-down
-// the camera can sit over center yet still be rotated 180° around Y.
-function _orientLabelsForCamera(
-  labels: THREE.Group[],
-  camera: THREE.PerspectiveCamera,
-  labelRight: THREE.Vector3
-): void {
-  labelRight.setFromMatrixColumn(camera.matrixWorld, 0);
-  const rightX = labelRight.x;
-  const rightZ = labelRight.z;
-
-  // Hysteresis: only flip when the relevant axis crosses ±THRESH, not 0.
-  // Without this, near-top-down camera positions (where rightX/rightZ are
-  // near zero) cause floating-point jitter from OrbitControls' damping to
-  // flip labels back and forth every frame.
-  // Camera-orbit dead zone before the street label flips to match the
-  // new viewing angle. Was previously tunable; the default proved
-  // universally good and the control was removed (2026-05-26).
-  const THRESH = 0.15;
-
-  for (const lbl of labels) {
-    const street = lbl.userData.street;
-    const base = lbl.userData.baseRotY || 0;
-    const axis = street.orientation === StreetAxis.X ? rightX : rightZ;
-    let flipped = lbl.userData.flipped || false;
-    if (flipped) {
-      // Currently flipped — only un-flip when axis clearly crosses POSITIVE.
-      if (axis > THRESH) flipped = false;
-    } else {
-      // Not flipped — only flip when axis clearly crosses NEGATIVE.
-      if (axis < -THRESH) flipped = true;
-    }
-    lbl.userData.flipped = flipped;
-    lbl.rotation.y = base + (flipped ? Math.PI : 0);
-  }
 }
 
 function _resizeRendererToCanvas(renderer: THREE.WebGLRenderer, canvas: HTMLCanvasElement): void {

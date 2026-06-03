@@ -48,8 +48,8 @@ import { createGem } from './components/gem';
 import type { Gem } from './components/gem';
 import type { SceneContext } from './types';
 import type { Picker } from './system/picker';
-import { createStreetMesh } from './components/streets/streets';
-import { createStreetLabels } from './components/streets/streetLabels';
+import { createStreets } from './components/streets';
+import type { Streets } from './components/streets';
 import { createSky } from './components/sky';
 import type { Sky } from './components/sky';
 import { createRepoLabel } from './components/repoLabel';
@@ -237,58 +237,6 @@ export const __test = {
   _formatStemDiagnostic,
 };
 
-// _buildWorld(layout) — one-shot scene builder.
-//
-// Composes the streets / street labels / root gem component factories
-// into a fresh THREE.Scene and returns the lookup tables createWorld
-// needs to wire interaction + post-processing.
-// Per-cell instanced building/adPanel meshes are NOT built here —
-// city/layout/cellAssembly.ts handles those once the layout is in hand.
-function _buildWorld(layout: CityLayout) {
-  // All visual values (street colors, sidewalk default, label fill/stroke,
-  // gem edge color, etc.) come from the named exports of @/config.
-  const scene = new THREE.Scene();
-  scene.background = new THREE.Color(SCENE.value.SKY_COLOR);
-
-  // Streets + their labels
-  const streets = layout.streets || [];
-  type FlatMesh = THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial>;
-  const streetPickables: FlatMesh[] = [];
-  const asphaltMeshes: FlatMesh[] = [];
-  const streetLabels: THREE.Group[] = [];
-  for (const street of streets) {
-    const sg = createStreetMesh(street, 0);
-    scene.add(sg);
-    streetPickables.push(sg.userData.sidewalk as FlatMesh);
-    if (sg.userData.asphalt) asphaltMeshes.push(sg.userData.asphalt as FlatMesh);
-
-    const labels = createStreetLabels(street);
-    for (const label of labels) {
-      scene.add(label);
-      streetLabels.push(label);
-    }
-    // The root gem is no longer built here — it's a self-contained
-    // component (components/gem). createWorld builds it once and rebuilds
-    // its inner mesh on the full-rebuild path of applyManifest.
-  }
-
-  // Bounding box of the whole city (in scene coords). Caller uses it
-  // to frame the camera. Empty fallback prevents NaN at boot when the
-  // layout has zero meshes.
-  const bbox = new THREE.Box3().setFromObject(scene);
-  if (bbox.isEmpty()) {
-    bbox.set(new THREE.Vector3(-50, 0, -50), new THREE.Vector3(50, 10, 50));
-  }
-
-  return {
-    scene,
-    streetPickables,
-    streetLabels,
-    asphaltMeshes,
-    bbox,
-  };
-}
-
 // `canvas` is unused; kept in the signature so call sites (useCityScene, tests)
 // don't have to change. outlineRenderer takes the canvas directly via its
 // own factory now, so world no longer needs to forward it — the param
@@ -369,6 +317,19 @@ export function createWorld(_canvas: HTMLCanvasElement) {
   const _footprint: Footprint = createFootprint(_ctx as unknown as SceneContext);
   scene.add(_footprint.group);
 
+  // Streets — PERSISTENT component; added to scene once at init. rebuild(layout)
+  // disposes the prior street set and builds all sidewalk + asphalt slabs +
+  // flat road labels on every full-rebuild path. The component owns STREETS
+  // settings reactivity (sidewalk/asphalt colors, label height) via its own
+  // theme effect, the per-frame label camera-orientation via tick(), and the
+  // hover/selection sidewalk tinting via two picker-driven effects armed on
+  // its first tick. The street DIFF in this module is vestigial (no consumer
+  // reads it) — rebuild() returns void; world keeps the streetPickables/
+  // streetLabels/asphaltMeshes module vars and reassigns them from the
+  // component so PrevState/_computeDiff still read populated arrays.
+  const _streets: Streets = createStreets(_ctx as unknown as SceneContext);
+  scene.add(_streets.group);
+
   // Generation counter: each applyManifest invocation increments this and
   // captures its own value. If _currentGeneration has advanced beyond a
   // call's captured value by the time a safe-point check runs, that call
@@ -396,12 +357,13 @@ export function createWorld(_canvas: HTMLCanvasElement) {
   // callsite's `.material.color` access working.
   type FlatMesh = THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial>;
 
+  // Reassigned from the _streets component on rebuild. Still read by the
+  // PrevState capture + _computeDiff street branch (both vestigial — no
+  // consumer reads the resulting street diff — but kept byte-identical).
   let streetPickables: FlatMesh[] = [];
   let streetLabels: THREE.Group[] = [];
   let asphaltMeshes: FlatMesh[] = [];
 
-  let sidewalksByDirPath: Record<string, FlatMesh> = {};
-  let streetsByDirPath: Record<string, Street> = {};
   let buildingsByPath: Record<
     string,
     { mesh: THREE.Mesh; building: Building; instanceId: number }
@@ -596,24 +558,18 @@ export function createWorld(_canvas: HTMLCanvasElement) {
   }
 
   function _disposeAllManifestState() {
-    for (const m of streetPickables) _removeAndDispose(m);
-    for (const m of streetLabels) _removeAndDispose(m);
-    for (const m of asphaltMeshes) _removeAndDispose(m);
-    // The gem disposes its own inner meshes on rebuild; the outer persistent
-    // group is disposed via _gem.dispose() in dispose().
+    // Streets are component-owned now: _streets.rebuild() disposes the prior
+    // street/label set (called on the full-rebuild path right after this
+    // runs), so world no longer disposes street meshes here. The gem disposes
+    // its own inner meshes on rebuild; the outer persistent groups (gem,
+    // streets, footprint) are disposed via their component dispose() in
+    // world.dispose().
   }
 
   function _buildLookups() {
-    sidewalksByDirPath = {};
-    streetsByDirPath = {};
-    for (const sw of streetPickables) {
-      const swStreet = sw.userData.street;
-      const swDir = swStreet?.dir;
-      if (swDir?.path != null) {
-        sidewalksByDirPath[swDir.path] = sw;
-        streetsByDirPath[swDir.path] = swStreet;
-      }
-    }
+    // The sidewalk/street lookup maps moved into the _streets component
+    // (built in _streets.rebuild). The world getters delegate to it. Only
+    // the building lookup is built here.
 
     // buildingsByPath stores the cell's InstancedMesh + slotId so the
     // picker and other consumers can target the right per-instance attribute
@@ -1022,16 +978,31 @@ export function createWorld(_canvas: HTMLCanvasElement) {
       _buildingIndex = cellOut.index;
       _instancedAdPanels = cellOut.adPanels;
 
-      // Also build the streets/gem sub-scene from buildWorld so
-      // sidewalks, asphalt, and the root gem still appear. The cell path
-      // replaces buildings; non-building scene elements are still needed.
-      const cellBuilt = _buildWorld(newLayout);
-      bbox = cellBuilt.bbox;
-      // The bbox returned by buildWorld covers streets/gem only — NOT
-      // buildings (rendered separately via the cell-based instanced
-      // renderer). Expand the bbox to include each building's XZ footprint
-      // + Y height so downstream consumers (sceneBbox sizing, camera
-      // framing in cameraRig) get the FULL visible city.
+      // Rebuild the streets component's meshes (sidewalks, asphalt, labels)
+      // into its persistent group (already in the scene). The component owns
+      // the meshes + the sidewalk/street lookup maps; world reassigns its
+      // module-level arrays from the component so PrevState/_computeDiff still
+      // read populated arrays (the street diff is vestigial — see comment at
+      // the _streets construction site).
+      _streets.rebuild(newLayout);
+      streetPickables = _streets.pickables();
+      streetLabels = _streets.labels();
+      asphaltMeshes = _streets.asphalt();
+
+      // bbox over the street meshes only (same geometry set the old
+      // _buildWorld local-scene bbox covered) — NOT setFromObject(scene),
+      // since the world scene now also holds sky/island/gem/footprint, which
+      // would yield the wrong bbox. Empty fallback prevents NaN at boot when
+      // the layout has zero meshes (matches the old _buildWorld fallback).
+      bbox = new THREE.Box3().setFromObject(_streets.group);
+      if (bbox.isEmpty()) {
+        bbox.set(new THREE.Vector3(-50, 0, -50), new THREE.Vector3(50, 10, 50));
+      }
+      // The street bbox covers streets only — NOT buildings (rendered
+      // separately via the cell-based instanced renderer). Expand the bbox to
+      // include each building's XZ footprint + Y height so downstream
+      // consumers (sceneBbox sizing, camera framing in cameraRig) get the
+      // FULL visible city.
       for (const b of newLayout.buildings) {
         bbox.expandByPoint(new THREE.Vector3(b.x - b.w / 2, 0, b.y - b.d / 2));
         bbox.expandByPoint(new THREE.Vector3(b.x + b.w / 2, b.h, b.y + b.d / 2));
@@ -1050,11 +1021,6 @@ export function createWorld(_canvas: HTMLCanvasElement) {
         bbox.max.z += halo;
       }
 
-      streetPickables = cellBuilt.streetPickables || [];
-      streetLabels = cellBuilt.streetLabels || [];
-      asphaltMeshes = cellBuilt.asphaltMeshes || [];
-
-      for (const child of [...cellBuilt.scene.children]) scene.add(child);
       scene.background = new THREE.Color(SCENE.value.SKY_COLOR);
 
       // Add the cell root (instanced building InstancedMeshes, one group per cell).
@@ -1091,7 +1057,7 @@ export function createWorld(_canvas: HTMLCanvasElement) {
     _emit(changeCbs, _computeDiff(prev));
 
     // Convert the THREE.Box3 (now includes building footprints — expanded
-    // above right after cellBuilt.bbox assignment) to a placement-style
+    // above right after the _streets.group bbox assignment) to a placement-style
     // CityBbox.
     const sceneBbox: CityBbox | null = bbox
       ? {
@@ -1228,6 +1194,7 @@ export function createWorld(_canvas: HTMLCanvasElement) {
       _fireflies = null;
     }
     _footprint.dispose();
+    _streets.dispose();
     beforeChangeCbs.length = 0;
     changeCbs.length = 0;
     _layoutClient.dispose();
@@ -1407,13 +1374,13 @@ export function createWorld(_canvas: HTMLCanvasElement) {
       return out;
     },
     getStreetPickables() {
-      return streetPickables;
+      return _streets.pickables();
     },
     getStreetLabels() {
-      return streetLabels;
+      return _streets.labels();
     },
     getAsphaltMeshes() {
-      return asphaltMeshes;
+      return _streets.asphalt();
     },
     getRootGem() {
       return _gem.gem;
@@ -1424,6 +1391,11 @@ export function createWorld(_canvas: HTMLCanvasElement) {
     /** The gem scene component. renderLoop drives its per-frame tick(). */
     getGem(): Gem {
       return _gem;
+    },
+    /** The streets scene component. renderLoop drives its per-frame tick()
+     *  (label camera-orientation + lazy picker-tint arming). */
+    getStreets(): Streets {
+      return _streets;
     },
     /** Shared SceneContext for components built in world before the
      *  picker/camera/renderer exist. renderLoop populates picker/camera/
@@ -1445,10 +1417,10 @@ export function createWorld(_canvas: HTMLCanvasElement) {
       return buildingsByPath[p] || null;
     },
     getSidewalkByDir(p: string) {
-      return sidewalksByDirPath[p] || null;
+      return _streets.getSidewalkByDir(p);
     },
     getStreetByDir(p: string) {
-      return streetsByDirPath[p] || null;
+      return _streets.getStreetByDir(p);
     },
     // Bulk-map accessors. Treat the returned objects as read-only —
     // their identities are stable within an applyManifest call but
@@ -1460,10 +1432,10 @@ export function createWorld(_canvas: HTMLCanvasElement) {
       return buildingsByPath;
     },
     getSidewalksByDirMap() {
-      return sidewalksByDirPath;
+      return _streets.sidewalksByDirMap();
     },
     getStreetsByDirMap() {
-      return streetsByDirPath;
+      return _streets.streetsByDirMap();
     },
 
     // Cell-mode accessors for picker + other consumers.
