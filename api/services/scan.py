@@ -27,28 +27,41 @@ from typing import Any, Callable, Iterator
 
 from api.config import quiet
 from .cache import (
+    FileEntry,
     cache_load_files,
     cache_load_git_history,
     cache_save_files,
     cache_save_git_history,
 )
 from .media import probe_media_dims
-from api.types import (
+from .manifest_types import (
     BusynessThresholds,
     CommitEntry,
     DirNode,
     ExtBreakdownEntry,
-    FileEntry,
     FileNode,
     GitMeta,
     Manifest,
     NodeKind,
-    NotAGitRepoError,
     RepoInfo,
-    ScanCancelledError,
     ScanStreamEvent,
     SignatureResponse,
 )
+
+
+class ScanCancelledError(Exception):
+    """Raised when a scan_tree cancel_event is set mid-scan.
+
+    The server's disconnect watchdog sets the event, the scanner
+    polls it at every phase boundary, and the server's outer try/
+    except catches this so cancellation isn't surfaced as a 5xx."""
+
+
+class NotAGitRepoError(ValueError):
+    """Raised by scan_tree / signature_tree when handed a root that
+    isn't a git working tree. The server enforces git-only at the HTTP
+    boundary; this is defense-in-depth so direct callers get a clean
+    failure instead of an empty or partial manifest."""
 
 
 __all__ = [

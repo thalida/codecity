@@ -53,3 +53,7 @@ def create_app(static_dir: Path | None = None) -> FastAPI:
     app.include_router(manifest.router)
     app.include_router(make_static_router(static_dir or DEFAULT_STATIC_DIR))
     return app
+
+
+# Module-level instance for `uvicorn api.app:app` (prod + --reload).
+app = create_app()

@@ -30,12 +30,29 @@ import os
 import re
 import tempfile
 from pathlib import Path
-from typing import TYPE_CHECKING, cast
-
-from api.types import FileEntry
+from typing import TYPE_CHECKING, NotRequired, TypedDict, cast
 
 if TYPE_CHECKING:
-    from api.types import CommitEntry, Manifest
+    from api.services.manifest_types import CommitEntry, Manifest
+
+
+class FileEntry(TypedDict):
+    """One entry in the per-root file-stat cache. (size, mtime) is the
+    cache key; (lines, binary, ext) are the values warm scans skip
+    recomputing. media_width/media_height are only present for
+    recognized media files."""
+
+    # Required (always present in a valid entry):
+    size: int
+    mtime: float
+    lines: int
+    binary: bool
+    ext: str
+    # Optional — populated only for recognized media files. Either both
+    # or neither is present; layout treats absence as "no signal" and
+    # falls back to a square aspect.
+    media_width: NotRequired[int]
+    media_height: NotRequired[int]
 
 # Module-level CACHE_ROOT — tests monkeypatch this to a tempdir. Derived
 # subdirs are computed at call time (not at import) so the override

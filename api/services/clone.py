@@ -28,12 +28,26 @@ from pathlib import Path
 from typing import Callable
 
 from api.config import quiet
-from api.types import (
-    BranchNotFoundError,
-    CloneError,
-    HostUnreachableError,
-    RepoNotFoundError,
-)
+
+
+class CloneError(RuntimeError):
+    """Generic git clone/update failure. Subclasses below differentiate
+    the user-facing causes so the server can return a clean 4xx with a
+    helpful message instead of bubbling raw git stderr."""
+
+
+class BranchNotFoundError(CloneError):
+    """User asked for a branch that doesn't exist on the remote."""
+
+
+class RepoNotFoundError(CloneError):
+    """Remote URL doesn't exist, is private + unauthenticated, or was
+    typo'd."""
+
+
+class HostUnreachableError(CloneError):
+    """DNS / network failure reaching the remote host."""
+
 
 __all__ = [
     "BranchNotFoundError",

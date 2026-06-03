@@ -1,13 +1,15 @@
-"""TypedDict shapes for the JSON manifest the scanner emits.
+"""Scanner-internal TypedDict shapes for the JSON manifest it builds.
 
-Mirrors app/types/manifest.ts. Keep both files in sync — the web app
-consumes the JSON exactly as these TypedDicts describe it. Drift here
-is shape drift in the wire format and will be caught by pyright on
-the Python side and tsc on the TS side, but only within each language.
+These are the dict shapes the scanner constructs and walks INTERNALLY
+during a scan. The wire/OpenAPI source of truth is `api/models/`
+(Pydantic) — this TypedDict/Pydantic duplication is intentional: the
+scanner builds plain dicts (fast, no validation), the API layer
+re-projects them through Pydantic for the response schema.
 
-A future shared JSON-Schema (or codegen) would close the cross-language
-gap; for now the contract is enforced by code review + matching field
-names + the file_node / build_tree return annotations.
+Mirrors app/types/manifest.ts. Keep both in sync — the web app consumes
+the JSON exactly as these TypedDicts describe it. Drift here is shape
+drift in the wire format and will be caught by pyright on the Python
+side and tsc on the TS side, but only within each language.
 """
 
 from __future__ import annotations
@@ -169,56 +171,6 @@ class SignatureResponse(TypedDict):
     signature: str
 
 
-# ── Server response shapes ──────────────────────────────────────────────
-
-
-class ErrorResponse(TypedDict):
-    """Generic JSON error body. Used by most server.py error returns."""
-
-    error: str
-
-
-class FileTooLargeResponse(TypedDict):
-    """413-style error from /api/file when a file exceeds MAX_FILE_BYTES."""
-
-    error: str
-    size: int
-    limit: int
-
-
-class CacheClearResponse(TypedDict):
-    """Body of DELETE /api/manifest/cache — reports how many cached
-    manifest files were removed for the requested source."""
-
-    deleted: int
-
-
-class HealthResponse(TypedDict):
-    """/api/health body."""
-
-    ok: bool
-
-
-class ConfigResponse(TypedDict):
-    """/api/config body. Read by the frontend at boot to learn
-    server-side feature flags."""
-
-    allowLocalRepos: bool
-
-
-class CommitDetailResponse(TypedDict):
-    """Body of GET /api/commit?sha=<sha>. Returns the commit's author
-    list (primary + co-authors), day-precision date, single-line
-    subject, and full multi-line body — pulled live from `git show -s`
-    on each request."""
-
-    sha: str
-    authors: list[str]
-    date: str       # "YYYY-MM-DD"
-    subject: str
-    body: str
-
-
 class ScanStreamEvent(TypedDict):
     """One NDJSON event emitted by scan_tree_streaming.
 
@@ -229,100 +181,3 @@ class ScanStreamEvent(TypedDict):
 
     phase: Literal["skeleton", "final"]
     manifest: Manifest
-
-
-class ScanCloningEvent(TypedDict):
-    """First event for git sources — emitted before ensure_clone runs
-    so the client can show a "{label} (pending)" header while the
-    network clone is in flight. `display_root` mirrors what the final
-    manifest will carry (URL, or URL@branch when branch is set).
-
-    Subsequent cloning events carry `stage`/`percent` parsed from
-    `git clone --progress` stderr (throttled to ~250ms in api.clone)."""
-
-    phase: Literal["cloning"]
-    display_root: NotRequired[str]
-    stage: NotRequired[Literal["receiving", "resolving", "counting"]]
-    percent: NotRequired[int]  # 0..100
-
-
-class ScanScanningEvent(TypedDict):
-    """First event for local sources (and the second event for git
-    sources, after the clone settles). `display_root` carries the
-    raw source string so the client can label the pending project
-    before any manifest exists.
-
-    Subsequent scanning events carry `files_scanned` from the
-    scanner's heartbeat callback (throttled to ~250ms in api.scan)."""
-
-    phase: Literal["scanning"]
-    display_root: NotRequired[str]
-    files_scanned: NotRequired[int]
-
-
-class ScanErrorEvent(TypedDict):
-    """Emitted only if a scan fails AFTER the response body has started
-    streaming. Errors before the first byte use the standard 500-JSON
-    path via _send_json, not this event."""
-
-    phase: Literal["error"]
-    error: str
-
-
-# ── Cache shapes ────────────────────────────────────────────────────────
-
-
-class FileEntry(TypedDict):
-    """One entry in the per-root file-stat cache. (size, mtime) is the
-    cache key; (lines, binary, ext) are the values warm scans skip
-    recomputing. media_width/media_height are only present for
-    recognized media files."""
-
-    # Required (always present in a valid entry):
-    size: int
-    mtime: float
-    lines: int
-    binary: bool
-    ext: str
-    # Optional — populated only for recognized media files. Either both
-    # or neither is present; layout treats absence as "no signal" and
-    # falls back to a square aspect.
-    media_width: NotRequired[int]
-    media_height: NotRequired[int]
-
-
-# ── Errors ──────────────────────────────────────────────────────────────
-
-
-class ScanCancelledError(Exception):
-    """Raised when a scan_tree cancel_event is set mid-scan.
-
-    The server's disconnect watchdog sets the event, the scanner
-    polls it at every phase boundary, and the server's outer try/
-    except catches this so cancellation isn't surfaced as a 5xx."""
-
-
-class NotAGitRepoError(ValueError):
-    """Raised by scan_tree / signature_tree when handed a root that
-    isn't a git working tree. The server enforces git-only at the HTTP
-    boundary; this is defense-in-depth so direct callers get a clean
-    failure instead of an empty or partial manifest."""
-
-
-class CloneError(RuntimeError):
-    """Generic git clone/update failure. Subclasses below differentiate
-    the user-facing causes so the server can return a clean 4xx with a
-    helpful message instead of bubbling raw git stderr."""
-
-
-class BranchNotFoundError(CloneError):
-    """User asked for a branch that doesn't exist on the remote."""
-
-
-class RepoNotFoundError(CloneError):
-    """Remote URL doesn't exist, is private + unauthenticated, or was
-    typo'd."""
-
-
-class HostUnreachableError(CloneError):
-    """DNS / network failure reaching the remote host."""

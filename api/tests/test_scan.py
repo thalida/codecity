@@ -23,7 +23,7 @@ from api.services.scan import (
     scan_tree,
     signature_tree,
 )
-from api.types import Manifest
+from api.services.manifest_types import Manifest
 
 
 # CODECITY_QUIET=1 is set by the session-autouse ``quiet_logs`` fixture

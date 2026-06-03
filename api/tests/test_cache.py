@@ -10,7 +10,7 @@ import pytest
 
 from api.services import cache as cache_mod
 from api.services.cache import _git_history_cache_path
-from api.types import CommitEntry
+from api.services.manifest_types import CommitEntry
 
 
 class CacheTestBase(unittest.TestCase):

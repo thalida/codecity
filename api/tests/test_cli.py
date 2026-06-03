@@ -29,3 +29,13 @@ def test_help_flag_prints_help():
 def test_invalid_arg_exits_nonzero():
     res = _run_cli("--no-such-flag")
     assert res.returncode != 0
+
+
+def test_main_invokes_uvicorn() -> None:
+    from unittest import mock
+    from api.__main__ import main
+    with mock.patch("api.__main__.uvicorn.run") as run:
+        assert main(["--port", "9999"]) == 0
+        run.assert_called_once()
+        assert run.call_args.kwargs["port"] == 9999
+        assert run.call_args.kwargs["workers"] == 1
