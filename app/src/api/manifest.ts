@@ -1,6 +1,6 @@
-// api/manifest.ts — NDJSON streaming reader for /api/manifest responses. Each line is a
-// single JSON event. The browser handles Content-Encoding: gzip
-// transparently, so we read decoded UTF-8 text directly.
+// api/manifest.ts — Server-Sent Events reader for /api/manifest responses. The
+// server emits named SSE events (`event: <name>\ndata: <json>\n\n`); we bridge
+// EventSource's push model to an async iterable of ScanStreamEvents.
 //
 // Event variants (server emits in roughly this order):
 //   cloning  — first event for git sources, sent BEFORE the clone
@@ -82,10 +82,10 @@ export function manifestUrlFor(opts: { src: string; branch?: string; noCache?: b
   });
 }
 
-// ── NDJSON streaming reader ──────────────────────────────────────────────
+// ── SSE streaming reader ─────────────────────────────────────────────────
 
-// The phases the NDJSON scan stream advances through. String values are the
-// wire form the server emits. (Distinct from constants/loadingSteps' LoadingStep,
+// The phases the SSE scan stream advances through. String values are the
+// wire form the server emits (the SSE event name). (Distinct from constants/loadingSteps' LoadingStep,
 // which is the UI step vocabulary — there's no 'building' phase: the Final event
 // drives the "Building city" step.)
 export enum ScanPhase {
@@ -117,37 +117,100 @@ export type ScanProgressEvent = Extract<
   { phase: ScanPhase.Cloning | ScanPhase.Scanning }
 >;
 
-export async function* streamManifest(
+/**
+ * Stream the manifest scan as Server-Sent Events, surfaced as an async
+ * iterable of {@link ScanStreamEvent} (same contract the NDJSON reader had,
+ * so `pumpManifestStream`/`loadSource`/`setupLiveUpdates` are untouched).
+ *
+ * EventSource auto-reconnects, so we `es.close()` on `final`/`error` to avoid
+ * a reconnect storm once the stream legitimately ends. Server-describable
+ * failures arrive as a named `error` event (the server never relies on a 4xx
+ * body — EventSource can't read those); a transport drop rejects the stream.
+ *
+ * The EventSource constructor is injectable for testing (defaults to the
+ * browser global).
+ */
+export function streamManifest(
   url: string,
-  fetchImpl: typeof fetch = fetch
+  EventSourceImpl: typeof EventSource = EventSource
 ): AsyncIterable<ScanStreamEvent> {
-  const resp = await fetchImpl(url);
-  if (!resp.ok) {
-    const body = await resp.json().catch(() => null);
-    const errMsg = body && typeof body.error === 'string' ? body.error : `HTTP ${resp.status}`;
-    throw new Error(errMsg);
-  }
-  if (!resp.body) {
-    throw new Error('Response has no body');
-  }
-  const reader = resp.body.getReader();
-  const decoder = new TextDecoder();
-  // Buffer grows up to one full NDJSON line — for the final-manifest
-  // event that can be 10MB-300MB of UTF-8. Acceptable here because
-  // the server emits at most 2 events per response.
-  let buf = '';
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    buf += decoder.decode(value, { stream: true });
-    let nl: number;
-    while ((nl = buf.indexOf('\n')) >= 0) {
-      const line = buf.slice(0, nl);
-      buf = buf.slice(nl + 1);
-      if (line.trim()) yield JSON.parse(line) as ScanStreamEvent;
-    }
-  }
-  if (buf.trim()) yield JSON.parse(buf) as ScanStreamEvent;
+  return {
+    [Symbol.asyncIterator](): AsyncIterator<ScanStreamEvent> {
+      const es = new EventSourceImpl(url);
+      const queue: ScanStreamEvent[] = [];
+      let resolveNext: ((r: IteratorResult<ScanStreamEvent>) => void) | null = null;
+      let rejectNext: ((reason: unknown) => void) | null = null;
+      let failure: Error | null = null;
+      let done = false;
+
+      const push = (ev: ScanStreamEvent): void => {
+        if (resolveNext) {
+          const r = resolveNext;
+          resolveNext = rejectNext = null;
+          r({ value: ev, done: false });
+        } else {
+          queue.push(ev);
+        }
+        if (ev.phase === ScanPhase.Final || ev.phase === ScanPhase.Error) finish();
+      };
+
+      const finish = (err?: Error): void => {
+        if (done) return;
+        done = true;
+        es.close();
+        if (err) {
+          failure = err;
+          if (rejectNext) {
+            const rej = rejectNext;
+            resolveNext = rejectNext = null;
+            rej(err);
+          }
+        } else if (resolveNext) {
+          const r = resolveNext;
+          resolveNext = rejectNext = null;
+          r({ value: undefined, done: true });
+        }
+      };
+
+      const on = (name: string, phase: ScanPhase): void => {
+        es.addEventListener(name, (e) => {
+          push({ phase, ...JSON.parse((e as MessageEvent).data) } as ScanStreamEvent);
+        });
+      };
+      on('cloning', ScanPhase.Cloning);
+      on('scanning', ScanPhase.Scanning);
+      on('skeleton', ScanPhase.Skeleton);
+      on('final', ScanPhase.Final);
+
+      // The server's terminal `error` event and EventSource's transport-error
+      // event share the 'error' name. A server event carries a JSON `data`
+      // string; a transport drop is a bare Event with no data.
+      es.addEventListener('error', (e) => {
+        const data = (e as MessageEvent).data;
+        if (typeof data === 'string') {
+          push({ phase: ScanPhase.Error, ...JSON.parse(data) } as ScanStreamEvent);
+        } else if (!done) {
+          finish(new Error('manifest stream connection failed'));
+        }
+      });
+
+      return {
+        next(): Promise<IteratorResult<ScanStreamEvent>> {
+          if (queue.length) return Promise.resolve({ value: queue.shift()!, done: false });
+          if (failure) return Promise.reject(failure);
+          if (done) return Promise.resolve({ value: undefined, done: true });
+          return new Promise((res, rej) => {
+            resolveNext = res;
+            rejectNext = rej;
+          });
+        },
+        return(): Promise<IteratorResult<ScanStreamEvent>> {
+          finish();
+          return Promise.resolve({ value: undefined, done: true });
+        },
+      };
+    },
+  };
 }
 
 /**
