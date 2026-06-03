@@ -49,8 +49,8 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 # Python source
 COPY api/ ./api/
 
-# Built frontend → /srv/api/static (matches api/server.py default STATIC_DIR
-# resolution: Path(__file__).parent / "static"). No env var needed.
+# Built frontend → /srv/api/static (matches api/app.py DEFAULT_STATIC_DIR
+# resolution: Path(__file__).resolve().parent / "static"). No env var needed.
 COPY --from=web-builder /build/dist /srv/api/static
 
 # pyproject.toml uses hatch-vcs (`source = "vcs"`) for dynamic versioning,
@@ -81,6 +81,9 @@ HEALTHCHECK --interval=10s --timeout=2s --start-period=3s --retries=3 \
 # re-sync that re-downloads dev deps and tries to reinstall the console
 # script into /srv/.venv/bin (read-only for the non-root runtime user).
 # Zombie reaping + signal propagation are handled by Docker's --init.
+# `python -m api` launches a single uvicorn process (api.app:app) — single
+# process by design, see api/security.py (the allowed_roots trust set is
+# in-memory; multi-worker would split it).
 ENTRYPOINT ["/srv/.venv/bin/python", "-m", "api"]
 CMD ["--port", "8080"]
 
