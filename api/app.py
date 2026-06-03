@@ -13,7 +13,7 @@ from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse
 
 from api.config import GZIP_MIN_BYTES
-from api.routers import commit, file, health
+from api.routers import commit, file, health, manifest
 from api.security import TRUST
 from api.static import make_static_router
 
@@ -50,6 +50,6 @@ def create_app(static_dir: Path | None = None) -> FastAPI:
     app.include_router(health.router)
     app.include_router(file.router)
     app.include_router(commit.router)
-    # NOTE: manifest router added in later tasks, BEFORE static.
+    app.include_router(manifest.router)
     app.include_router(make_static_router(static_dir or DEFAULT_STATIC_DIR))
     return app

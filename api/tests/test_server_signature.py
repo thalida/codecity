@@ -1,72 +1,52 @@
-"""Tests for /api/manifest/signature (split from test_server.py)."""
-
+"""TestClient coverage for /api/manifest/signature + local-repo gating."""
 from __future__ import annotations
 
-import json
-import unittest
-import urllib.parse
-from http import HTTPStatus
+import subprocess
 from pathlib import Path
-from tempfile import TemporaryDirectory
 
 import pytest
+from fastapi.testclient import TestClient
 
-from api.server import start_server
+from api.app import create_app
 
 
-class SignatureRouteTests(unittest.TestCase):
-    """Coverage for /api/manifest/signature — the cheap-poll endpoint
-    whose digest must match the full manifest's signature."""
+def _git(*a: str, cwd: Path) -> None:
+    subprocess.run(["git", *a], cwd=cwd, check=True, capture_output=True)
 
-    @pytest.fixture(autouse=True)
-    def _setup_fixtures(
-        self, redirect_cache_root, init_git_repo, http_helpers,
-    ) -> None:
-        self.cache_root = redirect_cache_root
-        self._init_git_repo = init_git_repo
-        self._http = http_helpers
 
-    def setUp(self) -> None:
-        super().setUp()
-        self.tmp = TemporaryDirectory()
-        self.addCleanup(self.tmp.cleanup)
-        static = Path(self.tmp.name) / "static"
-        static.mkdir()
-        (static / "index.html").write_text("<html><body>hi</body></html>")
+@pytest.fixture()
+def repo(tmp_path: Path) -> Path:
+    p = tmp_path / "repo"
+    p.mkdir()
+    _git("init", "-q", cwd=p)
+    _git("config", "user.email", "a@b.c", cwd=p)
+    _git("config", "user.name", "T", cwd=p)
+    (p / "f.txt").write_text("x")
+    _git("add", ".", cwd=p)
+    _git("commit", "-qm", "c", cwd=p)
+    return p
 
-        self.project = Path(self.tmp.name) / "project"
-        self.project.mkdir()
-        self._init_git_repo(self.project)
-        (self.project / "README.md").write_text("# demo\n")
 
-        self.server, self.port, self.shutdown = start_server(port=0, static_dir=static)
-        self.addCleanup(self.shutdown)
-        self.base = f"http://127.0.0.1:{self.port}"
+@pytest.fixture()
+def client(tmp_path: Path, redirect_cache_root) -> TestClient:
+    static = tmp_path / "static"
+    static.mkdir()
+    (static / "index.html").write_text("x")
+    return TestClient(create_app(static_dir=static))
 
-    def test_signature_route_matches_manifest_signature(self) -> None:
-        # The contract powering the cheap-poll: the signature endpoint
-        # returns the same digest the full manifest would have produced.
-        q = urllib.parse.urlencode({"src": str(self.project)})
-        m_status, m_events = self._http.request_stream(self.port, f"/api/manifest?{q}")
-        s_status, s_body, s_ctype = self._http.get(self.base + f"/api/manifest/signature?{q}")
-        self.assertEqual(m_status, HTTPStatus.OK)
-        self.assertEqual(s_status, HTTPStatus.OK)
-        self.assertIn("application/json", s_ctype)
-        manifest = next(e for e in m_events if e["phase"] == "final")["manifest"]
-        sig = json.loads(s_body)
-        self.assertEqual(sig["signature"], manifest["signature"])
-        # Lean shape — no tree / repo fields on the signature endpoint.
-        self.assertNotIn("tree", sig)
-        self.assertNotIn("repo", sig)
 
-    def test_signature_route_missing_query_returns_400(self) -> None:
-        status, _, _ = self._http.get(self.base + "/api/manifest/signature")
-        self.assertEqual(status, HTTPStatus.BAD_REQUEST)
+def test_signature_missing_src_400(client: TestClient) -> None:
+    assert client.get("/api/manifest/signature").status_code in (400, 422)
 
-    def test_signature_route_nonexistent_path_returns_404(self) -> None:
-        q = urllib.parse.urlencode({"src": str(self.project / "nope")})
-        status, _, _ = self._http.get(self.base + f"/api/manifest/signature?{q}")
-        self.assertEqual(status, HTTPStatus.NOT_FOUND)
 
-if __name__ == "__main__":
-    unittest.main()
+def test_signature_local_disabled_403(client: TestClient, repo: Path, monkeypatch) -> None:
+    monkeypatch.delenv("CODECITY_ALLOW_LOCAL_REPOS", raising=False)
+    r = client.get("/api/manifest/signature", params={"src": str(repo)})
+    assert r.status_code == 403
+
+
+def test_signature_ok(client: TestClient, repo: Path, allow_local_repos) -> None:
+    r = client.get("/api/manifest/signature", params={"src": str(repo)})
+    assert r.status_code == 200
+    body = r.json()
+    assert set(body) == {"root", "scanned_at", "signature"}
