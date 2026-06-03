@@ -10,20 +10,28 @@ it into an HTTPException. The SSE route (added later) turns it into an
 `error` event instead (EventSource can't read 4xx bodies)."""
 from __future__ import annotations
 
+import asyncio
+import json
 import os
 import re
 import subprocess
+import threading
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Literal
+from typing import Any, AsyncIterator, Literal
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Request
+from sse_starlette.sse import EventSourceResponse
 
 from api.config import local_repos_allowed
 from api.models.manifest import SignatureResponse
 from api.models.responses import CacheClearResponse
 from api.security import TRUST
-from api.services.cache import cache_clear_manifests
+from api.services.cache import (
+    cache_clear_manifests,
+    cache_load_manifest,
+    cache_save_manifest,
+)
 from api.services.clone import (
     BranchNotFoundError,
     CloneError,
@@ -32,7 +40,7 @@ from api.services.clone import (
     clone_dir_for,
     ensure_clone,
 )
-from api.services.scan import signature_tree
+from api.services.scan import ScanCancelledError, scan_tree, signature_tree
 
 router = APIRouter(prefix="/api", tags=["manifest"])
 
@@ -175,3 +183,118 @@ def clear_cache(
         # still drops its cache.
         abs_root = Path(src).resolve(strict=False)
     return CacheClearResponse(deleted=cache_clear_manifests(abs_root))
+
+
+def _sse(event: str, payload: dict[str, Any]) -> dict[str, Any]:
+    """sse-starlette event dict: {'event': name, 'data': json-string}."""
+    return {"event": event, "data": json.dumps(payload)}
+
+
+@router.get("/manifest")
+async def manifest(  # pyright: ignore[reportUnusedFunction]
+    request: Request,
+    src: str = Query(""),
+    branch: str | None = Query(None),
+    no_cache: bool = Query(False),
+) -> EventSourceResponse:
+    use_cache = not no_cache
+
+    async def gen() -> AsyncIterator[dict[str, Any]]:
+        # Resolve (incl. git clone) — failures become error EVENTS, not 4xx
+        # (EventSource can't read 4xx bodies).
+        try:
+            resolved = await asyncio.to_thread(resolve_source, src, branch)
+        except ResolveError as e:
+            yield _sse("error", {"error": e.message})
+            return
+
+        display = resolved.display_root
+        if resolved.kind == "git":
+            yield _sse("cloning", {"display_root": display})
+        yield _sse("scanning", {"display_root": display})
+
+        TRUST.register(resolved.path)
+
+        # Signature probe (cache key).
+        try:
+            sig = (await asyncio.to_thread(
+                signature_tree, str(resolved.path), use_cache=use_cache
+            ))["signature"]
+        except Exception as e:  # noqa: BLE001
+            yield _sse("error", {"error": f"scan failed: {e}"})
+            return
+
+        # Warm cache hit -> single final event.
+        if use_cache:
+            cached = await asyncio.to_thread(
+                cache_load_manifest, resolved.path.resolve(), sig
+            )
+            if cached is not None:
+                if resolved.kind == "git":
+                    cached["display_root"] = display
+                yield _sse("final", {"manifest": cached})
+                return
+
+        # Cold scan: run scan_tree on a worker thread, bridge its events
+        # (skeleton/final) + heartbeat progress through an asyncio.Queue.
+        cancel = threading.Event()
+        loop = asyncio.get_running_loop()
+        q: asyncio.Queue[dict[str, Any] | None] = asyncio.Queue()
+        final_holder: dict[str, Any] = {"manifest": None, "err": None}
+
+        def _put(item: dict[str, Any] | None) -> None:
+            loop.call_soon_threadsafe(q.put_nowait, item)
+
+        def _on_progress(files_scanned: int) -> None:
+            _put(_sse("scanning", {"display_root": display, "files_scanned": files_scanned}))
+
+        def _run() -> None:
+            try:
+                for ev in scan_tree(
+                    str(resolved.path), use_cache=use_cache,
+                    cancel_event=cancel, on_scan_progress=_on_progress,
+                ):
+                    phase = ev["phase"]  # "skeleton" | "final"
+                    m = ev["manifest"]
+                    if resolved.kind == "git":
+                        m["display_root"] = display
+                    if phase == "final":
+                        final_holder["manifest"] = m
+                    _put(_sse(phase, {"manifest": m}))
+            except ScanCancelledError:
+                pass
+            except Exception as e:  # noqa: BLE001
+                final_holder["err"] = e
+                _put(_sse("error", {"error": f"scan failed: {e}"}))
+            finally:
+                _put(None)  # sentinel
+
+        worker = threading.Thread(target=_run, daemon=True)
+        worker.start()
+
+        disconnected = False
+        try:
+            while True:
+                if await request.is_disconnected():
+                    disconnected = True
+                    break
+                try:
+                    item = await asyncio.wait_for(q.get(), timeout=0.5)
+                except asyncio.TimeoutError:
+                    continue
+                if item is None:
+                    break
+                yield item
+        finally:
+            cancel.set()
+            await asyncio.to_thread(worker.join, 2.0)
+
+        # ALWAYS write cache on a clean final (read gated by no_cache; write
+        # is not). Skipped only on disconnect or scan error.
+        final = final_holder["manifest"]
+        if final is not None and final_holder["err"] is None and not disconnected:
+            await asyncio.to_thread(
+                cache_save_manifest, resolved.path.resolve(), sig, final
+            )
+
+    return EventSourceResponse(gen())
