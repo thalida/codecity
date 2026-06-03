@@ -633,7 +633,7 @@ def _walk_dirs(node):
 
 
 class BuildAuthorsListTests(unittest.TestCase):
-    """Direct coverage for the _build_authors_list helper.
+    """Direct coverage for the build_authors_list helper.
 
     Integration coverage exists via the multi-author fixture commit, but
     that fixture doesn't exercise the email-only trailer path — the
@@ -643,49 +643,49 @@ class BuildAuthorsListTests(unittest.TestCase):
     """
 
     def test_no_trailers_returns_primary_only(self):
-        from api.services.scan import _build_authors_list
-        self.assertEqual(_build_authors_list("Alice", ""), ["Alice"])
+        from api.services.scan import build_authors_list
+        self.assertEqual(build_authors_list("Alice", ""), ["Alice"])
 
     def test_two_name_bearing_trailers(self):
-        from api.services.scan import _build_authors_list
+        from api.services.scan import build_authors_list
         self.assertEqual(
-            _build_authors_list("Alice", "Bob <b@x>\x1fCarol <c@x>"),
+            build_authors_list("Alice", "Bob <b@x>\x1fCarol <c@x>"),
             ["Alice", "Bob", "Carol"],
         )
 
     def test_primary_dedup_against_trailer(self):
-        from api.services.scan import _build_authors_list
+        from api.services.scan import build_authors_list
         # Primary author repeated as a Co-authored-by trailer (cherry-
         # pick artifact) is dropped — order preserves first-seen.
         self.assertEqual(
-            _build_authors_list("Alice", "Bob <b@x>\x1fAlice <a@x>"),
+            build_authors_list("Alice", "Bob <b@x>\x1fAlice <a@x>"),
             ["Alice", "Bob"],
         )
 
     def test_email_only_trailer_uses_local_part(self):
         # Regression-protection for the privacy fix: an email-only
         # trailer must not leak the @domain into the authors list.
-        from api.services.scan import _build_authors_list
+        from api.services.scan import build_authors_list
         self.assertEqual(
-            _build_authors_list("Alice", "<bot@example.com>"),
+            build_authors_list("Alice", "<bot@example.com>"),
             ["Alice", "bot"],
         )
 
     def test_bracketed_value_without_at_sign_kept_verbatim(self):
-        from api.services.scan import _build_authors_list
+        from api.services.scan import build_authors_list
         self.assertEqual(
-            _build_authors_list("Alice", "<just-localpart>"),
+            build_authors_list("Alice", "<just-localpart>"),
             ["Alice", "just-localpart"],
         )
 
     def test_empty_brackets_dropped(self):
-        from api.services.scan import _build_authors_list
-        self.assertEqual(_build_authors_list("Alice", "<>"), ["Alice"])
+        from api.services.scan import build_authors_list
+        self.assertEqual(build_authors_list("Alice", "<>"), ["Alice"])
 
     def test_duplicate_co_author_deduped(self):
-        from api.services.scan import _build_authors_list
+        from api.services.scan import build_authors_list
         self.assertEqual(
-            _build_authors_list("Alice", "Bob <b@x>\x1fBob <b@x>"),
+            build_authors_list("Alice", "Bob <b@x>\x1fBob <b@x>"),
             ["Alice", "Bob"],
         )
 

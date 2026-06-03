@@ -54,59 +54,23 @@ class FileEntry(TypedDict):
     media_width: NotRequired[int]
     media_height: NotRequired[int]
 
-# Module-level CACHE_ROOT — tests monkeypatch this to a tempdir. Derived
-# subdirs are computed at call time (not at import) so the override
-# cascades through. CODECITY_CACHE_ROOT lets ops point the cache at a
-# different directory (e.g. an XDG cache dir, or a writable mount on
-# read-only home dirs in containers).
+# Module-level so tests can monkeypatch it to a tempdir; derived subdirs are
+# computed at call time, not import, so the override cascades. Override with
+# CODECITY_CACHE_ROOT (e.g. an XDG dir, or a writable mount in containers).
 CACHE_ROOT = Path(
     os.environ.get("CODECITY_CACHE_ROOT") or Path.home() / ".cache" / "codecity"
 )
 
+# Cache-format versions: bump when the cached shape changes so stale blobs are
+# treated as a miss and re-scanned. (Per-bump rationale lives in git history.)
 _FILE_CACHE_VERSION = 1
-# Bumped to 8: scanner switched from `-c` to
-# `--diff-merges=first-parent` so CLEAN merges (no conflicts) also
-# report their actual file count. Pre-v8 entries undercount merges.
-# Bumped to 9: CommitEntry gained author + subject fields. Pre-v9
-# entries are missing those fields and would break manifest consumers.
-# Bumped to 10: dropped the per-entry `git_window` field — the scanner
-# no longer accepts a --since window and always walks full history.
-# Bumped to 11: CommitEntry's `author: str` became `authors: list[str]`
-# (per-author fireflies + Co-authored-by trailer parsing). Pre-v11
-# entries have the wrong shape and would break manifest consumers.
 _GIT_HISTORY_CACHE_VERSION = 11
-# Bumped only when the manifest shape changes for reasons UNRELATED
-# to git-history output (e.g. a new field on FileNode). Git-history
-# shape changes don't need a bump here — they auto-invalidate through
-# _MANIFEST_CACHE_VERSION's composite below.
-#
-# v2: scanner dropped the include_all option and added lockfiles to
-# ALWAYS_SKIP. Cached manifests that observed lockfiles (or that came
-# from include_all=true scans) would no longer match a fresh scan;
-# bumping forces every repo to re-cache and drops the orphans.
-# v3: DirNode gained descendants_ext_breakdown and the manifest gained
-# top-level busyness thresholds. Pre-v3 cached manifests lack both, so
-# consumers (street view, commit-pane busyness label, scene tree color)
-# would mis-render until a fresh scan; bumping forces the re-cache.
-# v4: a latent bug in cache_load_git_history dropped each commit's authors
-# + subject when reconstructing from the git-history cache. It never bit
-# until the v3 bump invalidated the manifest blobs and forced a re-scan that
-# rebuilds commits FROM that cache — which then cached author-less manifests
-# (fireflies/header crash on commit.authors). The loader is fixed; this bump
-# discards the polluted v3 blobs so a normal load re-scans correctly.
-# v5: each CommitEntry gained same_day_total (commits sharing its date),
-# baked at wrap time so the commit pane + scene tree-color read one field
-# instead of recomputing the per-day grouping. Pre-v5 blobs lack it.
 _MANIFEST_SCHEMA_VERSION = 5
-# Composite cache version: invalidates when EITHER the manifest
-# schema OR the git-history cache shape changes. Stored as a string
-# in the cache file's `version` field; the loader's equality check
-# works the same as it did for an int.
+# Composite: invalidates when EITHER the manifest schema OR the git-history
+# shape changes. Stored as a string in the cache file's `version` field.
 _MANIFEST_CACHE_VERSION: str = f"m{_MANIFEST_SCHEMA_VERSION}-g{_GIT_HISTORY_CACHE_VERSION}"
 
-# Full 40-char lowercase hex SHA, as emitted by `git log --format=%H`.
-# Used by cache_load_git_history to reject any cache entry whose sha
-# field was corrupted or hand-edited to a non-hex string.
+# Full 40-char lowercase hex SHA; rejects corrupt/hand-edited sha fields.
 _SHA_HEX_RE = re.compile(r"[0-9a-f]{40}")
 
 

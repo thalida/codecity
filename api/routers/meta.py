@@ -1,4 +1,6 @@
-"""GET /api/health and GET /api/config."""
+"""Server meta endpoints: GET /api/health (liveness) and GET /api/config
+(boot-time feature flags). Grouped here because both are tiny server-info
+routes, not domain logic."""
 from __future__ import annotations
 
 from fastapi import APIRouter

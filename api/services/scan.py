@@ -68,6 +68,7 @@ class NotAGitRepoError(ValueError):
 __all__ = [
     "NotAGitRepoError",
     "ScanCancelledError",
+    "build_authors_list",
     "compute_tree_signature",
     "scan_tree",
     "signature_tree",
@@ -218,7 +219,7 @@ def _is_git_repo(root: Path) -> bool:
 _NAME_EMAIL = re.compile(r"^\s*(.*?)\s*<([^>]*)>\s*$")
 
 
-def _build_authors_list(primary: str, trailers_raw: str) -> list[str]:
+def build_authors_list(primary: str, trailers_raw: str) -> list[str]:
     """Combine primary author + Co-authored-by trailer values into a
     deduped author list (primary at index 0).
 
@@ -334,7 +335,7 @@ def _collect_git_dates(
                         "date": current_date_iso[:10],
                         "files": current_files,
                         "sha": current_sha,
-                        "authors": _build_authors_list(current_author, current_trailers),
+                        "authors": build_authors_list(current_author, current_trailers),
                         "subject": current_subject,
                     })
                 rest = line[len("COMMIT:"):]
@@ -373,7 +374,7 @@ def _collect_git_dates(
                 "date": current_date_iso[:10],
                 "files": current_files,
                 "sha": current_sha,
-                "authors": _build_authors_list(current_author, current_trailers),
+                "authors": build_authors_list(current_author, current_trailers),
                 "subject": current_subject,
             })
     finally:

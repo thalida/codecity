@@ -20,10 +20,7 @@ def make_static_router(static_dir: Path) -> APIRouter:
     static_dir = static_dir.resolve()
     router = APIRouter()  # fresh per app — never a module-level singleton
 
-    @router.get("/{full_path:path}")
-    def serve(  # pyright: ignore[reportUnusedFunction]
-        full_path: str, request: Request
-    ) -> Response:
+    def serve(full_path: str, request: Request) -> Response:
         # Never serve API paths from here.
         if full_path.startswith("api/"):
             raise HTTPException(status_code=404, detail="unknown api route")
@@ -47,4 +44,7 @@ def make_static_router(static_dir: Path) -> APIRouter:
             return FileResponse(index, media_type="text/html")
         raise HTTPException(status_code=404, detail="not found")
 
+    # Register via add_api_route (not the @router.get decorator) so `serve` is
+    # referenced rather than a dangling nested function — no pyright ignore.
+    router.add_api_route("/{full_path:path}", serve, methods=["GET"])
     return router

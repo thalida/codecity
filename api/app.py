@@ -13,7 +13,7 @@ from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse
 
 from api.config import GZIP_MIN_BYTES
-from api.routers import commit, file, health, manifest
+from api.routers import commit, file, manifest, meta
 from api.security import TRUST
 from api.static import make_static_router
 
@@ -26,6 +26,19 @@ _SCALAR_HTML = """<!doctype html><html><head><title>CodeCity API</title>
 </body></html>"""
 
 
+def _scalar_docs() -> HTMLResponse:
+    """Serve the Scalar API-reference UI at /api/docs."""
+    return HTMLResponse(_SCALAR_HTML)
+
+
+async def _api_error_handler(_request: Request, exc: Exception) -> JSONResponse:
+    """Render HTTPExceptions as a uniform {"error": ...} JSON body (so an
+    unknown /api/* path is a 404 JSON, not HTML)."""
+    status = exc.status_code if isinstance(exc, HTTPException) else 500
+    detail = exc.detail if isinstance(exc, HTTPException) else "internal server error"
+    return JSONResponse(status_code=status, content={"error": detail})
+
+
 def create_app(static_dir: Path | None = None) -> FastAPI:
     TRUST.reset()  # fresh trust set per process / per test app
     app = FastAPI(
@@ -36,18 +49,12 @@ def create_app(static_dir: Path | None = None) -> FastAPI:
     )
     app.add_middleware(GZipMiddleware, minimum_size=GZIP_MIN_BYTES)
 
-    @app.get("/api/docs", include_in_schema=False)
-    def scalar_docs() -> HTMLResponse:  # pyright: ignore[reportUnusedFunction]
-        return HTMLResponse(_SCALAR_HTML)
+    # Registered by reference (not as decorated nested functions) so they are
+    # plain module-level handlers — no pyright reportUnusedFunction ignore.
+    app.add_api_route("/api/docs", _scalar_docs, include_in_schema=False)
+    app.add_exception_handler(HTTPException, _api_error_handler)
 
-    # JSON 404 for unknown /api/* (HTTPException detail -> {"error": ...}).
-    @app.exception_handler(HTTPException)
-    async def _http_exc(  # pyright: ignore[reportUnusedFunction]
-        _req: Request, exc: HTTPException
-    ) -> JSONResponse:
-        return JSONResponse(status_code=exc.status_code, content={"error": exc.detail})
-
-    app.include_router(health.router)
+    app.include_router(meta.router)
     app.include_router(file.router)
     app.include_router(commit.router)
     app.include_router(manifest.router)

@@ -6,6 +6,12 @@ during a scan. The wire/OpenAPI source of truth is `api/models/`
 scanner builds plain dicts (fast, no validation), the API layer
 re-projects them through Pydantic for the response schema.
 
+Why a standalone module (rather than living in scan.py): both `scan.py`
+(builds these) and `cache.py` (annotates cached commits/manifests with
+them) need them, and scan.py already imports cache.py at runtime — so
+defining them in either would create an import cycle. This is the shared
+leaf both import from. It depends on nothing else in the package.
+
 Mirrors app/types/manifest.ts. Keep both in sync — the web app consumes
 the JSON exactly as these TypedDicts describe it. Drift here is shape
 drift in the wire format and will be caught by pyright on the Python

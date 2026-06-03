@@ -8,7 +8,7 @@ from fastapi import APIRouter, HTTPException, Query
 
 from api.models.responses import CommitDetailResponse
 from api.security import TRUST
-from api.services.scan import _build_authors_list  # pyright: ignore[reportPrivateUsage]
+from api.services.scan import build_authors_list
 
 router = APIRouter(prefix="/api", tags=["commit"])
 
@@ -20,7 +20,7 @@ _FMT = (
 
 
 @router.get("/commit", response_model=CommitDetailResponse)
-def get_commit(sha: str = Query(...)) -> CommitDetailResponse:  # pyright: ignore[reportUnusedFunction]
+def get_commit(sha: str = Query(...)) -> CommitDetailResponse:
     if not _SHA_RE.match(sha.strip()):
         raise HTTPException(400, "invalid or missing sha")
     roots = TRUST.snapshot()
@@ -41,7 +41,7 @@ def get_commit(sha: str = Query(...)) -> CommitDetailResponse:  # pyright: ignor
         full_sha, author, iso_date, subject, trailers_raw, body = parts
         return CommitDetailResponse(
             sha=full_sha,
-            authors=_build_authors_list(author, trailers_raw),
+            authors=build_authors_list(author, trailers_raw),
             date=iso_date[:10],
             subject=subject,
             body=body,

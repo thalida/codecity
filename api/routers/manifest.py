@@ -217,7 +217,7 @@ SSEEvent = Union[CloningEvent, ScanningEvent, SkeletonEvent, FinalEvent, ErrorEv
         },
     },
 )
-async def manifest(  # pyright: ignore[reportUnusedFunction]
+async def manifest(
     request: Request,
     src: str = Query(""),
     branch: str | None = Query(None),

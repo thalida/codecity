@@ -16,7 +16,7 @@ router = APIRouter(prefix="/api", tags=["file"])
 
 
 @router.get("/file")
-def get_file(path: str = Query(..., description="Absolute path inside a scanned root")) -> Response:  # pyright: ignore[reportUnusedFunction]
+def get_file(path: str = Query(..., description="Absolute path inside a scanned root")) -> Response:
     try:
         target = TRUST.assert_inside(Path(path))
     except NoRootsRegisteredError:
