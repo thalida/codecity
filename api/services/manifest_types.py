@@ -128,7 +128,10 @@ class CommitEntry(TypedDict):
     sha: str
     authors: list[str]
     subject: str
-    same_day_total: int
+    # NotRequired: derived field, absent when commits are first collected/
+    # loaded from cache; baked in-place by _annotate_same_day_totals at
+    # manifest-wrap (always before any emit). Required on the wire model.
+    same_day_total: NotRequired[int]
 
 
 class BusynessThresholds(TypedDict):

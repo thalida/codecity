@@ -46,6 +46,7 @@ from .manifest_types import (
     RepoInfo,
     ScanStreamEvent,
     SignatureResponse,
+    TreeNode,
 )
 
 
@@ -1055,7 +1056,7 @@ def _build_tree(
 # ── Public entry ─────────────────────────────────────────────────────────────
 
 
-def compute_tree_signature(tree_root: dict) -> str:
+def compute_tree_signature(tree_root: DirNode) -> str:
     """Stable fingerprint of the manifest tree's structure.
 
     Ignores per-file metadata; depends ONLY on the set of paths and
@@ -1071,14 +1072,13 @@ def compute_tree_signature(tree_root: dict) -> str:
     """
     h = hashlib.blake2b(digest_size=8)
 
-    def _walk(node: dict) -> None:
-        path = node.get("path", "") or ""
-        h.update(path.encode("utf-8"))
+    def _walk(node: TreeNode) -> None:
+        h.update(node["path"].encode("utf-8"))
         h.update(b"\x00")
-        children = node.get("children") or []
-        # Sort by path for determinism (no-op when _build_tree already sorts).
-        for c in sorted(children, key=lambda n: n.get("path", "") or ""):
-            _walk(c)
+        if node["type"] == "directory":
+            # Sort by path for determinism (no-op when _build_tree already sorts).
+            for c in sorted(node["children"], key=lambda n: n["path"]):
+                _walk(c)
 
     _walk(tree_root)
     return h.hexdigest()
@@ -1238,8 +1238,7 @@ def scan_tree(
     # Repo-level metadata — branch, remote, head, dirty — feeds the
     # signature so the footer's "live" indicator catches a checkout or
     # commit without waiting for file mtimes to shift.
-    if repo_info is not None:
-        _hash_repo_info(sig, repo_info)
+    _hash_repo_info(sig, repo_info)
 
     yield {
         "phase": "final",

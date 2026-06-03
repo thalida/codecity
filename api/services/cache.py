@@ -192,20 +192,20 @@ def cache_load_files(abs_root: Path) -> dict[str, FileEntry]:
     so a partial load is preferable to a hard failure."""
     path = _file_cache_path(abs_root)
     try:
-        raw = json.loads(path.read_text(encoding="utf-8"))
+        parsed = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, ValueError):
         return {}
-    if not isinstance(raw, dict):
+    if not isinstance(parsed, dict):
         return {}
+    raw = cast(dict[str, object], parsed)
     if raw.get("version") != _FILE_CACHE_VERSION:
         return {}
     entries = raw.get("entries")
     if not isinstance(entries, dict):
         return {}
     result: dict[str, FileEntry] = {}
-    for key, value in entries.items():
-        if not isinstance(key, str):
-            continue
+    # JSON object keys are always strings; values are validated by _coerce.
+    for key, value in cast(dict[str, object], entries).items():
         coerced = _coerce_file_entry(value)
         if coerced is not None:
             result[key] = coerced
@@ -234,11 +234,12 @@ def cache_load_git_history(
     Returns None on miss or any error."""
     path = _git_history_cache_path(abs_root)
     try:
-        raw = json.loads(path.read_text(encoding="utf-8"))
+        parsed = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, ValueError):
         return None
-    if not isinstance(raw, dict):
+    if not isinstance(parsed, dict):
         return None
+    raw = cast(dict[str, object], parsed)
     if raw.get("version") != _GIT_HISTORY_CACHE_VERSION:
         return None
     if raw.get("head_sha") != head_sha:
@@ -250,23 +251,25 @@ def cache_load_git_history(
             or not isinstance(modified_raw, dict)
             or not isinstance(commits_raw, list)):
         return None
+    # JSON object keys are always strings; keep only string values.
     created = {
-        k: v for k, v in created_raw.items()
-        if isinstance(k, str) and isinstance(v, str)
+        k: v for k, v in cast(dict[str, object], created_raw).items()
+        if isinstance(v, str)
     }
     modified = {
-        k: v for k, v in modified_raw.items()
-        if isinstance(k, str) and isinstance(v, str)
+        k: v for k, v in cast(dict[str, object], modified_raw).items()
+        if isinstance(v, str)
     }
     commits: list["CommitEntry"] = []
-    for c in commits_raw:
+    for c in cast(list[object], commits_raw):
         if not isinstance(c, dict):
             continue
-        date = c.get("date")
-        files = c.get("files")
-        sha = c.get("sha")
-        authors = c.get("authors")
-        subject = c.get("subject")
+        entry = cast(dict[str, object], c)
+        date = entry.get("date")
+        files = entry.get("files")
+        sha = entry.get("sha")
+        authors = entry.get("authors")
+        subject = entry.get("subject")
         # Reconstruct the FULL CommitEntry — authors + subject are part of the
         # shape (v9/v11) and manifest consumers (fireflies iterate authors,
         # the commit pane shows subject) break without them. Drop any commit
@@ -276,13 +279,13 @@ def cache_load_git_history(
                 and isinstance(sha, str)
                 and _SHA_HEX_RE.fullmatch(sha) is not None
                 and isinstance(authors, list)
-                and all(isinstance(a, str) for a in authors)
+                and all(isinstance(a, str) for a in cast(list[object], authors))
                 and isinstance(subject, str)):
             commits.append({
                 "date": date,
                 "files": files,
                 "sha": sha,
-                "authors": authors,
+                "authors": cast(list[str], authors),
                 "subject": subject,
             })
     return created, modified, commits
