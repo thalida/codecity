@@ -63,8 +63,8 @@ import type { TreePlacementClient } from './components/trees/treePlacementClient
 import { createIsland } from './components/island';
 import type { Island } from './components/island';
 import { getWorldBounds, type WorldBounds } from './utils/floorBounds';
-import { createCityFootprint } from './components/footprint/footprint';
-import type { CityFootprint } from './components/footprint/footprint';
+import { createFootprint } from './components/footprint';
+import type { Footprint } from './components/footprint';
 import { FOOTPRINT } from '@/state/stores/settings/footprint';
 import {
   getBuildingColor,
@@ -361,12 +361,13 @@ export function createWorld(_canvas: HTMLCanvasElement) {
   // the world is disposed.
   const _treePlacementClient: TreePlacementClient = createTreePlacementClient();
 
-  // Cyberpunk Valley city footprint — REBUILT per applyManifest.
-  // One InstancedMesh of inflated layout rects that composes into a
-  // contoured asphalt slab. Cheap to build (no rejection sampling),
-  // so it is created synchronously inside applyManifest. Held here
-  // so applyTheme() can call .refresh() through getCityFootprint().
-  let _cityFootprint: CityFootprint | null = null;
+  // Cyberpunk Valley city footprint — PERSISTENT component; added to scene
+  // once at init. rebuild(layout) swaps the inner InstancedMesh on every
+  // full-rebuild path; the component's own effect owns FOOTPRINT settings
+  // reactivity (COLOR / CORNER_RADIUS / ENABLED). Not rebuilt per applyManifest
+  // directly — world calls _footprint.rebuild(newLayout) on the full-rebuild path.
+  const _footprint: Footprint = createFootprint(_ctx as unknown as SceneContext);
+  scene.add(_footprint.group);
 
   // Generation counter: each applyManifest invocation increments this and
   // captures its own value. If _currentGeneration has advanced beyond a
@@ -1087,11 +1088,6 @@ export function createWorld(_canvas: HTMLCanvasElement) {
       _fireflies.dispose();
       _fireflies = null;
     }
-    if (_cityFootprint) {
-      _cityFootprint.dispose();
-      _cityFootprint = null;
-    }
-
     _emit(changeCbs, _computeDiff(prev));
 
     // Convert the THREE.Box3 (now includes building footprints — expanded
@@ -1135,8 +1131,9 @@ export function createWorld(_canvas: HTMLCanvasElement) {
     if (bbox) {
       // Footprint is cheap (one InstancedMesh, no rejection sampling),
       // so we don't need the rAF+setTimeout defer the tree path uses.
-      _cityFootprint = createCityFootprint(newLayout);
-      scene.add(_cityFootprint.group);
+      // rebuild() disposes the prior inner mesh and builds a new one
+      // into the persistent _footprint.group (already in the scene).
+      _footprint.rebuild(newLayout);
     }
 
     if (treesEnabled && bbox && sceneBbox) {
@@ -1230,10 +1227,7 @@ export function createWorld(_canvas: HTMLCanvasElement) {
       _fireflies.dispose();
       _fireflies = null;
     }
-    if (_cityFootprint) {
-      _cityFootprint.dispose();
-      _cityFootprint = null;
-    }
+    _footprint.dispose();
     beforeChangeCbs.length = 0;
     changeCbs.length = 0;
     _layoutClient.dispose();
@@ -1316,15 +1310,6 @@ export function createWorld(_canvas: HTMLCanvasElement) {
      */
     getFireflies(): Fireflies | null {
       return _fireflies;
-    },
-
-    /**
-     * Cyberpunk Valley city footprint reference. Rebuilt per
-     * applyManifest; null until the first manifest has been applied.
-     * renderLoop.ts's applyTheme() guards with `?.refresh()`.
-     */
-    getCityFootprint(): CityFootprint | null {
-      return _cityFootprint;
     },
 
     getManifest() {

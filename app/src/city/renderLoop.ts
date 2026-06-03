@@ -223,11 +223,6 @@ export async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manif
     // SCALE_MIN/MAX) take the rebuild path via configCommitReactions.
     world.getFireflies()?.refresh();
 
-    // Cyberpunk Valley city footprint — pushes fresh COLOR + ENABLED
-    // onto the slab material / group visibility. Null until the first
-    // manifest applies; guard with optional chain.
-    world.getCityFootprint()?.refresh();
-
     // Ad panels — pushes fresh BLOOM.AD_EMISSION into uEmissionBoost so
     // the emission slider hot-updates without a manifest rebuild. Null
     // until the first manifest with media files applies.
