@@ -3,3 +3,6 @@ node_modules
 package-lock.json
 coverage
 dist
+# Auto-generated from the OpenAPI schema by `just gen-types` (openapi-typescript).
+# Edit api/models/*.py and regenerate; never hand-format this file.
+src/types/manifest.generated.ts

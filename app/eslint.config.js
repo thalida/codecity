@@ -10,7 +10,15 @@ import globals from 'globals';
 
 export default tseslint.config(
   {
-    ignores: ['node_modules/**', 'dist/**', 'coverage/**', '../api/static/**', 'package-lock.json'],
+    ignores: [
+      'node_modules/**',
+      'dist/**',
+      'coverage/**',
+      '../api/static/**',
+      'package-lock.json',
+      // Auto-generated from the OpenAPI schema by `just gen-types`.
+      'src/types/manifest.generated.ts',
+    ],
   },
   js.configs.recommended,
   ...tseslint.configs.recommended,

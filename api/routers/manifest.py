@@ -18,12 +18,19 @@ import subprocess
 import threading
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, AsyncIterator, Literal
+from typing import Any, AsyncIterator, Literal, Union
 
 from fastapi import APIRouter, HTTPException, Query, Request
 from sse_starlette.sse import EventSourceResponse
 
 from api.config import local_repos_allowed
+from api.models.events import (
+    CloningEvent,
+    ErrorEvent,
+    FinalEvent,
+    ScanningEvent,
+    SkeletonEvent,
+)
 from api.models.manifest import SignatureResponse
 from api.models.responses import CacheClearResponse
 from api.security import TRUST
@@ -190,7 +197,26 @@ def _sse(event: str, payload: dict[str, Any]) -> dict[str, Any]:
     return {"event": event, "data": json.dumps(payload)}
 
 
-@router.get("/manifest")
+# Documented SSE event union: surfacing all five event models in the
+# OpenAPI `responses` registers each as a schema component (richer Scalar
+# docs) AND transitively pulls Manifest -> tree types via Skeleton/FinalEvent.
+SSEEvent = Union[CloningEvent, ScanningEvent, SkeletonEvent, FinalEvent, ErrorEvent]
+
+
+@router.get(
+    "/manifest",
+    responses={
+        200: {
+            "description": (
+                "Server-Sent Events stream (`text/event-stream`). Named events and "
+                "their JSON `data` payloads: `cloning` (CloningEvent), `scanning` "
+                "(ScanningEvent), `skeleton` (SkeletonEvent), `final` (FinalEvent), "
+                "`error` (ErrorEvent). The client closes the connection on `final`/`error`."
+            ),
+            "model": SSEEvent,
+        },
+    },
+)
 async def manifest(  # pyright: ignore[reportUnusedFunction]
     request: Request,
     src: str = Query(""),
