@@ -44,7 +44,10 @@ import type { LayoutComputeOpts } from './layout/runner';
 import { layoutCityWithTrace } from './layout/algorithm';
 import type { ChildPlacementTrace, StemPlacementTrace } from './layout/algorithm';
 import type { WorldRect } from './layout/occupancyIndex';
-import { createRootGem } from './components/gem/gem';
+import { createGem } from './components/gem';
+import type { Gem } from './components/gem';
+import type { SceneContext } from './types';
+import type { Picker } from './system/picker';
 import { createStreetMesh } from './components/streets/streets';
 import { createStreetLabels } from './components/streets/streetLabels';
 import { createSky } from './components/sky/sky';
@@ -95,7 +98,6 @@ interface PrevState {
   streetPickables: THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial>[];
   streetLabels: THREE.Group[];
   asphaltMeshes: THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial>[];
-  rootGem: THREE.Group | null;
   manifest: Manifest | null;
   layout: CityLayout | null;
   /** Snapshot of cells before they are replaced/disposed. */
@@ -254,9 +256,6 @@ function _buildWorld(layout: CityLayout) {
   const streetPickables: FlatMesh[] = [];
   const asphaltMeshes: FlatMesh[] = [];
   const streetLabels: THREE.Group[] = [];
-  let rootGem: THREE.Group | null = null;
-  let rootGemBody: THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial> | null = null;
-  let rootGemEdges: THREE.LineSegments<THREE.BufferGeometry, THREE.LineBasicMaterial> | null = null;
   for (const street of streets) {
     const sg = createStreetMesh(street, 0);
     scene.add(sg);
@@ -268,26 +267,9 @@ function _buildWorld(layout: CityLayout) {
       scene.add(label);
       streetLabels.push(label);
     }
-
-    // Root-of-repo landmark at the street's origin end. The gem group
-    // wraps two children: [0] body (the colored octahedron) and [1]
-    // edges (the dark separator lines). Both are exposed so the Settings
-    // UI can hot-update color + opacity.
-    if (street.isRoot) {
-      const gemGroup = createRootGem(street);
-      scene.add(gemGroup);
-      rootGem = (gemGroup.userData.gem as THREE.Group) || null;
-      if (rootGem) {
-        rootGemBody =
-          (rootGem.userData.body as THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial>) ||
-          null;
-        rootGemEdges =
-          (rootGem.userData.edges as THREE.LineSegments<
-            THREE.BufferGeometry,
-            THREE.LineBasicMaterial
-          >) || null;
-      }
-    }
+    // The root gem is no longer built here — it's a self-contained
+    // component (components/gem). createWorld builds it once and rebuilds
+    // its inner mesh on the full-rebuild path of applyManifest.
   }
 
   // Bounding box of the whole city (in scene coords). Caller uses it
@@ -303,9 +285,6 @@ function _buildWorld(layout: CityLayout) {
     streetPickables,
     streetLabels,
     asphaltMeshes,
-    rootGem,
-    rootGemBody,
-    rootGemEdges,
     bbox,
   };
 }
@@ -345,6 +324,25 @@ export function createWorld(_canvas: HTMLCanvasElement) {
   // tiles (sidewalks at 1, asphalt at 3) — those paint on top.
   const _island: Island = createIsland(null);
   scene.add(_island.group);
+
+  // Root gem — a self-contained scene component built ONCE here (parallel
+  // to sky/island/repoLabel); rebuild() swaps its inner mesh on full
+  // applyManifest rebuilds. The gem reads the picker/camera/renderer only
+  // in tick(); at construction (here, before the picker exists) the gem's
+  // theme effect reads only GEM/BLOOM signals. renderLoop populates the
+  // shared `_ctx` before the first animate() frame, so tick() sees a live
+  // picker on frame 1.
+  type MutableSceneContext = {
+    scene: THREE.Scene;
+    picker: Picker | null;
+    camera: THREE.PerspectiveCamera | null;
+    renderer: THREE.WebGLRenderer | null;
+  };
+  const _ctx: MutableSceneContext = { scene, picker: null, camera: null, renderer: null };
+  // The single cast: picker/camera/renderer are populated by renderLoop
+  // before the first animate() frame; the gem reads them only in tick().
+  const _gem: Gem = createGem(_ctx as unknown as SceneContext);
+  scene.add(_gem.group);
 
   // Cyberpunk Valley trees — REBUILT per applyManifest. One tree per
   // commit, placed commit-driven across the world floor.
@@ -396,13 +394,6 @@ export function createWorld(_canvas: HTMLCanvasElement) {
   let streetPickables: FlatMesh[] = [];
   let streetLabels: THREE.Group[] = [];
   let asphaltMeshes: FlatMesh[] = [];
-  let rootGem: THREE.Group | null = null;
-  // rootGem children expose `.material.{color,opacity}` directly to the
-  // applyTheme code in renderLoop.ts; type with single-material variants so
-  // those member accesses remain checked rather than `Material |
-  // Material[]`-shaped.
-  let rootGemBody: THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial> | null = null;
-  let rootGemEdges: THREE.LineSegments<THREE.BufferGeometry, THREE.LineBasicMaterial> | null = null;
 
   let sidewalksByDirPath: Record<string, FlatMesh> = {};
   let streetsByDirPath: Record<string, Street> = {};
@@ -603,10 +594,8 @@ export function createWorld(_canvas: HTMLCanvasElement) {
     for (const m of streetPickables) _removeAndDispose(m);
     for (const m of streetLabels) _removeAndDispose(m);
     for (const m of asphaltMeshes) _removeAndDispose(m);
-    if (rootGem) {
-      if (rootGem.parent) rootGem.parent.remove(rootGem);
-      rootGem.traverse(_disposeObject);
-    }
+    // The gem disposes its own inner meshes on rebuild; the outer persistent
+    // group is disposed via _gem.dispose() in dispose().
   }
 
   function _buildLookups() {
@@ -830,7 +819,6 @@ export function createWorld(_canvas: HTMLCanvasElement) {
       streetPickables,
       streetLabels,
       asphaltMeshes,
-      rootGem,
       manifest,
       layout,
       cells: _cells,
@@ -973,6 +961,10 @@ export function createWorld(_canvas: HTMLCanvasElement) {
       _lastScenicConfigHash === _currentScenicConfigHash &&
       streetPickables.length > 0; // guard: scenic state actually exists in scene
 
+    // The gem is rebuilt EXACTLY on the full-rebuild path — never on scenic
+    // reuse (rebuilding then would flash + realloc GPU = behavior change).
+    const _didFullRebuild = !_scenicValid;
+
     if (_scenicValid) {
       // Do NOT call _disposeAllManifestState() — existing streets/labels/
       // paths/gem stay in the scene unmodified. Do NOT call buildWorld.
@@ -1056,9 +1048,6 @@ export function createWorld(_canvas: HTMLCanvasElement) {
       streetPickables = cellBuilt.streetPickables || [];
       streetLabels = cellBuilt.streetLabels || [];
       asphaltMeshes = cellBuilt.asphaltMeshes || [];
-      rootGem = cellBuilt.rootGem || null;
-      rootGemBody = cellBuilt.rootGemBody || null;
-      rootGemEdges = cellBuilt.rootGemEdges || null;
 
       for (const child of [...cellBuilt.scene.children]) scene.add(child);
       scene.background = new THREE.Color(SCENE.value.SKY_COLOR);
@@ -1073,6 +1062,10 @@ export function createWorld(_canvas: HTMLCanvasElement) {
 
     _buildLookups();
     _computeRootStreetAndGem();
+    // Rebuild the gem's inner mesh only on the full-rebuild path, matching
+    // exactly when buildWorld used to build it (scenic reuse leaves the
+    // existing gem untouched). rootStreet was just set by the call above.
+    if (_didFullRebuild && rootStreet) _gem.rebuild(rootStreet);
 
     // City is now in the scene. Decoration pass (trees, future mesa
     // bounds, etc.) is deferred to the next animation frame so the
@@ -1123,9 +1116,9 @@ export function createWorld(_canvas: HTMLCanvasElement) {
     _repoLabel.setRepoName(manifest.tree.name);
     _repoLabel.setAnchor(gemWorldPos ?? new THREE.Vector3());
     // Hand the live gem to the label so its beam foot tracks the
-    // gem's hover height + bob animation. rootGem is the gem GROUP
-    // whose .position.y is mutated each frame by the renderLoop.
-    _repoLabel.setGem(rootGem);
+    // gem's hover height + bob animation. _gem.gem is the INNER gem
+    // group whose .position.y is mutated each frame by the gem's tick().
+    _repoLabel.setGem(_gem.gem);
     _repoLabel.refresh();
 
     // Floor is sized from the scene's bbox + buffer. Falls back to a
@@ -1221,6 +1214,7 @@ export function createWorld(_canvas: HTMLCanvasElement) {
     _sky.dispose();
     _repoLabel.dispose();
     _island.dispose();
+    _gem.dispose();
     if (_trees) {
       _trees.dispose();
       _trees = null;
@@ -1438,16 +1432,20 @@ export function createWorld(_canvas: HTMLCanvasElement) {
       return asphaltMeshes;
     },
     getRootGem() {
-      return rootGem;
+      return _gem.gem;
     },
     getRepoLabelBounds() {
       return _repoLabel.getPanelBounds();
     },
-    getRootGemBody() {
-      return rootGemBody;
+    /** The gem scene component. renderLoop drives its per-frame tick(). */
+    getGem(): Gem {
+      return _gem;
     },
-    getRootGemEdges() {
-      return rootGemEdges;
+    /** Shared SceneContext for components built in world before the
+     *  picker/camera/renderer exist. renderLoop populates picker/camera/
+     *  renderer immediately after creating them, before the first frame. */
+    getSceneCtx(): SceneContext {
+      return _ctx as unknown as SceneContext;
     },
     getRootStreet() {
       return rootStreet;

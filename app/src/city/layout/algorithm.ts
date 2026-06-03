@@ -841,7 +841,7 @@ function _layoutDir(
   const gemRadiusFrac = gemSizing.RADIUS_AS_STREET_FRAC;
   // Derive the plaza clearance from the gem's own diameter so the dead
   // space scales with the gem. Mirror the same MIN_RADIUS floor that
-  // scene/components/gem/gem.ts uses when sizing the actual gem geometry so the layout
+  // city/components/gem/mesh.ts uses when sizing the actual gem geometry so the layout
   // pad never under-reserves for a narrow root street.
   const gemRadius = Math.max(myStreetWidth * gemRadiusFrac, gemSizing.MIN_RADIUS);
   const gemDiameter = gemRadius * 2;

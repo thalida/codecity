@@ -9,9 +9,6 @@ import * as THREE from 'three';
 import { effect } from '@preact/signals';
 
 import { STREETS } from '../state/stores/settings/streets';
-import { GEM } from '../state/stores/settings/gem';
-import { BLOOM } from '../state/stores/settings/effects';
-import { GEM_HOVER_LIFT_FRAC } from '@/city/components/gem/gem';
 import { NodeKind, StreetAxis } from '../types';
 import type { Manifest } from '../types';
 
@@ -104,6 +101,18 @@ export async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manif
   // a fresh load and is re-resolved against each freshly-built city so the
   // selection survives in-session rebuilds.
   const picker = createPicker({ canvas, camera, world });
+
+  // Populate the shared SceneContext that components built inside world
+  // (the gem) captured at construction. This runs before animate() is first
+  // called, so the gem's tick() sees a live picker on frame 1. The gem's
+  // theme effect only reads GEM/BLOOM signals, so it was already safe at
+  // construction (before the picker existed).
+  {
+    const ctx = world.getSceneCtx();
+    ctx.picker = picker;
+    ctx.camera = camera;
+    ctx.renderer = renderer;
+  }
 
   // -- 6. Per-frame visual modules ---------------------------------------------
   // Four siblings, all subscribed to picker / world so they react
@@ -232,84 +241,8 @@ export async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manif
     // until the first manifest with media files applies.
     world.getAdPanels()?.refresh();
 
-    const gemAppearance = GEM.value;
-    const rootGemEdges = world.getRootGemEdges();
-    const rootGemBody = world.getRootGemBody();
-    const rootGem = world.getRootGem();
-    if (rootGemEdges?.material?.color) {
-      rootGemEdges.material.color.set(gemAppearance.EDGE_COLOR);
-    }
-    if (rootGemBody?.material) {
-      const op = gemAppearance.BODY_OPACITY;
-      rootGemBody.material.opacity = op;
-      // Toggle `transparent` to match the opacity. Without this, dropping
-      // opacity below 1 has no visual effect after the gem was created
-      // with opacity = 1.
-      const wantTransparent = op < 1;
-      if (rootGemBody.material.transparent !== wantTransparent) {
-        rootGemBody.material.transparent = wantTransparent;
-        rootGemBody.material.needsUpdate = true;
-      }
-    }
-    // Per-face colors live on the gem body's geometry as a BufferAttribute,
-    // baked at construction. Rewrite it in place on Save so palette tweaks
-    // take effect without a full applyManifest rebuild.
-    if (rootGemBody?.geometry?.attributes.color) {
-      const palette = GEM.value;
-      const paletteHexes = [
-        palette.FACE_1,
-        palette.FACE_2,
-        palette.FACE_3,
-        palette.FACE_4,
-        palette.FACE_5,
-        palette.FACE_6,
-        palette.FACE_7,
-        palette.FACE_8,
-      ];
-      const faceColors = paletteHexes.map((hex) => {
-        const c = new THREE.Color(hex);
-        return [c.r, c.g, c.b] as [number, number, number];
-      });
-      const geo = rootGemBody.geometry;
-      const colorAttr = geo.attributes.color as THREE.BufferAttribute;
-      const vertexCount = geo.attributes.position.count;
-      const faceCount = vertexCount / 3;
-      const arr = colorAttr.array as Float32Array;
-      for (let f = 0; f < faceCount; f++) {
-        const fc = faceColors[f % faceColors.length];
-        for (let v = 0; v < 3; v++) {
-          const idx = (f * 3 + v) * 3;
-          arr[idx] = fc[0];
-          arr[idx + 1] = fc[1];
-          arr[idx + 2] = fc[2];
-        }
-      }
-      colorAttr.needsUpdate = true;
-    }
-    if (rootGem && rootGem.userData.streetWidth != null) {
-      const hoverFrac = GEM_HOVER_LIFT_FRAC;
-      rootGem.userData.baseY = rootGem.userData.radius + rootGem.userData.streetWidth * hoverFrac;
-    }
-
-    // Glow halo: scale, opacity, visibility from GEM_GLOW config. Color
-    // is driven per-frame by the render loop (palette cycle), so we
-    // don't touch it here.
-    if (rootGem && rootGem.userData.radius != null) {
-      const glowCfg = GEM.value;
-      const r = rootGem.userData.radius as number;
-      const inner = rootGem.userData.innerGlowSprite as THREE.Sprite | null;
-      const outer = rootGem.userData.outerGlowSprite as THREE.Sprite | null;
-      if (inner) {
-        inner.visible = glowCfg.GLOW_ENABLED;
-        inner.scale.set(r * glowCfg.GLOW_INNER_SCALE, r * glowCfg.GLOW_INNER_SCALE, 1);
-        (inner.material as THREE.SpriteMaterial).opacity = glowCfg.GLOW_INNER_OPACITY;
-      }
-      if (outer) {
-        outer.visible = glowCfg.GLOW_ENABLED;
-        outer.scale.set(r * glowCfg.GLOW_OUTER_SCALE, r * glowCfg.GLOW_OUTER_SCALE, 1);
-        (outer.material as THREE.SpriteMaterial).opacity = glowCfg.GLOW_OUTER_OPACITY;
-      }
-    }
+    // The gem reacts to GEM/BLOOM Save via its own theme effect (owned by
+    // the gem component), so applyTheme() no longer touches the gem.
 
     const labelCfg = STREETS.value;
     const streetLabels = world.getStreetLabels();
@@ -457,68 +390,13 @@ export async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manif
     // Street labels are world-space text on the asphalt — orient toward
     // camera each frame so they remain readable from any rotation.
     _orientLabelsForCamera(world.getStreetLabels(), camera, labelRight);
-    const rootGem = world.getRootGem();
-    if (rootGem) {
-      const gemAnim = GEM.value;
+    // Root gem — rotation / bob / hover-scale / glow palette cycle / HDR
+    // bloom push all live in the gem component's tick(). It uses absolute
+    // time (frame.time), not dt, and reads hover via the SceneContext picker
+    // captured at construction. dt is non-critical here.
+    {
       const t = (performance.now() - startTime) / 1000;
-      rootGem.rotation.y = t * gemAnim.ROTATION_SPEED;
-      // BOB_AMPLITUDE_FRAC is read live each frame so the slider
-      // updates without a rebuild. The gem radius is cached on
-      // userData at gem-build time (it depends on root-street width).
-      rootGem.position.y =
-        rootGem.userData.baseY +
-        Math.sin(t * gemAnim.BOB_FREQUENCY) *
-          (rootGem.userData.radius * gemAnim.BOB_AMPLITUDE_FRAC);
-      // Scale-up affordance on hover so the gem reads as clickable.
-      const hov = picker.hover.value;
-      const gemTargetScale = hov && hov.kind === NodeKind.Gem ? gemAnim.HOVER_SCALE : 1.0;
-      const curS = rootGem.scale.x;
-      const nextS = curS + (gemTargetScale - curS) * gemAnim.SCALE_LERP_SPEED;
-      rootGem.scale.set(nextS, nextS, nextS);
-
-      // Glow color: animate through GEM_FACE_PALETTE when ANIMATE_COLORS
-      // is on; otherwise fall back to the gem's EDGE_COLOR. Two halos
-      // cycle on different phases so the gem reads with two colors at
-      // any moment, blending as they cross.
-      const glowCfg = GEM.value;
-      const inner = rootGem.userData.innerGlowSprite as THREE.Sprite | null;
-      const outer = rootGem.userData.outerGlowSprite as THREE.Sprite | null;
-      if (inner || outer) {
-        if (glowCfg.GLOW_ANIMATE_COLORS) {
-          const palette = GEM.value;
-          const hexes = [
-            palette.FACE_1,
-            palette.FACE_2,
-            palette.FACE_3,
-            palette.FACE_4,
-            palette.FACE_5,
-            palette.FACE_6,
-            palette.FACE_7,
-            palette.FACE_8,
-          ];
-          const period = Math.max(0.001, glowCfg.GLOW_CYCLE_PERIOD_SECONDS);
-          if (inner)
-            _setPaletteColor((inner.material as THREE.SpriteMaterial).color, hexes, t, period, 0);
-          if (outer)
-            _setPaletteColor((outer.material as THREE.SpriteMaterial).color, hexes, t, period, 0.5);
-        } else {
-          const edge = GEM.value.EDGE_COLOR;
-          if (inner) (inner.material as THREE.SpriteMaterial).color.set(edge);
-          if (outer) (outer.material as THREE.SpriteMaterial).color.set(edge);
-        }
-        // HDR push for selective gem bloom. Sprite color was just set
-        // to an LDR palette value; multiplying scales it past 1.0 in
-        // linear space so the bloom pass picks it up independently of
-        // BLOOM.WINDOW_EMISSION. 1.0 = no bloom from gem; higher = more.
-        // Gated on BLOOM.ENABLED so the "flat" comparison mode skips
-        // the HDR push entirely.
-        const bloomCfg = BLOOM.value;
-        const gemEmission = bloomCfg.ENABLED ? bloomCfg.GEM_EMISSION : 1.0;
-        if (gemEmission !== 1) {
-          if (inner) (inner.material as THREE.SpriteMaterial).color.multiplyScalar(gemEmission);
-          if (outer) (outer.material as THREE.SpriteMaterial).color.multiplyScalar(gemEmission);
-        }
-      }
+      world.getGem().tick(0, { dt: 0, time: t, camera });
     }
     // Sync the Cyberpunk Valley sky sphere to the camera RIGHT BEFORE
     // the render call so its world matrix is guaranteed fresh. Doing
@@ -555,30 +433,6 @@ export async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manif
       rig.focusSelection(picker.targetForPath(path));
     },
   };
-}
-
-// Cycle a THREE.Color in place through a palette of [r,g,b] triples,
-// smoothly interpolating between adjacent palette entries. One full
-// loop through every color takes `period` seconds; `offset` (0..1)
-// shifts the starting phase so multiple sprites can run different
-// "ahead-of-each-other" cadences without allocating new Colors.
-function _setPaletteColor(
-  out: THREE.Color,
-  palette: ReadonlyArray<string>,
-  t: number,
-  period: number,
-  offset: number
-): void {
-  const n = palette.length;
-  if (n === 0) return;
-  const phase = (((t / period + offset) % 1) + 1) % 1; // wrap negatives
-  const idxf = phase * n;
-  const a = Math.floor(idxf) % n;
-  const b = (a + 1) % n;
-  const f = idxf - Math.floor(idxf);
-  const A = new THREE.Color(palette[a]);
-  const B = new THREE.Color(palette[b]);
-  out.setRGB(A.r + (B.r - A.r) * f, A.g + (B.g - A.g) * f, A.b + (B.b - A.b) * f);
 }
 
 // Keep flat street labels readable at any orbit. Flip decision comes from the

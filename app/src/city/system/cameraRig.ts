@@ -209,7 +209,7 @@ export function createCameraRig({
     // Default framing direction: place the camera BEHIND the gem along
     // the root street's long axis (the street extends in +X for X-oriented
     // or +Z for Y-oriented; the gem sits at the low end — see
-    // scene/components/gem/gem.ts:createRootGem) at a moderate elevation with a slight
+    // city/components/gem/mesh.ts:createRootGem) at a moderate elevation with a slight
     // lateral offset so the view reads as 3D oblique rather than face-on
     // down the road. FRAMING_DIR_Y (1.0) → ~44° elevation after the
     // lateral mix; FRAMING_DIR_LATERAL (0.3) → ~15° azimuth off the

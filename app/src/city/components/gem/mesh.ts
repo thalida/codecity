@@ -1,14 +1,17 @@
-// scene/components/gem/gem.ts — The root gem. A floating, slowly-spinning polyhedron with
-// per-face vertex colors and a two-layer additive sprite halo.
+// city/components/gem/mesh.ts — The root gem MESH BUILDER. Builds a
+// floating, slowly-spinning polyhedron with per-face vertex colors and a
+// two-layer additive sprite halo. This is the PRIVATE structure factory;
+// the public door is index.ts (createGem), which owns the gem's
+// settings-reactivity, per-frame animation, and disposal.
 //
 // One gem per scene: it marks the layout's root street as the "you are
 // here" beacon. Hovers above the ORIGIN-END cap of the root street;
 // the layout reserves dead space at that end so the rounded cap acts
 // as the gem's plaza (no separate pad mesh).
 //
-// Animation: the render loop reads `gem.userData.{baseY,radius,…}` and
-// applies per-frame rotation + bob + glow-color cycling. This module
-// just builds the static structure; mutation lives elsewhere.
+// Animation: the createGem component reads `gem.userData.{baseY,radius,…}`
+// and applies per-frame rotation + bob + glow-color cycling. This module
+// just builds the static structure; mutation lives in index.ts.
 
 import * as THREE from 'three';
 import { GEM, GEM_SIZING } from '@/state/stores/settings/gem';
@@ -17,7 +20,8 @@ import { gemAnchorXZ } from '../../utils/gemAnchor';
 import type { Street } from '@/types';
 
 // Gem hover-lift as a fraction of street width — fixed, not user-tunable
-// (was in GEM_SIZING but never exposed as a control). Shared with renderLoop.
+// (was in GEM_SIZING but never exposed as a control). Used by the gem
+// component (index.ts) to recompute baseY on Save.
 export const GEM_HOVER_LIFT_FRAC = 0.5;
 
 // Procedural glow texture: a single-channel radial gradient drawn on a
