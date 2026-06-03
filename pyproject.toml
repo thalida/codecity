@@ -33,6 +33,10 @@ dev = [
     "pytest-xdist>=3",
     "pytest-cov>=4",
     "pyright>=1.1",
+    # Starlette 1.2.x's TestClient prefers httpx2 (`import httpx2 as httpx`);
+    # plain httpx is deprecated for testclient and warns. httpx2 is the
+    # maintainer-recommended successor — keep it to stay warning-free.
+    "httpx2>=2.3",
 ]
 
 [tool.pytest.ini_options]
