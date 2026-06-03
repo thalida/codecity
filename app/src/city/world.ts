@@ -60,8 +60,8 @@ import { createFireflies } from './components/fireflies/fireflies';
 import type { Fireflies } from './components/fireflies/fireflies';
 import { createTreePlacementClient } from './components/trees/treePlacementClient';
 import type { TreePlacementClient } from './components/trees/treePlacementClient';
-import { createIsland } from './components/island/islandMesh';
-import type { Island } from './components/island/islandMesh';
+import { createIsland } from './components/island';
+import type { Island } from './components/island';
 import { getWorldBounds, type WorldBounds } from './utils/floorBounds';
 import { createCityFootprint } from './components/footprint/footprint';
 import type { CityFootprint } from './components/footprint/footprint';
@@ -309,15 +309,6 @@ export function createWorld(_canvas: HTMLCanvasElement) {
   const _repoLabel: RepoLabel = createRepoLabel();
   scene.add(_repoLabel.group);
 
-  // Cyberpunk Valley floating island — a shaped polygonal slab that
-  // replaces the old flat world-floor plane. Built ONCE at scene init
-  // (it's not layout-dependent — the island is sized to the world
-  // bounds, not the city mesh). Sits at renderOrder -500, so it
-  // draws AFTER the sky (-1000) but BEFORE the city's own ground
-  // tiles (sidewalks at 1, asphalt at 3) — those paint on top.
-  const _island: Island = createIsland(null);
-  scene.add(_island.group);
-
   // Root gem — a self-contained scene component built ONCE here (parallel
   // to sky/island/repoLabel); rebuild() swaps its inner mesh on full
   // applyManifest rebuilds. The gem reads the picker/camera/renderer only
@@ -345,6 +336,16 @@ export function createWorld(_canvas: HTMLCanvasElement) {
   // from `_ctx`, accepting it only for createX(ctx) composer uniformity.
   const _sky: Sky = createSky(_ctx as unknown as SceneContext);
   scene.add(_sky.group);
+
+  // Cyberpunk Valley floating island — a shaped polygonal slab that
+  // replaces the old flat world-floor plane. Built ONCE at scene init
+  // (it's not layout-dependent — the island is sized to the world
+  // bounds, not the city mesh). Sits at renderOrder -500, so it
+  // draws AFTER the sky (-1000) but BEFORE the city's own ground
+  // tiles (sidewalks at 1, asphalt at 3) — those paint on top.
+  // Uses nothing from `_ctx`; accepts it only for createX(ctx) uniformity.
+  const _island: Island = createIsland(_ctx as unknown as SceneContext);
+  scene.add(_island.group);
 
   // Cyberpunk Valley trees — REBUILT per applyManifest. One tree per
   // commit, placed commit-driven across the world floor.
@@ -1292,15 +1293,6 @@ export function createWorld(_canvas: HTMLCanvasElement) {
      */
     getRepoLabel(): RepoLabel {
       return _repoLabel;
-    },
-
-    /**
-     * Cyberpunk Valley floating island reference. The island is
-     * world-anchored at the gem; this is exposed for applyTheme()
-     * (applyTheme() on Save) and any future external access.
-     */
-    getIsland(): Island {
-      return _island;
     },
 
     /**

@@ -216,11 +216,6 @@ export async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manif
     // when STYLE changed; otherwise just updates uniforms + transform.
     world.getRepoLabel().refresh();
 
-    // Cyberpunk Valley floating island — pulls fresh ISLAND_MATERIALS /
-    // ISLAND_GEOMETRY / ISLAND_UNDERGLOW config so colour pickers + toggles
-    // hot-update without a manifest rebuild.
-    world.getIsland().refresh();
-
     // Cyberpunk Valley trees — pushes fresh TREE_GREENS + TRUNK_COLOR
     // into per-instance color buffers. Null until the first manifest applies.
     world.getTrees()?.refresh();
@@ -368,10 +363,6 @@ export async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manif
       return dt;
     })();
     {
-      // Island tick: updates uSunDirWorld uniform from the sun direction.
-      // (No ordering dependency on the sky — island.tick() is a static
-      // hemispheric-lighting no-op.)
-      world.getIsland().tick();
       // Floating repo-name label tick — advances per-style uTime and
       // (for the Hologram style) rotates the text panel to face the
       // camera. Pulls the active ANIMATION_SPEED from REPO_LABEL config.

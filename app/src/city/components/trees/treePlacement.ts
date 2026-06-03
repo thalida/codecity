@@ -30,7 +30,7 @@ import { BUILDING_DIMENSIONS } from '@/state/stores/settings/buildings';
 import { ISLAND } from '@/state/stores/settings/island';
 import { getWorldBounds } from '../../utils/floorBounds';
 import { buildTopPolygon, pointInIslandPolygon } from '../island/islandGeometry';
-import { islandSeedFromBounds } from '../island/islandMesh';
+import { islandSeedFromBounds } from '../island';
 import { StreetAxis } from '@/types';
 import { gemAnchorXZ } from '../../utils/gemAnchor';
 import type { Building, CityBbox, CityLayout, Street } from '@/types';

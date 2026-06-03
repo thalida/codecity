@@ -1,31 +1,49 @@
-// scene/components/island/islandMesh.ts — Public API for the floating-island
-// world-plane module. Replaces createWorldFloor() (worldFloor.ts).
+// city/components/island/index.ts — Cyberpunk Valley floating-island COMPONENT
+// (public door).
 //
-// Lifecycle:
-//   const island = createIsland(null);
-//   scene.add(island.group);
-//   island.setBounds(getWorldBounds(bbox)); // when layout (re)computes
-//   island.refresh();                       // on every applyTheme()
-//   island.dispose();
+// Self-contained scene component: builds a shaped polygonal slab that replaces
+// the old flat world-floor plane. The component owns its settings-reactivity
+// (an effect reading ISLAND) and frees its own GPU resources + stops its
+// effect in dispose(). Persistent — the island group is added once at world
+// boot and sized via setBounds() when layout (re)computes.
+//
+// Lifecycle (matches the other createX(ctx) components under app/city/):
+//
+//   const island = createIsland(ctx);
+//   scene.add(island.group);              // once, at world boot
+//   island.setBounds(getWorldBounds(…)); // when layout (re)computes
+//   island.dispose();                    // on world teardown
+//
+// The settings effect replaces the old refresh() / applyTheme() path:
+// it reads ISLAND (ENABLED, colors, geometry params) and rebuilds geometry
+// + material uniforms on every ISLAND Save. It runs once at construction
+// (idempotently re-applying the same values the constructor baked — a
+// redundant geometry rebuild with default bounds is acceptable since
+// world.setBounds(realBounds) immediately follows, producing identical output).
+//
+// Construction-time bridge (Strategy A, same as sky/gem): the island is
+// built inside world.ts BEFORE the picker/camera/renderer exist. The
+// component accepts the SceneContext for createX(ctx) composer uniformity
+// but uses nothing from it; the `_ctx` arg is unused (see sky/gem precedents).
+//
+// tick() is OMITTED — island hemispheric lighting is static; there is no
+// per-frame work. The SceneComponent contract makes tick optional.
 
 import * as THREE from 'three';
+import { effect } from '@preact/signals';
+
 import { ISLAND } from '@/state/stores/settings/island';
 import { getWorldBounds, type WorldBounds } from '@/city/utils/floorBounds';
 import { buildIslandGeometry, type IslandBuildParams } from './islandGeometry';
 import { createIslandMaterial } from './islandShader';
 import { RENDER_ORDERS } from '@/city/renderOrders';
+import type { SceneComponent, SceneContext } from '../../types';
 
 const ISLAND_TOP_Y = -2.0; // Increased from -0.5 for z-fighting prevention (4x separation from city y=0)
 
-export interface Island {
-  group: THREE.Group;
+export interface Island extends SceneComponent {
   /** Rebuild geometry and reposition group to fit the given bounds. */
   setBounds(bounds: WorldBounds): void;
-  /** Pull fresh values from config stores; called on Save via applyTheme(). */
-  refresh(): void;
-  /** Per-frame tick: no-op for the island (hemispheric lighting is static). */
-  tick(): void;
-  dispose(): void;
 }
 
 function buildParams(bounds: WorldBounds, seedFromBounds: number): IslandBuildParams {
@@ -45,7 +63,7 @@ function buildParams(bounds: WorldBounds, seedFromBounds: number): IslandBuildPa
 
 // Stable seed from bounds so the same repo always gets the same silhouette.
 // Exported so tree placement (running in a worker) can rebuild the identical
-// polygon without reaching into islandMesh's private state.
+// polygon without reaching into index.ts's private state.
 export function islandSeedFromBounds(b: WorldBounds): number {
   const x = Math.round(b.cx * 1000) | 0;
   const z = Math.round(b.cz * 1000) | 0;
@@ -59,8 +77,11 @@ export function islandSeedFromBounds(b: WorldBounds): number {
   return h >>> 0;
 }
 
-export function createIsland(initialBounds: WorldBounds | null): Island {
-  let currentBounds = initialBounds ?? getWorldBounds(null);
+// `_ctx` is accepted for createX(ctx) composer uniformity; the island uses
+// nothing from it at construction (no picker/camera/renderer needed; scene-add
+// done by world.ts). The `_`-prefix matches the eslint argsIgnorePattern.
+export function createIsland(_ctx: SceneContext): Island {
+  let currentBounds = getWorldBounds(null);
   const group = new THREE.Group();
   group.position.set(currentBounds.cx, ISLAND_TOP_Y, currentBounds.cz);
   group.visible = ISLAND.value.ENABLED;
@@ -94,25 +115,27 @@ export function createIsland(initialBounds: WorldBounds | null): Island {
     group.position.set(currentBounds.cx, ISLAND_TOP_Y, currentBounds.cz);
   }
 
-  function refresh(): void {
+  // Settings effect — reacts to ISLAND changes (Save). Replaces the old
+  // island.refresh() call in renderLoop.applyTheme(). Reads ISLAND (ENABLED,
+  // colors, geometry params) and rebuilds geometry + pushes material uniforms
+  // (same writes as the old refresh(), verbatim). Runs once at construction,
+  // re-applying the same values the constructor baked (idempotent).
+  const stopEffect = effect(() => {
     // Geometry colors changed → rebuild (vertex colors are baked into the
     // geometry, not pushed through uniforms). This is cheap for ~1-2k verts.
     setBounds(currentBounds);
     group.visible = ISLAND.value.ENABLED;
-    const mats = ISLAND.value;
-    (material.uniforms.uHemiSkyColor!.value as THREE.Color).set(mats.HEMI_SKY_COLOR);
-    (material.uniforms.uHemiGroundColor!.value as THREE.Color).set(mats.HEMI_GROUND_COLOR);
-  }
-
-  function tick(): void {
-    // Island uses hemispheric lighting — no sun direction to update.
-  }
+    const m = ISLAND.value;
+    (material.uniforms.uHemiSkyColor!.value as THREE.Color).set(m.HEMI_SKY_COLOR);
+    (material.uniforms.uHemiGroundColor!.value as THREE.Color).set(m.HEMI_GROUND_COLOR);
+  });
 
   function dispose(): void {
     if (group.parent) group.parent.remove(group);
     geometry.dispose();
     material.dispose();
+    stopEffect();
   }
 
-  return { group, setBounds, refresh, tick, dispose };
+  return { group, setBounds, dispose };
 }
