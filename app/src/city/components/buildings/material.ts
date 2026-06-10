@@ -12,7 +12,7 @@ import { FACADE } from '@/state/stores/settings/facade';
 import { BLOOM } from '@/state/stores/settings/effects';
 import { SCENE } from '@/state/stores/settings/scene';
 import type { IconAtlas } from './atlas';
-import { writeSunDir } from '@/city/components/lighting/sunDir';
+import { writeSunDir } from '@/city/utils/lighting/sunDir';
 import {
   LIGHTING_SUN_AZIMUTH_DEG,
   LIGHTING_SUN_ELEVATION_DEG,

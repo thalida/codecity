@@ -38,7 +38,7 @@ import {
 } from './treeEncoding';
 import { interpolateOklch } from '@/city/utils/color/colors';
 import { setColorFromHex } from '@/city/utils/color/setColorFromHex';
-import { sunDir } from '@/city/components/lighting/sunDir';
+import { sunDir } from '@/city/utils/lighting/sunDir';
 import { LIGHTING_SUN_AZIMUTH_DEG, LIGHTING_SUN_ELEVATION_DEG } from '@/constants/lighting';
 
 export interface Trees {
