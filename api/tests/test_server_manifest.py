@@ -59,8 +59,8 @@ def test_manifest_stream_local(client: TestClient, repo: Path, allow_local_repos
         body = "".join(r.iter_text())
     events = _parse_sse(body)
     names = [n for n, _ in events]
-    assert "scanning" in names
-    assert names[-1] == "final"
+    assert "scan-progress" in names
+    assert names[-1] == "manifest-complete"
     final = events[-1][1]
     assert final["manifest"]["root"]
     assert final["manifest"]["tree"]["type"] == "directory"
@@ -85,17 +85,17 @@ def test_manifest_stream_local_disabled_error_event(client: TestClient, repo: Pa
 
 
 def test_manifest_cold_scan_then_warm_cache_hit(client: TestClient, repo: Path, allow_local_repos) -> None:
-    # First request WITHOUT no_cache: cold scan must emit skeleton+final AND
-    # write the manifest cache (the bug-fix under test).
+    # First request WITHOUT no_cache: cold scan must emit manifest-partial +
+    # manifest-complete AND write the manifest cache (the bug-fix under test).
     with client.stream("GET", "/api/manifest", params={"src": str(repo)}) as r:
         cold = _parse_sse("".join(r.iter_text()))
     cold_names = [n for n, _ in cold]
-    assert "skeleton" in cold_names
-    assert cold_names[-1] == "final"
+    assert "manifest-partial" in cold_names
+    assert cold_names[-1] == "manifest-complete"
 
-    # Second identical request: warm-cache hit -> single final, NO skeleton.
+    # Second request: warm-cache hit -> single manifest-complete, NO partial.
     with client.stream("GET", "/api/manifest", params={"src": str(repo)}) as r:
         warm = _parse_sse("".join(r.iter_text()))
     warm_names = [n for n, _ in warm]
-    assert "skeleton" not in warm_names, f"expected warm hit, got {warm_names}"
-    assert warm_names[-1] == "final"
+    assert "manifest-partial" not in warm_names, f"expected warm hit, got {warm_names}"
+    assert warm_names[-1] == "manifest-complete"

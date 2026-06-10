@@ -30,7 +30,7 @@ describe('loadingReactions', () => {
   });
 
   it('advances the step to Building on the skeleton phase', () => {
-    SCAN_PROGRESS.value = { kind: SourceKind.Git, label: 'r', phase: ScanPhase.Skeleton };
+    SCAN_PROGRESS.value = { kind: SourceKind.Git, label: 'r', phase: ScanPhase.PartialManifest };
     expect(LOADING_OVERLAY.value.activeStep).toBe(LoadingStep.Skeleton);
   });
 
@@ -38,7 +38,7 @@ describe('loadingReactions', () => {
     SCAN_PROGRESS.value = {
       kind: SourceKind.Git,
       label: 'r',
-      phase: ScanPhase.Cloning,
+      phase: ScanPhase.CloneProgress,
       percent: 45,
       stage: 'Receiving',
     };
@@ -47,7 +47,7 @@ describe('loadingReactions', () => {
   });
 
   it('hides the overlay when progress clears', () => {
-    SCAN_PROGRESS.value = { kind: SourceKind.Local, label: 'proj', phase: ScanPhase.Scanning };
+    SCAN_PROGRESS.value = { kind: SourceKind.Local, label: 'proj', phase: ScanPhase.ScanProgress };
     SCAN_PROGRESS.value = null;
     expect(LOADING_OVERLAY.value.visible).toBe(false);
   });

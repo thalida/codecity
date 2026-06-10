@@ -30,23 +30,23 @@ export function attachLoadingReactions(): () => void {
       showLoadingOverlay({ kind: p.kind, label: p.label, branch: p.branch });
       wasActive = true;
     }
-    if (p.phase === ScanPhase.Cloning) {
+    if (p.phase === ScanPhase.CloneProgress) {
       setLoadingStep(LoadingStep.Cloning);
       setLoadingStepTail(
         LoadingStep.Cloning,
         p.percent !== undefined ? `${p.percent}%${p.stage ? ` (${p.stage})` : ''}` : null
       );
-    } else if (p.phase === ScanPhase.Scanning) {
+    } else if (p.phase === ScanPhase.ScanProgress) {
       setLoadingStep(LoadingStep.Scanning);
       setLoadingStepTail(
         LoadingStep.Scanning,
         p.filesScanned !== undefined ? `${p.filesScanned.toLocaleString()} files` : null
       );
-    } else if (p.phase === ScanPhase.Skeleton || p.phase === ScanPhase.Final) {
+    } else if (p.phase === ScanPhase.PartialManifest || p.phase === ScanPhase.CompleteManifest) {
       // Progress tails done.
       setLoadingStepTail(LoadingStep.Cloning, null);
       setLoadingStepTail(LoadingStep.Scanning, null);
-      setLoadingStep(p.phase === ScanPhase.Skeleton ? LoadingStep.Skeleton : LoadingStep.Building);
+      setLoadingStep(p.phase === ScanPhase.PartialManifest ? LoadingStep.Skeleton : LoadingStep.Building);
     }
     // p.phase === null: just-started; showLoadingOverlay already set the
     // kind-based initial step — nothing more to do until a real event.

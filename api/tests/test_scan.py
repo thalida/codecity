@@ -38,7 +38,7 @@ def _final_manifest(root: str, **kwargs) -> Manifest:
     point-free of the phase iteration."""
     final: Manifest | None = None
     for event in scan_tree(root, **kwargs):
-        if event["phase"] == "final":
+        if event["phase"] == "manifest-complete":
             final = event["manifest"]
     assert final is not None, "scan_tree must yield a final event"
     return final
@@ -343,8 +343,8 @@ class ScanTreeIntegrationTests(_CacheRedirectMixin, unittest.TestCase):
         # on every commit. Guards against a future emit path skipping wrap.
         events = list(scan_tree(str(FIXTURE), use_cache=False))
         phases = [e["phase"] for e in events]
-        self.assertIn("skeleton", phases)
-        self.assertIn("final", phases)
+        self.assertIn("manifest-partial", phases)
+        self.assertIn("manifest-complete", phases)
         for e in events:
             for c in e["manifest"]["commits"]:
                 self.assertIn(
@@ -806,7 +806,7 @@ class GitMetadataParallelTests(_CacheRedirectMixin, unittest.TestCase):
         # The multi-author commit is now the newest; the scanner emits
         # oldest-first so it's last.
         events = list(scan_tree(str(FIXTURE)))
-        final = next(e for e in events if e["phase"] == "final")
+        final = next(e for e in events if e["phase"] == "manifest-complete")
         commits = final["manifest"]["commits"]
         multi = commits[-1]
         self.assertEqual(
@@ -1360,8 +1360,8 @@ class ScanTreeStreamingTests(unittest.TestCase):
             self._make_tiny_repo(td)
             events = list(scan_tree(td))
         self.assertEqual(len(events), 2)
-        self.assertEqual(events[0]["phase"], "skeleton")
-        self.assertEqual(events[1]["phase"], "final")
+        self.assertEqual(events[0]["phase"], "manifest-partial")
+        self.assertEqual(events[1]["phase"], "manifest-complete")
 
     def test_skeleton_has_placeholder_metadata(self) -> None:
         from api.services.scan import scan_tree
@@ -1405,7 +1405,7 @@ class ScanTreeStreamingTests(unittest.TestCase):
             ev = threading.Event()
             gen = scan_tree(td, cancel_event=ev)
             skeleton = next(gen)
-            self.assertEqual(skeleton["phase"], "skeleton")
+            self.assertEqual(skeleton["phase"], "manifest-partial")
             ev.set()
             with self.assertRaises(ScanCancelledError):
                 next(gen)

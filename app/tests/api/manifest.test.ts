@@ -36,35 +36,35 @@ function makeES(): { ctor: typeof EventSource; last: () => StubEventSource } {
 const fakeManifest = { root: '/r', tree: { type: 'directory' } };
 
 describe('streamManifest (EventSource)', () => {
-  it('maps named SSE events to ScanStreamEvents in order and stops after final', async () => {
+  it('maps named SSE events to ScanStreamEvents in order and stops after manifest-complete', async () => {
     const { ctor, last } = makeES();
     const it = streamManifest('/api/manifest?src=x', ctor)[Symbol.asyncIterator]();
     const es = last();
-    es.emit('scanning', JSON.stringify({ display_root: 'x', files_scanned: 3 }));
-    es.emit('skeleton', JSON.stringify({ manifest: fakeManifest }));
-    es.emit('final', JSON.stringify({ manifest: fakeManifest }));
+    es.emit('scan-progress', JSON.stringify({ display_root: 'x', files_scanned: 3 }));
+    es.emit('manifest-partial', JSON.stringify({ manifest: fakeManifest }));
+    es.emit('manifest-complete', JSON.stringify({ manifest: fakeManifest }));
 
     const a = await it.next();
-    expect(a.value).toEqual({ phase: ScanPhase.Scanning, display_root: 'x', files_scanned: 3 });
+    expect(a.value).toEqual({ phase: ScanPhase.ScanProgress, display_root: 'x', files_scanned: 3 });
     const b = await it.next();
-    expect((b.value as ScanStreamEvent).phase).toBe(ScanPhase.Skeleton);
+    expect((b.value as ScanStreamEvent).phase).toBe(ScanPhase.PartialManifest);
     const c = await it.next();
-    expect((c.value as ScanStreamEvent).phase).toBe(ScanPhase.Final);
+    expect((c.value as ScanStreamEvent).phase).toBe(ScanPhase.CompleteManifest);
     const end = await it.next();
     expect(end.done).toBe(true);
     expect(es.closed).toBe(true);
   });
 
-  it('maps a cloning event with display_root', async () => {
+  it('maps a clone-progress event with display_root', async () => {
     const { ctor, last } = makeES();
     const it = streamManifest('/api/manifest', ctor)[Symbol.asyncIterator]();
-    last().emit('cloning', JSON.stringify({ display_root: 'https://example.com/foo.git' }));
+    last().emit('clone-progress', JSON.stringify({ display_root: 'https://example.com/foo.git' }));
     const a = await it.next();
     const ev = a.value as ScanStreamEvent;
-    expect(ev.phase).toBe(ScanPhase.Cloning);
-    // Discriminator narrow — display_root must be on the cloning variant of
-    // ScanStreamEvent, not reached through a cast that would hide drift.
-    if (ev.phase !== ScanPhase.Cloning) throw new Error('expected cloning');
+    expect(ev.phase).toBe(ScanPhase.CloneProgress);
+    // Discriminator narrow — display_root must be on the clone-progress variant
+    // of ScanStreamEvent, not reached through a cast that would hide drift.
+    if (ev.phase !== ScanPhase.CloneProgress) throw new Error('expected clone-progress');
     expect(ev.display_root).toBe('https://example.com/foo.git');
   });
 
@@ -88,7 +88,7 @@ describe('streamManifest (EventSource)', () => {
   it('rejects on a malformed event payload instead of hanging forever', async () => {
     const { ctor, last } = makeES();
     const it = streamManifest('/api/manifest', ctor)[Symbol.asyncIterator]();
-    last().emit('skeleton', '{not valid json'); // truncated/garbage frame
+    last().emit('manifest-partial', '{not valid json'); // truncated/garbage frame
     await expect(it.next()).rejects.toThrow(/malformed/i);
   });
 });

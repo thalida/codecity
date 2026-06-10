@@ -181,12 +181,12 @@ class SignatureResponse(TypedDict):
 
 
 class ScanStreamEvent(TypedDict):
-    """One NDJSON event emitted by scan_tree_streaming.
+    """One manifest event emitted by scan_tree.
 
-    `phase` distinguishes the early skeleton emission (tree only,
-    placeholder metadata) from the final emission (full metadata).
-    Both carry a complete Manifest envelope; the skeleton's tree has
-    placeholder line counts that the final's tree replaces."""
+    `phase` distinguishes the early "manifest-partial" emission (tree only,
+    placeholder metadata) from the "manifest-complete" emission (full
+    metadata). Both carry a Manifest envelope; the partial tree has
+    placeholder line counts that the complete tree replaces."""
 
-    phase: Literal["skeleton", "final"]
+    phase: Literal["manifest-partial", "manifest-complete"]
     manifest: Manifest

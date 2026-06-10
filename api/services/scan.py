@@ -1161,9 +1161,9 @@ def scan_tree(
 ) -> Iterator["ScanStreamEvent"]:
     """Scan a git working tree and yield manifest events.
 
-    Yields a "skeleton" event after the tree walk (placeholder file
-    metadata so the UI can paint immediately), then a "final" event
-    after per-file metadata is populated.
+    Yields a "manifest-partial" event after the tree walk (placeholder
+    file metadata so the UI can paint immediately), then a
+    "manifest-complete" event after per-file metadata is populated.
 
     The scanner walks only paths in ``git ls-files`` — gitignored and
     untracked files are hidden. Raises ``NotAGitRepoError`` if ``root``
@@ -1223,7 +1223,7 @@ def scan_tree(
     skeleton_tree = copy.deepcopy(tree)
     _force_skeleton_placeholders(skeleton_tree)
     yield {
-        "phase": "skeleton",
+        "phase": "manifest-partial",
         "manifest": _wrap_manifest(
             root_abs, skeleton_tree, sig, tree_sig, repo_info, commits_list,
         ),
@@ -1242,7 +1242,7 @@ def scan_tree(
     _hash_repo_info(sig, repo_info)
 
     yield {
-        "phase": "final",
+        "phase": "manifest-complete",
         "manifest": _wrap_manifest(
             root_abs, tree, sig, tree_sig, repo_info, commits_list,
         ),

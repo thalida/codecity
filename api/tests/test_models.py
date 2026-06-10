@@ -59,9 +59,9 @@ class ResponseModelTests(unittest.TestCase):
         )
 
     def test_sse_event_serialization(self) -> None:
-        from api.models.events import ScanningEvent, ErrorEvent
+        from api.models.events import ScanProgressEvent, ErrorEvent
         self.assertEqual(
-            ScanningEvent(display_root="r", files_scanned=3).model_dump(exclude_none=True),
+            ScanProgressEvent(display_root="r", files_scanned=3).model_dump(exclude_none=True),
             {"display_root": "r", "files_scanned": 3},
         )
         self.assertEqual(ErrorEvent(error="boom").model_dump(), {"error": "boom"})

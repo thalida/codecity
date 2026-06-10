@@ -156,8 +156,11 @@ export interface components {
             /** Deleted */
             deleted: number;
         };
-        /** CloningEvent */
-        CloningEvent: {
+        /**
+         * CloneProgressEvent
+         * @description `clone-progress` — git source is being cloned; carries clone progress.
+         */
+        CloneProgressEvent: {
             /** Display Root */
             display_root?: string | null;
             /** Stage */
@@ -196,6 +199,14 @@ export interface components {
             /** Same Day Total */
             same_day_total: number;
         };
+        /**
+         * CompleteManifestEvent
+         * @description `manifest-complete` — a manifest with real, fully-populated metadata (a
+         *     fresh scan's final pass, or a warm cache hit).
+         */
+        CompleteManifestEvent: {
+            manifest: components["schemas"]["Manifest"];
+        };
         /** ConfigResponse */
         ConfigResponse: {
             /** Allowlocalrepos */
@@ -233,7 +244,10 @@ export interface components {
             /** Descendants Ext Breakdown */
             descendants_ext_breakdown: components["schemas"]["ExtBreakdownEntry"][];
         };
-        /** ErrorEvent */
+        /**
+         * ErrorEvent
+         * @description `error` — a failure after the stream began; carries the message.
+         */
         ErrorEvent: {
             /** Error */
             error: string;
@@ -278,10 +292,6 @@ export interface components {
             /** Media Height */
             media_height?: number | null;
         };
-        /** FinalEvent */
-        FinalEvent: {
-            manifest: components["schemas"]["Manifest"];
-        };
         /** GitMeta */
         GitMeta: {
             /**
@@ -323,6 +333,15 @@ export interface components {
             /** Display Root */
             display_root?: string | null;
         };
+        /**
+         * PartialManifestEvent
+         * @description `manifest-partial` — a manifest with the real tree structure but
+         *     placeholder file metadata, sent so the UI can paint the city before
+         *     per-file metadata is resolved.
+         */
+        PartialManifestEvent: {
+            manifest: components["schemas"]["Manifest"];
+        };
         /** RepoInfo */
         RepoInfo: {
             /** Branch */
@@ -336,8 +355,12 @@ export interface components {
             /** Dirty */
             dirty: boolean;
         };
-        /** ScanningEvent */
-        ScanningEvent: {
+        /**
+         * ScanProgressEvent
+         * @description `scan-progress` — the working tree is being walked; carries the
+         *     heartbeat files-scanned count.
+         */
+        ScanProgressEvent: {
             /** Display Root */
             display_root?: string | null;
             /** Files Scanned */
@@ -351,10 +374,6 @@ export interface components {
             scanned_at: string;
             /** Signature */
             signature: string;
-        };
-        /** SkeletonEvent */
-        SkeletonEvent: {
-            manifest: components["schemas"]["Manifest"];
         };
         /** ValidationError */
         ValidationError: {
@@ -559,13 +578,13 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Server-Sent Events stream (`text/event-stream`). Named events and their JSON `data` payloads: `cloning` (CloningEvent), `scanning` (ScanningEvent), `skeleton` (SkeletonEvent), `final` (FinalEvent), `error` (ErrorEvent). The client closes the connection on `final`/`error`. */
+            /** @description Server-Sent Events stream (`text/event-stream`). Named events and their JSON `data` payloads: `clone-progress` (CloneProgressEvent), `scan-progress` (ScanProgressEvent), `manifest-partial` (PartialManifestEvent), `manifest-complete` (CompleteManifestEvent), `error` (ErrorEvent). The client closes the connection on `manifest-complete`/`error`. */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["CloningEvent"] | components["schemas"]["ScanningEvent"] | components["schemas"]["SkeletonEvent"] | components["schemas"]["FinalEvent"] | components["schemas"]["ErrorEvent"];
+                    "application/json": components["schemas"]["CloneProgressEvent"] | components["schemas"]["ScanProgressEvent"] | components["schemas"]["PartialManifestEvent"] | components["schemas"]["CompleteManifestEvent"] | components["schemas"]["ErrorEvent"];
                 };
             };
             /** @description Validation Error */

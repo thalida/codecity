@@ -26,11 +26,11 @@ from sse_starlette.sse import EventSourceResponse
 
 from api.config import local_repos_allowed
 from api.models.events import (
-    CloningEvent,
+    CloneProgressEvent,
+    CompleteManifestEvent,
     ErrorEvent,
-    FinalEvent,
-    ScanningEvent,
-    SkeletonEvent,
+    PartialManifestEvent,
+    ScanProgressEvent,
 )
 from api.models.manifest import SignatureResponse
 from api.models.responses import CacheClearResponse
@@ -217,8 +217,11 @@ def _sse_error(message: str) -> dict[str, Any]:
 
 # Documented SSE event union: surfacing all five event models in the
 # OpenAPI `responses` registers each as a schema component (richer Scalar
-# docs) AND transitively pulls Manifest -> tree types via Skeleton/FinalEvent.
-SSEEvent = Union[CloningEvent, ScanningEvent, SkeletonEvent, FinalEvent, ErrorEvent]
+# docs) AND transitively pulls Manifest -> tree types via the manifest events.
+SSEEvent = Union[
+    CloneProgressEvent, ScanProgressEvent, PartialManifestEvent,
+    CompleteManifestEvent, ErrorEvent,
+]
 
 
 @router.get(
@@ -227,9 +230,11 @@ SSEEvent = Union[CloningEvent, ScanningEvent, SkeletonEvent, FinalEvent, ErrorEv
         200: {
             "description": (
                 "Server-Sent Events stream (`text/event-stream`). Named events and "
-                "their JSON `data` payloads: `cloning` (CloningEvent), `scanning` "
-                "(ScanningEvent), `skeleton` (SkeletonEvent), `final` (FinalEvent), "
-                "`error` (ErrorEvent). The client closes the connection on `final`/`error`."
+                "their JSON `data` payloads: `clone-progress` (CloneProgressEvent), "
+                "`scan-progress` (ScanProgressEvent), `manifest-partial` "
+                "(PartialManifestEvent), `manifest-complete` (CompleteManifestEvent), "
+                "`error` (ErrorEvent). The client closes the connection on "
+                "`manifest-complete`/`error`."
             ),
             "model": SSEEvent,
         },
@@ -276,19 +281,19 @@ async def manifest(
 
         def _on_clone(payload: tuple[str, int]) -> None:
             stage, percent = payload
-            _put(_sse("cloning", {
+            _put(_sse("clone-progress", {
                 "display_root": display, "stage": stage, "percent": percent,
             }))
 
         def _on_scan(files_scanned: int) -> None:
-            _put(_sse("scanning", {"display_root": display, "files_scanned": files_scanned}))
+            _put(_sse("scan-progress", {"display_root": display, "files_scanned": files_scanned}))
 
         def _run() -> None:
             try:
-                # Clone phase (git only): emit `cloning` FIRST, then clone with
-                # live progress + cancel support.
+                # Clone phase (git only): emit `clone-progress` FIRST, then clone
+                # with live progress + cancel support.
                 if kind == "git":
-                    _put(_sse("cloning", {"display_root": display}))
+                    _put(_sse("clone-progress", {"display_root": display}))
                     try:
                         with TRUST.clone_lock:
                             path = ensure_clone(
@@ -307,7 +312,7 @@ async def manifest(
 
                 holder["path"] = path
                 TRUST.register(path)
-                _put(_sse("scanning", {"display_root": display}))
+                _put(_sse("scan-progress", {"display_root": display}))
 
                 # Signature (cache key) + warm-cache short-circuit.
                 sig = signature_tree(str(path), use_cache=use_cache)["signature"]
@@ -317,19 +322,19 @@ async def manifest(
                     if cached is not None:
                         if kind == "git":
                             cached["display_root"] = display
-                        _put(_sse("final", {"manifest": cached}))
+                        _put(_sse("manifest-complete", {"manifest": cached}))
                         return
 
-                # Cold scan: skeleton + final, with heartbeat progress.
+                # Cold scan: partial + complete manifests, with heartbeat progress.
                 for ev in scan_tree(
                     str(path), use_cache=use_cache,
                     cancel_event=cancel, on_scan_progress=_on_scan,
                 ):
-                    phase = ev["phase"]  # "skeleton" | "final"
+                    phase = ev["phase"]  # "manifest-partial" | "manifest-complete"
                     m = ev["manifest"]
                     if kind == "git":
                         m["display_root"] = display
-                    if phase == "final":
+                    if phase == "manifest-complete":
                         holder["manifest"] = m
                     _put(_sse(phase, {"manifest": m}))
             except ScanCancelledError:

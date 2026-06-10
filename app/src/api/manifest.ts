@@ -84,37 +84,38 @@ export function manifestUrlFor(opts: { src: string; branch?: string; noCache?: b
 
 // ── SSE streaming reader ─────────────────────────────────────────────────
 
-// The phases the SSE scan stream advances through. String values are the
-// wire form the server emits (the SSE event name). (Distinct from constants/loadingSteps' LoadingStep,
-// which is the UI step vocabulary — there's no 'building' phase: the Final event
-// drives the "Building city" step.)
+// The phases the SSE scan stream advances through. String values are the wire
+// form the server emits (the SSE event name) and describe what each event
+// delivers — progress vs a manifest at a completeness level — not its position
+// in the sequence. (Distinct from constants/loadingSteps' LoadingStep, which is
+// the user-facing UI step vocabulary.)
 export enum ScanPhase {
-  Cloning = 'cloning',
-  Scanning = 'scanning',
-  Skeleton = 'skeleton',
-  Final = 'final',
+  CloneProgress = 'clone-progress',
+  ScanProgress = 'scan-progress',
+  PartialManifest = 'manifest-partial',
+  CompleteManifest = 'manifest-complete',
   Error = 'error',
 }
 
 // One variant per discriminant value so TS narrows cleanly through
-// `if (event.phase === ScanPhase.Cloning || event.phase === ScanPhase.Scanning)` etc.
+// `if (event.phase === ScanPhase.CloneProgress || event.phase === ScanPhase.ScanProgress)` etc.
 export type ScanStreamEvent =
   | {
-      phase: ScanPhase.Cloning;
+      phase: ScanPhase.CloneProgress;
       display_root?: string;
       stage?: 'receiving' | 'resolving' | 'counting';
       percent?: number;
     }
-  | { phase: ScanPhase.Scanning; display_root?: string; files_scanned?: number }
-  | { phase: ScanPhase.Skeleton; manifest: Manifest }
-  | { phase: ScanPhase.Final; manifest: Manifest }
+  | { phase: ScanPhase.ScanProgress; display_root?: string; files_scanned?: number }
+  | { phase: ScanPhase.PartialManifest; manifest: Manifest }
+  | { phase: ScanPhase.CompleteManifest; manifest: Manifest }
   | { phase: ScanPhase.Error; error: string };
 
 /** The non-terminal progress events that carry loading-step detail (clone
  *  percent, files scanned). The shared progress helper consumes these. */
 export type ScanProgressEvent = Extract<
   ScanStreamEvent,
-  { phase: ScanPhase.Cloning | ScanPhase.Scanning }
+  { phase: ScanPhase.CloneProgress | ScanPhase.ScanProgress }
 >;
 
 /**
@@ -151,7 +152,7 @@ export function streamManifest(
         } else {
           queue.push(ev);
         }
-        if (ev.phase === ScanPhase.Final || ev.phase === ScanPhase.Error) finish();
+        if (ev.phase === ScanPhase.CompleteManifest || ev.phase === ScanPhase.Error) finish();
       };
 
       const finish = (err?: Error): void => {
@@ -190,10 +191,10 @@ export function streamManifest(
           if (parsed) push({ phase, ...parsed } as ScanStreamEvent);
         });
       };
-      on('cloning', ScanPhase.Cloning);
-      on('scanning', ScanPhase.Scanning);
-      on('skeleton', ScanPhase.Skeleton);
-      on('final', ScanPhase.Final);
+      on('clone-progress', ScanPhase.CloneProgress);
+      on('scan-progress', ScanPhase.ScanProgress);
+      on('manifest-partial', ScanPhase.PartialManifest);
+      on('manifest-complete', ScanPhase.CompleteManifest);
 
       // The server's terminal `error` event and EventSource's transport-error
       // event share the 'error' name. A server event carries a JSON `data`
