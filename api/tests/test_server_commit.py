@@ -26,7 +26,13 @@ def repo(tmp_path: Path) -> Path:
     _git("config", "user.name", "Tester", cwd=p)
     (p / "f.txt").write_text("x")
     _git("add", ".", cwd=p)
-    _git("commit", "-qm", "first commit\n\nbody line", cwd=p)
+    # Pin the author via --author so the commit's %an is deterministic: it
+    # outranks a GIT_AUTHOR_NAME env var (the test container sets one), which
+    # would otherwise win over the user.name config above.
+    _git(
+        "commit", "--author=Tester <a@b.c>", "-qm",
+        "first commit\n\nbody line", cwd=p,
+    )
     return p
 
 
