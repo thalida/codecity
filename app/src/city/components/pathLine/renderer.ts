@@ -1,12 +1,12 @@
-// scene/effects/pathLineRenderer.ts — owns the neon selection path line
+// city/components/pathLine/renderer.ts — owns the neon selection path line
 // (gem → selected node, rainbow chasing) and the faded hover-preview
 // path line (gem → hovered node).
 //
 // Subscribes to picker.selection / picker.hover and rebuilds the
 // geometry whenever either changes. update(dtMs) ticks the rainbow
 // color cycle on the selection line each frame. refreshMaterials() is
-// called by applyTheme() to push PATH_LINE / HOVER_PATH_LINE config
-// changes into the materials.
+// called by the pathLine component's theme effect to push PATH_LINE /
+// HOVER_PATH_LINE config changes into the materials.
 
 import * as THREE from 'three';
 import { effect, untracked } from '@preact/signals';
@@ -33,9 +33,27 @@ export function computePathLinewidthPixels(pct: number): number {
 }
 import { RENDER_ORDERS } from '@/city/renderOrders';
 import { NodeKind } from '@/types';
+import type { Street } from '@/types';
 import { computePathPoints } from '@/city/utils/path';
-import type { createWorld } from '@/city/world';
-import type { createPicker } from '@/city/runtime/picker';
+import type { PickTarget } from '@/types/picker';
+import type { ReadonlySignal } from '@preact/signals';
+
+/** Minimal world surface consumed by this renderer. The pathLine door
+ *  threads world closures through (gem position, streets-by-dir map, and
+ *  the post-rebuild change subscription). Re-exported by the door as
+ *  PathLineDeps — single source of truth for the seam shape. */
+export interface PathLineWorld {
+  getGemWorldPos(): THREE.Vector3 | null;
+  getStreetsByDirMap(): Record<string, Street>;
+  onChange(cb: () => void): () => void;
+}
+
+/** Minimal picker surface consumed by this renderer (hover + selection
+ *  signals). Mirrors trees/outline.ts. */
+interface PickerSignals {
+  hover: ReadonlySignal<PickTarget | null>;
+  selection: ReadonlySignal<PickTarget | null>;
+}
 
 export function createPathLineRenderer({
   canvas,
@@ -44,9 +62,12 @@ export function createPathLineRenderer({
   picker,
 }: {
   canvas: HTMLCanvasElement;
-  scene: THREE.Scene;
-  world: ReturnType<typeof createWorld>;
-  picker: ReturnType<typeof createPicker>;
+  /** Parent for the two line meshes (the pathLine component's group). Draw
+   *  order is governed by RENDER_ORDERS.PATH_LINE renderOrder, not graph
+   *  position. */
+  scene: THREE.Object3D;
+  world: PathLineWorld;
+  picker: PickerSignals;
 }) {
   // ── Selection path line (rainbow vertex colors) ────────────────────
   const _pl = STREETS.value;
@@ -189,7 +210,7 @@ export function createPathLineRenderer({
     void picker.hover.value;
     _updateHoverPathLine();
   });
-  world.onChange(() => {
+  const _unsubOnChange = world.onChange(() => {
     _updatePathLine();
     _updateHoverPathLine();
   });
@@ -232,6 +253,7 @@ export function createPathLineRenderer({
   function dispose() {
     _disposeSelectionEffect();
     _disposeHoverEffect();
+    _unsubOnChange();
     if (pathLine.parent) pathLine.parent.remove(pathLine);
     if (hoverPathLine.parent) hoverPathLine.parent.remove(hoverPathLine);
     if (pathLineGeo && pathLineGeo.dispose) pathLineGeo.dispose();

@@ -53,10 +53,12 @@ import { createSky } from './components/sky';
 import type { Sky } from './components/sky';
 import { createRepoLabel } from './components/repoLabel';
 import type { RepoLabel } from './components/repoLabel';
-import { createTrees } from './components/trees/trees';
-import type { Trees } from './components/trees/trees';
-import { createFireflies } from './components/fireflies/fireflies';
-import type { Fireflies } from './components/fireflies/fireflies';
+import { createTrees } from './components/trees';
+import type { Trees, TreesComponent } from './components/trees';
+import { createFireflies } from './components/fireflies';
+import type { Fireflies, FirefliesComponent } from './components/fireflies';
+import { createPathLine } from './components/pathLine';
+import type { PathLine } from './components/pathLine';
 import { createTreePlacementClient } from './components/trees/treePlacementClient';
 import type { TreePlacementClient } from './components/trees/treePlacementClient';
 import { createIsland } from './components/island';
@@ -273,14 +275,6 @@ export function createWorld(_canvas: HTMLCanvasElement) {
   const _repoLabel: RepoLabel = createRepoLabel(_ctx as unknown as SceneContext);
   scene.add(_repoLabel.group);
 
-  // Cyberpunk Valley trees — REBUILT per applyManifest. One tree per
-  // commit, placed commit-driven across the world floor.
-  let _trees: Trees | null = null;
-
-  // Cyberpunk Valley fireflies — REBUILT per applyManifest. One orb
-  // cluster per tree (commit), driven by GPU shader bob animation.
-  let _fireflies: Fireflies | null = null;
-
   // Tree placement client — owns the off-thread worker (or its sync
   // fallback in test envs). One instance per world; disposed when
   // the world is disposed.
@@ -326,6 +320,31 @@ export function createWorld(_canvas: HTMLCanvasElement) {
     onChange,
   });
   scene.add(_buildings.group);
+
+  // Trees — PERSISTENT component; empty group added once. Inner instanced
+  // meshes (one tree per commit, placed commit-driven across the world
+  // floor) are swapped in by rebuild() on the deferred decoration pass of
+  // every applyManifest; clear() empties at the same point the old code
+  // disposed _trees. handle() preserves the null-until-built contract
+  // (picker pickables, RightSidebar colorForSha, cameraRig
+  // getTreeBoundsBySha all consume it).
+  const _trees: TreesComponent = createTrees(_ctx as unknown as SceneContext);
+  scene.add(_trees.group);
+
+  // Fireflies — PERSISTENT component, same lifecycle as trees. One orb
+  // cluster per tree (commit), driven by GPU shader bob animation.
+  const _fireflies: FirefliesComponent = createFireflies(_ctx as unknown as SceneContext);
+  scene.add(_fireflies.group);
+
+  // Selection / hover neon path lines — PERSISTENT component. Deps are
+  // closures (gemWorldPos is a `let` below; closures evaluate at call time,
+  // post-init). Subscribes to picker + onChange at arming (first tick).
+  const _pathLine: PathLine = createPathLine(_ctx as unknown as SceneContext, {
+    getGemWorldPos: () => gemWorldPos,
+    getStreetsByDirMap: () => _streets.streetsByDirMap(),
+    onChange,
+  });
+  scene.add(_pathLine.group);
 
   // Generation counter: each applyManifest invocation increments this and
   // captures its own value. If _currentGeneration has advanced beyond a
@@ -946,15 +965,12 @@ export function createWorld(_canvas: HTMLCanvasElement) {
     // the difference between a snappy rebuild and a multi-hundred-ms
     // freeze.
     const treesEnabled = TREES.value.ENABLED;
-    if (_trees) {
-      _trees.dispose();
-      _trees = null;
-    }
-    if (_fireflies) {
-      scene.remove(_fireflies.group);
-      _fireflies.dispose();
-      _fireflies = null;
-    }
+    // Trees + fireflies are rebuilt every applyManifest (never scenic-gated).
+    // clear() the inner meshes BEFORE the first onChange emit below so the
+    // picker's pickables refresh sees no tree meshes on that emit —
+    // identical to the old dispose-then-emit ordering. clear() is idempotent.
+    _trees.clear();
+    _fireflies.clear();
     _emit(changeCbs, _computeDiff(prev));
 
     // Convert the THREE.Box3 (now includes building footprints — expanded
@@ -1037,14 +1053,12 @@ export function createWorld(_canvas: HTMLCanvasElement) {
       }
       if (generationAtDefer !== _currentGeneration) return;
 
-      _trees = createTrees(
+      _trees.rebuild(
         treePlacements,
         manifest.commits ?? null,
         manifest.busyness ?? { avg: 1, busy: 1 }
       );
-      scene.add(_trees.group);
-      _fireflies = createFireflies(treePlacements, manifest.commits ?? null);
-      scene.add(_fireflies.group);
+      _fireflies.rebuild(treePlacements, manifest.commits ?? null);
 
       // Re-notify listeners now that async decoration (trees) is
       // fully attached to the scene. The first onChange fired before this
@@ -1054,10 +1068,10 @@ export function createWorld(_canvas: HTMLCanvasElement) {
       // other subscriber) a chance to re-refresh with the live tree group.
       // We pass an empty diff because only foliage changed; no building or
       // street geometry was added since the first emit.
-      // Only fire when trees were actually placed — if trees are null
-      // (disabled, zero commits, etc.) the first emit already captured
-      // the complete state and a second one is wasteful.
-      if (_trees !== null) {
+      // Defensive guard — always true today: rebuild() above always sets
+      // the handle, and the disabled/empty cases bail at the deferred-block
+      // gate (treesEnabled && bbox && sceneBbox) before reaching here.
+      if (_trees.handle() !== null) {
         _emit(changeCbs, {
           entering: { buildings: [], streets: [] },
           exiting: { buildings: [], streets: [] },
@@ -1085,15 +1099,9 @@ export function createWorld(_canvas: HTMLCanvasElement) {
     _repoLabel.dispose();
     _island.dispose();
     _gem.dispose();
-    if (_trees) {
-      _trees.dispose();
-      _trees = null;
-    }
-    if (_fireflies) {
-      scene.remove(_fireflies.group);
-      _fireflies.dispose();
-      _fireflies = null;
-    }
+    _trees.dispose();
+    _fireflies.dispose();
+    _pathLine.dispose();
     _footprint.dispose();
     _streets.dispose();
     _buildings.dispose();
@@ -1162,22 +1170,20 @@ export function createWorld(_canvas: HTMLCanvasElement) {
     },
 
     /**
-     * Cyberpunk Valley trees reference. Rebuilt per applyManifest, so
-     * this returns null until the first manifest has been applied.
-     * renderLoop.ts's applyTheme() guards with `?.refresh()` to handle the
-     * pre-manifest case.
+     * Cyberpunk Valley trees inner handle. Rebuilt per applyManifest, so
+     * this returns null until the first manifest has been applied (the
+     * null-until-built contract consumers guard against).
      */
     getTrees(): Trees | null {
-      return _trees;
+      return _trees.handle();
     },
 
     /**
-     * Cyberpunk Valley fireflies reference. Rebuilt per applyManifest,
+     * Cyberpunk Valley fireflies inner handle. Rebuilt per applyManifest,
      * so this returns null until the first manifest has been applied.
-     * The render loop calls setTime() each frame to drive the bob shader.
      */
     getFireflies(): Fireflies | null {
-      return _fireflies;
+      return _fireflies.handle();
     },
 
     getManifest() {
@@ -1294,7 +1300,7 @@ export function createWorld(_canvas: HTMLCanvasElement) {
       return gemWorldPos;
     },
     getTreeBoundsBySha(sha: string) {
-      return _trees?.getTreeBoundsBySha(sha) ?? null;
+      return _trees.handle()?.getTreeBoundsBySha(sha) ?? null;
     },
 
     getBuildingByPath(p: string) {
@@ -1354,6 +1360,26 @@ export function createWorld(_canvas: HTMLCanvasElement) {
      *  (fader/outline/ghost + lazy picker arming) + onResize(). */
     getBuildings(): Buildings {
       return _buildings;
+    },
+
+    /** The trees scene component. renderLoop drives its per-frame tick()
+     *  (outline transform snap + rainbow chase + lazy outline arming) +
+     *  onResize(). */
+    getTreesComponent(): TreesComponent {
+      return _trees;
+    },
+
+    /** The fireflies scene component. renderLoop drives its per-frame tick()
+     *  (bob uTime + orbit-ring chase + lazy boost-effect arming) +
+     *  onResize(). */
+    getFirefliesComponent(): FirefliesComponent {
+      return _fireflies;
+    },
+
+    /** The pathLine scene component. renderLoop drives its per-frame tick()
+     *  (rainbow chase + lazy renderer arming) + onResize(). */
+    getPathLine(): PathLine {
+      return _pathLine;
     },
   };
 }

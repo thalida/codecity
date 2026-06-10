@@ -6,7 +6,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import * as THREE from 'three';
 import { signal } from '@preact/signals';
 import { LineSegmentsGeometry } from 'three/addons/lines/LineSegmentsGeometry.js';
-import { createTreeOutlineRenderer } from '@/city/effects/treeOutlineRenderer';
+import { createTreeOutlineRenderer } from '@/city/components/trees/outline';
 import { TREES } from '@/state/stores/settings/trees';
 import { RAINBOW } from '@/state/stores/settings/effects';
 import { NodeKind } from '@/types';

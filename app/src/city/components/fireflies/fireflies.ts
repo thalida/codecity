@@ -1,6 +1,6 @@
-// scene/components/fireflies/fireflies.ts — Fireflies subsystem orchestrator.
-// Thin pass-through from TreePlacement[] + commits to a renderer
-// lifecycle handle. Mirrors trees/trees.ts.
+// city/components/fireflies/fireflies.ts — Fireflies subsystem orchestrator.
+// Thin assembly from TreePlacement[] + commits to a renderer lifecycle
+// handle (orbs + orbit rings). The persistent component door is ./index.ts.
 
 import * as THREE from 'three';
 import { placeFireflies, type FireflyPlacement } from './firefliesPlacement';

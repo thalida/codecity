@@ -153,7 +153,7 @@ function buildCanopyGeometry(detail: DetailLevel): THREE.BufferGeometry {
  *  so adjacent triangles share vertex normals — that lets `EdgesGeometry`
  *  collapse coplanar interior edges and emit only the ring boundaries.
  *
- *  Consumed by `scene/effects/treeOutlineRenderer.ts`. */
+ *  Consumed by `./outline.ts` (the tree outline renderer). */
 export function buildCanopyEdges(detail: DetailLevel): THREE.EdgesGeometry {
   const cfg = TREES.value;
   const segments = detail === 0 ? cfg.FACETS_LOW : detail === 1 ? cfg.FACETS_MID : cfg.FACETS_HIGH;

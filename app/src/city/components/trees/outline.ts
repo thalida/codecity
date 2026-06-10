@@ -1,4 +1,4 @@
-// scene/effects/treeOutlineRenderer.ts — owns:
+// city/components/trees/outline.ts — owns:
 //   • the shared tree hover outline mesh (white LineSegments2 silhouette
 //     around the hovered tree's canopy)
 //   • the shared tree selected outline mesh (rainbow-chasing silhouette)
@@ -11,8 +11,8 @@
 // against selection by sha so a tree that is both hovered and selected
 // shows only the selected outline.
 //
-// refreshMaterials() is called by applyTheme() to push TREE_OUTLINE
-// config changes into the two outline materials.
+// refreshMaterials() is called by the trees component's theme effect to
+// push TREE_OUTLINE config changes into the two outline materials.
 
 import * as THREE from 'three';
 import { LineSegments2 } from 'three/addons/lines/LineSegments2.js';
@@ -23,7 +23,7 @@ import { TREES } from '@/state/stores/settings/trees';
 import { RAINBOW } from '@/state/stores/settings/effects';
 import { RENDER_ORDERS } from '@/city/renderOrders';
 import { NodeKind } from '@/types';
-import { buildCanopyEdges } from '@/city/components/trees/treeRenderer';
+import { buildCanopyEdges } from './treeRenderer';
 import type { PickTarget } from '@/types/picker';
 import type { ReadonlySignal } from '@preact/signals';
 import { effect } from '@preact/signals';

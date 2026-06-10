@@ -1,6 +1,6 @@
 import { describe, it, expect, afterEach } from 'vitest';
 import { STREET_TIERS } from '@/state/stores/settings/streets';
-import { computePathLinewidthPixels } from '@/city/effects/pathLineRenderer';
+import { computePathLinewidthPixels } from '@/city/components/pathLine/renderer';
 
 // Capture the original tiers so afterEach can restore them.
 const _originalTiers = STREET_TIERS.value;

@@ -6,9 +6,7 @@
 // handling, persistence wiring).
 
 import * as THREE from 'three';
-import { effect } from '@preact/signals';
 
-import { NodeKind } from '../types';
 import type { Manifest } from '../types';
 
 import { SCENE } from '@/state/stores/settings/scene';
@@ -16,8 +14,6 @@ import { createWorld } from './world';
 import { createCameraRig } from './runtime/cameraRig';
 import { createPicker } from './runtime/picker';
 import { createInputHandlers } from './runtime/inputHandlers';
-import { createTreeOutlineRenderer } from './effects/treeOutlineRenderer';
-import { createPathLineRenderer } from './effects/pathLineRenderer';
 import { showTooltip, hideTooltip } from './runtime/tooltip';
 import { createPostFx } from './runtime/postFx';
 import { registerRenderer as registerAdPanelRenderer } from './components/buildings/adPanelTextureArray';
@@ -116,20 +112,10 @@ export async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manif
   // inside world). The component arms them on its first tick() (once the
   // picker is live) and drives them in field-ownership order: fader writes
   // body opacity → outline tracks hover/selected outline transforms + rainbow
-  // chase → ghost tracks hover ghost transform. renderLoop no longer
-  // constructs them. The tree-outline + path-line renderers stay here.
-  const treeOutlineRenderer = createTreeOutlineRenderer({
-    canvas,
-    scene,
-    picker,
-    getTrees: () => world.getTrees(),
-  });
-  const pathLineRenderer = createPathLineRenderer({
-    canvas,
-    scene,
-    world,
-    picker,
-  });
+  // chase → ghost tracks hover ghost transform. The tree-outline + path-line
+  // renderers are likewise owned by the trees / pathLine components (also
+  // built inside world, also armed on their first tick()). renderLoop no
+  // longer constructs any of them.
 
   // Tween queue for entering / staying transitions on world.onChange
   // (the dissolved animator — now buildings.animateFrom, Task 13). Subscribed
@@ -153,28 +139,23 @@ export async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manif
 
     scene.background = new THREE.Color(SCENE.value.SKY_COLOR);
 
-    treeOutlineRenderer.refreshMaterials();
-    pathLineRenderer.refreshMaterials();
     // The building hover/selected outline materials react to BUILDINGS Save via
     // the outline's own theme effect (inside the buildings component), and the
     // shared building material reacts to BUILDINGS/FACADE/SCENE/BLOOM via the
-    // component's material effect — so applyTheme() no longer calls
-    // outlineRenderer.refreshMaterials() or refreshBuildingMaterial() here.
+    // component's material effect — so applyTheme() no longer refreshes the
+    // building outline materials or the shared building material here.
     postFx.refresh();
     // The Cyberpunk Valley sky pulls fresh SKY_* uniforms (sky color,
     // star density) via its OWN settings effect inside the sky component,
     // so applyTheme() no longer touches the sky.
     // The floating repo-name label also owns its own settings effect, so
     // applyTheme() no longer calls refresh() on it either.
-
-    // Cyberpunk Valley trees — pushes fresh TREE_GREENS + TRUNK_COLOR
-    // into per-instance color buffers. Null until the first manifest applies.
-    world.getTrees()?.refresh();
-    // Cyberpunk Valley fireflies — pushes fresh BOB/PULSE/EMISSION/FLICKER/
-    // ORBIT_SPEED uniforms into the shader. Null until the first manifest
-    // applies; guard with optional chain. Structural keys (ENABLED,
-    // SCALE_MIN/MAX) take the rebuild path via configCommitReactions.
-    world.getFireflies()?.refresh();
+    // Trees (per-instance canopy/trunk recolor + outline materials) react to
+    // TREES Save via the trees component's own theme effect; fireflies
+    // (BOB/PULSE/EMISSION/FLICKER/ORBIT_SPEED uniforms) react to FIREFLIES
+    // Save via the fireflies component's; the path lines (linewidth, opacity,
+    // hover color) react to STREETS Save via the pathLine component's — so
+    // applyTheme() no longer touches any of them.
 
     // Ad panels — pushes fresh BLOOM.AD_EMISSION into uEmissionBoost so
     // the emission slider hot-updates without a manifest rebuild. Null
@@ -203,9 +184,9 @@ export async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manif
       const ch = canvas.clientHeight;
       postFx.setSize(cw, ch);
       world.getBuildings().onResize();
-      treeOutlineRenderer.onResize();
-      pathLineRenderer.onResize();
-      world.getFireflies()?.onResize(cw, ch);
+      world.getTreesComponent().onResize();
+      world.getPathLine().onResize();
+      world.getFirefliesComponent().onResize(cw, ch);
       // Synchronous paint to avoid a single-frame blank/cleared canvas
       // between the resize and the next animate() tick. The render path
       // must match animate() so bloom shows immediately on the new size.
@@ -217,23 +198,9 @@ export async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manif
 
   // Sidewalk tints follow selection / hover via two picker-driven effects
   // owned by the streets component, armed on its first tick() (once the
-  // picker is live). renderLoop no longer wires them here.
-
-  // Firefly hover / select boost. Re-fetches world.getFireflies() each fire
-  // so the wiring survives world rebuilds (new renderer starts with -1
-  // uniforms and the next signal change pushes current hover/selection in).
-  effect(() => {
-    const h = picker.hover.value;
-    const fireflies = world.getFireflies();
-    if (!fireflies) return;
-    fireflies.setHoveredCommit(h && h.kind === NodeKind.Commit ? h.commit.sha : null);
-  });
-  effect(() => {
-    const sel = picker.selection.value;
-    const fireflies = world.getFireflies();
-    if (!fireflies) return;
-    fireflies.setSelectedCommit(sel && sel.kind === NodeKind.Commit ? sel.commit.sha : null);
-  });
+  // picker is live). renderLoop no longer wires them here. The firefly
+  // hover/select boost effects are likewise owned by the fireflies
+  // component, armed on its first tick().
 
   // -- 8. Render loop --------------------------------------------------------
   const startTime = performance.now();
@@ -260,17 +227,18 @@ export async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manif
         camera.updateProjectionMatrix();
         postFx.setSize(cw, ch);
         world.getBuildings().onResize();
-        treeOutlineRenderer.onResize();
-        pathLineRenderer.onResize();
-        world.getFireflies()?.onResize(cw, ch);
+        world.getTreesComponent().onResize();
+        world.getPathLine().onResize();
+        world.getFirefliesComponent().onResize(cw, ch);
       }
     }
-    // Drive firefly bob — single uniform update for all orb instances.
+    // Fireflies tick — drives the bob uTime (single uniform update for all
+    // orb instances) + the orbit-ring rainbow chase, and arms the
+    // hover/select boost effects on the first call (picker live by frame 1).
+    // Same pre-rig slot the old firefly time-uniform block occupied.
     {
-      const fireflies = world.getFireflies();
-      if (fireflies) {
-        fireflies.setTime((performance.now() - startTime) / 1000);
-      }
+      const t = (performance.now() - startTime) / 1000;
+      world.getFirefliesComponent().tick(0, { dt: 0, time: t, camera });
     }
     rig.update(0); // first-call: bbox-frames camera
     // Per-frame world-matrix refresh. controls.update() moves the camera
@@ -308,13 +276,25 @@ export async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manif
       const t = (performance.now() - startTime) / 1000;
       world.getBuildings().tick(_skyDt, { dt: _skyDt, time: t, camera });
     }
-    treeOutlineRenderer.update(0); // tree hover/selected outline transforms + rainbow chase
-    pathLineRenderer.update(0); // selection path line rainbow chase
+    // Trees tick — tree hover/selected outline transforms + rainbow chase
+    // (and first-tick arming of the outline renderer). Same slot the old
+    // treeOutlineRenderer.update(0) call occupied.
+    {
+      const t = (performance.now() - startTime) / 1000;
+      world.getTreesComponent().tick(_skyDt, { dt: _skyDt, time: t, camera });
+    }
+    // PathLine tick — selection path line rainbow chase (and first-tick
+    // arming of the inner renderer). Same slot the old
+    // pathLineRenderer.update(0) call occupied, immediately after trees.
+    {
+      const t = (performance.now() - startTime) / 1000;
+      world.getPathLine().tick(_skyDt, { dt: _skyDt, time: t, camera });
+    }
     // Street labels are world-space text on the asphalt — the streets
     // component orients them toward the camera each frame (and lazily arms
     // its sidewalk-tint effects on the first tick, now that the picker is
     // live). Same slot as the old _orientLabelsForCamera call: after
-    // pathLineRenderer.update(0), before the gem tick.
+    // the pathLine tick, before the gem tick.
     {
       const t = (performance.now() - startTime) / 1000;
       world.getStreets().tick(_skyDt, { dt: _skyDt, time: t, camera });

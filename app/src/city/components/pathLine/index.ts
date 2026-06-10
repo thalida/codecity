@@ -1,0 +1,106 @@
+// city/components/pathLine/index.ts — PathLine COMPONENT (public door).
+//
+// Self-contained scene component for the neon selection path line (gem →
+// selected node, rainbow chasing) and the faded hover-preview path line.
+// The inner renderer (./renderer — formerly an effects module constructed in
+// renderLoop) owns the meshes, the picker-driven geometry effects, and a
+// world.onChange subscription.
+//
+// Construction-time bridge (Strategy A): the component is built inside
+// world.ts BEFORE the picker/renderer exist. The inner renderer subscribes
+// to picker.hover/selection + world.onChange inside its factory and needs
+// the canvas, so it is NOT constructed at component construction — it is
+// ARMED on the first tick(), once renderLoop has populated
+// ctx.picker/ctx.renderer. The STREETS theme effect is settings-only and
+// safe at construction.
+
+import * as THREE from 'three';
+import { effect, untracked } from '@preact/signals';
+
+import { STREETS } from '@/state/stores/settings/streets';
+
+import type { FrameContext, SceneComponent, SceneContext } from '../../types';
+import { createPathLineRenderer, type PathLineWorld } from './renderer';
+
+/** World closures the inner renderer consumes (threaded from world.ts —
+ *  gemWorldPos is a `let` there; closures evaluate at call time). The shape
+ *  is declared once in ./renderer (PathLineWorld); this is the public alias
+ *  the door exposes. */
+export type PathLineDeps = PathLineWorld;
+
+/** Public contract for the pathLine component. */
+export interface PathLine extends SceneComponent {
+  /** Canvas-resize hook — forwards to the two LineMaterial resolutions. */
+  onResize(): void;
+}
+
+export function createPathLine(ctx: SceneContext, deps: PathLineDeps): PathLine {
+  // Persistent group — added to the scene once by world.ts. The inner
+  // renderer parents its two line meshes into it at arming (draw order is
+  // governed by RENDER_ORDERS.PATH_LINE renderOrder, not graph position).
+  const group = new THREE.Group();
+  group.name = 'city-path-line';
+
+  let _inner: ReturnType<typeof createPathLineRenderer> | null = null;
+
+  // Inner renderer — ARMED on the first tick(), NOT at construction. Its
+  // factory creates the two picker-driven geometry effects + the
+  // world.onChange subscription internally, so constructing it at arming
+  // (ctx.picker live) is what makes them live; at construction ctx.picker is
+  // null and the effects would be permanently dead. The sticky _armed
+  // boolean (not `if (_inner)`) survives dispose() nulling _inner, so a
+  // stray post-dispose tick() can't re-arm a dead component (same pattern
+  // as streets/buildings/fireflies).
+  let _armed = false;
+  function _armInteractions(): void {
+    if (_armed || !ctx.picker || !ctx.renderer) return;
+    _armed = true;
+    _inner = createPathLineRenderer({
+      canvas: ctx.renderer.domElement,
+      scene: group,
+      world: deps,
+      picker: ctx.picker,
+    });
+  }
+
+  // STREETS theme effect — reacts to STREETS Save. Replaces applyTheme()'s
+  // `pathLineRenderer.refreshMaterials()` (linewidth, opacity, hover color).
+  // refreshMaterials internally calls _updateHoverPathLine, which reads
+  // picker.hover/selection — run it UNTRACKED so this effect subscribes ONLY
+  // to STREETS (same discipline as the streets component's theme effect).
+  // Tracks STREETS only — STREET_TIERS changes are Rebuild-routed and today
+  // only reach the linewidth at the next applyTheme; tracking TIERS here
+  // would be a behavior change. Safe at construction (pre-picker): _inner is
+  // null until arming.
+  const stopTheme = effect(() => {
+    void STREETS.value;
+    untracked(() => _inner?.refreshMaterials());
+  });
+
+  // tick() — arms the renderer on the first call, then advances the rainbow
+  // chase on the selection line (the old renderLoop
+  // `pathLineRenderer.update(0)` slot).
+  function tick(_dt: number, _frame: FrameContext): void {
+    _armInteractions();
+    _inner?.update(0);
+  }
+
+  function onResize(): void {
+    _inner?.onResize();
+  }
+
+  function dispose(): void {
+    stopTheme();
+    // Inner dispose also stops its picker effects + unsubscribes its
+    // world.onChange callback.
+    _inner?.dispose();
+    _inner = null;
+  }
+
+  return {
+    group,
+    tick,
+    onResize,
+    dispose,
+  };
+}
