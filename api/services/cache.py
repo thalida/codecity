@@ -32,6 +32,8 @@ import tempfile
 from pathlib import Path
 from typing import TYPE_CHECKING, NotRequired, TypedDict, cast
 
+from api.config import CACHE_ROOT
+
 if TYPE_CHECKING:
     from api.services.manifest_types import CommitEntry, Manifest
 
@@ -54,12 +56,10 @@ class FileEntry(TypedDict):
     media_width: NotRequired[int]
     media_height: NotRequired[int]
 
-# Module-level so tests can monkeypatch it to a tempdir; derived subdirs are
-# computed at call time, not import, so the override cascades. Override with
-# CODECITY_CACHE_ROOT (e.g. an XDG dir, or a writable mount in containers).
-CACHE_ROOT = Path(
-    os.environ.get("CODECITY_CACHE_ROOT") or Path.home() / ".cache" / "codecity"
-)
+
+# CACHE_ROOT is imported from config (the single source of truth). The subdir
+# helpers below derive manifests/files/git-history paths from it at call time,
+# so a test monkeypatching cache.CACHE_ROOT cascades through.
 
 # Cache-format versions: bump when the cached shape changes so stale blobs are
 # treated as a miss and re-scanned. (Per-bump rationale lives in git history.)

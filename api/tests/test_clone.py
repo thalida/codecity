@@ -1,7 +1,7 @@
 """Tests for api.clone — the read-only clone-or-update helper.
 
 Uses a local bare repo as the "remote" so tests don't hit the network.
-``CACHE_ROOT`` is monkey-patched to a per-test tempdir so we never touch
+``CLONES_ROOT`` is monkey-patched to a per-test tempdir so we never touch
 the user's real ``~/.cache/codecity/``.
 """
 
@@ -66,7 +66,7 @@ class EnsureCloneTests(unittest.TestCase):
         self.tmp_path = Path(self.tmp.name)
 
         self.cache = self.tmp_path / "cache"
-        self.cache_patch = mock.patch.object(clone_mod, "CACHE_ROOT", self.cache)
+        self.cache_patch = mock.patch.object(clone_mod, "CLONES_ROOT", self.cache)
         self.cache_patch.start()
         self.addCleanup(self.cache_patch.stop)
 
@@ -228,7 +228,7 @@ class RunGitEnvTests(unittest.TestCase):
 class EnsureCloneErrorRoutingTests(unittest.TestCase):
     def _patch_cache(self, tmp: Path) -> None:
         self._cache_patch = mock.patch.object(
-            clone_mod, "CACHE_ROOT", tmp / "cache"
+            clone_mod, "CLONES_ROOT", tmp / "cache"
         )
         self._cache_patch.start()
         self.addCleanup(self._cache_patch.stop)
@@ -492,7 +492,7 @@ def test_ensure_clone_emits_throttled_progress_via_callback(tmp_path):
 
     cache = tmp_path / "cache"
     on_progress = MagicMock()
-    with mock.patch.object(clone_mod, "CACHE_ROOT", cache):
+    with mock.patch.object(clone_mod, "CLONES_ROOT", cache):
         with mock.patch.object(subprocess, "Popen", return_value=FakeProc()):
             clone_mod.ensure_clone(
                 "https://example.com/foo.git", None, on_progress=on_progress
@@ -557,7 +557,7 @@ def test_ensure_clone_emits_terminal_percent_of_each_stage(tmp_path):
 
     cache = tmp_path / "cache"
     on_progress = MagicMock()
-    with mock.patch.object(clone_mod, "CACHE_ROOT", cache):
+    with mock.patch.object(clone_mod, "CLONES_ROOT", cache):
         with mock.patch.object(subprocess, "Popen", return_value=FakeProc()):
             clone_mod.ensure_clone(
                 "https://example.com/foo.git", None, on_progress=on_progress

@@ -14,8 +14,8 @@ Provides:
                           test_server.py / test_clone.py.
 
   - redirect_cache_root   (opt-in, function): monkeypatches
-                          `api.cache.CACHE_ROOT` and `api.clone.CACHE_ROOT`
-                          at a per-test tempdir. Mirrors the behavior of
+                          `api.services.cache.CACHE_ROOT` and
+                          `api.services.clone.CLONES_ROOT` at a per-test tempdir. Mirrors the behavior of
                           the three near-identical `_CacheRedirectMixin` /
                           `CacheTestBase` classes the migration will
                           delete. Opt-in (not autouse) so the existing
@@ -114,15 +114,15 @@ def _reset_trust() -> Iterator[None]:
 def redirect_cache_root(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
 ) -> Path:
-    """Point ``api.cache.CACHE_ROOT`` (and ``api.clone.CACHE_ROOT``) at
-    a per-test tempdir so scan/manifest/clone writes don't pollute
-    ``~/.cache/codecity/`` during tests.
+    """Point ``api.services.cache.CACHE_ROOT`` (and
+    ``api.services.clone.CLONES_ROOT``) at a per-test tempdir so
+    scan/manifest/clone writes don't pollute ``~/.cache/codecity/`` during
+    tests.
 
-    IMPORTANT: both modules capture CACHE_ROOT at import time from the
-    ``CODECITY_CACHE_ROOT`` env var, so setting the env var in a fixture
-    is a no-op for already-imported modules. We monkeypatch the module
-    attribute directly — exactly what the existing _CacheRedirectMixin
-    and CacheTestBase classes do.
+    IMPORTANT: both modules bind their cache path at import time (from
+    ``config.CACHE_ROOT``, itself read once from ``CODECITY_CACHE_ROOT``), so
+    setting the env var in a fixture is a no-op for already-imported modules.
+    We monkeypatch the per-module attribute directly.
     """
     from api.services import cache as cache_mod
     from api.services import clone as clone_mod
@@ -130,8 +130,8 @@ def redirect_cache_root(
     cache_dir = tmp_path / "cache"
     cache_dir.mkdir(parents=True, exist_ok=True)
     monkeypatch.setattr(cache_mod, "CACHE_ROOT", cache_dir)
-    # clone.CACHE_ROOT is `<root>/clones`; preserve that shape.
-    monkeypatch.setattr(clone_mod, "CACHE_ROOT", cache_dir / "clones")
+    # clone.CLONES_ROOT is `<root>/clones`; preserve that shape.
+    monkeypatch.setattr(clone_mod, "CLONES_ROOT", cache_dir / "clones")
     return cache_dir
 
 

@@ -7,11 +7,21 @@ restart — notably CODECITY_ALLOW_LOCAL_REPOS, which gates local scans.
 from __future__ import annotations
 
 import os
+from pathlib import Path
 
 # Cap individual /api/file responses (stray symlink to a giant blob).
 MAX_FILE_BYTES = 100 * 1024 * 1024
 # Bodies under this skip gzip — framing overhead exceeds the savings.
 GZIP_MIN_BYTES = 256
+
+# Root for every on-disk cache — the single source of truth for where codecity
+# stores things. cache.py hangs its manifest/file-stat/git-history subdirs off
+# this; clone.py its `clones/` dir. Read once at import (a fixed location, not a
+# live flag); override with CODECITY_CACHE_ROOT (e.g. an XDG dir or a writable
+# mount in containers). Tests monkeypatch the per-module copies.
+CACHE_ROOT = Path(
+    os.environ.get("CODECITY_CACHE_ROOT") or Path.home() / ".cache" / "codecity"
+)
 
 # Permissive truthy set (case-insensitive, trimmed) — matches the prior
 # api/env.py semantics so e.g. `-e CODECITY_FOO=yes` keeps working.

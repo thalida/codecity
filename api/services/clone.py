@@ -27,7 +27,7 @@ import time
 from pathlib import Path
 from typing import Callable
 
-from api.config import quiet
+from api.config import CACHE_ROOT, quiet
 # Cancellation is signalled by the same threading.Event the scan honors, so a
 # client disconnect aborts the clone phase too. scan.py does not import clone,
 # so this import is cycle-free.
@@ -68,10 +68,9 @@ def _log(msg: str) -> None:
         print(f"[clone] {msg}", file=sys.stderr, flush=True)
 
 
-CACHE_ROOT = (
-    Path(os.environ.get("CODECITY_CACHE_ROOT") or Path.home() / ".cache" / "codecity")
-    / "clones"
-)
+# Where git clones are cached: a `clones/` subdir under the shared cache root
+# (config.CACHE_ROOT). Tests monkeypatch clone.CLONES_ROOT.
+CLONES_ROOT = CACHE_ROOT / "clones"
 
 
 # Progress events arrive from git stderr as fast as one per few-percent
@@ -406,7 +405,7 @@ def clone_dir_for(url: str, branch: str | None) -> Path:
     # This is a directory-naming hash, not a security primitive; truncation
     # to 16 chars (64 bits) is acceptable collision-wise here.
     digest = hashlib.sha256(f"{url}\0{branch or ''}".encode("utf-8")).hexdigest()[:16]
-    return CACHE_ROOT / digest
+    return CLONES_ROOT / digest
 
 
 def _resolve_default_branch(repo: Path) -> str | None:
