@@ -21,6 +21,8 @@ import type { StreetTier } from '@/state/stores/settings/streets';
 import { BuildingOrient, JoinSide, NodeKind, StreetAxis } from '@/types';
 import type { Building, CityLayout, RangeStat, Street } from '@/types';
 import { parentDirPath } from '../utils/path';
+import { rectOfBuilding, rectOfStreet } from '../utils/rect';
+import type { Rect } from '../utils/rect';
 import { isMediaFile } from '../components/buildings/adPanels';
 import { WorldOccupancy, WorldRectKind } from './occupancyIndex';
 import type { WorldRect } from './occupancyIndex';
@@ -52,16 +54,6 @@ export interface DirLike {
   [k: string]: unknown;
 }
 export type TreeLike = FileLike | DirLike;
-
-// Rect — axis-aligned bounding rectangle in some 2D frame. Used by overlap
-// invariant checks and the V4 packer. (x, y) is the rect's CENTER; w/d
-// are the full width/depth (matches Building/Street conventions).
-export interface Rect {
-  x: number;
-  y: number;
-  w: number;
-  d: number;
-}
 
 // _rectsOverlap(a, b) -> boolean
 //
@@ -128,25 +120,17 @@ function _bboxOfRects(rects: Rect[]): Rect {
 // _collectRects(layout) -> Rect[]
 //
 // Flatten a partial layout (streets + buildings) into a single rect list
-// for occupancy testing. A Street with orientation X has its long side on
-// x and its short side on y; orientation Y is the inverse. Buildings
-// already use { x, y, w, d } directly.
+// for occupancy testing.
 function _collectRects(layout: { streets?: Street[]; buildings?: Building[] }): Rect[] {
   const out: Rect[] = [];
   if (layout.streets) {
     for (let i = 0; i < layout.streets.length; i++) {
-      const s = layout.streets[i];
-      if (s.orientation === StreetAxis.X) {
-        out.push({ x: s.x, y: s.y, w: s.length, d: s.width });
-      } else {
-        out.push({ x: s.x, y: s.y, w: s.width, d: s.length });
-      }
+      out.push(rectOfStreet(layout.streets[i]));
     }
   }
   if (layout.buildings) {
     for (let i = 0; i < layout.buildings.length; i++) {
-      const b = layout.buildings[i];
-      out.push({ x: b.x, y: b.y, w: b.w, d: b.d });
+      out.push(rectOfBuilding(layout.buildings[i]));
     }
   }
   return out;
@@ -1063,14 +1047,10 @@ function _layoutDir(
       // parent's frame).
       const childRects: Rect[] = [];
       for (const s of childResult.streets) {
-        if (s.orientation === StreetAxis.X) {
-          childRects.push({ x: s.x, y: s.y, w: s.length, d: s.width });
-        } else {
-          childRects.push({ x: s.x, y: s.y, w: s.width, d: s.length });
-        }
+        childRects.push(rectOfStreet(s));
       }
       for (const b of childResult.buildings) {
-        childRects.push({ x: b.x, y: b.y, w: b.w, d: b.d });
+        childRects.push(rectOfBuilding(b));
       }
 
       // Pick variant against the parent's occupancy.
@@ -1474,13 +1454,9 @@ export function findLayoutOverlaps(layout: {
     | { kind: WorldRectKind.Building; rect: Rect; label: string; ref: Building };
   const all: Tagged[] = [];
   for (const s of layout.streets) {
-    const rect: Rect =
-      s.orientation === StreetAxis.X
-        ? { x: s.x, y: s.y, w: s.length, d: s.width }
-        : { x: s.x, y: s.y, w: s.width, d: s.length };
     all.push({
       kind: WorldRectKind.Street,
-      rect,
+      rect: rectOfStreet(s),
       label: s.dir?.path ?? s.label ?? '(root)',
       ref: s,
     });
@@ -1488,7 +1464,7 @@ export function findLayoutOverlaps(layout: {
   for (const b of layout.buildings) {
     all.push({
       kind: WorldRectKind.Building,
-      rect: { x: b.x, y: b.y, w: b.w, d: b.d },
+      rect: rectOfBuilding(b),
       label: b.file?.path ?? b.file?.name ?? '?',
       ref: b,
     });

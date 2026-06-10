@@ -3,7 +3,7 @@
 // from a .test.ts file forces vitest to register the source file's
 // describe() blocks twice across workers.
 import { __test } from '@/city/layout/algorithm';
-import type { Rect } from '@/city/layout/algorithm';
+import type { Rect } from '@/city/utils/rect';
 import { StreetAxis } from '@/types';
 import type { CityLayout, Street, Building } from '@/types';
 

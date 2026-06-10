@@ -35,9 +35,10 @@ import { effect } from '@preact/signals';
 
 import { FOOTPRINT } from '@/state/stores/settings/footprint';
 import { RENDER_ORDERS } from '@/city/renderOrders';
-import { StreetAxis } from '@/types';
-import type { Building, CityLayout, Street } from '@/types';
+import type { CityLayout } from '@/types';
 import { setColorFromHex } from '@/city/utils/color/setColorFromHex';
+import { rectOfBuilding, rectOfStreet } from '@/city/utils/rect';
+import type { Rect } from '@/city/utils/rect';
 
 import type { SceneComponent, SceneContext } from '../../types';
 
@@ -48,24 +49,6 @@ export interface Footprint extends SceneComponent {
    *  to Task 15 alongside computeScenicConfigHash dissolution).
    *  When halo <= 0 or no rects, leaves the group EMPTY (prior mesh disposed). */
   rebuild(layout: CityLayout): void;
-}
-
-interface Rect {
-  cx: number;
-  cz: number;
-  w: number;
-  d: number;
-}
-
-function rectOfBuilding(b: Building): Rect {
-  return { cx: b.x, cz: b.y, w: b.w, d: b.d };
-}
-
-function rectOfStreet(s: Street): Rect {
-  if (s.orientation === StreetAxis.X) {
-    return { cx: s.x, cz: s.y, w: s.length, d: s.width };
-  }
-  return { cx: s.x, cz: s.y, w: s.width, d: s.length };
 }
 
 const FOOTPRINT_VERT = /* glsl */ `
@@ -190,7 +173,8 @@ export function createFootprint(_ctx: SceneContext): Footprint {
 
     for (let i = 0; i < rects.length; i++) {
       const r = rects[i];
-      tmpV3a.set(r.cx, 0, r.cz);
+      // Rect lives on the layout plane: its y axis is the world's z axis.
+      tmpV3a.set(r.x, 0, r.y);
       tmpV3b.set(r.w + halo * 2, 1, r.d + halo * 2);
       tmpMatrix.compose(tmpV3a, tmpQ, tmpV3b);
       newMesh.setMatrixAt(i, tmpMatrix);
