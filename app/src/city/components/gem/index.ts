@@ -22,7 +22,7 @@ import type { Street } from '@/types';
 
 import type { FrameContext, SceneComponent, SceneContext } from '../../types';
 import { createRootGem, GEM_HOVER_LIFT_FRAC } from './mesh';
-import { paletteColors, type Rgb } from './palette';
+import { gemFaceColors, type Rgb } from './palette';
 
 // Cycle a THREE.Color in place through a palette of [r,g,b] triples,
 // smoothly interpolating between adjacent palette entries. One full
@@ -152,7 +152,7 @@ export function createGem(ctx: SceneContext): Gem {
     // baked at construction. Rewrite it in place on Save so palette tweaks
     // take effect without a full applyManifest rebuild.
     if (body?.geometry?.attributes.color) {
-      const faceColors = paletteColors(GEM.value);
+      const faceColors = gemFaceColors.value;
       const geo = body.geometry;
       const colorAttr = geo.attributes.color as THREE.BufferAttribute;
       const vertexCount = geo.attributes.position.count;
@@ -177,61 +177,60 @@ export function createGem(ctx: SceneContext): Gem {
     // Glow halo: scale, opacity, visibility from GEM_GLOW config. Color
     // is driven per-frame by tick() (palette cycle), so we don't touch it here.
     if (gem && gem.userData.radius != null) {
-      const glowCfg = GEM.value;
       const r = gem.userData.radius as number;
       const inner = innerGlow;
       const outer = outerGlow;
       if (inner) {
-        inner.visible = glowCfg.GLOW_ENABLED;
-        inner.scale.set(r * glowCfg.GLOW_INNER_SCALE, r * glowCfg.GLOW_INNER_SCALE, 1);
-        (inner.material as THREE.SpriteMaterial).opacity = glowCfg.GLOW_INNER_OPACITY;
+        inner.visible = gemAppearance.GLOW_ENABLED;
+        inner.scale.set(r * gemAppearance.GLOW_INNER_SCALE, r * gemAppearance.GLOW_INNER_SCALE, 1);
+        (inner.material as THREE.SpriteMaterial).opacity = gemAppearance.GLOW_INNER_OPACITY;
       }
       if (outer) {
-        outer.visible = glowCfg.GLOW_ENABLED;
-        outer.scale.set(r * glowCfg.GLOW_OUTER_SCALE, r * glowCfg.GLOW_OUTER_SCALE, 1);
-        (outer.material as THREE.SpriteMaterial).opacity = glowCfg.GLOW_OUTER_OPACITY;
+        outer.visible = gemAppearance.GLOW_ENABLED;
+        outer.scale.set(r * gemAppearance.GLOW_OUTER_SCALE, r * gemAppearance.GLOW_OUTER_SCALE, 1);
+        (outer.material as THREE.SpriteMaterial).opacity = gemAppearance.GLOW_OUTER_OPACITY;
       }
     }
   });
 
   function tick(_dt: number, frame: FrameContext): void {
     if (!gem) return;
-    const gemAnim = GEM.value;
+    const gemCfg = GEM.value;
     // Absolute time (seconds since render-loop start), NOT dt.
     const t = frame.time;
-    gem.rotation.y = t * gemAnim.ROTATION_SPEED;
+    gem.rotation.y = t * gemCfg.ROTATION_SPEED;
     // BOB_AMPLITUDE_FRAC is read live each frame so the slider
     // updates without a rebuild. The gem radius is cached on
     // userData at gem-build time (it depends on root-street width).
     gem.position.y =
       gem.userData.baseY +
-      Math.sin(t * gemAnim.BOB_FREQUENCY) * (gem.userData.radius * gemAnim.BOB_AMPLITUDE_FRAC);
+      Math.sin(t * gemCfg.BOB_FREQUENCY) * (gem.userData.radius * gemCfg.BOB_AMPLITUDE_FRAC);
     // Scale-up affordance on hover so the gem reads as clickable. Hover is
     // read from the captured SceneContext's picker (populated by renderLoop
     // before the first frame), guarded for the pre-population window.
     const hov = ctx.picker?.hover.value ?? null;
-    const gemTargetScale = hov && hov.kind === NodeKind.Gem ? gemAnim.HOVER_SCALE : 1.0;
+    const gemTargetScale = hov && hov.kind === NodeKind.Gem ? gemCfg.HOVER_SCALE : 1.0;
     const curS = gem.scale.x;
-    const nextS = curS + (gemTargetScale - curS) * gemAnim.SCALE_LERP_SPEED;
+    const nextS = curS + (gemTargetScale - curS) * gemCfg.SCALE_LERP_SPEED;
     gem.scale.set(nextS, nextS, nextS);
 
     // Glow color: animate through GEM_FACE_PALETTE when ANIMATE_COLORS
     // is on; otherwise fall back to the gem's EDGE_COLOR. Two halos
     // cycle on different phases so the gem reads with two colors at
     // any moment, blending as they cross.
-    const glowCfg = GEM.value;
     const inner = innerGlow;
     const outer = outerGlow;
     if (inner || outer) {
-      if (glowCfg.GLOW_ANIMATE_COLORS) {
-        const colors = paletteColors(GEM.value);
-        const period = Math.max(0.001, glowCfg.GLOW_CYCLE_PERIOD_SECONDS);
+      if (gemCfg.GLOW_ANIMATE_COLORS) {
+        // Memoized computed — cached array, zero per-frame parsing/allocation.
+        const colors = gemFaceColors.value;
+        const period = Math.max(0.001, gemCfg.GLOW_CYCLE_PERIOD_SECONDS);
         if (inner)
           _setPaletteColor((inner.material as THREE.SpriteMaterial).color, colors, t, period, 0);
         if (outer)
           _setPaletteColor((outer.material as THREE.SpriteMaterial).color, colors, t, period, 0.5);
       } else {
-        const edge = GEM.value.EDGE_COLOR;
+        const edge = gemCfg.EDGE_COLOR;
         if (inner) (inner.material as THREE.SpriteMaterial).color.set(edge);
         if (outer) (outer.material as THREE.SpriteMaterial).color.set(edge);
       }

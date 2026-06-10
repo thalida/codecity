@@ -11,8 +11,17 @@
 // This helper is the ONE place that knows the flatten order and the
 // hex→triple parse, so the three consumers can never drift apart.
 // Gem-specific knowledge — deliberately NOT a global color util.
+//
+// Two exports: the pure paletteColors(palette) parse (structural param, so
+// mesh.ts and tests can pass any palette source), and gemFaceColors — a
+// memoized computed over the live GEM store for per-frame consumers (the
+// glow cycle in tick() reads it every frame; the computed caches the parsed
+// array until GEM changes, so steady-state frames allocate nothing).
 
 import * as THREE from 'three';
+import { computed } from '@preact/signals';
+
+import { GEM } from '@/state/stores/settings/gem';
 
 /** Structural slice of GEM settings — only the face-color keys, so tests
  *  (and any future palette source) can pass a minimal object. */
@@ -47,3 +56,7 @@ export function paletteColors(palette: GemFacePalette): Rgb[] {
     return [c.r, c.g, c.b] as const;
   });
 }
+
+/** The live GEM store's face palette, parsed once per GEM change (Save) and
+ *  cached — same array identity across reads until the store updates. */
+export const gemFaceColors = computed(() => paletteColors(GEM.value));
