@@ -13,14 +13,13 @@ import type { Manifest } from '../types';
 
 import { SCENE } from '@/state/stores/settings/scene';
 import { createWorld } from './world';
-import { createCameraRig } from './system/cameraRig';
-import { createAnimator } from './system/animator';
-import { createPicker } from './system/picker';
-import { createInputHandlers } from './system/inputHandlers';
+import { createCameraRig } from './runtime/cameraRig';
+import { createPicker } from './runtime/picker';
+import { createInputHandlers } from './runtime/inputHandlers';
 import { createTreeOutlineRenderer } from './effects/treeOutlineRenderer';
 import { createPathLineRenderer } from './effects/pathLineRenderer';
-import { showTooltip, hideTooltip } from './effects/tooltip';
-import { createPostFx } from './system/postFx';
+import { showTooltip, hideTooltip } from './runtime/tooltip';
+import { createPostFx } from './runtime/postFx';
 import { registerRenderer as registerAdPanelRenderer } from './components/buildings/adPanelTextureArray';
 
 export async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manifest) {
@@ -65,7 +64,9 @@ export async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manif
   // Camera, OrbitControls, pose persistence, framing, and the focus/reset
   // animations all live in scene/cameraRig.js. Local aliases are kept for
   // brevity in event handlers and resize logic below.
-  const rig = createCameraRig({ canvas, world });
+  // world satisfies CameraRigDeps structurally (its onChange accepts
+  // `(diff) => void` callbacks, which a `() => void` callback also is).
+  const rig = createCameraRig({ canvas, deps: world });
   const camera = rig.camera;
   // Expose for visual regression tests. Harmless in production (just a
   // global ref); only used by tests/visual/setup.ts.
@@ -130,10 +131,13 @@ export async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manif
     picker,
   });
 
-  // Tween queue for entering / staying transitions on world.onChange.
-  // Animator owns mesh.scale + mesh.position (disjoint from buildingFader's
-  // material.opacity), so they cannot conflict by construction.
-  const animator = createAnimator({ world });
+  // Tween queue for entering / staying transitions on world.onChange
+  // (the dissolved animator — now buildings.animateFrom, Task 13). Subscribed
+  // HERE, after the boot applyManifest above, so the boot diff is NOT animated —
+  // identical timing to the old createAnimator({ world }) construction at this
+  // slot. Tweens own the instance matrix (scale+position), disjoint from the
+  // fader's iFade — they cannot conflict by construction.
+  world.onChange((diff) => world.getBuildings().animateFrom(diff));
 
   // applyTheme() — hot-apply the current values from src/config/* to every
   // material / cache that's set once at scene-build time. The Settings UI
@@ -274,7 +278,6 @@ export async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manif
     // below project mesh positions and need fresh world matrices.
     camera.updateMatrixWorld();
     scene.updateMatrixWorld();
-    animator.update(0); // entering / staying tweens (scale, position)
     // Per-frame dt in seconds from the same startTime the gem animation
     // uses (no fresh timer; one wall-clock source per frame keeps
     // everything in lockstep). The sky's own twinkle + camera-follow
@@ -293,12 +296,14 @@ export async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manif
       const t = (performance.now() - startTime) / 1000;
       world.getRepoLabel().tick(_skyDt, { dt: _skyDt, time: t, camera });
     }
-    // Buildings overlays — fader (body opacity) → outline (hover/selected
+    // Buildings tick — entering/staying tweens run FIRST inside it (the
+    // dissolved animator.update(0), formerly at the slot just above), then
+    // the overlays: fader (body opacity) → outline (hover/selected
     // transforms + rainbow chase) → ghost (hover transform). The component
-    // arms them on its first tick (picker now live) and drives them in that
-    // order. Same slot the old fader/outline/ghost update() calls occupied;
-    // treeOutline/pathLine now run AFTER (behavior-neutral — disjoint writes,
-    // all consumed only at postFx.render below).
+    // arms the overlays on its first tick (picker now live) and drives them
+    // in that order. Same slot the old fader/outline/ghost update() calls
+    // occupied; treeOutline/pathLine now run AFTER (behavior-neutral —
+    // disjoint writes, all consumed only at postFx.render below).
     {
       const t = (performance.now() - startTime) / 1000;
       world.getBuildings().tick(_skyDt, { dt: _skyDt, time: t, camera });

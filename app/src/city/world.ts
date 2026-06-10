@@ -46,7 +46,7 @@ import type { WorldRect } from './layout/occupancyIndex';
 import { createGem } from './components/gem';
 import type { Gem } from './components/gem';
 import type { SceneContext } from './types';
-import type { Picker } from './system/picker';
+import type { Picker } from './runtime/picker';
 import { createStreets } from './components/streets';
 import type { Streets } from './components/streets';
 import { createSky } from './components/sky';

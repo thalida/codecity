@@ -11,7 +11,7 @@ import * as THREE from 'three';
 import { createSky } from '@/city/components/sky';
 import { SCENE } from '@/state/stores/settings/scene';
 import { RENDER_ORDERS } from '@/city/renderOrders';
-import type { Picker } from '@/city/system/picker';
+import type { Picker } from '@/city/runtime/picker';
 import type { FrameContext, SceneContext } from '@/city/types';
 
 function resetStores() {

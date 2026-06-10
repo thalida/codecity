@@ -35,7 +35,7 @@ import { RENDER_ORDERS } from '@/city/renderOrders';
 import { NodeKind } from '@/types';
 import { computePathPoints } from '@/city/utils/path';
 import type { createWorld } from '@/city/world';
-import type { createPicker } from '@/city/system/picker';
+import type { createPicker } from '@/city/runtime/picker';
 
 export function createPathLineRenderer({
   canvas,

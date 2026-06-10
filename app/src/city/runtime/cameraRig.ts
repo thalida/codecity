@@ -1,10 +1,10 @@
-// scene/system/cameraRig.ts — owns the perspective camera, OrbitControls,
+// city/runtime/cameraRig.ts — owns the perspective camera, OrbitControls,
 // initial framing, and the focus/reset animations (R key reset,
 // F key focus-on-selection, dblclick focus).
 //
 // Public contract:
 //
-//   const rig = createCameraRig({ canvas, world });
+//   const rig = createCameraRig({ canvas, deps });
 //
 //   rig.camera                            // PerspectiveCamera (read-only ref)
 //   rig.controls                          // OrbitControls    (read-only ref)
@@ -20,7 +20,7 @@
 //
 // First-frame framing is one-shot by construction: frameToBbox is not on
 // the public API. update() runs the framing internally when an internal
-// firstFrame flag is true and world.getBbox() returns non-empty,
+// firstFrame flag is true and deps.getBbox() returns non-empty,
 // then clears the flag. There's no surface for an accidental re-frame.
 //
 // Camera pose is never persisted. Every world load always starts at the
@@ -42,7 +42,28 @@ import {
 } from '@/constants/camera';
 import { NodeKind, StreetAxis } from '@/types';
 import type { Building, PickTarget, Street } from '@/types';
-import type { createWorld } from '../world';
+
+/** Narrow accessor surface the rig needs from the world / future composer.
+ *  Each member maps 1:1 to a world.ts accessor (Task 13 interim: renderLoop
+ *  passes `world` itself, which satisfies this structurally). */
+export interface CameraRigDeps {
+  getBbox(): THREE.Box3 | null;
+  getGemWorldPos(): THREE.Vector3 | null;
+  getRootStreet(): Street | null;
+  getTallestBuilding(): { x: number; y: number; w: number; d: number; h: number } | null;
+  getRepoLabelBounds(): {
+    centerX: number;
+    centerY: number;
+    centerZ: number;
+    halfWidth: number;
+    halfHeight: number;
+  } | null;
+  getTreeBoundsBySha(
+    sha: string
+  ): { x: number; y: number; z: number; height: number; radius: number } | null;
+  /** world.onChange — rebuild notification; the rig ignores the diff payload. */
+  onChange(cb: () => void): () => void;
+}
 
 /** Floor on controls.maxDistance regardless of city size. Tiny-but-tall
  *  cities (small footprint, one big building) end up with a tiny
@@ -89,10 +110,10 @@ const TALLEST_BUILDING_HEADROOM_MULT = 1.05;
 
 export function createCameraRig({
   canvas,
-  world,
+  deps,
 }: {
   canvas: HTMLCanvasElement;
-  world: ReturnType<typeof createWorld>;
+  deps: CameraRigDeps;
 }) {
   const W = canvas.clientWidth;
   const H = canvas.clientHeight;
@@ -134,7 +155,7 @@ export function createCameraRig({
   // swap after zooming way out could leave R targeting the OLD (large-city)
   // framing while the camera was far outside the new bbox.
   function _captureFraming(): boolean {
-    const bbox = world.getBbox();
+    const bbox = deps.getBbox();
     if (!bbox || bbox.isEmpty()) return false;
 
     // World-bbox metrics — drive controls.maxDistance + camera.far so the
@@ -184,8 +205,8 @@ export function createCameraRig({
     // looking at the gem with the root street + its immediate
     // neighborhood readable on screen — not zoomed all the way out where
     // the gem becomes an invisible dot in a sprawling metropolis.
-    const gemPos = world.getGemWorldPos();
-    const rootStreet = world.getRootStreet();
+    const gemPos = deps.getGemWorldPos();
+    const rootStreet = deps.getRootStreet();
     let framingCenter: THREE.Vector3;
     let framingRadius: number;
     if (gemPos && rootStreet) {
@@ -239,8 +260,8 @@ export function createCameraRig({
     // Take the max across the 4 roof corners. HEADROOM scales D up for
     // breathing room above the roof (1.0 = spire flush against top edge).
     let heightDist = 0;
-    const tallest = gemPos && rootStreet ? world.getTallestBuilding() : null;
-    const labelBounds = gemPos && rootStreet ? world.getRepoLabelBounds() : null;
+    const tallest = gemPos && rootStreet ? deps.getTallestBuilding() : null;
+    const labelBounds = gemPos && rootStreet ? deps.getRepoLabelBounds() : null;
     if (tallest || labelBounds) {
       const sinElev = dir.y;
       const camUpScale = Math.sqrt(Math.max(0, 1 - sinElev * sinElev));
@@ -330,7 +351,7 @@ export function createCameraRig({
     // in the render layer (useCityScene), which calls reset() explicitly — this
     // rig is source-agnostic.
     if (!_rebuildSubscribed) {
-      world.onChange(() => {
+      deps.onChange(() => {
         _captureFraming();
       });
       _rebuildSubscribed = true;
@@ -448,7 +469,7 @@ export function createCameraRig({
     // from the target is sub-centimeter, treat it as nadir and fall back
     // to the root-street axis so the azimuth doesn't NaN out.
     if (horizLenSq < 1e-4) {
-      const root = world.getRootStreet();
+      const root = deps.getRootStreet();
       if (root && root.orientation === StreetAxis.X) {
         dirX = -1;
         dirZ = 0;
@@ -493,7 +514,7 @@ export function createCameraRig({
   }
 
   function focusTree(sha: string): void {
-    const b = world.getTreeBoundsBySha(sha);
+    const b = deps.getTreeBoundsBySha(sha);
     if (!b) return;
     const center = new THREE.Vector3(b.x, b.height / 2, b.z);
     const span = b.radius * 2;

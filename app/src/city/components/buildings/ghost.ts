@@ -24,7 +24,7 @@ import { effect } from '@preact/signals';
 import { NodeKind } from '@/types';
 import { RENDER_ORDERS } from '@/city/renderOrders';
 import type { Building } from '@/types';
-import type { createPicker } from '@/city/system/picker';
+import type { createPicker } from '@/city/runtime/picker';
 import type { FileTarget } from '@/types';
 
 // Narrow world surface the ghost needs (mesh resolver only). Supplied by the

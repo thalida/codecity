@@ -6,8 +6,8 @@
 // and system files; wiring happens in later tasks.
 
 import type * as THREE from 'three';
-import type { Picker } from './system/picker';
-import type { CameraRig } from './system/cameraRig';
+import type { Picker } from './runtime/picker';
+import type { CameraRig } from './runtime/cameraRig';
 import type { Manifest } from '@/types';
 
 /** Everything a scene component needs to wire itself into the scene at

@@ -17,13 +17,15 @@
 // picker.selection/hover, so they are NOT created at construction — they are
 // armed on the first tick(), once renderLoop has populated ctx.picker.
 //
-// Option B (Task 12): the building DIFF + the animator stay in world. world
-// keeps computing the diff via _computeDiff and the animator consumes it; this
-// component owns the meshes the animator resolves through world.getMeshForBuilding
-// (which delegates to getMeshForBuilding() here). rebuild() returns a
-// BuildingDiff for forward scaffolding (Task 13/15) but world ignores it and
-// computes its own. World mirrors _cells/_buildingIndex from this component
-// after rebuild so its _computeDiff / PrevState still read populated structures.
+// Option B (Task 12, amended by Task 13): the building DIFF stays in world;
+// the animator no longer exists as a module — its tween queue lives here
+// (tween.ts) behind animateFrom(diff)/tick(). world keeps computing the diff
+// via _computeDiff and renderLoop feeds it to animateFrom via world.onChange;
+// the tweens resolve meshes through getMeshForBuilding() here. rebuild()
+// returns a BuildingDiff for forward scaffolding (Task 15) but world ignores
+// it and computes its own. World mirrors _cells/_buildingIndex from this
+// component after rebuild so its _computeDiff / PrevState still read
+// populated structures.
 
 import * as THREE from 'three';
 import { effect } from '@preact/signals';
@@ -55,9 +57,10 @@ import { getBuildingColor, getCreatedAge, getModifiedAge } from './color';
 import { createBuildingFader } from './fader';
 import { createOutlineRenderer } from './outline';
 import { createGhostRenderer } from './ghost';
+import { createBuildingTweens } from './tween';
 
 /** Building-only slice of WorldDiff. Returned by rebuild() as forward
- *  scaffolding (Task 13/15); world ignores it under Option B and computes
+ *  scaffolding (Task 15); world ignores it under Option B and computes
  *  its own diff via _computeDiff. */
 export interface BuildingDiff {
   entering: { buildings: EnteringBuilding[] };
@@ -109,6 +112,11 @@ export interface Buildings extends SceneComponent {
   getAdPanels(): InstancedAdPanels | null;
   /** Window-resize hook — forwards to the outline LineMaterial resolution. */
   onResize(): void;
+  /** Start enter/stay tweens from a building diff (the dissolved animator).
+   *  Driven per-frame by tick(); each tween re-resolves its mesh via
+   *  getMeshForBuilding() so it survives rebuilds (null → dropped).
+   *  Accepts a WorldDiff structurally (BuildingDiff is its buildings slice). */
+  animateFrom(diff: BuildingDiff): void;
 }
 
 export function createBuildings(ctx: SceneContext, deps: BuildingsDeps): Buildings {
@@ -271,6 +279,14 @@ export function createBuildings(ctx: SceneContext, deps: BuildingsDeps): Buildin
     return null;
   }
 
+  // Enter/stay tween queue — the dissolved system/animator. No picker dep, so
+  // (unlike fader/outline/ghost) it is created at construction, not armed.
+  const _tweens = createBuildingTweens({ getMeshForBuilding });
+
+  function animateFrom(diff: BuildingDiff): void {
+    _tweens.onDiff(diff);
+  }
+
   // tick() — arms the picker overlays on the first call, then drives the three
   // per-frame syncs in the SAME order renderLoop did: fader.update →
   // outline.update → ghost.update (field-ownership order; see the old
@@ -278,6 +294,11 @@ export function createBuildings(ctx: SceneContext, deps: BuildingsDeps): Buildin
   // in renderLoop and now run AFTER this tick (proven behavior-neutral — their
   // writes are disjoint from these and are only consumed at postFx.render).
   function tick(_dt: number, _frame: FrameContext): void {
+    // Entering/staying tweens run FIRST within the tick — this was
+    // animator.update(0) in renderLoop's animate(), pre-Task-13. Nothing
+    // between that slot and this one reads instance matrices; outline/ghost
+    // read them AFTER, within this tick — behavior-identical ordering.
+    _tweens.update(0);
     _armInteractions();
     _fader?.update(0);
     _outline?.update(0);
@@ -374,6 +395,7 @@ export function createBuildings(ctx: SceneContext, deps: BuildingsDeps): Buildin
 
   function dispose(): void {
     _disposeInner();
+    _tweens.clear();
     stopMaterialEffect();
     _fader?.dispose();
     _outline?.dispose();
@@ -393,6 +415,7 @@ export function createBuildings(ctx: SceneContext, deps: BuildingsDeps): Buildin
     disposeAdPanels,
     tick,
     onResize,
+    animateFrom,
     dispose,
     getByPath: (p) => _buildingsByPath[p] || null,
     getBuildingsByPath: () => _buildingsByPath,

@@ -14,7 +14,7 @@
 // AFTER the first tick must drive the ghost overlay; before any tick, no
 // overlay exists at all.
 
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import * as THREE from 'three';
 import { signal } from '@preact/signals';
 
@@ -23,7 +23,7 @@ import { getSharedBuildingUniforms } from '@/city/components/buildings/material'
 import { BUILDINGS } from '@/state/stores/settings/buildings';
 import { NodeKind } from '@/types';
 import type { Building, CityLayout, DateRanges, FileTarget, PickTarget } from '@/types';
-import type { Picker } from '@/city/system/picker';
+import type { Picker } from '@/city/runtime/picker';
 import type { SceneContext } from '@/city/types';
 import { building } from '../../../_helpers/buildingFixture';
 
@@ -293,6 +293,66 @@ describe('createBuildings()', () => {
     // Clearing the hover hides it again.
     hover.value = null;
     expect(ghost!.visible).toBe(false);
+  });
+
+  // ---------------------------------------------------------------------------
+  // animateFrom() — the dissolved animator, end to end through tick()
+  // ---------------------------------------------------------------------------
+
+  it('animateFrom(entering diff) tweens the instance matrix through tick() and lands the final transform', async () => {
+    const { ctx } = makeCtx();
+    buildings = createBuildings(ctx, NOOP_DEPS);
+
+    const b0 = building({ x: 10, y: 10, h: 8, file: fileOf('src/a.ts') as never });
+    await buildings.rebuild(buildingLayout([b0]), EMPTY_DATE_RANGES);
+
+    const transitionMs = BUILDINGS.value.BUILDING_TRANSITION_MS;
+    let now = 0;
+    vi.spyOn(performance, 'now').mockImplementation(() => now);
+    try {
+      const resolved = buildings.getMeshForBuilding(b0)!;
+      const mesh = resolved.mesh;
+
+      buildings.animateFrom({
+        entering: {
+          buildings: [
+            {
+              building: b0,
+              instanceId: resolved.slot,
+              newScaleX: b0.w,
+              newScaleY: b0.h,
+              newScaleZ: b0.d,
+              newPosX: b0.x,
+              newPosY: b0.h / 2,
+              newPosZ: b0.y,
+            },
+          ],
+        },
+        staying: { buildings: [] },
+        exiting: { buildings: [] },
+      });
+
+      const m = new THREE.Matrix4();
+
+      // Mid-tween tick: interpolated scaleY strictly between ~0 and the
+      // final height (elements[5] is the Y scale of a makeScale matrix).
+      now = transitionMs / 2;
+      buildings.tick(0, { dt: 0, time: 0, camera: ctx.camera });
+      mesh.getMatrixAt(resolved.slot, m);
+      expect(m.elements[5]).toBeGreaterThan(0.0001);
+      expect(m.elements[5]).toBeLessThan(b0.h);
+
+      // Past the duration: the final scale + position land exactly.
+      now = transitionMs + 1;
+      buildings.tick(0, { dt: 0, time: 0, camera: ctx.camera });
+      mesh.getMatrixAt(resolved.slot, m);
+      expect(m.elements[5]).toBeCloseTo(b0.h, 6);
+      expect(m.elements[13]).toBeCloseTo(b0.h / 2, 6);
+      expect(m.elements[12]).toBeCloseTo(b0.x, 6);
+      expect(m.elements[14]).toBeCloseTo(b0.y, 6);
+    } finally {
+      vi.restoreAllMocks();
+    }
   });
 
   // ---------------------------------------------------------------------------

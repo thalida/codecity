@@ -29,7 +29,7 @@ import { NodeKind } from '@/types';
 import { UNIT_BOX_EDGE_POSITIONS } from './boxEdges';
 import { getBuildingTilt } from './tilt';
 import type { CellTile } from './cellTile';
-import type { createPicker } from '@/city/system/picker';
+import type { createPicker } from '@/city/runtime/picker';
 import type { FileTarget } from '@/types';
 
 // Narrow world surface the outline renderer needs (cell lookup only). Supplied
