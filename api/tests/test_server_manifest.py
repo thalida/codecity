@@ -108,3 +108,35 @@ def test_manifest_cold_scan_then_warm_cache_hit(
     warm_names = [n for n, _ in warm]
     assert "manifest-partial" not in warm_names, f"expected warm hit, got {warm_names}"
     assert warm_names[-1] == "manifest-complete"
+
+
+def test_manifest_stream_gzip_when_accepted(
+    client: TestClient, repo: Path, allow_local_repos
+) -> None:
+    # Accept-Encoding: gzip -> stream is gzip-compressed (browsers/httpx decode
+    # transparently). httpx auto-decompresses but keeps the header; the events
+    # round-trip intact.
+    with client.stream(
+        "GET",
+        "/api/manifest",
+        params={"src": str(repo), "no_cache": "true"},
+        headers={"Accept-Encoding": "gzip"},
+    ) as r:
+        assert r.headers.get("content-encoding") == "gzip"
+        events = _parse_sse("".join(r.iter_text()))
+    assert [n for n, _ in events][-1] == "manifest-complete"
+
+
+def test_manifest_stream_uncompressed_when_not_accepted(
+    client: TestClient, repo: Path, allow_local_repos
+) -> None:
+    # No gzip in Accept-Encoding -> served uncompressed (raw sockets / odd proxies).
+    with client.stream(
+        "GET",
+        "/api/manifest",
+        params={"src": str(repo), "no_cache": "true"},
+        headers={"Accept-Encoding": "identity"},
+    ) as r:
+        assert "content-encoding" not in r.headers
+        events = _parse_sse("".join(r.iter_text()))
+    assert [n for n, _ in events][-1] == "manifest-complete"

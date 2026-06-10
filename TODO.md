@@ -53,7 +53,6 @@
 - [ ] mount-path detection / autocomplete — let the server expose which `-v` paths are mounted so the Local pane can autocomplete + validate. `CODECITY_LOCAL_PATHS` env (set by `just dev/run` alongside `-v`) with `/proc/self/mounts` fallback for raw `docker run` users. Sketched in the conditional-local-repos spec's Follow-up section.
 - [x] per-author fireflies + co-author support — today each commit places 1 firefly (`ORBS_PER_TREE = 1`) and `commit.author` is a single string. Change so each distinct author of a commit gets their own firefly on that commit's tree, the api parses `Co-authored-by:` trailers, and the sidebar commit pane lists every author. Detailed prompt below.
 - [ ] commit-info side pane perf — selecting a tree currently shows "Loading commit…" for a noticeable beat before the commit details render. Profile what's happening on the server + client (commit fetch endpoint, JSON parse, sidebar render) and tighten it; pre-fetching on hover or caching the last N commits client-side are likely directions.
-- [ ] streaming gzip over SSE — the FastAPI `/api/manifest` stream ships **uncompressed**; the old hand-rolled server gzipped per-event. Measure a large-repo (Linux-kernel-scale) `final` event uncompressed before deciding whether to add a per-event streaming-gzip wrapper (`Content-Encoding: gzip`, browsers decode `EventSource` gzip transparently) to the `EventSourceResponse`. Deferred from the FastAPI migration (design risk #1).
 
 ## Agent Prompts ToDos
 

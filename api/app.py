@@ -16,6 +16,7 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from api.config import GZIP_MIN_BYTES
 from api.models.responses import ErrorResponse
 from api.routers import commit, file, manifest, meta
+from api.sse_compression import SSEGZipMiddleware
 from api.static import make_static_router
 
 DEFAULT_STATIC_DIR = Path(__file__).resolve().parent / "static"
@@ -52,7 +53,10 @@ def create_app(static_dir: Path | None = None) -> FastAPI:
         redoc_url=None,  # disable default ReDoc
         openapi_url="/api/openapi.json",
     )
+    # GZip compresses ordinary responses (it skips text/event-stream); the SSE
+    # middleware stream-gzips the manifest event stream with per-event flush.
     app.add_middleware(GZipMiddleware, minimum_size=GZIP_MIN_BYTES)
+    app.add_middleware(SSEGZipMiddleware)
 
     # Registered by reference (not as decorated nested functions) so they are
     # plain module-level handlers — no pyright reportUnusedFunction ignore.
