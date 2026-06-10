@@ -13,8 +13,8 @@ from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse
 
 from api.config import GZIP_MIN_BYTES
+from api.models.responses import ErrorResponse
 from api.routers import commit, file, manifest, meta
-from api.security import TRUST
 from api.static import make_static_router
 
 DEFAULT_STATIC_DIR = Path(__file__).resolve().parent / "static"
@@ -32,15 +32,17 @@ def _scalar_docs() -> HTMLResponse:
 
 
 async def _api_error_handler(_request: Request, exc: Exception) -> JSONResponse:
-    """Render HTTPExceptions as a uniform {"error": ...} JSON body (so an
+    """Render HTTPExceptions as a uniform ErrorResponse JSON body (so an
     unknown /api/* path is a 404 JSON, not HTML)."""
     status = exc.status_code if isinstance(exc, HTTPException) else 500
     detail = exc.detail if isinstance(exc, HTTPException) else "internal server error"
-    return JSONResponse(status_code=status, content={"error": detail})
+    return JSONResponse(status_code=status, content=ErrorResponse(error=detail).model_dump())
 
 
 def create_app(static_dir: Path | None = None) -> FastAPI:
-    TRUST.reset()  # fresh trust set per process / per test app
+    # NB: the process-global TRUST set is intentionally NOT reset here — the
+    # factory must be side-effect-free on session auth state. A fresh process
+    # starts with an empty TRUST; tests isolate it via an autouse fixture.
     app = FastAPI(
         title="CodeCity API",
         docs_url=None,           # disable Swagger UI

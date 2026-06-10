@@ -39,5 +39,16 @@ def get_file(path: str = Query(..., description="Absolute path inside a scanned 
         )
 
     guessed, _ = mimetypes.guess_type(str(target))
-    ctype = guessed if is_media(guessed) and guessed else "text/plain; charset=utf-8"
-    return Response(content=target.read_bytes(), media_type=ctype)
+    body = target.read_bytes()
+    if is_media(guessed) and guessed:
+        # Already-compressed media (image/video/audio/pdf): a set Content-
+        # Encoding makes the app-wide GZipMiddleware skip it, so we don't burn
+        # CPU re-deflating incompressible bytes for ~0 benefit. 'identity' =
+        # the body is sent as-is (RFC 9110 §8.4.1).
+        return Response(
+            content=body, media_type=guessed,
+            headers={"Content-Encoding": "identity"},
+        )
+    # Non-media (code, configs, extensionless) → text/plain so the preview
+    # renders the bytes as code; GZipMiddleware compresses it (text gzips well).
+    return Response(content=body, media_type="text/plain; charset=utf-8")

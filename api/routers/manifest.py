@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 import os
 import re
 import subprocess
@@ -50,6 +51,8 @@ from api.services.clone import (
 from api.services.scan import ScanCancelledError, scan_tree, signature_tree
 
 router = APIRouter(prefix="/api", tags=["manifest"])
+
+logger = logging.getLogger("codecity.manifest")
 
 _LOCAL_PATH_PREFIX = re.compile(r"^(/|~|\./|\.\./|[A-Za-z]:[\\/])")
 _GIT_SSH_FORM = re.compile(r"^[^@]+@[^:]+:")
@@ -124,9 +127,29 @@ def _is_git_working_tree(path: Path) -> bool:
     return r.returncode == 0 and r.stdout.strip() == "true"
 
 
+def _resolve_local(src: str) -> Path:
+    """Validate a local source path (no network) and return the resolved dir.
+    Raises ResolveError on any validation failure."""
+    if not local_repos_allowed():
+        raise ResolveError(403, _LOCAL_DISABLED_ERROR)
+    try:
+        target = Path(src).resolve(strict=True)
+    except (OSError, RuntimeError):
+        raise ResolveError(404, "path not found")
+    if not target.is_dir():
+        raise ResolveError(400, "path is not a directory")
+    if not _is_git_working_tree(target):
+        raise ResolveError(400, _NOT_GIT_ERROR)
+    return target
+
+
 def resolve_source(src: str, branch: str | None) -> Resolved:
     """Resolve a raw ?src into a scan target. Raises ResolveError on any
-    validation failure. For git URLs this performs the clone (network)."""
+    validation failure. For git URLs this performs the clone (network).
+
+    The SSE manifest route does NOT use this — it clones on a worker thread
+    (see the route) so clone progress streams and a mid-clone disconnect can
+    cancel it. This blocking form backs the signature route."""
     if not src:
         raise ResolveError(400, "missing 'src' query param")
     kind = classify(src)
@@ -143,17 +166,7 @@ def resolve_source(src: str, branch: str | None) -> Resolved:
             raise ResolveError(502, str(e))
         return Resolved(local, src, branch, "git", display)
     # kind == "local" — ignore any branch, scan the working tree in place
-    if not local_repos_allowed():
-        raise ResolveError(403, _LOCAL_DISABLED_ERROR)
-    try:
-        target = Path(src).resolve(strict=True)
-    except (OSError, RuntimeError):
-        raise ResolveError(404, "path not found")
-    if not target.is_dir():
-        raise ResolveError(400, "path is not a directory")
-    if not _is_git_working_tree(target):
-        raise ResolveError(400, _NOT_GIT_ERROR)
-    return Resolved(target, src, None, "local", src)
+    return Resolved(_resolve_local(src), src, None, "local", src)
 
 
 @router.get("/manifest/signature", response_model=SignatureResponse)
@@ -197,6 +210,11 @@ def _sse(event: str, payload: dict[str, Any]) -> dict[str, Any]:
     return {"event": event, "data": json.dumps(payload)}
 
 
+def _sse_error(message: str) -> dict[str, Any]:
+    """An `error` SSE event, single-sourced through the ErrorEvent model."""
+    return _sse("error", ErrorEvent(error=message).model_dump())
+
+
 # Documented SSE event union: surfacing all five event models in the
 # OpenAPI `responses` registers each as a schema component (richer Scalar
 # docs) AND transitively pulls Manifest -> tree types via Skeleton/FinalEvent.
@@ -226,72 +244,99 @@ async def manifest(
     use_cache = not no_cache
 
     async def gen() -> AsyncIterator[dict[str, Any]]:
-        # Resolve (incl. git clone) — failures become error EVENTS, not 4xx
-        # (EventSource can't read 4xx bodies).
-        try:
-            resolved = await asyncio.to_thread(resolve_source, src, branch)
-        except ResolveError as e:
-            yield _sse("error", {"error": e.message})
+        # Classify + (for local) validate WITHOUT cloning. The git clone runs
+        # on the worker thread below so its progress streams live and a
+        # mid-clone disconnect cancels it. Failures become error EVENTS, not
+        # 4xx (EventSource can't read 4xx bodies).
+        if not src:
+            yield _sse_error("missing 'src' query param")
             return
-
-        display = resolved.display_root
-        if resolved.kind == "git":
-            yield _sse("cloning", {"display_root": display})
-        yield _sse("scanning", {"display_root": display})
-
-        TRUST.register(resolved.path)
-
-        # Signature probe (cache key).
-        try:
-            sig = (await asyncio.to_thread(
-                signature_tree, str(resolved.path), use_cache=use_cache
-            ))["signature"]
-        except Exception as e:  # noqa: BLE001
-            yield _sse("error", {"error": f"scan failed: {e}"})
+        kind = classify(src)
+        if kind == "invalid":
+            yield _sse_error("unrecognized source — pass a local path or a git URL")
             return
-
-        # Warm cache hit -> single final event.
-        if use_cache:
-            cached = await asyncio.to_thread(
-                cache_load_manifest, resolved.path.resolve(), sig
-            )
-            if cached is not None:
-                if resolved.kind == "git":
-                    cached["display_root"] = display
-                yield _sse("final", {"manifest": cached})
+        local_path: Path | None = None
+        if kind == "git":
+            display = f"{src}@{branch}" if branch else src
+        else:
+            try:
+                local_path = await asyncio.to_thread(_resolve_local, src)
+            except ResolveError as e:
+                yield _sse_error(e.message)
                 return
+            display = src
 
-        # Cold scan: run scan_tree on a worker thread, bridge its events
-        # (skeleton/final) + heartbeat progress through an asyncio.Queue.
         cancel = threading.Event()
         loop = asyncio.get_running_loop()
         q: asyncio.Queue[dict[str, Any] | None] = asyncio.Queue()
-        final_holder: dict[str, Any] = {"manifest": None, "err": None}
+        holder: dict[str, Any] = {"manifest": None, "sig": None, "path": None}
 
         def _put(item: dict[str, Any] | None) -> None:
             loop.call_soon_threadsafe(q.put_nowait, item)
 
-        def _on_progress(files_scanned: int) -> None:
+        def _on_clone(payload: tuple[str, int]) -> None:
+            stage, percent = payload
+            _put(_sse("cloning", {
+                "display_root": display, "stage": stage, "percent": percent,
+            }))
+
+        def _on_scan(files_scanned: int) -> None:
             _put(_sse("scanning", {"display_root": display, "files_scanned": files_scanned}))
 
         def _run() -> None:
             try:
+                # Clone phase (git only): emit `cloning` FIRST, then clone with
+                # live progress + cancel support.
+                if kind == "git":
+                    _put(_sse("cloning", {"display_root": display}))
+                    try:
+                        with TRUST.clone_lock:
+                            path = ensure_clone(
+                                src, branch,
+                                on_progress=_on_clone, cancel_event=cancel,
+                            )
+                    except (BranchNotFoundError, RepoNotFoundError, HostUnreachableError) as e:
+                        _put(_sse_error(str(e)))
+                        return
+                    except CloneError as e:
+                        _put(_sse_error(str(e)))
+                        return
+                else:
+                    assert local_path is not None
+                    path = local_path
+
+                holder["path"] = path
+                TRUST.register(path)
+                _put(_sse("scanning", {"display_root": display}))
+
+                # Signature (cache key) + warm-cache short-circuit.
+                sig = signature_tree(str(path), use_cache=use_cache)["signature"]
+                holder["sig"] = sig
+                if use_cache:
+                    cached = cache_load_manifest(path.resolve(), sig)
+                    if cached is not None:
+                        if kind == "git":
+                            cached["display_root"] = display
+                        _put(_sse("final", {"manifest": cached}))
+                        return
+
+                # Cold scan: skeleton + final, with heartbeat progress.
                 for ev in scan_tree(
-                    str(resolved.path), use_cache=use_cache,
-                    cancel_event=cancel, on_scan_progress=_on_progress,
+                    str(path), use_cache=use_cache,
+                    cancel_event=cancel, on_scan_progress=_on_scan,
                 ):
                     phase = ev["phase"]  # "skeleton" | "final"
                     m = ev["manifest"]
-                    if resolved.kind == "git":
+                    if kind == "git":
                         m["display_root"] = display
                     if phase == "final":
-                        final_holder["manifest"] = m
+                        holder["manifest"] = m
                     _put(_sse(phase, {"manifest": m}))
             except ScanCancelledError:
-                pass
+                pass  # client disconnected mid-clone/scan; nothing to report
             except Exception as e:  # noqa: BLE001
-                final_holder["err"] = e
-                _put(_sse("error", {"error": f"scan failed: {e}"}))
+                logger.exception("manifest scan failed for src=%s", src)
+                _put(_sse_error(f"scan failed: {e}"))
             finally:
                 _put(None)  # sentinel
 
@@ -315,12 +360,12 @@ async def manifest(
             cancel.set()
             await asyncio.to_thread(worker.join, 2.0)
 
-        # ALWAYS write cache on a clean final (read gated by no_cache; write
-        # is not). Skipped only on disconnect or scan error.
-        final = final_holder["manifest"]
-        if final is not None and final_holder["err"] is None and not disconnected:
-            await asyncio.to_thread(
-                cache_save_manifest, resolved.path.resolve(), sig, final
-            )
+        # ALWAYS write cache on a clean final (read gated by no_cache; write is
+        # not). Skipped on disconnect, and on error (where manifest stays None).
+        final = holder["manifest"]
+        sig = holder["sig"]
+        path = holder["path"]
+        if final is not None and not disconnected and sig is not None and path is not None:
+            await asyncio.to_thread(cache_save_manifest, path.resolve(), sig, final)
 
     return EventSourceResponse(gen())

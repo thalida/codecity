@@ -84,4 +84,11 @@ describe('streamManifest (EventSource)', () => {
     last().emit('error'); // no data → connection failure
     await expect(it.next()).rejects.toThrow(/connection failed/i);
   });
+
+  it('rejects on a malformed event payload instead of hanging forever', async () => {
+    const { ctor, last } = makeES();
+    const it = streamManifest('/api/manifest', ctor)[Symbol.asyncIterator]();
+    last().emit('skeleton', '{not valid json'); // truncated/garbage frame
+    await expect(it.next()).rejects.toThrow(/malformed/i);
+  });
 });

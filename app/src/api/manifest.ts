@@ -172,9 +172,22 @@ export function streamManifest(
         }
       };
 
+      // Parse an event's JSON data, ending the stream with an error (rather
+      // than throwing into the swallowed event listener, which would leave the
+      // iterator hanging forever) if the payload is malformed/truncated.
+      const parseData = (raw: string): Record<string, unknown> | null => {
+        try {
+          return JSON.parse(raw) as Record<string, unknown>;
+        } catch {
+          finish(new Error('malformed manifest event'));
+          return null;
+        }
+      };
+
       const on = (name: string, phase: ScanPhase): void => {
         es.addEventListener(name, (e) => {
-          push({ phase, ...JSON.parse((e as MessageEvent).data) } as ScanStreamEvent);
+          const parsed = parseData((e as MessageEvent).data);
+          if (parsed) push({ phase, ...parsed } as ScanStreamEvent);
         });
       };
       on('cloning', ScanPhase.Cloning);
@@ -188,7 +201,8 @@ export function streamManifest(
       es.addEventListener('error', (e) => {
         const data = (e as MessageEvent).data;
         if (typeof data === 'string') {
-          push({ phase: ScanPhase.Error, ...JSON.parse(data) } as ScanStreamEvent);
+          const parsed = parseData(data);
+          if (parsed) push({ phase: ScanPhase.Error, ...parsed } as ScanStreamEvent);
         } else if (!done) {
           finish(new Error('manifest stream connection failed'));
         }

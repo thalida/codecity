@@ -336,6 +336,21 @@ class ScanTreeIntegrationTests(_CacheRedirectMixin, unittest.TestCase):
             self.assertEqual(c["same_day_total"], per_day[c["date"]])
             self.assertGreaterEqual(c["same_day_total"], 1)
 
+    def test_same_day_total_present_on_every_emit(self):
+        # same_day_total is NotRequired on the internal TypedDict (it's baked
+        # in-place at wrap time) but REQUIRED on the wire. Both the skeleton
+        # and final emits route through _wrap_manifest, so both must carry it
+        # on every commit. Guards against a future emit path skipping wrap.
+        events = list(scan_tree(str(FIXTURE), use_cache=False))
+        phases = [e["phase"] for e in events]
+        self.assertIn("skeleton", phases)
+        self.assertIn("final", phases)
+        for e in events:
+            for c in e["manifest"]["commits"]:
+                self.assertIn(
+                    "same_day_total", c, f"{e['phase']} commit missing same_day_total"
+                )
+
     def test_signature_present_and_stable(self):
         m1 = _final_manifest(str(FIXTURE))
         m2 = _final_manifest(str(FIXTURE))
