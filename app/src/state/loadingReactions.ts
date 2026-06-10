@@ -46,7 +46,9 @@ export function attachLoadingReactions(): () => void {
       // Progress tails done.
       setLoadingStepTail(LoadingStep.Cloning, null);
       setLoadingStepTail(LoadingStep.Scanning, null);
-      setLoadingStep(p.phase === ScanPhase.PartialManifest ? LoadingStep.Skeleton : LoadingStep.Building);
+      setLoadingStep(
+        p.phase === ScanPhase.PartialManifest ? LoadingStep.Skeleton : LoadingStep.Building
+      );
     }
     // p.phase === null: just-started; showLoadingOverlay already set the
     // kind-based initial step — nothing more to do until a real event.
