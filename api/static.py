@@ -46,5 +46,9 @@ def make_static_router(static_dir: Path) -> APIRouter:
 
     # Register via add_api_route (not the @router.get decorator) so `serve` is
     # referenced rather than a dangling nested function — no pyright ignore.
-    router.add_api_route("/{full_path:path}", serve, methods=["GET"])
+    # include_in_schema=False: this is the SPA file server, not an API endpoint,
+    # so the `/{full_path}` catch-all stays out of the OpenAPI schema / Scalar docs.
+    router.add_api_route(
+        "/{full_path:path}", serve, methods=["GET"], include_in_schema=False,
+    )
     return router
