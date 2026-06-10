@@ -36,7 +36,7 @@ const DEFAULT_FILE: FileNode = {
  *
  * Defaults satisfy every required field of Building (no cast needed). The
  * required-field set is small (x, y, w, d, h, color, file, orient); optional
- * fields (createdAge, modifiedAge, floors, cellId, slotId, dirNode) default
+ * fields (createdAge, modifiedAge, floors, cellId, slotId) default
  * to undefined and only appear when overridden — matches the production
  * shape where layout produces buildings without ages/cellId/slotId and
  * later steps fill them in.
@@ -56,6 +56,5 @@ export function building(overrides: Partial<Building> = {}): Building {
     ...(overrides.slotId !== undefined && { slotId: overrides.slotId }),
     ...(overrides.createdAge !== undefined && { createdAge: overrides.createdAge }),
     ...(overrides.modifiedAge !== undefined && { modifiedAge: overrides.modifiedAge }),
-    ...(overrides.dirNode !== undefined && { dirNode: overrides.dirNode }),
   };
 }

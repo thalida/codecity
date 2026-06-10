@@ -2,7 +2,7 @@
 // Defines the Building shape the layout step produces; scene/world.ts reads
 // it to instantiate three.js meshes.
 
-import type { FileNode, DirNode } from './manifest';
+import type { FileNode } from './manifest';
 
 /** Direction the door faces. Layout sets this; engine reads it. */
 export enum BuildingOrient {
@@ -68,10 +68,4 @@ export interface Building {
    * Combined with cellId as "cellId:slotId" key for byCellSlot index.
    */
   slotId?: number;
-
-  /**
-   * Parent directory node. Set during manifest processing.
-   * Used by BuildingIndex for dir-walk queries (forEachInDir).
-   */
-  dirNode?: DirNode;
 }
