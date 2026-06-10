@@ -12,6 +12,7 @@ import { FACADE } from '@/state/stores/settings/facade';
 import { BLOOM } from '@/state/stores/settings/effects';
 import { SCENE } from '@/state/stores/settings/scene';
 import type { IconAtlas } from './atlas';
+import { setColorFromHex } from '@/city/utils/color/setColorFromHex';
 import { writeSunDir } from '@/city/utils/lighting/sunDir';
 import {
   LIGHTING_SUN_AZIMUTH_DEG,
@@ -87,16 +88,12 @@ function getBuildingMaterial(): THREE.ShaderMaterial {
       uIconSlotSize: { value: _atlas ? _atlas.slotSize : 0 },
       // Ground-haze uniforms — height-based volumetric fog applied
       // in the building shader. Independent of camera distance.
-      // Fog color is mixed into the post-tonemap sRGB framebuffer; pass
-      // the CSS hex through unchanged via LinearSRGBColorSpace so Three's
-      // automatic sRGB->linear conversion doesn't darken it. Same
-      // convention as uDimGlowColor.
+      // Fog color is mixed into the post-tonemap sRGB framebuffer, so the
+      // hex bytes pass through unchanged (see setColorFromHex).
       // uFogEnabled drives the boolean branch in the shared fog chunk;
       // uFogIntensity is still set to 0 when disabled (belt-and-suspenders).
       uFogEnabled: { value: SCENE.value.FOG_ENABLED },
-      uFogColor: {
-        value: new THREE.Color().setStyle(SCENE.value.FOG_COLOR, THREE.LinearSRGBColorSpace),
-      },
+      uFogColor: { value: setColorFromHex(new THREE.Color(), SCENE.value.FOG_COLOR) },
       uFogIntensity: { value: SCENE.value.FOG_INTENSITY },
       uFogHeight: { value: _computeFogHeight() },
       // Extra HDR emission applied to the freshest building's lit
@@ -144,13 +141,10 @@ function getBuildingMaterial(): THREE.ShaderMaterial {
       uWindowUnlitLightnessDelta: { value: FACADE.value.UNLIT_LIGHTNESS_DELTA },
       uWindowGapBaseThreshold: { value: FACADE.value.GAP_BASE_THRESHOLD },
       uWindowGapAgeBonus: { value: FACADE.value.GAP_AGE_BONUS },
-      // setStyle(..., LinearSRGBColorSpace) skips Three's automatic sRGB→linear
-      // conversion. The shader consumes uDimGlowColor in sRGB space (the prior
-      // hardcoded vec3(0.5, 0.4, 0.15) was sRGB), so we pass the hex bytes
-      // through unchanged.
-      uDimGlowColor: {
-        value: new THREE.Color().setStyle(FACADE.value.DIM_GLOW_COLOR, THREE.LinearSRGBColorSpace),
-      },
+      // The shader consumes uDimGlowColor in sRGB space (the prior hardcoded
+      // vec3(0.5, 0.4, 0.15) was sRGB), so the hex bytes pass through
+      // unchanged (see setColorFromHex).
+      uDimGlowColor: { value: setColorFromHex(new THREE.Color(), FACADE.value.DIM_GLOW_COLOR) },
       uLitFreshnessExponent: { value: FACADE.value.LIT_FRESHNESS_EXPONENT },
     },
   });
@@ -190,10 +184,7 @@ export function refreshBuildingMaterial(): void {
   // zeroed when disabled so the mix() is a no-op even if the bool branch
   // ever short-circuits differently on a given driver.
   _sharedMaterial.uniforms.uFogEnabled.value = sceneCfg.FOG_ENABLED;
-  (_sharedMaterial.uniforms.uFogColor.value as THREE.Color).setStyle(
-    sceneCfg.FOG_COLOR,
-    THREE.LinearSRGBColorSpace
-  );
+  setColorFromHex(_sharedMaterial.uniforms.uFogColor.value as THREE.Color, sceneCfg.FOG_COLOR);
   _sharedMaterial.uniforms.uFogIntensity.value = sceneCfg.FOG_ENABLED ? sceneCfg.FOG_INTENSITY : 0;
   _sharedMaterial.uniforms.uFogHeight.value = _computeFogHeight();
   // BLOOM.ENABLED off → no HDR push for windows, so they stay LDR and
@@ -234,17 +225,16 @@ export function refreshBuildingMaterial(): void {
   _sharedMaterial.uniforms.uDoorLightnessDelta.value = facadeDetail.DOOR_LIGHTNESS_DELTA;
   _sharedMaterial.uniforms.uRoofBorderLightnessDelta.value =
     facadeDetail.ROOF_BORDER_LIGHTNESS_DELTA;
-  // WINDOW_LIGHTING store — pure uniform refresh. .set(cssString) on the
-  // pre-allocated THREE.Color preserves the linear-sRGB conversion path.
+  // WINDOW_LIGHTING store — pure uniform refresh into the pre-allocated
+  // THREE.Color uniform values.
   const windowLighting = FACADE.value;
   _sharedMaterial.uniforms.uWindowUnlitLightnessDelta.value = windowLighting.UNLIT_LIGHTNESS_DELTA;
   _sharedMaterial.uniforms.uWindowGapBaseThreshold.value = windowLighting.GAP_BASE_THRESHOLD;
   _sharedMaterial.uniforms.uWindowGapAgeBonus.value = windowLighting.GAP_AGE_BONUS;
-  // Pass DIM_GLOW_COLOR through unchanged — shader treats it as sRGB,
-  // matching the prior hardcoded vec3(0.5, 0.4, 0.15) literal.
-  (_sharedMaterial.uniforms.uDimGlowColor.value as THREE.Color).setStyle(
-    windowLighting.DIM_GLOW_COLOR,
-    THREE.LinearSRGBColorSpace
+  // DIM_GLOW_COLOR is consumed in sRGB space — see the uniform's initializer.
+  setColorFromHex(
+    _sharedMaterial.uniforms.uDimGlowColor.value as THREE.Color,
+    windowLighting.DIM_GLOW_COLOR
   );
   _sharedMaterial.uniforms.uLitFreshnessExponent.value = windowLighting.LIT_FRESHNESS_EXPONENT;
 }

@@ -16,6 +16,9 @@
 
 import * as THREE from 'three';
 
-export function setColorFromHex(target: THREE.Color, hex: string): void {
-  target.setStyle(hex, THREE.LinearSRGBColorSpace);
+/** Returns `target` (same convention as THREE.Color's own setters) so the
+ *  helper also works in expression position, e.g. uniform initializers:
+ *  `{ value: setColorFromHex(new THREE.Color(), cfg.FOG_COLOR) }`. */
+export function setColorFromHex(target: THREE.Color, hex: string): THREE.Color {
+  return target.setStyle(hex, THREE.LinearSRGBColorSpace);
 }
