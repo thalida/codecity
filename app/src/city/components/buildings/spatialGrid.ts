@@ -1,7 +1,6 @@
 // city/components/buildings/spatialGrid.ts — Maps the layout world plane (XZ) onto a
 // fixed-cell-size 2D grid. Cells are the rendering primitive: each
-// owns a detail InstancedMesh, an optional label InstancedMesh, and
-// merged sidewalk geometry. Grid math is pure: worldToCell,
+// owns a detail InstancedMesh. Grid math is pure: worldToCell,
 // cellBoundsSphere, cellCenter.
 //
 // MIN_CELL_SIZE / CELL_SIZE: the minimum grid resolution (12 world

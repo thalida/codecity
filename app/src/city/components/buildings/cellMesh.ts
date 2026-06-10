@@ -1,6 +1,6 @@
 // city/components/buildings/cellMesh.ts — Cell-aware building InstancedMesh
-// factory. Replaces the per-block factory in buildings.ts for the
-// spatial-grid rendering path.
+// factory. Replaced the pre-cell per-block factory (removed with the
+// world god object) for the spatial-grid rendering path.
 //
 // Geometry + material are constructed once at module load and shared
 // across all cells; per-cell InstancedMeshes get a shallow geometry
@@ -29,7 +29,8 @@ import { seedFromPath, attachLeanAwareRaycast } from './tilt';
 const SHARED_BUILDING_GEOMETRY: THREE.BufferGeometry = new THREE.BoxGeometry(1, 1, 1);
 
 // ---------------------------------------------------------------------------
-// Helpers — ported faithfully from buildings.ts (private there).
+// Helpers — ported faithfully from the pre-cell per-block factory
+// (private there).
 // ---------------------------------------------------------------------------
 
 /**
@@ -58,7 +59,8 @@ function orientToIndex(orient: BuildingOrient): number {
 // ---------------------------------------------------------------------------
 // Material cache — one ShaderMaterial shared across all cells that use the
 // same uniforms object identity. Memoized on the REFERENCE of the uniforms
-// bag (callers pass the same object every time — see world.ts). This
+// bag (callers pass the same object every time — see index.ts: rebuild
+// passes getSharedBuildingUniforms()). This
 // eliminates the per-cell ShaderMaterial + WebGL program compilation cost
 // that was causing the tab to hang on large repos (289 cells × 2 materials
 // = 578 ShaderMaterial allocations on enable toggle).
@@ -88,18 +90,18 @@ function getOrCreateBuildingMaterial(
 }
 
 // ---------------------------------------------------------------------------
-// Icon atlas — module-level cache, mirroring the pattern in buildings.ts.
-// world.applyManifest pushes the atlas in (via setCellIconAtlas) before the
-// cell pass. If not set, iIconUV.xy stays (-1, -1) and the shader skips the
-// atlas sample (no crash, just no roof icon).
+// Icon atlas — module-level cache, mirroring the pattern in material.ts.
+// The component's setAtlas() pushes the atlas in (via setCellIconAtlas)
+// before the cell pass. If not set, iIconUV.xy stays (-1, -1) and the
+// shader skips the atlas sample (no crash, just no roof icon).
 // ---------------------------------------------------------------------------
 
 let _atlas: IconAtlas | null = null;
 
 /**
  * Register the icon atlas for this module's cell building factory.
- * Must be called (alongside buildings.ts's setIconAtlas) from world.applyManifest
- * after buildIconAtlas() resolves so roof icons appear in cell mode.
+ * Must be called (alongside material.ts's setIconAtlas, via the component's
+ * setAtlas()) after buildIconAtlas() resolves so roof icons appear in cell mode.
  */
 export function setCellIconAtlas(atlas: IconAtlas | null): void {
   _atlas = atlas;
@@ -133,7 +135,7 @@ export function attachBuildingMeshToCell(
   const geom = SHARED_BUILDING_GEOMETRY.clone();
 
   // Per-instance attribute buffers sized to cell.capacity — matching
-  // the attribute names and strides from buildings.ts / building.vert.glsl.
+  // the attribute names and strides declared in building.vert.glsl.
   // iCols: vec2 (cols_ew, cols_ns) — two floats per instance.
   geom.setAttribute(
     'iCols',
@@ -199,8 +201,8 @@ export function attachBuildingMeshToCell(
  * already be set by the caller (typically the cell-insert path in
  * cellAssembly.ts).
  *
- * Per-instance attribute writes mirror buildBuildingInstanceBuffer() in
- * buildings.ts (the non-cell instanced path) — semantics are identical.
+ * Per-instance attribute semantics follow the building.vert.glsl attribute
+ * contract (iCols, iFloors, iOrient, iDoorWidth, iFade, iIconUV, iModifiedAge).
  * Callers must set `mesh.instanceMatrix.needsUpdate = true` (and
  * `mesh.instanceColor.needsUpdate = true`, attribute `.needsUpdate = true`)
  * after a batch of writes.
@@ -209,7 +211,7 @@ export function writeBuildingToSlot(cell: CellTile, b: Building): void {
   const slot = b.slotId!;
   const mesh = cell.detailMesh;
 
-  // --- Config snapshot (mirrors buildBuildingInstanceBuffer) ---
+  // --- Config snapshot (read once per write, not per attribute) ---
   const facade = FACADE.value;
   const windowColsMax = facade.WINDOW_COLS_MAX;
   const widthPerWindowCol = facade.WIDTH_PER_WINDOW_COL;
@@ -217,8 +219,8 @@ export function writeBuildingToSlot(cell: CellTile, b: Building): void {
 
   // --- Transform matrix ---
   // Layout (x, y) → scene (x, z); building.h is scene-Y.
-  // Position y = h/2 so the base sits on z=0 (same convention as
-  // createBuildingMesh and buildBuildingInstanceBuffer).
+  // Position y = h/2 so the base sits on z=0 (the convention the
+  // building shader assumes — see building.vert.glsl).
   const m = new THREE.Matrix4();
   m.makeScale(b.w, b.h, b.d);
   m.setPosition(b.x, b.h / 2, b.y);
@@ -232,7 +234,7 @@ export function writeBuildingToSlot(cell: CellTile, b: Building): void {
   }
 
   // --- Window column counts ---
-  // Mirror the window-column counts in buildings.ts:
+  // Window-column convention (carried over from the pre-cell factory):
   //   ±X faces (east/west walls) span depth d → cols_ew from d
   //   ±Z faces (north/south walls) span width w → cols_ns from w
   const colsEW = Math.max(1, Math.min(windowColsMax, Math.floor(b.d / widthPerWindowCol)));
@@ -250,7 +252,6 @@ export function writeBuildingToSlot(cell: CellTile, b: Building): void {
 
   // --- Door width ---
   // doorWorldWidth = building.w × DOOR_WIDTH_FRAC
-  // Mirrors createBuildingMesh and buildBuildingInstanceBuffer.
   const iDoorWidthAttr = mesh.geometry.getAttribute('iDoorWidth') as THREE.InstancedBufferAttribute;
   iDoorWidthAttr.setX(slot, b.w * doorWidthFrac);
 
@@ -261,9 +262,8 @@ export function writeBuildingToSlot(cell: CellTile, b: Building): void {
   // --- Icon UV (top-left of atlas slot) + per-instance seed + createdAge ---
   // (-1, -1) on .xy means "no icon" — shader checks .x < 0 and skips the
   // atlas sample. Seed on .z; createdAge on .w.
-  // Mirror the lookup pattern from buildings.ts: if the module-level atlas
-  // is available and the file has a known icon, write the resolved UV;
-  // otherwise fall back to the (-1, -1) sentinel.
+  // If the module-level atlas is available and the file has a known icon,
+  // write the resolved UV; otherwise fall back to the (-1, -1) sentinel.
   const seed = seedFromPath(b.file?.path ?? '');
   const iIconUVAttr = mesh.geometry.getAttribute('iIconUV') as THREE.InstancedBufferAttribute;
   let iconU = -1.0;

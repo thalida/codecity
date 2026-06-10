@@ -124,7 +124,7 @@ function getBuildingMaterial(): THREE.ShaderMaterial {
       // configured values; refreshBuildingMaterial() pushes updates on
       // Save via applyTheme(). Only the shader-side keys appear here — the JS-side
       // keys (WINDOW_COLS_MAX, WIDTH_PER_WINDOW_COL, DOOR_WIDTH_FRAC)
-      // bake into per-instance attributes in buildBuildingInstanceBuffer above.
+      // bake into per-instance attributes in cellMesh.ts (writeBuildingToSlot).
       uSlabHeightFrac: { value: FACADE.value.SLAB_HEIGHT_FRAC },
       uWindowWidthFrac: { value: FACADE.value.WINDOW_WIDTH_FRAC },
       uWindowHeightFrac: { value: FACADE.value.WINDOW_HEIGHT_FRAC },

@@ -92,7 +92,6 @@ export function buildCellsFromLayout(
     b.cellId = cellId;
     b.slotId = slot;
     cell.buildings[slot] = b;
-    if (b.dirNode) cell.dirs.add(b.dirNode);
     writeBuildingToSlot(cell, b);
     index.insert(b);
   }

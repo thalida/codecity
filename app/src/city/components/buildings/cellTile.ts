@@ -1,8 +1,8 @@
 // city/components/buildings/cellTile.ts — The rendering primitive for the spatial-grid
-// model. Each CellTile owns up to two meshes (detail, street)
-// plus a slot table. The InstancedMesh objects are preallocated to
-// `capacity`; unused slots have zero-scale matrix so they don't render.
-// Slot reuse is tracked via `freeSlots`.
+// model. Each CellTile owns the detail InstancedMesh plus a slot
+// table. The InstancedMesh is preallocated to `capacity`; unused
+// slots have zero-scale matrix so they don't render. Slot reuse is
+// tracked via `freeSlots`.
 //
 // Mesh geometry/material assembly is deferred to the cell-aware
 // factory modules (cellMesh.ts, etc.). This file
@@ -10,7 +10,6 @@
 
 import * as THREE from 'three';
 import type { Building } from '@/types/index';
-import type { DirNode } from '@/types/manifest';
 import type { SpatialGrid } from './spatialGrid';
 
 export interface CellTile {
@@ -24,12 +23,8 @@ export interface CellTile {
   freeSlots: number[];
 
   detailMesh: THREE.InstancedMesh;
-  streetMesh: THREE.Mesh | null; // assembled separately by cellAssembly
 
   buildings: (Building | null)[];
-
-  /** Set of directories that have buildings in this cell. */
-  dirs: Set<DirNode>;
 }
 
 /**
@@ -64,9 +59,7 @@ export function createEmptyCellTile(grid: SpatialGrid, cellId: number, capacity:
     used: 0,
     freeSlots: [],
     detailMesh,
-    streetMesh: null,
     buildings: new Array(capacity).fill(null),
-    dirs: new Set(),
   };
 }
 
@@ -86,6 +79,7 @@ export function allocateSlot(cell: CellTile): number {
 }
 
 /** Free a slot (sets scale-zero, marks recyclable). */
+// Currently uncalled — slot-recycle scaffolding for Task 17 overflow chaining.
 export function freeSlot(cell: CellTile, slotId: number): void {
   const zero = new THREE.Matrix4().makeScale(0, 0, 0);
   cell.detailMesh.setMatrixAt(slotId, zero);
