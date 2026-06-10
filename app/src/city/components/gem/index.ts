@@ -22,6 +22,7 @@ import type { Street } from '@/types';
 
 import type { FrameContext, SceneComponent, SceneContext } from '../../types';
 import { createRootGem, GEM_HOVER_LIFT_FRAC } from './mesh';
+import { paletteColors, type Rgb } from './palette';
 
 // Cycle a THREE.Color in place through a palette of [r,g,b] triples,
 // smoothly interpolating between adjacent palette entries. One full
@@ -30,7 +31,7 @@ import { createRootGem, GEM_HOVER_LIFT_FRAC } from './mesh';
 // "ahead-of-each-other" cadences without allocating new Colors.
 function _setPaletteColor(
   out: THREE.Color,
-  palette: ReadonlyArray<string>,
+  palette: ReadonlyArray<Rgb>,
   t: number,
   period: number,
   offset: number
@@ -42,9 +43,9 @@ function _setPaletteColor(
   const a = Math.floor(idxf) % n;
   const b = (a + 1) % n;
   const f = idxf - Math.floor(idxf);
-  const A = new THREE.Color(palette[a]);
-  const B = new THREE.Color(palette[b]);
-  out.setRGB(A.r + (B.r - A.r) * f, A.g + (B.g - A.g) * f, A.b + (B.b - A.b) * f);
+  const A = palette[a];
+  const B = palette[b];
+  out.setRGB(A[0] + (B[0] - A[0]) * f, A[1] + (B[1] - A[1]) * f, A[2] + (B[2] - A[2]) * f);
 }
 
 type GemBody = THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial>;
@@ -151,21 +152,7 @@ export function createGem(ctx: SceneContext): Gem {
     // baked at construction. Rewrite it in place on Save so palette tweaks
     // take effect without a full applyManifest rebuild.
     if (body?.geometry?.attributes.color) {
-      const palette = GEM.value;
-      const paletteHexes = [
-        palette.FACE_1,
-        palette.FACE_2,
-        palette.FACE_3,
-        palette.FACE_4,
-        palette.FACE_5,
-        palette.FACE_6,
-        palette.FACE_7,
-        palette.FACE_8,
-      ];
-      const faceColors = paletteHexes.map((hex) => {
-        const c = new THREE.Color(hex);
-        return [c.r, c.g, c.b] as [number, number, number];
-      });
+      const faceColors = paletteColors(GEM.value);
       const geo = body.geometry;
       const colorAttr = geo.attributes.color as THREE.BufferAttribute;
       const vertexCount = geo.attributes.position.count;
@@ -237,22 +224,12 @@ export function createGem(ctx: SceneContext): Gem {
     const outer = outerGlow;
     if (inner || outer) {
       if (glowCfg.GLOW_ANIMATE_COLORS) {
-        const palette = GEM.value;
-        const hexes = [
-          palette.FACE_1,
-          palette.FACE_2,
-          palette.FACE_3,
-          palette.FACE_4,
-          palette.FACE_5,
-          palette.FACE_6,
-          palette.FACE_7,
-          palette.FACE_8,
-        ];
+        const colors = paletteColors(GEM.value);
         const period = Math.max(0.001, glowCfg.GLOW_CYCLE_PERIOD_SECONDS);
         if (inner)
-          _setPaletteColor((inner.material as THREE.SpriteMaterial).color, hexes, t, period, 0);
+          _setPaletteColor((inner.material as THREE.SpriteMaterial).color, colors, t, period, 0);
         if (outer)
-          _setPaletteColor((outer.material as THREE.SpriteMaterial).color, hexes, t, period, 0.5);
+          _setPaletteColor((outer.material as THREE.SpriteMaterial).color, colors, t, period, 0.5);
       } else {
         const edge = GEM.value.EDGE_COLOR;
         if (inner) (inner.material as THREE.SpriteMaterial).color.set(edge);

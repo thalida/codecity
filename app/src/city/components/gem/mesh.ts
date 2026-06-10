@@ -17,6 +17,7 @@ import * as THREE from 'three';
 import { GEM, GEM_SIZING } from '@/state/stores/settings/gem';
 import { NodeKind } from '@/types';
 import { gemAnchorXZ } from '../../utils/gemAnchor';
+import { paletteColors } from './palette';
 import type { Street } from '@/types';
 
 // Gem hover-lift as a fraction of street width — fixed, not user-tunable
@@ -111,21 +112,7 @@ export function createRootGem(street: Street): THREE.Group {
       break;
   }
 
-  const palette = GEM.value;
-  const paletteHexes = [
-    palette.FACE_1,
-    palette.FACE_2,
-    palette.FACE_3,
-    palette.FACE_4,
-    palette.FACE_5,
-    palette.FACE_6,
-    palette.FACE_7,
-    palette.FACE_8,
-  ];
-  const faceColors = paletteHexes.map((hex) => {
-    const c = new THREE.Color(hex);
-    return [c.r, c.g, c.b] as [number, number, number];
-  });
+  const faceColors = paletteColors(GEM.value);
 
   const vertexCount = geo.attributes.position.count;
   const faceCount = vertexCount / 3; // each triangle = 3 vertices
