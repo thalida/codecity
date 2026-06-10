@@ -1,10 +1,18 @@
-// city/components/buildings/material.ts — Shared building material + icon atlas.
+// city/components/buildings/material.ts — Canonical building uniforms + icon atlas.
 //
-// Owns the singleton ShaderMaterial used by every cell's detail mesh
-// (cellMesh.ts attaches per-cell instance buffers to a
-// new InstancedMesh that references this material). Also owns the icon
+// Owns the canonical uniforms bag for the building shader: a lazily
+// created ShaderMaterial whose uniforms object is handed to cellMesh.ts
+// via getSharedBuildingUniforms(). The material held here is never
+// attached to a mesh — cellMesh.ts compiles the ONE rendered
+// ShaderMaterial (identity-memoized on this uniforms bag), so mutating
+// the uniform value objects here updates every cell. Also owns the icon
 // atlas reference and the refresh hook that re-applies Save-committed
 // uniforms on config-store changes.
+//
+// Task 15 follow-up: two ShaderMaterials are compiled from the same
+// GLSL sources (this one, never rendered, and cellMesh's rendered one).
+// Consolidating to a single material is a composer-era cleanup
+// candidate.
 
 import * as THREE from 'three';
 import { BUILDINGS, BUILDING_DIMENSIONS } from '@/state/stores/settings/buildings';
@@ -157,14 +165,14 @@ function getBuildingMaterial(): THREE.ShaderMaterial {
 }
 
 /**
- * Return the shared building material's uniforms dict so cell-aware
- * factories (cellMesh.ts) can share the same uniform VALUE objects.
- * Lazily initialises the singleton material if it hasn't been created yet.
+ * Return the canonical building uniforms bag so cellMesh.ts can build the
+ * one rendered ShaderMaterial around it (identity-memoized — every cell's
+ * detail mesh shares that single material). Lazily initialises the
+ * uniforms-holder material if it hasn't been created yet.
  *
- * Cell-path usage: each CellTile gets its own ShaderMaterial created by
- * attachBuildingMeshToCell, but they all reference the same uniform value
- * objects returned here — so refreshBuildingMaterial() updates all cells
- * automatically (it mutates the value objects in-place).
+ * Because cellMesh's rendered material references these same uniform VALUE
+ * objects, refreshBuildingMaterial() updates all cells automatically (it
+ * mutates the value objects in-place).
  */
 export function getSharedBuildingUniforms(): Record<string, THREE.IUniform> {
   return getBuildingMaterial().uniforms;

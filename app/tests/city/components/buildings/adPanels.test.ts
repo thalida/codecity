@@ -1,5 +1,5 @@
 // tests/city/components/buildings/adPanels.test.ts — Smoke tests for the instanced
-// ad panel system (Tasks 16-17).
+// ad panel system (introduced in the #52 cell-render migration).
 
 import { describe, it, expect } from 'vitest';
 import type * as THREE from 'three';

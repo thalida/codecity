@@ -79,7 +79,9 @@ export function allocateSlot(cell: CellTile): number {
 }
 
 /** Free a slot (sets scale-zero, marks recyclable). */
-// Currently uncalled — slot-recycle scaffolding for Task 17 overflow chaining.
+// Currently uncalled — slot-recycle scaffolding for the planned
+// overflow-tile chaining (deferred from the 2026-05 cell-render plan;
+// not currently scheduled).
 export function freeSlot(cell: CellTile, slotId: number): void {
   const zero = new THREE.Matrix4().makeScale(0, 0, 0);
   cell.detailMesh.setMatrixAt(slotId, zero);

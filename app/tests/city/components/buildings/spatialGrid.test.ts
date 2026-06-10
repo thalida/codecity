@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { SpatialGrid, CELL_SIZE, MIN_CELL_SIZE } from '@/city/components/buildings/spatialGrid';
+import { SpatialGrid, MIN_CELL_SIZE } from '@/city/components/buildings/spatialGrid';
 
 describe('SpatialGrid', () => {
   it('computes grid dimensions from world bounds', () => {
@@ -9,16 +9,16 @@ describe('SpatialGrid', () => {
       minZ: 0,
       maxZ: 60,
     });
-    expect(grid.gridW).toBe(Math.ceil(100 / CELL_SIZE));
-    expect(grid.gridH).toBe(Math.ceil(60 / CELL_SIZE));
+    expect(grid.gridW).toBe(Math.ceil(100 / MIN_CELL_SIZE));
+    expect(grid.gridH).toBe(Math.ceil(60 / MIN_CELL_SIZE));
     expect(grid.cellCount).toBe(grid.gridW * grid.gridH);
   });
 
   it('maps world position to cell index', () => {
     const grid = new SpatialGrid({ minX: 0, maxX: 100, minZ: 0, maxZ: 60 });
     const cell = grid.worldToCell(15, 25);
-    expect(cell.cx).toBe(Math.floor(15 / CELL_SIZE));
-    expect(cell.cz).toBe(Math.floor(25 / CELL_SIZE));
+    expect(cell.cx).toBe(Math.floor(15 / MIN_CELL_SIZE));
+    expect(cell.cz).toBe(Math.floor(25 / MIN_CELL_SIZE));
     expect(cell.cellId).toBe(cell.cz * grid.gridW + cell.cx);
   });
 
@@ -32,9 +32,9 @@ describe('SpatialGrid', () => {
   it('cellBoundsSphere covers the cell footprint', () => {
     const grid = new SpatialGrid({ minX: 0, maxX: 100, minZ: 0, maxZ: 60 });
     const sphere = grid.cellBoundsSphere(0);
-    expect(sphere.radius).toBeGreaterThanOrEqual(CELL_SIZE / 2);
-    expect(sphere.center.x).toBeCloseTo(CELL_SIZE / 2);
-    expect(sphere.center.z).toBeCloseTo(CELL_SIZE / 2);
+    expect(sphere.radius).toBeGreaterThanOrEqual(MIN_CELL_SIZE / 2);
+    expect(sphere.center.x).toBeCloseTo(MIN_CELL_SIZE / 2);
+    expect(sphere.center.z).toBeCloseTo(MIN_CELL_SIZE / 2);
   });
 
   it('degenerate (single-cell) grid for tiny bounds', () => {

@@ -1,13 +1,15 @@
 // city/components/buildings/cellMesh.ts — Cell-aware building InstancedMesh
-// factory. Replaced the pre-cell per-block factory (removed with the
-// world god object) for the spatial-grid rendering path.
+// factory. Replaced the pre-cell per-block factory, which died in the
+// #52 cell-render migration (world.ts itself survives until Task 15).
 //
-// Geometry + material are constructed once at module load and shared
-// across all cells; per-cell InstancedMeshes get a shallow geometry
-// clone (so per-instance attributes don't bleed between cells) sharing
-// the same vertex/index buffers via Three's BufferGeometry.clone()
-// (only the InstancedBufferAttributes are duplicated, not the
-// index/position buffers).
+// Geometry is constructed once at module load and shared across all
+// cells; the material is created lazily on the first
+// attachBuildingMeshToCell call with the caller's uniforms and then
+// shared. Per-cell InstancedMeshes get a shallow geometry clone (so
+// per-instance attributes don't bleed between cells) sharing the same
+// vertex/index buffers via Three's BufferGeometry.clone() (only the
+// InstancedBufferAttributes are duplicated, not the index/position
+// buffers).
 
 import * as THREE from 'three';
 import { FACADE } from '@/state/stores/settings/facade';
@@ -60,10 +62,10 @@ function orientToIndex(orient: BuildingOrient): number {
 // Material cache — one ShaderMaterial shared across all cells that use the
 // same uniforms object identity. Memoized on the REFERENCE of the uniforms
 // bag (callers pass the same object every time — see index.ts: rebuild
-// passes getSharedBuildingUniforms()). This
-// eliminates the per-cell ShaderMaterial + WebGL program compilation cost
-// that was causing the tab to hang on large repos (289 cells × 2 materials
-// = 578 ShaderMaterial allocations on enable toggle).
+// passes getSharedBuildingUniforms()). This eliminates the per-cell
+// ShaderMaterial + WebGL program compilation cost that was causing the
+// tab to hang on large repos (289 cells × 2 materials = 578
+// ShaderMaterial allocations on enable toggle).
 // ---------------------------------------------------------------------------
 
 let _sharedBuildingMaterial: THREE.ShaderMaterial | null = null;
@@ -123,8 +125,10 @@ export function setCellIconAtlas(atlas: IconAtlas | null): void {
  * The ShaderMaterial is shared across all cells that pass the same uniforms
  * object reference (identity-memoized). Do NOT call material.dispose() on
  * the returned mesh's material — it is owned by this module, not by the cell.
- * The mesh's `userData.sharedMaterial = true` flag signals the world
- * disposer to skip material disposal when tearing down the old cell root.
+ * The mesh's `userData.sharedMaterial = true` flag tells the component's
+ * disposer (_disposeCellObject in index.ts) to skip material disposal when
+ * tearing down the old cell root. (world.ts's _disposeObject still carries
+ * the same guard until its Task-15 deletion.)
  *
  * Call this once per cell after `createEmptyCellTile`.
  */
@@ -178,7 +182,8 @@ export function attachBuildingMeshToCell(
   cell.detailMesh.geometry.dispose();
   cell.detailMesh.geometry = geom;
   cell.detailMesh.material = mat;
-  // Signal to world's _disposeObject traversal that this material is
+  // Signal to the disposer traversal (_disposeCellObject in index.ts;
+  // world.ts's _disposeObject copy until Task 15) that this material is
   // module-owned (shared) and must not be disposed when the cell root is
   // torn down between applyManifest calls.
   cell.detailMesh.userData.sharedMaterial = true;

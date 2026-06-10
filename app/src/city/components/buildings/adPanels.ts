@@ -31,8 +31,8 @@ import adPanelFragSrc from './adPanel.frag.glsl?raw';
 const AD_FRONT_FACE_OFFSET = 1.5;
 
 // ---------------------------------------------------------------------------
-// Face layout helpers — ported from adPanels.ts (orientToYRotation).
-// 4 faces per building; each face is one InstancedMesh slot.
+// Face layout helpers — ported from the retired per-building ad-panel
+// renderer (pre-#52). 4 faces per building; each face is one InstancedMesh slot.
 // ---------------------------------------------------------------------------
 
 /** Map BuildingOrient → Y-axis rotation so the panel faces away from the building. */
@@ -552,8 +552,9 @@ function _loadImage(url: string): Promise<HTMLImageElement | null> {
 }
 
 // ---------------------------------------------------------------------------
-// Video first-frame extraction — same logic as adPanels.ts:_loadVideoPosterTexture
-// but returns a canvas instead of a THREE.Texture (uploadCanvas handles the rest).
+// Video first-frame extraction — ported from the retired per-building
+// ad-panel renderer (pre-#52), but returns a canvas instead of a
+// THREE.Texture (uploadCanvas handles the rest).
 // ---------------------------------------------------------------------------
 
 function _loadVideoPoster(url: string): Promise<HTMLCanvasElement | null> {

@@ -3,20 +3,16 @@
 // owns a detail InstancedMesh. Grid math is pure: worldToCell,
 // cellBoundsSphere, cellCenter.
 //
-// MIN_CELL_SIZE / CELL_SIZE: the minimum grid resolution (12 world
-// units). For small repos this is also the actual cell size. For large
+// MIN_CELL_SIZE: the minimum grid resolution (12 world units). For
+// small repos this is also the actual cell size. For large
 // repos (Linux-scale 86k×127k), computeOptimalCellSize() scales the
 // cell size up so the grid stays at ~256 occupied cells regardless of
 // layout extent.
 
 import * as THREE from 'three';
 
-/** Minimum cell size in world units. Also exported as CELL_SIZE for
- *  backward-compatibility with tests that use the constant directly. */
+/** Minimum cell size in world units. */
 export const MIN_CELL_SIZE = 12;
-
-/** Alias kept for backward compatibility. */
-export const CELL_SIZE = MIN_CELL_SIZE;
 
 export interface WorldBounds {
   minX: number;
