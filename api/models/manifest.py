@@ -6,12 +6,23 @@ from __future__ import annotations
 
 from typing import Annotated, Literal, Optional, Union
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, WithJsonSchema, model_validator
+
+# Optional-but-non-nullable: the field may be absent, but when present is never
+# null. The Python type stays Optional (so the default is None and validators
+# can check `is None`), while the emitted JSON schema is the bare non-nullable
+# type — matching the true wire (absent-or-value, never null). Shared with
+# api/models/events.py.
+OptionalInt = Annotated[Optional[int], WithJsonSchema({"type": "integer"})]
+OptionalStr = Annotated[Optional[str], WithJsonSchema({"type": "string"})]
 
 
+# `created`/`modified` are required-nullable: the scanner always emits the keys
+# (as an ISO string or null), so they're present-but-nullable on the wire, not
+# optional. (No `= None` default → Pydantic treats them as required.)
 class GitMeta(BaseModel):
-    created: Optional[str] = Field(None, description="ISO create date or null")
-    modified: Optional[str] = Field(None, description="ISO modify date or null")
+    created: Optional[str] = Field(description="ISO create date, or null")
+    modified: Optional[str] = Field(description="ISO modify date, or null")
 
 
 class FileNode(BaseModel):
@@ -26,8 +37,10 @@ class FileNode(BaseModel):
     created: str
     modified: str
     git: GitMeta
-    media_width: Optional[int] = None
-    media_height: Optional[int] = None
+    # Optional-but-non-nullable (absent for non-media files, a pixel count
+    # otherwise — never null); see OptionalInt above.
+    media_width: OptionalInt = None
+    media_height: OptionalInt = None
 
     @model_validator(mode="after")
     def _media_both_or_neither(self) -> "FileNode":
@@ -63,11 +76,14 @@ class DirNode(BaseModel):
 TreeNode = Annotated[Union[FileNode, DirNode], Field(discriminator="type")]
 
 
+# All four string fields are required-nullable: the scanner always emits them
+# (null for a fresh repo with no HEAD / no remote), so they're present-but-
+# nullable on the wire, not optional.
 class RepoInfo(BaseModel):
-    branch: Optional[str] = None
-    remote_url: Optional[str] = None
-    head_sha: Optional[str] = None
-    head_subject: Optional[str] = None
+    branch: Optional[str]
+    remote_url: Optional[str]
+    head_sha: Optional[str]
+    head_subject: Optional[str]
     dirty: bool
 
 
@@ -94,7 +110,9 @@ class Manifest(BaseModel):
     repo: RepoInfo
     commits: list[CommitEntry]
     busyness: BusynessThresholds
-    display_root: Optional[str] = None
+    # Optional-but-non-nullable (absent for local sources, a label string for
+    # git sources — never null); see OptionalStr above.
+    display_root: OptionalStr = None
 
 
 class SignatureResponse(BaseModel):

@@ -145,11 +145,14 @@ export interface components {
          */
         CloneProgressEvent: {
             /** Display Root */
-            display_root?: string | null;
-            /** Stage */
-            stage?: ("receiving" | "resolving" | "counting") | null;
+            display_root?: string;
+            /**
+             * Stage
+             * @enum {string}
+             */
+            stage?: "receiving" | "resolving" | "counting";
             /** Percent */
-            percent?: number | null;
+            percent?: number;
         };
         /** CommitDetailResponse */
         CommitDetailResponse: {
@@ -271,22 +274,22 @@ export interface components {
             modified: string;
             git: components["schemas"]["GitMeta"];
             /** Media Width */
-            media_width?: number | null;
+            media_width?: number;
             /** Media Height */
-            media_height?: number | null;
+            media_height?: number;
         };
         /** GitMeta */
         GitMeta: {
             /**
              * Created
-             * @description ISO create date or null
+             * @description ISO create date, or null
              */
-            created?: string | null;
+            created: string | null;
             /**
              * Modified
-             * @description ISO modify date or null
+             * @description ISO modify date, or null
              */
-            modified?: string | null;
+            modified: string | null;
         };
         /** HTTPValidationError */
         HTTPValidationError: {
@@ -314,7 +317,7 @@ export interface components {
             commits: components["schemas"]["CommitEntry"][];
             busyness: components["schemas"]["BusynessThresholds"];
             /** Display Root */
-            display_root?: string | null;
+            display_root?: string;
         };
         /**
          * PartialManifestEvent
@@ -328,13 +331,13 @@ export interface components {
         /** RepoInfo */
         RepoInfo: {
             /** Branch */
-            branch?: string | null;
+            branch: string | null;
             /** Remote Url */
-            remote_url?: string | null;
+            remote_url: string | null;
             /** Head Sha */
-            head_sha?: string | null;
+            head_sha: string | null;
             /** Head Subject */
-            head_subject?: string | null;
+            head_subject: string | null;
             /** Dirty */
             dirty: boolean;
         };
@@ -345,9 +348,9 @@ export interface components {
          */
         ScanProgressEvent: {
             /** Display Root */
-            display_root?: string | null;
+            display_root?: string;
             /** Files Scanned */
-            files_scanned?: number | null;
+            files_scanned?: number;
         };
         /** SignatureResponse */
         SignatureResponse: {

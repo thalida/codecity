@@ -6,27 +6,34 @@ schema components."""
 
 from __future__ import annotations
 
-from typing import Literal, Optional
+from typing import Annotated, Literal, Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, WithJsonSchema
 
-from api.models.manifest import Manifest
+from api.models.manifest import Manifest, OptionalInt, OptionalStr
+
+# These progress fields are absent-or-value, never null on the wire — same
+# optional-but-non-nullable treatment as the manifest's optional fields.
+_OptionalStage = Annotated[
+    Optional[Literal["receiving", "resolving", "counting"]],
+    WithJsonSchema({"enum": ["receiving", "resolving", "counting"], "type": "string"}),
+]
 
 
 class CloneProgressEvent(BaseModel):
     """`clone-progress` — git source is being cloned; carries clone progress."""
 
-    display_root: Optional[str] = None
-    stage: Optional[Literal["receiving", "resolving", "counting"]] = None
-    percent: Optional[int] = None
+    display_root: OptionalStr = None
+    stage: _OptionalStage = None
+    percent: OptionalInt = None
 
 
 class ScanProgressEvent(BaseModel):
     """`scan-progress` — the working tree is being walked; carries the
     heartbeat files-scanned count."""
 
-    display_root: Optional[str] = None
-    files_scanned: Optional[int] = None
+    display_root: OptionalStr = None
+    files_scanned: OptionalInt = None
 
 
 class PartialManifestEvent(BaseModel):
