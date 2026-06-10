@@ -18,6 +18,7 @@ import { GEM, GEM_SIZING } from '@/state/stores/settings/gem';
 import { NodeKind } from '@/types';
 import { gemAnchorXZ } from '../../utils/gemAnchor';
 import { paletteColors } from './palette';
+import { buildGemGeometry } from './shapes';
 import type { Street } from '@/types';
 
 // Gem hover-lift as a fraction of street width — fixed, not user-tunable
@@ -97,20 +98,7 @@ export function createRootGem(street: Street): THREE.Group {
   const gemZ = anchor.y;
 
   // ---- Gem: per-face colored polyhedron -------------------------------------
-  const sides = GEM.value.SIDES;
-  let geo: THREE.BufferGeometry;
-  switch (sides) {
-    case '4':
-      geo = new THREE.TetrahedronGeometry(radius, 0);
-      break;
-    case '20':
-      geo = new THREE.IcosahedronGeometry(radius, 0);
-      break;
-    case '8':
-    default:
-      geo = new THREE.OctahedronGeometry(radius, 0);
-      break;
-  }
+  const geo = buildGemGeometry(GEM.value.SIDES, radius);
 
   const faceColors = paletteColors(GEM.value);
 
