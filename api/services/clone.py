@@ -28,6 +28,7 @@ from pathlib import Path
 from typing import Callable
 
 from api.config import CACHE_ROOT, quiet
+
 # Cancellation is signalled by the same threading.Event the scan honors, so a
 # client disconnect aborts the clone phase too. scan.py does not import clone,
 # so this import is cycle-free.
@@ -365,6 +366,7 @@ def _run_git_streaming(
     t_err.start()
     t_out.start()
     t_heartbeat.start()
+
     # Cancel watcher: if cancellation is requested mid-clone (client
     # disconnected), kill git so proc.wait() below returns promptly instead of
     # running the whole clone to completion as an orphan. No-op (returns at
@@ -455,9 +457,14 @@ def ensure_clone(
         try:
             _log(f"fetching updates for {url}")
             _run_git_streaming(
-                "fetch", "--prune", "--progress", "origin",
-                cwd=target, progress_dir=pack_dir,
-                on_progress=on_progress, cancel_event=cancel_event,
+                "fetch",
+                "--prune",
+                "--progress",
+                "origin",
+                cwd=target,
+                progress_dir=pack_dir,
+                on_progress=on_progress,
+                cancel_event=cancel_event,
             )
             default = None if branch else _resolve_default_branch(target)
             if branch or default:
@@ -495,8 +502,10 @@ def ensure_clone(
     args += ["--", url, str(target)]
     try:
         _run_git_streaming(
-            *args, progress_dir=pack_dir,
-            on_progress=on_progress, cancel_event=cancel_event,
+            *args,
+            progress_dir=pack_dir,
+            on_progress=on_progress,
+            cancel_event=cancel_event,
         )
         _log("clone complete")
     except CloneError as e:

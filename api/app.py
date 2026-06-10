@@ -4,6 +4,7 @@ Order matters: API routers register first, the SPA static catch-all last
 (it owns every non-/api path). Swagger + default ReDoc are disabled;
 Scalar is mounted at /api/docs and OpenAPI JSON relocated to
 /api/openapi.json (the source for the generated TS types)."""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -36,7 +37,9 @@ async def _api_error_handler(_request: Request, exc: Exception) -> JSONResponse:
     unknown /api/* path is a 404 JSON, not HTML)."""
     status = exc.status_code if isinstance(exc, HTTPException) else 500
     detail = exc.detail if isinstance(exc, HTTPException) else "internal server error"
-    return JSONResponse(status_code=status, content=ErrorResponse(error=detail).model_dump())
+    return JSONResponse(
+        status_code=status, content=ErrorResponse(error=detail).model_dump()
+    )
 
 
 def create_app(static_dir: Path | None = None) -> FastAPI:
@@ -45,8 +48,8 @@ def create_app(static_dir: Path | None = None) -> FastAPI:
     # starts with an empty TRUST; tests isolate it via an autouse fixture.
     app = FastAPI(
         title="CodeCity API",
-        docs_url=None,           # disable Swagger UI
-        redoc_url=None,          # disable default ReDoc
+        docs_url=None,  # disable Swagger UI
+        redoc_url=None,  # disable default ReDoc
         openapi_url="/api/openapi.json",
     )
     app.add_middleware(GZipMiddleware, minimum_size=GZIP_MIN_BYTES)

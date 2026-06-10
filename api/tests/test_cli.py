@@ -9,7 +9,9 @@ import sys
 def _run_cli(*args: str) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         [sys.executable, "-m", "api", *args],
-        capture_output=True, text=True, timeout=5,
+        capture_output=True,
+        text=True,
+        timeout=5,
     )
 
 
@@ -34,6 +36,7 @@ def test_invalid_arg_exits_nonzero():
 def test_main_invokes_uvicorn() -> None:
     from unittest import mock
     from api.__main__ import main
+
     with mock.patch("api.__main__.uvicorn.run") as run:
         assert main(["--port", "9999"]) == 0
         run.assert_called_once()

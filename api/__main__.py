@@ -8,6 +8,7 @@
 SINGLE PROCESS by design — see api/security.py (the allowed_roots trust
 set is in-memory; multi-worker would split it). No --workers flag.
 """
+
 from __future__ import annotations
 
 import argparse

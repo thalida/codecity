@@ -129,7 +129,7 @@ class CommitEntry(TypedDict):
     scene tree-color both read one consistent value instead of each
     recomputing the per-day grouping."""
 
-    date: str   # "YYYY-MM-DD"
+    date: str  # "YYYY-MM-DD"
     files: int
     sha: str
     authors: list[str]

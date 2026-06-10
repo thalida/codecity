@@ -7,6 +7,7 @@ Path traversal is rejected. /api/* that falls through is a 404 JSON.
 A path with a file extension that does not exist on disk is a genuine
 404 (e.g. /openapi.json must not be masked by the SPA index); only
 extension-less route-like paths fall back to index.html."""
+
 from __future__ import annotations
 
 import mimetypes
@@ -49,6 +50,9 @@ def make_static_router(static_dir: Path) -> APIRouter:
     # include_in_schema=False: this is the SPA file server, not an API endpoint,
     # so the `/{full_path}` catch-all stays out of the OpenAPI schema / Scalar docs.
     router.add_api_route(
-        "/{full_path:path}", serve, methods=["GET"], include_in_schema=False,
+        "/{full_path:path}",
+        serve,
+        methods=["GET"],
+        include_in_schema=False,
     )
     return router

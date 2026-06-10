@@ -1,4 +1,5 @@
 """TestClient coverage for DELETE /api/manifest/cache."""
+
 from __future__ import annotations
 
 import subprocess
@@ -55,7 +56,9 @@ def test_cache_clears_warmed_local_source(client: TestClient, repo: Path) -> Non
     assert r.json()["deleted"] >= 1
 
 
-def test_cache_delete_not_gated_by_local_repos(client: TestClient, repo: Path, monkeypatch) -> None:
+def test_cache_delete_not_gated_by_local_repos(
+    client: TestClient, repo: Path, monkeypatch
+) -> None:
     # Cache-delete must work even when local repos are disabled.
     monkeypatch.delenv("CODECITY_ALLOW_LOCAL_REPOS", raising=False)
     r = client.delete("/api/manifest/cache", params={"src": str(repo)})

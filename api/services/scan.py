@@ -137,10 +137,7 @@ def _extension(name: str) -> str:
 
 
 def _epoch_to_iso(epoch: float) -> str:
-    return (
-        datetime.fromtimestamp(epoch, tz=timezone.utc)
-        .strftime("%Y-%m-%dT%H:%M:%SZ")
-    )
+    return datetime.fromtimestamp(epoch, tz=timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 def _stat_fields(entry: os.DirEntry[str]) -> tuple[int, str, str, float]:
@@ -153,8 +150,8 @@ def _stat_fields(entry: os.DirEntry[str]) -> tuple[int, str, str, float]:
 # Above this size, sample first 1 MB and extrapolate. Building height
 # is relative, so ±20% on a 6+ MB file is fine and saves megabytes
 # of read I/O per file.
-_LINE_COUNT_FULL_THRESHOLD = 5 * 1024 * 1024   # 5 MB
-_LINE_COUNT_SAMPLE_BYTES = 1 * 1024 * 1024     # 1 MB
+_LINE_COUNT_FULL_THRESHOLD = 5 * 1024 * 1024  # 5 MB
+_LINE_COUNT_SAMPLE_BYTES = 1 * 1024 * 1024  # 1 MB
 
 
 def _line_count(path: Path) -> int:
@@ -281,13 +278,20 @@ def _collect_git_dates(
     """
     _log("  starting git log walk (full history)…")
     # See _run_git docstring for why -c safe.directory=* is needed.
-    log_argv = ["git", "-c", "safe.directory=*", "-C", str(root), "log",
-                "--format=COMMIT:%aI%x09%H%x09%an%x09"
-                          "%(trailers:key=Co-authored-by,valueonly,separator=%x1f)"
-                          "%x09%s",
-                "--name-status",
-                "--no-renames",
-                "--diff-merges=first-parent"]
+    log_argv = [
+        "git",
+        "-c",
+        "safe.directory=*",
+        "-C",
+        str(root),
+        "log",
+        "--format=COMMIT:%aI%x09%H%x09%an%x09"
+        "%(trailers:key=Co-authored-by,valueonly,separator=%x1f)"
+        "%x09%s",
+        "--name-status",
+        "--no-renames",
+        "--diff-merges=first-parent",
+    ]
     try:
         proc = subprocess.Popen(
             log_argv,
@@ -331,14 +335,18 @@ def _collect_git_dates(
             if line.startswith("COMMIT:"):
                 # Flush the previous commit (if any) before starting the next.
                 if current_date_iso:
-                    commits_newest_first.append({
-                        "date": current_date_iso[:10],
-                        "files": current_files,
-                        "sha": current_sha,
-                        "authors": build_authors_list(current_author, current_trailers),
-                        "subject": current_subject,
-                    })
-                rest = line[len("COMMIT:"):]
+                    commits_newest_first.append(
+                        {
+                            "date": current_date_iso[:10],
+                            "files": current_files,
+                            "sha": current_sha,
+                            "authors": build_authors_list(
+                                current_author, current_trailers
+                            ),
+                            "subject": current_subject,
+                        }
+                    )
+                rest = line[len("COMMIT:") :]
                 # %aI%x09%H%x09%an%x09<trailers>%x09%s — split with maxsplit=4
                 # so any tabs IN the subject stay inside the subject field.
                 parts = rest.split("\t", 4)
@@ -362,7 +370,7 @@ def _collect_git_dates(
             if tab_idx == -1:
                 continue
             status = line[:tab_idx]
-            path = line[tab_idx + 1:]
+            path = line[tab_idx + 1 :]
             current_files += 1
             if path not in modified:
                 modified[path] = current_date_iso
@@ -370,13 +378,15 @@ def _collect_git_dates(
                 created[path] = current_date_iso
         # Flush the final commit (the loop exits after the last block, not after a COMMIT line).
         if current_date_iso:
-            commits_newest_first.append({
-                "date": current_date_iso[:10],
-                "files": current_files,
-                "sha": current_sha,
-                "authors": build_authors_list(current_author, current_trailers),
-                "subject": current_subject,
-            })
+            commits_newest_first.append(
+                {
+                    "date": current_date_iso[:10],
+                    "files": current_files,
+                    "sha": current_sha,
+                    "authors": build_authors_list(current_author, current_trailers),
+                    "subject": current_subject,
+                }
+            )
     finally:
         if proc.poll() is None:
             proc.kill()
@@ -392,7 +402,9 @@ def _collect_git_dates(
 
 
 def _collect_git_metadata(
-    root: Path, *, use_cache: bool = True,
+    root: Path,
+    *,
+    use_cache: bool = True,
 ) -> tuple[dict[str, str], dict[str, str], set[str], list[CommitEntry]]:
     """Return (created_map, modified_map, tracked_set, commits).
 
@@ -420,7 +432,9 @@ def _collect_git_metadata(
 
     _log("  collecting creation + modified dates…")
     created, modified, commits = _collect_git_dates(root)
-    _log(f"    {len(created)} created, {len(modified)} modified, {len(commits)} commits")
+    _log(
+        f"    {len(created)} created, {len(modified)} modified, {len(commits)} commits"
+    )
 
     _log("  listing tracked files…")
     tracked = _collect_tracked_set(root)
@@ -454,13 +468,13 @@ def _normalize_remote_to_web_url(remote: str) -> str:
     s = remote.strip()
     # SSH form: git@host:path
     if s.startswith("git@") and ":" in s:
-        host_path = s[len("git@"):]
+        host_path = s[len("git@") :]
         host, _, path = host_path.partition(":")
         if not host or not path:
             return ""
         s = f"https://{host}/{path}"
     if s.endswith(".git"):
-        s = s[:-len(".git")]
+        s = s[: -len(".git")]
     if not (s.startswith("http://") or s.startswith("https://")):
         return ""
     return s
@@ -536,38 +550,59 @@ def _collect_repo_info(root: Path) -> RepoInfo:
 # _load_codecityignore). The skip list is always applied — there's no
 # runtime escape hatch beyond editing this file or .codecityignore
 # (e.g. `!package-lock.json` to surface a specific lockfile).
-ALWAYS_SKIP: frozenset[str] = frozenset({
-    ".git", ".hg", ".svn",                          # VCS
-    "node_modules",                                 # JS
-    ".venv", "venv", "env", "__pycache__",          # Python
-    "target", ".cargo",                             # Rust
-    ".next", ".nuxt", ".svelte-kit",                # framework caches
-    ".pytest_cache", ".mypy_cache", ".ruff_cache",
-    ".tox", ".coverage", "htmlcov",                 # test/coverage
-    ".idea", ".vscode",                             # IDE state
-    ".DS_Store",                                    # macOS junk
-    # Lockfiles — auto-generated, line-heavy, not meaningful as "code".
-    "package-lock.json", "yarn.lock", "pnpm-lock.yaml",     # JS
-    "bun.lock", "bun.lockb",                                # Bun
-    "deno.lock",                                            # Deno
-    "Cargo.lock",                                           # Rust
-    "poetry.lock", "uv.lock", "Pipfile.lock",               # Python
-    "composer.lock",                                        # PHP
-    "Gemfile.lock",                                         # Ruby
-    "mix.lock",                                             # Elixir
-    "Podfile.lock",                                         # CocoaPods
-    "flake.lock",                                           # Nix
-    "Gopkg.lock", "go.sum",                                 # Go
-    # Vendored single-file amalgamations — one giant .c file (often
-    # 100k+ lines) that's the entire library inlined. Like lockfiles,
-    # they're boilerplate from upstream rather than meaningful "code" —
-    # one such file becomes a 250k-line skyscraper that dominates every
-    # height-based visual. Public headers (sqlite3.h, miniz.h, lua.h)
-    # are NOT skipped: they're moderate-size and may be authored code.
-    "sqlite3.c",                                            # SQLite amalgamation
-    "miniz.c",                                              # miniz amalgamation
-    "lua.c",                                                # Lua amalgamation
-})
+ALWAYS_SKIP: frozenset[str] = frozenset(
+    {
+        ".git",
+        ".hg",
+        ".svn",  # VCS
+        "node_modules",  # JS
+        ".venv",
+        "venv",
+        "env",
+        "__pycache__",  # Python
+        "target",
+        ".cargo",  # Rust
+        ".next",
+        ".nuxt",
+        ".svelte-kit",  # framework caches
+        ".pytest_cache",
+        ".mypy_cache",
+        ".ruff_cache",
+        ".tox",
+        ".coverage",
+        "htmlcov",  # test/coverage
+        ".idea",
+        ".vscode",  # IDE state
+        ".DS_Store",  # macOS junk
+        # Lockfiles — auto-generated, line-heavy, not meaningful as "code".
+        "package-lock.json",
+        "yarn.lock",
+        "pnpm-lock.yaml",  # JS
+        "bun.lock",
+        "bun.lockb",  # Bun
+        "deno.lock",  # Deno
+        "Cargo.lock",  # Rust
+        "poetry.lock",
+        "uv.lock",
+        "Pipfile.lock",  # Python
+        "composer.lock",  # PHP
+        "Gemfile.lock",  # Ruby
+        "mix.lock",  # Elixir
+        "Podfile.lock",  # CocoaPods
+        "flake.lock",  # Nix
+        "Gopkg.lock",
+        "go.sum",  # Go
+        # Vendored single-file amalgamations — one giant .c file (often
+        # 100k+ lines) that's the entire library inlined. Like lockfiles,
+        # they're boilerplate from upstream rather than meaningful "code" —
+        # one such file becomes a 250k-line skyscraper that dominates every
+        # height-based visual. Public headers (sqlite3.h, miniz.h, lua.h)
+        # are NOT skipped: they're moderate-size and may be authored code.
+        "sqlite3.c",  # SQLite amalgamation
+        "miniz.c",  # miniz amalgamation
+        "lua.c",  # Lua amalgamation
+    }
+)
 
 
 def _load_codecityignore(
@@ -717,8 +752,8 @@ def _file_node(
         "fullPath": abs_path,
         "extension": _extension(entry.name),
         "size": size,
-        "lines": 0,         # filled in by _populate_file_metadata
-        "binary": False,    # filled in by _populate_file_metadata
+        "lines": 0,  # filled in by _populate_file_metadata
+        "binary": False,  # filled in by _populate_file_metadata
         "created": created,
         "modified": modified,
         "git": git_block,
@@ -753,7 +788,10 @@ def _node_mtime(node: FileNode) -> float:
 
 
 def _populate_file_metadata(
-    tree: DirNode, abs_root: Path, *, use_cache: bool,
+    tree: DirNode,
+    abs_root: Path,
+    *,
+    use_cache: bool,
     cancel_event: "threading.Event | None" = None,
 ) -> None:
     """Walk the skeleton tree and fill in `lines`, `binary`, and (for
@@ -789,7 +827,9 @@ def _populate_file_metadata(
 
     total = len(nodes)
     hits = total - len(miss_paths)
-    _log(f"  populating metadata: {total} files ({hits} cache hits, {len(miss_paths)} to read)")
+    _log(
+        f"  populating metadata: {total} files ({hits} cache hits, {len(miss_paths)} to read)"
+    )
 
     if miss_paths:
         # Progress heartbeat: on a fresh clone this loop reads every file
@@ -918,10 +958,16 @@ class _DirFrame:
     available heap, not the C stack."""
 
     __slots__ = (
-        "abs_dir", "rel_dir", "name",
-        "pending_entries", "files", "subdirs",
-        "descendants_count", "descendants_file_count",
-        "descendants_dir_count", "descendants_size",
+        "abs_dir",
+        "rel_dir",
+        "name",
+        "pending_entries",
+        "files",
+        "subdirs",
+        "descendants_count",
+        "descendants_file_count",
+        "descendants_dir_count",
+        "descendants_size",
         "ext_breakdown",
     )
 
@@ -976,9 +1022,12 @@ def _build_tree(
             )
 
             if _should_skip(
-                entry.name, entry_rel,
-                ignore_names=ignore_names, ignore_paths=ignore_paths,
-                unignore_names=unignore_names, unignore_paths=unignore_paths,
+                entry.name,
+                entry_rel,
+                ignore_names=ignore_names,
+                ignore_paths=ignore_paths,
+                unignore_names=unignore_names,
+                unignore_paths=unignore_paths,
             ):
                 continue
 
@@ -989,9 +1038,7 @@ def _build_tree(
                 continue
 
             if entry.is_file(follow_symlinks=False):
-                node = _file_node(
-                    entry, entry_rel, git_created, git_modified, sig
-                )
+                node = _file_node(entry, entry_rel, git_created, git_modified, sig)
                 top.files.append(node)
                 top.descendants_count += 1
                 top.descendants_file_count += 1
@@ -1107,8 +1154,12 @@ def _compute_busyness(commits: list[CommitEntry]) -> BusynessThresholds:
 
 
 def _wrap_manifest(
-    root_abs: str, tree: DirNode, sig: Any, tree_signature: str,
-    repo_info: RepoInfo, commits: list[CommitEntry],
+    root_abs: str,
+    tree: DirNode,
+    sig: Any,
+    tree_signature: str,
+    repo_info: RepoInfo,
+    commits: list[CommitEntry],
 ) -> Manifest:
     """Build a Manifest envelope around an already-built tree.
 
@@ -1185,25 +1236,30 @@ def scan_tree(
 
     _log("collecting git metadata…")
     git_created, git_modified, tracked_files, commits_list = _collect_git_metadata(
-        Path(root_abs), use_cache=use_cache,
+        Path(root_abs),
+        use_cache=use_cache,
     )
     repo_info = _collect_repo_info(Path(root_abs))
 
     _check_cancel(cancel_event)  # after git metadata, before tree walk
 
-    ignore_names, ignore_paths, unignore_names, unignore_paths = (
-        _load_codecityignore(Path(root_abs))
+    ignore_names, ignore_paths, unignore_names, unignore_paths = _load_codecityignore(
+        Path(root_abs)
     )
 
     heartbeat = _Heartbeat(on_progress=on_scan_progress)
     _log("walking tree…")
     sig = hashlib.blake2b(digest_size=16)
     tree = _build_tree(
-        root_abs, ".",
-        git_created=git_created, git_modified=git_modified,
+        root_abs,
+        ".",
+        git_created=git_created,
+        git_modified=git_modified,
         tracked_files=tracked_files,
-        ignore_names=ignore_names, ignore_paths=ignore_paths,
-        unignore_names=unignore_names, unignore_paths=unignore_paths,
+        ignore_names=ignore_names,
+        ignore_paths=ignore_paths,
+        unignore_names=unignore_names,
+        unignore_paths=unignore_paths,
         sig=sig,
         heartbeat=heartbeat,
     )
@@ -1225,13 +1281,21 @@ def scan_tree(
     yield {
         "phase": "manifest-partial",
         "manifest": _wrap_manifest(
-            root_abs, skeleton_tree, sig, tree_sig, repo_info, commits_list,
+            root_abs,
+            skeleton_tree,
+            sig,
+            tree_sig,
+            repo_info,
+            commits_list,
         ),
     }
 
     _log("resolving file metadata")
     _populate_file_metadata(
-        tree, Path(root_abs), use_cache=use_cache, cancel_event=cancel_event,
+        tree,
+        Path(root_abs),
+        use_cache=use_cache,
+        cancel_event=cancel_event,
     )
     _check_cancel(cancel_event)  # after populate, before final emit
     _log("emitting final manifest")
@@ -1244,7 +1308,12 @@ def scan_tree(
     yield {
         "phase": "manifest-complete",
         "manifest": _wrap_manifest(
-            root_abs, tree, sig, tree_sig, repo_info, commits_list,
+            root_abs,
+            tree,
+            sig,
+            tree_sig,
+            repo_info,
+            commits_list,
         ),
     }
 
@@ -1294,9 +1363,12 @@ def _walk_for_signature(
     for entry in entries:
         entry_rel = entry.name if rel_dir == "." else f"{rel_dir}/{entry.name}"
         if _should_skip(
-            entry.name, entry_rel,
-            ignore_names=ignore_names, ignore_paths=ignore_paths,
-            unignore_names=unignore_names, unignore_paths=unignore_paths,
+            entry.name,
+            entry_rel,
+            ignore_names=ignore_names,
+            ignore_paths=ignore_paths,
+            unignore_names=unignore_names,
+            unignore_paths=unignore_paths,
         ):
             continue
         if entry_rel not in tracked_files:
@@ -1306,7 +1378,8 @@ def _walk_for_signature(
             _hash_file_entry(sig, entry_rel, size, mtime)
         elif entry.is_dir(follow_symlinks=False):
             _walk_for_signature(
-                entry.path, entry_rel,
+                entry.path,
+                entry_rel,
                 tracked_files=tracked_files,
                 ignore_names=ignore_names,
                 ignore_paths=ignore_paths,
@@ -1347,13 +1420,14 @@ def signature_tree(
     tracked_files = _collect_tracked_set(root_path)
     repo_info = _collect_repo_info(root_path)
 
-    ignore_names, ignore_paths, unignore_names, unignore_paths = (
-        _load_codecityignore(root_path)
+    ignore_names, ignore_paths, unignore_names, unignore_paths = _load_codecityignore(
+        root_path
     )
 
     sig = hashlib.blake2b(digest_size=16)
     _walk_for_signature(
-        root_abs, ".",
+        root_abs,
+        ".",
         tracked_files=tracked_files,
         ignore_names=ignore_names,
         ignore_paths=ignore_paths,

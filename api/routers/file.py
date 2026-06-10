@@ -1,4 +1,5 @@
 """GET /api/file — serve a file from disk, restricted to scanned roots."""
+
 from __future__ import annotations
 
 import mimetypes
@@ -16,11 +17,15 @@ router = APIRouter(prefix="/api", tags=["file"])
 
 
 @router.get("/file")
-def get_file(path: str = Query(..., description="Absolute path inside a scanned root")) -> Response:
+def get_file(
+    path: str = Query(..., description="Absolute path inside a scanned root"),
+) -> Response:
     try:
         target = TRUST.assert_inside(Path(path))
     except NoRootsRegisteredError:
-        raise HTTPException(403, "no scan root registered yet — fetch /api/manifest first")
+        raise HTTPException(
+            403, "no scan root registered yet — fetch /api/manifest first"
+        )
     except OutsideRootError:
         raise HTTPException(403, "outside scan root")
     except (OSError, RuntimeError):
@@ -46,7 +51,8 @@ def get_file(path: str = Query(..., description="Absolute path inside a scanned 
         # CPU re-deflating incompressible bytes for ~0 benefit. 'identity' =
         # the body is sent as-is (RFC 9110 §8.4.1).
         return Response(
-            content=body, media_type=guessed,
+            content=body,
+            media_type=guessed,
             headers={"Content-Encoding": "identity"},
         )
     # Non-media (code, configs, extensionless) → text/plain so the preview

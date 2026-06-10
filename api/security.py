@@ -9,6 +9,7 @@ Trust rule: every successful manifest scan registers its absolute root.
 /api/file and /api/commit then validate that the requested path resolves
 under at least one registered root — there is no global filesystem read.
 """
+
 from __future__ import annotations
 
 import threading

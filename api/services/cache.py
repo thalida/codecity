@@ -68,7 +68,9 @@ _GIT_HISTORY_CACHE_VERSION = 11
 _MANIFEST_SCHEMA_VERSION = 5
 # Composite: invalidates when EITHER the manifest schema OR the git-history
 # shape changes. Stored as a string in the cache file's `version` field.
-_MANIFEST_CACHE_VERSION: str = f"m{_MANIFEST_SCHEMA_VERSION}-g{_GIT_HISTORY_CACHE_VERSION}"
+_MANIFEST_CACHE_VERSION: str = (
+    f"m{_MANIFEST_SCHEMA_VERSION}-g{_GIT_HISTORY_CACHE_VERSION}"
+)
 
 # Full 40-char lowercase hex SHA; rejects corrupt/hand-edited sha fields.
 _SHA_HEX_RE = re.compile(r"[0-9a-f]{40}")
@@ -113,8 +115,12 @@ def _coerce_file_entry(value: object) -> FileEntry | None:
     # Reject bool (which is a subclass of int in Python) to avoid corrupting dims.
     mw = d.get("media_width")
     mh = d.get("media_height")
-    if (isinstance(mw, int) and isinstance(mh, int) and
-            not isinstance(mw, bool) and not isinstance(mh, bool)):
+    if (
+        isinstance(mw, int)
+        and isinstance(mh, int)
+        and not isinstance(mw, bool)
+        and not isinstance(mh, bool)
+    ):
         entry["media_width"] = mw
         entry["media_height"] = mh
     return entry
@@ -191,7 +197,8 @@ def _git_history_cache_path(abs_root: Path) -> Path:
 
 
 def cache_load_git_history(
-    abs_root: Path, head_sha: str,
+    abs_root: Path,
+    head_sha: str,
 ) -> tuple[dict[str, str], dict[str, str], list["CommitEntry"]] | None:
     """Load git-history maps + commits if cached for this root + HEAD.
 
@@ -211,17 +218,21 @@ def cache_load_git_history(
     created_raw = raw.get("created")
     modified_raw = raw.get("modified")
     commits_raw = raw.get("commits")
-    if (not isinstance(created_raw, dict)
-            or not isinstance(modified_raw, dict)
-            or not isinstance(commits_raw, list)):
+    if (
+        not isinstance(created_raw, dict)
+        or not isinstance(modified_raw, dict)
+        or not isinstance(commits_raw, list)
+    ):
         return None
     # JSON object keys are always strings; keep only string values.
     created = {
-        k: v for k, v in cast(dict[str, object], created_raw).items()
+        k: v
+        for k, v in cast(dict[str, object], created_raw).items()
         if isinstance(v, str)
     }
     modified = {
-        k: v for k, v in cast(dict[str, object], modified_raw).items()
+        k: v
+        for k, v in cast(dict[str, object], modified_raw).items()
         if isinstance(v, str)
     }
     commits: list["CommitEntry"] = []
@@ -238,20 +249,25 @@ def cache_load_git_history(
         # shape (v9/v11) and manifest consumers (fireflies iterate authors,
         # the commit pane shows subject) break without them. Drop any commit
         # missing/malformed on any field rather than emit a partial entry.
-        if (isinstance(date, str)
-                and isinstance(files, int) and not isinstance(files, bool)
-                and isinstance(sha, str)
-                and _SHA_HEX_RE.fullmatch(sha) is not None
-                and isinstance(authors, list)
-                and all(isinstance(a, str) for a in cast(list[object], authors))
-                and isinstance(subject, str)):
-            commits.append({
-                "date": date,
-                "files": files,
-                "sha": sha,
-                "authors": cast(list[str], authors),
-                "subject": subject,
-            })
+        if (
+            isinstance(date, str)
+            and isinstance(files, int)
+            and not isinstance(files, bool)
+            and isinstance(sha, str)
+            and _SHA_HEX_RE.fullmatch(sha) is not None
+            and isinstance(authors, list)
+            and all(isinstance(a, str) for a in cast(list[object], authors))
+            and isinstance(subject, str)
+        ):
+            commits.append(
+                {
+                    "date": date,
+                    "files": files,
+                    "sha": sha,
+                    "authors": cast(list[str], authors),
+                    "subject": subject,
+                }
+            )
     return created, modified, commits
 
 
@@ -279,7 +295,8 @@ def _manifest_cache_path(abs_root: Path, signature: str) -> Path:
 
 
 def cache_load_manifest(
-    abs_root: Path, signature: str,
+    abs_root: Path,
+    signature: str,
 ) -> "Manifest | None":
     """Load the cached manifest for this (root, signature). Returns
     None on any error (missing file, gzip corruption, JSON parse,
@@ -305,17 +322,21 @@ def cache_load_manifest(
 
 
 def cache_save_manifest(
-    abs_root: Path, signature: str, manifest: "Manifest",
+    abs_root: Path,
+    signature: str,
+    manifest: "Manifest",
 ) -> None:
     """Atomically write the manifest cache for this (root, signature).
     Swallows OSError — cache save failures must never break the
     response."""
     path = _manifest_cache_path(abs_root, signature)
     path.parent.mkdir(parents=True, exist_ok=True)
-    payload = json.dumps({
-        "version": _MANIFEST_CACHE_VERSION,
-        "manifest": manifest,
-    }).encode("utf-8")
+    payload = json.dumps(
+        {
+            "version": _MANIFEST_CACHE_VERSION,
+            "manifest": manifest,
+        }
+    ).encode("utf-8")
     fd, tmp = tempfile.mkstemp(
         dir=str(path.parent), prefix=f".{path.name}.", suffix=".tmp"
     )

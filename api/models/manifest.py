@@ -1,6 +1,7 @@
 """Pydantic wire models for the scan manifest. Single source of truth for
 the OpenAPI schema and the generated app/src/types/manifest.ts. JSON shape
 is byte-compatible with the prior TypedDicts."""
+
 from __future__ import annotations
 
 from typing import Annotated, Literal, Optional, Union
@@ -31,7 +32,9 @@ class FileNode(BaseModel):
     @model_validator(mode="after")
     def _media_both_or_neither(self) -> "FileNode":
         if (self.media_width is None) != (self.media_height is None):
-            raise ValueError("media_width and media_height must both be set or both absent")
+            raise ValueError(
+                "media_width and media_height must both be set or both absent"
+            )
         return self
 
 

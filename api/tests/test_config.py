@@ -1,11 +1,18 @@
 """Tests for api.config — env-driven settings + the live-read helpers."""
+
 from __future__ import annotations
 
 import os
 import unittest
 from unittest import mock
 
-from api.config import env_bool, local_repos_allowed, quiet, MAX_FILE_BYTES, GZIP_MIN_BYTES
+from api.config import (
+    env_bool,
+    local_repos_allowed,
+    quiet,
+    MAX_FILE_BYTES,
+    GZIP_MIN_BYTES,
+)
 
 
 class ConfigTests(unittest.TestCase):

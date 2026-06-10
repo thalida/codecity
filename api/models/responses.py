@@ -1,4 +1,5 @@
 """Non-streaming JSON response bodies."""
+
 from __future__ import annotations
 
 from pydantic import BaseModel

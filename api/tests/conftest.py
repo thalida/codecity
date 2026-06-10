@@ -112,7 +112,8 @@ def _reset_trust() -> Iterator[None]:
 
 @pytest.fixture
 def redirect_cache_root(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> Path:
     """Point ``api.services.cache.CACHE_ROOT`` (and
     ``api.services.clone.CLONES_ROOT``) at a per-test tempdir so
@@ -217,7 +218,8 @@ class _HTTPHelpers:
 
     @staticmethod
     def get_with_headers(
-        url: str, headers: dict[str, str],
+        url: str,
+        headers: dict[str, str],
     ) -> tuple[int, bytes, str, str]:
         """GET with custom request headers → (status, body, content_type,
         content_encoding). Body is raw bytes; tests that requested gzip
@@ -227,12 +229,14 @@ class _HTTPHelpers:
             resp = urllib.request.urlopen(req)
         except urllib.error.HTTPError as e:
             return (
-                e.code, e.read(),
+                e.code,
+                e.read(),
                 e.headers.get("Content-Type", ""),
                 e.headers.get("Content-Encoding", ""),
             )
         return (
-            resp.status, resp.read(),
+            resp.status,
+            resp.read(),
             resp.headers.get("Content-Type", ""),
             resp.headers.get("Content-Encoding", ""),
         )
@@ -321,7 +325,12 @@ def git_working_tree(_session_bare_repo: Path, tmp_path: Path) -> Iterator[Path]
     # Best-effort cleanup
     try:
         _run(
-            "git", "worktree", "remove", "-q", "--force", str(wt),
+            "git",
+            "worktree",
+            "remove",
+            "-q",
+            "--force",
+            str(wt),
             cwd=_session_bare_repo,
         )
     except subprocess.CalledProcessError:

@@ -1,4 +1,5 @@
 """Real-socket SSE: client disconnects mid-stream -> scan cancels, no cache write."""
+
 from __future__ import annotations
 
 import socket
@@ -63,5 +64,6 @@ def test_disconnect_midstream_does_not_hang(server, repo, monkeypatch) -> None:
     s.close()
     # Server must remain responsive: a fresh health request succeeds quickly.
     import urllib.request
+
     with urllib.request.urlopen(f"http://127.0.0.1:{port}/api/health", timeout=5) as r:
         assert r.status == 200

@@ -1,4 +1,5 @@
 """TestClient coverage for /api/config across CODECITY_ALLOW_LOCAL_REPOS states."""
+
 from __future__ import annotations
 
 from pathlib import Path

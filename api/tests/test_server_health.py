@@ -1,4 +1,5 @@
 """TestClient coverage for health/config + static SPA serving + docs."""
+
 from __future__ import annotations
 
 from pathlib import Path

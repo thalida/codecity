@@ -5,6 +5,7 @@ classify a source string as a local path or git URL, validate a local working
 tree, and clone a git URL. No FastAPI here — `ResolveError` carries a suggested
 HTTP status + message that the routers translate into an HTTPException (or an
 SSE `error` event for the stream)."""
+
 from __future__ import annotations
 
 import os

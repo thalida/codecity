@@ -1,4 +1,5 @@
 """TestClient coverage for /api/commit (sha validation + lookup)."""
+
 from __future__ import annotations
 
 import subprocess
@@ -30,8 +31,11 @@ def repo(tmp_path: Path) -> Path:
     # outranks a GIT_AUTHOR_NAME env var (the test container sets one), which
     # would otherwise win over the user.name config above.
     _git(
-        "commit", "--author=Tester <a@b.c>", "-qm",
-        "first commit\n\nbody line", cwd=p,
+        "commit",
+        "--author=Tester <a@b.c>",
+        "-qm",
+        "first commit\n\nbody line",
+        cwd=p,
     )
     return p
 

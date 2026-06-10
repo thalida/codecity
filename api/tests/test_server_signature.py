@@ -1,4 +1,5 @@
 """TestClient coverage for /api/manifest/signature + local-repo gating."""
+
 from __future__ import annotations
 
 import subprocess
@@ -39,7 +40,9 @@ def test_signature_missing_src_400(client: TestClient) -> None:
     assert client.get("/api/manifest/signature").status_code in (400, 422)
 
 
-def test_signature_local_disabled_403(client: TestClient, repo: Path, monkeypatch) -> None:
+def test_signature_local_disabled_403(
+    client: TestClient, repo: Path, monkeypatch
+) -> None:
     monkeypatch.delenv("CODECITY_ALLOW_LOCAL_REPOS", raising=False)
     r = client.get("/api/manifest/signature", params={"src": str(repo)})
     assert r.status_code == 403

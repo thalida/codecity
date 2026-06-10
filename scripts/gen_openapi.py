@@ -2,6 +2,7 @@
 
 Usage: uv run python scripts/gen_openapi.py > openapi.json
 """
+
 from __future__ import annotations
 
 import json

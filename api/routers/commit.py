@@ -1,4 +1,5 @@
 """GET /api/commit?sha=<sha> — commit detail from any registered scan root."""
+
 from __future__ import annotations
 
 import re
@@ -25,13 +26,25 @@ def get_commit(sha: str = Query(...)) -> CommitDetailResponse:
         raise HTTPException(400, "invalid or missing sha")
     roots = TRUST.snapshot()
     if not roots:
-        raise HTTPException(404, "no scan root registered yet — fetch /api/manifest first")
+        raise HTTPException(
+            404, "no scan root registered yet — fetch /api/manifest first"
+        )
     for root in roots:
         try:
             out = subprocess.check_output(
-                ["git", "-c", "safe.directory=*", "-C", str(root),
-                 "show", "-s", f"--format={_FMT}", sha.strip()],
-                stderr=subprocess.DEVNULL, text=True,
+                [
+                    "git",
+                    "-c",
+                    "safe.directory=*",
+                    "-C",
+                    str(root),
+                    "show",
+                    "-s",
+                    f"--format={_FMT}",
+                    sha.strip(),
+                ],
+                stderr=subprocess.DEVNULL,
+                text=True,
             )
         except subprocess.CalledProcessError:
             continue

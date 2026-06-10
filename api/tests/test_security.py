@@ -1,4 +1,5 @@
 """Tests for the allowed_roots trust set + path validation."""
+
 from __future__ import annotations
 
 import unittest

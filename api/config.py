@@ -4,6 +4,7 @@ Replaces the old api/env.py. Functions that read env are intentionally
 LIVE (re-read per call) so tests can monkeypatch os.environ without a
 restart — notably CODECITY_ALLOW_LOCAL_REPOS, which gates local scans.
 """
+
 from __future__ import annotations
 
 import os

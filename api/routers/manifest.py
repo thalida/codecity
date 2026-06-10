@@ -5,6 +5,7 @@ Source classification/resolution lives in api.services.source; these are the
 thin HTTP handlers over it. A ResolveError carries a status + message: the
 signature/cache routes turn it into an HTTPException, while the SSE route turns
 it into an `error` event (EventSource can't read 4xx bodies)."""
+
 from __future__ import annotations
 
 import asyncio
@@ -103,8 +104,11 @@ def _sse_error(message: str) -> dict[str, Any]:
 # OpenAPI `responses` registers each as a schema component (richer Scalar
 # docs) AND transitively pulls Manifest -> tree types via the manifest events.
 SSEEvent = Union[
-    CloneProgressEvent, ScanProgressEvent, PartialManifestEvent,
-    CompleteManifestEvent, ErrorEvent,
+    CloneProgressEvent,
+    ScanProgressEvent,
+    PartialManifestEvent,
+    CompleteManifestEvent,
+    ErrorEvent,
 ]
 
 
@@ -165,12 +169,24 @@ async def manifest(
 
         def _on_clone(payload: tuple[str, int]) -> None:
             stage, percent = payload
-            _put(_sse("clone-progress", {
-                "display_root": display, "stage": stage, "percent": percent,
-            }))
+            _put(
+                _sse(
+                    "clone-progress",
+                    {
+                        "display_root": display,
+                        "stage": stage,
+                        "percent": percent,
+                    },
+                )
+            )
 
         def _on_scan(files_scanned: int) -> None:
-            _put(_sse("scan-progress", {"display_root": display, "files_scanned": files_scanned}))
+            _put(
+                _sse(
+                    "scan-progress",
+                    {"display_root": display, "files_scanned": files_scanned},
+                )
+            )
 
         def _run() -> None:
             try:
@@ -181,10 +197,16 @@ async def manifest(
                     try:
                         with TRUST.clone_lock:
                             path = ensure_clone(
-                                src, branch,
-                                on_progress=_on_clone, cancel_event=cancel,
+                                src,
+                                branch,
+                                on_progress=_on_clone,
+                                cancel_event=cancel,
                             )
-                    except (BranchNotFoundError, RepoNotFoundError, HostUnreachableError) as e:
+                    except (
+                        BranchNotFoundError,
+                        RepoNotFoundError,
+                        HostUnreachableError,
+                    ) as e:
                         _put(_sse_error(str(e)))
                         return
                     except CloneError as e:
@@ -211,8 +233,10 @@ async def manifest(
 
                 # Cold scan: partial + complete manifests, with heartbeat progress.
                 for ev in scan_tree(
-                    str(path), use_cache=use_cache,
-                    cancel_event=cancel, on_scan_progress=_on_scan,
+                    str(path),
+                    use_cache=use_cache,
+                    cancel_event=cancel,
+                    on_scan_progress=_on_scan,
                 ):
                     phase = ev["phase"]  # "manifest-partial" | "manifest-complete"
                     m = ev["manifest"]
@@ -254,7 +278,12 @@ async def manifest(
         final = holder["manifest"]
         sig = holder["sig"]
         path = holder["path"]
-        if final is not None and not disconnected and sig is not None and path is not None:
+        if (
+            final is not None
+            and not disconnected
+            and sig is not None
+            and path is not None
+        ):
             await asyncio.to_thread(cache_save_manifest, path.resolve(), sig, final)
 
     return EventSourceResponse(gen())

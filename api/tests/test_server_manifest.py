@@ -1,4 +1,5 @@
 """TestClient coverage for the /api/manifest SSE stream (happy path + errors + cache)."""
+
 from __future__ import annotations
 
 import json
@@ -42,9 +43,9 @@ def _parse_sse(text: str) -> list[tuple[str, dict]]:
     data_lines: list[str] = []
     for line in text.splitlines():
         if line.startswith("event:"):
-            name = line[len("event:"):].strip()
+            name = line[len("event:") :].strip()
         elif line.startswith("data:"):
-            data_lines.append(line[len("data:"):].strip())
+            data_lines.append(line[len("data:") :].strip())
         elif line == "":
             if data_lines:
                 events.append((name, json.loads("".join(data_lines))))
@@ -52,8 +53,12 @@ def _parse_sse(text: str) -> list[tuple[str, dict]]:
     return events
 
 
-def test_manifest_stream_local(client: TestClient, repo: Path, allow_local_repos) -> None:
-    with client.stream("GET", "/api/manifest", params={"src": str(repo), "no_cache": "true"}) as r:
+def test_manifest_stream_local(
+    client: TestClient, repo: Path, allow_local_repos
+) -> None:
+    with client.stream(
+        "GET", "/api/manifest", params={"src": str(repo), "no_cache": "true"}
+    ) as r:
         assert r.status_code == 200
         assert "text/event-stream" in r.headers["content-type"]
         body = "".join(r.iter_text())
@@ -75,7 +80,9 @@ def test_manifest_stream_missing_src_emits_error_event(client: TestClient) -> No
     assert "src" in events[-1][1]["error"]
 
 
-def test_manifest_stream_local_disabled_error_event(client: TestClient, repo: Path, monkeypatch) -> None:
+def test_manifest_stream_local_disabled_error_event(
+    client: TestClient, repo: Path, monkeypatch
+) -> None:
     monkeypatch.delenv("CODECITY_ALLOW_LOCAL_REPOS", raising=False)
     with client.stream("GET", "/api/manifest", params={"src": str(repo)}) as r:
         body = "".join(r.iter_text())
@@ -84,7 +91,9 @@ def test_manifest_stream_local_disabled_error_event(client: TestClient, repo: Pa
     assert "disabled" in events[-1][1]["error"]
 
 
-def test_manifest_cold_scan_then_warm_cache_hit(client: TestClient, repo: Path, allow_local_repos) -> None:
+def test_manifest_cold_scan_then_warm_cache_hit(
+    client: TestClient, repo: Path, allow_local_repos
+) -> None:
     # First request WITHOUT no_cache: cold scan must emit manifest-partial +
     # manifest-complete AND write the manifest cache (the bug-fix under test).
     with client.stream("GET", "/api/manifest", params={"src": str(repo)}) as r:

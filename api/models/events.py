@@ -3,6 +3,7 @@ SSE event. Event names describe what the event delivers (not its position in
 the sequence): clone-progress / scan-progress / manifest-partial /
 manifest-complete / error. These models also document the stream in OpenAPI as
 schema components."""
+
 from __future__ import annotations
 
 from typing import Literal, Optional

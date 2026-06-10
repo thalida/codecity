@@ -1,4 +1,5 @@
 """TestClient coverage for /api/file (trust gate, 403, 413, traversal, MIME)."""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -40,7 +41,9 @@ def test_file_inside_root_ok(client: TestClient, project: Path) -> None:
     assert r.headers["content-type"].startswith("text/plain")
 
 
-def test_file_outside_root_403(client: TestClient, project: Path, tmp_path: Path) -> None:
+def test_file_outside_root_403(
+    client: TestClient, project: Path, tmp_path: Path
+) -> None:
     TRUST.register(project)
     outside = tmp_path / "secret.txt"
     outside.write_text("nope")

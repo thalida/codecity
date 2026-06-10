@@ -40,14 +40,30 @@ def is_media(ctype: str | None) -> bool:
 
 # ── Dimension probing ───────────────────────────────────────────────────
 
-_PIL_IMAGE_EXTS = frozenset({
-    ".png", ".jpg", ".jpeg", ".gif", ".webp",
-    ".bmp", ".ico", ".avif", ".tiff",
-})
+_PIL_IMAGE_EXTS = frozenset(
+    {
+        ".png",
+        ".jpg",
+        ".jpeg",
+        ".gif",
+        ".webp",
+        ".bmp",
+        ".ico",
+        ".avif",
+        ".tiff",
+    }
+)
 _SVG_EXTS = frozenset({".svg"})
-_VIDEO_EXTS = frozenset({
-    ".mp4", ".webm", ".mov", ".ogv", ".m4v", ".mkv",
-})
+_VIDEO_EXTS = frozenset(
+    {
+        ".mp4",
+        ".webm",
+        ".mov",
+        ".ogv",
+        ".m4v",
+        ".mkv",
+    }
+)
 
 
 def probe_media_dims(path: Path) -> tuple[int | None, int | None]:
