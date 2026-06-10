@@ -30,66 +30,49 @@ import os
 import re
 import tempfile
 from pathlib import Path
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, NotRequired, TypedDict, cast
 
-from api.types import FileEntry
+from api.config import CACHE_ROOT
 
 if TYPE_CHECKING:
-    from api.types import CommitEntry, Manifest
+    from api.services.manifest_types import CommitEntry, Manifest
 
-# Module-level CACHE_ROOT — tests monkeypatch this to a tempdir. Derived
-# subdirs are computed at call time (not at import) so the override
-# cascades through. CODECITY_CACHE_ROOT lets ops point the cache at a
-# different directory (e.g. an XDG cache dir, or a writable mount on
-# read-only home dirs in containers).
-CACHE_ROOT = Path(
-    os.environ.get("CODECITY_CACHE_ROOT") or Path.home() / ".cache" / "codecity"
+
+class FileEntry(TypedDict):
+    """One entry in the per-root file-stat cache. (size, mtime) is the
+    cache key; (lines, binary, ext) are the values warm scans skip
+    recomputing. media_width/media_height are only present for
+    recognized media files."""
+
+    # Required (always present in a valid entry):
+    size: int
+    mtime: float
+    lines: int
+    binary: bool
+    ext: str
+    # Optional — populated only for recognized media files. Either both
+    # or neither is present; layout treats absence as "no signal" and
+    # falls back to a square aspect.
+    media_width: NotRequired[int]
+    media_height: NotRequired[int]
+
+
+# CACHE_ROOT is imported from config (the single source of truth). The subdir
+# helpers below derive manifests/files/git-history paths from it at call time,
+# so a test monkeypatching cache.CACHE_ROOT cascades through.
+
+# Cache-format versions: bump when the cached shape changes so stale blobs are
+# treated as a miss and re-scanned. (Per-bump rationale lives in git history.)
+_FILE_CACHE_VERSION = 1
+_GIT_HISTORY_CACHE_VERSION = 11
+_MANIFEST_SCHEMA_VERSION = 5
+# Composite: invalidates when EITHER the manifest schema OR the git-history
+# shape changes. Stored as a string in the cache file's `version` field.
+_MANIFEST_CACHE_VERSION: str = (
+    f"m{_MANIFEST_SCHEMA_VERSION}-g{_GIT_HISTORY_CACHE_VERSION}"
 )
 
-_FILE_CACHE_VERSION = 1
-# Bumped to 8: scanner switched from `-c` to
-# `--diff-merges=first-parent` so CLEAN merges (no conflicts) also
-# report their actual file count. Pre-v8 entries undercount merges.
-# Bumped to 9: CommitEntry gained author + subject fields. Pre-v9
-# entries are missing those fields and would break manifest consumers.
-# Bumped to 10: dropped the per-entry `git_window` field — the scanner
-# no longer accepts a --since window and always walks full history.
-# Bumped to 11: CommitEntry's `author: str` became `authors: list[str]`
-# (per-author fireflies + Co-authored-by trailer parsing). Pre-v11
-# entries have the wrong shape and would break manifest consumers.
-_GIT_HISTORY_CACHE_VERSION = 11
-# Bumped only when the manifest shape changes for reasons UNRELATED
-# to git-history output (e.g. a new field on FileNode). Git-history
-# shape changes don't need a bump here — they auto-invalidate through
-# _MANIFEST_CACHE_VERSION's composite below.
-#
-# v2: scanner dropped the include_all option and added lockfiles to
-# ALWAYS_SKIP. Cached manifests that observed lockfiles (or that came
-# from include_all=true scans) would no longer match a fresh scan;
-# bumping forces every repo to re-cache and drops the orphans.
-# v3: DirNode gained descendants_ext_breakdown and the manifest gained
-# top-level busyness thresholds. Pre-v3 cached manifests lack both, so
-# consumers (street view, commit-pane busyness label, scene tree color)
-# would mis-render until a fresh scan; bumping forces the re-cache.
-# v4: a latent bug in cache_load_git_history dropped each commit's authors
-# + subject when reconstructing from the git-history cache. It never bit
-# until the v3 bump invalidated the manifest blobs and forced a re-scan that
-# rebuilds commits FROM that cache — which then cached author-less manifests
-# (fireflies/header crash on commit.authors). The loader is fixed; this bump
-# discards the polluted v3 blobs so a normal load re-scans correctly.
-# v5: each CommitEntry gained same_day_total (commits sharing its date),
-# baked at wrap time so the commit pane + scene tree-color read one field
-# instead of recomputing the per-day grouping. Pre-v5 blobs lack it.
-_MANIFEST_SCHEMA_VERSION = 5
-# Composite cache version: invalidates when EITHER the manifest
-# schema OR the git-history cache shape changes. Stored as a string
-# in the cache file's `version` field; the loader's equality check
-# works the same as it did for an int.
-_MANIFEST_CACHE_VERSION: str = f"m{_MANIFEST_SCHEMA_VERSION}-g{_GIT_HISTORY_CACHE_VERSION}"
-
-# Full 40-char lowercase hex SHA, as emitted by `git log --format=%H`.
-# Used by cache_load_git_history to reject any cache entry whose sha
-# field was corrupted or hand-edited to a non-hex string.
+# Full 40-char lowercase hex SHA; rejects corrupt/hand-edited sha fields.
 _SHA_HEX_RE = re.compile(r"[0-9a-f]{40}")
 
 
@@ -132,8 +115,12 @@ def _coerce_file_entry(value: object) -> FileEntry | None:
     # Reject bool (which is a subclass of int in Python) to avoid corrupting dims.
     mw = d.get("media_width")
     mh = d.get("media_height")
-    if (isinstance(mw, int) and isinstance(mh, int) and
-            not isinstance(mw, bool) and not isinstance(mh, bool)):
+    if (
+        isinstance(mw, int)
+        and isinstance(mh, int)
+        and not isinstance(mw, bool)
+        and not isinstance(mh, bool)
+    ):
         entry["media_width"] = mw
         entry["media_height"] = mh
     return entry
@@ -175,20 +162,20 @@ def cache_load_files(abs_root: Path) -> dict[str, FileEntry]:
     so a partial load is preferable to a hard failure."""
     path = _file_cache_path(abs_root)
     try:
-        raw = json.loads(path.read_text(encoding="utf-8"))
+        parsed = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, ValueError):
         return {}
-    if not isinstance(raw, dict):
+    if not isinstance(parsed, dict):
         return {}
+    raw = cast(dict[str, object], parsed)
     if raw.get("version") != _FILE_CACHE_VERSION:
         return {}
     entries = raw.get("entries")
     if not isinstance(entries, dict):
         return {}
     result: dict[str, FileEntry] = {}
-    for key, value in entries.items():
-        if not isinstance(key, str):
-            continue
+    # JSON object keys are always strings; values are validated by _coerce.
+    for key, value in cast(dict[str, object], entries).items():
         coerced = _coerce_file_entry(value)
         if coerced is not None:
             result[key] = coerced
@@ -210,18 +197,20 @@ def _git_history_cache_path(abs_root: Path) -> Path:
 
 
 def cache_load_git_history(
-    abs_root: Path, head_sha: str,
+    abs_root: Path,
+    head_sha: str,
 ) -> tuple[dict[str, str], dict[str, str], list["CommitEntry"]] | None:
     """Load git-history maps + commits if cached for this root + HEAD.
 
     Returns None on miss or any error."""
     path = _git_history_cache_path(abs_root)
     try:
-        raw = json.loads(path.read_text(encoding="utf-8"))
+        parsed = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, ValueError):
         return None
-    if not isinstance(raw, dict):
+    if not isinstance(parsed, dict):
         return None
+    raw = cast(dict[str, object], parsed)
     if raw.get("version") != _GIT_HISTORY_CACHE_VERSION:
         return None
     if raw.get("head_sha") != head_sha:
@@ -229,45 +218,56 @@ def cache_load_git_history(
     created_raw = raw.get("created")
     modified_raw = raw.get("modified")
     commits_raw = raw.get("commits")
-    if (not isinstance(created_raw, dict)
-            or not isinstance(modified_raw, dict)
-            or not isinstance(commits_raw, list)):
+    if (
+        not isinstance(created_raw, dict)
+        or not isinstance(modified_raw, dict)
+        or not isinstance(commits_raw, list)
+    ):
         return None
+    # JSON object keys are always strings; keep only string values.
     created = {
-        k: v for k, v in created_raw.items()
-        if isinstance(k, str) and isinstance(v, str)
+        k: v
+        for k, v in cast(dict[str, object], created_raw).items()
+        if isinstance(v, str)
     }
     modified = {
-        k: v for k, v in modified_raw.items()
-        if isinstance(k, str) and isinstance(v, str)
+        k: v
+        for k, v in cast(dict[str, object], modified_raw).items()
+        if isinstance(v, str)
     }
     commits: list["CommitEntry"] = []
-    for c in commits_raw:
+    for c in cast(list[object], commits_raw):
         if not isinstance(c, dict):
             continue
-        date = c.get("date")
-        files = c.get("files")
-        sha = c.get("sha")
-        authors = c.get("authors")
-        subject = c.get("subject")
+        entry = cast(dict[str, object], c)
+        date = entry.get("date")
+        files = entry.get("files")
+        sha = entry.get("sha")
+        authors = entry.get("authors")
+        subject = entry.get("subject")
         # Reconstruct the FULL CommitEntry — authors + subject are part of the
         # shape (v9/v11) and manifest consumers (fireflies iterate authors,
         # the commit pane shows subject) break without them. Drop any commit
         # missing/malformed on any field rather than emit a partial entry.
-        if (isinstance(date, str)
-                and isinstance(files, int) and not isinstance(files, bool)
-                and isinstance(sha, str)
-                and _SHA_HEX_RE.fullmatch(sha) is not None
-                and isinstance(authors, list)
-                and all(isinstance(a, str) for a in authors)
-                and isinstance(subject, str)):
-            commits.append({
-                "date": date,
-                "files": files,
-                "sha": sha,
-                "authors": authors,
-                "subject": subject,
-            })
+        if (
+            isinstance(date, str)
+            and isinstance(files, int)
+            and not isinstance(files, bool)
+            and isinstance(sha, str)
+            and _SHA_HEX_RE.fullmatch(sha) is not None
+            and isinstance(authors, list)
+            and all(isinstance(a, str) for a in cast(list[object], authors))
+            and isinstance(subject, str)
+        ):
+            commits.append(
+                {
+                    "date": date,
+                    "files": files,
+                    "sha": sha,
+                    "authors": cast(list[str], authors),
+                    "subject": subject,
+                }
+            )
     return created, modified, commits
 
 
@@ -295,7 +295,8 @@ def _manifest_cache_path(abs_root: Path, signature: str) -> Path:
 
 
 def cache_load_manifest(
-    abs_root: Path, signature: str,
+    abs_root: Path,
+    signature: str,
 ) -> "Manifest | None":
     """Load the cached manifest for this (root, signature). Returns
     None on any error (missing file, gzip corruption, JSON parse,
@@ -321,17 +322,21 @@ def cache_load_manifest(
 
 
 def cache_save_manifest(
-    abs_root: Path, signature: str, manifest: "Manifest",
+    abs_root: Path,
+    signature: str,
+    manifest: "Manifest",
 ) -> None:
     """Atomically write the manifest cache for this (root, signature).
     Swallows OSError — cache save failures must never break the
     response."""
     path = _manifest_cache_path(abs_root, signature)
     path.parent.mkdir(parents=True, exist_ok=True)
-    payload = json.dumps({
-        "version": _MANIFEST_CACHE_VERSION,
-        "manifest": manifest,
-    }).encode("utf-8")
+    payload = json.dumps(
+        {
+            "version": _MANIFEST_CACHE_VERSION,
+            "manifest": manifest,
+        }
+    ).encode("utf-8")
     fd, tmp = tempfile.mkstemp(
         dir=str(path.parent), prefix=f".{path.name}.", suffix=".tmp"
     )

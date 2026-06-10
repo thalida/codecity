@@ -14,7 +14,7 @@ from tempfile import TemporaryDirectory
 
 import pytest
 
-from api.scan import (
+from api.services.scan import (
     _annotate_same_day_totals,
     _compute_busyness,
     _extension,
@@ -23,7 +23,7 @@ from api.scan import (
     scan_tree,
     signature_tree,
 )
-from api.types import Manifest
+from api.services.manifest_types import Manifest
 
 
 # CODECITY_QUIET=1 is set by the session-autouse ``quiet_logs`` fixture
@@ -38,7 +38,7 @@ def _final_manifest(root: str, **kwargs) -> Manifest:
     point-free of the phase iteration."""
     final: Manifest | None = None
     for event in scan_tree(root, **kwargs):
-        if event["phase"] == "final":
+        if event["phase"] == "manifest-complete":
             final = event["manifest"]
     assert final is not None, "scan_tree must yield a final event"
     return final
@@ -59,6 +59,7 @@ def _commit_all(root: Path, message: str = "x") -> None:
     """Stage every file under ``root`` and create a commit."""
     subprocess.run(["git", "-C", str(root), "add", "-A"], check=True)
     subprocess.run(["git", "-C", str(root), "commit", "-q", "-m", message], check=True)
+
 
 FIXTURES_DIR = Path(__file__).resolve().parent / "fixtures"
 _CANONICAL_FIXTURE = FIXTURES_DIR / "sample-repo"
@@ -207,8 +208,15 @@ class ComputeBusynessTests(unittest.TestCase):
         out = []
         for day, n in enumerate(per_day, start=1):
             for _ in range(n):
-                out.append({"date": f"2026-01-{day:02d}", "files": 1,
-                            "sha": "0" * 40, "authors": [], "subject": ""})
+                out.append(
+                    {
+                        "date": f"2026-01-{day:02d}",
+                        "files": 1,
+                        "sha": "0" * 40,
+                        "authors": [],
+                        "subject": "",
+                    }
+                )
         return out
 
     def test_empty_history(self):
@@ -218,23 +226,49 @@ class ComputeBusynessTests(unittest.TestCase):
         # Per-day counts sorted: [1, 1, 2, 5]
         #   avg  = q(0.50) = counts[floor(4*0.5)=2] = 2
         #   busy = max(q(0.75)=counts[floor(4*0.75)=3]=5, avg+1=3) = 5
-        self.assertEqual(_compute_busyness(self._commits(1, 1, 2, 5)),
-                         {"avg": 2, "busy": 5})
+        self.assertEqual(
+            _compute_busyness(self._commits(1, 1, 2, 5)), {"avg": 2, "busy": 5}
+        )
 
     def test_busy_clamped_to_avg_plus_one(self):
         # Uniform 2-per-day → median 2, 75th pct 2 → busy clamps to 3.
-        self.assertEqual(_compute_busyness(self._commits(2, 2, 2, 2)),
-                         {"avg": 2, "busy": 3})
+        self.assertEqual(
+            _compute_busyness(self._commits(2, 2, 2, 2)), {"avg": 2, "busy": 3}
+        )
 
 
 class AnnotateSameDayTotalsTests(unittest.TestCase):
     def test_sets_per_day_group_size_on_each_commit(self):
         # Three commits on 01-01, one on 01-02.
         commits = [
-            {"date": "2026-01-01", "files": 1, "sha": "0" * 40, "authors": [], "subject": ""},
-            {"date": "2026-01-01", "files": 1, "sha": "1" * 40, "authors": [], "subject": ""},
-            {"date": "2026-01-01", "files": 1, "sha": "2" * 40, "authors": [], "subject": ""},
-            {"date": "2026-01-02", "files": 1, "sha": "3" * 40, "authors": [], "subject": ""},
+            {
+                "date": "2026-01-01",
+                "files": 1,
+                "sha": "0" * 40,
+                "authors": [],
+                "subject": "",
+            },
+            {
+                "date": "2026-01-01",
+                "files": 1,
+                "sha": "1" * 40,
+                "authors": [],
+                "subject": "",
+            },
+            {
+                "date": "2026-01-01",
+                "files": 1,
+                "sha": "2" * 40,
+                "authors": [],
+                "subject": "",
+            },
+            {
+                "date": "2026-01-02",
+                "files": 1,
+                "sha": "3" * 40,
+                "authors": [],
+                "subject": "",
+            },
         ]
         _annotate_same_day_totals(commits)
         self.assertEqual([c["same_day_total"] for c in commits], [3, 3, 3, 1])
@@ -281,9 +315,7 @@ class ScanTreeIntegrationTests(_CacheRedirectMixin, unittest.TestCase):
         self.assertEqual(
             sum(e["count"] for e in breakdown), tree["descendants_file_count"]
         )
-        self.assertEqual(
-            sum(e["size"] for e in breakdown), tree["descendants_size"]
-        )
+        self.assertEqual(sum(e["size"] for e in breakdown), tree["descendants_size"])
         # Sorted by count descending.
         counts = [e["count"] for e in breakdown]
         self.assertEqual(counts, sorted(counts, reverse=True))
@@ -336,6 +368,21 @@ class ScanTreeIntegrationTests(_CacheRedirectMixin, unittest.TestCase):
             self.assertEqual(c["same_day_total"], per_day[c["date"]])
             self.assertGreaterEqual(c["same_day_total"], 1)
 
+    def test_same_day_total_present_on_every_emit(self):
+        # same_day_total is NotRequired on the internal TypedDict (it's baked
+        # in-place at wrap time) but REQUIRED on the wire. Both the skeleton
+        # and final emits route through _wrap_manifest, so both must carry it
+        # on every commit. Guards against a future emit path skipping wrap.
+        events = list(scan_tree(str(FIXTURE), use_cache=False))
+        phases = [e["phase"] for e in events]
+        self.assertIn("manifest-partial", phases)
+        self.assertIn("manifest-complete", phases)
+        for e in events:
+            for c in e["manifest"]["commits"]:
+                self.assertIn(
+                    "same_day_total", c, f"{e['phase']} commit missing same_day_total"
+                )
+
     def test_signature_present_and_stable(self):
         m1 = _final_manifest(str(FIXTURE))
         m2 = _final_manifest(str(FIXTURE))
@@ -378,7 +425,6 @@ class ScanTreeIntegrationTests(_CacheRedirectMixin, unittest.TestCase):
         finally:
             untracked.unlink(missing_ok=True)
 
-
     def test_codecityignore_name_excludes_directory(self):
         # A bare name in .codecityignore matches any dir/file with that
         # name anywhere in the tree.
@@ -390,9 +436,7 @@ class ScanTreeIntegrationTests(_CacheRedirectMixin, unittest.TestCase):
             target_dir.mkdir()
             (target_dir / "data.txt").write_text("noise")
             _commit_all(root)
-            (root / ".codecityignore").write_text(
-                "# project-specific\nnoisy-fixture\n"
-            )
+            (root / ".codecityignore").write_text("# project-specific\nnoisy-fixture\n")
             m = _final_manifest(str(root))
             names = [n["name"] for n in _walk_dirs(m["tree"])]
             self.assertNotIn("noisy-fixture", names)
@@ -513,7 +557,8 @@ class ScanTreeIntegrationTests(_CacheRedirectMixin, unittest.TestCase):
         """scan_tree must raise NotAGitRepoError on a non-git directory.
         Server enforces this at the HTTP boundary; the scanner check is
         defense-in-depth so direct callers fail fast."""
-        from api.scan import NotAGitRepoError
+        from api.services.scan import NotAGitRepoError
+
         with tempfile.TemporaryDirectory() as td:
             Path(td, "a.txt").write_text("hello")
             with self.assertRaises(NotAGitRepoError):
@@ -550,7 +595,9 @@ class SignatureTreeTests(_CacheRedirectMixin, unittest.TestCase):
         new_file = FIXTURE / "sig-test-temp.txt"
         new_file.write_text("hello")
         try:
-            subprocess.check_call(["git", "-C", str(FIXTURE), "add", str(new_file.name)])
+            subprocess.check_call(
+                ["git", "-C", str(FIXTURE), "add", str(new_file.name)]
+            )
             after_add = signature_tree(str(FIXTURE))["signature"]
             self.assertNotEqual(before, after_add)
         finally:
@@ -594,7 +641,8 @@ class LineCountCapTests(unittest.TestCase):
     an order-of-magnitude estimate is fine on huge files."""
 
     def test_exact_count_below_threshold(self):
-        from api.scan import _line_count
+        from api.services.scan import _line_count
+
         with tempfile.NamedTemporaryFile("wb", delete=False) as fh:
             fh.write(b"line\n" * 1000)
             small = Path(fh.name)
@@ -602,7 +650,8 @@ class LineCountCapTests(unittest.TestCase):
         self.assertEqual(_line_count(small), 1000)
 
     def test_sample_extrapolation_above_threshold(self):
-        from api.scan import _line_count
+        from api.services.scan import _line_count
+
         # 6 MB file with one newline every 50 bytes -> ~125k lines true.
         with tempfile.NamedTemporaryFile("wb", delete=False) as fh:
             line = b"x" * 49 + b"\n"  # 50 bytes, one newline
@@ -633,7 +682,7 @@ def _walk_dirs(node):
 
 
 class BuildAuthorsListTests(unittest.TestCase):
-    """Direct coverage for the _build_authors_list helper.
+    """Direct coverage for the build_authors_list helper.
 
     Integration coverage exists via the multi-author fixture commit, but
     that fixture doesn't exercise the email-only trailer path — the
@@ -643,49 +692,56 @@ class BuildAuthorsListTests(unittest.TestCase):
     """
 
     def test_no_trailers_returns_primary_only(self):
-        from api.scan import _build_authors_list
-        self.assertEqual(_build_authors_list("Alice", ""), ["Alice"])
+        from api.services.scan import build_authors_list
+
+        self.assertEqual(build_authors_list("Alice", ""), ["Alice"])
 
     def test_two_name_bearing_trailers(self):
-        from api.scan import _build_authors_list
+        from api.services.scan import build_authors_list
+
         self.assertEqual(
-            _build_authors_list("Alice", "Bob <b@x>\x1fCarol <c@x>"),
+            build_authors_list("Alice", "Bob <b@x>\x1fCarol <c@x>"),
             ["Alice", "Bob", "Carol"],
         )
 
     def test_primary_dedup_against_trailer(self):
-        from api.scan import _build_authors_list
+        from api.services.scan import build_authors_list
+
         # Primary author repeated as a Co-authored-by trailer (cherry-
         # pick artifact) is dropped — order preserves first-seen.
         self.assertEqual(
-            _build_authors_list("Alice", "Bob <b@x>\x1fAlice <a@x>"),
+            build_authors_list("Alice", "Bob <b@x>\x1fAlice <a@x>"),
             ["Alice", "Bob"],
         )
 
     def test_email_only_trailer_uses_local_part(self):
         # Regression-protection for the privacy fix: an email-only
         # trailer must not leak the @domain into the authors list.
-        from api.scan import _build_authors_list
+        from api.services.scan import build_authors_list
+
         self.assertEqual(
-            _build_authors_list("Alice", "<bot@example.com>"),
+            build_authors_list("Alice", "<bot@example.com>"),
             ["Alice", "bot"],
         )
 
     def test_bracketed_value_without_at_sign_kept_verbatim(self):
-        from api.scan import _build_authors_list
+        from api.services.scan import build_authors_list
+
         self.assertEqual(
-            _build_authors_list("Alice", "<just-localpart>"),
+            build_authors_list("Alice", "<just-localpart>"),
             ["Alice", "just-localpart"],
         )
 
     def test_empty_brackets_dropped(self):
-        from api.scan import _build_authors_list
-        self.assertEqual(_build_authors_list("Alice", "<>"), ["Alice"])
+        from api.services.scan import build_authors_list
+
+        self.assertEqual(build_authors_list("Alice", "<>"), ["Alice"])
 
     def test_duplicate_co_author_deduped(self):
-        from api.scan import _build_authors_list
+        from api.services.scan import build_authors_list
+
         self.assertEqual(
-            _build_authors_list("Alice", "Bob <b@x>\x1fBob <b@x>"),
+            build_authors_list("Alice", "Bob <b@x>\x1fBob <b@x>"),
             ["Alice", "Bob"],
         )
 
@@ -706,7 +762,7 @@ class GitMetadataParallelTests(_CacheRedirectMixin, unittest.TestCase):
         # go through subprocess.run. Wrap both so we catch git log
         # regardless of which API the implementation chose.
         from unittest.mock import patch
-        from api.scan import _collect_git_metadata
+        from api.services.scan import _collect_git_metadata
 
         original_run = subprocess.run
         original_popen = subprocess.Popen
@@ -733,24 +789,30 @@ class GitMetadataParallelTests(_CacheRedirectMixin, unittest.TestCase):
             _record_if_git_log(args)
             return original_popen(args, **kwargs)
 
-        with patch("api.scan.subprocess.run", side_effect=counting_run), \
-             patch("api.scan.subprocess.Popen", side_effect=counting_popen):
+        with (
+            patch("api.services.scan.subprocess.run", side_effect=counting_run),
+            patch("api.services.scan.subprocess.Popen", side_effect=counting_popen),
+        ):
             _collect_git_metadata(FIXTURE, use_cache=False)
 
-        self.assertEqual(len(log_calls), 1,
-                         f"expected exactly 1 git log call, got: {log_calls}")
+        self.assertEqual(
+            len(log_calls), 1, f"expected exactly 1 git log call, got: {log_calls}"
+        )
 
     def test_collect_git_metadata_returns_commits_list(self):
-        from api.scan import _collect_git_metadata
+        from api.services.scan import _collect_git_metadata
+
         _created, _modified, _tracked, commits = _collect_git_metadata(
-            FIXTURE, use_cache=False,
+            FIXTURE,
+            use_cache=False,
         )
         self.assertIsInstance(commits, list)
         self.assertGreater(len(commits), 0)
         # Manifest contract: oldest-first.
         dates = [c["date"] for c in commits]
-        self.assertEqual(dates, sorted(dates),
-                         f"commits should be oldest-first, got {dates}")
+        self.assertEqual(
+            dates, sorted(dates), f"commits should be oldest-first, got {dates}"
+        )
         for c in commits:
             self.assertEqual(
                 set(c.keys()),
@@ -772,9 +834,11 @@ class GitMetadataParallelTests(_CacheRedirectMixin, unittest.TestCase):
         second-to-last commit (the multi-author "feat: co-authored work"
         commit is newest). Subject must be the first line only; author
         must be the second author's name (not the bot)."""
-        from api.scan import _collect_git_metadata
+        from api.services.scan import _collect_git_metadata
+
         _c, _m, _t, commits = _collect_git_metadata(
-            FIXTURE, use_cache=False,
+            FIXTURE,
+            use_cache=False,
         )
         # commits are oldest-first; the multi-author commit is now last
         # and the Other Fixture Person commit is second-to-last.
@@ -791,7 +855,7 @@ class GitMetadataParallelTests(_CacheRedirectMixin, unittest.TestCase):
         # The multi-author commit is now the newest; the scanner emits
         # oldest-first so it's last.
         events = list(scan_tree(str(FIXTURE)))
-        final = next(e for e in events if e["phase"] == "final")
+        final = next(e for e in events if e["phase"] == "manifest-complete")
         commits = final["manifest"]["commits"]
         multi = commits[-1]
         self.assertEqual(
@@ -811,24 +875,33 @@ class GitMetadataParallelTests(_CacheRedirectMixin, unittest.TestCase):
         """A merge commit's combined-diff file count must be > 0, not the
         empty count git log emits by default for merges."""
         import tempfile
-        from api.scan import _collect_git_metadata
+        from api.services.scan import _collect_git_metadata
+
         with tempfile.TemporaryDirectory() as td:
             tdp = Path(td)
             subprocess.run(["git", "init", "-q", "-b", "main", td], check=True)
-            subprocess.run(["git", "-C", td, "config", "user.email", "t@example.com"], check=True)
+            subprocess.run(
+                ["git", "-C", td, "config", "user.email", "t@example.com"], check=True
+            )
             subprocess.run(["git", "-C", td, "config", "user.name", "T"], check=True)
             # Initial commit on main.
             (tdp / "base.txt").write_text("base\n")
             subprocess.run(["git", "-C", td, "add", "."], check=True)
             subprocess.run(["git", "-C", td, "commit", "-q", "-m", "base"], check=True)
             # Side branch that modifies a file.
-            subprocess.run(["git", "-C", td, "checkout", "-q", "-b", "side"], check=True)
+            subprocess.run(
+                ["git", "-C", td, "checkout", "-q", "-b", "side"], check=True
+            )
             (tdp / "base.txt").write_text("side change\n")
-            subprocess.run(["git", "-C", td, "commit", "-aq", "-m", "side change"], check=True)
+            subprocess.run(
+                ["git", "-C", td, "commit", "-aq", "-m", "side change"], check=True
+            )
             # Back to main, modify same file differently, then merge.
             subprocess.run(["git", "-C", td, "checkout", "-q", "main"], check=True)
             (tdp / "base.txt").write_text("main change\n")
-            subprocess.run(["git", "-C", td, "commit", "-aq", "-m", "main change"], check=True)
+            subprocess.run(
+                ["git", "-C", td, "commit", "-aq", "-m", "main change"], check=True
+            )
             # Force a merge commit with a conflict resolution.
             merge_result = subprocess.run(
                 ["git", "-C", td, "merge", "-q", "--no-ff", "side"],
@@ -839,30 +912,41 @@ class GitMetadataParallelTests(_CacheRedirectMixin, unittest.TestCase):
             subprocess.run(["git", "-C", td, "add", "."], check=True)
             subprocess.run(["git", "-C", td, "commit", "-aq", "--no-edit"], check=True)
             _c, _m, _t, commits = _collect_git_metadata(
-                Path(td), use_cache=False,
+                Path(td),
+                use_cache=False,
             )
             # The merge commit (latest) MUST have files >= 1.
             # commits are oldest-first, so the merge is last.
-            self.assertGreaterEqual(commits[-1]["files"], 1,
-                f"merge commit files count should be >= 1; got {commits[-1]['files']}")
+            self.assertGreaterEqual(
+                commits[-1]["files"],
+                1,
+                f"merge commit files count should be >= 1; got {commits[-1]['files']}",
+            )
 
     def test_collect_git_metadata_counts_clean_merge_files(self):
         """A clean (non-conflicting) merge commit must also report its
         files. With `-c`, clean merges report 0; with
         `--diff-merges=first-parent` they report the side-branch diff."""
         import tempfile, subprocess
-        from api.scan import _collect_git_metadata
+        from api.services.scan import _collect_git_metadata
+
         with tempfile.TemporaryDirectory() as td:
             tdp = Path(td)
             subprocess.run(["git", "init", "-q", "-b", "main", td], check=True)
-            subprocess.run(["git", "-C", td, "config", "user.email", "t@example.com"], check=True)
+            subprocess.run(
+                ["git", "-C", td, "config", "user.email", "t@example.com"], check=True
+            )
             subprocess.run(["git", "-C", td, "config", "user.name", "T"], check=True)
             # Initial commit.
             (tdp / "a.txt").write_text("a\n")
             subprocess.run(["git", "-C", td, "add", "."], check=True)
-            subprocess.run(["git", "-C", td, "commit", "-q", "-m", "initial"], check=True)
+            subprocess.run(
+                ["git", "-C", td, "commit", "-q", "-m", "initial"], check=True
+            )
             # Side branch adds a DIFFERENT file (no conflict with main).
-            subprocess.run(["git", "-C", td, "checkout", "-q", "-b", "side"], check=True)
+            subprocess.run(
+                ["git", "-C", td, "checkout", "-q", "-b", "side"], check=True
+            )
             (tdp / "b.txt").write_text("b\n")
             subprocess.run(["git", "-C", td, "add", "."], check=True)
             subprocess.run(["git", "-C", td, "commit", "-q", "-m", "add b"], check=True)
@@ -873,13 +957,17 @@ class GitMetadataParallelTests(_CacheRedirectMixin, unittest.TestCase):
                 check=True,
             )
             _c, _m, _t, commits = _collect_git_metadata(
-                Path(td), use_cache=False,
+                Path(td),
+                use_cache=False,
             )
             # Merge is the most recent commit (oldest-first list, so [-1]).
             # Side branch added b.txt; the merge against the first parent
             # (main, which has only a.txt) introduces b.txt — so files >= 1.
-            self.assertGreaterEqual(commits[-1]["files"], 1,
-                f"clean merge files count should be >= 1; got {commits[-1]['files']}")
+            self.assertGreaterEqual(
+                commits[-1]["files"],
+                1,
+                f"clean merge files count should be >= 1; got {commits[-1]['files']}",
+            )
 
 
 class GitLogRobustnessTests(_CacheRedirectMixin, unittest.TestCase):
@@ -899,7 +987,8 @@ class GitLogRobustnessTests(_CacheRedirectMixin, unittest.TestCase):
     def test_non_utf8_author_bytes_do_not_crash(self):
         """Failure mode A: a commit with non-UTF-8 author metadata must
         parse without raising. Bytes are replaced, not crashed-on."""
-        from api.scan import _collect_git_metadata
+        from api.services.scan import _collect_git_metadata
+
         with TemporaryDirectory() as td:
             td_path = Path(td)
             _init_repo(td_path)
@@ -911,7 +1000,9 @@ class GitLogRobustnessTests(_CacheRedirectMixin, unittest.TestCase):
             # git silently re-encodes env strings to valid UTF-8.
             tree_sha = subprocess.run(
                 ["git", "-C", td, "write-tree"],
-                capture_output=True, text=True, check=True,
+                capture_output=True,
+                text=True,
+                check=True,
             ).stdout.strip()
             commit_body = (
                 f"tree {tree_sha}\n".encode("ascii")
@@ -919,28 +1010,38 @@ class GitLogRobustnessTests(_CacheRedirectMixin, unittest.TestCase):
                 + b"committer Fran\xe9ois <f@example.com> 1577836800 +0000\n"
                 + b"\nmsg\n"
             )
-            sha = subprocess.run(
-                ["git", "-C", td, "hash-object", "-t", "commit",
-                 "-w", "--stdin"],
-                input=commit_body, capture_output=True, check=True,
-            ).stdout.decode().strip()
+            sha = (
+                subprocess.run(
+                    ["git", "-C", td, "hash-object", "-t", "commit", "-w", "--stdin"],
+                    input=commit_body,
+                    capture_output=True,
+                    check=True,
+                )
+                .stdout.decode()
+                .strip()
+            )
             subprocess.run(
-                ["git", "-C", td, "update-ref", "HEAD", sha], check=True,
+                ["git", "-C", td, "update-ref", "HEAD", sha],
+                check=True,
             )
 
             # Run in a thread with a deadline so a regression that
             # deadlocks the finally clause fails loudly instead of
             # hanging the pytest worker forever.
             import threading
+
             result: dict[str, object] = {}
+
             def go() -> None:
                 try:
                     _c, _m, _t, commits = _collect_git_metadata(
-                        td_path, use_cache=False,
+                        td_path,
+                        use_cache=False,
                     )
                     result["commits"] = commits
                 except BaseException as e:  # pragma: no cover - defensive
                     result["error"] = e
+
             t = threading.Thread(target=go, daemon=True)
             t.start()
             t.join(timeout=30)
@@ -950,7 +1051,8 @@ class GitLogRobustnessTests(_CacheRedirectMixin, unittest.TestCase):
                 "finally: proc.wait() with a full stdout pipe)",
             )
             self.assertNotIn(
-                "error", result,
+                "error",
+                result,
                 f"scan raised on non-UTF-8 metadata: {result.get('error')!r}",
             )
             commits = result["commits"]
@@ -965,14 +1067,18 @@ class GitLogRobustnessTests(_CacheRedirectMixin, unittest.TestCase):
         ``proc.kill()`` before ``proc.wait()``. Otherwise wait() blocks
         forever on any git child that still has buffered output."""
         from unittest.mock import patch
-        from api.scan import _collect_git_dates
+        from api.services.scan import _collect_git_dates
 
         class _FakeStdout:
             """Yields one valid line, then raises — mimics the moment
             TextIOWrapper hits an invalid byte mid-stream."""
+
             def __init__(self) -> None:
                 self._emitted = False
-            def __iter__(self): return self
+
+            def __iter__(self):
+                return self
+
             def __next__(self) -> str:
                 if not self._emitted:
                     self._emitted = True
@@ -982,23 +1088,31 @@ class GitLogRobustnessTests(_CacheRedirectMixin, unittest.TestCase):
                         + "\tAuthor\tsubj\n"
                     )
                 raise UnicodeDecodeError(
-                    "utf-8", b"\xe9", 0, 1, "simulated mid-stream failure",
+                    "utf-8",
+                    b"\xe9",
+                    0,
+                    1,
+                    "simulated mid-stream failure",
                 )
 
         class _FakeProc:
             """``wait()`` asserts ``kill()`` ran first — the real bug is
             that wait() on an unread-pipe child deadlocks, and the only
             way to avoid that is to kill the child first."""
+
             def __init__(self) -> None:
                 self.stdout = _FakeStdout()
                 self.killed = False
                 self.waited = False
                 self.returncode: int | None = None
+
             def poll(self) -> int | None:
                 return self.returncode
+
             def kill(self) -> None:
                 self.killed = True
                 self.returncode = -9
+
             def wait(self, timeout: float | None = None) -> int:
                 if not self.killed:
                     raise AssertionError(
@@ -1009,7 +1123,7 @@ class GitLogRobustnessTests(_CacheRedirectMixin, unittest.TestCase):
                 return self.returncode or 0
 
         fake = _FakeProc()
-        with patch("api.scan.subprocess.Popen", return_value=fake):
+        with patch("api.services.scan.subprocess.Popen", return_value=fake):
             with self.assertRaises(UnicodeDecodeError):
                 _collect_git_dates(Path("/tmp/does-not-matter"))
         self.assertTrue(fake.killed, "cleanup must call proc.kill()")
@@ -1026,7 +1140,7 @@ class GitHistoryCacheTests(_CacheRedirectMixin, unittest.TestCase):
 
     def test_warm_run_skips_git_log(self):
         from unittest.mock import patch
-        from api.scan import _collect_git_metadata
+        from api.services.scan import _collect_git_metadata
 
         # Cold run: populates cache.
         _collect_git_metadata(FIXTURE, use_cache=True)
@@ -1040,13 +1154,13 @@ class GitHistoryCacheTests(_CacheRedirectMixin, unittest.TestCase):
             return original_run(args, **kwargs)
 
         # Warm run: must not invoke `git log` at all.
-        with patch("api.scan.subprocess.run", side_effect=counting_run):
+        with patch("api.services.scan.subprocess.run", side_effect=counting_run):
             _collect_git_metadata(FIXTURE, use_cache=True)
         self.assertEqual(log_calls, [], "expected zero git log calls on warm run")
 
     def test_use_cache_false_bypasses(self):
         from unittest.mock import patch
-        from api.scan import _collect_git_metadata
+        from api.services.scan import _collect_git_metadata
 
         _collect_git_metadata(FIXTURE, use_cache=True)  # populate
 
@@ -1066,15 +1180,19 @@ class GitHistoryCacheTests(_CacheRedirectMixin, unittest.TestCase):
             _record_if_log(args)
             return original_popen(args, **kwargs)
 
-        with patch("api.scan.subprocess.run", side_effect=counting_run), \
-             patch("api.scan.subprocess.Popen", side_effect=counting_popen):
+        with (
+            patch("api.services.scan.subprocess.run", side_effect=counting_run),
+            patch("api.services.scan.subprocess.Popen", side_effect=counting_popen),
+        ):
             _collect_git_metadata(FIXTURE, use_cache=False)
-        self.assertEqual(len(log_calls), 1, "use_cache=False must run the combined log walk")
+        self.assertEqual(
+            len(log_calls), 1, "use_cache=False must run the combined log walk"
+        )
 
     def test_cache_invalidated_after_new_commit(self):
         # Make a commit, confirm next call re-walks history.
         from unittest.mock import patch
-        from api.scan import _collect_git_metadata
+        from api.services.scan import _collect_git_metadata
 
         _collect_git_metadata(FIXTURE, use_cache=True)
 
@@ -1105,16 +1223,18 @@ class GitHistoryCacheTests(_CacheRedirectMixin, unittest.TestCase):
                 _record_if_log(args)
                 return original_popen(args, **kwargs)
 
-            with patch("api.scan.subprocess.run", side_effect=counting_run), \
-                 patch("api.scan.subprocess.Popen", side_effect=counting_popen):
+            with (
+                patch("api.services.scan.subprocess.run", side_effect=counting_run),
+                patch("api.services.scan.subprocess.Popen", side_effect=counting_popen),
+            ):
                 _collect_git_metadata(FIXTURE, use_cache=True)
-            self.assertEqual(len(log_calls), 1,
-                             "HEAD moved -> must re-walk")
+            self.assertEqual(len(log_calls), 1, "HEAD moved -> must re-walk")
         finally:
             # Reset fixture: undo the commit and remove the file.
             subprocess.run(
                 ["git", "-C", str(FIXTURE), "reset", "--hard", "HEAD~1"],
-                check=False, capture_output=True,
+                check=False,
+                capture_output=True,
             )
             new_file.unlink(missing_ok=True)
 
@@ -1132,25 +1252,25 @@ class FileStatCacheTests(_CacheRedirectMixin, unittest.TestCase):
 
         _final_manifest(str(FIXTURE))  # cold: populates cache
 
-        with patch("api.scan._line_count") as line_mock, \
-             patch("api.scan._is_binary") as binary_mock:
+        with (
+            patch("api.services.scan._line_count") as line_mock,
+            patch("api.services.scan._is_binary") as binary_mock,
+        ):
             _final_manifest(str(FIXTURE))  # warm: should not call either
-            self.assertEqual(line_mock.call_count, 0,
-                             "warm scan must not call _line_count")
-            self.assertEqual(binary_mock.call_count, 0,
-                             "warm scan must not call _is_binary")
+            self.assertEqual(
+                line_mock.call_count, 0, "warm scan must not call _line_count"
+            )
+            self.assertEqual(
+                binary_mock.call_count, 0, "warm scan must not call _is_binary"
+            )
 
     def test_warm_run_signature_matches_cold_run(self):
         cold = _final_manifest(str(FIXTURE))
         warm = _final_manifest(str(FIXTURE))
         self.assertEqual(cold["signature"], warm["signature"])
         # And tree shape — confirm `lines` survives the cache roundtrip.
-        cold_lines = {
-            n["path"]: n["lines"] for n in _walk_files(cold["tree"])
-        }
-        warm_lines = {
-            n["path"]: n["lines"] for n in _walk_files(warm["tree"])
-        }
+        cold_lines = {n["path"]: n["lines"] for n in _walk_files(cold["tree"])}
+        warm_lines = {n["path"]: n["lines"] for n in _walk_files(warm["tree"])}
         self.assertEqual(cold_lines, warm_lines)
 
     def test_modified_file_recomputed(self):
@@ -1160,7 +1280,8 @@ class FileStatCacheTests(_CacheRedirectMixin, unittest.TestCase):
 
         # Change one file's mtime by writing to it.
         target = next(
-            n for n in _walk_files(_final_manifest(str(FIXTURE))["tree"])
+            n
+            for n in _walk_files(_final_manifest(str(FIXTURE))["tree"])
             if n["name"] == "index.ts"
         )
         target_path = Path(target["fullPath"])
@@ -1175,7 +1296,9 @@ class FileStatCacheTests(_CacheRedirectMixin, unittest.TestCase):
                 line_calls.append(p)
                 return original_line_count(p)
 
-            with patch("api.scan._line_count", side_effect=counting_line_count):
+            with patch(
+                "api.services.scan._line_count", side_effect=counting_line_count
+            ):
                 _final_manifest(str(FIXTURE))
 
             # Only the modified file should be recomputed.
@@ -1189,7 +1312,7 @@ class FileStatCacheTests(_CacheRedirectMixin, unittest.TestCase):
 
         _final_manifest(str(FIXTURE))  # populate cache
 
-        with patch("api.scan._line_count", return_value=42) as line_mock:
+        with patch("api.services.scan._line_count", return_value=42) as line_mock:
             _final_manifest(str(FIXTURE), use_cache=False)
             # use_cache=False -> every file gets re-read
             self.assertGreater(line_mock.call_count, 0)
@@ -1198,7 +1321,8 @@ class FileStatCacheTests(_CacheRedirectMixin, unittest.TestCase):
 def _line_count_real():
     """Get the unwrapped _line_count for tests that want to call the
     real implementation while also mocking it."""
-    from api.scan import _line_count
+    from api.services.scan import _line_count
+
     return _line_count
 
 
@@ -1221,7 +1345,9 @@ class TreeSignatureTests(unittest.TestCase):
             "children": entries,
         }
 
-    def _make_file(self, path: str, size: int = 100, mtime: float = 1_000_000.0) -> dict:
+    def _make_file(
+        self, path: str, size: int = 100, mtime: float = 1_000_000.0
+    ) -> dict:
         """Build a minimal FileNode-like dict for testing."""
         return {
             "type": "file",
@@ -1259,33 +1385,39 @@ class TreeSignatureTests(unittest.TestCase):
 
     def test_adding_a_directory_changes_signature(self):
         tree_before = self._make_tree([self._make_file("a.py")])
-        tree_after = self._make_tree([
-            self._make_file("a.py"),
-            {
-                "type": "directory",
-                "path": "sub",
-                "name": "sub",
-                "children": [self._make_file("sub/b.py")],
-            },
-        ])
+        tree_after = self._make_tree(
+            [
+                self._make_file("a.py"),
+                {
+                    "type": "directory",
+                    "path": "sub",
+                    "name": "sub",
+                    "children": [self._make_file("sub/b.py")],
+                },
+            ]
+        )
         self.assertNotEqual(
             compute_tree_signature(tree_before),
             compute_tree_signature(tree_after),
         )
 
     def test_deterministic_across_repeated_calls(self):
-        tree = self._make_tree([
-            self._make_file("a.py"),
-            self._make_file("b.py"),
-            {
-                "type": "directory",
-                "path": "pkg",
-                "name": "pkg",
-                "children": [self._make_file("pkg/c.py")],
-            },
-        ])
+        tree = self._make_tree(
+            [
+                self._make_file("a.py"),
+                self._make_file("b.py"),
+                {
+                    "type": "directory",
+                    "path": "pkg",
+                    "name": "pkg",
+                    "children": [self._make_file("pkg/c.py")],
+                },
+            ]
+        )
         results = {compute_tree_signature(tree) for _ in range(5)}
-        self.assertEqual(len(results), 1, "compute_tree_signature must be deterministic")
+        self.assertEqual(
+            len(results), 1, "compute_tree_signature must be deterministic"
+        )
 
     def test_returns_hex_string_of_expected_length(self):
         # blake2b digest_size=8 → 8 bytes → 16 hex chars.
@@ -1298,7 +1430,8 @@ class TreeSignatureTests(unittest.TestCase):
     def test_skeleton_and_final_manifests_share_same_tree_signature(self):
         """The same tree_signature must appear in both the skeleton and final
         manifest events for the same scan — the whole point of this feature."""
-        from api.scan import scan_tree
+        from api.services.scan import scan_tree
+
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)
             _init_repo(root)
@@ -1309,13 +1442,17 @@ class TreeSignatureTests(unittest.TestCase):
         self.assertEqual(len(events), 2)
         skeleton_sig = events[0]["manifest"]["tree_signature"]
         final_sig = events[1]["manifest"]["tree_signature"]
-        self.assertEqual(skeleton_sig, final_sig,
-                         "skeleton and final manifests must carry the same tree_signature")
+        self.assertEqual(
+            skeleton_sig,
+            final_sig,
+            "skeleton and final manifests must carry the same tree_signature",
+        )
 
     def test_tree_signature_stable_when_only_metadata_changes(self):
         """tree_signature must be unchanged when only file content/lines/binary
         differs — i.e., between skeleton and final phases."""
-        from api.scan import scan_tree
+        from api.services.scan import scan_tree
+
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)
             _init_repo(root)
@@ -1340,19 +1477,22 @@ class ScanTreeStreamingTests(unittest.TestCase):
         return tmpdir
 
     def test_yields_skeleton_then_final(self) -> None:
-        from api.scan import scan_tree
+        from api.services.scan import scan_tree
+
         with TemporaryDirectory() as td:
             self._make_tiny_repo(td)
             events = list(scan_tree(td))
         self.assertEqual(len(events), 2)
-        self.assertEqual(events[0]["phase"], "skeleton")
-        self.assertEqual(events[1]["phase"], "final")
+        self.assertEqual(events[0]["phase"], "manifest-partial")
+        self.assertEqual(events[1]["phase"], "manifest-complete")
 
     def test_skeleton_has_placeholder_metadata(self) -> None:
-        from api.scan import scan_tree
+        from api.services.scan import scan_tree
+
         with TemporaryDirectory() as td:
             self._make_tiny_repo(td)
             skeleton, _final = list(scan_tree(td))
+
         # Walk the tree and assert every file has placeholder lines/binary.
         def files(node):
             for child in node["children"]:
@@ -1360,13 +1500,19 @@ class ScanTreeStreamingTests(unittest.TestCase):
                     yield child
                 else:
                     yield from files(child)
+
         for f in files(skeleton["manifest"]["tree"]):
-            self.assertEqual(f["lines"], 1, f"{f['path']} should have placeholder lines=1")
-            self.assertFalse(f["binary"], f"{f['path']} should have placeholder binary=False")
+            self.assertEqual(
+                f["lines"], 1, f"{f['path']} should have placeholder lines=1"
+            )
+            self.assertFalse(
+                f["binary"], f"{f['path']} should have placeholder binary=False"
+            )
 
     def test_cancel_event_pre_set_raises_at_first_boundary(self) -> None:
         import threading
-        from api.scan import scan_tree, ScanCancelledError
+        from api.services.scan import scan_tree, ScanCancelledError
+
         with TemporaryDirectory() as td:
             self._make_tiny_repo(td)
             ev = threading.Event()
@@ -1377,7 +1523,8 @@ class ScanTreeStreamingTests(unittest.TestCase):
 
     def test_cancel_event_set_after_skeleton_raises_in_populate(self) -> None:
         import threading
-        from api.scan import scan_tree, ScanCancelledError
+        from api.services.scan import scan_tree, ScanCancelledError
+
         with TemporaryDirectory() as td:
             root = Path(td)
             _init_repo(root)
@@ -1390,7 +1537,7 @@ class ScanTreeStreamingTests(unittest.TestCase):
             ev = threading.Event()
             gen = scan_tree(td, cancel_event=ev)
             skeleton = next(gen)
-            self.assertEqual(skeleton["phase"], "skeleton")
+            self.assertEqual(skeleton["phase"], "manifest-partial")
             ev.set()
             with self.assertRaises(ScanCancelledError):
                 next(gen)
@@ -1399,17 +1546,21 @@ class ScanTreeStreamingTests(unittest.TestCase):
 class MediaDimsInScanTests(_CacheRedirectMixin, unittest.TestCase):
     def test_scan_stamps_png_dimensions(self):
         import struct, zlib
+
         with TemporaryDirectory() as tmp:
             tmp_path = Path(tmp)
             _init_repo(tmp_path)
             png = tmp_path / "pic.png"
+
             # Minimal 50x30 PNG.
             def chunk(tag, data):
                 return (
                     struct.pack(">I", len(data))
-                    + tag + data
+                    + tag
+                    + data
                     + struct.pack(">I", zlib.crc32(tag + data) & 0xFFFFFFFF)
                 )
+
             sig = b"\x89PNG\r\n\x1a\n"
             ihdr = chunk(b"IHDR", struct.pack(">IIBBBBB", 50, 30, 8, 2, 0, 0, 0))
             raw = (b"\x00" + b"\xff\x00\x00" * 50) * 30
@@ -1451,7 +1602,7 @@ def test_heartbeat_calls_progress_callback_throttled():
     even if tick() is called rapidly."""
     import time
     from unittest.mock import MagicMock
-    from api.scan import _Heartbeat
+    from api.services.scan import _Heartbeat
 
     cb = MagicMock()
     hb = _Heartbeat(on_progress=cb)
@@ -1461,18 +1612,22 @@ def test_heartbeat_calls_progress_callback_throttled():
 
     initial_count = cb.call_count
     assert initial_count >= 1, "expected at least one callback during the rapid ticks"
-    assert initial_count < 50, f"expected throttling to keep count low, got {initial_count}"
+    assert initial_count < 50, (
+        f"expected throttling to keep count low, got {initial_count}"
+    )
 
     time.sleep(0.3)
     hb.tick()
-    assert cb.call_count > initial_count, "expected a new callback after throttle window"
+    assert cb.call_count > initial_count, (
+        "expected a new callback after throttle window"
+    )
 
 
 def test_heartbeat_flush_emits_terminal_count():
     """flush() must emit the final seen count when the last tick was
     throttle-suppressed, so the UI never freezes at a stale value."""
     from unittest.mock import MagicMock
-    from api.scan import _Heartbeat
+    from api.services.scan import _Heartbeat
 
     cb = MagicMock()
     hb = _Heartbeat(on_progress=cb)
@@ -1485,7 +1640,9 @@ def test_heartbeat_flush_emits_terminal_count():
 
     # The heartbeat's seen count is 1000 but the last emit was much earlier.
     assert hb.seen == 1000
-    assert last_emitted_count_before_flush < 1000, "throttle should have suppressed late ticks"
+    assert last_emitted_count_before_flush < 1000, (
+        "throttle should have suppressed late ticks"
+    )
 
     hb.flush()
     assert cb.call_count == ticks_before_flush + 1, "flush should emit exactly once"
@@ -1500,7 +1657,7 @@ def test_heartbeat_flush_noop_when_already_emitted():
     """flush() must not re-emit a count that was already emitted."""
     import time
     from unittest.mock import MagicMock
-    from api.scan import _Heartbeat
+    from api.services.scan import _Heartbeat
 
     cb = MagicMock()
     hb = _Heartbeat(on_progress=cb)

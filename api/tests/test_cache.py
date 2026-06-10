@@ -8,9 +8,9 @@ from pathlib import Path
 
 import pytest
 
-from api import cache as cache_mod
-from api.cache import _git_history_cache_path
-from api.types import CommitEntry
+from api.services import cache as cache_mod
+from api.services.cache import _git_history_cache_path
+from api.services.manifest_types import CommitEntry
 
 
 class CacheTestBase(unittest.TestCase):
@@ -52,8 +52,11 @@ class FileCacheTests(CacheTestBase):
         root = Path("/some/repo")
         entries = {
             "src/foo.py": {
-                "size": 1234, "mtime": 1715000000.0,
-                "lines": 42, "binary": False, "ext": ".py",
+                "size": 1234,
+                "mtime": 1715000000.0,
+                "lines": 42,
+                "binary": False,
+                "ext": ".py",
             },
         }
         cache_mod.cache_save_files(root, entries)
@@ -79,8 +82,10 @@ class FileCacheTests(CacheTestBase):
 
     def test_atomic_write_no_temp_left_behind(self) -> None:
         root = Path("/some/repo")
-        cache_mod.cache_save_files(root, {"a": {"size": 0, "mtime": 0.0,
-                                                "lines": 0, "binary": False, "ext": ""}})
+        cache_mod.cache_save_files(
+            root,
+            {"a": {"size": 0, "mtime": 0.0, "lines": 0, "binary": False, "ext": ""}},
+        )
         files_dir = cache_mod.CACHE_ROOT / "files"
         leftovers = [p for p in files_dir.iterdir() if p.suffix == ".tmp"]
         self.assertEqual(leftovers, [])
@@ -94,11 +99,21 @@ class FileCacheTests(CacheTestBase):
             "version": 1,
             "root": str(root),
             "entries": {
-                "good.py": {"size": 1, "mtime": 1.0, "lines": 1,
-                            "binary": False, "ext": ".py"},
-                "missing-fields.py": {"size": 1},   # incomplete
-                "wrong-type.py": {"size": "not-an-int", "mtime": 1.0,
-                                  "lines": 1, "binary": False, "ext": ".py"},
+                "good.py": {
+                    "size": 1,
+                    "mtime": 1.0,
+                    "lines": 1,
+                    "binary": False,
+                    "ext": ".py",
+                },
+                "missing-fields.py": {"size": 1},  # incomplete
+                "wrong-type.py": {
+                    "size": "not-an-int",
+                    "mtime": 1.0,
+                    "lines": 1,
+                    "binary": False,
+                    "ext": ".py",
+                },
                 "not-a-dict.py": "garbage",
             },
         }
@@ -153,9 +168,7 @@ class GitHistoryCacheTests(CacheTestBase):
     def test_miss_on_different_head(self) -> None:
         root = Path("/some/repo")
         cache_mod.cache_save_git_history(root, "abc123", {}, {}, [])
-        self.assertIsNone(
-            cache_mod.cache_load_git_history(root, "def456")
-        )
+        self.assertIsNone(cache_mod.cache_load_git_history(root, "def456"))
 
     def test_load_missing_returns_none(self) -> None:
         self.assertIsNone(
@@ -173,8 +186,13 @@ class GitHistoryCacheTests(CacheTestBase):
         root = Path("/some/repo")
         cache_mod.cache_save_git_history(root, "abc", {}, {}, [])
         path = cache_mod.CACHE_ROOT / "git-history" / f"{cache_mod.repo_key(root)}.json"
-        bad = {"version": 999, "root": str(root), "head_sha": "abc",
-               "created": {}, "modified": {}}
+        bad = {
+            "version": 999,
+            "root": str(root),
+            "head_sha": "abc",
+            "created": {},
+            "modified": {},
+        }
         path.write_text(json.dumps(bad))
         self.assertIsNone(cache_mod.cache_load_git_history(root, "abc"))
 
@@ -186,10 +204,11 @@ class GitHistoryCacheTests(CacheTestBase):
         path = cache_mod.CACHE_ROOT / "git-history" / f"{cache_mod.repo_key(root)}.json"
         payload = {
             "version": cache_mod._GIT_HISTORY_CACHE_VERSION,
-            "root": str(root), "head_sha": "abc",
+            "root": str(root),
+            "head_sha": "abc",
             "created": {
                 "good.py": "2024-01-01T00:00:00Z",
-                "bad.py": 12345,   # not a string
+                "bad.py": 12345,  # not a string
             },
             "modified": {
                 "good.py": "2024-06-01T00:00:00Z",
@@ -204,18 +223,28 @@ class GitHistoryCacheTests(CacheTestBase):
         self.assertEqual(created, {"good.py": "2024-01-01T00:00:00Z"})
         self.assertEqual(modified, {"good.py": "2024-06-01T00:00:00Z"})
 
-
     def test_git_history_cache_round_trips_commits(self):
         """Round-trip a small commits list through the cache."""
         root = Path("/some/repo")
         commits: list[CommitEntry] = [
-            {"date": "2024-01-01", "files": 3, "sha": "a" * 40,
-             "authors": ["Alice"], "subject": "first"},
-            {"date": "2024-02-15", "files": 7, "sha": "b" * 40,
-             "authors": ["Bob", "Carol"], "subject": "second"},
+            {
+                "date": "2024-01-01",
+                "files": 3,
+                "sha": "a" * 40,
+                "authors": ["Alice"],
+                "subject": "first",
+            },
+            {
+                "date": "2024-02-15",
+                "files": 7,
+                "sha": "b" * 40,
+                "authors": ["Bob", "Carol"],
+                "subject": "second",
+            },
         ]
         cache_mod.cache_save_git_history(
-            root, head_sha="abc",
+            root,
+            head_sha="abc",
             created={"a.py": "2024-01-01"},
             modified={"a.py": "2024-02-15"},
             commits=commits,
@@ -234,56 +263,126 @@ class GitHistoryCacheTests(CacheTestBase):
         path.parent.mkdir(parents=True, exist_ok=True)
         sha_a = "a" * 40
         sha_b = "b" * 40
-        path.write_text(json.dumps({
-            "version": cache_mod._GIT_HISTORY_CACHE_VERSION,
-            "root": str(root),
-            "head_sha": "abc",
-            "created": {},
-            "modified": {},
-            "commits": [
-                {"date": "2024-01-01", "files": 3, "sha": sha_a,
-                 "authors": ["Alice"], "subject": "ok"},              # valid
-                "not a dict",                                         # dropped: not a dict
-                {"date": 12345, "files": 5, "sha": sha_a,
-                 "authors": [], "subject": "x"},                      # dropped: date not str
-                {"date": "2024-02-01", "sha": sha_a,
-                 "authors": [], "subject": "x"},                      # dropped: missing files
-                {"date": "2024-03-01", "files": True, "sha": sha_a,
-                 "authors": [], "subject": "x"},                      # dropped: files is bool
-                {"files": 4, "sha": sha_a,
-                 "authors": [], "subject": "x"},                      # dropped: missing date
-                {"date": "2024-04-01", "files": 7,
-                 "authors": [], "subject": "x"},                      # dropped: missing sha
-                {"date": "2024-05-01", "files": 2, "sha": "short",
-                 "authors": [], "subject": "x"},                      # dropped: sha too short
-                {"date": "2024-05-15", "files": 4, "sha": "Z" * 40,
-                 "authors": [], "subject": "x"},                      # dropped: non-hex sha
-                {"date": "2024-07-01", "files": 1, "sha": sha_a,
-                 "authors": "Alice", "subject": "x"},                 # dropped: authors not a list
-                {"date": "2024-08-01", "files": 1, "sha": sha_a,
-                 "authors": ["Alice"]},                               # dropped: missing subject
-                {"date": "2024-06-01", "files": 1, "sha": sha_b,
-                 "authors": ["Bob"], "subject": "ok2"},               # valid
-            ],
-        }), encoding="utf-8")
+        path.write_text(
+            json.dumps(
+                {
+                    "version": cache_mod._GIT_HISTORY_CACHE_VERSION,
+                    "root": str(root),
+                    "head_sha": "abc",
+                    "created": {},
+                    "modified": {},
+                    "commits": [
+                        {
+                            "date": "2024-01-01",
+                            "files": 3,
+                            "sha": sha_a,
+                            "authors": ["Alice"],
+                            "subject": "ok",
+                        },  # valid
+                        "not a dict",  # dropped: not a dict
+                        {
+                            "date": 12345,
+                            "files": 5,
+                            "sha": sha_a,
+                            "authors": [],
+                            "subject": "x",
+                        },  # dropped: date not str
+                        {
+                            "date": "2024-02-01",
+                            "sha": sha_a,
+                            "authors": [],
+                            "subject": "x",
+                        },  # dropped: missing files
+                        {
+                            "date": "2024-03-01",
+                            "files": True,
+                            "sha": sha_a,
+                            "authors": [],
+                            "subject": "x",
+                        },  # dropped: files is bool
+                        {
+                            "files": 4,
+                            "sha": sha_a,
+                            "authors": [],
+                            "subject": "x",
+                        },  # dropped: missing date
+                        {
+                            "date": "2024-04-01",
+                            "files": 7,
+                            "authors": [],
+                            "subject": "x",
+                        },  # dropped: missing sha
+                        {
+                            "date": "2024-05-01",
+                            "files": 2,
+                            "sha": "short",
+                            "authors": [],
+                            "subject": "x",
+                        },  # dropped: sha too short
+                        {
+                            "date": "2024-05-15",
+                            "files": 4,
+                            "sha": "Z" * 40,
+                            "authors": [],
+                            "subject": "x",
+                        },  # dropped: non-hex sha
+                        {
+                            "date": "2024-07-01",
+                            "files": 1,
+                            "sha": sha_a,
+                            "authors": "Alice",
+                            "subject": "x",
+                        },  # dropped: authors not a list
+                        {
+                            "date": "2024-08-01",
+                            "files": 1,
+                            "sha": sha_a,
+                            "authors": ["Alice"],
+                        },  # dropped: missing subject
+                        {
+                            "date": "2024-06-01",
+                            "files": 1,
+                            "sha": sha_b,
+                            "authors": ["Bob"],
+                            "subject": "ok2",
+                        },  # valid
+                    ],
+                }
+            ),
+            encoding="utf-8",
+        )
         loaded = cache_mod.cache_load_git_history(root, "abc")
         self.assertIsNotNone(loaded)
         assert loaded is not None
         _created, _modified, commits = loaded
         # Only the two well-formed entries survive (with authors + subject).
-        self.assertEqual(commits, [
-            {"date": "2024-01-01", "files": 3, "sha": sha_a,
-             "authors": ["Alice"], "subject": "ok"},
-            {"date": "2024-06-01", "files": 1, "sha": sha_b,
-             "authors": ["Bob"], "subject": "ok2"},
-        ])
+        self.assertEqual(
+            commits,
+            [
+                {
+                    "date": "2024-01-01",
+                    "files": 3,
+                    "sha": sha_a,
+                    "authors": ["Alice"],
+                    "subject": "ok",
+                },
+                {
+                    "date": "2024-06-01",
+                    "files": 1,
+                    "sha": sha_b,
+                    "authors": ["Bob"],
+                    "subject": "ok2",
+                },
+            ],
+        )
 
     def test_git_history_rejects_old_version(self):
-        from api import cache as cache_mod
-        from api.cache import (
+        from api.services import cache as cache_mod
+        from api.services.cache import (
             _git_history_cache_path,
             cache_load_git_history,
         )
+
         root = Path("/fake/root2")
         path = _git_history_cache_path(root)
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -304,13 +403,18 @@ class GitHistoryCacheTests(CacheTestBase):
         root = Path("/some/repo")
         path = _git_history_cache_path(root)
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(json.dumps({
-            "version": 2,
-            "root": str(root),
-            "head_sha": "abc",
-            "created": {},
-            "modified": {},
-        }), encoding="utf-8")
+        path.write_text(
+            json.dumps(
+                {
+                    "version": 2,
+                    "root": str(root),
+                    "head_sha": "abc",
+                    "created": {},
+                    "modified": {},
+                }
+            ),
+            encoding="utf-8",
+        )
         self.assertIsNone(cache_mod.cache_load_git_history(root, "abc"))
 
 
@@ -321,7 +425,10 @@ class ManifestCacheTests(CacheTestBase):
             "scanned_at": "2026-05-17T00:00:00Z",
             "signature": "deadbeef" * 4,
             "tree": {
-                "name": "repo", "type": "dir", "path": "", "fullPath": "/some/repo",
+                "name": "repo",
+                "type": "dir",
+                "path": "",
+                "fullPath": "/some/repo",
                 "children": [],
             },
             "repo": None,
@@ -341,7 +448,9 @@ class ManifestCacheTests(CacheTestBase):
 
     def test_load_wrong_signature_returns_none(self) -> None:
         cache_mod.cache_save_manifest(
-            Path("/x"), "a" * 32, self._make_manifest(),
+            Path("/x"),
+            "a" * 32,
+            self._make_manifest(),
         )
         self.assertIsNone(cache_mod.cache_load_manifest(Path("/x"), "b" * 32))
 
@@ -356,6 +465,7 @@ class ManifestCacheTests(CacheTestBase):
         path = cache_mod._manifest_cache_path(Path("/x"), "a" * 32)
         path.parent.mkdir(parents=True, exist_ok=True)
         import gzip
+
         with gzip.open(path, "wb") as fh:
             fh.write(json.dumps({"version": 999, "manifest": {}}).encode("utf-8"))
         self.assertIsNone(cache_mod.cache_load_manifest(Path("/x"), "a" * 32))
@@ -364,11 +474,12 @@ class ManifestCacheTests(CacheTestBase):
         """A manifest cache file written under a prior _GIT_HISTORY_CACHE_VERSION
         must be dropped on load, because the composite version string changes
         when git-history bumps."""
-        from api.cache import (
+        from api.services.cache import (
             _manifest_cache_path,
             cache_load_manifest,
         )
         import gzip
+
         # Write a manifest stamped with a version string that mimics the
         # OLD git-history version (current minus one).
         old_g = cache_mod._GIT_HISTORY_CACHE_VERSION - 1
@@ -378,10 +489,20 @@ class ManifestCacheTests(CacheTestBase):
         path = _manifest_cache_path(root, sig)
         path.parent.mkdir(parents=True, exist_ok=True)
         # Manifest cache files are gzipped JSON.
-        payload = json.dumps({
-            "version": stale_version,
-            "manifest": {"root": str(root), "scanned_at": "x", "signature": sig, "tree_signature": sig, "tree": {}, "repo": None, "commits": None},
-        })
+        payload = json.dumps(
+            {
+                "version": stale_version,
+                "manifest": {
+                    "root": str(root),
+                    "scanned_at": "x",
+                    "signature": sig,
+                    "tree_signature": sig,
+                    "tree": {},
+                    "repo": None,
+                    "commits": None,
+                },
+            }
+        )
         with gzip.open(path, "wb") as fh:
             fh.write(payload.encode("utf-8"))
         # Loader must reject.
@@ -451,16 +572,25 @@ class MediaDimsCacheTests(CacheTestBase):
         # the coercer must drop both rather than carry a half-populated entry.
         cache_path = cache_mod._file_cache_path(self.abs_root)
         cache_path.parent.mkdir(parents=True, exist_ok=True)
-        cache_path.write_text(json.dumps({
-            "version": 1,
-            "entries": {
-                "weird.png": {
-                    "size": 10, "mtime": 1.0, "lines": 0,
-                    "binary": True, "ext": ".png", "media_width": 100,
-                    # media_height intentionally missing
-                },
-            },
-        }), encoding="utf-8")
+        cache_path.write_text(
+            json.dumps(
+                {
+                    "version": 1,
+                    "entries": {
+                        "weird.png": {
+                            "size": 10,
+                            "mtime": 1.0,
+                            "lines": 0,
+                            "binary": True,
+                            "ext": ".png",
+                            "media_width": 100,
+                            # media_height intentionally missing
+                        },
+                    },
+                }
+            ),
+            encoding="utf-8",
+        )
         loaded = cache_mod.cache_load_files(self.abs_root)
         self.assertNotIn("media_width", loaded["weird.png"])
         self.assertNotIn("media_height", loaded["weird.png"])
@@ -469,16 +599,25 @@ class MediaDimsCacheTests(CacheTestBase):
         """bool is a subclass of int but must not coerce into media dims."""
         cache_path = cache_mod._file_cache_path(self.abs_root)
         cache_path.parent.mkdir(parents=True, exist_ok=True)
-        cache_path.write_text(json.dumps({
-            "version": 1,
-            "entries": {
-                "fake.png": {
-                    "size": 10, "mtime": 1.0, "lines": 0,
-                    "binary": True, "ext": ".png",
-                    "media_width": True, "media_height": False,
-                },
-            },
-        }), encoding="utf-8")
+        cache_path.write_text(
+            json.dumps(
+                {
+                    "version": 1,
+                    "entries": {
+                        "fake.png": {
+                            "size": 10,
+                            "mtime": 1.0,
+                            "lines": 0,
+                            "binary": True,
+                            "ext": ".png",
+                            "media_width": True,
+                            "media_height": False,
+                        },
+                    },
+                }
+            ),
+            encoding="utf-8",
+        )
         loaded = cache_mod.cache_load_files(self.abs_root)
         self.assertNotIn("media_width", loaded["fake.png"])
         self.assertNotIn("media_height", loaded["fake.png"])
@@ -486,17 +625,25 @@ class MediaDimsCacheTests(CacheTestBase):
     def test_partial_media_dims_height_only_drops_both(self) -> None:
         cache_path = cache_mod._file_cache_path(self.abs_root)
         cache_path.parent.mkdir(parents=True, exist_ok=True)
-        cache_path.write_text(json.dumps({
-            "version": 1,
-            "entries": {
-                "weird.png": {
-                    "size": 10, "mtime": 1.0, "lines": 0,
-                    "binary": True, "ext": ".png",
-                    "media_height": 200,
-                    # media_width intentionally missing
-                },
-            },
-        }), encoding="utf-8")
+        cache_path.write_text(
+            json.dumps(
+                {
+                    "version": 1,
+                    "entries": {
+                        "weird.png": {
+                            "size": 10,
+                            "mtime": 1.0,
+                            "lines": 0,
+                            "binary": True,
+                            "ext": ".png",
+                            "media_height": 200,
+                            # media_width intentionally missing
+                        },
+                    },
+                }
+            ),
+            encoding="utf-8",
+        )
         loaded = cache_mod.cache_load_files(self.abs_root)
         self.assertNotIn("media_width", loaded["weird.png"])
         self.assertNotIn("media_height", loaded["weird.png"])

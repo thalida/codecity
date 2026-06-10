@@ -67,7 +67,7 @@ async function pumpManifestStream(
   meta: { kind: SourceKind; label: string; branch?: string },
   onManifest: (
     manifest: Manifest,
-    phase: ScanPhase.Skeleton | ScanPhase.Final
+    phase: ScanPhase.PartialManifest | ScanPhase.CompleteManifest
   ) => Promise<void> | void
 ): Promise<Manifest> {
   let lastManifest: Manifest | null = null;
@@ -84,13 +84,13 @@ async function pumpManifestStream(
       PENDING_SOURCE_LABEL.value = labelFromUrl(event.display_root) ?? null;
     }
 
-    if (event.phase === ScanPhase.Cloning || event.phase === ScanPhase.Scanning) {
+    if (event.phase === ScanPhase.CloneProgress || event.phase === ScanPhase.ScanProgress) {
       SCAN_PROGRESS.value = {
         ...meta,
         phase: event.phase,
-        percent: event.phase === ScanPhase.Cloning ? event.percent : undefined,
-        stage: event.phase === ScanPhase.Cloning ? event.stage : undefined,
-        filesScanned: event.phase === ScanPhase.Scanning ? event.files_scanned : undefined,
+        percent: event.phase === ScanPhase.CloneProgress ? event.percent : undefined,
+        stage: event.phase === ScanPhase.CloneProgress ? event.stage : undefined,
+        filesScanned: event.phase === ScanPhase.ScanProgress ? event.files_scanned : undefined,
       };
       continue;
     }
@@ -129,7 +129,7 @@ async function loadSource(payload: SourcePayload): Promise<void> {
     // Publish the skeleton as it streams (early structure, behind the overlay);
     // the final is published below, AFTER committing the source.
     const manifest = await pumpManifestStream(url, meta, (m, phase) => {
-      if (phase === ScanPhase.Skeleton) setManifest(m);
+      if (phase === ScanPhase.PartialManifest) setManifest(m);
     });
     // Commit the source BEFORE publishing the final manifest. The render layer's
     // camera-reframe reaction keys off CURRENT_SOURCE captured at apply-START, so
@@ -189,7 +189,7 @@ function setupLiveUpdates(): () => void {
         // Live-update path: skip skeleton. The city is already drawn; applying
         // a skeleton would animate every building to placeholder heights and
         // back on every save. Only the final tweens into the new state.
-        if (event.phase !== ScanPhase.Final) continue;
+        if (event.phase !== ScanPhase.CompleteManifest) continue;
         const m = event.manifest;
         if (m?.signature) setManifest(m);
       }

@@ -14,8 +14,8 @@ Provides:
                           test_server.py / test_clone.py.
 
   - redirect_cache_root   (opt-in, function): monkeypatches
-                          `api.cache.CACHE_ROOT` and `api.clone.CACHE_ROOT`
-                          at a per-test tempdir. Mirrors the behavior of
+                          `api.services.cache.CACHE_ROOT` and
+                          `api.services.clone.CLONES_ROOT` at a per-test tempdir. Mirrors the behavior of
                           the three near-identical `_CacheRedirectMixin` /
                           `CacheTestBase` classes the migration will
                           delete. Opt-in (not autouse) so the existing
@@ -96,31 +96,43 @@ def allow_local_repos() -> Iterator[None]:
             os.environ["CODECITY_ALLOW_LOCAL_REPOS"] = prev
 
 
+@pytest.fixture(autouse=True)
+def _reset_trust() -> Iterator[None]:
+    """Isolate the process-global TRUST set per test. create_app() no longer
+    resets it (the factory must be side-effect-free on session auth state —
+    see api/app.py), so tests reset it here instead of relying on the factory."""
+    from api.security import TRUST
+
+    TRUST.reset()
+    yield
+
+
 # ── Cache redirection ────────────────────────────────────────────────
 
 
 @pytest.fixture
 def redirect_cache_root(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> Path:
-    """Point ``api.cache.CACHE_ROOT`` (and ``api.clone.CACHE_ROOT``) at
-    a per-test tempdir so scan/manifest/clone writes don't pollute
-    ``~/.cache/codecity/`` during tests.
+    """Point ``api.services.cache.CACHE_ROOT`` (and
+    ``api.services.clone.CLONES_ROOT``) at a per-test tempdir so
+    scan/manifest/clone writes don't pollute ``~/.cache/codecity/`` during
+    tests.
 
-    IMPORTANT: both modules capture CACHE_ROOT at import time from the
-    ``CODECITY_CACHE_ROOT`` env var, so setting the env var in a fixture
-    is a no-op for already-imported modules. We monkeypatch the module
-    attribute directly — exactly what the existing _CacheRedirectMixin
-    and CacheTestBase classes do.
+    IMPORTANT: both modules bind their cache path at import time (from
+    ``config.CACHE_ROOT``, itself read once from ``CODECITY_CACHE_ROOT``), so
+    setting the env var in a fixture is a no-op for already-imported modules.
+    We monkeypatch the per-module attribute directly.
     """
-    from api import cache as cache_mod
-    from api import clone as clone_mod
+    from api.services import cache as cache_mod
+    from api.services import clone as clone_mod
 
     cache_dir = tmp_path / "cache"
     cache_dir.mkdir(parents=True, exist_ok=True)
     monkeypatch.setattr(cache_mod, "CACHE_ROOT", cache_dir)
-    # clone.CACHE_ROOT is `<root>/clones`; preserve that shape.
-    monkeypatch.setattr(clone_mod, "CACHE_ROOT", cache_dir / "clones")
+    # clone.CLONES_ROOT is `<root>/clones`; preserve that shape.
+    monkeypatch.setattr(clone_mod, "CLONES_ROOT", cache_dir / "clones")
     return cache_dir
 
 
@@ -206,7 +218,8 @@ class _HTTPHelpers:
 
     @staticmethod
     def get_with_headers(
-        url: str, headers: dict[str, str],
+        url: str,
+        headers: dict[str, str],
     ) -> tuple[int, bytes, str, str]:
         """GET with custom request headers → (status, body, content_type,
         content_encoding). Body is raw bytes; tests that requested gzip
@@ -216,12 +229,14 @@ class _HTTPHelpers:
             resp = urllib.request.urlopen(req)
         except urllib.error.HTTPError as e:
             return (
-                e.code, e.read(),
+                e.code,
+                e.read(),
                 e.headers.get("Content-Type", ""),
                 e.headers.get("Content-Encoding", ""),
             )
         return (
-            resp.status, resp.read(),
+            resp.status,
+            resp.read(),
             resp.headers.get("Content-Type", ""),
             resp.headers.get("Content-Encoding", ""),
         )
@@ -310,7 +325,12 @@ def git_working_tree(_session_bare_repo: Path, tmp_path: Path) -> Iterator[Path]
     # Best-effort cleanup
     try:
         _run(
-            "git", "worktree", "remove", "-q", "--force", str(wt),
+            "git",
+            "worktree",
+            "remove",
+            "-q",
+            "--force",
+            str(wt),
             cwd=_session_bare_repo,
         )
     except subprocess.CalledProcessError:

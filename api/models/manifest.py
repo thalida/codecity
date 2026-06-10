@@ -1,0 +1,124 @@
+"""Pydantic wire models for the scan manifest. Single source of truth for
+the OpenAPI schema and the generated app/src/types/manifest.ts. JSON shape
+is byte-compatible with the prior TypedDicts."""
+
+from __future__ import annotations
+
+from typing import Annotated, Literal, Optional, Union
+
+from pydantic import BaseModel, Field, WithJsonSchema, model_validator
+
+# Optional-but-non-nullable: the field may be absent, but when present is never
+# null. The Python type stays Optional (so the default is None and validators
+# can check `is None`), while the emitted JSON schema is the bare non-nullable
+# type — matching the true wire (absent-or-value, never null). Shared with
+# api/models/events.py.
+OptionalInt = Annotated[Optional[int], WithJsonSchema({"type": "integer"})]
+OptionalStr = Annotated[Optional[str], WithJsonSchema({"type": "string"})]
+
+
+# `created`/`modified` are required-nullable: the scanner always emits the keys
+# (as an ISO string or null), so they're present-but-nullable on the wire, not
+# optional. (No `= None` default → Pydantic treats them as required.)
+class GitMeta(BaseModel):
+    created: Optional[str] = Field(description="ISO create date, or null")
+    modified: Optional[str] = Field(description="ISO modify date, or null")
+
+
+class FileNode(BaseModel):
+    name: str
+    type: Literal["file"]
+    path: str
+    fullPath: str
+    extension: str
+    size: int
+    lines: int
+    binary: bool
+    created: str
+    modified: str
+    git: GitMeta
+    # Optional-but-non-nullable (absent for non-media files, a pixel count
+    # otherwise — never null); see OptionalInt above.
+    media_width: OptionalInt = None
+    media_height: OptionalInt = None
+
+    @model_validator(mode="after")
+    def _media_both_or_neither(self) -> "FileNode":
+        if (self.media_width is None) != (self.media_height is None):
+            raise ValueError(
+                "media_width and media_height must both be set or both absent"
+            )
+        return self
+
+
+class ExtBreakdownEntry(BaseModel):
+    ext: str
+    count: int
+    size: int
+
+
+class DirNode(BaseModel):
+    name: str
+    type: Literal["directory"]
+    path: str
+    fullPath: str
+    children: list["TreeNode"]
+    children_count: int
+    children_file_count: int
+    children_dir_count: int
+    descendants_count: int
+    descendants_file_count: int
+    descendants_dir_count: int
+    descendants_size: int
+    descendants_ext_breakdown: list[ExtBreakdownEntry]
+
+
+TreeNode = Annotated[Union[FileNode, DirNode], Field(discriminator="type")]
+
+
+# All four string fields are required-nullable: the scanner always emits them
+# (null for a fresh repo with no HEAD / no remote), so they're present-but-
+# nullable on the wire, not optional.
+class RepoInfo(BaseModel):
+    branch: Optional[str]
+    remote_url: Optional[str]
+    head_sha: Optional[str]
+    head_subject: Optional[str]
+    dirty: bool
+
+
+class CommitEntry(BaseModel):
+    date: str = Field(description="YYYY-MM-DD")
+    files: int
+    sha: str
+    authors: list[str]
+    subject: str
+    same_day_total: int
+
+
+class BusynessThresholds(BaseModel):
+    avg: int
+    busy: int
+
+
+class Manifest(BaseModel):
+    root: str
+    scanned_at: str
+    signature: str
+    tree_signature: str
+    tree: DirNode
+    repo: RepoInfo
+    commits: list[CommitEntry]
+    busyness: BusynessThresholds
+    # Optional-but-non-nullable (absent for local sources, a label string for
+    # git sources — never null); see OptionalStr above.
+    display_root: OptionalStr = None
+
+
+class SignatureResponse(BaseModel):
+    root: str
+    scanned_at: str
+    signature: str
+
+
+DirNode.model_rebuild()

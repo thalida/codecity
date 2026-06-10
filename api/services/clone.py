@@ -27,13 +27,32 @@ import time
 from pathlib import Path
 from typing import Callable
 
-from api.env import env_bool
-from api.types import (
-    BranchNotFoundError,
-    CloneError,
-    HostUnreachableError,
-    RepoNotFoundError,
-)
+from api.config import CACHE_ROOT, quiet
+
+# Cancellation is signalled by the same threading.Event the scan honors, so a
+# client disconnect aborts the clone phase too. scan.py does not import clone,
+# so this import is cycle-free.
+from api.services.scan import ScanCancelledError
+
+
+class CloneError(RuntimeError):
+    """Generic git clone/update failure. Subclasses below differentiate
+    the user-facing causes so the server can return a clean 4xx with a
+    helpful message instead of bubbling raw git stderr."""
+
+
+class BranchNotFoundError(CloneError):
+    """User asked for a branch that doesn't exist on the remote."""
+
+
+class RepoNotFoundError(CloneError):
+    """Remote URL doesn't exist, is private + unauthenticated, or was
+    typo'd."""
+
+
+class HostUnreachableError(CloneError):
+    """DNS / network failure reaching the remote host."""
+
 
 __all__ = [
     "BranchNotFoundError",
@@ -46,14 +65,13 @@ __all__ = [
 
 
 def _log(msg: str) -> None:
-    if not env_bool("CODECITY_QUIET"):
+    if not quiet():
         print(f"[clone] {msg}", file=sys.stderr, flush=True)
 
 
-CACHE_ROOT = (
-    Path(os.environ.get("CODECITY_CACHE_ROOT") or Path.home() / ".cache" / "codecity")
-    / "clones"
-)
+# Where git clones are cached: a `clones/` subdir under the shared cache root
+# (config.CACHE_ROOT). Tests monkeypatch clone.CLONES_ROOT.
+CLONES_ROOT = CACHE_ROOT / "clones"
 
 
 # Progress events arrive from git stderr as fast as one per few-percent
@@ -179,6 +197,7 @@ def _run_git_streaming(
     cwd: Path | None = None,
     progress_dir: Path | None = None,
     on_progress: Callable[[tuple[str, int]], None] | None = None,
+    cancel_event: "threading.Event | None" = None,
 ) -> str:
     """Run git and forward stderr to ``_log`` line-by-line as it arrives.
 
@@ -347,11 +366,30 @@ def _run_git_streaming(
     t_err.start()
     t_out.start()
     t_heartbeat.start()
+
+    # Cancel watcher: if cancellation is requested mid-clone (client
+    # disconnected), kill git so proc.wait() below returns promptly instead of
+    # running the whole clone to completion as an orphan. No-op (returns at
+    # once) when no cancel_event is supplied.
+    def _watch_cancel() -> None:
+        if cancel_event is None:
+            return
+        while not proc_done.wait(0.2):
+            if cancel_event.is_set():
+                proc.kill()
+                return
+
+    t_cancel = threading.Thread(target=_watch_cancel, daemon=True)
+    t_cancel.start()
+
     proc.wait()
     proc_done.set()
     t_err.join()
     t_out.join()
     t_heartbeat.join()
+    t_cancel.join()
+    if cancel_event is not None and cancel_event.is_set():
+        raise ScanCancelledError()
 
     stdout = stdout_holder[0] if stdout_holder else ""
     if proc.returncode != 0:
@@ -369,7 +407,7 @@ def clone_dir_for(url: str, branch: str | None) -> Path:
     # This is a directory-naming hash, not a security primitive; truncation
     # to 16 chars (64 bits) is acceptable collision-wise here.
     digest = hashlib.sha256(f"{url}\0{branch or ''}".encode("utf-8")).hexdigest()[:16]
-    return CACHE_ROOT / digest
+    return CLONES_ROOT / digest
 
 
 def _resolve_default_branch(repo: Path) -> str | None:
@@ -398,6 +436,7 @@ def ensure_clone(
     branch: str | None = None,
     *,
     on_progress: Callable[[tuple[str, int]], None] | None = None,
+    cancel_event: "threading.Event | None" = None,
 ) -> Path:
     """Clone ``url`` (optionally pinned to ``branch``) into the local cache,
     or fetch+reset if it already exists. Returns the local repo path.
@@ -418,9 +457,14 @@ def ensure_clone(
         try:
             _log(f"fetching updates for {url}")
             _run_git_streaming(
-                "fetch", "--prune", "--progress", "origin",
-                cwd=target, progress_dir=pack_dir,
+                "fetch",
+                "--prune",
+                "--progress",
+                "origin",
+                cwd=target,
+                progress_dir=pack_dir,
                 on_progress=on_progress,
+                cancel_event=cancel_event,
             )
             default = None if branch else _resolve_default_branch(target)
             if branch or default:
@@ -457,7 +501,12 @@ def ensure_clone(
         args += ["--branch", branch]
     args += ["--", url, str(target)]
     try:
-        _run_git_streaming(*args, progress_dir=pack_dir, on_progress=on_progress)
+        _run_git_streaming(
+            *args,
+            progress_dir=pack_dir,
+            on_progress=on_progress,
+            cancel_event=cancel_event,
+        )
         _log("clone complete")
     except CloneError as e:
         # First-clone failure: nuke the partial directory before re-raising,

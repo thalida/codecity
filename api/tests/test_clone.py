@@ -1,7 +1,7 @@
 """Tests for api.clone — the read-only clone-or-update helper.
 
 Uses a local bare repo as the "remote" so tests don't hit the network.
-``CACHE_ROOT`` is monkey-patched to a per-test tempdir so we never touch
+``CLONES_ROOT`` is monkey-patched to a per-test tempdir so we never touch
 the user's real ``~/.cache/codecity/``.
 """
 
@@ -16,8 +16,8 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest import mock
 
-from api import clone as clone_mod
-from api.clone import (
+from api.services import clone as clone_mod
+from api.services.clone import (
     BranchNotFoundError,
     CloneError,
     HostUnreachableError,
@@ -66,7 +66,7 @@ class EnsureCloneTests(unittest.TestCase):
         self.tmp_path = Path(self.tmp.name)
 
         self.cache = self.tmp_path / "cache"
-        self.cache_patch = mock.patch.object(clone_mod, "CACHE_ROOT", self.cache)
+        self.cache_patch = mock.patch.object(clone_mod, "CLONES_ROOT", self.cache)
         self.cache_patch.start()
         self.addCleanup(self.cache_patch.stop)
 
@@ -89,7 +89,9 @@ class EnsureCloneTests(unittest.TestCase):
         self.assertEqual(first, second)
         head = subprocess.run(
             ["git", "-C", str(second), "rev-parse", "HEAD"],
-            capture_output=True, text=True, check=True,
+            capture_output=True,
+            text=True,
+            check=True,
         ).stdout.strip()
         self.assertTrue(head)
 
@@ -203,16 +205,18 @@ class CleanCloneErrorDispatcherTests(unittest.TestCase):
 
 class RunGitEnvTests(unittest.TestCase):
     def test_run_git_disables_terminal_prompt(self) -> None:
-        from api import clone as clone_mod
+        from api.services import clone as clone_mod
 
         captured = {}
 
         def fake_run(*args, **kwargs):
             captured["env"] = kwargs.get("env")
+
             class R:
                 returncode = 0
                 stdout = ""
                 stderr = ""
+
             return R()
 
         with mock.patch.object(subprocess, "run", side_effect=fake_run):
@@ -227,9 +231,7 @@ class RunGitEnvTests(unittest.TestCase):
 
 class EnsureCloneErrorRoutingTests(unittest.TestCase):
     def _patch_cache(self, tmp: Path) -> None:
-        self._cache_patch = mock.patch.object(
-            clone_mod, "CACHE_ROOT", tmp / "cache"
-        )
+        self._cache_patch = mock.patch.object(clone_mod, "CLONES_ROOT", tmp / "cache")
         self._cache_patch.start()
         self.addCleanup(self._cache_patch.stop)
 
@@ -254,7 +256,8 @@ class EnsureCloneErrorRoutingTests(unittest.TestCase):
                 # We mock the streaming runner (used by first-clone) to emit
                 # the canonical "Repository not found" stderr.
                 with mock.patch.object(
-                    clone_mod, "_run_git_streaming",
+                    clone_mod,
+                    "_run_git_streaming",
                     side_effect=CloneError(
                         "git clone failed (exit 128): ERROR: Repository not found."
                     ),
@@ -267,7 +270,8 @@ class EnsureCloneErrorRoutingTests(unittest.TestCase):
             self._patch_cache(tmp)
             with self.assertRaises(HostUnreachableError):
                 with mock.patch.object(
-                    clone_mod, "_run_git_streaming",
+                    clone_mod,
+                    "_run_git_streaming",
                     side_effect=CloneError(
                         "git clone failed (exit 128): "
                         "fatal: unable to access 'https://nope.example/': "
@@ -282,7 +286,8 @@ class EnsureCloneErrorRoutingTests(unittest.TestCase):
             self._patch_cache(tmp)
             with self.assertRaises(CloneError) as ctx:
                 with mock.patch.object(
-                    clone_mod, "_run_git_streaming",
+                    clone_mod,
+                    "_run_git_streaming",
                     side_effect=CloneError(
                         "git clone failed (exit 128): "
                         "fatal: Authentication failed for 'https://example.com/x.git/'"
@@ -361,9 +366,7 @@ class StallWatchdogTests(unittest.TestCase):
     def test_pack_dir_bytes_missing_dir_returns_zero(self) -> None:
         # The .git/objects/pack dir doesn't exist for the first ~second
         # of a clone; helper must not raise.
-        self.assertEqual(
-            clone_mod._pack_dir_bytes(Path("/nonexistent/path/xyz")), 0
-        )
+        self.assertEqual(clone_mod._pack_dir_bytes(Path("/nonexistent/path/xyz")), 0)
 
     def test_heartbeat_fires_when_subprocess_is_silent(self) -> None:
         """Watchdog emits 'still working' line when stderr is quiet past
@@ -377,7 +380,8 @@ class StallWatchdogTests(unittest.TestCase):
                     clone_mod._run_git_streaming("ignored")
         heartbeats = [m for m in captured if "still working" in m]
         self.assertGreaterEqual(
-            len(heartbeats), 1,
+            len(heartbeats),
+            1,
             f"expected at least one heartbeat; got: {captured}",
         )
 
@@ -405,13 +409,17 @@ class StallWatchdogTests(unittest.TestCase):
         """A subprocess that produces output and exits promptly should
         NOT trigger heartbeats — the watchdog only fires during silence.
         Simulates a small clone that finishes naturally."""
+
         class ChattyFakeProc:
             returncode = 0
 
             def __init__(self) -> None:
-                lines = b"\n".join(
-                    f"Resolving deltas: {p}%".encode() for p in range(0, 100, 10)
-                ) + b"\n"
+                lines = (
+                    b"\n".join(
+                        f"Resolving deltas: {p}%".encode() for p in range(0, 100, 10)
+                    )
+                    + b"\n"
+                )
                 self.stdout = io.BytesIO(b"")
                 self.stderr = io.BytesIO(lines)
                 self._done = threading.Event()
@@ -427,12 +435,15 @@ class StallWatchdogTests(unittest.TestCase):
         captured: list[str] = []
         with mock.patch.object(clone_mod, "_STALL_HEARTBEAT_SECS", 0.15):
             with mock.patch.object(clone_mod, "_log", side_effect=captured.append):
-                with mock.patch.object(subprocess, "Popen", return_value=ChattyFakeProc()):
+                with mock.patch.object(
+                    subprocess, "Popen", return_value=ChattyFakeProc()
+                ):
                     clone_mod._run_git_streaming("ignored")
 
         heartbeats = [m for m in captured if "still working" in m]
         self.assertEqual(
-            len(heartbeats), 0,
+            len(heartbeats),
+            0,
             f"watchdog fired during active output: {captured}",
         )
         git_lines = [m for m in captured if "Resolving deltas" in m]
@@ -444,7 +455,7 @@ def test_parse_clone_progress_line():
         Receiving objects:  45% (123/273), 1.20 MiB | 2.50 MiB/s
     The parser extracts (stage, percent) when matchable, else None.
     """
-    from api.clone import _parse_clone_progress_line
+    from api.services.clone import _parse_clone_progress_line
 
     cases = [
         ("Receiving objects:  45% (123/273), 1.20 MiB | 2.50 MiB/s", ("receiving", 45)),
@@ -465,7 +476,7 @@ def test_ensure_clone_emits_throttled_progress_via_callback(tmp_path):
     The invariant — callback fires with (stage, percent) tuples for
     each parseable line — is what matters."""
     from unittest.mock import MagicMock
-    from api import clone as clone_mod
+    from api.services import clone as clone_mod
 
     # \r is git's in-place rewrite separator for progress lines; the
     # drain splits on either \r or \n so we use \n here for readability.
@@ -492,7 +503,7 @@ def test_ensure_clone_emits_throttled_progress_via_callback(tmp_path):
 
     cache = tmp_path / "cache"
     on_progress = MagicMock()
-    with mock.patch.object(clone_mod, "CACHE_ROOT", cache):
+    with mock.patch.object(clone_mod, "CLONES_ROOT", cache):
         with mock.patch.object(subprocess, "Popen", return_value=FakeProc()):
             clone_mod.ensure_clone(
                 "https://example.com/foo.git", None, on_progress=on_progress
@@ -512,7 +523,9 @@ def test_ensure_clone_emits_throttled_progress_via_callback(tmp_path):
     # but ≥ 1, with throttling further reducing within-stage duplicates).
     seen_stages = {call.args[0][0] for call in on_progress.call_args_list}
     assert len(seen_stages) >= 1, "expected at least one stage emitted"
-    assert on_progress.call_count <= 7, "throttle should not let every line through unbounded"
+    assert on_progress.call_count <= 7, (
+        "throttle should not let every line through unbounded"
+    )
 
 
 def test_ensure_clone_emits_terminal_percent_of_each_stage(tmp_path):
@@ -522,7 +535,7 @@ def test_ensure_clone_emits_terminal_percent_of_each_stage(tmp_path):
     stage change AND at end-of-stream. Verify the user always sees
     100% as the final payload for each stage."""
     from unittest.mock import MagicMock
-    from api import clone as clone_mod
+    from api.services import clone as clone_mod
 
     # Many rapid progress lines per stage; the throttle will block
     # most of them. Without the flush fix, "Receiving 100%" gets
@@ -557,7 +570,7 @@ def test_ensure_clone_emits_terminal_percent_of_each_stage(tmp_path):
 
     cache = tmp_path / "cache"
     on_progress = MagicMock()
-    with mock.patch.object(clone_mod, "CACHE_ROOT", cache):
+    with mock.patch.object(clone_mod, "CLONES_ROOT", cache):
         with mock.patch.object(subprocess, "Popen", return_value=FakeProc()):
             clone_mod.ensure_clone(
                 "https://example.com/foo.git", None, on_progress=on_progress

@@ -85,13 +85,34 @@ test-api:
 test-app:
     docker compose -f docker-compose.test.yml run --rm vitest
 
-# ── Lint / typecheck ─────────────────────────────────────────────
+# ── Format / lint / typecheck ────────────────────────────────────
+# Apply the Python formatter (ruff = the prettier of Python) in place. Local
+# uv run (like `gen-types`) so the reformatted files stay owned by you, not the
+# container's root.
+fmt:
+    uv run ruff format api scripts
+
+# Check Python formatting (ruff) — the equivalent of the frontend format:check.
+fmt-check:
+    docker compose -f docker-compose.test.yml run --rm ruff
+
 # Reads NPM_VERSION from the repo-root .env file (canonical source for
 # compose + just). Dockerfile ARG default and ci.yml `env:` block mirror it.
-lint:
+lint: fmt-check
     @NPM_VERSION=$(grep '^NPM_VERSION=' .env | cut -d= -f2) ; \
      docker compose -f docker-compose.test.yml run --rm vitest \
          sh -c "npm install -g npm@$NPM_VERSION && npm ci && npm run lint && npm run typecheck && npm run format:check"
+
+# ── Codegen ──────────────────────────────────────────────────────
+# Regenerate app/src/types/manifest.generated.ts from the live OpenAPI schema.
+# Single source of truth: api/models/*.py -> OpenAPI -> TS. Run after changing
+# any wire model. The drift guard (manifest.contract.ts) fails typecheck if the
+# hand-written types in manifest.ts fall out of sync with this generated file.
+gen-types:
+    @mkdir -p .local
+    @uv run python scripts/gen_openapi.py > .local/openapi.json
+    @cd app && npx openapi-typescript ../.local/openapi.json -o src/types/manifest.generated.ts
+    @echo "[codecity] regenerated app/src/types/manifest.generated.ts"
 
 # ── Build ────────────────────────────────────────────────────────
 build:

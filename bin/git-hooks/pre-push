@@ -4,10 +4,11 @@
 #
 # What runs (in this order — fail fast):
 #   1. Python tests (api/) — pytest in container
-#   2. Frontend tests (app/) — vitest in container
-#   3. Frontend lint — eslint
-#   4. Frontend prettier — prettier --check
-#   5. Frontend typecheck — tsc --noEmit
+#   2. Python format — ruff format --check in container
+#   3. Frontend tests (app/) — vitest in container
+#   4. Frontend lint — eslint
+#   5. Frontend prettier — prettier --check
+#   6. Frontend typecheck — tsc --noEmit
 
 set -e
 
@@ -16,19 +17,22 @@ cd "$ROOT"
 
 echo "[pre-push] running quality gate..."
 
-echo "[pre-push] 1/5  pytest (api/)"
+echo "[pre-push] 1/6  pytest (api/)"
 docker compose -f docker-compose.test.yml run --rm pytest >/dev/null
 
-echo "[pre-push] 2/5  vitest (app/)"
+echo "[pre-push] 2/6  ruff format --check (api/)"
+docker compose -f docker-compose.test.yml run --rm ruff >/dev/null
+
+echo "[pre-push] 3/6  vitest (app/)"
 docker compose -f docker-compose.test.yml run --rm vitest >/dev/null
 
-echo "[pre-push] 3/5  eslint (app/)"
+echo "[pre-push] 4/6  eslint (app/)"
 ( cd app && npm run lint >/dev/null )
 
-echo "[pre-push] 4/5  prettier --check (app/)"
+echo "[pre-push] 5/6  prettier --check (app/)"
 ( cd app && npm run format:check >/dev/null )
 
-echo "[pre-push] 5/5  typecheck (app/)"
+echo "[pre-push] 6/6  typecheck (app/)"
 ( cd app && npm run typecheck >/dev/null )
 
 echo "[pre-push] all checks passed — pushing"
