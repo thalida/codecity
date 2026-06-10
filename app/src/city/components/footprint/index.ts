@@ -37,6 +37,7 @@ import { FOOTPRINT } from '@/state/stores/settings/footprint';
 import { RENDER_ORDERS } from '@/city/renderOrders';
 import { StreetAxis } from '@/types';
 import type { Building, CityLayout, Street } from '@/types';
+import { setColorFromHex } from '@/city/utils/color/setColorFromHex';
 
 import type { SceneComponent, SceneContext } from '../../types';
 
@@ -65,10 +66,6 @@ function rectOfStreet(s: Street): Rect {
     return { cx: s.x, cz: s.y, w: s.length, d: s.width };
   }
   return { cx: s.x, cz: s.y, w: s.width, d: s.length };
-}
-
-function setColorFromHex(target: THREE.Color, hex: string): void {
-  target.setStyle(hex, THREE.LinearSRGBColorSpace);
 }
 
 const FOOTPRINT_VERT = /* glsl */ `

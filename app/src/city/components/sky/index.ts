@@ -40,6 +40,7 @@ import { effect } from '@preact/signals';
 import { SCENE } from '@/state/stores/settings/scene';
 import { CAMERA_FAR } from '@/constants/camera';
 import { RENDER_ORDERS } from '@/city/renderOrders';
+import { setColorFromHex } from '@/city/utils/color/setColorFromHex';
 
 import type { FrameContext, SceneComponent, SceneContext } from '../../types';
 import skyVertSrc from './sky.vert.glsl?raw';
@@ -73,17 +74,6 @@ const TWINKLE_AMPLITUDE = 1.0;
 export interface Sky extends SceneComponent {
   /** The sky icosphere mesh, exposed as the component `group`. */
   group: THREE.Mesh;
-}
-
-/**
- * setStyle(..., LinearSRGBColorSpace) skips Three's automatic
- * sRGB→linear conversion. The fragment shader runs in display sRGB
- * (same as building.frag.glsl — ShaderMaterial gets no automatic
- * linearToOutputTexel pass), so we pass the hex bytes through
- * unchanged.
- */
-function setColorFromHex(target: THREE.Color, hex: string): void {
-  target.setStyle(hex, THREE.LinearSRGBColorSpace);
 }
 
 // `_ctx` is accepted for createX(ctx) composer uniformity; the sky uses

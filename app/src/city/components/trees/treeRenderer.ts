@@ -37,6 +37,7 @@ import {
   type SizeRange,
 } from './treeEncoding';
 import { interpolateOklch } from '@/city/utils/color/colors';
+import { setColorFromHex } from '@/city/utils/color/setColorFromHex';
 import { sunDir } from '@/city/components/lighting/sunDir';
 import { LIGHTING_SUN_AZIMUTH_DEG, LIGHTING_SUN_ELEVATION_DEG } from '@/constants/lighting';
 
@@ -85,10 +86,6 @@ export interface Trees {
  *  config (FACETS_LOW / MID / HIGH) so they're user-tunable. */
 const DETAIL_LEVELS = [0, 1, 2] as const;
 type DetailLevel = (typeof DETAIL_LEVELS)[number];
-
-function setColorFromHex(target: THREE.Color, hex: string): void {
-  target.setStyle(hex, THREE.LinearSRGBColorSpace);
-}
 
 /** Lathe control points for the canopy silhouette: hand-picked (radius, height)
  *  pairs producing a low-poly Christmas-tree shape. Bottom→top. Both axes
