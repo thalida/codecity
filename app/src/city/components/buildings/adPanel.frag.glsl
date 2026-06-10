@@ -10,7 +10,7 @@
 // splits it into (page, localLayer) using uPageSize (= the hardware's
 // MAX_ARRAY_TEXTURE_LAYERS) and picks the correct sampler via an
 // if/else-if chain. The chain has AD_PANEL_MAX_PAGES branches; this
-// #define is injected from JS (adPanelsInstanced.ts) so it stays in
+// #define is injected from JS (adPanels.ts) so it stays in
 // lockstep with the JS-side MAX_PAGES constant. WebGL2 GLSL ES 3.00
 // requires sampler-array indices to be constant expressions, so dynamic
 // `uPanelArrays[page]` is not allowed — the explicit branch chain is

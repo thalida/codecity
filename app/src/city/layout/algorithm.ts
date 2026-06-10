@@ -23,7 +23,7 @@ import type { Building, CityLayout, RangeStat, Street } from '@/types';
 import { parentDirPath } from '../utils/path';
 import { rectOfBuilding, rectOfStreet } from '../utils/rect';
 import type { Rect } from '../utils/rect';
-import { isMediaFile } from '../components/buildings/adPanels';
+import { isMediaFile } from '../utils/mediaKind';
 import { WorldOccupancy, WorldRectKind } from './occupancyIndex';
 import type { WorldRect } from './occupancyIndex';
 

@@ -1,9 +1,9 @@
-// tests/city/instanced-ad-panels.test.ts — Smoke tests for the instanced
+// tests/city/components/buildings/adPanels.test.ts — Smoke tests for the instanced
 // ad panel system (Tasks 16-17).
 
 import { describe, it, expect } from 'vitest';
 import type * as THREE from 'three';
-import { InstancedAdPanels } from '@/city/components/buildings/adPanelsInstanced';
+import { InstancedAdPanels } from '@/city/components/buildings/adPanels';
 import {
   AdPanelTextureArray,
   PANEL_TEX_SIZE,

@@ -1342,7 +1342,7 @@ export function createWorld(_canvas: HTMLCanvasElement) {
     // by buildingFader to mirror selection-cascade body opacity onto
     // the ad-panel instances. Returns null when the current manifest
     // has no media files (no panels were created).
-    getAdPanels(): import('./components/buildings/adPanelsInstanced.js').InstancedAdPanels | null {
+    getAdPanels(): import('./components/buildings/adPanels.js').InstancedAdPanels | null {
       return _buildings.getAdPanels();
     },
 

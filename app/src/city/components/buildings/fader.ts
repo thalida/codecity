@@ -23,7 +23,7 @@ import type { DirNode, FileNode, PickTarget } from '@/types';
 import { parentDirPath } from '@/city/utils/path';
 import type { Street } from '@/types';
 import type { CellTile } from './cellTile';
-import type { InstancedAdPanels } from './adPanelsInstanced';
+import type { InstancedAdPanels } from './adPanels';
 import type { createPicker } from '@/city/runtime/picker';
 
 // Narrow world surface the fader needs. The buildings component supplies this

@@ -10,8 +10,8 @@ import * as THREE from 'three';
 import { SpatialGrid, type WorldBounds } from './spatialGrid';
 import { createEmptyCellTile, type CellTile, allocateSlot } from './cellTile';
 import { attachBuildingMeshToCell, writeBuildingToSlot } from './cellMesh';
-import { InstancedAdPanels, asyncLoadMediaForBuilding } from './adPanelsInstanced';
-import { isMediaFile } from './adPanels';
+import { InstancedAdPanels, asyncLoadMediaForBuilding } from './adPanels';
+import { isMediaFile } from '@/city/utils/mediaKind';
 import { BuildingIndex } from './buildingIndex';
 import type { Building } from '@/types/index';
 

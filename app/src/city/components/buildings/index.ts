@@ -49,7 +49,7 @@ import type { WorldBounds } from './spatialGrid';
 import type { CellTile } from './cellTile';
 import { BuildingIndex } from './buildingIndex';
 import { buildCellsFromLayout } from './cellAssembly';
-import type { InstancedAdPanels } from './adPanelsInstanced';
+import type { InstancedAdPanels } from './adPanels';
 import { getSharedBuildingUniforms, setIconAtlas, refreshBuildingMaterial } from './material';
 import { setCellIconAtlas } from './cellMesh';
 import type { IconAtlas } from './atlas';
