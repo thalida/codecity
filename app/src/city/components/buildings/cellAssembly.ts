@@ -1,4 +1,4 @@
-// city/components/buildings/cells.ts — Wires SpatialGrid + CellTile + per-cell
+// city/components/buildings/cellAssembly.ts — Wires SpatialGrid + CellTile + per-cell
 // building factory into a complete scene-ready set of cells given a
 // layout. Called from the buildings component (index.ts).
 //
@@ -9,10 +9,10 @@
 import * as THREE from 'three';
 import { SpatialGrid, type WorldBounds } from './spatialGrid';
 import { createEmptyCellTile, type CellTile, allocateSlot } from './cellTile';
-import { attachBuildingMeshToCell, writeBuildingToSlot } from './buildingsCell';
+import { attachBuildingMeshToCell, writeBuildingToSlot } from './cellMesh';
 import { InstancedAdPanels, asyncLoadMediaForBuilding } from './adPanelsInstanced';
 import { isMediaFile } from './adPanels';
-import { BuildingIndex } from './pathIndex';
+import { BuildingIndex } from './buildingIndex';
 import type { Building } from '@/types/index';
 
 export interface CellAssemblyOutput {

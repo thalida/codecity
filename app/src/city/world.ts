@@ -33,7 +33,7 @@ import { registerShaderChunks } from './utils/color/registerShaderChunks';
 import { buildIconAtlas } from './components/buildings/atlas';
 import { labelFromManifest } from '@/utils/sources';
 import type { CellTile } from './components/buildings/cellTile';
-import { BuildingIndex } from './components/buildings/pathIndex';
+import { BuildingIndex } from './components/buildings/buildingIndex';
 import { createBuildings } from './components/buildings';
 import type { Buildings } from './components/buildings';
 import { findLayoutOverlaps } from './layout/algorithm';
@@ -535,7 +535,7 @@ export function createWorld(_canvas: HTMLCanvasElement) {
     const d = obj as unknown as DisposableObj;
     if (d.geometry?.dispose) d.geometry.dispose();
     // Skip material disposal for meshes whose material is module-owned and
-    // shared across cell tiles (buildingsCell.ts factory).
+    // shared across cell tiles (cellMesh.ts factory).
     if (!obj.userData?.sharedMaterial) {
       const mats = Array.isArray(d.material) ? d.material : d.material ? [d.material] : [];
       for (const m of mats) {

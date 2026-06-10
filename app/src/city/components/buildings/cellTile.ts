@@ -5,7 +5,7 @@
 // Slot reuse is tracked via `freeSlots`.
 //
 // Mesh geometry/material assembly is deferred to the cell-aware
-// factory modules (instanced/buildingsCell.ts, etc.). This file
+// factory modules (cellMesh.ts, etc.). This file
 // is just the data carrier and the empty constructor.
 
 import * as THREE from 'three';

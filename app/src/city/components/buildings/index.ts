@@ -2,7 +2,7 @@
 //
 // Self-contained scene component: owns its persistent group (the cell-root
 // holder), the shared building material + icon atlas, the per-cell
-// InstancedMesh cell scene (built via cells.ts on rebuild), the building
+// InstancedMesh cell scene (built via cellAssembly.ts on rebuild), the building
 // path/cell lookups, the instanced ad panels, and the hover/selection
 // overlays (fader / outline / ghost). rebuild(layout, dateRanges) colors the
 // buildings, assembles the cells, swaps them into the persistent group, and
@@ -47,11 +47,11 @@ import type {
 import type { FrameContext, SceneComponent, SceneContext } from '../../types';
 import type { WorldBounds } from './spatialGrid';
 import type { CellTile } from './cellTile';
-import { BuildingIndex } from './pathIndex';
-import { buildCellsFromLayout } from './cells';
+import { BuildingIndex } from './buildingIndex';
+import { buildCellsFromLayout } from './cellAssembly';
 import type { InstancedAdPanels } from './adPanelsInstanced';
 import { getSharedBuildingUniforms, setIconAtlas, refreshBuildingMaterial } from './material';
-import { setCellIconAtlas } from './buildingsCell';
+import { setCellIconAtlas } from './cellMesh';
 import type { IconAtlas } from './atlas';
 import { getBuildingColor, getCreatedAge, getModifiedAge } from './color';
 import { createBuildingFader } from './fader';
@@ -142,7 +142,7 @@ export function createBuildings(ctx: SceneContext, deps: BuildingsDeps): Buildin
   // via userData.disposed.
   //
   // CRITICAL divergence from the streets disposer: buildings SHARE one
-  // ShaderMaterial across every cell's detail mesh (buildingsCell.ts attaches
+  // ShaderMaterial across every cell's detail mesh (cellMesh.ts attaches
   // detail meshes carrying userData.sharedMaterial = true). So the disposer
   // MUST skip material disposal for those meshes — else it frees the shared
   // material the NEW cell root's meshes already reference → blank buildings.
@@ -158,7 +158,7 @@ export function createBuildings(ctx: SceneContext, deps: BuildingsDeps): Buildin
     const d = obj as unknown as DisposableObj;
     if (d.geometry?.dispose) d.geometry.dispose();
     // Skip material disposal for meshes whose material is module-owned and
-    // shared across cell tiles (buildingsCell.ts factory).
+    // shared across cell tiles (cellMesh.ts factory).
     if (!obj.userData?.sharedMaterial) {
       const mats = Array.isArray(d.material) ? d.material : d.material ? [d.material] : [];
       for (const m of mats) {

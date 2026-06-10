@@ -1,4 +1,4 @@
-// tests/city/instanced-buildings-cell.test.ts — Round-trip write test for
+// tests/city/components/buildings/cellMesh.test.ts — Round-trip write test for
 // the cell-aware building InstancedMesh factory.
 
 import { describe, it, expect, afterEach } from 'vitest';
@@ -9,7 +9,7 @@ import {
   attachBuildingMeshToCell,
   writeBuildingToSlot,
   setCellIconAtlas,
-} from '@/city/components/buildings/buildingsCell';
+} from '@/city/components/buildings/cellMesh';
 import { BuildingOrient } from '@/types/index';
 import type { IconAtlas } from '@/city/components/buildings/atlas';
 import { building } from '../../../_helpers/buildingFixture';
@@ -33,7 +33,7 @@ function fakeAtlas(uvMap: Record<string, [number, number]>): IconAtlas {
   };
 }
 
-describe('buildingsCell factory', () => {
+describe('cellMesh factory', () => {
   // Clear module-level atlas after each test so tests don't bleed into each other.
   afterEach(() => {
     setCellIconAtlas(null);
@@ -227,7 +227,7 @@ describe('buildingsCell factory', () => {
 //   3. The full loop completes in under 1 second.
 // ---------------------------------------------------------------------------
 
-describe('buildingsCell shared-material stress test (300 cells)', () => {
+describe('cellMesh shared-material stress test (300 cells)', () => {
   // Reset module-level shared material cache between test runs so a
   // fresh uniforms object triggers a new material on the first call.
   // We do this by passing the SAME uniforms reference across all 300

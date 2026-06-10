@@ -1,7 +1,7 @@
 // city/components/buildings/material.ts — Shared building material + icon atlas.
 //
 // Owns the singleton ShaderMaterial used by every cell's detail mesh
-// (buildingsCell.ts attaches per-cell instance buffers to a
+// (cellMesh.ts attaches per-cell instance buffers to a
 // new InstancedMesh that references this material). Also owns the icon
 // atlas reference and the refresh hook that re-applies Save-committed
 // uniforms on config-store changes.
@@ -158,7 +158,7 @@ function getBuildingMaterial(): THREE.ShaderMaterial {
 
 /**
  * Return the shared building material's uniforms dict so cell-aware
- * factories (buildingsCell.ts) can share the same uniform VALUE objects.
+ * factories (cellMesh.ts) can share the same uniform VALUE objects.
  * Lazily initialises the singleton material if it hasn't been created yet.
  *
  * Cell-path usage: each CellTile gets its own ShaderMaterial created by

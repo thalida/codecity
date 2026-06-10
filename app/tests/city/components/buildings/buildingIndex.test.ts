@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { BuildingIndex } from '@/city/components/buildings/pathIndex';
+import { BuildingIndex } from '@/city/components/buildings/buildingIndex';
 import { NodeKind } from '@/types/index';
 import type { FileNode, DirNode } from '@/types/manifest';
 import { building } from '../../../_helpers/buildingFixture';
