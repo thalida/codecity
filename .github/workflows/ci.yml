@@ -52,6 +52,9 @@ jobs:
           docker compose -f docker-compose.test.yml run --rm pytest \
             --cov-report=xml:/srv/api/coverage.xml
 
+      - name: Python format check (ruff)
+        run: docker compose -f docker-compose.test.yml run --rm ruff
+
       - name: Run vitest with coverage
         # Override the default compose command (which runs `npm test`) to
         # run `npm run coverage` instead. Same apt-get / npm bootstrap as

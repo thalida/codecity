@@ -33,11 +33,19 @@ dev = [
     "pytest-xdist>=3",
     "pytest-cov>=4",
     "pyright>=1.1",
+    "ruff>=0.8",
     # Starlette 1.2.x's TestClient prefers httpx2 (`import httpx2 as httpx`);
     # plain httpx is deprecated for testclient and warns. httpx2 is the
     # maintainer-recommended successor — keep it to stay warning-free.
     "httpx2>=2.3",
 ]
+
+[tool.ruff]
+# `ruff format` is the Python equivalent of the frontend's prettier — Black-
+# compatible defaults (88 cols, double quotes, magic trailing commas, etc.).
+target-version = "py311"
+line-length = 88
+src = ["api", "scripts"]
 
 [tool.pytest.ini_options]
 testpaths = ["api/tests"]

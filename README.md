@@ -183,7 +183,7 @@ just run             # run the local image like an end user
 
 Each worktree gets its own `<slug>.localhost` URL so source-picker recents stay isolated per project in localStorage.
 
-The pre-push hook runs pytest, vitest, eslint, prettier, and typecheck before pushing to origin. Bypass with `git push --no-verify` if needed. Docker must be running.
+The pre-push hook runs pytest, ruff (Python format), vitest, eslint, prettier, and typecheck before pushing to origin. Bypass with `git push --no-verify` if needed. Docker must be running. Apply Python formatting with `just fmt`.
 
 The backend is a [FastAPI](https://fastapi.tiangolo.com/) app on uvicorn — a single process by design, since the in-memory scan-root trust set (`api/security.py`) can't be split across workers. Scan progress streams over Server-Sent Events (`GET /api/manifest`). Interactive API docs render at `/api/docs` ([Scalar](https://github.com/scalar/scalar)), with the raw schema at `/api/openapi.json` — the source of truth for the generated frontend wire types (`just gen-types`, guarded against drift by `app/src/types/manifest.contract.ts`).
 
