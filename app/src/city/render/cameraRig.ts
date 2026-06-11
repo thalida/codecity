@@ -27,7 +27,7 @@
 // default gem-framing position.
 
 import * as THREE from 'three';
-import { effect } from '@preact/signals';
+import { effect, untracked } from '@preact/signals';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import {
   CAMERA_FOV,
@@ -360,7 +360,11 @@ export function createCameraRig({
   // source-agnostic.
   const _disposeReframeEffect = effect(() => {
     void cityState.bbox.value;
-    _captureFraming();
+    // Run untracked so this effect subscribes to bbox ONLY — _captureFraming
+    // also reads getGemWorldPos()/getRootStreet() (computed off layout), which
+    // change in lockstep with bbox anyway, but tracking just bbox keeps the
+    // dependency set exactly what it claims to be.
+    untracked(_captureFraming);
   });
 
   function update(_dtMs: number): void {
