@@ -1,7 +1,7 @@
 // tests/city/components/buildings/cellAssembly.test.ts — Tests for buildCellsFromLayout:
 // sparse allocation, buildings-only scope, and Map-based output.
 //
-// SpatialGrid uses CELL_SIZE=12 world units per cell.
+// SpatialGrid uses MIN_CELL_SIZE=12 world units per cell.
 
 import { describe, it, expect } from 'vitest';
 import * as THREE from 'three';

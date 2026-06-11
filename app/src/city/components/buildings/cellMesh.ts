@@ -1,6 +1,6 @@
 // city/components/buildings/cellMesh.ts — Cell-aware building InstancedMesh
 // factory. Replaced the pre-cell per-block factory, which died in the
-// #52 cell-render migration (world.ts itself survives until Task 15).
+// #21 cell-render migration (world.ts itself survives until Task 15).
 //
 // Geometry is constructed once at module load and shared across all
 // cells; the material is created lazily on the first

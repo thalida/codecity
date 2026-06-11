@@ -9,7 +9,7 @@
 // atlas reference and the refresh hook that re-applies Save-committed
 // uniforms on config-store changes.
 //
-// Task 15 follow-up: two ShaderMaterials are compiled from the same
+// Task 15 follow-up: two ShaderMaterials are constructed from the same
 // GLSL sources (this one, never rendered, and cellMesh's rendered one).
 // Consolidating to a single material is a composer-era cleanup
 // candidate.
