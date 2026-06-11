@@ -13,7 +13,6 @@
 // picker on frame 1.
 
 import * as THREE from 'three';
-import { effect } from '@preact/signals';
 
 import { GEM } from '@/state/stores/settings/gem';
 import { BLOOM } from '@/state/stores/settings/effects';
@@ -22,6 +21,7 @@ import type { Street } from '@/types';
 import { disposeObject3D } from '@/city/utils/disposeObject3D';
 
 import type { FrameContext, SceneComponent, SceneContext } from '../../types';
+import { onSettings } from '../onSettings';
 import { createRootGem, GEM_HOVER_LIFT_FRAC } from './mesh';
 import { gemFaceColors, writeFaceColors, type Rgb } from './palette';
 
@@ -118,7 +118,7 @@ export function createGem(ctx: SceneContext): Gem {
   // (pre-first-rebuild) exactly as the old `if (rootGemBody?.material)` guards.
   // Runs once at construction (before the picker exists), which is safe: it
   // reads only GEM signals and reproduces the same values mesh.ts baked.
-  const stopEffect = effect(() => {
+  const stopEffect = onSettings(GEM, () => {
     const gemAppearance = GEM.value;
 
     if (edges?.material?.color) {

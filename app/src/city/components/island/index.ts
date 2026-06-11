@@ -30,7 +30,6 @@
 // per-frame work. The SceneComponent contract makes tick optional.
 
 import * as THREE from 'three';
-import { effect } from '@preact/signals';
 
 import { ISLAND } from '@/state/stores/settings/island';
 import { getWorldBounds, type WorldBounds } from '@/city/utils/floorBounds';
@@ -38,6 +37,7 @@ import { buildIslandGeometry, type IslandBuildParams } from './islandGeometry';
 import { createIslandMaterial } from './islandShader';
 import { RENDER_ORDERS } from '@/city/renderOrders';
 import type { SceneComponent, SceneContext } from '../../types';
+import { onSettings } from '../onSettings';
 
 const ISLAND_TOP_Y = -2.0; // Increased from -0.5 for z-fighting prevention (4x separation from city y=0)
 
@@ -120,7 +120,7 @@ export function createIsland(_ctx: SceneContext): Island {
   // colors, geometry params) and rebuilds geometry + pushes material uniforms
   // (same writes as the old refresh(), verbatim). Runs once at construction,
   // re-applying the same values the constructor baked (idempotent).
-  const stopEffect = effect(() => {
+  const stopEffect = onSettings(ISLAND, () => {
     // Geometry colors changed → rebuild (vertex colors are baked into the
     // geometry, not pushed through uniforms). This is cheap for ~1-2k verts.
     setBounds(currentBounds);

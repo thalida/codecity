@@ -31,7 +31,7 @@
 // the meshes; the diff stays byte-identical.
 
 import * as THREE from 'three';
-import { effect, untracked } from '@preact/signals';
+import { effect } from '@preact/signals';
 
 import { STREETS } from '@/state/stores/settings/streets';
 import { NodeKind, StreetAxis } from '@/types';
@@ -39,6 +39,7 @@ import type { CityLayout, Street } from '@/types';
 
 import type { FrameContext, SceneComponent, SceneContext } from '../../types';
 import { armOnFirstTick } from '../armOnFirstTick';
+import { onSettings } from '../onSettings';
 import { createStreetMesh } from './streets';
 import { createStreetLabels } from './streetLabels';
 import { disposeObject3D } from '@/city/utils/disposeObject3D';
@@ -169,7 +170,7 @@ export function createStreets(ctx: SceneContext): Streets {
   // label height-scale. Reads only STREETS signals, so it's safe at
   // construction (before the picker exists; _refreshSidewalkTints null-guards
   // the picker). No-ops over empty arrays pre-first-rebuild.
-  const stopTheme = effect(() => {
+  const stopTheme = onSettings(STREETS, () => {
     const streets = STREETS.value;
 
     SIDEWALK_HOVER_COLOR = new THREE.Color(streets.SIDEWALK_HOVER).getHex();
@@ -178,15 +179,16 @@ export function createStreets(ctx: SceneContext): Streets {
     for (const sw of pickables) {
       sw.userData.origColor = SIDEWALK_DEFAULT_COLOR;
     }
-    // _refreshSidewalkTints reads ctx.picker.selection/hover; run it UNTRACKED
-    // so this theme effect subscribes ONLY to STREETS (not the picker
-    // signals). Sidewalk hover/selection tinting is owned by the two armed
-    // picker effects below — matching the original renderLoop split where
-    // applyTheme() was a plain function (no auto-subscribe) and the tint
-    // effects were separate. Without untracked, a selection change would also
-    // re-run all the asphalt/label work, and (worse) the tint would track
-    // selection before tick() arms the dedicated effects.
-    untracked(_refreshSidewalkTints);
+    // _refreshSidewalkTints reads ctx.picker.selection/hover. onSettings runs
+    // this whole apply UNTRACKED, so the theme effect subscribes ONLY to
+    // STREETS (not the picker signals). Sidewalk hover/selection tinting is
+    // owned by the two armed picker effects below — matching the original
+    // renderLoop split where applyTheme() was a plain function (no
+    // auto-subscribe) and the tint effects were separate. Without untracked, a
+    // selection change would also re-run all the asphalt/label work, and
+    // (worse) the tint would track selection before tick() arms the dedicated
+    // effects.
+    _refreshSidewalkTints();
 
     const asphaltHex = new THREE.Color(streets.ASPHALT_COLOR).getHex();
     for (const mesh of asphaltMeshes) {

@@ -35,7 +35,6 @@
 // then composites everything on top.
 
 import * as THREE from 'three';
-import { effect } from '@preact/signals';
 
 import { SCENE } from '@/state/stores/settings/scene';
 import { CAMERA_FAR } from '@/constants/camera';
@@ -43,6 +42,7 @@ import { RENDER_ORDERS } from '@/city/renderOrders';
 import { setColorFromHex } from '@/city/utils/color/setColorFromHex';
 
 import type { FrameContext, SceneComponent, SceneContext } from '../../types';
+import { onSettings } from '../onSettings';
 import skyVertSrc from './sky.vert.glsl?raw';
 import skyFragSrc from './sky.frag.glsl?raw';
 
@@ -129,7 +129,7 @@ export function createSky(_ctx: SceneContext): Sky {
   // STARS_ENABLED / STARS_DENSITY and pushes them into the uniforms (same
   // writes as the old refresh(), verbatim). Runs once at construction,
   // re-applying the same values the constructor baked (idempotent).
-  const stopEffect = effect(() => {
+  const stopEffect = onSettings(SCENE, () => {
     const c = SCENE.value;
     setColorFromHex(material.uniforms.uSkyColor.value as THREE.Color, c.SKY_COLOR);
     material.uniforms.uStarsEnabled.value = c.STARS_ENABLED ? 1.0 : 0.0;

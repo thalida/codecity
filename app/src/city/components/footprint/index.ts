@@ -31,7 +31,6 @@
 //   fp.dispose();                 // on world.dispose()
 
 import * as THREE from 'three';
-import { effect } from '@preact/signals';
 
 import { FOOTPRINT } from '@/state/stores/settings/footprint';
 import { RENDER_ORDERS } from '@/city/renderOrders';
@@ -41,6 +40,7 @@ import { rectOfBuilding, rectOfStreet } from '@/city/utils/rect';
 import type { Rect } from '@/city/utils/rect';
 
 import type { SceneComponent, SceneContext } from '../../types';
+import { onSettings } from '../onSettings';
 
 /** Public contract for the footprint component. */
 export interface Footprint extends SceneComponent {
@@ -196,7 +196,7 @@ export function createFootprint(_ctx: SceneContext): Footprint {
   // + ENABLED only (NOT HALO_WIDTH — that's structural, rebuild path).
   // Null-guards when no mesh exists (pre-first-rebuild OR empty/stub state).
   // Runs once at construction, which is safe: refs are null, guards no-op.
-  const stopEffect = effect(() => {
+  const stopEffect = onSettings(FOOTPRINT, () => {
     const c = FOOTPRINT.value;
     if (material) {
       setColorFromHex(material.uniforms.uColor.value as THREE.Color, c.COLOR);

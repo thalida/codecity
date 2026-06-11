@@ -15,12 +15,12 @@
 // safe at construction.
 
 import * as THREE from 'three';
-import { effect, untracked } from '@preact/signals';
 
 import { STREETS } from '@/state/stores/settings/streets';
 
 import type { FrameContext, SceneComponent, SceneContext } from '../../types';
 import { armOnFirstTick } from '../armOnFirstTick';
+import { onSettings } from '../onSettings';
 import { createPathLineRenderer, type PathLineWorld } from './renderer';
 
 /** World closures the inner renderer consumes (threaded from world.ts —
@@ -80,10 +80,7 @@ export function createPathLine(ctx: SceneContext, deps: PathLineDeps): PathLine 
   // only reach the linewidth at the next applyTheme; tracking TIERS here
   // would be a behavior change. Safe at construction (pre-picker): _inner is
   // null until arming.
-  const stopTheme = effect(() => {
-    void STREETS.value;
-    untracked(() => _inner?.refreshMaterials());
-  });
+  const stopTheme = onSettings(STREETS, () => _inner?.refreshMaterials());
 
   // tick() — arms the renderer on the first call, then advances the rainbow
   // chase on the selection line (the old renderLoop
