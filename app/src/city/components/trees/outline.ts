@@ -20,8 +20,8 @@ import { LineSegmentsGeometry } from 'three/addons/lines/LineSegmentsGeometry.js
 import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
 
 import { TREES } from '@/state/stores/settings/trees';
-import { RAINBOW } from '@/state/stores/settings/effects';
 import { RENDER_ORDERS } from '@/city/renderOrders';
+import { rainbowRgbAt } from '@/city/utils/rainbowChase';
 import { NodeKind } from '@/types';
 import { buildCanopyEdges } from './treeRenderer';
 import type { PickTarget } from '@/types/picker';
@@ -95,7 +95,6 @@ export function createTreeOutlineRenderer({ canvas, scene, picker, getTrees }: C
   selectedOutline.matrixAutoUpdate = false;
   scene.add(selectedOutline);
 
-  const _tmpHsl = new THREE.Color();
   const _tmpMatrix = new THREE.Matrix4();
 
   /** Detail level (0/1/2) inferred from the canopy mesh name. The names
@@ -171,20 +170,18 @@ export function createTreeOutlineRenderer({ canvas, scene, picker, getTrees }: C
     geom.setColors(_selColorBuf);
   }
 
-  function _writeRainbow(t: number): void {
+  function _writeRainbow(timeMs: number): void {
     if (!_selColorBuf) return;
-    const rb = RAINBOW.value;
     // One hue per segment, rotating around the silhouette over time.
     for (let i = 0; i < _selSegCount; i++) {
-      const hue = (((t + i / _selSegCount) % 1) + 1) % 1;
-      _tmpHsl.setHSL(hue, rb.SATURATION, rb.LIGHTNESS);
+      const [r, g, b] = rainbowRgbAt(timeMs, i / _selSegCount);
       const k = i * 6;
-      _selColorBuf[k] = _tmpHsl.r;
-      _selColorBuf[k + 1] = _tmpHsl.g;
-      _selColorBuf[k + 2] = _tmpHsl.b;
-      _selColorBuf[k + 3] = _tmpHsl.r;
-      _selColorBuf[k + 4] = _tmpHsl.g;
-      _selColorBuf[k + 5] = _tmpHsl.b;
+      _selColorBuf[k] = r;
+      _selColorBuf[k + 1] = g;
+      _selColorBuf[k + 2] = b;
+      _selColorBuf[k + 3] = r;
+      _selColorBuf[k + 4] = g;
+      _selColorBuf[k + 5] = b;
     }
     const geom = selectedOutline.geometry as LineSegmentsGeometry;
     const colorAttr = geom.attributes.instanceColorStart as THREE.InterleavedBufferAttribute;
@@ -199,8 +196,7 @@ export function createTreeOutlineRenderer({ canvas, scene, picker, getTrees }: C
     if (sel && sel.kind === NodeKind.Commit) {
       _syncOutline(selectedOutline, sel.commit.sha);
       _ensureColorBuffer(selectedOutline.geometry as LineSegmentsGeometry);
-      const t = performance.now() * RAINBOW.value.SPEED;
-      _writeRainbow(t);
+      _writeRainbow(performance.now());
     }
 
     // Hover: re-snap in case the tree moved.

@@ -23,8 +23,8 @@ import { LineSegmentsGeometry } from 'three/addons/lines/LineSegmentsGeometry.js
 import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
 
 import { BUILDINGS } from '@/state/stores/settings/buildings';
-import { RAINBOW } from '@/state/stores/settings/effects';
 import { RENDER_ORDERS } from '@/city/renderOrders';
+import { rainbowRgbAt } from '@/city/utils/rainbowChase';
 import { NodeKind } from '@/types';
 import { getBuildingTilt, composeShearMatrix } from './tilt';
 import type { CellTile } from './cellTile';
@@ -110,7 +110,6 @@ export function createOutlineRenderer({
   const _selColorBuf = (
     _selectedEdgesGeo.attributes.instanceColorStart as THREE.InterleavedBufferAttribute
   ).data;
-  const _tmpHsl = new THREE.Color();
   const selectedOutline = new LineSegments2(_selectedEdgesGeo, selectedLineMat);
   selectedOutline.visible = false;
   selectedOutline.renderOrder = RENDER_ORDERS.SELECTED_OUTLINE;
@@ -174,17 +173,22 @@ export function createOutlineRenderer({
     outline.matrixWorldNeedsUpdate = true;
   }
 
-  function _setSegHueGradient(segIdx: number, hueStart: number, hueEnd: number): void {
-    const rb = RAINBOW.value;
+  function _setSegHueGradient(
+    segIdx: number,
+    timeMs: number,
+    fracStart: number,
+    fracEnd: number
+  ): void {
     const k = segIdx * 6;
-    _tmpHsl.setHSL(((hueStart % 1) + 1) % 1, rb.SATURATION, rb.LIGHTNESS);
-    _selectedColors[k] = _tmpHsl.r;
-    _selectedColors[k + 1] = _tmpHsl.g;
-    _selectedColors[k + 2] = _tmpHsl.b;
-    _tmpHsl.setHSL(((hueEnd % 1) + 1) % 1, rb.SATURATION, rb.LIGHTNESS);
-    _selectedColors[k + 3] = _tmpHsl.r;
-    _selectedColors[k + 4] = _tmpHsl.g;
-    _selectedColors[k + 5] = _tmpHsl.b;
+    // Start RGB — consume the scratch tuple before the next call overwrites it.
+    const [r0, g0, b0] = rainbowRgbAt(timeMs, fracStart);
+    _selectedColors[k] = r0;
+    _selectedColors[k + 1] = g0;
+    _selectedColors[k + 2] = b0;
+    const [r1, g1, b1] = rainbowRgbAt(timeMs, fracEnd);
+    _selectedColors[k + 3] = r1;
+    _selectedColors[k + 4] = g1;
+    _selectedColors[k + 5] = b1;
   }
 
   // Show/hide outlines on selection / hover changes. Snap into place
@@ -236,15 +240,15 @@ export function createOutlineRenderer({
       //     the quartered cycle, hinting at where the bottom/top edges
       //     start and end so the rainbow reads as continuous around the
       //     entire silhouette
-      const t = performance.now() * RAINBOW.value.SPEED;
+      const timeMs = performance.now();
       const HUE_STEPS = 4; // edges per face → quartered hue cycle
       const HUE_STEP = 1 / HUE_STEPS;
       for (let i = 0; i < HUE_STEPS; i++) {
-        const a = t + i * HUE_STEP;
-        const b = t + (i + 1) * HUE_STEP;
-        _setSegHueGradient(i, a, b); // bottom face
-        _setSegHueGradient(i + HUE_STEPS, a, b); // top face (same gradient)
-        _setSegHueGradient(i + HUE_STEPS * 2, a, a); // vertical: solid hue
+        const a = i * HUE_STEP;
+        const b = (i + 1) * HUE_STEP;
+        _setSegHueGradient(i, timeMs, a, b); // bottom face
+        _setSegHueGradient(i + HUE_STEPS, timeMs, a, b); // top face (same gradient)
+        _setSegHueGradient(i + HUE_STEPS * 2, timeMs, a, a); // vertical: solid hue
       }
       _selColorBuf.array.set(_selectedColors);
       _selColorBuf.needsUpdate = true;

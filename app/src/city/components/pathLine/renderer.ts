@@ -15,12 +15,12 @@ import { LineSegmentsGeometry } from 'three/addons/lines/LineSegmentsGeometry.js
 import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
 
 import { STREETS, STREET_TIERS } from '@/state/stores/settings/streets';
-import { RAINBOW } from '@/state/stores/settings/effects';
 import { PATH_LINE_ELEVATION, HOVER_PATH_LINE_ELEVATION } from '@/constants/streets';
 import { RENDER_ORDERS } from '@/city/renderOrders';
 import { NodeKind } from '@/types';
 import type { Street } from '@/types';
 import { computePathPoints } from '@/city/utils/path';
+import { rainbowRgbAt } from '@/city/utils/rainbowChase';
 import type { PickTarget } from '@/types/picker';
 import type { ReadonlySignal } from '@preact/signals';
 
@@ -90,7 +90,6 @@ export function createPathLineRenderer({
 
   let pathSegmentCount = 0;
   let _pathColorsBuf = new Float32Array(0);
-  const _pathHsl = new THREE.Color();
 
   // ── Hover preview path line (single solid color, faded) ────────────
   // Width is shared with the selection line — reads PATH_LINE.LINEWIDTH_PCT.
@@ -218,20 +217,18 @@ export function createPathLineRenderer({
   // ── Per-frame: rainbow chase on the selection line ─────────────────
   function update(_dtMs: number): void {
     if (pathSegmentCount <= 0 || !pathLine.visible) return;
-    const rb = RAINBOW.value;
-    const t = performance.now() * rb.SPEED;
+    const timeMs = performance.now();
     const n = pathSegmentCount;
     for (let s = 0; s < n; s++) {
-      const h1 = (((t + s / n) % 1) + 1) % 1;
-      const h2 = (((t + (s + 1) / n) % 1) + 1) % 1;
-      _pathHsl.setHSL(h1, rb.SATURATION, rb.LIGHTNESS);
-      _pathColorsBuf[s * 6] = _pathHsl.r;
-      _pathColorsBuf[s * 6 + 1] = _pathHsl.g;
-      _pathColorsBuf[s * 6 + 2] = _pathHsl.b;
-      _pathHsl.setHSL(h2, rb.SATURATION, rb.LIGHTNESS);
-      _pathColorsBuf[s * 6 + 3] = _pathHsl.r;
-      _pathColorsBuf[s * 6 + 4] = _pathHsl.g;
-      _pathColorsBuf[s * 6 + 5] = _pathHsl.b;
+      // Consume the start RGB before the second call overwrites the scratch.
+      const [r0, g0, b0] = rainbowRgbAt(timeMs, s / n);
+      _pathColorsBuf[s * 6] = r0;
+      _pathColorsBuf[s * 6 + 1] = g0;
+      _pathColorsBuf[s * 6 + 2] = b0;
+      const [r1, g1, b1] = rainbowRgbAt(timeMs, (s + 1) / n);
+      _pathColorsBuf[s * 6 + 3] = r1;
+      _pathColorsBuf[s * 6 + 4] = g1;
+      _pathColorsBuf[s * 6 + 5] = b1;
     }
     pathLineGeo.setColors(_pathColorsBuf);
   }

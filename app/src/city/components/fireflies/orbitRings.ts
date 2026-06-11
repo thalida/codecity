@@ -25,7 +25,7 @@
 
 import * as THREE from 'three';
 import { FIREFLIES } from '@/state/stores/settings/fireflies';
-import { RAINBOW } from '@/state/stores/settings/effects';
+import { rainbowRgbAt } from '@/city/utils/rainbowChase';
 import type { FireflyPlacement } from './firefliesPlacement';
 
 const TUBULAR_SEGMENTS = 96; // segments around the loop
@@ -117,8 +117,6 @@ function ensureColorBuffer(geom: THREE.BufferGeometry): Float32Array {
   return attr.array as Float32Array;
 }
 
-const _rainbowTmpColor = new THREE.Color();
-
 /** Write the per-frame rainbow chase into a TubeGeometry's `color` buffer.
  *  TubeGeometry vertex ordering is (tubularSegments + 1) × (radialSegments + 1),
  *  indexed as `j * radialSlices + i` where j is the tubular slice and i
@@ -127,21 +125,17 @@ const _rainbowTmpColor = new THREE.Color();
 function writeRainbowToTube(mesh: THREE.Mesh, timeMs: number): void {
   const geom = mesh.geometry as THREE.BufferGeometry;
   const buf = ensureColorBuffer(geom);
-  const rb = RAINBOW.value;
-  // Match treeOutlineRenderer's convention: t = performance.now() * SPEED,
-  // where SPEED is hue cycles per millisecond.
-  const t = timeMs * rb.SPEED;
   const tubularSlices = TUBULAR_SEGMENTS + 1;
   const radialSlices = RADIAL_SEGMENTS + 1;
   for (let j = 0; j < tubularSlices; j++) {
-    const hue = (((t + j / TUBULAR_SEGMENTS) % 1) + 1) % 1;
-    _rainbowTmpColor.setHSL(hue, rb.SATURATION, rb.LIGHTNESS);
+    // One hue per tubular slice; all radial verts on the slice share it.
+    const [r, g, b] = rainbowRgbAt(timeMs, j / TUBULAR_SEGMENTS);
     for (let i = 0; i < radialSlices; i++) {
       const vertexIdx = j * radialSlices + i;
       const k = vertexIdx * 3;
-      buf[k] = _rainbowTmpColor.r;
-      buf[k + 1] = _rainbowTmpColor.g;
-      buf[k + 2] = _rainbowTmpColor.b;
+      buf[k] = r;
+      buf[k + 1] = g;
+      buf[k + 2] = b;
     }
   }
   const attr = geom.getAttribute('color') as THREE.BufferAttribute;
