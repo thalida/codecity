@@ -11,6 +11,7 @@
 // Date math is day-precision because the scanner emits YYYY-MM-DD.
 
 import type { CommitEntry, BusynessThresholds } from '@/types';
+import type { TreesConfig } from '@/state/stores/settings/trees';
 
 export interface AgeRange {
   /** Epoch days of the oldest commit. */
@@ -113,4 +114,60 @@ export function dailyCountTByIndex(
 ): number {
   if (!commits || idx < 0 || idx >= commits.length) return 0.5;
   return dailyCountT(commits[idx].same_day_total, thresholds);
+}
+
+/** Canopy height for a tree.
+ *
+ *  HEIGHT is driven by AGE: older commits grow taller. ageT=0 (oldest)
+ *  → MAX_HEIGHT; ageT=1 (newest) → MIN_HEIGHT. A null/missing commit
+ *  collapses to the midpoint.
+ *
+ *  Single source of truth for the tree renderer's canopy/trunk height
+ *  AND the firefly orbit height — both must derive from the identical
+ *  formula so fireflies never drift off their trees. */
+export function treeHeight(
+  commit: CommitEntry | null | undefined,
+  ageRange: AgeRange,
+  cfg: TreesConfig
+): number {
+  const minHeight = cfg.MIN_HEIGHT;
+  const maxHeight = cfg.MAX_HEIGHT;
+  if (!commit) return (minHeight + maxHeight) * 0.5;
+  const t = ageT(commit, ageRange);
+  return maxHeight - t * (maxHeight - minHeight);
+}
+
+/** Canopy XZ radius for a tree.
+ *
+ *  WIDTH is driven by FILES (sizeT): more files = wider. Attenuated by
+ *  AGE via WIDTH_AGE_FLOOR so short young trees don't render adult-wide
+ *  (floor=1.0 disables the attenuation, byte-identical to pre-feature
+ *  rendering). A null/missing commit uses the midpoint base radius.
+ *
+ *  Single source of truth shared by the tree renderer (canopy/trunk
+ *  width) and the firefly orbit radius. */
+export function treeRadius(
+  commit: CommitEntry | null | undefined,
+  ageRange: AgeRange,
+  sizeRange: SizeRange,
+  cfg: TreesConfig
+): number {
+  const minHeight = cfg.MIN_HEIGHT;
+  const maxHeight = cfg.MAX_HEIGHT;
+  const minRadius = cfg.MIN_WIDTH / 2;
+  const maxRadius = cfg.MAX_WIDTH / 2;
+
+  let baseRadius: number;
+  if (commit) {
+    const t = sizeT(commit, sizeRange);
+    baseRadius = minRadius + t * (maxRadius - minRadius);
+  } else {
+    baseRadius = (minRadius + maxRadius) * 0.5;
+  }
+  // Clamp height range to avoid divide-by-zero when min == max.
+  const heightRange = Math.max(0.001, maxHeight - minHeight);
+  const heightRatio = (treeHeight(commit, ageRange, cfg) - minHeight) / heightRange;
+  const floor = Math.max(0, Math.min(1, cfg.WIDTH_AGE_FLOOR));
+  const ageAttenuation = floor + (1 - floor) * heightRatio;
+  return baseRadius * ageAttenuation;
 }

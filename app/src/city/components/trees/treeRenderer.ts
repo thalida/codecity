@@ -33,6 +33,8 @@ import {
   ageT,
   sizeT,
   dailyCountTByIndex,
+  treeHeight,
+  treeRadius,
   type AgeRange,
   type SizeRange,
 } from './treeEncoding';
@@ -234,12 +236,8 @@ export function createTreeRenderer(
 ): Trees {
   let cfg = TREES.value;
 
-  // Height and width in absolute world units, independent of buildings.
-  // Config exposes DIAMETER for width; convert to radius for the canopy.
-  const minHeight = cfg.MIN_HEIGHT;
-  const maxHeight = cfg.MAX_HEIGHT;
-  const minRadius = cfg.MIN_WIDTH / 2;
-  const maxRadius = cfg.MAX_WIDTH / 2;
+  // Per-tree height/width come from treeEncoding (treeHeight / treeRadius),
+  // the single source shared with the firefly orbit field.
   const trunkHeightFrac = cfg.TRUNK_HEIGHT_FRAC;
   const trunkRadiusFrac = cfg.TRUNK_RADIUS_FRAC;
   // Fraction of trunk height hidden inside the canopy bottom. The
@@ -250,36 +248,24 @@ export function createTreeRenderer(
   const ageRange: AgeRange = computeAgeRange(commits);
   const sizeRange: SizeRange = computeSizeRange(commits);
 
-  // HEIGHT is driven by AGE: older commits grow taller. ageT=0 (oldest)
-  // → max height; ageT=1 (newest) → min height. Degenerate cases
-  // (null commits, missing commit, zero-span) collapse to midpoint.
-  function perTreeHeight(i: number): number {
+  /** Resolve the commit a placement points at, or null when the index is
+   *  out of range / commits is absent. */
+  function commitForPlacement(i: number): CommitEntry | null {
     if (commits && placements[i].commitIndex >= 0 && placements[i].commitIndex < commits.length) {
-      const t = ageT(commits[placements[i].commitIndex], ageRange);
-      return maxHeight - t * (maxHeight - minHeight);
+      return commits[placements[i].commitIndex];
     }
-    return (minHeight + maxHeight) * 0.5;
+    return null;
   }
 
-  // WIDTH (canopy XZ radius) is driven by FILES: more files = wider.
-  // Attenuated by AGE via WIDTH_AGE_FLOOR so short young trees
-  // don't render adult-wide (a brand-new commit touching many files
-  // would otherwise be a squat lollipop). floor=1.0 disables the
-  // attenuation (byte-identical to pre-feature rendering).
+  // HEIGHT is driven by AGE; WIDTH by FILES (attenuated by age). Both
+  // formulas live in treeEncoding so the firefly orbit field derives from
+  // the identical math (see treeHeight / treeRadius).
+  function perTreeHeight(i: number): number {
+    return treeHeight(commitForPlacement(i), ageRange, cfg);
+  }
+
   function perTreeRadius(i: number): number {
-    let baseRadius: number;
-    if (commits && placements[i].commitIndex >= 0 && placements[i].commitIndex < commits.length) {
-      const t = sizeT(commits[placements[i].commitIndex], sizeRange);
-      baseRadius = minRadius + t * (maxRadius - minRadius);
-    } else {
-      baseRadius = (minRadius + maxRadius) * 0.5;
-    }
-    // Clamp height range to avoid divide-by-zero when min == max.
-    const heightRange = Math.max(0.001, maxHeight - minHeight);
-    const heightRatio = (perTreeHeight(i) - minHeight) / heightRange;
-    const floor = Math.max(0, Math.min(1, cfg.WIDTH_AGE_FLOOR));
-    const ageAttenuation = floor + (1 - floor) * heightRatio;
-    return baseRadius * ageAttenuation;
+    return treeRadius(commitForPlacement(i), ageRange, sizeRange, cfg);
   }
 
   // FACETS are driven by FILES too: bigger commits get more subdivisions.

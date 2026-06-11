@@ -15,8 +15,8 @@ import { FIREFLIES } from '@/state/stores/settings/fireflies';
 import {
   computeAgeRange,
   computeSizeRange,
-  ageT,
-  sizeT,
+  treeHeight,
+  treeRadius,
 } from '@/city/components/trees/treeEncoding';
 import { colorForAuthor, lightColorForAuthor } from './authorColor';
 
@@ -113,47 +113,9 @@ export function placeFireflies(
   }
 
   const cfg = TREES.value;
-  const minHeight = cfg.MIN_HEIGHT;
-  const maxHeight = cfg.MAX_HEIGHT;
-  const minRadius = cfg.MIN_WIDTH / 2;
-  const maxRadius = cfg.MAX_WIDTH / 2;
 
   const ageRange = computeAgeRange(commits);
   const sizeRange = computeSizeRange(commits);
-
-  // NOTE: treeHeight and treeRadius below mirror perTreeHeight / perTreeRadius in
-  // scene/components/trees/treeRenderer.ts. Keep in sync — if the renderer's size
-  // formulas change, this module must change too, otherwise fireflies drift away
-  // from their trees.
-
-  /** Canopy height for tree at index i, mirroring treeRenderer's perTreeHeight. */
-  function treeHeight(commitIndex: number): number {
-    const commit = commits[commitIndex];
-    if (!commit) return (minHeight + maxHeight) * 0.5;
-    const t = ageT(commit, ageRange);
-    // ageT=0 (oldest) → maxHeight; ageT=1 (newest) → minHeight
-    return maxHeight - t * (maxHeight - minHeight);
-  }
-
-  /** Canopy XZ radius for tree at index i, mirroring treeRenderer's perTreeRadius.
-   *  Includes age-attenuation (WIDTH_AGE_FLOOR) so short young trees
-   *  aren't adult-wide. */
-  function treeRadius(commitIndex: number): number {
-    const commit = commits[commitIndex];
-    let baseRadius: number;
-    if (commit) {
-      const t = sizeT(commit, sizeRange);
-      baseRadius = minRadius + t * (maxRadius - minRadius);
-    } else {
-      baseRadius = (minRadius + maxRadius) * 0.5;
-    }
-    const heightRange = Math.max(0.001, maxHeight - minHeight);
-    const h = treeHeight(commitIndex);
-    const heightRatio = (h - minHeight) / heightRange;
-    const floor = Math.max(0, Math.min(1, cfg.WIDTH_AGE_FLOOR));
-    const ageAttenuation = floor + (1 - floor) * heightRatio;
-    return baseRadius * ageAttenuation;
-  }
 
   const out: FireflyPlacement[] = [];
 
@@ -161,8 +123,10 @@ export function placeFireflies(
     const commit = commits[p.commitIndex];
     if (!commit) continue;
 
-    const canopyRadius = treeRadius(p.commitIndex);
-    const height = treeHeight(p.commitIndex);
+    // Canopy radius/height come from treeEncoding — the same source the
+    // tree renderer uses — so orbs stay pinned to their trees.
+    const canopyRadius = treeRadius(commit, ageRange, sizeRange, cfg);
+    const height = treeHeight(commit, ageRange, cfg);
 
     for (const author of commit.authors ?? []) {
       const rng = seededRng(`${commit.sha}:${author}`);

@@ -11,9 +11,12 @@ import {
   sizeT,
   dailyCountT,
   dailyCountTByIndex,
+  treeHeight,
+  treeRadius,
   type AgeRange,
   type SizeRange,
 } from '@/city/components/trees/treeEncoding';
+import type { TreesConfig } from '@/state/stores/settings/trees';
 import type { CommitEntry } from '@/types';
 import { commits as buildCommits } from './_commitFixtures';
 
@@ -220,5 +223,77 @@ describe('dailyCountTByIndex()', () => {
 
   it('null commits returns 0.5', () => {
     expect(dailyCountTByIndex(null, 0, thresholds)).toBe(0.5);
+  });
+});
+
+// Tree height/radius: the single source of truth shared by the tree
+// renderer (canopy/trunk size) and the firefly orbit field. These tests
+// pin the exact arithmetic the two former hand-copies produced.
+describe('treeHeight() / treeRadius()', () => {
+  // Only the sizing fields matter; cast a partial config to TreesConfig.
+  const cfg = {
+    MIN_HEIGHT: 8,
+    MAX_HEIGHT: 96,
+    MIN_WIDTH: 32,
+    MAX_WIDTH: 64,
+    WIDTH_AGE_FLOOR: 0.5,
+  } as TreesConfig;
+
+  const sizing = buildCommits(
+    { date: '2026-01-01', files: 1 }, // oldest, smallest
+    { date: '2026-01-11', files: 5 }, // middle
+    { date: '2026-01-21', files: 9 } // newest, largest
+  );
+  const ageRange = computeAgeRange(sizing);
+  const sizeRange = computeSizeRange(sizing);
+
+  describe('treeHeight()', () => {
+    it('oldest commit (ageT=0) → MAX_HEIGHT', () => {
+      expect(treeHeight(sizing[0], ageRange, cfg)).toBe(96);
+    });
+
+    it('newest commit (ageT=1) → MIN_HEIGHT', () => {
+      expect(treeHeight(sizing[2], ageRange, cfg)).toBe(8);
+    });
+
+    it('middle commit (ageT≈0.5) → midpoint height', () => {
+      // 96 - 0.5 * (96 - 8) = 52
+      expect(treeHeight(sizing[1], ageRange, cfg)).toBeCloseTo(52, 5);
+    });
+
+    it('null commit collapses to the height midpoint', () => {
+      // (8 + 96) * 0.5 = 52
+      expect(treeHeight(null, ageRange, cfg)).toBe(52);
+      expect(treeHeight(undefined, ageRange, cfg)).toBe(52);
+    });
+  });
+
+  describe('treeRadius()', () => {
+    it('oldest+smallest: baseRadius=MIN_WIDTH/2, but age-attenuated by floor', () => {
+      // sizeT=0 → baseRadius = 32/2 = 16.
+      // height = 96 (oldest) → heightRatio = (96-8)/(96-8) = 1.
+      // ageAttenuation = floor + (1-floor)*1 = 1 → radius = 16.
+      expect(treeRadius(sizing[0], ageRange, sizeRange, cfg)).toBeCloseTo(16, 5);
+    });
+
+    it('newest+largest: baseRadius=MAX_WIDTH/2, but shortest tree → floor attenuation', () => {
+      // sizeT=1 → baseRadius = 64/2 = 32.
+      // height = 8 (newest) → heightRatio = (8-8)/(96-8) = 0.
+      // ageAttenuation = floor + (1-floor)*0 = 0.5 → radius = 16.
+      expect(treeRadius(sizing[2], ageRange, sizeRange, cfg)).toBeCloseTo(16, 5);
+    });
+
+    it('floor=1.0 disables age attenuation (radius = baseRadius)', () => {
+      const noFloor = { ...cfg, WIDTH_AGE_FLOOR: 1 } as TreesConfig;
+      // sizeT=1 → baseRadius = 32; attenuation = 1 → radius = 32.
+      expect(treeRadius(sizing[2], ageRange, sizeRange, noFloor)).toBeCloseTo(32, 5);
+    });
+
+    it('null commit uses the midpoint base radius', () => {
+      // baseRadius = (16 + 32) * 0.5 = 24.
+      // height = midpoint 52 → heightRatio = (52-8)/(96-8) = 0.5.
+      // attenuation = 0.5 + 0.5*0.5 = 0.75 → radius = 24 * 0.75 = 18.
+      expect(treeRadius(null, ageRange, sizeRange, cfg)).toBeCloseTo(18, 5);
+    });
   });
 });
