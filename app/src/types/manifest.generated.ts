@@ -198,6 +198,29 @@ export interface components {
             /** Allowlocalrepos */
             allowLocalRepos: boolean;
         };
+        /** DateRanges */
+        DateRanges: {
+            /**
+             * Createdmin
+             * @description Earliest resolved create date (ISO), or null for an empty tree
+             */
+            createdMin: string | null;
+            /**
+             * Createdmax
+             * @description Latest resolved create date (ISO), or null for an empty tree
+             */
+            createdMax: string | null;
+            /**
+             * Modifiedmin
+             * @description Earliest resolved modify date (ISO), or null for an empty tree
+             */
+            modifiedMin: string | null;
+            /**
+             * Modifiedmax
+             * @description Latest resolved modify date (ISO), or null for an empty tree
+             */
+            modifiedMax: string | null;
+        };
         /** DirNode */
         DirNode: {
             /** Name */
@@ -268,28 +291,20 @@ export interface components {
             lines: number;
             /** Binary */
             binary: boolean;
-            /** Created */
+            /**
+             * Created
+             * @description ISO create date, resolved server-side: git history date when the file has one, filesystem date otherwise
+             */
             created: string;
-            /** Modified */
+            /**
+             * Modified
+             * @description ISO modify date, resolved server-side: git history date when the file has one, filesystem date otherwise
+             */
             modified: string;
-            git: components["schemas"]["GitMeta"];
             /** Media Width */
             media_width?: number;
             /** Media Height */
             media_height?: number;
-        };
-        /** GitMeta */
-        GitMeta: {
-            /**
-             * Created
-             * @description ISO create date, or null
-             */
-            created: string | null;
-            /**
-             * Modified
-             * @description ISO modify date, or null
-             */
-            modified: string | null;
         };
         /** HTTPValidationError */
         HTTPValidationError: {
@@ -316,6 +331,7 @@ export interface components {
             /** Commits */
             commits: components["schemas"]["CommitEntry"][];
             busyness: components["schemas"]["BusynessThresholds"];
+            dateRanges: components["schemas"]["DateRanges"];
             /** Display Root */
             display_root?: string;
         };

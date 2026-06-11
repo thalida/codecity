@@ -29,7 +29,6 @@ function makeFile(path: string): FileNode {
     binary: false,
     created: null,
     modified: null,
-    git: null,
   } as unknown as FileNode;
 }
 

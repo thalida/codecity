@@ -67,7 +67,6 @@ import { getWorldBounds, type WorldBounds } from './utils/floorBounds';
 import { createFootprint } from './components/footprint';
 import type { Footprint } from './components/footprint';
 import { FOOTPRINT } from '@/state/stores/settings/footprint';
-import { getDateRanges } from './components/buildings/color';
 import { STREETS } from '@/state/stores/settings/streets';
 import { GEM, GEM_SIZING } from '@/state/stores/settings/gem';
 import { TREES } from '@/state/stores/settings/trees';
@@ -360,7 +359,6 @@ export function createWorld(_canvas: HTMLCanvasElement) {
   // Manifest-bound state. Reassigned on each applyManifest.
   let manifest: Manifest | null = null;
   let layout: CityLayout | null = null;
-  let dateRanges: DateRanges | null = null;
   let bbox: THREE.Box3 | null = null;
   let rootStreet: Street | null = null;
   let gemWorldPos: THREE.Vector3 | null = null;
@@ -828,15 +826,12 @@ export function createWorld(_canvas: HTMLCanvasElement) {
     }
     if (myGeneration !== _currentGeneration) return;
 
-    // ---- Phase 2: derive date ranges for the NEW layout. File refs and
-    // dimensions are already correct — layoutClient recomputed them via
-    // reuseLayout (cheap path) or the worker produced them fresh (full
-    // compute). The per-building color/age writes happen inside
-    // _buildings.rebuild (which receives these date ranges). Nothing here
-    // touches the scene yet.
-    const newDateRanges = getDateRanges(
-      newManifestTyped.tree as unknown as Parameters<typeof getDateRanges>[0]
-    );
+    // ---- Phase 2: date ranges for the NEW layout come straight off the
+    // manifest (computed on the backend during the scan, like busyness).
+    // The per-building color/age writes happen inside _buildings.rebuild
+    // (which receives these date ranges). Nothing here touches the scene
+    // yet.
+    const newDateRanges: DateRanges = newManifestTyped.dateRanges;
     // Per-building color/age writes + the cell assembly moved into
     // _buildings.rebuild(newLayout, newDateRanges) below.
     if (myGeneration !== _currentGeneration) return;
@@ -882,7 +877,6 @@ export function createWorld(_canvas: HTMLCanvasElement) {
       // paths/gem stay in the scene unmodified. Do NOT call buildWorld.
       manifest = newManifestTyped;
       layout = newLayout;
-      dateRanges = newDateRanges;
       // bbox stays from the previous buildWorld call (layout unchanged).
     } else {
       // Full rebuild path: dispose existing scenic state, run buildWorld,
@@ -891,7 +885,6 @@ export function createWorld(_canvas: HTMLCanvasElement) {
 
       manifest = newManifestTyped;
       layout = newLayout;
-      dateRanges = newDateRanges;
 
       // Rebuild the streets component's meshes (sidewalks, asphalt, labels)
       // into its persistent group (already in the scene). The component owns
@@ -1232,9 +1225,6 @@ export function createWorld(_canvas: HTMLCanvasElement) {
     },
     getRoot() {
       return manifest && manifest.tree;
-    },
-    getDateRanges() {
-      return dateRanges;
     },
 
     /**

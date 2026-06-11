@@ -4,7 +4,8 @@
 //   Lightness  → last-modified date      (recent = bright, stale = dim)
 //
 // Both saturation and lightness key off the same axis (last-modified),
-// normalized against the repo's modifiedMin/Max — so the dim/desaturated
+// normalized against the repo's modifiedMin/Max (Manifest.dateRanges,
+// computed on the backend during the scan) — so the dim/desaturated
 // end represents "this file hasn't been touched in a long time".
 // `getCreatedAge` (also exported here) tracks a SEPARATE axis: how long
 // the file has existed in the repo. That drives grime + tilt + lit-window
@@ -15,24 +16,21 @@
 
 import { BUILDINGS } from '@/state/stores/settings/buildings';
 import { NodeKind } from '@/types';
+import type { DateRanges } from '@/types';
 
-// Structural shapes match what real Manifest tree / FileNode supply but
-// also accommodate test mocks that omit unrelated fields. Real callers
-// pass full TreeNode / FileNode instances — both are structurally
-// compatible with these.
+// Structural shape matches what a real FileNode supplies but also
+// accommodates test mocks that omit unrelated fields. created/modified
+// stay optional so sparse mocks still hit the no-date midpoint branches;
+// real FileNodes always carry both (resolved server-side).
 interface FileLike {
   type: NodeKind;
   extension?: string;
-  git?: { created?: string | null; modified?: string | null } | null;
   created?: string | null;
   modified?: string | null;
   // Open shape: real FileNode/DirNode have many other fields the helpers
   // don't read (name, path, etc). Index signature keeps inline test
   // mocks structurally compatible.
   [k: string]: unknown;
-}
-interface TreeNodeLike extends FileLike {
-  children?: TreeNodeLike[];
 }
 
 /**
@@ -154,72 +152,6 @@ export function getLightness(
   return Math.round(config.min + t * (config.max - config.min));
 }
 
-// ── Date range scan ───────────────────────────────────────────────────────────
-
-/**
- * Walk the manifest tree recursively and collect the min/max creation and
- * modification timestamps across every file node.
- *
- * Prefers git dates (file.git.created / file.git.modified) and falls back to
- * filesystem dates (file.created / file.modified).
- *
- * @param {Object} manifestTree - Root node of the scanner manifest tree.
- * @returns {{ createdMin: string|null, createdMax: string|null,
- *             modifiedMin: string|null, modifiedMax: string|null }}
- */
-export interface DateRangeStrings {
-  createdMin: string | null;
-  createdMax: string | null;
-  modifiedMin: string | null;
-  modifiedMax: string | null;
-}
-
-export function getDateRanges(tree: TreeNodeLike): DateRangeStrings {
-  let createdMin: string | null = null;
-  let createdMax: string | null = null;
-  let modifiedMin: string | null = null;
-  let modifiedMax: string | null = null;
-
-  function earlier(a: string | null, b: string | null): string | null {
-    if (!a) return b;
-    if (!b) return a;
-    return a < b ? a : b;
-  }
-
-  function later(a: string | null, b: string | null): string | null {
-    if (!a) return b;
-    if (!b) return a;
-    return a > b ? a : b;
-  }
-
-  function visit(node: TreeNodeLike): void {
-    if (node.type === NodeKind.File) {
-      // Prefer git dates, fall back to filesystem dates
-      const created = (node.git && node.git.created) || node.created || null;
-      const modified = (node.git && node.git.modified) || node.modified || null;
-
-      createdMin = earlier(createdMin, created);
-      createdMax = later(createdMax, created);
-      modifiedMin = earlier(modifiedMin, modified);
-      modifiedMax = later(modifiedMax, modified);
-    }
-
-    // Recurse into directory children
-    if (node.children?.length) {
-      for (const child of node.children) visit(child);
-    }
-  }
-
-  visit(tree);
-
-  return {
-    createdMin,
-    createdMax,
-    modifiedMin,
-    modifiedMax,
-  };
-}
-
 // ── Building color ────────────────────────────────────────────────────────────
 
 /**
@@ -227,7 +159,7 @@ export function getDateRanges(tree: TreeNodeLike): DateRangeStrings {
  * palette + saturation/lightness ranges from BUILDING in defaults.js.
  *
  * @param {Object} file       - File node from the scanner manifest.
- * @param {Object} dateRanges - Output of getDateRanges().
+ * @param {Object} dateRanges - Manifest.dateRanges (backend-computed).
  * @returns {string} CSS HSL string, e.g. "hsl(215, 80%, 55%)".
  */
 /**
@@ -237,8 +169,8 @@ export function getDateRanges(tree: TreeNodeLike): DateRangeStrings {
  * 0.0 = newest. Same time anchor the color signal uses (which samples
  * at modified date), so both signals evolve together as the repo grows.
  */
-export function getCreatedAge(file: FileLike, dateRanges: DateRangeStrings): number {
-  const created = (file.git && file.git.created) || file.created || null;
+export function getCreatedAge(file: FileLike, dateRanges: DateRanges): number {
+  const created = file.created || null;
   if (!created) return 0.5; // unknown → midpoint (half-weathered)
   const c = Date.parse(created);
   const min = Date.parse(dateRanges.createdMin || '');
@@ -257,8 +189,8 @@ export function getCreatedAge(file: FileLike, dateRanges: DateRangeStrings): num
  * Shader-side: passed in via iModifiedAge (per-instance attribute) and
  * read as `vModifiedAge` in the building fragment shader.
  */
-export function getModifiedAge(file: FileLike, dateRanges: DateRangeStrings): number {
-  const modified = (file.git && file.git.modified) || file.modified || null;
+export function getModifiedAge(file: FileLike, dateRanges: DateRanges): number {
+  const modified = file.modified || null;
   if (!modified) return 0.5;
   const m = Date.parse(modified);
   const min = Date.parse(dateRanges.modifiedMin || '');
@@ -268,9 +200,8 @@ export function getModifiedAge(file: FileLike, dateRanges: DateRangeStrings): nu
   return Math.max(0, Math.min(1, 1 - t));
 }
 
-export function getBuildingColor(file: FileLike, dateRanges: DateRangeStrings): string {
-  // Prefer git dates, fall back to filesystem dates
-  const modified = (file.git && file.git.modified) || file.modified || null;
+export function getBuildingColor(file: FileLike, dateRanges: DateRanges): string {
+  const modified = file.modified || null;
 
   const palette = BUILDINGS.value;
   const h = getHue(file.extension || '', palette.HUE_EXT_MAP);

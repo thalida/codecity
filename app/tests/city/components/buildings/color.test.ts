@@ -3,7 +3,6 @@ import {
   getHue,
   getSaturation,
   getLightness,
-  getDateRanges,
   getBuildingColor,
   getModifiedAge,
 } from '@/city/components/buildings/color';
@@ -65,12 +64,6 @@ const TEST_TREE = {
       binary: false,
       created: '2024-01-10T09:00:00Z',
       modified: '2024-03-22T14:30:00Z',
-      git: {
-        created: '2024-01-10T09:00:00Z',
-        modified: '2024-03-22T14:30:00Z',
-        commits: 5,
-        contributors: ['alice'],
-      },
     },
     {
       name: 'README.md',
@@ -83,12 +76,6 @@ const TEST_TREE = {
       binary: false,
       created: '2024-01-10T09:00:00Z',
       modified: '2024-01-10T09:00:00Z',
-      git: {
-        created: '2024-01-10T09:00:00Z',
-        modified: '2024-01-10T09:00:00Z',
-        commits: 1,
-        contributors: ['alice'],
-      },
     },
     {
       name: 'src',
@@ -114,12 +101,6 @@ const TEST_TREE = {
           binary: false,
           created: '2024-02-15T10:00:00Z',
           modified: '2024-03-20T12:00:00Z',
-          git: {
-            created: '2024-02-15T10:00:00Z',
-            modified: '2024-03-20T12:00:00Z',
-            commits: 3,
-            contributors: ['bob'],
-          },
         },
       ],
     },
@@ -237,75 +218,44 @@ describe('getLightness', () => {
   });
 });
 
-// ---- getDateRanges ----
-describe('getDateRanges', () => {
-  it('finds min/max across tree', () => {
-    const dr = getDateRanges(TEST_TREE);
-    expect(dr.createdMin).toBe('2024-01-10T09:00:00Z');
-    expect(dr.createdMax).toBe('2024-02-15T10:00:00Z');
-    expect(dr.modifiedMin).toBe('2024-01-10T09:00:00Z');
-    expect(dr.modifiedMax).toBe('2024-03-22T14:30:00Z');
-  });
-
-  it('returns nulls for empty tree', () => {
-    const dr = getDateRanges({ name: 'root', type: NodeKind.Directory, children: [] });
-    expect(dr.createdMin).toBeNull();
-    expect(dr.createdMax).toBeNull();
-    expect(dr.modifiedMin).toBeNull();
-    expect(dr.modifiedMax).toBeNull();
-  });
-
-  it('handles single file tree', () => {
-    const single = {
-      name: 'root',
-      type: NodeKind.Directory,
-      path: '.',
-      children: [
-        {
-          name: 'only.ts',
-          type: NodeKind.File,
-          extension: '.ts',
-          git: { created: '2024-06-01T00:00:00Z', modified: '2024-06-15T00:00:00Z' },
-        },
-      ],
-    };
-    const dr = getDateRanges(single);
-    expect(dr.createdMin).toBe(dr.createdMax);
-    expect(dr.modifiedMin).toBe(dr.modifiedMax);
-  });
-});
-
 // ---- getBuildingColor ----
 describe('getBuildingColor', () => {
+  // Hand-written min/max of TEST_TREE's created/modified dates — what the
+  // backend would ship as Manifest.dateRanges for that tree (the client
+  // tree walk moved server-side; see api/services/scan.py).
+  const TEST_TREE_DATE_RANGES = {
+    createdMin: '2024-01-10T09:00:00Z',
+    createdMax: '2024-02-15T10:00:00Z',
+    modifiedMin: '2024-01-10T09:00:00Z',
+    modifiedMax: '2024-03-22T14:30:00Z',
+  };
+
   it('returns valid "hsl(...)" string', () => {
-    const dateRanges = getDateRanges(TEST_TREE);
-    const color = getBuildingColor(TEST_TREE.children[0], dateRanges);
+    const color = getBuildingColor(TEST_TREE.children[0], TEST_TREE_DATE_RANGES);
     expect(color).toMatch(/^hsl\(\d+,\s*[\d.]+%,\s*[\d.]+%\)$/);
   });
 
   it('uses correct hue for .ts files', () => {
-    const dateRanges = getDateRanges(TEST_TREE);
-    const color = getBuildingColor(TEST_TREE.children[0], dateRanges);
+    const color = getBuildingColor(TEST_TREE.children[0], TEST_TREE_DATE_RANGES);
     expect(color).toMatch(/^hsl\(215,/);
   });
 
   it('uses correct hue for .md files', () => {
-    const dateRanges = getDateRanges(TEST_TREE);
-    const color = getBuildingColor(TEST_TREE.children[1], dateRanges);
+    const color = getBuildingColor(TEST_TREE.children[1], TEST_TREE_DATE_RANGES);
     expect(color).toMatch(/^hsl\(275,/);
   });
 
   it('handles unknown extension', () => {
-    const dateRanges = getDateRanges(TEST_TREE);
     const unknownFile = {
       name: 'foo.xyz',
       type: NodeKind.File,
       extension: '.xyz',
       size: 1000,
       lines: 10,
-      git: { created: '2024-01-10T09:00:00Z', modified: '2024-03-22T14:30:00Z' },
+      created: '2024-01-10T09:00:00Z',
+      modified: '2024-03-22T14:30:00Z',
     };
-    const color = getBuildingColor(unknownFile, dateRanges);
+    const color = getBuildingColor(unknownFile, TEST_TREE_DATE_RANGES);
     expect(color).toMatch(/^hsl\(/);
   });
 
@@ -326,17 +276,24 @@ describe('getBuildingColor', () => {
           name: 'a.ts',
           type: NodeKind.File,
           extension: '.ts',
-          git: { created: '2020-01-01T00:00:00Z', modified: '2022-01-01T00:00:00Z' },
+          created: '2020-01-01T00:00:00Z',
+          modified: '2022-01-01T00:00:00Z',
         },
         {
           name: 'b.ts',
           type: NodeKind.File,
           extension: '.ts',
-          git: { created: '2024-12-31T00:00:00Z', modified: '2023-06-01T00:00:00Z' },
+          created: '2024-12-31T00:00:00Z',
+          modified: '2023-06-01T00:00:00Z',
         },
       ],
     };
-    const dr = getDateRanges(tree);
+    const dr = {
+      createdMin: '2020-01-01T00:00:00Z',
+      createdMax: '2024-12-31T00:00:00Z',
+      modifiedMin: '2022-01-01T00:00:00Z',
+      modifiedMax: '2023-06-01T00:00:00Z',
+    };
     // b.ts modified at modifiedMax → t=1.0 → lightness = LIGHTNESS_MAX (70 in test palette).
     const color = getBuildingColor(tree.children[1], dr);
     expect(color).toMatch(/^hsl\(215,\s*100%,\s*70%\)$/);
@@ -356,17 +313,24 @@ describe('getBuildingColor', () => {
           name: 'a.ts',
           type: NodeKind.File,
           extension: '.ts',
-          git: { created: '2020-01-01T00:00:00Z', modified: '2022-01-01T00:00:00Z' },
+          created: '2020-01-01T00:00:00Z',
+          modified: '2022-01-01T00:00:00Z',
         },
         {
           name: 'b.ts',
           type: NodeKind.File,
           extension: '.ts',
-          git: { created: '2024-12-31T00:00:00Z', modified: '2023-06-01T00:00:00Z' },
+          created: '2024-12-31T00:00:00Z',
+          modified: '2023-06-01T00:00:00Z',
         },
       ],
     };
-    const dr = getDateRanges(tree);
+    const dr = {
+      createdMin: '2020-01-01T00:00:00Z',
+      createdMax: '2024-12-31T00:00:00Z',
+      modifiedMin: '2022-01-01T00:00:00Z',
+      modifiedMax: '2023-06-01T00:00:00Z',
+    };
     // a.ts modified at modifiedMin → t=0.0 → lightness = LIGHTNESS_MIN (25 in test palette).
     const color = getBuildingColor(tree.children[0], dr);
     expect(color).toMatch(/^hsl\(215,\s*20%,\s*25%\)$/);
@@ -385,7 +349,8 @@ describe('getModifiedAge', () => {
   it('returns 1.0 for file modified at modifiedMin (most stale)', () => {
     const file = {
       type: NodeKind.File,
-      git: { created: '2024-01-01T00:00:00Z', modified: '2024-01-10T09:00:00Z' },
+      created: '2024-01-01T00:00:00Z',
+      modified: '2024-01-10T09:00:00Z',
     };
     expect(getModifiedAge(file, baseDr)).toBe(1);
   });
@@ -393,7 +358,8 @@ describe('getModifiedAge', () => {
   it('returns 0.0 for file modified at modifiedMax (most recent)', () => {
     const file = {
       type: NodeKind.File,
-      git: { created: '2024-01-01T00:00:00Z', modified: '2024-03-22T14:30:00Z' },
+      created: '2024-01-01T00:00:00Z',
+      modified: '2024-03-22T14:30:00Z',
     };
     expect(getModifiedAge(file, baseDr)).toBe(0);
   });
@@ -401,7 +367,8 @@ describe('getModifiedAge', () => {
   it('interpolates for midpoint', () => {
     const file = {
       type: NodeKind.File,
-      git: { created: '2024-01-01T00:00:00Z', modified: '2024-02-15T11:45:00Z' },
+      created: '2024-01-01T00:00:00Z',
+      modified: '2024-02-15T11:45:00Z',
     };
     const age = getModifiedAge(file, baseDr);
     expect(age).toBeGreaterThan(0);
@@ -416,7 +383,8 @@ describe('getModifiedAge', () => {
   it('returns 0 for degenerate range (modifiedMin === modifiedMax)', () => {
     const file = {
       type: NodeKind.File,
-      git: { created: '2024-01-01T00:00:00Z', modified: '2024-01-10T09:00:00Z' },
+      created: '2024-01-01T00:00:00Z',
+      modified: '2024-01-10T09:00:00Z',
     };
     const degenerate = {
       createdMin: '2024-01-01T00:00:00Z',
@@ -430,21 +398,15 @@ describe('getModifiedAge', () => {
   it('clamps to [0, 1] for dates outside the range', () => {
     const beforeMin = {
       type: NodeKind.File,
-      git: { created: '2023-01-01T00:00:00Z', modified: '2023-01-01T00:00:00Z' },
+      created: '2023-01-01T00:00:00Z',
+      modified: '2023-01-01T00:00:00Z',
     };
     const afterMax = {
       type: NodeKind.File,
-      git: { created: '2025-01-01T00:00:00Z', modified: '2025-01-01T00:00:00Z' },
+      created: '2025-01-01T00:00:00Z',
+      modified: '2025-01-01T00:00:00Z',
     };
     expect(getModifiedAge(beforeMin, baseDr)).toBe(1);
     expect(getModifiedAge(afterMax, baseDr)).toBe(0);
-  });
-
-  it('falls back to filesystem modified when git.modified is missing', () => {
-    const file = {
-      type: NodeKind.File,
-      modified: '2024-03-22T14:30:00Z',
-    };
-    expect(getModifiedAge(file, baseDr)).toBe(0);
   });
 });

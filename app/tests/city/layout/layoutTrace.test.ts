@@ -200,7 +200,6 @@ describe('layoutCityWithTrace', () => {
         binary: false,
         created: '2024-01-10T09:00:00Z',
         modified: '2024-03-22T14:30:00Z',
-        git: { created: null, modified: null },
       })) as unknown as FileNode[],
       children_count: files.length,
       children_file_count: files.length,
@@ -218,6 +217,7 @@ describe('layoutCityWithTrace', () => {
       repo: { branch: null, remote_url: null, head_sha: null, head_subject: null, dirty: false },
       commits: [],
       busyness: { avg: 1, busy: 1 },
+      dateRanges: { createdMin: null, createdMax: null, modifiedMin: null, modifiedMax: null },
       tree,
     };
 
@@ -260,7 +260,6 @@ describe('layoutCityWithTrace', () => {
           binary: false,
           created: '2024-01-10T09:00:00Z',
           modified: '2024-03-22T14:30:00Z',
-          git: { created: null, modified: null },
         },
       ] as unknown as FileNode[],
       children_count: 1,
@@ -293,6 +292,7 @@ describe('layoutCityWithTrace', () => {
       repo: { branch: null, remote_url: null, head_sha: null, head_subject: null, dirty: false },
       commits: [],
       busyness: { avg: 1, busy: 1 },
+      dateRanges: { createdMin: null, createdMax: null, modifiedMin: null, modifiedMax: null },
       tree,
     };
 

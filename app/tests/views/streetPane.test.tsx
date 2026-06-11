@@ -39,7 +39,6 @@ function f(name: string, ext: string, size: number, lines = 0): FileNode {
     binary: false,
     created: null,
     modified: null,
-    git: null,
   } as unknown as FileNode;
 }
 

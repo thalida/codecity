@@ -12,6 +12,7 @@ function makeMinimalManifest(): Manifest {
     repo: { branch: null, remote_url: null, head_sha: null, head_subject: null, dirty: false },
     commits: [],
     busyness: { avg: 1, busy: 1 },
+    dateRanges: { createdMin: null, createdMax: null, modifiedMin: null, modifiedMax: null },
     tree: {
       name: 'x',
       type: NodeKind.Directory,
@@ -29,7 +30,6 @@ function makeMinimalManifest(): Manifest {
           binary: false,
           created: '2024-01-01T00:00:00Z',
           modified: '2024-01-01T00:00:00Z',
-          git: { created: null, modified: null },
         },
       ],
       children_count: 1,
@@ -88,6 +88,7 @@ describe('layoutClient', () => {
       repo: { branch: null, remote_url: null, head_sha: null, head_subject: null, dirty: false },
       commits: [],
       busyness: { avg: 1, busy: 1 },
+      dateRanges: { createdMin: null, createdMax: null, modifiedMin: null, modifiedMax: null },
       tree: {
         name: 'x',
         type: NodeKind.Directory,
@@ -105,7 +106,6 @@ describe('layoutClient', () => {
             binary: false,
             created: '2024-01-01T00:00:00Z',
             modified: '2024-01-01T00:00:00Z',
-            git: { created: null, modified: null },
           },
           {
             name: 'large.js',
@@ -118,7 +118,6 @@ describe('layoutClient', () => {
             binary: false,
             created: '2024-01-01T00:00:00Z',
             modified: '2024-01-01T00:00:00Z',
-            git: { created: null, modified: null },
           },
         ],
         children_count: 2,

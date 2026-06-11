@@ -118,7 +118,6 @@ describe('buildCellsFromLayout', () => {
         binary: false,
         created: '',
         modified: '',
-        git: { created: null, modified: null },
       },
     });
     const out = buildCellsFromLayout(bounds, [b], EMPTY_UNIFORMS);

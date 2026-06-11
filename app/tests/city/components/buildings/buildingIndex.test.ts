@@ -19,7 +19,6 @@ function fileFor(path: string): FileNode {
     binary: false,
     created: '',
     modified: '',
-    git: { created: null, modified: null },
   };
 }
 

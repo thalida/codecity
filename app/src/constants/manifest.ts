@@ -34,4 +34,5 @@ export const EMPTY_MANIFEST: Manifest = {
   },
   commits: [],
   busyness: { avg: 1, busy: 1 },
+  dateRanges: { createdMin: null, createdMax: null, modifiedMin: null, modifiedMax: null },
 };

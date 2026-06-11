@@ -45,7 +45,11 @@ describe('configCommitReactions invalidates layout cache before applyManifest', 
   });
 
   it('calls world.invalidateLayoutCache() BEFORE world.applyManifest() on a rebuildStore commit', async () => {
-    const stubManifest = { tree_signature: 'abc', tree: { type: 'directory', children: [] } };
+    const stubManifest = {
+      tree_signature: 'abc',
+      tree: { type: 'directory', children: [] },
+      dateRanges: { createdMin: null, createdMax: null, modifiedMin: null, modifiedMax: null },
+    };
     // Seed the source of truth: scheduleRebuild reads MANIFEST.peek().
     setManifest(stubManifest as unknown as Manifest);
 

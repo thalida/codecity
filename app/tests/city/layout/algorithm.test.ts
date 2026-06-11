@@ -72,12 +72,6 @@ const TEST_TREE = {
       binary: false,
       created: '2024-01-10T09:00:00Z',
       modified: '2024-03-22T14:30:00Z',
-      git: {
-        created: '2024-01-10T09:00:00Z',
-        modified: '2024-03-22T14:30:00Z',
-        commits: 5,
-        contributors: ['alice'],
-      },
     },
     {
       name: 'README.md',
@@ -90,12 +84,6 @@ const TEST_TREE = {
       binary: false,
       created: '2024-01-10T09:00:00Z',
       modified: '2024-01-10T09:00:00Z',
-      git: {
-        created: '2024-01-10T09:00:00Z',
-        modified: '2024-01-10T09:00:00Z',
-        commits: 1,
-        contributors: ['alice'],
-      },
     },
     {
       name: 'src',
@@ -121,12 +109,6 @@ const TEST_TREE = {
           binary: false,
           created: '2024-02-15T10:00:00Z',
           modified: '2024-03-20T12:00:00Z',
-          git: {
-            created: '2024-02-15T10:00:00Z',
-            modified: '2024-03-20T12:00:00Z',
-            commits: 3,
-            contributors: ['bob'],
-          },
         },
       ],
     },
