@@ -44,3 +44,12 @@ type _DateRanges = AssertTrue<Equals<DateRanges, Schemas['DateRanges']>>;
 type _Manifest = AssertTrue<Equals<keyof Manifest, keyof Schemas['Manifest']>>;
 type _FileNode = AssertTrue<Equals<keyof FileNode, keyof Schemas['FileNode']>>;
 type _DirNode = AssertTrue<Equals<keyof DirNode, keyof Schemas['DirNode']>>;
+
+// Value-level guard for FileNode.mediaKind — the one union-typed field whose
+// key-set check above can't catch a literal drift (e.g. the backend adding
+// 'audio' to the Literal). The frontend hand-union + MediaKind enum must track
+// the wire exactly; deep-equal just this field (the `type` discriminator is
+// why the whole node can't be deep-compared).
+type _FileNodeMediaKind = AssertTrue<
+  Equals<FileNode['mediaKind'], Schemas['FileNode']['mediaKind']>
+>;
