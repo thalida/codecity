@@ -21,7 +21,6 @@ class ModelTests(unittest.TestCase):
             binary=True,
             created="2020-01-01",
             modified="2020-01-01",
-            git={"created": None, "modified": None},
             media_width=10,
             media_height=20,
         )
@@ -39,7 +38,6 @@ class ModelTests(unittest.TestCase):
                 binary=True,
                 created="2020-01-01",
                 modified="2020-01-01",
-                git={"created": None, "modified": None},
                 media_width=10,
             )
 
@@ -73,6 +71,12 @@ class ModelTests(unittest.TestCase):
             },
             commits=[],
             busyness={"avg": 0, "busy": 0},
+            dateRanges={
+                "createdMin": None,
+                "createdMax": None,
+                "modifiedMin": None,
+                "modifiedMax": None,
+            },
         )
         dumped = m.model_dump(exclude_none=True)
         self.assertNotIn("display_root", dumped)

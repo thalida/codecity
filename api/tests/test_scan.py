@@ -17,6 +17,8 @@ import pytest
 from api.services.scan import (
     _annotate_same_day_totals,
     _compute_busyness,
+    _compute_date_ranges,
+    _epoch_to_iso,
     _extension,
     _is_binary,
     compute_tree_signature,
@@ -237,6 +239,71 @@ class ComputeBusynessTests(unittest.TestCase):
         )
 
 
+class ComputeDateRangesTests(unittest.TestCase):
+    @staticmethod
+    def _tree(*files: tuple[str, str, str]) -> dict:
+        # Minimal DirNode with (name, created, modified) file children —
+        # _compute_date_ranges only reads type/children/created/modified.
+        return {
+            "type": "directory",
+            "path": ".",
+            "name": "root",
+            "children": [
+                {
+                    "type": "file",
+                    "path": name,
+                    "name": name,
+                    "created": created,
+                    "modified": modified,
+                }
+                for name, created, modified in files
+            ],
+        }
+
+    def test_empty_tree_is_all_none(self):
+        self.assertEqual(
+            _compute_date_ranges(self._tree()),
+            {
+                "createdMin": None,
+                "createdMax": None,
+                "modifiedMin": None,
+                "modifiedMax": None,
+            },
+        )
+
+    def test_single_file_min_equals_max(self):
+        ranges = _compute_date_ranges(
+            self._tree(("a.py", "2024-01-10T09:00:00Z", "2024-03-22T14:30:00Z"))
+        )
+        self.assertEqual(
+            ranges,
+            {
+                "createdMin": "2024-01-10T09:00:00Z",
+                "createdMax": "2024-01-10T09:00:00Z",
+                "modifiedMin": "2024-03-22T14:30:00Z",
+                "modifiedMax": "2024-03-22T14:30:00Z",
+            },
+        )
+
+    def test_multi_file_lexical_extremes(self):
+        ranges = _compute_date_ranges(
+            self._tree(
+                ("a.py", "2024-02-15T10:00:00Z", "2024-02-15T10:00:00Z"),
+                ("b.py", "2024-01-10T09:00:00Z", "2024-03-22T14:30:00Z"),
+                ("c.py", "2024-01-20T12:00:00Z", "2024-01-20T12:00:00Z"),
+            )
+        )
+        self.assertEqual(
+            ranges,
+            {
+                "createdMin": "2024-01-10T09:00:00Z",
+                "createdMax": "2024-02-15T10:00:00Z",
+                "modifiedMin": "2024-01-20T12:00:00Z",
+                "modifiedMax": "2024-03-22T14:30:00Z",
+            },
+        )
+
+
 class AnnotateSameDayTotalsTests(unittest.TestCase):
     def test_sets_per_day_group_size_on_each_commit(self):
         # Three commits on 01-01, one on 01-02.
@@ -354,6 +421,38 @@ class ScanTreeIntegrationTests(_CacheRedirectMixin, unittest.TestCase):
         # Bands stay distinct: busy is always at least avg + 1.
         self.assertGreaterEqual(b["busy"], b["avg"] + 1)
 
+    def test_date_ranges_present_in_manifest(self):
+        m = _final_manifest(str(FIXTURE))
+        r = m["dateRanges"]
+        self.assertEqual(
+            set(r.keys()), {"createdMin", "createdMax", "modifiedMin", "modifiedMax"}
+        )
+        # Cross-check: recompute the extremes independently from the
+        # emitted tree's resolved per-file dates.
+        created = [n["created"] for n in _walk_files(m["tree"])]
+        modified = [n["modified"] for n in _walk_files(m["tree"])]
+        self.assertGreater(len(created), 0)
+        self.assertEqual(r["createdMin"], min(created))
+        self.assertEqual(r["createdMax"], max(created))
+        self.assertEqual(r["modifiedMin"], min(modified))
+        self.assertEqual(r["modifiedMax"], max(modified))
+
+    def test_date_ranges_present_on_every_emit(self):
+        # Both SSE phases route through _wrap_manifest, so both must carry
+        # dateRanges — and the skeleton's tree already has the resolved
+        # dates, so the two are equal.
+        events = list(scan_tree(str(FIXTURE), use_cache=False))
+        phases = [e["phase"] for e in events]
+        self.assertIn("manifest-partial", phases)
+        self.assertIn("manifest-complete", phases)
+        ranges = [e["manifest"]["dateRanges"] for e in events]
+        for r in ranges:
+            self.assertEqual(
+                set(r.keys()),
+                {"createdMin", "createdMax", "modifiedMin", "modifiedMax"},
+            )
+        self.assertEqual(ranges[0], ranges[1])
+
     def test_same_day_total_baked_on_every_commit(self):
         m = _final_manifest(str(FIXTURE))
         commits = m["commits"]
@@ -390,15 +489,43 @@ class ScanTreeIntegrationTests(_CacheRedirectMixin, unittest.TestCase):
         self.assertIsInstance(m1["signature"], str)
         self.assertEqual(m1["signature"], m2["signature"])
 
-    def test_git_dates_present_on_tracked_file(self):
+    def test_resolved_dates_prefer_git(self):
+        # created/modified are resolved server-side: a committed file
+        # carries its git history dates (the fixture pins index.ts's
+        # commit date), not its filesystem dates — and the old dual
+        # `git` block is gone from the wire.
         m = _final_manifest(str(FIXTURE))
         for node in _walk_files(m["tree"]):
             if node["name"] == "index.ts":
-                self.assertIsNotNone(node["git"])
-                self.assertEqual(node["git"]["created"], "2024-03-22T14:30:00Z")
-                self.assertEqual(node["git"]["modified"], "2024-03-22T14:30:00Z")
+                self.assertEqual(node["created"], "2024-03-22T14:30:00Z")
+                self.assertEqual(node["modified"], "2024-03-22T14:30:00Z")
+                self.assertNotIn("git", node)
                 return
         self.fail("index.ts not found in manifest")
+
+    def test_staged_uncommitted_file_gets_fs_dates(self):
+        # A tracked-but-never-committed file has no git history dates;
+        # the server resolves its created/modified from the filesystem.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            _init_repo(root)
+            (root / "committed.txt").write_text("c")
+            _commit_all(root)
+            staged = root / "staged.txt"
+            staged.write_text("s")
+            subprocess.run(["git", "-C", str(root), "add", "staged.txt"], check=True)
+
+            st = staged.stat()
+            expected_created = _epoch_to_iso(getattr(st, "st_birthtime", st.st_ctime))
+            expected_modified = _epoch_to_iso(st.st_mtime)
+
+            m = _final_manifest(str(root))
+            for node in _walk_files(m["tree"]):
+                if node["name"] == "staged.txt":
+                    self.assertEqual(node["created"], expected_created)
+                    self.assertEqual(node["modified"], expected_modified)
+                    return
+            self.fail("staged.txt not found in manifest")
 
     def test_git_dir_is_excluded(self):
         m = _final_manifest(str(FIXTURE))

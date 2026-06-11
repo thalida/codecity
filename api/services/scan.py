@@ -37,10 +37,10 @@ from .media import probe_media_dims
 from .manifest_types import (
     BusynessThresholds,
     CommitEntry,
+    DateRanges,
     DirNode,
     ExtBreakdownEntry,
     FileNode,
-    GitMeta,
     Manifest,
     NodeKind,
     RepoInfo,
@@ -733,18 +733,15 @@ def _file_node(
     completes. Content I/O is deferred so it can be parallelized and
     cache-resolved in a single batch."""
     abs_path = entry.path
-    size, created, modified, mtime = _stat_fields(entry)
-
-    # Every scanned file is git-tracked (scan_tree rejects non-git roots),
-    # but a tracked file may still have no entry in git_created/git_modified
-    # if no commit ever touched it (e.g. just added, not yet committed).
-    git_block: GitMeta = {
-        "created": git_created.get(rel_path) or None,
-        "modified": git_modified.get(rel_path) or None,
-    }
+    size, fs_created, fs_modified, mtime = _stat_fields(entry)
 
     _hash_file_entry(sig, rel_path, size, mtime)
 
+    # Single resolution point for file dates: git history when the file has
+    # one, filesystem otherwise. Every scanned file is git-tracked (scan_tree
+    # rejects non-git roots), but a tracked file may still have no entry in
+    # git_created/git_modified if no commit ever touched it (e.g. just added,
+    # not yet committed) — those fall back to the fs dates.
     return {
         "name": entry.name,
         "type": NodeKind.FILE,
@@ -754,9 +751,8 @@ def _file_node(
         "size": size,
         "lines": 0,  # filled in by _populate_file_metadata
         "binary": False,  # filled in by _populate_file_metadata
-        "created": created,
-        "modified": modified,
-        "git": git_block,
+        "created": git_created.get(rel_path) or fs_created,
+        "modified": git_modified.get(rel_path) or fs_modified,
     }
 
 
@@ -1153,6 +1149,25 @@ def _compute_busyness(commits: list[CommitEntry]) -> BusynessThresholds:
     return {"avg": avg, "busy": busy}
 
 
+def _compute_date_ranges(tree: DirNode) -> DateRanges:
+    """Repo-wide min/max of the resolved created/modified dates, compared
+    lexically (same semantics as the frontend walk this replaces). All four
+    are None for a tree with zero files."""
+    cmin = cmax = mmin = mmax = None
+    for node in _iter_file_nodes(tree):
+        c, m = node["created"], node["modified"]
+        cmin = c if cmin is None or c < cmin else cmin
+        cmax = c if cmax is None or c > cmax else cmax
+        mmin = m if mmin is None or m < mmin else mmin
+        mmax = m if mmax is None or m > mmax else mmax
+    return {
+        "createdMin": cmin,
+        "createdMax": cmax,
+        "modifiedMin": mmin,
+        "modifiedMax": mmax,
+    }
+
+
 def _wrap_manifest(
     root_abs: str,
     tree: DirNode,
@@ -1177,6 +1192,7 @@ def _wrap_manifest(
         "repo": repo_info,
         "commits": commits,
         "busyness": _compute_busyness(commits),
+        "dateRanges": _compute_date_ranges(tree),
     }
 
 
