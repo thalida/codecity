@@ -17,7 +17,7 @@
 // signal (the fetch layer's source of truth), so the panes re-derive
 // automatically when a live-update poll publishes a fresh manifest.
 
-import { useComputed, useSignal, useSignalEffect } from '@preact/signals';
+import { untracked, useComputed, useSignal, useSignalEffect } from '@preact/signals';
 import { PERSISTED_KEYS } from '@/constants/storage';
 import { NodeKind } from '@/types';
 import type { CommitEntry, DirNode, FileNode } from '@/types';
@@ -60,7 +60,12 @@ enum SidebarPaneKind {
 // them and writes the result into component-local signals.
 
 function commitStateFor(handle: SceneHandle, commit: CommitEntry): CommitPaneState {
-  const m = handle.world.getManifest();
+  // untracked: world.getManifest() now reads the world's internal manifest
+  // signal. These pane states already re-derive via the explicit
+  // `void MANIFEST.value` in the calling computeds (the fetch layer's source of
+  // truth); subscribing to the world signal too would add a 2nd recompute
+  // mid-rebuild that the old by-value bag never triggered. Read non-reactively.
+  const m = untracked(() => handle.world.getManifest());
   return {
     commit,
     remoteUrl: m?.repo?.remote_url ?? null,

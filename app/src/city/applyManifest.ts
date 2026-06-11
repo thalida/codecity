@@ -1,16 +1,19 @@
 // city/applyManifest.ts — the manifest build/rebuild pipeline extracted from
-// world.ts into a factory. createApplyManifest(deps) returns the
-// applyManifest(manifest) function world (and, later, the composer) installs
-// on its public surface.
+// world.ts into a factory. createApplyManifest(deps) returns the API
+// ({ applyManifest, resetCaches, invalidateLayoutCache }) world (and, later,
+// the composer) installs on its public surface.
 //
-// CRITICAL correctness contract: the factory mutates a SHARED `cityState` bag
-// passed in by reference. world.ts holds the same object and points every
-// accessor getter (getManifest/getLayout/getBbox/getRootStreet/…) plus
-// resetCache/invalidateLayoutCache + the pathLine gemWorldPos closure at
-// cityState.X. The factory must NEVER destructure-copy a field out of
-// cityState and write the copy — that would typecheck but leave the accessors
-// reading stale state (null sidebar / camera). Every read + write goes through
-// `cityState.X` so the single object reference stays the source of truth.
+// State split:
+//   - The SIX cross-boundary fields (manifest/layout/bbox/latestWorldBounds +
+//     the rootStreet/gemWorldPos computeds) live in the `cityState` SIGNALS
+//     object (city/cityState.ts). world.ts holds the same instance and points
+//     every accessor at cityState.X.value. applyManifest sets the four source
+//     signals' .value; the two computeds derive off layout automatically.
+//   - The eleven manifest-bound mirrors/caches that NO accessor reads (street
+//     mesh arrays, cell mirrors, layout/atlas/scenic caches, generation
+//     counter) are private to this factory's closure (the `internal` object).
+//     resetCaches()/invalidateLayoutCache() (returned below) clear the cache
+//     subset for world's resetCache/invalidateLayoutCache.
 
 import * as THREE from 'three';
 
@@ -30,32 +33,26 @@ import type { FirefliesComponent } from './components/fireflies';
 import type { PathLine } from './components/pathLine';
 import type { TreePlacementClient } from './components/trees/treePlacementClient';
 import type { Island } from './components/island';
-import { getWorldBounds, type WorldBounds } from './utils/floorBounds';
+import { getWorldBounds } from './utils/floorBounds';
 import type { Footprint } from './components/footprint';
 import { computeCityDiff, type PrevState } from './utils/cityDiff';
 import { computeScenicConfigHash } from './utils/scenicHash';
+import type { CityState } from './cityState';
 import { FOOTPRINT } from '@/state/stores/settings/footprint';
 import { TREES } from '@/state/stores/settings/trees';
 import { SCENE } from '@/state/stores/settings/scene';
 import { REBUILD_STATUS, RebuildStatus } from '@/state/stores/manifest';
-import type { CityBbox, CityLayout, DateRanges, Manifest, Street, WorldDiff } from '@/types';
+import type { CityBbox, CityLayout, DateRanges, Manifest, WorldDiff } from '@/types';
 
 // The flat ground meshes (sidewalks, paths, asphalt) all use a single
 // MeshBasicMaterial. Matches world.ts's FlatMesh alias.
 type FlatMesh = THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial>;
 
-// The mutable manifest-bound state. Held by world.ts as a single object and
-// passed into the factory BY REFERENCE. Both sides read + write through the
-// same reference; every field below is reassigned across applyManifest calls
-// (or by world's resetCache / invalidateLayoutCache).
-export interface CityState {
-  manifest: Manifest | null;
-  layout: CityLayout | null;
-  bbox: THREE.Box3 | null;
-  rootStreet: Street | null;
-  gemWorldPos: THREE.Vector3 | null;
-  latestWorldBounds: WorldBounds | null;
-
+// Factory-private manifest-bound state that NO world accessor reads. Lives in a
+// plain object inside createApplyManifest's closure (not on the cross-boundary
+// signals object) — reassigned across applyManifest calls; the cache subset is
+// also nulled by the returned resetCaches()/invalidateLayoutCache().
+interface InternalCityState {
   // Reassigned from the streets component on rebuild. Read by the PrevState
   // capture + the city diff street branch (both vestigial — no consumer reads
   // the resulting street diff — but kept byte-identical).
@@ -87,30 +84,6 @@ export interface CityState {
   generation: number;
 }
 
-// Construct a fresh, empty CityState. world.ts calls this once and keeps the
-// returned reference for the lifetime of the world.
-export function createCityState(): CityState {
-  return {
-    manifest: null,
-    layout: null,
-    bbox: null,
-    rootStreet: null,
-    gemWorldPos: null,
-    latestWorldBounds: null,
-    streetPickables: [],
-    streetLabels: [],
-    asphaltMeshes: [],
-    cells: new Map(),
-    buildingIndex: null,
-    cachedLayoutTreeSig: null,
-    cachedLayout: null,
-    lastAtlasTreeSig: null,
-    lastBuildWorldTreeSig: null,
-    lastScenicConfigHash: null,
-    generation: 0,
-  };
-}
-
 export interface ApplyManifestDeps {
   components: {
     gem: Gem;
@@ -127,7 +100,8 @@ export interface ApplyManifestDeps {
   scene: THREE.Scene;
   layoutClient: ReturnType<typeof createLayoutClient>;
   treePlacementClient: TreePlacementClient;
-  // The mutable bag — passed BY REFERENCE; never destructure-copied.
+  // The cross-boundary state — a per-city signals object. world.ts holds the
+  // same instance; applyManifest sets the four source signals' .value.
   cityState: CityState;
   // Fires the before-change listeners with the prev snapshot.
   emitBeforeChange: (prev: PrevState) => void;
@@ -135,9 +109,19 @@ export interface ApplyManifestDeps {
   emitChange: (diff: WorldDiff) => void;
 }
 
-export function createApplyManifest(
-  deps: ApplyManifestDeps
-): (newManifest: Manifest | { tree: unknown; [k: string]: unknown }) => Promise<void> {
+// The API createApplyManifest returns: the apply function plus the two cache
+// clearers world delegates resetCache/invalidateLayoutCache to (the cache
+// fields now live in this factory's private `internal` object).
+export interface ApplyManifestApi {
+  applyManifest: (newManifest: Manifest | { tree: unknown; [k: string]: unknown }) => Promise<void>;
+  // Clears the full internal cache set (layout + scenic). world.resetCache also
+  // disposes the buildings component's ad panels.
+  resetCaches: () => void;
+  // Clears only the layout cache (cachedLayout + its tree_signature key).
+  invalidateLayoutCache: () => void;
+}
+
+export function createApplyManifest(deps: ApplyManifestDeps): ApplyManifestApi {
   const {
     components,
     scene,
@@ -158,42 +142,40 @@ export function createApplyManifest(
     fireflies: _fireflies,
   } = components;
 
-  // Compute the root street + gem world position from the current layout,
-  // writing both into the shared cityState bag.
-  function _computeRootStreetAndGem(): void {
-    cityState.rootStreet = (cityState.layout?.streets ?? []).filter((s) => s.isRoot)[0] || null;
-    const rootStreet = cityState.rootStreet;
-    if (!rootStreet) {
-      cityState.gemWorldPos = null;
-      return;
-    }
-    const gemWorldPos = new THREE.Vector3();
-    // StreetAxis import is not needed here — use orientation string directly.
-    if (rootStreet.orientation === 'x') {
-      gemWorldPos.set(rootStreet.x - rootStreet.length / 2 + rootStreet.width / 2, 0, rootStreet.y);
-    } else {
-      gemWorldPos.set(rootStreet.x, 0, rootStreet.y - rootStreet.length / 2 + rootStreet.width / 2);
-    }
-    cityState.gemWorldPos = gemWorldPos;
-  }
+  // Factory-private manifest-bound state no accessor reads (see
+  // InternalCityState). Reassigned across applyManifest calls; the cache subset
+  // is nulled by resetCaches()/invalidateLayoutCache() below.
+  const internal: InternalCityState = {
+    streetPickables: [],
+    streetLabels: [],
+    asphaltMeshes: [],
+    cells: new Map(),
+    buildingIndex: null,
+    cachedLayoutTreeSig: null,
+    cachedLayout: null,
+    lastAtlasTreeSig: null,
+    lastBuildWorldTreeSig: null,
+    lastScenicConfigHash: null,
+    generation: 0,
+  };
 
-  // Thin wrapper over the pure computeCityDiff, threading the bag's live
+  // Thin wrapper over the pure computeCityDiff, threading the internal live
   // mirrors (cells/buildingIndex/streetPickables) into the `next` snapshot.
   function _computeDiff(prev: PrevState): WorldDiff {
     return computeCityDiff(prev, {
-      cells: cityState.cells,
-      buildingIndex: cityState.buildingIndex,
-      streetPickables: cityState.streetPickables,
+      cells: internal.cells,
+      buildingIndex: internal.buildingIndex,
+      streetPickables: internal.streetPickables,
     });
   }
 
   // Manifest is typed loosely because world.test.ts builds mock manifests with
   // string `type` fields rather than the literal 'directory'/'file'. Real
   // callers (the scanner/IPC path) hand us proper Manifest objects.
-  return async function applyManifest(
+  async function applyManifest(
     newManifest: Manifest | { tree: unknown; [k: string]: unknown }
   ): Promise<void> {
-    const myGeneration = ++cityState.generation;
+    const myGeneration = ++internal.generation;
     const newManifestTyped = newManifest as Manifest;
 
     // Friendly display name: rewrite tree.name to the human label derived from
@@ -206,13 +188,13 @@ export function createApplyManifest(
     }
 
     const prev: PrevState = {
-      streetPickables: cityState.streetPickables,
-      streetLabels: cityState.streetLabels,
-      asphaltMeshes: cityState.asphaltMeshes,
-      manifest: cityState.manifest,
-      layout: cityState.layout,
-      cells: cityState.cells,
-      buildingIndex: cityState.buildingIndex,
+      streetPickables: internal.streetPickables,
+      streetLabels: internal.streetLabels,
+      asphaltMeshes: internal.asphaltMeshes,
+      manifest: cityState.manifest.value,
+      layout: cityState.layout.value,
+      cells: internal.cells,
+      buildingIndex: internal.buildingIndex,
     };
 
     emitBeforeChange(prev);
@@ -224,11 +206,11 @@ export function createApplyManifest(
     // with new or renamed files rebuild it. Done before the cell pass below so
     // the buildings sample the right glyphs.
     const _atlasTreeSig = newManifestTyped.tree_signature ?? '';
-    if (_atlasTreeSig !== cityState.lastAtlasTreeSig) {
+    if (_atlasTreeSig !== internal.lastAtlasTreeSig) {
       try {
         const atlas = await buildIconAtlas(newManifestTyped);
-        if (myGeneration !== cityState.generation) return; // superseded mid-build
-        cityState.lastAtlasTreeSig = _atlasTreeSig;
+        if (myGeneration !== internal.generation) return; // superseded mid-build
+        internal.lastAtlasTreeSig = _atlasTreeSig;
         // Push the atlas into the buildings component's shared material + cell
         // factory BEFORE the cell pass below (rebuild reads it while assembling
         // the cells). The atlas ensure stays here (Option B): the
@@ -248,7 +230,7 @@ export function createApplyManifest(
     // stable across skeleton/final events for the same scan.
     const _treeSig = newManifestTyped.tree_signature ?? '';
     const _reuseFrom =
-      _treeSig && cityState.cachedLayoutTreeSig === _treeSig ? cityState.cachedLayout : null;
+      _treeSig && internal.cachedLayoutTreeSig === _treeSig ? internal.cachedLayout : null;
     const _layoutComputeOpts: LayoutComputeOpts = _reuseFrom ? { reuseLayoutFrom: _reuseFrom } : {};
     let newLayout: CityLayout;
     // Pass the full manifest envelope (not `manifest.tree`) — the worker
@@ -268,10 +250,10 @@ export function createApplyManifest(
     const _layoutReused = _reuseFrom !== null;
     // Cache the layout for the next call (keyed by tree_signature).
     if (_treeSig) {
-      cityState.cachedLayoutTreeSig = _treeSig;
-      cityState.cachedLayout = newLayout;
+      internal.cachedLayoutTreeSig = _treeSig;
+      internal.cachedLayout = newLayout;
     }
-    if (myGeneration !== cityState.generation) return;
+    if (myGeneration !== internal.generation) return;
 
     // ---- Phase 2: date ranges for the NEW layout come straight off the
     // manifest (computed on the backend during the scan, like busyness).
@@ -281,7 +263,7 @@ export function createApplyManifest(
     const newDateRanges: DateRanges = newManifestTyped.dateRanges;
     // Per-building color/age writes + the cell assembly moved into
     // _buildings.rebuild(newLayout, newDateRanges) below.
-    if (myGeneration !== cityState.generation) return;
+    if (myGeneration !== internal.generation) return;
 
     // ---- Cell rendering path ---------------------------------------------
     // The buildings component owns the SpatialGrid + CellTile scene. It colors
@@ -305,10 +287,10 @@ export function createApplyManifest(
     const _currentScenicConfigHash = computeScenicConfigHash();
     const _scenicValid =
       _layoutReused &&
-      cityState.lastBuildWorldTreeSig !== null &&
-      cityState.lastBuildWorldTreeSig === _treeSig &&
-      cityState.lastScenicConfigHash === _currentScenicConfigHash &&
-      cityState.streetPickables.length > 0; // guard: scenic state actually exists in scene
+      internal.lastBuildWorldTreeSig !== null &&
+      internal.lastBuildWorldTreeSig === _treeSig &&
+      internal.lastScenicConfigHash === _currentScenicConfigHash &&
+      internal.streetPickables.length > 0; // guard: scenic state actually exists in scene
 
     // The gem is rebuilt EXACTLY on the full-rebuild path — never on scenic
     // reuse (rebuilding then would flash + realloc GPU = behavior change).
@@ -322,26 +304,26 @@ export function createApplyManifest(
     if (_scenicValid) {
       // Scenic reuse: existing streets/labels/paths/gem stay in the scene
       // unmodified. Do NOT call buildWorld.
-      cityState.manifest = newManifestTyped;
-      cityState.layout = newLayout;
+      cityState.manifest.value = newManifestTyped;
+      cityState.layout.value = newLayout;
       // bbox stays from the previous buildWorld call (layout unchanged).
     } else {
       // Full rebuild path: rebuild scenic state and add the new meshes to
       // the scene. Each component disposes its own prior meshes on rebuild()
       // (streets/gem/footprint/etc.), so there's no separate teardown step.
-      cityState.manifest = newManifestTyped;
-      cityState.layout = newLayout;
+      cityState.manifest.value = newManifestTyped;
+      cityState.layout.value = newLayout;
 
       // Rebuild the streets component's meshes (sidewalks, asphalt, labels)
       // into its persistent group (already in the scene). The component owns
-      // the meshes + the sidewalk/street lookup maps; we reassign the bag's
+      // the meshes + the sidewalk/street lookup maps; we reassign the internal
       // arrays from the component so PrevState/_computeDiff still read
       // populated arrays (the street diff is vestigial — see comment at the
       // _streets construction site).
       _streets.rebuild(newLayout);
-      cityState.streetPickables = _streets.pickables();
-      cityState.streetLabels = _streets.labels();
-      cityState.asphaltMeshes = _streets.asphalt();
+      internal.streetPickables = _streets.pickables();
+      internal.streetLabels = _streets.labels();
+      internal.asphaltMeshes = _streets.asphalt();
 
       // bbox over the street meshes only (same geometry set the old
       // _buildWorld local-scene bbox covered) — NOT setFromObject(scene),
@@ -374,29 +356,31 @@ export function createApplyManifest(
         bbox.max.x += halo;
         bbox.max.z += halo;
       }
-      cityState.bbox = bbox;
+      cityState.bbox.value = bbox;
 
       scene.background = new THREE.Color(SCENE.value.SKY_COLOR);
 
       // Record that scenic state is now valid for this tree_signature + config.
-      cityState.lastBuildWorldTreeSig = _treeSig || null;
-      cityState.lastScenicConfigHash = _currentScenicConfigHash;
+      internal.lastBuildWorldTreeSig = _treeSig || null;
+      internal.lastScenicConfigHash = _currentScenicConfigHash;
     }
 
-    // Mirror the buildings component's cells + index into the bag for the
-    // Option B diff. _buildings is the source of truth; we read these mirrors
-    // in PrevState.cells (next applyManifest) + _computeDiff (below). MUST run
-    // AFTER rebuild and BEFORE _computeDiff(prev). The `prev` snapshot captured
-    // the OLD cells at the top of applyManifest — never reassign cityState.cells
-    // before that capture.
-    cityState.cells = _buildings.getCells();
-    cityState.buildingIndex = _buildings.getBuildingIndex();
+    // Mirror the buildings component's cells + index into the internal state
+    // for the Option B diff. _buildings is the source of truth; we read these
+    // mirrors in PrevState.cells (next applyManifest) + _computeDiff (below).
+    // MUST run AFTER rebuild and BEFORE _computeDiff(prev). The `prev` snapshot
+    // captured the OLD cells at the top of applyManifest — never reassign
+    // internal.cells before that capture.
+    internal.cells = _buildings.getCells();
+    internal.buildingIndex = _buildings.getBuildingIndex();
 
-    _computeRootStreetAndGem();
+    // rootStreet/gemWorldPos are computed off layout (set above), so they're
+    // already current here — no imperative recompute needed.
     // Rebuild the gem's inner mesh only on the full-rebuild path, matching
     // exactly when buildWorld used to build it (scenic reuse leaves the
-    // existing gem untouched). rootStreet was just set by the call above.
-    if (_didFullRebuild && cityState.rootStreet) _gem.rebuild(cityState.rootStreet);
+    // existing gem untouched).
+    const _rootStreet = cityState.rootStreet.value;
+    if (_didFullRebuild && _rootStreet) _gem.rebuild(_rootStreet);
 
     // City is now in the scene. Decoration pass (trees, future mesa
     // bounds, etc.) is deferred to the next animation frame so the
@@ -416,7 +400,7 @@ export function createApplyManifest(
     // Convert the THREE.Box3 (now includes building footprints — expanded
     // above right after the _streets.group bbox assignment) to a placement-style
     // CityBbox.
-    const bbox = cityState.bbox;
+    const bbox = cityState.bbox.value;
     const sceneBbox: CityBbox | null = bbox
       ? {
           minX: bbox.min.x,
@@ -437,8 +421,8 @@ export function createApplyManifest(
     // floor-level root marker). The label's elevation is governed by
     // REPO_LABEL.HEIGHT_PCT, not by city silhouette: 0 → label flush
     // with the floor; larger → label rises with a visible beam.
-    _repoLabel.setRepoName(cityState.manifest!.tree.name);
-    _repoLabel.setAnchor(cityState.gemWorldPos ?? new THREE.Vector3());
+    _repoLabel.setRepoName(cityState.manifest.value!.tree.name);
+    _repoLabel.setAnchor(cityState.gemWorldPos.value ?? new THREE.Vector3());
     // Hand the live gem to the label so its beam foot tracks the
     // gem's hover height + bob animation. _gem.gem is the INNER gem
     // group whose .position.y is mutated each frame by the gem's tick().
@@ -449,8 +433,8 @@ export function createApplyManifest(
 
     // Floor is sized from the scene's bbox + buffer. Falls back to a
     // small default at the origin when there's no city (empty manifest).
-    cityState.latestWorldBounds = getWorldBounds(sceneBbox, cityHeight);
-    _island.setBounds(cityState.latestWorldBounds);
+    cityState.latestWorldBounds.value = getWorldBounds(sceneBbox, cityHeight);
+    _island.setBounds(cityState.latestWorldBounds.value);
 
     if (bbox) {
       // Footprint is cheap (one InstancedMesh, no rejection sampling),
@@ -465,7 +449,7 @@ export function createApplyManifest(
       // bumping the generation doesn't race with this build.
       const generationAtDefer = myGeneration;
       const layoutAtDefer = newLayout;
-      const commitCountAtDefer = cityState.manifest!.commits?.length ?? 0;
+      const commitCountAtDefer = cityState.manifest.value!.commits?.length ?? 0;
       const cityHeightAtDefer = cityHeight;
       const foliageBbox: CityBbox = sceneBbox;
 
@@ -475,7 +459,7 @@ export function createApplyManifest(
       // before foliage work begins.
       await new Promise<void>((r) => requestAnimationFrame(() => r()));
       await new Promise<void>((r) => setTimeout(r, 0));
-      if (generationAtDefer !== cityState.generation) return;
+      if (generationAtDefer !== internal.generation) return;
 
       // Off-thread tree placement via the worker. The supersede protocol
       // rejects this promise with "superseded" if another applyManifest
@@ -492,14 +476,14 @@ export function createApplyManifest(
         if (err instanceof Error && err.message === 'superseded') return;
         throw err;
       }
-      if (generationAtDefer !== cityState.generation) return;
+      if (generationAtDefer !== internal.generation) return;
 
       _trees.rebuild(
         treePlacements,
-        cityState.manifest!.commits ?? null,
-        cityState.manifest!.busyness ?? { avg: 1, busy: 1 }
+        cityState.manifest.value!.commits ?? null,
+        cityState.manifest.value!.busyness ?? { avg: 1, busy: 1 }
       );
-      _fireflies.rebuild(treePlacements, cityState.manifest!.commits ?? null);
+      _fireflies.rebuild(treePlacements, cityState.manifest.value!.commits ?? null);
 
       // Re-notify listeners now that async decoration (trees) is
       // fully attached to the scene. The first onChange fired before this
@@ -532,5 +516,27 @@ export function createApplyManifest(
       // of a newer apply that has already taken over.
       REBUILD_STATUS.value = RebuildStatus.Idle;
     }
-  };
+  }
+
+  // Clear the full internal cache set (layout + scenic). world.resetCache wraps
+  // this (and additionally disposes the buildings component's ad panels). Does
+  // NOT touch the cross-boundary signals: layout stays, so rootStreet/gemWorldPos
+  // (computed off it) stay valid — matching the old resetCache, which never
+  // touched them either.
+  function resetCaches(): void {
+    internal.cachedLayoutTreeSig = null;
+    internal.cachedLayout = null;
+    internal.lastBuildWorldTreeSig = null;
+    internal.lastScenicConfigHash = null;
+  }
+
+  // Clear only the layout cache (cachedLayout + its tree_signature key). Leaves
+  // scenic state alone (correctly handled by applyManifest's own scenic-hash
+  // invalidation). world.invalidateLayoutCache delegates straight here.
+  function invalidateLayoutCache(): void {
+    internal.cachedLayoutTreeSig = null;
+    internal.cachedLayout = null;
+  }
+
+  return { applyManifest, resetCaches, invalidateLayoutCache };
 }

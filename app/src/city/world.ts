@@ -39,7 +39,8 @@ import { findLayoutOverlaps } from './layout/algorithm';
 import { createLayoutClient } from './layout/runner';
 import { layoutCityWithTrace } from './layout/algorithm';
 import type { PrevState } from './utils/cityDiff';
-import { createApplyManifest, createCityState, type CityState } from './applyManifest';
+import { createApplyManifest } from './applyManifest';
+import { createCityState, type CityState } from './cityState';
 import { _formatCollisionReport, _formatStemDiagnostic } from './diagnostics';
 import { createGem } from './components/gem';
 import type { Gem } from './components/gem';
@@ -188,11 +189,17 @@ export function createWorld(_canvas: HTMLCanvasElement) {
   scene.add(_fireflies.group);
 
   // Selection / hover neon path lines — PERSISTENT component. Deps are
-  // closures (_cityState.gemWorldPos is reassigned by applyManifest; closures
-  // evaluate at call time, post-init). Subscribes to picker + onChange at
-  // arming (first tick).
+  // closures evaluated at call time, post-init. Subscribes to picker + onChange
+  // at arming (first tick).
   const _pathLine: PathLine = createPathLine(_ctx as unknown as SceneContext, {
-    getGemWorldPos: () => _cityState.gemWorldPos,
+    // .peek(), not .value: this closure is invoked from inside the pathLine
+    // component's two effect() blocks (renderer.ts _updatePathLine /
+    // _updateHoverPathLine). Reading .value there would subscribe those effects
+    // to the gemWorldPos computed and re-fire them on every rebuild — a NEW
+    // reactivity the old by-reference bag never had. Transitional: peek
+    // preserves today's non-reactive read; in Stage 4 the component reacts to
+    // the signal properly when world.onChange dissolves.
+    getGemWorldPos: () => _cityState.gemWorldPos.peek(),
     getStreetsByDirMap: () => _streets.streetsByDirMap(),
     onChange,
   });
@@ -203,13 +210,11 @@ export function createWorld(_canvas: HTMLCanvasElement) {
   // disposed.
   const _layoutClient = createLayoutClient();
 
-  // All mutable manifest-bound state lives in this single bag (manifest,
-  // layout, bbox, rootStreet, gemWorldPos, worldBounds, the street mesh
-  // arrays, the cell mirrors, the layout/atlas/scenic caches, and the
-  // generation counter). createApplyManifest mutates it BY REFERENCE; the
-  // accessors below + resetCache/invalidateLayoutCache + the pathLine
-  // gemWorldPos closure all read/write through this same object. See the
-  // pass-by-reference contract documented in applyManifest.ts.
+  // The cross-boundary manifest-bound state: a per-city signals object
+  // (manifest/layout/bbox/latestWorldBounds source signals + rootStreet/
+  // gemWorldPos computeds). The accessors below + the pathLine gemWorldPos
+  // closure read these signals; createApplyManifest sets the source signals'
+  // .value. The non-accessor mirrors/caches live privately inside the factory.
   const _cityState: CityState = createCityState();
 
   // Listeners
@@ -264,11 +269,16 @@ export function createWorld(_canvas: HTMLCanvasElement) {
   }
 
   // The manifest build/rebuild pipeline lives in ./applyManifest
-  // (createApplyManifest). It closes over the persistent component refs +
-  // the shared _cityState bag and mutates that bag BY REFERENCE, so the
-  // accessors below stay in sync. _computeRootStreetAndGem + the city-diff
-  // wrapper moved into the factory with it.
-  const applyManifest = createApplyManifest({
+  // (createApplyManifest). It closes over the persistent component refs + the
+  // shared _cityState signals object (whose source signals it sets) plus its own
+  // private cache/mirror state. It returns the apply function + the two cache
+  // clearers resetCache/invalidateLayoutCache delegate to. The city-diff wrapper
+  // moved into the factory with it.
+  const {
+    applyManifest,
+    resetCaches: _resetCaches,
+    invalidateLayoutCache: _invalidateLayoutCache,
+  } = createApplyManifest({
     components: {
       gem: _gem,
       sky: _sky,
@@ -307,10 +317,9 @@ export function createWorld(_canvas: HTMLCanvasElement) {
   }
 
   function resetCache(): void {
-    _cityState.cachedLayoutTreeSig = null;
-    _cityState.cachedLayout = null;
-    _cityState.lastBuildWorldTreeSig = null;
-    _cityState.lastScenicConfigHash = null;
+    // The layout/scenic caches now live in createApplyManifest's private state;
+    // delegate to its resetCaches().
+    _resetCaches();
     // Dispose instanced ad panels so they are rebuilt from scratch on the
     // next applyManifest call (the new source may have a different set of
     // media files and a different layout, so the existing panels are stale).
@@ -328,10 +337,10 @@ export function createWorld(_canvas: HTMLCanvasElement) {
   // path that never triggers scheduleRebuild, so the cache still helps there.
   // Narrower than resetCache(): only nulls the layout cache; leaves scenic
   // state + ad panels alone (those are correctly handled by applyManifest's
-  // own scenic-hash invalidation).
+  // own scenic-hash invalidation). The layout cache lives in the factory's
+  // private state; delegate.
   function invalidateLayoutCache(): void {
-    _cityState.cachedLayoutTreeSig = null;
-    _cityState.cachedLayout = null;
+    _invalidateLayoutCache();
   }
 
   return {
@@ -382,13 +391,13 @@ export function createWorld(_canvas: HTMLCanvasElement) {
     },
 
     getManifest() {
-      return _cityState.manifest;
+      return _cityState.manifest.value;
     },
     getLayout() {
-      return _cityState.layout;
+      return _cityState.layout.value;
     },
     runCollisionCheck(): void {
-      const layout = _cityState.layout;
+      const layout = _cityState.layout.value;
       if (!layout) {
         console.warn('[collision] no layout — apply a manifest first');
         return;
@@ -406,7 +415,7 @@ export function createWorld(_canvas: HTMLCanvasElement) {
       }
     },
     runStemPlacementDiagnostic(): void {
-      const manifest = _cityState.manifest;
+      const manifest = _cityState.manifest.value;
       if (!manifest) {
         console.warn('[stem-diag] no manifest — apply one first');
         return;
@@ -420,15 +429,16 @@ export function createWorld(_canvas: HTMLCanvasElement) {
       }
     },
     getBbox() {
-      return _cityState.bbox;
+      return _cityState.bbox.value;
     },
     /** Current world floor bounds (rectangle the plane covers). Null
      *  until the first manifest has been applied. */
     getWorldBounds(): WorldBounds | null {
-      return _cityState.latestWorldBounds;
+      return _cityState.latestWorldBounds.value;
     },
     getRoot() {
-      return _cityState.manifest && _cityState.manifest.tree;
+      const m = _cityState.manifest.value;
+      return m && m.tree;
     },
 
     /**
@@ -488,10 +498,10 @@ export function createWorld(_canvas: HTMLCanvasElement) {
       return _ctx as unknown as SceneContext;
     },
     getRootStreet() {
-      return _cityState.rootStreet;
+      return _cityState.rootStreet.value;
     },
     getGemWorldPos() {
-      return _cityState.gemWorldPos;
+      return _cityState.gemWorldPos.value;
     },
     getTreeBoundsBySha(sha: string) {
       return _trees.handle()?.getTreeBoundsBySha(sha) ?? null;
