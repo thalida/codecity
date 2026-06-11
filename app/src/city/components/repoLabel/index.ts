@@ -126,7 +126,6 @@ const _LABEL_WORLD_UP = new THREE.Vector3(0, 1, 0);
 const _scratchObjPos = new THREE.Vector3();
 const _scratchCamPos = new THREE.Vector3();
 const _scratchMat = new THREE.Matrix4();
-const _scratchPolarDir = new THREE.Vector3();
 function _faceCamera(obj: THREE.Object3D, camera: THREE.Camera): void {
   obj.updateMatrixWorld(true);
   obj.getWorldPosition(_scratchObjPos);
@@ -137,26 +136,6 @@ function _faceCamera(obj: THREE.Object3D, camera: THREE.Camera): void {
   // doesn't roll when the camera orbits sideways.
   _scratchMat.lookAt(_scratchCamPos, _scratchObjPos, _LABEL_WORLD_UP);
   obj.quaternion.setFromRotationMatrix(_scratchMat);
-}
-
-// Smoothstep [0,1] fade that goes to 0 as the camera approaches the
-// panel's vertical axis (i.e. looking straight down or up at it).
-// _faceCamera's lookAt(eye, target, [0,1,0]) basis is degenerate when
-// camera→panel is parallel to world-up — the panel texture smears
-// across the screen as a bright artifact, and the beam (a vertical
-// cylinder seen on-axis from above) has no meaningful silhouette either.
-// Hide both as we approach that pole.
-function _polarFade(camera: THREE.Camera, panelWorldPos: THREE.Vector3): number {
-  _scratchPolarDir.subVectors(camera.position, panelWorldPos);
-  const lenSq = _scratchPolarDir.lengthSq();
-  if (lenSq < 1e-8) return 0;
-  _scratchPolarDir.normalize();
-  // |dir.y| → 1 means viewing parallel to world-up.
-  const cosToVertical = Math.abs(_scratchPolarDir.y);
-  // smoothstep from 0.93 (~21° off vertical, still readable) to
-  // 0.995 (~5.7° off vertical, can't read it anyway).
-  const t = Math.min(1, Math.max(0, (cosToVertical - 0.93) / (0.995 - 0.93)));
-  return 1 - t * t * (3 - 2 * t);
 }
 
 // `_ctx` is accepted for createX(ctx) composer uniformity; the repoLabel uses

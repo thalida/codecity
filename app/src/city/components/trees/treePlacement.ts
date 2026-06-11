@@ -196,11 +196,9 @@ export function placeTrees(
   // empty. Worst-case polygon vertex sits at halfWidth × baseScale ×
   // (1 + IRREGULARITY) (outward jitter), so sample to that extent.
   const sides = options.islandGeoOverride?.SIDES ?? ISLAND.value.SIDES;
-  const irregularity = options.islandGeoOverride?.IRREGULARITY ?? ISLAND.value.IRREGULARITY;
   // Irregularity is now reductive (vertices shrink inward), so the polygon's
   // max extent is bounded by the unjittered baseScale — no (1 + irregularity)
   // expansion factor needed.
-  void irregularity; // referenced for future-proofing if jitter direction flips again
   const polygonScale = Math.SQRT2 / Math.cos(Math.PI / sides);
   const sampleHalfW = bounds.halfWidth * polygonScale;
   const sampleHalfD = bounds.halfDepth * polygonScale;

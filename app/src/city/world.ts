@@ -303,15 +303,6 @@ export function createWorld(_canvas: HTMLCanvasElement) {
     _disposeObject(mesh);
   }
 
-  function _disposeAllManifestState() {
-    // Streets are component-owned now: _streets.rebuild() disposes the prior
-    // street/label set (called on the full-rebuild path right after this
-    // runs), so world no longer disposes street meshes here. The gem disposes
-    // its own inner meshes on rebuild; the outer persistent groups (gem,
-    // streets, footprint) are disposed via their component dispose() in
-    // world.dispose().
-  }
-
   // The manifest build/rebuild pipeline lives in ./applyManifest
   // (createApplyManifest). It closes over the persistent component refs +
   // the shared _cityState bag and mutates that bag BY REFERENCE, so the
@@ -336,11 +327,9 @@ export function createWorld(_canvas: HTMLCanvasElement) {
     cityState: _cityState,
     emitBeforeChange: (prev) => _emit(beforeChangeCbs, prev),
     emitChange: (diff) => _emit(changeCbs, diff),
-    disposeAllManifestState: _disposeAllManifestState,
   });
 
   function dispose() {
-    _disposeAllManifestState();
     _sky.dispose();
     _repoLabel.dispose();
     _island.dispose();

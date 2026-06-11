@@ -11,7 +11,6 @@ describe('CellTile', () => {
     expect(tile.cellId).toBe(5);
     expect(tile.capacity).toBe(128);
     expect(tile.used).toBe(0);
-    expect(tile.freeSlots).toEqual([]);
     expect(tile.buildings).toHaveLength(128);
     expect(tile.buildings.every((b) => b === null)).toBe(true);
 

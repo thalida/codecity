@@ -133,10 +133,6 @@ export interface ApplyManifestDeps {
   emitBeforeChange: (prev: PrevState) => void;
   // Fires the change listeners with a diff.
   emitChange: (diff: WorldDiff) => void;
-  // The no-op manifest-state disposer kept on world's surface (also called by
-  // world.dispose). Threaded in so the full-rebuild branch calls it at the
-  // exact same point as before.
-  disposeAllManifestState: () => void;
 }
 
 export function createApplyManifest(
@@ -150,7 +146,6 @@ export function createApplyManifest(
     cityState,
     emitBeforeChange,
     emitChange,
-    disposeAllManifestState,
   } = deps;
   const {
     gem: _gem,
@@ -325,16 +320,15 @@ export function createApplyManifest(
     await _buildings.rebuild(newLayout, newDateRanges);
 
     if (_scenicValid) {
-      // Do NOT call disposeAllManifestState() — existing streets/labels/
-      // paths/gem stay in the scene unmodified. Do NOT call buildWorld.
+      // Scenic reuse: existing streets/labels/paths/gem stay in the scene
+      // unmodified. Do NOT call buildWorld.
       cityState.manifest = newManifestTyped;
       cityState.layout = newLayout;
       // bbox stays from the previous buildWorld call (layout unchanged).
     } else {
-      // Full rebuild path: dispose existing scenic state, run buildWorld,
-      // and add the new meshes to the scene.
-      disposeAllManifestState();
-
+      // Full rebuild path: rebuild scenic state and add the new meshes to
+      // the scene. Each component disposes its own prior meshes on rebuild()
+      // (streets/gem/footprint/etc.), so there's no separate teardown step.
       cityState.manifest = newManifestTyped;
       cityState.layout = newLayout;
 

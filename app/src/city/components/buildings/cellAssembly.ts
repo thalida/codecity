@@ -78,9 +78,7 @@ export function buildCellsFromLayout(
     }
     const slot = allocateSlot(cell);
     if (slot < 0) {
-      // Overflow: capacity was under-estimated. Log and skip — the planned
-      // overflow-tile chaining (deferred from the 2026-05 cell-render plan;
-      // not currently scheduled) would ensure no building is silently dropped.
+      // Overflow: capacity was under-estimated. Log and skip.
       console.warn(
         '[cellAssembly] capacity overflow for cell',
         cellId,

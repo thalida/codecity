@@ -27,7 +27,7 @@ const STADIUM_SEGMENTS = 16;
 // draw on top cleanly regardless of their actual Y coordinate.
 //
 // Ground planes still `depthTest` so buildings occlude them correctly.
-export function flatGroundMaterial(
+function flatGroundMaterial(
   color: string | number,
   renderOrderLayer: number
 ): THREE.MeshBasicMaterial {

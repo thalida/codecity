@@ -21,11 +21,9 @@
 // the animator no longer exists as a module — its tween queue lives here
 // (tween.ts) behind animateFrom(diff)/tick(). world keeps computing the diff
 // via _computeDiff and renderLoop feeds it to animateFrom via world.onChange;
-// the tweens resolve meshes through getMeshForBuilding() here. rebuild()
-// returns a BuildingDiff for forward scaffolding (Task 15) but world ignores
-// it and computes its own. World mirrors _cells/_buildingIndex from this
-// component after rebuild so its _computeDiff / PrevState still read
-// populated structures.
+// the tweens resolve meshes through getMeshForBuilding() here. World mirrors
+// _cells/_buildingIndex from this component after rebuild so its _computeDiff
+// / PrevState still read populated structures.
 
 import * as THREE from 'three';
 import { effect } from '@preact/signals';
@@ -59,9 +57,9 @@ import { createOutlineRenderer } from './outline';
 import { createGhostRenderer } from './ghost';
 import { createBuildingTweens } from './tween';
 
-/** Building-only slice of WorldDiff. Returned by rebuild() as forward
- *  scaffolding (Task 15); world ignores it under Option B and computes
- *  its own diff via _computeDiff. */
+/** Building-only slice of WorldDiff. Accepted by animateFrom() so a full
+ *  WorldDiff (from world.onChange) flows in structurally without pulling
+ *  the street buckets. */
 export interface BuildingDiff {
   entering: { buildings: EnteringBuilding[] };
   staying: { buildings: StayingBuilding[] };
@@ -80,8 +78,8 @@ export interface BuildingsDeps {
 export interface Buildings extends SceneComponent {
   /** Color the buildings, assemble the cells, swap them into the group, and
    *  rebuild the lookups. Always rebuilds (the cell root is always rebuilt —
-   *  not scenic-gated). Returns the building-only diff for forward use. */
-  rebuild(layout: CityLayout, dateRanges: DateRanges): Promise<BuildingDiff>;
+   *  not scenic-gated). World computes its own diff via _computeDiff. */
+  rebuild(layout: CityLayout, dateRanges: DateRanges): Promise<void>;
   /** Push the roof-icon atlas into the shared material + cell factory. Must
    *  run BEFORE rebuild() (the atlas is read while building the cells). */
   setAtlas(atlas: IconAtlas | null): void;
@@ -309,7 +307,7 @@ export function createBuildings(ctx: SceneContext, deps: BuildingsDeps): Buildin
     _outline?.onResize();
   }
 
-  async function rebuild(layout: CityLayout, dateRanges: DateRanges): Promise<BuildingDiff> {
+  async function rebuild(layout: CityLayout, dateRanges: DateRanges): Promise<void> {
     const buildings = layout?.buildings ?? [];
 
     // ---- Color the buildings (moved verbatim from world.applyManifest). ----
@@ -383,14 +381,6 @@ export function createBuildings(ctx: SceneContext, deps: BuildingsDeps): Buildin
         }
       }
     }
-
-    // Forward scaffolding (Option B): world ignores this and computes its own
-    // diff via _computeDiff. Returned empty here — the diff stays in world.
-    return {
-      entering: { buildings: [] },
-      staying: { buildings: [] },
-      exiting: { buildings: [] },
-    };
   }
 
   function dispose(): void {
