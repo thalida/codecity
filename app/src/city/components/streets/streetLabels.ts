@@ -19,7 +19,7 @@ import * as THREE from 'three';
 import { STREETS } from '@/state/stores/settings/streets';
 import { LABEL_FONT_FAMILY, LABEL_FONT_WEIGHT, LABEL_ELEVATION } from '@/constants/streets';
 import { asphaltDims } from './streets';
-import { RENDER_ORDERS } from '@/city/renderOrders';
+import { RENDER_ORDERS } from '@/city/constants/renderOrders';
 import { NodeKind, StreetAxis } from '@/types';
 import type { Street } from '@/types';
 

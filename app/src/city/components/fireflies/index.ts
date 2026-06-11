@@ -24,7 +24,7 @@ import type { CommitEntry } from '@/types';
 import type { TreePlacement } from '@/city/components/trees/treePlacement';
 
 import type { FrameContext, SceneComponent, SceneContext } from '../../types';
-import { armOnFirstTick } from '../armOnFirstTick';
+import { armOnFirstTick } from '../../utils/armOnFirstTick';
 import { createFireflies as assembleFireflies, type Fireflies } from './fireflies';
 
 export type { Fireflies };

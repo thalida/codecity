@@ -38,8 +38,8 @@ import { NodeKind, StreetAxis } from '@/types';
 import type { CityLayout, Street } from '@/types';
 
 import type { FrameContext, SceneComponent, SceneContext } from '../../types';
-import { armOnFirstTick } from '../armOnFirstTick';
-import { onSettings } from '../onSettings';
+import { armOnFirstTick } from '../../utils/armOnFirstTick';
+import { onSettings } from '../../utils/onSettings';
 import { createStreetMesh } from './streets';
 import { createStreetLabels } from './streetLabels';
 import { disposeObject3D } from '@/city/utils/disposeObject3D';

@@ -16,7 +16,7 @@ import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
 
 import { STREETS, STREET_TIERS } from '@/state/stores/settings/streets';
 import { PATH_LINE_ELEVATION, HOVER_PATH_LINE_ELEVATION } from '@/constants/streets';
-import { RENDER_ORDERS } from '@/city/renderOrders';
+import { RENDER_ORDERS } from '@/city/constants/renderOrders';
 import { NodeKind } from '@/types';
 import type { Street } from '@/types';
 import { computePathPoints } from '@/city/utils/path';

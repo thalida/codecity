@@ -1,4 +1,4 @@
-// city/cityState.ts — per-city manifest-bound state held in signals. Replaces the
+// city/state/cityState.ts — per-city manifest-bound state held in signals. Replaces the
 // old mutable cityState bag that was passed by reference with a "never
 // destructure-copy" warning: with signals there's no separable field value to
 // copy and let go stale — readers hold the signal and read .value, writers set
@@ -21,8 +21,8 @@
 import { signal, computed, type Signal, type ReadonlySignal } from '@preact/signals';
 import * as THREE from 'three';
 import type { CityLayout, Manifest, Street } from '@/types';
-import type { WorldBounds } from './utils/floorBounds';
-import { gemAnchorXZ } from './utils/gemAnchor';
+import type { WorldBounds } from '../utils/floorBounds';
+import { gemAnchorXZ } from '../utils/gemAnchor';
 
 export interface CityState {
   manifest: Signal<Manifest | null>;

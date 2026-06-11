@@ -1,5 +1,5 @@
 // frameLoop.test.ts — verifies the generic requestAnimationFrame driver
-// (city/runtime/frameLoop.ts, unwired until Task 15): per-frame call order
+// (city/render/frameLoop.ts, unwired until Task 15): per-frame call order
 // (before → rig.update → component ticks in array order → after →
 // postFx.render), the synchronous first frame with dt = 0, and stop()
 // cancelling the pending rAF. requestAnimationFrame/cancelAnimationFrame
@@ -8,8 +8,8 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import * as THREE from 'three';
 
-import { startFrameLoop } from '@/city/runtime/frameLoop';
-import type { Picker } from '@/city/runtime/picker';
+import { startFrameLoop } from '@/city/render/frameLoop';
+import type { Picker } from '@/city/render/picker';
 import type { FrameContext, SceneComponent, SceneContext } from '@/city/types';
 
 // Deterministic rAF: collect callbacks; the test flushes them manually.

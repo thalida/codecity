@@ -22,9 +22,9 @@
 import * as THREE from 'three';
 import { effect } from '@preact/signals';
 import { NodeKind } from '@/types';
-import { RENDER_ORDERS } from '@/city/renderOrders';
+import { RENDER_ORDERS } from '@/city/constants/renderOrders';
 import type { Building } from '@/types';
-import type { createPicker } from '@/city/runtime/picker';
+import type { createPicker } from '@/city/render/picker';
 import type { FileTarget } from '@/types';
 
 // Narrow world surface the ghost needs (mesh resolver only). Supplied by the

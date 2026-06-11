@@ -16,7 +16,7 @@ import { FACADE } from '@/state/stores/settings/facade';
 import { BLOOM } from '@/state/stores/settings/effects';
 import { BUILDING_DIMENSIONS } from '@/state/stores/settings/buildings';
 import { AD_ERROR_COLOR } from '@/constants/buildings';
-import { RENDER_ORDERS } from '@/city/renderOrders';
+import { RENDER_ORDERS } from '@/city/constants/renderOrders';
 import { mediaKindOf, MediaKind } from '@/city/utils/mediaKind';
 import { AdPanelTextureArray, MAX_PAGES as AD_PANEL_MAX_PAGES } from './adPanelTextureArray';
 import type { Building } from '@/types/index';

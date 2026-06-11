@@ -23,7 +23,7 @@ import { getSharedBuildingUniforms } from '@/city/components/buildings/material'
 import { BUILDINGS } from '@/state/stores/settings/buildings';
 import { NodeKind } from '@/types';
 import type { Building, CityLayout, DateRanges, FileTarget, PickTarget } from '@/types';
-import type { Picker } from '@/city/runtime/picker';
+import type { Picker } from '@/city/render/picker';
 import type { SceneContext } from '@/city/types';
 import { building } from '../../../_helpers/buildingFixture';
 

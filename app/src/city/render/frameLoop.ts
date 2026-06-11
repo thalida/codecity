@@ -1,4 +1,4 @@
-// city/runtime/frameLoop.ts — generic requestAnimationFrame driver (Task 13).
+// city/render/frameLoop.ts — generic requestAnimationFrame driver (Task 13).
 // Replaces renderLoop.animate()'s hand-rolled loop when the Task 15 composer
 // wires it: perFrame.before → rig.update → world-matrix refresh → each
 // component.tick(dt, frame) in array order → perFrame.after → postFx.render.

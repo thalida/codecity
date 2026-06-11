@@ -24,7 +24,7 @@ import { STREETS } from '@/state/stores/settings/streets';
 import { NodeKind, StreetAxis } from '@/types';
 import type { Street } from '@/types';
 import type { PickTarget } from '@/types/picker';
-import type { Picker } from '@/city/runtime/picker';
+import type { Picker } from '@/city/render/picker';
 import type { SceneContext } from '@/city/types';
 
 const DEFAULTS = {

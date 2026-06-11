@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { describe, it, expect, beforeEach } from 'vitest';
 import { createIsland } from '@/city/components/island';
 import { ISLAND } from '@/state/stores/settings/island';
-import { RENDER_ORDERS } from '@/city/renderOrders';
+import { RENDER_ORDERS } from '@/city/constants/renderOrders';
 import type { SceneContext } from '@/city/types';
 
 // Island ignores ctx at construction (see component comment: Strategy A,

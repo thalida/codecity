@@ -38,11 +38,11 @@ import * as THREE from 'three';
 
 import { SCENE } from '@/state/stores/settings/scene';
 import { CAMERA_FAR } from '@/constants/camera';
-import { RENDER_ORDERS } from '@/city/renderOrders';
+import { RENDER_ORDERS } from '@/city/constants/renderOrders';
 import { setColorFromHex } from '@/city/utils/color/setColorFromHex';
 
 import type { FrameContext, SceneComponent, SceneContext } from '../../types';
-import { onSettings } from '../onSettings';
+import { onSettings } from '../../utils/onSettings';
 import skyVertSrc from './sky.vert.glsl?raw';
 import skyFragSrc from './sky.frag.glsl?raw';
 

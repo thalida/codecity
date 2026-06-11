@@ -23,7 +23,7 @@ import { NodeKind } from '@/types';
 import type { CommitEntry } from '@/types';
 import type { PickTarget } from '@/types/picker';
 import type { TreePlacement } from '@/city/components/trees/treePlacement';
-import type { Picker } from '@/city/runtime/picker';
+import type { Picker } from '@/city/render/picker';
 import type { SceneContext } from '@/city/types';
 
 const SHA_A = 'a'.repeat(40);

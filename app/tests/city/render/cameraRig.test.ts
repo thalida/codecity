@@ -3,7 +3,7 @@
 
 import { describe, it, expect, beforeEach } from 'vitest';
 import * as THREE from 'three';
-import { createCameraRig } from '@/city/runtime/cameraRig';
+import { createCameraRig } from '@/city/render/cameraRig';
 import { BuildingOrient, NodeKind, StreetAxis } from '@/types';
 import type { Building, Street } from '@/types';
 

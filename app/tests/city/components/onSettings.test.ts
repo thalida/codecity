@@ -9,7 +9,7 @@
 //   - return a stop fn that unsubscribes.
 import { describe, it, expect } from 'vitest';
 import { signal } from '@preact/signals';
-import { onSettings } from '@/city/components/onSettings';
+import { onSettings } from '@/city/utils/onSettings';
 
 describe('onSettings', () => {
   it('runs apply once immediately at wire time', () => {

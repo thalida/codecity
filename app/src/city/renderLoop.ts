@@ -11,11 +11,11 @@ import type { Manifest } from '../types';
 
 import { SCENE } from '@/state/stores/settings/scene';
 import { createWorld } from './world';
-import { createCameraRig } from './runtime/cameraRig';
-import { createPicker } from './runtime/picker';
-import { createInputHandlers } from './runtime/inputHandlers';
-import { showTooltip, hideTooltip } from './runtime/tooltip';
-import { createPostFx } from './runtime/postFx';
+import { createCameraRig } from './render/cameraRig';
+import { createPicker } from './render/picker';
+import { createInputHandlers } from './render/inputHandlers';
+import { showTooltip, hideTooltip } from './render/tooltip';
+import { createPostFx } from './render/postFx';
 import { registerRenderer as registerAdPanelRenderer } from './components/buildings/adPanelTextureArray';
 
 export async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manifest) {

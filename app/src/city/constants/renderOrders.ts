@@ -1,4 +1,4 @@
-// city/renderOrders.ts — three.js renderOrder values. Lower draws first;
+// city/constants/renderOrders.ts — three.js renderOrder values. Lower draws first;
 // higher draws on top. Tweaking risks z-fighting on coplanar / overlapping
 // transparent meshes — treat as an implementation detail. Lives in scene/
 // (not constants/) because it's a renderer-internal concern consumed only

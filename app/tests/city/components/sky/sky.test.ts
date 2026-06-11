@@ -10,8 +10,8 @@ import * as THREE from 'three';
 
 import { createSky } from '@/city/components/sky';
 import { SCENE } from '@/state/stores/settings/scene';
-import { RENDER_ORDERS } from '@/city/renderOrders';
-import type { Picker } from '@/city/runtime/picker';
+import { RENDER_ORDERS } from '@/city/constants/renderOrders';
+import type { Picker } from '@/city/render/picker';
 import type { FrameContext, SceneContext } from '@/city/types';
 
 function resetStores() {

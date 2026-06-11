@@ -35,9 +35,9 @@ import { ISLAND } from '@/state/stores/settings/island';
 import { getWorldBounds, type WorldBounds } from '@/city/utils/floorBounds';
 import { buildIslandGeometry, type IslandBuildParams } from './islandGeometry';
 import { createIslandMaterial } from './islandShader';
-import { RENDER_ORDERS } from '@/city/renderOrders';
+import { RENDER_ORDERS } from '@/city/constants/renderOrders';
 import type { SceneComponent, SceneContext } from '../../types';
-import { onSettings } from '../onSettings';
+import { onSettings } from '../../utils/onSettings';
 
 const ISLAND_TOP_Y = -2.0; // Increased from -0.5 for z-fighting prevention (4x separation from city y=0)
 

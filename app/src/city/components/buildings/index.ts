@@ -45,7 +45,7 @@ import type {
 } from '@/types';
 
 import type { FrameContext, SceneComponent, SceneContext } from '../../types';
-import { armOnFirstTick } from '../armOnFirstTick';
+import { armOnFirstTick } from '../../utils/armOnFirstTick';
 import type { WorldBounds } from './spatialGrid';
 import type { CellTile } from './cellTile';
 import { BuildingIndex } from './buildingIndex';

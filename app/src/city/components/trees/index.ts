@@ -22,7 +22,7 @@ import { TREES } from '@/state/stores/settings/trees';
 import type { BusynessThresholds, CommitEntry } from '@/types';
 
 import type { FrameContext, SceneComponent, SceneContext } from '../../types';
-import { armOnFirstTick } from '../armOnFirstTick';
+import { armOnFirstTick } from '../../utils/armOnFirstTick';
 import { createTreeRenderer, type Trees } from './treeRenderer';
 import { createTreeOutlineRenderer } from './outline';
 import type { TreePlacement } from './treePlacement';

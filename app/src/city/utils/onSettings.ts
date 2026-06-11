@@ -1,4 +1,4 @@
-// city/components/onSettings.ts — subscribe a component's reactivity to a single
+// city/utils/onSettings.ts — subscribe a component's reactivity to a single
 // settings store. Runs `apply` once immediately and again on every Save of
 // `store`, and ONLY that store: `apply` is invoked untracked, so any other
 // signals it reads (picker hover/selection, sibling stores, computeds derived

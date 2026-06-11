@@ -6,7 +6,7 @@
 // State split:
 //   - The SIX cross-boundary fields (manifest/layout/bbox/latestWorldBounds +
 //     the rootStreet/gemWorldPos computeds) live in the `cityState` SIGNALS
-//     object (city/cityState.ts). world.ts holds the same instance and points
+//     object (city/state/cityState.ts). world.ts holds the same instance and points
 //     every accessor at cityState.X.value. applyManifest sets the four source
 //     signals' .value; the two computeds derive off layout automatically.
 //   - The eleven manifest-bound mirrors/caches that NO accessor reads (street
@@ -37,7 +37,7 @@ import { getWorldBounds } from './utils/floorBounds';
 import type { Footprint } from './components/footprint';
 import { computeCityDiff, type PrevState } from './utils/cityDiff';
 import { computeScenicConfigHash } from './utils/scenicHash';
-import type { CityState } from './cityState';
+import type { CityState } from './state/cityState';
 import { FOOTPRINT } from '@/state/stores/settings/footprint';
 import { TREES } from '@/state/stores/settings/trees';
 import { SCENE } from '@/state/stores/settings/scene';

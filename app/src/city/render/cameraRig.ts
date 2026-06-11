@@ -1,4 +1,4 @@
-// city/runtime/cameraRig.ts — owns the perspective camera, OrbitControls,
+// city/render/cameraRig.ts — owns the perspective camera, OrbitControls,
 // initial framing, and the focus/reset animations (R key reset,
 // F key focus-on-selection, dblclick focus).
 //

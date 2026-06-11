@@ -13,9 +13,9 @@
 
 import { describe, it, expect, vi } from 'vitest';
 
-import { armOnFirstTick } from '@/city/components/armOnFirstTick';
+import { armOnFirstTick } from '@/city/utils/armOnFirstTick';
 import type { SceneContext } from '@/city/types';
-import type { Picker } from '@/city/runtime/picker';
+import type { Picker } from '@/city/render/picker';
 import type * as THREE from 'three';
 
 // Mutable fake: picker/renderer start null (the construction window) and are

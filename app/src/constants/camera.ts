@@ -1,6 +1,6 @@
 // constants/camera.ts — Fixed camera lens + orbit-control tuning. Not
 // user-tunable (no Settings control ever exposed these), so plain constants
-// rather than a persisted settings store. Read by city/runtime/cameraRig.ts;
+// rather than a persisted settings store. Read by city/render/cameraRig.ts;
 // CAMERA_FAR is also read by the sky sphere (city/components/sky/index.ts).
 
 export const CAMERA_FOV = 45; // vertical field-of-view in degrees

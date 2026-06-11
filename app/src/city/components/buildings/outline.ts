@@ -23,12 +23,12 @@ import { LineSegmentsGeometry } from 'three/addons/lines/LineSegmentsGeometry.js
 import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
 
 import { BUILDINGS } from '@/state/stores/settings/buildings';
-import { RENDER_ORDERS } from '@/city/renderOrders';
+import { RENDER_ORDERS } from '@/city/constants/renderOrders';
 import { rainbowRgbAt } from '@/city/utils/rainbowChase';
 import { NodeKind } from '@/types';
 import { getBuildingTilt, composeShearMatrix } from './tilt';
 import type { CellTile } from './cellTile';
-import type { createPicker } from '@/city/runtime/picker';
+import type { createPicker } from '@/city/render/picker';
 import type { FileTarget } from '@/types';
 
 // Narrow world surface the outline renderer needs (cell lookup only). Supplied

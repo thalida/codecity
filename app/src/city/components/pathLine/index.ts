@@ -19,8 +19,8 @@ import * as THREE from 'three';
 import { STREETS } from '@/state/stores/settings/streets';
 
 import type { FrameContext, SceneComponent, SceneContext } from '../../types';
-import { armOnFirstTick } from '../armOnFirstTick';
-import { onSettings } from '../onSettings';
+import { armOnFirstTick } from '../../utils/armOnFirstTick';
+import { onSettings } from '../../utils/onSettings';
 import { createPathLineRenderer, type PathLineWorld } from './renderer';
 
 /** World closures the inner renderer consumes (threaded from world.ts —

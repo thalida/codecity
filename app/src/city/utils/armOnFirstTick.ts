@@ -1,4 +1,4 @@
-// city/components/armOnFirstTick.ts — shared "arm picker-dependent work on the
+// city/utils/armOnFirstTick.ts — shared "arm picker-dependent work on the
 // first tick" lifecycle. Components are constructed before ctx.picker/.renderer
 // exist; this defers their picker-driven setup to the first tick() once those
 // are live, runs it exactly once, and survives dispose() (the sticky `armed`

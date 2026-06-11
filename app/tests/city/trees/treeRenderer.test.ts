@@ -13,7 +13,7 @@ import { createTreeRenderer, type Trees } from '@/city/components/trees/treeRend
 import type { TreePlacement } from '@/city/components/trees/treePlacement';
 import { TREES } from '@/state/stores/settings/trees';
 import { BUILDING_DIMENSIONS } from '@/state/stores/settings/buildings';
-import { RENDER_ORDERS } from '@/city/renderOrders';
+import { RENDER_ORDERS } from '@/city/constants/renderOrders';
 import type { CommitEntry } from '@/types';
 import { commits as buildCommits } from './_commitFixtures';
 

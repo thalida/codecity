@@ -53,7 +53,7 @@ import { effect } from '@preact/signals';
 
 import { BUILDING_DIMENSIONS } from '@/state/stores/settings/buildings';
 import { REPO_LABEL } from '@/state/stores/settings/gem';
-import { RENDER_ORDERS } from '@/city/renderOrders';
+import { RENDER_ORDERS } from '@/city/constants/renderOrders';
 
 import type { FrameContext, SceneComponent, SceneContext } from '../../types';
 import vertSrc from './holoQuad.vert.glsl?raw';

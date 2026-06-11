@@ -1,4 +1,4 @@
-// city/types.ts — shared scene-component contracts.
+// city/types/index.ts — shared scene-component contracts.
 //
 // These interfaces define the uniform shape every scene component, the city
 // composer, and the render loop agree on. Nothing in this file is runtime
@@ -6,8 +6,8 @@
 // and system files; wiring happens in later tasks.
 
 import type * as THREE from 'three';
-import type { Picker } from './runtime/picker';
-import type { CameraRig } from './runtime/cameraRig';
+import type { Picker } from '../render/picker';
+import type { CameraRig } from '../render/cameraRig';
 import type { Manifest } from '@/types';
 
 /** Everything a scene component needs to wire itself into the scene at
