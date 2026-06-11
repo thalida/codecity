@@ -19,6 +19,7 @@ import { GEM } from '@/state/stores/settings/gem';
 import { BLOOM } from '@/state/stores/settings/effects';
 import { NodeKind, StreetAxis } from '@/types';
 import type { Street } from '@/types';
+import { disposeObject3D } from '@/city/utils/disposeObject3D';
 
 import type { FrameContext, SceneComponent, SceneContext } from '../../types';
 import { createRootGem, GEM_HOVER_LIFT_FRAC } from './mesh';
@@ -77,25 +78,12 @@ export function createGem(ctx: SceneContext): Gem {
   let outerGlow: THREE.Sprite | null = null;
   let worldPos: THREE.Vector3 | null = null;
 
+  // Gem meshes don't share materials, so disposeObject3D's sharedMaterial
+  // guard is a no-op here and each mesh's material disposes normally.
   function _disposeInnerGem(): void {
     if (!gem) return;
     if (gem.parent) gem.parent.remove(gem);
-    gem.traverse((obj) => {
-      const d = obj as unknown as {
-        geometry?: { dispose?: () => void };
-        material?: { dispose?: () => void; [k: string]: unknown };
-      };
-      if (d.geometry?.dispose) d.geometry.dispose();
-      const m = d.material;
-      if (m) {
-        for (const key in m) {
-          if (!Object.hasOwn(m, key)) continue;
-          const v = m[key] as { isTexture?: boolean; dispose?: () => void } | undefined;
-          if (v?.isTexture && typeof v.dispose === 'function') v.dispose();
-        }
-        if (typeof m.dispose === 'function') m.dispose();
-      }
-    });
+    gem.traverse(disposeObject3D);
   }
 
   function rebuild(street: Street): void {

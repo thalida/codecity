@@ -30,6 +30,7 @@
 import * as THREE from 'three';
 
 import { registerShaderChunks } from './utils/color/registerShaderChunks';
+import { disposeObject3D } from './utils/disposeObject3D';
 import type { CellTile } from './components/buildings/cellTile';
 import { BuildingIndex } from './components/buildings/buildingIndex';
 import { createBuildings } from './components/buildings';
@@ -248,51 +249,10 @@ export function createWorld(_canvas: HTMLCanvasElement) {
     };
   }
 
-  // Generic three.js disposer. Walks geometry → materials → any own
-  // property of each material whose value is a THREE.Texture. Idempotent
-  // via userData.disposed.
-  //
-  // Special case: if the object carries `userData.sharedMaterial = true`
-  // the material is module-owned (shared across many cells) and must NOT
-  // be disposed here — only the geometry is released. This prevents the
-  // cell-path atomic swap (which traverses the old cell root with this
-  // function) from invalidating the shared ShaderMaterial that the new
-  // cell root's meshes already reference.
-  function _disposeObject(obj: THREE.Object3D | null): void {
-    if (!obj || obj.userData?.disposed) return;
-    // Disposable shape: any object that may carry .geometry / .material
-    // (Mesh, Line, LineSegments2, Group). Use a structural cast since
-    // _disposeObject is intentionally generic across all of them.
-    interface DisposableObj {
-      geometry?: { dispose?: () => void };
-      material?:
-        | { dispose?: () => void; [k: string]: unknown }
-        | Array<{ dispose?: () => void; [k: string]: unknown }>;
-    }
-    const d = obj as unknown as DisposableObj;
-    if (d.geometry?.dispose) d.geometry.dispose();
-    // Skip material disposal for meshes whose material is module-owned and
-    // shared across cell tiles (cellMesh.ts factory).
-    if (!obj.userData?.sharedMaterial) {
-      const mats = Array.isArray(d.material) ? d.material : d.material ? [d.material] : [];
-      for (const m of mats) {
-        if (!m) continue;
-        // Dispose any texture attached to this material.
-        for (const key in m) {
-          if (!Object.hasOwn(m, key)) continue;
-          const v = m[key] as { isTexture?: boolean; dispose?: () => void } | undefined;
-          if (v?.isTexture && typeof v.dispose === 'function') v.dispose();
-        }
-        if (typeof m.dispose === 'function') m.dispose();
-      }
-    }
-    if (obj.userData) obj.userData.disposed = true;
-  }
-
   function _removeAndDispose(obj: THREE.Object3D | null): void {
     if (!obj) return;
     if (obj.parent) obj.parent.remove(obj);
-    _disposeObject(obj);
+    disposeObject3D(obj);
   }
 
   // Public idempotent disposal — animator's onComplete calls this when
@@ -300,7 +260,7 @@ export function createWorld(_canvas: HTMLCanvasElement) {
   function disposeMesh(mesh: THREE.Mesh): void {
     if (!mesh || (mesh.userData && mesh.userData.disposed)) return;
     if (mesh.parent) mesh.parent.remove(mesh);
-    _disposeObject(mesh);
+    disposeObject3D(mesh);
   }
 
   // The manifest build/rebuild pipeline lives in ./applyManifest

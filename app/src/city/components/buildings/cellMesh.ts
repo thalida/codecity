@@ -125,10 +125,9 @@ export function setCellIconAtlas(atlas: IconAtlas | null): void {
  * The ShaderMaterial is shared across all cells that pass the same uniforms
  * object reference (identity-memoized). Do NOT call material.dispose() on
  * the returned mesh's material — it is owned by this module, not by the cell.
- * The mesh's `userData.sharedMaterial = true` flag tells the component's
- * disposer (_disposeCellObject in index.ts) to skip material disposal when
- * tearing down the old cell root. (world.ts's _disposeObject still carries
- * the same guard until its Task-15 deletion.)
+ * The mesh's `userData.sharedMaterial = true` flag tells the shared
+ * disposeObject3D util (city/utils/disposeObject3D.ts) to skip material
+ * disposal when tearing down the old cell root.
  *
  * Call this once per cell after `createEmptyCellTile`.
  */
@@ -182,8 +181,7 @@ export function attachBuildingMeshToCell(
   cell.detailMesh.geometry.dispose();
   cell.detailMesh.geometry = geom;
   cell.detailMesh.material = mat;
-  // Signal to the disposer traversal (_disposeCellObject in index.ts;
-  // world.ts's _disposeObject copy until Task 15) that this material is
+  // Signal to the shared disposeObject3D util that this material is
   // module-owned (shared) and must not be disposed when the cell root is
   // torn down between applyManifest calls.
   cell.detailMesh.userData.sharedMaterial = true;

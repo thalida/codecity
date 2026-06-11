@@ -51,6 +51,7 @@ import { buildCellsFromLayout } from './cellAssembly';
 import type { InstancedAdPanels } from './adPanels';
 import { getSharedBuildingUniforms, setIconAtlas, refreshBuildingMaterial } from './material';
 import { setCellIconAtlas } from './cellMesh';
+import { disposeObject3D } from '@/city/utils/disposeObject3D';
 import type { IconAtlas } from './atlas';
 import { getBuildingColor, getCreatedAge, getModifiedAge } from './color';
 import { createBuildingFader } from './fader';
@@ -136,47 +137,13 @@ export function createBuildings(ctx: SceneContext, deps: BuildingsDeps): Buildin
     { mesh: THREE.Mesh; building: Building; instanceId: number }
   > = {};
 
-  // Generic three.js disposer for the prior cell root. Walks geometry →
-  // materials → any property whose value is a THREE.Texture. Idempotent
-  // via userData.disposed.
-  //
-  // CRITICAL divergence from the streets disposer: buildings SHARE one
-  // ShaderMaterial across every cell's detail mesh (cellMesh.ts attaches
-  // detail meshes carrying userData.sharedMaterial = true). So the disposer
-  // MUST skip material disposal for those meshes — else it frees the shared
-  // material the NEW cell root's meshes already reference → blank buildings.
-  // This reproduces world._disposeObject's sharedMaterial guard verbatim.
-  function _disposeCellObject(obj: THREE.Object3D | null): void {
-    if (!obj || obj.userData?.disposed) return;
-    interface DisposableObj {
-      geometry?: { dispose?: () => void };
-      material?:
-        | { dispose?: () => void; [k: string]: unknown }
-        | Array<{ dispose?: () => void; [k: string]: unknown }>;
-    }
-    const d = obj as unknown as DisposableObj;
-    if (d.geometry?.dispose) d.geometry.dispose();
-    // Skip material disposal for meshes whose material is module-owned and
-    // shared across cell tiles (cellMesh.ts factory).
-    if (!obj.userData?.sharedMaterial) {
-      const mats = Array.isArray(d.material) ? d.material : d.material ? [d.material] : [];
-      for (const m of mats) {
-        if (!m) continue;
-        for (const key in m) {
-          if (!Object.hasOwn(m, key)) continue;
-          const v = m[key] as { isTexture?: boolean; dispose?: () => void } | undefined;
-          if (v?.isTexture && typeof v.dispose === 'function') v.dispose();
-        }
-        if (typeof m.dispose === 'function') m.dispose();
-      }
-    }
-    if (obj.userData) obj.userData.disposed = true;
-  }
-
   // Dispose + remove the prior inner cell root and instanced ad panels.
+  // The cell detail meshes SHARE one ShaderMaterial (cellMesh.ts flags them
+  // userData.sharedMaterial = true); disposeObject3D's sharedMaterial guard
+  // skips disposing it so the new cell root's meshes keep a live material.
   function _disposeInner(): void {
     if (_innerCellRoot) {
-      _innerCellRoot.traverse(_disposeCellObject);
+      _innerCellRoot.traverse(disposeObject3D);
       if (_innerCellRoot.parent) _innerCellRoot.parent.remove(_innerCellRoot);
       _innerCellRoot = null;
     }

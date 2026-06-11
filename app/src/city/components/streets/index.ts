@@ -41,6 +41,7 @@ import type { FrameContext, SceneComponent, SceneContext } from '../../types';
 import { armOnFirstTick } from '../armOnFirstTick';
 import { createStreetMesh } from './streets';
 import { createStreetLabels } from './streetLabels';
+import { disposeObject3D } from '@/city/utils/disposeObject3D';
 
 type FlatMesh = THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial>;
 
@@ -115,28 +116,14 @@ export function createStreets(ctx: SceneContext): Streets {
   }
 
   // Deeply remove + dispose the prior street + label groups (geometry +
-  // materials + textures). Street materials are NOT shared, so a plain
-  // traversal-dispose is correct (mirrors gem's _disposeInnerGem traversal).
+  // materials + textures) via the shared disposeObject3D util. Street
+  // materials are NOT shared, so its sharedMaterial guard is a no-op here
+  // and each mesh's material disposes normally.
   function _disposeInner(): void {
     const all = [...streetGroups, ...labelGroups];
     for (const g of all) {
       if (g.parent) g.parent.remove(g);
-      g.traverse((obj) => {
-        const d = obj as unknown as {
-          geometry?: { dispose?: () => void };
-          material?: { dispose?: () => void; [k: string]: unknown };
-        };
-        if (d.geometry?.dispose) d.geometry.dispose();
-        const m = d.material;
-        if (m) {
-          for (const key in m) {
-            if (!Object.hasOwn(m, key)) continue;
-            const v = m[key] as { isTexture?: boolean; dispose?: () => void } | undefined;
-            if (v?.isTexture && typeof v.dispose === 'function') v.dispose();
-          }
-          if (typeof m.dispose === 'function') m.dispose();
-        }
-      });
+      g.traverse(disposeObject3D);
     }
   }
 
