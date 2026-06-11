@@ -37,12 +37,13 @@ import { BuildingIndex } from './components/buildings/buildingIndex';
 import { createBuildings } from './components/buildings';
 import type { Buildings } from './components/buildings';
 import { findLayoutOverlaps } from './layout/algorithm';
-import type { LayoutOverlap } from './layout/algorithm';
 import { createLayoutClient } from './layout/runner';
 import type { LayoutComputeOpts } from './layout/runner';
 import { layoutCityWithTrace } from './layout/algorithm';
-import type { ChildPlacementTrace, StemPlacementTrace } from './layout/algorithm';
-import type { WorldRect } from './layout/occupancyIndex';
+import { computeCityDiff } from './utils/cityDiff';
+import type { PrevState } from './utils/cityDiff';
+import { computeScenicConfigHash } from './utils/scenicHash';
+import { _formatCollisionReport, _formatStemDiagnostic } from './diagnostics';
 import { createGem } from './components/gem';
 import type { Gem } from './components/gem';
 import type { SceneContext } from './types';
@@ -67,8 +68,6 @@ import { getWorldBounds, type WorldBounds } from './utils/floorBounds';
 import { createFootprint } from './components/footprint';
 import type { Footprint } from './components/footprint';
 import { FOOTPRINT } from '@/state/stores/settings/footprint';
-import { STREETS } from '@/state/stores/settings/streets';
-import { GEM, GEM_SIZING } from '@/state/stores/settings/gem';
 import { TREES } from '@/state/stores/settings/trees';
 import { SCENE } from '@/state/stores/settings/scene';
 import { REBUILD_STATUS, RebuildStatus } from '@/state/stores/manifest';
@@ -78,142 +77,9 @@ import type {
   CityLayout,
   WorldDiff,
   DateRanges,
-  EnteringBuilding,
-  EnteringStreet,
-  ExitingEntry,
   Manifest,
-  StayingBuilding,
-  StayingStreet,
   Street,
 } from '@/types';
-
-// Snapshot of the prior manifest state captured at the top of
-// applyManifest, used by the diff and the change-listener payload.
-interface PrevState {
-  streetPickables: THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial>[];
-  streetLabels: THREE.Group[];
-  asphaltMeshes: THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial>[];
-  manifest: Manifest | null;
-  layout: CityLayout | null;
-  /** Snapshot of cells before they are replaced/disposed. */
-  cells: Map<number, CellTile>;
-  /** Snapshot of building index before it is replaced. */
-  buildingIndex: BuildingIndex | null;
-}
-
-// _formatCollisionReport(overlaps, totalRects) -> {level, summary, details}
-//
-// Pure helper. Partitions overlaps into unexpected vs. t-junction, returns the
-// summary line and (for the dirty case) one detail string per unexpected
-// overlap. Caller decides what to do with it — runCollisionCheck() routes to
-// console.info / console.warn.
-function _formatCollisionReport(
-  overlaps: LayoutOverlap[],
-  totalRects: number
-): { level: 'info' | 'warn'; summary: string; details: string[] } {
-  const unexpected = overlaps.filter((o) => o.category === 'unexpected');
-  const tjctCount = overlaps.filter((o) => o.category === 't-junction').length;
-  const summary =
-    `[collision] ${unexpected.length} unexpected, ${tjctCount} t-junctions ` +
-    `whitelisted (${totalRects} rects)`;
-  if (unexpected.length === 0) {
-    return { level: 'info', summary, details: [] };
-  }
-  const fmtRect = (r: { x: number; y: number; w: number; d: number }): string =>
-    `[x=${r.x.toFixed(2)} y=${r.y.toFixed(2)} w=${r.w.toFixed(2)} d=${r.d.toFixed(2)}]`;
-  const details = unexpected.map(
-    (o) =>
-      `  ${o.kindA} "${o.labelA}" ${fmtRect(o.rectA)}\n` +
-      `    ⟷ ${o.kindB} "${o.labelB}" ${fmtRect(o.rectB)}\n` +
-      `    overlap=${o.overlap.w.toFixed(3)}×${o.overlap.d.toFixed(3)} ` +
-      `at (${o.overlap.x.toFixed(2)}, ${o.overlap.y.toFixed(2)})`
-  );
-  return { level: 'warn', summary, details };
-}
-
-// _formatStemDiagnostic(trace) -> string[]
-//
-// Pure helper. Walks a StemPlacementTrace, groups placements by parent road,
-// returns one or more lines per parent. Caller routes lines to console.log.
-function _formatStemDiagnostic(trace: StemPlacementTrace): string[] {
-  if (trace.placements.length === 0) {
-    return ['[stem-diag] no placements recorded'];
-  }
-
-  // Group by parent path, preserving first-seen order.
-  const byParent = new Map<string, ChildPlacementTrace[]>();
-  for (const p of trace.placements) {
-    let bucket = byParent.get(p.parentPath);
-    if (!bucket) {
-      bucket = [];
-      byParent.set(p.parentPath, bucket);
-    }
-    bucket.push(p);
-  }
-
-  const out: string[] = [];
-  for (const [parentPath, children] of byParent) {
-    out.push(`[stem-diag] dir "${parentPath}" — ${children.length} children`);
-    for (const c of children) {
-      // Match display precision: jumps below half a toFixed(2) unit display
-      // as +0.00 and would be misleading.
-      const jumped = c.chosen.stem - c.baseline > 0.005;
-      const tag = c.childKind === 'dir' ? `"${c.childLabel}/"` : `"${c.childLabel}"`;
-      const jumpedNote = jumped ? `  ← JUMPED +${(c.chosen.stem - c.baseline).toFixed(2)}` : '';
-      out.push(
-        `  ─ ${tag} (${c.childKind}) — stem=${c.chosen.stem.toFixed(2)}  ` +
-          `(baseline=${c.baseline.toFixed(2)})${jumpedNote}`
-      );
-      if (jumped && c.chosen.bindingIndex !== null) {
-        const binding = c.chosen.forbidden[c.chosen.bindingIndex];
-        const obs = binding.obstacle;
-        const label = _obstacleLabel(obs);
-        out.push(
-          `     forced by: ${obs.kind} ${label}  ` +
-            `y=[${_yBounds(obs).join(', ')}] x=[${_xBounds(obs).join(', ')}]`
-        );
-      }
-      if (jumped && c.others.length > 0) {
-        out.push(`     other variants tried:`);
-        const all = [c.chosen, ...c.others].sort(
-          (a, b) => a.side - b.side || Number(a.mirror) - Number(b.mirror)
-        );
-        for (const v of all) {
-          const marker = v === c.chosen ? '(chosen)' : '';
-          out.push(
-            `       side=${v.side} mirror=${v.mirror} → stem=${v.stem.toFixed(2)} ${marker}`.trimEnd()
-          );
-        }
-      }
-    }
-  }
-  return out;
-}
-
-function _obstacleLabel(o: WorldRect): string {
-  // WorldRect.ref is loosely typed (Building | Street); try common
-  // shapes without forcing tight coupling.
-  const r = o.ref as {
-    file?: { path?: string; name?: string };
-    label?: string;
-    dir?: { path?: string };
-  };
-  return (r.file && (r.file.path ?? r.file.name)) ?? r.label ?? (r.dir && r.dir.path) ?? '?';
-}
-
-function _yBounds(o: WorldRect): [string, string] {
-  return [o.minY.toFixed(2), o.maxY.toFixed(2)];
-}
-
-function _xBounds(o: WorldRect): [string, string] {
-  return [o.minX.toFixed(2), o.maxX.toFixed(2)];
-}
-
-// Internal helpers exposed for tests only. Not part of the public API.
-export const __test = {
-  _formatCollisionReport,
-  _formatStemDiagnostic,
-};
 
 // `canvas` is unused; kept in the signature so call sites (useCityScene, tests)
 // don't have to change. outlineRenderer takes the canvas directly via its
@@ -416,61 +282,10 @@ export function createWorld(_canvas: HTMLCanvasElement) {
   // we force a full scenic rebuild even though the tree_signature hasn't changed.
   let _lastScenicConfigHash: string | null = null;
 
-  // computeScenicConfigHash collects the current values of every store whose
-  // output is baked into buildWorld meshes:
-  //   - SCENE  : FOG_* keys baked into building shader uniforms
-  //   - STREETS       : ASPHALT_COLOR + SIDEWALK_* baked into street materials,
-  //                     LABEL_* baked into label canvas textures + geometry.
-  //                     (Path-line keys are live Line2 materials, not baked.)
-  //   - GEM_SIZING    : RADIUS_AS_STREET_FRAC / MIN_RADIUS / HOVER_LIFT_FRAC
-  //                     baked into gem geometry and position
-  //   - GEM_FACE_PALETTE: vertex colors baked into gem polyhedron BufferAttribute
-  //   - GEM_APPEARANCE: EDGE_COLOR + BODY_OPACITY baked into gem materials
-  //   - GEM_GLOW      : all keys baked into gem sprite materials + scales
-  // PATH_LINE / HOVER_PATH_LINE are live Line2 meshes, not built by buildWorld.
-  function computeScenicConfigHash(): string {
-    return JSON.stringify({
-      fog: {
-        FOG_ENABLED: SCENE.value.FOG_ENABLED,
-        FOG_COLOR: SCENE.value.FOG_COLOR,
-        FOG_INTENSITY: SCENE.value.FOG_INTENSITY,
-        FOG_HEIGHT_FRAC: SCENE.value.FOG_HEIGHT_FRAC,
-      },
-      streets: {
-        ASPHALT_COLOR: STREETS.value.ASPHALT_COLOR,
-        SIDEWALK_DEFAULT: STREETS.value.SIDEWALK_DEFAULT,
-        SIDEWALK_HOVER: STREETS.value.SIDEWALK_HOVER,
-        SIDEWALK_SELECTED: STREETS.value.SIDEWALK_SELECTED,
-        LABEL_FILL: STREETS.value.LABEL_FILL,
-        LABEL_STROKE: STREETS.value.LABEL_STROKE,
-        LABEL_STROKE_WIDTH_FRAC: STREETS.value.LABEL_STROKE_WIDTH_FRAC,
-        LABEL_HEIGHT_FRAC: STREETS.value.LABEL_HEIGHT_FRAC,
-      },
-      gemSizing: GEM_SIZING.value,
-      // GEM shape + appearance + face palette + glow (NOT the per-frame
-      // animation keys, which don't affect the built scene).
-      gem: {
-        SIDES: GEM.value.SIDES,
-        EDGE_COLOR: GEM.value.EDGE_COLOR,
-        BODY_OPACITY: GEM.value.BODY_OPACITY,
-        FACE_1: GEM.value.FACE_1,
-        FACE_2: GEM.value.FACE_2,
-        FACE_3: GEM.value.FACE_3,
-        FACE_4: GEM.value.FACE_4,
-        FACE_5: GEM.value.FACE_5,
-        FACE_6: GEM.value.FACE_6,
-        FACE_7: GEM.value.FACE_7,
-        FACE_8: GEM.value.FACE_8,
-        GLOW_ENABLED: GEM.value.GLOW_ENABLED,
-        GLOW_INNER_SCALE: GEM.value.GLOW_INNER_SCALE,
-        GLOW_INNER_OPACITY: GEM.value.GLOW_INNER_OPACITY,
-        GLOW_OUTER_SCALE: GEM.value.GLOW_OUTER_SCALE,
-        GLOW_OUTER_OPACITY: GEM.value.GLOW_OUTER_OPACITY,
-        GLOW_ANIMATE_COLORS: GEM.value.GLOW_ANIMATE_COLORS,
-        GLOW_CYCLE_PERIOD_SECONDS: GEM.value.GLOW_CYCLE_PERIOD_SECONDS,
-      },
-    });
-  }
+  // Scenic config hash computation lives in ./utils/scenicHash
+  // (computeScenicConfigHash) — a pure snapshot of the config stores whose
+  // values are baked into buildWorld meshes. The scenic full-vs-reuse GATE
+  // that consumes it stays in applyManifest below.
 
   // Listeners
 
@@ -590,154 +405,23 @@ export function createWorld(_canvas: HTMLCanvasElement) {
 
   // _computeDiff compares prev cells vs new cells at the per-instance
   // (file.path key) level, producing entering / staying / exiting buckets
-  // that the animator uses to write instance matrices.
+  // that the animator uses to write instance matrices. The computation lives
+  // in ./utils/cityDiff (computeCityDiff) as a pure function; this thin
+  // wrapper threads world's live module vars (_cells/_buildingIndex via
+  // streetPickables) into the `next` snapshot the pure function classifies
+  // `prev` against.
   //
-  // Prev cell transforms are read HERE (before the cell root is disposed)
-  // because disposal releases the InstancedMesh attribute buffers. The
-  // snapshot is captured in PrevState.cells — the Map reference is stable
-  // across the disposal because we replace the module-level `_cells`
+  // Prev cell transforms are read inside computeCityDiff (before the cell
+  // root is disposed) because disposal releases the InstancedMesh attribute
+  // buffers. The snapshot is captured in PrevState.cells — the Map reference
+  // is stable across the disposal because we replace the module-level `_cells`
   // binding but the snapshot still points at the old Map.
   function _computeDiff(prev: PrevState): WorldDiff {
-    const entering: { buildings: EnteringBuilding[]; streets: EnteringStreet[] } = {
-      buildings: [],
-      streets: [],
-    };
-    const exiting: { buildings: ExitingEntry[]; streets: ExitingEntry[] } = {
-      buildings: [],
-      streets: [],
-    };
-    const staying: { buildings: StayingBuilding[]; streets: StayingStreet[] } = {
-      buildings: [],
-      streets: [],
-    };
-
-    // --- Buildings diff (InstancedMesh semantics) ---
-    //
-    // Build a map from file.path → prior transform (scale + position).
-    // Read from each cell's detailMesh at the building's slotId to capture
-    // whatever the animator left it at (so a rapid edit doesn't snap to layout).
-    const prevTransforms = new Map<
-      string,
-      { scaleX: number; scaleY: number; scaleZ: number; posX: number; posY: number; posZ: number }
-    >();
-    const _readMatrix = new THREE.Matrix4();
-    const _pos = new THREE.Vector3();
-    const _scale = new THREE.Vector3();
-    const _quat = new THREE.Quaternion();
-
-    // Read prior transforms from the old CellTile meshes.
-    // NOTE: prev.cells is the snapshot captured before _cells was replaced.
-    // The old cell root may already be disposed, but the CellTile.detailMesh
-    // references are still valid until GC collects them — we only read, not draw.
-    for (const cell of prev.cells.values()) {
-      for (let slot = 0; slot < cell.buildings.length; slot++) {
-        const b = cell.buildings[slot];
-        if (!b?.file?.path) continue;
-        if (cell.detailMesh) {
-          cell.detailMesh.getMatrixAt(slot, _readMatrix);
-          _readMatrix.decompose(_pos, _quat, _scale);
-          prevTransforms.set(b.file.path, {
-            scaleX: _scale.x,
-            scaleY: _scale.y,
-            scaleZ: _scale.z,
-            posX: _pos.x,
-            posY: _pos.y,
-            posZ: _pos.z,
-          });
-        } else {
-          prevTransforms.set(b.file.path, {
-            scaleX: b.w,
-            scaleY: b.h,
-            scaleZ: b.d,
-            posX: b.x,
-            posY: b.h / 2,
-            posZ: b.y,
-          });
-        }
-      }
-    }
-
-    // Walk the new BuildingIndex to classify entering vs staying.
-    if (_buildingIndex) {
-      for (const b of _buildingIndex.byPath.values()) {
-        if (!b.file?.path) continue;
-        const newScaleX = b.w;
-        const newScaleY = b.h;
-        const newScaleZ = b.d;
-        const newPosX = b.x;
-        const newPosY = b.h / 2;
-        const newPosZ = b.y;
-        const instanceId = b.slotId ?? 0;
-
-        const prior = prevTransforms.get(b.file.path);
-        if (prior) {
-          staying.buildings.push({
-            building: b,
-            instanceId,
-            newScaleX,
-            newScaleY,
-            newScaleZ,
-            newPosX,
-            newPosY,
-            newPosZ,
-            oldScaleX: prior.scaleX,
-            oldScaleY: prior.scaleY,
-            oldScaleZ: prior.scaleZ,
-            oldPosX: prior.posX,
-            oldPosY: prior.posY,
-            oldPosZ: prior.posZ,
-          });
-        } else {
-          entering.buildings.push({
-            building: b,
-            instanceId,
-            newScaleX,
-            newScaleY,
-            newScaleZ,
-            newPosX,
-            newPosY,
-            newPosZ,
-          });
-        }
-      }
-    }
-
-    // Exiting buildings: paths present in prev but absent from new.
-    // V1: no exit animation — they just vanish when cells are rebuilt.
-    // We still populate the exiting bucket so subscribers can track counts.
-    const newPaths = new Set<string>();
-    if (_buildingIndex) {
-      for (const path of _buildingIndex.byPath.keys()) newPaths.add(path);
-    }
-    for (const [path] of prevTransforms) {
-      if (!newPaths.has(path)) {
-        exiting.buildings.push({});
-      }
-    }
-
-    // --- Streets diff (still per-mesh) ---
-    const prevStreets: Record<string, THREE.Mesh> = {};
-    for (const sw of prev.streetPickables ?? []) {
-      const dp = sw.userData.street?.dir?.path;
-      if (dp != null) prevStreets[dp] = sw;
-    }
-    for (const nsw of streetPickables) {
-      const ndp = nsw.userData.street?.dir?.path;
-      if (ndp == null) continue;
-      if (Object.hasOwn(prevStreets, ndp)) {
-        staying.streets.push({ oldMesh: prevStreets[ndp], newMesh: nsw });
-        delete prevStreets[ndp];
-      } else {
-        entering.streets.push({ mesh: nsw });
-      }
-    }
-    for (const sk in prevStreets) {
-      if (Object.hasOwn(prevStreets, sk)) {
-        exiting.streets.push({ mesh: prevStreets[sk] });
-      }
-    }
-
-    return { entering, exiting, staying };
+    return computeCityDiff(prev, {
+      cells: _cells,
+      buildingIndex: _buildingIndex,
+      streetPickables,
+    });
   }
 
   // Manifest is typed loosely because world.test.ts builds mock

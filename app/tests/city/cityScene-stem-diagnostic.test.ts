@@ -3,7 +3,7 @@ import { WorldRectKind } from '@/city/layout/occupancyIndex';
 // placements by parent road and emits a multi-line block per parent.
 
 import { describe, it, expect } from 'vitest';
-import { __test } from '@/city/world';
+import { __test } from '@/city/diagnostics';
 import type {
   StemPlacementTrace,
   ChildPlacementTrace,

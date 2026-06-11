@@ -4,7 +4,7 @@ import { WorldRectKind } from '@/city/layout/occupancyIndex';
 // and a warn-level summary + per-overlap detail block when dirty.
 
 import { describe, it, expect } from 'vitest';
-import { __test } from '@/city/world';
+import { __test } from '@/city/diagnostics';
 import type { LayoutOverlap } from '@/city/layout/algorithm';
 
 const { _formatCollisionReport } = __test;
