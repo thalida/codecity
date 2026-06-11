@@ -155,14 +155,6 @@ export function getLightness(
 // ── Building color ────────────────────────────────────────────────────────────
 
 /**
- * Compute the full HSL color string for a single file building. Pulls
- * palette + saturation/lightness ranges from BUILDING in defaults.js.
- *
- * @param {Object} file       - File node from the scanner manifest.
- * @param {Object} dateRanges - Manifest.dateRanges (backend-computed).
- * @returns {string} CSS HSL string, e.g. "hsl(215, 80%, 55%)".
- */
-/**
  * Compute the "createdAge" weathering signal for a building, sampled at
  * the file's CREATION date and normalized against the repo's
  * createdMin/createdMax. 1.0 = oldest file in the repo (most weathered),
@@ -200,6 +192,14 @@ export function getModifiedAge(file: FileLike, dateRanges: DateRanges): number {
   return Math.max(0, Math.min(1, 1 - t));
 }
 
+/**
+ * Compute the full HSL color string for a single file building. Pulls
+ * palette + saturation/lightness ranges from BUILDING in defaults.js.
+ *
+ * @param {Object} file       - File node from the scanner manifest.
+ * @param {Object} dateRanges - Manifest.dateRanges (backend-computed).
+ * @returns {string} CSS HSL string, e.g. "hsl(215, 80%, 55%)".
+ */
 export function getBuildingColor(file: FileLike, dateRanges: DateRanges): string {
   const modified = file.modified || null;
 
