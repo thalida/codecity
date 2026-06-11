@@ -162,10 +162,9 @@ export function createWorld(_canvas: HTMLCanvasElement) {
   // settings reactivity (sidewalk/asphalt colors, label height) via its own
   // theme effect, the per-frame label camera-orientation via tick(), and the
   // hover/selection sidewalk tinting via two picker-driven effects armed on
-  // its first tick. The street DIFF in this module is vestigial (no consumer
-  // reads it) — rebuild() returns void; world keeps the streetPickables/
-  // streetLabels/asphaltMeshes module vars and reassigns them from the
-  // component so PrevState/_computeDiff still read populated arrays.
+  // its first tick. rebuild() returns void; the component owns its
+  // pickables/labels/asphalt arrays, which world's accessors (getStreetPickables
+  // etc.) and the picker read straight off it.
   const _streets: Streets = createStreets(_ctx as unknown as SceneContext, _cityState);
   scene.add(_streets.group);
 
@@ -179,10 +178,10 @@ export function createWorld(_canvas: HTMLCanvasElement) {
   // hover/selection fader/outline/ghost (armed on its first tick).
   //
   // Constructed AFTER _streets so the fader dep `() => _streets.getStreetByDir(p)`
-  // is valid. Option B (Task 12): the building DIFF + the animator stay in
-  // world — _computeDiff still emits the diff and the animator consumes it,
-  // resolving meshes through getMeshForBuilding() which delegates here. World
-  // mirrors _cells/_buildingIndex from this component after each rebuild.
+  // is valid. The component owns its cells/buildingIndex and computes its own
+  // enter/stay tween diff inside rebuild() (resolving meshes through
+  // getMeshForBuilding() here); world's getCells/getBuildingIndex accessors and
+  // the picker read straight off the component.
   const _buildings: Buildings = createBuildings(_ctx as unknown as SceneContext, {
     getStreetByDir: (p) => _streets.getStreetByDir(p),
     cityState: _cityState,
@@ -498,8 +497,7 @@ export function createWorld(_canvas: HTMLCanvasElement) {
     },
 
     // Cell-mode accessors for picker + other consumers. Delegate to the
-    // buildings component (the source of truth); world's _cells/_buildingIndex
-    // are diff-only mirrors.
+    // buildings component (the source of truth).
     getBuildingIndex(): BuildingIndex | null {
       return _buildings.getBuildingIndex();
     },

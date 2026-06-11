@@ -17,16 +17,13 @@
 // picker.selection/hover, so they are NOT created at construction — they are
 // armed on the first tick(), once renderLoop has populated ctx.picker.
 //
-// Stage 4 (self-tween): the building enter/stay DIFF is now computed HERE,
-// inside rebuild(), against the prior cells captured before disposal — the
-// animator's tween queue lives here (tween.ts) and is fed directly from that
-// internal diff (no more world._computeDiff → world.onChange → animateFrom).
-// The boot rebuild does NOT animate (it skips the very first diff), exactly
-// replicating the old timing where renderLoop subscribed to world.onChange
-// AFTER the boot applyManifest had already fired. The tweens resolve meshes
-// through getMeshForBuilding() here. World still mirrors _cells/_buildingIndex
-// from this component after rebuild for its (now-unused) building diff +
-// PrevState, deleted in a later commit.
+// Self-tween: the building enter/stay DIFF is computed HERE, inside rebuild(),
+// against the prior cells captured before disposal — the tween queue lives here
+// (tween.ts) and is fed directly from that internal diff. The boot rebuild does
+// NOT animate (it skips the very first diff), so the city paints in place on
+// first load and only later edits tween. The tweens resolve meshes through
+// getMeshForBuilding() here. The component owns its cells/buildingIndex; world's
+// getCells/getBuildingIndex accessors read straight off it.
 
 import * as THREE from 'three';
 import { effect } from '@preact/signals';
@@ -269,21 +266,20 @@ export function createBuildings(ctx: SceneContext, deps: BuildingsDeps): Buildin
   // (unlike fader/outline/ghost) it is created at construction, not armed.
   const _tweens = createBuildingTweens({ getMeshForBuilding });
 
-  // _computeBuildingDiff — the building branch of the former cityDiff, now
-  // owned here. Compares the PRIOR cells (passed in, captured before the
-  // dispose in rebuild) against the component's OWN freshly-adopted
-  // _buildingIndex, producing entering / staying buckets the tween queue
-  // consumes. Ported VERBATIM from utils/cityDiff.ts's building branch —
-  // same prev-transform reads (detailMesh.getMatrixAt at the building's slot),
-  // same entering/staying classification by file.path. prevIndex is accepted
-  // for symmetry but unused (the building branch only reads prev CELLS for the
-  // old transforms; new transforms come from _buildingIndex), matching cityDiff.
+  // _computeBuildingDiff — the building diff, owned here. Compares the PRIOR
+  // cells (passed in, captured before the dispose in rebuild) against the
+  // component's OWN freshly-adopted _buildingIndex, producing entering / staying
+  // buckets the tween queue consumes. Reads prev transforms via
+  // detailMesh.getMatrixAt at each building's slot; classifies entering vs
+  // staying by file.path. prevIndex is accepted for symmetry but unused (the
+  // diff only reads prev CELLS for the old transforms; new transforms come from
+  // _buildingIndex).
   //
   // Liveness: the prev detailMeshes are already disposed by rebuild's
   // _disposeInner before this runs — but disposeObject3D only frees GPU
   // geometry, NOT the JS-side instanceMatrix Float32Array, so getMatrixAt
-  // still reads the last-rendered transforms. This is the exact same
-  // post-dispose read the old world.onChange flow relied on.
+  // still reads the last-rendered transforms, so a rapid edit tweens from where
+  // the buildings actually were rather than snapping to layout.
   function _computeBuildingDiff(
     prevCells: Map<number, CellTile>,
     _prevIndex: BuildingIndex | null

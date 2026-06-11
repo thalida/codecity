@@ -9,19 +9,17 @@
 //     object (city/state/cityState.ts). world.ts holds the same instance and points
 //     every accessor at cityState.X.value. applyManifest sets the four source
 //     signals' .value; the two computeds derive off layout automatically.
-//   - The eleven manifest-bound mirrors/caches that NO accessor reads (street
-//     mesh arrays, cell mirrors, layout/atlas/scenic caches, generation
+//   - The manifest-bound caches that NO accessor reads (the layout cache + its
+//     tree_signature key, the icon-atlas tree_signature, the generation
 //     counter) are private to this factory's closure (the `internal` object).
-//     resetCaches()/invalidateLayoutCache() (returned below) clear the cache
-//     subset for world's resetCache/invalidateLayoutCache.
+//     resetCaches()/invalidateLayoutCache() (returned below) clear the layout
+//     cache for world's resetCache/invalidateLayoutCache.
 
 import * as THREE from 'three';
 import { batch } from '@preact/signals';
 
 import { buildIconAtlas } from './components/buildings/atlas';
 import { labelFromManifest } from '@/utils/sources';
-import type { CellTile } from './components/buildings/cellTile';
-import { BuildingIndex } from './components/buildings/buildingIndex';
 import type { Buildings } from './components/buildings';
 import { createLayoutClient } from './layout/runner';
 import type { LayoutComputeOpts } from './layout/runner';
@@ -43,29 +41,11 @@ import { SCENE } from '@/state/stores/settings/scene';
 import { REBUILD_STATUS, RebuildStatus } from '@/state/stores/manifest';
 import type { CityBbox, CityLayout, DateRanges, Manifest } from '@/types';
 
-// The flat ground meshes (sidewalks, paths, asphalt) all use a single
-// MeshBasicMaterial. Matches world.ts's FlatMesh alias.
-type FlatMesh = THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial>;
-
-// Factory-private manifest-bound state that NO world accessor reads. Lives in a
+// Factory-private manifest-bound caches that NO world accessor reads. Live in a
 // plain object inside createApplyManifest's closure (not on the cross-boundary
-// signals object) — reassigned across applyManifest calls; the cache subset is
+// signals object) — reassigned across applyManifest calls; the layout cache is
 // also nulled by the returned resetCaches()/invalidateLayoutCache().
 interface InternalCityState {
-  // Reassigned from the streets component on rebuild. These fed the old
-  // PrevState/_computeDiff city-diff (now deleted — the picker/camera/pathLine
-  // react to cityRevision instead of consuming a diff). They are now WRITE-ONLY
-  // with no reader; the dead mirror is removed in Commit 4.
-  streetPickables: FlatMesh[];
-  streetLabels: THREE.Group[];
-  asphaltMeshes: FlatMesh[];
-
-  // Cell-rendering state mirrors. The buildings component OWNS the cell scene
-  // + lookups; these were reassigned mirrors feeding the old PrevState/
-  // _computeDiff city-diff (now deleted). WRITE-ONLY now; removed in Commit 4.
-  cells: Map<number, CellTile>;
-  buildingIndex: BuildingIndex | null;
-
   // Layout cache (keyed by manifest.tree_signature).
   cachedLayoutTreeSig: string | null;
   cachedLayout: CityLayout | null;
@@ -130,15 +110,10 @@ export function createApplyManifest(deps: ApplyManifestDeps): ApplyManifestApi {
     fireflies: _fireflies,
   } = components;
 
-  // Factory-private manifest-bound state no accessor reads (see
-  // InternalCityState). Reassigned across applyManifest calls; the cache subset
+  // Factory-private manifest-bound caches no accessor reads (see
+  // InternalCityState). Reassigned across applyManifest calls; the layout cache
   // is nulled by resetCaches()/invalidateLayoutCache() below.
   const internal: InternalCityState = {
-    streetPickables: [],
-    streetLabels: [],
-    asphaltMeshes: [],
-    cells: new Map(),
-    buildingIndex: null,
     cachedLayoutTreeSig: null,
     cachedLayout: null,
     lastAtlasTreeSig: null,
@@ -239,8 +214,9 @@ export function createApplyManifest(deps: ApplyManifestDeps): ApplyManifestApi {
     // rebuilds the building-by-path lookup. Always rebuilt (the cell root is
     // the one thing always rebuilt — NOT scenic-gated) to reflect updated
     // per-file metadata (colors, heights). rebuild has no internal await, so
-    // it cannot be superseded mid-build; world mirrors cells/buildingIndex
-    // from it AFTER (and before _computeDiff) for the Option B diff.
+    // it cannot be superseded mid-build. The buildings component owns its
+    // cells/buildingIndex (and computes its own enter/stay tween diff inside
+    // rebuild) — applyManifest no longer mirrors them.
 
     // ---- Reactive scenic swap ----
     //
@@ -291,13 +267,8 @@ export function createApplyManifest(deps: ApplyManifestDeps): ApplyManifestApi {
 
     if (!reused) {
       // Non-reuse: the streets effect just rebuilt the meshes synchronously at
-      // batch-close, so _streets.group is populated here. Reassign the internal
-      // street-array mirrors from the component. These are now write-only (the
-      // diff that read them is gone) — kept until Commit 4 deletes the mirror.
-      internal.streetPickables = _streets.pickables();
-      internal.streetLabels = _streets.labels();
-      internal.asphaltMeshes = _streets.asphalt();
-
+      // batch-close, so _streets.group is populated here.
+      //
       // bbox over the street meshes only (same geometry set the old
       // _buildWorld local-scene bbox covered) — NOT setFromObject(scene),
       // since the world scene now also holds sky/island/gem/footprint, which
@@ -336,12 +307,6 @@ export function createApplyManifest(deps: ApplyManifestDeps): ApplyManifestApi {
     // On reuse: bbox stays from the previous non-reuse apply (layout unchanged
     // → same positions → same bbox). latestWorldBounds (set below, also reuse-
     // gated) likewise stays, so the island effect doesn't re-fire either.
-
-    // Mirror the buildings component's cells + index into the internal state.
-    // These fed the old PrevState/_computeDiff city-diff (now deleted); the
-    // writes are kept (write-only) until Commit 4 removes the mirror.
-    internal.cells = _buildings.getCells();
-    internal.buildingIndex = _buildings.getBuildingIndex();
 
     // The gem is no longer rebuilt imperatively: its effect reads
     // cityState.rootStreet (computed off layout), which is reference-stable on

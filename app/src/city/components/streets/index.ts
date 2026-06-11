@@ -20,15 +20,10 @@
 // ./streetLabels); the door imports their factories. No logic change inside
 // them — they stay exported so this door can import them.
 //
-// THE STREET DIFF MACHINERY in world.ts is UNTOUCHED by this component:
-// rebuild() returns void. No world.onChange subscriber reads diff.*.streets
-// (the animator reads only diff.entering/staying.buildings; fader/picker/
-// pathLine/cameraRig ignore the diff arg), so the street branch of
-// world._computeDiff is dead data. World keeps its module-level
-// streetPickables/streetLabels/asphaltMeshes vars and REASSIGNS them from
-// this component on rebuild (so _computeDiff / PrevState still read populated
-// arrays) — but nothing consumes the resulting street diff. rebuild() owns
-// the meshes; the diff stays byte-identical.
+// rebuild() returns void and owns the meshes. The component exposes its
+// pickables/labels/asphalt arrays via accessors; world's getStreetPickables/
+// getStreetLabels/getAsphaltMeshes and the picker read straight off it. There
+// is no street diff — streets just rebuild in place on every full-rebuild path.
 
 import * as THREE from 'three';
 import { effect } from '@preact/signals';
