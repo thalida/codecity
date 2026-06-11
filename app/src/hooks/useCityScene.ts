@@ -6,7 +6,7 @@
 import { useEffect } from 'preact/hooks';
 import type { RefObject } from 'preact';
 import { effect } from '@preact/signals';
-import { startRenderLoop } from '@/city/renderLoop';
+import { createCity } from '@/city';
 import { attachCommitReactions } from '@/state/settingsReactions';
 import { SCENE_HANDLE } from '@/state/stores/scene';
 import {
@@ -30,7 +30,7 @@ export function useCityScene(canvasRef: RefObject<HTMLCanvasElement | null>): vo
 
     // Start the scene empty; the apply-effect below paints the first real
     // manifest as soon as the fetch layer publishes it.
-    startRenderLoop(canvas, EMPTY_MANIFEST).then((handle) => {
+    createCity(canvas, EMPTY_MANIFEST).then((handle) => {
       if (disposed) return;
       SCENE_HANDLE.value = handle;
       disposeReactions = attachCommitReactions({
