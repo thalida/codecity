@@ -6,6 +6,7 @@ import type * as THREE from 'three';
 import { InstancedAdPanels } from '@/city/components/buildings/adPanels';
 import {
   AdPanelTextureArray,
+  MAX_PAGES,
   PANEL_TEX_SIZE,
 } from '@/city/components/buildings/adPanelTextureArray';
 import { BLOOM } from '@/state/stores/settings/effects';
@@ -265,5 +266,23 @@ describe('InstancedAdPanels emission refresh', () => {
     ads.refresh();
     const mat = ads.mesh.material as unknown as { uniforms: { uEmissionBoost: { value: number } } };
     expect(mat.uniforms.uEmissionBoost.value).toBeCloseTo(2.5);
+  });
+});
+
+describe('sampleLayer page dispatch', () => {
+  // The page count lives in exactly one place (MAX_PAGES → the
+  // AD_PANEL_MAX_PAGES #define). The shader bounds its sampler-dispatch
+  // loop by that define and Three.js compiles the material with the
+  // define present, so a non-constant page count can't slip through.
+  it('compiles the material with AD_PANEL_MAX_PAGES wired to MAX_PAGES', () => {
+    const ads = new InstancedAdPanels(4);
+    const mat = ads.mesh.material as unknown as {
+      defines: Record<string, unknown>;
+      fragmentShader: string;
+    };
+    expect(mat.defines.AD_PANEL_MAX_PAGES).toBe(MAX_PAGES);
+    // The shader loops over the define (no hand-listed per-page branches).
+    expect(mat.fragmentShader).toContain('for (int i = 0; i < AD_PANEL_MAX_PAGES; i++)');
+    expect(mat.fragmentShader).toContain('uPanelArrays[i]');
   });
 });

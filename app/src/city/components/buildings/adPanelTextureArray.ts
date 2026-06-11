@@ -39,13 +39,12 @@ import * as THREE from 'three';
 export const PANEL_TEX_SIZE = 128;
 
 // Maximum number of texture-array pages the fragment shader can dispatch
-// into. Must match the size of `uPanelArrays` in adPanel.frag.glsl and
-// the number of `else if (page == N)` branches there. At MAX_PAGES = 8
-// with a typical pageSize of 2048 layers, this supports 16,384 media
-// files per repo — well beyond any realistic codebase. The shader's
-// per-fragment branch is on a uniform-ish value (iLayerIndex), so the
-// driver usually compiles down to a small jump table; cost is
-// negligible at 8 branches.
+// into. Single source of truth for the shader side too: it's injected as
+// the AD_PANEL_MAX_PAGES #define (adPanels.ts), which sizes the
+// `uPanelArrays` sampler array AND bounds the sampleLayer dispatch loop —
+// so nothing is hand-listed and the page count can't drift. At
+// MAX_PAGES = 8 with a typical pageSize of 2048 layers, this supports
+// 16,384 media files per repo — well beyond any realistic codebase.
 export const MAX_PAGES = 8;
 
 // Renderer reference for per-layer GPU uploads. Set once by renderLoop.ts

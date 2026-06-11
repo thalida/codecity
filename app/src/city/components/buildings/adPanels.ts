@@ -128,9 +128,10 @@ export class InstancedAdPanels {
     const bloomCfg = BLOOM.value;
     const mat = new THREE.ShaderMaterial({
       glslVersion: THREE.GLSL3,
-      // AD_PANEL_MAX_PAGES injected as a shader #define so the
-      // sampler-array size + branch chain in the fragment shader stay
-      // in lockstep with the JS-side MAX_PAGES constant.
+      // AD_PANEL_MAX_PAGES injected as a shader #define — sizes the
+      // uPanelArrays sampler array AND bounds the sampleLayer dispatch
+      // loop, so the page count lives only in MAX_PAGES (no hand-listed
+      // branches to fall out of sync).
       defines: {
         AD_PANEL_MAX_PAGES,
       },

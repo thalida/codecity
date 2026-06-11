@@ -8,13 +8,11 @@
 //
 // Paging: iLayerIndex is a flat layer index across all pages. The shader
 // splits it into (page, localLayer) using uPageSize (= the hardware's
-// MAX_ARRAY_TEXTURE_LAYERS) and picks the correct sampler via an
-// if/else-if chain. The chain has AD_PANEL_MAX_PAGES branches; this
-// #define is injected from JS (adPanels.ts) so it stays in
-// lockstep with the JS-side MAX_PAGES constant. WebGL2 GLSL ES 3.00
-// requires sampler-array indices to be constant expressions, so dynamic
-// `uPanelArrays[page]` is not allowed — the explicit branch chain is
-// the conformant way to do this.
+// MAX_ARRAY_TEXTURE_LAYERS) and picks the correct sampler in
+// sampleLayer(). Both page-count-shaped things derive from the ONE
+// AD_PANEL_MAX_PAGES define (injected from MAX_PAGES in
+// adPanelTextureArray.ts): the uPanelArrays size, and the sampleLayer
+// loop bound. Nothing is hand-listed, so the count lives in one place.
 //
 // GLSL3 note: sampler2DArray + texture() are GLSL ES 3.00 / WebGL2
 // features. The material must set glslVersion: THREE.GLSL3.
@@ -43,16 +41,20 @@ in float vBuildingFade;
 out vec4 fragColor;
 
 vec4 sampleLayer(int page, float localLayer) {
-  // Constant-indexed sampler accesses — required by GLSL ES 3.00.
-  // The branch count must equal AD_PANEL_MAX_PAGES (declared above).
-  if (page == 0) return texture(uPanelArrays[0], vec3(vUv, localLayer));
-  else if (page == 1) return texture(uPanelArrays[1], vec3(vUv, localLayer));
-  else if (page == 2) return texture(uPanelArrays[2], vec3(vUv, localLayer));
-  else if (page == 3) return texture(uPanelArrays[3], vec3(vUv, localLayer));
-  else if (page == 4) return texture(uPanelArrays[4], vec3(vUv, localLayer));
-  else if (page == 5) return texture(uPanelArrays[5], vec3(vUv, localLayer));
-  else if (page == 6) return texture(uPanelArrays[6], vec3(vUv, localLayer));
-  else return texture(uPanelArrays[7], vec3(vUv, localLayer));
+  // GLSL ES 3.00 forbids indexing a sampler array with a non-constant
+  // expression, but a for-loop induction variable IS a constant-index-
+  // expression — so this loop compiles to the same constant sampler
+  // accesses an unrolled if/else chain would, without hand-listing one
+  // branch per page. The bound is the injected AD_PANEL_MAX_PAGES define,
+  // so the page count lives in exactly one place (MAX_PAGES,
+  // adPanelTextureArray.ts). page is always in [0, AD_PANEL_MAX_PAGES)
+  // by construction (the CPU cap keeps iLayerIndex < MAX_PAGES*pageSize),
+  // so the trailing return is unreachable — present only to satisfy the
+  // all-paths-return rule.
+  for (int i = 0; i < AD_PANEL_MAX_PAGES; i++) {
+    if (i == page) return texture(uPanelArrays[i], vec3(vUv, localLayer));
+  }
+  return vec4(0.0);
 }
 
 void main() {
