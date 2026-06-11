@@ -527,6 +527,34 @@ class ScanTreeIntegrationTests(_CacheRedirectMixin, unittest.TestCase):
                     return
             self.fail("staged.txt not found in manifest")
 
+    def test_git_dates_normalized_to_utc(self):
+        # git %aI carries the author's UTC offset; the scanner normalizes
+        # to Z-suffixed UTC so every date on the wire shares one format
+        # and lexical order == chronological order (dateRanges relies on
+        # this). A commit authored at 15:30+02:00 lands as 13:30Z.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            _init_repo(root)
+            (root / "offset.txt").write_text("o")
+            subprocess.run(["git", "-C", str(root), "add", "-A"], check=True)
+            subprocess.run(
+                ["git", "-C", str(root), "commit", "-q", "-m", "x"],
+                check=True,
+                env={
+                    **os.environ,
+                    "GIT_AUTHOR_DATE": "2024-03-22T15:30:00+02:00",
+                    "GIT_COMMITTER_DATE": "2024-03-22T15:30:00+02:00",
+                },
+            )
+
+            m = _final_manifest(str(root))
+            for node in _walk_files(m["tree"]):
+                if node["name"] == "offset.txt":
+                    self.assertEqual(node["created"], "2024-03-22T13:30:00Z")
+                    self.assertEqual(node["modified"], "2024-03-22T13:30:00Z")
+                    return
+            self.fail("offset.txt not found in manifest")
+
     def test_git_dir_is_excluded(self):
         m = _final_manifest(str(FIXTURE))
         names = [n["name"] for n in _walk_dirs(m["tree"])]

@@ -28,14 +28,14 @@ class FileNode(BaseModel):
     binary: bool
     created: str = Field(
         description=(
-            "ISO create date, resolved server-side: git history date when "
-            "the file has one, filesystem date otherwise"
+            "ISO create date (UTC, Z-suffixed), resolved server-side: git "
+            "history date when the file has one, filesystem date otherwise"
         )
     )
     modified: str = Field(
         description=(
-            "ISO modify date, resolved server-side: git history date when "
-            "the file has one, filesystem date otherwise"
+            "ISO modify date (UTC, Z-suffixed), resolved server-side: git "
+            "history date when the file has one, filesystem date otherwise"
         )
     )
     # Optional-but-non-nullable (absent for non-media files, a pixel count

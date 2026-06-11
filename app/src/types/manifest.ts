@@ -159,9 +159,11 @@ export interface BusynessThresholds {
 /**
  * Min/max date strings (ISO 8601) for created + modified across every
  * file in the manifest, computed on the backend during the scan
- * (api/services/scan.py) — compared lexically, all four null for an
- * empty tree. Used by the building-color HSL ramps so the oldest file
- * lands at min lightness/saturation, newest at max.
+ * (api/services/scan.py). All dates on the wire are UTC Z-suffixed in
+ * one fixed format, so the backend's lexical min/max is exact
+ * chronological order. All four null for an empty tree. Used by the
+ * building-color HSL ramps so the oldest file lands at min
+ * lightness/saturation, newest at max.
  */
 export interface DateRanges {
   createdMin: string | null;
