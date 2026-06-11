@@ -21,10 +21,8 @@ function makePlacement(commitIndex: number): FireflyPlacement {
     orbitTilt: 0.2,
     phase: 0,
     pulsePhase: 0,
-    colorHex: '#ffffff',
     rgb: [1, 1, 1],
     lightRgb: [0.5, 0.5, 0.5],
-    lightHex: '#808080',
     scale: 1,
     commitIndex,
   };
@@ -164,7 +162,6 @@ describe('createOrbitRings — lazy pool', () => {
     const placement: FireflyPlacement = {
       ...makePlacement(0),
       lightRgb: [0.9, 0.8, 0.7],
-      lightHex: '#e6ccb3',
     };
     const rings = createOrbitRings([placement]);
     rings.setHoveredCommit(0);
@@ -183,7 +180,6 @@ describe('createOrbitRings — lazy pool', () => {
       ...makePlacement(0),
       orbitRadius: 2 + i, // distinct geometry so they don't collapse
       lightRgb: [i / 2, 1 - i / 2, 0.5] as [number, number, number],
-      lightHex: '#000000',
     }));
     const rings = createOrbitRings(placements);
     rings.setHoveredCommit(0);

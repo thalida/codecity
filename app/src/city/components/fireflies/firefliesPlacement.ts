@@ -37,16 +37,13 @@ export interface FireflyPlacement {
   phase: number;
   /** Phase offset for the brightness-pulse shader animation, in [0, 2π). */
   pulsePhase: number;
-  /** Color hex string for the orb. Same across all orbs of a given author. */
-  colorHex: string;
-  /** Linear-RGB components (0..1) — for InstancedMesh setColorAt. */
+  /** Linear-RGB components (0..1) — for InstancedMesh setColorAt. Same
+   *  across all orbs of a given author. */
   rgb: [number, number, number];
   /** Pastel variant of `rgb` — same hue, higher lightness. Used by the
    *  hover orbit-ring highlight so a hovered multi-author tree shows
    *  one tinted ring per author. */
   lightRgb: [number, number, number];
-  /** Pastel variant of `colorHex` for consumers that want a hex string. */
-  lightHex: string;
   /** Per-instance scale derived from author commit count, mapped to [SCALE_MIN..SCALE_MAX]. */
   scale: number;
   /** Index of the commit (in manifest.commits) this orb belongs to. */
@@ -188,10 +185,8 @@ export function placeFireflies(
         orbitTilt,
         phase,
         pulsePhase,
-        colorHex: color.hex,
         rgb: color.rgb,
         lightRgb: lightColor.rgb,
-        lightHex: lightColor.hex,
         scale: authorScale.get(author) ?? 1.0,
         commitIndex: p.commitIndex,
       });

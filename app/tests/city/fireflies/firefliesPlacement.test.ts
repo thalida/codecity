@@ -87,9 +87,9 @@ describe('placeFireflies', () => {
   it('emits authorColor per-orb from the commit author', async () => {
     const { colorForAuthor } = await import('@/city/components/fireflies/authorColor.js');
     const orbs = placeFireflies([placement(0, 0, 0)], COMMITS);
-    const expected = colorForAuthor(COMMITS[0].authors[0]).hex;
+    const expected = colorForAuthor(COMMITS[0].authors[0]).rgb;
     for (const o of orbs) {
-      expect(o.colorHex).toBe(expected);
+      expect(o.rgb).toEqual(expected);
     }
   });
 
@@ -258,9 +258,9 @@ describe('placeFireflies', () => {
       },
     ];
     const orbs = placeFireflies([placement(0, 0, 0)], multiAuthor);
-    expect(orbs[0].colorHex).toBe(colorForAuthor('Alice').hex);
-    expect(orbs[1].colorHex).toBe(colorForAuthor('Bob').hex);
-    expect(orbs[2].colorHex).toBe(colorForAuthor('Carol').hex);
+    expect(orbs[0].rgb).toEqual(colorForAuthor('Alice').rgb);
+    expect(orbs[1].rgb).toEqual(colorForAuthor('Bob').rgb);
+    expect(orbs[2].rgb).toEqual(colorForAuthor('Carol').rgb);
   });
 
   it('per-author orbs share orbit center but have distinct angles', () => {

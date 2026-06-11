@@ -115,9 +115,3 @@ function _yBounds(o: WorldRect): [string, string] {
 function _xBounds(o: WorldRect): [string, string] {
   return [o.minX.toFixed(2), o.maxX.toFixed(2)];
 }
-
-// Internal helpers exposed for tests only. Not part of the public API.
-export const __test = {
-  _formatCollisionReport,
-  _formatStemDiagnostic,
-};
