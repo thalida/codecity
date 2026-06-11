@@ -65,7 +65,6 @@ export interface PickerWorld {
   ): { mesh: THREE.Mesh; building: Building; instanceId?: number } | null;
   getSidewalkByDir(path: string): THREE.Mesh | null;
   getStreetByDir(path: string): Street | null;
-  onChange(cb: () => void): () => void;
   /** Returns the BuildingIndex. */
   getBuildingIndex(): BuildingIndex | null;
   /** Returns the cells map. */

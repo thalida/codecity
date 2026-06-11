@@ -60,9 +60,9 @@ export async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manif
   // Camera, OrbitControls, pose persistence, framing, and the focus/reset
   // animations all live in scene/cameraRig.js. Local aliases are kept for
   // brevity in event handlers and resize logic below.
-  // world satisfies CameraRigDeps structurally (its onChange accepts
-  // `(diff) => void` callbacks, which a `() => void` callback also is).
-  const rig = createCameraRig({ canvas, deps: world });
+  // world satisfies CameraRigDeps structurally. cityState is threaded so the
+  // rig re-frames reactively when cityState.bbox changes (a non-reuse apply).
+  const rig = createCameraRig({ canvas, deps: world, cityState: world.getCityState() });
   const camera = rig.camera;
   // Expose for visual regression tests. Harmless in production (just a
   // global ref); only used by tests/visual/setup.ts.
@@ -92,7 +92,7 @@ export async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manif
   // The selection key is in-memory only (not persisted): it starts null on
   // a fresh load and is re-resolved against each freshly-built city so the
   // selection survives in-session rebuilds.
-  const picker = createPicker({ canvas, camera, world });
+  const picker = createPicker({ canvas, camera, world, cityState: world.getCityState() });
 
   // Populate the shared SceneContext that components built inside world
   // (the gem) captured at construction. This runs before animate() is first

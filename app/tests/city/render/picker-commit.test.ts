@@ -5,6 +5,7 @@
 import * as THREE from 'three';
 import { describe, it, expect, beforeEach } from 'vitest';
 import { createPicker, PICKER_SELECTION_KEY } from '@/city/render/picker';
+import { createCityState } from '@/city/state/cityState';
 import { NodeKind } from '@/types';
 import type { CommitEntry, PickerWorld, CommitTarget } from '@/types';
 
@@ -76,10 +77,14 @@ function makeFakeTrees(
 }
 
 function makeWorld(initialTrees: FakeTrees | null): PickerWorld & {
+  cityState: ReturnType<typeof createCityState>;
   triggerRebuild(): void;
+  triggerDecoration(): void;
   setTrees(t: FakeTrees | null): void;
 } {
-  const listeners: Array<() => void> = [];
+  // A city rebuild bumps cityRevision; the deferred trees-attach bumps
+  // decorationRevision. The picker reacts to both.
+  const cityState = createCityState();
   let currentTrees = initialTrees;
   const api: PickerWorld = {
     getStreetPickables: () => [],
@@ -87,17 +92,17 @@ function makeWorld(initialTrees: FakeTrees | null): PickerWorld & {
     getBuildingByPath: () => null,
     getSidewalkByDir: () => null,
     getStreetByDir: () => null,
-    onChange: (cb) => {
-      listeners.push(cb);
-      return () => {};
-    },
     getBuildingIndex: () => null,
     getCells: () => new Map(),
     getTrees: () => currentTrees,
   };
   return Object.assign(api, {
+    cityState,
     triggerRebuild() {
-      for (const cb of listeners) cb();
+      cityState.cityRevision.value++;
+    },
+    triggerDecoration() {
+      cityState.decorationRevision.value++;
     },
     setTrees(t: FakeTrees | null) {
       currentTrees = t;
@@ -120,7 +125,7 @@ describe('picker: tree commit picking', () => {
     const commits = [commit(0), commit(1), commit(2)];
     const trees = makeFakeTrees(canopy, trunk, commits);
     const world = makeWorld(trees);
-    const p = createPicker({ canvas, camera: FAKE_CAMERA, world });
+    const p = createPicker({ canvas, camera: FAKE_CAMERA, world, cityState: world.cityState });
 
     const hit = {
       object: canopy,
@@ -144,7 +149,7 @@ describe('picker: tree commit picking', () => {
     const commits = [commit(0), commit(1), commit(2)];
     const trees = makeFakeTrees(canopy, trunk, commits);
     const world = makeWorld(trees);
-    const p = createPicker({ canvas, camera: FAKE_CAMERA, world });
+    const p = createPicker({ canvas, camera: FAKE_CAMERA, world, cityState: world.cityState });
 
     const hit = {
       object: trunk,
@@ -161,7 +166,7 @@ describe('picker: tree commit picking', () => {
 
   it('interpretHit returns null when the trees handle is null', () => {
     const world = makeWorld(null);
-    const p = createPicker({ canvas, camera: FAKE_CAMERA, world });
+    const p = createPicker({ canvas, camera: FAKE_CAMERA, world, cityState: world.cityState });
     const canopy = makeCanopy();
     const hit = {
       object: canopy,
@@ -179,7 +184,7 @@ describe('picker: tree commit picking', () => {
     const commits = [commit(0), commit(1), commit(2)];
     const trees = makeFakeTrees(canopy, trunk, commits);
     const world = makeWorld(trees);
-    const p = createPicker({ canvas, camera: FAKE_CAMERA, world });
+    const p = createPicker({ canvas, camera: FAKE_CAMERA, world, cityState: world.cityState });
 
     // makeFakeTrees.commitForInstance returns null for instanceId >= commits.length.
     const hit = {
@@ -199,7 +204,7 @@ describe('picker: tree commit picking', () => {
     const commits = [commit(0), commit(1)];
     const trees = makeFakeTrees(canopy, trunk, commits);
     const world = makeWorld(trees);
-    const p = createPicker({ canvas, camera: FAKE_CAMERA, world });
+    const p = createPicker({ canvas, camera: FAKE_CAMERA, world, cityState: world.cityState });
 
     p.setSelection({
       kind: NodeKind.Commit,
@@ -223,7 +228,7 @@ describe('picker: tree commit picking', () => {
     const world = makeWorld(trees);
 
     PICKER_SELECTION_KEY.value = { kind: NodeKind.Commit, sha: commits[1].sha };
-    const p = createPicker({ canvas, camera: FAKE_CAMERA, world });
+    const p = createPicker({ canvas, camera: FAKE_CAMERA, world, cityState: world.cityState });
 
     const sel = p.selection.value as CommitTarget | null;
     expect(sel).not.toBeNull();
@@ -239,7 +244,7 @@ describe('picker: tree commit picking', () => {
     const commits = [commit(0), commit(1)];
     const treesA = makeFakeTrees(canopyA, trunkA, commits);
     const world = makeWorld(treesA);
-    const p = createPicker({ canvas, camera: FAKE_CAMERA, world });
+    const p = createPicker({ canvas, camera: FAKE_CAMERA, world, cityState: world.cityState });
 
     // Pick the second commit from the first world snapshot.
     p.setSelection({
@@ -272,18 +277,19 @@ describe('picker: tree commit picking', () => {
     const commits = [commit(0)];
     const treesA = makeFakeTrees(canopyA, trunkA, commits);
     const world = makeWorld(treesA);
-    const p = createPicker({ canvas, camera: FAKE_CAMERA, world });
+    const p = createPicker({ canvas, camera: FAKE_CAMERA, world, cityState: world.cityState });
 
     // World rebuild: trees absent initially (simulates the moment between
-    // street/building rebuild and async tree placement completing).
+    // street/building rebuild and async tree placement completing). cityRevision
+    // bumps here with no trees attached.
     world.setTrees(null);
     world.triggerRebuild();
-    // Now trees arrive asynchronously and the world fires onChange again.
+    // Now trees arrive asynchronously and the world bumps decorationRevision.
     const canopyB = makeCanopy();
     const trunkB = makeTrunk();
     const treesB = makeFakeTrees(canopyB, trunkB, commits);
     world.setTrees(treesB);
-    world.triggerRebuild();
+    world.triggerDecoration();
 
     // After the second triggerRebuild, picking the new canopy should
     // produce a CommitTarget — proving pickables refreshed.
@@ -306,7 +312,7 @@ describe('picker: tree commit picking', () => {
     const world = makeWorld(trees);
 
     PICKER_SELECTION_KEY.value = { kind: NodeKind.Commit, sha: 'f'.repeat(40) };
-    const p = createPicker({ canvas, camera: FAKE_CAMERA, world });
+    const p = createPicker({ canvas, camera: FAKE_CAMERA, world, cityState: world.cityState });
 
     expect(p.selection.value).toBeNull();
     expect(PICKER_SELECTION_KEY.value).toBeNull();

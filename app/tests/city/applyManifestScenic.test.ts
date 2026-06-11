@@ -144,8 +144,6 @@ describe('createApplyManifest — scenic reactivity parity', () => {
       layoutClient: layoutClient as never,
       treePlacementClient: makeTreePlacementClient() as never,
       cityState,
-      emitBeforeChange: vi.fn(),
-      emitChange: vi.fn(),
     });
     return { api, cityState, streets, layoutClient, stubs };
   }

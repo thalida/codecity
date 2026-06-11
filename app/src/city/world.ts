@@ -11,14 +11,12 @@
 //   world.getStreetPickables(), …
 //   world.getBuildingByPath(p), .getSidewalkByDir(p), …
 //
-//   world.onBeforeChange(cb)          // before disposal
-//   world.onChange(cb)                // after rebuild, with diff
 //   world.disposeMesh(mesh)           // animator's onComplete calls this
 //
-// applyManifest computes the entering / exiting / staying buckets vs the
-// previous manifest (matched by file.path / dir.path) and fires onChange
-// with them. The diff carries InstancedMesh-level entries which the
-// animator consumes.
+// applyManifest sets the cityState signals (manifest/layout/bbox/...) and bumps
+// cityState.cityRevision / decorationRevision. The reactive consumers (picker,
+// cameraRig, pathLine, buildingFader) react to those signals — there is no
+// observer to subscribe to anymore.
 //
 // Disposal: every mesh added by buildWorld or this module gets removed
 // from the persistent scene and disposed. The disposer walks geometry →
@@ -38,7 +36,6 @@ import type { Buildings } from './components/buildings';
 import { findLayoutOverlaps } from './layout/algorithm';
 import { createLayoutClient } from './layout/runner';
 import { layoutCityWithTrace } from './layout/algorithm';
-import type { PrevState } from './utils/cityDiff';
 import { createApplyManifest } from './applyManifest';
 import { createCityState, type CityState } from './state/cityState';
 import { _formatCollisionReport, _formatStemDiagnostic } from './diagnostics';
@@ -66,7 +63,7 @@ import type { WorldBounds } from './utils/floorBounds';
 import { createFootprint } from './components/footprint';
 import type { Footprint } from './components/footprint';
 import { SCENE } from '@/state/stores/settings/scene';
-import type { Building, WorldDiff } from '@/types';
+import type { Building } from '@/types';
 
 // `canvas` is unused; kept in the signature so call sites (useCityScene, tests)
 // don't have to change. outlineRenderer takes the canvas directly via its
@@ -188,7 +185,7 @@ export function createWorld(_canvas: HTMLCanvasElement) {
   // mirrors _cells/_buildingIndex from this component after each rebuild.
   const _buildings: Buildings = createBuildings(_ctx as unknown as SceneContext, {
     getStreetByDir: (p) => _streets.getStreetByDir(p),
-    onChange,
+    cityState: _cityState,
   });
   scene.add(_buildings.group);
 
@@ -208,69 +205,28 @@ export function createWorld(_canvas: HTMLCanvasElement) {
   scene.add(_fireflies.group);
 
   // Selection / hover neon path lines — PERSISTENT component. Deps are
-  // closures evaluated at call time, post-init. Subscribes to picker + onChange
-  // at arming (first tick).
-  const _pathLine: PathLine = createPathLine(_ctx as unknown as SceneContext, {
-    // .peek(), not .value: this closure is invoked from inside the pathLine
-    // component's two effect() blocks (renderer.ts _updatePathLine /
-    // _updateHoverPathLine). Reading .value there would subscribe those effects
-    // to the gemWorldPos computed and re-fire them on every rebuild — a NEW
-    // reactivity the old by-reference bag never had. Transitional: peek
-    // preserves today's non-reactive read; in Stage 4 the component reacts to
-    // the signal properly when world.onChange dissolves.
-    getGemWorldPos: () => _cityState.gemWorldPos.peek(),
-    getStreetsByDirMap: () => _streets.streetsByDirMap(),
-    onChange,
-  });
+  // closures evaluated at call time, post-init. Subscribes to picker at arming
+  // (first tick); reacts to cityState.gemWorldPos + cityRevision for rebuilds.
+  const _pathLine: PathLine = createPathLine(
+    _ctx as unknown as SceneContext,
+    {
+      // .peek(), not .value: this closure is invoked from inside the renderer's
+      // _updatePathLine / _updateHoverPathLine, which run from the selection +
+      // hover effects too. A tracking read there would subscribe THOSE effects
+      // to gemWorldPos and re-fire them on every rebuild — reactivity they never
+      // had. The renderer's dedicated rebuild effect tracks cityState.gemWorldPos
+      // directly (it holds cityState), so gem moves still recompute the path.
+      getGemWorldPos: () => _cityState.gemWorldPos.peek(),
+      getStreetsByDirMap: () => _streets.streetsByDirMap(),
+    },
+    _cityState
+  );
   scene.add(_pathLine.group);
 
   // One layoutClient instance per world. Owns the off-thread worker
   // (or its sync fallback in test envs). Disposed when the world is
   // disposed.
   const _layoutClient = createLayoutClient();
-
-  // Listeners
-
-  const beforeChangeCbs: Array<(prev: PrevState) => void> = [];
-  // The change diff is structurally complex; consumers (animator, picker,
-  // outlineRenderer, etc.) each look at a different slice. Typed `any`
-  // here, but each consumer narrows it locally.
-
-  const changeCbs: Array<(diff: WorldDiff) => void> = [];
-
-  function _emit<T>(arr: Array<(p: T) => void>, payload: T): void {
-    // Snapshot to allow listeners to unsubscribe themselves mid-emit
-    // without disturbing iteration.
-    for (const cb of [...arr]) {
-      try {
-        cb(payload);
-      } catch (e) {
-        console.error('[world] listener error', e);
-      }
-    }
-  }
-
-  function onBeforeChange(cb: (prev: PrevState) => void): () => void {
-    beforeChangeCbs.push(cb);
-    return function unsubscribe() {
-      const idx = beforeChangeCbs.indexOf(cb);
-      if (idx >= 0) beforeChangeCbs.splice(idx, 1);
-    };
-  }
-
-  function onChange(cb: (diff: WorldDiff) => void): () => void {
-    changeCbs.push(cb);
-    return function unsubscribe() {
-      const idx = changeCbs.indexOf(cb);
-      if (idx >= 0) changeCbs.splice(idx, 1);
-    };
-  }
-
-  function _removeAndDispose(obj: THREE.Object3D | null): void {
-    if (!obj) return;
-    if (obj.parent) obj.parent.remove(obj);
-    disposeObject3D(obj);
-  }
 
   // Public idempotent disposal — animator's onComplete calls this when
   // an exit-tween finishes. A second call on the same mesh no-ops.
@@ -282,10 +238,10 @@ export function createWorld(_canvas: HTMLCanvasElement) {
 
   // The manifest build/rebuild pipeline lives in ./applyManifest
   // (createApplyManifest). It closes over the persistent component refs + the
-  // shared _cityState signals object (whose source signals it sets) plus its own
-  // private cache/mirror state. It returns the apply function + the two cache
-  // clearers resetCache/invalidateLayoutCache delegate to. The city-diff wrapper
-  // moved into the factory with it.
+  // shared _cityState signals object (whose source signals it sets + whose
+  // cityRevision/decorationRevision it bumps) plus its own private cache/mirror
+  // state. It returns the apply function + the two cache clearers
+  // resetCache/invalidateLayoutCache delegate to.
   const {
     applyManifest,
     resetCaches: _resetCaches,
@@ -307,8 +263,6 @@ export function createWorld(_canvas: HTMLCanvasElement) {
     layoutClient: _layoutClient,
     treePlacementClient: _treePlacementClient,
     cityState: _cityState,
-    emitBeforeChange: (prev) => _emit(beforeChangeCbs, prev),
-    emitChange: (diff) => _emit(changeCbs, diff),
   });
 
   function dispose() {
@@ -322,8 +276,6 @@ export function createWorld(_canvas: HTMLCanvasElement) {
     _footprint.dispose();
     _streets.dispose();
     _buildings.dispose();
-    beforeChangeCbs.length = 0;
-    changeCbs.length = 0;
     _layoutClient.dispose();
     _treePlacementClient.dispose();
   }
@@ -359,8 +311,6 @@ export function createWorld(_canvas: HTMLCanvasElement) {
     scene,
     applyManifest,
     dispose,
-    onBeforeChange,
-    onChange,
     disposeMesh,
     resetCache,
     invalidateLayoutCache,
@@ -405,8 +355,11 @@ export function createWorld(_canvas: HTMLCanvasElement) {
     getManifest() {
       return _cityState.manifest.value;
     },
-    getLayout() {
-      return _cityState.layout.value;
+    /** The per-city signals object. Exposed so renderLoop can thread it into
+     *  the picker + cameraRig (their rebuild reactions track cityRevision /
+     *  bbox). Stage 5 rewires these via the composer. */
+    getCityState(): CityState {
+      return _cityState;
     },
     runCollisionCheck(): void {
       const layout = _cityState.layout.value;

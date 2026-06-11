@@ -27,6 +27,7 @@
 // default gem-framing position.
 
 import * as THREE from 'three';
+import { effect } from '@preact/signals';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import {
   CAMERA_FOV,
@@ -42,6 +43,7 @@ import {
 } from '@/constants/camera';
 import { NodeKind, StreetAxis } from '@/types';
 import type { Building, PickTarget, Street } from '@/types';
+import type { CityState } from '@/city/state/cityState';
 
 /** Narrow accessor surface the rig needs from the world / future composer.
  *  Each member maps 1:1 to a world.ts accessor (Task 13 interim: renderLoop
@@ -61,8 +63,6 @@ export interface CameraRigDeps {
   getTreeBoundsBySha(
     sha: string
   ): { x: number; y: number; z: number; height: number; radius: number } | null;
-  /** world.onChange — rebuild notification; the rig ignores the diff payload. */
-  onChange(cb: () => void): () => void;
 }
 
 /** Floor on controls.maxDistance regardless of city size. Tiny-but-tall
@@ -111,9 +111,11 @@ const TALLEST_BUILDING_HEADROOM_MULT = 1.05;
 export function createCameraRig({
   canvas,
   deps,
+  cityState,
 }: {
   canvas: HTMLCanvasElement;
   deps: CameraRigDeps;
+  cityState: CityState;
 }) {
   const W = canvas.clientWidth;
   const H = canvas.clientHeight;
@@ -140,8 +142,6 @@ export function createCameraRig({
   let firstFrame = true;
   let initialCamPos: THREE.Vector3 | null = null;
   let initialTarget: THREE.Vector3 | null = null;
-
-  let _rebuildSubscribed = false;
 
   // Animation cancellation token. Each new focus/reset animation bumps
   // this; in-flight rAF steps abort if their token doesn't match.
@@ -346,18 +346,22 @@ export function createCameraRig({
     camera.lookAt(initialTarget);
     controls.target.copy(initialTarget);
 
-    // Re-frame on every manifest swap so R (reset) always fits the current
-    // city. The decision to actually SNAP the camera on a source change lives
-    // in the render layer (useCityScene), which calls reset() explicitly — this
-    // rig is source-agnostic.
-    if (!_rebuildSubscribed) {
-      deps.onChange(() => {
-        _captureFraming();
-      });
-      _rebuildSubscribed = true;
-    }
     return true;
   }
+
+  // Re-frame on every manifest swap so R (reset) always fits the current city.
+  // bbox is reassigned (new Box3) ONLY on a non-reuse apply — the exact moment
+  // the framing should update — so tracking it here matches the old
+  // world.onChange-driven re-capture without firing on reuse applies. The first
+  // (construction-time) fire sees bbox=null and _captureFraming no-ops via its
+  // own empty-bbox guard; the boot apply then sets bbox and reframes. The
+  // decision to actually SNAP the camera on a source change lives in the render
+  // layer (useCityScene), which calls reset() explicitly — this rig is
+  // source-agnostic.
+  const _disposeReframeEffect = effect(() => {
+    void cityState.bbox.value;
+    _captureFraming();
+  });
 
   function update(_dtMs: number): void {
     if (firstFrame) {
@@ -533,6 +537,7 @@ export function createCameraRig({
   }
 
   function dispose() {
+    _disposeReframeEffect();
     if (typeof controls.dispose === 'function') controls.dispose();
   }
 

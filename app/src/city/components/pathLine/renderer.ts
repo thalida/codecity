@@ -23,6 +23,7 @@ import { computePathPoints } from '@/city/layout/streetPath';
 import { rainbowRgbAt } from '@/city/utils/rainbowChase';
 import type { PickTarget } from '@/types/picker';
 import type { ReadonlySignal } from '@preact/signals';
+import type { CityState } from '@/city/state/cityState';
 
 /**
  * Converts a LINEWIDTH_PCT percentage (1–50) into an actual pixel linewidth
@@ -39,13 +40,13 @@ export function computePathLinewidthPixels(pct: number): number {
 }
 
 /** Minimal world surface consumed by this renderer. The pathLine door
- *  threads world closures through (gem position, streets-by-dir map, and
- *  the post-rebuild change subscription). Re-exported by the door as
- *  PathLineDeps — single source of truth for the seam shape. */
+ *  threads world closures through (gem position + the streets-by-dir map).
+ *  Re-exported by the door as PathLineDeps — single source of truth for the
+ *  seam shape. Rebuild reactivity rides on cityState (see below), not a
+ *  closure. */
 export interface PathLineWorld {
   getGemWorldPos(): THREE.Vector3 | null;
   getStreetsByDirMap(): Record<string, Street>;
-  onChange(cb: () => void): () => void;
 }
 
 /** Minimal picker surface consumed by this renderer (hover + selection
@@ -60,6 +61,7 @@ export function createPathLineRenderer({
   scene,
   world,
   picker,
+  cityState,
 }: {
   canvas: HTMLCanvasElement;
   /** Parent for the two line meshes (the pathLine component's group). Draw
@@ -68,6 +70,7 @@ export function createPathLineRenderer({
   scene: THREE.Object3D;
   world: PathLineWorld;
   picker: PickerSignals;
+  cityState: CityState;
 }) {
   // ── Selection path line (rainbow vertex colors) ────────────────────
   const _pl = STREETS.value;
@@ -189,7 +192,7 @@ export function createPathLineRenderer({
     hoverPathLine.visible = true;
   }
 
-  // Reactive: rebuild geometry on selection / hover / world change.
+  // Reactive: rebuild geometry on selection / hover / city rebuild + gem move.
   //
   // Two effects, each tracking only the signal it should re-run on.
   // _updateHoverPathLine reads picker.hover.value + HOVER_PATH_LINE.value
@@ -209,9 +212,21 @@ export function createPathLineRenderer({
     void picker.hover.value;
     _updateHoverPathLine();
   });
-  const _unsubOnChange = world.onChange(() => {
-    _updatePathLine();
-    _updateHoverPathLine();
+  // Rebuild reaction: recompute both lines when the gem moves (gemWorldPos) or
+  // the city rebuilds (cityRevision — the streets-by-dir map world.getStreetsBy-
+  // DirMap() reads is fresh by the time it bumps, inside the apply batch). Only
+  // these two signals are tracked: they're read with .value here, and the update
+  // calls run untracked() so the picker.selection/hover + STREETS + gemWorldPos
+  // (peek'd internally) reads inside _updatePathLine/_updateHoverPathLine don't
+  // also subscribe this effect (selection/hover have their own effects above;
+  // STREETS has the theme effect).
+  const _disposeRebuildEffect = effect(() => {
+    void cityState.gemWorldPos.value;
+    void cityState.cityRevision.value;
+    untracked(() => {
+      _updatePathLine();
+      _updateHoverPathLine();
+    });
   });
 
   // ── Per-frame: rainbow chase on the selection line ─────────────────
@@ -250,7 +265,7 @@ export function createPathLineRenderer({
   function dispose() {
     _disposeSelectionEffect();
     _disposeHoverEffect();
-    _unsubOnChange();
+    _disposeRebuildEffect();
     if (pathLine.parent) pathLine.parent.remove(pathLine);
     if (hoverPathLine.parent) hoverPathLine.parent.remove(hoverPathLine);
     if (pathLineGeo && pathLineGeo.dispose) pathLineGeo.dispose();

@@ -7,6 +7,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import * as THREE from 'three';
 import { signal } from '@preact/signals';
 import { createBuildingFader } from '@/city/components/buildings/fader';
+import { createCityState } from '@/city/state/cityState';
 import { BUILDING_FADE } from '@/state/stores/settings/buildings';
 import { FadeDetail, NodeKind } from '@/types';
 import type { Building, DirNode, FileNode, PickTarget, Street } from '@/types';
@@ -87,7 +88,6 @@ function makeFader(opts: {
     getCells: () => cells,
     getStreetByDir: (path: string) => streetByDir.get(path) ?? null,
     getAdPanels: () => null,
-    onChange: () => () => {},
   } as unknown as Parameters<typeof createBuildingFader>[0]['world'];
 
   const picker = {
@@ -95,7 +95,7 @@ function makeFader(opts: {
     hover: signal<PickTarget | null>(opts.hover ?? null),
   } as unknown as Parameters<typeof createBuildingFader>[0]['picker'];
 
-  const fader = createBuildingFader({ world, picker });
+  const fader = createBuildingFader({ world, cityState: createCityState(), picker });
 
   function readFor(path: string): FadeReading | null {
     const slot = opts.buildings.findIndex((b) => b.file?.path === path);

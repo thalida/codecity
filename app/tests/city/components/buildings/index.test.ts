@@ -19,6 +19,7 @@ import * as THREE from 'three';
 import { signal } from '@preact/signals';
 
 import { createBuildings } from '@/city/components/buildings';
+import { createCityState } from '@/city/state/cityState';
 import { getSharedBuildingUniforms } from '@/city/components/buildings/material';
 import { BUILDINGS } from '@/state/stores/settings/buildings';
 import { NodeKind } from '@/types';
@@ -67,7 +68,7 @@ function makePrePickerCtx(): SceneContext {
 
 const NOOP_DEPS = {
   getStreetByDir: () => null,
-  onChange: () => () => {},
+  cityState: createCityState(),
 };
 
 const EMPTY_DATE_RANGES = {

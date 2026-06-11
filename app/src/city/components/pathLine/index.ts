@@ -4,12 +4,12 @@
 // selected node, rainbow chasing) and the faded hover-preview path line.
 // The inner renderer (./renderer — formerly an effects module constructed in
 // renderLoop) owns the meshes, the picker-driven geometry effects, and a
-// world.onChange subscription.
+// cityState rebuild effect (gemWorldPos + cityRevision).
 //
 // Construction-time bridge (Strategy A): the component is built inside
 // world.ts BEFORE the picker/renderer exist. The inner renderer subscribes
-// to picker.hover/selection + world.onChange inside its factory and needs
-// the canvas, so it is NOT constructed at component construction — it is
+// to picker.hover/selection + cityState rebuild signals inside its factory and
+// needs the canvas, so it is NOT constructed at component construction — it is
 // ARMED on the first tick(), once renderLoop has populated
 // ctx.picker/ctx.renderer. The STREETS theme effect is settings-only and
 // safe at construction.
@@ -22,6 +22,7 @@ import type { FrameContext, SceneComponent, SceneContext } from '../../types';
 import { armOnFirstTick } from '../../utils/armOnFirstTick';
 import { onSettings } from '../../utils/onSettings';
 import { createPathLineRenderer, type PathLineWorld } from './renderer';
+import type { CityState } from '../../state/cityState';
 
 /** World closures the inner renderer consumes (threaded from world.ts —
  *  gemWorldPos is a `let` there; closures evaluate at call time). The shape
@@ -35,7 +36,11 @@ export interface PathLine extends SceneComponent {
   onResize(): void;
 }
 
-export function createPathLine(ctx: SceneContext, deps: PathLineDeps): PathLine {
+export function createPathLine(
+  ctx: SceneContext,
+  deps: PathLineDeps,
+  cityState: CityState
+): PathLine {
   // Persistent group — added to the scene once by world.ts. The inner
   // renderer parents its two line meshes into it at arming (draw order is
   // governed by RENDER_ORDERS.PATH_LINE renderOrder, not graph position).
@@ -45,8 +50,8 @@ export function createPathLine(ctx: SceneContext, deps: PathLineDeps): PathLine 
   let _inner: ReturnType<typeof createPathLineRenderer> | null = null;
 
   // Inner renderer — ARMED on the first tick(), NOT at construction. Its
-  // factory creates the two picker-driven geometry effects + the
-  // world.onChange subscription internally, so constructing it at arming
+  // factory creates the two picker-driven geometry effects + the cityState
+  // rebuild effect internally, so constructing it at arming
   // (ctx.picker live) is what makes them live; at construction ctx.picker is
   // null and the effects would be permanently dead. armOnFirstTick's sticky
   // armed flag (not `if (_inner)`) survives dispose() nulling _inner, so a
@@ -60,6 +65,7 @@ export function createPathLine(ctx: SceneContext, deps: PathLineDeps): PathLine 
         scene: group,
         world: deps,
         picker: ctx.picker!,
+        cityState,
       });
       return [
         () => {
@@ -97,7 +103,7 @@ export function createPathLine(ctx: SceneContext, deps: PathLineDeps): PathLine 
   function dispose(): void {
     stopTheme();
     // Inner dispose (run via _arm's teardown) also stops its picker effects +
-    // unsubscribes its world.onChange callback.
+    // its cityState rebuild effect.
     _arm.dispose();
   }
 

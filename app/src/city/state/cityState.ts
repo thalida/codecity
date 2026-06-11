@@ -31,6 +31,19 @@ export interface CityState {
   latestWorldBounds: Signal<WorldBounds | null>;
   readonly rootStreet: ReadonlySignal<Street | null>;
   readonly gemWorldPos: ReadonlySignal<THREE.Vector3 | null>;
+  // Rebuild-notification counters (replace the old world.onChange observer).
+  //   cityRevision      — bumped ONCE per applyManifest, in the same batch() as
+  //     manifest/layout. Means "the city rebuilt; re-derive" — picker clears
+  //     hover + re-resolves its selection key, cameraRig reframes (it actually
+  //     tracks bbox, which changes in lockstep), pathLine recomputes (the
+  //     streets-by-dir map is fresh by the time this bumps), buildingFader
+  //     re-sweeps the fresh iFade buffers.
+  //   decorationRevision — bumped AFTER the deferred trees/fireflies attach
+  //     (replaces the old second onChange emit). Means "foliage now present" —
+  //     the picker re-resolves a Commit selection + refreshes pickables with the
+  //     live tree meshes (the first bump fired before trees existed).
+  cityRevision: Signal<number>;
+  decorationRevision: Signal<number>;
 }
 
 export function createCityState(): CityState {
@@ -38,6 +51,8 @@ export function createCityState(): CityState {
   const layout = signal<CityLayout | null>(null);
   const bbox = signal<THREE.Box3 | null>(null);
   const latestWorldBounds = signal<WorldBounds | null>(null);
+  const cityRevision = signal(0);
+  const decorationRevision = signal(0);
 
   // The root-of-repo street (gets the gem) — the first isRoot street in the
   // current layout. Recomputes when layout.value changes.
@@ -55,5 +70,14 @@ export function createCityState(): CityState {
     return new THREE.Vector3(a.x, 0, a.y);
   });
 
-  return { manifest, layout, bbox, latestWorldBounds, rootStreet, gemWorldPos };
+  return {
+    manifest,
+    layout,
+    bbox,
+    latestWorldBounds,
+    rootStreet,
+    gemWorldPos,
+    cityRevision,
+    decorationRevision,
+  };
 }

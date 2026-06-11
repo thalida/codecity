@@ -15,7 +15,7 @@
 // The fader writes iFade on each CellTile.detailMesh (vec3 layout).
 
 import * as THREE from 'three';
-import { effect } from '@preact/signals';
+import { effect, untracked } from '@preact/signals';
 import { BUILDING_FADE } from '@/state/stores/settings/buildings';
 import type { BuildingFadeConfig } from '@/state/stores/settings/buildings';
 import { FadeDetail, NodeKind } from '@/types';
@@ -25,15 +25,15 @@ import type { Street } from '@/types';
 import type { CellTile } from './cellTile';
 import type { InstancedAdPanels } from './adPanels';
 import type { createPicker } from '@/city/render/picker';
+import type { CityState } from '@/city/state/cityState';
 
 // Narrow world surface the fader needs. The buildings component supplies this
-// (cells + ad panels are component-local; getStreetByDir + onChange are
-// threaded from world). Decouples the fader from the full createWorld return.
+// (cells + ad panels are component-local; getStreetByDir is threaded from
+// world). Decouples the fader from the full createWorld return.
 interface FaderWorld {
   getCells(): Map<number, CellTile>;
   getStreetByDir(path: string): Street | null;
   getAdPanels(): InstancedAdPanels | null;
-  onChange(cb: () => void): () => void;
 }
 
 interface TierResult {
@@ -66,9 +66,11 @@ function _tierLevelFor(file: FileNode | null, dir: DirNode): 1 | 2 | 3 | 4 {
 
 export function createBuildingFader({
   world,
+  cityState,
   picker,
 }: {
   world: FaderWorld;
+  cityState: CityState;
   picker: ReturnType<typeof createPicker>;
 }) {
   function _resolveDirTarget(sel: PickTarget | null, hov: PickTarget | null): DirNode | null {
@@ -215,10 +217,15 @@ export function createBuildingFader({
     _sweepAll();
   });
 
-  // Re-sweep after a manifest rebuild — new blocks start with fresh iFade
+  // Re-sweep after a manifest rebuild — new cells start with fresh iFade
   // buffers (opacity=1.0, silhouette=0, outlineOpacity=0) and the current
-  // selection still applies.
-  const _unsubChange = world.onChange(() => _sweepAll());
+  // selection still applies. Tracks cityRevision only; _sweepAll reads
+  // picker.selection/hover + BUILDING_FADE, so it runs untracked to keep this
+  // effect from doubling up with the selection/hover/config effects above.
+  const _unsubChange = effect(() => {
+    void cityState.cityRevision.value;
+    untracked(_sweepAll);
+  });
 
   // BUILDING_FADE config (tier thresholds, body opacity, detail mode)
   // controls every value _sweepAll reads. Resweep on any change so dragging

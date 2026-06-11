@@ -31,9 +31,6 @@ function makeSceneHandle() {
       getManifest() {
         return null;
       },
-      onChange() {
-        return () => {};
-      },
       getTrees() {
         return null;
       },

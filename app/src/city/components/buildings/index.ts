@@ -45,6 +45,7 @@ import type {
 } from '@/types';
 
 import type { FrameContext, SceneComponent, SceneContext } from '../../types';
+import type { CityState } from '../../state/cityState';
 import { armOnFirstTick } from '../../utils/armOnFirstTick';
 import type { WorldBounds } from './spatialGrid';
 import type { CellTile } from './cellTile';
@@ -69,12 +70,13 @@ interface BuildingDiff {
   staying: { buildings: StayingBuilding[] };
 }
 
-/** Construction-time deps sourced from world (the streets lookup + onChange
- *  for the fader; world has _streets + onChange in scope when it builds this
- *  component). Keeps SceneContext untouched. */
+/** Construction-time deps sourced from world (the streets lookup + the per-city
+ *  signals object for the fader's rebuild re-sweep; world has _streets +
+ *  _cityState in scope when it builds this component). Keeps SceneContext
+ *  untouched. */
 export interface BuildingsDeps {
   getStreetByDir(path: string): Street | null;
-  onChange(cb: () => void): () => void;
+  cityState: CityState;
 }
 
 /** Public contract for the buildings component. */
@@ -208,14 +210,15 @@ export function createBuildings(ctx: SceneContext, deps: BuildingsDeps): Buildin
     ctx,
     () => {
       // Fader gets a world-facade: cells + ad panels are component-local;
-      // getStreetByDir + onChange are threaded from world via deps.
+      // getStreetByDir is threaded from world via deps. The fader re-sweeps on
+      // a city rebuild via cityState.cityRevision (threaded via deps).
       _fader = createBuildingFader({
         world: {
           getCells: () => _cells,
           getStreetByDir: deps.getStreetByDir,
           getAdPanels: () => _adPanels,
-          onChange: deps.onChange,
         },
+        cityState: deps.cityState,
         picker: ctx.picker!,
       });
       // Outline + ghost reach the cells / mesh resolver locally. They add their

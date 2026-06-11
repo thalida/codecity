@@ -4,11 +4,11 @@
 // API: createPathLine(ctx, deps) → { group, tick(dt, frame), onResize(),
 //      dispose() }.
 //
-// The inner renderer owns the picker-driven geometry effects and a
-// deps.onChange subscription, so it is ARMED on the first tick() (NOT at
-// construction — ctx.picker is null there, so its effects would track no
-// signal and never re-fire, and the onChange subscription would leak into a
-// dead renderer). The theme effect tracks ONLY STREETS: refreshMaterials
+// The inner renderer owns the picker-driven geometry effects and a cityState
+// rebuild effect (gemWorldPos + cityRevision), so it is ARMED on the first
+// tick() (NOT at construction — ctx.picker is null there, so its effects would
+// track no signal and never re-fire). The theme effect tracks ONLY STREETS:
+// refreshMaterials
 // internally re-evaluates the hover line (which reads picker signals), so it
 // runs UNTRACKED — the untracked-discipline test guards that a hover change
 // does not re-fire the theme effect.
@@ -19,6 +19,7 @@ import { signal } from '@preact/signals';
 import { LineSegments2 } from 'three/addons/lines/LineSegments2.js';
 
 import { createPathLine, type PathLineDeps } from '@/city/components/pathLine';
+import { createCityState } from '@/city/state/cityState';
 import { computePathLinewidthPixels } from '@/city/components/pathLine/renderer';
 import { STREETS } from '@/state/stores/settings/streets';
 import { NodeKind, StreetAxis } from '@/types';
@@ -72,15 +73,15 @@ const SRC_STREET = {
   dir: { name: 'src', path: 'src', type: NodeKind.Directory },
 } as unknown as Street;
 
-// Deps with instrumentation: counts getGemWorldPos calls, records onChange
-// registration + unsubscription.
+// Deps + a cityState (whose cityRevision drives the rebuild effect). Counts
+// getGemWorldPos calls so the untracked-discipline test can assert fire counts.
 function makeDeps(): {
   deps: PathLineDeps;
-  counters: { gemPosCalls: number; onChangeRegistered: number; unsubscribed: number };
-  changeCbs: Array<() => void>;
+  cityState: ReturnType<typeof createCityState>;
+  counters: { gemPosCalls: number };
 } {
-  const counters = { gemPosCalls: 0, onChangeRegistered: 0, unsubscribed: 0 };
-  const changeCbs: Array<() => void> = [];
+  const counters = { gemPosCalls: 0 };
+  const cityState = createCityState();
   const deps: PathLineDeps = {
     getGemWorldPos() {
       counters.gemPosCalls++;
@@ -89,15 +90,8 @@ function makeDeps(): {
     getStreetsByDirMap() {
       return { src: SRC_STREET };
     },
-    onChange(cb) {
-      counters.onChangeRegistered++;
-      changeCbs.push(cb);
-      return () => {
-        counters.unsubscribed++;
-      };
-    },
   };
-  return { deps, counters, changeCbs };
+  return { deps, cityState, counters };
 }
 
 function dirTarget(): PickTarget {
@@ -127,11 +121,14 @@ describe('createPathLine() component door', () => {
 
   it('constructs with an empty named group; nothing armed, nothing subscribed', () => {
     const { ctx, selection } = makeCtx();
-    const { deps, counters } = makeDeps();
-    comp = createPathLine(ctx, deps);
+    const { deps, cityState, counters } = makeDeps();
+    comp = createPathLine(ctx, deps, cityState);
     expect(comp.group.name).toBe('city-path-line');
     expect(comp.group.children).toHaveLength(0);
-    expect(counters.onChangeRegistered).toBe(0);
+    // Not armed → the rebuild effect doesn't exist yet, so a cityRevision bump
+    // recomputes nothing (getGemWorldPos is never called).
+    cityState.cityRevision.value++;
+    expect(counters.gemPosCalls).toBe(0);
     // A selection set before the first tick produces no line (not armed) —
     // and a STREETS Save is safe (theme effect no-ops over the null inner).
     selection.value = dirTarget();
@@ -139,23 +136,26 @@ describe('createPathLine() component door', () => {
     expect(comp.group.children).toHaveLength(0);
   });
 
-  it('first tick() arms the inner renderer: two line meshes + one onChange subscription', () => {
+  it('first tick() arms the inner renderer: two line meshes + a live rebuild effect', () => {
     const { ctx } = makeCtx();
-    const { deps, counters } = makeDeps();
-    comp = createPathLine(ctx, deps);
+    const { deps, cityState, counters } = makeDeps();
+    comp = createPathLine(ctx, deps, cityState);
     comp.tick(0, FRAME(ctx.camera));
     expect(lines(comp)).toHaveLength(2);
-    expect(counters.onChangeRegistered).toBe(1);
-    // Second tick does not re-arm.
+    // The rebuild effect is live: a cityRevision bump recomputes the lines
+    // (getGemWorldPos is called from _updatePathLine + _updateHoverPathLine).
+    const before = counters.gemPosCalls;
+    cityState.cityRevision.value++;
+    expect(counters.gemPosCalls).toBeGreaterThan(before);
+    // Second tick does not re-arm (still two lines).
     comp.tick(0, FRAME(ctx.camera));
     expect(lines(comp)).toHaveLength(2);
-    expect(counters.onChangeRegistered).toBe(1);
   });
 
   it('a selection after arming shows the selection path line; clearing hides it', () => {
     const { ctx, selection } = makeCtx();
-    const { deps } = makeDeps();
-    comp = createPathLine(ctx, deps);
+    const { deps, cityState } = makeDeps();
+    comp = createPathLine(ctx, deps, cityState);
     comp.tick(0, FRAME(ctx.camera));
     const [pathLine] = lines(comp);
     expect(pathLine.visible).toBe(false);
@@ -173,8 +173,8 @@ describe('createPathLine() component door', () => {
 
   it('theme effect pushes a fresh linewidth into both materials on STREETS Save', () => {
     const { ctx } = makeCtx();
-    const { deps } = makeDeps();
-    comp = createPathLine(ctx, deps);
+    const { deps, cityState } = makeDeps();
+    comp = createPathLine(ctx, deps, cityState);
     comp.tick(0, FRAME(ctx.camera));
     STREETS.value = { ...STREETS.value, PATH_LINEWIDTH_PCT: 25 };
     const expected = computePathLinewidthPixels(25);
@@ -188,8 +188,8 @@ describe('createPathLine() component door', () => {
 
   it('untracked discipline: a hover change fires ONLY the hover effect, not the theme effect', () => {
     const { ctx, hover } = makeCtx();
-    const { deps, counters } = makeDeps();
-    comp = createPathLine(ctx, deps);
+    const { deps, cityState, counters } = makeDeps();
+    comp = createPathLine(ctx, deps, cityState);
     comp.tick(0, FRAME(ctx.camera));
 
     const before = counters.gemPosCalls;
@@ -200,16 +200,20 @@ describe('createPathLine() component door', () => {
     expect(counters.gemPosCalls).toBe(before + 1);
   });
 
-  it('dispose() unsubscribes the onChange callback and stops all effects', () => {
+  it('dispose() stops the rebuild effect + all picker effects', () => {
     const { ctx, selection } = makeCtx();
-    const { deps, counters } = makeDeps();
-    comp = createPathLine(ctx, deps);
+    const { deps, cityState, counters } = makeDeps();
+    comp = createPathLine(ctx, deps, cityState);
     comp.tick(0, FRAME(ctx.camera));
-    expect(counters.unsubscribed).toBe(0);
 
     comp.dispose();
-    expect(counters.unsubscribed).toBe(1);
     expect(comp.group.children).toHaveLength(0);
+    // After dispose the rebuild effect is dead: a cityRevision bump no longer
+    // recomputes (getGemWorldPos is not called).
+    const after = counters.gemPosCalls;
+    cityState.cityRevision.value++;
+    expect(counters.gemPosCalls).toBe(after);
+    // And picker/theme writes over the disposed inner are inert.
     expect(() => {
       selection.value = dirTarget();
       STREETS.value = { ...STREETS.value, PATH_LINEWIDTH_PCT: 30 };

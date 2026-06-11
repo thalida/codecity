@@ -32,18 +32,21 @@
 //   { kind: NodeKind.Directory, path: string }
 //   { kind: NodeKind.Commit,    sha: string }
 // One-way derivation: selection is the source of truth; whenever it changes,
-// picker writes the matching key. On world.onChange the key is re-resolved to
-// a live selection (or cleared if the path is gone) so an in-session rebuild
-// — a settings change recreates the city's meshes — keeps the selected node
-// alive instead of leaving a dangling mesh ref. The key is NOT persisted: a
+// picker writes the matching key. On a city rebuild (cityState.cityRevision
+// bumps) the key is re-resolved to a live selection (or cleared if the path is
+// gone) so an in-session rebuild — a settings change recreates the city's
+// meshes — keeps the selected node alive instead of leaving a dangling mesh
+// ref. A Commit selection additionally re-resolves when the deferred trees
+// attach (cityState.decorationRevision). The key is NOT persisted: a
 // fresh page load starts with no selection, and nothing is remembered across
 // sessions or source switches.
 
 import * as THREE from 'three';
-import { signal, effect } from '@preact/signals';
+import { signal, effect, untracked } from '@preact/signals';
 import { NodeKind } from '@/types';
 
 import type { PickTarget, PickerWorld, PickerSelectionKey } from '@/types';
+import type { CityState } from '@/city/state/cityState';
 
 // In-memory selection key. Reset to null on a fresh load; survives in-session
 // world rebuilds via the re-resolution below. Never written to localStorage.
@@ -53,10 +56,12 @@ export function createPicker({
   canvas,
   camera,
   world,
+  cityState,
 }: {
   canvas: HTMLCanvasElement;
   camera: THREE.Camera;
   world: PickerWorld;
+  cityState: CityState;
 }) {
   const hover = signal<PickTarget | null>(null);
   const selection = signal<PickTarget | null>(null);
@@ -64,8 +69,8 @@ export function createPicker({
   const raycaster = new THREE.Raycaster();
   const pointer = new THREE.Vector2();
 
-  // Cached pickables list. Refreshed on world.onChange so per-frame
-  // raycasts don't allocate a new array.
+  // Cached pickables list. Refreshed on the cityRevision/decorationRevision
+  // effects below so per-frame raycasts don't allocate a new array.
   let pickables: THREE.Object3D[] = [];
   function _refreshPickables() {
     pickables = world.getStreetPickables().slice();
@@ -211,12 +216,33 @@ export function createPicker({
     hover.value = null;
   }
 
-  const _unsubResolve = world.onChange(() => {
-    _clearHoverOnRebuild();
-    _resolveKeyToSelection();
+  // ── Rebuild reactions ─────────────────────────────────────────────
+  // cityRevision bumps ONCE per applyManifest (streets/buildings already
+  // rebuilt by the time it fires). Clear the now-stale hover, then re-resolve
+  // the selection key against the fresh scene + refresh pickables — exactly the
+  // work the old world.onChange callback did. The body runs untracked() so the
+  // effect subscribes ONLY to cityRevision: _resolveKeyToSelection reads (and
+  // writes) PICKER_SELECTION_KEY + selection, which would otherwise make this
+  // effect re-fire on every ordinary selection change.
+  const _disposeCityRevEffect = effect(() => {
+    void cityState.cityRevision.value;
+    untracked(() => {
+      _clearHoverOnRebuild();
+      _resolveKeyToSelection();
+    });
   });
-  // Resolve once now (key starts null → selection cleared + pickables primed).
-  _resolveKeyToSelection();
+  // decorationRevision bumps AFTER the deferred trees attach. At cityRevision
+  // time getTrees() was null (trees cleared), so a Commit selection was cleared
+  // and the pickables had no tree meshes. Re-resolve + refresh now that the live
+  // tree group exists. Hover is left alone (it was already cleared above, and a
+  // foliage attach shouldn't drop an interactive hover the user just made).
+  const _disposeDecorationRevEffect = effect(() => {
+    void cityState.decorationRevision.value;
+    untracked(_resolveKeyToSelection);
+  });
+  // Note: both effects fire ONCE at construction (revisions start at 0). That
+  // initial resolve replaces the old explicit `_resolveKeyToSelection()` call —
+  // key starts null → selection cleared + pickables primed.
 
   // ── Public setters ─────────────────────────────────────────────────
   function setHover(h: PickTarget | null): void {
@@ -370,7 +396,8 @@ export function createPicker({
   }
 
   function dispose() {
-    if (typeof _unsubResolve === 'function') _unsubResolve();
+    _disposeCityRevEffect();
+    _disposeDecorationRevEffect();
     _disposeSelectionEffect();
   }
 

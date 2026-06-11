@@ -36,13 +36,12 @@ import type { TreePlacementClient } from './components/trees/treePlacementClient
 import type { Island } from './components/island';
 import { getWorldBounds } from './utils/floorBounds';
 import type { Footprint } from './components/footprint';
-import { computeCityDiff, type PrevState } from './utils/cityDiff';
 import type { CityState } from './state/cityState';
 import { FOOTPRINT } from '@/state/stores/settings/footprint';
 import { TREES } from '@/state/stores/settings/trees';
 import { SCENE } from '@/state/stores/settings/scene';
 import { REBUILD_STATUS, RebuildStatus } from '@/state/stores/manifest';
-import type { CityBbox, CityLayout, DateRanges, Manifest, WorldDiff } from '@/types';
+import type { CityBbox, CityLayout, DateRanges, Manifest } from '@/types';
 
 // The flat ground meshes (sidewalks, paths, asphalt) all use a single
 // MeshBasicMaterial. Matches world.ts's FlatMesh alias.
@@ -53,16 +52,17 @@ type FlatMesh = THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial>;
 // signals object) — reassigned across applyManifest calls; the cache subset is
 // also nulled by the returned resetCaches()/invalidateLayoutCache().
 interface InternalCityState {
-  // Reassigned from the streets component on rebuild. Read by the PrevState
-  // capture + the city diff street branch (both vestigial — no consumer reads
-  // the resulting street diff — but kept byte-identical).
+  // Reassigned from the streets component on rebuild. These fed the old
+  // PrevState/_computeDiff city-diff (now deleted — the picker/camera/pathLine
+  // react to cityRevision instead of consuming a diff). They are now WRITE-ONLY
+  // with no reader; the dead mirror is removed in Commit 4.
   streetPickables: FlatMesh[];
   streetLabels: THREE.Group[];
   asphaltMeshes: FlatMesh[];
 
   // Cell-rendering state mirrors. The buildings component OWNS the cell scene
-  // + lookups; these are reassigned mirrors (set from the component after each
-  // rebuild) feeding the PrevState snapshot + city diff building branch.
+  // + lookups; these were reassigned mirrors feeding the old PrevState/
+  // _computeDiff city-diff (now deleted). WRITE-ONLY now; removed in Commit 4.
   cells: Map<number, CellTile>;
   buildingIndex: BuildingIndex | null;
 
@@ -96,12 +96,10 @@ export interface ApplyManifestDeps {
   layoutClient: ReturnType<typeof createLayoutClient>;
   treePlacementClient: TreePlacementClient;
   // The cross-boundary state — a per-city signals object. world.ts holds the
-  // same instance; applyManifest sets the four source signals' .value.
+  // same instance; applyManifest sets the four source signals' .value and bumps
+  // cityRevision / decorationRevision so the reactive consumers (picker,
+  // cameraRig, pathLine, buildingFader) re-derive.
   cityState: CityState;
-  // Fires the before-change listeners with the prev snapshot.
-  emitBeforeChange: (prev: PrevState) => void;
-  // Fires the change listeners with a diff.
-  emitChange: (diff: WorldDiff) => void;
 }
 
 // The API createApplyManifest returns: the apply function plus the two cache
@@ -117,15 +115,7 @@ export interface ApplyManifestApi {
 }
 
 export function createApplyManifest(deps: ApplyManifestDeps): ApplyManifestApi {
-  const {
-    components,
-    scene,
-    layoutClient,
-    treePlacementClient,
-    cityState,
-    emitBeforeChange,
-    emitChange,
-  } = deps;
+  const { components, scene, layoutClient, treePlacementClient, cityState } = deps;
   // The gem / island / repoLabel components are received in `components` (world
   // constructs + wires them) but applyManifest no longer touches them — they
   // rebuild themselves reactively off the cityState signals applyManifest sets
@@ -155,16 +145,6 @@ export function createApplyManifest(deps: ApplyManifestDeps): ApplyManifestApi {
     generation: 0,
   };
 
-  // Thin wrapper over the pure computeCityDiff, threading the internal live
-  // mirrors (cells/buildingIndex/streetPickables) into the `next` snapshot.
-  function _computeDiff(prev: PrevState): WorldDiff {
-    return computeCityDiff(prev, {
-      cells: internal.cells,
-      buildingIndex: internal.buildingIndex,
-      streetPickables: internal.streetPickables,
-    });
-  }
-
   // Manifest is typed loosely because world.test.ts builds mock manifests with
   // string `type` fields rather than the literal 'directory'/'file'. Real
   // callers (the scanner/IPC path) hand us proper Manifest objects.
@@ -182,18 +162,6 @@ export function createApplyManifest(deps: ApplyManifestDeps): ApplyManifestApi {
     if (newManifestTyped.tree && _friendlyName) {
       newManifestTyped.tree.name = _friendlyName;
     }
-
-    const prev: PrevState = {
-      streetPickables: internal.streetPickables,
-      streetLabels: internal.streetLabels,
-      asphaltMeshes: internal.asphaltMeshes,
-      manifest: cityState.manifest.value,
-      layout: cityState.layout.value,
-      cells: internal.cells,
-      buildingIndex: internal.buildingIndex,
-    };
-
-    emitBeforeChange(prev);
 
     // Refresh the building-roof icon atlas when the file structure changed.
     // Building it is expensive (one fetch+draw per unique icon), so gate on the
@@ -294,6 +262,15 @@ export function createApplyManifest(deps: ApplyManifestDeps): ApplyManifestApi {
     // awaited rebuild + the date ranges), so they stay an explicit call.
     await _buildings.rebuild(newLayout, newDateRanges);
 
+    // Clear the tree + firefly inner meshes BEFORE bumping cityRevision below so
+    // the picker's pickables refresh (driven by that bump) sees NO tree meshes —
+    // identical to the old dispose-then-emit ordering, where _trees.clear() ran
+    // before the first onChange emit. The deferred decoration pass rebuilds them
+    // and bumps decorationRevision so the picker re-refreshes with the live tree
+    // group. clear() is idempotent.
+    _trees.clear();
+    _fireflies.clear();
+
     // manifest changes on EVERY apply (name/metadata), so it's always
     // reassigned. layout is reassigned ONLY on a non-reuse apply — keeping the
     // reference stable on reuse is what makes the scenic effects skip. Both
@@ -303,14 +280,20 @@ export function createApplyManifest(deps: ApplyManifestDeps): ApplyManifestApi {
     batch(() => {
       cityState.manifest.value = newManifestTyped;
       if (!reused) cityState.layout.value = newLayout;
+      // Bump ONCE per apply, inside the same batch as manifest/layout, so the
+      // reactive rebuild consumers (picker re-resolve, cameraRig reframe via
+      // bbox, pathLine recompute, buildingFader re-sweep) all see a single
+      // settled change. By batch-close the synchronous scenic effects
+      // (streets/gem/footprint) have rebuilt, so the streets-by-dir map the
+      // pathLine reads through this bump is already fresh.
+      cityState.cityRevision.value++;
     });
 
     if (!reused) {
       // Non-reuse: the streets effect just rebuilt the meshes synchronously at
       // batch-close, so _streets.group is populated here. Reassign the internal
-      // street-array mirrors from the component so PrevState/_computeDiff still
-      // read populated arrays (the street diff is vestigial — see comment at
-      // the _streets construction site).
+      // street-array mirrors from the component. These are now write-only (the
+      // diff that read them is gone) — kept until Commit 4 deletes the mirror.
       internal.streetPickables = _streets.pickables();
       internal.streetLabels = _streets.labels();
       internal.asphaltMeshes = _streets.asphalt();
@@ -354,12 +337,9 @@ export function createApplyManifest(deps: ApplyManifestDeps): ApplyManifestApi {
     // → same positions → same bbox). latestWorldBounds (set below, also reuse-
     // gated) likewise stays, so the island effect doesn't re-fire either.
 
-    // Mirror the buildings component's cells + index into the internal state
-    // for the Option B diff. _buildings is the source of truth; we read these
-    // mirrors in PrevState.cells (next applyManifest) + _computeDiff (below).
-    // MUST run AFTER rebuild and BEFORE _computeDiff(prev). The `prev` snapshot
-    // captured the OLD cells at the top of applyManifest — never reassign
-    // internal.cells before that capture.
+    // Mirror the buildings component's cells + index into the internal state.
+    // These fed the old PrevState/_computeDiff city-diff (now deleted); the
+    // writes are kept (write-only) until Commit 4 removes the mirror.
     internal.cells = _buildings.getCells();
     internal.buildingIndex = _buildings.getBuildingIndex();
 
@@ -377,12 +357,8 @@ export function createApplyManifest(deps: ApplyManifestDeps): ApplyManifestApi {
     // freeze.
     const treesEnabled = TREES.value.ENABLED;
     // Trees + fireflies are rebuilt every applyManifest (never scenic-gated).
-    // clear() the inner meshes BEFORE the first onChange emit below so the
-    // picker's pickables refresh sees no tree meshes on that emit —
-    // identical to the old dispose-then-emit ordering. clear() is idempotent.
-    _trees.clear();
-    _fireflies.clear();
-    emitChange(_computeDiff(prev));
+    // Their inner meshes were already cleared before the cityRevision bump
+    // above so the picker's pickables refresh saw no stale tree meshes.
 
     // Convert the THREE.Box3 (now includes building footprints — expanded
     // above right after the _streets.group bbox assignment) to a placement-style
@@ -472,23 +448,20 @@ export function createApplyManifest(deps: ApplyManifestDeps): ApplyManifestApi {
       );
       _fireflies.rebuild(treePlacements, cityState.manifest.value!.commits ?? null);
 
-      // Re-notify listeners now that async decoration (trees) is
-      // fully attached to the scene. The first onChange fired before this
-      // deferred block ran, so world.getTrees() returned null at that
-      // point — the picker's _refreshPickables() therefore had no tree
-      // meshes to include. This second emit gives the picker (and any
-      // other subscriber) a chance to re-refresh with the live tree group.
-      // We pass an empty diff because only foliage changed; no building or
-      // street geometry was added since the first emit.
-      // Defensive guard — always true today: rebuild() above always sets
-      // the handle, and the disabled/empty cases bail at the deferred-block
-      // gate (treesEnabled && bbox && sceneBbox) before reaching here.
+      // Re-notify the reactive consumers now that async decoration (trees) is
+      // fully attached to the scene. The cityRevision bump fired before this
+      // deferred block ran, so world.getTrees() returned null at that point —
+      // the picker's _refreshPickables() therefore had no tree meshes to
+      // include, and a Commit selection could not be re-resolved. This second
+      // bump (decorationRevision) gives the picker a chance to re-resolve a
+      // Commit selection + re-refresh pickables with the live tree group.
+      // Guarded by the same generation supersede check the deferred block uses,
+      // so a superseded defer never bumps it.
+      // Defensive guard — always true today: rebuild() above always sets the
+      // handle, and the disabled/empty cases bail at the deferred-block gate
+      // (treesEnabled && bbox && sceneBbox) before reaching here.
       if (_trees.handle() !== null) {
-        emitChange({
-          entering: { buildings: [], streets: [] },
-          exiting: { buildings: [], streets: [] },
-          staying: { buildings: [], streets: [] },
-        });
+        cityState.decorationRevision.value++;
       }
 
       REBUILD_STATUS.value = RebuildStatus.Idle;
