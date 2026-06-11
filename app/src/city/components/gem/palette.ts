@@ -60,3 +60,20 @@ export function paletteColors(palette: GemFacePalette): Rgb[] {
 /** The live GEM store's face palette, parsed once per GEM change (Save) and
  *  cached — same array identity across reads until the store updates. */
 export const gemFaceColors = computed(() => paletteColors(GEM.value));
+
+/** Bake the per-face palette into a vertex-color buffer: each triangle's 3
+ *  vertices share one face color, faces cycling through `faceColors`. The
+ *  buffer is laid out [r,g,b] per vertex, 9 floats per triangle. Shared by
+ *  mesh.ts (initial bake) and index.ts (in-place rewrite on Save). */
+export function writeFaceColors(arr: Float32Array, faceColors: Rgb[]): void {
+  const faceCount = arr.length / 9; // 3 vertices × 3 channels per face
+  for (let f = 0; f < faceCount; f++) {
+    const fc = faceColors[f % faceColors.length];
+    for (let v = 0; v < 3; v++) {
+      const idx = (f * 3 + v) * 3;
+      arr[idx] = fc[0];
+      arr[idx + 1] = fc[1];
+      arr[idx + 2] = fc[2];
+    }
+  }
+}

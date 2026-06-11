@@ -227,10 +227,9 @@ export function createRepoLabel(_ctx: SceneContext): RepoLabel {
   // _buildMeshes constructs the panel + beam from the current texture
   // and adds them as children of `group`. Disposes any prior meshes
   // first. Called by setRepoName.
-  function _buildMeshes(): void {
-    if (!textTex) return;
-
-    // Tear down any existing meshes.
+  // Remove + dispose the panel and beam meshes (and their materials) from
+  // the group. Used both for tear-down-before-rebuild and on dispose().
+  function _teardownMeshes(): void {
     if (panelMesh) {
       group.remove(panelMesh);
       panelMesh.geometry.dispose();
@@ -245,6 +244,13 @@ export function createRepoLabel(_ctx: SceneContext): RepoLabel {
       beamMesh = null;
       beamMat = null;
     }
+  }
+
+  function _buildMeshes(): void {
+    if (!textTex) return;
+
+    // Tear down any existing meshes.
+    _teardownMeshes();
 
     // ---- Beam ----
     const beamGeom = new THREE.CylinderGeometry(
@@ -365,20 +371,7 @@ export function createRepoLabel(_ctx: SceneContext): RepoLabel {
 
   function dispose(): void {
     stopEffect();
-    if (panelMesh) {
-      group.remove(panelMesh);
-      panelMesh.geometry.dispose();
-      panelMat?.dispose();
-      panelMesh = null;
-      panelMat = null;
-    }
-    if (beamMesh) {
-      group.remove(beamMesh);
-      beamMesh.geometry.dispose();
-      beamMat?.dispose();
-      beamMesh = null;
-      beamMat = null;
-    }
+    _teardownMeshes();
     if (textTex) {
       textTex.texture.dispose();
       textTex = null;

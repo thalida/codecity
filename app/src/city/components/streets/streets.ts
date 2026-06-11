@@ -42,6 +42,24 @@ function flatGroundMaterial(
   return mat;
 }
 
+// Concentric-cap asphalt geometry for a street. The asphalt is narrower than
+// the sidewalk by ASPHALT_WIDTH_FRAC and shorter by exactly the per-side
+// sidewalk strip width on each end — that keeps the two cap circles sharing a
+// center so the annular sidewalk strip stays uniform thickness around the
+// curve at any street length. Lengths floor at 0 so degenerate streets don't
+// render a negative-length stadium. Shared by createStreetMesh (geometry) and
+// streetLabels (usable-road-length fit).
+export function asphaltDims(street: { width: number; length: number }): {
+  asphaltWidth: number;
+  sidewalkStrip: number;
+  asphaltLength: number;
+} {
+  const asphaltWidth = street.width * ASPHALT_WIDTH_FRAC;
+  const sidewalkStrip = (street.width - asphaltWidth) / 2;
+  const asphaltLength = Math.max(0, street.length - 2 * sidewalkStrip);
+  return { asphaltWidth, sidewalkStrip, asphaltLength };
+}
+
 // _buildStadiumGeometry(length, width, orientation, capStyle) -> ShapeGeometry
 //
 // A pill / stadium / rectangle-with-rounded-ends shape, lying in the XY
@@ -121,15 +139,7 @@ function _buildStadiumGeometry(
 export function createStreetMesh(street: StreetWithJoin, yBase: number): THREE.Group {
   const streets = STREETS.value;
   const group = new THREE.Group();
-  const asphaltWidth = street.width * ASPHALT_WIDTH_FRAC;
-  // For concentric caps the asphalt must be shorter by exactly the sidewalk
-  // strip width (= (width - asphaltWidth) / 2 per side). That makes the two
-  // cap circles share a center and the annular sidewalk strip keep constant
-  // thickness around the curve — the cap stays correctly rounded at any
-  // street length. Floor at 0 so degenerate streets don't try to render
-  // a negative-length stadium.
-  const sidewalkStrip = (street.width - asphaltWidth) / 2;
-  const asphaltLength = Math.max(0, street.length - 2 * sidewalkStrip);
+  const { asphaltWidth, asphaltLength } = asphaltDims(street);
 
   // Cap style: the root has rounded caps both sides; non-root streets are
   // FLAT at their joining end (so they merge cleanly into the parent at

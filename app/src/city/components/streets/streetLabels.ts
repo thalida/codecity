@@ -17,12 +17,8 @@
 
 import * as THREE from 'three';
 import { STREETS } from '@/state/stores/settings/streets';
-import {
-  ASPHALT_WIDTH_FRAC,
-  LABEL_FONT_FAMILY,
-  LABEL_FONT_WEIGHT,
-  LABEL_ELEVATION,
-} from '@/constants/streets';
+import { LABEL_FONT_FAMILY, LABEL_FONT_WEIGHT, LABEL_ELEVATION } from '@/constants/streets';
+import { asphaltDims } from './streets';
 import { RENDER_ORDERS } from '@/city/renderOrders';
 import { NodeKind, StreetAxis } from '@/types';
 import type { Street } from '@/types';
@@ -117,14 +113,11 @@ export function createStreetLabels(street: Street): THREE.Group[] {
   const orders = RENDER_ORDERS;
 
   // Usable road length: the rectangular label sits along the flat middle of
-  // the asphalt pill, between the two rounded caps. Asphalt length is
-  // shorter than the street length by the two sidewalk strips (see
-  // streets.ts for the concentric-cap math); we further subtract the
-  // asphalt cap diameter so the label's corners don't poke out where the
-  // pill rounds off.
-  const asphaltWidth = street.width * ASPHALT_WIDTH_FRAC;
-  const sidewalkStrip = (street.width - asphaltWidth) / 2;
-  const asphaltLength = Math.max(0, street.length - 2 * sidewalkStrip);
+  // the asphalt pill, between the two rounded caps. asphaltDims gives the
+  // concentric-cap asphalt length (street length minus the two sidewalk
+  // strips); we further subtract the asphalt cap diameter so the label's
+  // corners don't poke out where the pill rounds off.
+  const { asphaltWidth, asphaltLength } = asphaltDims(street);
   const usableLength = Math.max(0, asphaltLength - asphaltWidth);
   if (usableLength <= 0) return [];
 

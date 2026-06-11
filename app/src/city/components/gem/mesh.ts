@@ -17,7 +17,7 @@ import * as THREE from 'three';
 import { GEM, GEM_SIZING } from '@/state/stores/settings/gem';
 import { NodeKind } from '@/types';
 import { gemAnchorXZ } from '../../utils/gemAnchor';
-import { paletteColors } from './palette';
+import { paletteColors, writeFaceColors } from './palette';
 import { buildGemGeometry } from './shapes';
 import type { Street } from '@/types';
 
@@ -103,17 +103,8 @@ export function createRootGem(street: Street): THREE.Group {
   const faceColors = paletteColors(GEM.value);
 
   const vertexCount = geo.attributes.position.count;
-  const faceCount = vertexCount / 3; // each triangle = 3 vertices
   const colorAttr = new Float32Array(vertexCount * 3);
-  for (let f = 0; f < faceCount; f++) {
-    const fc = faceColors[f % faceColors.length];
-    for (let v = 0; v < 3; v++) {
-      const idx = (f * 3 + v) * 3;
-      colorAttr[idx] = fc[0];
-      colorAttr[idx + 1] = fc[1];
-      colorAttr[idx + 2] = fc[2];
-    }
-  }
+  writeFaceColors(colorAttr, faceColors);
   geo.setAttribute('color', new THREE.BufferAttribute(colorAttr, 3));
 
   const body = new THREE.Mesh(

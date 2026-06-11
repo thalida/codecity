@@ -22,7 +22,7 @@ import type { Street } from '@/types';
 
 import type { FrameContext, SceneComponent, SceneContext } from '../../types';
 import { createRootGem, GEM_HOVER_LIFT_FRAC } from './mesh';
-import { gemFaceColors, type Rgb } from './palette';
+import { gemFaceColors, writeFaceColors, type Rgb } from './palette';
 
 // Cycle a THREE.Color in place through a palette of [r,g,b] triples,
 // smoothly interpolating between adjacent palette entries. One full
@@ -152,21 +152,8 @@ export function createGem(ctx: SceneContext): Gem {
     // baked at construction. Rewrite it in place on Save so palette tweaks
     // take effect without a full applyManifest rebuild.
     if (body?.geometry?.attributes.color) {
-      const faceColors = gemFaceColors.value;
-      const geo = body.geometry;
-      const colorAttr = geo.attributes.color as THREE.BufferAttribute;
-      const vertexCount = geo.attributes.position.count;
-      const faceCount = vertexCount / 3;
-      const arr = colorAttr.array as Float32Array;
-      for (let f = 0; f < faceCount; f++) {
-        const fc = faceColors[f % faceColors.length];
-        for (let v = 0; v < 3; v++) {
-          const idx = (f * 3 + v) * 3;
-          arr[idx] = fc[0];
-          arr[idx + 1] = fc[1];
-          arr[idx + 2] = fc[2];
-        }
-      }
+      const colorAttr = body.geometry.attributes.color as THREE.BufferAttribute;
+      writeFaceColors(colorAttr.array as Float32Array, gemFaceColors.value);
       colorAttr.needsUpdate = true;
     }
     if (gem && gem.userData.streetWidth != null) {

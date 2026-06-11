@@ -98,6 +98,21 @@ export function createBuildingFader({
     return dirTarget;
   }
 
+  // Read one tier's four config values by key prefix. The BUILDING_FADE
+  // store is flat (DEFAULT_*, LEVEL1_*…LEVEL4_*); dir-tree level N maps to
+  // the LEVEL{N} prefix, every other tier to DEFAULT.
+  function _tierFromPrefix(
+    fadeCfg: BuildingFadeConfig,
+    prefix: 'DEFAULT' | 'LEVEL1' | 'LEVEL2' | 'LEVEL3' | 'LEVEL4'
+  ): TierResult {
+    return {
+      detail: fadeCfg[`${prefix}_DETAIL`],
+      bodyOpacity: fadeCfg[`${prefix}_BODY_OPACITY`],
+      outlineEnabled: fadeCfg[`${prefix}_OUTLINE`],
+      outlineOpacity: fadeCfg[`${prefix}_OUTLINE_OPACITY`],
+    };
+  }
+
   // Shared tier decision used by both building-instance writes and
   // billboard-group writes. Pulled into its own function so the two
   // code paths produce IDENTICAL tier results — a media file's
@@ -113,64 +128,21 @@ export function createBuildingFader({
     // Hover wins — its tier values overwrite any selection/dir-tree result
     // unconditionally, so check first and skip the more expensive
     // dirTreeDistance walk when the cursor is already on this building.
+    // The hover outline is owned by outlineRenderer, so force it off here.
     if (hoverFile && file.path === hoverFile.path) {
-      return {
-        detail: fadeCfg.DEFAULT_DETAIL,
-        bodyOpacity: fadeCfg.DEFAULT_BODY_OPACITY,
-        outlineEnabled: false, // hover outline is owned by outlineRenderer
-        outlineOpacity: 0,
-      };
+      return { ..._tierFromPrefix(fadeCfg, 'DEFAULT'), outlineEnabled: false, outlineOpacity: 0 };
     }
 
     if (bldgTargetFile && file.path === bldgTargetFile.path) {
-      return {
-        detail: fadeCfg.DEFAULT_DETAIL,
-        bodyOpacity: fadeCfg.DEFAULT_BODY_OPACITY,
-        outlineEnabled: fadeCfg.DEFAULT_OUTLINE,
-        outlineOpacity: fadeCfg.DEFAULT_OUTLINE_OPACITY,
-      };
+      return _tierFromPrefix(fadeCfg, 'DEFAULT');
     }
 
     if (dirTarget) {
       const lvl = _tierLevelFor(file, dirTarget);
-      if (lvl === 1) {
-        return {
-          detail: fadeCfg.LEVEL1_DETAIL,
-          bodyOpacity: fadeCfg.LEVEL1_BODY_OPACITY,
-          outlineEnabled: fadeCfg.LEVEL1_OUTLINE,
-          outlineOpacity: fadeCfg.LEVEL1_OUTLINE_OPACITY,
-        };
-      }
-      if (lvl === 2) {
-        return {
-          detail: fadeCfg.LEVEL2_DETAIL,
-          bodyOpacity: fadeCfg.LEVEL2_BODY_OPACITY,
-          outlineEnabled: fadeCfg.LEVEL2_OUTLINE,
-          outlineOpacity: fadeCfg.LEVEL2_OUTLINE_OPACITY,
-        };
-      }
-      if (lvl === 3) {
-        return {
-          detail: fadeCfg.LEVEL3_DETAIL,
-          bodyOpacity: fadeCfg.LEVEL3_BODY_OPACITY,
-          outlineEnabled: fadeCfg.LEVEL3_OUTLINE,
-          outlineOpacity: fadeCfg.LEVEL3_OUTLINE_OPACITY,
-        };
-      }
-      return {
-        detail: fadeCfg.LEVEL4_DETAIL,
-        bodyOpacity: fadeCfg.LEVEL4_BODY_OPACITY,
-        outlineEnabled: fadeCfg.LEVEL4_OUTLINE,
-        outlineOpacity: fadeCfg.LEVEL4_OUTLINE_OPACITY,
-      };
+      return _tierFromPrefix(fadeCfg, `LEVEL${lvl}`);
     }
 
-    return {
-      detail: fadeCfg.DEFAULT_DETAIL,
-      bodyOpacity: fadeCfg.DEFAULT_BODY_OPACITY,
-      outlineEnabled: fadeCfg.DEFAULT_OUTLINE,
-      outlineOpacity: fadeCfg.DEFAULT_OUTLINE_OPACITY,
-    };
+    return _tierFromPrefix(fadeCfg, 'DEFAULT');
   }
 
   function _sweepAll(): void {
