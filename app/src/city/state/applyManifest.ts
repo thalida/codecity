@@ -1,50 +1,46 @@
-// city/applyManifest.ts — the manifest build/rebuild pipeline extracted from
-// world.ts into a factory. createApplyManifest(deps) returns the API
-// ({ applyManifest, resetCaches, invalidateLayoutCache }) world (and, later,
-// the composer) installs on its public surface.
+// city/state/applyManifest.ts — the manifest build/rebuild pipeline factory.
+// createApplyManifest(deps) returns { applyManifest, resetCaches,
+// invalidateLayoutCache }.
 //
 // State split:
-//   - The SIX cross-boundary fields (manifest/layout/bbox/latestWorldBounds +
-//     the rootStreet/gemWorldPos computeds) live in the `cityState` SIGNALS
-//     object (city/state/cityState.ts). world.ts holds the same instance and points
-//     every accessor at cityState.X.value. applyManifest sets the four source
-//     signals' .value; the two computeds derive off layout automatically.
+//   - The cross-boundary signals (manifest/layout/bbox/latestWorldBounds +
+//     rootStreet/gemWorldPos computeds) live in the `cityState` object
+//     (./index). applyManifest sets the source signals' .value; the computeds
+//     derive off layout automatically.
 //   - The manifest-bound caches that NO accessor reads (the layout cache + its
 //     tree_signature key, the icon-atlas tree_signature, the generation
 //     counter) are private to this factory's closure (the `internal` object).
-//     resetCaches()/invalidateLayoutCache() (returned below) clear the layout
-//     cache for world's resetCache/invalidateLayoutCache.
+//     resetCaches()/invalidateLayoutCache() clear the layout cache.
 
 import * as THREE from 'three';
 import { batch } from '@preact/signals';
 
-import { buildIconAtlas } from './components/buildings/atlas';
+import { buildIconAtlas } from '../components/buildings/atlas';
 import { labelFromManifest } from '@/utils/sources';
-import type { Buildings } from './components/buildings';
-import { createLayoutClient } from './layout/runner';
-import type { LayoutComputeOpts } from './layout/runner';
-import type { Gem } from './components/gem';
-import type { Sky } from './components/sky';
-import type { Streets } from './components/streets';
-import type { RepoLabel } from './components/repoLabel';
-import type { TreesComponent } from './components/trees';
-import type { FirefliesComponent } from './components/fireflies';
-import type { PathLine } from './components/pathLine';
-import type { TreePlacementClient } from './components/trees/treePlacementClient';
-import type { Island } from './components/island';
-import { getWorldBounds } from './utils/floorBounds';
-import type { Footprint } from './components/footprint';
-import type { CityState } from './state/cityState';
+import type { Buildings } from '../components/buildings';
+import { createLayoutClient } from '../layout';
+import type { LayoutComputeOpts } from '../layout';
+import type { Gem } from '../components/gem';
+import type { Sky } from '../components/sky';
+import type { Streets } from '../components/streets';
+import type { RepoLabel } from '../components/repoLabel';
+import type { TreesComponent } from '../components/trees';
+import type { FirefliesComponent } from '../components/fireflies';
+import type { PathLine } from '../components/pathLine';
+import type { TreePlacementClient } from '../components/trees/treePlacementClient';
+import type { Island } from '../components/island';
+import { getWorldBounds } from '../utils/floorBounds';
+import type { Footprint } from '../components/footprint';
+import type { CityState } from './index';
 import { FOOTPRINT } from '@/state/stores/settings/footprint';
 import { TREES } from '@/state/stores/settings/trees';
 import { SCENE } from '@/state/stores/settings/scene';
 import { REBUILD_STATUS, RebuildStatus } from '@/state/stores/manifest';
 import type { CityBbox, CityLayout, DateRanges, Manifest } from '@/types';
 
-// Factory-private manifest-bound caches that NO world accessor reads. Live in a
-// plain object inside createApplyManifest's closure (not on the cross-boundary
-// signals object) — reassigned across applyManifest calls; the layout cache is
-// also nulled by the returned resetCaches()/invalidateLayoutCache().
+// Factory-private manifest-bound caches that NO accessor reads — reassigned
+// across applyManifest calls; the layout cache is also nulled by the returned
+// resetCaches()/invalidateLayoutCache().
 interface InternalCityState {
   // Layout cache (keyed by manifest.tree_signature).
   cachedLayoutTreeSig: string | null;
@@ -75,19 +71,15 @@ export interface ApplyManifestDeps {
   scene: THREE.Scene;
   layoutClient: ReturnType<typeof createLayoutClient>;
   treePlacementClient: TreePlacementClient;
-  // The cross-boundary state — a per-city signals object. world.ts holds the
-  // same instance; applyManifest sets the four source signals' .value and bumps
-  // cityRevision / decorationRevision so the reactive consumers (picker,
-  // cameraRig, pathLine, buildingFader) re-derive.
+  // The cross-boundary signals. applyManifest sets the source signals' .value
+  // and bumps cityRevision / decorationRevision so the reactive consumers
+  // (picker, cameraRig, pathLine, buildingFader) re-derive.
   cityState: CityState;
 }
 
-// The API createApplyManifest returns: the apply function plus the two cache
-// clearers world delegates resetCache/invalidateLayoutCache to (the cache
-// fields now live in this factory's private `internal` object).
 export interface ApplyManifestApi {
   applyManifest: (newManifest: Manifest | { tree: unknown; [k: string]: unknown }) => Promise<void>;
-  // Clears the full internal cache set (layout + scenic). world.resetCache also
+  // Clears the internal layout cache. The caller (world.resetCache) additionally
   // disposes the buildings component's ad panels.
   resetCaches: () => void;
   // Clears only the layout cache (cachedLayout + its tree_signature key).
@@ -96,12 +88,10 @@ export interface ApplyManifestApi {
 
 export function createApplyManifest(deps: ApplyManifestDeps): ApplyManifestApi {
   const { components, scene, layoutClient, treePlacementClient, cityState } = deps;
-  // The gem / island / repoLabel components are received in `components` (world
-  // constructs + wires them) but applyManifest no longer touches them — they
-  // rebuild themselves reactively off the cityState signals applyManifest sets
-  // (gem off rootStreet, island off latestWorldBounds, repoLabel off manifest +
-  // gemWorldPos). Only footprint/streets/buildings/trees/fireflies are still
-  // driven imperatively here, so only those are destructured.
+  // gem / island / repoLabel rebuild themselves reactively off the cityState
+  // signals (gem off rootStreet, island off latestWorldBounds, repoLabel off
+  // manifest + gemWorldPos), so only the imperatively-driven components are
+  // destructured here.
   const {
     footprint: _footprint,
     streets: _streets,
@@ -110,9 +100,6 @@ export function createApplyManifest(deps: ApplyManifestDeps): ApplyManifestApi {
     fireflies: _fireflies,
   } = components;
 
-  // Factory-private manifest-bound caches no accessor reads (see
-  // InternalCityState). Reassigned across applyManifest calls; the layout cache
-  // is nulled by resetCaches()/invalidateLayoutCache() below.
   const internal: InternalCityState = {
     cachedLayoutTreeSig: null,
     cachedLayout: null,
@@ -150,11 +137,8 @@ export function createApplyManifest(deps: ApplyManifestDeps): ApplyManifestApi {
         const atlas = await buildIconAtlas(newManifestTyped);
         if (myGeneration !== internal.generation) return; // superseded mid-build
         internal.lastAtlasTreeSig = _atlasTreeSig;
-        // Push the atlas into the buildings component's shared material + cell
-        // factory BEFORE the cell pass below (rebuild reads it while assembling
-        // the cells). The atlas ensure stays here (Option B): the
-        // tree_signature gate + the myGeneration supersede check above are
-        // world-owned.
+        // Push the atlas into the buildings component's shared material BEFORE
+        // _buildings.rebuild below reads it while assembling the cells.
         _buildings.setAtlas(atlas);
       } catch (err) {
         console.warn('[codecity] icon atlas build failed; roofs will render without icons', err);
@@ -172,14 +156,11 @@ export function createApplyManifest(deps: ApplyManifestDeps): ApplyManifestApi {
       _treeSig && internal.cachedLayoutTreeSig === _treeSig ? internal.cachedLayout : null;
     const _layoutComputeOpts: LayoutComputeOpts = _reuseFrom ? { reuseLayoutFrom: _reuseFrom } : {};
     let newLayout: CityLayout;
-    // Pass the full manifest envelope (not `manifest.tree`) — the worker
-    // forwards it to layoutCityV4, which internally unwraps `.tree` via
-    // `(manifest as { tree?: DirLike }).tree ?? manifest`. Both shapes
-    // produce the same layout, but routing through the envelope keeps
-    // the worker message contract typed against `Manifest` rather than
-    // a structural `DirLike`. A reject with `Error('superseded')` is
-    // expected when a newer applyManifest preempts us — return silently
-    // so the newer run owns the swap.
+    // Pass the full manifest envelope (not `manifest.tree`): the layout code
+    // unwraps `.tree` itself, and routing through the envelope keeps the worker
+    // message contract typed against `Manifest`. A reject with
+    // `Error('superseded')` is expected when a newer applyManifest preempts us
+    // — return silently so the newer run owns the swap.
     try {
       newLayout = await layoutClient.compute(newManifestTyped, _layoutComputeOpts);
     } catch (err) {
@@ -197,53 +178,28 @@ export function createApplyManifest(deps: ApplyManifestDeps): ApplyManifestApi {
     }
     if (myGeneration !== internal.generation) return;
 
-    // ---- Phase 2: date ranges for the NEW layout come straight off the
-    // manifest (computed on the backend during the scan, like busyness).
-    // The per-building color/age writes happen inside _buildings.rebuild
-    // (which receives these date ranges). Nothing here touches the scene
-    // yet.
+    // Date ranges for the NEW layout come straight off the manifest (computed
+    // on the backend during the scan, like busyness); _buildings.rebuild does
+    // the per-building color/age writes from them.
     const newDateRanges: DateRanges = newManifestTyped.dateRanges;
-    // Per-building color/age writes + the cell assembly moved into
-    // _buildings.rebuild(newLayout, newDateRanges) below.
     if (myGeneration !== internal.generation) return;
 
-    // ---- Cell rendering path ---------------------------------------------
-    // The buildings component owns the SpatialGrid + CellTile scene. It colors
-    // the buildings, assembles the cells, swaps them into its persistent group
-    // (disposing the prior cell root WITHOUT freeing the shared material), and
-    // rebuilds the building-by-path lookup. Always rebuilt (the cell root is
-    // the one thing always rebuilt — NOT scenic-gated) to reflect updated
-    // per-file metadata (colors, heights). rebuild has no internal await, so
-    // it cannot be superseded mid-build. The buildings component owns its
-    // cells/buildingIndex (and computes its own enter/stay tween diff inside
-    // rebuild) — applyManifest no longer mirrors them.
+    // Reuse is detected natively by REFERENCE STABILITY: on a scenic-reuse apply
+    // we do NOT reassign layout.value / bbox.value / latestWorldBounds.value, so
+    // the dependent scenic effects (streets/gem/footprint/island/repoLabel) don't
+    // re-fire and the existing meshes (identical positions by the layout-cache
+    // contract) stay correct. On a non-reuse apply we reassign layout.value and
+    // the effects rebuild.
 
-    // ---- Reactive scenic swap ----
-    //
-    // The sync scenic components (streets, gem, footprint, island, repoLabel)
-    // no longer get called in order here. Each one runs its own effect reading
-    // the cityState signal it depends on (layout / rootStreet / latestWorldBounds
-    // / manifest+gemWorldPos) and rebuilds when that signal's value CHANGES.
-    //
-    // The whole scenic-config-hash gate is gone. Reuse is detected natively by
-    // REFERENCE STABILITY: on a scenic-reuse apply we do NOT reassign
-    // layout.value / bbox.value / latestWorldBounds.value, so the dependent
-    // effects don't re-fire and the existing meshes/bbox/bounds (identical by
-    // the layout-cache contract — same positions) stay correct. On a non-reuse
-    // apply we reassign layout.value (new object) and the effects rebuild.
-
-    // Buildings rebuild on BOTH branches (always) — never gated by reuse.
-    // setAtlas already ran above (before this) so the atlas is in the material
-    // before the cells read it. Buildings are NOT reactive (they need the
-    // awaited rebuild + the date ranges), so they stay an explicit call.
+    // Buildings rebuild on BOTH branches — never gated by reuse, and not
+    // reactive (they need the awaited rebuild + the date ranges). setAtlas ran
+    // above so the atlas is in the material before the cells read it.
     await _buildings.rebuild(newLayout, newDateRanges);
 
     // Clear the tree + firefly inner meshes BEFORE bumping cityRevision below so
-    // the picker's pickables refresh (driven by that bump) sees NO tree meshes —
-    // identical to the old dispose-then-emit ordering, where _trees.clear() ran
-    // before the first onChange emit. The deferred decoration pass rebuilds them
-    // and bumps decorationRevision so the picker re-refreshes with the live tree
-    // group. clear() is idempotent.
+    // the picker's pickables refresh (driven by that bump) sees NO tree meshes.
+    // The deferred decoration pass rebuilds them and bumps decorationRevision so
+    // the picker re-refreshes with the live tree group. clear() is idempotent.
     _trees.clear();
     _fireflies.clear();
 
@@ -266,14 +222,12 @@ export function createApplyManifest(deps: ApplyManifestDeps): ApplyManifestApi {
     });
 
     if (!reused) {
-      // Non-reuse: the streets effect just rebuilt the meshes synchronously at
-      // batch-close, so _streets.group is populated here.
+      // The streets effect just rebuilt the meshes synchronously at batch-close,
+      // so _streets.group is populated here.
       //
-      // bbox over the street meshes only (same geometry set the old
-      // _buildWorld local-scene bbox covered) — NOT setFromObject(scene),
-      // since the world scene now also holds sky/island/gem/footprint, which
-      // would yield the wrong bbox. Empty fallback prevents NaN at boot when
-      // the layout has zero meshes (matches the old _buildWorld fallback).
+      // bbox over the street meshes only — NOT setFromObject(scene), since the
+      // scene also holds sky/island/gem/footprint, which would yield the wrong
+      // bbox. Empty fallback prevents NaN at boot when the layout has zero meshes.
       const bbox = new THREE.Box3().setFromObject(_streets.group);
       if (bbox.isEmpty()) {
         bbox.set(new THREE.Vector3(-50, 0, -50), new THREE.Vector3(50, 10, 50));
@@ -308,26 +262,14 @@ export function createApplyManifest(deps: ApplyManifestDeps): ApplyManifestApi {
     // → same positions → same bbox). latestWorldBounds (set below, also reuse-
     // gated) likewise stays, so the island effect doesn't re-fire either.
 
-    // The gem is no longer rebuilt imperatively: its effect reads
-    // cityState.rootStreet (computed off layout), which is reference-stable on
-    // reuse → the gem rebuilds EXACTLY on non-reuse, matching when buildWorld
-    // used to build it (reuse leaves the existing gem untouched, avoiding a
-    // flash + GPU realloc).
-
-    // City is now in the scene. Decoration pass (trees, future mesa
-    // bounds, etc.) is deferred to the next animation frame so the
-    // city paints + becomes interactive BEFORE the placement scan +
-    // GPU upload blocks the main thread. For large repos this gap is
-    // the difference between a snappy rebuild and a multi-hundred-ms
-    // freeze.
+    // Decoration pass (trees) is deferred to the next animation frame so the
+    // city paints + becomes interactive BEFORE the placement scan + GPU upload
+    // blocks the main thread. For large repos this gap is the difference
+    // between a snappy rebuild and a multi-hundred-ms freeze.
     const treesEnabled = TREES.value.ENABLED;
-    // Trees + fireflies are rebuilt every applyManifest (never scenic-gated).
-    // Their inner meshes were already cleared before the cityRevision bump
-    // above so the picker's pickables refresh saw no stale tree meshes.
 
-    // Convert the THREE.Box3 (now includes building footprints — expanded
-    // above right after the _streets.group bbox assignment) to a placement-style
-    // CityBbox.
+    // Convert the THREE.Box3 (includes building footprints, expanded above) to a
+    // placement-style CityBbox.
     const bbox = cityState.bbox.value;
     const sceneBbox: CityBbox | null = bbox
       ? {
@@ -345,15 +287,10 @@ export function createApplyManifest(deps: ApplyManifestDeps): ApplyManifestApi {
     // repos still get an airy floor buffer relative to building height.
     const cityHeight = bbox ? bbox.max.y - bbox.min.y : 0;
 
-    // The repo-name label repositions itself reactively: its manifest/anchor
-    // effect reads cityState.manifest + cityState.gemWorldPos (both settled in
-    // the batch above) and re-points name/anchor/gem. Not called here anymore.
-
     // Floor bounds drive the island. On a non-reuse apply the bbox changed, so
     // recompute + reassign latestWorldBounds (the island effect re-fires). On
     // reuse the bbox is unchanged, so keep the existing latestWorldBounds
-    // reference — the island effect doesn't re-fire (no resize flash), matching
-    // the old gate where the floor was only re-sized on a full rebuild path.
+    // reference — the island effect doesn't re-fire (no resize flash).
     if (!reused) {
       // Floor is sized from the scene's bbox + buffer. Falls back to a
       // small default at the origin when there's no city (empty manifest).
@@ -362,13 +299,10 @@ export function createApplyManifest(deps: ApplyManifestDeps): ApplyManifestApi {
 
     if (bbox) {
       // Footprint rebuilds on EVERY apply (NOT reactive off cityState.layout):
-      // the slabs wrap each building's rect, and building w/d/h are recomputed
-      // from fresh per-file metadata on a layout-reuse apply (skeleton→final /
-      // live update), so the footprint must rebuild to stay matched to the
-      // buildings — same as the buildings cell root above. Cheap (one
-      // InstancedMesh, no rejection sampling), so no rAF+setTimeout defer.
-      // rebuild() disposes the prior inner mesh and builds a new one into the
-      // persistent _footprint.group (already in the scene).
+      // building w/d/h are recomputed from fresh per-file metadata even on a
+      // layout-reuse apply (skeleton→final / live update), so the slabs must
+      // rebuild to stay matched to the buildings. Cheap (one InstancedMesh), so
+      // no defer. rebuild() disposes the prior inner mesh into _footprint.group.
       _footprint.rebuild(newLayout);
     }
 
@@ -392,7 +326,7 @@ export function createApplyManifest(deps: ApplyManifestDeps): ApplyManifestApi {
       // Off-thread tree placement via the worker. The supersede protocol
       // rejects this promise with "superseded" if another applyManifest
       // fires while placement is in-flight.
-      let treePlacements: import('./components/trees/treePlacement.js').TreePlacement[];
+      let treePlacements: import('../components/trees/treePlacement.js').TreePlacement[];
       try {
         treePlacements = await treePlacementClient.compute(
           layoutAtDefer,
@@ -415,16 +349,11 @@ export function createApplyManifest(deps: ApplyManifestDeps): ApplyManifestApi {
 
       // Re-notify the reactive consumers now that async decoration (trees) is
       // fully attached to the scene. The cityRevision bump fired before this
-      // deferred block ran, so world.getTrees() returned null at that point —
-      // the picker's _refreshPickables() therefore had no tree meshes to
-      // include, and a Commit selection could not be re-resolved. This second
-      // bump (decorationRevision) gives the picker a chance to re-resolve a
-      // Commit selection + re-refresh pickables with the live tree group.
-      // Guarded by the same generation supersede check the deferred block uses,
-      // so a superseded defer never bumps it.
-      // Defensive guard — always true today: rebuild() above always sets the
-      // handle, and the disabled/empty cases bail at the deferred-block gate
-      // (treesEnabled && bbox && sceneBbox) before reaching here.
+      // deferred block ran, when no tree meshes existed yet, so the picker
+      // couldn't re-resolve a Commit selection or include trees in its
+      // pickables. This decorationRevision bump gives it that second chance.
+      // Defensive guard — always true here: rebuild() above always sets the
+      // handle, and the disabled/empty cases bail at the deferred-block gate.
       if (_trees.handle() !== null) {
         cityState.decorationRevision.value++;
       }
@@ -443,23 +372,20 @@ export function createApplyManifest(deps: ApplyManifestDeps): ApplyManifestApi {
     }
   }
 
-  // Clear the internal layout cache. world.resetCache wraps this (and
-  // additionally disposes the buildings component's ad panels). With the
-  // scenic-config-hash gate gone, the only internal cache is the layout cache,
-  // so this is now equivalent to invalidateLayoutCache(); both are kept because
-  // world delegates resetCache + invalidateLayoutCache to distinct entry points
-  // (and resetCache layers the ad-panel disposal on top). Does NOT touch the
-  // cross-boundary signals: layout stays, so rootStreet/gemWorldPos (computed
-  // off it) stay valid — matching the old resetCache, which never touched them.
+  // Clear the internal layout cache. The caller (world.resetCache) layers the
+  // ad-panel disposal on top. The layout cache is the only internal cache, so
+  // this is equivalent to invalidateLayoutCache(); both are kept because the
+  // caller delegates two distinct entry points to them. Does NOT touch the
+  // cross-boundary signals: layout stays, so rootStreet/gemWorldPos stay valid.
   function resetCaches(): void {
     internal.cachedLayoutTreeSig = null;
     internal.cachedLayout = null;
   }
 
-  // Clear only the layout cache (cachedLayout + its tree_signature key).
-  // world.invalidateLayoutCache delegates straight here. A config-only Save
-  // calls this before re-applying the same manifest, forcing the next apply
-  // onto the non-reuse path (new layout reference → scenic effects rebuild).
+  // Clear only the layout cache (cachedLayout + its tree_signature key). A
+  // config-only Save calls this before re-applying the same manifest, forcing
+  // the next apply onto the non-reuse path (new layout reference → scenic
+  // effects rebuild).
   function invalidateLayoutCache(): void {
     internal.cachedLayoutTreeSig = null;
     internal.cachedLayout = null;

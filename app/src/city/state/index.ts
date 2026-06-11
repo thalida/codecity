@@ -1,21 +1,13 @@
-// city/state/cityState.ts — per-city manifest-bound state held in signals. Replaces the
-// old mutable cityState bag that was passed by reference with a "never
-// destructure-copy" warning: with signals there's no separable field value to
-// copy and let go stale — readers hold the signal and read .value, writers set
-// .value, the signal reference never gets reassigned. Per-instance (NOT a module
-// singleton — tests construct multiple cities).
-//
-// Only the SIX fields the world accessors read live here (the cross-boundary
-// surface). The other manifest-bound mirrors/caches (street mesh arrays, cell
-// mirrors, layout/atlas/scenic caches, generation counter) are never read by an
-// accessor, so they stay private inside createApplyManifest's closure.
+// city/state/index.ts — per-city manifest-bound state held in signals.
+// Per-instance (NOT a module singleton — tests construct multiple cities).
+// Readers hold a signal and read .value; writers set .value; the signal
+// reference is never reassigned.
 //
 //   manifest / layout / bbox / latestWorldBounds — SOURCE signals; applyManifest
 //     sets .value. (bbox is computed imperatively from the built street group +
-//     building footprints + footprint halo — NOT pure off layout — so it stays a
-//     source signal. latestWorldBounds derives via getWorldBounds, which reads
-//     WORLD.value; making it `computed` would subscribe to WORLD = new
-//     reactivity, so it stays a source signal set imperatively too.)
+//     building footprints + footprint halo, NOT pure off layout. latestWorldBounds
+//     derives via getWorldBounds, which reads WORLD.value; making it `computed`
+//     would subscribe to WORLD, so it stays a source signal set imperatively.)
 //   rootStreet / gemWorldPos — COMPUTED off layout; never written. rootStreet is
 //     the first isRoot street; gemWorldPos is its gem anchor (orientation-aware).
 import { signal, computed, type Signal, type ReadonlySignal } from '@preact/signals';

@@ -46,7 +46,7 @@ import { signal, effect, untracked } from '@preact/signals';
 import { NodeKind } from '@/types';
 
 import type { PickTarget, PickerWorld, PickerSelectionKey } from '@/types';
-import type { CityState } from '@/city/state/cityState';
+import type { CityState } from '@/city/state';
 
 // In-memory selection key. Reset to null on a fresh load; survives in-session
 // world rebuilds via the re-resolution below. Never written to localStorage.

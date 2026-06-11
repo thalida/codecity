@@ -1,14 +1,14 @@
 import * as THREE from 'three';
 import { describe, it, expect, beforeEach } from 'vitest';
 import { createIsland } from '@/city/components/island';
-import { createCityState } from '@/city/state/cityState';
+import { createCityState } from '@/city/state';
 import { ISLAND } from '@/state/stores/settings/island';
-import { RENDER_ORDERS } from '@/city/constants/renderOrders';
+import { RENDER_ORDERS } from '@/city/types/renderOrders';
 import type { SceneContext } from '@/city/types';
 
-// Island ignores ctx at construction (see component comment: Strategy A,
-// same as sky/gem). An empty object cast is sufficient.
-const fakeCtx = {} as unknown as SceneContext;
+// Island reads only ctx.cityState at construction (latestWorldBounds starts
+// null → the bounds effect is a no-op until setBounds drives it directly here).
+const fakeCtx = { cityState: createCityState() } as unknown as SceneContext;
 
 describe('createIsland', () => {
   beforeEach(() => {
@@ -25,21 +25,21 @@ describe('createIsland', () => {
   });
 
   it('returns a Group with island mesh', () => {
-    const island = createIsland(fakeCtx, createCityState());
+    const island = createIsland(fakeCtx);
     expect(island.group).toBeInstanceOf(THREE.Group);
     expect(island.group.children.length).toBeGreaterThanOrEqual(1);
     island.dispose();
   });
 
   it('positions the group at the default bounds center (0, 0)', () => {
-    const island = createIsland(fakeCtx, createCityState());
+    const island = createIsland(fakeCtx);
     expect(island.group.position.x).toBe(0);
     expect(island.group.position.z).toBe(0);
     island.dispose();
   });
 
   it('setBounds rebuilds the geometry and repositions', () => {
-    const island = createIsland(fakeCtx, createCityState());
+    const island = createIsland(fakeCtx);
     const islandMesh = island.group.children.find(
       (c) => c.userData.island === 'islandMesh'
     ) as THREE.Mesh;
@@ -51,7 +51,7 @@ describe('createIsland', () => {
   });
 
   it('effect re-applies visibility when ISLAND.ENABLED changes', () => {
-    const island = createIsland(fakeCtx, createCityState());
+    const island = createIsland(fakeCtx);
     // Initially enabled (beforeEach sets ENABLED: true).
     expect(island.group.visible).toBe(true);
 
@@ -64,14 +64,14 @@ describe('createIsland', () => {
 
   it('hidden when ISLAND.ENABLED=false at construction', () => {
     ISLAND.value = { ...ISLAND.value, ENABLED: false };
-    const island = createIsland(fakeCtx, createCityState());
+    const island = createIsland(fakeCtx);
     expect(island.group.visible).toBe(false);
     island.dispose();
     ISLAND.value = { ...ISLAND.value, ENABLED: true };
   });
 
   it('effect re-applies material uniforms when ISLAND changes', () => {
-    const island = createIsland(fakeCtx, createCityState());
+    const island = createIsland(fakeCtx);
     const islandMesh = island.group.children.find(
       (c) => c.userData.island === 'islandMesh'
     ) as THREE.Mesh<THREE.BufferGeometry, THREE.ShaderMaterial>;
@@ -86,7 +86,7 @@ describe('createIsland', () => {
   });
 
   it('uses RENDER_ORDERS.VALLEY_FLOOR for the island mesh', () => {
-    const island = createIsland(fakeCtx, createCityState());
+    const island = createIsland(fakeCtx);
     const islandMesh = island.group.children.find(
       (c) => c.userData.island === 'islandMesh'
     ) as THREE.Mesh;
@@ -95,7 +95,7 @@ describe('createIsland', () => {
   });
 
   it('dispose releases geometry + material and stops the effect', () => {
-    const island = createIsland(fakeCtx, createCityState());
+    const island = createIsland(fakeCtx);
     expect(() => island.dispose()).not.toThrow();
 
     // After dispose, ISLAND signal changes must NOT throw (stopEffect called).

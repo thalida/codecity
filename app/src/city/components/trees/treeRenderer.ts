@@ -24,7 +24,7 @@
 
 import * as THREE from 'three';
 import { TREES } from '@/state/stores/settings/trees';
-import { RENDER_ORDERS } from '@/city/constants/renderOrders';
+import { RENDER_ORDERS } from '@/city/types/renderOrders';
 import type { TreePlacement } from './treePlacement';
 import type { CommitEntry, BusynessThresholds } from '@/types';
 import {

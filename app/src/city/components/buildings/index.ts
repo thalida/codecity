@@ -10,12 +10,10 @@
 // via an effect; the fader/outline/ghost are picker-driven and ARMED on the
 // first tick() (like streets), once ctx.picker is live.
 //
-// Construction-time bridge (Strategy A): buildings are built inside world.ts
-// BEFORE the picker/camera/renderer exist. The component captures the
-// SceneContext at construction. The material theme effect reads only settings
-// signals, so it's safe at construction. The fader/outline/ghost subscribe to
-// picker.selection/hover, so they are NOT created at construction — they are
-// armed on the first tick(), once renderLoop has populated ctx.picker.
+// Buildings are built before the picker/camera/renderer exist. The material
+// theme effect reads only settings signals (safe at construction); the
+// fader/outline/ghost subscribe to picker.selection/hover, so they are armed on
+// the first tick() once ctx.picker is live, not at construction.
 //
 // Self-tween: the building enter/stay DIFF is computed HERE, inside rebuild(),
 // against the prior cells captured before disposal — the tween queue lives here
@@ -42,7 +40,6 @@ import type {
 } from '@/types';
 
 import type { FrameContext, SceneComponent, SceneContext } from '../../types';
-import type { CityState } from '../../state/cityState';
 import { armOnFirstTick } from '../../utils/armOnFirstTick';
 import type { WorldBounds } from './spatialGrid';
 import type { CellTile } from './cellTile';
@@ -67,13 +64,10 @@ interface BuildingDiff {
   staying: { buildings: StayingBuilding[] };
 }
 
-/** Construction-time deps sourced from world (the streets lookup + the per-city
- *  signals object for the fader's rebuild re-sweep; world has _streets +
- *  _cityState in scope when it builds this component). Keeps SceneContext
- *  untouched. */
+/** Construction-time deps: the streets lookup the fader needs (cityState comes
+ *  through ctx). */
 export interface BuildingsDeps {
   getStreetByDir(path: string): Street | null;
-  cityState: CityState;
 }
 
 /** Public contract for the buildings component. */
@@ -128,10 +122,8 @@ export function createBuildings(ctx: SceneContext, deps: BuildingsDeps): Buildin
   let _cells: Map<number, CellTile> = new Map();
   let _buildingIndex: BuildingIndex | null = null;
   let _adPanels: InstancedAdPanels | null = null;
-  // Boot-skip: the very first rebuild must NOT animate (the boot city snaps
-  // in, exactly as before — renderLoop used to subscribe to world.onChange
-  // AFTER the boot applyManifest, so the boot diff was never delivered to the
-  // tweens). Flipped true on the first rebuild; every rebuild after animates.
+  // Boot-skip: the very first rebuild must NOT animate (the boot city snaps in).
+  // Flipped true on the first rebuild; every rebuild after animates.
   let _firstBuildDone = false;
   let _buildingsByPath: Record<
     string,
@@ -167,15 +159,12 @@ export function createBuildings(ctx: SceneContext, deps: BuildingsDeps): Buildin
   }
 
   // (1) Shared-material theme effect — reacts to BUILDINGS / FACADE / SCENE /
-  // BLOOM / BUILDING_DIMENSIONS changes (Save). Replaces the
-  // refreshBuildingMaterial() call that renderLoop.applyTheme() used to make.
-  // Reads each store's .value so the effect subscribes to all of them, then
-  // runs the verbatim refreshBuildingMaterial() body (which re-applies the
-  // uniforms). Safe at construction: reads only settings signals (no picker).
-  // If the shared material isn't created yet (first rebuild lazily creates it),
+  // BLOOM / BUILDING_DIMENSIONS changes (Save). Reads each store's .value so the
+  // effect subscribes to all of them, then re-applies the material uniforms.
+  // Safe at construction: reads only settings signals (no picker). If the shared
+  // material isn't created yet (first rebuild lazily creates it),
   // refreshBuildingMaterial() no-ops via its `if (!_sharedMaterial) return`
-  // guard — the constructor seeds the identical values, so a missed first run
-  // is behavior-identical to the old construct-then-Save flow.
+  // guard, and the constructor seeds the identical values.
   const stopMaterialEffect = effect(() => {
     void BUILDINGS.value;
     void FACADE.value;
@@ -187,15 +176,11 @@ export function createBuildings(ctx: SceneContext, deps: BuildingsDeps): Buildin
 
   // (2)(3)(4) Picker-driven hover/selection overlays — fader (body opacity),
   // outline (hover/selected boxes), ghost (hover preview). All three subscribe
-  // to picker.selection/hover at construction, so they are NOT created at
-  // component construction (ctx.picker is null there — they'd track NO signal
-  // and never re-fire). They are ARMED on the first tick(), once renderLoop
-  // has populated ctx.picker. Mirrors the streets arming pattern.
-  //
-  // On the first tick both cells (built by the boot rebuild, which runs before
-  // the first animate frame) and ctx.picker are live, so the construction-time
-  // sweeps see populated cells + null selection → default opacities, identical
-  // to the old renderLoop construct-after-applyManifest flow.
+  // to picker.selection/hover, so they are ARMED on the first tick() once
+  // ctx.picker is live, not at construction (ctx.picker is null there — they'd
+  // track NO signal). Mirrors the streets arming pattern. On the first tick both
+  // the boot-rebuild cells and ctx.picker are live, so the initial sweeps see
+  // populated cells + null selection → default opacities.
   type Fader = ReturnType<typeof createBuildingFader>;
   type Outline = ReturnType<typeof createOutlineRenderer>;
   type Ghost = ReturnType<typeof createGhostRenderer>;
@@ -207,15 +192,15 @@ export function createBuildings(ctx: SceneContext, deps: BuildingsDeps): Buildin
     ctx,
     () => {
       // Fader gets a world-facade: cells + ad panels are component-local;
-      // getStreetByDir is threaded from world via deps. The fader re-sweeps on
-      // a city rebuild via cityState.cityRevision (threaded via deps).
+      // getStreetByDir comes through deps. The fader re-sweeps on a city rebuild
+      // via cityState.cityRevision.
       _fader = createBuildingFader({
         world: {
           getCells: () => _cells,
           getStreetByDir: deps.getStreetByDir,
           getAdPanels: () => _adPanels,
         },
-        cityState: deps.cityState,
+        cityState: ctx.cityState,
         picker: ctx.picker!,
       });
       // Outline + ghost reach the cells / mesh resolver locally. They add their
@@ -251,9 +236,8 @@ export function createBuildings(ctx: SceneContext, deps: BuildingsDeps): Buildin
   );
 
   // getMeshForBuilding (named so the ghost facade + the door entry share one
-  // impl). VERBATIM from world.ts (~1463): the _cells.size>0 && cellId!=null
-  // && slotId!=null guard + cell.detailMesh lookup. The animator resolves every
-  // tween through it (via world.getMeshForBuilding → this) every frame.
+  // impl). Resolves a building's live InstancedMesh + slot via its cellId/slotId;
+  // the tween queue resolves every tween through it each frame.
   function getMeshForBuilding(b: Building): { mesh: THREE.InstancedMesh; slot: number } | null {
     if (_cells.size > 0 && b.cellId != null && b.slotId != null) {
       const cell = _cells.get(b.cellId);
@@ -262,24 +246,22 @@ export function createBuildings(ctx: SceneContext, deps: BuildingsDeps): Buildin
     return null;
   }
 
-  // Enter/stay tween queue — the dissolved system/animator. No picker dep, so
-  // (unlike fader/outline/ghost) it is created at construction, not armed.
+  // Enter/stay tween queue. No picker dep, so (unlike fader/outline/ghost) it is
+  // created at construction, not armed.
   const _tweens = createBuildingTweens({ getMeshForBuilding });
 
-  // _computeBuildingDiff — the building diff, owned here. Compares the PRIOR
-  // cells (passed in, captured before the dispose in rebuild) against the
-  // component's OWN freshly-adopted _buildingIndex, producing entering / staying
-  // buckets the tween queue consumes. Reads prev transforms via
-  // detailMesh.getMatrixAt at each building's slot; classifies entering vs
-  // staying by file.path. prevIndex is accepted for symmetry but unused (the
-  // diff only reads prev CELLS for the old transforms; new transforms come from
-  // _buildingIndex).
+  // _computeBuildingDiff — compares the PRIOR cells (captured before the dispose
+  // in rebuild) against the component's freshly-adopted _buildingIndex,
+  // producing entering / staying buckets the tween queue consumes. Reads prev
+  // transforms via detailMesh.getMatrixAt at each building's slot; classifies
+  // entering vs staying by file.path. prevIndex is accepted for symmetry but
+  // unused.
   //
   // Liveness: the prev detailMeshes are already disposed by rebuild's
   // _disposeInner before this runs — but disposeObject3D only frees GPU
-  // geometry, NOT the JS-side instanceMatrix Float32Array, so getMatrixAt
-  // still reads the last-rendered transforms, so a rapid edit tweens from where
-  // the buildings actually were rather than snapping to layout.
+  // geometry, NOT the JS-side instanceMatrix Float32Array, so getMatrixAt still
+  // reads the last-rendered transforms and a rapid edit tweens from where the
+  // buildings actually were rather than snapping to layout.
   function _computeBuildingDiff(
     prevCells: Map<number, CellTile>,
     _prevIndex: BuildingIndex | null
@@ -287,9 +269,9 @@ export function createBuildings(ctx: SceneContext, deps: BuildingsDeps): Buildin
     const entering: EnteringBuilding[] = [];
     const staying: StayingBuilding[] = [];
 
-    // file.path → prior transform (scale + position), read from the old cell's
-    // detailMesh at the building's slot to capture whatever the animator left
-    // it at (so a rapid edit doesn't snap to layout).
+    // file.path → prior transform (scale + position), read from the prior cell's
+    // detailMesh at the building's slot to capture wherever the last tween left
+    // it (so a rapid edit doesn't snap to layout).
     const prevTransforms = new Map<
       string,
       { scaleX: number; scaleY: number; scaleZ: number; posX: number; posY: number; posZ: number }

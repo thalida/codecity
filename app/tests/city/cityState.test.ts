@@ -8,7 +8,7 @@ import { describe, it, expect } from 'vitest';
 import * as THREE from 'three';
 import { StreetAxis, NodeKind } from '@/types';
 import type { CityLayout, Street } from '@/types';
-import { createCityState } from '@/city/state/cityState';
+import { createCityState } from '@/city/state';
 
 // Minimal Street — rootStreet only reads streets[].isRoot; gemWorldPos reads
 // x/y/width/length/orientation. The rest is cast away.

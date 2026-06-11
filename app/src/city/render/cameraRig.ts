@@ -43,7 +43,7 @@ import {
 } from '@/constants/camera';
 import { NodeKind, StreetAxis } from '@/types';
 import type { Building, PickTarget, Street } from '@/types';
-import type { CityState } from '@/city/state/cityState';
+import type { CityState } from '@/city/state';
 
 /** Narrow accessor surface the rig needs from the world / future composer.
  *  Each member maps 1:1 to a world.ts accessor (Task 13 interim: renderLoop

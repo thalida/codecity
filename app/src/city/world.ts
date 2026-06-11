@@ -34,10 +34,10 @@ import { BuildingIndex } from './components/buildings/buildingIndex';
 import { createBuildings } from './components/buildings';
 import type { Buildings } from './components/buildings';
 import { findLayoutOverlaps } from './layout/algorithm';
-import { createLayoutClient } from './layout/runner';
+import { createLayoutClient } from './layout';
 import { layoutCityWithTrace } from './layout/algorithm';
-import { createApplyManifest } from './applyManifest';
-import { createCityState, type CityState } from './state/cityState';
+import { createApplyManifest } from './state/applyManifest';
+import { createCityState, type CityState } from './state';
 import { _formatCollisionReport, _formatStemDiagnostic } from './diagnostics';
 import { createGem } from './components/gem';
 import type { Gem } from './components/gem';
@@ -86,29 +86,33 @@ export function createWorld(_canvas: HTMLCanvasElement) {
   // theme effect reads only GEM/BLOOM signals. renderLoop populates the
   // shared `_ctx` before the first animate() frame, so tick() sees a live
   // picker on frame 1.
+  // The cross-boundary manifest-bound state: a per-city signals object
+  // (manifest/layout/bbox/latestWorldBounds source signals + rootStreet/
+  // gemWorldPos computeds). Carried on the SceneContext so the scenic components
+  // (streets/gem/footprint/island/repoLabel) rebuild themselves reactively off
+  // these signals via their own effects, rather than being called in order by
+  // applyManifest. The accessors below read these signals too; the apply
+  // pipeline sets the source signals' .value.
+  const _cityState: CityState = createCityState();
+
   type MutableSceneContext = {
     scene: THREE.Scene;
     picker: Picker | null;
     camera: THREE.PerspectiveCamera | null;
     renderer: THREE.WebGLRenderer | null;
+    cityState: CityState;
   };
-  const _ctx: MutableSceneContext = { scene, picker: null, camera: null, renderer: null };
-
-  // The cross-boundary manifest-bound state: a per-city signals object
-  // (manifest/layout/bbox/latestWorldBounds source signals + rootStreet/
-  // gemWorldPos computeds). Created BEFORE the scene components so it can be
-  // threaded into each create<X>(ctx, cityState) — the sync scenic components
-  // (streets/gem/footprint/island/repoLabel) rebuild themselves reactively off
-  // these signals via their own effects (the layout/bounds/anchor effects),
-  // rather than being called in order by applyManifest. The accessors below +
-  // the pathLine gemWorldPos closure read these signals too; createApplyManifest
-  // sets the source signals' .value. The non-accessor mirrors/caches live
-  // privately inside the factory.
-  const _cityState: CityState = createCityState();
+  const _ctx: MutableSceneContext = {
+    scene,
+    picker: null,
+    camera: null,
+    renderer: null,
+    cityState: _cityState,
+  };
 
   // The single cast: picker/camera/renderer are populated by renderLoop
   // before the first animate() frame; the gem reads them only in tick().
-  const _gem: Gem = createGem(_ctx as unknown as SceneContext, _cityState);
+  const _gem: Gem = createGem(_ctx as unknown as SceneContext);
   scene.add(_gem.group);
 
   // Cyberpunk Valley sky — a self-contained scene component built ONCE here,
@@ -127,14 +131,14 @@ export function createWorld(_canvas: HTMLCanvasElement) {
   // draws AFTER the sky (-1000) but BEFORE the city's own ground
   // tiles (sidewalks at 1, asphalt at 3) — those paint on top.
   // Uses nothing from `_ctx`; accepts it only for createX(ctx) uniformity.
-  const _island: Island = createIsland(_ctx as unknown as SceneContext, _cityState);
+  const _island: Island = createIsland(_ctx as unknown as SceneContext);
   scene.add(_island.group);
 
   // Floating repo-name label — created ONCE at scene init, parallel
   // to sky and island. The group is empty (and invisible-effectively)
   // until applyManifest calls setRepoName + setAnchor. Uses nothing
   // from `_ctx`; accepts it only for createX(ctx) composer uniformity.
-  const _repoLabel: RepoLabel = createRepoLabel(_ctx as unknown as SceneContext, _cityState, {
+  const _repoLabel: RepoLabel = createRepoLabel(_ctx as unknown as SceneContext, {
     // Live accessor for the gem's inner group. The label's manifest/anchor
     // effect re-reads it on every (non-reuse) apply — after the gem has
     // rebuilt in the same batch — so the beam foot tracks the current gem
@@ -165,7 +169,7 @@ export function createWorld(_canvas: HTMLCanvasElement) {
   // its first tick. rebuild() returns void; the component owns its
   // pickables/labels/asphalt arrays, which world's accessors (getStreetPickables
   // etc.) and the picker read straight off it.
-  const _streets: Streets = createStreets(_ctx as unknown as SceneContext, _cityState);
+  const _streets: Streets = createStreets(_ctx as unknown as SceneContext);
   scene.add(_streets.group);
 
   // Buildings — PERSISTENT component; added to scene once at init, right after
@@ -184,7 +188,6 @@ export function createWorld(_canvas: HTMLCanvasElement) {
   // the picker read straight off the component.
   const _buildings: Buildings = createBuildings(_ctx as unknown as SceneContext, {
     getStreetByDir: (p) => _streets.getStreetByDir(p),
-    cityState: _cityState,
   });
   scene.add(_buildings.group);
 
@@ -206,20 +209,16 @@ export function createWorld(_canvas: HTMLCanvasElement) {
   // Selection / hover neon path lines — PERSISTENT component. Deps are
   // closures evaluated at call time, post-init. Subscribes to picker at arming
   // (first tick); reacts to cityState.gemWorldPos + cityRevision for rebuilds.
-  const _pathLine: PathLine = createPathLine(
-    _ctx as unknown as SceneContext,
-    {
-      // .peek(), not .value: this closure is invoked from inside the renderer's
-      // _updatePathLine / _updateHoverPathLine, which run from the selection +
-      // hover effects too. A tracking read there would subscribe THOSE effects
-      // to gemWorldPos and re-fire them on every rebuild — reactivity they never
-      // had. The renderer's dedicated rebuild effect tracks cityState.gemWorldPos
-      // directly (it holds cityState), so gem moves still recompute the path.
-      getGemWorldPos: () => _cityState.gemWorldPos.peek(),
-      getStreetsByDirMap: () => _streets.streetsByDirMap(),
-    },
-    _cityState
-  );
+  const _pathLine: PathLine = createPathLine(_ctx as unknown as SceneContext, {
+    // .peek(), not .value: this closure is invoked from inside the renderer's
+    // _updatePathLine / _updateHoverPathLine, which run from the selection +
+    // hover effects too. A tracking read there would subscribe THOSE effects
+    // to gemWorldPos and re-fire them on every rebuild — reactivity they never
+    // had. The renderer's dedicated rebuild effect tracks cityState.gemWorldPos
+    // directly (it holds cityState), so gem moves still recompute the path.
+    getGemWorldPos: () => _cityState.gemWorldPos.peek(),
+    getStreetsByDirMap: () => _streets.streetsByDirMap(),
+  });
   scene.add(_pathLine.group);
 
   // One layoutClient instance per world. Owns the off-thread worker

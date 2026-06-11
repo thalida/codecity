@@ -19,7 +19,7 @@ import { signal } from '@preact/signals';
 import { LineSegments2 } from 'three/addons/lines/LineSegments2.js';
 
 import { createPathLine, type PathLineDeps } from '@/city/components/pathLine';
-import { createCityState } from '@/city/state/cityState';
+import { createCityState } from '@/city/state';
 import { computePathLinewidthPixels } from '@/city/components/pathLine/renderer';
 import { STREETS } from '@/state/stores/settings/streets';
 import { NodeKind, StreetAxis } from '@/types';
@@ -43,7 +43,7 @@ const DEFAULTS = {
   HOVER_PATH_OPACITY: 0.25,
 };
 
-function makeCtx(): {
+function makeCtx(cityState: ReturnType<typeof createCityState>): {
   ctx: SceneContext;
   selection: ReturnType<typeof signal<PickTarget | null>>;
   hover: ReturnType<typeof signal<PickTarget | null>>;
@@ -58,6 +58,7 @@ function makeCtx(): {
     picker: { selection, hover } as unknown as Picker,
     camera: new THREE.PerspectiveCamera(),
     renderer: { domElement: canvas } as unknown as THREE.WebGLRenderer,
+    cityState,
   } as SceneContext;
   return { ctx, selection, hover };
 }
@@ -120,9 +121,9 @@ describe('createPathLine() component door', () => {
   });
 
   it('constructs with an empty named group; nothing armed, nothing subscribed', () => {
-    const { ctx, selection } = makeCtx();
     const { deps, cityState, counters } = makeDeps();
-    comp = createPathLine(ctx, deps, cityState);
+    const { ctx, selection } = makeCtx(cityState);
+    comp = createPathLine(ctx, deps);
     expect(comp.group.name).toBe('city-path-line');
     expect(comp.group.children).toHaveLength(0);
     // Not armed → the rebuild effect doesn't exist yet, so a cityRevision bump
@@ -137,9 +138,9 @@ describe('createPathLine() component door', () => {
   });
 
   it('first tick() arms the inner renderer: two line meshes + a live rebuild effect', () => {
-    const { ctx } = makeCtx();
     const { deps, cityState, counters } = makeDeps();
-    comp = createPathLine(ctx, deps, cityState);
+    const { ctx } = makeCtx(cityState);
+    comp = createPathLine(ctx, deps);
     comp.tick(0, FRAME(ctx.camera));
     expect(lines(comp)).toHaveLength(2);
     // The rebuild effect is live: a cityRevision bump recomputes the lines
@@ -153,9 +154,9 @@ describe('createPathLine() component door', () => {
   });
 
   it('a selection after arming shows the selection path line; clearing hides it', () => {
-    const { ctx, selection } = makeCtx();
     const { deps, cityState } = makeDeps();
-    comp = createPathLine(ctx, deps, cityState);
+    const { ctx, selection } = makeCtx(cityState);
+    comp = createPathLine(ctx, deps);
     comp.tick(0, FRAME(ctx.camera));
     const [pathLine] = lines(comp);
     expect(pathLine.visible).toBe(false);
@@ -172,9 +173,9 @@ describe('createPathLine() component door', () => {
   });
 
   it('theme effect pushes a fresh linewidth into both materials on STREETS Save', () => {
-    const { ctx } = makeCtx();
     const { deps, cityState } = makeDeps();
-    comp = createPathLine(ctx, deps, cityState);
+    const { ctx } = makeCtx(cityState);
+    comp = createPathLine(ctx, deps);
     comp.tick(0, FRAME(ctx.camera));
     STREETS.value = { ...STREETS.value, PATH_LINEWIDTH_PCT: 25 };
     const expected = computePathLinewidthPixels(25);
@@ -187,9 +188,9 @@ describe('createPathLine() component door', () => {
   });
 
   it('untracked discipline: a hover change fires ONLY the hover effect, not the theme effect', () => {
-    const { ctx, hover } = makeCtx();
     const { deps, cityState, counters } = makeDeps();
-    comp = createPathLine(ctx, deps, cityState);
+    const { ctx, hover } = makeCtx(cityState);
+    comp = createPathLine(ctx, deps);
     comp.tick(0, FRAME(ctx.camera));
 
     const before = counters.gemPosCalls;
@@ -201,9 +202,9 @@ describe('createPathLine() component door', () => {
   });
 
   it('dispose() stops the rebuild effect + all picker effects', () => {
-    const { ctx, selection } = makeCtx();
     const { deps, cityState, counters } = makeDeps();
-    comp = createPathLine(ctx, deps, cityState);
+    const { ctx, selection } = makeCtx(cityState);
+    comp = createPathLine(ctx, deps);
     comp.tick(0, FRAME(ctx.camera));
 
     comp.dispose();

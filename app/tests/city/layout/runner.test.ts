@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { createLayoutClient } from '@/city/layout/runner';
+import { createLayoutClient } from '@/city/layout';
 import { NodeKind } from '@/types';
 import type { Manifest, FileNode } from '@/types';
 

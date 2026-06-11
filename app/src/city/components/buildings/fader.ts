@@ -25,7 +25,7 @@ import type { Street } from '@/types';
 import type { CellTile } from './cellTile';
 import type { InstancedAdPanels } from './adPanels';
 import type { createPicker } from '@/city/render/picker';
-import type { CityState } from '@/city/state/cityState';
+import type { CityState } from '@/city/state';
 
 // Narrow world surface the fader needs. The buildings component supplies this
 // (cells + ad panels are component-local; getStreetByDir is threaded from

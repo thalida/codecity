@@ -4,7 +4,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import * as THREE from 'three';
 import { createCameraRig } from '@/city/render/cameraRig';
-import { createCityState } from '@/city/state/cityState';
+import { createCityState } from '@/city/state';
 import { BuildingOrient, NodeKind, StreetAxis } from '@/types';
 import type { Building, Street } from '@/types';
 

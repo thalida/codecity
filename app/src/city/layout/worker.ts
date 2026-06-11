@@ -7,27 +7,7 @@ import { layoutCity } from './algorithm';
 import { STREET_LAYOUT, STREET_TIERS } from '@/state/stores/settings/streets';
 import { BUILDING_DIMENSIONS } from '@/state/stores/settings/buildings';
 import { GEM_SIZING } from '@/state/stores/settings/gem';
-import type { StreetLayoutConfig, StreetTier } from '@/state/stores/settings/streets';
-import type { BuildingDimensionsConfig } from '@/state/stores/settings/buildings';
-import type { GemSizingConfig } from '@/state/stores/settings/gem';
-import type { Manifest } from '@/types';
-import type { CityLayout } from '@/types';
-
-interface LayoutRequest {
-  type: 'layout';
-  id: number;
-  manifest: Manifest;
-  configSnapshot: {
-    streetLayout: StreetLayoutConfig;
-    buildingDimensions: BuildingDimensionsConfig;
-    gemSizing: GemSizingConfig;
-    streetTiers: StreetTier[];
-  };
-}
-
-type LayoutResponse =
-  | { type: 'layout-result'; id: number; layout: CityLayout }
-  | { type: 'layout-error'; id: number; message: string };
+import type { LayoutRequest, LayoutResponse } from './protocol';
 
 function _applySnapshot(snap: LayoutRequest['configSnapshot']): void {
   STREET_LAYOUT.value = { ...STREET_LAYOUT.value, ...snap.streetLayout };

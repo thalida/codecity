@@ -19,7 +19,7 @@ import * as THREE from 'three';
 import { signal } from '@preact/signals';
 
 import { createBuildings } from '@/city/components/buildings';
-import { createCityState } from '@/city/state/cityState';
+import { createCityState } from '@/city/state';
 import { getSharedBuildingUniforms } from '@/city/components/buildings/material';
 import { BUILDINGS } from '@/state/stores/settings/buildings';
 import { NodeKind } from '@/types';
@@ -50,6 +50,7 @@ function makeCtx(): {
     picker: { selection, hover } as unknown as Picker,
     camera: new THREE.PerspectiveCamera(),
     renderer: { domElement: canvas } as unknown as THREE.WebGLRenderer,
+    cityState: createCityState(),
   } as SceneContext;
   return { ctx, selection, hover };
 }
@@ -63,12 +64,12 @@ function makePrePickerCtx(): SceneContext {
     picker: null as unknown as Picker,
     camera: null as unknown as THREE.PerspectiveCamera,
     renderer: null as unknown as THREE.WebGLRenderer,
+    cityState: createCityState(),
   } as unknown as SceneContext;
 }
 
 const NOOP_DEPS = {
   getStreetByDir: () => null,
-  cityState: createCityState(),
 };
 
 const EMPTY_DATE_RANGES = {

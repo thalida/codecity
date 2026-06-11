@@ -16,14 +16,14 @@ import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
 
 import { STREETS, STREET_TIERS } from '@/state/stores/settings/streets';
 import { PATH_LINE_ELEVATION, HOVER_PATH_LINE_ELEVATION } from '@/constants/streets';
-import { RENDER_ORDERS } from '@/city/constants/renderOrders';
+import { RENDER_ORDERS } from '@/city/types/renderOrders';
 import { NodeKind } from '@/types';
 import type { Street } from '@/types';
 import { computePathPoints } from '@/city/layout/streetPath';
 import { rainbowRgbAt } from '@/city/utils/rainbowChase';
 import type { PickTarget } from '@/types/picker';
 import type { ReadonlySignal } from '@preact/signals';
-import type { CityState } from '@/city/state/cityState';
+import type { CityState } from '@/city/state';
 
 /**
  * Converts a LINEWIDTH_PCT percentage (1–50) into an actual pixel linewidth

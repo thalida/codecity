@@ -8,7 +8,7 @@
 //   dispose():        clean up geometry + material + attribute buffers.
 
 import * as THREE from 'three';
-import { RENDER_ORDERS } from '@/city/constants/renderOrders';
+import { RENDER_ORDERS } from '@/city/types/renderOrders';
 import { FIREFLIES } from '@/state/stores/settings/fireflies';
 import type { FireflyPlacement } from './firefliesPlacement';
 import vertexShader from './fireflies.vert.glsl?raw';

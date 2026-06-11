@@ -1,16 +1,12 @@
-// city/components/gem/index.ts — The root gem COMPONENT (public door).
+// city/components/gem/index.ts — the root gem component.
 //
-// Self-contained scene component: owns its persistent group, builds the
-// inner gem mesh via mesh.ts on rebuild(), reacts to GEM settings via an
-// effect, animates per-frame in tick() (reading GEM + BLOOM), and frees
-// its own GPU resources + stops its effect in dispose().
+// Self-contained scene component: owns its persistent group, rebuilds the inner
+// gem mesh reactively off cityState.rootStreet, reacts to GEM settings via an
+// effect, animates per-frame in tick() (reading GEM + BLOOM), and frees its own
+// GPU resources + stops its effects in dispose().
 //
-// Construction-time bridge (Strategy A): the gem is built inside world.ts,
-// which runs BEFORE the picker/camera/renderer exist. The component captures
-// the SceneContext at construction but only reads ctx.picker in tick(); the
-// theme effect reads only GEM signals. renderLoop populates ctx.picker/
-// camera/renderer before the first animate() frame, so tick() sees a live
-// picker on frame 1.
+// The gem is built before the picker/camera/renderer exist, so it reads
+// ctx.picker only in tick() (live by the first frame), never at construction.
 
 import * as THREE from 'three';
 import { effect } from '@preact/signals';
@@ -23,7 +19,6 @@ import { disposeObject3D } from '@/city/utils/disposeObject3D';
 import { gemAnchorXZ } from './anchor';
 
 import type { FrameContext, SceneComponent, SceneContext } from '../../types';
-import type { CityState } from '../../state/cityState';
 import { onSettings } from '../../utils/onSettings';
 import { createRootGem, GEM_HOVER_LIFT_FRAC } from './mesh';
 import { gemFaceColors, writeFaceColors, type Rgb } from './palette';
@@ -67,7 +62,8 @@ export interface Gem extends SceneComponent {
   gem: THREE.Group | null;
 }
 
-export function createGem(ctx: SceneContext, cityState: CityState): Gem {
+export function createGem(ctx: SceneContext): Gem {
+  const { cityState } = ctx;
   // Persistent outer group — added to the scene once. rebuild() swaps the
   // inner gem in and out of this group.
   const group = new THREE.Group();

@@ -6,7 +6,7 @@
 import * as THREE from 'three';
 import { STREETS } from '@/state/stores/settings/streets';
 import { ASPHALT_WIDTH_FRAC } from '@/constants/streets';
-import { RENDER_ORDERS } from '@/city/constants/renderOrders';
+import { RENDER_ORDERS } from '@/city/types/renderOrders';
 import { CapStyle, JoinSide, NodeKind, StreetAxis } from '@/types';
 import type { Street } from '@/types';
 

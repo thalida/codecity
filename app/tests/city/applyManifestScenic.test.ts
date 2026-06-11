@@ -14,20 +14,21 @@
 import { describe, it, expect, afterEach, vi } from 'vitest';
 import * as THREE from 'three';
 
-import { createApplyManifest } from '@/city/applyManifest';
-import { createCityState } from '@/city/state/cityState';
+import { createApplyManifest } from '@/city/state/applyManifest';
+import { createCityState } from '@/city/state';
 import { createStreets } from '@/city/components/streets';
 import { NodeKind, StreetAxis } from '@/types';
 import type { CityLayout, DateRanges, Manifest, Street } from '@/types';
 import type { Picker } from '@/city/render/picker';
 import type { SceneContext } from '@/city/types';
 
-function makeCtx(): SceneContext {
+function makeCtx(cityState: ReturnType<typeof createCityState>): SceneContext {
   return {
     scene: new THREE.Scene(),
     picker: null as unknown as Picker,
     camera: null as unknown as THREE.PerspectiveCamera,
     renderer: null as unknown as THREE.WebGLRenderer,
+    cityState,
   } as unknown as SceneContext;
 }
 
@@ -124,7 +125,7 @@ describe('createApplyManifest — scenic reactivity parity', () => {
 
   function setup() {
     const cityState = createCityState();
-    const streets = createStreets(makeCtx(), cityState);
+    const streets = createStreets(makeCtx(cityState));
     disposers.push(() => streets.dispose());
     const stubs = makeStubComponents();
     const layoutClient = makeLayoutClient(

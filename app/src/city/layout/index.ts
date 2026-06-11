@@ -1,4 +1,4 @@
-// city/layout/runner.ts — main-thread façade for the layout worker.
+// city/layout/index.ts — main-thread façade for the layout worker.
 // Owns one lazily-created module Worker; exposes a Promise-based
 // `compute(manifest, opts)` API. Generates monotonic request ids and rejects
 // older pending requests when a newer one starts, so a rapid succession
@@ -22,6 +22,7 @@ import type { StreetLayoutConfig, StreetTier } from '@/state/stores/settings/str
 import type { BuildingDimensionsConfig } from '@/state/stores/settings/buildings';
 import type { GemSizingConfig } from '@/state/stores/settings/gem';
 import { layoutCity, makeHeightContext, recomputeBuildingDimensions } from './algorithm';
+import type { LayoutRequest, LayoutResponse } from './protocol';
 import type { Manifest, CityLayout, FileNode, TreeNode } from '@/types';
 
 interface PendingRequest {
@@ -148,9 +149,7 @@ export function createLayoutClient(): LayoutClient {
       return null;
     }
     worker.addEventListener('message', (event: MessageEvent) => {
-      const data = event.data as
-        | { type: 'layout-result'; id: number; layout: CityLayout }
-        | { type: 'layout-error'; id: number; message: string };
+      const data = event.data as LayoutResponse;
       const entry = pending.get(data.id);
       if (!entry) return; // already superseded
       pending.delete(data.id);
@@ -235,12 +234,13 @@ export function createLayoutClient(): LayoutClient {
         _computeSync(id, manifest, resolve, reject);
         return;
       }
-      w.postMessage({
+      const request: LayoutRequest = {
         type: 'layout',
         id,
         manifest,
         configSnapshot: _snapshot(),
-      });
+      };
+      w.postMessage(request);
     });
   }
 

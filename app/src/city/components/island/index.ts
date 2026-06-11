@@ -1,30 +1,10 @@
-// city/components/island/index.ts — Cyberpunk Valley floating-island COMPONENT
-// (public door).
+// city/components/island/index.ts — Cyberpunk Valley floating-island component:
+// a shaped polygonal slab beneath the city.
 //
-// Self-contained scene component: builds a shaped polygonal slab that replaces
-// the old flat world-floor plane. The component owns its settings-reactivity
-// (an effect reading ISLAND) and frees its own GPU resources + stops its
-// effect in dispose(). Persistent — the island group is added once at world
-// boot and sized via setBounds() when layout (re)computes.
-//
-// Lifecycle (matches the other createX(ctx) components under app/city/):
-//
-//   const island = createIsland(ctx);
-//   scene.add(island.group);              // once, at world boot
-//   island.setBounds(getWorldBounds(…)); // when layout (re)computes
-//   island.dispose();                    // on world teardown
-//
-// The settings effect replaces the old refresh() / applyTheme() path:
-// it reads ISLAND (ENABLED, colors, geometry params) and rebuilds geometry
-// + material uniforms on every ISLAND Save. It runs once at construction
-// (idempotently re-applying the same values the constructor baked — a
-// redundant geometry rebuild with default bounds is acceptable since
-// world.setBounds(realBounds) immediately follows, producing identical output).
-//
-// Construction-time bridge (Strategy A, same as sky/gem): the island is
-// built inside world.ts BEFORE the picker/camera/renderer exist. The
-// component accepts the SceneContext for createX(ctx) composer uniformity
-// but uses nothing from it; the `_ctx` arg is unused (see sky/gem precedents).
+// Self-contained scene component: owns its settings-reactivity (an effect
+// reading ISLAND) and a bounds effect that resizes it reactively off
+// cityState.latestWorldBounds; frees its own GPU resources + stops its effects
+// in dispose(). Persistent — added once at world boot.
 //
 // tick() is OMITTED — island hemispheric lighting is static; there is no
 // per-frame work. The SceneComponent contract makes tick optional.
@@ -36,9 +16,8 @@ import { ISLAND } from '@/state/stores/settings/island';
 import { getWorldBounds, type WorldBounds } from '@/city/utils/floorBounds';
 import { buildIslandGeometry, type IslandBuildParams } from './islandGeometry';
 import { createIslandMaterial } from './islandShader';
-import { RENDER_ORDERS } from '@/city/constants/renderOrders';
+import { RENDER_ORDERS } from '@/city/types/renderOrders';
 import type { SceneComponent, SceneContext } from '../../types';
-import type { CityState } from '../../state/cityState';
 import { onSettings } from '../../utils/onSettings';
 
 const ISLAND_TOP_Y = -2.0; // Increased from -0.5 for z-fighting prevention (4x separation from city y=0)
@@ -79,12 +58,10 @@ export function islandSeedFromBounds(b: WorldBounds): number {
   return h >>> 0;
 }
 
-// `_ctx` is accepted for createX(ctx) composer uniformity; the island uses
-// nothing from it at construction (no picker/camera/renderer needed; scene-add
-// done by world.ts). The `_`-prefix matches the eslint argsIgnorePattern.
-// cityState is threaded so the island can size itself reactively off
-// latestWorldBounds (see the bounds effect below).
-export function createIsland(_ctx: SceneContext, cityState: CityState): Island {
+// Reads only ctx.cityState (to size itself reactively off latestWorldBounds —
+// see the bounds effect below); no picker/camera/renderer needed at construction.
+export function createIsland(ctx: SceneContext): Island {
+  const { cityState } = ctx;
   let currentBounds = getWorldBounds(null);
   const group = new THREE.Group();
   group.position.set(currentBounds.cx, ISLAND_TOP_Y, currentBounds.cz);

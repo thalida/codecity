@@ -1,29 +1,17 @@
-// city/components/streets/index.ts — Streets COMPONENT (public door).
+// city/components/streets/index.ts — the streets component.
 //
-// Self-contained scene component: owns its persistent group, builds the
-// inner street meshes (sidewalk + asphalt slabs) + flat road labels via
-// rebuild(layout), reacts to STREETS settings via an effect, animates the
+// Self-contained scene component: owns its persistent group, builds the inner
+// street meshes (sidewalk + asphalt slabs) + flat road labels reactively off
+// cityState.layout, reacts to STREETS settings via an effect, animates the
 // labels' camera-facing orientation per-frame in tick(), tints sidewalks on
 // hover/selection via two picker-driven effects, and frees its own GPU
 // resources + stops its effects in dispose().
 //
-// Construction-time bridge (Strategy A): like the gem, streets are built
-// inside world.ts BEFORE the picker/camera/renderer exist. The component
-// captures the SceneContext at construction. The STREETS theme effect reads
-// only STREETS signals, so it's safe at construction. The two picker-driven
-// sidewalk-tint effects are NOT created at construction (ctx.picker is null
-// there, so they'd track NO signal and never re-fire) — they are ARMED on
-// the first tick(), once renderLoop has populated ctx.picker. tick() reads
-// frame.camera for the label orientation.
-//
-// The inner street meshes / labels are private siblings (./streets,
-// ./streetLabels); the door imports their factories. No logic change inside
-// them — they stay exported so this door can import them.
-//
-// rebuild() returns void and owns the meshes. The component exposes its
-// pickables/labels/asphalt arrays via accessors; world's getStreetPickables/
-// getStreetLabels/getAsphaltMeshes and the picker read straight off it. There
-// is no street diff — streets just rebuild in place on every full-rebuild path.
+// The two picker-driven sidewalk-tint effects are ARMED on the first tick()
+// (ctx.picker is null at construction, so they'd track NO signal there), not at
+// construction. The inner street meshes / labels are private siblings
+// (./streets, ./streetLabels). The component exposes its pickables/labels/
+// asphalt arrays via accessors the picker reads straight off.
 
 import * as THREE from 'three';
 import { effect } from '@preact/signals';
@@ -33,7 +21,6 @@ import { NodeKind, StreetAxis } from '@/types';
 import type { CityLayout, Street } from '@/types';
 
 import type { FrameContext, SceneComponent, SceneContext } from '../../types';
-import type { CityState } from '../../state/cityState';
 import { armOnFirstTick } from '../../utils/armOnFirstTick';
 import { onSettings } from '../../utils/onSettings';
 import { createStreetMesh } from './streets';
@@ -67,9 +54,10 @@ export interface Streets extends SceneComponent {
   streetsByDirMap(): Record<string, Street>;
 }
 
-export function createStreets(ctx: SceneContext, cityState: CityState): Streets {
-  // Persistent outer group — added to the scene once by world.ts. rebuild()
-  // swaps the inner street meshes + labels in and out of this group.
+export function createStreets(ctx: SceneContext): Streets {
+  const { cityState } = ctx;
+  // Persistent outer group — added to the scene once. rebuild() swaps the inner
+  // street meshes + labels in and out of this group.
   const group = new THREE.Group();
   group.name = 'city-streets';
 

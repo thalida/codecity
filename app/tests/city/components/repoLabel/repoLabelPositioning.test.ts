@@ -12,7 +12,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import * as THREE from 'three';
 import { createRepoLabel } from '@/city/components/repoLabel';
-import { createCityState } from '@/city/state/cityState';
+import { createCityState } from '@/city/state';
 import { REPO_LABEL } from '@/state/stores/settings/gem';
 import { resetBuildingsConfig } from '../../../_helpers/cityFixtures';
 import type { Picker } from '@/city/render/picker';
@@ -41,6 +41,7 @@ function makeCtx(): SceneContext {
     picker: null as unknown as Picker,
     camera: null as unknown as THREE.PerspectiveCamera,
     renderer: null as unknown as THREE.WebGLRenderer,
+    cityState: createCityState(),
   } as unknown as SceneContext;
 }
 
@@ -48,7 +49,7 @@ describe('RepoLabel positioning', () => {
   let label: ReturnType<typeof createRepoLabel>;
   beforeEach(() => {
     resetStore();
-    label = createRepoLabel(makeCtx(), createCityState(), { getGem: () => null });
+    label = createRepoLabel(makeCtx(), { getGem: () => null });
     label.setRepoName('codecity');
   });
   afterEach(() => label.dispose());

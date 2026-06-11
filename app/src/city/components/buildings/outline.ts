@@ -23,7 +23,7 @@ import { LineSegmentsGeometry } from 'three/addons/lines/LineSegmentsGeometry.js
 import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
 
 import { BUILDINGS } from '@/state/stores/settings/buildings';
-import { RENDER_ORDERS } from '@/city/constants/renderOrders';
+import { RENDER_ORDERS } from '@/city/types/renderOrders';
 import { rainbowRgbAt } from '@/city/utils/rainbowChase';
 import { NodeKind } from '@/types';
 import { getBuildingTilt, composeShearMatrix } from './tilt';

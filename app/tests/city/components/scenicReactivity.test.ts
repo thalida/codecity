@@ -18,7 +18,7 @@
 import { describe, it, expect, afterEach } from 'vitest';
 import * as THREE from 'three';
 
-import { createCityState } from '@/city/state/cityState';
+import { createCityState } from '@/city/state';
 import { createStreets } from '@/city/components/streets';
 import { createGem } from '@/city/components/gem';
 import { createIsland } from '@/city/components/island';
@@ -29,12 +29,13 @@ import type { WorldBounds } from '@/city/utils/floorBounds';
 import type { Picker } from '@/city/render/picker';
 import type { SceneContext } from '@/city/types';
 
-function makeCtx(): SceneContext {
+function makeCtx(cityState: ReturnType<typeof createCityState>): SceneContext {
   return {
     scene: new THREE.Scene(),
     picker: null as unknown as Picker,
     camera: null as unknown as THREE.PerspectiveCamera,
     renderer: null as unknown as THREE.WebGLRenderer,
+    cityState,
   } as unknown as SceneContext;
 }
 
@@ -86,7 +87,7 @@ describe('scenic reactivity — reference-stability gates rebuilds', () => {
 
   it('streets: rebuilds on a NEW layout reference, skips on the SAME reference', () => {
     const cityState = createCityState();
-    const streets = createStreets(makeCtx(), cityState);
+    const streets = createStreets(makeCtx(cityState));
     disposers.push(() => streets.dispose());
 
     const layoutA = makeLayout();
@@ -112,7 +113,7 @@ describe('scenic reactivity — reference-stability gates rebuilds', () => {
 
   it('gem: rebuilds when rootStreet changes (new layout), skips on reuse', () => {
     const cityState = createCityState();
-    const gem = createGem(makeCtx(), cityState);
+    const gem = createGem(makeCtx(cityState));
     disposers.push(() => gem.dispose());
 
     const layoutA = makeLayout();
@@ -145,7 +146,7 @@ describe('scenic reactivity — reference-stability gates rebuilds', () => {
 
   it('island: setBounds fires on a NEW latestWorldBounds reference, skips on reuse', () => {
     const cityState = createCityState();
-    const island = createIsland(makeCtx(), cityState);
+    const island = createIsland(makeCtx(cityState));
     disposers.push(() => island.dispose());
 
     // The island mesh is group.children[0]; setBounds swaps its geometry.
@@ -166,7 +167,7 @@ describe('scenic reactivity — reference-stability gates rebuilds', () => {
 
   it('repoLabel: repositions on every manifest change (name + anchor)', () => {
     const cityState = createCityState();
-    const label = createRepoLabel(makeCtx(), cityState, { getGem: () => null });
+    const label = createRepoLabel(makeCtx(cityState), { getGem: () => null });
     disposers.push(() => label.dispose());
 
     cityState.manifest.value = makeManifest('repo-a');

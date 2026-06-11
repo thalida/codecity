@@ -5,7 +5,7 @@
 import * as THREE from 'three';
 import { describe, it, expect, beforeEach } from 'vitest';
 import { createPicker, PICKER_SELECTION_KEY } from '@/city/render/picker';
-import { createCityState } from '@/city/state/cityState';
+import { createCityState } from '@/city/state';
 import { NodeKind } from '@/types';
 import type { CommitEntry, PickerWorld, CommitTarget } from '@/types';
 

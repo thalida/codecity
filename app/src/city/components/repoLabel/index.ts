@@ -1,37 +1,12 @@
-// city/components/repoLabel/index.ts — Floating holographic
-// repo-name label. One group at the scene root, holding a vertical
-// light beam from the floor + a camera-facing billboard text panel
-// (full 3-axis billboard — pitches with camera elevation, not just yaw).
+// city/components/repoLabel/index.ts — Floating holographic repo-name label:
+// one group at the scene root, holding a vertical light beam from the floor +
+// a camera-facing billboard text panel (full 3-axis billboard — pitches with
+// camera elevation, not just yaw).
 //
 // Self-contained scene component: owns its persistent group, reacts to
-// REPO_LABEL settings via an effect (replacing the old refresh() path),
-// animates per-frame in tick() (reading REPO_LABEL.ANIMATION_SPEED), and
-// frees its own GPU resources + stops its effect in dispose(). Persistent
-// — created once at world boot, repositioned per applyManifest.
-//
-// Lifecycle (matches sky / island / gem):
-//   const label = createRepoLabel(ctx);
-//   scene.add(label.group);              // once, at world boot
-//   label.setRepoName(manifest.tree.name);
-//   label.setAnchor(gemWorldPos);
-//   label.setGem(_gem.gem);
-//   label.tick(dt, frameCtx);           // every frame
-//   label.dispose();                    // on world teardown
-//
-// The settings effect replaces the old refresh() / applyTheme() path:
-// it reads REPO_LABEL (ENABLED, HEIGHT_PCT, FONT_SIZE, OPACITY,
-// BEAM_COLOR, TEXT_COLOR) and pushes fresh values into uniforms +
-// recomputes transform on every REPO_LABEL Save. It runs once at
-// construction (idempotently re-applying the same values the constructor
-// baked — before setRepoName builds meshes, the opacity/color/transform
-// calls are no-ops; subsequent effect runs see the live meshes).
-//
-// Construction-time bridge (Strategy A, same as sky/island/gem): the
-// label is built inside world.ts BEFORE the picker/camera/renderer exist.
-// The component accepts the SceneContext for createX(ctx) composer
-// uniformity but uses nothing from it; tick() reaches the camera via the
-// per-frame FrameContext. The `_ctx` arg is unused (see sky/island
-// precedents).
+// REPO_LABEL settings via an effect, animates per-frame in tick(), and frees
+// its own GPU resources + stops its effects in dispose(). Persistent — created
+// once at world boot, repositioned reactively off cityState per applyManifest.
 //
 // Sizing:
 //   panel height = REPO_LABEL.FONT_SIZE world units (applied on Save)
@@ -53,10 +28,9 @@ import { effect } from '@preact/signals';
 
 import { BUILDING_DIMENSIONS } from '@/state/stores/settings/buildings';
 import { REPO_LABEL } from '@/state/stores/settings/gem';
-import { RENDER_ORDERS } from '@/city/constants/renderOrders';
+import { RENDER_ORDERS } from '@/city/types/renderOrders';
 
 import type { FrameContext, SceneComponent, SceneContext } from '../../types';
-import type { CityState } from '../../state/cityState';
 import vertSrc from './holoQuad.vert.glsl?raw';
 import beamFragSrc from './holoBeam.frag.glsl?raw';
 import textFragSrc from './holoText.frag.glsl?raw';
@@ -150,16 +124,11 @@ export interface RepoLabelDeps {
   getGem: () => THREE.Object3D | null;
 }
 
-// `_ctx` is accepted for createX(ctx) composer uniformity; the repoLabel uses
-// nothing from it at construction (it reaches the camera via FrameContext
-// in tick()). The `_`-prefix matches the eslint argsIgnorePattern. cityState +
-// deps.getGem are threaded so the label repositions reactively off
-// manifest/gemWorldPos and tracks the live gem (see the anchor effect below).
-export function createRepoLabel(
-  _ctx: SceneContext,
-  cityState: CityState,
-  deps: RepoLabelDeps
-): RepoLabel {
+// Reads only ctx.cityState (to reposition reactively off manifest/gemWorldPos)
+// + deps.getGem (to track the live gem — see the anchor effect below); it
+// reaches the camera via FrameContext in tick(), not at construction.
+export function createRepoLabel(ctx: SceneContext, deps: RepoLabelDeps): RepoLabel {
+  const { cityState } = ctx;
   const group = new THREE.Group();
   group.name = 'repoLabel';
 

@@ -8,15 +8,17 @@
 import type * as THREE from 'three';
 import type { Picker } from '../render/picker';
 import type { CameraRig } from '../render/cameraRig';
+import type { CityState } from '../state';
 import type { Manifest } from '@/types';
 
 /** Everything a scene component needs to wire itself into the scene at
- *  construction time (renderer, camera, raycaster/picker). */
+ *  construction time (renderer, camera, raycaster/picker, per-city state). */
 export interface SceneContext {
   scene: THREE.Scene;
   picker: Picker;
   camera: THREE.PerspectiveCamera;
   renderer: THREE.WebGLRenderer;
+  cityState: CityState;
 }
 
 /** Per-frame state passed to each component's tick() method. */

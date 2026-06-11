@@ -1,18 +1,14 @@
-// city/components/pathLine/index.ts — PathLine COMPONENT (public door).
+// city/components/pathLine/index.ts — the pathLine component.
 //
 // Self-contained scene component for the neon selection path line (gem →
-// selected node, rainbow chasing) and the faded hover-preview path line.
-// The inner renderer (./renderer — formerly an effects module constructed in
-// renderLoop) owns the meshes, the picker-driven geometry effects, and a
-// cityState rebuild effect (gemWorldPos + cityRevision).
+// selected node, rainbow chasing) and the faded hover-preview path line. The
+// inner renderer (./renderer) owns the meshes, the picker-driven geometry
+// effects, and a cityState rebuild effect (gemWorldPos + cityRevision).
 //
-// Construction-time bridge (Strategy A): the component is built inside
-// world.ts BEFORE the picker/renderer exist. The inner renderer subscribes
-// to picker.hover/selection + cityState rebuild signals inside its factory and
-// needs the canvas, so it is NOT constructed at component construction — it is
-// ARMED on the first tick(), once renderLoop has populated
-// ctx.picker/ctx.renderer. The STREETS theme effect is settings-only and
-// safe at construction.
+// The inner renderer subscribes to picker.hover/selection + cityState signals
+// and needs the canvas, so it is ARMED on the first tick() once
+// ctx.picker/ctx.renderer are live, not at construction. The STREETS theme
+// effect is settings-only and safe at construction.
 
 import * as THREE from 'three';
 
@@ -22,7 +18,6 @@ import type { FrameContext, SceneComponent, SceneContext } from '../../types';
 import { armOnFirstTick } from '../../utils/armOnFirstTick';
 import { onSettings } from '../../utils/onSettings';
 import { createPathLineRenderer, type PathLineWorld } from './renderer';
-import type { CityState } from '../../state/cityState';
 
 /** World closures the inner renderer consumes (threaded from world.ts —
  *  gemWorldPos is a `let` there; closures evaluate at call time). The shape
@@ -36,12 +31,9 @@ export interface PathLine extends SceneComponent {
   onResize(): void;
 }
 
-export function createPathLine(
-  ctx: SceneContext,
-  deps: PathLineDeps,
-  cityState: CityState
-): PathLine {
-  // Persistent group — added to the scene once by world.ts. The inner
+export function createPathLine(ctx: SceneContext, deps: PathLineDeps): PathLine {
+  const { cityState } = ctx;
+  // Persistent group — added to the scene once. The inner
   // renderer parents its two line meshes into it at arming (draw order is
   // governed by RENDER_ORDERS.PATH_LINE renderOrder, not graph position).
   const group = new THREE.Group();

@@ -33,7 +33,7 @@
 import * as THREE from 'three';
 
 import { FOOTPRINT } from '@/state/stores/settings/footprint';
-import { RENDER_ORDERS } from '@/city/constants/renderOrders';
+import { RENDER_ORDERS } from '@/city/types/renderOrders';
 import type { CityLayout } from '@/types';
 import { setColorFromHex } from '@/city/utils/color/setColorFromHex';
 import { rectOfBuilding, rectOfStreet } from '@/city/layout/rect';
