@@ -43,6 +43,11 @@ class FileNode(TypedDict):
     path: str
     fullPath: str
     extension: str
+    # Media classification by extension (image/video/None for non-media).
+    # Single source of truth for the frontend, which reads this instead of
+    # hand-listing extensions. Always emitted (None for non-media files).
+    # See api/services/media.py:media_kind.
+    mediaKind: str | None
     size: int
     lines: int
     binary: bool

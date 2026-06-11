@@ -38,6 +38,13 @@ class FileNode(BaseModel):
             "history date when the file has one, filesystem date otherwise"
         )
     )
+    mediaKind: Optional[Literal["image", "video"]] = Field(
+        default=None,
+        description=(
+            "Media classification by extension (single source for the "
+            "frontend); null for non-media files"
+        ),
+    )
     # Optional-but-non-nullable (absent for non-media files, a pixel count
     # otherwise — never null); see OptionalInt above.
     media_width: OptionalInt = None

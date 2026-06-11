@@ -66,6 +66,19 @@ _VIDEO_EXTS = frozenset(
 )
 
 
+def media_kind(ext: str) -> str | None:
+    """Classify a file extension as media. Single source of truth shared
+    with the frontend via the manifest's FileNode.mediaKind — the frontend
+    no longer hand-lists these. 'image' covers PIL-probeable rasters AND
+    svg; 'video' the container formats; None = not media."""
+    ext = ext.lower()
+    if ext in _PIL_IMAGE_EXTS or ext in _SVG_EXTS:
+        return "image"
+    if ext in _VIDEO_EXTS:
+        return "video"
+    return None
+
+
 def probe_media_dims(path: Path) -> tuple[int | None, int | None]:
     """Return (width, height) in pixels, or (None, None) when not probeable.
 

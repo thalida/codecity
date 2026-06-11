@@ -33,7 +33,7 @@ from .cache import (
     cache_save_files,
     cache_save_git_history,
 )
-from .media import probe_media_dims
+from .media import media_kind, probe_media_dims
 from .manifest_types import (
     BusynessThresholds,
     CommitEntry,
@@ -768,6 +768,7 @@ def _file_node(
         "path": rel_path,
         "fullPath": abs_path,
         "extension": _extension(entry.name),
+        "mediaKind": media_kind(_extension(entry.name)),
         "size": size,
         "lines": 0,  # filled in by _populate_file_metadata
         "binary": False,  # filled in by _populate_file_metadata

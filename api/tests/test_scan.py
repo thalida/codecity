@@ -568,6 +568,14 @@ class ScanTreeIntegrationTests(_CacheRedirectMixin, unittest.TestCase):
                 return
         self.fail("logo.png not found in manifest")
 
+    def test_media_kind_on_file_nodes(self):
+        # A media file carries its backend-computed classification; a code
+        # file carries None. This is the single source the frontend reads.
+        m = _final_manifest(str(FIXTURE))
+        kinds = {n["name"]: n.get("mediaKind") for n in _walk_files(m["tree"])}
+        self.assertEqual(kinds.get("logo.png"), "image")
+        self.assertIsNone(kinds.get("package.json"))
+
     def test_untracked_files_excluded_from_git_repo(self):
         # In a git repo we always honor the tracked set — uncommitted files
         # don't appear in the manifest.
