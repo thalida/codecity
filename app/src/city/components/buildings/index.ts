@@ -17,13 +17,16 @@
 // picker.selection/hover, so they are NOT created at construction — they are
 // armed on the first tick(), once renderLoop has populated ctx.picker.
 //
-// Option B (Task 12, amended by Task 13): the building DIFF stays in world;
-// the animator no longer exists as a module — its tween queue lives here
-// (tween.ts) behind animateFrom(diff)/tick(). world keeps computing the diff
-// via _computeDiff and renderLoop feeds it to animateFrom via world.onChange;
-// the tweens resolve meshes through getMeshForBuilding() here. World mirrors
-// _cells/_buildingIndex from this component after rebuild so its _computeDiff
-// / PrevState still read populated structures.
+// Stage 4 (self-tween): the building enter/stay DIFF is now computed HERE,
+// inside rebuild(), against the prior cells captured before disposal — the
+// animator's tween queue lives here (tween.ts) and is fed directly from that
+// internal diff (no more world._computeDiff → world.onChange → animateFrom).
+// The boot rebuild does NOT animate (it skips the very first diff), exactly
+// replicating the old timing where renderLoop subscribed to world.onChange
+// AFTER the boot applyManifest had already fired. The tweens resolve meshes
+// through getMeshForBuilding() here. World still mirrors _cells/_buildingIndex
+// from this component after rebuild for its (now-unused) building diff +
+// PrevState, deleted in a later commit.
 
 import * as THREE from 'three';
 import { effect } from '@preact/signals';
@@ -37,7 +40,6 @@ import type {
   CityLayout,
   DateRanges,
   EnteringBuilding,
-  ExitingEntry,
   Street,
   StayingBuilding,
 } from '@/types';
@@ -59,13 +61,12 @@ import { createOutlineRenderer } from './outline';
 import { createGhostRenderer } from './ghost';
 import { createBuildingTweens } from './tween';
 
-/** Building-only slice of WorldDiff. Accepted by animateFrom() so a full
- *  WorldDiff (from world.onChange) flows in structurally without pulling
- *  the street buckets. */
-export interface BuildingDiff {
+/** The enter/stay diff rebuild() computes internally (against the prior cells)
+ *  and feeds straight to the tween queue. Only entering/staying matter to the
+ *  tweens — there is no exit animation in V1, so no exiting bucket. */
+interface BuildingDiff {
   entering: { buildings: EnteringBuilding[] };
   staying: { buildings: StayingBuilding[] };
-  exiting: { buildings: ExitingEntry[] };
 }
 
 /** Construction-time deps sourced from world (the streets lookup + onChange
@@ -80,7 +81,8 @@ export interface BuildingsDeps {
 export interface Buildings extends SceneComponent {
   /** Color the buildings, assemble the cells, swap them into the group, and
    *  rebuild the lookups. Always rebuilds (the cell root is always rebuilt —
-   *  not scenic-gated). World computes its own diff via _computeDiff. */
+   *  not scenic-gated). Computes its OWN enter/stay diff against the prior
+   *  cells and fires the tweens (boot rebuild snaps in without animating). */
   rebuild(layout: CityLayout, dateRanges: DateRanges): Promise<void>;
   /** Push the roof-icon atlas into the shared material + cell factory. Must
    *  run BEFORE rebuild() (the atlas is read while building the cells). */
@@ -112,11 +114,6 @@ export interface Buildings extends SceneComponent {
   getAdPanels(): InstancedAdPanels | null;
   /** Window-resize hook — forwards to the outline LineMaterial resolution. */
   onResize(): void;
-  /** Start enter/stay tweens from a building diff (the dissolved animator).
-   *  Driven per-frame by tick(); each tween re-resolves its mesh via
-   *  getMeshForBuilding() so it survives rebuilds (null → dropped).
-   *  Accepts a WorldDiff structurally (BuildingDiff is its buildings slice). */
-  animateFrom(diff: BuildingDiff): void;
 }
 
 export function createBuildings(ctx: SceneContext, deps: BuildingsDeps): Buildings {
@@ -132,6 +129,11 @@ export function createBuildings(ctx: SceneContext, deps: BuildingsDeps): Buildin
   let _cells: Map<number, CellTile> = new Map();
   let _buildingIndex: BuildingIndex | null = null;
   let _adPanels: InstancedAdPanels | null = null;
+  // Boot-skip: the very first rebuild must NOT animate (the boot city snaps
+  // in, exactly as before — renderLoop used to subscribe to world.onChange
+  // AFTER the boot applyManifest, so the boot diff was never delivered to the
+  // tweens). Flipped true on the first rebuild; every rebuild after animates.
+  let _firstBuildDone = false;
   let _buildingsByPath: Record<
     string,
     { mesh: THREE.Mesh; building: Building; instanceId: number }
@@ -264,8 +266,114 @@ export function createBuildings(ctx: SceneContext, deps: BuildingsDeps): Buildin
   // (unlike fader/outline/ghost) it is created at construction, not armed.
   const _tweens = createBuildingTweens({ getMeshForBuilding });
 
-  function animateFrom(diff: BuildingDiff): void {
-    _tweens.onDiff(diff);
+  // _computeBuildingDiff — the building branch of the former cityDiff, now
+  // owned here. Compares the PRIOR cells (passed in, captured before the
+  // dispose in rebuild) against the component's OWN freshly-adopted
+  // _buildingIndex, producing entering / staying buckets the tween queue
+  // consumes. Ported VERBATIM from utils/cityDiff.ts's building branch —
+  // same prev-transform reads (detailMesh.getMatrixAt at the building's slot),
+  // same entering/staying classification by file.path. prevIndex is accepted
+  // for symmetry but unused (the building branch only reads prev CELLS for the
+  // old transforms; new transforms come from _buildingIndex), matching cityDiff.
+  //
+  // Liveness: the prev detailMeshes are already disposed by rebuild's
+  // _disposeInner before this runs — but disposeObject3D only frees GPU
+  // geometry, NOT the JS-side instanceMatrix Float32Array, so getMatrixAt
+  // still reads the last-rendered transforms. This is the exact same
+  // post-dispose read the old world.onChange flow relied on.
+  function _computeBuildingDiff(
+    prevCells: Map<number, CellTile>,
+    _prevIndex: BuildingIndex | null
+  ): BuildingDiff {
+    const entering: EnteringBuilding[] = [];
+    const staying: StayingBuilding[] = [];
+
+    // file.path → prior transform (scale + position), read from the old cell's
+    // detailMesh at the building's slot to capture whatever the animator left
+    // it at (so a rapid edit doesn't snap to layout).
+    const prevTransforms = new Map<
+      string,
+      { scaleX: number; scaleY: number; scaleZ: number; posX: number; posY: number; posZ: number }
+    >();
+    const _readMatrix = new THREE.Matrix4();
+    const _pos = new THREE.Vector3();
+    const _scale = new THREE.Vector3();
+    const _quat = new THREE.Quaternion();
+
+    for (const cell of prevCells.values()) {
+      for (let slot = 0; slot < cell.buildings.length; slot++) {
+        const b = cell.buildings[slot];
+        if (!b?.file?.path) continue;
+        if (cell.detailMesh) {
+          cell.detailMesh.getMatrixAt(slot, _readMatrix);
+          _readMatrix.decompose(_pos, _quat, _scale);
+          prevTransforms.set(b.file.path, {
+            scaleX: _scale.x,
+            scaleY: _scale.y,
+            scaleZ: _scale.z,
+            posX: _pos.x,
+            posY: _pos.y,
+            posZ: _pos.z,
+          });
+        } else {
+          prevTransforms.set(b.file.path, {
+            scaleX: b.w,
+            scaleY: b.h,
+            scaleZ: b.d,
+            posX: b.x,
+            posY: b.h / 2,
+            posZ: b.y,
+          });
+        }
+      }
+    }
+
+    // Walk the new BuildingIndex to classify entering vs staying.
+    if (_buildingIndex) {
+      for (const b of _buildingIndex.byPath.values()) {
+        if (!b.file?.path) continue;
+        const newScaleX = b.w;
+        const newScaleY = b.h;
+        const newScaleZ = b.d;
+        const newPosX = b.x;
+        const newPosY = b.h / 2;
+        const newPosZ = b.y;
+        const instanceId = b.slotId ?? 0;
+
+        const prior = prevTransforms.get(b.file.path);
+        if (prior) {
+          staying.push({
+            building: b,
+            instanceId,
+            newScaleX,
+            newScaleY,
+            newScaleZ,
+            newPosX,
+            newPosY,
+            newPosZ,
+            oldScaleX: prior.scaleX,
+            oldScaleY: prior.scaleY,
+            oldScaleZ: prior.scaleZ,
+            oldPosX: prior.posX,
+            oldPosY: prior.posY,
+            oldPosZ: prior.posZ,
+          });
+        } else {
+          entering.push({
+            building: b,
+            instanceId,
+            newScaleX,
+            newScaleY,
+            newScaleZ,
+            newPosX,
+            newPosY,
+            newPosZ,
+          });
+        }
+      }
+    }
+
+    return { entering: { buildings: entering }, staying: { buildings: staying } };
   }
 
   // tick() — arms the picker overlays on the first call, then drives the three
@@ -337,6 +445,13 @@ export function createBuildings(ctx: SceneContext, deps: BuildingsDeps): Buildin
     // ---- Assemble the cell scene (buildings only). ----
     const cellOut = buildCellsFromLayout(bounds, buildings, getSharedBuildingUniforms());
 
+    // Capture the PRIOR cells/index BEFORE disposing them. _disposeInner only
+    // frees GPU geometry (not the JS-side instanceMatrix arrays), so these
+    // references stay readable for the diff below even post-dispose — but we
+    // must grab them now because the swap reassigns _cells/_buildingIndex.
+    const prevCells = _cells;
+    const prevIndex = _buildingIndex;
+
     // ---- Atomic swap: dispose the prior inner cell root + ad panels, then
     // adopt the fresh ones into the persistent group. ----
     _disposeInner();
@@ -364,6 +479,17 @@ export function createBuildings(ctx: SceneContext, deps: BuildingsDeps): Buildin
         }
       }
     }
+
+    // ---- Self-tween: compute the enter/stay diff (prev cells vs the new
+    // _buildingIndex just adopted above) and fire the tweens — UNLESS this is
+    // the boot rebuild, which snaps in without animating (matching the old
+    // timing where renderLoop subscribed to world.onChange only AFTER boot).
+    const diff = _computeBuildingDiff(prevCells, prevIndex);
+    if (_firstBuildDone) {
+      _tweens.onDiff(diff);
+    } else {
+      _firstBuildDone = true;
+    }
   }
 
   function dispose(): void {
@@ -383,7 +509,6 @@ export function createBuildings(ctx: SceneContext, deps: BuildingsDeps): Buildin
     disposeAdPanels,
     tick,
     onResize,
-    animateFrom,
     dispose,
     getByPath: (p) => _buildingsByPath[p] || null,
     getBuildingsByPath: () => _buildingsByPath,

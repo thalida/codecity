@@ -296,13 +296,44 @@ describe('createBuildings()', () => {
   });
 
   // ---------------------------------------------------------------------------
-  // animateFrom() — the dissolved animator, end to end through tick()
+  // Self-tween — rebuild() computes its own enter/stay diff and drives the
+  // tweens through tick(). The boot rebuild does NOT animate; the 2nd+ do.
   // ---------------------------------------------------------------------------
 
-  it('animateFrom(entering diff) tweens the instance matrix through tick() and lands the final transform', async () => {
+  it('the FIRST rebuild (boot) does NOT fire enter tweens — the city snaps in', async () => {
     const { ctx } = makeCtx();
     buildings = createBuildings(ctx, NOOP_DEPS);
 
+    const b0 = building({ x: 10, y: 10, h: 8, file: fileOf('src/a.ts') as never });
+
+    const now = 0;
+    vi.spyOn(performance, 'now').mockImplementation(() => now);
+    try {
+      await buildings.rebuild(buildingLayout([b0]), EMPTY_DATE_RANGES);
+
+      // The boot rebuild lands the building at its FINAL layout transform
+      // (cell assembly), and no tween touches it on tick — so a tick at t=0
+      // (where an entering tween would have written scaleY≈0.0001) leaves the
+      // full-height matrix in place.
+      const resolved = buildings.getMeshForBuilding(b0)!;
+      const mesh = resolved.mesh;
+      const m = new THREE.Matrix4();
+
+      buildings.tick(0, { dt: 0, time: 0, camera: ctx.camera });
+      mesh.getMatrixAt(resolved.slot, m);
+      // scaleY is the full height (no grow-in tween was started).
+      expect(m.elements[5]).toBeCloseTo(b0.h, 6);
+      expect(m.elements[13]).toBeCloseTo(b0.h / 2, 6);
+    } finally {
+      vi.restoreAllMocks();
+    }
+  });
+
+  it('a SECOND rebuild introducing a new building fires its enter tween through tick() and lands the final transform', async () => {
+    const { ctx } = makeCtx();
+    buildings = createBuildings(ctx, NOOP_DEPS);
+
+    // Boot rebuild (no animation) with one building.
     const b0 = building({ x: 10, y: 10, h: 8, file: fileOf('src/a.ts') as never });
     await buildings.rebuild(buildingLayout([b0]), EMPTY_DATE_RANGES);
 
@@ -310,28 +341,13 @@ describe('createBuildings()', () => {
     let now = 0;
     vi.spyOn(performance, 'now').mockImplementation(() => now);
     try {
-      const resolved = buildings.getMeshForBuilding(b0)!;
+      // Second rebuild adds a NEW building path → it enters (grows in).
+      const b1 = building({ x: -20, y: -20, h: 12, file: fileOf('src/b.ts') as never });
+      const a = building({ x: 10, y: 10, h: 8, file: fileOf('src/a.ts') as never });
+      await buildings.rebuild(buildingLayout([a, b1]), EMPTY_DATE_RANGES);
+
+      const resolved = buildings.getMeshForBuilding(b1)!;
       const mesh = resolved.mesh;
-
-      buildings.animateFrom({
-        entering: {
-          buildings: [
-            {
-              building: b0,
-              instanceId: resolved.slot,
-              newScaleX: b0.w,
-              newScaleY: b0.h,
-              newScaleZ: b0.d,
-              newPosX: b0.x,
-              newPosY: b0.h / 2,
-              newPosZ: b0.y,
-            },
-          ],
-        },
-        staying: { buildings: [] },
-        exiting: { buildings: [] },
-      });
-
       const m = new THREE.Matrix4();
 
       // Mid-tween tick: interpolated scaleY strictly between ~0 and the
@@ -340,16 +356,16 @@ describe('createBuildings()', () => {
       buildings.tick(0, { dt: 0, time: 0, camera: ctx.camera });
       mesh.getMatrixAt(resolved.slot, m);
       expect(m.elements[5]).toBeGreaterThan(0.0001);
-      expect(m.elements[5]).toBeLessThan(b0.h);
+      expect(m.elements[5]).toBeLessThan(b1.h);
 
       // Past the duration: the final scale + position land exactly.
       now = transitionMs + 1;
       buildings.tick(0, { dt: 0, time: 0, camera: ctx.camera });
       mesh.getMatrixAt(resolved.slot, m);
-      expect(m.elements[5]).toBeCloseTo(b0.h, 6);
-      expect(m.elements[13]).toBeCloseTo(b0.h / 2, 6);
-      expect(m.elements[12]).toBeCloseTo(b0.x, 6);
-      expect(m.elements[14]).toBeCloseTo(b0.y, 6);
+      expect(m.elements[5]).toBeCloseTo(b1.h, 6);
+      expect(m.elements[13]).toBeCloseTo(b1.h / 2, 6);
+      expect(m.elements[12]).toBeCloseTo(b1.x, 6);
+      expect(m.elements[14]).toBeCloseTo(b1.y, 6);
     } finally {
       vi.restoreAllMocks();
     }

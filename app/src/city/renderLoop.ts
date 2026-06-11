@@ -117,13 +117,11 @@ export async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manif
   // built inside world, also armed on their first tick()). renderLoop no
   // longer constructs any of them.
 
-  // Tween queue for entering / staying transitions on world.onChange
-  // (the dissolved animator — now buildings.animateFrom, Task 13). Subscribed
-  // HERE, after the boot applyManifest above, so the boot diff is NOT animated —
-  // identical timing to the old createAnimator({ world }) construction at this
-  // slot. Tweens own the instance matrix (scale+position), disjoint from the
-  // fader's iFade — they cannot conflict by construction.
-  world.onChange((diff) => world.getBuildings().animateFrom(diff));
+  // Enter/stay transition tweens are now owned by the buildings component:
+  // its rebuild() computes the diff internally and fires the tweens, skipping
+  // the boot rebuild so the initial city snaps in (identical to the old
+  // world.onChange subscription being wired up here, AFTER the boot
+  // applyManifest). renderLoop no longer wires any building-tween subscription.
 
   // applyTheme() — hot-apply the current values from src/config/* to every
   // material / cache that's set once at scene-build time. The Settings UI

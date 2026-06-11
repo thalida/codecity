@@ -1,6 +1,7 @@
 // city/components/buildings/tween.ts — tween queue for entering / staying
 // building transitions when a new manifest swaps in (the dissolved
-// system/animator.ts). Fed by buildings.animateFrom(diff), driven per-frame
+// system/animator.ts). Fed by the buildings component's own rebuild(), which
+// computes the enter/stay diff internally and calls onDiff(); driven per-frame
 // by buildings.tick().
 //
 // For every entering building, starts a "grow in" tween (scaleY from ~0 →
@@ -110,9 +111,8 @@ export function createBuildingTweens(deps: TweenDeps) {
   }
 
   // Typed inline as a structural slice rather than importing BuildingDiff
-  // from index.ts: this is what lets buildings.animateFrom accept a
-  // WorldDiff structurally, and it keeps tween.ts independent of the
-  // component door (index.ts).
+  // from index.ts: it keeps tween.ts independent of the component door
+  // (index.ts) while accepting whatever enter/stay diff rebuild() computes.
   function onDiff(diff: {
     entering: { buildings: EnteringBuilding[] };
     staying: { buildings: StayingBuilding[] };
