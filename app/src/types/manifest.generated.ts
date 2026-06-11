@@ -293,14 +293,19 @@ export interface components {
             binary: boolean;
             /**
              * Created
-             * @description ISO create date, resolved server-side: git history date when the file has one, filesystem date otherwise
+             * @description ISO create date (UTC, Z-suffixed), resolved server-side: git history date when the file has one, filesystem date otherwise
              */
             created: string;
             /**
              * Modified
-             * @description ISO modify date, resolved server-side: git history date when the file has one, filesystem date otherwise
+             * @description ISO modify date (UTC, Z-suffixed), resolved server-side: git history date when the file has one, filesystem date otherwise
              */
             modified: string;
+            /**
+             * Mediakind
+             * @description Media classification by extension (single source for the frontend); null for non-media files
+             */
+            mediaKind?: ("image" | "video") | null;
             /** Media Width */
             media_width?: number;
             /** Media Height */

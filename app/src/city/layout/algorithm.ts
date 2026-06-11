@@ -213,6 +213,7 @@ export function getBuildingDimensions(
     lines?: number | null;
     size?: number | null;
     extension?: string;
+    mediaKind?: 'image' | 'video' | null;
     media_width?: number;
     media_height?: number;
   },

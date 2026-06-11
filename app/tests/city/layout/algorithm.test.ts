@@ -238,10 +238,13 @@ describe('getBuildingDimensions', () => {
 // / FLOOR_HEIGHT). Missing dims → square fallback (aspect = 1).
 describe('getBuildingDimensions — media files', () => {
   const PNG = '.png';
+  // mediaKind is the backend-computed classification the layout reads
+  // (the extension is now informational only — see city/utils/mediaKind.ts).
+  const IMAGE = 'image' as const;
 
   it('media file without dims falls back to square (aspect=1)', () => {
     const dim = getBuildingDimensions(
-      { lines: 0, size: 1000, extension: PNG },
+      { lines: 0, size: 1000, extension: PNG, mediaKind: IMAGE },
       { min: 10, max: 10000 },
       { min: 10, max: 10000 }
     );
@@ -254,7 +257,14 @@ describe('getBuildingDimensions — media files', () => {
 
   it('portrait image gives a tall building (height > width)', () => {
     const dim = getBuildingDimensions(
-      { lines: 0, size: 1000, extension: PNG, media_width: 100, media_height: 200 },
+      {
+        lines: 0,
+        size: 1000,
+        extension: PNG,
+        mediaKind: IMAGE,
+        media_width: 100,
+        media_height: 200,
+      },
       { min: 10, max: 10000 },
       { min: 10, max: 10000 }
     );
@@ -263,7 +273,14 @@ describe('getBuildingDimensions — media files', () => {
 
   it('landscape image gives a short wide building (height < width)', () => {
     const dim = getBuildingDimensions(
-      { lines: 0, size: 1000, extension: PNG, media_width: 200, media_height: 50 },
+      {
+        lines: 0,
+        size: 1000,
+        extension: PNG,
+        mediaKind: IMAGE,
+        media_width: 200,
+        media_height: 50,
+      },
       { min: 10, max: 10000 },
       { min: 10, max: 10000 }
     );
@@ -275,7 +292,14 @@ describe('getBuildingDimensions — media files', () => {
   it('clamps very tall portrait at aspect 2.5', () => {
     // Aspect 10 (5000 / 500) clamps to 2.5.
     const dim = getBuildingDimensions(
-      { lines: 0, size: 1000, extension: PNG, media_width: 500, media_height: 5000 },
+      {
+        lines: 0,
+        size: 1000,
+        extension: PNG,
+        mediaKind: IMAGE,
+        media_width: 500,
+        media_height: 5000,
+      },
       { min: 10, max: 10000 },
       { min: 10, max: 10000 }
     );
@@ -289,7 +313,14 @@ describe('getBuildingDimensions — media files', () => {
 
   it('clamps very wide panorama at aspect 0.4', () => {
     const dim = getBuildingDimensions(
-      { lines: 0, size: 1000, extension: PNG, media_width: 5000, media_height: 500 },
+      {
+        lines: 0,
+        size: 1000,
+        extension: PNG,
+        mediaKind: IMAGE,
+        media_width: 5000,
+        media_height: 500,
+      },
       { min: 10, max: 10000 },
       { min: 10, max: 10000 }
     );

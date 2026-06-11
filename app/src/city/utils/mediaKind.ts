@@ -1,41 +1,31 @@
-// city/utils/mediaKind.ts — Media-file classification by extension.
+// city/utils/mediaKind.ts — Media-file classification.
 // Recognizes which files get a media-poster face rendered on their
-// building. Shared by the layout pass (which runs in the layout WORKER,
-// so this module must stay THREE-free) and the instanced ad-panel
-// renderer (components/buildings/adPanels.ts). Mirrors the Python
-// scanner's extension sets.
+// building. Reads the backend-computed FileNode.mediaKind (the single
+// source of truth — the backend classifies extensions in
+// api/services/media.py and ships the result on the wire). Shared by the
+// layout pass (which runs in the layout WORKER, so this module must stay
+// THREE-free) and the instanced ad-panel renderer
+// (components/buildings/adPanels.ts). This module knows no extensions.
 
-// Mirrors the media-recognizing extension sets in the Python scanner.
-// Kept in sync by hand.
-const IMAGE_EXTS: ReadonlySet<string> = new Set([
-  '.png',
-  '.jpg',
-  '.jpeg',
-  '.gif',
-  '.webp',
-  '.svg',
-  '.bmp',
-  '.ico',
-  '.avif',
-  '.tiff',
-]);
-const VIDEO_EXTS: ReadonlySet<string> = new Set(['.mp4', '.webm', '.mov', '.ogv', '.m4v', '.mkv']);
-
-// String enum so consumers reference MediaKind.Image instead of the
-// raw 'image' literal — keeps the values centralized and TS-narrowable.
+// String enum so consumers reference MediaKind.Image instead of the raw
+// 'image' literal — keeps the values centralized and TS-narrowable. The
+// values ARE the wire literals: they mirror the backend's
+// Literal["image", "video"] and are contract-guarded via the generated
+// FileNode type (see types/manifest.contract.ts).
 export enum MediaKind {
   Image = 'image',
   Video = 'video',
 }
 
-export function mediaKindOf(file: { extension?: string } | null | undefined): MediaKind | null {
-  if (!file) return null;
-  const ext = (file.extension || '').toLowerCase();
-  if (IMAGE_EXTS.has(ext)) return MediaKind.Image;
-  if (VIDEO_EXTS.has(ext)) return MediaKind.Video;
+type FileLike = { mediaKind?: MediaKind | 'image' | 'video' | null } | null | undefined;
+
+export function mediaKindOf(file: FileLike): MediaKind | null {
+  const k = file?.mediaKind;
+  if (k === MediaKind.Image) return MediaKind.Image;
+  if (k === MediaKind.Video) return MediaKind.Video;
   return null;
 }
 
-export function isMediaFile(file: { extension?: string } | null | undefined): boolean {
+export function isMediaFile(file: FileLike): boolean {
   return mediaKindOf(file) !== null;
 }

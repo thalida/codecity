@@ -32,6 +32,13 @@ export interface FileNode {
    *  file has one, filesystem date otherwise (e.g. staged-but-uncommitted). */
   modified: string;
   /**
+   * Media classification by extension, computed by the backend (single
+   * source of truth — the frontend no longer hand-lists extensions). null
+   * for non-media files. See api/services/media.py:media_kind and
+   * city/utils/mediaKind.ts.
+   */
+  mediaKind?: 'image' | 'video' | null;
+  /**
    * Optional pixel dimensions for recognized media files (png/jpg/svg/
    * mp4/etc.). Either both keys appear together or neither does. Layout
    * uses these to size the building's silhouette; absence triggers a
