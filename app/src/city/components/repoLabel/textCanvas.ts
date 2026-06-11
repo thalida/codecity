@@ -1,4 +1,4 @@
-// scene/components/repoLabel/textCanvas.ts — Repo-name text rendered
+// city/components/repoLabel/textCanvas.ts — Repo-name text rendered
 // into a CanvasTexture for the floating repo-name label.
 //
 // One canvas per RepoLabel instance, redrawn in place on rename so the

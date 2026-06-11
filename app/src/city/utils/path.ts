@@ -1,4 +1,4 @@
-// scene/utils/path.ts — Pure helpers for the "path from gem to selection" line.
+// city/utils/path.ts — Pure helpers for the "path from gem to selection" line.
 // Extracted from main.js so it can be tested in isolation. No DOM, no
 // Three.js scene access — just data → data.
 //

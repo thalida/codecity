@@ -1,4 +1,4 @@
-// scene/components/streets/streetLabels.ts — Flat text painted on the road, aligned with the
+// city/components/streets/streetLabels.ts — Flat text painted on the road, aligned with the
 // street's long axis (like labels on a map). Longer streets repeat the
 // label so you always have one nearby. Each label is a plane lifted a
 // tiny amount above the asphalt so it doesn't z-fight with the road,

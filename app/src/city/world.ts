@@ -1,4 +1,4 @@
-// scene/world.ts — owns the persistent THREE.Scene plus every
+// city/world.ts — owns the persistent THREE.Scene plus every
 // manifest-bound mesh (buildings, streets, paths, asphalt, root
 // gem) and the lookup maps consumers use to reach them by path.
 //

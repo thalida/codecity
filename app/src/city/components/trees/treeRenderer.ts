@@ -1,4 +1,4 @@
-// scene/components/trees/treeRenderer.ts — turns a TreePlacement[] + the manifest's
+// city/components/trees/treeRenderer.ts — turns a TreePlacement[] + the manifest's
 // commit list into one InstancedMesh per canopy detail level plus a
 // shared trunk InstancedMesh.
 //

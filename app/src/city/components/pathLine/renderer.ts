@@ -17,6 +17,12 @@ import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
 import { STREETS, STREET_TIERS } from '@/state/stores/settings/streets';
 import { RAINBOW } from '@/state/stores/settings/effects';
 import { PATH_LINE_ELEVATION, HOVER_PATH_LINE_ELEVATION } from '@/constants/streets';
+import { RENDER_ORDERS } from '@/city/renderOrders';
+import { NodeKind } from '@/types';
+import type { Street } from '@/types';
+import { computePathPoints } from '@/city/utils/path';
+import type { PickTarget } from '@/types/picker';
+import type { ReadonlySignal } from '@preact/signals';
 
 /**
  * Converts a LINEWIDTH_PCT percentage (1–50) into an actual pixel linewidth
@@ -31,12 +37,6 @@ export function computePathLinewidthPixels(pct: number): number {
   const minWidth = Math.min(...tiers.map((t) => t.width));
   return minWidth * (pct / 100);
 }
-import { RENDER_ORDERS } from '@/city/renderOrders';
-import { NodeKind } from '@/types';
-import type { Street } from '@/types';
-import { computePathPoints } from '@/city/utils/path';
-import type { PickTarget } from '@/types/picker';
-import type { ReadonlySignal } from '@preact/signals';
 
 /** Minimal world surface consumed by this renderer. The pathLine door
  *  threads world closures through (gem position, streets-by-dir map, and

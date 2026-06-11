@@ -1,4 +1,4 @@
-// scene/utils/color/colors.ts — Pure color-math helpers. No Three.js, no DOM. Unit-testable
+// city/utils/color/colors.ts — Pure color-math helpers. No Three.js, no DOM. Unit-testable
 // in jsdom.
 //
 // Three color spaces live here. Pick the right one for the job:

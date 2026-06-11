@@ -1,4 +1,4 @@
-// scene/components/trees/treePlacementClient.ts — main-thread companion to
+// city/components/trees/treePlacementClient.ts — main-thread companion to
 // treePlacementWorker.ts. Lazily spins up the worker on first
 // compute(), sends a config snapshot + layout, returns a promise that
 // resolves to TreePlacement[]. Supersedes any pending request when a

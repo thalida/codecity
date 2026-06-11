@@ -1,4 +1,4 @@
-// scene/components/trees/treePlacement.ts — commit-driven tree placement.
+// city/components/trees/treePlacement.ts — commit-driven tree placement.
 //
 // One tree per commit. Trees are scattered across the world floor
 // rectangle via a STRATIFIED GRID: the sampling region is divided

@@ -1,4 +1,4 @@
-// scene/components/trees/treePlacementProtocol.ts — Shared message constants for the tree-
+// city/components/trees/treePlacementProtocol.ts — Shared message constants for the tree-
 // placement worker protocol. Imported by both treePlacementWorker.ts
 // and treePlacementClient.ts so both sides use the exact same string
 // discriminants (typoed 'place_result' vs 'place-result' would be a
