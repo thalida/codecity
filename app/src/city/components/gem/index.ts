@@ -16,9 +16,10 @@ import * as THREE from 'three';
 
 import { GEM } from '@/state/stores/settings/gem';
 import { BLOOM } from '@/state/stores/settings/effects';
-import { NodeKind, StreetAxis } from '@/types';
+import { NodeKind } from '@/types';
 import type { Street } from '@/types';
 import { disposeObject3D } from '@/city/utils/disposeObject3D';
+import { gemAnchorXZ } from '@/city/utils/gemAnchor';
 
 import type { FrameContext, SceneComponent, SceneContext } from '../../types';
 import { onSettings } from '../onSettings';
@@ -101,16 +102,11 @@ export function createGem(ctx: SceneContext): Gem {
 
     if (inner) group.add(inner);
 
-    // Floor anchor (y=0). Replicates world._computeRootStreetAndGem EXACTLY so
-    // the value is identical. world.getGemWorldPos() stays the consumed source
-    // until cameraRig/pathLineRenderer migrate (Task 15).
-    worldPos = new THREE.Vector3();
-    // StreetAxis.X === 'x' (see types/street.ts); matches world._computeRootStreetAndGem.
-    if (street.orientation === StreetAxis.X) {
-      worldPos.set(street.x - street.length / 2 + street.width / 2, 0, street.y);
-    } else {
-      worldPos.set(street.x, 0, street.y - street.length / 2 + street.width / 2);
-    }
+    // Floor anchor (y=0) at the open (gem) end of the root street. The XZ
+    // anchor comes from gemAnchorXZ — the one source of this geometry, shared
+    // with the gem mesh, cityState.gemWorldPos, and tree placement.
+    const a = gemAnchorXZ(street);
+    worldPos = new THREE.Vector3(a.x, 0, a.y);
   }
 
   // Theme effect — reacts to GEM signal changes (Save). Replaces the

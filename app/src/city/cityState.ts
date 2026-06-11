@@ -22,6 +22,7 @@ import { signal, computed, type Signal, type ReadonlySignal } from '@preact/sign
 import * as THREE from 'three';
 import type { CityLayout, Manifest, Street } from '@/types';
 import type { WorldBounds } from './utils/floorBounds';
+import { gemAnchorXZ } from './utils/gemAnchor';
 
 export interface CityState {
   manifest: Signal<Manifest | null>;
@@ -44,19 +45,14 @@ export function createCityState(): CityState {
     () => (layout.value?.streets ?? []).filter((s) => s.isRoot)[0] || null
   );
 
-  // Gem world position: the floor-level anchor at the open (gem) end of the
-  // root street. Exact math preserved from the old _computeRootStreetAndGem:
-  // orientation 'x' → the open end runs along world-X; else along world-Z.
+  // Gem world position: the floor-level (y=0) anchor at the open (gem) end of
+  // the root street. The XZ anchor comes from gemAnchorXZ — the one source of
+  // this geometry, shared with the gem mesh + tree placement.
   const gemWorldPos = computed<THREE.Vector3 | null>(() => {
     const root = rootStreet.value;
     if (!root) return null;
-    const pos = new THREE.Vector3();
-    if (root.orientation === 'x') {
-      pos.set(root.x - root.length / 2 + root.width / 2, 0, root.y);
-    } else {
-      pos.set(root.x, 0, root.y - root.length / 2 + root.width / 2);
-    }
-    return pos;
+    const a = gemAnchorXZ(root);
+    return new THREE.Vector3(a.x, 0, a.y);
   });
 
   return { manifest, layout, bbox, latestWorldBounds, rootStreet, gemWorldPos };
