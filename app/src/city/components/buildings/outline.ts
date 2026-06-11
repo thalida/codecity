@@ -26,7 +26,7 @@ import { BUILDINGS } from '@/state/stores/settings/buildings';
 import { RAINBOW } from '@/state/stores/settings/effects';
 import { RENDER_ORDERS } from '@/city/renderOrders';
 import { NodeKind } from '@/types';
-import { getBuildingTilt } from './tilt';
+import { getBuildingTilt, composeShearMatrix } from './tilt';
 import type { CellTile } from './cellTile';
 import type { createPicker } from '@/city/runtime/picker';
 import type { FileTarget } from '@/types';
@@ -164,30 +164,11 @@ export function createOutlineRenderer({
     }
 
     // Bake the shader's Y-shear into the outline matrix so the box leans
-    // with the building. World-pos of a local vertex (lx, ly, lz):
-    //   X = lx·sx + px + (ly·sy + py)·tiltX
-    //   Y = ly·sy + py
-    //   Z = lz·sz + pz + (ly·sy + py)·tiltZ
-    // Matrix4 is column-major; .set() takes row-major args.
+    // with the building (see composeShearMatrix in ./tilt.ts).
     const { tiltX, tiltZ } = getBuildingTilt(b);
-    _tmpMatrix.set(
-      sx,
-      sy * tiltX,
-      0,
-      px + py * tiltX,
-      0,
-      sy,
-      0,
-      py,
-      0,
-      sy * tiltZ,
-      sz,
-      pz + py * tiltZ,
-      0,
-      0,
-      0,
-      1
-    );
+    _tmpPos.set(px, py, pz);
+    _tmpScale.set(sx, sy, sz);
+    composeShearMatrix(_tmpPos, _tmpScale, tiltX, tiltZ, _tmpMatrix);
     outline.matrix.copy(_tmpMatrix);
     outline.matrixAutoUpdate = false;
     outline.matrixWorldNeedsUpdate = true;

@@ -71,6 +71,58 @@ export function getBuildingTilt(b: Building): BuildingTilt {
 }
 
 /**
+ * Compose a building's full per-instance TRS + Y-shear matrix into `out`.
+ *
+ * This is the CPU mirror of the vertex shader's lean: a local vertex
+ * (lx, ly, lz) of the unit box lands at world position
+ *   X = lx·sx + px + (ly·sy + py)·tiltX
+ *   Y = ly·sy + py
+ *   Z = lz·sz + pz + (ly·sy + py)·tiltZ
+ * so a column scales+translates and the Y row drives an XZ shear by
+ * (tiltX, tiltZ). With tiltX = tiltZ = 0 this is a plain TRS (no rotation).
+ *
+ * `Matrix4.set()` takes row-major args (Matrix4 is column-major internally).
+ * Writes into the caller's `out` so hot paths (per-frame outline sync,
+ * per-instance raycast) reuse one scratch matrix with no allocation.
+ *
+ * Single source of truth for the lean shear shared by the outline mesh
+ * (visible skew) and the picker raycast (click targets on the leaned
+ * silhouette) — both MUST match the shader exactly.
+ */
+export function composeShearMatrix(
+  position: THREE.Vector3,
+  scale: THREE.Vector3,
+  tiltX: number,
+  tiltZ: number,
+  out: THREE.Matrix4
+): THREE.Matrix4 {
+  const sx = scale.x;
+  const sy = scale.y;
+  const sz = scale.z;
+  const px = position.x;
+  const py = position.y;
+  const pz = position.z;
+  return out.set(
+    sx,
+    sy * tiltX,
+    0,
+    px + py * tiltX,
+    0,
+    sy,
+    0,
+    py,
+    0,
+    sy * tiltZ,
+    sz,
+    pz + py * tiltZ,
+    0,
+    0,
+    0,
+    1
+  );
+}
+
+/**
  * Override `mesh.raycast` so the picker honors the per-instance Y-shear
  * the vertex shader applies. For each instance we read createdAge + seed
  * from the iIconUV attribute, reconstruct the same (tiltX, tiltZ) the
@@ -132,35 +184,8 @@ export function attachLeanAwareRaycast(mesh: THREE.InstancedMesh): void {
         }
       }
 
-      // Full per-instance TRS + shear matrix. World-pos of local
-      // vertex (lx, ly, lz):
-      //   X = lx·sx + px + (ly·sy + py)·tiltX
-      //   Y = ly·sy + py
-      //   Z = lz·sz + pz + (ly·sy + py)·tiltZ
-      const sx = tmpScale.x;
-      const sy = tmpScale.y;
-      const sz = tmpScale.z;
-      const px = tmpPos.x;
-      const py = tmpPos.y;
-      const pz = tmpPos.z;
-      tmpMatrix.set(
-        sx,
-        sy * tiltX,
-        0,
-        px + py * tiltX,
-        0,
-        sy,
-        0,
-        py,
-        0,
-        sy * tiltZ,
-        sz,
-        pz + py * tiltZ,
-        0,
-        0,
-        0,
-        1
-      );
+      // Full per-instance TRS + shear matrix (see composeShearMatrix).
+      composeShearMatrix(tmpPos, tmpScale, tiltX, tiltZ, tmpMatrix);
 
       // Transform the local-space ray into instance-local (unit-box)
       // space and run a standard ray-AABB test.
