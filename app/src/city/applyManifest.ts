@@ -16,6 +16,7 @@
 //     subset for world's resetCache/invalidateLayoutCache.
 
 import * as THREE from 'three';
+import { batch } from '@preact/signals';
 
 import { buildIconAtlas } from './components/buildings/atlas';
 import { labelFromManifest } from '@/utils/sources';
@@ -36,7 +37,6 @@ import type { Island } from './components/island';
 import { getWorldBounds } from './utils/floorBounds';
 import type { Footprint } from './components/footprint';
 import { computeCityDiff, type PrevState } from './utils/cityDiff';
-import { computeScenicConfigHash } from './utils/scenicHash';
 import type { CityState } from './state/cityState';
 import { FOOTPRINT } from '@/state/stores/settings/footprint';
 import { TREES } from '@/state/stores/settings/trees';
@@ -72,11 +72,6 @@ interface InternalCityState {
 
   // tree_signature of the manifest the building-roof icon atlas was last built for.
   lastAtlasTreeSig: string | null;
-
-  // Scenic state cache: tree_signature buildWorld last ran for, plus the config
-  // hash of the stores baked into scenic output at that time.
-  lastBuildWorldTreeSig: string | null;
-  lastScenicConfigHash: string | null;
 
   // Generation counter: each applyManifest invocation increments this and
   // captures its own value. A superseded call bails when generation has
@@ -131,10 +126,13 @@ export function createApplyManifest(deps: ApplyManifestDeps): ApplyManifestApi {
     emitBeforeChange,
     emitChange,
   } = deps;
+  // The gem / island / repoLabel components are received in `components` (world
+  // constructs + wires them) but applyManifest no longer touches them — they
+  // rebuild themselves reactively off the cityState signals applyManifest sets
+  // (gem off rootStreet, island off latestWorldBounds, repoLabel off manifest +
+  // gemWorldPos). Only footprint/streets/buildings/trees/fireflies are still
+  // driven imperatively here, so only those are destructured.
   const {
-    gem: _gem,
-    island: _island,
-    repoLabel: _repoLabel,
     footprint: _footprint,
     streets: _streets,
     buildings: _buildings,
@@ -154,8 +152,6 @@ export function createApplyManifest(deps: ApplyManifestDeps): ApplyManifestApi {
     cachedLayoutTreeSig: null,
     cachedLayout: null,
     lastAtlasTreeSig: null,
-    lastBuildWorldTreeSig: null,
-    lastScenicConfigHash: null,
     generation: 0,
   };
 
@@ -247,7 +243,10 @@ export function createApplyManifest(deps: ApplyManifestDeps): ApplyManifestApi {
       if (err instanceof Error && err.message === 'superseded') return;
       throw err;
     }
-    const _layoutReused = _reuseFrom !== null;
+    // Scenic-reuse flag: a layout-cache hit means the worker reused the prior
+    // layout (same positions), so we keep the existing layout/bbox/bounds
+    // signal references stable below — the scenic effects then skip natively.
+    const reused = _reuseFrom !== null;
     // Cache the layout for the next call (keyed by tree_signature).
     if (_treeSig) {
       internal.cachedLayoutTreeSig = _treeSig;
@@ -275,52 +274,43 @@ export function createApplyManifest(deps: ApplyManifestDeps): ApplyManifestApi {
     // it cannot be superseded mid-build; world mirrors cells/buildingIndex
     // from it AFTER (and before _computeDiff) for the Option B diff.
 
-    // ---- Atomic swap ----
+    // ---- Reactive scenic swap ----
     //
-    // Scenic state reuse: when the layout was reused (same tree_signature,
-    // positions/streets/paths unchanged) AND buildWorld was already run
-    // for this signature, AND none of the config stores that affect scenic
-    // output have changed (same config hash), the streets/labels/paths/gem
-    // meshes are already in the scene and would produce identical output —
-    // skip the dispose + rebuild. Only the buildings cell root is always
-    // rebuilt (fast) to reflect updated per-file metadata (colors, heights).
-    const _currentScenicConfigHash = computeScenicConfigHash();
-    const _scenicValid =
-      _layoutReused &&
-      internal.lastBuildWorldTreeSig !== null &&
-      internal.lastBuildWorldTreeSig === _treeSig &&
-      internal.lastScenicConfigHash === _currentScenicConfigHash &&
-      internal.streetPickables.length > 0; // guard: scenic state actually exists in scene
+    // The sync scenic components (streets, gem, footprint, island, repoLabel)
+    // no longer get called in order here. Each one runs its own effect reading
+    // the cityState signal it depends on (layout / rootStreet / latestWorldBounds
+    // / manifest+gemWorldPos) and rebuilds when that signal's value CHANGES.
+    //
+    // The whole scenic-config-hash gate is gone. Reuse is detected natively by
+    // REFERENCE STABILITY: on a scenic-reuse apply we do NOT reassign
+    // layout.value / bbox.value / latestWorldBounds.value, so the dependent
+    // effects don't re-fire and the existing meshes/bbox/bounds (identical by
+    // the layout-cache contract — same positions) stay correct. On a non-reuse
+    // apply we reassign layout.value (new object) and the effects rebuild.
 
-    // The gem is rebuilt EXACTLY on the full-rebuild path — never on scenic
-    // reuse (rebuilding then would flash + realloc GPU = behavior change).
-    const _didFullRebuild = !_scenicValid;
-
-    // Buildings rebuild on BOTH branches (always) — never gated by _scenicValid.
+    // Buildings rebuild on BOTH branches (always) — never gated by reuse.
     // setAtlas already ran above (before this) so the atlas is in the material
-    // before the cells read it.
+    // before the cells read it. Buildings are NOT reactive (they need the
+    // awaited rebuild + the date ranges), so they stay an explicit call.
     await _buildings.rebuild(newLayout, newDateRanges);
 
-    if (_scenicValid) {
-      // Scenic reuse: existing streets/labels/paths/gem stay in the scene
-      // unmodified. Do NOT call buildWorld.
+    // manifest changes on EVERY apply (name/metadata), so it's always
+    // reassigned. layout is reassigned ONLY on a non-reuse apply — keeping the
+    // reference stable on reuse is what makes the scenic effects skip. Both
+    // writes go in one batch() so the synchronous scenic effects (streets/gem/
+    // footprint/repoLabel) all settle at batch-close BEFORE we read
+    // _streets.group for the bbox below.
+    batch(() => {
       cityState.manifest.value = newManifestTyped;
-      cityState.layout.value = newLayout;
-      // bbox stays from the previous buildWorld call (layout unchanged).
-    } else {
-      // Full rebuild path: rebuild scenic state and add the new meshes to
-      // the scene. Each component disposes its own prior meshes on rebuild()
-      // (streets/gem/footprint/etc.), so there's no separate teardown step.
-      cityState.manifest.value = newManifestTyped;
-      cityState.layout.value = newLayout;
+      if (!reused) cityState.layout.value = newLayout;
+    });
 
-      // Rebuild the streets component's meshes (sidewalks, asphalt, labels)
-      // into its persistent group (already in the scene). The component owns
-      // the meshes + the sidewalk/street lookup maps; we reassign the internal
-      // arrays from the component so PrevState/_computeDiff still read
-      // populated arrays (the street diff is vestigial — see comment at the
-      // _streets construction site).
-      _streets.rebuild(newLayout);
+    if (!reused) {
+      // Non-reuse: the streets effect just rebuilt the meshes synchronously at
+      // batch-close, so _streets.group is populated here. Reassign the internal
+      // street-array mirrors from the component so PrevState/_computeDiff still
+      // read populated arrays (the street diff is vestigial — see comment at
+      // the _streets construction site).
       internal.streetPickables = _streets.pickables();
       internal.streetLabels = _streets.labels();
       internal.asphaltMeshes = _streets.asphalt();
@@ -359,11 +349,10 @@ export function createApplyManifest(deps: ApplyManifestDeps): ApplyManifestApi {
       cityState.bbox.value = bbox;
 
       scene.background = new THREE.Color(SCENE.value.SKY_COLOR);
-
-      // Record that scenic state is now valid for this tree_signature + config.
-      internal.lastBuildWorldTreeSig = _treeSig || null;
-      internal.lastScenicConfigHash = _currentScenicConfigHash;
     }
+    // On reuse: bbox stays from the previous non-reuse apply (layout unchanged
+    // → same positions → same bbox). latestWorldBounds (set below, also reuse-
+    // gated) likewise stays, so the island effect doesn't re-fire either.
 
     // Mirror the buildings component's cells + index into the internal state
     // for the Option B diff. _buildings is the source of truth; we read these
@@ -374,13 +363,11 @@ export function createApplyManifest(deps: ApplyManifestDeps): ApplyManifestApi {
     internal.cells = _buildings.getCells();
     internal.buildingIndex = _buildings.getBuildingIndex();
 
-    // rootStreet/gemWorldPos are computed off layout (set above), so they're
-    // already current here — no imperative recompute needed.
-    // Rebuild the gem's inner mesh only on the full-rebuild path, matching
-    // exactly when buildWorld used to build it (scenic reuse leaves the
-    // existing gem untouched).
-    const _rootStreet = cityState.rootStreet.value;
-    if (_didFullRebuild && _rootStreet) _gem.rebuild(_rootStreet);
+    // The gem is no longer rebuilt imperatively: its effect reads
+    // cityState.rootStreet (computed off layout), which is reference-stable on
+    // reuse → the gem rebuilds EXACTLY on non-reuse, matching when buildWorld
+    // used to build it (reuse leaves the existing gem untouched, avoiding a
+    // flash + GPU realloc).
 
     // City is now in the scene. Decoration pass (trees, future mesa
     // bounds, etc.) is deferred to the next animation frame so the
@@ -417,30 +404,30 @@ export function createApplyManifest(deps: ApplyManifestDeps): ApplyManifestApi {
     // repos still get an airy floor buffer relative to building height.
     const cityHeight = bbox ? bbox.max.y - bbox.min.y : 0;
 
-    // Floating repo-name label — anchored at the gem position (the
-    // floor-level root marker). The label's elevation is governed by
-    // REPO_LABEL.HEIGHT_PCT, not by city silhouette: 0 → label flush
-    // with the floor; larger → label rises with a visible beam.
-    _repoLabel.setRepoName(cityState.manifest.value!.tree.name);
-    _repoLabel.setAnchor(cityState.gemWorldPos.value ?? new THREE.Vector3());
-    // Hand the live gem to the label so its beam foot tracks the
-    // gem's hover height + bob animation. _gem.gem is the INNER gem
-    // group whose .position.y is mutated each frame by the gem's tick().
-    // refresh() is no longer called here — the component's own effect
-    // owns REPO_LABEL config reactivity and re-runs on REPO_LABEL Save.
-    // setAnchor already calls _applyTransform() which positions the group.
-    _repoLabel.setGem(_gem.gem);
+    // The repo-name label repositions itself reactively: its manifest/anchor
+    // effect reads cityState.manifest + cityState.gemWorldPos (both settled in
+    // the batch above) and re-points name/anchor/gem. Not called here anymore.
 
-    // Floor is sized from the scene's bbox + buffer. Falls back to a
-    // small default at the origin when there's no city (empty manifest).
-    cityState.latestWorldBounds.value = getWorldBounds(sceneBbox, cityHeight);
-    _island.setBounds(cityState.latestWorldBounds.value);
+    // Floor bounds drive the island. On a non-reuse apply the bbox changed, so
+    // recompute + reassign latestWorldBounds (the island effect re-fires). On
+    // reuse the bbox is unchanged, so keep the existing latestWorldBounds
+    // reference — the island effect doesn't re-fire (no resize flash), matching
+    // the old gate where the floor was only re-sized on a full rebuild path.
+    if (!reused) {
+      // Floor is sized from the scene's bbox + buffer. Falls back to a
+      // small default at the origin when there's no city (empty manifest).
+      cityState.latestWorldBounds.value = getWorldBounds(sceneBbox, cityHeight);
+    }
 
     if (bbox) {
-      // Footprint is cheap (one InstancedMesh, no rejection sampling),
-      // so we don't need the rAF+setTimeout defer the tree path uses.
-      // rebuild() disposes the prior inner mesh and builds a new one
-      // into the persistent _footprint.group (already in the scene).
+      // Footprint rebuilds on EVERY apply (NOT reactive off cityState.layout):
+      // the slabs wrap each building's rect, and building w/d/h are recomputed
+      // from fresh per-file metadata on a layout-reuse apply (skeleton→final /
+      // live update), so the footprint must rebuild to stay matched to the
+      // buildings — same as the buildings cell root above. Cheap (one
+      // InstancedMesh, no rejection sampling), so no rAF+setTimeout defer.
+      // rebuild() disposes the prior inner mesh and builds a new one into the
+      // persistent _footprint.group (already in the scene).
       _footprint.rebuild(newLayout);
     }
 
@@ -518,21 +505,23 @@ export function createApplyManifest(deps: ApplyManifestDeps): ApplyManifestApi {
     }
   }
 
-  // Clear the full internal cache set (layout + scenic). world.resetCache wraps
-  // this (and additionally disposes the buildings component's ad panels). Does
-  // NOT touch the cross-boundary signals: layout stays, so rootStreet/gemWorldPos
-  // (computed off it) stay valid — matching the old resetCache, which never
-  // touched them either.
+  // Clear the internal layout cache. world.resetCache wraps this (and
+  // additionally disposes the buildings component's ad panels). With the
+  // scenic-config-hash gate gone, the only internal cache is the layout cache,
+  // so this is now equivalent to invalidateLayoutCache(); both are kept because
+  // world delegates resetCache + invalidateLayoutCache to distinct entry points
+  // (and resetCache layers the ad-panel disposal on top). Does NOT touch the
+  // cross-boundary signals: layout stays, so rootStreet/gemWorldPos (computed
+  // off it) stay valid — matching the old resetCache, which never touched them.
   function resetCaches(): void {
     internal.cachedLayoutTreeSig = null;
     internal.cachedLayout = null;
-    internal.lastBuildWorldTreeSig = null;
-    internal.lastScenicConfigHash = null;
   }
 
-  // Clear only the layout cache (cachedLayout + its tree_signature key). Leaves
-  // scenic state alone (correctly handled by applyManifest's own scenic-hash
-  // invalidation). world.invalidateLayoutCache delegates straight here.
+  // Clear only the layout cache (cachedLayout + its tree_signature key).
+  // world.invalidateLayoutCache delegates straight here. A config-only Save
+  // calls this before re-applying the same manifest, forcing the next apply
+  // onto the non-reuse path (new layout reference → scenic effects rebuild).
   function invalidateLayoutCache(): void {
     internal.cachedLayoutTreeSig = null;
     internal.cachedLayout = null;

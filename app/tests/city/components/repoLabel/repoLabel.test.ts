@@ -8,6 +8,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import * as THREE from 'three';
 import { createRepoLabel } from '@/city/components/repoLabel';
+import { createCityState } from '@/city/state/cityState';
 import { REPO_LABEL } from '@/state/stores/settings/gem';
 import { RENDER_ORDERS } from '@/city/constants/renderOrders';
 import { resetBuildingsConfig } from '../../../_helpers/cityFixtures';
@@ -49,7 +50,7 @@ describe('createRepoLabel()', () => {
 
   beforeEach(() => {
     resetStore();
-    label = createRepoLabel(makeCtx());
+    label = createRepoLabel(makeCtx(), createCityState(), { getGem: () => null });
   });
 
   afterEach(() => {

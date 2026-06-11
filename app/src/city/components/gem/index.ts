@@ -13,6 +13,7 @@
 // picker on frame 1.
 
 import * as THREE from 'three';
+import { effect } from '@preact/signals';
 
 import { GEM } from '@/state/stores/settings/gem';
 import { BLOOM } from '@/state/stores/settings/effects';
@@ -22,6 +23,7 @@ import { disposeObject3D } from '@/city/utils/disposeObject3D';
 import { gemAnchorXZ } from './anchor';
 
 import type { FrameContext, SceneComponent, SceneContext } from '../../types';
+import type { CityState } from '../../state/cityState';
 import { onSettings } from '../../utils/onSettings';
 import { createRootGem, GEM_HOVER_LIFT_FRAC } from './mesh';
 import { gemFaceColors, writeFaceColors, type Rgb } from './palette';
@@ -65,7 +67,7 @@ export interface Gem extends SceneComponent {
   gem: THREE.Group | null;
 }
 
-export function createGem(ctx: SceneContext): Gem {
+export function createGem(ctx: SceneContext, cityState: CityState): Gem {
   // Persistent outer group — added to the scene once. rebuild() swaps the
   // inner gem in and out of this group.
   const group = new THREE.Group();
@@ -108,6 +110,19 @@ export function createGem(ctx: SceneContext): Gem {
     const a = gemAnchorXZ(street);
     worldPos = new THREE.Vector3(a.x, 0, a.y);
   }
+
+  // Layout effect — the reactive rebuild entry point. Reads
+  // cityState.rootStreet.value (computed off layout) and rebuilds the inner
+  // gem when it CHANGES. rootStreet is reference-stable across a scenic-reuse
+  // apply (layout reference unchanged → computed re-derives the same value
+  // only when layout's reference changes), so this effect fires exactly on
+  // non-reuse applies — matching the old full-rebuild-gated gem rebuild exactly
+  // (the gem never rebuilt on a scenic-reuse apply, which would flash + realloc
+  // GPU). The null-guard makes the construction-time run (rootStreet null) a no-op.
+  const stopLayout = effect(() => {
+    const rootStreet = cityState.rootStreet.value;
+    if (rootStreet) rebuild(rootStreet);
+  });
 
   // Theme effect — reacts to GEM signal changes (Save). Replaces the
   // gem section of renderLoop.applyTheme(). No-ops while refs are null
@@ -227,6 +242,7 @@ export function createGem(ctx: SceneContext): Gem {
     edges = null;
     innerGlow = null;
     outerGlow = null;
+    stopLayout();
     stopEffect();
   }
 

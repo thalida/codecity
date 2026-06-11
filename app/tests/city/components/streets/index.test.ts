@@ -1,7 +1,7 @@
 // app/tests/city/components/streets/index.test.ts
 //
-// Tests for the persistent createStreets(ctx) component.
-// API: createStreets(ctx) → { group, rebuild(layout), tick(dt, frame),
+// Tests for the persistent createStreets(ctx, cityState) component.
+// API: createStreets(ctx, cityState) → { group, rebuild(layout), tick(dt, frame),
 //      dispose(), pickables(), labels(), asphalt(), getSidewalkByDir(p),
 //      getStreetByDir(p), sidewalksByDirMap(), streetsByDirMap() }.
 //
@@ -16,6 +16,7 @@ import * as THREE from 'three';
 import { signal } from '@preact/signals';
 
 import { createStreets } from '@/city/components/streets';
+import { createCityState } from '@/city/state/cityState';
 import { STREETS } from '@/state/stores/settings/streets';
 import { NodeKind, StreetAxis } from '@/types';
 import type { CityLayout, PickTarget, Street } from '@/types';
@@ -110,7 +111,7 @@ describe('createStreets()', () => {
 
   it('constructs with an empty named group (pre-rebuild), no throws', () => {
     const { ctx } = makeCtx();
-    streets = createStreets(ctx);
+    streets = createStreets(ctx, createCityState());
     expect(streets.group).toBeInstanceOf(THREE.Group);
     expect(streets.group.name).toBe('city-streets');
     expect(streets.group.children).toHaveLength(0);
@@ -125,7 +126,7 @@ describe('createStreets()', () => {
       renderer: null as unknown as THREE.WebGLRenderer,
     } as unknown as SceneContext;
     expect(() => {
-      streets = createStreets(ctx);
+      streets = createStreets(ctx, createCityState());
       STREETS.value = { ...STREETS.value };
     }).not.toThrow();
   });
@@ -136,7 +137,7 @@ describe('createStreets()', () => {
 
   it('rebuild() populates group.children, pickables, asphalt, and labels', () => {
     const { ctx } = makeCtx();
-    streets = createStreets(ctx);
+    streets = createStreets(ctx, createCityState());
     streets.rebuild(singleStreetLayout());
 
     // One sidewalk + one asphalt + ≥1 label group all under the outer group.
@@ -149,7 +150,7 @@ describe('createStreets()', () => {
 
   it('rebuild() builds lookups keyed by street dir.path', () => {
     const { ctx } = makeCtx();
-    streets = createStreets(ctx);
+    streets = createStreets(ctx, createCityState());
     streets.rebuild(
       singleStreetLayout({
         dir: { name: 'src', path: 'src', type: NodeKind.Directory },
@@ -169,7 +170,7 @@ describe('createStreets()', () => {
 
   it('rebuild() disposes the prior street set and rebuilds (no leak in group)', () => {
     const { ctx } = makeCtx();
-    streets = createStreets(ctx);
+    streets = createStreets(ctx, createCityState());
     streets.rebuild(singleStreetLayout());
     const firstSidewalk = streets.pickables()[0];
     // The sidewalk's parent is its street group; that street group is the
@@ -194,7 +195,7 @@ describe('createStreets()', () => {
 
   it('theme effect recolors asphalt on STREETS.ASPHALT_COLOR mutation', () => {
     const { ctx } = makeCtx();
-    streets = createStreets(ctx);
+    streets = createStreets(ctx, createCityState());
     streets.rebuild(singleStreetLayout());
 
     STREETS.value = { ...STREETS.value, ASPHALT_COLOR: '#abcdef' };
@@ -204,7 +205,7 @@ describe('createStreets()', () => {
 
   it('theme effect resets sidewalk origColor + tint on SIDEWALK_DEFAULT mutation', () => {
     const { ctx } = makeCtx();
-    streets = createStreets(ctx);
+    streets = createStreets(ctx, createCityState());
     streets.rebuild(singleStreetLayout());
 
     STREETS.value = { ...STREETS.value, SIDEWALK_DEFAULT: '#010203' };
@@ -217,7 +218,7 @@ describe('createStreets()', () => {
 
   it('theme effect rescales label height on LABEL_HEIGHT_FRAC mutation', () => {
     const { ctx } = makeCtx();
-    streets = createStreets(ctx);
+    streets = createStreets(ctx, createCityState());
     streets.rebuild(singleStreetLayout());
     const label = streets.labels()[0];
     const plane = label.children[0] as THREE.Mesh;
@@ -234,7 +235,7 @@ describe('createStreets()', () => {
 
   it('does NOT re-tint on selection before the first tick (effects not yet armed)', () => {
     const { ctx, selection } = makeCtx();
-    streets = createStreets(ctx);
+    streets = createStreets(ctx, createCityState());
     streets.rebuild(singleStreetLayout());
     const sw = streets.pickables()[0];
     const defaultHex = new THREE.Color(DEFAULTS.SIDEWALK_DEFAULT).getHex();
@@ -247,7 +248,7 @@ describe('createStreets()', () => {
 
   it('arms picker-tint effects on first tick; a later selection re-tints to SELECTED', () => {
     const { ctx, selection } = makeCtx();
-    streets = createStreets(ctx);
+    streets = createStreets(ctx, createCityState());
     streets.rebuild(singleStreetLayout());
     const sw = streets.pickables()[0];
     const defaultHex = new THREE.Color(DEFAULTS.SIDEWALK_DEFAULT).getHex();
@@ -268,7 +269,7 @@ describe('createStreets()', () => {
 
   it('arms hover tinting; hovering this sidewalk paints SIDEWALK_HOVER', () => {
     const { ctx, hover } = makeCtx();
-    streets = createStreets(ctx);
+    streets = createStreets(ctx, createCityState());
     streets.rebuild(singleStreetLayout());
     const sw = streets.pickables()[0];
     const hoverHex = new THREE.Color(DEFAULTS.SIDEWALK_HOVER).getHex();
@@ -284,7 +285,7 @@ describe('createStreets()', () => {
 
   it('tick() flips a label past the −0.15 hysteresis and un-flips past +0.15', () => {
     const { ctx } = makeCtx();
-    streets = createStreets(ctx);
+    streets = createStreets(ctx, createCityState());
     streets.rebuild(singleStreetLayout()); // X-oriented → uses rightX
     const label = streets.labels()[0];
     const base = label.userData.baseRotY || 0;
@@ -318,7 +319,7 @@ describe('createStreets()', () => {
 
   it('dispose() empties the group and stops effects (later STREETS mutations no-op)', () => {
     const { ctx, selection } = makeCtx();
-    streets = createStreets(ctx);
+    streets = createStreets(ctx, createCityState());
     streets.rebuild(singleStreetLayout());
     streets.tick(0.016, { dt: 0.016, time: 0, camera: cameraRight(1) });
     const sw = streets.pickables()[0];

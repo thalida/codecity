@@ -56,6 +56,7 @@ import { REPO_LABEL } from '@/state/stores/settings/gem';
 import { RENDER_ORDERS } from '@/city/constants/renderOrders';
 
 import type { FrameContext, SceneComponent, SceneContext } from '../../types';
+import type { CityState } from '../../state/cityState';
 import vertSrc from './holoQuad.vert.glsl?raw';
 import beamFragSrc from './holoBeam.frag.glsl?raw';
 import textFragSrc from './holoText.frag.glsl?raw';
@@ -138,10 +139,27 @@ function _faceCamera(obj: THREE.Object3D, camera: THREE.Camera): void {
   obj.quaternion.setFromRotationMatrix(_scratchMat);
 }
 
+// Deps for the repoLabel component.
+export interface RepoLabelDeps {
+  // Live accessor for the root gem's INNER group. The gem group is created on
+  // the gem component's first rebuild, so a construction-time read returns
+  // null; the label effect re-reads it on every (non-reuse) apply — right
+  // after the gem has rebuilt within the same applyManifest batch — so the
+  // beam foot tracks the current gem. Mirrors the old world.ts call
+  // `_repoLabel.setGem(_gem.gem)` AFTER each gem rebuild.
+  getGem: () => THREE.Object3D | null;
+}
+
 // `_ctx` is accepted for createX(ctx) composer uniformity; the repoLabel uses
 // nothing from it at construction (it reaches the camera via FrameContext
-// in tick()). The `_`-prefix matches the eslint argsIgnorePattern.
-export function createRepoLabel(_ctx: SceneContext): RepoLabel {
+// in tick()). The `_`-prefix matches the eslint argsIgnorePattern. cityState +
+// deps.getGem are threaded so the label repositions reactively off
+// manifest/gemWorldPos and tracks the live gem (see the anchor effect below).
+export function createRepoLabel(
+  _ctx: SceneContext,
+  cityState: CityState,
+  deps: RepoLabelDeps
+): RepoLabel {
   const group = new THREE.Group();
   group.name = 'repoLabel';
 
@@ -341,6 +359,25 @@ export function createRepoLabel(_ctx: SceneContext): RepoLabel {
     _updateBeamGeometry();
   }
 
+  // Manifest/anchor effect — the reactive repositioning entry point. Reads
+  // cityState.manifest.value (for the repo name) + cityState.gemWorldPos.value
+  // (the floor anchor) and re-points the label when either CHANGES. manifest
+  // changes on EVERY apply (name/metadata), so setRepoName runs every apply
+  // (matching the old code). gemWorldPos is reference-stable on a scenic-reuse
+  // apply, so setAnchor is a no-op write there — but setRepoName already
+  // re-fires, so it re-applies the transform anyway (identical output). On a
+  // non-reuse apply the gem rebuilt within the same batch, so getGem() returns
+  // the fresh inner group; setGem re-points the beam foot (mirrors the old
+  // post-gem-rebuild `_repoLabel.setGem(_gem.gem)` call).
+  const stopAnchor = effect(() => {
+    const manifest = cityState.manifest.value;
+    const gemWorldPos = cityState.gemWorldPos.value;
+    if (!manifest) return;
+    setRepoName(manifest.tree.name);
+    setAnchor(gemWorldPos ?? new THREE.Vector3());
+    setGem(deps.getGem());
+  });
+
   // Settings effect — reacts to REPO_LABEL changes (Save). Replaces the
   // old refresh() call in renderLoop.applyTheme(). Reads REPO_LABEL config
   // and pushes fresh opacity, colors, and transform into the live meshes
@@ -370,6 +407,7 @@ export function createRepoLabel(_ctx: SceneContext): RepoLabel {
   }
 
   function dispose(): void {
+    stopAnchor();
     stopEffect();
     _teardownMeshes();
     if (textTex) {

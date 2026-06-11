@@ -38,6 +38,7 @@ import { NodeKind, StreetAxis } from '@/types';
 import type { CityLayout, Street } from '@/types';
 
 import type { FrameContext, SceneComponent, SceneContext } from '../../types';
+import type { CityState } from '../../state/cityState';
 import { armOnFirstTick } from '../../utils/armOnFirstTick';
 import { onSettings } from '../../utils/onSettings';
 import { createStreetMesh } from './streets';
@@ -49,9 +50,11 @@ type FlatMesh = THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial>;
 /** Public contract for the streets component. */
 export interface Streets extends SceneComponent {
   /** Rebuild every street mesh + label from the given layout, disposing any
-   *  prior set. Always rebuilds when called — no signature gate (deferred to
-   *  Task 15, like footprint). Returns VOID: the street diff in world is
-   *  vestigial (no consumer reads it), so this component produces no diff. */
+   *  prior set. Always rebuilds when called — no signature gate; reuse is
+   *  handled upstream by the layout-effect's reference-stability (the effect
+   *  doesn't fire on a scenic-reuse apply, so rebuild isn't called). Returns
+   *  VOID: the street diff in world is vestigial (no consumer reads it), so
+   *  this component produces no diff. */
   rebuild(layout: CityLayout): void;
   /** Sidewalk pickables (the clickable directory targets). */
   pickables(): FlatMesh[];
@@ -69,7 +72,7 @@ export interface Streets extends SceneComponent {
   streetsByDirMap(): Record<string, Street>;
 }
 
-export function createStreets(ctx: SceneContext): Streets {
+export function createStreets(ctx: SceneContext, cityState: CityState): Streets {
   // Persistent outer group — added to the scene once by world.ts. rebuild()
   // swaps the inner street meshes + labels in and out of this group.
   const group = new THREE.Group();
@@ -163,6 +166,18 @@ export function createStreets(ctx: SceneContext): Streets {
       }
     }
   }
+
+  // (0) Layout effect — the reactive rebuild entry point. Reads
+  // cityState.layout.value and rebuilds the street meshes when it CHANGES.
+  // Because applyManifest only reassigns layout.value on a non-reuse apply
+  // (the reference stays stable on a scenic-reuse apply), this effect fires
+  // exactly on real layout changes and skips reuse applies natively — no
+  // manual signature/lastBuilt gate. The null-guard makes the construction-
+  // time run (layout still null) a no-op.
+  const stopLayout = effect(() => {
+    const layout = cityState.layout.value;
+    if (layout) rebuild(layout);
+  });
 
   // (1) STREETS theme effect — reacts to STREETS signal changes (Save).
   // Replaces the street blocks of renderLoop.applyTheme(): sidewalk hex
@@ -267,6 +282,7 @@ export function createStreets(ctx: SceneContext): Streets {
   function dispose(): void {
     _disposeInner();
     _arm.dispose();
+    stopLayout();
     stopTheme();
   }
 

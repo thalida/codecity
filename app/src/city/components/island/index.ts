@@ -30,6 +30,7 @@
 // per-frame work. The SceneComponent contract makes tick optional.
 
 import * as THREE from 'three';
+import { effect } from '@preact/signals';
 
 import { ISLAND } from '@/state/stores/settings/island';
 import { getWorldBounds, type WorldBounds } from '@/city/utils/floorBounds';
@@ -37,6 +38,7 @@ import { buildIslandGeometry, type IslandBuildParams } from './islandGeometry';
 import { createIslandMaterial } from './islandShader';
 import { RENDER_ORDERS } from '@/city/constants/renderOrders';
 import type { SceneComponent, SceneContext } from '../../types';
+import type { CityState } from '../../state/cityState';
 import { onSettings } from '../../utils/onSettings';
 
 const ISLAND_TOP_Y = -2.0; // Increased from -0.5 for z-fighting prevention (4x separation from city y=0)
@@ -80,7 +82,9 @@ export function islandSeedFromBounds(b: WorldBounds): number {
 // `_ctx` is accepted for createX(ctx) composer uniformity; the island uses
 // nothing from it at construction (no picker/camera/renderer needed; scene-add
 // done by world.ts). The `_`-prefix matches the eslint argsIgnorePattern.
-export function createIsland(_ctx: SceneContext): Island {
+// cityState is threaded so the island can size itself reactively off
+// latestWorldBounds (see the bounds effect below).
+export function createIsland(_ctx: SceneContext, cityState: CityState): Island {
   let currentBounds = getWorldBounds(null);
   const group = new THREE.Group();
   group.position.set(currentBounds.cx, ISLAND_TOP_Y, currentBounds.cz);
@@ -115,6 +119,17 @@ export function createIsland(_ctx: SceneContext): Island {
     group.position.set(currentBounds.cx, ISLAND_TOP_Y, currentBounds.cz);
   }
 
+  // Bounds effect — the reactive resize entry point. Reads
+  // cityState.latestWorldBounds.value and resizes the island when it CHANGES.
+  // applyManifest only reassigns latestWorldBounds.value on a non-reuse apply
+  // (reference stays stable on a scenic-reuse apply), so this effect fires
+  // exactly on real bounds changes and skips reuse applies natively. The
+  // null-guard makes the construction-time run (bounds still null) a no-op.
+  const stopBounds = effect(() => {
+    const bounds = cityState.latestWorldBounds.value;
+    if (bounds) setBounds(bounds);
+  });
+
   // Settings effect — reacts to ISLAND changes (Save). Replaces the old
   // island.refresh() call in renderLoop.applyTheme(). Reads ISLAND (ENABLED,
   // colors, geometry params) and rebuilds geometry + pushes material uniforms
@@ -134,6 +149,7 @@ export function createIsland(_ctx: SceneContext): Island {
     if (group.parent) group.parent.remove(group);
     geometry.dispose();
     material.dispose();
+    stopBounds();
     stopEffect();
   }
 

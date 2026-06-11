@@ -12,6 +12,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import * as THREE from 'three';
 import { createRepoLabel } from '@/city/components/repoLabel';
+import { createCityState } from '@/city/state/cityState';
 import { REPO_LABEL } from '@/state/stores/settings/gem';
 import { resetBuildingsConfig } from '../../../_helpers/cityFixtures';
 import type { Picker } from '@/city/render/picker';
@@ -47,7 +48,7 @@ describe('RepoLabel positioning', () => {
   let label: ReturnType<typeof createRepoLabel>;
   beforeEach(() => {
     resetStore();
-    label = createRepoLabel(makeCtx());
+    label = createRepoLabel(makeCtx(), createCityState(), { getGem: () => null });
     label.setRepoName('codecity');
   });
   afterEach(() => label.dispose());

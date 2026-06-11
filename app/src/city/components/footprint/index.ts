@@ -45,8 +45,10 @@ import { onSettings } from '../../utils/onSettings';
 /** Public contract for the footprint component. */
 export interface Footprint extends SceneComponent {
   /** Rebuild the InstancedMesh from the given layout, disposing any prior mesh.
-   *  Always rebuilds when called — no early-return signature check (deferred
-   *  to Task 15 alongside computeScenicConfigHash dissolution).
+   *  Called by applyManifest on EVERY apply (NOT reactive off cityState.layout):
+   *  the footprint slabs wrap each building's rect, and building w/d/h are
+   *  recomputed from fresh per-file metadata on a layout-reuse apply (skeleton→
+   *  final / live update), so the footprint must rebuild to match the buildings.
    *  When halo <= 0 or no rects, leaves the group EMPTY (prior mesh disposed). */
   rebuild(layout: CityLayout): void;
 }

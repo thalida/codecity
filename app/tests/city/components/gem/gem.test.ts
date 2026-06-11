@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { signal } from '@preact/signals';
 
 import { createGem } from '@/city/components/gem';
+import { createCityState } from '@/city/state/cityState';
 import { GEM } from '@/state/stores/settings/gem';
 import { NodeKind, StreetAxis } from '@/types';
 import type { Street, PickTarget } from '@/types';
@@ -56,7 +57,7 @@ describe('createGem()', () => {
       renderer: null as unknown as THREE.WebGLRenderer,
     } as unknown as SceneContext;
     expect(() => {
-      gem = createGem(ctx);
+      gem = createGem(ctx, createCityState());
       // Mutating GEM re-runs the effect; must not throw with null refs.
       GEM.value = { ...GEM.value };
     }).not.toThrow();
@@ -65,7 +66,7 @@ describe('createGem()', () => {
 
   it('rebuild(street) builds an inner gem with a Gem-typed body and per-face color attribute', () => {
     const { ctx } = makeCtx(null);
-    gem = createGem(ctx);
+    gem = createGem(ctx, createCityState());
     gem.rebuild(makeStreet());
 
     expect(gem.gem).toBeInstanceOf(THREE.Group);
@@ -82,7 +83,7 @@ describe('createGem()', () => {
 
   it('rebuild disposes the prior inner gem and swaps in the new one', () => {
     const { ctx } = makeCtx(null);
-    gem = createGem(ctx);
+    gem = createGem(ctx, createCityState());
     gem.rebuild(makeStreet());
     const first = gem.gem!;
     gem.rebuild(makeStreet());
@@ -93,7 +94,7 @@ describe('createGem()', () => {
 
   it('tick lerps gem.scale toward HOVER_SCALE when a Gem is hovered', () => {
     const { ctx } = makeCtx({ kind: NodeKind.Gem } as PickTarget);
-    gem = createGem(ctx);
+    gem = createGem(ctx, createCityState());
     gem.rebuild(makeStreet());
 
     const start = gem.gem!.scale.x;
@@ -107,7 +108,7 @@ describe('createGem()', () => {
 
   it('dispose() stops the effect — later GEM mutations do not throw', () => {
     const { ctx } = makeCtx(null);
-    gem = createGem(ctx);
+    gem = createGem(ctx, createCityState());
     gem.rebuild(makeStreet());
     gem.dispose();
     gem = null;

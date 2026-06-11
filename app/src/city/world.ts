@@ -96,9 +96,22 @@ export function createWorld(_canvas: HTMLCanvasElement) {
     renderer: THREE.WebGLRenderer | null;
   };
   const _ctx: MutableSceneContext = { scene, picker: null, camera: null, renderer: null };
+
+  // The cross-boundary manifest-bound state: a per-city signals object
+  // (manifest/layout/bbox/latestWorldBounds source signals + rootStreet/
+  // gemWorldPos computeds). Created BEFORE the scene components so it can be
+  // threaded into each create<X>(ctx, cityState) — the sync scenic components
+  // (streets/gem/footprint/island/repoLabel) rebuild themselves reactively off
+  // these signals via their own effects (the layout/bounds/anchor effects),
+  // rather than being called in order by applyManifest. The accessors below +
+  // the pathLine gemWorldPos closure read these signals too; createApplyManifest
+  // sets the source signals' .value. The non-accessor mirrors/caches live
+  // privately inside the factory.
+  const _cityState: CityState = createCityState();
+
   // The single cast: picker/camera/renderer are populated by renderLoop
   // before the first animate() frame; the gem reads them only in tick().
-  const _gem: Gem = createGem(_ctx as unknown as SceneContext);
+  const _gem: Gem = createGem(_ctx as unknown as SceneContext, _cityState);
   scene.add(_gem.group);
 
   // Cyberpunk Valley sky — a self-contained scene component built ONCE here,
@@ -117,14 +130,20 @@ export function createWorld(_canvas: HTMLCanvasElement) {
   // draws AFTER the sky (-1000) but BEFORE the city's own ground
   // tiles (sidewalks at 1, asphalt at 3) — those paint on top.
   // Uses nothing from `_ctx`; accepts it only for createX(ctx) uniformity.
-  const _island: Island = createIsland(_ctx as unknown as SceneContext);
+  const _island: Island = createIsland(_ctx as unknown as SceneContext, _cityState);
   scene.add(_island.group);
 
   // Floating repo-name label — created ONCE at scene init, parallel
   // to sky and island. The group is empty (and invisible-effectively)
   // until applyManifest calls setRepoName + setAnchor. Uses nothing
   // from `_ctx`; accepts it only for createX(ctx) composer uniformity.
-  const _repoLabel: RepoLabel = createRepoLabel(_ctx as unknown as SceneContext);
+  const _repoLabel: RepoLabel = createRepoLabel(_ctx as unknown as SceneContext, _cityState, {
+    // Live accessor for the gem's inner group. The label's manifest/anchor
+    // effect re-reads it on every (non-reuse) apply — after the gem has
+    // rebuilt in the same batch — so the beam foot tracks the current gem
+    // (mirrors the old post-rebuild `_repoLabel.setGem(_gem.gem)`).
+    getGem: () => _gem.gem,
+  });
   scene.add(_repoLabel.group);
 
   // Tree placement client — owns the off-thread worker (or its sync
@@ -150,7 +169,7 @@ export function createWorld(_canvas: HTMLCanvasElement) {
   // reads it) — rebuild() returns void; world keeps the streetPickables/
   // streetLabels/asphaltMeshes module vars and reassigns them from the
   // component so PrevState/_computeDiff still read populated arrays.
-  const _streets: Streets = createStreets(_ctx as unknown as SceneContext);
+  const _streets: Streets = createStreets(_ctx as unknown as SceneContext, _cityState);
   scene.add(_streets.group);
 
   // Buildings — PERSISTENT component; added to scene once at init, right after
@@ -209,13 +228,6 @@ export function createWorld(_canvas: HTMLCanvasElement) {
   // (or its sync fallback in test envs). Disposed when the world is
   // disposed.
   const _layoutClient = createLayoutClient();
-
-  // The cross-boundary manifest-bound state: a per-city signals object
-  // (manifest/layout/bbox/latestWorldBounds source signals + rootStreet/
-  // gemWorldPos computeds). The accessors below + the pathLine gemWorldPos
-  // closure read these signals; createApplyManifest sets the source signals'
-  // .value. The non-accessor mirrors/caches live privately inside the factory.
-  const _cityState: CityState = createCityState();
 
   // Listeners
 
