@@ -22,6 +22,7 @@ import { TREES } from '@/state/stores/settings/trees';
 import type { BusynessThresholds, CommitEntry } from '@/types';
 
 import type { FrameContext, SceneComponent, SceneContext } from '../../types';
+import { armOnFirstTick } from '../armOnFirstTick';
 import { createTreeRenderer, type Trees } from './treeRenderer';
 import { createTreeOutlineRenderer } from './outline';
 import type { TreePlacement } from './treePlacement';
@@ -93,27 +94,34 @@ export function createTrees(ctx: SceneContext): TreesComponent {
   // factory creates the two picker-driven effects internally, so constructing
   // it at arming (ctx.picker live) is what makes them live; at construction
   // ctx.picker is null and the effects would be permanently dead. getTrees is
-  // a dynamic closure over _inner so the outline survives rebuilds. The
-  // sticky _armed boolean (not `if (_outline)`) survives dispose() nulling
-  // _outline, so a stray post-dispose tick() can't re-arm a dead component
-  // (same pattern as streets/buildings/fireflies).
-  let _armed = false;
-  function _armInteractions(): void {
-    if (_armed || !ctx.picker || !ctx.renderer) return;
-    _armed = true;
-    _outline = createTreeOutlineRenderer({
-      canvas: ctx.renderer.domElement,
-      scene: ctx.scene,
-      picker: ctx.picker,
-      getTrees: () => _inner,
-    });
-  }
+  // a dynamic closure over _inner so the outline survives rebuilds.
+  // armOnFirstTick's sticky armed flag (not `if (_outline)`) survives
+  // dispose() nulling _outline, so a stray post-dispose tick() can't re-arm a
+  // dead component (same pattern as streets/buildings/fireflies).
+  const _arm = armOnFirstTick(
+    ctx,
+    () => {
+      _outline = createTreeOutlineRenderer({
+        canvas: ctx.renderer!.domElement,
+        scene: ctx.scene,
+        picker: ctx.picker!,
+        getTrees: () => _inner,
+      });
+      return [
+        () => {
+          _outline?.dispose();
+          _outline = null;
+        },
+      ];
+    },
+    { needsRenderer: true }
+  );
 
   // tick() — arms the outline on the first call, then drives its per-frame
   // transform snap + rainbow chase (the old renderLoop
   // `treeOutlineRenderer.update(0)` slot).
   function tick(_dt: number, _frame: FrameContext): void {
-    _armInteractions();
+    _arm.arm();
     _outline?.update(0);
   }
 
@@ -124,8 +132,7 @@ export function createTrees(ctx: SceneContext): TreesComponent {
   function dispose(): void {
     clear();
     stopTheme();
-    _outline?.dispose();
-    _outline = null;
+    _arm.dispose();
   }
 
   return {

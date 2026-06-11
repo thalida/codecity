@@ -43,6 +43,7 @@ import type {
 } from '@/types';
 
 import type { FrameContext, SceneComponent, SceneContext } from '../../types';
+import { armOnFirstTick } from '../armOnFirstTick';
 import type { WorldBounds } from './spatialGrid';
 import type { CellTile } from './cellTile';
 import { BuildingIndex } from './buildingIndex';
@@ -233,37 +234,52 @@ export function createBuildings(ctx: SceneContext, deps: BuildingsDeps): Buildin
   let _fader: Fader | null = null;
   let _outline: Outline | null = null;
   let _ghost: Ghost | null = null;
-  let _interactionsArmed = false;
 
-  function _armInteractions(): void {
-    if (_interactionsArmed || !ctx.picker || !ctx.renderer) return;
-    _interactionsArmed = true;
-    // Fader gets a world-facade: cells + ad panels are component-local;
-    // getStreetByDir + onChange are threaded from world via deps.
-    _fader = createBuildingFader({
-      world: {
-        getCells: () => _cells,
-        getStreetByDir: deps.getStreetByDir,
-        getAdPanels: () => _adPanels,
-        onChange: deps.onChange,
-      },
-      picker: ctx.picker,
-    });
-    // Outline + ghost reach the cells / mesh resolver locally. They add their
-    // overlay meshes to ctx.scene (verbatim — they carry explicit renderOrders,
-    // so scene-graph parenting is irrelevant to draw order).
-    _outline = createOutlineRenderer({
-      canvas: ctx.renderer.domElement,
-      scene: ctx.scene,
-      world: { getCells: () => _cells },
-      picker: ctx.picker,
-    });
-    _ghost = createGhostRenderer({
-      scene: ctx.scene,
-      world: { getMeshForBuilding: (b) => getMeshForBuilding(b) },
-      picker: ctx.picker,
-    });
-  }
+  const _arm = armOnFirstTick(
+    ctx,
+    () => {
+      // Fader gets a world-facade: cells + ad panels are component-local;
+      // getStreetByDir + onChange are threaded from world via deps.
+      _fader = createBuildingFader({
+        world: {
+          getCells: () => _cells,
+          getStreetByDir: deps.getStreetByDir,
+          getAdPanels: () => _adPanels,
+          onChange: deps.onChange,
+        },
+        picker: ctx.picker!,
+      });
+      // Outline + ghost reach the cells / mesh resolver locally. They add their
+      // overlay meshes to ctx.scene (verbatim — they carry explicit
+      // renderOrders, so scene-graph parenting is irrelevant to draw order).
+      _outline = createOutlineRenderer({
+        canvas: ctx.renderer!.domElement,
+        scene: ctx.scene,
+        world: { getCells: () => _cells },
+        picker: ctx.picker!,
+      });
+      _ghost = createGhostRenderer({
+        scene: ctx.scene,
+        world: { getMeshForBuilding: (b) => getMeshForBuilding(b) },
+        picker: ctx.picker!,
+      });
+      return [
+        () => {
+          _fader?.dispose();
+          _fader = null;
+        },
+        () => {
+          _outline?.dispose();
+          _outline = null;
+        },
+        () => {
+          _ghost?.dispose();
+          _ghost = null;
+        },
+      ];
+    },
+    { needsRenderer: true }
+  );
 
   // getMeshForBuilding (named so the ghost facade + the door entry share one
   // impl). VERBATIM from world.ts (~1463): the _cells.size>0 && cellId!=null
@@ -297,7 +313,7 @@ export function createBuildings(ctx: SceneContext, deps: BuildingsDeps): Buildin
     // between that slot and this one reads instance matrices; outline/ghost
     // read them AFTER, within this tick — behavior-identical ordering.
     _tweens.update(0);
-    _armInteractions();
+    _arm.arm();
     _fader?.update(0);
     _outline?.update(0);
     _ghost?.update(0);
@@ -387,12 +403,7 @@ export function createBuildings(ctx: SceneContext, deps: BuildingsDeps): Buildin
     _disposeInner();
     _tweens.clear();
     stopMaterialEffect();
-    _fader?.dispose();
-    _outline?.dispose();
-    _ghost?.dispose();
-    _fader = null;
-    _outline = null;
-    _ghost = null;
+    _arm.dispose();
     _buildingsByPath = {};
     _cells = new Map();
     _buildingIndex = null;

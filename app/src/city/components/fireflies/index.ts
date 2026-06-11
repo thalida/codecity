@@ -24,6 +24,7 @@ import type { CommitEntry } from '@/types';
 import type { TreePlacement } from '@/city/components/trees/treePlacement';
 
 import type { FrameContext, SceneComponent, SceneContext } from '../../types';
+import { armOnFirstTick } from '../armOnFirstTick';
 import { createFireflies as assembleFireflies, type Fireflies } from './fireflies';
 
 export type { Fireflies };
@@ -91,30 +92,26 @@ export function createFireflies(ctx: SceneContext): FirefliesComponent {
   // the current hover/selection into the NEW inner. Do NOT push current
   // values inside rebuild() — that would be a behavior change. Creation
   // order (hover effect, then selection effect) matches the old renderLoop.
-  let _armed = false;
-  let _stopHover = () => {};
-  let _stopSel = () => {};
-  function _armInteractions(): void {
-    if (_armed || !ctx.picker) return;
-    _armed = true;
-    _stopHover = effect(() => {
+  const _arm = armOnFirstTick(ctx, () => {
+    const stopHover = effect(() => {
       const h = ctx.picker!.hover.value;
       if (!_inner) return;
       _inner.setHoveredCommit(h && h.kind === NodeKind.Commit ? h.commit.sha : null);
     });
-    _stopSel = effect(() => {
+    const stopSel = effect(() => {
       const sel = ctx.picker!.selection.value;
       if (!_inner) return;
       _inner.setSelectedCommit(sel && sel.kind === NodeKind.Commit ? sel.commit.sha : null);
     });
-  }
+    return [stopHover, stopSel];
+  });
 
   // tick() — arms the boost effects on the first call, then drives the bob
   // uTime + the orbit-ring rainbow chase (setTime forwards to both). frame
   // .time is the same clock the old renderLoop setTime block used
   // ((performance.now() - startTime) / 1000).
   function tick(_dt: number, frame: FrameContext): void {
-    _armInteractions();
+    _arm.arm();
     _inner?.setTime(frame.time);
   }
 
@@ -125,8 +122,7 @@ export function createFireflies(ctx: SceneContext): FirefliesComponent {
   function dispose(): void {
     clear();
     stopTheme();
-    _stopHover();
-    _stopSel();
+    _arm.dispose();
   }
 
   return {

@@ -20,6 +20,7 @@ import { effect, untracked } from '@preact/signals';
 import { STREETS } from '@/state/stores/settings/streets';
 
 import type { FrameContext, SceneComponent, SceneContext } from '../../types';
+import { armOnFirstTick } from '../armOnFirstTick';
 import { createPathLineRenderer, type PathLineWorld } from './renderer';
 
 /** World closures the inner renderer consumes (threaded from world.ts —
@@ -47,21 +48,28 @@ export function createPathLine(ctx: SceneContext, deps: PathLineDeps): PathLine 
   // factory creates the two picker-driven geometry effects + the
   // world.onChange subscription internally, so constructing it at arming
   // (ctx.picker live) is what makes them live; at construction ctx.picker is
-  // null and the effects would be permanently dead. The sticky _armed
-  // boolean (not `if (_inner)`) survives dispose() nulling _inner, so a
+  // null and the effects would be permanently dead. armOnFirstTick's sticky
+  // armed flag (not `if (_inner)`) survives dispose() nulling _inner, so a
   // stray post-dispose tick() can't re-arm a dead component (same pattern
   // as streets/buildings/fireflies).
-  let _armed = false;
-  function _armInteractions(): void {
-    if (_armed || !ctx.picker || !ctx.renderer) return;
-    _armed = true;
-    _inner = createPathLineRenderer({
-      canvas: ctx.renderer.domElement,
-      scene: group,
-      world: deps,
-      picker: ctx.picker,
-    });
-  }
+  const _arm = armOnFirstTick(
+    ctx,
+    () => {
+      _inner = createPathLineRenderer({
+        canvas: ctx.renderer!.domElement,
+        scene: group,
+        world: deps,
+        picker: ctx.picker!,
+      });
+      return [
+        () => {
+          _inner?.dispose();
+          _inner = null;
+        },
+      ];
+    },
+    { needsRenderer: true }
+  );
 
   // STREETS theme effect — reacts to STREETS Save. Replaces applyTheme()'s
   // `pathLineRenderer.refreshMaterials()` (linewidth, opacity, hover color).
@@ -81,7 +89,7 @@ export function createPathLine(ctx: SceneContext, deps: PathLineDeps): PathLine 
   // chase on the selection line (the old renderLoop
   // `pathLineRenderer.update(0)` slot).
   function tick(_dt: number, _frame: FrameContext): void {
-    _armInteractions();
+    _arm.arm();
     _inner?.update(0);
   }
 
@@ -91,10 +99,9 @@ export function createPathLine(ctx: SceneContext, deps: PathLineDeps): PathLine 
 
   function dispose(): void {
     stopTheme();
-    // Inner dispose also stops its picker effects + unsubscribes its
-    // world.onChange callback.
-    _inner?.dispose();
-    _inner = null;
+    // Inner dispose (run via _arm's teardown) also stops its picker effects +
+    // unsubscribes its world.onChange callback.
+    _arm.dispose();
   }
 
   return {

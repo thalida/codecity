@@ -38,6 +38,7 @@ import { NodeKind, StreetAxis } from '@/types';
 import type { CityLayout, Street } from '@/types';
 
 import type { FrameContext, SceneComponent, SceneContext } from '../../types';
+import { armOnFirstTick } from '../armOnFirstTick';
 import { createStreetMesh } from './streets';
 import { createStreetLabels } from './streetLabels';
 
@@ -223,21 +224,17 @@ export function createStreets(ctx: SceneContext): Streets {
   // (frame 1, no selection yet → sidewalks stay DEFAULT, identical to today)
   // then on every selection/hover change (synchronous, exactly like the old
   // renderLoop effects).
-  let _interactionsArmed = false;
-  let _stopSel = () => {};
-  let _stopHov = () => {};
-  function _armInteractions(): void {
-    if (_interactionsArmed || !ctx.picker) return;
-    _interactionsArmed = true;
-    _stopSel = effect(() => {
+  const _arm = armOnFirstTick(ctx, () => {
+    const stopSel = effect(() => {
       void ctx.picker!.selection.value;
       _refreshSidewalkTints();
     });
-    _stopHov = effect(() => {
+    const stopHov = effect(() => {
       void ctx.picker!.hover.value;
       _refreshSidewalkTints();
     });
-  }
+    return [stopSel, stopHov];
+  });
 
   // tick() — orient flat street labels toward the camera each frame so they
   // stay readable from any rotation. (Moved verbatim from renderLoop's
@@ -245,7 +242,7 @@ export function createStreets(ctx: SceneContext): Streets {
   // single alloc.) Also arms the picker-tint effects on the first call.
   const labelRight = new THREE.Vector3();
   function tick(_dt: number, frame: FrameContext): void {
-    _armInteractions();
+    _arm.arm();
 
     const camera = frame.camera;
     // Flip decision comes from the camera's world-right vector (matrixWorld
@@ -280,8 +277,7 @@ export function createStreets(ctx: SceneContext): Streets {
 
   function dispose(): void {
     _disposeInner();
-    _stopSel();
-    _stopHov();
+    _arm.dispose();
     stopTheme();
   }
 
