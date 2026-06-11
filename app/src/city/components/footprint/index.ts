@@ -36,8 +36,8 @@ import { FOOTPRINT } from '@/state/stores/settings/footprint';
 import { RENDER_ORDERS } from '@/city/constants/renderOrders';
 import type { CityLayout } from '@/types';
 import { setColorFromHex } from '@/city/utils/color/setColorFromHex';
-import { rectOfBuilding, rectOfStreet } from '@/city/utils/rect';
-import type { Rect } from '@/city/utils/rect';
+import { rectOfBuilding, rectOfStreet } from '@/city/layout/rect';
+import type { Rect } from '@/city/layout/rect';
 
 import type { SceneComponent, SceneContext } from '../../types';
 import { onSettings } from '../../utils/onSettings';

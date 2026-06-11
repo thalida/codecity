@@ -16,7 +16,7 @@
 import * as THREE from 'three';
 import { GEM, GEM_SIZING } from '@/state/stores/settings/gem';
 import { NodeKind } from '@/types';
-import { gemAnchorXZ } from '../../utils/gemAnchor';
+import { gemAnchorXZ } from './anchor';
 import { paletteColors, writeFaceColors } from './palette';
 import { buildGemGeometry } from './shapes';
 import type { Street } from '@/types';

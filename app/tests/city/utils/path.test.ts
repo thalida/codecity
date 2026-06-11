@@ -1,10 +1,10 @@
 import { describe, it, expect } from 'vitest';
+import { parentDirPath } from '@/city/utils/path';
 import {
-  parentDirPath,
   streetChainForDirPath,
   computePathPoints,
   streetEndOpposite,
-} from '@/city/utils/path';
+} from '@/city/layout/streetPath';
 import { NodeKind, StreetAxis } from '@/types';
 
 // Local minimal-shape type matches the StreetLike structural contract that

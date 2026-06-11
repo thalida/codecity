@@ -19,7 +19,7 @@ import { PATH_LINE_ELEVATION, HOVER_PATH_LINE_ELEVATION } from '@/constants/stre
 import { RENDER_ORDERS } from '@/city/constants/renderOrders';
 import { NodeKind } from '@/types';
 import type { Street } from '@/types';
-import { computePathPoints } from '@/city/utils/path';
+import { computePathPoints } from '@/city/layout/streetPath';
 import { rainbowRgbAt } from '@/city/utils/rainbowChase';
 import type { PickTarget } from '@/types/picker';
 import type { ReadonlySignal } from '@preact/signals';

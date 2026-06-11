@@ -7,7 +7,7 @@ import {
   computeLineStats,
   __test,
 } from '@/city/layout/algorithm';
-import type { Rect } from '@/city/utils/rect';
+import type { Rect } from '@/city/layout/rect';
 import { BUILDING_DIMENSIONS } from '@/state/stores/settings/buildings';
 import { BuildingOrient, NodeKind, StreetAxis } from '@/types';
 import type { BuildingDimensionsConfig } from '@/state/stores/settings/buildings';

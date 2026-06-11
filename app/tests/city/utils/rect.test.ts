@@ -3,7 +3,7 @@
 
 import { describe, it, expect } from 'vitest';
 
-import { rectOfBuilding, rectOfStreet } from '@/city/utils/rect';
+import { rectOfBuilding, rectOfStreet } from '@/city/layout/rect';
 import { StreetAxis } from '@/types';
 import type { Building, Street } from '@/types';
 

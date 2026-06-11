@@ -22,7 +22,7 @@ import { signal, computed, type Signal, type ReadonlySignal } from '@preact/sign
 import * as THREE from 'three';
 import type { CityLayout, Manifest, Street } from '@/types';
 import type { WorldBounds } from '../utils/floorBounds';
-import { gemAnchorXZ } from '../utils/gemAnchor';
+import { gemAnchorXZ } from '@/city/components/gem/anchor';
 
 export interface CityState {
   manifest: Signal<Manifest | null>;

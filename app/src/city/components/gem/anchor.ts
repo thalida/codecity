@@ -1,4 +1,4 @@
-// city/utils/gemAnchor.ts — Single source of truth for the gem's anchor point
+// city/components/gem/anchor.ts — Single source of truth for the gem's anchor point
 // (the center of the root street's origin-end cap). Computed from the
 // street geometry; previously duplicated in gem.ts and treePlacement.ts.
 

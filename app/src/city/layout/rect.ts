@@ -1,4 +1,4 @@
-// city/utils/rect.ts — the city's canonical 2D footprint rectangle, plus the
+// city/layout/rect.ts — the city's canonical 2D footprint rectangle, plus the
 // ONE place that knows how a Street/Building maps onto it.
 //
 // Rect lives on the layout plane: (x, y) is the rect's CENTER and w/d are

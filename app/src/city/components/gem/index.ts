@@ -19,7 +19,7 @@ import { BLOOM } from '@/state/stores/settings/effects';
 import { NodeKind } from '@/types';
 import type { Street } from '@/types';
 import { disposeObject3D } from '@/city/utils/disposeObject3D';
-import { gemAnchorXZ } from '@/city/utils/gemAnchor';
+import { gemAnchorXZ } from './anchor';
 
 import type { FrameContext, SceneComponent, SceneContext } from '../../types';
 import { onSettings } from '../../utils/onSettings';
