@@ -107,11 +107,10 @@ export function createIsland(ctx: SceneContext): Island {
     if (bounds) setBounds(bounds);
   });
 
-  // Settings effect — reacts to ISLAND changes (Save). Replaces the old
-  // island.refresh() call in renderLoop.applyTheme(). Reads ISLAND (ENABLED,
-  // colors, geometry params) and rebuilds geometry + pushes material uniforms
-  // (same writes as the old refresh(), verbatim). Runs once at construction,
-  // re-applying the same values the constructor baked (idempotent).
+  // Settings effect — reacts to ISLAND changes (Save). Reads ISLAND (ENABLED,
+  // colors, geometry params) and rebuilds geometry + pushes material uniforms.
+  // Runs once at construction, re-applying the same values the constructor
+  // baked (idempotent).
   const stopEffect = onSettings(ISLAND, () => {
     // Geometry colors changed → rebuild (vertex colors are baked into the
     // geometry, not pushed through uniforms). This is cheap for ~1-2k verts.

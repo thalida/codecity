@@ -15,15 +15,14 @@
 //   const sky = createSky(ctx);
 //   scene.add(sky.group);            // once, at world boot
 //   sky.tick(dt, frameCtx);          // each frame, LAST before render
-//   sky.dispose();                   // on world teardown
+//   sky.dispose();                   // on teardown
 //
-// The settings effect replaces the old refresh() / applyTheme() path:
-// it reads SCENE (SKY_COLOR, STARS_ENABLED, STARS_DENSITY) and pushes
-// fresh values into the material uniforms with no rebuild, re-running
+// The settings effect reads SCENE (SKY_COLOR, STARS_ENABLED, STARS_DENSITY)
+// and pushes fresh values into the material uniforms with no rebuild, re-running
 // on every SCENE Save. It runs once at construction (idempotently
 // re-applying the same values the constructor baked).
 //
-// Construction-time bridge (Strategy A, same as the gem): the sky is
+// Construction-time bridge: the sky is
 // built by createCity BEFORE the picker/camera/renderer exist. The
 // component accepts the SceneContext for composer uniformity but uses
 // nothing from it at construction; tick() reaches the camera via the
@@ -124,11 +123,10 @@ export function createSky(ctx: SceneContext): Sky {
   group.frustumCulled = false;
   group.userData.cyberpunkValley = 'sky';
 
-  // Settings effect — reacts to SCENE changes (Save). Replaces the old
-  // sky.refresh() call in renderLoop.applyTheme(). Reads only SKY_COLOR /
-  // STARS_ENABLED / STARS_DENSITY and pushes them into the uniforms (same
-  // writes as the old refresh(), verbatim). Runs once at construction,
-  // re-applying the same values the constructor baked (idempotent).
+  // Settings effect — reacts to SCENE changes (Save). Reads only SKY_COLOR /
+  // STARS_ENABLED / STARS_DENSITY and pushes them into the uniforms. Runs once
+  // at construction, re-applying the same values the constructor baked
+  // (idempotent).
   const stopEffect = onSettings(SCENE, () => {
     const c = SCENE.value;
     setColorFromHex(material.uniforms.uSkyColor.value as THREE.Color, c.SKY_COLOR);

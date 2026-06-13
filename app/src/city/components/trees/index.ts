@@ -4,8 +4,7 @@
 // instanced tree meshes (one tree per commit) in via rebuild() on the
 // deferred decoration pass of every applyManifest, reacts to TREES settings
 // via its own theme effect (canopy/trunk recolor + outline materials), and
-// absorbs the tree hover/selected outline renderer (./outline — formerly an
-// effects module constructed in renderLoop).
+// absorbs the tree hover/selected outline renderer (./outline).
 //
 // Construction-time bridge: trees are built by createCity BEFORE the picker
 // exists. The theme effect reads only TREES signals, so it's safe at
@@ -86,11 +85,10 @@ export function createTrees(ctx: SceneContext): TreesComponent {
     group.add(_inner.group);
   }
 
-  // TREES theme effect — reacts to TREES Save. Replaces applyTheme()'s
-  // `world.getTrees()?.refresh()` (per-instance canopy/trunk recolor) +
-  // `treeOutlineRenderer.refreshMaterials()` (outline width/color/opacity).
-  // Reads only TREES signals, so it's safe at construction (pre-picker);
-  // both refs null-guard pre-rebuild / pre-arming.
+  // TREES theme effect — reacts to TREES Save (per-instance canopy/trunk
+  // recolor + outline width/color/opacity). Reads only TREES signals, so it's
+  // safe at construction (pre-picker); both refs null-guard pre-rebuild /
+  // pre-arming.
   const stopTheme = effect(() => {
     void TREES.value;
     _inner?.refresh();
@@ -179,8 +177,7 @@ export function createTrees(ctx: SceneContext): TreesComponent {
   );
 
   // tick() — arms the outline on the first call, then drives its per-frame
-  // transform snap + rainbow chase (the old renderLoop
-  // `treeOutlineRenderer.update(0)` slot).
+  // transform snap + rainbow chase.
   function tick(_dt: number, _frame: FrameContext): void {
     _arm.arm();
     _outline?.update(0);

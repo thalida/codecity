@@ -5,10 +5,9 @@
 // rebuild() on the deferred decoration pass of every applyManifest, reacts
 // to FIREFLIES settings via its own theme effect, drives the bob uTime +
 // orbit-ring rainbow chase in tick(), and owns the hover/select boost
-// effects (formerly two world.getFireflies()-refetching effects in
-// renderLoop.ts).
+// effects.
 //
-// Construction-time bridge (Strategy A): fireflies are built by createCity
+// Construction-time bridge: fireflies are built by createCity
 // BEFORE the picker exists. The theme effect reads only FIREFLIES signals,
 // so it's safe at construction. The two hover/select boost effects are
 // picker-driven, so they are NOT created at construction (ctx.picker is null
@@ -54,7 +53,6 @@ export function createFireflies(ctx: SceneContext): FirefliesComponent {
 
   function clear(): void {
     if (_inner) {
-      // (Old world did scene.remove(_fireflies.group) + dispose.)
       group.remove(_inner.group);
       _inner.dispose();
       _inner = null;
@@ -72,11 +70,11 @@ export function createFireflies(ctx: SceneContext): FirefliesComponent {
     group.add(_inner.group);
   }
 
-  // FIREFLIES theme effect — reacts to FIREFLIES Save. Replaces applyTheme()'s
-  // `world.getFireflies()?.refresh()` (BOB/PULSE/EMISSION/FLICKER/ORBIT_SPEED
-  // uniforms). Structural keys (ENABLED, SCALE_MIN/MAX, ORBIT_RING_*) remain
-  // Rebuild-routed via configCommitReactions → applyManifest → rebuild(),
-  // exactly as today. Safe at construction: reads only FIREFLIES signals.
+  // FIREFLIES theme effect — reacts to FIREFLIES Save (BOB/PULSE/EMISSION/
+  // FLICKER/ORBIT_SPEED uniforms). Structural keys (ENABLED, SCALE_MIN/MAX,
+  // ORBIT_RING_*) remain Rebuild-routed via configCommitReactions →
+  // applyManifest → rebuild(). Safe at construction: reads only FIREFLIES
+  // signals.
   const stopTheme = effect(() => {
     void FIREFLIES.value;
     _inner?.refresh();
@@ -94,12 +92,10 @@ export function createFireflies(ctx: SceneContext): FirefliesComponent {
 
   // Hover/select boost effects — ARMED on the first tick(), NOT at
   // construction (ctx.picker is null there). The bodies read _inner
-  // DYNAMICALLY — the component-local equivalent of the old renderLoop
-  // effects re-fetching world.getFireflies() each fire: after a rebuild the
-  // fresh renderer starts with -1 uniforms and the NEXT signal change pushes
-  // the current hover/selection into the NEW inner. Do NOT push current
-  // values inside rebuild() — that would be a behavior change. Creation
-  // order (hover effect, then selection effect) matches the old renderLoop.
+  // DYNAMICALLY: after a rebuild the fresh renderer starts with -1 uniforms
+  // and the NEXT signal change pushes the current hover/selection into the NEW
+  // inner. Do NOT push current values inside rebuild() — that would be a
+  // behavior change.
   const _arm = armOnFirstTick(ctx, () => {
     const stopHover = effect(() => {
       const h = ctx.picker!.hover.value;
@@ -116,8 +112,7 @@ export function createFireflies(ctx: SceneContext): FirefliesComponent {
 
   // tick() — arms the boost effects on the first call, then drives the bob
   // uTime + the orbit-ring rainbow chase (setTime forwards to both). frame
-  // .time is the same clock the old renderLoop setTime block used
-  // ((performance.now() - startTime) / 1000).
+  // .time is ((performance.now() - startTime) / 1000).
   function tick(_dt: number, frame: FrameContext): void {
     _arm.arm();
     _inner?.setTime(frame.time);

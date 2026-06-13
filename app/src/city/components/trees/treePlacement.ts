@@ -13,8 +13,8 @@
 // commitIndex = i (oldest commit closest to gem).
 //
 // Why stratified instead of pure rejection sampling: a random sampler
-// has to keep retrying to fill `treeTarget` (the old code grinded up
-// to 2 million iterations for big repos with high rejection rates).
+// has to keep retrying to fill `treeTarget` (up to ~2 million iterations
+// for big repos with high rejection rates).
 // A grid traverses every candidate position exactly once and avoids
 // re-sampling the same regions, so total work is bounded by cell
 // count — independent of how big commits.length gets.

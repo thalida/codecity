@@ -26,9 +26,9 @@
 // Lifecycle matches the other persistent scene-component factories (e.g. createGem):
 //
 //   const fp = createFootprint(ctx);
-//   scene.add(fp.group);          // once at world init
+//   scene.add(fp.group);          // once at scene init
 //   // then rebuilds itself reactively off cityState.layout
-//   fp.dispose();                 // on world.dispose()
+//   fp.dispose();                 // on teardown
 
 import * as THREE from 'three';
 import { effect } from '@preact/signals';
@@ -161,9 +161,9 @@ export function createFootprint(ctx: SceneContext): Footprint {
     group.visible = cfg.ENABLED;
   }
 
-  // Settings effect — reacts to FOOTPRINT signal changes (Save). Replaces the
-  // footprint section of renderLoop.applyTheme(). Handles COLOR + CORNER_RADIUS
-  // + ENABLED only (NOT HALO_WIDTH — that's structural, rebuild path).
+  // Settings effect — reacts to FOOTPRINT signal changes (Save). Handles
+  // COLOR + CORNER_RADIUS + ENABLED only (NOT HALO_WIDTH — that's structural,
+  // rebuild path).
   // Null-guards when no mesh exists (pre-first-rebuild OR empty/stub state).
   // Runs once at construction, which is safe: refs are null, guards no-op.
   const stopEffect = onSettings(FOOTPRINT, () => {

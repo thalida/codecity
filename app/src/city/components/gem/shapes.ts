@@ -17,8 +17,7 @@ export const GEM_SHAPES: Record<GemSides, (radius: number) => THREE.BufferGeomet
 };
 
 /** Build the gem body geometry for a SIDES setting value. A stale persisted
- *  value outside GEM_SIDES falls back to the default shape (octahedron) —
- *  the same behavior as the old switch's default branch. */
+ *  value outside GEM_SIDES falls back to the default shape (octahedron). */
 export function buildGemGeometry(sides: string, radius: number): THREE.BufferGeometry {
   const build = GEM_SHAPES[sides as GemSides] ?? GEM_SHAPES[GEM_SIDES_DEFAULT];
   return build(radius);

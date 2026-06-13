@@ -91,11 +91,11 @@ export function getBuildingMaterial(): THREE.ShaderMaterial {
   _sharedMaterial = new THREE.ShaderMaterial({
     vertexShader: buildingVertSrc,
     fragmentShader: fragSrc,
-    // transparent: true so iFade.x can fade buildings (Task 11).
+    // transparent: true so iFade.x can fade buildings.
     transparent: true,
     uniforms: {
       // Hidden-tier wireframe thickness in screen-pixels. Updated by
-      // refreshBuildingMaterial() on Save via applyTheme().
+      // refreshBuildingMaterial() on Save.
       uOutlineWidth: { value: BUILDINGS.value.OUTLINE_WIDTH },
       // Atlas of file-type icons; sampled per-instance via iIconUV for
       // the roof face. Null until the atlas builds — the shader gates
@@ -138,7 +138,7 @@ export function getBuildingMaterial(): THREE.ShaderMaterial {
       // Procedural facade geometry (FACADE_GEOMETRY store). Seeded from
       // the current store snapshot so the first frame renders with the
       // configured values; refreshBuildingMaterial() pushes updates on
-      // Save via applyTheme(). Only the shader-side keys appear here — the JS-side
+      // Save. Only the shader-side keys appear here — the JS-side
       // keys (WINDOW_COLS_MAX, WIDTH_PER_WINDOW_COL, DOOR_WIDTH_FRAC)
       // bake into per-instance attributes in cellMesh.ts (writeBuildingToSlot).
       uSlabHeightFrac: { value: FACADE.value.SLAB_HEIGHT_FRAC },

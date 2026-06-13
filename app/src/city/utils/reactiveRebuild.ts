@@ -3,8 +3,7 @@
 // synchronously (registering them) and fires the async body fire-and-forget,
 // guarded by a per-instance generation token: each dep change bumps the
 // generation, and the body must consult isCurrent() after every await and bail
-// when a newer run has superseded it. This is the per-component move of the
-// generation counter the manifest pipeline used to own centrally.
+// when a newer run has superseded it.
 
 import { effect } from '@preact/signals';
 

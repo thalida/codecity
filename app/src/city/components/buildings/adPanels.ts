@@ -31,9 +31,8 @@ import adPanelFragSrc from './adPanel.frag.glsl?raw';
 const AD_FRONT_FACE_OFFSET = 1.5;
 
 // ---------------------------------------------------------------------------
-// Face layout helpers — ported from the per-building ad-panel renderer
-// (retired in the #21 cell-render rollout). 4 faces per building; each
-// face is one InstancedMesh slot.
+// Face layout helpers. 4 faces per building; each face is one InstancedMesh
+// slot.
 // ---------------------------------------------------------------------------
 
 /** Map BuildingOrient → Y-axis rotation so the panel faces away from the building. */
@@ -431,9 +430,9 @@ export class InstancedAdPanels {
   }
 
   /**
-   * Hot-reload emission from the current BLOOM config. Called by
-   * applyTheme() whenever the user changes the AD_EMISSION slider so
-   * the uniform updates without a full scene rebuild.
+   * Hot-reload emission from the current BLOOM config. Called whenever the
+   * user changes the AD_EMISSION slider so the uniform updates without a full
+   * scene rebuild.
    */
   refresh(): void {
     const bloomCfg = BLOOM.value;
@@ -554,9 +553,8 @@ function _loadImage(url: string): Promise<HTMLImageElement | null> {
 }
 
 // ---------------------------------------------------------------------------
-// Video first-frame extraction — ported from the per-building ad-panel
-// renderer (retired in #21), but returns a canvas instead of a
-// THREE.Texture (uploadCanvas handles the rest).
+// Video first-frame extraction — returns a canvas instead of a THREE.Texture
+// (uploadCanvas handles the rest).
 // ---------------------------------------------------------------------------
 
 function _loadVideoPoster(url: string): Promise<HTMLCanvasElement | null> {

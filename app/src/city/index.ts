@@ -1,7 +1,7 @@
 // city/index.ts — the city composer. createCity(canvas, manifest) folds the
-// scene/component construction (formerly world.ts) and the rendering pipeline
-// (formerly renderLoop.ts) into one async factory, then drives the frame loop
-// via startFrameLoop. Returns the handle App.tsx / useCityScene consume.
+// scene/component construction and the rendering pipeline into one async
+// factory, then drives the frame loop via startFrameLoop. Returns the handle
+// App.tsx / useCityScene consume.
 
 import * as THREE from 'three';
 

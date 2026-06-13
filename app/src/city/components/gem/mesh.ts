@@ -142,7 +142,7 @@ export function createRootGem(street: Street): THREE.Group {
   //   - inner: smaller, brighter — a "hot core" that hugs the gem
   //   - outer: much larger, dimmer — the atmospheric falloff
   //
-  // Material refs are stashed on gem.userData so applyTheme + the render
+  // Material refs are stashed on gem.userData so the theme effect + the render
   // loop can mutate scale/opacity/color without rebuilding. Glow visibility
   // is driven by the GEM_GLOW.ENABLED flag.
   //
@@ -216,16 +216,16 @@ export function createRootGem(street: Street): THREE.Group {
   gem.position.set(gemX, hoverY, gemZ);
   gem.userData.baseY = hoverY;
   gem.userData.type = NodeKind.Gem;
-  // Stashed for live applyTheme updates of HOVER_LIFT_FRAC: needed to
+  // Stashed for live theme updates of HOVER_LIFT_FRAC: needed to
   // recompute baseY = radius + streetWidth × frac.
   gem.userData.streetWidth = street.width;
   gem.userData.radius = radius;
-  // Direct refs to the body and edges meshes so consumers (picker,
-  // applyTheme) don't have to know the child-order convention — which
+  // Direct refs to the body and edges meshes so consumers (picker, theme
+  // effect) don't have to know the child-order convention — which
   // shifts depending on whether the glow sprites are also children.
   gem.userData.body = body;
   gem.userData.edges = edges;
-  // Glow sprite refs for applyTheme() on Save and per-frame color
+  // Glow sprite refs for theme updates on Save and per-frame color
   // cycling. Either may be null when the host can't build a gradient
   // texture (jsdom test env).
   gem.userData.innerGlowSprite = innerGlowSprite;

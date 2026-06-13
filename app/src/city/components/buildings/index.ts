@@ -182,8 +182,8 @@ export function createBuildings(ctx: SceneContext): Buildings {
         picker: ctx.picker!,
       });
       // Outline + ghost reach the cells / mesh resolver locally. They add their
-      // overlay meshes to ctx.scene (verbatim — they carry explicit
-      // renderOrders, so scene-graph parenting is irrelevant to draw order).
+      // overlay meshes to ctx.scene — they carry explicit renderOrders, so
+      // scene-graph parenting is irrelevant to draw order.
       _outline = createOutlineRenderer({
         canvas: ctx.canvas,
         scene: ctx.scene,
@@ -335,16 +335,14 @@ export function createBuildings(ctx: SceneContext): Buildings {
   }
 
   // tick() — arms the picker overlays on the first call, then drives the three
-  // per-frame syncs in the SAME order the old renderLoop did: fader.update →
-  // outline.update → ghost.update (field-ownership order). The composer
-  // (city/index.ts) runs treeOutlineRenderer/pathLineRenderer AFTER this tick
-  // (proven behavior-neutral — their writes are disjoint from these and are
-  // only consumed at postFx.render).
+  // per-frame syncs in field-ownership order: fader.update → outline.update →
+  // ghost.update. The composer (city/index.ts) runs treeOutlineRenderer/
+  // pathLineRenderer AFTER this tick — their writes are disjoint from these and
+  // are only consumed at postFx.render.
   function tick(_dt: number, _frame: FrameContext): void {
-    // Entering/staying tweens run FIRST within the tick — this was
-    // animator.update(0) in the old renderLoop's animate(). Nothing
-    // between that slot and this one reads instance matrices; outline/ghost
-    // read them AFTER, within this tick — behavior-identical ordering.
+    // Entering/staying tweens run FIRST within the tick. Nothing between that
+    // slot and this one reads instance matrices; outline/ghost read them
+    // AFTER, within this tick.
     _tweens.update(0);
     _arm.arm();
     _fader?.update(0);
@@ -359,7 +357,7 @@ export function createBuildings(ctx: SceneContext): Buildings {
   async function rebuild(layout: CityLayout, dateRanges: DateRanges): Promise<void> {
     const buildings = layout?.buildings ?? [];
 
-    // ---- Color the buildings (moved verbatim from world.applyManifest). ----
+    // ---- Color the buildings. ----
     for (const b of buildings) {
       // Building.file is always a FileNode (directories become streets,
       // not buildings — see city/layout/layout.ts).
@@ -382,7 +380,7 @@ export function createBuildings(ctx: SceneContext): Buildings {
 
     // ---- Derive WorldBounds from the layout bbox. Fall back to building
     // extents if bbox is absent (shouldn't happen for a real manifest, but
-    // safe). (Moved verbatim from world.applyManifest.) ----
+    // safe). ----
     const lb = layout.bbox;
     const bounds: WorldBounds = lb
       ? { minX: lb.minX, maxX: lb.maxX, minZ: lb.minY, maxZ: lb.maxY }
@@ -421,8 +419,7 @@ export function createBuildings(ctx: SceneContext): Buildings {
 
     group.add(_innerCellRoot);
 
-    // ---- Rebuild the building-by-path lookup from the new cells. (Moved
-    // verbatim from world._buildLookups.) ----
+    // ---- Rebuild the building-by-path lookup from the new cells. ----
     _buildingsByPath = {};
     for (const cell of _cells.values()) {
       if (!cell.detailMesh) continue;

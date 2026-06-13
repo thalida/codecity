@@ -15,9 +15,8 @@
 //
 // Subscribes to picker.hover and picker.selection (to correctly dedup
 // hover-while-selected so the ghost doesn't show on an already-selected
-// building). Does NOT subscribe to world.onChange — the hover atom
-// is cleared by the picker on every rebuild, which triggers a hide
-// automatically.
+// building). Does NOT need to react to rebuilds — the hover atom is cleared
+// by the picker on every rebuild, which triggers a hide automatically.
 
 import * as THREE from 'three';
 import { effect } from '@preact/signals';
@@ -77,10 +76,10 @@ export function createGhostRenderer({
   // building and apply it to the ghost mesh. Also reads instanceColor for
   // the correct building tint.
   //
-  // Resolves the building's live InstancedMesh + slot via
-  // world.getMeshForBuilding(). Decomposes the live instance matrix so
-  // the ghost tracks the animator's tween position. Falls back to layout
-  // dimensions from target.data when no live mesh is available.
+  // Resolves the building's live InstancedMesh + slot, then decomposes the
+  // live instance matrix so the ghost tracks the animator's tween position.
+  // Falls back to layout dimensions from target.data when no live mesh is
+  // available.
   function _syncGhostToTarget(target: FileTarget): void {
     const b = target.data;
     const resolved = world.getMeshForBuilding(b);

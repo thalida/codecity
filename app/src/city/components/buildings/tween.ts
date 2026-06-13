@@ -62,9 +62,8 @@ interface Tween {
 }
 
 // Enter + stay tweens share a single duration (the BUILDINGS settings
-// store's BUILDING_TRANSITION_MS). The two were previously hard-coded as
-// ENTER_MS=400 and STAY_MS=350 and were always tuned together, so they
-// collapsed into one knob. Read fresh per-diff (per file-save burst)
+// store's BUILDING_TRANSITION_MS) — they are always tuned together, so they
+// live on one knob. Read fresh per-diff (per file-save burst)
 // so Settings tweaks apply to subsequent rebuilds without restart.
 
 function easeOutCubic(t: number): number {

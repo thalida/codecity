@@ -82,9 +82,9 @@ const RECENTER_RATIO = 0.7;
 const BUILDING_FOCUS_RATIO = 1.2;
 const STREET_FOCUS_RATIO = 1.2;
 
-// Top-down focus framing (replaces door-facing + altitude-floor logic).
-// 80° elevation gives the user a near-overhead read while still showing
-// enough side-faces for 3D depth. Stays under controls.maxPolarAngle.
+// Top-down focus framing. 80° elevation gives the user a near-overhead read
+// while still showing enough side-faces for 3D depth. Stays under
+// controls.maxPolarAngle.
 const TOP_DOWN_ELEVATION_DEG = 80;
 const TOP_DOWN_PADDING_MULT = 2.8;
 
@@ -232,7 +232,7 @@ export function createCameraRig({
     // lateral offset so the view reads as 3D oblique rather than face-on
     // down the road. FRAMING_DIR_Y (1.0) → ~44° elevation after the
     // lateral mix; FRAMING_DIR_LATERAL (0.3) → ~15° azimuth off the
-    // street axis. Fallback (no gem) keeps the old high-oblique direction.
+    // street axis. Fallback (no gem) uses a high-oblique direction.
     let dir: THREE.Vector3;
     if (rootStreet) {
       dir =
@@ -349,8 +349,8 @@ export function createCameraRig({
 
   // Re-frame on every manifest swap so R (reset) always fits the current city.
   // bbox is reassigned (new Box3) ONLY on a non-reuse apply — the exact moment
-  // the framing should update — so tracking it here matches the old
-  // world.onChange-driven re-capture without firing on reuse applies. The first
+  // the framing should update — so tracking it here re-captures without firing
+  // on reuse applies. The first
   // (construction-time) fire sees bbox=null and _captureFraming no-ops via its
   // own empty-bbox guard; the boot apply then sets bbox and reframes. The
   // decision to actually SNAP the camera on a source change lives in the render

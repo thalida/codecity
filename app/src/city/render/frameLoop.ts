@@ -21,7 +21,7 @@ export interface PerFrame {
   /** Post-processing pipeline — render() is the frame's final call. */
   postFx: { render(): void };
   /** Optional pre-rig hook — the composer's slot for per-frame work with no
-   *  component home (canvas-size guard; fireflies.setTime until Task 14). */
+   *  component home (canvas-size guard). */
   before?(frame: FrameContext): void;
   /** Optional post-tick hook, immediately before postFx.render(). */
   after?(frame: FrameContext): void;

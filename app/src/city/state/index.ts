@@ -49,7 +49,7 @@ export interface CityState {
   // picker, and the CityWorld debug API resolve a street by directory off this
   // instead of reaching into the streets component.
   readonly streetsByDirMap: ReadonlySignal<Record<string, Street>>;
-  // --- Change-notification counters (replaced the old world.onChange observer).
+  // --- Change-notification counters.
   // Consumers track a counter and peek the data; each bump means "re-derive."
   //   structureRevision — bumped ONLY on a non-reuse apply (positions/topology
   //     changed). The structure-reactive consumers (rootStreet/bbox/streets) track
@@ -94,7 +94,7 @@ export function createCityState(layoutClient: ReturnType<typeof createLayoutClie
   // so it's frozen on a reuse apply → cameraRig/island skip via the computed's
   // memoization) and peeks `layout` for the data. Street-rect bounds == the built
   // street group's bounds (sidewalk stadium reaches exactly ±length/2, ±width/2),
-  // so this reproduces the old setFromObject(streets.group) result + footprints.
+  // so this matches the built street group's bounds + footprints.
   const bbox = computed<THREE.Box3 | null>(() => {
     void structureRevision.value;
     const l = layout.peek();
@@ -105,8 +105,8 @@ export function createCityState(layoutClient: ReturnType<typeof createLayoutClie
       box.expandByPoint(new THREE.Vector3(r.x - r.w / 2, 0, r.y - r.d / 2));
       box.expandByPoint(new THREE.Vector3(r.x + r.w / 2, 0, r.y + r.d / 2));
     }
-    // Empty fallback (no streets) — matches the old NaN-guard, applied BEFORE the
-    // building expansion so a building-only layout still gets the floor box.
+    // Empty fallback (no streets) — applied BEFORE the building expansion so a
+    // building-only layout still gets the floor box.
     if (box.isEmpty()) {
       box.set(new THREE.Vector3(-50, 0, -50), new THREE.Vector3(50, 10, 50));
     }
@@ -177,9 +177,8 @@ export function createCityState(layoutClient: ReturnType<typeof createLayoutClie
   });
 
   // Street lookup by directory path. Tracks structureRevision + peeks layout
-  // (ref-stable on a reuse apply, recomputes on a structure change) — same
-  // { dir.path → Street } the streets component used to build from its
-  // sidewalks, derived straight from layout.streets here.
+  // (ref-stable on a reuse apply, recomputes on a structure change) — a
+  // { dir.path → Street } map derived straight from layout.streets.
   const streetsByDirMap = computed<Record<string, Street>>(() => {
     void structureRevision.value;
     const map: Record<string, Street> = {};

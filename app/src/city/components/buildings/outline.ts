@@ -14,7 +14,7 @@
 //
 // Subscribes to picker.hover and picker.selection (toggle visibility).
 // An own BUILDINGS settings effect pushes config changes into the two
-// outline materials (replaces the old refreshMaterials()/applyTheme() path).
+// outline materials.
 
 import * as THREE from 'three';
 import { effect } from '@preact/signals';
@@ -221,8 +221,7 @@ export function createOutlineRenderer({
   });
 
   // ── Per-frame ────────────────────────────────────────────────────────
-  // O(active-outlines) — at most 2 (hovered + selected). The dead
-  // O(buildings) loop that existed here was removed in Task 12.
+  // O(active-outlines) — at most 2 (hovered + selected).
   function update(_dtMs: number): void {
     // Selected: keep transform pinned to the live (possibly animating)
     // instance AND advance the rainbow color chase. Bottom + top form
@@ -263,11 +262,9 @@ export function createOutlineRenderer({
   }
 
   // BUILDINGS theme effect — push fresh outline color/width/opacity into the
-  // two outline materials we own whenever BUILDINGS changes (Save). Replaces
-  // the outlineRenderer.refreshMaterials() call renderLoop.applyTheme() used to
-  // make. The body is verbatim the old refreshMaterials(); reading BUILDINGS
-  // .value here subscribes the effect. The constructor seeded these same
-  // values, so the first fire (at construction, during arming) is a no-op.
+  // two outline materials we own whenever BUILDINGS changes (Save). Reading
+  // BUILDINGS.value here subscribes the effect. The constructor seeded these
+  // same values, so the first fire (at construction, during arming) is a no-op.
   const _stopMaterials = effect(() => {
     const outline = BUILDINGS.value;
     hoverLineMat.color.set(outline.OUTLINE_HOVER_COLOR);

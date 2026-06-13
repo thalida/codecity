@@ -7,9 +7,9 @@
 // place rects at world (x, 0, y).
 //
 // A Street stores its extent as length-along-axis + width-across, so turning
-// one into a Rect requires the orientation swap below. That swap used to be
-// re-derived inline by every consumer (layout occupancy, layout invariant
-// checks, the footprint slab) — keep it here so they can never disagree.
+// one into a Rect requires the orientation swap below. Keep that swap here so
+// every consumer (layout occupancy, layout invariant checks, the footprint
+// slab) can never disagree.
 
 import { StreetAxis } from '@/types';
 import type { Building, Street } from '@/types';

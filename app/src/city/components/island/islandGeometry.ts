@@ -126,11 +126,10 @@ export function buildIslandGeometry(
     grassThickness,
   } = params;
 
-  // Use the LONGEST oval axis as the reference for vertical island depth.
-  // Previously Math.min was used, which made elongated cities (long X,
-  // short Z) get a very shallow underside — disproportionate to the
-  // island's horizontal extent. With max(), depth scales with the
-  // visually-dominant dimension.
+  // Use the LONGEST oval axis as the reference for vertical island depth, so
+  // depth scales with the visually-dominant dimension. (min() would give
+  // elongated cities — long X, short Z — a very shallow underside,
+  // disproportionate to the island's horizontal extent.)
   const islandRadius = Math.max(halfWidth, halfDepth);
   const totalDepth = islandRadius * depth;
 

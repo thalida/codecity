@@ -23,9 +23,8 @@ import { RENDER_ORDERS } from '@/city/types/renderOrders';
 import { NodeKind, StreetAxis } from '@/types';
 import type { Street } from '@/types';
 
-// Hardcoded label constants — these were previously in LABEL_TYPOGRAPHY but
-// have no visible effect at normal viewing distances, so they are baked in
-// here rather than exposed as UI controls.
+// Hardcoded label constants — these have no visible effect at normal viewing
+// distances, so they are baked in here rather than exposed as UI controls.
 const LABEL_FONT_SIZE_PX = 192; // source canvas font size; only affects texture sharpness, not world-space label size
 const LABEL_CANVAS_PADDING_FRAC = 0.25; // padding around glyphs as a fraction of LABEL_FONT_SIZE_PX
 const LABEL_MIN_SCALE = 0.5; // floor for fit-shrink before truncation with ellipsis
@@ -190,7 +189,7 @@ export function createStreetLabels(street: Street): THREE.Group[] {
     group.rotation.y = group.userData.baseRotY;
     group.userData.street = street;
     group.userData.type = NodeKind.Label;
-    // Stashed for live applyTheme updates: ELEVATION (group.position.y),
+    // Stashed for live theme updates: ELEVATION (group.position.y),
     // and HEIGHT_FRAC (plane.scale recomputed from streetWidth × frac).
     group.userData.streetWidth = street.width;
     group.userData.textureAspect = info.aspect;

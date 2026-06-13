@@ -3,9 +3,7 @@
 // (picker.world reads their handles, so it's built after them); this defers
 // their picker-driven setup to the first tick() once ctx.picker is live, runs
 // it exactly once, and survives dispose() (the sticky `armed` flag is never
-// reset, so a stray post-dispose tick cannot re-arm). Replaces the hand-copied
-// _armed/_interactionsArmed boolean + guard in buildings/streets/fireflies/
-// trees/pathLine.
+// reset, so a stray post-dispose tick cannot re-arm).
 import type { SceneContext } from '../types';
 
 export interface FirstTickArm {

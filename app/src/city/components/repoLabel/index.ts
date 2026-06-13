@@ -119,8 +119,7 @@ export interface RepoLabelDeps {
   // the gem component's first rebuild, so a construction-time read returns
   // null; the label effect re-reads it on every (non-reuse) apply — right
   // after the gem has rebuilt within the same applyManifest batch — so the
-  // beam foot tracks the current gem. Mirrors the old world.ts call
-  // `_repoLabel.setGem(_gem.gem)` AFTER each gem rebuild.
+  // beam foot tracks the current gem.
   getGem: () => THREE.Object3D | null;
 }
 
@@ -331,13 +330,12 @@ export function createRepoLabel(ctx: SceneContext, deps: RepoLabelDeps): RepoLab
   // Manifest/anchor effect — the reactive repositioning entry point. Reads
   // cityState.manifest.value (for the repo name) + cityState.gemWorldPos.value
   // (the floor anchor) and re-points the label when either CHANGES. manifest
-  // changes on EVERY apply (name/metadata), so setRepoName runs every apply
-  // (matching the old code). gemWorldPos is reference-stable on a scenic-reuse
+  // changes on EVERY apply (name/metadata), so setRepoName runs every apply.
+  // gemWorldPos is reference-stable on a scenic-reuse
   // apply, so setAnchor is a no-op write there — but setRepoName already
   // re-fires, so it re-applies the transform anyway (identical output). On a
   // non-reuse apply the gem rebuilt within the same batch, so getGem() returns
-  // the fresh inner group; setGem re-points the beam foot (mirrors the old
-  // post-gem-rebuild `_repoLabel.setGem(_gem.gem)` call).
+  // the fresh inner group; setGem re-points the beam foot.
   const stopAnchor = effect(() => {
     const manifest = cityState.manifest.value;
     const gemWorldPos = cityState.gemWorldPos.value;
@@ -347,11 +345,9 @@ export function createRepoLabel(ctx: SceneContext, deps: RepoLabelDeps): RepoLab
     setGem(deps.getGem());
   });
 
-  // Settings effect — reacts to REPO_LABEL changes (Save). Replaces the
-  // old refresh() call in renderLoop.applyTheme(). Reads REPO_LABEL config
-  // and pushes fresh opacity, colors, and transform into the live meshes
-  // (same writes as the old refresh(), verbatim). Runs once at
-  // construction — before setRepoName builds any meshes, so
+  // Settings effect — reacts to REPO_LABEL changes (Save). Reads REPO_LABEL
+  // config and pushes fresh opacity, colors, and transform into the live
+  // meshes. Runs once at construction — before setRepoName builds any meshes, so
   // _applyOpacity/_applyColors are no-ops (null guards) and _applyTransform
   // sets the group position/visibility only. Idempotent: subsequent
   // setRepoName / setAnchor calls produce identical or superseding state.

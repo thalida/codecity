@@ -61,20 +61,17 @@ export function createPathLine(ctx: SceneContext): PathLine {
     },
   );
 
-  // STREETS theme effect — reacts to STREETS Save. Replaces applyTheme()'s
-  // `pathLineRenderer.refreshMaterials()` (linewidth, opacity, hover color).
-  // refreshMaterials internally calls _updateHoverPathLine, which reads
+  // STREETS theme effect — reacts to STREETS Save (linewidth, opacity, hover
+  // color). refreshMaterials internally calls _updateHoverPathLine, which reads
   // picker.hover/selection — run it UNTRACKED so this effect subscribes ONLY
   // to STREETS (same discipline as the streets component's theme effect).
-  // Tracks STREETS only — STREET_TIERS changes are Rebuild-routed and today
-  // only reach the linewidth at the next applyTheme; tracking TIERS here
-  // would be a behavior change. Safe at construction (pre-picker): _inner is
-  // null until arming.
+  // Tracks STREETS only — STREET_TIERS changes are Rebuild-routed and reach the
+  // linewidth at the next theme apply; tracking TIERS here would be a behavior
+  // change. Safe at construction (pre-picker): _inner is null until arming.
   const stopTheme = onSettings(STREETS, () => _inner?.refreshMaterials());
 
   // tick() — arms the renderer on the first call, then advances the rainbow
-  // chase on the selection line (the old renderLoop
-  // `pathLineRenderer.update(0)` slot).
+  // chase on the selection line.
   function tick(_dt: number, _frame: FrameContext): void {
     _arm.arm();
     _inner?.update(0);

@@ -24,8 +24,7 @@ import type { DirNode, FileNode, Manifest, TreeNode } from '@/types';
 import { MATERIAL_ICON_URLS } from '@/constants/materialIcons';
 import { getFileIconName } from '@/utils/fileIcons';
 
-// Atlas is 2048×2048 with 128-px slots → up to 16×16 = 256 unique
-// icons at 4× the per-icon resolution of the old 64-px slots.
+// Atlas is 2048×2048 with 128-px slots → up to 16×16 = 256 unique icons.
 // Memory: 2048×2048×4 bytes = 16 MiB texture (one-time, persistent).
 const ATLAS_SIZE = 2048;
 const SLOT_SIZE = 128;

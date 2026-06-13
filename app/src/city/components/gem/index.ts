@@ -100,17 +100,16 @@ export function createGem(ctx: SceneContext): Gem {
   // gem when it CHANGES. rootStreet is reference-stable across a scenic-reuse
   // apply (layout reference unchanged → computed re-derives the same value
   // only when layout's reference changes), so this effect fires exactly on
-  // non-reuse applies — matching the old full-rebuild-gated gem rebuild exactly
-  // (the gem never rebuilt on a scenic-reuse apply, which would flash + realloc
-  // GPU). The null-guard makes the construction-time run (rootStreet null) a no-op.
+  // non-reuse applies — the gem must NOT rebuild on a scenic-reuse apply, which
+  // would flash + realloc GPU. The null-guard makes the construction-time run
+  // (rootStreet null) a no-op.
   const stopLayout = effect(() => {
     const rootStreet = cityState.rootStreet.value;
     if (rootStreet) rebuild(rootStreet);
   });
 
-  // Theme effect — reacts to GEM signal changes (Save). Replaces the
-  // gem section of renderLoop.applyTheme(). No-ops while refs are null
-  // (pre-first-rebuild) exactly as the old `if (rootGemBody?.material)` guards.
+  // Theme effect — reacts to GEM signal changes (Save). No-ops while refs are
+  // null (pre-first-rebuild) via `if (rootGemBody?.material)`-style guards.
   // Runs once at construction (before the picker exists), which is safe: it
   // reads only GEM signals and reproduces the same values mesh.ts baked.
   const stopEffect = onSettings(GEM, () => {

@@ -1,6 +1,5 @@
 // city/components/buildings/cellMesh.ts — Cell-aware building InstancedMesh
-// factory. Replaced the pre-cell per-block factory, which died in the
-// #21 cell-render migration.
+// factory.
 //
 // Geometry is constructed once at module load and shared across all
 // cells; the material is created lazily on the first
@@ -29,8 +28,7 @@ import { seedFromPath, attachLeanAwareRaycast } from './tilt';
 const SHARED_BUILDING_GEOMETRY: THREE.BufferGeometry = new THREE.BoxGeometry(1, 1, 1);
 
 // ---------------------------------------------------------------------------
-// Helpers — ported faithfully from the pre-cell per-block factory
-// (private there).
+// Helpers
 // ---------------------------------------------------------------------------
 
 /**
@@ -180,7 +178,7 @@ export function writeBuildingToSlot(cell: CellTile, b: Building): void {
   }
 
   // --- Window column counts ---
-  // Window-column convention (carried over from the pre-cell factory):
+  // Window-column convention:
   //   ±X faces (east/west walls) span depth d → cols_ew from d
   //   ±Z faces (north/south walls) span width w → cols_ns from w
   const colsEW = Math.max(1, Math.min(windowColsMax, Math.floor(b.d / widthPerWindowCol)));

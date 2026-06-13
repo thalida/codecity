@@ -219,8 +219,8 @@ export function createPicker({
   // ── Rebuild reactions ─────────────────────────────────────────────
   // cityRevision bumps ONCE per applyManifest (streets/buildings already
   // rebuilt by the time it fires). Clear the now-stale hover, then re-resolve
-  // the selection key against the fresh scene + refresh pickables — exactly the
-  // work the old world.onChange callback did. The body runs untracked() so the
+  // the selection key against the fresh scene + refresh pickables. The body
+  // runs untracked() so the
   // effect subscribes ONLY to cityRevision: _resolveKeyToSelection reads (and
   // writes) PICKER_SELECTION_KEY + selection, which would otherwise make this
   // effect re-fire on every ordinary selection change.
@@ -241,8 +241,7 @@ export function createPicker({
     untracked(_resolveKeyToSelection);
   });
   // Note: both effects fire ONCE at construction (revisions start at 0). That
-  // initial resolve replaces the old explicit `_resolveKeyToSelection()` call —
-  // key starts null → selection cleared + pickables primed.
+  // initial resolve runs with key null → selection cleared + pickables primed.
 
   // ── Public setters ─────────────────────────────────────────────────
   function setHover(h: PickTarget | null): void {

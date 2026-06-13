@@ -62,17 +62,16 @@ export function createStreets(ctx: SceneContext): Streets {
 
   // SIDEWALK_COLORS holds CSS strings; pre-convert to numeric hex so the tint
   // loop calls material.color.setHex() without re-parsing every change. The
-  // theme effect refreshes these whenever STREETS mutates. (Moved verbatim
-  // from renderLoop.ts.)
+  // theme effect refreshes these whenever STREETS mutates.
   const _swc0 = STREETS.value;
   let SIDEWALK_HOVER_COLOR = new THREE.Color(_swc0.SIDEWALK_HOVER).getHex();
   let SIDEWALK_SELECTED_COLOR = new THREE.Color(_swc0.SIDEWALK_SELECTED).getHex();
   let SIDEWALK_DEFAULT_COLOR = new THREE.Color(_swc0.SIDEWALK_DEFAULT).getHex();
 
   // _refreshSidewalkTints() — repaint every sidewalk's material.color based on
-  // the current picker.selection / picker.hover state. (Moved verbatim from
-  // renderLoop.ts, but reads the picker DYNAMICALLY off the captured
-  // SceneContext so the pre-population window null-guards.)
+  // the current picker.selection / picker.hover state. Reads the picker
+  // DYNAMICALLY off the captured SceneContext so the pre-population window
+  // null-guards.
   function _refreshSidewalkTints(): void {
     const sel = ctx.picker?.selection.value ?? null;
     const hov = ctx.picker?.hover.value ?? null;
@@ -145,10 +144,9 @@ export function createStreets(ctx: SceneContext): Streets {
     if (layout) rebuild(layout);
   });
 
-  // (1) STREETS theme effect — reacts to STREETS signal changes (Save).
-  // Replaces the street blocks of renderLoop.applyTheme(): sidewalk hex
-  // cache recompute + origColor reset + tint refresh, asphalt color, and
-  // label height-scale. Reads only STREETS signals, so it's safe at
+  // (1) STREETS theme effect — reacts to STREETS signal changes (Save):
+  // sidewalk hex cache recompute + origColor reset + tint refresh, asphalt
+  // color, and label height-scale. Reads only STREETS signals, so it's safe at
   // construction (before the picker exists; _refreshSidewalkTints null-guards
   // the picker). No-ops over empty arrays pre-first-rebuild.
   const stopTheme = onSettings(STREETS, () => {
@@ -163,9 +161,7 @@ export function createStreets(ctx: SceneContext): Streets {
     // _refreshSidewalkTints reads ctx.picker.selection/hover. onSettings runs
     // this whole apply UNTRACKED, so the theme effect subscribes ONLY to
     // STREETS (not the picker signals). Sidewalk hover/selection tinting is
-    // owned by the two armed picker effects below — matching the original
-    // renderLoop split where applyTheme() was a plain function (no
-    // auto-subscribe) and the tint effects were separate. Without untracked, a
+    // owned by the two armed picker effects below. Without untracked, a
     // selection change would also re-run all the asphalt/label work, and
     // (worse) the tint would track selection before tick() arms the dedicated
     // effects.
@@ -188,12 +184,11 @@ export function createStreets(ctx: SceneContext): Streets {
   // (2)+(3) Picker-driven sidewalk-tint effects — ARMED on the first tick(),
   // NOT at construction. At construction ctx.picker is null, so an effect
   // reading ctx.picker?.selection.value would track NO signal and never
-  // re-fire (sidewalk highlighting would be permanently dead). renderLoop
-  // populates ctx.picker before the first animate() frame, so arming on the
+  // re-fire (sidewalk highlighting would be permanently dead). ctx.picker is
+  // populated before the first frame, so arming on the
   // first tick subscribes to the LIVE selection/hover signals: they fire once
-  // (frame 1, no selection yet → sidewalks stay DEFAULT, identical to today)
-  // then on every selection/hover change (synchronous, exactly like the old
-  // renderLoop effects).
+  // (frame 1, no selection yet → sidewalks stay DEFAULT) then on every
+  // selection/hover change (synchronous).
   const _arm = armOnFirstTick(ctx, () => {
     const stopSel = effect(() => {
       void ctx.picker!.selection.value;
@@ -207,9 +202,8 @@ export function createStreets(ctx: SceneContext): Streets {
   });
 
   // tick() — orient flat street labels toward the camera each frame so they
-  // stay readable from any rotation. (Moved verbatim from renderLoop's
-  // _orientLabelsForCamera, with the labelRight scratch component-scoped to a
-  // single alloc.) Also arms the picker-tint effects on the first call.
+  // stay readable from any rotation (the labelRight scratch is component-scoped
+  // to a single alloc). Also arms the picker-tint effects on the first call.
   const labelRight = new THREE.Vector3();
   function tick(_dt: number, frame: FrameContext): void {
     _arm.arm();

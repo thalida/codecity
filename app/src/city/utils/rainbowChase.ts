@@ -25,9 +25,8 @@ const _scratchOut: [number, number, number] = [0, 0, 0];
 /**
  * Linear-RGB for one rainbow-chase element at the given time + cycle offset.
  *
- * Reads SPEED / SATURATION / LIGHTNESS from RAINBOW.value internally, matching
- * the hand-copied call sites verbatim (t = timeMs·SPEED, hue wrapped into
- * [0,1), THREE.Color.setHSL → linear-RGB).
+ * Reads SPEED / SATURATION / LIGHTNESS from RAINBOW.value internally
+ * (t = timeMs·SPEED, hue wrapped into [0,1), THREE.Color.setHSL → linear-RGB).
  *
  * @param timeMs   raw clock (e.g. performance.now()); multiplied by SPEED here.
  * @param fraction element's hue offset within the cycle (e.g. i / N).

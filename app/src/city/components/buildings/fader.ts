@@ -9,8 +9,8 @@
 //
 // Field ownership:
 //   buildingFader   → cell.detailMesh geometry attribute 'iFade'
-//   outlineRenderer → ghost/outline opacities          (Task 12)
-//   ghostRenderer   → ghost mesh opacity               (Task 13)
+//   outlineRenderer → ghost/outline opacities
+//   ghostRenderer   → ghost mesh opacity
 //
 // The fader writes iFade on each CellTile.detailMesh (vec3 layout).
 
