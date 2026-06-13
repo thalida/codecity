@@ -114,7 +114,7 @@ describe('SourcePicker', () => {
   it('switches tabs', async () => {
     createPicker({ allowLocalRepos: true });
     await open();
-    const gitTab = container.querySelector('[data-tab="git"]') as HTMLButtonElement;
+    const gitTab = container.querySelector('[data-tab="remote"]') as HTMLButtonElement;
     act(() => gitTab.click());
     await flush();
     expect(gitTab.classList.contains('active')).toBe(true);
@@ -145,7 +145,7 @@ describe('SourcePicker', () => {
   it('git-tab submit includes branch', async () => {
     createPicker({ allowLocalRepos: true });
     await open();
-    act(() => (container.querySelector('[data-tab="git"]') as HTMLButtonElement).click());
+    act(() => (container.querySelector('[data-tab="remote"]') as HTMLButtonElement).click());
     await flush();
     setInput('[data-field="url"]', 'https://github.com/o/r');
     setInput('[data-field="branch"]', 'main');
@@ -232,7 +232,7 @@ describe('SourcePicker', () => {
     createPicker({ allowLocalRepos: true });
     await open({ prefill: { src: 'https://github.com/o/r', branch: 'develop' } });
     expect(
-      (container.querySelector('[data-tab="git"]') as HTMLButtonElement).classList.contains(
+      (container.querySelector('[data-tab="remote"]') as HTMLButtonElement).classList.contains(
         'active'
       )
     ).toBe(true);
@@ -284,7 +284,7 @@ describe('SourcePicker', () => {
   it('disabled: default tab is git even when prefill is a local path', async () => {
     createPicker({ allowLocalRepos: false });
     await open({ prefill: { src: '/Users/foo/bar' } });
-    const gitTab = container.querySelector('[data-tab="git"]') as HTMLButtonElement;
+    const gitTab = container.querySelector('[data-tab="remote"]') as HTMLButtonElement;
     expect(gitTab.classList.contains('active')).toBe(true);
   });
 
@@ -345,7 +345,7 @@ describe('SourcePicker', () => {
     await open();
     act(() => (container.querySelector('[data-tab="local"]') as HTMLButtonElement).click());
     await flush();
-    act(() => (container.querySelector('[data-tab="git"]') as HTMLButtonElement).click());
+    act(() => (container.querySelector('[data-tab="remote"]') as HTMLButtonElement).click());
     await flush();
     const formFields = container.querySelector('[data-form-fields]') as HTMLElement;
     expect(formFields.style.display).not.toBe('none');

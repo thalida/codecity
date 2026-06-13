@@ -147,7 +147,7 @@ export function SourcePickerModal({ state, onSubmit, onClose }: SourcePickerModa
           <div class="modal-tabs">
             <button
               type="button"
-              data-tab="git"
+              data-tab="remote"
               class={activeTab === SourceTab.Remote ? 'active' : ''}
               onClick={() => setActiveTab(SourceTab.Remote)}
             >
@@ -164,7 +164,7 @@ export function SourcePickerModal({ state, onSubmit, onClose }: SourcePickerModa
           </div>
 
           <div
-            data-pane="git"
+            data-pane="remote"
             style={{ display: activeTab === SourceTab.Remote ? 'block' : 'none' }}
           >
             <div class="modal-field">
