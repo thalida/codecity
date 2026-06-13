@@ -56,7 +56,7 @@ const BUILDING_DIMENSIONS_FIELDS = {
   },
   FLOOR_HEIGHT: {
     route: ChangeRoute.Rebuild,
-    kind: FieldKind.Number,
+    kind: FieldKind.Slider,
     default: 16,
     min: 1,
     max: 50,
