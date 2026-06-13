@@ -18,7 +18,7 @@ import { effect } from '@preact/signals';
 
 import { STREETS } from '@/state/stores/settings/streets';
 import { NodeKind, StreetAxis } from '@/types';
-import type { CityLayout, Street } from '@/types';
+import type { CityLayout } from '@/types';
 
 import type { FrameContext, SceneComponent, SceneContext } from '../../types';
 import { armOnFirstTick } from '../../utils/armOnFirstTick';
@@ -46,12 +46,8 @@ export interface Streets extends SceneComponent {
   asphalt(): FlatMesh[];
   /** Sidewalk lookup by street directory path. */
   getSidewalkByDir(path: string): FlatMesh | null;
-  /** Street lookup by street directory path. */
-  getStreetByDir(path: string): Street | null;
   /** Full sidewalk-by-dir-path map (consumed wholesale by some callers). */
   sidewalksByDirMap(): Record<string, FlatMesh>;
-  /** Full street-by-dir-path map (consumed wholesale by some callers). */
-  streetsByDirMap(): Record<string, Street>;
 }
 
 export function createStreets(ctx: SceneContext): Streets {
@@ -69,7 +65,6 @@ export function createStreets(ctx: SceneContext): Streets {
   let asphaltMeshes: FlatMesh[] = [];
   let labelGroups: THREE.Group[] = [];
   let sidewalksByDirPath: Record<string, FlatMesh> = {};
-  let streetsByDirPath: Record<string, Street> = {};
 
   // SIDEWALK_COLORS holds CSS strings; pre-convert to numeric hex so the tint
   // loop calls material.color.setHex() without re-parsing every change. The
@@ -136,17 +131,12 @@ export function createStreets(ctx: SceneContext): Streets {
       }
     }
 
-    // Rebuild the lookup maps from each sidewalk's userData.street.dir.path.
-    // (Logic moved verbatim from world._buildLookups.)
+    // Rebuild the sidewalk lookup from each sidewalk's userData.street.dir.path.
+    // (The parallel street-by-dir map now lives on cityState.streetsByDirMap.)
     sidewalksByDirPath = {};
-    streetsByDirPath = {};
     for (const sw of pickables) {
-      const swStreet = sw.userData.street;
-      const swDir = swStreet?.dir;
-      if (swDir?.path != null) {
-        sidewalksByDirPath[swDir.path] = sw;
-        streetsByDirPath[swDir.path] = swStreet;
-      }
+      const swDir = sw.userData.street?.dir;
+      if (swDir?.path != null) sidewalksByDirPath[swDir.path] = sw;
     }
   }
 
@@ -277,8 +267,6 @@ export function createStreets(ctx: SceneContext): Streets {
     labels: () => labelGroups,
     asphalt: () => asphaltMeshes,
     getSidewalkByDir: (p) => sidewalksByDirPath[p] || null,
-    getStreetByDir: (p) => streetsByDirPath[p] || null,
     sidewalksByDirMap: () => sidewalksByDirPath,
-    streetsByDirMap: () => streetsByDirPath,
   };
 }

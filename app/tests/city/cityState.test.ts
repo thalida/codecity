@@ -128,6 +128,25 @@ describe('createCityState', () => {
     expect(cs.gemWorldPos.value).toBeNull();
   });
 
+  it('streetsByDirMap keys streets by dir.path, skipping dirless streets', () => {
+    const cs = makeCityState();
+    expect(cs.streetsByDirMap.value).toEqual({});
+
+    const a = makeStreet({
+      dir: { name: 'a', path: 'a', type: NodeKind.Directory },
+    } as Partial<Street>);
+    const b = makeStreet({
+      dir: { name: 'b', path: 'b', type: NodeKind.Directory },
+    } as Partial<Street>);
+    const dirless = makeStreet({ dir: null } as Partial<Street>);
+    applyStructure(cs, makeLayout([a, b, dirless]));
+
+    const map = cs.streetsByDirMap.value;
+    expect(map.a).toBe(a);
+    expect(map.b).toBe(b);
+    expect(Object.keys(map).sort()).toEqual(['a', 'b']);
+  });
+
   it('computeds react to a structure change', () => {
     const cs = makeCityState();
     const r1 = makeStreet({ isRoot: true, x: 1, orientation: StreetAxis.X });

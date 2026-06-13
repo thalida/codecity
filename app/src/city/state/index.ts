@@ -45,6 +45,10 @@ export interface CityState {
   treePlacements: Signal<TreePlacement[] | null>;
   readonly rootStreet: ReadonlySignal<Street | null>;
   readonly gemWorldPos: ReadonlySignal<THREE.Vector3 | null>;
+  // { street dir.path → Street } from the layout. The buildings fader, pathLine,
+  // picker, and the CityWorld debug API resolve a street by directory off this
+  // instead of reaching into the streets component.
+  readonly streetsByDirMap: ReadonlySignal<Record<string, Street>>;
   // --- Change-notification counters (replaced the old world.onChange observer).
   // Consumers track a counter and peek the data; each bump means "re-derive."
   //   structureRevision — bumped ONLY on a non-reuse apply (positions/topology
@@ -172,6 +176,19 @@ export function createCityState(layoutClient: ReturnType<typeof createLayoutClie
     return new THREE.Vector3(a.x, 0, a.y);
   });
 
+  // Street lookup by directory path. Tracks structureRevision + peeks layout
+  // (ref-stable on a reuse apply, recomputes on a structure change) — same
+  // { dir.path → Street } the streets component used to build from its
+  // sidewalks, derived straight from layout.streets here.
+  const streetsByDirMap = computed<Record<string, Street>>(() => {
+    void structureRevision.value;
+    const map: Record<string, Street> = {};
+    for (const s of layout.peek()?.streets ?? []) {
+      if (s.dir?.path != null) map[s.dir.path] = s;
+    }
+    return map;
+  });
+
   // --- The manifest pipeline. Private to this closure:
   //   lastAtlasTreeSig — tree_sig the icon atlas was last SUCCESSFULLY built for
   //     (lags the manifest if a build throws → retried next apply).
@@ -258,6 +275,7 @@ export function createCityState(layoutClient: ReturnType<typeof createLayoutClie
     treePlacements,
     rootStreet,
     gemWorldPos,
+    streetsByDirMap,
     structureRevision,
     cityRevision,
     decorationRevision,

@@ -68,7 +68,9 @@ export async function createCity(canvas: HTMLCanvasElement, manifest: Manifest):
   const repoLabel = createRepoLabel(ctx, { getGem: () => gem.gem });
   const footprint = createFootprint(ctx);
   const streets = createStreets(ctx);
-  const buildings = createBuildings(ctx, { getStreetByDir: (p) => streets.getStreetByDir(p) });
+  const buildings = createBuildings(ctx, {
+    getStreetByDir: (p) => cityState.streetsByDirMap.peek()[p] ?? null,
+  });
   const trees = createTrees(ctx);
   const fireflies = createFireflies(ctx);
   const pathLine = createPathLine(ctx, {
@@ -76,7 +78,7 @@ export async function createCity(canvas: HTMLCanvasElement, manifest: Manifest):
     // effects; a tracking read would subscribe those to gemWorldPos. The
     // renderer's dedicated rebuild effect tracks gemWorldPos directly.
     getGemWorldPos: () => cityState.gemWorldPos.peek(),
-    getStreetsByDirMap: () => streets.streetsByDirMap(),
+    getStreetsByDirMap: () => cityState.streetsByDirMap.peek(),
   });
   // applyManifest + invalidateLayoutCache are owned by cityState (the manifest
   // pipeline). The components above need no wiring into it — they rebuild
@@ -146,7 +148,7 @@ export async function createCity(canvas: HTMLCanvasElement, manifest: Manifest):
       getTrees: () => trees.handle(),
       getBuildingByPath: (p) => buildings.getByPath(p),
       getSidewalkByDir: (p) => streets.getSidewalkByDir(p),
-      getStreetByDir: (p) => streets.getStreetByDir(p),
+      getStreetByDir: (p) => cityState.streetsByDirMap.peek()[p] ?? null,
       getBuildingIndex: () => buildings.getBuildingIndex(),
     },
   });
@@ -255,7 +257,7 @@ export async function createCity(canvas: HTMLCanvasElement, manifest: Manifest):
       getRoot: () => cityState.manifest.value?.tree ?? null,
       getManifest: () => cityState.manifest.value,
       getTrees: () => trees.handle(),
-      getStreetByDir: (p: string) => streets.getStreetByDir(p),
+      getStreetByDir: (p: string) => cityState.streetsByDirMap.peek()[p] ?? null,
       runCollisionCheck,
       runStemPlacementDiagnostic,
     },

@@ -3,7 +3,7 @@
 // Tests for the persistent createStreets(ctx) component.
 // API: createStreets(ctx) → { group, rebuild(layout), tick(dt, frame),
 //      dispose(), pickables(), labels(), asphalt(), getSidewalkByDir(p),
-//      getStreetByDir(p), sidewalksByDirMap(), streetsByDirMap() }.
+//      sidewalksByDirMap() }.
 //
 // STREETS settings reactivity (sidewalk/asphalt colors, label height) is owned
 // by the component's theme effect; the hover/selection sidewalk tints are owned
@@ -150,7 +150,7 @@ describe('createStreets()', () => {
     expect(streets.group.children.length).toBe(1 + streets.labels().length);
   });
 
-  it('rebuild() builds lookups keyed by street dir.path', () => {
+  it('rebuild() builds the sidewalk lookup keyed by street dir.path', () => {
     const { ctx } = makeCtx();
     streets = createStreets(ctx);
     streets.rebuild(
@@ -161,13 +161,8 @@ describe('createStreets()', () => {
 
     const sw = streets.getSidewalkByDir('src');
     expect(sw).toBe(streets.pickables()[0]);
-    const st = streets.getStreetByDir('src');
-    expect(st).not.toBeNull();
-    expect(st!.dir.path).toBe('src');
     expect(streets.sidewalksByDirMap().src).toBe(sw);
-    expect(streets.streetsByDirMap().src).toBe(st);
     expect(streets.getSidewalkByDir('nope')).toBeNull();
-    expect(streets.getStreetByDir('nope')).toBeNull();
   });
 
   it('rebuild() disposes the prior street set and rebuilds (no leak in group)', () => {
