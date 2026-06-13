@@ -55,7 +55,6 @@ export interface City {
   scene: THREE.Scene;
   picker: Picker;
   rig: CameraRig;
-  resetView(): void;
   applyTheme(): void;
   applyManifest(m: Manifest): Promise<void>;
   invalidateLayoutCache(): void;

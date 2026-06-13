@@ -153,15 +153,12 @@ export async function createCity(canvas: HTMLCanvasElement, manifest: Manifest):
       getTreeBoundsBySha: (sha) => trees.handle()?.getTreeBoundsBySha(sha) ?? null,
     },
   });
-  const camera = rig.camera;
-  const resetView = rig.reset;
-
-  const postFx = createPostFx(renderer, scene, camera);
+  const postFx = createPostFx(renderer, scene, rig.camera);
   postFx.setSize(canvas.clientWidth, canvas.clientHeight);
 
   const picker = createPicker({
     canvas,
-    camera,
+    camera: rig.camera,
     cityState,
     world: {
       getStreetPickables: () => streets.pickables(),
@@ -178,7 +175,7 @@ export async function createCity(canvas: HTMLCanvasElement, manifest: Manifest):
   // Populate ctx BEFORE the frame loop so components' tick() sees a live
   // picker/camera/renderer on frame 1.
   ctx.picker = picker;
-  ctx.camera = camera;
+  ctx.camera = rig.camera;
   ctx.renderer = renderer;
 
   createInputHandlers({
@@ -186,7 +183,7 @@ export async function createCity(canvas: HTMLCanvasElement, manifest: Manifest):
     picker,
     rig,
     renderer,
-    camera,
+    camera: rig.camera,
     showTooltip,
     hideTooltip,
     onResize() {
@@ -201,7 +198,7 @@ export async function createCity(canvas: HTMLCanvasElement, manifest: Manifest):
       // the next frame; render path matches the loop so bloom shows immediately.
       postFx.render();
     },
-    onResetView: resetView,
+    onResetView: rig.reset,
     getRootName: () => cityState.manifest.value?.tree?.name ?? null,
   });
 
@@ -252,8 +249,8 @@ export async function createCity(canvas: HTMLCanvasElement, manifest: Manifest):
       renderer.getSize(renderSize);
       if (cw > 0 && ch > 0 && (renderSize.x !== cw || renderSize.y !== ch)) {
         renderer.setSize(cw, ch, false);
-        camera.aspect = cw / Math.max(1, ch);
-        camera.updateProjectionMatrix();
+        rig.camera.aspect = cw / Math.max(1, ch);
+        rig.camera.updateProjectionMatrix();
         postFx.setSize(cw, ch);
         buildings.onResize();
         trees.onResize();
@@ -267,7 +264,6 @@ export async function createCity(canvas: HTMLCanvasElement, manifest: Manifest):
     scene,
     picker,
     rig,
-    resetView,
     applyTheme,
     applyManifest,
     invalidateLayoutCache,

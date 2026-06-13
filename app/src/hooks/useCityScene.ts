@@ -63,9 +63,9 @@ export function useCityScene(canvasRef: RefObject<HTMLCanvasElement | null>): vo
             LAST_REBUILD_ERROR.value = null;
             if (shouldReframe) {
               // Explicit, traceable camera reframe (view layer owns this). The new
-              // world is built, so resetView snaps to its freshly-captured default
+              // world is built, so rig.reset snaps to its freshly-captured default
               // pose (cameraRig._captureFraming ran during this apply).
-              handle.resetView();
+              handle.rig.reset();
               lastSourceKey = cur;
             }
           },

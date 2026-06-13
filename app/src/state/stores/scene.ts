@@ -53,7 +53,7 @@ export function focusCurrentSelection(): void {
 
 /** Reset the camera framing to the current mode's default pose. */
 export function resetView(): void {
-  SCENE_HANDLE.peek()?.resetView();
+  SCENE_HANDLE.peek()?.rig.reset();
 }
 
 /** Debug: run the building/street collision check. */

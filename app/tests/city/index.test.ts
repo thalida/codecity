@@ -1,6 +1,6 @@
 // city/index.test.ts — smoke test for the createCity composer. Asserts it
 // builds without throwing on EMPTY_MANIFEST and returns the expected handle
-// shape ({ world, applyTheme, picker, rig, resetView, focusByPath }).
+// shape ({ world, applyTheme, picker, rig, focusByPath }).
 //
 // jsdom has no WebGL context, so a real THREE.WebGLRenderer + the bloom post
 // pipeline can't run here (no other test constructs a real renderer either —
@@ -91,7 +91,7 @@ describe('createCity', () => {
     expect(typeof handle.applyTheme).toBe('function');
     expect(handle.picker).toBeDefined();
     expect(handle.rig).toBeDefined();
-    expect(typeof handle.resetView).toBe('function');
+    expect(typeof handle.rig.reset).toBe('function');
     expect(typeof handle.focusByPath).toBe('function');
   });
 
