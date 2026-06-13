@@ -76,6 +76,21 @@ function _computeFogHeight(): number {
   return SCENE.value.FOG_HEIGHT_FRAC * maxHeight;
 }
 
+// Grime/tilt are age-scaled: each is a [newest, oldest] range the shader lerps
+// per-building by createdAge. These write the two endpoints into a Vector2
+// uniform (both 0 when the effect is disabled, so the shader's mix → 0).
+function _grimeIntensityVec(out: THREE.Vector2): THREE.Vector2 {
+  const a = BUILDINGS.value;
+  const [lo, hi] = a.GRIME_ENABLED ? a.GRIME_INTENSITY : [0, 0];
+  return out.set(lo, hi);
+}
+
+function _tiltRadVec(out: THREE.Vector2): THREE.Vector2 {
+  const a = BUILDINGS.value;
+  const [lo, hi] = a.TILT_ENABLED ? a.TILT_DEGREES : [0, 0];
+  return out.set((lo * Math.PI) / 180, (hi * Math.PI) / 180);
+}
+
 /**
  * The one rendered building ShaderMaterial — a lazy singleton shared by every
  * cell's detail mesh (see cellMesh.attachBuildingMeshToCell). Reusing one
@@ -118,13 +133,9 @@ export function getBuildingMaterial(): THREE.ShaderMaterial {
       uWindowEmissionBoost: { value: BLOOM.value.WINDOW_EMISSION },
       // Age-driven decay uniforms (createdAge-gated, independent of
       // modifiedAge). See BUILDINGS (aging) config.
-      uGrimeIntensity: {
-        value: BUILDINGS.value.GRIME_ENABLED ? BUILDINGS.value.GRIME_INTENSITY : 0,
-      },
-      uGrimeCoverage: { value: BUILDINGS.value.GRIME_COVERAGE },
-      uTiltMaxRad: {
-        value: BUILDINGS.value.TILT_ENABLED ? (BUILDINGS.value.TILT_DEGREES * Math.PI) / 180 : 0,
-      },
+      uGrimeIntensity: { value: _grimeIntensityVec(new THREE.Vector2()) },
+      uGrimeCoverage: { value: new THREE.Vector2(...BUILDINGS.value.GRIME_COVERAGE) },
+      uTiltRad: { value: _tiltRadVec(new THREE.Vector2()) },
       // Scene directional lighting (fixed LIGHTING_* constants). uSunDirWorld is
       // re-initialised below from those constants so the
       // first frame already has the configured sun direction; the
@@ -197,11 +208,9 @@ export function refreshBuildingMaterial(): void {
     ? bloomCfg.WINDOW_EMISSION
     : 0;
   const aging = BUILDINGS.value;
-  _sharedMaterial.uniforms.uGrimeIntensity.value = aging.GRIME_ENABLED ? aging.GRIME_INTENSITY : 0;
-  _sharedMaterial.uniforms.uGrimeCoverage.value = aging.GRIME_COVERAGE;
-  _sharedMaterial.uniforms.uTiltMaxRad.value = aging.TILT_ENABLED
-    ? (aging.TILT_DEGREES * Math.PI) / 180
-    : 0;
+  _grimeIntensityVec(_sharedMaterial.uniforms.uGrimeIntensity.value as THREE.Vector2);
+  (_sharedMaterial.uniforms.uGrimeCoverage.value as THREE.Vector2).set(...aging.GRIME_COVERAGE);
+  _tiltRadVec(_sharedMaterial.uniforms.uTiltRad.value as THREE.Vector2);
   // Scene directional lighting (fixed constants — re-seed idempotently).
   writeSunDir(
     _sharedMaterial.uniforms.uSunDirWorld.value as THREE.Vector3,

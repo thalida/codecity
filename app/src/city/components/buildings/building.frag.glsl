@@ -46,12 +46,13 @@ uniform float uOutlineWidth;
 uniform sampler2D uIconAtlas;
 uniform float uIconSlotSize;
 
-// Age-driven grime parameters. uGrimeIntensity scales the per-pixel
-// darkening (0 disables the streaks entirely); uGrimeCoverage is the
-// max fraction of vertical bands that streak at createdAge=1. Both
-// refreshed by refreshBuildingMaterial from BUILDING_AGING config.
-uniform float uGrimeIntensity;
-uniform float uGrimeCoverage;
+// Age-driven grime parameters, each a [newest, oldest] range the shader
+// lerps per-building by createdAge (vIconUV.w). uGrimeIntensity scales the
+// per-pixel darkening (its newest end at 0 leaves new facades clean);
+// uGrimeCoverage is the fraction of vertical bands that streak. Both
+// refreshed by refreshBuildingMaterial from BUILDINGS (aging) config.
+uniform vec2 uGrimeIntensity;
+uniform vec2 uGrimeCoverage;
 
 // Ground haze (height-based volumetric fog).
 // Uniforms declared by the fog_uniforms chunk above:
@@ -393,20 +394,22 @@ vec4 renderWallFace() {
   //     through, so dirt covers a wider fraction of the facade.
   //   - Vertical falloff: darkest at the top (where dirt accumulates
   //     and rain runoff originates), fading downward.
-  float grimeAmount = vIconUV.w;
-  if (grimeAmount > 0.001 && uGrimeIntensity > 0.001) {
+  // Intensity + coverage lerp across their [newest, oldest] ranges by this
+  // building's createdAge (vIconUV.w), so age maps onto the user's range.
+  float gIntensity = mix(uGrimeIntensity.x, uGrimeIntensity.y, vIconUV.w);
+  float gCoverage = mix(uGrimeCoverage.x, uGrimeCoverage.y, vIconUV.w);
+  if (gIntensity > 0.001) {
     float gBand = floor(uv.x * 25.0);
     float gHash = hash21(vec2(gBand, buildingSeed * 1.7));
-    // Coverage threshold: at createdAge=1, fraction (uGrimeCoverage) of
-    // bands streak. Bands need hash >= (1 - grimeAmount * coverage) to
-    // pass; the oldest building lets the most bands through.
-    float gThreshold = 1.0 - grimeAmount * uGrimeCoverage;
+    // Coverage threshold: a (gCoverage) fraction of bands streak — a band
+    // needs hash >= (1 - gCoverage) to pass.
+    float gThreshold = 1.0 - gCoverage;
     float gActive = step(gThreshold, gHash);
     // max(uv.y, 1e-6): same pow(0, x) NaN guard as recencyCurve above.
     float gVert = pow(max(uv.y, 1e-6), 1.6);
-    float gFactor = gActive * gVert * grimeAmount * (0.6 + 0.4 * gHash);
+    float gFactor = gActive * gVert * (0.6 + 0.4 * gHash);
     vec3 gColor = baseColor * 0.25;
-    wallOut = mix(wallOut, gColor, gFactor * uGrimeIntensity);
+    wallOut = mix(wallOut, gColor, gFactor * gIntensity);
   }
 
   vec3 withWin  = mix(wallOut, winColor, winMask);

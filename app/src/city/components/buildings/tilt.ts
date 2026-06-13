@@ -6,7 +6,7 @@
 //   worldPos.xz += worldPos.y × tiltAngle × (cos(theta), sin(theta))
 //
 // where
-//   tiltAngle = createdAge × uTiltMaxRad
+//   tiltAngle = mix(TILT_DEGREES.newest, TILT_DEGREES.oldest, createdAge) → rad
 //   theta     = seed × 2π   (seed = seedFromPath(file.path), in [0, 1))
 //
 // The shader path is fast and toggle-friendly (uTiltMaxRad goes to 0
@@ -49,20 +49,28 @@ export interface BuildingTilt {
 const ZERO_TILT: BuildingTilt = { tiltX: 0, tiltZ: 0 };
 
 /**
+ * Lean magnitude (radians) for a building of the given createdAge, lerped
+ * across the TILT_DEGREES `[newest, oldest]` range — the CPU mirror of the
+ * vertex shader's `mix(uTiltRad.x, uTiltRad.y, createdAge)`. Single source
+ * of the age→angle mapping shared by the outline and the picker raycast.
+ */
+function tiltRadForAge(degRange: readonly [number, number], createdAge: number): number {
+  const deg = degRange[0] + (degRange[1] - degRange[0]) * createdAge;
+  return (deg * Math.PI) / 180;
+}
+
+/**
  * Compute the (tiltX, tiltZ) shear coefficients for a building, matching
  * exactly what the vertex shader applies. Returns `{0, 0}` when
- * BUILDINGS.TILT_ENABLED is off, when the building has no file (no
- * stable seed source), or when the building has no createdAge signal.
+ * BUILDINGS.TILT_ENABLED is off, when the building has no file (no stable
+ * seed source), or when the age-lerped lean angle is zero.
  */
 export function getBuildingTilt(b: Building): BuildingTilt {
   const aging = BUILDINGS.value;
   if (!aging.TILT_ENABLED) return ZERO_TILT;
   if (!b.file) return ZERO_TILT;
-  const createdAge = b.createdAge ?? 0;
-  if (createdAge <= 0) return ZERO_TILT;
-
-  const tiltMaxRad = (aging.TILT_DEGREES * Math.PI) / 180;
-  const tiltAngle = createdAge * tiltMaxRad;
+  const tiltAngle = tiltRadForAge(aging.TILT_DEGREES, b.createdAge ?? 0);
+  if (tiltAngle === 0) return ZERO_TILT;
   const theta = seedFromPath(b.file.path) * 2 * Math.PI;
   return {
     tiltX: tiltAngle * Math.cos(theta),
@@ -154,7 +162,7 @@ export function attachLeanAwareRaycast(mesh: THREE.InstancedMesh): void {
     if (!mesh.visible) return;
 
     const aging = BUILDINGS.value;
-    const tiltMaxRad = aging.TILT_ENABLED ? (aging.TILT_DEGREES * Math.PI) / 180 : 0;
+    const tiltEnabled = aging.TILT_ENABLED;
 
     const iIconUV = mesh.geometry.getAttribute('iIconUV') as
       | THREE.InstancedBufferAttribute
@@ -172,12 +180,12 @@ export function attachLeanAwareRaycast(mesh: THREE.InstancedMesh): void {
 
       let tiltX = 0;
       let tiltZ = 0;
-      if (tiltMaxRad > 0 && iIconUV) {
+      if (tiltEnabled && iIconUV) {
         const off = i * 4;
         const seed = iIconUV.array[off + 2]; // .z
         const createdAge = iIconUV.array[off + 3]; // .w
-        if (createdAge > 0) {
-          const tiltAngle = createdAge * tiltMaxRad;
+        const tiltAngle = tiltRadForAge(aging.TILT_DEGREES, createdAge);
+        if (tiltAngle !== 0) {
           const theta = seed * 2 * Math.PI;
           tiltX = tiltAngle * Math.cos(theta);
           tiltZ = tiltAngle * Math.sin(theta);

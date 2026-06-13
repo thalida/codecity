@@ -42,9 +42,10 @@ attribute vec4 iIconUV;
 // renderWallFace via vModifiedAge.
 attribute float iModifiedAge;
 
-// Max age-tilt in radians (config: BUILDING_AGING.TILT_DEGREES → radians;
-// or 0 when TILT_ENABLED is off). Pushed from refreshBuildingMaterial.
-uniform float uTiltMaxRad;
+// Age-tilt range in radians as [newest, oldest], lerped per-building by
+// createdAge (iIconUV.w). Both ends 0 when TILT_ENABLED is off. Pushed
+// from refreshBuildingMaterial.
+uniform vec2 uTiltRad;
 
 flat varying int vFace;         // 0..5
 varying vec2 vUv;
@@ -108,14 +109,13 @@ void main() {
 
   vec4 worldPos = modelMatrix * instanceMatrix * vec4(position, 1.0);
 
-  // Age-driven tilt — lean MAGNITUDE is determined solely by
-  // createdAge × uTiltMaxRad, so every building of the same age leans
-  // by the same amount. Only the DIRECTION varies per building,
-  // hashed from the per-file seed → a circle of equal-magnitude
-  // leans pointing every which way across the city. Small-angle
-  // approximation: lateral offset = worldY × magnitude × unit dir.
-  // Base (Y=0) stays planted; top drifts.
-  float tiltAngle = iIconUV.w * uTiltMaxRad;
+  // Age-driven tilt — lean MAGNITUDE lerps across uTiltRad [newest, oldest]
+  // by createdAge, so every building of the same age leans by the same
+  // amount. Only the DIRECTION varies per building, hashed from the
+  // per-file seed → a circle of equal-magnitude leans pointing every which
+  // way across the city. Small-angle approximation: lateral offset =
+  // worldY × magnitude × unit dir. Base (Y=0) stays planted; top drifts.
+  float tiltAngle = mix(uTiltRad.x, uTiltRad.y, iIconUV.w);
   float tiltTheta = iIconUV.z * 6.2831853;
   vec2 tiltDir = vec2(cos(tiltTheta), sin(tiltTheta));
   worldPos.xz += worldPos.y * tiltAngle * tiltDir;

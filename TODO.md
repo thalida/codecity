@@ -55,8 +55,8 @@
 - [x] commit-info side pane perf — selecting a tree currently shows "Loading commit…" for a noticeable beat before the commit details render. Profile what's happening on the server + client (commit fetch endpoint, JSON parse, sidebar render) and tighten it; pre-fetching on hover or caching the last N commits client-side are likely directions.
 - [x] (QA) `/api/manifest/signature` returned 400 on the live-update poll for git URLs (nanostores@main, repeating 4×) — the poll fired mid-clone, before `resolve_source` could resolve, once per tick during the clone window. Fixed by the live-update poll rework (commit 20c9d1cc): `tick()` now bails unless the foreground load is done (`SCAN_PROGRESS` null) AND a source actually committed (`CURRENT_SOURCE` set on load success) AND the manifest is non-empty — so the poll can't probe a source that's still cloning.
 - [ ] hover visual glitch — hovering a building shows a faint lighter-tinted duplicate offset to the lower-left (a ghost/double-image, not a symmetric halo). The hover overlay is a translucent box (`city/components/buildings/ghost.ts`, scaled 1.005× + instance-color mirror) + a `LineSegments2` outline; investigate whether the offset comes from a stale/mismatched instance matrix, the ghost transform, or the bloom/composer. Root-cause before fixing.
-- [ ] grime streaks scale by building age — make grime-streak Intensity and Coverage scale with a building's age, and expose user settings for the min and max of each (so age maps onto [min, max] per dimension).
-- [ ] building tilt scales by building age — same treatment as grime: have tilt scale with building age and expose user settings for tilt min and max.
+- [x] grime streaks scale by building age — Intensity and Coverage are now RangePair `[newest, oldest]` settings; the shader lerps each per-building by createdAge.
+- [x] building tilt scales by building age — TILT_DEGREES is now a RangePair `[newest, oldest]`; shader + CPU (outline/picker) lerp the lean by createdAge.
 
 ## Agent Prompts ToDos
 
