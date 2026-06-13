@@ -1,18 +1,11 @@
-// city/components/buildings/material.ts — Canonical building uniforms + icon atlas.
+// city/components/buildings/material.ts — The one building ShaderMaterial.
 //
-// Owns the canonical uniforms bag for the building shader: a lazily
-// created ShaderMaterial whose uniforms object is handed to cellMesh.ts
-// via getSharedBuildingUniforms(). The material held here is never
-// attached to a mesh — cellMesh.ts compiles the ONE rendered
-// ShaderMaterial (identity-memoized on this uniforms bag), so mutating
-// the uniform value objects here updates every cell. Also owns the icon
-// atlas reference and the refresh hook that re-applies Save-committed
-// uniforms on config-store changes.
-//
-// Task 15 follow-up: two ShaderMaterials are constructed from the same
-// GLSL sources (this one, never rendered, and cellMesh's rendered one).
-// Consolidating to a single material is a composer-era cleanup
-// candidate.
+// Owns the single ShaderMaterial every cell's detail mesh renders with (a
+// lazy singleton — getBuildingMaterial()), its uniforms bag, the icon atlas,
+// and refreshBuildingMaterial() which re-applies Save-committed uniforms on
+// config-store changes. cellMesh.ts attaches this material to each cell and
+// reads the atlas (getIconAtlas()) for per-instance roof UVs; mutating a
+// uniform value object here updates every cell, since they all share it.
 
 import * as THREE from 'three';
 import { BUILDINGS, BUILDING_DIMENSIONS } from '@/state/stores/settings/buildings';
@@ -50,11 +43,13 @@ import buildingFragSrc from './building.frag.glsl?raw';
 // pattern ensures we don't accumulate materials on each rebuild.
 let _sharedMaterial: THREE.ShaderMaterial | null = null;
 
-// The icon atlas the buildings sample for roof glyphs. world.applyManifest
+// The icon atlas the buildings sample for roof glyphs. cityState.applyManifest
 // builds it (gated on tree_signature) and pushes it in via setIconAtlas before
 // the cell pass, so the buildings have it as they're constructed. Stays null
 // while it's still loading or if the atlas build failed — the shader treats
-// iconUV.x < 0 as "no icon" and just paints the base roof color.
+// iconUV.x < 0 as "no icon" and just paints the base roof color. Two consumers:
+// the uIconAtlas/uIconSlotSize uniforms (sampled by the shader) and cellMesh's
+// per-instance iIconUV write (via getIconAtlas()) — both off this one ref.
 let _atlas: IconAtlas | null = null;
 
 export function setIconAtlas(atlas: IconAtlas | null): void {
@@ -63,6 +58,12 @@ export function setIconAtlas(atlas: IconAtlas | null): void {
     _sharedMaterial.uniforms.uIconAtlas.value = atlas ? atlas.texture : null;
     _sharedMaterial.uniforms.uIconSlotSize.value = atlas ? atlas.slotSize : 0;
   }
+}
+
+/** The icon atlas the cells resolve per-instance roof UVs from, or null when
+ *  it hasn't built yet. Single source, shared with the uIconAtlas uniform. */
+export function getIconAtlas(): IconAtlas | null {
+  return _atlas;
 }
 
 // Half-fall-off height for ground haze, in world units. Computed as
@@ -75,7 +76,14 @@ function _computeFogHeight(): number {
   return SCENE.value.FOG_HEIGHT_FRAC * maxHeight;
 }
 
-function getBuildingMaterial(): THREE.ShaderMaterial {
+/**
+ * The one rendered building ShaderMaterial — a lazy singleton shared by every
+ * cell's detail mesh (see cellMesh.attachBuildingMeshToCell). Reusing one
+ * material across all cells avoids the per-cell program-compile cost that hung
+ * the tab on large repos. Mutating its uniform value objects (via
+ * refreshBuildingMaterial / setIconAtlas) updates every cell at once.
+ */
+export function getBuildingMaterial(): THREE.ShaderMaterial {
   if (_sharedMaterial) return _sharedMaterial;
   // Chunks are registered via THREE.ShaderChunk in registerShaderChunks.ts;
   // Three.js's native preprocessor resolves #include <name> at compile time.
@@ -162,20 +170,6 @@ function getBuildingMaterial(): THREE.ShaderMaterial {
     LIGHTING_SUN_ELEVATION_DEG
   );
   return _sharedMaterial;
-}
-
-/**
- * Return the canonical building uniforms bag so cellMesh.ts can build the
- * one rendered ShaderMaterial around it (identity-memoized — every cell's
- * detail mesh shares that single material). Lazily initialises the
- * uniforms-holder material if it hasn't been created yet.
- *
- * Because cellMesh's rendered material references these same uniform VALUE
- * objects, refreshBuildingMaterial() updates all cells automatically (it
- * mutates the value objects in-place).
- */
-export function getSharedBuildingUniforms(): Record<string, THREE.IUniform> {
-  return getBuildingMaterial().uniforms;
 }
 
 /**

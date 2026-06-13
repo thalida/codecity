@@ -46,10 +46,8 @@ import type { CellTile } from './cellTile';
 import { BuildingIndex } from './buildingIndex';
 import { buildCellsFromLayout } from './cellAssembly';
 import type { InstancedAdPanels } from './adPanels';
-import { getSharedBuildingUniforms, setIconAtlas, refreshBuildingMaterial } from './material';
-import { setCellIconAtlas } from './cellMesh';
+import { refreshBuildingMaterial } from './material';
 import { disposeObject3D } from '@/city/utils/disposeObject3D';
-import type { IconAtlas } from './atlas';
 import { getBuildingColor, getCreatedAge, getModifiedAge } from './color';
 import { createBuildingFader } from './fader';
 import { createOutlineRenderer } from './outline';
@@ -77,9 +75,6 @@ export interface Buildings extends SceneComponent {
    *  not scenic-gated). Computes its OWN enter/stay diff against the prior
    *  cells and fires the tweens (boot rebuild snaps in without animating). */
   rebuild(layout: CityLayout, dateRanges: DateRanges): Promise<void>;
-  /** Push the roof-icon atlas into the shared material + cell factory. Must
-   *  run BEFORE rebuild() (the atlas is read while building the cells). */
-  setAtlas(atlas: IconAtlas | null): void;
   /** Dispose the current instanced ad panels immediately; the next rebuild()
    *  recreates them from the fresh layout. */
   disposeAdPanels(): void;
@@ -143,11 +138,6 @@ export function createBuildings(ctx: SceneContext, deps: BuildingsDeps): Buildin
       _adPanels.dispose();
       _adPanels = null;
     }
-  }
-
-  function setAtlas(atlas: IconAtlas | null): void {
-    setIconAtlas(atlas);
-    setCellIconAtlas(atlas);
   }
 
   function disposeAdPanels(): void {
@@ -435,7 +425,7 @@ export function createBuildings(ctx: SceneContext, deps: BuildingsDeps): Buildin
         })();
 
     // ---- Assemble the cell scene (buildings only). ----
-    const cellOut = buildCellsFromLayout(bounds, buildings, getSharedBuildingUniforms());
+    const cellOut = buildCellsFromLayout(bounds, buildings);
 
     // Capture the PRIOR cells/index BEFORE disposing them. _disposeInner only
     // frees GPU geometry (not the JS-side instanceMatrix arrays), so these
@@ -498,7 +488,6 @@ export function createBuildings(ctx: SceneContext, deps: BuildingsDeps): Buildin
   return {
     group,
     rebuild,
-    setAtlas,
     disposeAdPanels,
     tick,
     onResize,

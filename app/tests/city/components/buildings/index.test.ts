@@ -2,7 +2,7 @@
 //
 // Tests for the persistent createBuildings(ctx, deps) component (Task 12).
 // API: createBuildings(ctx, deps) → { group, rebuild(layout, dateRanges),
-//      setAtlas, disposeAdPanels, tick(dt, frame), onResize(), dispose(),
+//      disposeAdPanels, tick(dt, frame), onResize(), dispose(),
 //      getByPath, getBuildingsByPath, pickables, tallest, maxHeight, getCells,
 //      getBuildingIndex, getMeshForBuilding, getAdPanels }.
 //
@@ -20,7 +20,7 @@ import { signal } from '@preact/signals';
 
 import { createBuildings } from '@/city/components/buildings';
 import { makeCityState } from '../../../_helpers/cityFixtures';
-import { getSharedBuildingUniforms } from '@/city/components/buildings/material';
+import { getBuildingMaterial } from '@/city/components/buildings/material';
 import { BUILDINGS } from '@/state/stores/settings/buildings';
 import { NodeKind } from '@/types';
 import type { Building, CityLayout, DateRanges, FileTarget, PickTarget } from '@/types';
@@ -241,7 +241,7 @@ describe('createBuildings()', () => {
       buildingLayout([building({ x: 1, y: 1, file: fileOf('src/a.ts') as never })]),
       EMPTY_DATE_RANGES
     );
-    const uniforms = getSharedBuildingUniforms();
+    const uniforms = getBuildingMaterial().uniforms;
 
     BUILDINGS.value = { ...BUILDINGS.value, OUTLINE_WIDTH: 7.5 };
     expect(uniforms.uOutlineWidth.value).toBe(7.5);

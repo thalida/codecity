@@ -25,9 +25,10 @@ export interface CellAssemblyOutput {
 }
 
 /**
- * Assemble a cell-based scene from a layout's buildings and a shared
- * uniform bag. Only buildings are placed into cells — streets, labels,
- * paths, and the gem remain on the engine-built rendering path.
+ * Assemble a cell-based scene from a layout's buildings. Only buildings are
+ * placed into cells — streets, labels, paths, and the gem remain on the
+ * engine-built rendering path. Cells share the one building material
+ * (material.getBuildingMaterial(), via attachBuildingMeshToCell).
  *
  * Sparse allocation: only grid cells that contain at least one building
  * are allocated. For a 194-file project this is a small fraction of the
@@ -43,8 +44,7 @@ export interface CellAssemblyOutput {
  */
 export function buildCellsFromLayout(
   bounds: WorldBounds,
-  buildings: Building[],
-  sharedBuildingUniforms: Record<string, THREE.IUniform>
+  buildings: Building[]
 ): CellAssemblyOutput {
   const cellSize = SpatialGrid.computeOptimalCellSize(bounds);
   const grid = new SpatialGrid(bounds, cellSize);
@@ -62,7 +62,7 @@ export function buildCellsFromLayout(
   const cells = new Map<number, CellTile>();
   for (const id of occupiedIds) {
     const cell = createEmptyCellTile(grid, id, capacity);
-    attachBuildingMeshToCell(cell, sharedBuildingUniforms);
+    attachBuildingMeshToCell(cell);
     cells.set(id, cell);
   }
 

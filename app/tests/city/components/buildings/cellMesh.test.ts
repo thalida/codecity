@@ -8,8 +8,8 @@ import { createEmptyCellTile } from '@/city/components/buildings/cellTile';
 import {
   attachBuildingMeshToCell,
   writeBuildingToSlot,
-  setCellIconAtlas,
 } from '@/city/components/buildings/cellMesh';
+import { setIconAtlas } from '@/city/components/buildings/material';
 import { BuildingOrient } from '@/types/index';
 import type { IconAtlas } from '@/city/components/buildings/atlas';
 import { building } from '../../../_helpers/buildingFixture';
@@ -34,15 +34,15 @@ function fakeAtlas(uvMap: Record<string, [number, number]>): IconAtlas {
 }
 
 describe('cellMesh factory', () => {
-  // Clear module-level atlas after each test so tests don't bleed into each other.
+  // Clear the module-level atlas after each test so tests don't bleed into each other.
   afterEach(() => {
-    setCellIconAtlas(null);
+    setIconAtlas(null);
   });
   it('attachBuildingMeshToCell replaces placeholder geometry and allocates per-instance attributes', () => {
     const grid = new SpatialGrid({ minX: 0, maxX: 48, minZ: 0, maxZ: 48 });
     const cell = createEmptyCellTile(grid, 0, 64);
 
-    attachBuildingMeshToCell(cell, {} as Record<string, THREE.IUniform>);
+    attachBuildingMeshToCell(cell);
 
     // Geometry should have all required instanced attributes.
     expect(cell.detailMesh.geometry.getAttribute('iCols')).toBeTruthy();
@@ -81,7 +81,7 @@ describe('cellMesh factory', () => {
   it('writeBuildingToSlot sets matrix position matching (b.x, b.h/2, b.y)', () => {
     const grid = new SpatialGrid({ minX: 0, maxX: 48, minZ: 0, maxZ: 48 });
     const cell = createEmptyCellTile(grid, 0, 64);
-    attachBuildingMeshToCell(cell, {} as Record<string, THREE.IUniform>);
+    attachBuildingMeshToCell(cell);
 
     const b = building({ x: 5, y: 7, h: 4, slotId: 3 });
     writeBuildingToSlot(cell, b);
@@ -97,7 +97,7 @@ describe('cellMesh factory', () => {
   it('writeBuildingToSlot sets matrix scale matching (b.w, b.h, b.d)', () => {
     const grid = new SpatialGrid({ minX: 0, maxX: 48, minZ: 0, maxZ: 48 });
     const cell = createEmptyCellTile(grid, 0, 64);
-    attachBuildingMeshToCell(cell, {} as Record<string, THREE.IUniform>);
+    attachBuildingMeshToCell(cell);
 
     const b = building({ x: 0, y: 0, w: 3, d: 4, h: 6, slotId: 0 });
     writeBuildingToSlot(cell, b);
@@ -114,7 +114,7 @@ describe('cellMesh factory', () => {
   it('writeBuildingToSlot writes iFade.x=1.0 (opacity defaults to full visibility)', () => {
     const grid = new SpatialGrid({ minX: 0, maxX: 48, minZ: 0, maxZ: 48 });
     const cell = createEmptyCellTile(grid, 0, 64);
-    attachBuildingMeshToCell(cell, {} as Record<string, THREE.IUniform>);
+    attachBuildingMeshToCell(cell);
 
     const b = building({ x: 0, y: 0, h: 2, slotId: 1 });
     writeBuildingToSlot(cell, b);
@@ -130,7 +130,7 @@ describe('cellMesh factory', () => {
   it('writeBuildingToSlot writes iconUV.xy=-1 (no icon) when no atlas is set', () => {
     const grid = new SpatialGrid({ minX: 0, maxX: 48, minZ: 0, maxZ: 48 });
     const cell = createEmptyCellTile(grid, 0, 64);
-    attachBuildingMeshToCell(cell, {} as Record<string, THREE.IUniform>);
+    attachBuildingMeshToCell(cell);
 
     const b = building({ x: 0, y: 0, h: 2, slotId: 2 });
     writeBuildingToSlot(cell, b);
@@ -145,7 +145,7 @@ describe('cellMesh factory', () => {
   it('writeBuildingToSlot writes resolved atlas UV into iconUV.xy when atlas is set', () => {
     const grid = new SpatialGrid({ minX: 0, maxX: 48, minZ: 0, maxZ: 48 });
     const cell = createEmptyCellTile(grid, 0, 64);
-    attachBuildingMeshToCell(cell, {} as Record<string, THREE.IUniform>);
+    attachBuildingMeshToCell(cell);
 
     // The fake atlas returns a known UV for the "typescript" icon name that
     // getFileIconName produces for a .ts file (icon name is looked up at
@@ -158,7 +158,7 @@ describe('cellMesh factory', () => {
       file_type_typescript: knownUV,
       ts: knownUV,
     });
-    setCellIconAtlas(atlas);
+    setIconAtlas(atlas);
 
     const b = building({ x: 0, y: 0, h: 2, slotId: 4 });
     writeBuildingToSlot(cell, b);
@@ -182,7 +182,7 @@ describe('cellMesh factory', () => {
   it('writeBuildingToSlot writes orient=0 for South (shader contract)', () => {
     const grid = new SpatialGrid({ minX: 0, maxX: 48, minZ: 0, maxZ: 48 });
     const cell = createEmptyCellTile(grid, 0, 64);
-    attachBuildingMeshToCell(cell, {} as Record<string, THREE.IUniform>);
+    attachBuildingMeshToCell(cell);
 
     const b = building({ x: 0, y: 0, h: 2, orient: BuildingOrient.South, slotId: 5 });
     writeBuildingToSlot(cell, b);
@@ -196,7 +196,7 @@ describe('cellMesh factory', () => {
   it('writeBuildingToSlot writes into the correct slot without touching adjacent slots', () => {
     const grid = new SpatialGrid({ minX: 0, maxX: 48, minZ: 0, maxZ: 48 });
     const cell = createEmptyCellTile(grid, 0, 64);
-    attachBuildingMeshToCell(cell, {} as Record<string, THREE.IUniform>);
+    attachBuildingMeshToCell(cell);
 
     // Write to slot 10; slots 9 and 11 should remain scale-zero (from createEmptyCellTile).
     const b = building({ x: 1, y: 2, h: 3, slotId: 10 });
@@ -221,29 +221,23 @@ describe('cellMesh factory', () => {
 // ---------------------------------------------------------------------------
 // Stress test: shared material across 300 cells (simulates a ~17×17 grid
 // as seen for large repos like firecrawl). Verifies that:
-//   1. Every cell's detailMesh uses the SAME material instance (no 300× alloc).
+//   1. Every cell's detailMesh uses the SAME material instance — the one
+//      singleton from material.getBuildingMaterial() (no 300× alloc).
 //   2. 300 InstancedMesh objects are created (per-cell, as required for
 //      per-cell visibility toggling).
 //   3. The full loop completes in under 1 second.
 // ---------------------------------------------------------------------------
 
 describe('cellMesh shared-material stress test (300 cells)', () => {
-  // Reset module-level shared material cache between test runs so a
-  // fresh uniforms object triggers a new material on the first call.
-  // We do this by passing the SAME uniforms reference across all 300
-  // calls — the cache should return the same material after the first.
   it('all 300 cells share exactly one ShaderMaterial instance', () => {
     const grid = new SpatialGrid({ minX: 0, maxX: 1600, minZ: 0, maxZ: 1600 });
     const CELL_COUNT = 300;
     const capacity = 64;
 
-    // Single shared uniforms object — same reference passed to every cell.
-    const sharedUniforms: Record<string, THREE.IUniform> = {};
-
     const cells = [];
     for (let id = 0; id < CELL_COUNT; id++) {
       const cell = createEmptyCellTile(grid, id % grid.cellCount, capacity);
-      attachBuildingMeshToCell(cell, sharedUniforms);
+      attachBuildingMeshToCell(cell);
       cells.push(cell);
     }
 
@@ -263,36 +257,14 @@ describe('cellMesh shared-material stress test (300 cells)', () => {
     const grid = new SpatialGrid({ minX: 0, maxX: 1600, minZ: 0, maxZ: 1600 });
     const CELL_COUNT = 300;
     const capacity = 64;
-    const sharedUniforms: Record<string, THREE.IUniform> = {};
 
     const start = performance.now();
     for (let id = 0; id < CELL_COUNT; id++) {
       const cell = createEmptyCellTile(grid, id % grid.cellCount, capacity);
-      attachBuildingMeshToCell(cell, sharedUniforms);
+      attachBuildingMeshToCell(cell);
     }
     const elapsed = performance.now() - start;
 
     expect(elapsed).toBeLessThan(1000);
-  });
-
-  it('new uniforms reference triggers exactly one new material creation', () => {
-    const grid = new SpatialGrid({ minX: 0, maxX: 1600, minZ: 0, maxZ: 1600 });
-    const capacity = 64;
-
-    const uniformsA: Record<string, THREE.IUniform> = {};
-    const uniformsB: Record<string, THREE.IUniform> = {};
-
-    const cellA1 = createEmptyCellTile(grid, 0, capacity);
-    attachBuildingMeshToCell(cellA1, uniformsA);
-    const cellA2 = createEmptyCellTile(grid, 0, capacity);
-    attachBuildingMeshToCell(cellA2, uniformsA);
-
-    const cellB1 = createEmptyCellTile(grid, 0, capacity);
-    attachBuildingMeshToCell(cellB1, uniformsB);
-
-    // A1 and A2 share the same material (same uniforms ref).
-    expect(cellA1.detailMesh.material).toBe(cellA2.detailMesh.material);
-    // B gets a different material (different uniforms ref).
-    expect(cellB1.detailMesh.material).not.toBe(cellA1.detailMesh.material);
   });
 });

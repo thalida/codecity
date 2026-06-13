@@ -14,11 +14,9 @@
 import * as THREE from 'three';
 import { FACADE } from '@/state/stores/settings/facade';
 import { BuildingOrient } from '@/types/index';
-import buildingVertSrc from './building.vert.glsl?raw';
-import buildingFragSrc from './building.frag.glsl?raw';
 import type { CellTile } from './cellTile';
 import type { Building } from '@/types/index';
-import type { IconAtlas } from './atlas';
+import { getBuildingMaterial, getIconAtlas } from './material';
 import { getFileIconName } from '@/utils/fileIcons';
 import { seedFromPath, attachLeanAwareRaycast } from './tilt';
 
@@ -59,57 +57,6 @@ function orientToIndex(orient: BuildingOrient): number {
 }
 
 // ---------------------------------------------------------------------------
-// Material cache — one ShaderMaterial shared across all cells that use the
-// same uniforms object identity. Memoized on the REFERENCE of the uniforms
-// bag (callers pass the same object every time — see index.ts: rebuild
-// passes getSharedBuildingUniforms()). This eliminates the per-cell
-// ShaderMaterial + WebGL program compilation cost that was causing the
-// tab to hang on large repos (289 cells × 2 materials = 578
-// ShaderMaterial allocations on enable toggle).
-// ---------------------------------------------------------------------------
-
-let _sharedBuildingMaterial: THREE.ShaderMaterial | null = null;
-let _sharedBuildingMaterialUniforms: Record<string, THREE.IUniform> | null = null;
-
-function getOrCreateBuildingMaterial(
-  uniforms: Record<string, THREE.IUniform>
-): THREE.ShaderMaterial {
-  if (_sharedBuildingMaterial && _sharedBuildingMaterialUniforms === uniforms) {
-    return _sharedBuildingMaterial;
-  }
-  // Chunks are registered via THREE.ShaderChunk in registerShaderChunks.ts;
-  // Three.js's native preprocessor resolves #include <name> at compile time.
-  const fragSrc = buildingFragSrc;
-  _sharedBuildingMaterial = new THREE.ShaderMaterial({
-    uniforms,
-    vertexShader: buildingVertSrc,
-    fragmentShader: fragSrc,
-    // transparent: true so iFade.x can fade buildings.
-    transparent: true,
-  });
-  _sharedBuildingMaterialUniforms = uniforms;
-  return _sharedBuildingMaterial;
-}
-
-// ---------------------------------------------------------------------------
-// Icon atlas — module-level cache, mirroring the pattern in material.ts.
-// The component's setAtlas() pushes the atlas in (via setCellIconAtlas)
-// before the cell pass. If not set, iIconUV.xy stays (-1, -1) and the
-// shader skips the atlas sample (no crash, just no roof icon).
-// ---------------------------------------------------------------------------
-
-let _atlas: IconAtlas | null = null;
-
-/**
- * Register the icon atlas for this module's cell building factory.
- * Must be called (alongside material.ts's setIconAtlas, via the component's
- * setAtlas()) after buildIconAtlas() resolves so roof icons appear in cell mode.
- */
-export function setCellIconAtlas(atlas: IconAtlas | null): void {
-  _atlas = atlas;
-}
-
-// ---------------------------------------------------------------------------
 // Public API
 // ---------------------------------------------------------------------------
 
@@ -122,19 +69,15 @@ export function setCellIconAtlas(atlas: IconAtlas | null): void {
  * buffers are not duplicated) so per-cell InstancedBufferAttributes don't
  * bleed across cells.
  *
- * The ShaderMaterial is shared across all cells that pass the same uniforms
- * object reference (identity-memoized). Do NOT call material.dispose() on
- * the returned mesh's material — it is owned by this module, not by the cell.
- * The mesh's `userData.sharedMaterial = true` flag tells the shared
- * disposeObject3D util (city/utils/disposeObject3D.ts) to skip material
- * disposal when tearing down the old cell root.
+ * Every cell shares the one ShaderMaterial from material.getBuildingMaterial().
+ * Do NOT call material.dispose() on the returned mesh's material — it is owned
+ * by material.ts, not by the cell. The mesh's `userData.sharedMaterial = true`
+ * flag tells the shared disposeObject3D util (city/utils/disposeObject3D.ts) to
+ * skip material disposal when tearing down the old cell root.
  *
  * Call this once per cell after `createEmptyCellTile`.
  */
-export function attachBuildingMeshToCell(
-  cell: CellTile,
-  uniforms: Record<string, THREE.IUniform>
-): void {
+export function attachBuildingMeshToCell(cell: CellTile): void {
   const geom = SHARED_BUILDING_GEOMETRY.clone();
 
   // Per-instance attribute buffers sized to cell.capacity — matching
@@ -175,7 +118,7 @@ export function attachBuildingMeshToCell(
     new THREE.InstancedBufferAttribute(new Float32Array(cell.capacity), 1)
   );
 
-  const mat = getOrCreateBuildingMaterial(uniforms);
+  const mat = getBuildingMaterial();
 
   // Replace the placeholder mesh in-place.
   cell.detailMesh.geometry.dispose();
@@ -265,15 +208,16 @@ export function writeBuildingToSlot(cell: CellTile, b: Building): void {
   // --- Icon UV (top-left of atlas slot) + per-instance seed + createdAge ---
   // (-1, -1) on .xy means "no icon" — shader checks .x < 0 and skips the
   // atlas sample. Seed on .z; createdAge on .w.
-  // If the module-level atlas is available and the file has a known icon,
-  // write the resolved UV; otherwise fall back to the (-1, -1) sentinel.
+  // If the atlas (material.ts's single ref) is available and the file has a
+  // known icon, write the resolved UV; otherwise fall back to (-1, -1).
   const seed = seedFromPath(b.file?.path ?? '');
   const iIconUVAttr = mesh.geometry.getAttribute('iIconUV') as THREE.InstancedBufferAttribute;
   let iconU = -1.0;
   let iconV = -1.0;
-  if (_atlas && b.file) {
+  const atlas = getIconAtlas();
+  if (atlas && b.file) {
     const iconName = getFileIconName(b.file);
-    const uv = _atlas.uvFor(iconName);
+    const uv = atlas.uvFor(iconName);
     if (uv) {
       iconU = uv[0];
       iconV = uv[1];

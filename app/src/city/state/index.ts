@@ -23,7 +23,6 @@ import type { TreePlacement } from '../components/trees/treePlacement';
 import { gemAnchorXZ } from '@/city/components/gem/anchor';
 import { buildIconAtlas } from '../components/buildings/atlas';
 import { setIconAtlas } from '../components/buildings/material';
-import { setCellIconAtlas } from '../components/buildings/cellMesh';
 import type { createLayoutClient } from '../layout';
 
 export interface CityState {
@@ -203,7 +202,6 @@ export function createCityState(layoutClient: ReturnType<typeof createLayoutClie
         if (myGeneration !== generation) return; // superseded mid-build
         lastAtlasTreeSig = treeSig;
         setIconAtlas(atlas);
-        setCellIconAtlas(atlas);
       } catch (err) {
         console.warn('[codecity] icon atlas build failed; roofs will render without icons', err);
       }

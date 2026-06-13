@@ -9,8 +9,6 @@ import { buildCellsFromLayout } from '@/city/components/buildings/cellAssembly';
 import { NodeKind } from '@/types/index';
 import { building } from '../../../_helpers/buildingFixture';
 
-const EMPTY_UNIFORMS: Record<string, THREE.IUniform> = {};
-
 // Use MIN_CELL_SIZE-sized bounds so computeOptimalCellSize returns 12
 // and tests can reason about cell assignments with known granularity.
 // Any bounds <= ~192×192 keeps cellSize at MIN_CELL_SIZE (12).
@@ -22,7 +20,7 @@ describe('buildCellsFromLayout', () => {
   it('returns a Map, SpatialGrid, BuildingIndex, and a sceneRoot Group', () => {
     const bounds = { minX: 0, maxX: 100, minZ: 0, maxZ: 100 };
     const buildings = [building({ x: 10, y: 10 }), building({ x: 20, y: 20 })];
-    const out = buildCellsFromLayout(bounds, buildings, EMPTY_UNIFORMS);
+    const out = buildCellsFromLayout(bounds, buildings);
 
     expect(out.cells).toBeInstanceOf(Map);
     expect(out.grid).toBeDefined();
@@ -42,7 +40,7 @@ describe('buildCellsFromLayout', () => {
       building({ x: 7, y: 2 }),
       building({ x: 10, y: 9 }),
     ];
-    const out = buildCellsFromLayout(bounds, buildings, EMPTY_UNIFORMS);
+    const out = buildCellsFromLayout(bounds, buildings);
 
     // All buildings land in the same cell (x<CELL_SIZE and z<CELL_SIZE).
     expect(out.cells.size).toBe(1);
@@ -60,7 +58,7 @@ describe('buildCellsFromLayout', () => {
     const bounds = { minX: 0, maxX: N * CELL_SIZE * 2, minZ: 0, maxZ: CELL_SIZE * 2 };
     // Each building at (i*CELL_SIZE + 1, 1) → distinct column cells.
     const buildings = Array.from({ length: N }, (_, i) => building({ x: i * CELL_SIZE + 1, y: 1 }));
-    const out = buildCellsFromLayout(bounds, buildings, EMPTY_UNIFORMS);
+    const out = buildCellsFromLayout(bounds, buildings);
 
     expect(out.cells.size).toBe(N);
     expect(out.grid.cellCount).toBeGreaterThan(N);
@@ -75,7 +73,7 @@ describe('buildCellsFromLayout', () => {
       building({ x: 1, y: 1 }), // cell at grid-col 0, row 0
       building({ x: CELL_SIZE + 1, y: 1 }), // cell at grid-col 1, row 0
     ];
-    const out = buildCellsFromLayout(bounds, buildings, EMPTY_UNIFORMS);
+    const out = buildCellsFromLayout(bounds, buildings);
 
     expect(out.cells.size).toBe(2);
     // 2 cells × 1 mesh (detail) = 2 children in sceneRoot.
@@ -85,7 +83,7 @@ describe('buildCellsFromLayout', () => {
   it('each occupied cell has a detailMesh', () => {
     const bounds = { minX: 0, maxX: 50, minZ: 0, maxZ: 50 };
     const buildings = [building({ x: 5, y: 5 })];
-    const out = buildCellsFromLayout(bounds, buildings, EMPTY_UNIFORMS);
+    const out = buildCellsFromLayout(bounds, buildings);
 
     expect(out.cells.size).toBe(1);
     const [cell] = out.cells.values();
@@ -95,7 +93,7 @@ describe('buildCellsFromLayout', () => {
   it('no Mesh (street tile) is added to sceneRoot — only InstancedMeshes', () => {
     const bounds = { minX: 0, maxX: 50, minZ: 0, maxZ: 50 };
     const buildings = [building({ x: 5, y: 5 })];
-    const out = buildCellsFromLayout(bounds, buildings, EMPTY_UNIFORMS);
+    const out = buildCellsFromLayout(bounds, buildings);
 
     for (const child of out.sceneRoot.children) {
       expect(child).toBeInstanceOf(THREE.InstancedMesh);
@@ -120,14 +118,14 @@ describe('buildCellsFromLayout', () => {
         modified: '',
       },
     });
-    const out = buildCellsFromLayout(bounds, [b], EMPTY_UNIFORMS);
+    const out = buildCellsFromLayout(bounds, [b]);
 
     expect(out.index.byPath.get('src/foo.ts')).toBeDefined();
   });
 
   it('handles empty buildings array without throwing', () => {
     const bounds = { minX: 0, maxX: 200, minZ: 0, maxZ: 200 };
-    const out = buildCellsFromLayout(bounds, [], EMPTY_UNIFORMS);
+    const out = buildCellsFromLayout(bounds, []);
 
     expect(out.cells.size).toBe(0);
     expect(out.sceneRoot.children.length).toBe(0);
