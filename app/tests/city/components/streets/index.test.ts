@@ -16,7 +16,7 @@ import * as THREE from 'three';
 import { signal } from '@preact/signals';
 
 import { createStreets } from '@/city/components/streets';
-import { createCityState } from '@/city/state';
+import { makeCityState } from '../../../_helpers/cityFixtures';
 import { STREETS } from '@/state/stores/settings/streets';
 import { NodeKind, StreetAxis } from '@/types';
 import type { CityLayout, PickTarget, Street } from '@/types';
@@ -55,7 +55,7 @@ function makeCtx(): {
     picker: { selection, hover } as unknown as Picker,
     camera: new THREE.PerspectiveCamera(),
     renderer: null as unknown as THREE.WebGLRenderer,
-    cityState: createCityState(),
+    cityState: makeCityState(),
   } as SceneContext;
   return { ctx, selection, hover };
 }
@@ -125,7 +125,7 @@ describe('createStreets()', () => {
       picker: null as unknown as Picker,
       camera: null as unknown as THREE.PerspectiveCamera,
       renderer: null as unknown as THREE.WebGLRenderer,
-      cityState: createCityState(),
+      cityState: makeCityState(),
     } as unknown as SceneContext;
     expect(() => {
       streets = createStreets(ctx);

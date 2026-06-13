@@ -6,6 +6,7 @@ import * as THREE from 'three';
 import { describe, it, expect, beforeEach } from 'vitest';
 import { createPicker, PICKER_SELECTION_KEY } from '@/city/interaction/picker';
 import { createCityState } from '@/city/state';
+import { makeCityState } from '../../_helpers/cityFixtures';
 import { NodeKind } from '@/types';
 import type { CommitEntry, PickerWorld, CommitTarget } from '@/types';
 
@@ -84,7 +85,7 @@ function makeWorld(initialTrees: FakeTrees | null): PickerWorld & {
 } {
   // A city rebuild bumps cityRevision; the deferred trees-attach bumps
   // decorationRevision. The picker reacts to both.
-  const cityState = createCityState();
+  const cityState = makeCityState();
   let currentTrees = initialTrees;
   const api: PickerWorld = {
     getStreetPickables: () => [],

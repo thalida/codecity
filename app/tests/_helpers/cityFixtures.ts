@@ -33,6 +33,20 @@ import { NodeKind } from '@/types';
 import type { CityBbox, CityLayout } from '@/types';
 import { TREES } from '@/state/stores/settings/trees';
 import { BUILDING_DIMENSIONS } from '@/state/stores/settings/buildings';
+import { createCityState, type CityState } from '@/city/state';
+
+// A no-op layout client for tests that exercise cityState's signals/components
+// but never call applyManifest (the only consumer of the client — so the worker
+// is never spawned). Keeps the real createCityState(layoutClient) contract.
+const STUB_LAYOUT_CLIENT = {
+  compute: () => Promise.resolve(null),
+  dispose: () => {},
+};
+
+/** cityState with a no-op layout client, for tests that don't drive applyManifest. */
+export function makeCityState(): CityState {
+  return createCityState(STUB_LAYOUT_CLIENT as never);
+}
 
 /** Builds a CityBbox from extents, deriving cx/cy/width/depth. */
 export function bbox(minX: number, minY: number, maxX: number, maxY: number): CityBbox {

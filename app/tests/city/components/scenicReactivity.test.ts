@@ -19,6 +19,7 @@ import { describe, it, expect, afterEach } from 'vitest';
 import * as THREE from 'three';
 
 import { createCityState } from '@/city/state';
+import { makeCityState } from '../../_helpers/cityFixtures';
 import { createStreets } from '@/city/components/streets';
 import { createGem } from '@/city/components/gem';
 import { createIsland } from '@/city/components/island';
@@ -86,7 +87,7 @@ describe('scenic reactivity — reference-stability gates rebuilds', () => {
   // ---- Parity #1 + #2: streets rebuild on non-reuse, skip on reuse -----------
 
   it('streets: rebuilds on a NEW layout reference, skips on the SAME reference', () => {
-    const cityState = createCityState();
+    const cityState = makeCityState();
     const streets = createStreets(makeCtx(cityState));
     disposers.push(() => streets.dispose());
 
@@ -112,7 +113,7 @@ describe('scenic reactivity — reference-stability gates rebuilds', () => {
   // ---- Parity #1 + #2 + #3: gem rebuilds via rootStreet (computed off layoutStructure)
 
   it('gem: rebuilds when rootStreet changes (new layout), skips on reuse', () => {
-    const cityState = createCityState();
+    const cityState = makeCityState();
     const gem = createGem(makeCtx(cityState));
     disposers.push(() => gem.dispose());
 
@@ -145,7 +146,7 @@ describe('scenic reactivity — reference-stability gates rebuilds', () => {
   // ---- Parity #5: island resizes on new bounds, skips on stable bounds -------
 
   it('island: setBounds fires on a NEW latestWorldBounds reference, skips on reuse', () => {
-    const cityState = createCityState();
+    const cityState = makeCityState();
     const island = createIsland(makeCtx(cityState));
     disposers.push(() => island.dispose());
 
@@ -166,7 +167,7 @@ describe('scenic reactivity — reference-stability gates rebuilds', () => {
   // ---- repoLabel: repositions every apply (manifest changes every apply) -----
 
   it('repoLabel: repositions on every manifest change (name + anchor)', () => {
-    const cityState = createCityState();
+    const cityState = makeCityState();
     const label = createRepoLabel(makeCtx(cityState), { getGem: () => null });
     disposers.push(() => label.dispose());
 

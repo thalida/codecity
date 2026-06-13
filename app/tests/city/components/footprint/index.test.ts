@@ -13,7 +13,7 @@ import { StreetAxis } from '@/types';
 import type { CityLayout } from '@/types';
 import type { Picker } from '@/city/interaction/picker';
 import type { SceneContext } from '@/city/types';
-import { createCityState } from '@/city/state';
+import { makeCityState } from '../../../_helpers/cityFixtures';
 
 function resetFootprint() {
   FOOTPRINT.value = { ENABLED: true, HALO_WIDTH: 32, CORNER_RADIUS: 1.25, COLOR: '#0a0b0f' };
@@ -27,7 +27,7 @@ function makeCtx(): SceneContext {
     picker: null as unknown as Picker,
     camera: null as unknown as THREE.PerspectiveCamera,
     renderer: null as unknown as THREE.WebGLRenderer,
-    cityState: createCityState(),
+    cityState: makeCityState(),
   } as unknown as SceneContext;
 }
 

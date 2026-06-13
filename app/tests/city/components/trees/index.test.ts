@@ -18,7 +18,7 @@ import { signal } from '@preact/signals';
 import { LineSegments2 } from 'three/addons/lines/LineSegments2.js';
 
 import { createTrees } from '@/city/components/trees';
-import { createCityState } from '@/city/state';
+import { makeCityState } from '../../../_helpers/cityFixtures';
 import { TREES } from '@/state/stores/settings/trees';
 import { NodeKind } from '@/types';
 import type { CommitEntry } from '@/types';
@@ -66,7 +66,7 @@ function makeCtx(): {
     picker: { selection, hover } as unknown as Picker,
     camera: new THREE.PerspectiveCamera(),
     renderer: { domElement: canvas } as unknown as THREE.WebGLRenderer,
-    cityState: createCityState(),
+    cityState: makeCityState(),
   } as SceneContext;
   return { ctx, selection, hover, size };
 }
@@ -78,7 +78,7 @@ function makePrePickerCtx(): SceneContext {
     picker: null as unknown as Picker,
     camera: null as unknown as THREE.PerspectiveCamera,
     renderer: null as unknown as THREE.WebGLRenderer,
-    cityState: createCityState(),
+    cityState: makeCityState(),
   } as unknown as SceneContext;
 }
 

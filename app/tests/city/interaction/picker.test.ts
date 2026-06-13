@@ -5,7 +5,7 @@
 import * as THREE from 'three';
 import { describe, it, expect, beforeEach } from 'vitest';
 import { createPicker, PICKER_SELECTION_KEY } from '@/city/interaction/picker';
-import { createCityState } from '@/city/state';
+import { makeCityState } from '../../_helpers/cityFixtures';
 import { NodeKind } from '@/types';
 import type {
   Building,
@@ -70,7 +70,7 @@ function makeFakeWorld(
   let sidewalkMap: Record<string, THREE.Mesh> = {};
   // A rebuild is now signalled by bumping cityState.cityRevision (the picker
   // reacts to it) rather than firing a world.onChange listener.
-  const cityState = createCityState();
+  const cityState = makeCityState();
   const rootGem: THREE.Object3D | null = null;
 
   function setSnapshot(buildings: FakeBuildingFixture[], streets: FakeStreetFixture[]): void {

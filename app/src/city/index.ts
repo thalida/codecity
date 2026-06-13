@@ -11,7 +11,6 @@ import { registerShaderChunks } from './utils/shaders/registerShaderChunks';
 import { createBuildings } from './components/buildings';
 import { findLayoutOverlaps, layoutCityWithTrace } from './layout/algorithm';
 import { createLayoutClient } from './layout';
-import { createApplyManifest } from './state/applyManifest';
 import { createCityState } from './state';
 import { _formatCollisionReport, _formatStemDiagnostic } from './diagnostics';
 import { createGem } from './components/gem';
@@ -37,7 +36,8 @@ export async function createCity(canvas: HTMLCanvasElement, manifest: Manifest):
   registerShaderChunks();
 
   const scene = new THREE.Scene();
-  const cityState = createCityState();
+  const layoutClient = createLayoutClient();
+  const cityState = createCityState(layoutClient);
 
   // picker/camera/renderer are populated below before the first frame; the
   // gem (and other components) read them only in tick(), so the cast is safe.
@@ -78,24 +78,10 @@ export async function createCity(canvas: HTMLCanvasElement, manifest: Manifest):
     getGemWorldPos: () => cityState.gemWorldPos.peek(),
     getStreetsByDirMap: () => streets.streetsByDirMap(),
   });
-  const layoutClient = createLayoutClient();
-
-  const { applyManifest, invalidateLayoutCache } = createApplyManifest({
-    components: {
-      gem,
-      sky,
-      island,
-      repoLabel,
-      footprint,
-      streets,
-      buildings,
-      trees,
-      fireflies,
-      pathLine,
-    },
-    layoutClient,
-    cityState,
-  });
+  // applyManifest + invalidateLayoutCache are owned by cityState (the manifest
+  // pipeline). The components above need no wiring into it — they rebuild
+  // reactively off cityState's signals.
+  const { applyManifest, invalidateLayoutCache } = cityState;
 
   function runCollisionCheck(): void {
     const layout = cityState.layout.value;

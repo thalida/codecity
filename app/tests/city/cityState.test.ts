@@ -7,7 +7,7 @@
 import { describe, it, expect } from 'vitest';
 import { StreetAxis, NodeKind } from '@/types';
 import type { CityLayout, Street } from '@/types';
-import { createCityState } from '@/city/state';
+import { makeCityState } from '../_helpers/cityFixtures';
 
 // Minimal Street — rootStreet only reads streets[].isRoot; gemWorldPos reads
 // x/y/width/length/orientation. The rest is cast away.
@@ -31,15 +31,15 @@ function makeLayout(streets: Street[]): CityLayout {
 
 describe('createCityState', () => {
   it('constructs independent instances (not a module singleton)', () => {
-    const a = createCityState();
-    const b = createCityState();
+    const a = makeCityState();
+    const b = makeCityState();
     a.manifest.value = { tree: { name: 'a' } } as never;
     expect(b.manifest.value).toBeNull();
     expect(a.manifest).not.toBe(b.manifest);
   });
 
   it('source signals start null and are settable', () => {
-    const cs = createCityState();
+    const cs = makeCityState();
     expect(cs.manifest.value).toBeNull();
     expect(cs.layout.value).toBeNull();
     expect(cs.bbox.value).toBeNull(); // computed off layoutStructure, null when unset
@@ -52,7 +52,7 @@ describe('createCityState', () => {
   });
 
   it('bbox computes from layoutStructure and memoizes on a stable reference', () => {
-    const cs = createCityState();
+    const cs = makeCityState();
     expect(cs.bbox.value).toBeNull(); // null until layoutStructure is set
     cs.layoutStructure.value = makeLayout([]); // no streets/buildings → fallback box
     const box = cs.bbox.value;
@@ -66,7 +66,7 @@ describe('createCityState', () => {
   });
 
   it('rootStreet computes the first isRoot street, null when none', () => {
-    const cs = createCityState();
+    const cs = makeCityState();
     expect(cs.rootStreet.value).toBeNull(); // no layout yet
 
     const child = makeStreet({ label: 'child', isRoot: false });
@@ -79,7 +79,7 @@ describe('createCityState', () => {
   });
 
   it('gemWorldPos derives the orientation-X anchor math', () => {
-    const cs = createCityState();
+    const cs = makeCityState();
     const root = makeStreet({
       isRoot: true,
       orientation: StreetAxis.X,
@@ -97,7 +97,7 @@ describe('createCityState', () => {
   });
 
   it('gemWorldPos derives the orientation-Z anchor math', () => {
-    const cs = createCityState();
+    const cs = makeCityState();
     const root = makeStreet({
       isRoot: true,
       orientation: StreetAxis.Y, // 'y' (non-'x' branch)
@@ -115,14 +115,14 @@ describe('createCityState', () => {
   });
 
   it('gemWorldPos is null when there is no root street', () => {
-    const cs = createCityState();
+    const cs = makeCityState();
     expect(cs.gemWorldPos.value).toBeNull();
     cs.layoutStructure.value = makeLayout([makeStreet({ isRoot: false })]);
     expect(cs.gemWorldPos.value).toBeNull();
   });
 
   it('computeds react to layoutStructure change', () => {
-    const cs = createCityState();
+    const cs = makeCityState();
     const r1 = makeStreet({ isRoot: true, x: 1, orientation: StreetAxis.X });
     cs.layoutStructure.value = makeLayout([r1]);
     expect(cs.rootStreet.value).toBe(r1);

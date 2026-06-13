@@ -20,6 +20,7 @@ import { LineSegments2 } from 'three/addons/lines/LineSegments2.js';
 
 import { createPathLine, type PathLineDeps } from '@/city/components/pathLine';
 import { createCityState } from '@/city/state';
+import { makeCityState } from '../../../_helpers/cityFixtures';
 import { computePathLinewidthPixels } from '@/city/components/pathLine/renderer';
 import { STREETS } from '@/state/stores/settings/streets';
 import { NodeKind, StreetAxis } from '@/types';
@@ -82,7 +83,7 @@ function makeDeps(): {
   counters: { gemPosCalls: number };
 } {
   const counters = { gemPosCalls: 0 };
-  const cityState = createCityState();
+  const cityState = makeCityState();
   const deps: PathLineDeps = {
     getGemWorldPos() {
       counters.gemPosCalls++;

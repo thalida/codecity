@@ -1,8 +1,8 @@
 // applyManifestScenic.test.ts — integration parity tests for Stage 4 Commit 2
-// at the createApplyManifest level. Drives the real pipeline factory with the
-// REAL streets component + real cityState (so the batch ordering + bbox-after-
-// streets-group-populated invariant is genuinely exercised) and lightweight
-// stubs for the rest of the components and the off-thread clients.
+// at the cityState.applyManifest level. Drives the real pipeline (owned by
+// cityState) with the REAL streets component (so the batch ordering + bbox-
+// after-streets-group-populated invariant is genuinely exercised) and a
+// controllable stub layout client.
 //
 // Covers the parity-bar items that are applyManifest-level (not pure component
 // reactivity):
@@ -14,7 +14,6 @@
 import { describe, it, expect, afterEach, vi } from 'vitest';
 import * as THREE from 'three';
 
-import { createApplyManifest } from '@/city/state/applyManifest';
 import { createCityState } from '@/city/state';
 import { createStreets } from '@/city/components/streets';
 import { NodeKind, StreetAxis } from '@/types';
@@ -62,43 +61,6 @@ function makeManifest(treeSig: string): Manifest {
   } as unknown as Manifest;
 }
 
-// A no-op stub component exposing whatever subset of the SceneComponent + its
-// own contract applyManifest touches. Per-test overrides extend it.
-function makeStubComponents() {
-  const group = () => new THREE.Group();
-  return {
-    sky: { group: group(), dispose: vi.fn() },
-    island: { group: group(), setBounds: vi.fn(), dispose: vi.fn() },
-    repoLabel: {
-      group: group(),
-      setRepoName: vi.fn(),
-      setAnchor: vi.fn(),
-      setGem: vi.fn(),
-      dispose: vi.fn(),
-    },
-    footprint: { group: group(), rebuild: vi.fn(), dispose: vi.fn() },
-    gem: { group: group(), rebuild: vi.fn(), gem: null, worldPos: null, dispose: vi.fn() },
-    buildings: {
-      group: group(),
-      rebuild: vi.fn(async () => {}),
-      setAtlas: vi.fn(),
-      disposeAdPanels: vi.fn(),
-      getCells: () => new Map(),
-      getBuildingIndex: () => null,
-      dispose: vi.fn(),
-    },
-    trees: {
-      group: group(),
-      rebuild: vi.fn(),
-      clear: vi.fn(),
-      handle: () => null,
-      dispose: vi.fn(),
-    },
-    fireflies: { group: group(), rebuild: vi.fn(), clear: vi.fn(), dispose: vi.fn() },
-    pathLine: { group: group(), dispose: vi.fn() },
-  };
-}
-
 // layoutClient stub: returns a DISTINCT layout object per compute UNLESS
 // reuseLayoutFrom is supplied (the cache-hit path), in which case it returns
 // that exact reference — mirroring the worker's reuse contract that keeps
@@ -112,7 +74,7 @@ function makeLayoutClient(makeLayout: () => CityLayout) {
   };
 }
 
-describe('createApplyManifest — scenic reactivity parity', () => {
+describe('cityState.applyManifest — scenic reactivity parity', () => {
   const disposers: Array<() => void> = [];
   afterEach(() => {
     while (disposers.length) disposers.pop()!();
@@ -120,10 +82,6 @@ describe('createApplyManifest — scenic reactivity parity', () => {
   });
 
   function setup() {
-    const cityState = createCityState();
-    const streets = createStreets(makeCtx(cityState));
-    disposers.push(() => streets.dispose());
-    const stubs = makeStubComponents();
     const layoutClient = makeLayoutClient(
       () =>
         ({
@@ -135,17 +93,16 @@ describe('createApplyManifest — scenic reactivity parity', () => {
         }) as unknown as CityLayout
     );
 
-    const api = createApplyManifest({
-      components: { ...stubs, streets } as never,
-      layoutClient: layoutClient as never,
-      cityState,
-    });
-    return { api, cityState, streets, layoutClient, stubs };
+    const cityState = createCityState(layoutClient as never);
+    const streets = createStreets(makeCtx(cityState));
+    disposers.push(() => streets.dispose());
+
+    return { cityState, streets, layoutClient };
   }
 
   it('#2 non-reuse: applying a manifest builds the streets group and a non-empty bbox', async () => {
-    const { api, cityState, streets } = setup();
-    await api.applyManifest(makeManifest('sig-1'));
+    const { cityState, streets } = setup();
+    await cityState.applyManifest(makeManifest('sig-1'));
 
     // The streets effect ran inside the batch → group populated.
     expect(streets.group.children.length).toBeGreaterThan(0);
@@ -160,8 +117,8 @@ describe('createApplyManifest — scenic reactivity parity', () => {
   });
 
   it('#1 scenic-reuse: re-applying the SAME tree_signature does NOT rebuild streets', async () => {
-    const { api, cityState, streets, layoutClient } = setup();
-    await api.applyManifest(makeManifest('sig-1'));
+    const { cityState, streets, layoutClient } = setup();
+    await cityState.applyManifest(makeManifest('sig-1'));
     const pickablesAfterFirst = streets.pickables();
     const layoutAfterFirst = cityState.layout.value;
     const bboxAfterFirst = cityState.bbox.value;
@@ -169,7 +126,7 @@ describe('createApplyManifest — scenic reactivity parity', () => {
     // Same tree_signature → layout cache hit → layoutClient returns the SAME
     // layout reference (reuseLayoutFrom) → layout.value not reassigned → the
     // streets effect does NOT re-fire.
-    await api.applyManifest(makeManifest('sig-1'));
+    await cityState.applyManifest(makeManifest('sig-1'));
 
     // Reuse was actually exercised (compute saw reuseLayoutFrom on the 2nd call).
     expect(layoutClient.compute.mock.calls[1][1]).toEqual({
@@ -182,24 +139,24 @@ describe('createApplyManifest — scenic reactivity parity', () => {
   });
 
   it('#2 invalidate-then-reapply (structural Save): a new layout reference rebuilds streets', async () => {
-    const { api, streets } = setup();
-    await api.applyManifest(makeManifest('sig-1'));
+    const { cityState, streets } = setup();
+    await cityState.applyManifest(makeManifest('sig-1'));
     const pickablesAfterFirst = streets.pickables();
 
     // Simulate the config-Save path: invalidate the layout cache so the next
     // apply of the SAME manifest takes the non-reuse branch (new layout object).
-    api.invalidateLayoutCache();
-    await api.applyManifest(makeManifest('sig-1'));
+    cityState.invalidateLayoutCache();
+    await cityState.applyManifest(makeManifest('sig-1'));
 
     expect(streets.pickables()).not.toBe(pickablesAfterFirst);
   });
 
   it('#6 supersede: overlapping applies land the winning layout once', async () => {
-    const { api, cityState, streets } = setup();
+    const { cityState, streets } = setup();
     // Fire two applies without awaiting the first; the second bumps the
     // generation and the first bails at its post-compute generation check.
-    const p1 = api.applyManifest(makeManifest('sig-1'));
-    const p2 = api.applyManifest(makeManifest('sig-2'));
+    const p1 = cityState.applyManifest(makeManifest('sig-1'));
+    const p2 = cityState.applyManifest(makeManifest('sig-2'));
     await Promise.all([p1, p2]);
 
     // The winning (last) apply owns the final state: tree_signature sig-2.

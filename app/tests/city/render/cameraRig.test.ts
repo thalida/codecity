@@ -4,7 +4,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import * as THREE from 'three';
 import { createCameraRig } from '@/city/render/cameraRig';
-import { createCityState } from '@/city/state';
+import { makeCityState } from '../../_helpers/cityFixtures';
 import { BuildingOrient, NodeKind, StreetAxis } from '@/types';
 import type { Building, Street } from '@/types';
 
@@ -95,7 +95,7 @@ describe('cameraRig top-down focus', () => {
 
   it('focusBuilding lands the camera at ~80° elevation centered on the building', () => {
     const canvas = makeCanvas();
-    const rig = createCameraRig({ canvas, deps: makeStubWorld(), cityState: createCityState() });
+    const rig = createCameraRig({ canvas, deps: makeStubWorld(), cityState: makeCityState() });
     rig.update(16);
 
     const b = makeBuilding();
@@ -122,7 +122,7 @@ describe('cameraRig top-down focus', () => {
 
   it('focusStreet lands the camera at ~80° elevation centered on the street', () => {
     const canvas = makeCanvas();
-    const rig = createCameraRig({ canvas, deps: makeStubWorld(), cityState: createCityState() });
+    const rig = createCameraRig({ canvas, deps: makeStubWorld(), cityState: makeCityState() });
     rig.update(16);
     const s = makeStreet();
     rig.focusStreet(s, null);
@@ -152,7 +152,7 @@ describe('cameraRig top-down focus', () => {
       getTreeBoundsBySha: (sha: string) =>
         sha === 'abc' ? { x: 250, y: 0, z: -180, height: 100, radius: 30 } : null,
     });
-    const rig = createCameraRig({ canvas, deps, cityState: createCityState() });
+    const rig = createCameraRig({ canvas, deps, cityState: makeCityState() });
     rig.update(16);
     rig.focusTree('abc');
     return new Promise<void>((resolve) => {
@@ -177,7 +177,7 @@ describe('cameraRig top-down focus', () => {
 
   it('focusTree is a no-op when getTreeBoundsBySha returns null', () => {
     const canvas = makeCanvas();
-    const rig = createCameraRig({ canvas, deps: makeStubWorld(), cityState: createCityState() });
+    const rig = createCameraRig({ canvas, deps: makeStubWorld(), cityState: makeCityState() });
     rig.update(16);
     const beforePos = rig.camera.position.clone();
     rig.focusTree('missing-sha');

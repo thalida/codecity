@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import { signal } from '@preact/signals';
 
 import { createGem } from '@/city/components/gem';
-import { createCityState } from '@/city/state';
+import { makeCityState } from '../../../_helpers/cityFixtures';
 import { GEM } from '@/state/stores/settings/gem';
 import { NodeKind, StreetAxis } from '@/types';
 import type { Street, PickTarget } from '@/types';
@@ -35,7 +35,7 @@ function makeCtx(hover: PickTarget | null): {
     picker: { hover: hoverSig } as unknown as Picker,
     camera: new THREE.PerspectiveCamera(),
     renderer: null as unknown as THREE.WebGLRenderer,
-    cityState: createCityState(),
+    cityState: makeCityState(),
   } as SceneContext;
   return { ctx, hover: hoverSig };
 }
@@ -56,7 +56,7 @@ describe('createGem()', () => {
       picker: null as unknown as Picker,
       camera: null as unknown as THREE.PerspectiveCamera,
       renderer: null as unknown as THREE.WebGLRenderer,
-      cityState: createCityState(),
+      cityState: makeCityState(),
     } as unknown as SceneContext;
     expect(() => {
       gem = createGem(ctx);

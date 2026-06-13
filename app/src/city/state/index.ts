@@ -19,6 +19,8 @@ import type { WorldBounds } from '../utils/floorBounds';
 import { rectOfStreet } from '@/city/layout/rect';
 import type { TreePlacement } from '../components/trees/treePlacement';
 import { gemAnchorXZ } from '@/city/components/gem/anchor';
+import type { createLayoutClient } from '../layout';
+import { createApplyManifest } from './applyManifest';
 
 export interface CityState {
   manifest: Signal<Manifest | null>;
@@ -54,9 +56,18 @@ export interface CityState {
   //     live tree meshes (the first bump fired before trees existed).
   cityRevision: Signal<number>;
   decorationRevision: Signal<number>;
+  // The async manifest pipeline cityState owns: compute the layout off-thread,
+  // then set the source signals (every component rebuilds reactively off them).
+  applyManifest(newManifest: Manifest | { tree: unknown; [k: string]: unknown }): Promise<void>;
+  // Clears the private layout cache, forcing the next apply onto the non-reuse path.
+  invalidateLayoutCache(): void;
 }
 
-export function createCityState(): CityState {
+/** The signals/computeds half of CityState — what the manifest pipeline reads
+ *  and writes. createCityState builds these, then spreads the pipeline API in. */
+export type CityStateSignals = Omit<CityState, 'applyManifest' | 'invalidateLayoutCache'>;
+
+export function createCityState(layoutClient: ReturnType<typeof createLayoutClient>): CityState {
   const manifest = signal<Manifest | null>(null);
   const layout = signal<CityLayout | null>(null);
   const layoutStructure = signal<CityLayout | null>(null);
@@ -146,7 +157,7 @@ export function createCityState(): CityState {
     return new THREE.Vector3(a.x, 0, a.y);
   });
 
-  return {
+  const signals: CityStateSignals = {
     manifest,
     layout,
     layoutStructure,
@@ -160,4 +171,7 @@ export function createCityState(): CityState {
     cityRevision,
     decorationRevision,
   };
+  // cityState owns the manifest pipeline: build it over these signals and spread
+  // its API (applyManifest + invalidateLayoutCache) into the returned object.
+  return { ...signals, ...createApplyManifest(signals, layoutClient) };
 }
