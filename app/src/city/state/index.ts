@@ -66,7 +66,7 @@ export interface CityState {
   decorationRevision: Signal<number>;
   // The async manifest pipeline cityState owns: compute the layout off-thread,
   // then set the source signals (every component rebuilds reactively off them).
-  applyManifest(newManifest: Manifest | { tree: unknown; [k: string]: unknown }): Promise<void>;
+  applyManifest(newManifest: Manifest): Promise<void>;
   // Forces the next apply onto the non-reuse path (rebuild for the same tree_signature).
   invalidateLayoutCache(): void;
 }
@@ -187,32 +187,27 @@ export function createCityState(layoutClient: ReturnType<typeof createLayoutClie
   let invalidated = false;
   let generation = 0;
 
-  // Loosely typed: some tests pass mock manifests with string `type` fields
-  // instead of the 'directory'/'file' literals. Real callers pass Manifests.
-  async function applyManifest(
-    newManifest: Manifest | { tree: unknown; [k: string]: unknown }
-  ): Promise<void> {
+  async function applyManifest(newManifest: Manifest): Promise<void> {
     const myGeneration = ++generation;
-    const newManifestTyped = newManifest as Manifest;
 
     // Rewrite tree.name to the friendly label BEFORE building so every downstream
     // consumer (labels, footer, title) shows it instead of the cache-dir hash.
-    const friendlyName = labelFromManifest(newManifestTyped);
-    if (newManifestTyped.tree && friendlyName) {
-      newManifestTyped.tree.name = friendlyName;
+    const friendlyName = labelFromManifest(newManifest);
+    if (newManifest.tree && friendlyName) {
+      newManifest.tree.name = friendlyName;
     }
 
     // Structure-only tree_signature (paths + nesting, NO mtime/size — stable
     // across skeleton/final for one scan). Gates BOTH the icon atlas rebuild and
-    // the layout reuse cache below.
-    const treeSig = newManifestTyped.tree_signature ?? '';
+    // the layout reuse decision below.
+    const treeSig = newManifest.tree_signature ?? '';
 
     // Icon atlas is expensive (a fetch+draw per unique icon), so rebuild it only
     // when treeSig changes (settings re-applies skip). Must run BEFORE the layout
     // signal fires the reactive buildings rebuild, so the cells bake the right UVs.
     if (treeSig !== lastAtlasTreeSig) {
       try {
-        const atlas = await buildIconAtlas(newManifestTyped);
+        const atlas = await buildIconAtlas(newManifest);
         if (myGeneration !== generation) return; // superseded mid-build
         lastAtlasTreeSig = treeSig;
         setIconAtlas(atlas);
@@ -226,15 +221,16 @@ export function createCityState(layoutClient: ReturnType<typeof createLayoutClie
     // (same tree_signature as the live manifest) and a config Save hasn't
     // invalidated — the committed manifest + layout signals ARE the cache.
     // `invalidated` is one-shot, consumed here.
-    const reuseFrom =
-      !invalidated && treeSig && treeSig === manifest.peek()?.tree_signature ? layout.peek() : null;
+    const shouldReuse =
+      !invalidated && treeSig !== '' && treeSig === manifest.peek()?.tree_signature;
     invalidated = false;
+    const reusedLayout = shouldReuse ? layout.peek() : null;
     let newLayout: CityLayout;
     // Full envelope, not `.tree` — the layout code unwraps it and the worker
     // contract stays typed against Manifest. 'superseded' = a newer apply took
     // over; return silently and let it own the swap.
     try {
-      newLayout = await layoutClient.compute(newManifestTyped, reuseFrom);
+      newLayout = await layoutClient.compute(newManifest, reusedLayout);
     } catch (err) {
       if (err instanceof Error && err.message === 'superseded') return;
       throw err;
@@ -242,20 +238,17 @@ export function createCityState(layoutClient: ReturnType<typeof createLayoutClie
     if (myGeneration !== generation) return;
 
     // One batch so the reactive consumers settle on a single change. manifest +
-    // layout reassign every apply; structureRevision bumps ONLY on non-reuse
-    // (reuseFrom != null = same structure reused, identical positions → the
-    // structure-reactive consumers + the bbox computed stay frozen: the scenic
-    // skip). cityRevision bumps once so picker/pathLine/buildingFader re-derive.
-    // layout is set before structureRevision so structure consumers peek it fresh.
+    // layout reassign every apply; structureRevision bumps ONLY on a structure
+    // change (!shouldReuse) → the structure-reactive consumers + the bbox computed
+    // stay frozen on a reuse apply (the scenic skip). cityRevision bumps once so
+    // picker/pathLine/buildingFader re-derive. layout is set before
+    // structureRevision so structure consumers peek it fresh.
     batch(() => {
-      manifest.value = newManifestTyped;
+      manifest.value = newManifest;
       layout.value = newLayout;
-      if (!reuseFrom) structureRevision.value++;
+      if (!shouldReuse) structureRevision.value++;
       cityRevision.value++;
     });
-    // bbox/sceneBbox/cityHeight/latestWorldBounds are all computeds off
-    // structureRevision now — no imperative writes here. The pipeline is purely:
-    // build atlas → compute layout → set the three source signals above.
   }
 
   // A config-only Save calls this before re-applying the same manifest, forcing
