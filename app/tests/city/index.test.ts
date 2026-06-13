@@ -1,6 +1,6 @@
 // city/index.test.ts — smoke test for the createCity composer. Asserts it
 // builds without throwing on EMPTY_MANIFEST and returns the expected handle
-// shape ({ world, applyTheme, picker, rig, focusByPath }).
+// shape ({ world, picker, rig, focusByPath }).
 //
 // jsdom has no WebGL context, so a real THREE.WebGLRenderer + the bloom post
 // pipeline can't run here (no other test constructs a real renderer either —
@@ -88,15 +88,9 @@ describe('createCity', () => {
     const handle = await createCity(makeCanvas(), EMPTY_MANIFEST);
 
     expect(handle.world).toBeDefined();
-    expect(typeof handle.applyTheme).toBe('function');
     expect(handle.picker).toBeDefined();
     expect(handle.rig).toBeDefined();
     expect(typeof handle.rig.reset).toBe('function');
     expect(typeof handle.focusByPath).toBe('function');
-  });
-
-  it('applyTheme runs without throwing', async () => {
-    const handle = await createCity(makeCanvas(), EMPTY_MANIFEST);
-    expect(() => handle.applyTheme()).not.toThrow();
   });
 });

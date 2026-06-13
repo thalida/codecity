@@ -61,7 +61,6 @@ describe('configCommitReactions invalidates layout cache before applyManifest', 
       invalidateLayoutCache() {
         calls.push('invalidateLayoutCache');
       },
-      applyTheme: () => {},
     });
 
     // Simulate a Save commit on a rebuildStore: the user edited

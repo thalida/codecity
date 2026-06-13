@@ -149,11 +149,12 @@ export function createBuildings(ctx: SceneContext, deps: BuildingsDeps): Buildin
 
   // (1) Shared-material theme effect — reacts to BUILDINGS / FACADE / SCENE /
   // BLOOM / BUILDING_DIMENSIONS changes (Save). Reads each store's .value so the
-  // effect subscribes to all of them, then re-applies the material uniforms.
-  // Safe at construction: reads only settings signals (no picker). If the shared
-  // material isn't created yet (first rebuild lazily creates it),
-  // refreshBuildingMaterial() no-ops via its `if (!_sharedMaterial) return`
-  // guard, and the constructor seeds the identical values.
+  // effect subscribes to all of them, then re-applies the material uniforms and
+  // the ad-panel emission (BLOOM.AD_EMISSION). Safe at construction: reads only
+  // settings signals (no picker). If the shared material isn't created yet (first
+  // rebuild lazily creates it), refreshBuildingMaterial() no-ops via its
+  // `if (!_sharedMaterial) return` guard and _adPanels is null, and the
+  // constructor seeds the identical values.
   const stopMaterialEffect = effect(() => {
     void BUILDINGS.value;
     void FACADE.value;
@@ -161,6 +162,7 @@ export function createBuildings(ctx: SceneContext, deps: BuildingsDeps): Buildin
     void BLOOM.value;
     void BUILDING_DIMENSIONS.value;
     refreshBuildingMaterial();
+    _adPanels?.refresh();
   });
 
   // Layout effect — reactive rebuild entry point. Reads cityState.layout (the

@@ -36,7 +36,6 @@ export function useCityScene(canvasRef: RefObject<HTMLCanvasElement | null>): vo
       disposeReactions = attachCommitReactions({
         applyManifest: handle.applyManifest,
         invalidateLayoutCache: handle.invalidateLayoutCache,
-        applyTheme: handle.applyTheme,
       });
 
       // Apply MANIFEST → scene on every change. applyManifest owns its own

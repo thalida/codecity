@@ -173,9 +173,10 @@ export function getBuildingMaterial(): THREE.ShaderMaterial {
 }
 
 /**
- * applyTheme() coordinator hook: push fresh BUILDINGS.OUTLINE_WIDTH into
- * the shared building material's uOutlineWidth uniform so the Hidden-tier
- * wireframe thickness honors live config edits.
+ * Re-apply the Save-committed config to the shared material's uniforms. Called
+ * from the buildings component's settings effect (reacts to BUILDINGS / FACADE /
+ * SCENE / BLOOM / BUILDING_DIMENSIONS) so live config edits — e.g. the Hidden-
+ * tier wireframe thickness from BUILDINGS.OUTLINE_WIDTH — take effect at once.
  */
 export function refreshBuildingMaterial(): void {
   if (!_sharedMaterial) return;

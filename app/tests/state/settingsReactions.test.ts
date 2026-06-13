@@ -1,23 +1,27 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { attachCommitReactions } from '@/state/settingsReactions';
-import { setManifest } from '@/state/stores/manifest';
+import {
+  setManifest,
+  REBUILD_STATUS,
+  RebuildStatus,
+} from '@/state/stores/manifest';
 import { EMPTY_MANIFEST } from '@/constants/manifest';
 import { TREES } from '@/state/stores/settings/trees';
 import { GEM } from '@/state/stores/settings/gem';
 import type { Manifest } from '@/types';
 
-// Routing contract: a "rebuild" key change → world.applyManifest; a "refresh"
-// (material) key change → applyTheme only (NOT applyManifest); a "live" key
+// Routing contract: a "rebuild" key change → applyManifest; a "refresh"
+// (material) key change → the 'rebuilding' status flash only (NOT applyManifest
+// — the actual refresh is reactive via component/postFx effects); a "live" key
 // (read per-frame, e.g. gem animation) → neither.
 
 describe('attachCommitReactions routing', () => {
   let detach: () => void;
   let manifestCalls: number;
-  let themeCalls: number;
 
   beforeEach(() => {
     manifestCalls = 0;
-    themeCalls = 0;
+    REBUILD_STATUS.value = RebuildStatus.Idle;
     // scheduleRebuild reads MANIFEST (the source of truth) via peek(); seed a
     // non-empty manifest so the rebuild path actually calls applyManifest.
     setManifest({ tree: {} } as unknown as Manifest);
@@ -26,9 +30,6 @@ describe('attachCommitReactions routing', () => {
         manifestCalls++;
       },
       invalidateLayoutCache: () => {},
-      applyTheme: () => {
-        themeCalls++;
-      },
     });
   });
 
@@ -48,20 +49,21 @@ describe('attachCommitReactions routing', () => {
     expect(manifestCalls).toBeGreaterThan(0);
   });
 
-  it('refresh-route key change triggers applyTheme but NOT applyManifest', async () => {
+  it('refresh-route key change flashes the rebuilding status but does NOT rebuild', async () => {
     const m0 = manifestCalls;
     TREES.value = { ...TREES.value, COLOR_BUSY_DAY: '#123456' };
     await flush();
-    expect(themeCalls).toBeGreaterThan(0);
+    // The flash is synchronous; the min-dwell timer hasn't fired yet.
+    expect(REBUILD_STATUS.value).toBe(RebuildStatus.Rebuilding);
     expect(manifestCalls).toBe(m0);
   });
 
   it('live-route key change triggers neither', async () => {
     const m0 = manifestCalls;
-    const t0 = themeCalls;
+    const s0 = REBUILD_STATUS.value;
     GEM.value = { ...GEM.value, ROTATION_SPEED: 2.5 };
     await flush();
     expect(manifestCalls).toBe(m0);
-    expect(themeCalls).toBe(t0);
+    expect(REBUILD_STATUS.value).toBe(s0);
   });
 });

@@ -149,12 +149,6 @@ export async function createCity(canvas: HTMLCanvasElement, manifest: Manifest):
     onResetView: rig.reset,
   });
 
-  function applyTheme(): void {
-    postFx.refresh();
-    // Null until the first manifest with media files applies.
-    buildings.getAdPanels()?.refresh();
-  }
-
   // The component set, in TICK order — the only ordering that's load-bearing at
   // runtime:
   //   - sky LAST: its camera-follow must run immediately before postFx.render
@@ -209,7 +203,6 @@ export async function createCity(canvas: HTMLCanvasElement, manifest: Manifest):
     scene,
     picker,
     rig,
-    applyTheme,
     applyManifest,
     invalidateLayoutCache,
     /** Focus the camera on the node at `path`: resolve via the picker, dispatch

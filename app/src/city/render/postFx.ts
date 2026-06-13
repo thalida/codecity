@@ -19,6 +19,7 @@
 //   radius    — how far each bright pixel's glow spreads.
 
 import * as THREE from 'three';
+import { effect } from '@preact/signals';
 import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
@@ -28,7 +29,6 @@ import { BLOOM } from '@/state/stores/settings/effects';
 export interface PostFx {
   render(): void;
   setSize(width: number, height: number): void;
-  refresh(): void;
   dispose(): void;
 }
 
@@ -68,27 +68,28 @@ export function createPostFx(
   // so the final canvas pixels are correctly encoded.
   composer.addPass(new OutputPass());
 
+  // Pull fresh BLOOM config into the bloom pass. Reactive: runs once now and on
+  // every BLOOM Save so the in-UI knobs take effect without rebuilding the
+  // renderer. When ENABLED is off, the pass is bypassed entirely (EffectComposer
+  // skips disabled passes) so the render path approximates the pre-HDR "flat"
+  // look — paired with refreshBuildingMaterial clamping uWindowEmissionBoost to
+  // 0 so no shader output reaches HDR space.
+  const stopBloom = effect(() => {
+    const cfg = BLOOM.value;
+    bloom.enabled = cfg.ENABLED;
+    bloom.strength = cfg.STRENGTH;
+    bloom.radius = cfg.RADIUS;
+    bloom.threshold = cfg.THRESHOLD;
+  });
+
   return {
     render: () => composer.render(),
     setSize: (w, h) => {
       composer.setSize(w, h);
       bloom.setSize(w, h);
     },
-    // Pull fresh BLOOM config values into the bloom pass. Called from
-    // applyTheme() on Save so the in-UI knobs take effect
-    // without rebuilding the renderer. When ENABLED is off, the pass
-    // is bypassed entirely (EffectComposer skips disabled passes) so
-    // the render path approximates the pre-HDR "flat" look — paired
-    // with refreshBuildingMaterial clamping uWindowEmissionBoost to 0
-    // so no shader output reaches HDR space.
-    refresh: () => {
-      const cfg = BLOOM.value;
-      bloom.enabled = cfg.ENABLED;
-      bloom.strength = cfg.STRENGTH;
-      bloom.radius = cfg.RADIUS;
-      bloom.threshold = cfg.THRESHOLD;
-    },
     dispose: () => {
+      stopBloom();
       hdrTarget.dispose();
       bloom.dispose();
       composer.dispose();
