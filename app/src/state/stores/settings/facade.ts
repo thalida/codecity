@@ -152,7 +152,7 @@ const FACADE_FIELDS = {
   UNLIT_LIGHTNESS_DELTA: {
     route: ChangeRoute.Refresh,
     kind: FieldKind.Slider,
-    default: -4,
+    default: -10,
     min: -20,
     max: 20,
     step: 1,
