@@ -98,8 +98,7 @@ describe('createGem()', () => {
 
     const start = gem.getRootGroup()!.scale.x;
     expect(start).toBe(1);
-    for (let i = 0; i < 5; i++)
-      gem.tick!(0.016, { dt: 0.016, time: i * 0.016, camera: CAMERA });
+    for (let i = 0; i < 5; i++) gem.tick!(0.016, { dt: 0.016, time: i * 0.016, camera: CAMERA });
     // HOVER_SCALE default is 1.25; scale should have moved up toward it.
     expect(gem.getRootGroup()!.scale.x).toBeGreaterThan(start);
     expect(gem.getRootGroup()!.scale.x).toBeLessThanOrEqual(GEM.value.HOVER_SCALE + 1e-6);

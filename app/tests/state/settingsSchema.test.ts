@@ -69,7 +69,14 @@ describe('settingSignal', () => {
 // 0-floor-height → NaN-geometry class of bug) into the scene.
 describe('settingSignal hydration validation', () => {
   const FIELDS: FieldMap = {
-    N: { route: ChangeRoute.Refresh, kind: FieldKind.Slider, default: 16, min: 1, max: 50, label: 'N' },
+    N: {
+      route: ChangeRoute.Refresh,
+      kind: FieldKind.Slider,
+      default: 16,
+      min: 1,
+      max: 50,
+      label: 'N',
+    },
     PAIR: {
       route: ChangeRoute.Refresh,
       kind: FieldKind.RangePair,

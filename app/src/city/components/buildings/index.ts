@@ -167,50 +167,47 @@ export function createBuildings(ctx: SceneContext): Buildings {
   let _outline: Outline | null = null;
   let _ghost: Ghost | null = null;
 
-  const _arm = armOnFirstTick(
-    ctx,
-    () => {
-      // Fader gets a world-facade for the component-local cells + ad panels;
-      // it reads the street-by-dir lookup off cityState. Re-sweeps on a city
-      // rebuild via cityState.cityRevision.
-      _fader = createBuildingFader({
-        world: {
-          getCells: () => _cells,
-          getAdPanels: () => _adPanels,
-        },
-        cityState: ctx.cityState,
-        picker: ctx.picker!,
-      });
-      // Outline + ghost reach the cells / mesh resolver locally. They add their
-      // overlay meshes to ctx.scene — they carry explicit renderOrders, so
-      // scene-graph parenting is irrelevant to draw order.
-      _outline = createOutlineRenderer({
-        canvas: ctx.canvas,
-        scene: ctx.scene,
-        world: { getCells: () => _cells },
-        picker: ctx.picker!,
-      });
-      _ghost = createGhostRenderer({
-        scene: ctx.scene,
-        world: { getMeshForBuilding: (b) => getMeshForBuilding(b) },
-        picker: ctx.picker!,
-      });
-      return [
-        () => {
-          _fader?.dispose();
-          _fader = null;
-        },
-        () => {
-          _outline?.dispose();
-          _outline = null;
-        },
-        () => {
-          _ghost?.dispose();
-          _ghost = null;
-        },
-      ];
-    },
-  );
+  const _arm = armOnFirstTick(ctx, () => {
+    // Fader gets a world-facade for the component-local cells + ad panels;
+    // it reads the street-by-dir lookup off cityState. Re-sweeps on a city
+    // rebuild via cityState.cityRevision.
+    _fader = createBuildingFader({
+      world: {
+        getCells: () => _cells,
+        getAdPanels: () => _adPanels,
+      },
+      cityState: ctx.cityState,
+      picker: ctx.picker!,
+    });
+    // Outline + ghost reach the cells / mesh resolver locally. They add their
+    // overlay meshes to ctx.scene — they carry explicit renderOrders, so
+    // scene-graph parenting is irrelevant to draw order.
+    _outline = createOutlineRenderer({
+      canvas: ctx.canvas,
+      scene: ctx.scene,
+      world: { getCells: () => _cells },
+      picker: ctx.picker!,
+    });
+    _ghost = createGhostRenderer({
+      scene: ctx.scene,
+      world: { getMeshForBuilding: (b) => getMeshForBuilding(b) },
+      picker: ctx.picker!,
+    });
+    return [
+      () => {
+        _fader?.dispose();
+        _fader = null;
+      },
+      () => {
+        _outline?.dispose();
+        _outline = null;
+      },
+      () => {
+        _ghost?.dispose();
+        _ghost = null;
+      },
+    ];
+  });
 
   // getMeshForBuilding (named so the ghost facade + the door entry share one
   // impl). Resolves a building's live InstancedMesh + slot via its cellId/slotId;

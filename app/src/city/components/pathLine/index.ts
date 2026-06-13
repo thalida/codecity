@@ -43,23 +43,20 @@ export function createPathLine(ctx: SceneContext): PathLine {
   // armed flag (not `if (_inner)`) survives dispose() nulling _inner, so a
   // stray post-dispose tick() can't re-arm a dead component (same pattern
   // as streets/buildings/fireflies).
-  const _arm = armOnFirstTick(
-    ctx,
-    () => {
-      _inner = createPathLineRenderer({
-        canvas: ctx.canvas,
-        scene: group,
-        picker: ctx.picker!,
-        cityState,
-      });
-      return [
-        () => {
-          _inner?.dispose();
-          _inner = null;
-        },
-      ];
-    },
-  );
+  const _arm = armOnFirstTick(ctx, () => {
+    _inner = createPathLineRenderer({
+      canvas: ctx.canvas,
+      scene: group,
+      picker: ctx.picker!,
+      cityState,
+    });
+    return [
+      () => {
+        _inner?.dispose();
+        _inner = null;
+      },
+    ];
+  });
 
   // STREETS theme effect — reacts to STREETS Save (linewidth, opacity, hover
   // color). refreshMaterials internally calls _updateHoverPathLine, which reads

@@ -158,23 +158,20 @@ export function createTrees(ctx: SceneContext): TreesComponent {
   // armOnFirstTick's sticky armed flag (not `if (_outline)`) survives
   // dispose() nulling _outline, so a stray post-dispose tick() can't re-arm a
   // dead component (same pattern as streets/buildings/fireflies).
-  const _arm = armOnFirstTick(
-    ctx,
-    () => {
-      _outline = createTreeOutlineRenderer({
-        canvas: ctx.canvas,
-        scene: ctx.scene,
-        picker: ctx.picker!,
-        getTrees: () => _inner,
-      });
-      return [
-        () => {
-          _outline?.dispose();
-          _outline = null;
-        },
-      ];
-    },
-  );
+  const _arm = armOnFirstTick(ctx, () => {
+    _outline = createTreeOutlineRenderer({
+      canvas: ctx.canvas,
+      scene: ctx.scene,
+      picker: ctx.picker!,
+      getTrees: () => _inner,
+    });
+    return [
+      () => {
+        _outline?.dispose();
+        _outline = null;
+      },
+    ];
+  });
 
   // tick() — arms the outline on the first call, then drives its per-frame
   // transform snap + rainbow chase.
