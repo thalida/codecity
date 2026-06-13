@@ -2,21 +2,13 @@
 // scene/component construction (formerly world.ts) and the rendering pipeline
 // (formerly renderLoop.ts) into one async factory, then drives the frame loop
 // via startFrameLoop. Returns the handle App.tsx / useCityScene consume.
-//
-// worldAccessor below is a structural shim: the ~40 getters every current
-// consumer (PickerWorld, CameraRigDeps, every handle.world.* reader) reads
-// off the old world object. It satisfies those contracts identically and is
-// dissolved in a later commit once consumers read components/cityState direct.
 
 import * as THREE from 'three';
 
-import type { Manifest, Building } from '@/types';
+import type { Manifest } from '@/types';
 
 import { SCENE } from '@/state/stores/settings/scene';
 import { registerShaderChunks } from './utils/color/registerShaderChunks';
-import { disposeObject3D } from './utils/disposeObject3D';
-import type { CellTile } from './components/buildings/cellTile';
-import type { BuildingIndex } from './components/buildings/buildingIndex';
 import { createBuildings } from './components/buildings';
 import { findLayoutOverlaps, layoutCityWithTrace } from './layout/algorithm';
 import { createLayoutClient } from './layout';
@@ -92,13 +84,7 @@ export async function createCity(canvas: HTMLCanvasElement, manifest: Manifest) 
   });
   const layoutClient = createLayoutClient();
 
-  function disposeMesh(mesh: THREE.Mesh): void {
-    if (!mesh || (mesh.userData && mesh.userData.disposed)) return;
-    if (mesh.parent) mesh.parent.remove(mesh);
-    disposeObject3D(mesh);
-  }
-
-  const { applyManifest, resetCaches, invalidateLayoutCache } = createApplyManifest({
+  const { applyManifest, invalidateLayoutCache } = createApplyManifest({
     components: {
       gem,
       sky,
@@ -117,153 +103,57 @@ export async function createCity(canvas: HTMLCanvasElement, manifest: Manifest) 
     cityState,
   });
 
-  // Structural compatibility shim — see file header.
-  const worldAccessor = {
-    scene,
-    applyManifest,
-    disposeMesh,
-    resetCache(): void {
-      resetCaches();
-      buildings.disposeAdPanels();
-    },
-    invalidateLayoutCache,
-    runCollisionCheck(): void {
-      const layout = cityState.layout.value;
-      if (!layout) {
-        console.warn('[collision] no layout — apply a manifest first');
-        return;
+  function runCollisionCheck(): void {
+    const layout = cityState.layout.value;
+    if (!layout) {
+      console.warn('[collision] no layout — apply a manifest first');
+      return;
+    }
+    const overlaps = findLayoutOverlaps(layout);
+    const totalRects = layout.streets.length + layout.buildings.length;
+    const report = _formatCollisionReport(overlaps, totalRects);
+    if (report.level === 'info') {
+      console.info(report.summary);
+    } else {
+      console.warn(report.summary);
+      for (const line of report.details) {
+        console.warn(line);
       }
-      const overlaps = findLayoutOverlaps(layout);
-      const totalRects = layout.streets.length + layout.buildings.length;
-      const report = _formatCollisionReport(overlaps, totalRects);
-      if (report.level === 'info') {
-        console.info(report.summary);
-      } else {
-        console.warn(report.summary);
-        for (const line of report.details) {
-          console.warn(line);
-        }
-      }
-    },
-    runStemPlacementDiagnostic(): void {
-      const m = cityState.manifest.value;
-      if (!m) {
-        console.warn('[stem-diag] no manifest — apply one first');
-        return;
-      }
-      const { trace } = layoutCityWithTrace(
-        m as unknown as Parameters<typeof layoutCityWithTrace>[0]
-      );
-      for (const line of _formatStemDiagnostic(trace)) {
-        console.log(line);
-      }
-    },
+    }
+  }
 
-    getSky() {
-      return sky;
-    },
-    getRepoLabel() {
-      return repoLabel;
-    },
+  function runStemPlacementDiagnostic(): void {
+    const m = cityState.manifest.value;
+    if (!m) {
+      console.warn('[stem-diag] no manifest — apply one first');
+      return;
+    }
+    const { trace } = layoutCityWithTrace(
+      m as unknown as Parameters<typeof layoutCityWithTrace>[0]
+    );
+    for (const line of _formatStemDiagnostic(trace)) {
+      console.log(line);
+    }
+  }
+
+  // Structural compatibility shim — dissolved in commit e2.
+  const worldAccessor = {
+    applyManifest,
+    invalidateLayoutCache,
+    runCollisionCheck,
+    runStemPlacementDiagnostic,
     getTrees() {
       return trees.handle();
     },
-    getFireflies() {
-      return fireflies.handle();
-    },
     getManifest() {
       return cityState.manifest.value;
-    },
-    getBbox() {
-      return cityState.bbox.value;
-    },
-    getWorldBounds() {
-      return cityState.latestWorldBounds.value;
     },
     getRoot() {
       const m = cityState.manifest.value;
       return m && m.tree;
     },
-    getMaxBuildingHeight() {
-      return buildings.maxHeight();
-    },
-    getTallestBuilding() {
-      return buildings.tallest();
-    },
-    getBuildingPickables() {
-      return buildings.pickables();
-    },
-    getStreetPickables() {
-      return streets.pickables();
-    },
-    getStreetLabels() {
-      return streets.labels();
-    },
-    getAsphaltMeshes() {
-      return streets.asphalt();
-    },
-    getRootGem() {
-      return gem.gem;
-    },
-    getRepoLabelBounds() {
-      return repoLabel.getPanelBounds();
-    },
-    getGem() {
-      return gem;
-    },
-    getStreets() {
-      return streets;
-    },
-    getRootStreet() {
-      return cityState.rootStreet.value;
-    },
-    getGemWorldPos() {
-      return cityState.gemWorldPos.value;
-    },
-    getTreeBoundsBySha(sha: string) {
-      return trees.handle()?.getTreeBoundsBySha(sha) ?? null;
-    },
-    getBuildingByPath(p: string) {
-      return buildings.getByPath(p);
-    },
-    getSidewalkByDir(p: string) {
-      return streets.getSidewalkByDir(p);
-    },
     getStreetByDir(p: string) {
       return streets.getStreetByDir(p);
-    },
-    getBuildingsByPath() {
-      return buildings.getBuildingsByPath();
-    },
-    getSidewalksByDirMap() {
-      return streets.sidewalksByDirMap();
-    },
-    getStreetsByDirMap() {
-      return streets.streetsByDirMap();
-    },
-    getBuildingIndex(): BuildingIndex | null {
-      return buildings.getBuildingIndex();
-    },
-    getCells(): Map<number, CellTile> {
-      return buildings.getCells();
-    },
-    getAdPanels() {
-      return buildings.getAdPanels();
-    },
-    getMeshForBuilding(b: Building) {
-      return buildings.getMeshForBuilding(b);
-    },
-    getBuildings() {
-      return buildings;
-    },
-    getTreesComponent() {
-      return trees;
-    },
-    getFirefliesComponent() {
-      return fireflies;
-    },
-    getPathLine() {
-      return pathLine;
     },
   };
 
@@ -271,9 +161,19 @@ export async function createCity(canvas: HTMLCanvasElement, manifest: Manifest) 
   // BEFORE the rig (so bbox is set and the rig's first frame can frame the city).
   await applyManifest(manifest);
 
-  // worldAccessor satisfies CameraRigDeps structurally; cityState is threaded
-  // so the rig re-frames reactively when bbox changes.
-  const rig = createCameraRig({ canvas, deps: worldAccessor, cityState });
+  // cityState is threaded so the rig re-frames reactively when bbox changes.
+  const rig = createCameraRig({
+    canvas,
+    cityState,
+    deps: {
+      getBbox: () => cityState.bbox.value,
+      getGemWorldPos: () => cityState.gemWorldPos.value,
+      getRootStreet: () => cityState.rootStreet.value,
+      getTallestBuilding: () => buildings.tallest(),
+      getRepoLabelBounds: () => repoLabel.getPanelBounds(),
+      getTreeBoundsBySha: (sha) => trees.handle()?.getTreeBoundsBySha(sha) ?? null,
+    },
+  });
   const camera = rig.camera;
   // Exposed for visual regression tests (tests/visual/setup.ts).
   (window as Window & { __rig?: typeof rig }).__rig = rig;
@@ -282,7 +182,21 @@ export async function createCity(canvas: HTMLCanvasElement, manifest: Manifest) 
   const postFx = createPostFx(renderer, scene, camera);
   postFx.setSize(canvas.clientWidth, canvas.clientHeight);
 
-  const picker = createPicker({ canvas, camera, world: worldAccessor, cityState });
+  const picker = createPicker({
+    canvas,
+    camera,
+    cityState,
+    world: {
+      getStreetPickables: () => streets.pickables(),
+      getRootGem: () => gem.gem,
+      getCells: () => buildings.getCells(),
+      getTrees: () => trees.handle(),
+      getBuildingByPath: (p) => buildings.getByPath(p),
+      getSidewalkByDir: (p) => streets.getSidewalkByDir(p),
+      getStreetByDir: (p) => streets.getStreetByDir(p),
+      getBuildingIndex: () => buildings.getBuildingIndex(),
+    },
+  });
 
   // Populate ctx BEFORE the frame loop so components' tick() sees a live
   // picker/camera/renderer on frame 1.
@@ -311,14 +225,14 @@ export async function createCity(canvas: HTMLCanvasElement, manifest: Manifest) 
       postFx.render();
     },
     onResetView: resetView,
-    getRootName: () => worldAccessor.getRoot()?.name ?? null,
+    getRootName: () => cityState.manifest.value?.tree?.name ?? null,
   });
 
   function applyTheme(): void {
     scene.background = new THREE.Color(SCENE.value.SKY_COLOR);
     postFx.refresh();
     // Null until the first manifest with media files applies.
-    worldAccessor.getAdPanels()?.refresh();
+    buildings.getAdPanels()?.refresh();
   }
 
   // Tick order (sky LAST — its camera-follow must run immediately before
