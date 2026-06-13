@@ -440,6 +440,15 @@ export function createBuildings(ctx: SceneContext): Buildings {
     // the boot rebuild, which snaps in without animating (createCity
     // subscribes to cityState changes only AFTER the initial build).
     const diff = _computeBuildingDiff(prevCells, prevIndex);
+    // Drop any in-flight tweens from a PRIOR rebuild before queueing this one's.
+    // Tweens dedup by Building-object identity, but every rebuild produces fresh
+    // Building objects — so a stale tween would survive and keep writing its
+    // matrix, resolved by cellId/slotId into the NEW cells, into a slot now held
+    // by a different building (or a previously scale-zero unused slot). That
+    // leaves a phantom building stuck at an old transform (z-fighting). The
+    // fresh diff above re-seeds from the current on-screen matrices, so clearing
+    // loses no animation continuity.
+    _tweens.clear();
     if (_firstBuildDone) {
       _tweens.onDiff(diff);
     } else {
