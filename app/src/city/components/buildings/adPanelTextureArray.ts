@@ -158,6 +158,11 @@ export class AdPanelTextureArray {
       tex.type = THREE.UnsignedByteType;
       tex.minFilter = THREE.LinearFilter;
       tex.magFilter = THREE.LinearFilter;
+      // WebGL2 forbids UNPACK_FLIP_Y / PREMULTIPLY_ALPHA for 3D/array texture
+      // uploads — left at the Texture default (flipY = true) three.js logs
+      // "texImage3D: FLIP_Y ... isn't allowed" on every page alloc. Our UVs
+      // don't assume a flip (same as the icon atlas), so disable it.
+      tex.flipY = false;
       // dataReady = false → three.js skips the broken
       // texSubImage3D(..., null) on init and only runs texStorage3D
       // to allocate GPU storage. See the file header for the WebGL
