@@ -29,6 +29,13 @@ function makeLayout(streets: Street[]): CityLayout {
   return { buildings: [], streets } as unknown as CityLayout;
 }
 
+// Drive a structure-change apply: set the layout data, then bump the structure
+// tick the structure-reactive consumers (rootStreet/bbox) track + peek.
+function applyStructure(cs: ReturnType<typeof makeCityState>, layout: CityLayout): void {
+  cs.layout.value = layout;
+  cs.structureRevision.value++;
+}
+
 describe('createCityState', () => {
   it('constructs independent instances (not a module singleton)', () => {
     const a = makeCityState();
@@ -42,7 +49,7 @@ describe('createCityState', () => {
     const cs = makeCityState();
     expect(cs.manifest.value).toBeNull();
     expect(cs.layout.value).toBeNull();
-    expect(cs.bbox.value).toBeNull(); // computed off layoutStructure, null when unset
+    expect(cs.bbox.value).toBeNull(); // computed (off structureRevision + layout), null when unset
     expect(cs.latestWorldBounds.value).toBeNull();
 
     cs.layout.value = makeLayout([]);
@@ -51,17 +58,17 @@ describe('createCityState', () => {
     expect(cs.manifest.value).not.toBeNull();
   });
 
-  it('bbox computes from layoutStructure and memoizes on a stable reference', () => {
+  it('bbox computes from layout and memoizes between structure changes', () => {
     const cs = makeCityState();
-    expect(cs.bbox.value).toBeNull(); // null until layoutStructure is set
-    cs.layoutStructure.value = makeLayout([]); // no streets/buildings → fallback box
+    expect(cs.bbox.value).toBeNull(); // null until the first structure apply
+    applyStructure(cs, makeLayout([])); // no streets/buildings → fallback box
     const box = cs.bbox.value;
     expect(box).not.toBeNull();
-    // Memoized: re-reading without a layoutStructure change (= a reuse apply)
+    // Memoized: re-reading without a structure change (= a reuse apply)
     // returns the SAME Box3 reference — this is the scenic-skip for cameraRig.
     expect(cs.bbox.value).toBe(box);
     // A new structure reference recomputes a fresh box.
-    cs.layoutStructure.value = makeLayout([]);
+    applyStructure(cs, makeLayout([]));
     expect(cs.bbox.value).not.toBe(box);
   });
 
@@ -71,10 +78,10 @@ describe('createCityState', () => {
 
     const child = makeStreet({ label: 'child', isRoot: false });
     const root = makeStreet({ label: 'root', isRoot: true, x: 5 });
-    cs.layoutStructure.value = makeLayout([child, root]);
+    applyStructure(cs, makeLayout([child, root]));
     expect(cs.rootStreet.value).toBe(root);
 
-    cs.layoutStructure.value = makeLayout([child]); // no root
+    applyStructure(cs, makeLayout([child])); // no root
     expect(cs.rootStreet.value).toBeNull();
   });
 
@@ -88,7 +95,7 @@ describe('createCityState', () => {
       width: 10,
       length: 80,
     });
-    cs.layoutStructure.value = makeLayout([root]);
+    applyStructure(cs, makeLayout([root]));
     const pos = cs.gemWorldPos.value!;
     // orientation 'x' → set(x - length/2 + width/2, 0, y)
     expect(pos.x).toBe(100 - 80 / 2 + 10 / 2); // 65
@@ -106,7 +113,7 @@ describe('createCityState', () => {
       width: 10,
       length: 80,
     });
-    cs.layoutStructure.value = makeLayout([root]);
+    applyStructure(cs, makeLayout([root]));
     const pos = cs.gemWorldPos.value!;
     // else branch → set(x, 0, y - length/2 + width/2)
     expect(pos.x).toBe(100);
@@ -117,19 +124,19 @@ describe('createCityState', () => {
   it('gemWorldPos is null when there is no root street', () => {
     const cs = makeCityState();
     expect(cs.gemWorldPos.value).toBeNull();
-    cs.layoutStructure.value = makeLayout([makeStreet({ isRoot: false })]);
+    applyStructure(cs, makeLayout([makeStreet({ isRoot: false })]));
     expect(cs.gemWorldPos.value).toBeNull();
   });
 
-  it('computeds react to layoutStructure change', () => {
+  it('computeds react to a structure change', () => {
     const cs = makeCityState();
     const r1 = makeStreet({ isRoot: true, x: 1, orientation: StreetAxis.X });
-    cs.layoutStructure.value = makeLayout([r1]);
+    applyStructure(cs, makeLayout([r1]));
     expect(cs.rootStreet.value).toBe(r1);
     const z1 = cs.gemWorldPos.value!.x;
 
     const r2 = makeStreet({ isRoot: true, x: 999, orientation: StreetAxis.X });
-    cs.layoutStructure.value = makeLayout([r2]);
+    applyStructure(cs, makeLayout([r2]));
     expect(cs.rootStreet.value).toBe(r2);
     expect(cs.gemWorldPos.value!.x).not.toBe(z1);
   });

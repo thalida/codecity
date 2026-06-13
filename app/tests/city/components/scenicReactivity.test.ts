@@ -78,7 +78,14 @@ function makeManifest(name: string): Manifest {
   } as unknown as Manifest;
 }
 
-describe('scenic reactivity — reference-stability gates rebuilds', () => {
+// Structure-change apply: set layout + bump the structureRevision tick the
+// structure-reactive consumers track. (A reuse apply sets layout WITHOUT bumping.)
+function applyStructure(cityState: ReturnType<typeof makeCityState>, layout: CityLayout): void {
+  cityState.layout.value = layout;
+  cityState.structureRevision.value++;
+}
+
+describe('scenic reactivity — structureRevision gates rebuilds', () => {
   const disposers: Array<() => void> = [];
   afterEach(() => {
     while (disposers.length) disposers.pop()!();
@@ -86,52 +93,45 @@ describe('scenic reactivity — reference-stability gates rebuilds', () => {
 
   // ---- Parity #1 + #2: streets rebuild on non-reuse, skip on reuse -----------
 
-  it('streets: rebuilds on a NEW layout reference, skips on the SAME reference', () => {
+  it('streets: rebuilds on a structure change, skips on a reuse apply', () => {
     const cityState = makeCityState();
     const streets = createStreets(makeCtx(cityState));
     disposers.push(() => streets.dispose());
 
-    const layoutA = makeLayout();
-
-    // First non-reuse apply: new reference → rebuild swaps in a fresh
+    // First structure apply (structureRevision bumps) → rebuild swaps in a fresh
     // pickables array (the per-rebuild side effect we observe).
-    cityState.layoutStructure.value = layoutA;
+    applyStructure(cityState, makeLayout());
     const afterFirst = streets.pickables();
     expect(afterFirst).toHaveLength(1);
 
-    // Scenic-reuse apply: same reference re-assigned → effect does NOT re-fire,
-    // so the pickables array is the SAME reference (no rebuild).
-    cityState.layoutStructure.value = layoutA;
+    // Reuse apply: layout reassigned (fresh dims) but structureRevision NOT
+    // bumped → the streets effect does NOT re-fire (same pickables array).
+    cityState.layout.value = makeLayout();
     expect(streets.pickables()).toBe(afterFirst);
 
-    // Another non-reuse apply: a brand-new layout object → rebuild swaps in a
-    // NEW pickables array.
-    cityState.layoutStructure.value = makeLayout();
+    // Another structure change → rebuild swaps in a NEW pickables array.
+    applyStructure(cityState, makeLayout());
     expect(streets.pickables()).not.toBe(afterFirst);
   });
 
-  // ---- Parity #1 + #2 + #3: gem rebuilds via rootStreet (computed off layoutStructure)
+  // ---- Parity #1 + #2 + #3: gem rebuilds via rootStreet (computed off structureRevision)
 
-  it('gem: rebuilds when rootStreet changes (new layout), skips on reuse', () => {
+  it('gem: rebuilds on a structure change, skips on a reuse apply', () => {
     const cityState = makeCityState();
     const gem = createGem(makeCtx(cityState));
     disposers.push(() => gem.dispose());
 
-    const layoutA = makeLayout();
-    cityState.layoutStructure.value = layoutA;
+    applyStructure(cityState, makeLayout());
     const gemAfterFirst = gem.gem; // fresh inner gem group from rebuild
     expect(gemAfterFirst).not.toBeNull();
 
-    // Reuse: same layout reference → rootStreet computed is reference-stable →
-    // gem effect does NOT re-fire (no flash / GPU realloc): same inner group.
-    cityState.layoutStructure.value = layoutA;
+    // Reuse: layout reassigned but structureRevision NOT bumped → rootStreet
+    // stays cached → gem effect does NOT re-fire (no flash / GPU realloc).
+    cityState.layout.value = makeLayout();
     expect(gem.gem).toBe(gemAfterFirst);
 
-    // Parity #3: a structural settings change goes through invalidateLayoutCache
-    // → the next apply hands a NEW layout object (different reference) even for
-    // the same tree. rootStreet re-derives a new Street reference → gem rebuilds
-    // (new inner group).
-    cityState.layoutStructure.value = makeLayout();
+    // Structure change → rootStreet recomputes a new Street → gem rebuilds.
+    applyStructure(cityState, makeLayout());
     expect(gem.gem).not.toBe(gemAfterFirst);
   });
 

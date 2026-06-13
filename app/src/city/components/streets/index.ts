@@ -2,7 +2,7 @@
 //
 // Self-contained scene component: owns its persistent group, builds the inner
 // street meshes (sidewalk + asphalt slabs) + flat road labels reactively off
-// cityState.layoutStructure, reacts to STREETS settings via an effect, animates the
+// cityState.structureRevision, reacts to STREETS settings via an effect, animates the
 // labels' camera-facing orientation per-frame in tick(), tints sidewalks on
 // hover/selection via two picker-driven effects, and frees its own GPU
 // resources + stops its effects in dispose().
@@ -150,14 +150,14 @@ export function createStreets(ctx: SceneContext): Streets {
     }
   }
 
-  // (0) Layout effect — the reactive rebuild entry point. Reads
-  // cityState.layoutStructure.value (positions only) and rebuilds the street
-  // meshes when it CHANGES. layoutStructure is reassigned only on a non-reuse
-  // apply (ref stays stable on a scenic-reuse apply), so this effect fires on
-  // real structure changes and skips reuse applies natively — no manual gate.
-  // The null-guard makes the construction-time run (still null) a no-op.
+  // (0) Layout effect — the reactive rebuild entry point. Tracks
+  // cityState.structureRevision (bumped only on a non-reuse apply) and peeks
+  // cityState.layout for the data, so it rebuilds the street meshes on a real
+  // structure change and skips reuse applies natively — no manual gate. The
+  // null-guard makes the construction-time run (layout still null) a no-op.
   const stopLayout = effect(() => {
-    const layout = cityState.layoutStructure.value;
+    void cityState.structureRevision.value;
+    const layout = cityState.layout.peek();
     if (layout) rebuild(layout);
   });
 

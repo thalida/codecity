@@ -176,10 +176,10 @@ export function createFootprint(ctx: SceneContext): Footprint {
     group.visible = c.ENABLED;
   });
 
-  // Layout effect — reactive rebuild entry point. Reads cityState.layout (the
-  // EVERY-apply signal, NOT layoutStructure): per-building dims recompute every
-  // apply, so the footprint slabs must re-match even on a reuse apply. Null-guard
-  // makes the construction-time run (layout still null) a no-op.
+  // Layout effect — reactive rebuild entry point. Subscribes to cityState.layout
+  // (the EVERY-apply signal — NOT structureRevision): per-building dims recompute
+  // every apply, so the footprint slabs must re-match even on a reuse apply.
+  // Null-guard makes the construction-time run (layout still null) a no-op.
   const stopLayout = effect(() => {
     const layout = cityState.layout.value;
     if (layout) rebuild(layout);
