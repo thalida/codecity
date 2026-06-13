@@ -189,9 +189,18 @@ export async function createCity(canvas: HTMLCanvasElement, manifest: Manifest):
     buildings.getAdPanels()?.refresh();
   }
 
-  // Tick order (sky LAST — its camera-follow must run immediately before
-  // postFx.render so the sphere's world matrix is fresh). island/footprint
-  // have no tick(); harmless in the array.
+  // The component set, in TICK order — the only ordering that's load-bearing at
+  // runtime:
+  //   - sky LAST: its camera-follow must run immediately before postFx.render
+  //     so the sphere's world matrix is fresh.
+  //   - gem after repoLabel: gem.tick bobs gem.position.y and repoLabel's beam
+  //     foot reads it, so repoLabel sees the previous frame's y (a deliberate,
+  //     pre-existing 1-frame lag — don't reorder to "fix" it).
+  //   - island/footprint have no tick(); harmless in the array.
+  // Draw order is governed entirely by RENDER_ORDERS (three sorts the render
+  // list by renderOrder, then depth, then object-creation id — never by
+  // scene-graph child index), so scene.add order is free: we add in this same
+  // order rather than maintain a second sequence.
   const components: SceneComponent[] = [
     fireflies,
     repoLabel,
@@ -204,17 +213,7 @@ export async function createCity(canvas: HTMLCanvasElement, manifest: Manifest):
     footprint,
     sky,
   ];
-  // scene.add in CONSTRUCTION order (not tick order) to preserve draw sort.
-  scene.add(gem.group);
-  scene.add(sky.group);
-  scene.add(island.group);
-  scene.add(repoLabel.group);
-  scene.add(footprint.group);
-  scene.add(streets.group);
-  scene.add(buildings.group);
-  scene.add(trees.group);
-  scene.add(fireflies.group);
-  scene.add(pathLine.group);
+  for (const c of components) scene.add(c.group);
 
   // Reused scratch vector to avoid per-frame allocations from renderer.getSize().
   const renderSize = new THREE.Vector2();
