@@ -21,18 +21,16 @@ import type { BuildingFadeConfig } from '@/state/stores/settings/buildings';
 import { FadeDetail, NodeKind } from '@/types';
 import type { DirNode, FileNode, PickTarget } from '@/types';
 import { parentDirPath } from '@/city/utils/path';
-import type { Street } from '@/types';
 import type { CellTile } from './cellTile';
 import type { InstancedAdPanels } from './adPanels';
 import type { createPicker } from '@/city/interaction/picker';
 import type { CityState } from '@/city/state';
 
-// Narrow world surface the fader needs. The buildings component supplies this
-// (cells + ad panels are component-local; getStreetByDir is threaded from
-// the composer via the buildings deps). Decouples the fader from that surface.
+// Narrow world surface the fader needs (cells + ad panels are component-local).
+// The street-by-dir lookup comes from cityState directly. Decouples the fader
+// from the buildings component's broader handle.
 interface FaderWorld {
   getCells(): Map<number, CellTile>;
-  getStreetByDir(path: string): Street | null;
   getAdPanels(): InstancedAdPanels | null;
 }
 
@@ -81,7 +79,7 @@ export function createBuildingFader({
       } else if (sel.kind === NodeKind.File) {
         const pp = parentDirPath(sel.file.path);
         if (pp != null) {
-          const ps = world.getStreetByDir(pp);
+          const ps = cityState.streetsByDirMap.peek()[pp];
           if (ps) dirTarget = ps.dir;
         }
       }
@@ -92,7 +90,7 @@ export function createBuildingFader({
       } else if (hov.kind === NodeKind.File && hov.file) {
         const hp = parentDirPath(hov.file.path);
         if (hp != null) {
-          const hs = world.getStreetByDir(hp);
+          const hs = cityState.streetsByDirMap.peek()[hp];
           if (hs) dirTarget = hs.dir;
         }
       }

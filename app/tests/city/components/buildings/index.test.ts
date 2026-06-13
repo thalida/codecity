@@ -68,10 +68,6 @@ function makePrePickerCtx(): SceneContext {
   } as unknown as SceneContext;
 }
 
-const NOOP_DEPS = {
-  getStreetByDir: () => null,
-};
-
 const EMPTY_DATE_RANGES = {
   createdMin: null,
   createdMax: null,
@@ -128,7 +124,7 @@ describe('createBuildings()', () => {
 
   it('constructs with an empty named group (pre-rebuild), no throws', () => {
     const { ctx } = makeCtx();
-    buildings = createBuildings(ctx, NOOP_DEPS);
+    buildings = createBuildings(ctx);
     expect(buildings.group).toBeInstanceOf(THREE.Group);
     expect(buildings.group.name).toBe('city-buildings');
     expect(buildings.group.children).toHaveLength(0);
@@ -140,7 +136,7 @@ describe('createBuildings()', () => {
   it('material theme effect runs at construction with a null picker without throwing', () => {
     const ctx = makePrePickerCtx();
     expect(() => {
-      buildings = createBuildings(ctx, NOOP_DEPS);
+      buildings = createBuildings(ctx);
       BUILDINGS.value = { ...BUILDINGS.value };
     }).not.toThrow();
   });
@@ -151,7 +147,7 @@ describe('createBuildings()', () => {
 
   it('rebuild() populates the group, cells, index, and lookups', async () => {
     const { ctx } = makeCtx();
-    buildings = createBuildings(ctx, NOOP_DEPS);
+    buildings = createBuildings(ctx);
 
     const b0 = building({ x: 10, y: 10, h: 4, file: fileOf('src/a.ts') as never });
     const b1 = building({ x: -20, y: -20, h: 9, file: fileOf('src/b.ts') as never });
@@ -187,7 +183,7 @@ describe('createBuildings()', () => {
 
   it('rebuild() colors the buildings (writes b.color from the date ranges)', async () => {
     const { ctx } = makeCtx();
-    buildings = createBuildings(ctx, NOOP_DEPS);
+    buildings = createBuildings(ctx);
     const b0 = building({ x: 1, y: 1, color: '__unset__', file: fileOf('src/a.ts') as never });
     await buildings.rebuild(buildingLayout([b0]), EMPTY_DATE_RANGES);
     // The color loop overwrote the placeholder with a real CSS color from
@@ -198,7 +194,7 @@ describe('createBuildings()', () => {
 
   it('rebuild() disposes the prior cell root WITHOUT freeing the shared material', async () => {
     const { ctx } = makeCtx();
-    buildings = createBuildings(ctx, NOOP_DEPS);
+    buildings = createBuildings(ctx);
 
     await buildings.rebuild(
       buildingLayout([building({ x: 5, y: 5, file: fileOf('src/a.ts') as never })]),
@@ -235,7 +231,7 @@ describe('createBuildings()', () => {
 
   it('material effect re-applies uOutlineWidth on BUILDINGS Save', async () => {
     const { ctx } = makeCtx();
-    buildings = createBuildings(ctx, NOOP_DEPS);
+    buildings = createBuildings(ctx);
     // Force the shared material to exist (created lazily during rebuild).
     await buildings.rebuild(
       buildingLayout([building({ x: 1, y: 1, file: fileOf('src/a.ts') as never })]),
@@ -256,7 +252,7 @@ describe('createBuildings()', () => {
 
   it('does NOT arm the overlays before the first tick (no ghost mesh in scene)', async () => {
     const { ctx, hover } = makeCtx();
-    buildings = createBuildings(ctx, NOOP_DEPS);
+    buildings = createBuildings(ctx);
     const b0 = building({ x: 5, y: 5, file: fileOf('src/a.ts') as never });
     await buildings.rebuild(buildingLayout([b0]), EMPTY_DATE_RANGES);
 
@@ -274,7 +270,7 @@ describe('createBuildings()', () => {
 
   it('arms overlays on first tick; a later hover drives the ghost overlay', async () => {
     const { ctx, hover } = makeCtx();
-    buildings = createBuildings(ctx, NOOP_DEPS);
+    buildings = createBuildings(ctx);
     const b0 = building({ x: 5, y: 5, file: fileOf('src/a.ts') as never });
     await buildings.rebuild(buildingLayout([b0]), EMPTY_DATE_RANGES);
 
@@ -304,7 +300,7 @@ describe('createBuildings()', () => {
 
   it('the FIRST rebuild (boot) does NOT fire enter tweens — the city snaps in', async () => {
     const { ctx } = makeCtx();
-    buildings = createBuildings(ctx, NOOP_DEPS);
+    buildings = createBuildings(ctx);
 
     const b0 = building({ x: 10, y: 10, h: 8, file: fileOf('src/a.ts') as never });
 
@@ -333,7 +329,7 @@ describe('createBuildings()', () => {
 
   it('a SECOND rebuild introducing a new building fires its enter tween through tick() and lands the final transform', async () => {
     const { ctx } = makeCtx();
-    buildings = createBuildings(ctx, NOOP_DEPS);
+    buildings = createBuildings(ctx);
 
     // Boot rebuild (no animation) with one building.
     const b0 = building({ x: 10, y: 10, h: 8, file: fileOf('src/a.ts') as never });
@@ -379,7 +375,7 @@ describe('createBuildings()', () => {
 
   it('dispose() empties the group, removes overlays, and stops the material effect', async () => {
     const { ctx } = makeCtx();
-    buildings = createBuildings(ctx, NOOP_DEPS);
+    buildings = createBuildings(ctx);
     await buildings.rebuild(
       buildingLayout([building({ x: 1, y: 1, file: fileOf('src/a.ts') as never })]),
       EMPTY_DATE_RANGES

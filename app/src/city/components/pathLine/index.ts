@@ -17,13 +17,7 @@ import { STREETS } from '@/state/stores/settings/streets';
 import type { FrameContext, SceneComponent, SceneContext } from '../../types';
 import { armOnFirstTick } from '../../utils/armOnFirstTick';
 import { onSettings } from '../../utils/onSettings';
-import { createPathLineRenderer, type PathLineWorld } from './renderer';
-
-/** World closures the inner renderer consumes (threaded from the composer;
- *  closures evaluate at call time so they always see the live gem/streets).
- *  The shape is declared once in ./renderer (PathLineWorld); this is the
- *  public alias the door exposes. */
-export type PathLineDeps = PathLineWorld;
+import { createPathLineRenderer } from './renderer';
 
 /** Public contract for the pathLine component. */
 export interface PathLine extends SceneComponent {
@@ -31,7 +25,7 @@ export interface PathLine extends SceneComponent {
   onResize(): void;
 }
 
-export function createPathLine(ctx: SceneContext, deps: PathLineDeps): PathLine {
+export function createPathLine(ctx: SceneContext): PathLine {
   const { cityState } = ctx;
   // Persistent group — added to the scene once. The inner
   // renderer parents its two line meshes into it at arming (draw order is
@@ -55,7 +49,6 @@ export function createPathLine(ctx: SceneContext, deps: PathLineDeps): PathLine 
       _inner = createPathLineRenderer({
         canvas: ctx.renderer!.domElement,
         scene: group,
-        world: deps,
         picker: ctx.picker!,
         cityState,
       });

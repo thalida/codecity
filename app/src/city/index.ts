@@ -71,18 +71,10 @@ export async function createCity(canvas: HTMLCanvasElement, manifest: Manifest):
   const repoLabel = createRepoLabel(ctx, { getGem: () => gem.gem });
   const footprint = createFootprint(ctx);
   const streets = createStreets(ctx);
-  const buildings = createBuildings(ctx, {
-    getStreetByDir: (p) => cityState.streetsByDirMap.peek()[p] ?? null,
-  });
+  const buildings = createBuildings(ctx);
   const trees = createTrees(ctx);
   const fireflies = createFireflies(ctx);
-  const pathLine = createPathLine(ctx, {
-    // .peek() not .value: invoked from inside the renderer's selection/hover
-    // effects; a tracking read would subscribe those to gemWorldPos. The
-    // renderer's dedicated rebuild effect tracks gemWorldPos directly.
-    getGemWorldPos: () => cityState.gemWorldPos.peek(),
-    getStreetsByDirMap: () => cityState.streetsByDirMap.peek(),
-  });
+  const pathLine = createPathLine(ctx);
   // The component set, in TICK order — the only ordering that's load-bearing at
   // runtime:
   //   - sky LAST: its camera-follow must run immediately before postFx.render

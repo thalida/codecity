@@ -10,7 +10,7 @@ import { createBuildingFader } from '@/city/components/buildings/fader';
 import { makeCityState } from '../../../_helpers/cityFixtures';
 import { BUILDING_FADE } from '@/state/stores/settings/buildings';
 import { FadeDetail, NodeKind } from '@/types';
-import type { Building, DirNode, FileNode, PickTarget, Street } from '@/types';
+import type { Building, CityLayout, DirNode, FileNode, PickTarget, Street } from '@/types';
 
 const _originalFade = BUILDING_FADE.value;
 
@@ -82,11 +82,8 @@ function makeFader(opts: {
   const cell = { detailMesh, buildings: opts.buildings };
   const cells = new Map([[0, cell]]);
 
-  const streetByDir = opts.streetByDir ?? new Map();
-
   const world = {
     getCells: () => cells,
-    getStreetByDir: (path: string) => streetByDir.get(path) ?? null,
     getAdPanels: () => null,
   } as unknown as Parameters<typeof createBuildingFader>[0]['world'];
 
@@ -95,7 +92,19 @@ function makeFader(opts: {
     hover: signal<PickTarget | null>(opts.hover ?? null),
   } as unknown as Parameters<typeof createBuildingFader>[0]['picker'];
 
-  const fader = createBuildingFader({ world, cityState: makeCityState(), picker });
+  // The fader resolves a file selection's parent dir via cityState.streetsByDirMap
+  // (keyed by street dir.path). Seed it from streetByDir — each value's dir.path
+  // matches its key — so the lookups resolve as the old getStreetByDir mock did.
+  const cityState = makeCityState();
+  if (opts.streetByDir) {
+    cityState.layout.value = {
+      streets: [...opts.streetByDir.values()],
+      buildings: [],
+    } as unknown as CityLayout;
+    cityState.structureRevision.value++;
+  }
+
+  const fader = createBuildingFader({ world, cityState, picker });
 
   function readFor(path: string): FadeReading | null {
     const slot = opts.buildings.findIndex((b) => b.file?.path === path);

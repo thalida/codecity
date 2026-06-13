@@ -1,10 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { attachCommitReactions } from '@/state/settingsReactions';
-import {
-  setManifest,
-  REBUILD_STATUS,
-  RebuildStatus,
-} from '@/state/stores/manifest';
+import { setManifest, REBUILD_STATUS, RebuildStatus } from '@/state/stores/manifest';
 import { EMPTY_MANIFEST } from '@/constants/manifest';
 import { TREES } from '@/state/stores/settings/trees';
 import { GEM } from '@/state/stores/settings/gem';

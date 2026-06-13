@@ -18,7 +18,6 @@ import { STREETS, STREET_TIERS } from '@/state/stores/settings/streets';
 import { PATH_LINE_ELEVATION, HOVER_PATH_LINE_ELEVATION } from '@/constants/streets';
 import { RENDER_ORDERS } from '@/city/types/renderOrders';
 import { NodeKind } from '@/types';
-import type { Street } from '@/types';
 import { computePathPoints } from '@/city/layout/streetPath';
 import { rainbowRgbAt } from '@/city/utils/rainbowChase';
 import type { PickTarget } from '@/types/picker';
@@ -39,16 +38,6 @@ export function computePathLinewidthPixels(pct: number): number {
   return minWidth * (pct / 100);
 }
 
-/** Minimal world surface consumed by this renderer. The pathLine door
- *  threads world closures through (gem position + the streets-by-dir map).
- *  Re-exported by the door as PathLineDeps — single source of truth for the
- *  seam shape. Rebuild reactivity rides on cityState (see below), not a
- *  closure. */
-export interface PathLineWorld {
-  getGemWorldPos(): THREE.Vector3 | null;
-  getStreetsByDirMap(): Record<string, Street>;
-}
-
 /** Minimal picker surface consumed by this renderer (hover + selection
  *  signals). Mirrors trees/outline.ts. */
 interface PickerSignals {
@@ -59,7 +48,6 @@ interface PickerSignals {
 export function createPathLineRenderer({
   canvas,
   scene,
-  world,
   picker,
   cityState,
 }: {
@@ -68,7 +56,6 @@ export function createPathLineRenderer({
    *  order is governed by RENDER_ORDERS.PATH_LINE renderOrder, not graph
    *  position. */
   scene: THREE.Object3D;
-  world: PathLineWorld;
   picker: PickerSignals;
   cityState: CityState;
 }) {
@@ -127,14 +114,18 @@ export function createPathLineRenderer({
 
   function _updatePathLine(): void {
     const sel = picker.selection.value;
-    const gemPos = world.getGemWorldPos();
+    const gemPos = cityState.gemWorldPos.peek();
     if (!gemPos || !sel) {
       pathLine.visible = false;
       pathLineMat.opacity = 0;
       pathSegmentCount = 0;
       return;
     }
-    const pts = computePathPoints(sel, { x: gemPos.x, z: gemPos.z }, world.getStreetsByDirMap());
+    const pts = computePathPoints(
+      sel,
+      { x: gemPos.x, z: gemPos.z },
+      cityState.streetsByDirMap.peek()
+    );
     if (pts.length < 2) {
       pathLine.visible = false;
       pathLineMat.opacity = 0;
@@ -166,7 +157,7 @@ export function createPathLineRenderer({
 
   function _updateHoverPathLine(): void {
     const hov = picker.hover.value;
-    const gemPos = world.getGemWorldPos();
+    const gemPos = cityState.gemWorldPos.peek();
     const cfg = STREETS.value;
     function hide() {
       hoverPathLine.visible = false;
@@ -175,7 +166,11 @@ export function createPathLineRenderer({
     if (!gemPos || !hov) return hide();
     if (hov.kind === NodeKind.Gem) return hide();
     if (_isHoverSameAsSelection()) return hide();
-    const pts = computePathPoints(hov, { x: gemPos.x, z: gemPos.z }, world.getStreetsByDirMap());
+    const pts = computePathPoints(
+      hov,
+      { x: gemPos.x, z: gemPos.z },
+      cityState.streetsByDirMap.peek()
+    );
     if (pts.length < 2) return hide();
     const elev = HOVER_PATH_LINE_ELEVATION;
     const flat: number[] = [];
@@ -213,13 +208,13 @@ export function createPathLineRenderer({
     _updateHoverPathLine();
   });
   // Rebuild reaction: recompute both lines when the gem moves (gemWorldPos) or
-  // the city rebuilds (cityRevision — the streets-by-dir map world.getStreetsBy-
-  // DirMap() reads is fresh by the time it bumps, inside the apply batch). Only
-  // these two signals are tracked: they're read with .value here, and the update
-  // calls run untracked() so the picker.selection/hover + STREETS + gemWorldPos
-  // (peek'd internally) reads inside _updatePathLine/_updateHoverPathLine don't
-  // also subscribe this effect (selection/hover have their own effects above;
-  // STREETS has the theme effect).
+  // the city rebuilds (cityRevision — cityState.streetsByDirMap is fresh by the
+  // time it bumps, inside the apply batch). Only these two signals are tracked:
+  // they're read with .value here, and the update calls run untracked() so the
+  // picker.selection/hover + STREETS + gemWorldPos/streetsByDirMap (peek'd
+  // internally) reads inside _updatePathLine/_updateHoverPathLine don't also
+  // subscribe this effect (selection/hover have their own effects above; STREETS
+  // has the theme effect).
   const _disposeRebuildEffect = effect(() => {
     void cityState.gemWorldPos.value;
     void cityState.cityRevision.value;

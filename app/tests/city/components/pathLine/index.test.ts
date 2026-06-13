@@ -1,7 +1,7 @@
 // app/tests/city/components/pathLine/index.test.ts
 //
-// Tests for the persistent createPathLine(ctx, deps) component (door).
-// API: createPathLine(ctx, deps) → { group, tick(dt, frame), onResize(),
+// Tests for the persistent createPathLine(ctx) component (door).
+// API: createPathLine(ctx) → { group, tick(dt, frame), onResize(),
 //      dispose() }.
 //
 // The inner renderer owns the picker-driven geometry effects and a cityState
@@ -18,13 +18,13 @@ import * as THREE from 'three';
 import { signal } from '@preact/signals';
 import { LineSegments2 } from 'three/addons/lines/LineSegments2.js';
 
-import { createPathLine, type PathLineDeps } from '@/city/components/pathLine';
+import { createPathLine } from '@/city/components/pathLine';
 import { createCityState } from '@/city/state';
 import { makeCityState } from '../../../_helpers/cityFixtures';
 import { computePathLinewidthPixels } from '@/city/components/pathLine/renderer';
 import { STREETS } from '@/state/stores/settings/streets';
 import { NodeKind, StreetAxis } from '@/types';
-import type { Street } from '@/types';
+import type { CityLayout, Street } from '@/types';
 import type { PickTarget } from '@/types/picker';
 import type { Picker } from '@/city/interaction/picker';
 import type { SceneContext } from '@/city/types';
@@ -75,25 +75,27 @@ const SRC_STREET = {
   dir: { name: 'src', path: 'src', type: NodeKind.Directory },
 } as unknown as Street;
 
-// Deps + a cityState (whose cityRevision drives the rebuild effect). Counts
-// getGemWorldPos calls so the untracked-discipline test can assert fire counts.
-function makeDeps(): {
-  deps: PathLineDeps;
+// A cityState seeded with SRC_STREET (isRoot, dir 'src') so its computeds
+// resolve: rootStreet → a non-null gemWorldPos anchor, and streetsByDirMap →
+// { src: SRC_STREET }. cityRevision drives the renderer's rebuild effect. We
+// also spy gemWorldPos.peek() — the renderer peeks it once per line-update
+// pass, so the count is the same observable the old getGemWorldPos() dep seam
+// gave the untracked-discipline tests.
+function makeSeeded(): {
   cityState: ReturnType<typeof createCityState>;
   counters: { gemPosCalls: number };
 } {
-  const counters = { gemPosCalls: 0 };
   const cityState = makeCityState();
-  const deps: PathLineDeps = {
-    getGemWorldPos() {
-      counters.gemPosCalls++;
-      return new THREE.Vector3(0, 0, 0);
-    },
-    getStreetsByDirMap() {
-      return { src: SRC_STREET };
-    },
+  cityState.layout.value = { streets: [SRC_STREET], buildings: [] } as unknown as CityLayout;
+  cityState.structureRevision.value++;
+  const counters = { gemPosCalls: 0 };
+  const gemSig = cityState.gemWorldPos;
+  const origPeek = gemSig.peek.bind(gemSig);
+  (gemSig as { peek: () => THREE.Vector3 | null }).peek = () => {
+    counters.gemPosCalls++;
+    return origPeek();
   };
-  return { deps, cityState, counters };
+  return { cityState, counters };
 }
 
 function dirTarget(): PickTarget {
@@ -122,9 +124,9 @@ describe('createPathLine() component door', () => {
   });
 
   it('constructs with an empty named group; nothing armed, nothing subscribed', () => {
-    const { deps, cityState, counters } = makeDeps();
+    const { cityState, counters } = makeSeeded();
     const { ctx, selection } = makeCtx(cityState);
-    comp = createPathLine(ctx, deps);
+    comp = createPathLine(ctx);
     expect(comp.group.name).toBe('city-path-line');
     expect(comp.group.children).toHaveLength(0);
     // Not armed → the rebuild effect doesn't exist yet, so a cityRevision bump
@@ -139,9 +141,9 @@ describe('createPathLine() component door', () => {
   });
 
   it('first tick() arms the inner renderer: two line meshes + a live rebuild effect', () => {
-    const { deps, cityState, counters } = makeDeps();
+    const { cityState, counters } = makeSeeded();
     const { ctx } = makeCtx(cityState);
-    comp = createPathLine(ctx, deps);
+    comp = createPathLine(ctx);
     comp.tick(0, FRAME(ctx.camera));
     expect(lines(comp)).toHaveLength(2);
     // The rebuild effect is live: a cityRevision bump recomputes the lines
@@ -155,9 +157,9 @@ describe('createPathLine() component door', () => {
   });
 
   it('a selection after arming shows the selection path line; clearing hides it', () => {
-    const { deps, cityState } = makeDeps();
+    const { cityState } = makeSeeded();
     const { ctx, selection } = makeCtx(cityState);
-    comp = createPathLine(ctx, deps);
+    comp = createPathLine(ctx);
     comp.tick(0, FRAME(ctx.camera));
     const [pathLine] = lines(comp);
     expect(pathLine.visible).toBe(false);
@@ -174,9 +176,9 @@ describe('createPathLine() component door', () => {
   });
 
   it('theme effect pushes a fresh linewidth into both materials on STREETS Save', () => {
-    const { deps, cityState } = makeDeps();
+    const { cityState } = makeSeeded();
     const { ctx } = makeCtx(cityState);
-    comp = createPathLine(ctx, deps);
+    comp = createPathLine(ctx);
     comp.tick(0, FRAME(ctx.camera));
     STREETS.value = { ...STREETS.value, PATH_LINEWIDTH_PCT: 25 };
     const expected = computePathLinewidthPixels(25);
@@ -189,9 +191,9 @@ describe('createPathLine() component door', () => {
   });
 
   it('untracked discipline: a hover change fires ONLY the hover effect, not the theme effect', () => {
-    const { deps, cityState, counters } = makeDeps();
+    const { cityState, counters } = makeSeeded();
     const { ctx, hover } = makeCtx(cityState);
-    comp = createPathLine(ctx, deps);
+    comp = createPathLine(ctx);
     comp.tick(0, FRAME(ctx.camera));
 
     const before = counters.gemPosCalls;
@@ -203,9 +205,9 @@ describe('createPathLine() component door', () => {
   });
 
   it('dispose() stops the rebuild effect + all picker effects', () => {
-    const { deps, cityState, counters } = makeDeps();
+    const { cityState, counters } = makeSeeded();
     const { ctx, selection } = makeCtx(cityState);
-    comp = createPathLine(ctx, deps);
+    comp = createPathLine(ctx);
     comp.tick(0, FRAME(ctx.camera));
 
     comp.dispose();

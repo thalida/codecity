@@ -30,14 +30,7 @@ import { BUILDINGS, BUILDING_DIMENSIONS } from '@/state/stores/settings/building
 import { FACADE } from '@/state/stores/settings/facade';
 import { BLOOM } from '@/state/stores/settings/effects';
 import { SCENE } from '@/state/stores/settings/scene';
-import type {
-  Building,
-  CityLayout,
-  DateRanges,
-  EnteringBuilding,
-  Street,
-  StayingBuilding,
-} from '@/types';
+import type { Building, CityLayout, DateRanges, EnteringBuilding, StayingBuilding } from '@/types';
 
 import type { FrameContext, SceneComponent, SceneContext } from '../../types';
 import { armOnFirstTick } from '../../utils/armOnFirstTick';
@@ -60,12 +53,6 @@ import { createBuildingTweens } from './tween';
 interface BuildingDiff {
   entering: { buildings: EnteringBuilding[] };
   staying: { buildings: StayingBuilding[] };
-}
-
-/** Construction-time deps: the streets lookup the fader needs (cityState comes
- *  through ctx). */
-export interface BuildingsDeps {
-  getStreetByDir(path: string): Street | null;
 }
 
 /** Public contract for the buildings component. */
@@ -103,7 +90,7 @@ export interface Buildings extends SceneComponent {
   onResize(): void;
 }
 
-export function createBuildings(ctx: SceneContext, deps: BuildingsDeps): Buildings {
+export function createBuildings(ctx: SceneContext): Buildings {
   // Persistent outer group — added to the scene once by createCity. rebuild()
   // swaps the inner cell root in and out of this group.
   const group = new THREE.Group();
@@ -194,13 +181,12 @@ export function createBuildings(ctx: SceneContext, deps: BuildingsDeps): Buildin
   const _arm = armOnFirstTick(
     ctx,
     () => {
-      // Fader gets a world-facade: cells + ad panels are component-local;
-      // getStreetByDir comes through deps. The fader re-sweeps on a city rebuild
-      // via cityState.cityRevision.
+      // Fader gets a world-facade for the component-local cells + ad panels;
+      // it reads the street-by-dir lookup off cityState. Re-sweeps on a city
+      // rebuild via cityState.cityRevision.
       _fader = createBuildingFader({
         world: {
           getCells: () => _cells,
-          getStreetByDir: deps.getStreetByDir,
           getAdPanels: () => _adPanels,
         },
         cityState: ctx.cityState,
