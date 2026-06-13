@@ -45,9 +45,9 @@ import { NodeKind, StreetAxis } from '@/types';
 import type { Building, PickTarget, Street } from '@/types';
 import type { CityState } from '@/city/state';
 
-/** Narrow accessor surface the rig needs from the world / future composer.
- *  Each member maps 1:1 to a world.ts accessor (Task 13 interim: renderLoop
- *  passes `world` itself, which satisfies this structurally). */
+/** Narrow accessor surface the rig needs from the composer. createCity
+ *  (city/index.ts) passes its worldAccessor, which satisfies this
+ *  structurally. */
 export interface CameraRigDeps {
   getBbox(): THREE.Box3 | null;
   getGemWorldPos(): THREE.Vector3 | null;

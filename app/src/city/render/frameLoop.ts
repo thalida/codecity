@@ -1,10 +1,9 @@
-// city/render/frameLoop.ts — generic requestAnimationFrame driver (Task 13).
-// Replaces renderLoop.animate()'s hand-rolled loop when the Task 15 composer
-// wires it: perFrame.before → rig.update → world-matrix refresh → each
+// city/render/frameLoop.ts — generic requestAnimationFrame driver. Wired by
+// createCity (city/index.ts) as the scene's live loop:
+// perFrame.before → rig.update → world-matrix refresh → each
 // component.tick(dt, frame) in array order → perFrame.after → postFx.render.
-// UNWIRED until Task 15 — renderLoop.animate() remains the live loop.
 //
-// dt/time contract (mirrors animate()'s _skyDt block): one performance.now()
+// dt/time contract: one performance.now()
 // sample per frame; time = seconds since start; dt = 0 on the first frame,
 // else clamped non-negative delta. Tick order is the caller's components-array
 // order (sky must be passed LAST — its camera-follow must run immediately
@@ -25,9 +24,8 @@ export interface PerFrame {
   after?(frame: FrameContext): void;
 }
 
-/** Start the loop. The first frame runs synchronously (matching renderLoop's
- *  direct animate() call); subsequent frames re-arm via requestAnimationFrame.
- *  Returns stop(). */
+/** Start the loop. The first frame runs synchronously (direct animate() call);
+ *  subsequent frames re-arm via requestAnimationFrame. Returns stop(). */
 export function startFrameLoop(
   components: readonly SceneComponent[],
   ctx: SceneContext,

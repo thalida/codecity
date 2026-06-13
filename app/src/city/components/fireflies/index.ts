@@ -8,12 +8,12 @@
 // effects (formerly two world.getFireflies()-refetching effects in
 // renderLoop.ts).
 //
-// Construction-time bridge (Strategy A): fireflies are built inside world.ts
+// Construction-time bridge (Strategy A): fireflies are built by createCity
 // BEFORE the picker exists. The theme effect reads only FIREFLIES signals,
 // so it's safe at construction. The two hover/select boost effects are
 // picker-driven, so they are NOT created at construction (ctx.picker is null
 // there — they'd track NO signal and never re-fire). They are ARMED on the
-// first tick(), once renderLoop has populated ctx.picker.
+// first tick(), once createCity has populated ctx.picker.
 
 import * as THREE from 'three';
 import { effect } from '@preact/signals';
@@ -47,7 +47,7 @@ export interface FirefliesComponent extends SceneComponent {
 }
 
 export function createFireflies(ctx: SceneContext): FirefliesComponent {
-  // Persistent outer group — added to the scene once by world.ts. rebuild()
+  // Persistent outer group — added to the scene once by createCity. rebuild()
   // swaps the inner assembly's group in and out of this group.
   const group = new THREE.Group();
   group.name = 'city-fireflies';

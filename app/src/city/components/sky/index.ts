@@ -24,7 +24,7 @@
 // re-applying the same values the constructor baked).
 //
 // Construction-time bridge (Strategy A, same as the gem): the sky is
-// built inside world.ts BEFORE the picker/camera/renderer exist. The
+// built by createCity BEFORE the picker/camera/renderer exist. The
 // component accepts the SceneContext for composer uniformity but uses
 // nothing from it at construction; tick() reaches the camera via the
 // per-frame FrameContext.

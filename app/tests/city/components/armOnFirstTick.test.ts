@@ -8,7 +8,7 @@
 // cannot re-arm.
 //
 // The fake SceneContext carries mutable picker/renderer so a test can flip them
-// from null (construction window) to live (renderLoop populated them) and assert
+// from null (construction window) to live (createCity populated them) and assert
 // the guard fires at exactly the right moment.
 
 import { describe, it, expect, vi } from 'vitest';
@@ -19,7 +19,7 @@ import type { Picker } from '@/city/render/picker';
 import type * as THREE from 'three';
 
 // Mutable fake: picker/renderer start null (the construction window) and are
-// flipped live to simulate renderLoop populating ctx before the first tick.
+// flipped live to simulate createCity populating ctx before the first tick.
 function makeCtx(): SceneContext {
   return {
     scene: {} as THREE.Scene,
@@ -42,7 +42,7 @@ describe('armOnFirstTick', () => {
     arm.arm();
     expect(setup).not.toHaveBeenCalled();
 
-    // renderLoop populates the picker; the first arm() now runs setup.
+    // createCity populates the picker; the first arm() now runs setup.
     ctx.picker = livePicker;
     arm.arm();
     expect(setup).toHaveBeenCalledTimes(1);

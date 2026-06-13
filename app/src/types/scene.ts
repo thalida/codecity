@@ -20,7 +20,8 @@ export interface CityBbox {
 
 /**
  * Output of layoutCity(manifest). All world-space coordinates; no DOM /
- * three.js. The renderer (scene/world.ts) consumes this to build meshes.
+ * three.js. The renderer (city/index.ts createCity) consumes this to build
+ * meshes.
  *
  * lineStats / byteStats are project-wide ranges computed once during
  * layout so each building can be normalized into the project's actual

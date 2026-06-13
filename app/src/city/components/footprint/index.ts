@@ -89,7 +89,7 @@ void main() {
 `;
 
 export function createFootprint(_ctx: SceneContext): Footprint {
-  // Persistent outer group — added to the scene once by world.ts.
+  // Persistent outer group — added to the scene once by createCity.
   // rebuild() swaps the inner InstancedMesh in and out of this group.
   const group = new THREE.Group();
   group.name = 'city-footprint';

@@ -29,7 +29,7 @@ import type { CityState } from '@/city/state';
 
 // Narrow world surface the fader needs. The buildings component supplies this
 // (cells + ad panels are component-local; getStreetByDir is threaded from
-// world). Decouples the fader from the full createWorld return.
+// the composer's worldAccessor). Decouples the fader from that full surface.
 interface FaderWorld {
   getCells(): Map<number, CellTile>;
   getStreetByDir(path: string): Street | null;
@@ -235,9 +235,9 @@ export function createBuildingFader({
     _sweepAll();
   });
 
-  // update() kept as a no-op for API compatibility: renderLoop.ts calls
-  // fader.update(0) in the animation loop. With the subscription-driven
-  // model, all real work is done on change events, not per-frame.
+  // update() kept as a no-op for API compatibility: the buildings tick()
+  // calls fader.update(0) each frame. With the subscription-driven model,
+  // all real work is done on change events, not per-frame.
   function update(_dtMs: number): void {
     // intentional no-op — fading is now event-driven via subscriptions above.
   }

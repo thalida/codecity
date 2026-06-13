@@ -188,7 +188,7 @@ export function createGem(ctx: SceneContext): Gem {
       gem.userData.baseY +
       Math.sin(t * gemCfg.BOB_FREQUENCY) * (gem.userData.radius * gemCfg.BOB_AMPLITUDE_FRAC);
     // Scale-up affordance on hover so the gem reads as clickable. Hover is
-    // read from the captured SceneContext's picker (populated by renderLoop
+    // read from the captured SceneContext's picker (populated by createCity
     // before the first frame), guarded for the pre-population window.
     const hov = ctx.picker?.hover.value ?? null;
     const gemTargetScale = hov && hov.kind === NodeKind.Gem ? gemCfg.HOVER_SCALE : 1.0;

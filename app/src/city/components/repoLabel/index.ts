@@ -369,7 +369,7 @@ export function createRepoLabel(ctx: SceneContext, deps: RepoLabelDeps): RepoLab
     panelMat.uniforms.uTime.value += dtScaled;
     if (beamMat) beamMat.uniforms.uTime.value += dtScaled;
     _faceCamera(panelMesh, ctx.camera);
-    // Track the gem's per-frame bob — the renderLoop mutates
+    // Track the gem's per-frame bob — the gem component mutates
     // gemRef.position.y each frame (sin-wave around its baseY), so the
     // beam's foot follows the gem live.
     _updateBeamGeometry();

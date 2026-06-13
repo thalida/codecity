@@ -47,7 +47,7 @@ export const PANEL_TEX_SIZE = 128;
 // 16,384 media files per repo — well beyond any realistic codebase.
 export const MAX_PAGES = 8;
 
-// Renderer reference for per-layer GPU uploads. Set once by renderLoop.ts
+// Renderer reference for per-layer GPU uploads. Set once by createCity
 // after the WebGLRenderer is constructed (registerRenderer below). Uploads
 // that fire BEFORE this point (e.g., a cached <img>.onload that races
 // renderer construction) park on `_rendererWaiters` and resume the moment

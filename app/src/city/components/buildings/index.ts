@@ -110,7 +110,7 @@ export interface Buildings extends SceneComponent {
 }
 
 export function createBuildings(ctx: SceneContext, deps: BuildingsDeps): Buildings {
-  // Persistent outer group — added to the scene once by world.ts. rebuild()
+  // Persistent outer group — added to the scene once by createCity. rebuild()
   // swaps the inner cell root in and out of this group.
   const group = new THREE.Group();
   group.name = 'city-buildings';
@@ -358,14 +358,14 @@ export function createBuildings(ctx: SceneContext, deps: BuildingsDeps): Buildin
   }
 
   // tick() — arms the picker overlays on the first call, then drives the three
-  // per-frame syncs in the SAME order renderLoop did: fader.update →
-  // outline.update → ghost.update (field-ownership order; see the old
-  // renderLoop animate() comments). treeOutlineRenderer/pathLineRenderer stay
-  // in renderLoop and now run AFTER this tick (proven behavior-neutral — their
-  // writes are disjoint from these and are only consumed at postFx.render).
+  // per-frame syncs in the SAME order the old renderLoop did: fader.update →
+  // outline.update → ghost.update (field-ownership order). The composer
+  // (city/index.ts) runs treeOutlineRenderer/pathLineRenderer AFTER this tick
+  // (proven behavior-neutral — their writes are disjoint from these and are
+  // only consumed at postFx.render).
   function tick(_dt: number, _frame: FrameContext): void {
     // Entering/staying tweens run FIRST within the tick — this was
-    // animator.update(0) in renderLoop's animate(), pre-Task-13. Nothing
+    // animator.update(0) in the old renderLoop's animate(). Nothing
     // between that slot and this one reads instance matrices; outline/ghost
     // read them AFTER, within this tick — behavior-identical ordering.
     _tweens.update(0);
@@ -463,8 +463,8 @@ export function createBuildings(ctx: SceneContext, deps: BuildingsDeps): Buildin
 
     // ---- Self-tween: compute the enter/stay diff (prev cells vs the new
     // _buildingIndex just adopted above) and fire the tweens — UNLESS this is
-    // the boot rebuild, which snaps in without animating (matching the old
-    // timing where renderLoop subscribed to world.onChange only AFTER boot).
+    // the boot rebuild, which snaps in without animating (createCity
+    // subscribes to cityState changes only AFTER the initial build).
     const diff = _computeBuildingDiff(prevCells, prevIndex);
     if (_firstBuildDone) {
       _tweens.onDiff(diff);

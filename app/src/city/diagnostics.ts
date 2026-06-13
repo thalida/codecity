@@ -1,8 +1,7 @@
-// city/diagnostics.ts — pure collision/stem diagnostic formatters extracted
-// from world.ts. These turn a LayoutOverlap[] / StemPlacementTrace into
-// console-ready lines; the caller (world.runCollisionCheck /
-// world.runStemPlacementDiagnostic) decides where to route them. They read
-// nothing but their arguments, so they unit-test in isolation.
+// city/diagnostics.ts — pure collision/stem diagnostic formatters. These turn
+// a LayoutOverlap[] / StemPlacementTrace into console-ready lines; the caller
+// decides where to route them. They read nothing but their arguments, so they
+// unit-test in isolation.
 
 import type { LayoutOverlap } from './layout/algorithm';
 import type { ChildPlacementTrace, StemPlacementTrace } from './layout/algorithm';
