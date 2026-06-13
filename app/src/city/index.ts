@@ -8,7 +8,7 @@ import * as THREE from 'three';
 import type { Manifest } from '@/types';
 
 import { SCENE } from '@/state/stores/settings/scene';
-import { registerShaderChunks } from './utils/color/registerShaderChunks';
+import { registerShaderChunks } from './utils/shaders/registerShaderChunks';
 import { createBuildings } from './components/buildings';
 import { findLayoutOverlaps, layoutCityWithTrace } from './layout/algorithm';
 import { createLayoutClient } from './layout';

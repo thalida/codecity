@@ -194,7 +194,7 @@ function expectHslClose(
 describe('hsl.glsl parity with hsl.ts', () => {
   it('GLSL source file exists and declares all three public helpers', () => {
     const src = readFileSync(
-      resolve(__dirname, '../../../../src/city/utils/color/hsl.glsl'),
+      resolve(__dirname, '../../../../src/city/utils/shaders/hsl.glsl'),
       'utf-8'
     );
     expect(src).toContain('vec3 shadeColor(vec3 rgb, float deltaPct)');

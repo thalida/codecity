@@ -21,7 +21,7 @@ import { BLOOM } from '@/state/stores/settings/effects';
 import { SCENE } from '@/state/stores/settings/scene';
 import type { IconAtlas } from './atlas';
 import { setColorFromHex } from '@/city/utils/color/setColorFromHex';
-import { writeSunDir } from '@/city/utils/lighting/sunDir';
+import { writeSunDir } from '@/city/utils/shaders/sunDir';
 import {
   LIGHTING_SUN_AZIMUTH_DEG,
   LIGHTING_SUN_ELEVATION_DEG,

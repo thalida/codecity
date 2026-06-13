@@ -2,7 +2,7 @@
 // (no Settings control was ever exposed — the scene's sun is fixed in code), so
 // plain constants rather than a persisted store. Read by the building shader
 // (scene/components/buildings) and the tree vertex-shading bake, both via
-// city/utils/lighting/sunDir.
+// city/utils/shaders/sunDir.
 //
 // Sun direction is expressed in spherical coords (compass bearing, height)
 // rather than a raw vec3. The previous hard-coded direction was

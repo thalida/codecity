@@ -1,4 +1,4 @@
-// city/utils/lighting/sunDir.ts — Converts a spherical (azimuth, elevation) sun
+// city/utils/shaders/sunDir.ts — Converts a spherical (azimuth, elevation) sun
 // position into a unit world-space direction TOWARD the sun.
 //
 // Convention: azimuth=0 points along +Z (south, in world coords), increasing

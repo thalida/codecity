@@ -1,4 +1,4 @@
-// city/utils/lighting/fogChunk.ts — Shared GLSL fog snippet for the island,
+// city/utils/shaders/fogChunk.ts — Shared GLSL fog snippet for the island,
 // buildings, and any other shader that wants atmospheric depth.
 //
 // Height fog: dense near y=0, thinning with altitude. Driven by

@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { describe, it, expect } from 'vitest';
-import { writeSunDir, sunDir } from '@/city/utils/lighting/sunDir';
+import { writeSunDir, sunDir } from '@/city/utils/shaders/sunDir';
 
 // sunDir is pure math: (azimuthDeg, elevationDeg) → unit world-space direction
 // toward the sun. Tests pass the angles directly (the production sun position
