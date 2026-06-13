@@ -1,11 +1,51 @@
-// city/diagnostics.ts — pure collision/stem diagnostic formatters. These turn
-// a LayoutOverlap[] / StemPlacementTrace into console-ready lines; the caller
-// decides where to route them. They read nothing but their arguments, so they
-// unit-test in isolation.
+// city/diagnostics.ts — the city's two console diagnostics (collision check +
+// stem-placement trace), plus the pure formatters they route through. The
+// runCollisionCheck / runStemPlacementDiagnostic entry points read the city's
+// layout/manifest off cityState and print to the console; the City.world debug
+// API delegates straight to them. The _format* helpers below read nothing but
+// their arguments, so they unit-test in isolation.
 
+import { findLayoutOverlaps, layoutCityWithTrace } from './layout/algorithm';
 import type { LayoutOverlap } from './layout/algorithm';
 import type { ChildPlacementTrace, StemPlacementTrace } from './layout/algorithm';
 import type { WorldRect } from './layout/occupancyIndex';
+import type { CityState } from './state';
+
+// Run the layout-overlap check against the current layout and print the report.
+// Unexpected overlaps warn (with per-overlap detail lines); a clean result logs
+// an info summary. No-ops with a warning when no layout has been applied yet.
+export function runCollisionCheck(cityState: CityState): void {
+  const layout = cityState.layout.value;
+  if (!layout) {
+    console.warn('[collision] no layout — apply a manifest first');
+    return;
+  }
+  const overlaps = findLayoutOverlaps(layout);
+  const totalRects = layout.streets.length + layout.buildings.length;
+  const report = _formatCollisionReport(overlaps, totalRects);
+  if (report.level === 'info') {
+    console.info(report.summary);
+  } else {
+    console.warn(report.summary);
+    for (const line of report.details) {
+      console.warn(line);
+    }
+  }
+}
+
+// Re-run layout with tracing on the current manifest and print the stem-
+// placement trace. No-ops with a warning when no manifest has been applied yet.
+export function runStemPlacementDiagnostic(cityState: CityState): void {
+  const m = cityState.manifest.value;
+  if (!m) {
+    console.warn('[stem-diag] no manifest — apply one first');
+    return;
+  }
+  const { trace } = layoutCityWithTrace(m as unknown as Parameters<typeof layoutCityWithTrace>[0]);
+  for (const line of _formatStemDiagnostic(trace)) {
+    console.log(line);
+  }
+}
 
 // _formatCollisionReport(overlaps, totalRects) -> {level, summary, details}
 //

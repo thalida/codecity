@@ -9,10 +9,9 @@ import type { Manifest } from '@/types';
 
 import { registerShaderChunks } from './utils/shaders/registerShaderChunks';
 import { createBuildings } from './components/buildings';
-import { findLayoutOverlaps, layoutCityWithTrace } from './layout/algorithm';
 import { createLayoutClient } from './layout';
 import { createCityState } from './state';
-import { _formatCollisionReport, _formatStemDiagnostic } from './diagnostics';
+import { runCollisionCheck, runStemPlacementDiagnostic } from './diagnostics';
 import { createGem } from './components/gem';
 import { createSky } from './components/sky';
 import { createIsland } from './components/island';
@@ -84,39 +83,6 @@ export async function createCity(canvas: HTMLCanvasElement, manifest: Manifest):
   // pipeline). The components above need no wiring into it — they rebuild
   // reactively off cityState's signals.
   const { applyManifest, invalidateLayoutCache } = cityState;
-
-  function runCollisionCheck(): void {
-    const layout = cityState.layout.value;
-    if (!layout) {
-      console.warn('[collision] no layout — apply a manifest first');
-      return;
-    }
-    const overlaps = findLayoutOverlaps(layout);
-    const totalRects = layout.streets.length + layout.buildings.length;
-    const report = _formatCollisionReport(overlaps, totalRects);
-    if (report.level === 'info') {
-      console.info(report.summary);
-    } else {
-      console.warn(report.summary);
-      for (const line of report.details) {
-        console.warn(line);
-      }
-    }
-  }
-
-  function runStemPlacementDiagnostic(): void {
-    const m = cityState.manifest.value;
-    if (!m) {
-      console.warn('[stem-diag] no manifest — apply one first');
-      return;
-    }
-    const { trace } = layoutCityWithTrace(
-      m as unknown as Parameters<typeof layoutCityWithTrace>[0]
-    );
-    for (const line of _formatStemDiagnostic(trace)) {
-      console.log(line);
-    }
-  }
 
   // Boot apply — AFTER renderer + registerAdPanelRenderer (the ad-panel race),
   // BEFORE the rig (so bbox is set and the rig's first frame can frame the city).
@@ -257,8 +223,8 @@ export async function createCity(canvas: HTMLCanvasElement, manifest: Manifest):
       getManifest: () => cityState.manifest.value,
       getTrees: () => trees.handle(),
       getStreetByDir: (p: string) => cityState.streetsByDirMap.peek()[p] ?? null,
-      runCollisionCheck,
-      runStemPlacementDiagnostic,
+      runCollisionCheck: () => runCollisionCheck(cityState),
+      runStemPlacementDiagnostic: () => runStemPlacementDiagnostic(cityState),
     },
   };
 }
