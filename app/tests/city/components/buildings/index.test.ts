@@ -44,29 +44,28 @@ function makeCtx(): {
 } {
   const selection = signal<PickTarget | null>(null);
   const hover = signal<PickTarget | null>(null);
-  const canvas = document.createElement('canvas');
   const ctx = {
     scene: new THREE.Scene(),
+    canvas: document.createElement('canvas'),
     picker: { selection, hover } as unknown as Picker,
-    camera: new THREE.PerspectiveCamera(),
-    renderer: { domElement: canvas } as unknown as THREE.WebGLRenderer,
     cityState: makeCityState(),
-  } as SceneContext;
+  } as unknown as SceneContext;
   return { ctx, selection, hover };
 }
 
-// Pre-picker ctx: picker/renderer null (the construction-time window). Used to
-// prove the theme effect is safe to run at construction and the overlays do
-// NOT arm.
+// Pre-picker ctx: picker null (the construction-time window). Used to prove the
+// theme effect is safe to run at construction and the overlays do NOT arm.
 function makePrePickerCtx(): SceneContext {
   return {
     scene: new THREE.Scene(),
+    canvas: document.createElement('canvas'),
     picker: null as unknown as Picker,
-    camera: null as unknown as THREE.PerspectiveCamera,
-    renderer: null as unknown as THREE.WebGLRenderer,
     cityState: makeCityState(),
   } as unknown as SceneContext;
 }
+
+// A throwaway camera for tick() frames where the camera value doesn't matter.
+const CAMERA = new THREE.PerspectiveCamera();
 
 const EMPTY_DATE_RANGES = {
   createdMin: null,
@@ -272,7 +271,7 @@ describe('createBuildings()', () => {
     await buildings.rebuild(buildingLayout([b0]), EMPTY_DATE_RANGES);
 
     // First tick arms the overlays — the ghost mesh now exists (hidden).
-    buildings.tick(0.016, { dt: 0.016, time: 0, camera: ctx.camera });
+    buildings.tick(0.016, { dt: 0.016, time: 0, camera: CAMERA });
     const ghost = findGhost(ctx.scene);
     expect(ghost).not.toBeNull();
     expect(ghost!.visible).toBe(false);
@@ -314,7 +313,7 @@ describe('createBuildings()', () => {
       const mesh = resolved.mesh;
       const m = new THREE.Matrix4();
 
-      buildings.tick(0, { dt: 0, time: 0, camera: ctx.camera });
+      buildings.tick(0, { dt: 0, time: 0, camera: CAMERA });
       mesh.getMatrixAt(resolved.slot, m);
       // scaleY is the full height (no grow-in tween was started).
       expect(m.elements[5]).toBeCloseTo(b0.h, 6);
@@ -348,14 +347,14 @@ describe('createBuildings()', () => {
       // Mid-tween tick: interpolated scaleY strictly between ~0 and the
       // final height (elements[5] is the Y scale of a makeScale matrix).
       now = transitionMs / 2;
-      buildings.tick(0, { dt: 0, time: 0, camera: ctx.camera });
+      buildings.tick(0, { dt: 0, time: 0, camera: CAMERA });
       mesh.getMatrixAt(resolved.slot, m);
       expect(m.elements[5]).toBeGreaterThan(0.0001);
       expect(m.elements[5]).toBeLessThan(b1.h);
 
       // Past the duration: the final scale + position land exactly.
       now = transitionMs + 1;
-      buildings.tick(0, { dt: 0, time: 0, camera: ctx.camera });
+      buildings.tick(0, { dt: 0, time: 0, camera: CAMERA });
       mesh.getMatrixAt(resolved.slot, m);
       expect(m.elements[5]).toBeCloseTo(b1.h, 6);
       expect(m.elements[13]).toBeCloseTo(b1.h / 2, 6);
@@ -377,7 +376,7 @@ describe('createBuildings()', () => {
       buildingLayout([building({ x: 1, y: 1, file: fileOf('src/a.ts') as never })]),
       EMPTY_DATE_RANGES
     );
-    buildings.tick(0, { dt: 0, time: 0, camera: ctx.camera });
+    buildings.tick(0, { dt: 0, time: 0, camera: CAMERA });
     expect(findGhost(ctx.scene)).not.toBeNull();
 
     buildings.dispose();

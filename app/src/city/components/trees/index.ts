@@ -7,13 +7,13 @@
 // absorbs the tree hover/selected outline renderer (./outline — formerly an
 // effects module constructed in renderLoop).
 //
-// Construction-time bridge (Strategy A): trees are built by createCity BEFORE
-// the picker/camera/renderer exist. The theme effect reads only TREES
-// signals, so it's safe at construction. The outline renderer subscribes to
-// picker.hover/selection inside its factory, so it is NOT constructed at
-// component construction (ctx.picker is null there — its effects would track
-// NO signal and never re-fire). It is ARMED on the first tick(), once
-// createCity has populated ctx.picker/ctx.renderer.
+// Construction-time bridge: trees are built by createCity BEFORE the picker
+// exists. The theme effect reads only TREES signals, so it's safe at
+// construction. The outline renderer subscribes to picker.hover/selection
+// inside its factory, so it is NOT constructed at component construction
+// (ctx.picker is null there — its effects would track NO signal and never
+// re-fire). It is ARMED on the first tick(), once createCity has backfilled
+// ctx.picker.
 
 import * as THREE from 'three';
 import { effect } from '@preact/signals';
@@ -164,7 +164,7 @@ export function createTrees(ctx: SceneContext): TreesComponent {
     ctx,
     () => {
       _outline = createTreeOutlineRenderer({
-        canvas: ctx.renderer!.domElement,
+        canvas: ctx.canvas,
         scene: ctx.scene,
         picker: ctx.picker!,
         getTrees: () => _inner,
@@ -176,7 +176,6 @@ export function createTrees(ctx: SceneContext): TreesComponent {
         },
       ];
     },
-    { needsRenderer: true }
   );
 
   // tick() — arms the outline on the first call, then drives its per-frame

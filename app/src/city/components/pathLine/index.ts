@@ -5,10 +5,10 @@
 // inner renderer (./renderer) owns the meshes, the picker-driven geometry
 // effects, and a cityState rebuild effect (gemWorldPos + cityRevision).
 //
-// The inner renderer subscribes to picker.hover/selection + cityState signals
-// and needs the canvas, so it is ARMED on the first tick() once
-// ctx.picker/ctx.renderer are live, not at construction. The STREETS theme
-// effect is settings-only and safe at construction.
+// The inner renderer subscribes to picker.hover/selection + cityState signals,
+// so it is ARMED on the first tick() once ctx.picker is live, not at
+// construction. The STREETS theme effect is settings-only and safe at
+// construction.
 
 import * as THREE from 'three';
 
@@ -47,7 +47,7 @@ export function createPathLine(ctx: SceneContext): PathLine {
     ctx,
     () => {
       _inner = createPathLineRenderer({
-        canvas: ctx.renderer!.domElement,
+        canvas: ctx.canvas,
         scene: group,
         picker: ctx.picker!,
         cityState,
@@ -59,7 +59,6 @@ export function createPathLine(ctx: SceneContext): PathLine {
         },
       ];
     },
-    { needsRenderer: true }
   );
 
   // STREETS theme effect — reacts to STREETS Save. Replaces applyTheme()'s

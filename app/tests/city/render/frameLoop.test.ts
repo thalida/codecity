@@ -9,7 +9,6 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import * as THREE from 'three';
 
 import { startFrameLoop } from '@/city/render/frameLoop';
-import type { Picker } from '@/city/interaction/picker';
 import type { FrameContext, SceneComponent, SceneContext } from '@/city/types';
 
 // Deterministic rAF: collect callbacks; the test flushes them manually.
@@ -22,14 +21,13 @@ function flushFrame(): void {
   for (const cb of pending) cb(performance.now());
 }
 
+// frameLoop reads only ctx.scene (the camera now lives on perFrame.rig).
 function makeCtx(): SceneContext {
-  return {
-    scene: new THREE.Scene(),
-    picker: null as unknown as Picker,
-    camera: new THREE.PerspectiveCamera(),
-    renderer: null as unknown as THREE.WebGLRenderer,
-  } as SceneContext;
+  return { scene: new THREE.Scene() } as unknown as SceneContext;
 }
+
+// The rig owns the camera the loop projects through; every rig mock exposes it.
+const CAMERA = new THREE.PerspectiveCamera();
 
 function makeComponent(name: string, calls: string[]): SceneComponent {
   return {
@@ -62,7 +60,7 @@ describe('startFrameLoop()', () => {
     const calls: string[] = [];
     const components = [makeComponent('a', calls), makeComponent('b', calls)];
     const stop = startFrameLoop(components, makeCtx(), {
-      rig: { update: () => calls.push('rig') },
+      rig: { update: () => calls.push('rig'), camera: CAMERA },
       postFx: { render: () => calls.push('render') },
       before: () => calls.push('before'),
       after: () => calls.push('after'),
@@ -77,7 +75,7 @@ describe('startFrameLoop()', () => {
     const calls: string[] = [];
     const tickless: SceneComponent = { group: new THREE.Group(), dispose: () => {} };
     const stop = startFrameLoop([tickless, makeComponent('a', calls)], makeCtx(), {
-      rig: { update: () => calls.push('rig') },
+      rig: { update: () => calls.push('rig'), camera: CAMERA },
       postFx: { render: () => calls.push('render') },
     });
     expect(calls).toEqual(['rig', 'a', 'render']);
@@ -92,7 +90,7 @@ describe('startFrameLoop()', () => {
       dispose: () => {},
     };
     const stop = startFrameLoop([component], makeCtx(), {
-      rig: { update: () => {} },
+      rig: { update: () => {}, camera: CAMERA },
       postFx: { render: () => {} },
     });
 
@@ -105,19 +103,18 @@ describe('startFrameLoop()', () => {
     stop();
   });
 
-  it('builds the FrameContext from the SceneContext camera with time in seconds', () => {
-    const ctx = makeCtx();
+  it('builds the FrameContext from the rig camera with time in seconds', () => {
     const frames: FrameContext[] = [];
     const component: SceneComponent = {
       group: new THREE.Group(),
       tick: (_dt, frame) => frames.push(frame),
       dispose: () => {},
     };
-    const stop = startFrameLoop([component], ctx, {
-      rig: { update: () => {} },
+    const stop = startFrameLoop([component], makeCtx(), {
+      rig: { update: () => {}, camera: CAMERA },
       postFx: { render: () => {} },
     });
-    expect(frames[0].camera).toBe(ctx.camera);
+    expect(frames[0].camera).toBe(CAMERA);
     expect(frames[0].time).toBeGreaterThanOrEqual(0);
     expect(frames[0].dt).toBe(0);
     stop();
@@ -131,7 +128,7 @@ describe('startFrameLoop()', () => {
       dispose: () => {},
     };
     const stop = startFrameLoop([component], makeCtx(), {
-      rig: { update: () => {} },
+      rig: { update: () => {}, camera: CAMERA },
       postFx: { render: () => {} },
     });
     expect(ticks).toBe(1);
@@ -147,7 +144,7 @@ describe('startFrameLoop()', () => {
 
   it('re-arms exactly one rAF per frame', () => {
     const stop = startFrameLoop([], makeCtx(), {
-      rig: { update: () => {} },
+      rig: { update: () => {}, camera: CAMERA },
       postFx: { render: () => {} },
     });
     expect(_rafCallbacks.size).toBe(1);

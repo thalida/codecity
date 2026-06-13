@@ -51,11 +51,10 @@ function makeCtx(): {
   const hover = signal<PickTarget | null>(null);
   const ctx = {
     scene: new THREE.Scene(),
+    canvas: document.createElement('canvas'),
     picker: { selection, hover } as unknown as Picker,
-    camera: new THREE.PerspectiveCamera(),
-    renderer: null as unknown as THREE.WebGLRenderer,
     cityState: makeCityState(),
-  } as SceneContext;
+  } as unknown as SceneContext;
   return { ctx, selection, hover };
 }
 

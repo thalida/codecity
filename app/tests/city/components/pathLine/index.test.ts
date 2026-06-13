@@ -56,11 +56,10 @@ function makeCtx(cityState: ReturnType<typeof createCityState>): {
   Object.defineProperty(canvas, 'clientHeight', { value: 600 });
   const ctx = {
     scene: new THREE.Scene(),
+    canvas,
     picker: { selection, hover } as unknown as Picker,
-    camera: new THREE.PerspectiveCamera(),
-    renderer: { domElement: canvas } as unknown as THREE.WebGLRenderer,
     cityState,
-  } as SceneContext;
+  } as unknown as SceneContext;
   return { ctx, selection, hover };
 }
 
@@ -106,7 +105,8 @@ function dirTarget(): PickTarget {
   } as unknown as PickTarget;
 }
 
-const FRAME = (camera: THREE.PerspectiveCamera) => ({ dt: 0, time: 0, camera });
+const CAMERA = new THREE.PerspectiveCamera();
+const FRAME = (camera: THREE.PerspectiveCamera = CAMERA) => ({ dt: 0, time: 0, camera });
 
 function lines(comp: ReturnType<typeof createPathLine>): LineSegments2[] {
   return comp.group.children.filter((c): c is LineSegments2 => c instanceof LineSegments2);
@@ -144,7 +144,7 @@ describe('createPathLine() component door', () => {
     const { cityState, counters } = makeSeeded();
     const { ctx } = makeCtx(cityState);
     comp = createPathLine(ctx);
-    comp.tick(0, FRAME(ctx.camera));
+    comp.tick(0, FRAME());
     expect(lines(comp)).toHaveLength(2);
     // The rebuild effect is live: a cityRevision bump recomputes the lines
     // (getGemWorldPos is called from _updatePathLine + _updateHoverPathLine).
@@ -152,7 +152,7 @@ describe('createPathLine() component door', () => {
     cityState.cityRevision.value++;
     expect(counters.gemPosCalls).toBeGreaterThan(before);
     // Second tick does not re-arm (still two lines).
-    comp.tick(0, FRAME(ctx.camera));
+    comp.tick(0, FRAME());
     expect(lines(comp)).toHaveLength(2);
   });
 
@@ -160,7 +160,7 @@ describe('createPathLine() component door', () => {
     const { cityState } = makeSeeded();
     const { ctx, selection } = makeCtx(cityState);
     comp = createPathLine(ctx);
-    comp.tick(0, FRAME(ctx.camera));
+    comp.tick(0, FRAME());
     const [pathLine] = lines(comp);
     expect(pathLine.visible).toBe(false);
 
@@ -179,7 +179,7 @@ describe('createPathLine() component door', () => {
     const { cityState } = makeSeeded();
     const { ctx } = makeCtx(cityState);
     comp = createPathLine(ctx);
-    comp.tick(0, FRAME(ctx.camera));
+    comp.tick(0, FRAME());
     STREETS.value = { ...STREETS.value, PATH_LINEWIDTH_PCT: 25 };
     const expected = computePathLinewidthPixels(25);
     for (const line of lines(comp)) {
@@ -194,7 +194,7 @@ describe('createPathLine() component door', () => {
     const { cityState, counters } = makeSeeded();
     const { ctx, hover } = makeCtx(cityState);
     comp = createPathLine(ctx);
-    comp.tick(0, FRAME(ctx.camera));
+    comp.tick(0, FRAME());
 
     const before = counters.gemPosCalls;
     hover.value = dirTarget();
@@ -208,7 +208,7 @@ describe('createPathLine() component door', () => {
     const { cityState, counters } = makeSeeded();
     const { ctx, selection } = makeCtx(cityState);
     comp = createPathLine(ctx);
-    comp.tick(0, FRAME(ctx.camera));
+    comp.tick(0, FRAME());
 
     comp.dispose();
     expect(comp.group.children).toHaveLength(0);

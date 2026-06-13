@@ -47,20 +47,18 @@ function makeCtx(): {
   const hover = signal<PickTarget | null>(null);
   const ctx = {
     scene: new THREE.Scene(),
+    canvas: document.createElement('canvas'),
     picker: { selection, hover } as unknown as Picker,
-    camera: new THREE.PerspectiveCamera(),
-    renderer: { domElement: document.createElement('canvas') } as unknown as THREE.WebGLRenderer,
     cityState: makeCityState(),
-  } as SceneContext;
+  } as unknown as SceneContext;
   return { ctx, selection, hover };
 }
 
 function makePrePickerCtx(): SceneContext {
   return {
     scene: new THREE.Scene(),
+    canvas: document.createElement('canvas'),
     picker: null as unknown as Picker,
-    camera: null as unknown as THREE.PerspectiveCamera,
-    renderer: null as unknown as THREE.WebGLRenderer,
     cityState: makeCityState(),
   } as unknown as SceneContext;
 }
@@ -87,7 +85,8 @@ function orbUniforms(comp: ReturnType<typeof createFireflies>): Record<string, {
   >;
 }
 
-const FRAME = (camera: THREE.PerspectiveCamera, time = 0) => ({ dt: 0, time, camera });
+const CAMERA = new THREE.PerspectiveCamera();
+const FRAME = (camera: THREE.PerspectiveCamera = CAMERA, time = 0) => ({ dt: 0, time, camera });
 
 describe('createFireflies() component door', () => {
   let comp: ReturnType<typeof createFireflies>;
@@ -147,7 +146,7 @@ describe('createFireflies() component door', () => {
     const { ctx } = makeCtx();
     comp = createFireflies(ctx);
     comp.rebuild(PLACEMENTS, COMMITS);
-    comp.tick(0, FRAME(ctx.camera, 4.5));
+    comp.tick(0, FRAME(CAMERA, 4.5));
     expect(orbUniforms(comp).uTime.value).toBeCloseTo(4.5, 5);
   });
 
@@ -162,7 +161,7 @@ describe('createFireflies() component door', () => {
     expect(u.uHoveredCommit.value).toBe(-1);
 
     // First tick arms the effects; their initial run reads the live hover.
-    comp.tick(0, FRAME(ctx.camera));
+    comp.tick(0, FRAME(CAMERA));
     expect(u.uHoveredCommit.value).toBe(0);
 
     // Clearing hover resets the boost (live, synchronous effect).
@@ -174,7 +173,7 @@ describe('createFireflies() component door', () => {
     const { ctx, selection } = makeCtx();
     comp = createFireflies(ctx);
     comp.rebuild(PLACEMENTS, COMMITS);
-    comp.tick(0, FRAME(ctx.camera));
+    comp.tick(0, FRAME(CAMERA));
     const u = orbUniforms(comp);
     expect(u.uSelectedCommit.value).toBe(-1);
     selection.value = commitTarget(SHA_B);
@@ -187,7 +186,7 @@ describe('createFireflies() component door', () => {
     const { ctx, hover } = makeCtx();
     comp = createFireflies(ctx);
     comp.rebuild(PLACEMENTS, COMMITS);
-    comp.tick(0, FRAME(ctx.camera)); // arm
+    comp.tick(0, FRAME(CAMERA)); // arm
     hover.value = commitTarget(SHA_A);
     expect(orbUniforms(comp).uHoveredCommit.value).toBe(0);
 
@@ -214,7 +213,7 @@ describe('createFireflies() component door', () => {
     const { ctx, hover } = makeCtx();
     comp = createFireflies(ctx);
     comp.rebuild(PLACEMENTS, COMMITS);
-    comp.tick(0, FRAME(ctx.camera)); // arm
+    comp.tick(0, FRAME(CAMERA)); // arm
     comp.dispose();
     expect(comp.group.children).toHaveLength(0);
     expect(() => {

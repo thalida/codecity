@@ -63,24 +63,25 @@ function makeCtx(): {
   Object.defineProperty(canvas, 'clientHeight', { get: () => size.h });
   const ctx = {
     scene: new THREE.Scene(),
+    canvas,
     picker: { selection, hover } as unknown as Picker,
-    camera: new THREE.PerspectiveCamera(),
-    renderer: { domElement: canvas } as unknown as THREE.WebGLRenderer,
     cityState: makeCityState(),
-  } as SceneContext;
+  } as unknown as SceneContext;
   return { ctx, selection, hover, size };
 }
 
-// Pre-picker ctx: picker/renderer null (the construction-time window).
+// Pre-picker ctx: picker null (the construction-time window).
 function makePrePickerCtx(): SceneContext {
   return {
     scene: new THREE.Scene(),
+    canvas: document.createElement('canvas'),
     picker: null as unknown as Picker,
-    camera: null as unknown as THREE.PerspectiveCamera,
-    renderer: null as unknown as THREE.WebGLRenderer,
     cityState: makeCityState(),
   } as unknown as SceneContext;
 }
+
+// A throwaway camera for tick() frames where the camera value doesn't matter.
+const CAMERA = new THREE.PerspectiveCamera();
 
 function commitTarget(sha: string): PickTarget {
   return {
@@ -198,7 +199,7 @@ describe('createTrees() component door', () => {
     trees.rebuild(PLACEMENTS, COMMITS, BUSY);
     selection.value = commitTarget(SHA_A);
 
-    trees.tick(0, FRAME(ctx.camera));
+    trees.tick(0, FRAME(CAMERA));
     // Arming constructs the outline renderer: its selection effect runs
     // immediately and resolves the pending selection via the live handle.
     const outlines = ctx.scene.children.filter(
@@ -223,7 +224,7 @@ describe('createTrees() component door', () => {
     const { ctx, size } = makeCtx();
     trees = createTrees(ctx);
     trees.rebuild(PLACEMENTS, COMMITS, BUSY);
-    trees.tick(0, FRAME(ctx.camera)); // arm
+    trees.tick(0, FRAME(CAMERA)); // arm
     size.w = 1024;
     size.h = 768;
     trees.onResize();
@@ -237,7 +238,7 @@ describe('createTrees() component door', () => {
     const { ctx, selection } = makeCtx();
     trees = createTrees(ctx);
     trees.rebuild(PLACEMENTS, COMMITS, BUSY);
-    trees.tick(0, FRAME(ctx.camera)); // arm
+    trees.tick(0, FRAME(CAMERA)); // arm
     const refreshSpy = vi.spyOn(trees.getRenderer()!, 'refresh');
 
     trees.dispose();

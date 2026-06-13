@@ -32,13 +32,14 @@ function makeCtx(hover: PickTarget | null): {
   const hoverSig = signal<PickTarget | null>(hover);
   const ctx = {
     scene: new THREE.Scene(),
+    canvas: document.createElement('canvas'),
     picker: { hover: hoverSig } as unknown as Picker,
-    camera: new THREE.PerspectiveCamera(),
-    renderer: null as unknown as THREE.WebGLRenderer,
     cityState: makeCityState(),
-  } as SceneContext;
+  } as unknown as SceneContext;
   return { ctx, hover: hoverSig };
 }
+
+const CAMERA = new THREE.PerspectiveCamera();
 
 describe('createGem()', () => {
   let gem: ReturnType<typeof createGem> | null = null;
@@ -53,9 +54,8 @@ describe('createGem()', () => {
     // effect must run at construction reading only GEM/BLOOM signals.
     const ctx = {
       scene: new THREE.Scene(),
+      canvas: document.createElement('canvas'),
       picker: null as unknown as Picker,
-      camera: null as unknown as THREE.PerspectiveCamera,
-      renderer: null as unknown as THREE.WebGLRenderer,
       cityState: makeCityState(),
     } as unknown as SceneContext;
     expect(() => {
@@ -99,7 +99,7 @@ describe('createGem()', () => {
     const start = gem.getRootGroup()!.scale.x;
     expect(start).toBe(1);
     for (let i = 0; i < 5; i++)
-      gem.tick!(0.016, { dt: 0.016, time: i * 0.016, camera: ctx.camera });
+      gem.tick!(0.016, { dt: 0.016, time: i * 0.016, camera: CAMERA });
     // HOVER_SCALE default is 1.25; scale should have moved up toward it.
     expect(gem.getRootGroup()!.scale.x).toBeGreaterThan(start);
     expect(gem.getRootGroup()!.scale.x).toBeLessThanOrEqual(GEM.value.HOVER_SCALE + 1e-6);

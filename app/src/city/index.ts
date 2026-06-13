@@ -53,14 +53,14 @@ export async function createCity(canvas: HTMLCanvasElement, manifest: Manifest):
   // don't wire into them — they rebuild reactively off cityState's signals.
   const { applyManifest, invalidateLayoutCache } = cityState;
 
-  // picker/camera/renderer are populated below before the first frame; the
-  // gem (and other components) read them only in tick(), so the cast is safe.
+  // picker is populated below (it's built after the components, since
+  // picker.world reads their handles); components defer picker-dependent setup
+  // to the first tick via armOnFirstTick, so the null + cast is safe.
   const ctx = {
     scene,
+    canvas,
     cityState,
     picker: null,
-    camera: null,
-    renderer: null,
   } as unknown as SceneContext;
 
   // Component construction order is load-bearing: gem before repoLabel (its
@@ -137,11 +137,8 @@ export async function createCity(canvas: HTMLCanvasElement, manifest: Manifest):
     },
   });
 
-  // Populate ctx BEFORE the frame loop so components' tick() sees a live
-  // picker/camera/renderer on frame 1.
+  // Backfill the picker BEFORE the frame loop so components arm on frame 1.
   ctx.picker = picker;
-  ctx.camera = rig.camera;
-  ctx.renderer = renderer;
 
   createInputHandlers({
     canvas,

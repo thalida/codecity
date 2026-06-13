@@ -185,7 +185,7 @@ export function createBuildings(ctx: SceneContext): Buildings {
       // overlay meshes to ctx.scene (verbatim — they carry explicit
       // renderOrders, so scene-graph parenting is irrelevant to draw order).
       _outline = createOutlineRenderer({
-        canvas: ctx.renderer!.domElement,
+        canvas: ctx.canvas,
         scene: ctx.scene,
         world: { getCells: () => _cells },
         picker: ctx.picker!,
@@ -210,7 +210,6 @@ export function createBuildings(ctx: SceneContext): Buildings {
         },
       ];
     },
-    { needsRenderer: true }
   );
 
   // getMeshForBuilding (named so the ghost facade + the door entry share one

@@ -12,13 +12,16 @@ import type { CityState } from '../state';
 import type { Trees } from '../components/trees/treeRenderer';
 import type { Manifest, DirNode, Street } from '@/types';
 
-/** Everything a scene component needs to wire itself into the scene at
- *  construction time (renderer, camera, raycaster/picker, per-city state). */
+/** Everything a scene component needs to wire itself into the scene. scene /
+ *  canvas / cityState are set at construction; picker is null until the rig +
+ *  picker exist (picker.world reads component handles, so it's built AFTER the
+ *  components) — picker-dependent setup defers to the first tick via
+ *  armOnFirstTick. The camera lives on the rig (passed to the frame loop) and
+ *  reaches components per-frame via FrameContext, not here. */
 export interface SceneContext {
   scene: THREE.Scene;
+  canvas: HTMLCanvasElement;
   picker: Picker;
-  camera: THREE.PerspectiveCamera;
-  renderer: THREE.WebGLRenderer;
   cityState: CityState;
 }
 

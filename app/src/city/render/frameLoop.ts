@@ -9,12 +9,15 @@
 // order (sky must be passed LAST — its camera-follow must run immediately
 // before postFx.render).
 
+import type * as THREE from 'three';
+
 import type { FrameContext, SceneComponent, SceneContext } from '../types';
 
 /** Frame collaborators that are not SceneComponents. */
 export interface PerFrame {
-  /** Camera rig — update(0) runs first each frame (damping + one-shot framing). */
-  rig: { update(dtMs: number): void };
+  /** Camera rig — update(0) runs first each frame (damping + one-shot framing).
+   *  Owns the camera the frame projects through. */
+  rig: { update(dtMs: number): void; camera: THREE.PerspectiveCamera };
   /** Post-processing pipeline — render() is the frame's final call. */
   postFx: { render(): void };
   /** Optional pre-rig hook — the composer's slot for per-frame work with no
@@ -41,14 +44,14 @@ export function startFrameLoop(
     const time = (performance.now() - startTime) / 1000;
     const dt = lastTime === null ? 0 : Math.max(0, time - lastTime);
     lastTime = time;
-    const f: FrameContext = { dt, time, camera: ctx.camera };
+    const f: FrameContext = { dt, time, camera: perFrame.rig.camera };
 
     perFrame.before?.(f);
     perFrame.rig.update(0);
     // controls.update() moves the camera but matrixWorldInverse is stale until
     // a render runs; ticks below project mesh positions and need fresh world
     // matrices.
-    ctx.camera.updateMatrixWorld();
+    perFrame.rig.camera.updateMatrixWorld();
     ctx.scene.updateMatrixWorld();
     for (const c of components) c.tick?.(dt, f);
     perFrame.after?.(f);
