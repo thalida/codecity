@@ -41,6 +41,8 @@ import type { Rect } from '@/city/layout/rect';
 
 import type { SceneComponent, SceneContext } from '../../types';
 import { onSettings } from '../../utils/onSettings';
+import FOOTPRINT_VERT from './footprint.vert.glsl?raw';
+import FOOTPRINT_FRAG from './footprint.frag.glsl?raw';
 
 /** Public contract for the footprint component. */
 export interface Footprint extends SceneComponent {
@@ -52,41 +54,6 @@ export interface Footprint extends SceneComponent {
    *  When halo <= 0 or no rects, leaves the group EMPTY (prior mesh disposed). */
   rebuild(layout: CityLayout): void;
 }
-
-const FOOTPRINT_VERT = /* glsl */ `
-attribute vec2 aHalfExtent;
-varying vec2 vP;
-varying vec2 vHalfExtent;
-void main() {
-  // The unit quad's vertex sits in [-0.5, 0.5] on x and z (PlaneGeometry
-  // rotated -π/2 about X). Doubling and multiplying by the per-instance
-  // half-extent gives the world-space offset from the instance center
-  // in world units, which the fragment shader uses for the SDF.
-  vP = position.xz * 2.0 * aHalfExtent;
-  vHalfExtent = aHalfExtent;
-  // instanceMatrix is auto-bound by InstancedMesh.
-  gl_Position = projectionMatrix * modelViewMatrix * instanceMatrix * vec4(position, 1.0);
-}
-`;
-
-const FOOTPRINT_FRAG = /* glsl */ `
-precision mediump float;
-uniform vec3 uColor;
-uniform float uCornerRadius;
-varying vec2 vP;
-varying vec2 vHalfExtent;
-void main() {
-  // Per-instance clamp: a radius larger than the smallest half-extent
-  // would turn the rect into a pill/ellipse. Small rects (e.g. a
-  // narrow building inflated by HALO_WIDTH) degrade gracefully.
-  float r = min(uCornerRadius, min(vHalfExtent.x, vHalfExtent.y));
-  // Inigo Quilez rounded-box SDF in world units.
-  vec2 q = abs(vP) - vHalfExtent + r;
-  float d = length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - r;
-  if (d > 0.0) discard;
-  gl_FragColor = vec4(uColor, 1.0);
-}
-`;
 
 export function createFootprint(_ctx: SceneContext): Footprint {
   // Persistent outer group — added to the scene once by createCity.

@@ -8,53 +8,8 @@
 import * as THREE from 'three';
 import { ISLAND } from '@/state/stores/settings/island';
 
-const vertSrc = /* glsl */ `
-attribute vec3 color;
-attribute float ao;
-
-varying vec3 vColor;
-varying vec3 vNormalWorld;
-varying vec3 vWorldPos;
-varying float vAO;
-
-void main() {
-  vColor = color;
-  vAO = ao;
-  vNormalWorld = normalize(mat3(modelMatrix) * normal);
-  vWorldPos = (modelMatrix * vec4(position, 1.0)).xyz;
-  gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-}
-`;
-
-const fragSrc = /* glsl */ `
-precision highp float;
-
-varying vec3 vColor;
-varying vec3 vNormalWorld;
-varying vec3 vWorldPos;
-varying float vAO;
-
-uniform vec3 uHemiSkyColor;
-uniform vec3 uHemiGroundColor;
-
-#include <fog_uniforms_glsl_inline>
-#include <fog_apply_glsl_inline>
-
-void main() {
-  vec3 n = normalize(vNormalWorld);
-
-  // Hemispheric model: warm key light from +Y (sky), cool fill from -Y
-  // (ground). Blend by normal.y so up-facing surfaces get the sky color,
-  // down-facing get the ground color, side-facing gets the gradient.
-  // Single coherent lighting model — no sun direction, no additive glow.
-  float hemi = clamp(n.y * 0.5 + 0.5, 0.0, 1.0);
-  vec3 hemiTint = mix(uHemiGroundColor, uHemiSkyColor, hemi);
-  vec3 lit = vColor * hemiTint * vAO;
-
-  vec3 foggy = applyFog(lit, vWorldPos);
-  gl_FragColor = vec4(foggy, 1.0);
-}
-`;
+import vertSrc from './island.vert.glsl?raw';
+import fragSrc from './island.frag.glsl?raw';
 
 export function createIslandMaterial(): THREE.ShaderMaterial {
   const mats = ISLAND.value;
