@@ -212,12 +212,12 @@ const BUILDINGS_FIELDS = {
   GRIME_INTENSITY: {
     route: ChangeRoute.Refresh,
     kind: FieldKind.RangePair,
-    default: [0, 0.75] as [number, number],
+    default: [0, 1] as [number, number],
     min: 0,
     max: 1,
     step: 0.05,
     label: 'Intensity (new → old)',
-    tip: 'How dark each streak gets, as a range across building age: left = newest buildings, right = oldest. 0 = invisible; 1 = strongly darkened wall color. Default 0 → 0.75 keeps new facades clean and weathers the oldest.',
+    tip: 'How dark each streak gets, as a range across building age: left = newest buildings, right = oldest. 0 = invisible; 1 = strongly darkened wall color. Default 0 → 1 keeps new facades clean and fully weathers the oldest.',
   },
   GRIME_COVERAGE: {
     route: ChangeRoute.Refresh,
