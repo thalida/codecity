@@ -147,7 +147,7 @@ describe('layoutClient', () => {
       },
     };
 
-    const reusedLayout = await client.compute(m2, { reuseLayoutFrom: priorLayout });
+    const reusedLayout = await client.compute(m2, priorLayout);
     expect(Array.isArray(reusedLayout.buildings)).toBe(true);
     expect(reusedLayout.buildings.length).toBe(priorLayout.buildings.length);
 
@@ -170,8 +170,8 @@ describe('layoutClient', () => {
   it('reuseLayoutFrom: supersede protocol still works on the reuse path', async () => {
     const m = makeMinimalManifest();
     const priorLayout = await client.compute(m);
-    const first = client.compute(m, { reuseLayoutFrom: priorLayout });
-    const second = client.compute(m, { reuseLayoutFrom: priorLayout });
+    const first = client.compute(m, priorLayout);
+    const second = client.compute(m, priorLayout);
     await expect(first).rejects.toThrow(/superseded/i);
     await expect(second).resolves.toBeDefined();
   });

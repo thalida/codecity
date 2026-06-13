@@ -37,16 +37,6 @@ interface ConfigSnapshot {
   streetTiers: StreetTier[];
 }
 
-export interface LayoutComputeOpts {
-  /**
-   * If provided, skip the expensive worker round-trip and reuse positions
-   * from this prior layout. Per-file metadata (file refs, dimensions) is
-   * recomputed from the new manifest in the main thread. The caller is
-   * responsible for ensuring the tree shape matches (same tree_signature).
-   */
-  reuseLayoutFrom?: CityLayout;
-}
-
 export interface LayoutClient {
   /**
    * Compute the layout off-thread (or sync if Worker is unavailable).
@@ -55,10 +45,12 @@ export interface LayoutClient {
    * `Error('disposed')` if the client is torn down before the call
    * completes, or with the worker's own error message on failure.
    *
-   * If opts.reuseLayoutFrom is set, returns a cheap in-JS layout that
-   * reuses positions from the prior layout and recomputes per-file metadata.
+   * If `reuseLayoutFrom` is non-null, skips the worker round-trip and returns a
+   * cheap in-JS layout that reuses that prior layout's positions and recomputes
+   * per-file metadata from the new manifest. The caller must ensure the tree
+   * shape matches (same tree_signature).
    */
-  compute(manifest: Manifest, opts?: LayoutComputeOpts): Promise<CityLayout>;
+  compute(manifest: Manifest, reuseLayoutFrom?: CityLayout | null): Promise<CityLayout>;
   /** Tear down the worker and reject every pending request. */
   dispose(): void;
 }
@@ -200,7 +192,10 @@ export function createLayoutClient(): LayoutClient {
     }
   }
 
-  function compute(manifest: Manifest, opts: LayoutComputeOpts = {}): Promise<CityLayout> {
+  function compute(
+    manifest: Manifest,
+    reuseLayoutFrom: CityLayout | null = null
+  ): Promise<CityLayout> {
     if (disposed) {
       return Promise.reject(new Error('layoutClient disposed'));
     }
@@ -208,7 +203,7 @@ export function createLayoutClient(): LayoutClient {
     // Cheap in-JS reuse path: caller has confirmed tree shape matches.
     // Supersede any pending requests (same protocol as the full path) then
     // return a microtask-resolved promise so callers always see async semantics.
-    if (opts.reuseLayoutFrom) {
+    if (reuseLayoutFrom) {
       const id = nextId++;
       _supersedeAll();
       return new Promise<CityLayout>((resolve, reject) => {
@@ -217,7 +212,7 @@ export function createLayoutClient(): LayoutClient {
           if (!pending.has(id)) return; // superseded
           pending.delete(id);
           try {
-            resolve(reuseLayout(opts.reuseLayoutFrom!, manifest));
+            resolve(reuseLayout(reuseLayoutFrom, manifest));
           } catch (err) {
             reject(err instanceof Error ? err : new Error(String(err)));
           }

@@ -67,8 +67,8 @@ function makeManifest(treeSig: string): Manifest {
 // positions (and the object) stable so the scenic effects skip.
 function makeLayoutClient(makeLayout: () => CityLayout) {
   return {
-    compute: vi.fn(async (_m: Manifest, opts?: { reuseLayoutFrom?: CityLayout }) => {
-      return opts?.reuseLayoutFrom ?? makeLayout();
+    compute: vi.fn(async (_m: Manifest, reuseFrom?: CityLayout | null) => {
+      return reuseFrom ?? makeLayout();
     }),
     dispose: vi.fn(),
   };
@@ -128,10 +128,8 @@ describe('cityState.applyManifest — scenic reactivity parity', () => {
     // streets effect does NOT re-fire.
     await cityState.applyManifest(makeManifest('sig-1'));
 
-    // Reuse was actually exercised (compute saw reuseLayoutFrom on the 2nd call).
-    expect(layoutClient.compute.mock.calls[1][1]).toEqual({
-      reuseLayoutFrom: layoutAfterFirst,
-    });
+    // Reuse was actually exercised (compute got the prior layout to reuse on the 2nd call).
+    expect(layoutClient.compute.mock.calls[1][1]).toBe(layoutAfterFirst);
     // No streets rebuild: same pickables array reference, same layout + bbox.
     expect(streets.pickables()).toBe(pickablesAfterFirst);
     expect(cityState.layout.value).toBe(layoutAfterFirst);

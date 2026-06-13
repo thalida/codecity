@@ -26,7 +26,6 @@ import { createIsland } from '@/city/components/island';
 import { createRepoLabel } from '@/city/components/repoLabel';
 import { NodeKind, StreetAxis } from '@/types';
 import type { CityLayout, Manifest, Street } from '@/types';
-import type { WorldBounds } from '@/city/utils/floorBounds';
 import type { Picker } from '@/city/interaction/picker';
 import type { SceneContext } from '@/city/types';
 
@@ -64,10 +63,6 @@ function makeLayout(street: Street = makeRootStreet()): CityLayout {
     byteStats: { min: 0, max: 0 },
     bbox: { minX: -300, minY: -16, maxX: 300, maxY: 16, cx: 0, cy: 0, width: 600, depth: 32 },
   } as unknown as CityLayout;
-}
-
-function makeBounds(halfWidth: number): WorldBounds {
-  return { cx: 0, cz: 0, halfWidth, halfDepth: halfWidth };
 }
 
 function makeManifest(name: string): Manifest {
@@ -145,22 +140,26 @@ describe('scenic reactivity — structureRevision gates rebuilds', () => {
 
   // ---- Parity #5: island resizes on new bounds, skips on stable bounds -------
 
-  it('island: setBounds fires on a NEW latestWorldBounds reference, skips on reuse', () => {
+  it('island: resizes on a structure change, skips on a reuse apply', () => {
     const cityState = makeCityState();
     const island = createIsland(makeCtx(cityState));
     disposers.push(() => island.dispose());
 
     // The island mesh is group.children[0]; setBounds swaps its geometry.
     const mesh = island.group.children[0] as THREE.Mesh;
-    const boundsA = makeBounds(25);
 
-    cityState.latestWorldBounds.value = boundsA;
+    // latestWorldBounds is a computed off sceneBbox (→ structureRevision), so a
+    // structure apply produces fresh bounds → the island resizes.
+    applyStructure(cityState, makeLayout());
     const geomAfterFirst = mesh.geometry;
 
-    cityState.latestWorldBounds.value = boundsA; // reuse → no resize
+    // Reuse: layout reassigned but structureRevision NOT bumped → sceneBbox +
+    // latestWorldBounds stay cached → the island does NOT resize.
+    cityState.layout.value = makeLayout();
     expect(mesh.geometry).toBe(geomAfterFirst);
 
-    cityState.latestWorldBounds.value = makeBounds(40); // non-reuse → resize
+    // Another structure change → fresh bounds → resize.
+    applyStructure(cityState, makeLayout());
     expect(mesh.geometry).not.toBe(geomAfterFirst);
   });
 

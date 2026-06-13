@@ -25,7 +25,7 @@ import { buildIconAtlas } from '../components/buildings/atlas';
 import { setIconAtlas } from '../components/buildings/material';
 import { setCellIconAtlas } from '../components/buildings/cellMesh';
 import { labelFromManifest } from '@/utils/sources';
-import type { createLayoutClient, LayoutComputeOpts } from '../layout';
+import type { createLayoutClient } from '../layout';
 
 export interface CityState {
   manifest: Signal<Manifest | null>;
@@ -39,7 +39,9 @@ export interface CityState {
   readonly sceneBbox: ReadonlySignal<CityBbox | null>;
   // City vertical extent (bbox.max.y - min.y); feeds worldBounds.
   readonly cityHeight: ReadonlySignal<number>;
-  latestWorldBounds: Signal<WorldBounds | null>;
+  // Island floor sizing. Computed off sceneBbox + cityHeight (frozen on reuse),
+  // null until the first apply.
+  readonly latestWorldBounds: ReadonlySignal<WorldBounds | null>;
   // Deferred tree-placement results: trees writes (null at rebuild start, the
   // array once the off-thread scan resolves); fireflies reacts off it.
   treePlacements: Signal<TreePlacement[] | null>;
@@ -72,7 +74,6 @@ export interface CityState {
 export function createCityState(layoutClient: ReturnType<typeof createLayoutClient>): CityState {
   const manifest = signal<Manifest | null>(null);
   const layout = signal<CityLayout | null>(null);
-  const latestWorldBounds = signal<WorldBounds | null>(null);
   const treePlacements = signal<TreePlacement[] | null>(null);
   // Change-notification counters (see CityState for what each means + who tracks it).
   const structureRevision = signal(0);
@@ -145,6 +146,16 @@ export function createCityState(layoutClient: ReturnType<typeof createLayoutClie
     return b ? b.max.y - b.min.y : 0;
   });
 
+  // Island floor sizing. Off sceneBbox + cityHeight (both frozen on a reuse apply
+  // via structureRevision), so the island re-fits only on a structure change.
+  // null until the first apply (no sceneBbox yet) — getWorldBounds is only called
+  // with a real bbox. getWorldBounds reads WORLD.GROUND_BUFFER_PERCENT, WORLD's
+  // only field + rebuild-routed, so that subscription never over-fires.
+  const latestWorldBounds = computed<WorldBounds | null>(() => {
+    const sb = sceneBbox.value;
+    return sb ? getWorldBounds(sb, cityHeight.value) : null;
+  });
+
   // The root-of-repo street (gets the gem) — the first isRoot street. Tracks
   // structureRevision + peeks layout, so it stays ref-stable on a reuse apply
   // (gem/cameraRig skip) and recomputes only on a structure change.
@@ -186,16 +197,19 @@ export function createCityState(layoutClient: ReturnType<typeof createLayoutClie
       newManifestTyped.tree.name = friendlyName;
     }
 
+    // Structure-only tree_signature (paths + nesting, NO mtime/size — stable
+    // across skeleton/final for one scan). Gates BOTH the icon atlas rebuild and
+    // the layout reuse cache below.
+    const treeSig = newManifestTyped.tree_signature ?? '';
+
     // Icon atlas is expensive (a fetch+draw per unique icon), so rebuild it only
-    // when the structure-only tree_signature changes (settings re-applies skip).
-    // Must run BEFORE the layout signal fires the reactive buildings rebuild, so
-    // the cells bake the right roof UVs.
-    const atlasTreeSig = newManifestTyped.tree_signature ?? '';
-    if (atlasTreeSig !== lastAtlasTreeSig) {
+    // when treeSig changes (settings re-applies skip). Must run BEFORE the layout
+    // signal fires the reactive buildings rebuild, so the cells bake the right UVs.
+    if (treeSig !== lastAtlasTreeSig) {
       try {
         const atlas = await buildIconAtlas(newManifestTyped);
         if (myGeneration !== generation) return; // superseded mid-build
-        lastAtlasTreeSig = atlasTreeSig;
+        lastAtlasTreeSig = treeSig;
         setIconAtlas(atlas);
         setCellIconAtlas(atlas);
       } catch (err) {
@@ -203,25 +217,18 @@ export function createCityState(layoutClient: ReturnType<typeof createLayoutClie
       }
     }
 
-    // Compute the layout off-thread. Cache key = the structure-only tree_signature
-    // (paths + nesting, NO mtime/size — stable across skeleton/final for one scan).
-    const treeSig = newManifestTyped.tree_signature ?? '';
+    // Compute the layout off-thread; the reuse cache is keyed by treeSig.
     const reuseFrom = treeSig && cachedLayoutTreeSig === treeSig ? cachedLayout : null;
-    const computeOpts: LayoutComputeOpts = reuseFrom ? { reuseLayoutFrom: reuseFrom } : {};
     let newLayout: CityLayout;
     // Full envelope, not `.tree` — the layout code unwraps it and the worker
     // contract stays typed against Manifest. 'superseded' = a newer apply took
     // over; return silently and let it own the swap.
     try {
-      newLayout = await layoutClient.compute(newManifestTyped, computeOpts);
+      newLayout = await layoutClient.compute(newManifestTyped, reuseFrom);
     } catch (err) {
       if (err instanceof Error && err.message === 'superseded') return;
       throw err;
     }
-    // Reuse = a cache hit (worker reused the prior layout, identical positions).
-    // We bump structureRevision ONLY on non-reuse, so the structure-reactive
-    // consumers + the bbox computed stay frozen on a reuse apply (the scenic skip).
-    const reused = reuseFrom !== null;
     if (treeSig) {
       cachedLayoutTreeSig = treeSig;
       cachedLayout = newLayout;
@@ -229,23 +236,20 @@ export function createCityState(layoutClient: ReturnType<typeof createLayoutClie
     if (myGeneration !== generation) return;
 
     // One batch so the reactive consumers settle on a single change. manifest +
-    // layout reassign every apply; structureRevision bumps ONLY on non-reuse;
+    // layout reassign every apply; structureRevision bumps ONLY on non-reuse
+    // (reuseFrom != null = a cache hit, identical positions → the structure-
+    // reactive consumers + the bbox computed stay frozen: the scenic skip).
     // cityRevision bumps once so picker/pathLine/buildingFader re-derive together.
-    // layout is set before structureRevision so structure consumers peek the fresh
-    // layout when they re-run.
+    // layout is set before structureRevision so structure consumers peek it fresh.
     batch(() => {
       manifest.value = newManifestTyped;
       layout.value = newLayout;
-      if (!reused) structureRevision.value++;
+      if (!reuseFrom) structureRevision.value++;
       cityRevision.value++;
     });
-
-    // latestWorldBounds is a source signal (getWorldBounds reads WORLD), set only
-    // on non-reuse so the island doesn't re-fit on a reuse apply. bbox + the rest
-    // are computeds off structureRevision — frozen on reuse automatically.
-    if (!reused) {
-      latestWorldBounds.value = getWorldBounds(sceneBbox.value, cityHeight.value);
-    }
+    // bbox/sceneBbox/cityHeight/latestWorldBounds are all computeds off
+    // structureRevision now — no imperative writes here. The pipeline is purely:
+    // build atlas → compute layout → set the three source signals above.
   }
 
   // A config-only Save calls this before re-applying the same manifest, forcing
