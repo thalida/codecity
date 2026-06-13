@@ -121,6 +121,23 @@ describe('createTrees() component door', () => {
     }).not.toThrow();
   });
 
+  it('signal-driven rebuild runs without a cycle (clears + bumps decorationRevision)', async () => {
+    const { ctx } = makeCtx();
+    const cs = ctx.cityState;
+    trees = createTrees(ctx);
+    const before = cs.decorationRevision.value;
+    // Drive the reactive deferred pass the way applyManifest does. bbox stays
+    // null → sceneBbox null → run takes the clear+Idle early return (no rAF / no
+    // worker), exercising the synchronous prefix that must NOT subscribe the
+    // effect to the signals it writes (regression: "Cycle detected").
+    cs.manifest.value = { tree: { name: 'x' }, commits: [] } as never;
+    cs.layout.value = { buildings: [], streets: [] } as never;
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(cs.treePlacements.value).toBeNull();
+    expect(cs.decorationRevision.value).toBeGreaterThan(before);
+  });
+
   it('rebuild() builds the inner renderer under the group; handle() is live', () => {
     const { ctx } = makeCtx();
     trees = createTrees(ctx);

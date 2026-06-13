@@ -30,14 +30,20 @@ export function reactiveRebuild<T>(
     if (snapshot == null) return;
     const myGen = ++generation;
     const isCurrent = (): boolean => myGen === generation;
-    void (async () => {
+    // Run in a microtask, OUTSIDE this effect's tracking context. track() above
+    // already registered the deps; running synchronously here would put run()'s
+    // own signal reads/writes inside the tracking scope, subscribing the effect
+    // to signals it mutates → "Cycle detected". The microtask also lets the
+    // current apply finish its synchronous work (e.g. bbox) before run reads it.
+    void Promise.resolve().then(async () => {
+      if (!isCurrent()) return;
       try {
         await run(snapshot, isCurrent);
       } catch (err) {
         if (onError) onError(err);
         else console.warn('[codecity] reactive rebuild failed', err);
       }
-    })();
+    });
   });
   return { dispose };
 }
