@@ -35,6 +35,17 @@ export async function createCity(canvas: HTMLCanvasElement, manifest: Manifest):
   registerShaderChunks();
 
   const scene = new THREE.Scene();
+
+  // Renderer FIRST + register it with the ad-panel texture array BEFORE the
+  // boot applyManifest: the cell pass kicks async <img> loads whose onload
+  // (early for cached responses) needs the registered renderer to upload the
+  // texture layer; without it the panel ramps iTextureFade but samples an
+  // unwritten layer and renders transparent.
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false });
+  renderer.setPixelRatio(window.devicePixelRatio || 1);
+  renderer.setSize(canvas.clientWidth, canvas.clientHeight, false);
+  registerAdPanelRenderer(renderer);
+
   const layoutClient = createLayoutClient();
   const cityState = createCityState(layoutClient);
   // applyManifest + invalidateLayoutCache are cityState's (the manifest
@@ -51,16 +62,6 @@ export async function createCity(canvas: HTMLCanvasElement, manifest: Manifest):
     camera: null,
     renderer: null,
   } as unknown as SceneContext;
-
-  // Renderer FIRST + register it with the ad-panel texture array BEFORE the
-  // boot applyManifest: the cell pass kicks async <img> loads whose onload
-  // (early for cached responses) needs the registered renderer to upload the
-  // texture layer; without it the panel ramps iTextureFade but samples an
-  // unwritten layer and renders transparent.
-  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false });
-  renderer.setPixelRatio(window.devicePixelRatio || 1);
-  renderer.setSize(canvas.clientWidth, canvas.clientHeight, false);
-  registerAdPanelRenderer(renderer);
 
   // Component construction order is load-bearing: gem before repoLabel (its
   // beam foot tracks the gem group); streets before buildings + pathLine
