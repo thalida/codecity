@@ -67,7 +67,7 @@ const BUILDING_DIMENSIONS_FIELDS = {
   MIN_WIDTH: {
     route: ChangeRoute.Rebuild,
     kind: FieldKind.Slider,
-    default: 8,
+    default: 16,
     min: 1,
     max: 200,
     step: 1,
@@ -77,7 +77,7 @@ const BUILDING_DIMENSIONS_FIELDS = {
   MAX_WIDTH: {
     route: ChangeRoute.Rebuild,
     kind: FieldKind.Slider,
-    default: 96,
+    default: 128,
     min: 1,
     max: 200,
     step: 1,
@@ -251,7 +251,7 @@ const BUILDINGS_FIELDS = {
   BUILDING_TRANSITION_MS: {
     route: ChangeRoute.Live,
     kind: FieldKind.Number,
-    default: 375,
+    default: 500,
     min: 50,
     max: 3000,
     step: 10,
