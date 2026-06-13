@@ -20,7 +20,7 @@ import { createCityState } from '@/city/state';
 import { STREETS } from '@/state/stores/settings/streets';
 import { NodeKind, StreetAxis } from '@/types';
 import type { CityLayout, PickTarget, Street } from '@/types';
-import type { Picker } from '@/city/render/picker';
+import type { Picker } from '@/city/interaction/picker';
 import type { SceneContext } from '@/city/types';
 
 const DEFAULTS = {

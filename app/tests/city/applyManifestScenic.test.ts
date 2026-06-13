@@ -19,7 +19,7 @@ import { createCityState } from '@/city/state';
 import { createStreets } from '@/city/components/streets';
 import { NodeKind, StreetAxis } from '@/types';
 import type { CityLayout, DateRanges, Manifest, Street } from '@/types';
-import type { Picker } from '@/city/render/picker';
+import type { Picker } from '@/city/interaction/picker';
 import type { SceneContext } from '@/city/types';
 
 function makeCtx(cityState: ReturnType<typeof createCityState>): SceneContext {

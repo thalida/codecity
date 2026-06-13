@@ -15,7 +15,7 @@ import { createRepoLabel } from '@/city/components/repoLabel';
 import { createCityState } from '@/city/state';
 import { REPO_LABEL } from '@/state/stores/settings/gem';
 import { resetBuildingsConfig } from '../../../_helpers/cityFixtures';
-import type { Picker } from '@/city/render/picker';
+import type { Picker } from '@/city/interaction/picker';
 import type { SceneContext } from '@/city/types';
 
 // Positioning math below assumes BUILDING_DIMENSIONS.MAX_FLOORS=96,

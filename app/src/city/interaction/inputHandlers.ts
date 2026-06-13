@@ -1,4 +1,4 @@
-// city/render/inputHandlers.ts — pointer / dblclick / keydown / resize
+// city/interaction/inputHandlers.ts — pointer / dblclick / keydown / resize
 // wiring. Translates DOM events into picker and cameraRig calls.
 //
 // Public contract:
@@ -20,7 +20,7 @@ import { NodeKind } from '@/types';
 import type { PickTarget } from '@/types';
 import { formatRelativeAge } from '@/utils/dates';
 import type { createPicker } from './picker';
-import type { createCameraRig } from './cameraRig';
+import type { createCameraRig } from '../render/cameraRig';
 
 export function createInputHandlers({
   canvas,

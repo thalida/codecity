@@ -6,7 +6,7 @@
 // and system files; wiring happens in later tasks.
 
 import type * as THREE from 'three';
-import type { Picker } from '../render/picker';
+import type { Picker } from '../interaction/picker';
 import type { CameraRig } from '../render/cameraRig';
 import type { CityState } from '../state';
 import type { Trees } from '../components/trees/treeRenderer';

@@ -7,7 +7,7 @@ import { createCityState } from '@/city/state';
 import { GEM } from '@/state/stores/settings/gem';
 import { NodeKind, StreetAxis } from '@/types';
 import type { Street, PickTarget } from '@/types';
-import type { Picker } from '@/city/render/picker';
+import type { Picker } from '@/city/interaction/picker';
 import type { SceneContext } from '@/city/types';
 
 // Minimal root Street fixture (X-oriented). Cast through unknown since the

@@ -12,7 +12,7 @@ import { createCityState } from '@/city/state';
 import { REPO_LABEL } from '@/state/stores/settings/gem';
 import { RENDER_ORDERS } from '@/city/types/renderOrders';
 import { resetBuildingsConfig } from '../../../_helpers/cityFixtures';
-import type { Picker } from '@/city/render/picker';
+import type { Picker } from '@/city/interaction/picker';
 import type { FrameContext, SceneContext } from '@/city/types';
 
 // Positioning math below assumes BUILDING_DIMENSIONS.MAX_FLOORS=96,

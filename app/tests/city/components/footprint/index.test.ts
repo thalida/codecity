@@ -11,7 +11,7 @@ import { createFootprint } from '@/city/components/footprint';
 import { FOOTPRINT } from '@/state/stores/settings/footprint';
 import { StreetAxis } from '@/types';
 import type { CityLayout } from '@/types';
-import type { Picker } from '@/city/render/picker';
+import type { Picker } from '@/city/interaction/picker';
 import type { SceneContext } from '@/city/types';
 
 function resetFootprint() {

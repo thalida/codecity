@@ -9,7 +9,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import * as THREE from 'three';
 
 import { startFrameLoop } from '@/city/render/frameLoop';
-import type { Picker } from '@/city/render/picker';
+import type { Picker } from '@/city/interaction/picker';
 import type { FrameContext, SceneComponent, SceneContext } from '@/city/types';
 
 // Deterministic rAF: collect callbacks; the test flushes them manually.

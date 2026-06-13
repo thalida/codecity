@@ -26,7 +26,7 @@ import { createRepoLabel } from '@/city/components/repoLabel';
 import { NodeKind, StreetAxis } from '@/types';
 import type { CityLayout, Manifest, Street } from '@/types';
 import type { WorldBounds } from '@/city/utils/floorBounds';
-import type { Picker } from '@/city/render/picker';
+import type { Picker } from '@/city/interaction/picker';
 import type { SceneContext } from '@/city/types';
 
 function makeCtx(cityState: ReturnType<typeof createCityState>): SceneContext {
