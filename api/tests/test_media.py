@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import struct
 import unittest
-import xml.etree.ElementTree as ET
 import zlib
 from pathlib import Path
 from tempfile import TemporaryDirectory

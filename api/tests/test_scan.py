@@ -1066,7 +1066,7 @@ class GitMetadataParallelTests(_CacheRedirectMixin, unittest.TestCase):
                 ["git", "-C", td, "commit", "-aq", "-m", "main change"], check=True
             )
             # Force a merge commit with a conflict resolution.
-            merge_result = subprocess.run(
+            subprocess.run(
                 ["git", "-C", td, "merge", "-q", "--no-ff", "side"],
                 capture_output=True,
             )
@@ -1090,7 +1090,8 @@ class GitMetadataParallelTests(_CacheRedirectMixin, unittest.TestCase):
         """A clean (non-conflicting) merge commit must also report its
         files. With `-c`, clean merges report 0; with
         `--diff-merges=first-parent` they report the side-branch diff."""
-        import tempfile, subprocess
+        import tempfile
+        import subprocess
         from api.services.scan import _collect_git_metadata
 
         with tempfile.TemporaryDirectory() as td:
@@ -1708,7 +1709,8 @@ class ScanTreeStreamingTests(unittest.TestCase):
 
 class MediaDimsInScanTests(_CacheRedirectMixin, unittest.TestCase):
     def test_scan_stamps_png_dimensions(self):
-        import struct, zlib
+        import struct
+        import zlib
 
         with TemporaryDirectory() as tmp:
             tmp_path = Path(tmp)
