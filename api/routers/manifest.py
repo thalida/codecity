@@ -76,11 +76,11 @@ def signature(
     no_cache: bool = Query(False),
 ) -> SignatureResponse:
     try:
-        resolved = resolve_source(src, branch)
+        target = resolve_source(src, branch)
     except ResolveError as e:
         raise HTTPException(e.status, e.message)
     try:
-        sig = signature_tree(str(resolved.path), use_cache=not no_cache)
+        sig = signature_tree(str(target), use_cache=not no_cache)
     except Exception as e:  # noqa: BLE001
         raise HTTPException(500, f"signature failed: {e}")
     return SignatureResponse.model_validate(dict(sig))

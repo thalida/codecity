@@ -60,14 +60,6 @@ class SourceKind(StrEnum):
     REMOTE = "remote"
 
 
-@dataclass
-class Resolved:
-    path: Path
-    src: str
-    branch: str | None
-    display_root: str
-
-
 def classify(raw: str) -> SourceKind:
     """Classify a raw ?src= value as a local path, a remote git URL, or invalid.
 
@@ -159,9 +151,9 @@ def resolve_local(src: str) -> Path:
     return target
 
 
-def resolve_source(src: str, branch: str | None) -> Resolved:
-    """Resolve a raw ?src into a scan target. Raises ResolveError on any
-    validation failure. For git URLs this performs the clone (network).
+def resolve_source(src: str, branch: str | None) -> Path:
+    """Resolve a raw ?src into a scan-target path. Raises ResolveError on any
+    validation failure. For a remote URL this performs the clone (network).
 
     The SSE manifest route does NOT use this — it clones on a worker thread
     (see the route) so clone progress streams and a mid-clone disconnect can
@@ -172,14 +164,12 @@ def resolve_source(src: str, branch: str | None) -> Resolved:
     if kind is SourceKind.INVALID:
         raise ResolveError(400, "unrecognized source — pass a local path or a git URL")
     if kind is SourceKind.REMOTE:
-        display = f"{src}@{branch}" if branch else src
         try:
             with TRUST.clone_lock:
-                local = ensure_clone(src, branch)
+                return ensure_clone(src, branch)
         except (BranchNotFoundError, RepoNotFoundError, HostUnreachableError) as e:
             raise ResolveError(400, str(e))
         except CloneError as e:
             raise ResolveError(502, str(e))
-        return Resolved(local, src, branch, display)
     # LOCAL — ignore any branch, scan the working tree in place
-    return Resolved(resolve_local(src), src, None, src)
+    return resolve_local(src)
