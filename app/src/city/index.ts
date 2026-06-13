@@ -154,8 +154,6 @@ export async function createCity(canvas: HTMLCanvasElement, manifest: Manifest):
     },
   });
   const camera = rig.camera;
-  // Exposed for visual regression tests (tests/visual/setup.ts).
-  (window as Window & { __rig?: typeof rig }).__rig = rig;
   const resetView = rig.reset;
 
   const postFx = createPostFx(renderer, scene, camera);
