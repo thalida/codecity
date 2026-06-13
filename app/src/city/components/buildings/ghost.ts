@@ -22,6 +22,7 @@ import * as THREE from 'three';
 import { effect } from '@preact/signals';
 import { NodeKind } from '@/types';
 import { RENDER_ORDERS } from '@/city/types/renderOrders';
+import { getBuildingTilt, composeShearMatrix } from './tilt';
 import type { Building } from '@/types';
 import type { createPicker } from '@/city/interaction/picker';
 import type { FileTarget } from '@/types';
@@ -79,19 +80,23 @@ export function createGhostRenderer({
   // Resolves the building's live InstancedMesh + slot, then decomposes the
   // live instance matrix so the ghost tracks the animator's tween position.
   // Falls back to layout dimensions from target.data when no live mesh is
-  // available.
+  // available. The shader's Y-shear lean is then baked into the ghost matrix
+  // (same as the outline) — without it a tilted building's vertical ghost
+  // diverges from the leaning body and reads as an offset double-image.
   function _syncGhostToTarget(target: FileTarget): void {
     const b = target.data;
     const resolved = world.getMeshForBuilding(b);
+    let px: number, py: number, pz: number;
+    let sx: number, sy: number, sz: number;
     if (resolved) {
       resolved.mesh.getMatrixAt(resolved.slot, _tmpMatrix);
       _tmpMatrix.decompose(_tmpPos, _tmpQuat, _tmpScale);
-      ghostMesh.scale.set(
-        _tmpScale.x * GHOST_SCALE_INSET,
-        _tmpScale.y * GHOST_SCALE_INSET,
-        _tmpScale.z * GHOST_SCALE_INSET
-      );
-      ghostMesh.position.copy(_tmpPos);
+      px = _tmpPos.x;
+      py = _tmpPos.y;
+      pz = _tmpPos.z;
+      sx = _tmpScale.x;
+      sy = _tmpScale.y;
+      sz = _tmpScale.z;
 
       // Mirror the building's instance color so the ghost reads as the
       // same building rather than a generic overlay.
@@ -104,14 +109,25 @@ export function createGhostRenderer({
       }
     } else {
       // Fallback: use layout coordinates directly.
-      ghostMesh.scale.set(
-        b.w * GHOST_SCALE_INSET,
-        b.h * GHOST_SCALE_INSET,
-        b.d * GHOST_SCALE_INSET
-      );
-      ghostMesh.position.set(b.x, b.h / 2, b.y);
+      px = b.x;
+      py = b.h / 2;
+      pz = b.y;
+      sx = b.w;
+      sy = b.h;
+      sz = b.d;
       _ghostMat.color.set(b.color ?? '#ffffff');
     }
+
+    // Bake the same Y-shear the vertex shader (and the outline) apply, so the
+    // ghost leans with the building. GHOST_SCALE_INSET keeps it flush. With
+    // tilt off / newest buildings (tiltX = tiltZ = 0) this is a plain TRS,
+    // identical to the previous position + scale path.
+    const { tiltX, tiltZ } = getBuildingTilt(b);
+    _tmpPos.set(px, py, pz);
+    _tmpScale.set(sx * GHOST_SCALE_INSET, sy * GHOST_SCALE_INSET, sz * GHOST_SCALE_INSET);
+    composeShearMatrix(_tmpPos, _tmpScale, tiltX, tiltZ, ghostMesh.matrix);
+    ghostMesh.matrixAutoUpdate = false;
+    ghostMesh.matrixWorldNeedsUpdate = true;
   }
 
   // ── Reactive: show/hide ghost on hover changes ───────────────────────
