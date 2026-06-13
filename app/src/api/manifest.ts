@@ -55,31 +55,33 @@ export function buildApiUrl(
 }
 
 // ── Endpoint URL builders ────────────────────────────────────────────────
+//
+// Both builders address an EXPLICIT (src, branch) rather than the page URL: a
+// switch hasn't reached the page URL yet at submit time, and the live-update
+// poll targets the committed CURRENT_SOURCE — never the page URL, which lags a
+// load and would make the poll fetch the wrong source mid-switch.
 
-/** URL for the manifest stream endpoint, bound to the current page's
- *  `?src` (and optional `?branch`) query params. */
-export function manifestUrl(opts: BuildApiUrlOpts = {}): string {
-  return buildApiUrl('/api/manifest', window.location.search, window.location.origin, opts);
+function _sourceSearch(src: string, branch?: string): string {
+  const search = new URLSearchParams({ [URL_PARAMS.SRC]: src });
+  if (branch) search.set(URL_PARAMS.BRANCH, branch);
+  return search.toString();
 }
 
-/** URL for the lightweight manifest-signature poll endpoint. */
-export function signatureUrl(): string {
-  return buildApiUrl('/api/manifest/signature', window.location.search, window.location.origin);
-}
-
-/** URL for the manifest stream of an EXPLICIT source — used when loading or
- *  switching to a source whose params aren't on the page URL yet (the picker
- *  submit path). `manifestUrl()` reads the page URL; this takes the source
- *  directly. */
+/** URL for the manifest stream of an explicit source. */
 export function manifestUrlFor(opts: { src: string; branch?: string; noCache?: boolean }): string {
-  // Delegate param assembly to buildApiUrl (single source of truth for the
-  // src/branch/no_cache query contract); just feed it an explicit search
-  // string instead of the page's location.search.
-  const search = new URLSearchParams({ [URL_PARAMS.SRC]: opts.src });
-  if (opts.branch) search.set(URL_PARAMS.BRANCH, opts.branch);
-  return buildApiUrl('/api/manifest', search.toString(), window.location.origin, {
-    noCache: opts.noCache,
-  });
+  return buildApiUrl(
+    '/api/manifest',
+    _sourceSearch(opts.src, opts.branch),
+    window.location.origin,
+    {
+      noCache: opts.noCache,
+    }
+  );
+}
+
+/** URL for the lightweight signature poll of an explicit source. */
+export function signatureUrlFor(src: string, branch?: string): string {
+  return buildApiUrl('/api/manifest/signature', _sourceSearch(src, branch), window.location.origin);
 }
 
 // ── SSE streaming reader ─────────────────────────────────────────────────
