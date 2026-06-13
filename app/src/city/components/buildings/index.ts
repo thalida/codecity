@@ -173,6 +173,18 @@ export function createBuildings(ctx: SceneContext, deps: BuildingsDeps): Buildin
     refreshBuildingMaterial();
   });
 
+  // Layout effect — reactive rebuild entry point. Reads cityState.layout (the
+  // every-apply signal — per-building dims recompute even on a reuse apply) +
+  // manifest (for dateRanges). rebuild() is synchronous here: applyManifest sets
+  // the icon atlas BEFORE the layout signal fires, so the cells bake the right
+  // roof UVs and buildings paint in the same batch as streets (no flash). The
+  // boot rebuild snaps in (_firstBuildDone); the null-guard no-ops construction.
+  const stopRebuild = effect(() => {
+    const layout = ctx.cityState.layout.value;
+    const manifest = ctx.cityState.manifest.value;
+    if (layout && manifest) void rebuild(layout, manifest.dateRanges);
+  });
+
   // (2)(3)(4) Picker-driven hover/selection overlays — fader (body opacity),
   // outline (hover/selected boxes), ghost (hover preview). All three subscribe
   // to picker.selection/hover, so they are ARMED on the first tick() once
@@ -476,6 +488,7 @@ export function createBuildings(ctx: SceneContext, deps: BuildingsDeps): Buildin
     _disposeInner();
     _tweens.clear();
     stopMaterialEffect();
+    stopRebuild();
     _arm.dispose();
     _buildingsByPath = {};
     _cells = new Map();

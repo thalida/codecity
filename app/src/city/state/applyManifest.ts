@@ -33,7 +33,7 @@ import { FOOTPRINT } from '@/state/stores/settings/footprint';
 import { TREES } from '@/state/stores/settings/trees';
 import { SCENE } from '@/state/stores/settings/scene';
 import { REBUILD_STATUS, RebuildStatus } from '@/state/stores/manifest';
-import type { CityBbox, CityLayout, DateRanges, Manifest } from '@/types';
+import type { CityBbox, CityLayout, Manifest } from '@/types';
 
 // Factory-private manifest-bound caches that NO accessor reads — reassigned
 // across applyManifest calls; the layout cache is nulled by invalidateLayoutCache().
@@ -82,10 +82,11 @@ export interface ApplyManifestApi {
 
 export function createApplyManifest(deps: ApplyManifestDeps): ApplyManifestApi {
   const { components, scene, layoutClient, treePlacementClient, cityState } = deps;
-  // gem/island/repoLabel/streets/footprint rebuild reactively off cityState
-  // signals, so they aren't driven from here. The rest are imperative:
-  // buildings/trees/fireflies are async/deferred. _streets is grabbed only to
-  // read its freshly-rebuilt group for the bbox.
+  // gem/island/repoLabel/streets/footprint/buildings rebuild reactively off
+  // cityState signals. _buildings is kept only to push the icon atlas in BEFORE
+  // the layout signal fires (so the reactive buildings rebuild bakes the right
+  // roof UVs). trees/fireflies are still imperative (async/deferred). _streets is
+  // grabbed only to read its rebuilt group for the bbox.
   const {
     streets: _streets,
     buildings: _buildings,
@@ -161,16 +162,6 @@ export function createApplyManifest(deps: ApplyManifestDeps): ApplyManifestApi {
       internal.cachedLayout = newLayout;
     }
     if (myGeneration !== internal.generation) return;
-
-    // Date ranges come off the manifest (backend-computed, like busyness);
-    // _buildings.rebuild uses them for per-building color/age.
-    const newDateRanges: DateRanges = newManifestTyped.dateRanges;
-    if (myGeneration !== internal.generation) return;
-
-    // Buildings rebuild on BOTH branches — not reuse-gated, not reactive: the
-    // rebuild is async and needs the date ranges, and per-building dims recompute
-    // every apply (so even a reuse apply must rebuild). Atlas is already set.
-    await _buildings.rebuild(newLayout, newDateRanges);
 
     // Clear trees/fireflies BEFORE the cityRevision bump so the picker's pickable
     // refresh sees no stale tree meshes; the deferred pass rebuilds them and
