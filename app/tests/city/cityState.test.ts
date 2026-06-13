@@ -61,10 +61,10 @@ describe('createCityState', () => {
 
     const child = makeStreet({ label: 'child', isRoot: false });
     const root = makeStreet({ label: 'root', isRoot: true, x: 5 });
-    cs.layout.value = makeLayout([child, root]);
+    cs.layoutStructure.value = makeLayout([child, root]);
     expect(cs.rootStreet.value).toBe(root);
 
-    cs.layout.value = makeLayout([child]); // no root
+    cs.layoutStructure.value = makeLayout([child]); // no root
     expect(cs.rootStreet.value).toBeNull();
   });
 
@@ -78,7 +78,7 @@ describe('createCityState', () => {
       width: 10,
       length: 80,
     });
-    cs.layout.value = makeLayout([root]);
+    cs.layoutStructure.value = makeLayout([root]);
     const pos = cs.gemWorldPos.value!;
     // orientation 'x' → set(x - length/2 + width/2, 0, y)
     expect(pos.x).toBe(100 - 80 / 2 + 10 / 2); // 65
@@ -96,7 +96,7 @@ describe('createCityState', () => {
       width: 10,
       length: 80,
     });
-    cs.layout.value = makeLayout([root]);
+    cs.layoutStructure.value = makeLayout([root]);
     const pos = cs.gemWorldPos.value!;
     // else branch → set(x, 0, y - length/2 + width/2)
     expect(pos.x).toBe(100);
@@ -107,19 +107,19 @@ describe('createCityState', () => {
   it('gemWorldPos is null when there is no root street', () => {
     const cs = createCityState();
     expect(cs.gemWorldPos.value).toBeNull();
-    cs.layout.value = makeLayout([makeStreet({ isRoot: false })]);
+    cs.layoutStructure.value = makeLayout([makeStreet({ isRoot: false })]);
     expect(cs.gemWorldPos.value).toBeNull();
   });
 
-  it('computeds react to layout change', () => {
+  it('computeds react to layoutStructure change', () => {
     const cs = createCityState();
     const r1 = makeStreet({ isRoot: true, x: 1, orientation: StreetAxis.X });
-    cs.layout.value = makeLayout([r1]);
+    cs.layoutStructure.value = makeLayout([r1]);
     expect(cs.rootStreet.value).toBe(r1);
     const z1 = cs.gemWorldPos.value!.x;
 
     const r2 = makeStreet({ isRoot: true, x: 999, orientation: StreetAxis.X });
-    cs.layout.value = makeLayout([r2]);
+    cs.layoutStructure.value = makeLayout([r2]);
     expect(cs.rootStreet.value).toBe(r2);
     expect(cs.gemWorldPos.value!.x).not.toBe(z1);
   });

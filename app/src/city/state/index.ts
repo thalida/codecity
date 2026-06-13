@@ -81,10 +81,11 @@ export function createCityState(): CityState {
     return b ? b.max.y - b.min.y : 0;
   });
 
-  // The root-of-repo street (gets the gem) — the first isRoot street in the
-  // current layout. Recomputes when layout.value changes.
+  // The root-of-repo street (gets the gem) — the first isRoot street. Off
+  // layoutStructure (positions), so it stays ref-stable on a reuse apply and
+  // gem/cameraRig skip; recomputes only on a structure change.
   const rootStreet = computed<Street | null>(
-    () => (layout.value?.streets ?? []).filter((s) => s.isRoot)[0] || null
+    () => (layoutStructure.value?.streets ?? []).filter((s) => s.isRoot)[0] || null
   );
 
   // Gem world position: the floor-level (y=0) anchor at the open (gem) end of

@@ -94,22 +94,22 @@ describe('scenic reactivity — reference-stability gates rebuilds', () => {
 
     // First non-reuse apply: new reference → rebuild swaps in a fresh
     // pickables array (the per-rebuild side effect we observe).
-    cityState.layout.value = layoutA;
+    cityState.layoutStructure.value = layoutA;
     const afterFirst = streets.pickables();
     expect(afterFirst).toHaveLength(1);
 
     // Scenic-reuse apply: same reference re-assigned → effect does NOT re-fire,
     // so the pickables array is the SAME reference (no rebuild).
-    cityState.layout.value = layoutA;
+    cityState.layoutStructure.value = layoutA;
     expect(streets.pickables()).toBe(afterFirst);
 
     // Another non-reuse apply: a brand-new layout object → rebuild swaps in a
     // NEW pickables array.
-    cityState.layout.value = makeLayout();
+    cityState.layoutStructure.value = makeLayout();
     expect(streets.pickables()).not.toBe(afterFirst);
   });
 
-  // ---- Parity #1 + #2 + #3: gem rebuilds via rootStreet (computed off layout)
+  // ---- Parity #1 + #2 + #3: gem rebuilds via rootStreet (computed off layoutStructure)
 
   it('gem: rebuilds when rootStreet changes (new layout), skips on reuse', () => {
     const cityState = createCityState();
@@ -117,20 +117,20 @@ describe('scenic reactivity — reference-stability gates rebuilds', () => {
     disposers.push(() => gem.dispose());
 
     const layoutA = makeLayout();
-    cityState.layout.value = layoutA;
+    cityState.layoutStructure.value = layoutA;
     const gemAfterFirst = gem.gem; // fresh inner gem group from rebuild
     expect(gemAfterFirst).not.toBeNull();
 
     // Reuse: same layout reference → rootStreet computed is reference-stable →
     // gem effect does NOT re-fire (no flash / GPU realloc): same inner group.
-    cityState.layout.value = layoutA;
+    cityState.layoutStructure.value = layoutA;
     expect(gem.gem).toBe(gemAfterFirst);
 
     // Parity #3: a structural settings change goes through invalidateLayoutCache
     // → the next apply hands a NEW layout object (different reference) even for
     // the same tree. rootStreet re-derives a new Street reference → gem rebuilds
     // (new inner group).
-    cityState.layout.value = makeLayout();
+    cityState.layoutStructure.value = makeLayout();
     expect(gem.gem).not.toBe(gemAfterFirst);
   });
 
