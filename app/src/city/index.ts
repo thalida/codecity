@@ -37,6 +37,10 @@ export async function createCity(canvas: HTMLCanvasElement, manifest: Manifest):
   const scene = new THREE.Scene();
   const layoutClient = createLayoutClient();
   const cityState = createCityState(layoutClient);
+  // applyManifest + invalidateLayoutCache are cityState's (the manifest
+  // pipeline); pulled out here for the City handle + reaction wiring. Components
+  // don't wire into them — they rebuild reactively off cityState's signals.
+  const { applyManifest, invalidateLayoutCache } = cityState;
 
   // picker/camera/renderer are populated below before the first frame; the
   // gem (and other components) read them only in tick(), so the cast is safe.
@@ -79,10 +83,31 @@ export async function createCity(canvas: HTMLCanvasElement, manifest: Manifest):
     getGemWorldPos: () => cityState.gemWorldPos.peek(),
     getStreetsByDirMap: () => cityState.streetsByDirMap.peek(),
   });
-  // applyManifest + invalidateLayoutCache are owned by cityState (the manifest
-  // pipeline). The components above need no wiring into it — they rebuild
-  // reactively off cityState's signals.
-  const { applyManifest, invalidateLayoutCache } = cityState;
+  // The component set, in TICK order — the only ordering that's load-bearing at
+  // runtime:
+  //   - sky LAST: its camera-follow must run immediately before postFx.render
+  //     so the sphere's world matrix is fresh.
+  //   - gem after repoLabel: gem.tick bobs gem.position.y and repoLabel's beam
+  //     foot reads it, so repoLabel sees the previous frame's y (a deliberate,
+  //     pre-existing 1-frame lag — don't reorder to "fix" it).
+  //   - island/footprint have no tick(); harmless in the array.
+  // Draw order is governed entirely by RENDER_ORDERS (three sorts the render
+  // list by renderOrder, then depth, then object-creation id — never by
+  // scene-graph child index), so scene.add order is free: we add in this same
+  // order rather than maintain a second sequence.
+  const components: SceneComponent[] = [
+    fireflies,
+    repoLabel,
+    buildings,
+    trees,
+    pathLine,
+    streets,
+    gem,
+    island,
+    footprint,
+    sky,
+  ];
+  for (const c of components) scene.add(c.group);
 
   // Boot apply — AFTER renderer + registerAdPanelRenderer (the ad-panel race),
   // BEFORE the rig (so bbox is set and the rig's first frame can frame the city).
@@ -138,42 +163,13 @@ export async function createCity(canvas: HTMLCanvasElement, manifest: Manifest):
       const cw = canvas.clientWidth;
       const ch = canvas.clientHeight;
       postFx.setSize(cw, ch);
-      buildings.onResize();
-      trees.onResize();
-      pathLine.onResize();
-      fireflies.onResize(cw, ch);
+      for (const c of components) c.onResize?.(cw, ch);
       // Synchronous paint so the canvas doesn't flash blank between resize and
       // the next frame; render path matches the loop so bloom shows immediately.
       postFx.render();
     },
     onResetView: rig.reset,
   });
-
-  // The component set, in TICK order — the only ordering that's load-bearing at
-  // runtime:
-  //   - sky LAST: its camera-follow must run immediately before postFx.render
-  //     so the sphere's world matrix is fresh.
-  //   - gem after repoLabel: gem.tick bobs gem.position.y and repoLabel's beam
-  //     foot reads it, so repoLabel sees the previous frame's y (a deliberate,
-  //     pre-existing 1-frame lag — don't reorder to "fix" it).
-  //   - island/footprint have no tick(); harmless in the array.
-  // Draw order is governed entirely by RENDER_ORDERS (three sorts the render
-  // list by renderOrder, then depth, then object-creation id — never by
-  // scene-graph child index), so scene.add order is free: we add in this same
-  // order rather than maintain a second sequence.
-  const components: SceneComponent[] = [
-    fireflies,
-    repoLabel,
-    buildings,
-    trees,
-    pathLine,
-    streets,
-    gem,
-    island,
-    footprint,
-    sky,
-  ];
-  for (const c of components) scene.add(c.group);
 
   // Reused scratch vector to avoid per-frame allocations from renderer.getSize().
   const renderSize = new THREE.Vector2();
@@ -191,10 +187,7 @@ export async function createCity(canvas: HTMLCanvasElement, manifest: Manifest):
         rig.camera.aspect = cw / Math.max(1, ch);
         rig.camera.updateProjectionMatrix();
         postFx.setSize(cw, ch);
-        buildings.onResize();
-        trees.onResize();
-        pathLine.onResize();
-        fireflies.onResize(cw, ch);
+        for (const c of components) c.onResize?.(cw, ch);
       }
     },
   });

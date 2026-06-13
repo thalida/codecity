@@ -35,6 +35,10 @@ export interface SceneComponent {
   group: THREE.Object3D;
   /** Frame loop calls it if present. */
   tick?(dt: number, ctx: FrameContext): void;
+  /** Re-fit to a canvas resize, if the component caches viewport-dependent
+   *  state (line-material resolution, screen-space buffers). Called with the
+   *  new canvas size; components that don't need either arg ignore them. */
+  onResize?(cw: number, ch: number): void;
   /** Frees GPU resources AND stops own effects. */
   dispose(): void;
 }
