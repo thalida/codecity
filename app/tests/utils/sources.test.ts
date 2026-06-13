@@ -87,11 +87,11 @@ describe('repoUrlForBranch', () => {
 });
 
 describe('srcKind', () => {
-  it('classifies https URLs as git', () => {
-    expect(srcKind('https://github.com/foo/bar.git')).toBe(SourceKind.Git);
+  it('classifies https URLs as remote', () => {
+    expect(srcKind('https://github.com/foo/bar.git')).toBe(SourceKind.Remote);
   });
-  it('classifies SSH URLs as git', () => {
-    expect(srcKind('git@github.com:foo/bar.git')).toBe(SourceKind.Git);
+  it('classifies SSH URLs as remote', () => {
+    expect(srcKind('git@github.com:foo/bar.git')).toBe(SourceKind.Remote);
   });
   it('classifies local paths as local', () => {
     expect(srcKind('/Users/x/repo')).toBe(SourceKind.Local);

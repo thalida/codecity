@@ -22,16 +22,16 @@ import { HostingIcon } from '@/components/HostingIcon';
 
 /** Which tab of the picker is active. Matches NodeKind-style enum convention. */
 export enum SourceTab {
-  Git = 'git',
+  Remote = 'remote',
   Local = 'local',
 }
 
 /** Infer which tab a source string belongs to: git-like URLs / SCP syntax
- *  → Git, anything else (filesystem paths) → Local. UX-only tab defaulting
+ *  → Remote, anything else (filesystem paths) → Local. UX-only tab defaulting
  *  and recents icon selection — the backend is the source of truth for what
  *  a source actually is. */
 export function inferSourceTab(src: string): SourceTab {
-  return srcKind(src) === SourceKind.Git ? SourceTab.Git : SourceTab.Local;
+  return srcKind(src) === SourceKind.Remote ? SourceTab.Remote : SourceTab.Local;
 }
 
 // SourcePayload / OpenOpts (the picker's submit + open contracts) live in
@@ -64,7 +64,7 @@ export function SourcePickerModal({ state, onSubmit, onClose }: SourcePickerModa
   // unmounts us and resets these useState inputs on the next open. So there is
   // no `open` flag and no conditional early return: hooks always run.
   const [activeTab, setActiveTab] = useState<SourceTab>(s.activeTab);
-  const [urlValue, setUrlValue] = useState(s.activeTab === SourceTab.Git ? s.prefillSrc : '');
+  const [urlValue, setUrlValue] = useState(s.activeTab === SourceTab.Remote ? s.prefillSrc : '');
   const [branchValue, setBranchValue] = useState(s.prefillBranch);
   const [pathValue, setPathValue] = useState(s.activeTab === SourceTab.Local ? s.prefillSrc : '');
   const [skipCache, setSkipCache] = useState(false);
@@ -97,7 +97,7 @@ export function SourcePickerModal({ state, onSubmit, onClose }: SourcePickerModa
   function handleSubmit() {
     const src = activeTab === SourceTab.Local ? pathValue.trim() : urlValue.trim();
     if (!src) return;
-    const branch = activeTab === SourceTab.Git ? branchValue.trim() || undefined : undefined;
+    const branch = activeTab === SourceTab.Remote ? branchValue.trim() || undefined : undefined;
     onSubmit({ src, branch, skipCache: skipCache || undefined });
   }
 
@@ -148,8 +148,8 @@ export function SourcePickerModal({ state, onSubmit, onClose }: SourcePickerModa
             <button
               type="button"
               data-tab="git"
-              class={activeTab === SourceTab.Git ? 'active' : ''}
-              onClick={() => setActiveTab(SourceTab.Git)}
+              class={activeTab === SourceTab.Remote ? 'active' : ''}
+              onClick={() => setActiveTab(SourceTab.Remote)}
             >
               Git URL
             </button>
@@ -163,7 +163,10 @@ export function SourcePickerModal({ state, onSubmit, onClose }: SourcePickerModa
             </button>
           </div>
 
-          <div data-pane="git" style={{ display: activeTab === SourceTab.Git ? 'block' : 'none' }}>
+          <div
+            data-pane="git"
+            style={{ display: activeTab === SourceTab.Remote ? 'block' : 'none' }}
+          >
             <div class="modal-field">
               <label>URL</label>
               <input
@@ -340,7 +343,8 @@ export function SourcePicker({ onSubmit, onClose }: SourcePickerProps) {
     dismissible: opts.dismissible ?? false,
     // Only default to the Local tab when local repos are enabled — otherwise a
     // local-path prefill would land on the disabled-Local dead-end view.
-    activeTab: prefillSrc && serverCfg.allowLocalRepos ? inferSourceTab(prefillSrc) : SourceTab.Git,
+    activeTab:
+      prefillSrc && serverCfg.allowLocalRepos ? inferSourceTab(prefillSrc) : SourceTab.Remote,
     prefillSrc,
     prefillBranch: prefill?.branch ?? '',
     error: opts.error ?? null,

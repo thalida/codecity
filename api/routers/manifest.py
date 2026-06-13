@@ -29,7 +29,7 @@ from api.models.manifest import SignatureResponse
 from api.models.responses import CacheClearResponse
 from api.security import TRUST
 from api.services.cache import (
-    cache_clear_manifests,
+    cache_clear_all,
     cache_load_manifest,
     cache_save_manifest,
 )
@@ -40,10 +40,12 @@ from api.services.clone import (
     RepoNotFoundError,
     clone_dir_for,
     ensure_clone,
+    remove_clone,
 )
 from api.services.scan import ScanCancelledError, scan_tree, signature_tree
 from api.services.source import (
     ResolveError,
+    SourceKind,
     classify,
     display_name_for_manifest,
     resolve_local,
@@ -92,15 +94,24 @@ def clear_cache(
     if not src:
         raise HTTPException(400, "missing 'src' query param")
     kind = classify(src)
-    if kind == "invalid":
+    if kind is SourceKind.INVALID:
         raise HTTPException(400, "unrecognized source — pass a local path or a git URL")
-    if kind == "git":
+    if kind is SourceKind.REMOTE:
         abs_root = clone_dir_for(src, branch)
     else:
         # Non-strict resolve so a recents entry for a since-deleted path
         # still drops its cache.
         abs_root = Path(src).resolve(strict=False)
-    return CacheClearResponse(deleted=cache_clear_manifests(abs_root))
+    # Full clean slate for this source: every per-root cache (manifest,
+    # file-stat, git-history). For a REMOTE source also delete the clone working
+    # tree so a re-add re-clones from scratch — the recovery path for a corrupt
+    # clone. Hold the clone lock so we never rmtree a clone a concurrent request
+    # is mid-clone into.
+    deleted = cache_clear_all(abs_root)
+    if kind is SourceKind.REMOTE:
+        with TRUST.clone_lock:
+            remove_clone(src, branch)
+    return CacheClearResponse(deleted=deleted)
 
 
 def _sse(event: str, payload: dict[str, Any]) -> dict[str, Any]:
@@ -158,11 +169,11 @@ async def manifest(
             yield _sse_error("missing 'src' query param")
             return
         kind = classify(src)
-        if kind == "invalid":
+        if kind is SourceKind.INVALID:
             yield _sse_error("unrecognized source — pass a local path or a git URL")
             return
         local_path: Path | None = None
-        if kind == "git":
+        if kind is SourceKind.REMOTE:
             display = f"{src}@{branch}" if branch else src
         else:
             try:
@@ -215,7 +226,7 @@ async def manifest(
             try:
                 # Clone phase (git only): emit `clone-progress` FIRST, then clone
                 # with live progress + cancel support.
-                if kind == "git":
+                if kind is SourceKind.REMOTE:
                     _put(_sse("clone-progress", {"display_root": display}))
                     try:
                         with TRUST.clone_lock:
@@ -250,7 +261,7 @@ async def manifest(
                 if use_cache:
                     cached = cache_load_manifest(path.resolve(), sig)
                     if cached is not None:
-                        if kind == "git":
+                        if kind is SourceKind.REMOTE:
                             cached["display_root"] = display
                         _apply_display_name(cached)
                         _put(_sse("manifest-complete", {"manifest": cached}))
@@ -265,7 +276,7 @@ async def manifest(
                 ):
                     phase = ev["phase"]  # "manifest-partial" | "manifest-complete"
                     m = ev["manifest"]
-                    if kind == "git":
+                    if kind is SourceKind.REMOTE:
                         m["display_root"] = display
                     _apply_display_name(m)
                     if phase == "manifest-complete":

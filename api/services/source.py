@@ -1,10 +1,11 @@
 """Source resolution: turn a raw ?src value into a scannable target.
 
 Framework-agnostic domain logic shared by the manifest/signature/cache routes:
-classify a source string as a local path or git URL, validate a local working
-tree, and clone a git URL. No FastAPI here — `ResolveError` carries a suggested
-HTTP status + message that the routers translate into an HTTPException (or an
-SSE `error` event for the stream)."""
+classify a source string (every source is a git repo — the only axis is whether
+it's a local working tree or a remote URL to clone), validate a local working
+tree, and clone a remote URL. No FastAPI here — `ResolveError` carries a
+suggested HTTP status + message that the routers translate into an HTTPException
+(or an SSE `error` event for the stream)."""
 
 from __future__ import annotations
 
@@ -12,8 +13,9 @@ import os
 import re
 import subprocess
 from dataclasses import dataclass
+from enum import StrEnum
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any
 
 from api.config import local_repos_allowed
 from api.security import TRUST
@@ -47,29 +49,39 @@ class ResolveError(Exception):
     message: str
 
 
+class SourceKind(StrEnum):
+    """How a raw ?src= string classifies. Every source is a git repo; the only
+    questions are whether it's recognized at all and, if so, whether it's a
+    local working tree (scanned in place) or a remote URL (cloned into the
+    cache). String values are stable human-readable forms (logs/debugging)."""
+
+    INVALID = "invalid"
+    LOCAL = "local"
+    REMOTE = "remote"
+
+
 @dataclass
 class Resolved:
     path: Path
     src: str
     branch: str | None
-    kind: Literal["local", "git"]
     display_root: str
 
 
-def classify(raw: str) -> Literal["local", "git", "invalid"]:
-    """Classify a raw ?src= value as a local path, a git URL, or invalid.
+def classify(raw: str) -> SourceKind:
+    """Classify a raw ?src= value as a local path, a remote git URL, or invalid.
 
-    Path-like prefixes (absolute, home, relative, Windows drive) → 'local'.
-    URLs (scheme:// or git@host:path SSH form) → 'git'.
-    Anything else → 'invalid'.
+    Path-like prefixes (absolute, home, relative, Windows drive) → LOCAL.
+    URLs (scheme:// or git@host:path SSH form) → REMOTE.
+    Anything else → INVALID.
     """
     if not raw:
-        return "invalid"
+        return SourceKind.INVALID
     if _LOCAL_PATH_PREFIX.match(raw):
-        return "local"
+        return SourceKind.LOCAL
     if "://" in raw or _GIT_SSH_FORM.match(raw):
-        return "git"
-    return "invalid"
+        return SourceKind.REMOTE
+    return SourceKind.INVALID
 
 
 def label_from_source(src: str | None) -> str | None:
@@ -157,9 +169,9 @@ def resolve_source(src: str, branch: str | None) -> Resolved:
     if not src:
         raise ResolveError(400, "missing 'src' query param")
     kind = classify(src)
-    if kind == "invalid":
+    if kind is SourceKind.INVALID:
         raise ResolveError(400, "unrecognized source — pass a local path or a git URL")
-    if kind == "git":
+    if kind is SourceKind.REMOTE:
         display = f"{src}@{branch}" if branch else src
         try:
             with TRUST.clone_lock:
@@ -168,6 +180,6 @@ def resolve_source(src: str, branch: str | None) -> Resolved:
             raise ResolveError(400, str(e))
         except CloneError as e:
             raise ResolveError(502, str(e))
-        return Resolved(local, src, branch, "git", display)
-    # kind == "local" — ignore any branch, scan the working tree in place
-    return Resolved(resolve_local(src), src, None, "local", src)
+        return Resolved(local, src, branch, display)
+    # LOCAL — ignore any branch, scan the working tree in place
+    return Resolved(resolve_local(src), src, None, src)

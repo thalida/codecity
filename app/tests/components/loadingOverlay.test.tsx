@@ -70,7 +70,7 @@ describe('LoadingOverlay', () => {
   // ── Stepped progress ──────────────────────────────────────────────────────
 
   it('renders the right steps for git', async () => {
-    showLoadingOverlay({ kind: SourceKind.Git, label: 'owner/repo' });
+    showLoadingOverlay({ kind: SourceKind.Remote, label: 'owner/repo' });
     await flush();
     // Title shows the current step (not the project name — that lives in
     // the pending-label header, driven by the PENDING_SOURCE_LABEL signal).
@@ -91,7 +91,7 @@ describe('LoadingOverlay', () => {
   });
 
   it('setLoadingStep marks previous steps done and target active', async () => {
-    showLoadingOverlay({ kind: SourceKind.Git, label: 'x/y' });
+    showLoadingOverlay({ kind: SourceKind.Remote, label: 'x/y' });
     await flush();
     setLoadingStep(LoadingStep.Building);
     await flush();
@@ -104,13 +104,13 @@ describe('LoadingOverlay', () => {
   });
 
   it('branch is included in the title when provided', async () => {
-    showLoadingOverlay({ kind: SourceKind.Git, label: 'x/y', branch: 'main' });
+    showLoadingOverlay({ kind: SourceKind.Remote, label: 'x/y', branch: 'main' });
     await flush();
     expect(container.textContent).toContain('branch main');
   });
 
   it('git mode starts with resolving active', async () => {
-    showLoadingOverlay({ kind: SourceKind.Git, label: 'owner/repo' });
+    showLoadingOverlay({ kind: SourceKind.Remote, label: 'owner/repo' });
     await flush();
     expect(container.querySelector('[data-step="resolving"]')?.getAttribute('data-state')).toBe(
       'active'
@@ -134,7 +134,7 @@ describe('LoadingOverlay', () => {
   // ── Pending-label header ────────────────────────────────────────────────
 
   it('renders the pending label as a header when set', async () => {
-    showLoadingOverlay({ kind: SourceKind.Git, label: 'owner/repo' });
+    showLoadingOverlay({ kind: SourceKind.Remote, label: 'owner/repo' });
     PENDING_SOURCE_LABEL.value = 'owner/repo';
     await flush();
     const header = container.querySelector('.loading-pending-label');
@@ -143,7 +143,7 @@ describe('LoadingOverlay', () => {
   });
 
   it('removes the pending label when set to null', async () => {
-    showLoadingOverlay({ kind: SourceKind.Git, label: 'owner/repo' });
+    showLoadingOverlay({ kind: SourceKind.Remote, label: 'owner/repo' });
     PENDING_SOURCE_LABEL.value = 'owner/repo';
     await flush();
     PENDING_SOURCE_LABEL.value = null;
@@ -154,7 +154,7 @@ describe('LoadingOverlay', () => {
   // ── Step tails ─────────────────────────────────────────────────────────
 
   it('renders a tail string next to a step row', async () => {
-    showLoadingOverlay({ kind: SourceKind.Git, label: 'owner/repo' });
+    showLoadingOverlay({ kind: SourceKind.Remote, label: 'owner/repo' });
     setLoadingStepTail(LoadingStep.Cloning, '45% (receiving)');
     await flush();
     const cloningRow = container.querySelector('[data-step="cloning"]');
@@ -163,7 +163,7 @@ describe('LoadingOverlay', () => {
   });
 
   it('replaces an existing tail string with a new one', async () => {
-    showLoadingOverlay({ kind: SourceKind.Git, label: 'owner/repo' });
+    showLoadingOverlay({ kind: SourceKind.Remote, label: 'owner/repo' });
     setLoadingStepTail(LoadingStep.Cloning, '10%');
     await flush();
     setLoadingStepTail(LoadingStep.Cloning, '80%');
@@ -174,7 +174,7 @@ describe('LoadingOverlay', () => {
   });
 
   it('clears the tail when set to null', async () => {
-    showLoadingOverlay({ kind: SourceKind.Git, label: 'owner/repo' });
+    showLoadingOverlay({ kind: SourceKind.Remote, label: 'owner/repo' });
     setLoadingStepTail(LoadingStep.Cloning, '45%');
     await flush();
     setLoadingStepTail(LoadingStep.Cloning, null);

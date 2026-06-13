@@ -1,8 +1,8 @@
-// utils/sources.ts — Source URL helpers: classification (git vs local),
+// utils/sources.ts — Source URL helpers: classification (remote vs local),
 // canonicalisation (SSH → HTTPS), and label derivation (URL/path → human label).
 //
 // Public surface:
-//   - srcKind(src)               — SourceKind (Git | Local) discriminator.
+//   - srcKind(src)               — SourceKind (Remote | Local) discriminator.
 //   - toHttpsRepoUrl(src)        — canonical https URL from any repo URL form.
 //   - repoUrlForBranch(url, ref) — forge URL pointing at a branch tree.
 //   - labelFromSource(src)       — a git URL OR a local path → "owner/repo" or
@@ -11,18 +11,19 @@
 //                                  tree.name is normalized server-side, so there
 //                                  is no manifest→label helper here.
 
-/** What kind of thing a source string points at: a remote git URL or an
- *  on-disk local path. The string values are the wire/persisted form. */
+/** What kind of thing a source string points at. Every source is a git repo;
+ *  the axis is whether it's a remote URL (cloned) or an on-disk local working
+ *  tree. String values are stable human-readable discriminators. */
 export enum SourceKind {
-  Git = 'git',
+  Remote = 'remote',
   Local = 'local',
 }
 
-/** Classify a source string as a git URL or a local path. Git URLs are
- *  recognised by either a scheme (https://, ssh://, etc.) or the
- *  scp-style `user@host:path` form. Anything else is local. */
+/** Classify a source string as a remote git URL or a local path. Remote URLs
+ *  are recognised by either a scheme (https://, ssh://, etc.) or the scp-style
+ *  `user@host:path` form. Anything else is local. */
 export function srcKind(src: string): SourceKind {
-  return /:\/\//.test(src) || /^[^@]+@[^:]+:/.test(src) ? SourceKind.Git : SourceKind.Local;
+  return /:\/\//.test(src) || /^[^@]+@[^:]+:/.test(src) ? SourceKind.Remote : SourceKind.Local;
 }
 
 /**

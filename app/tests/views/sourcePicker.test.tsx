@@ -25,7 +25,7 @@ describe('SourcePicker', () => {
     // null when the picker isn't visible. open() mounts the component.
     state = signal<SourcePickerState>({
       dismissible: false,
-      activeTab: SourceTab.Git,
+      activeTab: SourceTab.Remote,
       prefillSrc: '',
       prefillBranch: '',
       error: null,
@@ -44,9 +44,9 @@ describe('SourcePicker', () => {
     // disabled we never default to the Local tab.
     let activeTab: SourceTab;
     if (!prefillSrc) {
-      activeTab = SourceTab.Git;
+      activeTab = SourceTab.Remote;
     } else if (!allowLocalRepos) {
-      activeTab = SourceTab.Git;
+      activeTab = SourceTab.Remote;
     } else {
       activeTab = inferSourceTab(prefillSrc);
     }

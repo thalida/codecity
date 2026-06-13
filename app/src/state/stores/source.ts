@@ -107,7 +107,7 @@ export const SOURCE_INFO = computed<SourceInfo>(() => {
   return {
     label: manifest.tree?.name ?? '',
     branch: resolveBranch(manifest, cur.branch).branch,
-    sourceUrl: srcKind(cur.src) === SourceKind.Git ? cur.src : undefined,
+    sourceUrl: srcKind(cur.src) === SourceKind.Remote ? cur.src : undefined,
   };
 });
 
