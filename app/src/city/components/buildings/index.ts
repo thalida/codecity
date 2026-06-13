@@ -80,9 +80,8 @@ export interface Buildings extends SceneComponent {
   /** Push the roof-icon atlas into the shared material + cell factory. Must
    *  run BEFORE rebuild() (the atlas is read while building the cells). */
   setAtlas(atlas: IconAtlas | null): void;
-  /** Dispose the current instanced ad panels immediately (world.resetCache
-   *  uses this to drop stale panels on a source switch). The next rebuild()
-   *  rebuilds them from the fresh layout. */
+  /** Dispose the current instanced ad panels immediately; the next rebuild()
+   *  recreates them from the fresh layout. */
   disposeAdPanels(): void;
   /** Building lookup by file path → { mesh, building, instanceId }. */
   getByPath(p: string): { mesh: THREE.Mesh; building: Building; instanceId: number } | null;
