@@ -79,7 +79,7 @@ export interface Sky extends SceneComponent {
 // `_ctx` is accepted for createX(ctx) composer uniformity; the sky uses
 // nothing from it at construction (it reaches the camera via FrameContext
 // in tick()). The `_`-prefix matches the eslint argsIgnorePattern.
-export function createSky(_ctx: SceneContext): Sky {
+export function createSky(ctx: SceneContext): Sky {
   // Radius is read from CAMERA_PERSPECTIVE.FAR at build time. The
   // camera FAR plane is itself a fixed user config (default 20000)
   // and changes only require a fresh boot, so this radius does not
@@ -134,6 +134,10 @@ export function createSky(_ctx: SceneContext): Sky {
     setColorFromHex(material.uniforms.uSkyColor.value as THREE.Color, c.SKY_COLOR);
     material.uniforms.uStarsEnabled.value = c.STARS_ENABLED ? 1.0 : 0.0;
     material.uniforms.uStarDensity.value = c.STARS_DENSITY;
+    // Scene clear color (the RenderPass background behind the sky sphere) =
+    // SKY_COLOR. Sky owns this — runs at construction + on every SCENE Save, so
+    // applyManifest no longer needs to set it.
+    ctx.scene.background = new THREE.Color(c.SKY_COLOR);
   });
 
   // Per-frame work, run LAST before postFx.render():

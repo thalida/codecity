@@ -7,7 +7,6 @@ import * as THREE from 'three';
 
 import type { Manifest } from '@/types';
 
-import { SCENE } from '@/state/stores/settings/scene';
 import { registerShaderChunks } from './utils/shaders/registerShaderChunks';
 import { createBuildings } from './components/buildings';
 import { findLayoutOverlaps, layoutCityWithTrace } from './layout/algorithm';
@@ -38,7 +37,6 @@ export async function createCity(canvas: HTMLCanvasElement, manifest: Manifest):
   registerShaderChunks();
 
   const scene = new THREE.Scene();
-  scene.background = new THREE.Color(SCENE.value.SKY_COLOR);
   const cityState = createCityState();
 
   // picker/camera/renderer are populated below before the first frame; the
@@ -95,7 +93,6 @@ export async function createCity(canvas: HTMLCanvasElement, manifest: Manifest):
       fireflies,
       pathLine,
     },
-    scene,
     layoutClient,
     cityState,
   });
@@ -200,7 +197,6 @@ export async function createCity(canvas: HTMLCanvasElement, manifest: Manifest):
   });
 
   function applyTheme(): void {
-    scene.background = new THREE.Color(SCENE.value.SKY_COLOR);
     postFx.refresh();
     // Null until the first manifest with media files applies.
     buildings.getAdPanels()?.refresh();

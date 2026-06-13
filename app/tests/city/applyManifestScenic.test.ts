@@ -137,7 +137,6 @@ describe('createApplyManifest — scenic reactivity parity', () => {
 
     const api = createApplyManifest({
       components: { ...stubs, streets } as never,
-      scene: new THREE.Scene(),
       layoutClient: layoutClient as never,
       cityState,
     });

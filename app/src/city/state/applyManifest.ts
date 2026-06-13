@@ -9,7 +9,6 @@
 //     tree_signature key, the icon-atlas tree_signature, the generation
 //     counter) are private to this closure (the `internal` object).
 
-import * as THREE from 'three';
 import { batch } from '@preact/signals';
 
 import { buildIconAtlas } from '../components/buildings/atlas';
@@ -28,7 +27,6 @@ import type { Island } from '../components/island';
 import { getWorldBounds } from '../utils/floorBounds';
 import type { Footprint } from '../components/footprint';
 import type { CityState } from './index';
-import { SCENE } from '@/state/stores/settings/scene';
 import type { CityLayout, Manifest } from '@/types';
 
 // Factory-private manifest-bound caches that NO accessor reads — reassigned
@@ -60,7 +58,6 @@ export interface ApplyManifestDeps {
     fireflies: FirefliesComponent;
     pathLine: PathLine;
   };
-  scene: THREE.Scene;
   layoutClient: ReturnType<typeof createLayoutClient>;
   // The cross-boundary signals. applyManifest sets the source signals' .value
   // and bumps cityRevision / decorationRevision so the reactive consumers
@@ -76,7 +73,7 @@ export interface ApplyManifestApi {
 }
 
 export function createApplyManifest(deps: ApplyManifestDeps): ApplyManifestApi {
-  const { components, scene, layoutClient, cityState } = deps;
+  const { components, layoutClient, cityState } = deps;
   // All scene components now rebuild reactively off cityState signals. One ref
   // remains: _buildings, only to push the icon atlas in BEFORE the layout signal
   // fires (so the reactive buildings rebuild bakes the right roof UVs).
@@ -170,12 +167,11 @@ export function createApplyManifest(deps: ApplyManifestDeps): ApplyManifestApi {
 
     // bbox (+ sceneBbox/cityHeight) is now a computed off layoutStructure, so it
     // updates itself when the batch above reassigns layoutStructure (non-reuse)
-    // and stays cached on reuse — no imperative bbox write here. Only the two
-    // non-reactive non-reuse effects remain: the sky-color background and
-    // latestWorldBounds (a source signal because getWorldBounds reads WORLD; on
-    // reuse the stable bbox keeps the island from re-fitting).
+    // and stays cached on reuse. The one non-reactive write left: latestWorldBounds
+    // (a source signal because getWorldBounds reads WORLD; on reuse the stable
+    // bbox keeps the island from re-fitting). The sky background lives in the sky
+    // component's SCENE effect now.
     if (!reused) {
-      scene.background = new THREE.Color(SCENE.value.SKY_COLOR);
       cityState.latestWorldBounds.value = getWorldBounds(
         cityState.sceneBbox.value,
         cityState.cityHeight.value
