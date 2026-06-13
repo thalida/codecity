@@ -189,6 +189,10 @@ export function createApplyManifest(deps: ApplyManifestDeps): ApplyManifestApi {
     batch(() => {
       cityState.manifest.value = newManifestTyped;
       if (!reused) cityState.layout.value = newLayout;
+      // layoutStructure mirrors layout's current non-reuse-only semantics; the
+      // structure-reactive consumers move onto it next, before layout flips to
+      // every-apply.
+      if (!reused) cityState.layoutStructure.value = newLayout;
       cityState.cityRevision.value++;
     });
 
