@@ -129,9 +129,9 @@ export class InstancedAdPanels {
     const mat = new THREE.ShaderMaterial({
       glslVersion: THREE.GLSL3,
       // AD_PANEL_MAX_PAGES injected as a shader #define — sizes the
-      // uPanelArrays sampler array AND bounds the sampleLayer dispatch
-      // loop, so the page count lives only in MAX_PAGES (no hand-listed
-      // branches to fall out of sync).
+      // uPanelArrays sampler array AND gates the sampleLayer dispatch
+      // branches (each `#if AD_PANEL_MAX_PAGES > N`), so the page count
+      // lives only in MAX_PAGES.
       defines: {
         AD_PANEL_MAX_PAGES,
       },

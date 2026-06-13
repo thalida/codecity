@@ -277,18 +277,22 @@ describe('InstancedAdPanels emission refresh', () => {
 
 describe('sampleLayer page dispatch', () => {
   // The page count lives in exactly one place (MAX_PAGES → the
-  // AD_PANEL_MAX_PAGES #define). The shader bounds its sampler-dispatch
-  // loop by that define and Three.js compiles the material with the
-  // define present, so a non-constant page count can't slip through.
-  it('compiles the material with AD_PANEL_MAX_PAGES wired to MAX_PAGES', () => {
+  // AD_PANEL_MAX_PAGES #define). GLSL ES 3.00 / WebGL2 forbids indexing a
+  // sampler array with a non-constant expression, so the shader MUST
+  // dispatch with constant indices (`uPanelArrays[0]`, `[1]`, …) gated by
+  // `#if AD_PANEL_MAX_PAGES > N` — never a runtime/loop index, which fails
+  // to compile on real drivers (vitest can't compile GLSL, so guard the
+  // source shape here).
+  it('dispatches over the sampler array with constant indices', () => {
     const ads = new InstancedAdPanels(4);
     const mat = ads.mesh.material as unknown as {
       defines: Record<string, unknown>;
       fragmentShader: string;
     };
     expect(mat.defines.AD_PANEL_MAX_PAGES).toBe(MAX_PAGES);
-    // The shader loops over the define (no hand-listed per-page branches).
-    expect(mat.fragmentShader).toContain('for (int i = 0; i < AD_PANEL_MAX_PAGES; i++)');
-    expect(mat.fragmentShader).toContain('uPanelArrays[i]');
+    expect(mat.fragmentShader).toContain('if (page == 0) return texture(uPanelArrays[0], p);');
+    expect(mat.fragmentShader).toContain('#if AD_PANEL_MAX_PAGES > 0');
+    // Regression guard: a dynamic sampler index won't compile in WebGL2.
+    expect(mat.fragmentShader).not.toContain('uPanelArrays[i]');
   });
 });

@@ -11,8 +11,8 @@
 // MAX_ARRAY_TEXTURE_LAYERS) and picks the correct sampler in
 // sampleLayer(). Both page-count-shaped things derive from the ONE
 // AD_PANEL_MAX_PAGES define (injected from MAX_PAGES in
-// adPanelTextureArray.ts): the uPanelArrays size, and the sampleLayer
-// loop bound. Nothing is hand-listed, so the count lives in one place.
+// adPanelTextureArray.ts): the uPanelArrays size, and the #if-guarded
+// sampleLayer dispatch branches, so the count lives in one place.
 //
 // GLSL3 note: sampler2DArray + texture() are GLSL ES 3.00 / WebGL2
 // features. The material must set glslVersion: THREE.GLSL3.
@@ -41,19 +41,39 @@ in float vBuildingFade;
 out vec4 fragColor;
 
 vec4 sampleLayer(int page, float localLayer) {
-  // GLSL ES 3.00 forbids indexing a sampler array with a non-constant
-  // expression, but a for-loop induction variable IS a constant-index-
-  // expression — so this loop compiles to the same constant sampler
-  // accesses an unrolled if/else chain would, without hand-listing one
-  // branch per page. The bound is the injected AD_PANEL_MAX_PAGES define,
-  // so the page count lives in exactly one place (MAX_PAGES,
-  // adPanelTextureArray.ts). page is always in [0, AD_PANEL_MAX_PAGES)
-  // by construction (the CPU cap keeps iLayerIndex < MAX_PAGES*pageSize),
-  // so the trailing return is unreachable — present only to satisfy the
-  // all-paths-return rule.
-  for (int i = 0; i < AD_PANEL_MAX_PAGES; i++) {
-    if (i == page) return texture(uPanelArrays[i], vec3(vUv, localLayer));
-  }
+  // GLSL ES 3.00 requires a sampler-array index to be a constant integral
+  // expression — a loop/dynamic index will not compile — so dispatch with
+  // constant indices. Each branch is #if-guarded on AD_PANEL_MAX_PAGES
+  // (injected from MAX_PAGES in adPanelTextureArray.ts), so the active
+  // branch count tracks the page cap and never names an out-of-range
+  // sampler. page is always < AD_PANEL_MAX_PAGES by construction (the CPU
+  // cap keeps iLayerIndex < MAX_PAGES*pageSize), so the trailing return is
+  // unreachable — present only to satisfy the all-paths-return rule.
+  vec3 p = vec3(vUv, localLayer);
+#if AD_PANEL_MAX_PAGES > 0
+  if (page == 0) return texture(uPanelArrays[0], p);
+#endif
+#if AD_PANEL_MAX_PAGES > 1
+  if (page == 1) return texture(uPanelArrays[1], p);
+#endif
+#if AD_PANEL_MAX_PAGES > 2
+  if (page == 2) return texture(uPanelArrays[2], p);
+#endif
+#if AD_PANEL_MAX_PAGES > 3
+  if (page == 3) return texture(uPanelArrays[3], p);
+#endif
+#if AD_PANEL_MAX_PAGES > 4
+  if (page == 4) return texture(uPanelArrays[4], p);
+#endif
+#if AD_PANEL_MAX_PAGES > 5
+  if (page == 5) return texture(uPanelArrays[5], p);
+#endif
+#if AD_PANEL_MAX_PAGES > 6
+  if (page == 6) return texture(uPanelArrays[6], p);
+#endif
+#if AD_PANEL_MAX_PAGES > 7
+  if (page == 7) return texture(uPanelArrays[7], p);
+#endif
   return vec4(0.0);
 }
 
