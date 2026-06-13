@@ -3,7 +3,7 @@
 //
 // Public contract:
 //   const handlers = createInputHandlers({
-//     canvas, picker, rig, renderer, camera,
+//     canvas, picker, rig, renderer,
 //     onResize: function () { /* renderer-specific onResize work */ },
 //     showTooltip, hideTooltip,            // tooltip api (from components/tooltip.js)
 //   });
@@ -28,7 +28,6 @@ export function createInputHandlers({
   picker,
   rig,
   renderer,
-  camera,
   cityState,
   showTooltip,
   hideTooltip,
@@ -39,7 +38,6 @@ export function createInputHandlers({
   picker: ReturnType<typeof createPicker>;
   rig: ReturnType<typeof createCameraRig>;
   renderer: THREE.WebGLRenderer;
-  camera: THREE.PerspectiveCamera;
   cityState: CityState;
   showTooltip: (text: string, x: number, y: number) => void;
   hideTooltip: () => void;
@@ -364,8 +362,8 @@ export function createInputHandlers({
       const cw = canvas.clientWidth;
       const ch = canvas.clientHeight;
       renderer.setSize(cw, ch, false);
-      camera.aspect = cw / Math.max(1, ch);
-      camera.updateProjectionMatrix();
+      rig.camera.aspect = cw / Math.max(1, ch);
+      rig.camera.updateProjectionMatrix();
       // onResize owns the synchronous paint so the post-FX pipeline (bloom)
       // shows on the new size without a blank/cleared frame in between.
       if (typeof onResize === 'function') onResize();

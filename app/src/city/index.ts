@@ -145,7 +145,6 @@ export async function createCity(canvas: HTMLCanvasElement, manifest: Manifest):
     picker,
     rig,
     renderer,
-    camera: rig.camera,
     cityState,
     showTooltip,
     hideTooltip,
