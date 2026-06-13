@@ -7,8 +7,7 @@ import { FOOTPRINT_SECTION } from '@/views/ControlsPane/partials/Footprint';
 import { BUILDINGS_SECTION } from '@/views/ControlsPane/partials/Buildings';
 import { TREES } from '@/state/stores/settings/trees';
 import { STREETS, STREET_TIERS, STREET_LAYOUT } from '@/state/stores/settings/streets';
-import { BUILDING_DIMENSIONS, BUILDINGS, BUILDING_FADE } from '@/state/stores/settings/buildings';
-import { FACADE } from '@/state/stores/settings/facade';
+import { BUILDING_DIMENSIONS, BUILDINGS } from '@/state/stores/settings/buildings';
 import { FOOTPRINT } from '@/state/stores/settings/footprint';
 import { getFieldKeys } from '@/state/settingsSchema';
 import { flush } from '../../_helpers/preact';
@@ -66,7 +65,7 @@ describe('FOOTPRINT_SECTION placement', () => {
 describe('BUILDINGS_SECTION placement', () => {
   it('places every field of all four building stores exactly once', () => {
     const refs = collectRefs(BUILDINGS_SECTION.children ?? []);
-    const stores = [BUILDING_DIMENSIONS, BUILDINGS, FACADE, BUILDING_FADE];
+    const stores = [BUILDING_DIMENSIONS, BUILDINGS];
     let total = 0;
     for (const store of stores) {
       const placed = refs.filter((r) => r.store === (store as unknown)).map((r) => r.key);

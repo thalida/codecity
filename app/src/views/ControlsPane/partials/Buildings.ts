@@ -1,12 +1,10 @@
 // views/ControlsPane/partials/Buildings.ts — Buildings section declaration.
 // Per-file boxes: height from line count, width from byte size, color from
 // extension + age. The largest section — layout, transitions, palette,
-// per-extension hues, outlines, facade, aging, selection fade. Subgroups are
-// arrangement only; the four stores (BUILDING_DIMENSIONS, BUILDINGS, FACADE,
-// BUILDING_FADE) own each field.
+// per-extension hues, outlines, facade (incl. age weathering), selection fade. Subgroups are
+// arrangement only; the two stores (BUILDING_DIMENSIONS, BUILDINGS) own each field.
 import { field, type SectionNode } from '.';
-import { BUILDING_DIMENSIONS, BUILDINGS, BUILDING_FADE } from '@/state/stores/settings/buildings';
-import { FACADE } from '@/state/stores/settings/facade';
+import { BUILDING_DIMENSIONS, BUILDINGS } from '@/state/stores/settings/buildings';
 
 // One selection-fade tier subgroup (DEFAULT / LEVEL1..4).
 function fadeTier(label: string, prefix: 'DEFAULT' | 'LEVEL1' | 'LEVEL2' | 'LEVEL3' | 'LEVEL4') {
@@ -14,10 +12,10 @@ function fadeTier(label: string, prefix: 'DEFAULT' | 'LEVEL1' | 'LEVEL2' | 'LEVE
     key: `fade-${prefix.toLowerCase()}`,
     label,
     children: [
-      field(BUILDING_FADE, `${prefix}_DETAIL`),
-      field(BUILDING_FADE, `${prefix}_OUTLINE`),
-      field(BUILDING_FADE, `${prefix}_BODY_OPACITY`),
-      field(BUILDING_FADE, `${prefix}_OUTLINE_OPACITY`),
+      field(BUILDINGS, `${prefix}_DETAIL`),
+      field(BUILDINGS, `${prefix}_OUTLINE`),
+      field(BUILDINGS, `${prefix}_BODY_OPACITY`),
+      field(BUILDINGS, `${prefix}_OUTLINE_OPACITY`),
     ],
   };
 }
@@ -78,54 +76,48 @@ export const BUILDINGS_SECTION: SectionNode = {
           key: 'facade-geometry',
           label: 'Geometry',
           children: [
-            field(FACADE, 'SLAB_HEIGHT_FRAC'),
-            field(FACADE, 'WINDOW_WIDTH_FRAC'),
-            field(FACADE, 'WINDOW_HEIGHT_FRAC'),
-            field(FACADE, 'WINDOW_MARGIN_FRAC'),
-            field(FACADE, 'DOOR_HEIGHT_FRAC'),
-            field(FACADE, 'ROOF_BORDER_FRAC'),
-            field(FACADE, 'WINDOW_COLS_MAX'),
-            field(FACADE, 'WIDTH_PER_WINDOW_COL'),
-            field(FACADE, 'DOOR_WIDTH_FRAC'),
+            field(BUILDINGS, 'SLAB_HEIGHT_FRAC'),
+            field(BUILDINGS, 'WINDOW_WIDTH_FRAC'),
+            field(BUILDINGS, 'WINDOW_HEIGHT_FRAC'),
+            field(BUILDINGS, 'WINDOW_MARGIN_FRAC'),
+            field(BUILDINGS, 'DOOR_HEIGHT_FRAC'),
+            field(BUILDINGS, 'ROOF_BORDER_FRAC'),
+            field(BUILDINGS, 'WINDOW_COLS_MAX'),
+            field(BUILDINGS, 'WIDTH_PER_WINDOW_COL'),
+            field(BUILDINGS, 'DOOR_WIDTH_FRAC'),
           ],
         },
         {
           key: 'facade-contrast',
           label: 'Contrast (HSL lightness Δ)',
           children: [
-            field(FACADE, 'SLAB_LIGHTNESS_DELTA'),
-            field(FACADE, 'DOOR_LIGHTNESS_DELTA'),
-            field(FACADE, 'ROOF_BORDER_LIGHTNESS_DELTA'),
+            field(BUILDINGS, 'SLAB_LIGHTNESS_DELTA'),
+            field(BUILDINGS, 'DOOR_LIGHTNESS_DELTA'),
+            field(BUILDINGS, 'ROOF_BORDER_LIGHTNESS_DELTA'),
           ],
         },
         {
           key: 'facade-windows',
           label: 'Window lighting',
           children: [
-            field(FACADE, 'UNLIT_LIGHTNESS_DELTA'),
-            field(FACADE, 'GAP_BASE_THRESHOLD'),
-            field(FACADE, 'GAP_AGE_BONUS'),
-            field(FACADE, 'LIT_FRESHNESS_EXPONENT'),
-            field(FACADE, 'DIM_GLOW_COLOR'),
+            field(BUILDINGS, 'UNLIT_LIGHTNESS_DELTA'),
+            field(BUILDINGS, 'GAP_BASE_THRESHOLD'),
+            field(BUILDINGS, 'GAP_AGE_BONUS'),
+            field(BUILDINGS, 'LIT_FRESHNESS_EXPONENT'),
+            field(BUILDINGS, 'DIM_GLOW_COLOR'),
           ],
         },
         {
           key: 'facade-ads',
           label: 'Ad panels (media files)',
           children: [
-            field(FACADE, 'AD_SIDE_MARGIN_FRAC'),
-            field(FACADE, 'AD_BOTTOM_OFFSET_FLOORS'),
-            field(FACADE, 'AD_PLACEHOLDER_COLOR'),
+            field(BUILDINGS, 'AD_SIDE_MARGIN_FRAC'),
+            field(BUILDINGS, 'AD_BOTTOM_OFFSET_FLOORS'),
+            field(BUILDINGS, 'AD_PLACEHOLDER_COLOR'),
           ],
         },
-      ],
-    },
-    {
-      key: 'aging',
-      label: 'Aging',
-      children: [
         {
-          key: 'aging-grime',
+          key: 'facade-grime',
           label: 'Grime streaks',
           children: [
             field(BUILDINGS, 'GRIME_ENABLED'),
@@ -134,7 +126,7 @@ export const BUILDINGS_SECTION: SectionNode = {
           ],
         },
         {
-          key: 'aging-tilt',
+          key: 'facade-tilt',
           label: 'Tilt',
           children: [field(BUILDINGS, 'TILT_ENABLED'), field(BUILDINGS, 'TILT_DEGREES')],
         },

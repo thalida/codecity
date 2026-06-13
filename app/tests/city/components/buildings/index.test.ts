@@ -6,7 +6,7 @@
 //      getBuildingByPath, getTallest, getCells, getBuildingIndex,
 //      getMeshForBuilding }.
 //
-// The shared-material theme effect reacts to BUILDINGS/FACADE/SCENE/BLOOM at
+// The shared-material theme effect reacts to BUILDINGS/SCENE/BLOOM at
 // construction (safe — no picker). The fader/outline/ghost overlays are
 // picker-driven and ARMED on the first tick() (NOT at construction — ctx.picker
 // is null there, so a construction-time subscriber would track no signal and

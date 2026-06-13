@@ -16,8 +16,8 @@
 
 import * as THREE from 'three';
 import { effect, untracked } from '@preact/signals';
-import { BUILDING_FADE } from '@/state/stores/settings/buildings';
-import type { BuildingFadeConfig } from '@/state/stores/settings/buildings';
+import { BUILDINGS } from '@/state/stores/settings/buildings';
+import type { BuildingsConfig } from '@/state/stores/settings/buildings';
 import { FadeDetail, NodeKind } from '@/types';
 import type { DirNode, FileNode, PickTarget } from '@/types';
 import { parentDirPath } from '@/city/utils/path';
@@ -98,11 +98,11 @@ export function createBuildingFader({
     return dirTarget;
   }
 
-  // Read one tier's four config values by key prefix. The BUILDING_FADE
+  // Read one tier's four config values by key prefix. The BUILDINGS
   // store is flat (DEFAULT_*, LEVEL1_*…LEVEL4_*); dir-tree level N maps to
   // the LEVEL{N} prefix, every other tier to DEFAULT.
   function _tierFromPrefix(
-    fadeCfg: BuildingFadeConfig,
+    fadeCfg: BuildingsConfig,
     prefix: 'DEFAULT' | 'LEVEL1' | 'LEVEL2' | 'LEVEL3' | 'LEVEL4'
   ): TierResult {
     return {
@@ -123,7 +123,7 @@ export function createBuildingFader({
     bldgTargetFile: FileNode | null,
     dirTarget: DirNode | null,
     hoverFile: FileNode | null,
-    fadeCfg: BuildingFadeConfig
+    fadeCfg: BuildingsConfig
   ): TierResult {
     // Hover wins — its tier values overwrite any selection/dir-tree result
     // unconditionally, so check first and skip the more expensive
@@ -153,7 +153,7 @@ export function createBuildingFader({
     const dirTarget = _resolveDirTarget(sel, hov);
     const hoverFile = hov && hov.kind === NodeKind.File ? hov.file : null;
 
-    const fadeCfg = BUILDING_FADE.value;
+    const fadeCfg = BUILDINGS.value;
 
     // Collected by the cell sweep, drained into the ad-panel sweep below
     // so a media building's ad panel dims by exactly the same factor as
@@ -218,18 +218,18 @@ export function createBuildingFader({
   // Re-sweep after a manifest rebuild — new cells start with fresh iFade
   // buffers (opacity=1.0, silhouette=0, outlineOpacity=0) and the current
   // selection still applies. Tracks cityRevision only; _sweepAll reads
-  // picker.selection/hover + BUILDING_FADE, so it runs untracked to keep this
+  // picker.selection/hover + BUILDINGS, so it runs untracked to keep this
   // effect from doubling up with the selection/hover/config effects above.
   const _unsubChange = effect(() => {
     void cityState.cityRevision.value;
     untracked(_sweepAll);
   });
 
-  // BUILDING_FADE config (tier thresholds, body opacity, detail mode)
+  // BUILDINGS config (tier thresholds, body opacity, detail mode)
   // controls every value _sweepAll reads. Resweep on any change so dragging
   // a slider in the controls pane updates the scene live.
   const _unsubCfg = effect(() => {
-    void BUILDING_FADE.value;
+    void BUILDINGS.value;
     _sweepAll();
   });
 

@@ -11,7 +11,7 @@
 // buffers).
 
 import * as THREE from 'three';
-import { FACADE } from '@/state/stores/settings/facade';
+import { BUILDINGS } from '@/state/stores/settings/buildings';
 import { BuildingOrient } from '@/types/index';
 import type { CellTile } from './cellTile';
 import type { Building } from '@/types/index';
@@ -156,7 +156,7 @@ export function writeBuildingToSlot(cell: CellTile, b: Building): void {
   const mesh = cell.detailMesh;
 
   // --- Config snapshot (read once per write, not per attribute) ---
-  const facade = FACADE.value;
+  const facade = BUILDINGS.value;
   const windowColsMax = facade.WINDOW_COLS_MAX;
   const widthPerWindowCol = facade.WIDTH_PER_WINDOW_COL;
   const doorWidthFrac = facade.DOOR_WIDTH_FRAC;

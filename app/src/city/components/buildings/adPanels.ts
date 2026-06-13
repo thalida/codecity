@@ -12,9 +12,8 @@
 
 import * as THREE from 'three';
 import { BuildingOrient } from '@/types/index';
-import { FACADE } from '@/state/stores/settings/facade';
 import { BLOOM } from '@/state/stores/settings/effects';
-import { BUILDING_DIMENSIONS } from '@/state/stores/settings/buildings';
+import { BUILDING_DIMENSIONS, BUILDINGS } from '@/state/stores/settings/buildings';
 import { AD_ERROR_COLOR } from '@/constants/buildings';
 import { RENDER_ORDERS } from '@/city/types/renderOrders';
 import { mediaKindOf, MediaKind } from '@/city/utils/mediaKind';
@@ -116,7 +115,7 @@ export class InstancedAdPanels {
     const geo = new THREE.PlaneGeometry(1, 1);
 
     // Material — GLSL3 required for sampler2DArray.
-    const adCfg = FACADE.value;
+    const adCfg = BUILDINGS.value;
     const placeholderColor = new THREE.Color(adCfg.AD_PLACEHOLDER_COLOR);
     // Cached for markBuildingErrored — recolors a panel slot's iColor
     // when its image load/decode/upload fails permanently. Stored without
@@ -256,7 +255,7 @@ export class InstancedAdPanels {
       return null;
     }
 
-    const cfg = FACADE.value;
+    const cfg = BUILDINGS.value;
     const dims = BUILDING_DIMENSIONS.value;
 
     // Aspect ratio: clamp degenerate or missing metadata to a square.

@@ -9,7 +9,6 @@
 
 import * as THREE from 'three';
 import { BUILDINGS, BUILDING_DIMENSIONS } from '@/state/stores/settings/buildings';
-import { FACADE } from '@/state/stores/settings/facade';
 import { BLOOM } from '@/state/stores/settings/effects';
 import { SCENE } from '@/state/stores/settings/scene';
 import type { IconAtlas } from './atlas';
@@ -24,7 +23,7 @@ import {
 
 // ---------------------------------------------------------------------------
 // Per-instance facade attributes (window column count + door width) are
-// sourced from the FACADE_GEOMETRY store. The shader-side keys
+// sourced from the BUILDINGS store. The shader-side keys
 // (SLAB/WINDOW/DOOR/ROOF_*_FRAC) are pushed through uniforms — see
 // refreshBuildingMaterial(); the JS-side keys read below feed into baked
 // per-instance attributes, so changes to them trigger a full rebuild via
@@ -80,14 +79,14 @@ function _computeFogHeight(): number {
 // per-building by createdAge. These write the two endpoints into a Vector2
 // uniform (both 0 when the effect is disabled, so the shader's mix → 0).
 function _grimeIntensityVec(out: THREE.Vector2): THREE.Vector2 {
-  const a = BUILDINGS.value;
-  const [lo, hi] = a.GRIME_ENABLED ? a.GRIME_INTENSITY : [0, 0];
+  const f = BUILDINGS.value;
+  const [lo, hi] = f.GRIME_ENABLED ? f.GRIME_INTENSITY : [0, 0];
   return out.set(lo, hi);
 }
 
 function _tiltRadVec(out: THREE.Vector2): THREE.Vector2 {
-  const a = BUILDINGS.value;
-  const [lo, hi] = a.TILT_ENABLED ? a.TILT_DEGREES : [0, 0];
+  const f = BUILDINGS.value;
+  const [lo, hi] = f.TILT_ENABLED ? f.TILT_DEGREES : [0, 0];
   return out.set((lo * Math.PI) / 180, (hi * Math.PI) / 180);
 }
 
@@ -146,33 +145,33 @@ export function getBuildingMaterial(): THREE.ShaderMaterial {
       uSunDirWorld: { value: new THREE.Vector3(0, 1, 0) },
       uAmbient: { value: LIGHTING_AMBIENT },
       uSunContrast: { value: LIGHTING_SUN_CONTRAST },
-      // Procedural facade geometry (FACADE_GEOMETRY store). Seeded from
+      // Procedural facade geometry (BUILDINGS store). Seeded from
       // the current store snapshot so the first frame renders with the
       // configured values; refreshBuildingMaterial() pushes updates on
       // Save. Only the shader-side keys appear here — the JS-side
       // keys (WINDOW_COLS_MAX, WIDTH_PER_WINDOW_COL, DOOR_WIDTH_FRAC)
       // bake into per-instance attributes in cellMesh.ts (writeBuildingToSlot).
-      uSlabHeightFrac: { value: FACADE.value.SLAB_HEIGHT_FRAC },
-      uWindowWidthFrac: { value: FACADE.value.WINDOW_WIDTH_FRAC },
-      uWindowHeightFrac: { value: FACADE.value.WINDOW_HEIGHT_FRAC },
-      uWindowMarginFrac: { value: FACADE.value.WINDOW_MARGIN_FRAC },
-      uDoorHeightFrac: { value: FACADE.value.DOOR_HEIGHT_FRAC },
-      uRoofBorderFrac: { value: FACADE.value.ROOF_BORDER_FRAC },
-      // FACADE_DETAIL store — HSL lightness deltas applied to slab, door,
+      uSlabHeightFrac: { value: BUILDINGS.value.SLAB_HEIGHT_FRAC },
+      uWindowWidthFrac: { value: BUILDINGS.value.WINDOW_WIDTH_FRAC },
+      uWindowHeightFrac: { value: BUILDINGS.value.WINDOW_HEIGHT_FRAC },
+      uWindowMarginFrac: { value: BUILDINGS.value.WINDOW_MARGIN_FRAC },
+      uDoorHeightFrac: { value: BUILDINGS.value.DOOR_HEIGHT_FRAC },
+      uRoofBorderFrac: { value: BUILDINGS.value.ROOF_BORDER_FRAC },
+      // BUILDINGS store — HSL lightness deltas applied to slab, door,
       // and roof-border via shadeColor/shadeAndShiftHue in the shader.
-      uSlabLightnessDelta: { value: FACADE.value.SLAB_LIGHTNESS_DELTA },
-      uDoorLightnessDelta: { value: FACADE.value.DOOR_LIGHTNESS_DELTA },
-      uRoofBorderLightnessDelta: { value: FACADE.value.ROOF_BORDER_LIGHTNESS_DELTA },
+      uSlabLightnessDelta: { value: BUILDINGS.value.SLAB_LIGHTNESS_DELTA },
+      uDoorLightnessDelta: { value: BUILDINGS.value.DOOR_LIGHTNESS_DELTA },
+      uRoofBorderLightnessDelta: { value: BUILDINGS.value.ROOF_BORDER_LIGHTNESS_DELTA },
       // WINDOW_LIGHTING store — per-cell lit/unlit lightness deltas, gap
       // thresholds, and the warm-amber tint for old/dim lit panes.
-      uWindowUnlitLightnessDelta: { value: FACADE.value.UNLIT_LIGHTNESS_DELTA },
-      uWindowGapBaseThreshold: { value: FACADE.value.GAP_BASE_THRESHOLD },
-      uWindowGapAgeBonus: { value: FACADE.value.GAP_AGE_BONUS },
+      uWindowUnlitLightnessDelta: { value: BUILDINGS.value.UNLIT_LIGHTNESS_DELTA },
+      uWindowGapBaseThreshold: { value: BUILDINGS.value.GAP_BASE_THRESHOLD },
+      uWindowGapAgeBonus: { value: BUILDINGS.value.GAP_AGE_BONUS },
       // The shader consumes uDimGlowColor in sRGB space (the prior hardcoded
       // vec3(0.5, 0.4, 0.15) was sRGB), so the hex bytes pass through
       // unchanged (see setColorFromHex).
-      uDimGlowColor: { value: setColorFromHex(new THREE.Color(), FACADE.value.DIM_GLOW_COLOR) },
-      uLitFreshnessExponent: { value: FACADE.value.LIT_FRESHNESS_EXPONENT },
+      uDimGlowColor: { value: setColorFromHex(new THREE.Color(), BUILDINGS.value.DIM_GLOW_COLOR) },
+      uLitFreshnessExponent: { value: BUILDINGS.value.LIT_FRESHNESS_EXPONENT },
     },
   });
   writeSunDir(
@@ -185,7 +184,7 @@ export function getBuildingMaterial(): THREE.ShaderMaterial {
 
 /**
  * Re-apply the Save-committed config to the shared material's uniforms. Called
- * from the buildings component's settings effect (reacts to BUILDINGS / FACADE /
+ * from the buildings component's settings effect (reacts to BUILDINGS /
  * SCENE / BLOOM / BUILDING_DIMENSIONS) so live config edits — e.g. the Hidden-
  * tier wireframe thickness from BUILDINGS.OUTLINE_WIDTH — take effect at once.
  */
@@ -207,10 +206,6 @@ export function refreshBuildingMaterial(): void {
   _sharedMaterial.uniforms.uWindowEmissionBoost.value = bloomCfg.ENABLED
     ? bloomCfg.WINDOW_EMISSION
     : 0;
-  const aging = BUILDINGS.value;
-  _grimeIntensityVec(_sharedMaterial.uniforms.uGrimeIntensity.value as THREE.Vector2);
-  (_sharedMaterial.uniforms.uGrimeCoverage.value as THREE.Vector2).set(...aging.GRIME_COVERAGE);
-  _tiltRadVec(_sharedMaterial.uniforms.uTiltRad.value as THREE.Vector2);
   // Scene directional lighting (fixed constants — re-seed idempotently).
   writeSunDir(
     _sharedMaterial.uniforms.uSunDirWorld.value as THREE.Vector3,
@@ -219,27 +214,32 @@ export function refreshBuildingMaterial(): void {
   );
   _sharedMaterial.uniforms.uAmbient.value = LIGHTING_AMBIENT;
   _sharedMaterial.uniforms.uSunContrast.value = LIGHTING_SUN_CONTRAST;
-  // Procedural facade geometry (FACADE_GEOMETRY store) — shader-side keys.
+  // Procedural facade geometry (BUILDINGS store) — shader-side keys.
   // The JS-side keys (WINDOW_COLS_MAX, WIDTH_PER_WINDOW_COL, DOOR_WIDTH_FRAC) require a full
   // rebuild because they bake into per-instance attributes; state/settingsReactions.ts
   // routes the whole store through scheduleRebuild so the uniforms here
   // are kept fresh on the next rebuild without separate plumbing.
-  const facade = FACADE.value;
+  const facade = BUILDINGS.value;
+  // Age weathering (grime + tilt) — [newest, oldest] ranges the shader lerps
+  // per-building by createdAge.
+  _grimeIntensityVec(_sharedMaterial.uniforms.uGrimeIntensity.value as THREE.Vector2);
+  (_sharedMaterial.uniforms.uGrimeCoverage.value as THREE.Vector2).set(...facade.GRIME_COVERAGE);
+  _tiltRadVec(_sharedMaterial.uniforms.uTiltRad.value as THREE.Vector2);
   _sharedMaterial.uniforms.uSlabHeightFrac.value = facade.SLAB_HEIGHT_FRAC;
   _sharedMaterial.uniforms.uWindowWidthFrac.value = facade.WINDOW_WIDTH_FRAC;
   _sharedMaterial.uniforms.uWindowHeightFrac.value = facade.WINDOW_HEIGHT_FRAC;
   _sharedMaterial.uniforms.uWindowMarginFrac.value = facade.WINDOW_MARGIN_FRAC;
   _sharedMaterial.uniforms.uDoorHeightFrac.value = facade.DOOR_HEIGHT_FRAC;
   _sharedMaterial.uniforms.uRoofBorderFrac.value = facade.ROOF_BORDER_FRAC;
-  // FACADE_DETAIL store — pure uniform refresh, no rebuild required.
-  const facadeDetail = FACADE.value;
+  // BUILDINGS store — pure uniform refresh, no rebuild required.
+  const facadeDetail = BUILDINGS.value;
   _sharedMaterial.uniforms.uSlabLightnessDelta.value = facadeDetail.SLAB_LIGHTNESS_DELTA;
   _sharedMaterial.uniforms.uDoorLightnessDelta.value = facadeDetail.DOOR_LIGHTNESS_DELTA;
   _sharedMaterial.uniforms.uRoofBorderLightnessDelta.value =
     facadeDetail.ROOF_BORDER_LIGHTNESS_DELTA;
   // WINDOW_LIGHTING store — pure uniform refresh into the pre-allocated
   // THREE.Color uniform values.
-  const windowLighting = FACADE.value;
+  const windowLighting = BUILDINGS.value;
   _sharedMaterial.uniforms.uWindowUnlitLightnessDelta.value = windowLighting.UNLIT_LIGHTNESS_DELTA;
   _sharedMaterial.uniforms.uWindowGapBaseThreshold.value = windowLighting.GAP_BASE_THRESHOLD;
   _sharedMaterial.uniforms.uWindowGapAgeBonus.value = windowLighting.GAP_AGE_BONUS;

@@ -6,7 +6,7 @@
 // path/cell lookups, the instanced ad panels, and the hover/selection
 // overlays (fader / outline / ghost). rebuild(layout, dateRanges) colors the
 // buildings, assembles the cells, swaps them into the persistent group, and
-// rebuilds the lookups. The material reacts to BUILDINGS/FACADE/SCENE/BLOOM
+// rebuilds the lookups. The material reacts to BUILDINGS/SCENE/BLOOM
 // via an effect; the fader/outline/ghost are picker-driven and ARMED on the
 // first tick() (like streets), once ctx.picker is live.
 //
@@ -27,7 +27,6 @@ import * as THREE from 'three';
 import { effect } from '@preact/signals';
 
 import { BUILDINGS, BUILDING_DIMENSIONS } from '@/state/stores/settings/buildings';
-import { FACADE } from '@/state/stores/settings/facade';
 import { BLOOM } from '@/state/stores/settings/effects';
 import { SCENE } from '@/state/stores/settings/scene';
 import type { Building, CityLayout, DateRanges, EnteringBuilding, StayingBuilding } from '@/types';
@@ -123,8 +122,8 @@ export function createBuildings(ctx: SceneContext): Buildings {
     }
   }
 
-  // (1) Shared-material theme effect — reacts to BUILDINGS / FACADE / SCENE /
-  // BLOOM / BUILDING_DIMENSIONS changes (Save). Reads each store's .value so the
+  // (1) Shared-material theme effect — reacts to BUILDINGS / SCENE / BLOOM /
+  // BUILDING_DIMENSIONS changes (Save). Reads each store's .value so the
   // effect subscribes to all of them, then re-applies the material uniforms and
   // the ad-panel emission (BLOOM.AD_EMISSION). Safe at construction: reads only
   // settings signals (no picker). If the shared material isn't created yet (first
@@ -133,7 +132,6 @@ export function createBuildings(ctx: SceneContext): Buildings {
   // constructor seeds the identical values.
   const stopMaterialEffect = effect(() => {
     void BUILDINGS.value;
-    void FACADE.value;
     void SCENE.value;
     void BLOOM.value;
     void BUILDING_DIMENSIONS.value;

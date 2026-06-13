@@ -8,14 +8,14 @@ import * as THREE from 'three';
 import { signal } from '@preact/signals';
 import { createBuildingFader } from '@/city/components/buildings/fader';
 import { makeCityState } from '../../../_helpers/cityFixtures';
-import { BUILDING_FADE } from '@/state/stores/settings/buildings';
+import { BUILDINGS } from '@/state/stores/settings/buildings';
 import { FadeDetail, NodeKind } from '@/types';
 import type { Building, CityLayout, DirNode, FileNode, PickTarget, Street } from '@/types';
 
-const _originalFade = BUILDING_FADE.value;
+const _originalFade = BUILDINGS.value;
 
 afterEach(() => {
-  BUILDING_FADE.value = _originalFade;
+  BUILDINGS.value = _originalFade;
 });
 
 function makeFile(path: string): FileNode {
@@ -124,7 +124,7 @@ function makeFader(opts: {
  *  exactly one tier without ambiguity. Detail mode is the same so
  *  silhouette isn't a confounder; outline disabled across the board. */
 function setKnownFade() {
-  BUILDING_FADE.value = {
+  BUILDINGS.value = {
     ..._originalFade,
     DEFAULT_DETAIL: FadeDetail.Full,
     DEFAULT_BODY_OPACITY: 1.0,
@@ -335,7 +335,7 @@ describe('buildingFader 5-tier cascade', () => {
   });
 
   it('selected file honors DEFAULT config (no hardcoded constants)', () => {
-    BUILDING_FADE.value = { ...BUILDING_FADE.value, DEFAULT_BODY_OPACITY: 0.5 };
+    BUILDINGS.value = { ...BUILDINGS.value, DEFAULT_BODY_OPACITY: 0.5 };
 
     const a = makeFile('src/a.ts');
     const selBuilding = makeBuilding(a);
