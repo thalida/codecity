@@ -1,7 +1,6 @@
 // types/scene.ts — composite scene-wide shapes. The output of the
 // layout step (CityLayout) and the bbox enclosing it (CityBbox).
 
-import type * as THREE from 'three';
 import type { Building } from './building';
 import type { Street } from './street';
 import type { FileStats, RangeStat } from './manifest';
