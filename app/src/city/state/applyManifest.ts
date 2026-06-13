@@ -188,10 +188,11 @@ export function createApplyManifest(deps: ApplyManifestDeps): ApplyManifestApi {
     // map (read via this bump) are already fresh.
     batch(() => {
       cityState.manifest.value = newManifestTyped;
-      if (!reused) cityState.layout.value = newLayout;
-      // layoutStructure mirrors layout's current non-reuse-only semantics; the
-      // structure-reactive consumers move onto it next, before layout flips to
-      // every-apply.
+      // layout reassigns EVERY apply (fresh per-building dims) — feeds the
+      // dims-dependent rebuilds (buildings/footprint) + the bbox below.
+      cityState.layout.value = newLayout;
+      // layoutStructure reassigns ONLY on non-reuse (positions) — ref-stable on
+      // reuse so the structure-reactive consumers (streets/gem/island) skip.
       if (!reused) cityState.layoutStructure.value = newLayout;
       cityState.cityRevision.value++;
     });
