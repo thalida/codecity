@@ -1,10 +1,10 @@
 // app/tests/city/components/buildings/index.test.ts
 //
-// Tests for the persistent createBuildings(ctx, deps) component (Task 12).
-// API: createBuildings(ctx, deps) → { group, rebuild(layout, dateRanges),
+// Tests for the persistent createBuildings(ctx) component.
+// API: createBuildings(ctx) → { group, rebuild(layout, dateRanges),
 //      disposeAdPanels, tick(dt, frame), onResize(), dispose(),
-//      getByPath, getBuildingsByPath, pickables, tallest, maxHeight, getCells,
-//      getBuildingIndex, getMeshForBuilding, getAdPanels }.
+//      getBuildingByPath, getTallest, getCells, getBuildingIndex,
+//      getMeshForBuilding }.
 //
 // The shared-material theme effect reacts to BUILDINGS/FACADE/SCENE/BLOOM at
 // construction (safe — no picker). The fader/outline/ghost overlays are
@@ -128,7 +128,6 @@ describe('createBuildings()', () => {
     expect(buildings.group).toBeInstanceOf(THREE.Group);
     expect(buildings.group.name).toBe('city-buildings');
     expect(buildings.group.children).toHaveLength(0);
-    expect(buildings.pickables()).toHaveLength(0);
     expect(buildings.getCells().size).toBe(0);
     expect(buildings.getBuildingIndex()).toBeNull();
   });
@@ -160,18 +159,16 @@ describe('createBuildings()', () => {
     // Cells + index populated.
     expect(buildings.getCells().size).toBeGreaterThan(0);
     expect(buildings.getBuildingIndex()).not.toBeNull();
-    expect(buildings.pickables().length).toBe(buildings.getCells().size);
 
     // Lookups keyed by file path.
-    const hit = buildings.getByPath('src/a.ts');
+    const hit = buildings.getBuildingByPath('src/a.ts');
     expect(hit).not.toBeNull();
     expect(hit!.building).toBe(b0);
-    expect(buildings.getBuildingsByPath()['src/b.ts'].building).toBe(b1);
-    expect(buildings.getByPath('nope')).toBeNull();
+    expect(buildings.getBuildingByPath('src/b.ts')!.building).toBe(b1);
+    expect(buildings.getBuildingByPath('nope')).toBeNull();
 
-    // tallest / maxHeight reflect b1 (h=9).
-    expect(buildings.maxHeight()).toBe(9);
-    expect(buildings.tallest()).toEqual({ x: -20, y: -20, w: b1.w, d: b1.d, h: 9 });
+    // getTallest reflects b1 (h=9).
+    expect(buildings.getTallest()).toEqual({ x: -20, y: -20, w: b1.w, d: b1.d, h: 9 });
 
     // getMeshForBuilding resolves through the live cell (cellId/slotId were
     // assigned during rebuild).
@@ -201,7 +198,7 @@ describe('createBuildings()', () => {
       EMPTY_DATE_RANGES
     );
     const firstCellRoot = buildings.group.children[0];
-    const firstMesh = buildings.pickables()[0] as THREE.InstancedMesh;
+    const firstMesh = [...buildings.getCells().values()][0].detailMesh;
     const sharedMat = firstMesh.material as THREE.Material;
     // The cell detail mesh shares the module material (guarded by userData).
     expect(firstMesh.userData.sharedMaterial).toBe(true);
@@ -218,7 +215,7 @@ describe('createBuildings()', () => {
 
     // The SHARED material survived the prior cell-root disposal — the new
     // cell's detail mesh still references a usable (non-disposed) material.
-    const secondMesh = buildings.pickables()[0] as THREE.InstancedMesh;
+    const secondMesh = [...buildings.getCells().values()][0].detailMesh;
     expect(secondMesh.material).toBe(sharedMat);
     // A disposed three.js material has no program; a live one still renders.
     // The shared material's uniforms object is intact (not nulled by dispose).

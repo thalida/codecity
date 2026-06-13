@@ -44,10 +44,10 @@ export interface TreesComponent extends SceneComponent {
   ): void;
   /** Dispose the inner meshes + null the handle. */
   clear(): void;
-  /** Inner renderer handle, or null pre-rebuild / post-clear. Preserves
-   *  world.getTrees()'s null-until-built contract (picker pickables,
-   *  RightSidebar colorForSha, cameraRig getTreeBoundsBySha all consume it). */
-  handle(): Trees | null;
+  /** Inner renderer, or null pre-rebuild / post-clear. Preserves the
+   *  null-until-built contract (picker pickables, RightSidebar colorForSha,
+   *  cameraRig getTreeBoundsBySha all consume it). */
+  getRenderer(): Trees | null;
   /** Window-resize hook — forwards to the outline LineMaterial resolutions. */
   onResize(): void;
 }
@@ -203,7 +203,7 @@ export function createTrees(ctx: SceneContext): TreesComponent {
     group,
     rebuild,
     clear,
-    handle: () => _inner,
+    getRenderer: () => _inner,
     tick,
     onResize,
     dispose,

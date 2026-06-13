@@ -39,15 +39,9 @@ export interface Streets extends SceneComponent {
    *  this component produces no diff. */
   rebuild(layout: CityLayout): void;
   /** Sidewalk pickables (the clickable directory targets). */
-  pickables(): FlatMesh[];
-  /** Flat road-label groups (camera-oriented in tick). */
-  labels(): THREE.Group[];
-  /** Inner asphalt slabs (recolored by the theme effect). */
-  asphalt(): FlatMesh[];
+  getPickables(): FlatMesh[];
   /** Sidewalk lookup by street directory path. */
   getSidewalkByDir(path: string): FlatMesh | null;
-  /** Full sidewalk-by-dir-path map (consumed wholesale by some callers). */
-  sidewalksByDirMap(): Record<string, FlatMesh>;
 }
 
 export function createStreets(ctx: SceneContext): Streets {
@@ -263,10 +257,7 @@ export function createStreets(ctx: SceneContext): Streets {
     rebuild,
     tick,
     dispose,
-    pickables: () => pickables,
-    labels: () => labelGroups,
-    asphalt: () => asphaltMeshes,
+    getPickables: () => pickables,
     getSidewalkByDir: (p) => sidewalksByDirPath[p] || null,
-    sidewalksByDirMap: () => sidewalksByDirPath,
   };
 }

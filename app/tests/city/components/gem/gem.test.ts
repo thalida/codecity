@@ -63,7 +63,7 @@ describe('createGem()', () => {
       // Mutating GEM re-runs the effect; must not throw with null refs.
       GEM.value = { ...GEM.value };
     }).not.toThrow();
-    expect(gem!.gem).toBeNull();
+    expect(gem!.getRootGroup()).toBeNull();
   });
 
   it('rebuild(street) builds an inner gem with a Gem-typed body and per-face color attribute', () => {
@@ -71,24 +71,24 @@ describe('createGem()', () => {
     gem = createGem(ctx);
     gem.rebuild(makeStreet());
 
-    expect(gem.gem).toBeInstanceOf(THREE.Group);
-    const body = gem.gem!.userData.body as THREE.Mesh;
+    expect(gem.getRootGroup()).toBeInstanceOf(THREE.Group);
+    const body = gem.getRootGroup()!.userData.body as THREE.Mesh;
     expect(body).toBeDefined();
     expect(body.userData.type).toBe(NodeKind.Gem);
     expect(body.geometry.attributes.color).toBeDefined();
     // The inner gem is parented under the component's outer group.
-    expect(gem.gem!.parent).toBe(gem.group);
+    expect(gem.getRootGroup()!.parent).toBe(gem.group);
   });
 
   it('rebuild disposes the prior inner gem and swaps in the new one', () => {
     const { ctx } = makeCtx(null);
     gem = createGem(ctx);
     gem.rebuild(makeStreet());
-    const first = gem.gem!;
+    const first = gem.getRootGroup()!;
     gem.rebuild(makeStreet());
-    expect(gem.gem).not.toBe(first);
+    expect(gem.getRootGroup()).not.toBe(first);
     expect(first.parent).toBeNull();
-    expect(gem.group.children).toContain(gem.gem);
+    expect(gem.group.children).toContain(gem.getRootGroup());
   });
 
   it('tick lerps gem.scale toward HOVER_SCALE when a Gem is hovered', () => {
@@ -96,13 +96,13 @@ describe('createGem()', () => {
     gem = createGem(ctx);
     gem.rebuild(makeStreet());
 
-    const start = gem.gem!.scale.x;
+    const start = gem.getRootGroup()!.scale.x;
     expect(start).toBe(1);
     for (let i = 0; i < 5; i++)
       gem.tick!(0.016, { dt: 0.016, time: i * 0.016, camera: ctx.camera });
     // HOVER_SCALE default is 1.25; scale should have moved up toward it.
-    expect(gem.gem!.scale.x).toBeGreaterThan(start);
-    expect(gem.gem!.scale.x).toBeLessThanOrEqual(GEM.value.HOVER_SCALE + 1e-6);
+    expect(gem.getRootGroup()!.scale.x).toBeGreaterThan(start);
+    expect(gem.getRootGroup()!.scale.x).toBeLessThanOrEqual(GEM.value.HOVER_SCALE + 1e-6);
   });
 
   it('dispose() stops the effect — later GEM mutations do not throw', () => {

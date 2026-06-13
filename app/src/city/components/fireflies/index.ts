@@ -35,11 +35,8 @@ export interface FirefliesComponent extends SceneComponent {
    *  the cityState.treePlacements signal trees publishes (in lockstep with
    *  trees, every apply). */
   rebuild(placements: TreePlacement[], commits: CommitEntry[] | null): void;
-  /** Dispose the inner assembly + null the handle. */
+  /** Dispose the inner assembly. */
   clear(): void;
-  /** Inner handle, or null pre-rebuild / post-clear. Preserves
-   *  world.getFireflies()'s null-until-built contract. */
-  handle(): Fireflies | null;
   /** Canvas-resize hook — forwards to the orbit-ring LineMaterial
    *  resolution. */
   onResize(width: number, height: number): void;
@@ -141,7 +138,6 @@ export function createFireflies(ctx: SceneContext): FirefliesComponent {
     group,
     rebuild,
     clear,
-    handle: () => _inner,
     tick,
     onResize,
     dispose,

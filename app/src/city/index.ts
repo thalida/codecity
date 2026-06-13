@@ -69,7 +69,7 @@ export async function createCity(canvas: HTMLCanvasElement, manifest: Manifest):
   const gem = createGem(ctx);
   const sky = createSky(ctx);
   const island = createIsland(ctx);
-  const repoLabel = createRepoLabel(ctx, { getGem: () => gem.gem });
+  const repoLabel = createRepoLabel(ctx, { getGem: () => gem.getRootGroup() });
   const footprint = createFootprint(ctx);
   const streets = createStreets(ctx);
   const buildings = createBuildings(ctx);
@@ -113,9 +113,9 @@ export async function createCity(canvas: HTMLCanvasElement, manifest: Manifest):
     canvas,
     cityState,
     deps: {
-      getTallestBuilding: () => buildings.tallest(),
+      getTallestBuilding: () => buildings.getTallest(),
       getRepoLabelBounds: () => repoLabel.getPanelBounds(),
-      getTreeBoundsBySha: (sha) => trees.handle()?.getTreeBoundsBySha(sha) ?? null,
+      getTreeBoundsBySha: (sha) => trees.getRenderer()?.getTreeBoundsBySha(sha) ?? null,
     },
   });
   const postFx = createPostFx(renderer, scene, rig.camera);
@@ -126,11 +126,11 @@ export async function createCity(canvas: HTMLCanvasElement, manifest: Manifest):
     camera: rig.camera,
     cityState,
     world: {
-      getStreetPickables: () => streets.pickables(),
-      getRootGem: () => gem.gem,
+      getStreetPickables: () => streets.getPickables(),
+      getRootGem: () => gem.getRootGroup(),
       getCells: () => buildings.getCells(),
-      getTrees: () => trees.handle(),
-      getBuildingByPath: (p) => buildings.getByPath(p),
+      getTrees: () => trees.getRenderer(),
+      getBuildingByPath: (p) => buildings.getBuildingByPath(p),
       getSidewalkByDir: (p) => streets.getSidewalkByDir(p),
       getStreetByDir: (p) => cityState.streetsByDirMap.peek()[p] ?? null,
       getBuildingIndex: () => buildings.getBuildingIndex(),
@@ -200,7 +200,7 @@ export async function createCity(canvas: HTMLCanvasElement, manifest: Manifest):
     world: {
       getRoot: () => cityState.manifest.value?.tree ?? null,
       getManifest: () => cityState.manifest.value,
-      getTrees: () => trees.handle(),
+      getTrees: () => trees.getRenderer(),
       getStreetByDir: (p: string) => cityState.streetsByDirMap.peek()[p] ?? null,
       runCollisionCheck: () => runCollisionCheck(cityState),
       runStemPlacementDiagnostic: () => runStemPlacementDiagnostic(cityState),

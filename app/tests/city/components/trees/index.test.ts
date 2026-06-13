@@ -2,7 +2,7 @@
 //
 // Tests for the persistent createTrees(ctx) component (door).
 // API: createTrees(ctx) → { group, rebuild(placements, commits, busyness),
-//      clear(), handle(), tick(dt, frame), onResize(), dispose() }.
+//      clear(), getRenderer(), tick(dt, frame), onResize(), dispose() }.
 //
 // TREES settings reactivity (canopy/trunk recolor + outline materials) is
 // owned by the component's theme effect; the hover/selected outline renderer
@@ -111,7 +111,7 @@ describe('createTrees() component door', () => {
     expect(trees.group).toBeInstanceOf(THREE.Group);
     expect(trees.group.name).toBe('city-trees');
     expect(trees.group.children).toHaveLength(0);
-    expect(trees.handle()).toBeNull();
+    expect(trees.getRenderer()).toBeNull();
   });
 
   it('theme effect runs at construction with a null picker without throwing', () => {
@@ -138,11 +138,11 @@ describe('createTrees() component door', () => {
     expect(cs.decorationRevision.value).toBeGreaterThan(before);
   });
 
-  it('rebuild() builds the inner renderer under the group; handle() is live', () => {
+  it('rebuild() builds the inner renderer under the group; getRenderer() is live', () => {
     const { ctx } = makeCtx();
     trees = createTrees(ctx);
     trees.rebuild(PLACEMENTS, COMMITS, BUSY);
-    const handle = trees.handle();
+    const handle = trees.getRenderer();
     expect(handle).not.toBeNull();
     expect(handle!.group.parent).toBe(trees.group);
     // The inner renderer carries the trunk + canopy InstancedMeshes.
@@ -156,7 +156,7 @@ describe('createTrees() component door', () => {
     trees = createTrees(ctx);
     trees.rebuild(PLACEMENTS, COMMITS, BUSY);
     trees.clear();
-    expect(trees.handle()).toBeNull();
+    expect(trees.getRenderer()).toBeNull();
     expect(trees.group.children).toHaveLength(0);
     // Idempotent.
     expect(() => trees.clear()).not.toThrow();
@@ -166,9 +166,9 @@ describe('createTrees() component door', () => {
     const { ctx } = makeCtx();
     trees = createTrees(ctx);
     trees.rebuild(PLACEMENTS, COMMITS, BUSY);
-    const first = trees.handle()!;
+    const first = trees.getRenderer()!;
     trees.rebuild(PLACEMENTS, COMMITS, BUSY);
-    expect(trees.handle()).not.toBe(first);
+    expect(trees.getRenderer()).not.toBe(first);
     expect(first.group.parent).toBeNull();
     expect(trees.group.children).toHaveLength(1);
   });
@@ -177,7 +177,7 @@ describe('createTrees() component door', () => {
     const { ctx } = makeCtx();
     trees = createTrees(ctx);
     trees.rebuild(PLACEMENTS, COMMITS, BUSY);
-    const refreshSpy = vi.spyOn(trees.handle()!, 'refresh');
+    const refreshSpy = vi.spyOn(trees.getRenderer()!, 'refresh');
     TREES.value = { ...TREES.value, TRUNK_COLOR: '#ff0000' };
     expect(refreshSpy).toHaveBeenCalledTimes(1);
   });
@@ -238,10 +238,10 @@ describe('createTrees() component door', () => {
     trees = createTrees(ctx);
     trees.rebuild(PLACEMENTS, COMMITS, BUSY);
     trees.tick(0, FRAME(ctx.camera)); // arm
-    const refreshSpy = vi.spyOn(trees.handle()!, 'refresh');
+    const refreshSpy = vi.spyOn(trees.getRenderer()!, 'refresh');
 
     trees.dispose();
-    expect(trees.handle()).toBeNull();
+    expect(trees.getRenderer()).toBeNull();
     expect(trees.group.children).toHaveLength(0);
     expect(ctx.scene.children.filter((c) => c instanceof LineSegments2)).toHaveLength(0);
     // Theme effect stopped — a later TREES Save no longer refreshes.

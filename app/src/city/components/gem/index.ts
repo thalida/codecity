@@ -54,7 +54,7 @@ export interface Gem extends SceneComponent {
   rebuild(street: Street): void;
   /** The INNER gem group (bobbed / picked / handed to repoLabel). Null
    *  pre-rebuild. The picker's getRootGem reads it. NOT the outer `group`. */
-  gem: THREE.Group | null;
+  getRootGroup(): THREE.Group | null;
 }
 
 export function createGem(ctx: SceneContext): Gem {
@@ -235,8 +235,6 @@ export function createGem(ctx: SceneContext): Gem {
     rebuild,
     tick,
     dispose,
-    get gem() {
-      return gem;
-    },
+    getRootGroup: () => gem,
   };
 }

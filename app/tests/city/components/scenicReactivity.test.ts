@@ -96,17 +96,17 @@ describe('scenic reactivity — structureRevision gates rebuilds', () => {
     // First structure apply (structureRevision bumps) → rebuild swaps in a fresh
     // pickables array (the per-rebuild side effect we observe).
     applyStructure(cityState, makeLayout());
-    const afterFirst = streets.pickables();
+    const afterFirst = streets.getPickables();
     expect(afterFirst).toHaveLength(1);
 
     // Reuse apply: layout reassigned (fresh dims) but structureRevision NOT
     // bumped → the streets effect does NOT re-fire (same pickables array).
     cityState.layout.value = makeLayout();
-    expect(streets.pickables()).toBe(afterFirst);
+    expect(streets.getPickables()).toBe(afterFirst);
 
     // Another structure change → rebuild swaps in a NEW pickables array.
     applyStructure(cityState, makeLayout());
-    expect(streets.pickables()).not.toBe(afterFirst);
+    expect(streets.getPickables()).not.toBe(afterFirst);
   });
 
   // ---- Parity #1 + #2 + #3: gem rebuilds via rootStreet (computed off structureRevision)
@@ -117,17 +117,17 @@ describe('scenic reactivity — structureRevision gates rebuilds', () => {
     disposers.push(() => gem.dispose());
 
     applyStructure(cityState, makeLayout());
-    const gemAfterFirst = gem.gem; // fresh inner gem group from rebuild
+    const gemAfterFirst = gem.getRootGroup(); // fresh inner gem group from rebuild
     expect(gemAfterFirst).not.toBeNull();
 
     // Reuse: layout reassigned but structureRevision NOT bumped → rootStreet
     // stays cached → gem effect does NOT re-fire (no flash / GPU realloc).
     cityState.layout.value = makeLayout();
-    expect(gem.gem).toBe(gemAfterFirst);
+    expect(gem.getRootGroup()).toBe(gemAfterFirst);
 
     // Structure change → rootStreet recomputes a new Street → gem rebuilds.
     applyStructure(cityState, makeLayout());
-    expect(gem.gem).not.toBe(gemAfterFirst);
+    expect(gem.getRootGroup()).not.toBe(gemAfterFirst);
   });
 
   // NOTE: footprint is intentionally NOT reactive off layout — it rebuilds on

@@ -66,26 +66,15 @@ export interface Buildings extends SceneComponent {
    *  recreates them from the fresh layout. */
   disposeAdPanels(): void;
   /** Building lookup by file path → { mesh, building, instanceId }. */
-  getByPath(p: string): { mesh: THREE.Mesh; building: Building; instanceId: number } | null;
-  /** Full building-by-path map (consumed wholesale by some callers). */
-  getBuildingsByPath(): Record<
-    string,
-    { mesh: THREE.Mesh; building: Building; instanceId: number }
-  >;
-  /** Per-cell detail InstancedMeshes suitable for raycasting against. */
-  pickables(): THREE.Object3D[];
+  getBuildingByPath(p: string): { mesh: THREE.Mesh; building: Building; instanceId: number } | null;
   /** Tallest building (layout pos + dims), or null when empty. */
-  tallest(): { x: number; y: number; w: number; d: number; h: number } | null;
-  /** Tallest building height (b.h), or 0 when empty. */
-  maxHeight(): number;
+  getTallest(): { x: number; y: number; w: number; d: number; h: number } | null;
   /** Cell map (consumed by picker / fader / outline / diff mirror). */
   getCells(): Map<number, CellTile>;
   /** Building index, or null pre-rebuild. */
   getBuildingIndex(): BuildingIndex | null;
   /** Resolve a building's live InstancedMesh + slot. Null if no live mesh. */
   getMeshForBuilding(b: Building): { mesh: THREE.InstancedMesh; slot: number } | null;
-  /** Instanced ad-panel manager, or null when there are no media files. */
-  getAdPanels(): InstancedAdPanels | null;
   /** Window-resize hook — forwards to the outline LineMaterial resolution. */
   onResize(): void;
 }
@@ -480,16 +469,8 @@ export function createBuildings(ctx: SceneContext): Buildings {
     tick,
     onResize,
     dispose,
-    getByPath: (p) => _buildingsByPath[p] || null,
-    getBuildingsByPath: () => _buildingsByPath,
-    pickables: () => {
-      const out: THREE.Object3D[] = [];
-      for (const cell of _cells.values()) {
-        out.push(cell.detailMesh);
-      }
-      return out;
-    },
-    tallest: () => {
+    getBuildingByPath: (p) => _buildingsByPath[p] || null,
+    getTallest: () => {
       let tallest: Building | null = null;
       for (const cell of _cells.values()) {
         for (const b of cell.buildings) {
@@ -499,18 +480,8 @@ export function createBuildings(ctx: SceneContext): Buildings {
       if (!tallest) return null;
       return { x: tallest.x, y: tallest.y, w: tallest.w, d: tallest.d, h: tallest.h };
     },
-    maxHeight: () => {
-      let maxH = 0;
-      for (const cell of _cells.values()) {
-        for (const b of cell.buildings) {
-          if (b && b.h > maxH) maxH = b.h;
-        }
-      }
-      return maxH;
-    },
     getCells: () => _cells,
     getBuildingIndex: () => _buildingIndex,
-    getAdPanels: () => _adPanels,
     getMeshForBuilding,
   };
 }

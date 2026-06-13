@@ -2,7 +2,7 @@
 //
 // Tests for the persistent createFireflies(ctx) component (door).
 // API: createFireflies(ctx) → { group, rebuild(placements, commits),
-//      clear(), handle(), tick(dt, frame), onResize(w, h), dispose() }.
+//      clear(), tick(dt, frame), onResize(w, h), dispose() }.
 //
 // FIREFLIES settings reactivity (bob/pulse/emission uniforms) is owned by
 // the component's theme effect; the hover/select boost effects are
@@ -12,7 +12,7 @@
 // bodies must reach the CURRENT inner renderer after a rebuild, exactly like
 // the old renderLoop effects re-fetched world.getFireflies() each fire.
 
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import * as THREE from 'three';
 import { signal } from '@preact/signals';
 
@@ -108,19 +108,17 @@ describe('createFireflies() component door', () => {
     }).not.toThrow();
     expect(comp.group.name).toBe('city-fireflies');
     expect(comp.group.children).toHaveLength(0);
-    expect(comp.handle()).toBeNull();
   });
 
   it('rebuild() builds the inner assembly under the group; clear() empties + nulls', () => {
     const { ctx } = makeCtx();
     comp = createFireflies(ctx);
     comp.rebuild(PLACEMENTS, COMMITS);
-    expect(comp.handle()).not.toBeNull();
-    expect(comp.handle()!.group.parent).toBe(comp.group);
+    // The inner assembly's group is the sole child of the component group.
+    expect(comp.group.children).toHaveLength(1);
     expect(orbUniforms(comp).uTime.value).toBe(0);
 
     comp.clear();
-    expect(comp.handle()).toBeNull();
     expect(comp.group.children).toHaveLength(0);
     expect(() => comp.clear()).not.toThrow(); // idempotent
   });
@@ -129,10 +127,10 @@ describe('createFireflies() component door', () => {
     const { ctx } = makeCtx();
     comp = createFireflies(ctx);
     comp.rebuild(PLACEMENTS, COMMITS);
-    const first = comp.handle()!;
+    const first = comp.group.children[0];
     comp.rebuild(PLACEMENTS, COMMITS);
-    expect(comp.handle()).not.toBe(first);
-    expect(first.group.parent).toBeNull();
+    expect(comp.group.children[0]).not.toBe(first);
+    expect(first.parent).toBeNull();
     expect(comp.group.children).toHaveLength(1);
   });
 
@@ -204,14 +202,12 @@ describe('createFireflies() component door', () => {
     expect(u.uHoveredCommit.value).toBe(1);
   });
 
-  it('onResize(w, h) forwards to the inner assembly', () => {
+  it('onResize(w, h) is safe before and after the inner assembly is built', () => {
     const { ctx } = makeCtx();
     comp = createFireflies(ctx);
     expect(() => comp.onResize(800, 600)).not.toThrow(); // null inner → no-op
     comp.rebuild(PLACEMENTS, COMMITS);
-    const spy = vi.spyOn(comp.handle()!, 'onResize');
-    comp.onResize(1024, 768);
-    expect(spy).toHaveBeenCalledWith(1024, 768);
+    expect(() => comp.onResize(1024, 768)).not.toThrow();
   });
 
   it('dispose() empties the group and stops all effects', () => {
@@ -220,7 +216,6 @@ describe('createFireflies() component door', () => {
     comp.rebuild(PLACEMENTS, COMMITS);
     comp.tick(0, FRAME(ctx.camera)); // arm
     comp.dispose();
-    expect(comp.handle()).toBeNull();
     expect(comp.group.children).toHaveLength(0);
     expect(() => {
       hover.value = commitTarget(SHA_A);

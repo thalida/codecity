@@ -106,7 +106,7 @@ describe('cityState.applyManifest — scenic reactivity parity', () => {
 
     // The streets effect ran inside the batch → group populated.
     expect(streets.group.children.length).toBeGreaterThan(0);
-    expect(streets.pickables().length).toBe(1);
+    expect(streets.getPickables().length).toBe(1);
     // #5: bbox was computed AFTER the streets group was populated (so it's not
     // the empty fallback — it covers the real street + building footprint).
     const bbox = cityState.bbox.value;
@@ -119,7 +119,7 @@ describe('cityState.applyManifest — scenic reactivity parity', () => {
   it('#1 scenic-reuse: re-applying the SAME tree_signature does NOT rebuild streets', async () => {
     const { cityState, streets, layoutClient } = setup();
     await cityState.applyManifest(makeManifest('sig-1'));
-    const pickablesAfterFirst = streets.pickables();
+    const pickablesAfterFirst = streets.getPickables();
     const layoutAfterFirst = cityState.layout.value;
     const bboxAfterFirst = cityState.bbox.value;
 
@@ -131,7 +131,7 @@ describe('cityState.applyManifest — scenic reactivity parity', () => {
     // Reuse was actually exercised (compute got the prior layout to reuse on the 2nd call).
     expect(layoutClient.compute.mock.calls[1][1]).toBe(layoutAfterFirst);
     // No streets rebuild: same pickables array reference, same layout + bbox.
-    expect(streets.pickables()).toBe(pickablesAfterFirst);
+    expect(streets.getPickables()).toBe(pickablesAfterFirst);
     expect(cityState.layout.value).toBe(layoutAfterFirst);
     expect(cityState.bbox.value).toBe(bboxAfterFirst);
   });
@@ -139,14 +139,14 @@ describe('cityState.applyManifest — scenic reactivity parity', () => {
   it('#2 invalidate-then-reapply (structural Save): a new layout reference rebuilds streets', async () => {
     const { cityState, streets } = setup();
     await cityState.applyManifest(makeManifest('sig-1'));
-    const pickablesAfterFirst = streets.pickables();
+    const pickablesAfterFirst = streets.getPickables();
 
     // Simulate the config-Save path: invalidate the layout cache so the next
     // apply of the SAME manifest takes the non-reuse branch (new layout object).
     cityState.invalidateLayoutCache();
     await cityState.applyManifest(makeManifest('sig-1'));
 
-    expect(streets.pickables()).not.toBe(pickablesAfterFirst);
+    expect(streets.getPickables()).not.toBe(pickablesAfterFirst);
   });
 
   it('#6 supersede: overlapping applies land the winning layout once', async () => {
@@ -161,7 +161,7 @@ describe('cityState.applyManifest — scenic reactivity parity', () => {
     expect(cityState.manifest.value!.tree_signature).toBe('sig-2');
     // Streets were built (exactly once for the winner — the loser bailed
     // before reassigning layout.value).
-    expect(streets.pickables().length).toBe(1);
+    expect(streets.getPickables().length).toBe(1);
     expect(cityState.bbox.value).not.toBeNull();
   });
 });
