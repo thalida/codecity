@@ -21,6 +21,7 @@ import type { PickTarget } from '@/types';
 import { formatRelativeAge } from '@/utils/dates';
 import type { createPicker } from './picker';
 import type { createCameraRig } from '../render/cameraRig';
+import type { CityState } from '../state';
 
 export function createInputHandlers({
   canvas,
@@ -28,26 +29,24 @@ export function createInputHandlers({
   rig,
   renderer,
   camera,
+  cityState,
   showTooltip,
   hideTooltip,
   onResize,
   onResetView,
-  getRootName,
 }: {
   canvas: HTMLCanvasElement;
   picker: ReturnType<typeof createPicker>;
   rig: ReturnType<typeof createCameraRig>;
   renderer: THREE.WebGLRenderer;
   camera: THREE.PerspectiveCamera;
+  cityState: CityState;
   showTooltip: (text: string, x: number, y: number) => void;
   hideTooltip: () => void;
   onResize: () => void;
   /** Reset-view action triggered by R / gem-click. Does NOT rebuild the
    *  manifest — a page reload is required for that. */
   onResetView: () => void;
-  /** Resolve the current root directory name for hover-tooltip prefixing.
-   * Called lazily on each hover so it stays in sync after manifest reloads. */
-  getRootName: () => string | null;
 }) {
   // Click vs. drag: pointerdown→pointerup with movement + time threshold.
   let downX = 0,
@@ -72,8 +71,12 @@ export function createInputHandlers({
   // (e.g. "/codecity/app/main.ts" rather than "app/main.ts"). The manifest
   // uses '.' as the root directory's own path; that sentinel is treated
   // the same as empty — we don't render "codecity/.".
+  //
+  // .peek(): a non-reactive read from inside a DOM hover handler — we want
+  // the current root name each hover, never a subscription. Stays in sync
+  // across manifest reloads because it's read lazily at call time.
   function _withRoot(relPath: string): string {
-    const root = getRootName();
+    const root = cityState.manifest.peek()?.tree?.name ?? null;
     if (!root) return relPath || '';
     if (!relPath || relPath === '.') return `/${root}`;
     return `/${root}/${relPath}`;

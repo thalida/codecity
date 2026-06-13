@@ -6,28 +6,34 @@ import * as THREE from 'three';
 import { createCameraRig } from '@/city/render/cameraRig';
 import { makeCityState } from '../../_helpers/cityFixtures';
 import { BuildingOrient, NodeKind, StreetAxis } from '@/types';
-import type { Building, Street } from '@/types';
+import type { Building, CityLayout, Street } from '@/types';
+import type { CityState } from '@/city/state';
 
 function makeStubWorld(overrides: Partial<ReturnType<typeof _baseWorld>> = {}) {
   return { ..._baseWorld(), ...overrides };
 }
 
+// The rig reads its world-framing inputs (bbox / gemWorldPos / rootStreet)
+// from cityState computeds, not from deps — so seed a layout that produces a
+// non-empty bbox + a root street. Two crossing 1000-long streets span XZ to
+// ±500 and a 200-tall building gives the Y extent: bbox = (-500,0,-500)..(500,
+// 200,500). Exact magnitudes don't drive the focus assertions (they key off
+// the focused node + a sub-distance clamp), only that framing captures at all.
+function seedFramedCity(): CityState {
+  const cs = makeCityState();
+  cs.layout.value = {
+    buildings: [{ x: 100, y: 0, w: 30, d: 30, h: 200 } as unknown as Building],
+    streets: [
+      { x: 0, y: 0, width: 40, length: 1000, orientation: StreetAxis.X, isRoot: true, dir: null },
+      { x: 0, y: 0, width: 40, length: 1000, orientation: StreetAxis.Y, isRoot: false, dir: null },
+    ] as unknown as Street[],
+  } as unknown as CityLayout;
+  cs.structureRevision.value++;
+  return cs;
+}
+
 function _baseWorld() {
-  const bbox = new THREE.Box3(new THREE.Vector3(-500, 0, -500), new THREE.Vector3(500, 200, 500));
   return {
-    getBbox: () => bbox,
-    getGemWorldPos: () => new THREE.Vector3(0, 0, 0),
-    getRootStreet: () =>
-      ({
-        x: 0,
-        y: 0,
-        width: 40,
-        length: 1000,
-        orientation: StreetAxis.X,
-        dir: null,
-      }) as unknown as Street,
-    getBuildingPickables: () => [] as THREE.Object3D[],
-    getMaxBuildingHeight: () => 200,
     getTallestBuilding: () =>
       ({ x: 100, y: 0, w: 30, d: 30, h: 200 }) as {
         x: number;
@@ -95,7 +101,7 @@ describe('cameraRig top-down focus', () => {
 
   it('focusBuilding lands the camera at ~80° elevation centered on the building', () => {
     const canvas = makeCanvas();
-    const rig = createCameraRig({ canvas, deps: makeStubWorld(), cityState: makeCityState() });
+    const rig = createCameraRig({ canvas, deps: makeStubWorld(), cityState: seedFramedCity() });
     rig.update(16);
 
     const b = makeBuilding();
@@ -122,7 +128,7 @@ describe('cameraRig top-down focus', () => {
 
   it('focusStreet lands the camera at ~80° elevation centered on the street', () => {
     const canvas = makeCanvas();
-    const rig = createCameraRig({ canvas, deps: makeStubWorld(), cityState: makeCityState() });
+    const rig = createCameraRig({ canvas, deps: makeStubWorld(), cityState: seedFramedCity() });
     rig.update(16);
     const s = makeStreet();
     rig.focusStreet(s, null);
@@ -152,7 +158,7 @@ describe('cameraRig top-down focus', () => {
       getTreeBoundsBySha: (sha: string) =>
         sha === 'abc' ? { x: 250, y: 0, z: -180, height: 100, radius: 30 } : null,
     });
-    const rig = createCameraRig({ canvas, deps, cityState: makeCityState() });
+    const rig = createCameraRig({ canvas, deps, cityState: seedFramedCity() });
     rig.update(16);
     rig.focusTree('abc');
     return new Promise<void>((resolve) => {
@@ -177,7 +183,7 @@ describe('cameraRig top-down focus', () => {
 
   it('focusTree is a no-op when getTreeBoundsBySha returns null', () => {
     const canvas = makeCanvas();
-    const rig = createCameraRig({ canvas, deps: makeStubWorld(), cityState: makeCityState() });
+    const rig = createCameraRig({ canvas, deps: makeStubWorld(), cityState: seedFramedCity() });
     rig.update(16);
     const beforePos = rig.camera.position.clone();
     rig.focusTree('missing-sha');

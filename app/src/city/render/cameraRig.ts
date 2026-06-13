@@ -20,7 +20,7 @@
 //
 // First-frame framing is one-shot by construction: frameToBbox is not on
 // the public API. update() runs the framing internally when an internal
-// firstFrame flag is true and deps.getBbox() returns non-empty,
+// firstFrame flag is true and cityState.bbox is non-empty,
 // then clears the flag. There's no surface for an accidental re-frame.
 //
 // Camera pose is never persisted. Every world load always starts at the
@@ -45,12 +45,11 @@ import { NodeKind, StreetAxis } from '@/types';
 import type { Building, PickTarget, Street } from '@/types';
 import type { CityState } from '@/city/state';
 
-/** Narrow accessor surface the rig needs from the composer. createCity
+/** Narrow accessor surface the rig needs from the composer for component
+ *  geometry (buildings/repoLabel/trees). World framing inputs (bbox, gem,
+ *  root street) come from cityState directly, not through here. createCity
  *  (city/index.ts) passes a small deps literal that satisfies this. */
 export interface CameraRigDeps {
-  getBbox(): THREE.Box3 | null;
-  getGemWorldPos(): THREE.Vector3 | null;
-  getRootStreet(): Street | null;
   getTallestBuilding(): { x: number; y: number; w: number; d: number; h: number } | null;
   getRepoLabelBounds(): {
     centerX: number;
@@ -154,7 +153,7 @@ export function createCameraRig({
   // swap after zooming way out could leave R targeting the OLD (large-city)
   // framing while the camera was far outside the new bbox.
   function _captureFraming(): boolean {
-    const bbox = deps.getBbox();
+    const bbox = cityState.bbox.value;
     if (!bbox || bbox.isEmpty()) return false;
 
     // World-bbox metrics — drive controls.maxDistance + camera.far so the
@@ -204,8 +203,8 @@ export function createCameraRig({
     // looking at the gem with the root street + its immediate
     // neighborhood readable on screen — not zoomed all the way out where
     // the gem becomes an invisible dot in a sprawling metropolis.
-    const gemPos = deps.getGemWorldPos();
-    const rootStreet = deps.getRootStreet();
+    const gemPos = cityState.gemWorldPos.value;
+    const rootStreet = cityState.rootStreet.value;
     let framingCenter: THREE.Vector3;
     let framingRadius: number;
     if (gemPos && rootStreet) {
@@ -360,7 +359,7 @@ export function createCameraRig({
   const _disposeReframeEffect = effect(() => {
     void cityState.bbox.value;
     // Run untracked so this effect subscribes to bbox ONLY — _captureFraming
-    // also reads getGemWorldPos()/getRootStreet() (computed off layout), which
+    // also reads cityState.gemWorldPos/rootStreet (computed off layout), which
     // change in lockstep with bbox anyway, but tracking just bbox keeps the
     // dependency set exactly what it claims to be.
     untracked(_captureFraming);
@@ -476,7 +475,7 @@ export function createCameraRig({
     // from the target is sub-centimeter, treat it as nadir and fall back
     // to the root-street axis so the azimuth doesn't NaN out.
     if (horizLenSq < 1e-4) {
-      const root = deps.getRootStreet();
+      const root = cityState.rootStreet.value;
       if (root && root.orientation === StreetAxis.X) {
         dirX = -1;
         dirZ = 0;

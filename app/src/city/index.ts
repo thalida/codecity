@@ -120,14 +120,13 @@ export async function createCity(canvas: HTMLCanvasElement, manifest: Manifest):
   // BEFORE the rig (so bbox is set and the rig's first frame can frame the city).
   await applyManifest(manifest);
 
-  // cityState is threaded so the rig re-frames reactively when bbox changes.
+  // cityState is threaded so the rig re-frames reactively when bbox changes
+  // and reads its world-framing inputs (bbox/gem/root street) directly. deps
+  // carries only the component-geometry accessors the rig can't reach via state.
   const rig = createCameraRig({
     canvas,
     cityState,
     deps: {
-      getBbox: () => cityState.bbox.value,
-      getGemWorldPos: () => cityState.gemWorldPos.value,
-      getRootStreet: () => cityState.rootStreet.value,
       getTallestBuilding: () => buildings.tallest(),
       getRepoLabelBounds: () => repoLabel.getPanelBounds(),
       getTreeBoundsBySha: (sha) => trees.handle()?.getTreeBoundsBySha(sha) ?? null,
@@ -164,6 +163,7 @@ export async function createCity(canvas: HTMLCanvasElement, manifest: Manifest):
     rig,
     renderer,
     camera: rig.camera,
+    cityState,
     showTooltip,
     hideTooltip,
     onResize() {
@@ -179,7 +179,6 @@ export async function createCity(canvas: HTMLCanvasElement, manifest: Manifest):
       postFx.render();
     },
     onResetView: rig.reset,
-    getRootName: () => cityState.manifest.value?.tree?.name ?? null,
   });
 
   function applyTheme(): void {
