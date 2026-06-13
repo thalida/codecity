@@ -83,7 +83,7 @@ CLONE_PROGRESS_THROTTLE_S = 0.25
 
 
 _CLONE_PROGRESS_RE = re.compile(
-    r"^(Receiving|Resolving|Counting) (?:objects|deltas):\s*(\d+)%"
+    r"^(Receiving|Resolving|Counting|Updating) (?:objects|deltas|files):\s*(\d+)%"
 )
 
 
@@ -91,7 +91,8 @@ def _parse_clone_progress_line(line: str) -> tuple[str, int] | None:
     """Parse one line of ``git clone --progress`` stderr output.
 
     Returns ``(stage, percent)`` for matchable progress lines, else None.
-    Stage is lowercase: ``'receiving' | 'resolving' | 'counting'``."""
+    Stage is lowercase: ``'receiving' | 'resolving' | 'counting' | 'updating'``
+    ('updating' = the checkout phase, ``Updating files: N%``)."""
     m = _CLONE_PROGRESS_RE.match(line.strip())
     if m is None:
         return None
@@ -197,6 +198,7 @@ def _run_git_streaming(
     cwd: Path | None = None,
     progress_dir: Path | None = None,
     on_progress: Callable[[tuple[str, int]], None] | None = None,
+    on_heartbeat: Callable[[int | None], None] | None = None,
     cancel_event: "threading.Event | None" = None,
 ) -> str:
     """Run git and forward stderr to ``_log`` line-by-line as it arrives.
@@ -343,19 +345,25 @@ def _run_git_streaming(
             if silent_for < _STALL_HEARTBEAT_SECS:
                 continue
             size_note = ""
+            current_mb: int | None = None
             if progress_dir is not None:
                 current = _pack_dir_bytes(progress_dir)
-                current_mb = current / (1024 * 1024)
+                current_mb = round(current / (1024 * 1024))
                 if last_bytes is not None:
                     delta_mb = (current - last_bytes) / (1024 * 1024)
                     size_note = (
-                        f", {current_mb:.0f} MB on disk "
+                        f", {current_mb} MB on disk "
                         f"({delta_mb:+.1f} MB since last tick)"
                     )
                 else:
-                    size_note = f", {current_mb:.0f} MB on disk"
+                    size_note = f", {current_mb} MB on disk"
                 last_bytes = current
             _log(f"still working… ({silent_for:.0f}s silent{size_note})")
+            # Forward the heartbeat to the UI so the otherwise-silent promisor
+            # blob fetch (no git progress lines) shows the tree materializing
+            # instead of the clone-progress bar freezing at its last percent.
+            if on_heartbeat is not None:
+                on_heartbeat(current_mb)
             # Reset so the next heartbeat fires at a regular cadence
             # instead of every second once silent_for > threshold.
             last_output_at[0] = time.monotonic()
@@ -436,6 +444,7 @@ def ensure_clone(
     branch: str | None = None,
     *,
     on_progress: Callable[[tuple[str, int]], None] | None = None,
+    on_heartbeat: Callable[[int | None], None] | None = None,
     cancel_event: "threading.Event | None" = None,
 ) -> Path:
     """Clone ``url`` (optionally pinned to ``branch``) into the local cache,
@@ -464,6 +473,7 @@ def ensure_clone(
                 cwd=target,
                 progress_dir=pack_dir,
                 on_progress=on_progress,
+                on_heartbeat=on_heartbeat,
                 cancel_event=cancel_event,
             )
             default = None if branch else _resolve_default_branch(target)
@@ -505,6 +515,7 @@ def ensure_clone(
             *args,
             progress_dir=pack_dir,
             on_progress=on_progress,
+            on_heartbeat=on_heartbeat,
             cancel_event=cancel_event,
         )
         _log("clone complete")

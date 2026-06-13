@@ -142,6 +142,10 @@ export interface components {
         /**
          * CloneProgressEvent
          * @description `clone-progress` — git source is being cloned; carries clone progress.
+         *
+         *     A normal progress tick has `stage` + `percent`. A heartbeat during the
+         *     silent promisor blob fetch instead carries `mb_on_disk` (and no percent),
+         *     so the UI shows the working tree materializing rather than freezing.
          */
         CloneProgressEvent: {
             /** Display Root */
@@ -150,9 +154,11 @@ export interface components {
              * Stage
              * @enum {string}
              */
-            stage?: "receiving" | "resolving" | "counting";
+            stage?: "receiving" | "resolving" | "counting" | "updating";
             /** Percent */
             percent?: number;
+            /** Mb On Disk */
+            mb_on_disk?: number;
         };
         /** CommitDetailResponse */
         CommitDetailResponse: {

@@ -193,6 +193,16 @@ async def manifest(
                 )
             )
 
+        def _on_clone_heartbeat(mb_on_disk: int | None) -> None:
+            # Silent promisor-fetch phase: no stage/percent, just the working
+            # tree growing on disk, so the UI shows activity instead of freezing.
+            _put(
+                _sse(
+                    "clone-progress",
+                    {"display_root": display, "mb_on_disk": mb_on_disk},
+                )
+            )
+
         def _on_scan(files_scanned: int) -> None:
             _put(
                 _sse(
@@ -213,6 +223,7 @@ async def manifest(
                                 src,
                                 branch,
                                 on_progress=_on_clone,
+                                on_heartbeat=_on_clone_heartbeat,
                                 cancel_event=cancel,
                             )
                     except (

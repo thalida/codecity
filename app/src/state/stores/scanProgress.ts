@@ -18,8 +18,11 @@ export interface ScanProgress {
   phase: ScanPhase | null;
   /** Cloning percent (0-100) when phase === Cloning. */
   percent?: number;
-  /** Cloning stage label (e.g. "Receiving objects") when present. */
+  /** Cloning stage label (e.g. "receiving", "updating") when present. */
   stage?: string;
+  /** Working-tree size on disk (MB) during the silent promisor blob fetch —
+   *  a clone-progress heartbeat with no stage/percent. */
+  mbOnDisk?: number;
   /** Files scanned so far when phase === Scanning. */
   filesScanned?: number;
 }

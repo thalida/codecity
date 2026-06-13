@@ -103,8 +103,11 @@ export type ScanStreamEvent =
   | {
       phase: ScanPhase.CloneProgress;
       display_root?: string;
-      stage?: 'receiving' | 'resolving' | 'counting';
+      stage?: 'receiving' | 'resolving' | 'counting' | 'updating';
       percent?: number;
+      // Heartbeat during the silent promisor blob fetch: working-tree size on
+      // disk (no stage/percent), so the UI shows materialization, not a freeze.
+      mb_on_disk?: number;
     }
   | { phase: ScanPhase.ScanProgress; display_root?: string; files_scanned?: number }
   | { phase: ScanPhase.PartialManifest; manifest: Manifest }

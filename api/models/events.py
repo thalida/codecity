@@ -14,18 +14,27 @@ from api.models.manifest import Manifest, OptionalInt, OptionalStr
 
 # These progress fields are absent-or-value, never null on the wire — same
 # optional-but-non-nullable treatment as the manifest's optional fields.
+# 'updating' is git's checkout phase ("Updating files: N%"); a heartbeat
+# (no percent) instead carries mb_on_disk during the otherwise-silent
+# promisor blob fetch of a --filter=blob:none clone.
+_CLONE_STAGES = ["receiving", "resolving", "counting", "updating"]
 _OptionalStage = Annotated[
-    Optional[Literal["receiving", "resolving", "counting"]],
-    WithJsonSchema({"enum": ["receiving", "resolving", "counting"], "type": "string"}),
+    Optional[Literal["receiving", "resolving", "counting", "updating"]],
+    WithJsonSchema({"enum": _CLONE_STAGES, "type": "string"}),
 ]
 
 
 class CloneProgressEvent(BaseModel):
-    """`clone-progress` — git source is being cloned; carries clone progress."""
+    """`clone-progress` — git source is being cloned; carries clone progress.
+
+    A normal progress tick has `stage` + `percent`. A heartbeat during the
+    silent promisor blob fetch instead carries `mb_on_disk` (and no percent),
+    so the UI shows the working tree materializing rather than freezing."""
 
     display_root: OptionalStr = None
     stage: _OptionalStage = None
     percent: OptionalInt = None
+    mb_on_disk: OptionalInt = None
 
 
 class ScanProgressEvent(BaseModel):

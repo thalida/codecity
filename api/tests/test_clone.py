@@ -461,6 +461,7 @@ def test_parse_clone_progress_line():
         ("Receiving objects:  45% (123/273), 1.20 MiB | 2.50 MiB/s", ("receiving", 45)),
         ("Resolving deltas:  100% (50/50), done.", ("resolving", 100)),
         ("Counting objects:  12%", ("counting", 12)),
+        ("Updating files:  59% (7321/12408)", ("updating", 59)),  # checkout phase
         ("Cloning into '/tmp/foo'...", None),
         ("", None),
         ("garbage line", None),
