@@ -112,10 +112,6 @@ function makeLayoutClient(makeLayout: () => CityLayout) {
   };
 }
 
-function makeTreePlacementClient() {
-  return { compute: vi.fn(async () => []), dispose: vi.fn() };
-}
-
 describe('createApplyManifest — scenic reactivity parity', () => {
   const disposers: Array<() => void> = [];
   afterEach(() => {
@@ -143,7 +139,6 @@ describe('createApplyManifest — scenic reactivity parity', () => {
       components: { ...stubs, streets } as never,
       scene: new THREE.Scene(),
       layoutClient: layoutClient as never,
-      treePlacementClient: makeTreePlacementClient() as never,
       cityState,
     });
     return { api, cityState, streets, layoutClient, stubs };

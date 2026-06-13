@@ -31,12 +31,11 @@ export type { Fireflies };
 
 /** Public contract for the fireflies component. */
 export interface FirefliesComponent extends SceneComponent {
-  /** Build (or rebuild) the inner firefly assembly. Called from world's
-   *  deferred decoration pass — NOT scenic-gated (rebuilt every
-   *  applyManifest, in lockstep with trees). */
+  /** Build (or rebuild) the inner firefly assembly from placements. Driven by
+   *  the cityState.treePlacements signal trees publishes (in lockstep with
+   *  trees, every apply). */
   rebuild(placements: TreePlacement[], commits: CommitEntry[] | null): void;
-  /** Dispose the inner assembly + null the handle. Called by world at the
-   *  same point the old code disposed _fireflies. */
+  /** Dispose the inner assembly + null the handle. */
   clear(): void;
   /** Inner handle, or null pre-rebuild / post-clear. Preserves
    *  world.getFireflies()'s null-until-built contract. */
@@ -51,6 +50,8 @@ export function createFireflies(ctx: SceneContext): FirefliesComponent {
   // swaps the inner assembly's group in and out of this group.
   const group = new THREE.Group();
   group.name = 'city-fireflies';
+
+  const { cityState } = ctx;
 
   let _inner: Fireflies | null = null;
 
@@ -82,6 +83,16 @@ export function createFireflies(ctx: SceneContext): FirefliesComponent {
   const stopTheme = effect(() => {
     void FIREFLIES.value;
     _inner?.refresh();
+  });
+
+  // Placement effect — fireflies rebuild off the treePlacements signal trees
+  // publishes (null → clear at the start of a rebuild; the array → rebuild once
+  // the deferred scan resolves), so they track trees in lockstep. commits is
+  // read at that moment (peek — placements is the trigger, not the manifest).
+  const stopPlacements = effect(() => {
+    const placements = cityState.treePlacements.value;
+    if (placements) rebuild(placements, cityState.manifest.peek()?.commits ?? null);
+    else clear();
   });
 
   // Hover/select boost effects — ARMED on the first tick(), NOT at
@@ -122,6 +133,7 @@ export function createFireflies(ctx: SceneContext): FirefliesComponent {
   function dispose(): void {
     clear();
     stopTheme();
+    stopPlacements();
     _arm.dispose();
   }
 

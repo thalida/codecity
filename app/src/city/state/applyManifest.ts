@@ -24,16 +24,13 @@ import type { RepoLabel } from '../components/repoLabel';
 import type { TreesComponent } from '../components/trees';
 import type { FirefliesComponent } from '../components/fireflies';
 import type { PathLine } from '../components/pathLine';
-import type { TreePlacementClient } from '../components/trees/treePlacementClient';
 import type { Island } from '../components/island';
 import { getWorldBounds } from '../utils/floorBounds';
 import type { Footprint } from '../components/footprint';
 import type { CityState } from './index';
 import { FOOTPRINT } from '@/state/stores/settings/footprint';
-import { TREES } from '@/state/stores/settings/trees';
 import { SCENE } from '@/state/stores/settings/scene';
-import { REBUILD_STATUS, RebuildStatus } from '@/state/stores/manifest';
-import type { CityBbox, CityLayout, Manifest } from '@/types';
+import type { CityLayout, Manifest } from '@/types';
 
 // Factory-private manifest-bound caches that NO accessor reads — reassigned
 // across applyManifest calls; the layout cache is nulled by invalidateLayoutCache().
@@ -66,7 +63,6 @@ export interface ApplyManifestDeps {
   };
   scene: THREE.Scene;
   layoutClient: ReturnType<typeof createLayoutClient>;
-  treePlacementClient: TreePlacementClient;
   // The cross-boundary signals. applyManifest sets the source signals' .value
   // and bumps cityRevision / decorationRevision so the reactive consumers
   // (picker, cameraRig, pathLine, buildingFader) re-derive.
@@ -81,18 +77,12 @@ export interface ApplyManifestApi {
 }
 
 export function createApplyManifest(deps: ApplyManifestDeps): ApplyManifestApi {
-  const { components, scene, layoutClient, treePlacementClient, cityState } = deps;
-  // gem/island/repoLabel/streets/footprint/buildings rebuild reactively off
-  // cityState signals. _buildings is kept only to push the icon atlas in BEFORE
-  // the layout signal fires (so the reactive buildings rebuild bakes the right
-  // roof UVs). trees/fireflies are still imperative (async/deferred). _streets is
-  // grabbed only to read its rebuilt group for the bbox.
-  const {
-    streets: _streets,
-    buildings: _buildings,
-    trees: _trees,
-    fireflies: _fireflies,
-  } = components;
+  const { components, scene, layoutClient, cityState } = deps;
+  // All scene components now rebuild reactively off cityState signals. Two refs
+  // remain: _buildings (to push the icon atlas in BEFORE the layout signal fires,
+  // so the reactive buildings rebuild bakes the right roof UVs) and _streets (to
+  // read its rebuilt group for the bbox below).
+  const { streets: _streets, buildings: _buildings } = components;
 
   const internal: InternalCityState = {
     cachedLayoutTreeSig: null,
@@ -163,12 +153,6 @@ export function createApplyManifest(deps: ApplyManifestDeps): ApplyManifestApi {
     }
     if (myGeneration !== internal.generation) return;
 
-    // Clear trees/fireflies BEFORE the cityRevision bump so the picker's pickable
-    // refresh sees no stale tree meshes; the deferred pass rebuilds them and
-    // bumps decorationRevision for a second refresh.
-    _trees.clear();
-    _fireflies.clear();
-
     // One batch so the reactive consumers settle on a single change. manifest
     // reassigns every apply; layout ONLY on non-reuse (stable ref on reuse = the
     // scenic skip). cityRevision bumps once so picker/cameraRig/pathLine/
@@ -220,88 +204,16 @@ export function createApplyManifest(deps: ApplyManifestDeps): ApplyManifestApi {
     // last non-reuse apply (same positions), so the island/camera effects don't
     // re-fire.
 
-    // Trees are deferred to the next frame so the city paints + becomes
-    // interactive BEFORE the placement scan + GPU upload block the main thread
-    // (a multi-hundred-ms freeze on large repos otherwise).
-    const treesEnabled = TREES.value.ENABLED;
-
-    // The expanded bbox, as a placement-style CityBbox for tree placement below.
-    const bbox = cityState.bbox.value;
-    const sceneBbox: CityBbox | null = bbox
-      ? {
-          minX: bbox.min.x,
-          maxX: bbox.max.x,
-          minY: bbox.min.z, // three.js Z is the second world axis
-          maxY: bbox.max.z,
-          cx: (bbox.min.x + bbox.max.x) / 2,
-          cy: (bbox.min.z + bbox.max.z) / 2,
-          width: bbox.max.x - bbox.min.x,
-          depth: bbox.max.z - bbox.min.z,
-        }
-      : null;
-    // Vertical extent — feeds worldBounds so small-but-tall repos still get an
-    // airy floor buffer relative to building height.
-    const cityHeight = bbox ? bbox.max.y - bbox.min.y : 0;
-
     // latestWorldBounds drives the island. Reassign only on non-reuse (the island
     // effect re-fires); on reuse the reference stays stable (no resize flash).
     // getWorldBounds falls back to a small origin default when there's no city.
+    // (Trees/fireflies + REBUILD_STATUS now live in the trees component's own
+    // reactive deferred pass, keyed off the signals set in the batch above.)
     if (!reused) {
-      cityState.latestWorldBounds.value = getWorldBounds(sceneBbox, cityHeight);
-    }
-
-    if (treesEnabled && bbox && sceneBbox) {
-      // Snapshot what the deferred pass needs so a later apply can't race it.
-      const generationAtDefer = myGeneration;
-      const layoutAtDefer = newLayout;
-      const commitCountAtDefer = cityState.manifest.value!.commits?.length ?? 0;
-      const cityHeightAtDefer = cityHeight;
-      const foliageBbox: CityBbox = sceneBbox;
-
-      REBUILD_STATUS.value = RebuildStatus.Decorating;
-      // rAF starts the next frame; the setTimeout(0) then yields so the browser
-      // can COMPLETE the paint before foliage work begins.
-      await new Promise<void>((r) => requestAnimationFrame(() => r()));
-      await new Promise<void>((r) => setTimeout(r, 0));
-      if (generationAtDefer !== internal.generation) return;
-
-      // Off-thread placement; 'superseded' rejects if a newer apply fires mid-flight.
-      let treePlacements: import('../components/trees/treePlacement.js').TreePlacement[];
-      try {
-        treePlacements = await treePlacementClient.compute(
-          layoutAtDefer,
-          foliageBbox,
-          commitCountAtDefer,
-          cityHeightAtDefer
-        );
-      } catch (err) {
-        if (err instanceof Error && err.message === 'superseded') return;
-        throw err;
-      }
-      if (generationAtDefer !== internal.generation) return;
-
-      _trees.rebuild(
-        treePlacements,
-        cityState.manifest.value!.commits ?? null,
-        cityState.manifest.value!.busyness ?? { avg: 1, busy: 1 }
+      cityState.latestWorldBounds.value = getWorldBounds(
+        cityState.sceneBbox.value,
+        cityState.cityHeight.value
       );
-      _fireflies.rebuild(treePlacements, cityState.manifest.value!.commits ?? null);
-
-      // Second notify now that trees are attached: the cityRevision bump fired
-      // before this deferred block, when no tree meshes existed, so the picker
-      // couldn't include trees / re-resolve a Commit selection. The guard is
-      // always true here (rebuild set the handle; empty/disabled bail earlier).
-      if (_trees.handle() !== null) {
-        cityState.decorationRevision.value++;
-      }
-
-      REBUILD_STATUS.value = RebuildStatus.Idle;
-    } else {
-      // No deferred pass (trees disabled or empty bbox) → no async work to await,
-      // so clear the status here; otherwise a caller that set it to Rebuilding
-      // (useCityScene live-update, settings rebuild) would leave the footer dot
-      // stuck yellow. Superseded applies returned earlier and never reach here.
-      REBUILD_STATUS.value = RebuildStatus.Idle;
     }
   }
 

@@ -19,28 +19,30 @@ import * as THREE from 'three';
 import { effect } from '@preact/signals';
 
 import { TREES } from '@/state/stores/settings/trees';
+import { REBUILD_STATUS, RebuildStatus } from '@/state/stores/manifest';
 import type { BusynessThresholds, CommitEntry } from '@/types';
 
 import type { FrameContext, SceneComponent, SceneContext } from '../../types';
 import { armOnFirstTick } from '../../utils/armOnFirstTick';
+import { reactiveRebuild } from '../../utils/reactiveRebuild';
 import { createTreeRenderer, type Trees } from './treeRenderer';
 import { createTreeOutlineRenderer } from './outline';
+import { createTreePlacementClient } from './treePlacementClient';
 import type { TreePlacement } from './treePlacement';
 
 export type { Trees };
 
 /** Public contract for the trees component. */
 export interface TreesComponent extends SceneComponent {
-  /** Build (or rebuild) the inner instanced tree meshes. Called from world's
-   *  deferred decoration pass — NOT scenic-gated (trees rebuild every
-   *  applyManifest). */
+  /** Build (or rebuild) the inner instanced tree meshes from placements. Driven
+   *  by the component's own reactive deferred pass (off cityState.layout); not
+   *  scenic-gated (trees rebuild every apply). */
   rebuild(
     placements: TreePlacement[],
     commits: CommitEntry[] | null,
     busyness: BusynessThresholds
   ): void;
-  /** Dispose the inner meshes + null the handle. Called by world at the same
-   *  point the old code disposed _trees (before the first onChange emit). */
+  /** Dispose the inner meshes + null the handle. */
   clear(): void;
   /** Inner renderer handle, or null pre-rebuild / post-clear. Preserves
    *  world.getTrees()'s null-until-built contract (picker pickables,
@@ -55,6 +57,11 @@ export function createTrees(ctx: SceneContext): TreesComponent {
   // swaps the inner tree renderer's group in and out of this group.
   const group = new THREE.Group();
   group.name = 'city-trees';
+
+  const { cityState } = ctx;
+  // Off-thread placement worker — owned by this component now. Lazy: the worker
+  // is only spawned on the first compute(), so construction is test-safe.
+  const treePlacementClient = createTreePlacementClient();
 
   let _inner: Trees | null = null;
   // Declared BEFORE the theme effect below — the effect body runs
@@ -89,6 +96,61 @@ export function createTrees(ctx: SceneContext): TreesComponent {
     _inner?.refresh();
     _outline?.refreshMaterials();
   });
+
+  // Reactive rebuild — the deferred decoration pass, now owned by trees. Fires
+  // on every apply (layout/manifest change). It clears first (dropping the
+  // treePlacements signal so fireflies clears, and bumping decorationRevision so
+  // the picker drops stale tree pickables — order-independent since pickables are
+  // read only on pointer events), then defers past the paint and runs the
+  // off-thread placement scan so a large repo stays interactive. A newer apply
+  // supersedes an in-flight scan via reactiveRebuild's generation guard.
+  const stopRebuild = reactiveRebuild(
+    () => {
+      const layout = cityState.layout.value;
+      const manifest = cityState.manifest.value;
+      if (!layout || !manifest) return null;
+      return { layout, manifest };
+    },
+    async ({ layout, manifest }, isCurrent) => {
+      clear();
+      cityState.treePlacements.value = null;
+      cityState.decorationRevision.value++;
+
+      // sceneBbox/cityHeight are set by applyManifest synchronously after the
+      // batch that triggered this run, so peek() reads the fresh values.
+      const sceneBbox = cityState.sceneBbox.peek();
+      if (!TREES.value.ENABLED || !sceneBbox) {
+        REBUILD_STATUS.value = RebuildStatus.Idle;
+        return;
+      }
+      const cityHeight = cityState.cityHeight.peek();
+      const commitCount = manifest.commits?.length ?? 0;
+
+      // rAF starts the next frame; setTimeout(0) yields so the browser COMPLETES
+      // the paint before the placement scan + GPU upload begin.
+      REBUILD_STATUS.value = RebuildStatus.Decorating;
+      await new Promise<void>((r) => requestAnimationFrame(() => r()));
+      await new Promise<void>((r) => setTimeout(r, 0));
+      if (!isCurrent()) return;
+
+      let placements: TreePlacement[];
+      try {
+        placements = await treePlacementClient.compute(layout, sceneBbox, commitCount, cityHeight);
+      } catch (err) {
+        if (err instanceof Error && err.message === 'superseded') return;
+        throw err;
+      }
+      if (!isCurrent()) return;
+
+      rebuild(placements, manifest.commits ?? null, manifest.busyness ?? { avg: 1, busy: 1 });
+      // Publish placements (fireflies rebuilds off this) and re-notify the picker
+      // now that the live tree meshes exist (re-resolve a Commit selection +
+      // include them in pickables).
+      cityState.treePlacements.value = placements;
+      if (_inner !== null) cityState.decorationRevision.value++;
+      REBUILD_STATUS.value = RebuildStatus.Idle;
+    }
+  );
 
   // Outline renderer — ARMED on the first tick(), NOT at construction. Its
   // factory creates the two picker-driven effects internally, so constructing
@@ -132,6 +194,8 @@ export function createTrees(ctx: SceneContext): TreesComponent {
   function dispose(): void {
     clear();
     stopTheme();
+    stopRebuild.dispose();
+    treePlacementClient.dispose();
     _arm.dispose();
   }
 

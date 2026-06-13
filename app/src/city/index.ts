@@ -24,7 +24,6 @@ import { createStreets } from './components/streets';
 import { createTrees } from './components/trees';
 import { createFireflies } from './components/fireflies';
 import { createPathLine } from './components/pathLine';
-import { createTreePlacementClient } from './components/trees/treePlacementClient';
 import type { City, SceneComponent, SceneContext } from './types';
 import { createCameraRig } from './render/cameraRig';
 import { createPicker } from './interaction/picker';
@@ -69,7 +68,6 @@ export async function createCity(canvas: HTMLCanvasElement, manifest: Manifest):
   const sky = createSky(ctx);
   const island = createIsland(ctx);
   const repoLabel = createRepoLabel(ctx, { getGem: () => gem.gem });
-  const treePlacementClient = createTreePlacementClient();
   const footprint = createFootprint(ctx);
   const streets = createStreets(ctx);
   const buildings = createBuildings(ctx, { getStreetByDir: (p) => streets.getStreetByDir(p) });
@@ -99,7 +97,6 @@ export async function createCity(canvas: HTMLCanvasElement, manifest: Manifest):
     },
     scene,
     layoutClient,
-    treePlacementClient,
     cityState,
   });
 
