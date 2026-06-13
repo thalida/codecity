@@ -32,11 +32,6 @@ export interface CityState {
   // Full layout (positions + per-building dims), reassigned EVERY apply — feeds
   // the dims-dependent rebuilds (buildings/footprint/trees) + the bbox computed.
   layout: Signal<CityLayout | null>;
-  // Structure-change tick: bumped ONLY on a non-reuse apply. The structure-
-  // reactive consumers (rootStreet/bbox/streets) track this and peek `layout`, so
-  // they rebuild on a real structure change and skip a reuse apply natively
-  // (layout itself reassigns every apply, so it is NOT a skip signal).
-  structureRevision: Signal<number>;
   // World bbox (street rects + building footprints + footprint halo). Off
   // structureRevision → frozen on a reuse apply; the cameraRig framing tracks it.
   readonly bbox: ReadonlySignal<THREE.Box3 | null>;
@@ -50,16 +45,21 @@ export interface CityState {
   treePlacements: Signal<TreePlacement[] | null>;
   readonly rootStreet: ReadonlySignal<Street | null>;
   readonly gemWorldPos: ReadonlySignal<THREE.Vector3 | null>;
-  // Rebuild-notification counters (replace the old world.onChange observer).
-  //   cityRevision — bumped ONCE per apply, in the manifest/layout batch. "The
-  //     city rebuilt; re-derive": the picker clears hover + re-resolves its
-  //     selection key, pathLine recomputes (the streets-by-dir map is fresh by
-  //     then), buildingFader re-sweeps the fresh iFade buffers. (cameraRig
-  //     reframes off bbox, NOT this — bbox changes on structure changes only.)
+  // --- Change-notification counters (replaced the old world.onChange observer).
+  // Consumers track a counter and peek the data; each bump means "re-derive."
+  //   structureRevision — bumped ONLY on a non-reuse apply (positions/topology
+  //     changed). The structure-reactive consumers (rootStreet/bbox/streets) track
+  //     it + peek `layout`, so they rebuild on a structure change and skip a reuse
+  //     apply. (layout reassigns every apply, so it is NOT itself a skip signal.)
+  //   cityRevision — bumped ONCE on EVERY apply. The general "the city re-applied"
+  //     tick: the picker clears hover + re-resolves its selection key, pathLine
+  //     recomputes (streets-by-dir map is fresh by then), buildingFader re-sweeps
+  //     the fresh iFade buffers. (cameraRig reframes off bbox, NOT this.)
   //   decorationRevision — bumped by the trees component when its meshes change:
-  //     once when it CLEARS (so the picker drops stale tree pickables) and again
-  //     when the deferred trees attach (so the picker re-resolves a Commit
-  //     selection + includes the live tree meshes). fireflies tracks treePlacements.
+  //     on CLEAR (picker drops stale tree pickables) and again on ATTACH (picker
+  //     re-resolves a Commit selection + includes the live tree meshes). fireflies
+  //     tracks treePlacements separately.
+  structureRevision: Signal<number>;
   cityRevision: Signal<number>;
   decorationRevision: Signal<number>;
   // The async manifest pipeline cityState owns: compute the layout off-thread,
@@ -72,9 +72,10 @@ export interface CityState {
 export function createCityState(layoutClient: ReturnType<typeof createLayoutClient>): CityState {
   const manifest = signal<Manifest | null>(null);
   const layout = signal<CityLayout | null>(null);
-  const structureRevision = signal(0);
   const latestWorldBounds = signal<WorldBounds | null>(null);
   const treePlacements = signal<TreePlacement[] | null>(null);
+  // Change-notification counters (see CityState for what each means + who tracks it).
+  const structureRevision = signal(0);
   const cityRevision = signal(0);
   const decorationRevision = signal(0);
 
@@ -257,7 +258,6 @@ export function createCityState(layoutClient: ReturnType<typeof createLayoutClie
   return {
     manifest,
     layout,
-    structureRevision,
     bbox,
     sceneBbox,
     cityHeight,
@@ -265,6 +265,7 @@ export function createCityState(layoutClient: ReturnType<typeof createLayoutClie
     treePlacements,
     rootStreet,
     gemWorldPos,
+    structureRevision,
     cityRevision,
     decorationRevision,
     applyManifest,
