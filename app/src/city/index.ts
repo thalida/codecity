@@ -140,7 +140,7 @@ export async function createCity(canvas: HTMLCanvasElement, manifest: Manifest):
   // Backfill the picker BEFORE the frame loop so components arm on frame 1.
   ctx.picker = picker;
 
-  createInputHandlers({
+  const handlers = createInputHandlers({
     canvas,
     picker,
     rig,
@@ -162,7 +162,7 @@ export async function createCity(canvas: HTMLCanvasElement, manifest: Manifest):
 
   // Reused scratch vector to avoid per-frame allocations from renderer.getSize().
   const renderSize = new THREE.Vector2();
-  startFrameLoop(components, ctx, {
+  const stopFrameLoop = startFrameLoop(components, ctx, {
     rig,
     postFx,
     before() {
@@ -200,6 +200,23 @@ export async function createCity(canvas: HTMLCanvasElement, manifest: Manifest):
       getStreetByDir: (p: string) => cityState.streetsByDirMap.peek()[p] ?? null,
       runCollisionCheck: () => runCollisionCheck(cityState),
       runStemPlacementDiagnostic: () => runStemPlacementDiagnostic(cityState),
+    },
+    /** Tear the whole city down: stop the frame loop, detach input listeners,
+     *  dispose the picker/rig/postFx/components (GPU geometry + their effects),
+     *  the layout worker, and the renderer. Without this, a remount (or HMR)
+     *  leaks the renderer + frame loop, stacking a second city on the same
+     *  canvas — the old one keeps rendering as a faint ghost and its picker
+     *  still answers raycasts. Order: stop the loop FIRST so nothing ticks or
+     *  renders mid-teardown; renderer LAST. */
+    dispose(): void {
+      stopFrameLoop();
+      handlers.dispose();
+      picker.dispose();
+      rig.dispose();
+      postFx.dispose();
+      for (const c of components) c.dispose();
+      layoutClient.dispose();
+      renderer.dispose();
     },
   };
 }

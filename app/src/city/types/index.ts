@@ -66,4 +66,9 @@ export interface City {
   invalidateLayoutCache(): void;
   focusByPath(path: string): void;
   world: CityWorld;
+  /** Tear down everything: frame loop, input listeners, picker/rig/postFx,
+   *  all components (GPU + effects), the layout worker, and the renderer.
+   *  Must be called when the owning view unmounts so a remount doesn't stack
+   *  a second renderer + frame loop on the same canvas. */
+  dispose(): void;
 }

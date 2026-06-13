@@ -25,13 +25,20 @@ export function useCityScene(canvasRef: RefObject<HTMLCanvasElement | null>): vo
     const canvas = canvasRef.current;
     if (!canvas) return;
     let disposed = false;
+    let city: Awaited<ReturnType<typeof createCity>> | null = null;
     let unsubApply: (() => void) | null = null;
     let disposeReactions: (() => void) | null = null;
 
     // Start the scene empty; the apply-effect below paints the first real
     // manifest as soon as the fetch layer publishes it.
     createCity(canvas, EMPTY_MANIFEST).then((handle) => {
-      if (disposed) return;
+      // Unmounted before the async build resolved: dispose the orphan now, or
+      // its renderer + frame loop leak forever (nothing else holds a ref).
+      if (disposed) {
+        handle.dispose();
+        return;
+      }
+      city = handle;
       SCENE_HANDLE.value = handle;
       disposeReactions = attachCommitReactions({
         applyManifest: handle.applyManifest,
@@ -80,6 +87,10 @@ export function useCityScene(canvasRef: RefObject<HTMLCanvasElement | null>): vo
       disposed = true;
       unsubApply?.();
       disposeReactions?.();
+      // Tear the city down so a remount doesn't stack a second renderer +
+      // frame loop on the same canvas (old city keeps rendering as a ghost).
+      city?.dispose();
+      city = null;
       SCENE_HANDLE.value = null;
     };
   }, []);
