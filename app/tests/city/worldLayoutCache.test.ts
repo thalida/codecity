@@ -53,7 +53,7 @@ describe('configCommitReactions invalidates layout cache before applyManifest', 
     // Seed the source of truth: scheduleRebuild reads MANIFEST.peek().
     setManifest(stubManifest as unknown as Manifest);
 
-    const world = {
+    detach = attachCommitReactions({
       async applyManifest(m: unknown) {
         calls.push('applyManifest');
         appliedManifests.push(m);
@@ -61,10 +61,6 @@ describe('configCommitReactions invalidates layout cache before applyManifest', 
       invalidateLayoutCache() {
         calls.push('invalidateLayoutCache');
       },
-    };
-
-    detach = attachCommitReactions({
-      world,
       applyTheme: () => {},
     });
 

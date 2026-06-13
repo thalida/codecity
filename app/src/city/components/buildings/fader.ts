@@ -29,7 +29,7 @@ import type { CityState } from '@/city/state';
 
 // Narrow world surface the fader needs. The buildings component supplies this
 // (cells + ad panels are component-local; getStreetByDir is threaded from
-// the composer's worldAccessor). Decouples the fader from that full surface.
+// the composer via the buildings deps). Decouples the fader from that surface.
 interface FaderWorld {
   getCells(): Map<number, CellTile>;
   getStreetByDir(path: string): Street | null;

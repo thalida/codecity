@@ -25,7 +25,7 @@ import { createTrees } from './components/trees';
 import { createFireflies } from './components/fireflies';
 import { createPathLine } from './components/pathLine';
 import { createTreePlacementClient } from './components/trees/treePlacementClient';
-import type { SceneComponent, SceneContext } from './types';
+import type { City, SceneComponent, SceneContext } from './types';
 import { createCameraRig } from './render/cameraRig';
 import { createPicker } from './render/picker';
 import { createInputHandlers } from './render/inputHandlers';
@@ -34,7 +34,7 @@ import { createPostFx } from './render/postFx';
 import { startFrameLoop } from './render/frameLoop';
 import { registerRenderer as registerAdPanelRenderer } from './components/buildings/adPanelTextureArray';
 
-export async function createCity(canvas: HTMLCanvasElement, manifest: Manifest) {
+export async function createCity(canvas: HTMLCanvasElement, manifest: Manifest): Promise<City> {
   // Must precede any ShaderMaterial so #include <chunk> directives resolve.
   registerShaderChunks();
 
@@ -135,27 +135,6 @@ export async function createCity(canvas: HTMLCanvasElement, manifest: Manifest) 
       console.log(line);
     }
   }
-
-  // Structural compatibility shim — dissolved in commit e2.
-  const worldAccessor = {
-    applyManifest,
-    invalidateLayoutCache,
-    runCollisionCheck,
-    runStemPlacementDiagnostic,
-    getTrees() {
-      return trees.handle();
-    },
-    getManifest() {
-      return cityState.manifest.value;
-    },
-    getRoot() {
-      const m = cityState.manifest.value;
-      return m && m.tree;
-    },
-    getStreetByDir(p: string) {
-      return streets.getStreetByDir(p);
-    },
-  };
 
   // Boot apply — AFTER renderer + registerAdPanelRenderer (the ad-panel race),
   // BEFORE the rig (so bbox is set and the rig's first frame can frame the city).
@@ -287,15 +266,26 @@ export async function createCity(canvas: HTMLCanvasElement, manifest: Manifest) 
   });
 
   return {
-    world: worldAccessor,
-    applyTheme,
+    scene,
     picker,
     rig,
     resetView,
+    applyTheme,
+    applyManifest,
+    invalidateLayoutCache,
     /** Focus the camera on the node at `path`: resolve via the picker, dispatch
      *  to the rig. */
     focusByPath(path: string): void {
       rig.focusSelection(picker.targetForPath(path));
+    },
+    /** View/debug read API — the only world surface consumers still touch. */
+    world: {
+      getRoot: () => cityState.manifest.value?.tree ?? null,
+      getManifest: () => cityState.manifest.value,
+      getTrees: () => trees.handle(),
+      getStreetByDir: (p: string) => streets.getStreetByDir(p),
+      runCollisionCheck,
+      runStemPlacementDiagnostic,
     },
   };
 }

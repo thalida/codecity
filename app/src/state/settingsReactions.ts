@@ -27,10 +27,8 @@ import type { Manifest } from '@/types';
 const HOT_REBUILD_MIN_DWELL_MS = 220;
 
 interface CommitReactionsOpts {
-  world: {
-    applyManifest(m: unknown): Promise<void>;
-    invalidateLayoutCache(): void;
-  };
+  applyManifest(m: unknown): Promise<void>;
+  invalidateLayoutCache(): void;
   applyTheme: () => void;
 }
 
@@ -44,7 +42,11 @@ interface CommitReactionsOpts {
 const REBUILD_SIGNATURE = computed(() => routeSignature(ChangeRoute.Rebuild));
 const REFRESH_SIGNATURE = computed(() => routeSignature(ChangeRoute.Refresh));
 
-export function attachCommitReactions({ world, applyTheme }: CommitReactionsOpts): () => void {
+export function attachCommitReactions({
+  applyManifest,
+  invalidateLayoutCache,
+  applyTheme,
+}: CommitReactionsOpts): () => void {
   // Effects fire synchronously on first call. Suppress reactions until all
   // subscriptions are wired so the initial fire doesn't trigger a rebuild.
   let armed = false;
@@ -60,7 +62,7 @@ export function attachCommitReactions({ world, applyTheme }: CommitReactionsOpts
       // so reuseLayoutFrom would skip the recompute and the change would
       // have no visible effect. Live-update polls never trigger scheduleRebuild
       // so they keep using the cache.
-      world.invalidateLayoutCache();
+      invalidateLayoutCache();
       // Re-apply the current MANIFEST (the fetch layer's source of truth) with
       // the new settings + invalidated layout cache. peek() — NOT .value — so
       // the rebuild effect tracks ONLY REBUILD_SIGNATURE; a tracked read would
@@ -68,7 +70,7 @@ export function attachCommitReactions({ world, applyTheme }: CommitReactionsOpts
       // render effect on every manifest change.
       const manifest = MANIFEST.peek();
       if (!isEmptyManifest(manifest)) {
-        await world.applyManifest(manifest as Manifest);
+        await applyManifest(manifest as Manifest);
       }
       REBUILD_STATUS.value = RebuildStatus.Idle;
       LAST_REBUILD_ERROR.value = null;

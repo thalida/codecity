@@ -22,12 +22,10 @@ describe('attachCommitReactions routing', () => {
     // non-empty manifest so the rebuild path actually calls applyManifest.
     setManifest({ tree: {} } as unknown as Manifest);
     detach = attachCommitReactions({
-      world: {
-        applyManifest: async () => {
-          manifestCalls++;
-        },
-        invalidateLayoutCache: () => {},
+      applyManifest: async () => {
+        manifestCalls++;
       },
+      invalidateLayoutCache: () => {},
       applyTheme: () => {
         themeCalls++;
       },

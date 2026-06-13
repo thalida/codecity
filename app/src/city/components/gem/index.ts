@@ -16,7 +16,6 @@ import { BLOOM } from '@/state/stores/settings/effects';
 import { NodeKind } from '@/types';
 import type { Street } from '@/types';
 import { disposeObject3D } from '@/city/utils/disposeObject3D';
-import { gemAnchorXZ } from './anchor';
 
 import type { FrameContext, SceneComponent, SceneContext } from '../../types';
 import { onSettings } from '../../utils/onSettings';
@@ -53,12 +52,8 @@ type GemEdges = THREE.LineSegments<THREE.BufferGeometry, THREE.LineBasicMaterial
 export interface Gem extends SceneComponent {
   /** Build (or rebuild) the inner gem for `street`; disposes the prior one. */
   rebuild(street: Street): void;
-  /** Floor anchor (y=0) of the gem, computed in rebuild(). Null pre-rebuild.
-   *  Forward interface for the city composer (Task 15); world.getGemWorldPos()
-   *  remains the consumed source until cameraRig/pathLine migrate. */
-  worldPos: THREE.Vector3 | null;
   /** The INNER gem group (bobbed / picked / handed to repoLabel). Null
-   *  pre-rebuild. Re-pointed by world.getRootGem(). NOT the outer `group`. */
+   *  pre-rebuild. The picker's getRootGem reads it. NOT the outer `group`. */
   gem: THREE.Group | null;
 }
 
@@ -75,7 +70,6 @@ export function createGem(ctx: SceneContext): Gem {
   let edges: GemEdges | null = null;
   let innerGlow: THREE.Sprite | null = null;
   let outerGlow: THREE.Sprite | null = null;
-  let worldPos: THREE.Vector3 | null = null;
 
   // Gem meshes don't share materials, so disposeObject3D's sharedMaterial
   // guard is a no-op here and each mesh's material disposes normally.
@@ -99,12 +93,6 @@ export function createGem(ctx: SceneContext): Gem {
     outerGlow = (inner?.userData.outerGlowSprite as THREE.Sprite | null) ?? null;
 
     if (inner) group.add(inner);
-
-    // Floor anchor (y=0) at the open (gem) end of the root street. The XZ
-    // anchor comes from gemAnchorXZ — the one source of this geometry, shared
-    // with the gem mesh, cityState.gemWorldPos, and tree placement.
-    const a = gemAnchorXZ(street);
-    worldPos = new THREE.Vector3(a.x, 0, a.y);
   }
 
   // Layout effect — the reactive rebuild entry point. Reads
@@ -247,9 +235,6 @@ export function createGem(ctx: SceneContext): Gem {
     rebuild,
     tick,
     dispose,
-    get worldPos() {
-      return worldPos;
-    },
     get gem() {
       return gem;
     },

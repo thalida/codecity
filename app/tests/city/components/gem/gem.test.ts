@@ -78,9 +78,6 @@ describe('createGem()', () => {
     expect(body.geometry.attributes.color).toBeDefined();
     // The inner gem is parented under the component's outer group.
     expect(gem.gem!.parent).toBe(gem.group);
-    // worldPos is the floor anchor (y=0) of the root street's origin cap.
-    expect(gem.worldPos).toBeInstanceOf(THREE.Vector3);
-    expect(gem.worldPos!.y).toBe(0);
   });
 
   it('rebuild disposes the prior inner gem and swaps in the new one', () => {

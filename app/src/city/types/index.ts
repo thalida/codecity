@@ -9,7 +9,8 @@ import type * as THREE from 'three';
 import type { Picker } from '../render/picker';
 import type { CameraRig } from '../render/cameraRig';
 import type { CityState } from '../state';
-import type { Manifest } from '@/types';
+import type { Trees } from '../components/trees/treeRenderer';
+import type { Manifest, DirNode, Street } from '@/types';
 
 /** Everything a scene component needs to wire itself into the scene at
  *  construction time (renderer, camera, raycaster/picker, per-city state). */
@@ -38,12 +39,26 @@ export interface SceneComponent {
   dispose(): void;
 }
 
-/** The top-level city object returned by the city composer. */
+/** View/debug read API exposed on City.world — the only world surface
+ *  consumers still touch (header/sidebar reads + the two debug diagnostics). */
+export interface CityWorld {
+  getRoot(): DirNode | null;
+  getManifest(): Manifest | null;
+  getTrees(): Trees | null;
+  getStreetByDir(path: string): Street | null;
+  runCollisionCheck(): void;
+  runStemPlacementDiagnostic(): void;
+}
+
+/** The top-level city object returned by the city composer (createCity). */
 export interface City {
   scene: THREE.Scene;
-  applyManifest(m: Manifest): Promise<void>;
-  dispose(): void;
   picker: Picker;
   rig: CameraRig;
+  resetView(): void;
+  applyTheme(): void;
+  applyManifest(m: Manifest): Promise<void>;
+  invalidateLayoutCache(): void;
   focusByPath(path: string): void;
+  world: CityWorld;
 }

@@ -19,11 +19,10 @@ import { armOnFirstTick } from '../../utils/armOnFirstTick';
 import { onSettings } from '../../utils/onSettings';
 import { createPathLineRenderer, type PathLineWorld } from './renderer';
 
-/** World closures the inner renderer consumes (threaded from the composer's
- *  worldAccessor — gemWorldPos is a `let` there; closures evaluate at call
- *  time). The shape
- *  is declared once in ./renderer (PathLineWorld); this is the public alias
- *  the door exposes. */
+/** World closures the inner renderer consumes (threaded from the composer;
+ *  closures evaluate at call time so they always see the live gem/streets).
+ *  The shape is declared once in ./renderer (PathLineWorld); this is the
+ *  public alias the door exposes. */
 export type PathLineDeps = PathLineWorld;
 
 /** Public contract for the pathLine component. */

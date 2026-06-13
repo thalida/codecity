@@ -46,8 +46,7 @@ import type { Building, PickTarget, Street } from '@/types';
 import type { CityState } from '@/city/state';
 
 /** Narrow accessor surface the rig needs from the composer. createCity
- *  (city/index.ts) passes its worldAccessor, which satisfies this
- *  structurally. */
+ *  (city/index.ts) passes a small deps literal that satisfies this. */
 export interface CameraRigDeps {
   getBbox(): THREE.Box3 | null;
   getGemWorldPos(): THREE.Vector3 | null;

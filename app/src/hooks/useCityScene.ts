@@ -34,11 +34,12 @@ export function useCityScene(canvasRef: RefObject<HTMLCanvasElement | null>): vo
       if (disposed) return;
       SCENE_HANDLE.value = handle;
       disposeReactions = attachCommitReactions({
-        world: handle.world,
+        applyManifest: handle.applyManifest,
+        invalidateLayoutCache: handle.invalidateLayoutCache,
         applyTheme: handle.applyTheme,
       });
 
-      // Apply MANIFEST → scene on every change. world.applyManifest owns its own
+      // Apply MANIFEST → scene on every change. applyManifest owns its own
       // skeleton→final tween + the Decorating→Idle status; this effect flips the
       // footer to Rebuilding before each apply (it always clears back to Idle
       // when applyManifest finishes — including the trees-off path) and surfaces
@@ -57,7 +58,7 @@ export function useCityScene(canvasRef: RefObject<HTMLCanvasElement | null>): vo
         // → no reframe; live-updates / settings rebuilds keep the same key → none.
         const cur = CURRENT_SOURCE_KEY.peek();
         const shouldReframe = cur !== null && cur !== lastSourceKey;
-        void handle.world.applyManifest(m).then(
+        void handle.applyManifest(m).then(
           () => {
             LAST_REBUILD_ERROR.value = null;
             if (shouldReframe) {
