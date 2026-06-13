@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import io
 import os
+import shutil
 import subprocess
 import threading
 import unittest
@@ -332,6 +333,30 @@ class EnsureCloneErrorRoutingTests(unittest.TestCase):
                 target.exists(),
                 "update-path failure removed the existing clone directory",
             )
+
+    def test_corrupt_existing_clone_self_heals(self) -> None:
+        with TemporaryDirectory() as td:
+            tmp = Path(td)
+            self._patch_cache(tmp)
+            remote, _ = _make_fake_remote(tmp)
+            url = str(remote)
+
+            # First clone populates the cache with a valid working tree.
+            target = ensure_clone(url)
+            self.assertTrue((target / "README.md").is_file())
+
+            # Corrupt it: drop .git so the next fetch fails with a NON-clean
+            # error ("not a git repository") — the classic wedged clone that
+            # fetch+reset can't repair (e.g. a clone interrupted mid-checkout).
+            shutil.rmtree(target / ".git")
+            self.assertFalse((target / ".git").exists())
+
+            # ensure_clone must discard the broken clone and re-clone fresh
+            # rather than surfacing the error or leaving it wedged.
+            healed = ensure_clone(url)
+            self.assertEqual(healed, target)
+            self.assertTrue((target / ".git").is_dir())
+            self.assertTrue((target / "README.md").is_file())
 
 
 class _SilentFakeProc:
