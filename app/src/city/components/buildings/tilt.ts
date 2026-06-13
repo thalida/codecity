@@ -9,7 +9,7 @@
 //   tiltAngle = mix(TILT_DEGREES.newest, TILT_DEGREES.oldest, createdAge) → rad
 //   theta     = seed × 2π   (seed = seedFromPath(file.path), in [0, 1))
 //
-// The shader path is fast and toggle-friendly (uTiltMaxRad goes to 0
+// The shader path is fast and toggle-friendly (uTiltRad goes to (0,0)
 // when BUILDINGS.TILT_ENABLED flips off). But the outline mesh and
 // the picker raycast both need the SAME shear on the CPU side — the
 // outline must visibly skew with the building, and click targets need
