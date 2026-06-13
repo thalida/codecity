@@ -4,12 +4,12 @@
 //
 //   manifest / layout — SOURCE signals, reassigned EVERY apply. layout carries
 //     fresh per-building dims; the dims-dependent components (buildings/footprint/
-//     trees) rebuild off it. latestWorldBounds is a source signal set on non-reuse
-//     (getWorldBounds reads WORLD; a `computed` would over-subscribe).
+//     trees) rebuild off it. treePlacements is a source signal trees writes.
 //   structureRevision / cityRevision / decorationRevision — change-notification
 //     counters; consumers track them and peek the data.
-//   bbox / sceneBbox / cityHeight / rootStreet / gemWorldPos — COMPUTED, never
-//     written. bbox = union of street rects + building footprints + footprint halo.
+//   bbox / sceneBbox / cityHeight / latestWorldBounds / rootStreet / gemWorldPos —
+//     COMPUTED, never written. bbox = union of street rects + building footprints
+//     + footprint halo.
 //
 // applyManifest + invalidateLayoutCache are defined here (the store owns its
 // transition); every scene component rebuilds reactively off the signals above.
@@ -67,7 +67,7 @@ export interface CityState {
   // The async manifest pipeline cityState owns: compute the layout off-thread,
   // then set the source signals (every component rebuilds reactively off them).
   applyManifest(newManifest: Manifest | { tree: unknown; [k: string]: unknown }): Promise<void>;
-  // Clears the private layout cache, forcing the next apply onto the non-reuse path.
+  // Forces the next apply onto the non-reuse path (rebuild for the same tree_signature).
   invalidateLayoutCache(): void;
 }
 
@@ -174,12 +174,17 @@ export function createCityState(layoutClient: ReturnType<typeof createLayoutClie
     return new THREE.Vector3(a.x, 0, a.y);
   });
 
-  // --- The manifest pipeline. Manifest-bound caches (layout cache + tree
-  // signatures + generation) are private here; generation gives supersession
-  // (a newer call wins, an older one bails at its post-await checks). ---
-  let cachedLayoutTreeSig: string | null = null;
-  let cachedLayout: CityLayout | null = null;
+  // --- The manifest pipeline. Private to this closure:
+  //   lastAtlasTreeSig — tree_sig the icon atlas was last SUCCESSFULLY built for
+  //     (lags the manifest if a build throws → retried next apply).
+  //   invalidated — one-shot "force the next apply onto the non-reuse path",
+  //     set by invalidateLayoutCache on a config Save.
+  //   generation — supersession: a newer call wins; an older one bails at its
+  //     post-await checks.
+  // There is no separate layout cache: the committed manifest + layout signals
+  // ARE the reuse source.
   let lastAtlasTreeSig: string | null = null;
+  let invalidated = false;
   let generation = 0;
 
   // Loosely typed: some tests pass mock manifests with string `type` fields
@@ -217,8 +222,13 @@ export function createCityState(layoutClient: ReturnType<typeof createLayoutClie
       }
     }
 
-    // Compute the layout off-thread; the reuse cache is keyed by treeSig.
-    const reuseFrom = treeSig && cachedLayoutTreeSig === treeSig ? cachedLayout : null;
+    // Reuse the committed layout's positions when the structure is unchanged
+    // (same tree_signature as the live manifest) and a config Save hasn't
+    // invalidated — the committed manifest + layout signals ARE the cache.
+    // `invalidated` is one-shot, consumed here.
+    const reuseFrom =
+      !invalidated && treeSig && treeSig === manifest.peek()?.tree_signature ? layout.peek() : null;
+    invalidated = false;
     let newLayout: CityLayout;
     // Full envelope, not `.tree` — the layout code unwraps it and the worker
     // contract stays typed against Manifest. 'superseded' = a newer apply took
@@ -229,17 +239,13 @@ export function createCityState(layoutClient: ReturnType<typeof createLayoutClie
       if (err instanceof Error && err.message === 'superseded') return;
       throw err;
     }
-    if (treeSig) {
-      cachedLayoutTreeSig = treeSig;
-      cachedLayout = newLayout;
-    }
     if (myGeneration !== generation) return;
 
     // One batch so the reactive consumers settle on a single change. manifest +
     // layout reassign every apply; structureRevision bumps ONLY on non-reuse
-    // (reuseFrom != null = a cache hit, identical positions → the structure-
-    // reactive consumers + the bbox computed stay frozen: the scenic skip).
-    // cityRevision bumps once so picker/pathLine/buildingFader re-derive together.
+    // (reuseFrom != null = same structure reused, identical positions → the
+    // structure-reactive consumers + the bbox computed stay frozen: the scenic
+    // skip). cityRevision bumps once so picker/pathLine/buildingFader re-derive.
     // layout is set before structureRevision so structure consumers peek it fresh.
     batch(() => {
       manifest.value = newManifestTyped;
@@ -253,10 +259,10 @@ export function createCityState(layoutClient: ReturnType<typeof createLayoutClie
   }
 
   // A config-only Save calls this before re-applying the same manifest, forcing
-  // the next apply onto the non-reuse path. Does NOT touch the signals.
+  // the next apply onto the non-reuse path (so the scenic effects rebuild even
+  // though the tree_signature is unchanged). Does NOT touch the signals.
   function invalidateLayoutCache(): void {
-    cachedLayoutTreeSig = null;
-    cachedLayout = null;
+    invalidated = true;
   }
 
   return {
