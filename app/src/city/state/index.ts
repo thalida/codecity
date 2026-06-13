@@ -3,17 +3,20 @@
 // Readers hold a signal and read .value; writers set .value; the signal
 // reference is never reassigned.
 //
-//   manifest / layout / bbox / latestWorldBounds — SOURCE signals; applyManifest
-//     sets .value. (bbox is computed imperatively from the built street group +
-//     building footprints + footprint halo, NOT pure off layout. latestWorldBounds
-//     derives via getWorldBounds, which reads WORLD.value; making it `computed`
-//     would subscribe to WORLD, so it stays a source signal set imperatively.)
-//   rootStreet / gemWorldPos — COMPUTED off layout; never written. rootStreet is
-//     the first isRoot street; gemWorldPos is its gem anchor (orientation-aware).
+//   manifest / layout / layoutStructure — SOURCE signals; applyManifest sets
+//     .value. latestWorldBounds is a source signal set on non-reuse (it derives
+//     via getWorldBounds, which reads WORLD; a `computed` would over-subscribe).
+//   bbox / sceneBbox / cityHeight / rootStreet / gemWorldPos — COMPUTED, never
+//     written. bbox is the union of street rects + building footprints + the
+//     footprint halo, off layoutStructure (so it's frozen on a reuse apply, like
+//     the framing was; the computed's memoization is the scenic-skip). rootStreet
+//     is the first isRoot street; gemWorldPos is its gem anchor.
 import { signal, computed, type Signal, type ReadonlySignal } from '@preact/signals';
 import * as THREE from 'three';
+import { FOOTPRINT } from '@/state/stores/settings/footprint';
 import type { CityBbox, CityLayout, Manifest, Street } from '@/types';
 import type { WorldBounds } from '../utils/floorBounds';
+import { rectOfStreet } from '@/city/layout/rect';
 import type { TreePlacement } from '../components/trees/treePlacement';
 import { gemAnchorXZ } from '@/city/components/gem/anchor';
 
@@ -25,7 +28,9 @@ export interface CityState {
   // Positions only, reassigned ONLY on a non-reuse apply — its ref-stability on
   // reuse is the scenic-skip for the structure-reactive components.
   layoutStructure: Signal<CityLayout | null>;
-  bbox: Signal<THREE.Box3 | null>;
+  // World bbox (street rects + building footprints + footprint halo), off
+  // layoutStructure → frozen on a reuse apply; the cameraRig framing tracks it.
+  readonly bbox: ReadonlySignal<THREE.Box3 | null>;
   // Placement-space view of bbox (CityLayout's XY = world XZ); for tree placement.
   readonly sceneBbox: ReadonlySignal<CityBbox | null>;
   // City vertical extent (bbox.max.y - min.y); feeds worldBounds.
@@ -55,11 +60,54 @@ export function createCityState(): CityState {
   const manifest = signal<Manifest | null>(null);
   const layout = signal<CityLayout | null>(null);
   const layoutStructure = signal<CityLayout | null>(null);
-  const bbox = signal<THREE.Box3 | null>(null);
   const latestWorldBounds = signal<WorldBounds | null>(null);
   const treePlacements = signal<TreePlacement[] | null>(null);
   const cityRevision = signal(0);
   const decorationRevision = signal(0);
+
+  // Footprint halo width in world units, or 0 when the halo is off. Dedupes to a
+  // number so bbox (below) re-fires only when the halo actually changes — not on
+  // every FOOTPRINT change (e.g. COLOR), which would spuriously reframe/refit.
+  const footprintHalo = computed<number>(() => {
+    const f = FOOTPRINT.value;
+    return f.ENABLED && f.HALO_WIDTH > 0 ? f.HALO_WIDTH : 0;
+  });
+
+  // World bbox off layoutStructure (frozen on reuse → cameraRig/island skip via
+  // the computed's memoization). Street-rect bounds == the built street group's
+  // bounds (sidewalk stadium reaches exactly ±length/2, ±width/2), so this
+  // reproduces the old setFromObject(streets.group) result without reading meshes.
+  const bbox = computed<THREE.Box3 | null>(() => {
+    const l = layoutStructure.value;
+    if (!l) return null;
+    const box = new THREE.Box3();
+    for (const s of l.streets) {
+      const r = rectOfStreet(s);
+      box.expandByPoint(new THREE.Vector3(r.x - r.w / 2, 0, r.y - r.d / 2));
+      box.expandByPoint(new THREE.Vector3(r.x + r.w / 2, 0, r.y + r.d / 2));
+    }
+    // Empty fallback (no streets) — matches the old NaN-guard, applied BEFORE the
+    // building expansion so a building-only layout still gets the floor box.
+    if (box.isEmpty()) {
+      box.set(new THREE.Vector3(-50, 0, -50), new THREE.Vector3(50, 10, 50));
+    }
+    // Buildings render via a separate instanced mesh — expand to each footprint
+    // + Y height so framing covers the FULL visible city.
+    for (const b of l.buildings) {
+      box.expandByPoint(new THREE.Vector3(b.x - b.w / 2, 0, b.y - b.d / 2));
+      box.expandByPoint(new THREE.Vector3(b.x + b.w / 2, b.h, b.y + b.d / 2));
+    }
+    // Expand XZ by the halo so the bbox covers the asphalt slab wrapping the city
+    // (footprint rects are inflated by HALO_WIDTH). Y stays bounded by height.
+    const halo = footprintHalo.value;
+    if (halo > 0) {
+      box.min.x -= halo;
+      box.min.z -= halo;
+      box.max.x += halo;
+      box.max.z += halo;
+    }
+    return box;
+  });
 
   // Placement-space view of the world bbox (CityLayout's XY axis == world XZ).
   const sceneBbox = computed<CityBbox | null>(() => {

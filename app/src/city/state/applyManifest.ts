@@ -28,7 +28,6 @@ import type { Island } from '../components/island';
 import { getWorldBounds } from '../utils/floorBounds';
 import type { Footprint } from '../components/footprint';
 import type { CityState } from './index';
-import { FOOTPRINT } from '@/state/stores/settings/footprint';
 import { SCENE } from '@/state/stores/settings/scene';
 import type { CityLayout, Manifest } from '@/types';
 
@@ -78,11 +77,10 @@ export interface ApplyManifestApi {
 
 export function createApplyManifest(deps: ApplyManifestDeps): ApplyManifestApi {
   const { components, scene, layoutClient, cityState } = deps;
-  // All scene components now rebuild reactively off cityState signals. Two refs
-  // remain: _buildings (to push the icon atlas in BEFORE the layout signal fires,
-  // so the reactive buildings rebuild bakes the right roof UVs) and _streets (to
-  // read its rebuilt group for the bbox below).
-  const { streets: _streets, buildings: _buildings } = components;
+  // All scene components now rebuild reactively off cityState signals. One ref
+  // remains: _buildings, only to push the icon atlas in BEFORE the layout signal
+  // fires (so the reactive buildings rebuild bakes the right roof UVs).
+  const { buildings: _buildings } = components;
 
   const internal: InternalCityState = {
     cachedLayoutTreeSig: null,
@@ -170,46 +168,14 @@ export function createApplyManifest(deps: ApplyManifestDeps): ApplyManifestApi {
       cityState.cityRevision.value++;
     });
 
+    // bbox (+ sceneBbox/cityHeight) is now a computed off layoutStructure, so it
+    // updates itself when the batch above reassigns layoutStructure (non-reuse)
+    // and stays cached on reuse — no imperative bbox write here. Only the two
+    // non-reactive non-reuse effects remain: the sky-color background and
+    // latestWorldBounds (a source signal because getWorldBounds reads WORLD; on
+    // reuse the stable bbox keeps the island from re-fitting).
     if (!reused) {
-      // _streets.group is populated by the reactive streets effect at batch-close.
-      // bbox over the street meshes ONLY — not setFromObject(scene), which would
-      // fold in sky/island/gem/footprint. Empty fallback avoids NaN at boot.
-      const bbox = new THREE.Box3().setFromObject(_streets.group);
-      if (bbox.isEmpty()) {
-        bbox.set(new THREE.Vector3(-50, 0, -50), new THREE.Vector3(50, 10, 50));
-      }
-      // Buildings render via a separate instanced mesh (not in _streets.group),
-      // so expand to each building's XZ footprint + Y height — downstream framing
-      // needs the FULL visible city.
-      for (const b of newLayout.buildings) {
-        bbox.expandByPoint(new THREE.Vector3(b.x - b.w / 2, 0, b.y - b.d / 2));
-        bbox.expandByPoint(new THREE.Vector3(b.x + b.w / 2, b.h, b.y + b.d / 2));
-      }
-      // Expand XZ by the footprint halo so the bbox covers the asphalt slab
-      // wrapping the city (layout rects are inflated by HALO_WIDTH). Y stays
-      // bounded by building height so cityHeight isn't inflated.
-      const footprintCfg = FOOTPRINT.value;
-      if (footprintCfg.ENABLED && footprintCfg.HALO_WIDTH > 0) {
-        const halo = footprintCfg.HALO_WIDTH;
-        bbox.min.x -= halo;
-        bbox.min.z -= halo;
-        bbox.max.x += halo;
-        bbox.max.z += halo;
-      }
-      cityState.bbox.value = bbox;
-
       scene.background = new THREE.Color(SCENE.value.SKY_COLOR);
-    }
-    // On reuse: bbox + latestWorldBounds (below, also reuse-gated) stay from the
-    // last non-reuse apply (same positions), so the island/camera effects don't
-    // re-fire.
-
-    // latestWorldBounds drives the island. Reassign only on non-reuse (the island
-    // effect re-fires); on reuse the reference stays stable (no resize flash).
-    // getWorldBounds falls back to a small origin default when there's no city.
-    // (Trees/fireflies + REBUILD_STATUS now live in the trees component's own
-    // reactive deferred pass, keyed off the signals set in the batch above.)
-    if (!reused) {
       cityState.latestWorldBounds.value = getWorldBounds(
         cityState.sceneBbox.value,
         cityState.cityHeight.value

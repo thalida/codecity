@@ -5,7 +5,6 @@
 // orientation-aware gem anchor math for BOTH axes and the null cases.
 
 import { describe, it, expect } from 'vitest';
-import * as THREE from 'three';
 import { StreetAxis, NodeKind } from '@/types';
 import type { CityLayout, Street } from '@/types';
 import { createCityState } from '@/city/state';
@@ -43,16 +42,27 @@ describe('createCityState', () => {
     const cs = createCityState();
     expect(cs.manifest.value).toBeNull();
     expect(cs.layout.value).toBeNull();
-    expect(cs.bbox.value).toBeNull();
+    expect(cs.bbox.value).toBeNull(); // computed off layoutStructure, null when unset
     expect(cs.latestWorldBounds.value).toBeNull();
 
-    const box = new THREE.Box3();
-    cs.bbox.value = box;
     cs.layout.value = makeLayout([]);
     cs.manifest.value = { tree: { name: 'x' } } as never;
-    expect(cs.bbox.value).toBe(box); // value-identity: exact instance
     expect(cs.layout.value?.streets).toEqual([]);
     expect(cs.manifest.value).not.toBeNull();
+  });
+
+  it('bbox computes from layoutStructure and memoizes on a stable reference', () => {
+    const cs = createCityState();
+    expect(cs.bbox.value).toBeNull(); // null until layoutStructure is set
+    cs.layoutStructure.value = makeLayout([]); // no streets/buildings → fallback box
+    const box = cs.bbox.value;
+    expect(box).not.toBeNull();
+    // Memoized: re-reading without a layoutStructure change (= a reuse apply)
+    // returns the SAME Box3 reference — this is the scenic-skip for cameraRig.
+    expect(cs.bbox.value).toBe(box);
+    // A new structure reference recomputes a fresh box.
+    cs.layoutStructure.value = makeLayout([]);
+    expect(cs.bbox.value).not.toBe(box);
   });
 
   it('rootStreet computes the first isRoot street, null when none', () => {
