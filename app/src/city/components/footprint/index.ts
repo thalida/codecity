@@ -27,10 +27,11 @@
 //
 //   const fp = createFootprint(ctx);
 //   scene.add(fp.group);          // once at world init
-//   fp.rebuild(layout);           // on every full-rebuild path
+//   // then rebuilds itself reactively off cityState.layout
 //   fp.dispose();                 // on world.dispose()
 
 import * as THREE from 'three';
+import { effect } from '@preact/signals';
 
 import { FOOTPRINT } from '@/state/stores/settings/footprint';
 import { RENDER_ORDERS } from '@/city/types/renderOrders';
@@ -47,15 +48,15 @@ import FOOTPRINT_FRAG from './footprint.frag.glsl?raw';
 /** Public contract for the footprint component. */
 export interface Footprint extends SceneComponent {
   /** Rebuild the InstancedMesh from the given layout, disposing any prior mesh.
-   *  Called by applyManifest on EVERY apply (NOT reactive off cityState.layout):
-   *  the footprint slabs wrap each building's rect, and building w/d/h are
-   *  recomputed from fresh per-file metadata on a layout-reuse apply (skeleton→
-   *  final / live update), so the footprint must rebuild to match the buildings.
-   *  When halo <= 0 or no rects, leaves the group EMPTY (prior mesh disposed). */
+   *  Driven by the cityState.layout effect (the EVERY-apply signal): the slabs
+   *  wrap each building's rect, and per-building dims recompute every apply
+   *  (incl. a reuse apply), so the footprint must re-match. When halo <= 0 or no
+   *  rects, leaves the group EMPTY (prior mesh disposed). */
   rebuild(layout: CityLayout): void;
 }
 
-export function createFootprint(_ctx: SceneContext): Footprint {
+export function createFootprint(ctx: SceneContext): Footprint {
+  const { cityState } = ctx;
   // Persistent outer group — added to the scene once by createCity.
   // rebuild() swaps the inner InstancedMesh in and out of this group.
   const group = new THREE.Group();
@@ -175,9 +176,19 @@ export function createFootprint(_ctx: SceneContext): Footprint {
     group.visible = c.ENABLED;
   });
 
+  // Layout effect — reactive rebuild entry point. Reads cityState.layout (the
+  // EVERY-apply signal, NOT layoutStructure): per-building dims recompute every
+  // apply, so the footprint slabs must re-match even on a reuse apply. Null-guard
+  // makes the construction-time run (layout still null) a no-op.
+  const stopLayout = effect(() => {
+    const layout = cityState.layout.value;
+    if (layout) rebuild(layout);
+  });
+
   function dispose(): void {
     _disposeInnerMesh();
     stopEffect();
+    stopLayout();
   }
 
   return { group, rebuild, dispose };

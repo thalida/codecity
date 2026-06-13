@@ -82,13 +82,11 @@ export interface ApplyManifestApi {
 
 export function createApplyManifest(deps: ApplyManifestDeps): ApplyManifestApi {
   const { components, scene, layoutClient, treePlacementClient, cityState } = deps;
-  // gem/island/repoLabel/streets rebuild reactively off cityState signals, so
-  // they aren't driven from here. These five are: buildings/footprint must
-  // rebuild even on a layout-reuse apply (dims change), and buildings/trees/
-  // fireflies are async/deferred. _streets is grabbed only to read its
-  // freshly-rebuilt group for the bbox.
+  // gem/island/repoLabel/streets/footprint rebuild reactively off cityState
+  // signals, so they aren't driven from here. The rest are imperative:
+  // buildings/trees/fireflies are async/deferred. _streets is grabbed only to
+  // read its freshly-rebuilt group for the bbox.
   const {
-    footprint: _footprint,
     streets: _streets,
     buildings: _buildings,
     trees: _trees,
@@ -259,12 +257,6 @@ export function createApplyManifest(deps: ApplyManifestDeps): ApplyManifestApi {
     // getWorldBounds falls back to a small origin default when there's no city.
     if (!reused) {
       cityState.latestWorldBounds.value = getWorldBounds(sceneBbox, cityHeight);
-    }
-
-    if (bbox) {
-      // Footprint rebuilds every apply (NOT reactive): building dims recompute
-      // even on a reuse apply, so the slabs must re-match. Cheap — no defer.
-      _footprint.rebuild(newLayout);
     }
 
     if (treesEnabled && bbox && sceneBbox) {

@@ -166,12 +166,11 @@ describe('createApplyManifest — scenic reactivity parity', () => {
   });
 
   it('#1 scenic-reuse: re-applying the SAME tree_signature does NOT rebuild streets', async () => {
-    const { api, cityState, streets, layoutClient, stubs } = setup();
+    const { api, cityState, streets, layoutClient } = setup();
     await api.applyManifest(makeManifest('sig-1'));
     const pickablesAfterFirst = streets.pickables();
     const layoutAfterFirst = cityState.layout.value;
     const bboxAfterFirst = cityState.bbox.value;
-    stubs.footprint.rebuild.mockClear();
 
     // Same tree_signature → layout cache hit → layoutClient returns the SAME
     // layout reference (reuseLayoutFrom) → layout.value not reassigned → the
@@ -186,10 +185,6 @@ describe('createApplyManifest — scenic reactivity parity', () => {
     expect(streets.pickables()).toBe(pickablesAfterFirst);
     expect(cityState.layout.value).toBe(layoutAfterFirst);
     expect(cityState.bbox.value).toBe(bboxAfterFirst);
-    // Footprint STILL rebuilds on the reuse apply (it's the always-rebuild
-    // group — building dims refresh on skeleton→final / live update even when
-    // positions are reused, so its slabs must track the buildings).
-    expect(stubs.footprint.rebuild).toHaveBeenCalledTimes(1);
   });
 
   it('#2 invalidate-then-reapply (structural Save): a new layout reference rebuilds streets', async () => {

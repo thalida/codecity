@@ -13,18 +13,21 @@ import { StreetAxis } from '@/types';
 import type { CityLayout } from '@/types';
 import type { Picker } from '@/city/interaction/picker';
 import type { SceneContext } from '@/city/types';
+import { createCityState } from '@/city/state';
 
 function resetFootprint() {
   FOOTPRINT.value = { ENABLED: true, HALO_WIDTH: 32, CORNER_RADIUS: 1.25, COLOR: '#0a0b0f' };
 }
 
-// The footprint uses nothing from ctx at construction; a minimal stub suffices.
+// footprint reads ctx.cityState for its layout effect; layout stays null here
+// (effect no-ops) and tests drive rebuild() directly.
 function makeCtx(): SceneContext {
   return {
     scene: new THREE.Scene(),
     picker: null as unknown as Picker,
     camera: null as unknown as THREE.PerspectiveCamera,
     renderer: null as unknown as THREE.WebGLRenderer,
+    cityState: createCityState(),
   } as unknown as SceneContext;
 }
 
