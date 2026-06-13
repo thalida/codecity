@@ -24,7 +24,6 @@ import { gemAnchorXZ } from '@/city/components/gem/anchor';
 import { buildIconAtlas } from '../components/buildings/atlas';
 import { setIconAtlas } from '../components/buildings/material';
 import { setCellIconAtlas } from '../components/buildings/cellMesh';
-import { labelFromManifest } from '@/utils/sources';
 import type { createLayoutClient } from '../layout';
 
 export interface CityState {
@@ -189,13 +188,6 @@ export function createCityState(layoutClient: ReturnType<typeof createLayoutClie
 
   async function applyManifest(newManifest: Manifest): Promise<void> {
     const myGeneration = ++generation;
-
-    // Rewrite tree.name to the friendly label BEFORE building so every downstream
-    // consumer (labels, footer, title) shows it instead of the cache-dir hash.
-    const friendlyName = labelFromManifest(newManifest);
-    if (newManifest.tree && friendlyName) {
-      newManifest.tree.name = friendlyName;
-    }
 
     // Structure-only tree_signature (paths + nesting, NO mtime/size — stable
     // across skeleton/final for one scan). Gates BOTH the icon atlas rebuild and

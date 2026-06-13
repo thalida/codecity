@@ -45,7 +45,7 @@ import {
   LAST_REBUILD_ERROR,
 } from '@/state/stores/manifest';
 import { SCAN_PROGRESS } from '@/state/stores/scanProgress';
-import { srcKind, labelFromUrl, SourceKind } from '@/utils/sources';
+import { srcKind, labelFromSource, SourceKind } from '@/utils/sources';
 import { isEmptyManifest } from '@/utils/manifest';
 import { URL_PARAMS } from '@/constants/urlParams';
 import type { Manifest } from '@/types';
@@ -81,7 +81,7 @@ async function pumpManifestStream(
       // the project name isn't duplicated into the overlay store. Idempotent:
       // @preact/signals dedupes same-value writes and display_root is stable
       // per load, so no need to guard against repeat events.
-      PENDING_SOURCE_LABEL.value = labelFromUrl(event.display_root) ?? null;
+      PENDING_SOURCE_LABEL.value = labelFromSource(event.display_root) ?? null;
     }
 
     if (event.phase === ScanPhase.CloneProgress || event.phase === ScanPhase.ScanProgress) {
@@ -115,7 +115,7 @@ async function pumpManifestStream(
 async function loadSource(payload: SourcePayload): Promise<void> {
   const meta = {
     kind: srcKind(payload.src),
-    label: labelFromUrl(payload.src) ?? payload.src,
+    label: labelFromSource(payload.src) ?? payload.src,
     branch: payload.branch,
   };
   SCAN_PROGRESS.value = { ...meta, phase: null }; // show overlay immediately

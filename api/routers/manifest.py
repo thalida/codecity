@@ -45,11 +45,24 @@ from api.services.scan import ScanCancelledError, scan_tree, signature_tree
 from api.services.source import (
     ResolveError,
     classify,
+    display_name_for_manifest,
     resolve_local,
     resolve_source,
 )
 
 router = APIRouter(prefix="/api", tags=["manifest"])
+
+
+def _apply_display_name(m: dict[str, Any]) -> None:
+    """Overlay the friendly repo name onto the manifest's root tree.name at serve
+    time (like display_root below), so every consumer reads one authoritative
+    label rather than the cache-dir basename a cloned root carries."""
+    tree = m.get("tree")
+    if tree:
+        label = display_name_for_manifest(m)
+        if label:
+            tree["name"] = label
+
 
 logger = logging.getLogger("codecity.manifest")
 
@@ -228,6 +241,7 @@ async def manifest(
                     if cached is not None:
                         if kind == "git":
                             cached["display_root"] = display
+                        _apply_display_name(cached)
                         _put(_sse("manifest-complete", {"manifest": cached}))
                         return
 
@@ -242,6 +256,7 @@ async def manifest(
                     m = ev["manifest"]
                     if kind == "git":
                         m["display_root"] = display
+                    _apply_display_name(m)
                     if phase == "manifest-complete":
                         holder["manifest"] = m
                     _put(_sse(phase, {"manifest": m}))

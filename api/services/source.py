@@ -13,7 +13,7 @@ import re
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Literal
+from typing import Any, Literal
 
 from api.config import local_repos_allowed
 from api.security import TRUST
@@ -70,6 +70,39 @@ def classify(raw: str) -> Literal["local", "git", "invalid"]:
     if "://" in raw or _GIT_SSH_FORM.match(raw):
         return "git"
     return "invalid"
+
+
+def label_from_source(src: str | None) -> str | None:
+    """Display label for a source string — a git URL OR a local path.
+
+    Git URL → "owner/repo" (last two path segments, sans .git). Local path →
+    its basename. An optional trailing "@branch" is stripped first. The single
+    source of truth for the repo's display name, shared with display_name_for_manifest.
+    """
+    if not src:
+        return None
+    no_branch = re.sub(r"@[^@/]+$", "", src)  # strip a trailing @branch
+    if "://" in no_branch or _GIT_SSH_FORM.match(no_branch):
+        m = re.search(r"[/:]([^/]+)/([^/]+?)(?:\.git)?$", no_branch)
+        return f"{m.group(1)}/{m.group(2)}" if m else no_branch
+    parts = [p for p in re.split(r"[/\\]", no_branch) if p]  # local path → basename
+    return parts[-1] if parts else no_branch
+
+
+def display_name_for_manifest(manifest: dict[str, Any]) -> str | None:
+    """The repo's friendly display name, from the manifest's own fields:
+    display_root, then repo.remote_url, then the raw tree name as a fallback.
+    Set server-side onto tree.name so every consumer reads one authoritative
+    label instead of the cache-dir basename a cloned repo's root carries."""
+    if not manifest:
+        return None
+    display_root = manifest.get("display_root")
+    if display_root and (label := label_from_source(display_root)):
+        return label
+    remote_url = (manifest.get("repo") or {}).get("remote_url")
+    if remote_url and (label := label_from_source(remote_url)):
+        return label
+    return (manifest.get("tree") or {}).get("name")
 
 
 def _is_git_working_tree(path: Path) -> bool:

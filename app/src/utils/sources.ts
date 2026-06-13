@@ -1,16 +1,15 @@
 // utils/sources.ts — Source URL helpers: classification (git vs local),
-// canonicalisation (SSH → HTTPS), and label derivation (URL/path → human
-// label, manifest → label).
+// canonicalisation (SSH → HTTPS), and label derivation (URL/path → human label).
 //
 // Public surface:
 //   - srcKind(src)               — SourceKind (Git | Local) discriminator.
 //   - toHttpsRepoUrl(src)        — canonical https URL from any repo URL form.
 //   - repoUrlForBranch(url, ref) — forge URL pointing at a branch tree.
-//   - labelFromUrl(src)          — pure URL/path → "owner/repo" or basename.
-//   - labelFromManifest(m)       — manifest-aware: display_root, remote_url,
-//                                  or tree.name fallback.
-
-import type { Manifest } from '@/types/manifest';
+//   - labelFromSource(src)       — a git URL OR a local path → "owner/repo" or
+//                                  basename, for labelling a PENDING source
+//                                  before its manifest loads. The manifest's own
+//                                  tree.name is normalized server-side, so there
+//                                  is no manifest→label helper here.
 
 /** What kind of thing a source string points at: a remote git URL or an
  *  on-disk local path. The string values are the wire/persisted form. */
@@ -78,7 +77,7 @@ export function repoUrlForBranch(repoHttpsUrl: string, branch: string): string {
  * Strips an optional `@branch` suffix the server appends for git sources
  * before parsing.
  */
-export function labelFromUrl(src: string | null | undefined): string | null {
+export function labelFromSource(src: string | null | undefined): string | null {
   if (!src) return null;
   // Strip optional @branch suffix before analysing the URL/path.
   const noBranch = src.replace(/@[^@/]+$/, '');
@@ -91,32 +90,6 @@ export function labelFromUrl(src: string | null | undefined): string | null {
   // Local path: basename.
   const parts = noBranch.split(/[/\\]/).filter(Boolean);
   return parts.length ? parts[parts.length - 1] : noBranch;
-}
-
-/**
- * Derive a short, human-friendly label for a manifest.
- *
- * Source preference, in order:
- *   1. `manifest.display_root` — set by the API for git-URL-synced sources
- *      (carries an optional `@branch` suffix that is stripped before parsing).
- *   2. `manifest.repo.remote_url` — set for any local repo whose working
- *      tree has a remote configured, so that a local clone of
- *      github.com/foo/bar still labels as "foo/bar" instead of the on-disk
- *      basename.
- *   3. `manifest.tree.name` — the raw tree name (basename) when no URL signal
- *      is available (e.g. a local repo with no remote).
- */
-export function labelFromManifest(m: Manifest | null | undefined): string | null {
-  if (!m) return null;
-  if (m.display_root) {
-    const fromDisplay = labelFromUrl(m.display_root);
-    if (fromDisplay) return fromDisplay;
-  }
-  if (m.repo?.remote_url) {
-    const fromRemote = labelFromUrl(m.repo.remote_url);
-    if (fromRemote) return fromRemote;
-  }
-  return m.tree?.name ?? null;
 }
 
 /**
