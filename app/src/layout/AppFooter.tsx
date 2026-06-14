@@ -14,6 +14,7 @@
 //
 // The refresh/reset-view button has moved to the header (far right).
 
+import './AppFooter.css';
 import { useSignal } from '@preact/signals';
 import { useEffect } from 'preact/hooks';
 import { NodeKind } from '@/types';
