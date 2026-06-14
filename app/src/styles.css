@@ -424,6 +424,7 @@ h6 {
    horizontal padding so depth-0 entries line up under pane titles.
 
    Variants:
+     .row--tight     — collapses the chevron/icon/label gap (tree rows).
      .row--bleed     — negative inline margins so the hover background
                        extends to the pane edge.
      .row--selected  — accent-tinted "selected" background (used by tree).
@@ -2782,6 +2783,9 @@ canvas {
   align-items: center;
   gap: var(--cc-space-2);
 }
+/* Recent button — composes the .row base for the flex/cursor shell; adds the
+   recents-specific size (looser gap, symmetric padding, medium radius) plus the
+   <button> reset and the flex-fill within .recent-item. */
 .recent-row {
   flex: 1 1 auto;
   min-width: 0;
@@ -2789,17 +2793,14 @@ canvas {
   background: none;
   border: none;
   text-align: left;
-  display: flex;
-  align-items: center;
-  gap: var(--cc-space-5);
-  padding: var(--cc-space-3) var(--cc-space-4); /* 6px 8px — symmetric */
-  border-radius: var(--cc-radius-md);
-  cursor: pointer;
   color: inherit;
   font: inherit;
+  gap: var(--cc-space-5); /* 10px (base row gap is 4px) */
+  padding: var(--cc-space-3) var(--cc-space-4); /* 6px 8px (base is 4px 16px) */
+  border-radius: var(--cc-radius-md); /* base row radius is sm */
 }
 .recent-row:hover {
-  background: var(--cc-overlay-bg);
+  background: var(--cc-overlay-bg); /* a touch stronger than the base soft hover */
 }
 .recent-row-body {
   flex: 1 1 auto;

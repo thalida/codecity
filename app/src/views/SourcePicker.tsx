@@ -261,7 +261,7 @@ export function SourcePickerModal({ state, onSubmit, onClose }: SourcePickerModa
                   ? 'Local repos are disabled. Restart codecity with CODECITY_ALLOW_LOCAL_REPOS=1 to load this.'
                   : '';
                 const rowClasses = [
-                  'recent-row',
+                  'row recent-row',
                   isActive && 'recent-row--active',
                   isDisabled && 'recent-row--disabled',
                 ]
