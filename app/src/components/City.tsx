@@ -10,7 +10,7 @@
 import { useRef, useEffect } from 'preact/hooks';
 import { effect } from '@preact/signals';
 import { createCity } from '@/city';
-import { attachCommitReactions } from '@/state/settingsReactions';
+import { attachSettingsReactions } from '@/state/settingsReactions';
 import { SCENE_HANDLE } from '@/state/stores/scene';
 import {
   MANIFEST,
@@ -45,7 +45,7 @@ export function City() {
       }
       city = handle;
       SCENE_HANDLE.value = handle;
-      disposeReactions = attachCommitReactions({
+      disposeReactions = attachSettingsReactions({
         applyManifest: handle.applyManifest,
         invalidateLayoutCache: handle.invalidateLayoutCache,
       });

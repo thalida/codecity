@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { attachCommitReactions } from '@/state/settingsReactions';
+import { attachSettingsReactions } from '@/state/settingsReactions';
 import { setManifest, REBUILD_STATUS, RebuildStatus } from '@/state/stores/manifest';
 import { EMPTY_MANIFEST } from '@/constants/manifest';
 import { TREES } from '@/state/stores/settings/trees';
@@ -11,7 +11,7 @@ import type { Manifest } from '@/types';
 // — the actual refresh is reactive via component/postFx effects); a "live" key
 // (read per-frame, e.g. gem animation) → neither.
 
-describe('attachCommitReactions routing', () => {
+describe('attachSettingsReactions routing', () => {
   let detach: () => void;
   let manifestCalls: number;
 
@@ -21,7 +21,7 @@ describe('attachCommitReactions routing', () => {
     // scheduleRebuild reads MANIFEST (the source of truth) via peek(); seed a
     // non-empty manifest so the rebuild path actually calls applyManifest.
     setManifest({ tree: {} } as unknown as Manifest);
-    detach = attachCommitReactions({
+    detach = attachSettingsReactions({
       applyManifest: async () => {
         manifestCalls++;
       },

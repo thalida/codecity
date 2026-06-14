@@ -72,7 +72,7 @@ export function createFireflies(ctx: SceneContext): FirefliesComponent {
 
   // FIREFLIES theme effect — reacts to FIREFLIES Save (BOB/PULSE/EMISSION/
   // FLICKER/ORBIT_SPEED uniforms). Structural keys (ENABLED, SCALE_MIN/MAX,
-  // ORBIT_RING_*) remain Rebuild-routed via configCommitReactions →
+  // ORBIT_RING_*) remain Rebuild-routed via attachSettingsReactions →
   // applyManifest → rebuild(). Safe at construction: reads only FIREFLIES
   // signals.
   const stopTheme = effect(() => {

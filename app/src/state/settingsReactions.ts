@@ -32,7 +32,7 @@ import type { Manifest } from '@/types';
 // Min-dwell for the 'rebuilding' indicator on the material-only path.
 const HOT_REBUILD_MIN_DWELL_MS = 220;
 
-interface CommitReactionsOpts {
+interface SettingsReactionsOpts {
   applyManifest(m: unknown): Promise<void>;
   invalidateLayoutCache(): void;
 }
@@ -47,10 +47,10 @@ interface CommitReactionsOpts {
 const REBUILD_SIGNATURE = computed(() => routeSignature(ChangeRoute.Rebuild));
 const REFRESH_SIGNATURE = computed(() => routeSignature(ChangeRoute.Refresh));
 
-export function attachCommitReactions({
+export function attachSettingsReactions({
   applyManifest,
   invalidateLayoutCache,
-}: CommitReactionsOpts): () => void {
+}: SettingsReactionsOpts): () => void {
   // Effects fire synchronously on first call. Suppress reactions until all
   // subscriptions are wired so the initial fire doesn't trigger a rebuild.
   let armed = false;
