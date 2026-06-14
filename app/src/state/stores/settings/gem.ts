@@ -184,7 +184,7 @@ const GEM_FIELDS = {
     max: 5.0,
     step: 0.1,
     label: 'Emission (bloom)',
-    tip: "Multiplier on the halo sprite colors. Gated on Effects > Bloom > Enabled. 0 = halos black (invisible); 1 = LDR (no bloom from gem); higher = HDR push that drives selective bloom on the gem.",
+    tip: 'Multiplier on the halo sprite colors. Gated on Effects > Bloom > Enabled. 0 = halos black (invisible); 1 = LDR (no bloom from gem); higher = HDR push that drives selective bloom on the gem.',
   },
 
   // ── Animation ──

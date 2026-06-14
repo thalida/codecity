@@ -93,7 +93,8 @@ export function createFireflies(ctx: SceneContext): FirefliesComponent {
   // treePlacements republish (applyManifest → trees rebuild).
   const stopPlacements = effect(() => {
     const placements = cityState.treePlacements.value;
-    if (placements) untracked(() => rebuild(placements, cityState.manifest.peek()?.commits ?? null));
+    if (placements)
+      untracked(() => rebuild(placements, cityState.manifest.peek()?.commits ?? null));
     else clear();
   });
 

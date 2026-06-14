@@ -1,9 +1,7 @@
-// treeRenderer.test.ts — verifies createTreeRenderer() produces one
-// InstancedMesh per non-empty canopy detail level plus a shared trunk
-// mesh, with per-instance heights driven by commit age (older = taller),
-// canopy widths driven by commit file count (more files = wider) and
-// canopy facet counts also driven by file count (more files = higher
-// subdivision), and canopy colors that interpolate between
+// treeRenderer.test.ts — verifies createTreeRenderer() produces one shared
+// canopy InstancedMesh plus a shared trunk mesh, with per-instance heights
+// driven by commit age (older = taller), canopy widths driven by commit file
+// count (more files = wider), and canopy colors that interpolate between
 // COLOR_SOLO_DAY (solo-commit days) and COLOR_BUSY_DAY (busy days) by
 // commits-per-day.
 
@@ -384,7 +382,6 @@ describe('createTreeRenderer()', () => {
     trees.dispose();
     for (const t of tracked) expect(t.disposed).toBe(true);
   });
-
 
   describe('tree shading sun direction', () => {
     it('bakes directional facet shading (canopy vertex colors are non-uniform)', () => {
