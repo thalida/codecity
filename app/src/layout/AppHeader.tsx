@@ -73,7 +73,7 @@ export function AppHeader({
   }
 
   return (
-    <header id="app-header">
+    <header id="app-header" class="surface-chrome">
       <div id="app-header-left">
         <ResetViewButton onResetView={onResetView} />
         <ProjectSwitcher

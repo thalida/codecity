@@ -62,7 +62,10 @@ function ResizeHandle({ side, targetRef, widthSignal }: ResizeHandleProps) {
     widthSignal.value = targetRef.current.offsetWidth;
   };
 
-  const cls = side === SidebarSide.Left ? 'sidebar-resize-handle' : 'sidebar-resize-handle-right';
+  const cls =
+    side === SidebarSide.Left
+      ? 'resize-handle resize-handle--right'
+      : 'resize-handle resize-handle--left';
   return (
     <div
       class={`${cls}${isDragging ? ' dragging' : ''}`}
@@ -100,7 +103,7 @@ export function Sidebar({ id, side, class: cls, widthSignal, children }: Sidebar
   }, []);
 
   return (
-    <aside ref={ref} id={id} class={cls ?? ''}>
+    <aside ref={ref} id={id} class={cls ? `surface-sidebar ${cls}` : 'surface-sidebar'}>
       {children}
       <ResizeHandle side={side} targetRef={ref} widthSignal={widthSignal} />
     </aside>

@@ -8,7 +8,7 @@
 
 import { FieldKind, getFieldDef } from '@/state/settingsSchema';
 import { useField } from '@/hooks/useSettings';
-import { Row } from './Row';
+import { ThemeRow } from './ThemeRow';
 import { TierWidthsField } from './TierWidthsField';
 import { HueMapField } from './HueMapField';
 import { ColorInput } from '@/components/ColorInput';
@@ -107,8 +107,8 @@ export function Field({ store, fieldKey }: FieldProps) {
   }
 
   return (
-    <Row label={def.label} tip={def.tip} store={store} keys={[fieldKey]}>
+    <ThemeRow label={def.label} tip={def.tip} store={store} keys={[fieldKey]}>
       {control}
-    </Row>
+    </ThemeRow>
   );
 }

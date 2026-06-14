@@ -424,6 +424,7 @@ h6 {
    horizontal padding so depth-0 entries line up under pane titles.
 
    Variants:
+     .row--tight     — collapses the chevron/icon/label gap (tree rows).
      .row--bleed     — negative inline margins so the hover background
                        extends to the pane edge.
      .row--selected  — accent-tinted "selected" background (used by tree).
@@ -467,6 +468,65 @@ h6 {
 .tree-item.tree-selected > .row:hover,
 .tree-item.tree-selected.tree-hovered > .row {
   background: var(--cc-accent-bg); /* keep selected state on hover */
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   LAYER-2 COMPONENTS — Cards
+   ═══════════════════════════════════════════════════════════════════════════
+   Reusable boxed surfaces. Each owns its background + border + radius (+ shadow
+   / padding); the consuming selector adds only its own layout. The element
+   composes the card class with its layout class, e.g. `modal-error card-error`.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Elevated panel floating on a backdrop — the source-picker modal + the
+   loading overlay. */
+.card-overlay {
+  background: var(--cc-bg-modal);
+  color: var(--cc-text-base);
+  border-radius: var(--cc-radius-lg);
+  box-shadow: var(--cc-shadow-lg);
+}
+
+/* Error notice box (modal error banner). */
+.card-error {
+  background: var(--cc-error-bg);
+  border: 1px solid var(--cc-error-border);
+  border-radius: var(--cc-radius-md);
+  padding: var(--cc-space-4) var(--cc-space-5);
+}
+
+/* Accent-tinted info strip with a bottom rule (file-preview banner). */
+.card-banner {
+  background: var(--cc-accent-bg-soft);
+  border-bottom: 1px solid var(--cc-accent-bg);
+  padding: var(--cc-space-3) var(--cc-space-6);
+}
+
+/* Floating tooltip surface (the hover tooltip). */
+.card-tooltip {
+  background: var(--cc-bg-tooltip);
+  border: 1px solid var(--cc-border-tooltip);
+  border-radius: var(--cc-radius-sm);
+  padding: var(--cc-space-2) var(--cc-space-4);
+  box-shadow: var(--cc-shadow-md);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   LAYER-2 COMPONENTS — Surfaces
+   ═══════════════════════════════════════════════════════════════════════════
+   Background-only utilities naming the app's three base fills. The consuming
+   element keeps its own borders + layout; this just gives the chrome/backdrop
+   fill a single source so it's set once per role, not per selector.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.surface-app {
+  background: var(--cc-bg-app);
+}
+.surface-chrome {
+  background: var(--cc-bg-chrome);
+}
+.surface-sidebar {
+  background: var(--cc-bg-sidebar);
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -807,7 +867,6 @@ body {
   column-gap: var(--cc-space-2);
   height: 32px;
   padding: 0 var(--cc-space-4);
-  background: var(--cc-bg-chrome);
   border-bottom: 1px solid var(--cc-border-subtle);
   font-family: var(--cc-font-mono);
   font-size: var(--cc-font-md);
@@ -859,7 +918,6 @@ canvas {
      handle can mutate it without fighting the open/close transitions. */
   width: 0;
   height: 100%;
-  background: var(--cc-bg-sidebar);
   border-left: 1px solid var(--cc-border-subtle);
   /* No transition during drag (would lag the cursor); transition is added
      by .is-animating which we toggle around open/close. */
@@ -875,13 +933,10 @@ canvas {
   max-width: 70vw;
 }
 
-/* Drag-handle on the LEFT edge (mirror of the left sidebar's right edge).
-   6px hit zone half-on/half-off so it's easy to grab. */
-/* Sidebar resize handles — base rule shared with .sidebar-resize-handle.
-   Per-class lines below set which edge (left/right) the handle anchors to
-   and the z-index. */
-.sidebar-resize-handle,
-.sidebar-resize-handle-right {
+/* Sidebar resize handle — a 6px drag zone straddling the sidebar edge
+   (half on / half off) so it's easy to grab. The edge modifier sets which
+   side it anchors to and its stacking order. */
+.resize-handle {
   position: absolute;
   top: 0;
   width: 6px;
@@ -889,18 +944,16 @@ canvas {
   cursor: ew-resize;
   background: transparent;
 }
-.sidebar-resize-handle-right {
+.resize-handle--left {
   left: -3px;
   z-index: 101;
 }
-.sidebar-resize-handle {
+.resize-handle--right {
   right: -3px;
   z-index: 91;
 }
-.sidebar-resize-handle:hover,
-.sidebar-resize-handle.dragging,
-.sidebar-resize-handle-right:hover,
-.sidebar-resize-handle-right.dragging {
+.resize-handle:hover,
+.resize-handle.dragging {
   background: var(--cc-accent-bg-strong);
 }
 
@@ -1041,10 +1094,7 @@ canvas {
 
 /* ── Editor body — fills the panel under the tab bar + breadcrumb ─────── */
 
-/* Layout in .pane; this rule only adds the app-bg fill behind the canvas. */
-.editor-body {
-  background: var(--cc-bg-app);
-}
+/* Layout in .pane; the app-bg fill comes from .surface-app on the body. */
 .editor-body > * {
   flex: 1 1 auto;
   min-height: 0;
@@ -1067,7 +1117,6 @@ canvas {
   gap: var(--cc-space-7);
   padding: 0 var(--cc-space-6);
   height: 24px;
-  background: var(--cc-bg-chrome);
   border-top: 1px solid var(--cc-track);
   font-family: var(--cc-font-mono);
   font-size: var(--cc-font-sm);
@@ -1228,46 +1277,18 @@ canvas {
   scrollbar-color: var(--cc-border-input) transparent;
 }
 
-/* ── Selected building glow (applied by interactions.js) ────────────────────── */
-
-/* interactions.js adds .building-selected to a canvas overlay element if one
-   exists, or manages selection state internally. This class is a hook for
-   future visual indicator enhancements (e.g., a pulsing dot or label). */
-.building-selected-indicator {
-  position: fixed;
-  bottom: 16px;
-  left: 50%;
-  transform: translateX(-50%);
-  background: var(--cc-accent-bg);
-  border: 1px solid var(--cc-accent-border);
-  border-radius: var(--cc-radius-pill);
-  padding: var(--cc-space-3) var(--cc-space-7);
-  font-size: var(--cc-font-lg);
-  color: var(--cc-accent-light);
-  pointer-events: none;
-  opacity: 0;
-  transition: opacity var(--cc-t-base);
-}
-
-.building-selected-indicator.visible {
-  opacity: 1;
-}
-
 /* ── Hover tooltip ─────────────────────────────────────────────────────────── */
 
+/* Surface (bg + border + radius + padding + shadow) from .card-tooltip; this
+   adds positioning + text styling. */
 #hover-tooltip {
   position: fixed;
-  background: var(--cc-bg-tooltip);
-  border: 1px solid var(--cc-border-tooltip);
   color: var(--cc-text-primary);
   font-size: var(--cc-font-md);
-  padding: var(--cc-space-2) var(--cc-space-4);
-  border-radius: var(--cc-radius-sm);
   pointer-events: none;
   z-index: 200;
   font-family: var(--cc-font-mono);
   white-space: nowrap;
-  box-shadow: var(--cc-shadow-md);
 }
 
 /* ── Street labels (rendered on canvas, these styles are for overlay fallback) ── */
@@ -1299,7 +1320,6 @@ canvas {
   min-width: 280px;
   max-width: 600px;
   height: 100%;
-  background: var(--cc-bg-sidebar);
   border-right: 1px solid var(--cc-border-subtle);
   display: flex;
   flex-direction: row;
@@ -1313,10 +1333,6 @@ canvas {
   display: none;
 }
 
-/* Drag-handle on the right edge. Thin so it doesn't steal real estate; the
- * 6px hit zone makes it easy to grab. */
-/* Resize handle rules consolidated with .sidebar-resize-handle-right above. */
-
 /* Collapsed: just the activity bar shows. This rule outranks the base
  * `#left-sidebar { width: var(--sidebar-width) }` by specificity (id+class),
  * so the dragged width is restored automatically on un-collapse — no need to
@@ -1326,7 +1342,7 @@ canvas {
   min-width: 44px;
 }
 #left-sidebar.is-collapsed > .pane,
-#left-sidebar.is-collapsed .sidebar-resize-handle {
+#left-sidebar.is-collapsed .resize-handle {
   display: none;
 }
 
@@ -1345,7 +1361,6 @@ canvas {
 .activity-bar {
   width: 44px;
   flex-shrink: 0;
-  background: var(--cc-bg-chrome);
   border-right: 1px solid var(--cc-border-subtle);
   display: flex;
   flex-direction: column;
@@ -1493,25 +1508,25 @@ canvas {
  * The chevron is a Lucide icon (via the LucideIcon component) rather than a
  * unicode triangle — sharper at small sizes and currentColor-aware. */
 /* Style in .row + .row--bleed; this rule only hides the native disclosure
-   triangle (a custom .controls-section-chevron renders instead). */
+   triangle (a custom .chevron renders instead). */
 .controls-section > summary.controls-section-summary {
   list-style: none;
 }
 .controls-section > summary.controls-section-summary::-webkit-details-marker {
   display: none;
 }
-/* Section chevrons — consolidated rule shared with .theme-subgroup-chevron.
-   Width matches .tree-chevron so labels at all depths line up. */
-.controls-section-chevron,
-.theme-subgroup-chevron {
+/* Disclosure chevron — shared by the controls-section and theme-subgroup
+   <details> summaries. Width matches .tree-chevron so labels at all depths
+   line up. The open state is driven purely by the parent <details open>. */
+.chevron {
   width: 14px;
   height: 14px;
   flex-shrink: 0;
   color: var(--cc-text-secondary);
   transition: transform var(--cc-t-fast) ease;
 }
-.controls-section[open] > summary.controls-section-summary > .controls-section-chevron,
-.theme-subgroup-collapsible[open] > summary > .theme-subgroup-chevron {
+.controls-section[open] > summary > .chevron,
+.theme-subgroup-collapsible[open] > summary > .chevron {
   transform: rotate(90deg);
 }
 
@@ -1636,7 +1651,6 @@ canvas {
   justify-content: space-between;
   gap: var(--cc-space-4);
   padding: var(--cc-space-5) var(--cc-space-7);
-  background: var(--cc-bg-sidebar);
   border-top: 1px solid var(--cc-border-subtle);
 }
 .controls-actions-left,
@@ -1682,14 +1696,13 @@ canvas {
  * at every level of the panel. The <summary> carries
  * .row + .row--bleed + .text-label + .text-label--muted in the DOM. */
 /* This rule only hides the native disclosure triangle (a custom
-   .theme-subgroup-chevron renders instead). */
+   .chevron renders instead). */
 .theme-subgroup-collapsible > summary {
   list-style: none;
 }
 .theme-subgroup-collapsible > summary::-webkit-details-marker {
   display: none;
 }
-/* Chevron rule consolidated with .controls-section-chevron above. */
 
 /* Nested subgroups inside a collapsible parent (e.g. Buildings > Facade >
  * Geometry / Contrast / Window lighting). A small left padding indents
@@ -2455,14 +2468,13 @@ canvas {
   height: 100%;
 }
 
+/* Surface (bg + bottom rule + padding) from .card-banner; this adds the row
+   layout + text styling. */
 .code-editor-banner {
   flex: 0 0 auto;
   display: flex;
   align-items: center;
   gap: var(--cc-space-4);
-  padding: var(--cc-space-3) var(--cc-space-6);
-  background: var(--cc-accent-bg-soft);
-  border-bottom: 1px solid var(--cc-accent-bg);
   color: var(--cc-accent-light);
   font-family: var(--cc-font-sans);
   font-size: var(--cc-font-md);
@@ -2481,7 +2493,6 @@ canvas {
   align-items: stretch;
   width: 100%;
   overflow: auto;
-  background: var(--cc-bg-app);
   font-family: var(--cc-font-mono);
   font-size: var(--cc-font-lg);
   line-height: 1.55;
@@ -2612,16 +2623,14 @@ canvas {
   z-index: 1000;
 }
 
+/* Surface (bg + radius + shadow + color) from .card-overlay; this adds the
+   modal's own size + column layout. */
 .modal-card {
   width: 560px;
   max-width: 92vw;
   max-height: 80vh;
   display: flex;
   flex-direction: column;
-  background: var(--cc-bg-modal);
-  color: var(--cc-text-base);
-  border-radius: var(--cc-radius-lg);
-  box-shadow: var(--cc-shadow-lg);
   overflow: hidden;
   font-family: inherit;
 }
@@ -2631,7 +2640,6 @@ canvas {
   align-items: center;
   justify-content: space-between;
   padding: var(--cc-space-5) var(--cc-space-6); /* 10px 12px */
-  background: var(--cc-bg-chrome); /* chrome titlebar — matches activity bar surface */
   border-bottom: 1px solid var(--cc-border-subtle);
   font-weight: var(--cc-fw-semibold);
 }
@@ -2710,12 +2718,10 @@ canvas {
 /* Visual style consolidated in the .modal-field input rule near the top
    of the file (next to .form-input). */
 
+/* Surface (bg + border + radius + padding) from .card-error; this adds the
+   error text color + spacing below. */
 .modal-error {
-  background: var(--cc-error-bg);
-  border: 1px solid var(--cc-error-border);
   color: var(--cc-error-light);
-  padding: var(--cc-space-4) var(--cc-space-5);
-  border-radius: var(--cc-radius-md);
   margin-bottom: var(--cc-space-6);
   font-size: var(--cc-font-lg);
 }
@@ -2782,6 +2788,9 @@ canvas {
   align-items: center;
   gap: var(--cc-space-2);
 }
+/* Recent button — composes the .row base for the flex/cursor shell; adds the
+   recents-specific size (looser gap, symmetric padding, medium radius) plus the
+   <button> reset and the flex-fill within .recent-item. */
 .recent-row {
   flex: 1 1 auto;
   min-width: 0;
@@ -2789,17 +2798,14 @@ canvas {
   background: none;
   border: none;
   text-align: left;
-  display: flex;
-  align-items: center;
-  gap: var(--cc-space-5);
-  padding: var(--cc-space-3) var(--cc-space-4); /* 6px 8px — symmetric */
-  border-radius: var(--cc-radius-md);
-  cursor: pointer;
   color: inherit;
   font: inherit;
+  gap: var(--cc-space-5); /* 10px (base row gap is 4px) */
+  padding: var(--cc-space-3) var(--cc-space-4); /* 6px 8px (base is 4px 16px) */
+  border-radius: var(--cc-radius-md); /* base row radius is sm */
 }
 .recent-row:hover {
-  background: var(--cc-overlay-bg);
+  background: var(--cc-overlay-bg); /* a touch stronger than the base soft hover */
 }
 .recent-row-body {
   flex: 1 1 auto;
@@ -2860,17 +2866,14 @@ canvas {
   margin-top: var(--cc-space-2);
 }
 
-/* Loading overlay */
+/* Loading overlay. Surface from .card-overlay; this adds the centered column
+   layout + padding + min width. */
 .loading-card {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: var(--cc-space-7);
   padding: var(--cc-space-8) var(--cc-space-9);
-  background: var(--cc-bg-modal);
-  color: var(--cc-text-base);
-  border-radius: var(--cc-radius-lg);
-  box-shadow: var(--cc-shadow-lg);
   min-width: 260px;
 }
 .loading-spinner {

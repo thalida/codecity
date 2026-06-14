@@ -27,7 +27,7 @@ export function ActionsBar() {
   const canReset = anyResettable();
 
   return (
-    <div class="controls-actions">
+    <div class="controls-actions surface-sidebar">
       <div class="controls-actions-left">
         <button
           type="button"

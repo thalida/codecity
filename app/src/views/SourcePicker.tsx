@@ -128,8 +128,13 @@ export function SourcePickerModal({ state, onSubmit, onClose }: SourcePickerModa
         if (s.dismissible && e.target === e.currentTarget) onClose();
       }}
     >
-      <div class="modal-card" role="dialog" aria-modal="true" aria-label="Open project">
-        <div class="modal-header">
+      <div
+        class="modal-card card-overlay"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Open project"
+      >
+        <div class="modal-header surface-chrome">
           <span>Open project</span>
           {s.dismissible && (
             <button
@@ -143,7 +148,7 @@ export function SourcePickerModal({ state, onSubmit, onClose }: SourcePickerModa
           )}
         </div>
         <div class="modal-body">
-          {s.error && <div class="modal-error">{s.error}</div>}
+          {s.error && <div class="modal-error card-error">{s.error}</div>}
           <div class="modal-tabs">
             <button
               type="button"
@@ -261,7 +266,7 @@ export function SourcePickerModal({ state, onSubmit, onClose }: SourcePickerModa
                   ? 'Local repos are disabled. Restart codecity with CODECITY_ALLOW_LOCAL_REPOS=1 to load this.'
                   : '';
                 const rowClasses = [
-                  'recent-row',
+                  'row recent-row',
                   isActive && 'recent-row--active',
                   isDisabled && 'recent-row--disabled',
                 ]

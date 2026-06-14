@@ -58,6 +58,7 @@
 - [x] grime streaks scale by building age — Intensity and Coverage are now RangePair `[newest, oldest]` settings; the shader lerps each per-building by createdAge.
 - [x] building tilt scales by building age — TILT_DEGREES is now a RangePair `[newest, oldest]`; shader + CPU (outline/picker) lerp the lean by createdAge.
 - [ ] make the city fully signal-driven — today the manifest is passed in (`createCity(m)` + `handle.applyManifest(m)`), the explicit input contract both apply triggers funnel through: a MANIFEST change (City.tsx effect) and a Rebuild-route settings Save (`settingsReactions` → `applyManifest(MANIFEST.peek())`, MANIFEST unchanged). Having the city read MANIFEST from its store instead needs restructuring trigger ownership: `settingsReactions` bumps a "rebuild-requested" signal rather than calling `applyManifest`, and the city watches MANIFEST + that signal. Payoff: `City.tsx` shrinks to a mount/dispose shell (status + reframe already moved into `city/`). Cost: callback→signal-bump, testability shifts to driving global signals, the apply generation/skeleton handling moves inside city. (Follows the status-helpers + reframe-into-city refactors.)
+- [ ] image tooltips show image size, not line count — hovering a media/image billboard currently surfaces the generic building line-count tooltip; for image files show the image dimensions (e.g. `1920×1080`) instead.
 
 ## Agent Prompts ToDos
 

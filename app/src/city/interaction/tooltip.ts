@@ -21,6 +21,7 @@ function _ensure(): HTMLElement {
   if (_el && _el.isConnected) return _el;
   _el = document.createElement('div');
   _el.id = 'hover-tooltip';
+  _el.className = 'card-tooltip';
   _el.style.display = 'none';
   document.body.appendChild(_el);
   return _el;

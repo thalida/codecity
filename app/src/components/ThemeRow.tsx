@@ -1,7 +1,7 @@
-// components/Row.tsx — Labeled form row used by every control
-// widget. Renders the label, the control element passed in `children`,
-// and (when `store` + `keys` are provided) a reset icon next to the
-// control that stages-reset on click.
+// components/ThemeRow.tsx — Labeled control-panel row (renders .theme-row)
+// used by every control widget. Renders the label, the control element passed
+// in `children`, and (when `store` + `keys` are provided) a reset icon next to
+// the control that stages-reset on click.
 //
 // `tip` is appended to the label-as-tooltip so users can hover and see
 // what a knob does without expanding documentation.
@@ -14,7 +14,7 @@ interface SignalLike {
   set value(v: any);
 }
 
-export interface RowProps {
+export interface ThemeRowProps {
   label: string;
   /** Extra hover text appended after `label — …` on the row title. */
   tip?: string;
@@ -25,7 +25,7 @@ export interface RowProps {
   children: ComponentChildren;
 }
 
-export function Row({ label, tip, store, keys, children }: RowProps) {
+export function ThemeRow({ label, tip, store, keys, children }: ThemeRowProps) {
   const fullTip = tip ? `${label} — ${tip}` : label;
   return (
     <label class="theme-row" title={fullTip}>

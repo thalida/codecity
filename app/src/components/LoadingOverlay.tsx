@@ -57,7 +57,7 @@ export function LoadingOverlay() {
 
   return (
     <div class="loading-backdrop">
-      <div class="loading-card">
+      <div class="loading-card card-overlay">
         {pendingLabel && <div class="loading-pending-label">{pendingLabel}</div>}
         <div class="loading-spinner" />
         <div class="text-card-title is-loading" role="status" aria-live="polite">

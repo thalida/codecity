@@ -89,7 +89,7 @@ function ActivityBar({ activeTab, collapsed, onIconClick }: ActivityBarProps) {
   };
 
   return (
-    <div class="activity-bar">
+    <div class="activity-bar surface-chrome">
       <div class="activity-bar-group activity-bar-top">{topTabs.map(renderTab)}</div>
       <div class="activity-bar-group activity-bar-bottom">{bottomTabs.map(renderTab)}</div>
     </div>
