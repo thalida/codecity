@@ -471,6 +471,21 @@ h6 {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
+   LAYER-2 COMPONENTS — Cards
+   ═══════════════════════════════════════════════════════════════════════════
+   .card-overlay — the elevated panel surface shared by the two things that
+   float on a backdrop: the source-picker modal and the loading overlay. Each
+   adds its own layout (size, flex); this is just the shared surface.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.card-overlay {
+  background: var(--cc-bg-modal);
+  color: var(--cc-text-base);
+  border-radius: var(--cc-radius-lg);
+  box-shadow: var(--cc-shadow-lg);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
    LAYER-2 COMPONENTS — Form inputs
    ═══════════════════════════════════════════════════════════════════════════
    .form-input — base text-input style (sidebar/controls/modal).
@@ -2613,16 +2628,14 @@ canvas {
   z-index: 1000;
 }
 
+/* Surface (bg + radius + shadow + color) from .card-overlay; this adds the
+   modal's own size + column layout. */
 .modal-card {
   width: 560px;
   max-width: 92vw;
   max-height: 80vh;
   display: flex;
   flex-direction: column;
-  background: var(--cc-bg-modal);
-  color: var(--cc-text-base);
-  border-radius: var(--cc-radius-lg);
-  box-shadow: var(--cc-shadow-lg);
   overflow: hidden;
   font-family: inherit;
 }
@@ -2861,17 +2874,14 @@ canvas {
   margin-top: var(--cc-space-2);
 }
 
-/* Loading overlay */
+/* Loading overlay. Surface from .card-overlay; this adds the centered column
+   layout + padding + min width. */
 .loading-card {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: var(--cc-space-7);
   padding: var(--cc-space-8) var(--cc-space-9);
-  background: var(--cc-bg-modal);
-  color: var(--cc-text-base);
-  border-radius: var(--cc-radius-lg);
-  box-shadow: var(--cc-shadow-lg);
   min-width: 260px;
 }
 .loading-spinner {
