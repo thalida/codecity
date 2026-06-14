@@ -182,7 +182,7 @@ const STREET_LAYOUT_FIELDS = {
   STREET_GAP: {
     route: ChangeRoute.Rebuild,
     kind: FieldKind.Number,
-    default: 16,
+    default: 32,
     min: 0,
     max: 50,
     step: 1,
