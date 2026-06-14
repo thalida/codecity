@@ -5,7 +5,7 @@
 
 import { signal } from '@preact/signals';
 import { SourceKind } from '@/utils/sources';
-import { ScanPhase } from '@/api/manifest';
+import { ScanPhase, CloneStage } from '@/api/manifest';
 
 export interface ScanProgress {
   /** Kind of source being loaded (drives the overlay's initial step). */
@@ -18,8 +18,8 @@ export interface ScanProgress {
   phase: ScanPhase | null;
   /** Cloning percent (0-100) when phase === Cloning. */
   percent?: number;
-  /** Cloning stage label (e.g. "receiving", "updating") when present. */
-  stage?: string;
+  /** Cloning stage (e.g. Receiving, Updating) when present. */
+  stage?: CloneStage;
   /** Working-tree size on disk (MB) during the silent promisor blob fetch —
    *  a clone-progress heartbeat with no stage/percent. */
   mbOnDisk?: number;

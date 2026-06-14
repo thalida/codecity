@@ -99,13 +99,23 @@ export enum ScanPhase {
   Error = 'error',
 }
 
+// git clone sub-phases reported in a CloneProgress event's `stage` field.
+// Values are git's own progress labels (the wire form): Receiving/Resolving/
+// Counting are fetch phases; Updating is the working-tree checkout.
+export enum CloneStage {
+  Receiving = 'receiving',
+  Resolving = 'resolving',
+  Counting = 'counting',
+  Updating = 'updating',
+}
+
 // One variant per discriminant value so TS narrows cleanly through
 // `if (event.phase === ScanPhase.CloneProgress || event.phase === ScanPhase.ScanProgress)` etc.
 export type ScanStreamEvent =
   | {
       phase: ScanPhase.CloneProgress;
       display_root?: string;
-      stage?: 'receiving' | 'resolving' | 'counting' | 'updating';
+      stage?: CloneStage;
       percent?: number;
       // Heartbeat during the silent promisor blob fetch: working-tree size on
       // disk (no stage/percent), so the UI shows materialization, not a freeze.
