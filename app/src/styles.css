@@ -1244,31 +1244,6 @@ canvas {
   scrollbar-color: var(--cc-border-input) transparent;
 }
 
-/* ── Selected building glow (applied by interactions.js) ────────────────────── */
-
-/* interactions.js adds .building-selected to a canvas overlay element if one
-   exists, or manages selection state internally. This class is a hook for
-   future visual indicator enhancements (e.g., a pulsing dot or label). */
-.building-selected-indicator {
-  position: fixed;
-  bottom: 16px;
-  left: 50%;
-  transform: translateX(-50%);
-  background: var(--cc-accent-bg);
-  border: 1px solid var(--cc-accent-border);
-  border-radius: var(--cc-radius-pill);
-  padding: var(--cc-space-3) var(--cc-space-7);
-  font-size: var(--cc-font-lg);
-  color: var(--cc-accent-light);
-  pointer-events: none;
-  opacity: 0;
-  transition: opacity var(--cc-t-base);
-}
-
-.building-selected-indicator.visible {
-  opacity: 1;
-}
-
 /* ── Hover tooltip ─────────────────────────────────────────────────────────── */
 
 #hover-tooltip {
