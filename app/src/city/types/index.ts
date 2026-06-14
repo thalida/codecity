@@ -10,7 +10,7 @@ import type { Picker } from '../interaction/picker';
 import type { CameraRig } from '../render/cameraRig';
 import type { CityState } from '../state';
 import type { Trees } from '../components/trees/treeRenderer';
-import type { Manifest, DirNode, Street } from '@/types';
+import type { Manifest } from '@/types';
 
 /** Everything a scene component needs to wire itself into the scene. scene /
  *  canvas / cityState are set at construction; picker is null until the rig +
@@ -46,13 +46,12 @@ export interface SceneComponent {
   dispose(): void;
 }
 
-/** View/debug read API exposed on City.world — the only world surface
- *  consumers still touch (header/sidebar reads + the two debug diagnostics). */
+/** Scene-internal read/debug API exposed on City.world — the surface the view
+ *  layer can't reach through canonical signals: the live tree renderer (per-sha
+ *  commit color) and the two debug diagnostics. Plain manifest/tree/street data
+ *  is read straight from the MANIFEST signal by consumers, not duplicated here. */
 export interface CityWorld {
-  getRoot(): DirNode | null;
-  getManifest(): Manifest | null;
   getTrees(): Trees | null;
-  getStreetByDir(path: string): Street | null;
   runCollisionCheck(): void;
   runStemPlacementDiagnostic(): void;
 }

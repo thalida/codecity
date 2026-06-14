@@ -17,10 +17,10 @@
 // signal (the fetch layer's source of truth), so the panes re-derive
 // automatically when a live-update poll publishes a fresh manifest.
 
-import { untracked, useComputed, useSignal, useSignalEffect } from '@preact/signals';
+import { useComputed, useSignal, useSignalEffect } from '@preact/signals';
 import { PERSISTED_KEYS } from '@/constants/storage';
 import { NodeKind } from '@/types';
-import type { CommitEntry, DirNode, FileNode } from '@/types';
+import type { CommitEntry, DirNode, FileNode, Manifest } from '@/types';
 import { persistedSignal } from '@/state/persist';
 import {
   SCENE_HANDLE,
@@ -60,12 +60,11 @@ enum SidebarPaneKind {
 // them and writes the result into component-local signals.
 
 function commitStateFor(handle: SceneHandle, commit: CommitEntry): CommitPaneState {
-  // untracked: world.getManifest() now reads the world's internal manifest
-  // signal. These pane states already re-derive via the explicit
-  // `void MANIFEST.value` in the calling computeds (the fetch layer's source of
-  // truth); subscribing to the world signal too would add a 2nd recompute
-  // mid-rebuild that the old by-value bag never triggered. Read non-reactively.
-  const m = untracked(() => handle.world.getManifest());
+  // Repo-level fields off the canonical MANIFEST signal. peek() since the
+  // calling computed already re-derives via its explicit `void MANIFEST.value`;
+  // a reactive read here would just double it. getTrees() stays on the handle —
+  // it's genuine scene state (the live tree renderer's per-sha color).
+  const m = MANIFEST.peek() as Manifest;
   return {
     commit,
     remoteUrl: m?.repo?.remote_url ?? null,
@@ -73,10 +72,6 @@ function commitStateFor(handle: SceneHandle, commit: CommitEntry): CommitPaneSta
     busynessThresholds: m?.busyness ?? { avg: 1, busy: 1 },
     color: handle.world.getTrees()?.colorForSha(commit.sha) ?? undefined,
   };
-}
-
-function streetStateFor(handle: SceneHandle, dir: DirNode): StreetPaneState {
-  return { directory: handle.world.getStreetByDir(dir.path)?.dir ?? dir };
 }
 
 // ── Main component ───────────────────────────────────────────────────
@@ -113,12 +108,10 @@ export function RightSidebar() {
       : { commit: null };
   });
   const streetState = useComputed<StreetPaneState>(() => {
-    void MANIFEST.value;
-    const handle = SCENE_HANDLE.value;
-    const sel = handle?.picker.selection.value ?? null;
-    return handle && sel?.kind === NodeKind.Directory
-      ? streetStateFor(handle, sel.dir)
-      : { directory: null };
+    // The picker's Directory selection already carries the live street's dir
+    // (re-resolved on rebuild), so the pane just reflects it — no world lookup.
+    const sel = SCENE_HANDLE.value?.picker.selection.value ?? null;
+    return sel?.kind === NodeKind.Directory ? { directory: sel.dir } : { directory: null };
   });
 
   // Re-open after a manual close once a fresh selection arrives.

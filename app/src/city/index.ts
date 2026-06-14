@@ -192,12 +192,10 @@ export async function createCity(canvas: HTMLCanvasElement, manifest: Manifest):
     focusByPath(path: string): void {
       rig.focusSelection(picker.targetForPath(path));
     },
-    /** View/debug read API — the only world surface consumers still touch. */
+    /** Scene-internal read/debug API — what the view layer can't get from the
+     *  canonical MANIFEST signal (the live tree renderer + the two diagnostics). */
     world: {
-      getRoot: () => cityState.manifest.value?.tree ?? null,
-      getManifest: () => cityState.manifest.value,
       getTrees: () => trees.getRenderer(),
-      getStreetByDir: (p: string) => cityState.streetsByDirMap.peek()[p] ?? null,
       runCollisionCheck: () => runCollisionCheck(cityState),
       runStemPlacementDiagnostic: () => runStemPlacementDiagnostic(cityState),
     },

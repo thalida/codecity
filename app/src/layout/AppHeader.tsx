@@ -9,11 +9,11 @@
 //   #app-header-right — reserved slot, currently unused
 
 import type { ComponentChildren } from 'preact';
-import { untracked } from '@preact/signals';
 import { SCENE_HANDLE } from '@/state/stores/scene';
+import { MANIFEST } from '@/state/stores/manifest';
 import { SOURCE_INFO } from '@/state/stores/source';
 import { openSourcePicker } from '@/state/stores/ui';
-import { NodeKind } from '@/types';
+import { NodeKind, type Manifest } from '@/types';
 import { ResetViewButton } from '@/components/ResetViewButton';
 import { ProjectSwitcher } from '@/components/ProjectSwitcher';
 import { RepoLink } from '@/components/RepoLink';
@@ -40,10 +40,10 @@ export function AppHeader({
   const si = SOURCE_INFO.value;
   const handle = SCENE_HANDLE.value;
   const pickerSel = handle?.picker.selection.value ?? null;
-  // getRoot() now reads the world's internal manifest signal; read it
-  // untracked so the header doesn't gain a redundant subscription — it already
-  // re-renders on every manifest change via SOURCE_INFO (a computed off MANIFEST).
-  const rootPath = untracked(() => handle?.world.getRoot()?.path) ?? '';
+  // Root path off the canonical MANIFEST signal. peek() so the header doesn't
+  // gain a redundant subscription — it already re-renders on every manifest
+  // change via SOURCE_INFO (a computed off MANIFEST).
+  const rootPath = (MANIFEST.peek() as Manifest)?.tree?.path ?? '';
 
   // Build the title-slot content from the current selection. Null/root-only
   // selections render nothing.
