@@ -228,6 +228,14 @@ export class AdPanelTextureArray {
     tempTex.type = THREE.UnsignedByteType;
     tempTex.minFilter = THREE.LinearFilter;
     tempTex.magFilter = THREE.LinearFilter;
+    // copyTextureToTexture applies the SOURCE texture's unpack flags, and the
+    // 3D-destination copy path (texSubImage3D) forbids UNPACK_FLIP_Y /
+    // PREMULTIPLY_ALPHA. CanvasTexture defaults flipY = true, so leaving it on
+    // logs "texImage3D: FLIP_Y ... isn't allowed" on every upload (the driver
+    // drops the flip; the array is flipY = false and its UVs assume no flip, so
+    // the result is already correct — this just silences the error).
+    tempTex.flipY = false;
+    tempTex.premultiplyAlpha = false;
     // three@0.184 unified API. srcRegion bounds are EXCLUSIVE
     // (width = max.x - min.x), so the full PANEL_TEX_SIZE slice runs from
     // 0 to PANEL_TEX_SIZE on each axis. dstPosition.z selects the
