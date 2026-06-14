@@ -192,7 +192,7 @@ function CodeEditor({ text, file }: CodeEditorProps) {
           <span>{bannerText}</span>
         </div>
       )}
-      <div class="code-editor">
+      <div class="code-editor surface-app">
         {!skipGutter && (
           <div class="code-editor-gutter">
             {Array.from({ length: lineCount }, (_, i) => (
@@ -293,7 +293,7 @@ export function FilePreviewPane({ state, onClose, onFocus }: FilePreviewPaneProp
       onFocus={file && typeof onFocus === 'function' ? () => onFocus(file) : undefined}
       focusTitle={`Focus the camera on this file (${KEY_BINDINGS.FOCUS_SELECTION.label})`}
       onClose={onClose}
-      bodyClass="editor-body"
+      bodyClass="editor-body surface-app"
     >
       {_previewBody(file)}
     </Pane>

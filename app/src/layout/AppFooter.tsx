@@ -295,7 +295,7 @@ export function AppFooter() {
   }
 
   return (
-    <footer id="app-footer">
+    <footer id="app-footer" class="surface-chrome">
       <div class="app-footer-section app-footer-left">
         <FooterStatusSection status={status} />
       </div>

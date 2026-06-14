@@ -103,7 +103,7 @@ export function Sidebar({ id, side, class: cls, widthSignal, children }: Sidebar
   }, []);
 
   return (
-    <aside ref={ref} id={id} class={cls ?? ''}>
+    <aside ref={ref} id={id} class={cls ? `surface-sidebar ${cls}` : 'surface-sidebar'}>
       {children}
       <ResizeHandle side={side} targetRef={ref} widthSignal={widthSignal} />
     </aside>

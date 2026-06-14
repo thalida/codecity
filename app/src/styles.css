@@ -512,6 +512,24 @@ h6 {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
+   LAYER-2 COMPONENTS — Surfaces
+   ═══════════════════════════════════════════════════════════════════════════
+   Background-only utilities naming the app's three base fills. The consuming
+   element keeps its own borders + layout; this just gives the chrome/backdrop
+   fill a single source so it's set once per role, not per selector.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.surface-app {
+  background: var(--cc-bg-app);
+}
+.surface-chrome {
+  background: var(--cc-bg-chrome);
+}
+.surface-sidebar {
+  background: var(--cc-bg-sidebar);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
    LAYER-2 COMPONENTS — Form inputs
    ═══════════════════════════════════════════════════════════════════════════
    .form-input — base text-input style (sidebar/controls/modal).
@@ -849,7 +867,6 @@ body {
   column-gap: var(--cc-space-2);
   height: 32px;
   padding: 0 var(--cc-space-4);
-  background: var(--cc-bg-chrome);
   border-bottom: 1px solid var(--cc-border-subtle);
   font-family: var(--cc-font-mono);
   font-size: var(--cc-font-md);
@@ -901,7 +918,6 @@ canvas {
      handle can mutate it without fighting the open/close transitions. */
   width: 0;
   height: 100%;
-  background: var(--cc-bg-sidebar);
   border-left: 1px solid var(--cc-border-subtle);
   /* No transition during drag (would lag the cursor); transition is added
      by .is-animating which we toggle around open/close. */
@@ -1078,10 +1094,7 @@ canvas {
 
 /* ── Editor body — fills the panel under the tab bar + breadcrumb ─────── */
 
-/* Layout in .pane; this rule only adds the app-bg fill behind the canvas. */
-.editor-body {
-  background: var(--cc-bg-app);
-}
+/* Layout in .pane; the app-bg fill comes from .surface-app on the body. */
 .editor-body > * {
   flex: 1 1 auto;
   min-height: 0;
@@ -1104,7 +1117,6 @@ canvas {
   gap: var(--cc-space-7);
   padding: 0 var(--cc-space-6);
   height: 24px;
-  background: var(--cc-bg-chrome);
   border-top: 1px solid var(--cc-track);
   font-family: var(--cc-font-mono);
   font-size: var(--cc-font-sm);
@@ -1308,7 +1320,6 @@ canvas {
   min-width: 280px;
   max-width: 600px;
   height: 100%;
-  background: var(--cc-bg-sidebar);
   border-right: 1px solid var(--cc-border-subtle);
   display: flex;
   flex-direction: row;
@@ -1350,7 +1361,6 @@ canvas {
 .activity-bar {
   width: 44px;
   flex-shrink: 0;
-  background: var(--cc-bg-chrome);
   border-right: 1px solid var(--cc-border-subtle);
   display: flex;
   flex-direction: column;
@@ -1641,7 +1651,6 @@ canvas {
   justify-content: space-between;
   gap: var(--cc-space-4);
   padding: var(--cc-space-5) var(--cc-space-7);
-  background: var(--cc-bg-sidebar);
   border-top: 1px solid var(--cc-border-subtle);
 }
 .controls-actions-left,
@@ -2484,7 +2493,6 @@ canvas {
   align-items: stretch;
   width: 100%;
   overflow: auto;
-  background: var(--cc-bg-app);
   font-family: var(--cc-font-mono);
   font-size: var(--cc-font-lg);
   line-height: 1.55;
@@ -2632,7 +2640,6 @@ canvas {
   align-items: center;
   justify-content: space-between;
   padding: var(--cc-space-5) var(--cc-space-6); /* 10px 12px */
-  background: var(--cc-bg-chrome); /* chrome titlebar — matches activity bar surface */
   border-bottom: 1px solid var(--cc-border-subtle);
   font-weight: var(--cc-fw-semibold);
 }

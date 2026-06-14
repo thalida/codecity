@@ -129,7 +129,7 @@ export function SourcePickerModal({ state, onSubmit, onClose }: SourcePickerModa
       }}
     >
       <div class="modal-card card-overlay" role="dialog" aria-modal="true" aria-label="Open project">
-        <div class="modal-header">
+        <div class="modal-header surface-chrome">
           <span>Open project</span>
           {s.dismissible && (
             <button
