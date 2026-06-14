@@ -99,7 +99,7 @@ describe('RightSidebar', () => {
   });
 
   it('renders the resize handle on the inside (left) edge', () => {
-    const handle = container.querySelector('.sidebar-resize-handle-right');
+    const handle = container.querySelector('.resize-handle--left');
     expect(handle).not.toBeNull();
   });
 });

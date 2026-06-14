@@ -891,13 +891,10 @@ canvas {
   max-width: 70vw;
 }
 
-/* Drag-handle on the LEFT edge (mirror of the left sidebar's right edge).
-   6px hit zone half-on/half-off so it's easy to grab. */
-/* Sidebar resize handles — base rule shared with .sidebar-resize-handle.
-   Per-class lines below set which edge (left/right) the handle anchors to
-   and the z-index. */
-.sidebar-resize-handle,
-.sidebar-resize-handle-right {
+/* Sidebar resize handle — a 6px drag zone straddling the sidebar edge
+   (half on / half off) so it's easy to grab. The edge modifier sets which
+   side it anchors to and its stacking order. */
+.resize-handle {
   position: absolute;
   top: 0;
   width: 6px;
@@ -905,18 +902,16 @@ canvas {
   cursor: ew-resize;
   background: transparent;
 }
-.sidebar-resize-handle-right {
+.resize-handle--left {
   left: -3px;
   z-index: 101;
 }
-.sidebar-resize-handle {
+.resize-handle--right {
   right: -3px;
   z-index: 91;
 }
-.sidebar-resize-handle:hover,
-.sidebar-resize-handle.dragging,
-.sidebar-resize-handle-right:hover,
-.sidebar-resize-handle-right.dragging {
+.resize-handle:hover,
+.resize-handle.dragging {
   background: var(--cc-accent-bg-strong);
 }
 
@@ -1304,10 +1299,6 @@ canvas {
   display: none;
 }
 
-/* Drag-handle on the right edge. Thin so it doesn't steal real estate; the
- * 6px hit zone makes it easy to grab. */
-/* Resize handle rules consolidated with .sidebar-resize-handle-right above. */
-
 /* Collapsed: just the activity bar shows. This rule outranks the base
  * `#left-sidebar { width: var(--sidebar-width) }` by specificity (id+class),
  * so the dragged width is restored automatically on un-collapse — no need to
@@ -1317,7 +1308,7 @@ canvas {
   min-width: 44px;
 }
 #left-sidebar.is-collapsed > .pane,
-#left-sidebar.is-collapsed .sidebar-resize-handle {
+#left-sidebar.is-collapsed .resize-handle {
   display: none;
 }
 
