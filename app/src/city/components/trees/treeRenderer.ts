@@ -90,50 +90,41 @@ const DETAIL_LEVELS = [0, 1, 2] as const;
 type DetailLevel = (typeof DETAIL_LEVELS)[number];
 
 /** Lathe control points for the canopy silhouette: hand-picked (radius, height)
- *  pairs producing a low-poly Christmas-tree shape. Bottom→top. Both axes
+ *  pairs producing a round, near-spherical crown — widest at the middle (~y 0.5)
+ *  and tapering symmetrically to rounded poles at top + bottom, so it reads as a
+ *  ball rather than an elongated/popsicle column. Bottom→top, both axes
  *  normalized to [0,1] so a single profile drives any detail tier. Shared by
  *  `buildCanopyGeometry` (the rendered canopy) and `buildCanopyEdges` (the
  *  outline wireframe) — keep these two in sync. */
 const CANOPY_PROFILE: readonly THREE.Vector2[] = [
   new THREE.Vector2(0, 0),
-  new THREE.Vector2(0.85, 0),
-  new THREE.Vector2(1.0, 0.1),
-  new THREE.Vector2(0.95, 0.25),
-  new THREE.Vector2(0.82, 0.42),
-  new THREE.Vector2(0.66, 0.58),
-  new THREE.Vector2(0.5, 0.72),
-  new THREE.Vector2(0.36, 0.82),
-  new THREE.Vector2(0.24, 0.89),
-  new THREE.Vector2(0.14, 0.94),
-  new THREE.Vector2(0.06, 0.98),
+  new THREE.Vector2(0.42, 0.03),
+  new THREE.Vector2(0.72, 0.1),
+  new THREE.Vector2(0.9, 0.2),
+  new THREE.Vector2(0.99, 0.32),
+  new THREE.Vector2(1.0, 0.5),
+  new THREE.Vector2(0.99, 0.68),
+  new THREE.Vector2(0.9, 0.8),
+  new THREE.Vector2(0.72, 0.9),
+  new THREE.Vector2(0.42, 0.97),
+  new THREE.Vector2(0.18, 0.995),
   new THREE.Vector2(0, 1.0),
 ];
 
-/** Build a unit-height (Y ∈ [0,1]), unit-radius teardrop canopy
- *  geometry at the given subdivision detail.
+/** Build a unit-height (Y ∈ [0,1]), unit-radius round canopy geometry at
+ *  the given subdivision detail.
  *
- *  Profile (lathed around the Y axis) keeps the canopy BLUNT at the
- *  bottom — `(0.7, 0)` ring of width — instead of pinching to a point
- *  like an icosahedron does. The trunk visibly enters this wide
- *  bottom, matching low-poly tree art (rounded body, optional tapered
- *  top to an apex).
+ *  Profile (lathed around the Y axis) is a near-sphere: widest at the
+ *  middle, curving symmetrically in to rounded poles top + bottom, so the
+ *  crown reads as a ball. It still converges to the axis at both poles (a
+ *  lathe profile must), but the convex sides keep it round rather than the
+ *  straight-sided, domed-top "popsicle" a wide-column profile produces. The
+ *  trunk pokes up into the rounded underside.
  *
- *  Profile max X = 1.0, so when the renderer applies XZ scale = r,
- *  the canopy world radius at its widest = r exactly. */
+ *  Profile max X = 1.0, so when the renderer applies XZ scale = r, the
+ *  canopy world radius at its widest = r exactly; with height ≈ 2r the crown
+ *  renders as a circle, taller trees as a vertical ellipsoid. */
 function buildCanopyGeometry(detail: DetailLevel): THREE.BufferGeometry {
-  // Tree silhouette: widest band sits in the base region, tapering
-  // upward with a soft curve to a rounded-looking apex. Reads as a
-  // tree (christmas-tree / round-crown hybrid).
-  //
-  // Two features worth noting:
-  //   - Rounded base: the bottom rim curves over two profile points
-  //     (0.85 at y=0 → 1.00 at y=0.10) instead of a 90° corner, so
-  //     the canopy looks chamfered rather than chopped.
-  //   - Rounded apex: the upper portion uses extra profile points so
-  //     the taper toward the top is spread across many small triangles.
-  //     A lathe profile must converge to a point on the axis, but
-  //     dense vertical samples near the apex make the silhouette read
-  //     as a smooth dome rather than a sharp spike.
   const profile = CANOPY_PROFILE as THREE.Vector2[];
   const cfg = TREES.value;
   const segments = detail === 0 ? cfg.FACETS_LOW : detail === 1 ? cfg.FACETS_MID : cfg.FACETS_HIGH;
