@@ -186,7 +186,7 @@ function FooterStatusSection({ status }: FooterStatusSectionProps) {
       title={titleText}
       aria-label={titleText}
     >
-      <span class="app-footer-status-dot" />
+      <span class="dot app-footer-status-dot" />
       <span class="app-footer-status-detail">{detailText}</span>
     </span>
   );

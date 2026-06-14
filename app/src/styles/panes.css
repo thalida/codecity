@@ -1,0 +1,33 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   LAYER-2 COMPONENTS — Pane structure
+   ═══════════════════════════════════════════════════════════════════════════
+   .pane       — fills the available flex space, lays out children in a
+                 vertical column, hides overflow. Used for top-level pane
+                 shells that don't scroll themselves.
+   .pane-body  — like .pane, but the body itself scrolls vertically. Used
+                 when the contents need to scroll inside the pane.
+                 .pane-body--padded adds 16px of inset padding.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.pane,
+.pane-body {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+/* .pane hides overflow; children scroll instead. */
+.pane {
+  overflow: hidden;
+}
+
+/* .pane-body scrolls vertically. */
+.pane-body {
+  overflow-y: auto;
+}
+
+.pane-body--padded {
+  padding: var(--cc-space-7); /* 16px */
+  box-sizing: border-box;
+}

@@ -1,0 +1,144 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   LAYER-2 COMPONENTS — Buttons
+   ═══════════════════════════════════════════════════════════════════════════
+   .btn-primary       — solid accent CTA (modal submit, save).
+   .btn-secondary     — outlined neutral (modifier on .btn-accent-outline).
+   .btn-accent-outline — accent-tinted outlined (controls-pane Save / debug).
+   .btn-icon          — 24x24 icon-only button.
+   .btn-toggle        — one-of-N option button (segmented / theme-select).
+   .btn-reset-inline  — tiny inline reset (controls-section + theme-row).
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* .btn-primary — solid accent CTA. Used everywhere a "primary action"
+   appears: modal Open Project, controls Save, etc. */
+.btn-primary {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--cc-accent);
+  border: 0;
+  color: var(--cc-text-inverse);
+  padding: var(--cc-space-4) var(--cc-space-7);
+  border-radius: var(--cc-radius-md);
+  cursor: pointer;
+  font: inherit;
+  font-weight: var(--cc-fw-semibold);
+  transition: background var(--cc-t-base);
+}
+.btn-primary:hover:not(:disabled) {
+  background: var(--cc-accent-light);
+}
+.btn-primary:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   LAYER-2 COMPONENTS — Icon buttons
+   ═══════════════════════════════════════════════════════════════════════════
+   .btn-icon    — default 24×24 icon button with hover overlay.
+   Modifiers:
+     .btn-icon--sm    — 22×22 (footer chrome).
+     .btn-icon--lg    — auto size via padding, 18px font, 6px radius
+                        (large × glyph like modal close).
+     .btn-icon--text  — auto size via padding, inherits font/color
+                        (text-style buttons like breadcrumb segments).
+     .btn-icon--link  — anchor-tag variant (text-decoration removed).
+     .btn-icon--no-drag — Electron drag-region marker.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.btn-icon {
+  appearance: none;
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  background: none;
+  border: none;
+  color: var(--cc-text-faint);
+  border-radius: var(--cc-radius-sm);
+  font-size: var(--cc-font-xl);
+  cursor: pointer;
+}
+.btn-icon:not(:disabled):hover {
+  color: var(--cc-text-primary);
+  background: var(--cc-overlay-bg);
+}
+.btn-icon:disabled {
+  cursor: default;
+}
+.btn-icon.is-active {
+  color: var(--cc-accent);
+  background: var(--cc-accent-bg-soft);
+}
+
+/* Modifiers */
+.btn-icon--sm {
+  width: 22px;
+  height: 22px;
+  font-size: var(--cc-font-lg);
+}
+.btn-icon--lg {
+  width: auto;
+  height: auto;
+  padding: var(--cc-space-2) var(--cc-space-4);
+  border-radius: var(--cc-radius-md);
+  font-size: var(--cc-font-2xl);
+  color: inherit;
+}
+.btn-icon--text {
+  width: auto;
+  height: auto;
+  padding: var(--cc-space-px) var(--cc-space-2);
+  font: inherit;
+  color: var(--cc-text-muted);
+}
+.btn-icon--link {
+  text-decoration: none;
+}
+.btn-icon--no-drag {
+  -webkit-app-region: no-drag;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   LAYER-2 COMPONENTS — Icon-text chip (.btn-chip)
+   ═══════════════════════════════════════════════════════════════════════════
+   Used by the header project switcher (icon + label + optional badge).
+   Different from .btn-icon — has gap, asymmetric padding, max-width,
+   ellipsis truncation on its label. */
+
+.btn-chip {
+  appearance: none;
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cc-space-3);
+  height: 24px;
+  padding: 0 var(--cc-space-3); /* symmetric 6px each side */
+  background: none;
+  border: none;
+  color: var(--cc-text-faint);
+  border-radius: var(--cc-radius-sm);
+  font: inherit;
+  font-size: var(--cc-font-lg);
+  white-space: nowrap;
+  max-width: 280px;
+  cursor: pointer;
+  -webkit-app-region: no-drag;
+}
+.btn-chip:not(:disabled):hover {
+  color: var(--cc-text-primary);
+  background: var(--cc-overlay-bg);
+}
+.btn-chip:disabled {
+  cursor: default;
+}
+/* Trailing chevron — visual cue that the chip opens a picker. */
+.btn-chip-chevron {
+  margin-left: var(--cc-space-1);
+  font-size: var(--cc-font-md);
+  opacity: 0.7;
+}

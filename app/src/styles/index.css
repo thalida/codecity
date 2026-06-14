@@ -3,5 +3,11 @@
    cascade is byte-for-byte preserved. main.tsx imports ONLY this file. */
 @import './reset.css';
 @import './tokens.css';
-/* Layer-2 partials appended in later tasks, in source order:
-   text, atoms, panes, rows, cards, surfaces, forms, buttons */
+@import './text.css';
+@import './atoms.css';
+@import './panes.css';
+@import './rows.css';
+@import './cards.css';
+@import './surfaces.css';
+@import './forms.css';
+@import './buttons.css';

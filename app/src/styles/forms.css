@@ -1,0 +1,55 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   LAYER-2 COMPONENTS — Form inputs
+   ═══════════════════════════════════════════════════════════════════════════
+   .form-input — base text-input style (sidebar/controls/modal).
+   Variants:
+     .form-input--mono   — narrow mono numeric input (used by theme rows).
+     .form-input--select — native <select> with a painted chevron.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* .form-input — the one text-input style for every context (sidebar,
+   controls, modal). Reads as a "depressed" element against any of the
+   four surface backgrounds.
+   background-color (not the `background` shorthand) so .form-input--select
+   can layer its chevron in via background-image. */
+.form-input {
+  background-color: var(--cc-bg-chrome);
+  border: 1px solid var(--cc-border-input);
+  border-radius: var(--cc-radius-sm);
+  color: var(--cc-text-primary);
+  font: inherit;
+  font-size: var(--cc-font-lg);
+  padding: var(--cc-space-2) var(--cc-space-4); /* 4px 8px */
+  outline: none;
+}
+.form-input::placeholder {
+  color: var(--cc-text-faint);
+}
+.form-input:focus {
+  border-color: var(--cc-accent-border);
+}
+
+/* .form-input--mono — narrow numeric variant. Mono font, smaller font-size,
+   fixed 70px width, right-aligned, compact 2px/6px padding. Used by the
+   per-row number inputs in the Controls pane. */
+.form-input--mono {
+  width: 70px;
+  font-family: var(--cc-font-mono);
+  font-size: var(--cc-font-md);
+  padding: var(--cc-space-1) var(--cc-space-3); /* 2px 6px */
+  text-align: right;
+}
+
+/* .form-input--select — native <select> variant. Drops the OS chrome
+   (appearance: none), paints a chevron-down on the right via an inline
+   SVG, and adds enough right padding for the value text to clear it. */
+.form-input--select {
+  appearance: none;
+  -webkit-appearance: none;
+  padding-right: var(--cc-space-8); /* 24px — room for the chevron */
+  cursor: pointer;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%237279a2' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right var(--cc-space-3) center;
+  background-size: 14px 14px;
+}

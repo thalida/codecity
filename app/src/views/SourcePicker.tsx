@@ -249,7 +249,7 @@ export function SourcePickerModal({ state, onSubmit, onClose }: SourcePickerModa
               </label>
             </div>
             <div class="modal-actions">
-              <button type="button" class="submit" onClick={handleSubmit}>
+              <button type="button" class="submit btn-primary" onClick={handleSubmit}>
                 Open project
               </button>
             </div>
@@ -257,7 +257,7 @@ export function SourcePickerModal({ state, onSubmit, onClose }: SourcePickerModa
 
           {recents.length > 0 && (
             <div class="recents-list">
-              <h3>Recent</h3>
+              <h3 class="text-label">Recent</h3>
               {recents.map((r) => {
                 const isActive = r.src === currentSrc && (r.branch ?? '') === (currentBranch ?? '');
                 const isLocal = inferSourceTab(r.src) === SourceTab.Local;

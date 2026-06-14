@@ -1,0 +1,17 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   LAYER-2 COMPONENTS — Surfaces
+   ═══════════════════════════════════════════════════════════════════════════
+   Background-only utilities naming the app's three base fills. The consuming
+   element keeps its own borders + layout; this just gives the chrome/backdrop
+   fill a single source so it's set once per role, not per selector.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.surface-app {
+  background: var(--cc-bg-app);
+}
+.surface-chrome {
+  background: var(--cc-bg-chrome);
+}
+.surface-sidebar {
+  background: var(--cc-bg-sidebar);
+}

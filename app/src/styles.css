@@ -1,140 +1,20 @@
 /* ═══════════════════════════════════════════════════════════════════════════
-   LAYER-2 COMPONENTS — Text
+   PAGE — kit roles applied to bare elements
    ═══════════════════════════════════════════════════════════════════════════
-   One class per text role. Components compose 1–2 of these instead of
-   each rolling its own color + font-size + font-weight + family triplet.
-
-   Atomic (color-only):    .text-{primary,secondary,muted,faint,ghost,
-                                  inverse,accent,success,warning,error}
-   Atomic (family-only):   .text-mono
-   Utility:                .text-truncate  (nowrap + ellipsis)
-   Composite roles:        .text-label     (uppercase section labels)
-                           .text-pane-title (pane header titles)
-                           .text-card-title / .text-card-sub (state cards)
+   A markdown-generated <code>, JS-state-driven tree rows, and the modal
+   <input>/<select> can't carry a kit class, so these page selectors repeat
+   the kit declarations (.code-inline / .row hover+selected / .form-input).
    ═══════════════════════════════════════════════════════════════════════════ */
 
-/* Atomic color classes — drop into a selector list as an alias. */
-.text-primary {
-  color: var(--cc-text-primary);
-}
-.text-secondary {
-  color: var(--cc-text-secondary);
-}
-.text-muted {
-  color: var(--cc-text-muted);
-}
-.text-faint {
-  color: var(--cc-text-faint);
-}
-.text-ghost {
-  color: var(--cc-text-ghost);
-}
-.text-inverse {
-  color: var(--cc-text-inverse);
-}
-.text-accent {
-  color: var(--cc-accent);
-}
-.text-success {
-  color: var(--cc-success);
-}
-.text-warning {
-  color: var(--cc-warning);
-}
-.text-error {
-  color: var(--cc-error);
-}
-
-/* Atomic family class. */
-.text-mono {
-  font-family: var(--cc-font-mono);
-}
-
-/* Truncation utility — collapses 3 declarations used 6+ times in the file. */
-.text-truncate {
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-/* Composite: uppercase section label.
-   .info-markdown h5/h6 are NOT aliased — they need a larger size and live
-   in body-text context; they get their own per-class declaration.
-   .recents-list h3 is kept as an alias because it's a semantic <h3>
-   element inside the recents list — no canonical class to attach. */
-.text-label,
-.recents-list h3 {
-  font-size: var(--cc-font-sm);
-  font-weight: var(--cc-fw-bold);
-  letter-spacing: var(--cc-track-label);
-  text-transform: uppercase;
-  color: var(--cc-text-secondary);
-}
-/* Muted variant — dimmer than the default secondary text color. Used by
-   the theme-subgroup label (both the <div> non-collapsible and the
-   <summary> collapsible). */
-.text-label--muted {
-  color: var(--cc-text-muted);
-}
-
-/* Composite: pane header title. */
-.text-pane-title {
-  font-size: var(--cc-font-lg);
-  font-weight: var(--cc-fw-semibold);
-  color: var(--cc-text-secondary);
-}
-
-/* Composite: state-card title (loading, empty preview, empty search). */
-.text-card-title {
-  font-size: var(--cc-font-lg);
-  font-weight: var(--cc-fw-medium);
-  color: var(--cc-text-secondary);
-}
-/* Loading-state title is emphasized: brighter color, heavier weight. */
-.text-card-title.is-loading {
-  font-weight: var(--cc-fw-semibold);
-  color: var(--cc-text-primary);
-}
-
-/* Composite: state-card subtitle. */
-.text-card-sub {
-  font-size: var(--cc-font-md);
-  color: var(--cc-text-faint);
-}
-
-/* ═══════════════════════════════════════════════════════════════════════════
-   LAYER-2 COMPONENTS — Small atoms (dots, inline code)
-   ═══════════════════════════════════════════════════════════════════════════
-   .dot          — 6×6 status indicator. Pair with a .dot--success /
-                   --warning / --error modifier for semantic color.
-   .code-inline  — accent-tinted mono pill for inline code / kbd keys.
-                   Two variants in the aliases below: kbd (smaller, secondary
-                   text, stronger border) and info-markdown code (larger,
-                   primary text).
-   ═══════════════════════════════════════════════════════════════════════════ */
-
-.dot,
-.app-footer-status-dot {
-  display: inline-block;
-  width: 6px;
-  height: 6px;
-  border-radius: var(--cc-radius-circle);
-  flex: 0 0 auto;
-}
-.dot--success {
-  background: var(--cc-success);
-}
-.dot--warning {
-  background: var(--cc-warning);
-}
-.dot--error {
-  background: var(--cc-error);
-}
-
-.code-inline,
 .controls-section-hint kbd,
 .shortcuts-list kbd,
-.shortcuts-list .shortcuts-mouse,
+.shortcuts-list .shortcuts-mouse {
+  display: inline-block;
+  background: var(--cc-accent-bg-soft);
+  border-radius: var(--cc-radius-sm);
+  font-family: var(--cc-font-mono);
+  padding: var(--cc-space-px) var(--cc-space-3);
+}
 .info-markdown code {
   display: inline-block;
   background: var(--cc-accent-bg-soft);
@@ -143,170 +23,17 @@
   padding: var(--cc-space-px) var(--cc-space-3);
 }
 
-/* ═══════════════════════════════════════════════════════════════════════════
-   LAYER-2 COMPONENTS — Pane structure
-   ═══════════════════════════════════════════════════════════════════════════
-   .pane       — fills the available flex space, lays out children in a
-                 vertical column, hides overflow. Used for top-level pane
-                 shells that don't scroll themselves.
-   .pane-body  — like .pane, but the body itself scrolls vertically. Used
-                 when the contents need to scroll inside the pane.
-                 .pane-body--padded adds 16px of inset padding.
-   ═══════════════════════════════════════════════════════════════════════════ */
-
-.pane,
-.pane-body {
-  display: flex;
-  flex-direction: column;
-  flex: 1 1 auto;
-  min-height: 0;
-}
-
-/* .pane hides overflow; children scroll instead. */
-.pane {
-  overflow: hidden;
-}
-
-/* .pane-body scrolls vertically. */
-.pane-body {
-  overflow-y: auto;
-}
-
-.pane-body--padded {
-  padding: var(--cc-space-7); /* 16px */
-  box-sizing: border-box;
-}
-
-/* ═══════════════════════════════════════════════════════════════════════════
-   LAYER-2 COMPONENTS — Rows
-   ═══════════════════════════════════════════════════════════════════════════
-   .row — clickable flex row with subtle hover. Used for tree rows and the
-   two collapsible-section summary rows. Padding aligns to the pane's 16px
-   horizontal padding so depth-0 entries line up under pane titles.
-
-   Variants:
-     .row--tight     — collapses the chevron/icon/label gap (tree rows).
-     .row--bleed     — negative inline margins so the hover background
-                       extends to the pane edge.
-     .row--selected  — accent-tinted "selected" background (used by tree).
-   ═══════════════════════════════════════════════════════════════════════════ */
-
-.row {
-  display: flex;
-  align-items: center;
-  gap: var(--cc-space-2); /* 4px default; --tight overrides to 2px */
-  padding: var(--cc-space-2) var(--cc-space-7); /* 4px 16px */
-  border-radius: var(--cc-radius-sm);
-  cursor: pointer;
-  user-select: none;
-  transition: background var(--cc-t-fast);
-}
-.row:hover,
 .tree-item.tree-hovered > .row {
   background: var(--cc-overlay-bg-soft);
 }
-
-/* Tight variant — chevron/icon/label gap collapses from 4px to 2px so
-   the chevron + folder icon read as a single unit. Used by tree rows. */
-.row--tight {
-  gap: var(--cc-space-1); /* 2px */
-}
-
-/* Bleed variant — extends hover background to the pane edge. Used by
-   collapsible summaries inside the controls-pane. */
-.row--bleed {
-  margin-left: calc(-1 * var(--cc-space-7));
-  margin-right: calc(-1 * var(--cc-space-7));
-  margin-bottom: var(--cc-space-2);
-}
-
-/* Selected variant — tree row in selected state. */
-.row--selected,
 .tree-item.tree-selected > .row {
   background: var(--cc-accent-bg);
 }
-.row--selected:hover,
 .tree-item.tree-selected > .row:hover,
 .tree-item.tree-selected.tree-hovered > .row {
   background: var(--cc-accent-bg); /* keep selected state on hover */
 }
 
-/* ═══════════════════════════════════════════════════════════════════════════
-   LAYER-2 COMPONENTS — Cards
-   ═══════════════════════════════════════════════════════════════════════════
-   Reusable boxed surfaces. Each owns its background + border + radius (+ shadow
-   / padding); the consuming selector adds only its own layout. The element
-   composes the card class with its layout class, e.g. `modal-error card-error`.
-   ═══════════════════════════════════════════════════════════════════════════ */
-
-/* Elevated panel floating on a backdrop — the source-picker modal + the
-   loading overlay. */
-.card-overlay {
-  background: var(--cc-bg-modal);
-  color: var(--cc-text-base);
-  border-radius: var(--cc-radius-lg);
-  box-shadow: var(--cc-shadow-lg);
-}
-
-/* Error notice box (modal error banner). */
-.card-error {
-  background: var(--cc-error-bg);
-  border: 1px solid var(--cc-error-border);
-  border-radius: var(--cc-radius-md);
-  padding: var(--cc-space-4) var(--cc-space-5);
-}
-
-/* Accent-tinted info strip with a bottom rule (file-preview banner). */
-.card-banner {
-  background: var(--cc-accent-bg-soft);
-  border-bottom: 1px solid var(--cc-accent-bg);
-  padding: var(--cc-space-3) var(--cc-space-6);
-}
-
-/* Floating tooltip surface (the hover tooltip). */
-.card-tooltip {
-  background: var(--cc-bg-tooltip);
-  border: 1px solid var(--cc-border-tooltip);
-  border-radius: var(--cc-radius-sm);
-  padding: var(--cc-space-2) var(--cc-space-4);
-  box-shadow: var(--cc-shadow-md);
-}
-
-/* ═══════════════════════════════════════════════════════════════════════════
-   LAYER-2 COMPONENTS — Surfaces
-   ═══════════════════════════════════════════════════════════════════════════
-   Background-only utilities naming the app's three base fills. The consuming
-   element keeps its own borders + layout; this just gives the chrome/backdrop
-   fill a single source so it's set once per role, not per selector.
-   ═══════════════════════════════════════════════════════════════════════════ */
-
-.surface-app {
-  background: var(--cc-bg-app);
-}
-.surface-chrome {
-  background: var(--cc-bg-chrome);
-}
-.surface-sidebar {
-  background: var(--cc-bg-sidebar);
-}
-
-/* ═══════════════════════════════════════════════════════════════════════════
-   LAYER-2 COMPONENTS — Form inputs
-   ═══════════════════════════════════════════════════════════════════════════
-   .form-input — base text-input style (sidebar/controls/modal).
-   Variants:
-     .form-input--mono — narrow mono numeric input (used by theme rows).
-   .search-input is kept as a per-class marker for the flex-fill layout
-   rule in the search pane; .modal-field input is kept because it's a
-   bare <input> inside a labeled wrapper (no canonical class to attach).
-   ═══════════════════════════════════════════════════════════════════════════ */
-
-/* .form-input — the one text-input style for every context (sidebar,
-   controls, modal). Reads as a "depressed" element against any of the
-   four surface backgrounds.
-   background-color (not the `background` shorthand) so .form-input--select
-   can layer its chevron in via background-image. */
-.form-input,
 .modal-field input,
 .modal-field select {
   background-color: var(--cc-bg-chrome);
@@ -318,79 +45,12 @@
   padding: var(--cc-space-2) var(--cc-space-4); /* 4px 8px */
   outline: none;
 }
-.form-input::placeholder,
 .modal-field input::placeholder {
   color: var(--cc-text-faint);
 }
-.form-input:focus,
 .modal-field input:focus,
 .modal-field select:focus {
   border-color: var(--cc-accent-border);
-}
-
-/* .form-input--mono — narrow numeric variant. Mono font, smaller font-size,
-   fixed 70px width, right-aligned, compact 2px/6px padding. Used by the
-   per-row number inputs in the Controls pane. */
-.form-input--mono {
-  width: 70px;
-  font-family: var(--cc-font-mono);
-  font-size: var(--cc-font-md);
-  padding: var(--cc-space-1) var(--cc-space-3); /* 2px 6px */
-  text-align: right;
-}
-
-/* .form-input--select — native <select> variant. Drops the OS chrome
-   (appearance: none), paints a chevron-down on the right via an inline
-   SVG, and adds enough right padding for the value text to clear it. */
-.form-input--select {
-  appearance: none;
-  -webkit-appearance: none;
-  padding-right: var(--cc-space-8); /* 24px — room for the chevron */
-  cursor: pointer;
-  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%237279a2' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>");
-  background-repeat: no-repeat;
-  background-position: right var(--cc-space-3) center;
-  background-size: 14px 14px;
-}
-
-/* ═══════════════════════════════════════════════════════════════════════════
-   LAYER-2 COMPONENTS — Buttons
-   ═══════════════════════════════════════════════════════════════════════════
-   .btn-primary       — solid accent CTA (modal submit, save).
-   .btn-secondary     — outlined neutral (modifier on .btn-accent-outline).
-   .btn-accent-outline — accent-tinted outlined (controls-pane Save / debug).
-   .btn-icon          — 24x24 icon-only button.
-   .btn-toggle        — one-of-N option button (segmented / theme-select).
-   .btn-reset-inline  — tiny inline reset (controls-section + theme-row).
-   ═══════════════════════════════════════════════════════════════════════════ */
-
-/* .btn-primary — solid accent CTA. Used everywhere a "primary action"
-   appears: modal Open Project, controls Save, etc.
-   Alias for legacy .modal-actions button selector. */
-.btn-primary,
-.modal-actions button {
-  appearance: none;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--cc-accent);
-  border: 0;
-  color: var(--cc-text-inverse);
-  padding: var(--cc-space-4) var(--cc-space-7);
-  border-radius: var(--cc-radius-md);
-  cursor: pointer;
-  font: inherit;
-  font-weight: var(--cc-fw-semibold);
-  transition: background var(--cc-t-base);
-}
-.btn-primary:hover:not(:disabled),
-.modal-actions button:hover:not(:disabled) {
-  background: var(--cc-accent-light);
-}
-.btn-primary:disabled,
-.modal-actions button:disabled {
-  opacity: 0.5;
-  cursor: default;
 }
 
 /* Tiny accent reset buttons (controls section + subgroup + theme row).
@@ -442,75 +102,6 @@
   flex-shrink: 0;
 }
 
-/* ═══════════════════════════════════════════════════════════════════════════
-   LAYER-2 COMPONENTS — Icon buttons
-   ═══════════════════════════════════════════════════════════════════════════
-   .btn-icon    — default 24×24 icon button with hover overlay.
-   Modifiers:
-     .btn-icon--sm    — 22×22 (footer chrome).
-     .btn-icon--lg    — auto size via padding, 18px font, 6px radius
-                        (large × glyph like modal close).
-     .btn-icon--text  — auto size via padding, inherits font/color
-                        (text-style buttons like breadcrumb segments).
-     .btn-icon--link  — anchor-tag variant (text-decoration removed).
-     .btn-icon--no-drag — Electron drag-region marker.
-   ═══════════════════════════════════════════════════════════════════════════ */
-
-.btn-icon {
-  appearance: none;
-  flex: 0 0 auto;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 24px;
-  height: 24px;
-  background: none;
-  border: none;
-  color: var(--cc-text-faint);
-  border-radius: var(--cc-radius-sm);
-  font-size: var(--cc-font-xl);
-  cursor: pointer;
-}
-.btn-icon:not(:disabled):hover {
-  color: var(--cc-text-primary);
-  background: var(--cc-overlay-bg);
-}
-.btn-icon:disabled {
-  cursor: default;
-}
-.btn-icon.is-active {
-  color: var(--cc-accent);
-  background: var(--cc-accent-bg-soft);
-}
-
-/* Modifiers */
-.btn-icon--sm {
-  width: 22px;
-  height: 22px;
-  font-size: var(--cc-font-lg);
-}
-.btn-icon--lg {
-  width: auto;
-  height: auto;
-  padding: var(--cc-space-2) var(--cc-space-4);
-  border-radius: var(--cc-radius-md);
-  font-size: var(--cc-font-2xl);
-  color: inherit;
-}
-.btn-icon--text {
-  width: auto;
-  height: auto;
-  padding: var(--cc-space-px) var(--cc-space-2);
-  font: inherit;
-  color: var(--cc-text-muted);
-}
-.btn-icon--link {
-  text-decoration: none;
-}
-.btn-icon--no-drag {
-  -webkit-app-region: no-drag;
-}
-
 /* Modal-close uses a stronger hover overlay than other btn-icons. */
 .modal-header .btn-icon:not(:disabled):hover {
   background: var(--cc-overlay-bg-strong);
@@ -518,46 +109,6 @@
 
 /* The header flex container already sets gap: 4px (--cc-space-2), so
    header buttons don't need their own margins. */
-
-/* ═══════════════════════════════════════════════════════════════════════════
-   LAYER-2 COMPONENTS — Icon-text chip (.btn-chip)
-   ═══════════════════════════════════════════════════════════════════════════
-   Used by the header project switcher (icon + label + optional badge).
-   Different from .btn-icon — has gap, asymmetric padding, max-width,
-   ellipsis truncation on its label. */
-
-.btn-chip {
-  appearance: none;
-  flex: 0 0 auto;
-  display: inline-flex;
-  align-items: center;
-  gap: var(--cc-space-3);
-  height: 24px;
-  padding: 0 var(--cc-space-3); /* symmetric 6px each side */
-  background: none;
-  border: none;
-  color: var(--cc-text-faint);
-  border-radius: var(--cc-radius-sm);
-  font: inherit;
-  font-size: var(--cc-font-lg);
-  white-space: nowrap;
-  max-width: 280px;
-  cursor: pointer;
-  -webkit-app-region: no-drag;
-}
-.btn-chip:not(:disabled):hover {
-  color: var(--cc-text-primary);
-  background: var(--cc-overlay-bg);
-}
-.btn-chip:disabled {
-  cursor: default;
-}
-/* Trailing chevron — visual cue that the chip opens a picker. */
-.btn-chip-chevron {
-  margin-left: var(--cc-space-1);
-  font-size: var(--cc-font-md);
-  opacity: 0.7;
-}
 
 /* .gem-icon — sizing for the codecity gem, an inline <svg> whose per-face
    palette fills render directly (see the GemIcon component in
