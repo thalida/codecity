@@ -128,7 +128,12 @@ export function SourcePickerModal({ state, onSubmit, onClose }: SourcePickerModa
         if (s.dismissible && e.target === e.currentTarget) onClose();
       }}
     >
-      <div class="modal-card card-overlay" role="dialog" aria-modal="true" aria-label="Open project">
+      <div
+        class="modal-card card-overlay"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Open project"
+      >
         <div class="modal-header surface-chrome">
           <span>Open project</span>
           {s.dismissible && (
