@@ -41,6 +41,13 @@ import type { IslandConfig } from '@/state/stores/settings/island';
 // the TREES settings store but was never exposed as a control).
 const SCATTER_FOOTPRINT_FRAC_OF_MAX_WIDTH = 0.5;
 
+// Baked placement-tuning constants (not user-tunable). EDGE_INSET: trees stop
+// short of the plane edge by this % of the shorter axis. DENSITY_FALLOFF:
+// clustering exponent toward the city — 0 = uniform spread; higher packs trees
+// near the city and thins them toward the edge.
+const TREE_EDGE_INSET_PERCENT = 1;
+const TREE_DENSITY_FALLOFF = 0;
+
 interface Rect {
   minX: number;
   minY: number;
@@ -207,7 +214,7 @@ export function placeTrees(
   // sampling region's edge. `maxFalloffDist` is the largest possible
   // distance from the city bbox within the sampling region — used to
   // normalize the per-candidate distance into [0,1].
-  const falloffPower = Math.max(0, cfg.DENSITY_FALLOFF);
+  const falloffPower = TREE_DENSITY_FALLOFF;
   const worldMinX = bounds.cx - sampleHalfW;
   const worldMaxX = bounds.cx + sampleHalfW;
   const worldMinZ = bounds.cz - sampleHalfD;
@@ -247,7 +254,7 @@ export function placeTrees(
       });
       // Shrink every vertex radially inward by insetFrac so the rejection
       // polygon is uniformly inset from the actual island edge.
-      const insetFrac = cfg.EDGE_INSET_PERCENT / 100;
+      const insetFrac = TREE_EDGE_INSET_PERCENT / 100;
       islandPolygon = rawPolygon.map((v) => {
         const r = Math.hypot(v.x, v.z);
         if (r < 1e-6) return v.clone();

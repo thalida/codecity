@@ -13,11 +13,6 @@ export const TREES_SECTION: SectionNode = {
   children: [
     { key: 'visibility', label: 'Visibility', children: [field(TREES, 'ENABLED')] },
     {
-      key: 'placement',
-      label: 'Placement',
-      children: [field(TREES, 'EDGE_INSET_PERCENT'), field(TREES, 'DENSITY_FALLOFF')],
-    },
-    {
       key: 'color',
       label: 'Color by commits-per-day',
       children: [

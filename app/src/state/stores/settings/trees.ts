@@ -28,27 +28,6 @@ const TREES_FIELDS = {
     tip: 'Master toggle. When off, all tree canopies + trunks are hidden (mesh.visible flip — no rebuild).',
   },
 
-  EDGE_INSET_PERCENT: {
-    route: ChangeRoute.Rebuild,
-    kind: FieldKind.Slider,
-    default: 1,
-    min: 0,
-    max: 50,
-    step: 1,
-    label: 'Edge inset (% of plane)',
-    tip: 'Trees stop short of the plane edge by this fraction of the SHORTER axis. Rebuild on change.',
-  },
-  DENSITY_FALLOFF: {
-    route: ChangeRoute.Rebuild,
-    kind: FieldKind.Slider,
-    default: 1.5,
-    min: 0,
-    max: 50,
-    step: 0.1,
-    label: 'Density falloff',
-    tip: 'How tightly trees cluster near the city. 0 = uniform spread. Higher = denser near city, sparser at edges (acceptance prob = (1 - dist/maxDist)^falloff). Very high values (>20) push almost every tree into a dense ring right at the city edge. Rebuild on change.',
-  },
-
   COLOR_BUSY_DAY: {
     route: ChangeRoute.Refresh,
     kind: FieldKind.Color,

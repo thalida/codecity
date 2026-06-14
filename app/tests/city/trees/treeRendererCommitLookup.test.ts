@@ -18,8 +18,6 @@ const BUSY = { avg: 1, busy: 1 };
 function resetStores() {
   TREES.value = {
     ENABLED: true,
-    EDGE_INSET_PERCENT: 8,
-    DENSITY_FALLOFF: 0,
     MIN_HEIGHT: 48,
     MAX_HEIGHT: 144,
     MIN_WIDTH: 32,
