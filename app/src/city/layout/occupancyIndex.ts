@@ -25,6 +25,11 @@ export interface WorldRect {
   // Payload — what kind of thing is this, what does it belong to.
   kind: WorldRectKind;
   ref: Building | Street;
+  // True only for the phantom strip seeded to clear a child off its PARENT
+  // street body. It's a Street rect but NOT a sibling, so the sibling-gap
+  // logic (findSmallestValidStem) must not apply the street gap to it — the
+  // join clearance is PARENT_JOIN_PAD's job, not the sibling gap's.
+  parentBody?: boolean;
 }
 
 export class WorldOccupancy {

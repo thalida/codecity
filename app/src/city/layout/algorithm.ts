@@ -491,10 +491,13 @@ export function findSmallestValidStem(
       const gMinAlong = p.parentOrient === StreetAxis.X ? g.minX : g.minY;
       const gMaxAlong = p.parentOrient === StreetAxis.X ? g.maxX : g.maxY;
 
-      // max-of-both-kinds: the obstacle reserves its own kind's gap too, so a
-      // side street keeps its clearance regardless of placement order.
+      // Separation to this obstacle. The parent-body phantom isn't a sibling —
+      // the gap to it is just the building baseline (its branch-join spacing
+      // comes from PARENT_JOIN_PAD via originPad, not the sibling gap). For real
+      // siblings it's max-of-both-kinds, so a side street keeps its clearance on
+      // both sides regardless of placement order.
       const obsGap = g.kind === WorldRectKind.Street ? p.streetGap : p.buildingGap;
-      const sep = Math.max(placingGap, obsGap);
+      const sep = g.parentBody ? p.buildingGap : Math.max(placingGap, obsGap);
       const lower = gMinAlong - alongMax0 - sep;
       const upper = gMaxAlong - alongMin0 + sep;
       if (upper > lower) {
@@ -782,9 +785,10 @@ export function estimateDirReaches(
     // tiebreaking with empty occupancy).
     const side = sideFarEdge[0] <= sideFarEdge[1] ? 0 : 1;
     if (sideFarEdge[side] === -Infinity) {
-      // First child on this side clears the parent's street body (a Street), so
-      // its clearance is max(myGap, streetGap).
-      const phantomBumpStem = parentBodyHalf + alongContrib / 2 + Math.max(myGap, streetGap);
+      // First child clears the parent's street BODY, not a sibling — that gap is
+      // the building baseline (the branch-join spacing comes from originPad /
+      // PARENT_JOIN_PAD), so the sibling street gap is NOT applied here.
+      const phantomBumpStem = parentBodyHalf + alongContrib / 2 + buildingGap;
       const stem = Math.max(originPad, phantomBumpStem);
       sideFarEdge[side] = stem + alongContrib / 2;
     } else {
@@ -895,6 +899,9 @@ function _layoutDir(
       maxX: phantomMaxX,
       maxY: phantomMaxY,
       kind: WorldRectKind.Street,
+      // Marks this as the PARENT body, not a sibling — the sibling-gap logic
+      // skips the street gap for it (the join clearance is PARENT_JOIN_PAD).
+      parentBody: true,
       // Phantom ref — never read by findSmallestValidStem or the result
       // arrays (the phantom lives only in the local occupancy and never
       // appears in CityLayout). Typed as Street to satisfy WorldRect.ref.
