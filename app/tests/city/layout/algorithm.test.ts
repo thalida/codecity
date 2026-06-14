@@ -691,7 +691,7 @@ describe('_rectsOverlap', () => {
   it('disjoint rects return false', () => {
     expect(_rectsOverlap({ x: 0, y: 0, w: 10, d: 10 }, { x: 100, y: 0, w: 10, d: 10 })).toBe(false);
   });
-  it('touching edges return false (childGap-apart abutment is OK)', () => {
+  it('touching edges return false (gap-apart abutment is OK)', () => {
     expect(_rectsOverlap({ x: 0, y: 0, w: 10, d: 10 }, { x: 10, y: 0, w: 10, d: 10 })).toBe(false);
   });
   it('touching edges on Y axis return false', () => {

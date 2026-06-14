@@ -33,14 +33,14 @@ describe('configCommitReactions invalidates layout cache before applyManifest', 
     calls = [];
     appliedManifests = [];
     detach = null;
-    originalChildGap = STREET_LAYOUT.value.CHILD_GAP;
+    originalChildGap = STREET_LAYOUT.value.BUILDING_GAP;
   });
 
   afterEach(() => {
     if (detach) detach();
     detach = null;
-    // Restore so other tests don't see a drifted CHILD_GAP.
-    STREET_LAYOUT.value = { ...STREET_LAYOUT.value, CHILD_GAP: originalChildGap };
+    // Restore so other tests don't see a drifted BUILDING_GAP.
+    STREET_LAYOUT.value = { ...STREET_LAYOUT.value, BUILDING_GAP: originalChildGap };
     setManifest(EMPTY_MANIFEST);
   });
 
@@ -64,9 +64,9 @@ describe('configCommitReactions invalidates layout cache before applyManifest', 
     });
 
     // Simulate a Save commit on a rebuildStore: the user edited
-    // STREET_LAYOUT.CHILD_GAP and clicked Save → configDrafts.commit()
+    // STREET_LAYOUT.BUILDING_GAP and clicked Save → configDrafts.commit()
     // fires setKey on the real store, which triggers our subscription.
-    STREET_LAYOUT.value = { ...STREET_LAYOUT.value, CHILD_GAP: originalChildGap + 1 };
+    STREET_LAYOUT.value = { ...STREET_LAYOUT.value, BUILDING_GAP: originalChildGap + 1 };
 
     // scheduleRebuild is async; let the microtask queue drain so the
     // applyManifest await resolves before we assert.

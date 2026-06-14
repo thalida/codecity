@@ -126,7 +126,9 @@ describe('findSmallestValidStem', () => {
       parentOriginY: 0,
       priorStem: 50,
       originPad: 30,
-      childGap: 8,
+      buildingGap: 8,
+      streetGap: 8,
+      childKind: WorldRectKind.Building,
       occupancy: occ,
     });
     expect(s).toBe(50);
@@ -144,7 +146,9 @@ describe('findSmallestValidStem', () => {
       parentOriginY: 0,
       priorStem: 10,
       originPad: 30,
-      childGap: 8,
+      buildingGap: 8,
+      streetGap: 8,
+      childKind: WorldRectKind.Building,
       occupancy: occ,
     });
     expect(s).toBe(30);
@@ -174,7 +178,9 @@ describe('findSmallestValidStem', () => {
       parentOriginY: 0,
       priorStem: 50,
       originPad: 0,
-      childGap: 8,
+      buildingGap: 8,
+      streetGap: 8,
+      childKind: WorldRectKind.Building,
       occupancy: occ,
     });
     expect(s).toBe(110);
@@ -195,7 +201,9 @@ describe('findSmallestValidStem', () => {
       parentOriginY: 0,
       priorStem: 5,
       originPad: 0,
-      childGap: 8,
+      buildingGap: 8,
+      streetGap: 8,
+      childKind: WorldRectKind.Building,
       occupancy: occ,
     });
     expect(s).toBe(5);
@@ -221,7 +229,9 @@ describe('findSmallestValidStem', () => {
       parentOriginY: 0,
       priorStem: 0,
       originPad: 0,
-      childGap: 8,
+      buildingGap: 8,
+      streetGap: 8,
+      childKind: WorldRectKind.Building,
       occupancy: occ,
     });
     expect(s).toBe(30);
@@ -244,7 +254,9 @@ describe('findSmallestValidStem', () => {
       parentOriginY: 0,
       priorStem: 0,
       originPad: 0,
-      childGap: 8,
+      buildingGap: 8,
+      streetGap: 8,
+      childKind: WorldRectKind.Building,
       occupancy: occ,
     });
     expect(s).toBe(110);
@@ -271,7 +283,9 @@ describe('findSmallestValidStem', () => {
       parentOriginY: 0,
       priorStem: 0,
       originPad: 0,
-      childGap: 8,
+      buildingGap: 8,
+      streetGap: 8,
+      childKind: WorldRectKind.Building,
       occupancy: occ,
     });
     expect(s).toBe(60);
@@ -303,7 +317,9 @@ describe('placeChild', () => {
       parentOriginY: 0,
       priorStem: 0,
       originPad: 0,
-      childGap: 8,
+      buildingGap: 8,
+      streetGap: 8,
+      childKind: WorldRectKind.Building,
       occupancy: occ,
     });
     // Both sides empty → stem=0, side=0 wins tiebreak.
@@ -325,7 +341,9 @@ describe('placeChild', () => {
       parentOriginY: 0,
       priorStem: 0,
       originPad: 0,
-      childGap: 8,
+      buildingGap: 8,
+      streetGap: 8,
+      childKind: WorldRectKind.Building,
       occupancy: occ,
     });
     // Side 0 (perp y=-10, no blocker) gives stem=0. Side 1 needs to slide past
@@ -344,7 +362,9 @@ describe('placeChild', () => {
       parentOriginY: 0,
       priorStem: 0,
       originPad: 0,
-      childGap: 8,
+      buildingGap: 8,
+      streetGap: 8,
+      childKind: WorldRectKind.Building,
       occupancy: occ,
     });
     expect(result.side).toBe(0);
@@ -361,7 +381,9 @@ describe('placeChild', () => {
       parentOriginY: 0,
       priorStem: 0,
       originPad: 0,
-      childGap: 8,
+      buildingGap: 8,
+      streetGap: 8,
+      childKind: WorldRectKind.Building,
       occupancy: occ,
     });
     expect(result.mirror).toBe(false);
@@ -378,7 +400,9 @@ describe('placeChild', () => {
       parentOriginY: 0,
       priorStem: 0,
       originPad: 0,
-      childGap: 8,
+      buildingGap: 8,
+      streetGap: 8,
+      childKind: WorldRectKind.Building,
       occupancy: occ,
     };
     const a = placeChild(params);
@@ -401,7 +425,9 @@ describe('placeChild', () => {
       priorStem: 50, // fallback; should NOT apply because priorStems takes precedence
       priorStems: [50, 0],
       originPad: 0,
-      childGap: 8,
+      buildingGap: 8,
+      streetGap: 8,
+      childKind: WorldRectKind.Building,
       occupancy: occ,
     });
     expect(result.side).toBe(1);
@@ -421,7 +447,9 @@ describe('placeChild', () => {
       priorStem: 50,
       priorStems: [0, 50],
       originPad: 0,
-      childGap: 8,
+      buildingGap: 8,
+      streetGap: 8,
+      childKind: WorldRectKind.Building,
       occupancy: occ,
     });
     expect(result.side).toBe(0);
@@ -440,7 +468,9 @@ describe('placeChild', () => {
       parentOriginY: 0,
       priorStem: 10,
       originPad: 0,
-      childGap: 8,
+      buildingGap: 8,
+      streetGap: 8,
+      childKind: WorldRectKind.Building,
       occupancy: occ,
     });
     expect(result.side).toBe(0);

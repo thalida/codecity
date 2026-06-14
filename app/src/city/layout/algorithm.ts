@@ -59,7 +59,7 @@ export type TreeLike = FileLike | DirLike;
 //
 // True iff two axis-aligned rectangles intersect by more than FP noise.
 // Touching edges (zero overlap) returns false; the packer relies on this
-// so that two rects abutted at exactly childGap apart count as
+// so that two rects abutted at exactly their sibling gap apart count as
 // non-overlapping. Because layout edges are derived from CENTER ± SIZE/2
 // after additive translation through non-integer offsets (e.g. a path's
 // far edge `61.6 + 2 = 63.6` vs a building's near edge `66.6 - 3 =
@@ -431,7 +431,14 @@ interface FindSmallestValidStemParams {
   parentOriginY: number;
   priorStem: number; // alphabetical-monotonic: stem ≥ priorStem
   originPad: number; // stem ≥ originPad (parent's join clearance)
-  childGap: number; // minimum gap between this child and others
+  // Sibling clearance is split by kind: a building reserves buildingGap, a
+  // side street reserves streetGap. The clearance between the placing child and
+  // any obstacle is max(gap for childKind, gap for the obstacle's kind), so a
+  // pair touching a side street gets the (typically larger) street gap on both
+  // sides while building↔building stays at buildingGap.
+  buildingGap: number;
+  streetGap: number;
+  childKind: WorldRectKind; // kind of the child being placed
   occupancy: WorldOccupancy; // global occupancy structure
 }
 
@@ -452,6 +459,8 @@ export function findSmallestValidStem(
   trace?: VariantTrace
 ): number {
   const { flipX, flipY } = computeFlips(p.parentOrient, p.side, p.mirror);
+  // Gap the placing child reserves around itself (by its kind).
+  const placingGap = p.childKind === WorldRectKind.Street ? p.streetGap : p.buildingGap;
 
   // Collect forbidden stem intervals from all (childRect, candidate) pairs.
   const forbidden: ForbiddenIntervalRecord[] = [];
@@ -482,8 +491,12 @@ export function findSmallestValidStem(
       const gMinAlong = p.parentOrient === StreetAxis.X ? g.minX : g.minY;
       const gMaxAlong = p.parentOrient === StreetAxis.X ? g.maxX : g.maxY;
 
-      const lower = gMinAlong - alongMax0 - p.childGap;
-      const upper = gMaxAlong - alongMin0 + p.childGap;
+      // max-of-both-kinds: the obstacle reserves its own kind's gap too, so a
+      // side street keeps its clearance regardless of placement order.
+      const obsGap = g.kind === WorldRectKind.Street ? p.streetGap : p.buildingGap;
+      const sep = Math.max(placingGap, obsGap);
+      const lower = gMinAlong - alongMax0 - sep;
+      const upper = gMaxAlong - alongMin0 + sep;
       if (upper > lower) {
         forbidden.push({ lower, upper, obstacle: g, fromChildRectIndex: rIdx });
       }
@@ -527,7 +540,9 @@ interface PlaceChildParams {
    *  invariant is then enforced PER SIDE rather than across both sides. */
   priorStems?: readonly [number, number];
   originPad: number;
-  childGap: number;
+  buildingGap: number;
+  streetGap: number;
+  childKind: WorldRectKind;
   occupancy: WorldOccupancy;
 }
 
@@ -572,7 +587,9 @@ export function placeChild(p: PlaceChildParams, trace?: PlaceChildTrace): PlaceC
         parentOriginY: p.parentOriginY,
         priorStem: sidePriorStem,
         originPad: p.originPad,
-        childGap: p.childGap,
+        buildingGap: p.buildingGap,
+        streetGap: p.streetGap,
+        childKind: p.childKind,
         occupancy: p.occupancy,
       },
       variantTrace
@@ -693,7 +710,8 @@ export function estimateDirReaches(
   if (cached) return cached;
 
   const streetLayout = STREET_LAYOUT.value;
-  const childGap = streetLayout.CHILD_GAP;
+  const buildingGap = streetLayout.BUILDING_GAP;
+  const streetGap = streetLayout.STREET_GAP;
   const parentJoinPad = streetLayout.PARENT_JOIN_PAD;
   const rootEndPad = streetLayout.ROOT_END_PAD;
   const bldgDims = BUILDING_DIMENSIONS.value;
@@ -724,26 +742,33 @@ export function estimateDirReaches(
   // Track the far edge of placed children on each side. -Infinity means no
   // child placed there yet; first child on a side sits at stem=phantomBumpStem
   // (the stem the grandparent-body phantom forces), subsequent children add
-  // childGap + alongContrib.
+  // max(prevGap, myGap) + alongContrib (buildingGap for a building, streetGap
+  // for a side street).
   //
   // phantomBumpStem accounts for the actual placement's first-child stem
   // being NOT simply originPad: when the grandparent body's phantom occupies
   // ±halfP_parent in this dir's along axis, the new rect's along range
   // [stem - alongContrib/2, stem + alongContrib/2] must clear that strip
-  // with childGap on each side → stem ≥ halfP_parent + alongContrib/2 + childGap.
+  // with the gap on each side → stem ≥ halfP_parent + alongContrib/2 + gap.
   // For the root call (no parent body), parentBodyHalf=0 and this reduces to
-  // alongContrib/2 + childGap, which is always ≤ originPad anyway.
+  // alongContrib/2 + gap, which is always ≤ originPad anyway.
   const parentBodyHalf = parentStreetWidth ? parentStreetWidth / 2 : 0;
   const sideFarEdge: [number, number] = [-Infinity, -Infinity];
+  // Gap of the last child placed on each side, so the next child's clearance is
+  // max(prevGap, myGap) — mirrors findSmallestValidStem's max-of-both-kinds.
+  const sidePrevGap: [number, number] = [0, 0];
   let perpReach = myStreetWidth / 2; // dir's own road body extends ±halfP
 
   for (const child of children) {
     let alongContrib: number;
     let perpContrib: number;
+    // A building reserves buildingGap; a branching side street reserves streetGap.
+    let myGap: number;
     if (child.type === NodeKind.File) {
       const dim = getBuildingDimensions(child as FileLike, lineStats, byteStats);
       alongContrib = dim.w;
       perpContrib = myStreetWidth / 2 + distFromRoad + dim.d;
+      myGap = buildingGap;
     } else {
       const sub = estimateDirReaches(child as DirLike, lineStats, byteStats, myStreetWidth, cache);
       // A perpendicular subdir occupies 2*subdir.perpReach in the parent's
@@ -751,17 +776,21 @@ export function estimateDirReaches(
       // in the parent's perp axis (one-sided, from join to end).
       alongContrib = 2 * sub.perpReach;
       perpContrib = sub.alongReach;
+      myGap = streetGap;
     }
     // Pick the side with smaller far edge (matches placeChild's smallest-stem
     // tiebreaking with empty occupancy).
     const side = sideFarEdge[0] <= sideFarEdge[1] ? 0 : 1;
     if (sideFarEdge[side] === -Infinity) {
-      const phantomBumpStem = parentBodyHalf + alongContrib / 2 + childGap;
+      // First child on this side clears the parent's street body (a Street), so
+      // its clearance is max(myGap, streetGap).
+      const phantomBumpStem = parentBodyHalf + alongContrib / 2 + Math.max(myGap, streetGap);
       const stem = Math.max(originPad, phantomBumpStem);
       sideFarEdge[side] = stem + alongContrib / 2;
     } else {
-      sideFarEdge[side] = sideFarEdge[side] + childGap + alongContrib;
+      sideFarEdge[side] = sideFarEdge[side] + Math.max(sidePrevGap[side], myGap) + alongContrib;
     }
+    sidePrevGap[side] = myGap;
     if (perpContrib > perpReach) perpReach = perpContrib;
   }
 
@@ -809,7 +838,8 @@ function _layoutDir(
 ): void {
   // ----- Tunables (one .value per call) -----
   const streetLayout = STREET_LAYOUT.value;
-  const childGap = streetLayout.CHILD_GAP;
+  const buildingGap = streetLayout.BUILDING_GAP;
+  const streetGap = streetLayout.STREET_GAP;
   const parentJoinPad = streetLayout.PARENT_JOIN_PAD;
   const rootEndPad = streetLayout.ROOT_END_PAD;
   const bldgDims = BUILDING_DIMENSIONS.value;
@@ -935,7 +965,9 @@ function _layoutDir(
           priorStem: Math.max(priorStems[0], priorStems[1]),
           priorStems,
           originPad,
-          childGap,
+          buildingGap,
+          streetGap,
+          childKind: WorldRectKind.Building,
           occupancy,
         },
         trace ? { variants } : undefined
@@ -1065,7 +1097,9 @@ function _layoutDir(
           priorStem: Math.max(priorStems[0], priorStems[1]),
           priorStems,
           originPad,
-          childGap,
+          buildingGap,
+          streetGap,
+          childKind: WorldRectKind.Street,
           occupancy,
         },
         trace ? { variants } : undefined
