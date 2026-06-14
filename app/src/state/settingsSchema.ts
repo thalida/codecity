@@ -113,11 +113,52 @@ export const HAS_ANY_NON_DEFAULT = computed(() => {
   return false;
 });
 
+// Clamp a number to a field's [min, max] (no-op when a bound is absent).
+function clampToBounds(n: number, def: FieldDef): number {
+  if (def.min != null && n < def.min) return def.min;
+  if (def.max != null && n > def.max) return def.max;
+  return n;
+}
+
+// Validate one hydrated field value against its definition → a safe value:
+// numerics must be finite and are clamped to [min, max]; a RangePair must be a
+// two-number array (each end clamped); a toggle must be a boolean; a select must
+// be a declared option; anything else (Color string, TierWidths/HueMap) is kept
+// only when its basic shape matches the default. Everything off falls back to
+// the default. Guards against out-of-range / stale / tampered persisted values
+// (e.g. a Number field cleared to 0 below its min → 0 floor height → NaN
+// geometry, or a select option that was renamed).
+function sanitizeField(value: unknown, def: FieldDef): unknown {
+  const fallback = def.default;
+  switch (def.kind) {
+    case FieldKind.Slider:
+    case FieldKind.Number:
+      return typeof value === 'number' && Number.isFinite(value)
+        ? clampToBounds(value, def)
+        : fallback;
+    case FieldKind.RangePair:
+      return Array.isArray(value) &&
+        value.length === 2 &&
+        value.every((n) => typeof n === 'number' && Number.isFinite(n))
+        ? [clampToBounds(value[0] as number, def), clampToBounds(value[1] as number, def)]
+        : fallback;
+    case FieldKind.Toggle:
+      return typeof value === 'boolean' ? value : fallback;
+    case FieldKind.Select:
+      return def.options?.some((o) => o.value === value) ? value : fallback;
+    default:
+      return typeof value === typeof fallback && Array.isArray(value) === Array.isArray(fallback)
+        ? value
+        : fallback;
+  }
+}
+
 /**
  * Create a persisted settings store from a flat field map. Derives the default
  * object from each field's `default`, wraps persistedSignal (so persistence,
  * hydration, diff-vs-default, drafts and getDefault all behave exactly as
- * before), and registers the field map for panel lookups.
+ * before), validates the hydrated value against the schema, and registers the
+ * field map for panel lookups.
  *
  * The returned signal's value type is ConfigOf<F> — inferred from the map, so
  * `STORE.value.KEY` is typed and a `satisfies`/ConfigOf alias gives the config
@@ -129,6 +170,23 @@ export function settingSignal<F extends FieldMap>(key: string, fields: F): Signa
     (def as Record<string, unknown>)[k] = fields[k].default;
   }
   const sig = persistedSignal<ConfigOf<F>>(key, def);
+
+  // Sanitize the hydrated value against the schema: clamp out-of-range numerics
+  // and reset corrupt/stale fields to their default. Rewrites (and re-persists)
+  // only when something was off, so a tampered or out-of-date localStorage entry
+  // can never feed an invalid value into the scene.
+  const current = sig.peek() as Record<string, unknown>;
+  const cleaned: Record<string, unknown> = { ...current };
+  let changed = false;
+  for (const k in fields) {
+    const sane = sanitizeField(current[k], fields[k]);
+    if (!deepEqual(sane, current[k])) {
+      cleaned[k] = sane;
+      changed = true;
+    }
+  }
+  if (changed) sig.value = cleaned as ConfigOf<F>;
+
   _FIELDS.set(sig, fields);
   _SETTING_STORES.add(sig);
   return sig;

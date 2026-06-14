@@ -1,10 +1,9 @@
-// Canonical Building test factory — replaces 5 variant factories that had
+// Canonical Building test factory — replaces 4 variant factories that had
 // begun to drift across:
-//   - app/tests/scene/cellAssembly.test.ts            (fakeBuilding, `as Building`)
-//   - app/tests/scene/instanced-buildings-cell.test.ts (fakeBuilding, `as Building`)
-//   - app/tests/scene/instanced-labels-cell.test.ts   (makeFakeBuilding, typed)
-//   - app/tests/scene/buildingIndex.test.ts           (makeBuilding, `as unknown as Building`)
-//   - app/tests/scene/trees/treePlacement.test.ts     (makeBuilding, `as never`)
+//   - app/tests/city/cellAssembly.test.ts            (fakeBuilding, `as Building`)
+//   - app/tests/city/cellMesh.test.ts (fakeBuilding, `as Building`)
+//   - app/tests/city/buildingIndex.test.ts           (makeBuilding, `as unknown as Building`)
+//   - app/tests/city/trees/treePlacement.test.ts     (makeBuilding, `as never`)
 //
 // The `as Building` / `as unknown as Building` / `as never` casts in the
 // prior versions were not load-bearing — every variant actually produced a
@@ -27,7 +26,6 @@ const DEFAULT_FILE: FileNode = {
   binary: false,
   created: '',
   modified: '',
-  git: { created: null, modified: null },
 };
 
 /**
@@ -37,7 +35,7 @@ const DEFAULT_FILE: FileNode = {
  *
  * Defaults satisfy every required field of Building (no cast needed). The
  * required-field set is small (x, y, w, d, h, color, file, orient); optional
- * fields (createdAge, modifiedAge, floors, cellId, slotId, dirNode) default
+ * fields (createdAge, modifiedAge, floors, cellId, slotId) default
  * to undefined and only appear when overridden — matches the production
  * shape where layout produces buildings without ages/cellId/slotId and
  * later steps fill them in.
@@ -57,6 +55,5 @@ export function building(overrides: Partial<Building> = {}): Building {
     ...(overrides.slotId !== undefined && { slotId: overrides.slotId }),
     ...(overrides.createdAge !== undefined && { createdAge: overrides.createdAge }),
     ...(overrides.modifiedAge !== undefined && { modifiedAge: overrides.modifiedAge }),
-    ...(overrides.dirNode !== undefined && { dirNode: overrides.dirNode }),
   };
 }

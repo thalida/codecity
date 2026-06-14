@@ -19,7 +19,8 @@ import {
   type ConfigOf,
   type FieldMap,
 } from '@/state/settingsSchema';
-import { oklchToHex } from '@/scene/utils/color/colors';
+import { oklchToHex } from '@/city/utils/color/colors';
+import { GEM_SIDES, GEM_SIDES_DEFAULT, GEM_SIDES_NAMES } from '@/constants/gem';
 
 // Default face palette: an OKLCH rainbow (perceptually uniform) at 8 evenly
 // spaced hues — fixed lightness + chroma. The gem cycles faces[i % 8].
@@ -29,17 +30,16 @@ const faceHex = (i: number): string => oklchToHex(FACE_L, FACE_C, (i / 8) * 360)
 
 const GEM_FIELDS = {
   // ── Shape ──
+  // Options + tip derive from the canonical GEM_SIDES vocabulary
+  // (constants/gem.ts) — the same key set the gem component's geometry
+  // table (city/components/gem/shapes.ts) is compile-checked against.
   SIDES: {
     route: ChangeRoute.Rebuild,
     kind: FieldKind.Select,
-    default: '8',
+    default: GEM_SIDES_DEFAULT,
     label: 'Sides',
-    options: [
-      { value: '4', label: '4' },
-      { value: '8', label: '8' },
-      { value: '20', label: '20' },
-    ],
-    tip: 'Polyhedron face count. 4 = tetrahedron, 8 = octahedron, 20 = icosahedron. Per-face colors cycle through the Face colors palette.',
+    options: GEM_SIDES.map((value) => ({ value, label: value })),
+    tip: `Polyhedron face count. ${GEM_SIDES.map((s) => `${s} = ${GEM_SIDES_NAMES[s]}`).join(', ')}. Per-face colors cycle through the Face colors palette.`,
   },
 
   // ── Appearance ──
@@ -175,6 +175,16 @@ const GEM_FIELDS = {
     step: 0.5,
     label: 'Cycle period (s)',
     tip: 'Seconds for one full pass through every palette color. Below 1s reads as flicker; above 30s the cycle feels static.',
+  },
+  GLOW_EMISSION: {
+    route: ChangeRoute.Refresh,
+    kind: FieldKind.Slider,
+    default: 0.5,
+    min: 0,
+    max: 5.0,
+    step: 0.1,
+    label: 'Emission (bloom)',
+    tip: 'Multiplier on the halo sprite colors. Gated on Effects > Bloom > Enabled. 0 = halos black (invisible); 1 = LDR (no bloom from gem); higher = HDR push that drives selective bloom on the gem.',
   },
 
   // ── Animation ──

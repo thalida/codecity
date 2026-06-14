@@ -1,7 +1,6 @@
 // types/scene.ts — composite scene-wide shapes. The output of the
 // layout step (CityLayout) and the bbox enclosing it (CityBbox).
 
-import type * as THREE from 'three';
 import type { Building } from './building';
 import type { Street } from './street';
 import type { FileStats, RangeStat } from './manifest';
@@ -20,7 +19,8 @@ export interface CityBbox {
 
 /**
  * Output of layoutCity(manifest). All world-space coordinates; no DOM /
- * three.js. The renderer (scene/world.ts) consumes this to build meshes.
+ * three.js. The renderer (city/index.ts createCity) consumes this to build
+ * meshes.
  *
  * lineStats / byteStats are project-wide ranges computed once during
  * layout so each building can be normalized into the project's actual
@@ -52,21 +52,6 @@ export interface EnteringBuilding {
   newPosZ: number;
 }
 
-/** Street entering the scene this rebuild. */
-export interface EnteringStreet {
-  mesh: THREE.Mesh;
-}
-
-/**
- * Building or street that disappeared this rebuild. For streets this
- * still carries a mesh reference; for buildings the exiting bucket is
- * informational only (no exit animation in V1 — the instance is simply
- * no longer drawn once its block is rebuilt).
- */
-export interface ExitingEntry {
-  mesh?: THREE.Mesh;
-}
-
 /**
  * Building present in both the prior and current build. Always carries
  * the new transform; old transform fields are present when the prior
@@ -94,22 +79,4 @@ export interface StayingBuilding {
   oldPosX?: number;
   oldPosY?: number;
   oldPosZ?: number;
-}
-
-/** Street present in both the prior and current build. */
-export interface StayingStreet {
-  oldMesh: THREE.Mesh;
-  newMesh: THREE.Mesh;
-}
-
-/**
- * Payload published by world.onChange after each applyManifest. Each
- * bucket holds the meshes that entered, exited, or stayed across the
- * rebuild — the animator uses entering/staying buildings to drive
- * grow-in / position tweens.
- */
-export interface WorldDiff {
-  entering: { buildings: EnteringBuilding[]; streets: EnteringStreet[] };
-  exiting: { buildings: ExitingEntry[]; streets: ExitingEntry[] };
-  staying: { buildings: StayingBuilding[]; streets: StayingStreet[] };
 }

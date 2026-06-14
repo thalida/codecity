@@ -21,7 +21,8 @@ export const STREETS_SECTION: SectionNode = {
       key: 'spacing',
       label: 'Street spacing',
       children: [
-        field(STREET_LAYOUT, 'CHILD_GAP'),
+        field(STREET_LAYOUT, 'BUILDING_GAP'),
+        field(STREET_LAYOUT, 'STREET_GAP'),
         field(STREET_LAYOUT, 'ROOT_END_PAD'),
         field(STREET_LAYOUT, 'PARENT_JOIN_PAD'),
       ],

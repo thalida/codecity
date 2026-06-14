@@ -4,8 +4,7 @@
 // sorted by distance to the gem (oldest commit closest). Visual signals:
 //   HEIGHT  ← commit AGE  (older = taller)
 //   WIDTH   ← commit FILES (more files = wider)
-//   COLOR   ← COMMITS-PER-DAY (solo-day vs busy-day interpolation), optionally
-//             age-desaturated toward gray for older commits.
+//   COLOR   ← COMMITS-PER-DAY (solo-day vs busy-day interpolation).
 //
 // Schema-driven (see state/schema): a flat field map per store; the
 // persisted defaults + the config TYPE are both derived from it. How these
@@ -26,27 +25,6 @@ const TREES_FIELDS = {
     default: true,
     label: 'Trees enabled',
     tip: 'Master toggle. When off, all tree canopies + trunks are hidden (mesh.visible flip — no rebuild).',
-  },
-
-  EDGE_INSET_PERCENT: {
-    route: ChangeRoute.Rebuild,
-    kind: FieldKind.Slider,
-    default: 1,
-    min: 0,
-    max: 50,
-    step: 1,
-    label: 'Edge inset (% of plane)',
-    tip: 'Trees stop short of the plane edge by this fraction of the SHORTER axis. Rebuild on change.',
-  },
-  DENSITY_FALLOFF: {
-    route: ChangeRoute.Rebuild,
-    kind: FieldKind.Slider,
-    default: 1.5,
-    min: 0,
-    max: 50,
-    step: 0.1,
-    label: 'Density falloff',
-    tip: 'How tightly trees cluster near the city. 0 = uniform spread. Higher = denser near city, sparser at edges (acceptance prob = (1 - dist/maxDist)^falloff). Very high values (>20) push almost every tree into a dense ring right at the city edge. Rebuild on change.',
   },
 
   COLOR_BUSY_DAY: {
@@ -79,24 +57,6 @@ const TREES_FIELDS = {
     step: 0.05,
     label: 'Shading strength',
     tip: 'Baked vertex-color gradient depth on the canopy. 0 = flat (no shading), 1 = fully dark at the base. Rebuild on change.',
-  },
-
-  AGE_DESAT_ENABLED: {
-    route: ChangeRoute.Refresh,
-    kind: FieldKind.Toggle,
-    default: false,
-    label: 'Age desaturation enabled',
-    tip: 'When on, older commits fade toward gray — newest commits keep full color, oldest are washed out. Live.',
-  },
-  AGE_SATURATION: {
-    route: ChangeRoute.Refresh,
-    kind: FieldKind.RangePair,
-    default: [50, 100] as [number, number],
-    min: 0,
-    max: 100,
-    step: 1,
-    label: 'Saturation range',
-    tip: 'Saturation retained at the OLDEST (left) and NEWEST (right) commit — percent 0–100. At 20 the oldest tree keeps only 20% of its base color saturation; at 100 it is fully saturated. Live.',
   },
 
   MIN_HEIGHT: {
@@ -179,37 +139,6 @@ const TREES_FIELDS = {
     step: 0.05,
     label: 'Age shrink floor',
     tip: 'Multiplier on file-driven canopy width at the SHORTEST (newest) tree. 1 = no shrink; 0.5 = half-width saplings; 0 = strict height-proportional. Tallest trees always render at full width. Rebuild on change.',
-  },
-
-  FACETS_LOW: {
-    route: ChangeRoute.Rebuild,
-    kind: FieldKind.Slider,
-    default: 5,
-    min: 3,
-    max: 24,
-    step: 1,
-    label: 'Low-tier facets',
-    tip: 'Radial segment count for trees in the smallest-commit tier. 3 = triangular prism (chunkiest); higher = smoother. Lowest tier holds the largest tree count so this is the perf-sensitive knob.',
-  },
-  FACETS_MID: {
-    route: ChangeRoute.Rebuild,
-    kind: FieldKind.Slider,
-    default: 8,
-    min: 3,
-    max: 24,
-    step: 1,
-    label: 'Mid-tier facets',
-    tip: 'Radial segment count for the middle-commit tier.',
-  },
-  FACETS_HIGH: {
-    route: ChangeRoute.Rebuild,
-    kind: FieldKind.Slider,
-    default: 12,
-    min: 3,
-    max: 32,
-    step: 1,
-    label: 'High-tier facets',
-    tip: 'Radial segment count for the largest-commit tier. Highest tier has the fewest tree instances so this is the cheapest knob to push high.',
   },
 
   // Hover / select wireframe outlines — two persistent LineSegments2 meshes

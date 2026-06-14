@@ -11,7 +11,7 @@
 // per shape is enough to flag a regression.
 
 import { describe, it } from 'vitest';
-import { layoutCity } from '@/scene/layout/layout.js';
+import { layoutCity } from '@/city/layout/algorithm.js';
 import { NodeKind } from '@/types';
 
 function mkFile(name: string, depth: number) {

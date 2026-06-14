@@ -64,3 +64,30 @@ def test_cache_delete_not_gated_by_local_repos(
     r = client.delete("/api/manifest/cache", params={"src": str(repo)})
     assert r.status_code == 200
     assert "deleted" in r.json()
+
+
+def test_cache_clear_removes_remote_clone_dir(client: TestClient) -> None:
+    # For a REMOTE source, clearing the cache also deletes the clone working
+    # tree so a re-add re-clones from scratch (the corrupt-clone recovery path).
+    from api.services import clone as clone_mod
+
+    url = "https://example.com/owner/repo.git"
+    clone_dir = clone_mod.clone_dir_for(url, None)
+    clone_dir.mkdir(parents=True)
+    (clone_dir / "marker.txt").write_text("x")
+    r = client.delete("/api/manifest/cache", params={"src": url})
+    assert r.status_code == 200
+    assert not clone_dir.exists(), "remote clone dir should be removed on cache clear"
+
+
+def test_cache_clear_does_not_delete_local_project(
+    client: TestClient, repo: Path
+) -> None:
+    # A LOCAL source's actual project directory must NEVER be deleted — only
+    # its per-root caches under CACHE_ROOT are dropped.
+    sig = signature_tree(str(repo), use_cache=False)["signature"]
+    cache_save_manifest(repo.resolve(), sig, {"root": str(repo)})  # type: ignore[arg-type]
+    r = client.delete("/api/manifest/cache", params={"src": str(repo)})
+    assert r.status_code == 200
+    assert repo.is_dir(), "local project directory must not be deleted"
+    assert (repo / "f.txt").is_file()

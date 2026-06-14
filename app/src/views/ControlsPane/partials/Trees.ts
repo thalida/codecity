@@ -9,14 +9,9 @@ export const TREES_SECTION: SectionNode = {
   key: 'trees',
   label: 'Trees',
   description:
-    'One tree per commit — height tracks age, width + facets track file count, color tracks commits-per-day (same-day commits share a color).',
+    'One tree per commit — height tracks age, width tracks file count, color tracks commits-per-day (same-day commits share a color).',
   children: [
     { key: 'visibility', label: 'Visibility', children: [field(TREES, 'ENABLED')] },
-    {
-      key: 'placement',
-      label: 'Placement',
-      children: [field(TREES, 'EDGE_INSET_PERCENT'), field(TREES, 'DENSITY_FALLOFF')],
-    },
     {
       key: 'color',
       label: 'Color by commits-per-day',
@@ -26,11 +21,6 @@ export const TREES_SECTION: SectionNode = {
         field(TREES, 'TRUNK_COLOR'),
         field(TREES, 'SHADING_STRENGTH'),
       ],
-    },
-    {
-      key: 'age-desat',
-      label: 'Age desaturation',
-      children: [field(TREES, 'AGE_DESAT_ENABLED'), field(TREES, 'AGE_SATURATION')],
     },
     {
       key: 'height',
@@ -50,15 +40,6 @@ export const TREES_SECTION: SectionNode = {
         field(TREES, 'MAX_WIDTH'),
         field(TREES, 'TRUNK_RADIUS_FRAC'),
         field(TREES, 'WIDTH_AGE_FLOOR'),
-      ],
-    },
-    {
-      key: 'facets',
-      label: 'Facets by files',
-      children: [
-        field(TREES, 'FACETS_LOW'),
-        field(TREES, 'FACETS_MID'),
-        field(TREES, 'FACETS_HIGH'),
       ],
     },
     {

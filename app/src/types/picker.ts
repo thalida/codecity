@@ -5,8 +5,8 @@ import type * as THREE from 'three';
 import type { Building } from './building';
 import type { Street } from './street';
 import type { CommitEntry, DirNode, FileNode, NodeKind } from './manifest';
-import type { BuildingIndex } from '@/scene/components/buildings/buildingIndex';
-import type { CellTile } from '@/scene/layout/cellTile';
+import type { BuildingIndex } from '@/city/components/buildings/buildingIndex';
+import type { CellTile } from '@/city/components/buildings/cellTile';
 
 /** Hovered/selected file (a building mesh). */
 export interface FileTarget {
@@ -65,7 +65,6 @@ export interface PickerWorld {
   ): { mesh: THREE.Mesh; building: Building; instanceId?: number } | null;
   getSidewalkByDir(path: string): THREE.Mesh | null;
   getStreetByDir(path: string): Street | null;
-  onChange(cb: () => void): () => void;
   /** Returns the BuildingIndex. */
   getBuildingIndex(): BuildingIndex | null;
   /** Returns the cells map. */

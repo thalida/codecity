@@ -2,8 +2,8 @@
 // flat store for the whole island (silhouette/depth geometry + baked vertex
 // colors + hemispheric lighting). The Geometry/Materials split is purely a
 // Settings-panel grouping, declared in sections/island.ts — not separate
-// stores. Schema-driven (see state/schema); applied on Save via
-// applyTheme() — islandMesh.applyConfig() pulls fresh values.
+// stores. Schema-driven (see state/schema); applied automatically via the
+// island component's own settings effect (city/components/island/index.ts).
 
 import {
   settingSignal,

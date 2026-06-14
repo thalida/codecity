@@ -17,14 +17,6 @@ OptionalInt = Annotated[Optional[int], WithJsonSchema({"type": "integer"})]
 OptionalStr = Annotated[Optional[str], WithJsonSchema({"type": "string"})]
 
 
-# `created`/`modified` are required-nullable: the scanner always emits the keys
-# (as an ISO string or null), so they're present-but-nullable on the wire, not
-# optional. (No `= None` default → Pydantic treats them as required.)
-class GitMeta(BaseModel):
-    created: Optional[str] = Field(description="ISO create date, or null")
-    modified: Optional[str] = Field(description="ISO modify date, or null")
-
-
 class FileNode(BaseModel):
     name: str
     type: Literal["file"]
@@ -34,9 +26,25 @@ class FileNode(BaseModel):
     size: int
     lines: int
     binary: bool
-    created: str
-    modified: str
-    git: GitMeta
+    created: str = Field(
+        description=(
+            "ISO create date (UTC, Z-suffixed), resolved server-side: git "
+            "history date when the file has one, filesystem date otherwise"
+        )
+    )
+    modified: str = Field(
+        description=(
+            "ISO modify date (UTC, Z-suffixed), resolved server-side: git "
+            "history date when the file has one, filesystem date otherwise"
+        )
+    )
+    mediaKind: Optional[Literal["image", "video"]] = Field(
+        default=None,
+        description=(
+            "Media classification by extension (single source for the "
+            "frontend); null for non-media files"
+        ),
+    )
     # Optional-but-non-nullable (absent for non-media files, a pixel count
     # otherwise — never null); see OptionalInt above.
     media_width: OptionalInt = None
@@ -101,6 +109,25 @@ class BusynessThresholds(BaseModel):
     busy: int
 
 
+# All four fields are required-nullable: the scanner always emits them (null
+# for a tree with zero files), so they're present-but-nullable on the wire,
+# not optional. camelCase matches the frontend DateRanges + the fullPath
+# precedent.
+class DateRanges(BaseModel):
+    createdMin: Optional[str] = Field(
+        description="Earliest resolved create date (ISO), or null for an empty tree"
+    )
+    createdMax: Optional[str] = Field(
+        description="Latest resolved create date (ISO), or null for an empty tree"
+    )
+    modifiedMin: Optional[str] = Field(
+        description="Earliest resolved modify date (ISO), or null for an empty tree"
+    )
+    modifiedMax: Optional[str] = Field(
+        description="Latest resolved modify date (ISO), or null for an empty tree"
+    )
+
+
 class Manifest(BaseModel):
     root: str
     scanned_at: str
@@ -110,6 +137,7 @@ class Manifest(BaseModel):
     repo: RepoInfo
     commits: list[CommitEntry]
     busyness: BusynessThresholds
+    dateRanges: DateRanges
     # Optional-but-non-nullable (absent for local sources, a label string for
     # git sources — never null); see OptionalStr above.
     display_root: OptionalStr = None

@@ -1,12 +1,12 @@
 // state/stores/scene.ts — Runtime signal that holds the Three.js scene
-// handle once CenterPane mounts and startRenderLoop completes. Components
+// handle once CenterPane mounts and createCity completes. Components
 // that need world / picker / rig read SCENE_HANDLE.value?.world etc.
 // Null until CenterPane's useEffect resolves.
 
 import { signal } from '@preact/signals';
-import type { startRenderLoop } from '../../scene/renderLoop';
+import type { createCity } from '../../city';
 
-export type SceneHandle = Awaited<ReturnType<typeof startRenderLoop>>;
+export type SceneHandle = Awaited<ReturnType<typeof createCity>>;
 
 export const SCENE_HANDLE = signal<SceneHandle | null>(null);
 
@@ -53,7 +53,7 @@ export function focusCurrentSelection(): void {
 
 /** Reset the camera framing to the current mode's default pose. */
 export function resetView(): void {
-  SCENE_HANDLE.peek()?.resetView();
+  SCENE_HANDLE.peek()?.rig.reset();
 }
 
 /** Debug: run the building/street collision check. */

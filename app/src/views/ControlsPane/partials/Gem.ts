@@ -48,6 +48,7 @@ export const GEM_SECTION: SectionNode = {
         field(GEM, 'GLOW_OUTER_OPACITY'),
         field(GEM, 'GLOW_ANIMATE_COLORS'),
         field(GEM, 'GLOW_CYCLE_PERIOD_SECONDS'),
+        field(GEM, 'GLOW_EMISSION'),
       ],
     },
     {

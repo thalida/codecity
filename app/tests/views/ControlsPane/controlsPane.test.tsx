@@ -10,7 +10,6 @@ import '@/state/stores/settings/scene';
 import '@/state/stores/settings/syntaxTheme';
 import '@/state/stores/settings/streets';
 import '@/state/stores/settings/buildings';
-import '@/state/stores/settings/facade';
 import '@/state/stores/settings/gem';
 import '@/state/stores/settings/island';
 import '@/state/stores/settings/footprint';

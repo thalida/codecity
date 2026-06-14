@@ -6,7 +6,7 @@
 //
 // The shape lists every userData key currently stamped in scene/ and
 // views/. All optional — most meshes only set a subset relevant to their
-// kind (a building stamps {type, building, paired, …}, a label stamps
+// kind (a building stamps {type, building, …}, a label stamps
 // {type, baseRotY, flipped, …}, etc).
 
 import 'three';
@@ -25,18 +25,8 @@ declare module 'three' {
     asphalt?: boolean;
     gem?: boolean;
 
-    // Selection / fade / outline animation state (per-frame writers/readers)
-    bodyOp?: number;
-    ghostOp?: number;
-    outlineOp?: number;
+    // Selection / fade animation state (per-frame writers/readers)
     origColor?: number;
-
-    // Outline + ghost paired with a building mesh (for disposeMesh fan-out)
-    paired?: {
-      outline: import('three').Object3D | null;
-      ghost: import('three').Object3D | null;
-      mat: import('three/addons/lines/LineMaterial.js').LineMaterial | null;
-    } | null;
 
     // Street-label baked rotation + flip state (per-frame orientation)
     baseRotY?: number;

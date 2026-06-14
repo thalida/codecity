@@ -18,17 +18,10 @@ const TEST_TREE = {
 // subscribe to onChange — none of the other handle methods are touched
 // in these structural tests.
 function makeSceneHandle() {
-  let onChangeFn: (() => void) | null = null;
   return {
     world: {
       getManifest() {
         return { tree: TEST_TREE };
-      },
-      onChange(cb: () => void) {
-        onChangeFn = cb;
-        return () => {
-          if (onChangeFn === cb) onChangeFn = null;
-        };
       },
     },
     picker: {

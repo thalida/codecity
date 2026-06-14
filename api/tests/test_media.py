@@ -4,12 +4,11 @@ from __future__ import annotations
 
 import struct
 import unittest
-import xml.etree.ElementTree as ET
 import zlib
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-from api.services.media import _parse_svg_length, probe_media_dims
+from api.services.media import _parse_svg_length, media_kind, probe_media_dims
 
 
 def _write_minimal_png(path: Path, width: int, height: int) -> None:
@@ -141,6 +140,39 @@ class ParseSvgLengthTests(unittest.TestCase):
 
     def test_negative_with_unit_returns_none(self):
         self.assertIsNone(_parse_svg_length("-1px"))
+
+
+class MediaKindTests(unittest.TestCase):
+    """The single-source extension classifier shared with the frontend
+    via FileNode.mediaKind."""
+
+    def test_image_extensions(self):
+        for ext in (
+            ".png",
+            ".jpg",
+            ".jpeg",
+            ".gif",
+            ".webp",
+            ".bmp",
+            ".ico",
+            ".avif",
+            ".tiff",
+            ".svg",
+        ):
+            self.assertEqual(media_kind(ext), "image", ext)
+
+    def test_video_extensions(self):
+        for ext in (".mp4", ".webm", ".mov", ".ogv", ".m4v", ".mkv"):
+            self.assertEqual(media_kind(ext), "video", ext)
+
+    def test_non_media_extensions(self):
+        for ext in (".ts", ".md", ".py", ""):
+            self.assertIsNone(media_kind(ext), ext)
+
+    def test_case_insensitive(self):
+        self.assertEqual(media_kind(".PNG"), "image")
+        self.assertEqual(media_kind(".Mp4"), "video")
+        self.assertEqual(media_kind(".SVG"), "image")
 
 
 class VideoProbingTests(unittest.TestCase):

@@ -16,15 +16,6 @@ export enum NodeKind {
   Commit = 'commit',
 }
 
-/**
- * Git metadata for a file. ISO 8601 timestamps; null when the scanner
- * never observed a create/modify date for the file (e.g. uncommitted).
- */
-export interface GitMeta {
-  created: string | null;
-  modified: string | null;
-}
-
 export interface FileNode {
   name: string;
   type: NodeKind.File;
@@ -34,9 +25,19 @@ export interface FileNode {
   size: number;
   lines: number;
   binary: boolean;
+  /** ISO create date, resolved server-side: git history date when the
+   *  file has one, filesystem date otherwise (e.g. staged-but-uncommitted). */
   created: string;
+  /** ISO modify date, resolved server-side: git history date when the
+   *  file has one, filesystem date otherwise (e.g. staged-but-uncommitted). */
   modified: string;
-  git: GitMeta;
+  /**
+   * Media classification by extension, computed by the backend (single
+   * source of truth — the frontend no longer hand-lists extensions). null
+   * for non-media files. See api/services/media.py:media_kind and
+   * city/utils/mediaKind.ts.
+   */
+  mediaKind?: 'image' | 'video' | null;
   /**
    * Optional pixel dimensions for recognized media files (png/jpg/svg/
    * mp4/etc.). Either both keys appear together or neither does. Layout
@@ -146,6 +147,9 @@ export interface Manifest {
    *  Both the scene tree-color gradient and the commit pane's busyness label
    *  read these so they agree. */
   busyness: BusynessThresholds;
+  /** Repo-wide min/max of the resolved per-file created/modified dates,
+   *  computed on the backend during the scan (api/services/scan.py). */
+  dateRanges: DateRanges;
 }
 
 /**
@@ -161,8 +165,12 @@ export interface BusynessThresholds {
 
 /**
  * Min/max date strings (ISO 8601) for created + modified across every
- * file in the manifest. Used by the building-color HSL ramps so the
- * oldest file lands at min lightness/saturation, newest at max.
+ * file in the manifest, computed on the backend during the scan
+ * (api/services/scan.py). All dates on the wire are UTC Z-suffixed in
+ * one fixed format, so the backend's lexical min/max is exact
+ * chronological order. All four null for an empty tree. Used by the
+ * building-color HSL ramps so the oldest file lands at min
+ * lightness/saturation, newest at max.
  */
 export interface DateRanges {
   createdMin: string | null;

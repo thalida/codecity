@@ -64,8 +64,8 @@ class FileEntry(TypedDict):
 # Cache-format versions: bump when the cached shape changes so stale blobs are
 # treated as a miss and re-scanned. (Per-bump rationale lives in git history.)
 _FILE_CACHE_VERSION = 1
-_GIT_HISTORY_CACHE_VERSION = 11
-_MANIFEST_SCHEMA_VERSION = 5
+_GIT_HISTORY_CACHE_VERSION = 12  # v12: dates UTC-normalized (file maps + commit days)
+_MANIFEST_SCHEMA_VERSION = 7  # v7: FileNode.mediaKind added
 # Composite: invalidates when EITHER the manifest schema OR the git-history
 # shape changes. Stored as a string in the cache file's `version` field.
 _MANIFEST_CACHE_VERSION: str = (
@@ -355,10 +355,8 @@ def cache_clear_manifests(abs_root: Path) -> int:
     """Delete every cached manifest file for this root, across all
     signatures. Returns the count deleted.
 
-    Used by the frontend's "remove from recents" flow so a user who
-    forgets a source also reclaims its cache. Silently ignores I/O
-    errors per the rest of this module's hygiene — cache cleanup
-    failures must never break the response."""
+    Silently ignores I/O errors per the rest of this module's hygiene —
+    cache cleanup failures must never break the response."""
     manifests_dir = CACHE_ROOT / "manifests"
     if not manifests_dir.exists():
         return 0
@@ -370,4 +368,23 @@ def cache_clear_manifests(abs_root: Path) -> int:
             count += 1
         except OSError:
             pass
+    return count
+
+
+def cache_clear_all(abs_root: Path) -> int:
+    """Delete EVERY per-root cache for this root — manifest (all
+    signatures), file-stat, and git-history. Returns the count deleted.
+
+    Backs the "clear cache" flow's clean-slate guarantee for a source.
+    The git clone working tree lives outside CACHE_ROOT, so the caller
+    removes it separately (see clone.remove_clone). Same swallow-errors
+    hygiene as the rest of this module — cleanup failures must never
+    break the response."""
+    count = cache_clear_manifests(abs_root)
+    for path in (_file_cache_path(abs_root), _git_history_cache_path(abs_root)):
+        try:
+            path.unlink()
+            count += 1
+        except OSError:
+            pass  # missing file or I/O error — best-effort cleanup
     return count

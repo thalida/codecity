@@ -10,7 +10,8 @@ Why a standalone module (rather than living in scan.py): both `scan.py`
 (builds these) and `cache.py` (annotates cached commits/manifests with
 them) need them, and scan.py already imports cache.py at runtime — so
 defining them in either would create an import cycle. This is the shared
-leaf both import from. It depends on nothing else in the package.
+leaf both import from. It imports only the pure models layer (never
+services), so it stays cycle-free for both.
 
 Mirrors app/types/manifest.ts. Keep both in sync — the web app consumes
 the JSON exactly as these TypedDicts describe it. Drift here is shape
@@ -21,6 +22,8 @@ side and tsc on the TS side, but only within each language.
 from __future__ import annotations
 
 from typing import Literal, NotRequired, TypedDict
+
+from api.models.events import ScanEvent
 
 
 class NodeKind:
@@ -33,14 +36,6 @@ class NodeKind:
     DIRECTORY = "directory"
 
 
-class GitMeta(TypedDict):
-    """Git history dates for a file. ISO 8601 strings; null when the
-    scanner never observed a create/modify date (e.g. uncommitted)."""
-
-    created: str | None
-    modified: str | None
-
-
 class FileNode(TypedDict):
     """One file in the manifest tree. The Literal on `type` makes the
     union with DirNode a discriminated union — pyright narrows on
@@ -51,12 +46,18 @@ class FileNode(TypedDict):
     path: str
     fullPath: str
     extension: str
+    # Media classification by extension (image/video/None for non-media).
+    # Single source of truth for the frontend, which reads this instead of
+    # hand-listing extensions. Always emitted (None for non-media files).
+    # See api/services/media.py:media_kind.
+    mediaKind: str | None
     size: int
     lines: int
     binary: bool
+    # Resolved server-side: git history date when the file has one,
+    # filesystem date otherwise (e.g. staged-but-uncommitted files).
     created: str
     modified: str
-    git: GitMeta
     # Optional pixel dimensions for recognized media files (png/jpg/svg/
     # mp4/etc.). Either both keys appear together or neither does. Layout
     # uses these to size the building's silhouette; absence triggers a
@@ -152,6 +153,18 @@ class BusynessThresholds(TypedDict):
     busy: int
 
 
+class DateRanges(TypedDict):
+    """Repo-wide min/max of the resolved per-file created/modified dates,
+    computed once at manifest-wrap (like busyness) so the scene's age
+    gradients read one consistent range instead of re-walking the tree.
+    All four are None for a tree with zero files."""
+
+    createdMin: str | None
+    createdMax: str | None
+    modifiedMin: str | None
+    modifiedMax: str | None
+
+
 class Manifest(TypedDict):
     """Top-level manifest emitted by scan_tree(). What /api/manifest
     returns and what the web app's CityScene.applyManifest consumes."""
@@ -164,6 +177,7 @@ class Manifest(TypedDict):
     repo: RepoInfo
     commits: list[CommitEntry]
     busyness: BusynessThresholds
+    dateRanges: DateRanges
     display_root: NotRequired[str]
 
 
@@ -188,5 +202,5 @@ class ScanStreamEvent(TypedDict):
     metadata). Both carry a Manifest envelope; the partial tree has
     placeholder line counts that the complete tree replaces."""
 
-    phase: Literal["manifest-partial", "manifest-complete"]
+    phase: Literal[ScanEvent.MANIFEST_PARTIAL, ScanEvent.MANIFEST_COMPLETE]
     manifest: Manifest

@@ -169,15 +169,25 @@ export type StreetTiersConfig = ConfigOf<typeof STREET_TIERS_FIELDS>;
 // rebuild-required (changing any of these reshapes the entire layout), and
 // worker-threaded (the layout worker reads them) so it stays its own store.
 const STREET_LAYOUT_FIELDS = {
-  CHILD_GAP: {
+  BUILDING_GAP: {
     route: ChangeRoute.Rebuild,
     kind: FieldKind.Number,
     default: 8,
     min: 0,
     max: 50,
     step: 1,
-    label: 'Sibling gap',
-    tip: 'Distance between sibling children (file or subdir) packed along a street. 50 world units is roughly two MAX_WIDTH building footprints — beyond this streets balloon noticeably.',
+    label: 'Building sibling gap',
+    tip: 'Gap between two sibling buildings packed along a street. Lower = tighter blocks. The clearance around a branching side street uses Street sibling gap instead, so a pair touching a side street takes the larger of the two.',
+  },
+  STREET_GAP: {
+    route: ChangeRoute.Rebuild,
+    kind: FieldKind.Number,
+    default: 32,
+    min: 0,
+    max: 50,
+    step: 1,
+    label: 'Street sibling gap',
+    tip: 'Clearance on each side of a branching side street where it joins its parent. Applies to any sibling pair where at least one is a side street, so raising it spaces out branches without widening building-to-building blocks.',
   },
   ROOT_END_PAD: {
     route: ChangeRoute.Rebuild,

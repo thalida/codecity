@@ -21,10 +21,42 @@ class ModelTests(unittest.TestCase):
             binary=True,
             created="2020-01-01",
             modified="2020-01-01",
-            git={"created": None, "modified": None},
             media_width=10,
             media_height=20,
         )
+
+    def test_file_node_media_kind_defaults_none(self) -> None:
+        # Existing constructions omit mediaKind; it defaults to None.
+        node = FileNode(
+            name="a.ts",
+            type="file",
+            path="a.ts",
+            fullPath="/r/a.ts",
+            extension=".ts",
+            size=1,
+            lines=0,
+            binary=False,
+            created="2020-01-01",
+            modified="2020-01-01",
+        )
+        self.assertIsNone(node.mediaKind)
+
+    def test_file_node_media_kind_accepts_literals(self) -> None:
+        for kind in ("image", "video"):
+            node = FileNode(
+                name="a",
+                type="file",
+                path="a",
+                fullPath="/r/a",
+                extension=".x",
+                size=1,
+                lines=0,
+                binary=True,
+                created="2020-01-01",
+                modified="2020-01-01",
+                mediaKind=kind,  # type: ignore[arg-type]
+            )
+            self.assertEqual(node.mediaKind, kind)
 
     def test_file_node_media_one_only_rejected(self) -> None:
         with self.assertRaises(ValidationError):
@@ -39,7 +71,6 @@ class ModelTests(unittest.TestCase):
                 binary=True,
                 created="2020-01-01",
                 modified="2020-01-01",
-                git={"created": None, "modified": None},
                 media_width=10,
             )
 
@@ -73,6 +104,12 @@ class ModelTests(unittest.TestCase):
             },
             commits=[],
             busyness={"avg": 0, "busy": 0},
+            dateRanges={
+                "createdMin": None,
+                "createdMax": None,
+                "modifiedMin": None,
+                "modifiedMax": None,
+            },
         )
         dumped = m.model_dump(exclude_none=True)
         self.assertNotIn("display_root", dumped)

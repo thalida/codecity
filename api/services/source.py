@@ -1,10 +1,11 @@
 """Source resolution: turn a raw ?src value into a scannable target.
 
 Framework-agnostic domain logic shared by the manifest/signature/cache routes:
-classify a source string as a local path or git URL, validate a local working
-tree, and clone a git URL. No FastAPI here — `ResolveError` carries a suggested
-HTTP status + message that the routers translate into an HTTPException (or an
-SSE `error` event for the stream)."""
+classify a source string (every source is a git repo — the only axis is whether
+it's a local working tree or a remote URL to clone), validate a local working
+tree, and clone a remote URL. No FastAPI here — `ResolveError` carries a
+suggested HTTP status + message that the routers translate into an HTTPException
+(or an SSE `error` event for the stream)."""
 
 from __future__ import annotations
 
@@ -12,8 +13,9 @@ import os
 import re
 import subprocess
 from dataclasses import dataclass
+from enum import StrEnum
 from pathlib import Path
-from typing import Literal
+from typing import Any
 
 from api.config import local_repos_allowed
 from api.security import TRUST
@@ -47,29 +49,64 @@ class ResolveError(Exception):
     message: str
 
 
-@dataclass
-class Resolved:
-    path: Path
-    src: str
-    branch: str | None
-    kind: Literal["local", "git"]
-    display_root: str
+class SourceKind(StrEnum):
+    """How a raw ?src= string classifies. Every source is a git repo; the only
+    questions are whether it's recognized at all and, if so, whether it's a
+    local working tree (scanned in place) or a remote URL (cloned into the
+    cache). String values are stable human-readable forms (logs/debugging)."""
+
+    INVALID = "invalid"
+    LOCAL = "local"
+    REMOTE = "remote"
 
 
-def classify(raw: str) -> Literal["local", "git", "invalid"]:
-    """Classify a raw ?src= value as a local path, a git URL, or invalid.
+def classify(raw: str) -> SourceKind:
+    """Classify a raw ?src= value as a local path, a remote git URL, or invalid.
 
-    Path-like prefixes (absolute, home, relative, Windows drive) → 'local'.
-    URLs (scheme:// or git@host:path SSH form) → 'git'.
-    Anything else → 'invalid'.
+    Path-like prefixes (absolute, home, relative, Windows drive) → LOCAL.
+    URLs (scheme:// or git@host:path SSH form) → REMOTE.
+    Anything else → INVALID.
     """
     if not raw:
-        return "invalid"
+        return SourceKind.INVALID
     if _LOCAL_PATH_PREFIX.match(raw):
-        return "local"
+        return SourceKind.LOCAL
     if "://" in raw or _GIT_SSH_FORM.match(raw):
-        return "git"
-    return "invalid"
+        return SourceKind.REMOTE
+    return SourceKind.INVALID
+
+
+def label_from_source(src: str | None) -> str | None:
+    """Display label for a source string — a git URL OR a local path.
+
+    Git URL → "owner/repo" (last two path segments, sans .git). Local path →
+    its basename. An optional trailing "@branch" is stripped first. The single
+    source of truth for the repo's display name, shared with display_name_for_manifest.
+    """
+    if not src:
+        return None
+    no_branch = re.sub(r"@[^@/]+$", "", src)  # strip a trailing @branch
+    if "://" in no_branch or _GIT_SSH_FORM.match(no_branch):
+        m = re.search(r"[/:]([^/]+)/([^/]+?)(?:\.git)?$", no_branch)
+        return f"{m.group(1)}/{m.group(2)}" if m else no_branch
+    parts = [p for p in re.split(r"[/\\]", no_branch) if p]  # local path → basename
+    return parts[-1] if parts else no_branch
+
+
+def display_name_for_manifest(manifest: dict[str, Any]) -> str | None:
+    """The repo's friendly display name, from the manifest's own fields:
+    display_root, then repo.remote_url, then the raw tree name as a fallback.
+    Set server-side onto tree.name so every consumer reads one authoritative
+    label instead of the cache-dir basename a cloned repo's root carries."""
+    if not manifest:
+        return None
+    display_root = manifest.get("display_root")
+    if display_root and (label := label_from_source(display_root)):
+        return label
+    remote_url = (manifest.get("repo") or {}).get("remote_url")
+    if remote_url and (label := label_from_source(remote_url)):
+        return label
+    return (manifest.get("tree") or {}).get("name")
 
 
 def _is_git_working_tree(path: Path) -> bool:
@@ -114,9 +151,9 @@ def resolve_local(src: str) -> Path:
     return target
 
 
-def resolve_source(src: str, branch: str | None) -> Resolved:
-    """Resolve a raw ?src into a scan target. Raises ResolveError on any
-    validation failure. For git URLs this performs the clone (network).
+def resolve_source(src: str, branch: str | None) -> Path:
+    """Resolve a raw ?src into a scan-target path. Raises ResolveError on any
+    validation failure. For a remote URL this performs the clone (network).
 
     The SSE manifest route does NOT use this — it clones on a worker thread
     (see the route) so clone progress streams and a mid-clone disconnect can
@@ -124,17 +161,15 @@ def resolve_source(src: str, branch: str | None) -> Resolved:
     if not src:
         raise ResolveError(400, "missing 'src' query param")
     kind = classify(src)
-    if kind == "invalid":
+    if kind is SourceKind.INVALID:
         raise ResolveError(400, "unrecognized source — pass a local path or a git URL")
-    if kind == "git":
-        display = f"{src}@{branch}" if branch else src
+    if kind is SourceKind.REMOTE:
         try:
             with TRUST.clone_lock:
-                local = ensure_clone(src, branch)
+                return ensure_clone(src, branch)
         except (BranchNotFoundError, RepoNotFoundError, HostUnreachableError) as e:
             raise ResolveError(400, str(e))
         except CloneError as e:
             raise ResolveError(502, str(e))
-        return Resolved(local, src, branch, "git", display)
-    # kind == "local" — ignore any branch, scan the working tree in place
-    return Resolved(resolve_local(src), src, None, "local", src)
+    # LOCAL — ignore any branch, scan the working tree in place
+    return resolve_local(src)

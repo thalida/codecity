@@ -279,8 +279,8 @@ export function AppFooter() {
       language: humanLanguageFor(f),
       lines: f.lines,
       size: f.size || 0,
-      modified: (f.git && f.git.modified) || f.modified || null,
-      created: (f.git && f.git.created) || f.created || null,
+      modified: f.modified,
+      created: f.created,
     };
   } else if (target?.kind === NodeKind.Directory) {
     const d = target.dir;

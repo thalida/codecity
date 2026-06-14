@@ -14,13 +14,7 @@ import { PERSISTED_KEYS } from '@/constants/storage';
 import { MAX_RECENT_SOURCES } from '@/constants/ui';
 import { URL_PARAMS } from '@/constants/urlParams';
 import { MANIFEST } from '@/state/stores/manifest';
-import {
-  labelFromManifest,
-  srcKind,
-  SourceKind,
-  resolveBranch,
-  labelFromUrl,
-} from '@/utils/sources';
+import { srcKind, SourceKind, resolveBranch, labelFromSource } from '@/utils/sources';
 import { isEmptyManifest } from '@/utils/manifest';
 import type { Manifest } from '@/types';
 
@@ -111,9 +105,9 @@ export const SOURCE_INFO = computed<SourceInfo>(() => {
   }
   const manifest = m as Manifest;
   return {
-    label: labelFromManifest(manifest) ?? manifest.tree?.name ?? '',
+    label: manifest.tree?.name ?? '',
     branch: resolveBranch(manifest, cur.branch).branch,
-    sourceUrl: srcKind(cur.src) === SourceKind.Git ? cur.src : undefined,
+    sourceUrl: srcKind(cur.src) === SourceKind.Remote ? cur.src : undefined,
   };
 });
 
@@ -179,7 +173,7 @@ export function setCurrentSource(
     src,
     branch: resolvedBranch,
     branchIsDefault: isDefault,
-    label: labelFromUrl(src) ?? src,
+    label: labelFromSource(src) ?? src,
   });
 }
 

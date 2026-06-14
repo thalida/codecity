@@ -23,13 +23,14 @@ from api.models.events import (
     CompleteManifestEvent,
     ErrorEvent,
     PartialManifestEvent,
+    ScanEvent,
     ScanProgressEvent,
 )
 from api.models.manifest import SignatureResponse
 from api.models.responses import CacheClearResponse
 from api.security import TRUST
 from api.services.cache import (
-    cache_clear_manifests,
+    cache_clear_all,
     cache_load_manifest,
     cache_save_manifest,
 )
@@ -40,16 +41,31 @@ from api.services.clone import (
     RepoNotFoundError,
     clone_dir_for,
     ensure_clone,
+    remove_clone,
 )
 from api.services.scan import ScanCancelledError, scan_tree, signature_tree
 from api.services.source import (
     ResolveError,
+    SourceKind,
     classify,
+    display_name_for_manifest,
     resolve_local,
     resolve_source,
 )
 
 router = APIRouter(prefix="/api", tags=["manifest"])
+
+
+def _apply_display_name(m: dict[str, Any]) -> None:
+    """Overlay the friendly repo name onto the manifest's root tree.name at serve
+    time (like display_root below), so every consumer reads one authoritative
+    label rather than the cache-dir basename a cloned root carries."""
+    tree = m.get("tree")
+    if tree:
+        label = display_name_for_manifest(m)
+        if label:
+            tree["name"] = label
+
 
 logger = logging.getLogger("codecity.manifest")
 
@@ -61,11 +77,11 @@ def signature(
     no_cache: bool = Query(False),
 ) -> SignatureResponse:
     try:
-        resolved = resolve_source(src, branch)
+        target = resolve_source(src, branch)
     except ResolveError as e:
         raise HTTPException(e.status, e.message)
     try:
-        sig = signature_tree(str(resolved.path), use_cache=not no_cache)
+        sig = signature_tree(str(target), use_cache=not no_cache)
     except Exception as e:  # noqa: BLE001
         raise HTTPException(500, f"signature failed: {e}")
     return SignatureResponse.model_validate(dict(sig))
@@ -79,25 +95,35 @@ def clear_cache(
     if not src:
         raise HTTPException(400, "missing 'src' query param")
     kind = classify(src)
-    if kind == "invalid":
+    if kind is SourceKind.INVALID:
         raise HTTPException(400, "unrecognized source — pass a local path or a git URL")
-    if kind == "git":
+    if kind is SourceKind.REMOTE:
         abs_root = clone_dir_for(src, branch)
     else:
         # Non-strict resolve so a recents entry for a since-deleted path
         # still drops its cache.
         abs_root = Path(src).resolve(strict=False)
-    return CacheClearResponse(deleted=cache_clear_manifests(abs_root))
+    # Full clean slate for this source: every per-root cache (manifest,
+    # file-stat, git-history). For a REMOTE source also delete the clone working
+    # tree so a re-add re-clones from scratch — the recovery path for a corrupt
+    # clone. Hold the clone lock so we never rmtree a clone a concurrent request
+    # is mid-clone into.
+    deleted = cache_clear_all(abs_root)
+    if kind is SourceKind.REMOTE:
+        with TRUST.clone_lock:
+            remove_clone(src, branch)
+    return CacheClearResponse(deleted=deleted)
 
 
-def _sse(event: str, payload: dict[str, Any]) -> dict[str, Any]:
-    """sse-starlette event dict: {'event': name, 'data': json-string}."""
+def _sse(event: ScanEvent, payload: dict[str, Any]) -> dict[str, Any]:
+    """sse-starlette event dict: {'event': name, 'data': json-string}. The
+    ScanEvent StrEnum serializes to its wire string ('manifest-complete', …)."""
     return {"event": event, "data": json.dumps(payload)}
 
 
 def _sse_error(message: str) -> dict[str, Any]:
     """An `error` SSE event, single-sourced through the ErrorEvent model."""
-    return _sse("error", ErrorEvent(error=message).model_dump())
+    return _sse(ScanEvent.ERROR, ErrorEvent(error=message).model_dump())
 
 
 # Documented SSE event union: surfacing all five event models in the
@@ -145,11 +171,11 @@ async def manifest(
             yield _sse_error("missing 'src' query param")
             return
         kind = classify(src)
-        if kind == "invalid":
+        if kind is SourceKind.INVALID:
             yield _sse_error("unrecognized source — pass a local path or a git URL")
             return
         local_path: Path | None = None
-        if kind == "git":
+        if kind is SourceKind.REMOTE:
             display = f"{src}@{branch}" if branch else src
         else:
             try:
@@ -171,7 +197,7 @@ async def manifest(
             stage, percent = payload
             _put(
                 _sse(
-                    "clone-progress",
+                    ScanEvent.CLONE_PROGRESS,
                     {
                         "display_root": display,
                         "stage": stage,
@@ -180,10 +206,20 @@ async def manifest(
                 )
             )
 
+        def _on_clone_heartbeat(mb_on_disk: int | None) -> None:
+            # Silent promisor-fetch phase: no stage/percent, just the working
+            # tree growing on disk, so the UI shows activity instead of freezing.
+            _put(
+                _sse(
+                    ScanEvent.CLONE_PROGRESS,
+                    {"display_root": display, "mb_on_disk": mb_on_disk},
+                )
+            )
+
         def _on_scan(files_scanned: int) -> None:
             _put(
                 _sse(
-                    "scan-progress",
+                    ScanEvent.SCAN_PROGRESS,
                     {"display_root": display, "files_scanned": files_scanned},
                 )
             )
@@ -192,14 +228,15 @@ async def manifest(
             try:
                 # Clone phase (git only): emit `clone-progress` FIRST, then clone
                 # with live progress + cancel support.
-                if kind == "git":
-                    _put(_sse("clone-progress", {"display_root": display}))
+                if kind is SourceKind.REMOTE:
+                    _put(_sse(ScanEvent.CLONE_PROGRESS, {"display_root": display}))
                     try:
                         with TRUST.clone_lock:
                             path = ensure_clone(
                                 src,
                                 branch,
                                 on_progress=_on_clone,
+                                on_heartbeat=_on_clone_heartbeat,
                                 cancel_event=cancel,
                             )
                     except (
@@ -218,7 +255,7 @@ async def manifest(
 
                 holder["path"] = path
                 TRUST.register(path)
-                _put(_sse("scan-progress", {"display_root": display}))
+                _put(_sse(ScanEvent.SCAN_PROGRESS, {"display_root": display}))
 
                 # Signature (cache key) + warm-cache short-circuit.
                 sig = signature_tree(str(path), use_cache=use_cache)["signature"]
@@ -226,9 +263,10 @@ async def manifest(
                 if use_cache:
                     cached = cache_load_manifest(path.resolve(), sig)
                     if cached is not None:
-                        if kind == "git":
+                        if kind is SourceKind.REMOTE:
                             cached["display_root"] = display
-                        _put(_sse("manifest-complete", {"manifest": cached}))
+                        _apply_display_name(cached)
+                        _put(_sse(ScanEvent.MANIFEST_COMPLETE, {"manifest": cached}))
                         return
 
                 # Cold scan: partial + complete manifests, with heartbeat progress.
@@ -238,11 +276,12 @@ async def manifest(
                     cancel_event=cancel,
                     on_scan_progress=_on_scan,
                 ):
-                    phase = ev["phase"]  # "manifest-partial" | "manifest-complete"
+                    phase = ev["phase"]  # ScanEvent.MANIFEST_PARTIAL | _COMPLETE
                     m = ev["manifest"]
-                    if kind == "git":
+                    if kind is SourceKind.REMOTE:
                         m["display_root"] = display
-                    if phase == "manifest-complete":
+                    _apply_display_name(m)
+                    if phase is ScanEvent.MANIFEST_COMPLETE:
                         holder["manifest"] = m
                     _put(_sse(phase, {"manifest": m}))
             except ScanCancelledError:

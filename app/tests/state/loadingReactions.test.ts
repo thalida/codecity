@@ -3,7 +3,7 @@ import { attachLoadingReactions } from '@/state/loadingReactions';
 import { SCAN_PROGRESS } from '@/state/stores/scanProgress';
 import { LOADING_OVERLAY } from '@/state/stores/ui';
 import { SourceKind } from '@/utils/sources';
-import { ScanPhase } from '@/api/manifest';
+import { ScanPhase, CloneStage } from '@/api/manifest';
 import { LoadingStep } from '@/constants/loadingSteps';
 
 describe('loadingReactions', () => {
@@ -17,7 +17,7 @@ describe('loadingReactions', () => {
   });
 
   it('shows the overlay immediately on a just-started (phase null) load', () => {
-    SCAN_PROGRESS.value = { kind: SourceKind.Git, label: 'r', phase: null };
+    SCAN_PROGRESS.value = { kind: SourceKind.Remote, label: 'r', phase: null };
     expect(LOADING_OVERLAY.value.visible).toBe(true);
     // git initial step is Resolving (set by showLoadingOverlay), not overridden
     expect(LOADING_OVERLAY.value.activeStep).toBe(LoadingStep.Resolving);
@@ -30,17 +30,17 @@ describe('loadingReactions', () => {
   });
 
   it('advances the step to Building on the skeleton phase', () => {
-    SCAN_PROGRESS.value = { kind: SourceKind.Git, label: 'r', phase: ScanPhase.PartialManifest };
+    SCAN_PROGRESS.value = { kind: SourceKind.Remote, label: 'r', phase: ScanPhase.PartialManifest };
     expect(LOADING_OVERLAY.value.activeStep).toBe(LoadingStep.Skeleton);
   });
 
   it('sets a cloning tail from percent/stage', () => {
     SCAN_PROGRESS.value = {
-      kind: SourceKind.Git,
+      kind: SourceKind.Remote,
       label: 'r',
       phase: ScanPhase.CloneProgress,
       percent: 45,
-      stage: 'Receiving',
+      stage: CloneStage.Receiving,
     };
     expect(LOADING_OVERLAY.value.activeStep).toBe(LoadingStep.Cloning);
     expect(LOADING_OVERLAY.value.stepTails[LoadingStep.Cloning]).toContain('45%');

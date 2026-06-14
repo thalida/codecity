@@ -25,10 +25,6 @@ const FILE_NODE: FileNode = {
   binary: false,
   created: '2024-01-10T09:00:00Z',
   modified: '2024-03-20T10:00:00Z',
-  git: {
-    created: '2024-01-10T09:00:00Z',
-    modified: '2024-03-20T10:00:00Z',
-  },
 };
 
 describe('FilePreviewPane', () => {

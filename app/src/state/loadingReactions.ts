@@ -32,10 +32,16 @@ export function attachLoadingReactions(): () => void {
     }
     if (p.phase === ScanPhase.CloneProgress) {
       setLoadingStep(LoadingStep.Cloning);
-      setLoadingStepTail(
-        LoadingStep.Cloning,
-        p.percent !== undefined ? `${p.percent}%${p.stage ? ` (${p.stage})` : ''}` : null
-      );
+      // A normal tick shows "{percent}% ({stage})"; a heartbeat during the
+      // silent promisor blob fetch (no percent) shows the working tree growing
+      // on disk so the step doesn't look frozen.
+      let tail: string | null = null;
+      if (p.percent !== undefined) {
+        tail = `${p.percent}%${p.stage ? ` (${p.stage})` : ''}`;
+      } else if (p.mbOnDisk !== undefined) {
+        tail = `${p.mbOnDisk} MB`;
+      }
+      setLoadingStepTail(LoadingStep.Cloning, tail);
     } else if (p.phase === ScanPhase.ScanProgress) {
       setLoadingStep(LoadingStep.Scanning);
       setLoadingStepTail(

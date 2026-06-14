@@ -142,6 +142,10 @@ export interface components {
         /**
          * CloneProgressEvent
          * @description `clone-progress` — git source is being cloned; carries clone progress.
+         *
+         *     A normal progress tick has `stage` + `percent`. A heartbeat during the
+         *     silent promisor blob fetch instead carries `mb_on_disk` (and no percent),
+         *     so the UI shows the working tree materializing rather than freezing.
          */
         CloneProgressEvent: {
             /** Display Root */
@@ -150,9 +154,11 @@ export interface components {
              * Stage
              * @enum {string}
              */
-            stage?: "receiving" | "resolving" | "counting";
+            stage?: "receiving" | "resolving" | "counting" | "updating";
             /** Percent */
             percent?: number;
+            /** Mb On Disk */
+            mb_on_disk?: number;
         };
         /** CommitDetailResponse */
         CommitDetailResponse: {
@@ -197,6 +203,29 @@ export interface components {
         ConfigResponse: {
             /** Allowlocalrepos */
             allowLocalRepos: boolean;
+        };
+        /** DateRanges */
+        DateRanges: {
+            /**
+             * Createdmin
+             * @description Earliest resolved create date (ISO), or null for an empty tree
+             */
+            createdMin: string | null;
+            /**
+             * Createdmax
+             * @description Latest resolved create date (ISO), or null for an empty tree
+             */
+            createdMax: string | null;
+            /**
+             * Modifiedmin
+             * @description Earliest resolved modify date (ISO), or null for an empty tree
+             */
+            modifiedMin: string | null;
+            /**
+             * Modifiedmax
+             * @description Latest resolved modify date (ISO), or null for an empty tree
+             */
+            modifiedMax: string | null;
         };
         /** DirNode */
         DirNode: {
@@ -268,28 +297,25 @@ export interface components {
             lines: number;
             /** Binary */
             binary: boolean;
-            /** Created */
+            /**
+             * Created
+             * @description ISO create date (UTC, Z-suffixed), resolved server-side: git history date when the file has one, filesystem date otherwise
+             */
             created: string;
-            /** Modified */
+            /**
+             * Modified
+             * @description ISO modify date (UTC, Z-suffixed), resolved server-side: git history date when the file has one, filesystem date otherwise
+             */
             modified: string;
-            git: components["schemas"]["GitMeta"];
+            /**
+             * Mediakind
+             * @description Media classification by extension (single source for the frontend); null for non-media files
+             */
+            mediaKind?: ("image" | "video") | null;
             /** Media Width */
             media_width?: number;
             /** Media Height */
             media_height?: number;
-        };
-        /** GitMeta */
-        GitMeta: {
-            /**
-             * Created
-             * @description ISO create date, or null
-             */
-            created: string | null;
-            /**
-             * Modified
-             * @description ISO modify date, or null
-             */
-            modified: string | null;
         };
         /** HTTPValidationError */
         HTTPValidationError: {
@@ -316,6 +342,7 @@ export interface components {
             /** Commits */
             commits: components["schemas"]["CommitEntry"][];
             busyness: components["schemas"]["BusynessThresholds"];
+            dateRanges: components["schemas"]["DateRanges"];
             /** Display Root */
             display_root?: string;
         };

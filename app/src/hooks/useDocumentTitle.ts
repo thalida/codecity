@@ -8,8 +8,6 @@
 import { useSignalEffect } from '@preact/signals';
 import { MANIFEST } from '@/state/stores/manifest';
 import { PENDING_SOURCE_LABEL } from '@/state/stores/source';
-import { labelFromManifest } from '@/utils/sources';
-import type { Manifest } from '@/types';
 
 export function useDocumentTitle(): void {
   useSignalEffect(() => {
@@ -19,10 +17,8 @@ export function useDocumentTitle(): void {
       return;
     }
     const m = MANIFEST.value;
-    const label =
-      labelFromManifest(m as Manifest | null) ??
-      (m as { tree?: { name?: string } } | null)?.tree?.name ??
-      '';
+    // tree.name is the server-normalized display name (owner/repo or basename).
+    const label = (m as { tree?: { name?: string } } | null)?.tree?.name ?? '';
     document.title = label ? `${label} — codecity` : 'codecity';
   });
 }

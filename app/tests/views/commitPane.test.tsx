@@ -315,7 +315,7 @@ describe('CommitPane', () => {
   // ── Author row ────────────────────────────────────────────────────────────
 
   it('renders the author row with a colored dot matching the author', async () => {
-    const { colorForAuthor } = await import('@/scene/components/fireflies/authorColor.js');
+    const { colorForAuthor } = await import('@/city/components/fireflies/authorColor.js');
     mount();
     await setCommit(COMMIT, { now: new Date('2026-05-24T12:00:00Z') });
     await drainAsync();
@@ -346,7 +346,7 @@ describe('CommitPane', () => {
   });
 
   it('renders one .commit-author row per author for a multi-author commit', async () => {
-    const { colorForAuthor } = await import('@/scene/components/fireflies/authorColor.js');
+    const { colorForAuthor } = await import('@/city/components/fireflies/authorColor.js');
     const multi: CommitEntry = {
       date: '2026-03-12',
       files: 4,

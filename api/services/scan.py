@@ -26,6 +26,7 @@ from pathlib import Path
 from typing import Any, Callable, Iterator
 
 from api.config import quiet
+from api.models.events import ScanEvent
 from .cache import (
     FileEntry,
     cache_load_files,
@@ -33,14 +34,14 @@ from .cache import (
     cache_save_files,
     cache_save_git_history,
 )
-from .media import probe_media_dims
+from .media import media_kind, probe_media_dims
 from .manifest_types import (
     BusynessThresholds,
     CommitEntry,
+    DateRanges,
     DirNode,
     ExtBreakdownEntry,
     FileNode,
-    GitMeta,
     Manifest,
     NodeKind,
     RepoInfo,
@@ -138,6 +139,23 @@ def _extension(name: str) -> str:
 
 def _epoch_to_iso(epoch: float) -> str:
     return datetime.fromtimestamp(epoch, tz=timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def _git_iso_to_utc(iso: str) -> str:
+    """Normalize a git %aI date (which carries the author's UTC offset,
+    e.g. +02:00) to the same Z-suffixed UTC format _epoch_to_iso emits.
+    Every date on the wire then shares one format, so lexical order ==
+    chronological order (which _compute_date_ranges relies on). Returns
+    the input unchanged if it doesn't parse (defensive; %aI always
+    parses)."""
+    try:
+        return (
+            datetime.fromisoformat(iso)
+            .astimezone(timezone.utc)
+            .strftime("%Y-%m-%dT%H:%M:%SZ")
+        )
+    except ValueError:
+        return iso
 
 
 def _stat_fields(entry: os.DirEntry[str]) -> tuple[int, str, str, float]:
@@ -313,7 +331,9 @@ def _collect_git_dates(
     created: dict[str, str] = {}
     modified: dict[str, str] = {}
     commits_newest_first: list[CommitEntry] = []
-    current_date_iso = ""
+    # Always UTC (Z-suffixed), normalized once per COMMIT line — the per-file
+    # date maps, commit entries, and same-day buckets all share one zone.
+    current_date = ""
     current_sha = ""
     current_author = ""
     current_trailers = ""
@@ -334,10 +354,10 @@ def _collect_git_dates(
                 continue
             if line.startswith("COMMIT:"):
                 # Flush the previous commit (if any) before starting the next.
-                if current_date_iso:
+                if current_date:
                     commits_newest_first.append(
                         {
-                            "date": current_date_iso[:10],
+                            "date": current_date[:10],
                             "files": current_files,
                             "sha": current_sha,
                             "authors": build_authors_list(
@@ -350,7 +370,7 @@ def _collect_git_dates(
                 # %aI%x09%H%x09%an%x09<trailers>%x09%s — split with maxsplit=4
                 # so any tabs IN the subject stay inside the subject field.
                 parts = rest.split("\t", 4)
-                current_date_iso = parts[0]
+                current_date = _git_iso_to_utc(parts[0])
                 current_sha = parts[1] if len(parts) > 1 else ""
                 current_author = parts[2] if len(parts) > 2 else ""
                 current_trailers = parts[3] if len(parts) > 3 else ""
@@ -373,14 +393,14 @@ def _collect_git_dates(
             path = line[tab_idx + 1 :]
             current_files += 1
             if path not in modified:
-                modified[path] = current_date_iso
+                modified[path] = current_date
             if status.startswith("A") and path not in created:
-                created[path] = current_date_iso
+                created[path] = current_date
         # Flush the final commit (the loop exits after the last block, not after a COMMIT line).
-        if current_date_iso:
+        if current_date:
             commits_newest_first.append(
                 {
-                    "date": current_date_iso[:10],
+                    "date": current_date[:10],
                     "files": current_files,
                     "sha": current_sha,
                     "authors": build_authors_list(current_author, current_trailers),
@@ -733,30 +753,28 @@ def _file_node(
     completes. Content I/O is deferred so it can be parallelized and
     cache-resolved in a single batch."""
     abs_path = entry.path
-    size, created, modified, mtime = _stat_fields(entry)
-
-    # Every scanned file is git-tracked (scan_tree rejects non-git roots),
-    # but a tracked file may still have no entry in git_created/git_modified
-    # if no commit ever touched it (e.g. just added, not yet committed).
-    git_block: GitMeta = {
-        "created": git_created.get(rel_path) or None,
-        "modified": git_modified.get(rel_path) or None,
-    }
+    size, fs_created, fs_modified, mtime = _stat_fields(entry)
 
     _hash_file_entry(sig, rel_path, size, mtime)
 
+    # Single resolution point for file dates: git history when the file has
+    # one, filesystem otherwise. Every scanned file is git-tracked (scan_tree
+    # rejects non-git roots), but a tracked file may still have no entry in
+    # git_created/git_modified if no commit ever touched it (e.g. just added,
+    # not yet committed) — those fall back to the fs dates. (Falsy `or`:
+    # missing key → None → fs date; the maps never hold empty strings.)
     return {
         "name": entry.name,
         "type": NodeKind.FILE,
         "path": rel_path,
         "fullPath": abs_path,
         "extension": _extension(entry.name),
+        "mediaKind": media_kind(_extension(entry.name)),
         "size": size,
         "lines": 0,  # filled in by _populate_file_metadata
         "binary": False,  # filled in by _populate_file_metadata
-        "created": created,
-        "modified": modified,
-        "git": git_block,
+        "created": git_created.get(rel_path) or fs_created,
+        "modified": git_modified.get(rel_path) or fs_modified,
     }
 
 
@@ -1153,6 +1171,30 @@ def _compute_busyness(commits: list[CommitEntry]) -> BusynessThresholds:
     return {"avg": avg, "busy": busy}
 
 
+def _compute_date_ranges(tree: DirNode) -> DateRanges:
+    """Repo-wide min/max of the resolved created/modified dates, compared
+    lexically (same semantics as the frontend walk this replaces). All four
+    are None for a tree with zero files.
+
+    Lexical comparison is exact here, not approximate: every date is
+    Z-suffixed UTC in one fixed format (git dates via _git_iso_to_utc,
+    fs dates via _epoch_to_iso), and ISO-8601 strings in a single zone
+    sort lexically in chronological order."""
+    cmin = cmax = mmin = mmax = None
+    for node in _iter_file_nodes(tree):
+        c, m = node["created"], node["modified"]
+        cmin = c if cmin is None or c < cmin else cmin
+        cmax = c if cmax is None or c > cmax else cmax
+        mmin = m if mmin is None or m < mmin else mmin
+        mmax = m if mmax is None or m > mmax else mmax
+    return {
+        "createdMin": cmin,
+        "createdMax": cmax,
+        "modifiedMin": mmin,
+        "modifiedMax": mmax,
+    }
+
+
 def _wrap_manifest(
     root_abs: str,
     tree: DirNode,
@@ -1177,6 +1219,7 @@ def _wrap_manifest(
         "repo": repo_info,
         "commits": commits,
         "busyness": _compute_busyness(commits),
+        "dateRanges": _compute_date_ranges(tree),
     }
 
 
@@ -1279,7 +1322,7 @@ def scan_tree(
     skeleton_tree = copy.deepcopy(tree)
     _force_skeleton_placeholders(skeleton_tree)
     yield {
-        "phase": "manifest-partial",
+        "phase": ScanEvent.MANIFEST_PARTIAL,
         "manifest": _wrap_manifest(
             root_abs,
             skeleton_tree,
@@ -1306,7 +1349,7 @@ def scan_tree(
     _hash_repo_info(sig, repo_info)
 
     yield {
-        "phase": "manifest-complete",
+        "phase": ScanEvent.MANIFEST_COMPLETE,
         "manifest": _wrap_manifest(
             root_abs,
             tree,
