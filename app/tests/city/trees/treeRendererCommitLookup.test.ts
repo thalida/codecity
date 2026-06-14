@@ -32,8 +32,6 @@ function resetStores() {
     COLOR_SOLO_DAY: '#a8d68a',
     SHADING_STRENGTH: 0.65,
     TRUNK_COLOR: '#120c08',
-    AGE_DESAT_ENABLED: false,
-    AGE_SATURATION: [20, 100],
     WIDTH_AGE_FLOOR: 1.0,
     OUTLINE_WIDTH: 1,
     OUTLINE_HOVER_COLOR: '#ffffff',

@@ -30,7 +30,6 @@ import type { CommitEntry, BusynessThresholds } from '@/types';
 import {
   computeAgeRange,
   computeSizeRange,
-  ageT,
   sizeT,
   dailyCountTByIndex,
   treeHeight,
@@ -286,29 +285,6 @@ export function createTreeRenderer(
       t = dailyCountTByIndex(commits, placements[i].commitIndex, busyness);
     }
     interpolateOklch(soloDayColor, busyDayColor, t, target);
-
-    if (
-      cfg.AGE_DESAT_ENABLED &&
-      commits &&
-      placements[i].commitIndex >= 0 &&
-      placements[i].commitIndex < commits.length
-    ) {
-      const aT = ageT(commits[placements[i].commitIndex], ageRange);
-      const minFactor = cfg.AGE_SATURATION[0] / 100;
-      const maxFactor = cfg.AGE_SATURATION[1] / 100;
-      const factor = minFactor + aT * (maxFactor - minFactor);
-      // Skip the HSL roundtrip when factor is effectively 1 — the newest
-      // commit at MAX=100 lands here, saving one getHSL+setHSL per tree.
-      if (factor < 0.999) {
-        // Apply saturation scaling in HSL space.
-        const hsl = _tmpHsl;
-        target.getHSL(hsl);
-        hsl.s *= factor;
-        if (hsl.s < 0) hsl.s = 0;
-        if (hsl.s > 1) hsl.s = 1;
-        target.setHSL(hsl.h, hsl.s, hsl.l);
-      }
-    }
   }
 
   const trunkGeometry = new THREE.CylinderGeometry(1.0, 1.0, 1.0, 12);
@@ -333,7 +309,6 @@ export function createTreeRenderer(
   const tmpColor = new THREE.Color();
   const busyDayColor = new THREE.Color();
   const soloDayColor = new THREE.Color();
-  const _tmpHsl = { h: 0, s: 0, l: 0 };
   setColorFromHex(busyDayColor, cfg.COLOR_BUSY_DAY);
   setColorFromHex(soloDayColor, cfg.COLOR_SOLO_DAY);
 

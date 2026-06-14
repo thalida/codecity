@@ -4,8 +4,7 @@
 // sorted by distance to the gem (oldest commit closest). Visual signals:
 //   HEIGHT  ← commit AGE  (older = taller)
 //   WIDTH   ← commit FILES (more files = wider)
-//   COLOR   ← COMMITS-PER-DAY (solo-day vs busy-day interpolation), optionally
-//             age-desaturated toward gray for older commits.
+//   COLOR   ← COMMITS-PER-DAY (solo-day vs busy-day interpolation).
 //
 // Schema-driven (see state/schema): a flat field map per store; the
 // persisted defaults + the config TYPE are both derived from it. How these
@@ -58,24 +57,6 @@ const TREES_FIELDS = {
     step: 0.05,
     label: 'Shading strength',
     tip: 'Baked vertex-color gradient depth on the canopy. 0 = flat (no shading), 1 = fully dark at the base. Rebuild on change.',
-  },
-
-  AGE_DESAT_ENABLED: {
-    route: ChangeRoute.Refresh,
-    kind: FieldKind.Toggle,
-    default: false,
-    label: 'Age desaturation enabled',
-    tip: 'When on, older commits fade toward gray — newest commits keep full color, oldest are washed out. Live.',
-  },
-  AGE_SATURATION: {
-    route: ChangeRoute.Refresh,
-    kind: FieldKind.RangePair,
-    default: [50, 100] as [number, number],
-    min: 0,
-    max: 100,
-    step: 1,
-    label: 'Saturation range',
-    tip: 'Saturation retained at the OLDEST (left) and NEWEST (right) commit — percent 0–100. At 20 the oldest tree keeps only 20% of its base color saturation; at 100 it is fully saturated. Live.',
   },
 
   MIN_HEIGHT: {

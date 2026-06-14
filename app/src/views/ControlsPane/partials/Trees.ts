@@ -23,11 +23,6 @@ export const TREES_SECTION: SectionNode = {
       ],
     },
     {
-      key: 'age-desat',
-      label: 'Age desaturation',
-      children: [field(TREES, 'AGE_DESAT_ENABLED'), field(TREES, 'AGE_SATURATION')],
-    },
-    {
       key: 'height',
       label: 'Height by age',
       children: [
