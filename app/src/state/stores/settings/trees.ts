@@ -141,37 +141,6 @@ const TREES_FIELDS = {
     tip: 'Multiplier on file-driven canopy width at the SHORTEST (newest) tree. 1 = no shrink; 0.5 = half-width saplings; 0 = strict height-proportional. Tallest trees always render at full width. Rebuild on change.',
   },
 
-  FACETS_LOW: {
-    route: ChangeRoute.Rebuild,
-    kind: FieldKind.Slider,
-    default: 5,
-    min: 3,
-    max: 24,
-    step: 1,
-    label: 'Low-tier facets',
-    tip: 'Radial segment count for trees in the smallest-commit tier. 3 = triangular prism (chunkiest); higher = smoother. Lowest tier holds the largest tree count so this is the perf-sensitive knob.',
-  },
-  FACETS_MID: {
-    route: ChangeRoute.Rebuild,
-    kind: FieldKind.Slider,
-    default: 8,
-    min: 3,
-    max: 24,
-    step: 1,
-    label: 'Mid-tier facets',
-    tip: 'Radial segment count for the middle-commit tier.',
-  },
-  FACETS_HIGH: {
-    route: ChangeRoute.Rebuild,
-    kind: FieldKind.Slider,
-    default: 12,
-    min: 3,
-    max: 32,
-    step: 1,
-    label: 'High-tier facets',
-    tip: 'Radial segment count for the largest-commit tier. Highest tier has the fewest tree instances so this is the cheapest knob to push high.',
-  },
-
   // Hover / select wireframe outlines — two persistent LineSegments2 meshes
   // snap to the active tree's transform per frame (treeOutlineRenderer). One
   // shared width; hover/selected differ by color (white vs animated rainbow

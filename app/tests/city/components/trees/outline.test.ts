@@ -235,47 +235,4 @@ describe('treeOutlineRenderer', () => {
 
     r.dispose();
   });
-
-  it('selecting a d2-tier tree swaps the outline geometry to the d2 tier', () => {
-    const scene = new THREE.Scene();
-    const picker = fakePicker();
-
-    // Build a fake whose findTreeBySha returns an InstancedMesh named with
-    // the d2 suffix, so _detailOfMesh resolves to detail tier 2.
-    const d2Mesh = new THREE.InstancedMesh(
-      new THREE.BufferGeometry(),
-      new THREE.MeshBasicMaterial(),
-      1
-    );
-    d2Mesh.name = 'tree-canopy-d2';
-
-    const trees = {
-      getInstanceTransform: (sha: string, out: THREE.Matrix4) => {
-        if (sha !== 'a') return false;
-        out.identity();
-        return true;
-      },
-      findTreeBySha: (sha: string) => {
-        if (sha !== 'a') return null;
-        return { mesh: d2Mesh, instanceId: 0 };
-      },
-    };
-
-    const r = createTreeOutlineRenderer({
-      canvas: fakeCanvas(),
-      scene,
-      picker,
-      getTrees: () => trees,
-    });
-
-    const initialGeom = r.selectedOutline.geometry;
-    picker.selection.value = commitTarget('a');
-
-    // After selecting a d2-tier tree, the outline geometry should differ
-    // from the initial (d0) one.
-    expect(r.selectedOutline.geometry).not.toBe(initialGeom);
-    expect(r.selectedOutline.visible).toBe(true);
-
-    r.dispose();
-  });
 });

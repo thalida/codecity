@@ -24,9 +24,6 @@ function resetStores() {
     MAX_HEIGHT: 144,
     MIN_WIDTH: 32,
     MAX_WIDTH: 128,
-    FACETS_LOW: 5,
-    FACETS_MID: 8,
-    FACETS_HIGH: 12,
     TRUNK_HEIGHT_FRAC: 0.25,
     TRUNK_RADIUS_FRAC: 0.15,
     CANOPY_TRUNK_OVERLAP_FRAC: 0.7,
@@ -75,7 +72,7 @@ function trunkMesh(group: THREE.Group): THREE.InstancedMesh {
 
 function canopyMeshes(group: THREE.Group): THREE.InstancedMesh[] {
   return group.children
-    .filter((c) => c.name.startsWith('tree-canopy-'))
+    .filter((c) => c.name.startsWith('tree-canopy'))
     .map((c) => c as THREE.InstancedMesh);
 }
 
@@ -125,17 +122,12 @@ describe('createTreeRenderer()', () => {
     trees?.dispose();
   });
 
-  it('builds at most one canopy mesh per detail level (d0/d1/d2) plus trunk', () => {
+  it('builds one shared canopy mesh plus a trunk mesh', () => {
     const placements = [placement(0, 0, 1, 0), placement(20, 0, 2, 1), placement(0, 20, 3, 2)];
     trees = createTreeRenderer(placements, makeCommits(3), BUSY);
     const names = trees.group.children.map((c) => c.name).sort();
     expect(names).toContain('tree-trunk');
-    const canopyNames = names.filter((n) => n.startsWith('tree-canopy-'));
-    expect(canopyNames.length).toBeGreaterThan(0);
-    expect(canopyNames.length).toBeLessThanOrEqual(3);
-    for (const n of canopyNames) {
-      expect(['tree-canopy-d0', 'tree-canopy-d1', 'tree-canopy-d2']).toContain(n);
-    }
+    expect(names.filter((n) => n.startsWith('tree-canopy'))).toEqual(['tree-canopy']);
   });
 
   it('canopy instance counts sum to placements.length', () => {
@@ -153,7 +145,9 @@ describe('createTreeRenderer()', () => {
 
   it('handles an empty placement list', () => {
     trees = createTreeRenderer([], makeCommits(0), BUSY);
-    expect(canopyMeshes(trees.group).length).toBe(0);
+    const canopies = canopyMeshes(trees.group);
+    expect(canopies.length).toBe(1);
+    expect(canopies[0].count).toBe(0);
     expect(trunkMesh(trees.group).count).toBe(0);
   });
 
@@ -261,30 +255,6 @@ describe('createTreeRenderer()', () => {
     expect(instancePosition(canopy, 0).y).toBeCloseTo(instanceScale(trunk, 0).y, 4);
   });
 
-  it('facet detail increases with commit file count', () => {
-    const commits = buildCommits(
-      { date: '2026-01-01', files: 1 }, // sizeT=0   → detail 0
-      { date: '2026-01-11', files: 5 }, // sizeT=0.5 → detail 1
-      { date: '2026-01-21', files: 9 } // sizeT=1   → detail 2
-    );
-    const placements = [placement(0, 0, 1, 0), placement(20, 0, 2, 1), placement(0, 20, 3, 2)];
-    trees = createTreeRenderer(placements, commits, BUSY);
-
-    const a = findCanopyInstance(trees.group, 0);
-    const b = findCanopyInstance(trees.group, 1);
-    const c = findCanopyInstance(trees.group, 2);
-    expect(a!.mesh.name).toBe('tree-canopy-d0');
-    expect(b!.mesh.name).toBe('tree-canopy-d1');
-    expect(c!.mesh.name).toBe('tree-canopy-d2');
-    // More facets = strictly more triangles (after toNonIndexed).
-    expect(b!.mesh.geometry.getAttribute('position').count).toBeGreaterThan(
-      a!.mesh.geometry.getAttribute('position').count
-    );
-    expect(c!.mesh.geometry.getAttribute('position').count).toBeGreaterThan(
-      b!.mesh.geometry.getAttribute('position').count
-    );
-  });
-
   it('per-instance color interpolates between SOLO_DAY (solo day) and BUSY_DAY (busy day) by COMMITS-PER-DAY', () => {
     // Three days with 1, 2, and 4 commits. With thresholds {avg:2, busy:4}
     // the gradient anchors:
@@ -352,10 +322,10 @@ describe('createTreeRenderer()', () => {
     for (let i = 0; i < placements.length; i++) {
       expect(instanceScale(trunk, i).y).toBeCloseTo(midH * 0.25, 3);
     }
-    // Null commits → degenerate sizeT=0.5 → detail 1 for every tree.
+    // One shared canopy mesh holds every tree.
     const canopies = canopyMeshes(trees.group);
     expect(canopies.length).toBe(1);
-    expect(canopies[0].name).toBe('tree-canopy-d1');
+    expect(canopies[0].name).toBe('tree-canopy');
   });
 
   it('canopy geometry carries a baked color attribute (vertex shading)', () => {

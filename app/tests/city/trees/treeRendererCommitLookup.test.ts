@@ -22,9 +22,6 @@ function resetStores() {
     MAX_HEIGHT: 144,
     MIN_WIDTH: 32,
     MAX_WIDTH: 128,
-    FACETS_LOW: 5,
-    FACETS_MID: 8,
-    FACETS_HIGH: 12,
     TRUNK_HEIGHT_FRAC: 0.25,
     TRUNK_RADIUS_FRAC: 0.15,
     CANOPY_TRUNK_OVERLAP_FRAC: 0.7,
@@ -73,7 +70,7 @@ describe('Trees commit lookups', () => {
     const trees = createTreeRenderer(placements, commits, BUSY);
 
     // Find any canopy mesh on the trees group.
-    const canopy = trees.group.children.find((c) => c.name.startsWith('tree-canopy-')) as
+    const canopy = trees.group.children.find((c) => c.name.startsWith('tree-canopy')) as
       | THREE.InstancedMesh
       | undefined;
     expect(canopy).toBeDefined();
@@ -133,7 +130,7 @@ describe('Trees commit lookups', () => {
     const got = trees.findTreeBySha(commits[1].sha);
     expect(got).not.toBeNull();
     expect(got!.commit).toEqual(commits[1]);
-    expect(got!.mesh.name).toMatch(/^tree-canopy-/);
+    expect(got!.mesh.name).toBe('tree-canopy');
     // The resolved (mesh, instanceId) must round-trip through commitForInstance.
     expect(trees.commitForInstance(got!.mesh, got!.instanceId)).toEqual(commits[1]);
   });
@@ -150,7 +147,7 @@ describe('Trees commit lookups', () => {
     const placements = [placement(0, 0), placement(1, 1)];
     const trees = createTreeRenderer(placements, commits, BUSY);
 
-    const canopies = trees.group.children.filter((c) => c.name.startsWith('tree-canopy-'));
+    const canopies = trees.group.children.filter((c) => c.name.startsWith('tree-canopy'));
     for (const c of canopies) {
       expect(c.userData.meshKind).toBe('tree-canopy');
     }
@@ -339,7 +336,7 @@ describe('Trees commit lookups', () => {
     const trees = createTreeRenderer(placements, commits, BUSY);
 
     const canopies = trees.group.children.filter((c) =>
-      c.name.startsWith('tree-canopy-')
+      c.name.startsWith('tree-canopy')
     ) as THREE.InstancedMesh[];
     expect(canopies.length).toBeGreaterThan(0);
 
@@ -355,14 +352,12 @@ describe('Trees commit lookups', () => {
   });
 });
 
-it('buildCanopyEdges returns non-empty EdgesGeometry for each detail level', async () => {
+it('buildCanopyEdges returns a non-empty EdgesGeometry', async () => {
   const { buildCanopyEdges } = await import('@/city/components/trees/treeRenderer.js');
-  for (const detail of [0, 1, 2] as const) {
-    const geom = buildCanopyEdges(detail);
-    expect(geom).toBeInstanceOf(THREE.EdgesGeometry);
-    const positions = geom.getAttribute('position');
-    expect(positions).toBeDefined();
-    expect(positions.count).toBeGreaterThan(0);
-    geom.dispose();
-  }
+  const geom = buildCanopyEdges();
+  expect(geom).toBeInstanceOf(THREE.EdgesGeometry);
+  const positions = geom.getAttribute('position');
+  expect(positions).toBeDefined();
+  expect(positions.count).toBeGreaterThan(0);
+  geom.dispose();
 });

@@ -30,7 +30,6 @@ import { effect } from '@preact/signals';
 
 interface TreesHandle {
   getInstanceTransform(sha: string, out: THREE.Matrix4): boolean;
-  findTreeBySha(sha: string): { mesh: THREE.InstancedMesh; instanceId: number } | null;
 }
 
 /** Minimal picker surface consumed by this renderer (hover + selection signals). */
@@ -51,17 +50,13 @@ interface CreateArgs {
 export function createTreeOutlineRenderer({ canvas, scene, picker, getTrees }: CreateArgs) {
   const _cfg = TREES.value;
 
-  // Build one EdgesGeometry per detail tier. The active outline mesh
-  // points at whichever tier matches the active tree's mesh on snap.
-  // Wrapped in LineSegmentsGeometry (line2 addon's flat-array format).
-  const _edgesByDetail: LineSegmentsGeometry[] = [0, 1, 2].map((d) => {
-    const edges = buildCanopyEdges(d as 0 | 1 | 2);
-    const positions = edges.getAttribute('position').array as Float32Array;
-    const lsg = new LineSegmentsGeometry();
-    lsg.setPositions(positions);
-    edges.dispose();
-    return lsg;
-  });
+  // Single canopy silhouette geometry shared by both outline meshes — every
+  // tree uses one facet count, so there's no per-tier swap. Wrapped in
+  // LineSegmentsGeometry (line2 addon's flat-array format).
+  const _edges = buildCanopyEdges();
+  const _edgesGeom = new LineSegmentsGeometry();
+  _edgesGeom.setPositions(_edges.getAttribute('position').array as Float32Array);
+  _edges.dispose();
 
   // ── Hover outline ─────────────────────────────────────────────────────
   const hoverLineMat = new LineMaterial({
@@ -73,7 +68,7 @@ export function createTreeOutlineRenderer({ canvas, scene, picker, getTrees }: C
     worldUnits: false,
   });
   hoverLineMat.resolution.set(canvas.clientWidth, canvas.clientHeight);
-  const hoverOutline = new LineSegments2(_edgesByDetail[0], hoverLineMat);
+  const hoverOutline = new LineSegments2(_edgesGeom, hoverLineMat);
   hoverOutline.visible = false;
   hoverOutline.renderOrder = RENDER_ORDERS.HOVER_TREE_OUTLINE;
   hoverOutline.matrixAutoUpdate = false;
@@ -89,7 +84,7 @@ export function createTreeOutlineRenderer({ canvas, scene, picker, getTrees }: C
     worldUnits: false,
   });
   selectedLineMat.resolution.set(canvas.clientWidth, canvas.clientHeight);
-  const selectedOutline = new LineSegments2(_edgesByDetail[0], selectedLineMat);
+  const selectedOutline = new LineSegments2(_edgesGeom, selectedLineMat);
   selectedOutline.visible = false;
   selectedOutline.renderOrder = RENDER_ORDERS.SELECTED_TREE_OUTLINE;
   selectedOutline.matrixAutoUpdate = false;
@@ -97,26 +92,12 @@ export function createTreeOutlineRenderer({ canvas, scene, picker, getTrees }: C
 
   const _tmpMatrix = new THREE.Matrix4();
 
-  /** Detail level (0/1/2) inferred from the canopy mesh name. The names
-   *  are assigned in treeRenderer: `tree-canopy-d{0,1,2}`. */
-  function _detailOfMesh(mesh: THREE.InstancedMesh): 0 | 1 | 2 {
-    const n = mesh.name;
-    if (n.endsWith('-d2')) return 2;
-    if (n.endsWith('-d1')) return 1;
-    return 0;
-  }
-
-  /** Swap the outline's geometry to the detail tier matching the active
-   *  tree's canopy mesh, then write its instance matrix into the outline. */
+  /** Snap the outline onto the tree with the given sha. The silhouette
+   *  geometry is shared (one facet count for all trees), so this only writes
+   *  the instance transform — no per-tier geometry swap. */
   function _syncOutline(outline: LineSegments2, sha: string): boolean {
     const trees = getTrees();
     if (!trees) return false;
-    const hit = trees.findTreeBySha(sha);
-    if (!hit) return false;
-    const wantDetail = _detailOfMesh(hit.mesh);
-    if (outline.geometry !== _edgesByDetail[wantDetail]) {
-      outline.geometry = _edgesByDetail[wantDetail];
-    }
     if (!trees.getInstanceTransform(sha, _tmpMatrix)) return false;
     outline.matrix.copy(_tmpMatrix);
     outline.matrixWorldNeedsUpdate = true;
@@ -152,9 +133,8 @@ export function createTreeOutlineRenderer({ canvas, scene, picker, getTrees }: C
     }
   });
 
-  // Rainbow color buffer for the selected outline. Sized at first update
-  // to match the active geometry's segment count (which depends on the
-  // active tree's detail tier). Reallocated when the active detail changes.
+  // Rainbow color buffer for the selected outline. Sized once at first update
+  // to the shared canopy silhouette's segment count.
   let _selColorBuf: Float32Array | null = null;
   let _selSegCount = 0;
 
@@ -227,7 +207,7 @@ export function createTreeOutlineRenderer({ canvas, scene, picker, getTrees }: C
     _disposeHoverEffect();
     if (hoverOutline.parent) hoverOutline.parent.remove(hoverOutline);
     if (selectedOutline.parent) selectedOutline.parent.remove(selectedOutline);
-    for (const g of _edgesByDetail) g.dispose();
+    _edgesGeom.dispose();
     hoverLineMat.dispose();
     selectedLineMat.dispose();
   }

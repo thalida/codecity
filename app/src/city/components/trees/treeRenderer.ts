@@ -1,15 +1,13 @@
 // city/components/trees/treeRenderer.ts — turns a TreePlacement[] + the manifest's
-// commit list into one InstancedMesh per canopy detail level plus a
-// shared trunk InstancedMesh.
+// commit list into one shared canopy InstancedMesh plus a shared trunk
+// InstancedMesh.
 //
-//   tree-canopy-d{0,1,2} — low-poly icosahedron canopies, stretched to
-//                          the per-tree (radius, height) by the instance
-//                          matrix. Detail level (subdivision count) is
-//                          picked per tree from commit FILES so bigger
-//                          commits get more facets.
-//   tree-trunk           — round cylinder, one instance per tree. Y scale
-//                          = TRUNK_HEIGHT_FRAC × canopy height; XZ scale
-//                          = TRUNK_RADIUS_FRAC × canopy radius.
+//   tree-canopy — low-poly lathe canopies at a single shared facet count
+//                 (TREE_CANOPY_FACETS), stretched to the per-tree (radius,
+//                 height) by the instance matrix.
+//   tree-trunk  — round cylinder, one instance per tree. Y scale
+//                 = TRUNK_HEIGHT_FRAC × canopy height; XZ scale
+//                 = TRUNK_RADIUS_FRAC × canopy radius.
 //
 // Canopy geometries carry a baked per-vertex color attribute combining
 // a vertical gradient (dark base → light top) and a directional face
@@ -30,7 +28,6 @@ import type { CommitEntry, BusynessThresholds } from '@/types';
 import {
   computeAgeRange,
   computeSizeRange,
-  sizeT,
   dailyCountTByIndex,
   treeHeight,
   treeRadius,
@@ -82,17 +79,16 @@ export interface Trees {
   } | null;
 }
 
-/** Three subdivision tiers for the LatheGeometry canopy. File count
- *  drives which tier each tree lands in. Segment counts live in TREES
- *  config (FACETS_LOW / MID / HIGH) so they're user-tunable. */
-const DETAIL_LEVELS = [0, 1, 2] as const;
-type DetailLevel = (typeof DETAIL_LEVELS)[number];
+/** Radial segment count for every canopy LatheGeometry — one shared value
+ *  for all trees (not file-driven). Bump for rounder crowns, drop for a
+ *  chunkier low-poly look. */
+const TREE_CANOPY_FACETS = 6;
 
 /** Lathe control points for the canopy silhouette: hand-picked (radius, height)
  *  pairs producing a round, near-spherical crown — widest at the middle (~y 0.5)
  *  and tapering symmetrically to rounded poles at top + bottom, so it reads as a
  *  ball rather than an elongated/popsicle column. Bottom→top, both axes
- *  normalized to [0,1] so a single profile drives any detail tier. Shared by
+ *  normalized to [0,1] so one profile drives the canopy at any scale. Shared by
  *  `buildCanopyGeometry` (the rendered canopy) and `buildCanopyEdges` (the
  *  outline wireframe) — keep these two in sync. */
 const CANOPY_PROFILE: readonly THREE.Vector2[] = [
@@ -110,8 +106,7 @@ const CANOPY_PROFILE: readonly THREE.Vector2[] = [
   new THREE.Vector2(0, 1.0),
 ];
 
-/** Build a unit-height (Y ∈ [0,1]), unit-radius round canopy geometry at
- *  the given subdivision detail.
+/** Build a unit-height (Y ∈ [0,1]), unit-radius round canopy geometry.
  *
  *  Profile (lathed around the Y axis) is a near-sphere: widest at the
  *  middle, curving symmetrically in to rounded poles top + bottom, so the
@@ -123,11 +118,9 @@ const CANOPY_PROFILE: readonly THREE.Vector2[] = [
  *  Profile max X = 1.0, so when the renderer applies XZ scale = r, the
  *  canopy world radius at its widest = r exactly; with height ≈ 2r the crown
  *  renders as a circle, taller trees as a vertical ellipsoid. */
-function buildCanopyGeometry(detail: DetailLevel): THREE.BufferGeometry {
+function buildCanopyGeometry(): THREE.BufferGeometry {
   const profile = CANOPY_PROFILE as THREE.Vector2[];
-  const cfg = TREES.value;
-  const segments = detail === 0 ? cfg.FACETS_LOW : detail === 1 ? cfg.FACETS_MID : cfg.FACETS_HIGH;
-  const geom = new THREE.LatheGeometry(profile, segments);
+  const geom = new THREE.LatheGeometry(profile, TREE_CANOPY_FACETS);
   // Non-indexed + flat normals so the baked per-vertex shading reads
   // as discrete facets (each face shaded uniformly).
   const flat = geom.toNonIndexed();
@@ -136,17 +129,15 @@ function buildCanopyGeometry(detail: DetailLevel): THREE.BufferGeometry {
   return flat;
 }
 
-/** Build a clean wireframe `EdgesGeometry` for the canopy silhouette at
- *  the given detail level. Uses the SAME profile + segment count as
- *  `buildCanopyGeometry`, but on the indexed lathe (no `toNonIndexed`)
- *  so adjacent triangles share vertex normals — that lets `EdgesGeometry`
- *  collapse coplanar interior edges and emit only the ring boundaries.
+/** Build a clean wireframe `EdgesGeometry` for the canopy silhouette. Uses
+ *  the SAME profile + segment count as `buildCanopyGeometry`, but on the
+ *  indexed lathe (no `toNonIndexed`) so adjacent triangles share vertex
+ *  normals — that lets `EdgesGeometry` collapse coplanar interior edges and
+ *  emit only the ring boundaries.
  *
  *  Consumed by `./outline.ts` (the tree outline renderer). */
-export function buildCanopyEdges(detail: DetailLevel): THREE.EdgesGeometry {
-  const cfg = TREES.value;
-  const segments = detail === 0 ? cfg.FACETS_LOW : detail === 1 ? cfg.FACETS_MID : cfg.FACETS_HIGH;
-  const lathe = new THREE.LatheGeometry(CANOPY_PROFILE as THREE.Vector2[], segments);
+export function buildCanopyEdges(): THREE.EdgesGeometry {
+  const lathe = new THREE.LatheGeometry(CANOPY_PROFILE as THREE.Vector2[], TREE_CANOPY_FACETS);
   // Default 1° threshold keeps any edge whose adjacent face normals differ
   // by >1° — for the canopy this means ring boundaries (profile slope
   // changes) plus the lathe's wrap seam. The result reads as a wireframe
@@ -211,14 +202,6 @@ function bakeVertexShading(geom: THREE.BufferGeometry, strength: number): void {
   geom.setAttribute('color', new THREE.BufferAttribute(colors, 3));
 }
 
-interface CanopyMeshRecord {
-  detail: DetailLevel;
-  mesh: THREE.InstancedMesh;
-  /** Indexes into `placements` for the trees rendered by this mesh,
-   *  in the same order their instances were written. */
-  placementOrder: number[];
-}
-
 export function createTreeRenderer(
   placements: TreePlacement[],
   commits: CommitEntry[] | null,
@@ -256,17 +239,6 @@ export function createTreeRenderer(
 
   function perTreeRadius(i: number): number {
     return treeRadius(commitForPlacement(i), ageRange, sizeRange, cfg);
-  }
-
-  // FACETS are driven by FILES too: bigger commits get more subdivisions.
-  // sizeT ∈ [0, 1] → detail ∈ {0, 1, 2}. Degenerate sizeT=0.5 maps to detail 1.
-  function perTreeDetail(i: number): DetailLevel {
-    let t = 0.5;
-    if (commits && placements[i].commitIndex >= 0 && placements[i].commitIndex < commits.length) {
-      t = sizeT(commits[placements[i].commitIndex], sizeRange);
-    }
-    const idx = Math.min(DETAIL_LEVELS.length - 1, Math.floor(t * DETAIL_LEVELS.length));
-    return DETAIL_LEVELS[idx];
   }
 
   // COLOR follows COMMITS-PER-DAY: solo-commit days interpolate toward
@@ -314,14 +286,6 @@ export function createTreeRenderer(
 
   const totalTrees = placements.length;
 
-  // Bucket placements by detail level. Each non-empty bucket gets its
-  // own InstancedMesh + geometry; empty buckets contribute nothing.
-  const buckets: number[][] = DETAIL_LEVELS.map(() => []);
-  for (let i = 0; i < totalTrees; i++) {
-    const detail = perTreeDetail(i);
-    buckets[detail].push(i);
-  }
-
   // Base color cache: keyed by commit SHA, value is the hex color string
   // (e.g. "#5e8a3a") computed during bake. Populated below and rebuilt
   // on every refresh(). colorForSha reads from here, not the instance buffer.
@@ -335,54 +299,50 @@ export function createTreeRenderer(
     { mesh: THREE.InstancedMesh; instanceId: number; commit: CommitEntry }
   >();
 
-  const canopyRecords: CanopyMeshRecord[] = [];
-  for (const detail of DETAIL_LEVELS) {
-    const indices = buckets[detail];
-    if (indices.length === 0) continue;
-    const geom = buildCanopyGeometry(detail);
-    bakeVertexShading(geom, cfg.SHADING_STRENGTH);
+  // One canopy mesh for every tree at a single shared facet count: instance i
+  // renders placement i (identity order, like the trunk), so commitForInstance
+  // maps slot → placement with no per-mesh bookkeeping.
+  const canopyOrder = new Array<number>(totalTrees);
+  for (let i = 0; i < totalTrees; i++) canopyOrder[i] = i;
 
-    const mesh = new THREE.InstancedMesh(geom, canopyMaterial, indices.length);
-    mesh.name = `tree-canopy-d${detail}`;
-    mesh.renderOrder = RENDER_ORDERS.PARK_FOLIAGE;
-    mesh.frustumCulled = false;
-    mesh.visible = cfg.ENABLED;
-    mesh.userData.meshKind = 'tree-canopy';
-    mesh.userData.placementOrder = indices;
+  const canopyGeometry = buildCanopyGeometry();
+  bakeVertexShading(canopyGeometry, cfg.SHADING_STRENGTH);
+  const canopyMesh = new THREE.InstancedMesh(canopyGeometry, canopyMaterial, totalTrees);
+  canopyMesh.name = 'tree-canopy';
+  canopyMesh.renderOrder = RENDER_ORDERS.PARK_FOLIAGE;
+  canopyMesh.frustumCulled = false;
+  canopyMesh.visible = cfg.ENABLED;
+  canopyMesh.userData.meshKind = 'tree-canopy';
+  canopyMesh.userData.placementOrder = canopyOrder;
 
-    for (let k = 0; k < indices.length; k++) {
-      const placementIdx = indices[k];
-      const p = placements[placementIdx];
-      const h = perTreeHeight(placementIdx);
-      const r = perTreeRadius(placementIdx);
-      const trunkH = h * trunkHeightFrac;
+  for (let i = 0; i < totalTrees; i++) {
+    const p = placements[i];
+    const h = perTreeHeight(i);
+    const r = perTreeRadius(i);
+    const trunkH = h * trunkHeightFrac;
 
-      // Canopy: base of the icosahedron sits BELOW the top of the
-      // trunk by `canopyOverlapFrac × trunkH`, so the trunk visibly
-      // enters the canopy from below instead of touching it at a
-      // single point. Y-scale = h, XZ-scale = r → oval stretched
-      // along Y when h > r.
-      const canopyBaseY = trunkH * (1 - canopyOverlapFrac);
-      tmpV3.set(p.x, canopyBaseY, p.y);
-      tmpScale.set(r, h, r);
-      tmpMatrix.compose(tmpV3, tmpQ, tmpScale);
-      mesh.setMatrixAt(k, tmpMatrix);
+    // Canopy base sits BELOW the trunk top by `canopyOverlapFrac × trunkH`,
+    // so the trunk visibly enters the canopy from below instead of touching
+    // it at a single point. Y-scale = h, XZ-scale = r → a vertical ellipsoid
+    // when h > r.
+    const canopyBaseY = trunkH * (1 - canopyOverlapFrac);
+    tmpV3.set(p.x, canopyBaseY, p.y);
+    tmpScale.set(r, h, r);
+    tmpMatrix.compose(tmpV3, tmpQ, tmpScale);
+    canopyMesh.setMatrixAt(i, tmpMatrix);
 
-      perTreeColor(placementIdx, tmpColor);
-      // Cache the base color before writing it to the instance buffer.
-      // The buffer can later be modified by tints; the cache stays stable.
-      const c = commits?.[placements[placementIdx].commitIndex];
-      if (c?.sha) {
-        _baseColorBySha.set(c.sha, `#${tmpColor.getHexString()}`);
-        _treeIndexBySha.set(c.sha, { mesh, instanceId: k, commit: c });
-      }
-      mesh.setColorAt(k, tmpColor);
+    perTreeColor(i, tmpColor);
+    // Cache the base color before writing it to the instance buffer; the
+    // buffer can later be modified by tints, the cache stays stable.
+    const c = commits?.[placements[i].commitIndex];
+    if (c?.sha) {
+      _baseColorBySha.set(c.sha, `#${tmpColor.getHexString()}`);
+      _treeIndexBySha.set(c.sha, { mesh: canopyMesh, instanceId: i, commit: c });
     }
-    mesh.instanceMatrix.needsUpdate = true;
-    if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
-
-    canopyRecords.push({ detail, mesh, placementOrder: indices });
+    canopyMesh.setColorAt(i, tmpColor);
   }
+  canopyMesh.instanceMatrix.needsUpdate = true;
+  if (canopyMesh.instanceColor) canopyMesh.instanceColor.needsUpdate = true;
 
   // Trunk: one shared mesh, one instance per tree in placement order.
   // Identity array: trunk instance i is always placement i, but we
@@ -415,13 +375,13 @@ export function createTreeRenderer(
   group.name = 'trees';
   group.userData.cyberpunkValley = 'trees';
   group.visible = cfg.ENABLED;
-  for (const rec of canopyRecords) group.add(rec.mesh);
+  group.add(canopyMesh);
   group.add(trunkMesh);
 
   function refresh(): void {
     cfg = TREES.value;
     group.visible = cfg.ENABLED;
-    for (const rec of canopyRecords) rec.mesh.visible = cfg.ENABLED;
+    canopyMesh.visible = cfg.ENABLED;
     trunkMesh.visible = cfg.ENABLED;
 
     setColorFromHex(trunkMaterial.color, cfg.TRUNK_COLOR);
@@ -432,24 +392,21 @@ export function createTreeRenderer(
     // colorForSha / findTreeBySha always reflect the current config colors.
     _baseColorBySha.clear();
     _treeIndexBySha.clear();
-    for (const rec of canopyRecords) {
-      for (let k = 0; k < rec.placementOrder.length; k++) {
-        const placementIdx = rec.placementOrder[k];
-        perTreeColor(placementIdx, tmpColor);
-        const commit = commits?.[placements[placementIdx].commitIndex];
-        if (commit?.sha) {
-          _baseColorBySha.set(commit.sha, `#${tmpColor.getHexString()}`);
-          _treeIndexBySha.set(commit.sha, { mesh: rec.mesh, instanceId: k, commit });
-        }
-        rec.mesh.setColorAt(k, tmpColor);
+    for (let i = 0; i < totalTrees; i++) {
+      perTreeColor(i, tmpColor);
+      const commit = commits?.[placements[i].commitIndex];
+      if (commit?.sha) {
+        _baseColorBySha.set(commit.sha, `#${tmpColor.getHexString()}`);
+        _treeIndexBySha.set(commit.sha, { mesh: canopyMesh, instanceId: i, commit });
       }
-      if (rec.mesh.instanceColor) rec.mesh.instanceColor.needsUpdate = true;
+      canopyMesh.setColorAt(i, tmpColor);
     }
+    if (canopyMesh.instanceColor) canopyMesh.instanceColor.needsUpdate = true;
   }
 
   function dispose(): void {
     if (group.parent) group.parent.remove(group);
-    for (const rec of canopyRecords) rec.mesh.geometry.dispose();
+    canopyMesh.geometry.dispose();
     trunkMesh.geometry.dispose();
     canopyMaterial.dispose();
     trunkMaterial.dispose();
