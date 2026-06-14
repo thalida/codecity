@@ -1484,25 +1484,25 @@ canvas {
  * The chevron is a Lucide icon (via the LucideIcon component) rather than a
  * unicode triangle — sharper at small sizes and currentColor-aware. */
 /* Style in .row + .row--bleed; this rule only hides the native disclosure
-   triangle (a custom .controls-section-chevron renders instead). */
+   triangle (a custom .chevron renders instead). */
 .controls-section > summary.controls-section-summary {
   list-style: none;
 }
 .controls-section > summary.controls-section-summary::-webkit-details-marker {
   display: none;
 }
-/* Section chevrons — consolidated rule shared with .theme-subgroup-chevron.
-   Width matches .tree-chevron so labels at all depths line up. */
-.controls-section-chevron,
-.theme-subgroup-chevron {
+/* Disclosure chevron — shared by the controls-section and theme-subgroup
+   <details> summaries. Width matches .tree-chevron so labels at all depths
+   line up. The open state is driven purely by the parent <details open>. */
+.chevron {
   width: 14px;
   height: 14px;
   flex-shrink: 0;
   color: var(--cc-text-secondary);
   transition: transform var(--cc-t-fast) ease;
 }
-.controls-section[open] > summary.controls-section-summary > .controls-section-chevron,
-.theme-subgroup-collapsible[open] > summary > .theme-subgroup-chevron {
+.controls-section[open] > summary > .chevron,
+.theme-subgroup-collapsible[open] > summary > .chevron {
   transform: rotate(90deg);
 }
 
@@ -1673,14 +1673,13 @@ canvas {
  * at every level of the panel. The <summary> carries
  * .row + .row--bleed + .text-label + .text-label--muted in the DOM. */
 /* This rule only hides the native disclosure triangle (a custom
-   .theme-subgroup-chevron renders instead). */
+   .chevron renders instead). */
 .theme-subgroup-collapsible > summary {
   list-style: none;
 }
 .theme-subgroup-collapsible > summary::-webkit-details-marker {
   display: none;
 }
-/* Chevron rule consolidated with .controls-section-chevron above. */
 
 /* Nested subgroups inside a collapsible parent (e.g. Buildings > Facade >
  * Geometry / Contrast / Window lighting). A small left padding indents

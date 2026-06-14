@@ -33,7 +33,7 @@ export function Section({ name, hint, resetKeys, children }: SectionProps) {
   return (
     <details class="controls-section">
       <summary class="row row--bleed controls-section-summary">
-        <ChevronRight class="lucide-icon controls-section-chevron" />
+        <ChevronRight class="lucide-icon chevron" />
         <span class="text-label">{name}</span>
         {keys.length > 0 && (
           <button
