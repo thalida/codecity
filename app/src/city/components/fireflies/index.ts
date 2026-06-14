@@ -15,7 +15,7 @@
 // first tick(), once createCity has populated ctx.picker.
 
 import * as THREE from 'three';
-import { effect } from '@preact/signals';
+import { effect, untracked } from '@preact/signals';
 
 import { FIREFLIES } from '@/state/stores/settings/fireflies';
 import { NodeKind } from '@/types';
@@ -84,9 +84,16 @@ export function createFireflies(ctx: SceneContext): FirefliesComponent {
   // publishes (null → clear at the start of a rebuild; the array → rebuild once
   // the deferred scan resolves), so they track trees in lockstep. commits is
   // read at that moment (peek — placements is the trigger, not the manifest).
+  //
+  // rebuild() is wrapped untracked because assembleFireflies reads FIREFLIES.value
+  // (ENABLED, scale, orbit). Without it this effect would subscribe to the whole
+  // FIREFLIES store and reallocate the instanced mesh on every Refresh-route
+  // theme Save (a flash + GPU churn on each slider drag) on top of the in-place
+  // stopTheme refresh. The Rebuild-route structural fields reach here via the
+  // treePlacements republish (applyManifest → trees rebuild).
   const stopPlacements = effect(() => {
     const placements = cityState.treePlacements.value;
-    if (placements) rebuild(placements, cityState.manifest.peek()?.commits ?? null);
+    if (placements) untracked(() => rebuild(placements, cityState.manifest.peek()?.commits ?? null));
     else clear();
   });
 

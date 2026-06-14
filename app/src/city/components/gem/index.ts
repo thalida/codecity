@@ -9,7 +9,7 @@
 // ctx.picker only in tick() (live by the first frame), never at construction.
 
 import * as THREE from 'three';
-import { effect } from '@preact/signals';
+import { effect, untracked } from '@preact/signals';
 
 import { GEM } from '@/state/stores/settings/gem';
 import { BLOOM } from '@/state/stores/settings/effects';
@@ -103,9 +103,17 @@ export function createGem(ctx: SceneContext): Gem {
   // non-reuse applies — the gem must NOT rebuild on a scenic-reuse apply, which
   // would flash + realloc GPU. The null-guard makes the construction-time run
   // (rootStreet null) a no-op.
+  //
+  // rebuild() is wrapped untracked because createRootGem reads GEM.value (sides,
+  // radius, face palette, glow). Without it this effect would subscribe to the
+  // whole GEM store and rebuild on every Refresh-route GEM Save — recreating the
+  // pickable gem body without bumping cityRevision, so the picker (which
+  // re-syncs only then) would keep raycasting the disposed body. GEM visual
+  // changes are repainted in place by the theme effect; only SIDES/RADIUS reach
+  // here, via applyManifest → a fresh rootStreet reference.
   const stopLayout = effect(() => {
     const rootStreet = cityState.rootStreet.value;
-    if (rootStreet) rebuild(rootStreet);
+    if (rootStreet) untracked(() => rebuild(rootStreet));
   });
 
   // Theme effect — reacts to GEM signal changes (Save). No-ops while refs are

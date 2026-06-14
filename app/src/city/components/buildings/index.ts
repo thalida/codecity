@@ -24,7 +24,7 @@
 // getCells/getBuildingIndex accessors read straight off it.
 
 import * as THREE from 'three';
-import { effect } from '@preact/signals';
+import { effect, untracked } from '@preact/signals';
 
 import { BUILDINGS, BUILDING_DIMENSIONS } from '@/state/stores/settings/buildings';
 import { BLOOM } from '@/state/stores/settings/effects';
@@ -145,10 +145,19 @@ export function createBuildings(ctx: SceneContext): Buildings {
   // the icon atlas BEFORE the layout signal fires, so the cells bake the right
   // roof UVs and buildings paint in the same batch as streets (no flash). The
   // boot rebuild snaps in (_firstBuildDone); the null-guard no-ops construction.
+  //
+  // rebuild() is wrapped untracked because its synchronous prefix reads
+  // BUILDINGS.value (getBuildingColor, cell facade) + SCENE/BLOOM. Without it
+  // this effect would subscribe to those stores and rebuild every cell on a
+  // Refresh-route material Save — recreating the pickable cell meshes without
+  // bumping cityRevision, so the picker would keep raycasting the disposed cells
+  // (hover/selection silently breaking). Refresh material changes are applied in
+  // place by stopMaterialEffect; the Rebuild-route palette/geometry fields reach
+  // here via layout.value, which applyManifest always reassigns.
   const stopRebuild = effect(() => {
     const layout = ctx.cityState.layout.value;
     const manifest = ctx.cityState.manifest.value;
-    if (layout && manifest) void rebuild(layout, manifest.dateRanges);
+    if (layout && manifest) untracked(() => void rebuild(layout, manifest.dateRanges));
   });
 
   // (2)(3)(4) Picker-driven hover/selection overlays — fader (body opacity),
