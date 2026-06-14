@@ -143,7 +143,7 @@ export function SourcePickerModal({ state, onSubmit, onClose }: SourcePickerModa
           )}
         </div>
         <div class="modal-body">
-          {s.error && <div class="modal-error">{s.error}</div>}
+          {s.error && <div class="modal-error card-error">{s.error}</div>}
           <div class="modal-tabs">
             <button
               type="button"
