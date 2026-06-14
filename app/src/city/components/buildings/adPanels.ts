@@ -144,9 +144,9 @@ export class InstancedAdPanels {
         uPageSize: { value: this._texArray.pageSize },
         // Emission boost — multiplied onto the final fragment color so
         // both placeholder/error colors and loaded textures share the
-        // same emission scaling. Initialised from BLOOM config; updated
-        // live via refresh() when the user moves the AD_EMISSION slider.
-        uEmissionBoost: { value: bloomCfg.ENABLED ? bloomCfg.AD_EMISSION : 1.0 },
+        // same emission scaling. BUILDINGS.AD_EMISSION supplies the level,
+        // gated on BLOOM.ENABLED; updated live via refresh().
+        uEmissionBoost: { value: bloomCfg.ENABLED ? adCfg.AD_EMISSION : 1.0 },
       },
       vertexShader: adPanelVertSrc,
       fragmentShader: adPanelFragSrc,
@@ -429,13 +429,13 @@ export class InstancedAdPanels {
   }
 
   /**
-   * Hot-reload emission from the current BLOOM config. Called whenever the
-   * user changes the AD_EMISSION slider so the uniform updates without a full
-   * scene rebuild.
+   * Hot-reload emission from config. Called whenever the user changes
+   * BUILDINGS.AD_EMISSION (or BLOOM.ENABLED) so the uniform updates without a
+   * full scene rebuild.
    */
   refresh(): void {
-    const bloomCfg = BLOOM.value;
-    this._material.uniforms.uEmissionBoost.value = bloomCfg.ENABLED ? bloomCfg.AD_EMISSION : 1.0;
+    const enabled = BLOOM.value.ENABLED;
+    this._material.uniforms.uEmissionBoost.value = enabled ? BUILDINGS.value.AD_EMISSION : 1.0;
   }
 
   dispose(): void {

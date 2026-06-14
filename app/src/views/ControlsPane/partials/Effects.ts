@@ -21,9 +21,6 @@ export const EFFECTS_SECTION: SectionNode = {
       label: 'Bloom (HDR neon glow)',
       children: [
         field(BLOOM, 'ENABLED'),
-        field(BLOOM, 'WINDOW_EMISSION'),
-        field(BLOOM, 'GEM_EMISSION'),
-        field(BLOOM, 'AD_EMISSION'),
         field(BLOOM, 'STRENGTH'),
         field(BLOOM, 'RADIUS'),
         field(BLOOM, 'THRESHOLD'),

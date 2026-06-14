@@ -176,6 +176,16 @@ const GEM_FIELDS = {
     label: 'Cycle period (s)',
     tip: 'Seconds for one full pass through every palette color. Below 1s reads as flicker; above 30s the cycle feels static.',
   },
+  GLOW_EMISSION: {
+    route: ChangeRoute.Refresh,
+    kind: FieldKind.Slider,
+    default: 0.5,
+    min: 0,
+    max: 5.0,
+    step: 0.1,
+    label: 'Emission (bloom)',
+    tip: "Multiplier on the halo sprite colors. Gated on Effects > Bloom > Enabled. 0 = halos black (invisible); 1 = LDR (no bloom from gem); higher = HDR push that drives selective bloom on the gem.",
+  },
 
   // ── Animation ──
   ROTATION_SPEED: {

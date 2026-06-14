@@ -105,6 +105,7 @@ export const BUILDINGS_SECTION: SectionNode = {
             field(BUILDINGS, 'GAP_AGE_BONUS'),
             field(BUILDINGS, 'LIT_FRESHNESS_EXPONENT'),
             field(BUILDINGS, 'DIM_GLOW_COLOR'),
+            field(BUILDINGS, 'WINDOW_EMISSION'),
           ],
         },
         {
@@ -114,6 +115,7 @@ export const BUILDINGS_SECTION: SectionNode = {
             field(BUILDINGS, 'AD_SIDE_MARGIN_FRAC'),
             field(BUILDINGS, 'AD_BOTTOM_OFFSET_FLOORS'),
             field(BUILDINGS, 'AD_PLACEHOLDER_COLOR'),
+            field(BUILDINGS, 'AD_EMISSION'),
           ],
         },
         {

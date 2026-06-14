@@ -213,12 +213,10 @@ export function createGem(ctx: SceneContext): Gem {
       }
       // HDR push for selective gem bloom. Sprite color was just set
       // to an LDR palette value; multiplying scales it past 1.0 in
-      // linear space so the bloom pass picks it up independently of
-      // BLOOM.WINDOW_EMISSION. 1.0 = no bloom from gem; higher = more.
-      // Gated on BLOOM.ENABLED so the "flat" comparison mode skips
-      // the HDR push entirely.
-      const bloomCfg = BLOOM.value;
-      const gemEmission = bloomCfg.ENABLED ? bloomCfg.GEM_EMISSION : 1.0;
+      // linear space so the bloom pass picks it up. 1.0 = no bloom from
+      // gem; higher = more. GEM.GLOW_EMISSION supplies the level, gated on
+      // BLOOM.ENABLED so the "flat" comparison mode skips the HDR push.
+      const gemEmission = BLOOM.value.ENABLED ? gemCfg.GLOW_EMISSION : 1.0;
       if (gemEmission !== 1) {
         if (inner) (inner.material as THREE.SpriteMaterial).color.multiplyScalar(gemEmission);
         if (outer) (outer.material as THREE.SpriteMaterial).color.multiplyScalar(gemEmission);

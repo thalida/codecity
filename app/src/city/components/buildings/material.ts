@@ -129,7 +129,7 @@ export function getBuildingMaterial(): THREE.ShaderMaterial {
       // Extra HDR emission applied to the freshest building's lit
       // windows on top of a baseline 1.0. 0 = no bloom contribution
       // from windows; higher = brighter glow on new buildings.
-      uWindowEmissionBoost: { value: BLOOM.value.WINDOW_EMISSION },
+      uWindowEmissionBoost: { value: BUILDINGS.value.WINDOW_EMISSION },
       // Age-driven decay uniforms (createdAge-gated, independent of
       // modifiedAge). See BUILDINGS (aging) config.
       uGrimeIntensity: { value: _grimeIntensityVec(new THREE.Vector2()) },
@@ -204,7 +204,7 @@ export function refreshBuildingMaterial(): void {
   // produce nothing the bloom pass (also bypassed via postFx.refresh)
   // could pick up.
   _sharedMaterial.uniforms.uWindowEmissionBoost.value = bloomCfg.ENABLED
-    ? bloomCfg.WINDOW_EMISSION
+    ? BUILDINGS.value.WINDOW_EMISSION
     : 0;
   // Scene directional lighting (fixed constants — re-seed idempotently).
   writeSunDir(

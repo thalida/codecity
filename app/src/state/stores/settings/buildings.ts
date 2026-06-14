@@ -404,6 +404,16 @@ const BUILDINGS_FIELDS = {
     label: 'Old building glow',
     tip: 'Warm-amber tint that lit panes drift toward as the file ages (created-date axis, not last-modified).',
   },
+  WINDOW_EMISSION: {
+    route: ChangeRoute.Refresh,
+    kind: FieldKind.Slider,
+    default: 1.0,
+    min: 0,
+    max: 3.0,
+    step: 0.05,
+    label: 'Emission (bloom)',
+    tip: "Peak HDR push for the freshest building's lit windows; scales linearly down to 0 for the oldest. The bloom pass's strength × radius then operates on that age-scaled HDR signal, so total glow tracks building age. Gated on Effects > Bloom > Enabled. 0 = no bloom from windows; 1 = moderate; 3 = full neon.",
+  },
 
   // ── Ad panels (media files) — rebuild (geometry baked at apply time) ──
   AD_SIDE_MARGIN_FRAC: {
@@ -432,6 +442,16 @@ const BUILDINGS_FIELDS = {
     default: '#29293d',
     label: 'Placeholder color',
     tip: 'Color shown on the ad plane while the texture is loading (or if the load fails).',
+  },
+  AD_EMISSION: {
+    route: ChangeRoute.Refresh,
+    kind: FieldKind.Slider,
+    default: 0.6,
+    min: 0,
+    max: 5.0,
+    step: 0.1,
+    label: 'Emission (bloom)',
+    tip: 'Multiplier on ad panel colors. Bright pixels in the texture push past 1.0 and bloom; dark pixels stay below threshold. Gated on Effects > Bloom > Enabled. 0 = panel black; 1 = LDR (no bloom); higher = neon storefront.',
   },
 
   // ── Aging (createdAge-driven weathering) — refresh ──
