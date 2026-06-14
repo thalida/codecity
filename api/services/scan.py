@@ -26,6 +26,7 @@ from pathlib import Path
 from typing import Any, Callable, Iterator
 
 from api.config import quiet
+from api.models.events import ScanEvent
 from .cache import (
     FileEntry,
     cache_load_files,
@@ -1321,7 +1322,7 @@ def scan_tree(
     skeleton_tree = copy.deepcopy(tree)
     _force_skeleton_placeholders(skeleton_tree)
     yield {
-        "phase": "manifest-partial",
+        "phase": ScanEvent.MANIFEST_PARTIAL,
         "manifest": _wrap_manifest(
             root_abs,
             skeleton_tree,
@@ -1348,7 +1349,7 @@ def scan_tree(
     _hash_repo_info(sig, repo_info)
 
     yield {
-        "phase": "manifest-complete",
+        "phase": ScanEvent.MANIFEST_COMPLETE,
         "manifest": _wrap_manifest(
             root_abs,
             tree,

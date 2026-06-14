@@ -6,11 +6,27 @@ schema components."""
 
 from __future__ import annotations
 
+from enum import StrEnum
 from typing import Annotated, Literal, Optional
 
 from pydantic import BaseModel, WithJsonSchema
 
 from api.models.manifest import Manifest, OptionalInt, OptionalStr
+
+
+class ScanEvent(StrEnum):
+    """SSE event names for the /api/manifest stream — the wire contract the
+    frontend matches verbatim. Values are the exact event strings; members are
+    used everywhere instead of literals. The two MANIFEST_* members double as
+    scan_tree's emission `phase` (the router forwards the phase as the event
+    name)."""
+
+    CLONE_PROGRESS = "clone-progress"
+    SCAN_PROGRESS = "scan-progress"
+    MANIFEST_PARTIAL = "manifest-partial"
+    MANIFEST_COMPLETE = "manifest-complete"
+    ERROR = "error"
+
 
 # These progress fields are absent-or-value, never null on the wire — same
 # optional-but-non-nullable treatment as the manifest's optional fields.

@@ -10,7 +10,8 @@ Why a standalone module (rather than living in scan.py): both `scan.py`
 (builds these) and `cache.py` (annotates cached commits/manifests with
 them) need them, and scan.py already imports cache.py at runtime — so
 defining them in either would create an import cycle. This is the shared
-leaf both import from. It depends on nothing else in the package.
+leaf both import from. It imports only the pure models layer (never
+services), so it stays cycle-free for both.
 
 Mirrors app/types/manifest.ts. Keep both in sync — the web app consumes
 the JSON exactly as these TypedDicts describe it. Drift here is shape
@@ -21,6 +22,8 @@ side and tsc on the TS side, but only within each language.
 from __future__ import annotations
 
 from typing import Literal, NotRequired, TypedDict
+
+from api.models.events import ScanEvent
 
 
 class NodeKind:
@@ -199,5 +202,5 @@ class ScanStreamEvent(TypedDict):
     metadata). Both carry a Manifest envelope; the partial tree has
     placeholder line counts that the complete tree replaces."""
 
-    phase: Literal["manifest-partial", "manifest-complete"]
+    phase: Literal[ScanEvent.MANIFEST_PARTIAL, ScanEvent.MANIFEST_COMPLETE]
     manifest: Manifest

@@ -23,6 +23,7 @@ from api.models.events import (
     CompleteManifestEvent,
     ErrorEvent,
     PartialManifestEvent,
+    ScanEvent,
     ScanProgressEvent,
 )
 from api.models.manifest import SignatureResponse
@@ -114,14 +115,15 @@ def clear_cache(
     return CacheClearResponse(deleted=deleted)
 
 
-def _sse(event: str, payload: dict[str, Any]) -> dict[str, Any]:
-    """sse-starlette event dict: {'event': name, 'data': json-string}."""
+def _sse(event: ScanEvent, payload: dict[str, Any]) -> dict[str, Any]:
+    """sse-starlette event dict: {'event': name, 'data': json-string}. The
+    ScanEvent StrEnum serializes to its wire string ('manifest-complete', …)."""
     return {"event": event, "data": json.dumps(payload)}
 
 
 def _sse_error(message: str) -> dict[str, Any]:
     """An `error` SSE event, single-sourced through the ErrorEvent model."""
-    return _sse("error", ErrorEvent(error=message).model_dump())
+    return _sse(ScanEvent.ERROR, ErrorEvent(error=message).model_dump())
 
 
 # Documented SSE event union: surfacing all five event models in the
@@ -195,7 +197,7 @@ async def manifest(
             stage, percent = payload
             _put(
                 _sse(
-                    "clone-progress",
+                    ScanEvent.CLONE_PROGRESS,
                     {
                         "display_root": display,
                         "stage": stage,
@@ -209,7 +211,7 @@ async def manifest(
             # tree growing on disk, so the UI shows activity instead of freezing.
             _put(
                 _sse(
-                    "clone-progress",
+                    ScanEvent.CLONE_PROGRESS,
                     {"display_root": display, "mb_on_disk": mb_on_disk},
                 )
             )
@@ -217,7 +219,7 @@ async def manifest(
         def _on_scan(files_scanned: int) -> None:
             _put(
                 _sse(
-                    "scan-progress",
+                    ScanEvent.SCAN_PROGRESS,
                     {"display_root": display, "files_scanned": files_scanned},
                 )
             )
@@ -227,7 +229,7 @@ async def manifest(
                 # Clone phase (git only): emit `clone-progress` FIRST, then clone
                 # with live progress + cancel support.
                 if kind is SourceKind.REMOTE:
-                    _put(_sse("clone-progress", {"display_root": display}))
+                    _put(_sse(ScanEvent.CLONE_PROGRESS, {"display_root": display}))
                     try:
                         with TRUST.clone_lock:
                             path = ensure_clone(
@@ -253,7 +255,7 @@ async def manifest(
 
                 holder["path"] = path
                 TRUST.register(path)
-                _put(_sse("scan-progress", {"display_root": display}))
+                _put(_sse(ScanEvent.SCAN_PROGRESS, {"display_root": display}))
 
                 # Signature (cache key) + warm-cache short-circuit.
                 sig = signature_tree(str(path), use_cache=use_cache)["signature"]
@@ -264,7 +266,7 @@ async def manifest(
                         if kind is SourceKind.REMOTE:
                             cached["display_root"] = display
                         _apply_display_name(cached)
-                        _put(_sse("manifest-complete", {"manifest": cached}))
+                        _put(_sse(ScanEvent.MANIFEST_COMPLETE, {"manifest": cached}))
                         return
 
                 # Cold scan: partial + complete manifests, with heartbeat progress.
@@ -274,12 +276,12 @@ async def manifest(
                     cancel_event=cancel,
                     on_scan_progress=_on_scan,
                 ):
-                    phase = ev["phase"]  # "manifest-partial" | "manifest-complete"
+                    phase = ev["phase"]  # ScanEvent.MANIFEST_PARTIAL | _COMPLETE
                     m = ev["manifest"]
                     if kind is SourceKind.REMOTE:
                         m["display_root"] = display
                     _apply_display_name(m)
-                    if phase == "manifest-complete":
+                    if phase is ScanEvent.MANIFEST_COMPLETE:
                         holder["manifest"] = m
                     _put(_sse(phase, {"manifest": m}))
             except ScanCancelledError:
