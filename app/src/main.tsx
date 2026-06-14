@@ -3,6 +3,7 @@
 // boot flow (manifest streaming, scene init) in its useEffect.
 
 import { render } from 'preact';
+import './styles/index.css';
 import './styles.css';
 import { App } from '@/layout/App';
 

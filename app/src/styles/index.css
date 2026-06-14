@@ -1,0 +1,7 @@
+/* Global style kit — foundation + Layer-2 component classes.
+   @import order mirrors the original styles.css source order so the
+   cascade is byte-for-byte preserved. main.tsx imports ONLY this file. */
+@import './reset.css';
+@import './tokens.css';
+/* Layer-2 partials appended in later tasks, in source order:
+   text, atoms, panes, rows, cards, surfaces, forms, buttons */
