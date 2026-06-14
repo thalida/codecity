@@ -14,7 +14,7 @@
 // asphalt arrays via accessors the picker reads straight off.
 
 import * as THREE from 'three';
-import { effect } from '@preact/signals';
+import { effect, untracked } from '@preact/signals';
 
 import { STREETS } from '@/state/stores/settings/streets';
 import { NodeKind, StreetAxis } from '@/types';
@@ -72,17 +72,26 @@ export function createStreets(ctx: SceneContext): Streets {
   // the current picker.selection / picker.hover state. Reads the picker
   // DYNAMICALLY off the captured SceneContext so the pre-population window
   // null-guards.
+  //
+  // Match the picked target to a mesh by DIRECTORY PATH, not mesh reference: a
+  // rebuild swaps in fresh sidewalk meshes, and if the picker's selection/hover
+  // still holds a pre-rebuild mesh (it re-syncs on its own schedule), a
+  // ref-equality check would silently miss every sidewalk. Path is the stable
+  // identity that survives any mesh swap.
   function _refreshSidewalkTints(): void {
     const sel = ctx.picker?.selection.value ?? null;
     const hov = ctx.picker?.hover.value ?? null;
+    const selPath = sel?.kind === NodeKind.Directory ? sel.dir?.path : null;
+    const hovPath = hov?.kind === NodeKind.Directory ? hov.dir?.path : null;
     for (const sw of pickables) {
       if (sw.userData.origColor == null) {
         sw.userData.origColor = sw.material.color.getHex();
       }
+      const swPath = sw.userData.street?.dir?.path;
       let expected = null;
-      if (sel?.kind === NodeKind.Directory && sel.sidewalk === sw) {
+      if (selPath != null && swPath === selPath) {
         expected = SIDEWALK_SELECTED_COLOR;
-      } else if (hov?.kind === NodeKind.Directory && hov.sidewalk === sw) {
+      } else if (hovPath != null && swPath === hovPath) {
         expected = SIDEWALK_HOVER_COLOR;
       }
       const swColor = expected ?? sw.userData.origColor;
@@ -138,10 +147,18 @@ export function createStreets(ctx: SceneContext): Streets {
   // cityState.layout for the data, so it rebuilds the street meshes on a real
   // structure change and skips reuse applies natively — no manual gate. The
   // null-guard makes the construction-time run (layout still null) a no-op.
+  //
+  // rebuild() is wrapped untracked because createStreetMesh reads STREETS.value
+  // (to bake the asphalt + sidewalk-default colors at creation). Without it this
+  // effect would subscribe to the whole STREETS store and recreate every mesh on
+  // a Refresh-route color Save — orphaning the picker's pickables (it only
+  // re-syncs on cityRevision, which a Refresh Save doesn't bump), so hover/
+  // selection tinting would silently break until the next real rebuild. Color
+  // changes belong to the theme effect below, which repaints in place.
   const stopLayout = effect(() => {
     void cityState.structureRevision.value;
     const layout = cityState.layout.peek();
-    if (layout) rebuild(layout);
+    if (layout) untracked(() => rebuild(layout));
   });
 
   // (1) STREETS theme effect — reacts to STREETS signal changes (Save):

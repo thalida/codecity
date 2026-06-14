@@ -249,7 +249,7 @@ describe('createStreets()', () => {
     expect(sw.material.color.getHex()).toBe(defaultHex);
 
     // Set a selection BEFORE any tick — effects aren't armed, so no re-tint.
-    selection.value = { kind: NodeKind.Directory, sidewalk: sw } as unknown as PickTarget;
+    selection.value = { kind: NodeKind.Directory, sidewalk: sw, dir: sw.userData.street.dir } as unknown as PickTarget;
     expect(sw.material.color.getHex()).toBe(defaultHex);
   });
 
@@ -266,7 +266,7 @@ describe('createStreets()', () => {
     expect(sw.material.color.getHex()).toBe(defaultHex);
 
     // Now select this sidewalk — the live, armed effect fires synchronously.
-    selection.value = { kind: NodeKind.Directory, sidewalk: sw } as unknown as PickTarget;
+    selection.value = { kind: NodeKind.Directory, sidewalk: sw, dir: sw.userData.street.dir } as unknown as PickTarget;
     expect(sw.material.color.getHex()).toBe(selectedHex);
 
     // Clearing the selection restores the default tint.
@@ -282,7 +282,7 @@ describe('createStreets()', () => {
     const hoverHex = new THREE.Color(DEFAULTS.SIDEWALK_HOVER).getHex();
 
     streets.tick(0.016, { dt: 0.016, time: 0, camera: cameraRight(1) });
-    hover.value = { kind: NodeKind.Directory, sidewalk: sw } as unknown as PickTarget;
+    hover.value = { kind: NodeKind.Directory, sidewalk: sw, dir: sw.userData.street.dir } as unknown as PickTarget;
     expect(sw.material.color.getHex()).toBe(hoverHex);
   });
 
@@ -337,7 +337,7 @@ describe('createStreets()', () => {
     // Effects are stopped — selection + STREETS mutations don't throw and
     // don't re-tint the (now-detached) sidewalk to SELECTED.
     expect(() => {
-      selection.value = { kind: NodeKind.Directory, sidewalk: sw } as unknown as PickTarget;
+      selection.value = { kind: NodeKind.Directory, sidewalk: sw, dir: sw.userData.street.dir } as unknown as PickTarget;
       STREETS.value = { ...STREETS.value, ASPHALT_COLOR: '#000000' };
     }).not.toThrow();
     expect(sw.material.color.getHex()).not.toBe(
