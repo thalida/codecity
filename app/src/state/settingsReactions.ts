@@ -22,8 +22,10 @@ import {
   MANIFEST,
   REBUILD_STATUS,
   RebuildStatus,
-  LAST_REBUILD_ERROR,
   LAST_UPDATED_AT,
+  markRebuilding,
+  markIdle,
+  markError,
 } from '@/state/stores/manifest';
 import { routeSignature, ChangeRoute } from '@/state/settingsSchema';
 import { isEmptyManifest } from '@/utils/manifest';
@@ -59,7 +61,7 @@ export function attachSettingsReactions({
 
   async function scheduleRebuild() {
     if (!armed) return;
-    REBUILD_STATUS.value = RebuildStatus.Rebuilding;
+    markRebuilding();
     try {
       // Config changes that hit this path always invalidate the layout cache:
       // the manifest didn't change but a layout-affecting config value did,
@@ -73,14 +75,15 @@ export function attachSettingsReactions({
       // subscribe it to MANIFEST and double-apply alongside the City component's
       // render effect on every manifest change.
       const manifest = MANIFEST.peek();
-      if (!isEmptyManifest(manifest)) {
-        await applyManifest(manifest as Manifest);
+      if (isEmptyManifest(manifest)) {
+        markIdle(); // no world to rebuild — settle immediately
+        return;
       }
-      REBUILD_STATUS.value = RebuildStatus.Idle;
-      LAST_REBUILD_ERROR.value = null;
+      await applyManifest(manifest as Manifest);
+      // Idle is owned by the trees decoration pass (markIdle), the last stage of
+      // applyManifest — setting it here would stomp its Decorating state.
     } catch (err) {
-      REBUILD_STATUS.value = RebuildStatus.Error;
-      LAST_REBUILD_ERROR.value = err instanceof Error ? err.message : String(err);
+      markError(err);
     }
   }
 
@@ -90,15 +93,14 @@ export function attachSettingsReactions({
   function flagRefresh() {
     if (!armed) return;
     if (hotIdleTimer) clearTimeout(hotIdleTimer);
-    REBUILD_STATUS.value = RebuildStatus.Rebuilding;
+    markRebuilding();
     // Hold the 'rebuilding' indicator for a min-dwell so the user sees the
     // yellow flash. Only transition if no rebuild is also in flight —
     // applyManifest owns the final state then.
     hotIdleTimer = setTimeout(() => {
       hotIdleTimer = 0;
-      if (REBUILD_STATUS.value === RebuildStatus.Rebuilding) {
-        REBUILD_STATUS.value = RebuildStatus.Idle;
-        LAST_REBUILD_ERROR.value = null;
+      if (REBUILD_STATUS.peek() === RebuildStatus.Rebuilding) {
+        markIdle();
         LAST_UPDATED_AT.value = Date.now();
       }
     }, HOT_REBUILD_MIN_DWELL_MS);

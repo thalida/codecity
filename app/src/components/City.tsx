@@ -12,12 +12,7 @@ import { effect } from '@preact/signals';
 import { createCity } from '@/city';
 import { attachSettingsReactions } from '@/state/settingsReactions';
 import { SCENE_HANDLE } from '@/state/stores/scene';
-import {
-  MANIFEST,
-  REBUILD_STATUS,
-  RebuildStatus,
-  LAST_REBUILD_ERROR,
-} from '@/state/stores/manifest';
+import { MANIFEST, markRebuilding, markError } from '@/state/stores/manifest';
 import { EMPTY_MANIFEST } from '@/constants/manifest';
 import { isEmptyManifest } from '@/utils/manifest';
 import { CURRENT_SOURCE_KEY } from '@/state/stores/source';
@@ -61,7 +56,7 @@ export function City() {
       unsubApply = effect(() => {
         const m = MANIFEST.value as Manifest;
         if (isEmptyManifest(m)) return; // nothing to build yet
-        REBUILD_STATUS.value = RebuildStatus.Rebuilding;
+        markRebuilding();
         // Capture the applied source at apply-START. The fetch layer commits
         // CURRENT_SOURCE between the skeleton and the FINAL manifest, so a changed
         // key here marks the final apply of a (re)load — the one moment to frame
@@ -69,22 +64,18 @@ export function City() {
         // → no reframe; live-updates / settings rebuilds keep the same key → none.
         const cur = CURRENT_SOURCE_KEY.peek();
         const shouldReframe = cur !== null && cur !== lastSourceKey;
-        void handle.applyManifest(m).then(
-          () => {
-            LAST_REBUILD_ERROR.value = null;
-            if (shouldReframe) {
-              // Explicit, traceable camera reframe (view layer owns this). The new
-              // world is built, so rig.reset snaps to its freshly-captured default
-              // pose (cameraRig._captureFraming ran during this apply).
-              handle.rig.reset();
-              lastSourceKey = cur;
-            }
-          },
-          (err) => {
-            REBUILD_STATUS.value = RebuildStatus.Error;
-            LAST_REBUILD_ERROR.value = err instanceof Error ? err.message : String(err);
+        // Success → Idle (+ error clear) is owned by the trees decoration pass
+        // (markIdle), the last stage of every applyManifest. This branch only
+        // handles the reframe; markError owns the failure pair.
+        void handle.applyManifest(m).then(() => {
+          if (shouldReframe) {
+            // Explicit, traceable camera reframe (view layer owns this). The new
+            // world is built, so rig.reset snaps to its freshly-captured default
+            // pose (cameraRig._captureFraming ran during this apply).
+            handle.rig.reset();
+            lastSourceKey = cur;
           }
-        );
+        }, markError);
       });
     });
 

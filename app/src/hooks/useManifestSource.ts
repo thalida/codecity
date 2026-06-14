@@ -36,13 +36,7 @@ import {
   CURRENT_SOURCE,
 } from '@/state/stores/source';
 import { SERVER_CONFIG } from '@/state/stores/serverConfig';
-import {
-  MANIFEST,
-  setManifest,
-  REBUILD_STATUS,
-  RebuildStatus,
-  LAST_REBUILD_ERROR,
-} from '@/state/stores/manifest';
+import { MANIFEST, setManifest, markError } from '@/state/stores/manifest';
 import { SCAN_PROGRESS } from '@/state/stores/scanProgress';
 import { srcKind, labelFromSource, SourceKind } from '@/utils/sources';
 import { isEmptyManifest } from '@/utils/manifest';
@@ -219,8 +213,7 @@ function setupLiveUpdates(): () => void {
       }
     } catch (err) {
       if (myGen !== loadGeneration) return; // superseded by a load — not our error to surface
-      REBUILD_STATUS.value = RebuildStatus.Error;
-      LAST_REBUILD_ERROR.value = err instanceof Error ? err.message : String(err);
+      markError(err);
     }
   }
 

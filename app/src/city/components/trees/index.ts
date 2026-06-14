@@ -18,7 +18,7 @@ import * as THREE from 'three';
 import { effect } from '@preact/signals';
 
 import { TREES } from '@/state/stores/settings/trees';
-import { REBUILD_STATUS, RebuildStatus } from '@/state/stores/manifest';
+import { markDecorating, markIdle } from '@/state/stores/manifest';
 import type { BusynessThresholds, CommitEntry } from '@/types';
 
 import type { FrameContext, SceneComponent, SceneContext } from '../../types';
@@ -118,7 +118,7 @@ export function createTrees(ctx: SceneContext): TreesComponent {
       // batch that triggered this run, so peek() reads the fresh values.
       const sceneBbox = cityState.sceneBbox.peek();
       if (!TREES.value.ENABLED || !sceneBbox) {
-        REBUILD_STATUS.value = RebuildStatus.Idle;
+        markIdle();
         return;
       }
       const cityHeight = cityState.cityHeight.peek();
@@ -126,7 +126,7 @@ export function createTrees(ctx: SceneContext): TreesComponent {
 
       // rAF starts the next frame; setTimeout(0) yields so the browser COMPLETES
       // the paint before the placement scan + GPU upload begin.
-      REBUILD_STATUS.value = RebuildStatus.Decorating;
+      markDecorating();
       await new Promise<void>((r) => requestAnimationFrame(() => r()));
       await new Promise<void>((r) => setTimeout(r, 0));
       if (!isCurrent()) return;
@@ -146,7 +146,7 @@ export function createTrees(ctx: SceneContext): TreesComponent {
       // include them in pickables).
       cityState.treePlacements.value = placements;
       if (_inner !== null) cityState.decorationRevision.value++;
-      REBUILD_STATUS.value = RebuildStatus.Idle;
+      markIdle();
     }
   );
 

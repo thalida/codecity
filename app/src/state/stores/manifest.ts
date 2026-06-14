@@ -53,6 +53,31 @@ export const LAST_REBUILD_ERROR = signal<string | null>(null);
 /** Epoch millis of the most recent manifest apply (initial or via poll). */
 export const LAST_UPDATED_AT = signal<number>(0);
 
+// ── Status transitions (single owner of each state + its coupled writes) ──
+// Every rebuild path drives REBUILD_STATUS through these so the status/error
+// pair can't drift across the four call sites (City apply effect, settings
+// reactions, the trees decoration pass, the fetch layer). markIdle is the
+// canonical "rebuild finished" point — the trees decoration pass owns it as the
+// last stage of every applyManifest (so reaching Idle also clears the error);
+// markError owns the failure pair.
+export function markRebuilding(): void {
+  REBUILD_STATUS.value = RebuildStatus.Rebuilding;
+}
+
+export function markDecorating(): void {
+  REBUILD_STATUS.value = RebuildStatus.Decorating;
+}
+
+export function markIdle(): void {
+  REBUILD_STATUS.value = RebuildStatus.Idle;
+  LAST_REBUILD_ERROR.value = null;
+}
+
+export function markError(err: unknown): void {
+  REBUILD_STATUS.value = RebuildStatus.Error;
+  LAST_REBUILD_ERROR.value = err instanceof Error ? err.message : String(err);
+}
+
 // Bridge REBUILD_STATUS → loading overlay: when the deferred decoration pass
 // starts, advance the overlay's active step so users see "Adding decorations…".
 effect(() => {
