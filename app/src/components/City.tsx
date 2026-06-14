@@ -15,7 +15,6 @@ import { SCENE_HANDLE } from '@/state/stores/scene';
 import { MANIFEST, markRebuilding, markError } from '@/state/stores/manifest';
 import { EMPTY_MANIFEST } from '@/constants/manifest';
 import { isEmptyManifest } from '@/utils/manifest';
-import { CURRENT_SOURCE_KEY } from '@/state/stores/source';
 import type { Manifest } from '@/types';
 
 export function City() {
@@ -45,37 +44,17 @@ export function City() {
         invalidateLayoutCache: handle.invalidateLayoutCache,
       });
 
-      // Apply MANIFEST → scene on every change. applyManifest owns its own
-      // skeleton→final tween + the Decorating→Idle status; this effect flips the
-      // footer to Rebuilding before each apply (it always clears back to Idle
-      // when applyManifest finishes — including the trees-off path) and surfaces
-      // a render-apply error. During cold-boot / source-switch loads the loading
-      // overlay is also up; the brief Rebuilding state is truthful (the world is
-      // being built) and clears as soon as the apply completes.
-      let lastSourceKey: string | null = null;
+      // Apply MANIFEST → scene on every change. This flips the footer to
+      // Rebuilding before each apply; success → Idle (+ error clear) is owned by
+      // the trees decoration pass (markIdle, the last stage of every
+      // applyManifest), and the camera reframe-on-source-change lives in the city
+      // composer — so this effect only kicks off the apply and surfaces a
+      // render-apply error.
       unsubApply = effect(() => {
         const m = MANIFEST.value as Manifest;
         if (isEmptyManifest(m)) return; // nothing to build yet
         markRebuilding();
-        // Capture the applied source at apply-START. The fetch layer commits
-        // CURRENT_SOURCE between the skeleton and the FINAL manifest, so a changed
-        // key here marks the final apply of a (re)load — the one moment to frame
-        // the new city. The preceding skeleton apply still sees the old/empty key
-        // → no reframe; live-updates / settings rebuilds keep the same key → none.
-        const cur = CURRENT_SOURCE_KEY.peek();
-        const shouldReframe = cur !== null && cur !== lastSourceKey;
-        // Success → Idle (+ error clear) is owned by the trees decoration pass
-        // (markIdle), the last stage of every applyManifest. This branch only
-        // handles the reframe; markError owns the failure pair.
-        void handle.applyManifest(m).then(() => {
-          if (shouldReframe) {
-            // Explicit, traceable camera reframe (view layer owns this). The new
-            // world is built, so rig.reset snaps to its freshly-captured default
-            // pose (cameraRig._captureFraming ran during this apply).
-            handle.rig.reset();
-            lastSourceKey = cur;
-          }
-        }, markError);
+        void handle.applyManifest(m).catch(markError);
       });
     });
 

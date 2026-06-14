@@ -4,8 +4,10 @@
 // App.tsx / the City component consume.
 
 import * as THREE from 'three';
+import { effect, untracked } from '@preact/signals';
 
 import type { Manifest } from '@/types';
+import { CURRENT_SOURCE_KEY } from '@/state/stores/source';
 
 import { registerShaderChunks } from './utils/shaders/registerShaderChunks';
 import { createBuildings } from './components/buildings';
@@ -118,6 +120,23 @@ export async function createCity(canvas: HTMLCanvasElement, manifest: Manifest):
       getTreeBoundsBySha: (sha) => trees.getRenderer()?.getTreeBoundsBySha(sha) ?? null,
     },
   });
+  // Reframe the camera on a SOURCE change (repo switch) — the one camera action
+  // that used to live in the view. bbox is reassigned on every non-reuse apply,
+  // so the rig's framing is freshly captured by its own effect just above by the
+  // time this fires; peeking CURRENT_SOURCE_KEY filters to repo switches only —
+  // a config rebuild / live-update / the skeleton apply (before the fetch layer
+  // commits the new key) all keep the same key → no snap. reset() is untracked
+  // so this effect depends only on bbox.
+  let lastReframedSourceKey: string | null = null;
+  const stopReframe = effect(() => {
+    void cityState.bbox.value;
+    const key = CURRENT_SOURCE_KEY.peek();
+    if (key !== null && key !== lastReframedSourceKey) {
+      untracked(() => rig.reset());
+      lastReframedSourceKey = key;
+    }
+  });
+
   const postFx = createPostFx(renderer, scene, rig.camera);
   postFx.setSize(canvas.clientWidth, canvas.clientHeight);
 
@@ -208,6 +227,7 @@ export async function createCity(canvas: HTMLCanvasElement, manifest: Manifest):
      *  renders mid-teardown; renderer LAST. */
     dispose(): void {
       stopFrameLoop();
+      stopReframe();
       handlers.dispose();
       picker.dispose();
       rig.dispose();

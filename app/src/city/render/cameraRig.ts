@@ -353,9 +353,9 @@ export function createCameraRig({
   // on reuse applies. The first
   // (construction-time) fire sees bbox=null and _captureFraming no-ops via its
   // own empty-bbox guard; the boot apply then sets bbox and reframes. The
-  // decision to actually SNAP the camera on a source change lives in the render
-  // layer (the City component), which calls reset() explicitly — this rig is
-  // source-agnostic.
+  // decision to actually SNAP the camera on a source change lives in the city
+  // composer (createCity), which calls reset() from a bbox effect gated on
+  // CURRENT_SOURCE_KEY — this rig is source-agnostic.
   const _disposeReframeEffect = effect(() => {
     void cityState.bbox.value;
     // Run untracked so this effect subscribes to bbox ONLY — _captureFraming
