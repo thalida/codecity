@@ -1,10 +1,13 @@
-// hooks/useCityScene.ts — Render layer. Owns the <canvas> scene lifecycle:
-// builds the Three.js scene on mount, wires settings-commit reactions, and
-// applies the MANIFEST signal (the fetch layer's source of truth) to the scene
-// whenever it changes. Publishes SCENE_HANDLE for views that need picker/rig.
+// layout/City.tsx — the city <canvas> and its Three.js scene lifecycle as a
+// self-contained component. On mount it builds the scene (createCity), wires
+// settings-commit reactions, and applies the MANIFEST signal (the fetch layer's
+// source of truth) to the scene on every change; on unmount it tears the city
+// down so a remount can't stack a second renderer + frame loop on the canvas.
+// Publishes SCENE_HANDLE for views that need picker/rig. The canvas is reached
+// via a ref (not getElementById), so the scene is tied to this component's
+// lifecycle rather than to DOM-query timing.
 
-import { useEffect } from 'preact/hooks';
-import type { RefObject } from 'preact';
+import { useRef, useEffect } from 'preact/hooks';
 import { effect } from '@preact/signals';
 import { createCity } from '@/city';
 import { attachCommitReactions } from '@/state/settingsReactions';
@@ -20,7 +23,9 @@ import { isEmptyManifest } from '@/utils/manifest';
 import { CURRENT_SOURCE_KEY } from '@/state/stores/source';
 import type { Manifest } from '@/types';
 
-export function useCityScene(canvasRef: RefObject<HTMLCanvasElement | null>): void {
+export function City() {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -94,4 +99,6 @@ export function useCityScene(canvasRef: RefObject<HTMLCanvasElement | null>): vo
       SCENE_HANDLE.value = null;
     };
   }, []);
+
+  return <canvas id="city" ref={canvasRef} />;
 }

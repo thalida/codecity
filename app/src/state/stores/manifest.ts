@@ -17,7 +17,7 @@ import { isEmptyManifest } from '@/utils/manifest';
 
 // ── Canonical manifest signal ────────────────────────────────────────
 // Source of truth written by the fetch layer (useManifestSource). The scene
-// (useCityScene's render effect) is a CONSUMER of this signal — it is not
+// (the City component's render effect) is a CONSUMER of this signal — it is not
 // derived from world.onChange.
 export const MANIFEST = signal<
   Manifest | DirNode | { tree?: unknown; [k: string]: unknown } | null

@@ -3,7 +3,7 @@
 // SCENE-FREE by contract: it never touches the Three.js world. It streams
 // manifests (cold-boot from ?src, user-submitted source switches, and the
 // background live-update poll) and WRITES them via setManifest. The render
-// layer (useCityScene, in CenterPane) is a CONSUMER of MANIFEST — it applies
+// layer (the City component, in CenterPane) is a CONSUMER of MANIFEST — it applies
 // whatever this layer publishes to the scene and OWNS the rebuild status for
 // the apply (Rebuilding/Decorating/Idle + render-apply Error).
 //
@@ -279,7 +279,7 @@ function setupLiveUpdates(): () => void {
 /**
  * Boot the manifest FETCH pipeline on mount: stream the initial manifest from
  * ?src into MANIFEST, fetch the server config, and start live updates.
- * Scene-free — the render layer (useCityScene) consumes MANIFEST and paints the
+ * Scene-free — the render layer (the City component) consumes MANIFEST and paints the
  * scene. UI-free too: it never opens/closes the source picker; on a load failure
  * (boot or submit) it WRITES the canonical SOURCE_ERROR signal and App reacts to
  * coordinate the picker. RETURNS the source-picker submit handler so App can pass

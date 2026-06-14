@@ -70,7 +70,7 @@ export function attachCommitReactions({
       // Re-apply the current MANIFEST (the fetch layer's source of truth) with
       // the new settings + invalidated layout cache. peek() — NOT .value — so
       // the rebuild effect tracks ONLY REBUILD_SIGNATURE; a tracked read would
-      // subscribe it to MANIFEST and double-apply alongside useCityScene's
+      // subscribe it to MANIFEST and double-apply alongside the City component's
       // render effect on every manifest change.
       const manifest = MANIFEST.peek();
       if (!isEmptyManifest(manifest)) {
