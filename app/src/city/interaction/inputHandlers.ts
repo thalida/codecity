@@ -18,7 +18,7 @@ import { KEY_BINDINGS } from '@/constants/keyboard';
 import { TEXT_INPUT_TAGS } from '@/constants/dom';
 import { NodeKind } from '@/types';
 import type { PickTarget } from '@/types';
-import { formatRelativeAge } from '@/utils/dates';
+import { formatHoverTooltip } from './tooltipText';
 import type { createPicker } from './picker';
 import type { createCameraRig } from '../render/cameraRig';
 import type { CityState } from '../state';
@@ -64,56 +64,6 @@ export function createInputHandlers({
 
   let _cameraMoving = false;
 
-  // Prepend the root directory name (with a leading slash) to a manifest-
-  // relative path so the hover tooltip reads as an absolute-looking path
-  // (e.g. "/codecity/app/main.ts" rather than "app/main.ts"). The manifest
-  // uses '.' as the root directory's own path; that sentinel is treated
-  // the same as empty — we don't render "codecity/.".
-  //
-  // .peek(): a non-reactive read from inside a DOM hover handler — we want
-  // the current root name each hover, never a subscription. Stays in sync
-  // across manifest reloads because it's read lazily at call time.
-  function _withRoot(relPath: string): string {
-    const root = cityState.manifest.peek()?.tree?.name ?? null;
-    if (!root) return relPath || '';
-    if (!relPath || relPath === '.') return `/${root}`;
-    return `/${root}/${relPath}`;
-  }
-
-  function _tooltipForHover(target: PickTarget | null): string | null {
-    if (!target) return null;
-    if (target.kind === NodeKind.Gem) {
-      // The gem represents the project root and also acts as the reset
-      // button — clicking it clears the selection and recenters the
-      // camera. Show both so the affordance is discoverable.
-      return `${_withRoot('')}  ·  click to reset view`;
-    }
-    if (target.kind === NodeKind.Commit) {
-      const c = target.commit;
-      const shortSha = c.sha.slice(0, 7);
-      const filesLabel = `${c.files} file${c.files === 1 ? '' : 's'}`;
-      return `commit ${shortSha}  ·  ${formatRelativeAge(c.date)}  ·  ${filesLabel}`;
-    }
-    if (target.kind === NodeKind.File && target.file) {
-      const f = target.file;
-      const fpath = _withRoot(f.path || f.name || 'file');
-      return fpath + (f.lines != null ? `  ·  ${f.lines} lines` : '');
-    }
-    if (target.kind === NodeKind.Directory && target.dir) {
-      const d = target.dir;
-      const dpath = _withRoot(d.path || d.name || '');
-      // Show immediate-child counts (not descendants) — the tooltip is a
-      // quick "what's directly inside here", not a subtree summary.
-      const fileCount = d.children_file_count != null ? d.children_file_count : 0;
-      const dirCount = d.children_dir_count != null ? d.children_dir_count : 0;
-      const counts = `${fileCount} file${fileCount === 1 ? '' : 's'}, ${dirCount} dir${
-        dirCount === 1 ? '' : 's'
-      }`;
-      return `${dpath || 'directory'}  ·  ${counts}`;
-    }
-    return null;
-  }
-
   function _sameHover(a: PickTarget | null, b: PickTarget | null): boolean {
     if (a === b) return true;
     if (!a || !b) return false;
@@ -151,7 +101,11 @@ export function createInputHandlers({
       newHover = null;
     }
 
-    const tooltipText = _tooltipForHover(newHover);
+    // .peek(): a non-reactive read from inside a DOM hover handler — we want
+    // the current root name each hover, never a subscription. Stays in sync
+    // across manifest reloads because it's read lazily at call time.
+    const rootName = cityState.manifest.peek()?.tree?.name ?? null;
+    const tooltipText = formatHoverTooltip(newHover, rootName);
     if (tooltipText) {
       showTooltip(tooltipText, e.clientX, e.clientY);
       canvas.style.cursor = 'pointer';
