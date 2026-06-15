@@ -27,7 +27,7 @@
 - [x] python cli make it more professional
 - [x] add back gitignore flag -- make it a user facing config option
 - [-] allow clicking on a file in file tree to deselect it
-- [ ] fix building focus with the new compact mode
+- [x] fix building focus with the new compact mode
 - [x] fix loading by git url via cmd line
 - [x] add ability to set path in ui
 - [x] make controls tab more compact
@@ -35,7 +35,7 @@
 - [x] fix alignment in file tree
 - [x] don't select when rotating the world
 - [x] media billboards as buildings w/ ads (width by file size and height by dimensions? duration?) same age / window considerations
-- [ ] Make Save commits cheaper for layout-affecting controls (currently every Save invalidates the layout cache → full worker recompute). Combined with the layoutV4 perf cost below, a Save on a Linux-kernel-scale repo blocks ~80s. Possible directions: debounce on commit, threshold-skip when N_files > X, or a partial-rebuild path.
+- [-] Make Save commits cheaper for layout-affecting controls (currently every Save invalidates the layout cache → full worker recompute). Combined with the layoutV4 perf cost below, a Save on a Linux-kernel-scale repo blocks ~80s. Possible directions: debounce on commit, threshold-skip when N_files > X, or a partial-rebuild path.
 - [x] Favicon & Meta
 - [-] Cache Invalidation
 - [ ] CodeCity Guide
@@ -50,15 +50,16 @@
 - [x] camera framing accounts for the floating repo-label panel (especially on empty worlds)
 - [x] forge-aware repo link: external-link button deep-links to the active branch on github / gitlab / bitbucket / codeberg / forgejo / gitea / sr.ht
 - [x] drop the history-window picker option + the whole `git_window` / `CODECITY_GIT_WINDOW` plumbing
-- [ ] mount-path detection / autocomplete — let the server expose which `-v` paths are mounted so the Local pane can autocomplete + validate. `CODECITY_LOCAL_PATHS` env (set by `just dev/run` alongside `-v`) with `/proc/self/mounts` fallback for raw `docker run` users. Sketched in the conditional-local-repos spec's Follow-up section.
+- [-] mount-path detection / autocomplete — let the server expose which `-v` paths are mounted so the Local pane can autocomplete + validate. `CODECITY_LOCAL_PATHS` env (set by `just dev/run` alongside `-v`) with `/proc/self/mounts` fallback for raw `docker run` users. Sketched in the conditional-local-repos spec's Follow-up section.
 - [x] per-author fireflies + co-author support — today each commit places 1 firefly (`ORBS_PER_TREE = 1`) and `commit.author` is a single string. Change so each distinct author of a commit gets their own firefly on that commit's tree, the api parses `Co-authored-by:` trailers, and the sidebar commit pane lists every author. Detailed prompt below.
 - [x] commit-info side pane perf — selecting a tree currently shows "Loading commit…" for a noticeable beat before the commit details render. Profile what's happening on the server + client (commit fetch endpoint, JSON parse, sidebar render) and tighten it; pre-fetching on hover or caching the last N commits client-side are likely directions.
 - [x] (QA) `/api/manifest/signature` returned 400 on the live-update poll for git URLs (nanostores@main, repeating 4×) — the poll fired mid-clone, before `resolve_source` could resolve, once per tick during the clone window. Fixed by the live-update poll rework (commit 20c9d1cc): `tick()` now bails unless the foreground load is done (`SCAN_PROGRESS` null) AND a source actually committed (`CURRENT_SOURCE` set on load success) AND the manifest is non-empty — so the poll can't probe a source that's still cloning.
 - [x] hover visual glitch — the offset duplicate was the hover ghost box: it was positioned axis-aligned while the building leans (the createdAge tilt is a vertex-shader Y-shear). The outline already baked the shear via composeShearMatrix; the ghost didn't, so on tilted/aged buildings the vertical ghost diverged from the leaning body. Fixed by baking the same shear into the ghost matrix (city/components/buildings/ghost.ts).
 - [x] grime streaks scale by building age — Intensity and Coverage are now RangePair `[newest, oldest]` settings; the shader lerps each per-building by createdAge.
 - [x] building tilt scales by building age — TILT_DEGREES is now a RangePair `[newest, oldest]`; shader + CPU (outline/picker) lerp the lean by createdAge.
-- [ ] make the city fully signal-driven — today the manifest is passed in (`createCity(m)` + `handle.applyManifest(m)`), the explicit input contract both apply triggers funnel through: a MANIFEST change (City.tsx effect) and a Rebuild-route settings Save (`settingsReactions` → `applyManifest(MANIFEST.peek())`, MANIFEST unchanged). Having the city read MANIFEST from its store instead needs restructuring trigger ownership: `settingsReactions` bumps a "rebuild-requested" signal rather than calling `applyManifest`, and the city watches MANIFEST + that signal. Payoff: `City.tsx` shrinks to a mount/dispose shell (status + reframe already moved into `city/`). Cost: callback→signal-bump, testability shifts to driving global signals, the apply generation/skeleton handling moves inside city. (Follows the status-helpers + reframe-into-city refactors.)
+- [-] make the city fully signal-driven — today the manifest is passed in (`createCity(m)` + `handle.applyManifest(m)`), the explicit input contract both apply triggers funnel through: a MANIFEST change (City.tsx effect) and a Rebuild-route settings Save (`settingsReactions` → `applyManifest(MANIFEST.peek())`, MANIFEST unchanged). Having the city read MANIFEST from its store instead needs restructuring trigger ownership: `settingsReactions` bumps a "rebuild-requested" signal rather than calling `applyManifest`, and the city watches MANIFEST + that signal. Payoff: `City.tsx` shrinks to a mount/dispose shell (status + reframe already moved into `city/`). Cost: callback→signal-bump, testability shifts to driving global signals, the apply generation/skeleton handling moves inside city. (Follows the status-helpers + reframe-into-city refactors.)
 - [ ] image tooltips show image size, not line count — hovering a media/image billboard currently surfaces the generic building line-count tooltip; for image files show the image dimensions (e.g. `1920×1080`) instead.
+- [ ] (bug) initial world load doesn't frame correctly — the camera's first auto-frame on load is off (city not centered/fit); hitting `r` (reset view) re-frames it correctly. Suggests the initial reframe runs too early / with stale or incomplete bounds (before layout/build settles), whereas the manual reset runs after everything's ready. Fix: make the initial frame use the same bounds path as `r`, or defer it until the world is fully built.
 
 ## Agent Prompts ToDos
 
