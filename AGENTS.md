@@ -48,6 +48,32 @@ git worktree add .claude/worktrees/${PREFIX}+issue-$N-$SLUG $BRANCH
 `gh pr create`); plain `git worktree add -b` skips that link. Open the PR with
 `Closes #N` so merging auto-closes the issue.
 
+## Tearing down a merged issue
+
+Once the PR is merged, clean up that issue's workspace — worktree, branches, and
+the docker stack `just dev` spun up for it.
+
+```sh
+N=61; BRANCH=fix/issue-$N-image-tooltips          # the issue's branch
+
+# 1. confirm it actually merged before deleting anything
+gh issue view $N --json state -q .state            # CLOSED
+git fetch origin main && git cherry origin/main $BRANCH   # all lines prefixed "-" = upstream
+
+# 2. docker: containers are named codecity-<branch-with-dashes>-{app,api}-1
+docker rm -f $(docker ps -aq --filter "name=codecity-${BRANCH//\//-}")
+docker network prune -f                            # only removes empty networks; running stacks are safe
+
+# 3. worktree + branches
+git worktree remove .claude/worktrees/fix+issue-$N-image-tooltips
+git branch -D $BRANCH                               # -D: squash-merges look "unmerged" to -d
+git remote prune origin                             # remote head is usually auto-deleted on merge
+```
+
+`docker network prune` also clears other stale empty networks from old branches —
+harmless, but scope it with `docker network rm codecity-${BRANCH//\//-}_default` if
+you want to touch only this issue's network.
+
 ## Layout
 
 - `app/` — Preact + TypeScript frontend; the 3D city lives in `app/city/` (a
