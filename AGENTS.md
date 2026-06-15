@@ -16,8 +16,37 @@ gh issue view <n>                      # full context for one item
 Labels: `bug`, `enhancement`, `documentation`, `nice-to-have` (deferred / not urgent),
 `question`, `wontfix`, `duplicate`, `invalid`.
 
-Pick up an issue, open a branch, and reference it in the PR (`Closes #n`). If you
-discover new work, file an issue rather than leaving an inline `TODO`.
+If you discover new work, file an issue rather than leaving an inline `TODO`.
+
+## Working an issue
+
+Start each issue in its own git worktree on a branch that GitHub links back to the
+issue. Pick the branch prefix from the issue's primary type label:
+
+| Label           | Prefix  |
+| --------------- | ------- |
+| `bug`           | `fix/`  |
+| `enhancement`   | `feat/` |
+| `documentation` | `docs/` |
+| anything else   | `chore/`|
+
+(`nice-to-have` is a priority tag, not a type — use the type label underneath it.)
+
+```sh
+N=62                      # issue number
+PREFIX=fix                # from the table above
+SLUG=initial-frame        # 2-4 word kebab summary
+BRANCH=$PREFIX/issue-$N-$SLUG
+
+gh issue edit $N --add-assignee @me                 # assign it to yourself
+gh issue develop $N --base main --name $BRANCH       # create the branch ON GitHub, linked in the issue's Development panel
+git fetch origin
+git worktree add .claude/worktrees/${PREFIX}+issue-$N-$SLUG $BRANCH
+```
+
+`gh issue develop` is what creates the real issue↔branch link (and a base for
+`gh pr create`); plain `git worktree add -b` skips that link. Open the PR with
+`Closes #N` so merging auto-closes the issue.
 
 ## Layout
 
