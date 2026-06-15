@@ -3,7 +3,7 @@
 //     around the hovered tree's canopy)
 //   • the shared tree selected outline mesh (rainbow-chasing silhouette)
 //
-// Mirrors scene/effects/outlineRenderer.ts but for tree canopies.
+// Mirrors buildings/outline.ts but for tree canopies.
 // Exactly two LineSegments2 meshes exist regardless of tree count;
 // transforms are snapped per frame to the 0-2 currently-active outlines.
 //

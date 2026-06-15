@@ -3,7 +3,7 @@
 
 // parentDirPath(p) — return the parent directory path for a manifest path.
 // Returns null for root ('.' / ''). Examples:
-//   "src/scene/colors.js" → "src/scene"
+//   "src/utils/path.ts" → "src/utils"
 //   "src"                 → "."
 //   "."                   → null
 export function parentDirPath(p: string | null | undefined): string | null {

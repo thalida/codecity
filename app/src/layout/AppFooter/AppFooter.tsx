@@ -261,7 +261,7 @@ export function AppFooter() {
     errorMessage: LAST_REBUILD_ERROR.value,
   };
 
-  // Selection — hover takes priority over selection (same rule as coordinator).
+  // Selection — hover takes priority over selection.
   // Reading SCENE_HANDLE.value establishes tracking so AppFooter re-renders
   // when the scene first becomes available (CenterPane mount). Then
   // picker.hover.value and picker.selection.value are tracked for fine-grained

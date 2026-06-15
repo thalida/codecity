@@ -43,7 +43,7 @@ export enum FieldKind {
 
 /** What changing a field requires the scene to do. Drives settingsReactions.ts's
  *  rebuild/material-refresh signatures (auto-generated from this metadata):
- *   Refresh — applyTheme only (material/uniform update). The default.
+ *   Refresh — material/uniform update only (reactive effect, no rebuild). The default.
  *   Rebuild — full world applyManifest (structural/geometry/layout change).
  *   Live    — neither; read fresh per frame (e.g. gem/firefly animation) or
  *             driven elsewhere (e.g. live-update polling). */

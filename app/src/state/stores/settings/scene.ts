@@ -5,7 +5,7 @@
 // panel still groups it under "Ground sizing" via sections/scene.ts.
 //
 // Schema-driven (see state/schema). Sky/stars/fog are all material-
-// refresh (applyTheme); GROUND_BUFFER_PERCENT triggers a rebuild.
+// refresh; GROUND_BUFFER_PERCENT triggers a rebuild.
 
 import {
   settingSignal,

@@ -1,4 +1,4 @@
-// types/building.ts — pairs with config/building.ts (the tunables).
+// types/building.ts — pairs with state/stores/settings/buildings.ts (the tunables).
 // Defines the Building shape the layout step produces; the city renderer
 // (city/index.ts createCity) reads it to instantiate three.js meshes.
 

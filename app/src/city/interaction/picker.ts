@@ -1,8 +1,7 @@
 // city/interaction/picker.ts — owns the raycaster + the hover and selection
 // state machine. State rides on @preact/signals so consumers
-// (outlineRenderer, pathLineRenderer, buildingFader, coordinator)
-// use the same `effect` / `.value` idiom they already use for every
-// config store.
+// (the outline, path-line, and building-fader renderers) use the same
+// `effect` / `.value` idiom they already use for every settings store.
 //
 // Public contract:
 //

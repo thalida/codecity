@@ -1,4 +1,4 @@
-// types/street.ts — pairs with config/street.ts (the tunables).
+// types/street.ts — pairs with state/stores/settings/streets.ts (the tunables).
 // Defines the Street shape the layout step produces.
 
 import type { DirNode } from './manifest';

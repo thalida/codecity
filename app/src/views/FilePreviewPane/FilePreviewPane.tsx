@@ -1,8 +1,8 @@
 // views/FilePreviewPane.tsx — body content for the right sidebar.
 // Renders a file preview (image, video, audio, pdf, or syntax-highlighted
-// code) for whatever file the coordinator pushes in via the state signal.
-// Falls back to an empty-state hint when no file is pushed (or when a
-// directory is selected — directories aren't previewable here).
+// code) for whatever file is selected via the state signal. Falls back to
+// an empty-state hint when no file is selected (or when a directory is
+// selected — directories aren't previewable here).
 //
 // The pane renders a `.editor-body` body declaratively via JSX. It owns
 // nothing about the sidebar shell (resize, open/close, persisted width) —
