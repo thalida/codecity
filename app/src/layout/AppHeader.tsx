@@ -8,6 +8,7 @@
 //   #app-title        — CommitChip | PathBreadcrumbs (per current selection)
 //   #app-header-right — reserved slot, currently unused
 
+import './AppHeader.css';
 import type { ComponentChildren } from 'preact';
 import { SCENE_HANDLE } from '@/state/stores/scene';
 import { MANIFEST } from '@/state/stores/manifest';

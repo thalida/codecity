@@ -1,0 +1,41 @@
+.app-header-crumbs {
+  flex: 0 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--cc-space-1);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Shell + hover in .btn-icon. Per-class overrides: smaller padding,
+   inherited font, muted color, and the Electron drag-region marker.
+   The leaf modifier disables interactivity (last crumb = current). */
+/* Visual style in .btn-icon + .btn-icon--text + .btn-icon--no-drag.
+   Leaf-state behavior moved to .is-leaf modifier (used by breadcrumb
+   leaf segment + file-path-segment leaf). */
+.btn-icon.is-leaf {
+  color: var(--cc-text-primary);
+  cursor: default;
+}
+.btn-icon.is-leaf:not(:disabled):hover {
+  background: transparent;
+}
+
+.app-header-sep {
+  flex: 0 0 auto;
+  color: var(--cc-text-ghost);
+  font-size: var(--cc-font-lg);
+  pointer-events: none;
+}
+
+/* Middle-truncation ellipsis placeholder. Shown when middle crumbs are
+   hidden to prevent overflow; hover reveals the hidden segment names. */
+.app-header-ellipsis {
+  flex: 0 0 auto;
+  color: var(--cc-text-faint);
+  padding: 0 var(--cc-space-1);
+  cursor: help;
+  user-select: none;
+}

@@ -1,0 +1,55 @@
+/* ── Sitewide header ──────────────────────────────────────────────────
+   Full-width strip across the top of the app shell. Sits in the body's
+   column flex above #app-body; the sidebars start at its lower edge. */
+
+#app-header {
+  flex: 0 0 auto;
+  /* 3-column grid keeps #app-title visually centered in the viewport
+     regardless of how much content the left controls (gem, project chip,
+     repo link) occupy. The minmax(0, 1fr) tracks share the leftover space
+     equally, so the center column stays at true header-center. */
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  column-gap: var(--cc-space-2);
+  height: 32px;
+  padding: 0 var(--cc-space-4);
+  border-bottom: 1px solid var(--cc-border-subtle);
+  font-family: var(--cc-font-mono);
+  font-size: var(--cc-font-md);
+  color: var(--cc-text-secondary);
+  -webkit-app-region: drag; /* in pywebview's native frame this lets you drag */
+  user-select: none;
+}
+
+#app-header-left,
+#app-header-right {
+  display: flex;
+  align-items: center;
+  gap: var(--cc-space-2);
+  min-width: 0;
+}
+
+#app-header-right {
+  justify-content: flex-end;
+}
+
+#app-title {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--cc-space-4);
+  min-width: 0;
+  letter-spacing: var(--cc-track-base); /* was 0.02em (dropped) */
+  color: var(--cc-text-muted);
+}
+
+/* Visual style fully in .btn-icon (with --no-drag modifier where needed). */
+
+/* Header buttons (switch-source, refresh, repo-link) now use
+   .btn-icon + .btn-icon--no-drag (refresh/switch) or
+   .btn-icon + .btn-icon--link + .btn-icon--no-drag (repo-link).
+   Inner svg rendering tweak applies to any svg child of a header btn-icon. */
+#app-header .btn-icon svg {
+  display: block;
+}

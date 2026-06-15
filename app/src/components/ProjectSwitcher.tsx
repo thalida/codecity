@@ -2,6 +2,7 @@
 // @branch pill + chevron. Click opens the source picker to switch projects.
 // Renders nothing until a project is loaded (no label).
 
+import './ProjectSwitcher.css';
 import { ChevronDown, Map } from 'lucide-preact';
 
 export interface ProjectSwitcherProps {

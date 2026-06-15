@@ -11,6 +11,7 @@
 // light text on dark backgrounds. That keeps the label readable no
 // matter what colors the user picks in Controls.
 
+import './Badge.css';
 import { getHue } from '@/city/components/buildings/color';
 import { parseHex, hslToRgb, pickContrastingText } from '@/utils/colors';
 

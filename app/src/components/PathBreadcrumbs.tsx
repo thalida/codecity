@@ -3,6 +3,7 @@
 // copy-path button. The breadcrumb owns a ResizeObserver (useMiddleEllipsis)
 // that middle-truncates the path to fit the header width.
 
+import './PathBreadcrumbs.css';
 import { Fragment } from 'preact';
 import { Focus } from 'lucide-preact';
 import { KEY_BINDINGS } from '@/constants/keyboard';

@@ -4,6 +4,7 @@
 // Clipboard API; secure contexts always provide it, so there's no legacy
 // execCommand fallback.
 
+import './CopyButton.css';
 import { useState, useRef, useEffect } from 'preact/hooks';
 import { Copy } from 'lucide-preact';
 
