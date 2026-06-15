@@ -172,55 +172,6 @@ canvas {
   background: var(--cc-bg-app);
 }
 
-/* ── Sidebar shell ──────────────────────────────────────────────────────────── */
-
-#right-sidebar {
-  position: relative;
-  flex: 0 0 auto;
-  /* Closed by default — width 0, animates open via the .open rule below.
-     The persisted/dragged width lives on a CSS variable so the resize
-     handle can mutate it without fighting the open/close transitions. */
-  width: 0;
-  height: 100%;
-  border-left: 1px solid var(--cc-border-subtle);
-  /* No transition during drag (would lag the cursor); transition is added
-     by .is-animating which we toggle around open/close. */
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  z-index: 100;
-}
-
-#right-sidebar.open {
-  width: var(--sidebar-width, 360px);
-  min-width: 280px;
-  max-width: 70vw;
-}
-
-/* Sidebar resize handle — a 6px drag zone straddling the sidebar edge
-   (half on / half off) so it's easy to grab. The edge modifier sets which
-   side it anchors to and its stacking order. */
-.resize-handle {
-  position: absolute;
-  top: 0;
-  width: 6px;
-  height: 100%;
-  cursor: ew-resize;
-  background: transparent;
-}
-.resize-handle--left {
-  left: -3px;
-  z-index: 101;
-}
-.resize-handle--right {
-  right: -3px;
-  z-index: 91;
-}
-.resize-handle:hover,
-.resize-handle.dragging {
-  background: var(--cc-accent-bg-strong);
-}
-
 /* ── Sitewide header content (chip + breadcrumb + copy) ──────────────────
    Lives inside #app-title (see the #app-title rule above for the flex
    shell). Pushed there from main._setSelection via
@@ -272,37 +223,6 @@ canvas {
 
 /* Empty/error/too-large states all use the .empty-state + .empty-state--lg
    helper (centered icon + headline + subtitle) in the search-pane section. */
-
-/* ── Custom scrollbar (WebKit) ──────────────────────────────────────────────── */
-
-/* Scrollbars — shared rules for both sidebars.
-   Webkit (Chrome / Safari / Edge) uses ::-webkit-scrollbar*; Firefox uses
-   scrollbar-width / scrollbar-color (set further down on the scrolling
-   children that actually overflow). */
-#right-sidebar ::-webkit-scrollbar,
-#left-sidebar ::-webkit-scrollbar {
-  width: 4px;
-}
-#right-sidebar ::-webkit-scrollbar-track,
-#left-sidebar ::-webkit-scrollbar-track {
-  background: transparent;
-}
-#right-sidebar ::-webkit-scrollbar-thumb,
-#left-sidebar ::-webkit-scrollbar-thumb {
-  background: var(--cc-border-input);
-  border-radius: var(--cc-radius-sm);
-}
-#right-sidebar ::-webkit-scrollbar-thumb:hover,
-#left-sidebar ::-webkit-scrollbar-thumb:hover {
-  background: var(--cc-track-hover);
-}
-
-/* Firefox */
-#right-sidebar .editor-body,
-#right-sidebar .code-editor {
-  scrollbar-width: thin;
-  scrollbar-color: var(--cc-border-input) transparent;
-}
 
 /* ── Hover tooltip ─────────────────────────────────────────────────────────── */
 
@@ -921,15 +841,6 @@ canvas {
   background: var(--cc-accent-dark);
 }
 
-/* Scrollbar for tree */
-/* Webkit scrollbar rules consolidated with #right-sidebar earlier in the file.
-   This block only sets the Firefox scrollbar style on the actual
-   scrolling child of #left-sidebar. */
-#left-sidebar .tree-root {
-  scrollbar-width: thin;
-  scrollbar-color: var(--cc-border-input) transparent;
-}
-
 .tree-list {
   list-style: none;
   margin: var(--cc-space-0);
@@ -1151,14 +1062,6 @@ canvas {
   color: var(--cc-accent-light);
 }
 
-/* Scrollbar tuned to match the tree pane's. The search pane's body
-   uses .pane-body; the info pane's body adds the .info-body marker so
-   this Firefox scrollbar rule can target it specifically. */
-#left-sidebar .search-pane > .pane-body {
-  scrollbar-width: thin;
-  scrollbar-color: var(--cc-border-input) transparent;
-}
-
 /* ── Info pane (Info tab in left sidebar) ───────────────────────────────
    Renders the project root README's markdown. Layout matches the other
    panes: header on top, scrollable body underneath. The body's empty /
@@ -1167,10 +1070,6 @@ canvas {
 /* Layout in .pane-body; this rule keeps the empty-state child fill. */
 .info-body > .empty-state {
   flex: 1 1 auto;
-}
-#left-sidebar .info-body {
-  scrollbar-width: thin;
-  scrollbar-color: var(--cc-border-input) transparent;
 }
 
 .info-markdown {

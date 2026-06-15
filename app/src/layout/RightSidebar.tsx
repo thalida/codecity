@@ -17,6 +17,7 @@
 // signal (the fetch layer's source of truth), so the panes re-derive
 // automatically when a live-update poll publishes a fresh manifest.
 
+import './RightSidebar.css';
 import { useComputed, useSignal, useSignalEffect } from '@preact/signals';
 import { PERSISTED_KEYS } from '@/constants/storage';
 import { NodeKind } from '@/types';

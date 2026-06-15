@@ -4,6 +4,7 @@
 // resize mechanics (which edge, how a drag maps to width, where the width is
 // applied, persistence) live here once so the two can't drift.
 
+import './Sidebar.css';
 import type { ComponentChildren } from 'preact';
 import type { Signal } from '@preact/signals';
 import { useEffect, useRef, useState } from 'preact/hooks';
