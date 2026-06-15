@@ -8,6 +8,7 @@
 // selection-driven highlight (from the city) expands the ancestor
 // chain of the selected node.
 
+import './TreePane.css';
 import { effect, useComputed } from '@preact/signals';
 import type { ReadonlySignal, Signal } from '@preact/signals';
 import { useEffect, useRef } from 'preact/hooks';

@@ -16,6 +16,7 @@
 // Lookup tables live in constants/fileIcons.ts; the name resolvers live in
 // utils/fileIcons.ts. This file just renders.
 
+import './NodeIcon.css';
 import type { DirNode, FileNode, TreeNode } from '@/types';
 import { NodeKind } from '@/types';
 import { MATERIAL_ICON_URLS } from '@/constants/materialIcons';

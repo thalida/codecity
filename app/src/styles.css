@@ -14,17 +14,6 @@
   padding: var(--cc-space-px) var(--cc-space-3);
 }
 
-.tree-item.tree-hovered > .row {
-  background: var(--cc-overlay-bg-soft);
-}
-.tree-item.tree-selected > .row {
-  background: var(--cc-accent-bg);
-}
-.tree-item.tree-selected > .row:hover,
-.tree-item.tree-selected.tree-hovered > .row {
-  background: var(--cc-accent-bg); /* keep selected state on hover */
-}
-
 .modal-field input,
 .modal-field select {
   background-color: var(--cc-bg-chrome);
@@ -204,118 +193,6 @@ canvas {
   width: 1em;
   height: 1em;
   vertical-align: -0.15em;
-}
-
-.tree-root {
-  flex: 1;
-  overflow-y: auto;
-  padding: var(--cc-space-4) 0;
-}
-
-.tree-list {
-  list-style: none;
-  margin: var(--cc-space-0);
-  /* Per-level indent = chevron width (14px) + row gap (2px) so a child
-   * row's chevron lands directly under its parent's folder icon. */
-  padding: 0 0 0 var(--cc-space-7);
-}
-
-.tree-root.tree-list {
-  /* The root folder row already brings its own 8px padding through .row;
-     no need to indent the root list itself. */
-  padding-left: var(--cc-space-0);
-}
-
-/* The root row's chevron is hidden (.tree-root-item > .row > .tree-chevron),
-   so depth-1 chevrons should slot into that same gutter column under the
-   root's folder icon — they don't need an extra level of indent. */
-.tree-root-item > .tree-list {
-  padding-left: var(--cc-space-0);
-}
-
-.tree-item {
-  margin: var(--cc-space-0);
-  padding: var(--cc-space-0);
-}
-
-/* Tree rows use .row + .row--tight (the tight modifier collapses the
-   chevron-to-label gap to 2px). Selection highlight in .row--selected
-   near the top of the file. */
-
-.tree-chevron {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  /* Explicit slot width — pinned so empty placeholders on file rows
-   * take the same horizontal space as the rendered chevron on dir
-   * rows. Net effect: labels at the same nesting depth line up,
-   * regardless of file vs directory. Matches the .tree-icon width. */
-  width: 14px;
-}
-
-/* Material Icon Theme file/folder icons rendered as <img> via the
- * fileIcon.ts helper. Full-color SVGs (the color carries the info)
- * so no currentColor mask trick — just an inline-block raster.
- * margin-right adds breathing room before the label without widening
- * the tight chevron→icon gap that the row's flex `gap` provides. */
-.file-icon {
-  width: 14px;
-  height: 14px;
-  flex-shrink: 0;
-  display: inline-block;
-  vertical-align: middle;
-  margin-right: var(--cc-space-2);
-  /* Hide the broken-image glyph for the brief window between src set
-   * and the CDN fetch landing (or while the onerror fallback flips). */
-  font-size: 0;
-  color: transparent;
-}
-
-/* Root row: chevron is removed from layout (display: none) so the
- * root folder icon sits flush at the row's left padding (16px) —
- * lined up directly under the "Explorer" header title. The chevron
- * element stays in the DOM so _setDirExpanded's selector keeps
- * working; only its layout box is suppressed. */
-.tree-root-item > .row > .tree-chevron {
-  display: none;
-}
-
-/* Root glyph — codecity gem in its grayscale variant. Quieter than the
- * full multicolor gem so it doesn't compete with row text. Sized to match
- * the 14px Material file/folder icons used on every other row so the icon
- * column stays a consistent width. */
-.tree-root-glyph {
-  width: 14px;
-  height: 14px;
-  margin-right: var(--cc-space-2);
-  vertical-align: middle;
-}
-
-.tree-icon {
-  font-size: var(--cc-font-lg);
-  width: 14px;
-  text-align: center;
-  flex-shrink: 0;
-  line-height: 1;
-}
-
-.tree-icon-dir {
-  color: var(--cc-text-muted);
-}
-
-.tree-label {
-  font-size: var(--cc-font-lg);
-  color: var(--cc-text-base);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-/* Tree dir / file labels share the same color; the chevron + dir/file icon
-   already distinguish the two. */
-.tree-dir > .row > .tree-label {
-  font-weight: var(--cc-fw-medium);
 }
 
 /* ── Search pane (Search tab in left sidebar) ───────────────────────────
