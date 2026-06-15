@@ -332,47 +332,6 @@ canvas {
   user-select: none;
 }
 
-/* ── Left sidebar shell (activity bar + tab panel) ─────────────────────────── */
-
-/* Default width is set inline by leftSidebar.js after reading localStorage,
- * so users can drag the right-edge handle to resize and the chosen width
- * persists across reloads. The CSS fallback is the no-localStorage default. */
-#left-sidebar {
-  position: relative;
-  flex: 0 0 auto;
-  /* Resizable: the drag handle mutates --sidebar-width; CSS owns `width` so the
-     handle never fights an inline style. Default 360px = 44px activity bar +
-     316px panel. */
-  width: var(--sidebar-width, 360px);
-  min-width: 280px;
-  max-width: 600px;
-  height: 100%;
-  border-right: 1px solid var(--cc-border-subtle);
-  display: flex;
-  flex-direction: row;
-  z-index: 90;
-  overflow: hidden;
-}
-/* Until showLeftSidebar populates the tree, the empty container would
-   show as a lighter strip on the left during the manifest fetch / scene
-   build. Hide it while empty so the initial paint is just the header. */
-#left-sidebar:empty {
-  display: none;
-}
-
-/* Collapsed: just the activity bar shows. This rule outranks the base
- * `#left-sidebar { width: var(--sidebar-width) }` by specificity (id+class),
- * so the dragged width is restored automatically on un-collapse — no need to
- * clear/restore anything. */
-#left-sidebar.is-collapsed {
-  width: 44px;
-  min-width: 44px;
-}
-#left-sidebar.is-collapsed > .pane,
-#left-sidebar.is-collapsed .resize-handle {
-  display: none;
-}
-
 /* Pane-header close + action buttons use .btn-icon + .btn-icon--text. */
 .pane-header .btn-icon--text {
   line-height: 1;
@@ -381,68 +340,11 @@ canvas {
   opacity: 0.35;
 }
 
-/* Activity bar splits into two nested flex columns: a top group that
- * stacks from the top and a bottom group that pins to the bottom. The
- * outer bar's `justify-content: space-between` pushes the two groups
- * apart — no margin-top: auto trick. */
-.activity-bar {
-  width: 44px;
-  flex-shrink: 0;
-  border-right: 1px solid var(--cc-border-subtle);
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  align-items: stretch;
-  padding: var(--cc-space-4) 0;
-}
-.activity-bar-group {
-  display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  gap: var(--cc-space-1);
-}
-
-.activity-bar-icon {
-  background: none;
-  border: none;
-  color: var(--cc-text-faint);
-  height: 40px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  border-left: 2px solid transparent;
-  transition:
-    color var(--cc-t-base),
-    background var(--cc-t-base),
-    border-color var(--cc-t-base);
-  padding: var(--cc-space-0);
-}
-
-.activity-bar-icon:hover {
-  color: var(--cc-text-secondary);
-  background: var(--cc-overlay-bg-soft);
-}
-
-.activity-bar-icon.active {
-  color: var(--cc-text-primary);
-  border-left-color: var(--cc-accent);
-  background: var(--cc-accent-bg-soft);
-}
-
 /* Lucide icons render as inline SVG (lucide-preact) with stroke=currentColor,
- * so they inherit the parent's text color — no mask needed. These rules just
- * size them (CSS width/height override the SVG's own 24px attrs).
- * .activity-bar-glyph keeps its 20px footprint; .lucide-icon is the smaller
- * inline default for tree rows + buttons. */
-.activity-bar-glyph,
+ * so they inherit the parent's text color — no mask needed. .lucide-icon is
+ * the smaller inline default for tree rows + buttons. */
 .lucide-icon {
   display: inline-block;
-}
-.activity-bar-glyph {
-  display: block;
-  width: 20px;
-  height: 20px;
 }
 .lucide-icon {
   width: 1em;

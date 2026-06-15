@@ -15,6 +15,7 @@
 // The factories survive (#10) for external consumers / tests until
 // they too are ported.
 
+import './LeftSidebar.css';
 import { useComputed, useSignal, useSignalEffect } from '@preact/signals';
 import { ACTIVITY_BAR_TABS, TabPlacement } from '@/constants/ui';
 import { PERSISTED_KEYS } from '@/constants/storage';
