@@ -252,14 +252,6 @@ canvas {
   user-select: none;
 }
 
-/* Pane-header close + action buttons use .btn-icon + .btn-icon--text. */
-.pane-header .btn-icon--text {
-  line-height: 1;
-}
-.pane-header .btn-icon--text:disabled {
-  opacity: 0.35;
-}
-
 /* Lucide icons render as inline SVG (lucide-preact) with stroke=currentColor,
  * so they inherit the parent's text color — no mask needed. .lucide-icon is
  * the smaller inline default for tree rows + buttons. */
@@ -270,47 +262,6 @@ canvas {
   width: 1em;
   height: 1em;
   vertical-align: -0.15em;
-}
-
-/* Layout in .pane. */
-
-/* Pane headers — title on the left, × close button on the right.
- * Flexbox keeps the two vertically centered against each other regardless
- * of the title's font metrics or the button's size; no manual top/left
- * positioning math needed. */
-/* Shared header row built by layout/paneHeader.ts. Every pane —
- * left sidebar's Tree/Search/Info/Controls and the right sidebar's
- * file-preview — mounts this same DOM so they look identical and
- * adding a pane is a single buildPaneHeader() call. */
-.pane-header {
-  padding: var(--cc-space-6) var(--cc-space-6) var(--cc-space-6) var(--cc-space-7);
-  border-bottom: 1px solid var(--cc-border-subtle);
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--cc-space-4);
-}
-
-/* Smaller + lighter than a traditional heading so the panes read as
- * panels of content rather than each shouting for attention. The
- * .is-mono modifier flips to monospace for filename-style titles
- * (right-sidebar file-preview). */
-/* Typography in .text-pane-title; this rule adds layout
-   (flex-fill, truncation, sub-segment gap). */
-.text-pane-title {
-  flex: 1 1 auto;
-  min-width: 0;
-  margin: var(--cc-space-0);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  display: flex;
-  align-items: center;
-  gap: var(--cc-space-1); /* 2px; tight gap between truncation segments */
-}
-.text-pane-title.is-mono {
-  font-family: var(--cc-font-mono);
 }
 
 .tree-root {

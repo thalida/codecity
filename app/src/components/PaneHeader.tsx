@@ -4,6 +4,7 @@
 // `.text-pane-title` + `.pane-header-close` triplet, so the panes look
 // identical and adding a new pane is a one-call affair.
 
+import './PaneHeader.css';
 import type { ComponentChildren } from 'preact';
 import { Focus, X } from 'lucide-preact';
 
