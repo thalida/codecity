@@ -117,7 +117,7 @@ interface FooterStatusSectionProps {
   status: FooterStatus | null;
 }
 
-// CSS modifier classes for the combined status dot/detail (see styles.css).
+// CSS modifier classes for the combined status dot/detail (see AppFooter.css).
 // Named so the className composition reads without inline magic strings.
 enum BuildClass {
   Rebuilding = 'is-rebuilding',

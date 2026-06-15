@@ -4,6 +4,8 @@
 // favicon). The `simple` prop swaps to a grayscale-filled variant for quieter
 // contexts (tree rows) where the multicolor palette would compete with row text.
 
+import './GemIcon.css';
+
 export interface GemIconProps {
   /** Extra class added alongside `gem-icon`. */
   class?: string;

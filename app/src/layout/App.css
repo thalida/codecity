@@ -1,0 +1,34 @@
+/* ── App shell ─────────────────────────────────────────────────────────────── */
+
+html,
+body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: var(--cc-bg-app);
+  color: var(--cc-text-primary);
+  font-family: var(--cc-font-sans);
+  font-size: var(--cc-font-xl);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* App layout: a column with a thin sitewide header on top, the 3-pane
+   row underneath, and a thin footer at the bottom. The 3-pane row is
+   itself a flex row — left sidebar | center canvas | right sidebar.
+   The center grows/shrinks instead of the sidebars overlaying it. */
+#app {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+}
+
+#app-body {
+  flex: 1 1 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+}

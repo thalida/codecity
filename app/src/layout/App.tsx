@@ -13,6 +13,7 @@
 //   <SourcePicker />     — reads SOURCE_PICKER + SERVER_CONFIG directly
 //   <LoadingOverlay />   — reads LOADING_OVERLAY directly
 
+import './App.css';
 import { useEffect } from 'preact/hooks';
 import { useSignalEffect } from '@preact/signals';
 

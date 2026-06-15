@@ -4,7 +4,6 @@
 
 import { render } from 'preact';
 import './styles/index.css';
-import './styles.css';
 import { App } from '@/layout/App';
 
 const mount = document.getElementById('app');
