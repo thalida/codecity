@@ -3,8 +3,8 @@
 //   Building: { x, y, w, d, h, color, file, orient }
 //   Street:   { x, y, w, d, label, dir }
 //
-// All tunables come from the nanostores under src/config/. Tests that
-// need different values mutate the stores via .setKey() in setup +
+// All tunables come from the settings stores under state/stores/settings/.
+// Tests that need different values set the signals directly in setup +
 // restore in teardown — keeps the production callsites argument-free.
 //
 // Layout works via a global-occupancy packer: each directory becomes a

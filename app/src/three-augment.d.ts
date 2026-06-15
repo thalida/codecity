@@ -4,7 +4,7 @@
 // Augmenting Object3D's userData here means the rest of the codebase
 // reads typed fields without `as` casts at every call site.
 //
-// The shape lists every userData key currently stamped in scene/ and
+// The shape lists every userData key currently stamped in city/ and
 // views/. All optional — most meshes only set a subset relevant to their
 // kind (a building stamps {type, building, …}, a label stamps
 // {type, baseRotY, flipped, …}, etc).

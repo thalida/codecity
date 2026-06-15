@@ -12,8 +12,8 @@
 //
 // Per-row affordance: every input mutates a single in-memory draft
 // layer (state/settingsDrafts.ts). Save commits drafts to the real signals,
-// which triggers the existing reaction effects (applyTheme or
-// world.applyManifest). Discard clears drafts without touching
+// which triggers the existing reaction effects (a material-refresh or a
+// full applyManifest rebuild). Discard clears drafts without touching
 // signals. Section / collapsible-subgroup open state is intentionally
 // NOT persisted — the `collapsed` prop (driven by the sidebar's collapsed
 // state) collapses every <details> when the panel is hidden, so it always

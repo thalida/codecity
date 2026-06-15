@@ -3,9 +3,8 @@
 // counts and a sorted breakdown of every file extension in the
 // descendant subtree.
 //
-// API matches commitPane's shape (build once, push selection via
-// setDirectory) so the coordinator can swap panes in the right sidebar
-// without churn.
+// A Preact function component reading a `state` signal prop (the selected
+// directory); RightSidebar swaps panes by switching which one it renders.
 
 import './StreetPane.css';
 import type { ReadonlySignal } from '@preact/signals';

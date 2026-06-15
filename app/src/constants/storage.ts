@@ -3,7 +3,7 @@
 // silently splitting state across two slots.
 //
 // Persistence prefix is shared across all keys so a one-shot grep on
-// `cc.` finds every codecity-owned localStorage entry. config/persist.ts
+// `cc.` finds every codecity-owned localStorage entry. state/persist.ts
 // adds its own per-store keys with the same prefix.
 
 export const STORAGE_PREFIX = 'cc.';

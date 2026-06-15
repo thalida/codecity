@@ -3,7 +3,7 @@
 // lines (STREETS, schema-driven), plus how streets are sized + packed
 // (STREET_TIERS + STREET_LAYOUT, worker-threaded object stores).
 //
-// Asphalt + sidewalk + path-line fields are material-refresh (applyTheme);
+// Asphalt + sidewalk + path-line fields are material-refresh;
 // the label fields are rebuild-required (label textures bake at build time).
 // Each field states its own route — settingsReactions.ts derives its rebuild/refresh
 // signatures from that metadata (see state/schema).

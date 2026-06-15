@@ -10,9 +10,8 @@
 // inside the "N commits that day" row (next to the same-day text)
 // when a color is provided.
 //
-// API matches filePreviewPane's shape (build once, push selection in
-// via setCommit) so the coordinator can swap panes in the right
-// sidebar without churn.
+// A Preact function component reading a `state` signal prop (the selected
+// commit); RightSidebar swaps panes by switching which one it renders.
 
 import './CommitPane.css';
 import { useState, useEffect, useRef } from 'preact/hooks';

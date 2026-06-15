@@ -11,8 +11,8 @@
 // the file has existed in the repo. That drives grime + tilt + lit-window
 // glow color in the shader, independent of recent edits.
 //
-// Tunables come from BUILDINGS in config/building.ts. Tests
-// mutate the store via .setKey() in setup + restore in teardown.
+// Tunables come from BUILDINGS in state/stores/settings/buildings.ts. Tests
+// set the signals directly in setup + restore in teardown.
 
 import { BUILDINGS } from '@/state/stores/settings/buildings';
 import { NodeKind } from '@/types';

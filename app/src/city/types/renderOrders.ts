@@ -43,8 +43,8 @@ export const RENDER_ORDERS = {
   PARK_FOLIAGE: 10,
   // Tree outlines — must draw above PARK_FOLIAGE so the wireframe reads
   // on top of the canopy. Hover beneath selected so a tree that is both
-  // hovered and selected (rare; coordinator dedup already prevents it for
-  // buildings — see comments in outlineRenderer.ts) shows the selected
+  // hovered and selected (rare; the picker's hover/selection dedup already
+  // prevents it for buildings — see buildings/outline.ts) shows the selected
   // rainbow on top.
   HOVER_TREE_OUTLINE: 11,
   SELECTED_TREE_OUTLINE: 12,

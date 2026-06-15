@@ -193,10 +193,9 @@ export function createPathLineRenderer({
   // _updateHoverPathLine reads picker.hover.value + HOVER_PATH_LINE.value
   // internally — if we called it directly inside the selection effect, the
   // selection effect would also track hover/HOVER_PATH_LINE and fire on
-  // their changes (same anti-pattern as the coordinator over-tracking bug
-  // fixed in 924371c). untracked() lets the selection effect refresh the
+  // their changes. untracked() lets the selection effect refresh the
   // hover line on selection change (the hover line's "hide when hover ==
-  // selection" rule needs re-evaluation) WITHOUT becoming a hover/config
+  // selection" rule needs re-evaluation) WITHOUT becoming a hover/settings
   // subscriber.
   const _disposeSelectionEffect = effect(() => {
     void picker.selection.value;
