@@ -1,0 +1,10 @@
+/* ── Toggle ── */
+
+/* Boolean toggle — native checkbox styled to match the brand blue. */
+.theme-toggle {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  accent-color: var(--cc-accent);
+  margin: var(--cc-space-0);
+}

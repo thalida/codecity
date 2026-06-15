@@ -6,6 +6,7 @@
 // scraping). Pass collapsible={false} for a plain always-open group with no
 // reset (e.g. a small cluster like "Stars", or the Live-updates pair).
 
+import './Subgroup.css';
 import type { ComponentChildren } from 'preact';
 import { ChevronRight, RotateCcw } from 'lucide-preact';
 import { stageReset } from '@/state/settingsDrafts';

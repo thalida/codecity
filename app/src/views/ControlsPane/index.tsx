@@ -19,6 +19,7 @@
 // state) collapses every <details> when the panel is hidden, so it always
 // reopens fresh.
 
+import './ControlsPane.css';
 import { useEffect, useRef } from 'preact/hooks';
 import { ShortcutsSection } from './partials/ShortcutsSection';
 

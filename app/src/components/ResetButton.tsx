@@ -2,6 +2,7 @@
 // Disabled when every bound key already equals its registered default;
 // click stages a reset (Save still required to commit).
 
+import './ResetButton.css';
 import { RotateCcw } from 'lucide-preact';
 import { stageReset } from '@/state/settingsDrafts';
 import { getDefault } from '@/state/persist';

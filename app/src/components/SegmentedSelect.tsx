@@ -2,6 +2,8 @@
 // option, the selected option carries .is-active. Used for enum-valued
 // settings (e.g. tier-spacing mode, layout strategy).
 
+import './SegmentedSelect.css';
+
 export interface SegmentedSelectOption {
   value: string;
   label: string;

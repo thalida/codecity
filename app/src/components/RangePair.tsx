@@ -3,6 +3,7 @@
 // values share a track and the user drags either thumb. When the user
 // drags one past the other, the laggard snaps so lo ≤ hi is maintained.
 
+import './RangePair.css';
 import { formatNumberForStep } from './Slider';
 
 export interface RangePairProps {

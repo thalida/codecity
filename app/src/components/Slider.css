@@ -1,0 +1,52 @@
+/* ── Slider ── */
+
+/* Slider — the range input grows into available space; the readout is
+ * auto-sized to its content (with a small floor so short numbers don't
+ * collapse). No fixed widths anywhere — this row scales cleanly from a
+ * 280px-wide narrow sidebar up to the 600px max. */
+.theme-slider-wrap {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--cc-space-4);
+}
+
+.theme-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  flex: 1 1 auto;
+  min-width: 60px;
+  height: 4px;
+  background: var(--cc-track);
+  border-radius: var(--cc-radius-sm);
+  cursor: pointer;
+}
+.theme-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 12px;
+  height: 12px;
+  background: var(--cc-accent);
+  border: 1px solid var(--cc-overlay-border);
+  border-radius: var(--cc-radius-circle);
+  cursor: pointer;
+}
+.theme-slider::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  background: var(--cc-accent);
+  border: 1px solid var(--cc-overlay-border);
+  border-radius: var(--cc-radius-circle);
+  cursor: pointer;
+}
+
+.theme-slider-readout {
+  flex: 0 0 auto;
+  min-width: 36px;
+  text-align: right;
+  font-family: var(--cc-font-mono);
+  font-size: var(--cc-font-sm);
+  color: var(--cc-text-muted);
+  white-space: nowrap;
+}

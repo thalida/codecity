@@ -1,0 +1,30 @@
+/* ── Section ── */
+
+.controls-section + .controls-section {
+  margin-top: var(--cc-space-3);
+  padding-top: var(--cc-space-3);
+  border-top: 1px solid var(--cc-track);
+}
+
+.controls-section-hint {
+  font-size: var(--cc-font-md);
+  color: var(--cc-text-faint);
+  line-height: 1.5;
+  margin-bottom: var(--cc-space-6);
+}
+
+/* Every controls section is a <details> for native collapse. Summary
+ * is styled to match the file tree's accordion row: Lucide chevron +
+ * label, with the same hover background, border radius, and padding
+ * as the tree rows so the two activity-bar tabs feel like the same UI.
+ *
+ * The chevron is a Lucide icon (via the LucideIcon component) rather than a
+ * unicode triangle — sharper at small sizes and currentColor-aware. */
+/* Style in .row + .row--bleed; this rule only hides the native disclosure
+   triangle (a custom .chevron renders instead). */
+.controls-section > summary.controls-section-summary {
+  list-style: none;
+}
+.controls-section > summary.controls-section-summary::-webkit-details-marker {
+  display: none;
+}

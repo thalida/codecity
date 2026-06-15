@@ -5,6 +5,7 @@
 // stages every overridden value back to its default — user still must
 // Save to apply.
 
+import './ActionsBar.css';
 import { RotateCcw } from 'lucide-preact';
 import {
   commit as commitDrafts,

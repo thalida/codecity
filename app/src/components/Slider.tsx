@@ -2,6 +2,8 @@
 // `step` controls the readout precision (a step of 0.0001 shows 4 decimals;
 // integer steps drop the decimal).
 
+import './Slider.css';
+
 export interface SliderProps {
   value: number;
   min: number;

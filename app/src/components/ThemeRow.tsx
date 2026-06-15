@@ -6,6 +6,7 @@
 // `tip` is appended to the label-as-tooltip so users can hover and see
 // what a knob does without expanding documentation.
 
+import './ThemeRow.css';
 import type { ComponentChildren } from 'preact';
 import { ResetButton } from './ResetButton';
 

@@ -3,6 +3,7 @@
 // material rendered straight from KEY_BINDINGS plus hard-coded mouse
 // affordances.
 
+import './ShortcutsSection.css';
 import { Section } from '@/components/Section';
 import { Subgroup } from '@/components/Subgroup';
 import { KEY_BINDINGS } from '@/constants/keyboard';

@@ -2,6 +2,7 @@
 // HTML's color input only accepts `#rrggbb`; the app's colors are always
 // hex, so we normalize through a pure helper (no DOM probe).
 
+import './ColorInput.css';
 import { normalizeHex } from '@/utils/colors';
 
 export interface ColorInputProps {

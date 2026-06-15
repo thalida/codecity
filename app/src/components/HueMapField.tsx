@@ -3,6 +3,7 @@
 // field's value is the whole object; every edit commits a fresh merged object
 // via the draft layer. Dispatched from <Field> for HueMap-kind fields.
 
+import './HueMapField.css';
 import { useEffective, useDefault } from '@/hooks/useSettings';
 import { setDraft } from '@/state/settingsDrafts';
 import { RotateCcw } from 'lucide-preact';

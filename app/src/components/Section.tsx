@@ -8,6 +8,7 @@
 // Open/closed state is intentionally NOT persisted: the left sidebar resets
 // every <details> to closed when the Controls tab becomes visible.
 
+import './Section.css';
 import { type ComponentChildren } from 'preact';
 import { ChevronRight, RotateCcw } from 'lucide-preact';
 import { stageReset } from '@/state/settingsDrafts';
