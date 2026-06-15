@@ -1,29 +1,4 @@
-/* ── Sidebar resize handle ─────────────────────────────────────────────────── */
-
-/* Sidebar resize handle — a 6px drag zone straddling the sidebar edge
-   (half on / half off) so it's easy to grab. The edge modifier sets which
-   side it anchors to and its stacking order. */
-.resize-handle {
-  position: absolute;
-  top: 0;
-  width: 6px;
-  height: 100%;
-  cursor: ew-resize;
-  background: transparent;
-}
-.resize-handle--left {
-  left: -3px;
-  z-index: 101;
-}
-.resize-handle--right {
-  right: -3px;
-  z-index: 91;
-}
-.resize-handle:hover,
-.resize-handle.dragging {
-  background: var(--cc-accent-bg-strong);
-
-/* ── Custom scrollbar (WebKit) ──────────────────────────────────────────────── */
+/* ── Sidebar scrollbars ─────────────────────────────────────────────────────── */
 
 /* Scrollbars — shared rules for both sidebars.
    Webkit (Chrome / Safari / Edge) uses ::-webkit-scrollbar*; Firefox uses

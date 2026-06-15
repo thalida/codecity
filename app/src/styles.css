@@ -315,16 +315,6 @@ canvas {
 .controls-section > summary.controls-section-summary::-webkit-details-marker {
   display: none;
 }
-/* Disclosure chevron — shared by the controls-section and theme-subgroup
-   <details> summaries. Width matches .tree-chevron so labels at all depths
-   line up. The open state is driven purely by the parent <details open>. */
-.chevron {
-  width: 14px;
-  height: 14px;
-  flex-shrink: 0;
-  color: var(--cc-text-secondary);
-  transition: transform var(--cc-t-fast) ease;
-}
 .controls-section[open] > summary > .chevron,
 .theme-subgroup-collapsible[open] > summary > .chevron {
   transform: rotate(90deg);
@@ -367,78 +357,6 @@ canvas {
   height: 1px;
   background: var(--cc-track);
   margin: var(--cc-space-2) 0;
-}
-
-.segmented-control {
-  display: flex;
-  background: var(--cc-bg-chrome);
-  border: 1px solid var(--cc-border-input);
-  border-radius: var(--cc-radius-md);
-  padding: var(--cc-space-1);
-}
-
-/* .btn-toggle — one-of-N option button (choose-one segmented control).
-   Base shell + active state. The `.is-active` class flips the option to
-   the accent-tinted "selected" look. Modifiers:
-     .btn-toggle--separated — adds vertical separator borders between
-       sibling options, used by the controls-pane theme-select where the
-       buttons sit edge-to-edge inside a bordered shell. */
-.btn-toggle {
-  appearance: none;
-  background: none;
-  border: none;
-  color: var(--cc-text-faint);
-  font-family: inherit;
-  cursor: pointer;
-  font-size: var(--cc-font-lg);
-  font-weight: var(--cc-fw-medium);
-  padding: var(--cc-space-2) var(--cc-space-5);
-  border-radius: var(--cc-radius-sm);
-  transition:
-    color var(--cc-t-base),
-    background var(--cc-t-base);
-}
-
-.btn-toggle:hover {
-  color: var(--cc-text-secondary);
-}
-
-.btn-toggle.is-active {
-  background: var(--cc-accent-bg);
-  color: var(--cc-text-primary);
-}
-
-/* .btn-secondary — standalone outlined neutral button. Used for any
-   "less prominent action" (Cancel, Reset all, Discard, dev tools). */
-.btn-secondary {
-  appearance: none;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--cc-overlay-bg-soft);
-  border: 1px solid var(--cc-overlay-bg-strong);
-  border-radius: var(--cc-radius-md);
-  color: var(--cc-text-secondary);
-  padding: var(--cc-space-4) var(--cc-space-7); /* matches .btn-primary */
-  cursor: pointer;
-  font: inherit;
-  font-weight: var(--cc-fw-medium);
-  transition:
-    color var(--cc-t-base),
-    background var(--cc-t-base),
-    border-color var(--cc-t-base);
-}
-.btn-secondary:hover:not(:disabled) {
-  background: var(--cc-overlay-bg-strong);
-  border-color: var(--cc-overlay-border);
-  color: var(--cc-text-primary);
-}
-.btn-secondary:active:not(:disabled) {
-  background: var(--cc-overlay-border);
-}
-.btn-secondary:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
 }
 
 /* Sticky bottom action bar — sibling of the .pane-body, NOT inside it,
@@ -607,21 +525,6 @@ canvas {
   border: 1px solid var(--cc-border-input);
   border-radius: var(--cc-radius-sm);
   overflow: hidden;
-}
-/* .btn-toggle--separated — modifier that adds a vertical separator
-   between sibling options. Used inside .theme-select where the buttons
-   sit edge-to-edge. Also tightens the padding + font for the dense
-   inline-flex shell, and adds a soft hover background. */
-.btn-toggle--separated {
-  border-right: 1px solid var(--cc-track);
-  font-size: var(--cc-font-sm);
-  padding: var(--cc-space-2) var(--cc-space-4);
-}
-.btn-toggle--separated:last-child {
-  border-right: none;
-}
-.btn-toggle--separated:hover {
-  background: var(--cc-overlay-bg-soft);
 }
 
 /* Boolean toggle — native checkbox styled to match the brand blue. */
@@ -926,54 +829,6 @@ canvas {
 .search-input::-webkit-search-cancel-button {
   -webkit-appearance: none;
   appearance: none;
-}
-
-/* Layout in .pane-body. */
-
-/* Empty-state centered card — icon + title + subtitle stacked vertically.
-   Default sizing fits the search pane's empty-hint / no-matches state.
-   Modifiers:
-     .empty-state--lg — larger gap + padding + icon for file-preview
-       and info-pane states, where the panel has more vertical room. */
-.empty-state {
-  flex: 1 1 auto;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: var(--cc-space-4); /* 8px */
-  padding: var(--cc-space-8) var(--cc-space-7); /* 24px 16px */
-  color: var(--cc-text-faint);
-  text-align: center;
-}
-.empty-state .lucide-icon {
-  opacity: 0.55;
-  font-size: var(--cc-font-3xl);
-  margin-bottom: var(--cc-space-1); /* 2px */
-}
-/* Large variant — bigger gap + padding + icon. Used by the file-preview
-   pane and the info pane's empty / error states. */
-.empty-state--lg .lucide-icon {
-  font-size: var(--cc-font-4xl);
-  margin-bottom: var(--cc-space-2); /* 4px */
-}
-.empty-state--lg {
-  padding: var(--cc-space-9) var(--cc-space-7); /* 32px 16px */
-}
-/* Typography of .text-card-title / .text-card-sub already covered. The
-   per-class margin-0 / max-width / line-height bits live here so the
-   card title + subtitle render tightly inside the state card regardless
-   of which alias they were dropped into. */
-.empty-state .text-card-title {
-  margin: var(--cc-space-0);
-}
-.empty-state .text-card-sub {
-  margin: var(--cc-space-0);
-  max-width: 240px;
-  line-height: 1.5;
-}
-.empty-state--lg .text-card-sub {
-  max-width: 280px;
 }
 
 .search-results {

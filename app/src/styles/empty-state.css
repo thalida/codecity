@@ -1,0 +1,48 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   LAYER-2 COMPONENTS — Empty state
+   ═══════════════════════════════════════════════════════════════════════════
+   Empty-state centered card — icon + title + subtitle stacked vertically.
+   Default sizing fits the search pane's empty-hint / no-matches state.
+   Modifiers:
+     .empty-state--lg — larger gap + padding + icon for file-preview
+       and info-pane states, where the panel has more vertical room.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.empty-state {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--cc-space-4); /* 8px */
+  padding: var(--cc-space-8) var(--cc-space-7); /* 24px 16px */
+  color: var(--cc-text-faint);
+  text-align: center;
+}
+.empty-state .lucide-icon {
+  opacity: 0.55;
+  font-size: var(--cc-font-3xl);
+  margin-bottom: var(--cc-space-1); /* 2px */
+}
+/* Large variant — bigger gap + padding + icon. Used by the file-preview
+   pane and the info pane's empty / error states. */
+.empty-state--lg .lucide-icon {
+  font-size: var(--cc-font-4xl);
+  margin-bottom: var(--cc-space-2); /* 4px */
+}
+.empty-state--lg {
+  padding: var(--cc-space-9) var(--cc-space-7); /* 32px 16px */
+}
+/* The card title + subtitle render tightly inside the state card: kill the
+   margin and cap the subtitle width regardless of which text-* class they use. */
+.empty-state .text-card-title {
+  margin: var(--cc-space-0);
+}
+.empty-state .text-card-sub {
+  margin: var(--cc-space-0);
+  max-width: 240px;
+  line-height: 1.5;
+}
+.empty-state--lg .text-card-sub {
+  max-width: 280px;
+}

@@ -142,3 +142,80 @@
   font-size: var(--cc-font-md);
   opacity: 0.7;
 }
+
+/* .btn-secondary — standalone outlined neutral button. Used for any
+   "less prominent action" (Cancel, Reset all, Discard, dev tools). */
+.btn-secondary {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--cc-overlay-bg-soft);
+  border: 1px solid var(--cc-overlay-bg-strong);
+  border-radius: var(--cc-radius-md);
+  color: var(--cc-text-secondary);
+  padding: var(--cc-space-4) var(--cc-space-7); /* matches .btn-primary */
+  cursor: pointer;
+  font: inherit;
+  font-weight: var(--cc-fw-medium);
+  transition:
+    color var(--cc-t-base),
+    background var(--cc-t-base),
+    border-color var(--cc-t-base);
+}
+.btn-secondary:hover:not(:disabled) {
+  background: var(--cc-overlay-bg-strong);
+  border-color: var(--cc-overlay-border);
+  color: var(--cc-text-primary);
+}
+.btn-secondary:active:not(:disabled) {
+  background: var(--cc-overlay-border);
+}
+.btn-secondary:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* .btn-toggle — one-of-N option button (choose-one segmented control).
+   Base shell + active state. The `.is-active` class flips the option to
+   the accent-tinted "selected" look. Modifiers:
+     .btn-toggle--separated — adds vertical separator borders between
+       sibling options, used by the controls-pane theme-select where the
+       buttons sit edge-to-edge inside a bordered shell. */
+.btn-toggle {
+  appearance: none;
+  background: none;
+  border: none;
+  color: var(--cc-text-faint);
+  font-family: inherit;
+  cursor: pointer;
+  font-size: var(--cc-font-lg);
+  font-weight: var(--cc-fw-medium);
+  padding: var(--cc-space-2) var(--cc-space-5);
+  border-radius: var(--cc-radius-sm);
+  transition:
+    color var(--cc-t-base),
+    background var(--cc-t-base);
+}
+.btn-toggle:hover {
+  color: var(--cc-text-secondary);
+}
+.btn-toggle.is-active {
+  background: var(--cc-accent-bg);
+  color: var(--cc-text-primary);
+}
+/* .btn-toggle--separated — modifier that adds a vertical separator
+   between sibling options. Used inside .theme-select where the buttons
+   sit edge-to-edge. Also tightens the padding + font for the dense
+   inline-flex shell, and adds a soft hover background. */
+.btn-toggle--separated {
+  border-right: 1px solid var(--cc-track);
+  font-size: var(--cc-font-sm);
+  padding: var(--cc-space-2) var(--cc-space-4);
+}
+.btn-toggle--separated:last-child {
+  border-right: none;
+}
+.btn-toggle--separated:hover {
+  background: var(--cc-overlay-bg-soft);
+}
