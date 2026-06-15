@@ -1,0 +1,25 @@
+/* ── ColorInput ── */
+
+/* Color swatch — small native color picker */
+.theme-color {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 32px;
+  height: 22px;
+  padding: var(--cc-space-0);
+  background: transparent;
+  border: 1px solid var(--cc-overlay-border);
+  border-radius: var(--cc-radius-sm);
+  cursor: pointer;
+}
+.theme-color::-webkit-color-swatch-wrapper {
+  padding: var(--cc-space-0);
+}
+.theme-color::-webkit-color-swatch {
+  border: none;
+  border-radius: var(--cc-radius-sm);
+}
+.theme-color::-moz-color-swatch {
+  border: none;
+  border-radius: var(--cc-radius-sm);
+}

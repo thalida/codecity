@@ -1,0 +1,29 @@
+/* ── Center pane (WebGL canvas + hover tooltip) ────────────────────────────── */
+
+#center-pane {
+  flex: 1 1 0;
+  min-width: 0; /* allow the canvas to shrink below its intrinsic 0 size */
+  position: relative; /* canvas fills this box */
+  overflow: hidden;
+}
+
+canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  /* Match the body bg so any sub-frame transparency during resize blends
+     in instead of flashing. */
+  background: var(--cc-bg-app);
+}
+
+/* Hover tooltip — surface (bg + border + radius + padding + shadow) from
+   .card-tooltip; this adds positioning + text styling. */
+#hover-tooltip {
+  position: fixed;
+  color: var(--cc-text-primary);
+  font-size: var(--cc-font-md);
+  pointer-events: none;
+  z-index: 200;
+  font-family: var(--cc-font-mono);
+  white-space: nowrap;
+}

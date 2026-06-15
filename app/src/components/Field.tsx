@@ -8,15 +8,15 @@
 
 import { FieldKind, getFieldDef } from '@/state/settingsSchema';
 import { useField } from '@/hooks/useSettings';
-import { ThemeRow } from './ThemeRow';
+import { ThemeRow } from './ThemeRow/ThemeRow';
 import { TierWidthsField } from './TierWidthsField';
-import { HueMapField } from './HueMapField';
-import { ColorInput } from '@/components/ColorInput';
+import { HueMapField } from './HueMapField/HueMapField';
+import { ColorInput } from '@/components/ColorInput/ColorInput';
 import { NumberInput } from '@/components/NumberInput';
-import { Slider } from '@/components/Slider';
-import { Toggle } from '@/components/Toggle';
-import { SegmentedSelect } from '@/components/SegmentedSelect';
-import { RangePair } from '@/components/RangePair';
+import { Slider } from '@/components/Slider/Slider';
+import { Toggle } from '@/components/Toggle/Toggle';
+import { SegmentedSelect } from '@/components/SegmentedSelect/SegmentedSelect';
+import { RangePair } from '@/components/RangePair/RangePair';
 
 interface SignalLike {
   get value(): unknown;

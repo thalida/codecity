@@ -1,0 +1,18 @@
+/* Global style kit — foundation + Layer-2 component classes.
+   @import order is the cascade order: reset + tokens first, then the
+   component layer. main.tsx imports ONLY this file; component CSS travels
+   with its own .tsx. */
+@import './reset.css';
+@import './tokens.css';
+@import './text.css';
+@import './atoms.css';
+@import './panes.css';
+@import './rows.css';
+@import './cards.css';
+@import './surfaces.css';
+@import './forms.css';
+@import './buttons.css';
+@import './chevron.css';
+@import './resize-handles.css';
+@import './empty-state.css';
+@import './icons.css';

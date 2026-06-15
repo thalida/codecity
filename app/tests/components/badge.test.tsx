@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { render } from 'preact';
-import { ExtensionBadge } from '@/components/Badge';
+import { ExtensionBadge } from '@/components/Badge/Badge';
 
 const EMPTY_PALETTE: Record<string, number> = {};
 // Match the file-badge HSL formula in CSS (S=60%, L=35%).

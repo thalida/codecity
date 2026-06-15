@@ -2,7 +2,7 @@
 // Doubles as the app logo: clicking it resets the camera view (R). Renders
 // nothing when no reset handler is wired (pre-boot).
 
-import { GemIcon } from '@/components/GemIcon';
+import { GemIcon } from '@/components/GemIcon/GemIcon';
 import { KEY_BINDINGS } from '@/constants/keyboard';
 
 export interface ResetViewButtonProps {

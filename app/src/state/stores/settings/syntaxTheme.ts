@@ -40,10 +40,10 @@ export const SYNTAX_THEME_OPTIONS: SyntaxThemeOption[] = [
   { value: 'vs2015', label: 'VS 2015' },
 ];
 
-// Default matches the hand-rolled theme that was previously hardcoded in
-// styles.css. Changing to a CDN theme overrides those .hljs-* rules because
-// the <link> is injected into <head> after styles.css (higher specificity
-// wins when cascade order is equal and these are the same specificity).
+// Default matches the hand-rolled theme bundled in HljsThemeLink.css.
+// Changing to a CDN theme overrides those .hljs-* rules because the <link>
+// is injected into <head> after the bundled CSS (later in the cascade wins
+// at equal specificity, and these are the same specificity).
 export const SYNTAX_THEME_DEFAULT = 'atom-one-dark';
 export const SYNTAX_THEME = persistedSignal<string>('SYNTAX_THEME', SYNTAX_THEME_DEFAULT);
 

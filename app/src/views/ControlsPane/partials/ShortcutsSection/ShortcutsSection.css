@@ -1,0 +1,34 @@
+/* ── ShortcutsSection ── */
+
+/* Keyboard / mouse shortcuts table in the View section. Two-column grid:
+ *   [keys / mouse]   [action]
+ * Section breaks (null entries in the data) render as a thin divider
+ * spanning both columns. */
+.shortcuts-list {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: var(--cc-space-3) var(--cc-space-7); /* 6px rows, 16px cols (was 14) */
+  align-items: center;
+  margin: var(--cc-space-4) 0 0;
+  font-size: var(--cc-font-md);
+}
+.shortcuts-list dt {
+  color: var(--cc-text-secondary);
+  white-space: nowrap;
+}
+.shortcuts-list dd {
+  color: var(--cc-text-muted);
+  margin: var(--cc-space-0);
+  line-height: 1.3;
+}
+.shortcuts-list .shortcuts-or {
+  color: var(--cc-text-faint);
+  font-size: var(--cc-font-sm);
+  margin-left: var(--cc-space-1);
+}
+.shortcuts-divider {
+  grid-column: 1 / -1;
+  height: 1px;
+  background: var(--cc-track);
+  margin: var(--cc-space-2) 0;
+}

@@ -1,0 +1,25 @@
+/* The project switcher button is now .btn-chip (defined with the button
+   components near the top of the file). The label is allowed to grow
+   to the full project name — no ellipsis — so users always see what
+   they're switched to even for long owner/repo strings. */
+.btn-chip-label {
+  white-space: nowrap;
+}
+.btn-chip .lucide-icon {
+  font-size: var(--cc-font-xl);
+  flex: 0 0 auto;
+}
+
+.app-header-branch-pill {
+  display: inline-flex;
+  align-items: center;
+  height: 16px;
+  padding: 0 var(--cc-space-3);
+  margin-left: var(--cc-space-3);
+  border-radius: var(--cc-radius-md);
+  background: var(--cc-accent-bg-soft);
+  color: var(--cc-accent-light);
+  font-size: var(--cc-font-sm);
+  font-family: var(--cc-font-mono);
+  white-space: nowrap;
+}

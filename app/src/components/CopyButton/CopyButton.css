@@ -1,0 +1,6 @@
+/* Copy-feedback state — green pulse after click. Applied via JS by the
+   copy-button click handler (appHeader.ts). */
+.btn-icon.is-copied {
+  color: var(--cc-success);
+  background: var(--cc-success-bg);
+}

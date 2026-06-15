@@ -1,0 +1,57 @@
+/* ── ResetButton ── */
+
+/* Tiny accent reset buttons (controls section + subgroup + theme row).
+   Two near-identical rules from the audit consolidated into a shared
+   ruleset; no new component class. */
+.controls-section-reset,
+.controls-subgroup-reset,
+.theme-row-reset {
+  flex: 0 0 auto;
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: 1px solid transparent;
+  padding: var(--cc-space-1) var(--cc-space-2); /* 2px 4px */
+  border-radius: var(--cc-radius-sm);
+  color: var(--cc-accent);
+  font-size: var(--cc-font-xl); /* 14px */
+  line-height: 1;
+  cursor: pointer;
+}
+.controls-section-reset:not(:disabled):hover,
+.controls-subgroup-reset:not(:disabled):hover,
+.theme-row-reset:not(:disabled):hover {
+  color: var(--cc-white);
+  background: var(--cc-accent-bg);
+  border-color: var(--cc-accent-border);
+}
+.controls-section-reset:not(:disabled):active,
+.controls-subgroup-reset:not(:disabled):active,
+.theme-row-reset:not(:disabled):active {
+  background: var(--cc-accent-bg-strong);
+}
+.controls-section-reset:disabled,
+.controls-subgroup-reset:disabled,
+.theme-row-reset:disabled {
+  color: var(--cc-accent-bg);
+  cursor: default;
+}
+/* Section and subgroup resets live INSIDE their <summary> (a flex row with
+ * align-items:center) so they stay visible when the section is collapsed — a
+ * closed <details> hides its non-summary children. margin-left:auto pins them
+ * to the far right; the row's flexbox centers them vertically (no magic top
+ * offsets, and immune to inter-section padding). */
+.controls-section-reset,
+.controls-subgroup-reset {
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+/* Per-row reset icon. ACTIONABLE — clearly shown in brand-blue when the
+ * row's value differs from its default, fades in on hover. */
+/* .theme-row-reset typography in .btn-reset-inline. */
+.theme-row-reset {
+  margin: var(--cc-space-0);
+}

@@ -1,0 +1,19 @@
+/* ── Node (file/folder) icon ───────────────────────────────────────────────── */
+
+/* Material Icon Theme file/folder icons rendered as <img> via the
+ * fileIcon.ts helper. Full-color SVGs (the color carries the info)
+ * so no currentColor mask trick — just an inline-block raster.
+ * margin-right adds breathing room before the label without widening
+ * the tight chevron→icon gap that the row's flex `gap` provides. */
+.file-icon {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  display: inline-block;
+  vertical-align: middle;
+  margin-right: var(--cc-space-2);
+  /* Hide the broken-image glyph for the brief window between src set
+   * and the CDN fetch landing (or while the onerror fallback flips). */
+  font-size: 0;
+  color: transparent;
+}

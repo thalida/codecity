@@ -15,8 +15,8 @@
 
 import type { Signal } from '@preact/signals';
 import type { ComponentChildren } from 'preact';
-import { Section } from '@/components/Section';
-import { Subgroup } from '@/components/Subgroup';
+import { Section } from '@/components/Section/Section';
+import { Subgroup } from '@/components/Subgroup/Subgroup';
 import { Field } from '@/components/Field';
 
 // ── Node types ───────────────────────────────────────────────────────────────

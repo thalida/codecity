@@ -7,7 +7,7 @@ import { useEffective, useDefault } from '@/hooks/useSettings';
 import { setDraft } from '@/state/settingsDrafts';
 import type { StreetTier } from '@/state/stores/settings/streets';
 import { RotateCcw } from 'lucide-preact';
-import { Slider } from '@/components/Slider';
+import { Slider } from '@/components/Slider/Slider';
 import type { FieldProps } from './Field';
 
 export function TierWidthsField({ store, fieldKey }: FieldProps) {

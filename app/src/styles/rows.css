@@ -1,0 +1,49 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   LAYER-2 COMPONENTS — Rows
+   ═══════════════════════════════════════════════════════════════════════════
+   .row — clickable flex row with subtle hover. Used for tree rows and the
+   two collapsible-section summary rows. Padding aligns to the pane's 16px
+   horizontal padding so depth-0 entries line up under pane titles.
+
+   Variants:
+     .row--tight     — collapses the chevron/icon/label gap (tree rows).
+     .row--bleed     — negative inline margins so the hover background
+                       extends to the pane edge.
+     .row--selected  — accent-tinted "selected" background (used by tree).
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: var(--cc-space-2); /* 4px default; --tight overrides to 2px */
+  padding: var(--cc-space-2) var(--cc-space-7); /* 4px 16px */
+  border-radius: var(--cc-radius-sm);
+  cursor: pointer;
+  user-select: none;
+  transition: background var(--cc-t-fast);
+}
+.row:hover {
+  background: var(--cc-overlay-bg-soft);
+}
+
+/* Tight variant — chevron/icon/label gap collapses from 4px to 2px so
+   the chevron + folder icon read as a single unit. Used by tree rows. */
+.row--tight {
+  gap: var(--cc-space-1); /* 2px */
+}
+
+/* Bleed variant — extends hover background to the pane edge. Used by
+   collapsible summaries inside the controls-pane. */
+.row--bleed {
+  margin-left: calc(-1 * var(--cc-space-7));
+  margin-right: calc(-1 * var(--cc-space-7));
+  margin-bottom: var(--cc-space-2);
+}
+
+/* Selected variant — tree row in selected state. */
+.row--selected {
+  background: var(--cc-accent-bg);
+}
+.row--selected:hover {
+  background: var(--cc-accent-bg); /* keep selected state on hover */
+}

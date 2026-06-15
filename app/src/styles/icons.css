@@ -1,0 +1,14 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   LAYER-2 COMPONENTS — Lucide icon
+   ═══════════════════════════════════════════════════════════════════════════
+   Lucide icons render as inline SVG (lucide-preact) with stroke=currentColor,
+   so they inherit the parent's text color — no mask needed. The smaller inline
+   default sizing for tree rows + buttons.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.lucide-icon {
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  vertical-align: -0.15em;
+}

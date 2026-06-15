@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { render } from 'preact';
-import { LeftSidebar } from '@/layout/LeftSidebar';
+import { LeftSidebar } from '@/layout/LeftSidebar/LeftSidebar';
 import { SCENE_HANDLE } from '@/state/stores/scene';
 import { setManifest } from '@/state/stores/manifest';
 import { EMPTY_MANIFEST } from '@/constants/manifest';
