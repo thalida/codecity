@@ -32,7 +32,7 @@ import { fileUrl, fetchFileText } from '@/api/file';
 import { FileWarning, FileX, Info, MousePointerClick } from 'lucide-preact';
 import { Pane, PaneEmpty } from '@/components/Pane';
 import { KEY_BINDINGS } from '@/constants/keyboard';
-import { ExtensionBadge } from '@/components/Badge';
+import { ExtensionBadge } from '@/components/Badge/Badge';
 import { formatBytes } from '@/utils/bytes';
 import { languageFor } from '@/utils/syntaxLanguages';
 

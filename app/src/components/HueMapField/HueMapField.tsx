@@ -7,8 +7,8 @@ import './HueMapField.css';
 import { useEffective, useDefault } from '@/hooks/useSettings';
 import { setDraft } from '@/state/settingsDrafts';
 import { RotateCcw } from 'lucide-preact';
-import { Slider } from '@/components/Slider';
-import type { FieldProps } from './Field';
+import { Slider } from '@/components/Slider/Slider';
+import type { FieldProps } from '../Field';
 
 export function HueMapField({ store, fieldKey }: FieldProps) {
   const map = useEffective<Record<string, number>>(store, fieldKey) ?? {};

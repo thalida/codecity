@@ -2,7 +2,7 @@
 // a focus button + "Commit <short-sha> · <author> (+N)" + copy-SHA button.
 
 import { Focus } from 'lucide-preact';
-import { CopyButton } from '@/components/CopyButton';
+import { CopyButton } from '@/components/CopyButton/CopyButton';
 import { KEY_BINDINGS } from '@/constants/keyboard';
 
 export interface CommitChipProps {

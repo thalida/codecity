@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { render } from 'preact';
-import { LoadingOverlay } from '@/components/LoadingOverlay';
+import { LoadingOverlay } from '@/components/LoadingOverlay/LoadingOverlay';
 import {
   LOADING_OVERLAY,
   showLoadingOverlay,

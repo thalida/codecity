@@ -31,13 +31,13 @@ import {
   focusCommit,
 } from '@/state/stores/scene';
 import { MANIFEST } from '@/state/stores/manifest';
-import { FilePreviewPane } from '@/views/FilePreviewPane';
-import type { FilePreviewPaneState } from '@/views/FilePreviewPane';
-import { CommitPane } from '@/views/CommitPane';
-import type { CommitPaneState } from '@/views/CommitPane';
-import { StreetPane } from '@/views/StreetPane';
-import type { StreetPaneState } from '@/views/StreetPane';
-import { Sidebar, SidebarSide } from '@/components/Sidebar';
+import { FilePreviewPane } from '@/views/FilePreviewPane/FilePreviewPane';
+import type { FilePreviewPaneState } from '@/views/FilePreviewPane/FilePreviewPane';
+import { CommitPane } from '@/views/CommitPane/CommitPane';
+import type { CommitPaneState } from '@/views/CommitPane/CommitPane';
+import { StreetPane } from '@/views/StreetPane/StreetPane';
+import type { StreetPaneState } from '@/views/StreetPane/StreetPane';
+import { Sidebar, SidebarSide } from '@/components/Sidebar/Sidebar';
 
 // Persisted drag-handle width via persistedSignal (the store abstraction) —
 // null until the user first drags (null ⇒ fall back to the CSS default width).

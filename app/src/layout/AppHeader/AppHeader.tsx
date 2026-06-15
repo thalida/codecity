@@ -16,10 +16,10 @@ import { SOURCE_INFO } from '@/state/stores/source';
 import { openSourcePicker } from '@/state/stores/ui';
 import { NodeKind, type Manifest } from '@/types';
 import { ResetViewButton } from '@/components/ResetViewButton';
-import { ProjectSwitcher } from '@/components/ProjectSwitcher';
+import { ProjectSwitcher } from '@/components/ProjectSwitcher/ProjectSwitcher';
 import { RepoLink } from '@/components/RepoLink';
 import { CommitChip } from '@/components/CommitChip';
-import { PathBreadcrumbs } from '@/components/PathBreadcrumbs';
+import { PathBreadcrumbs } from '@/components/PathBreadcrumbs/PathBreadcrumbs';
 
 export interface AppHeaderProps {
   /** Fires when the user clicks a breadcrumb segment. */

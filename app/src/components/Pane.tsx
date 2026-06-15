@@ -11,7 +11,7 @@
 
 import type { ComponentChildren, Ref } from 'preact';
 import type { LucideIcon } from 'lucide-preact';
-import { PaneHeader } from './PaneHeader';
+import { PaneHeader } from './PaneHeader/PaneHeader';
 
 export interface PaneProps {
   /** Extra class on the outer `.pane` (e.g. 'commit-pane', 'tree-pane'). */

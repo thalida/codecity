@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { render } from 'preact';
 import { act } from 'preact/test-utils';
-import { ControlsPane } from '@/views/ControlsPane';
+import { ControlsPane } from '@/views/ControlsPane/ControlsPane';
 // Load every settings store for its registration side-effect (settingSignal
 // registers each store at module-load), so the completeness checks below see
 // every field. (Replaces the old settings-barrel side-effect import.)

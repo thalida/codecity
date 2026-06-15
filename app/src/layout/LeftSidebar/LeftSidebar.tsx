@@ -33,11 +33,11 @@ import {
 } from '@/state/stores/scene';
 import { MANIFEST } from '@/state/stores/manifest';
 import { isEmptyManifest } from '@/utils/manifest';
-import { TreePane } from '@/views/TreePane';
-import { InfoPane } from '@/views/InfoPane';
-import { SearchPane } from '@/views/SearchPane';
-import { ControlsPane } from '@/views/ControlsPane';
-import { Sidebar, SidebarSide } from '@/components/Sidebar';
+import { TreePane } from '@/views/TreePane/TreePane';
+import { InfoPane } from '@/views/InfoPane/InfoPane';
+import { SearchPane } from '@/views/SearchPane/SearchPane';
+import { ControlsPane } from '@/views/ControlsPane/ControlsPane';
+import { Sidebar, SidebarSide } from '@/components/Sidebar/Sidebar';
 
 // Persisted left-sidebar UI state. Both go through persistedSignal (the store
 // abstraction) so persistence/hydration is handled for us — no hand-rolled

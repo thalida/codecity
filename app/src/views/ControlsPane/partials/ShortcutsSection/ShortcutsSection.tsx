@@ -4,8 +4,8 @@
 // affordances.
 
 import './ShortcutsSection.css';
-import { Section } from '@/components/Section';
-import { Subgroup } from '@/components/Subgroup';
+import { Section } from '@/components/Section/Section';
+import { Subgroup } from '@/components/Subgroup/Subgroup';
 import { KEY_BINDINGS } from '@/constants/keyboard';
 
 interface ShortcutItem {

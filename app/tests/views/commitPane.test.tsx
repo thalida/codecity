@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { render } from 'preact';
 import { signal } from '@preact/signals';
-import { CommitPane } from '@/views/CommitPane';
-import type { CommitPaneState } from '@/views/CommitPane';
+import { CommitPane } from '@/views/CommitPane/CommitPane';
+import type { CommitPaneState } from '@/views/CommitPane/CommitPane';
 import type { CommitEntry } from '@/types';
 // Settling a CommitPane render involves two interleaved schedulers: the
 // commit-body fetch chain (fetchCommitDetail awaits fetch() then resp.json(),

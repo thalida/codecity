@@ -8,7 +8,7 @@
 
 import './ThemeRow.css';
 import type { ComponentChildren } from 'preact';
-import { ResetButton } from './ResetButton';
+import { ResetButton } from '../ResetButton/ResetButton';
 
 interface SignalLike {
   get value(): any;

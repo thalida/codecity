@@ -13,7 +13,7 @@ import type { DirNode, ExtBreakdownEntry } from '@/types';
 import { Pane, PaneEmpty } from '@/components/Pane';
 import { KEY_BINDINGS } from '@/constants/keyboard';
 import { Route } from 'lucide-preact';
-import { ExtensionBadge } from '@/components/Badge';
+import { ExtensionBadge } from '@/components/Badge/Badge';
 import { formatBytes } from '@/utils/bytes';
 import { STREETS } from '@/state/stores/settings/streets';
 import { BUILDINGS } from '@/state/stores/settings/buildings';

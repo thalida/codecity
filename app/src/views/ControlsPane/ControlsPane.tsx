@@ -21,7 +21,7 @@
 
 import './ControlsPane.css';
 import { useEffect, useRef } from 'preact/hooks';
-import { ShortcutsSection } from './partials/ShortcutsSection';
+import { ShortcutsSection } from './partials/ShortcutsSection/ShortcutsSection';
 
 import { FilePreviewSection } from './partials/FilePreviewSection';
 import { DebugSection } from './partials/DebugSection';
@@ -36,7 +36,7 @@ import { GEM_SECTION } from './partials/Gem';
 import { STREETS_SECTION } from './partials/Streets';
 import { FOOTPRINT_SECTION } from './partials/Footprint';
 import { BUILDINGS_SECTION } from './partials/Buildings';
-import { ActionsBar } from './ActionsBar';
+import { ActionsBar } from './ActionsBar/ActionsBar';
 import { Pane } from '@/components/Pane';
 
 export interface ControlsPaneProps {

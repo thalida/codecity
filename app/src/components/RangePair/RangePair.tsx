@@ -4,7 +4,7 @@
 // drags one past the other, the laggard snaps so lo ≤ hi is maintained.
 
 import './RangePair.css';
-import { formatNumberForStep } from './Slider';
+import { formatNumberForStep } from '../Slider/Slider';
 
 export interface RangePairProps {
   lo: number;

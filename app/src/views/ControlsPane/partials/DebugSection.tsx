@@ -2,7 +2,7 @@
 // Output goes to the browser console. Each button is rendered only
 // when its callback is provided; either or both may be present.
 
-import { Section } from '@/components/Section';
+import { Section } from '@/components/Section/Section';
 
 export interface DebugSectionProps {
   onRunCollisionCheck?: () => void;
