@@ -4,6 +4,7 @@
 // follows the SYNTAX_THEME signal automatically — no module-load effect,
 // no manual <link> element management.
 
+import './HljsThemeLink.css';
 import { createPortal } from 'preact/compat';
 import { SYNTAX_THEME } from '@/state/stores/settings/syntaxTheme';
 

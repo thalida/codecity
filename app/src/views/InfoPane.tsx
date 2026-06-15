@@ -4,6 +4,7 @@
 // manifest is re-applied (which happens on live-update polling), so an
 // edit to the README on disk shows up here without a page reload.
 
+import './InfoPane.css';
 import { useState, useEffect } from 'preact/hooks';
 import { effect } from '@preact/signals';
 import type { Signal } from '@preact/signals';

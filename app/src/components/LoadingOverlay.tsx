@@ -14,6 +14,7 @@
 // skeleton, building) or the client-side decoration pass — no wall-clock timers.
 // The step vocabulary lives in constants/loadingSteps.
 
+import './LoadingOverlay.css';
 import { LOADING_OVERLAY } from '@/state/stores/ui';
 import { PENDING_SOURCE_LABEL } from '@/state/stores/source';
 import { SourceKind } from '@/utils/sources';

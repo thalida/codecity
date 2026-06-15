@@ -1,0 +1,60 @@
+/* ── Hljs theme link ── */
+
+/* ── highlight.js token theme (dark, codecity-tinted) ─────────────────── */
+.hljs {
+  color: var(--cc-text-secondary);
+  background: transparent;
+}
+.hljs-keyword,
+.hljs-selector-tag,
+.hljs-literal,
+.hljs-section,
+.hljs-link {
+  color: var(--cc-syntax-keyword);
+} /* purple */
+.hljs-string,
+.hljs-attr,
+.hljs-symbol,
+.hljs-bullet,
+.hljs-meta-string {
+  color: var(--cc-syntax-string);
+} /* green */
+.hljs-number,
+.hljs-quote,
+.hljs-template-tag,
+.hljs-type {
+  color: var(--cc-warning);
+} /* amber */
+.hljs-title,
+.hljs-name,
+.hljs-selector-id,
+.hljs-selector-class {
+  color: var(--cc-accent);
+} /* brand blue */
+.hljs-built_in,
+.hljs-builtin-name {
+  color: var(--cc-syntax-builtin);
+} /* sky */
+.hljs-variable,
+.hljs-template-variable {
+  color: var(--cc-syntax-variable);
+} /* rose */
+.hljs-comment,
+.hljs-meta {
+  color: var(--cc-syntax-comment);
+  font-style: italic;
+}
+.hljs-deletion {
+  color: var(--cc-syntax-deletion);
+  background: var(--cc-syntax-deletion-bg);
+}
+.hljs-addition {
+  color: var(--cc-syntax-string);
+  background: var(--cc-syntax-string-bg);
+}
+.hljs-emphasis {
+  font-style: italic;
+}
+.hljs-strong {
+  font-weight: var(--cc-fw-semibold);
+}

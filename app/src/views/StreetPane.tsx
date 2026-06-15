@@ -7,6 +7,7 @@
 // setDirectory) so the coordinator can swap panes in the right sidebar
 // without churn.
 
+import './StreetPane.css';
 import type { ReadonlySignal } from '@preact/signals';
 import type { DirNode, ExtBreakdownEntry } from '@/types';
 import { Pane, PaneEmpty } from '@/components/Pane';

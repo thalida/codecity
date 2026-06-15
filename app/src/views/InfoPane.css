@@ -1,0 +1,171 @@
+/* ── Info pane ── */
+
+.info-markdown code {
+  display: inline-block;
+  background: var(--cc-accent-bg-soft);
+  border-radius: var(--cc-radius-sm);
+  font-family: var(--cc-font-mono);
+  padding: var(--cc-space-px) var(--cc-space-3);
+}
+
+/* ── Info pane (Info tab in left sidebar) ───────────────────────────────
+   Renders the project root README's markdown. Layout matches the other
+   panes: header on top, scrollable body underneath. The body's empty /
+   error states use the .empty-state + .empty-state--lg helper. */
+
+/* Layout in .pane-body; this rule keeps the empty-state child fill. */
+.info-body > .empty-state {
+  flex: 1 1 auto;
+}
+
+.info-markdown {
+  padding: var(--cc-space-7) var(--cc-space-7) var(--cc-space-8);
+  color: var(--cc-text-secondary);
+  font-size: var(--cc-font-lg);
+  line-height: 1.6;
+  word-wrap: break-word;
+}
+
+.info-markdown h1,
+.info-markdown h2,
+.info-markdown h3,
+.info-markdown h4,
+.info-markdown h5,
+.info-markdown h6 {
+  color: var(--cc-text-primary);
+  font-weight: var(--cc-fw-bold);
+  margin: var(--cc-space-7) 0 var(--cc-space-4);
+  line-height: 1.3;
+}
+.info-markdown h1:first-child,
+.info-markdown h2:first-child,
+.info-markdown h3:first-child {
+  margin-top: var(--cc-space-0);
+}
+.info-markdown h1 {
+  font-size: var(--cc-font-3xl);
+  padding-bottom: var(--cc-space-3);
+  border-bottom: 1px solid var(--cc-border-subtle);
+}
+.info-markdown h2 {
+  font-size: var(--cc-font-2xl);
+  padding-bottom: var(--cc-space-2);
+  border-bottom: 1px solid var(--cc-track);
+}
+.info-markdown h3 {
+  font-size: var(--cc-font-xl);
+}
+.info-markdown h4 {
+  font-size: var(--cc-font-lg);
+  color: var(--cc-text-secondary);
+}
+.info-markdown h5,
+.info-markdown h6 {
+  font-size: var(--cc-font-lg);
+  color: var(--cc-text-muted);
+  text-transform: uppercase;
+  letter-spacing: var(--cc-track-label);
+}
+
+.info-markdown p {
+  margin: var(--cc-space-4) 0;
+}
+
+.info-markdown a {
+  color: var(--cc-accent);
+  text-decoration: none;
+}
+.info-markdown a:hover {
+  text-decoration: underline;
+}
+
+.info-markdown strong {
+  color: var(--cc-text-primary);
+  font-weight: var(--cc-fw-bold);
+}
+.info-markdown em {
+  color: var(--cc-text-primary);
+  font-style: italic;
+}
+
+.info-markdown ul,
+.info-markdown ol {
+  margin: var(--cc-space-4) 0;
+  padding-left: var(--cc-space-8);
+}
+.info-markdown li {
+  margin: var(--cc-space-2) 0;
+}
+.info-markdown li > p {
+  margin: var(--cc-space-0);
+}
+
+.info-markdown blockquote {
+  margin: var(--cc-space-5) 0;
+  padding: var(--cc-space-2) var(--cc-space-6);
+  border-left: 3px solid var(--cc-border-tooltip);
+  color: var(--cc-text-muted);
+  background: var(--cc-accent-bg-soft);
+}
+.info-markdown blockquote > p {
+  margin: var(--cc-space-2) 0;
+}
+
+.info-markdown hr {
+  border: none;
+  border-top: 1px solid var(--cc-border-subtle);
+  margin: var(--cc-space-7) 0;
+}
+
+/* Shell from .code-inline; this rule adds the info-markdown specific
+   larger font and primary text color. */
+.info-markdown code {
+  border: 1px solid var(--cc-accent-bg);
+  color: var(--cc-text-primary);
+  font-size: var(--cc-font-lg);
+}
+
+.info-markdown pre {
+  background: var(--cc-bg-chrome);
+  border: 1px solid var(--cc-track);
+  border-radius: var(--cc-radius-md);
+  padding: var(--cc-space-5) var(--cc-space-6);
+  margin: var(--cc-space-5) 0;
+  overflow-x: auto;
+  font-family: var(--cc-font-mono);
+  font-size: var(--cc-font-lg);
+  line-height: 1.5;
+}
+.info-markdown pre code {
+  background: transparent;
+  border: none;
+  padding: var(--cc-space-0);
+  color: var(--cc-text-secondary);
+  font-size: inherit;
+}
+
+.info-markdown img {
+  max-width: 100%;
+  border-radius: var(--cc-radius-sm);
+}
+
+.info-markdown table {
+  border-collapse: collapse;
+  margin: var(--cc-space-5) 0;
+  font-size: var(--cc-font-lg);
+}
+.info-markdown th,
+.info-markdown td {
+  border: 1px solid var(--cc-border-subtle);
+  padding: var(--cc-space-2) var(--cc-space-5);
+  text-align: left;
+}
+.info-markdown th {
+  background: var(--cc-bg-chrome);
+  color: var(--cc-text-primary);
+}
+
+.info-markdown input[type='checkbox'] {
+  margin: 0 var(--cc-space-3) 0 0;
+  accent-color: var(--cc-accent);
+}

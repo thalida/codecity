@@ -4,6 +4,7 @@
 //
 // Preact component: SourcePicker (signal-driven).
 
+import './SourcePicker.css';
 import { useEffect, useRef, useState } from 'preact/hooks';
 import type { Signal } from '@preact/signals';
 import { listRecents, removeRecent } from '@/state/stores/source';

@@ -1,0 +1,193 @@
+/* ── File preview pane ── */
+
+/* Middle-truncation ellipsis placeholder — shared by the header breadcrumb
+ * and the file-preview pane path. Shown when middle segments are hidden to
+ * prevent the row from overflowing. Hovering reveals a tooltip listing the
+ * hidden segment names. */
+.file-path-ellipsis {
+  flex: 0 0 auto;
+  color: var(--cc-text-faint);
+  padding: 0 var(--cc-space-1);
+  cursor: help;
+  user-select: none;
+}
+
+/* File-preview pane path segments rendered inside .text-pane-title. */
+.file-path-segment {
+  flex: 0 0 auto;
+  color: var(--cc-text-muted);
+  white-space: nowrap;
+}
+.file-path-segment.is-leaf {
+  color: var(--cc-text-secondary);
+}
+.file-path-sep {
+  flex: 0 0 auto;
+  color: var(--cc-text-ghost);
+  font-size: var(--cc-font-lg);
+  pointer-events: none;
+  padding: 0 var(--cc-space-px);
+}
+
+/* ── File preview pane (right sidebar) ──────────────────────────────────
+   Outer container that wraps the pane header (filename + × close) and the
+   editor body. The wrapper itself fills the sidebar's vertical space; the
+   body grows inside it under the fixed-height header. */
+
+/* Layout in .pane. */
+
+/* ── Editor body — fills the panel under the tab bar + breadcrumb ─────── */
+
+/* Layout in .pane; the app-bg fill comes from .surface-app on the body. */
+.editor-body > * {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+/* Empty/error/too-large states all use the .empty-state + .empty-state--lg
+   helper (centered icon + headline + subtitle) in the search-pane section. */
+
+/* ── File preview elements (children of .editor-body) ───────────────────
+   Each preview kind drops directly into the editor body and grabs the
+   full available height via .editor-body > * { flex: 1 1 auto }. */
+
+.preview-image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background:
+    linear-gradient(45deg, var(--cc-bg-chrome) 25%, transparent 25%),
+    linear-gradient(-45deg, var(--cc-bg-chrome) 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, var(--cc-bg-chrome) 75%),
+    linear-gradient(-45deg, transparent 75%, var(--cc-bg-chrome) 75%);
+  background-size: 16px 16px;
+  background-position:
+    0 0,
+    0 8px,
+    8px -8px,
+    -8px 0;
+}
+
+.preview-media {
+  display: block;
+  width: 100%;
+  height: 100%;
+  outline: none;
+  background: oklch(0 0 0);
+}
+
+.preview-pdf {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: none;
+}
+
+/* Wrapper that holds either the code editor (on success) or a centered
+   state message (loading / too-large / fetch-failed). Exists so we can
+   swap between those two without leaving an empty gutter behind. */
+/* Layout in .pane; this rule only sizes the placeholder used while a
+   file-preview fetch is in flight. */
+.preview-shell:empty::before {
+  content: '';
+  flex: 1 1 auto;
+}
+
+/* Centered state messages (load errors, file-too-large notices, etc.)
+   use .empty-state + .empty-state--lg; see the empty-state rules in the
+   search-pane section above. */
+
+/* ── Code editor (text preview) ─────────────────────────────────────────
+   Two-column flex: a sticky line-number gutter on the left and a
+   horizontally-scrollable <pre><code> on the right. Both share the
+   line-height so gutter numbers line up exactly with their source lines.
+   Theme is hand-rolled to match the city's dark UI; tokens are styled
+   via .hljs-* selectors below.
+
+   For big files (>1 MB) the editor renders in plain-text mode (no
+   highlight.js); above 5 MB the line-number gutter is dropped too —
+   the per-line <span> DOM cost is what hangs the browser on multi-MB
+   files. A small banner at the top explains the degraded mode. */
+
+.code-editor-shell {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+}
+
+/* Surface (bg + bottom rule + padding) from .card-banner; this adds the row
+   layout + text styling. */
+.code-editor-banner {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: var(--cc-space-4);
+  color: var(--cc-accent-light);
+  font-family: var(--cc-font-sans);
+  font-size: var(--cc-font-md);
+  line-height: 1.4;
+}
+.code-editor-banner .lucide-icon {
+  flex: 0 0 auto;
+  font-size: var(--cc-font-xl);
+  opacity: 0.85;
+}
+
+.code-editor {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  align-items: stretch;
+  width: 100%;
+  overflow: auto;
+  font-family: var(--cc-font-mono);
+  font-size: var(--cc-font-lg);
+  line-height: 1.55;
+  tab-size: 4;
+}
+
+.code-editor-gutter {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  padding: var(--cc-space-5) var(--cc-space-4) var(--cc-space-5) var(--cc-space-5);
+  background: var(--cc-bg-chrome);
+  border-right: 1px solid var(--cc-track);
+  color: var(
+    --cc-text-faint
+  ); /* was var(--cc-text-ghost) (2.15:1 → now 3.41:1, WCAG AA for UI text) */
+  text-align: right;
+  user-select: none;
+  /* The gutter's width is content-driven (3 digits + padding) and stays
+     pinned at the left of the visible area while the code scrolls
+     horizontally underneath. */
+  position: sticky;
+  left: 0;
+  z-index: 1;
+}
+
+.code-editor-ln {
+  display: block;
+  font-variant-numeric: tabular-nums;
+  min-width: 1.5em;
+}
+
+.code-editor-pre {
+  margin: var(--cc-space-0);
+  padding: var(--cc-space-5) var(--cc-space-6);
+  flex: 1 1 auto;
+  white-space: pre;
+  background: transparent;
+  color: var(--cc-text-secondary);
+}
+
+.code-editor-code {
+  font-family: inherit;
+  white-space: inherit;
+  background: transparent !important;
+  padding: 0 !important;
+}

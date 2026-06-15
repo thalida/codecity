@@ -1,0 +1,68 @@
+/* ── Search pane ── */
+
+/* ── Search pane (Search tab in left sidebar) ───────────────────────────
+   Header (shared .pane-header) + input row + scrollable result list.
+   Matched query characters in each result are wrapped in <mark>. */
+
+.search-input-wrap {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--cc-space-3);
+  padding: var(--cc-space-5) var(--cc-space-6);
+  border-bottom: 1px solid var(--cc-border-subtle);
+}
+
+.search-input-icon {
+  flex: 0 0 auto;
+  font-size: var(--cc-font-xl);
+  color: var(--cc-text-faint);
+}
+
+/* Visual style in .form-input; this rule adds the flex-fill layout. */
+.search-input {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+/* Drop the native ⓧ clear button in WebKit — we use Esc / focus loss. */
+.search-input::-webkit-search-cancel-button {
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.search-results {
+  list-style: none;
+  margin: var(--cc-space-0);
+  padding: var(--cc-space-2) 0;
+}
+.search-result {
+  display: block;
+  padding: var(--cc-space-2) var(--cc-space-6);
+  cursor: pointer;
+  border-left: 2px solid transparent;
+  font-family: var(--cc-font-mono);
+  font-size: var(--cc-font-md);
+  color: var(--cc-text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  outline: none;
+}
+.search-result:hover {
+  background: var(--cc-overlay-bg-soft);
+  color: var(--cc-text-primary);
+}
+.search-result:focus-visible {
+  background: var(--cc-accent-bg);
+  border-left-color: var(--cc-accent);
+  color: var(--cc-text-primary);
+}
+.search-result mark {
+  background: transparent;
+  color: var(--cc-accent);
+  font-weight: var(--cc-fw-bold);
+}
+.search-result:hover mark,
+.search-result:focus-visible mark {
+  color: var(--cc-accent-light);
+}

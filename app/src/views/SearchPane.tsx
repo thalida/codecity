@@ -15,6 +15,7 @@
 // length x tokens) per file, fine for tens of thousands of paths on
 // every keystroke.
 
+import './SearchPane.css';
 import type { VNode } from 'preact';
 import { useMemo, useState } from 'preact/hooks';
 import type { Signal } from '@preact/signals';

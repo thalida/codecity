@@ -8,6 +8,7 @@
 // nothing about the sidebar shell (resize, open/close, persisted width) —
 // that's layout/RightSidebar.tsx.
 
+import './FilePreviewPane.css';
 import type { ReadonlySignal } from '@preact/signals';
 import { useState, useEffect } from 'preact/hooks';
 import hljs from 'highlight.js/lib/common';
