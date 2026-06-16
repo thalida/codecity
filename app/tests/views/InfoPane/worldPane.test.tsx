@@ -60,4 +60,40 @@ describe('WorldPane', () => {
     expect(selectPath).toHaveBeenCalledWith('a.ts');
     expect(focusPath).toHaveBeenCalledWith('a.ts');
   });
+
+  it('clicking a commit landmark selects + focuses the commit', async () => {
+    const withCommits: Manifest = {
+      ...manifest,
+      commits: [
+        { date: '2022-01-01', files: 9, sha: 'abc1234', authors: ['Ada'], subject: 'x', same_day_total: 1 },
+      ],
+    };
+    const sig = signal(withCommits);
+    render(<WorldPane manifest={sig as never} />, container);
+    await flush();
+    const btn = Array.from(container.querySelectorAll('button')).find(
+      (b) => b.textContent?.includes('Grandest canopy'),
+    ) as HTMLButtonElement;
+    expect(btn).toBeTruthy();
+    btn.click();
+    expect(selectCommit).toHaveBeenCalledWith('abc1234');
+    expect(focusCommit).toHaveBeenCalledWith('abc1234');
+  });
+
+  it('renders non-landmark facts as non-button rows', async () => {
+    const withCommits: Manifest = {
+      ...manifest,
+      commits: [
+        { date: '2022-01-01', files: 9, sha: 'abc1234', authors: ['Ada'], subject: 'x', same_day_total: 1 },
+      ],
+    };
+    const sig = signal(withCommits);
+    render(<WorldPane manifest={sig as never} />, container);
+    await flush();
+    const row = Array.from(container.querySelectorAll('.almanac-fact')).find(
+      (el) => el.textContent?.includes('Busiest day'),
+    ) as HTMLElement;
+    expect(row).toBeTruthy();
+    expect(row.tagName).toBe('DIV');
+  });
 });

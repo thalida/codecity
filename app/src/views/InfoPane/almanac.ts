@@ -66,7 +66,7 @@ function distinctAuthors(commits: Manifest['commits']): number {
   return set.size;
 }
 
-function fmtCount(n: number): string {
+export function fmtCount(n: number): string {
   return n.toLocaleString('en-US');
 }
 

@@ -9,7 +9,7 @@ import { FolderOpen } from 'lucide-preact';
 import type { DirNode, Manifest } from '@/types';
 import { PaneEmpty } from '@/components/Pane';
 import { selectPath, focusPath, selectCommit, focusCommit } from '@/state/stores/scene';
-import { computeAlmanac } from './almanac';
+import { computeAlmanac, fmtCount } from './almanac';
 import type { AlmanacFact, LandmarkRef } from './almanac';
 
 function visit(landmark: LandmarkRef): void {
@@ -59,10 +59,10 @@ export function WorldPane({ manifest }: WorldPaneProps) {
         <h2 class="almanac-name">{overview.name}</h2>
         <p class="almanac-blurb">
           {overview.founded ? `Founded ${overview.founded}, ` : ''}
-          this city of {overview.totals.files.toLocaleString('en-US')} buildings sprawls across{' '}
-          {overview.totals.dirs.toLocaleString('en-US')} districts
+          this city of {fmtCount(overview.totals.files)} buildings sprawls across{' '}
+          {fmtCount(overview.totals.dirs)} districts
           {overview.totals.authors > 0
-            ? `, tended by ${overview.totals.authors.toLocaleString('en-US')} fireflies`
+            ? `, tended by ${fmtCount(overview.totals.authors)} fireflies`
             : ''}
           .
         </p>
@@ -80,7 +80,7 @@ export function WorldPane({ manifest }: WorldPaneProps) {
         {overview.languages.length > 0 && (
           <ul class="almanac-languages">
             {overview.languages.map((l) => (
-              <li key={l.ext}><span class="almanac-lang-ext">{l.ext}</span> {l.count.toLocaleString('en-US')}</li>
+              <li key={l.ext}><span class="almanac-lang-ext">{l.ext}</span> {fmtCount(l.count)}</li>
             ))}
           </ul>
         )}
@@ -88,7 +88,7 @@ export function WorldPane({ manifest }: WorldPaneProps) {
       {sections.map((s) => (
         <section key={s.key} class="almanac-section">
           <h3 class="almanac-section-title">{s.title}</h3>
-          {s.facts.map((f) => <FactRow key={f.label} fact={f} />)}
+          {s.facts.map((f, i) => <FactRow key={i} fact={f} />)}
         </section>
       ))}
     </div>
