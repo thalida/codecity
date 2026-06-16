@@ -1,0 +1,108 @@
+import { describe, it, expect } from 'vitest';
+import { computeAlmanac } from '@/views/InfoPane/almanac';
+import { NodeKind } from '@/types';
+import type { Manifest, FileNode, DirNode } from '@/types';
+
+function file(partial: Partial<FileNode> & { name: string; path: string }): FileNode {
+  return {
+    type: NodeKind.File,
+    fullPath: `/repo/${partial.path}`,
+    extension: '.ts',
+    size: 100,
+    lines: 10,
+    binary: false,
+    created: '2020-01-01T00:00:00Z',
+    modified: '2020-01-01T00:00:00Z',
+    ...partial,
+  };
+}
+
+function dir(name: string, path: string, children: (FileNode | DirNode)[]): DirNode {
+  const files = children.filter((c) => c.type === NodeKind.File).length;
+  const dirs = children.filter((c) => c.type === NodeKind.Directory).length;
+  return {
+    name,
+    type: NodeKind.Directory,
+    path,
+    fullPath: `/repo/${path}`,
+    children,
+    children_count: children.length,
+    children_file_count: files,
+    children_dir_count: dirs,
+    descendants_count: children.length,
+    descendants_file_count: files,
+    descendants_dir_count: dirs,
+    descendants_size: 0,
+    descendants_ext_breakdown: [{ ext: '.ts', count: files, size: 0 }],
+  };
+}
+
+function manifest(tree: DirNode, overrides: Partial<Manifest> = {}): Manifest {
+  return {
+    root: '/repo',
+    scanned_at: '2024-01-01T00:00:00Z',
+    signature: 's',
+    tree_signature: 't',
+    tree,
+    repo: { branch: 'main', remote_url: null, head_sha: null, head_subject: null, dirty: false },
+    commits: [],
+    busyness: { avg: 1, busy: 2 },
+    dateRanges: {
+      createdMin: '2020-01-01T00:00:00Z',
+      createdMax: '2023-01-01T00:00:00Z',
+      modifiedMin: '2020-01-01T00:00:00Z',
+      modifiedMax: '2023-01-01T00:00:00Z',
+    },
+    ...overrides,
+  };
+}
+
+describe('computeAlmanac — overview + buildings', () => {
+  const tree = dir('repo', '', [
+    file({ name: 'old.ts', path: 'old.ts', lines: 5, size: 50, created: '2020-01-01T00:00:00Z', modified: '2021-06-01T00:00:00Z' }),
+    file({ name: 'tall.ts', path: 'tall.ts', lines: 999, size: 80, created: '2021-01-01T00:00:00Z', modified: '2020-02-01T00:00:00Z' }),
+    file({ name: 'new.ts', path: 'new.ts', lines: 10, size: 4000, created: '2023-01-01T00:00:00Z', modified: '2023-01-01T00:00:00Z' }),
+  ]);
+  const a = computeAlmanac(manifest(tree));
+
+  it('returns null for null manifest', () => {
+    expect(computeAlmanac(null)).toBeNull();
+  });
+  it('overview totals come from the root node', () => {
+    expect(a!.overview.totals.files).toBe(3);
+    expect(a!.overview.totals.dirs).toBe(0);
+  });
+  it('overview name + branch', () => {
+    expect(a!.overview.name).toBe('repo');
+    expect(a!.overview.repo.branch).toBe('main');
+  });
+  it('languages come from root ext breakdown', () => {
+    expect(a!.overview.languages[0]).toEqual({ ext: '.ts', count: 3 });
+  });
+
+  function fact(key: string, label: string) {
+    const section = a!.sections.find((s) => s.key === key)!;
+    return section.facts.find((f) => f.label === label)!;
+  }
+
+  it('tallest building = most lines, clickable to its file', () => {
+    const f = fact('buildings', 'Tallest building');
+    expect(f.value).toContain('tall.ts');
+    expect(f.landmark).toEqual({ kind: 'file', id: 'tall.ts' });
+  });
+  it('oldest building = earliest created', () => {
+    expect(fact('buildings', 'Oldest building').landmark).toEqual({ kind: 'file', id: 'old.ts' });
+  });
+  it('newest building = latest created', () => {
+    expect(fact('buildings', 'Newest building').landmark).toEqual({ kind: 'file', id: 'new.ts' });
+  });
+  it('widest building = largest bytes', () => {
+    expect(fact('buildings', 'Widest building').landmark).toEqual({ kind: 'file', id: 'new.ts' });
+  });
+  it('brightest building = most recently modified', () => {
+    expect(fact('buildings', 'Brightest building').landmark).toEqual({ kind: 'file', id: 'new.ts' });
+  });
+  it('most faded building = longest since modified', () => {
+    expect(fact('buildings', 'Most faded building').landmark).toEqual({ kind: 'file', id: 'tall.ts' });
+  });
+});
