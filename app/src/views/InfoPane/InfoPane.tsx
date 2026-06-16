@@ -1,14 +1,23 @@
-// views/InfoPane.tsx — "Info" tab in the left sidebar. Shows the
-// rendered markdown of the project's root README (if any) — README.md,
-// README.markdown, README, etc. Re-fetches and re-renders whenever the
-// manifest is re-applied (which happens on live-update polling), so an
-// edit to the README on disk shows up here without a page reload.
+// views/InfoPane/InfoPane.tsx — the "Info" tab shell. Hosts two subtabs:
+// World (the almanac, default) and Readme (the rendered root README). Owns the
+// Pane chrome + active-subtab state; the subtab bodies render themselves.
 
 import './InfoPane.css';
+import { useState } from 'preact/hooks';
 import type { Signal } from '@preact/signals';
+import { Globe, BookOpen } from 'lucide-preact';
 import type { DirNode, Manifest } from '@/types';
 import { Pane } from '@/components/Pane';
+import { PaneTabs } from '@/components/PaneTabs/PaneTabs';
+import { WorldPane } from './WorldPane';
 import { ReadmePane } from './ReadmePane';
+
+type InfoTab = 'world' | 'readme';
+
+const INFO_TABS = [
+  { id: 'world', label: 'World', icon: Globe },
+  { id: 'readme', label: 'Readme', icon: BookOpen },
+];
 
 export interface InfoPaneProps {
   manifest: Signal<Manifest | DirNode | { tree?: unknown; [k: string]: unknown } | null>;
@@ -16,9 +25,13 @@ export interface InfoPaneProps {
 }
 
 export function InfoPane({ manifest, onClose }: InfoPaneProps) {
+  const [tab, setTab] = useState<InfoTab>('world');
   return (
-    <Pane paneClass="info-pane" title="Info" onClose={onClose} bodyClass="info-body">
-      <ReadmePane manifest={manifest} />
+    <Pane paneClass="info-pane" title="Info" onClose={onClose}>
+      <PaneTabs tabs={INFO_TABS} active={tab} onSelect={(id) => setTab(id as InfoTab)} />
+      <div class="pane-body info-body">
+        {tab === 'world' ? <WorldPane manifest={manifest} /> : <ReadmePane manifest={manifest} />}
+      </div>
     </Pane>
   );
 }
