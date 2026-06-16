@@ -99,6 +99,12 @@ describe('computeAlmanac — overview + buildings', () => {
   it('widest building = largest bytes', () => {
     expect(fact('buildings', 'Widest building').landmark).toEqual({ kind: 'file', id: 'new.ts' });
   });
+  it('shortest building = fewest lines', () => {
+    expect(fact('buildings', 'Shortest building').landmark).toEqual({ kind: 'file', id: 'old.ts' });
+  });
+  it('narrowest building = smallest bytes', () => {
+    expect(fact('buildings', 'Narrowest building').landmark).toEqual({ kind: 'file', id: 'old.ts' });
+  });
   it('brightest building = most recently modified', () => {
     expect(fact('buildings', 'Brightest building').landmark).toEqual({ kind: 'file', id: 'new.ts' });
   });

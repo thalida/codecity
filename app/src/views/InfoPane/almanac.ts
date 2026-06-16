@@ -1,11 +1,12 @@
 // views/InfoPane/almanac.ts — pure derivation of the "World Almanac":
 // repo superlatives (oldest/tallest building, ...) computed from data already
-// loaded client-side. No signals, no DOM — WorldPane renders the result.
+// loaded client-side. No signals, no DOM.
 // Landmark facts carry the key needed to fly the camera there.
 
 import { NodeKind } from '@/types';
 import type { Manifest, DirNode, FileNode, RepoInfo, TreeNode } from '@/types';
 import { formatShortDate } from '@/utils/dates';
+import { formatBytes } from '@/utils/bytes';
 
 export interface LandmarkRef {
   kind: 'file' | 'dir' | 'commit';
@@ -20,7 +21,7 @@ export interface AlmanacFact {
   landmark?: LandmarkRef;
 }
 
-export type AlmanacSectionKey = 'buildings' | 'streets' | 'forest' | 'fireflies';
+export type AlmanacSectionKey = 'buildings';
 
 export interface AlmanacSection {
   key: AlmanacSectionKey;
@@ -49,7 +50,7 @@ export interface Almanac {
 const MAX_LANGUAGES = 6;
 
 function isManifest(m: unknown): m is Manifest {
-  return !!m && typeof m === 'object' && 'tree' in (m as object) && !!(m as Manifest).tree;
+  return !!m && typeof m === 'object' && 'tree' in (m as object) && (m as Manifest).tree != null;
 }
 
 function* walk(node: TreeNode): Generator<TreeNode> {
@@ -65,20 +66,8 @@ function distinctAuthors(commits: Manifest['commits']): number {
   return set.size;
 }
 
-function fmt(n: number): string {
+function fmtCount(n: number): string {
   return n.toLocaleString('en-US');
-}
-
-function formatBytes(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  const units = ['KB', 'MB', 'GB'];
-  let v = bytes / 1024;
-  let i = 0;
-  while (v >= 1024 && i < units.length - 1) {
-    v /= 1024;
-    i++;
-  }
-  return `${v.toFixed(v < 10 ? 1 : 0)} ${units[i]}`;
 }
 
 /** ISO date string → epoch ms; NaN for missing/unparseable (never wins a max). */
@@ -134,8 +123,8 @@ function buildingsSection(files: FileNode[]): AlmanacSection {
   const facts = [
     fileFact('Oldest building', pickFile(files, (f) => -dateMs(f.created)), 'first raised'),
     fileFact('Newest building', pickFile(files, (f) => dateMs(f.created)), 'most recently raised'),
-    fileFact('Tallest building', tallest, tallest ? `${fmt(tallest.lines)} lines` : ''),
-    fileFact('Shortest building', shortest, shortest ? `${fmt(shortest.lines)} lines` : ''),
+    fileFact('Tallest building', tallest, tallest ? `${fmtCount(tallest.lines)} lines` : ''),
+    fileFact('Shortest building', shortest, shortest ? `${fmtCount(shortest.lines)} lines` : ''),
     fileFact('Widest building', widest, widest ? formatBytes(widest.size) : ''),
     fileFact('Narrowest building', narrowest, narrowest ? formatBytes(narrowest.size) : ''),
     fileFact('Brightest building', pickFile(files, (f) => dateMs(f.modified)), 'freshly touched'),
