@@ -286,6 +286,16 @@ export function createTreeRenderer(
 
   const totalTrees = placements.length;
 
+  // Height + radius are needed by both the canopy and trunk instance loops;
+  // compute each once here instead of twice (treeRadius also re-derives height
+  // internally, so the canopy/trunk loops re-ran the encoding ~4× per tree).
+  const heights = new Float64Array(totalTrees);
+  const radii = new Float64Array(totalTrees);
+  for (let i = 0; i < totalTrees; i++) {
+    heights[i] = perTreeHeight(i);
+    radii[i] = perTreeRadius(i);
+  }
+
   // Base color cache: keyed by commit SHA, value is the hex color string
   // (e.g. "#5e8a3a") computed during bake. Populated below and rebuilt
   // on every refresh(). colorForSha reads from here, not the instance buffer.
@@ -317,8 +327,8 @@ export function createTreeRenderer(
 
   for (let i = 0; i < totalTrees; i++) {
     const p = placements[i];
-    const h = perTreeHeight(i);
-    const r = perTreeRadius(i);
+    const h = heights[i];
+    const r = radii[i];
     const trunkH = h * trunkHeightFrac;
 
     // Canopy base sits BELOW the trunk top by `canopyOverlapFrac × trunkH`,
@@ -360,8 +370,8 @@ export function createTreeRenderer(
 
   for (let i = 0; i < totalTrees; i++) {
     const p = placements[i];
-    const h = perTreeHeight(i);
-    const r = perTreeRadius(i);
+    const h = heights[i];
+    const r = radii[i];
     const trunkH = h * trunkHeightFrac;
     const trunkR = r * trunkRadiusFrac;
     tmpV3.set(p.x, 0, p.y);

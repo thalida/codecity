@@ -31,11 +31,19 @@ export interface SizeRange {
 
 const MS_PER_DAY = 1000 * 60 * 60 * 24;
 
+// Memoized by date string. Date.parse is the hot cost in the decoration pass —
+// ageT/treeHeight/treeRadius re-parse a commit's date several times per tree
+// (and again per firefly orb), but only ~one distinct date per day exists.
+const _daysCache = new Map<string, number>();
+
 /** Convert a YYYY-MM-DD string to integer epoch days. */
 function dateToDays(date: string): number {
+  const cached = _daysCache.get(date);
+  if (cached !== undefined) return cached;
   const ms = Date.parse(date);
-  if (Number.isNaN(ms)) return 0;
-  return Math.floor(ms / MS_PER_DAY);
+  const days = Number.isNaN(ms) ? 0 : Math.floor(ms / MS_PER_DAY);
+  _daysCache.set(date, days);
+  return days;
 }
 
 function clamp01(t: number): number {
