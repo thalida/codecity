@@ -112,3 +112,49 @@ describe('computeAlmanac — overview + buildings', () => {
     expect(fact('buildings', 'Most faded building').landmark).toEqual({ kind: 'file', id: 'tall.ts' });
   });
 });
+
+describe('computeAlmanac — streets, forest, fireflies', () => {
+  const deep = dir('deep', 'src/a/b', [file({ name: 'x.ts', path: 'src/a/b/x.ts' })]);
+  const src = { ...dir('src', 'src', [deep, file({ name: 'm.ts', path: 'src/m.ts' })]), descendants_file_count: 5 };
+  const tree = dir('repo', '', [src as DirNode, file({ name: 'r.ts', path: 'r.ts' })]);
+
+  const commits = [
+    { date: '2022-01-01', files: 2, sha: 'aaa', authors: ['Ada'], subject: 'a', same_day_total: 1 },
+    { date: '2022-01-02', files: 40, sha: 'bbb', authors: ['Ada', 'Bo'], subject: 'b', same_day_total: 3 },
+    { date: '2022-01-03', files: 1, sha: 'ccc', authors: ['Bo'], subject: 'c', same_day_total: 3 },
+    { date: '2022-02-10', files: 5, sha: 'ddd', authors: ['Ada'], subject: 'd', same_day_total: 1 },
+  ];
+  const a = computeAlmanac(manifest(tree, { commits }))!;
+  const section = (key: string) => a.sections.find((s) => s.key === key)!;
+  const fact = (key: string, label: string) => section(key).facts.find((f) => f.label === label)!;
+
+  it('deepest alley = deepest directory, excluding root', () => {
+    expect(fact('streets', 'Deepest alley').landmark).toEqual({ kind: 'dir', id: 'src/a/b' });
+  });
+  it('biggest neighborhood = max descendant files, excluding root', () => {
+    expect(fact('streets', 'Biggest neighborhood').landmark).toEqual({ kind: 'dir', id: 'src' });
+  });
+  it('grandest canopy = commit touching most files', () => {
+    expect(fact('forest', 'Grandest canopy').landmark).toEqual({ kind: 'commit', id: 'bbb' });
+  });
+  it('sparsest canopy = commit touching fewest files', () => {
+    expect(fact('forest', 'Sparsest canopy').landmark).toEqual({ kind: 'commit', id: 'ccc' });
+  });
+  it('busiest day is non-landmark and names the date', () => {
+    const f = fact('forest', 'Busiest day');
+    expect(f.landmark).toBeUndefined();
+    expect(f.value).toContain('3');
+  });
+  it('longest streak counts consecutive days', () => {
+    expect(fact('forest', 'Longest streak').value).toContain('3');
+  });
+  it('fireflies count distinct authors and name the most prolific', () => {
+    expect(fact('fireflies', 'Fireflies').value).toContain('2');
+    expect(fact('fireflies', 'Most prolific author').value).toContain('Ada');
+  });
+  it('omits forest + fireflies sections when there are no commits', () => {
+    const b = computeAlmanac(manifest(tree, { commits: [] }))!;
+    expect(b.sections.find((s) => s.key === 'forest')).toBeUndefined();
+    expect(b.sections.find((s) => s.key === 'fireflies')).toBeUndefined();
+  });
+});
