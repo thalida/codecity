@@ -83,26 +83,59 @@
   color: var(--cc-text-muted);
 }
 
+.almanac-section-note {
+  margin: 0;
+  padding: 6px 8px;
+  color: var(--cc-text-muted);
+  font-size: var(--cc-font-lg);
+  font-style: italic;
+}
+
 .almanac-fact {
   display: flex;
-  justify-content: space-between;
-  gap: 10px;
+  flex-direction: column;
+  gap: 1px;
   width: 100%;
   padding: 6px 8px;
   border-radius: var(--cc-radius-sm);
-  font-size: var(--cc-font-lg);
   text-align: left;
 }
 
 .almanac-fact-label {
+  font-size: var(--cc-font-md);
   color: var(--cc-text-muted);
-  white-space: nowrap;
 }
 
-.almanac-fact-value {
-  color: var(--cc-text-secondary);
+.almanac-fact-body {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+}
+
+.almanac-fact-primary {
+  flex: 1 1 auto;
+  min-width: 0;
+  color: var(--cc-text-primary);
+  font-size: var(--cc-font-lg);
+  white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+/* Paths/shas read left-to-right but matter most at the END (filename, short
+ * sha), so truncate from the left — the ellipsis leads and the tail stays. */
+.almanac-fact-primary--mono {
+  font-family: var(--cc-font-mono);
+  direction: rtl;
+  text-align: left;
+}
+
+.almanac-fact-secondary {
+  flex: 0 0 auto;
+  color: var(--cc-text-muted);
+  font-size: var(--cc-font-md);
+  white-space: nowrap;
 }
 
 button.almanac-fact--landmark {
@@ -115,9 +148,4 @@ button.almanac-fact--landmark {
 
 button.almanac-fact--landmark:hover {
   background: var(--cc-overlay-bg);
-}
-
-button.almanac-fact--landmark:hover .almanac-fact-label,
-button.almanac-fact--landmark:hover .almanac-fact-value {
-  color: var(--cc-text-primary);
 }

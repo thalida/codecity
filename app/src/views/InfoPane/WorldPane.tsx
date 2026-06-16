@@ -9,6 +9,7 @@ import { FolderOpen } from 'lucide-preact';
 import type { DirNode, Manifest } from '@/types';
 import { PaneEmpty } from '@/components/Pane';
 import { selectPath, focusPath, selectCommit, focusCommit } from '@/state/stores/scene';
+import { TREES } from '@/state/stores/settings/trees';
 import { computeAlmanac, fmtCount } from './almanac';
 import type { AlmanacFact, LandmarkRef } from './almanac';
 
@@ -22,20 +23,39 @@ function visit(landmark: LandmarkRef): void {
   }
 }
 
+function FactBody({ fact }: { fact: AlmanacFact }) {
+  return (
+    <>
+      <span class="almanac-fact-label">{fact.label}</span>
+      <span class="almanac-fact-body">
+        <span
+          class={fact.mono ? 'almanac-fact-primary almanac-fact-primary--mono' : 'almanac-fact-primary'}
+        >
+          {fact.primary}
+        </span>
+        {fact.secondary && <span class="almanac-fact-secondary">{fact.secondary}</span>}
+      </span>
+    </>
+  );
+}
+
 function FactRow({ fact }: { fact: AlmanacFact }) {
   if (fact.landmark) {
     const landmark = fact.landmark;
     return (
-      <button type="button" class="almanac-fact almanac-fact--landmark" onClick={() => visit(landmark)}>
-        <span class="almanac-fact-label">{fact.label}</span>
-        <span class="almanac-fact-value">{fact.value}</span>
+      <button
+        type="button"
+        class="almanac-fact almanac-fact--landmark"
+        title={`${fact.primary} — fly here`}
+        onClick={() => visit(landmark)}
+      >
+        <FactBody fact={fact} />
       </button>
     );
   }
   return (
     <div class="almanac-fact">
-      <span class="almanac-fact-label">{fact.label}</span>
-      <span class="almanac-fact-value">{fact.value}</span>
+      <FactBody fact={fact} />
     </div>
   );
 }
@@ -53,6 +73,9 @@ export function WorldPane({ manifest }: WorldPaneProps) {
   }
 
   const { overview, sections } = almanac;
+  // Forest landmarks (canopies) fly the camera to a tree; when the Trees layer
+  // is off those targets don't exist, so gate the section's contents on it.
+  const treesEnabled = TREES.value.ENABLED;
   return (
     <div class="almanac">
       <header class="almanac-overview">
@@ -88,7 +111,11 @@ export function WorldPane({ manifest }: WorldPaneProps) {
       {sections.map((s) => (
         <section key={s.key} class="almanac-section">
           <h3 class="almanac-section-title">{s.title}</h3>
-          {s.facts.map((f, i) => <FactRow key={i} fact={f} />)}
+          {s.key === 'forest' && !treesEnabled ? (
+            <p class="almanac-section-note">Enable the Trees layer in Settings to explore the forest.</p>
+          ) : (
+            s.facts.map((f, i) => <FactRow key={i} fact={f} />)
+          )}
         </section>
       ))}
     </div>

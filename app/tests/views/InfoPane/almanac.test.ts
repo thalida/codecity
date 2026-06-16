@@ -87,8 +87,13 @@ describe('computeAlmanac — overview + buildings', () => {
 
   it('tallest building = most lines, clickable to its file', () => {
     const f = fact('buildings', 'Tallest building');
-    expect(f.value).toContain('tall.ts');
+    expect(f.primary).toBe('tall.ts');
+    expect(f.secondary).toContain('999');
     expect(f.landmark).toEqual({ kind: 'file', id: 'tall.ts' });
+  });
+  it('date superlatives show the date in the secondary', () => {
+    expect(fact('buildings', 'Oldest building').secondary).toMatch(/Created/);
+    expect(fact('buildings', 'Brightest building').secondary).toMatch(/Edited/);
   });
   it('oldest building = earliest created', () => {
     expect(fact('buildings', 'Oldest building').landmark).toEqual({ kind: 'file', id: 'old.ts' });
@@ -143,14 +148,14 @@ describe('computeAlmanac — streets, forest, fireflies', () => {
   it('busiest day is non-landmark and names the date', () => {
     const f = fact('forest', 'Busiest day');
     expect(f.landmark).toBeUndefined();
-    expect(f.value).toContain('3');
+    expect(f.secondary).toContain('3');
   });
   it('longest streak counts consecutive days', () => {
-    expect(fact('forest', 'Longest streak').value).toContain('3');
+    expect(fact('forest', 'Longest streak').primary).toContain('3');
   });
   it('fireflies count distinct authors and name the most prolific', () => {
-    expect(fact('fireflies', 'Fireflies').value).toContain('2');
-    expect(fact('fireflies', 'Most prolific author').value).toContain('Ada');
+    expect(fact('fireflies', 'Fireflies').primary).toContain('2');
+    expect(fact('fireflies', 'Most prolific author').primary).toContain('Ada');
   });
   it('omits forest + fireflies sections when there are no commits', () => {
     const b = computeAlmanac(manifest(tree, { commits: [] }))!;

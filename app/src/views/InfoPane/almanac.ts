@@ -16,7 +16,12 @@ export interface LandmarkRef {
 
 export interface AlmanacFact {
   label: string;
-  value: string;
+  /** Headline value — a path, sha, name, date, or count. Truncates when long. */
+  primary: string;
+  /** Muted metric shown beside the primary (e.g. "1,843 lines", "Created Apr 18, 2026"). */
+  secondary?: string;
+  /** Render the primary in mono with left-truncation (paths and shas). */
+  mono?: boolean;
   /** Present → the row flies the camera to this landmark on click. */
   landmark?: LandmarkRef;
 }
@@ -97,9 +102,9 @@ function pickFile(files: FileNode[], score: (f: FileNode) => number): FileNode |
   return best;
 }
 
-function fileFact(label: string, file: FileNode | null, detail: string): AlmanacFact | null {
+function fileFact(label: string, file: FileNode | null, secondary: string): AlmanacFact | null {
   if (!file) return null;
-  return { label, value: `${file.path} · ${detail}`, landmark: { kind: 'file', id: file.path } };
+  return { label, primary: file.path, secondary, mono: true, landmark: { kind: 'file', id: file.path } };
 }
 
 function buildOverview(m: Manifest): AlmanacOverview {
@@ -121,19 +126,25 @@ function buildOverview(m: Manifest): AlmanacOverview {
 }
 
 function buildingsSection(files: FileNode[]): AlmanacSection {
+  const oldest = pickFile(files, (f) => -dateMs(f.created));
+  const newest = pickFile(files, (f) => dateMs(f.created));
   const tallest = pickFile(files, (f) => f.lines);
   const shortest = pickFile(files, (f) => -f.lines);
   const widest = pickFile(files, (f) => f.size);
   const narrowest = pickFile(files, (f) => -f.size);
+  const brightest = pickFile(files, (f) => dateMs(f.modified));
+  const faded = pickFile(files, (f) => -dateMs(f.modified));
+  const created = (f: FileNode | null) => (f ? `Created ${formatShortDate(f.created)}` : '');
+  const edited = (f: FileNode | null) => (f ? `Edited ${formatShortDate(f.modified)}` : '');
   const facts = [
-    fileFact('Oldest building', pickFile(files, (f) => -dateMs(f.created)), 'first raised'),
-    fileFact('Newest building', pickFile(files, (f) => dateMs(f.created)), 'most recently raised'),
+    fileFact('Oldest building', oldest, created(oldest)),
+    fileFact('Newest building', newest, created(newest)),
     fileFact('Tallest building', tallest, tallest ? pluralize(tallest.lines, 'line') : ''),
     fileFact('Shortest building', shortest, shortest ? pluralize(shortest.lines, 'line') : ''),
     fileFact('Widest building', widest, widest ? formatBytes(widest.size) : ''),
     fileFact('Narrowest building', narrowest, narrowest ? formatBytes(narrowest.size) : ''),
-    fileFact('Brightest building', pickFile(files, (f) => dateMs(f.modified)), 'freshly touched'),
-    fileFact('Most faded building', pickFile(files, (f) => -dateMs(f.modified)), 'long untouched'),
+    fileFact('Brightest building', brightest, edited(brightest)),
+    fileFact('Most faded building', faded, edited(faded)),
   ];
   return { key: 'buildings', title: 'Buildings', facts: facts.filter((f): f is AlmanacFact => f !== null) };
 }
@@ -155,8 +166,8 @@ function streetsSection(dirs: DirNode[]): AlmanacSection | null {
     key: 'streets',
     title: 'Streets',
     facts: [
-      { label: 'Deepest alley', value: `${deepest.path} · ${deepestDepth} levels deep`, landmark: { kind: 'dir', id: deepest.path } },
-      { label: 'Biggest neighborhood', value: `${biggest.path} · ${pluralize(biggest.descendants_file_count, 'building')}`, landmark: { kind: 'dir', id: biggest.path } },
+      { label: 'Deepest alley', primary: deepest.path, secondary: `${deepestDepth} levels deep`, mono: true, landmark: { kind: 'dir', id: deepest.path } },
+      { label: 'Biggest neighborhood', primary: biggest.path, secondary: pluralize(biggest.descendants_file_count, 'building'), mono: true, landmark: { kind: 'dir', id: biggest.path } },
     ],
   };
 }
@@ -195,10 +206,10 @@ function forestSection(commits: Manifest['commits']): AlmanacSection | null {
     key: 'forest',
     title: 'Forest',
     facts: [
-      { label: 'Grandest canopy', value: `${grandest.sha.slice(0, 7)} · ${pluralize(grandest.files, 'file')}`, landmark: { kind: 'commit', id: grandest.sha } },
-      { label: 'Sparsest canopy', value: `${sparsest.sha.slice(0, 7)} · ${pluralize(sparsest.files, 'file')}`, landmark: { kind: 'commit', id: sparsest.sha } },
-      { label: 'Busiest day', value: `${formatShortDate(busiest.date)} · ${pluralize(busiest.same_day_total, 'commit')}` },
-      { label: 'Longest streak', value: pluralize(streak, 'consecutive day') },
+      { label: 'Grandest canopy', primary: grandest.sha.slice(0, 7), secondary: pluralize(grandest.files, 'file'), mono: true, landmark: { kind: 'commit', id: grandest.sha } },
+      { label: 'Sparsest canopy', primary: sparsest.sha.slice(0, 7), secondary: pluralize(sparsest.files, 'file'), mono: true, landmark: { kind: 'commit', id: sparsest.sha } },
+      { label: 'Busiest day', primary: formatShortDate(busiest.date), secondary: pluralize(busiest.same_day_total, 'commit') },
+      { label: 'Longest streak', primary: pluralize(streak, 'consecutive day') },
     ],
   };
 }
@@ -219,8 +230,8 @@ function firefliesSection(commits: Manifest['commits']): AlmanacSection | null {
     key: 'fireflies',
     title: 'Fireflies',
     facts: [
-      { label: 'Fireflies', value: `${fmtCount(tally.size)} drift through the forest` },
-      { label: 'Most prolific author', value: `${topAuthor} · ${pluralize(topCount, 'commit')}` },
+      { label: 'Fireflies', primary: pluralize(tally.size, 'author') },
+      { label: 'Most prolific author', primary: topAuthor, secondary: pluralize(topCount, 'commit') },
     ],
   };
 }

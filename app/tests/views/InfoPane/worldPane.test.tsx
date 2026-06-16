@@ -11,6 +11,17 @@ const { selectPath, focusPath, selectCommit, focusCommit } = vi.hoisted(() => ({
 }));
 vi.mock('@/state/stores/scene', () => ({ selectPath, focusPath, selectCommit, focusCommit }));
 
+// Mutable stand-in for the TREES settings signal so we can toggle the Trees
+// layer per test (WorldPane gates the Forest section on TREES.value.ENABLED).
+const treesState = vi.hoisted(() => ({ ENABLED: true }));
+vi.mock('@/state/stores/settings/trees', () => ({
+  TREES: {
+    get value() {
+      return treesState;
+    },
+  },
+}));
+
 import { WorldPane } from '@/views/InfoPane/WorldPane';
 import { NodeKind } from '@/types';
 import type { Manifest } from '@/types';
@@ -38,6 +49,7 @@ describe('WorldPane', () => {
     container = document.createElement('div');
     document.body.appendChild(container);
     selectPath.mockClear(); focusPath.mockClear(); selectCommit.mockClear(); focusCommit.mockClear();
+    treesState.ENABLED = true;
   });
   afterEach(() => { render(null, container); container.remove(); });
 
@@ -95,5 +107,25 @@ describe('WorldPane', () => {
     ) as HTMLElement;
     expect(row).toBeTruthy();
     expect(row.tagName).toBe('DIV');
+  });
+
+  it('gates the Forest section when the Trees layer is disabled', async () => {
+    treesState.ENABLED = false;
+    const withCommits: Manifest = {
+      ...manifest,
+      commits: [
+        { date: '2022-01-01', files: 9, sha: 'abc1234', authors: ['Ada'], subject: 'x', same_day_total: 1 },
+      ],
+    };
+    const sig = signal(withCommits);
+    render(<WorldPane manifest={sig as never} />, container);
+    await flush();
+    // Section header still shows, but canopy buttons are replaced by a note.
+    expect(container.textContent).toContain('Forest');
+    expect(container.textContent).toContain('Enable the Trees layer');
+    const canopyBtn = Array.from(container.querySelectorAll('button')).find(
+      (b) => b.textContent?.includes('Grandest canopy'),
+    );
+    expect(canopyBtn).toBeUndefined();
   });
 });

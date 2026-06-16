@@ -147,7 +147,8 @@
   /* ── SCALES — Font families ───────────────────────────────────────────── */
   --cc-font-sans:
     'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
-  --cc-font-mono: var(--cc-font-mono);
+  --cc-font-mono:
+    ui-monospace, 'SF Mono', 'JetBrains Mono', Menlo, Consolas, 'Liberation Mono', monospace;
 
   /* ── SCALES — Letter-spacing (tracking) ──────────────────────────────── */
   --cc-track-label: 0.08em; /* uppercase section labels */
