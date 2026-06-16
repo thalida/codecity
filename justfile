@@ -28,6 +28,13 @@ dev mount='': install-hooks setup
      VITE_HOST_PORT=$PORT \
      docker compose -p codecity-$SLUG $COMPOSE_ARGS up --build
 
+# Print this worktree's dev-server URL (same SLUG + port `just dev` binds).
+# Reserves the vite port if `just dev` hasn't run yet. Handy: `open $(just url)`.
+url:
+    @PORT=$(python3 bin/pick-port.py vite) ; \
+     SLUG=$( ( git symbolic-ref --short -q HEAD 2>/dev/null || basename $(pwd) ) | tr '[:upper:]' '[:lower:]' | tr -c '[:alnum:]' '-' | sed 's/-*$//') ; \
+     echo "http://$SLUG.localhost:$PORT/"
+
 # Prod-like local run: one container, mirrors the README Quick Start.
 # Optional positional `mount` arg: a path to mount read-only at the same
 # absolute path inside the container, so codecity can render that local
