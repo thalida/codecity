@@ -120,26 +120,19 @@ export async function createCity(canvas: HTMLCanvasElement, manifest: Manifest):
       getTreeBoundsBySha: (sha) => trees.getRenderer()?.getTreeBoundsBySha(sha) ?? null,
     },
   });
-  // Re-snap the camera on every apply (cityRevision), not just bbox changes: the
-  // final manifest is a REUSE apply (placeholder heights → real) that leaves bbox
-  // frozen, so a bbox-only reframe would miss it and strand the camera on the
-  // early framing (issue #62). Follow until the user first takes control
-  // (OrbitControls 'start') so a later apply never yanks their view.
+  // Snap the camera when a NEW source's city has applied (initial load or repo
+  // switch). Track cityRevision (every apply), not bbox: the final manifest is a
+  // reuse apply that leaves bbox frozen, so a bbox-only effect would miss it. The
+  // key guard skips the empty boot (key null — no source yet) and same-source
+  // re-applies (live-updates, config saves) — only a real source change reframes.
   let lastReframedSourceKey: string | null = null;
-  let followFraming = false;
-  const onUserControl = () => {
-    followFraming = false;
-  };
-  rig.controls.addEventListener('start', onUserControl);
   const stopReframe = effect(() => {
     void cityState.cityRevision.value;
     const key = CURRENT_SOURCE_KEY.peek();
-    if (key === null) return;
-    if (key !== lastReframedSourceKey) {
+    if (key !== null && key !== lastReframedSourceKey) {
       lastReframedSourceKey = key;
-      followFraming = true;
+      untracked(() => rig.reset());
     }
-    if (followFraming) untracked(() => rig.reset());
   });
 
   const postFx = createPostFx(renderer, scene, rig.camera);
@@ -233,7 +226,6 @@ export async function createCity(canvas: HTMLCanvasElement, manifest: Manifest):
     dispose(): void {
       stopFrameLoop();
       stopReframe();
-      rig.controls.removeEventListener('start', onUserControl);
       handlers.dispose();
       picker.dispose();
       rig.dispose();

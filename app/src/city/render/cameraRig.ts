@@ -387,9 +387,9 @@ export function createCameraRig({
   }
 
   function reset() {
-    // Recapture from the CURRENT layout every call: the composer's follow-snap
-    // can fire before the rig's own bbox effect re-captures (preact gives no
-    // effect ordering), so a cached pose could be stale. False only pre-manifest.
+    // Recapture from the CURRENT layout every call: the final manifest is a reuse
+    // apply (bbox frozen), so the bbox effect that normally caches the pose
+    // doesn't re-fire there — a cached pose could be stale. False only pre-manifest.
     if (!_captureFraming() || !initialCamPos || !initialTarget) return;
     // Cancel any in-flight focus/reset animation so it can't keep
     // walking the camera away from the snap target.

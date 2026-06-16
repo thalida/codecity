@@ -1,8 +1,8 @@
-// Regression for issue #62: a post-load layout rebuild (per-source settings
-// hydrating on a same-source apply) changed the framing, but the source-change
-// snap didn't re-fire, so the initial frame differed from R. The camera should
-// follow the framing until the user first takes control. Reproduced here via a
-// STREET_TIERS change + rebuild (the same path) and a synthesized 'start' event.
+// Regression for issue #62: the camera must snap to a NEW source's city once it
+// applies (not stay on the empty boot), and must NOT reframe on a same-source
+// re-apply (live-update / config save). The snap rides cityRevision (every
+// apply) so it catches the final reuse apply, gated on a CURRENT_SOURCE_KEY
+// change.
 //
 // jsdom has no WebGL — mock the renderer + post pipeline like city/index.test.ts.
 
@@ -85,10 +85,16 @@ describe('initial-load framing (issue #62)', () => {
     return canvas;
   }
 
-  // Directory-only tree (no files → no buildings), so the framing is driven
-  // purely by the root street width — which we control via STREET_TIERS below.
+  // Directory-only tree (no files → no buildings), so the framing is driven by
+  // the root street width. 10 child dirs → root descendants_count 20 → a high
+  // street tier, so the real city frames clearly differently from the empty boot
+  // (root descendants 0 → the narrowest tier). STREET_TIERS can also be forced
+  // to a single width below.
   function makeManifest(): Manifest {
-    const tree = mkDir('repo', [mkDir('a', [mkDir('b', [])]), mkDir('c', []), mkDir('d', [])]);
+    const tree = mkDir(
+      'repo',
+      Array.from({ length: 10 }, (_, i) => mkDir(`d${i}`, []))
+    );
     return {
       ...EMPTY_MANIFEST,
       tree,
@@ -103,61 +109,50 @@ describe('initial-load framing (issue #62)', () => {
     STREET_TIERS.value = { TIERS: [{ min_descendants: 0, width }] };
   }
 
-  it('re-snaps when a post-load rebuild changes the framing, before the user interacts', async () => {
-    setRootWidth(100);
+  it('frames the city on initial load, not the empty boot', async () => {
     const handle = await createCity(makeCanvas(), EMPTY_MANIFEST);
     try {
-      // Source commits, then the first real manifest applies → initial frame.
+      // firstFrame framed the empty boot (no source committed yet → no snap).
+      const bootPos = handle.rig.camera.position.clone();
+
+      // The fetch layer commits the source, then the real manifest applies.
       CURRENT_SOURCE.value = { src: 'test://repo' };
-      const m = makeManifest();
-      await handle.applyManifest(m);
-      const posInitial = handle.rig.camera.position.clone();
+      await handle.applyManifest(makeManifest());
+      const loadPos = handle.rig.camera.position.clone();
 
-      // Per-source settings hydrate: a Rebuild-route setting flips and the
-      // layout is rebuilt for the SAME source. The framing changes.
-      setRootWidth(400);
-      handle.invalidateLayoutCache();
-      await handle.applyManifest(m);
-      const posAfterRebuild = handle.rig.camera.position.clone();
-
-      // The rebuild's framing = what R would produce now.
+      // What R produces now = the real city's framing.
       handle.rig.reset();
-      const posReset = handle.rig.camera.position.clone();
+      const resetPos = handle.rig.camera.position.clone();
 
-      // Sanity: the rebuild actually changed the framing.
-      expect(posReset.distanceTo(posInitial)).toBeGreaterThan(1);
-      // Fix: the camera followed the rebuild to the settled framing — no manual R
-      // needed. Before the fix it stayed at posInitial (the pre-hydration frame).
-      expect(posAfterRebuild.distanceTo(posReset)).toBeLessThan(0.5);
+      // Sanity: the city frames differently from the empty boot.
+      expect(resetPos.distanceTo(bootPos)).toBeGreaterThan(1);
+      // The camera snapped to the city on load — no manual R needed.
+      expect(loadPos.distanceTo(resetPos)).toBeLessThan(0.5);
     } finally {
       handle.dispose();
     }
   });
 
-  it('stops following once the user takes control of the camera', async () => {
+  it('does not reframe on a same-source re-apply (live-update / config save)', async () => {
     setRootWidth(100);
     const handle = await createCity(makeCanvas(), EMPTY_MANIFEST);
     try {
       CURRENT_SOURCE.value = { src: 'test://repo' };
       const m = makeManifest();
       await handle.applyManifest(m);
+      const posLoaded = handle.rig.camera.position.clone();
 
-      // User grabs the camera (orbit/pan/zoom all emit OrbitControls 'start').
-      handle.rig.controls.dispatchEvent({ type: 'start' } as unknown as never);
-      const posBeforeRebuild = handle.rig.camera.position.clone();
-
-      // A later settings rebuild must NOT yank the user's view.
-      setRootWidth(600);
+      // A same-source rebuild that moves the framing (here a Rebuild-route
+      // setting + invalidate; a live-update is the same shape) must leave the
+      // camera where it is — the source key didn't change.
+      setRootWidth(500);
       handle.invalidateLayoutCache();
       await handle.applyManifest(m);
-      const posAfterRebuild = handle.rig.camera.position.clone();
+      expect(handle.rig.camera.position.distanceTo(posLoaded)).toBeLessThan(0.5);
 
-      expect(posAfterRebuild.distanceTo(posBeforeRebuild)).toBeLessThan(0.5);
-
-      // Confirm the framing genuinely would have changed (R still re-frames).
+      // Confirm the framing genuinely changed (R re-frames to the new width).
       handle.rig.reset();
-      const posReset = handle.rig.camera.position.clone();
-      expect(posReset.distanceTo(posBeforeRebuild)).toBeGreaterThan(1);
+      expect(handle.rig.camera.position.distanceTo(posLoaded)).toBeGreaterThan(1);
     } finally {
       handle.dispose();
     }
