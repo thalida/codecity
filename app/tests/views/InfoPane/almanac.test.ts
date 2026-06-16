@@ -157,4 +157,9 @@ describe('computeAlmanac — streets, forest, fireflies', () => {
     expect(b.sections.find((s) => s.key === 'forest')).toBeUndefined();
     expect(b.sections.find((s) => s.key === 'fireflies')).toBeUndefined();
   });
+  it('omits streets section when there are no subdirectories', () => {
+    const flatTree = dir('repo', '', [file({ name: 'a.ts', path: 'a.ts' })]);
+    const b = computeAlmanac(manifest(flatTree, { commits }))!;
+    expect(b.sections.find((s) => s.key === 'streets')).toBeUndefined();
+  });
 });

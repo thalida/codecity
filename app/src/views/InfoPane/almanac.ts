@@ -70,6 +70,11 @@ function fmtCount(n: number): string {
   return n.toLocaleString('en-US');
 }
 
+/** "3 files" / "1 file" — comma-formats the count and pluralizes the noun. */
+function pluralize(n: number, noun: string): string {
+  return `${fmtCount(n)} ${noun}${n === 1 ? '' : 's'}`;
+}
+
 /** ISO date string → epoch ms; NaN for missing/unparseable (never wins a max). */
 function dateMs(iso: string | undefined): number {
   if (!iso) return NaN;
@@ -123,8 +128,8 @@ function buildingsSection(files: FileNode[]): AlmanacSection {
   const facts = [
     fileFact('Oldest building', pickFile(files, (f) => -dateMs(f.created)), 'first raised'),
     fileFact('Newest building', pickFile(files, (f) => dateMs(f.created)), 'most recently raised'),
-    fileFact('Tallest building', tallest, tallest ? `${fmtCount(tallest.lines)} lines` : ''),
-    fileFact('Shortest building', shortest, shortest ? `${fmtCount(shortest.lines)} lines` : ''),
+    fileFact('Tallest building', tallest, tallest ? pluralize(tallest.lines, 'line') : ''),
+    fileFact('Shortest building', shortest, shortest ? pluralize(shortest.lines, 'line') : ''),
     fileFact('Widest building', widest, widest ? formatBytes(widest.size) : ''),
     fileFact('Narrowest building', narrowest, narrowest ? formatBytes(narrowest.size) : ''),
     fileFact('Brightest building', pickFile(files, (f) => dateMs(f.modified)), 'freshly touched'),
@@ -145,12 +150,13 @@ function streetsSection(dirs: DirNode[]): AlmanacSection | null {
     if (depth(d.path) > depth(deepest.path)) deepest = d;
     if (d.descendants_file_count > biggest.descendants_file_count) biggest = d;
   }
+  const deepestDepth = depth(deepest.path);
   return {
     key: 'streets',
     title: 'Streets',
     facts: [
-      { label: 'Deepest alley', value: `${deepest.path} · ${depth(deepest.path)} levels deep`, landmark: { kind: 'dir', id: deepest.path } },
-      { label: 'Biggest neighborhood', value: `${biggest.path} · ${fmtCount(biggest.descendants_file_count)} buildings`, landmark: { kind: 'dir', id: biggest.path } },
+      { label: 'Deepest alley', value: `${deepest.path} · ${deepestDepth} levels deep`, landmark: { kind: 'dir', id: deepest.path } },
+      { label: 'Biggest neighborhood', value: `${biggest.path} · ${pluralize(biggest.descendants_file_count, 'building')}`, landmark: { kind: 'dir', id: biggest.path } },
     ],
   };
 }
@@ -189,10 +195,10 @@ function forestSection(commits: Manifest['commits']): AlmanacSection | null {
     key: 'forest',
     title: 'Forest',
     facts: [
-      { label: 'Grandest canopy', value: `${grandest.sha.slice(0, 7)} · ${fmtCount(grandest.files)} files`, landmark: { kind: 'commit', id: grandest.sha } },
-      { label: 'Sparsest canopy', value: `${sparsest.sha.slice(0, 7)} · ${fmtCount(sparsest.files)} file${sparsest.files === 1 ? '' : 's'}`, landmark: { kind: 'commit', id: sparsest.sha } },
-      { label: 'Busiest day', value: `${formatShortDate(busiest.date)} · ${fmtCount(busiest.same_day_total)} commits` },
-      { label: 'Longest streak', value: `${fmtCount(streak)} consecutive day${streak === 1 ? '' : 's'}` },
+      { label: 'Grandest canopy', value: `${grandest.sha.slice(0, 7)} · ${pluralize(grandest.files, 'file')}`, landmark: { kind: 'commit', id: grandest.sha } },
+      { label: 'Sparsest canopy', value: `${sparsest.sha.slice(0, 7)} · ${pluralize(sparsest.files, 'file')}`, landmark: { kind: 'commit', id: sparsest.sha } },
+      { label: 'Busiest day', value: `${formatShortDate(busiest.date)} · ${pluralize(busiest.same_day_total, 'commit')}` },
+      { label: 'Longest streak', value: pluralize(streak, 'consecutive day') },
     ],
   };
 }
@@ -214,7 +220,7 @@ function firefliesSection(commits: Manifest['commits']): AlmanacSection | null {
     title: 'Fireflies',
     facts: [
       { label: 'Fireflies', value: `${fmtCount(tally.size)} drift through the forest` },
-      { label: 'Most prolific author', value: `${topAuthor} · ${fmtCount(topCount)} commits` },
+      { label: 'Most prolific author', value: `${topAuthor} · ${pluralize(topCount, 'commit')}` },
     ],
   };
 }
