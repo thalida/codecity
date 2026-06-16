@@ -162,51 +162,6 @@ function _rectsOverlap(a: Rect, b: Rect): boolean {
   );
 }
 
-// _bboxOfRects(rects) -> Rect
-//
-// Axis-aligned bounding box of an array of rects. (x, y) is the bbox
-// CENTER; w/d are the full width/depth — matches the Rect convention used
-// elsewhere. Empty input returns a zero-size rect at the origin so the
-// caller doesn't have to special-case it.
-function _bboxOfRects(rects: Rect[]): Rect {
-  let minX = Infinity,
-    maxX = -Infinity,
-    minY = Infinity,
-    maxY = -Infinity;
-  for (let i = 0; i < rects.length; i++) {
-    const r = rects[i];
-    const x1 = r.x - r.w / 2,
-      x2 = r.x + r.w / 2;
-    const y1 = r.y - r.d / 2,
-      y2 = r.y + r.d / 2;
-    if (x1 < minX) minX = x1;
-    if (x2 > maxX) maxX = x2;
-    if (y1 < minY) minY = y1;
-    if (y2 > maxY) maxY = y2;
-  }
-  if (minX === Infinity) return { x: 0, y: 0, w: 0, d: 0 };
-  return { x: (minX + maxX) / 2, y: (minY + maxY) / 2, w: maxX - minX, d: maxY - minY };
-}
-
-// _collectRects(layout) -> Rect[]
-//
-// Flatten a partial layout (streets + buildings) into a single rect list
-// for occupancy testing.
-function _collectRects(layout: { streets?: Street[]; buildings?: Building[] }): Rect[] {
-  const out: Rect[] = [];
-  if (layout.streets) {
-    for (let i = 0; i < layout.streets.length; i++) {
-      out.push(rectOfStreet(layout.streets[i]));
-    }
-  }
-  if (layout.buildings) {
-    for (let i = 0; i < layout.buildings.length; i++) {
-      out.push(rectOfBuilding(layout.buildings[i]));
-    }
-  }
-  return out;
-}
-
 interface ManifestLike {
   tree?: DirLike;
   [k: string]: unknown;
@@ -1696,6 +1651,4 @@ export function findLayoutOverlaps(layout: {
 // Internal helpers exposed for tests only. Not part of the public API.
 export const __test = {
   _rectsOverlap,
-  _bboxOfRects,
-  _collectRects,
 };

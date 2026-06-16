@@ -7,7 +7,6 @@ import {
   computeLineStats,
   __test,
 } from '@/city/layout/algorithm';
-import type { Rect } from '@/city/layout/rect';
 import { BUILDING_DIMENSIONS } from '@/state/stores/settings/buildings';
 import { BuildingOrient, NodeKind, StreetAxis } from '@/types';
 import type { BuildingDimensionsConfig } from '@/state/stores/settings/buildings';
@@ -706,111 +705,6 @@ describe('_rectsOverlap', () => {
     const a = { x: 0, y: 0, w: 2, d: 2 };
     const b = { x: 2 - 7e-15, y: 0, w: 2, d: 2 };
     expect(_rectsOverlap(a, b)).toBe(false);
-  });
-});
-
-describe('_bboxOfRects', () => {
-  const { _bboxOfRects } = __test;
-  it('empty input returns zero-size rect at origin', () => {
-    expect(_bboxOfRects([])).toEqual({ x: 0, y: 0, w: 0, d: 0 });
-  });
-  it('single rect bbox equals the rect', () => {
-    const r: Rect = { x: 5, y: 10, w: 4, d: 6 };
-    expect(_bboxOfRects([r])).toEqual({ x: 5, y: 10, w: 4, d: 6 });
-  });
-  it('union of two rects spans both', () => {
-    const a: Rect = { x: 0, y: 0, w: 2, d: 2 }; // x in [-1, 1], y in [-1, 1]
-    const b: Rect = { x: 10, y: 10, w: 2, d: 2 }; // x in [9, 11], y in [9, 11]
-    // Union: x in [-1, 11] -> center 5, w 12. y in [-1, 11] -> center 5, d 12.
-    expect(_bboxOfRects([a, b])).toEqual({ x: 5, y: 5, w: 12, d: 12 });
-  });
-});
-
-describe('_collectRects', () => {
-  const { _collectRects } = __test;
-  it('empty input returns empty array', () => {
-    expect(_collectRects({})).toEqual([]);
-  });
-  it('converts X-orient street to long-x short-y rect', () => {
-    const rects = _collectRects({
-      streets: [
-        {
-          x: 50,
-          y: 10,
-          length: 100,
-          width: 5,
-          orientation: StreetAxis.X,
-          label: '',
-          dir: { name: '', path: '', type: NodeKind.Directory } as any,
-        },
-      ],
-    });
-    expect(rects).toEqual([{ x: 50, y: 10, w: 100, d: 5 }]);
-  });
-  it('converts Y-orient street to short-x long-y rect', () => {
-    const rects = _collectRects({
-      streets: [
-        {
-          x: 10,
-          y: 50,
-          length: 100,
-          width: 5,
-          orientation: StreetAxis.Y,
-          label: '',
-          dir: { name: '', path: '', type: NodeKind.Directory } as any,
-        },
-      ],
-    });
-    expect(rects).toEqual([{ x: 10, y: 50, w: 5, d: 100 }]);
-  });
-  it('passes building rects through unchanged', () => {
-    const rects = _collectRects({
-      buildings: [
-        {
-          x: 1,
-          y: 2,
-          w: 3,
-          d: 4,
-          h: 5,
-          floors: 1,
-          file: {} as any,
-          color: null as any,
-          orient: BuildingOrient.South,
-        },
-      ],
-    });
-    expect(rects).toEqual([{ x: 1, y: 2, w: 3, d: 4 }]);
-  });
-  it('combines streets and buildings in that order', () => {
-    const rects = _collectRects({
-      streets: [
-        {
-          x: 0,
-          y: 0,
-          length: 10,
-          width: 2,
-          orientation: StreetAxis.X,
-          label: '',
-          dir: {} as any,
-        },
-      ],
-      buildings: [
-        {
-          x: 1,
-          y: 1,
-          w: 1,
-          d: 1,
-          h: 1,
-          floors: 1,
-          file: {} as any,
-          color: null as any,
-          orient: BuildingOrient.South,
-        },
-      ],
-    });
-    expect(rects.length).toBe(2);
-    expect(rects[0].w).toBe(10); // street
-    expect(rects[1].w).toBe(1); // building
   });
 });
 
