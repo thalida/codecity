@@ -20,6 +20,11 @@ export function selectPath(path: string): void {
   SCENE_HANDLE.peek()?.picker.selectByPath(path);
 }
 
+/** Select a commit's tree by sha (almanac landmark clicks). */
+export function selectCommit(sha: string): void {
+  SCENE_HANDLE.peek()?.picker.selectByCommit(sha);
+}
+
 /** Hover-highlight the node at `path` (tree-row hover → city highlight). */
 export function hoverPath(path: string): void {
   SCENE_HANDLE.peek()?.picker.hoverByPath(path);
