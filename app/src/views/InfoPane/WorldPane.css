@@ -1,0 +1,123 @@
+.almanac {
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.almanac-name {
+  margin: 0 0 4px;
+  font-size: var(--cc-font-xl);
+  color: var(--cc-text-primary);
+}
+
+.almanac-blurb {
+  margin: 0 0 10px;
+  color: var(--cc-text-muted);
+  line-height: 1.5;
+  font-size: var(--cc-font-lg);
+}
+
+.almanac-meta {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.almanac-meta div {
+  display: flex;
+  gap: 8px;
+  font-size: var(--cc-font-lg);
+}
+
+.almanac-meta dt {
+  color: var(--cc-text-muted);
+  min-width: 56px;
+}
+
+.almanac-meta dd {
+  margin: 0;
+  color: var(--cc-text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.almanac-meta a {
+  color: var(--cc-accent-light);
+  text-decoration: none;
+}
+
+.almanac-meta a:hover {
+  text-decoration: underline;
+}
+
+.almanac-languages {
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.almanac-languages li {
+  font-size: var(--cc-font-lg);
+  background: var(--cc-accent-bg);
+  border-radius: var(--cc-radius-sm);
+  padding: 2px 6px;
+  color: var(--cc-text-secondary);
+}
+
+.almanac-lang-ext {
+  font-family: var(--cc-font-mono);
+  color: var(--cc-text-primary);
+}
+
+.almanac-section-title {
+  margin: 0 0 6px;
+  font-size: var(--cc-font-md);
+  font-weight: var(--cc-fw-semibold);
+  text-transform: uppercase;
+  letter-spacing: var(--cc-track-label);
+  color: var(--cc-text-muted);
+}
+
+.almanac-fact {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  padding: 6px 8px;
+  border-radius: var(--cc-radius-sm);
+  font-size: var(--cc-font-lg);
+  text-align: left;
+}
+
+.almanac-fact-label {
+  color: var(--cc-text-muted);
+  white-space: nowrap;
+}
+
+.almanac-fact-value {
+  color: var(--cc-text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+button.almanac-fact--landmark {
+  border: 0;
+  background: transparent;
+  font: inherit;
+  cursor: pointer;
+  transition: background var(--cc-t-fast);
+}
+
+button.almanac-fact--landmark:hover {
+  background: var(--cc-overlay-bg);
+}
+
+button.almanac-fact--landmark:hover .almanac-fact-label,
+button.almanac-fact--landmark:hover .almanac-fact-value {
+  color: var(--cc-text-primary);
+}
