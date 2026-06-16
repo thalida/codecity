@@ -7,16 +7,16 @@
 //     trees) rebuild off it. treePlacements is a source signal trees writes.
 //   structureRevision / cityRevision / decorationRevision — change-notification
 //     counters; consumers track them and peek the data.
-//   bbox / sceneBbox / cityHeight / latestWorldBounds / rootStreet / gemWorldPos —
-//     COMPUTED, never written. bbox = union of street rects + building footprints
-//     + footprint halo.
+//   bbox / sceneBbox / cityHeight / latestWorldBounds / rootStreet / gemWorldPos /
+//   tallestBuilding — COMPUTED, never written. bbox = union of street rects +
+//     building footprints + footprint halo.
 //
 // applyManifest + invalidateLayoutCache are defined here (the store owns its
 // transition); every scene component rebuilds reactively off the signals above.
 import { signal, computed, batch, type Signal, type ReadonlySignal } from '@preact/signals';
 import * as THREE from 'three';
 import { FOOTPRINT } from '@/state/stores/settings/footprint';
-import type { CityBbox, CityLayout, Manifest, Street } from '@/types';
+import type { Building, CityBbox, CityLayout, Manifest, Street } from '@/types';
 import { getWorldBounds, type WorldBounds } from '../utils/floorBounds';
 import { rectOfStreet } from '@/city/layout/rect';
 import type { TreePlacement } from '../components/trees/treePlacement';
@@ -45,6 +45,9 @@ export interface CityState {
   treePlacements: Signal<TreePlacement[] | null>;
   readonly rootStreet: ReadonlySignal<Street | null>;
   readonly gemWorldPos: ReadonlySignal<THREE.Vector3 | null>;
+  // Tallest building (by height) for the camera start-framing height-fit. From
+  // layout data, not the async building meshes (see the computed).
+  readonly tallestBuilding: ReadonlySignal<Building | null>;
   // { street dir.path → Street } from the layout. The buildings fader, pathLine,
   // picker, and the CityWorld debug API resolve a street by directory off this
   // instead of reaching into the streets component.
@@ -176,6 +179,21 @@ export function createCityState(layoutClient: ReturnType<typeof createLayoutClie
     return new THREE.Vector3(a.x, 0, a.y);
   });
 
+  // Tracks `layout` (every apply), NOT structureRevision: per-building dims
+  // (incl. the worker's media-silhouette sizing) recompute on a reuse apply —
+  // the skeleton→final swap turns placeholder heights real without bumping
+  // structureRevision — so the height must refresh there. Reading the layout
+  // directly also means framing never waits on the async building-mesh rebuild.
+  const tallestBuilding = computed<Building | null>(() => {
+    const l = layout.value;
+    if (!l) return null;
+    let tallest: Building | null = null;
+    for (const b of l.buildings) {
+      if (!tallest || b.h > tallest.h) tallest = b;
+    }
+    return tallest;
+  });
+
   // Street lookup by directory path. Tracks structureRevision + peeks layout
   // (ref-stable on a reuse apply, recomputes on a structure change) — a
   // { dir.path → Street } map derived straight from layout.streets.
@@ -274,6 +292,7 @@ export function createCityState(layoutClient: ReturnType<typeof createLayoutClie
     treePlacements,
     rootStreet,
     gemWorldPos,
+    tallestBuilding,
     streetsByDirMap,
     structureRevision,
     cityRevision,

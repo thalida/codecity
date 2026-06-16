@@ -108,33 +108,38 @@ export async function createCity(canvas: HTMLCanvasElement, manifest: Manifest):
   // BEFORE the rig (so bbox is set and the rig's first frame can frame the city).
   await applyManifest(manifest);
 
-  // cityState is threaded so the rig re-frames reactively when bbox changes
-  // and reads its world-framing inputs (bbox/gem/root street) directly. deps
-  // carries only the component-geometry accessors the rig can't reach via state.
+  // cityState is threaded so the rig re-frames reactively when bbox changes and
+  // reads its world-framing inputs (bbox/gem/root street/tallest building)
+  // directly. deps carries only the component-geometry accessors the rig can't
+  // reach via state.
   const rig = createCameraRig({
     canvas,
     cityState,
     deps: {
-      getTallestBuilding: () => buildings.getTallest(),
       getRepoLabelBounds: () => repoLabel.getPanelBounds(),
       getTreeBoundsBySha: (sha) => trees.getRenderer()?.getTreeBoundsBySha(sha) ?? null,
     },
   });
-  // Reframe the camera on a SOURCE change (repo switch) — the one camera action
-  // that used to live in the view. bbox is reassigned on every non-reuse apply,
-  // so the rig's framing is freshly captured by its own effect just above by the
-  // time this fires; peeking CURRENT_SOURCE_KEY filters to repo switches only —
-  // a config rebuild / live-update / the skeleton apply (before the fetch layer
-  // commits the new key) all keep the same key → no snap. reset() is untracked
-  // so this effect depends only on bbox.
+  // Re-snap the camera on every apply (cityRevision), not just bbox changes: the
+  // final manifest is a REUSE apply (placeholder heights → real) that leaves bbox
+  // frozen, so a bbox-only reframe would miss it and strand the camera on the
+  // early framing (issue #62). Follow until the user first takes control
+  // (OrbitControls 'start') so a later apply never yanks their view.
   let lastReframedSourceKey: string | null = null;
+  let followFraming = false;
+  const onUserControl = () => {
+    followFraming = false;
+  };
+  rig.controls.addEventListener('start', onUserControl);
   const stopReframe = effect(() => {
-    void cityState.bbox.value;
+    void cityState.cityRevision.value;
     const key = CURRENT_SOURCE_KEY.peek();
-    if (key !== null && key !== lastReframedSourceKey) {
-      untracked(() => rig.reset());
+    if (key === null) return;
+    if (key !== lastReframedSourceKey) {
       lastReframedSourceKey = key;
+      followFraming = true;
     }
+    if (followFraming) untracked(() => rig.reset());
   });
 
   const postFx = createPostFx(renderer, scene, rig.camera);
@@ -228,6 +233,7 @@ export async function createCity(canvas: HTMLCanvasElement, manifest: Manifest):
     dispose(): void {
       stopFrameLoop();
       stopReframe();
+      rig.controls.removeEventListener('start', onUserControl);
       handlers.dispose();
       picker.dispose();
       rig.dispose();

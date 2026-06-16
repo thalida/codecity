@@ -3,7 +3,7 @@
 // Tests for the persistent createBuildings(ctx) component.
 // API: createBuildings(ctx) → { group, rebuild(layout, dateRanges),
 //      disposeAdPanels, tick(dt, frame), onResize(), dispose(),
-//      getBuildingByPath, getTallest, getCells, getBuildingIndex,
+//      getBuildingByPath, getCells, getBuildingIndex,
 //      getMeshForBuilding }.
 //
 // The shared-material theme effect reacts to BUILDINGS/SCENE/BLOOM at
@@ -165,9 +165,6 @@ describe('createBuildings()', () => {
     expect(hit!.building).toBe(b0);
     expect(buildings.getBuildingByPath('src/b.ts')!.building).toBe(b1);
     expect(buildings.getBuildingByPath('nope')).toBeNull();
-
-    // getTallest reflects b1 (h=9).
-    expect(buildings.getTallest()).toEqual({ x: -20, y: -20, w: b1.w, d: b1.d, h: 9 });
 
     // getMeshForBuilding resolves through the live cell (cellId/slotId were
     // assigned during rebuild).
