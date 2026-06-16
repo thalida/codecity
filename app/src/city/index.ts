@@ -108,32 +108,30 @@ export async function createCity(canvas: HTMLCanvasElement, manifest: Manifest):
   // BEFORE the rig (so bbox is set and the rig's first frame can frame the city).
   await applyManifest(manifest);
 
-  // cityState is threaded so the rig re-frames reactively when bbox changes
-  // and reads its world-framing inputs (bbox/gem/root street) directly. deps
-  // carries only the component-geometry accessors the rig can't reach via state.
+  // cityState is threaded so the rig re-frames reactively when bbox changes and
+  // reads its world-framing inputs (bbox/gem/root street/tallest building)
+  // directly. deps carries only the component-geometry accessors the rig can't
+  // reach via state.
   const rig = createCameraRig({
     canvas,
     cityState,
     deps: {
-      getTallestBuilding: () => buildings.getTallest(),
       getRepoLabelBounds: () => repoLabel.getPanelBounds(),
       getTreeBoundsBySha: (sha) => trees.getRenderer()?.getTreeBoundsBySha(sha) ?? null,
     },
   });
-  // Reframe the camera on a SOURCE change (repo switch) — the one camera action
-  // that used to live in the view. bbox is reassigned on every non-reuse apply,
-  // so the rig's framing is freshly captured by its own effect just above by the
-  // time this fires; peeking CURRENT_SOURCE_KEY filters to repo switches only —
-  // a config rebuild / live-update / the skeleton apply (before the fetch layer
-  // commits the new key) all keep the same key → no snap. reset() is untracked
-  // so this effect depends only on bbox.
+  // Snap the camera when a NEW source's city has applied (initial load or repo
+  // switch). Track cityRevision (every apply), not bbox: the final manifest is a
+  // reuse apply that leaves bbox frozen, so a bbox-only effect would miss it. The
+  // key guard skips the empty boot (key null — no source yet) and same-source
+  // re-applies (live-updates, config saves) — only a real source change reframes.
   let lastReframedSourceKey: string | null = null;
   const stopReframe = effect(() => {
-    void cityState.bbox.value;
+    void cityState.cityRevision.value;
     const key = CURRENT_SOURCE_KEY.peek();
     if (key !== null && key !== lastReframedSourceKey) {
-      untracked(() => rig.reset());
       lastReframedSourceKey = key;
+      untracked(() => rig.reset());
     }
   });
 

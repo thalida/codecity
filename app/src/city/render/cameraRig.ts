@@ -46,11 +46,10 @@ import type { Building, PickTarget, Street } from '@/types';
 import type { CityState } from '@/city/state';
 
 /** Narrow accessor surface the rig needs from the composer for component
- *  geometry (buildings/repoLabel/trees). World framing inputs (bbox, gem,
- *  root street) come from cityState directly, not through here. createCity
+ *  geometry (repoLabel/trees). World framing inputs (bbox, gem, root street,
+ *  tallest building) come from cityState directly, not through here. createCity
  *  (city/index.ts) passes a small deps literal that satisfies this. */
 export interface CameraRigDeps {
-  getTallestBuilding(): { x: number; y: number; w: number; d: number; h: number } | null;
   getRepoLabelBounds(): {
     centerX: number;
     centerY: number;
@@ -258,7 +257,7 @@ export function createCameraRig({
     // Take the max across the 4 roof corners. HEADROOM scales D up for
     // breathing room above the roof (1.0 = spire flush against top edge).
     let heightDist = 0;
-    const tallest = gemPos && rootStreet ? deps.getTallestBuilding() : null;
+    const tallest = gemPos && rootStreet ? cityState.tallestBuilding.value : null;
     const labelBounds = gemPos && rootStreet ? deps.getRepoLabelBounds() : null;
     if (tallest || labelBounds) {
       const sinElev = dir.y;
@@ -293,22 +292,13 @@ export function createCameraRig({
           }
         }
       }
-      // Include the floating repo-label panel so empty worlds (no
-      // buildings) still frame to show the label, and crowded worlds
-      // never crop it off the top edge. The panel billboards to face
-      // the camera, so its horizontal extent could rotate either way —
-      // sample the top corners along BOTH world axes to bound it.
+      // Fit the label's top-edge HEIGHT only, not its width: the panel is
+      // centered on the gem and already inside the width-fit frame, and its
+      // width comes from the text-texture aspect, which only settles on web-font
+      // load — sampling it made the frame jump after load (issue #62).
       if (labelBounds) {
         const topY = labelBounds.centerY + labelBounds.halfHeight;
-        const r = labelBounds.halfWidth;
-        for (const [dx, dz] of [
-          [-r, 0],
-          [r, 0],
-          [0, -r],
-          [0, r],
-        ]) {
-          _fitPoint(labelBounds.centerX + dx, topY, labelBounds.centerZ + dz);
-        }
+        _fitPoint(labelBounds.centerX, topY, labelBounds.centerZ);
       }
       heightDist *= TALLEST_BUILDING_HEADROOM_MULT;
     }
@@ -397,15 +387,10 @@ export function createCameraRig({
   }
 
   function reset() {
-    // If framing wasn't captured yet (or was cleared by a disposal cycle),
-    // try once more before giving up — silent no-op on R is worse than
-    // re-running the cheap framing computation. Returns false only when
-    // the city has no bbox at all (e.g., pre-manifest), in which case
-    // there's nothing to reset to.
-    if (!initialCamPos || !initialTarget) {
-      if (!_captureFraming()) return;
-      if (!initialCamPos || !initialTarget) return;
-    }
+    // Recapture from the CURRENT layout every call: the final manifest is a reuse
+    // apply (bbox frozen), so the bbox effect that normally caches the pose
+    // doesn't re-fire there — a cached pose could be stale. False only pre-manifest.
+    if (!_captureFraming() || !initialCamPos || !initialTarget) return;
     // Cancel any in-flight focus/reset animation so it can't keep
     // walking the camera away from the snap target.
     camAnimToken++;

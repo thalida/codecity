@@ -13,12 +13,13 @@ function makeStubWorld(overrides: Partial<ReturnType<typeof _baseWorld>> = {}) {
   return { ..._baseWorld(), ...overrides };
 }
 
-// The rig reads its world-framing inputs (bbox / gemWorldPos / rootStreet)
-// from cityState computeds, not from deps — so seed a layout that produces a
-// non-empty bbox + a root street. Two crossing 1000-long streets span XZ to
-// ±500 and a 200-tall building gives the Y extent: bbox = (-500,0,-500)..(500,
-// 200,500). Exact magnitudes don't drive the focus assertions (they key off
-// the focused node + a sub-distance clamp), only that framing captures at all.
+// The rig reads its world-framing inputs (bbox / gemWorldPos / rootStreet /
+// tallestBuilding) from cityState computeds, not from deps — so seed a layout
+// that produces a non-empty bbox + a root street. Two crossing 1000-long streets
+// span XZ to ±500 and a 200-tall building gives the Y extent: bbox =
+// (-500,0,-500)..(500,200,500). Exact magnitudes don't drive the focus
+// assertions (they key off the focused node + a sub-distance clamp), only that
+// framing captures at all.
 function seedFramedCity(): CityState {
   const cs = makeCityState();
   cs.layout.value = {
@@ -34,14 +35,6 @@ function seedFramedCity(): CityState {
 
 function _baseWorld() {
   return {
-    getTallestBuilding: () =>
-      ({ x: 100, y: 0, w: 30, d: 30, h: 200 }) as {
-        x: number;
-        y: number;
-        w: number;
-        d: number;
-        h: number;
-      } | null,
     getRepoLabelBounds: () =>
       null as {
         centerX: number;
@@ -195,5 +188,42 @@ describe('cameraRig top-down focus', () => {
         resolve();
       }, 50);
     });
+  });
+});
+
+describe('cameraRig start framing', () => {
+  // Issue #62: the label's width (from the text aspect, which settles on web-font
+  // load) must not affect framing — only its top-edge height. A tall label drives
+  // heightDist; widening it 100× must not move the camera.
+  function labelDeps(halfWidth: number) {
+    return makeStubWorld({
+      getRepoLabelBounds: () => ({
+        centerX: 0,
+        centerY: 400,
+        centerZ: 0,
+        halfWidth,
+        halfHeight: 50,
+      }),
+    });
+  }
+
+  it('ignores repo-label width (only its top-edge height matters)', () => {
+    const narrow = createCameraRig({
+      canvas: makeCanvas(),
+      deps: labelDeps(40),
+      cityState: seedFramedCity(),
+    });
+    narrow.update(16);
+    const narrowPos = narrow.camera.position.clone();
+
+    const wide = createCameraRig({
+      canvas: makeCanvas(),
+      deps: labelDeps(4000),
+      cityState: seedFramedCity(),
+    });
+    wide.update(16);
+    const widePos = wide.camera.position.clone();
+
+    expect(widePos.distanceTo(narrowPos)).toBeLessThan(0.001);
   });
 });

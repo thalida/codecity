@@ -6,7 +6,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { StreetAxis, NodeKind } from '@/types';
-import type { CityLayout, Street } from '@/types';
+import type { Building, CityLayout, Street } from '@/types';
 import { makeCityState } from '../_helpers/cityFixtures';
 
 // Minimal Street — rootStreet only reads streets[].isRoot; gemWorldPos reads
@@ -158,5 +158,38 @@ describe('createCityState', () => {
     applyStructure(cs, makeLayout([r2]));
     expect(cs.rootStreet.value).toBe(r2);
     expect(cs.gemWorldPos.value!.x).not.toBe(z1);
+  });
+
+  describe('tallestBuilding', () => {
+    const bld = (over: Partial<Building>): Building =>
+      ({ x: 0, y: 0, w: 10, d: 10, h: 10, ...over }) as unknown as Building;
+    const layoutOf = (buildings: Building[]): CityLayout =>
+      ({ buildings, streets: [] }) as unknown as CityLayout;
+
+    it('is null with no layout and with no buildings', () => {
+      const cs = makeCityState();
+      expect(cs.tallestBuilding.value).toBeNull();
+      cs.layout.value = layoutOf([]);
+      expect(cs.tallestBuilding.value).toBeNull();
+    });
+
+    it('returns the max-height building', () => {
+      const cs = makeCityState();
+      const tall = bld({ x: 5, y: 6, w: 3, d: 4, h: 90 });
+      cs.layout.value = layoutOf([bld({ h: 10 }), tall, bld({ h: 50 })]);
+      expect(cs.tallestBuilding.value).toBe(tall);
+    });
+
+    // Crux of #62: a reuse apply (skeleton placeholder → real heights) reassigns
+    // `layout` without bumping structureRevision, so tallestBuilding must track
+    // `layout` or it'd frame to the stale placeholder height.
+    it('updates when layout is reassigned without a structureRevision bump', () => {
+      const cs = makeCityState();
+      cs.layout.value = layoutOf([bld({ h: 20 })]); // skeleton placeholder height
+      expect(cs.tallestBuilding.value!.h).toBe(20);
+
+      cs.layout.value = layoutOf([bld({ h: 200 })]); // final real height — no structureRevision++
+      expect(cs.tallestBuilding.value!.h).toBe(200);
+    });
   });
 });

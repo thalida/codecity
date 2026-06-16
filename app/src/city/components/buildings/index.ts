@@ -66,8 +66,6 @@ export interface Buildings extends SceneComponent {
   disposeAdPanels(): void;
   /** Building lookup by file path → { mesh, building, instanceId }. */
   getBuildingByPath(p: string): { mesh: THREE.Mesh; building: Building; instanceId: number } | null;
-  /** Tallest building (layout pos + dims), or null when empty. */
-  getTallest(): { x: number; y: number; w: number; d: number; h: number } | null;
   /** Cell map (consumed by picker / fader / outline / diff mirror). */
   getCells(): Map<number, CellTile>;
   /** Building index, or null pre-rebuild. */
@@ -479,16 +477,6 @@ export function createBuildings(ctx: SceneContext): Buildings {
     onResize,
     dispose,
     getBuildingByPath: (p) => _buildingsByPath[p] || null,
-    getTallest: () => {
-      let tallest: Building | null = null;
-      for (const cell of _cells.values()) {
-        for (const b of cell.buildings) {
-          if (b && (!tallest || b.h > tallest.h)) tallest = b;
-        }
-      }
-      if (!tallest) return null;
-      return { x: tallest.x, y: tallest.y, w: tallest.w, d: tallest.d, h: tallest.h };
-    },
     getCells: () => _cells,
     getBuildingIndex: () => _buildingIndex,
     getMeshForBuilding,
