@@ -60,15 +60,15 @@ describe('WorldPane', () => {
     expect(container.textContent).toContain('No project loaded');
   });
 
-  it('clicking a building landmark selects + focuses its file', async () => {
+  it('clicking a building landmark focus button selects + focuses its file', async () => {
     const sig = signal(manifest);
     render(<WorldPane manifest={sig as never} />, container);
     await flush();
-    const btn = Array.from(container.querySelectorAll('button')).find(
-      (b) => b.textContent?.includes('Tallest building'),
-    ) as HTMLButtonElement;
-    expect(btn).toBeTruthy();
-    btn.click();
+    const row = Array.from(container.querySelectorAll('.almanac-fact')).find(
+      (el) => el.textContent?.includes('Tallest building'),
+    ) as HTMLElement;
+    expect(row).toBeTruthy();
+    row.querySelector('button')!.click();
     expect(selectPath).toHaveBeenCalledWith('a.ts');
     expect(focusPath).toHaveBeenCalledWith('a.ts');
   });
@@ -83,11 +83,11 @@ describe('WorldPane', () => {
     const sig = signal(withCommits);
     render(<WorldPane manifest={sig as never} />, container);
     await flush();
-    const btn = Array.from(container.querySelectorAll('button')).find(
-      (b) => b.textContent?.includes('Grandest canopy'),
-    ) as HTMLButtonElement;
-    expect(btn).toBeTruthy();
-    btn.click();
+    const row = Array.from(container.querySelectorAll('.almanac-fact')).find(
+      (el) => el.textContent?.includes('Grandest canopy'),
+    ) as HTMLElement;
+    expect(row).toBeTruthy();
+    row.querySelector('button')!.click();
     expect(selectCommit).toHaveBeenCalledWith('abc1234');
     expect(focusCommit).toHaveBeenCalledWith('abc1234');
   });
@@ -106,7 +106,8 @@ describe('WorldPane', () => {
       (el) => el.textContent?.includes('Busiest day'),
     ) as HTMLElement;
     expect(row).toBeTruthy();
-    expect(row.tagName).toBe('DIV');
+    // Non-landmark rows carry no focus button.
+    expect(row.querySelector('button')).toBeNull();
   });
 
   it('gates the Forest section when the Trees layer is disabled', async () => {
@@ -120,12 +121,12 @@ describe('WorldPane', () => {
     const sig = signal(withCommits);
     render(<WorldPane manifest={sig as never} />, container);
     await flush();
-    // Section header still shows, but canopy buttons are replaced by a note.
+    // Section header still shows, but canopy rows are replaced by a note.
     expect(container.textContent).toContain('Forest');
     expect(container.textContent).toContain('Enable the Trees layer');
-    const canopyBtn = Array.from(container.querySelectorAll('button')).find(
-      (b) => b.textContent?.includes('Grandest canopy'),
+    const canopyRow = Array.from(container.querySelectorAll('.almanac-fact')).find(
+      (el) => el.textContent?.includes('Grandest canopy'),
     );
-    expect(canopyBtn).toBeUndefined();
+    expect(canopyRow).toBeUndefined();
   });
 });

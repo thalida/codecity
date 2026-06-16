@@ -93,7 +93,7 @@ describe('computeAlmanac — overview + buildings', () => {
   });
   it('date superlatives show the date in the secondary', () => {
     expect(fact('buildings', 'Oldest building').secondary).toMatch(/Created/);
-    expect(fact('buildings', 'Brightest building').secondary).toMatch(/Edited/);
+    expect(fact('buildings', 'Freshest building').secondary).toMatch(/Edited/);
   });
   it('oldest building = earliest created', () => {
     expect(fact('buildings', 'Oldest building').landmark).toEqual({ kind: 'file', id: 'old.ts' });
@@ -110,11 +110,23 @@ describe('computeAlmanac — overview + buildings', () => {
   it('narrowest building = smallest bytes', () => {
     expect(fact('buildings', 'Narrowest building').landmark).toEqual({ kind: 'file', id: 'old.ts' });
   });
-  it('brightest building = most recently modified', () => {
-    expect(fact('buildings', 'Brightest building').landmark).toEqual({ kind: 'file', id: 'new.ts' });
+  it('freshest building = most recently modified', () => {
+    expect(fact('buildings', 'Freshest building').landmark).toEqual({ kind: 'file', id: 'new.ts' });
   });
-  it('most faded building = longest since modified', () => {
-    expect(fact('buildings', 'Most faded building').landmark).toEqual({ kind: 'file', id: 'tall.ts' });
+  it('stalest building = longest since modified', () => {
+    expect(fact('buildings', 'Stalest building').landmark).toEqual({ kind: 'file', id: 'tall.ts' });
+  });
+  it('excludes media files from the line-based superlatives', () => {
+    const withMedia = dir('repo', '', [
+      file({ name: 'code.ts', path: 'code.ts', lines: 40, size: 400 }),
+      file({ name: 'pic.png', path: 'pic.png', lines: 0, size: 9000, mediaKind: 'image' }),
+    ]);
+    const m = computeAlmanac(manifest(withMedia))!;
+    const b = m.sections.find((s) => s.key === 'buildings')!;
+    // The 0-line media file must not win "Shortest building".
+    expect(b.facts.find((f) => f.label === 'Shortest building')!.landmark).toEqual({ kind: 'file', id: 'code.ts' });
+    // But it can still be the widest by bytes.
+    expect(b.facts.find((f) => f.label === 'Widest building')!.landmark).toEqual({ kind: 'file', id: 'pic.png' });
   });
 });
 

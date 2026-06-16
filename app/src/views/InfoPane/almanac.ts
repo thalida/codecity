@@ -7,6 +7,7 @@ import { NodeKind } from '@/types';
 import type { Manifest, DirNode, FileNode, RepoInfo, TreeNode } from '@/types';
 import { formatShortDate } from '@/utils/dates';
 import { formatBytes } from '@/utils/bytes';
+import { labelFromSource } from '@/utils/sources';
 
 export interface LandmarkRef {
   kind: 'file' | 'dir' | 'commit';
@@ -110,7 +111,9 @@ function fileFact(label: string, file: FileNode | null, secondary: string): Alma
 function buildOverview(m: Manifest): AlmanacOverview {
   const root = m.tree;
   return {
-    name: m.display_root || root.name || 'this project',
+    // Prefer a concise "owner/repo" (or folder basename) over the raw URL —
+    // the full remote URL still appears, clickable, in the meta list.
+    name: labelFromSource(m.repo.remote_url ?? m.display_root ?? root.name) ?? root.name ?? 'this project',
     founded: m.dateRanges.createdMin ? formatShortDate(m.dateRanges.createdMin) : null,
     totals: {
       files: root.descendants_file_count,
@@ -126,14 +129,19 @@ function buildOverview(m: Manifest): AlmanacOverview {
 }
 
 function buildingsSection(files: FileNode[]): AlmanacSection {
+  // Height encodes line count, which only drives code buildings — media files
+  // (images/videos) are sized by aspect, not lines, so they'd otherwise win
+  // "shortest" with their 0 lines. Restrict the line-based picks to text files;
+  // byte-based (widest/narrowest) and date-based picks span every building.
+  const textFiles = files.filter((f) => !f.mediaKind && !f.binary);
   const oldest = pickFile(files, (f) => -dateMs(f.created));
   const newest = pickFile(files, (f) => dateMs(f.created));
-  const tallest = pickFile(files, (f) => f.lines);
-  const shortest = pickFile(files, (f) => -f.lines);
+  const tallest = pickFile(textFiles, (f) => f.lines);
+  const shortest = pickFile(textFiles, (f) => -f.lines);
   const widest = pickFile(files, (f) => f.size);
   const narrowest = pickFile(files, (f) => -f.size);
-  const brightest = pickFile(files, (f) => dateMs(f.modified));
-  const faded = pickFile(files, (f) => -dateMs(f.modified));
+  const freshest = pickFile(files, (f) => dateMs(f.modified));
+  const stalest = pickFile(files, (f) => -dateMs(f.modified));
   const created = (f: FileNode | null) => (f ? `Created ${formatShortDate(f.created)}` : '');
   const edited = (f: FileNode | null) => (f ? `Edited ${formatShortDate(f.modified)}` : '');
   const facts = [
@@ -143,8 +151,8 @@ function buildingsSection(files: FileNode[]): AlmanacSection {
     fileFact('Shortest building', shortest, shortest ? pluralize(shortest.lines, 'line') : ''),
     fileFact('Widest building', widest, widest ? formatBytes(widest.size) : ''),
     fileFact('Narrowest building', narrowest, narrowest ? formatBytes(narrowest.size) : ''),
-    fileFact('Brightest building', brightest, edited(brightest)),
-    fileFact('Most faded building', faded, edited(faded)),
+    fileFact('Freshest building', freshest, edited(freshest)),
+    fileFact('Stalest building', stalest, edited(stalest)),
   ];
   return { key: 'buildings', title: 'Buildings', facts: facts.filter((f): f is AlmanacFact => f !== null) };
 }

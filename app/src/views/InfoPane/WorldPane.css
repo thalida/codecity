@@ -2,20 +2,22 @@
   padding: 12px 14px;
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: 16px;
 }
 
 .almanac-name {
-  margin: 0 0 4px;
-  font-size: var(--cc-font-xl);
+  margin: 0 0 6px;
+  font-size: var(--cc-font-2xl);
+  font-weight: var(--cc-fw-semibold);
   color: var(--cc-text-primary);
+  word-break: break-word;
 }
 
 .almanac-blurb {
-  margin: 0 0 10px;
-  color: var(--cc-text-muted);
+  margin: 0 0 12px;
+  color: var(--cc-text-secondary);
   line-height: 1.5;
-  font-size: var(--cc-font-lg);
+  font-size: var(--cc-font-xl);
 }
 
 .almanac-meta {
@@ -29,18 +31,22 @@
   display: flex;
   gap: 8px;
   font-size: var(--cc-font-lg);
+  min-width: 0;
 }
 
 .almanac-meta dt {
+  flex: 0 0 auto;
   color: var(--cc-text-muted);
-  min-width: 56px;
+  min-width: 52px;
 }
 
 .almanac-meta dd {
   margin: 0;
+  min-width: 0;
   color: var(--cc-text-secondary);
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .almanac-meta a {
@@ -52,26 +58,29 @@
   text-decoration: underline;
 }
 
+.almanac-sha {
+  font-family: var(--cc-font-mono);
+  color: var(--cc-text-primary);
+}
+
 .almanac-languages {
   list-style: none;
   margin: 10px 0 0;
   padding: 0;
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: 8px;
 }
 
-.almanac-languages li {
-  font-size: var(--cc-font-lg);
-  background: var(--cc-accent-bg);
-  border-radius: var(--cc-radius-sm);
-  padding: 2px 6px;
-  color: var(--cc-text-secondary);
+.almanac-language {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
 }
 
-.almanac-lang-ext {
-  font-family: var(--cc-font-mono);
-  color: var(--cc-text-primary);
+.almanac-language-count {
+  font-size: var(--cc-font-md);
+  color: var(--cc-text-muted);
 }
 
 .almanac-section-title {
@@ -93,12 +102,19 @@
 
 .almanac-fact {
   display: flex;
-  flex-direction: column;
-  gap: 1px;
+  align-items: center;
+  gap: 8px;
   width: 100%;
   padding: 6px 8px;
   border-radius: var(--cc-radius-sm);
-  text-align: left;
+}
+
+.almanac-fact-text {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
 }
 
 .almanac-fact-label {
@@ -123,12 +139,24 @@
   text-overflow: ellipsis;
 }
 
-/* Paths/shas read left-to-right but matter most at the END (filename, short
- * sha), so truncate from the left — the ellipsis leads and the tail stays. */
 .almanac-fact-primary--mono {
+  display: flex;
+  min-width: 0;
   font-family: var(--cc-font-mono);
-  direction: rtl;
-  text-align: left;
+}
+
+/* Directory truncates from the right; the filename always stays whole. */
+.almanac-path-dir {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.almanac-path-base {
+  flex: 0 0 auto;
+  white-space: nowrap;
 }
 
 .almanac-fact-secondary {
@@ -138,14 +166,6 @@
   white-space: nowrap;
 }
 
-button.almanac-fact--landmark {
-  border: 0;
-  background: transparent;
-  font: inherit;
-  cursor: pointer;
-  transition: background var(--cc-t-fast);
-}
-
-button.almanac-fact--landmark:hover {
-  background: var(--cc-overlay-bg);
+.almanac-fact-focus {
+  flex: 0 0 auto;
 }
