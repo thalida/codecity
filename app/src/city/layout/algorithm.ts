@@ -33,12 +33,9 @@ import type { WorldRect } from './occupancyIndex';
 const GEM_CLEARANCE_AS_GEM_WIDTH_FRAC = 1.0;
 
 // ─── Profiling ───────────────────────────────────────────────────────────────
-// Off by default. A single boolean guard keeps the production cost to one
-// branch per profiled section (no performance.now() calls when disabled).
-// Enable from a bench/diagnostic via setLayoutProfiling(true); layoutCity then
-// emits a one-line per-phase breakdown via console and exposes the raw buckets
-// through getLayoutProfile(). Each bucket tracks cumulative ms and a count (for
-// timers, the number of timed calls; for pure counters, the running total).
+// Off by default; the _profEnabled guard keeps production cost to one branch per
+// section. setLayoutProfiling(true) makes layoutCity log a per-phase breakdown
+// and expose raw buckets (cumulative ms + count) via getLayoutProfile().
 interface ProfBucket {
   ms: number;
   n: number;
@@ -532,19 +529,18 @@ export function findSmallestValidStem(
   // Gap the placing child reserves around itself (by its kind).
   const placingGap = p.childKind === WorldRectKind.Street ? p.streetGap : p.buildingGap;
 
-  // Frontier prune: the stem never drops below this baseline, and it only ever
-  // increases as we walk forbidden intervals. An obstacle can only push the
-  // stem if its forbidden interval's upper bound exceeds the baseline — i.e.
-  // gMaxAlong + sep > alongMin0 + baseline. Obstacles entirely BEHIND the
-  // placement frontier (the dense, already-packed region) can never bind, so we
-  // clip the occupancy query's along-axis low end to skip them. Using the
-  // largest possible sep keeps the clip conservative (it can only over-include,
-  // never drop a binding obstacle), so the result stays bit-identical.
+  // The stem only ever grows from this baseline, so obstacles behind the
+  // frontier can never bind — clip the query's low end past them (maxSep keeps
+  // the clip conservative, so output stays bit-identical).
   const baseline = Math.max(p.priorStem, p.originPad);
   const maxSep = Math.max(p.buildingGap, p.streetGap);
 
-  // Collect forbidden stem intervals from all (childRect, candidate) pairs.
+  // Hot path collects interval endpoints into parallel number arrays (no object,
+  // no sort); trace keeps full records for the stem-placement debugger.
+  const tracing = trace !== undefined;
   const forbidden: ForbiddenIntervalRecord[] = [];
+  const lo: number[] = [];
+  const hi: number[] = [];
 
   for (let rIdx = 0; rIdx < p.childRects.length; rIdx++) {
     const r = p.childRects[rIdx];
@@ -563,9 +559,7 @@ export function findSmallestValidStem(
       alongMax0 = flipped.y + flipped.d / 2 + p.parentOriginY;
     }
 
-    // Low end of the along-axis query window — obstacles whose far edge lies
-    // below this can't bind (see `baseline` note above). The −1 margin keeps
-    // the clip safely below the exact relevance threshold.
+    // Skip obstacles whose far edge is behind the frontier (−1 margin for FP).
     const loAlong = alongMin0 + baseline - maxSep - 1;
     const candidates =
       p.parentOrient === StreetAxis.X
@@ -588,29 +582,47 @@ export function findSmallestValidStem(
       const lower = gMinAlong - alongMax0 - sep;
       const upper = gMaxAlong - alongMin0 + sep;
       if (upper > lower) {
-        forbidden.push({ lower, upper, obstacle: g, fromChildRectIndex: rIdx });
+        if (tracing) forbidden.push({ lower, upper, obstacle: g, fromChildRectIndex: rIdx });
+        else {
+          lo.push(lower);
+          hi.push(upper);
+        }
       }
     }
   }
 
-  forbidden.sort((a, b) => a.lower - b.lower);
-  let s = Math.max(p.priorStem, p.originPad);
-  let bindingIndex: number | null = null;
-  for (let i = 0; i < forbidden.length; i++) {
-    const interval = forbidden[i];
-    if (s < interval.lower) break;
-    if (s < interval.upper) {
-      s = interval.upper;
-      bindingIndex = i;
+  // Smallest stem ≥ baseline not covered by the forbidden intervals: grow s
+  // through their contiguous chain from the baseline. Avoiding the sort here
+  // (the chain is a few links) was the bulk of the speedup. trace keeps the
+  // sorted scan so its bindingIndex stays meaningful.
+  let s = baseline;
+  if (tracing) {
+    forbidden.sort((a, b) => a.lower - b.lower);
+    let bindingIndex: number | null = null;
+    for (let i = 0; i < forbidden.length; i++) {
+      const interval = forbidden[i];
+      if (s < interval.lower) break;
+      if (s < interval.upper) {
+        s = interval.upper;
+        bindingIndex = i;
+      }
     }
-  }
-
-  if (trace) {
     trace.forbidden = forbidden;
     trace.bindingIndex = bindingIndex;
     trace.stem = s;
+  } else {
+    const n = lo.length;
+    for (;;) {
+      let ns = s;
+      for (let i = 0; i < n; i++) {
+        if (lo[i] <= s && hi[i] > ns) ns = hi[i];
+      }
+      if (ns === s) break;
+      s = ns;
+    }
   }
-  _profCount('stem.forbidden', forbidden.length);
+
+  _profCount('stem.forbidden', tracing ? forbidden.length : lo.length);
   _profEnd('findSmallestValidStem', _t0);
   return s;
 }
