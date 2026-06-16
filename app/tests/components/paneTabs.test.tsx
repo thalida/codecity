@@ -1,32 +1,53 @@
-import { describe, it, expect, vi, afterEach } from 'vitest';
-import { render, fireEvent, cleanup } from '@testing-library/preact';
-
-afterEach(() => cleanup());
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { render } from 'preact';
 import { PaneTabs } from '@/components/PaneTabs/PaneTabs';
-
-const tabs = [
-  { id: 'world', label: 'World' },
-  { id: 'readme', label: 'Readme' },
-];
+import { flush } from '../_helpers/preact';
 
 describe('PaneTabs', () => {
-  it('renders a tab per entry and marks the active one', () => {
-    const { getByRole } = render(<PaneTabs tabs={tabs} active="world" onSelect={() => {}} />);
-    expect(getByRole('tab', { name: 'World' }).getAttribute('aria-selected')).toBe('true');
-    expect(getByRole('tab', { name: 'Readme' }).getAttribute('aria-selected')).toBe('false');
+  let container: HTMLDivElement;
+
+  beforeEach(() => {
+    container = document.createElement('div');
+    document.body.appendChild(container);
   });
 
-  it('calls onSelect with the clicked tab id', () => {
+  afterEach(() => {
+    render(null, container);
+    container.remove();
+  });
+
+  const tabs = [
+    { id: 'world', label: 'World' },
+    { id: 'readme', label: 'Readme' },
+  ];
+
+  const tabByLabel = (label: string) =>
+    Array.from(container.querySelectorAll('[role="tab"]')).find(
+      (el) => el.textContent === label,
+    ) as HTMLButtonElement;
+
+  it('renders a tab per entry and marks the active one', async () => {
+    render(<PaneTabs tabs={tabs} active="world" onSelect={() => {}} />, container);
+    await flush();
+    expect(tabByLabel('World').getAttribute('aria-selected')).toBe('true');
+    expect(tabByLabel('Readme').getAttribute('aria-selected')).toBe('false');
+  });
+
+  it('calls onSelect with the clicked tab id', async () => {
     const onSelect = vi.fn();
-    const { getByRole } = render(<PaneTabs tabs={tabs} active="world" onSelect={onSelect} />);
-    fireEvent.click(getByRole('tab', { name: 'Readme' }));
+    render(<PaneTabs tabs={tabs} active="world" onSelect={onSelect} />, container);
+    await flush();
+    tabByLabel('Readme').click();
     expect(onSelect).toHaveBeenCalledWith('readme');
   });
 
-  it('ArrowRight moves selection to the next tab', () => {
+  it('ArrowRight moves selection to the next tab', async () => {
     const onSelect = vi.fn();
-    const { getByRole } = render(<PaneTabs tabs={tabs} active="world" onSelect={onSelect} />);
-    fireEvent.keyDown(getByRole('tab', { name: 'World' }), { key: 'ArrowRight' });
+    render(<PaneTabs tabs={tabs} active="world" onSelect={onSelect} />, container);
+    await flush();
+    tabByLabel('World').dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }),
+    );
     expect(onSelect).toHaveBeenCalledWith('readme');
   });
 });
