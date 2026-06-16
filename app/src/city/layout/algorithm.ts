@@ -32,6 +32,75 @@ import type { WorldRect } from './occupancyIndex';
 // exposed as a control).
 const GEM_CLEARANCE_AS_GEM_WIDTH_FRAC = 1.0;
 
+// ─── Profiling ───────────────────────────────────────────────────────────────
+// Off by default. A single boolean guard keeps the production cost to one
+// branch per profiled section (no performance.now() calls when disabled).
+// Enable from a bench/diagnostic via setLayoutProfiling(true); layoutCity then
+// emits a one-line per-phase breakdown via console and exposes the raw buckets
+// through getLayoutProfile(). Each bucket tracks cumulative ms and a count (for
+// timers, the number of timed calls; for pure counters, the running total).
+interface ProfBucket {
+  ms: number;
+  n: number;
+}
+let _profEnabled = false;
+const _prof = new Map<string, ProfBucket>();
+export function setLayoutProfiling(on: boolean): void {
+  _profEnabled = on;
+  _prof.clear();
+}
+export function getLayoutProfile(): Array<{ key: string; ms: number; n: number }> {
+  return [..._prof.entries()].map(([key, b]) => ({ key, ms: b.ms, n: b.n }));
+}
+function _profNow(): number {
+  return _profEnabled ? performance.now() : 0;
+}
+function _profEnd(key: string, t0: number): void {
+  if (!_profEnabled) return;
+  const dt = performance.now() - t0;
+  const b = _prof.get(key);
+  if (b) {
+    b.ms += dt;
+    b.n += 1;
+  } else {
+    _prof.set(key, { ms: dt, n: 1 });
+  }
+}
+function _profCount(key: string, n: number): void {
+  if (!_profEnabled) return;
+  const b = _prof.get(key);
+  if (b) b.n += n;
+  else _prof.set(key, { ms: 0, n });
+}
+function _profMs(key: string): number {
+  return _prof.get(key)?.ms ?? 0;
+}
+function _profN(key: string): number {
+  return _prof.get(key)?.n ?? 0;
+}
+function _logLayoutProfile(layout: CityLayout): void {
+  const total =
+    _profMs('phase.computeFileStats') +
+    _profMs('phase.estimateDirReaches') +
+    _profMs('phase.layoutDir') +
+    _profMs('phase.markJoinSides');
+  const f = (ms: number) => ms.toFixed(0).padStart(6);
+  const pct = (ms: number) => `${((ms / total) * 100).toFixed(0)}%`.padStart(4);
+  const lines = [
+    `[layout-profile] ${layout.buildings.length} buildings, ${layout.streets.length} streets — total ${total.toFixed(0)}ms`,
+    `  computeFileStats   ${f(_profMs('phase.computeFileStats'))}ms ${pct(_profMs('phase.computeFileStats'))}`,
+    `  estimateDirReaches ${f(_profMs('phase.estimateDirReaches'))}ms ${pct(_profMs('phase.estimateDirReaches'))}`,
+    `  layoutDir          ${f(_profMs('phase.layoutDir'))}ms ${pct(_profMs('phase.layoutDir'))}`,
+    `  markJoinSides      ${f(_profMs('phase.markJoinSides'))}ms ${pct(_profMs('phase.markJoinSides'))}`,
+    `  ── within layoutDir ─────────────────────────────`,
+    `  isMirrorInvariant  ${f(_profMs('placeChild.isMirrorInvariant'))}ms  (${_profN('placeChild.calls')} placeChild calls, ${_profN('placeChild.childRects')} childRects evaluated)`,
+    `  findSmallestStem   ${f(_profMs('findSmallestValidStem'))}ms  (${_profN('findSmallestValidStem')} calls, ${_profN('stem.queries')} occ queries, ${_profN('stem.candidates')} candidates, ${_profN('stem.forbidden')} forbidden)`,
+    `  childRectsBuild    ${f(_profMs('commit.childRectsBuild'))}ms`,
+    `  translate+insert   ${f(_profMs('commit.translateInsert'))}ms`,
+  ];
+  console.log(lines.join('\n'));
+}
+
 // Structural shapes — kept lenient so test fixtures (which omit fields the
 // helpers don't read, like name/path on intermediate nodes) stay
 // compatible. Real callers pass full Manifest / TreeNode / FileNode
@@ -458,9 +527,21 @@ export function findSmallestValidStem(
   p: FindSmallestValidStemParams,
   trace?: VariantTrace
 ): number {
+  const _t0 = _profNow();
   const { flipX, flipY } = computeFlips(p.parentOrient, p.side, p.mirror);
   // Gap the placing child reserves around itself (by its kind).
   const placingGap = p.childKind === WorldRectKind.Street ? p.streetGap : p.buildingGap;
+
+  // Frontier prune: the stem never drops below this baseline, and it only ever
+  // increases as we walk forbidden intervals. An obstacle can only push the
+  // stem if its forbidden interval's upper bound exceeds the baseline — i.e.
+  // gMaxAlong + sep > alongMin0 + baseline. Obstacles entirely BEHIND the
+  // placement frontier (the dense, already-packed region) can never bind, so we
+  // clip the occupancy query's along-axis low end to skip them. Using the
+  // largest possible sep keeps the clip conservative (it can only over-include,
+  // never drop a binding obstacle), so the result stays bit-identical.
+  const baseline = Math.max(p.priorStem, p.originPad);
+  const maxSep = Math.max(p.buildingGap, p.streetGap);
 
   // Collect forbidden stem intervals from all (childRect, candidate) pairs.
   const forbidden: ForbiddenIntervalRecord[] = [];
@@ -482,10 +563,16 @@ export function findSmallestValidStem(
       alongMax0 = flipped.y + flipped.d / 2 + p.parentOriginY;
     }
 
+    // Low end of the along-axis query window — obstacles whose far edge lies
+    // below this can't bind (see `baseline` note above). The −1 margin keeps
+    // the clip safely below the exact relevance threshold.
+    const loAlong = alongMin0 + baseline - maxSep - 1;
     const candidates =
       p.parentOrient === StreetAxis.X
-        ? p.occupancy.query(-Infinity, perpMin, Infinity, perpMax)
-        : p.occupancy.query(perpMin, -Infinity, perpMax, Infinity);
+        ? p.occupancy.query(loAlong, perpMin, Infinity, perpMax)
+        : p.occupancy.query(perpMin, loAlong, perpMax, Infinity);
+    _profCount('stem.queries', 1);
+    _profCount('stem.candidates', candidates.length);
 
     for (const g of candidates) {
       const gMinAlong = p.parentOrient === StreetAxis.X ? g.minX : g.minY;
@@ -523,6 +610,8 @@ export function findSmallestValidStem(
     trace.bindingIndex = bindingIndex;
     trace.stem = s;
   }
+  _profCount('stem.forbidden', forbidden.length);
+  _profEnd('findSmallestValidStem', _t0);
   return s;
 }
 
@@ -569,7 +658,11 @@ export interface PlaceChildResult {
 // the loser ones) pushes a VariantTrace into trace.variants. No effect on
 // algorithm or return value.
 export function placeChild(p: PlaceChildParams, trace?: PlaceChildTrace): PlaceChildResult {
+  _profCount('placeChild.calls', 1);
+  _profCount('placeChild.childRects', p.childRects.length);
+  const _tMirror = _profNow();
   const mirrorInvariant = isMirrorInvariant(p.childRects, p.parentOrient);
+  _profEnd('placeChild.isMirrorInvariant', _tMirror);
 
   let bestStem = +Infinity;
   let bestSide: 0 | 1 = 0;
@@ -1085,6 +1178,7 @@ function _layoutDir(
       // Build child-local rect list from the subtree result. These are the
       // rects placeChild evaluates for variants (collision testing in the
       // parent's frame).
+      const _tCR = _profNow();
       const childRects: Rect[] = [];
       for (const s of childResult.streets) {
         childRects.push(rectOfStreet(s));
@@ -1092,6 +1186,7 @@ function _layoutDir(
       for (const b of childResult.buildings) {
         childRects.push(rectOfBuilding(b));
       }
+      _profEnd('commit.childRectsBuild', _tCR);
 
       // Pick variant against the parent's occupancy.
       const variants: VariantTrace[] = [];
@@ -1141,6 +1236,7 @@ function _layoutDir(
       const subAnchorX = orientation === StreetAxis.X ? originX + placed.stem : originX;
       const subAnchorY = orientation === StreetAxis.X ? originY : originY + placed.stem;
 
+      const _tCommit = _profNow();
       for (const s of childResult.streets) {
         const isXOrient = s.orientation === StreetAxis.X;
         const worldStreet: Street = {
@@ -1188,6 +1284,7 @@ function _layoutDir(
         };
         occupancy.insert(buildingWorldRect);
       }
+      _profEnd('commit.translateInsert', _tCommit);
 
       priorStems[placed.side] = placed.stem;
       const boundaryHigh = placed.stem + childResult.alongReach;
@@ -1269,7 +1366,9 @@ function _layoutCityInternal(
     byteStats: { min: 1, max: 1 },
   };
 
+  const _tStats = _profNow();
   const stats = computeFileStats(tree);
+  _profEnd('phase.computeFileStats', _tStats);
   result.lineStats = stats.lines;
   result.byteStats = stats.bytes;
 
@@ -1281,8 +1380,11 @@ function _layoutCityInternal(
   };
   // Bottom-up pre-pass: each dir's alongReach (final road length) is needed
   // when its children seed their phantoms with the exact parent body extent.
+  const _tReaches = _profNow();
   const reachCache = new Map<DirLike, DirReaches>();
   estimateDirReaches(tree, stats.lines, stats.bytes, undefined, reachCache);
+  _profEnd('phase.estimateDirReaches', _tReaches);
+  const _tPlace = _profNow();
   _layoutDir(
     tree,
     0,
@@ -1296,6 +1398,7 @@ function _layoutCityInternal(
     reachCache,
     trace
   );
+  _profEnd('phase.layoutDir', _tPlace);
 
   for (const street of result.streets) {
     if ((street.dir as unknown) === (tree as unknown)) {
@@ -1304,7 +1407,11 @@ function _layoutCityInternal(
     }
   }
 
+  const _tJoin = _profNow();
   _markJoinSides(result.streets);
+  _profEnd('phase.markJoinSides', _tJoin);
+
+  if (_profEnabled) _logLayoutProfile(result);
 
   return { layout: result, trace: trace ?? { placements: [] } };
 }
