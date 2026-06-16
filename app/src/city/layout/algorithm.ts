@@ -32,6 +32,11 @@ import type { WorldRect } from './occupancyIndex';
 // exposed as a control).
 const GEM_CLEARANCE_AS_GEM_WIDTH_FRAC = 1.0;
 
+// findSmallestValidStem's sort-free scan grows the stem one forbidden-interval
+// link per round (O(F·chain)). Past this many rounds the chain is long enough
+// that a one-off O(F log F) sorted scan is cheaper, so we fall back to it.
+const STEM_SCAN_SORT_FALLBACK_ROUNDS = 32;
+
 // ─── Profiling ───────────────────────────────────────────────────────────────
 // Off by default; the _profEnabled guard keeps production cost to one branch per
 // section. setLayoutProfiling(true) makes layoutCity log a per-phase breakdown
@@ -582,8 +587,9 @@ export function findSmallestValidStem(
       const lower = gMinAlong - alongMax0 - sep;
       const upper = gMaxAlong - alongMin0 + sep;
       if (upper > lower) {
-        if (tracing) forbidden.push({ lower, upper, obstacle: g, fromChildRectIndex: rIdx });
-        else {
+        if (tracing) {
+          forbidden.push({ lower, upper, obstacle: g, fromChildRectIndex: rIdx });
+        } else {
           lo.push(lower);
           hi.push(upper);
         }
@@ -619,9 +625,9 @@ export function findSmallestValidStem(
       }
       if (ns === s) break;
       s = ns;
-      // A long chain (e.g. a big flat dir) would make the round loop O(F·chain);
-      // finish such cases with a one-off sorted scan to keep the O(F log F) bound.
-      if (rounds > 32) {
+      // A long chain (e.g. a big flat dir) makes the round loop expensive; finish
+      // it with a one-off sorted scan to keep the O(F log F) bound.
+      if (rounds > STEM_SCAN_SORT_FALLBACK_ROUNDS) {
         const order = Array.from(lo.keys()).sort((a, b) => lo[a] - lo[b]);
         s = baseline;
         for (const i of order) {
