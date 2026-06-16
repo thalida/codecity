@@ -924,6 +924,76 @@ export function estimateDirReaches(
   return result;
 }
 
+// _seedParentPhantom — insert a phantom rect covering the parent street's body
+// into this dir's local occupancy, so children's stems clear the parent main
+// street's perp footprint. Along this dir's axis it spans ±parentStreetWidth/2
+// (the join sits at along=0); along the perp axis it covers the parent's final
+// road length (from the estimateDirReaches pre-pass; PHANTOM_FAR when unknown).
+function _seedParentPhantom(
+  occupancy: WorldOccupancy,
+  orientation: StreetAxis,
+  parentStreetWidth: number,
+  parentFinalAlongReach: number | undefined
+): void {
+  const halfP = parentStreetWidth / 2;
+  const PHANTOM_FAR = 1e9;
+  // +1 unit absorbs FP drift between the pre-pass estimate and actual placement.
+  const reach = parentFinalAlongReach !== undefined ? parentFinalAlongReach + 1 : PHANTOM_FAR;
+  const alongX = orientation === StreetAxis.X;
+  occupancy.insert({
+    minX: alongX ? -halfP : -reach,
+    minY: alongX ? -reach : -halfP,
+    maxX: alongX ? halfP : reach,
+    maxY: alongX ? reach : halfP,
+    kind: WorldRectKind.Street,
+    // parentBody marks this as the parent's body, not a sibling, so the
+    // sibling-gap logic skips the street gap (join clearance is PARENT_JOIN_PAD).
+    parentBody: true,
+    // Phantom ref — never read (lives only in local occupancy, never in CityLayout).
+    ref: {
+      x: 0,
+      y: 0,
+      length: 0,
+      width: parentStreetWidth,
+      orientation: alongX ? StreetAxis.Y : StreetAxis.X,
+      label: '__phantom_parent_body__',
+      dir: null as unknown as Street['dir'],
+    } as Street,
+  });
+}
+
+// _recordPlacement — append one diagnostic record for a placed child to the
+// stem-placement trace (debug button only; no effect on layout output).
+function _recordPlacement(
+  trace: StemPlacementTrace,
+  childKind: 'file' | 'dir',
+  child: TreeLike,
+  parentPath: string,
+  placed: PlaceChildResult,
+  variants: VariantTrace[],
+  priorStems: readonly [number, number],
+  originPad: number
+): void {
+  const chosenIdx = variants.findIndex((v) => v.side === placed.side && v.mirror === placed.mirror);
+  if (chosenIdx < 0) {
+    throw new Error(
+      `[stem-diag] placed variant not found in trace.variants — placeChild invariant broken (side=${placed.side}, mirror=${placed.mirror})`
+    );
+  }
+  const chosenPriorStem = priorStems[placed.side];
+  trace.placements.push({
+    childKind,
+    childLabel: child.name ?? '?',
+    childPath: String((child as DirLike).path ?? ''),
+    parentPath,
+    baseline: Math.max(chosenPriorStem, originPad),
+    priorStem: chosenPriorStem,
+    originPad,
+    chosen: variants[chosenIdx],
+    others: variants.filter((_, i) => i !== chosenIdx),
+  });
+}
+
 // _layoutDir(dir, originX, originY, orientation, result, parentStreetWidth,
 //             lineStats, byteStats, occupancy)
 //   → fills `result` with this subtree's content in WORLD frame (relative to
@@ -985,52 +1055,10 @@ function _layoutDir(
     ? Math.max(endPad, myStreetWidth * (0.5 + gemRadiusFrac) + gemClearance)
     : joinEndBaseline;
 
-  // ----- Pre-seed parent's street body into occupancy. Forces children's
-  // stems to clear the parent main street's perp footprint via a
-  // phantom-rect collision check.
-  //
-  // Phantom geometry in THIS dir's local frame:
-  //   - Along this dir's ALONG axis: spans ±parentStreetWidth/2 (parent's
-  //     width). This dir's join end sits at along=0; the parent's body
-  //     extends to ±parentW/2 on either side of the join.
-  //   - Along this dir's PERP axis: parent's FINAL road length, supplied
-  //     by the caller from a bottom-up pre-pass (estimateDirReaches).
-  //
-  // Skipped at the root call (parentStreetWidth undefined), where no parent
-  // body exists. -----
+  // Pre-seed the parent's street body so children clear its perp footprint.
+  // Skipped at the root call, where no parent body exists.
   if (parentStreetWidth !== undefined && parentStreetWidth > 0) {
-    const halfP = parentStreetWidth / 2;
-    const PHANTOM_FAR = 1e9;
-    // +1 unit absorbs floating-point drift between the estimate (computed
-    // in the pre-pass) and the actual placement (computed here).
-    const phantomReach =
-      parentFinalAlongReach !== undefined ? parentFinalAlongReach + 1 : PHANTOM_FAR;
-    const phantomMinX = orientation === StreetAxis.X ? -halfP : -phantomReach;
-    const phantomMaxX = orientation === StreetAxis.X ? +halfP : +phantomReach;
-    const phantomMinY = orientation === StreetAxis.Y ? -halfP : -phantomReach;
-    const phantomMaxY = orientation === StreetAxis.Y ? +halfP : +phantomReach;
-    occupancy.insert({
-      minX: phantomMinX,
-      minY: phantomMinY,
-      maxX: phantomMaxX,
-      maxY: phantomMaxY,
-      kind: WorldRectKind.Street,
-      // Marks this as the PARENT body, not a sibling — the sibling-gap logic
-      // skips the street gap for it (the join clearance is PARENT_JOIN_PAD).
-      parentBody: true,
-      // Phantom ref — never read by findSmallestValidStem or the result
-      // arrays (the phantom lives only in the local occupancy and never
-      // appears in CityLayout). Typed as Street to satisfy WorldRect.ref.
-      ref: {
-        x: 0,
-        y: 0,
-        length: 0,
-        width: parentStreetWidth,
-        orientation: orientation === StreetAxis.X ? StreetAxis.Y : StreetAxis.X,
-        label: '__phantom_parent_body__',
-        dir: null as unknown as Street['dir'],
-      } as Street,
-    });
+    _seedParentPhantom(occupancy, orientation, parentStreetWidth, parentFinalAlongReach);
   }
 
   // ----- Sort children alphabetically -----
@@ -1096,26 +1124,16 @@ function _layoutDir(
         trace ? { variants } : undefined
       );
       if (trace) {
-        const chosenIdx = variants.findIndex(
-          (v) => v.side === placed.side && v.mirror === placed.mirror
+        _recordPlacement(
+          trace,
+          'file',
+          child,
+          dir.path ?? '',
+          placed,
+          variants,
+          priorStems,
+          originPad
         );
-        if (chosenIdx < 0) {
-          throw new Error(
-            `[stem-diag] placed variant not found in trace.variants — placeChild invariant broken (side=${placed.side}, mirror=${placed.mirror})`
-          );
-        }
-        const chosenPriorStem = priorStems[placed.side];
-        trace.placements.push({
-          childKind: 'file',
-          childLabel: child.name ?? '?',
-          childPath: String((child as DirLike).path ?? ''),
-          parentPath: dir.path ?? '',
-          baseline: Math.max(chosenPriorStem, originPad),
-          priorStem: chosenPriorStem,
-          originPad,
-          chosen: variants[chosenIdx],
-          others: variants.filter((_, i) => i !== chosenIdx),
-        });
       }
 
       // Translate child-local rects to world frame using chosen flips + stem.
@@ -1230,26 +1248,16 @@ function _layoutDir(
         trace ? { variants } : undefined
       );
       if (trace) {
-        const chosenIdx = variants.findIndex(
-          (v) => v.side === placed.side && v.mirror === placed.mirror
+        _recordPlacement(
+          trace,
+          'dir',
+          child,
+          dir.path ?? '',
+          placed,
+          variants,
+          priorStems,
+          originPad
         );
-        if (chosenIdx < 0) {
-          throw new Error(
-            `[stem-diag] placed variant not found in trace.variants — placeChild invariant broken (side=${placed.side}, mirror=${placed.mirror})`
-          );
-        }
-        const chosenPriorStem = priorStems[placed.side];
-        trace.placements.push({
-          childKind: 'dir',
-          childLabel: child.name ?? '?',
-          childPath: String((child as DirLike).path ?? ''),
-          parentPath: dir.path ?? '',
-          baseline: Math.max(chosenPriorStem, originPad),
-          priorStem: chosenPriorStem,
-          originPad,
-          chosen: variants[chosenIdx],
-          others: variants.filter((_, i) => i !== chosenIdx),
-        });
       }
 
       // Translate the subtree's contents to world coords and commit. The

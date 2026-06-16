@@ -8,11 +8,7 @@
 // up. Not committed as a perf gate; it's a diagnostic driver.
 
 import { describe, it } from 'vitest';
-import {
-  layoutCity,
-  setLayoutProfiling,
-  getLayoutProfile,
-} from '@/city/layout/algorithm.js';
+import { layoutCity, setLayoutProfiling, getLayoutProfile } from '@/city/layout/algorithm.js';
 import { NodeKind } from '@/types';
 
 // Deterministic LCG so tree shape (and thus timings) are reproducible run-to-run.
@@ -53,13 +49,7 @@ function mkDir(name: string, children: any[], path: string): any {
 
 // genDir(name, path, budget, depth, rng) — recursively splits a file budget
 // across loose files + skewed subdirectories, mimicking a real source tree.
-function genDir(
-  name: string,
-  path: string,
-  budget: number,
-  depth: number,
-  rng: () => number
-): any {
+function genDir(name: string, path: string, budget: number, depth: number, rng: () => number): any {
   if (budget <= 8 || depth >= 7) {
     const files = [];
     for (let i = 0; i < budget; i++) files.push(mkFile(`f${i}.c`, path, rng));
@@ -86,7 +76,7 @@ function genDir(
     const cname = `d${i}`;
     children.push(genDir(cname, `${path}/${cname}`, share, depth + 1, rng));
   }
-  return mkDir('root' === name ? 'root' : name, children, path);
+  return mkDir(name, children, path);
 }
 
 function countFilesDirs(node: any): { files: number; dirs: number } {

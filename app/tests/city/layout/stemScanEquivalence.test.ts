@@ -30,21 +30,35 @@ function mkFile(name: string, path: string, rng: () => number): any {
 function mkDir(name: string, children: any[], path: string): any {
   const descendants_count =
     children.length + children.reduce((a, c) => a + (c.descendants_count || 0), 0);
-  return { name, type: NodeKind.Directory, path, children_count: children.length, descendants_count, children };
+  return {
+    name,
+    type: NodeKind.Directory,
+    path,
+    children_count: children.length,
+    descendants_count,
+    children,
+  };
 }
 function flat(n: number, rng: () => number): any {
-  const files = Array.from({ length: n }, (_, i) => mkFile(`f${String(i).padStart(5, '0')}.c`, 'root', rng));
+  const files = Array.from({ length: n }, (_, i) =>
+    mkFile(`f${String(i).padStart(5, '0')}.c`, 'root', rng)
+  );
   return mkDir('root', files, 'root');
 }
 function skewed(name: string, path: string, budget: number, depth: number, rng: () => number): any {
   if (budget <= 8 || depth >= 6) {
-    return mkDir(name, Array.from({ length: budget }, (_, i) => mkFile(`f${i}.c`, path, rng)), path);
+    return mkDir(
+      name,
+      Array.from({ length: budget }, (_, i) => mkFile(`f${i}.c`, path, rng)),
+      path
+    );
   }
   const children: any[] = [mkFile('a.c', path, rng)];
   let remaining = budget - 1;
   const nSub = 2 + Math.floor(rng() * 5);
   for (let i = 0; i < nSub && remaining > 0; i++) {
-    const share = i === nSub - 1 ? remaining : Math.max(1, Math.round(remaining / (nSub - i) / (i + 1)));
+    const share =
+      i === nSub - 1 ? remaining : Math.max(1, Math.round(remaining / (nSub - i) / (i + 1)));
     remaining -= share;
     children.push(skewed(`d${i}`, `${path}/d${i}`, share, depth + 1, rng));
   }

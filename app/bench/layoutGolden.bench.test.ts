@@ -31,7 +31,14 @@ function mkFile(name: string, path: string, rng: () => number): any {
 function mkDir(name: string, children: any[], path: string): any {
   const descendants_count =
     children.length + children.reduce((acc, c) => acc + (c.descendants_count || 0), 0);
-  return { name, type: NodeKind.Directory, path, children_count: children.length, descendants_count, children };
+  return {
+    name,
+    type: NodeKind.Directory,
+    path,
+    children_count: children.length,
+    descendants_count,
+    children,
+  };
 }
 function genDir(name: string, path: string, budget: number, depth: number, rng: () => number): any {
   if (budget <= 8 || depth >= 7) {
@@ -75,10 +82,20 @@ function digest(layout: CityLayout): string {
     h = Math.imul(h, 16777619) >>> 0;
   };
   for (const b of layout.buildings) {
-    push(b.x); push(b.y); push(b.w); push(b.d); push(b.h); push(b.floors); push(String(b.orient));
+    push(b.x);
+    push(b.y);
+    push(b.w);
+    push(b.d);
+    push(b.h);
+    push(b.floors);
+    push(String(b.orient));
   }
   for (const s of layout.streets) {
-    push(s.x); push(s.y); push(s.length); push(s.width); push(String(s.orientation));
+    push(s.x);
+    push(s.y);
+    push(s.length);
+    push(s.width);
+    push(String(s.orientation));
   }
   return `${layout.buildings.length}/${layout.streets.length}/${(h >>> 0).toString(16)}`;
 }
