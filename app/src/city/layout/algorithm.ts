@@ -612,13 +612,24 @@ export function findSmallestValidStem(
     trace.stem = s;
   } else {
     const n = lo.length;
-    for (;;) {
+    for (let rounds = 0; ; rounds++) {
       let ns = s;
       for (let i = 0; i < n; i++) {
         if (lo[i] <= s && hi[i] > ns) ns = hi[i];
       }
       if (ns === s) break;
       s = ns;
+      // A long chain (e.g. a big flat dir) would make the round loop O(F·chain);
+      // finish such cases with a one-off sorted scan to keep the O(F log F) bound.
+      if (rounds > 32) {
+        const order = Array.from(lo.keys()).sort((a, b) => lo[a] - lo[b]);
+        s = baseline;
+        for (const i of order) {
+          if (s < lo[i]) break;
+          if (s < hi[i]) s = hi[i];
+        }
+        break;
+      }
     }
   }
 
