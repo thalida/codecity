@@ -24,7 +24,9 @@ const LIGHT_C = 0.18;
 export interface AuthorColor {
   hex: string; // "#rrggbb"
   hue: number; // degrees [0, 360)
-  rgb: [number, number, number]; // linear-light, 0..1 each
+  // readonly: the object is memoized + aliased into every orb of this author;
+  // mutating it would corrupt all of them.
+  rgb: readonly [number, number, number]; // linear-light, 0..1 each
 }
 
 // One shared encoder — `new TextEncoder()` per hash was a measurable cost in
@@ -48,6 +50,10 @@ function fnv1a(s: string): number {
 // commits/orbs, so this collapses ~one OKLCH conversion per orb to one per
 // author. The returned object is shared — callers must treat it as read-only.
 const _colorCache = new Map<string, AuthorColor>();
+// Bound the memo so a long session across many repos can't grow it without
+// limit (comfortably fits one huge repo's authors × 2 lightness variants).
+// Clearing is safe — values are pure functions of the key.
+const _COLOR_CACHE_MAX = 1 << 16;
 
 function authorColorAt(name: string, l: number, c: number): AuthorColor {
   const key = `${l}:${c}:${name}`;
@@ -57,6 +63,7 @@ function authorColorAt(name: string, l: number, c: number): AuthorColor {
   const hue = hash % 360;
   const rgb = oklchToLinearRgb(l, c, hue);
   const color: AuthorColor = { hex: linearRgbToHex(rgb), hue, rgb };
+  if (_colorCache.size >= _COLOR_CACHE_MAX) _colorCache.clear();
   _colorCache.set(key, color);
   return color;
 }

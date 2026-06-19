@@ -35,6 +35,9 @@ const MS_PER_DAY = 1000 * 60 * 60 * 24;
 // ageT/treeHeight/treeRadius re-parse a commit's date several times per tree
 // (and again per firefly orb), but only ~one distinct date per day exists.
 const _daysCache = new Map<string, number>();
+// Bound the memo so many-repo sessions can't grow it without limit (a date is
+// one entry; the cap spans centuries of daily commits). Clearing is safe.
+const _DAYS_CACHE_MAX = 1 << 16;
 
 /** Convert a YYYY-MM-DD string to integer epoch days. */
 function dateToDays(date: string): number {
@@ -42,6 +45,7 @@ function dateToDays(date: string): number {
   if (cached !== undefined) return cached;
   const ms = Date.parse(date);
   const days = Number.isNaN(ms) ? 0 : Math.floor(ms / MS_PER_DAY);
+  if (_daysCache.size >= _DAYS_CACHE_MAX) _daysCache.clear();
   _daysCache.set(date, days);
   return days;
 }
