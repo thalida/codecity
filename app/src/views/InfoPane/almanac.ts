@@ -144,14 +144,14 @@ function buildingsSection(files: FileNode[]): AlmanacSection {
   const created = (f: FileNode | null) => (f ? `Created ${formatShortDate(f.created)}` : '');
   const edited = (f: FileNode | null) => (f ? `Edited ${formatShortDate(f.modified)}` : '');
   const facts = [
-    fileFact('Oldest building', oldest, created(oldest)),
     fileFact('Newest building', newest, created(newest)),
+    fileFact('Oldest building', oldest, created(oldest)),
+    fileFact('Freshest building', freshest, edited(freshest)),
+    fileFact('Stalest building', stalest, edited(stalest)),
     fileFact('Tallest building', tallest, tallest ? pluralize(tallest.lines, 'line') : ''),
     fileFact('Shortest building', shortest, shortest ? pluralize(shortest.lines, 'line') : ''),
     fileFact('Widest building', widest, widest ? formatBytes(widest.size) : ''),
     fileFact('Narrowest building', narrowest, narrowest ? formatBytes(narrowest.size) : ''),
-    fileFact('Freshest building', freshest, edited(freshest)),
-    fileFact('Stalest building', stalest, edited(stalest)),
   ];
   return { key: 'buildings', title: 'Buildings', facts: facts.filter((f): f is AlmanacFact => f !== null) };
 }
