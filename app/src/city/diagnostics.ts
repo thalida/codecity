@@ -6,7 +6,7 @@
 // their arguments, so they unit-test in isolation.
 
 import { layoutCityWithTrace } from './layout/algorithm';
-import { findLayoutOverlaps } from './layout/overlaps';
+import { findLayoutOverlaps, LayoutOverlapCategory } from './layout/overlaps';
 import type { LayoutOverlap } from './layout/overlaps';
 import type { ChildPlacementTrace, StemPlacementTrace } from './layout/stemSolver';
 import type { WorldRect } from './layout/occupancyIndex';
@@ -58,8 +58,8 @@ export function _formatCollisionReport(
   overlaps: LayoutOverlap[],
   totalRects: number
 ): { level: 'info' | 'warn'; summary: string; details: string[] } {
-  const unexpected = overlaps.filter((o) => o.category === 'unexpected');
-  const tjctCount = overlaps.filter((o) => o.category === 't-junction').length;
+  const unexpected = overlaps.filter((o) => o.category === LayoutOverlapCategory.Unexpected);
+  const tjctCount = overlaps.filter((o) => o.category === LayoutOverlapCategory.TJunction).length;
   const summary =
     `[collision] ${unexpected.length} unexpected, ${tjctCount} t-junctions ` +
     `whitelisted (${totalRects} rects)`;

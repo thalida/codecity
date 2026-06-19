@@ -5,6 +5,7 @@ import { WorldRectKind } from '@/city/layout/occupancyIndex';
 
 import { describe, it, expect } from 'vitest';
 import { _formatCollisionReport } from '@/city/diagnostics';
+import { LayoutOverlapCategory } from '@/city/layout/overlaps';
 import type { LayoutOverlap } from '@/city/layout/overlaps';
 
 describe('_formatCollisionReport', () => {
@@ -24,7 +25,7 @@ describe('_formatCollisionReport', () => {
       rectA: { x: 0, y: 0, w: 10, d: 2 },
       rectB: { x: 5, y: 0, w: 2, d: 10 },
       overlap: { x: 5, y: 0, w: 2, d: 2 },
-      category: 't-junction',
+      category: LayoutOverlapCategory.TJunction,
     };
     const report = _formatCollisionReport([tj, tj, tj], 120);
     expect(report.level).toBe('info');
@@ -41,7 +42,7 @@ describe('_formatCollisionReport', () => {
       rectA: { x: 1.234, y: 2.345, w: 3.456, d: 4.567 },
       rectB: { x: 5.678, y: 6.789, w: 7.89, d: 8.901 },
       overlap: { x: 9.012, y: 10.123, w: 0.123, d: 0.456 },
-      category: 'unexpected',
+      category: LayoutOverlapCategory.Unexpected,
     };
     const tj: LayoutOverlap = {
       kindA: WorldRectKind.Street,
@@ -51,7 +52,7 @@ describe('_formatCollisionReport', () => {
       rectA: { x: 0, y: 0, w: 10, d: 2 },
       rectB: { x: 5, y: 0, w: 2, d: 10 },
       overlap: { x: 5, y: 0, w: 2, d: 2 },
-      category: 't-junction',
+      category: LayoutOverlapCategory.TJunction,
     };
     const report = _formatCollisionReport([u, tj], 99);
     expect(report.level).toBe('warn');

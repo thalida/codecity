@@ -5,7 +5,7 @@
 
 import { StreetAxis } from '@/types';
 import type { Building, Street } from '@/types';
-import { rectOfBuilding, rectOfStreet, _rectsOverlap } from './rect';
+import { rectOfBuilding, rectOfStreet, _rectsOverlap, rectEdges } from './rect';
 import type { Rect } from './rect';
 import { WorldRectKind } from './occupancyIndex';
 
@@ -44,10 +44,13 @@ function _isStreetJoinPair(a: Street, b: Street): boolean {
   return perpClose && longClose;
 }
 
-// Layout overlap categories use the same kind values as WorldRect
-// (street / building), so reuse WorldRectKind instead of defining a
-// parallel union that could drift.
-export type LayoutOverlapCategory = 't-junction' | 'unexpected';
+// How an overlap is classified. String enum (values match the prior wire
+// strings) so call sites reference LayoutOverlapCategory.TJunction, mirroring
+// the WorldRectKind convention.
+export enum LayoutOverlapCategory {
+  TJunction = 't-junction',
+  Unexpected = 'unexpected',
+}
 
 export interface LayoutOverlap {
   kindA: WorldRectKind;
@@ -62,18 +65,12 @@ export interface LayoutOverlap {
 }
 
 function _intersectRect(a: Rect, b: Rect): Rect {
-  const ax1 = a.x - a.w / 2,
-    ax2 = a.x + a.w / 2;
-  const ay1 = a.y - a.d / 2,
-    ay2 = a.y + a.d / 2;
-  const bx1 = b.x - b.w / 2,
-    bx2 = b.x + b.w / 2;
-  const by1 = b.y - b.d / 2,
-    by2 = b.y + b.d / 2;
-  const ox1 = Math.max(ax1, bx1);
-  const ox2 = Math.min(ax2, bx2);
-  const oy1 = Math.max(ay1, by1);
-  const oy2 = Math.min(ay2, by2);
+  const A = rectEdges(a);
+  const B = rectEdges(b);
+  const ox1 = Math.max(A.x1, B.x1);
+  const ox2 = Math.min(A.x2, B.x2);
+  const oy1 = Math.max(A.y1, B.y1);
+  const oy2 = Math.min(A.y2, B.y2);
   return { x: (ox1 + ox2) / 2, y: (oy1 + oy2) / 2, w: ox2 - ox1, d: oy2 - oy1 };
 }
 
@@ -116,13 +113,13 @@ export function findLayoutOverlaps(layout: {
       // with one dimension in that drift range; they're visually
       // imperceptible and not actual layout bugs.
       if (overlap.w < 1e-3 || overlap.d < 1e-3) continue;
-      let category: LayoutOverlapCategory = 'unexpected';
+      let category: LayoutOverlapCategory = LayoutOverlapCategory.Unexpected;
       if (
         A.kind === WorldRectKind.Street &&
         B.kind === WorldRectKind.Street &&
         _isStreetJoinPair(A.ref, B.ref)
       ) {
-        category = 't-junction';
+        category = LayoutOverlapCategory.TJunction;
       }
       out.push({
         kindA: A.kind,

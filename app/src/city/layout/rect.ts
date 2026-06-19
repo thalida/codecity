@@ -56,19 +56,26 @@ export function rectOfStreet(s: Street): Rect {
 // noise band and far below any visible-scale geometry (smallest gap ~1
 // unit), so it eliminates false-positive overlaps without masking real ones.
 export const OVERLAP_EPS = 1e-9;
+
+/** The four edges of a rect (center ± half-extent). Shared by the overlap test
+ *  and the intersection helper so neither re-derives edges inline. */
+export interface RectEdges {
+  x1: number;
+  x2: number;
+  y1: number;
+  y2: number;
+}
+export function rectEdges(r: Rect): RectEdges {
+  return { x1: r.x - r.w / 2, x2: r.x + r.w / 2, y1: r.y - r.d / 2, y2: r.y + r.d / 2 };
+}
+
 export function _rectsOverlap(a: Rect, b: Rect): boolean {
-  const ax1 = a.x - a.w / 2,
-    ax2 = a.x + a.w / 2;
-  const ay1 = a.y - a.d / 2,
-    ay2 = a.y + a.d / 2;
-  const bx1 = b.x - b.w / 2,
-    bx2 = b.x + b.w / 2;
-  const by1 = b.y - b.d / 2,
-    by2 = b.y + b.d / 2;
+  const A = rectEdges(a);
+  const B = rectEdges(b);
   return (
-    ax1 < bx2 - OVERLAP_EPS &&
-    ax2 > bx1 + OVERLAP_EPS &&
-    ay1 < by2 - OVERLAP_EPS &&
-    ay2 > by1 + OVERLAP_EPS
+    A.x1 < B.x2 - OVERLAP_EPS &&
+    A.x2 > B.x1 + OVERLAP_EPS &&
+    A.y1 < B.y2 - OVERLAP_EPS &&
+    A.y2 > B.y1 + OVERLAP_EPS
   );
 }
