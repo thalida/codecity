@@ -38,12 +38,12 @@ export interface FireflyPlacement {
   /** Phase offset for the brightness-pulse shader animation, in [0, 2π). */
   pulsePhase: number;
   /** Linear-RGB components (0..1) — for InstancedMesh setColorAt. Same
-   *  across all orbs of a given author. */
-  rgb: [number, number, number];
+   *  (shared, read-only) array across all orbs of a given author. */
+  rgb: readonly [number, number, number];
   /** Pastel variant of `rgb` — same hue, higher lightness. Used by the
    *  hover orbit-ring highlight so a hovered multi-author tree shows
    *  one tinted ring per author. */
-  lightRgb: [number, number, number];
+  lightRgb: readonly [number, number, number];
   /** Per-instance scale derived from author commit count, mapped to [SCALE_MIN..SCALE_MAX]. */
   scale: number;
   /** Index of the commit (in manifest.commits) this orb belongs to. */

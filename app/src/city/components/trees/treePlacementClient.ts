@@ -6,7 +6,7 @@
 // to a synchronous in-thread call when Worker is unavailable (older
 // browsers / SSR / test environments).
 
-import { placeTrees, type TreePlacement } from './treePlacement';
+import { placeTrees, type TreePlacement, type LayoutGeometry } from './treePlacement';
 import { MSG } from './treePlacementProtocol';
 import { TREES, type TreesConfig } from '@/state/stores/settings/trees';
 import {
@@ -39,6 +39,26 @@ export interface TreePlacementClient {
     cityHeight: number
   ): Promise<TreePlacement[]>;
   dispose(): void;
+}
+
+// The worker only reads building/street footprints; the full CityLayout carries
+// a `file`/`dir` payload on every rect that structured-clone would copy across
+// the postMessage boundary. Strip to geometry so the transfer stays cheap.
+// `bbox` is carried through so placeTrees' `bboxOverride ?? layout.bbox` fallback
+// behaves the same on the worker path as in the sync path.
+function _slimLayout(layout: CityLayout): LayoutGeometry {
+  return {
+    streets: layout.streets.map((s) => ({
+      x: s.x,
+      y: s.y,
+      length: s.length,
+      width: s.width,
+      orientation: s.orientation,
+      isRoot: s.isRoot,
+    })),
+    buildings: layout.buildings.map((b) => ({ x: b.x, y: b.y, w: b.w, d: b.d })),
+    bbox: layout.bbox,
+  };
 }
 
 function _snapshot(): ConfigSnapshot {
@@ -145,7 +165,7 @@ export function createTreePlacementClient(): TreePlacementClient {
       w.postMessage({
         type: MSG.REQUEST,
         id,
-        layout,
+        layout: _slimLayout(layout),
         bbox,
         commitCount,
         cityHeight,

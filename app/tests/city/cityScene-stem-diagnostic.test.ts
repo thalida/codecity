@@ -8,7 +8,7 @@ import type {
   StemPlacementTrace,
   ChildPlacementTrace,
   VariantTrace,
-} from '@/city/layout/algorithm';
+} from '@/city/layout/stemSolver';
 
 function makeVariant(stem: number, side: 0 | 1 = 0, mirror = false): VariantTrace {
   return { side, mirror, stem, forbidden: [], bindingIndex: null };

@@ -175,7 +175,7 @@ export function createOrbitRings(orbs: FireflyPlacement[]): OrbitRings {
 
   /** Per-mesh material for hover rings — each tinted as that author's
    *  pastel hue. Allocated and disposed lazily with the mesh. */
-  function makeHoverMaterial(lightRgb: [number, number, number]): THREE.MeshBasicMaterial {
+  function makeHoverMaterial(lightRgb: readonly [number, number, number]): THREE.MeshBasicMaterial {
     const mat = new THREE.MeshBasicMaterial({
       transparent: true,
       depthWrite: false,

@@ -36,3 +36,46 @@ export function rectOfStreet(s: Street): Rect {
   }
   return { x: s.x, y: s.y, w: s.width, d: s.length };
 }
+
+// _rectsOverlap(a, b) -> boolean
+//
+// True iff two axis-aligned rectangles intersect by more than FP noise.
+// Touching edges (zero overlap) returns false; the packer relies on this
+// so that two rects abutted at exactly their sibling gap apart count as
+// non-overlapping. Because layout edges are derived from CENTER ± SIZE/2
+// after additive translation through non-integer offsets (e.g. a path's
+// far edge `61.6 + 2 = 63.6` vs a building's near edge `66.6 - 3 =
+// 63.5999…`), strict `<` comparison on FP-derived edges sporadically
+// reports the touching case as a sub-femto-unit overlap.
+//
+// OVERLAP_EPS: tolerance for IEEE-754 noise that arises when two touching
+// rects have edges computed via different additive paths (e.g. center+size/2
+// vs neighbor-center-size/2 through a non-integer subAnchor). Empirically
+// ~7e-15 per single translation; a few orders of magnitude higher under
+// deep recursion at large coordinate scales. 1e-9 sits well above this
+// noise band and far below any visible-scale geometry (smallest gap ~1
+// unit), so it eliminates false-positive overlaps without masking real ones.
+export const OVERLAP_EPS = 1e-9;
+
+/** The four edges of a rect (center ± half-extent). Shared by the overlap test
+ *  and the intersection helper so neither re-derives edges inline. */
+export interface RectEdges {
+  x1: number;
+  x2: number;
+  y1: number;
+  y2: number;
+}
+export function rectEdges(r: Rect): RectEdges {
+  return { x1: r.x - r.w / 2, x2: r.x + r.w / 2, y1: r.y - r.d / 2, y2: r.y + r.d / 2 };
+}
+
+export function _rectsOverlap(a: Rect, b: Rect): boolean {
+  const A = rectEdges(a);
+  const B = rectEdges(b);
+  return (
+    A.x1 < B.x2 - OVERLAP_EPS &&
+    A.x2 > B.x1 + OVERLAP_EPS &&
+    A.y1 < B.y2 - OVERLAP_EPS &&
+    A.y2 > B.y1 + OVERLAP_EPS
+  );
+}

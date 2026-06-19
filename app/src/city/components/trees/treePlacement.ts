@@ -33,7 +33,7 @@ import { buildTopPolygon, pointInIslandPolygon } from '../island/islandGeometry'
 import { islandSeedFromBounds } from '../island';
 import { StreetAxis } from '@/types';
 import { gemAnchorXZ } from '../gem/anchor';
-import type { Building, CityBbox, CityLayout, Street } from '@/types';
+import type { Building, CityBbox, Street } from '@/types';
 import type { IslandConfig } from '@/state/stores/settings/island';
 
 // Rejection-sampling footprint half-size as a fraction of BUILDING_DIMENSIONS
@@ -63,6 +63,16 @@ export interface TreePlacement {
    *  placed closest to the gem; higher index = newer commit,
    *  placed farther out. */
   commitIndex: number;
+}
+
+/** The only layout fields placeTrees reads — building/street footprints, plus
+ *  the optional bbox. The worker receives this slim shape instead of the full
+ *  CityLayout (whose buildings/streets carry heavy file/dir payloads) so the
+ *  postMessage structured-clone stays cheap. A full CityLayout is assignable. */
+export interface LayoutGeometry {
+  buildings: Pick<Building, 'x' | 'y' | 'w' | 'd'>[];
+  streets: Pick<Street, 'x' | 'y' | 'length' | 'width' | 'orientation' | 'isRoot'>[];
+  bbox?: CityBbox;
 }
 
 export interface PlaceTreesOptions {
@@ -107,7 +117,7 @@ function u32ToUnit(u: number): number {
   return u / 0x100000000;
 }
 
-function bboxOfBuilding(b: Building): Rect {
+function bboxOfBuilding(b: Pick<Building, 'x' | 'y' | 'w' | 'd'>): Rect {
   return {
     minX: b.x - b.w / 2,
     minY: b.y - b.d / 2,
@@ -116,7 +126,7 @@ function bboxOfBuilding(b: Building): Rect {
   };
 }
 
-function bboxOfStreet(s: Street): Rect {
+function bboxOfStreet(s: Pick<Street, 'x' | 'y' | 'length' | 'width' | 'orientation'>): Rect {
   const halfLen = s.length / 2;
   const halfWid = s.width / 2;
   if (s.orientation === StreetAxis.X) {
@@ -142,14 +152,14 @@ function bboxOfStreet(s: Street): Rect {
  * scatter center stays in lockstep with the gem's actual world
  * position (gem.ts uses the same helper).
  */
-function gemCenterFromLayout(layout: CityLayout, bbox: CityBbox): { x: number; y: number } {
+function gemCenterFromLayout(layout: LayoutGeometry, bbox: CityBbox): { x: number; y: number } {
   const root = layout.streets.find((s) => s.isRoot);
   if (!root) return { x: bbox.cx, y: bbox.cy };
   return gemAnchorXZ(root);
 }
 
 export function placeTrees(
-  layout: CityLayout,
+  layout: LayoutGeometry,
   bboxOverride?: CityBbox,
   options: PlaceTreesOptions = { commitCount: 0 }
 ): TreePlacement[] {

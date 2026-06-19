@@ -1,10 +1,10 @@
 // city/components/trees/treePlacementWorker.ts — Web Worker entry for tree
-// placement. Receives a CityLayout + bbox + a snapshot of the config
+// placement. Receives a slim layout geometry + bbox + a snapshot of the config
 // stores placeTrees() reads, populates the worker's local stores,
 // runs the scan, posts back the TreePlacement[]. Pure compute, no
 // DOM, no three.js references.
 
-import { placeTrees, type TreePlacement } from './treePlacement';
+import { placeTrees, type TreePlacement, type LayoutGeometry } from './treePlacement';
 import { TREES, type TreesConfig } from '@/state/stores/settings/trees';
 import {
   BUILDING_DIMENSIONS,
@@ -13,7 +13,7 @@ import {
 import { FOOTPRINT, type FootprintConfig } from '@/state/stores/settings/footprint';
 import { WORLD, type WorldConfig } from '@/state/stores/settings/scene';
 import type { IslandConfig } from '@/state/stores/settings/island';
-import type { CityBbox, CityLayout } from '@/types';
+import type { CityBbox } from '@/types';
 
 type TreesValue = TreesConfig;
 type BuildingDimsValue = BuildingDimensionsConfig;
@@ -25,7 +25,7 @@ import { MSG } from './treePlacementProtocol';
 interface PlaceRequest {
   type: typeof MSG.REQUEST;
   id: number;
-  layout: CityLayout;
+  layout: LayoutGeometry;
   bbox: CityBbox | undefined;
   commitCount: number;
   cityHeight: number;

@@ -5,9 +5,10 @@
 // API delegates straight to them. The _format* helpers below read nothing but
 // their arguments, so they unit-test in isolation.
 
-import { findLayoutOverlaps, layoutCityWithTrace } from './layout/algorithm';
-import type { LayoutOverlap } from './layout/algorithm';
-import type { ChildPlacementTrace, StemPlacementTrace } from './layout/algorithm';
+import { layoutCityWithTrace } from './layout/algorithm';
+import { findLayoutOverlaps, LayoutOverlapCategory } from './layout/overlaps';
+import type { LayoutOverlap } from './layout/overlaps';
+import type { ChildPlacementTrace, StemPlacementTrace } from './layout/stemSolver';
 import type { WorldRect } from './layout/occupancyIndex';
 import type { CityState } from './state';
 
@@ -57,8 +58,8 @@ export function _formatCollisionReport(
   overlaps: LayoutOverlap[],
   totalRects: number
 ): { level: 'info' | 'warn'; summary: string; details: string[] } {
-  const unexpected = overlaps.filter((o) => o.category === 'unexpected');
-  const tjctCount = overlaps.filter((o) => o.category === 't-junction').length;
+  const unexpected = overlaps.filter((o) => o.category === LayoutOverlapCategory.Unexpected);
+  const tjctCount = overlaps.filter((o) => o.category === LayoutOverlapCategory.TJunction).length;
   const summary =
     `[collision] ${unexpected.length} unexpected, ${tjctCount} t-junctions ` +
     `whitelisted (${totalRects} rects)`;
