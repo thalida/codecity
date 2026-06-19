@@ -10,11 +10,14 @@ describe('InfoPane shell', () => {
     container = document.createElement('div');
     document.body.appendChild(container);
   });
-  afterEach(() => { render(null, container); container.remove(); });
+  afterEach(() => {
+    render(null, container);
+    container.remove();
+  });
 
   const tabByLabel = (label: string) =>
     Array.from(container.querySelectorAll('[role="tab"]')).find(
-      (el) => el.textContent === label,
+      (el) => el.textContent === label
     ) as HTMLButtonElement;
 
   it('defaults to the Overview subtab', async () => {

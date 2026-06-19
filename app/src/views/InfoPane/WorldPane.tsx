@@ -76,7 +76,9 @@ export function WorldPane({ manifest }: WorldPaneProps) {
   const almanac = useMemo(() => computeAlmanac(current as Manifest | DirNode | null), [current]);
 
   if (!almanac) {
-    return <PaneEmpty icon={FolderOpen} title="No project loaded" sub="Open one to explore its world." />;
+    return (
+      <PaneEmpty icon={FolderOpen} title="No project loaded" sub="Open one to explore its world." />
+    );
   }
 
   const { overview, sections } = almanac;
@@ -86,7 +88,8 @@ export function WorldPane({ manifest }: WorldPaneProps) {
   const treesEnabled = TREES.value.ENABLED;
   const huePalette = BUILDINGS.value.HUE_EXT_MAP;
   const asphaltColor = STREETS.value.ASPHALT_COLOR;
-  const latestUrl = repo.remote_url && repo.head_sha ? commitUrl(repo.remote_url, repo.head_sha) : null;
+  const latestUrl =
+    repo.remote_url && repo.head_sha ? commitUrl(repo.remote_url, repo.head_sha) : null;
 
   return (
     <div class="almanac">
@@ -156,7 +159,9 @@ export function WorldPane({ manifest }: WorldPaneProps) {
         <section key={s.key} class="almanac-section">
           <h3 class="almanac-section-title">{s.title}</h3>
           {s.key === 'forest' && !treesEnabled ? (
-            <p class="almanac-section-note">Enable the Trees layer in Settings to explore the forest.</p>
+            <p class="almanac-section-note">
+              Enable the Trees layer in Settings to explore the forest.
+            </p>
           ) : (
             s.facts.map((f, i) => <FactRow key={i} fact={f} />)
           )}

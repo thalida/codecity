@@ -59,9 +59,30 @@ function manifest(tree: DirNode, overrides: Partial<Manifest> = {}): Manifest {
 
 describe('computeAlmanac — overview + buildings', () => {
   const tree = dir('repo', '', [
-    file({ name: 'old.ts', path: 'old.ts', lines: 5, size: 50, created: '2020-01-01T00:00:00Z', modified: '2021-06-01T00:00:00Z' }),
-    file({ name: 'tall.ts', path: 'tall.ts', lines: 999, size: 80, created: '2021-01-01T00:00:00Z', modified: '2020-02-01T00:00:00Z' }),
-    file({ name: 'new.ts', path: 'new.ts', lines: 10, size: 4000, created: '2023-01-01T00:00:00Z', modified: '2023-01-01T00:00:00Z' }),
+    file({
+      name: 'old.ts',
+      path: 'old.ts',
+      lines: 5,
+      size: 50,
+      created: '2020-01-01T00:00:00Z',
+      modified: '2021-06-01T00:00:00Z',
+    }),
+    file({
+      name: 'tall.ts',
+      path: 'tall.ts',
+      lines: 999,
+      size: 80,
+      created: '2021-01-01T00:00:00Z',
+      modified: '2020-02-01T00:00:00Z',
+    }),
+    file({
+      name: 'new.ts',
+      path: 'new.ts',
+      lines: 10,
+      size: 4000,
+      created: '2023-01-01T00:00:00Z',
+      modified: '2023-01-01T00:00:00Z',
+    }),
   ]);
   const a = computeAlmanac(manifest(tree));
 
@@ -108,7 +129,10 @@ describe('computeAlmanac — overview + buildings', () => {
     expect(fact('buildings', 'Shortest building').landmark).toEqual({ kind: 'file', id: 'old.ts' });
   });
   it('narrowest building = smallest bytes', () => {
-    expect(fact('buildings', 'Narrowest building').landmark).toEqual({ kind: 'file', id: 'old.ts' });
+    expect(fact('buildings', 'Narrowest building').landmark).toEqual({
+      kind: 'file',
+      id: 'old.ts',
+    });
   });
   it('freshest building = most recently modified', () => {
     expect(fact('buildings', 'Freshest building').landmark).toEqual({ kind: 'file', id: 'new.ts' });
@@ -119,16 +143,30 @@ describe('computeAlmanac — overview + buildings', () => {
   it('splits media into its own Billboards section', () => {
     const withMedia = dir('repo', '', [
       file({ name: 'code.ts', path: 'code.ts', lines: 40, size: 400 }),
-      file({ name: 'pic.png', path: 'pic.png', lines: 0, size: 9000, mediaKind: 'image', media_width: 1920, media_height: 1080 }),
+      file({
+        name: 'pic.png',
+        path: 'pic.png',
+        lines: 0,
+        size: 9000,
+        mediaKind: 'image',
+        media_width: 1920,
+        media_height: 1080,
+      }),
     ]);
     const m = computeAlmanac(manifest(withMedia))!;
     const buildings = m.sections.find((s) => s.key === 'buildings')!;
     const media = m.sections.find((s) => s.key === 'media')!;
     // Media never appears as a building superlative (not even Widest by bytes).
     expect(buildings.facts.every((f) => f.landmark?.id !== 'pic.png')).toBe(true);
-    expect(buildings.facts.find((f) => f.label === 'Widest building')!.landmark).toEqual({ kind: 'file', id: 'code.ts' });
+    expect(buildings.facts.find((f) => f.label === 'Widest building')!.landmark).toEqual({
+      kind: 'file',
+      id: 'code.ts',
+    });
     // It's the largest, highest-resolution billboard instead.
-    expect(media.facts.find((f) => f.label === 'Largest billboard')!.landmark).toEqual({ kind: 'file', id: 'pic.png' });
+    expect(media.facts.find((f) => f.label === 'Largest billboard')!.landmark).toEqual({
+      kind: 'file',
+      id: 'pic.png',
+    });
     expect(media.facts.find((f) => f.label === 'Highest resolution')!.secondary).toContain('1,920');
     expect(media.facts.every((f) => f.tip)).toBe(true);
   });
@@ -139,12 +177,22 @@ describe('computeAlmanac — overview + buildings', () => {
 
 describe('computeAlmanac — streets, forest, fireflies', () => {
   const deep = dir('deep', 'src/a/b', [file({ name: 'x.ts', path: 'src/a/b/x.ts' })]);
-  const src = { ...dir('src', 'src', [deep, file({ name: 'm.ts', path: 'src/m.ts' })]), descendants_file_count: 5 };
+  const src = {
+    ...dir('src', 'src', [deep, file({ name: 'm.ts', path: 'src/m.ts' })]),
+    descendants_file_count: 5,
+  };
   const tree = dir('repo', '', [src as DirNode, file({ name: 'r.ts', path: 'r.ts' })]);
 
   const commits = [
     { date: '2022-01-01', files: 2, sha: 'aaa', authors: ['Ada'], subject: 'a', same_day_total: 1 },
-    { date: '2022-01-02', files: 40, sha: 'bbb', authors: ['Ada', 'Bo'], subject: 'b', same_day_total: 3 },
+    {
+      date: '2022-01-02',
+      files: 40,
+      sha: 'bbb',
+      authors: ['Ada', 'Bo'],
+      subject: 'b',
+      same_day_total: 3,
+    },
     { date: '2022-01-03', files: 1, sha: 'ccc', authors: ['Bo'], subject: 'c', same_day_total: 3 },
     { date: '2022-02-10', files: 5, sha: 'ddd', authors: ['Ada'], subject: 'd', same_day_total: 1 },
   ];
@@ -177,7 +225,8 @@ describe('computeAlmanac — streets, forest, fireflies', () => {
     expect(fact('fireflies', 'Most prolific author').primary).toContain('Ada');
   });
   it('attaches a tooltip to every fact', () => {
-    for (const s of a.sections) for (const f of s.facts) expect(f.tip, `${s.key}/${f.label}`).toBeTruthy();
+    for (const s of a.sections)
+      for (const f of s.facts) expect(f.tip, `${s.key}/${f.label}`).toBeTruthy();
   });
   it('omits forest + fireflies sections when there are no commits', () => {
     const b = computeAlmanac(manifest(tree, { commits: [] }))!;

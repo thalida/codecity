@@ -23,7 +23,7 @@ describe('PaneTabs', () => {
 
   const tabByLabel = (label: string) =>
     Array.from(container.querySelectorAll('[role="tab"]')).find(
-      (el) => el.textContent === label,
+      (el) => el.textContent === label
     ) as HTMLButtonElement;
 
   it('renders a tab per entry and marks the active one', async () => {
@@ -46,7 +46,7 @@ describe('PaneTabs', () => {
     render(<PaneTabs tabs={tabs} active="world" onSelect={onSelect} />, container);
     await flush();
     tabByLabel('World').dispatchEvent(
-      new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }),
+      new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true })
     );
     expect(onSelect).toHaveBeenCalledWith('readme');
   });
@@ -56,7 +56,7 @@ describe('PaneTabs', () => {
     render(<PaneTabs tabs={tabs} active="world" onSelect={onSelect} />, container);
     await flush();
     tabByLabel('World').dispatchEvent(
-      new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true }),
+      new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true })
     );
     expect(onSelect).toHaveBeenCalledWith('readme');
   });
@@ -66,7 +66,7 @@ describe('PaneTabs', () => {
     render(<PaneTabs tabs={tabs} active="readme" onSelect={onSelect} />, container);
     await flush();
     tabByLabel('Readme').dispatchEvent(
-      new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }),
+      new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true })
     );
     expect(onSelect).toHaveBeenCalledWith('world');
   });

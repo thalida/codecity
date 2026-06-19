@@ -107,7 +107,13 @@ function pickFile(files: FileNode[], score: (f: FileNode) => number): FileNode |
 
 function fileFact(label: string, file: FileNode | null, secondary: string): AlmanacFact | null {
   if (!file) return null;
-  return { label, primary: file.path, secondary, mono: true, landmark: { kind: 'file', id: file.path } };
+  return {
+    label,
+    primary: file.path,
+    secondary,
+    mono: true,
+    landmark: { kind: 'file', id: file.path },
+  };
 }
 
 function buildOverview(m: Manifest): AlmanacOverview {
@@ -115,7 +121,10 @@ function buildOverview(m: Manifest): AlmanacOverview {
   return {
     // Prefer a concise "owner/repo" (or folder basename) over the raw URL —
     // the full remote URL still appears, clickable, in the meta list.
-    name: labelFromSource(m.repo.remote_url ?? m.display_root ?? root.name) ?? root.name ?? 'this project',
+    name:
+      labelFromSource(m.repo.remote_url ?? m.display_root ?? root.name) ??
+      root.name ??
+      'this project',
     founded: m.dateRanges.createdMin ? formatShortDate(m.dateRanges.createdMin) : null,
     totals: {
       files: root.descendants_file_count,
@@ -155,7 +164,11 @@ function buildingsSection(files: FileNode[]): AlmanacSection {
     fileFact('Widest building', widest, widest ? formatBytes(widest.size) : ''),
     fileFact('Narrowest building', narrowest, narrowest ? formatBytes(narrowest.size) : ''),
   ];
-  return { key: 'buildings', title: 'Buildings', facts: facts.filter((f): f is AlmanacFact => f !== null) };
+  return {
+    key: 'buildings',
+    title: 'Buildings',
+    facts: facts.filter((f): f is AlmanacFact => f !== null),
+  };
 }
 
 /** Pixel area of a media file, or NaN when its dimensions are unknown. */
@@ -177,10 +190,14 @@ function mediaSection(media: FileNode[]): AlmanacSection | null {
       sharpest,
       sharpest && sharpest.media_width && sharpest.media_height
         ? `${fmtCount(sharpest.media_width)} × ${fmtCount(sharpest.media_height)}`
-        : '',
+        : ''
     ),
   ];
-  return { key: 'media', title: 'Billboards', facts: facts.filter((f): f is AlmanacFact => f !== null) };
+  return {
+    key: 'media',
+    title: 'Billboards',
+    facts: facts.filter((f): f is AlmanacFact => f !== null),
+  };
 }
 
 function depth(path: string): number {
@@ -200,8 +217,20 @@ function streetsSection(dirs: DirNode[]): AlmanacSection | null {
     key: 'streets',
     title: 'Streets',
     facts: [
-      { label: 'Deepest alley', primary: deepest.path, secondary: `${deepestDepth} levels deep`, mono: true, landmark: { kind: 'dir', id: deepest.path } },
-      { label: 'Biggest neighborhood', primary: biggest.path, secondary: pluralize(biggest.descendants_file_count, 'building'), mono: true, landmark: { kind: 'dir', id: biggest.path } },
+      {
+        label: 'Deepest alley',
+        primary: deepest.path,
+        secondary: `${deepestDepth} levels deep`,
+        mono: true,
+        landmark: { kind: 'dir', id: deepest.path },
+      },
+      {
+        label: 'Biggest neighborhood',
+        primary: biggest.path,
+        secondary: pluralize(biggest.descendants_file_count, 'building'),
+        mono: true,
+        landmark: { kind: 'dir', id: biggest.path },
+      },
     ],
   };
 }
@@ -240,9 +269,25 @@ function forestSection(commits: Manifest['commits']): AlmanacSection | null {
     key: 'forest',
     title: 'Forest',
     facts: [
-      { label: 'Grandest canopy', primary: grandest.sha.slice(0, 7), secondary: pluralize(grandest.files, 'file'), mono: true, landmark: { kind: 'commit', id: grandest.sha } },
-      { label: 'Sparsest canopy', primary: sparsest.sha.slice(0, 7), secondary: pluralize(sparsest.files, 'file'), mono: true, landmark: { kind: 'commit', id: sparsest.sha } },
-      { label: 'Busiest day', primary: formatShortDate(busiest.date), secondary: pluralize(busiest.same_day_total, 'commit') },
+      {
+        label: 'Grandest canopy',
+        primary: grandest.sha.slice(0, 7),
+        secondary: pluralize(grandest.files, 'file'),
+        mono: true,
+        landmark: { kind: 'commit', id: grandest.sha },
+      },
+      {
+        label: 'Sparsest canopy',
+        primary: sparsest.sha.slice(0, 7),
+        secondary: pluralize(sparsest.files, 'file'),
+        mono: true,
+        landmark: { kind: 'commit', id: sparsest.sha },
+      },
+      {
+        label: 'Busiest day',
+        primary: formatShortDate(busiest.date),
+        secondary: pluralize(busiest.same_day_total, 'commit'),
+      },
       { label: 'Longest streak', primary: pluralize(streak, 'consecutive day') },
     ],
   };
@@ -251,7 +296,8 @@ function forestSection(commits: Manifest['commits']): AlmanacSection | null {
 function firefliesSection(commits: Manifest['commits']): AlmanacSection | null {
   if (commits.length === 0) return null;
   const tally = new Map<string, number>();
-  for (const c of commits) for (const author of c.authors) tally.set(author, (tally.get(author) ?? 0) + 1);
+  for (const c of commits)
+    for (const author of c.authors) tally.set(author, (tally.get(author) ?? 0) + 1);
   let topAuthor = '';
   let topCount = -1;
   for (const [author, count] of tally) {
@@ -265,7 +311,11 @@ function firefliesSection(commits: Manifest['commits']): AlmanacSection | null {
     title: 'Fireflies',
     facts: [
       { label: 'Fireflies', primary: pluralize(tally.size, 'author') },
-      { label: 'Most prolific author', primary: topAuthor, secondary: pluralize(topCount, 'commit') },
+      {
+        label: 'Most prolific author',
+        primary: topAuthor,
+        secondary: pluralize(topCount, 'commit'),
+      },
     ],
   };
 }
@@ -318,6 +368,7 @@ export function computeAlmanac(m: Manifest | DirNode | null | undefined): Almana
   if (forest) sections.push(forest);
   const fireflies = firefliesSection(m.commits);
   if (fireflies) sections.push(fireflies);
-  for (const section of sections) for (const fact of section.facts) fact.tip = FACT_TIPS[fact.label];
+  for (const section of sections)
+    for (const fact of section.facts) fact.tip = FACT_TIPS[fact.label];
   return { overview: buildOverview(m), sections };
 }
