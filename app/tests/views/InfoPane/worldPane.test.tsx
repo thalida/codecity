@@ -23,6 +23,7 @@ vi.mock('@/state/stores/settings/trees', () => ({
 }));
 
 import { WorldPane } from '@/views/InfoPane/WorldPane';
+import { InfoPane } from '@/views/InfoPane/InfoPane';
 import { NodeKind } from '@/types';
 import type { Manifest } from '@/types';
 
@@ -58,6 +59,34 @@ describe('WorldPane', () => {
     render(<WorldPane manifest={sig as never} />, container);
     await flush();
     expect(container.textContent).toContain('No project loaded');
+  });
+
+  it('updates when the manifest signal changes (live update)', async () => {
+    const sig = signal<Manifest | null>(manifest);
+    render(<WorldPane manifest={sig as never} />, container);
+    await flush();
+    expect(container.textContent).toContain('1 buildings');
+
+    sig.value = {
+      ...manifest,
+      tree: { ...tree, descendants_file_count: 2 } as unknown as Manifest['tree'],
+    };
+    await flush();
+    expect(container.textContent).toContain('2 buildings');
+  });
+
+  it('updates through the InfoPane shell when MANIFEST changes (parent does not re-render)', async () => {
+    const sig = signal<Manifest | null>(manifest);
+    render(<InfoPane manifest={sig as never} />, container);
+    await flush();
+    expect(container.textContent).toContain('1 buildings');
+
+    sig.value = {
+      ...manifest,
+      tree: { ...tree, descendants_file_count: 2 } as unknown as Manifest['tree'],
+    };
+    await flush();
+    expect(container.textContent).toContain('2 buildings');
   });
 
   it('clicking a building landmark focus button selects + focuses its file', async () => {
