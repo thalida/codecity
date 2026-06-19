@@ -27,7 +27,7 @@ export interface AlmanacFact {
   landmark?: LandmarkRef;
 }
 
-export type AlmanacSectionKey = 'buildings' | 'streets' | 'forest' | 'fireflies';
+export type AlmanacSectionKey = 'buildings' | 'media' | 'streets' | 'forest' | 'fireflies';
 
 export interface AlmanacSection {
   key: AlmanacSectionKey;
@@ -129,11 +129,10 @@ function buildOverview(m: Manifest): AlmanacOverview {
 }
 
 function buildingsSection(files: FileNode[]): AlmanacSection {
-  // Height encodes line count, which only drives code buildings — media files
-  // (images/videos) are sized by aspect, not lines, so they'd otherwise win
-  // "shortest" with their 0 lines. Restrict the line-based picks to text files;
-  // byte-based (widest/narrowest) and date-based picks span every building.
-  const textFiles = files.filter((f) => !f.mediaKind && !f.binary);
+  // `files` is code buildings only — media gets its own Billboards section.
+  // Height encodes line count, but binary files report 0 lines, so restrict the
+  // line-based picks to text files; byte/date picks span every code building.
+  const textFiles = files.filter((f) => !f.binary);
   const oldest = pickFile(files, (f) => -dateMs(f.created));
   const newest = pickFile(files, (f) => dateMs(f.created));
   const tallest = pickFile(textFiles, (f) => f.lines);
@@ -155,6 +154,31 @@ function buildingsSection(files: FileNode[]): AlmanacSection {
     fileFact('Stalest building', stalest, edited(stalest)),
   ];
   return { key: 'buildings', title: 'Buildings', facts: facts.filter((f): f is AlmanacFact => f !== null) };
+}
+
+/** Pixel area of a media file, or NaN when its dimensions are unknown. */
+function pixels(f: FileNode): number {
+  return f.media_width && f.media_height ? f.media_width * f.media_height : NaN;
+}
+
+function mediaSection(media: FileNode[]): AlmanacSection | null {
+  // Media files render as billboards (image/video ad panels) sized by aspect,
+  // not lines — a separate class of building with its own superlatives.
+  if (media.length === 0) return null;
+  const largest = pickFile(media, (f) => f.size);
+  const sharpest = pickFile(media, pixels);
+  const facts = [
+    { label: 'Billboards', primary: pluralize(media.length, 'billboard') } as AlmanacFact,
+    fileFact('Largest billboard', largest, largest ? formatBytes(largest.size) : ''),
+    fileFact(
+      'Highest resolution',
+      sharpest,
+      sharpest && sharpest.media_width && sharpest.media_height
+        ? `${fmtCount(sharpest.media_width)} × ${fmtCount(sharpest.media_height)}`
+        : '',
+    ),
+  ];
+  return { key: 'media', title: 'Billboards', facts: facts.filter((f): f is AlmanacFact => f !== null) };
 }
 
 function depth(path: string): number {
@@ -253,7 +277,12 @@ export function computeAlmanac(m: Manifest | DirNode | null | undefined): Almana
     else if (node.type === NodeKind.Directory && node !== m.tree) dirs.push(node);
   }
   if (files.length === 0) return null;
-  const sections: AlmanacSection[] = [buildingsSection(files)];
+  const sections: AlmanacSection[] = [];
+  const buildingFiles = files.filter((f) => f.mediaKind == null);
+  const mediaFiles = files.filter((f) => f.mediaKind != null);
+  if (buildingFiles.length > 0) sections.push(buildingsSection(buildingFiles));
+  const media = mediaSection(mediaFiles);
+  if (media) sections.push(media);
   const streets = streetsSection(dirs);
   if (streets) sections.push(streets);
   const forest = forestSection(m.commits);

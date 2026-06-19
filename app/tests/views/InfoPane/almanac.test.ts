@@ -116,17 +116,23 @@ describe('computeAlmanac — overview + buildings', () => {
   it('stalest building = longest since modified', () => {
     expect(fact('buildings', 'Stalest building').landmark).toEqual({ kind: 'file', id: 'tall.ts' });
   });
-  it('excludes media files from the line-based superlatives', () => {
+  it('splits media into its own Billboards section', () => {
     const withMedia = dir('repo', '', [
       file({ name: 'code.ts', path: 'code.ts', lines: 40, size: 400 }),
-      file({ name: 'pic.png', path: 'pic.png', lines: 0, size: 9000, mediaKind: 'image' }),
+      file({ name: 'pic.png', path: 'pic.png', lines: 0, size: 9000, mediaKind: 'image', media_width: 1920, media_height: 1080 }),
     ]);
     const m = computeAlmanac(manifest(withMedia))!;
-    const b = m.sections.find((s) => s.key === 'buildings')!;
-    // The 0-line media file must not win "Shortest building".
-    expect(b.facts.find((f) => f.label === 'Shortest building')!.landmark).toEqual({ kind: 'file', id: 'code.ts' });
-    // But it can still be the widest by bytes.
-    expect(b.facts.find((f) => f.label === 'Widest building')!.landmark).toEqual({ kind: 'file', id: 'pic.png' });
+    const buildings = m.sections.find((s) => s.key === 'buildings')!;
+    const media = m.sections.find((s) => s.key === 'media')!;
+    // Media never appears as a building superlative (not even Widest by bytes).
+    expect(buildings.facts.every((f) => f.landmark?.id !== 'pic.png')).toBe(true);
+    expect(buildings.facts.find((f) => f.label === 'Widest building')!.landmark).toEqual({ kind: 'file', id: 'code.ts' });
+    // It's the largest, highest-resolution billboard instead.
+    expect(media.facts.find((f) => f.label === 'Largest billboard')!.landmark).toEqual({ kind: 'file', id: 'pic.png' });
+    expect(media.facts.find((f) => f.label === 'Highest resolution')!.secondary).toContain('1,920');
+  });
+  it('omits the Billboards section when there is no media', () => {
+    expect(a!.sections.find((s) => s.key === 'media')).toBeUndefined();
   });
 });
 
