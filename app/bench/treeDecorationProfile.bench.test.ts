@@ -11,96 +11,12 @@ import { placeFireflies } from '@/city/components/fireflies/firefliesPlacement';
 import { createOrbitRings } from '@/city/components/fireflies/orbitRings';
 import { createFireflyRenderer } from '@/city/components/fireflies/firefliesRenderer';
 import { FIREFLIES } from '@/state/stores/settings/fireflies';
-import { NodeKind } from '@/types';
-import type { CityBbox, CommitEntry } from '@/types';
-
-function makeRng(seed: number): () => number {
-  let s = seed >>> 0;
-  return () => {
-    s = (s * 1664525 + 1013904223) >>> 0;
-    return s / 0x100000000;
-  };
-}
-function mkFile(name: string, path: string, rng: () => number): any {
-  return {
-    name,
-    type: NodeKind.File,
-    path: `${path}/${name}`,
-    extension: '.c',
-    size: 200 + Math.floor(rng() * 40000),
-    lines: 5 + Math.floor(rng() * 1500),
-  };
-}
-function mkDir(name: string, children: any[], path: string): any {
-  const descendants_count =
-    children.length + children.reduce((a, c) => a + (c.descendants_count || 0), 0);
-  return {
-    name,
-    type: NodeKind.Directory,
-    path,
-    children_count: children.length,
-    descendants_count,
-    children,
-  };
-}
-function genDir(name: string, path: string, budget: number, depth: number, rng: () => number): any {
-  if (budget <= 8 || depth >= 6) {
-    return mkDir(
-      name,
-      Array.from({ length: budget }, (_, i) => mkFile(`f${i}.c`, path, rng)),
-      path
-    );
-  }
-  const children: any[] = [mkFile('a.c', path, rng)];
-  let remaining = budget - 1;
-  const nSub = 2 + Math.floor(rng() * 5);
-  for (let i = 0; i < nSub && remaining > 0; i++) {
-    const share =
-      i === nSub - 1 ? remaining : Math.max(1, Math.round(remaining / (nSub - i) / (i + 1)));
-    remaining -= share;
-    children.push(genDir(`d${i}`, `${path}/d${i}`, share, depth + 1, rng));
-  }
-  return mkDir(name, children, path);
-}
-
-function bboxOf(layout: ReturnType<typeof layoutCity>): CityBbox {
-  let minX = Infinity,
-    maxX = -Infinity,
-    minY = Infinity,
-    maxY = -Infinity;
-  for (const b of layout.buildings) {
-    minX = Math.min(minX, b.x - b.w / 2);
-    maxX = Math.max(maxX, b.x + b.w / 2);
-    minY = Math.min(minY, b.y - b.d / 2);
-    maxY = Math.max(maxY, b.y + b.d / 2);
-  }
-  const width = maxX - minX,
-    depth = maxY - minY;
-  return { minX, maxX, minY, maxY, cx: (minX + maxX) / 2, cy: (minY + maxY) / 2, width, depth };
-}
-
-function genCommits(n: number, rng: () => number): CommitEntry[] {
-  const out: CommitEntry[] = [];
-  const base = Date.UTC(2015, 0, 1);
-  for (let i = 0; i < n; i++) {
-    const day = Math.floor((i / n) * 3000) + Math.floor(rng() * 5);
-    const date = new Date(base + day * 86400000).toISOString().slice(0, 10);
-    out.push({
-      date,
-      files: 1 + Math.floor(rng() * 200),
-      sha: `${i.toString(16).padStart(8, '0')}abcdef`.repeat(3).slice(0, 40),
-      authors: ['a'],
-      subject: 'x',
-      same_day_total: 1 + Math.floor(rng() * 12),
-    });
-  }
-  return out;
-}
+import { makeRng, genNestedTree, bboxOf, genCommits } from '../tests/_helpers/layoutTreeFixtures';
 
 describe('tree decoration profile', () => {
   function runOne(label: string, commitCount: number) {
     const rng = makeRng(0xc0ffee);
-    const tree = genDir('root', 'root', 30000, 0, rng);
+    const tree = genNestedTree('root', 'root', 30000, 0, rng);
     const layout = layoutCity({ tree });
     const bbox = bboxOf(layout);
     const commits = genCommits(commitCount, makeRng(7));
