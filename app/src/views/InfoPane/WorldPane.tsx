@@ -47,24 +47,22 @@ function FactRow({ fact }: { fact: AlmanacFact }) {
   const landmark = fact.landmark;
   return (
     <div class="almanac-fact">
-      <div class="almanac-fact-text">
-        <span class="almanac-fact-label">{fact.label}</span>
-        <span class="almanac-fact-body">
-          <PrimaryValue fact={fact} />
-          {fact.secondary && <span class="almanac-fact-secondary">{fact.secondary}</span>}
-        </span>
+      <span class="almanac-fact-label">{fact.label}</span>
+      <div class="almanac-fact-body">
+        <PrimaryValue fact={fact} />
+        {fact.secondary && <span class="almanac-fact-secondary">{fact.secondary}</span>}
+        {landmark && (
+          <button
+            type="button"
+            class="btn-icon almanac-fact-focus"
+            title="Focus in the world"
+            aria-label={`Focus ${fact.primary} in the world`}
+            onClick={() => visit(landmark)}
+          >
+            <Focus class="lucide-icon" />
+          </button>
+        )}
       </div>
-      {landmark && (
-        <button
-          type="button"
-          class="btn-icon almanac-fact-focus"
-          title="Focus in the world"
-          aria-label={`Focus ${fact.primary} in the world`}
-          onClick={() => visit(landmark)}
-        >
-          <Focus class="lucide-icon" />
-        </button>
-      )}
     </div>
   );
 }

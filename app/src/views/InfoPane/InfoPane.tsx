@@ -15,7 +15,7 @@ import { ReadmePane } from './ReadmePane';
 type InfoTab = 'world' | 'readme';
 
 const INFO_TABS = [
-  { id: 'world', label: 'World', icon: Globe },
+  { id: 'world', label: 'Overview', icon: Globe },
   { id: 'readme', label: 'Readme', icon: BookOpen },
 ];
 

@@ -17,11 +17,11 @@ describe('InfoPane shell', () => {
       (el) => el.textContent === label,
     ) as HTMLButtonElement;
 
-  it('defaults to the World subtab', async () => {
+  it('defaults to the Overview subtab', async () => {
     const sig = signal(null);
     render(<InfoPane manifest={sig as never} />, container);
     await flush();
-    expect(tabByLabel('World').getAttribute('aria-selected')).toBe('true');
+    expect(tabByLabel('Overview').getAttribute('aria-selected')).toBe('true');
     expect(tabByLabel('Readme').getAttribute('aria-selected')).toBe('false');
   });
 
