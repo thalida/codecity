@@ -69,18 +69,24 @@
   padding: 0;
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 6px;
 }
 
+/* Each language is a single bordered chip: the colored extension badge and its
+ * file count read as one unit instead of free-floating numbers. */
 .almanac-language {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: 5px;
+  padding: 2px 7px 2px 3px;
+  border: 1px solid var(--cc-border-subtle);
+  border-radius: var(--cc-radius-md);
+  background: var(--cc-overlay-bg);
 }
 
 .almanac-language-count {
   font-size: var(--cc-font-md);
-  color: var(--cc-text-muted);
+  color: var(--cc-text-secondary);
 }
 
 .almanac-section-title {
