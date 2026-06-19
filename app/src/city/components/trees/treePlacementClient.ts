@@ -44,6 +44,8 @@ export interface TreePlacementClient {
 // The worker only reads building/street footprints; the full CityLayout carries
 // a `file`/`dir` payload on every rect that structured-clone would copy across
 // the postMessage boundary. Strip to geometry so the transfer stays cheap.
+// `bbox` is carried through so placeTrees' `bboxOverride ?? layout.bbox` fallback
+// behaves the same on the worker path as in the sync path.
 function _slimLayout(layout: CityLayout): LayoutGeometry {
   return {
     streets: layout.streets.map((s) => ({
@@ -55,6 +57,7 @@ function _slimLayout(layout: CityLayout): LayoutGeometry {
       isRoot: s.isRoot,
     })),
     buildings: layout.buildings.map((b) => ({ x: b.x, y: b.y, w: b.w, d: b.d })),
+    bbox: layout.bbox,
   };
 }
 
