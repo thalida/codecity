@@ -1,12 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import {
-  getStreetWidth,
-  getBuildingDimensions,
-  layoutCity,
-  sortForRendering,
-  computeLineStats,
-  __test,
-} from '@/city/layout/algorithm';
+import { layoutCity, sortForRendering, __test } from '@/city/layout/algorithm';
+import { getStreetWidth, getBuildingDimensions, computeLineStats } from '@/city/layout/dimensions';
 import { BUILDING_DIMENSIONS } from '@/state/stores/settings/buildings';
 import { BuildingOrient, NodeKind, StreetAxis } from '@/types';
 import type { BuildingDimensionsConfig } from '@/state/stores/settings/buildings';

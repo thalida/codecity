@@ -21,7 +21,8 @@ import { GEM_SIZING } from '@/state/stores/settings/gem';
 import type { StreetLayoutConfig, StreetTier } from '@/state/stores/settings/streets';
 import type { BuildingDimensionsConfig } from '@/state/stores/settings/buildings';
 import type { GemSizingConfig } from '@/state/stores/settings/gem';
-import { layoutCity, makeHeightContext, recomputeBuildingDimensions } from './algorithm';
+import { layoutCity } from './algorithm';
+import { makeHeightContext, recomputeBuildingDimensions } from './dimensions';
 import type { LayoutRequest, LayoutResponse } from './protocol';
 import type { Manifest, CityLayout, FileNode, TreeNode } from '@/types';
 

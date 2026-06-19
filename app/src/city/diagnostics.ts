@@ -5,9 +5,10 @@
 // API delegates straight to them. The _format* helpers below read nothing but
 // their arguments, so they unit-test in isolation.
 
-import { findLayoutOverlaps, layoutCityWithTrace } from './layout/algorithm';
-import type { LayoutOverlap } from './layout/algorithm';
-import type { ChildPlacementTrace, StemPlacementTrace } from './layout/algorithm';
+import { layoutCityWithTrace } from './layout/algorithm';
+import { findLayoutOverlaps } from './layout/overlaps';
+import type { LayoutOverlap } from './layout/overlaps';
+import type { ChildPlacementTrace, StemPlacementTrace } from './layout/stemSolver';
 import type { WorldRect } from './layout/occupancyIndex';
 import type { CityState } from './state';
 

@@ -8,7 +8,8 @@
 // up. Not committed as a perf gate; it's a diagnostic driver.
 
 import { describe, it } from 'vitest';
-import { layoutCity, setLayoutProfiling, getLayoutProfile } from '@/city/layout/algorithm.js';
+import { layoutCity } from '@/city/layout/algorithm.js';
+import { setLayoutProfiling, getLayoutProfile } from '@/city/layout/profiling';
 import { NodeKind } from '@/types';
 
 // Deterministic LCG so tree shape (and thus timings) are reproducible run-to-run.

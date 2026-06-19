@@ -5,7 +5,7 @@ import { WorldRectKind } from '@/city/layout/occupancyIndex';
 
 import { describe, it, expect } from 'vitest';
 import { _formatCollisionReport } from '@/city/diagnostics';
-import type { LayoutOverlap } from '@/city/layout/algorithm';
+import type { LayoutOverlap } from '@/city/layout/overlaps';
 
 describe('_formatCollisionReport', () => {
   it('clean case — 0 unexpected, 0 t-junctions', () => {

@@ -6,7 +6,7 @@ import {
   computeFlips,
   isMirrorInvariant,
   translateRectsToWorld,
-} from '@/city/layout/algorithm';
+} from '@/city/layout/stemSolver';
 
 describe('computeFlips', () => {
   it('X-orient parent, side 0, no mirror: flipY only', () => {
@@ -99,7 +99,7 @@ describe('isMirrorInvariant', () => {
 });
 
 import { WorldOccupancy } from '@/city/layout/occupancyIndex';
-import { findSmallestValidStem } from '@/city/layout/algorithm';
+import { findSmallestValidStem } from '@/city/layout/stemSolver';
 
 describe('findSmallestValidStem', () => {
   // Helper to build a WorldRect for inserting into occupancy.
@@ -292,7 +292,7 @@ describe('findSmallestValidStem', () => {
   });
 });
 
-import { placeChild } from '@/city/layout/algorithm';
+import { placeChild } from '@/city/layout/stemSolver';
 
 describe('placeChild', () => {
   function worldRect(minX: number, minY: number, maxX: number, maxY: number) {
