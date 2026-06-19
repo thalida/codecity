@@ -46,7 +46,7 @@ function PrimaryValue({ fact }: { fact: AlmanacFact }) {
 function FactRow({ fact }: { fact: AlmanacFact }) {
   const landmark = fact.landmark;
   return (
-    <div class="almanac-fact">
+    <div class="almanac-fact" title={fact.tip}>
       <span class="almanac-fact-label">{fact.label}</span>
       <div class="almanac-fact-body">
         <PrimaryValue fact={fact} />

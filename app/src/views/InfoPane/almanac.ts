@@ -23,6 +23,8 @@ export interface AlmanacFact {
   secondary?: string;
   /** Render the primary in mono with left-truncation (paths and shas). */
   mono?: boolean;
+  /** Hover tooltip explaining what the superlative means + its in-world encoding. */
+  tip?: string;
   /** Present → the row flies the camera to this landmark on click. */
   landmark?: LandmarkRef;
 }
@@ -268,6 +270,33 @@ function firefliesSection(commits: Manifest['commits']): AlmanacSection | null {
   };
 }
 
+// Hover copy per superlative, keyed by label. Clarifies the in-world encoding
+// and — for the date facts — that "modified" is the last-commit date, so an
+// uncommitted working-tree edit doesn't change them.
+const FACT_TIPS: Record<string, string> = {
+  'Newest building': 'Most recently created file, by git history.',
+  'Oldest building': 'Earliest-created file — the city’s founding structure.',
+  'Freshest building':
+    'File with the newest commit. Edits only count once committed — this is the date that drives a building’s brightness.',
+  'Stalest building': 'File whose last commit is the oldest — the dimmest building.',
+  'Tallest building': 'File with the most lines; line count sets a building’s height.',
+  'Shortest building': 'File with the fewest lines.',
+  'Widest building': 'Largest file by bytes; file size sets a building’s footprint.',
+  'Narrowest building': 'Smallest file by bytes.',
+  Billboards: 'Image & video files — they render as billboard panels sized by aspect.',
+  'Largest billboard': 'Biggest media file by bytes.',
+  'Highest resolution': 'Media file with the most pixels.',
+  'Deepest alley': 'Most deeply nested directory.',
+  'Biggest neighborhood':
+    'Directory holding the most files (excluding the repo root); sets a street’s width.',
+  'Grandest canopy': 'Commit that changed the most files — the widest tree.',
+  'Sparsest canopy': 'Commit that changed the fewest files.',
+  'Busiest day': 'Calendar day with the most commits.',
+  'Longest streak': 'Longest run of consecutive days with commits.',
+  Fireflies: 'Distinct commit authors; each is a uniquely colored firefly.',
+  'Most prolific author': 'Author with the most commits — the largest firefly.',
+};
+
 export function computeAlmanac(m: Manifest | DirNode | null | undefined): Almanac | null {
   if (!isManifest(m)) return null;
   const files: FileNode[] = [];
@@ -289,5 +318,6 @@ export function computeAlmanac(m: Manifest | DirNode | null | undefined): Almana
   if (forest) sections.push(forest);
   const fireflies = firefliesSection(m.commits);
   if (fireflies) sections.push(fireflies);
+  for (const section of sections) for (const fact of section.facts) fact.tip = FACT_TIPS[fact.label];
   return { overview: buildOverview(m), sections };
 }

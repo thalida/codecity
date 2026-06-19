@@ -130,6 +130,7 @@ describe('computeAlmanac — overview + buildings', () => {
     // It's the largest, highest-resolution billboard instead.
     expect(media.facts.find((f) => f.label === 'Largest billboard')!.landmark).toEqual({ kind: 'file', id: 'pic.png' });
     expect(media.facts.find((f) => f.label === 'Highest resolution')!.secondary).toContain('1,920');
+    expect(media.facts.every((f) => f.tip)).toBe(true);
   });
   it('omits the Billboards section when there is no media', () => {
     expect(a!.sections.find((s) => s.key === 'media')).toBeUndefined();
@@ -174,6 +175,9 @@ describe('computeAlmanac — streets, forest, fireflies', () => {
   it('fireflies count distinct authors and name the most prolific', () => {
     expect(fact('fireflies', 'Fireflies').primary).toContain('2');
     expect(fact('fireflies', 'Most prolific author').primary).toContain('Ada');
+  });
+  it('attaches a tooltip to every fact', () => {
+    for (const s of a.sections) for (const f of s.facts) expect(f.tip, `${s.key}/${f.label}`).toBeTruthy();
   });
   it('omits forest + fireflies sections when there are no commits', () => {
     const b = computeAlmanac(manifest(tree, { commits: [] }))!;
