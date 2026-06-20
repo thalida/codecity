@@ -425,9 +425,9 @@ class ScanTreeIntegrationTests(_CacheRedirectMixin, unittest.TestCase):
         m = _final_manifest(str(FIXTURE))
         assert "stats" in m
         s = m["stats"]
-        assert "authors" in s
         assert isinstance(s["mediaCount"], int)
-        assert isinstance(s["fileCount"], int)
+        assert isinstance(s["authors"], list)
+        assert isinstance(s["longestStreakDays"], int)
 
     def test_date_ranges_present_in_manifest(self):
         m = _final_manifest(str(FIXTURE))

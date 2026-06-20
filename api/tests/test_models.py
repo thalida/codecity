@@ -110,6 +110,28 @@ class ModelTests(unittest.TestCase):
                 "modifiedMin": None,
                 "modifiedMax": None,
             },
+            stats={
+                "fileLines": {"min": 0, "max": 0},
+                "fileBytes": {"min": 0, "max": 0},
+                "oldestFile": None,
+                "newestFile": None,
+                "freshestFile": None,
+                "stalestFile": None,
+                "tallestFile": None,
+                "shortestFile": None,
+                "widestFile": None,
+                "narrowestFile": None,
+                "largestMedia": None,
+                "sharpestMedia": None,
+                "mediaCount": 0,
+                "deepestDir": None,
+                "biggestDir": None,
+                "grandestCommit": None,
+                "sparsestCommit": None,
+                "busiestDay": None,
+                "longestStreakDays": 0,
+                "authors": [],
+            },
         )
         dumped = m.model_dump(exclude_none=True)
         self.assertNotIn("display_root", dumped)

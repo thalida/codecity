@@ -151,10 +151,14 @@ def compute_repo_stats(tree: DirNode, commits: list[CommitEntry]) -> RepoStats:
     return {
         "fileLines": _range([f["lines"] for f in text]),
         "fileBytes": _range([f["size"] for f in nonmedia]),
-        "oldestFile": _file_leader(min(nonmedia, key=lambda f: f["created"], default=None)),
+        "oldestFile": _file_leader(
+            min(nonmedia, key=lambda f: f["created"], default=None)
+        ),
         "newestFile": _file_leader(_pick(nonmedia, lambda f: f["created"])),
         "freshestFile": _file_leader(_pick(nonmedia, lambda f: f["modified"])),
-        "stalestFile": _file_leader(min(nonmedia, key=lambda f: f["modified"], default=None)),
+        "stalestFile": _file_leader(
+            min(nonmedia, key=lambda f: f["modified"], default=None)
+        ),
         "tallestFile": _file_leader(_pick(text, lambda f: f["lines"])),
         "shortestFile": _file_leader(_pick(text, lambda f: -f["lines"])),
         "widestFile": _file_leader(_pick(nonmedia, lambda f: f["size"])),
