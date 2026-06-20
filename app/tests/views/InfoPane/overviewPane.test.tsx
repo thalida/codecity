@@ -25,8 +25,8 @@ vi.mock('@/state/stores/settings/trees', () => ({
 import { OverviewPane } from '@/views/InfoPane/OverviewPane';
 import { InfoPane } from '@/views/InfoPane/InfoPane';
 import { NodeKind } from '@/types';
-import type { Manifest, RepoStats } from '@/types';
-import { EMPTY_REPO_STATS } from '@/constants/manifest';
+import type { Manifest } from '@/types';
+import { uniformFileStats } from '../../_helpers/statsFixtures';
 
 const tree = {
   name: 'repo',
@@ -57,66 +57,8 @@ const tree = {
   descendants_ext_breakdown: [{ ext: '.ts', count: 1, size: 10 }],
 };
 
-// Single-file (a.ts) leaders: all building superlatives point to a.ts.
-const singleFileStats: RepoStats = {
-  ...EMPTY_REPO_STATS,
-  tallestFile: {
-    path: 'a.ts',
-    lines: 3,
-    bytes: 10,
-    created: '2020-01-01T00:00:00Z',
-    modified: '2020-01-01T00:00:00Z',
-  },
-  shortestFile: {
-    path: 'a.ts',
-    lines: 3,
-    bytes: 10,
-    created: '2020-01-01T00:00:00Z',
-    modified: '2020-01-01T00:00:00Z',
-  },
-  widestFile: {
-    path: 'a.ts',
-    lines: 3,
-    bytes: 10,
-    created: '2020-01-01T00:00:00Z',
-    modified: '2020-01-01T00:00:00Z',
-  },
-  narrowestFile: {
-    path: 'a.ts',
-    lines: 3,
-    bytes: 10,
-    created: '2020-01-01T00:00:00Z',
-    modified: '2020-01-01T00:00:00Z',
-  },
-  oldestFile: {
-    path: 'a.ts',
-    lines: 3,
-    bytes: 10,
-    created: '2020-01-01T00:00:00Z',
-    modified: '2020-01-01T00:00:00Z',
-  },
-  newestFile: {
-    path: 'a.ts',
-    lines: 3,
-    bytes: 10,
-    created: '2020-01-01T00:00:00Z',
-    modified: '2020-01-01T00:00:00Z',
-  },
-  freshestFile: {
-    path: 'a.ts',
-    lines: 3,
-    bytes: 10,
-    created: '2020-01-01T00:00:00Z',
-    modified: '2020-01-01T00:00:00Z',
-  },
-  stalestFile: {
-    path: 'a.ts',
-    lines: 3,
-    bytes: 10,
-    created: '2020-01-01T00:00:00Z',
-    modified: '2020-01-01T00:00:00Z',
-  },
-};
+// Single-file (a.ts): all building superlatives point to a.ts.
+const singleFileStats = uniformFileStats('a.ts', 3, 10);
 
 const manifest: Manifest = {
   root: '/repo',
@@ -137,8 +79,8 @@ const manifest: Manifest = {
 };
 
 // Commit leaders for tests that need forest rows.
-const commitStats: RepoStats = {
-  ...singleFileStats,
+const commitStats = {
+  ...uniformFileStats('a.ts', 3, 10),
   grandestCommit: { sha: 'abc1234', files: 9 },
   sparsestCommit: { sha: 'abc1234', files: 9 },
   busiestDay: { date: '2022-01-01', count: 1 },

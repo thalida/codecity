@@ -3,6 +3,7 @@ import { computeAlmanac } from '@/views/InfoPane/almanac';
 import { NodeKind } from '@/types';
 import type { Manifest, FileNode, DirNode, RepoStats } from '@/types';
 import { EMPTY_REPO_STATS } from '@/constants/manifest';
+import { fileLeader, uniformFileStats } from '../../_helpers/statsFixtures';
 
 function file(partial: Partial<FileNode> & { name: string; path: string }): FileNode {
   return {
@@ -87,69 +88,20 @@ describe('computeAlmanac — overview + buildings', () => {
     }),
   ]);
 
-  // Leaders derived from the fixture files above:
   // oldestFile = old.ts (created 2020), newestFile = new.ts (created 2023)
   // freshestFile = new.ts (modified 2023), stalestFile = tall.ts (modified 2020-02)
   // tallestFile = tall.ts (999 lines), shortestFile = old.ts (5 lines)
   // widestFile = new.ts (4000 bytes), narrowestFile = old.ts (50 bytes)
   const buildingsStats: RepoStats = {
     ...EMPTY_REPO_STATS,
-    oldestFile: {
-      path: 'old.ts',
-      lines: 5,
-      bytes: 50,
-      created: '2020-01-01T00:00:00Z',
-      modified: '2021-06-01T00:00:00Z',
-    },
-    newestFile: {
-      path: 'new.ts',
-      lines: 10,
-      bytes: 4000,
-      created: '2023-01-01T00:00:00Z',
-      modified: '2023-01-01T00:00:00Z',
-    },
-    freshestFile: {
-      path: 'new.ts',
-      lines: 10,
-      bytes: 4000,
-      created: '2023-01-01T00:00:00Z',
-      modified: '2023-01-01T00:00:00Z',
-    },
-    stalestFile: {
-      path: 'tall.ts',
-      lines: 999,
-      bytes: 80,
-      created: '2021-01-01T00:00:00Z',
-      modified: '2020-02-01T00:00:00Z',
-    },
-    tallestFile: {
-      path: 'tall.ts',
-      lines: 999,
-      bytes: 80,
-      created: '2021-01-01T00:00:00Z',
-      modified: '2020-02-01T00:00:00Z',
-    },
-    shortestFile: {
-      path: 'old.ts',
-      lines: 5,
-      bytes: 50,
-      created: '2020-01-01T00:00:00Z',
-      modified: '2021-06-01T00:00:00Z',
-    },
-    widestFile: {
-      path: 'new.ts',
-      lines: 10,
-      bytes: 4000,
-      created: '2023-01-01T00:00:00Z',
-      modified: '2023-01-01T00:00:00Z',
-    },
-    narrowestFile: {
-      path: 'old.ts',
-      lines: 5,
-      bytes: 50,
-      created: '2020-01-01T00:00:00Z',
-      modified: '2021-06-01T00:00:00Z',
-    },
+    oldestFile: fileLeader('old.ts', 5, 50, '2020-01-01T00:00:00Z', '2021-06-01T00:00:00Z'),
+    newestFile: fileLeader('new.ts', 10, 4000, '2023-01-01T00:00:00Z', '2023-01-01T00:00:00Z'),
+    freshestFile: fileLeader('new.ts', 10, 4000, '2023-01-01T00:00:00Z', '2023-01-01T00:00:00Z'),
+    stalestFile: fileLeader('tall.ts', 999, 80, '2021-01-01T00:00:00Z', '2020-02-01T00:00:00Z'),
+    tallestFile: fileLeader('tall.ts', 999, 80, '2021-01-01T00:00:00Z', '2020-02-01T00:00:00Z'),
+    shortestFile: fileLeader('old.ts', 5, 50, '2020-01-01T00:00:00Z', '2021-06-01T00:00:00Z'),
+    widestFile: fileLeader('new.ts', 10, 4000, '2023-01-01T00:00:00Z', '2023-01-01T00:00:00Z'),
+    narrowestFile: fileLeader('old.ts', 5, 50, '2020-01-01T00:00:00Z', '2021-06-01T00:00:00Z'),
   };
 
   const a = computeAlmanac(manifest(tree, { stats: buildingsStats }));
@@ -221,83 +173,13 @@ describe('computeAlmanac — overview + buildings', () => {
         media_height: 1080,
       }),
     ]);
-    // Buildings: widestFile = code.ts (not pic.png — media excluded from building leaders)
-    // Media: largestMedia = pic.png, sharpestMedia = pic.png
+    // Buildings: all leaders = code.ts (media excluded from building leaders).
+    // Media: largestMedia = pic.png, sharpestMedia = pic.png @ 1920×1080.
     const mediaStats: RepoStats = {
-      ...EMPTY_REPO_STATS,
-      widestFile: {
-        path: 'code.ts',
-        lines: 40,
-        bytes: 400,
-        created: '2020-01-01T00:00:00Z',
-        modified: '2020-01-01T00:00:00Z',
-      },
-      narrowestFile: {
-        path: 'code.ts',
-        lines: 40,
-        bytes: 400,
-        created: '2020-01-01T00:00:00Z',
-        modified: '2020-01-01T00:00:00Z',
-      },
-      tallestFile: {
-        path: 'code.ts',
-        lines: 40,
-        bytes: 400,
-        created: '2020-01-01T00:00:00Z',
-        modified: '2020-01-01T00:00:00Z',
-      },
-      shortestFile: {
-        path: 'code.ts',
-        lines: 40,
-        bytes: 400,
-        created: '2020-01-01T00:00:00Z',
-        modified: '2020-01-01T00:00:00Z',
-      },
-      oldestFile: {
-        path: 'code.ts',
-        lines: 40,
-        bytes: 400,
-        created: '2020-01-01T00:00:00Z',
-        modified: '2020-01-01T00:00:00Z',
-      },
-      newestFile: {
-        path: 'code.ts',
-        lines: 40,
-        bytes: 400,
-        created: '2020-01-01T00:00:00Z',
-        modified: '2020-01-01T00:00:00Z',
-      },
-      freshestFile: {
-        path: 'code.ts',
-        lines: 40,
-        bytes: 400,
-        created: '2020-01-01T00:00:00Z',
-        modified: '2020-01-01T00:00:00Z',
-      },
-      stalestFile: {
-        path: 'code.ts',
-        lines: 40,
-        bytes: 400,
-        created: '2020-01-01T00:00:00Z',
-        modified: '2020-01-01T00:00:00Z',
-      },
+      ...uniformFileStats('code.ts', 40, 400),
       mediaCount: 1,
-      largestMedia: {
-        path: 'pic.png',
-        lines: 0,
-        bytes: 9000,
-        created: '2020-01-01T00:00:00Z',
-        modified: '2020-01-01T00:00:00Z',
-      },
-      sharpestMedia: {
-        path: 'pic.png',
-        lines: 0,
-        bytes: 9000,
-        created: '2020-01-01T00:00:00Z',
-        modified: '2020-01-01T00:00:00Z',
-        media_width: 1920,
-        media_height: 1080,
-      },
+      largestMedia: fileLeader('pic.png', 0, 9000),
+      sharpestMedia: { ...fileLeader('pic.png', 0, 9000), media_width: 1920, media_height: 1080 },
     };
     const m = computeAlmanac(manifest(withMedia, { stats: mediaStats }))!;
     const buildings = m.sections.find((s) => s.key === 'buildings')!;

@@ -70,14 +70,14 @@ function isManifest(m: unknown): m is Manifest {
 function fileFact(
   label: string,
   leader: FileLeader | null,
-  secondary: string,
+  secondary: (l: FileLeader) => string,
   tip: string
 ): AlmanacFact | null {
   if (!leader) return null;
   return {
     label,
     primary: leader.path,
-    secondary,
+    secondary: secondary(leader),
     mono: true,
     tip,
     landmark: { kind: NodeKind.File, id: leader.path },
@@ -138,55 +138,53 @@ function buildOverview(m: Manifest): AlmanacOverview {
 
 function buildingsSection(m: Manifest): AlmanacSection {
   const s = m.stats;
-  const created = (l: FileLeader) => `Created ${formatShortDate(l.created)}`;
-  const edited = (l: FileLeader) => `Edited ${formatShortDate(l.modified)}`;
   const facts = [
     fileFact(
       'Newest building',
       s.newestFile,
-      s.newestFile ? created(s.newestFile) : '',
+      (l) => `Created ${formatShortDate(l.created)}`,
       'Most recently created file, by git history.'
     ),
     fileFact(
       'Oldest building',
       s.oldestFile,
-      s.oldestFile ? created(s.oldestFile) : '',
+      (l) => `Created ${formatShortDate(l.created)}`,
       "Earliest-created file — the city's founding structure."
     ),
     fileFact(
       'Freshest building',
       s.freshestFile,
-      s.freshestFile ? edited(s.freshestFile) : '',
+      (l) => `Edited ${formatShortDate(l.modified)}`,
       "File with the newest commit. Edits only count once committed — this is the date that drives a building's brightness."
     ),
     fileFact(
       'Stalest building',
       s.stalestFile,
-      s.stalestFile ? edited(s.stalestFile) : '',
+      (l) => `Edited ${formatShortDate(l.modified)}`,
       'File whose last commit is the oldest — the dimmest building.'
     ),
     fileFact(
       'Tallest building',
       s.tallestFile,
-      s.tallestFile ? pluralize(s.tallestFile.lines, 'line') : '',
+      (l) => pluralize(l.lines, 'line'),
       "File with the most lines; line count sets a building's height."
     ),
     fileFact(
       'Shortest building',
       s.shortestFile,
-      s.shortestFile ? pluralize(s.shortestFile.lines, 'line') : '',
+      (l) => pluralize(l.lines, 'line'),
       'File with the fewest lines.'
     ),
     fileFact(
       'Widest building',
       s.widestFile,
-      s.widestFile ? formatBytes(s.widestFile.bytes) : '',
+      (l) => formatBytes(l.bytes),
       "Largest file by bytes; file size sets a building's footprint."
     ),
     fileFact(
       'Narrowest building',
       s.narrowestFile,
-      s.narrowestFile ? formatBytes(s.narrowestFile.bytes) : '',
+      (l) => formatBytes(l.bytes),
       'Smallest file by bytes.'
     ),
   ].filter((f): f is AlmanacFact => f !== null);
@@ -204,10 +202,6 @@ function mediaSection(m: Manifest): AlmanacSection {
   if (s.mediaCount === 0) {
     return { key: 'media', title: 'Billboards', facts: [], note: 'No images or videos.' };
   }
-  const sharpestSecondary =
-    s.sharpestMedia?.media_width && s.sharpestMedia?.media_height
-      ? `${formatCount(s.sharpestMedia.media_width)} × ${formatCount(s.sharpestMedia.media_height)}`
-      : '';
   const facts = [
     {
       label: 'Billboards',
@@ -217,15 +211,17 @@ function mediaSection(m: Manifest): AlmanacSection {
     fileFact(
       'Largest billboard',
       s.largestMedia,
-      s.largestMedia ? formatBytes(s.largestMedia.bytes) : '',
+      (l) => formatBytes(l.bytes),
       'Biggest media file by bytes.'
     ),
-    fileFact(
-      'Highest resolution',
-      s.sharpestMedia,
-      sharpestSecondary,
-      'Media file with the most pixels.'
-    ),
+    s.sharpestMedia?.media_width && s.sharpestMedia?.media_height
+      ? fileFact(
+          'Highest resolution',
+          s.sharpestMedia,
+          (l) => `${formatCount(l.media_width!)} × ${formatCount(l.media_height!)}`,
+          'Media file with the most pixels.'
+        )
+      : null,
   ].filter((f): f is AlmanacFact => f !== null);
 
   return { key: 'media', title: 'Billboards', facts };
@@ -271,7 +267,7 @@ function forestSection(m: Manifest, treesEnabled: boolean): AlmanacSection {
     };
   }
   const s = m.stats;
-  if (!s.grandestCommit && !s.sparsestCommit && !s.busiestDay && s.longestStreakDays === 0) {
+  if (m.commits.length === 0) {
     return { key: 'forest', title: 'Forest', facts: [], note: 'No commits yet.' };
   }
   const facts = [
