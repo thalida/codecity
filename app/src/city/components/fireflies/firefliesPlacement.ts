@@ -68,6 +68,11 @@ function seededRng(seed: string): () => number {
   };
 }
 
+/** Hard cap on total firefly orbs — the analogue of the trees' TREE_MAX_CELLS.
+ *  Orbs are lighter than trees, so this sits above the 100k tree cap; it only
+ *  bites pathological co-authorship on already-capped forests. */
+const MAX_FIREFLY_ORBS = 200_000;
+
 export function placeFireflies(
   placements: TreePlacement[],
   commits: CommitEntry[] | null,
@@ -114,7 +119,7 @@ export function placeFireflies(
 
   const out: FireflyPlacement[] = [];
 
-  for (const p of placements) {
+  placements: for (const p of placements) {
     const commit = commits[p.commitIndex];
     if (!commit) continue;
 
@@ -124,6 +129,11 @@ export function placeFireflies(
     const height = treeHeight(commit, ageRange, cfg);
 
     for (const author of commit.authors ?? []) {
+      // Trees are capped at TREE_MAX_CELLS (100k), but orbs = trees × authors,
+      // so heavy co-authorship can still balloon past that — each orb is an
+      // allocation here + an instance in the renderer. Cap it so a Linux-scale
+      // repo can't lock the decoration pass building millions of orbs.
+      if (out.length >= MAX_FIREFLY_ORBS) break placements;
       const rng = seededRng(`${commit.sha}:${author}`);
       const pulseRng = seededRng(`${commit.sha}:p:${author}`);
       const color = colorForAuthor(author);
