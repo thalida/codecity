@@ -26,6 +26,7 @@ def _file(
         "created": created,
         "modified": modified,
     }
+    assert (mw is None) == (mh is None), "supply both mw and mh or neither"
     if mw is not None:
         n["media_width"], n["media_height"] = mw, mh
     return n

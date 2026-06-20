@@ -41,6 +41,7 @@ def _pick(items: Any, key: Callable[[Any], Any]) -> Optional[dict]:
 
 
 def _range(values: list[int]) -> dict:
+    # {0,0} is the empty-pool sentinel — callers treat it as "no range yet".
     return {"min": min(values), "max": max(values)} if values else {"min": 0, "max": 0}
 
 
@@ -76,12 +77,11 @@ def _dir_leader(d: Optional[dict]) -> Optional[dict]:
 
 def _media_pixels(f: dict) -> Optional[int]:
     mw, mh = f.get("media_width"), f.get("media_height")
-    return mw * mh if mw and mh else None
-
-
-def _neg_iso(s: str) -> tuple[int, ...]:
-    # ISO strings sort lexically; invert so _pick (a max-picker) selects the MIN.
-    return tuple(-ord(c) for c in s)
+    # Both dims present → pixel area (a 0 dim ranks lowest, not as missing data);
+    # either absent → None so _pick skips this file.
+    if mw is not None and mh is not None:
+        return mw * mh
+    return None
 
 
 def _longest_streak(dates: list[str]) -> int:
@@ -110,8 +110,8 @@ def compute_repo_stats(tree: dict, commits: list[dict]) -> dict:
 
     busiest_day = None
     if commits:
-        # same_day_total is the canonical per-date commit count; use max per date
-        # in case multiple entries share the same date (deduplicate first).
+        # Each commit row carries its date's full same_day_total, so max() per date
+        # deduplicates instead of multi-counting.
         day_totals: dict[str, int] = {}
         for c in commits:
             d = c["date"]
@@ -128,10 +128,10 @@ def compute_repo_stats(tree: dict, commits: list[dict]) -> dict:
     return {
         "fileLines": _range([f["lines"] for f in text]),
         "fileBytes": _range([f["size"] for f in nonmedia]),
-        "oldestFile": _file_leader(_pick(nonmedia, lambda f: _neg_iso(f["created"]))),
+        "oldestFile": _file_leader(min(nonmedia, key=lambda f: f["created"], default=None)),
         "newestFile": _file_leader(_pick(nonmedia, lambda f: f["created"])),
         "freshestFile": _file_leader(_pick(nonmedia, lambda f: f["modified"])),
-        "stalestFile": _file_leader(_pick(nonmedia, lambda f: _neg_iso(f["modified"]))),
+        "stalestFile": _file_leader(min(nonmedia, key=lambda f: f["modified"], default=None)),
         "tallestFile": _file_leader(_pick(text, lambda f: f["lines"])),
         "shortestFile": _file_leader(_pick(text, lambda f: -f["lines"])),
         "widestFile": _file_leader(_pick(nonmedia, lambda f: f["size"])),
