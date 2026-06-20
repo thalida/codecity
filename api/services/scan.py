@@ -35,6 +35,7 @@ from .cache import (
     cache_save_git_history,
 )
 from .media import media_kind, probe_media_dims
+from .stats import compute_repo_stats
 from .manifest_types import (
     BusynessThresholds,
     CommitEntry,
@@ -1220,6 +1221,7 @@ def _wrap_manifest(
         "commits": commits,
         "busyness": _compute_busyness(commits),
         "dateRanges": _compute_date_ranges(tree),
+        "stats": compute_repo_stats(tree, commits),
     }
 
 

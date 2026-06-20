@@ -421,6 +421,14 @@ class ScanTreeIntegrationTests(_CacheRedirectMixin, unittest.TestCase):
         # Bands stay distinct: busy is always at least avg + 1.
         self.assertGreaterEqual(b["busy"], b["avg"] + 1)
 
+    def test_stats_present_in_manifest(self):
+        m = _final_manifest(str(FIXTURE))
+        assert "stats" in m
+        s = m["stats"]
+        assert "authors" in s
+        assert isinstance(s["mediaCount"], int)
+        assert isinstance(s["fileCount"], int)
+
     def test_date_ranges_present_in_manifest(self):
         m = _final_manifest(str(FIXTURE))
         r = m["dateRanges"]
