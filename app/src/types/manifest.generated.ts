@@ -167,6 +167,19 @@ export interface components {
             /** Mb On Disk */
             mb_on_disk?: number;
         };
+        /** CommitDateRange */
+        CommitDateRange: {
+            /**
+             * Oldest
+             * @description Oldest commit date (YYYY-MM-DD), or null when the repo has no commits
+             */
+            oldest: string | null;
+            /**
+             * Newest
+             * @description Newest commit date (YYYY-MM-DD), or null when the repo has no commits
+             */
+            newest: string | null;
+        };
         /** CommitDetailResponse */
         CommitDetailResponse: {
             /** Sha */
@@ -443,6 +456,7 @@ export interface components {
             biggestDir: components["schemas"]["DirLeader"] | null;
             grandestCommit: components["schemas"]["CommitLeader"] | null;
             sparsestCommit: components["schemas"]["CommitLeader"] | null;
+            commitDates: components["schemas"]["CommitDateRange"];
             busiestDay: components["schemas"]["DayLeader"] | null;
             /** Longeststreakdays */
             longestStreakDays: number;

@@ -164,6 +164,17 @@ class CommitLeader(BaseModel):
     files: int
 
 
+# Both fields required-nullable: the scanner always emits them (null for a repo
+# with no commits), so they're present-but-nullable on the wire, not optional.
+class CommitDateRange(BaseModel):
+    oldest: Optional[str] = Field(
+        description="Oldest commit date (YYYY-MM-DD), or null when the repo has no commits"
+    )
+    newest: Optional[str] = Field(
+        description="Newest commit date (YYYY-MM-DD), or null when the repo has no commits"
+    )
+
+
 class DayLeader(BaseModel):
     date: str
     count: int
@@ -192,6 +203,7 @@ class RepoStats(BaseModel):
     biggestDir: Optional[DirLeader]
     grandestCommit: Optional[CommitLeader]
     sparsestCommit: Optional[CommitLeader]
+    commitDates: CommitDateRange
     busiestDay: Optional[DayLeader]
     longestStreakDays: int
     authors: list[AuthorStat]

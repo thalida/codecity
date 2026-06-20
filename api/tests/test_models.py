@@ -128,6 +128,7 @@ class ModelTests(unittest.TestCase):
                 "biggestDir": None,
                 "grandestCommit": None,
                 "sparsestCommit": None,
+                "commitDates": {"oldest": None, "newest": None},
                 "busiestDay": None,
                 "longestStreakDays": 0,
                 "authors": [],

@@ -136,6 +136,7 @@ def test_commit_leaders_authors_and_streak():
     s = compute_repo_stats(_dir("repo", "", [_file("a.ts")]), commits)
     assert s["grandestCommit"] == {"sha": "bbb", "files": 40}
     assert s["sparsestCommit"] == {"sha": "ccc", "files": 1}
+    assert s["commitDates"] == {"oldest": "2022-01-01", "newest": "2022-02-10"}
     assert s["busiestDay"]["count"] == 2
     assert s["longestStreakDays"] == 3
     assert s["authors"][0] == {"name": "Ada", "commits": 3}
@@ -148,6 +149,7 @@ def test_empty_tree_and_no_commits():
     assert s["grandestCommit"] is None
     assert s["longestStreakDays"] == 0
     assert s["authors"] == []
+    assert s["commitDates"] == {"oldest": None, "newest": None}
     assert s["fileLines"] == {"min": 0, "max": 0}
     assert s["mediaCount"] == 0
 

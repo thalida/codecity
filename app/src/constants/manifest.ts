@@ -23,6 +23,7 @@ export const EMPTY_REPO_STATS: RepoStats = {
   biggestDir: null,
   grandestCommit: null,
   sparsestCommit: null,
+  commitDates: { oldest: null, newest: null },
   busiestDay: null,
   longestStreakDays: 0,
   authors: [],

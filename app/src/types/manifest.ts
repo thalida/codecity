@@ -215,6 +215,17 @@ export interface CommitLeader {
   files: number;
 }
 
+/**
+ * Oldest/newest commit date (YYYY-MM-DD) across the lookback window — the
+ * scene's tree-age normalization range, computed on the backend so the trees
+ * + firefly orbits read it instead of re-scanning commits. Both null for a
+ * repo with no commits.
+ */
+export interface CommitDateRange {
+  oldest: string | null;
+  newest: string | null;
+}
+
 export interface DayLeader {
   date: string;
   count: number;
@@ -247,6 +258,7 @@ export interface RepoStats {
   biggestDir: DirLeader | null;
   grandestCommit: CommitLeader | null;
   sparsestCommit: CommitLeader | null;
+  commitDates: CommitDateRange;
   busiestDay: DayLeader | null;
   longestStreakDays: number;
   authors: AuthorStat[];

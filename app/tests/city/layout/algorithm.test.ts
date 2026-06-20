@@ -5,6 +5,7 @@ import { BUILDING_DIMENSIONS } from '@/state/stores/settings/buildings';
 import { BuildingOrient, NodeKind, StreetAxis } from '@/types';
 import type { BuildingDimensionsConfig } from '@/state/stores/settings/buildings';
 import type { RepoStats } from '@/types';
+import { EMPTY_REPO_STATS } from '@/constants/manifest';
 import type { StreetTier } from '@/state/stores/settings/streets';
 import {
   assertNoOverlap,
@@ -361,26 +362,9 @@ describe('getBuildingDimensions — media files', () => {
 // absent or carry the empty sentinel {min:0,max:0}.
 describe('computeFileStats', () => {
   const REAL_STATS: RepoStats = {
+    ...EMPTY_REPO_STATS,
     fileLines: { min: 20, max: 80 },
     fileBytes: { min: 500, max: 2000 },
-    oldestFile: null,
-    newestFile: null,
-    freshestFile: null,
-    stalestFile: null,
-    tallestFile: null,
-    shortestFile: null,
-    widestFile: null,
-    narrowestFile: null,
-    largestMedia: null,
-    sharpestMedia: null,
-    mediaCount: 0,
-    deepestDir: null,
-    biggestDir: null,
-    grandestCommit: null,
-    sparsestCommit: null,
-    busiestDay: null,
-    longestStreakDays: 0,
-    authors: [],
   };
 
   it('reads fileLines and fileBytes directly from manifest.stats', () => {

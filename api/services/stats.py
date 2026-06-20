@@ -10,6 +10,7 @@ from typing import Any, Callable, Iterator, Optional, cast
 
 from api.services.manifest_types import (
     AuthorStat,
+    CommitDateRange,
     CommitEntry,
     CommitLeader,
     DayLeader,
@@ -148,6 +149,14 @@ def compute_repo_stats(tree: DirNode, commits: list[CommitEntry]) -> RepoStats:
         {"sha": sparsest["sha"], "files": sparsest["files"]} if sparsest else None
     )
 
+    # Oldest/newest commit date — the scene's tree-age normalization range.
+    # YYYY-MM-DD sorts lexically in chronological order, so min/max are exact.
+    # Both None for a repo with no commits.
+    commit_dates: CommitDateRange = {
+        "oldest": min(c["date"] for c in commits) if commits else None,
+        "newest": max(c["date"] for c in commits) if commits else None,
+    }
+
     return {
         # Project line/byte ranges for building-size normalization. Over ALL
         # files with non-zero values (matching the old client computeFileStats
@@ -175,6 +184,7 @@ def compute_repo_stats(tree: DirNode, commits: list[CommitEntry]) -> RepoStats:
         "biggestDir": _dir_leader(_pick(dirs, lambda d: d["descendants_file_count"])),
         "grandestCommit": grandest_commit,
         "sparsestCommit": sparsest_commit,
+        "commitDates": commit_dates,
         "busiestDay": busiest_day,
         "longestStreakDays": _longest_streak([c["date"] for c in commits]),
         "authors": authors,

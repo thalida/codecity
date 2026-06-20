@@ -199,6 +199,16 @@ class CommitLeader(TypedDict):
     files: int
 
 
+class CommitDateRange(TypedDict):
+    """Oldest/newest commit date (YYYY-MM-DD) across the lookback window — the
+    scene's tree-age normalization range, computed once so the trees + firefly
+    orbits read it instead of re-scanning commits. Both None for a repo with
+    zero commits."""
+
+    oldest: str | None
+    newest: str | None
+
+
 class DayLeader(TypedDict):
     """A calendar date with a commit count (the busiest day)."""
 
@@ -240,6 +250,7 @@ class RepoStats(TypedDict):
     biggestDir: DirLeader | None
     grandestCommit: CommitLeader | None
     sparsestCommit: CommitLeader | None
+    commitDates: CommitDateRange
     busiestDay: DayLeader | None
     longestStreakDays: int
     authors: list[AuthorStat]
