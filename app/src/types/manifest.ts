@@ -150,6 +150,9 @@ export interface Manifest {
   /** Repo-wide min/max of the resolved per-file created/modified dates,
    *  computed on the backend during the scan (api/services/scan.py). */
   dateRanges: DateRanges;
+  /** Repo-wide statistics (leaders, ranges, author list). Computed by the
+   *  backend during the scan (api/services/stats.py). */
+  stats: RepoStats;
 }
 
 /**
@@ -189,4 +192,58 @@ export interface RangeStat {
 export interface FileStats {
   lines: RangeStat;
   bytes: RangeStat;
+}
+
+export interface FileLeader {
+  path: string;
+  lines: number;
+  bytes: number;
+  created: string;
+  modified: string;
+  media_width?: number;
+  media_height?: number;
+}
+
+export interface DirLeader {
+  path: string;
+  depth: number;
+  file_count: number;
+}
+
+export interface CommitLeader {
+  sha: string;
+  files: number;
+}
+
+export interface DayLeader {
+  date: string;
+  count: number;
+}
+
+export interface AuthorStat {
+  name: string;
+  commits: number;
+}
+
+export interface RepoStats {
+  fileLines: RangeStat;
+  fileBytes: RangeStat;
+  oldestFile: FileLeader | null;
+  newestFile: FileLeader | null;
+  freshestFile: FileLeader | null;
+  stalestFile: FileLeader | null;
+  tallestFile: FileLeader | null;
+  shortestFile: FileLeader | null;
+  widestFile: FileLeader | null;
+  narrowestFile: FileLeader | null;
+  largestMedia: FileLeader | null;
+  sharpestMedia: FileLeader | null;
+  mediaCount: number;
+  deepestDir: DirLeader | null;
+  biggestDir: DirLeader | null;
+  grandestCommit: CommitLeader | null;
+  sparsestCommit: CommitLeader | null;
+  busiestDay: DayLeader | null;
+  longestStreakDays: number;
+  authors: AuthorStat[];
 }

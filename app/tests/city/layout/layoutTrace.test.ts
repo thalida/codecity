@@ -9,6 +9,7 @@ import type { VariantTrace } from '@/city/layout/stemSolver';
 import { WorldOccupancy } from '@/city/layout/occupancyIndex';
 import { StreetAxis, NodeKind } from '@/types';
 import type { DirNode, FileNode, Manifest } from '@/types';
+import { EMPTY_REPO_STATS } from '@/constants/manifest';
 
 describe('findSmallestValidStem with trace', () => {
   it('no obstacles — stem at baseline, no forbidden intervals, no binding', () => {
@@ -229,6 +230,7 @@ describe('layoutCityWithTrace', () => {
       commits: [],
       busyness: { avg: 1, busy: 1 },
       dateRanges: { createdMin: null, createdMax: null, modifiedMin: null, modifiedMax: null },
+      stats: EMPTY_REPO_STATS,
       tree,
     };
 
@@ -304,6 +306,7 @@ describe('layoutCityWithTrace', () => {
       commits: [],
       busyness: { avg: 1, busy: 1 },
       dateRanges: { createdMin: null, createdMax: null, modifiedMin: null, modifiedMax: null },
+      stats: EMPTY_REPO_STATS,
       tree,
     };
 

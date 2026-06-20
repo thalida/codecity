@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { computeAlmanac } from '@/views/InfoPane/almanac';
 import { NodeKind } from '@/types';
 import type { Manifest, FileNode, DirNode } from '@/types';
+import { EMPTY_REPO_STATS } from '@/constants/manifest';
 
 function file(partial: Partial<FileNode> & { name: string; path: string }): FileNode {
   return {
@@ -53,6 +54,7 @@ function manifest(tree: DirNode, overrides: Partial<Manifest> = {}): Manifest {
       modifiedMin: '2020-01-01T00:00:00Z',
       modifiedMax: '2023-01-01T00:00:00Z',
     },
+    stats: EMPTY_REPO_STATS,
     ...overrides,
   };
 }

@@ -3,7 +3,30 @@
 // boot / manifest-stream modules and tests that need a minimal Manifest value.
 
 import { NodeKind } from '../types';
-import type { Manifest } from '../types';
+import type { Manifest, RepoStats } from '../types';
+
+export const EMPTY_REPO_STATS: RepoStats = {
+  fileLines: { min: 0, max: 0 },
+  fileBytes: { min: 0, max: 0 },
+  oldestFile: null,
+  newestFile: null,
+  freshestFile: null,
+  stalestFile: null,
+  tallestFile: null,
+  shortestFile: null,
+  widestFile: null,
+  narrowestFile: null,
+  largestMedia: null,
+  sharpestMedia: null,
+  mediaCount: 0,
+  deepestDir: null,
+  biggestDir: null,
+  grandestCommit: null,
+  sparsestCommit: null,
+  busiestDay: null,
+  longestStreakDays: 0,
+  authors: [],
+};
 
 export const EMPTY_MANIFEST: Manifest = {
   root: '',
@@ -35,4 +58,5 @@ export const EMPTY_MANIFEST: Manifest = {
   commits: [],
   busyness: { avg: 1, busy: 1 },
   dateRanges: { createdMin: null, createdMax: null, modifiedMin: null, modifiedMax: null },
+  stats: EMPTY_REPO_STATS,
 };

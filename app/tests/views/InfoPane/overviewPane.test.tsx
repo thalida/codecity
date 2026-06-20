@@ -26,6 +26,7 @@ import { OverviewPane } from '@/views/InfoPane/OverviewPane';
 import { InfoPane } from '@/views/InfoPane/InfoPane';
 import { NodeKind } from '@/types';
 import type { Manifest } from '@/types';
+import { EMPTY_REPO_STATS } from '@/constants/manifest';
 
 const tree = {
   name: 'repo',
@@ -70,6 +71,7 @@ const manifest: Manifest = {
     modifiedMin: '2020-01-01T00:00:00Z',
     modifiedMax: '2020-01-01T00:00:00Z',
   },
+  stats: EMPTY_REPO_STATS,
 };
 
 describe('OverviewPane', () => {

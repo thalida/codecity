@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { createLayoutClient } from '@/city/layout';
 import { NodeKind } from '@/types';
 import type { Manifest, FileNode } from '@/types';
+import { EMPTY_REPO_STATS } from '@/constants/manifest';
 
 function makeMinimalManifest(): Manifest {
   return {
@@ -13,6 +14,7 @@ function makeMinimalManifest(): Manifest {
     commits: [],
     busyness: { avg: 1, busy: 1 },
     dateRanges: { createdMin: null, createdMax: null, modifiedMin: null, modifiedMax: null },
+    stats: EMPTY_REPO_STATS,
     tree: {
       name: 'x',
       type: NodeKind.Directory,
@@ -89,6 +91,7 @@ describe('layoutClient', () => {
       commits: [],
       busyness: { avg: 1, busy: 1 },
       dateRanges: { createdMin: null, createdMax: null, modifiedMin: null, modifiedMax: null },
+      stats: EMPTY_REPO_STATS,
       tree: {
         name: 'x',
         type: NodeKind.Directory,

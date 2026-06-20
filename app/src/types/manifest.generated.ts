@@ -127,6 +127,13 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** AuthorStat */
+        AuthorStat: {
+            /** Name */
+            name: string;
+            /** Commits */
+            commits: number;
+        };
         /** BusynessThresholds */
         BusynessThresholds: {
             /** Avg */
@@ -191,6 +198,13 @@ export interface components {
             /** Same Day Total */
             same_day_total: number;
         };
+        /** CommitLeader */
+        CommitLeader: {
+            /** Sha */
+            sha: string;
+            /** Files */
+            files: number;
+        };
         /**
          * CompleteManifestEvent
          * @description `manifest-complete` — a manifest with real, fully-populated metadata (a
@@ -226,6 +240,22 @@ export interface components {
              * @description Latest resolved modify date (ISO), or null for an empty tree
              */
             modifiedMax: string | null;
+        };
+        /** DayLeader */
+        DayLeader: {
+            /** Date */
+            date: string;
+            /** Count */
+            count: number;
+        };
+        /** DirLeader */
+        DirLeader: {
+            /** Path */
+            path: string;
+            /** Depth */
+            depth: number;
+            /** File Count */
+            file_count: number;
         };
         /** DirNode */
         DirNode: {
@@ -275,6 +305,23 @@ export interface components {
             count: number;
             /** Size */
             size: number;
+        };
+        /** FileLeader */
+        FileLeader: {
+            /** Path */
+            path: string;
+            /** Lines */
+            lines: number;
+            /** Bytes */
+            bytes: number;
+            /** Created */
+            created: string;
+            /** Modified */
+            modified: string;
+            /** Media Width */
+            media_width?: number;
+            /** Media Height */
+            media_height?: number;
         };
         /** FileNode */
         FileNode: {
@@ -343,6 +390,7 @@ export interface components {
             commits: components["schemas"]["CommitEntry"][];
             busyness: components["schemas"]["BusynessThresholds"];
             dateRanges: components["schemas"]["DateRanges"];
+            stats: components["schemas"]["RepoStats"];
             /** Display Root */
             display_root?: string;
         };
@@ -354,6 +402,13 @@ export interface components {
          */
         PartialManifestEvent: {
             manifest: components["schemas"]["Manifest"];
+        };
+        /** RangeStat */
+        RangeStat: {
+            /** Min */
+            min: number;
+            /** Max */
+            max: number;
         };
         /** RepoInfo */
         RepoInfo: {
@@ -367,6 +422,32 @@ export interface components {
             head_subject: string | null;
             /** Dirty */
             dirty: boolean;
+        };
+        /** RepoStats */
+        RepoStats: {
+            fileLines: components["schemas"]["RangeStat"];
+            fileBytes: components["schemas"]["RangeStat"];
+            oldestFile: components["schemas"]["FileLeader"] | null;
+            newestFile: components["schemas"]["FileLeader"] | null;
+            freshestFile: components["schemas"]["FileLeader"] | null;
+            stalestFile: components["schemas"]["FileLeader"] | null;
+            tallestFile: components["schemas"]["FileLeader"] | null;
+            shortestFile: components["schemas"]["FileLeader"] | null;
+            widestFile: components["schemas"]["FileLeader"] | null;
+            narrowestFile: components["schemas"]["FileLeader"] | null;
+            largestMedia: components["schemas"]["FileLeader"] | null;
+            sharpestMedia: components["schemas"]["FileLeader"] | null;
+            /** Mediacount */
+            mediaCount: number;
+            deepestDir: components["schemas"]["DirLeader"] | null;
+            biggestDir: components["schemas"]["DirLeader"] | null;
+            grandestCommit: components["schemas"]["CommitLeader"] | null;
+            sparsestCommit: components["schemas"]["CommitLeader"] | null;
+            busiestDay: components["schemas"]["DayLeader"] | null;
+            /** Longeststreakdays */
+            longestStreakDays: number;
+            /** Authors */
+            authors: components["schemas"]["AuthorStat"][];
         };
         /**
          * ScanProgressEvent
