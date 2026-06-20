@@ -17,7 +17,7 @@ import {
   genCommits,
   makeDigestHasher,
 } from '../tests/_helpers/layoutTreeFixtures';
-import { commitStats } from '../tests/_helpers/statsFixtures';
+import { commitStats, fileStats } from '../tests/_helpers/statsFixtures';
 
 // Captured before the decoration-pass perf work.
 const EXPECTED = '12k:trees43000:orbs51600:74166740';
@@ -26,13 +26,16 @@ describe('decoration golden (bit-identical guard)', () => {
   it('placeTrees + placeFireflies + renderer buffers match baseline', () => {
     const rng = makeRng(0xc0ffee);
     const tree = genNestedTree('root', 'root', 12000, 0, rng);
-    const layout = layoutCity({ tree });
-    const bbox = bboxOf(layout);
     const commits = genCommits(43000, makeRng(7));
     const busyness = { avg: 3, busy: 6 };
-    // Stats are backend-precomputed; the trees + fireflies read the age/size
-    // ranges + author counts from here instead of re-scanning commits.
-    const stats = commitStats(commits);
+    // Backend-precomputed in production: layoutCity sizes buildings from the
+    // file ranges, and the trees + fireflies read the age/size ranges + author
+    // counts — all from one stats object instead of re-scanning the tree/commits.
+    // (layoutCity MUST get the file ranges or every building collapses to
+    // min-width and the layout — hence tree placement — drifts.)
+    const stats = { ...commitStats(commits), ...fileStats(tree) };
+    const layout = layoutCity({ tree, stats });
+    const bbox = bboxOf(layout);
 
     const placements = placeTrees(layout as any, bbox, {
       commitCount: 43000,

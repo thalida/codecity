@@ -1,5 +1,43 @@
-import type { RepoStats, FileLeader, CommitEntry } from '@/types';
+import type { RepoStats, FileLeader, CommitEntry, RangeStat } from '@/types';
 import { EMPTY_REPO_STATS } from '@/constants/manifest';
+
+interface TreeLike {
+  type?: string;
+  lines?: number;
+  size?: number;
+  children?: TreeLike[];
+}
+
+/** Non-zero file line/byte ranges over a fixture tree, mirroring
+ *  api/services/stats.py — for bench/layout fixtures that feed layoutCity,
+ *  which reads stats.fileLines/fileBytes to size buildings. Without this the
+ *  layout falls back to the {1,1} safe range (every building min-width). */
+export function fileStats(tree: TreeLike): Pick<RepoStats, 'fileLines' | 'fileBytes'> {
+  let lMin = Infinity;
+  let lMax = -Infinity;
+  let bMin = Infinity;
+  let bMax = -Infinity;
+  const walk = (n: TreeLike) => {
+    for (const c of n.children ?? []) {
+      if (c.type === 'file') {
+        if (c.lines && c.lines > 0) {
+          lMin = Math.min(lMin, c.lines);
+          lMax = Math.max(lMax, c.lines);
+        }
+        if (c.size && c.size > 0) {
+          bMin = Math.min(bMin, c.size);
+          bMax = Math.max(bMax, c.size);
+        }
+      } else {
+        walk(c);
+      }
+    }
+  };
+  walk(tree);
+  const range = (mn: number, mx: number): RangeStat =>
+    mx >= mn ? { min: mn, max: mx } : { min: 0, max: 0 };
+  return { fileLines: range(lMin, lMax), fileBytes: range(bMin, bMax) };
+}
 
 export function fileLeader(
   path: string,
