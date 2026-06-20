@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { computeAlmanac } from '@/views/InfoPane/almanac';
 import { NodeKind } from '@/types';
-import type { Manifest, FileNode, DirNode } from '@/types';
+import type { Manifest, FileNode, DirNode, RepoStats } from '@/types';
 import { EMPTY_REPO_STATS } from '@/constants/manifest';
 
 function file(partial: Partial<FileNode> & { name: string; path: string }): FileNode {
@@ -86,7 +86,73 @@ describe('computeAlmanac — overview + buildings', () => {
       modified: '2023-01-01T00:00:00Z',
     }),
   ]);
-  const a = computeAlmanac(manifest(tree));
+
+  // Leaders derived from the fixture files above:
+  // oldestFile = old.ts (created 2020), newestFile = new.ts (created 2023)
+  // freshestFile = new.ts (modified 2023), stalestFile = tall.ts (modified 2020-02)
+  // tallestFile = tall.ts (999 lines), shortestFile = old.ts (5 lines)
+  // widestFile = new.ts (4000 bytes), narrowestFile = old.ts (50 bytes)
+  const buildingsStats: RepoStats = {
+    ...EMPTY_REPO_STATS,
+    oldestFile: {
+      path: 'old.ts',
+      lines: 5,
+      bytes: 50,
+      created: '2020-01-01T00:00:00Z',
+      modified: '2021-06-01T00:00:00Z',
+    },
+    newestFile: {
+      path: 'new.ts',
+      lines: 10,
+      bytes: 4000,
+      created: '2023-01-01T00:00:00Z',
+      modified: '2023-01-01T00:00:00Z',
+    },
+    freshestFile: {
+      path: 'new.ts',
+      lines: 10,
+      bytes: 4000,
+      created: '2023-01-01T00:00:00Z',
+      modified: '2023-01-01T00:00:00Z',
+    },
+    stalestFile: {
+      path: 'tall.ts',
+      lines: 999,
+      bytes: 80,
+      created: '2021-01-01T00:00:00Z',
+      modified: '2020-02-01T00:00:00Z',
+    },
+    tallestFile: {
+      path: 'tall.ts',
+      lines: 999,
+      bytes: 80,
+      created: '2021-01-01T00:00:00Z',
+      modified: '2020-02-01T00:00:00Z',
+    },
+    shortestFile: {
+      path: 'old.ts',
+      lines: 5,
+      bytes: 50,
+      created: '2020-01-01T00:00:00Z',
+      modified: '2021-06-01T00:00:00Z',
+    },
+    widestFile: {
+      path: 'new.ts',
+      lines: 10,
+      bytes: 4000,
+      created: '2023-01-01T00:00:00Z',
+      modified: '2023-01-01T00:00:00Z',
+    },
+    narrowestFile: {
+      path: 'old.ts',
+      lines: 5,
+      bytes: 50,
+      created: '2020-01-01T00:00:00Z',
+      modified: '2021-06-01T00:00:00Z',
+    },
+  };
+
+  const a = computeAlmanac(manifest(tree, { stats: buildingsStats }));
 
   it('returns null for null manifest', () => {
     expect(computeAlmanac(null)).toBeNull();
@@ -155,7 +221,85 @@ describe('computeAlmanac — overview + buildings', () => {
         media_height: 1080,
       }),
     ]);
-    const m = computeAlmanac(manifest(withMedia))!;
+    // Buildings: widestFile = code.ts (not pic.png — media excluded from building leaders)
+    // Media: largestMedia = pic.png, sharpestMedia = pic.png
+    const mediaStats: RepoStats = {
+      ...EMPTY_REPO_STATS,
+      widestFile: {
+        path: 'code.ts',
+        lines: 40,
+        bytes: 400,
+        created: '2020-01-01T00:00:00Z',
+        modified: '2020-01-01T00:00:00Z',
+      },
+      narrowestFile: {
+        path: 'code.ts',
+        lines: 40,
+        bytes: 400,
+        created: '2020-01-01T00:00:00Z',
+        modified: '2020-01-01T00:00:00Z',
+      },
+      tallestFile: {
+        path: 'code.ts',
+        lines: 40,
+        bytes: 400,
+        created: '2020-01-01T00:00:00Z',
+        modified: '2020-01-01T00:00:00Z',
+      },
+      shortestFile: {
+        path: 'code.ts',
+        lines: 40,
+        bytes: 400,
+        created: '2020-01-01T00:00:00Z',
+        modified: '2020-01-01T00:00:00Z',
+      },
+      oldestFile: {
+        path: 'code.ts',
+        lines: 40,
+        bytes: 400,
+        created: '2020-01-01T00:00:00Z',
+        modified: '2020-01-01T00:00:00Z',
+      },
+      newestFile: {
+        path: 'code.ts',
+        lines: 40,
+        bytes: 400,
+        created: '2020-01-01T00:00:00Z',
+        modified: '2020-01-01T00:00:00Z',
+      },
+      freshestFile: {
+        path: 'code.ts',
+        lines: 40,
+        bytes: 400,
+        created: '2020-01-01T00:00:00Z',
+        modified: '2020-01-01T00:00:00Z',
+      },
+      stalestFile: {
+        path: 'code.ts',
+        lines: 40,
+        bytes: 400,
+        created: '2020-01-01T00:00:00Z',
+        modified: '2020-01-01T00:00:00Z',
+      },
+      mediaCount: 1,
+      largestMedia: {
+        path: 'pic.png',
+        lines: 0,
+        bytes: 9000,
+        created: '2020-01-01T00:00:00Z',
+        modified: '2020-01-01T00:00:00Z',
+      },
+      sharpestMedia: {
+        path: 'pic.png',
+        lines: 0,
+        bytes: 9000,
+        created: '2020-01-01T00:00:00Z',
+        modified: '2020-01-01T00:00:00Z',
+        media_width: 1920,
+        media_height: 1080,
+      },
+    };
+    const m = computeAlmanac(manifest(withMedia, { stats: mediaStats }))!;
     const buildings = m.sections.find((s) => s.key === 'buildings')!;
     const media = m.sections.find((s) => s.key === 'media')!;
     // Media never appears as a building superlative (not even Widest by bytes).
@@ -200,7 +344,26 @@ describe('computeAlmanac — streets, forest, fireflies', () => {
     { date: '2022-01-03', files: 1, sha: 'ccc', authors: ['Bo'], subject: 'c', same_day_total: 3 },
     { date: '2022-02-10', files: 5, sha: 'ddd', authors: ['Ada'], subject: 'd', same_day_total: 1 },
   ];
-  const a = computeAlmanac(manifest(tree, { commits }))!;
+
+  // Streets: deepestDir = src/a/b (3 levels), biggestDir = src (5 files)
+  // Forest: grandestCommit = bbb (40 files), sparsestCommit = ccc (1 file)
+  //         busiestDay = 2022-01-02 (3 commits), longestStreakDays = 3
+  // Fireflies: Ada (3 commits), Bo (2 commits)
+  const sfStats: RepoStats = {
+    ...EMPTY_REPO_STATS,
+    deepestDir: { path: 'src/a/b', depth: 3, file_count: 1 },
+    biggestDir: { path: 'src', depth: 1, file_count: 5 },
+    grandestCommit: { sha: 'bbb', files: 40 },
+    sparsestCommit: { sha: 'ccc', files: 1 },
+    busiestDay: { date: '2022-01-02', count: 3 },
+    longestStreakDays: 3,
+    authors: [
+      { name: 'Ada', commits: 3 },
+      { name: 'Bo', commits: 2 },
+    ],
+  };
+
+  const a = computeAlmanac(manifest(tree, { commits, stats: sfStats }))!;
   const section = (key: string) => a.sections.find((s) => s.key === key)!;
   const fact = (key: string, label: string) => section(key).facts.find((f) => f.label === label)!;
 
@@ -239,7 +402,7 @@ describe('computeAlmanac — streets, forest, fireflies', () => {
       for (const f of s.facts) expect(f.tip, `${s.key}/${f.label}`).toBeTruthy();
   });
   it('keeps forest + fireflies sections with an empty-state note when there are no commits', () => {
-    const b = computeAlmanac(manifest(tree, { commits: [] }))!;
+    const b = computeAlmanac(manifest(tree, { commits: [], stats: EMPTY_REPO_STATS }))!;
     const forest = b.sections.find((s) => s.key === 'forest')!;
     const fireflies = b.sections.find((s) => s.key === 'fireflies')!;
     expect(forest.facts).toHaveLength(0);
@@ -249,13 +412,13 @@ describe('computeAlmanac — streets, forest, fireflies', () => {
   });
   it('keeps the streets section with a note when there are no subdirectories', () => {
     const flatTree = dir('repo', '', [file({ name: 'a.ts', path: 'a.ts' })]);
-    const b = computeAlmanac(manifest(flatTree, { commits }))!;
+    const b = computeAlmanac(manifest(flatTree, { commits, stats: EMPTY_REPO_STATS }))!;
     const streets = b.sections.find((s) => s.key === 'streets')!;
     expect(streets.facts).toHaveLength(0);
     expect(streets.note).toBeTruthy();
   });
   it('gates the forest section behind the Trees layer', () => {
-    const b = computeAlmanac(manifest(tree, { commits }), false)!;
+    const b = computeAlmanac(manifest(tree, { commits, stats: sfStats }), false)!;
     const forest = b.sections.find((s) => s.key === 'forest')!;
     expect(forest.facts).toHaveLength(0);
     expect(forest.note).toMatch(/Trees layer/);
