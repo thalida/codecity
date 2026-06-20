@@ -1,10 +1,19 @@
 // views/InfoPane/almanac.ts — pure derivation of the Overview tab's almanac:
-// repo superlatives mapped from manifest.stats (server-computed leaders).
-// No signals, no DOM, no tree walk.
-// Landmark facts carry the key needed to fly the camera there.
+// repo superlatives mapped from manifest.stats (server-computed leaders). No
+// signals, no DOM, no tree walk — this file decides WHAT to show; the UI (how
+// to render it) lives in OverviewPane.tsx. Landmark facts carry the key needed
+// to fly the camera there.
 
 import { NodeKind } from '@/types';
-import type { Manifest, DirNode, RepoInfo, FileLeader, DirLeader, CommitLeader } from '@/types';
+import type {
+  Manifest,
+  DirNode,
+  RepoInfo,
+  RepoStats,
+  FileLeader,
+  DirLeader,
+  CommitLeader,
+} from '@/types';
 import { formatShortDate } from '@/utils/dates';
 import { formatBytes } from '@/utils/bytes';
 import { formatCount, pluralize } from '@/utils/format';
@@ -24,11 +33,11 @@ export interface AlmanacFact {
   primary: string;
   /** Muted metric shown beside the primary (e.g. "1,843 lines", "Created Apr 18, 2026"). */
   secondary?: string;
-  /** Render the primary in mono with left-truncation (paths and shas). */
-  mono?: boolean;
   /** Hover tooltip explaining what the superlative means + its in-world encoding. */
   tip: string;
-  /** Present → the row flies the camera to this landmark on click. */
+  /** Present → the primary is a code identifier (a path or sha): rendered
+   *  monospace + left-truncated, and the row flies the camera to this landmark
+   *  on click. Absent → a plain count/date/name summary fact. */
   landmark?: LandmarkRef;
 }
 
@@ -37,6 +46,8 @@ export type AlmanacSectionKey = 'buildings' | 'media' | 'streets' | 'forest' | '
 export interface AlmanacSection {
   key: AlmanacSectionKey;
   title: string;
+  /** One-line "what is this layer" blurb, shown as the section header tooltip. */
+  tip: string;
   facts: AlmanacFact[];
   /** Shown in place of facts when the section has none — an empty state or a
    *  gated notice (e.g. the Trees layer is off). */
@@ -63,54 +74,86 @@ export interface Almanac {
 
 const MAX_LANGUAGES = 6;
 
+// What each world layer encodes — surfaced as the section header tooltips.
+const SECTION_TIPS: Record<AlmanacSectionKey, string> = {
+  buildings:
+    'Every code file is a building — height from line count, footprint from byte size, brightness from how recently it changed.',
+  media: 'Image & video files render as billboard panels, sized by aspect ratio instead of lines.',
+  streets: 'Directories are streets; the more files a directory holds, the wider its road.',
+  forest:
+    'Each commit plants a tree — older commits grow taller, bigger commits grow wider canopies.',
+  fireflies:
+    'Each distinct commit author is a uniquely colored firefly orbiting the trees they touched.',
+};
+
 function isManifest(m: unknown): m is Manifest {
   return !!m && typeof m === 'object' && 'tree' in (m as object) && (m as Manifest).tree != null;
 }
 
-function fileFact(
-  label: string,
-  leader: FileLeader | null,
-  secondary: (l: FileLeader) => string,
-  tip: string
-): AlmanacFact | null {
-  if (!leader) return null;
+// ---- fact builders ------------------------------------------------------
+// Landmark facts (file / dir / commit) carry a path or sha primary and a
+// landmark key, so the row is clickable. Each returns null when its leader is
+// absent, so an empty pool collapses the section to its note. Summary facts
+// (statFact) are a plain count/date/name with no landmark.
+
+function fileFact(o: {
+  label: string;
+  leader: FileLeader | null;
+  secondary: (l: FileLeader) => string;
+  tip: string;
+}): AlmanacFact | null {
+  if (!o.leader) return null;
   return {
-    label,
-    primary: leader.path,
-    secondary: secondary(leader),
-    mono: true,
-    tip,
-    landmark: { kind: NodeKind.File, id: leader.path },
+    label: o.label,
+    primary: o.leader.path,
+    secondary: o.secondary(o.leader),
+    tip: o.tip,
+    landmark: { kind: NodeKind.File, id: o.leader.path },
   };
 }
 
-function dirFact(
-  label: string,
-  leader: DirLeader | null,
-  secondary: string,
-  tip: string
-): AlmanacFact | null {
-  if (!leader) return null;
+function dirFact(o: {
+  label: string;
+  leader: DirLeader | null;
+  secondary: (l: DirLeader) => string;
+  tip: string;
+}): AlmanacFact | null {
+  if (!o.leader) return null;
   return {
-    label,
-    primary: leader.path,
-    secondary,
-    mono: true,
-    tip,
-    landmark: { kind: NodeKind.Directory, id: leader.path },
+    label: o.label,
+    primary: o.leader.path,
+    secondary: o.secondary(o.leader),
+    tip: o.tip,
+    landmark: { kind: NodeKind.Directory, id: o.leader.path },
   };
 }
 
-function commitFact(label: string, leader: CommitLeader | null, tip: string): AlmanacFact | null {
-  if (!leader) return null;
+function commitFact(o: {
+  label: string;
+  leader: CommitLeader | null;
+  tip: string;
+}): AlmanacFact | null {
+  if (!o.leader) return null;
   return {
-    label,
-    primary: leader.sha.slice(0, 7),
-    secondary: pluralize(leader.files, 'file'),
-    mono: true,
-    tip,
-    landmark: { kind: NodeKind.Commit, id: leader.sha },
+    label: o.label,
+    primary: o.leader.sha.slice(0, 7),
+    secondary: pluralize(o.leader.files, 'file'),
+    tip: o.tip,
+    landmark: { kind: NodeKind.Commit, id: o.leader.sha },
   };
+}
+
+function statFact(o: {
+  label: string;
+  primary: string;
+  secondary?: string;
+  tip: string;
+}): AlmanacFact {
+  return { label: o.label, primary: o.primary, secondary: o.secondary, tip: o.tip };
+}
+
+function compact(facts: (AlmanacFact | null)[]): AlmanacFact[] {
+  return facts.filter((f): f is AlmanacFact => f !== null);
 }
 
 function buildOverview(m: Manifest): AlmanacOverview {
@@ -136,192 +179,190 @@ function buildOverview(m: Manifest): AlmanacOverview {
   };
 }
 
-function buildingsSection(m: Manifest): AlmanacSection {
-  const s = m.stats;
-  const facts = [
-    fileFact(
-      'Newest building',
-      s.newestCreatedFile,
-      (l) => `Created ${formatShortDate(l.created)}`,
-      'Most recently created file, by git history.'
-    ),
-    fileFact(
-      'Oldest building',
-      s.oldestCreatedFile,
-      (l) => `Created ${formatShortDate(l.created)}`,
-      "Earliest-created file — the city's founding structure."
-    ),
-    fileFact(
-      'Freshest building',
-      s.newestModifiedFile,
-      (l) => `Edited ${formatShortDate(l.modified)}`,
-      "File with the newest commit. Edits only count once committed — this is the date that drives a building's brightness."
-    ),
-    fileFact(
-      'Stalest building',
-      s.oldestModifiedFile,
-      (l) => `Edited ${formatShortDate(l.modified)}`,
-      'File whose last commit is the oldest — the dimmest building.'
-    ),
-    fileFact(
-      'Tallest building',
-      s.maxLinesFile,
-      (l) => pluralize(l.lines, 'line'),
-      "File with the most lines; line count sets a building's height."
-    ),
-    fileFact(
-      'Shortest building',
-      s.minLinesFile,
-      (l) => pluralize(l.lines, 'line'),
-      'File with the fewest lines.'
-    ),
-    fileFact(
-      'Widest building',
-      s.maxBytesFile,
-      (l) => formatBytes(l.bytes),
-      "Largest file by bytes; file size sets a building's footprint."
-    ),
-    fileFact(
-      'Narrowest building',
-      s.minBytesFile,
-      (l) => formatBytes(l.bytes),
-      'Smallest file by bytes.'
-    ),
-  ].filter((f): f is AlmanacFact => f !== null);
-
-  if (facts.length === 0) {
-    return { key: 'buildings', title: 'Buildings', facts: [], note: 'No code files yet.' };
-  }
-  return { key: 'buildings', title: 'Buildings', facts };
+function buildingsSection(s: RepoStats): AlmanacSection {
+  const facts = compact([
+    fileFact({
+      label: 'Newest building',
+      leader: s.newestCreatedFile,
+      secondary: (l) => `Created ${formatShortDate(l.created)}`,
+      tip: 'Most recently created file, by git history.',
+    }),
+    fileFact({
+      label: 'Oldest building',
+      leader: s.oldestCreatedFile,
+      secondary: (l) => `Created ${formatShortDate(l.created)}`,
+      tip: "Earliest-created file — the city's founding structure.",
+    }),
+    fileFact({
+      label: 'Freshest building',
+      leader: s.newestModifiedFile,
+      secondary: (l) => `Edited ${formatShortDate(l.modified)}`,
+      tip: "File with the newest commit. Edits only count once committed — this is the date that drives a building's brightness.",
+    }),
+    fileFact({
+      label: 'Stalest building',
+      leader: s.oldestModifiedFile,
+      secondary: (l) => `Edited ${formatShortDate(l.modified)}`,
+      tip: 'File whose last commit is the oldest — the dimmest building.',
+    }),
+    fileFact({
+      label: 'Tallest building',
+      leader: s.maxLinesFile,
+      secondary: (l) => pluralize(l.lines, 'line'),
+      tip: "File with the most lines; line count sets a building's height.",
+    }),
+    fileFact({
+      label: 'Shortest building',
+      leader: s.minLinesFile,
+      secondary: (l) => pluralize(l.lines, 'line'),
+      tip: 'File with the fewest lines.',
+    }),
+    fileFact({
+      label: 'Widest building',
+      leader: s.maxBytesFile,
+      secondary: (l) => formatBytes(l.bytes),
+      tip: "Largest file by bytes; file size sets a building's footprint.",
+    }),
+    fileFact({
+      label: 'Narrowest building',
+      leader: s.minBytesFile,
+      secondary: (l) => formatBytes(l.bytes),
+      tip: 'Smallest file by bytes.',
+    }),
+  ]);
+  return {
+    key: 'buildings',
+    title: 'Buildings',
+    tip: SECTION_TIPS.buildings,
+    facts,
+    note: facts.length ? undefined : 'No code files yet.',
+  };
 }
 
-function mediaSection(m: Manifest): AlmanacSection {
+function mediaSection(s: RepoStats): AlmanacSection {
   // Media files render as billboards (image/video ad panels) sized by aspect,
   // not lines — a separate class of building with its own superlatives.
-  const s = m.stats;
   if (s.mediaCount === 0) {
-    return { key: 'media', title: 'Billboards', facts: [], note: 'No images or videos.' };
+    return {
+      key: 'media',
+      title: 'Billboards',
+      tip: SECTION_TIPS.media,
+      facts: [],
+      note: 'No images or videos.',
+    };
   }
-  const facts = [
-    {
+  const sharp = s.maxMediaPixelsFile;
+  const facts = compact([
+    statFact({
       label: 'Billboards',
       primary: pluralize(s.mediaCount, 'billboard'),
       tip: 'Image & video files — they render as billboard panels sized by aspect.',
-    } as AlmanacFact,
-    fileFact(
-      'Largest billboard',
-      s.maxMediaBytesFile,
-      (l) => formatBytes(l.bytes),
-      'Biggest media file by bytes.'
-    ),
-    s.maxMediaPixelsFile?.media_width && s.maxMediaPixelsFile?.media_height
-      ? fileFact(
-          'Highest resolution',
-          s.maxMediaPixelsFile,
-          (l) => `${formatCount(l.media_width!)} × ${formatCount(l.media_height!)}`,
-          'Media file with the most pixels.'
-        )
+    }),
+    fileFact({
+      label: 'Largest billboard',
+      leader: s.maxMediaBytesFile,
+      secondary: (l) => formatBytes(l.bytes),
+      tip: 'Biggest media file by bytes.',
+    }),
+    sharp?.media_width && sharp?.media_height
+      ? fileFact({
+          label: 'Highest resolution',
+          leader: sharp,
+          secondary: (l) => `${formatCount(l.media_width!)} × ${formatCount(l.media_height!)}`,
+          tip: 'Media file with the most pixels.',
+        })
       : null,
-  ].filter((f): f is AlmanacFact => f !== null);
-
-  return { key: 'media', title: 'Billboards', facts };
+  ]);
+  return { key: 'media', title: 'Billboards', tip: SECTION_TIPS.media, facts };
 }
 
-function streetsSection(m: Manifest): AlmanacSection {
-  const s = m.stats;
-  const facts = [
-    dirFact(
-      'Deepest alley',
-      s.maxDepthDir,
-      s.maxDepthDir ? `${s.maxDepthDir.depth} levels deep` : '',
-      'Most deeply nested directory.'
-    ),
-    dirFact(
-      'Biggest neighborhood',
-      s.maxFilesPerDir,
-      s.maxFilesPerDir ? pluralize(s.maxFilesPerDir.file_count, 'building') : '',
-      "Directory holding the most files (excluding the repo root); sets a street's width."
-    ),
-  ].filter((f): f is AlmanacFact => f !== null);
-
-  if (facts.length === 0) {
-    return {
-      key: 'streets',
-      title: 'Streets',
-      facts: [],
-      note: 'Everything lives at the root — no sub-directories.',
-    };
-  }
-  return { key: 'streets', title: 'Streets', facts };
+function streetsSection(s: RepoStats): AlmanacSection {
+  const facts = compact([
+    dirFact({
+      label: 'Deepest alley',
+      leader: s.maxDepthDir,
+      secondary: (l) => `${l.depth} levels deep`,
+      tip: 'Most deeply nested directory.',
+    }),
+    dirFact({
+      label: 'Biggest neighborhood',
+      leader: s.maxFilesPerDir,
+      secondary: (l) => pluralize(l.file_count, 'building'),
+      tip: "Directory holding the most files (excluding the repo root); sets a street's width.",
+    }),
+  ]);
+  return {
+    key: 'streets',
+    title: 'Streets',
+    tip: SECTION_TIPS.streets,
+    facts,
+    note: facts.length ? undefined : 'Everything lives at the root — no sub-directories.',
+  };
 }
 
 function forestSection(m: Manifest, treesEnabled: boolean): AlmanacSection {
+  const base = { key: 'forest', title: 'Forest', tip: SECTION_TIPS.forest } as const;
   // Canopies fly the camera to a tree; with the Trees layer off those targets
   // don't exist, so the notice lives here (not the view) like any empty state.
   if (!treesEnabled) {
     return {
-      key: 'forest',
-      title: 'Forest',
+      ...base,
       facts: [],
       note: 'Enable the Trees layer in Settings to explore the forest.',
     };
   }
-  const s = m.stats;
   if (m.commits.length === 0) {
-    return { key: 'forest', title: 'Forest', facts: [], note: 'No commits yet.' };
+    return { ...base, facts: [], note: 'No commits yet.' };
   }
-  const facts = [
-    commitFact(
-      'Grandest canopy',
-      s.maxFilesPerCommit,
-      'Commit that changed the most files — the widest tree.'
-    ),
-    commitFact('Sparsest canopy', s.minFilesPerCommit, 'Commit that changed the fewest files.'),
+  const s = m.stats;
+  const facts = compact([
+    commitFact({
+      label: 'Grandest canopy',
+      leader: s.maxFilesPerCommit,
+      tip: 'Commit that changed the most files — the widest tree.',
+    }),
+    commitFact({
+      label: 'Sparsest canopy',
+      leader: s.minFilesPerCommit,
+      tip: 'Commit that changed the fewest files.',
+    }),
     s.maxCommitsPerDay
-      ? ({
+      ? statFact({
           label: 'Busiest day',
           primary: formatShortDate(s.maxCommitsPerDay.date),
           secondary: pluralize(s.maxCommitsPerDay.count, 'commit'),
           tip: 'Calendar day with the most commits.',
-        } as AlmanacFact)
+        })
       : null,
-    {
+    statFact({
       label: 'Longest streak',
       primary: pluralize(s.maxCommitStreakDays, 'consecutive day'),
       tip: 'Longest run of consecutive days with commits.',
-    } as AlmanacFact,
-  ].filter((f): f is AlmanacFact => f !== null);
-
-  return { key: 'forest', title: 'Forest', facts };
+    }),
+  ]);
+  return { ...base, facts };
 }
 
-function firefliesSection(m: Manifest): AlmanacSection {
-  const s = m.stats;
+function firefliesSection(s: RepoStats): AlmanacSection {
+  const base = { key: 'fireflies', title: 'Fireflies', tip: SECTION_TIPS.fireflies } as const;
   if (s.authors.length === 0) {
-    return {
-      key: 'fireflies',
-      title: 'Fireflies',
-      facts: [],
-      note: 'No commits yet — no fireflies.',
-    };
+    return { ...base, facts: [], note: 'No commits yet — no fireflies.' };
   }
-  // authors is pre-sorted descending by commits from the backend.
-  const top = s.authors[0];
+  const top = s.authors[0]; // pre-sorted descending by commits from the backend
   return {
-    key: 'fireflies',
-    title: 'Fireflies',
+    ...base,
     facts: [
-      {
+      statFact({
         label: 'Fireflies',
         primary: pluralize(s.authors.length, 'author'),
         tip: 'Distinct commit authors; each is a uniquely colored firefly.',
-      },
-      {
+      }),
+      statFact({
         label: 'Most prolific author',
         primary: top.name,
         secondary: pluralize(top.commits, 'commit'),
         tip: 'Author with the most commits — the largest firefly.',
-      },
+      }),
     ],
   };
 }
@@ -338,12 +379,13 @@ export function computeAlmanac(
 ): Almanac | null {
   if (!isManifest(m)) return null;
   if (!m.stats) return null;
+  const s = m.stats;
   const sections: AlmanacSection[] = [
-    buildingsSection(m),
-    mediaSection(m),
-    streetsSection(m),
+    buildingsSection(s),
+    mediaSection(s),
+    streetsSection(s),
     forestSection(m, treesEnabled),
-    firefliesSection(m),
+    firefliesSection(s),
   ];
   return { overview: buildOverview(m), sections };
 }

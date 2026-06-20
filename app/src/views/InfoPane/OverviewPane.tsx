@@ -28,10 +28,11 @@ function visit(landmark: LandmarkRef): void {
   }
 }
 
-/** Path values keep the filename fully visible and truncate the directory from
- *  the right; shas / dates / names (no slash) render as-is. */
+/** Landmark facts have a code-identifier primary (path or sha) → render
+ *  monospace; a path additionally keeps its filename visible and truncates the
+ *  directory from the left. Plain summary facts (no landmark) render as-is. */
 function PrimaryValue({ fact }: { fact: AlmanacFact }) {
-  if (!fact.mono) return <span class="almanac-fact-primary">{fact.primary}</span>;
+  if (!fact.landmark) return <span class="almanac-fact-primary">{fact.primary}</span>;
   const slash = fact.primary.lastIndexOf('/');
   if (slash < 0) {
     return <span class="almanac-fact-primary almanac-fact-primary--mono">{fact.primary}</span>;
@@ -136,7 +137,6 @@ export function OverviewPane({ manifest }: OverviewPaneProps) {
                     <span class="almanac-sha">{repo.head_sha.slice(0, 7)}</span> {repo.head_subject}
                   </>
                 )}
-                {repo.dirty ? ' (uncommitted changes)' : ''}
               </dd>
             </div>
           )}
@@ -154,7 +154,9 @@ export function OverviewPane({ manifest }: OverviewPaneProps) {
       </header>
       {sections.map((s) => (
         <section key={s.key} class="almanac-section">
-          <h3 class="almanac-section-title">{s.title}</h3>
+          <h3 class="almanac-section-title" title={s.tip}>
+            {s.title}
+          </h3>
           {s.facts.length > 0 ? (
             s.facts.map((f, i) => <FactRow key={i} fact={f} />)
           ) : (
