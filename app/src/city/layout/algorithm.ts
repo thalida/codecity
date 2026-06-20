@@ -18,7 +18,7 @@ import { STREET_LAYOUT } from '@/state/stores/settings/streets';
 import { BUILDING_DIMENSIONS } from '@/state/stores/settings/buildings';
 import { GEM_SIZING } from '@/state/stores/settings/gem';
 import { BuildingOrient, JoinSide, NodeKind, StreetAxis } from '@/types';
-import type { Building, CityLayout, RangeStat, Street } from '@/types';
+import type { Building, CityLayout, RangeStat, RepoStats, Street } from '@/types';
 import { parentDirPath } from '../utils/path';
 import { rectOfBuilding, rectOfStreet, _rectsOverlap } from './rect';
 import type { Rect } from './rect';
@@ -37,6 +37,7 @@ const GEM_CLEARANCE_AS_GEM_WIDTH_FRAC = 1.0;
 
 interface ManifestLike {
   tree?: DirLike;
+  stats?: RepoStats;
   [k: string]: unknown;
 }
 
@@ -654,7 +655,8 @@ function _layoutCityInternal(
   };
 
   const _tStats = _profNow();
-  const stats = computeFileStats(tree);
+  const repoStats = (manifest as ManifestLike).stats;
+  const stats = computeFileStats(repoStats);
   _profEnd('phase.computeFileStats', _tStats);
   result.lineStats = stats.lines;
   result.byteStats = stats.bytes;

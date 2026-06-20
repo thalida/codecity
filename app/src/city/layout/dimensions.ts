@@ -1,12 +1,10 @@
 // city/layout/dimensions.ts — file/building sizing and street width derivation.
-// Pure functions over the manifest tree and the settings stores; no DOM or
-// Three.js.
+// Pure functions over manifest stats and settings stores; no DOM or Three.js.
 
 import { STREET_TIERS } from '@/state/stores/settings/streets';
 import { BUILDING_DIMENSIONS } from '@/state/stores/settings/buildings';
 import type { StreetTier } from '@/state/stores/settings/streets';
-import { NodeKind } from '@/types';
-import type { RangeStat } from '@/types';
+import type { RangeStat, RepoStats } from '@/types';
 import { isMediaFile } from '../utils/mediaKind';
 
 // Structural shapes — kept lenient so test fixtures (which omit fields the
@@ -48,48 +46,39 @@ export function getStreetWidth(count: number, tiers?: StreetTier[]): number {
   return chosen;
 }
 
-// computeFileStats(tree) -> { lines: { min, max }, bytes: { min, max } }
+// SAFE_RANGE — returned whenever stats are absent or degenerate (min=0,max=0).
+// Matches the old empty-tree behaviour so the renderer never divides by zero.
+const SAFE_RANGE: RangeStat = { min: 1, max: 1 };
+
+function _safeRange(r: RangeStat | undefined): RangeStat {
+  if (!r || (r.min === 0 && r.max === 0)) return SAFE_RANGE;
+  return r;
+}
+
+// computeFileStats(stats?) -> { lines: { min, max }, bytes: { min, max } }
 //
-// Walks the manifest once and returns the project's own range for both
-// non-zero line counts and non-zero file sizes. Both are needed up front so
-// every building can be normalized into the project's actual range (smallest
-// → MIN_*, largest → MAX_*) instead of against an absolute global anchor.
-// Empty / degenerate trees return { min: 1, max: 1 } so the renderer never
-// divides by zero.
-export function computeFileStats(tree: TreeLike): { lines: RangeStat; bytes: RangeStat } {
-  let minLines = Infinity,
-    maxLines = -Infinity;
-  let minBytes = Infinity,
-    maxBytes = -Infinity;
-  function walk(node: TreeLike | null | undefined): void {
-    if (!node) return;
-    if (node.type === NodeKind.File) {
-      const f = node as FileLike;
-      if (f.lines && f.lines > 0) {
-        if (f.lines < minLines) minLines = f.lines;
-        if (f.lines > maxLines) maxLines = f.lines;
-      }
-      if (f.size && f.size > 0) {
-        if (f.size < minBytes) minBytes = f.size;
-        if (f.size > maxBytes) maxBytes = f.size;
-      }
-    }
-    const children = (node as DirLike).children;
-    if (children) {
-      for (let i = 0; i < children.length; i++) walk(children[i]);
-    }
-  }
-  walk(tree);
+// Returns the project's own line-count and byte-size ranges read directly
+// from the backend-pre-computed manifest.stats (no tree walk). Both ranges
+// are needed up front so every building can be normalised into the project's
+// actual range (smallest → MIN_*, largest → MAX_*).
+//
+// When stats is absent or a range is the empty sentinel {min:0,max:0}
+// (EMPTY_REPO_STATS), falls back to {min:1,max:1} so the renderer never
+// divides by zero — matching the old empty-tree behaviour exactly.
+export function computeFileStats(stats: RepoStats | null | undefined): {
+  lines: RangeStat;
+  bytes: RangeStat;
+} {
   return {
-    lines: minLines === Infinity ? { min: 1, max: 1 } : { min: minLines, max: maxLines },
-    bytes: minBytes === Infinity ? { min: 1, max: 1 } : { min: minBytes, max: maxBytes },
+    lines: _safeRange(stats?.fileLines),
+    bytes: _safeRange(stats?.fileBytes),
   };
 }
 
-// computeLineStats(tree) — kept for back-compat with tests that only need
+// computeLineStats(stats?) — kept for back-compat with tests that only need
 // the line-count range. New callers should use computeFileStats.
-export function computeLineStats(tree: TreeLike): RangeStat {
-  return computeFileStats(tree).lines;
+export function computeLineStats(stats: RepoStats | null | undefined): RangeStat {
+  return computeFileStats(stats).lines;
 }
 
 // getBuildingDimensions(file, lineStats?, byteStats?) -> { w, d, h, floors }
@@ -178,14 +167,15 @@ export interface HeightContext {
   byteStats: RangeStat;
 }
 
-// makeHeightContext(tree) → HeightContext
+// makeHeightContext(stats?) → HeightContext
 //
-// Walks the manifest tree once and returns the project-wide line + byte ranges
-// needed by recomputeBuildingDimensions. Thin wrapper over computeFileStats
-// with a named return type so call sites are self-documenting.
-export function makeHeightContext(tree: TreeLike): HeightContext {
-  const stats = computeFileStats(tree);
-  return { lineStats: stats.lines, byteStats: stats.bytes };
+// Returns the project-wide line + byte ranges needed by
+// recomputeBuildingDimensions, read from the pre-computed manifest.stats.
+// Thin wrapper over computeFileStats with a named return type so call sites
+// are self-documenting.
+export function makeHeightContext(stats: RepoStats | null | undefined): HeightContext {
+  const fs = computeFileStats(stats);
+  return { lineStats: fs.lines, byteStats: fs.bytes };
 }
 
 // recomputeBuildingDimensions(file, ctx) → { w, d, h, floors }

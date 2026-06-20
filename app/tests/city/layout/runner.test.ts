@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { createLayoutClient } from '@/city/layout';
 import { NodeKind } from '@/types';
-import type { Manifest, FileNode } from '@/types';
+import type { Manifest, FileNode, RepoStats } from '@/types';
 import { EMPTY_REPO_STATS } from '@/constants/manifest';
 
 function makeMinimalManifest(): Manifest {
@@ -80,8 +80,16 @@ describe('layoutClient', () => {
   });
 
   it('reuseLayoutFrom: skips the worker and returns a layout with same positions, fresh metadata', async () => {
-    // Use a two-file manifest so lineStats has a range (min != max),
+    // Use a two-file manifest so lineStats has a real range (min != max),
     // making the height normalization sensitive to per-file line count.
+    // stats.fileLines/fileBytes must reflect the actual file ranges so
+    // computeFileStats (which reads manifest.stats, not the tree) uses the
+    // correct range — matching the old tree-walk behaviour.
+    const STATS_WITH_RANGE: RepoStats = {
+      ...EMPTY_REPO_STATS,
+      fileLines: { min: 1, max: 1000 },
+      fileBytes: { min: 10, max: 10000 },
+    };
     const m1: Manifest = {
       root: '/tmp/x',
       scanned_at: '2026-05-13T00:00:00Z',
@@ -91,7 +99,7 @@ describe('layoutClient', () => {
       commits: [],
       busyness: { avg: 1, busy: 1 },
       dateRanges: { createdMin: null, createdMax: null, modifiedMin: null, modifiedMax: null },
-      stats: EMPTY_REPO_STATS,
+      stats: STATS_WITH_RANGE,
       tree: {
         name: 'x',
         type: NodeKind.Directory,

@@ -81,9 +81,7 @@ function buildPathToFile(tree: TreeNode): Map<string, FileNode> {
 // the layout worker — skips collision detection and placement entirely.
 function reuseLayout(prior: CityLayout, newManifest: Manifest): CityLayout {
   const filesByPath = buildPathToFile(newManifest.tree as unknown as TreeNode);
-  const heightCtx = makeHeightContext(
-    newManifest.tree as unknown as Parameters<typeof makeHeightContext>[0]
-  );
+  const heightCtx = makeHeightContext(newManifest.stats);
   const newBuildings = prior.buildings.map((b) => {
     const freshFile = (b.file?.path ? filesByPath.get(b.file.path) : null) ?? b.file;
     const dims = recomputeBuildingDimensions(
