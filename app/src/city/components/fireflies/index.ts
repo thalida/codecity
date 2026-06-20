@@ -19,7 +19,7 @@ import { effect, untracked } from '@preact/signals';
 
 import { FIREFLIES } from '@/state/stores/settings/fireflies';
 import { NodeKind } from '@/types';
-import type { CommitEntry } from '@/types';
+import type { CommitEntry, RepoStats } from '@/types';
 import type { TreePlacement } from '@/city/components/trees/treePlacement';
 
 import type { FrameContext, SceneComponent, SceneContext } from '../../types';
@@ -33,7 +33,11 @@ export interface FirefliesComponent extends SceneComponent {
   /** Build (or rebuild) the inner firefly assembly from placements. Driven by
    *  the cityState.treePlacements signal trees publishes (in lockstep with
    *  trees, every apply). */
-  rebuild(placements: TreePlacement[], commits: CommitEntry[] | null): void;
+  rebuild(
+    placements: TreePlacement[],
+    commits: CommitEntry[] | null,
+    stats: RepoStats | null | undefined
+  ): void;
   /** Dispose the inner assembly. */
   clear(): void;
   /** Canvas-resize hook — forwards to the orbit-ring LineMaterial
@@ -59,14 +63,18 @@ export function createFireflies(ctx: SceneContext): FirefliesComponent {
     }
   }
 
-  function rebuild(placements: TreePlacement[], commits: CommitEntry[] | null): void {
+  function rebuild(
+    placements: TreePlacement[],
+    commits: CommitEntry[] | null,
+    stats: RepoStats | null | undefined
+  ): void {
     clear();
     // Deliberately does NOT push current hover/selection into the fresh
     // renderer (which starts with -1 uniforms) — see the arming block's
     // no-push rule below; the next signal change pushes them.
     // The FIREFLIES.ENABLED gate stays inside fireflies.ts (an empty stub
     // assembly is returned when disabled).
-    _inner = assembleFireflies(placements, commits);
+    _inner = assembleFireflies(placements, commits, stats);
     group.add(_inner.group);
   }
 
@@ -94,7 +102,10 @@ export function createFireflies(ctx: SceneContext): FirefliesComponent {
   const stopPlacements = effect(() => {
     const placements = cityState.treePlacements.value;
     if (placements)
-      untracked(() => rebuild(placements, cityState.manifest.peek()?.commits ?? null));
+      untracked(() => {
+        const manifest = cityState.manifest.peek();
+        rebuild(placements, manifest?.commits ?? null, manifest?.stats);
+      });
     else clear();
   });
 

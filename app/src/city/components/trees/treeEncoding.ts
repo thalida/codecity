@@ -2,15 +2,21 @@
 // into [0,1] normalized signals (age / size / commits-per-day). The
 // renderer uses these to pick per-tree heights, widths, and colors.
 //
+// The project-wide age + size RANGES are read from manifest.stats (computed
+// once on the backend) rather than re-scanned here — the trees and the
+// firefly orbits both consume them, so a client-side walk would duplicate
+// the backend's work twice per rebuild. The per-commit signals (ageT/sizeT)
+// still take a single commit + the precomputed range.
+//
 // Robust to:
-//   - null commits (non-git roots)
-//   - empty commits arrays (git roots with no commits in window)
+//   - absent stats / null commits (non-git roots)
+//   - empty commit history (git roots with no commits in window)
 //   - degenerate ranges (all-same-date / -files / -counts → collapse to t=0.5)
 //   - out-of-range inputs (clamp to [0,1])
 //
 // Date math is day-precision because the scanner emits YYYY-MM-DD.
 
-import type { CommitEntry, BusynessThresholds } from '@/types';
+import type { CommitEntry, BusynessThresholds, RepoStats } from '@/types';
 import type { TreesConfig } from '@/state/stores/settings/trees';
 
 export interface AgeRange {
@@ -56,31 +62,25 @@ function clamp01(t: number): number {
   return t;
 }
 
-export function computeAgeRange(commits: CommitEntry[] | null): AgeRange {
-  if (!commits || commits.length === 0) {
+/** Oldest/newest commit dates as epoch days, from the backend-computed
+ *  stats.commitDates. {0,0,0} when stats are absent or the repo has no
+ *  commits (commitDates null) — collapses ageT to the 0.5 midpoint. */
+export function computeAgeRange(stats: RepoStats | null | undefined): AgeRange {
+  const cd = stats?.commitDates;
+  if (!cd || cd.oldest === null || cd.newest === null) {
     return { oldest: 0, newest: 0, span: 0 };
   }
-  let oldest = dateToDays(commits[0].date);
-  let newest = oldest;
-  for (let i = 1; i < commits.length; i++) {
-    const d = dateToDays(commits[i].date);
-    if (d < oldest) oldest = d;
-    if (d > newest) newest = d;
-  }
+  const oldest = dateToDays(cd.oldest);
+  const newest = dateToDays(cd.newest);
   return { oldest, newest, span: newest - oldest };
 }
 
-export function computeSizeRange(commits: CommitEntry[] | null): SizeRange {
-  if (!commits || commits.length === 0) {
-    return { min: 0, max: 0, span: 0 };
-  }
-  let min = commits[0].files;
-  let max = min;
-  for (let i = 1; i < commits.length; i++) {
-    const f = commits[i].files;
-    if (f < min) min = f;
-    if (f > max) max = f;
-  }
+/** Min/max files-changed across commits, from the backend-computed
+ *  sparsest/grandest commit leaders. {0,0,0} when stats are absent or the
+ *  repo has no commits (leaders null) — collapses sizeT to the 0.5 midpoint. */
+export function computeSizeRange(stats: RepoStats | null | undefined): SizeRange {
+  const min = stats?.sparsestCommit?.files ?? 0;
+  const max = stats?.grandestCommit?.files ?? 0;
   return { min, max, span: max - min };
 }
 

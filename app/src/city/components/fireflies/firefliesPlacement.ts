@@ -8,7 +8,7 @@
 // We derive canopy height and radius from commits using the same
 // encoding functions as treeRenderer, and read config defaults from TREES.
 
-import type { CommitEntry } from '@/types';
+import type { CommitEntry, RepoStats } from '@/types';
 import type { TreePlacement } from '@/city/components/trees/treePlacement';
 import { TREES } from '@/state/stores/settings/trees';
 import { FIREFLIES } from '@/state/stores/settings/fireflies';
@@ -70,27 +70,20 @@ function seededRng(seed: string): () => number {
 
 export function placeFireflies(
   placements: TreePlacement[],
-  commits: CommitEntry[] | null
+  commits: CommitEntry[] | null,
+  stats: RepoStats | null | undefined
 ): FireflyPlacement[] {
   if (!commits || commits.length === 0) return [];
 
   const fireflyConfig = FIREFLIES.value;
 
-  // Tally per-author commit count. A co-authored commit increments
-  // each distinct author's count by 1 — co-authorship counts as full
-  // credit toward firefly scale.
-  const counts = new Map<string, number>();
-  for (const c of commits) {
-    for (const author of c.authors ?? []) {
-      counts.set(author, (counts.get(author) ?? 0) + 1);
-    }
-  }
-  let minCount = Infinity;
-  let maxCount = -Infinity;
-  for (const n of counts.values()) {
-    if (n < minCount) minCount = n;
-    if (n > maxCount) maxCount = n;
-  }
+  // Per-author commit counts come from the backend-precomputed stats.authors
+  // (a co-authored commit credits each distinct author once — same tally the
+  // scanner does). The list is sorted by count desc, so [0] is the max and the
+  // last entry the min.
+  const authors = stats?.authors ?? [];
+  const maxCount = authors.length ? authors[0].commits : 0;
+  const minCount = authors.length ? authors[authors.length - 1].commits : 0;
   const authorScale = new Map<string, number>();
   // Degenerate case: every author has the same count (most commonly: only
   // one author, or all authors tied). There's no meaningful ranking, so
@@ -98,15 +91,15 @@ export function placeFireflies(
   // a distribution of one. Otherwise, lerp [minCount..maxCount] →
   // [SCALE_MIN..SCALE_MAX].
   if (maxCount === minCount) {
-    for (const author of counts.keys()) {
-      authorScale.set(author, fireflyConfig.SCALE_MAX);
+    for (const a of authors) {
+      authorScale.set(a.name, fireflyConfig.SCALE_MAX);
     }
   } else {
     const range = maxCount - minCount;
-    for (const [author, n] of counts) {
-      const t = (n - minCount) / range;
+    for (const a of authors) {
+      const t = (a.commits - minCount) / range;
       authorScale.set(
-        author,
+        a.name,
         fireflyConfig.SCALE_MIN + t * (fireflyConfig.SCALE_MAX - fireflyConfig.SCALE_MIN)
       );
     }
@@ -114,8 +107,10 @@ export function placeFireflies(
 
   const cfg = TREES.value;
 
-  const ageRange = computeAgeRange(commits);
-  const sizeRange = computeSizeRange(commits);
+  // Age + size ranges also come from stats (commitDates + sparsest/grandest),
+  // shared with the tree renderer so orbs stay pinned to their trees.
+  const ageRange = computeAgeRange(stats);
+  const sizeRange = computeSizeRange(stats);
 
   const out: FireflyPlacement[] = [];
 

@@ -24,7 +24,7 @@ import * as THREE from 'three';
 import { TREES } from '@/state/stores/settings/trees';
 import { RENDER_ORDERS } from '@/city/types/renderOrders';
 import type { TreePlacement } from './treePlacement';
-import type { CommitEntry, BusynessThresholds } from '@/types';
+import type { CommitEntry, BusynessThresholds, RepoStats } from '@/types';
 import {
   computeAgeRange,
   computeSizeRange,
@@ -205,7 +205,8 @@ function bakeVertexShading(geom: THREE.BufferGeometry, strength: number): void {
 export function createTreeRenderer(
   placements: TreePlacement[],
   commits: CommitEntry[] | null,
-  busyness: BusynessThresholds
+  busyness: BusynessThresholds,
+  stats: RepoStats | null | undefined
 ): Trees {
   let cfg = TREES.value;
 
@@ -218,8 +219,10 @@ export function createTreeRenderer(
   // enters the canopy instead of just touching its bottom vertex.
   const canopyOverlapFrac = Math.max(0, Math.min(1, cfg.CANOPY_TRUNK_OVERLAP_FRAC));
 
-  const ageRange: AgeRange = computeAgeRange(commits);
-  const sizeRange: SizeRange = computeSizeRange(commits);
+  // Age + size ranges come from the backend-precomputed stats (commitDates +
+  // sparsest/grandest commit), not a client-side scan of `commits`.
+  const ageRange: AgeRange = computeAgeRange(stats);
+  const sizeRange: SizeRange = computeSizeRange(stats);
 
   /** Resolve the commit a placement points at, or null when the index is
    *  out of range / commits is absent. */

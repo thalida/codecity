@@ -3,6 +3,7 @@ import { placeFireflies } from '@/city/components/fireflies/firefliesPlacement';
 import { FIREFLIES } from '@/state/stores/settings/fireflies';
 import type { CommitEntry } from '@/types';
 import type { TreePlacement } from '@/city/components/trees/treePlacement';
+import { commitStats } from '../../_helpers/statsFixtures';
 
 const COMMITS: CommitEntry[] = [
   {
@@ -32,21 +33,21 @@ function placement(commitIndex: number, x: number, z: number): TreePlacement {
 describe('placeFireflies', () => {
   it('single-author commits emit exactly 1 orb per tree (regression)', () => {
     const placements = [placement(0, 10, 5), placement(1, -3, 8)];
-    const orbs = placeFireflies(placements, COMMITS);
+    const orbs = placeFireflies(placements, COMMITS, commitStats(COMMITS));
     expect(orbs.length).toBe(placements.length);
   });
 
   it('is deterministic for the same input', () => {
     const placements = [placement(0, 10, 5)];
-    const a = placeFireflies(placements, COMMITS);
-    const b = placeFireflies(placements, COMMITS);
+    const a = placeFireflies(placements, COMMITS, commitStats(COMMITS));
+    const b = placeFireflies(placements, COMMITS, commitStats(COMMITS));
     expect(a).toEqual(b);
   });
 
   it('returns different orbital params for different commit SHAs', () => {
-    const a = placeFireflies([placement(0, 0, 0)], COMMITS);
+    const a = placeFireflies([placement(0, 0, 0)], COMMITS, commitStats(COMMITS));
     const altCommits: CommitEntry[] = [{ ...COMMITS[0], sha: 'c'.repeat(40) }, COMMITS[1]];
-    const b = placeFireflies([placement(0, 0, 0)], altCommits);
+    const b = placeFireflies([placement(0, 0, 0)], altCommits, commitStats(altCommits));
     let anyDifferent = false;
     for (let i = 0; i < a.length; i++) {
       if (
@@ -71,7 +72,7 @@ describe('placeFireflies', () => {
     const MAX_RADIUS_BOUND = (64 / 2) * 1.5; // 48
     const MAX_HEIGHT_BOUND = 96 * 1.4; // ~134.4
     const p = placement(0, 100, 200);
-    const orbs = placeFireflies([p], COMMITS);
+    const orbs = placeFireflies([p], COMMITS, commitStats(COMMITS));
     for (const o of orbs) {
       // Tree center must equal the tree placement coordinates.
       expect(o.treeX).toBe(p.x);
@@ -86,7 +87,7 @@ describe('placeFireflies', () => {
 
   it('emits authorColor per-orb from the commit author', async () => {
     const { colorForAuthor } = await import('@/city/components/fireflies/authorColor.js');
-    const orbs = placeFireflies([placement(0, 0, 0)], COMMITS);
+    const orbs = placeFireflies([placement(0, 0, 0)], COMMITS, commitStats(COMMITS));
     const expected = colorForAuthor(COMMITS[0].authors[0]).rgb;
     for (const o of orbs) {
       expect(o.rgb).toEqual(expected);
@@ -94,12 +95,12 @@ describe('placeFireflies', () => {
   });
 
   it('skips placements with invalid commitIndex', () => {
-    const orbs = placeFireflies([placement(99, 0, 0)], COMMITS);
+    const orbs = placeFireflies([placement(99, 0, 0)], COMMITS, commitStats(COMMITS));
     expect(orbs.length).toBe(0);
   });
 
   it('assigns a phase offset in [0, 2π) per orb', () => {
-    const orbs = placeFireflies([placement(0, 0, 0)], COMMITS);
+    const orbs = placeFireflies([placement(0, 0, 0)], COMMITS, commitStats(COMMITS));
     for (const o of orbs) {
       expect(o.phase).toBeGreaterThanOrEqual(0);
       expect(o.phase).toBeLessThan(Math.PI * 2);
@@ -107,7 +108,7 @@ describe('placeFireflies', () => {
   });
 
   it('assigns an orbitStartAngle in [0, 2π) per orb', () => {
-    const orbs = placeFireflies([placement(0, 0, 0)], COMMITS);
+    const orbs = placeFireflies([placement(0, 0, 0)], COMMITS, commitStats(COMMITS));
     for (const o of orbs) {
       expect(o.orbitStartAngle).toBeGreaterThanOrEqual(0);
       expect(o.orbitStartAngle).toBeLessThan(Math.PI * 2);
@@ -115,7 +116,7 @@ describe('placeFireflies', () => {
   });
 
   it('assigns an orbitTilt in [-π/6, π/6] per orb', () => {
-    const orbs = placeFireflies([placement(0, 0, 0)], COMMITS);
+    const orbs = placeFireflies([placement(0, 0, 0)], COMMITS, commitStats(COMMITS));
     for (const o of orbs) {
       expect(o.orbitTilt).toBeGreaterThanOrEqual(-Math.PI / 6);
       expect(o.orbitTilt).toBeLessThanOrEqual(Math.PI / 6);
@@ -123,7 +124,7 @@ describe('placeFireflies', () => {
   });
 
   it('assigns a pulse phase in [0, 2π) per orb, independent of bob phase', () => {
-    const orbs = placeFireflies([placement(0, 0, 0)], COMMITS);
+    const orbs = placeFireflies([placement(0, 0, 0)], COMMITS, commitStats(COMMITS));
     for (const o of orbs) {
       expect(o.pulsePhase).toBeGreaterThanOrEqual(0);
       expect(o.pulsePhase).toBeLessThan(Math.PI * 2);
@@ -163,7 +164,8 @@ describe('placeFireflies', () => {
     // 1 orb per tree: orbs map 1:1 to placements for easy indexing.
     const orbs = placeFireflies(
       [placement(0, 0, 0), placement(1, 10, 0), placement(2, 20, 0)],
-      commits
+      commits,
+      commitStats(commits)
     );
     // orbs[0] = Alice (1 commit = SCALE_MIN); orbs[1] = Bob (2 commits = SCALE_MAX).
     const aliceOrb = orbs[0];
@@ -172,7 +174,7 @@ describe('placeFireflies', () => {
   });
 
   it('emits the source commitIndex on each FireflyPlacement', () => {
-    const orbs = placeFireflies([placement(0, 0, 0), placement(1, 10, 0)], COMMITS);
+    const orbs = placeFireflies([placement(0, 0, 0), placement(1, 10, 0)], COMMITS, commitStats(COMMITS));
     expect(orbs.every((o) => typeof o.commitIndex === 'number')).toBe(true);
     expect(orbs[0].commitIndex).toBe(0);
     expect(orbs[1].commitIndex).toBe(1);
@@ -198,7 +200,7 @@ describe('placeFireflies', () => {
         same_day_total: 1,
       },
     ];
-    const orbs = placeFireflies([placement(0, 0, 0), placement(1, 10, 0)], sameAuthor);
+    const orbs = placeFireflies([placement(0, 0, 0), placement(1, 10, 0)], sameAuthor, commitStats(sameAuthor));
     expect(orbs[0].scale).toBe(orbs[1].scale);
   });
 
@@ -224,7 +226,7 @@ describe('placeFireflies', () => {
         same_day_total: 1,
       },
     ];
-    const orbs = placeFireflies([placement(0, 0, 0), placement(1, 10, 0)], soloAuthor);
+    const orbs = placeFireflies([placement(0, 0, 0), placement(1, 10, 0)], soloAuthor, commitStats(soloAuthor));
     const scaleMax = FIREFLIES.value.SCALE_MAX;
     expect(orbs[0].scale).toBe(scaleMax);
     expect(orbs[1].scale).toBe(scaleMax);
@@ -241,7 +243,7 @@ describe('placeFireflies', () => {
         same_day_total: 1,
       },
     ];
-    const orbs = placeFireflies([placement(0, 0, 0)], multiAuthor);
+    const orbs = placeFireflies([placement(0, 0, 0)], multiAuthor, commitStats(multiAuthor));
     expect(orbs.length).toBe(3);
   });
 
@@ -257,7 +259,7 @@ describe('placeFireflies', () => {
         same_day_total: 1,
       },
     ];
-    const orbs = placeFireflies([placement(0, 0, 0)], multiAuthor);
+    const orbs = placeFireflies([placement(0, 0, 0)], multiAuthor, commitStats(multiAuthor));
     expect(orbs[0].rgb).toEqual(colorForAuthor('Alice').rgb);
     expect(orbs[1].rgb).toEqual(colorForAuthor('Bob').rgb);
     expect(orbs[2].rgb).toEqual(colorForAuthor('Carol').rgb);
@@ -274,7 +276,7 @@ describe('placeFireflies', () => {
         same_day_total: 1,
       },
     ];
-    const orbs = placeFireflies([placement(0, 100, 200)], multiAuthor);
+    const orbs = placeFireflies([placement(0, 100, 200)], multiAuthor, commitStats(multiAuthor));
     // Same orbit center (tree position).
     expect(orbs[0].treeX).toBe(100);
     expect(orbs[1].treeX).toBe(100);
@@ -309,7 +311,7 @@ describe('placeFireflies', () => {
         same_day_total: 1,
       },
     ];
-    const orbs = placeFireflies([placement(0, 0, 0), placement(1, 10, 0)], commits);
+    const orbs = placeFireflies([placement(0, 0, 0), placement(1, 10, 0)], commits, commitStats(commits));
     // orbs[0] = Alice from commit 0, orbs[1] = Bob from commit 0,
     // orbs[2] = Bob from commit 1.
     const aliceOrb = orbs[0];

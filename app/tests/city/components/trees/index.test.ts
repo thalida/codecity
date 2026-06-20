@@ -22,6 +22,7 @@ import { makeCityState } from '../../../_helpers/cityFixtures';
 import { TREES } from '@/state/stores/settings/trees';
 import { NodeKind } from '@/types';
 import type { CommitEntry } from '@/types';
+import { commitStats } from '../../../_helpers/statsFixtures';
 import type { PickTarget } from '@/types/picker';
 import type { TreePlacement } from '@/city/components/trees/treePlacement';
 import type { Picker } from '@/city/interaction/picker';
@@ -142,7 +143,7 @@ describe('createTrees() component door', () => {
   it('rebuild() builds the inner renderer under the group; getRenderer() is live', () => {
     const { ctx } = makeCtx();
     trees = createTrees(ctx);
-    trees.rebuild(PLACEMENTS, COMMITS, BUSY);
+    trees.rebuild(PLACEMENTS, COMMITS, BUSY, commitStats(COMMITS));
     const handle = trees.getRenderer();
     expect(handle).not.toBeNull();
     expect(handle!.group.parent).toBe(trees.group);
@@ -155,7 +156,7 @@ describe('createTrees() component door', () => {
   it('clear() disposes the inner renderer, empties the group, nulls the handle', () => {
     const { ctx } = makeCtx();
     trees = createTrees(ctx);
-    trees.rebuild(PLACEMENTS, COMMITS, BUSY);
+    trees.rebuild(PLACEMENTS, COMMITS, BUSY, commitStats(COMMITS));
     trees.clear();
     expect(trees.getRenderer()).toBeNull();
     expect(trees.group.children).toHaveLength(0);
@@ -166,9 +167,9 @@ describe('createTrees() component door', () => {
   it('rebuild() disposes the prior inner renderer (no accumulation)', () => {
     const { ctx } = makeCtx();
     trees = createTrees(ctx);
-    trees.rebuild(PLACEMENTS, COMMITS, BUSY);
+    trees.rebuild(PLACEMENTS, COMMITS, BUSY, commitStats(COMMITS));
     const first = trees.getRenderer()!;
-    trees.rebuild(PLACEMENTS, COMMITS, BUSY);
+    trees.rebuild(PLACEMENTS, COMMITS, BUSY, commitStats(COMMITS));
     expect(trees.getRenderer()).not.toBe(first);
     expect(first.group.parent).toBeNull();
     expect(trees.group.children).toHaveLength(1);
@@ -177,7 +178,7 @@ describe('createTrees() component door', () => {
   it('theme effect refreshes the inner renderer on TREES Save', () => {
     const { ctx } = makeCtx();
     trees = createTrees(ctx);
-    trees.rebuild(PLACEMENTS, COMMITS, BUSY);
+    trees.rebuild(PLACEMENTS, COMMITS, BUSY, commitStats(COMMITS));
     const refreshSpy = vi.spyOn(trees.getRenderer()!, 'refresh');
     TREES.value = { ...TREES.value, TRUNK_COLOR: '#ff0000' };
     expect(refreshSpy).toHaveBeenCalledTimes(1);
@@ -186,7 +187,7 @@ describe('createTrees() component door', () => {
   it('does NOT show an outline for a selection set before the first tick (not yet armed)', () => {
     const { ctx, selection } = makeCtx();
     trees = createTrees(ctx);
-    trees.rebuild(PLACEMENTS, COMMITS, BUSY);
+    trees.rebuild(PLACEMENTS, COMMITS, BUSY, commitStats(COMMITS));
     selection.value = commitTarget(SHA_A);
     // No outline meshes were added to the scene — the renderer isn't built.
     const outlines = ctx.scene.children.filter((c) => c instanceof LineSegments2);
@@ -196,7 +197,7 @@ describe('createTrees() component door', () => {
   it('arms the outline on first tick; the pending Commit selection becomes visible', () => {
     const { ctx, selection } = makeCtx();
     trees = createTrees(ctx);
-    trees.rebuild(PLACEMENTS, COMMITS, BUSY);
+    trees.rebuild(PLACEMENTS, COMMITS, BUSY, commitStats(COMMITS));
     selection.value = commitTarget(SHA_A);
 
     trees.tick(0, FRAME(CAMERA));
@@ -223,7 +224,7 @@ describe('createTrees() component door', () => {
   it('onResize() pushes fresh canvas dimensions into the outline materials', () => {
     const { ctx, size } = makeCtx();
     trees = createTrees(ctx);
-    trees.rebuild(PLACEMENTS, COMMITS, BUSY);
+    trees.rebuild(PLACEMENTS, COMMITS, BUSY, commitStats(COMMITS));
     trees.tick(0, FRAME(CAMERA)); // arm
     size.w = 1024;
     size.h = 768;
@@ -237,7 +238,7 @@ describe('createTrees() component door', () => {
   it('dispose() clears the inner renderer, stops the theme effect, removes outlines', () => {
     const { ctx, selection } = makeCtx();
     trees = createTrees(ctx);
-    trees.rebuild(PLACEMENTS, COMMITS, BUSY);
+    trees.rebuild(PLACEMENTS, COMMITS, BUSY, commitStats(COMMITS));
     trees.tick(0, FRAME(CAMERA)); // arm
     const refreshSpy = vi.spyOn(trees.getRenderer()!, 'refresh');
 

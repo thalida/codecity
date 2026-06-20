@@ -1,7 +1,7 @@
 // app/tests/city/components/fireflies/index.test.ts
 //
 // Tests for the persistent createFireflies(ctx) component (door).
-// API: createFireflies(ctx) → { group, rebuild(placements, commits),
+// API: createFireflies(ctx) → { group, rebuild(placements, commits, stats),
 //      clear(), tick(dt, frame), onResize(w, h), dispose() }.
 //
 // FIREFLIES settings reactivity (bob/pulse/emission uniforms) is owned by
@@ -21,6 +21,7 @@ import { makeCityState } from '../../../_helpers/cityFixtures';
 import { FIREFLIES } from '@/state/stores/settings/fireflies';
 import { NodeKind } from '@/types';
 import type { CommitEntry } from '@/types';
+import { commitStats } from '../../../_helpers/statsFixtures';
 import type { PickTarget } from '@/types/picker';
 import type { TreePlacement } from '@/city/components/trees/treePlacement';
 import type { Picker } from '@/city/interaction/picker';
@@ -112,7 +113,7 @@ describe('createFireflies() component door', () => {
   it('rebuild() builds the inner assembly under the group; clear() empties + nulls', () => {
     const { ctx } = makeCtx();
     comp = createFireflies(ctx);
-    comp.rebuild(PLACEMENTS, COMMITS);
+    comp.rebuild(PLACEMENTS, COMMITS, commitStats(COMMITS));
     // The inner assembly's group is the sole child of the component group.
     expect(comp.group.children).toHaveLength(1);
     expect(orbUniforms(comp).uTime.value).toBe(0);
@@ -125,9 +126,9 @@ describe('createFireflies() component door', () => {
   it('rebuild() disposes the prior assembly (no accumulation)', () => {
     const { ctx } = makeCtx();
     comp = createFireflies(ctx);
-    comp.rebuild(PLACEMENTS, COMMITS);
+    comp.rebuild(PLACEMENTS, COMMITS, commitStats(COMMITS));
     const first = comp.group.children[0];
-    comp.rebuild(PLACEMENTS, COMMITS);
+    comp.rebuild(PLACEMENTS, COMMITS, commitStats(COMMITS));
     expect(comp.group.children[0]).not.toBe(first);
     expect(first.parent).toBeNull();
     expect(comp.group.children).toHaveLength(1);
@@ -136,7 +137,7 @@ describe('createFireflies() component door', () => {
   it('theme effect pushes fresh animation uniforms on FIREFLIES Save', () => {
     const { ctx } = makeCtx();
     comp = createFireflies(ctx);
-    comp.rebuild(PLACEMENTS, COMMITS);
+    comp.rebuild(PLACEMENTS, COMMITS, commitStats(COMMITS));
     const u = orbUniforms(comp);
     FIREFLIES.value = { ...FIREFLIES.value, BOB_AMPLITUDE: 7.25 };
     expect(u.uBobAmp.value).toBeCloseTo(7.25, 5);
@@ -145,7 +146,7 @@ describe('createFireflies() component door', () => {
   it('tick() writes frame.time into the bob uTime uniform', () => {
     const { ctx } = makeCtx();
     comp = createFireflies(ctx);
-    comp.rebuild(PLACEMENTS, COMMITS);
+    comp.rebuild(PLACEMENTS, COMMITS, commitStats(COMMITS));
     comp.tick(0, FRAME(CAMERA, 4.5));
     expect(orbUniforms(comp).uTime.value).toBeCloseTo(4.5, 5);
   });
@@ -153,7 +154,7 @@ describe('createFireflies() component door', () => {
   it('does NOT boost a hover set before the first tick; arming pushes it in', () => {
     const { ctx, hover } = makeCtx();
     comp = createFireflies(ctx);
-    comp.rebuild(PLACEMENTS, COMMITS);
+    comp.rebuild(PLACEMENTS, COMMITS, commitStats(COMMITS));
     const u = orbUniforms(comp);
 
     // Hover set BEFORE any tick — effects aren't armed, uniform untouched.
@@ -172,7 +173,7 @@ describe('createFireflies() component door', () => {
   it('select boost follows picker.selection after arming', () => {
     const { ctx, selection } = makeCtx();
     comp = createFireflies(ctx);
-    comp.rebuild(PLACEMENTS, COMMITS);
+    comp.rebuild(PLACEMENTS, COMMITS, commitStats(COMMITS));
     comp.tick(0, FRAME(CAMERA));
     const u = orbUniforms(comp);
     expect(u.uSelectedCommit.value).toBe(-1);
@@ -185,14 +186,14 @@ describe('createFireflies() component door', () => {
   it('REBUILD-SURVIVAL: boost effects reach the NEW inner on the next signal change', () => {
     const { ctx, hover } = makeCtx();
     comp = createFireflies(ctx);
-    comp.rebuild(PLACEMENTS, COMMITS);
+    comp.rebuild(PLACEMENTS, COMMITS, commitStats(COMMITS));
     comp.tick(0, FRAME(CAMERA)); // arm
     hover.value = commitTarget(SHA_A);
     expect(orbUniforms(comp).uHoveredCommit.value).toBe(0);
 
     // Rebuild: the fresh renderer starts with -1 uniforms (rebuild does NOT
     // push current hover/selection — behavior-identical to the old flow).
-    comp.rebuild(PLACEMENTS, COMMITS);
+    comp.rebuild(PLACEMENTS, COMMITS, commitStats(COMMITS));
     const u = orbUniforms(comp);
     expect(u.uHoveredCommit.value).toBe(-1);
 
@@ -205,14 +206,14 @@ describe('createFireflies() component door', () => {
     const { ctx } = makeCtx();
     comp = createFireflies(ctx);
     expect(() => comp.onResize(800, 600)).not.toThrow(); // null inner → no-op
-    comp.rebuild(PLACEMENTS, COMMITS);
+    comp.rebuild(PLACEMENTS, COMMITS, commitStats(COMMITS));
     expect(() => comp.onResize(1024, 768)).not.toThrow();
   });
 
   it('dispose() empties the group and stops all effects', () => {
     const { ctx, hover } = makeCtx();
     comp = createFireflies(ctx);
-    comp.rebuild(PLACEMENTS, COMMITS);
+    comp.rebuild(PLACEMENTS, COMMITS, commitStats(COMMITS));
     comp.tick(0, FRAME(CAMERA)); // arm
     comp.dispose();
     expect(comp.group.children).toHaveLength(0);

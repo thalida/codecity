@@ -17,6 +17,7 @@ import {
   genCommits,
   makeDigestHasher,
 } from '../tests/_helpers/layoutTreeFixtures';
+import { commitStats } from '../tests/_helpers/statsFixtures';
 
 // Captured before the decoration-pass perf work.
 const EXPECTED = '12k:trees43000:orbs51600:74166740';
@@ -29,13 +30,16 @@ describe('decoration golden (bit-identical guard)', () => {
     const bbox = bboxOf(layout);
     const commits = genCommits(43000, makeRng(7));
     const busyness = { avg: 3, busy: 6 };
+    // Stats are backend-precomputed; the trees + fireflies read the age/size
+    // ranges + author counts from here instead of re-scanning commits.
+    const stats = commitStats(commits);
 
     const placements = placeTrees(layout as any, bbox, {
       commitCount: 43000,
       islandGeoOverride: null,
     });
-    const orbs = placeFireflies(placements, commits);
-    const renderer = createTreeRenderer(placements, commits, busyness);
+    const orbs = placeFireflies(placements, commits, stats);
+    const renderer = createTreeRenderer(placements, commits, busyness, stats);
 
     const hasher = makeDigestHasher();
     for (const p of placements) {
