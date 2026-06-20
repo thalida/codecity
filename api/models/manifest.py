@@ -128,6 +128,67 @@ class DateRanges(BaseModel):
     )
 
 
+class RangeStat(BaseModel):
+    min: int
+    max: int
+
+
+class FileLeader(BaseModel):
+    path: str
+    lines: int
+    bytes: int
+    created: str
+    modified: str
+    # Optional-but-non-nullable (absent for non-media leaders, a pixel count
+    # otherwise — never null); see OptionalInt above.
+    media_width: OptionalInt = None
+    media_height: OptionalInt = None
+
+
+class DirLeader(BaseModel):
+    path: str
+    depth: int
+    file_count: int
+
+
+class CommitLeader(BaseModel):
+    sha: str
+    files: int
+
+
+class DayLeader(BaseModel):
+    date: str
+    count: int
+
+
+class AuthorStat(BaseModel):
+    name: str
+    commits: int
+
+
+class RepoStats(BaseModel):
+    fileLines: RangeStat
+    fileBytes: RangeStat
+    oldestFile: Optional[FileLeader]
+    newestFile: Optional[FileLeader]
+    freshestFile: Optional[FileLeader]
+    stalestFile: Optional[FileLeader]
+    tallestFile: Optional[FileLeader]
+    shortestFile: Optional[FileLeader]
+    widestFile: Optional[FileLeader]
+    narrowestFile: Optional[FileLeader]
+    largestMedia: Optional[FileLeader]
+    sharpestMedia: Optional[FileLeader]
+    mediaCount: int
+    deepestDir: Optional[DirLeader]
+    biggestDir: Optional[DirLeader]
+    grandestCommit: Optional[CommitLeader]
+    sparsestCommit: Optional[CommitLeader]
+    busiestDay: Optional[DayLeader]
+    longestStreakDays: int
+    authors: list[AuthorStat]
+
+
 class Manifest(BaseModel):
     root: str
     scanned_at: str
@@ -138,6 +199,7 @@ class Manifest(BaseModel):
     commits: list[CommitEntry]
     busyness: BusynessThresholds
     dateRanges: DateRanges
+    stats: RepoStats
     # Optional-but-non-nullable (absent for local sources, a label string for
     # git sources — never null); see OptionalStr above.
     display_root: OptionalStr = None

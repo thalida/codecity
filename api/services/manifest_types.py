@@ -165,6 +165,69 @@ class DateRanges(TypedDict):
     modifiedMax: str | None
 
 
+class RangeStat(TypedDict):
+    min: int
+    max: int
+
+
+class FileLeader(TypedDict):
+    path: str
+    lines: int
+    bytes: int
+    created: str
+    modified: str
+    media_width: NotRequired[int]
+    media_height: NotRequired[int]
+
+
+class DirLeader(TypedDict):
+    path: str
+    depth: int
+    file_count: int
+
+
+class CommitLeader(TypedDict):
+    sha: str
+    files: int
+
+
+class DayLeader(TypedDict):
+    date: str
+    count: int
+
+
+class AuthorStat(TypedDict):
+    name: str
+    commits: int
+
+
+class RepoStats(TypedDict):
+    """Per-repo derived stats computed once at manifest-wrap
+    (api/services/stats.py): the Overview almanac superlatives + min/max
+    ranges. The web app reads these instead of re-walking the tree."""
+
+    fileLines: RangeStat
+    fileBytes: RangeStat
+    oldestFile: FileLeader | None
+    newestFile: FileLeader | None
+    freshestFile: FileLeader | None
+    stalestFile: FileLeader | None
+    tallestFile: FileLeader | None
+    shortestFile: FileLeader | None
+    widestFile: FileLeader | None
+    narrowestFile: FileLeader | None
+    largestMedia: FileLeader | None
+    sharpestMedia: FileLeader | None
+    mediaCount: int
+    deepestDir: DirLeader | None
+    biggestDir: DirLeader | None
+    grandestCommit: CommitLeader | None
+    sparsestCommit: CommitLeader | None
+    busiestDay: DayLeader | None
+    longestStreakDays: int
+    authors: list[AuthorStat]
+
+
 class Manifest(TypedDict):
     """Top-level manifest emitted by scan_tree(). What /api/manifest
     returns and what the web app's CityScene.applyManifest consumes."""
@@ -178,6 +241,7 @@ class Manifest(TypedDict):
     commits: list[CommitEntry]
     busyness: BusynessThresholds
     dateRanges: DateRanges
+    stats: RepoStats
     display_root: NotRequired[str]
 
 

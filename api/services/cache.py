@@ -65,7 +65,7 @@ class FileEntry(TypedDict):
 # treated as a miss and re-scanned. (Per-bump rationale lives in git history.)
 _FILE_CACHE_VERSION = 1
 _GIT_HISTORY_CACHE_VERSION = 12  # v12: dates UTC-normalized (file maps + commit days)
-_MANIFEST_SCHEMA_VERSION = 7  # v7: FileNode.mediaKind added
+_MANIFEST_SCHEMA_VERSION = 8  # v8: manifest.stats (repo superlatives + ranges)
 # Composite: invalidates when EITHER the manifest schema OR the git-history
 # shape changes. Stored as a string in the cache file's `version` field.
 _MANIFEST_CACHE_VERSION: str = (
