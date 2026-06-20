@@ -229,7 +229,7 @@ describe('layoutCityWithTrace', () => {
       repo: { branch: null, remote_url: null, head_sha: null, head_subject: null, dirty: false },
       commits: [],
       busyness: { avg: 1, busy: 1 },
-      dateRanges: { createdMin: null, createdMax: null, modifiedMin: null, modifiedMax: null },
+      dateRanges: { minCreated: null, maxCreated: null, minModified: null, maxModified: null },
       stats: EMPTY_REPO_STATS,
       tree,
     };
@@ -305,7 +305,7 @@ describe('layoutCityWithTrace', () => {
       repo: { branch: null, remote_url: null, head_sha: null, head_subject: null, dirty: false },
       commits: [],
       busyness: { avg: 1, busy: 1 },
-      dateRanges: { createdMin: null, createdMax: null, modifiedMin: null, modifiedMax: null },
+      dateRanges: { minCreated: null, maxCreated: null, minModified: null, maxModified: null },
       stats: EMPTY_REPO_STATS,
       tree,
     };

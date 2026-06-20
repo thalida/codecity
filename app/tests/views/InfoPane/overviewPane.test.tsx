@@ -70,10 +70,10 @@ const manifest: Manifest = {
   commits: [],
   busyness: { avg: 1, busy: 2 },
   dateRanges: {
-    createdMin: '2020-01-01T00:00:00Z',
-    createdMax: '2020-01-01T00:00:00Z',
-    modifiedMin: '2020-01-01T00:00:00Z',
-    modifiedMax: '2020-01-01T00:00:00Z',
+    minCreated: '2020-01-01T00:00:00Z',
+    maxCreated: '2020-01-01T00:00:00Z',
+    minModified: '2020-01-01T00:00:00Z',
+    maxModified: '2020-01-01T00:00:00Z',
   },
   stats: singleFileStats,
 };
@@ -81,10 +81,10 @@ const manifest: Manifest = {
 // Commit leaders for tests that need forest rows.
 const commitStats = {
   ...uniformFileStats('a.ts', 3, 10),
-  grandestCommit: { sha: 'abc1234', files: 9 },
-  sparsestCommit: { sha: 'abc1234', files: 9 },
-  busiestDay: { date: '2022-01-01', count: 1 },
-  longestStreakDays: 1,
+  maxFilesPerCommit: { sha: 'abc1234', files: 9 },
+  minFilesPerCommit: { sha: 'abc1234', files: 9 },
+  maxCommitsPerDay: { date: '2022-01-01', count: 1 },
+  maxCommitStreakDays: 1,
   authors: [{ name: 'Ada', commits: 1 }],
 };
 

@@ -13,7 +13,7 @@ function makeMinimalManifest(): Manifest {
     repo: { branch: null, remote_url: null, head_sha: null, head_subject: null, dirty: false },
     commits: [],
     busyness: { avg: 1, busy: 1 },
-    dateRanges: { createdMin: null, createdMax: null, modifiedMin: null, modifiedMax: null },
+    dateRanges: { minCreated: null, maxCreated: null, minModified: null, maxModified: null },
     stats: EMPTY_REPO_STATS,
     tree: {
       name: 'x',
@@ -82,13 +82,13 @@ describe('layoutClient', () => {
   it('reuseLayoutFrom: skips the worker and returns a layout with same positions, fresh metadata', async () => {
     // Use a two-file manifest so lineStats has a real range (min != max),
     // making the height normalization sensitive to per-file line count.
-    // stats.fileLines/fileBytes must reflect the actual file ranges so
+    // stats.lineCountRange/byteSizeRange must reflect the actual file ranges so
     // computeFileStats (which reads manifest.stats, not the tree) uses the
     // correct range — matching the old tree-walk behaviour.
     const STATS_WITH_RANGE: RepoStats = {
       ...EMPTY_REPO_STATS,
-      fileLines: { min: 1, max: 1000 },
-      fileBytes: { min: 10, max: 10000 },
+      lineCountRange: { min: 1, max: 1000 },
+      byteSizeRange: { min: 10, max: 10000 },
     };
     const m1: Manifest = {
       root: '/tmp/x',
@@ -98,7 +98,7 @@ describe('layoutClient', () => {
       repo: { branch: null, remote_url: null, head_sha: null, head_subject: null, dirty: false },
       commits: [],
       busyness: { avg: 1, busy: 1 },
-      dateRanges: { createdMin: null, createdMax: null, modifiedMin: null, modifiedMax: null },
+      dateRanges: { minCreated: null, maxCreated: null, minModified: null, maxModified: null },
       stats: STATS_WITH_RANGE,
       tree: {
         name: 'x',

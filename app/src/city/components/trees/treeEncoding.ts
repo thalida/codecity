@@ -79,8 +79,8 @@ export function computeAgeRange(stats: RepoStats | null | undefined): AgeRange {
  *  sparsest/grandest commit leaders. {0,0,0} when stats are absent or the
  *  repo has no commits (leaders null) — collapses sizeT to the 0.5 midpoint. */
 export function computeSizeRange(stats: RepoStats | null | undefined): SizeRange {
-  const min = stats?.sparsestCommit?.files ?? 0;
-  const max = stats?.grandestCommit?.files ?? 0;
+  const min = stats?.minFilesPerCommit?.files ?? 0;
+  const max = stats?.maxFilesPerCommit?.files ?? 0;
   return { min, max, span: max - min };
 }
 

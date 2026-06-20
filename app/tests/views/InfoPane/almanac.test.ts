@@ -50,10 +50,10 @@ function manifest(tree: DirNode, overrides: Partial<Manifest> = {}): Manifest {
     commits: [],
     busyness: { avg: 1, busy: 2 },
     dateRanges: {
-      createdMin: '2020-01-01T00:00:00Z',
-      createdMax: '2023-01-01T00:00:00Z',
-      modifiedMin: '2020-01-01T00:00:00Z',
-      modifiedMax: '2023-01-01T00:00:00Z',
+      minCreated: '2020-01-01T00:00:00Z',
+      maxCreated: '2023-01-01T00:00:00Z',
+      minModified: '2020-01-01T00:00:00Z',
+      maxModified: '2023-01-01T00:00:00Z',
     },
     stats: EMPTY_REPO_STATS,
     ...overrides,
@@ -88,20 +88,38 @@ describe('computeAlmanac — overview + buildings', () => {
     }),
   ]);
 
-  // oldestFile = old.ts (created 2020), newestFile = new.ts (created 2023)
-  // freshestFile = new.ts (modified 2023), stalestFile = tall.ts (modified 2020-02)
-  // tallestFile = tall.ts (999 lines), shortestFile = old.ts (5 lines)
-  // widestFile = new.ts (4000 bytes), narrowestFile = old.ts (50 bytes)
+  // oldestCreatedFile = old.ts (created 2020), newestCreatedFile = new.ts (created 2023)
+  // newestModifiedFile = new.ts (modified 2023), oldestModifiedFile = tall.ts (modified 2020-02)
+  // maxLinesFile = tall.ts (999 lines), minLinesFile = old.ts (5 lines)
+  // maxBytesFile = new.ts (4000 bytes), minBytesFile = old.ts (50 bytes)
   const buildingsStats: RepoStats = {
     ...EMPTY_REPO_STATS,
-    oldestFile: fileLeader('old.ts', 5, 50, '2020-01-01T00:00:00Z', '2021-06-01T00:00:00Z'),
-    newestFile: fileLeader('new.ts', 10, 4000, '2023-01-01T00:00:00Z', '2023-01-01T00:00:00Z'),
-    freshestFile: fileLeader('new.ts', 10, 4000, '2023-01-01T00:00:00Z', '2023-01-01T00:00:00Z'),
-    stalestFile: fileLeader('tall.ts', 999, 80, '2021-01-01T00:00:00Z', '2020-02-01T00:00:00Z'),
-    tallestFile: fileLeader('tall.ts', 999, 80, '2021-01-01T00:00:00Z', '2020-02-01T00:00:00Z'),
-    shortestFile: fileLeader('old.ts', 5, 50, '2020-01-01T00:00:00Z', '2021-06-01T00:00:00Z'),
-    widestFile: fileLeader('new.ts', 10, 4000, '2023-01-01T00:00:00Z', '2023-01-01T00:00:00Z'),
-    narrowestFile: fileLeader('old.ts', 5, 50, '2020-01-01T00:00:00Z', '2021-06-01T00:00:00Z'),
+    oldestCreatedFile: fileLeader('old.ts', 5, 50, '2020-01-01T00:00:00Z', '2021-06-01T00:00:00Z'),
+    newestCreatedFile: fileLeader(
+      'new.ts',
+      10,
+      4000,
+      '2023-01-01T00:00:00Z',
+      '2023-01-01T00:00:00Z'
+    ),
+    newestModifiedFile: fileLeader(
+      'new.ts',
+      10,
+      4000,
+      '2023-01-01T00:00:00Z',
+      '2023-01-01T00:00:00Z'
+    ),
+    oldestModifiedFile: fileLeader(
+      'tall.ts',
+      999,
+      80,
+      '2021-01-01T00:00:00Z',
+      '2020-02-01T00:00:00Z'
+    ),
+    maxLinesFile: fileLeader('tall.ts', 999, 80, '2021-01-01T00:00:00Z', '2020-02-01T00:00:00Z'),
+    minLinesFile: fileLeader('old.ts', 5, 50, '2020-01-01T00:00:00Z', '2021-06-01T00:00:00Z'),
+    maxBytesFile: fileLeader('new.ts', 10, 4000, '2023-01-01T00:00:00Z', '2023-01-01T00:00:00Z'),
+    minBytesFile: fileLeader('old.ts', 5, 50, '2020-01-01T00:00:00Z', '2021-06-01T00:00:00Z'),
   };
 
   const a = computeAlmanac(manifest(tree, { stats: buildingsStats }));
@@ -174,12 +192,16 @@ describe('computeAlmanac — overview + buildings', () => {
       }),
     ]);
     // Buildings: all leaders = code.ts (media excluded from building leaders).
-    // Media: largestMedia = pic.png, sharpestMedia = pic.png @ 1920×1080.
+    // Media: maxMediaBytesFile = pic.png, maxMediaPixelsFile = pic.png @ 1920×1080.
     const mediaStats: RepoStats = {
       ...uniformFileStats('code.ts', 40, 400),
       mediaCount: 1,
-      largestMedia: fileLeader('pic.png', 0, 9000),
-      sharpestMedia: { ...fileLeader('pic.png', 0, 9000), media_width: 1920, media_height: 1080 },
+      maxMediaBytesFile: fileLeader('pic.png', 0, 9000),
+      maxMediaPixelsFile: {
+        ...fileLeader('pic.png', 0, 9000),
+        media_width: 1920,
+        media_height: 1080,
+      },
     };
     const m = computeAlmanac(manifest(withMedia, { stats: mediaStats }))!;
     const buildings = m.sections.find((s) => s.key === 'buildings')!;
@@ -227,18 +249,18 @@ describe('computeAlmanac — streets, forest, fireflies', () => {
     { date: '2022-02-10', files: 5, sha: 'ddd', authors: ['Ada'], subject: 'd', same_day_total: 1 },
   ];
 
-  // Streets: deepestDir = src/a/b (3 levels), biggestDir = src (5 files)
-  // Forest: grandestCommit = bbb (40 files), sparsestCommit = ccc (1 file)
-  //         busiestDay = 2022-01-02 (3 commits), longestStreakDays = 3
+  // Streets: maxDepthDir = src/a/b (3 levels), maxFilesPerDir = src (5 files)
+  // Forest: maxFilesPerCommit = bbb (40 files), minFilesPerCommit = ccc (1 file)
+  //         maxCommitsPerDay = 2022-01-02 (3 commits), maxCommitStreakDays = 3
   // Fireflies: Ada (3 commits), Bo (2 commits)
   const sfStats: RepoStats = {
     ...EMPTY_REPO_STATS,
-    deepestDir: { path: 'src/a/b', depth: 3, file_count: 1 },
-    biggestDir: { path: 'src', depth: 1, file_count: 5 },
-    grandestCommit: { sha: 'bbb', files: 40 },
-    sparsestCommit: { sha: 'ccc', files: 1 },
-    busiestDay: { date: '2022-01-02', count: 3 },
-    longestStreakDays: 3,
+    maxDepthDir: { path: 'src/a/b', depth: 3, file_count: 1 },
+    maxFilesPerDir: { path: 'src', depth: 1, file_count: 5 },
+    maxFilesPerCommit: { sha: 'bbb', files: 40 },
+    minFilesPerCommit: { sha: 'ccc', files: 1 },
+    maxCommitsPerDay: { date: '2022-01-02', count: 3 },
+    maxCommitStreakDays: 3,
     authors: [
       { name: 'Ada', commits: 3 },
       { name: 'Bo', commits: 2 },

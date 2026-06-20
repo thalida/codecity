@@ -363,11 +363,11 @@ describe('getBuildingDimensions — media files', () => {
 describe('computeFileStats', () => {
   const REAL_STATS: RepoStats = {
     ...EMPTY_REPO_STATS,
-    fileLines: { min: 20, max: 80 },
-    fileBytes: { min: 500, max: 2000 },
+    lineCountRange: { min: 20, max: 80 },
+    byteSizeRange: { min: 500, max: 2000 },
   };
 
-  it('reads fileLines and fileBytes directly from manifest.stats', () => {
+  it('reads lineCountRange and byteSizeRange directly from manifest.stats', () => {
     const fs = computeFileStats(REAL_STATS);
     expect(fs.lines).toEqual({ min: 20, max: 80 });
     expect(fs.bytes).toEqual({ min: 500, max: 2000 });
@@ -385,16 +385,16 @@ describe('computeFileStats', () => {
     expect(fs.bytes).toEqual({ min: 1, max: 1 });
   });
 
-  it('returns safe fallback when fileLines is the empty sentinel {min:0,max:0}', () => {
-    const emptyStats: RepoStats = { ...REAL_STATS, fileLines: { min: 0, max: 0 } };
+  it('returns safe fallback when lineCountRange is the empty sentinel {min:0,max:0}', () => {
+    const emptyStats: RepoStats = { ...REAL_STATS, lineCountRange: { min: 0, max: 0 } };
     const fs = computeFileStats(emptyStats);
     expect(fs.lines).toEqual({ min: 1, max: 1 });
     // bytes unaffected
     expect(fs.bytes).toEqual({ min: 500, max: 2000 });
   });
 
-  it('returns safe fallback when fileBytes is the empty sentinel {min:0,max:0}', () => {
-    const emptyStats: RepoStats = { ...REAL_STATS, fileBytes: { min: 0, max: 0 } };
+  it('returns safe fallback when byteSizeRange is the empty sentinel {min:0,max:0}', () => {
+    const emptyStats: RepoStats = { ...REAL_STATS, byteSizeRange: { min: 0, max: 0 } };
     const fs = computeFileStats(emptyStats);
     expect(fs.bytes).toEqual({ min: 1, max: 1 });
     // lines unaffected

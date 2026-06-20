@@ -114,16 +114,16 @@ class BusynessThresholds(BaseModel):
 # not optional. camelCase matches the frontend DateRanges + the fullPath
 # precedent.
 class DateRanges(BaseModel):
-    createdMin: Optional[str] = Field(
+    minCreated: Optional[str] = Field(
         description="Earliest resolved create date (ISO), or null for an empty tree"
     )
-    createdMax: Optional[str] = Field(
+    maxCreated: Optional[str] = Field(
         description="Latest resolved create date (ISO), or null for an empty tree"
     )
-    modifiedMin: Optional[str] = Field(
+    minModified: Optional[str] = Field(
         description="Earliest resolved modify date (ISO), or null for an empty tree"
     )
-    modifiedMax: Optional[str] = Field(
+    maxModified: Optional[str] = Field(
         description="Latest resolved modify date (ISO), or null for an empty tree"
     )
 
@@ -186,26 +186,26 @@ class AuthorStat(BaseModel):
 
 
 class RepoStats(BaseModel):
-    fileLines: RangeStat
-    fileBytes: RangeStat
-    oldestFile: Optional[FileLeader]
-    newestFile: Optional[FileLeader]
-    freshestFile: Optional[FileLeader]
-    stalestFile: Optional[FileLeader]
-    tallestFile: Optional[FileLeader]
-    shortestFile: Optional[FileLeader]
-    widestFile: Optional[FileLeader]
-    narrowestFile: Optional[FileLeader]
-    largestMedia: Optional[FileLeader]
-    sharpestMedia: Optional[FileLeader]
+    lineCountRange: RangeStat
+    byteSizeRange: RangeStat
+    oldestCreatedFile: Optional[FileLeader]
+    newestCreatedFile: Optional[FileLeader]
+    newestModifiedFile: Optional[FileLeader]
+    oldestModifiedFile: Optional[FileLeader]
+    maxLinesFile: Optional[FileLeader]
+    minLinesFile: Optional[FileLeader]
+    maxBytesFile: Optional[FileLeader]
+    minBytesFile: Optional[FileLeader]
+    maxMediaBytesFile: Optional[FileLeader]
+    maxMediaPixelsFile: Optional[FileLeader]
     mediaCount: int
-    deepestDir: Optional[DirLeader]
-    biggestDir: Optional[DirLeader]
-    grandestCommit: Optional[CommitLeader]
-    sparsestCommit: Optional[CommitLeader]
+    maxDepthDir: Optional[DirLeader]
+    maxFilesPerDir: Optional[DirLeader]
+    maxFilesPerCommit: Optional[CommitLeader]
+    minFilesPerCommit: Optional[CommitLeader]
     commitDates: CommitDateRange
-    busiestDay: Optional[DayLeader]
-    longestStreakDays: int
+    maxCommitsPerDay: Optional[DayLeader]
+    maxCommitStreakDays: int
     authors: list[AuthorStat]
 
 

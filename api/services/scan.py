@@ -1189,10 +1189,10 @@ def _compute_date_ranges(tree: DirNode) -> DateRanges:
         mmin = m if mmin is None or m < mmin else mmin
         mmax = m if mmax is None or m > mmax else mmax
     return {
-        "createdMin": cmin,
-        "createdMax": cmax,
-        "modifiedMin": mmin,
-        "modifiedMax": mmax,
+        "minCreated": cmin,
+        "maxCreated": cmax,
+        "minModified": mmin,
+        "maxModified": mmax,
     }
 
 

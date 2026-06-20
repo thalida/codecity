@@ -122,7 +122,7 @@ function buildOverview(m: Manifest): AlmanacOverview {
       labelFromSource(m.repo.remote_url ?? m.display_root ?? root.name) ??
       root.name ??
       'this project',
-    founded: m.dateRanges.createdMin ? formatShortDate(m.dateRanges.createdMin) : null,
+    founded: m.dateRanges.minCreated ? formatShortDate(m.dateRanges.minCreated) : null,
     totals: {
       files: root.descendants_file_count,
       dirs: root.descendants_dir_count,
@@ -141,49 +141,49 @@ function buildingsSection(m: Manifest): AlmanacSection {
   const facts = [
     fileFact(
       'Newest building',
-      s.newestFile,
+      s.newestCreatedFile,
       (l) => `Created ${formatShortDate(l.created)}`,
       'Most recently created file, by git history.'
     ),
     fileFact(
       'Oldest building',
-      s.oldestFile,
+      s.oldestCreatedFile,
       (l) => `Created ${formatShortDate(l.created)}`,
       "Earliest-created file — the city's founding structure."
     ),
     fileFact(
       'Freshest building',
-      s.freshestFile,
+      s.newestModifiedFile,
       (l) => `Edited ${formatShortDate(l.modified)}`,
       "File with the newest commit. Edits only count once committed — this is the date that drives a building's brightness."
     ),
     fileFact(
       'Stalest building',
-      s.stalestFile,
+      s.oldestModifiedFile,
       (l) => `Edited ${formatShortDate(l.modified)}`,
       'File whose last commit is the oldest — the dimmest building.'
     ),
     fileFact(
       'Tallest building',
-      s.tallestFile,
+      s.maxLinesFile,
       (l) => pluralize(l.lines, 'line'),
       "File with the most lines; line count sets a building's height."
     ),
     fileFact(
       'Shortest building',
-      s.shortestFile,
+      s.minLinesFile,
       (l) => pluralize(l.lines, 'line'),
       'File with the fewest lines.'
     ),
     fileFact(
       'Widest building',
-      s.widestFile,
+      s.maxBytesFile,
       (l) => formatBytes(l.bytes),
       "Largest file by bytes; file size sets a building's footprint."
     ),
     fileFact(
       'Narrowest building',
-      s.narrowestFile,
+      s.minBytesFile,
       (l) => formatBytes(l.bytes),
       'Smallest file by bytes.'
     ),
@@ -210,14 +210,14 @@ function mediaSection(m: Manifest): AlmanacSection {
     } as AlmanacFact,
     fileFact(
       'Largest billboard',
-      s.largestMedia,
+      s.maxMediaBytesFile,
       (l) => formatBytes(l.bytes),
       'Biggest media file by bytes.'
     ),
-    s.sharpestMedia?.media_width && s.sharpestMedia?.media_height
+    s.maxMediaPixelsFile?.media_width && s.maxMediaPixelsFile?.media_height
       ? fileFact(
           'Highest resolution',
-          s.sharpestMedia,
+          s.maxMediaPixelsFile,
           (l) => `${formatCount(l.media_width!)} × ${formatCount(l.media_height!)}`,
           'Media file with the most pixels.'
         )
@@ -232,14 +232,14 @@ function streetsSection(m: Manifest): AlmanacSection {
   const facts = [
     dirFact(
       'Deepest alley',
-      s.deepestDir,
-      s.deepestDir ? `${s.deepestDir.depth} levels deep` : '',
+      s.maxDepthDir,
+      s.maxDepthDir ? `${s.maxDepthDir.depth} levels deep` : '',
       'Most deeply nested directory.'
     ),
     dirFact(
       'Biggest neighborhood',
-      s.biggestDir,
-      s.biggestDir ? pluralize(s.biggestDir.file_count, 'building') : '',
+      s.maxFilesPerDir,
+      s.maxFilesPerDir ? pluralize(s.maxFilesPerDir.file_count, 'building') : '',
       "Directory holding the most files (excluding the repo root); sets a street's width."
     ),
   ].filter((f): f is AlmanacFact => f !== null);
@@ -273,21 +273,21 @@ function forestSection(m: Manifest, treesEnabled: boolean): AlmanacSection {
   const facts = [
     commitFact(
       'Grandest canopy',
-      s.grandestCommit,
+      s.maxFilesPerCommit,
       'Commit that changed the most files — the widest tree.'
     ),
-    commitFact('Sparsest canopy', s.sparsestCommit, 'Commit that changed the fewest files.'),
-    s.busiestDay
+    commitFact('Sparsest canopy', s.minFilesPerCommit, 'Commit that changed the fewest files.'),
+    s.maxCommitsPerDay
       ? ({
           label: 'Busiest day',
-          primary: formatShortDate(s.busiestDay.date),
-          secondary: pluralize(s.busiestDay.count, 'commit'),
+          primary: formatShortDate(s.maxCommitsPerDay.date),
+          secondary: pluralize(s.maxCommitsPerDay.count, 'commit'),
           tip: 'Calendar day with the most commits.',
         } as AlmanacFact)
       : null,
     {
       label: 'Longest streak',
-      primary: pluralize(s.longestStreakDays, 'consecutive day'),
+      primary: pluralize(s.maxCommitStreakDays, 'consecutive day'),
       tip: 'Longest run of consecutive days with commits.',
     } as AlmanacFact,
   ].filter((f): f is AlmanacFact => f !== null);

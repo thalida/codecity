@@ -234,25 +234,25 @@ export interface components {
         /** DateRanges */
         DateRanges: {
             /**
-             * Createdmin
+             * Mincreated
              * @description Earliest resolved create date (ISO), or null for an empty tree
              */
-            createdMin: string | null;
+            minCreated: string | null;
             /**
-             * Createdmax
+             * Maxcreated
              * @description Latest resolved create date (ISO), or null for an empty tree
              */
-            createdMax: string | null;
+            maxCreated: string | null;
             /**
-             * Modifiedmin
+             * Minmodified
              * @description Earliest resolved modify date (ISO), or null for an empty tree
              */
-            modifiedMin: string | null;
+            minModified: string | null;
             /**
-             * Modifiedmax
+             * Maxmodified
              * @description Latest resolved modify date (ISO), or null for an empty tree
              */
-            modifiedMax: string | null;
+            maxModified: string | null;
         };
         /** DayLeader */
         DayLeader: {
@@ -438,28 +438,28 @@ export interface components {
         };
         /** RepoStats */
         RepoStats: {
-            fileLines: components["schemas"]["RangeStat"];
-            fileBytes: components["schemas"]["RangeStat"];
-            oldestFile: components["schemas"]["FileLeader"] | null;
-            newestFile: components["schemas"]["FileLeader"] | null;
-            freshestFile: components["schemas"]["FileLeader"] | null;
-            stalestFile: components["schemas"]["FileLeader"] | null;
-            tallestFile: components["schemas"]["FileLeader"] | null;
-            shortestFile: components["schemas"]["FileLeader"] | null;
-            widestFile: components["schemas"]["FileLeader"] | null;
-            narrowestFile: components["schemas"]["FileLeader"] | null;
-            largestMedia: components["schemas"]["FileLeader"] | null;
-            sharpestMedia: components["schemas"]["FileLeader"] | null;
+            lineCountRange: components["schemas"]["RangeStat"];
+            byteSizeRange: components["schemas"]["RangeStat"];
+            oldestCreatedFile: components["schemas"]["FileLeader"] | null;
+            newestCreatedFile: components["schemas"]["FileLeader"] | null;
+            newestModifiedFile: components["schemas"]["FileLeader"] | null;
+            oldestModifiedFile: components["schemas"]["FileLeader"] | null;
+            maxLinesFile: components["schemas"]["FileLeader"] | null;
+            minLinesFile: components["schemas"]["FileLeader"] | null;
+            maxBytesFile: components["schemas"]["FileLeader"] | null;
+            minBytesFile: components["schemas"]["FileLeader"] | null;
+            maxMediaBytesFile: components["schemas"]["FileLeader"] | null;
+            maxMediaPixelsFile: components["schemas"]["FileLeader"] | null;
             /** Mediacount */
             mediaCount: number;
-            deepestDir: components["schemas"]["DirLeader"] | null;
-            biggestDir: components["schemas"]["DirLeader"] | null;
-            grandestCommit: components["schemas"]["CommitLeader"] | null;
-            sparsestCommit: components["schemas"]["CommitLeader"] | null;
+            maxDepthDir: components["schemas"]["DirLeader"] | null;
+            maxFilesPerDir: components["schemas"]["DirLeader"] | null;
+            maxFilesPerCommit: components["schemas"]["CommitLeader"] | null;
+            minFilesPerCommit: components["schemas"]["CommitLeader"] | null;
             commitDates: components["schemas"]["CommitDateRange"];
-            busiestDay: components["schemas"]["DayLeader"] | null;
-            /** Longeststreakdays */
-            longestStreakDays: number;
+            maxCommitsPerDay: components["schemas"]["DayLeader"] | null;
+            /** Maxcommitstreakdays */
+            maxCommitStreakDays: number;
             /** Authors */
             authors: components["schemas"]["AuthorStat"][];
         };

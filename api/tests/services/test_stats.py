@@ -70,21 +70,21 @@ def test_file_leaders_partition_media_and_text():
     tree = _dir("repo", "", [code, empty, img])
     s = compute_repo_stats(tree, [])
 
-    assert s["tallestFile"]["path"] == "a.ts"
-    assert s["shortestFile"]["path"] == "a.ts"  # only a.ts is text with lines>0
-    assert s["widestFile"]["path"] == "a.ts"
-    assert s["narrowestFile"]["path"] == "__init__.py"
-    assert s["largestMedia"]["path"] == "pic.png"
-    assert s["sharpestMedia"]["path"] == "pic.png"
-    assert s["sharpestMedia"]["media_width"] == 1920
-    assert s["oldestFile"]["path"] == "__init__.py"
-    assert s["newestFile"]["path"] == "a.ts"
-    assert s["freshestFile"]["path"] == "a.ts"
-    assert s["stalestFile"]["path"] == "__init__.py"
+    assert s["maxLinesFile"]["path"] == "a.ts"
+    assert s["minLinesFile"]["path"] == "a.ts"  # only a.ts is text with lines>0
+    assert s["maxBytesFile"]["path"] == "a.ts"
+    assert s["minBytesFile"]["path"] == "__init__.py"
+    assert s["maxMediaBytesFile"]["path"] == "pic.png"
+    assert s["maxMediaPixelsFile"]["path"] == "pic.png"
+    assert s["maxMediaPixelsFile"]["media_width"] == 1920
+    assert s["oldestCreatedFile"]["path"] == "__init__.py"
+    assert s["newestCreatedFile"]["path"] == "a.ts"
+    assert s["newestModifiedFile"]["path"] == "a.ts"
+    assert s["oldestModifiedFile"]["path"] == "__init__.py"
     # Ranges span ALL files with non-zero values (media included for bytes); the
     # 0-line/0-byte __init__.py is excluded from both.
-    assert s["fileLines"] == {"min": 40, "max": 40}  # only a.ts has lines>0
-    assert s["fileBytes"] == {"min": 400, "max": 9000}  # a.ts .. pic.png(media)
+    assert s["lineCountRange"] == {"min": 40, "max": 40}  # only a.ts has lines>0
+    assert s["byteSizeRange"] == {"min": 400, "max": 9000}  # a.ts .. pic.png(media)
     assert s["mediaCount"] == 1
 
 
@@ -94,8 +94,8 @@ def test_dir_leaders_exclude_root():
     src["descendants_file_count"] = 5
     tree = _dir("repo", "", [src, _file("r.ts")])
     s = compute_repo_stats(tree, [])
-    assert s["deepestDir"]["path"] == "src/a/b"
-    assert s["biggestDir"]["path"] == "src"
+    assert s["maxDepthDir"]["path"] == "src/a/b"
+    assert s["maxFilesPerDir"]["path"] == "src"
 
 
 def test_commit_leaders_authors_and_streak():
@@ -134,23 +134,23 @@ def test_commit_leaders_authors_and_streak():
         },
     ]
     s = compute_repo_stats(_dir("repo", "", [_file("a.ts")]), commits)
-    assert s["grandestCommit"] == {"sha": "bbb", "files": 40}
-    assert s["sparsestCommit"] == {"sha": "ccc", "files": 1}
+    assert s["maxFilesPerCommit"] == {"sha": "bbb", "files": 40}
+    assert s["minFilesPerCommit"] == {"sha": "ccc", "files": 1}
     assert s["commitDates"] == {"oldest": "2022-01-01", "newest": "2022-02-10"}
-    assert s["busiestDay"]["count"] == 2
-    assert s["longestStreakDays"] == 3
+    assert s["maxCommitsPerDay"]["count"] == 2
+    assert s["maxCommitStreakDays"] == 3
     assert s["authors"][0] == {"name": "Ada", "commits": 3}
     assert [a["name"] for a in s["authors"]] == ["Ada", "Bo"]
 
 
 def test_empty_tree_and_no_commits():
     s = compute_repo_stats(_dir("repo", "", []), [])
-    assert s["tallestFile"] is None
-    assert s["grandestCommit"] is None
-    assert s["longestStreakDays"] == 0
+    assert s["maxLinesFile"] is None
+    assert s["maxFilesPerCommit"] is None
+    assert s["maxCommitStreakDays"] == 0
     assert s["authors"] == []
     assert s["commitDates"] == {"oldest": None, "newest": None}
-    assert s["fileLines"] == {"min": 0, "max": 0}
+    assert s["lineCountRange"] == {"min": 0, "max": 0}
     assert s["mediaCount"] == 0
 
 
@@ -162,8 +162,11 @@ def test_ranges_span_all_files_excluding_zero():
     big = _file("big.png", lines=0, size=9000, media="image", mw=4, mh=4)
     empty = _file("empty.py", lines=0, size=0)
     s = compute_repo_stats(_dir("repo", "", [code, big, empty]), [])
-    assert s["fileLines"] == {"min": 10, "max": 10}  # only a.ts has lines>0
-    assert s["fileBytes"] == {"min": 200, "max": 9000}  # a.ts + media; empty excluded
+    assert s["lineCountRange"] == {"min": 10, "max": 10}  # only a.ts has lines>0
+    assert s["byteSizeRange"] == {
+        "min": 200,
+        "max": 9000,
+    }  # a.ts + media; empty excluded
 
 
 def test_media_only_repo_ranges():
@@ -171,8 +174,8 @@ def test_media_only_repo_ranges():
     # still drive the byte range so media buildings size correctly.
     img = _file("a.png", lines=0, size=500, media="image", mw=10, mh=10)
     s = compute_repo_stats(_dir("repo", "", [img]), [])
-    assert s["fileLines"] == {"min": 0, "max": 0}
-    assert s["fileBytes"] == {"min": 500, "max": 500}
+    assert s["lineCountRange"] == {"min": 0, "max": 0}
+    assert s["byteSizeRange"] == {"min": 500, "max": 500}
 
 
 def test_empty_files_only_ranges():
@@ -180,5 +183,5 @@ def test_empty_files_only_ranges():
     # frontend's _safeRange turns these into {1,1} (no divide-by-zero).
     empty = _file("__init__.py", lines=0, size=0)
     s = compute_repo_stats(_dir("repo", "", [empty]), [])
-    assert s["fileLines"] == {"min": 0, "max": 0}
-    assert s["fileBytes"] == {"min": 0, "max": 0}
+    assert s["lineCountRange"] == {"min": 0, "max": 0}
+    assert s["byteSizeRange"] == {"min": 0, "max": 0}

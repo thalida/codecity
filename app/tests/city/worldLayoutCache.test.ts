@@ -48,7 +48,7 @@ describe('attachSettingsReactions invalidates layout cache before applyManifest'
     const stubManifest = {
       tree_signature: 'abc',
       tree: { type: 'directory', children: [] },
-      dateRanges: { createdMin: null, createdMax: null, modifiedMin: null, modifiedMax: null },
+      dateRanges: { minCreated: null, maxCreated: null, minModified: null, maxModified: null },
     };
     // Seed the source of truth: scheduleRebuild reads MANIFEST.peek().
     setManifest(stubManifest as unknown as Manifest);

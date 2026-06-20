@@ -10,9 +10,9 @@ interface TreeLike {
 
 /** Non-zero file line/byte ranges over a fixture tree, mirroring
  *  api/services/stats.py — for bench/layout fixtures that feed layoutCity,
- *  which reads stats.fileLines/fileBytes to size buildings. Without this the
+ *  which reads stats.lineCountRange/byteSizeRange to size buildings. Without this the
  *  layout falls back to the {1,1} safe range (every building min-width). */
-export function fileStats(tree: TreeLike): Pick<RepoStats, 'fileLines' | 'fileBytes'> {
+export function fileStats(tree: TreeLike): Pick<RepoStats, 'lineCountRange' | 'byteSizeRange'> {
   let lMin = Infinity;
   let lMax = -Infinity;
   let bMin = Infinity;
@@ -36,7 +36,7 @@ export function fileStats(tree: TreeLike): Pick<RepoStats, 'fileLines' | 'fileBy
   walk(tree);
   const range = (mn: number, mx: number): RangeStat =>
     mx >= mn ? { min: mn, max: mx } : { min: 0, max: 0 };
-  return { fileLines: range(lMin, lMax), fileBytes: range(bMin, bMax) };
+  return { lineCountRange: range(lMin, lMax), byteSizeRange: range(bMin, bMax) };
 }
 
 export function fileLeader(
@@ -75,8 +75,8 @@ export function commitStats(commits: CommitEntry[]): RepoStats {
   return {
     ...EMPTY_REPO_STATS,
     commitDates: { oldest, newest },
-    grandestCommit: { sha: grandest.sha, files: grandest.files },
-    sparsestCommit: { sha: sparsest.sha, files: sparsest.files },
+    maxFilesPerCommit: { sha: grandest.sha, files: grandest.files },
+    minFilesPerCommit: { sha: sparsest.sha, files: sparsest.files },
     authors,
   };
 }
@@ -87,13 +87,13 @@ export function uniformFileStats(path: string, lines: number, bytes: number): Re
   const l = fileLeader(path, lines, bytes);
   return {
     ...EMPTY_REPO_STATS,
-    oldestFile: l,
-    newestFile: l,
-    freshestFile: l,
-    stalestFile: l,
-    tallestFile: l,
-    shortestFile: l,
-    widestFile: l,
-    narrowestFile: l,
+    oldestCreatedFile: l,
+    newestCreatedFile: l,
+    newestModifiedFile: l,
+    oldestModifiedFile: l,
+    maxLinesFile: l,
+    minLinesFile: l,
+    maxBytesFile: l,
+    minBytesFile: l,
   };
 }

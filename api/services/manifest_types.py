@@ -159,10 +159,10 @@ class DateRanges(TypedDict):
     gradients read one consistent range instead of re-walking the tree.
     All four are None for a tree with zero files."""
 
-    createdMin: str | None
-    createdMax: str | None
-    modifiedMin: str | None
-    modifiedMax: str | None
+    minCreated: str | None
+    maxCreated: str | None
+    minModified: str | None
+    maxModified: str | None
 
 
 class RangeStat(TypedDict):
@@ -232,27 +232,27 @@ class RepoStats(TypedDict):
     # size. Over all files with non-zero lines/size — 0-length files are
     # excluded because they have no meaningful building height/width (and the
     # frontend log/sqrt can't take 0). The honest "smallest file" lives in the
-    # narrowestFile / shortestFile leaders. {0,0} when no non-zero files exist.
-    fileLines: RangeStat
-    fileBytes: RangeStat
-    oldestFile: FileLeader | None
-    newestFile: FileLeader | None
-    freshestFile: FileLeader | None
-    stalestFile: FileLeader | None
-    tallestFile: FileLeader | None
-    shortestFile: FileLeader | None
-    widestFile: FileLeader | None
-    narrowestFile: FileLeader | None
-    largestMedia: FileLeader | None
-    sharpestMedia: FileLeader | None
+    # minBytesFile / minLinesFile leaders. {0,0} when no non-zero files exist.
+    lineCountRange: RangeStat
+    byteSizeRange: RangeStat
+    oldestCreatedFile: FileLeader | None
+    newestCreatedFile: FileLeader | None
+    newestModifiedFile: FileLeader | None
+    oldestModifiedFile: FileLeader | None
+    maxLinesFile: FileLeader | None
+    minLinesFile: FileLeader | None
+    maxBytesFile: FileLeader | None
+    minBytesFile: FileLeader | None
+    maxMediaBytesFile: FileLeader | None
+    maxMediaPixelsFile: FileLeader | None
     mediaCount: int
-    deepestDir: DirLeader | None
-    biggestDir: DirLeader | None
-    grandestCommit: CommitLeader | None
-    sparsestCommit: CommitLeader | None
+    maxDepthDir: DirLeader | None
+    maxFilesPerDir: DirLeader | None
+    maxFilesPerCommit: CommitLeader | None
+    minFilesPerCommit: CommitLeader | None
     commitDates: CommitDateRange
-    busiestDay: DayLeader | None
-    longestStreakDays: int
+    maxCommitsPerDay: DayLeader | None
+    maxCommitStreakDays: int
     authors: list[AuthorStat]
 
 

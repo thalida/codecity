@@ -176,10 +176,10 @@ export interface BusynessThresholds {
  * lightness/saturation, newest at max.
  */
 export interface DateRanges {
-  createdMin: string | null;
-  createdMax: string | null;
-  modifiedMin: string | null;
-  modifiedMax: string | null;
+  minCreated: string | null;
+  maxCreated: string | null;
+  minModified: string | null;
+  maxModified: string | null;
 }
 
 /** Min/max numeric range for file stats (line counts, byte sizes). */
@@ -240,26 +240,26 @@ export interface RepoStats {
   /** Building-size normalization ranges (non-zero), NOT honest min/max file
    *  size — 0-length files are excluded (they have no meaningful building
    *  size; the layout's log/sqrt can't take 0). The honest smallest file is in
-   *  narrowestFile / shortestFile. {0,0} when no non-zero files exist. */
-  fileLines: RangeStat;
-  fileBytes: RangeStat;
-  oldestFile: FileLeader | null;
-  newestFile: FileLeader | null;
-  freshestFile: FileLeader | null;
-  stalestFile: FileLeader | null;
-  tallestFile: FileLeader | null;
-  shortestFile: FileLeader | null;
-  widestFile: FileLeader | null;
-  narrowestFile: FileLeader | null;
-  largestMedia: FileLeader | null;
-  sharpestMedia: FileLeader | null;
+   *  minBytesFile / minLinesFile. {0,0} when no non-zero files exist. */
+  lineCountRange: RangeStat;
+  byteSizeRange: RangeStat;
+  oldestCreatedFile: FileLeader | null;
+  newestCreatedFile: FileLeader | null;
+  newestModifiedFile: FileLeader | null;
+  oldestModifiedFile: FileLeader | null;
+  maxLinesFile: FileLeader | null;
+  minLinesFile: FileLeader | null;
+  maxBytesFile: FileLeader | null;
+  minBytesFile: FileLeader | null;
+  maxMediaBytesFile: FileLeader | null;
+  maxMediaPixelsFile: FileLeader | null;
   mediaCount: number;
-  deepestDir: DirLeader | null;
-  biggestDir: DirLeader | null;
-  grandestCommit: CommitLeader | null;
-  sparsestCommit: CommitLeader | null;
+  maxDepthDir: DirLeader | null;
+  maxFilesPerDir: DirLeader | null;
+  maxFilesPerCommit: CommitLeader | null;
+  minFilesPerCommit: CommitLeader | null;
   commitDates: CommitDateRange;
-  busiestDay: DayLeader | null;
-  longestStreakDays: number;
+  maxCommitsPerDay: DayLeader | null;
+  maxCommitStreakDays: number;
   authors: AuthorStat[];
 }

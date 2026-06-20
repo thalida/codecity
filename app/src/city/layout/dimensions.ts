@@ -70,8 +70,8 @@ export function computeFileStats(stats: RepoStats | null | undefined): {
   bytes: RangeStat;
 } {
   return {
-    lines: _safeRange(stats?.fileLines),
-    bytes: _safeRange(stats?.fileBytes),
+    lines: _safeRange(stats?.lineCountRange),
+    bytes: _safeRange(stats?.byteSizeRange),
   };
 }
 
