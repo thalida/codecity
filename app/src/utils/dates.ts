@@ -107,3 +107,11 @@ export function formatRelativeAgeShort(thenMs: number, nowMs: number): string {
   if (diff < MS_YEAR) return `${Math.floor(diff / MS_MONTH)}mo ago`;
   return `${Math.floor(diff / MS_YEAR)}y ago`;
 }
+
+/** ISO date string → epoch ms; NaN for missing/unparseable (so it never wins a
+ *  max() comparison). */
+export function dateMs(iso: string | null | undefined): number {
+  if (!iso) return NaN;
+  const t = Date.parse(iso);
+  return Number.isNaN(t) ? NaN : t;
+}

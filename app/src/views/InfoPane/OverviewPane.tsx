@@ -1,24 +1,25 @@
-// views/InfoPane/WorldPane.tsx — the "World" subtab: a travel-guide of repo
-// superlatives derived by computeAlmanac. A focus button on each landmark row
-// flies the camera to that building/tree. Body-only — InfoPane owns the chrome.
+// views/InfoPane/OverviewPane.tsx — the "Overview" subtab: a travel-guide of
+// repo superlatives derived by computeAlmanac. A focus button on each landmark
+// row flies the camera to that building/tree. Body-only — InfoPane owns the
+// chrome.
 
-import './WorldPane.css';
+import './OverviewPane.css';
 import { useMemo } from 'preact/hooks';
 import type { Signal } from '@preact/signals';
 import { FolderOpen, Focus } from 'lucide-preact';
+import { NodeKind } from '@/types';
 import type { DirNode, Manifest } from '@/types';
 import { PaneEmpty } from '@/components/Pane';
 import { ExtensionBadge } from '@/components/Badge/Badge';
 import { selectPath, focusPath, selectCommit, focusCommit } from '@/state/stores/scene';
 import { TREES } from '@/state/stores/settings/trees';
-import { BUILDINGS } from '@/state/stores/settings/buildings';
-import { STREETS } from '@/state/stores/settings/streets';
 import { commitUrl } from '@/utils/commit';
-import { computeAlmanac, fmtCount } from './almanac';
+import { formatCount } from '@/utils/format';
+import { computeAlmanac } from './almanac';
 import type { AlmanacFact, LandmarkRef } from './almanac';
 
 function visit(landmark: LandmarkRef): void {
-  if (landmark.kind === 'commit') {
+  if (landmark.kind === NodeKind.Commit) {
     selectCommit(landmark.id);
     focusCommit(landmark.id);
   } else {
@@ -67,13 +68,19 @@ function FactRow({ fact }: { fact: AlmanacFact }) {
   );
 }
 
-export interface WorldPaneProps {
+export interface OverviewPaneProps {
   manifest: Signal<Manifest | DirNode | { tree?: unknown; [k: string]: unknown } | null>;
 }
 
-export function WorldPane({ manifest }: WorldPaneProps) {
+export function OverviewPane({ manifest }: OverviewPaneProps) {
   const current = manifest.value;
-  const almanac = useMemo(() => computeAlmanac(current as Manifest | DirNode | null), [current]);
+  // The Forest section's contents depend on whether the Trees layer is on, so
+  // it's a compute input — the section's notice comes back as an empty state.
+  const treesEnabled = TREES.value.ENABLED;
+  const almanac = useMemo(
+    () => computeAlmanac(current as Manifest | DirNode | null, treesEnabled),
+    [current, treesEnabled]
+  );
 
   if (!almanac) {
     return (
@@ -83,11 +90,6 @@ export function WorldPane({ manifest }: WorldPaneProps) {
 
   const { overview, sections } = almanac;
   const { repo } = overview;
-  // Forest landmarks (canopies) fly the camera to a tree; when the Trees layer
-  // is off those targets don't exist, so gate the section's contents on it.
-  const treesEnabled = TREES.value.ENABLED;
-  const huePalette = BUILDINGS.value.HUE_EXT_MAP;
-  const asphaltColor = STREETS.value.ASPHALT_COLOR;
   const latestUrl =
     repo.remote_url && repo.head_sha ? commitUrl(repo.remote_url, repo.head_sha) : null;
 
@@ -97,10 +99,10 @@ export function WorldPane({ manifest }: WorldPaneProps) {
         <h2 class="almanac-name">{overview.name}</h2>
         <p class="almanac-blurb">
           {overview.founded ? `Founded ${overview.founded}, ` : ''}
-          this city of {fmtCount(overview.totals.files)} buildings sprawls across{' '}
-          {fmtCount(overview.totals.dirs)} districts
+          this city of {formatCount(overview.totals.files)} buildings sprawls across{' '}
+          {formatCount(overview.totals.dirs)} districts
           {overview.totals.authors > 0
-            ? `, tended by ${fmtCount(overview.totals.authors)} fireflies`
+            ? `, tended by ${formatCount(overview.totals.authors)} fireflies`
             : ''}
           .
         </p>
@@ -143,13 +145,8 @@ export function WorldPane({ manifest }: WorldPaneProps) {
           <ul class="almanac-languages">
             {overview.languages.map((l) => (
               <li key={l.ext} class="almanac-language">
-                <ExtensionBadge
-                  extension={l.ext === '(none)' ? null : l.ext}
-                  isDir={false}
-                  huePalette={huePalette}
-                  asphaltColor={asphaltColor}
-                />
-                <span class="almanac-language-count">{fmtCount(l.count)}</span>
+                <ExtensionBadge extension={l.ext === '(none)' ? null : l.ext} isDir={false} />
+                <span class="almanac-language-count">{formatCount(l.count)}</span>
               </li>
             ))}
           </ul>
@@ -158,12 +155,10 @@ export function WorldPane({ manifest }: WorldPaneProps) {
       {sections.map((s) => (
         <section key={s.key} class="almanac-section">
           <h3 class="almanac-section-title">{s.title}</h3>
-          {s.key === 'forest' && !treesEnabled ? (
-            <p class="almanac-section-note">
-              Enable the Trees layer in Settings to explore the forest.
-            </p>
-          ) : (
+          {s.facts.length > 0 ? (
             s.facts.map((f, i) => <FactRow key={i} fact={f} />)
+          ) : (
+            <p class="almanac-section-note">{s.note}</p>
           )}
         </section>
       ))}

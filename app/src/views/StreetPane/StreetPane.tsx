@@ -14,8 +14,6 @@ import { KEY_BINDINGS } from '@/constants/keyboard';
 import { Route } from 'lucide-preact';
 import { ExtensionBadge } from '@/components/Badge/Badge';
 import { formatBytes } from '@/utils/bytes';
-import { STREETS } from '@/state/stores/settings/streets';
-import { BUILDINGS } from '@/state/stores/settings/buildings';
 
 // ── State shape for Preact component ─────────────────────────────────────────
 
@@ -33,8 +31,6 @@ export interface StreetPaneProps {
 
 export function StreetPane({ state, onClose, onFocus }: StreetPaneProps) {
   const { directory: d } = state.value;
-  const huePalette = BUILDINGS.value.HUE_EXT_MAP || {};
-  const asphaltColor = STREETS.value.ASPHALT_COLOR;
 
   if (!d) {
     return (
@@ -94,7 +90,7 @@ export function StreetPane({ state, onClose, onFocus }: StreetPaneProps) {
           <div class="street-ext-h">By extension</div>
           <div class="street-ext-list">
             {stats.map((s) => (
-              <StreetExtRow key={s.ext} s={s} huePalette={huePalette} asphaltColor={asphaltColor} />
+              <StreetExtRow key={s.ext} s={s} />
             ))}
           </div>
         </>
@@ -103,24 +99,11 @@ export function StreetPane({ state, onClose, onFocus }: StreetPaneProps) {
   );
 }
 
-function StreetExtRow({
-  s,
-  huePalette,
-  asphaltColor,
-}: {
-  s: ExtBreakdownEntry;
-  huePalette: Record<string, number>;
-  asphaltColor: string;
-}) {
+function StreetExtRow({ s }: { s: ExtBreakdownEntry }) {
   const badgeExt = s.ext === '(none)' ? null : s.ext;
   return (
     <div class="street-ext-row">
-      <ExtensionBadge
-        extension={badgeExt}
-        isDir={false}
-        huePalette={huePalette}
-        asphaltColor={asphaltColor}
-      />
+      <ExtensionBadge extension={badgeExt} isDir={false} />
       <span class="street-ext-label">{s.ext}</span>
       <span class="street-ext-count">{`${s.count} file${s.count === 1 ? '' : 's'}`}</span>
       <span class="street-ext-sep" aria-hidden="true">

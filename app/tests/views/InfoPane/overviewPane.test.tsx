@@ -12,7 +12,7 @@ const { selectPath, focusPath, selectCommit, focusCommit } = vi.hoisted(() => ({
 vi.mock('@/state/stores/scene', () => ({ selectPath, focusPath, selectCommit, focusCommit }));
 
 // Mutable stand-in for the TREES settings signal so we can toggle the Trees
-// layer per test (WorldPane gates the Forest section on TREES.value.ENABLED).
+// layer per test (OverviewPane gates the Forest section on TREES.value.ENABLED).
 const treesState = vi.hoisted(() => ({ ENABLED: true }));
 vi.mock('@/state/stores/settings/trees', () => ({
   TREES: {
@@ -22,7 +22,7 @@ vi.mock('@/state/stores/settings/trees', () => ({
   },
 }));
 
-import { WorldPane } from '@/views/InfoPane/WorldPane';
+import { OverviewPane } from '@/views/InfoPane/OverviewPane';
 import { InfoPane } from '@/views/InfoPane/InfoPane';
 import { NodeKind } from '@/types';
 import type { Manifest } from '@/types';
@@ -72,7 +72,7 @@ const manifest: Manifest = {
   },
 };
 
-describe('WorldPane', () => {
+describe('OverviewPane', () => {
   let container: HTMLDivElement;
   beforeEach(() => {
     container = document.createElement('div');
@@ -90,14 +90,14 @@ describe('WorldPane', () => {
 
   it('renders the empty state when there is no project', async () => {
     const sig = signal(null);
-    render(<WorldPane manifest={sig as never} />, container);
+    render(<OverviewPane manifest={sig as never} />, container);
     await flush();
     expect(container.textContent).toContain('No project loaded');
   });
 
   it('updates when the manifest signal changes (live update)', async () => {
     const sig = signal<Manifest | null>(manifest);
-    render(<WorldPane manifest={sig as never} />, container);
+    render(<OverviewPane manifest={sig as never} />, container);
     await flush();
     expect(container.textContent).toContain('1 buildings');
 
@@ -125,7 +125,7 @@ describe('WorldPane', () => {
 
   it('clicking a building landmark focus button selects + focuses its file', async () => {
     const sig = signal(manifest);
-    render(<WorldPane manifest={sig as never} />, container);
+    render(<OverviewPane manifest={sig as never} />, container);
     await flush();
     const row = Array.from(container.querySelectorAll('.almanac-fact')).find((el) =>
       el.textContent?.includes('Tallest building')
@@ -151,7 +151,7 @@ describe('WorldPane', () => {
       ],
     };
     const sig = signal(withCommits);
-    render(<WorldPane manifest={sig as never} />, container);
+    render(<OverviewPane manifest={sig as never} />, container);
     await flush();
     const row = Array.from(container.querySelectorAll('.almanac-fact')).find((el) =>
       el.textContent?.includes('Grandest canopy')
@@ -177,7 +177,7 @@ describe('WorldPane', () => {
       ],
     };
     const sig = signal(withCommits);
-    render(<WorldPane manifest={sig as never} />, container);
+    render(<OverviewPane manifest={sig as never} />, container);
     await flush();
     const row = Array.from(container.querySelectorAll('.almanac-fact')).find((el) =>
       el.textContent?.includes('Busiest day')
@@ -203,7 +203,7 @@ describe('WorldPane', () => {
       ],
     };
     const sig = signal(withCommits);
-    render(<WorldPane manifest={sig as never} />, container);
+    render(<OverviewPane manifest={sig as never} />, container);
     await flush();
     // Section header still shows, but canopy rows are replaced by a note.
     expect(container.textContent).toContain('Forest');

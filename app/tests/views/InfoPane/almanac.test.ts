@@ -170,8 +170,10 @@ describe('computeAlmanac — overview + buildings', () => {
     expect(media.facts.find((f) => f.label === 'Highest resolution')!.secondary).toContain('1,920');
     expect(media.facts.every((f) => f.tip)).toBe(true);
   });
-  it('omits the Billboards section when there is no media', () => {
-    expect(a!.sections.find((s) => s.key === 'media')).toBeUndefined();
+  it('keeps the Billboards section with a note when there is no media', () => {
+    const media = a!.sections.find((s) => s.key === 'media')!;
+    expect(media.facts).toHaveLength(0);
+    expect(media.note).toMatch(/No images or videos/);
   });
 });
 
@@ -201,10 +203,16 @@ describe('computeAlmanac — streets, forest, fireflies', () => {
   const fact = (key: string, label: string) => section(key).facts.find((f) => f.label === label)!;
 
   it('deepest alley = deepest directory, excluding root', () => {
-    expect(fact('streets', 'Deepest alley').landmark).toEqual({ kind: 'dir', id: 'src/a/b' });
+    expect(fact('streets', 'Deepest alley').landmark).toEqual({
+      kind: NodeKind.Directory,
+      id: 'src/a/b',
+    });
   });
   it('biggest neighborhood = max descendant files, excluding root', () => {
-    expect(fact('streets', 'Biggest neighborhood').landmark).toEqual({ kind: 'dir', id: 'src' });
+    expect(fact('streets', 'Biggest neighborhood').landmark).toEqual({
+      kind: NodeKind.Directory,
+      id: 'src',
+    });
   });
   it('grandest canopy = commit touching most files', () => {
     expect(fact('forest', 'Grandest canopy').landmark).toEqual({ kind: 'commit', id: 'bbb' });
@@ -228,14 +236,26 @@ describe('computeAlmanac — streets, forest, fireflies', () => {
     for (const s of a.sections)
       for (const f of s.facts) expect(f.tip, `${s.key}/${f.label}`).toBeTruthy();
   });
-  it('omits forest + fireflies sections when there are no commits', () => {
+  it('keeps forest + fireflies sections with an empty-state note when there are no commits', () => {
     const b = computeAlmanac(manifest(tree, { commits: [] }))!;
-    expect(b.sections.find((s) => s.key === 'forest')).toBeUndefined();
-    expect(b.sections.find((s) => s.key === 'fireflies')).toBeUndefined();
+    const forest = b.sections.find((s) => s.key === 'forest')!;
+    const fireflies = b.sections.find((s) => s.key === 'fireflies')!;
+    expect(forest.facts).toHaveLength(0);
+    expect(forest.note).toMatch(/No commits/);
+    expect(fireflies.facts).toHaveLength(0);
+    expect(fireflies.note).toMatch(/No commits/);
   });
-  it('omits streets section when there are no subdirectories', () => {
+  it('keeps the streets section with a note when there are no subdirectories', () => {
     const flatTree = dir('repo', '', [file({ name: 'a.ts', path: 'a.ts' })]);
     const b = computeAlmanac(manifest(flatTree, { commits }))!;
-    expect(b.sections.find((s) => s.key === 'streets')).toBeUndefined();
+    const streets = b.sections.find((s) => s.key === 'streets')!;
+    expect(streets.facts).toHaveLength(0);
+    expect(streets.note).toBeTruthy();
+  });
+  it('gates the forest section behind the Trees layer', () => {
+    const b = computeAlmanac(manifest(tree, { commits }), false)!;
+    const forest = b.sections.find((s) => s.key === 'forest')!;
+    expect(forest.facts).toHaveLength(0);
+    expect(forest.note).toMatch(/Trees layer/);
   });
 });

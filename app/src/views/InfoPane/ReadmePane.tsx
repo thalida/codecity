@@ -43,12 +43,10 @@ function _renderReadme(text: string, readmeFullPath: string): string {
 const README_BASE_NAME = 'readme';
 
 function _findRootReadme(manifest: Manifest | DirNode | null): FileNode | null {
-  if (!manifest) return null;
-  const tree =
-    'tree' in manifest && (manifest as Manifest).tree
-      ? (manifest as Manifest).tree
-      : (manifest as DirNode);
-  if (!tree || !('children' in tree) || !tree.children) return null;
+  // Callers gate on isEmptyManifest first, so by here `manifest` is always a
+  // real Manifest (has `tree`) — never a bare DirNode.
+  const tree = manifest && 'tree' in manifest ? manifest.tree : null;
+  if (!tree || !tree.children) return null;
   for (let i = 0; i < tree.children.length; i++) {
     const c = tree.children[i];
     if (c.type !== NodeKind.File) continue;

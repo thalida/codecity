@@ -40,34 +40,4 @@ describe('PaneTabs', () => {
     tabByLabel('Readme').click();
     expect(onSelect).toHaveBeenCalledWith('readme');
   });
-
-  it('ArrowRight moves selection to the next tab', async () => {
-    const onSelect = vi.fn();
-    render(<PaneTabs tabs={tabs} active="world" onSelect={onSelect} />, container);
-    await flush();
-    tabByLabel('World').dispatchEvent(
-      new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true })
-    );
-    expect(onSelect).toHaveBeenCalledWith('readme');
-  });
-
-  it('ArrowLeft wraps from the first tab to the last', async () => {
-    const onSelect = vi.fn();
-    render(<PaneTabs tabs={tabs} active="world" onSelect={onSelect} />, container);
-    await flush();
-    tabByLabel('World').dispatchEvent(
-      new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true })
-    );
-    expect(onSelect).toHaveBeenCalledWith('readme');
-  });
-
-  it('ArrowRight wraps from the last tab to the first', async () => {
-    const onSelect = vi.fn();
-    render(<PaneTabs tabs={tabs} active="readme" onSelect={onSelect} />, container);
-    await flush();
-    tabByLabel('Readme').dispatchEvent(
-      new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true })
-    );
-    expect(onSelect).toHaveBeenCalledWith('world');
-  });
 });

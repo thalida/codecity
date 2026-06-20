@@ -12,8 +12,6 @@ import './FilePreviewPane.css';
 import type { ReadonlySignal } from '@preact/signals';
 import { useState, useEffect } from 'preact/hooks';
 import hljs from 'highlight.js/lib/common';
-import { STREETS } from '@/state/stores/settings/streets';
-import { BUILDINGS } from '@/state/stores/settings/buildings';
 import type { FileNode } from '@/types';
 
 /**
@@ -270,20 +268,13 @@ function _previewBody(file: FileNode | null) {
 
 export function FilePreviewPane({ state, onClose, onFocus }: FilePreviewPaneProps) {
   const { file } = state.value;
-  const huePalette = BUILDINGS.value.HUE_EXT_MAP || {};
-  const asphaltColor = STREETS.value.ASPHALT_COLOR;
 
   const leaf = file
     ? (file.path ?? '').split('/').filter(Boolean).pop() || file.name || 'No file'
     : 'No file';
 
   const badge = file ? (
-    <ExtensionBadge
-      extension={file.extension ?? null}
-      isDir={false}
-      huePalette={huePalette}
-      asphaltColor={asphaltColor}
-    />
+    <ExtensionBadge extension={file.extension ?? null} isDir={false} />
   ) : undefined;
 
   return (
