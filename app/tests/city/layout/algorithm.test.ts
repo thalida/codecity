@@ -1,11 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { layoutCity, sortForRendering, __test } from '@/city/layout/algorithm';
-import {
-  getStreetWidth,
-  getBuildingDimensions,
-  computeFileStats,
-  computeLineStats,
-} from '@/city/layout/dimensions';
+import { getStreetWidth, getBuildingDimensions, computeFileStats } from '@/city/layout/dimensions';
 import { BUILDING_DIMENSIONS } from '@/state/stores/settings/buildings';
 import { BuildingOrient, NodeKind, StreetAxis } from '@/types';
 import type { BuildingDimensionsConfig } from '@/state/stores/settings/buildings';
@@ -420,43 +415,6 @@ describe('computeFileStats', () => {
     expect(fs.bytes).toEqual({ min: 1, max: 1 });
     // lines unaffected
     expect(fs.lines).toEqual({ min: 20, max: 80 });
-  });
-});
-
-// ---- computeLineStats ----
-//
-// Thin wrapper over computeFileStats; kept for back-compat with callers that
-// only need the line-count range.
-describe('computeLineStats', () => {
-  it('returns fileLines from stats', () => {
-    const stats: RepoStats = {
-      fileLines: { min: 20, max: 80 },
-      fileBytes: { min: 500, max: 2000 },
-      oldestFile: null,
-      newestFile: null,
-      freshestFile: null,
-      stalestFile: null,
-      tallestFile: null,
-      shortestFile: null,
-      widestFile: null,
-      narrowestFile: null,
-      largestMedia: null,
-      sharpestMedia: null,
-      mediaCount: 0,
-      deepestDir: null,
-      biggestDir: null,
-      grandestCommit: null,
-      sparsestCommit: null,
-      busiestDay: null,
-      longestStreakDays: 0,
-      authors: [],
-    };
-    expect(computeLineStats(stats)).toEqual({ min: 20, max: 80 });
-  });
-
-  it('returns { min: 1, max: 1 } when stats is absent (matches old empty-tree behaviour)', () => {
-    expect(computeLineStats(null)).toEqual({ min: 1, max: 1 });
-    expect(computeLineStats(undefined)).toEqual({ min: 1, max: 1 });
   });
 });
 

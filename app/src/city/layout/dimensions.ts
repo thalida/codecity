@@ -75,12 +75,6 @@ export function computeFileStats(stats: RepoStats | null | undefined): {
   };
 }
 
-// computeLineStats(stats?) — kept for back-compat with tests that only need
-// the line-count range. New callers should use computeFileStats.
-export function computeLineStats(stats: RepoStats | null | undefined): RangeStat {
-  return computeFileStats(stats).lines;
-}
-
 // getBuildingDimensions(file, lineStats?, byteStats?) -> { w, d, h, floors }
 //
 // Floors and width are BOTH project-relative: the smallest file lands at
