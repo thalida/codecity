@@ -24,7 +24,7 @@ export function reactiveRebuild<T>(
   onError?: (err: unknown) => void
 ): ReactiveRebuildHandle {
   let generation = 0;
-  const dispose = effect(() => {
+  const stop = effect(() => {
     const snapshot = track();
     if (snapshot == null) return;
     const myGen = ++generation;
@@ -44,5 +44,14 @@ export function reactiveRebuild<T>(
       }
     });
   });
-  return { dispose };
+  return {
+    dispose: () => {
+      // Bump the generation so any queued or in-flight run() is superseded and
+      // bails at its isCurrent() checks, rather than executing against a
+      // torn-down scene (which would throw + log after dispose — e.g. during a
+      // test worker's teardown).
+      generation++;
+      stop();
+    },
+  };
 }
