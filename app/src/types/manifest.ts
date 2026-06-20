@@ -226,6 +226,10 @@ export interface AuthorStat {
 }
 
 export interface RepoStats {
+  /** Building-size normalization ranges (non-zero), NOT honest min/max file
+   *  size — 0-length files are excluded (they have no meaningful building
+   *  size; the layout's log/sqrt can't take 0). The honest smallest file is in
+   *  narrowestFile / shortestFile. {0,0} when no non-zero files exist. */
   fileLines: RangeStat;
   fileBytes: RangeStat;
   oldestFile: FileLeader | null;

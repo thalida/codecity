@@ -81,8 +81,10 @@ def test_file_leaders_partition_media_and_text():
     assert s["newestFile"]["path"] == "a.ts"
     assert s["freshestFile"]["path"] == "a.ts"
     assert s["stalestFile"]["path"] == "__init__.py"
-    assert s["fileLines"] == {"min": 40, "max": 40}
-    assert s["fileBytes"]["max"] == 400
+    # Ranges span ALL files with non-zero values (media included for bytes); the
+    # 0-line/0-byte __init__.py is excluded from both.
+    assert s["fileLines"] == {"min": 40, "max": 40}  # only a.ts has lines>0
+    assert s["fileBytes"] == {"min": 400, "max": 9000}  # a.ts .. pic.png(media)
     assert s["mediaCount"] == 1
 
 
@@ -148,3 +150,33 @@ def test_empty_tree_and_no_commits():
     assert s["authors"] == []
     assert s["fileLines"] == {"min": 0, "max": 0}
     assert s["mediaCount"] == 0
+
+
+def test_ranges_span_all_files_excluding_zero():
+    # The byte range must include the media file and exclude the 0-byte file —
+    # this matches the old client computeFileStats so building widths are
+    # identical. The 0-byte file excluded means the frontend never sees log(0).
+    code = _file("a.ts", lines=10, size=200)
+    big = _file("big.png", lines=0, size=9000, media="image", mw=4, mh=4)
+    empty = _file("empty.py", lines=0, size=0)
+    s = compute_repo_stats(_dir("repo", "", [code, big, empty]), [])
+    assert s["fileLines"] == {"min": 10, "max": 10}  # only a.ts has lines>0
+    assert s["fileBytes"] == {"min": 200, "max": 9000}  # a.ts + media; empty excluded
+
+
+def test_media_only_repo_ranges():
+    # A repo of only media files: no lines>0 → empty line range; media bytes
+    # still drive the byte range so media buildings size correctly.
+    img = _file("a.png", lines=0, size=500, media="image", mw=10, mh=10)
+    s = compute_repo_stats(_dir("repo", "", [img]), [])
+    assert s["fileLines"] == {"min": 0, "max": 0}
+    assert s["fileBytes"] == {"min": 500, "max": 500}
+
+
+def test_empty_files_only_ranges():
+    # A repo of only empty files: both ranges are the {0,0} sentinel; the
+    # frontend's _safeRange turns these into {1,1} (no divide-by-zero).
+    empty = _file("__init__.py", lines=0, size=0)
+    s = compute_repo_stats(_dir("repo", "", [empty]), [])
+    assert s["fileLines"] == {"min": 0, "max": 0}
+    assert s["fileBytes"] == {"min": 0, "max": 0}

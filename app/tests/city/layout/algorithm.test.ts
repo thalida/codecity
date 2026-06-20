@@ -157,6 +157,19 @@ describe('getBuildingDimensions', () => {
     expect(dim.w).toBe(6);
   });
 
+  it('a 0-byte file in the project byte range does not produce NaN', () => {
+    // Regression: a byte range whose min is 0 (an empty file in the repo) made
+    // Math.log(byteStats.min) = -Infinity → NaN width → NaN geometry.
+    const dim = getBuildingDimensions(
+      { lines: 0, size: 0 },
+      { min: 1, max: 100 },
+      { min: 0, max: 5000 }
+    );
+    expect(Number.isFinite(dim.w)).toBe(true);
+    expect(Number.isFinite(dim.d)).toBe(true);
+    expect(Number.isFinite(dim.h)).toBe(true);
+  });
+
   it('smallest file in the project maps to min_floors', () => {
     const dim = getBuildingDimensions({ lines: 10, size: 100 }, { min: 10, max: 1000 });
     expect(dim.floors).toBe(1);

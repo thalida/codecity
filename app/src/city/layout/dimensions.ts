@@ -121,9 +121,14 @@ export function getBuildingDimensions(
   // ---- Width from byte size (log-normalized over project range) ----
   const bytes = file.size && file.size > 0 ? file.size : 1;
   let width = dims.MIN_WIDTH;
-  if (byteStats && byteStats.max > byteStats.min) {
-    const lMin = Math.log(byteStats.min);
-    const lMax = Math.log(byteStats.max);
+  // Clamp the range to >= 1 so Math.log stays finite even if the project byte
+  // range ever includes a 0-byte file (log(0) = -Infinity → NaN width → NaN
+  // geometry). Per-file `bytes` is already clamped to >= 1 above.
+  const bMin = Math.max(1, byteStats?.min ?? 1);
+  const bMax = Math.max(1, byteStats?.max ?? 1);
+  if (byteStats && bMax > bMin) {
+    const lMin = Math.log(bMin);
+    const lMax = Math.log(bMax);
     const lBytes = Math.log(bytes);
     let tW = (lBytes - lMin) / (lMax - lMin);
     if (tW < 0) tW = 0;

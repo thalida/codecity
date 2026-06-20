@@ -149,8 +149,13 @@ def compute_repo_stats(tree: DirNode, commits: list[CommitEntry]) -> RepoStats:
     )
 
     return {
-        "fileLines": _range([f["lines"] for f in text]),
-        "fileBytes": _range([f["size"] for f in nonmedia]),
+        # Project line/byte ranges for building-size normalization. Over ALL
+        # files with non-zero values (matching the old client computeFileStats
+        # exactly so the world renders identically) — media included for bytes,
+        # zero-line/zero-byte files excluded so the frontend's log/sqrt never
+        # sees 0. {0,0} when none (the frontend treats that as the empty range).
+        "fileLines": _range([f["lines"] for f in files if f["lines"] > 0]),
+        "fileBytes": _range([f["size"] for f in files if f["size"] > 0]),
         "oldestFile": _file_leader(
             min(nonmedia, key=lambda f: f["created"], default=None)
         ),

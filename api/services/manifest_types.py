@@ -218,6 +218,11 @@ class RepoStats(TypedDict):
     (api/services/stats.py): the Overview almanac superlatives + min/max
     ranges. The web app reads these instead of re-walking the tree."""
 
+    # Building-size NORMALIZATION ranges (non-zero), NOT honest min/max file
+    # size. Over all files with non-zero lines/size — 0-length files are
+    # excluded because they have no meaningful building height/width (and the
+    # frontend log/sqrt can't take 0). The honest "smallest file" lives in the
+    # narrowestFile / shortestFile leaders. {0,0} when no non-zero files exist.
     fileLines: RangeStat
     fileBytes: RangeStat
     oldestFile: FileLeader | None
