@@ -41,12 +41,11 @@ export interface InfoPaneProps {
 export function InfoPane({ manifest, onClose }: InfoPaneProps) {
   const [tab, setTab] = useState<InfoTab>(InfoTab.Overview);
   const active = INFO_TABS.find((t) => t.id === tab) ?? INFO_TABS[0];
-  const Body = active.Component;
   return (
     <Pane paneClass="info-pane" title="Info" onClose={onClose}>
       <PaneTabs tabs={INFO_TABS} active={tab} onSelect={(id) => setTab(id as InfoTab)} />
       <div class="pane-body info-body">
-        <Body manifest={manifest} />
+        <active.Component manifest={manifest} />
       </div>
     </Pane>
   );
