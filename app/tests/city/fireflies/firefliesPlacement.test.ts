@@ -174,7 +174,11 @@ describe('placeFireflies', () => {
   });
 
   it('emits the source commitIndex on each FireflyPlacement', () => {
-    const orbs = placeFireflies([placement(0, 0, 0), placement(1, 10, 0)], COMMITS, commitStats(COMMITS));
+    const orbs = placeFireflies(
+      [placement(0, 0, 0), placement(1, 10, 0)],
+      COMMITS,
+      commitStats(COMMITS)
+    );
     expect(orbs.every((o) => typeof o.commitIndex === 'number')).toBe(true);
     expect(orbs[0].commitIndex).toBe(0);
     expect(orbs[1].commitIndex).toBe(1);
@@ -200,7 +204,11 @@ describe('placeFireflies', () => {
         same_day_total: 1,
       },
     ];
-    const orbs = placeFireflies([placement(0, 0, 0), placement(1, 10, 0)], sameAuthor, commitStats(sameAuthor));
+    const orbs = placeFireflies(
+      [placement(0, 0, 0), placement(1, 10, 0)],
+      sameAuthor,
+      commitStats(sameAuthor)
+    );
     expect(orbs[0].scale).toBe(orbs[1].scale);
   });
 
@@ -226,7 +234,11 @@ describe('placeFireflies', () => {
         same_day_total: 1,
       },
     ];
-    const orbs = placeFireflies([placement(0, 0, 0), placement(1, 10, 0)], soloAuthor, commitStats(soloAuthor));
+    const orbs = placeFireflies(
+      [placement(0, 0, 0), placement(1, 10, 0)],
+      soloAuthor,
+      commitStats(soloAuthor)
+    );
     const scaleMax = FIREFLIES.value.SCALE_MAX;
     expect(orbs[0].scale).toBe(scaleMax);
     expect(orbs[1].scale).toBe(scaleMax);
@@ -311,7 +323,11 @@ describe('placeFireflies', () => {
         same_day_total: 1,
       },
     ];
-    const orbs = placeFireflies([placement(0, 0, 0), placement(1, 10, 0)], commits, commitStats(commits));
+    const orbs = placeFireflies(
+      [placement(0, 0, 0), placement(1, 10, 0)],
+      commits,
+      commitStats(commits)
+    );
     // orbs[0] = Alice from commit 0, orbs[1] = Bob from commit 0,
     // orbs[2] = Bob from commit 1.
     const aliceOrb = orbs[0];
