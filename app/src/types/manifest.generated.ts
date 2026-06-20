@@ -55,6 +55,34 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/files": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Get Files
+         * @description Batch image fetch — return {path: {mime, b64}} for many small images in
+         *     one round trip. The scene loads one billboard texture per media file; firing
+         *     a separate GET per file exhausts the browser's HTTP/1.1 connection pool on
+         *     media-heavy repos, so the loader coalesces image paths into POST batches.
+         *
+         *     Each path is trust-checked exactly like GET /api/file. Paths that are out of
+         *     root, missing, non-image, or larger than _MAX_BATCH_FILE_BYTES are silently
+         *     omitted; the client falls back to the streaming GET for those. Videos are
+         *     never batched (they stream their poster frame), so this is images only.
+         */
+        post: operations["get_files_api_files_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/commit": {
         parameters: {
             query?: never;
@@ -319,6 +347,22 @@ export interface components {
             /** Size */
             size: number;
         };
+        /**
+         * FileBatchEntry
+         * @description One image in a POST /api/files batch response: its content-type and
+         *     base64-encoded bytes, keyed by request path in the response map.
+         */
+        FileBatchEntry: {
+            /** Mime */
+            mime: string;
+            /** B64 */
+            b64: string;
+        };
+        /** FileBatchRequest */
+        FileBatchRequest: {
+            /** Paths */
+            paths: string[];
+        };
         /** FileLeader */
         FileLeader: {
             /** Path */
@@ -564,6 +608,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_files_api_files_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FileBatchRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: components["schemas"]["FileBatchEntry"];
+                    };
                 };
             };
             /** @description Validation Error */

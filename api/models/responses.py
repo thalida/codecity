@@ -15,6 +15,14 @@ class FileTooLargeResponse(BaseModel):
     limit: int
 
 
+class FileBatchEntry(BaseModel):
+    """One image in a POST /api/files batch response: its content-type and
+    base64-encoded bytes, keyed by request path in the response map."""
+
+    mime: str
+    b64: str
+
+
 class HealthResponse(BaseModel):
     ok: bool
 
