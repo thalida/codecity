@@ -166,11 +166,15 @@ class DateRanges(TypedDict):
 
 
 class RangeStat(TypedDict):
+    """Inclusive min/max of an integer metric (lines, bytes)."""
+
     min: int
     max: int
 
 
 class FileLeader(TypedDict):
+    """The file that wins a per-repo superlative, with the values the Overview renders (path + lines/bytes/dates, optional media dims)."""
+
     path: str
     lines: int
     bytes: int
@@ -181,22 +185,30 @@ class FileLeader(TypedDict):
 
 
 class DirLeader(TypedDict):
+    """The directory that wins a superlative (deepest / biggest by descendant file count)."""
+
     path: str
     depth: int
     file_count: int
 
 
 class CommitLeader(TypedDict):
+    """The commit that wins a superlative (most / fewest files changed)."""
+
     sha: str
     files: int
 
 
 class DayLeader(TypedDict):
+    """A calendar date with a commit count (the busiest day)."""
+
     date: str
     count: int
 
 
 class AuthorStat(TypedDict):
+    """One author and their total commit count."""
+
     name: str
     commits: int
 

@@ -144,6 +144,14 @@ class FileLeader(BaseModel):
     media_width: OptionalInt = None
     media_height: OptionalInt = None
 
+    @model_validator(mode="after")
+    def _media_both_or_neither(self) -> "FileLeader":
+        if (self.media_width is None) != (self.media_height is None):
+            raise ValueError(
+                "media_width and media_height must both be set or both absent"
+            )
+        return self
+
 
 class DirLeader(BaseModel):
     path: str
