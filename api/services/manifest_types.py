@@ -246,6 +246,8 @@ class RepoStats(TypedDict):
     maxMediaBytesFile: FileLeader | None
     maxMediaPixelsFile: FileLeader | None
     mediaCount: int
+    totalLines: int
+    codeBytes: int
     maxDepthDir: DirLeader | None
     maxFilesPerDir: DirLeader | None
     maxFilesPerCommit: CommitLeader | None

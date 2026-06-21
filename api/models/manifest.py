@@ -199,6 +199,8 @@ class RepoStats(BaseModel):
     maxMediaBytesFile: Optional[FileLeader]
     maxMediaPixelsFile: Optional[FileLeader]
     mediaCount: int
+    totalLines: int
+    codeBytes: int
     maxDepthDir: Optional[DirLeader]
     maxFilesPerDir: Optional[DirLeader]
     maxFilesPerCommit: Optional[CommitLeader]

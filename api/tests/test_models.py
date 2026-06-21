@@ -124,6 +124,8 @@ class ModelTests(unittest.TestCase):
                 "maxMediaBytesFile": None,
                 "maxMediaPixelsFile": None,
                 "mediaCount": 0,
+                "totalLines": 0,
+                "codeBytes": 0,
                 "maxDepthDir": None,
                 "maxFilesPerDir": None,
                 "maxFilesPerCommit": None,

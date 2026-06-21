@@ -220,11 +220,11 @@ describe('computeAlmanac — overview + buildings', () => {
       id: 'code.ts',
     });
     // It's the largest, highest-resolution billboard instead.
-    expect(media.facts.find((f) => f.label === 'Largest billboard')!.landmark).toEqual({
+    expect(media.facts.find((f) => f.label === 'Largest')!.landmark).toEqual({
       kind: 'file',
       id: 'pic.png',
     });
-    expect(media.facts.find((f) => f.label === 'Highest resolution')!.secondary).toContain('1,920');
+    expect(media.facts.find((f) => f.label === 'Sharpest')!.secondary).toContain('1,920');
     expect(media.facts.every((f) => f.tip)).toBe(true);
   });
   it('keeps the Billboards section with a note when there is no media', () => {
@@ -279,13 +279,13 @@ describe('computeAlmanac — streets, forest, fireflies', () => {
   const fact = (key: string, label: string) => section(key).facts.find((f) => f.label === label)!;
 
   it('deepest alley = deepest directory, excluding root', () => {
-    expect(fact('streets', 'Deepest alley').landmark).toEqual({
+    expect(fact('streets', 'Deepest').landmark).toEqual({
       kind: NodeKind.Directory,
       id: 'src/a/b',
     });
   });
   it('biggest neighborhood = max descendant files, excluding root', () => {
-    expect(fact('streets', 'Biggest neighborhood').landmark).toEqual({
+    expect(fact('streets', 'Biggest').landmark).toEqual({
       kind: NodeKind.Directory,
       id: 'src',
     });
@@ -304,9 +304,14 @@ describe('computeAlmanac — streets, forest, fireflies', () => {
   it('longest streak counts consecutive days', () => {
     expect(fact('forest', 'Longest streak').primary).toContain('3');
   });
-  it('fireflies count distinct authors and name the most prolific', () => {
-    expect(fact('fireflies', 'Fireflies').primary).toContain('2');
-    expect(fact('fireflies', 'Most prolific author').primary).toContain('Ada');
+  it('fireflies count distinct authors (overview) and name the most active', () => {
+    expect(section('fireflies').overview).toContain('2'); // 2 authors
+    expect(fact('fireflies', 'Most active').primary).toContain('Ada');
+  });
+  it('every section opens with an overview summary', () => {
+    expect(section('streets').overview).toMatch(/street/);
+    expect(section('forest').overview).toMatch(/tree/);
+    expect(section('fireflies').overview).toMatch(/firefl/);
   });
   it('attaches a tooltip to every fact', () => {
     for (const s of a.sections)

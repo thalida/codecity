@@ -86,6 +86,9 @@ def test_file_leaders_partition_media_and_text():
     assert s["lineCountRange"] == {"min": 40, "max": 40}  # only a.ts has lines>0
     assert s["byteSizeRange"] == {"min": 400, "max": 9000}  # a.ts .. pic.png(media)
     assert s["mediaCount"] == 1
+    # Sums are over non-media files only (a.ts + __init__.py; pic.png excluded).
+    assert s["totalLines"] == 40
+    assert s["codeBytes"] == 400
 
 
 def test_dir_leaders_exclude_root():

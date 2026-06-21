@@ -87,6 +87,8 @@ export function uniformFileStats(path: string, lines: number, bytes: number): Re
   const l = fileLeader(path, lines, bytes);
   return {
     ...EMPTY_REPO_STATS,
+    totalLines: lines,
+    codeBytes: bytes,
     oldestCreatedFile: l,
     newestCreatedFile: l,
     newestModifiedFile: l,

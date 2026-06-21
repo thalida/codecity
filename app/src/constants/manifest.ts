@@ -19,6 +19,8 @@ export const EMPTY_REPO_STATS: RepoStats = {
   maxMediaBytesFile: null,
   maxMediaPixelsFile: null,
   mediaCount: 0,
+  totalLines: 0,
+  codeBytes: 0,
   maxDepthDir: null,
   maxFilesPerDir: null,
   maxFilesPerCommit: null,

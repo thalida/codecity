@@ -216,7 +216,10 @@ export function OverviewPane({ manifest }: OverviewPaneProps) {
               {s.title}
             </h3>
             {s.facts.length > 0 ? (
-              <SectionBody facts={s.facts} />
+              <>
+                <p class="almanac-section-overview">{s.overview}</p>
+                <SectionBody facts={s.facts} />
+              </>
             ) : (
               <p class="almanac-section-note">{s.note}</p>
             )}

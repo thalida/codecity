@@ -133,6 +133,14 @@
   color: var(--sec-accent);
 }
 
+/* Summary line under each header — count + one aggregate, same rhythm in every
+ * section. Sits between the title and the first dimension group. */
+.almanac-section-overview {
+  margin: -2px 0 8px 6px;
+  color: var(--cc-text-secondary);
+  font-size: var(--cc-font-lg);
+}
+
 .almanac-section-note {
   margin: 0;
   padding: 2px 0 4px;

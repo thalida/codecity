@@ -496,6 +496,10 @@ export interface components {
             maxMediaPixelsFile: components["schemas"]["FileLeader"] | null;
             /** Mediacount */
             mediaCount: number;
+            /** Totallines */
+            totalLines: number;
+            /** Codebytes */
+            codeBytes: number;
             maxDepthDir: components["schemas"]["DirLeader"] | null;
             maxFilesPerDir: components["schemas"]["DirLeader"] | null;
             maxFilesPerCommit: components["schemas"]["CommitLeader"] | null;

@@ -254,6 +254,10 @@ export interface RepoStats {
   maxMediaBytesFile: FileLeader | null;
   maxMediaPixelsFile: FileLeader | null;
   mediaCount: number;
+  /** Sum of lines over non-media files (for the buildings overview average). */
+  totalLines: number;
+  /** Sum of bytes over non-media files. */
+  codeBytes: number;
   maxDepthDir: DirLeader | null;
   maxFilesPerDir: DirLeader | null;
   maxFilesPerCommit: CommitLeader | null;
