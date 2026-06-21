@@ -224,8 +224,48 @@ describe('computeAlmanac — overview + buildings', () => {
       kind: 'file',
       id: 'pic.png',
     });
-    expect(media.facts.find((f) => f.label === 'Sharpest')!.secondary).toContain('1,920');
+    expect(media.facts.find((f) => f.label === 'Highest')!.secondary).toContain('1,920');
     expect(media.facts.every((f) => f.tip)).toBe(true);
+  });
+  it('pairs media into Size + Resolution duos when there are 2+ distinct files', () => {
+    const tree2 = dir('repo', '', [
+      file({
+        name: 'sm.png',
+        path: 'sm.png',
+        mediaKind: 'image',
+        media_width: 10,
+        media_height: 10,
+      }),
+      file({
+        name: 'lg.png',
+        path: 'lg.png',
+        mediaKind: 'image',
+        media_width: 1920,
+        media_height: 1080,
+      }),
+    ]);
+    const stats: RepoStats = {
+      ...uniformFileStats('code.ts', 40, 400),
+      mediaCount: 2,
+      maxMediaBytesFile: fileLeader('lg.png', 0, 9000),
+      minMediaBytesFile: fileLeader('sm.png', 0, 100),
+      maxMediaPixelsFile: {
+        ...fileLeader('lg.png', 0, 9000),
+        media_width: 1920,
+        media_height: 1080,
+      },
+      minMediaPixelsFile: { ...fileLeader('sm.png', 0, 100), media_width: 10, media_height: 10 },
+    };
+    const media = computeAlmanac(manifest(tree2, { stats }))!.sections.find(
+      (s) => s.key === 'media'
+    )!;
+    const byLabel = (l: string) => media.facts.find((f) => f.label === l)!;
+    expect(byLabel('Smallest').group).toBe('Size');
+    expect(byLabel('Largest').group).toBe('Size');
+    expect(byLabel('Lowest').group).toBe('Resolution');
+    expect(byLabel('Highest').group).toBe('Resolution');
+    expect(byLabel('Smallest').landmark).toEqual({ kind: 'file', id: 'sm.png' });
+    expect(byLabel('Lowest').landmark).toEqual({ kind: 'file', id: 'sm.png' });
   });
   it('keeps the Billboards section with a note when there is no media', () => {
     const media = a!.sections.find((s) => s.key === 'media')!;
@@ -297,16 +337,20 @@ describe('computeAlmanac — streets, forest, fireflies', () => {
     expect(fact('forest', 'Sparsest').landmark).toEqual({ kind: 'commit', id: 'ccc' });
   });
   it('busiest day is non-landmark and names the date', () => {
-    const f = fact('forest', 'Busiest day');
+    const f = fact('forest', 'Busiest');
     expect(f.landmark).toBeUndefined();
     expect(f.secondary).toContain('3');
   });
   it('longest streak counts consecutive days', () => {
-    expect(fact('forest', 'Longest streak').primary).toContain('3');
+    expect(fact('forest', 'Streak').primary).toContain('3');
   });
   it('fireflies count distinct authors (overview) and name the most active', () => {
     expect(section('fireflies').overview).toContain('2'); // 2 authors
     expect(fact('fireflies', 'Most active').primary).toContain('Ada');
+  });
+  it('pairs most + least active contributors when there are 2+ authors', () => {
+    expect(fact('fireflies', 'Most active').primary).toContain('Ada'); // 3 commits
+    expect(fact('fireflies', 'Least active').primary).toContain('Bo'); // 2 commits
   });
   it('every section opens with an overview summary', () => {
     expect(section('streets').overview).toMatch(/street/);

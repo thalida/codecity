@@ -6,7 +6,7 @@
 
 import { NodeKind } from '@/types';
 import type { Manifest, DirNode, RepoInfo, FileLeader, DirLeader, CommitLeader } from '@/types';
-import { formatShortDate } from '@/utils/dates';
+import { formatShortDate, humanSpan } from '@/utils/dates';
 import { formatBytes } from '@/utils/bytes';
 import { formatCount, pluralize } from '@/utils/format';
 import { labelFromSource } from '@/utils/sources';
@@ -167,10 +167,12 @@ function compact(facts: (AlmanacFact | null)[]): AlmanacFact[] {
   return facts.filter((f): f is AlmanacFact => f !== null);
 }
 
-/** Rounded "X per Y" for an overview average, or null when there's nothing to
- *  divide by (so the caller can drop the trailing "· ~N each" clause). */
+/** Rounded "X per Y" for an overview average, or null when the inputs can't
+ *  produce a real number (n ≤ 0, or a non-finite total from a pre-totals
+ *  cached manifest) — so the caller drops the "· ~N each" clause instead of
+ *  rendering NaN. */
 function perEach(total: number, n: number): number | null {
-  return n > 0 ? Math.round(total / n) : null;
+  return n > 0 && Number.isFinite(total) ? Math.round(total / n) : null;
 }
 
 function buildOverview(m: Manifest): AlmanacOverview {
@@ -291,21 +293,50 @@ function mediaSection(m: Manifest): AlmanacSection {
       note: 'No images or videos.',
     };
   }
-  const sharp = s.maxMediaPixelsFile;
+  const bytesFmt = (l: FileLeader) => formatBytes(l.bytes);
+  const resFmt = (l: FileLeader) =>
+    `${formatCount(l.media_width!)} × ${formatCount(l.media_height!)}`;
+  const hasRes = (f: FileLeader | null): f is FileLeader => !!(f?.media_width && f?.media_height);
+  // Pairs only when the endpoints are genuinely different files — a one-image
+  // repo has no spread, so show just the single standout.
+  const lo = s.minMediaBytesFile;
+  const hi = s.maxMediaBytesFile;
+  const sizePair = !!(lo && hi && lo.path !== hi.path);
+  const loRes = s.minMediaPixelsFile;
+  const hiRes = s.maxMediaPixelsFile;
+  const resPair = hasRes(loRes) && hasRes(hiRes) && loRes.path !== hiRes.path;
   const facts = compact([
+    sizePair
+      ? fileFact({
+          group: 'Size',
+          label: 'Smallest',
+          leader: lo,
+          secondary: bytesFmt,
+          tip: 'Smallest media file by bytes.',
+        })
+      : null,
     fileFact({
-      group: 'Standouts',
+      group: 'Size',
       label: 'Largest',
-      leader: s.maxMediaBytesFile,
-      secondary: (l) => formatBytes(l.bytes),
+      leader: hi,
+      secondary: bytesFmt,
       tip: 'Biggest media file by bytes.',
     }),
-    sharp?.media_width && sharp?.media_height
+    resPair
       ? fileFact({
-          group: 'Standouts',
-          label: 'Sharpest',
-          leader: sharp,
-          secondary: (l) => `${formatCount(l.media_width!)} × ${formatCount(l.media_height!)}`,
+          group: 'Resolution',
+          label: 'Lowest',
+          leader: loRes,
+          secondary: resFmt,
+          tip: 'Media file with the fewest pixels.',
+        })
+      : null,
+    hasRes(hiRes)
+      ? fileFact({
+          group: 'Resolution',
+          label: 'Highest',
+          leader: hiRes,
+          secondary: resFmt,
           tip: 'Media file with the most pixels.',
         })
       : null,
@@ -348,8 +379,9 @@ function streetsSection(m: Manifest): AlmanacSection {
 
 function forestSection(m: Manifest, treesEnabled: boolean): AlmanacSection {
   const trees = m.commits.length;
-  const since = m.stats.commitDates.oldest?.slice(0, 4) ?? null; // YYYY, TZ-safe
-  const overview = pluralize(trees, 'tree') + (since ? ` · since ${since}` : '');
+  const cd = m.stats.commitDates;
+  const span = cd.oldest && cd.newest ? humanSpan(cd.oldest, cd.newest) : '';
+  const overview = `${pluralize(trees, 'tree')}${span ? ` · ${span} of history` : ''}`;
   const base = { key: 'forest', title: 'Forest', tip: SECTION_TIPS.forest, overview } as const;
   // Canopies fly the camera to a tree; with the Trees layer off those targets
   // don't exist, so the notice lives here (not the view) like any empty state.
@@ -380,7 +412,7 @@ function forestSection(m: Manifest, treesEnabled: boolean): AlmanacSection {
     s.maxCommitsPerDay
       ? statFact({
           group: 'Activity',
-          label: 'Busiest day',
+          label: 'Busiest',
           primary: formatShortDate(s.maxCommitsPerDay.date),
           secondary: pluralize(s.maxCommitsPerDay.count, 'commit'),
           tip: 'Calendar day with the most commits.',
@@ -388,7 +420,7 @@ function forestSection(m: Manifest, treesEnabled: boolean): AlmanacSection {
       : null,
     statFact({
       group: 'Activity',
-      label: 'Longest streak',
+      label: 'Streak',
       primary: pluralize(s.maxCommitStreakDays, 'consecutive day'),
       tip: 'Longest run of consecutive days with commits.',
     }),
@@ -413,19 +445,32 @@ function firefliesSection(m: Manifest): AlmanacSection {
   if (count === 0) {
     return { ...base, facts: [], note: 'No commits yet — no fireflies.' };
   }
-  const top = s.authors[0]; // pre-sorted descending by commits from the backend
-  return {
-    ...base,
-    facts: [
-      statFact({
-        group: 'Top contributor',
-        label: 'Most active',
-        primary: top.name,
-        secondary: pluralize(top.commits, 'commit'),
-        tip: 'Author with the most commits — the largest firefly.',
-      }),
-    ],
-  };
+  // authors is pre-sorted descending by commits; [0] is the most active, the
+  // last the least. Show the pair (low→high, like the other sections) when
+  // there's more than one author, else just the top.
+  const most = s.authors[0];
+  const least = s.authors[count - 1];
+  const mostFact = statFact({
+    group: 'Contributors',
+    label: 'Most active',
+    primary: most.name,
+    secondary: pluralize(most.commits, 'commit'),
+    tip: 'Author with the most commits — the largest firefly.',
+  });
+  const facts =
+    count >= 2
+      ? [
+          statFact({
+            group: 'Contributors',
+            label: 'Least active',
+            primary: least.name,
+            secondary: pluralize(least.commits, 'commit'),
+            tip: 'Author with the fewest commits.',
+          }),
+          mostFact,
+        ]
+      : [mostFact];
+  return { ...base, facts };
 }
 
 /**

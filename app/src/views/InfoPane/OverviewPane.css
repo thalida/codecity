@@ -2,7 +2,8 @@
   padding: 12px 14px;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  /* 14px here + 14px section padding-top = balanced space around the divider. */
+  gap: 14px;
 }
 
 .almanac-name {
@@ -134,9 +135,9 @@
 }
 
 /* Summary line under each header — count + one aggregate, same rhythm in every
- * section. Sits between the title and the first dimension group. */
+ * section. Left-aligned with the fact-row text below it. */
 .almanac-section-overview {
-  margin: -2px 0 8px 6px;
+  margin: -2px 0 8px 8px;
   color: var(--cc-text-secondary);
   font-size: var(--cc-font-lg);
 }
@@ -157,21 +158,22 @@
 
 .almanac-duo-dim {
   display: block;
-  margin: 0 0 1px 6px;
+  margin: 0 0 1px 8px;
   font-size: var(--cc-font-sm);
   text-transform: uppercase;
   letter-spacing: var(--cc-track-label);
   color: var(--sec-accent);
 }
 
-/* One fact row — label · value · right-aligned metric on a single line. A
- * landmark row is a reset <button> spanning the row; summary facts are divs. */
+/* One fact row — [label column] · value · right-aligned metric · focus glyph,
+ * all centered on one line. A landmark row is a reset <button> spanning the
+ * row; summary facts are plain divs. */
 .almanac-fact {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   gap: 8px;
   width: 100%;
-  padding: 4px 6px;
+  padding: 5px 8px;
   border-radius: var(--cc-radius-md);
   text-align: left;
   background: none;
@@ -191,18 +193,21 @@
   outline: none;
 }
 
+/* Fixed column so the values line up row to row (not jittering with label
+ * length). Sized to fit the longest label in use ("Least active"). */
 .almanac-fact-label {
-  flex: 0 0 auto;
-  min-width: 62px;
+  flex: 0 0 76px;
   color: var(--cc-text-muted);
   font-size: var(--cc-font-md);
 }
 
+/* basis 0 so it grows into the free space and truncates predictably. One value
+ * size for every row (mono only swaps the font family, not the size). */
 .almanac-fact-primary {
-  flex: 1 1 auto;
+  flex: 1 1 0;
   min-width: 0;
   color: var(--cc-text-primary);
-  font-size: var(--cc-font-lg);
+  font-size: var(--cc-font-md);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -212,7 +217,6 @@
   display: flex;
   min-width: 0;
   font-family: var(--cc-font-mono);
-  font-size: var(--cc-font-md);
 }
 
 /* Directory truncates from the right; the filename always stays whole. */
@@ -238,17 +242,19 @@
   white-space: nowrap;
 }
 
-/* Focus glyph stays quiet until the row is hovered/focused. */
+/* Focus affordance: always visible (a hidden affordance is no affordance), and
+ * one consistent interactive color across every section — matching the app's
+ * .btn-icon convention (faint at rest, brightens with the row). Section accent
+ * is identity; interaction is a separate, uniform signal. */
 .almanac-fact-focus {
   flex: 0 0 auto;
-  width: 13px;
-  height: 13px;
-  color: var(--sec-accent);
-  opacity: 0;
-  transition: opacity 0.12s ease;
+  width: 14px;
+  height: 14px;
+  color: var(--cc-text-faint);
+  transition: color 0.12s ease;
 }
 
 .almanac-fact--nav:hover .almanac-fact-focus,
 .almanac-fact--nav:focus-visible .almanac-fact-focus {
-  opacity: 1;
+  color: var(--cc-text-primary);
 }

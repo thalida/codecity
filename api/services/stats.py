@@ -102,8 +102,9 @@ def compute_repo_stats(tree: DirNode, commits: list[CommitEntry]) -> RepoStats:
     oldest = newest = freshest = stalest = None  # non-media, by created/modified
     tallest = shortest = None  # text (non-media, non-binary, lines>0), by lines
     widest = narrowest = None  # non-media, by bytes
-    largest_media = sharpest_media = None  # media, by bytes / pixels
-    sharpest_px = None
+    largest_media = smallest_media = None  # media, by bytes
+    sharpest_media = coarsest_media = None  # media, by pixels (most / fewest)
+    sharpest_px = coarsest_px = None
     for f in _iter_files(tree):
         lines, size = f["lines"], f["size"]
         if lines > 0:
@@ -116,9 +117,14 @@ def compute_repo_stats(tree: DirNode, commits: list[CommitEntry]) -> RepoStats:
             media_count += 1
             if largest_media is None or size > largest_media["size"]:
                 largest_media = f
+            if smallest_media is None or size < smallest_media["size"]:
+                smallest_media = f
             px = _media_pixels(f)
-            if px is not None and (sharpest_px is None or px > sharpest_px):
-                sharpest_px, sharpest_media = px, f
+            if px is not None:
+                if sharpest_px is None or px > sharpest_px:
+                    sharpest_px, sharpest_media = px, f
+                if coarsest_px is None or px < coarsest_px:
+                    coarsest_px, coarsest_media = px, f
             continue
         total_lines += lines
         code_bytes += size
@@ -210,7 +216,9 @@ def compute_repo_stats(tree: DirNode, commits: list[CommitEntry]) -> RepoStats:
         "maxBytesFile": _file_leader(widest),
         "minBytesFile": _file_leader(narrowest),
         "maxMediaBytesFile": _file_leader(largest_media),
+        "minMediaBytesFile": _file_leader(smallest_media),
         "maxMediaPixelsFile": _file_leader(sharpest_media),
+        "minMediaPixelsFile": _file_leader(coarsest_media),
         "mediaCount": media_count,
         "totalLines": total_lines,
         "codeBytes": code_bytes,

@@ -244,7 +244,9 @@ class RepoStats(TypedDict):
     maxBytesFile: FileLeader | None
     minBytesFile: FileLeader | None
     maxMediaBytesFile: FileLeader | None
+    minMediaBytesFile: FileLeader | None
     maxMediaPixelsFile: FileLeader | None
+    minMediaPixelsFile: FileLeader | None
     mediaCount: int
     totalLines: int
     codeBytes: int

@@ -197,7 +197,9 @@ class RepoStats(BaseModel):
     maxBytesFile: Optional[FileLeader]
     minBytesFile: Optional[FileLeader]
     maxMediaBytesFile: Optional[FileLeader]
+    minMediaBytesFile: Optional[FileLeader]
     maxMediaPixelsFile: Optional[FileLeader]
+    minMediaPixelsFile: Optional[FileLeader]
     mediaCount: int
     totalLines: int
     codeBytes: int

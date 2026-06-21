@@ -181,6 +181,16 @@ def test_media_only_repo_ranges():
     assert s["byteSizeRange"] == {"min": 500, "max": 500}
 
 
+def test_media_min_max_leaders():
+    small = _file("small.png", lines=0, size=100, media="image", mw=10, mh=10)
+    big = _file("big.png", lines=0, size=9000, media="image", mw=1920, mh=1080)
+    s = compute_repo_stats(_dir("repo", "", [small, big]), [])
+    assert s["maxMediaBytesFile"]["path"] == "big.png"
+    assert s["minMediaBytesFile"]["path"] == "small.png"
+    assert s["maxMediaPixelsFile"]["path"] == "big.png"
+    assert s["minMediaPixelsFile"]["path"] == "small.png"
+
+
 def test_empty_files_only_ranges():
     # A repo of only empty files: both ranges are the {0,0} sentinel; the
     # frontend's _safeRange turns these into {1,1} (no divide-by-zero).

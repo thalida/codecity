@@ -252,7 +252,9 @@ export interface RepoStats {
   maxBytesFile: FileLeader | null;
   minBytesFile: FileLeader | null;
   maxMediaBytesFile: FileLeader | null;
+  minMediaBytesFile: FileLeader | null;
   maxMediaPixelsFile: FileLeader | null;
+  minMediaPixelsFile: FileLeader | null;
   mediaCount: number;
   /** Sum of lines over non-media files (for the buildings overview average). */
   totalLines: number;

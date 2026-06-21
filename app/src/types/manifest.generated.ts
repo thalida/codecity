@@ -493,7 +493,9 @@ export interface components {
             maxBytesFile: components["schemas"]["FileLeader"] | null;
             minBytesFile: components["schemas"]["FileLeader"] | null;
             maxMediaBytesFile: components["schemas"]["FileLeader"] | null;
+            minMediaBytesFile: components["schemas"]["FileLeader"] | null;
             maxMediaPixelsFile: components["schemas"]["FileLeader"] | null;
+            minMediaPixelsFile: components["schemas"]["FileLeader"] | null;
             /** Mediacount */
             mediaCount: number;
             /** Totallines */

@@ -198,7 +198,7 @@ describe('OverviewPane', () => {
     render(<OverviewPane manifest={sig as never} />, container);
     await flush();
     const row = Array.from(container.querySelectorAll('.almanac-fact')).find((el) =>
-      el.textContent?.includes('Busiest day')
+      el.textContent?.includes('Busiest')
     ) as HTMLElement;
     expect(row).toBeTruthy();
     // Non-landmark rows carry no focus button.
