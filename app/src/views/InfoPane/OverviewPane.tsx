@@ -77,7 +77,7 @@ function FactRow({ fact }: { fact: AlmanacFact }) {
   const landmark = fact.landmark;
   const inner = (
     <>
-      <span class="almanac-fact-label">{fact.label}</span>
+      {fact.label && <span class="almanac-fact-label">{fact.label}</span>}
       <PrimaryValue fact={fact} />
       {fact.secondary && <span class="almanac-fact-metric">{fact.secondary}</span>}
       {landmark && <Focus class="lucide-icon almanac-fact-focus" aria-hidden="true" />}

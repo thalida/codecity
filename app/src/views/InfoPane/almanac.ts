@@ -298,13 +298,32 @@ function mediaSection(m: Manifest): AlmanacSection {
     `${formatCount(l.media_width!)} × ${formatCount(l.media_height!)}`;
   const hasRes = (f: FileLeader | null): f is FileLeader => !!(f?.media_width && f?.media_height);
   // Pairs only when the endpoints are genuinely different files — a one-image
-  // repo has no spread, so show just the single standout.
+  // repo has no spread, so a Smallest/Largest split would just repeat the file.
   const lo = s.minMediaBytesFile;
   const hi = s.maxMediaBytesFile;
   const sizePair = !!(lo && hi && lo.path !== hi.path);
   const loRes = s.minMediaPixelsFile;
   const hiRes = s.maxMediaPixelsFile;
   const resPair = hasRes(loRes) && hasRes(hiRes) && loRes.path !== hiRes.path;
+  // No spread (typically a single billboard): one spotlight row with the file's
+  // size + resolution combined, rather than two lopsided one-item groups.
+  if (!sizePair && !resPair && hi) {
+    const dims = hasRes(hiRes) ? ` · ${resFmt(hiRes)}` : '';
+    return {
+      key: 'media',
+      title: 'Billboards',
+      tip: SECTION_TIPS.media,
+      overview,
+      facts: compact([
+        fileFact({
+          label: '',
+          leader: hi,
+          secondary: (l) => `${bytesFmt(l)}${dims}`,
+          tip: 'The lone billboard — its byte size and pixel resolution.',
+        }),
+      ]),
+    };
+  }
   const facts = compact([
     sizePair
       ? fileFact({

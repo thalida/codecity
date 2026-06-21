@@ -219,12 +219,12 @@ describe('computeAlmanac — overview + buildings', () => {
       kind: 'file',
       id: 'code.ts',
     });
-    // It's the largest, highest-resolution billboard instead.
-    expect(media.facts.find((f) => f.label === 'Largest')!.landmark).toEqual({
-      kind: 'file',
-      id: 'pic.png',
-    });
-    expect(media.facts.find((f) => f.label === 'Highest')!.secondary).toContain('1,920');
+    // A lone billboard collapses to one spotlight row (no lopsided pair groups)
+    // carrying both its byte size and pixel resolution.
+    expect(media.facts).toHaveLength(1);
+    expect(media.facts[0].landmark).toEqual({ kind: 'file', id: 'pic.png' });
+    expect(media.facts[0].secondary).toContain('1,920'); // resolution
+    expect(media.facts[0].secondary).toMatch(/KB|B/); // and byte size
     expect(media.facts.every((f) => f.tip)).toBe(true);
   });
   it('pairs media into Size + Resolution duos when there are 2+ distinct files', () => {

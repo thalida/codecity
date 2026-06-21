@@ -2,8 +2,8 @@
   padding: 12px 14px;
   display: flex;
   flex-direction: column;
-  /* 14px here + 14px section padding-top = balanced space around the divider. */
-  gap: 14px;
+  /* 12px here + 12px section padding-top = balanced space around each divider. */
+  gap: 12px;
 }
 
 .almanac-name {
@@ -110,10 +110,12 @@
   --sec-accent: #efc560;
 }
 
-/* Hairline divider + breathing room between sections (not before the first). */
-.almanac-section + .almanac-section {
+/* Hairline divider above every section — including the first, so the intro
+ * title-card is separated from the data sections the same way they're separated
+ * from each other. */
+.almanac-section {
   border-top: 1px solid var(--cc-border-subtle);
-  padding-top: 14px;
+  padding-top: 12px;
 }
 
 .almanac-section-title {
@@ -135,9 +137,9 @@
 }
 
 /* Summary line under each header — count + one aggregate, same rhythm in every
- * section. Left-aligned with the fact-row text below it. */
+ * section. Flush-left with the header (no indent — the header already groups). */
 .almanac-section-overview {
-  margin: -2px 0 8px 8px;
+  margin: -2px 0 8px 0;
   color: var(--cc-text-secondary);
   font-size: var(--cc-font-lg);
 }
@@ -158,7 +160,7 @@
 
 .almanac-duo-dim {
   display: block;
-  margin: 0 0 1px 8px;
+  margin: 0 0 1px 0;
   font-size: var(--cc-font-sm);
   text-transform: uppercase;
   letter-spacing: var(--cc-track-label);
@@ -172,7 +174,10 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  width: 100%;
+  /* Negative margin = padding so the row text stays flush with the header while
+   * the hover highlight still has internal breathing room (bleeds into the
+   * gutter, never past the pane edge). */
+  margin: 0 -8px;
   padding: 5px 8px;
   border-radius: var(--cc-radius-md);
   text-align: left;
