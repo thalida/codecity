@@ -39,6 +39,9 @@ export interface AlmanacFact {
    *  monospace + left-truncated, and the row flies the camera to this landmark
    *  on click. Absent → a plain count/date/name summary fact. */
   landmark?: LandmarkRef;
+  /** Dimension name. Consecutive facts sharing it render as one bound min↔max
+   *  duo (e.g. "Height" over Shortest + Tallest) instead of two loose rows. */
+  group?: string;
 }
 
 export type AlmanacSectionKey = 'buildings' | 'media' | 'streets' | 'forest' | 'fireflies';
@@ -101,6 +104,7 @@ function fileFact(o: {
   leader: FileLeader | null;
   secondary: (l: FileLeader) => string;
   tip: string;
+  group?: string;
 }): AlmanacFact | null {
   if (!o.leader) return null;
   return {
@@ -108,6 +112,7 @@ function fileFact(o: {
     primary: o.leader.path,
     secondary: o.secondary(o.leader),
     tip: o.tip,
+    group: o.group,
     landmark: { kind: NodeKind.File, id: o.leader.path },
   };
 }
@@ -132,6 +137,7 @@ function commitFact(o: {
   label: string;
   leader: CommitLeader | null;
   tip: string;
+  group?: string;
 }): AlmanacFact | null {
   if (!o.leader) return null;
   return {
@@ -139,6 +145,7 @@ function commitFact(o: {
     primary: o.leader.sha.slice(0, 7),
     secondary: pluralize(o.leader.files, 'file'),
     tip: o.tip,
+    group: o.group,
     landmark: { kind: NodeKind.Commit, id: o.leader.sha },
   };
 }
@@ -180,54 +187,66 @@ function buildOverview(m: Manifest): AlmanacOverview {
 }
 
 function buildingsSection(s: RepoStats): AlmanacSection {
+  // Four min↔max duos — the dimension (Age / Last touched / Height / Footprint)
+  // carries the noun, so the endpoint labels stay terse and the metric column
+  // shows the bare value. Pair members must stay adjacent (the view groups
+  // consecutive same-`group` facts).
   const facts = compact([
     fileFact({
-      label: 'Newest building',
+      group: 'Age',
+      label: 'Oldest',
+      leader: s.oldestCreatedFile,
+      secondary: (l) => formatShortDate(l.created),
+      tip: "Earliest-created file, by git history — the city's founding structure.",
+    }),
+    fileFact({
+      group: 'Age',
+      label: 'Newest',
       leader: s.newestCreatedFile,
-      secondary: (l) => `Created ${formatShortDate(l.created)}`,
+      secondary: (l) => formatShortDate(l.created),
       tip: 'Most recently created file, by git history.',
     }),
     fileFact({
-      label: 'Oldest building',
-      leader: s.oldestCreatedFile,
-      secondary: (l) => `Created ${formatShortDate(l.created)}`,
-      tip: "Earliest-created file — the city's founding structure.",
-    }),
-    fileFact({
-      label: 'Freshest building',
-      leader: s.newestModifiedFile,
-      secondary: (l) => `Edited ${formatShortDate(l.modified)}`,
-      tip: "File with the newest commit. Edits only count once committed — this is the date that drives a building's brightness.",
-    }),
-    fileFact({
-      label: 'Stalest building',
+      group: 'Last touched',
+      label: 'Stalest',
       leader: s.oldestModifiedFile,
-      secondary: (l) => `Edited ${formatShortDate(l.modified)}`,
+      secondary: (l) => formatShortDate(l.modified),
       tip: 'File whose last commit is the oldest — the dimmest building.',
     }),
     fileFact({
-      label: 'Tallest building',
-      leader: s.maxLinesFile,
-      secondary: (l) => pluralize(l.lines, 'line'),
-      tip: "File with the most lines; line count sets a building's height.",
+      group: 'Last touched',
+      label: 'Freshest',
+      leader: s.newestModifiedFile,
+      secondary: (l) => formatShortDate(l.modified),
+      tip: "File with the newest commit — the date that drives a building's brightness.",
     }),
     fileFact({
-      label: 'Shortest building',
+      group: 'Height',
+      label: 'Shortest',
       leader: s.minLinesFile,
       secondary: (l) => pluralize(l.lines, 'line'),
       tip: 'File with the fewest lines.',
     }),
     fileFact({
-      label: 'Widest building',
-      leader: s.maxBytesFile,
-      secondary: (l) => formatBytes(l.bytes),
-      tip: "Largest file by bytes; file size sets a building's footprint.",
+      group: 'Height',
+      label: 'Tallest',
+      leader: s.maxLinesFile,
+      secondary: (l) => pluralize(l.lines, 'line'),
+      tip: "File with the most lines; line count sets a building's height.",
     }),
     fileFact({
-      label: 'Narrowest building',
+      group: 'Footprint',
+      label: 'Narrowest',
       leader: s.minBytesFile,
       secondary: (l) => formatBytes(l.bytes),
       tip: 'Smallest file by bytes.',
+    }),
+    fileFact({
+      group: 'Footprint',
+      label: 'Widest',
+      leader: s.maxBytesFile,
+      secondary: (l) => formatBytes(l.bytes),
+      tip: "Largest file by bytes; file size sets a building's footprint.",
     }),
   ]);
   return {
@@ -317,14 +336,16 @@ function forestSection(m: Manifest, treesEnabled: boolean): AlmanacSection {
   const s = m.stats;
   const facts = compact([
     commitFact({
-      label: 'Grandest canopy',
-      leader: s.maxFilesPerCommit,
-      tip: 'Commit that changed the most files — the widest tree.',
+      group: 'Canopy',
+      label: 'Sparsest',
+      leader: s.minFilesPerCommit,
+      tip: 'Commit that changed the fewest files — the smallest tree.',
     }),
     commitFact({
-      label: 'Sparsest canopy',
-      leader: s.minFilesPerCommit,
-      tip: 'Commit that changed the fewest files.',
+      group: 'Canopy',
+      label: 'Grandest',
+      leader: s.maxFilesPerCommit,
+      tip: 'Commit that changed the most files — the widest tree.',
     }),
     s.maxCommitsPerDay
       ? statFact({

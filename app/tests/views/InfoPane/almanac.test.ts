@@ -145,38 +145,45 @@ describe('computeAlmanac — overview + buildings', () => {
   }
 
   it('tallest building = most lines, clickable to its file', () => {
-    const f = fact('buildings', 'Tallest building');
+    const f = fact('buildings', 'Tallest');
     expect(f.primary).toBe('tall.ts');
     expect(f.secondary).toContain('999');
     expect(f.landmark).toEqual({ kind: 'file', id: 'tall.ts' });
   });
-  it('date superlatives show the date in the secondary', () => {
-    expect(fact('buildings', 'Oldest building').secondary).toMatch(/Created/);
-    expect(fact('buildings', 'Freshest building').secondary).toMatch(/Edited/);
+  it('pairs min/max facts under a shared dimension', () => {
+    expect(fact('buildings', 'Tallest').group).toBe('Height');
+    expect(fact('buildings', 'Shortest').group).toBe('Height');
+    expect(fact('buildings', 'Oldest').group).toBe('Age');
+  });
+  it('date superlatives show a formatted date in the secondary', () => {
+    // The dimension (Age / Last touched) carries created-vs-modified, so the
+    // metric is the bare formatted date. (TZ-agnostic: just assert the shape.)
+    expect(fact('buildings', 'Oldest').secondary).toMatch(/\w{3} \d{1,2}, \d{4}/);
+    expect(fact('buildings', 'Freshest').secondary).toMatch(/\w{3} \d{1,2}, \d{4}/);
   });
   it('oldest building = earliest created', () => {
-    expect(fact('buildings', 'Oldest building').landmark).toEqual({ kind: 'file', id: 'old.ts' });
+    expect(fact('buildings', 'Oldest').landmark).toEqual({ kind: 'file', id: 'old.ts' });
   });
   it('newest building = latest created', () => {
-    expect(fact('buildings', 'Newest building').landmark).toEqual({ kind: 'file', id: 'new.ts' });
+    expect(fact('buildings', 'Newest').landmark).toEqual({ kind: 'file', id: 'new.ts' });
   });
   it('widest building = largest bytes', () => {
-    expect(fact('buildings', 'Widest building').landmark).toEqual({ kind: 'file', id: 'new.ts' });
+    expect(fact('buildings', 'Widest').landmark).toEqual({ kind: 'file', id: 'new.ts' });
   });
   it('shortest building = fewest lines', () => {
-    expect(fact('buildings', 'Shortest building').landmark).toEqual({ kind: 'file', id: 'old.ts' });
+    expect(fact('buildings', 'Shortest').landmark).toEqual({ kind: 'file', id: 'old.ts' });
   });
   it('narrowest building = smallest bytes', () => {
-    expect(fact('buildings', 'Narrowest building').landmark).toEqual({
+    expect(fact('buildings', 'Narrowest').landmark).toEqual({
       kind: 'file',
       id: 'old.ts',
     });
   });
   it('freshest building = most recently modified', () => {
-    expect(fact('buildings', 'Freshest building').landmark).toEqual({ kind: 'file', id: 'new.ts' });
+    expect(fact('buildings', 'Freshest').landmark).toEqual({ kind: 'file', id: 'new.ts' });
   });
   it('stalest building = longest since modified', () => {
-    expect(fact('buildings', 'Stalest building').landmark).toEqual({ kind: 'file', id: 'tall.ts' });
+    expect(fact('buildings', 'Stalest').landmark).toEqual({ kind: 'file', id: 'tall.ts' });
   });
   it('splits media into its own Billboards section', () => {
     const withMedia = dir('repo', '', [
@@ -208,7 +215,7 @@ describe('computeAlmanac — overview + buildings', () => {
     const media = m.sections.find((s) => s.key === 'media')!;
     // Media never appears as a building superlative (not even Widest by bytes).
     expect(buildings.facts.every((f) => f.landmark?.id !== 'pic.png')).toBe(true);
-    expect(buildings.facts.find((f) => f.label === 'Widest building')!.landmark).toEqual({
+    expect(buildings.facts.find((f) => f.label === 'Widest')!.landmark).toEqual({
       kind: 'file',
       id: 'code.ts',
     });
@@ -284,10 +291,10 @@ describe('computeAlmanac — streets, forest, fireflies', () => {
     });
   });
   it('grandest canopy = commit touching most files', () => {
-    expect(fact('forest', 'Grandest canopy').landmark).toEqual({ kind: 'commit', id: 'bbb' });
+    expect(fact('forest', 'Grandest').landmark).toEqual({ kind: 'commit', id: 'bbb' });
   });
   it('sparsest canopy = commit touching fewest files', () => {
-    expect(fact('forest', 'Sparsest canopy').landmark).toEqual({ kind: 'commit', id: 'ccc' });
+    expect(fact('forest', 'Sparsest').landmark).toEqual({ kind: 'commit', id: 'ccc' });
   });
   it('busiest day is non-landmark and names the date', () => {
     const f = fact('forest', 'Busiest day');

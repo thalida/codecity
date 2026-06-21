@@ -144,10 +144,10 @@ describe('OverviewPane', () => {
     render(<OverviewPane manifest={sig as never} />, container);
     await flush();
     const row = Array.from(container.querySelectorAll('.almanac-fact')).find((el) =>
-      el.textContent?.includes('Tallest building')
+      el.textContent?.includes('Tallest')
     ) as HTMLElement;
     expect(row).toBeTruthy();
-    row.querySelector('button')!.click();
+    (row as HTMLElement).click();
     expect(selectPath).toHaveBeenCalledWith('a.ts');
     expect(focusPath).toHaveBeenCalledWith('a.ts');
   });
@@ -171,10 +171,10 @@ describe('OverviewPane', () => {
     render(<OverviewPane manifest={sig as never} />, container);
     await flush();
     const row = Array.from(container.querySelectorAll('.almanac-fact')).find((el) =>
-      el.textContent?.includes('Grandest canopy')
+      el.textContent?.includes('Grandest')
     ) as HTMLElement;
     expect(row).toBeTruthy();
-    row.querySelector('button')!.click();
+    (row as HTMLElement).click();
     expect(selectCommit).toHaveBeenCalledWith('abc1234');
     expect(focusCommit).toHaveBeenCalledWith('abc1234');
   });
@@ -228,7 +228,7 @@ describe('OverviewPane', () => {
     expect(container.textContent).toContain('Forest');
     expect(container.textContent).toContain('Enable the Trees layer');
     const canopyRow = Array.from(container.querySelectorAll('.almanac-fact')).find((el) =>
-      el.textContent?.includes('Grandest canopy')
+      el.textContent?.includes('Grandest')
     );
     expect(canopyRow).toBeUndefined();
   });

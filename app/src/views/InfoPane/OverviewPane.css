@@ -89,43 +89,109 @@
   color: var(--cc-text-secondary);
 }
 
+/* Each section carries its world-layer accent (icon tint + duo binding); the
+ * soft variant is derived so there's one source of truth per section. */
+.almanac-section {
+  --sec-accent: var(--cc-text-secondary);
+  --sec-accent-soft: color-mix(in oklch, var(--sec-accent) 30%, transparent);
+}
+.almanac-section[data-section='buildings'] {
+  --sec-accent: #7aa2f7;
+}
+.almanac-section[data-section='media'] {
+  --sec-accent: #d98fd0;
+}
+.almanac-section[data-section='streets'] {
+  --sec-accent: #d3a85f;
+}
+.almanac-section[data-section='forest'] {
+  --sec-accent: #84c98a;
+}
+.almanac-section[data-section='fireflies'] {
+  --sec-accent: #efc560;
+}
+
+/* Hairline divider + breathing room between sections (not before the first). */
+.almanac-section + .almanac-section {
+  border-top: 1px solid var(--cc-border-subtle);
+  padding-top: 14px;
+}
+
 .almanac-section-title {
-  margin: 0 0 6px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0 0 8px;
   font-size: var(--cc-font-md);
   font-weight: var(--cc-fw-semibold);
   text-transform: uppercase;
   letter-spacing: var(--cc-track-label);
-  color: var(--cc-text-muted);
+  color: var(--cc-text-secondary);
+}
+
+.almanac-section-icon {
+  width: 15px;
+  height: 15px;
+  color: var(--sec-accent);
 }
 
 .almanac-section-note {
   margin: 0;
-  padding: 6px 0;
+  padding: 2px 0 4px;
   color: var(--cc-text-muted);
   font-size: var(--cc-font-lg);
   font-style: italic;
 }
 
-/* Rows sit flush with the section title (no inset); the focus button lives on
- * the value line so it balances against the primary text, not the whole row. */
+/* A min↔max duo: two endpoints bound by the section accent so the relationship
+ * (not eight loose rows) is the unit you read. */
+.almanac-duo {
+  margin: 2px 0 6px;
+  padding-left: 9px;
+  border-left: 2px solid var(--sec-accent-soft);
+}
+
+.almanac-duo-dim {
+  display: block;
+  margin: 0 0 1px 6px;
+  font-size: var(--cc-font-sm);
+  text-transform: uppercase;
+  letter-spacing: var(--cc-track-label);
+  color: var(--sec-accent);
+}
+
+/* One fact row — label · value · right-aligned metric on a single line. A
+ * landmark row is a reset <button> spanning the row; summary facts are divs. */
 .almanac-fact {
   display: flex;
-  flex-direction: column;
-  gap: 2px;
+  align-items: baseline;
+  gap: 8px;
   width: 100%;
-  padding: 5px 0;
+  padding: 4px 6px;
+  border-radius: var(--cc-radius-md);
+  text-align: left;
+  background: none;
+  border: none;
+  font: inherit;
+  color: inherit;
+}
+
+.almanac-fact--nav {
+  cursor: pointer;
+  transition: background-color 0.12s ease;
+}
+
+.almanac-fact--nav:hover,
+.almanac-fact--nav:focus-visible {
+  background: var(--cc-overlay-bg);
+  outline: none;
 }
 
 .almanac-fact-label {
-  font-size: var(--cc-font-md);
+  flex: 0 0 auto;
+  min-width: 62px;
   color: var(--cc-text-muted);
-}
-
-.almanac-fact-body {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-width: 0;
+  font-size: var(--cc-font-md);
 }
 
 .almanac-fact-primary {
@@ -142,6 +208,7 @@
   display: flex;
   min-width: 0;
   font-family: var(--cc-font-mono);
+  font-size: var(--cc-font-md);
 }
 
 /* Directory truncates from the right; the filename always stays whole. */
@@ -151,6 +218,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  color: var(--cc-text-muted);
 }
 
 .almanac-path-base {
@@ -158,13 +226,25 @@
   white-space: nowrap;
 }
 
-.almanac-fact-secondary {
+/* Metric pinned right so every row shares one rail. */
+.almanac-fact-metric {
   flex: 0 0 auto;
   color: var(--cc-text-muted);
   font-size: var(--cc-font-md);
   white-space: nowrap;
 }
 
+/* Focus glyph stays quiet until the row is hovered/focused. */
 .almanac-fact-focus {
   flex: 0 0 auto;
+  width: 13px;
+  height: 13px;
+  color: var(--sec-accent);
+  opacity: 0;
+  transition: opacity 0.12s ease;
+}
+
+.almanac-fact--nav:hover .almanac-fact-focus,
+.almanac-fact--nav:focus-visible .almanac-fact-focus {
+  opacity: 1;
 }
