@@ -89,11 +89,9 @@
   color: var(--cc-text-secondary);
 }
 
-/* Each section carries its world-layer accent (icon tint + duo binding); the
- * soft variant is derived so there's one source of truth per section. */
+/* Each section carries its world-layer accent (icon + dimension labels). */
 .almanac-section {
   --sec-accent: var(--cc-text-secondary);
-  --sec-accent-soft: color-mix(in oklch, var(--sec-accent) 30%, transparent);
 }
 .almanac-section[data-section='buildings'] {
   --sec-accent: #7aa2f7;
@@ -143,12 +141,10 @@
   font-style: italic;
 }
 
-/* A min↔max duo: two endpoints bound by the section accent so the relationship
- * (not eight loose rows) is the unit you read. */
+/* A min↔max duo: two endpoints under a shared dimension label so the
+ * relationship (not eight loose rows) is the unit you read. */
 .almanac-duo {
   margin: 2px 0 6px;
-  padding-left: 9px;
-  border-left: 2px solid var(--sec-accent-soft);
 }
 
 .almanac-duo-dim {
