@@ -204,6 +204,14 @@ export function OverviewPane({ manifest }: OverviewPaneProps) {
                 <span class="almanac-language-count">{formatCount(l.count)}</span>
               </li>
             ))}
+            {overview.moreLanguages > 0 && (
+              <li
+                class="almanac-language almanac-language--more"
+                title={`${formatCount(overview.moreLanguageFiles)} more files across ${overview.moreLanguages} other file ${overview.moreLanguages === 1 ? 'type' : 'types'}`}
+              >
+                +{formatCount(overview.moreLanguages)} more
+              </li>
+            )}
           </ul>
         )}
       </header>

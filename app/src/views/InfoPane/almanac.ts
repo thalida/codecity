@@ -63,6 +63,11 @@ export interface AlmanacOverview {
   totals: { files: number; dirs: number; commits: number; authors: number };
   repo: RepoInfo;
   languages: LanguageStat[];
+  /** File types beyond the shown top languages, and the files they cover —
+   *  surfaced as a trailing "+N more" so the chip list accounts for the whole
+   *  repo, not just the top few. Both 0 when nothing is truncated. */
+  moreLanguages: number;
+  moreLanguageFiles: number;
 }
 
 export interface Almanac {
@@ -177,6 +182,8 @@ function perEach(total: number, n: number): number | null {
 
 function buildOverview(m: Manifest): AlmanacOverview {
   const root = m.tree;
+  const exts = root.descendants_ext_breakdown; // sorted by count desc on the backend
+  const rest = exts.slice(MAX_LANGUAGES);
   return {
     // Prefer a concise "owner/repo" (or folder basename) over the raw URL —
     // the full remote URL still appears, clickable, in the meta list.
@@ -192,9 +199,9 @@ function buildOverview(m: Manifest): AlmanacOverview {
       authors: m.stats.authors.length,
     },
     repo: m.repo,
-    languages: root.descendants_ext_breakdown
-      .slice(0, MAX_LANGUAGES)
-      .map((e) => ({ ext: e.ext, count: e.count })),
+    languages: exts.slice(0, MAX_LANGUAGES).map((e) => ({ ext: e.ext, count: e.count })),
+    moreLanguages: rest.length,
+    moreLanguageFiles: rest.reduce((sum, e) => sum + e.count, 0),
   };
 }
 

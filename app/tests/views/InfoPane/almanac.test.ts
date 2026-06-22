@@ -138,6 +138,18 @@ describe('computeAlmanac — overview + buildings', () => {
   it('languages come from root ext breakdown', () => {
     expect(a!.overview.languages[0]).toEqual({ ext: '.ts', count: 3 });
   });
+  it('summarizes file types beyond the top languages as "+N more"', () => {
+    const exts = Array.from({ length: 9 }, (_, i) => ({
+      ext: `.t${i}`,
+      count: 90 - i * 5,
+      size: 0,
+    }));
+    const t = { ...dir('repo', '', []), descendants_ext_breakdown: exts } as DirNode;
+    const o = computeAlmanac(manifest(t))!.overview;
+    expect(o.languages).toHaveLength(6); // capped
+    expect(o.moreLanguages).toBe(3); // 9 − 6 remaining types
+    expect(o.moreLanguageFiles).toBe(exts.slice(6).reduce((sum, e) => sum + e.count, 0));
+  });
 
   function fact(key: string, label: string) {
     const section = a!.sections.find((s) => s.key === key)!;

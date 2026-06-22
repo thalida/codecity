@@ -90,6 +90,15 @@
   color: var(--cc-text-secondary);
 }
 
+/* Trailing "+N more" — same chip shell, no badge; a muted summary so the list
+ * reads as "top types + everything else", not an arbitrary cut-off. */
+.almanac-language--more {
+  padding: 2px 8px;
+  font-size: var(--cc-font-md);
+  color: var(--cc-text-muted);
+  cursor: default;
+}
+
 /* Each section carries its world-layer accent (icon + dimension labels). */
 .almanac-section {
   --sec-accent: var(--cc-text-secondary);
@@ -112,8 +121,11 @@
 
 /* Hairline divider above every section — including the first, so the intro
  * title-card is separated from the data sections the same way they're separated
- * from each other. */
+ * from each other. Flex column so the fact rows (flex items) stretch to full
+ * width and their values truncate, with no hardcoded widths. */
 .almanac-section {
+  display: flex;
+  flex-direction: column;
   border-top: 1px solid var(--cc-border-subtle);
   padding-top: 12px;
 }
@@ -153,8 +165,11 @@
 }
 
 /* A min↔max duo: two endpoints under a shared dimension label so the
- * relationship (not eight loose rows) is the unit you read. */
+ * relationship (not eight loose rows) is the unit you read. Flex column so its
+ * fact rows stretch to full width (same reason as .almanac-section). */
 .almanac-duo {
+  display: flex;
+  flex-direction: column;
   margin: 2px 0 6px;
 }
 
@@ -174,9 +189,11 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  /* Negative margin = padding so the row text stays flush with the header while
-   * the hover highlight still has internal breathing room (bleeds into the
-   * gutter, never past the pane edge). */
+  /* The row is a flex item, so it stretches to the section/duo width on its own
+   * (definite width → the value truncates instead of overflowing — no calc()
+   * hack needed). The −8px margins then do one job: bleed the hover highlight
+   * into the gutter so the text stays flush with the header while the highlight
+   * keeps its 8px inner padding. */
   margin: 0 -8px;
   padding: 5px 8px;
   border-radius: var(--cc-radius-md);
