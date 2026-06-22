@@ -472,8 +472,8 @@ function firefliesSection(m: Manifest): AlmanacSection {
     return { ...base, facts: [], note: 'No commits yet — no fireflies.' };
   }
   // authors is pre-sorted descending by commits; [0] is the most active, the
-  // last the least. Show the pair (low→high, like the other sections) when
-  // there's more than one author, else just the top.
+  // last the least. Lead with the most active, then pair the least below it
+  // when there's more than one author.
   const most = s.authors[0];
   const least = s.authors[count - 1];
   const mostFact = statFact({
@@ -486,6 +486,7 @@ function firefliesSection(m: Manifest): AlmanacSection {
   const facts =
     count >= 2
       ? [
+          mostFact,
           statFact({
             group: 'Contributors',
             label: 'Least active',
@@ -493,7 +494,6 @@ function firefliesSection(m: Manifest): AlmanacSection {
             secondary: pluralize(least.commits, 'commit'),
             tip: 'Author with the fewest commits.',
           }),
-          mostFact,
         ]
       : [mostFact];
   return { ...base, facts };
