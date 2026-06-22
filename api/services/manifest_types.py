@@ -185,11 +185,14 @@ class FileLeader(TypedDict):
 
 
 class DirLeader(TypedDict):
-    """The directory that wins a superlative (deepest / biggest by descendant file count)."""
+    """The directory that wins a street superlative. `children` = direct
+    children (files + sub-dirs on that street); `descendants` = everything below
+    it; `depth` = nesting level."""
 
     path: str
     depth: int
-    file_count: int
+    children: int
+    descendants: int
 
 
 class CommitLeader(TypedDict):
@@ -251,7 +254,8 @@ class RepoStats(TypedDict):
     totalLines: int
     codeBytes: int
     maxDepthDir: DirLeader | None
-    maxFilesPerDir: DirLeader | None
+    maxChildrenDir: DirLeader | None
+    minChildrenDir: DirLeader | None
     maxFilesPerCommit: CommitLeader | None
     minFilesPerCommit: CommitLeader | None
     commitDates: CommitDateRange

@@ -64,7 +64,8 @@ def _dir_leader(d: Optional[DirNode]) -> DirLeader | None:
     return {
         "path": d["path"],
         "depth": _depth(d["path"]),
-        "file_count": d["descendants_file_count"],
+        "children": d["children_count"],
+        "descendants": d["descendants_count"],
     }
 
 
@@ -146,15 +147,20 @@ def compute_repo_stats(tree: DirNode, commits: list[CommitEntry]) -> RepoStats:
             if shortest is None or lines < shortest["lines"]:
                 shortest = f
 
-    deepest = biggest = None
+    # Street size = DIRECT children (what's literally on that street segment),
+    # not total descendants. Smallest breaks ties by fewest descendants, so it
+    # favours genuine leaf streets over a one-child dir that fans out below.
+    deepest = biggest = smallest = None
     for d in _iter_dirs(tree):
         if deepest is None or _depth(d["path"]) > _depth(deepest["path"]):
             deepest = d
-        if (
-            biggest is None
-            or d["descendants_file_count"] > biggest["descendants_file_count"]
-        ):
+        if biggest is None or d["children_count"] > biggest["children_count"]:
             biggest = d
+        if smallest is None or (d["children_count"], d["descendants_count"]) < (
+            smallest["children_count"],
+            smallest["descendants_count"],
+        ):
+            smallest = d
 
     grandest = sparsest = None  # commits, by files changed
     oldest_commit = newest_commit = None  # commit-date range
@@ -223,7 +229,8 @@ def compute_repo_stats(tree: DirNode, commits: list[CommitEntry]) -> RepoStats:
         "totalLines": total_lines,
         "codeBytes": code_bytes,
         "maxDepthDir": _dir_leader(deepest),
-        "maxFilesPerDir": _dir_leader(biggest),
+        "maxChildrenDir": _dir_leader(biggest),
+        "minChildrenDir": _dir_leader(smallest),
         "maxFilesPerCommit": _commit_leader(grandest),
         "minFilesPerCommit": _commit_leader(sparsest),
         # YYYY-MM-DD sorts lexically in chronological order, so min/max are exact.

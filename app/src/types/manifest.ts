@@ -207,7 +207,10 @@ export interface FileLeader {
 export interface DirLeader {
   path: string;
   depth: number;
-  file_count: number;
+  /** Direct children (files + sub-dirs on that street). */
+  children: number;
+  /** Everything below it, recursively. */
+  descendants: number;
 }
 
 export interface CommitLeader {
@@ -261,7 +264,8 @@ export interface RepoStats {
   /** Sum of bytes over non-media files. */
   codeBytes: number;
   maxDepthDir: DirLeader | null;
-  maxFilesPerDir: DirLeader | null;
+  maxChildrenDir: DirLeader | null;
+  minChildrenDir: DirLeader | null;
   maxFilesPerCommit: CommitLeader | null;
   minFilesPerCommit: CommitLeader | null;
   commitDates: CommitDateRange;

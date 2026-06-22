@@ -308,14 +308,16 @@ describe('computeAlmanac — streets, forest, fireflies', () => {
     { date: '2022-02-10', files: 5, sha: 'ddd', authors: ['Ada'], subject: 'd', same_day_total: 1 },
   ];
 
-  // Streets: maxDepthDir = src/a/b (3 levels), maxFilesPerDir = src (5 files)
+  // Streets: maxDepthDir = src/a/b (3 deep); maxChildrenDir = src (6 direct
+  //          children); minChildrenDir = src/a/b (1 direct child)
   // Forest: maxFilesPerCommit = bbb (40 files), minFilesPerCommit = ccc (1 file)
   //         maxCommitsPerDay = 2022-01-02 (3 commits), maxCommitStreakDays = 3
   // Fireflies: Ada (3 commits), Bo (2 commits)
   const sfStats: RepoStats = {
     ...EMPTY_REPO_STATS,
-    maxDepthDir: { path: 'src/a/b', depth: 3, file_count: 1 },
-    maxFilesPerDir: { path: 'src', depth: 1, file_count: 5 },
+    maxDepthDir: { path: 'src/a/b', depth: 3, children: 1, descendants: 1 },
+    maxChildrenDir: { path: 'src', depth: 1, children: 6, descendants: 12 },
+    minChildrenDir: { path: 'src/a/b', depth: 3, children: 1, descendants: 1 },
     maxFilesPerCommit: { sha: 'bbb', files: 40 },
     minFilesPerCommit: { sha: 'ccc', files: 1 },
     maxCommitsPerDay: { date: '2022-01-02', count: 3 },
@@ -336,11 +338,17 @@ describe('computeAlmanac — streets, forest, fireflies', () => {
       id: 'src/a/b',
     });
   });
-  it('biggest neighborhood = max descendant files, excluding root', () => {
-    expect(fact('streets', 'Biggest').landmark).toEqual({
-      kind: NodeKind.Directory,
-      id: 'src',
-    });
+  it('biggest street = most direct children, with its count in the metric', () => {
+    const f = fact('streets', 'Biggest');
+    expect(f.landmark).toEqual({ kind: NodeKind.Directory, id: 'src' });
+    expect(f.secondary).toBe('6 children');
+    expect(f.group).toBe('Size');
+  });
+  it('smallest street = fewest direct children (paired with biggest)', () => {
+    const f = fact('streets', 'Smallest');
+    expect(f.landmark).toEqual({ kind: NodeKind.Directory, id: 'src/a/b' });
+    expect(f.secondary).toBe('1 child');
+    expect(f.group).toBe('Size');
   });
   it('grandest canopy = commit touching most files', () => {
     expect(fact('forest', 'Grandest').landmark).toEqual({ kind: 'commit', id: 'bbb' });

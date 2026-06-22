@@ -377,20 +377,30 @@ function streetsSection(m: Manifest): AlmanacSection {
   const overview =
     pluralize(dirs, 'street') +
     (avgFiles !== null ? ` · ~${formatCount(avgFiles)} files each` : '');
+  // Street size = direct children (files + sub-dirs on that street), not total
+  // descendants. 'child'/'children' is irregular, so format it by hand.
+  const childCount = (l: DirLeader) =>
+    `${formatCount(l.children)} ${l.children === 1 ? 'child' : 'children'}`;
   const facts = compact([
     dirFact({
-      group: 'Standouts',
       label: 'Deepest',
       leader: s.maxDepthDir,
       secondary: (l) => `${l.depth} levels deep`,
       tip: 'Most deeply nested directory.',
     }),
     dirFact({
-      group: 'Standouts',
+      group: 'Size',
+      label: 'Smallest',
+      leader: s.minChildrenDir,
+      secondary: childCount,
+      tip: 'Directory with the fewest direct children (ties broken by fewest descendants) — the quietest street.',
+    }),
+    dirFact({
+      group: 'Size',
       label: 'Biggest',
-      leader: s.maxFilesPerDir,
-      secondary: (l) => pluralize(l.file_count, 'building'),
-      tip: "Directory holding the most files (excluding the repo root); sets a street's width.",
+      leader: s.maxChildrenDir,
+      secondary: childCount,
+      tip: 'Directory with the most direct children — files and sub-directories on that street.',
     }),
   ]);
   return {

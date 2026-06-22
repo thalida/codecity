@@ -295,8 +295,10 @@ export interface components {
             path: string;
             /** Depth */
             depth: number;
-            /** File Count */
-            file_count: number;
+            /** Children */
+            children: number;
+            /** Descendants */
+            descendants: number;
         };
         /** DirNode */
         DirNode: {
@@ -503,7 +505,8 @@ export interface components {
             /** Codebytes */
             codeBytes: number;
             maxDepthDir: components["schemas"]["DirLeader"] | null;
-            maxFilesPerDir: components["schemas"]["DirLeader"] | null;
+            maxChildrenDir: components["schemas"]["DirLeader"] | null;
+            minChildrenDir: components["schemas"]["DirLeader"] | null;
             maxFilesPerCommit: components["schemas"]["CommitLeader"] | null;
             minFilesPerCommit: components["schemas"]["CommitLeader"] | null;
             commitDates: components["schemas"]["CommitDateRange"];

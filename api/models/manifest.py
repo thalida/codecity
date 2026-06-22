@@ -156,7 +156,8 @@ class FileLeader(BaseModel):
 class DirLeader(BaseModel):
     path: str
     depth: int
-    file_count: int
+    children: int
+    descendants: int
 
 
 class CommitLeader(BaseModel):
@@ -204,7 +205,8 @@ class RepoStats(BaseModel):
     totalLines: int
     codeBytes: int
     maxDepthDir: Optional[DirLeader]
-    maxFilesPerDir: Optional[DirLeader]
+    maxChildrenDir: Optional[DirLeader]
+    minChildrenDir: Optional[DirLeader]
     maxFilesPerCommit: Optional[CommitLeader]
     minFilesPerCommit: Optional[CommitLeader]
     commitDates: CommitDateRange

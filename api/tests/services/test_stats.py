@@ -92,13 +92,14 @@ def test_file_leaders_partition_media_and_text():
 
 
 def test_dir_leaders_exclude_root():
-    deep = _dir("b", "src/a/b", [_file("src/a/b/x.ts")])
-    src = _dir("src", "src", [deep, _file("src/m.ts")])
-    src["descendants_file_count"] = 5
+    deep = _dir("b", "src/a/b", [_file("src/a/b/x.ts")])  # 1 direct child
+    src = _dir("src", "src", [deep, _file("src/m.ts")])  # 2 direct children
     tree = _dir("repo", "", [src, _file("r.ts")])
     s = compute_repo_stats(tree, [])
-    assert s["maxDepthDir"]["path"] == "src/a/b"
-    assert s["maxFilesPerDir"]["path"] == "src"
+    assert s["maxDepthDir"]["path"] == "src/a/b"  # most nested
+    assert s["maxChildrenDir"]["path"] == "src"  # most direct children (2)
+    assert s["maxChildrenDir"]["children"] == 2
+    assert s["minChildrenDir"]["path"] == "src/a/b"  # fewest direct children (1)
 
 
 def test_commit_leaders_authors_and_streak():
