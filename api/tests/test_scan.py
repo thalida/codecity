@@ -264,10 +264,10 @@ class ComputeDateRangesTests(unittest.TestCase):
         self.assertEqual(
             _compute_date_ranges(self._tree()),
             {
-                "createdMin": None,
-                "createdMax": None,
-                "modifiedMin": None,
-                "modifiedMax": None,
+                "minCreated": None,
+                "maxCreated": None,
+                "minModified": None,
+                "maxModified": None,
             },
         )
 
@@ -278,10 +278,10 @@ class ComputeDateRangesTests(unittest.TestCase):
         self.assertEqual(
             ranges,
             {
-                "createdMin": "2024-01-10T09:00:00Z",
-                "createdMax": "2024-01-10T09:00:00Z",
-                "modifiedMin": "2024-03-22T14:30:00Z",
-                "modifiedMax": "2024-03-22T14:30:00Z",
+                "minCreated": "2024-01-10T09:00:00Z",
+                "maxCreated": "2024-01-10T09:00:00Z",
+                "minModified": "2024-03-22T14:30:00Z",
+                "maxModified": "2024-03-22T14:30:00Z",
             },
         )
 
@@ -296,10 +296,10 @@ class ComputeDateRangesTests(unittest.TestCase):
         self.assertEqual(
             ranges,
             {
-                "createdMin": "2024-01-10T09:00:00Z",
-                "createdMax": "2024-02-15T10:00:00Z",
-                "modifiedMin": "2024-01-20T12:00:00Z",
-                "modifiedMax": "2024-03-22T14:30:00Z",
+                "minCreated": "2024-01-10T09:00:00Z",
+                "maxCreated": "2024-02-15T10:00:00Z",
+                "minModified": "2024-01-20T12:00:00Z",
+                "maxModified": "2024-03-22T14:30:00Z",
             },
         )
 
@@ -421,21 +421,29 @@ class ScanTreeIntegrationTests(_CacheRedirectMixin, unittest.TestCase):
         # Bands stay distinct: busy is always at least avg + 1.
         self.assertGreaterEqual(b["busy"], b["avg"] + 1)
 
+    def test_stats_present_in_manifest(self):
+        m = _final_manifest(str(FIXTURE))
+        assert "stats" in m
+        s = m["stats"]
+        assert isinstance(s["mediaCount"], int)
+        assert isinstance(s["authors"], list)
+        assert isinstance(s["maxCommitStreakDays"], int)
+
     def test_date_ranges_present_in_manifest(self):
         m = _final_manifest(str(FIXTURE))
         r = m["dateRanges"]
         self.assertEqual(
-            set(r.keys()), {"createdMin", "createdMax", "modifiedMin", "modifiedMax"}
+            set(r.keys()), {"minCreated", "maxCreated", "minModified", "maxModified"}
         )
         # Cross-check: recompute the extremes independently from the
         # emitted tree's resolved per-file dates.
         created = [n["created"] for n in _walk_files(m["tree"])]
         modified = [n["modified"] for n in _walk_files(m["tree"])]
         self.assertGreater(len(created), 0)
-        self.assertEqual(r["createdMin"], min(created))
-        self.assertEqual(r["createdMax"], max(created))
-        self.assertEqual(r["modifiedMin"], min(modified))
-        self.assertEqual(r["modifiedMax"], max(modified))
+        self.assertEqual(r["minCreated"], min(created))
+        self.assertEqual(r["maxCreated"], max(created))
+        self.assertEqual(r["minModified"], min(modified))
+        self.assertEqual(r["maxModified"], max(modified))
 
     def test_date_ranges_present_on_every_emit(self):
         # Both SSE phases route through _wrap_manifest, so both must carry
@@ -449,7 +457,7 @@ class ScanTreeIntegrationTests(_CacheRedirectMixin, unittest.TestCase):
         for r in ranges:
             self.assertEqual(
                 set(r.keys()),
-                {"createdMin", "createdMax", "modifiedMin", "modifiedMax"},
+                {"minCreated", "maxCreated", "minModified", "maxModified"},
             )
         self.assertEqual(ranges[0], ranges[1])
 

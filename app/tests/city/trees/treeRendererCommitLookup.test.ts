@@ -5,11 +5,11 @@
 
 import { describe, it, expect, beforeEach } from 'vitest';
 import * as THREE from 'three';
-import { createTreeRenderer } from '@/city/components/trees/treeRenderer';
 import type { TreePlacement } from '@/city/components/trees/treePlacement';
 import { TREES } from '@/state/stores/settings/trees';
 import { BUILDING_DIMENSIONS } from '@/state/stores/settings/buildings';
 import type { CommitEntry } from '@/types';
+import { renderTrees } from './_renderTrees';
 
 // Busyness thresholds only affect tree COLOR; these commit-lookup tests don't
 // assert color, so a default is fine.
@@ -67,7 +67,7 @@ describe('Trees commit lookups', () => {
   it('commitForInstance returns the placement commit for a canopy instance', () => {
     const commits = [commit(0), commit(1), commit(2)];
     const placements = [placement(0, 0), placement(1, 1), placement(2, 2)];
-    const trees = createTreeRenderer(placements, commits, BUSY);
+    const trees = renderTrees(placements, commits, BUSY);
 
     // Find any canopy mesh on the trees group.
     const canopy = trees.group.children.find((c) => c.name.startsWith('tree-canopy')) as
@@ -87,7 +87,7 @@ describe('Trees commit lookups', () => {
   it('commitForInstance returns the placement commit for a trunk instance', () => {
     const commits = [commit(0), commit(1)];
     const placements = [placement(0, 0), placement(1, 1)];
-    const trees = createTreeRenderer(placements, commits, BUSY);
+    const trees = renderTrees(placements, commits, BUSY);
 
     const trunk = trees.group.children.find((c) => c.name === 'tree-trunk') as
       | THREE.InstancedMesh
@@ -102,7 +102,7 @@ describe('Trees commit lookups', () => {
   it('commitForInstance returns null for out-of-range instanceId', () => {
     const commits = [commit(0)];
     const placements = [placement(0, 0)];
-    const trees = createTreeRenderer(placements, commits, BUSY);
+    const trees = renderTrees(placements, commits, BUSY);
 
     const trunk = trees.group.children.find((c) => c.name === 'tree-trunk') as THREE.InstancedMesh;
     expect(trees.commitForInstance(trunk, 42)).toBeNull();
@@ -112,7 +112,7 @@ describe('Trees commit lookups', () => {
   it('commitForInstance returns null for a mesh that is not a tree mesh', () => {
     const commits = [commit(0)];
     const placements = [placement(0, 0)];
-    const trees = createTreeRenderer(placements, commits, BUSY);
+    const trees = renderTrees(placements, commits, BUSY);
 
     const stranger = new THREE.InstancedMesh(
       new THREE.BoxGeometry(),
@@ -125,7 +125,7 @@ describe('Trees commit lookups', () => {
   it('findTreeBySha returns the first canopy instance for the matching commit', () => {
     const commits = [commit(0), commit(1), commit(2)];
     const placements = [placement(0, 0), placement(1, 1), placement(2, 2)];
-    const trees = createTreeRenderer(placements, commits, BUSY);
+    const trees = renderTrees(placements, commits, BUSY);
 
     const got = trees.findTreeBySha(commits[1].sha);
     expect(got).not.toBeNull();
@@ -138,14 +138,14 @@ describe('Trees commit lookups', () => {
   it('findTreeBySha returns null when no commit has the given sha', () => {
     const commits = [commit(0)];
     const placements = [placement(0, 0)];
-    const trees = createTreeRenderer(placements, commits, BUSY);
+    const trees = renderTrees(placements, commits, BUSY);
     expect(trees.findTreeBySha('f'.repeat(40))).toBeNull();
   });
 
   it('stamps meshKind userData on canopy and trunk', () => {
     const commits = [commit(0), commit(1)];
     const placements = [placement(0, 0), placement(1, 1)];
-    const trees = createTreeRenderer(placements, commits, BUSY);
+    const trees = renderTrees(placements, commits, BUSY);
 
     const canopies = trees.group.children.filter((c) => c.name.startsWith('tree-canopy'));
     for (const c of canopies) {
@@ -158,20 +158,20 @@ describe('Trees commit lookups', () => {
 
   it('commitForInstance returns null when commits is null', () => {
     const placements = [placement(0, 0)];
-    const trees = createTreeRenderer(placements, null, BUSY);
+    const trees = renderTrees(placements, null, BUSY);
     const trunk = trees.group.children.find((c) => c.name === 'tree-trunk') as THREE.InstancedMesh;
     expect(trees.commitForInstance(trunk, 0)).toBeNull();
   });
 
   it('findTreeBySha returns null when commits is null', () => {
-    const trees = createTreeRenderer([placement(0, 0)], null, BUSY);
+    const trees = renderTrees([placement(0, 0)], null, BUSY);
     expect(trees.findTreeBySha('a'.repeat(40))).toBeNull();
   });
 
   it('colorForSha returns the canopy instanceColor for a commit', () => {
     const commits = [commit(0), commit(1), commit(2)];
     const placements = [placement(0, 0), placement(1, 1), placement(2, 2)];
-    const trees = createTreeRenderer(placements, commits, BUSY);
+    const trees = renderTrees(placements, commits, BUSY);
 
     const color = trees.colorForSha(commits[1].sha);
     // colorForSha must return a valid CSS hex color string.
@@ -181,19 +181,19 @@ describe('Trees commit lookups', () => {
   it('colorForSha returns null for an unknown sha', () => {
     const commits = [commit(0)];
     const placements = [placement(0, 0)];
-    const trees = createTreeRenderer(placements, commits, BUSY);
+    const trees = renderTrees(placements, commits, BUSY);
     expect(trees.colorForSha('f'.repeat(40))).toBeNull();
   });
 
   it('colorForSha returns null when commits is null', () => {
-    const trees = createTreeRenderer([placement(0, 0)], null, BUSY);
+    const trees = renderTrees([placement(0, 0)], null, BUSY);
     expect(trees.colorForSha('a'.repeat(40))).toBeNull();
   });
 
   it('getInstanceTransform writes the canopy instance matrix into the out param', () => {
     const commits = [commit(0), commit(1)];
     const placements = [placement(0, 0), placement(3, 1)];
-    const trees = createTreeRenderer(placements, commits, BUSY);
+    const trees = renderTrees(placements, commits, BUSY);
 
     const hit = trees.findTreeBySha(commits[1].sha)!;
     const expected = new THREE.Matrix4();
@@ -210,7 +210,7 @@ describe('Trees commit lookups', () => {
   it('getInstanceTransform returns false for unknown sha', () => {
     const commits = [commit(0)];
     const placements = [placement(0, 0)];
-    const trees = createTreeRenderer(placements, commits, BUSY);
+    const trees = renderTrees(placements, commits, BUSY);
     const out = new THREE.Matrix4();
     expect(trees.getInstanceTransform('f'.repeat(40), out)).toBe(false);
   });
@@ -225,7 +225,7 @@ describe('Trees commit lookups', () => {
     commits[0].files = 5;
     commits[1].files = 5;
     const placements = [placement(0, 0), placement(1, 1)];
-    const trees = createTreeRenderer(placements, commits, BUSY);
+    const trees = renderTrees(placements, commits, BUSY);
 
     const hit0 = trees.findTreeBySha(commits[0].sha)!;
     const hit1 = trees.findTreeBySha(commits[1].sha)!;
@@ -251,7 +251,7 @@ describe('Trees commit lookups', () => {
     const commits = [commit(0), commit(1), commit(2)];
     for (const c of commits) c.files = 5;
     const placements = [placement(0, 0), placement(1, 1), placement(2, 2)];
-    const trees = createTreeRenderer(placements, commits, BUSY);
+    const trees = renderTrees(placements, commits, BUSY);
 
     // Find the oldest (commits[0]) and newest (commits[2]) trees.
     const oldHit = trees.findTreeBySha(commits[0].sha)!;
@@ -275,7 +275,7 @@ describe('Trees commit lookups', () => {
     const commits = [commit(0), commit(1), commit(2)];
     for (const c of commits) c.files = 5;
     const placements = [placement(0, 0), placement(1, 1), placement(2, 2)];
-    const trees = createTreeRenderer(placements, commits, BUSY);
+    const trees = renderTrees(placements, commits, BUSY);
 
     const oldHit = trees.findTreeBySha(commits[0].sha)!;
     const newHit = trees.findTreeBySha(commits[2].sha)!;
@@ -297,7 +297,7 @@ describe('Trees commit lookups', () => {
     resetStores();
     const commits = [commit(0), commit(1), commit(2)];
     const placements = [placement(5, 0), placement(11, 1), placement(17, 2)];
-    const trees = createTreeRenderer(placements, commits, BUSY);
+    const trees = renderTrees(placements, commits, BUSY);
 
     const bounds = trees.getTreeBoundsBySha(commits[1].sha);
     expect(bounds).not.toBeNull();
@@ -313,14 +313,14 @@ describe('Trees commit lookups', () => {
     resetStores();
     const commits = [commit(0), commit(1)];
     const placements = [placement(3, 0), placement(7, 1)];
-    const trees = createTreeRenderer(placements, commits, BUSY);
+    const trees = renderTrees(placements, commits, BUSY);
     expect(trees.getTreeBoundsBySha('f'.repeat(40))).toBeNull();
   });
 
   it('getTreeBoundsBySha returns null when commits is null', () => {
     resetStores();
     const placements = [placement(3, 0)];
-    const trees = createTreeRenderer(placements, null, BUSY);
+    const trees = renderTrees(placements, null, BUSY);
     expect(trees.getTreeBoundsBySha('a'.repeat(40))).toBeNull();
   });
 
@@ -333,7 +333,7 @@ describe('Trees commit lookups', () => {
     TREES.value = { ...TREES.value, WIDTH_AGE_FLOOR: 0.5 };
     const commits = [commit(0), commit(1)];
     const placements = [placement(0, 0), placement(1, 1)];
-    const trees = createTreeRenderer(placements, commits, BUSY);
+    const trees = renderTrees(placements, commits, BUSY);
 
     const canopies = trees.group.children.filter((c) =>
       c.name.startsWith('tree-canopy')

@@ -12,28 +12,33 @@ import { createOrbitRings } from '@/city/components/fireflies/orbitRings';
 import { createFireflyRenderer } from '@/city/components/fireflies/firefliesRenderer';
 import { FIREFLIES } from '@/state/stores/settings/fireflies';
 import { makeRng, genNestedTree, bboxOf, genCommits } from '../tests/_helpers/layoutTreeFixtures';
+import { commitStats, fileStats } from '../tests/_helpers/statsFixtures';
 
 describe('tree decoration profile', () => {
   function runOne(label: string, commitCount: number) {
     const rng = makeRng(0xc0ffee);
     const tree = genNestedTree('root', 'root', 30000, 0, rng);
-    const layout = layoutCity({ tree });
-    const bbox = bboxOf(layout);
     const commits = genCommits(commitCount, makeRng(7));
     const busyness = { avg: 3, busy: 6 };
+    // Backend-precomputed in production; derive it here outside the timed
+    // regions so the renderer/firefly timings exclude the stats pass. layoutCity
+    // needs the file ranges to size buildings (else all collapse to min-width).
+    const stats = { ...commitStats(commits), ...fileStats(tree) };
+    const layout = layoutCity({ tree, stats });
+    const bbox = bboxOf(layout);
 
     const t0 = performance.now();
     const placements = placeTrees(layout as any, bbox, { commitCount, islandGeoOverride: null });
     const t1 = performance.now();
-    createTreeRenderer(placements, commits, busyness);
+    createTreeRenderer(placements, commits, busyness, stats);
     const t2 = performance.now();
     const firefliesEnabled = FIREFLIES.value.ENABLED;
     const tf0 = performance.now();
-    createFireflies(placements, commits);
+    createFireflies(placements, commits, stats);
     const tf1 = performance.now();
     // Split fireflies into its three parts.
     const ts0 = performance.now();
-    const orbs = placeFireflies(placements, commits);
+    const orbs = placeFireflies(placements, commits, stats);
     const ts1 = performance.now();
     createOrbitRings(orbs);
     const ts2 = performance.now();

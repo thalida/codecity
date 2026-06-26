@@ -7,7 +7,7 @@ import { placeFireflies, type FireflyPlacement } from './firefliesPlacement';
 import { createFireflyRenderer, type FireflyRenderer } from './firefliesRenderer';
 import { createOrbitRings } from './orbitRings';
 import type { TreePlacement } from '@/city/components/trees/treePlacement';
-import type { CommitEntry } from '@/types';
+import type { CommitEntry, RepoStats } from '@/types';
 import { FIREFLIES } from '@/state/stores/settings/fireflies';
 
 /** Public handle returned by createFireflies. Extends the renderer with
@@ -28,7 +28,8 @@ export interface Fireflies {
 
 export function createFireflies(
   placements: TreePlacement[],
-  commits: CommitEntry[] | null
+  commits: CommitEntry[] | null,
+  stats: RepoStats | null | undefined
 ): Fireflies {
   const parent = new THREE.Group();
   parent.name = 'fireflies-system';
@@ -47,7 +48,7 @@ export function createFireflies(
       dispose: stub.dispose.bind(stub),
     };
   }
-  const orbs: FireflyPlacement[] = placeFireflies(placements, commits ?? []);
+  const orbs: FireflyPlacement[] = placeFireflies(placements, commits ?? [], stats);
   const rings = createOrbitRings(orbs);
   const renderer = createFireflyRenderer(orbs);
 

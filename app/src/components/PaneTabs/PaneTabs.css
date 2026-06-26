@@ -1,0 +1,38 @@
+.pane-tabs {
+  display: flex;
+  gap: 2px;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--cc-border-subtle);
+}
+
+.pane-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border: 0;
+  border-radius: var(--cc-radius-sm);
+  background: transparent;
+  color: var(--cc-text-faint);
+  font: inherit;
+  font-size: var(--cc-font-lg);
+  cursor: pointer;
+  transition:
+    color var(--cc-t-base),
+    background var(--cc-t-base);
+}
+
+.pane-tab:hover {
+  background: var(--cc-overlay-bg);
+  color: var(--cc-text-primary);
+}
+
+.pane-tab--active {
+  background: var(--cc-accent-bg);
+  color: var(--cc-text-primary);
+}
+
+.pane-tab .lucide-icon {
+  width: 14px;
+  height: 14px;
+}

@@ -55,6 +55,34 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/files": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Get Files
+         * @description Batch image fetch — return {path: {mime, b64}} for many small images in
+         *     one round trip. The scene loads one billboard texture per media file; firing
+         *     a separate GET per file exhausts the browser's HTTP/1.1 connection pool on
+         *     media-heavy repos, so the loader coalesces image paths into POST batches.
+         *
+         *     Each path is trust-checked exactly like GET /api/file. Paths that are out of
+         *     root, missing, non-image, or larger than _MAX_BATCH_FILE_BYTES are silently
+         *     omitted; the client falls back to the streaming GET for those. Videos are
+         *     never batched (they stream their poster frame), so this is images only.
+         */
+        post: operations["get_files_api_files_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/commit": {
         parameters: {
             query?: never;
@@ -127,6 +155,13 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** AuthorStat */
+        AuthorStat: {
+            /** Name */
+            name: string;
+            /** Commits */
+            commits: number;
+        };
         /** BusynessThresholds */
         BusynessThresholds: {
             /** Avg */
@@ -160,6 +195,19 @@ export interface components {
             /** Mb On Disk */
             mb_on_disk?: number;
         };
+        /** CommitDateRange */
+        CommitDateRange: {
+            /**
+             * Oldest
+             * @description Oldest commit date (YYYY-MM-DD), or null when the repo has no commits
+             */
+            oldest: string | null;
+            /**
+             * Newest
+             * @description Newest commit date (YYYY-MM-DD), or null when the repo has no commits
+             */
+            newest: string | null;
+        };
         /** CommitDetailResponse */
         CommitDetailResponse: {
             /** Sha */
@@ -191,6 +239,13 @@ export interface components {
             /** Same Day Total */
             same_day_total: number;
         };
+        /** CommitLeader */
+        CommitLeader: {
+            /** Sha */
+            sha: string;
+            /** Files */
+            files: number;
+        };
         /**
          * CompleteManifestEvent
          * @description `manifest-complete` — a manifest with real, fully-populated metadata (a
@@ -207,25 +262,43 @@ export interface components {
         /** DateRanges */
         DateRanges: {
             /**
-             * Createdmin
+             * Mincreated
              * @description Earliest resolved create date (ISO), or null for an empty tree
              */
-            createdMin: string | null;
+            minCreated: string | null;
             /**
-             * Createdmax
+             * Maxcreated
              * @description Latest resolved create date (ISO), or null for an empty tree
              */
-            createdMax: string | null;
+            maxCreated: string | null;
             /**
-             * Modifiedmin
+             * Minmodified
              * @description Earliest resolved modify date (ISO), or null for an empty tree
              */
-            modifiedMin: string | null;
+            minModified: string | null;
             /**
-             * Modifiedmax
+             * Maxmodified
              * @description Latest resolved modify date (ISO), or null for an empty tree
              */
-            modifiedMax: string | null;
+            maxModified: string | null;
+        };
+        /** DayLeader */
+        DayLeader: {
+            /** Date */
+            date: string;
+            /** Count */
+            count: number;
+        };
+        /** DirLeader */
+        DirLeader: {
+            /** Path */
+            path: string;
+            /** Depth */
+            depth: number;
+            /** Children */
+            children: number;
+            /** Descendants */
+            descendants: number;
         };
         /** DirNode */
         DirNode: {
@@ -275,6 +348,39 @@ export interface components {
             count: number;
             /** Size */
             size: number;
+        };
+        /**
+         * FileBatchEntry
+         * @description One image in a POST /api/files batch response: its content-type and
+         *     base64-encoded bytes, keyed by request path in the response map.
+         */
+        FileBatchEntry: {
+            /** Mime */
+            mime: string;
+            /** B64 */
+            b64: string;
+        };
+        /** FileBatchRequest */
+        FileBatchRequest: {
+            /** Paths */
+            paths: string[];
+        };
+        /** FileLeader */
+        FileLeader: {
+            /** Path */
+            path: string;
+            /** Lines */
+            lines: number;
+            /** Bytes */
+            bytes: number;
+            /** Created */
+            created: string;
+            /** Modified */
+            modified: string;
+            /** Media Width */
+            media_width?: number;
+            /** Media Height */
+            media_height?: number;
         };
         /** FileNode */
         FileNode: {
@@ -343,6 +449,7 @@ export interface components {
             commits: components["schemas"]["CommitEntry"][];
             busyness: components["schemas"]["BusynessThresholds"];
             dateRanges: components["schemas"]["DateRanges"];
+            stats: components["schemas"]["RepoStats"];
             /** Display Root */
             display_root?: string;
         };
@@ -354,6 +461,13 @@ export interface components {
          */
         PartialManifestEvent: {
             manifest: components["schemas"]["Manifest"];
+        };
+        /** RangeStat */
+        RangeStat: {
+            /** Min */
+            min: number;
+            /** Max */
+            max: number;
         };
         /** RepoInfo */
         RepoInfo: {
@@ -367,6 +481,40 @@ export interface components {
             head_subject: string | null;
             /** Dirty */
             dirty: boolean;
+        };
+        /** RepoStats */
+        RepoStats: {
+            lineCountRange: components["schemas"]["RangeStat"];
+            byteSizeRange: components["schemas"]["RangeStat"];
+            oldestCreatedFile: components["schemas"]["FileLeader"] | null;
+            newestCreatedFile: components["schemas"]["FileLeader"] | null;
+            newestModifiedFile: components["schemas"]["FileLeader"] | null;
+            oldestModifiedFile: components["schemas"]["FileLeader"] | null;
+            maxLinesFile: components["schemas"]["FileLeader"] | null;
+            minLinesFile: components["schemas"]["FileLeader"] | null;
+            maxBytesFile: components["schemas"]["FileLeader"] | null;
+            minBytesFile: components["schemas"]["FileLeader"] | null;
+            maxMediaBytesFile: components["schemas"]["FileLeader"] | null;
+            minMediaBytesFile: components["schemas"]["FileLeader"] | null;
+            maxMediaPixelsFile: components["schemas"]["FileLeader"] | null;
+            minMediaPixelsFile: components["schemas"]["FileLeader"] | null;
+            /** Mediacount */
+            mediaCount: number;
+            /** Totallines */
+            totalLines: number;
+            /** Codebytes */
+            codeBytes: number;
+            maxDepthDir: components["schemas"]["DirLeader"] | null;
+            maxChildrenDir: components["schemas"]["DirLeader"] | null;
+            minChildrenDir: components["schemas"]["DirLeader"] | null;
+            maxFilesPerCommit: components["schemas"]["CommitLeader"] | null;
+            minFilesPerCommit: components["schemas"]["CommitLeader"] | null;
+            commitDates: components["schemas"]["CommitDateRange"];
+            maxCommitsPerDay: components["schemas"]["DayLeader"] | null;
+            /** Maxcommitstreakdays */
+            maxCommitStreakDays: number;
+            /** Authors */
+            authors: components["schemas"]["AuthorStat"][];
         };
         /**
          * ScanProgressEvent
@@ -469,6 +617,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_files_api_files_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FileBatchRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: components["schemas"]["FileBatchEntry"];
+                    };
                 };
             };
             /** @description Validation Error */

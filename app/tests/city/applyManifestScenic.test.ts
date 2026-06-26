@@ -45,10 +45,10 @@ function makeRootStreet(): Street {
 }
 
 const EMPTY_DATE_RANGES: DateRanges = {
-  createdMin: null,
-  createdMax: null,
-  modifiedMin: null,
-  modifiedMax: null,
+  minCreated: null,
+  maxCreated: null,
+  minModified: null,
+  maxModified: null,
 } as unknown as DateRanges;
 
 function makeManifest(treeSig: string): Manifest {

@@ -4,7 +4,7 @@
 //   Lightness  → last-modified date      (recent = bright, stale = dim)
 //
 // Both saturation and lightness key off the same axis (last-modified),
-// normalized against the repo's modifiedMin/Max (Manifest.dateRanges,
+// normalized against the repo's minModified/Max (Manifest.dateRanges,
 // computed on the backend during the scan) — so the dim/desaturated
 // end represents "this file hasn't been touched in a long time".
 // `getCreatedAge` (also exported here) tracks a SEPARATE axis: how long
@@ -157,7 +157,7 @@ export function getLightness(
 /**
  * Compute the "createdAge" weathering signal for a building, sampled at
  * the file's CREATION date and normalized against the repo's
- * createdMin/createdMax. 1.0 = oldest file in the repo (most weathered),
+ * minCreated/maxCreated. 1.0 = oldest file in the repo (most weathered),
  * 0.0 = newest. Same time anchor the color signal uses (which samples
  * at modified date), so both signals evolve together as the repo grows.
  */
@@ -165,8 +165,8 @@ export function getCreatedAge(file: FileLike, dateRanges: DateRanges): number {
   const created = file.created || null;
   if (!created) return 0.5; // unknown → midpoint (half-weathered)
   const c = Date.parse(created);
-  const min = Date.parse(dateRanges.createdMin || '');
-  const max = Date.parse(dateRanges.createdMax || '');
+  const min = Date.parse(dateRanges.minCreated || '');
+  const max = Date.parse(dateRanges.maxCreated || '');
   if (isNaN(c) || isNaN(min) || isNaN(max) || max === min) return 0;
   const t = (c - min) / (max - min);
   return Math.max(0, Math.min(1, 1 - t));
@@ -174,7 +174,7 @@ export function getCreatedAge(file: FileLike, dateRanges: DateRanges): number {
 
 /**
  * Mirror of getCreatedAge for the LAST-MODIFIED axis. Sampled at the
- * file's modified date, normalized against modifiedMin/Max. Polarity
+ * file's modified date, normalized against minModified/Max. Polarity
  * matches getCreatedAge: 1.0 = file modified earliest in the repo
  * (most stale); 0.0 = most recently modified.
  *
@@ -185,8 +185,8 @@ export function getModifiedAge(file: FileLike, dateRanges: DateRanges): number {
   const modified = file.modified || null;
   if (!modified) return 0.5;
   const m = Date.parse(modified);
-  const min = Date.parse(dateRanges.modifiedMin || '');
-  const max = Date.parse(dateRanges.modifiedMax || '');
+  const min = Date.parse(dateRanges.minModified || '');
+  const max = Date.parse(dateRanges.maxModified || '');
   if (isNaN(m) || isNaN(min) || isNaN(max) || max === min) return 0;
   const t = (m - min) / (max - min);
   return Math.max(0, Math.min(1, 1 - t));
@@ -206,21 +206,21 @@ export function getBuildingColor(file: FileLike, dateRanges: DateRanges): string
   const palette = BUILDINGS.value;
   const h = getHue(file.extension || '', palette.HUE_EXT_MAP);
   // Saturation and lightness both key off LAST-MODIFIED, normalized
-  // against the repo's MODIFIED-date range (modifiedMin/Max). This
+  // against the repo's MODIFIED-date range (minModified/Max). This
   // gives the color signal full spread: a file modified at the
   // earliest modification timestamp in the repo lands at
   // (SATURATION_MIN, LIGHTNESS_MIN); the most-recently-modified file
   // lands at (SATURATION_MAX, LIGHTNESS_MAX).
   //
   // Decoupled by design from createdAge-driven effects (grime, tilt,
-  // lit-window glow color), which still anchor against createdMin/Max:
+  // lit-window glow color), which still anchor against minCreated/Max:
   //   - Color           = "how recently was this touched"
   //   - Grime/tilt/glow = "how long has this file existed"
   // A long-existing file edited yesterday looks vivid AND grimy; a
   // recently-created file untouched for a month looks dim/desaturated
   // but clean. Each axis encodes a distinct fact.
-  const minAnchor = dateRanges.modifiedMin;
-  const maxAnchor = dateRanges.modifiedMax;
+  const minAnchor = dateRanges.minModified;
+  const maxAnchor = dateRanges.maxModified;
   const s = getSaturation(modified, minAnchor, maxAnchor, {
     min: palette.SATURATION_MIN,
     max: palette.SATURATION_MAX,

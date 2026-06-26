@@ -12,6 +12,7 @@
 //   picker.setHover(target)       // updates hover signal
 //   picker.setSelection(target)   // updates selection + derived selectionKey signals
 //   picker.selectByPath(path)     // tree clicks, breadcrumb segment clicks
+//   picker.selectByCommit(sha)    // commit/tree landmark selection
 //   picker.pickAt(x, y)           // raycast against living meshes; returns null | hit
 //   picker.interpretHit(hit)      // null | { kind, mesh|sidewalk, file|street|dir }
 //   picker.dispose()
@@ -291,6 +292,20 @@ export function createPicker({
     if (t) setSelection(t);
   }
 
+  // Resolve a commit sha to its live tree target and select it. No-op if
+  // trees aren't attached yet or the sha isn't found.
+  function selectByCommit(sha: string): void {
+    const hit = world.getTrees()?.findTreeBySha(sha) ?? null;
+    if (hit) {
+      setSelection({
+        kind: NodeKind.Commit,
+        mesh: hit.mesh,
+        instanceId: hit.instanceId,
+        commit: hit.commit,
+      });
+    }
+  }
+
   // Resolve a path and set it as the hover target (tree-row hover → city
   // highlight). No-op if the path doesn't match anything.
   function hoverByPath(path: string): void {
@@ -407,6 +422,7 @@ export function createPicker({
     setSelection,
     clearSelection,
     selectByPath,
+    selectByCommit,
     hoverByPath,
     targetForPath,
     pickAt,

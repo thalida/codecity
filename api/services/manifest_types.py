@@ -159,10 +159,109 @@ class DateRanges(TypedDict):
     gradients read one consistent range instead of re-walking the tree.
     All four are None for a tree with zero files."""
 
-    createdMin: str | None
-    createdMax: str | None
-    modifiedMin: str | None
-    modifiedMax: str | None
+    minCreated: str | None
+    maxCreated: str | None
+    minModified: str | None
+    maxModified: str | None
+
+
+class RangeStat(TypedDict):
+    """Inclusive min/max of an integer metric (lines, bytes)."""
+
+    min: int
+    max: int
+
+
+class FileLeader(TypedDict):
+    """The file that wins a per-repo superlative, with the values the Overview renders (path + lines/bytes/dates, optional media dims)."""
+
+    path: str
+    lines: int
+    bytes: int
+    created: str
+    modified: str
+    media_width: NotRequired[int]
+    media_height: NotRequired[int]
+
+
+class DirLeader(TypedDict):
+    """The directory that wins a street superlative. `children` = direct
+    children (files + sub-dirs on that street); `descendants` = everything below
+    it; `depth` = nesting level."""
+
+    path: str
+    depth: int
+    children: int
+    descendants: int
+
+
+class CommitLeader(TypedDict):
+    """The commit that wins a superlative (most / fewest files changed)."""
+
+    sha: str
+    files: int
+
+
+class CommitDateRange(TypedDict):
+    """Oldest/newest commit date (YYYY-MM-DD) across the lookback window — the
+    scene's tree-age normalization range, computed once so the trees + firefly
+    orbits read it instead of re-scanning commits. Both None for a repo with
+    zero commits."""
+
+    oldest: str | None
+    newest: str | None
+
+
+class DayLeader(TypedDict):
+    """A calendar date with a commit count (the busiest day)."""
+
+    date: str
+    count: int
+
+
+class AuthorStat(TypedDict):
+    """One author and their total commit count."""
+
+    name: str
+    commits: int
+
+
+class RepoStats(TypedDict):
+    """Per-repo derived stats computed once at manifest-wrap
+    (api/services/stats.py): the Overview almanac superlatives + min/max
+    ranges. The web app reads these instead of re-walking the tree."""
+
+    # Building-size NORMALIZATION ranges (non-zero), NOT honest min/max file
+    # size. Over all files with non-zero lines/size — 0-length files are
+    # excluded because they have no meaningful building height/width (and the
+    # frontend log/sqrt can't take 0). The honest "smallest file" lives in the
+    # minBytesFile / minLinesFile leaders. {0,0} when no non-zero files exist.
+    lineCountRange: RangeStat
+    byteSizeRange: RangeStat
+    oldestCreatedFile: FileLeader | None
+    newestCreatedFile: FileLeader | None
+    newestModifiedFile: FileLeader | None
+    oldestModifiedFile: FileLeader | None
+    maxLinesFile: FileLeader | None
+    minLinesFile: FileLeader | None
+    maxBytesFile: FileLeader | None
+    minBytesFile: FileLeader | None
+    maxMediaBytesFile: FileLeader | None
+    minMediaBytesFile: FileLeader | None
+    maxMediaPixelsFile: FileLeader | None
+    minMediaPixelsFile: FileLeader | None
+    mediaCount: int
+    totalLines: int
+    codeBytes: int
+    maxDepthDir: DirLeader | None
+    maxChildrenDir: DirLeader | None
+    minChildrenDir: DirLeader | None
+    maxFilesPerCommit: CommitLeader | None
+    minFilesPerCommit: CommitLeader | None
+    commitDates: CommitDateRange
+    maxCommitsPerDay: DayLeader | None
+    maxCommitStreakDays: int
+    authors: list[AuthorStat]
 
 
 class Manifest(TypedDict):
@@ -178,6 +277,7 @@ class Manifest(TypedDict):
     commits: list[CommitEntry]
     busyness: BusynessThresholds
     dateRanges: DateRanges
+    stats: RepoStats
     display_root: NotRequired[str]
 
 

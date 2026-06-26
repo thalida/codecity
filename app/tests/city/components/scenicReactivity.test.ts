@@ -69,7 +69,7 @@ function makeManifest(name: string): Manifest {
   return {
     tree: { type: 'directory', name, children: [] },
     tree_signature: name,
-    dateRanges: { createdMin: null, createdMax: null, modifiedMin: null, modifiedMax: null },
+    dateRanges: { minCreated: null, maxCreated: null, minModified: null, maxModified: null },
   } as unknown as Manifest;
 }
 

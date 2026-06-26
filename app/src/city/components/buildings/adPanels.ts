@@ -18,6 +18,7 @@ import { AD_ERROR_COLOR } from '@/constants/buildings';
 import { RENDER_ORDERS } from '@/city/types/renderOrders';
 import { mediaKindOf, MediaKind } from '@/city/utils/mediaKind';
 import { AdPanelTextureArray, MAX_PAGES as AD_PANEL_MAX_PAGES } from './adPanelTextureArray';
+import { fetchMediaBlob } from './mediaBatch';
 import type { Building } from '@/types/index';
 
 import adPanelVertSrc from './adPanel.vert.glsl?raw';
@@ -489,11 +490,19 @@ function _releaseSlot(): void {
 }
 
 /**
- * Trigger async load of a media building's image/video and upload to the
- * given InstancedAdPanels instance once ready. URL scheme:
- * `/api/file?path=<urlEncoded fullPath>`. Funneled through a concurrency
- * semaphore so a media-heavy repo doesn't overwhelm the browser's
- * connection pool or GPU upload queue (see file header comment).
+ * Trigger async load of a media building's image/video and upload to the given
+ * InstancedAdPanels instance once ready.
+ *
+ * Images: bytes come from the batched POST /api/files endpoint (see
+ * mediaBatch.ts) — the network fetch is coalesced across all media buildings,
+ * not slot-gated, so a media-heavy repo doesn't fire thousands of singleton
+ * GETs. Only the decode + GPU upload is funneled through the concurrency
+ * semaphore (paces texSubImage3D uploads + keeps the main thread responsive).
+ * A path the batch omits (too large / non-image) falls back to the streaming
+ * GET /api/file?path=… .
+ *
+ * Videos: never batched (we only need the first frame, and <video> streams just
+ * enough to grab it) — loaded individually through the same semaphore.
  */
 export function asyncLoadMediaForBuilding(
   ads: InstancedAdPanels,
@@ -507,36 +516,59 @@ export function asyncLoadMediaForBuilding(
   const filePath = b.file.fullPath || b.file.path || '';
   const url = `/api/file?path=${encodeURIComponent(filePath)}`;
 
-  void (async () => {
-    await _acquireSlot();
-    let errored = false;
-    try {
-      if (kind === MediaKind.Image) {
-        const img = await _loadImage(url);
-        if (img === null) {
-          errored = true;
-        } else {
-          await ads.loadTextureForBuilding(layer, panelSlots, img);
-        }
-      } else {
-        const canvas = await _loadVideoPoster(url);
-        if (canvas === null) {
-          errored = true;
-        } else {
-          await ads.loadCanvasForBuilding(layer, panelSlots, canvas);
-        }
-      }
-    } catch {
-      // Decode-time / upload-time failure (post-fetch) — still an
-      // error from the user's perspective, so flag it for the
-      // distinct error tint instead of leaving the loading-state
-      // placeholder visible forever.
-      errored = true;
-    } finally {
-      if (errored) ads.markBuildingErrored(panelSlots);
-      _releaseSlot();
-    }
-  })();
+  if (kind === MediaKind.Image) {
+    void _loadImageBuilding(ads, filePath, url, layer, panelSlots);
+  } else {
+    void _loadVideoBuilding(ads, url, layer, panelSlots);
+  }
+}
+
+async function _loadImageBuilding(
+  ads: InstancedAdPanels,
+  filePath: string,
+  fallbackUrl: string,
+  layer: number,
+  panelSlots: number[]
+): Promise<void> {
+  // Fetch (batched) happens outside the GPU semaphore so the coalescing window
+  // sees every media building at once; only decode + upload is slot-gated.
+  const blob = await fetchMediaBlob(filePath);
+  const objUrl = blob ? URL.createObjectURL(blob) : null;
+  await _acquireSlot();
+  let errored = false;
+  try {
+    const img = await _loadImage(objUrl ?? fallbackUrl);
+    if (img === null) errored = true;
+    else await ads.loadTextureForBuilding(layer, panelSlots, img);
+  } catch {
+    // Decode / upload failure (post-fetch) — flag for the error tint instead of
+    // leaving the loading placeholder visible forever.
+    errored = true;
+  } finally {
+    if (objUrl) URL.revokeObjectURL(objUrl);
+    if (errored) ads.markBuildingErrored(panelSlots);
+    _releaseSlot();
+  }
+}
+
+async function _loadVideoBuilding(
+  ads: InstancedAdPanels,
+  url: string,
+  layer: number,
+  panelSlots: number[]
+): Promise<void> {
+  await _acquireSlot();
+  let errored = false;
+  try {
+    const canvas = await _loadVideoPoster(url);
+    if (canvas === null) errored = true;
+    else await ads.loadCanvasForBuilding(layer, panelSlots, canvas);
+  } catch {
+    errored = true;
+  } finally {
+    if (errored) ads.markBuildingErrored(panelSlots);
+    _releaseSlot();
+  }
 }
 
 /** Promise-wrapped HTMLImageElement load. Resolves with the loaded image

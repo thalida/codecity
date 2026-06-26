@@ -107,3 +107,36 @@ export function formatRelativeAgeShort(thenMs: number, nowMs: number): string {
   if (diff < MS_YEAR) return `${Math.floor(diff / MS_MONTH)}mo ago`;
   return `${Math.floor(diff / MS_YEAR)}y ago`;
 }
+
+/** Coarse human duration between two dates, one unit only ("2 years",
+ *  "5 months", "3 weeks", "4 days"). Deterministic (no "now"), so it's safe for
+ *  spans/ages in pure view-models. Returns '' if either date is unparseable. */
+export function humanSpan(fromISO: string, toISO: string): string {
+  const a = parseLocalDate(fromISO);
+  const b = parseLocalDate(toISO);
+  if (!a || !b) return '';
+  const diff = Math.max(0, b.getTime() - a.getTime());
+  const unit = (n: number, u: string) => `${n} ${u}${n === 1 ? '' : 's'}`;
+  if (diff >= MS_YEAR) return unit(Math.round(diff / MS_YEAR), 'year');
+  if (diff >= MS_MONTH) return unit(Math.round(diff / MS_MONTH), 'month');
+  if (diff >= 7 * MS_DAY) return unit(Math.round(diff / (7 * MS_DAY)), 'week');
+  return unit(Math.max(1, Math.round(diff / MS_DAY)), 'day');
+}
+
+/** Age as an adjective phrase relative to a reference date ("2-year-old",
+ *  "5-month-old", "3-week-old", "4-day-old"). Built on humanSpan, so it shares
+ *  the same coarse single-unit bucket. Returns '' if `fromISO` is unparseable. */
+export function humanAge(fromISO: string, toISO: string): string {
+  const span = humanSpan(fromISO, toISO); // "2 years"
+  if (!span) return '';
+  const [n, unit] = span.split(' ');
+  return `${n}-${unit.replace(/s$/, '')}-old`;
+}
+
+/** ISO date string → epoch ms; NaN for missing/unparseable (so it never wins a
+ *  max() comparison). */
+export function dateMs(iso: string | null | undefined): number {
+  if (!iso) return NaN;
+  const t = Date.parse(iso);
+  return Number.isNaN(t) ? NaN : t;
+}

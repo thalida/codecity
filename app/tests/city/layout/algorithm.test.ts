@@ -1,9 +1,11 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { layoutCity, sortForRendering, __test } from '@/city/layout/algorithm';
-import { getStreetWidth, getBuildingDimensions, computeLineStats } from '@/city/layout/dimensions';
+import { getStreetWidth, getBuildingDimensions, computeFileStats } from '@/city/layout/dimensions';
 import { BUILDING_DIMENSIONS } from '@/state/stores/settings/buildings';
 import { BuildingOrient, NodeKind, StreetAxis } from '@/types';
 import type { BuildingDimensionsConfig } from '@/state/stores/settings/buildings';
+import type { RepoStats } from '@/types';
+import { EMPTY_REPO_STATS } from '@/constants/manifest';
 import type { StreetTier } from '@/state/stores/settings/streets';
 import {
   assertNoOverlap,
@@ -149,6 +151,19 @@ describe('getBuildingDimensions', () => {
     expect(dim.floors).toBe(1);
     expect(dim.h).toBe(10);
     expect(dim.w).toBe(6);
+  });
+
+  it('a 0-byte file in the project byte range does not produce NaN', () => {
+    // Regression: a byte range whose min is 0 (an empty file in the repo) made
+    // Math.log(byteStats.min) = -Infinity → NaN width → NaN geometry.
+    const dim = getBuildingDimensions(
+      { lines: 0, size: 0 },
+      { min: 1, max: 100 },
+      { min: 0, max: 5000 }
+    );
+    expect(Number.isFinite(dim.w)).toBe(true);
+    expect(Number.isFinite(dim.d)).toBe(true);
+    expect(Number.isFinite(dim.h)).toBe(true);
   });
 
   it('smallest file in the project maps to min_floors', () => {
@@ -340,30 +355,50 @@ describe('getBuildingDimensions — media files', () => {
   });
 });
 
-// ---- computeLineStats ----
-describe('computeLineStats', () => {
-  it('walks the tree and returns min/max non-zero line counts', () => {
-    const stats = computeLineStats(TEST_TREE);
-    expect(stats.min).toBe(20);
-    expect(stats.max).toBe(80);
+// ---- computeFileStats ----
+//
+// Reads pre-computed ranges from manifest.stats — no tree walk.
+// Falls back to {min:1,max:1} (safe-for-division default) when stats are
+// absent or carry the empty sentinel {min:0,max:0}.
+describe('computeFileStats', () => {
+  const REAL_STATS: RepoStats = {
+    ...EMPTY_REPO_STATS,
+    lineCountRange: { min: 20, max: 80 },
+    byteSizeRange: { min: 500, max: 2000 },
+  };
+
+  it('reads lineCountRange and byteSizeRange directly from manifest.stats', () => {
+    const fs = computeFileStats(REAL_STATS);
+    expect(fs.lines).toEqual({ min: 20, max: 80 });
+    expect(fs.bytes).toEqual({ min: 500, max: 2000 });
   });
 
-  it('returns { min: 1, max: 1 } when no files have lines', () => {
-    const empty = { name: 'empty', type: NodeKind.Directory, children: [] };
-    expect(computeLineStats(empty)).toEqual({ min: 1, max: 1 });
+  it('returns safe fallback {min:1,max:1} when stats is null', () => {
+    const fs = computeFileStats(null);
+    expect(fs.lines).toEqual({ min: 1, max: 1 });
+    expect(fs.bytes).toEqual({ min: 1, max: 1 });
   });
 
-  it('ignores files with null/zero line counts', () => {
-    const tree = {
-      name: 'r',
-      type: NodeKind.Directory,
-      children: [
-        { name: 'a.js', type: NodeKind.File, lines: 0 },
-        { name: 'b.js', type: NodeKind.File, lines: null },
-        { name: 'c.js', type: NodeKind.File, lines: 50 },
-      ],
-    };
-    expect(computeLineStats(tree)).toEqual({ min: 50, max: 50 });
+  it('returns safe fallback {min:1,max:1} when stats is undefined', () => {
+    const fs = computeFileStats(undefined);
+    expect(fs.lines).toEqual({ min: 1, max: 1 });
+    expect(fs.bytes).toEqual({ min: 1, max: 1 });
+  });
+
+  it('returns safe fallback when lineCountRange is the empty sentinel {min:0,max:0}', () => {
+    const emptyStats: RepoStats = { ...REAL_STATS, lineCountRange: { min: 0, max: 0 } };
+    const fs = computeFileStats(emptyStats);
+    expect(fs.lines).toEqual({ min: 1, max: 1 });
+    // bytes unaffected
+    expect(fs.bytes).toEqual({ min: 500, max: 2000 });
+  });
+
+  it('returns safe fallback when byteSizeRange is the empty sentinel {min:0,max:0}', () => {
+    const emptyStats: RepoStats = { ...REAL_STATS, byteSizeRange: { min: 0, max: 0 } };
+    const fs = computeFileStats(emptyStats);
+    expect(fs.bytes).toEqual({ min: 1, max: 1 });
+    // lines unaffected
+    expect(fs.lines).toEqual({ min: 20, max: 80 });
   });
 });
 

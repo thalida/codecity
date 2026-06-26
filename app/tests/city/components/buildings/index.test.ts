@@ -68,10 +68,10 @@ function makePrePickerCtx(): SceneContext {
 const CAMERA = new THREE.PerspectiveCamera();
 
 const EMPTY_DATE_RANGES = {
-  createdMin: null,
-  createdMax: null,
-  modifiedMin: null,
-  modifiedMax: null,
+  minCreated: null,
+  maxCreated: null,
+  minModified: null,
+  maxModified: null,
 } as unknown as DateRanges;
 
 // A buildings-only layout. bbox keeps cellSize at the MIN granularity. Two

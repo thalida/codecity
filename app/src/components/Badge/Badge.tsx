@@ -14,6 +14,8 @@
 import './Badge.css';
 import { getHue } from '@/city/components/buildings/color';
 import { parseHex, hslToRgb, pickContrastingText } from '@/utils/colors';
+import { BUILDINGS } from '@/state/stores/settings/buildings';
+import { STREETS } from '@/state/stores/settings/streets';
 
 // Badge color palette defaults. The file badge's CSS rule paints the background
 // with `hsl(var(--badge-hue), 60%, 35%)` — the saturation/lightness defaults
@@ -28,8 +30,6 @@ const DEFAULT_FILE_BADGE_LIGHTNESS = 0.35;
 export interface ExtensionBadgeProps {
   extension: string | null | undefined;
   isDir: boolean;
-  huePalette: Record<string, number>;
-  asphaltColor: string;
   /** Label color used on bright backgrounds. */
   textDark?: string;
   /** Label color used on dark backgrounds. */
@@ -45,13 +45,15 @@ export interface ExtensionBadgeProps {
 export function ExtensionBadge({
   extension,
   isDir,
-  huePalette,
-  asphaltColor,
   textDark = DEFAULT_TEXT_DARK,
   textLight = DEFAULT_TEXT_LIGHT,
   fileBadgeSaturation = DEFAULT_FILE_BADGE_SATURATION,
   fileBadgeLightness = DEFAULT_FILE_BADGE_LIGHTNESS,
 }: ExtensionBadgeProps) {
+  // Read the live theme directly so callers don't have to thread these through —
+  // the city's extension→hue palette and the dir badge's asphalt color.
+  const huePalette = BUILDINGS.value.HUE_EXT_MAP;
+  const asphaltColor = STREETS.value.ASPHALT_COLOR;
   const contrastingText = (rgb: [number, number, number] | null): string =>
     pickContrastingText(rgb, textDark, textLight);
 

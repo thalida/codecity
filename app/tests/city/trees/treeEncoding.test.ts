@@ -19,6 +19,7 @@ import {
 import type { TreesConfig } from '@/state/stores/settings/trees';
 import type { CommitEntry } from '@/types';
 import { commits as buildCommits } from './_commitFixtures';
+import { commitStats } from '../../_helpers/statsFixtures';
 
 const commits: CommitEntry[] = buildCommits(
   { date: '2026-01-01', files: 1 },
@@ -28,60 +29,60 @@ const commits: CommitEntry[] = buildCommits(
 
 describe('computeAgeRange()', () => {
   it('returns oldest and newest epoch days', () => {
-    const r = computeAgeRange(commits);
+    const r = computeAgeRange(commitStats(commits));
     expect(r.span).toBeGreaterThan(0);
     expect(r.oldest).toBeLessThan(r.newest);
   });
 
-  it('span = 0 when commits is null', () => {
+  it('span = 0 when stats is null', () => {
     expect(computeAgeRange(null).span).toBe(0);
   });
 
-  it('span = 0 when commits is empty', () => {
-    expect(computeAgeRange([]).span).toBe(0);
+  it('span = 0 when there are no commits', () => {
+    expect(computeAgeRange(commitStats([])).span).toBe(0);
   });
 
   it('span = 0 when all commits share a date', () => {
     const same = buildCommits({ date: '2026-01-01', files: 1 }, { date: '2026-01-01', files: 5 });
-    expect(computeAgeRange(same).span).toBe(0);
+    expect(computeAgeRange(commitStats(same)).span).toBe(0);
   });
 });
 
 describe('computeSizeRange()', () => {
   it('returns min and max file counts', () => {
-    const r = computeSizeRange(commits);
+    const r = computeSizeRange(commitStats(commits));
     expect(r.min).toBe(1);
     expect(r.max).toBe(9);
     expect(r.span).toBe(8);
   });
 
-  it('span = 0 when commits is null', () => {
+  it('span = 0 when stats is null', () => {
     expect(computeSizeRange(null).span).toBe(0);
   });
 
-  it('span = 0 when commits is empty', () => {
-    expect(computeSizeRange([]).span).toBe(0);
+  it('span = 0 when there are no commits', () => {
+    expect(computeSizeRange(commitStats([])).span).toBe(0);
   });
 
   it('span = 0 when all commits have equal file counts', () => {
     const same = buildCommits({ date: '2026-01-01', files: 4 }, { date: '2026-01-02', files: 4 });
-    expect(computeSizeRange(same).span).toBe(0);
+    expect(computeSizeRange(commitStats(same)).span).toBe(0);
   });
 });
 
 describe('ageT()', () => {
   it('returns 0 for the oldest commit', () => {
-    const range = computeAgeRange(commits);
+    const range = computeAgeRange(commitStats(commits));
     expect(ageT(commits[0], range)).toBe(0);
   });
 
   it('returns 1 for the newest commit', () => {
-    const range = computeAgeRange(commits);
+    const range = computeAgeRange(commitStats(commits));
     expect(ageT(commits[2], range)).toBe(1);
   });
 
   it('returns 0.5 for the middle commit (commits are 10 days apart)', () => {
-    const range = computeAgeRange(commits);
+    const range = computeAgeRange(commitStats(commits));
     expect(ageT(commits[1], range)).toBeCloseTo(0.5, 5);
   });
 
@@ -103,7 +104,7 @@ describe('ageT()', () => {
   });
 
   it('clamps out-of-range dates to [0,1]', () => {
-    const range = computeAgeRange(commits);
+    const range = computeAgeRange(commitStats(commits));
     expect(
       ageT(
         {
@@ -135,12 +136,12 @@ describe('ageT()', () => {
 
 describe('sizeT()', () => {
   it('returns 0 for the smallest commit', () => {
-    const range = computeSizeRange(commits);
+    const range = computeSizeRange(commitStats(commits));
     expect(sizeT(commits[0], range)).toBe(0);
   });
 
   it('returns 1 for the largest commit', () => {
-    const range = computeSizeRange(commits);
+    const range = computeSizeRange(commitStats(commits));
     expect(sizeT(commits[2], range)).toBe(1);
   });
 
@@ -244,8 +245,8 @@ describe('treeHeight() / treeRadius()', () => {
     { date: '2026-01-11', files: 5 }, // middle
     { date: '2026-01-21', files: 9 } // newest, largest
   );
-  const ageRange = computeAgeRange(sizing);
-  const sizeRange = computeSizeRange(sizing);
+  const ageRange = computeAgeRange(commitStats(sizing));
+  const sizeRange = computeSizeRange(commitStats(sizing));
 
   describe('treeHeight()', () => {
     it('oldest commit (ageT=0) → MAX_HEIGHT', () => {

@@ -23,6 +23,13 @@ import type {
   ExtBreakdownEntry,
   BusynessThresholds,
   DateRanges,
+  RangeStat,
+  FileLeader,
+  DirLeader,
+  CommitLeader,
+  DayLeader,
+  AuthorStat,
+  RepoStats,
 } from './manifest';
 
 type Schemas = components['schemas'];
@@ -53,3 +60,12 @@ type _DirNode = AssertTrue<Equals<keyof DirNode, keyof Schemas['DirNode']>>;
 type _FileNodeMediaKind = AssertTrue<
   Equals<FileNode['mediaKind'], Schemas['FileNode']['mediaKind']>
 >;
+
+// Deep equality — stats types (pure-scalar, no discriminators, no recursion).
+type _RangeStat = AssertTrue<Equals<RangeStat, Schemas['RangeStat']>>;
+type _FileLeader = AssertTrue<Equals<FileLeader, Schemas['FileLeader']>>;
+type _DirLeader = AssertTrue<Equals<DirLeader, Schemas['DirLeader']>>;
+type _CommitLeader = AssertTrue<Equals<CommitLeader, Schemas['CommitLeader']>>;
+type _DayLeader = AssertTrue<Equals<DayLeader, Schemas['DayLeader']>>;
+type _AuthorStat = AssertTrue<Equals<AuthorStat, Schemas['AuthorStat']>>;
+type _RepoStats = AssertTrue<Equals<RepoStats, Schemas['RepoStats']>>;

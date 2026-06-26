@@ -114,18 +114,105 @@ class BusynessThresholds(BaseModel):
 # not optional. camelCase matches the frontend DateRanges + the fullPath
 # precedent.
 class DateRanges(BaseModel):
-    createdMin: Optional[str] = Field(
+    minCreated: Optional[str] = Field(
         description="Earliest resolved create date (ISO), or null for an empty tree"
     )
-    createdMax: Optional[str] = Field(
+    maxCreated: Optional[str] = Field(
         description="Latest resolved create date (ISO), or null for an empty tree"
     )
-    modifiedMin: Optional[str] = Field(
+    minModified: Optional[str] = Field(
         description="Earliest resolved modify date (ISO), or null for an empty tree"
     )
-    modifiedMax: Optional[str] = Field(
+    maxModified: Optional[str] = Field(
         description="Latest resolved modify date (ISO), or null for an empty tree"
     )
+
+
+class RangeStat(BaseModel):
+    min: int
+    max: int
+
+
+class FileLeader(BaseModel):
+    path: str
+    lines: int
+    bytes: int
+    created: str
+    modified: str
+    # Optional-but-non-nullable (absent for non-media leaders, a pixel count
+    # otherwise — never null); see OptionalInt above.
+    media_width: OptionalInt = None
+    media_height: OptionalInt = None
+
+    @model_validator(mode="after")
+    def _media_both_or_neither(self) -> "FileLeader":
+        if (self.media_width is None) != (self.media_height is None):
+            raise ValueError(
+                "media_width and media_height must both be set or both absent"
+            )
+        return self
+
+
+class DirLeader(BaseModel):
+    path: str
+    depth: int
+    children: int
+    descendants: int
+
+
+class CommitLeader(BaseModel):
+    sha: str
+    files: int
+
+
+# Both fields required-nullable: the scanner always emits them (null for a repo
+# with no commits), so they're present-but-nullable on the wire, not optional.
+class CommitDateRange(BaseModel):
+    oldest: Optional[str] = Field(
+        description="Oldest commit date (YYYY-MM-DD), or null when the repo has no commits"
+    )
+    newest: Optional[str] = Field(
+        description="Newest commit date (YYYY-MM-DD), or null when the repo has no commits"
+    )
+
+
+class DayLeader(BaseModel):
+    date: str
+    count: int
+
+
+class AuthorStat(BaseModel):
+    name: str
+    commits: int
+
+
+class RepoStats(BaseModel):
+    lineCountRange: RangeStat
+    byteSizeRange: RangeStat
+    oldestCreatedFile: Optional[FileLeader]
+    newestCreatedFile: Optional[FileLeader]
+    newestModifiedFile: Optional[FileLeader]
+    oldestModifiedFile: Optional[FileLeader]
+    maxLinesFile: Optional[FileLeader]
+    minLinesFile: Optional[FileLeader]
+    maxBytesFile: Optional[FileLeader]
+    minBytesFile: Optional[FileLeader]
+    maxMediaBytesFile: Optional[FileLeader]
+    minMediaBytesFile: Optional[FileLeader]
+    maxMediaPixelsFile: Optional[FileLeader]
+    minMediaPixelsFile: Optional[FileLeader]
+    mediaCount: int
+    totalLines: int
+    codeBytes: int
+    maxDepthDir: Optional[DirLeader]
+    maxChildrenDir: Optional[DirLeader]
+    minChildrenDir: Optional[DirLeader]
+    maxFilesPerCommit: Optional[CommitLeader]
+    minFilesPerCommit: Optional[CommitLeader]
+    commitDates: CommitDateRange
+    maxCommitsPerDay: Optional[DayLeader]
+    maxCommitStreakDays: int
+    authors: list[AuthorStat]
 
 
 class Manifest(BaseModel):
@@ -138,6 +225,7 @@ class Manifest(BaseModel):
     commits: list[CommitEntry]
     busyness: BusynessThresholds
     dateRanges: DateRanges
+    stats: RepoStats
     # Optional-but-non-nullable (absent for local sources, a label string for
     # git sources — never null); see OptionalStr above.
     display_root: OptionalStr = None

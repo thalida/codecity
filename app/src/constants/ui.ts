@@ -29,8 +29,14 @@ export interface ActivityBarTab {
 }
 
 export const ACTIVITY_BAR_TABS: readonly ActivityBarTab[] = [
+  // Info leads: the almanac is the first thing a freshly-loaded world greets you
+  // with (see DEFAULT_SIDEBAR_TAB + LeftSidebar's on-load switch).
+  { id: SidebarTab.Info, icon: Info, title: 'Info' },
   { id: SidebarTab.Tree, icon: FolderTree, title: 'Tree' },
   { id: SidebarTab.Search, icon: Search, title: 'Search' },
-  { id: SidebarTab.Info, icon: Info, title: 'Info' },
   { id: SidebarTab.Controls, icon: Settings2, title: 'Settings', placement: TabPlacement.Bottom },
 ] as const;
+
+/** The left sidebar's default active tab — the one shown on first paint and
+ *  re-opened whenever a world loads. Info (the almanac) leads the rail. */
+export const DEFAULT_SIDEBAR_TAB: SidebarTab = SidebarTab.Info;

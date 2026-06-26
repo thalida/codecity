@@ -31,7 +31,7 @@ export interface Building {
   /**
    * 0..1 weathering signal — 0 = file created most recently in the repo,
    * 1 = file created earliest. Normalized against the repo's
-   * createdMin/createdMax so the scale rescales as the codebase ages.
+   * minCreated/maxCreated so the scale rescales as the codebase ages.
    * Independent of `color` (which keys on last-modified): a bright,
    * recently-edited file can still be highly weathered if it was
    * originally created long ago.
@@ -45,7 +45,7 @@ export interface Building {
   /**
    * 0..1 staleness signal — 0 = file modified most recently in the repo,
    * 1 = file modified earliest. Normalized against the repo's
-   * modifiedMin/modifiedMax so the scale rescales as the codebase ages.
+   * minModified/maxModified so the scale rescales as the codebase ages.
    * Mirror of `createdAge` but on the modified-date axis.
    *
    * Optional because layout produces buildings without it; the

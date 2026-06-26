@@ -10,8 +10,6 @@ import { KEY_BINDINGS } from '@/constants/keyboard';
 import { ExtensionBadge } from '@/components/Badge/Badge';
 import { CopyButton } from '@/components/CopyButton/CopyButton';
 import { useMiddleEllipsis } from '@/hooks/useMiddleEllipsis';
-import { STREETS } from '@/state/stores/settings/streets';
-import { BUILDINGS } from '@/state/stores/settings/buildings';
 
 export interface PathBreadcrumbsProps {
   /** Selected path relative to the project root. */
@@ -42,9 +40,6 @@ export function PathBreadcrumbs({
     [path]
   );
 
-  // Palette reads — auto-tracked via .value in render.
-  const huePalette = BUILDINGS.value.HUE_EXT_MAP || {};
-  const asphaltColor = STREETS.value.ASPHALT_COLOR;
   const isFileSel = !isDir;
   const segs = path.split('/').filter(Boolean);
   let acc = '';
@@ -63,12 +58,7 @@ export function PathBreadcrumbs({
           <Focus class="lucide-icon" />
         </button>
       )}
-      <ExtensionBadge
-        extension={isFileSel ? (extension ?? null) : null}
-        isDir={!isFileSel}
-        huePalette={huePalette}
-        asphaltColor={asphaltColor}
-      />
+      <ExtensionBadge extension={isFileSel ? (extension ?? null) : null} isDir={!isFileSel} />
       <div ref={crumbsRef} class="app-header-crumbs" title={`${rootLabel}/${path}`}>
         {segs.map((seg, i) => {
           acc = acc ? `${acc}/${seg}` : seg;

@@ -19,7 +19,7 @@ import { effect } from '@preact/signals';
 
 import { TREES } from '@/state/stores/settings/trees';
 import { markDecorating, markIdle } from '@/state/stores/manifest';
-import type { BusynessThresholds, CommitEntry } from '@/types';
+import type { BusynessThresholds, CommitEntry, RepoStats } from '@/types';
 
 import type { FrameContext, SceneComponent, SceneContext } from '../../types';
 import { armOnFirstTick } from '../../utils/armOnFirstTick';
@@ -39,7 +39,8 @@ export interface TreesComponent extends SceneComponent {
   rebuild(
     placements: TreePlacement[],
     commits: CommitEntry[] | null,
-    busyness: BusynessThresholds
+    busyness: BusynessThresholds,
+    stats: RepoStats | null | undefined
   ): void;
   /** Dispose the inner meshes + null the handle. */
   clear(): void;
@@ -78,10 +79,11 @@ export function createTrees(ctx: SceneContext): TreesComponent {
   function rebuild(
     placements: TreePlacement[],
     commits: CommitEntry[] | null,
-    busyness: BusynessThresholds
+    busyness: BusynessThresholds,
+    stats: RepoStats | null | undefined
   ): void {
     clear();
-    _inner = createTreeRenderer(placements, commits, busyness);
+    _inner = createTreeRenderer(placements, commits, busyness, stats);
     group.add(_inner.group);
   }
 
@@ -140,7 +142,12 @@ export function createTrees(ctx: SceneContext): TreesComponent {
       }
       if (!isCurrent()) return;
 
-      rebuild(placements, manifest.commits ?? null, manifest.busyness ?? { avg: 1, busy: 1 });
+      rebuild(
+        placements,
+        manifest.commits ?? null,
+        manifest.busyness ?? { avg: 1, busy: 1 },
+        manifest.stats
+      );
       // Publish placements (fireflies rebuilds off this) and re-notify the picker
       // now that the live tree meshes exist (re-resolve a Commit selection +
       // include them in pickables).

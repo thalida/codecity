@@ -224,10 +224,10 @@ describe('getBuildingColor', () => {
   // backend would ship as Manifest.dateRanges for that tree (the client
   // tree walk moved server-side; see api/services/scan.py).
   const TEST_TREE_DATE_RANGES = {
-    createdMin: '2024-01-10T09:00:00Z',
-    createdMax: '2024-02-15T10:00:00Z',
-    modifiedMin: '2024-01-10T09:00:00Z',
-    modifiedMax: '2024-03-22T14:30:00Z',
+    minCreated: '2024-01-10T09:00:00Z',
+    maxCreated: '2024-02-15T10:00:00Z',
+    minModified: '2024-01-10T09:00:00Z',
+    maxModified: '2024-03-22T14:30:00Z',
   };
 
   it('returns valid "hsl(...)" string', () => {
@@ -259,12 +259,12 @@ describe('getBuildingColor', () => {
     expect(color).toMatch(/^hsl\(/);
   });
 
-  it('lands at LIGHTNESS_MAX when modified date == modifiedMax', () => {
-    // Fixture: modifiedMax (2023-06-01) is strictly inside the created range
+  it('lands at LIGHTNESS_MAX when modified date == maxModified', () => {
+    // Fixture: maxModified (2023-06-01) is strictly inside the created range
     // [2020-01-01, 2024-12-31], so the created anchor normalizes it to t≈0.7
     // (L≈57) while the correct modified anchor normalizes it to t=1.0 (L=70).
-    //   a.ts: created=2020-01-01 (createdMin), modified=2022-01-01 (modifiedMin)
-    //   b.ts: created=2024-12-31 (createdMax), modified=2023-06-01 (modifiedMax)
+    //   a.ts: created=2020-01-01 (minCreated), modified=2022-01-01 (minModified)
+    //   b.ts: created=2024-12-31 (maxCreated), modified=2023-06-01 (maxModified)
     // b.ts with modified anchor: t=1.0 → S=100, L=70 ✓
     // b.ts with created anchor:  t≈0.7 → S≈76, L≈57 ✗  (proves the test fails today)
     const tree = {
@@ -289,19 +289,19 @@ describe('getBuildingColor', () => {
       ],
     };
     const dr = {
-      createdMin: '2020-01-01T00:00:00Z',
-      createdMax: '2024-12-31T00:00:00Z',
-      modifiedMin: '2022-01-01T00:00:00Z',
-      modifiedMax: '2023-06-01T00:00:00Z',
+      minCreated: '2020-01-01T00:00:00Z',
+      maxCreated: '2024-12-31T00:00:00Z',
+      minModified: '2022-01-01T00:00:00Z',
+      maxModified: '2023-06-01T00:00:00Z',
     };
-    // b.ts modified at modifiedMax → t=1.0 → lightness = LIGHTNESS_MAX (70 in test palette).
+    // b.ts modified at maxModified → t=1.0 → lightness = LIGHTNESS_MAX (70 in test palette).
     const color = getBuildingColor(tree.children[1], dr);
     expect(color).toMatch(/^hsl\(215,\s*100%,\s*70%\)$/);
   });
 
-  it('lands at LIGHTNESS_MIN when modified date == modifiedMin', () => {
+  it('lands at LIGHTNESS_MIN when modified date == minModified', () => {
     // Same fixture as above.
-    // a.ts modified=2022-01-01 is modifiedMin but NOT createdMin (2020-01-01).
+    // a.ts modified=2022-01-01 is minModified but NOT minCreated (2020-01-01).
     // a.ts with modified anchor: t=0.0 → S=20,  L=25 ✓
     // a.ts with created anchor:  t≈0.4 → S≈52, L≈43 ✗  (proves the test fails today)
     const tree = {
@@ -326,12 +326,12 @@ describe('getBuildingColor', () => {
       ],
     };
     const dr = {
-      createdMin: '2020-01-01T00:00:00Z',
-      createdMax: '2024-12-31T00:00:00Z',
-      modifiedMin: '2022-01-01T00:00:00Z',
-      modifiedMax: '2023-06-01T00:00:00Z',
+      minCreated: '2020-01-01T00:00:00Z',
+      maxCreated: '2024-12-31T00:00:00Z',
+      minModified: '2022-01-01T00:00:00Z',
+      maxModified: '2023-06-01T00:00:00Z',
     };
-    // a.ts modified at modifiedMin → t=0.0 → lightness = LIGHTNESS_MIN (25 in test palette).
+    // a.ts modified at minModified → t=0.0 → lightness = LIGHTNESS_MIN (25 in test palette).
     const color = getBuildingColor(tree.children[0], dr);
     expect(color).toMatch(/^hsl\(215,\s*20%,\s*25%\)$/);
   });
@@ -340,13 +340,13 @@ describe('getBuildingColor', () => {
 // ---- getModifiedAge ----
 describe('getModifiedAge', () => {
   const baseDr = {
-    createdMin: '2024-01-01T00:00:00Z',
-    createdMax: '2024-12-31T00:00:00Z',
-    modifiedMin: '2024-01-10T09:00:00Z',
-    modifiedMax: '2024-03-22T14:30:00Z',
+    minCreated: '2024-01-01T00:00:00Z',
+    maxCreated: '2024-12-31T00:00:00Z',
+    minModified: '2024-01-10T09:00:00Z',
+    maxModified: '2024-03-22T14:30:00Z',
   };
 
-  it('returns 1.0 for file modified at modifiedMin (most stale)', () => {
+  it('returns 1.0 for file modified at minModified (most stale)', () => {
     const file = {
       type: NodeKind.File,
       created: '2024-01-01T00:00:00Z',
@@ -355,7 +355,7 @@ describe('getModifiedAge', () => {
     expect(getModifiedAge(file, baseDr)).toBe(1);
   });
 
-  it('returns 0.0 for file modified at modifiedMax (most recent)', () => {
+  it('returns 0.0 for file modified at maxModified (most recent)', () => {
     const file = {
       type: NodeKind.File,
       created: '2024-01-01T00:00:00Z',
@@ -380,17 +380,17 @@ describe('getModifiedAge', () => {
     expect(getModifiedAge(file, baseDr)).toBe(0.5);
   });
 
-  it('returns 0 for degenerate range (modifiedMin === modifiedMax)', () => {
+  it('returns 0 for degenerate range (minModified === maxModified)', () => {
     const file = {
       type: NodeKind.File,
       created: '2024-01-01T00:00:00Z',
       modified: '2024-01-10T09:00:00Z',
     };
     const degenerate = {
-      createdMin: '2024-01-01T00:00:00Z',
-      createdMax: '2024-12-31T00:00:00Z',
-      modifiedMin: '2024-01-10T09:00:00Z',
-      modifiedMax: '2024-01-10T09:00:00Z',
+      minCreated: '2024-01-01T00:00:00Z',
+      maxCreated: '2024-12-31T00:00:00Z',
+      minModified: '2024-01-10T09:00:00Z',
+      maxModified: '2024-01-10T09:00:00Z',
     };
     expect(getModifiedAge(file, degenerate)).toBe(0);
   });

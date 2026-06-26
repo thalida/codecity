@@ -3,8 +3,9 @@ import { render } from 'preact';
 import { LeftSidebar } from '@/layout/LeftSidebar/LeftSidebar';
 import { SCENE_HANDLE } from '@/state/stores/scene';
 import { setManifest } from '@/state/stores/manifest';
+import { CURRENT_SOURCE } from '@/state/stores/source';
 import { EMPTY_MANIFEST } from '@/constants/manifest';
-import { flush } from '../_helpers/preact';
+import { flush, drainAsync } from '../_helpers/preact';
 
 const TEST_TREE = {
   name: 'project',
@@ -53,14 +54,15 @@ describe('LeftSidebar', () => {
     document.body.removeChild(container);
     SCENE_HANDLE.value = null;
     setManifest(EMPTY_MANIFEST as never);
+    CURRENT_SOURCE.value = null;
   });
 
   it('mounts an activity bar with one icon per tab', () => {
     const icons = container.querySelectorAll<HTMLButtonElement>('.activity-bar .activity-bar-icon');
     expect(icons.length).toBe(4);
-    expect(icons[0].dataset.tab).toBe('tree');
-    expect(icons[1].dataset.tab).toBe('search');
-    expect(icons[2].dataset.tab).toBe('info');
+    expect(icons[0].dataset.tab).toBe('info');
+    expect(icons[1].dataset.tab).toBe('tree');
+    expect(icons[2].dataset.tab).toBe('search');
     expect(icons[3].dataset.tab).toBe('controls');
   });
 
@@ -71,18 +73,19 @@ describe('LeftSidebar', () => {
     const bottom = container.querySelectorAll<HTMLButtonElement>(
       '.activity-bar-bottom .activity-bar-icon'
     );
-    expect(Array.from(top).map((b) => b.dataset.tab)).toEqual(['tree', 'search', 'info']);
+    expect(Array.from(top).map((b) => b.dataset.tab)).toEqual(['info', 'tree', 'search']);
     expect(Array.from(bottom).map((b) => b.dataset.tab)).toEqual(['controls']);
   });
 
-  it('shows the tree pane by default and does not render the controls pane', () => {
+  it('shows the info pane by default and does not render the controls pane', () => {
     // In the Preact port, hidden tabs aren't rendered at all (rather
     // than mounted with display:none) — the activeTab signal drives a
-    // conditional render.
-    expect(container.querySelector('.tree-pane')).not.toBeNull();
+    // conditional render. Info is the default tab so a loaded world opens
+    // straight to its almanac.
+    expect(container.querySelector('.info-pane')).not.toBeNull();
     expect(container.querySelector('.controls-pane')).toBeNull();
     expect(
-      container.querySelector('.activity-bar-icon[data-tab="tree"]')!.classList.contains('active')
+      container.querySelector('.activity-bar-icon[data-tab="info"]')!.classList.contains('active')
     ).toBe(true);
   });
 
@@ -93,12 +96,29 @@ describe('LeftSidebar', () => {
     controlsBtn.click();
     await flush();
 
-    expect(container.querySelector('.tree-pane')).toBeNull();
+    expect(container.querySelector('.info-pane')).toBeNull();
     expect(container.querySelector('.controls-pane')).not.toBeNull();
     expect(
       container
         .querySelector('.activity-bar-icon[data-tab="controls"]')!
         .classList.contains('active')
     ).toBe(true);
+  });
+
+  it('reopens the Info tab when a new world loads', async () => {
+    // Switch away from Info.
+    container.querySelector<HTMLButtonElement>('.activity-bar-icon[data-tab="tree"]')!.click();
+    await flush();
+    expect(container.querySelector('.tree-pane')).not.toBeNull();
+    // A world commits (cold-boot ?src= or a user switch both write CURRENT_SOURCE)
+    // → snap back to the almanac.
+    CURRENT_SOURCE.value = { src: 'github.com/o/r' };
+    // Two-hop settle: CURRENT_SOURCE → effect → activeTab → re-render.
+    await drainAsync();
+    expect(
+      container.querySelector('.activity-bar-icon[data-tab="info"]')!.classList.contains('active')
+    ).toBe(true);
+    expect(container.querySelector('.info-pane')).not.toBeNull();
+    expect(container.querySelector('.tree-pane')).toBeNull();
   });
 });

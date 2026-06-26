@@ -150,6 +150,9 @@ export interface Manifest {
   /** Repo-wide min/max of the resolved per-file created/modified dates,
    *  computed on the backend during the scan (api/services/scan.py). */
   dateRanges: DateRanges;
+  /** Repo-wide statistics (leaders, ranges, author list). Computed by the
+   *  backend during the scan (api/services/stats.py). */
+  stats: RepoStats;
 }
 
 /**
@@ -173,10 +176,10 @@ export interface BusynessThresholds {
  * lightness/saturation, newest at max.
  */
 export interface DateRanges {
-  createdMin: string | null;
-  createdMax: string | null;
-  modifiedMin: string | null;
-  modifiedMax: string | null;
+  minCreated: string | null;
+  maxCreated: string | null;
+  minModified: string | null;
+  maxModified: string | null;
 }
 
 /** Min/max numeric range for file stats (line counts, byte sizes). */
@@ -189,4 +192,84 @@ export interface RangeStat {
 export interface FileStats {
   lines: RangeStat;
   bytes: RangeStat;
+}
+
+export interface FileLeader {
+  path: string;
+  lines: number;
+  bytes: number;
+  created: string;
+  modified: string;
+  media_width?: number;
+  media_height?: number;
+}
+
+export interface DirLeader {
+  path: string;
+  depth: number;
+  /** Direct children (files + sub-dirs on that street). */
+  children: number;
+  /** Everything below it, recursively. */
+  descendants: number;
+}
+
+export interface CommitLeader {
+  sha: string;
+  files: number;
+}
+
+/**
+ * Oldest/newest commit date (YYYY-MM-DD) across the lookback window — the
+ * scene's tree-age normalization range, computed on the backend so the trees
+ * + firefly orbits read it instead of re-scanning commits. Both null for a
+ * repo with no commits.
+ */
+export interface CommitDateRange {
+  oldest: string | null;
+  newest: string | null;
+}
+
+export interface DayLeader {
+  date: string;
+  count: number;
+}
+
+export interface AuthorStat {
+  name: string;
+  commits: number;
+}
+
+export interface RepoStats {
+  /** Building-size normalization ranges (non-zero), NOT honest min/max file
+   *  size — 0-length files are excluded (they have no meaningful building
+   *  size; the layout's log/sqrt can't take 0). The honest smallest file is in
+   *  minBytesFile / minLinesFile. {0,0} when no non-zero files exist. */
+  lineCountRange: RangeStat;
+  byteSizeRange: RangeStat;
+  oldestCreatedFile: FileLeader | null;
+  newestCreatedFile: FileLeader | null;
+  newestModifiedFile: FileLeader | null;
+  oldestModifiedFile: FileLeader | null;
+  maxLinesFile: FileLeader | null;
+  minLinesFile: FileLeader | null;
+  maxBytesFile: FileLeader | null;
+  minBytesFile: FileLeader | null;
+  maxMediaBytesFile: FileLeader | null;
+  minMediaBytesFile: FileLeader | null;
+  maxMediaPixelsFile: FileLeader | null;
+  minMediaPixelsFile: FileLeader | null;
+  mediaCount: number;
+  /** Sum of lines over non-media files (for the buildings overview average). */
+  totalLines: number;
+  /** Sum of bytes over non-media files. */
+  codeBytes: number;
+  maxDepthDir: DirLeader | null;
+  maxChildrenDir: DirLeader | null;
+  minChildrenDir: DirLeader | null;
+  maxFilesPerCommit: CommitLeader | null;
+  minFilesPerCommit: CommitLeader | null;
+  commitDates: CommitDateRange;
+  maxCommitsPerDay: DayLeader | null;
+  maxCommitStreakDays: number;
+  authors: AuthorStat[];
 }
