@@ -241,14 +241,14 @@
   font-family: var(--cc-font-mono);
 }
 
-/* Directory truncates from the right; the filename always stays whole. */
+/* Directory truncates from the right; the filename always stays whole. Same
+ * color as the filename (the whole path reads as one value). */
 .almanac-path-dir {
   flex: 0 1 auto;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  color: var(--cc-text-muted);
 }
 
 .almanac-path-base {
