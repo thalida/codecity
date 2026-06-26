@@ -243,6 +243,22 @@ describe('OverviewPane', () => {
     expect(focusCommit).toHaveBeenCalledWith('deadbeefcafe');
   });
 
+  it('renders Latest as a static (non-button) row when the Trees layer is off', async () => {
+    treesState.ENABLED = false;
+    const withHead: Manifest = {
+      ...manifest,
+      repo: { ...manifest.repo, head_sha: 'deadbeefcafe', head_subject: 'Fix the thing' },
+      stats: { ...singleFileStats, commitDates: { oldest: '2020-01-01', newest: '2024-03-10' } },
+    };
+    const sig = signal(withHead);
+    render(<OverviewPane manifest={sig as never} />, container);
+    await flush();
+    const latest = container.querySelector('.almanac-latest') as HTMLElement;
+    expect(latest).toBeTruthy();
+    expect(latest.tagName).toBe('DIV'); // not a button — no dead-end click
+    expect(latest.textContent).toContain('deadbee');
+  });
+
   it('gates the Forest section when the Trees layer is disabled', async () => {
     treesState.ENABLED = false;
     const withCommits: Manifest = {

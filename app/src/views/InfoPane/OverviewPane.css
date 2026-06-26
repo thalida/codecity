@@ -90,12 +90,17 @@
   font: inherit;
   color: inherit;
   text-align: left;
+}
+
+/* Clickable only with the Trees layer on (there's a tree to fly to). When off,
+ * the same markup renders as a plain <div> — no cursor, no hover affordance. */
+button.almanac-latest {
   cursor: pointer;
   transition: background-color 0.12s ease;
 }
 
-.almanac-latest:hover,
-.almanac-latest:focus-visible {
+button.almanac-latest:hover,
+button.almanac-latest:focus-visible {
   background: var(--cc-overlay-bg);
   outline: none;
 }

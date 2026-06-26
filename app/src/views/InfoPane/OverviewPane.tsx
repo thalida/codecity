@@ -198,6 +198,23 @@ export function OverviewPane({ manifest }: OverviewPaneProps) {
       ? { sha: repo.head_sha.slice(0, 7), full: repo.head_sha, subject: repo.head_subject }
       : null;
   const latestAgo = overview.latestDate ? formatRelativeAge(overview.latestDate) : null;
+  // The Latest row only flies the camera when the Trees layer is on — without it
+  // the commit's tree doesn't exist, so a clickable button would be a dead end
+  // (the Forest section gates its commit rows the same way).
+  const latestBody = head && (
+    <>
+      <span class="almanac-latest-head">
+        <span class="almanac-sha">{head.sha}</span>
+        <span class="almanac-latest-subject">{head.subject}</span>
+      </span>
+      {(latestAgo || repo.branch) && (
+        <span class="almanac-latest-sub">
+          {latestAgo && <span>{latestAgo}</span>}
+          {repo.branch && <span class="almanac-branch">{repo.branch}</span>}
+        </span>
+      )}
+    </>
+  );
 
   return (
     <div class="almanac">
@@ -215,24 +232,21 @@ export function OverviewPane({ manifest }: OverviewPaneProps) {
             <div>
               <dt>Latest</dt>
               <dd class="almanac-latest-cell">
-                <button
-                  type="button"
-                  class="almanac-latest"
-                  title={head.subject}
-                  aria-label={`Focus the latest commit ${head.sha} in the world`}
-                  onClick={() => visit({ kind: NodeKind.Commit, id: head.full })}
-                >
-                  <span class="almanac-latest-head">
-                    <span class="almanac-sha">{head.sha}</span>
-                    <span class="almanac-latest-subject">{head.subject}</span>
-                  </span>
-                  {(latestAgo || repo.branch) && (
-                    <span class="almanac-latest-sub">
-                      {latestAgo && <span>{latestAgo}</span>}
-                      {repo.branch && <span class="almanac-branch">{repo.branch}</span>}
-                    </span>
-                  )}
-                </button>
+                {treesEnabled ? (
+                  <button
+                    type="button"
+                    class="almanac-latest"
+                    title={head.subject}
+                    aria-label={`Focus the latest commit ${head.sha} in the world`}
+                    onClick={() => visit({ kind: NodeKind.Commit, id: head.full })}
+                  >
+                    {latestBody}
+                  </button>
+                ) : (
+                  <div class="almanac-latest" title={head.subject}>
+                    {latestBody}
+                  </div>
+                )}
               </dd>
             </div>
           )}
