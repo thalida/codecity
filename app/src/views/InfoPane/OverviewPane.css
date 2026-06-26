@@ -43,6 +43,9 @@
 }
 
 .almanac-meta dd {
+  /* Fill the rest of the row past the fixed label column, so the Latest cell's
+   * button spans the full right column (and long values truncate at its edge). */
+  flex: 1 1 0;
   margin: 0;
   min-width: 0;
   color: var(--cc-text-secondary);
