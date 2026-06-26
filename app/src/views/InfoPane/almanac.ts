@@ -383,6 +383,7 @@ function streetsSection(m: Manifest): AlmanacSection {
     `${formatCount(l.children)} ${l.children === 1 ? 'child' : 'children'}`;
   const facts = compact([
     dirFact({
+      group: 'Depth',
       label: 'Deepest',
       leader: s.maxDepthDir,
       secondary: (l) => `${l.depth} levels deep`,
