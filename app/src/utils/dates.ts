@@ -123,6 +123,16 @@ export function humanSpan(fromISO: string, toISO: string): string {
   return unit(Math.max(1, Math.round(diff / MS_DAY)), 'day');
 }
 
+/** Age as an adjective phrase relative to a reference date ("2-year-old",
+ *  "5-month-old", "3-week-old", "4-day-old"). Built on humanSpan, so it shares
+ *  the same coarse single-unit bucket. Returns '' if `fromISO` is unparseable. */
+export function humanAge(fromISO: string, toISO: string): string {
+  const span = humanSpan(fromISO, toISO); // "2 years"
+  if (!span) return '';
+  const [n, unit] = span.split(' ');
+  return `${n}-${unit.replace(/s$/, '')}-old`;
+}
+
 /** ISO date string → epoch ms; NaN for missing/unparseable (so it never wins a
  *  max() comparison). */
 export function dateMs(iso: string | null | undefined): number {

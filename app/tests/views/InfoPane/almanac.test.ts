@@ -138,6 +138,26 @@ describe('computeAlmanac — overview + buildings', () => {
   it('languages come from root ext breakdown', () => {
     expect(a!.overview.languages[0]).toEqual({ ext: '.ts', count: 3 });
   });
+  it('exposes founding timestamp + dominant language for the flavor blurb', () => {
+    expect(a!.overview.foundedISO).toBe('2020-01-01T00:00:00Z');
+    expect(a!.overview.topLanguage).toBe('TypeScript');
+  });
+  it('latestDate is the newest commit date (null when no commits)', () => {
+    expect(a!.overview.latestDate).toBeNull();
+    const withDates = computeAlmanac(
+      manifest(tree, {
+        stats: { ...buildingsStats, commitDates: { oldest: '2020-01-01', newest: '2023-09-12' } },
+      })
+    )!;
+    expect(withDates.overview.latestDate).toBe('2023-09-12');
+  });
+  it('topLanguage is null when the dominant file type has no nameable language', () => {
+    const t = {
+      ...dir('repo', '', []),
+      descendants_ext_breakdown: [{ ext: '(none)', count: 4, size: 0 }],
+    } as DirNode;
+    expect(computeAlmanac(manifest(t))!.overview.topLanguage).toBeNull();
+  });
   it('summarizes file types beyond the top languages as "+N more"', () => {
     const exts = Array.from({ length: 9 }, (_, i) => ({
       ext: `.t${i}`,

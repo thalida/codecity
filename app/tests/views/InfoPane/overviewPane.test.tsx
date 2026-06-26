@@ -115,7 +115,7 @@ describe('OverviewPane', () => {
     const sig = signal<Manifest | null>(manifest);
     render(<OverviewPane manifest={sig as never} />, container);
     await flush();
-    expect(container.textContent).toContain('1 buildings');
+    expect(container.textContent).toContain('1 building ');
 
     sig.value = {
       ...manifest,
@@ -129,7 +129,7 @@ describe('OverviewPane', () => {
     const sig = signal<Manifest | null>(manifest);
     render(<InfoPane manifest={sig as never} />, container);
     await flush();
-    expect(container.textContent).toContain('1 buildings');
+    expect(container.textContent).toContain('1 building ');
 
     sig.value = {
       ...manifest,
@@ -203,6 +203,44 @@ describe('OverviewPane', () => {
     expect(row).toBeTruthy();
     // Non-landmark rows carry no focus button.
     expect(row.querySelector('button')).toBeNull();
+  });
+
+  it('renders a flavor blurb (age + dominant language), not raw counts', async () => {
+    const sig = signal(manifest);
+    render(<OverviewPane manifest={sig as never} />, container);
+    await flush();
+    const blurb = container.querySelector('.almanac-blurb');
+    expect(blurb).toBeTruthy();
+    // "A <age> city, mostly TypeScript." — age is live, so match the shape.
+    expect(blurb!.textContent).toMatch(/^A .+ city, mostly TypeScript\.$/);
+    // The old counts-blurb is gone (and with it the "1 fireflies" plural bug).
+    expect(container.textContent).not.toContain('sprawls across');
+  });
+
+  it('renders a language composition bar mirroring the legend', async () => {
+    const sig = signal(manifest);
+    render(<OverviewPane manifest={sig as never} />, container);
+    await flush();
+    expect(container.querySelector('.almanac-langbar')).toBeTruthy();
+    expect(container.querySelectorAll('.almanac-langbar-seg').length).toBeGreaterThan(0);
+  });
+
+  it('the Latest row flies the camera to the head commit and shows the branch chip', async () => {
+    const withHead: Manifest = {
+      ...manifest,
+      repo: { ...manifest.repo, head_sha: 'deadbeefcafe', head_subject: 'Fix the thing' },
+      stats: { ...singleFileStats, commitDates: { oldest: '2020-01-01', newest: '2024-03-10' } },
+    };
+    const sig = signal(withHead);
+    render(<OverviewPane manifest={sig as never} />, container);
+    await flush();
+    expect(container.querySelector('.almanac-branch')?.textContent).toBe('main');
+    const latest = container.querySelector('.almanac-latest') as HTMLElement;
+    expect(latest).toBeTruthy();
+    expect(latest.textContent).toContain('deadbee');
+    latest.click();
+    expect(selectCommit).toHaveBeenCalledWith('deadbeefcafe');
+    expect(focusCommit).toHaveBeenCalledWith('deadbeefcafe');
   });
 
   it('gates the Forest section when the Trees layer is disabled', async () => {

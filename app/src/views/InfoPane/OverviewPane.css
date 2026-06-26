@@ -35,10 +35,11 @@
   min-width: 0;
 }
 
+/* Fixed label column so every value starts on the same rail (Founded / Latest /
+ * Remote line up) and the rows top-align with the taller two-line Latest cell. */
 .almanac-meta dt {
-  flex: 0 0 auto;
+  flex: 0 0 64px;
   color: var(--cc-text-muted);
-  min-width: 52px;
 }
 
 .almanac-meta dd {
@@ -60,13 +61,103 @@
 }
 
 .almanac-sha {
+  flex: 0 0 auto;
   font-family: var(--cc-font-mono);
   color: var(--cc-text-primary);
 }
 
+/* The Latest cell holds an interactive two-line button, so it must not clip the
+ * button's hover bleed (the other cells stay clipped for URL truncation). */
+.almanac-latest-cell {
+  overflow: visible;
+}
+
+/* Latest commit → a button that flies the camera to its tree. Two lines: sha +
+ * subject on top, relative age + branch chip below. Negative margins bleed the
+ * hover highlight into the gutter while the sha stays flush with the other
+ * values — the same pattern the fact rows use. */
+.almanac-latest {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+  min-width: 0;
+  margin: -4px -6px;
+  padding: 4px 6px;
+  border: none;
+  border-radius: var(--cc-radius-md);
+  background: none;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 0.12s ease;
+}
+
+.almanac-latest:hover,
+.almanac-latest:focus-visible {
+  background: var(--cc-overlay-bg);
+  outline: none;
+}
+
+.almanac-latest-head {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+}
+
+.almanac-latest-subject {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--cc-text-secondary);
+}
+
+.almanac-latest-sub {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--cc-text-muted);
+  font-size: var(--cc-font-md);
+}
+
+/* Branch name as a small pill — the chip vocabulary the language legend uses. */
+.almanac-branch {
+  padding: 0 7px;
+  border: 1px solid var(--cc-border-subtle);
+  border-radius: var(--cc-radius-pill);
+  background: var(--cc-overlay-bg);
+  color: var(--cc-text-secondary);
+  font-size: var(--cc-font-sm);
+  line-height: 1.6;
+}
+
+/* Stacked composition bar: each language's share of the repo, in the same hues
+ * as its legend chip. The 1px gaps let the track show through as hairlines. */
+.almanac-langbar {
+  display: flex;
+  gap: 1px;
+  height: 8px;
+  margin: 12px 0 0;
+  border-radius: var(--cc-radius-pill);
+  background: var(--cc-border-subtle);
+  overflow: hidden;
+}
+
+.almanac-langbar-seg {
+  /* Tiny languages still register as a sliver instead of vanishing. */
+  min-width: 3px;
+}
+
+.almanac-langbar-seg--more {
+  background: var(--cc-overlay-bg-strong);
+}
+
 .almanac-languages {
   list-style: none;
-  margin: 10px 0 0;
+  margin: 8px 0 0;
   padding: 0;
   display: flex;
   flex-wrap: wrap;

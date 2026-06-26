@@ -15,10 +15,12 @@ import { PaneEmpty } from '@/components/Pane';
 import { ExtensionBadge } from '@/components/Badge/Badge';
 import { selectPath, focusPath, selectCommit, focusCommit } from '@/state/stores/scene';
 import { TREES } from '@/state/stores/settings/trees';
-import { commitUrl } from '@/utils/commit';
+import { BUILDINGS } from '@/state/stores/settings/buildings';
+import { getHue } from '@/city/components/buildings/color';
+import { humanAge, formatRelativeAge } from '@/utils/dates';
 import { formatCount } from '@/utils/format';
 import { computeAlmanac } from './almanac';
-import type { AlmanacFact, AlmanacSectionKey, LandmarkRef } from './almanac';
+import type { AlmanacFact, AlmanacSectionKey, LandmarkRef, LanguageStat } from './almanac';
 
 // Each section gets its world layer's icon — the panel reads as a legend for
 // the city, not a generic stats list. The accent color is keyed off
@@ -124,6 +126,47 @@ function SectionBody({ facts }: { facts: AlmanacFact[] }) {
   );
 }
 
+/** A flavor one-liner from the city's age + dominant language — pure character,
+ *  no raw counts (those live in each section's overview line). Empty when the
+ *  repo has neither a founding date nor a nameable top language. */
+function flavorBlurb(age: string, language: string | null): string {
+  if (age && language) return `A ${age} city, mostly ${language}.`;
+  if (age) return `A ${age} city.`;
+  if (language) return `A city built mostly in ${language}.`;
+  return '';
+}
+
+/** GitHub-style stacked composition bar: one segment per top language (width ∝
+ *  file count, painted with the same extension→hue the city and the legend chips
+ *  use), plus a neutral tail for everything past the top few. The chips below it
+ *  read as its legend. */
+function LanguageBar({ languages, moreFiles }: { languages: LanguageStat[]; moreFiles: number }) {
+  const palette = BUILDINGS.value.HUE_EXT_MAP;
+  const total = languages.reduce((sum, l) => sum + l.count, 0) + moreFiles;
+  if (total <= 0) return null;
+  return (
+    <div class="almanac-langbar" aria-hidden="true">
+      {languages.map((l) => (
+        <span
+          key={l.ext}
+          class="almanac-langbar-seg"
+          style={{
+            width: `${(l.count / total) * 100}%`,
+            // Match ExtensionBadge: the "(none)" sentinel hues off '' like its chip.
+            background: `hsl(${getHue(l.ext === '(none)' ? '' : l.ext, palette)}, 60%, 35%)`,
+          }}
+        />
+      ))}
+      {moreFiles > 0 && (
+        <span
+          class="almanac-langbar-seg almanac-langbar-seg--more"
+          style={{ width: `${(moreFiles / total) * 100}%` }}
+        />
+      )}
+    </div>
+  );
+}
+
 export interface OverviewPaneProps {
   manifest: Signal<Manifest | DirNode | { tree?: unknown; [k: string]: unknown } | null>;
 }
@@ -146,27 +189,51 @@ export function OverviewPane({ manifest }: OverviewPaneProps) {
 
   const { overview, sections } = almanac;
   const { repo } = overview;
-  const latestUrl =
-    repo.remote_url && repo.head_sha ? commitUrl(repo.remote_url, repo.head_sha) : null;
+  // Live age against the current clock ("2-year-old") for the flavor blurb.
+  const age = overview.foundedISO ? humanAge(overview.foundedISO, new Date().toISOString()) : '';
+  const blurb = flavorBlurb(age, overview.topLanguage);
+  // The HEAD commit, if any — the "Latest" row flies the camera to its tree.
+  const head =
+    repo.head_sha && repo.head_subject
+      ? { sha: repo.head_sha.slice(0, 7), full: repo.head_sha, subject: repo.head_subject }
+      : null;
+  const latestAgo = overview.latestDate ? formatRelativeAge(overview.latestDate) : null;
 
   return (
     <div class="almanac">
       <header class="almanac-overview">
         <h2 class="almanac-name">{overview.name}</h2>
-        <p class="almanac-blurb">
-          {overview.founded ? `Founded ${overview.founded}, ` : ''}
-          this city of {formatCount(overview.totals.files)} buildings sprawls across{' '}
-          {formatCount(overview.totals.dirs)} districts
-          {overview.totals.authors > 0
-            ? `, tended by ${formatCount(overview.totals.authors)} fireflies`
-            : ''}
-          .
-        </p>
+        {blurb && <p class="almanac-blurb">{blurb}</p>}
         <dl class="almanac-meta">
-          {repo.branch && (
+          {overview.founded && (
             <div>
-              <dt>Branch</dt>
-              <dd>{repo.branch}</dd>
+              <dt>Founded</dt>
+              <dd>{overview.founded}</dd>
+            </div>
+          )}
+          {head && (
+            <div>
+              <dt>Latest</dt>
+              <dd class="almanac-latest-cell">
+                <button
+                  type="button"
+                  class="almanac-latest"
+                  title={head.subject}
+                  aria-label={`Focus the latest commit ${head.sha} in the world`}
+                  onClick={() => visit({ kind: NodeKind.Commit, id: head.full })}
+                >
+                  <span class="almanac-latest-head">
+                    <span class="almanac-sha">{head.sha}</span>
+                    <span class="almanac-latest-subject">{head.subject}</span>
+                  </span>
+                  {(latestAgo || repo.branch) && (
+                    <span class="almanac-latest-sub">
+                      {latestAgo && <span>{latestAgo}</span>}
+                      {repo.branch && <span class="almanac-branch">{repo.branch}</span>}
+                    </span>
+                  )}
+                </button>
+              </dd>
             </div>
           )}
           {repo.remote_url && (
@@ -179,40 +246,27 @@ export function OverviewPane({ manifest }: OverviewPaneProps) {
               </dd>
             </div>
           )}
-          {repo.head_sha && repo.head_subject && (
-            <div>
-              <dt>Latest</dt>
-              <dd>
-                {latestUrl ? (
-                  <a href={latestUrl} target="_blank" rel="noreferrer" title={repo.head_subject}>
-                    <span class="almanac-sha">{repo.head_sha.slice(0, 7)}</span> {repo.head_subject}
-                  </a>
-                ) : (
-                  <>
-                    <span class="almanac-sha">{repo.head_sha.slice(0, 7)}</span> {repo.head_subject}
-                  </>
-                )}
-              </dd>
-            </div>
-          )}
         </dl>
         {overview.languages.length > 0 && (
-          <ul class="almanac-languages">
-            {overview.languages.map((l) => (
-              <li key={l.ext} class="almanac-language">
-                <ExtensionBadge extension={l.ext === '(none)' ? null : l.ext} isDir={false} />
-                <span class="almanac-language-count">{formatCount(l.count)}</span>
-              </li>
-            ))}
-            {overview.moreLanguages > 0 && (
-              <li
-                class="almanac-language almanac-language--more"
-                title={`${formatCount(overview.moreLanguageFiles)} more files across ${overview.moreLanguages} other file ${overview.moreLanguages === 1 ? 'type' : 'types'}`}
-              >
-                +{formatCount(overview.moreLanguages)} more
-              </li>
-            )}
-          </ul>
+          <>
+            <LanguageBar languages={overview.languages} moreFiles={overview.moreLanguageFiles} />
+            <ul class="almanac-languages">
+              {overview.languages.map((l) => (
+                <li key={l.ext} class="almanac-language">
+                  <ExtensionBadge extension={l.ext === '(none)' ? null : l.ext} isDir={false} />
+                  <span class="almanac-language-count">{formatCount(l.count)}</span>
+                </li>
+              ))}
+              {overview.moreLanguages > 0 && (
+                <li
+                  class="almanac-language almanac-language--more"
+                  title={`${formatCount(overview.moreLanguageFiles)} more files across ${overview.moreLanguages} other file ${overview.moreLanguages === 1 ? 'type' : 'types'}`}
+                >
+                  +{formatCount(overview.moreLanguages)} more
+                </li>
+              )}
+            </ul>
+          </>
         )}
       </header>
       {sections.map((s) => {

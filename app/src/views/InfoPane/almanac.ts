@@ -10,6 +10,7 @@ import { formatShortDate, humanSpan } from '@/utils/dates';
 import { formatBytes } from '@/utils/bytes';
 import { formatCount, pluralize } from '@/utils/format';
 import { labelFromSource } from '@/utils/sources';
+import { languageLabelForExt } from '@/utils/syntaxLanguages';
 
 export type LandmarkKind = NodeKind.File | NodeKind.Directory | NodeKind.Commit;
 
@@ -59,7 +60,17 @@ export interface LanguageStat {
 
 export interface AlmanacOverview {
   name: string;
+  /** Founding date as a short calendar string ("Mar 23, 2024"), or null. */
   founded: string | null;
+  /** Raw founding timestamp (earliest file creation) — lets the view derive a
+   *  live "N-year-old" age against the current clock. Null when undated. */
+  foundedISO: string | null;
+  /** Newest commit date — the "Latest" row's relative-age anchor. Null when
+   *  there are no commits. */
+  latestDate: string | null;
+  /** Friendly name of the dominant language ("TypeScript"), for the flavor
+   *  blurb. Null when the top file type has no nameable language ("(none)"). */
+  topLanguage: string | null;
   totals: { files: number; dirs: number; commits: number; authors: number };
   repo: RepoInfo;
   languages: LanguageStat[];
@@ -192,6 +203,10 @@ function buildOverview(m: Manifest): AlmanacOverview {
       root.name ??
       'this project',
     founded: m.dateRanges.minCreated ? formatShortDate(m.dateRanges.minCreated) : null,
+    foundedISO: m.dateRanges.minCreated ?? null,
+    latestDate: m.stats.commitDates.newest ?? null,
+    // Dominant file type → a nameable language for the flavor blurb.
+    topLanguage: exts.length ? languageLabelForExt(exts[0].ext) : null,
     totals: {
       files: root.descendants_file_count,
       dirs: root.descendants_dir_count,
