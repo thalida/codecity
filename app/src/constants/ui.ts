@@ -29,8 +29,10 @@ export interface ActivityBarTab {
 }
 
 export const ACTIVITY_BAR_TABS: readonly ActivityBarTab[] = [
+  // Info leads: the almanac is the first thing a freshly-loaded world greets you
+  // with (see LeftSidebar's default tab + on-load switch).
+  { id: SidebarTab.Info, icon: Info, title: 'Info' },
   { id: SidebarTab.Tree, icon: FolderTree, title: 'Tree' },
   { id: SidebarTab.Search, icon: Search, title: 'Search' },
-  { id: SidebarTab.Info, icon: Info, title: 'Info' },
   { id: SidebarTab.Controls, icon: Settings2, title: 'Settings', placement: TabPlacement.Bottom },
 ] as const;

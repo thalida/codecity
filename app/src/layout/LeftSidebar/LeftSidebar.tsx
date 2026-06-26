@@ -32,6 +32,7 @@ import {
   runStemDiagnostic,
 } from '@/state/stores/scene';
 import { MANIFEST } from '@/state/stores/manifest';
+import { CURRENT_SOURCE } from '@/state/stores/source';
 import { isEmptyManifest } from '@/utils/manifest';
 import { TreePane } from '@/views/TreePane/TreePane';
 import { InfoPane } from '@/views/InfoPane/InfoPane';
@@ -100,7 +101,7 @@ function ActivityBar({ activeTab, collapsed, onIconClick }: ActivityBarProps) {
 // ── Main component ───────────────────────────────────────────────────
 
 export function LeftSidebar() {
-  const activeTab = useSignal<SidebarTab>(SidebarTab.Tree);
+  const activeTab = useSignal<SidebarTab>(SidebarTab.Info);
   const collapsed = useSignal<boolean>(LEFT_SIDEBAR_COLLAPSED.value);
 
   // Tree selection + hover paths, derived from picker signals.
@@ -134,6 +135,13 @@ export function LeftSidebar() {
   // Persist collapsed → localStorage via the persistedSignal.
   useSignalEffect(() => {
     LEFT_SIDEBAR_COLLAPSED.value = collapsed.value;
+  });
+
+  // Open to Info whenever a world commits — cold-boot ?src= and a user source
+  // switch both write CURRENT_SOURCE; live-reloads don't, so this fires once per
+  // real load and won't fight a manual tab change between loads.
+  useSignalEffect(() => {
+    if (CURRENT_SOURCE.value) activeTab.value = SidebarTab.Info;
   });
 
   // Auto-collapse when the manifest has no content (cold-boot empty state).
