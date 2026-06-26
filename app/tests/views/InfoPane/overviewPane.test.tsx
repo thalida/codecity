@@ -22,7 +22,7 @@ vi.mock('@/state/stores/settings/trees', () => ({
   },
 }));
 
-import { OverviewPane } from '@/views/InfoPane/OverviewPane';
+import { OverviewPane, flavorBlurb } from '@/views/InfoPane/OverviewPane';
 import { InfoPane } from '@/views/InfoPane/InfoPane';
 import { NodeKind } from '@/types';
 import type { Manifest } from '@/types';
@@ -211,10 +211,30 @@ describe('OverviewPane', () => {
     await flush();
     const blurb = container.querySelector('.almanac-blurb');
     expect(blurb).toBeTruthy();
-    // "A <age> city, mostly TypeScript." — age is live, so match the shape.
-    expect(blurb!.textContent).toMatch(/^A .+ city, mostly TypeScript\.$/);
+    // "An? <age> city of 1 building, mostly TypeScript." — age is live (depends
+    // on the clock), so match the shape rather than an exact age.
+    expect(blurb!.textContent).toMatch(/^An? .+ city of 1 building, mostly TypeScript\.$/);
     // The old counts-blurb is gone (and with it the "1 fireflies" plural bug).
     expect(container.textContent).not.toContain('sprawls across');
+  });
+
+  it('flavorBlurb weaves age + scale + language with a correct article', () => {
+    expect(flavorBlurb('8-year-old', 312, 'Python')).toBe(
+      'An 8-year-old city of 312 buildings, mostly Python.'
+    );
+    expect(flavorBlurb('2-year-old', 312, 'Python')).toBe(
+      'A 2-year-old city of 312 buildings, mostly Python.'
+    );
+    expect(flavorBlurb('11-month-old', 5, 'Go')).toBe(
+      'An 11-month-old city of 5 buildings, mostly Go.'
+    );
+    // Singular building, and clauses drop out when their input is absent.
+    expect(flavorBlurb('1-year-old', 1, 'CSS')).toBe(
+      'A 1-year-old city of 1 building, mostly CSS.'
+    );
+    expect(flavorBlurb('', 312, 'Python')).toBe('A city of 312 buildings, mostly Python.');
+    expect(flavorBlurb('5-day-old', 0, null)).toBe('A 5-day-old city.');
+    expect(flavorBlurb('', 0, null)).toBe('');
   });
 
   it('renders a language composition bar mirroring the legend, each segment titled', async () => {

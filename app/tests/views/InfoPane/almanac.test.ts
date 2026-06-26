@@ -142,6 +142,13 @@ describe('computeAlmanac — overview + buildings', () => {
     expect(a!.overview.foundedISO).toBe('2020-01-01T00:00:00Z');
     expect(a!.overview.topLanguage).toBe('TypeScript');
   });
+  it('buildings count excludes media (matches the Buildings section)', () => {
+    expect(a!.overview.buildings).toBe(3); // 3 files, no media
+    const withMedia = computeAlmanac(
+      manifest(tree, { stats: { ...buildingsStats, mediaCount: 1 } })
+    )!;
+    expect(withMedia.overview.buildings).toBe(2); // 3 files − 1 billboard
+  });
   it('latestDate is the newest commit date (null when no commits)', () => {
     expect(a!.overview.latestDate).toBeNull();
     const withDates = computeAlmanac(

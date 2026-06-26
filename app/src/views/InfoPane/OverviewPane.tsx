@@ -127,14 +127,25 @@ function SectionBody({ facts }: { facts: AlmanacFact[] }) {
   );
 }
 
-/** A flavor one-liner from the city's age + dominant language — pure character,
- *  no raw counts (those live in each section's overview line). Empty when the
- *  repo has neither a founding date nor a nameable top language. */
-function flavorBlurb(age: string, language: string | null): string {
-  if (age && language) return `A ${age} city, mostly ${language}.`;
-  if (age) return `A ${age} city.`;
-  if (language) return `A city built mostly in ${language}.`;
-  return '';
+/** "A"/"An" for an age phrase ("8-year-old" → "An"), keyed on the spoken sound
+ *  of its leading number. Vowel-sound starts in the realistic age range: 8, 11,
+ *  18, and the eighties. */
+function articleFor(age: string): 'A' | 'An' {
+  const n = parseInt(age, 10);
+  return n === 8 || n === 11 || n === 18 || (n >= 80 && n <= 89) ? 'An' : 'A';
+}
+
+/** A flavor one-liner weaving the city's age, scale, and dominant language into
+ *  one sentence ("An 8-year-old city of 312 buildings, mostly Python.") — enough
+ *  texture to set the scene, without the per-layer counts (those live in each
+ *  section's overview). Each clause drops out when its input is absent; empty
+ *  when the repo has nothing to say. */
+export function flavorBlurb(age: string, buildings: number, language: string | null): string {
+  if (!age && !buildings && !language) return '';
+  let s = age ? `${articleFor(age)} ${age} city` : 'A city';
+  if (buildings > 0) s += ` of ${pluralize(buildings, 'building')}`;
+  if (language) s += `, mostly ${language}`;
+  return `${s}.`;
 }
 
 /** GitHub-style stacked composition bar: one segment per top language (width ∝
@@ -206,7 +217,7 @@ export function OverviewPane({ manifest }: OverviewPaneProps) {
   const { repo } = overview;
   // Live age against the current clock ("2-year-old") for the flavor blurb.
   const age = overview.foundedISO ? humanAge(overview.foundedISO, new Date().toISOString()) : '';
-  const blurb = flavorBlurb(age, overview.topLanguage);
+  const blurb = flavorBlurb(age, overview.buildings, overview.topLanguage);
   // The HEAD commit, if any — the "Latest" row flies the camera to its tree.
   const head =
     repo.head_sha && repo.head_subject

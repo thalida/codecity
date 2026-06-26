@@ -71,6 +71,9 @@ export interface AlmanacOverview {
   /** Friendly name of the dominant language ("TypeScript"), for the flavor
    *  blurb. Null when the top file type has no nameable language ("(none)"). */
   topLanguage: string | null;
+  /** Building count for the blurb — non-media files, matching the Buildings
+   *  section (media render as billboards, not buildings). */
+  buildings: number;
   totals: { files: number; dirs: number; commits: number; authors: number };
   repo: RepoInfo;
   languages: LanguageStat[];
@@ -207,6 +210,7 @@ function buildOverview(m: Manifest): AlmanacOverview {
     latestDate: m.stats.commitDates.newest ?? null,
     // Dominant file type → a nameable language for the flavor blurb.
     topLanguage: exts.length ? languageLabelForExt(exts[0].ext) : null,
+    buildings: Math.max(0, root.descendants_file_count - m.stats.mediaCount),
     totals: {
       files: root.descendants_file_count,
       dirs: root.descendants_dir_count,
