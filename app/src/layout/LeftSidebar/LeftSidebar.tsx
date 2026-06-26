@@ -17,7 +17,7 @@
 
 import './LeftSidebar.css';
 import { useComputed, useSignal, useSignalEffect } from '@preact/signals';
-import { ACTIVITY_BAR_TABS, TabPlacement } from '@/constants/ui';
+import { ACTIVITY_BAR_TABS, DEFAULT_SIDEBAR_TAB, TabPlacement } from '@/constants/ui';
 import { PERSISTED_KEYS } from '@/constants/storage';
 import { SidebarTab, NodeKind } from '@/types';
 import type { PickTarget, TreeNode } from '@/types';
@@ -101,7 +101,7 @@ function ActivityBar({ activeTab, collapsed, onIconClick }: ActivityBarProps) {
 // ── Main component ───────────────────────────────────────────────────
 
 export function LeftSidebar() {
-  const activeTab = useSignal<SidebarTab>(SidebarTab.Info);
+  const activeTab = useSignal<SidebarTab>(DEFAULT_SIDEBAR_TAB);
   const collapsed = useSignal<boolean>(LEFT_SIDEBAR_COLLAPSED.value);
 
   // Tree selection + hover paths, derived from picker signals.
@@ -141,7 +141,7 @@ export function LeftSidebar() {
   // switch both write CURRENT_SOURCE; live-reloads don't, so this fires once per
   // real load and won't fight a manual tab change between loads.
   useSignalEffect(() => {
-    if (CURRENT_SOURCE.value) activeTab.value = SidebarTab.Info;
+    if (CURRENT_SOURCE.value) activeTab.value = DEFAULT_SIDEBAR_TAB;
   });
 
   // Auto-collapse when the manifest has no content (cold-boot empty state).
