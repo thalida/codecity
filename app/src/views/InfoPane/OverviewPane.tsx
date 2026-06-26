@@ -18,7 +18,8 @@ import { TREES } from '@/state/stores/settings/trees';
 import { BUILDINGS } from '@/state/stores/settings/buildings';
 import { getHue } from '@/city/components/buildings/color';
 import { humanAge, formatRelativeAge } from '@/utils/dates';
-import { formatCount } from '@/utils/format';
+import { languageLabelForExt } from '@/utils/syntaxLanguages';
+import { formatCount, pluralize } from '@/utils/format';
 import { computeAlmanac } from './almanac';
 import type { AlmanacFact, AlmanacSectionKey, LandmarkRef, LanguageStat } from './almanac';
 
@@ -140,27 +141,41 @@ function flavorBlurb(age: string, language: string | null): string {
  *  file count, painted with the same extension→hue the city and the legend chips
  *  use), plus a neutral tail for everything past the top few. The chips below it
  *  read as its legend. */
-function LanguageBar({ languages, moreFiles }: { languages: LanguageStat[]; moreFiles: number }) {
+function LanguageBar({
+  languages,
+  moreLanguages,
+  moreFiles,
+}: {
+  languages: LanguageStat[];
+  moreLanguages: number;
+  moreFiles: number;
+}) {
   const palette = BUILDINGS.value.HUE_EXT_MAP;
   const total = languages.reduce((sum, l) => sum + l.count, 0) + moreFiles;
   if (total <= 0) return null;
+  const share = (n: number) => `${Math.round((n / total) * 100)}%`;
   return (
     <div class="almanac-langbar" aria-hidden="true">
-      {languages.map((l) => (
-        <span
-          key={l.ext}
-          class="almanac-langbar-seg"
-          style={{
-            width: `${(l.count / total) * 100}%`,
-            // Match ExtensionBadge: the "(none)" sentinel hues off '' like its chip.
-            background: `hsl(${getHue(l.ext === '(none)' ? '' : l.ext, palette)}, 60%, 35%)`,
-          }}
-        />
-      ))}
+      {languages.map((l) => {
+        const name = languageLabelForExt(l.ext) ?? (l.ext === '(none)' ? 'No extension' : l.ext);
+        return (
+          <span
+            key={l.ext}
+            class="almanac-langbar-seg"
+            title={`${name} · ${pluralize(l.count, 'file')} (${share(l.count)})`}
+            style={{
+              width: share(l.count),
+              // Match ExtensionBadge: the "(none)" sentinel hues off '' like its chip.
+              background: `hsl(${getHue(l.ext === '(none)' ? '' : l.ext, palette)}, 60%, 35%)`,
+            }}
+          />
+        );
+      })}
       {moreFiles > 0 && (
         <span
           class="almanac-langbar-seg almanac-langbar-seg--more"
-          style={{ width: `${(moreFiles / total) * 100}%` }}
+          title={`${pluralize(moreFiles, 'file')} across ${pluralize(moreLanguages, 'other file type')} (${share(moreFiles)})`}
+          style={{ width: share(moreFiles) }}
         />
       )}
     </div>
@@ -263,7 +278,11 @@ export function OverviewPane({ manifest }: OverviewPaneProps) {
         </dl>
         {overview.languages.length > 0 && (
           <>
-            <LanguageBar languages={overview.languages} moreFiles={overview.moreLanguageFiles} />
+            <LanguageBar
+              languages={overview.languages}
+              moreLanguages={overview.moreLanguages}
+              moreFiles={overview.moreLanguageFiles}
+            />
             <ul class="almanac-languages">
               {overview.languages.map((l) => (
                 <li key={l.ext} class="almanac-language">

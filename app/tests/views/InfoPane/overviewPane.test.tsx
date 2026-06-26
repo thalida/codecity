@@ -217,12 +217,15 @@ describe('OverviewPane', () => {
     expect(container.textContent).not.toContain('sprawls across');
   });
 
-  it('renders a language composition bar mirroring the legend', async () => {
+  it('renders a language composition bar mirroring the legend, each segment titled', async () => {
     const sig = signal(manifest);
     render(<OverviewPane manifest={sig as never} />, container);
     await flush();
     expect(container.querySelector('.almanac-langbar')).toBeTruthy();
-    expect(container.querySelectorAll('.almanac-langbar-seg').length).toBeGreaterThan(0);
+    const segs = Array.from(container.querySelectorAll('.almanac-langbar-seg'));
+    expect(segs.length).toBeGreaterThan(0);
+    // The lone .ts segment is named, counted, and shows its share on hover.
+    expect(segs[0].getAttribute('title')).toBe('TypeScript · 1 file (100%)');
   });
 
   it('the Latest row flies the camera to the head commit and shows the branch chip', async () => {
