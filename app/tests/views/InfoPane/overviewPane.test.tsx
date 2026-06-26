@@ -248,38 +248,41 @@ describe('OverviewPane', () => {
     expect(segs[0].getAttribute('title')).toBe('TypeScript · 1 file (100%)');
   });
 
-  it('the Latest row flies the camera to the head commit and shows the branch chip', async () => {
+  it('Latest is an informational row; the commit hash links to the remote', async () => {
     const withHead: Manifest = {
       ...manifest,
-      repo: { ...manifest.repo, head_sha: 'deadbeefcafe', head_subject: 'Fix the thing' },
+      repo: {
+        ...manifest.repo,
+        remote_url: 'https://github.com/o/r',
+        head_sha: 'deadbeefcafe',
+        head_subject: 'Fix the thing',
+      },
       stats: { ...singleFileStats, commitDates: { oldest: '2020-01-01', newest: '2024-03-10' } },
     };
     const sig = signal(withHead);
     render(<OverviewPane manifest={sig as never} />, container);
     await flush();
-    expect(container.querySelector('.almanac-branch')?.textContent).toBe('main');
+    // The row is not a button — no invisible whole-row link.
     const latest = container.querySelector('.almanac-latest') as HTMLElement;
-    expect(latest).toBeTruthy();
-    expect(latest.textContent).toContain('deadbee');
-    latest.click();
-    expect(selectCommit).toHaveBeenCalledWith('deadbeefcafe');
-    expect(focusCommit).toHaveBeenCalledWith('deadbeefcafe');
+    expect(latest.tagName).toBe('DIV');
+    expect(latest.querySelector('button')).toBeNull();
+    // The commit hash is the one link, pointing at the commit on the remote.
+    const link = latest.querySelector('a.almanac-sha-link') as HTMLAnchorElement;
+    expect(link.textContent).toBe('deadbee');
+    expect(link.getAttribute('href')).toBe('https://github.com/o/r/commit/deadbeefcafe');
+    expect(container.querySelector('.almanac-branch')?.textContent).toBe('main');
   });
 
-  it('renders Latest as a static (non-button) row when the Trees layer is off', async () => {
-    treesState.ENABLED = false;
+  it('renders the commit hash as plain text (no link) when there is no remote', async () => {
     const withHead: Manifest = {
       ...manifest,
-      repo: { ...manifest.repo, head_sha: 'deadbeefcafe', head_subject: 'Fix the thing' },
-      stats: { ...singleFileStats, commitDates: { oldest: '2020-01-01', newest: '2024-03-10' } },
+      repo: { ...manifest.repo, remote_url: null, head_sha: 'deadbeefcafe', head_subject: 'x' },
     };
     const sig = signal(withHead);
     render(<OverviewPane manifest={sig as never} />, container);
     await flush();
-    const latest = container.querySelector('.almanac-latest') as HTMLElement;
-    expect(latest).toBeTruthy();
-    expect(latest.tagName).toBe('DIV'); // not a button — no dead-end click
-    expect(latest.textContent).toContain('deadbee');
+    expect(container.querySelector('a.almanac-sha-link')).toBeNull();
+    expect(container.querySelector('.almanac-sha')?.textContent).toBe('deadbee');
   });
 
   it('gates the Forest section when the Trees layer is disabled', async () => {

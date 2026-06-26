@@ -18,6 +18,7 @@ import { TREES } from '@/state/stores/settings/trees';
 import { BUILDINGS } from '@/state/stores/settings/buildings';
 import { getHue } from '@/city/components/buildings/color';
 import { humanAge, formatRelativeAge } from '@/utils/dates';
+import { commitUrl } from '@/utils/commit';
 import { languageLabelForExt } from '@/utils/syntaxLanguages';
 import { formatCount, pluralize } from '@/utils/format';
 import { computeAlmanac } from './almanac';
@@ -218,29 +219,15 @@ export function OverviewPane({ manifest }: OverviewPaneProps) {
   // Live age against the current clock ("2-year-old") for the flavor blurb.
   const age = overview.foundedISO ? humanAge(overview.foundedISO, new Date().toISOString()) : '';
   const blurb = flavorBlurb(age, overview.buildings, overview.topLanguage);
-  // The HEAD commit, if any — the "Latest" row flies the camera to its tree.
+  // The HEAD commit, if any — an informational row; the sha is the one link,
+  // pointing at the commit on the remote (when there is one).
   const head =
     repo.head_sha && repo.head_subject
-      ? { sha: repo.head_sha.slice(0, 7), full: repo.head_sha, subject: repo.head_subject }
+      ? { sha: repo.head_sha.slice(0, 7), subject: repo.head_subject }
       : null;
   const latestAgo = overview.latestDate ? formatRelativeAge(overview.latestDate) : null;
-  // The Latest row only flies the camera when the Trees layer is on — without it
-  // the commit's tree doesn't exist, so a clickable button would be a dead end
-  // (the Forest section gates its commit rows the same way).
-  const latestBody = head && (
-    <>
-      <span class="almanac-latest-head">
-        <span class="almanac-sha">{head.sha}</span>
-        <span class="almanac-latest-subject">{head.subject}</span>
-      </span>
-      {(latestAgo || repo.branch) && (
-        <span class="almanac-latest-sub">
-          {latestAgo && <span>{latestAgo}</span>}
-          {repo.branch && <span class="almanac-branch">{repo.branch}</span>}
-        </span>
-      )}
-    </>
-  );
+  const latestUrl =
+    repo.remote_url && repo.head_sha ? commitUrl(repo.remote_url, repo.head_sha) : null;
 
   return (
     <div class="almanac">
@@ -257,22 +244,31 @@ export function OverviewPane({ manifest }: OverviewPaneProps) {
           {head && (
             <div>
               <dt>Latest</dt>
-              <dd class="almanac-latest-cell">
-                {treesEnabled ? (
-                  <button
-                    type="button"
-                    class="almanac-latest"
-                    title={head.subject}
-                    aria-label={`Focus the latest commit ${head.sha} in the world`}
-                    onClick={() => visit({ kind: NodeKind.Commit, id: head.full })}
-                  >
-                    {latestBody}
-                  </button>
-                ) : (
-                  <div class="almanac-latest" title={head.subject}>
-                    {latestBody}
-                  </div>
-                )}
+              <dd>
+                <div class="almanac-latest">
+                  <span class="almanac-latest-head">
+                    {latestUrl ? (
+                      <a
+                        class="almanac-sha-link"
+                        href={latestUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        title="View this commit on the remote"
+                      >
+                        {head.sha}
+                      </a>
+                    ) : (
+                      <span class="almanac-sha">{head.sha}</span>
+                    )}
+                    <span class="almanac-latest-subject">{head.subject}</span>
+                  </span>
+                  {(latestAgo || repo.branch) && (
+                    <span class="almanac-latest-sub">
+                      {latestAgo && <span>{latestAgo}</span>}
+                      {repo.branch && <span class="almanac-branch">{repo.branch}</span>}
+                    </span>
+                  )}
+                </div>
               </dd>
             </div>
           )}

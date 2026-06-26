@@ -63,49 +63,36 @@
   text-decoration: underline;
 }
 
-.almanac-sha {
+/* The sha as plain text (no remote) vs. as the one link in the row (accent +
+ * hover underline, matching the Remote link below). Both stay monospace and
+ * never shrink. */
+.almanac-sha,
+.almanac-sha-link {
   flex: 0 0 auto;
   font-family: var(--cc-font-mono);
+}
+
+.almanac-sha {
   color: var(--cc-text-primary);
 }
 
-/* The Latest cell holds an interactive two-line button, so it must not clip the
- * button's hover bleed (the other cells stay clipped for URL truncation). */
-.almanac-latest-cell {
-  overflow: visible;
+.almanac-sha-link {
+  color: var(--cc-accent-light);
+  text-decoration: none;
 }
 
-/* Latest commit → a button that flies the camera to its tree. Two lines: sha +
- * subject on top, relative age + branch chip below. Negative margins bleed the
- * hover highlight into the gutter while the sha stays flush with the other
- * values — the same pattern the fact rows use. */
+.almanac-sha-link:hover,
+.almanac-sha-link:focus-visible {
+  text-decoration: underline;
+}
+
+/* Latest commit — an informational two-line row: sha + subject on top, relative
+ * age + branch chip below. */
 .almanac-latest {
   display: flex;
   flex-direction: column;
   gap: 2px;
-  width: 100%;
   min-width: 0;
-  margin: -4px -6px;
-  padding: 4px 6px;
-  border: none;
-  border-radius: var(--cc-radius-md);
-  background: none;
-  font: inherit;
-  color: inherit;
-  text-align: left;
-}
-
-/* Clickable only with the Trees layer on (there's a tree to fly to). When off,
- * the same markup renders as a plain <div> — no cursor, no hover affordance. */
-button.almanac-latest {
-  cursor: pointer;
-  transition: background-color 0.12s ease;
-}
-
-button.almanac-latest:hover,
-button.almanac-latest:focus-visible {
-  background: var(--cc-overlay-bg);
-  outline: none;
 }
 
 .almanac-latest-head {
