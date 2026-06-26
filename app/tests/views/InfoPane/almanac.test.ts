@@ -231,9 +231,11 @@ describe('computeAlmanac — overview + buildings', () => {
       kind: 'file',
       id: 'code.ts',
     });
-    // A lone billboard collapses to one spotlight row (no lopsided pair groups)
-    // carrying both its byte size and pixel resolution.
+    // A lone billboard collapses to one row under a "Spotlight" group (no
+    // lopsided pair groups) carrying both its byte size and pixel resolution.
     expect(media.facts).toHaveLength(1);
+    expect(media.facts[0].group).toBe('Spotlight');
+    expect(media.facts[0].label).toBe('Only');
     expect(media.facts[0].landmark).toEqual({ kind: 'file', id: 'pic.png' });
     expect(media.facts[0].secondary).toContain('1,920'); // resolution
     expect(media.facts[0].secondary).toMatch(/KB|B/); // and byte size

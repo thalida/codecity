@@ -312,8 +312,9 @@ function mediaSection(m: Manifest): AlmanacSection {
   const loRes = s.minMediaPixelsFile;
   const hiRes = s.maxMediaPixelsFile;
   const resPair = hasRes(loRes) && hasRes(hiRes) && loRes.path !== hiRes.path;
-  // No spread (typically a single billboard): one spotlight row with the file's
-  // size + resolution combined, rather than two lopsided one-item groups.
+  // No spread (typically a single billboard): one row under a "Spotlight" group
+  // with the file's size + resolution combined — rather than two lopsided
+  // one-item Size/Resolution groups that read as broken pairs.
   if (!sizePair && !resPair && hi) {
     const dims = hasRes(hiRes) ? ` · ${resFmt(hiRes)}` : '';
     return {
@@ -323,10 +324,11 @@ function mediaSection(m: Manifest): AlmanacSection {
       overview,
       facts: compact([
         fileFact({
-          label: '',
+          group: 'Spotlight',
+          label: 'Only',
           leader: hi,
           secondary: (l) => `${bytesFmt(l)}${dims}`,
-          tip: 'The lone billboard — its byte size and pixel resolution.',
+          tip: 'The only billboard — its byte size and pixel resolution.',
         }),
       ]),
     };
