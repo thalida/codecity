@@ -75,7 +75,7 @@
   color: var(--cc-accent-light);
   text-decoration: underline;
   text-underline-offset: 2px;
-  text-decoration-color: color-mix(in oklch, var(--cc-accent-light) 45%, transparent);
+  text-decoration-color: var(--cc-accent-light-border);
 }
 .info-markdown a:hover {
   text-decoration-color: var(--cc-accent-light);
