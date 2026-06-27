@@ -7,6 +7,7 @@ Scalar is mounted at /api/docs and OpenAPI JSON relocated to
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Request
@@ -20,6 +21,23 @@ from api.sse_compression import SSEGZipMiddleware
 from api.static import make_static_router
 
 DEFAULT_STATIC_DIR = Path(__file__).resolve().parent / "static"
+
+
+class _HealthcheckAccessFilter(logging.Filter):
+    """Drop the every-10s /api/health probe from the access log; keep real
+    requests. uvicorn.access formats with args = (client, method, path, ...)."""
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        args = record.args
+        return not (
+            isinstance(args, tuple)
+            and len(args) >= 3
+            and str(args[2]).startswith("/api/health")
+        )
+
+
+# Install once at import — covers every entry path (prod, --reload, uvicorn app:app).
+logging.getLogger("uvicorn.access").addFilter(_HealthcheckAccessFilter())
 
 _SCALAR_HTML = """<!doctype html><html><head><title>CodeCity API</title>
 <meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
