@@ -64,17 +64,31 @@ export function PaneHeader({
       )}
       {prefixSlot ?? null}
       <h3 class={`text-pane-title${mono ? ' is-mono' : ''}`}>{titleSlot ?? title}</h3>
-      {typeof onClose === 'function' && (
-        <button
-          type="button"
-          class="btn-icon btn-icon--text"
-          title={closeTitle}
-          aria-label={closeTitle}
-          onClick={() => onClose()}
-        >
-          <X class="lucide-icon" />
-        </button>
-      )}
+      {typeof onClose === 'function' && <PaneCloseButton onClose={onClose} title={closeTitle} />}
     </div>
+  );
+}
+
+// ── Close button ────────────────────────────────────────────────────────────
+
+export interface PaneCloseButtonProps {
+  onClose: () => void;
+  /** Tooltip / aria-label. Defaults to "Hide sidebar". */
+  title?: string;
+}
+
+/** The pane's × close button. Shared by the default header and by panes that
+ *  compose their own header (e.g. InfoPane's tab strip). */
+export function PaneCloseButton({ onClose, title = 'Hide sidebar' }: PaneCloseButtonProps) {
+  return (
+    <button
+      type="button"
+      class="btn-icon btn-icon--text"
+      title={title}
+      aria-label={title}
+      onClick={() => onClose()}
+    >
+      <X class="lucide-icon" />
+    </button>
   );
 }

@@ -4,13 +4,16 @@
 
 import './InfoPane.css';
 import { useState } from 'preact/hooks';
+import { useSignalEffect } from '@preact/signals';
 import type { Signal } from '@preact/signals';
 import type { ComponentType } from 'preact';
 import { Globe, BookOpen } from 'lucide-preact';
 import type { LucideIcon } from 'lucide-preact';
 import type { DirNode, Manifest } from '@/types';
 import { Pane } from '@/components/Pane';
+import { PaneCloseButton } from '@/components/PaneHeader/PaneHeader';
 import { PaneTabs } from '@/components/PaneTabs/PaneTabs';
+import { CURRENT_SOURCE } from '@/state/stores/source';
 import { OverviewPane } from './OverviewPane';
 import { ReadmePane } from './ReadmePane';
 
@@ -41,9 +44,23 @@ export interface InfoPaneProps {
 export function InfoPane({ manifest, onClose }: InfoPaneProps) {
   const [tab, setTab] = useState<InfoTab>(InfoTab.Overview);
   const active = INFO_TABS.find((t) => t.id === tab) ?? INFO_TABS[0];
+
+  // Reset to Overview when a new world commits — InfoPane stays mounted across
+  // world switches, so its subtab would otherwise persist. Keyed on
+  // CURRENT_SOURCE (not the manifest), so an in-place refresh keeps your subtab.
+  useSignalEffect(() => {
+    if (CURRENT_SOURCE.value) setTab(InfoTab.Overview);
+  });
   return (
-    <Pane paneClass="info-pane" title="Info" onClose={onClose}>
-      <PaneTabs tabs={INFO_TABS} active={tab} onSelect={(id) => setTab(id as InfoTab)} />
+    <Pane
+      paneClass="info-pane"
+      headerSlot={
+        <div class="pane-header pane-header--tabs">
+          <PaneTabs tabs={INFO_TABS} active={tab} onSelect={(id) => setTab(id as InfoTab)} />
+          {onClose && <PaneCloseButton onClose={onClose} />}
+        </div>
+      }
+    >
       <div class="pane-body info-body">
         <active.Component manifest={manifest} />
       </div>

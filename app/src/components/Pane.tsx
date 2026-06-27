@@ -16,6 +16,10 @@ import { PaneHeader } from './PaneHeader/PaneHeader';
 export interface PaneProps {
   /** Extra class on the outer `.pane` (e.g. 'commit-pane', 'tree-pane'). */
   paneClass?: string;
+  /** Replaces the entire default <PaneHeader> — for panes whose header isn't a
+   *  title bar (e.g. a tabbed pane whose tab strip IS the header). When set,
+   *  the title/focus/close header props are ignored. */
+  headerSlot?: ComponentChildren;
   /** Plain-text header title. */
   title?: string;
   /** Rich header title content; overrides `title` when set. */
@@ -47,6 +51,7 @@ export interface PaneProps {
 
 export function Pane({
   paneClass,
+  headerSlot,
   title,
   titleSlot,
   mono,
@@ -64,16 +69,18 @@ export function Pane({
   const ownsBody = bodyClass !== undefined || bodyRef !== undefined;
   return (
     <div class={paneClass ? `pane ${paneClass}` : 'pane'} ref={paneRef}>
-      <PaneHeader
-        title={title ?? ''}
-        titleSlot={titleSlot}
-        mono={mono}
-        prefixSlot={prefixSlot}
-        onFocus={onFocus}
-        focusTitle={focusTitle}
-        onClose={onClose}
-        closeTitle={closeTitle}
-      />
+      {headerSlot ?? (
+        <PaneHeader
+          title={title ?? ''}
+          titleSlot={titleSlot}
+          mono={mono}
+          prefixSlot={prefixSlot}
+          onFocus={onFocus}
+          focusTitle={focusTitle}
+          onClose={onClose}
+          closeTitle={closeTitle}
+        />
+      )}
       {ownsBody ? (
         <div class={bodyClass ? `pane-body ${bodyClass}` : 'pane-body'} ref={bodyRef}>
           {children}
