@@ -1,75 +1,43 @@
 import { describe, it, expect } from 'vitest';
-import { extBarPct, streetSummary } from '@/views/StreetPane/streetStats';
-import { NodeKind } from '@/types';
-import type { DirNode, ExtBreakdownEntry } from '@/types';
-
-function dir(over: Partial<DirNode>): DirNode {
-  return {
-    name: 'src',
-    type: NodeKind.Directory,
-    path: 'src',
-    fullPath: '/tmp/src',
-    children: [],
-    children_count: 0,
-    children_file_count: 0,
-    children_dir_count: 0,
-    descendants_count: 0,
-    descendants_file_count: 0,
-    descendants_dir_count: 0,
-    descendants_size: 0,
-    descendants_ext_breakdown: [],
-    ...over,
-  } as DirNode;
-}
-
-function ext(e: string, count: number, size = 0): ExtBreakdownEntry {
-  return { ext: e, count, size };
-}
+import { extBarPct, extShareLabel, extTypeLabel } from '@/views/StreetPane/streetStats';
 
 describe('extBarPct', () => {
-  it('is 100 when count equals max', () => {
+  it('is 100 when one extension is all the files', () => {
     expect(extBarPct(98, 98)).toBe(100);
   });
-  it('scales linearly between 0 and max', () => {
+  it('is the share of the total (half of all files → 50%)', () => {
     expect(extBarPct(49, 98)).toBe(50);
   });
   it('floors a tiny share to a visible sliver (4%)', () => {
     expect(extBarPct(1, 1000)).toBe(4);
   });
-  it('is 0 when max is non-positive', () => {
+  it('is 0 when the total is non-positive', () => {
     expect(extBarPct(5, 0)).toBe(0);
     expect(extBarPct(0, 0)).toBe(0);
   });
 });
 
-describe('streetSummary', () => {
-  it('totals descendant files + size and names the dominant language', () => {
-    const s = streetSummary(
-      dir({
-        descendants_file_count: 214,
-        descendants_size: 1_300_000,
-        descendants_ext_breakdown: [ext('.tsx', 98), ext('.ts', 64)],
-      })
-    );
-    expect(s.totals).toContain('214 files');
-    expect(s.totals).toContain('1.2 MB');
-    expect(s.language).toBe('TypeScript');
+describe('extShareLabel', () => {
+  it('formats a share as a rounded percent', () => {
+    expect(extShareLabel(7, 11)).toBe('64%');
+    expect(extShareLabel(1, 2)).toBe('50%');
   });
-  it('drops the language clause for the (none) sentinel', () => {
-    const s = streetSummary(
-      dir({ descendants_file_count: 3, descendants_ext_breakdown: [ext('(none)', 3)] })
-    );
-    expect(s.language).toBeNull();
+  it('shows <1% for a nonzero share that rounds to zero', () => {
+    expect(extShareLabel(1, 1000)).toBe('<1%');
   });
-  it('falls back to the uppercased extension for an unknown type', () => {
-    const s = streetSummary(
-      dir({ descendants_file_count: 2, descendants_ext_breakdown: [ext('.sketch', 2)] })
-    );
-    expect(s.language).toBe('SKETCH');
+  it('is 0% when the total is non-positive', () => {
+    expect(extShareLabel(0, 0)).toBe('0%');
   });
-  it('handles a directory with no files', () => {
-    const s = streetSummary(dir({ descendants_file_count: 0 }));
-    expect(s.totals).toContain('0 files');
-    expect(s.language).toBeNull();
+});
+
+describe('extTypeLabel', () => {
+  it('names a known extension with the language label + ext', () => {
+    expect(extTypeLabel('.ts')).toBe('TypeScript (.ts)');
+  });
+  it('uppercases an unknown extension', () => {
+    expect(extTypeLabel('.sketch')).toBe('SKETCH (.sketch)');
+  });
+  it('labels the (none) sentinel as "No extension"', () => {
+    expect(extTypeLabel('(none)')).toBe('No extension');
   });
 });

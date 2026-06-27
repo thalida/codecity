@@ -1,6 +1,6 @@
 // views/StreetPane/StreetPane.tsx — right-sidebar pane shown when a directory
-// (road) is selected. Leads with the subtree's composition: a one-line summary
-// (totals + dominant language) and a ranked by-extension bar list. Path
+// (road) is selected. Shows the subtree's composition as a ranked by-extension
+// bar list (each bar an extension's share of the directory's files). Path
 // orientation lives in the app-header breadcrumb and tree navigation in the
 // Explore sidebar — this pane answers "what is this neighborhood made of".
 //
@@ -12,12 +12,12 @@ import type { ReadonlySignal } from '@preact/signals';
 import type { DirNode, ExtBreakdownEntry } from '@/types';
 import { Pane, PaneEmpty } from '@/components/Pane';
 import { KEY_BINDINGS } from '@/constants/keyboard';
-import { Route } from 'lucide-preact';
+import { Route, FileType } from 'lucide-preact';
 import { ExtensionBadge } from '@/components/Badge/Badge';
 import { getHue } from '@/city/components/buildings/color';
 import { BUILDINGS } from '@/state/stores/settings/buildings';
 import { pluralize } from '@/utils/format';
-import { streetSummary, extBarPct } from './streetStats';
+import { extBarPct, extShareLabel, extTypeLabel } from './streetStats';
 
 // ── State shape for Preact component ─────────────────────────────────────────
 
@@ -55,8 +55,8 @@ export function StreetPane({ state, onClose, onFocus }: StreetPaneProps) {
   // manifest that predates the field (stale cache / skeleton / in-flight) so a
   // missing breakdown renders without the section instead of crashing the pane.
   const stats = d.descendants_ext_breakdown ?? [];
-  const maxCount = stats.length > 0 ? stats[0].count : 0;
-  const summary = streetSummary(d);
+  // Total descendant files — each bar's width is its extension's share of this.
+  const total = stats.reduce((n, s) => n + s.count, 0);
 
   return (
     <Pane
@@ -69,23 +69,15 @@ export function StreetPane({ state, onClose, onFocus }: StreetPaneProps) {
       onClose={onClose}
       bodyClass="street-body"
     >
-      <div class="street-summary">
-        <span class="street-summary-totals">{summary.totals}</span>
-        {summary.language && <span class="street-summary-lang"> — mostly {summary.language}</span>}
-      </div>
       {stats.length > 0 && (
         <>
-          <div class="street-ext-h">By extension</div>
-          {/* Size the count column to the widest count present (maxCount is the
-              top row) so the numbers sit in a tight column just past the bars. */}
-          <div
-            class="street-ext-list"
-            style={
-              { '--street-count-ch': String(String(maxCount).length) } as Record<string, string>
-            }
-          >
+          <div class="street-ext-h">
+            <FileType class="lucide-icon street-ext-icon" aria-hidden="true" />
+            By extension
+          </div>
+          <div class="street-ext-list">
             {stats.map((s) => (
-              <StreetExtRow key={s.ext} s={s} maxCount={maxCount} />
+              <StreetExtRow key={s.ext} s={s} total={total} />
             ))}
           </div>
         </>
@@ -94,27 +86,28 @@ export function StreetPane({ state, onClose, onFocus }: StreetPaneProps) {
   );
 }
 
-// One ranked extension row: badge · proportional bar · file count. The fill
-// width is count-relative to the busiest extension; its hue matches the badge +
-// the city's buildings (live theme palette). The badge identifies the type; the
-// row's title holds the exact extension, which the 4-char badge (and the generic
-// "(none)" badge) can't always show in full.
-function StreetExtRow({ s, maxCount }: { s: ExtBreakdownEntry; maxCount: number }) {
+// One ranked extension row: badge · proportional bar · "share · count". The fill
+// width is this extension's share of the directory's files; its hue matches the
+// badge + the city's buildings (live theme palette). The badge identifies the
+// type; the bar's title names it in full ("TypeScript (.ts)"), which the 4-char
+// badge can't.
+function StreetExtRow({ s, total }: { s: ExtBreakdownEntry; total: number }) {
   const badgeExt = s.ext === '(none)' ? null : s.ext;
   const hue = getHue(s.ext === '(none)' ? '' : s.ext, BUILDINGS.value.HUE_EXT_MAP);
-  const pct = extBarPct(s.count, maxCount);
+  const pct = extBarPct(s.count, total);
+  const share = extShareLabel(s.count, total);
   return (
-    <div class="street-ext-row" title={s.ext}>
+    <div class="street-ext-row">
       <ExtensionBadge extension={badgeExt} isDir={false} />
-      <div class="street-ext-track">
+      <div class="street-ext-track" title={extTypeLabel(s.ext)}>
         <span
           class="street-ext-fill"
           aria-hidden="true"
           style={{ width: `${pct}%`, background: `hsl(${hue}, 60%, 35%)` }}
         />
       </div>
-      <span class="street-ext-count" aria-label={pluralize(s.count, 'file')}>
-        {s.count}
+      <span class="street-ext-meta" aria-label={`${share}, ${pluralize(s.count, 'file')}`}>
+        {share} · {s.count}
       </span>
     </div>
   );

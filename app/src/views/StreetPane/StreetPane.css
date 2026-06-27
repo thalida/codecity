@@ -25,48 +25,51 @@
   gap: var(--cc-space-6); /* 12px */
 }
 
-/* One-line summary: bold totals, muted "mostly <Language>" tail. */
-.street-summary {
-  font-size: var(--cc-font-lg); /* 12px */
-  line-height: 1.4;
-}
-
-.street-summary-totals {
-  color: var(--cc-text-secondary);
-  font-weight: var(--cc-fw-medium);
-}
-
-.street-summary-lang {
-  color: var(--cc-text-muted);
-}
-
-/* "By extension" heading — muted uppercase label. */
+/* "By extension" heading — icon + uppercase label, matching the almanac's
+   .almanac-section-title treatment. */
 .street-ext-h {
-  font-size: var(--cc-font-md); /* 11px */
-  text-transform: uppercase;
-  letter-spacing: var(--cc-track-label);
-  color: var(--cc-text-ghost);
-  font-weight: var(--cc-fw-bold);
-}
-
-.street-ext-list {
-  display: flex;
-  flex-direction: column;
-  gap: var(--cc-space-4); /* 8px */
-}
-
-.street-ext-row {
   display: flex;
   align-items: center;
   gap: var(--cc-space-3); /* 6px */
+  font-size: var(--cc-font-md); /* 11px */
+  text-transform: uppercase;
+  letter-spacing: var(--cc-track-label);
+  color: var(--cc-text-secondary);
+  font-weight: var(--cc-fw-semibold);
+}
+
+.street-ext-icon {
+  width: 15px;
+  height: 15px;
+  color: #d3a85f; /* the almanac's "streets" accent */
+}
+
+/* Shared 3-column grid (badge | bar | metric) so every row's bar is the same
+   length and starts/ends at the same x; the badge + metric columns auto-size to
+   their widest content across all rows. */
+.street-ext-list {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  column-gap: var(--cc-space-3); /* 6px */
+  row-gap: var(--cc-space-4); /* 8px */
   font-size: var(--cc-font-lg); /* 12px */
-  min-width: 0;
+}
+
+/* Rows place their cells into the list's shared columns rather than forming
+   their own box. */
+.street-ext-row {
+  display: contents;
+}
+
+/* Keep the badge pill its natural width (don't stretch it to the column). */
+.street-ext-row .path-badge {
+  justify-self: start;
 }
 
 /* The bar: a dark groove holding a single hue-colored fill (count-proportional). */
 .street-ext-track {
   position: relative;
-  flex: 1 1 auto;
   min-width: 0;
   height: 18px;
   border-radius: var(--cc-radius-sm); /* --cc-radius-2 absent; --cc-radius-sm = 4px */
@@ -86,12 +89,11 @@
   border-radius: 0 var(--cc-radius-sm) var(--cc-radius-sm) 0;
 }
 
-/* File count, right-aligned in a column sized to the widest count in the list
-   (--street-count-ch, set on .street-ext-list) so it hugs the bars. */
-.street-ext-count {
-  flex-shrink: 0;
-  width: calc(var(--street-count-ch, 2) * 1ch);
-  text-align: right;
+/* "share · count" metric — one color + inline middot, matching the Info
+   Overview tab's .almanac-section-overview dot-stat style. Right-aligned in its
+   column so every row's metric ends at the same x. */
+.street-ext-meta {
+  justify-self: end;
   color: var(--cc-text-secondary);
-  font-size: var(--cc-font-md); /* 11px */
+  white-space: nowrap;
 }
