@@ -1,7 +1,9 @@
-// views/StreetPane.tsx — right-sidebar pane shown when a directory
-// (road) is selected in the city. Shows direct + descendant child
-// counts and a sorted breakdown of every file extension in the
-// descendant subtree.
+// views/StreetPane/StreetPane.tsx — right-sidebar pane shown when a directory
+// (road) is selected. Leads with the subtree's composition: a one-line summary
+// (totals + dominant language), a ranked by-extension bar list, then a local
+// structure line. Path orientation lives in the app-header breadcrumb and tree
+// navigation in the Explore sidebar — this pane answers "what is this
+// neighborhood made of".
 //
 // A Preact function component reading a `state` signal prop (the selected
 // directory); RightSidebar swaps panes by switching which one it renders.
@@ -13,7 +15,11 @@ import { Pane, PaneEmpty } from '@/components/Pane';
 import { KEY_BINDINGS } from '@/constants/keyboard';
 import { Route } from 'lucide-preact';
 import { ExtensionBadge } from '@/components/Badge/Badge';
+import { getHue } from '@/city/components/buildings/color';
+import { BUILDINGS } from '@/state/stores/settings/buildings';
 import { formatBytes } from '@/utils/bytes';
+import { pluralize } from '@/utils/format';
+import { streetSummary, extBarPct } from './streetStats';
 
 // ── State shape for Preact component ─────────────────────────────────────────
 
@@ -44,71 +50,74 @@ export function StreetPane({ state, onClose, onFocus }: StreetPaneProps) {
     );
   }
 
-  const leaf =
-    (d.path && d.path !== '.' ? d.path.split('/').filter(Boolean).pop() : null) || d.name || 'Road';
+  const path = d.path && d.path !== '.' ? d.path : '';
+  const leaf = (path ? path.split('/').filter(Boolean).pop() : null) || d.name || 'Road';
 
-  // Backend-computed (api/scan.py). Guard against a manifest that predates
-  // the field (stale cache / skeleton / in-flight) so a missing breakdown
-  // renders an empty section instead of crashing the pane.
+  // Backend-computed (api/scan.py), sorted by count desc. Guard against a
+  // manifest that predates the field (stale cache / skeleton / in-flight) so a
+  // missing breakdown renders without the section instead of crashing the pane.
   const stats = d.descendants_ext_breakdown ?? [];
+  const maxCount = stats.length > 0 ? stats[0].count : 0;
+  const summary = streetSummary(d);
+
+  const directFiles = d.children_file_count ?? 0;
+  const directDirs = d.children_dir_count ?? 0;
+  const nestedDirs = d.descendants_dir_count ?? 0;
 
   return (
     <Pane
       paneClass="street-pane"
-      title={leaf}
+      prefixSlot={<ExtensionBadge extension={null} isDir />}
+      titleSlot={<span title={path || undefined}>{leaf}</span>}
+      mono
       onFocus={typeof onFocus === 'function' ? () => onFocus(d) : undefined}
       focusTitle={`Focus the camera on this road (${KEY_BINDINGS.FOCUS_SELECTION.label})`}
       onClose={onClose}
       bodyClass="street-body"
     >
-      <div class="street-counts">
-        <div class="street-counts-col">
-          <div class="street-counts-h">Direct</div>
-          <div class="street-counts-row">
-            <span class="street-counts-v">{String(d.children_file_count ?? 0)}</span>
-            <span class="street-counts-k">files</span>
-          </div>
-          <div class="street-counts-row">
-            <span class="street-counts-v">{String(d.children_dir_count ?? 0)}</span>
-            <span class="street-counts-k">dirs</span>
-          </div>
-        </div>
-        <div class="street-counts-col">
-          <div class="street-counts-h">Descendants</div>
-          <div class="street-counts-row">
-            <span class="street-counts-v">{String(d.descendants_file_count ?? 0)}</span>
-            <span class="street-counts-k">files</span>
-          </div>
-          <div class="street-counts-row">
-            <span class="street-counts-v">{String(d.descendants_dir_count ?? 0)}</span>
-            <span class="street-counts-k">dirs</span>
-          </div>
-        </div>
+      <div class="street-summary">
+        <span class="street-summary-totals">{summary.totals}</span>
+        {summary.language && (
+          <span class="street-summary-lang"> — mostly {summary.language}</span>
+        )}
       </div>
       {stats.length > 0 && (
         <>
           <div class="street-ext-h">By extension</div>
           <div class="street-ext-list">
             {stats.map((s) => (
-              <StreetExtRow key={s.ext} s={s} />
+              <StreetExtRow key={s.ext} s={s} maxCount={maxCount} />
             ))}
           </div>
         </>
       )}
+      <div class="street-meta">
+        {pluralize(directFiles, 'file')}, {pluralize(directDirs, 'folder')} here
+        {nestedDirs > directDirs && <> · {nestedDirs} nested</>}
+      </div>
     </Pane>
   );
 }
 
-function StreetExtRow({ s }: { s: ExtBreakdownEntry }) {
+// One ranked extension row: badge · proportional bar (ext label + count inside)
+// · byte size. The fill width is count-relative to the busiest extension; its
+// hue matches the badge + the city's buildings (live theme palette).
+function StreetExtRow({ s, maxCount }: { s: ExtBreakdownEntry; maxCount: number }) {
   const badgeExt = s.ext === '(none)' ? null : s.ext;
+  const hue = getHue(s.ext === '(none)' ? '' : s.ext, BUILDINGS.value.HUE_EXT_MAP);
+  const pct = extBarPct(s.count, maxCount);
   return (
     <div class="street-ext-row">
       <ExtensionBadge extension={badgeExt} isDir={false} />
-      <span class="street-ext-label">{s.ext}</span>
-      <span class="street-ext-count">{`${s.count} file${s.count === 1 ? '' : 's'}`}</span>
-      <span class="street-ext-sep" aria-hidden="true">
-        ·
-      </span>
+      <div class="street-ext-track">
+        <span
+          class="street-ext-fill"
+          aria-hidden="true"
+          style={{ width: `${pct}%`, background: `hsl(${hue}, 60%, 35%)` }}
+        />
+        <span class="street-ext-label">{s.ext}</span>
+        <span class="street-ext-count">{s.count}</span>
+      </div>
       <span class="street-ext-size">{formatBytes(s.size)}</span>
     </div>
   );

@@ -95,29 +95,33 @@ describe('StreetPane', () => {
     expect(container.querySelector('.empty-state')).not.toBeNull();
   });
 
-  it('setDirectory(d) renders direct + descendant counts', async () => {
+  it('summary shows descendant totals; meta shows direct structure', async () => {
     mount();
     const d = dir('src', [f('a.ts', '.ts', 100), f('b.md', '.md', 50)]);
     d.descendants_file_count = 4;
     d.descendants_dir_count = 1;
+    d.descendants_size = 260;
     d.children = [
       f('a.ts', '.ts', 100),
       f('b.md', '.md', 50),
       dir('sub', [f('c.ts', '.ts', 80), f('d.json', '.json', 30)]),
     ];
+    d.children_file_count = 2;
+    d.children_dir_count = 1;
     d.descendants_ext_breakdown = _extBreakdown(d.children);
 
     await setDirectory(d);
 
-    const body = container.querySelector('.pane-body, .street-body') as HTMLElement;
-    // Direct counts
-    expect(body.textContent).toMatch(/2.*files/i);
-    expect(body.textContent).toMatch(/1.*dirs?/i);
-    // Descendant counts
-    expect(body.textContent).toMatch(/4.*files/i);
+    const body = container.querySelector('.street-body') as HTMLElement;
+    // Summary line: descendant file total.
+    expect(container.querySelector('.street-summary')!.textContent).toMatch(/4\s*files/i);
+    // Meta line: direct structure (files + folders here).
+    expect(container.querySelector('.street-meta')!.textContent).toMatch(/2\s*files/i);
+    expect(container.querySelector('.street-meta')!.textContent).toMatch(/1\s*folder/i);
+    expect(body).not.toBeNull();
   });
 
-  it('lists every extension in the descendant subtree sorted by count desc', async () => {
+  it('lists every extension as a ranked row sorted by count desc', async () => {
     mount();
     const d = dir('src', [
       f('a.ts', '.ts', 100),
@@ -129,9 +133,12 @@ describe('StreetPane', () => {
     await setDirectory(d);
     const extRows = Array.from(container.querySelectorAll('.street-ext-row')) as HTMLElement[];
     expect(extRows.length).toBeGreaterThanOrEqual(3);
-    // First row is the most common extension (.ts with 3 files).
+    // First row is the most common extension (.ts with 3 files), and its bar
+    // fill is the full-width reference (100%).
     expect(extRows[0].textContent).toContain('.ts');
     expect(extRows[0].textContent).toContain('3');
+    const fill = extRows[0].querySelector('.street-ext-fill') as HTMLElement;
+    expect(fill.style.width).toBe('100%');
   });
 
   it('onFocus callback fires with the active directory when focus button clicked', async () => {
