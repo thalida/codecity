@@ -97,15 +97,17 @@ export function StreetPane({ state, onClose, onFocus }: StreetPaneProps) {
   );
 }
 
-// One ranked extension row: badge · proportional bar (ext label + count inside)
-// · byte size. The fill width is count-relative to the busiest extension; its
-// hue matches the badge + the city's buildings (live theme palette).
+// One ranked extension row: badge · proportional bar (count inside) · byte size.
+// The fill width is count-relative to the busiest extension; its hue matches the
+// badge + the city's buildings (live theme palette). The badge identifies the
+// type; the row's title holds the exact extension, which the 4-char badge (and
+// the generic "(none)" badge) can't always show in full.
 function StreetExtRow({ s, maxCount }: { s: ExtBreakdownEntry; maxCount: number }) {
   const badgeExt = s.ext === '(none)' ? null : s.ext;
   const hue = getHue(s.ext === '(none)' ? '' : s.ext, BUILDINGS.value.HUE_EXT_MAP);
   const pct = extBarPct(s.count, maxCount);
   return (
-    <div class="street-ext-row">
+    <div class="street-ext-row" title={s.ext}>
       <ExtensionBadge extension={badgeExt} isDir={false} />
       <div class="street-ext-track">
         <span
@@ -113,7 +115,6 @@ function StreetExtRow({ s, maxCount }: { s: ExtBreakdownEntry; maxCount: number 
           aria-hidden="true"
           style={{ width: `${pct}%`, background: `hsl(${hue}, 60%, 35%)` }}
         />
-        <span class="street-ext-label">{s.ext}</span>
         <span class="street-ext-count" aria-label={pluralize(s.count, 'file')}>
           {s.count}
         </span>

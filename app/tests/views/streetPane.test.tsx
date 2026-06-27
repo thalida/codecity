@@ -145,8 +145,9 @@ describe('StreetPane', () => {
     const extRows = Array.from(container.querySelectorAll('.street-ext-row')) as HTMLElement[];
     expect(extRows.length).toBeGreaterThanOrEqual(3);
     // First row is the most common extension (.ts with 3 files), and its bar
-    // fill is the full-width reference (100%).
-    expect(extRows[0].textContent).toContain('.ts');
+    // fill is the full-width reference (100%). The exact ext lives in the row
+    // title (the badge truncates); the count shows in the bar.
+    expect(extRows[0].getAttribute('title')).toBe('.ts');
     expect(extRows[0].textContent).toContain('3');
     const fill = extRows[0].querySelector('.street-ext-fill') as HTMLElement;
     expect(fill.style.width).toBe('100%');

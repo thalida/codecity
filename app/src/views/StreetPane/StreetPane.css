@@ -90,24 +90,12 @@
   border-radius: 0 var(--cc-radius-sm) var(--cc-radius-sm) 0;
 }
 
-.street-ext-label {
-  position: relative;
-  z-index: 1;
-  flex: 1 1 0;
-  padding-left: var(--cc-space-3); /* 6px */
-  font-family: var(--cc-font-mono);
-  color: var(--cc-text-base);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  min-width: 0;
-}
-
 .street-ext-count {
   position: relative;
   z-index: 1;
+  margin-left: auto; /* pin to the trailing end of the track */
   flex-shrink: 0;
-  padding-right: var(--cc-space-3); /* 6px */
+  padding: 0 var(--cc-space-3); /* 6px */
   color: var(--cc-text-secondary);
   font-size: var(--cc-font-md); /* 11px */
 }
