@@ -78,6 +78,7 @@
     --cc-bg-app
   ); /* --cc-surface-sunken absent; --cc-bg-app is the darkest bg, reads as sunken within a sidebar */
   overflow: hidden;
+  isolation: isolate; /* confine the count's blend to the track (fill + groove) */
 }
 
 .street-ext-fill {
@@ -96,7 +97,10 @@
   margin-left: auto; /* pin to the trailing end of the track */
   flex-shrink: 0;
   padding: 0 var(--cc-space-3); /* 6px */
-  color: var(--cc-text-secondary);
+  /* The count overlaps both the dark groove (short bars) and the colored fill
+     (near-full bars); difference-blending white keeps it legible on either. */
+  color: var(--cc-white);
+  mix-blend-mode: difference;
   font-size: var(--cc-font-md); /* 11px */
 }
 
