@@ -152,6 +152,7 @@ export function SourcePickerModal({ state, onSubmit, onClose }: SourcePickerModa
         <div class="modal-body">
           {s.error && <div class="modal-error card-error">{s.error}</div>}
           <PaneTabs
+            class="pane-tabs--modal"
             tabs={[
               { id: SourceTab.Remote, label: 'Git URL' },
               { id: SourceTab.Local, label: 'Local path' },

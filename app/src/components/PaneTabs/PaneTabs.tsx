@@ -15,11 +15,13 @@ export interface PaneTabsProps {
   tabs: PaneTab[];
   active: string;
   onSelect: (id: string) => void;
+  /** Extra class on the strip root for context-specific spacing (e.g. modal). */
+  class?: string;
 }
 
-export function PaneTabs({ tabs, active, onSelect }: PaneTabsProps) {
+export function PaneTabs({ tabs, active, onSelect, class: className }: PaneTabsProps) {
   return (
-    <div class="pane-tabs" role="tablist">
+    <div class={className ? `pane-tabs ${className}` : 'pane-tabs'} role="tablist">
       {tabs.map((t) => {
         const Icon = t.icon;
         const selected = t.id === active;

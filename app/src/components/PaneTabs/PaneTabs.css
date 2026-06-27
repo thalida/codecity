@@ -1,15 +1,20 @@
 .pane-tabs {
   display: flex;
-  gap: 14px;
-  padding: 6px 12px 0;
+  padding: 6px 0 0; /* no side inset → first tab sits flush with content */
   border-bottom: 1px solid var(--cc-border-subtle);
+}
+
+/* Modal context (source picker): the strip sits above form fields and needs a
+   gap below that the in-pane usage doesn't. */
+.pane-tabs--modal {
+  margin-bottom: 10px;
 }
 
 .pane-tab {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 6px 2px 8px;
+  padding: 6px 10px 8px; /* side padding runs the underline wider than the label */
   border: 0;
   border-bottom: 2px solid transparent;
   margin-bottom: -1px; /* overlap the strip's 1px baseline */
