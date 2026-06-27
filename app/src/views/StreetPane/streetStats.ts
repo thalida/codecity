@@ -1,14 +1,12 @@
-// views/StreetPane/streetStats.ts — pure derivations for the Street pane,
-// split out so the bar-width math and the one-line summary are unit-testable
-// without rendering. No signal reads here (the live hue palette is read in the
-// component); inputs are plain DirNode fields baked by the backend.
+// views/StreetPane/streetStats.ts — pure derivations for the Street pane.
+// No signal reads; inputs are plain DirNode fields baked by the backend.
 
 import type { DirNode } from '@/types';
 import { pluralize } from '@/utils/format';
 import { formatBytes } from '@/utils/bytes';
 import { languageLabelForExt } from '@/utils/syntaxLanguages';
 
-// A count-1 extension still gets a visible sliver so the row never reads as empty.
+// A low-share extension still gets a visible sliver so the row never reads as empty.
 const MIN_BAR_PCT = 4;
 
 /** Bar fill percent for one extension, normalized to the busiest extension's
