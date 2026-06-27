@@ -329,6 +329,10 @@ export interface components {
             descendants_dir_count: number;
             /** Descendants Size */
             descendants_size: number;
+            /** Descendants Created Min */
+            descendants_created_min: string | null;
+            /** Descendants Modified Max */
+            descendants_modified_max: string | null;
             /** Descendants Ext Breakdown */
             descendants_ext_breakdown: components["schemas"]["ExtBreakdownEntry"][];
         };

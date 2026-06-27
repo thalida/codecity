@@ -1,8 +1,9 @@
 // views/StreetPane/StreetPane.tsx — right-sidebar pane shown when a directory
-// (road) is selected. Shows the subtree's composition as a ranked by-extension
-// bar list (each bar an extension's share of the directory's files). Path
-// orientation lives in the app-header breadcrumb and tree navigation in the
-// Explore sidebar — this pane answers "what is this neighborhood made of".
+// (road) is selected. Shows the subtree's activity-date span and its
+// composition as a ranked by-extension bar list (each bar an extension's share
+// of the directory's files). Path orientation lives in the app-header
+// breadcrumb and tree navigation in the Explore sidebar — this pane answers
+// "what is this neighborhood made of".
 //
 // A Preact function component reading a `state` signal prop (the selected
 // directory); RightSidebar swaps panes by switching which one it renders.
@@ -12,12 +13,12 @@ import type { ReadonlySignal } from '@preact/signals';
 import type { DirNode, ExtBreakdownEntry } from '@/types';
 import { Pane, PaneEmpty } from '@/components/Pane';
 import { KEY_BINDINGS } from '@/constants/keyboard';
-import { Route, FileType } from 'lucide-preact';
+import { Route, FileType, CalendarRange } from 'lucide-preact';
 import { ExtensionBadge } from '@/components/Badge/Badge';
 import { getHue } from '@/city/components/buildings/color';
 import { BUILDINGS } from '@/state/stores/settings/buildings';
 import { pluralize } from '@/utils/format';
-import { extBarPct, extShareLabel, extTypeLabel } from './streetStats';
+import { extBarPct, extShareLabel, extTypeLabel, streetDateRange } from './streetStats';
 
 // ── State shape for Preact component ─────────────────────────────────────────
 
@@ -57,6 +58,7 @@ export function StreetPane({ state, onClose, onFocus }: StreetPaneProps) {
   const stats = d.descendants_ext_breakdown ?? [];
   // Total descendant files — each bar's width is its extension's share of this.
   const total = stats.reduce((n, s) => n + s.count, 0);
+  const dateRange = streetDateRange(d.descendants_created_min, d.descendants_modified_max);
 
   return (
     <Pane
@@ -69,6 +71,12 @@ export function StreetPane({ state, onClose, onFocus }: StreetPaneProps) {
       onClose={onClose}
       bodyClass="street-body"
     >
+      {dateRange && (
+        <div class="street-dates" title="Oldest file created → newest change">
+          <CalendarRange class="lucide-icon street-dates-icon" aria-hidden="true" />
+          {dateRange}
+        </div>
+      )}
       {stats.length > 0 && (
         <>
           <div class="street-ext-h">

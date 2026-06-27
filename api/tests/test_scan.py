@@ -412,6 +412,22 @@ class ScanTreeIntegrationTests(_CacheRedirectMixin, unittest.TestCase):
                 sub["descendants_file_count"],
             )
 
+    def test_descendant_date_range_matches_repo_ranges(self):
+        m = _final_manifest(str(FIXTURE))
+        tree = m["tree"]
+        # The root dir's oldest-created / newest-modified span the whole repo, so
+        # they match the independently-computed repo-wide dateRanges.
+        self.assertIsNotNone(tree["descendants_created_min"])
+        self.assertIsNotNone(tree["descendants_modified_max"])
+        self.assertEqual(tree["descendants_created_min"], m["dateRanges"]["minCreated"])
+        self.assertEqual(
+            tree["descendants_modified_max"], m["dateRanges"]["maxModified"]
+        )
+        # Every file's created <= its modified, so the min/max span is ordered.
+        self.assertLessEqual(
+            tree["descendants_created_min"], tree["descendants_modified_max"]
+        )
+
     def test_busyness_present_in_manifest(self):
         m = _final_manifest(str(FIXTURE))
         b = m["busyness"]

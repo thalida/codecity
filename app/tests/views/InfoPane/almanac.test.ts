@@ -35,6 +35,8 @@ function dir(name: string, path: string, children: (FileNode | DirNode)[]): DirN
     descendants_file_count: files,
     descendants_dir_count: dirs,
     descendants_size: 0,
+    descendants_created_min: null,
+    descendants_modified_max: null,
     descendants_ext_breakdown: [{ ext: '.ts', count: files, size: 0 }],
   };
 }

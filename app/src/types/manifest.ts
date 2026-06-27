@@ -74,6 +74,11 @@ export interface DirNode {
   descendants_file_count: number;
   descendants_dir_count: number;
   descendants_size: number;
+  /** Oldest created / newest modified date (ISO) over all descendant files.
+   *  Both null for a directory with no files. Computed once on the backend
+   *  (api/services/scan.py) so the street view reads it instead of walking. */
+  descendants_created_min: string | null;
+  descendants_modified_max: string | null;
   /** Per-extension counts/sizes over all descendant files, sorted by count
    *  desc (ext asc tiebreak). Empty for directories with no files. */
   descendants_ext_breakdown: ExtBreakdownEntry[];

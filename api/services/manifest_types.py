@@ -92,6 +92,10 @@ class DirNode(TypedDict):
     descendants_file_count: int
     descendants_dir_count: int
     descendants_size: int
+    # Oldest created / newest modified date over ALL descendant files (ISO
+    # strings, lexically comparable). Both None for a directory with no files.
+    descendants_created_min: str | None
+    descendants_modified_max: str | None
     # Per-extension counts/sizes aggregated over ALL descendant files,
     # sorted by count desc (ext asc tiebreak). Baked here so the street
     # view reads it directly. Empty list for directories with no files.

@@ -25,6 +25,21 @@
   gap: var(--cc-space-6); /* 12px */
 }
 
+/* Activity span: oldest file created → newest change. */
+.street-dates {
+  display: flex;
+  align-items: center;
+  gap: var(--cc-space-3); /* 6px */
+  font-size: var(--cc-font-md); /* 11px */
+  color: var(--cc-text-muted);
+}
+
+.street-dates-icon {
+  width: 14px;
+  height: 14px;
+  color: var(--cc-text-ghost);
+}
+
 /* "By extension" heading — icon + uppercase label, matching the almanac's
    .almanac-section-title treatment. */
 .street-ext-h {

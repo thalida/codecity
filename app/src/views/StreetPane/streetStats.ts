@@ -2,6 +2,7 @@
 // ranked by-extension bars. No signal reads; inputs are plain counts/extensions.
 
 import { languageLabelForExt } from '@/utils/syntaxLanguages';
+import { formatShortDate } from '@/utils/dates';
 
 // A low-share extension still gets a visible sliver so the row never reads as empty.
 const MIN_BAR_PCT = 4;
@@ -28,4 +29,14 @@ export function extTypeLabel(ext: string): string {
   if (ext === '(none)') return 'No extension';
   const name = languageLabelForExt(ext);
   return name ? `${name} (${ext})` : ext;
+}
+
+/** Display span from the directory's oldest-created to newest-modified file
+ *  ("Mar 12, 2024 → Jun 20, 2026"), collapsed to one date when they're equal,
+ *  or null when the directory has no dated files. */
+export function streetDateRange(from: string | null, to: string | null): string | null {
+  if (!from || !to) return null;
+  const a = formatShortDate(from);
+  const b = formatShortDate(to);
+  return a === b ? a : `${a} → ${b}`;
 }

@@ -987,6 +987,8 @@ class _DirFrame:
         "descendants_file_count",
         "descendants_dir_count",
         "descendants_size",
+        "descendants_created_min",
+        "descendants_modified_max",
         "ext_breakdown",
     )
 
@@ -1008,9 +1010,31 @@ class _DirFrame:
         self.descendants_file_count = 0
         self.descendants_dir_count = 0
         self.descendants_size = 0
+        # Oldest created / newest modified date over all descendant files (ISO
+        # strings, lexically comparable). None until the first file is seen.
+        self.descendants_created_min: str | None = None
+        self.descendants_modified_max: str | None = None
         # ext (lowercase, "(none)" if absent) -> [count, total_size], over
         # all descendant files. Merged up from child frames as they pop.
         self.ext_breakdown: dict[str, list[int]] = {}
+
+
+def _min_iso(a: str | None, b: str | None) -> str | None:
+    """Lexically-smaller (earliest) of two ISO date strings, ignoring None."""
+    if a is None:
+        return b
+    if b is None:
+        return a
+    return a if a < b else b
+
+
+def _max_iso(a: str | None, b: str | None) -> str | None:
+    """Lexically-larger (latest) of two ISO date strings, ignoring None."""
+    if a is None:
+        return b
+    if b is None:
+        return a
+    return a if a > b else b
 
 
 def _build_tree(
@@ -1062,6 +1086,12 @@ def _build_tree(
                 top.descendants_count += 1
                 top.descendants_file_count += 1
                 top.descendants_size += node["size"]
+                top.descendants_created_min = _min_iso(
+                    top.descendants_created_min, node["created"]
+                )
+                top.descendants_modified_max = _max_iso(
+                    top.descendants_modified_max, node["modified"]
+                )
                 ext = (node["extension"] or "(none)").lower()
                 bucket = top.ext_breakdown.get(ext)
                 if bucket is None:
@@ -1099,6 +1129,8 @@ def _build_tree(
             "descendants_file_count": finished.descendants_file_count,
             "descendants_dir_count": finished.descendants_dir_count,
             "descendants_size": finished.descendants_size,
+            "descendants_created_min": finished.descendants_created_min,
+            "descendants_modified_max": finished.descendants_modified_max,
             "descendants_ext_breakdown": ext_breakdown_out,
             "children": children,
         }
@@ -1110,6 +1142,12 @@ def _build_tree(
         parent.descendants_file_count += node_out["descendants_file_count"]
         parent.descendants_dir_count += 1 + node_out["descendants_dir_count"]
         parent.descendants_size += node_out["descendants_size"]
+        parent.descendants_created_min = _min_iso(
+            parent.descendants_created_min, node_out["descendants_created_min"]
+        )
+        parent.descendants_modified_max = _max_iso(
+            parent.descendants_modified_max, node_out["descendants_modified_max"]
+        )
         # Merge the child's per-extension breakdown up into the parent.
         for ext, (cnt, size) in finished.ext_breakdown.items():
             bucket = parent.ext_breakdown.get(ext)

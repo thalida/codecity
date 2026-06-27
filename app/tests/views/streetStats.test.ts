@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { extBarPct, extShareLabel, extTypeLabel } from '@/views/StreetPane/streetStats';
+import {
+  extBarPct,
+  extShareLabel,
+  extTypeLabel,
+  streetDateRange,
+} from '@/views/StreetPane/streetStats';
 
 describe('extBarPct', () => {
   it('is 100 when one extension is all the files', () => {
@@ -39,5 +44,18 @@ describe('extTypeLabel', () => {
   });
   it('labels the (none) sentinel as "No extension"', () => {
     expect(extTypeLabel('(none)')).toBe('No extension');
+  });
+});
+
+describe('streetDateRange', () => {
+  it('formats an oldest→newest span', () => {
+    expect(streetDateRange('2024-03-12', '2026-06-20')).toBe('Mar 12, 2024 → Jun 20, 2026');
+  });
+  it('collapses to one date when oldest and newest are equal', () => {
+    expect(streetDateRange('2024-03-12', '2024-03-12')).toBe('Mar 12, 2024');
+  });
+  it('is null when either date is missing', () => {
+    expect(streetDateRange(null, '2026-06-20')).toBeNull();
+    expect(streetDateRange('2024-03-12', null)).toBeNull();
   });
 });
