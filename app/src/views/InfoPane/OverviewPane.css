@@ -54,18 +54,8 @@
   white-space: nowrap;
 }
 
-.almanac-meta a {
-  color: var(--cc-accent-light);
-  text-decoration: none;
-}
-
-.almanac-meta a:hover {
-  text-decoration: underline;
-}
-
-/* The sha as plain text (no remote) vs. as the one link in the row (accent +
- * hover underline, matching the Remote link below). Both stay monospace and
- * never shrink. */
+/* The sha as plain text (no remote) vs. as the one link in the row. Both stay
+ * monospace and never shrink; link color/underline come from .link--chrome. */
 .almanac-sha,
 .almanac-sha-link {
   flex: 0 0 auto;
@@ -74,16 +64,6 @@
 
 .almanac-sha {
   color: var(--cc-text-primary);
-}
-
-.almanac-sha-link {
-  color: var(--cc-accent-light);
-  text-decoration: none;
-}
-
-.almanac-sha-link:hover,
-.almanac-sha-link:focus-visible {
-  text-decoration: underline;
 }
 
 /* Latest commit — an informational two-line row: sha + subject on top, relative
