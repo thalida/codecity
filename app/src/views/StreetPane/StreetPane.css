@@ -63,21 +63,17 @@
   min-width: 0;
 }
 
-/* The bar: a dark track with a hue-colored fill; the ext label + count sit on
-   top of (not inside) the fill so text contrast never depends on the hue. */
+/* The bar: a dark groove holding a single hue-colored fill (count-proportional). */
 .street-ext-track {
   position: relative;
   flex: 1 1 auto;
   min-width: 0;
-  display: flex;
-  align-items: center;
   height: 18px;
   border-radius: var(--cc-radius-sm); /* --cc-radius-2 absent; --cc-radius-sm = 4px */
   background: var(
     --cc-bg-app
   ); /* --cc-surface-sunken absent; --cc-bg-app is the darkest bg, reads as sunken within a sidebar */
   overflow: hidden;
-  isolation: isolate; /* confine the count's blend to the track (fill + groove) */
 }
 
 .street-ext-fill {
@@ -90,23 +86,12 @@
   border-radius: 0 var(--cc-radius-sm) var(--cc-radius-sm) 0;
 }
 
+/* File count, right-aligned in a column sized to the widest count in the list
+   (--street-count-ch, set on .street-ext-list) so it hugs the bars. */
 .street-ext-count {
-  position: relative;
-  z-index: 1;
-  margin-left: auto; /* pin to the trailing end of the track */
   flex-shrink: 0;
-  padding: 0 var(--cc-space-3); /* 6px */
-  /* The count overlaps both the dark groove (short bars) and the colored fill
-     (near-full bars); difference-blending white keeps it legible on either. */
-  color: var(--cc-white);
-  mix-blend-mode: difference;
-  font-size: var(--cc-font-md); /* 11px */
-}
-
-.street-ext-size {
-  flex-shrink: 0;
-  width: 56px;
+  width: calc(var(--street-count-ch, 2) * 1ch);
   text-align: right;
-  color: var(--cc-text-muted);
+  color: var(--cc-text-secondary);
   font-size: var(--cc-font-md); /* 11px */
 }

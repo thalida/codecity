@@ -1,9 +1,8 @@
 // views/StreetPane/StreetPane.tsx — right-sidebar pane shown when a directory
 // (road) is selected. Leads with the subtree's composition: a one-line summary
-// (totals + dominant language), a ranked by-extension bar list, then a local
-// structure line. Path orientation lives in the app-header breadcrumb and tree
-// navigation in the Explore sidebar — this pane answers "what is this
-// neighborhood made of".
+// (totals + dominant language) and a ranked by-extension bar list. Path
+// orientation lives in the app-header breadcrumb and tree navigation in the
+// Explore sidebar — this pane answers "what is this neighborhood made of".
 //
 // A Preact function component reading a `state` signal prop (the selected
 // directory); RightSidebar swaps panes by switching which one it renders.
@@ -17,7 +16,6 @@ import { Route } from 'lucide-preact';
 import { ExtensionBadge } from '@/components/Badge/Badge';
 import { getHue } from '@/city/components/buildings/color';
 import { BUILDINGS } from '@/state/stores/settings/buildings';
-import { formatBytes } from '@/utils/bytes';
 import { pluralize } from '@/utils/format';
 import { streetSummary, extBarPct } from './streetStats';
 
@@ -78,7 +76,14 @@ export function StreetPane({ state, onClose, onFocus }: StreetPaneProps) {
       {stats.length > 0 && (
         <>
           <div class="street-ext-h">By extension</div>
-          <div class="street-ext-list">
+          {/* Size the count column to the widest count present (maxCount is the
+              top row) so the numbers sit in a tight column just past the bars. */}
+          <div
+            class="street-ext-list"
+            style={
+              { '--street-count-ch': String(String(maxCount).length) } as Record<string, string>
+            }
+          >
             {stats.map((s) => (
               <StreetExtRow key={s.ext} s={s} maxCount={maxCount} />
             ))}
@@ -89,11 +94,11 @@ export function StreetPane({ state, onClose, onFocus }: StreetPaneProps) {
   );
 }
 
-// One ranked extension row: badge · proportional bar (count inside) · byte size.
-// The fill width is count-relative to the busiest extension; its hue matches the
-// badge + the city's buildings (live theme palette). The badge identifies the
-// type; the row's title holds the exact extension, which the 4-char badge (and
-// the generic "(none)" badge) can't always show in full.
+// One ranked extension row: badge · proportional bar · file count. The fill
+// width is count-relative to the busiest extension; its hue matches the badge +
+// the city's buildings (live theme palette). The badge identifies the type; the
+// row's title holds the exact extension, which the 4-char badge (and the generic
+// "(none)" badge) can't always show in full.
 function StreetExtRow({ s, maxCount }: { s: ExtBreakdownEntry; maxCount: number }) {
   const badgeExt = s.ext === '(none)' ? null : s.ext;
   const hue = getHue(s.ext === '(none)' ? '' : s.ext, BUILDINGS.value.HUE_EXT_MAP);
@@ -107,11 +112,10 @@ function StreetExtRow({ s, maxCount }: { s: ExtBreakdownEntry; maxCount: number 
           aria-hidden="true"
           style={{ width: `${pct}%`, background: `hsl(${hue}, 60%, 35%)` }}
         />
-        <span class="street-ext-count" aria-label={pluralize(s.count, 'file')}>
-          {s.count}
-        </span>
       </div>
-      <span class="street-ext-size">{formatBytes(s.size)}</span>
+      <span class="street-ext-count" aria-label={pluralize(s.count, 'file')}>
+        {s.count}
+      </span>
     </div>
   );
 }
