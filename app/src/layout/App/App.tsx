@@ -25,13 +25,13 @@ import { RightSidebar } from '../RightSidebar/RightSidebar';
 import { SourcePicker } from '@/views/SourcePicker/SourcePicker';
 import { LoadingOverlay } from '@/components/LoadingOverlay/LoadingOverlay';
 import { HljsThemeLink } from '@/components/HljsThemeLink/HljsThemeLink';
-import { selectPath, resetView, focusCurrentSelection } from '@/state/stores/scene';
+import { selectPath, resetView, focusCurrentSelection, clearSelection } from '@/state/stores/scene';
 import {
   openSourcePicker,
   openSourcePickerForCurrentSource,
   closeSourcePicker,
 } from '@/state/stores/ui';
-import { SOURCE_ERROR } from '@/state/stores/source';
+import { SOURCE_ERROR, CURRENT_SOURCE } from '@/state/stores/source';
 import { MANIFEST } from '@/state/stores/manifest';
 import { isEmptyManifest } from '@/utils/manifest';
 import { URL_PARAMS } from '@/constants/urlParams';
@@ -44,6 +44,14 @@ export function App() {
   const submitSource = useManifestSource();
 
   useEffect(() => attachLoadingReactions(), []);
+
+  // Reset the picker selection whenever a world commits, so panes derived from
+  // it (the right sidebar, tree highlight) don't carry a stale node into the
+  // new world. Keyed on CURRENT_SOURCE — live-reloads don't rewrite it, so an
+  // in-place refresh keeps your selection.
+  useSignalEffect(() => {
+    if (CURRENT_SOURCE.value) clearSelection();
+  });
 
   // App coordinates the source picker; the fetch hook only reports outcomes.
   const dismissPicker = () => {
