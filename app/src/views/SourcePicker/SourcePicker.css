@@ -78,50 +78,6 @@
   flex: 1;
 }
 
-/* Tab strip — classic underline-tab pattern. The container draws the
-   horizontal rule under the row; each tab paints a 2px transparent
-   border-bottom that overlaps that rule (negative bottom margin) and
-   switches to the accent color on the active tab.
-
-   Layout:
-   - Negative inline margins pull the row out to the modal-card edges so
-     the underline spans the full card width.
-   - The row itself has padding that matches the modal body padding,
-     keeping the first/last tab aligned with the body content below.
-   - Individual tab buttons have no horizontal padding; the row's
-     gap property drives the spacing between tabs. */
-.modal-tabs {
-  display: flex;
-  gap: var(--cc-space-7); /* 16px between tabs */
-  margin-left: calc(-1 * var(--cc-space-6));
-  margin-right: calc(-1 * var(--cc-space-6));
-  margin-bottom: var(--cc-space-5);
-  padding: 0 var(--cc-space-6);
-  border-bottom: 1px solid var(--cc-border-subtle);
-}
-.modal-tabs button {
-  appearance: none;
-  background: none;
-  border: none;
-  border-bottom: 2px solid transparent;
-  margin-bottom: -1px;
-  color: var(--cc-text-muted);
-  padding: var(--cc-space-3) 0;
-  cursor: pointer;
-  font: inherit;
-  font-weight: var(--cc-fw-medium);
-  transition:
-    color var(--cc-t-base),
-    border-color var(--cc-t-base);
-}
-.modal-tabs button:hover {
-  color: var(--cc-text-primary);
-}
-.modal-tabs button.active {
-  color: var(--cc-text-primary);
-  border-bottom-color: var(--cc-accent);
-}
-
 .modal-field {
   display: flex;
   flex-direction: column;

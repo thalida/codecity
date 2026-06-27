@@ -69,6 +69,22 @@ describe('SourcePicker', () => {
     await flush();
   }
 
+  // PaneTabs renders `<button role="tab">` in the order tabs are passed:
+  // index 0 = Remote ("Git URL"), index 1 = Local ("Local path"). It exposes
+  // no data-* hooks, so address tabs by their PaneTabs position and read the
+  // active state off `aria-selected` / the `.pane-tab--active` class.
+  const TAB_INDEX: Record<SourceTab, number> = {
+    [SourceTab.Remote]: 0,
+    [SourceTab.Local]: 1,
+  };
+  function tabButton(tab: SourceTab): HTMLButtonElement {
+    const tabs = container.querySelectorAll('.pane-tab');
+    return tabs[TAB_INDEX[tab]] as HTMLButtonElement;
+  }
+  function isTabActive(tab: SourceTab): boolean {
+    return tabButton(tab).classList.contains('pane-tab--active');
+  }
+
   // Set a controlled input's value the way the component expects: write the
   // DOM value then dispatch an `input` event so the onInput handler updates
   // the backing useState. act() flushes that state update synchronously.
@@ -114,10 +130,10 @@ describe('SourcePicker', () => {
   it('switches tabs', async () => {
     createPicker({ allowLocalRepos: true });
     await open();
-    const gitTab = container.querySelector('[data-tab="remote"]') as HTMLButtonElement;
+    const gitTab = tabButton(SourceTab.Remote);
     act(() => gitTab.click());
     await flush();
-    expect(gitTab.classList.contains('active')).toBe(true);
+    expect(isTabActive(SourceTab.Remote)).toBe(true);
     // Git URL input visible
     expect(container.querySelector('[data-field="url"]')).toBeTruthy();
     // Branch input visible
@@ -128,7 +144,7 @@ describe('SourcePicker', () => {
     createPicker({ allowLocalRepos: true });
     await open();
     // Default tab is "git"; switch to local before setting the path field.
-    act(() => (container.querySelector('[data-tab="local"]') as HTMLButtonElement).click());
+    act(() => tabButton(SourceTab.Local).click());
     await flush();
     setInput('[data-field="path"]', '/Users/foo/bar');
     act(() => (container.querySelector('button.submit') as HTMLButtonElement).click());
@@ -145,7 +161,7 @@ describe('SourcePicker', () => {
   it('git-tab submit includes branch', async () => {
     createPicker({ allowLocalRepos: true });
     await open();
-    act(() => (container.querySelector('[data-tab="remote"]') as HTMLButtonElement).click());
+    act(() => tabButton(SourceTab.Remote).click());
     await flush();
     setInput('[data-field="url"]', 'https://github.com/o/r');
     setInput('[data-field="branch"]', 'main');
@@ -231,11 +247,7 @@ describe('SourcePicker', () => {
   it('prefill populates inputs', async () => {
     createPicker({ allowLocalRepos: true });
     await open({ prefill: { src: 'https://github.com/o/r', branch: 'develop' } });
-    expect(
-      (container.querySelector('[data-tab="remote"]') as HTMLButtonElement).classList.contains(
-        'active'
-      )
-    ).toBe(true);
+    expect(isTabActive(SourceTab.Remote)).toBe(true);
     expect((container.querySelector('[data-field="url"]') as HTMLInputElement).value).toBe(
       'https://github.com/o/r'
     );
@@ -269,7 +281,7 @@ describe('SourcePicker', () => {
   it('disabled: renders a warning card in the Local pane instead of the input', async () => {
     createPicker({ allowLocalRepos: false });
     await open();
-    act(() => (container.querySelector('[data-tab="local"]') as HTMLButtonElement).click());
+    act(() => tabButton(SourceTab.Local).click());
     await flush();
     // Path input is GONE.
     expect(container.querySelector('[data-field="path"]')).toBeNull();
@@ -284,8 +296,7 @@ describe('SourcePicker', () => {
   it('disabled: default tab is git even when prefill is a local path', async () => {
     createPicker({ allowLocalRepos: false });
     await open({ prefill: { src: '/Users/foo/bar' } });
-    const gitTab = container.querySelector('[data-tab="remote"]') as HTMLButtonElement;
-    expect(gitTab.classList.contains('active')).toBe(true);
+    expect(isTabActive(SourceTab.Remote)).toBe(true);
   });
 
   it('disabled: local recents render with warning badge + dimmed class', async () => {
@@ -333,7 +344,7 @@ describe('SourcePicker', () => {
     createPicker({ allowLocalRepos: false });
     await open();
     // Default opens on Git tab; switch to Local.
-    act(() => (container.querySelector('[data-tab="local"]') as HTMLButtonElement).click());
+    act(() => tabButton(SourceTab.Local).click());
     await flush();
     const formFields = container.querySelector('[data-form-fields]') as HTMLElement;
     expect(formFields).toBeTruthy();
@@ -343,9 +354,9 @@ describe('SourcePicker', () => {
   it('disabled: switching back to Git tab reveals the form fields again', async () => {
     createPicker({ allowLocalRepos: false });
     await open();
-    act(() => (container.querySelector('[data-tab="local"]') as HTMLButtonElement).click());
+    act(() => tabButton(SourceTab.Local).click());
     await flush();
-    act(() => (container.querySelector('[data-tab="remote"]') as HTMLButtonElement).click());
+    act(() => tabButton(SourceTab.Remote).click());
     await flush();
     const formFields = container.querySelector('[data-form-fields]') as HTMLElement;
     expect(formFields.style.display).not.toBe('none');
@@ -356,7 +367,7 @@ describe('SourcePicker', () => {
   it('enabled: form fields render on the Local pane (regression guard)', async () => {
     createPicker({ allowLocalRepos: true });
     await open();
-    act(() => (container.querySelector('[data-tab="local"]') as HTMLButtonElement).click());
+    act(() => tabButton(SourceTab.Local).click());
     await flush();
     const formFields = container.querySelector('[data-form-fields]') as HTMLElement;
     expect(formFields.style.display).not.toBe('none');

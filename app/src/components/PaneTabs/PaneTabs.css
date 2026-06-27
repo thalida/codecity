@@ -1,7 +1,7 @@
 .pane-tabs {
   display: flex;
-  gap: 2px;
-  padding: 6px 8px;
+  gap: 14px;
+  padding: 6px 12px 0;
   border-bottom: 1px solid var(--cc-border-subtle);
 }
 
@@ -9,9 +9,10 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 4px 10px;
+  padding: 6px 2px 8px;
   border: 0;
-  border-radius: var(--cc-radius-sm);
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px; /* overlap the strip's 1px baseline */
   background: transparent;
   color: var(--cc-text-faint);
   font: inherit;
@@ -19,17 +20,16 @@
   cursor: pointer;
   transition:
     color var(--cc-t-base),
-    background var(--cc-t-base);
+    border-color var(--cc-t-base);
 }
 
 .pane-tab:hover {
-  background: var(--cc-overlay-bg);
   color: var(--cc-text-primary);
 }
 
 .pane-tab--active {
-  background: var(--cc-accent-bg);
   color: var(--cc-text-primary);
+  border-bottom-color: var(--cc-accent);
 }
 
 .pane-tab .lucide-icon {
