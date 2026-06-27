@@ -137,11 +137,15 @@ export function LeftSidebar() {
     LEFT_SIDEBAR_COLLAPSED.value = collapsed.value;
   });
 
-  // Open to Info whenever a world commits — cold-boot ?src= and a user source
-  // switch both write CURRENT_SOURCE; live-reloads don't, so this fires once per
-  // real load and won't fight a manual tab change between loads.
+  // Open to Info AND expand the panel whenever a world commits — cold-boot
+  // ?src= and a user source switch both write CURRENT_SOURCE; live-reloads
+  // don't, so this fires once per real load and won't fight a manual tab/
+  // collapse change between loads.
   useSignalEffect(() => {
-    if (CURRENT_SOURCE.value) activeTab.value = DEFAULT_SIDEBAR_TAB;
+    if (CURRENT_SOURCE.value) {
+      activeTab.value = DEFAULT_SIDEBAR_TAB;
+      collapsed.value = false;
+    }
   });
 
   // Auto-collapse when the manifest has no content (cold-boot empty state).

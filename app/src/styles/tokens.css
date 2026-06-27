@@ -67,6 +67,7 @@
   --cc-accent-bg: color-mix(in oklch, var(--cc-accent) 18%, transparent);
   --cc-accent-bg-strong: color-mix(in oklch, var(--cc-accent) 30%, transparent);
   --cc-accent-border: color-mix(in oklch, var(--cc-accent) 45%, transparent);
+  --cc-accent-light-border: color-mix(in oklch, var(--cc-accent-light) 45%, transparent);
 
   /* ── COLORS — Semantic (success / warning / error) ────────────────────── */
   --cc-success: oklch(0.8 0.182 151.7);

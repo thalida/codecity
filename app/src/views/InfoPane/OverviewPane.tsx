@@ -249,7 +249,7 @@ export function OverviewPane({ manifest }: OverviewPaneProps) {
                   <span class="almanac-latest-head">
                     {latestUrl ? (
                       <a
-                        class="almanac-sha-link"
+                        class="almanac-sha-link link--chrome"
                         href={latestUrl}
                         target="_blank"
                         rel="noreferrer"
@@ -276,7 +276,7 @@ export function OverviewPane({ manifest }: OverviewPaneProps) {
             <div>
               <dt>Remote</dt>
               <dd>
-                <a href={repo.remote_url} target="_blank" rel="noreferrer">
+                <a class="link--chrome" href={repo.remote_url} target="_blank" rel="noreferrer">
                   {repo.remote_url}
                 </a>
               </dd>

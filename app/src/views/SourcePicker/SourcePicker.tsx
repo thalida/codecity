@@ -18,6 +18,7 @@ import { SERVER_CONFIG } from '@/state/stores/serverConfig';
 // ── Hosting-site SVG icons ───────────────────────────────────────────────────
 
 import { HostingIcon } from '@/components/HostingIcon';
+import { PaneTabs } from '@/components/PaneTabs/PaneTabs';
 
 // ── Public types ────────────────────────────────────────────────────────────
 
@@ -150,24 +151,15 @@ export function SourcePickerModal({ state, onSubmit, onClose }: SourcePickerModa
         </div>
         <div class="modal-body">
           {s.error && <div class="modal-error card-error">{s.error}</div>}
-          <div class="modal-tabs">
-            <button
-              type="button"
-              data-tab="remote"
-              class={activeTab === SourceTab.Remote ? 'active' : ''}
-              onClick={() => setActiveTab(SourceTab.Remote)}
-            >
-              Git URL
-            </button>
-            <button
-              type="button"
-              data-tab="local"
-              class={activeTab === SourceTab.Local ? 'active' : ''}
-              onClick={() => setActiveTab(SourceTab.Local)}
-            >
-              Local path
-            </button>
-          </div>
+          <PaneTabs
+            class="pane-tabs--modal"
+            tabs={[
+              { id: SourceTab.Remote, label: 'Git URL' },
+              { id: SourceTab.Local, label: 'Local path' },
+            ]}
+            active={activeTab}
+            onSelect={(id) => setActiveTab(id as SourceTab)}
+          />
 
           <div
             data-pane="remote"
