@@ -77,9 +77,7 @@ export function StreetPane({ state, onClose, onFocus }: StreetPaneProps) {
     >
       <div class="street-summary">
         <span class="street-summary-totals">{summary.totals}</span>
-        {summary.language && (
-          <span class="street-summary-lang"> — mostly {summary.language}</span>
-        )}
+        {summary.language && <span class="street-summary-lang"> — mostly {summary.language}</span>}
       </div>
       {stats.length > 0 && (
         <>
