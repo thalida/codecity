@@ -58,7 +58,10 @@ export function AppHeader({
     const node = isDir ? pickerSel.dir : pickerSel.file;
     const path = node.path || node.fullPath || node.name || '';
     const extension = pickerSel.kind === NodeKind.File ? pickerSel.file.extension || '' : undefined;
-    if (path && path !== rootPath) {
+    // Show the breadcrumb for any selection with a path — including root (a
+    // selected dir whose path equals rootPath), which PathBreadcrumbs renders
+    // as the repo label.
+    if (path && (isDir || path !== rootPath)) {
       title = (
         <PathBreadcrumbs
           path={path}
