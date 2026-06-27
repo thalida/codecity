@@ -116,7 +116,9 @@ function StreetExtRow({ s, maxCount }: { s: ExtBreakdownEntry; maxCount: number 
           style={{ width: `${pct}%`, background: `hsl(${hue}, 60%, 35%)` }}
         />
         <span class="street-ext-label">{s.ext}</span>
-        <span class="street-ext-count">{s.count}</span>
+        <span class="street-ext-count" aria-label={pluralize(s.count, 'file')}>
+          {s.count}
+        </span>
       </div>
       <span class="street-ext-size">{formatBytes(s.size)}</span>
     </div>
