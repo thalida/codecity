@@ -72,7 +72,7 @@ describe('SourcePicker', () => {
   // PaneTabs renders `<button role="tab">` in the order tabs are passed:
   // index 0 = Remote ("Git URL"), index 1 = Local ("Local path"). It exposes
   // no data-* hooks, so address tabs by their PaneTabs position and read the
-  // active state off `aria-selected` / the `.pane-tab--active` class.
+  // active state off the contractual `aria-selected` attribute.
   const TAB_INDEX: Record<SourceTab, number> = {
     [SourceTab.Remote]: 0,
     [SourceTab.Local]: 1,
@@ -82,7 +82,7 @@ describe('SourcePicker', () => {
     return tabs[TAB_INDEX[tab]] as HTMLButtonElement;
   }
   function isTabActive(tab: SourceTab): boolean {
-    return tabButton(tab).classList.contains('pane-tab--active');
+    return tabButton(tab).getAttribute('aria-selected') === 'true';
   }
 
   // Set a controlled input's value the way the component expects: write the
