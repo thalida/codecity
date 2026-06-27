@@ -20,8 +20,9 @@ export function extBarPct(count: number, max: number): number {
 export interface StreetSummary {
   /** "214 files · 1.2 MB" — subtree totals. */
   totals: string;
-  /** Dominant language label ("TypeScript"), or null when there's no nameable
-   *  language (empty dir, or a (none)/unknown-only top extension). */
+  /** Dominant language label ("TypeScript"), or the uppercased extension for an
+   *  unknown type ("SKETCH"). Null only for an empty dir or a (none) top
+   *  extension — there's no language to name. */
   language: string | null;
 }
 

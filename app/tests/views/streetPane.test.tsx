@@ -121,6 +121,17 @@ describe('StreetPane', () => {
     expect(body).not.toBeNull();
   });
 
+  it('meta line appends nested folder count when descendants exceed direct dirs', async () => {
+    mount();
+    const d = dir('src', [f('a.ts', '.ts', 100)]);
+    d.children_dir_count = 2;
+    d.descendants_dir_count = 5; // deeper than the direct subfolders
+    await setDirectory(d);
+    const meta = container.querySelector('.street-meta')!.textContent!;
+    expect(meta).toMatch(/2\s*folders\s*here/i);
+    expect(meta).toMatch(/5\s*nested/i);
+  });
+
   it('lists every extension as a ranked row sorted by count desc', async () => {
     mount();
     const d = dir('src', [

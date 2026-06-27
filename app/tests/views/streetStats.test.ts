@@ -61,6 +61,12 @@ describe('streetSummary', () => {
     );
     expect(s.language).toBeNull();
   });
+  it('falls back to the uppercased extension for an unknown type', () => {
+    const s = streetSummary(
+      dir({ descendants_file_count: 2, descendants_ext_breakdown: [ext('.sketch', 2)] })
+    );
+    expect(s.language).toBe('SKETCH');
+  });
   it('handles a directory with no files', () => {
     const s = streetSummary(dir({ descendants_file_count: 0 }));
     expect(s.totals).toContain('0 files');
