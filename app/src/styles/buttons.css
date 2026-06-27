@@ -96,6 +96,12 @@
   font: inherit;
   color: var(--cc-text-muted);
 }
+/* Non-leaf text buttons (breadcrumb segments) hint interactivity on hover with
+   an underline — they sit in body-text color and otherwise read as static. The
+   leaf segment is the current location (.is-leaf) and stays plain. */
+.btn-icon--text:not(.is-leaf):hover {
+  text-decoration: underline;
+}
 .btn-icon--link {
   text-decoration: none;
 }
