@@ -16,8 +16,7 @@
    Shown when a directory (road) is selected. Composition-forward:
      - pane header (badge + leaf, like FilePreviewPane)
      - .street-summary — subtree totals + dominant language
-     - .street-ext-list — one ranked bar per file extension
-     - .street-meta — local direct/nested folder structure */
+     - .street-ext-list — one ranked bar per file extension */
 
 .street-body {
   padding: var(--cc-space-7); /* 16px */
@@ -110,12 +109,4 @@
   text-align: right;
   color: var(--cc-text-muted);
   font-size: var(--cc-font-md); /* 11px */
-}
-
-/* Local direct/nested structure — a hairline sets it apart from the composition breakdown above. */
-.street-meta {
-  padding-top: var(--cc-space-4); /* 8px */
-  border-top: 1px solid var(--cc-border-subtle);
-  font-size: var(--cc-font-md); /* 11px */
-  color: var(--cc-text-muted);
 }

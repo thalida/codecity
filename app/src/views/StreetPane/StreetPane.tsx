@@ -60,10 +60,6 @@ export function StreetPane({ state, onClose, onFocus }: StreetPaneProps) {
   const maxCount = stats.length > 0 ? stats[0].count : 0;
   const summary = streetSummary(d);
 
-  const directFiles = d.children_file_count ?? 0;
-  const directDirs = d.children_dir_count ?? 0;
-  const nestedDirs = d.descendants_dir_count ?? 0;
-
   return (
     <Pane
       paneClass="street-pane"
@@ -89,10 +85,6 @@ export function StreetPane({ state, onClose, onFocus }: StreetPaneProps) {
           </div>
         </>
       )}
-      <div class="street-meta">
-        {pluralize(directFiles, 'file')}, {pluralize(directDirs, 'folder')} here
-        {nestedDirs > directDirs && <> · {nestedDirs} nested</>}
-      </div>
     </Pane>
   );
 }

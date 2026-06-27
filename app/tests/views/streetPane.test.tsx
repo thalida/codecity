@@ -95,41 +95,21 @@ describe('StreetPane', () => {
     expect(container.querySelector('.empty-state')).not.toBeNull();
   });
 
-  it('summary shows descendant totals; meta shows direct structure', async () => {
+  it('summary shows descendant totals (files + size)', async () => {
     mount();
     const d = dir('src', [f('a.ts', '.ts', 100), f('b.md', '.md', 50)]);
     d.descendants_file_count = 4;
-    d.descendants_dir_count = 1;
     d.descendants_size = 260;
-    d.children = [
+    d.descendants_ext_breakdown = _extBreakdown([
       f('a.ts', '.ts', 100),
       f('b.md', '.md', 50),
       dir('sub', [f('c.ts', '.ts', 80), f('d.json', '.json', 30)]),
-    ];
-    d.children_file_count = 2;
-    d.children_dir_count = 1;
-    d.descendants_ext_breakdown = _extBreakdown(d.children);
+    ]);
 
     await setDirectory(d);
 
-    const body = container.querySelector('.street-body') as HTMLElement;
-    // Summary line: descendant file total.
     expect(container.querySelector('.street-summary')!.textContent).toMatch(/4\s*files/i);
-    // Meta line: direct structure (files + folders here).
-    expect(container.querySelector('.street-meta')!.textContent).toMatch(/2\s*files/i);
-    expect(container.querySelector('.street-meta')!.textContent).toMatch(/1\s*folder/i);
-    expect(body).not.toBeNull();
-  });
-
-  it('meta line appends nested folder count when descendants exceed direct dirs', async () => {
-    mount();
-    const d = dir('src', [f('a.ts', '.ts', 100)]);
-    d.children_dir_count = 2;
-    d.descendants_dir_count = 5; // deeper than the direct subfolders
-    await setDirectory(d);
-    const meta = container.querySelector('.street-meta')!.textContent!;
-    expect(meta).toMatch(/2\s*folders\s*here/i);
-    expect(meta).toMatch(/5\s*nested/i);
+    expect(container.querySelector('.street-body')).not.toBeNull();
   });
 
   it('lists every extension as a ranked row sorted by count desc', async () => {
