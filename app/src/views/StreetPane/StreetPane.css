@@ -56,7 +56,6 @@
   gap: var(--cc-space-4); /* 8px */
 }
 
-/* badge · proportional bar · byte size */
 .street-ext-row {
   display: flex;
   align-items: center;
@@ -85,12 +84,12 @@
   position: absolute;
   inset: 0 auto 0 0;
   opacity: 0.8;
-  border-radius: var(--cc-radius-sm);
 }
 
 .street-ext-label {
   position: relative;
   z-index: 1;
+  flex: 1 1 0;
   padding-left: var(--cc-space-3); /* 6px */
   font-family: var(--cc-font-mono);
   color: var(--cc-text-base);
@@ -103,7 +102,7 @@
 .street-ext-count {
   position: relative;
   z-index: 1;
-  margin-left: auto;
+  flex-shrink: 0;
   padding-right: var(--cc-space-3); /* 6px */
   color: var(--cc-text-secondary);
   font-size: var(--cc-font-md); /* 11px */
@@ -117,7 +116,7 @@
   font-size: var(--cc-font-md); /* 11px */
 }
 
-/* Local structure line, divided off the breakdown above it. */
+/* Local direct/nested structure — a hairline sets it apart from the composition breakdown above. */
 .street-meta {
   padding-top: var(--cc-space-4); /* 8px */
   border-top: 1px solid var(--cc-border-subtle);
