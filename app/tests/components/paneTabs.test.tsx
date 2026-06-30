@@ -27,10 +27,19 @@ describe('PaneTabs', () => {
     ) as HTMLButtonElement;
 
   it('renders a tab per entry and marks the active one', async () => {
-    render(<PaneTabs tabs={tabs} active="world" onSelect={() => {}} />, container);
+    render(
+      <PaneTabs idPrefix="info-pane" tabs={tabs} active="world" onSelect={() => {}} />,
+      container
+    );
     await flush();
-    expect(tabByLabel('World').getAttribute('aria-selected')).toBe('true');
-    expect(tabByLabel('Readme').getAttribute('aria-selected')).toBe('false');
+    const world = tabByLabel('World');
+    const readme = tabByLabel('Readme');
+    expect(world.getAttribute('aria-selected')).toBe('true');
+    expect(world.getAttribute('aria-controls')).toBe('info-pane-world-panel');
+    expect(world.id).toBe('info-pane-world-tab');
+    expect(world.tabIndex).toBe(0);
+    expect(readme.getAttribute('aria-selected')).toBe('false');
+    expect(readme.tabIndex).toBe(-1);
   });
 
   it('calls onSelect with the clicked tab id', async () => {
@@ -39,5 +48,20 @@ describe('PaneTabs', () => {
     await flush();
     tabByLabel('Readme').click();
     expect(onSelect).toHaveBeenCalledWith('readme');
+  });
+
+  it('moves selection with tablist keyboard shortcuts', async () => {
+    const onSelect = vi.fn();
+    render(<PaneTabs tabs={tabs} active="world" onSelect={onSelect} />, container);
+    await flush();
+
+    tabByLabel('World').dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight' }));
+    expect(onSelect).toHaveBeenLastCalledWith('readme');
+
+    tabByLabel('World').dispatchEvent(new KeyboardEvent('keydown', { key: 'End' }));
+    expect(onSelect).toHaveBeenLastCalledWith('readme');
+
+    tabByLabel('Readme').dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft' }));
+    expect(onSelect).toHaveBeenLastCalledWith('world');
   });
 });

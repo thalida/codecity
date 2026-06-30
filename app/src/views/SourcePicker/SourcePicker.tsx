@@ -18,7 +18,7 @@ import { SERVER_CONFIG } from '@/state/stores/serverConfig';
 // ── Hosting-site SVG icons ───────────────────────────────────────────────────
 
 import { HostingIcon } from '@/components/HostingIcon';
-import { PaneTabs } from '@/components/PaneTabs/PaneTabs';
+import { PaneTabs, panePanelId, paneTabId } from '@/components/PaneTabs/PaneTabs';
 
 // ── Public types ────────────────────────────────────────────────────────────
 
@@ -27,6 +27,8 @@ export enum SourceTab {
   Remote = 'remote',
   Local = 'local',
 }
+
+const SOURCE_PICKER_TABS_ID = 'source-picker';
 
 /** Infer which tab a source string belongs to: git-like URLs / SCP syntax
  *  → Remote, anything else (filesystem paths) → Local. UX-only tab defaulting
@@ -152,6 +154,7 @@ export function SourcePickerModal({ state, onSubmit, onClose }: SourcePickerModa
         <div class="modal-body">
           {s.error && <div class="modal-error card-error">{s.error}</div>}
           <PaneTabs
+            idPrefix={SOURCE_PICKER_TABS_ID}
             class="pane-tabs--modal"
             tabs={[
               { id: SourceTab.Remote, label: 'Git URL' },
@@ -162,6 +165,9 @@ export function SourcePickerModal({ state, onSubmit, onClose }: SourcePickerModa
           />
 
           <div
+            id={panePanelId(SOURCE_PICKER_TABS_ID, SourceTab.Remote)}
+            role="tabpanel"
+            aria-labelledby={paneTabId(SOURCE_PICKER_TABS_ID, SourceTab.Remote)}
             data-pane="remote"
             style={{ display: activeTab === SourceTab.Remote ? 'block' : 'none' }}
           >
@@ -192,6 +198,9 @@ export function SourcePickerModal({ state, onSubmit, onClose }: SourcePickerModa
           </div>
 
           <div
+            id={panePanelId(SOURCE_PICKER_TABS_ID, SourceTab.Local)}
+            role="tabpanel"
+            aria-labelledby={paneTabId(SOURCE_PICKER_TABS_ID, SourceTab.Local)}
             data-pane="local"
             style={{ display: activeTab === SourceTab.Local ? 'block' : 'none' }}
           >

@@ -26,6 +26,9 @@ describe('InfoPane shell', () => {
     await flush();
     expect(tabByLabel('Overview').getAttribute('aria-selected')).toBe('true');
     expect(tabByLabel('Readme').getAttribute('aria-selected')).toBe('false');
+    const panel = container.querySelector('[role="tabpanel"]') as HTMLElement;
+    expect(panel.id).toBe('info-pane-overview-panel');
+    expect(panel.getAttribute('aria-labelledby')).toBe('info-pane-overview-tab');
   });
 
   it('switches to Readme when its tab is clicked', async () => {
@@ -35,5 +38,8 @@ describe('InfoPane shell', () => {
     tabByLabel('Readme').click();
     await flush();
     expect(tabByLabel('Readme').getAttribute('aria-selected')).toBe('true');
+    const panel = container.querySelector('[role="tabpanel"]') as HTMLElement;
+    expect(panel.id).toBe('info-pane-readme-panel');
+    expect(panel.getAttribute('aria-labelledby')).toBe('info-pane-readme-tab');
   });
 });

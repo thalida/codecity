@@ -12,7 +12,7 @@ import type { LucideIcon } from 'lucide-preact';
 import type { DirNode, Manifest } from '@/types';
 import { Pane } from '@/components/Pane';
 import { PaneCloseButton } from '@/components/PaneHeader/PaneHeader';
-import { PaneTabs } from '@/components/PaneTabs/PaneTabs';
+import { PaneTabs, panePanelId, paneTabId } from '@/components/PaneTabs/PaneTabs';
 import { CURRENT_SOURCE } from '@/state/stores/source';
 import { OverviewPane } from './OverviewPane';
 import { ReadmePane } from './ReadmePane';
@@ -35,6 +35,7 @@ const INFO_TABS: InfoTabDef[] = [
   { id: InfoTab.Overview, label: 'Overview', icon: Globe, Component: OverviewPane },
   { id: InfoTab.Readme, label: 'Readme', icon: BookOpen, Component: ReadmePane },
 ];
+const INFO_TABS_ID = 'info-pane';
 
 export interface InfoPaneProps {
   manifest: ManifestSignal;
@@ -56,12 +57,22 @@ export function InfoPane({ manifest, onClose }: InfoPaneProps) {
       paneClass="info-pane"
       headerSlot={
         <div class="pane-header pane-header--tabs">
-          <PaneTabs tabs={INFO_TABS} active={tab} onSelect={(id) => setTab(id as InfoTab)} />
+          <PaneTabs
+            idPrefix={INFO_TABS_ID}
+            tabs={INFO_TABS}
+            active={tab}
+            onSelect={(id) => setTab(id as InfoTab)}
+          />
           {onClose && <PaneCloseButton onClose={onClose} />}
         </div>
       }
     >
-      <div class="pane-body info-body">
+      <div
+        id={panePanelId(INFO_TABS_ID, active.id)}
+        class="pane-body info-body"
+        role="tabpanel"
+        aria-labelledby={paneTabId(INFO_TABS_ID, active.id)}
+      >
         <active.Component manifest={manifest} />
       </div>
     </Pane>

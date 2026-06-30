@@ -70,9 +70,7 @@ describe('SourcePicker', () => {
   }
 
   // PaneTabs renders `<button role="tab">` in the order tabs are passed:
-  // index 0 = Remote ("Git URL"), index 1 = Local ("Local path"). It exposes
-  // no data-* hooks, so address tabs by their PaneTabs position and read the
-  // active state off the contractual `aria-selected` attribute.
+  // index 0 = Remote ("Git URL"), index 1 = Local ("Local path").
   const TAB_INDEX: Record<SourceTab, number> = {
     [SourceTab.Remote]: 0,
     [SourceTab.Local]: 1,
@@ -138,6 +136,24 @@ describe('SourcePicker', () => {
     expect(container.querySelector('[data-field="url"]')).toBeTruthy();
     // Branch input visible
     expect(container.querySelector('[data-field="branch"]')).toBeTruthy();
+  });
+
+  it('links source tabs to their panels', async () => {
+    createPicker({ allowLocalRepos: true });
+    await open();
+    const remoteTab = tabButton(SourceTab.Remote);
+    const remotePanel = container.querySelector('[data-pane="remote"]') as HTMLElement;
+    const localTab = tabButton(SourceTab.Local);
+    const localPanel = container.querySelector('[data-pane="local"]') as HTMLElement;
+
+    expect(remoteTab.id).toBe('source-picker-remote-tab');
+    expect(remoteTab.getAttribute('aria-controls')).toBe('source-picker-remote-panel');
+    expect(remotePanel.getAttribute('role')).toBe('tabpanel');
+    expect(remotePanel.getAttribute('aria-labelledby')).toBe('source-picker-remote-tab');
+    expect(localTab.id).toBe('source-picker-local-tab');
+    expect(localTab.getAttribute('aria-controls')).toBe('source-picker-local-panel');
+    expect(localPanel.getAttribute('role')).toBe('tabpanel');
+    expect(localPanel.getAttribute('aria-labelledby')).toBe('source-picker-local-tab');
   });
 
   it('submit fires onSubmit with the typed src', async () => {
