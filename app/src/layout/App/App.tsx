@@ -52,7 +52,7 @@ import { attachLoadingReactions } from '@/state/loadingReactions';
 
 export function App() {
   useDocumentTitle();
-  const submitSource = useManifestSource();
+  const { submitSource } = useManifestSource();
 
   useEffect(() => attachLoadingReactions(), []);
 

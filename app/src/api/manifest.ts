@@ -148,8 +148,9 @@ export type ScanProgressEvent = Extract<
  */
 export function streamManifest(
   url: string,
-  EventSourceImpl: typeof EventSource = EventSource
+  opts: { signal?: AbortSignal; EventSourceImpl?: typeof EventSource } = {}
 ): AsyncIterable<ScanStreamEvent> {
+  const EventSourceImpl = opts.EventSourceImpl ?? EventSource;
   return {
     [Symbol.asyncIterator](): AsyncIterator<ScanStreamEvent> {
       const es = new EventSourceImpl(url);
@@ -187,6 +188,14 @@ export function streamManifest(
           r({ value: undefined, done: true });
         }
       };
+
+      // Abort: close the stream cleanly (done, not error) so the consumer's
+      // for-await exits without a manifest. loadSource treats signal.aborted as
+      // a user cancel, not a failure.
+      if (opts.signal) {
+        if (opts.signal.aborted) finish();
+        else opts.signal.addEventListener('abort', () => finish(), { once: true });
+      }
 
       // Parse an event's JSON data, ending the stream with an error (rather
       // than throwing into the swallowed event listener, which would leave the

@@ -61,11 +61,12 @@ async function pumpManifestStream(
   onManifest: (
     manifest: Manifest,
     phase: ScanPhase.PartialManifest | ScanPhase.CompleteManifest
-  ) => Promise<void> | void
+  ) => Promise<void> | void,
+  signal?: AbortSignal
 ): Promise<Manifest> {
   let lastManifest: Manifest | null = null;
 
-  for await (const event of streamManifest(url)) {
+  for await (const event of streamManifest(url, { signal })) {
     if (event.phase === ScanPhase.Error) throw new Error(event.error);
 
     if ('display_root' in event && event.display_root) {
@@ -111,6 +112,10 @@ async function pumpManifestStream(
 // applyManifest already uses one layer down.
 let loadGeneration = 0;
 
+// The AbortController for the current foreground load, so the UI can cancel a
+// slow clone/scan. A new load or a cancel aborts the previous one.
+let loadController: AbortController | null = null;
+
 // ── Canonical source load (cold-boot + user switch) ──────────────────
 // The one way to load a source: claim the generation → overlay → stream
 // skeleton+final into MANIFEST → on success commit the source (CURRENT_SOURCE +
@@ -119,8 +124,11 @@ let loadGeneration = 0;
 // camera, App coordinates the picker off SOURCE_ERROR. (The live-update poll
 // below is a SEPARATE op — a background refresh of the current source that
 // shares only the MANIFEST sink, and yields to a foreground load via the gen.)
-async function loadSource(payload: SourcePayload): Promise<void> {
+export async function loadSource(payload: SourcePayload): Promise<void> {
   const myGen = ++loadGeneration; // claim authority; supersedes any in-flight load/poll
+  loadController?.abort(); // supersede any in-flight load
+  const controller = new AbortController();
+  loadController = controller;
   const meta = {
     kind: srcKind(payload.src),
     label: labelFromSource(payload.src) ?? payload.src,
@@ -136,9 +144,14 @@ async function loadSource(payload: SourcePayload): Promise<void> {
     });
     // Publish the skeleton as it streams (early structure, behind the overlay);
     // the final is published below, AFTER committing the source.
-    const manifest = await pumpManifestStream(url, meta, (m, phase) => {
-      if (phase === ScanPhase.PartialManifest && myGen === loadGeneration) setManifest(m);
-    });
+    const manifest = await pumpManifestStream(
+      url,
+      meta,
+      (m, phase) => {
+        if (phase === ScanPhase.PartialManifest && myGen === loadGeneration) setManifest(m);
+      },
+      controller.signal
+    );
     if (myGen !== loadGeneration) return; // a newer load superseded this one
     // Commit the source BEFORE publishing the final manifest. The render layer's
     // camera-reframe reaction keys off CURRENT_SOURCE captured at apply-START, so
@@ -148,6 +161,7 @@ async function loadSource(payload: SourcePayload): Promise<void> {
     setManifest(manifest);
   } catch (err) {
     if (myGen !== loadGeneration) return; // superseded — its error isn't current
+    if (controller.signal.aborted) return; // user canceled: not an error, no SOURCE_ERROR
     SOURCE_ERROR.value = {
       error: err instanceof Error ? err.message : String(err),
       prefill: { src: payload.src, branch: payload.branch },
@@ -158,8 +172,18 @@ async function loadSource(payload: SourcePayload): Promise<void> {
     if (myGen === loadGeneration) {
       SCAN_PROGRESS.value = null;
       PENDING_SOURCE_LABEL.value = null;
+      if (loadController === controller) loadController = null;
     }
   }
+}
+
+/**
+ * Abort the in-flight foreground load, if any. Exposed to the UI (a cancel
+ * button on the loading overlay) via the hook's return; the abort is treated
+ * as a clean user cancel, not a failure — see the `catch` branch above.
+ */
+export function cancelLoad(): void {
+  loadController?.abort();
 }
 
 // ── Live-update poll loop ────────────────────────────────────────────
@@ -275,10 +299,16 @@ function setupLiveUpdates(): () => void {
  * Scene-free — the render layer (the City component) consumes MANIFEST and paints the
  * scene. UI-free too: it never opens/closes the source picker; on a load failure
  * (boot or submit) it WRITES the canonical SOURCE_ERROR signal and App reacts to
- * coordinate the picker. RETURNS the source-picker submit handler so App can pass
- * it down to <SourcePicker> as a prop (no global register/invoke channel).
+ * coordinate the picker. A user-initiated cancel (`cancelLoad`) aborts the
+ * in-flight stream but is NOT surfaced as a load failure — no SOURCE_ERROR write.
+ * RETURNS the source-picker submit handler and a cancel handler so App can pass
+ * them down to <SourcePicker>/the loading overlay as props (no global
+ * register/invoke channel).
  */
-export function useManifestSource(): (payload: SourcePayload) => void {
+export function useManifestSource(): {
+  submitSource: (payload: SourcePayload) => void;
+  cancelLoad: () => void;
+} {
   const submitSource = useCallback((payload: SourcePayload) => {
     void loadSource(payload);
   }, []);
@@ -311,5 +341,5 @@ export function useManifestSource(): (payload: SourcePayload) => void {
     };
   }, []);
 
-  return submitSource;
+  return { submitSource, cancelLoad };
 }
