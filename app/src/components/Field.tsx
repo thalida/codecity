@@ -106,8 +106,9 @@ export function Field({ store, fieldKey }: FieldProps) {
     }
   }
 
+  const inline = def.kind === FieldKind.Toggle || def.kind === FieldKind.Color;
   return (
-    <ThemeRow label={def.label} tip={def.tip} store={store} keys={[fieldKey]}>
+    <ThemeRow label={def.label} tip={def.tip} inline={inline} store={store} keys={[fieldKey]}>
       {control}
     </ThemeRow>
   );

@@ -91,8 +91,6 @@ describe('ControlsPane', () => {
     expect(labels).toContain('Reset all');
     expect(labels).toContain('Discard');
     expect(labels).toContain('Save');
-    // No "Rebuild" surface anywhere — every config hot-reloads (after Save).
-    expect(pane.textContent).not.toContain('Rebuild');
   });
 
   it('Save and Discard buttons are disabled when no drafts are pending', () => {

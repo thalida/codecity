@@ -1,41 +1,55 @@
-/* ── ThemeRow ── */
-
-/* Row layout:
- *   [label: shrink-to-fit, ellipses]   [control: grow]   [reset-icon: hidden until changed]
- *
- * The label takes only the space it needs (capped at 50% of the row to
- * avoid eating the whole row on long labels); the control grows into all
- * remaining horizontal space; the reset icon is a fixed-size flex sibling
- * pinned at the end — it can never overlap the readout because it's a
- * separate flex item, not positioned on top of one. */
+/* ── ThemeRow (layout B: stacked) ──
+ * .theme-row is a vertical stack:
+ *   .theme-row-head    — label (grows) + reset, and for inline kinds the control
+ *   .theme-row-control — full-width control (stacked kinds) or inline (head row)
+ *   .theme-row-desc    — optional one-line description
+ * Labels get the full row width, so they never truncate; every stacked control
+ * is full-width, so sliders line up. */
 .theme-row {
   display: flex;
-  align-items: center;
-  gap: var(--cc-space-6);
-  padding: var(--cc-space-2) 0;
+  flex-direction: column;
+  gap: var(--cc-space-3);
+  padding: var(--cc-space-3) 0;
   font-size: var(--cc-font-md);
   color: var(--cc-text-secondary);
   cursor: default;
   min-width: 0;
 }
 
-.theme-row-label {
-  flex: 0 1 auto;
+.theme-row-head {
+  display: flex;
+  align-items: center;
+  gap: var(--cc-space-4);
   min-width: 0;
-  max-width: 55%;
-  /* display:block (not flex) so text-overflow:ellipsis actually renders the
-   * "…" — a flex container ellipsizes none of its own text. Labels are
-   * text-only, so no flex layout is needed here. */
-  display: block;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
-.theme-row-control {
+
+.theme-row-label {
   flex: 1 1 auto;
+  min-width: 0;
+  color: var(--cc-text-primary);
+  font-weight: var(--cc-fw-medium);
+}
+
+/* Stacked control: full row width, its own readout at the end. */
+.theme-row-control {
   min-width: 0;
   display: flex;
   align-items: center;
   gap: var(--cc-space-4);
-  justify-content: flex-end;
+}
+.theme-row:not(.theme-row--inline) > .theme-row-control {
+  width: 100%;
+}
+
+/* Inline kinds (toggle, color): control sits on the head row, pinned right
+ * before the reset icon; no full-width control follows. */
+.theme-row--inline > .theme-row-head > .theme-row-control {
+  flex: 0 0 auto;
+  margin-left: auto;
+}
+
+.theme-row-desc {
+  color: var(--cc-text-muted);
+  font-size: var(--cc-font-sm);
+  line-height: 1.45;
 }

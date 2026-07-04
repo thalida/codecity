@@ -1,10 +1,9 @@
-// components/ThemeRow.tsx — Labeled control-panel row (renders .theme-row)
-// used by every control widget. Renders the label, the control element passed
-// in `children`, and (when `store` + `keys` are provided) a reset icon next to
-// the control that stages-reset on click.
+// components/ThemeRow.tsx — Labeled control-panel row (renders .theme-row).
+// Layout B (stacked): a head row (label + reset; plus the control itself for
+// inline kinds like toggle/color), then — for stacked kinds — the full-width
+// control, then the field's description when it has one.
 //
-// `tip` is appended to the label-as-tooltip so users can hover and see
-// what a knob does without expanding documentation.
+// `tip` is shown inline as the description AND kept as the row's hover title.
 
 import './ThemeRow.css';
 import type { ComponentChildren } from 'preact';
@@ -17,8 +16,12 @@ interface SignalLike {
 
 export interface ThemeRowProps {
   label: string;
-  /** Extra hover text appended after `label — …` on the row title. */
+  /** One-line description, shown inline under the control and as the hover
+   *  title. Omit for controls that need no explanation. */
   tip?: string;
+  /** Toggle/color sit on the head row (a full-width control would look odd);
+   *  everything else stacks the control full-width below the head row. */
+  inline?: boolean;
   /** Store the reset button binds to. Omit (with `keys`) to suppress the reset. */
   store?: SignalLike | null;
   /** Keys this row covers. Required if `store` is set. */
@@ -26,17 +29,18 @@ export interface ThemeRowProps {
   children: ComponentChildren;
 }
 
-export function ThemeRow({ label, tip, store, keys, children }: ThemeRowProps) {
+export function ThemeRow({ label, tip, inline, store, keys, children }: ThemeRowProps) {
   const fullTip = tip ? `${label} — ${tip}` : label;
+  const reset = store && keys && keys.length > 0 ? <ResetButton store={store} keys={keys} /> : null;
   return (
-    <label class="theme-row" title={fullTip}>
-      <span class="theme-row-label" title={fullTip}>
-        {label}
+    <label class={inline ? 'theme-row theme-row--inline' : 'theme-row'} title={fullTip}>
+      <span class="theme-row-head">
+        <span class="theme-row-label">{label}</span>
+        {inline && <span class="theme-row-control">{children}</span>}
+        {reset}
       </span>
-      <span class="theme-row-control">
-        {children}
-        {store && keys && keys.length > 0 && <ResetButton store={store} keys={keys} />}
-      </span>
+      {!inline && <span class="theme-row-control">{children}</span>}
+      {tip && <span class="theme-row-desc">{tip}</span>}
     </label>
   );
 }
