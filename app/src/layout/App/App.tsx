@@ -10,8 +10,9 @@
 //     <RightSidebar>     — self-subscribes to SCENE_HANDLE + picker
 //   </main>
 //   <AppFooter>          — reads signals directly
-//   <SourcePicker />     — reads PROJECTS_VIEW + SERVER_CONFIG directly
-//   <LoadingOverlay />   — reads LOADING_OVERLAY directly
+//   <ProjectsView />     — reads PROJECTS_VIEW + SERVER_CONFIG directly; owns
+//                          inline progress for a switch it initiates
+//   <LoadingOverlay />   — reads LOADING_OVERLAY directly; deep-link boot only
 //   <ShortcutsModal />   — reads SHORTCUTS_OPEN directly
 //   <DebugModal />       — reads DEBUG_OPEN directly; scene commands passed as props
 
@@ -24,7 +25,7 @@ import { AppFooter } from '../AppFooter/AppFooter';
 import { CenterPane } from '../CenterPane/CenterPane';
 import { LeftSidebar } from '../LeftSidebar/LeftSidebar';
 import { RightSidebar } from '../RightSidebar/RightSidebar';
-import { SourcePicker } from '@/views/SourcePicker/SourcePicker';
+import { ProjectsView } from '@/views/ProjectsView/ProjectsView';
 import { ShortcutsModal } from '@/views/ShortcutsModal/ShortcutsModal';
 import { DebugModal } from '@/views/DebugModal/DebugModal';
 import { LoadingOverlay } from '@/components/LoadingOverlay/LoadingOverlay';
@@ -52,20 +53,25 @@ import { attachLoadingReactions } from '@/state/loadingReactions';
 
 export function App() {
   useDocumentTitle();
-  const { submitSource } = useManifestSource();
+  const { submitSource, cancelLoad } = useManifestSource();
 
   useEffect(() => attachLoadingReactions(), []);
 
-  // Reset the picker selection whenever a world commits, so panes derived from
-  // it (the right sidebar, tree highlight) don't carry a stale node into the
-  // new world. Keyed on CURRENT_SOURCE — live-reloads don't rewrite it, so an
-  // in-place refresh keeps your selection.
+  // A committed switch: CURRENT_SOURCE is written ONLY on a successful load,
+  // so reacting here both resets the picker selection (panes derived from it —
+  // the right sidebar, tree highlight — must not carry a stale node into the
+  // new world) and auto-closes the view to reveal the new city. One reaction,
+  // one concern: "a world committed". No-op on deep-link boot (view already
+  // closed) and on live-updates (they don't rewrite CURRENT_SOURCE).
   useSignalEffect(() => {
-    if (CURRENT_SOURCE.value) clearSelection();
+    if (CURRENT_SOURCE.value) {
+      clearSelection();
+      closeProjectsView();
+    }
   });
 
-  // App coordinates the source picker; the fetch hook only reports outcomes.
-  const dismissPicker = () => {
+  // App coordinates the projects view; the fetch hook only reports outcomes.
+  const dismissView = () => {
     closeProjectsView();
     SOURCE_ERROR.value = null;
   };
@@ -77,7 +83,7 @@ export function App() {
     }
   }, []);
 
-  // A source-load failure (boot or submit) reopens the picker. Dismissible only
+  // A source-load failure (boot or submit) reopens the view. Dismissible only
   // when a city is already loaded to fall back to (a failed FIRST pick stays
   // non-dismissible so the app can't end up blank).
   useSignalEffect(() => {
@@ -104,13 +110,7 @@ export function App() {
         <RightSidebar />
       </main>
       <AppFooter />
-      <SourcePicker
-        onSubmit={(p) => {
-          dismissPicker();
-          submitSource(p);
-        }}
-        onClose={dismissPicker}
-      />
+      <ProjectsView onSubmit={(p) => submitSource(p)} onCancel={cancelLoad} onClose={dismissView} />
       <LoadingOverlay />
       <ShortcutsModal />
       <DebugModal onRunCollisionCheck={runCollisionCheck} onRunStemDiagnostic={runStemDiagnostic} />

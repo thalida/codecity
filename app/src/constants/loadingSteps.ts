@@ -4,6 +4,9 @@
 // sites and the data-step attribute stay self-documenting; the overlay and the
 // uiState setters both render/advance from these.
 
+import { ScanPhase } from '@/api/manifest';
+import { SourceKind } from '@/utils/sources';
+
 export enum LoadingStep {
   Resolving = 'resolving',
   Cloning = 'cloning',
@@ -46,3 +49,25 @@ export const LOADING_STEP_LABELS: Record<LoadingStep, string> = {
   [LoadingStep.Building]: 'Building city',
   [LoadingStep.Decorating]: 'Adding decorations',
 };
+
+/**
+ * Map a scan-stream phase to the step it represents, given the source kind
+ * (local skips resolving/cloning — see LoadingOverlay's kind-based hiding).
+ * Shared by the loading-overlay reactions and ProjectsView's inline progress
+ * so the phase→step mapping has exactly one definition.
+ */
+export function stepForPhase(phase: ScanPhase | null, kind: SourceKind): LoadingStep {
+  switch (phase) {
+    case ScanPhase.CloneProgress:
+      return LoadingStep.Cloning;
+    case ScanPhase.ScanProgress:
+      return LoadingStep.Scanning;
+    case ScanPhase.PartialManifest:
+      return LoadingStep.Skeleton;
+    case ScanPhase.CompleteManifest:
+      return LoadingStep.Building;
+    default:
+      // phase === null: just-started, no stream event yet.
+      return kind === SourceKind.Local ? LoadingStep.Scanning : LoadingStep.Resolving;
+  }
+}

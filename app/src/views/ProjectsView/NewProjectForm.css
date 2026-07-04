@@ -6,12 +6,6 @@
   gap: var(--cc-space-6);
 }
 
-.new-project--loading {
-  flex-direction: row;
-  align-items: center;
-  justify-content: space-between;
-}
-
 .new-project-field {
   display: flex;
   flex-direction: column;

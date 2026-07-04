@@ -33,7 +33,7 @@ describe('NewProjectForm', () => {
   });
 
   it('auto-selects Git for a URL and Local for a bare path, but a manual click still overrides it', async () => {
-    render(<NewProjectForm allowLocalRepos onSubmit={() => {}} onCancel={() => {}} />, container);
+    render(<NewProjectForm allowLocalRepos onSubmit={() => {}} />, container);
     await flush();
     expect(activeSegment(container)).toBe('Git URL');
 
@@ -61,7 +61,7 @@ describe('NewProjectForm', () => {
     resolve.mockResolvedValueOnce({ branches: ['main', 'feat'], default: 'main' });
     const onSubmit = vi.fn();
 
-    render(<NewProjectForm allowLocalRepos onSubmit={onSubmit} onCancel={() => {}} />, container);
+    render(<NewProjectForm allowLocalRepos onSubmit={onSubmit} />, container);
     await flush();
 
     const urlInput = container.querySelector<HTMLInputElement>('input[aria-label="URL"]')!;
@@ -99,7 +99,7 @@ describe('NewProjectForm', () => {
     vi.spyOn(branchesApi, 'fetchBranches').mockRejectedValue(new Error('repository not found'));
     const onSubmit = vi.fn();
 
-    render(<NewProjectForm allowLocalRepos onSubmit={onSubmit} onCancel={() => {}} />, container);
+    render(<NewProjectForm allowLocalRepos onSubmit={onSubmit} />, container);
     await flush();
 
     const urlInput = container.querySelector<HTMLInputElement>('input[aria-label="URL"]')!;
@@ -118,7 +118,7 @@ describe('NewProjectForm', () => {
   });
 
   it('demotes skip-cache to an off-by-default Advanced disclosure', async () => {
-    render(<NewProjectForm allowLocalRepos onSubmit={() => {}} onCancel={() => {}} />, container);
+    render(<NewProjectForm allowLocalRepos onSubmit={() => {}} />, container);
     await flush();
 
     expect(container.querySelector('input[type="checkbox"]')).toBeNull();
@@ -135,10 +135,7 @@ describe('NewProjectForm', () => {
   });
 
   it('shows a concise disabled-local note and blocks submit when local repos are off', async () => {
-    render(
-      <NewProjectForm allowLocalRepos={false} onSubmit={() => {}} onCancel={() => {}} />,
-      container
-    );
+    render(<NewProjectForm allowLocalRepos={false} onSubmit={() => {}} />, container);
     await flush();
 
     const localTab = Array.from(container.querySelectorAll('button')).find(
@@ -156,10 +153,7 @@ describe('NewProjectForm', () => {
   });
 
   it('never uses an em-dash in the disabled-local copy', async () => {
-    render(
-      <NewProjectForm allowLocalRepos={false} onSubmit={() => {}} onCancel={() => {}} />,
-      container
-    );
+    render(<NewProjectForm allowLocalRepos={false} onSubmit={() => {}} />, container);
     await flush();
     const localTab = Array.from(container.querySelectorAll('button')).find(
       (b) => b.textContent === 'Local path'
@@ -177,10 +171,7 @@ describe('NewProjectForm', () => {
     // which unmounted the shared source input mid-keystroke and dropped focus.
     // With local disabled, Local isn't a reachable destination, so kind must
     // pin to Git and the field must never disappear while the user types.
-    render(
-      <NewProjectForm allowLocalRepos={false} onSubmit={() => {}} onCancel={() => {}} />,
-      container
-    );
+    render(<NewProjectForm allowLocalRepos={false} onSubmit={() => {}} />, container);
     await flush();
 
     const urlInput = container.querySelector<HTMLInputElement>('input[aria-label="URL"]')!;

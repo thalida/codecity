@@ -3,6 +3,7 @@ import { render } from 'preact';
 import { LoadingOverlay } from '@/components/LoadingOverlay/LoadingOverlay';
 import {
   LOADING_OVERLAY,
+  PROJECTS_VIEW,
   showLoadingOverlay,
   hideLoadingOverlay,
   setLoadingStep,
@@ -38,10 +39,25 @@ afterEach(() => {
   render(null, container);
   container.remove();
   PENDING_SOURCE_LABEL.value = null;
+  PROJECTS_VIEW.value = { visible: false, opts: {} };
 });
 
 describe('LoadingOverlay', () => {
   it('starts hidden (renders nothing)', () => {
+    expect(container.querySelector('.loading-backdrop')).toBeNull();
+  });
+
+  // <ProjectsView> is the loading surface for any switch it initiates; this
+  // overlay's narrow remaining job is a deep-link cold boot with no view
+  // open. Two full-viewport surfaces stacking would leave the overlay's
+  // no-controls backdrop on top of the view's Cancel button.
+  it('stays hidden while the projects view is open, even mid-load', async () => {
+    showLoadingOverlay({ kind: SourceKind.Remote, label: 'owner/repo' });
+    await flush();
+    expect(container.querySelector('.loading-backdrop')).not.toBeNull();
+
+    PROJECTS_VIEW.value = { visible: true, opts: {} };
+    await flush();
     expect(container.querySelector('.loading-backdrop')).toBeNull();
   });
 

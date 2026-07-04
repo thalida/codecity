@@ -3,6 +3,10 @@
 // Local path segment — manual override still works via the segment itself.
 // Git sources get a repo-resolved branch dropdown; skip-cache is tucked
 // behind an Advanced disclosure so the common path stays a one-field form.
+//
+// ProjectsView unmounts this component while a load is in flight (its own
+// inline progress block + Cancel take over) — `loading` here only guards
+// submit against a stray double-fire in the render that flips it true.
 
 import './NewProjectForm.css';
 import { useState } from 'preact/hooks';
@@ -16,7 +20,6 @@ export interface NewProjectFormProps {
   allowLocalRepos: boolean;
   prefill?: SourcePayload;
   onSubmit: (payload: SourcePayload) => void;
-  onCancel: () => void;
 }
 
 const KIND_OPTIONS = [
@@ -31,12 +34,7 @@ function looksResolvable(v: string): boolean {
   return srcKind(v) === SourceKind.Remote && (/:\/\/.+\/.+/.test(v) || /^[^@]+@[^:]+:.+/.test(v));
 }
 
-export function NewProjectForm({
-  allowLocalRepos,
-  prefill,
-  onSubmit,
-  onCancel,
-}: NewProjectFormProps) {
+export function NewProjectForm({ allowLocalRepos, prefill, onSubmit }: NewProjectFormProps) {
   const initialKind = prefill?.src && allowLocalRepos ? srcKind(prefill.src) : SourceKind.Remote;
   const [kind, setKind] = useState<SourceKind>(initialKind);
   const [source, setSource] = useState(prefill?.src ?? '');
@@ -86,19 +84,6 @@ export function NewProjectForm({
       branch: kind === SourceKind.Remote ? branch.trim() || undefined : undefined,
       skipCache: skipCache || undefined,
     });
-  }
-
-  if (loading) {
-    // Inline scan progress lives at the ProjectsView level (Task 9); the form
-    // collapses to just a cancel affordance while a load is in flight.
-    return (
-      <div class="new-project new-project--loading">
-        <span class="text-label">Opening project…</span>
-        <button type="button" class="btn-icon btn-icon--text" onClick={onCancel}>
-          Cancel
-        </button>
-      </div>
-    );
   }
 
   return (

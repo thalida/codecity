@@ -37,3 +37,15 @@
   overflow-y: auto;
   flex: 1;
 }
+
+/* Inline load progress, replacing the form + recents while SCAN_PROGRESS is
+   non-null. Spinner + pending-label look reuse LoadingOverlay's classes
+   (LoadingOverlay.css is loaded globally via App), so the switch flow and the
+   deep-link-boot flow read as one system. */
+.projects-view-progress {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--cc-space-6);
+  padding: var(--cc-space-8) 0;
+}

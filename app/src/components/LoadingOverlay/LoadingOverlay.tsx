@@ -13,9 +13,16 @@
 // visible advancement maps to a real NDJSON phase event (cloning, scanning,
 // skeleton, building) or the client-side decoration pass — no wall-clock timers.
 // The step vocabulary lives in constants/loadingSteps.
+//
+// Narrow role by design: a load driven from <ProjectsView> (every switch)
+// renders its OWN inline progress and this overlay stays hidden — two
+// full-viewport surfaces stacking on the same load would leave the user
+// looking at this overlay's no-controls backdrop on top of the view's Cancel
+// button. This overlay now only ever shows for a deep-link cold boot (no
+// view open yet).
 
 import './LoadingOverlay.css';
-import { LOADING_OVERLAY } from '@/state/stores/ui';
+import { LOADING_OVERLAY, PROJECTS_VIEW } from '@/state/stores/ui';
 import { PENDING_SOURCE_LABEL } from '@/state/stores/source';
 import { SourceKind } from '@/utils/sources';
 import {
@@ -52,6 +59,7 @@ export function LoadingOverlay() {
     stepTails: lo.stepTails,
   };
   if (!s.visible || !s.activeStep) return null;
+  if (PROJECTS_VIEW.value.visible) return null;
 
   const activeStep = s.activeStep;
   const activeIdx = LOADING_STEPS.indexOf(activeStep);
