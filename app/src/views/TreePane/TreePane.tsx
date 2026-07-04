@@ -78,8 +78,8 @@ function TreeItem({
   const path = node.path ?? '';
   // .value reads track the signal so the row re-renders on each change.
   const isExpanded = isDir && expanded.value.has(path);
-  const isSelected = path !== '' && selectedPath.value === path;
-  const isHovered = path !== '' && hoveredPath.value === path;
+  const isSelected = selectedPath.value === path;
+  const isHovered = hoveredPath.value === path;
   const ref = useRef<HTMLLIElement>(null);
 
   // Selected → scroll into view (matches the imperative version). Only
