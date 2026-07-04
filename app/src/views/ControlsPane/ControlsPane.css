@@ -1,5 +1,12 @@
 /* ── ControlsPane ── */
 
+/* Sticky accordion headers (Section.css / Subgroup.css) stack on scroll: the
+ * subgroup header pins just below the section header, so this is the section
+ * header's rendered height. Tune here if the two overlap or leave a gap. */
+.controls-pane {
+  --cc-controls-header-h: 30px;
+}
+
 .controls-section[open] > summary > .chevron,
 .theme-subgroup-collapsible[open] > summary > .chevron {
   transform: rotate(90deg);

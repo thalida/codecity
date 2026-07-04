@@ -27,6 +27,12 @@
    .chevron renders instead). */
 .theme-subgroup-collapsible > summary {
   list-style: none;
+  /* Sticky header stacked below the sticky section header (offset = section
+   * header height, set on .controls-pane). Opaque bg so rows don't show through. */
+  position: sticky;
+  top: var(--cc-controls-header-h);
+  z-index: 2;
+  background: var(--cc-bg-sidebar);
 }
 .theme-subgroup-collapsible > summary::-webkit-details-marker {
   display: none;
