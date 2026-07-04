@@ -32,6 +32,7 @@
   position: sticky;
   top: var(--cc-controls-header-h);
   z-index: 2;
+  margin-bottom: 0; /* keep it flush with the rows below when pinned */
   background: var(--cc-bg-sidebar);
 }
 .theme-subgroup-collapsible > summary::-webkit-details-marker {
