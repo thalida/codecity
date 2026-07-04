@@ -4,6 +4,15 @@
 // header). The HSL→RGB and luminance formulas are CSS/WCAG standard
 // math; they don't belong inside any single component.
 
+/** The extension "file tag" color: the same hue → HSL the ExtensionBadge paints
+ *  (Badge.css: hsl(var(--badge-hue), 60%, 35%)), so hue previews match the badge
+ *  users actually see. Saturation/lightness are percentages. */
+export const FILE_TAG_SATURATION = 60;
+export const FILE_TAG_LIGHTNESS = 35;
+export function fileTagHsl(hue: number): string {
+  return `hsl(${hue}, ${FILE_TAG_SATURATION}%, ${FILE_TAG_LIGHTNESS}%)`;
+}
+
 /** Parse a `#rgb` / `#rrggbb` hex color into [r, g, b] (each 0-255). */
 export function parseHex(hex: string): [number, number, number] | null {
   if (typeof hex !== 'string') return null;

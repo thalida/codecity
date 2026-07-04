@@ -10,6 +10,7 @@ export interface SliderProps {
   max: number;
   step: number;
   onCommit: (v: number) => void;
+  describedBy?: string;
 }
 
 export function formatNumberForStep(v: number, step: number): string {
@@ -22,7 +23,7 @@ export function formatNumberForStep(v: number, step: number): string {
   return v.toFixed(decimals);
 }
 
-export function Slider({ value, min, max, step, onCommit }: SliderProps) {
+export function Slider({ value, min, max, step, onCommit, describedBy }: SliderProps) {
   return (
     <span class="theme-slider-wrap">
       <input
@@ -32,6 +33,7 @@ export function Slider({ value, min, max, step, onCommit }: SliderProps) {
         max={String(max)}
         step={String(step)}
         value={String(value)}
+        aria-describedby={describedBy}
         onInput={(e) => {
           const v = parseFloat((e.currentTarget as HTMLInputElement).value);
           if (Number.isFinite(v)) onCommit(v);

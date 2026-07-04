@@ -26,7 +26,7 @@ const RAINBOW_FIELDS = {
     max: 0.005,
     step: 0.0001,
     label: 'Speed',
-    tip: 'Hue cycles per millisecond. The shared rainbow chases around the selected building outline AND the gem→selection path line.',
+    tip: 'How fast the hue cycles. Shared by the selected building outline and the gem-to-selection path line.',
   },
   SATURATION: {
     route: ChangeRoute.Live,
@@ -62,7 +62,7 @@ const BLOOM_FIELDS = {
     kind: FieldKind.Toggle,
     default: true,
     label: 'Enabled',
-    tip: 'Off → bloom pass bypassed AND windows/gem stay LDR — approximates the pre-HDR "flat" look for side-by-side comparison. Other knobs stay in config.',
+    tip: 'Turns off the glow pass and keeps windows flat, for a before/after look.',
   },
   STRENGTH: {
     route: ChangeRoute.Refresh,
@@ -72,7 +72,7 @@ const BLOOM_FIELDS = {
     max: 1,
     step: 0.01,
     label: 'Strength',
-    tip: 'Overall bloom intensity multiplier. 0 = bloom pass produces nothing; 1 = full strength.',
+    tip: 'Overall glow intensity. 0 disables it, 1 is full strength.',
   },
   RADIUS: {
     route: ChangeRoute.Refresh,
@@ -82,7 +82,7 @@ const BLOOM_FIELDS = {
     max: 1.0,
     step: 0.05,
     label: 'Radius',
-    tip: "How far each bright pixel's glow spreads. Lower = tighter halos; higher = soft diffuse glow.",
+    tip: "How far each bright pixel's glow spreads. Lower is tighter halos, higher is soft diffuse glow.",
   },
   THRESHOLD: {
     route: ChangeRoute.Refresh,
@@ -92,7 +92,7 @@ const BLOOM_FIELDS = {
     max: 2.0,
     step: 0.05,
     label: 'Threshold (cutoff)',
-    tip: 'Luma CUTOFF — pixels below this value contribute nothing to bloom. NOT an intensity dial: lower threshold = more pixels qualify = more total bloom; higher = fewer pixels glow. ≥1.0 keeps matte walls (capped at 1.0) clean and only blooms the HDR-pushed window pixels.',
+    tip: 'Brightness cutoff for glow: lower blooms more pixels, higher fewer. At 1.0 and above only bright windows bloom, not matte walls.',
   },
 } satisfies FieldMap;
 

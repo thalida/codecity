@@ -13,9 +13,10 @@ export interface RangePairProps {
   max: number;
   step: number;
   onCommit: (lo: number, hi: number) => void;
+  describedBy?: string;
 }
 
-export function RangePair({ lo, hi, min, max, step, onCommit }: RangePairProps) {
+export function RangePair({ lo, hi, min, max, step, onCommit, describedBy }: RangePairProps) {
   const span = max - min || 1;
   const fillLeft = `${((lo - min) / span) * 100}%`;
   const fillRight = `${((max - hi) / span) * 100}%`;
@@ -45,6 +46,7 @@ export function RangePair({ lo, hi, min, max, step, onCommit }: RangePairProps) 
           max={String(max)}
           step={String(step)}
           value={String(lo)}
+          aria-describedby={describedBy}
           onInput={onInputLo}
         />
         <input
@@ -54,6 +56,7 @@ export function RangePair({ lo, hi, min, max, step, onCommit }: RangePairProps) 
           max={String(max)}
           step={String(step)}
           value={String(hi)}
+          aria-describedby={describedBy}
           onInput={onInputHi}
         />
       </span>

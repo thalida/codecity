@@ -47,7 +47,7 @@ const BUILDING_DIMENSIONS_FIELDS = {
     max: 200,
     step: 1,
     label: 'Min floors',
-    tip: "Floors for the smallest file in the project (fewest lines). Sqrt-interpolated up to Max across the project's line-count range.",
+    tip: 'Floors for the smallest file, the bottom of the height range.',
   },
   MAX_FLOORS: {
     route: ChangeRoute.Rebuild,
@@ -57,7 +57,7 @@ const BUILDING_DIMENSIONS_FIELDS = {
     max: 200,
     step: 1,
     label: 'Max floors',
-    tip: 'Floors for the largest file (most lines). Above ~200 the tallest buildings dwarf the city.',
+    tip: 'Floors for the largest file, the top of the height range. Above ~200 the tallest buildings dwarf the city.',
   },
   FLOOR_HEIGHT: {
     route: ChangeRoute.Rebuild,
@@ -67,7 +67,7 @@ const BUILDING_DIMENSIONS_FIELDS = {
     max: 50,
     step: 1,
     label: 'Floor height',
-    tip: 'Vertical world units per floor (multiplier on the floor count). Above 50 the floor-to-width aspect breaks readability.',
+    tip: 'World units per floor. Above 50 the proportions stop reading as buildings.',
   },
   MIN_WIDTH: {
     route: ChangeRoute.Rebuild,
@@ -77,7 +77,7 @@ const BUILDING_DIMENSIONS_FIELDS = {
     max: 200,
     step: 1,
     label: 'Min width',
-    tip: "Footprint width for the smallest file (fewest bytes). Log-interpolated up to Max across the project's byte-size range. Footprints are square (depth = width).",
+    tip: 'Footprint width for the smallest file, the bottom of the width range. Footprints are square, so depth matches width.',
   },
   MAX_WIDTH: {
     route: ChangeRoute.Rebuild,
@@ -87,7 +87,7 @@ const BUILDING_DIMENSIONS_FIELDS = {
     max: 200,
     step: 1,
     label: 'Max width',
-    tip: 'Footprint width for the largest file (most bytes).',
+    tip: 'Footprint width for the largest file, the top of the width range.',
   },
   DISTANCE_FROM_ROAD: {
     route: ChangeRoute.Rebuild,
@@ -97,7 +97,7 @@ const BUILDING_DIMENSIONS_FIELDS = {
     max: 50,
     step: 1,
     label: 'Distance from road',
-    tip: 'Gap between the building wall and the street edge. Same for every building.',
+    tip: "Gap between every building's wall and the street edge.",
   },
 } satisfies FieldMap;
 
@@ -140,7 +140,7 @@ const BUILDINGS_FIELDS = {
     max: 100,
     step: 5,
     label: 'Saturation min',
-    tip: 'HSL saturation for the OLDEST (least-recently-modified) files — they tend toward this muted floor.',
+    tip: 'Saturation for the oldest, least-recently-modified files: how muted their color gets.',
   },
   SATURATION_MAX: {
     route: ChangeRoute.Rebuild,
@@ -150,7 +150,7 @@ const BUILDINGS_FIELDS = {
     max: 100,
     step: 5,
     label: 'Saturation max',
-    tip: 'HSL saturation for the NEWEST files — the richest version of the hue.',
+    tip: 'Saturation for the newest files: how rich their color gets.',
   },
   LIGHTNESS_MIN: {
     route: ChangeRoute.Rebuild,
@@ -160,7 +160,7 @@ const BUILDINGS_FIELDS = {
     max: 100,
     step: 5,
     label: 'Lightness min',
-    tip: 'HSL lightness for stale files — dim, near-gray "rundown" look.',
+    tip: 'Lightness for stale files, giving them a dim, near-gray, rundown look.',
   },
   LIGHTNESS_MAX: {
     route: ChangeRoute.Rebuild,
@@ -170,14 +170,14 @@ const BUILDINGS_FIELDS = {
     max: 100,
     step: 5,
     label: 'Lightness max',
-    tip: "HSL lightness for recently-modified files. Kept near 50 (HSL's peak-chroma point) so the hue stays saturated instead of washing toward white.",
+    tip: 'Lightness for recently-modified files. Values much above 50 wash the color out toward white.',
   },
   HUE_EXT_MAP: {
     route: ChangeRoute.Rebuild,
     kind: FieldKind.HueMap,
     default: DEFAULT_HUE_EXT_MAP,
     label: 'Extension hues (0–359°)',
-    tip: 'Hue per file extension, matched to the file icon color. Rebuild on change.',
+    tip: 'Hue per file extension, matched to the file icon color.',
   },
 
   // ── Outline — refresh ──
@@ -215,7 +215,7 @@ const BUILDINGS_FIELDS = {
     max: 1,
     step: 0.05,
     label: 'Selected opacity',
-    tip: 'Selected outline uses an animated rainbow color — see Effects > Rainbow.',
+    tip: 'The selected outline always uses an animated rainbow color, tunable under Effects.',
   },
 
   // ── Transition timing — live ──
@@ -227,7 +227,7 @@ const BUILDINGS_FIELDS = {
     max: 3000,
     step: 10,
     label: 'Enter / refresh (ms)',
-    tip: 'Fade-in / stay duration for buildings as they enter on initial render or refresh when the manifest changes. Above 3000ms tweens feel sluggish; below 50ms reads as a hard cut.',
+    tip: 'How long buildings fade in when they first appear or refresh. Above 3000ms feels sluggish, below 50ms reads as a hard cut.',
   },
 
   // ── Facade geometry — shader-side (*_FRAC), refresh ──
@@ -239,7 +239,7 @@ const BUILDINGS_FIELDS = {
     max: 0.4,
     step: 0.01,
     label: 'Slab thickness × floor',
-    tip: "Floor-slab strip height as a fraction of one floor. Above 0.4 the slab eats more than the floor's window band — the facade reads as horizontal banding instead of windowed.",
+    tip: 'Floor-slab strip height as a fraction of one floor. Above 0.4 the slab eats into the window band and the facade reads as banding instead of windows.',
   },
   WINDOW_WIDTH_FRAC: {
     route: ChangeRoute.Refresh,
@@ -249,7 +249,6 @@ const BUILDINGS_FIELDS = {
     max: 1,
     step: 0.01,
     label: 'Window width × cell',
-    tip: 'Window width as a fraction of its grid cell.',
   },
   WINDOW_HEIGHT_FRAC: {
     route: ChangeRoute.Refresh,
@@ -259,7 +258,6 @@ const BUILDINGS_FIELDS = {
     max: 1,
     step: 0.01,
     label: 'Window height × floor',
-    tip: 'Window height as a fraction of one floor.',
   },
   WINDOW_MARGIN_FRAC: {
     route: ChangeRoute.Refresh,
@@ -279,7 +277,6 @@ const BUILDINGS_FIELDS = {
     max: 1,
     step: 0.01,
     label: 'Door height × floor',
-    tip: 'Door height as a fraction of one floor.',
   },
   ROOF_BORDER_FRAC: {
     route: ChangeRoute.Refresh,
@@ -289,7 +286,7 @@ const BUILDINGS_FIELDS = {
     max: 0.1,
     step: 0.005,
     label: 'Roof border × face',
-    tip: 'Width of the roof border strip, as a fraction of the face. Above 0.1 (10% of face width) the border eats into the icon area at the top of the facade.',
+    tip: 'Width of the roof border strip, as a fraction of the face. Above 0.1 it eats into the icon area at the top of the facade.',
   },
 
   // ── Facade geometry — JS-side (baked attributes), rebuild ──
@@ -301,7 +298,7 @@ const BUILDINGS_FIELDS = {
     max: 10,
     step: 1,
     label: 'Max window columns',
-    tip: 'Hard cap on window columns per face. Rebuild required. Above 10 the window grid becomes too dense to read at typical zoom.',
+    tip: 'Hard cap on window columns per face. Above 10 the grid gets too dense to read at typical zoom.',
   },
   WIDTH_PER_WINDOW_COL: {
     route: ChangeRoute.Rebuild,
@@ -311,7 +308,7 @@ const BUILDINGS_FIELDS = {
     max: 32,
     step: 1,
     label: 'Width per window col',
-    tip: 'World-unit width allotted per window column (cols = floor(buildingWidth / this)). Rebuild required. Above 32 world units per column, small buildings end up with zero windows.',
+    tip: 'World-unit width allotted per window column. Above 32, small buildings end up with zero windows.',
   },
   DOOR_WIDTH_FRAC: {
     route: ChangeRoute.Rebuild,
@@ -321,7 +318,7 @@ const BUILDINGS_FIELDS = {
     max: 1,
     step: 0.05,
     label: 'Door width',
-    tip: "Door width as a fraction of the building's own width. Bigger buildings get proportionally wider doors. Rebuild required.",
+    tip: "Door width as a fraction of the building's own width, so bigger buildings get proportionally wider doors.",
   },
 
   // ── Facade contrast (HSL lightness Δ) — refresh ──
@@ -365,7 +362,7 @@ const BUILDINGS_FIELDS = {
     max: 20,
     step: 1,
     label: 'Unlit pane lightness Δ',
-    tip: 'HSL lightness offset applied to unlit panes (relative to the building hue).',
+    tip: 'Lightness offset for unlit window panes, relative to the building hue.',
   },
   GAP_BASE_THRESHOLD: {
     route: ChangeRoute.Refresh,
@@ -375,7 +372,7 @@ const BUILDINGS_FIELDS = {
     max: 1,
     step: 0.01,
     label: 'Gap fraction (base)',
-    tip: 'Base fraction of cells with no window at all (architectural gaps).',
+    tip: 'Base fraction of cells with no window at all, as architectural gaps.',
   },
   GAP_AGE_BONUS: {
     route: ChangeRoute.Refresh,
@@ -385,7 +382,7 @@ const BUILDINGS_FIELDS = {
     max: 1,
     step: 0.01,
     label: 'Gap fraction (age bonus)',
-    tip: 'Extra empty-cell fraction added for the oldest building (interpolates down to 0 for the newest).',
+    tip: 'Extra empty-cell fraction for the oldest buildings, fading to 0 for the newest.',
   },
   LIT_FRESHNESS_EXPONENT: {
     route: ChangeRoute.Refresh,
@@ -395,14 +392,14 @@ const BUILDINGS_FIELDS = {
     max: 4,
     step: 0.1,
     label: 'Lit-window dim curve',
-    tip: 'Exponent on the recency curve that drives lit-window count + HDR emission. 1 = linear; higher dims mid-age buildings faster so only the freshest ones glow. Beyond 4 only the newest ~6% of files visibly emit.',
+    tip: '1 is linear; higher values mean only the freshest buildings glow, and beyond 4 only the newest ~6% of files visibly light up.',
   },
   DIM_GLOW_COLOR: {
     route: ChangeRoute.Refresh,
     kind: FieldKind.Color,
     default: '#806626',
     label: 'Old building glow',
-    tip: 'Warm-amber tint that lit panes drift toward as the file ages (created-date axis, not last-modified).',
+    tip: 'Warm amber tint that lit windows drift toward as the file ages, by creation date rather than last-modified.',
   },
   WINDOW_EMISSION: {
     route: ChangeRoute.Refresh,
@@ -412,7 +409,7 @@ const BUILDINGS_FIELDS = {
     max: 3.0,
     step: 0.05,
     label: 'Emission (bloom)',
-    tip: "Peak HDR push for the freshest building's lit windows; scales linearly down to 0 for the oldest. The bloom pass's strength × radius then operates on that age-scaled HDR signal, so total glow tracks building age. Gated on Effects > Bloom > Enabled. 0 = no bloom from windows; 1 = moderate; 3 = full neon.",
+    tip: "How brightly the newest building's lit windows glow, fading to none for the oldest. Requires Bloom enabled in Effects. 0 = no glow, 1 = moderate, 3 = full neon.",
   },
 
   // ── Ad panels (media files) — rebuild (geometry baked at apply time) ──
@@ -424,7 +421,7 @@ const BUILDINGS_FIELDS = {
     max: 0.4,
     step: 0.01,
     label: 'Side margin × width',
-    tip: 'Horizontal margin on each side of the building width — controls how much building wall is visible to the left and right of the ad. Above 0.4 the margins consume more than 80% of the face and the ad becomes a sliver.',
+    tip: 'Horizontal margin on each side of the ad, as a fraction of building width. Above 0.4 the ad shrinks to a sliver.',
   },
   AD_BOTTOM_OFFSET_FLOORS: {
     route: ChangeRoute.Rebuild,
@@ -434,14 +431,14 @@ const BUILDINGS_FIELDS = {
     max: 3,
     step: 0.1,
     label: 'Bottom offset × floors',
-    tip: 'Ad bottom edge sits this many floor heights above the ground — guarantees the door (0.75 of a floor tall) stays uncovered. 1.0 leaves a clean strip; raise it to lift the ad higher on the building.',
+    tip: "How many floor heights above the ground the ad's bottom edge sits. 1.0 clears the door; raise it to lift the ad higher on the building.",
   },
   AD_PLACEHOLDER_COLOR: {
     route: ChangeRoute.Rebuild,
     kind: FieldKind.Color,
     default: '#29293d',
     label: 'Placeholder color',
-    tip: 'Color shown on the ad plane while the texture is loading (or if the load fails).',
+    tip: 'Color shown on the ad plane while the texture is loading, or if the load fails.',
   },
   AD_EMISSION: {
     route: ChangeRoute.Refresh,
@@ -451,7 +448,7 @@ const BUILDINGS_FIELDS = {
     max: 5.0,
     step: 0.1,
     label: 'Emission (bloom)',
-    tip: 'Multiplier on ad panel colors. Bright pixels in the texture push past 1.0 and bloom; dark pixels stay below threshold. Gated on Effects > Bloom > Enabled. 0 = panel black; 1 = LDR (no bloom); higher = neon storefront.',
+    tip: 'Brightness multiplier on ad images. Requires Bloom enabled in Effects to glow. 0 = black, 1 = normal, higher = neon storefront.',
   },
 
   // ── Aging (createdAge-driven weathering) — refresh ──
@@ -460,7 +457,7 @@ const BUILDINGS_FIELDS = {
     kind: FieldKind.Toggle,
     default: true,
     label: 'Enabled',
-    tip: 'Vertical streaks of darker color falling from the top of each face on aged buildings. Off → clean facades regardless of age.',
+    tip: 'Vertical streaks of darker color falling from the top of each face on aged buildings. Turn off for clean facades regardless of age.',
   },
   GRIME_INTENSITY: {
     route: ChangeRoute.Refresh,
@@ -470,7 +467,7 @@ const BUILDINGS_FIELDS = {
     max: 1,
     step: 0.05,
     label: 'Intensity (new → old)',
-    tip: 'How dark each streak gets, as a range across building age: left = newest buildings, right = oldest. 0 = invisible; 1 = strongly darkened wall color. Default 0 → 1 keeps new facades clean and fully weathers the oldest.',
+    tip: 'How dark each streak gets, from newest buildings (left) to oldest (right). 0 is invisible, 1 is strongly darkened.',
   },
   GRIME_COVERAGE: {
     route: ChangeRoute.Refresh,
@@ -480,14 +477,14 @@ const BUILDINGS_FIELDS = {
     max: 1,
     step: 0.05,
     label: 'Coverage (new → old)',
-    tip: 'Fraction of vertical bands that streak, as a range across age: left = newest buildings, right = oldest. Lower = sparser streaks; higher = nearly every band weathers.',
+    tip: 'Fraction of vertical bands that streak, from newest buildings (left) to oldest (right). Lower is sparser, higher is nearly every band.',
   },
   TILT_ENABLED: {
     route: ChangeRoute.Refresh,
     kind: FieldKind.Toggle,
     default: true,
     label: 'Enabled',
-    tip: 'Small lean around the base, proportional to createdAge. Each building leans in a stable hashed direction. Off → all buildings stand perfectly upright.',
+    tip: "Small lean at the base that grows with a building's age. Each one leans in a fixed direction. Turn off to keep every building upright.",
   },
   TILT_DEGREES: {
     route: ChangeRoute.Refresh,
@@ -497,7 +494,7 @@ const BUILDINGS_FIELDS = {
     max: 10,
     step: 0.1,
     label: 'Lean degrees (new → old)',
-    tip: 'Lean angle (degrees) as a range across age: left = newest buildings, right = oldest. Each building leans in a stable hashed direction. Above 10° buildings visually clip into their neighbors.',
+    tip: 'Lean angle in degrees, from newest buildings (left) to oldest (right). Above 10° buildings start clipping into their neighbors.',
   },
 
   // ── Selection-fade tiers — live ──

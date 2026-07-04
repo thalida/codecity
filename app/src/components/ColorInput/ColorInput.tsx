@@ -8,14 +8,16 @@ import { normalizeHex } from '@/utils/colors';
 export interface ColorInputProps {
   value: string;
   onCommit: (hex: string) => void;
+  describedBy?: string;
 }
 
-export function ColorInput({ value, onCommit }: ColorInputProps) {
+export function ColorInput({ value, onCommit, describedBy }: ColorInputProps) {
   return (
     <input
       type="color"
       class="theme-color"
       value={normalizeHex(value)}
+      aria-describedby={describedBy}
       onInput={(e) => onCommit((e.currentTarget as HTMLInputElement).value)}
     />
   );

@@ -2,7 +2,7 @@
    LAYER-2 COMPONENTS — Rows
    ═══════════════════════════════════════════════════════════════════════════
    .row — clickable flex row with subtle hover. Used for tree rows and the
-   two collapsible-section summary rows. Padding aligns to the pane's 16px
+   two collapsible-section summary rows. Padding aligns to the pane's
    horizontal padding so depth-0 entries line up under pane titles.
 
    Variants:
@@ -15,8 +15,8 @@
 .row {
   display: flex;
   align-items: center;
-  gap: var(--cc-space-2); /* 4px default; --tight overrides to 2px */
-  padding: var(--cc-space-2) var(--cc-space-7); /* 4px 16px */
+  gap: var(--cc-space-2); /* default gap; --tight overrides to a tighter one */
+  padding: var(--cc-space-2) var(--cc-space-7);
   border-radius: var(--cc-radius-sm);
   cursor: pointer;
   user-select: none;
@@ -26,10 +26,10 @@
   background: var(--cc-overlay-bg-soft);
 }
 
-/* Tight variant — chevron/icon/label gap collapses from 4px to 2px so
+/* Tight variant — chevron/icon/label gap collapses so
    the chevron + folder icon read as a single unit. Used by tree rows. */
 .row--tight {
-  gap: var(--cc-space-1); /* 2px */
+  gap: var(--cc-space-1);
 }
 
 /* Bleed variant — extends hover background to the pane edge. Used by

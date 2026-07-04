@@ -3,7 +3,7 @@
 
    Layer-1 of the system per docs/ui-component-system.md. Two kinds of tokens:
 
-   ① SCALE TOKENS — concrete values on a scale (e.g. --cc-font-sm = 10px,
+   ① SCALE TOKENS — concrete values on a scale (e.g. --cc-font-sm,
                     --cc-overlay-strong = rgba(...,.18))
    ② BASE ALIASES — semantic names that point AT a scale token
                     (e.g. --cc-font-base = var(--cc-font-md))
@@ -116,7 +116,7 @@
   --cc-space-7: 16px;
   --cc-space-8: 24px;
   --cc-space-9: 32px;
-  --cc-space-base: var(--cc-space-4); /* 8px */
+  --cc-space-base: var(--cc-space-4);
 
   /* ── SCALES — Radius ──────────────────────────────────────────────────── */
   --cc-radius-0: 0;
@@ -135,8 +135,8 @@
   --cc-font-2xl: 18px;
   --cc-font-3xl: 22px;
   --cc-font-4xl: 28px;
-  --cc-font-base: var(--cc-font-lg); /* 12px */
-  --cc-font-root: var(--cc-font-xl); /* 14px — html/body */
+  --cc-font-base: var(--cc-font-lg);
+  --cc-font-root: var(--cc-font-xl); /* html/body */
 
   /* ── SCALES — Font weights ────────────────────────────────────────────── */
   --cc-fw-normal: 400;

@@ -58,7 +58,7 @@ const GEM_FIELDS = {
     max: 1,
     step: 0.05,
     label: 'Body opacity',
-    tip: 'Gem transparency. Low = jewel-like; high = plastic.',
+    tip: 'Gem transparency. Low is jewel-like, high is plastic.',
   },
 
   // ── Face colors ──
@@ -117,7 +117,7 @@ const GEM_FIELDS = {
     kind: FieldKind.Toggle,
     default: true,
     label: 'Enabled',
-    tip: 'Two billboarded sprites behind the gem painted with a soft radial-gradient — creates a fuzzy neon halo.',
+    tip: 'Adds a soft glowing halo behind the gem.',
   },
   GLOW_INNER_SCALE: {
     route: ChangeRoute.Refresh,
@@ -127,7 +127,7 @@ const GEM_FIELDS = {
     max: 12,
     step: 0.1,
     label: 'Inner scale × radius',
-    tip: 'Size of the inner "hot core" halo, as a multiple of the gem radius. Larger = bigger soft disk. Beyond 12× radius the inner core overlaps the outer halo.',
+    tip: 'Size of the inner "hot core" halo, as a multiple of the gem radius. Beyond 12× radius the inner core overlaps the outer halo.',
   },
   GLOW_INNER_OPACITY: {
     route: ChangeRoute.Refresh,
@@ -147,7 +147,7 @@ const GEM_FIELDS = {
     max: 30,
     step: 0.5,
     label: 'Outer scale × radius',
-    tip: 'Size of the outer atmospheric halo. Much larger than the inner one so the falloff reaches far past the gem. Beyond 30× radius the outer halo extends past the typical camera frame.',
+    tip: 'Size of the outer atmospheric halo. Beyond 30× radius it extends past the typical camera frame.',
   },
   GLOW_OUTER_OPACITY: {
     route: ChangeRoute.Refresh,
@@ -164,7 +164,7 @@ const GEM_FIELDS = {
     kind: FieldKind.Toggle,
     default: true,
     label: 'Animate colors',
-    tip: 'Cycle the halo color through the gem face palette. Off = halo uses the edge color from Appearance above.',
+    tip: 'Cycle the halo color through the gem face palette. Off uses the edge color from Appearance above.',
   },
   GLOW_CYCLE_PERIOD_SECONDS: {
     route: ChangeRoute.Refresh,
@@ -174,7 +174,7 @@ const GEM_FIELDS = {
     max: 30,
     step: 0.5,
     label: 'Cycle period (s)',
-    tip: 'Seconds for one full pass through every palette color. Below 1s reads as flicker; above 30s the cycle feels static.',
+    tip: 'Seconds for one full pass through every palette color. Below 1s reads as flicker, above 30s the cycle feels static.',
   },
   GLOW_EMISSION: {
     route: ChangeRoute.Refresh,
@@ -184,7 +184,7 @@ const GEM_FIELDS = {
     max: 5.0,
     step: 0.1,
     label: 'Emission (bloom)',
-    tip: 'Multiplier on the halo sprite colors. Gated on Effects > Bloom > Enabled. 0 = halos black (invisible); 1 = LDR (no bloom from gem); higher = HDR push that drives selective bloom on the gem.',
+    tip: 'Brightness multiplier on the halo. Requires Bloom enabled in Effects to glow. 0 = invisible, 1 = normal, higher = neon.',
   },
 
   // ── Animation ──
@@ -264,7 +264,7 @@ const GEM_SIZING_FIELDS = {
     max: 50,
     step: 1,
     label: 'Min radius',
-    tip: 'Floor for narrow root streets so the gem stays visible. Below 1 the gem vanishes; above 50 it dwarfs the root plaza.',
+    tip: 'Floor for narrow root streets so the gem stays visible. Below 1 the gem vanishes, above 50 it dwarfs the root plaza.',
   },
 } satisfies FieldMap;
 
@@ -287,7 +287,7 @@ const REPO_LABEL_FIELDS = {
     max: 200,
     step: 1,
     label: 'Height % of max building',
-    tip: 'Panel bottom position as a percent of the tallest possible building (MAX_FLOORS × FLOOR_HEIGHT). 0 = island floor; 100 = level with the tallest possible building; 200 = double that.',
+    tip: 'How high the panel floats, as a percent of the tallest possible building. 0 sits at the island floor, 100 levels with the tallest building, 200 is double that.',
   },
   FONT_SIZE: {
     route: ChangeRoute.Refresh,
@@ -297,7 +297,7 @@ const REPO_LABEL_FIELDS = {
     max: 300,
     step: 1,
     label: 'Font size',
-    tip: "Panel (= text) height in world units. Default 96 matches BUILDING_DIMENSIONS.MAX_WIDTH — the label reads as roughly the same scale as the biggest possible single building. Width scales with text length so long names don't squish.",
+    tip: "Panel height in world units. Width scales with the text so long names don't squish.",
   },
   ANIMATION_SPEED: {
     route: ChangeRoute.Refresh,
@@ -307,7 +307,7 @@ const REPO_LABEL_FIELDS = {
     max: 4,
     step: 0.05,
     label: 'Animation speed',
-    tip: 'Multiplier on the holographic scanline / glitch rate. 0 freezes the label; 4 reads as frantic.',
+    tip: 'Multiplier on the holographic scanline / glitch rate. 0 freezes the label, 4 reads as frantic.',
   },
   OPACITY: {
     route: ChangeRoute.Refresh,
@@ -317,7 +317,7 @@ const REPO_LABEL_FIELDS = {
     max: 1,
     step: 0.05,
     label: 'Opacity',
-    tip: 'Master opacity. 0 invisible, 1 fully painted.',
+    tip: 'Master opacity for the whole label.',
   },
   BEAM_COLOR: {
     route: ChangeRoute.Refresh,

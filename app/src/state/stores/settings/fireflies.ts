@@ -19,7 +19,7 @@ const FIREFLIES_FIELDS = {
     kind: FieldKind.Toggle,
     default: true,
     label: 'Fireflies enabled',
-    tip: 'Master toggle. When off, no firefly orbs are placed or rendered. Rebuild on change.',
+    tip: 'Master toggle. When off, no firefly orbs are placed or rendered.',
   },
 
   SCALE_MIN: {
@@ -30,7 +30,7 @@ const FIREFLIES_FIELDS = {
     max: 2.0,
     step: 0.05,
     label: 'Scale min',
-    tip: 'Multiplier for the author with the fewest commits. Rebuild on change.',
+    tip: 'Size multiplier for the author with the fewest commits.',
   },
   SCALE_MAX: {
     route: ChangeRoute.Rebuild,
@@ -40,7 +40,7 @@ const FIREFLIES_FIELDS = {
     max: 5.0,
     step: 0.05,
     label: 'Scale max',
-    tip: 'Multiplier for the author with the most commits. Rebuild on change.',
+    tip: 'Size multiplier for the author with the most commits.',
   },
 
   ORBIT_SPEED: {
@@ -71,7 +71,7 @@ const FIREFLIES_FIELDS = {
     max: 5.0,
     step: 0.1,
     label: 'Bob speed',
-    tip: 'How fast the vertical bob oscillates in radians/sec. Higher = faster bobbing.',
+    tip: 'How fast the vertical bob oscillates in radians/sec. Higher is faster bobbing.',
   },
 
   EMISSION_STRENGTH: {
@@ -82,7 +82,7 @@ const FIREFLIES_FIELDS = {
     max: 5.0,
     step: 0.1,
     label: 'Emission strength',
-    tip: 'Base brightness multiplier. >1 makes orbs glow (bloom). Lower = subtler.',
+    tip: 'Base brightness multiplier. Above 1 the orbs glow (bloom); lower is subtler.',
   },
   PULSE_AMPLITUDE: {
     route: ChangeRoute.Refresh,
@@ -92,7 +92,7 @@ const FIREFLIES_FIELDS = {
     max: 1.0,
     step: 0.05,
     label: 'Pulse amplitude',
-    tip: 'Brightness swing. 0 = steady glow, 1 = full ±100% modulation.',
+    tip: 'Brightness swing. 0 is a steady glow, 1 is full ±100% modulation.',
   },
   PULSE_SPEED: {
     route: ChangeRoute.Refresh,
@@ -112,7 +112,7 @@ const FIREFLIES_FIELDS = {
     max: 1.0,
     step: 0.05,
     label: 'Flicker',
-    tip: 'Random brightness jitter on top of the pulse. 0 = smooth, 1 = jittery.',
+    tip: 'Random brightness jitter on top of the pulse. 0 is smooth, 1 is jittery.',
   },
 
   ORBIT_RING_ENABLED: {
@@ -130,7 +130,7 @@ const FIREFLIES_FIELDS = {
     max: 0.5,
     step: 0.01,
     label: 'Ring thickness',
-    tip: 'Tube radius of the orbit ring in world units. Rebuilds geometry on change.',
+    tip: 'Tube radius of the orbit ring in world units.',
   },
 } satisfies FieldMap;
 

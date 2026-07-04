@@ -3,7 +3,7 @@
 // write them to open/close. Replaces the imperative `picker.open()` /
 // `loadingOverlay.show()` boot-time pattern.
 
-import { signal } from '@preact/signals';
+import { signal, computed } from '@preact/signals';
 import { SourceKind } from '@/utils/sources';
 import { URL_PARAMS } from '@/constants/urlParams';
 
@@ -120,3 +120,39 @@ export function setLoadingStepTail(step: LoadingStep, tail: string | null): void
     stepTails: { ...prev.stepTails, [step]: tail },
   };
 }
+
+// ── Shortcuts modal ──────────────────────────────────────────────────────────
+
+/** Whether the keyboard/mouse shortcuts reference modal is open. */
+export const SHORTCUTS_OPEN = signal(false);
+
+/** Open the shortcuts modal (header `?` icon). */
+export function openShortcuts(): void {
+  SHORTCUTS_OPEN.value = true;
+}
+
+/** Close the shortcuts modal. */
+export function closeShortcuts(): void {
+  SHORTCUTS_OPEN.value = false;
+}
+
+// ── Debug modal ──────────────────────────────────────────────────────────────
+
+/** Whether the developer-diagnostics modal is open. */
+export const DEBUG_OPEN = signal(false);
+
+/** Open the debug modal (header bug icon, flag-gated). */
+export function openDebug(): void {
+  DEBUG_OPEN.value = true;
+}
+
+/** Close the debug modal. */
+export function closeDebug(): void {
+  DEBUG_OPEN.value = false;
+}
+
+/** True while any modal (source picker, shortcuts, debug) is open. Scene input
+ *  handlers read this so keyboard shortcuts don't fire underneath a modal. */
+export const MODAL_OPEN = computed(
+  () => SOURCE_PICKER.value.visible || SHORTCUTS_OPEN.value || DEBUG_OPEN.value
+);

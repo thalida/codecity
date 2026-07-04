@@ -55,6 +55,10 @@ export interface SectionNode {
   description?: string;
   children?: SectionChild[];
   render?: ComponentChildren;
+  /** Render flat (hint + children, no <details> chrome, no section reset).
+   *  For a subtab whose only section would otherwise be a one-item
+   *  accordion — collapsing a single section is pointless UI. */
+  inline?: boolean;
 }
 
 function isGroup(child: SectionChild): child is GroupNode {
@@ -74,13 +78,28 @@ function collectRefs(children: SectionChild[]): FieldRef[] {
   return out;
 }
 
-function renderChild(child: SectionChild): ComponentChildren {
+/** Deepest nesting level that stays a collapsible accordion. The top section is
+ *  level 1; one subgroup level (2) also collapses. Groups deeper than this render
+ *  as flat labeled clusters (always shown when their parent is open), so the
+ *  panel never becomes a maze of nested accordions. Raise it to allow deeper
+ *  collapsibility. */
+export const MAX_COLLAPSE_DEPTH = 2;
+
+/** Render a node's children at their nesting level. The section is level 1, so
+ *  its direct children default to level 2. Every render path (accordion, inline,
+ *  and the recursion below) goes through here so the depth seed + increment are
+ *  identical everywhere — nothing maps `renderChild` directly, which would pass
+ *  the array index as the depth. */
+function renderChildren(children: SectionChild[], depth = 2): ComponentChildren[] {
+  return children.map((c) => renderChild(c, depth));
+}
+
+function renderChild(child: SectionChild, depth: number): ComponentChildren {
   if (isGroup(child)) {
-    const kids = child.children.map(renderChild);
-    // Collapsible by default — a <details> that resets every field beneath it
-    // (draft-driven via resetKeys). collapsible:false renders a plain group
-    // with no reset.
-    const collapsible = child.collapsible !== false;
+    // Collapsible only within MAX_COLLAPSE_DEPTH (unless it opts out via
+    // collapsible:false); past the cap it's a plain labeled group with no reset.
+    // A collapsible group's reset still covers every field beneath it (resetKeys).
+    const collapsible = child.collapsible !== false && depth <= MAX_COLLAPSE_DEPTH;
     return (
       <Subgroup
         name={child.label}
@@ -88,7 +107,7 @@ function renderChild(child: SectionChild): ComponentChildren {
         resetKeys={collapsible ? collectRefs(child.children) : undefined}
         key={child.key}
       >
-        {kids}
+        {renderChildren(child.children, depth + 1)}
       </Subgroup>
     );
   }
@@ -98,13 +117,21 @@ function renderChild(child: SectionChild): ComponentChildren {
 /** Render one section node into the panel shells. */
 export function DynamicSection({ node }: { node: SectionNode }) {
   if (node.render) return <>{node.render}</>;
+  if (node.inline) {
+    return (
+      <div class="controls-inline-section">
+        {node.description && <div class="controls-section-hint">{node.description}</div>}
+        {renderChildren(node.children ?? [])}
+      </div>
+    );
+  }
   return (
     <Section
       name={node.label ?? ''}
       hint={node.description}
       resetKeys={collectRefs(node.children ?? [])}
     >
-      {(node.children ?? []).map(renderChild)}
+      {(node.children ?? []).map((c) => renderChild(c, 2))}
     </Section>
   );
 }

@@ -11,7 +11,7 @@
 
 import { signal } from '@preact/signals';
 import { getDefault } from './persist';
-import { forEachSettingStore } from './settingsSchema';
+import { forEachSettingStore, isAutosave } from './settingsSchema';
 import { deepEqual, deepClone } from '@/utils/deep';
 
 interface SignalLike {
@@ -44,6 +44,12 @@ function _committedValue(store: SignalLike, key: DraftKey): unknown {
 }
 
 export function setDraft(store: SignalLike, key: DraftKey, value: unknown): void {
+  if (isAutosave(store as object)) {
+    // Write-through: apply immediately, never stage (Updates / Preview tabs).
+    store.value = key === null ? value : { ...store.value, [key]: value };
+    _emit();
+    return;
+  }
   const committed = _committedValue(store, key);
   let perStore = _drafts.get(store);
   if (deepEqual(value, committed)) {
@@ -80,18 +86,8 @@ export function stageReset(store: SignalLike, key: DraftKey): void {
 export function stageResetAll(): void {
   let touched = false;
   forEachSettingStore((store) => {
+    if (isAutosave(store as object)) return; // Reset-all is World-only
     const defaults = getDefault(store);
-    // Direct-write signals (e.g. SYNTAX_THEME) bypass the draft layer on
-    // user input — the widget writes straight to the signal for instant
-    // visual feedback. Reset all must do the same, otherwise it leaves
-    // a phantom draft that the user has to Save to clear.
-    if ((store as { _skipDrafts?: boolean })._skipDrafts) {
-      const s = store as SignalLike;
-      if (!deepEqual(s.value, defaults)) {
-        s.value = defaults;
-      }
-      return;
-    }
     if (defaults && typeof defaults === 'object' && !Array.isArray(defaults)) {
       // Object-valued signal: stage each sub-key whose effective value differs from default.
       for (const k in defaults) {
@@ -118,12 +114,9 @@ export function stageResetAll(): void {
 export function anyResettable(): boolean {
   let any = false;
   forEachSettingStore((store) => {
-    const defaults = getDefault(store);
     if (any) return;
-    if ((store as { _skipDrafts?: boolean })._skipDrafts) {
-      if (!deepEqual((store as SignalLike).value, defaults)) any = true;
-      return;
-    }
+    if (isAutosave(store as object)) return; // Reset-all is World-only
+    const defaults = getDefault(store);
     if (defaults && typeof defaults === 'object' && !Array.isArray(defaults)) {
       for (const k in defaults) {
         if (!Object.hasOwn(defaults, k)) continue;

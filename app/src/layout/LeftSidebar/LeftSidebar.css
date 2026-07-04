@@ -7,8 +7,8 @@
   position: relative;
   flex: 0 0 auto;
   /* Resizable: the drag handle mutates --sidebar-width; CSS owns `width` so the
-     handle never fights an inline style. Default 360px = 44px activity bar +
-     316px panel. */
+     handle never fights an inline style. Default width = activity bar +
+     panel. */
   width: var(--sidebar-width, 360px);
   min-width: 280px;
   max-width: 600px;
@@ -51,7 +51,7 @@
   flex-direction: column;
   justify-content: space-between;
   align-items: stretch;
-  padding: 0 0 var(--cc-space-4); /* first icon sits flush with the top */
+  padding: 0; /* icons sit flush with the top and bottom edges */
 }
 .activity-bar-group {
   display: flex;
@@ -88,8 +88,8 @@
   background: var(--cc-accent-bg-soft);
 }
 
-/* Lucide glyph sizing: CSS width/height override the SVG's own 24px attrs so
- * the activity-bar icon keeps a fixed 20px footprint. */
+/* Lucide glyph sizing: CSS width/height override the SVG's own size attrs so
+ * the activity-bar icon keeps a fixed footprint. */
 .activity-bar-glyph {
   display: block;
   width: 20px;

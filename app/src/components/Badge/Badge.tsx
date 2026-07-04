@@ -13,17 +13,23 @@
 
 import './Badge.css';
 import { getHue } from '@/city/components/buildings/color';
-import { parseHex, hslToRgb, pickContrastingText } from '@/utils/colors';
+import {
+  parseHex,
+  hslToRgb,
+  pickContrastingText,
+  FILE_TAG_SATURATION,
+  FILE_TAG_LIGHTNESS,
+} from '@/utils/colors';
 import { BUILDINGS } from '@/state/stores/settings/buildings';
 import { STREETS } from '@/state/stores/settings/streets';
 
-// Badge color palette defaults. The file badge's CSS rule paints the background
-// with `hsl(var(--badge-hue), 60%, 35%)` — the saturation/lightness defaults
-// mirror those values so the JS-side luminance check matches what the user sees.
+// Badge color defaults. The file badge's CSS paints hsl(var(--badge-hue), …)
+// with the shared file-tag saturation/lightness; the JS-side luminance check
+// uses the same values (as 0-1 fractions) so it matches what the user sees.
 const DEFAULT_TEXT_DARK = '#0a0b10';
 const DEFAULT_TEXT_LIGHT = '#f4f6ff';
-const DEFAULT_FILE_BADGE_SATURATION = 0.6;
-const DEFAULT_FILE_BADGE_LIGHTNESS = 0.35;
+const DEFAULT_FILE_BADGE_SATURATION = FILE_TAG_SATURATION / 100;
+const DEFAULT_FILE_BADGE_LIGHTNESS = FILE_TAG_LIGHTNESS / 100;
 
 // ── Props interface ─────────────────────────────────────────────────────────
 

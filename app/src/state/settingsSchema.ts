@@ -83,7 +83,7 @@ export type ConfigOf<F extends FieldMap> = { [K in keyof F]: F[K]['default'] };
 const _FIELDS = new Map<object, FieldMap>();
 
 // The set of stores the SETTINGS panel owns — every settingSignal store, plus a
-// few hand-registered ones (e.g. SYNTAX_THEME, a direct-write setting). This is
+// few hand-registered ones (e.g. SYNTAX_THEME, a plain persistedSignal). This is
 // deliberately NARROWER than persist's all-persisted registry: the panel's
 // "Reset all" / draft / non-default machinery iterates ONLY these, so
 // non-settings persisted state (recents, sidebar width/collapsed) is never
@@ -91,10 +91,19 @@ const _FIELDS = new Map<object, FieldMap>();
 const _SETTING_STORES = new Set<object>();
 
 /** Register a store as panel-owned settings (so Reset-all / draft staging act
- *  on it). settingSignal calls this automatically; direct-write settings that
- *  don't use settingSignal (e.g. SYNTAX_THEME) call it explicitly. */
+ *  on it). settingSignal calls this automatically; settings that use a plain
+ *  persistedSignal instead (e.g. SYNTAX_THEME) call it explicitly. */
 export function markSettingStore(store: object): void {
   _SETTING_STORES.add(store);
+}
+
+/** Test-only: drop a store from the registry. Tests that create disposable
+ *  per-test stores via persistedSignal + markSettingStore must unregister the
+ *  previous instance before making a new one, or it leaks into later
+ *  assertions like anyResettable()/HAS_ANY_NON_DEFAULT forever. */
+export function _unregisterForTests(store: object): void {
+  _SETTING_STORES.delete(store);
+  _FIELDS.delete(store);
 }
 
 /** Visit every settings store (settingSignal + hand-registered). The settings
@@ -103,8 +112,24 @@ export function forEachSettingStore(cb: (store: { value: unknown }) => void): vo
   for (const s of _SETTING_STORES) cb(s as { value: unknown });
 }
 
-/** True when ANY settings store holds a (committed) non-default value — drives
- *  the Reset-all button's enabled state. Scoped to settings stores only. */
+const _AUTOSAVE_STORES = new WeakSet<object>();
+
+/** Mark a settings store as write-through: its widgets apply on change
+ *  (bypassing the draft/Save layer) instead of staging drafts. Used by the
+ *  autosave tabs (Updates, Preview) whose settings are cheap and want instant
+ *  feedback. */
+export function markAutosave(store: object): void {
+  _AUTOSAVE_STORES.add(store);
+}
+
+export function isAutosave(store: object): boolean {
+  return _AUTOSAVE_STORES.has(store);
+}
+
+/** True when ANY settings store (including autosave stores) holds a
+ *  (committed) non-default value. No longer the source of the Reset-all
+ *  button's enabled state (that's anyResettable(), which skips autosave
+ *  stores) — this is read by ActionsBar purely as a reactivity signal. */
 export const HAS_ANY_NON_DEFAULT = computed(() => {
   for (const s of _SETTING_STORES) {
     const store = s as { value: unknown };

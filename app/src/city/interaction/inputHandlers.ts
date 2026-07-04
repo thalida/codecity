@@ -16,6 +16,7 @@ const INPUT_CLICK_TIME_THRESHOLD_MS = 400;
 const INPUT_HOVER_COMMIT_MS = 35;
 import { KEY_BINDINGS } from '@/constants/keyboard';
 import { TEXT_INPUT_TAGS } from '@/constants/dom';
+import { MODAL_OPEN } from '@/state/stores/ui';
 import { NodeKind } from '@/types';
 import type { PickTarget } from '@/types';
 import { formatHoverTooltip } from './tooltipText';
@@ -244,6 +245,10 @@ export function createInputHandlers({
     const targetEl = ev.target as (HTMLElement & { isContentEditable?: boolean }) | null;
     const tag = (targetEl && targetEl.tagName) || '';
     if (TEXT_INPUT_TAGS.includes(tag) || (targetEl && targetEl.isContentEditable)) return;
+
+    // A modal owns keyboard input while open — don't let scene shortcuts
+    // (Esc-deselect, R, F) fire underneath it.
+    if (MODAL_OPEN.value) return;
 
     if (KEY_BINDINGS.CLEAR_SELECTION.keys.includes(ev.key)) {
       picker.setSelection(null);

@@ -15,7 +15,7 @@
    non-collapsible subgroup adds breathing room above its rows. Typography
    (color, weight, size) comes from .text-label + .text-label--muted. */
 .theme-subgroup > .text-label {
-  margin-bottom: var(--cc-space-4); /* 8px */
+  margin-bottom: var(--cc-space-4);
 }
 
 /* Collapsible subgroup variant — a <details> whose <summary> doubles as
@@ -27,6 +27,13 @@
    .chevron renders instead). */
 .theme-subgroup-collapsible > summary {
   list-style: none;
+  /* Sticky header stacked below the sticky section header (offset = section
+   * header height, set on .controls-pane). Opaque bg so rows don't show through. */
+  position: sticky;
+  top: var(--cc-controls-header-h);
+  z-index: 2;
+  margin-bottom: 0; /* keep it flush with the rows below when pinned */
+  background: var(--cc-bg-sidebar);
 }
 .theme-subgroup-collapsible > summary::-webkit-details-marker {
   display: none;

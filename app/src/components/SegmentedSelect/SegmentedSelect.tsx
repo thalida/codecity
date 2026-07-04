@@ -13,11 +13,12 @@ export interface SegmentedSelectProps {
   value: string;
   options: SegmentedSelectOption[];
   onCommit: (v: string) => void;
+  describedBy?: string;
 }
 
-export function SegmentedSelect({ value, options, onCommit }: SegmentedSelectProps) {
+export function SegmentedSelect({ value, options, onCommit, describedBy }: SegmentedSelectProps) {
   return (
-    <span class="theme-select">
+    <span class="theme-select" role="group" aria-describedby={describedBy}>
       {options.map((opt) => (
         <button
           key={opt.value}

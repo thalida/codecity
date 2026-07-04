@@ -3,7 +3,7 @@
 /* Slider — the range input grows into available space; the readout is
  * auto-sized to its content (with a small floor so short numbers don't
  * collapse). No fixed widths anywhere — this row scales cleanly from a
- * 280px-wide narrow sidebar up to the 600px max. */
+ * narrow sidebar up to the max width. */
 .theme-slider-wrap {
   flex: 1 1 auto;
   min-width: 0;

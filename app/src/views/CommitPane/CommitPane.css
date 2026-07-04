@@ -15,10 +15,10 @@
            at the bottom so body load doesn't shift content above it. */
 
 .commit-body {
-  padding: var(--cc-space-7); /* 16px */
+  padding: var(--cc-space-7);
   display: flex;
   flex-direction: column;
-  gap: var(--cc-space-4); /* 8px */
+  gap: var(--cc-space-4);
 }
 
 /* Short SHA rendered inline inside the pane-header title. */
@@ -38,14 +38,14 @@
 .commit-author {
   display: flex;
   align-items: center;
-  gap: var(--cc-space-3); /* 6px — inline gap between dot and name */
+  gap: var(--cc-space-3); /* inline gap between dot and name */
 }
 
-/* Tighten consecutive author rows. The parent .commit-body uses 8px flex
-   gap to separate sections (authors / meta / same-day / body); stacked
-   author rows look airy at the section gap and tighter at 4px. */
+/* Tighten consecutive author rows. The parent .commit-body's flex gap
+   separates sections (authors / meta / same-day / body); stacked
+   author rows look airy at that gap, so pull them in tighter here. */
 .commit-author + .commit-author {
-  margin-top: calc(-1 * var(--cc-space-2)); /* -4px → 4px effective spacing */
+  margin-top: calc(-1 * var(--cc-space-2));
 }
 
 .commit-author-dot {
@@ -56,13 +56,13 @@
 }
 
 .commit-author-name {
-  font-size: var(--cc-font-lg); /* 12px — secondary metadata under the title */
+  font-size: var(--cc-font-lg); /* secondary metadata under the title */
   font-weight: 500;
   color: var(--cc-text-secondary);
 }
 
 .commit-message-subject {
-  font-size: var(--cc-font-xl); /* 14px — title-of-message-block weight */
+  font-size: var(--cc-font-xl); /* title-of-message-block weight */
   color: var(--cc-text-primary);
   font-weight: 600;
   white-space: normal; /* wrap freely — no ellipsization */
@@ -75,7 +75,7 @@
    text, the body <pre>, an error line, or display:none. The slot itself
    carries no own styling — only the loading/error modifiers below. */
 .commit-message-body-slot--loading {
-  font-size: var(--cc-font-md); /* 11px */
+  font-size: var(--cc-font-md);
   color: var(--cc-text-muted);
   font-style: italic;
   opacity: 0.7;
@@ -84,16 +84,16 @@
 
 .commit-message-body {
   font-family: var(--cc-font-mono);
-  font-size: var(--cc-font-md); /* 11px */
+  font-size: var(--cc-font-md);
   white-space: pre-wrap;
-  padding: var(--cc-space-4); /* 8px */
+  padding: var(--cc-space-4);
   background: var(--cc-overlay-bg-soft);
   border-radius: var(--cc-radius-sm);
   color: var(--cc-text-muted);
 }
 
 .commit-message-error {
-  font-size: var(--cc-font-md); /* 11px */
+  font-size: var(--cc-font-md);
   color: var(--cc-text-muted);
   opacity: 0.7;
 }
@@ -103,9 +103,9 @@
 .commit-meta {
   display: flex;
   align-items: baseline;
-  gap: var(--cc-space-3); /* 6px breathing room around the · separator */
+  gap: var(--cc-space-3); /* breathing room around the · separator */
   color: var(--cc-text-muted);
-  font-size: var(--cc-font-lg); /* 12px */
+  font-size: var(--cc-font-lg);
   flex-wrap: wrap;
 }
 
@@ -130,7 +130,7 @@
   align-items: center;
   gap: 6px;
   color: var(--cc-text-muted);
-  font-size: var(--cc-font-lg); /* 12px */
+  font-size: var(--cc-font-lg);
 }
 
 .commit-swatch {

@@ -1,0 +1,55 @@
+/* ── ShortcutsModal ── */
+
+.shortcuts-list kbd,
+.shortcuts-list .shortcuts-mouse {
+  display: inline-block;
+  background: var(--cc-accent-bg-soft);
+  border-radius: var(--cc-radius-sm);
+  font-family: var(--cc-font-mono);
+  padding: var(--cc-space-px) var(--cc-space-3);
+}
+
+/* Shell from .code-inline; this rule adds the kbd-specific border, color,
+   small font, hairline horizontal margin, and resets italics. */
+.shortcuts-list kbd,
+.shortcuts-list .shortcuts-mouse {
+  border: 1px solid var(--cc-accent-bg-strong);
+  color: var(--cc-text-secondary);
+  font-size: var(--cc-font-sm);
+  margin: 0 var(--cc-space-px);
+  line-height: 1.2;
+  font-style: normal;
+}
+
+/* Keyboard / mouse shortcuts table. Two-column grid:
+ *   [keys / mouse]   [action]
+ * Section breaks (null entries in the data) render as a thin divider
+ * spanning both columns. */
+.shortcuts-list {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: var(--cc-space-3) var(--cc-space-7);
+  align-items: center;
+  margin: var(--cc-space-4) 0 0;
+  font-size: var(--cc-font-md);
+}
+.shortcuts-list dt {
+  color: var(--cc-text-secondary);
+  white-space: nowrap;
+}
+.shortcuts-list dd {
+  color: var(--cc-text-muted);
+  margin: var(--cc-space-0);
+  line-height: 1.3;
+}
+.shortcuts-list .shortcuts-or {
+  color: var(--cc-text-faint);
+  font-size: var(--cc-font-sm);
+  margin-left: var(--cc-space-1);
+}
+.shortcuts-divider {
+  grid-column: 1 / -1;
+  height: 1px;
+  background: var(--cc-track);
+  margin: var(--cc-space-2) 0;
+}

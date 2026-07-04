@@ -8,9 +8,10 @@ export interface NumberInputProps {
   max: number;
   step: number;
   onCommit: (v: number) => void;
+  describedBy?: string;
 }
 
-export function NumberInput({ value, min, max, step, onCommit }: NumberInputProps) {
+export function NumberInput({ value, min, max, step, onCommit, describedBy }: NumberInputProps) {
   return (
     <input
       type="number"
@@ -19,6 +20,7 @@ export function NumberInput({ value, min, max, step, onCommit }: NumberInputProp
       max={String(max)}
       step={String(step)}
       value={String(value)}
+      aria-describedby={describedBy}
       onInput={(e) => {
         const v = parseFloat((e.currentTarget as HTMLInputElement).value);
         if (Number.isFinite(v)) onCommit(v);
