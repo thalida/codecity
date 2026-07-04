@@ -14,7 +14,6 @@
 .tree-root {
   flex: 1;
   overflow-y: auto;
-  padding: var(--cc-space-7) 0; /* rows supply the matching horizontal inset */
 }
 
 .tree-list {
@@ -26,9 +25,10 @@
 }
 
 .tree-root.tree-list {
-  /* The root folder row already brings its own padding through .row;
-     no need to indent the root list itself. */
-  padding-left: var(--cc-space-0);
+  /* Two-class rule so it wins over .tree-list. Vertical inset matches the other
+     panes; the root row's own .row padding supplies the horizontal, so the root
+     list adds no horizontal indent. */
+  padding: var(--cc-space-7) 0;
 }
 
 /* The root row's chevron is hidden (.tree-root-item > .row > .tree-chevron),
