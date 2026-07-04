@@ -9,12 +9,6 @@
   display: none;
 }
 
-/* Modal context (source picker): the strip sits above form fields and needs a
-   gap below that the in-pane usage doesn't. */
-.pane-tabs--modal {
-  margin-bottom: 10px;
-}
-
 .pane-tab {
   display: inline-flex;
   align-items: center;

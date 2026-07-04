@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { loadSource, cancelLoad } from '@/hooks/useManifestSource';
 import { SOURCE_ERROR, CURRENT_SOURCE } from '@/state/stores/source';
+import { MANIFEST } from '@/state/stores/manifest';
 
 // EventSource stub with driveable events: records listeners so a test can emit
 // a named SSE event (e.g. a `manifest-partial` skeleton), and records
@@ -73,5 +74,30 @@ describe('useManifestSource loadSource cancellation', () => {
     expect(CURRENT_SOURCE.value).toBe(before); // NOT committed
     expect(SOURCE_ERROR.value).toBeNull(); // cancel is not an error
     expect(StubEventSource.instances[0]?.closed).toBe(true);
+  });
+
+  it('canceling AFTER a skeleton rolls MANIFEST back to the prior city', async () => {
+    // City A is already applied (source unchanged throughout this load of B).
+    const cityA = { root: '/a', tree: { type: 'directory' }, signature: 'sig-a' };
+    MANIFEST.value = cityA;
+    const before = CURRENT_SOURCE.value;
+
+    const p = loadSource({ src: 'https://github.com/o/b' });
+    await flush(); // let the for-await attach its event listeners
+
+    // B's skeleton streams into MANIFEST (behind the overlay)...
+    StubEventSource.instances[0]!.emit(
+      'manifest-partial',
+      JSON.stringify({ manifest: { root: '/b', tree: { type: 'directory' }, signature: 'sig-b' } })
+    );
+    await flush();
+    expect(MANIFEST.value).not.toBe(cityA); // sanity: B's skeleton IS applied mid-load
+
+    cancelLoad(); // ...then the user cancels before B's final arrives
+    await p;
+
+    expect(MANIFEST.value).toBe(cityA); // rolled back to city A
+    expect(CURRENT_SOURCE.value).toBe(before); // never committed B
+    expect(SOURCE_ERROR.value).toBeNull(); // cancel is not an error
   });
 });

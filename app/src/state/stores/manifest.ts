@@ -19,13 +19,17 @@ import { isEmptyManifest } from '@/utils/manifest';
 // Source of truth written by the fetch layer (useManifestSource). The scene
 // (the City component's render effect) is a CONSUMER of this signal — it is not
 // derived from world.onChange.
-export const MANIFEST = signal<
-  Manifest | DirNode | { tree?: unknown; [k: string]: unknown } | null
->(EMPTY_MANIFEST);
+//
+// The value union spans a fully-typed final Manifest, a bare DirNode, and the
+// loose skeleton/live-update shape the stream can emit before it's fully typed.
+export type ManifestValue = Manifest | DirNode | { tree?: unknown; [k: string]: unknown } | null;
 
-/** Set the current manifest (skeleton, final, or live-update). Single writer
- *  used by the fetch layer; views + the scene render-effect read MANIFEST. */
-export function setManifest(m: Manifest | DirNode | null): void {
+export const MANIFEST = signal<ManifestValue>(EMPTY_MANIFEST);
+
+/** Set the current manifest (skeleton, final, live-update, or a rollback to a
+ *  previously-applied value). Single writer used by the fetch layer; views +
+ *  the scene render-effect read MANIFEST. */
+export function setManifest(m: ManifestValue): void {
   MANIFEST.value = m ?? EMPTY_MANIFEST;
 }
 

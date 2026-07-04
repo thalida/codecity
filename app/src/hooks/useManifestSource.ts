@@ -135,6 +135,10 @@ export async function loadSource(payload: SourcePayload): Promise<void> {
     branch: payload.branch,
   };
   SCAN_PROGRESS.value = { ...meta, phase: null }; // show overlay immediately
+  // Snapshot the applied manifest so a cancel that lands after a skeleton was
+  // streamed into MANIFEST can roll it back — otherwise the canceled repo's
+  // partial geometry lingers under the unchanged CURRENT_SOURCE's header.
+  const prevManifest = MANIFEST.peek();
 
   try {
     const url = manifestUrlFor({
@@ -152,11 +156,19 @@ export async function loadSource(payload: SourcePayload): Promise<void> {
       },
       controller.signal
     );
-    // A newer load superseded this one, OR the user canceled after a skeleton
-    // arrived: streamManifest ends an aborted stream as done (not a throw), so
-    // pumpManifestStream RETURNS the partial manifest here. Guard the commit so
-    // a canceled load never writes CURRENT_SOURCE (mirrors the catch guard).
-    if (myGen !== loadGeneration || controller.signal.aborted) return;
+    // A newer load superseded this one: it owns MANIFEST now, don't touch.
+    if (myGen !== loadGeneration) return;
+    // The user canceled after a skeleton arrived: streamManifest ends an aborted
+    // stream as done (not a throw), so pumpManifestStream RETURNED the partial
+    // manifest. Never commit it (CURRENT_SOURCE stays put) and roll MANIFEST back
+    // to the pre-load snapshot so the canceled repo's skeleton doesn't linger
+    // under the unchanged source. Same-source apply (CURRENT_SOURCE unchanged) →
+    // the render layer's camera-reframe reaction, keyed off CURRENT_SOURCE at
+    // apply-start, correctly does NOT reframe.
+    if (controller.signal.aborted) {
+      setManifest(prevManifest);
+      return;
+    }
     // Commit the source BEFORE publishing the final manifest. The render layer's
     // camera-reframe reaction keys off CURRENT_SOURCE captured at apply-START, so
     // the new key must be live for the FINAL apply (the one to frame on) and NOT
@@ -165,7 +177,10 @@ export async function loadSource(payload: SourcePayload): Promise<void> {
     setManifest(manifest);
   } catch (err) {
     if (myGen !== loadGeneration) return; // superseded — its error isn't current
-    if (controller.signal.aborted) return; // user canceled: not an error, no SOURCE_ERROR
+    if (controller.signal.aborted) {
+      setManifest(prevManifest); // user canceled: not an error; roll back any skeleton
+      return;
+    }
     SOURCE_ERROR.value = {
       error: err instanceof Error ? err.message : String(err),
       prefill: { src: payload.src, branch: payload.branch },
