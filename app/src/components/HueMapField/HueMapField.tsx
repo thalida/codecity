@@ -10,6 +10,7 @@ import { setDraft } from '@/state/settingsDrafts';
 import { RotateCcw } from 'lucide-preact';
 import { Slider } from '@/components/Slider/Slider';
 import { ThemeRow } from '../ThemeRow/ThemeRow';
+import { fileTagHsl } from '@/utils/colors';
 import type { FieldProps } from '../Field';
 
 export function HueMapField({ store, fieldKey }: FieldProps) {
@@ -38,7 +39,7 @@ export function HueMapField({ store, fieldKey }: FieldProps) {
                 describedBy={descId}
                 onCommit={(v) => commit({ ...map, [k]: v })}
               />
-              <span class="theme-hue-preview" style={{ background: `hsl(${value}, 80%, 55%)` }} />
+              <span class="theme-hue-preview" style={{ background: fileTagHsl(value) }} />
               <button
                 type="button"
                 class="theme-row-reset"
