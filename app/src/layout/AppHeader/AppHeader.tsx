@@ -61,7 +61,7 @@ export function AppHeader({
     // Show the breadcrumb for any selection with a path — including root (a
     // selected dir whose path equals rootPath), which PathBreadcrumbs renders
     // as the repo label.
-    if (path && (isDir || path !== rootPath)) {
+    if (path) {
       title = (
         <PathBreadcrumbs
           path={path}

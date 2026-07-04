@@ -10,6 +10,7 @@ import { KEY_BINDINGS } from '@/constants/keyboard';
 import { ExtensionBadge } from '@/components/Badge/Badge';
 import { CopyButton } from '@/components/CopyButton/CopyButton';
 import { useMiddleEllipsis } from '@/hooks/useMiddleEllipsis';
+import { buildPathCrumbs } from '@/utils/pathCrumbs';
 
 export interface PathBreadcrumbsProps {
   /** Selected path relative to the project root. */
@@ -42,15 +43,7 @@ export function PathBreadcrumbs({
   );
 
   const isFileSel = !isDir;
-  // The root directory has no relative path to walk — show the repo label as a
-  // single crumb (clicking re-selects root) instead of a bare "." segment.
-  const isRoot = isDir && (path === rootPath || path === '.');
-  const crumbs: { label: string; segPath: string }[] = isRoot
-    ? [{ label: rootLabel, segPath: rootPath }]
-    : path
-        .split('/')
-        .filter(Boolean)
-        .map((seg, i, all) => ({ label: seg, segPath: all.slice(0, i + 1).join('/') }));
+  const { isRoot, crumbs } = buildPathCrumbs(path, { isDir, rootLabel, rootPath });
   const focusTitle = `Focus camera on selection (${KEY_BINDINGS.FOCUS_SELECTION.label})`;
 
   return (
