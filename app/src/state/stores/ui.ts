@@ -3,7 +3,7 @@
 // write them to open/close. Replaces the imperative `picker.open()` /
 // `loadingOverlay.show()` boot-time pattern.
 
-import { signal } from '@preact/signals';
+import { signal, computed } from '@preact/signals';
 import { SourceKind } from '@/utils/sources';
 import { URL_PARAMS } from '@/constants/urlParams';
 
@@ -150,3 +150,9 @@ export function openDebug(): void {
 export function closeDebug(): void {
   DEBUG_OPEN.value = false;
 }
+
+/** True while any modal (source picker, shortcuts, debug) is open. Scene input
+ *  handlers read this so keyboard shortcuts don't fire underneath a modal. */
+export const MODAL_OPEN = computed(
+  () => SOURCE_PICKER.value.visible || SHORTCUTS_OPEN.value || DEBUG_OPEN.value
+);

@@ -1,8 +1,7 @@
 // city/interaction/inputHandlers.test.ts — the scene's document-level keydown
 // handler must not fire scene keybindings (Esc-deselect, R, F) while a modal
-// (Shortcuts/Debug/SourcePicker) is open. Those modals all render
-// `role="dialog" aria-modal="true"`, and the handler bails out early when one
-// is present in the document — see the "modal owns keyboard input" guard in
+// (Shortcuts/Debug/SourcePicker) is open. The handler bails out early when the
+// MODAL_OPEN signal is set — see the "modal owns keyboard input" guard in
 // inputHandlers.ts, right after the text-input early-return.
 //
 // Exercises the guard through the real createCity → createInputHandlers path
@@ -12,6 +11,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import * as THREE from 'three';
 import { EMPTY_MANIFEST } from '@/constants/manifest';
+import { openShortcuts, closeShortcuts } from '@/state/stores/ui';
 
 vi.mock('three', async () => {
   const actual = await vi.importActual<typeof import('three')>('three');
@@ -63,7 +63,7 @@ describe('scene keydown handler — modal suppression', () => {
   afterEach(() => {
     rafSpy.mockRestore();
     vi.clearAllMocks();
-    document.querySelectorAll('[data-test-modal]').forEach((el) => el.remove());
+    closeShortcuts();
   });
 
   function makeCanvas(): HTMLCanvasElement {
@@ -73,24 +73,17 @@ describe('scene keydown handler — modal suppression', () => {
     return canvas;
   }
 
-  it('ignores Escape (and other scene keybindings) while a role="dialog" aria-modal="true" element is open', async () => {
+  it('ignores Escape (and other scene keybindings) while a modal is open', async () => {
     const handle = await createCity(makeCanvas(), EMPTY_MANIFEST);
     const setSelectionSpy = vi.spyOn(handle.picker, 'setSelection');
 
-    // Simulate a modal (ShortcutsModal/DebugModal/SourcePicker all render
-    // this exact role/aria-modal pair) being open over the scene.
-    const modal = document.createElement('div');
-    modal.setAttribute('role', 'dialog');
-    modal.setAttribute('aria-modal', 'true');
-    modal.setAttribute('data-test-modal', '');
-    document.body.appendChild(modal);
-
+    // Open a modal — MODAL_OPEN goes true, so the scene handler bails.
+    openShortcuts();
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
     expect(setSelectionSpy).not.toHaveBeenCalled();
 
-    // Once the modal closes (removed from the DOM), the same key reaches the
-    // scene handler again.
-    modal.remove();
+    // Once it closes, the same key reaches the scene handler again.
+    closeShortcuts();
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
     expect(setSelectionSpy).toHaveBeenCalledWith(null);
   });
