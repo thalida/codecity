@@ -85,10 +85,18 @@ function collectRefs(children: SectionChild[]): FieldRef[] {
  *  collapsibility. */
 export const MAX_COLLAPSE_DEPTH = 2;
 
+/** Render a node's children at their nesting level. The section is level 1, so
+ *  its direct children default to level 2. Every render path (accordion, inline,
+ *  and the recursion below) goes through here so the depth seed + increment are
+ *  identical everywhere — nothing maps `renderChild` directly, which would pass
+ *  the array index as the depth. */
+function renderChildren(children: SectionChild[], depth = 2): ComponentChildren[] {
+  return children.map((c) => renderChild(c, depth));
+}
+
 function renderChild(child: SectionChild, depth: number): ComponentChildren {
   if (isGroup(child)) {
-    const kids = child.children.map((c) => renderChild(c, depth + 1));
-    // Collapsible only within MAX_COLLAPSE_DEPTH (and unless it opts out via
+    // Collapsible only within MAX_COLLAPSE_DEPTH (unless it opts out via
     // collapsible:false); past the cap it's a plain labeled group with no reset.
     // A collapsible group's reset still covers every field beneath it (resetKeys).
     const collapsible = child.collapsible !== false && depth <= MAX_COLLAPSE_DEPTH;
@@ -99,7 +107,7 @@ function renderChild(child: SectionChild, depth: number): ComponentChildren {
         resetKeys={collapsible ? collectRefs(child.children) : undefined}
         key={child.key}
       >
-        {kids}
+        {renderChildren(child.children, depth + 1)}
       </Subgroup>
     );
   }
@@ -113,7 +121,7 @@ export function DynamicSection({ node }: { node: SectionNode }) {
     return (
       <div class="controls-inline-section">
         {node.description && <div class="controls-section-hint">{node.description}</div>}
-        {(node.children ?? []).map((c) => renderChild(c, 2))}
+        {renderChildren(node.children ?? [])}
       </div>
     );
   }
