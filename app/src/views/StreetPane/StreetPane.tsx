@@ -1,7 +1,9 @@
-// views/StreetPane.tsx — right-sidebar pane shown when a directory
-// (road) is selected in the city. Shows direct + descendant child
-// counts and a sorted breakdown of every file extension in the
-// descendant subtree.
+// views/StreetPane/StreetPane.tsx — right-sidebar pane shown when a directory
+// (road) is selected. Shows the subtree's activity-date span and its
+// composition as a ranked by-extension bar list (each bar an extension's share
+// of the directory's files). Path orientation lives in the app-header
+// breadcrumb and tree navigation in the Explore sidebar — this pane answers
+// "what is this neighborhood made of".
 //
 // A Preact function component reading a `state` signal prop (the selected
 // directory); RightSidebar swaps panes by switching which one it renders.
@@ -11,9 +13,13 @@ import type { ReadonlySignal } from '@preact/signals';
 import type { DirNode, ExtBreakdownEntry } from '@/types';
 import { Pane, PaneEmpty } from '@/components/Pane';
 import { KEY_BINDINGS } from '@/constants/keyboard';
-import { Route } from 'lucide-preact';
+import { Route, FileType, CalendarRange } from 'lucide-preact';
 import { ExtensionBadge } from '@/components/Badge/Badge';
-import { formatBytes } from '@/utils/bytes';
+import { extHueColor } from '@/city/components/buildings/color';
+import { BUILDINGS } from '@/state/stores/settings/buildings';
+import { pluralize } from '@/utils/format';
+import { ROOT_PATH } from '@/constants/manifest';
+import { extBarPct, extShareLabel, extTypeLabel, streetDateRange } from './streetStats';
 
 // ── State shape for Preact component ─────────────────────────────────────────
 
@@ -44,53 +50,43 @@ export function StreetPane({ state, onClose, onFocus }: StreetPaneProps) {
     );
   }
 
-  const leaf =
-    (d.path && d.path !== '.' ? d.path.split('/').filter(Boolean).pop() : null) || d.name || 'Road';
+  const path = d.path && d.path !== ROOT_PATH ? d.path : '';
+  const leaf = (path ? path.split('/').filter(Boolean).pop() : null) || d.name || 'Road';
 
-  // Backend-computed (api/scan.py). Guard against a manifest that predates
-  // the field (stale cache / skeleton / in-flight) so a missing breakdown
-  // renders an empty section instead of crashing the pane.
+  // Backend-computed (api/scan.py), sorted by count desc. Guard against a
+  // manifest that predates the field (stale cache / skeleton / in-flight) so a
+  // missing breakdown renders without the section instead of crashing the pane.
   const stats = d.descendants_ext_breakdown ?? [];
+  // Total descendant files — each bar's width is its extension's share of this.
+  const total = stats.reduce((n, s) => n + s.count, 0);
+  const dateRange = streetDateRange(d.descendants_created_min, d.descendants_modified_max);
 
   return (
     <Pane
       paneClass="street-pane"
-      title={leaf}
+      prefixSlot={<ExtensionBadge extension={null} isDir />}
+      titleSlot={<span title={path || undefined}>{leaf}</span>}
+      mono
       onFocus={typeof onFocus === 'function' ? () => onFocus(d) : undefined}
       focusTitle={`Focus the camera on this road (${KEY_BINDINGS.FOCUS_SELECTION.label})`}
       onClose={onClose}
       bodyClass="street-body"
     >
-      <div class="street-counts">
-        <div class="street-counts-col">
-          <div class="street-counts-h">Direct</div>
-          <div class="street-counts-row">
-            <span class="street-counts-v">{String(d.children_file_count ?? 0)}</span>
-            <span class="street-counts-k">files</span>
-          </div>
-          <div class="street-counts-row">
-            <span class="street-counts-v">{String(d.children_dir_count ?? 0)}</span>
-            <span class="street-counts-k">dirs</span>
-          </div>
+      {dateRange && (
+        <div class="street-dates" title="Oldest file created → newest change">
+          <CalendarRange class="lucide-icon street-dates-icon" aria-hidden="true" />
+          {dateRange}
         </div>
-        <div class="street-counts-col">
-          <div class="street-counts-h">Descendants</div>
-          <div class="street-counts-row">
-            <span class="street-counts-v">{String(d.descendants_file_count ?? 0)}</span>
-            <span class="street-counts-k">files</span>
-          </div>
-          <div class="street-counts-row">
-            <span class="street-counts-v">{String(d.descendants_dir_count ?? 0)}</span>
-            <span class="street-counts-k">dirs</span>
-          </div>
-        </div>
-      </div>
+      )}
       {stats.length > 0 && (
         <>
-          <div class="street-ext-h">By extension</div>
+          <div class="street-ext-h">
+            <FileType class="lucide-icon street-ext-icon" aria-hidden="true" />
+            By extension
+          </div>
           <div class="street-ext-list">
             {stats.map((s) => (
-              <StreetExtRow key={s.ext} s={s} />
+              <StreetExtRow key={s.ext ?? ''} s={s} total={total} />
             ))}
           </div>
         </>
@@ -99,17 +95,27 @@ export function StreetPane({ state, onClose, onFocus }: StreetPaneProps) {
   );
 }
 
-function StreetExtRow({ s }: { s: ExtBreakdownEntry }) {
-  const badgeExt = s.ext === '(none)' ? null : s.ext;
+// One ranked extension row: badge · proportional bar · "share · count". The fill
+// width is this extension's share of the directory's files; its hue matches the
+// badge + the city's buildings (live theme palette). The badge identifies the
+// type; the bar's title names it in full ("TypeScript (.ts)"), which the 4-char
+// badge can't.
+function StreetExtRow({ s, total }: { s: ExtBreakdownEntry; total: number }) {
+  const pct = extBarPct(s.count, total);
+  const share = extShareLabel(s.count, total);
   return (
     <div class="street-ext-row">
-      <ExtensionBadge extension={badgeExt} isDir={false} />
-      <span class="street-ext-label">{s.ext}</span>
-      <span class="street-ext-count">{`${s.count} file${s.count === 1 ? '' : 's'}`}</span>
-      <span class="street-ext-sep" aria-hidden="true">
-        ·
+      <ExtensionBadge extension={s.ext} isDir={false} />
+      <div class="street-ext-track" title={extTypeLabel(s.ext)}>
+        <span
+          class="street-ext-fill"
+          aria-hidden="true"
+          style={{ width: `${pct}%`, background: extHueColor(s.ext, BUILDINGS.value.HUE_EXT_MAP) }}
+        />
+      </div>
+      <span class="street-ext-meta" aria-label={`${share}, ${pluralize(s.count, 'file')}`}>
+        {share} · {s.count}
       </span>
-      <span class="street-ext-size">{formatBytes(s.size)}</span>
     </div>
   );
 }

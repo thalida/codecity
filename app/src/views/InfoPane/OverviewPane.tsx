@@ -16,7 +16,7 @@ import { ExtensionBadge } from '@/components/Badge/Badge';
 import { selectPath, focusPath, selectCommit, focusCommit } from '@/state/stores/scene';
 import { TREES } from '@/state/stores/settings/trees';
 import { BUILDINGS } from '@/state/stores/settings/buildings';
-import { getHue } from '@/city/components/buildings/color';
+import { extHueColor } from '@/city/components/buildings/color';
 import { humanAge, formatRelativeAge } from '@/utils/dates';
 import { commitUrl } from '@/utils/commit';
 import { languageLabelForExt } from '@/utils/syntaxLanguages';
@@ -169,16 +169,15 @@ function LanguageBar({
   return (
     <div class="almanac-langbar" aria-hidden="true">
       {languages.map((l) => {
-        const name = languageLabelForExt(l.ext) ?? (l.ext === '(none)' ? 'No extension' : l.ext);
+        const name = languageLabelForExt(l.ext) ?? 'No extension';
         return (
           <span
-            key={l.ext}
+            key={l.ext ?? ''}
             class="almanac-langbar-seg"
             title={`${name} · ${pluralize(l.count, 'file')} (${share(l.count)})`}
             style={{
               width: share(l.count),
-              // Match ExtensionBadge: the "(none)" sentinel hues off '' like its chip.
-              background: `hsl(${getHue(l.ext === '(none)' ? '' : l.ext, palette)}, 60%, 35%)`,
+              background: extHueColor(l.ext, palette),
             }}
           />
         );
@@ -292,8 +291,8 @@ export function OverviewPane({ manifest }: OverviewPaneProps) {
             />
             <ul class="almanac-languages">
               {overview.languages.map((l) => (
-                <li key={l.ext} class="almanac-language">
-                  <ExtensionBadge extension={l.ext === '(none)' ? null : l.ext} isDir={false} />
+                <li key={l.ext ?? ''} class="almanac-language">
+                  <ExtensionBadge extension={l.ext} isDir={false} />
                   <span class="almanac-language-count">{formatCount(l.count)}</span>
                 </li>
               ))}

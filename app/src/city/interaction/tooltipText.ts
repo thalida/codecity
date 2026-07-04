@@ -8,15 +8,15 @@
 import { NodeKind } from '@/types';
 import type { PickTarget } from '@/types';
 import { formatRelativeAge } from '@/utils/dates';
+import { ROOT_PATH } from '@/constants/manifest';
 
 // Prepend the root directory name (with a leading slash) to a manifest-
 // relative path so the tooltip reads as an absolute-looking path (e.g.
-// "/codecity/app/main.ts" rather than "app/main.ts"). The manifest uses '.'
-// as the root directory's own path; that sentinel is treated the same as
-// empty — we don't render "codecity/.".
+// "/codecity/app/main.ts" rather than "app/main.ts"). The root's own path is
+// ROOT_PATH — we render just "/codecity", not "codecity/.".
 function withRoot(relPath: string, rootName: string | null): string {
   if (!rootName) return relPath || '';
-  if (!relPath || relPath === '.') return `/${rootName}`;
+  if (!relPath || relPath === ROOT_PATH) return `/${rootName}`;
   return `/${rootName}/${relPath}`;
 }
 

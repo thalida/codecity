@@ -11,10 +11,10 @@ import { flush } from '../_helpers/preact';
 // fixtures carry a realistic descendants_ext_breakdown — StreetPane reads
 // that baked field rather than walking the subtree itself.
 function _extBreakdown(children: (FileNode | DirNode)[]): ExtBreakdownEntry[] {
-  const byExt = new Map<string, { count: number; size: number }>();
+  const byExt = new Map<string | null, { count: number; size: number }>();
   function walk(node: FileNode | DirNode): void {
     if (node.type === NodeKind.File) {
-      const ext = (node.extension || '(none)').toLowerCase();
+      const ext = node.extension ? node.extension.toLowerCase() : null;
       const cur = byExt.get(ext) || { count: 0, size: 0 };
       cur.count += 1;
       cur.size += node.size || 0;
@@ -95,29 +95,7 @@ describe('StreetPane', () => {
     expect(container.querySelector('.empty-state')).not.toBeNull();
   });
 
-  it('setDirectory(d) renders direct + descendant counts', async () => {
-    mount();
-    const d = dir('src', [f('a.ts', '.ts', 100), f('b.md', '.md', 50)]);
-    d.descendants_file_count = 4;
-    d.descendants_dir_count = 1;
-    d.children = [
-      f('a.ts', '.ts', 100),
-      f('b.md', '.md', 50),
-      dir('sub', [f('c.ts', '.ts', 80), f('d.json', '.json', 30)]),
-    ];
-    d.descendants_ext_breakdown = _extBreakdown(d.children);
-
-    await setDirectory(d);
-
-    const body = container.querySelector('.pane-body, .street-body') as HTMLElement;
-    // Direct counts
-    expect(body.textContent).toMatch(/2.*files/i);
-    expect(body.textContent).toMatch(/1.*dirs?/i);
-    // Descendant counts
-    expect(body.textContent).toMatch(/4.*files/i);
-  });
-
-  it('lists every extension in the descendant subtree sorted by count desc', async () => {
+  it('lists every extension as a ranked row sorted by count desc', async () => {
     mount();
     const d = dir('src', [
       f('a.ts', '.ts', 100),
@@ -129,9 +107,25 @@ describe('StreetPane', () => {
     await setDirectory(d);
     const extRows = Array.from(container.querySelectorAll('.street-ext-row')) as HTMLElement[];
     expect(extRows.length).toBeGreaterThanOrEqual(3);
-    // First row is the most common extension (.ts with 3 files).
-    expect(extRows[0].textContent).toContain('.ts');
+    // First row is the most common extension (.ts: 3 of 5 files → 60% share).
+    // The bar's title names the type in full (the badge truncates); the count
+    // and share show on the right.
+    expect(extRows[0].querySelector('.street-ext-track')!.getAttribute('title')).toBe(
+      'TypeScript (.ts)'
+    );
     expect(extRows[0].textContent).toContain('3');
+    const fill = extRows[0].querySelector('.street-ext-fill') as HTMLElement;
+    expect(fill.style.width).toBe('60%');
+  });
+
+  it('labels an extensionless file row as "No extension"', async () => {
+    mount();
+    const d = dir('bin', [f('LICENSE', '', 10), f('run.sh', '.sh', 10)]);
+    await setDirectory(d);
+    const titles = Array.from(container.querySelectorAll('.street-ext-track')).map((t) =>
+      t.getAttribute('title')
+    );
+    expect(titles).toContain('No extension');
   });
 
   it('onFocus callback fires with the active directory when focus button clicked', async () => {

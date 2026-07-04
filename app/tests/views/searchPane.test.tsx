@@ -11,7 +11,7 @@ import { flush } from '../_helpers/preact';
 const TREE = {
   name: 'project',
   type: NodeKind.Directory,
-  path: '',
+  path: '.',
   children: [
     {
       name: 'src',

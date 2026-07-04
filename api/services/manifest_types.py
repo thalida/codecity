@@ -68,11 +68,11 @@ class FileNode(TypedDict):
 
 class ExtBreakdownEntry(TypedDict):
     """One file-extension bucket within a directory's descendant breakdown.
-    `ext` is the lowercase extension (e.g. ".ts") or "(none)" for files with
-    no extension. Computed once during the tree walk so the UI's street view
+    `ext` is the lowercase extension (e.g. ".ts"), or null for files with no
+    extension. Computed once during the tree walk so the UI's street view
     reads it instead of re-walking the subtree on every selection."""
 
-    ext: str
+    ext: str | None
     count: int
     size: int
 
@@ -92,6 +92,10 @@ class DirNode(TypedDict):
     descendants_file_count: int
     descendants_dir_count: int
     descendants_size: int
+    # Oldest created / newest modified date over ALL descendant files (ISO
+    # strings, lexically comparable). Both None for a directory with no files.
+    descendants_created_min: str | None
+    descendants_modified_max: str | None
     # Per-extension counts/sizes aggregated over ALL descendant files,
     # sorted by count desc (ext asc tiebreak). Baked here so the street
     # view reads it directly. Empty list for directories with no files.

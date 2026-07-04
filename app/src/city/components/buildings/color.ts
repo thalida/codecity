@@ -59,6 +59,22 @@ export function getHue(extension: string, palette: Record<string, number>): numb
   return Math.abs(hash) % 360;
 }
 
+/**
+ * The badge/chip fill color for a file extension: the extension's hue at the
+ * ExtensionBadge's fixed saturation/lightness (`hsl(hue, 60%, 35%)`, matching
+ * its CSS `hsl(var(--badge-hue), 60%, 35%)`). Used wherever an ext is painted
+ * as a solid swatch — badges, composition bars, legend chips — so they all
+ * track one another. `null`/'' (extensionless) hues off '' like the dir chip.
+ *
+ * @param {string|null} extension - File extension including the dot (".ts"), or
+ *                                   null/'' for extensionless files.
+ * @param {Object} palette         - Map of extension → hue.
+ * @returns {string} CSS HSL string, e.g. "hsl(215, 60%, 35%)".
+ */
+export function extHueColor(extension: string | null, palette: Record<string, number>): string {
+  return `hsl(${getHue(extension ?? '', palette)}, 60%, 35%)`;
+}
+
 // ── Saturation ────────────────────────────────────────────────────────────────
 
 /**

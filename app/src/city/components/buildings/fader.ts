@@ -21,6 +21,7 @@ import type { BuildingsConfig } from '@/state/stores/settings/buildings';
 import { FadeDetail, NodeKind } from '@/types';
 import type { DirNode, FileNode, PickTarget } from '@/types';
 import { parentDirPath } from '@/city/utils/path';
+import { ROOT_PATH } from '@/constants/manifest';
 import type { CellTile } from './cellTile';
 import type { InstancedAdPanels } from './adPanels';
 import type { createPicker } from '@/city/interaction/picker';
@@ -50,9 +51,9 @@ interface TierResult {
 function _tierLevelFor(file: FileNode | null, dir: DirNode): 1 | 2 | 3 | 4 {
   if (!file?.path || !dir || dir.path == null) return 4;
   let parent = parentDirPath(file.path);
-  if (parent == null) parent = '.';
-  const ap = parent === '.' || parent === '' ? [] : parent.split('/');
-  const dp = dir.path === '.' || dir.path === '' ? [] : dir.path.split('/');
+  if (parent == null) parent = ROOT_PATH;
+  const ap = parent === ROOT_PATH ? [] : parent.split('/');
+  const dp = dir.path === ROOT_PATH ? [] : dir.path.split('/');
   let lca = 0;
   while (lca < ap.length && lca < dp.length && ap[lca] === dp[lca]) lca++;
   const distance = ap.length - lca + (dp.length - lca);

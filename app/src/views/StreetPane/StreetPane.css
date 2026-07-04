@@ -1,6 +1,4 @@
-/* ── Street pane ── */
-
-/* ── Street labels (rendered on canvas, these styles are for overlay fallback) ── */
+/* ── Street labels (rendered on canvas; these are the overlay fallback) ── */
 
 .street-label {
   position: absolute;
@@ -15,109 +13,101 @@
 }
 
 /* ── Street pane (right sidebar) ────────────────────────────────────────
-   Shown when a directory (road) is selected. Mirrors commit-pane layout:
-     - pane-header (from buildPaneHeader) — title is the directory leaf
-     - .street-body — scrollable area with path row, two-column counts,
-       and a "By extension" breakdown matching commit-meta typography. */
+   Shown when a directory (road) is selected. Composition-forward:
+     - pane header (badge + leaf, like FilePreviewPane)
+     - .street-summary — subtree totals + dominant language
+     - .street-ext-list — one ranked bar per file extension */
 
 .street-body {
-  padding: var(--cc-space-7); /* 16px */
+  padding: var(--cc-space-7);
   display: flex;
   flex-direction: column;
-  gap: var(--cc-space-6); /* 12px */
+  gap: var(--cc-space-6);
 }
 
-/* Folder icon + path text, like .commit-author's icon + text row. */
-.street-path {
+/* Activity span: oldest file created → newest change. */
+.street-dates {
   display: flex;
   align-items: center;
-  gap: var(--cc-space-3); /* 6px */
-  color: var(--cc-text-secondary);
-  font-size: var(--cc-font-lg); /* 12px */
+  gap: var(--cc-space-3);
+  font-size: var(--cc-font-md);
+  color: var(--cc-text-muted);
 }
 
-.street-path-text {
-  font-family: var(--cc-font-mono);
-  overflow-wrap: anywhere;
-  word-break: break-word;
-  min-width: 0;
+.street-dates-icon {
+  width: 14px;
+  height: 14px;
+  color: var(--cc-text-ghost);
 }
 
-/* Two-column count grid: Direct | Descendants. */
-.street-counts {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: var(--cc-space-6); /* 12px */
-}
-
-.street-counts-col {
-  display: flex;
-  flex-direction: column;
-  gap: var(--cc-space-2); /* 4px */
-  min-width: 0;
-}
-
-/* Column heading — muted, same character as .commit-meta-sep. */
-.street-counts-h,
+/* "By extension" heading — icon + uppercase label, matching the almanac's
+   .almanac-section-title treatment. */
 .street-ext-h {
-  font-size: var(--cc-font-md); /* 11px */
+  display: flex;
+  align-items: center;
+  gap: var(--cc-space-3);
+  font-size: var(--cc-font-md);
   text-transform: uppercase;
   letter-spacing: var(--cc-track-label);
-  color: var(--cc-text-ghost);
-  font-weight: var(--cc-fw-bold);
-}
-
-.street-counts-row {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: var(--cc-space-3);
-  font-size: var(--cc-font-lg); /* 12px */
-}
-
-.street-counts-k {
-  color: var(--cc-text-muted);
-}
-
-.street-counts-v {
   color: var(--cc-text-secondary);
-  font-weight: 500;
+  font-weight: var(--cc-fw-semibold);
 }
 
-/* "By extension" list — one row per file extension, badge + label +
-   count + sep + size, sized to match .commit-meta typography. */
+.street-ext-icon {
+  width: 15px;
+  height: 15px;
+  color: #d3a85f; /* the almanac's "streets" accent */
+}
+
+/* Shared 3-column grid (badge | bar | metric) so every row's bar is the same
+   length and starts/ends at the same x; the badge + metric columns auto-size to
+   their widest content across all rows. */
 .street-ext-list {
-  display: flex;
-  flex-direction: column;
-  gap: var(--cc-space-3); /* 6px */
-}
-
-.street-ext-row {
-  display: flex;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
   align-items: center;
-  gap: var(--cc-space-3); /* 6px */
-  color: var(--cc-text-muted);
-  font-size: var(--cc-font-lg); /* 12px */
-  min-width: 0;
+  column-gap: var(--cc-space-3);
+  row-gap: var(--cc-space-4);
+  font-size: var(--cc-font-lg);
 }
 
-.street-ext-label {
-  font-family: var(--cc-font-mono);
-  color: var(--cc-text-secondary);
+/* Rows place their cells into the list's shared columns rather than forming
+   their own box. */
+.street-ext-row {
+  display: contents;
+}
+
+/* Keep the badge pill its natural width (don't stretch it to the column). */
+.street-ext-row .path-badge {
+  justify-self: start;
+}
+
+/* The bar: a dark groove holding a single hue-colored fill (count-proportional). */
+.street-ext-track {
+  position: relative;
+  min-width: 0;
+  height: 18px;
+  border-radius: var(--cc-radius-sm);
+  /* Darkest app bg reads as a sunken groove within the sidebar. */
+  background: var(--cc-bg-app);
   overflow: hidden;
-  text-overflow: ellipsis;
+}
+
+.street-ext-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  opacity: 0.8;
+  /* Round only the leading end — a partial fill stops mid-track where the
+     track's overflow:hidden can't reach; the left end is flush at the track's
+     own rounded corner. */
+  border-radius: 0 var(--cc-radius-sm) var(--cc-radius-sm) 0;
+}
+
+/* "share · count" metric — one color + inline middot, matching the Info
+   Overview tab's .almanac-section-overview dot-stat style. Right-aligned in its
+   column so every row's metric ends at the same x. */
+.street-ext-meta {
+  justify-self: end;
+  color: var(--cc-text-secondary);
   white-space: nowrap;
-  flex: 1 1 auto;
-  min-width: 0;
-}
-
-.street-ext-count,
-.street-ext-size {
-  color: var(--cc-text-muted);
-  flex-shrink: 0;
-}
-
-.street-ext-sep {
-  color: var(--cc-text-ghost);
-  flex-shrink: 0;
 }

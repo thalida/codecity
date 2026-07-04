@@ -60,7 +60,7 @@ class FileNode(BaseModel):
 
 
 class ExtBreakdownEntry(BaseModel):
-    ext: str
+    ext: str | None
     count: int
     size: int
 
@@ -78,6 +78,8 @@ class DirNode(BaseModel):
     descendants_file_count: int
     descendants_dir_count: int
     descendants_size: int
+    descendants_created_min: Optional[str]
+    descendants_modified_max: Optional[str]
     descendants_ext_breakdown: list[ExtBreakdownEntry]
 
 

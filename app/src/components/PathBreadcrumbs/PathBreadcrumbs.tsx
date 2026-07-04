@@ -10,6 +10,7 @@ import { KEY_BINDINGS } from '@/constants/keyboard';
 import { ExtensionBadge } from '@/components/Badge/Badge';
 import { CopyButton } from '@/components/CopyButton/CopyButton';
 import { useMiddleEllipsis } from '@/hooks/useMiddleEllipsis';
+import { buildPathCrumbs } from '@/utils/pathCrumbs';
 
 export interface PathBreadcrumbsProps {
   /** Selected path relative to the project root. */
@@ -28,6 +29,7 @@ export function PathBreadcrumbs({
   extension,
   isDir,
   rootLabel,
+  rootPath,
   onSegmentClick,
   onFocus,
 }: PathBreadcrumbsProps) {
@@ -41,8 +43,7 @@ export function PathBreadcrumbs({
   );
 
   const isFileSel = !isDir;
-  const segs = path.split('/').filter(Boolean);
-  let acc = '';
+  const { isRoot, crumbs } = buildPathCrumbs(path, { isDir, rootLabel, rootPath });
   const focusTitle = `Focus camera on selection (${KEY_BINDINGS.FOCUS_SELECTION.label})`;
 
   return (
@@ -59,11 +60,13 @@ export function PathBreadcrumbs({
         </button>
       )}
       <ExtensionBadge extension={isFileSel ? (extension ?? null) : null} isDir={!isFileSel} />
-      <div ref={crumbsRef} class="app-header-crumbs" title={`${rootLabel}/${path}`}>
-        {segs.map((seg, i) => {
-          acc = acc ? `${acc}/${seg}` : seg;
-          const segPath = acc;
-          const isLeaf = i === segs.length - 1;
+      <div
+        ref={crumbsRef}
+        class="app-header-crumbs"
+        title={isRoot ? rootLabel : `${rootLabel}/${path}`}
+      >
+        {crumbs.map((crumb, i) => {
+          const isLeaf = i === crumbs.length - 1;
           return (
             <Fragment key={`seg-${i}`}>
               {i > 0 && <span class="app-header-sep">›</span>}
@@ -71,16 +74,16 @@ export function PathBreadcrumbs({
                 type="button"
                 class={`btn-icon btn-icon--text btn-icon--no-drag app-header-seg${isLeaf ? ' is-leaf' : ''}`}
                 onClick={() => {
-                  if (onSegmentClick) onSegmentClick(segPath);
+                  if (onSegmentClick) onSegmentClick(crumb.segPath);
                 }}
               >
-                {seg}
+                {crumb.label}
               </button>
             </Fragment>
           );
         })}
       </div>
-      <CopyButton text={path} />
+      <CopyButton text={isRoot ? rootPath : path} />
     </>
   );
 }

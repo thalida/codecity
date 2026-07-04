@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import {
   getHue,
+  extHueColor,
   getSaturation,
   getLightness,
   getBuildingColor,
@@ -140,6 +141,19 @@ describe('getHue', () => {
   it('does not crash on empty extension', () => {
     const hue = getHue('', TEST_HUE_EXT_MAP);
     expect(typeof hue).toBe('number');
+  });
+});
+
+// ---- extHueColor ----
+describe('extHueColor', () => {
+  it('paints a known extension at the badge saturation/lightness', () => {
+    expect(extHueColor('.ts', TEST_HUE_EXT_MAP)).toBe('hsl(215, 60%, 35%)');
+  });
+
+  it('hues a null (extensionless) ext off the empty-string bucket', () => {
+    expect(extHueColor(null, TEST_HUE_EXT_MAP)).toBe(
+      `hsl(${getHue('', TEST_HUE_EXT_MAP)}, 60%, 35%)`
+    );
   });
 });
 

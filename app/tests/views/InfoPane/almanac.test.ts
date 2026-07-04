@@ -35,6 +35,8 @@ function dir(name: string, path: string, children: (FileNode | DirNode)[]): DirN
     descendants_file_count: files,
     descendants_dir_count: dirs,
     descendants_size: 0,
+    descendants_created_min: null,
+    descendants_modified_max: null,
     descendants_ext_breakdown: [{ ext: '.ts', count: files, size: 0 }],
   };
 }
@@ -161,7 +163,7 @@ describe('computeAlmanac — overview + buildings', () => {
   it('topLanguage is null when the dominant file type has no nameable language', () => {
     const t = {
       ...dir('repo', '', []),
-      descendants_ext_breakdown: [{ ext: '(none)', count: 4, size: 0 }],
+      descendants_ext_breakdown: [{ ext: null, count: 4, size: 0 }],
     } as DirNode;
     expect(computeAlmanac(manifest(t))!.overview.topLanguage).toBeNull();
   });

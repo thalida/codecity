@@ -20,7 +20,7 @@ function makeStreet(): Street {
     length: 400,
     orientation: StreetAxis.X,
     isRoot: true,
-    dir: { name: 'root', path: '', type: NodeKind.Directory },
+    dir: { name: 'root', path: '.', type: NodeKind.Directory },
   } as unknown as Street;
 }
 
