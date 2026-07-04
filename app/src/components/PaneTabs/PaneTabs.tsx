@@ -31,7 +31,7 @@ export function PaneTabs({ tabs, active, onSelect, class: className }: PaneTabsP
             type="button"
             role="tab"
             aria-selected={selected ? 'true' : 'false'}
-            class={selected ? 'pane-tab pane-tab--active' : 'pane-tab'}
+            class={selected ? 'pane-tab pane-tab--active focus-inset' : 'pane-tab focus-inset'}
             onClick={() => onSelect(t.id)}
           >
             {Icon && <Icon class="lucide-icon" aria-hidden="true" />}

@@ -31,6 +31,12 @@ describe('PaneTabs', () => {
     await flush();
     expect(tabByLabel('World').getAttribute('aria-selected')).toBe('true');
     expect(tabByLabel('Readme').getAttribute('aria-selected')).toBe('false');
+    // Regression: .pane-tabs has overflow-x: auto, which forces overflow-y to
+    // auto too (CSS Overflow spec), turning it into a scrollport that can clip
+    // a default-offset focus ring. `focus-inset` draws the ring inside the tab's
+    // border box so the scrollport can never clip it.
+    expect(tabByLabel('World').classList.contains('focus-inset')).toBe(true);
+    expect(tabByLabel('Readme').classList.contains('focus-inset')).toBe(true);
   });
 
   it('calls onSelect with the clicked tab id', async () => {
