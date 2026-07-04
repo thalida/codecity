@@ -3,6 +3,7 @@
 // reset. The field's value is the whole StreetTier[]; every edit commits a fresh
 // array via the draft layer. Dispatched from <Field> for TierWidths-kind fields.
 
+import { useId } from 'preact/hooks';
 import { useEffective, useDefault } from '@/hooks/useSettings';
 import { setDraft } from '@/state/settingsDrafts';
 import type { StreetTier } from '@/state/stores/settings/streets';
@@ -15,6 +16,7 @@ export function TierWidthsField({ store, fieldKey }: FieldProps) {
   const tiers = useEffective<StreetTier[]>(store, fieldKey) ?? [];
   const defaults = useDefault<StreetTier[]>(store, fieldKey) ?? [];
   const commit = (next: StreetTier[]) => setDraft(store, fieldKey, next);
+  const baseId = useId();
 
   return (
     <>
@@ -23,13 +25,15 @@ export function TierWidthsField({ store, fieldKey }: FieldProps) {
         const tip = `World-unit width for streets in this descendant-count tier. Above ~256 they overwhelm building footprints; below 1 they disappear.`;
         const defaultWidth = defaults[i]?.width;
         const disabled = tier.width === defaultWidth;
+        const descId = `${baseId}-${i}`;
         return (
-          <ThemeRow label={label} tip={tip} key={`tier-${i}`}>
+          <ThemeRow label={label} tip={tip} descId={descId} key={`tier-${i}`}>
             <Slider
               value={tier.width}
               min={1}
               max={256}
               step={1}
+              describedBy={descId}
               onCommit={(v) => {
                 const next = tiers.slice();
                 next[i] = { ...tiers[i], width: v };

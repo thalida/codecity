@@ -6,6 +6,7 @@
 // SliderField/ToggleField/SelectField/RangePairField) — the metadata they
 // duplicated in JSX now lives once in the store schema.
 
+import { useId } from 'preact/hooks';
 import { FieldKind, getFieldDef } from '@/state/settingsSchema';
 import { useField } from '@/hooks/useSettings';
 import { ThemeRow } from './ThemeRow/ThemeRow';
@@ -34,6 +35,8 @@ export function Field({ store, fieldKey }: FieldProps) {
   // below only fires for a misconfigured schema, which a completeness test
   // catches — so in practice the hook always runs with a real field.
   const binding = useField(store, fieldKey);
+  const descId = useId();
+  const describedBy = def?.tip ? descId : undefined;
   if (!def) {
     // Misconfigured schema (a (store, key) with no field def). The
     // completeness test catches this; log + render nothing as a safety net.
@@ -54,7 +57,13 @@ export function Field({ store, fieldKey }: FieldProps) {
   let control;
   switch (def.kind) {
     case FieldKind.Color:
-      control = <ColorInput value={binding.value as string} onCommit={binding.onCommit} />;
+      control = (
+        <ColorInput
+          value={binding.value as string}
+          onCommit={binding.onCommit}
+          describedBy={describedBy}
+        />
+      );
       break;
     case FieldKind.Number:
       control = (
@@ -64,6 +73,7 @@ export function Field({ store, fieldKey }: FieldProps) {
           max={def.max!}
           step={def.step!}
           onCommit={binding.onCommit}
+          describedBy={describedBy}
         />
       );
       break;
@@ -75,11 +85,14 @@ export function Field({ store, fieldKey }: FieldProps) {
           max={def.max!}
           step={def.step!}
           onCommit={binding.onCommit}
+          describedBy={describedBy}
         />
       );
       break;
     case FieldKind.Toggle:
-      control = <Toggle checked={!!binding.value} onCommit={binding.onCommit} />;
+      control = (
+        <Toggle checked={!!binding.value} onCommit={binding.onCommit} describedBy={describedBy} />
+      );
       break;
     case FieldKind.Select:
       control = (
@@ -87,6 +100,7 @@ export function Field({ store, fieldKey }: FieldProps) {
           value={binding.value as string}
           options={def.options!}
           onCommit={binding.onCommit}
+          describedBy={describedBy}
         />
       );
       break;
@@ -100,6 +114,7 @@ export function Field({ store, fieldKey }: FieldProps) {
           max={def.max!}
           step={def.step!}
           onCommit={(l, h) => binding.onCommit([l, h] as never)}
+          describedBy={describedBy}
         />
       );
       break;
@@ -108,7 +123,14 @@ export function Field({ store, fieldKey }: FieldProps) {
 
   const inline = def.kind === FieldKind.Toggle || def.kind === FieldKind.Color;
   return (
-    <ThemeRow label={def.label} tip={def.tip} inline={inline} store={store} keys={[fieldKey]}>
+    <ThemeRow
+      label={def.label}
+      tip={def.tip}
+      inline={inline}
+      descId={def.tip ? descId : undefined}
+      store={store}
+      keys={[fieldKey]}
+    >
       {control}
     </ThemeRow>
   );

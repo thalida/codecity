@@ -1,8 +1,11 @@
 /* ── ThemeRow (layout B: stacked) ──
  * .theme-row is a vertical stack:
+ *   .theme-row-main    — the <label>, covering only head + control (NOT the
+ *                        description — a wrapping <label>'s text becomes the
+ *                        control's accessible name, so the desc stays a sibling)
  *   .theme-row-head    — label (grows) + reset, and for inline kinds the control
  *   .theme-row-control — full-width control (stacked kinds) or inline (head row)
- *   .theme-row-desc    — optional one-line description
+ *   .theme-row-desc    — optional one-line description, sibling of .theme-row-main
  * Labels get the full row width, so they never truncate; every stacked control
  * is full-width, so sliders line up. */
 .theme-row {
@@ -13,6 +16,13 @@
   font-size: var(--cc-font-md);
   color: var(--cc-text-secondary);
   cursor: default;
+  min-width: 0;
+}
+
+.theme-row-main {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cc-space-3);
   min-width: 0;
 }
 
@@ -37,13 +47,13 @@
   align-items: center;
   gap: var(--cc-space-4);
 }
-.theme-row:not(.theme-row--inline) > .theme-row-control {
+.theme-row:not(.theme-row--inline) .theme-row-main > .theme-row-control {
   width: 100%;
 }
 
 /* Inline kinds (toggle, color): control sits on the head row, pinned right
  * before the reset icon; no full-width control follows. */
-.theme-row--inline > .theme-row-head > .theme-row-control {
+.theme-row--inline .theme-row-head > .theme-row-control {
   flex: 0 0 auto;
   margin-left: auto;
 }

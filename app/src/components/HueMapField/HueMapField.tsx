@@ -4,6 +4,7 @@
 // via the draft layer. Dispatched from <Field> for HueMap-kind fields.
 
 import './HueMapField.css';
+import { useId } from 'preact/hooks';
 import { useEffective, useDefault } from '@/hooks/useSettings';
 import { setDraft } from '@/state/settingsDrafts';
 import { RotateCcw } from 'lucide-preact';
@@ -15,6 +16,7 @@ export function HueMapField({ store, fieldKey }: FieldProps) {
   const map = useEffective<Record<string, number>>(store, fieldKey) ?? {};
   const defaults = useDefault<Record<string, number>>(store, fieldKey) ?? {};
   const commit = (next: Record<string, number>) => setDraft(store, fieldKey, next);
+  const baseId = useId();
 
   return (
     <>
@@ -25,13 +27,15 @@ export function HueMapField({ store, fieldKey }: FieldProps) {
           const defaultVal = defaults[k];
           const disabled = value === defaultVal;
           const tip = `Hue (0 to 359 degrees) for files with this extension.`;
+          const descId = `${baseId}-${k}`;
           return (
-            <ThemeRow label={k} tip={tip} key={k}>
+            <ThemeRow label={k} tip={tip} descId={descId} key={k}>
               <Slider
                 value={value}
                 min={0}
                 max={359}
                 step={1}
+                describedBy={descId}
                 onCommit={(v) => commit({ ...map, [k]: v })}
               />
               <span class="theme-hue-preview" style={{ background: `hsl(${value}, 80%, 55%)` }} />
