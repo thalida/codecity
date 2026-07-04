@@ -1,10 +1,11 @@
 // views/ControlsPane/ControlsPane.tsx — "Settings" tab in the left sidebar.
 //
-// Composition shell. The 13 sections are grouped onto PaneTabs subtabs; the
-// active subtab's sections render into the scrolling body. The sticky
-// ActionsBar (Reset all · Discard · Save) shows only on DRAFTABLE subtabs
-// (World, Updates, Preview) — Shortcuts is reference and Debug is actions, so
-// there is nothing to Save there.
+// Composition shell: World, Updates, Preview subtabs. The active subtab's
+// sections render into the scrolling body. World is draft-backed (9
+// accordion sections + the sticky Reset all/Discard/Save ActionsBar);
+// Updates and Preview autosave (Task 6) and each hold one section, so they
+// render inline (no footer, no <details> — a one-item accordion is pointless
+// UI). Shortcuts and Debug moved to header-triggered modals (Tasks 8/9).
 //
 // Section / subgroup open-state is intentionally NOT persisted: when the pane
 // hides we collapse every <details> and reset the active subtab to World, so
@@ -12,11 +13,9 @@
 
 import './ControlsPane.css';
 import { useEffect, useRef, useState } from 'preact/hooks';
-import { Boxes, RefreshCw, Eye, Keyboard, Bug } from 'lucide-preact';
+import { Boxes, RefreshCw, Eye } from 'lucide-preact';
 import type { LucideIcon } from 'lucide-preact';
-import { ShortcutsSection } from './partials/ShortcutsSection/ShortcutsSection';
 import { FilePreviewSection } from './partials/FilePreviewSection';
-import { DebugSection } from './partials/DebugSection';
 import { DynamicSection, type SectionNode } from './partials';
 import { SCENE_SECTION } from './partials/Scene';
 import { ISLAND_SECTION } from './partials/Island';
@@ -44,6 +43,8 @@ interface Subtab {
 
 export interface ControlsPaneProps {
   onClose?: () => void;
+  // Debug moved out of ControlsPane onto a header modal (Task 9); these stay
+  // threaded through until that lands, then drop from this component.
   onRunCollisionCheck?: () => void;
   onRunStemDiagnostic?: () => void;
   /** When true the panel is hidden (sidebar collapsed). On that transition we
@@ -52,12 +53,7 @@ export interface ControlsPaneProps {
   collapsed?: boolean;
 }
 
-export function ControlsPane({
-  onClose,
-  onRunCollisionCheck,
-  onRunStemDiagnostic,
-  collapsed,
-}: ControlsPaneProps) {
+export function ControlsPane({ onClose, collapsed }: ControlsPaneProps) {
   const paneRef = useRef<HTMLDivElement>(null);
   const [activeId, setActiveId] = useState('world');
 
@@ -83,39 +79,15 @@ export function ControlsPane({
       id: 'updates',
       label: 'Updates',
       icon: RefreshCw,
-      draftable: true,
-      sections: [UPDATES_SECTION],
+      draftable: false,
+      sections: [{ ...UPDATES_SECTION, inline: true }],
     },
     {
       id: 'preview',
       label: 'Preview',
       icon: Eye,
-      draftable: true,
+      draftable: false,
       sections: [{ key: 'file-preview', render: <FilePreviewSection /> }],
-    },
-    {
-      id: 'shortcuts',
-      label: 'Shortcuts',
-      icon: Keyboard,
-      draftable: false,
-      sections: [{ key: 'shortcuts', render: <ShortcutsSection /> }],
-    },
-    {
-      id: 'debug',
-      label: 'Debug',
-      icon: Bug,
-      draftable: false,
-      sections: [
-        {
-          key: 'debug',
-          render: (
-            <DebugSection
-              onRunCollisionCheck={onRunCollisionCheck}
-              onRunStemDiagnostic={onRunStemDiagnostic}
-            />
-          ),
-        },
-      ],
     },
   ];
 

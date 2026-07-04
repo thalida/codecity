@@ -1,9 +1,11 @@
-// views/ControlsPane/ActionsBar.tsx — Sticky bottom three-button bar.
-// Reset all (left) | Discard · Save (right). Widgets write to the draft
-// layer; Save commits to stores (triggers existing persist + commit-
-// reaction subscriptions). Discard drops pending drafts. Reset all
-// stages every overridden value back to its default — user still must
-// Save to apply.
+// views/ControlsPane/ActionsBar.tsx — Sticky bottom three-button bar, shown
+// only on the World subtab. Reset all (left) | Discard · Save (right).
+// Widgets write to the draft layer; Save commits to stores (triggers
+// existing persist + commit-reaction subscriptions). Discard drops pending
+// drafts. Reset all stages every overridden value back to its default, user
+// still must Save to apply. Updates and Preview are autosave (write straight
+// to their stores, no draft layer), so they never render this bar and Reset
+// all only ever covers World's draft-backed settings.
 
 import './ActionsBar.css';
 import { RotateCcw } from 'lucide-preact';

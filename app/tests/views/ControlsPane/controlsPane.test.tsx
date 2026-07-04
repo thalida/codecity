@@ -57,35 +57,31 @@ describe('ControlsPane subtabs', () => {
     container.remove();
   });
 
-  it('renders the five subtabs, World active by default', () => {
+  it('renders exactly three subtabs, World active by default', () => {
     const pane = mount();
     expect(pane.classList.contains('controls-pane')).toBe(true);
-    for (const label of ['World', 'Updates', 'Preview', 'Shortcuts', 'Debug']) {
+    for (const label of ['World', 'Updates', 'Preview']) {
       expect(tab(pane, label)).toBeTruthy();
     }
+    expect(tab(pane, 'Shortcuts')).toBeUndefined();
+    expect(tab(pane, 'Debug')).toBeUndefined();
     expect(tab(pane, 'World').getAttribute('aria-selected')).toBe('true');
   });
 
-  it('shows the action bar on draftable subtabs and hides it on the rest', () => {
+  it('shows the action bar only on World; Updates/Preview autosave with no footer', () => {
     const pane = mount();
     expect(pane.querySelector('.controls-actions')).toBeTruthy(); // World
-    clickTab(pane, 'Shortcuts');
+    clickTab(pane, 'Updates');
     expect(pane.querySelector('.controls-actions')).toBeNull();
     clickTab(pane, 'Preview');
-    expect(pane.querySelector('.controls-actions')).toBeTruthy();
-    clickTab(pane, 'Debug');
     expect(pane.querySelector('.controls-actions')).toBeNull();
-    clickTab(pane, 'Updates');
-    expect(pane.querySelector('.controls-actions')).toBeTruthy();
   });
 
-  it('renders the shortcuts reference only under the Shortcuts subtab', () => {
+  it('renders the Updates section inline, with no collapsible section wrapper', () => {
     const pane = mount();
-    expect(pane.querySelector('.shortcuts-list')).toBeNull(); // World active
-    clickTab(pane, 'Shortcuts');
-    expect(pane.querySelector('.shortcuts-list')).not.toBeNull();
-    expect(pane.querySelector('.shortcuts-list kbd')).not.toBeNull();
-    expect(pane.querySelector('.shortcuts-list .shortcuts-mouse')).not.toBeNull();
+    clickTab(pane, 'Updates');
+    expect(pane.querySelector('.controls-section')).toBeNull();
+    expect(pane.querySelectorAll('.theme-row').length).toBeGreaterThan(0);
   });
 
   it('renders three action-bar buttons; Save/Discard disabled when clean', () => {
@@ -112,7 +108,7 @@ describe('ControlsPane subtabs', () => {
   it('collapsed=true closes all <details> and resets to the World subtab', async () => {
     const pane = mount({ collapsed: false });
     pane.querySelectorAll<HTMLDetailsElement>('details').forEach((d) => (d.open = true));
-    clickTab(pane, 'Shortcuts');
+    clickTab(pane, 'Updates');
     act(() => {
       render(
         <ControlsPane
@@ -146,12 +142,6 @@ describe('subgroup group reset button', () => {
     });
     return container.querySelector('.pane') as HTMLElement;
   }
-  const clickTab = (pane: HTMLElement, label: string) =>
-    act(() =>
-      Array.from(pane.querySelectorAll<HTMLButtonElement>('[role="tab"]'))
-        .find((el) => el.textContent?.includes(label))!
-        .click()
-    );
 
   beforeEach(() => {
     container = document.createElement('div');
@@ -166,13 +156,6 @@ describe('subgroup group reset button', () => {
     const pane = mount();
     expect(pane.querySelectorAll('details.theme-subgroup-collapsible').length).toBeGreaterThan(0);
     expect(pane.querySelectorAll('.controls-subgroup-reset').length).toBeGreaterThan(0);
-  });
-
-  it('field-less collapsible subgroups render no reset (Shortcuts "General")', () => {
-    const pane = mount();
-    clickTab(pane, 'Shortcuts');
-    expect(pane.querySelectorAll('details.theme-subgroup-collapsible').length).toBeGreaterThan(0);
-    expect(pane.querySelectorAll('.controls-subgroup-reset').length).toBe(0);
   });
 
   it('group reset buttons are disabled when nothing differs from default', () => {

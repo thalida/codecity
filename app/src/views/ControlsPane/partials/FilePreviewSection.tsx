@@ -10,7 +10,6 @@ import {
   SYNTAX_THEME_OPTIONS,
 } from '@/state/stores/settings/syntaxTheme';
 import { RotateCcw } from 'lucide-preact';
-import { Section } from '@/components/Section/Section';
 import { ThemeRow } from '@/components/ThemeRow/ThemeRow';
 
 export function FilePreviewSection() {
@@ -22,7 +21,8 @@ export function FilePreviewSection() {
   const isDefault = current === SYNTAX_THEME_DEFAULT;
 
   return (
-    <Section name="File Preview" hint="Syntax highlight theme for the code preview pane.">
+    <div class="controls-inline-section">
+      <div class="controls-section-hint">Syntax highlight theme for the code preview pane.</div>
       <ThemeRow
         label="Syntax theme"
         tip="Highlight theme for the file preview; applies immediately."
@@ -55,6 +55,6 @@ export function FilePreviewSection() {
           <RotateCcw class="lucide-icon" />
         </button>
       </ThemeRow>
-    </Section>
+    </div>
   );
 }
