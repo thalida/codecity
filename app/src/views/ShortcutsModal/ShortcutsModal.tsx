@@ -8,7 +8,7 @@
 // shortcuts-list layout.
 
 import './ShortcutsModal.css';
-import { useEffect } from 'preact/hooks';
+import { useEffect, useRef } from 'preact/hooks';
 import { X } from 'lucide-preact';
 import { SHORTCUTS_OPEN, closeShortcuts } from '@/state/stores/ui';
 import { KEY_BINDINGS } from '@/constants/keyboard';
@@ -69,11 +69,15 @@ function ShortcutsList({ items }: { items: Array<ShortcutItem | null> }) {
 
 export function ShortcutsModal() {
   const isOpen = SHORTCUTS_OPEN.value;
+  const closeBtnRef = useRef<HTMLButtonElement>(null);
 
   // Registered only while open; the effect body itself is a no-op when closed
-  // so there's nothing to tear down on the next mount.
+  // so there's nothing to tear down on the next mount. Also moves focus onto
+  // the close button so keyboard focus doesn't stay stranded behind the
+  // backdrop.
   useEffect(() => {
     if (!isOpen) return;
+    closeBtnRef.current?.focus();
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') closeShortcuts();
     };
@@ -99,6 +103,7 @@ export function ShortcutsModal() {
         <div class="modal-header surface-chrome">
           <span>Keyboard & mouse</span>
           <button
+            ref={closeBtnRef}
             type="button"
             class="btn-icon btn-icon--lg"
             data-action="close"

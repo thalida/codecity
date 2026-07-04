@@ -8,7 +8,7 @@
 // action-button layout.
 
 import './DebugModal.css';
-import { useEffect } from 'preact/hooks';
+import { useEffect, useRef } from 'preact/hooks';
 import { X } from 'lucide-preact';
 import { DEBUG_OPEN, closeDebug } from '@/state/stores/ui';
 
@@ -19,11 +19,15 @@ export interface DebugModalProps {
 
 export function DebugModal({ onRunCollisionCheck, onRunStemDiagnostic }: DebugModalProps) {
   const isOpen = DEBUG_OPEN.value;
+  const closeBtnRef = useRef<HTMLButtonElement>(null);
 
   // Registered only while open; the effect body itself is a no-op when closed
-  // so there's nothing to tear down on the next mount.
+  // so there's nothing to tear down on the next mount. Also moves focus onto
+  // the close button so keyboard focus doesn't stay stranded behind the
+  // backdrop.
   useEffect(() => {
     if (!isOpen) return;
+    closeBtnRef.current?.focus();
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') closeDebug();
     };
@@ -44,6 +48,7 @@ export function DebugModal({ onRunCollisionCheck, onRunStemDiagnostic }: DebugMo
         <div class="modal-header surface-chrome">
           <span>Debug</span>
           <button
+            ref={closeBtnRef}
             type="button"
             class="btn-icon btn-icon--lg"
             data-action="close"

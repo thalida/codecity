@@ -245,6 +245,10 @@ export function createInputHandlers({
     const tag = (targetEl && targetEl.tagName) || '';
     if (TEXT_INPUT_TAGS.includes(tag) || (targetEl && targetEl.isContentEditable)) return;
 
+    // A modal (shortcuts/debug/source picker) owns keyboard input while open —
+    // don't let scene shortcuts (Esc-deselect, R, F) fire underneath it.
+    if (document.querySelector('[role="dialog"][aria-modal="true"]')) return;
+
     if (KEY_BINDINGS.CLEAR_SELECTION.keys.includes(ev.key)) {
       picker.setSelection(null);
       picker.setHover(null);

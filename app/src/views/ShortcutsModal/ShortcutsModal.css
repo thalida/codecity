@@ -1,5 +1,26 @@
 /* ── ShortcutsModal ── */
 
+.shortcuts-list kbd,
+.shortcuts-list .shortcuts-mouse {
+  display: inline-block;
+  background: var(--cc-accent-bg-soft);
+  border-radius: var(--cc-radius-sm);
+  font-family: var(--cc-font-mono);
+  padding: var(--cc-space-px) var(--cc-space-3);
+}
+
+/* Shell from .code-inline; this rule adds the kbd-specific border, color,
+   small font, hairline horizontal margin, and resets italics. */
+.shortcuts-list kbd,
+.shortcuts-list .shortcuts-mouse {
+  border: 1px solid var(--cc-accent-bg-strong);
+  color: var(--cc-text-secondary);
+  font-size: var(--cc-font-sm);
+  margin: 0 var(--cc-space-px);
+  line-height: 1.2;
+  font-style: normal;
+}
+
 /* Keyboard / mouse shortcuts table. Two-column grid:
  *   [keys / mouse]   [action]
  * Section breaks (null entries in the data) render as a thin divider

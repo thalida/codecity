@@ -126,8 +126,10 @@ export function isAutosave(store: object): boolean {
   return _AUTOSAVE_STORES.has(store);
 }
 
-/** True when ANY settings store holds a (committed) non-default value — drives
- *  the Reset-all button's enabled state. Scoped to settings stores only. */
+/** True when ANY settings store (including autosave stores) holds a
+ *  (committed) non-default value. No longer the source of the Reset-all
+ *  button's enabled state (that's anyResettable(), which skips autosave
+ *  stores) — this is read by ActionsBar purely as a reactivity signal. */
 export const HAS_ANY_NON_DEFAULT = computed(() => {
   for (const s of _SETTING_STORES) {
     const store = s as { value: unknown };
