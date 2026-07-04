@@ -1,5 +1,5 @@
 .almanac {
-  padding: 12px 14px;
+  padding: 12px var(--cc-space-7); /* 16px horizontal — matches every other pane's content inset */
   display: flex;
   flex-direction: column;
   /* 12px here + 12px section padding-top = balanced space around each divider. */
