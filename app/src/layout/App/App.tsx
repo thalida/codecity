@@ -10,7 +10,7 @@
 //     <RightSidebar>     — self-subscribes to SCENE_HANDLE + picker
 //   </main>
 //   <AppFooter>          — reads signals directly
-//   <SourcePicker />     — reads SOURCE_PICKER + SERVER_CONFIG directly
+//   <SourcePicker />     — reads PROJECTS_VIEW + SERVER_CONFIG directly
 //   <LoadingOverlay />   — reads LOADING_OVERLAY directly
 //   <ShortcutsModal />   — reads SHORTCUTS_OPEN directly
 //   <DebugModal />       — reads DEBUG_OPEN directly; scene commands passed as props
@@ -38,9 +38,9 @@ import {
   runStemDiagnostic,
 } from '@/state/stores/scene';
 import {
-  openSourcePicker,
-  openSourcePickerForCurrentSource,
-  closeSourcePicker,
+  openProjectsView,
+  openProjectsViewForCurrentSource,
+  closeProjectsView,
 } from '@/state/stores/ui';
 import { SOURCE_ERROR, CURRENT_SOURCE } from '@/state/stores/source';
 import { MANIFEST } from '@/state/stores/manifest';
@@ -66,14 +66,14 @@ export function App() {
 
   // App coordinates the source picker; the fetch hook only reports outcomes.
   const dismissPicker = () => {
-    closeSourcePicker();
+    closeProjectsView();
     SOURCE_ERROR.value = null;
   };
 
   // Cold boot with no ?src → prompt for a source (non-dismissible).
   useEffect(() => {
     if (!new URLSearchParams(window.location.search).has(URL_PARAMS.SRC)) {
-      openSourcePicker({ dismissible: false });
+      openProjectsView({ dismissible: false });
     }
   }, []);
 
@@ -83,7 +83,7 @@ export function App() {
   useSignalEffect(() => {
     const err = SOURCE_ERROR.value;
     if (!err) return;
-    openSourcePicker({
+    openProjectsView({
       dismissible: !isEmptyManifest(MANIFEST.peek()),
       prefill: err.prefill,
       error: err.error,
@@ -94,7 +94,7 @@ export function App() {
     <>
       <AppHeader
         onSegmentClick={selectPath}
-        onSwitchSource={openSourcePickerForCurrentSource}
+        onSwitchSource={openProjectsViewForCurrentSource}
         onResetView={resetView}
         onFocus={focusCurrentSelection}
       />

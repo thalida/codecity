@@ -12,7 +12,7 @@ import { clearManifestCache } from '@/api/manifest';
 import { srcKind, SourceKind } from '@/utils/sources';
 import { URL_PARAMS } from '@/constants/urlParams';
 import { Folder, Trash2, TriangleAlert, X } from 'lucide-preact';
-import { SOURCE_PICKER, type SourcePayload } from '@/state/stores/ui';
+import { PROJECTS_VIEW, type SourcePayload } from '@/state/stores/ui';
 import { SERVER_CONFIG } from '@/state/stores/serverConfig';
 
 // ── Hosting-site SVG icons ───────────────────────────────────────────────────
@@ -317,9 +317,9 @@ export function SourcePickerModal({ state, onSubmit, onClose }: SourcePickerModa
 }
 
 // ── Signal-driven top-level component ──────────────────────────────────────
-// Reads SOURCE_PICKER + SERVER_CONFIG directly for open-state/prefill, but takes
+// Reads PROJECTS_VIEW + SERVER_CONFIG directly for open-state/prefill, but takes
 // onSubmit/onClose via props from App (App owns the stateful submit handler from
-// useManifestSource and the pure closeSourcePicker store action). Returns null
+// useManifestSource and the pure closeProjectsView store action). Returns null
 // when the picker is closed so SourcePickerModal fully unmounts — its
 // useState-backed form inputs reset on the next open.
 
@@ -329,7 +329,7 @@ export interface SourcePickerProps {
 }
 
 export function SourcePicker({ onSubmit, onClose }: SourcePickerProps) {
-  const sp = SOURCE_PICKER.value;
+  const sp = PROJECTS_VIEW.value;
   if (!sp.visible) return null;
 
   const serverCfg = SERVER_CONFIG.value;
