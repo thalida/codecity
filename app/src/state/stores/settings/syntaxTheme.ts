@@ -47,11 +47,6 @@ export const SYNTAX_THEME_OPTIONS: SyntaxThemeOption[] = [
 export const SYNTAX_THEME_DEFAULT = 'atom-one-dark';
 export const SYNTAX_THEME = persistedSignal<string>('SYNTAX_THEME', SYNTAX_THEME_DEFAULT);
 
-// Theme-picker writes directly to this signal (no draft layer — the CSS
-// link swaps instantly). stageResetAll() reads this flag and resets
-// directly too, so "Reset all" doesn't leave behind a phantom draft.
-(SYNTAX_THEME as unknown as { _skipDrafts?: boolean })._skipDrafts = true;
-
 // SYNTAX_THEME is a setting (it lives in the File Preview section) but uses a
 // plain persistedSignal rather than settingSignal, so register it explicitly so
 // "Reset all" still resets it (non-settings persisted state is NOT registered).

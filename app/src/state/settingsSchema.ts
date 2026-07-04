@@ -83,7 +83,7 @@ export type ConfigOf<F extends FieldMap> = { [K in keyof F]: F[K]['default'] };
 const _FIELDS = new Map<object, FieldMap>();
 
 // The set of stores the SETTINGS panel owns — every settingSignal store, plus a
-// few hand-registered ones (e.g. SYNTAX_THEME, a direct-write setting). This is
+// few hand-registered ones (e.g. SYNTAX_THEME, a plain persistedSignal). This is
 // deliberately NARROWER than persist's all-persisted registry: the panel's
 // "Reset all" / draft / non-default machinery iterates ONLY these, so
 // non-settings persisted state (recents, sidebar width/collapsed) is never
@@ -91,8 +91,8 @@ const _FIELDS = new Map<object, FieldMap>();
 const _SETTING_STORES = new Set<object>();
 
 /** Register a store as panel-owned settings (so Reset-all / draft staging act
- *  on it). settingSignal calls this automatically; direct-write settings that
- *  don't use settingSignal (e.g. SYNTAX_THEME) call it explicitly. */
+ *  on it). settingSignal calls this automatically; settings that use a plain
+ *  persistedSignal instead (e.g. SYNTAX_THEME) call it explicitly. */
 export function markSettingStore(store: object): void {
   _SETTING_STORES.add(store);
 }

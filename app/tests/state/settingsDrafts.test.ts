@@ -13,6 +13,7 @@ import {
 } from '@/state/settingsDrafts';
 import { persistedSignal } from '@/state/persist';
 import { markSettingStore } from '@/state/settingsSchema';
+import { SYNTAX_THEME, SYNTAX_THEME_DEFAULT } from '@/state/stores/settings/syntaxTheme';
 
 interface FooConfig {
   COLOR: string;
@@ -231,5 +232,27 @@ describe('drafts', () => {
       expect(BAR.value).toBe(10);
       expect(isDirty()).toBe(false);
     });
+  });
+});
+
+describe('SYNTAX_THEME participates in the draft layer', () => {
+  beforeEach(() => {
+    SYNTAX_THEME.value = SYNTAX_THEME_DEFAULT;
+    _resetForTests();
+  });
+
+  it('setDraft does not touch the committed signal until commit', () => {
+    setDraft(SYNTAX_THEME, null, 'monokai');
+    expect(SYNTAX_THEME.value).toBe(SYNTAX_THEME_DEFAULT); // not applied yet
+    expect(isDirty()).toBe(true);
+    commit();
+    expect(SYNTAX_THEME.value).toBe('monokai'); // applied on Save
+    expect(isDirty()).toBe(false);
+  });
+
+  it('discard drops a staged theme change', () => {
+    setDraft(SYNTAX_THEME, null, 'nord');
+    discard();
+    expect(SYNTAX_THEME.value).toBe(SYNTAX_THEME_DEFAULT);
   });
 });
