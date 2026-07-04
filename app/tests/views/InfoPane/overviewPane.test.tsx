@@ -31,7 +31,7 @@ import { uniformFileStats } from '../../_helpers/statsFixtures';
 const tree = {
   name: 'repo',
   type: NodeKind.Directory,
-  path: '',
+  path: '.',
   fullPath: '/repo',
   children: [
     {

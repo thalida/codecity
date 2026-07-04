@@ -16,9 +16,9 @@ export interface PathCrumbs {
 
 /**
  * Split a selected path into clickable breadcrumb segments. The repo root (a
- * directory whose path is the root path or ".") has no relative path to walk,
- * so it collapses to a single crumb carrying the repo label instead of a bare
- * "." segment. Every other path splits on "/", each crumb's `segPath` being the
+ * directory whose path is the root path) has no relative path to walk, so it
+ * collapses to a single crumb carrying the repo label instead of a bare "."
+ * segment. Every other path splits on "/", each crumb's `segPath` being the
  * path up to and including that segment.
  */
 export function buildPathCrumbs(
@@ -26,7 +26,7 @@ export function buildPathCrumbs(
   opts: { isDir?: boolean; rootLabel: string; rootPath: string }
 ): PathCrumbs {
   const { isDir, rootLabel, rootPath } = opts;
-  const isRoot = !!isDir && (path === rootPath || path === '.');
+  const isRoot = !!isDir && path === rootPath;
   const crumbs: PathCrumb[] = isRoot
     ? [{ label: rootLabel, segPath: rootPath }]
     : path

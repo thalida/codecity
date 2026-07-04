@@ -5,6 +5,14 @@
 import { NodeKind } from '../types';
 import type { Manifest, RepoStats } from '../types';
 
+// The manifest's root directory carries this as its `path` — the POSIX
+// "current directory" token, since every node path is repo-relative (the
+// absolute path lives in `fullPath`). Children join off it as `app`,
+// `app/src`, … with no leading slash. It's the single root representation
+// across real scans AND the empty sentinel below, so `path === ROOT_PATH`
+// reliably means "this is the root".
+export const ROOT_PATH = '.';
+
 export const EMPTY_REPO_STATS: RepoStats = {
   lineCountRange: { min: 0, max: 0 },
   byteSizeRange: { min: 0, max: 0 },
@@ -42,7 +50,7 @@ export const EMPTY_MANIFEST: Manifest = {
   tree: {
     name: '',
     type: NodeKind.Directory,
-    path: '',
+    path: ROOT_PATH,
     fullPath: '',
     children: [],
     children_count: 0,

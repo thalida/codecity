@@ -40,7 +40,7 @@ function makeRootStreet(): Street {
     label: 'root',
     orientation: StreetAxis.X,
     isRoot: true,
-    dir: { name: 'root', path: '', type: NodeKind.Directory },
+    dir: { name: 'root', path: '.', type: NodeKind.Directory },
   } as unknown as Street;
 }
 

@@ -18,6 +18,7 @@ import { ExtensionBadge } from '@/components/Badge/Badge';
 import { extHueColor } from '@/city/components/buildings/color';
 import { BUILDINGS } from '@/state/stores/settings/buildings';
 import { pluralize } from '@/utils/format';
+import { ROOT_PATH } from '@/constants/manifest';
 import { extBarPct, extShareLabel, extTypeLabel, streetDateRange } from './streetStats';
 
 // ── State shape for Preact component ─────────────────────────────────────────
@@ -49,7 +50,7 @@ export function StreetPane({ state, onClose, onFocus }: StreetPaneProps) {
     );
   }
 
-  const path = d.path && d.path !== '.' ? d.path : '';
+  const path = d.path && d.path !== ROOT_PATH ? d.path : '';
   const leaf = (path ? path.split('/').filter(Boolean).pop() : null) || d.name || 'Road';
 
   // Backend-computed (api/scan.py), sorted by count desc. Guard against a
