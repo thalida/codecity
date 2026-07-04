@@ -19,18 +19,18 @@
      - .street-ext-list — one ranked bar per file extension */
 
 .street-body {
-  padding: var(--cc-space-7); /* 16px */
+  padding: var(--cc-space-7);
   display: flex;
   flex-direction: column;
-  gap: var(--cc-space-6); /* 12px */
+  gap: var(--cc-space-6);
 }
 
 /* Activity span: oldest file created → newest change. */
 .street-dates {
   display: flex;
   align-items: center;
-  gap: var(--cc-space-3); /* 6px */
-  font-size: var(--cc-font-md); /* 11px */
+  gap: var(--cc-space-3);
+  font-size: var(--cc-font-md);
   color: var(--cc-text-muted);
 }
 
@@ -45,8 +45,8 @@
 .street-ext-h {
   display: flex;
   align-items: center;
-  gap: var(--cc-space-3); /* 6px */
-  font-size: var(--cc-font-md); /* 11px */
+  gap: var(--cc-space-3);
+  font-size: var(--cc-font-md);
   text-transform: uppercase;
   letter-spacing: var(--cc-track-label);
   color: var(--cc-text-secondary);
@@ -66,9 +66,9 @@
   display: grid;
   grid-template-columns: auto 1fr auto;
   align-items: center;
-  column-gap: var(--cc-space-3); /* 6px */
-  row-gap: var(--cc-space-4); /* 8px */
-  font-size: var(--cc-font-lg); /* 12px */
+  column-gap: var(--cc-space-3);
+  row-gap: var(--cc-space-4);
+  font-size: var(--cc-font-lg);
 }
 
 /* Rows place their cells into the list's shared columns rather than forming
@@ -87,10 +87,9 @@
   position: relative;
   min-width: 0;
   height: 18px;
-  border-radius: var(--cc-radius-sm); /* --cc-radius-2 absent; --cc-radius-sm = 4px */
-  background: var(
-    --cc-bg-app
-  ); /* --cc-surface-sunken absent; --cc-bg-app is the darkest bg, reads as sunken within a sidebar */
+  border-radius: var(--cc-radius-sm);
+  /* Darkest app bg reads as a sunken groove within the sidebar. */
+  background: var(--cc-bg-app);
   overflow: hidden;
 }
 
