@@ -29,14 +29,14 @@ const FOOTPRINT_FIELDS = {
     kind: FieldKind.Toggle,
     default: true,
     label: 'Enabled',
-    tip: 'When off, the slab is hidden (still built; group.visible = false) and tree/bush placement no longer rejects candidates inside the halo.',
+    tip: 'When off, the slab is hidden and trees can grow inside the halo area.',
   },
   COLOR: {
     route: ChangeRoute.Refresh,
     kind: FieldKind.Color,
     default: '#0a0b0f',
     label: 'Color',
-    tip: 'Slab color. Near-black by default so the apron reads as a darker frame around the city against the night-scene floor.',
+    tip: 'Slab color; near-black by default so it reads as a darker frame around the city.',
   },
   HALO_WIDTH: {
     route: ChangeRoute.Rebuild,
@@ -46,7 +46,7 @@ const FOOTPRINT_FIELDS = {
     max: 256,
     step: 4,
     label: 'Halo width',
-    tip: 'World units of asphalt added outward around every layout rect. ~32 (one narrow-street width) is the design default; above 256 the halo dwarfs the city and reads as a paved plaza.',
+    tip: 'World units of asphalt added outward around every layout rect. Above 256 the halo dwarfs the city and reads as a paved plaza.',
   },
   CORNER_RADIUS: {
     route: ChangeRoute.Refresh,
@@ -56,7 +56,7 @@ const FOOTPRINT_FIELDS = {
     max: 2,
     step: 0.05,
     label: 'Halo radius × halo width',
-    tip: 'Corner radius as a fraction of Halo width (0 = sharp, 1 = one halo width, 2 = two). World-units radius pushed to the shader = this × Halo width. Where rects overlap heavily the rounding is hidden by neighbors; the radius only shows where a rect ends at the silhouette.',
+    tip: 'Corner roundness as a multiple of Halo width: 0 is sharp, 1 rounds by one halo width, 2 by two. Only shows where the silhouette actually ends, not where rects overlap.',
   },
 } satisfies FieldMap;
 

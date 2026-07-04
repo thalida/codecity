@@ -24,7 +24,7 @@ const TREES_FIELDS = {
     kind: FieldKind.Toggle,
     default: true,
     label: 'Trees enabled',
-    tip: 'Master toggle. When off, all tree canopies + trunks are hidden (mesh.visible flip — no rebuild).',
+    tip: 'Master toggle. When off, every tree canopy and trunk is hidden.',
   },
 
   COLOR_BUSY_DAY: {
@@ -32,21 +32,21 @@ const TREES_FIELDS = {
     kind: FieldKind.Color,
     default: '#001908',
     label: 'Busy-day color',
-    tip: 'Color for commits on a busy day — many commits sharing the same date. Live.',
+    tip: 'Color for commits made on a busy day, when many commits share the same date.',
   },
   COLOR_SOLO_DAY: {
     route: ChangeRoute.Refresh,
     kind: FieldKind.Color,
     default: '#5a370a',
     label: 'Solo-day color',
-    tip: 'Color for commits on a solo day — only one commit that date. Live.',
+    tip: 'Color for commits made on a solo day, the only commit on that date.',
   },
   TRUNK_COLOR: {
     route: ChangeRoute.Refresh,
     kind: FieldKind.Color,
     default: '#110c08',
     label: 'Trunk color',
-    tip: 'Color of every tree trunk. Live.',
+    tip: 'Color of every tree trunk.',
   },
   SHADING_STRENGTH: {
     route: ChangeRoute.Rebuild,
@@ -56,7 +56,7 @@ const TREES_FIELDS = {
     max: 1,
     step: 0.05,
     label: 'Shading strength',
-    tip: 'Baked vertex-color gradient depth on the canopy. 0 = flat (no shading), 1 = fully dark at the base. Rebuild on change.',
+    tip: 'Shading depth on the canopy. 0 is flat, 1 is fully dark at the base.',
   },
 
   MIN_HEIGHT: {
@@ -67,7 +67,7 @@ const TREES_FIELDS = {
     max: 400,
     step: 4,
     label: 'Min height',
-    tip: 'Height (world units) of the newest commit. Older commits grow taller toward Max. Independent of building dimensions. Rebuild on change.',
+    tip: 'Tree height for the newest commit. Older commits grow taller toward Max height.',
   },
   MAX_HEIGHT: {
     route: ChangeRoute.Rebuild,
@@ -77,7 +77,7 @@ const TREES_FIELDS = {
     max: 800,
     step: 4,
     label: 'Max height',
-    tip: 'Height (world units) of the oldest commit. Independent of building dimensions. Rebuild on change.',
+    tip: 'Tree height for the oldest commit.',
   },
   TRUNK_HEIGHT_FRAC: {
     route: ChangeRoute.Rebuild,
@@ -87,7 +87,6 @@ const TREES_FIELDS = {
     max: 1,
     step: 0.05,
     label: 'Trunk height (% of canopy)',
-    tip: 'Trunk height as a fraction of canopy height. Larger = more visible trunk relative to canopy. Rebuild on change.',
   },
   CANOPY_TRUNK_OVERLAP_FRAC: {
     route: ChangeRoute.Rebuild,
@@ -97,7 +96,7 @@ const TREES_FIELDS = {
     max: 1,
     step: 0.05,
     label: 'Canopy-trunk overlap (% of trunk)',
-    tip: 'How much of the trunk top is hidden inside the canopy. 0 = canopy bottom point touches trunk top. 1 = canopy bottom reaches the ground, hiding the entire trunk. Rebuild on change.',
+    tip: 'How much of the trunk top hides inside the canopy. 0 means the canopy just touches the trunk top; 1 means it reaches the ground and hides the whole trunk.',
   },
 
   MIN_WIDTH: {
@@ -108,7 +107,7 @@ const TREES_FIELDS = {
     max: 400,
     step: 2,
     label: 'Min canopy width',
-    tip: 'Canopy diameter (world units) of commits with the fewest files changed. Independent of building dimensions. Rebuild on change.',
+    tip: 'Canopy diameter for commits that changed the fewest files.',
   },
   MAX_WIDTH: {
     route: ChangeRoute.Rebuild,
@@ -118,7 +117,7 @@ const TREES_FIELDS = {
     max: 600,
     step: 2,
     label: 'Max canopy width',
-    tip: 'Canopy diameter (world units) of commits with the most files changed. Independent of building dimensions. Rebuild on change.',
+    tip: 'Canopy diameter for commits that changed the most files.',
   },
   TRUNK_RADIUS_FRAC: {
     route: ChangeRoute.Rebuild,
@@ -128,7 +127,6 @@ const TREES_FIELDS = {
     max: 0.5,
     step: 0.01,
     label: 'Trunk thickness (% of canopy)',
-    tip: 'Trunk XZ radius as a fraction of canopy radius. Wider canopies get thicker trunks proportionally. Rebuild on change.',
   },
   WIDTH_AGE_FLOOR: {
     route: ChangeRoute.Rebuild,
@@ -138,7 +136,7 @@ const TREES_FIELDS = {
     max: 1,
     step: 0.05,
     label: 'Age shrink floor',
-    tip: 'Multiplier on file-driven canopy width at the SHORTEST (newest) tree. 1 = no shrink; 0.5 = half-width saplings; 0 = strict height-proportional. Tallest trees always render at full width. Rebuild on change.',
+    tip: 'Width multiplier for the shortest, newest trees. 1 means no shrink, 0.5 gives half-width saplings, 0 makes width strictly follow height. Tallest trees always render at full width.',
   },
 
   // Hover / select wireframe outlines — two persistent LineSegments2 meshes
@@ -179,7 +177,7 @@ const TREES_FIELDS = {
     max: 1,
     step: 0.05,
     label: 'Selected opacity',
-    tip: 'Selected outline uses an animated rainbow color — see Effects > Rainbow.',
+    tip: 'The selected outline always uses an animated rainbow color, tunable under Effects.',
   },
 } satisfies FieldMap;
 

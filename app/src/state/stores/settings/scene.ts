@@ -22,7 +22,7 @@ const SCENE_FIELDS = {
     kind: FieldKind.Color,
     default: '#010005',
     label: 'Sky color',
-    tip: 'Solid color painted across the entire sphere. Past the world floor edge the camera sees this color directly, so the plane reads as floating in space.',
+    tip: "Solid color of the sky. Past the island's edge the camera sees this directly, so the island reads as floating in space.",
   },
 
   // ── Stars ──
@@ -31,7 +31,7 @@ const SCENE_FIELDS = {
     kind: FieldKind.Toggle,
     default: true,
     label: 'Enabled',
-    tip: 'When off, no stars are sampled (also disables twinkle).',
+    tip: 'When off, no stars or twinkle appear.',
   },
   STARS_DENSITY: {
     route: ChangeRoute.Refresh,
@@ -41,7 +41,7 @@ const SCENE_FIELDS = {
     max: 0.02,
     step: 0.0005,
     label: 'Density',
-    tip: 'Hash-threshold for star presence — higher density paints MORE stars. Above ~0.01 the sky reads as a noise field.',
+    tip: 'Higher values paint more stars. Above ~0.01 the sky reads as a noise field.',
   },
 
   // ── Ground haze (fog) ──
@@ -50,7 +50,7 @@ const SCENE_FIELDS = {
     kind: FieldKind.Toggle,
     default: true,
     label: 'Enabled',
-    tip: "Off → no haze (the shader's fog mix is a no-op). Other knobs stay in config so flipping back restores the mood.",
+    tip: 'When off, there is no haze. Turning it back on restores the other fog settings below.',
   },
   FOG_COLOR: {
     route: ChangeRoute.Refresh,
@@ -67,7 +67,7 @@ const SCENE_FIELDS = {
     max: 1,
     step: 0.05,
     label: 'Intensity',
-    tip: 'Peak fog amount at world Y=0 (street level). 0 = off; 1 = ground plane fully tinted to fog color.',
+    tip: 'Peak fog amount at street level. 0 turns it off, 1 fully tints the ground to the fog color.',
   },
   FOG_HEIGHT_FRAC: {
     route: ChangeRoute.Refresh,
@@ -77,7 +77,7 @@ const SCENE_FIELDS = {
     max: 1,
     step: 0.05,
     label: 'Falloff height ×',
-    tip: 'Half-fall-off height as a fraction of the tallest possible building (BUILDING_DIMENSIONS.MAX_FLOORS × FLOOR_HEIGHT). Auto-scales with the building config so the mist sits in the same relative band of the skyline. 0.25 = mist fades by mid-height of short buildings; 0.5 = halfway up the tallest.',
+    tip: 'How high up the fog fades out, as a fraction of the tallest possible building. 0.25 fades by mid-height on short buildings, 0.5 fades halfway up the tallest.',
   },
 } satisfies FieldMap;
 
@@ -95,7 +95,7 @@ const WORLD_FIELDS = {
     max: 100,
     step: 1,
     label: 'Ground buffer (% of city)',
-    tip: "Padding around the city as a percentage of the city's longest dimension. 0% = island exactly fits the city; 50% = generous halo of bare ground past the buildings.",
+    tip: "Padding around the city as a percentage of the city's longest dimension. 0% fits the island exactly to the city; 50% adds a generous halo of bare ground.",
   },
 } satisfies FieldMap;
 

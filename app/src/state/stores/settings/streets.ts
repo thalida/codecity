@@ -30,7 +30,7 @@ const STREETS_FIELDS = {
     kind: FieldKind.Color,
     default: '#313544',
     label: 'Color',
-    tip: 'Color of the inner road stripe. Live.',
+    tip: 'Color of the inner road stripe.',
   },
 
   SIDEWALK_DEFAULT: {
@@ -67,7 +67,7 @@ const STREETS_FIELDS = {
     kind: FieldKind.Color,
     default: 'rgba(8, 9, 14, 0.95)',
     label: 'Outline color',
-    tip: 'Outline color of the label text — typically darker than the fill so the label reads against any asphalt color.',
+    tip: 'Outline color of the label text, typically darker than the fill so it reads against any asphalt color.',
   },
   LABEL_STROKE_WIDTH_FRAC: {
     route: ChangeRoute.Rebuild,
@@ -87,7 +87,7 @@ const STREETS_FIELDS = {
     max: 2,
     step: 0.05,
     label: 'Label size',
-    tip: 'Label height as a fraction of the street width. Wider streets get bigger labels. Above 2× the street width labels clip into adjacent rows.',
+    tip: 'Label height as a fraction of the street width. Wider streets get bigger labels; above 2× the street width labels clip into adjacent rows.',
   },
 
   PATH_LINEWIDTH_PCT: {
@@ -108,7 +108,6 @@ const STREETS_FIELDS = {
     max: 1,
     step: 0.05,
     label: 'Selection opacity',
-    tip: 'Selection-line transparency. 0 = invisible; 1 = solid.',
   },
   HOVER_PATH_COLOR: {
     route: ChangeRoute.Refresh,
@@ -125,7 +124,6 @@ const STREETS_FIELDS = {
     max: 1,
     step: 0.05,
     label: 'Hover preview opacity',
-    tip: 'Hover-preview transparency. 0 = invisible; 1 = solid.',
   },
 } satisfies FieldMap;
 
@@ -157,7 +155,7 @@ const STREET_TIERS_FIELDS = {
     kind: FieldKind.TierWidths,
     default: DEFAULT_STREET_TIERS,
     label: 'Street width tiers',
-    tip: 'World-unit width per descendant-count tier. Wider streets read as more important directories from the air. Rebuild on change.',
+    tip: 'World-unit width per descendant-count tier. Wider streets read as more important directories from the air.',
   },
 } satisfies FieldMap;
 
@@ -177,7 +175,7 @@ const STREET_LAYOUT_FIELDS = {
     max: 50,
     step: 1,
     label: 'Building sibling gap',
-    tip: 'Gap between two sibling buildings packed along a street. Lower = tighter blocks. The clearance around a branching side street uses Street sibling gap instead, so a pair touching a side street takes the larger of the two.',
+    tip: 'Gap between two sibling buildings packed along a street. Lower is tighter blocks. A pair touching a side street uses Street sibling gap instead, if larger.',
   },
   STREET_GAP: {
     route: ChangeRoute.Rebuild,
@@ -187,7 +185,7 @@ const STREET_LAYOUT_FIELDS = {
     max: 50,
     step: 1,
     label: 'Street sibling gap',
-    tip: 'Clearance on each side of a branching side street where it joins its parent. Applies to any sibling pair where at least one is a side street, so raising it spaces out branches without widening building-to-building blocks.',
+    tip: 'Clearance on each side of a branching side street where it joins its parent. Raising it spaces out branches without widening building-to-building blocks.',
   },
   ROOT_END_PAD: {
     route: ChangeRoute.Rebuild,
@@ -197,7 +195,7 @@ const STREET_LAYOUT_FIELDS = {
     max: 50,
     step: 1,
     label: 'Root end pad',
-    tip: 'Fallback pad at each end of the root street (which has no parent intersection). 50 world units is roughly two MAX_WIDTH building footprints — beyond this streets balloon noticeably.',
+    tip: 'Fallback pad at each end of the root street, which has no parent intersection. Beyond ~50 world units streets balloon noticeably.',
   },
   PARENT_JOIN_PAD: {
     route: ChangeRoute.Rebuild,
@@ -207,7 +205,7 @@ const STREET_LAYOUT_FIELDS = {
     max: 50,
     step: 1,
     label: 'Parent join pad',
-    tip: 'Extra clear space where a child street meets its parent. 50 world units is roughly two MAX_WIDTH building footprints — beyond this streets balloon noticeably.',
+    tip: 'Extra clear space where a child street meets its parent. Beyond ~50 world units streets balloon noticeably.',
   },
 } satisfies FieldMap;
 

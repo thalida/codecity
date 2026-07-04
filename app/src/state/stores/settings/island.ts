@@ -30,7 +30,7 @@ const ISLAND_FIELDS = {
     max: 48,
     step: 1,
     label: 'Polygon sides',
-    tip: 'How many sides the island top has. Also drives triangle density horizontally — each side contributes 2 triangles per tier band. 6 = hexagon (chunky big facets); 12 = dodecagon (default); 48 = lots of small facets.',
+    tip: 'How many sides the island top has: 6 is a chunky hexagon, 12 the default dodecagon, 48 lots of small facets.',
   },
   IRREGULARITY: {
     route: ChangeRoute.Rebuild,
@@ -40,7 +40,7 @@ const ISLAND_FIELDS = {
     max: 0.5,
     step: 0.01,
     label: 'Irregularity',
-    tip: '0 = perfectly regular polygon. Higher values jitter vertices inward for a natural island silhouette.',
+    tip: '0 is a perfectly regular polygon. Higher values jitter vertices inward for a natural island silhouette.',
   },
   TIERS: {
     route: ChangeRoute.Rebuild,
@@ -50,7 +50,7 @@ const ISLAND_FIELDS = {
     max: 10,
     step: 1,
     label: 'Tier rings',
-    tip: 'How many chunky tier rings make up the underside. 1 = sharp cone; 4–6 = chunky tapered look; 10 = lots of facet detail.',
+    tip: 'How many chunky tier rings make up the underside. 1 is a sharp cone, 4 to 6 a chunky tapered look, 10 lots of facet detail.',
   },
   DEPTH: {
     route: ChangeRoute.Rebuild,
@@ -60,7 +60,7 @@ const ISLAND_FIELDS = {
     max: 2.0,
     step: 0.05,
     label: 'Depth (× radius)',
-    tip: 'Total island depth as a fraction of island radius. Larger = deeper, more "iceberg" silhouette.',
+    tip: 'Total island depth as a fraction of island radius. Larger is a deeper, more "iceberg" silhouette.',
   },
   ROUNDNESS: {
     route: ChangeRoute.Rebuild,
@@ -70,7 +70,7 @@ const ISLAND_FIELDS = {
     max: 1,
     step: 0.05,
     label: 'Roundness',
-    tip: 'Body shape. 0 = pointed taper to a tip; 1 = very rounded bowl. 0.7 = the current default smooth-rounded shape.',
+    tip: 'Body shape: 0 tapers to a point, 1 is a very rounded bowl.',
   },
   GRASS_THICKNESS: {
     route: ChangeRoute.Rebuild,
@@ -80,7 +80,7 @@ const ISLAND_FIELDS = {
     max: 0.1,
     step: 0.005,
     label: 'Grass thickness',
-    tip: 'Vertical thickness of the green grass layer as a fraction of island radius. 0 = no grass band, just the flat top.',
+    tip: 'Vertical thickness of the green grass layer as a fraction of island radius. 0 leaves no grass band, just the flat top.',
   },
 
   // ── Materials ──
@@ -96,28 +96,28 @@ const ISLAND_FIELDS = {
     kind: FieldKind.Color,
     default: '#214529',
     label: 'Grass side color',
-    tip: 'Vertical band wrapping the top edge. Side faces point outward, so hemispheric lighting hits them very differently than the top — tune this brighter than Grass color if the side band reads too dim.',
+    tip: 'Vertical band wrapping the top edge. It faces outward, so lighting tends to hit it dimmer than the top, brighten it if the side band looks too dark.',
   },
   ROCK_COLOR: {
     route: ChangeRoute.Refresh,
     kind: FieldKind.Color,
     default: '#71778e',
     label: 'Rock color',
-    tip: 'Uniform rock/earth color for the cliff band, tier rings, and bottom cap. Per-face lighting provides all the visual variation.',
+    tip: 'Uniform rock/earth color for the cliff band, tier rings, and bottom cap.',
   },
   HEMI_SKY_COLOR: {
     route: ChangeRoute.Refresh,
     kind: FieldKind.Color,
     default: '#e8f6fc',
     label: 'Hemi sky color',
-    tip: 'Warm "from above" tone blended onto upward-facing surfaces by the hemispheric lighting model.',
+    tip: 'Warm tone blended onto upward-facing surfaces, as if lit from above.',
   },
   HEMI_GROUND_COLOR: {
     route: ChangeRoute.Refresh,
     kind: FieldKind.Color,
     default: '#031117',
     label: 'Hemi ground color',
-    tip: 'Cool "from below" tone blended onto downward-facing surfaces by the hemispheric lighting model.',
+    tip: 'Cool tone blended onto downward-facing surfaces, as if lit from below.',
   },
 } satisfies FieldMap;
 
