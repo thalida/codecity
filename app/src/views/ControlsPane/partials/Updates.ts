@@ -5,7 +5,6 @@ import { LIVE_UPDATES } from '@/state/stores/settings/updates';
 export const UPDATES_SECTION: SectionNode = {
   key: 'updates',
   label: 'Scan & Updates',
-  description: 'What the scanner picks up, and how it stays in sync.',
   children: [
     {
       key: 'live-updates',

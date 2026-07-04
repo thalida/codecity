@@ -121,7 +121,13 @@ export function Field({ store, fieldKey }: FieldProps) {
     }
   }
 
-  const inline = def.kind === FieldKind.Toggle || def.kind === FieldKind.Color;
+  // Compact controls sit inline (control to the right of the label); wide
+  // controls (slider, range-pair) stay stacked full-width.
+  const inline =
+    def.kind === FieldKind.Toggle ||
+    def.kind === FieldKind.Color ||
+    def.kind === FieldKind.Number ||
+    def.kind === FieldKind.Select;
   return (
     <ThemeRow
       label={def.label}

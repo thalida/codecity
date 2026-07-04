@@ -22,10 +22,10 @@ export function FilePreviewSection() {
 
   return (
     <div class="controls-inline-section">
-      <div class="controls-section-hint">Syntax highlight theme for the code preview pane.</div>
       <ThemeRow
         label="Syntax theme"
         tip="Highlight theme for the file preview; applies immediately."
+        inline
       >
         <select
           class="form-input form-input--select"
