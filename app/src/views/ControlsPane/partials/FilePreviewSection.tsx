@@ -1,6 +1,6 @@
 // views/ControlsPane/partials/FilePreviewSection.tsx — Syntax-highlight theme
-// picker. Stages a draft against SYNTAX_THEME; Save applies it (the CSS <link>
-// swaps on commit), like every other control.
+// picker. SYNTAX_THEME is autosave (write-through): setDraft/stageReset apply
+// the CSS <link> swap immediately, no Save step.
 
 import { getEffective, setDraft, stageReset } from '@/state/settingsDrafts';
 import { DRAFTS_REV } from '@/state/settingsDrafts';
@@ -23,7 +23,10 @@ export function FilePreviewSection() {
 
   return (
     <Section name="File Preview" hint="Syntax highlight theme for the code preview pane.">
-      <ThemeRow label="Syntax theme" tip="Highlight theme for the file preview; applies on Save.">
+      <ThemeRow
+        label="Syntax theme"
+        tip="Highlight theme for the file preview; applies immediately."
+      >
         <select
           class="form-input form-input--select"
           value={current}

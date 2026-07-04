@@ -8,6 +8,7 @@
 
 import {
   settingSignal,
+  markAutosave,
   FieldKind,
   ChangeRoute,
   type ConfigOf,
@@ -35,4 +36,6 @@ const LIVE_UPDATES_FIELDS = {
 } satisfies FieldMap;
 
 export const LIVE_UPDATES = settingSignal('LIVE_UPDATES', LIVE_UPDATES_FIELDS);
+// Autosave (write-through): the Updates tab applies on change, no Save step.
+markAutosave(LIVE_UPDATES);
 export type LiveUpdatesConfig = ConfigOf<typeof LIVE_UPDATES_FIELDS>;

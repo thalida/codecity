@@ -13,8 +13,9 @@ import {
   _resetForTests,
 } from '@/state/settingsDrafts';
 import { persistedSignal } from '@/state/persist';
-import { markSettingStore } from '@/state/settingsSchema';
+import { markSettingStore, _unregisterForTests } from '@/state/settingsSchema';
 import { SYNTAX_THEME, SYNTAX_THEME_DEFAULT } from '@/state/stores/settings/syntaxTheme';
+import { LIVE_UPDATES } from '@/state/stores/settings/updates';
 
 interface FooConfig {
   COLOR: string;
@@ -32,6 +33,12 @@ describe('drafts', () => {
     // registration.
     localStorage.clear();
     _resetForTests();
+    // Unregister the previous run's stores first — each test gets a fresh
+    // signal instance, and without this the old ones (possibly left at a
+    // non-default committed value by a prior test) leak into later
+    // anyResettable()/stageResetAll() sweeps forever.
+    if (FOO) _unregisterForTests(FOO);
+    if (BAR) _unregisterForTests(BAR);
     FOO = persistedSignal<FooConfig>('TEST_FOO', { COLOR: '#000000', COUNT: 1 });
     BAR = persistedSignal<number>('TEST_BAR', 10);
     // Real settings stores are auto-marked by settingSignal; these raw
@@ -236,39 +243,39 @@ describe('drafts', () => {
   });
 });
 
-describe('SYNTAX_THEME participates in the draft layer', () => {
+describe('autosave (write-through) stores apply instantly', () => {
   beforeEach(() => {
     SYNTAX_THEME.value = SYNTAX_THEME_DEFAULT;
     _resetForTests();
   });
 
-  it('setDraft does not touch the committed signal until commit', () => {
+  it('setDraft on SYNTAX_THEME writes the signal immediately, no draft staged', () => {
     setDraft(SYNTAX_THEME, null, 'monokai');
-    expect(SYNTAX_THEME.value).toBe(SYNTAX_THEME_DEFAULT); // not applied yet
-    expect(isDirty()).toBe(true);
-    commit();
-    expect(SYNTAX_THEME.value).toBe('monokai'); // applied on Save
+    expect(SYNTAX_THEME.value).toBe('monokai'); // applied instantly
+    expect(isDirty()).toBe(false); // nothing staged
+  });
+
+  it('stageReset on an autosave store writes the default immediately', () => {
+    setDraft(SYNTAX_THEME, null, 'monokai');
+    stageReset(SYNTAX_THEME, null);
+    expect(SYNTAX_THEME.value).toBe(SYNTAX_THEME_DEFAULT);
     expect(isDirty()).toBe(false);
   });
 
-  it('discard drops a staged theme change', () => {
-    setDraft(SYNTAX_THEME, null, 'nord');
-    discard();
-    expect(SYNTAX_THEME.value).toBe(SYNTAX_THEME_DEFAULT);
+  it('stageResetAll / anyResettable ignore autosave stores (World-only reset)', () => {
+    SYNTAX_THEME.value = 'monokai'; // non-default, but autosave
+    // With no World drafts, Reset-all sees nothing to do and does not touch SYNTAX_THEME.
+    expect(anyResettable()).toBe(false);
+    stageResetAll();
+    expect(SYNTAX_THEME.value).toBe('monokai'); // untouched by Reset-all
   });
 
-  it('stageResetAll (Reset all) stages a draft, it does not instant-write the signal', () => {
-    SYNTAX_THEME.value = 'monokai';
-    expect(anyResettable()).toBe(true);
-    stageResetAll();
-    // Reset all only STAGES a draft; the committed signal must be untouched
-    // until Save. This is exactly what the removed _skipDrafts branch used
-    // to special-case (it wrote SYNTAX_THEME.value directly here).
-    expect(SYNTAX_THEME.value).toBe('monokai');
-    expect(getEffective(SYNTAX_THEME, null)).toBe(SYNTAX_THEME_DEFAULT);
-    expect(isDirty()).toBe(true);
-    commit();
-    expect(SYNTAX_THEME.value).toBe(SYNTAX_THEME_DEFAULT);
-    expect(anyResettable()).toBe(false);
+  it('LIVE_UPDATES field write applies immediately', () => {
+    const before = LIVE_UPDATES.value.POLL_SECONDS;
+    setDraft(LIVE_UPDATES, 'POLL_SECONDS', before + 5);
+    expect(LIVE_UPDATES.value.POLL_SECONDS).toBe(before + 5);
+    expect(isDirty()).toBe(false);
+    // restore
+    setDraft(LIVE_UPDATES, 'POLL_SECONDS', before);
   });
 });

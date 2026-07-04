@@ -97,10 +97,33 @@ export function markSettingStore(store: object): void {
   _SETTING_STORES.add(store);
 }
 
+/** Test-only: drop a store from the registry. Tests that create disposable
+ *  per-test stores via persistedSignal + markSettingStore must unregister the
+ *  previous instance before making a new one, or it leaks into later
+ *  assertions like anyResettable()/HAS_ANY_NON_DEFAULT forever. */
+export function _unregisterForTests(store: object): void {
+  _SETTING_STORES.delete(store);
+  _FIELDS.delete(store);
+}
+
 /** Visit every settings store (settingSignal + hand-registered). The settings
  *  draft/reset machinery uses this instead of persist.forEachRegisteredStore. */
 export function forEachSettingStore(cb: (store: { value: unknown }) => void): void {
   for (const s of _SETTING_STORES) cb(s as { value: unknown });
+}
+
+const _AUTOSAVE_STORES = new WeakSet<object>();
+
+/** Mark a settings store as write-through: its widgets apply on change
+ *  (bypassing the draft/Save layer) instead of staging drafts. Used by the
+ *  autosave tabs (Updates, Preview) whose settings are cheap and want instant
+ *  feedback. */
+export function markAutosave(store: object): void {
+  _AUTOSAVE_STORES.add(store);
+}
+
+export function isAutosave(store: object): boolean {
+  return _AUTOSAVE_STORES.has(store);
 }
 
 /** True when ANY settings store holds a (committed) non-default value — drives

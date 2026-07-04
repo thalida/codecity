@@ -11,7 +11,7 @@
 
 import { signal } from '@preact/signals';
 import { getDefault } from './persist';
-import { forEachSettingStore } from './settingsSchema';
+import { forEachSettingStore, isAutosave } from './settingsSchema';
 import { deepEqual, deepClone } from '@/utils/deep';
 
 interface SignalLike {
@@ -44,6 +44,12 @@ function _committedValue(store: SignalLike, key: DraftKey): unknown {
 }
 
 export function setDraft(store: SignalLike, key: DraftKey, value: unknown): void {
+  if (isAutosave(store as object)) {
+    // Write-through: apply immediately, never stage (Updates / Preview tabs).
+    store.value = key === null ? value : { ...store.value, [key]: value };
+    _emit();
+    return;
+  }
   const committed = _committedValue(store, key);
   let perStore = _drafts.get(store);
   if (deepEqual(value, committed)) {
@@ -80,6 +86,7 @@ export function stageReset(store: SignalLike, key: DraftKey): void {
 export function stageResetAll(): void {
   let touched = false;
   forEachSettingStore((store) => {
+    if (isAutosave(store as object)) return; // Reset-all is World-only
     const defaults = getDefault(store);
     if (defaults && typeof defaults === 'object' && !Array.isArray(defaults)) {
       // Object-valued signal: stage each sub-key whose effective value differs from default.
@@ -107,8 +114,9 @@ export function stageResetAll(): void {
 export function anyResettable(): boolean {
   let any = false;
   forEachSettingStore((store) => {
-    const defaults = getDefault(store);
     if (any) return;
+    if (isAutosave(store as object)) return; // Reset-all is World-only
+    const defaults = getDefault(store);
     if (defaults && typeof defaults === 'object' && !Array.isArray(defaults)) {
       for (const k in defaults) {
         if (!Object.hasOwn(defaults, k)) continue;
