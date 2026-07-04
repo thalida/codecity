@@ -1,7 +1,7 @@
 // views/ProjectsView/ProjectsView.tsx — full-viewport project switcher. Reads
 // PROJECTS_VIEW + SERVER_CONFIG for open-state/prefill; App owns
 // onSubmit/onCancel/onClose. Renders null when closed so the form/list state
-// resets on next open. Replaces the old modal SourcePicker.
+// resets on next open.
 //
 // This view is the loading surface for every switch it initiates (design
 // invariant): while SCAN_PROGRESS is non-null it renders inline progress in

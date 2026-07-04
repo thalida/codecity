@@ -1,8 +1,6 @@
 /* ── Recents hero ────────────────────────────────────────────────────────
-   Filter box + keyboard-navigable list. Rules ported from the old
-   SourcePicker's .recents-list block; renamed to the new recents-forward
-   structure (filter input, .recent-row--highlighted keyboard cursor,
-   inline remove-confirm). */
+   Filter box + keyboard-navigable list (filter input,
+   .recent-row--highlighted keyboard cursor, inline remove-confirm). */
 
 .recents {
   margin-top: var(--cc-space-7);

@@ -18,7 +18,9 @@ def client(tmp_path: Path) -> TestClient:
     return TestClient(create_app(static_dir=static))
 
 
-def test_branches_happy_path(client: TestClient, make_fake_remote, tmp_path: Path) -> None:
+def test_branches_happy_path(
+    client: TestClient, make_fake_remote, tmp_path: Path
+) -> None:
     bare, _ = make_fake_remote(tmp_path)
     r = client.get("/api/branches", params={"src": f"file://{bare}"})
     assert r.status_code == 200

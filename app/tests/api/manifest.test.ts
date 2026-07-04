@@ -38,7 +38,9 @@ const fakeManifest = { root: '/r', tree: { type: 'directory' } };
 describe('streamManifest (EventSource)', () => {
   it('maps named SSE events to ScanStreamEvents in order and stops after manifest-complete', async () => {
     const { ctor, last } = makeES();
-    const it = streamManifest('/api/manifest?src=x', { EventSourceImpl: ctor })[Symbol.asyncIterator]();
+    const it = streamManifest('/api/manifest?src=x', { EventSourceImpl: ctor })[
+      Symbol.asyncIterator
+    ]();
     const es = last();
     es.emit('scan-progress', JSON.stringify({ display_root: 'x', files_scanned: 3 }));
     es.emit('manifest-partial', JSON.stringify({ manifest: fakeManifest }));

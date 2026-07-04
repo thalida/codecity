@@ -16,7 +16,13 @@ describe('RecentsList', () => {
     container = document.createElement('div');
     document.body.appendChild(container);
     RECENTS.value = [
-      { src: 'https://github.com/o/alpha', branch: 'main', branchIsDefault: true, label: 'o/alpha', lastOpenedAt: 2 },
+      {
+        src: 'https://github.com/o/alpha',
+        branch: 'main',
+        branchIsDefault: true,
+        label: 'o/alpha',
+        lastOpenedAt: 2,
+      },
       { src: 'https://github.com/o/beta', branch: 'dev', label: 'o/beta', lastOpenedAt: 1 },
     ];
     CURRENT_SOURCE.value = { src: 'https://github.com/o/alpha', branch: 'main' };
@@ -49,7 +55,9 @@ describe('RecentsList', () => {
     filterInput.dispatchEvent(new Event('input', { bubbles: true }));
     await flush();
 
-    const labels = Array.from(container.querySelectorAll('.recent-label')).map((el) => el.textContent);
+    const labels = Array.from(container.querySelectorAll('.recent-label')).map(
+      (el) => el.textContent
+    );
     expect(labels).not.toContain('o/alpha');
     expect(labels).toContain('o/beta');
   });

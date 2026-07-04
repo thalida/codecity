@@ -1,0 +1,49 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   LAYER-2 COMPONENTS — Modal chrome
+   ═══════════════════════════════════════════════════════════════════════════
+   Shared backdrop + card layout for DebugModal, ShortcutsModal, and
+   LoadingOverlay (ProjectsView is a full-viewport surface, not a modal, so it
+   doesn't use these). Surface fill/radius/shadow comes from .card-overlay;
+   this file only adds backdrop positioning + the header/body column layout.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.modal-backdrop,
+.loading-backdrop {
+  position: fixed;
+  inset: 0;
+  background: var(--cc-bg-backdrop);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal-card {
+  width: 560px;
+  max-width: 92vw;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  font-family: inherit;
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--cc-space-5) var(--cc-space-6);
+  border-bottom: 1px solid var(--cc-border-subtle);
+  font-weight: var(--cc-fw-semibold);
+}
+/* Modal-close × is a .btn-icon + .btn-icon--lg; this hover uses a stronger
+   overlay than other icon buttons, with no color change. */
+.modal-header .btn-icon:not(:disabled):hover {
+  background: var(--cc-overlay-bg-strong);
+}
+
+.modal-body {
+  padding: var(--cc-space-5) var(--cc-space-6);
+  overflow-y: auto;
+  flex: 1;
+}

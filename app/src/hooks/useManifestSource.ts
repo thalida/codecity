@@ -301,12 +301,12 @@ function setupLiveUpdates(): () => void {
  * Boot the manifest FETCH pipeline on mount: stream the initial manifest from
  * ?src into MANIFEST, fetch the server config, and start live updates.
  * Scene-free — the render layer (the City component) consumes MANIFEST and paints the
- * scene. UI-free too: it never opens/closes the source picker; on a load failure
+ * scene. UI-free too: it never opens/closes ProjectsView; on a load failure
  * (boot or submit) it WRITES the canonical SOURCE_ERROR signal and App reacts to
- * coordinate the picker. A user-initiated cancel (`cancelLoad`) aborts the
+ * coordinate ProjectsView. A user-initiated cancel (`cancelLoad`) aborts the
  * in-flight stream but is NOT surfaced as a load failure — no SOURCE_ERROR write.
- * RETURNS the source-picker submit handler and a cancel handler so App can pass
- * them down to <SourcePicker>/the loading overlay as props (no global
+ * RETURNS the submit handler and a cancel handler so App can pass
+ * them down to <ProjectsView>/the loading overlay as props (no global
  * register/invoke channel).
  */
 export function useManifestSource(): {

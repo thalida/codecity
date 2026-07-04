@@ -2,10 +2,9 @@
 // the header's flag-gated bug icon (see utils/debugMode). Signal-driven like
 // ShortcutsModal: App mounts one instance unconditionally, it reads
 // DEBUG_OPEN directly and renders null when closed. Chrome
-// (.modal-backdrop/.modal-card/.modal-header/.modal-body) reuses the classes
-// defined in views/SourcePicker/SourcePicker.css — that component is always
-// mounted, so the rules are already global; this file only adds the
-// action-button layout.
+// (.modal-backdrop/.modal-card/.modal-header/.modal-body) reuses the global
+// classes defined in styles/modal.css; this file only adds the action-button
+// layout.
 
 import './DebugModal.css';
 import { useEffect, useRef } from 'preact/hooks';

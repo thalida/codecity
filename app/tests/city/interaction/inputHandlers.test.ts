@@ -1,6 +1,6 @@
 // city/interaction/inputHandlers.test.ts — the scene's document-level keydown
 // handler must not fire scene keybindings (Esc-deselect, R, F) while a modal
-// (Shortcuts/Debug/SourcePicker) is open. The handler bails out early when the
+// (Shortcuts/Debug/ProjectsView) is open. The handler bails out early when the
 // MODAL_OPEN signal is set — see the "modal owns keyboard input" guard in
 // inputHandlers.ts, right after the text-input early-return.
 //
