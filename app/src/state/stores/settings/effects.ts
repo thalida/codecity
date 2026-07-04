@@ -92,7 +92,7 @@ const BLOOM_FIELDS = {
     max: 2.0,
     step: 0.05,
     label: 'Threshold (cutoff)',
-    tip: 'Luma cutoff below which pixels never bloom. Lower means more pixels glow, higher means fewer.',
+    tip: 'Brightness cutoff for glow: lower blooms more pixels, higher fewer. At 1.0 and above only bright windows bloom, not matte walls.',
   },
 } satisfies FieldMap;
 

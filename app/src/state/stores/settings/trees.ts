@@ -67,7 +67,7 @@ const TREES_FIELDS = {
     max: 400,
     step: 4,
     label: 'Min height',
-    tip: 'Tree height for the newest commit. Older commits grow taller toward Max height.',
+    tip: 'Tree height for the newest commit, independent of building size. Older commits grow taller toward Max height.',
   },
   MAX_HEIGHT: {
     route: ChangeRoute.Rebuild,
@@ -107,7 +107,7 @@ const TREES_FIELDS = {
     max: 400,
     step: 2,
     label: 'Min canopy width',
-    tip: 'Canopy diameter for commits that changed the fewest files.',
+    tip: 'Canopy diameter for commits that changed the fewest files, independent of building size.',
   },
   MAX_WIDTH: {
     route: ChangeRoute.Rebuild,
