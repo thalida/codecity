@@ -1,52 +1,54 @@
-// views/ControlsPane/index.tsx — "Controls" tab in the left sidebar.
+// views/ControlsPane/ControlsPane.tsx — "Settings" tab in the left sidebar.
 //
-// Composition shell. The body content lives in per-section components
-// under ./controls/; this file just lays out the section order and the
-// sticky action bar.
+// Composition shell. The 13 sections are grouped onto PaneTabs subtabs; the
+// active subtab's sections render into the scrolling body. The sticky
+// ActionsBar (Reset all · Discard · Save) shows only on DRAFTABLE subtabs
+// (World, Updates, Preview) — Shortcuts is reference and Debug is actions, so
+// there is nothing to Save there.
 //
-// Layout:
-//   .controls-pane (flex column)
-//     .pane-header     — shared header (title + × close) via PaneHeader
-//     .controls-body   — scrollable column of sections
-//     ActionsBar       — sticky bottom: Reset all (left) · Discard · Save (right)
-//
-// Per-row affordance: every input mutates a single in-memory draft
-// layer (state/settingsDrafts.ts). Save commits drafts to the real signals,
-// which triggers the existing reaction effects (a material-refresh or a
-// full applyManifest rebuild). Discard clears drafts without touching
-// signals. Section / collapsible-subgroup open state is intentionally
-// NOT persisted — the `collapsed` prop (driven by the sidebar's collapsed
-// state) collapses every <details> when the panel is hidden, so it always
-// reopens fresh.
+// Section / subgroup open-state is intentionally NOT persisted: when the pane
+// hides we collapse every <details> and reset the active subtab to World, so
+// the panel always reopens fresh.
 
 import './ControlsPane.css';
-import { useEffect, useRef } from 'preact/hooks';
+import { useEffect, useRef, useState } from 'preact/hooks';
+import { Boxes, RefreshCw, Eye, Keyboard, Bug } from 'lucide-preact';
+import type { LucideIcon } from 'lucide-preact';
 import { ShortcutsSection } from './partials/ShortcutsSection/ShortcutsSection';
-
 import { FilePreviewSection } from './partials/FilePreviewSection';
 import { DebugSection } from './partials/DebugSection';
 import { DynamicSection, type SectionNode } from './partials';
-import { TREES_SECTION } from './partials/Trees';
-import { EFFECTS_SECTION } from './partials/Effects';
-import { FIREFLIES_SECTION } from './partials/Fireflies';
-import { UPDATES_SECTION } from './partials/Updates';
-import { ISLAND_SECTION } from './partials/Island';
 import { SCENE_SECTION } from './partials/Scene';
-import { GEM_SECTION } from './partials/Gem';
+import { ISLAND_SECTION } from './partials/Island';
+import { BUILDINGS_SECTION } from './partials/Buildings';
 import { STREETS_SECTION } from './partials/Streets';
 import { FOOTPRINT_SECTION } from './partials/Footprint';
-import { BUILDINGS_SECTION } from './partials/Buildings';
+import { GEM_SECTION } from './partials/Gem';
+import { TREES_SECTION } from './partials/Trees';
+import { FIREFLIES_SECTION } from './partials/Fireflies';
+import { EFFECTS_SECTION } from './partials/Effects';
+import { UPDATES_SECTION } from './partials/Updates';
 import { ActionsBar } from './ActionsBar/ActionsBar';
 import { Pane } from '@/components/Pane';
+import { PaneCloseButton } from '@/components/PaneHeader/PaneHeader';
+import { PaneTabs } from '@/components/PaneTabs/PaneTabs';
+
+interface Subtab {
+  id: string;
+  label: string;
+  icon: LucideIcon;
+  /** Draftable subtabs get the Save/Discard/Reset footer. */
+  draftable: boolean;
+  sections: SectionNode[];
+}
 
 export interface ControlsPaneProps {
   onClose?: () => void;
   onRunCollisionCheck?: () => void;
   onRunStemDiagnostic?: () => void;
   /** When true the panel is hidden (sidebar collapsed). On that transition we
-   *  collapse every section so the panel reopens fresh — section open-state is
-   *  intentionally not persisted across opens. Declarative: the parent just
-   *  passes its collapsed state; no imperative reset call. */
+   *  collapse every section and reset to the World subtab so the panel reopens
+   *  fresh. Declarative: the parent just passes its collapsed state. */
   collapsed?: boolean;
 }
 
@@ -57,53 +59,90 @@ export function ControlsPane({
   collapsed,
 }: ControlsPaneProps) {
   const paneRef = useRef<HTMLDivElement>(null);
+  const [activeId, setActiveId] = useState('world');
 
-  useEffect(() => {
-    if (!collapsed || !paneRef.current) return;
-    paneRef.current.querySelectorAll<HTMLDetailsElement>('details').forEach((d) => {
-      d.open = false;
-    });
-  }, [collapsed]);
-
-  // Top-level section order. Schema-driven sections are SectionNodes (rendered
-  // by DynamicSection); not-yet-migrated ones are bespoke components carried as
-  // `render`. As each section is converted its entry flips from a render shim
-  // to its imported *_SECTION node. (DebugSection stays a render entry — it
-  // needs the run-* callbacks passed down here.)
-  const sections: SectionNode[] = [
-    { key: 'shortcuts', render: <ShortcutsSection /> },
-    UPDATES_SECTION,
-    SCENE_SECTION,
-    ISLAND_SECTION,
-    BUILDINGS_SECTION,
-    STREETS_SECTION,
-    FOOTPRINT_SECTION,
-    GEM_SECTION,
-    TREES_SECTION,
-    FIREFLIES_SECTION,
-    EFFECTS_SECTION,
-    { key: 'file-preview', render: <FilePreviewSection /> },
+  const subtabs: Subtab[] = [
     {
-      key: 'debug',
-      render: (
-        <DebugSection
-          onRunCollisionCheck={onRunCollisionCheck}
-          onRunStemDiagnostic={onRunStemDiagnostic}
-        />
-      ),
+      id: 'world',
+      label: 'World',
+      icon: Boxes,
+      draftable: true,
+      sections: [
+        SCENE_SECTION,
+        ISLAND_SECTION,
+        BUILDINGS_SECTION,
+        STREETS_SECTION,
+        FOOTPRINT_SECTION,
+        GEM_SECTION,
+        TREES_SECTION,
+        FIREFLIES_SECTION,
+        EFFECTS_SECTION,
+      ],
+    },
+    {
+      id: 'updates',
+      label: 'Updates',
+      icon: RefreshCw,
+      draftable: true,
+      sections: [UPDATES_SECTION],
+    },
+    {
+      id: 'preview',
+      label: 'Preview',
+      icon: Eye,
+      draftable: true,
+      sections: [{ key: 'file-preview', render: <FilePreviewSection /> }],
+    },
+    {
+      id: 'shortcuts',
+      label: 'Shortcuts',
+      icon: Keyboard,
+      draftable: false,
+      sections: [{ key: 'shortcuts', render: <ShortcutsSection /> }],
+    },
+    {
+      id: 'debug',
+      label: 'Debug',
+      icon: Bug,
+      draftable: false,
+      sections: [
+        {
+          key: 'debug',
+          render: (
+            <DebugSection
+              onRunCollisionCheck={onRunCollisionCheck}
+              onRunStemDiagnostic={onRunStemDiagnostic}
+            />
+          ),
+        },
+      ],
     },
   ];
+
+  const active = subtabs.find((t) => t.id === activeId) ?? subtabs[0];
+
+  useEffect(() => {
+    if (!collapsed) return;
+    setActiveId('world');
+    paneRef.current
+      ?.querySelectorAll<HTMLDetailsElement>('details')
+      .forEach((d) => (d.open = false));
+  }, [collapsed]);
 
   return (
     <Pane
       paneClass="controls-pane"
-      title="Settings"
-      onClose={onClose}
-      bodyClass="pane-body--padded"
-      footerSlot={<ActionsBar />}
       paneRef={paneRef}
+      headerSlot={
+        <div class="pane-header pane-header--tabs">
+          <PaneTabs tabs={subtabs} active={activeId} onSelect={setActiveId} />
+          {onClose && <PaneCloseButton onClose={onClose} />}
+        </div>
+      }
+      bodyClass="pane-body--padded"
+      footerSlot={active.draftable ? <ActionsBar /> : null}
     >
-      {sections.map((node) => (
+      {active.sections.map((node) => (
         <DynamicSection key={node.key} node={node} />
       ))}
     </Pane>
