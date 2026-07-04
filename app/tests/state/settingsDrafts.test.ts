@@ -5,6 +5,7 @@ import {
   getEffective,
   stageReset,
   stageResetAll,
+  anyResettable,
   commit,
   discard,
   isDirty,
@@ -254,5 +255,20 @@ describe('SYNTAX_THEME participates in the draft layer', () => {
     setDraft(SYNTAX_THEME, null, 'nord');
     discard();
     expect(SYNTAX_THEME.value).toBe(SYNTAX_THEME_DEFAULT);
+  });
+
+  it('stageResetAll (Reset all) stages a draft, it does not instant-write the signal', () => {
+    SYNTAX_THEME.value = 'monokai';
+    expect(anyResettable()).toBe(true);
+    stageResetAll();
+    // Reset all only STAGES a draft; the committed signal must be untouched
+    // until Save. This is exactly what the removed _skipDrafts branch used
+    // to special-case (it wrote SYNTAX_THEME.value directly here).
+    expect(SYNTAX_THEME.value).toBe('monokai');
+    expect(getEffective(SYNTAX_THEME, null)).toBe(SYNTAX_THEME_DEFAULT);
+    expect(isDirty()).toBe(true);
+    commit();
+    expect(SYNTAX_THEME.value).toBe(SYNTAX_THEME_DEFAULT);
+    expect(anyResettable()).toBe(false);
   });
 });
