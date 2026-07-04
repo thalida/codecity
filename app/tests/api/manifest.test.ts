@@ -105,4 +105,20 @@ describe('streamManifest (EventSource)', () => {
     expect(r.done).toBe(true);
     expect(last().closed).toBe(true); // EventSource was closed on abort
   });
+
+  it('ends immediately when the signal is already aborted before iteration', async () => {
+    const { ctor, last } = makeES();
+    const ac = new AbortController();
+    ac.abort(); // aborted BEFORE the iterator is created
+    const it = streamManifest('/api/manifest', {
+      signal: ac.signal,
+      EventSourceImpl: ctor,
+    })[Symbol.asyncIterator]();
+    // The abort-wiring block runs after finish() is declared, so an
+    // already-aborted signal closes the stream at iterator-creation time
+    // without a TDZ ReferenceError.
+    expect(last().closed).toBe(true);
+    const r = await it.next();
+    expect(r.done).toBe(true);
+  });
 });

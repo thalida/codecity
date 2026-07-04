@@ -152,7 +152,11 @@ export async function loadSource(payload: SourcePayload): Promise<void> {
       },
       controller.signal
     );
-    if (myGen !== loadGeneration) return; // a newer load superseded this one
+    // A newer load superseded this one, OR the user canceled after a skeleton
+    // arrived: streamManifest ends an aborted stream as done (not a throw), so
+    // pumpManifestStream RETURNS the partial manifest here. Guard the commit so
+    // a canceled load never writes CURRENT_SOURCE (mirrors the catch guard).
+    if (myGen !== loadGeneration || controller.signal.aborted) return;
     // Commit the source BEFORE publishing the final manifest. The render layer's
     // camera-reframe reaction keys off CURRENT_SOURCE captured at apply-START, so
     // the new key must be live for the FINAL apply (the one to frame on) and NOT
