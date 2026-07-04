@@ -1,8 +1,7 @@
 .almanac {
-  padding: 12px var(--cc-space-7); /* 16px horizontal — matches every other pane's content inset */
+  padding: 12px var(--cc-space-7); /* horizontal — matches every other pane's content inset */
   display: flex;
   flex-direction: column;
-  /* 12px here + 12px section padding-top = balanced space around each divider. */
   gap: 12px;
 }
 
@@ -110,7 +109,7 @@
 }
 
 /* Stacked composition bar: each language's share of the repo, in the same hues
- * as its legend chip. The 1px gaps let the track show through as hairlines. */
+ * as its legend chip. The gaps let the track show through as hairlines. */
 .almanac-langbar {
   display: flex;
   gap: 1px;
@@ -257,9 +256,9 @@
   gap: 8px;
   /* The row is a flex item, so it stretches to the section/duo width on its own
    * (definite width → the value truncates instead of overflowing — no calc()
-   * hack needed). The −8px margins then do one job: bleed the hover highlight
+   * hack needed). The negative margins then do one job: bleed the hover highlight
    * into the gutter so the text stays flush with the header while the highlight
-   * keeps its 8px inner padding. */
+   * keeps its own inner padding. */
   margin: 0 -8px;
   padding: 5px 8px;
   border-radius: var(--cc-radius-md);

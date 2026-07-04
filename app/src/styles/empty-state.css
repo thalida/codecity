@@ -14,24 +14,24 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: var(--cc-space-4); /* 8px */
-  padding: var(--cc-space-8) var(--cc-space-7); /* 24px 16px */
+  gap: var(--cc-space-4);
+  padding: var(--cc-space-8) var(--cc-space-7);
   color: var(--cc-text-faint);
   text-align: center;
 }
 .empty-state .lucide-icon {
   opacity: 0.55;
   font-size: var(--cc-font-3xl);
-  margin-bottom: var(--cc-space-1); /* 2px */
+  margin-bottom: var(--cc-space-1);
 }
 /* Large variant — bigger gap + padding + icon. Used by the file-preview
    pane and the info pane's empty / error states. */
 .empty-state--lg .lucide-icon {
   font-size: var(--cc-font-4xl);
-  margin-bottom: var(--cc-space-2); /* 4px */
+  margin-bottom: var(--cc-space-2);
 }
 .empty-state--lg {
-  padding: var(--cc-space-9) var(--cc-space-7); /* 32px 16px */
+  padding: var(--cc-space-9) var(--cc-space-7);
 }
 /* The card title + subtitle render tightly inside the state card: kill the
    margin and cap the subtitle width regardless of which text-* class they use. */

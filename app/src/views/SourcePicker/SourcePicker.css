@@ -8,7 +8,7 @@
   color: var(--cc-text-primary);
   font: inherit;
   font-size: var(--cc-font-lg);
-  padding: var(--cc-space-2) var(--cc-space-4); /* 4px 8px */
+  padding: var(--cc-space-2) var(--cc-space-4);
   outline: none;
 }
 .modal-field input::placeholder {
@@ -26,8 +26,9 @@
 
 /* ── Source picker modal + loading overlay ───────────────────────────────
    Radius convention (per docs/ui-styleguide-audit.md §6 Inconsistency 3):
-   outer .modal-card is 10px; every interactive child (close button, tabs,
-   input, error, submit button) is 6px. Keep new modal children at 6px. */
+   outer .modal-card uses --cc-radius-lg; every interactive child (close button,
+   tabs, input, error, submit button) uses --cc-radius-md. Keep new modal
+   children at --cc-radius-md. */
 
 .modal-backdrop,
 .loading-backdrop {
@@ -63,7 +64,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: var(--cc-space-5) var(--cc-space-6); /* 10px 12px */
+  padding: var(--cc-space-5) var(--cc-space-6);
   border-bottom: 1px solid var(--cc-border-subtle);
   font-weight: var(--cc-fw-semibold);
 }
@@ -73,7 +74,7 @@
    icon-button component definition: .modal-header .btn-icon:not(:disabled):hover. */
 
 .modal-body {
-  padding: var(--cc-space-5) var(--cc-space-6); /* 10px 12px */
+  padding: var(--cc-space-5) var(--cc-space-6);
   overflow-y: auto;
   flex: 1;
 }
@@ -156,7 +157,7 @@
 }
 /* Typography in .text-label. */
 .recents-list h3 {
-  margin: 0 0 var(--cc-space-4); /* 0 0 8px */
+  margin: 0 0 var(--cc-space-4);
 }
 /* Each recent project is a .recent-item row: a .recent-row click target
    that opens the project, plus a sibling .btn-icon that removes it.
@@ -180,8 +181,8 @@
   text-align: left;
   color: inherit;
   font: inherit;
-  gap: var(--cc-space-5); /* 10px (base row gap is 4px) */
-  padding: var(--cc-space-3) var(--cc-space-4); /* 6px 8px (base is 4px 16px) */
+  gap: var(--cc-space-5);
+  padding: var(--cc-space-3) var(--cc-space-4);
   border-radius: var(--cc-radius-md); /* base row radius is sm */
 }
 .recent-row:hover {
@@ -220,7 +221,7 @@
    on hover, with a red-tinted hover background. Vertical padding gives
    the icon breathing room and a generous vertical click target. */
 .recent-item .btn-icon[data-action='recent-remove'] {
-  padding: var(--cc-space-4) var(--cc-space-2); /* 8px 4px */
+  padding: var(--cc-space-4) var(--cc-space-2);
   color: var(--cc-error);
 }
 .recent-item .btn-icon[data-action='recent-remove']:hover {

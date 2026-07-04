@@ -40,7 +40,7 @@
    .btn-icon    — default 24×24 icon button with hover overlay.
    Modifiers:
      .btn-icon--sm    — 22×22 (footer chrome).
-     .btn-icon--lg    — auto size via padding, 18px font, 6px radius
+     .btn-icon--lg    — auto size via padding, larger font and radius
                         (large × glyph like modal close).
      .btn-icon--text  — auto size via padding, inherits font/color
                         (text-style buttons like breadcrumb segments).
@@ -123,7 +123,7 @@
   align-items: center;
   gap: var(--cc-space-3);
   height: 24px;
-  padding: 0 var(--cc-space-3); /* symmetric 6px each side */
+  padding: 0 var(--cc-space-3); /* symmetric padding each side */
   background: none;
   border: none;
   color: var(--cc-text-faint);

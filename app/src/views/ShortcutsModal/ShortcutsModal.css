@@ -28,7 +28,7 @@
 .shortcuts-list {
   display: grid;
   grid-template-columns: auto 1fr;
-  gap: var(--cc-space-3) var(--cc-space-7); /* 6px rows, 16px cols */
+  gap: var(--cc-space-3) var(--cc-space-7);
   align-items: center;
   margin: var(--cc-space-4) 0 0;
   font-size: var(--cc-font-md);

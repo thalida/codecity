@@ -23,7 +23,7 @@
   padding: 6px 10px 8px; /* side padding runs the underline wider than the label */
   border: 0;
   border-bottom: 2px solid transparent;
-  margin-bottom: -1px; /* overlap the strip's 1px baseline */
+  margin-bottom: -1px; /* overlap the strip's baseline */
   background: transparent;
   color: var(--cc-text-muted); /* AA: faint fails 4.5:1 on the modal (bg-sidebar) surface */
   font: inherit;

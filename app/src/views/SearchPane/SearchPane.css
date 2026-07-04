@@ -9,7 +9,7 @@
   display: flex;
   align-items: center;
   gap: var(--cc-space-3);
-  padding: var(--cc-space-5) var(--cc-space-7); /* 16px horizontal — shared pane content inset */
+  padding: var(--cc-space-5) var(--cc-space-7); /* horizontal — shared pane content inset */
   border-bottom: 1px solid var(--cc-border-subtle);
 }
 

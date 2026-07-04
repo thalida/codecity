@@ -55,7 +55,7 @@
   text-overflow: ellipsis;
   display: flex;
   align-items: center;
-  gap: var(--cc-space-1); /* 2px; tight gap between truncation segments */
+  gap: var(--cc-space-1); /* tight gap between truncation segments */
 }
 .text-pane-title.is-mono {
   font-family: var(--cc-font-mono);

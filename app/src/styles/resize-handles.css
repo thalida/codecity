@@ -1,7 +1,7 @@
 /* ═══════════════════════════════════════════════════════════════════════════
    LAYER-2 COMPONENTS — Resize handle
    ═══════════════════════════════════════════════════════════════════════════
-   A 6px drag zone straddling the sidebar edge (half on / half off) so it's
+   A drag zone straddling the sidebar edge (half on / half off) so it's
    easy to grab. The edge modifier sets which side it anchors to and its
    stacking order. Shared by both sidebars (rendered by components/Sidebar).
    ═══════════════════════════════════════════════════════════════════════════ */
