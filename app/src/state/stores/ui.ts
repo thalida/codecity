@@ -120,3 +120,18 @@ export function setLoadingStepTail(step: LoadingStep, tail: string | null): void
     stepTails: { ...prev.stepTails, [step]: tail },
   };
 }
+
+// ── Shortcuts modal ──────────────────────────────────────────────────────────
+
+/** Whether the keyboard/mouse shortcuts reference modal is open. */
+export const SHORTCUTS_OPEN = signal(false);
+
+/** Open the shortcuts modal (header `?` icon). */
+export function openShortcuts(): void {
+  SHORTCUTS_OPEN.value = true;
+}
+
+/** Close the shortcuts modal. */
+export function closeShortcuts(): void {
+  SHORTCUTS_OPEN.value = false;
+}

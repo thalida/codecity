@@ -1,13 +1,13 @@
-/* ── ShortcutsSection ── */
+/* ── ShortcutsModal ── */
 
-/* Keyboard / mouse shortcuts table in the View section. Two-column grid:
+/* Keyboard / mouse shortcuts table. Two-column grid:
  *   [keys / mouse]   [action]
  * Section breaks (null entries in the data) render as a thin divider
  * spanning both columns. */
 .shortcuts-list {
   display: grid;
   grid-template-columns: auto 1fr;
-  gap: var(--cc-space-3) var(--cc-space-7); /* 6px rows, 16px cols (was 14) */
+  gap: var(--cc-space-3) var(--cc-space-7); /* 6px rows, 16px cols */
   align-items: center;
   margin: var(--cc-space-4) 0 0;
   font-size: var(--cc-font-md);
