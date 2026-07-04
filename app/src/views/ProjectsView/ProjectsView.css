@@ -1,0 +1,39 @@
+/* ── Projects view ──────────────────────────────────────────────────────────
+   Full-viewport surface (replaces the old .modal-backdrop overlay): opaque,
+   fixed, above the app shell, flex-centered panel. Panel surface (bg + radius
+   + shadow + color) comes from .card-overlay; this file adds size + layout. */
+
+.projects-view {
+  position: fixed;
+  inset: 0;
+  background: var(--cc-bg-app);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.projects-view-panel {
+  width: 640px;
+  max-width: 92vw;
+  max-height: 86vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  font-family: inherit;
+}
+
+.projects-view-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--cc-space-5) var(--cc-space-6);
+  border-bottom: 1px solid var(--cc-border-subtle);
+  font-weight: var(--cc-fw-semibold);
+}
+
+.projects-view-body {
+  padding: var(--cc-space-5) var(--cc-space-6);
+  overflow-y: auto;
+  flex: 1;
+}
