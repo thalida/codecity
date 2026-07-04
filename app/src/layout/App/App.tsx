@@ -13,6 +13,7 @@
 //   <SourcePicker />     — reads SOURCE_PICKER + SERVER_CONFIG directly
 //   <LoadingOverlay />   — reads LOADING_OVERLAY directly
 //   <ShortcutsModal />   — reads SHORTCUTS_OPEN directly
+//   <DebugModal />       — reads DEBUG_OPEN directly; scene commands passed as props
 
 import './App.css';
 import { useEffect } from 'preact/hooks';
@@ -25,9 +26,17 @@ import { LeftSidebar } from '../LeftSidebar/LeftSidebar';
 import { RightSidebar } from '../RightSidebar/RightSidebar';
 import { SourcePicker } from '@/views/SourcePicker/SourcePicker';
 import { ShortcutsModal } from '@/views/ShortcutsModal/ShortcutsModal';
+import { DebugModal } from '@/views/DebugModal/DebugModal';
 import { LoadingOverlay } from '@/components/LoadingOverlay/LoadingOverlay';
 import { HljsThemeLink } from '@/components/HljsThemeLink/HljsThemeLink';
-import { selectPath, resetView, focusCurrentSelection, clearSelection } from '@/state/stores/scene';
+import {
+  selectPath,
+  resetView,
+  focusCurrentSelection,
+  clearSelection,
+  runCollisionCheck,
+  runStemDiagnostic,
+} from '@/state/stores/scene';
 import {
   openSourcePicker,
   openSourcePickerForCurrentSource,
@@ -104,6 +113,7 @@ export function App() {
       />
       <LoadingOverlay />
       <ShortcutsModal />
+      <DebugModal onRunCollisionCheck={runCollisionCheck} onRunStemDiagnostic={runStemDiagnostic} />
       <HljsThemeLink />
     </>
   );

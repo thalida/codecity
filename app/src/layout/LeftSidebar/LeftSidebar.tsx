@@ -22,15 +22,7 @@ import { PERSISTED_KEYS } from '@/constants/storage';
 import { SidebarTab, NodeKind } from '@/types';
 import type { PickTarget, TreeNode } from '@/types';
 import { persistedSignal } from '@/state/persist';
-import {
-  SCENE_HANDLE,
-  selectPath,
-  focusPath,
-  hoverPath,
-  clearHover,
-  runCollisionCheck,
-  runStemDiagnostic,
-} from '@/state/stores/scene';
+import { SCENE_HANDLE, selectPath, focusPath, hoverPath, clearHover } from '@/state/stores/scene';
 import { MANIFEST } from '@/state/stores/manifest';
 import { CURRENT_SOURCE } from '@/state/stores/source';
 import { isEmptyManifest } from '@/utils/manifest';
@@ -168,7 +160,7 @@ export function LeftSidebar() {
   // Tree event handlers — bound to the current SCENE_HANDLE at call
   // time so they always operate on the live scene.
   // Tree rows hand back a TreeNode → adapt to a path. Path/nullary handlers
-  // (search, hover-end, debug) use the scene commands directly in the JSX below.
+  // (search, hover-end) use the scene commands directly in the JSX below.
   const onTreeSelect = (node: TreeNode) => {
     if (node?.path) selectPath(node.path);
   };
@@ -216,12 +208,7 @@ export function LeftSidebar() {
         )}
         {tab === SidebarTab.Info && <InfoPane manifest={MANIFEST} onClose={onPaneClose} />}
         {tab === SidebarTab.Controls && (
-          <ControlsPane
-            onClose={onPaneClose}
-            onRunCollisionCheck={runCollisionCheck}
-            onRunStemDiagnostic={runStemDiagnostic}
-            collapsed={effectiveCollapsed}
-          />
+          <ControlsPane onClose={onPaneClose} collapsed={effectiveCollapsed} />
         )}
       </div>
     </Sidebar>

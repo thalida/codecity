@@ -135,3 +135,18 @@ export function openShortcuts(): void {
 export function closeShortcuts(): void {
   SHORTCUTS_OPEN.value = false;
 }
+
+// ── Debug modal ──────────────────────────────────────────────────────────────
+
+/** Whether the developer-diagnostics modal is open. */
+export const DEBUG_OPEN = signal(false);
+
+/** Open the debug modal (header bug icon, flag-gated). */
+export function openDebug(): void {
+  DEBUG_OPEN.value = true;
+}
+
+/** Close the debug modal. */
+export function closeDebug(): void {
+  DEBUG_OPEN.value = false;
+}

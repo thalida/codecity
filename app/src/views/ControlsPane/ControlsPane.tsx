@@ -43,10 +43,6 @@ interface Subtab {
 
 export interface ControlsPaneProps {
   onClose?: () => void;
-  // Debug moved out of ControlsPane onto a header modal (Task 9); these stay
-  // threaded through until that lands, then drop from this component.
-  onRunCollisionCheck?: () => void;
-  onRunStemDiagnostic?: () => void;
   /** When true the panel is hidden (sidebar collapsed). On that transition we
    *  collapse every section and reset to the World subtab so the panel reopens
    *  fresh. Declarative: the parent just passes its collapsed state. */

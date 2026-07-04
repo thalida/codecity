@@ -1,5 +1,7 @@
 // vite-env.d.ts — ambient declarations for Vite-handled non-JS imports.
 
+/// <reference types="vite/client" />
+
 declare module '*.css';
 
 // ?raw imports — Vite's built-in raw-text loader returns the file contents

@@ -27,15 +27,7 @@ describe('ControlsPane subtabs', () => {
 
   function mount(opts: MountOpts = {}): HTMLElement {
     act(() => {
-      render(
-        <ControlsPane
-          onClose={opts.onClose}
-          onRunCollisionCheck={() => {}}
-          onRunStemDiagnostic={() => {}}
-          collapsed={opts.collapsed}
-        />,
-        container
-      );
+      render(<ControlsPane onClose={opts.onClose} collapsed={opts.collapsed} />, container);
     });
     return container.querySelector('.pane') as HTMLElement;
   }
@@ -110,15 +102,7 @@ describe('ControlsPane subtabs', () => {
     pane.querySelectorAll<HTMLDetailsElement>('details').forEach((d) => (d.open = true));
     clickTab(pane, 'Updates');
     act(() => {
-      render(
-        <ControlsPane
-          onClose={() => {}}
-          onRunCollisionCheck={() => {}}
-          onRunStemDiagnostic={() => {}}
-          collapsed={true}
-        />,
-        container
-      );
+      render(<ControlsPane onClose={() => {}} collapsed={true} />, container);
     });
     await flush();
     const repane = container.querySelector('.pane') as HTMLElement;
@@ -135,10 +119,7 @@ describe('subgroup group reset button', () => {
 
   function mount(): HTMLElement {
     act(() => {
-      render(
-        <ControlsPane onRunCollisionCheck={() => {}} onRunStemDiagnostic={() => {}} />,
-        container
-      );
+      render(<ControlsPane />, container);
     });
     return container.querySelector('.pane') as HTMLElement;
   }

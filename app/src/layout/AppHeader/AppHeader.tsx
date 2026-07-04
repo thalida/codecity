@@ -6,16 +6,17 @@
 // Layout (left → right):
 //   #app-header-left  — ResetViewButton + ProjectSwitcher + RepoLink
 //   #app-title        — CommitChip | PathBreadcrumbs (per current selection)
-//   #app-header-right — keyboard-shortcuts icon
+//   #app-header-right — debug icon (flag-gated) + keyboard-shortcuts icon
 
 import './AppHeader.css';
 import type { ComponentChildren } from 'preact';
-import { Keyboard } from 'lucide-preact';
+import { Keyboard, Bug } from 'lucide-preact';
 import { SCENE_HANDLE } from '@/state/stores/scene';
 import { MANIFEST } from '@/state/stores/manifest';
 import { ROOT_PATH } from '@/constants/manifest';
 import { SOURCE_INFO } from '@/state/stores/source';
-import { openSourcePicker, openShortcuts } from '@/state/stores/ui';
+import { openSourcePicker, openShortcuts, openDebug } from '@/state/stores/ui';
+import { isDebugMode } from '@/utils/debugMode';
 import { NodeKind, type Manifest } from '@/types';
 import { ResetViewButton } from '@/components/ResetViewButton';
 import { ProjectSwitcher } from '@/components/ProjectSwitcher/ProjectSwitcher';
@@ -91,6 +92,17 @@ export function AppHeader({
       </div>
       <div id="app-title">{title}</div>
       <div id="app-header-right">
+        {isDebugMode() && (
+          <button
+            type="button"
+            class="btn-icon btn-icon--no-drag"
+            title="Debug tools"
+            aria-label="Debug tools"
+            onClick={openDebug}
+          >
+            <Bug class="lucide-icon" />
+          </button>
+        )}
         <button
           type="button"
           class="btn-icon btn-icon--no-drag"
