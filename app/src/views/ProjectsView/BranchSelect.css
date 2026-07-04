@@ -1,0 +1,18 @@
+/* ── Branch select ── */
+
+.branch-select-status {
+  display: flex;
+  align-items: center;
+  gap: var(--cc-space-3);
+  font-size: var(--cc-font-lg);
+  color: var(--cc-text-muted);
+}
+
+.branch-select-spinner {
+  animation: branch-select-spin 0.8s linear infinite;
+}
+@keyframes branch-select-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
