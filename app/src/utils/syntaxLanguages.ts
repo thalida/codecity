@@ -35,12 +35,12 @@ export function humanLanguageFor(file: FileNode): string {
 
 /**
  * Friendly language label for a bare extension (".ts" → "TypeScript"). Unknown
- * extensions fall back to the uppercased extension ("EXR"). Returns null for an
- * empty extension or the "(none)" sentinel — there's no language to name, so
- * callers drop the clause instead of printing "(none)".
+ * extensions fall back to the uppercased extension ("EXR"). Returns null for a
+ * missing extension (empty/null) — there's no language to name, so callers drop
+ * the clause instead of printing a placeholder.
  */
-export function languageLabelForExt(ext: string): string | null {
-  if (!ext || ext === '(none)') return null;
+export function languageLabelForExt(ext: string | null): string | null {
+  if (!ext) return null;
   const key = EXT_LANG[ext.toLowerCase()];
   if (key) return LANGUAGE_LABELS[key] || key;
   return ext.replace(/^\./, '').toUpperCase();

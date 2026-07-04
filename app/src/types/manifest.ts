@@ -51,12 +51,12 @@ export interface FileNode {
 
 /**
  * One file-extension bucket in a directory's descendant breakdown. `ext` is
- * the lowercase extension (".ts") or "(none)" for extensionless files.
+ * the lowercase extension (".ts"), or null for extensionless files.
  * Computed once on the backend during the tree walk (see api/scan.py); the
  * street view reads it instead of re-walking the subtree on each selection.
  */
 export interface ExtBreakdownEntry {
-  ext: string;
+  ext: string | null;
   count: number;
   size: number;
 }

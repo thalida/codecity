@@ -412,6 +412,24 @@ class ScanTreeIntegrationTests(_CacheRedirectMixin, unittest.TestCase):
                 sub["descendants_file_count"],
             )
 
+    def test_ext_breakdown_extensionless_files_use_null(self):
+        # Extensionless files bucket under a null `ext` (not a "(none)"
+        # sentinel string), so the UI can branch on null instead of a
+        # magic value.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            _init_repo(root)
+            (root / "LICENSE").write_text("mit")
+            (root / "main.py").write_text("print()")
+            _commit_all(root)
+
+            m = _final_manifest(str(root))
+            breakdown = m["tree"]["descendants_ext_breakdown"]
+            exts = {e["ext"] for e in breakdown}
+            self.assertIn(None, exts)
+            self.assertNotIn("(none)", exts)
+            self.assertIn(".py", exts)
+
     def test_descendant_date_range_matches_repo_ranges(self):
         m = _final_manifest(str(FIXTURE))
         tree = m["tree"]

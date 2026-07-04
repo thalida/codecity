@@ -54,7 +54,7 @@ export interface AlmanacSection {
 }
 
 export interface LanguageStat {
-  ext: string;
+  ext: string | null;
   count: number;
 }
 
@@ -69,7 +69,8 @@ export interface AlmanacOverview {
    *  there are no commits. */
   latestDate: string | null;
   /** Friendly name of the dominant language ("TypeScript"), for the flavor
-   *  blurb. Null when the top file type has no nameable language ("(none)"). */
+   *  blurb. Null when the top file type has no nameable language (extensionless
+   *  or unrecognized). */
   topLanguage: string | null;
   /** Building count for the blurb — non-media files, matching the Buildings
    *  section (media render as billboards, not buildings). */

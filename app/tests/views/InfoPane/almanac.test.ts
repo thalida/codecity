@@ -163,7 +163,7 @@ describe('computeAlmanac — overview + buildings', () => {
   it('topLanguage is null when the dominant file type has no nameable language', () => {
     const t = {
       ...dir('repo', '', []),
-      descendants_ext_breakdown: [{ ext: '(none)', count: 4, size: 0 }],
+      descendants_ext_breakdown: [{ ext: null, count: 4, size: 0 }],
     } as DirNode;
     expect(computeAlmanac(manifest(t))!.overview.topLanguage).toBeNull();
   });

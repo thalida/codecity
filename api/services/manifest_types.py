@@ -68,11 +68,11 @@ class FileNode(TypedDict):
 
 class ExtBreakdownEntry(TypedDict):
     """One file-extension bucket within a directory's descendant breakdown.
-    `ext` is the lowercase extension (e.g. ".ts") or "(none)" for files with
-    no extension. Computed once during the tree walk so the UI's street view
+    `ext` is the lowercase extension (e.g. ".ts"), or null for files with no
+    extension. Computed once during the tree walk so the UI's street view
     reads it instead of re-walking the subtree on every selection."""
 
-    ext: str
+    ext: str | None
     count: int
     size: int
 

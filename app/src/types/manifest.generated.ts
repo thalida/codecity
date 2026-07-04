@@ -347,7 +347,7 @@ export interface components {
         /** ExtBreakdownEntry */
         ExtBreakdownEntry: {
             /** Ext */
-            ext: string;
+            ext: string | null;
             /** Count */
             count: number;
             /** Size */

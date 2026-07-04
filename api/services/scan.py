@@ -27,6 +27,7 @@ from typing import Any, Callable, Iterator
 
 from api.config import quiet
 from api.models.events import ScanEvent
+from .date_utils import max_iso, min_iso
 from .cache import (
     FileEntry,
     cache_load_files,
@@ -1014,27 +1015,9 @@ class _DirFrame:
         # strings, lexically comparable). None until the first file is seen.
         self.descendants_created_min: str | None = None
         self.descendants_modified_max: str | None = None
-        # ext (lowercase, "(none)" if absent) -> [count, total_size], over
-        # all descendant files. Merged up from child frames as they pop.
-        self.ext_breakdown: dict[str, list[int]] = {}
-
-
-def _min_iso(a: str | None, b: str | None) -> str | None:
-    """Lexically-smaller (earliest) of two ISO date strings, ignoring None."""
-    if a is None:
-        return b
-    if b is None:
-        return a
-    return a if a < b else b
-
-
-def _max_iso(a: str | None, b: str | None) -> str | None:
-    """Lexically-larger (latest) of two ISO date strings, ignoring None."""
-    if a is None:
-        return b
-    if b is None:
-        return a
-    return a if a > b else b
+        # ext (lowercase, None for extensionless files) -> [count, total_size],
+        # over all descendant files. Merged up from child frames as they pop.
+        self.ext_breakdown: dict[str | None, list[int]] = {}
 
 
 def _build_tree(
@@ -1086,13 +1069,14 @@ def _build_tree(
                 top.descendants_count += 1
                 top.descendants_file_count += 1
                 top.descendants_size += node["size"]
-                top.descendants_created_min = _min_iso(
+                top.descendants_created_min = min_iso(
                     top.descendants_created_min, node["created"]
                 )
-                top.descendants_modified_max = _max_iso(
+                top.descendants_modified_max = max_iso(
                     top.descendants_modified_max, node["modified"]
                 )
-                ext = (node["extension"] or "(none)").lower()
+                raw_ext = node["extension"]
+                ext = raw_ext.lower() if raw_ext else None
                 bucket = top.ext_breakdown.get(ext)
                 if bucket is None:
                     top.ext_breakdown[ext] = [1, node["size"]]
@@ -1110,11 +1094,13 @@ def _build_tree(
         # (root) or attach to the parent.
         finished = stack.pop()
         children: list[FileNode | DirNode] = [*finished.files, *finished.subdirs]
-        # Sort by count desc, then ext asc for deterministic output.
+        # Sort by count desc, then ext asc for deterministic output; the
+        # extensionless (None) bucket sorts last within its count tier.
         ext_breakdown_out: list[ExtBreakdownEntry] = [
             {"ext": ext, "count": cnt, "size": size}
             for ext, (cnt, size) in sorted(
-                finished.ext_breakdown.items(), key=lambda kv: (-kv[1][0], kv[0])
+                finished.ext_breakdown.items(),
+                key=lambda kv: (-kv[1][0], kv[0] is None, kv[0] or ""),
             )
         ]
         node_out: DirNode = {
@@ -1142,10 +1128,10 @@ def _build_tree(
         parent.descendants_file_count += node_out["descendants_file_count"]
         parent.descendants_dir_count += 1 + node_out["descendants_dir_count"]
         parent.descendants_size += node_out["descendants_size"]
-        parent.descendants_created_min = _min_iso(
+        parent.descendants_created_min = min_iso(
             parent.descendants_created_min, node_out["descendants_created_min"]
         )
-        parent.descendants_modified_max = _max_iso(
+        parent.descendants_modified_max = max_iso(
             parent.descendants_modified_max, node_out["descendants_modified_max"]
         )
         # Merge the child's per-extension breakdown up into the parent.

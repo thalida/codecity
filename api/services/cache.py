@@ -66,7 +66,9 @@ class FileEntry(TypedDict):
 _FILE_CACHE_VERSION = 1
 _GIT_HISTORY_CACHE_VERSION = 12  # v12: dates UTC-normalized (file maps + commit days)
 _MANIFEST_SCHEMA_VERSION = (
-    12  # v12: per-dir descendants_created_min / descendants_modified_max
+    # v12: per-dir descendants_created_min / descendants_modified_max
+    # v13: ext_breakdown `ext` is null (was "(none)") for extensionless files
+    13
 )
 # Composite: invalidates when EITHER the manifest schema OR the git-history
 # shape changes. Stored as a string in the cache file's `version` field.

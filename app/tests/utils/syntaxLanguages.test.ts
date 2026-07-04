@@ -15,8 +15,8 @@ describe('languageLabelForExt', () => {
     expect(languageLabelForExt('.exr')).toBe('EXR');
   });
 
-  it('returns null for an empty extension or the "(none)" sentinel', () => {
+  it('returns null for a missing extension (empty or null)', () => {
     expect(languageLabelForExt('')).toBeNull();
-    expect(languageLabelForExt('(none)')).toBeNull();
+    expect(languageLabelForExt(null)).toBeNull();
   });
 });

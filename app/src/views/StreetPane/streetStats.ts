@@ -25,8 +25,8 @@ export function extShareLabel(count: number, total: number): string {
 /** Full file-type name for the row tooltip: the language label plus the exact
  *  extension ("TypeScript (.ts)"), or "No extension" for extensionless files.
  *  Unknown extensions fall back to the uppercased ext ("SKETCH (.sketch)"). */
-export function extTypeLabel(ext: string): string {
-  if (ext === '(none)') return 'No extension';
+export function extTypeLabel(ext: string | null): string {
+  if (!ext) return 'No extension';
   const name = languageLabelForExt(ext);
   return name ? `${name} (${ext})` : ext;
 }

@@ -15,7 +15,7 @@ import { Pane, PaneEmpty } from '@/components/Pane';
 import { KEY_BINDINGS } from '@/constants/keyboard';
 import { Route, FileType, CalendarRange } from 'lucide-preact';
 import { ExtensionBadge } from '@/components/Badge/Badge';
-import { getHue } from '@/city/components/buildings/color';
+import { extHueColor } from '@/city/components/buildings/color';
 import { BUILDINGS } from '@/state/stores/settings/buildings';
 import { pluralize } from '@/utils/format';
 import { extBarPct, extShareLabel, extTypeLabel, streetDateRange } from './streetStats';
@@ -85,7 +85,7 @@ export function StreetPane({ state, onClose, onFocus }: StreetPaneProps) {
           </div>
           <div class="street-ext-list">
             {stats.map((s) => (
-              <StreetExtRow key={s.ext} s={s} total={total} />
+              <StreetExtRow key={s.ext ?? ''} s={s} total={total} />
             ))}
           </div>
         </>
@@ -100,18 +100,16 @@ export function StreetPane({ state, onClose, onFocus }: StreetPaneProps) {
 // type; the bar's title names it in full ("TypeScript (.ts)"), which the 4-char
 // badge can't.
 function StreetExtRow({ s, total }: { s: ExtBreakdownEntry; total: number }) {
-  const badgeExt = s.ext === '(none)' ? null : s.ext;
-  const hue = getHue(s.ext === '(none)' ? '' : s.ext, BUILDINGS.value.HUE_EXT_MAP);
   const pct = extBarPct(s.count, total);
   const share = extShareLabel(s.count, total);
   return (
     <div class="street-ext-row">
-      <ExtensionBadge extension={badgeExt} isDir={false} />
+      <ExtensionBadge extension={s.ext} isDir={false} />
       <div class="street-ext-track" title={extTypeLabel(s.ext)}>
         <span
           class="street-ext-fill"
           aria-hidden="true"
-          style={{ width: `${pct}%`, background: `hsl(${hue}, 60%, 35%)` }}
+          style={{ width: `${pct}%`, background: extHueColor(s.ext, BUILDINGS.value.HUE_EXT_MAP) }}
         />
       </div>
       <span class="street-ext-meta" aria-label={`${share}, ${pluralize(s.count, 'file')}`}>

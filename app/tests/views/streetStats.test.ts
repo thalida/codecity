@@ -42,8 +42,8 @@ describe('extTypeLabel', () => {
   it('uppercases an unknown extension', () => {
     expect(extTypeLabel('.sketch')).toBe('SKETCH (.sketch)');
   });
-  it('labels the (none) sentinel as "No extension"', () => {
-    expect(extTypeLabel('(none)')).toBe('No extension');
+  it('labels a null (extensionless) ext as "No extension"', () => {
+    expect(extTypeLabel(null)).toBe('No extension');
   });
 });
 

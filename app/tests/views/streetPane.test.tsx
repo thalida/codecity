@@ -11,10 +11,10 @@ import { flush } from '../_helpers/preact';
 // fixtures carry a realistic descendants_ext_breakdown — StreetPane reads
 // that baked field rather than walking the subtree itself.
 function _extBreakdown(children: (FileNode | DirNode)[]): ExtBreakdownEntry[] {
-  const byExt = new Map<string, { count: number; size: number }>();
+  const byExt = new Map<string | null, { count: number; size: number }>();
   function walk(node: FileNode | DirNode): void {
     if (node.type === NodeKind.File) {
-      const ext = (node.extension || '(none)').toLowerCase();
+      const ext = node.extension ? node.extension.toLowerCase() : null;
       const cur = byExt.get(ext) || { count: 0, size: 0 };
       cur.count += 1;
       cur.size += node.size || 0;
@@ -116,6 +116,16 @@ describe('StreetPane', () => {
     expect(extRows[0].textContent).toContain('3');
     const fill = extRows[0].querySelector('.street-ext-fill') as HTMLElement;
     expect(fill.style.width).toBe('60%');
+  });
+
+  it('labels an extensionless file row as "No extension"', async () => {
+    mount();
+    const d = dir('bin', [f('LICENSE', '', 10), f('run.sh', '.sh', 10)]);
+    await setDirectory(d);
+    const titles = Array.from(container.querySelectorAll('.street-ext-track')).map((t) =>
+      t.getAttribute('title')
+    );
+    expect(titles).toContain('No extension');
   });
 
   it('onFocus callback fires with the active directory when focus button clicked', async () => {

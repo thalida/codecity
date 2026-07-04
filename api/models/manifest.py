@@ -60,7 +60,7 @@ class FileNode(BaseModel):
 
 
 class ExtBreakdownEntry(BaseModel):
-    ext: str
+    ext: str | None
     count: int
     size: int
 
