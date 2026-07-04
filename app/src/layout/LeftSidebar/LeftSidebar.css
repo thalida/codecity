@@ -51,7 +51,7 @@
   flex-direction: column;
   justify-content: space-between;
   align-items: stretch;
-  padding: 0 0 var(--cc-space-4); /* first icon sits flush with the top */
+  padding: 0; /* icons sit flush with the top and bottom edges */
 }
 .activity-bar-group {
   display: flex;
