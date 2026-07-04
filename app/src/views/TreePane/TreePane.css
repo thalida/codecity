@@ -14,7 +14,7 @@
 .tree-root {
   flex: 1;
   overflow-y: auto;
-  padding: var(--cc-space-4) 0;
+  padding: var(--cc-space-7) 0; /* rows supply the matching horizontal inset */
 }
 
 .tree-list {

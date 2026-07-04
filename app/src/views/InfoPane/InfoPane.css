@@ -19,7 +19,7 @@
 }
 
 .info-markdown {
-  padding: var(--cc-space-7) var(--cc-space-7) var(--cc-space-8);
+  padding: var(--cc-space-7);
   color: var(--cc-text-secondary);
   font-size: var(--cc-font-lg);
   line-height: 1.6;
