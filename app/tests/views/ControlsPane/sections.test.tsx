@@ -102,4 +102,22 @@ describe('DynamicSection rendering', () => {
     const placed = collectRefs(TREES_SECTION.children ?? []).length;
     expect(container.querySelectorAll('.theme-row').length).toBe(placed);
   });
+
+  it('caps collapsible nesting at MAX_COLLAPSE_DEPTH: deeper groups render flat', async () => {
+    container = document.createElement('div');
+    document.body.appendChild(container);
+    // Buildings nests Section > Facade (depth 2) > Geometry (depth 3).
+    render(<DynamicSection node={BUILDINGS_SECTION} />, container);
+    await flush();
+
+    const summaries = Array.from(container.querySelectorAll('summary')).map(
+      (s) => s.textContent ?? ''
+    );
+    // Facade (depth 2) is still a collapsible accordion (rendered in a <summary>).
+    expect(summaries.some((t) => t.includes('Facade'))).toBe(true);
+    // Geometry (depth 3) is past the cap → a flat labeled cluster, not a <summary>…
+    expect(summaries.some((t) => t.includes('Geometry'))).toBe(false);
+    // …but its label + fields still render.
+    expect(container.textContent).toContain('Geometry');
+  });
 });

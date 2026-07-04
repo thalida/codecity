@@ -78,13 +78,20 @@ function collectRefs(children: SectionChild[]): FieldRef[] {
   return out;
 }
 
-function renderChild(child: SectionChild): ComponentChildren {
+/** Deepest nesting level that stays a collapsible accordion. The top section is
+ *  level 1; one subgroup level (2) also collapses. Groups deeper than this render
+ *  as flat labeled clusters (always shown when their parent is open), so the
+ *  panel never becomes a maze of nested accordions. Raise it to allow deeper
+ *  collapsibility. */
+export const MAX_COLLAPSE_DEPTH = 2;
+
+function renderChild(child: SectionChild, depth: number): ComponentChildren {
   if (isGroup(child)) {
-    const kids = child.children.map(renderChild);
-    // Collapsible by default — a <details> that resets every field beneath it
-    // (draft-driven via resetKeys). collapsible:false renders a plain group
-    // with no reset.
-    const collapsible = child.collapsible !== false;
+    const kids = child.children.map((c) => renderChild(c, depth + 1));
+    // Collapsible only within MAX_COLLAPSE_DEPTH (and unless it opts out via
+    // collapsible:false); past the cap it's a plain labeled group with no reset.
+    // A collapsible group's reset still covers every field beneath it (resetKeys).
+    const collapsible = child.collapsible !== false && depth <= MAX_COLLAPSE_DEPTH;
     return (
       <Subgroup
         name={child.label}
@@ -106,7 +113,7 @@ export function DynamicSection({ node }: { node: SectionNode }) {
     return (
       <div class="controls-inline-section">
         {node.description && <div class="controls-section-hint">{node.description}</div>}
-        {(node.children ?? []).map(renderChild)}
+        {(node.children ?? []).map((c) => renderChild(c, 2))}
       </div>
     );
   }
@@ -116,7 +123,7 @@ export function DynamicSection({ node }: { node: SectionNode }) {
       hint={node.description}
       resetKeys={collectRefs(node.children ?? [])}
     >
-      {(node.children ?? []).map(renderChild)}
+      {(node.children ?? []).map((c) => renderChild(c, 2))}
     </Section>
   );
 }
