@@ -101,7 +101,7 @@ export function ShortcutsModal() {
         aria-label="Keyboard shortcuts"
       >
         <div class="modal-header surface-chrome">
-          <span>Keyboard & mouse</span>
+          <span>Keyboard & Mouse</span>
           <button
             ref={closeBtnRef}
             type="button"
