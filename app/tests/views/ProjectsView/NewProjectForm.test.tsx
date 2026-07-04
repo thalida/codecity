@@ -169,4 +169,30 @@ describe('NewProjectForm', () => {
 
     expect(container.querySelector('.new-project-note')?.textContent).not.toMatch(/—/);
   });
+
+  it('keeps the URL field mounted while typing a git URL char-by-char when local repos are off', async () => {
+    // Regression guard: srcKind() classifies any string without "://" or a
+    // user@host: prefix as Local, so the very first keystroke of a URL ("h")
+    // used to flip kind→Local. With local repos off that made localOff true,
+    // which unmounted the shared source input mid-keystroke and dropped focus.
+    // With local disabled, Local isn't a reachable destination, so kind must
+    // pin to Git and the field must never disappear while the user types.
+    render(
+      <NewProjectForm allowLocalRepos={false} onSubmit={() => {}} onCancel={() => {}} />,
+      container
+    );
+    await flush();
+
+    const urlInput = container.querySelector<HTMLInputElement>('input[aria-label="URL"]')!;
+    expect(urlInput).not.toBeNull();
+
+    for (const chunk of ['h', 'ht', 'htt', 'http']) {
+      setInput(urlInput, chunk);
+      await flush();
+      // The input the user is typing into must stay in the DOM at every step.
+      expect(container.querySelector('input[aria-label="URL"]')).not.toBeNull();
+      // ...and kind stays Git, never flipping to the unreachable Local.
+      expect(activeSegment(container)).toBe('Git URL');
+    }
+  });
 });

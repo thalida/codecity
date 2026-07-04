@@ -60,8 +60,13 @@ export function NewProjectForm({
   function onSourceInput(v: string) {
     setSource(v);
     const k = v.trim() ? srcKind(v) : kind;
-    if (k !== kind) setKind(k);
-    if (k === SourceKind.Remote) {
+    // Never reclassify to Local when local repos are disabled: Local isn't a
+    // reachable destination there, and doing so mid-keystroke (srcKind treats a
+    // half-typed URL like "h" as Local) would flip localOff true and unmount
+    // the very field the user is typing into, dropping focus. Pin Remote.
+    const nextKind = k === SourceKind.Local && !allowLocalRepos ? SourceKind.Remote : k;
+    if (nextKind !== kind) setKind(nextKind);
+    if (nextKind === SourceKind.Remote) {
       // Branch reset on URL change (bug #2): a stale pick from a previous
       // repo must never ride along to whatever's typed now. BranchSelect is
       // also remounted below (key={resolvedUrl}), so its internal fetch
@@ -141,12 +146,13 @@ export function NewProjectForm({
         type="button"
         class="new-project-advanced-toggle"
         aria-expanded={advanced}
+        aria-controls="new-project-advanced"
         onClick={() => setAdvanced((a) => !a)}
       >
         Advanced
       </button>
       {advanced && (
-        <label class="new-project-skip-cache">
+        <label id="new-project-advanced" class="new-project-skip-cache">
           <input
             type="checkbox"
             checked={skipCache}
