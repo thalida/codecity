@@ -4,55 +4,20 @@
 //
 // Event variants (server emits in roughly this order):
 //   cloning  — first event for git sources, sent BEFORE the clone
-//              subprocess runs. Carries `display_root` so the UI can
-//              show a "{label} (pending)" header / document title from
-//              the moment the request starts, not from when the manifest
-//              finally arrives. The UI also uses it to light up its
-//              "Cloning" step from real state instead of a wall-clock
-//              timer.
+//              subprocess runs. Carries a server-computed `label` so the UI can
+//              show a "{label} (pending)" header / document title from the moment
+//              the request starts, not from when the manifest finally arrives.
+//              The UI also uses it to light up its "Cloning" step from real
+//              state instead of a wall-clock timer.
 //   scanning — first event for local sources (and the second event for
-//              git sources). Same `display_root` payload, same UI role.
+//              git sources). Same `label` payload, same UI role.
 //   skeleton — first paint manifest with placeholder building heights.
 //   final    — populated manifest ready for the final tween.
 //   error    — fatal mid-stream failure; client should surface and stop.
 
 import type { Manifest } from '@/types/manifest';
 import { URL_PARAMS } from '@/constants/urlParams';
-// ── URL helper ───────────────────────────────────────────────────────────
-
-export interface BuildApiUrlOpts {
-  noCache?: boolean;
-}
-
-/**
- * Build the URL for a server endpoint, forwarding the page's `src`
- * (and optional `branch`) params. When `opts.noCache` is true,
- * appends `no_cache=true` to force a fresh scan on this request.
- * When no `src` is present, returns the endpoint URL without any
- * source params — boot uses this to detect "no source picked yet".
- *
- * Pure function (no `window` access) so the endpoint wrappers below can
- * bind it to live `window.location.*` values while this helper stays
- * directly unit-testable.
- */
-export function buildApiUrl(
-  endpoint: string,
-  pageSearch: string,
-  origin: string,
-  opts: BuildApiUrlOpts = {}
-): string {
-  const qp = new URLSearchParams(pageSearch);
-  const u = new URL(endpoint, origin);
-  if (qp.has(URL_PARAMS.SRC)) {
-    u.searchParams.set(URL_PARAMS.SRC, qp.get(URL_PARAMS.SRC)!);
-    if (qp.has(URL_PARAMS.BRANCH))
-      u.searchParams.set(URL_PARAMS.BRANCH, qp.get(URL_PARAMS.BRANCH)!);
-  }
-  if (opts.noCache) {
-    u.searchParams.set(URL_PARAMS.NO_CACHE, 'true');
-  }
-  return u.toString();
-}
+import { apiUrl } from '@/api/apiUrl';
 
 // ── Endpoint URL builders ────────────────────────────────────────────────
 //
@@ -61,27 +26,21 @@ export function buildApiUrl(
 // poll targets the committed CURRENT_SOURCE — never the page URL, which lags a
 // load and would make the poll fetch the wrong source mid-switch.
 
-function _sourceSearch(src: string, branch?: string): string {
-  const search = new URLSearchParams({ [URL_PARAMS.SRC]: src });
-  if (branch) search.set(URL_PARAMS.BRANCH, branch);
-  return search.toString();
-}
-
 /** URL for the manifest stream of an explicit source. */
 export function manifestUrlFor(opts: { src: string; branch?: string; noCache?: boolean }): string {
-  return buildApiUrl(
-    '/api/manifest',
-    _sourceSearch(opts.src, opts.branch),
-    window.location.origin,
-    {
-      noCache: opts.noCache,
-    }
-  );
+  return apiUrl('manifest', {
+    [URL_PARAMS.SRC]: opts.src,
+    [URL_PARAMS.BRANCH]: opts.branch,
+    [URL_PARAMS.NO_CACHE]: opts.noCache ? 'true' : undefined,
+  });
 }
 
 /** URL for the lightweight signature poll of an explicit source. */
 export function signatureUrlFor(src: string, branch?: string): string {
-  return buildApiUrl('/api/manifest/signature', _sourceSearch(src, branch), window.location.origin);
+  return apiUrl('manifest/signature', {
+    [URL_PARAMS.SRC]: src,
+    [URL_PARAMS.BRANCH]: branch,
+  });
 }
 
 // ── SSE streaming reader ─────────────────────────────────────────────────
@@ -114,14 +73,14 @@ export enum CloneStage {
 export type ScanStreamEvent =
   | {
       phase: ScanPhase.CloneProgress;
-      display_root?: string;
+      label?: string;
       stage?: CloneStage;
       percent?: number;
       // Heartbeat during the silent promisor blob fetch: working-tree size on
       // disk (no stage/percent), so the UI shows materialization, not a freeze.
       mb_on_disk?: number;
     }
-  | { phase: ScanPhase.ScanProgress; display_root?: string; files_scanned?: number }
+  | { phase: ScanPhase.ScanProgress; label?: string; files_scanned?: number }
   | { phase: ScanPhase.PartialManifest; manifest: Manifest }
   | { phase: ScanPhase.CompleteManifest; manifest: Manifest }
   | { phase: ScanPhase.Error; error: string };
@@ -148,8 +107,9 @@ export type ScanProgressEvent = Extract<
  */
 export function streamManifest(
   url: string,
-  EventSourceImpl: typeof EventSource = EventSource
+  opts: { signal?: AbortSignal; EventSourceImpl?: typeof EventSource } = {}
 ): AsyncIterable<ScanStreamEvent> {
+  const EventSourceImpl = opts.EventSourceImpl ?? EventSource;
   return {
     [Symbol.asyncIterator](): AsyncIterator<ScanStreamEvent> {
       const es = new EventSourceImpl(url);
@@ -187,6 +147,14 @@ export function streamManifest(
           r({ value: undefined, done: true });
         }
       };
+
+      // Abort: close the stream cleanly (done, not error) so the consumer's
+      // for-await exits without a manifest. loadSource treats signal.aborted as
+      // a user cancel, not a failure.
+      if (opts.signal) {
+        if (opts.signal.aborted) finish();
+        else opts.signal.addEventListener('abort', () => finish(), { once: true });
+      }
 
       // Parse an event's JSON data, ending the stream with an error (rather
       // than throwing into the swallowed event listener, which would leave the
@@ -248,8 +216,6 @@ export function streamManifest(
  * failures are swallowed (cache-clear is a UX nicety, not a correctness path).
  */
 export function clearManifestCache(src: string, branch?: string): void {
-  const url = new URL('/api/manifest/cache', window.location.origin);
-  url.searchParams.set(URL_PARAMS.SRC, src);
-  if (branch) url.searchParams.set(URL_PARAMS.BRANCH, branch);
-  fetch(url.toString(), { method: 'DELETE' }).catch(() => {});
+  const url = apiUrl('manifest/cache', { [URL_PARAMS.SRC]: src, [URL_PARAMS.BRANCH]: branch });
+  fetch(url, { method: 'DELETE' }).catch(() => {});
 }

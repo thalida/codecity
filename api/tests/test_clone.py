@@ -179,6 +179,18 @@ class CleanCloneErrorDispatcherTests(unittest.TestCase):
                 "fatal: Could not read from remote repository.",
             )
 
+    def test_not_a_git_repository(self) -> None:
+        # A copied web-page URL (with a #anchor) reaches a server but isn't a
+        # git repo; git says "not valid: is this a git repository?".
+        with self.assertRaises(RepoNotFoundError) as ctx:
+            _maybe_raise_clean_clone_error(
+                "https://github.com/thalida/codecity#local-directories",
+                None,
+                "fatal: https://github.com/thalida/codecity#local-directories/"
+                "info/refs not valid: is this a git repository?",
+            )
+        self.assertIn("git repository", str(ctx.exception))
+
     def test_host_unreachable(self) -> None:
         with self.assertRaises(HostUnreachableError):
             _maybe_raise_clean_clone_error(

@@ -69,6 +69,14 @@
   --cc-accent-border: color-mix(in oklch, var(--cc-accent) 45%, transparent);
   --cc-accent-light-border: color-mix(in oklch, var(--cc-accent-light) 45%, transparent);
 
+  /* ── COLORS — Gem palette (the codecity mark's four faces) ─────────────
+     Single source for the brand gem: drives the GemIcon SVG fills, the landing
+     backdrop wash, and the "what it does" cue icons. */
+  --cc-gem-lime: #bfff33;
+  --cc-gem-cyan: #26e5ff;
+  --cc-gem-purple: #9940ff;
+  --cc-gem-magenta: #ff338c;
+
   /* ── COLORS — Semantic (success / warning / error) ────────────────────── */
   --cc-success: oklch(0.8 0.182 151.7);
   --cc-success-dark: oklch(0.681 0.123 157.3);

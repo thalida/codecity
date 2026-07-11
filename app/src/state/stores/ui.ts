@@ -5,10 +5,9 @@
 
 import { signal, computed } from '@preact/signals';
 import { SourceKind } from '@/utils/sources';
-import { URL_PARAMS } from '@/constants/urlParams';
 
 // These are the UI-state CONTRACTS the views render against. They live here (in
-// state) so state/ stays view-independent — the SourcePicker / LoadingOverlay
+// state) so state/ stays view-independent — the ProjectsView / LoadingOverlay
 // components import them from here, not the other way around.
 
 /** What the source picker submits when the user opens a project. */
@@ -30,42 +29,34 @@ export interface OpenOpts {
 /** Options for showing the loading overlay. */
 export interface LoadingOverlayShowOpts {
   kind: SourceKind;
-  label: string;
   branch?: string;
 }
 
-// ── Source picker ────────────────────────────────────────────────────────────
+// ── Projects view ────────────────────────────────────────────────────────────
 
-export interface SourcePickerState {
+export interface ProjectsViewState {
   visible: boolean;
   opts: OpenOpts;
 }
 
-export const SOURCE_PICKER = signal<SourcePickerState>({
+export const PROJECTS_VIEW = signal<ProjectsViewState>({
   visible: false,
   opts: {},
 });
 
-/** Open the source picker modal. */
-export function openSourcePicker(opts: OpenOpts = {}): void {
-  SOURCE_PICKER.value = { visible: true, opts };
+/** Open the projects view. */
+export function openProjectsView(opts: OpenOpts = {}): void {
+  PROJECTS_VIEW.value = { visible: true, opts };
 }
 
-/** Close the source picker modal. */
-export function closeSourcePicker(): void {
-  SOURCE_PICKER.value = { ...SOURCE_PICKER.value, visible: false };
-}
-
-/** Open the picker pre-filled with the current `?src`/`?branch` — the
- *  header's "switch source" affordance. Always dismissible. */
-export function openSourcePickerForCurrentSource(): void {
-  const cur = new URLSearchParams(window.location.search);
-  openSourcePicker({
-    dismissible: true,
-    prefill: cur.has(URL_PARAMS.SRC)
-      ? { src: cur.get(URL_PARAMS.SRC)!, branch: cur.get(URL_PARAMS.BRANCH) ?? undefined }
-      : undefined,
-  });
+/** Close the projects view. Reads the prior state with .peek() (not .value):
+ *  App's committed-source reaction calls this from inside a useSignalEffect, and
+ *  a tracked .value read would subscribe that effect to PROJECTS_VIEW — so
+ *  opening the view (while a city is loaded, CURRENT_SOURCE truthy) would
+ *  re-fire the effect and close the view right back. peek() keeps the reaction
+ *  keyed on CURRENT_SOURCE alone. Mirrors the LOADING_OVERLAY setters. */
+export function closeProjectsView(): void {
+  PROJECTS_VIEW.value = { ...PROJECTS_VIEW.peek(), visible: false };
 }
 
 // ── Loading overlay ──────────────────────────────────────────────────────────
@@ -151,8 +142,8 @@ export function closeDebug(): void {
   DEBUG_OPEN.value = false;
 }
 
-/** True while any modal (source picker, shortcuts, debug) is open. Scene input
+/** True while any modal (projects view, shortcuts, debug) is open. Scene input
  *  handlers read this so keyboard shortcuts don't fire underneath a modal. */
 export const MODAL_OPEN = computed(
-  () => SOURCE_PICKER.value.visible || SHORTCUTS_OPEN.value || DEBUG_OPEN.value
+  () => PROJECTS_VIEW.value.visible || SHORTCUTS_OPEN.value || DEBUG_OPEN.value
 );

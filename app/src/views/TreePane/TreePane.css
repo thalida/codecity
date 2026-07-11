@@ -1,5 +1,19 @@
 /* ── Tree pane ─────────────────────────────────────────────────────────────── */
 
+.tree-pane {
+  /* Row geometry the indent guide is derived from — single-sourced so the guide
+     stays centered on the chevron if any of these change. */
+  --tree-row-inset: var(--cc-space-4); /* row's left padding (the start indent) */
+  --tree-glyph: 14px; /* file/folder icon column width (matches .file-icon) */
+  --tree-guide: 1px; /* indent-guide line width */
+}
+
+/* Match the header's left inset to the rows so the repo name lines up over the
+   first icon column instead of sitting further in than the tree below it. */
+.tree-pane .pane-header {
+  padding-left: var(--tree-row-inset);
+}
+
 .tree-item.tree-hovered > .row {
   background: var(--cc-overlay-bg-soft);
 }
@@ -19,23 +33,24 @@
 .tree-list {
   list-style: none;
   margin: var(--cc-space-0);
-  /* Per-level indent lines a child row's chevron up directly under its
-   * parent's folder icon. */
-  padding: 0 0 0 var(--cc-space-7);
+  padding: var(--cc-space-0);
 }
 
 .tree-root.tree-list {
-  /* Two-class rule so it wins over .tree-list. Vertical inset matches the other
-     panes; the root row's own .row padding supplies the horizontal, so the root
-     list adds no horizontal indent. */
-  padding: var(--cc-space-7) 0;
+  /* Two-class rule so it wins over .tree-list. The tree starts flush at the top
+     of the pane body; a little bottom padding gives the last row scroll room.
+     Rows carry their own horizontal padding (.row), so the list adds none. */
+  padding: var(--cc-space-0) var(--cc-space-0) var(--cc-space-4);
 }
 
-/* The root row's chevron is hidden (.tree-root-item > .row > .tree-chevron),
-   so depth-1 chevrons should slot into that same gutter column under the
-   root's folder icon — they don't need an extra level of indent. */
-.tree-root-item > .tree-list {
-  padding-left: var(--cc-space-0);
+/* Zed-style indent guide: every nested level draws a vertical rule down its full
+   left edge — spanning all of that folder's children — centered under the parent
+   row's disclosure chevron, so the open folder chain reads as one connected
+   column. The offset is the chevron's center (row inset + half the glyph column)
+   minus half the line's own width, so the rule sits ON the arrow. */
+.tree-item > .tree-list {
+  margin-left: calc(var(--tree-row-inset) + var(--tree-glyph) / 2 - var(--tree-guide) / 2);
+  border-left: var(--tree-guide) solid var(--cc-border-input);
 }
 
 .tree-item {
@@ -47,48 +62,15 @@
    chevron-to-label gap). Selection highlight in .row--selected
    near the top of the file. */
 
-.tree-chevron {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  /* Explicit slot width — pinned so empty placeholders on file rows
-   * take the same horizontal space as the rendered chevron on dir
-   * rows. Net effect: labels at the same nesting depth line up,
-   * regardless of file vs directory. Matches the .tree-icon width. */
-  width: 14px;
-}
-
-/* Root row: chevron is removed from layout (display: none) so the
- * root folder icon sits flush at the row's left padding —
- * lined up directly under the "Explorer" header title. The chevron
- * element stays in the DOM so _setDirExpanded's selector keeps
- * working; only its layout box is suppressed. */
-.tree-root-item > .row > .tree-chevron {
-  display: none;
-}
-
-/* Root glyph — codecity gem in its grayscale variant. Quieter than the
- * full multicolor gem so it doesn't compete with row text. Sized to match
- * the Material file/folder icons used on every other row so the icon
- * column stays a consistent width. */
-.tree-root-glyph {
-  width: 14px;
-  height: 14px;
-  margin-right: var(--cc-space-2);
-  vertical-align: middle;
-}
-
-.tree-icon {
-  font-size: var(--cc-font-lg);
-  width: 14px;
-  text-align: center;
-  flex-shrink: 0;
-  line-height: 1;
-}
-
-.tree-icon-dir {
-  color: var(--cc-text-muted);
+/* Tree rows sit closer to the pane edge than the default .row inset: the tree
+   reaches depth by expanding, so a big starting indent just wastes width. Half
+   the default keeps the top level near the edge while still clearing the
+   .row--selected highlight's rounded corner. */
+.tree-item > .row {
+  padding-left: var(--tree-row-inset);
+  /* Squared hover/selected highlight (Zed-style), overriding .row's rounded
+     corners so the fill reads as a full-width band. */
+  border-radius: var(--cc-radius-0);
 }
 
 .tree-label {

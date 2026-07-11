@@ -1,0 +1,142 @@
+/* ── Recent projects ── the list of recent-source rows (the card owns the
+   heading — see .landing-card-title). */
+
+.recents-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cc-space-1);
+}
+
+/* Each recent project is a .recent-item row: a .recent-row click target that
+   opens the project, plus a sibling remove control. Kept as siblings (not
+   parent/child) so the row's hover highlight has symmetric padding and the
+   remove control has its own independent hit area. */
+.recent-item {
+  display: flex;
+  align-items: center;
+  gap: var(--cc-space-2);
+}
+
+.recent-row {
+  flex: 1 1 auto;
+  min-width: 0;
+  appearance: none;
+  background: none;
+  border: none;
+  text-align: left;
+  color: inherit;
+  font: inherit;
+  gap: var(--cc-space-5);
+  padding: var(--cc-space-3) var(--cc-space-4);
+  border-radius: var(--cc-radius-md);
+}
+.recent-row:hover {
+  background: var(--cc-overlay-bg);
+}
+/* Kind glyph — fix the size so the (font-relative) Folder/warning lucide icons
+   match the fixed-16px HostingIcon instead of rendering smaller. */
+.recent-icon {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  /* Size icons by font-size so any glyph — lucide fallback OR the HostingIcon
+     brand SVGs — sizes uniformly off one token (icons are 1em; see icons.css). */
+  font-size: var(--cc-font-xl);
+}
+.recent-icon > svg {
+  width: 1em;
+  height: 1em;
+}
+
+.recent-row-body {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.recent-row .recent-label {
+  font-weight: var(--cc-fw-medium);
+}
+.recent-row .recent-sub {
+  display: flex;
+  align-items: center;
+  gap: var(--cc-space-2);
+  font-size: var(--cc-font-md);
+  color: var(--cc-text-muted);
+}
+.recent-row .recent-src {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Active row: highlighted as the current project, but still clickable to
+   reload it. */
+.recent-row--active {
+  background: var(--cc-accent-bg-soft);
+}
+.recent-row--active:hover {
+  background: var(--cc-accent-bg);
+}
+
+/* Unavailable (a local recent while local repos are off): dimmed as a hint,
+   but still clickable — opening it surfaces the server's reason. */
+.recent-row--unavailable {
+  opacity: 0.55;
+}
+
+.recent-row-badge {
+  margin-left: auto;
+  font-size: var(--cc-font-sm);
+  font-weight: var(--cc-fw-semibold);
+  letter-spacing: var(--cc-track-label);
+  color: var(--cc-accent);
+  background: var(--cc-accent-bg);
+  border: 1px solid var(--cc-accent-border);
+  border-radius: var(--cc-radius-lg);
+  padding: var(--cc-space-1) var(--cc-space-3);
+  white-space: nowrap;
+}
+
+/* Remove-from-list button next to each recent. Neutral, not destructive:
+   removing only forgets the entry, it doesn't delete anything. */
+.recent-item > .btn-icon[aria-label='Remove from recents'] {
+  padding: var(--cc-space-4) var(--cc-space-2);
+  color: var(--cc-text-faint);
+}
+.recent-item > .btn-icon[aria-label='Remove from recents']:hover {
+  color: var(--cc-text-primary);
+  background: var(--cc-overlay-bg);
+}
+
+/* Remove confirm — takes over the whole row (same footprint as the row it
+   replaces) so asking to remove never shifts the surrounding rows. */
+.recent-confirm {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--cc-space-4);
+  padding: var(--cc-space-3) var(--cc-space-4);
+  border-radius: var(--cc-radius-md);
+  background: var(--cc-overlay-bg);
+}
+.recent-confirm-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--cc-text-secondary);
+}
+.recent-confirm-actions {
+  display: flex;
+  flex: 0 0 auto;
+  gap: var(--cc-space-2);
+}
+/* Red — removing is semi-destructive (forgets the entry). */
+.recent-confirm-yes {
+  color: var(--cc-error-light);
+}
+.recent-confirm-yes:hover {
+  color: var(--cc-error-light);
+  background: var(--cc-error-bg);
+}

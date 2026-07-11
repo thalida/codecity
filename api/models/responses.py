@@ -41,3 +41,8 @@ class CommitDetailResponse(BaseModel):
     date: str  # YYYY-MM-DD
     subject: str
     body: str
+
+
+class BranchListResponse(BaseModel):
+    branches: list[str]
+    default: str | None

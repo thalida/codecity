@@ -360,6 +360,31 @@ class ScanTreeIntegrationTests(_CacheRedirectMixin, unittest.TestCase):
         self.assertEqual(m["tree"]["path"], ".")
         self.assertEqual(m["tree"]["name"], "sample-repo")
 
+    def test_tree_name_baked_from_git_remote(self):
+        # The canonical repo name is the git remote's owner/repo, baked onto
+        # tree.name at scan time — NOT the on-disk folder basename. (A worktree
+        # folder or a clone's cache-dir hash would otherwise show through.)
+        with TemporaryDirectory() as td:
+            root = Path(td) / "some-worktree-folder"
+            root.mkdir()
+            _init_repo(root)
+            subprocess.run(
+                [
+                    "git",
+                    "-C",
+                    str(root),
+                    "remote",
+                    "add",
+                    "origin",
+                    "https://github.com/owner/coolrepo.git",
+                ],
+                check=True,
+            )
+            (root / "a.txt").write_text("hi")
+            _commit_all(root)
+            m = _final_manifest(str(root), use_cache=False)
+            self.assertEqual(m["tree"]["name"], "owner/coolrepo")
+
     def test_counts_roll_up_correctly(self):
         m = _final_manifest(str(FIXTURE))
         tree = m["tree"]

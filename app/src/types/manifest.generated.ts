@@ -100,6 +100,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/branches": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Branches */
+        get: operations["get_branches_api_branches_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/manifest/signature": {
         parameters: {
             query?: never;
@@ -162,6 +179,13 @@ export interface components {
             /** Commits */
             commits: number;
         };
+        /** BranchListResponse */
+        BranchListResponse: {
+            /** Branches */
+            branches: string[];
+            /** Default */
+            default: string | null;
+        };
         /** BusynessThresholds */
         BusynessThresholds: {
             /** Avg */
@@ -183,8 +207,8 @@ export interface components {
          *     so the UI shows the working tree materializing rather than freezing.
          */
         CloneProgressEvent: {
-            /** Display Root */
-            display_root?: string;
+            /** Label */
+            label?: string;
             /**
              * Stage
              * @enum {string}
@@ -454,8 +478,6 @@ export interface components {
             busyness: components["schemas"]["BusynessThresholds"];
             dateRanges: components["schemas"]["DateRanges"];
             stats: components["schemas"]["RepoStats"];
-            /** Display Root */
-            display_root?: string;
         };
         /**
          * PartialManifestEvent
@@ -526,8 +548,8 @@ export interface components {
          *     heartbeat files-scanned count.
          */
         ScanProgressEvent: {
-            /** Display Root */
-            display_root?: string;
+            /** Label */
+            label?: string;
             /** Files Scanned */
             files_scanned?: number;
         };
@@ -687,6 +709,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CommitDetailResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_branches_api_branches_get: {
+        parameters: {
+            query: {
+                src: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BranchListResponse"];
                 };
             };
             /** @description Validation Error */

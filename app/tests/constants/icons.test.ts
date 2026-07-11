@@ -21,15 +21,16 @@ import {
 import { MATERIAL_ICON_URLS } from '@/constants/materialIcons';
 
 describe('material icons: every resolvable name is bundled', () => {
+  const folders = [...Object.values(FOLDER_ICON), GENERIC_FOLDER, HARD_FALLBACK_FOLDER];
   const names = [
     ...new Set<string>([
       ...Object.values(EXT_ICON),
       ...Object.values(NAME_ICON),
-      ...Object.values(FOLDER_ICON),
+      ...folders,
+      // Expanded directories resolve the `-open` twin (getFolderIconName open).
+      ...folders.map((n) => `${n}-open`),
       GENERIC_FILE,
-      GENERIC_FOLDER,
       HARD_FALLBACK_FILE,
-      HARD_FALLBACK_FOLDER,
     ]),
   ].sort();
 

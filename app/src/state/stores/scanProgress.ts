@@ -10,8 +10,6 @@ import { ScanPhase, CloneStage } from '@/api/manifest';
 export interface ScanProgress {
   /** Kind of source being loaded (drives the overlay's initial step). */
   kind: SourceKind;
-  /** Friendly label of the project being loaded. */
-  label: string;
   branch?: string;
   /** Latest stream phase, or null when the load just started and no stream
    *  event has arrived yet (overlay shows the kind-based initial step). */

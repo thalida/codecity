@@ -33,10 +33,12 @@ export function GemIcon({ class: cls, title, simple }: GemIconProps) {
   }
   return (
     <svg class={className} viewBox="0 0 24 24" aria-hidden="true" title={title}>
-      <polygon points="2,12 12,2 12,12" fill="#bfff33" />
-      <polygon points="12,2 22,12 12,12" fill="#26e5ff" />
-      <polygon points="22,12 12,22 12,12" fill="#9940ff" />
-      <polygon points="12,22 2,12 12,12" fill="#ff338c" />
+      {/* Fills come from the shared --cc-gem-* tokens (tokens.css). SVG's `fill`
+          attribute doesn't resolve var(), so drive it via `style` instead. */}
+      <polygon points="2,12 12,2 12,12" style={{ fill: 'var(--cc-gem-lime)' }} />
+      <polygon points="12,2 22,12 12,12" style={{ fill: 'var(--cc-gem-cyan)' }} />
+      <polygon points="22,12 12,22 12,12" style={{ fill: 'var(--cc-gem-purple)' }} />
+      <polygon points="12,22 2,12 12,12" style={{ fill: 'var(--cc-gem-magenta)' }} />
     </svg>
   );
 }

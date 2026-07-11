@@ -58,7 +58,6 @@ describe('TreePane', () => {
   interface MountOpts {
     onClose?: () => void;
     onSelect?: (node: TreeNode) => void;
-    onFocus?: (node: TreeNode) => void;
     onHover?: (node: TreeNode) => void;
     onHoverEnd?: (node: TreeNode) => void;
   }
@@ -91,7 +90,6 @@ describe('TreePane', () => {
           rootPath={rootPath}
           onClose={opts.onClose}
           onSelect={opts.onSelect}
-          onFocus={opts.onFocus}
           onHover={opts.onHover}
           onHoverEnd={opts.onHoverEnd}
         />,
@@ -111,49 +109,27 @@ describe('TreePane', () => {
     container.remove();
   });
 
-  it('clicking the chevron expands and collapses the directory', async () => {
+  it('clicking a directory row expands then collapses it', async () => {
     const pane = mount(TEST_TREE);
-    const dir = pane.querySelector<HTMLElement>('.tree-dir:not(.tree-root-item)');
+    const dir = pane.querySelector<HTMLElement>('.tree-dir');
     expect(dir).not.toBeNull();
-    const chevron = dir!.querySelector<HTMLElement>(':scope > .row > .tree-chevron');
-    expect(chevron).not.toBeNull();
 
     expect(dir!.classList.contains('tree-collapsed')).toBe(true);
     expect(dir!.querySelector(':scope > .tree-list')).toBeNull();
 
-    chevron!.click();
+    dir!.querySelector<HTMLElement>(':scope > .row')!.click();
     await flush();
 
     const expandedDir = pane.querySelector<HTMLElement>('[data-path="src"]')!;
     expect(expandedDir.classList.contains('tree-expanded')).toBe(true);
     expect(expandedDir.querySelector(':scope > .tree-list')).not.toBeNull();
 
-    const expandedChevron = expandedDir.querySelector<HTMLElement>(
-      ':scope > .row > .tree-chevron'
-    )!;
-    expandedChevron.click();
+    expandedDir.querySelector<HTMLElement>(':scope > .row')!.click();
     await flush();
 
     const collapsedDir = pane.querySelector<HTMLElement>('[data-path="src"]')!;
     expect(collapsedDir.classList.contains('tree-collapsed')).toBe(true);
     expect(collapsedDir.querySelector(':scope > .tree-list')).toBeNull();
-  });
-
-  it('keeps the root folder permanently expanded (chevron click is a no-op)', () => {
-    const pane = mount(TEST_TREE);
-    const root = pane.querySelector<HTMLElement>('.tree-root-item');
-    expect(root).not.toBeNull();
-    expect(root!.classList.contains('tree-expanded')).toBe(true);
-    const rootSubtree = root!.querySelector<HTMLElement>(':scope > .tree-list');
-    expect(rootSubtree).not.toBeNull();
-
-    // The root chevron has no click handler attached (it's just an
-    // indicator), so clicking it has no effect on expansion.
-    const rootChevron = root!.querySelector<HTMLElement>(':scope > .row > .tree-chevron')!;
-    rootChevron.click();
-    const stillRoot = pane.querySelector<HTMLElement>('.tree-root-item')!;
-    expect(stillRoot.classList.contains('tree-expanded')).toBe(true);
-    expect(stillRoot.querySelector(':scope > .tree-list')).not.toBeNull();
   });
 
   it('returns a pane with header + tree content', () => {
@@ -167,7 +143,8 @@ describe('TreePane', () => {
 
     const title = pane.querySelector('.text-pane-title');
     expect(title).not.toBeNull();
-    expect(title!.textContent).toBe('Explorer');
+    // Header shows the repo name, not a static "Explorer" label.
+    expect(title!.textContent).toBe('project');
 
     const items = pane.querySelectorAll<HTMLLIElement>('.tree-item');
     expect(items.length).toBeGreaterThan(0);
@@ -176,19 +153,16 @@ describe('TreePane', () => {
   it('accepts a bare tree (no { tree } wrapper)', () => {
     const pane = mount(TEST_TREE);
     const title = pane.querySelector('.text-pane-title');
-    expect(title!.textContent).toBe('Explorer');
+    expect(title!.textContent).toBe('project');
   });
 
-  it('renders the manifest root as a top-level folder', () => {
+  it("renders the root's children as the top level (root node has no row)", () => {
     const pane = mount(TEST_TREE);
-    const rootList = pane.querySelector('ul.tree-root');
-    const topLevelItems = rootList!.querySelectorAll<HTMLLIElement>(':scope > li');
-    expect(topLevelItems.length).toBe(1);
-    expect(topLevelItems[0].classList.contains('tree-dir')).toBe(true);
-    expect(topLevelItems[0].dataset.path).toBe('.');
-    expect(topLevelItems[0].querySelector(':scope > .row > .tree-label')!.textContent).toBe(
-      'project'
-    );
+    const rootList = pane.querySelector('ul.tree-root')!;
+    const topLevelItems = rootList.querySelectorAll<HTMLLIElement>(':scope > li');
+    // The three children of the root — the root folder itself is not a row.
+    expect(topLevelItems.length).toBe(3);
+    expect(Array.from(topLevelItems, (li) => li.dataset.path)).not.toContain('.');
   });
 
   // Structural assertions migrated from the deleted buildTree helper. They
@@ -196,8 +170,8 @@ describe('TreePane', () => {
   // test-only bare-tree builder exported from production.
   it('sorts top-level children alphabetically (files + dirs intermingled)', () => {
     const pane = mount(TEST_TREE);
-    const rootChildList = pane.querySelector('ul.tree-root > li > .tree-list')!;
-    const labels = rootChildList.querySelectorAll<HTMLElement>(':scope > li > .row > .tree-label');
+    const rootList = pane.querySelector('ul.tree-root')!;
+    const labels = rootList.querySelectorAll<HTMLElement>(':scope > li > .row > .tree-label');
     const names = Array.from(labels, (el) => el.textContent);
     expect(names).toEqual(['index.ts', 'README.md', 'src']);
   });
@@ -212,13 +186,12 @@ describe('TreePane', () => {
     expect(pane.querySelectorAll('.tree-file').length).toBe(3);
   });
 
-  it('with no selection, only the root folder is expanded', async () => {
+  it('with no selection, no directory is expanded', async () => {
     const pane = mount(TEST_TREE);
     selectedPath.value = null;
     await flush();
     const expandedDirs = pane.querySelectorAll<HTMLLIElement>('.tree-dir.tree-expanded');
-    expect(expandedDirs.length).toBe(1);
-    expect(expandedDirs[0].dataset.path).toBe('.');
+    expect(expandedDirs.length).toBe(0);
   });
 
   it('row click invokes onSelect with the node', () => {
@@ -234,20 +207,6 @@ describe('TreePane', () => {
     expect(picked!.type).toBe('file');
   });
 
-  it('row dblclick invokes onFocus with the node', () => {
-    let focused: TreeNode | null = null;
-    const pane = mount(TEST_TREE, {
-      onFocus(node) {
-        focused = node;
-      },
-    });
-    const fileRow = pane.querySelector<HTMLElement>('.tree-file > .row')!;
-    const ev = new window.MouseEvent('dblclick', { bubbles: true, cancelable: true });
-    fileRow.dispatchEvent(ev);
-    expect(focused).not.toBeNull();
-    expect(focused!.type).toBe('file');
-  });
-
   it('setSelectedPath highlights the matching row and expands ancestors', async () => {
     const pane = mount(TEST_TREE);
     selectedPath.value = 'src/utils.ts';
@@ -260,7 +219,7 @@ describe('TreePane', () => {
     expect(leaf.classList.contains('tree-selected')).toBe(true);
   });
 
-  it('setSelectedPath(null) clears the highlight and collapses non-root branches', async () => {
+  it('setSelectedPath(null) clears the highlight and collapses open branches', async () => {
     const pane = mount(TEST_TREE);
     selectedPath.value = 'src/utils.ts';
     await flush();
@@ -272,7 +231,6 @@ describe('TreePane', () => {
     expect(pane.querySelector('[data-path="src"]')!.classList.contains('tree-collapsed')).toBe(
       true
     );
-    expect(pane.querySelector('[data-path="."]')!.classList.contains('tree-expanded')).toBe(true);
   });
 
   it('setSelectedPath enforces the single-branch-open invariant', async () => {
@@ -307,7 +265,7 @@ describe('TreePane', () => {
     expect(pane.querySelector('[data-path="a"]')!.classList.contains('tree-collapsed')).toBe(true);
   });
 
-  it('expanding a directory via the chevron closes other open branches', async () => {
+  it('clicking a directory row closes other open branches (single-branch)', async () => {
     const multiBranch = {
       name: 'project',
       type: 'directory',
@@ -328,13 +286,11 @@ describe('TreePane', () => {
       ],
     };
     const pane = mount(multiBranch);
-    const chevA = pane.querySelector<HTMLElement>('[data-path="a"] > .row > .tree-chevron')!;
-    chevA.click();
+    pane.querySelector<HTMLElement>('[data-path="a"] > .row')!.click();
     await flush();
     expect(pane.querySelector('[data-path="a"]')!.classList.contains('tree-expanded')).toBe(true);
 
-    const chevB = pane.querySelector<HTMLElement>('[data-path="b"] > .row > .tree-chevron')!;
-    chevB.click();
+    pane.querySelector<HTMLElement>('[data-path="b"] > .row')!.click();
     await flush();
     expect(pane.querySelector('[data-path="b"]')!.classList.contains('tree-expanded')).toBe(true);
     expect(pane.querySelector('[data-path="a"]')!.classList.contains('tree-collapsed')).toBe(true);

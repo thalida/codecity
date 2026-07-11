@@ -1,0 +1,74 @@
+/* ── New project form ── */
+
+.new-project {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cc-space-6);
+}
+
+.new-project-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cc-space-3);
+}
+.new-project-field label {
+  font-size: var(--cc-font-lg);
+  color: var(--cc-text-muted);
+}
+.new-project-field .form-input {
+  width: 100%;
+}
+/* Inline field-level validation message, below the input. */
+.new-project-error {
+  margin: 0;
+  font-size: var(--cc-font-md);
+  color: var(--cc-error-light);
+}
+
+/* Inline notice for the disabled-local state. Quieter than .card-error:
+   subtle amber tint, no border, single line — the old modal's version was a
+   multi-paragraph wall, this one stays scannable. */
+.new-project-note {
+  background: var(--cc-warning-bg);
+  color: var(--cc-text-secondary);
+  border-radius: var(--cc-radius-md);
+  padding: var(--cc-space-4) var(--cc-space-5);
+  font-size: var(--cc-font-lg);
+}
+
+/* Advanced disclosure — reads as an interactive link with a caret that turns
+   down when open, not dead label text. */
+.new-project-advanced-toggle {
+  appearance: none;
+  background: none;
+  border: none;
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cc-space-2);
+  color: var(--cc-accent-light);
+  font: inherit;
+  font-size: var(--cc-font-md);
+  cursor: pointer;
+  padding: 0;
+}
+.new-project-advanced-toggle:hover {
+  color: var(--cc-accent);
+}
+.new-project-advanced-caret {
+  width: 14px;
+  height: 14px;
+  transition: transform var(--cc-t-base);
+}
+.new-project-advanced-toggle[aria-expanded='true'] .new-project-advanced-caret {
+  transform: rotate(90deg);
+}
+
+.new-project-skip-cache {
+  display: flex;
+  align-items: center;
+  gap: var(--cc-space-3);
+  font-size: var(--cc-font-lg);
+  color: var(--cc-text-secondary);
+  margin-top: calc(var(--cc-space-4) * -1);
+}

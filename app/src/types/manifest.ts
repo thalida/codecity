@@ -128,10 +128,6 @@ export interface CommitEntry {
 
 export interface Manifest {
   root: string;
-  /** Friendly label for the source root, set by the server for git URL
-   *  sources (e.g. "https://github.com/foo/bar@main"). Absent for
-   *  local-path sources. Prefer this over `root` when building UI labels. */
-  display_root?: string;
   scanned_at: string;
   /** Metadata-sensitive fingerprint (mtime/size based). Changes between
    *  skeleton and final events for the same scan. Used by live-update polls

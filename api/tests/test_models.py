@@ -74,7 +74,7 @@ class ModelTests(unittest.TestCase):
                 media_width=10,
             )
 
-    def test_manifest_excludes_none_optional_keys(self) -> None:
+    def test_manifest_serializes(self) -> None:
         m = Manifest(
             root="/r",
             scanned_at="2020",
@@ -142,7 +142,8 @@ class ModelTests(unittest.TestCase):
             },
         )
         dumped = m.model_dump(exclude_none=True)
-        self.assertNotIn("display_root", dumped)
+        self.assertIn("tree", dumped)
+        self.assertIn("repo", dumped)
 
 
 class ResponseModelTests(unittest.TestCase):
@@ -164,9 +165,7 @@ class ResponseModelTests(unittest.TestCase):
         from api.models.events import ScanProgressEvent, ErrorEvent
 
         self.assertEqual(
-            ScanProgressEvent(display_root="r", files_scanned=3).model_dump(
-                exclude_none=True
-            ),
-            {"display_root": "r", "files_scanned": 3},
+            ScanProgressEvent(label="r", files_scanned=3).model_dump(exclude_none=True),
+            {"label": "r", "files_scanned": 3},
         )
         self.assertEqual(ErrorEvent(error="boom").model_dump(), {"error": "boom"})

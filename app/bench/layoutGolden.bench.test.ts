@@ -9,7 +9,12 @@
 import { describe, it, expect } from 'vitest';
 import { layoutCity } from '@/city/layout/algorithm.js';
 import type { CityLayout } from '@/types';
-import { makeRng, genWeightedTree, makeDigestHasher } from '../tests/_helpers/layoutTreeFixtures';
+import {
+  makeRng,
+  genWeightedTree,
+  makeDigestHasher,
+  statsFromTree,
+} from '../tests/_helpers/layoutTreeFixtures';
 
 // Digest: round every coordinate to 4 decimals (below the layout's OVERLAP_EPS)
 // and roll buildings + streets into a 32-bit hash.
@@ -53,7 +58,10 @@ describe('layoutCity golden (bit-identical guard)', () => {
     for (const [label, budget] of CASES) {
       const rng = makeRng(0xc0ffee);
       const tree = genWeightedTree('root', 'root', budget, 0, rng);
-      digests[label] = digest(layoutCity({ tree }));
+      // Supply the file-stat ranges the layout reads (the server provides these
+      // for real repos); without them dimensions fall back to SAFE_RANGE and the
+      // guard would only cover a degenerate uniform-size layout.
+      digests[label] = digest(layoutCity({ tree, stats: statsFromTree(tree) }));
     }
     expect(digests).toEqual(EXPECTED);
   });

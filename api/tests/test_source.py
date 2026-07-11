@@ -1,13 +1,14 @@
-"""Display-label derivation: label_from_source + display_name_for_manifest.
+"""label_from_source — THE primitive for the repo's display name.
 
-These produce the repo's friendly display name server-side (set onto the
-manifest's root tree.name), the single source of truth the frontend reads."""
+The scanner bakes it onto tree.name from the git remote (see test_scan); the
+manifest route uses it for the pending progress label. This covers the pure
+URL/path → "owner/repo" | basename transform."""
 
 from __future__ import annotations
 
 import unittest
 
-from api.services.source import display_name_for_manifest, label_from_source
+from api.services.source import label_from_source
 
 
 class LabelFromSourceTests(unittest.TestCase):
@@ -46,35 +47,6 @@ class LabelFromSourceTests(unittest.TestCase):
     def test_empty_and_none(self) -> None:
         self.assertIsNone(label_from_source(""))
         self.assertIsNone(label_from_source(None))
-
-
-class DisplayNameForManifestTests(unittest.TestCase):
-    def test_prefers_display_root(self) -> None:
-        m = {
-            "display_root": "https://github.com/owner/repo",
-            "repo": {"remote_url": "https://github.com/other/thing"},
-            "tree": {"name": "abc123hash"},
-        }
-        self.assertEqual(display_name_for_manifest(m), "owner/repo")
-
-    def test_local_display_root_basename(self) -> None:
-        m = {"display_root": "/Users/me/my-repo", "tree": {"name": "my-repo"}}
-        self.assertEqual(display_name_for_manifest(m), "my-repo")
-
-    def test_falls_back_to_remote_url(self) -> None:
-        # A cloned repo: tree.name is the cache-dir hash; no display_root yet.
-        m = {
-            "repo": {"remote_url": "git@github.com:owner/repo.git"},
-            "tree": {"name": "deadbeefcafe"},
-        }
-        self.assertEqual(display_name_for_manifest(m), "owner/repo")
-
-    def test_falls_back_to_tree_name(self) -> None:
-        m = {"tree": {"name": "raw-name"}}
-        self.assertEqual(display_name_for_manifest(m), "raw-name")
-
-    def test_empty_manifest(self) -> None:
-        self.assertIsNone(display_name_for_manifest({}))
 
 
 if __name__ == "__main__":

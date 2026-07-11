@@ -12,7 +12,17 @@ const src = readFileSync('src/constants/fileIcons.ts', 'utf8');
 // every generic-fallback const (`GENERIC_FOLDER = 'folder'`). Match both `:`
 // and `=` — missing the generics ships folders that fall back to the generic
 // icon with no bundled URL (blank glyph).
-const names = [...new Set([...src.matchAll(/[:=] ?'([a-z0-9_-]+)'/g)].map((m) => m[1]))].sort();
+const scraped = [...new Set([...src.matchAll(/[:=] ?'([a-z0-9_-]+)'/g)].map((m) => m[1]))];
+// Folder glyphs also need their `-open` twin: the tree renders an open folder
+// for an expanded directory (NodeIcon's `open` prop). Material ships an `-open`
+// for every folder-* icon plus the generic `folder`.
+const withOpen = new Set(scraped);
+for (const n of scraped) {
+  if ((n === 'folder' || n.startsWith('folder-')) && !n.endsWith('-open')) {
+    withOpen.add(`${n}-open`);
+  }
+}
+const names = [...withOpen].sort();
 
 const pkgDir = 'node_modules/material-icon-theme/icons';
 const missing = names.filter((n) => !existsSync(`${pkgDir}/${n}.svg`));

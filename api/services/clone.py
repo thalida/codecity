@@ -61,6 +61,7 @@ __all__ = [
     "RepoNotFoundError",
     "clone_dir_for",
     "ensure_clone",
+    "list_remote_branches",
     "remove_clone",
 ]
 
@@ -117,6 +118,14 @@ _HOST_UNREACHABLE_PATTERNS = (
         re.IGNORECASE,
     ),
 )
+# The URL reached a server, but it isn't a git repo — a typo'd path, or a copied
+# web-page URL with an #anchor / ?query / /tree/<branch> suffix. git says
+# "... not valid: is this a git repository?" or "does not appear to be a git
+# repository".
+_NOT_A_REPO_PATTERNS = (
+    re.compile(r"is this a git repository", re.IGNORECASE),
+    re.compile(r"does not appear to be a git repository", re.IGNORECASE),
+)
 
 
 def _maybe_raise_clean_clone_error(
@@ -132,6 +141,12 @@ def _maybe_raise_clean_clone_error(
     for pat in _REPO_NOT_FOUND_PATTERNS:
         if pat.search(stderr_text):
             raise RepoNotFoundError(f"repository not found at {url}")
+    for pat in _NOT_A_REPO_PATTERNS:
+        if pat.search(stderr_text):
+            raise RepoNotFoundError(
+                "that URL does not point to a git repository. Check it for typos "
+                "or extra parts (a #anchor, ?query, or /tree/<branch> suffix)."
+            )
     for pat in _HOST_UNREACHABLE_PATTERNS:
         if pat.search(stderr_text):
             raise HostUnreachableError("could not resolve host")
@@ -569,3 +584,50 @@ def remove_clone(url: str, branch: str | None) -> bool:
         return False
     shutil.rmtree(target, ignore_errors=True)
     return True
+
+
+# ls-remote timeout: bounded so a black-holed remote can't wedge a request.
+# 20s covers a slow-but-live remote; a real hang trips it and surfaces a clean
+# HostUnreachableError to the caller.
+_LS_REMOTE_TIMEOUT_S = 20
+
+
+def list_remote_branches(url: str) -> tuple[list[str], str | None]:
+    """Return ``(branch_names, default_branch)`` for a remote git URL via
+    ``git ls-remote --symref`` — no clone required (strictly less capability
+    than the clone the server already does for the same URL).
+
+    ``default_branch`` is the name HEAD points at (None if the remote has no
+    symbolic HEAD, e.g. an empty repo). Raises the same clean CloneError
+    subclasses ``ensure_clone`` raises so routers reuse one error taxonomy."""
+    try:
+        proc = subprocess.run(
+            ["git", "ls-remote", "--symref", "--", url],
+            capture_output=True,
+            text=True,
+            check=False,
+            env=_git_env(),
+            timeout=_LS_REMOTE_TIMEOUT_S,
+        )
+    except FileNotFoundError as e:
+        raise CloneError("git executable not found on PATH") from e
+    except subprocess.TimeoutExpired as e:
+        raise HostUnreachableError("timed out reaching remote") from e
+    if proc.returncode != 0:
+        _maybe_raise_clean_clone_error(url, None, proc.stderr)
+        raise CloneError(f"git ls-remote failed: {proc.stderr.strip()}")
+
+    default: str | None = None
+    branches: list[str] = []
+    for line in proc.stdout.splitlines():
+        # Symref line: "ref: refs/heads/main\tHEAD"
+        if line.startswith("ref: ") and line.endswith("\tHEAD"):
+            target = line[len("ref: ") :].split("\t", 1)[0]
+            if target.startswith("refs/heads/"):
+                default = target[len("refs/heads/") :]
+            continue
+        # Ref line: "<sha>\trefs/heads/<name>"
+        parts = line.split("\t")
+        if len(parts) == 2 and parts[1].startswith("refs/heads/"):
+            branches.append(parts[1][len("refs/heads/") :])
+    return branches, default

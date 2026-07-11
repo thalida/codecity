@@ -2,9 +2,8 @@
 // and mouse shortcuts, opened from the header's `?` icon. Signal-driven like
 // LoadingOverlay: App mounts one instance unconditionally, it reads
 // SHORTCUTS_OPEN directly and renders null when closed (no props). Chrome
-// (.modal-backdrop/.modal-card/.modal-header/.modal-body) reuses the classes
-// defined in views/SourcePicker/SourcePicker.css — that component is always
-// mounted, so the rules are already global; this file only adds the
+// (.modal-backdrop/.modal-card/.modal-header/.modal-body) reuses the global
+// classes defined in styles/modal.css; this file only adds the
 // shortcuts-list layout.
 
 import './ShortcutsModal.css';

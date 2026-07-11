@@ -262,14 +262,16 @@ describe('OverviewPane', () => {
     const sig = signal(withHead);
     render(<OverviewPane manifest={sig as never} />, container);
     await flush();
-    // The row is not a button — no invisible whole-row link.
-    const latest = container.querySelector('.almanac-latest') as HTMLElement;
-    expect(latest.tagName).toBe('DIV');
-    expect(latest.querySelector('button')).toBeNull();
     // The commit hash is the one link, pointing at the commit on the remote.
-    const link = latest.querySelector('a.almanac-sha-link') as HTMLAnchorElement;
+    const link = container.querySelector('a.almanac-sha-link') as HTMLAnchorElement;
+    expect(link).not.toBeNull();
     expect(link.textContent).toBe('deadbee');
     expect(link.getAttribute('href')).toBe('https://github.com/o/r/commit/deadbeefcafe');
+    // The row is not a button — the sha link sits in a plain head span.
+    const head = container.querySelector('.almanac-latest-head') as HTMLElement;
+    expect(head.tagName).toBe('SPAN');
+    expect(head.querySelector('button')).toBeNull();
+    // Branch is its own meta row now.
     expect(container.querySelector('.almanac-branch')?.textContent).toBe('main');
   });
 

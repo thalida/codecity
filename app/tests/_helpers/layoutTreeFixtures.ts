@@ -6,7 +6,7 @@
 // EXPECTED constants).
 
 import { NodeKind } from '@/types';
-import type { CityBbox, CityLayout, CommitEntry } from '@/types';
+import type { CityBbox, CityLayout, CommitEntry, RepoStats } from '@/types';
 
 /** Deterministic LCG so tree shape (and thus digests/timings) reproduce. */
 export function makeRng(seed: number): () => number {
@@ -111,6 +111,38 @@ export function genNestedTree(
     children.push(genNestedTree(`d${i}`, `${path}/d${i}`, share, depth + 1, rng));
   }
   return mkDir(name, children, path);
+}
+
+// Reconstruct the two building-size normalization ranges the layout reads from
+// RepoStats: min/max of non-zero file lines/bytes across the tree. The server
+// computes these for real repos; without them layoutCity falls back to
+// SAFE_RANGE and every building gets the same (degenerate) size — so the bench
+// must supply them to exercise real dimensions. Only lineCountRange /
+// byteSizeRange are read by the layout; the rest of RepoStats is Info-tab data.
+export function statsFromTree(root: any): RepoStats {
+  let minL = Infinity;
+  let maxL = -Infinity;
+  let minB = Infinity;
+  let maxB = -Infinity;
+  const walk = (n: any): void => {
+    if (n.type === NodeKind.File) {
+      if (n.lines > 0) {
+        minL = Math.min(minL, n.lines);
+        maxL = Math.max(maxL, n.lines);
+      }
+      if (n.size > 0) {
+        minB = Math.min(minB, n.size);
+        maxB = Math.max(maxB, n.size);
+      }
+    } else if (n.children) {
+      for (const c of n.children) walk(c);
+    }
+  };
+  walk(root);
+  return {
+    lineCountRange: { min: minL === Infinity ? 0 : minL, max: maxL === -Infinity ? 0 : maxL },
+    byteSizeRange: { min: minB === Infinity ? 0 : minB, max: maxB === -Infinity ? 0 : maxB },
+  } as RepoStats;
 }
 
 /** Axis-aligned bbox of a laid-out city's buildings, with derived center/size. */

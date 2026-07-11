@@ -38,7 +38,7 @@ import {
 import { SERVER_CONFIG } from '@/state/stores/serverConfig';
 import { MANIFEST, setManifest, markError } from '@/state/stores/manifest';
 import { SCAN_PROGRESS } from '@/state/stores/scanProgress';
-import { srcKind, labelFromSource, SourceKind } from '@/utils/sources';
+import { srcKind, SourceKind, srcNeedsBranch } from '@/utils/sources';
 import { isEmptyManifest } from '@/utils/manifest';
 import { URL_PARAMS } from '@/constants/urlParams';
 import type { Manifest } from '@/types';
@@ -57,24 +57,24 @@ import type { SourcePayload } from '@/state/stores/ui';
  */
 async function pumpManifestStream(
   url: string,
-  meta: { kind: SourceKind; label: string; branch?: string },
+  meta: { kind: SourceKind; branch?: string },
   onManifest: (
     manifest: Manifest,
     phase: ScanPhase.PartialManifest | ScanPhase.CompleteManifest
-  ) => Promise<void> | void
+  ) => Promise<void> | void,
+  signal?: AbortSignal
 ): Promise<Manifest> {
   let lastManifest: Manifest | null = null;
 
-  for await (const event of streamManifest(url)) {
+  for await (const event of streamManifest(url, { signal })) {
     if (event.phase === ScanPhase.Error) throw new Error(event.error);
 
-    if ('display_root' in event && event.display_root) {
-      // The canonical "label of the source being loaded" — read by BOTH the
-      // document title (useDocumentTitle) and the loading overlay's header, so
-      // the project name isn't duplicated into the overlay store. Idempotent:
-      // @preact/signals dedupes same-value writes and display_root is stable
-      // per load, so no need to guard against repeat events.
-      PENDING_SOURCE_LABEL.value = labelFromSource(event.display_root) ?? null;
+    if ('label' in event && event.label) {
+      // The canonical "label of the source being loaded" — computed server-side
+      // and read by BOTH the document title (useDocumentTitle) and the loading
+      // overlay's header, so the project name isn't derived client-side. Idempotent:
+      // @preact/signals dedupes same-value writes and the label is stable per load.
+      PENDING_SOURCE_LABEL.value = event.label;
     }
 
     if (event.phase === ScanPhase.CloneProgress || event.phase === ScanPhase.ScanProgress) {
@@ -91,6 +91,10 @@ async function pumpManifestStream(
 
     // Skeleton or final.
     SCAN_PROGRESS.value = { ...meta, phase: event.phase };
+    // Once a manifest lands, its tree.name is the canonical repo name (the
+    // remote's owner/repo), better than the src basename — which for a
+    // local working tree is the folder name (e.g. a git-worktree dir).
+    if (event.manifest.tree?.name) PENDING_SOURCE_LABEL.value = event.manifest.tree.name;
     await onManifest(event.manifest, event.phase);
     lastManifest = event.manifest;
   }
@@ -111,6 +115,10 @@ async function pumpManifestStream(
 // applyManifest already uses one layer down.
 let loadGeneration = 0;
 
+// The AbortController for the current foreground load, so the UI can cancel a
+// slow clone/scan. A new load or a cancel aborts the previous one.
+let loadController: AbortController | null = null;
+
 // ── Canonical source load (cold-boot + user switch) ──────────────────
 // The one way to load a source: claim the generation → overlay → stream
 // skeleton+final into MANIFEST → on success commit the source (CURRENT_SOURCE +
@@ -119,14 +127,20 @@ let loadGeneration = 0;
 // camera, App coordinates the picker off SOURCE_ERROR. (The live-update poll
 // below is a SEPARATE op — a background refresh of the current source that
 // shares only the MANIFEST sink, and yields to a foreground load via the gen.)
-async function loadSource(payload: SourcePayload): Promise<void> {
+export async function loadSource(payload: SourcePayload): Promise<void> {
   const myGen = ++loadGeneration; // claim authority; supersedes any in-flight load/poll
+  loadController?.abort(); // supersede any in-flight load
+  const controller = new AbortController();
+  loadController = controller;
   const meta = {
     kind: srcKind(payload.src),
-    label: labelFromSource(payload.src) ?? payload.src,
     branch: payload.branch,
   };
   SCAN_PROGRESS.value = { ...meta, phase: null }; // show overlay immediately
+  // Snapshot the applied manifest so a cancel that lands after a skeleton was
+  // streamed into MANIFEST can roll it back — otherwise the canceled repo's
+  // partial geometry lingers under the unchanged CURRENT_SOURCE's header.
+  const prevManifest = MANIFEST.peek();
 
   try {
     const url = manifestUrlFor({
@@ -136,10 +150,23 @@ async function loadSource(payload: SourcePayload): Promise<void> {
     });
     // Publish the skeleton as it streams (early structure, behind the overlay);
     // the final is published below, AFTER committing the source.
-    const manifest = await pumpManifestStream(url, meta, (m, phase) => {
-      if (phase === ScanPhase.PartialManifest && myGen === loadGeneration) setManifest(m);
-    });
-    if (myGen !== loadGeneration) return; // a newer load superseded this one
+    const manifest = await pumpManifestStream(
+      url,
+      meta,
+      (m, phase) => {
+        if (phase === ScanPhase.PartialManifest && myGen === loadGeneration) setManifest(m);
+      },
+      controller.signal
+    );
+    // A newer load superseded this one: it owns MANIFEST now, don't touch.
+    if (myGen !== loadGeneration) return;
+    // Canceled after a skeleton: the aborted stream ends as done (not a throw),
+    // so we got the partial manifest back. Don't commit it — roll MANIFEST back
+    // to the pre-load snapshot so the canceled repo's skeleton doesn't linger.
+    if (controller.signal.aborted) {
+      setManifest(prevManifest);
+      return;
+    }
     // Commit the source BEFORE publishing the final manifest. The render layer's
     // camera-reframe reaction keys off CURRENT_SOURCE captured at apply-START, so
     // the new key must be live for the FINAL apply (the one to frame on) and NOT
@@ -148,6 +175,10 @@ async function loadSource(payload: SourcePayload): Promise<void> {
     setManifest(manifest);
   } catch (err) {
     if (myGen !== loadGeneration) return; // superseded — its error isn't current
+    if (controller.signal.aborted) {
+      setManifest(prevManifest); // user canceled: not an error; roll back any skeleton
+      return;
+    }
     SOURCE_ERROR.value = {
       error: err instanceof Error ? err.message : String(err),
       prefill: { src: payload.src, branch: payload.branch },
@@ -158,8 +189,18 @@ async function loadSource(payload: SourcePayload): Promise<void> {
     if (myGen === loadGeneration) {
       SCAN_PROGRESS.value = null;
       PENDING_SOURCE_LABEL.value = null;
+      if (loadController === controller) loadController = null;
     }
   }
+}
+
+/**
+ * Abort the in-flight foreground load, if any. Exposed to the UI (a cancel
+ * button on the loading overlay) via the hook's return; the abort is treated
+ * as a clean user cancel, not a failure — see the `catch` branch above.
+ */
+export function cancelLoad(): void {
+  loadController?.abort();
 }
 
 // ── Live-update poll loop ────────────────────────────────────────────
@@ -273,12 +314,18 @@ function setupLiveUpdates(): () => void {
  * Boot the manifest FETCH pipeline on mount: stream the initial manifest from
  * ?src into MANIFEST, fetch the server config, and start live updates.
  * Scene-free — the render layer (the City component) consumes MANIFEST and paints the
- * scene. UI-free too: it never opens/closes the source picker; on a load failure
+ * scene. UI-free too: it never opens/closes ProjectsView; on a load failure
  * (boot or submit) it WRITES the canonical SOURCE_ERROR signal and App reacts to
- * coordinate the picker. RETURNS the source-picker submit handler so App can pass
- * it down to <SourcePicker> as a prop (no global register/invoke channel).
+ * coordinate ProjectsView. A user-initiated cancel (`cancelLoad`) aborts the
+ * in-flight stream but is NOT surfaced as a load failure — no SOURCE_ERROR write.
+ * RETURNS the submit handler and a cancel handler so App can pass
+ * them down to <ProjectsView>/the loading overlay as props (no global
+ * register/invoke channel).
  */
-export function useManifestSource(): (payload: SourcePayload) => void {
+export function useManifestSource(): {
+  submitSource: (payload: SourcePayload) => void;
+  cancelLoad: () => void;
+} {
   const submitSource = useCallback((payload: SourcePayload) => {
     void loadSource(payload);
   }, []);
@@ -288,11 +335,13 @@ export function useManifestSource(): (payload: SourcePayload) => void {
     let disposeLiveUpdates: (() => void) | null = null;
     (async () => {
       const qp = new URLSearchParams(window.location.search);
-      if (qp.has(URL_PARAMS.SRC)) {
-        await loadSource({
-          src: qp.get(URL_PARAMS.SRC)!,
-          branch: qp.get(URL_PARAMS.BRANCH) ?? undefined,
-        });
+      const bootSrc = qp.get(URL_PARAMS.SRC);
+      const bootBranch = qp.get(URL_PARAMS.BRANCH) ?? undefined;
+      // A remote ?src with no ?branch can't load without a branch choice — App
+      // opens the picker (prefilled) for it, just like a no-src cold boot. Only
+      // auto-load a fully-specified source here.
+      if (bootSrc && !srcNeedsBranch(bootSrc, bootBranch)) {
+        await loadSource({ src: bootSrc, branch: bootBranch });
       }
       if (cancelled) return;
 
@@ -311,5 +360,5 @@ export function useManifestSource(): (payload: SourcePayload) => void {
     };
   }, []);
 
-  return submitSource;
+  return { submitSource, cancelLoad };
 }

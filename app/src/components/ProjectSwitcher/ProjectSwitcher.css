@@ -1,9 +1,13 @@
-/* The project switcher button is now .btn-chip (defined with the button
-   components near the top of the file). The label is allowed to grow
-   to the full project name — no ellipsis — so users always see what
-   they're switched to even for long owner/repo strings. */
+/* The project switcher button is .btn-chip (defined with the button components
+   in buttons.css), capped at a max-width there. The label and branch pill
+   truncate with an ellipsis so a long repo name or branch can't overflow the
+   chip and overlap the neighbouring repo link. The full name stays reachable
+   via the switcher itself. */
 .btn-chip-label {
   white-space: nowrap;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .btn-chip .lucide-icon {
   font-size: var(--cc-font-xl);
@@ -22,4 +26,20 @@
   font-size: var(--cc-font-sm);
   font-family: var(--cc-font-mono);
   white-space: nowrap;
+}
+
+/* Inside the header chip the branch pill can shrink and truncate when the chip
+   runs out of room (rather than pushing the chip wider). In the recents list
+   the same pill has room and is left alone. inline-block (not inline-flex) so
+   text-overflow applies to the text. */
+.btn-chip .app-header-branch-pill {
+  display: inline-block;
+  min-width: 0;
+  /* The chip's flex gap already spaces the pill; drop the pill's own margin so
+     the repo name / branch / affordance sit close together. */
+  margin-left: 0;
+  line-height: 16px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  vertical-align: middle;
 }

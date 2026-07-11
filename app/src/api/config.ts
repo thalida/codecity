@@ -6,6 +6,8 @@
 // we prefer to render the "local is disabled" UI than to expose a
 // path input that the server will reject anyway.
 
+import { apiUrl } from '@/api/apiUrl';
+
 export interface ServerConfig {
   allowLocalRepos: boolean;
 }
@@ -16,7 +18,7 @@ let _cached: Promise<ServerConfig> | null = null;
 
 export async function fetchServerConfig(): Promise<ServerConfig> {
   try {
-    const resp = await fetch('/api/config');
+    const resp = await fetch(apiUrl('config'));
     if (!resp.ok) return DISABLED;
     const body = (await resp.json()) as Partial<ServerConfig>;
     return { allowLocalRepos: !!body.allowLocalRepos };

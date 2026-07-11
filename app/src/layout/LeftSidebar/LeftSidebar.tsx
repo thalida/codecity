@@ -164,9 +164,6 @@ export function LeftSidebar() {
   const onTreeSelect = (node: TreeNode) => {
     if (node?.path) selectPath(node.path);
   };
-  const onTreeFocus = (node: TreeNode) => {
-    if (node?.path) focusPath(node.path);
-  };
   const onTreeHover = (node: TreeNode) => {
     if (node?.path) hoverPath(node.path);
   };
@@ -193,7 +190,6 @@ export function LeftSidebar() {
             rootPath={(MANIFEST.value as { tree?: TreeNode })?.tree?.path ?? ''}
             onClose={onPaneClose}
             onSelect={onTreeSelect}
-            onFocus={onTreeFocus}
             onHover={onTreeHover}
             onHoverEnd={clearHover}
           />

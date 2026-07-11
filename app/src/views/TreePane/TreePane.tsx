@@ -14,8 +14,7 @@ import type { ReadonlySignal, Signal } from '@preact/signals';
 import { useEffect, useRef } from 'preact/hooks';
 import { NodeKind } from '@/types';
 import type { DirNode, Manifest, TreeNode } from '@/types';
-import { ChevronDown, ChevronRight, FolderOpen } from 'lucide-preact';
-import { GemIcon } from '@/components/GemIcon/GemIcon';
+import { FolderOpen } from 'lucide-preact';
 import { NodeIcon } from '@/components/NodeIcon/NodeIcon';
 import { Pane, PaneEmpty } from '@/components/Pane';
 
@@ -51,26 +50,22 @@ function _sortChildren(children: readonly TreeNode[] | undefined): TreeNode[] {
 
 interface TreeItemProps {
   node: TreeNode;
-  isRoot?: boolean;
   rootPath: string;
   expanded: Signal<Set<string>>;
   selectedPath: ReadonlySignal<string | null>;
   hoveredPath: ReadonlySignal<string | null>;
   onSelect?: (node: TreeNode) => void;
-  onFocus?: (node: TreeNode) => void;
   onHover?: (node: TreeNode) => void;
   onHoverEnd?: (node: TreeNode) => void;
 }
 
 function TreeItem({
   node,
-  isRoot = false,
   rootPath,
   expanded,
   selectedPath,
   hoveredPath,
   onSelect,
-  onFocus,
   onHover,
   onHoverEnd,
 }: TreeItemProps) {
@@ -92,22 +87,25 @@ function TreeItem({
     }
   }, [isSelected]);
 
-  function toggleExpanded() {
-    const cur = expanded.value;
-    if (cur.has(path)) {
-      // Collapsing only collapses this dir — invariant trivially holds.
-      const next = new Set(cur);
+  function handleClick() {
+    if (isDir && isExpanded) {
+      // Collapse this folder. Don't also select it: selection drives the
+      // ancestor-chain expansion bridge, which would immediately reopen it.
+      const next = new Set(expanded.value);
       next.delete(path);
       expanded.value = next;
-    } else {
-      // Expanding enforces the single-branch invariant: only ancestor
-      // chain (plus this) stays open; every other branch collapses.
+      return;
+    }
+    if (isDir) {
+      // Open this branch, enforcing the single-branch invariant (siblings
+      // close). Set expansion directly rather than leaning on the selection
+      // bridge, so an already-selected folder still reopens after a collapse.
       expanded.value = new Set([..._ancestorChain(path, rootPath), path]);
     }
+    onSelect?.(node);
   }
 
   const classes: string[] = ['tree-item'];
-  if (isRoot) classes.push('tree-root-item');
   if (isDir) classes.push('tree-dir', isExpanded ? 'tree-expanded' : 'tree-collapsed');
   else classes.push('tree-file');
   if (isSelected) classes.push('tree-selected');
@@ -121,40 +119,15 @@ function TreeItem({
         class="row row--tight"
         onClick={(e) => {
           e.stopPropagation();
-          if (onSelect) onSelect(node);
-        }}
-        onDblClick={(e) => {
-          e.stopPropagation();
-          if (onFocus) onFocus(node);
+          handleClick();
         }}
         onMouseEnter={() => onHover?.(node)}
         onMouseLeave={() => onHoverEnd?.(node)}
       >
-        {/* Chevron column — for directories, clickable toggle; for
-            files (and the root, where collapse is a dead-end), a
-            placeholder so labels line up across siblings. */}
-        {isDir && !isRoot ? (
-          <span
-            class="tree-chevron"
-            onClick={(e) => {
-              e.stopPropagation();
-              toggleExpanded();
-            }}
-          >
-            {isExpanded ? (
-              <ChevronDown class="lucide-icon tree-icon tree-icon-dir" />
-            ) : (
-              <ChevronRight class="lucide-icon tree-icon tree-icon-dir" />
-            )}
-          </span>
-        ) : (
-          <span class="tree-chevron">
-            {isDir && isRoot && <ChevronDown class="lucide-icon tree-icon tree-icon-dir" />}
-          </span>
-        )}
-        {/* Glyph: root uses the brand gem (monochrome); every other node
-            gets its Material file/folder icon (NodeIcon dispatches on type). */}
-        {isDir && isRoot ? <GemIcon simple class="tree-root-glyph" /> : <NodeIcon node={node} />}
+        {/* No disclosure chevron (Zed-style): a directory row toggles on click,
+            and its open/closed folder icon is the expansion cue. Files and dirs
+            both lead with the icon, so sibling icons line up. */}
+        <NodeIcon node={node} open={isExpanded} />
         <span class="tree-label">{node.name || ''}</span>
       </div>
       {isDir && isExpanded && children.length > 0 && (
@@ -168,7 +141,6 @@ function TreeItem({
               selectedPath={selectedPath}
               hoveredPath={hoveredPath}
               onSelect={onSelect}
-              onFocus={onFocus}
               onHover={onHover}
               onHoverEnd={onHoverEnd}
             />
@@ -194,7 +166,6 @@ export interface TreePaneProps {
   rootPath: string;
   onClose?: () => void;
   onSelect?: (node: TreeNode) => void;
-  onFocus?: (node: TreeNode) => void;
   onHover?: (node: TreeNode) => void;
   onHoverEnd?: (node: TreeNode) => void;
 }
@@ -207,7 +178,6 @@ export function TreePane({
   rootPath,
   onClose,
   onSelect,
-  onFocus,
   onHover,
   onHoverEnd,
 }: TreePaneProps) {
@@ -230,7 +200,13 @@ export function TreePane({
     !tree || !('children' in tree) || ((tree as DirNode).children?.length ?? 0) === 0;
 
   return (
-    <Pane paneClass="tree-pane" title="Explorer" onClose={onClose}>
+    <Pane
+      paneClass="tree-pane"
+      // Header shows the repo name — the root node itself is no longer rendered
+      // as a row, so its children are the top level.
+      title={tree?.name || 'Explorer'}
+      onClose={onClose}
+    >
       {noChildren ? (
         <PaneEmpty
           icon={FolderOpen}
@@ -239,18 +215,19 @@ export function TreePane({
         />
       ) : (
         <ul class="tree-list tree-root">
-          <TreeItem
-            node={tree as TreeNode}
-            isRoot
-            rootPath={rootPath}
-            expanded={expanded}
-            selectedPath={selectedPath}
-            hoveredPath={hoveredPath}
-            onSelect={onSelect}
-            onFocus={onFocus}
-            onHover={onHover}
-            onHoverEnd={onHoverEnd}
-          />
+          {_sortChildren((tree as DirNode).children).map((child) => (
+            <TreeItem
+              key={child.path ?? child.name}
+              node={child}
+              rootPath={rootPath}
+              expanded={expanded}
+              selectedPath={selectedPath}
+              hoveredPath={hoveredPath}
+              onSelect={onSelect}
+              onHover={onHover}
+              onHoverEnd={onHoverEnd}
+            />
+          ))}
         </ul>
       )}
     </Pane>

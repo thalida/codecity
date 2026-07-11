@@ -70,7 +70,11 @@ services:
     # required so labelAtlas text measurements match real-browser widths —
     # without them, a pagination test that depends on text overflowing one
     # 8192-tall page fails because measurements come back too narrow.
-    command: sh -c "apt-get update >/dev/null && apt-get install -y --no-install-recommends libexpat1 fontconfig fonts-dejavu-core >/dev/null && npm install -g npm@${NPM_VERSION:-11.6.2} && npm ci && npm test"
+    #
+    # Reliability: canvas's prebuilt .node download can flake and fall back to a
+    # node-gyp source build that fails in this slim image. Mitigations: cache the
+    # prebuilt in named volumes (fetched once, reused) and retry `npm ci`.
+    command: sh -c "apt-get update >/dev/null && apt-get install -y --no-install-recommends libexpat1 fontconfig fonts-dejavu-core >/dev/null && npm install -g npm@${NPM_VERSION:-11.6.2} && (npm ci || (sleep 3 && npm ci) || (sleep 6 && npm ci)) && npm test"
     volumes:
       # Not :ro — Docker can't mkdir the /app/node_modules mountpoint under a
       # read-only parent mount on a fresh checkout (no existing node_modules
@@ -78,3 +82,10 @@ services:
       # to source.
       - "./app:/app"
       - "/app/node_modules"             # anonymous volume — npm-installed in container
+      - "codecity-test-npm-cache:/root/.npm"     # persist npm + prebuild-install cache
+      - "codecity-test-node-cache:/root/.cache"  # prebuild-install may cache here too
+
+# Named caches so canvas's prebuilt binary is downloaded once, not per push.
+volumes:
+  codecity-test-npm-cache:
+  codecity-test-node-cache:

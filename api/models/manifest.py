@@ -228,9 +228,6 @@ class Manifest(BaseModel):
     busyness: BusynessThresholds
     dateRanges: DateRanges
     stats: RepoStats
-    # Optional-but-non-nullable (absent for local sources, a label string for
-    # git sources — never null); see OptionalStr above.
-    display_root: OptionalStr = None
 
 
 class SignatureResponse(BaseModel):

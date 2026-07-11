@@ -13,7 +13,7 @@ import {
   setLoadingStepTail,
 } from '@/state/stores/ui';
 import { ScanPhase } from '@/api/manifest';
-import { LoadingStep } from '@/constants/loadingSteps';
+import { LoadingStep, stepForPhase } from '@/constants/loadingSteps';
 
 export function attachLoadingReactions(): () => void {
   let wasActive = false;
@@ -27,11 +27,11 @@ export function attachLoadingReactions(): () => void {
     if (!wasActive) {
       // null→non-null: show the overlay at the kind-based initial step
       // (Resolving for git, Scanning for local).
-      showLoadingOverlay({ kind: p.kind, label: p.label, branch: p.branch });
+      showLoadingOverlay({ kind: p.kind, branch: p.branch });
       wasActive = true;
     }
+    setLoadingStep(stepForPhase(p.phase, p.kind));
     if (p.phase === ScanPhase.CloneProgress) {
-      setLoadingStep(LoadingStep.Cloning);
       // A normal tick shows "{percent}% ({stage})"; a heartbeat during the
       // silent promisor blob fetch (no percent) shows the working tree growing
       // on disk so the step doesn't look frozen.
@@ -43,7 +43,6 @@ export function attachLoadingReactions(): () => void {
       }
       setLoadingStepTail(LoadingStep.Cloning, tail);
     } else if (p.phase === ScanPhase.ScanProgress) {
-      setLoadingStep(LoadingStep.Scanning);
       setLoadingStepTail(
         LoadingStep.Scanning,
         p.filesScanned !== undefined ? `${p.filesScanned.toLocaleString()} files` : null
@@ -52,9 +51,6 @@ export function attachLoadingReactions(): () => void {
       // Progress tails done.
       setLoadingStepTail(LoadingStep.Cloning, null);
       setLoadingStepTail(LoadingStep.Scanning, null);
-      setLoadingStep(
-        p.phase === ScanPhase.PartialManifest ? LoadingStep.Skeleton : LoadingStep.Building
-      );
     }
     // p.phase === null: just-started; showLoadingOverlay already set the
     // kind-based initial step — nothing more to do until a real event.

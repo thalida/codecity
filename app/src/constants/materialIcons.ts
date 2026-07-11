@@ -31,43 +31,82 @@ import eslint from 'material-icon-theme/icons/eslint.svg?url';
 import file from 'material-icon-theme/icons/file.svg?url';
 import folder from 'material-icon-theme/icons/folder.svg?url';
 import folderAnimation from 'material-icon-theme/icons/folder-animation.svg?url';
+import folderAnimationOpen from 'material-icon-theme/icons/folder-animation-open.svg?url';
 import folderApi from 'material-icon-theme/icons/folder-api.svg?url';
+import folderApiOpen from 'material-icon-theme/icons/folder-api-open.svg?url';
 import folderApp from 'material-icon-theme/icons/folder-app.svg?url';
+import folderAppOpen from 'material-icon-theme/icons/folder-app-open.svg?url';
 import folderClass from 'material-icon-theme/icons/folder-class.svg?url';
+import folderClassOpen from 'material-icon-theme/icons/folder-class-open.svg?url';
 import folderClient from 'material-icon-theme/icons/folder-client.svg?url';
+import folderClientOpen from 'material-icon-theme/icons/folder-client-open.svg?url';
 import folderComponents from 'material-icon-theme/icons/folder-components.svg?url';
+import folderComponentsOpen from 'material-icon-theme/icons/folder-components-open.svg?url';
 import folderConfig from 'material-icon-theme/icons/folder-config.svg?url';
+import folderConfigOpen from 'material-icon-theme/icons/folder-config-open.svg?url';
 import folderConstant from 'material-icon-theme/icons/folder-constant.svg?url';
+import folderConstantOpen from 'material-icon-theme/icons/folder-constant-open.svg?url';
 import folderController from 'material-icon-theme/icons/folder-controller.svg?url';
+import folderControllerOpen from 'material-icon-theme/icons/folder-controller-open.svg?url';
 import folderCoverage from 'material-icon-theme/icons/folder-coverage.svg?url';
+import folderCoverageOpen from 'material-icon-theme/icons/folder-coverage-open.svg?url';
 import folderCss from 'material-icon-theme/icons/folder-css.svg?url';
+import folderCssOpen from 'material-icon-theme/icons/folder-css-open.svg?url';
 import folderDist from 'material-icon-theme/icons/folder-dist.svg?url';
+import folderDistOpen from 'material-icon-theme/icons/folder-dist-open.svg?url';
 import folderDocs from 'material-icon-theme/icons/folder-docs.svg?url';
+import folderDocsOpen from 'material-icon-theme/icons/folder-docs-open.svg?url';
 import folderExamples from 'material-icon-theme/icons/folder-examples.svg?url';
+import folderExamplesOpen from 'material-icon-theme/icons/folder-examples-open.svg?url';
 import folderGit from 'material-icon-theme/icons/folder-git.svg?url';
+import folderGitOpen from 'material-icon-theme/icons/folder-git-open.svg?url';
 import folderGithub from 'material-icon-theme/icons/folder-github.svg?url';
+import folderGithubOpen from 'material-icon-theme/icons/folder-github-open.svg?url';
 import folderHelper from 'material-icon-theme/icons/folder-helper.svg?url';
+import folderHelperOpen from 'material-icon-theme/icons/folder-helper-open.svg?url';
 import folderHook from 'material-icon-theme/icons/folder-hook.svg?url';
+import folderHookOpen from 'material-icon-theme/icons/folder-hook-open.svg?url';
 import folderImages from 'material-icon-theme/icons/folder-images.svg?url';
+import folderImagesOpen from 'material-icon-theme/icons/folder-images-open.svg?url';
 import folderIntellij from 'material-icon-theme/icons/folder-intellij.svg?url';
+import folderIntellijOpen from 'material-icon-theme/icons/folder-intellij-open.svg?url';
 import folderLayout from 'material-icon-theme/icons/folder-layout.svg?url';
+import folderLayoutOpen from 'material-icon-theme/icons/folder-layout-open.svg?url';
 import folderLib from 'material-icon-theme/icons/folder-lib.svg?url';
+import folderLibOpen from 'material-icon-theme/icons/folder-lib-open.svg?url';
 import folderMiddleware from 'material-icon-theme/icons/folder-middleware.svg?url';
+import folderMiddlewareOpen from 'material-icon-theme/icons/folder-middleware-open.svg?url';
 import folderNode from 'material-icon-theme/icons/folder-node.svg?url';
+import folderNodeOpen from 'material-icon-theme/icons/folder-node-open.svg?url';
+import folderOpen from 'material-icon-theme/icons/folder-open.svg?url';
 import folderPublic from 'material-icon-theme/icons/folder-public.svg?url';
+import folderPublicOpen from 'material-icon-theme/icons/folder-public-open.svg?url';
 import folderResource from 'material-icon-theme/icons/folder-resource.svg?url';
+import folderResourceOpen from 'material-icon-theme/icons/folder-resource-open.svg?url';
 import folderRoutes from 'material-icon-theme/icons/folder-routes.svg?url';
+import folderRoutesOpen from 'material-icon-theme/icons/folder-routes-open.svg?url';
 import folderScripts from 'material-icon-theme/icons/folder-scripts.svg?url';
+import folderScriptsOpen from 'material-icon-theme/icons/folder-scripts-open.svg?url';
 import folderServer from 'material-icon-theme/icons/folder-server.svg?url';
+import folderServerOpen from 'material-icon-theme/icons/folder-server-open.svg?url';
 import folderShared from 'material-icon-theme/icons/folder-shared.svg?url';
+import folderSharedOpen from 'material-icon-theme/icons/folder-shared-open.svg?url';
 import folderSrc from 'material-icon-theme/icons/folder-src.svg?url';
+import folderSrcOpen from 'material-icon-theme/icons/folder-src-open.svg?url';
 import folderStore from 'material-icon-theme/icons/folder-store.svg?url';
+import folderStoreOpen from 'material-icon-theme/icons/folder-store-open.svg?url';
 import folderTest from 'material-icon-theme/icons/folder-test.svg?url';
+import folderTestOpen from 'material-icon-theme/icons/folder-test-open.svg?url';
 import folderTools from 'material-icon-theme/icons/folder-tools.svg?url';
+import folderToolsOpen from 'material-icon-theme/icons/folder-tools-open.svg?url';
 import folderTypescript from 'material-icon-theme/icons/folder-typescript.svg?url';
+import folderTypescriptOpen from 'material-icon-theme/icons/folder-typescript-open.svg?url';
 import folderUtils from 'material-icon-theme/icons/folder-utils.svg?url';
+import folderUtilsOpen from 'material-icon-theme/icons/folder-utils-open.svg?url';
 import folderViews from 'material-icon-theme/icons/folder-views.svg?url';
+import folderViewsOpen from 'material-icon-theme/icons/folder-views-open.svg?url';
 import folderVscode from 'material-icon-theme/icons/folder-vscode.svg?url';
+import folderVscodeOpen from 'material-icon-theme/icons/folder-vscode-open.svg?url';
 import font from 'material-icon-theme/icons/font.svg?url';
 import fsharp from 'material-icon-theme/icons/fsharp.svg?url';
 import git from 'material-icon-theme/icons/git.svg?url';
@@ -159,43 +198,82 @@ export const MATERIAL_ICON_URLS: Record<string, string> = {
   file,
   folder,
   'folder-animation': folderAnimation,
+  'folder-animation-open': folderAnimationOpen,
   'folder-api': folderApi,
+  'folder-api-open': folderApiOpen,
   'folder-app': folderApp,
+  'folder-app-open': folderAppOpen,
   'folder-class': folderClass,
+  'folder-class-open': folderClassOpen,
   'folder-client': folderClient,
+  'folder-client-open': folderClientOpen,
   'folder-components': folderComponents,
+  'folder-components-open': folderComponentsOpen,
   'folder-config': folderConfig,
+  'folder-config-open': folderConfigOpen,
   'folder-constant': folderConstant,
+  'folder-constant-open': folderConstantOpen,
   'folder-controller': folderController,
+  'folder-controller-open': folderControllerOpen,
   'folder-coverage': folderCoverage,
+  'folder-coverage-open': folderCoverageOpen,
   'folder-css': folderCss,
+  'folder-css-open': folderCssOpen,
   'folder-dist': folderDist,
+  'folder-dist-open': folderDistOpen,
   'folder-docs': folderDocs,
+  'folder-docs-open': folderDocsOpen,
   'folder-examples': folderExamples,
+  'folder-examples-open': folderExamplesOpen,
   'folder-git': folderGit,
+  'folder-git-open': folderGitOpen,
   'folder-github': folderGithub,
+  'folder-github-open': folderGithubOpen,
   'folder-helper': folderHelper,
+  'folder-helper-open': folderHelperOpen,
   'folder-hook': folderHook,
+  'folder-hook-open': folderHookOpen,
   'folder-images': folderImages,
+  'folder-images-open': folderImagesOpen,
   'folder-intellij': folderIntellij,
+  'folder-intellij-open': folderIntellijOpen,
   'folder-layout': folderLayout,
+  'folder-layout-open': folderLayoutOpen,
   'folder-lib': folderLib,
+  'folder-lib-open': folderLibOpen,
   'folder-middleware': folderMiddleware,
+  'folder-middleware-open': folderMiddlewareOpen,
   'folder-node': folderNode,
+  'folder-node-open': folderNodeOpen,
+  'folder-open': folderOpen,
   'folder-public': folderPublic,
+  'folder-public-open': folderPublicOpen,
   'folder-resource': folderResource,
+  'folder-resource-open': folderResourceOpen,
   'folder-routes': folderRoutes,
+  'folder-routes-open': folderRoutesOpen,
   'folder-scripts': folderScripts,
+  'folder-scripts-open': folderScriptsOpen,
   'folder-server': folderServer,
+  'folder-server-open': folderServerOpen,
   'folder-shared': folderShared,
+  'folder-shared-open': folderSharedOpen,
   'folder-src': folderSrc,
+  'folder-src-open': folderSrcOpen,
   'folder-store': folderStore,
+  'folder-store-open': folderStoreOpen,
   'folder-test': folderTest,
+  'folder-test-open': folderTestOpen,
   'folder-tools': folderTools,
+  'folder-tools-open': folderToolsOpen,
   'folder-typescript': folderTypescript,
+  'folder-typescript-open': folderTypescriptOpen,
   'folder-utils': folderUtils,
+  'folder-utils-open': folderUtilsOpen,
   'folder-views': folderViews,
+  'folder-views-open': folderViewsOpen,
   'folder-vscode': folderVscode,
+  'folder-vscode-open': folderVscodeOpen,
   font,
   fsharp,
   git,

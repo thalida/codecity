@@ -1,6 +1,6 @@
 // state/stores/serverConfig.ts — Runtime signal holding server capabilities
 // fetched once during app boot. Written by useManifestSource after getServerConfig().
-// Read by SourcePicker to decide whether to show the local-repos tab.
+// Read by ProjectsView to decide whether to show the local-repos tab.
 
 import { signal } from '@preact/signals';
 

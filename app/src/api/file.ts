@@ -1,8 +1,10 @@
 // api/file.ts — endpoint helpers for /api/file (raw file content reads).
 
+import { apiUrl } from '@/api/apiUrl';
+
 /** URL for the file-content endpoint, scoped to a single absolute path. */
 export function fileUrl(path: string): string {
-  return `/api/file?path=${encodeURIComponent(path)}`;
+  return apiUrl('file', { path });
 }
 
 /**

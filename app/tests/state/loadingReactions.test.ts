@@ -17,27 +17,26 @@ describe('loadingReactions', () => {
   });
 
   it('shows the overlay immediately on a just-started (phase null) load', () => {
-    SCAN_PROGRESS.value = { kind: SourceKind.Remote, label: 'r', phase: null };
+    SCAN_PROGRESS.value = { kind: SourceKind.Remote, phase: null };
     expect(LOADING_OVERLAY.value.visible).toBe(true);
     // git initial step is Resolving (set by showLoadingOverlay), not overridden
     expect(LOADING_OVERLAY.value.activeStep).toBe(LoadingStep.Resolving);
   });
 
   it('local just-started shows the Scanning initial step', () => {
-    SCAN_PROGRESS.value = { kind: SourceKind.Local, label: 'proj', phase: null };
+    SCAN_PROGRESS.value = { kind: SourceKind.Local, phase: null };
     expect(LOADING_OVERLAY.value.visible).toBe(true);
     expect(LOADING_OVERLAY.value.activeStep).toBe(LoadingStep.Scanning);
   });
 
   it('advances the step to Building on the skeleton phase', () => {
-    SCAN_PROGRESS.value = { kind: SourceKind.Remote, label: 'r', phase: ScanPhase.PartialManifest };
+    SCAN_PROGRESS.value = { kind: SourceKind.Remote, phase: ScanPhase.PartialManifest };
     expect(LOADING_OVERLAY.value.activeStep).toBe(LoadingStep.Skeleton);
   });
 
   it('sets a cloning tail from percent/stage', () => {
     SCAN_PROGRESS.value = {
       kind: SourceKind.Remote,
-      label: 'r',
       phase: ScanPhase.CloneProgress,
       percent: 45,
       stage: CloneStage.Receiving,
@@ -47,7 +46,7 @@ describe('loadingReactions', () => {
   });
 
   it('hides the overlay when progress clears', () => {
-    SCAN_PROGRESS.value = { kind: SourceKind.Local, label: 'proj', phase: ScanPhase.ScanProgress };
+    SCAN_PROGRESS.value = { kind: SourceKind.Local, phase: ScanPhase.ScanProgress };
     SCAN_PROGRESS.value = null;
     expect(LOADING_OVERLAY.value.visible).toBe(false);
   });

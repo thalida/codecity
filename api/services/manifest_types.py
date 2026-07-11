@@ -282,7 +282,6 @@ class Manifest(TypedDict):
     busyness: BusynessThresholds
     dateRanges: DateRanges
     stats: RepoStats
-    display_root: NotRequired[str]
 
 
 class SignatureResponse(TypedDict):

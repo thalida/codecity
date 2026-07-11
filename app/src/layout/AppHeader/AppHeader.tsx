@@ -15,7 +15,7 @@ import { SCENE_HANDLE } from '@/state/stores/scene';
 import { MANIFEST } from '@/state/stores/manifest';
 import { ROOT_PATH } from '@/constants/manifest';
 import { SOURCE_INFO } from '@/state/stores/source';
-import { openSourcePicker, openShortcuts, openDebug } from '@/state/stores/ui';
+import { openProjectsView, openShortcuts, openDebug } from '@/state/stores/ui';
 import { isDebugMode } from '@/utils/debugMode';
 import { NodeKind, type Manifest } from '@/types';
 import { ResetViewButton } from '@/components/ResetViewButton';
@@ -86,7 +86,7 @@ export function AppHeader({
         <ProjectSwitcher
           rootLabel={si.label}
           branch={si.branch}
-          onSwitchSource={onSwitchSource ?? (() => openSourcePicker({ dismissible: true }))}
+          onSwitchSource={onSwitchSource ?? (() => openProjectsView({ dismissible: true }))}
         />
         <RepoLink sourceUrl={si.sourceUrl} branch={si.branch} />
       </div>

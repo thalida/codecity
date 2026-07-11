@@ -1,0 +1,202 @@
+/* ── codecity landing / project switcher ────────────────────────────────────
+   Full-bleed page (not a modal): a brand hero beside an action panel. The gem
+   palette (lime/cyan/purple/magenta) doubles as a soft holographic backdrop and
+   colors the three "what it does" cues. */
+
+.landing {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  overflow-y: auto;
+  /* Translucent + blurred so a loaded city shows through as soft hints behind
+     the overlay. On cold boot the backdrop is just the empty dark canvas, so it
+     reads as a plain dark surface. The tint stays dark enough to keep the hero
+     text and cards readable over any city. */
+  background: color-mix(in oklch, var(--cc-bg-app) 82%, transparent);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+}
+
+/* Subtle holographic wash — two low-opacity gem-tinted glows, non-interactive,
+   behind the content. */
+.landing::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(
+      55% 45% at 18% 12%,
+      color-mix(in oklch, var(--cc-gem-cyan) 10%, transparent),
+      transparent 70%
+    ),
+    radial-gradient(
+      50% 45% at 88% 85%,
+      color-mix(in oklch, var(--cc-gem-purple) 10%, transparent),
+      transparent 70%
+    );
+}
+
+.landing-close {
+  position: absolute;
+  top: var(--cc-space-5);
+  right: var(--cc-space-5);
+  z-index: 1;
+}
+
+.landing-inner {
+  position: relative;
+  box-sizing: border-box;
+  min-height: 100%;
+  max-width: 1040px;
+  margin: 0 auto;
+  padding: var(--cc-space-9) var(--cc-space-7);
+  display: grid;
+  /* minmax(0, 1fr) — a true 50/50 cap. Plain 1fr is minmax(auto, 1fr), which
+     lets a wide child (a long recents URL) push the action column past half and
+     squeeze the hero. min-width: 0 on the column below lets that content
+     truncate instead. */
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  align-items: center;
+  gap: var(--cc-space-9);
+}
+
+@media (max-width: 900px) {
+  .landing-inner {
+    grid-template-columns: 1fr;
+    align-items: start;
+    gap: var(--cc-space-8);
+  }
+}
+
+/* ── Brand hero ── */
+
+.landing-hero {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cc-space-6);
+}
+
+.landing-brand {
+  display: flex;
+  align-items: center;
+  gap: var(--cc-space-4);
+}
+
+.landing-gem {
+  display: inline-flex;
+  width: 48px;
+  height: 48px;
+  filter: drop-shadow(0 0 16px color-mix(in oklch, var(--cc-gem-cyan) 40%, transparent));
+  animation: landing-gem-float 6s ease-in-out infinite;
+}
+.landing-gem .gem-icon {
+  width: 48px;
+  height: 48px;
+}
+@keyframes landing-gem-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-5px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .landing-gem {
+    animation: none;
+  }
+}
+
+.landing-wordmark {
+  margin: 0;
+  font-size: var(--cc-font-4xl);
+  font-weight: var(--cc-fw-bold);
+  color: var(--cc-text-primary);
+}
+
+.landing-tagline {
+  margin: 0;
+  font-size: var(--cc-font-2xl);
+  color: var(--cc-text-secondary);
+}
+
+.landing-delights {
+  list-style: none;
+  margin: var(--cc-space-2) 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--cc-space-4);
+}
+.landing-delight {
+  display: flex;
+  align-items: center;
+  gap: var(--cc-space-4);
+  color: var(--cc-text-muted);
+  font-size: var(--cc-font-xl);
+}
+.landing-delight strong {
+  color: var(--cc-text-primary);
+  font-weight: var(--cc-fw-semibold);
+}
+.landing-delight > svg {
+  font-size: var(--cc-font-2xl); /* icons are 1em (icons.css) — size off a token */
+  width: 1em;
+  height: 1em;
+  flex: 0 0 auto;
+}
+.landing-delight--streets > svg {
+  color: var(--cc-gem-cyan);
+}
+.landing-delight--buildings > svg {
+  color: var(--cc-gem-purple);
+}
+.landing-delight--trees > svg {
+  color: var(--cc-gem-lime);
+}
+.landing-delight--authors > svg {
+  color: var(--cc-gem-magenta);
+}
+
+/* ── Action column ── stacked cards (open project, then recents). */
+
+.landing-actions {
+  align-self: center;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--cc-space-6);
+}
+
+.landing-card {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--cc-space-6);
+  padding: var(--cc-space-7);
+  border: 1px solid var(--cc-border-subtle);
+  border-radius: var(--cc-radius-lg);
+}
+
+/* Shared card heading — "Open a project" and "Recent projects" read as one
+   consistent title style. */
+.landing-card-title {
+  margin: 0;
+  font-size: var(--cc-font-2xl);
+  font-weight: var(--cc-fw-semibold);
+  color: var(--cc-text-primary);
+}
+
+/* Inline load progress, replacing the form + recents while SCAN_PROGRESS is
+   non-null. Spinner + pending-label reuse LoadingOverlay's classes (its CSS is
+   loaded globally via App), so the switch flow and the deep-link-boot flow read
+   as one system. */
+.landing-progress {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--cc-space-6);
+  padding: var(--cc-space-7) 0;
+}

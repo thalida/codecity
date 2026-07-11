@@ -1,9 +1,11 @@
 // components/ProjectSwitcher.tsx — The project chip: icon + label + optional
-// @branch pill + chevron. Click opens the source picker to switch projects.
+// @branch pill + a switch cue. Click opens the project switcher. The trailing
+// glyph is ChevronsUpDown (a "switchable value" cue), not a down-caret, since
+// clicking opens a full switcher screen rather than a dropdown menu.
 // Renders nothing until a project is loaded (no label).
 
 import './ProjectSwitcher.css';
-import { ChevronDown, Map } from 'lucide-preact';
+import { ChevronsUpDown, Map } from 'lucide-preact';
 
 export interface ProjectSwitcherProps {
   rootLabel: string;
@@ -27,7 +29,7 @@ export function ProjectSwitcher({ rootLabel, branch, onSwitchSource }: ProjectSw
       <Map class="lucide-icon" />
       <span class="btn-chip-label">{rootLabel}</span>
       {branch && <span class="app-header-branch-pill">@{branch}</span>}
-      <ChevronDown class="lucide-icon btn-chip-chevron" />
+      <ChevronsUpDown class="lucide-icon btn-chip-affordance" />
     </button>
   );
 }

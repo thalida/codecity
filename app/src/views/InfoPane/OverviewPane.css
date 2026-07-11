@@ -65,15 +65,8 @@
   color: var(--cc-text-primary);
 }
 
-/* Latest commit — an informational two-line row: sha + subject on top, relative
- * age + branch chip below. */
-.almanac-latest {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-}
-
+/* Latest commit row — the sha link + commit subject (relative age and branch
+ * are their own meta rows now). */
 .almanac-latest-head {
   display: flex;
   align-items: baseline;
@@ -87,14 +80,6 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   color: var(--cc-text-secondary);
-}
-
-.almanac-latest-sub {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  color: var(--cc-text-muted);
-  font-size: var(--cc-font-md);
 }
 
 /* Branch name as a small pill — the chip vocabulary the language legend uses. */

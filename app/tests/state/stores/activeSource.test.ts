@@ -105,15 +105,23 @@ describe('setCurrentSource', () => {
     const recents = listRecents();
     expect(recents[0].src).toBe('https://github.com/o/r');
     expect(recents[0].branch).toBe('main');
-    expect(recents[0].branchIsDefault).toBe(true);
   });
 
-  it('keeps an explicitly-requested branch and marks it non-default', () => {
+  it('records an explicitly-requested branch', () => {
     setCurrentSource('https://github.com/o/r', 'dev', {
       tree: { name: 'r' },
       repo: { branch: 'dev' },
     } as unknown as Manifest);
     expect(CURRENT_SOURCE.value).toEqual({ src: 'https://github.com/o/r', branch: 'dev' });
-    expect(listRecents()[0].branchIsDefault).toBe(false);
+    expect(listRecents()[0].branch).toBe('dev');
+  });
+
+  it('records a local source with its working-tree checkout branch', () => {
+    // A local worktree ignores any requested branch and reports its checkout.
+    setCurrentSource('/Users/me/worktrees/feat-x', undefined, {
+      tree: { name: 'owner/codecity' },
+      repo: { branch: 'feat/issue-77' },
+    } as unknown as Manifest);
+    expect(listRecents()[0].branch).toBe('feat/issue-77');
   });
 });
