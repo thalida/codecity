@@ -111,27 +111,22 @@ describe('TreePane', () => {
     container.remove();
   });
 
-  it('clicking the chevron expands and collapses the directory', async () => {
+  it('clicking a directory row expands then collapses it', async () => {
     const pane = mount(TEST_TREE);
     const dir = pane.querySelector<HTMLElement>('.tree-dir');
     expect(dir).not.toBeNull();
-    const chevron = dir!.querySelector<HTMLElement>(':scope > .row > .tree-chevron');
-    expect(chevron).not.toBeNull();
 
     expect(dir!.classList.contains('tree-collapsed')).toBe(true);
     expect(dir!.querySelector(':scope > .tree-list')).toBeNull();
 
-    chevron!.click();
+    dir!.querySelector<HTMLElement>(':scope > .row')!.click();
     await flush();
 
     const expandedDir = pane.querySelector<HTMLElement>('[data-path="src"]')!;
     expect(expandedDir.classList.contains('tree-expanded')).toBe(true);
     expect(expandedDir.querySelector(':scope > .tree-list')).not.toBeNull();
 
-    const expandedChevron = expandedDir.querySelector<HTMLElement>(
-      ':scope > .row > .tree-chevron'
-    )!;
-    expandedChevron.click();
+    expandedDir.querySelector<HTMLElement>(':scope > .row')!.click();
     await flush();
 
     const collapsedDir = pane.querySelector<HTMLElement>('[data-path="src"]')!;
@@ -286,7 +281,7 @@ describe('TreePane', () => {
     expect(pane.querySelector('[data-path="a"]')!.classList.contains('tree-collapsed')).toBe(true);
   });
 
-  it('expanding a directory via the chevron closes other open branches', async () => {
+  it('clicking a directory row closes other open branches (single-branch)', async () => {
     const multiBranch = {
       name: 'project',
       type: 'directory',
@@ -307,13 +302,11 @@ describe('TreePane', () => {
       ],
     };
     const pane = mount(multiBranch);
-    const chevA = pane.querySelector<HTMLElement>('[data-path="a"] > .row > .tree-chevron')!;
-    chevA.click();
+    pane.querySelector<HTMLElement>('[data-path="a"] > .row')!.click();
     await flush();
     expect(pane.querySelector('[data-path="a"]')!.classList.contains('tree-expanded')).toBe(true);
 
-    const chevB = pane.querySelector<HTMLElement>('[data-path="b"] > .row > .tree-chevron')!;
-    chevB.click();
+    pane.querySelector<HTMLElement>('[data-path="b"] > .row')!.click();
     await flush();
     expect(pane.querySelector('[data-path="b"]')!.classList.contains('tree-expanded')).toBe(true);
     expect(pane.querySelector('[data-path="a"]')!.classList.contains('tree-collapsed')).toBe(true);

@@ -14,7 +14,7 @@ import type { ReadonlySignal, Signal } from '@preact/signals';
 import { useEffect, useRef } from 'preact/hooks';
 import { NodeKind } from '@/types';
 import type { DirNode, Manifest, TreeNode } from '@/types';
-import { ChevronDown, ChevronRight, FolderOpen } from 'lucide-preact';
+import { FolderOpen } from 'lucide-preact';
 import { NodeIcon } from '@/components/NodeIcon/NodeIcon';
 import { Pane, PaneEmpty } from '@/components/Pane';
 
@@ -89,18 +89,22 @@ function TreeItem({
     }
   }, [isSelected]);
 
-  function toggleExpanded() {
-    const cur = expanded.value;
-    if (cur.has(path)) {
-      // Collapsing only collapses this dir — invariant trivially holds.
-      const next = new Set(cur);
+  function handleClick() {
+    if (isDir && isExpanded) {
+      // Collapse this folder. Don't also select it: selection drives the
+      // ancestor-chain expansion bridge, which would immediately reopen it.
+      const next = new Set(expanded.value);
       next.delete(path);
       expanded.value = next;
-    } else {
-      // Expanding enforces the single-branch invariant: only ancestor
-      // chain (plus this) stays open; every other branch collapses.
+      return;
+    }
+    if (isDir) {
+      // Open this branch, enforcing the single-branch invariant (siblings
+      // close). Set expansion directly rather than leaning on the selection
+      // bridge, so an already-selected folder still reopens after a collapse.
       expanded.value = new Set([..._ancestorChain(path, rootPath), path]);
     }
+    onSelect?.(node);
   }
 
   const classes: string[] = ['tree-item'];
@@ -117,7 +121,7 @@ function TreeItem({
         class="row row--tight"
         onClick={(e) => {
           e.stopPropagation();
-          if (onSelect) onSelect(node);
+          handleClick();
         }}
         onDblClick={(e) => {
           e.stopPropagation();
@@ -126,25 +130,9 @@ function TreeItem({
         onMouseEnter={() => onHover?.(node)}
         onMouseLeave={() => onHoverEnd?.(node)}
       >
-        {/* Chevron column — for directories, a clickable expand/collapse
-            toggle; for files, an empty placeholder so labels line up. */}
-        {isDir ? (
-          <span
-            class="tree-chevron"
-            onClick={(e) => {
-              e.stopPropagation();
-              toggleExpanded();
-            }}
-          >
-            {isExpanded ? (
-              <ChevronDown class="lucide-icon tree-icon tree-icon-dir" />
-            ) : (
-              <ChevronRight class="lucide-icon tree-icon tree-icon-dir" />
-            )}
-          </span>
-        ) : (
-          <span class="tree-chevron" />
-        )}
+        {/* No disclosure chevron (Zed-style): a directory row toggles on click,
+            and its open/closed folder icon is the expansion cue. Files and dirs
+            both lead with the icon, so sibling icons line up. */}
         <NodeIcon node={node} open={isExpanded} />
         <span class="tree-label">{node.name || ''}</span>
       </div>

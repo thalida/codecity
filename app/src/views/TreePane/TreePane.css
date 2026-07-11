@@ -4,7 +4,7 @@
   /* Row geometry the indent guide is derived from — single-sourced so the guide
      stays centered on the chevron if any of these change. */
   --tree-row-inset: var(--cc-space-4); /* row's left padding (the start indent) */
-  --tree-glyph: 14px; /* chevron + file/folder icon column width */
+  --tree-glyph: 14px; /* file/folder icon column width (matches .file-icon) */
   --tree-guide: 1px; /* indent-guide line width */
 }
 
@@ -62,30 +62,6 @@
    .row--selected highlight's rounded corner. */
 .tree-item > .row {
   padding-left: var(--tree-row-inset);
-}
-
-.tree-chevron {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  /* Explicit slot width — pinned so empty placeholders on file rows
-   * take the same horizontal space as the rendered chevron on dir
-   * rows. Net effect: labels at the same nesting depth line up,
-   * regardless of file vs directory. Matches the .tree-icon width. */
-  width: var(--tree-glyph);
-}
-
-.tree-icon {
-  font-size: var(--cc-font-lg);
-  width: var(--tree-glyph);
-  text-align: center;
-  flex-shrink: 0;
-  line-height: 1;
-}
-
-.tree-icon-dir {
-  color: var(--cc-text-muted);
 }
 
 .tree-label {
