@@ -39,10 +39,13 @@
   flex: 0 0 auto;
   display: inline-flex;
   align-items: center;
+  /* Size icons by font-size so any glyph — lucide fallback OR the HostingIcon
+     brand SVGs — sizes uniformly off one token (icons are 1em; see icons.css). */
+  font-size: var(--cc-font-xl);
 }
-.recent-icon .lucide-icon {
-  width: 16px;
-  height: 16px;
+.recent-icon > svg {
+  width: 1em;
+  height: 1em;
 }
 
 .recent-row-body {

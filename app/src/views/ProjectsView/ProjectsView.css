@@ -149,8 +149,7 @@
   font-weight: var(--cc-fw-semibold);
 }
 .landing-delight .lucide-icon {
-  width: 18px;
-  height: 18px;
+  font-size: var(--cc-font-2xl); /* icons are 1em (icons.css) — size off a token */
   flex: 0 0 auto;
 }
 .landing-delight--streets .lucide-icon {

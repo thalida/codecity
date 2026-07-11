@@ -38,6 +38,5 @@
 }
 
 .pane-tab .lucide-icon {
-  width: 14px;
-  height: 14px;
+  font-size: var(--cc-font-xl); /* icons are 1em (icons.css) — size off a token */
 }

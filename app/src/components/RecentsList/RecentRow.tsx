@@ -51,19 +51,14 @@ export function RecentRow(props: RecentRowProps) {
   }
 
   const isLocal = srcKind(r.src) === SourceKind.Local;
-  const rowClass = [
-    'row recent-row',
-    active && 'recent-row--active',
-    unavailable && 'recent-row--unavailable',
-  ]
-    .filter(Boolean)
-    .join(' ');
 
   return (
     <div class="recent-item">
       <button
         type="button"
-        class={rowClass}
+        class={`row recent-row${active ? ' recent-row--active' : ''}${
+          unavailable ? ' recent-row--unavailable' : ''
+        }`}
         title={
           unavailable
             ? 'Local repos are disabled. Restart codecity with CODECITY_ALLOW_LOCAL_REPOS=1 to load this.'

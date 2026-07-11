@@ -21,8 +21,8 @@ export interface NewProjectFormProps {
 }
 
 const KIND_TABS = [
-  { id: SourceKind.Remote, label: 'Git URL' },
-  { id: SourceKind.Local, label: 'Local path' },
+  { id: SourceKind.Remote, label: 'Repo URL' },
+  { id: SourceKind.Local, label: 'Local Path' },
 ];
 
 export function NewProjectForm({ allowLocalRepos, prefill, onSubmit }: NewProjectFormProps) {

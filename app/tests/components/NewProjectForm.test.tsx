@@ -35,25 +35,25 @@ describe('NewProjectForm', () => {
   it('auto-selects Git for a URL and Local for a bare path, but a manual click still overrides it', async () => {
     render(<NewProjectForm allowLocalRepos onSubmit={() => {}} />, container);
     await flush();
-    expect(activeSegment(container)).toBe('Git URL');
+    expect(activeSegment(container)).toBe('Repo URL');
 
     const urlInput = container.querySelector<HTMLInputElement>('input[aria-label="URL"]')!;
     setInput(urlInput, '/Users/thalida/repo');
     await flush();
-    expect(activeSegment(container)).toBe('Local path');
+    expect(activeSegment(container)).toBe('Local Path');
 
     const pathInput = container.querySelector<HTMLInputElement>('input[aria-label="Path"]')!;
     setInput(pathInput, 'https://github.com/o/r');
     await flush();
-    expect(activeSegment(container)).toBe('Git URL');
+    expect(activeSegment(container)).toBe('Repo URL');
 
     // Manual override: force Local even though the typed text still looks remote.
     const localTab = Array.from(container.querySelectorAll('button')).find(
-      (b) => b.textContent === 'Local path'
+      (b) => b.textContent === 'Local Path'
     )!;
     localTab.click();
     await flush();
-    expect(activeSegment(container)).toBe('Local path');
+    expect(activeSegment(container)).toBe('Local Path');
   });
 
   it('resets the branch when the URL changes to a different repo (bug #2)', async () => {
@@ -164,7 +164,7 @@ describe('NewProjectForm', () => {
     await flush();
 
     const localTab = Array.from(container.querySelectorAll('button')).find(
-      (b) => b.textContent === 'Local path'
+      (b) => b.textContent === 'Local Path'
     )!;
     localTab.click();
     await flush();
@@ -183,7 +183,7 @@ describe('NewProjectForm', () => {
     render(<NewProjectForm allowLocalRepos={false} onSubmit={() => {}} />, container);
     await flush();
     const localTab = Array.from(container.querySelectorAll('button')).find(
-      (b) => b.textContent === 'Local path'
+      (b) => b.textContent === 'Local Path'
     )!;
     localTab.click();
     await flush();
@@ -210,7 +210,7 @@ describe('NewProjectForm', () => {
       // The input the user is typing into must stay in the DOM at every step.
       expect(container.querySelector('input[aria-label="URL"]')).not.toBeNull();
       // ...and kind stays Git, never flipping to the unreachable Local.
-      expect(activeSegment(container)).toBe('Git URL');
+      expect(activeSegment(container)).toBe('Repo URL');
     }
   });
 });
