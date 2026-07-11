@@ -61,7 +61,7 @@ export function ProjectsView({ onSubmit, onCancel, onClose }: ProjectsViewProps)
             </span>
             <h1 class="landing-wordmark">codecity</h1>
           </div>
-          <p class="landing-tagline">Turn any git repo into a living 3D city.</p>
+          <p class="landing-tagline">Turn any git repo into a 3D city</p>
           <ul class="landing-delights">
             <li class="landing-delight landing-delight--streets">
               <Waypoints class="lucide-icon" aria-hidden="true" />
