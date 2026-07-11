@@ -16,8 +16,10 @@ export async function fetchBranches(src: string): Promise<BranchList> {
   if (!resp.ok) {
     let message = `branch lookup failed (${resp.status})`;
     try {
-      const body = (await resp.json()) as { detail?: string };
-      if (body?.detail) message = body.detail;
+      // The API's error envelope is { error }; fall back to FastAPI's { detail }.
+      const body = (await resp.json()) as { error?: string; detail?: string };
+      if (body?.error) message = body.error;
+      else if (body?.detail) message = body.detail;
     } catch (_) {
       /* non-JSON error body: keep the status-based message */
     }

@@ -54,7 +54,10 @@ export function BranchSelect({ url, value, onChange }: BranchSelectProps) {
 
   return (
     <div class="branch-select">
-      <label>Branch</label>
+      {/* No "Branch" label in the error state — there's no branch to pick, and
+          a lookup failure is usually a bad URL / missing repo, not a branch
+          problem. Submit stays enabled; the server gives the definitive error. */}
+      {state.status !== 'error' && <label>Branch</label>}
       {state.status === 'loading' && (
         <div class="branch-select-status">
           <LoaderCircle class="lucide-icon branch-select-spinner" />
@@ -62,7 +65,7 @@ export function BranchSelect({ url, value, onChange }: BranchSelectProps) {
         </div>
       )}
       {state.status === 'error' && (
-        <div class="branch-select-status text-error">{state.message}</div>
+        <div class="branch-select-status branch-select-status--error">{state.message}</div>
       )}
       {state.status === 'ready' && (
         <select

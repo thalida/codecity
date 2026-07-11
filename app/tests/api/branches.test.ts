@@ -19,14 +19,29 @@ describe('fetchBranches', () => {
     expect(r.default).toBe('main');
   });
 
-  it('rejects with the server error on non-2xx', async () => {
+  it('rejects with the server error message (the API { error } envelope) on non-2xx', async () => {
     vi.stubGlobal(
       'fetch',
       vi.fn(
         async () =>
-          new Response(JSON.stringify({ detail: 'repository not found' }), { status: 404 })
+          new Response(
+            JSON.stringify({ error: 'repository not found at https://github.com/o/nope' }),
+            {
+              status: 404,
+            }
+          )
       )
     );
-    await expect(fetchBranches('https://github.com/o/nope')).rejects.toThrow(/not found/i);
+    await expect(fetchBranches('https://github.com/o/nope')).rejects.toThrow(
+      /repository not found/i
+    );
+  });
+
+  it('falls back to FastAPI { detail } when there is no { error }', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response(JSON.stringify({ detail: 'nope' }), { status: 400 }))
+    );
+    await expect(fetchBranches('https://github.com/o/x')).rejects.toThrow(/nope/);
   });
 });

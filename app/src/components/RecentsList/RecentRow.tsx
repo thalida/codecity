@@ -1,8 +1,9 @@
 // components/RecentsList/RecentRow.tsx — one recent-source row: kind glyph,
-// label, sub (src + branch pill + "(default)" tag), active badge, inline-confirm
-// remove. Every row is clickable — the active row re-opens (reloads) the current
-// project; an unavailable row (a local path while local repos are off) is still
-// clickable and surfaces the server's reason on open, with a hint glyph up front.
+// label, sub (src + branch pill + "(default)" tag), active badge, and a
+// remove control. Every row is clickable — the active row re-opens (reloads)
+// the current project; an unavailable row (a local path while local repos are
+// off) is still clickable and surfaces the server's reason on open, with a hint
+// glyph up front. Asking to remove takes over the whole row (no reflow).
 
 import { Folder, X, TriangleAlert } from 'lucide-preact';
 import { HostingIcon } from '@/components/HostingIcon';
@@ -22,6 +23,33 @@ export interface RecentRowProps {
 
 export function RecentRow(props: RecentRowProps) {
   const { recent: r, active, unavailable, confirmingRemove } = props;
+
+  // Asking to remove replaces the entire row content with a confirm bar of the
+  // same footprint, so the surrounding rows never shift.
+  if (confirmingRemove) {
+    return (
+      <div class="recent-item">
+        <div class="recent-confirm">
+          <span class="recent-confirm-text">
+            Remove <strong>{r.label}</strong> from recents?
+          </span>
+          <span class="recent-confirm-actions">
+            <button type="button" class="btn-icon btn-icon--text" onClick={props.onCancelRemove}>
+              Cancel
+            </button>
+            <button
+              type="button"
+              class="btn-icon btn-icon--text recent-confirm-yes"
+              onClick={props.onConfirmRemove}
+            >
+              Remove
+            </button>
+          </span>
+        </div>
+      </div>
+    );
+  }
+
   const isLocal = srcKind(r.src) === SourceKind.Local;
   const rowClass = [
     'row recent-row',
@@ -63,26 +91,14 @@ export function RecentRow(props: RecentRowProps) {
         {active && <span class="recent-row-badge">Active</span>}
       </button>
 
-      {confirmingRemove ? (
-        <span class="recent-remove-confirm">
-          <span class="text-label">Remove?</span>
-          <button type="button" class="btn-icon btn-icon--text" onClick={props.onCancelRemove}>
-            Cancel
-          </button>
-          <button type="button" class="btn-icon btn-icon--text" onClick={props.onConfirmRemove}>
-            Remove
-          </button>
-        </span>
-      ) : (
-        <button
-          type="button"
-          class="btn-icon btn-icon--text"
-          aria-label="Remove from recents"
-          onClick={props.onAskRemove}
-        >
-          <X class="lucide-icon" />
-        </button>
-      )}
+      <button
+        type="button"
+        class="btn-icon btn-icon--text"
+        aria-label="Remove from recents"
+        onClick={props.onAskRemove}
+      >
+        <X class="lucide-icon" />
+      </button>
     </div>
   );
 }

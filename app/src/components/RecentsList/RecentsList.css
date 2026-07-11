@@ -109,12 +109,31 @@
   background: var(--cc-overlay-bg);
 }
 
-/* Inline "Remove? [Cancel] [Remove]" confirm — swaps in for the trash button
-   so removing is a two-step, low-risk action rather than a native confirm(). */
-.recent-remove-confirm {
+/* Remove confirm — takes over the whole row (same footprint as the row it
+   replaces) so asking to remove never shifts the surrounding rows. */
+.recent-confirm {
+  flex: 1 1 auto;
+  min-width: 0;
   display: flex;
   align-items: center;
-  gap: var(--cc-space-2);
-  flex: 0 0 auto;
+  justify-content: space-between;
+  gap: var(--cc-space-4);
+  padding: var(--cc-space-3) var(--cc-space-4);
+  border-radius: var(--cc-radius-md);
+  background: var(--cc-overlay-bg);
+}
+.recent-confirm-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
+  color: var(--cc-text-secondary);
+}
+.recent-confirm-actions {
+  display: flex;
+  flex: 0 0 auto;
+  gap: var(--cc-space-2);
+}
+.recent-confirm-yes {
+  color: var(--cc-text-primary);
 }

@@ -68,6 +68,10 @@ describe('RecentsList', () => {
     removeButtons[0].click(); // alpha row -> ask
     await flush();
 
+    // The confirm takes over the row (no reflow): the row's own confirm bar
+    // replaces its content rather than being appended beside it.
+    expect(container.querySelector('.recent-confirm')).not.toBeNull();
+
     const confirmButtons = Array.from(container.querySelectorAll('button')).filter(
       (b) => b.textContent === 'Remove'
     );
