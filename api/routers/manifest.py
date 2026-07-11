@@ -48,25 +48,12 @@ from api.services.source import (
     ResolveError,
     SourceKind,
     classify,
-    display_name_for_manifest,
     label_from_source,
     resolve_local,
     resolve_source,
 )
 
 router = APIRouter(prefix="/api", tags=["manifest"])
-
-
-def _apply_display_name(m: dict[str, Any], src: str) -> None:
-    """Overlay the friendly repo name onto the manifest's root tree.name at serve
-    time, so every consumer reads one authoritative label rather than the
-    cache-dir basename a cloned root carries. `src` (the original URL/path) is a
-    last-resort fallback used only when the manifest carries no remote_url."""
-    tree = m.get("tree")
-    if tree:
-        label = display_name_for_manifest(m, src)
-        if label:
-            tree["name"] = label
 
 
 logger = logging.getLogger("codecity.manifest")
@@ -176,9 +163,11 @@ async def manifest(
         if kind is SourceKind.INVALID:
             yield _sse_error("unrecognized source — pass a local path or a git URL")
             return
-        # Friendly display label computed once, server-side, so progress events
-        # carry a ready-to-show name and the client never re-derives it.
-        src_label = label_from_source(src)
+        # The PENDING label — the ONLY name derivation left in this route. Before
+        # the repo is scanned, `src` is all we have; the scanner bakes the
+        # canonical tree.name later (from the git remote). Emitted on progress
+        # events so the client shows a name during load without re-deriving it.
+        pending_label = label_from_source(src)
         local_path: Path | None = None
         if kind is SourceKind.LOCAL:
             try:
@@ -201,7 +190,7 @@ async def manifest(
                 _sse(
                     ScanEvent.CLONE_PROGRESS,
                     {
-                        "label": src_label,
+                        "label": pending_label,
                         "stage": stage,
                         "percent": percent,
                     },
@@ -214,7 +203,7 @@ async def manifest(
             _put(
                 _sse(
                     ScanEvent.CLONE_PROGRESS,
-                    {"label": src_label, "mb_on_disk": mb_on_disk},
+                    {"label": pending_label, "mb_on_disk": mb_on_disk},
                 )
             )
 
@@ -222,7 +211,7 @@ async def manifest(
             _put(
                 _sse(
                     ScanEvent.SCAN_PROGRESS,
-                    {"label": src_label, "files_scanned": files_scanned},
+                    {"label": pending_label, "files_scanned": files_scanned},
                 )
             )
 
@@ -231,7 +220,7 @@ async def manifest(
                 # Clone phase (git only): emit `clone-progress` FIRST, then clone
                 # with live progress + cancel support.
                 if kind is SourceKind.REMOTE:
-                    _put(_sse(ScanEvent.CLONE_PROGRESS, {"label": src_label}))
+                    _put(_sse(ScanEvent.CLONE_PROGRESS, {"label": pending_label}))
                     try:
                         with TRUST.clone_lock:
                             path = ensure_clone(
@@ -257,7 +246,7 @@ async def manifest(
 
                 holder["path"] = path
                 TRUST.register(path)
-                _put(_sse(ScanEvent.SCAN_PROGRESS, {"label": src_label}))
+                _put(_sse(ScanEvent.SCAN_PROGRESS, {"label": pending_label}))
 
                 # Signature (cache key) + warm-cache short-circuit.
                 sig = signature_tree(str(path), use_cache=use_cache)["signature"]
@@ -265,7 +254,6 @@ async def manifest(
                 if use_cache:
                     cached = cache_load_manifest(path.resolve(), sig)
                     if cached is not None:
-                        _apply_display_name(cached, src)
                         _put(_sse(ScanEvent.MANIFEST_COMPLETE, {"manifest": cached}))
                         return
 
@@ -278,7 +266,6 @@ async def manifest(
                 ):
                     phase = ev["phase"]  # ScanEvent.MANIFEST_PARTIAL | _COMPLETE
                     m = ev["manifest"]
-                    _apply_display_name(m, src)
                     if phase is ScanEvent.MANIFEST_COMPLETE:
                         holder["manifest"] = m
                     _put(_sse(phase, {"manifest": m}))

@@ -1235,6 +1235,14 @@ def _wrap_manifest(
     final has the real per-file metadata). The envelope shape is the
     same either way."""
     _annotate_same_day_totals(commits)
+    # Canonical repo display name, set once at manifest creation and cached with
+    # it: prefer the git remote's "owner/repo" over the on-disk root basename (a
+    # clone's cache-dir hash, or a worktree's folder name). This is THE name every
+    # consumer reads via tree.name — no downstream recomputation.
+    # Local import: source.py -> clone.py -> scan.py would cycle at module load.
+    from api.services.source import label_from_source
+
+    tree["name"] = label_from_source(repo_info["remote_url"]) or tree["name"]
     return {
         "root": root_abs,
         "scanned_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
