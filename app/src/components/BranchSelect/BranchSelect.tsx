@@ -22,34 +22,41 @@ export interface BranchSelectProps {
   onError: (message: string | null) => void;
 }
 
+enum BranchStatus {
+  Idle = 'idle',
+  Loading = 'loading',
+  Ready = 'ready',
+  Error = 'error',
+}
+
 type State =
-  | { status: 'idle' }
-  | { status: 'loading' }
-  | { status: 'ready'; branches: string[]; def: string | null }
-  | { status: 'error' };
+  | { status: BranchStatus.Idle }
+  | { status: BranchStatus.Loading }
+  | { status: BranchStatus.Ready; branches: string[]; def: string | null }
+  | { status: BranchStatus.Error };
 
 export function BranchSelect({ url, value, onChange, onError }: BranchSelectProps) {
-  const [state, setState] = useState<State>({ status: 'idle' });
+  const [state, setState] = useState<State>({ status: BranchStatus.Idle });
 
   useEffect(() => {
     if (!url) {
-      setState({ status: 'idle' });
+      setState({ status: BranchStatus.Idle });
       onError(null);
       return;
     }
     let live = true;
-    setState({ status: 'loading' });
+    setState({ status: BranchStatus.Loading });
     onError(null);
     fetchBranches(url).then(
       (r) => {
         if (!live) return;
-        setState({ status: 'ready', branches: r.branches, def: r.default });
+        setState({ status: BranchStatus.Ready, branches: r.branches, def: r.default });
         onError(null);
         if (r.default) onChange(r.default); // preselect the repo default
       },
       (e: unknown) => {
         if (!live) return;
-        setState({ status: 'error' });
+        setState({ status: BranchStatus.Error });
         onError(e instanceof Error ? e.message : String(e));
       }
     );
@@ -62,18 +69,18 @@ export function BranchSelect({ url, value, onChange, onError }: BranchSelectProp
   }, [url]);
 
   // Idle (no url) and error (reported to the parent) render nothing.
-  if (state.status === 'idle' || state.status === 'error') return null;
+  if (state.status === BranchStatus.Idle || state.status === BranchStatus.Error) return null;
 
   return (
     <div class="branch-select">
       <label>Branch</label>
-      {state.status === 'loading' && (
+      {state.status === BranchStatus.Loading && (
         <div class="branch-select-status">
           <LoaderCircle class="lucide-icon branch-select-spinner" />
           Resolving branches…
         </div>
       )}
-      {state.status === 'ready' && (
+      {state.status === BranchStatus.Ready && (
         <select
           class="form-input form-input--select"
           aria-label="Branch"

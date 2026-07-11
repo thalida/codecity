@@ -10,7 +10,7 @@ import { useState } from 'preact/hooks';
 import { ChevronRight } from 'lucide-preact';
 import { PaneTabs } from '@/components/PaneTabs/PaneTabs';
 import { BranchSelect } from '@/components/BranchSelect/BranchSelect';
-import { srcKind, SourceKind } from '@/utils/sources';
+import { srcKind, SourceKind, validateGitUrl, looksResolvable } from '@/utils/sources';
 import type { SourcePayload } from '@/state/stores/ui';
 import { SCAN_PROGRESS } from '@/state/stores/scanProgress';
 
@@ -24,31 +24,6 @@ const KIND_TABS = [
   { id: SourceKind.Remote, label: 'Git URL' },
   { id: SourceKind.Local, label: 'Local path' },
 ];
-
-// A source string worth resolving branches for: has a scheme (https://,
-// ssh://, ...) or the scp-form host (user@host:path). Guards against firing
-// /api/branches on every keystroke of a half-typed URL.
-function looksResolvable(v: string): boolean {
-  return srcKind(v) === SourceKind.Remote && (/:\/\/.+\/.+/.test(v) || /^[^@]+@[^:]+:.+/.test(v));
-}
-
-// Client-side validation for a git URL — catches the common paste mistakes (a
-// web page URL with a #anchor or ?query, spaces, or a non-URL) before any
-// network call, so the form shows one clean inline error instead of a raw git
-// failure or a cryptic "branch lookup failed". Empty is not an error here
-// (submit is simply disabled until something is typed). Returns null when ok.
-function validateGitUrl(v: string): string | null {
-  const s = v.trim();
-  if (!s) return null;
-  if (/\s/.test(s)) return 'Remove the spaces from the URL.';
-  if (s.includes('#') || s.includes('?')) {
-    return 'Use just the repository URL, without the # or ? part.';
-  }
-  if (!/:\/\//.test(s) && !/^[^@]+@[^:]+:/.test(s)) {
-    return 'Enter a git URL, like https://github.com/owner/repo';
-  }
-  return null;
-}
 
 export function NewProjectForm({ allowLocalRepos, prefill, onSubmit }: NewProjectFormProps) {
   const initialKind = prefill?.src && allowLocalRepos ? srcKind(prefill.src) : SourceKind.Remote;

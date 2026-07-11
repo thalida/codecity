@@ -110,3 +110,32 @@ export function resolveBranch(
     isDefault: !requested && looksReal,
   };
 }
+
+/**
+ * A source string worth resolving branches for: a remote URL with a scheme
+ * (https://, ssh://, ...) or the scp-style host form (user@host:path). Guards
+ * against firing /api/branches on every keystroke of a half-typed URL.
+ */
+export function looksResolvable(v: string): boolean {
+  return srcKind(v) === SourceKind.Remote && (/:\/\/.+\/.+/.test(v) || /^[^@]+@[^:]+:.+/.test(v));
+}
+
+/**
+ * Client-side validation for a git URL: catches the common paste mistakes (a
+ * web-page URL with a #anchor or ?query, spaces, or a non-URL) before any
+ * network call, so the form shows one clean inline error instead of a raw git
+ * failure. Empty is not an error (submit is simply disabled until something is
+ * typed). Returns null when ok, else a user-facing message.
+ */
+export function validateGitUrl(v: string): string | null {
+  const s = v.trim();
+  if (!s) return null;
+  if (/\s/.test(s)) return 'Remove the spaces from the URL.';
+  if (s.includes('#') || s.includes('?')) {
+    return 'Use just the repository URL, without the # or ? part.';
+  }
+  if (!/:\/\//.test(s) && !/^[^@]+@[^:]+:/.test(s)) {
+    return 'Enter a git URL, like https://github.com/owner/repo';
+  }
+  return null;
+}
