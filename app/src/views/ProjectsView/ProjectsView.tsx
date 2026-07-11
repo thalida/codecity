@@ -85,7 +85,7 @@ export function ProjectsView({ onSubmit, onCancel, onClose }: ProjectsViewProps)
             <li class="landing-delight landing-delight--authors">
               <Sparkles class="lucide-icon" aria-hidden="true" />
               <span>
-                Commit authors drift by as <strong>fireflies</strong>
+                Commit authors orbit trees as <strong>fireflies</strong>
               </span>
             </li>
           </ul>
