@@ -1,5 +1,13 @@
 /* ── Tree pane ─────────────────────────────────────────────────────────────── */
 
+.tree-pane {
+  /* Row geometry the indent guide is derived from — single-sourced so the guide
+     stays centered on the chevron if any of these change. */
+  --tree-row-inset: var(--cc-space-4); /* row's left padding (the start indent) */
+  --tree-glyph: 14px; /* chevron + file/folder icon column width */
+  --tree-guide: 1px; /* indent-guide line width */
+}
+
 .tree-item.tree-hovered > .row {
   background: var(--cc-overlay-bg-soft);
 }
@@ -32,11 +40,11 @@
 /* Zed-style indent guide: every nested level draws a vertical rule down its full
    left edge — spanning all of that folder's children — centered under the parent
    row's disclosure chevron, so the open folder chain reads as one connected
-   column. The offset is the row inset (space-4) plus half the 14px chevron,
-   less the line's own width, so the rule sits ON the arrow, not to its right. */
+   column. The offset is the chevron's center (row inset + half the glyph column)
+   minus half the line's own width, so the rule sits ON the arrow. */
 .tree-item > .tree-list {
-  margin-left: calc(var(--cc-space-4) + 6px);
-  border-left: 1px solid var(--cc-border-input);
+  margin-left: calc(var(--tree-row-inset) + var(--tree-glyph) / 2 - var(--tree-guide) / 2);
+  border-left: var(--tree-guide) solid var(--cc-border-input);
 }
 
 .tree-item {
@@ -53,7 +61,7 @@
    the default keeps the top level near the edge while still clearing the
    .row--selected highlight's rounded corner. */
 .tree-item > .row {
-  padding-left: var(--cc-space-4);
+  padding-left: var(--tree-row-inset);
 }
 
 .tree-chevron {
@@ -65,12 +73,12 @@
    * take the same horizontal space as the rendered chevron on dir
    * rows. Net effect: labels at the same nesting depth line up,
    * regardless of file vs directory. Matches the .tree-icon width. */
-  width: 14px;
+  width: var(--tree-glyph);
 }
 
 .tree-icon {
   font-size: var(--cc-font-lg);
-  width: 14px;
+  width: var(--tree-glyph);
   text-align: center;
   flex-shrink: 0;
   line-height: 1;
