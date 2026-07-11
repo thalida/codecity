@@ -42,12 +42,12 @@ describe('streamManifest (EventSource)', () => {
       Symbol.asyncIterator
     ]();
     const es = last();
-    es.emit('scan-progress', JSON.stringify({ display_root: 'x', files_scanned: 3 }));
+    es.emit('scan-progress', JSON.stringify({ src: 'x', files_scanned: 3 }));
     es.emit('manifest-partial', JSON.stringify({ manifest: fakeManifest }));
     es.emit('manifest-complete', JSON.stringify({ manifest: fakeManifest }));
 
     const a = await it.next();
-    expect(a.value).toEqual({ phase: ScanPhase.ScanProgress, display_root: 'x', files_scanned: 3 });
+    expect(a.value).toEqual({ phase: ScanPhase.ScanProgress, src: 'x', files_scanned: 3 });
     const b = await it.next();
     expect((b.value as ScanStreamEvent).phase).toBe(ScanPhase.PartialManifest);
     const c = await it.next();
