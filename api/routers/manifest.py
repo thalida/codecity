@@ -174,7 +174,6 @@ async def manifest(
         if kind is SourceKind.INVALID:
             yield _sse_error("unrecognized source — pass a local path or a git URL")
             return
-        display = src
         local_path: Path | None = None
         if kind is SourceKind.LOCAL:
             try:
@@ -197,7 +196,7 @@ async def manifest(
                 _sse(
                     ScanEvent.CLONE_PROGRESS,
                     {
-                        "display_root": display,
+                        "display_root": src,
                         "stage": stage,
                         "percent": percent,
                     },
@@ -210,7 +209,7 @@ async def manifest(
             _put(
                 _sse(
                     ScanEvent.CLONE_PROGRESS,
-                    {"display_root": display, "mb_on_disk": mb_on_disk},
+                    {"display_root": src, "mb_on_disk": mb_on_disk},
                 )
             )
 
@@ -218,7 +217,7 @@ async def manifest(
             _put(
                 _sse(
                     ScanEvent.SCAN_PROGRESS,
-                    {"display_root": display, "files_scanned": files_scanned},
+                    {"display_root": src, "files_scanned": files_scanned},
                 )
             )
 
@@ -227,7 +226,7 @@ async def manifest(
                 # Clone phase (git only): emit `clone-progress` FIRST, then clone
                 # with live progress + cancel support.
                 if kind is SourceKind.REMOTE:
-                    _put(_sse(ScanEvent.CLONE_PROGRESS, {"display_root": display}))
+                    _put(_sse(ScanEvent.CLONE_PROGRESS, {"display_root": src}))
                     try:
                         with TRUST.clone_lock:
                             path = ensure_clone(
@@ -253,7 +252,7 @@ async def manifest(
 
                 holder["path"] = path
                 TRUST.register(path)
-                _put(_sse(ScanEvent.SCAN_PROGRESS, {"display_root": display}))
+                _put(_sse(ScanEvent.SCAN_PROGRESS, {"display_root": src}))
 
                 # Signature (cache key) + warm-cache short-circuit.
                 sig = signature_tree(str(path), use_cache=use_cache)["signature"]
@@ -262,7 +261,7 @@ async def manifest(
                     cached = cache_load_manifest(path.resolve(), sig)
                     if cached is not None:
                         if kind is SourceKind.REMOTE:
-                            cached["display_root"] = display
+                            cached["display_root"] = src
                         _apply_display_name(cached)
                         _put(_sse(ScanEvent.MANIFEST_COMPLETE, {"manifest": cached}))
                         return
@@ -277,7 +276,7 @@ async def manifest(
                     phase = ev["phase"]  # ScanEvent.MANIFEST_PARTIAL | _COMPLETE
                     m = ev["manifest"]
                     if kind is SourceKind.REMOTE:
-                        m["display_root"] = display
+                        m["display_root"] = src
                     _apply_display_name(m)
                     if phase is ScanEvent.MANIFEST_COMPLETE:
                         holder["manifest"] = m
