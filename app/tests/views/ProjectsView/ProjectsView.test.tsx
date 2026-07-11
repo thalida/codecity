@@ -59,7 +59,7 @@ describe('ProjectsView', () => {
     await flush();
     expect(container.querySelector('.recents-list')).not.toBeNull();
 
-    SCAN_PROGRESS.value = { kind: SourceKind.Remote, label: 'o/r', phase: ScanPhase.CloneProgress };
+    SCAN_PROGRESS.value = { kind: SourceKind.Remote, phase: ScanPhase.CloneProgress };
     PENDING_SOURCE_LABEL.value = 'o/r';
     await flush();
 
@@ -79,7 +79,7 @@ describe('ProjectsView', () => {
     openProjectsView({ dismissible: true });
     const onCancel = vi.fn();
     render(<ProjectsView onSubmit={() => {}} onCancel={onCancel} onClose={() => {}} />, container);
-    SCAN_PROGRESS.value = { kind: SourceKind.Local, label: 'proj', phase: null };
+    SCAN_PROGRESS.value = { kind: SourceKind.Local, phase: null };
     await flush();
 
     const cancelBtn = Array.from(container.querySelectorAll('button')).find(
@@ -93,7 +93,7 @@ describe('ProjectsView', () => {
   it('does not show a close button while loading, even when dismissible', async () => {
     openProjectsView({ dismissible: true });
     render(<ProjectsView onSubmit={() => {}} onCancel={() => {}} onClose={() => {}} />, container);
-    SCAN_PROGRESS.value = { kind: SourceKind.Local, label: 'proj', phase: null };
+    SCAN_PROGRESS.value = { kind: SourceKind.Local, phase: null };
     await flush();
     expect(container.querySelector('[aria-label="Close"]')).toBeNull();
   });
@@ -104,7 +104,7 @@ describe('ProjectsView', () => {
     await flush();
     expect(container.textContent).toMatch(/repository not found/i);
 
-    SCAN_PROGRESS.value = { kind: SourceKind.Remote, label: 'o/r', phase: null };
+    SCAN_PROGRESS.value = { kind: SourceKind.Remote, phase: null };
     await flush();
     expect(container.textContent).not.toMatch(/repository not found/i);
   });
@@ -118,7 +118,7 @@ describe('ProjectsView', () => {
     // The Escape listener rebinds via a useEffect keyed on `loading`; that
     // commit needs an rAF-scale tick in jsdom (see _helpers/preact.ts), not
     // just a microtask flush, so drainAsync rather than flush() here.
-    SCAN_PROGRESS.value = { kind: SourceKind.Local, label: 'proj', phase: null };
+    SCAN_PROGRESS.value = { kind: SourceKind.Local, phase: null };
     await drainAsync();
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
     expect(onClose).not.toHaveBeenCalled();

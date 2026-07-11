@@ -29,7 +29,6 @@ export interface OpenOpts {
 /** Options for showing the loading overlay. */
 export interface LoadingOverlayShowOpts {
   kind: SourceKind;
-  label: string;
   branch?: string;
 }
 

@@ -27,7 +27,7 @@ export function attachLoadingReactions(): () => void {
     if (!wasActive) {
       // null→non-null: show the overlay at the kind-based initial step
       // (Resolving for git, Scanning for local).
-      showLoadingOverlay({ kind: p.kind, label: p.label, branch: p.branch });
+      showLoadingOverlay({ kind: p.kind, branch: p.branch });
       wasActive = true;
     }
     setLoadingStep(stepForPhase(p.phase, p.kind));

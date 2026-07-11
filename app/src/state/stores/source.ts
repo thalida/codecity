@@ -14,7 +14,7 @@ import { PERSISTED_KEYS } from '@/constants/storage';
 import { MAX_RECENT_SOURCES } from '@/constants/ui';
 import { URL_PARAMS } from '@/constants/urlParams';
 import { MANIFEST } from '@/state/stores/manifest';
-import { srcKind, SourceKind, resolveBranch, labelFromSource } from '@/utils/sources';
+import { srcKind, SourceKind, resolveBranch } from '@/utils/sources';
 import { isEmptyManifest } from '@/utils/manifest';
 import type { Manifest } from '@/types';
 
@@ -155,10 +155,10 @@ export function setCurrentSource(
   CURRENT_SOURCE.value = { src, branch };
   pushRecent({
     src,
-    // Prefer the manifest's server-derived name (the repo's canonical
-    // owner/repo) over the raw src — for a local working tree the src basename
-    // is the folder name (e.g. a git-worktree dir), not the repo.
-    label: manifest.tree?.name || labelFromSource(src) || src,
+    // The server bakes the canonical owner/repo name into tree.name (a local
+    // worktree's src basename would be the folder name, not the repo); keep the
+    // raw src only as a defensive fallback.
+    label: manifest.tree?.name || src,
     branch: resolveBranch(manifest, branch),
   });
 }

@@ -47,7 +47,9 @@ class CloneProgressEvent(BaseModel):
     silent promisor blob fetch instead carries `mb_on_disk` (and no percent),
     so the UI shows the working tree materializing rather than freezing."""
 
-    src: OptionalStr = None
+    # Server-computed display label (owner/repo or basename) so the UI shows a
+    # friendly pending title without re-deriving it client-side.
+    label: OptionalStr = None
     stage: _OptionalStage = None
     percent: OptionalInt = None
     mb_on_disk: OptionalInt = None
@@ -57,7 +59,8 @@ class ScanProgressEvent(BaseModel):
     """`scan-progress` — the working tree is being walked; carries the
     heartbeat files-scanned count."""
 
-    src: OptionalStr = None
+    # Server-computed display label — see CloneProgressEvent.label.
+    label: OptionalStr = None
     files_scanned: OptionalInt = None
 
 

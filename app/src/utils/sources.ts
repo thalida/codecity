@@ -1,15 +1,13 @@
-// utils/sources.ts — Source URL helpers: classification (remote vs local),
-// canonicalisation (SSH → HTTPS), and label derivation (URL/path → human label).
+// utils/sources.ts — Source URL helpers: classification (remote vs local) and
+// canonicalisation (SSH → HTTPS). Repo display names are NOT derived here: the
+// server computes them once (label_from_source → baked into tree.name, and a
+// `label` on progress events), so the client only ever reads a server-provided
+// name — there is no client-side URL→label transform.
 //
 // Public surface:
 //   - srcKind(src)               — SourceKind (Remote | Local) discriminator.
 //   - toHttpsRepoUrl(src)        — canonical https URL from any repo URL form.
 //   - repoUrlForBranch(url, ref) — forge URL pointing at a branch tree.
-//   - labelFromSource(src)       — a git URL OR a local path → "owner/repo" or
-//                                  basename, for labelling a PENDING source
-//                                  before its manifest loads. The manifest's own
-//                                  tree.name is normalized server-side, so there
-//                                  is no manifest→label helper here.
 
 /** What kind of thing a source string points at. Every source is a git repo;
  *  the axis is whether it's a remote URL (cloned) or an on-disk local working
@@ -65,32 +63,6 @@ export function repoUrlForBranch(repoHttpsUrl: string, branch: string): string {
     return `${repoHttpsUrl}/src/${ref}`;
   }
   return repoHttpsUrl;
-}
-
-/**
- * Pure URL/path → label transform.
- *
- * For any URL form (http/https/ssh) we extract "owner/repo" from the last
- * two path segments. For a local-path display root we return the basename.
- * Returns null only when the input is empty/null/undefined — in that case
- * callers should fall back to whatever else they have (tree.name, etc.).
- *
- * Strips an optional `@branch` suffix the server appends for git sources
- * before parsing.
- */
-export function labelFromSource(src: string | null | undefined): string | null {
-  if (!src) return null;
-  // Strip optional @branch suffix before analysing the URL/path.
-  const noBranch = src.replace(/@[^@/]+$/, '');
-  // git URL: derive "owner/repo" from the last two path segments.
-  if (/:\/\//.test(noBranch) || /^[^@]+@[^:]+:/.test(noBranch)) {
-    const m = noBranch.match(/[/:]([^/]+)\/([^/]+?)(?:\.git)?$/);
-    if (m) return `${m[1]}/${m[2]}`;
-    return noBranch;
-  }
-  // Local path: basename.
-  const parts = noBranch.split(/[/\\]/).filter(Boolean);
-  return parts.length ? parts[parts.length - 1] : noBranch;
 }
 
 /**

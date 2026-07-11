@@ -42,12 +42,12 @@ describe('streamManifest (EventSource)', () => {
       Symbol.asyncIterator
     ]();
     const es = last();
-    es.emit('scan-progress', JSON.stringify({ src: 'x', files_scanned: 3 }));
+    es.emit('scan-progress', JSON.stringify({ label: 'x', files_scanned: 3 }));
     es.emit('manifest-partial', JSON.stringify({ manifest: fakeManifest }));
     es.emit('manifest-complete', JSON.stringify({ manifest: fakeManifest }));
 
     const a = await it.next();
-    expect(a.value).toEqual({ phase: ScanPhase.ScanProgress, src: 'x', files_scanned: 3 });
+    expect(a.value).toEqual({ phase: ScanPhase.ScanProgress, label: 'x', files_scanned: 3 });
     const b = await it.next();
     expect((b.value as ScanStreamEvent).phase).toBe(ScanPhase.PartialManifest);
     const c = await it.next();
@@ -57,17 +57,17 @@ describe('streamManifest (EventSource)', () => {
     expect(es.closed).toBe(true);
   });
 
-  it('maps a clone-progress event with src', async () => {
+  it('maps a clone-progress event with a label', async () => {
     const { ctor, last } = makeES();
     const it = streamManifest('/api/manifest', { EventSourceImpl: ctor })[Symbol.asyncIterator]();
-    last().emit('clone-progress', JSON.stringify({ src: 'https://example.com/foo.git' }));
+    last().emit('clone-progress', JSON.stringify({ label: 'example/foo' }));
     const a = await it.next();
     const ev = a.value as ScanStreamEvent;
     expect(ev.phase).toBe(ScanPhase.CloneProgress);
-    // Discriminator narrow — src must be on the clone-progress variant of
+    // Discriminator narrow — label must be on the clone-progress variant of
     // ScanStreamEvent, not reached through a cast that would hide drift.
     if (ev.phase !== ScanPhase.CloneProgress) throw new Error('expected clone-progress');
-    expect(ev.src).toBe('https://example.com/foo.git');
+    expect(ev.label).toBe('example/foo');
   });
 
   it('emits a terminal Error event for a server-sent error', async () => {

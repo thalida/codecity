@@ -49,6 +49,7 @@ from api.services.source import (
     SourceKind,
     classify,
     display_name_for_manifest,
+    label_from_source,
     resolve_local,
     resolve_source,
 )
@@ -175,6 +176,9 @@ async def manifest(
         if kind is SourceKind.INVALID:
             yield _sse_error("unrecognized source — pass a local path or a git URL")
             return
+        # Friendly display label computed once, server-side, so progress events
+        # carry a ready-to-show name and the client never re-derives it.
+        src_label = label_from_source(src)
         local_path: Path | None = None
         if kind is SourceKind.LOCAL:
             try:
@@ -197,7 +201,7 @@ async def manifest(
                 _sse(
                     ScanEvent.CLONE_PROGRESS,
                     {
-                        "src": src,
+                        "label": src_label,
                         "stage": stage,
                         "percent": percent,
                     },
@@ -210,7 +214,7 @@ async def manifest(
             _put(
                 _sse(
                     ScanEvent.CLONE_PROGRESS,
-                    {"src": src, "mb_on_disk": mb_on_disk},
+                    {"label": src_label, "mb_on_disk": mb_on_disk},
                 )
             )
 
@@ -218,7 +222,7 @@ async def manifest(
             _put(
                 _sse(
                     ScanEvent.SCAN_PROGRESS,
-                    {"src": src, "files_scanned": files_scanned},
+                    {"label": src_label, "files_scanned": files_scanned},
                 )
             )
 
@@ -227,7 +231,7 @@ async def manifest(
                 # Clone phase (git only): emit `clone-progress` FIRST, then clone
                 # with live progress + cancel support.
                 if kind is SourceKind.REMOTE:
-                    _put(_sse(ScanEvent.CLONE_PROGRESS, {"src": src}))
+                    _put(_sse(ScanEvent.CLONE_PROGRESS, {"label": src_label}))
                     try:
                         with TRUST.clone_lock:
                             path = ensure_clone(
@@ -253,7 +257,7 @@ async def manifest(
 
                 holder["path"] = path
                 TRUST.register(path)
-                _put(_sse(ScanEvent.SCAN_PROGRESS, {"src": src}))
+                _put(_sse(ScanEvent.SCAN_PROGRESS, {"label": src_label}))
 
                 # Signature (cache key) + warm-cache short-circuit.
                 sig = signature_tree(str(path), use_cache=use_cache)["signature"]

@@ -38,7 +38,7 @@ import {
 import { SERVER_CONFIG } from '@/state/stores/serverConfig';
 import { MANIFEST, setManifest, markError } from '@/state/stores/manifest';
 import { SCAN_PROGRESS } from '@/state/stores/scanProgress';
-import { srcKind, labelFromSource, SourceKind, srcNeedsBranch } from '@/utils/sources';
+import { srcKind, SourceKind, srcNeedsBranch } from '@/utils/sources';
 import { isEmptyManifest } from '@/utils/manifest';
 import { URL_PARAMS } from '@/constants/urlParams';
 import type { Manifest } from '@/types';
@@ -57,7 +57,7 @@ import type { SourcePayload } from '@/state/stores/ui';
  */
 async function pumpManifestStream(
   url: string,
-  meta: { kind: SourceKind; label: string; branch?: string },
+  meta: { kind: SourceKind; branch?: string },
   onManifest: (
     manifest: Manifest,
     phase: ScanPhase.PartialManifest | ScanPhase.CompleteManifest
@@ -69,13 +69,12 @@ async function pumpManifestStream(
   for await (const event of streamManifest(url, { signal })) {
     if (event.phase === ScanPhase.Error) throw new Error(event.error);
 
-    if ('src' in event && event.src) {
-      // The canonical "label of the source being loaded" — read by BOTH the
-      // document title (useDocumentTitle) and the loading overlay's header, so
-      // the project name isn't duplicated into the overlay store. Idempotent:
-      // @preact/signals dedupes same-value writes and src is stable per load, so
-      // no need to guard against repeat events.
-      PENDING_SOURCE_LABEL.value = labelFromSource(event.src) ?? null;
+    if ('label' in event && event.label) {
+      // The canonical "label of the source being loaded" — computed server-side
+      // and read by BOTH the document title (useDocumentTitle) and the loading
+      // overlay's header, so the project name isn't derived client-side. Idempotent:
+      // @preact/signals dedupes same-value writes and the label is stable per load.
+      PENDING_SOURCE_LABEL.value = event.label;
     }
 
     if (event.phase === ScanPhase.CloneProgress || event.phase === ScanPhase.ScanProgress) {
@@ -135,7 +134,6 @@ export async function loadSource(payload: SourcePayload): Promise<void> {
   loadController = controller;
   const meta = {
     kind: srcKind(payload.src),
-    label: labelFromSource(payload.src) ?? payload.src,
     branch: payload.branch,
   };
   SCAN_PROGRESS.value = { ...meta, phase: null }; // show overlay immediately

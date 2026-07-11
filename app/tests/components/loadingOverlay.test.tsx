@@ -52,7 +52,7 @@ describe('LoadingOverlay', () => {
   // open. Two full-viewport surfaces stacking would leave the overlay's
   // no-controls backdrop on top of the view's Cancel button.
   it('stays hidden while the projects view is open, even mid-load', async () => {
-    showLoadingOverlay({ kind: SourceKind.Remote, label: 'owner/repo' });
+    showLoadingOverlay({ kind: SourceKind.Remote });
     await flush();
     expect(container.querySelector('.loading-backdrop')).not.toBeNull();
 
@@ -62,13 +62,13 @@ describe('LoadingOverlay', () => {
   });
 
   it('show reveals the overlay', async () => {
-    showLoadingOverlay({ kind: SourceKind.Local, label: 'foo' });
+    showLoadingOverlay({ kind: SourceKind.Local });
     await flush();
     expect(container.querySelector('.loading-backdrop')).not.toBeNull();
   });
 
   it('hide removes it from view', async () => {
-    showLoadingOverlay({ kind: SourceKind.Local, label: 'foo' });
+    showLoadingOverlay({ kind: SourceKind.Local });
     await flush();
     hideLoadingOverlay();
     await flush();
@@ -76,9 +76,9 @@ describe('LoadingOverlay', () => {
   });
 
   it('renders a single card across re-shows (no duplicates)', async () => {
-    showLoadingOverlay({ kind: SourceKind.Local, label: 'A' });
+    showLoadingOverlay({ kind: SourceKind.Local });
     await flush();
-    showLoadingOverlay({ kind: SourceKind.Local, label: 'B' });
+    showLoadingOverlay({ kind: SourceKind.Local });
     await flush();
     expect(container.querySelectorAll('.loading-card').length).toBe(1);
   });
@@ -86,7 +86,7 @@ describe('LoadingOverlay', () => {
   // ── Stepped progress ──────────────────────────────────────────────────────
 
   it('renders the right steps for git', async () => {
-    showLoadingOverlay({ kind: SourceKind.Remote, label: 'owner/repo' });
+    showLoadingOverlay({ kind: SourceKind.Remote });
     await flush();
     // Title shows the current step (not the project name — that lives in
     // the pending-label header, driven by the PENDING_SOURCE_LABEL signal).
@@ -98,7 +98,7 @@ describe('LoadingOverlay', () => {
   });
 
   it('hides resolving/cloning for local', async () => {
-    showLoadingOverlay({ kind: SourceKind.Local, label: 'mydir' });
+    showLoadingOverlay({ kind: SourceKind.Local });
     await flush();
     const resolving = container.querySelector('[data-step="resolving"]') as HTMLElement;
     const cloning = container.querySelector('[data-step="cloning"]') as HTMLElement;
@@ -107,7 +107,7 @@ describe('LoadingOverlay', () => {
   });
 
   it('setLoadingStep marks previous steps done and target active', async () => {
-    showLoadingOverlay({ kind: SourceKind.Remote, label: 'x/y' });
+    showLoadingOverlay({ kind: SourceKind.Remote });
     await flush();
     setLoadingStep(LoadingStep.Building);
     await flush();
@@ -120,13 +120,13 @@ describe('LoadingOverlay', () => {
   });
 
   it('branch is included in the title when provided', async () => {
-    showLoadingOverlay({ kind: SourceKind.Remote, label: 'x/y', branch: 'main' });
+    showLoadingOverlay({ kind: SourceKind.Remote, branch: 'main' });
     await flush();
     expect(container.textContent).toContain('branch main');
   });
 
   it('git mode starts with resolving active', async () => {
-    showLoadingOverlay({ kind: SourceKind.Remote, label: 'owner/repo' });
+    showLoadingOverlay({ kind: SourceKind.Remote });
     await flush();
     expect(container.querySelector('[data-step="resolving"]')?.getAttribute('data-state')).toBe(
       'active'
@@ -137,7 +137,7 @@ describe('LoadingOverlay', () => {
   });
 
   it('local mode starts with scanning active', async () => {
-    showLoadingOverlay({ kind: SourceKind.Local, label: 'mydir' });
+    showLoadingOverlay({ kind: SourceKind.Local });
     await flush();
     expect(container.querySelector('[data-step="scanning"]')?.getAttribute('data-state')).toBe(
       'active'
@@ -150,7 +150,7 @@ describe('LoadingOverlay', () => {
   // ── Pending-label header ────────────────────────────────────────────────
 
   it('renders the pending label as a header when set', async () => {
-    showLoadingOverlay({ kind: SourceKind.Remote, label: 'owner/repo' });
+    showLoadingOverlay({ kind: SourceKind.Remote });
     PENDING_SOURCE_LABEL.value = 'owner/repo';
     await flush();
     const header = container.querySelector('.loading-pending-label');
@@ -159,7 +159,7 @@ describe('LoadingOverlay', () => {
   });
 
   it('removes the pending label when set to null', async () => {
-    showLoadingOverlay({ kind: SourceKind.Remote, label: 'owner/repo' });
+    showLoadingOverlay({ kind: SourceKind.Remote });
     PENDING_SOURCE_LABEL.value = 'owner/repo';
     await flush();
     PENDING_SOURCE_LABEL.value = null;
@@ -170,7 +170,7 @@ describe('LoadingOverlay', () => {
   // ── Step tails ─────────────────────────────────────────────────────────
 
   it('renders a tail string next to a step row', async () => {
-    showLoadingOverlay({ kind: SourceKind.Remote, label: 'owner/repo' });
+    showLoadingOverlay({ kind: SourceKind.Remote });
     setLoadingStepTail(LoadingStep.Cloning, '45% (receiving)');
     await flush();
     const cloningRow = container.querySelector('[data-step="cloning"]');
@@ -179,7 +179,7 @@ describe('LoadingOverlay', () => {
   });
 
   it('replaces an existing tail string with a new one', async () => {
-    showLoadingOverlay({ kind: SourceKind.Remote, label: 'owner/repo' });
+    showLoadingOverlay({ kind: SourceKind.Remote });
     setLoadingStepTail(LoadingStep.Cloning, '10%');
     await flush();
     setLoadingStepTail(LoadingStep.Cloning, '80%');
@@ -190,7 +190,7 @@ describe('LoadingOverlay', () => {
   });
 
   it('clears the tail when set to null', async () => {
-    showLoadingOverlay({ kind: SourceKind.Remote, label: 'owner/repo' });
+    showLoadingOverlay({ kind: SourceKind.Remote });
     setLoadingStepTail(LoadingStep.Cloning, '45%');
     await flush();
     setLoadingStepTail(LoadingStep.Cloning, null);

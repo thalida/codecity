@@ -165,7 +165,7 @@ class ResponseModelTests(unittest.TestCase):
         from api.models.events import ScanProgressEvent, ErrorEvent
 
         self.assertEqual(
-            ScanProgressEvent(src="r", files_scanned=3).model_dump(exclude_none=True),
-            {"src": "r", "files_scanned": 3},
+            ScanProgressEvent(label="r", files_scanned=3).model_dump(exclude_none=True),
+            {"label": "r", "files_scanned": 3},
         )
         self.assertEqual(ErrorEvent(error="boom").model_dump(), {"error": "boom"})

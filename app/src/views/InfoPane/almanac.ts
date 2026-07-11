@@ -9,7 +9,6 @@ import type { Manifest, DirNode, RepoInfo, FileLeader, DirLeader, CommitLeader }
 import { formatShortDate, humanSpan } from '@/utils/dates';
 import { formatBytes } from '@/utils/bytes';
 import { formatCount, pluralize } from '@/utils/format';
-import { labelFromSource } from '@/utils/sources';
 import { languageLabelForExt } from '@/utils/syntaxLanguages';
 
 export type LandmarkKind = NodeKind.File | NodeKind.Directory | NodeKind.Commit;
@@ -200,9 +199,9 @@ function buildOverview(m: Manifest): AlmanacOverview {
   const exts = root.descendants_ext_breakdown; // sorted by count desc on the backend
   const rest = exts.slice(MAX_LANGUAGES);
   return {
-    // Prefer a concise "owner/repo" (or folder basename) over the raw URL —
-    // the full remote URL still appears, clickable, in the meta list.
-    name: labelFromSource(m.repo.remote_url ?? root.name) ?? root.name ?? 'this project',
+    // The server bakes the friendly "owner/repo" (or folder basename) into
+    // tree.name; the full remote URL still appears, clickable, in the meta list.
+    name: root.name || 'this project',
     founded: m.dateRanges.minCreated ? formatShortDate(m.dateRanges.minCreated) : null,
     foundedISO: m.dateRanges.minCreated ?? null,
     latestDate: m.stats.commitDates.newest ?? null,

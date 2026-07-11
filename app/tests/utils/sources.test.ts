@@ -1,6 +1,5 @@
 import { describe, it, expect } from 'vitest';
 import {
-  labelFromSource,
   srcKind,
   SourceKind,
   toHttpsRepoUrl,
@@ -8,33 +7,10 @@ import {
   srcNeedsBranch,
 } from '@/utils/sources';
 
-// NOTE: the manifest → display-name derivation (display_root / remote_url /
-// tree.name precedence) now lives server-side — see api/tests/test_source.py
-// (display_name_for_manifest). labelFromSource here only labels a PENDING
-// source string (URL or path) before its manifest loads.
-describe('labelFromSource', () => {
-  it('parses org/repo from an https URL', () => {
-    expect(labelFromSource('https://github.com/foo/bar')).toBe('foo/bar');
-  });
-
-  it('strips an @branch suffix before parsing', () => {
-    expect(labelFromSource('https://github.com/foo/bar@main')).toBe('foo/bar');
-  });
-
-  it('parses org/repo from an ssh URL', () => {
-    expect(labelFromSource('git@github.com:foo/bar.git')).toBe('foo/bar');
-  });
-
-  it('falls back to the local-path basename for a path', () => {
-    expect(labelFromSource('/Users/me/code/myproject')).toBe('myproject');
-  });
-
-  it('returns null for empty / nullish input', () => {
-    expect(labelFromSource('')).toBeNull();
-    expect(labelFromSource(null)).toBeNull();
-    expect(labelFromSource(undefined)).toBeNull();
-  });
-});
+// NOTE: repo display-name derivation lives entirely server-side now (see
+// api/tests/test_source.py — label_from_source / display_name_for_manifest).
+// The client reads a server-provided name (tree.name, or the `label` on a
+// progress event); there is no client-side URL→label transform to test here.
 
 describe('toHttpsRepoUrl', () => {
   it('passes https URLs through unchanged', () => {

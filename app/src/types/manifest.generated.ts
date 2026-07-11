@@ -207,8 +207,8 @@ export interface components {
          *     so the UI shows the working tree materializing rather than freezing.
          */
         CloneProgressEvent: {
-            /** Src */
-            src?: string;
+            /** Label */
+            label?: string;
             /**
              * Stage
              * @enum {string}
@@ -548,8 +548,8 @@ export interface components {
          *     heartbeat files-scanned count.
          */
         ScanProgressEvent: {
-            /** Src */
-            src?: string;
+            /** Label */
+            label?: string;
             /** Files Scanned */
             files_scanned?: number;
         };
