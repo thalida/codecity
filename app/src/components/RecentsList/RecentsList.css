@@ -1,18 +1,5 @@
-/* ── Recent projects ─────────────────────────────────────────────────────
-   Heading + the list of recent-source rows. */
-
-.recents {
-  display: flex;
-  flex-direction: column;
-  gap: var(--cc-space-4);
-}
-
-.recents-title {
-  margin: 0;
-  font-size: var(--cc-font-lg);
-  font-weight: var(--cc-fw-semibold);
-  color: var(--cc-text-secondary);
-}
+/* ── Recent projects ── the list of recent-source rows (the card owns the
+   heading — see .landing-card-title). */
 
 .recents-list {
   display: flex;

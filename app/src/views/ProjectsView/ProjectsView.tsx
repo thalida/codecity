@@ -111,7 +111,7 @@ export function ProjectsView({ onSubmit, onCancel, onClose }: ProjectsViewProps)
           ) : (
             <>
               <section class="landing-card surface-sidebar">
-                <h2 class="landing-action-title">Open a project</h2>
+                <h2 class="landing-card-title">Open a project</h2>
                 {/* A stale error from a prior attempt is dropped once a new load
                     starts (see the loading branch above) — here it sits above the
                     fresh form. */}
@@ -124,6 +124,7 @@ export function ProjectsView({ onSubmit, onCancel, onClose }: ProjectsViewProps)
               </section>
               {hasRecents && (
                 <section class="landing-card surface-sidebar">
+                  <h2 class="landing-card-title">Recent projects</h2>
                   <RecentsList onOpen={onSubmit} />
                 </section>
               )}

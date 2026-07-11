@@ -174,7 +174,9 @@
   border-radius: var(--cc-radius-lg);
 }
 
-.landing-action-title {
+/* Shared card heading — "Open a project" and "Recent projects" read as one
+   consistent title style. */
+.landing-card-title {
   margin: 0;
   font-size: var(--cc-font-2xl);
   font-weight: var(--cc-fw-semibold);

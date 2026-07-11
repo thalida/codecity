@@ -57,7 +57,7 @@ describe('ProjectsView', () => {
     ];
     render(<ProjectsView onSubmit={() => {}} onCancel={() => {}} onClose={() => {}} />, container);
     await flush();
-    expect(container.querySelector('.recents')).not.toBeNull();
+    expect(container.querySelector('.recents-list')).not.toBeNull();
 
     SCAN_PROGRESS.value = { kind: SourceKind.Remote, label: 'o/r', phase: ScanPhase.CloneProgress };
     PENDING_SOURCE_LABEL.value = 'o/r';
@@ -66,7 +66,7 @@ describe('ProjectsView', () => {
     // The "second load" surface is gone, not just disabled — nothing left to
     // click into while the current load streams.
     expect(container.querySelector('.new-project')).toBeNull();
-    expect(container.querySelector('.recents')).toBeNull();
+    expect(container.querySelector('.recents-list')).toBeNull();
 
     const progress = container.querySelector('.landing-progress');
     expect(progress).not.toBeNull();

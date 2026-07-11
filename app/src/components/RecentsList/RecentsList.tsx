@@ -32,26 +32,23 @@ export function RecentsList({ onOpen }: RecentsListProps) {
   if (recents.length === 0) return null;
 
   return (
-    <div class="recents">
-      <h2 class="recents-title">Recent projects</h2>
-      <div class="recents-list">
-        {recents.map((r) => (
-          <RecentRow
-            key={keyOf(r)}
-            recent={r}
-            active={isActive(r)}
-            unavailable={isUnavailable(r)}
-            confirmingRemove={confirming === keyOf(r)}
-            onOpen={() => onOpen({ src: r.src, branch: r.branch })}
-            onAskRemove={() => setConfirming(keyOf(r))}
-            onCancelRemove={() => setConfirming(null)}
-            onConfirmRemove={() => {
-              removeRecent(r.src, r.branch);
-              setConfirming(null);
-            }}
-          />
-        ))}
-      </div>
+    <div class="recents-list">
+      {recents.map((r) => (
+        <RecentRow
+          key={keyOf(r)}
+          recent={r}
+          active={isActive(r)}
+          unavailable={isUnavailable(r)}
+          confirmingRemove={confirming === keyOf(r)}
+          onOpen={() => onOpen({ src: r.src, branch: r.branch })}
+          onAskRemove={() => setConfirming(keyOf(r))}
+          onCancelRemove={() => setConfirming(null)}
+          onConfirmRemove={() => {
+            removeRecent(r.src, r.branch);
+            setConfirming(null);
+          }}
+        />
+      ))}
     </div>
   );
 }
