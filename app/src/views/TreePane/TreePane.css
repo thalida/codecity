@@ -48,6 +48,14 @@
    chevron-to-label gap). Selection highlight in .row--selected
    near the top of the file. */
 
+/* Tree rows sit closer to the pane edge than the default .row inset: the tree
+   reaches depth by expanding, so a big starting indent just wastes width. Half
+   the default keeps the top level near the edge while still clearing the
+   .row--selected highlight's rounded corner. */
+.tree-item > .row {
+  padding-left: var(--cc-space-4);
+}
+
 .tree-chevron {
   display: inline-flex;
   align-items: center;
