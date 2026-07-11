@@ -38,11 +38,7 @@ import {
   runCollisionCheck,
   runStemDiagnostic,
 } from '@/state/stores/scene';
-import {
-  openProjectsView,
-  openProjectsViewForCurrentSource,
-  closeProjectsView,
-} from '@/state/stores/ui';
+import { openProjectsView, closeProjectsView } from '@/state/stores/ui';
 import { SOURCE_ERROR, CURRENT_SOURCE } from '@/state/stores/source';
 import { MANIFEST } from '@/state/stores/manifest';
 import { isEmptyManifest } from '@/utils/manifest';
@@ -100,7 +96,7 @@ export function App() {
     <>
       <AppHeader
         onSegmentClick={selectPath}
-        onSwitchSource={openProjectsViewForCurrentSource}
+        onSwitchSource={() => openProjectsView({ dismissible: true })}
         onResetView={resetView}
         onFocus={focusCurrentSelection}
       />

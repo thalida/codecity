@@ -5,7 +5,6 @@
 
 import { signal, computed } from '@preact/signals';
 import { SourceKind } from '@/utils/sources';
-import { URL_PARAMS } from '@/constants/urlParams';
 
 // These are the UI-state CONTRACTS the views render against. They live here (in
 // state) so state/ stays view-independent — the ProjectsView / LoadingOverlay
@@ -59,18 +58,6 @@ export function openProjectsView(opts: OpenOpts = {}): void {
  *  keyed on CURRENT_SOURCE alone. Mirrors the LOADING_OVERLAY setters. */
 export function closeProjectsView(): void {
   PROJECTS_VIEW.value = { ...PROJECTS_VIEW.peek(), visible: false };
-}
-
-/** Open the view pre-filled with the current `?src`/`?branch` — the
- *  header's "switch source" affordance. Always dismissible. */
-export function openProjectsViewForCurrentSource(): void {
-  const cur = new URLSearchParams(window.location.search);
-  openProjectsView({
-    dismissible: true,
-    prefill: cur.has(URL_PARAMS.SRC)
-      ? { src: cur.get(URL_PARAMS.SRC)!, branch: cur.get(URL_PARAMS.BRANCH) ?? undefined }
-      : undefined,
-  });
 }
 
 // ── Loading overlay ──────────────────────────────────────────────────────────
