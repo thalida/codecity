@@ -117,6 +117,26 @@ describe('NewProjectForm', () => {
     );
   });
 
+  it('rejects a web-page URL (with a #anchor) inline, blocking submit and the branch lookup', async () => {
+    const resolve = vi
+      .spyOn(branchesApi, 'fetchBranches')
+      .mockResolvedValue({ branches: [], default: null });
+    render(<NewProjectForm allowLocalRepos onSubmit={() => {}} />, container);
+    await flush();
+
+    const urlInput = container.querySelector<HTMLInputElement>('input[aria-label="URL"]')!;
+    setInput(urlInput, 'https://github.com/thalida/codecity#local-directories');
+    await drainAsync();
+
+    // One standard inline form error (not a raw branch/clone failure).
+    expect(container.querySelector('.new-project-error')?.textContent).toMatch(/# or \?/);
+    // Submit disabled, no branch lookup fired, and no Branch dropdown for a bad URL.
+    const submitBtn = container.querySelector<HTMLButtonElement>('[aria-label="Open project"]')!;
+    expect(submitBtn.disabled).toBe(true);
+    expect(resolve).not.toHaveBeenCalled();
+    expect(container.querySelector('select')).toBeNull();
+  });
+
   it('demotes skip-cache to an off-by-default Advanced disclosure', async () => {
     render(<NewProjectForm allowLocalRepos onSubmit={() => {}} />, container);
     await flush();

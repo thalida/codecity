@@ -118,6 +118,14 @@ _HOST_UNREACHABLE_PATTERNS = (
         re.IGNORECASE,
     ),
 )
+# The URL reached a server, but it isn't a git repo — a typo'd path, or a copied
+# web-page URL with an #anchor / ?query / /tree/<branch> suffix. git says
+# "... not valid: is this a git repository?" or "does not appear to be a git
+# repository".
+_NOT_A_REPO_PATTERNS = (
+    re.compile(r"is this a git repository", re.IGNORECASE),
+    re.compile(r"does not appear to be a git repository", re.IGNORECASE),
+)
 
 
 def _maybe_raise_clean_clone_error(
@@ -133,6 +141,12 @@ def _maybe_raise_clean_clone_error(
     for pat in _REPO_NOT_FOUND_PATTERNS:
         if pat.search(stderr_text):
             raise RepoNotFoundError(f"repository not found at {url}")
+    for pat in _NOT_A_REPO_PATTERNS:
+        if pat.search(stderr_text):
+            raise RepoNotFoundError(
+                "that URL does not point to a git repository. Check it for typos "
+                "or extra parts (a #anchor, ?query, or /tree/<branch> suffix)."
+            )
     for pat in _HOST_UNREACHABLE_PATTERNS:
         if pat.search(stderr_text):
             raise HostUnreachableError("could not resolve host")

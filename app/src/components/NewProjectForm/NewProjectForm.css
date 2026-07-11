@@ -18,6 +18,12 @@
 .new-project-field .form-input {
   width: 100%;
 }
+/* Inline field-level validation message, below the input. */
+.new-project-error {
+  margin: 0;
+  font-size: var(--cc-font-md);
+  color: var(--cc-error-light);
+}
 
 /* Inline notice for the disabled-local state. Quieter than .card-error:
    subtle amber tint, no border, single line — the old modal's version was a

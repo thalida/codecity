@@ -29,6 +29,15 @@
   border-color: var(--cc-accent-border);
 }
 
+/* .form-input--error — invalid-value state (pairs with an inline error
+   message + aria-invalid on the input). */
+.form-input--error {
+  border-color: var(--cc-error-border);
+}
+.form-input--error:focus {
+  border-color: var(--cc-error);
+}
+
 /* .form-input--mono — narrow numeric variant. Mono font, smaller font-size,
    fixed width, right-aligned, compact padding. Used by the
    per-row number inputs in the Controls pane. */

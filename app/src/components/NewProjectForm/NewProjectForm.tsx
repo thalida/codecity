@@ -32,6 +32,24 @@ function looksResolvable(v: string): boolean {
   return srcKind(v) === SourceKind.Remote && (/:\/\/.+\/.+/.test(v) || /^[^@]+@[^:]+:.+/.test(v));
 }
 
+// Client-side validation for a git URL — catches the common paste mistakes (a
+// web page URL with a #anchor or ?query, spaces, or a non-URL) before any
+// network call, so the form shows one clean inline error instead of a raw git
+// failure or a cryptic "branch lookup failed". Empty is not an error here
+// (submit is simply disabled until something is typed). Returns null when ok.
+function validateGitUrl(v: string): string | null {
+  const s = v.trim();
+  if (!s) return null;
+  if (/\s/.test(s)) return 'Remove the spaces from the URL.';
+  if (s.includes('#') || s.includes('?')) {
+    return 'Use just the repository URL, without the # or ? part.';
+  }
+  if (!/:\/\//.test(s) && !/^[^@]+@[^:]+:/.test(s)) {
+    return 'Enter a git URL, like https://github.com/owner/repo';
+  }
+  return null;
+}
+
 export function NewProjectForm({ allowLocalRepos, prefill, onSubmit }: NewProjectFormProps) {
   const initialKind = prefill?.src && allowLocalRepos ? srcKind(prefill.src) : SourceKind.Remote;
   const [kind, setKind] = useState<SourceKind>(initialKind);
@@ -68,12 +86,15 @@ export function NewProjectForm({ allowLocalRepos, prefill, onSubmit }: NewProjec
       // also remounted below (key={resolvedUrl}), so its internal fetch
       // state can't straddle two repos either.
       setBranch('');
-      setResolvedUrl(looksResolvable(v) ? v : '');
+      // Only resolve branches for a URL that passes validation, so an invalid
+      // URL (a #anchor, say) never fires /api/branches or shows a branch error.
+      setResolvedUrl(looksResolvable(v) && !validateGitUrl(v) ? v : '');
     }
   }
 
   const activeSrc = source.trim();
-  const canSubmit = !loading && !localOff && activeSrc.length > 0;
+  const sourceError = kind === SourceKind.Remote ? validateGitUrl(source) : null;
+  const canSubmit = !loading && !localOff && activeSrc.length > 0 && !sourceError;
 
   function submit() {
     if (!canSubmit) return;
@@ -98,14 +119,16 @@ export function NewProjectForm({ allowLocalRepos, prefill, onSubmit }: NewProjec
         <div class="new-project-field">
           <label>{kind === SourceKind.Remote ? 'URL' : 'Path'}</label>
           <input
-            class="form-input"
+            class={sourceError ? 'form-input form-input--error' : 'form-input'}
             type="text"
             aria-label={kind === SourceKind.Remote ? 'URL' : 'Path'}
+            aria-invalid={sourceError ? 'true' : undefined}
             autoComplete="off"
             spellcheck={false}
             value={source}
             onInput={(e) => onSourceInput((e.target as HTMLInputElement).value)}
           />
+          {sourceError && <p class="new-project-error">{sourceError}</p>}
         </div>
       )}
 
