@@ -162,13 +162,9 @@ export async function loadSource(payload: SourcePayload): Promise<void> {
     );
     // A newer load superseded this one: it owns MANIFEST now, don't touch.
     if (myGen !== loadGeneration) return;
-    // The user canceled after a skeleton arrived: streamManifest ends an aborted
-    // stream as done (not a throw), so pumpManifestStream RETURNED the partial
-    // manifest. Never commit it (CURRENT_SOURCE stays put) and roll MANIFEST back
-    // to the pre-load snapshot so the canceled repo's skeleton doesn't linger
-    // under the unchanged source. Same-source apply (CURRENT_SOURCE unchanged) →
-    // the render layer's camera-reframe reaction, keyed off CURRENT_SOURCE at
-    // apply-start, correctly does NOT reframe.
+    // Canceled after a skeleton: the aborted stream ends as done (not a throw),
+    // so we got the partial manifest back. Don't commit it — roll MANIFEST back
+    // to the pre-load snapshot so the canceled repo's skeleton doesn't linger.
     if (controller.signal.aborted) {
       setManifest(prevManifest);
       return;

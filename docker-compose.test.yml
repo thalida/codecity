@@ -71,13 +71,9 @@ services:
     # without them, a pagination test that depends on text overflowing one
     # 8192-tall page fails because measurements come back too narrow.
     #
-    # Reliability: canvas fetches its prebuilt .node from a GitHub release at
-    # install time; a flaky download used to fall back to a `node-gyp` source
-    # build that fails in this toolchain-less slim image (the intermittent
-    # "gyp ERR! not ok" pre-push failures). Two mitigations: (1) the npm +
-    # prebuild-install caches live in named volumes, so the prebuilt is fetched
-    # once and reused across runs; (2) `npm ci` retries a couple of times to
-    # ride out a transient hiccup on the first (cold-cache) install.
+    # Reliability: canvas's prebuilt .node download can flake and fall back to a
+    # node-gyp source build that fails in this slim image. Mitigations: cache the
+    # prebuilt in named volumes (fetched once, reused) and retry `npm ci`.
     command: sh -c "apt-get update >/dev/null && apt-get install -y --no-install-recommends libexpat1 fontconfig fonts-dejavu-core >/dev/null && npm install -g npm@${NPM_VERSION:-11.6.2} && (npm ci || (sleep 3 && npm ci) || (sleep 6 && npm ci)) && npm test"
     volumes:
       # Not :ro — Docker can't mkdir the /app/node_modules mountpoint under a
