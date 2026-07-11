@@ -69,13 +69,13 @@ async function pumpManifestStream(
   for await (const event of streamManifest(url, { signal })) {
     if (event.phase === ScanPhase.Error) throw new Error(event.error);
 
-    if ('display_root' in event && event.display_root) {
+    if ('src' in event && event.src) {
       // The canonical "label of the source being loaded" — read by BOTH the
       // document title (useDocumentTitle) and the loading overlay's header, so
       // the project name isn't duplicated into the overlay store. Idempotent:
-      // @preact/signals dedupes same-value writes and display_root is stable
-      // per load, so no need to guard against repeat events.
-      PENDING_SOURCE_LABEL.value = labelFromSource(event.display_root) ?? null;
+      // @preact/signals dedupes same-value writes and src is stable per load, so
+      // no need to guard against repeat events.
+      PENDING_SOURCE_LABEL.value = labelFromSource(event.src) ?? null;
     }
 
     if (event.phase === ScanPhase.CloneProgress || event.phase === ScanPhase.ScanProgress) {
@@ -93,7 +93,7 @@ async function pumpManifestStream(
     // Skeleton or final.
     SCAN_PROGRESS.value = { ...meta, phase: event.phase };
     // Once a manifest lands, its tree.name is the canonical repo name (the
-    // remote's owner/repo), better than the display_root basename — which for a
+    // remote's owner/repo), better than the src basename — which for a
     // local working tree is the folder name (e.g. a git-worktree dir).
     if (event.manifest.tree?.name) PENDING_SOURCE_LABEL.value = event.manifest.tree.name;
     await onManifest(event.manifest, event.phase);

@@ -47,7 +47,7 @@ class CloneProgressEvent(BaseModel):
     silent promisor blob fetch instead carries `mb_on_disk` (and no percent),
     so the UI shows the working tree materializing rather than freezing."""
 
-    display_root: OptionalStr = None
+    src: OptionalStr = None
     stage: _OptionalStage = None
     percent: OptionalInt = None
     mb_on_disk: OptionalInt = None
@@ -57,7 +57,7 @@ class ScanProgressEvent(BaseModel):
     """`scan-progress` — the working tree is being walked; carries the
     heartbeat files-scanned count."""
 
-    display_root: OptionalStr = None
+    src: OptionalStr = None
     files_scanned: OptionalInt = None
 
 

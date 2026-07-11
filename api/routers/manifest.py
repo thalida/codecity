@@ -56,13 +56,14 @@ from api.services.source import (
 router = APIRouter(prefix="/api", tags=["manifest"])
 
 
-def _apply_display_name(m: dict[str, Any]) -> None:
+def _apply_display_name(m: dict[str, Any], src: str) -> None:
     """Overlay the friendly repo name onto the manifest's root tree.name at serve
-    time (like display_root below), so every consumer reads one authoritative
-    label rather than the cache-dir basename a cloned root carries."""
+    time, so every consumer reads one authoritative label rather than the
+    cache-dir basename a cloned root carries. `src` (the original URL/path) is a
+    last-resort fallback used only when the manifest carries no remote_url."""
     tree = m.get("tree")
     if tree:
-        label = display_name_for_manifest(m)
+        label = display_name_for_manifest(m, src)
         if label:
             tree["name"] = label
 
@@ -196,7 +197,7 @@ async def manifest(
                 _sse(
                     ScanEvent.CLONE_PROGRESS,
                     {
-                        "display_root": src,
+                        "src": src,
                         "stage": stage,
                         "percent": percent,
                     },
@@ -209,7 +210,7 @@ async def manifest(
             _put(
                 _sse(
                     ScanEvent.CLONE_PROGRESS,
-                    {"display_root": src, "mb_on_disk": mb_on_disk},
+                    {"src": src, "mb_on_disk": mb_on_disk},
                 )
             )
 
@@ -217,7 +218,7 @@ async def manifest(
             _put(
                 _sse(
                     ScanEvent.SCAN_PROGRESS,
-                    {"display_root": src, "files_scanned": files_scanned},
+                    {"src": src, "files_scanned": files_scanned},
                 )
             )
 
@@ -226,7 +227,7 @@ async def manifest(
                 # Clone phase (git only): emit `clone-progress` FIRST, then clone
                 # with live progress + cancel support.
                 if kind is SourceKind.REMOTE:
-                    _put(_sse(ScanEvent.CLONE_PROGRESS, {"display_root": src}))
+                    _put(_sse(ScanEvent.CLONE_PROGRESS, {"src": src}))
                     try:
                         with TRUST.clone_lock:
                             path = ensure_clone(
@@ -252,7 +253,7 @@ async def manifest(
 
                 holder["path"] = path
                 TRUST.register(path)
-                _put(_sse(ScanEvent.SCAN_PROGRESS, {"display_root": src}))
+                _put(_sse(ScanEvent.SCAN_PROGRESS, {"src": src}))
 
                 # Signature (cache key) + warm-cache short-circuit.
                 sig = signature_tree(str(path), use_cache=use_cache)["signature"]
@@ -260,9 +261,7 @@ async def manifest(
                 if use_cache:
                     cached = cache_load_manifest(path.resolve(), sig)
                     if cached is not None:
-                        if kind is SourceKind.REMOTE:
-                            cached["display_root"] = src
-                        _apply_display_name(cached)
+                        _apply_display_name(cached, src)
                         _put(_sse(ScanEvent.MANIFEST_COMPLETE, {"manifest": cached}))
                         return
 
@@ -275,9 +274,7 @@ async def manifest(
                 ):
                     phase = ev["phase"]  # ScanEvent.MANIFEST_PARTIAL | _COMPLETE
                     m = ev["manifest"]
-                    if kind is SourceKind.REMOTE:
-                        m["display_root"] = src
-                    _apply_display_name(m)
+                    _apply_display_name(m, src)
                     if phase is ScanEvent.MANIFEST_COMPLETE:
                         holder["manifest"] = m
                     _put(_sse(phase, {"manifest": m}))

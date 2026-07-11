@@ -57,17 +57,17 @@ describe('streamManifest (EventSource)', () => {
     expect(es.closed).toBe(true);
   });
 
-  it('maps a clone-progress event with display_root', async () => {
+  it('maps a clone-progress event with src', async () => {
     const { ctor, last } = makeES();
     const it = streamManifest('/api/manifest', { EventSourceImpl: ctor })[Symbol.asyncIterator]();
-    last().emit('clone-progress', JSON.stringify({ display_root: 'https://example.com/foo.git' }));
+    last().emit('clone-progress', JSON.stringify({ src: 'https://example.com/foo.git' }));
     const a = await it.next();
     const ev = a.value as ScanStreamEvent;
     expect(ev.phase).toBe(ScanPhase.CloneProgress);
-    // Discriminator narrow — display_root must be on the clone-progress variant
-    // of ScanStreamEvent, not reached through a cast that would hide drift.
+    // Discriminator narrow — src must be on the clone-progress variant of
+    // ScanStreamEvent, not reached through a cast that would hide drift.
     if (ev.phase !== ScanPhase.CloneProgress) throw new Error('expected clone-progress');
-    expect(ev.display_root).toBe('https://example.com/foo.git');
+    expect(ev.src).toBe('https://example.com/foo.git');
   });
 
   it('emits a terminal Error event for a server-sent error', async () => {

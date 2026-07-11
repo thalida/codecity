@@ -202,10 +202,7 @@ function buildOverview(m: Manifest): AlmanacOverview {
   return {
     // Prefer a concise "owner/repo" (or folder basename) over the raw URL —
     // the full remote URL still appears, clickable, in the meta list.
-    name:
-      labelFromSource(m.repo.remote_url ?? m.display_root ?? root.name) ??
-      root.name ??
-      'this project',
+    name: labelFromSource(m.repo.remote_url ?? root.name) ?? root.name ?? 'this project',
     founded: m.dateRanges.minCreated ? formatShortDate(m.dateRanges.minCreated) : null,
     foundedISO: m.dateRanges.minCreated ?? null,
     latestDate: m.stats.commitDates.newest ?? null,

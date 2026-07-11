@@ -49,32 +49,34 @@ class LabelFromSourceTests(unittest.TestCase):
 
 
 class DisplayNameForManifestTests(unittest.TestCase):
-    def test_prefers_remote_url_over_display_root(self) -> None:
+    def test_prefers_remote_url_over_src(self) -> None:
         # The remote is the canonical identity — it wins over the source URL.
         m = {
-            "display_root": "https://github.com/owner/repo",
             "repo": {"remote_url": "https://github.com/other/thing"},
             "tree": {"name": "abc123hash"},
         }
-        self.assertEqual(display_name_for_manifest(m), "other/thing")
+        self.assertEqual(
+            display_name_for_manifest(m, "https://github.com/owner/repo"), "other/thing"
+        )
 
     def test_local_worktree_uses_remote_name_not_folder(self) -> None:
         # A git worktree: the on-disk folder is a branch-y worktree name, but the
         # remote is the real repo — show the repo name, not the folder.
         m = {
-            "display_root": "/Users/me/worktrees/feat-x",
             "repo": {"remote_url": "https://github.com/owner/codecity"},
             "tree": {"name": "feat-x"},
         }
-        self.assertEqual(display_name_for_manifest(m), "owner/codecity")
+        self.assertEqual(
+            display_name_for_manifest(m, "/Users/me/worktrees/feat-x"), "owner/codecity"
+        )
 
-    def test_local_display_root_basename_without_remote(self) -> None:
-        # No remote (a bare `git init`): fall back to the folder basename.
-        m = {"display_root": "/Users/me/my-repo", "tree": {"name": "my-repo"}}
-        self.assertEqual(display_name_for_manifest(m), "my-repo")
+    def test_local_src_basename_without_remote(self) -> None:
+        # No remote (a bare `git init`): fall back to the source path basename.
+        m = {"tree": {"name": "my-repo"}}
+        self.assertEqual(display_name_for_manifest(m, "/Users/me/my-repo"), "my-repo")
 
     def test_falls_back_to_remote_url(self) -> None:
-        # A cloned repo: tree.name is the cache-dir hash; no display_root yet.
+        # A cloned repo: tree.name is the cache-dir hash; no src passed.
         m = {
             "repo": {"remote_url": "git@github.com:owner/repo.git"},
             "tree": {"name": "deadbeefcafe"},

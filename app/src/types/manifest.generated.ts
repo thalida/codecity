@@ -207,8 +207,8 @@ export interface components {
          *     so the UI shows the working tree materializing rather than freezing.
          */
         CloneProgressEvent: {
-            /** Display Root */
-            display_root?: string;
+            /** Src */
+            src?: string;
             /**
              * Stage
              * @enum {string}
@@ -478,8 +478,6 @@ export interface components {
             busyness: components["schemas"]["BusynessThresholds"];
             dateRanges: components["schemas"]["DateRanges"];
             stats: components["schemas"]["RepoStats"];
-            /** Display Root */
-            display_root?: string;
         };
         /**
          * PartialManifestEvent
@@ -550,8 +548,8 @@ export interface components {
          *     heartbeat files-scanned count.
          */
         ScanProgressEvent: {
-            /** Display Root */
-            display_root?: string;
+            /** Src */
+            src?: string;
             /** Files Scanned */
             files_scanned?: number;
         };

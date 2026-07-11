@@ -80,7 +80,7 @@ effect(() => {
 });
 
 /**
- * Label of the source currently being LOADED (from the server's `display_root`),
+ * Label of the source currently being LOADED (from the server's progress `src`),
  * or null when no load is in flight. Drives the "(pending)" document title while
  * streaming; useDocumentTitle prefers it over MANIFEST so a source switch shows
  * the new project name immediately, before its manifest lands. Cleared when the

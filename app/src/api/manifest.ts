@@ -4,14 +4,13 @@
 //
 // Event variants (server emits in roughly this order):
 //   cloning  — first event for git sources, sent BEFORE the clone
-//              subprocess runs. Carries `display_root` so the UI can
-//              show a "{label} (pending)" header / document title from
-//              the moment the request starts, not from when the manifest
-//              finally arrives. The UI also uses it to light up its
-//              "Cloning" step from real state instead of a wall-clock
-//              timer.
+//              subprocess runs. Carries `src` so the UI can show a
+//              "{label} (pending)" header / document title from the moment
+//              the request starts, not from when the manifest finally
+//              arrives. The UI also uses it to light up its "Cloning" step
+//              from real state instead of a wall-clock timer.
 //   scanning — first event for local sources (and the second event for
-//              git sources). Same `display_root` payload, same UI role.
+//              git sources). Same `src` payload, same UI role.
 //   skeleton — first paint manifest with placeholder building heights.
 //   final    — populated manifest ready for the final tween.
 //   error    — fatal mid-stream failure; client should surface and stop.
@@ -74,14 +73,14 @@ export enum CloneStage {
 export type ScanStreamEvent =
   | {
       phase: ScanPhase.CloneProgress;
-      display_root?: string;
+      src?: string;
       stage?: CloneStage;
       percent?: number;
       // Heartbeat during the silent promisor blob fetch: working-tree size on
       // disk (no stage/percent), so the UI shows materialization, not a freeze.
       mb_on_disk?: number;
     }
-  | { phase: ScanPhase.ScanProgress; display_root?: string; files_scanned?: number }
+  | { phase: ScanPhase.ScanProgress; src?: string; files_scanned?: number }
   | { phase: ScanPhase.PartialManifest; manifest: Manifest }
   | { phase: ScanPhase.CompleteManifest; manifest: Manifest }
   | { phase: ScanPhase.Error; error: string };
