@@ -93,7 +93,9 @@ def label_from_source(src: str | None) -> str | None:
     return parts[-1] if parts else no_branch
 
 
-def display_name_for_manifest(manifest: dict[str, Any], src: str | None = None) -> str | None:
+def display_name_for_manifest(
+    manifest: dict[str, Any], src: str | None = None
+) -> str | None:
     """The repo's friendly display name. Prefer the remote's owner/repo (the
     canonical identity) so a local working tree shows its repo name rather than
     the working-dir basename (e.g. a git-worktree folder). Fall back to the
