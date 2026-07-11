@@ -35,6 +35,9 @@
 .btn-chip .app-header-branch-pill {
   display: inline-block;
   min-width: 0;
+  /* The chip's flex gap already spaces the pill; drop the pill's own margin so
+     the repo name / branch / affordance sit close together. */
+  margin-left: 0;
   line-height: 16px;
   overflow: hidden;
   text-overflow: ellipsis;

@@ -125,7 +125,7 @@
   min-width: 0;
   display: inline-flex;
   align-items: center;
-  gap: var(--cc-space-3);
+  gap: var(--cc-space-2);
   height: 24px;
   padding: 0 var(--cc-space-3); /* symmetric padding each side */
   background: none;
@@ -148,7 +148,6 @@
 /* Trailing switch cue — signals the chip is a switcher you can change (opens
    the project switcher), not a static label. */
 .btn-chip-affordance {
-  margin-left: var(--cc-space-1);
   font-size: var(--cc-font-md);
   opacity: 0.7;
 }
