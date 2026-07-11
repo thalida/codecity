@@ -15,11 +15,6 @@
   background: color-mix(in oklch, var(--cc-bg-app) 82%, transparent);
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
-
-  --gem-lime: #bfff33;
-  --gem-cyan: #26e5ff;
-  --gem-purple: #9940ff;
-  --gem-magenta: #ff338c;
 }
 
 /* Subtle holographic wash — two low-opacity gem-tinted glows, non-interactive,
@@ -32,12 +27,12 @@
   background:
     radial-gradient(
       55% 45% at 18% 12%,
-      color-mix(in oklch, var(--gem-cyan) 10%, transparent),
+      color-mix(in oklch, var(--cc-gem-cyan) 10%, transparent),
       transparent 70%
     ),
     radial-gradient(
       50% 45% at 88% 85%,
-      color-mix(in oklch, var(--gem-purple) 10%, transparent),
+      color-mix(in oklch, var(--cc-gem-purple) 10%, transparent),
       transparent 70%
     );
 }
@@ -92,7 +87,7 @@
   display: inline-flex;
   width: 48px;
   height: 48px;
-  filter: drop-shadow(0 0 16px color-mix(in oklch, var(--gem-cyan) 40%, transparent));
+  filter: drop-shadow(0 0 16px color-mix(in oklch, var(--cc-gem-cyan) 40%, transparent));
   animation: landing-gem-float 6s ease-in-out infinite;
 }
 .landing-gem .gem-icon {
@@ -118,13 +113,11 @@
   margin: 0;
   font-size: var(--cc-font-4xl);
   font-weight: var(--cc-fw-bold);
-  letter-spacing: -0.01em;
   color: var(--cc-text-primary);
 }
 
 .landing-tagline {
   margin: 0;
-  max-width: 32ch;
   font-size: var(--cc-font-2xl);
   color: var(--cc-text-secondary);
 }
@@ -148,21 +141,23 @@
   color: var(--cc-text-primary);
   font-weight: var(--cc-fw-semibold);
 }
-.landing-delight .lucide-icon {
+.landing-delight > svg {
   font-size: var(--cc-font-2xl); /* icons are 1em (icons.css) — size off a token */
+  width: 1em;
+  height: 1em;
   flex: 0 0 auto;
 }
-.landing-delight--streets .lucide-icon {
-  color: var(--gem-cyan);
+.landing-delight--streets > svg {
+  color: var(--cc-gem-cyan);
 }
-.landing-delight--buildings .lucide-icon {
-  color: var(--gem-purple);
+.landing-delight--buildings > svg {
+  color: var(--cc-gem-purple);
 }
-.landing-delight--trees .lucide-icon {
-  color: var(--gem-lime);
+.landing-delight--trees > svg {
+  color: var(--cc-gem-lime);
 }
-.landing-delight--authors .lucide-icon {
-  color: var(--gem-magenta);
+.landing-delight--authors > svg {
+  color: var(--cc-gem-magenta);
 }
 
 /* ── Action column ── stacked cards (open project, then recents). */
