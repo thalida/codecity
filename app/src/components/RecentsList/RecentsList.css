@@ -121,6 +121,11 @@
   flex: 0 0 auto;
   gap: var(--cc-space-2);
 }
+/* Red — removing is semi-destructive (forgets the entry). */
 .recent-confirm-yes {
-  color: var(--cc-text-primary);
+  color: var(--cc-error-light);
+}
+.recent-confirm-yes:hover {
+  color: var(--cc-error-light);
+  background: var(--cc-error-bg);
 }
