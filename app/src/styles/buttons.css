@@ -142,8 +142,9 @@
 .btn-chip:disabled {
   cursor: default;
 }
-/* Trailing chevron — visual cue that the chip opens a picker. */
-.btn-chip-chevron {
+/* Trailing switch cue — signals the chip is a switcher you can change (opens
+   the project switcher), not a static label. */
+.btn-chip-affordance {
   margin-left: var(--cc-space-1);
   font-size: var(--cc-font-md);
   opacity: 0.7;
