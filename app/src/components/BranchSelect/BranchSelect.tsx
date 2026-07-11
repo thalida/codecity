@@ -3,6 +3,10 @@
 // url-change tracking of its own: the parent re-keys it per resolved url
 // (key={url}), so a branch pick from a previous repo can never leak into the
 // next one — that remount is the actual fix for bug #2, not anything here.
+//
+// A resolution failure is reported to the parent via onError (not rendered
+// here) — the parent shows it as the URL field's error and blocks submit, since
+// a lookup failure means the repo/URL is bad, not that a branch is missing.
 
 import './BranchSelect.css';
 import { useEffect, useState } from 'preact/hooks';
@@ -13,33 +17,40 @@ export interface BranchSelectProps {
   url: string; // a resolvable git URL, or '' to stay idle
   value: string; // '' means "use the repo default"
   onChange: (branch: string) => void;
+  /** Reports the resolution error to the parent (null once it clears/resolves)
+   *  so the parent can surface it as the URL field error and disable submit. */
+  onError: (message: string | null) => void;
 }
 
 type State =
   | { status: 'idle' }
   | { status: 'loading' }
   | { status: 'ready'; branches: string[]; def: string | null }
-  | { status: 'error'; message: string };
+  | { status: 'error' };
 
-export function BranchSelect({ url, value, onChange }: BranchSelectProps) {
+export function BranchSelect({ url, value, onChange, onError }: BranchSelectProps) {
   const [state, setState] = useState<State>({ status: 'idle' });
 
   useEffect(() => {
     if (!url) {
       setState({ status: 'idle' });
+      onError(null);
       return;
     }
     let live = true;
     setState({ status: 'loading' });
+    onError(null);
     fetchBranches(url).then(
       (r) => {
         if (!live) return;
         setState({ status: 'ready', branches: r.branches, def: r.default });
+        onError(null);
         if (r.default) onChange(r.default); // preselect the repo default
       },
       (e: unknown) => {
         if (!live) return;
-        setState({ status: 'error', message: e instanceof Error ? e.message : String(e) });
+        setState({ status: 'error' });
+        onError(e instanceof Error ? e.message : String(e));
       }
     );
     return () => {
@@ -50,22 +61,17 @@ export function BranchSelect({ url, value, onChange }: BranchSelectProps) {
     // guard against by widening this dependency list.
   }, [url]);
 
-  if (state.status === 'idle') return null;
+  // Idle (no url) and error (reported to the parent) render nothing.
+  if (state.status === 'idle' || state.status === 'error') return null;
 
   return (
     <div class="branch-select">
-      {/* No "Branch" label in the error state — there's no branch to pick, and
-          a lookup failure is usually a bad URL / missing repo, not a branch
-          problem. Submit stays enabled; the server gives the definitive error. */}
-      {state.status !== 'error' && <label>Branch</label>}
+      <label>Branch</label>
       {state.status === 'loading' && (
         <div class="branch-select-status">
           <LoaderCircle class="lucide-icon branch-select-spinner" />
           Resolving branches…
         </div>
-      )}
-      {state.status === 'error' && (
-        <div class="branch-select-status branch-select-status--error">{state.message}</div>
       )}
       {state.status === 'ready' && (
         <select

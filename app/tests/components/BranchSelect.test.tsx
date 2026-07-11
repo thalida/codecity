@@ -22,7 +22,7 @@ describe('BranchSelect', () => {
   });
 
   it('renders nothing while idle (no url)', async () => {
-    render(<BranchSelect url="" value="" onChange={() => {}} />, container);
+    render(<BranchSelect url="" value="" onChange={() => {}} onError={() => {}} />, container);
     await flush();
     expect(container.querySelector('.branch-select')).toBeNull();
   });
@@ -40,7 +40,10 @@ describe('BranchSelect', () => {
     );
     const onChange = vi.fn();
 
-    render(<BranchSelect url="https://github.com/o/r" value="" onChange={onChange} />, container);
+    render(
+      <BranchSelect url="https://github.com/o/r" value="" onChange={onChange} onError={() => {}} />,
+      container
+    );
     // The mocked fetch never settles until resolveFetch() runs below, so it's
     // safe to drain generously here — the component can only be idle or
     // loading, never past it (Preact's effect scheduling has a real-timer
@@ -60,17 +63,26 @@ describe('BranchSelect', () => {
     expect(optionTexts).toContain('dev');
   });
 
-  it('shows the server error message inline on resolution failure, with no dropdown', async () => {
+  it('reports the server error to the parent (onError) and renders nothing itself', async () => {
     vi.spyOn(branchesApi, 'fetchBranches').mockRejectedValue(new Error('repository not found'));
+    const onError = vi.fn();
 
     render(
-      <BranchSelect url="https://github.com/o/nope" value="" onChange={() => {}} />,
+      <BranchSelect
+        url="https://github.com/o/nope"
+        value=""
+        onChange={() => {}}
+        onError={onError}
+      />,
       container
     );
     await drainAsync();
 
-    expect(container.textContent).toMatch(/repository not found/i);
+    // The error is surfaced to the parent (shown as the URL field error), not
+    // rendered here; no dropdown, and BranchSelect adds nothing to the DOM.
+    expect(onError).toHaveBeenCalledWith('repository not found');
     expect(container.querySelector('select')).toBeNull();
+    expect(container.querySelector('.branch-select')).toBeNull();
   });
 
   it('re-resolves when the url prop changes (parent typically remounts via key instead)', async () => {
@@ -79,7 +91,12 @@ describe('BranchSelect', () => {
     const onChange = vi.fn();
 
     render(
-      <BranchSelect url="https://github.com/o/first" value="" onChange={onChange} />,
+      <BranchSelect
+        url="https://github.com/o/first"
+        value=""
+        onChange={onChange}
+        onError={() => {}}
+      />,
       container
     );
     await drainAsync();
@@ -87,7 +104,12 @@ describe('BranchSelect', () => {
 
     resolve.mockResolvedValueOnce({ branches: ['trunk'], default: 'trunk' });
     render(
-      <BranchSelect url="https://github.com/o/second" value="" onChange={onChange} />,
+      <BranchSelect
+        url="https://github.com/o/second"
+        value=""
+        onChange={onChange}
+        onError={() => {}}
+      />,
       container
     );
     await drainAsync();

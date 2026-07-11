@@ -20,9 +20,6 @@
   font-size: var(--cc-font-lg);
   color: var(--cc-text-muted);
 }
-.branch-select-status--error {
-  color: var(--cc-error-light);
-}
 
 .branch-select-spinner {
   animation: branch-select-spin 0.8s linear infinite;

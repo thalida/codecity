@@ -62,6 +62,7 @@ export function NewProjectForm({ allowLocalRepos, prefill, onSubmit }: NewProjec
   );
   const [skipCache, setSkipCache] = useState(false);
   const [advanced, setAdvanced] = useState(false);
+  const [branchError, setBranchError] = useState<string | null>(null); // from BranchSelect
 
   const loading = SCAN_PROGRESS.value !== null;
   const localOff = kind === SourceKind.Local && !allowLocalRepos;
@@ -94,7 +95,12 @@ export function NewProjectForm({ allowLocalRepos, prefill, onSubmit }: NewProjec
 
   const activeSrc = source.trim();
   const sourceError = kind === SourceKind.Remote ? validateGitUrl(source) : null;
-  const canSubmit = !loading && !localOff && activeSrc.length > 0 && !sourceError;
+  // A branch-lookup failure means the URL/repo is bad (usually "repository not
+  // found"), so treat it like a validation error — one inline field error that
+  // blocks submit — rather than letting the user click into a doomed load that
+  // fails with a different, jarring error state.
+  const fieldError = sourceError ?? (kind === SourceKind.Remote ? branchError : null);
+  const canSubmit = !loading && !localOff && activeSrc.length > 0 && !fieldError;
 
   function submit() {
     if (!canSubmit) return;
@@ -119,21 +125,27 @@ export function NewProjectForm({ allowLocalRepos, prefill, onSubmit }: NewProjec
         <div class="new-project-field">
           <label>{kind === SourceKind.Remote ? 'URL' : 'Path'}</label>
           <input
-            class={sourceError ? 'form-input form-input--error' : 'form-input'}
+            class={fieldError ? 'form-input form-input--error' : 'form-input'}
             type="text"
             aria-label={kind === SourceKind.Remote ? 'URL' : 'Path'}
-            aria-invalid={sourceError ? 'true' : undefined}
+            aria-invalid={fieldError ? 'true' : undefined}
             autoComplete="off"
             spellcheck={false}
             value={source}
             onInput={(e) => onSourceInput((e.target as HTMLInputElement).value)}
           />
-          {sourceError && <p class="new-project-error">{sourceError}</p>}
+          {fieldError && <p class="new-project-error">{fieldError}</p>}
         </div>
       )}
 
       {kind === SourceKind.Remote && (
-        <BranchSelect url={resolvedUrl} value={branch} onChange={setBranch} key={resolvedUrl} />
+        <BranchSelect
+          url={resolvedUrl}
+          value={branch}
+          onChange={setBranch}
+          onError={setBranchError}
+          key={resolvedUrl}
+        />
       )}
 
       {localOff && (

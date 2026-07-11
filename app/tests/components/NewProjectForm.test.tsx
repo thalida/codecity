@@ -95,8 +95,10 @@ describe('NewProjectForm', () => {
     expect(payload.branch).toBeUndefined();
   });
 
-  it('stays submit-enabled when branch resolution fails (forgiving — server resolves default)', async () => {
-    vi.spyOn(branchesApi, 'fetchBranches').mockRejectedValue(new Error('repository not found'));
+  it('blocks submit and shows one inline field error when branch resolution fails (repo not found)', async () => {
+    vi.spyOn(branchesApi, 'fetchBranches').mockRejectedValue(
+      new Error('repository not found at https://github.com/o/nope')
+    );
     const onSubmit = vi.fn();
 
     render(<NewProjectForm allowLocalRepos onSubmit={onSubmit} />, container);
@@ -106,15 +108,18 @@ describe('NewProjectForm', () => {
     setInput(urlInput, 'https://github.com/o/nope');
     await drainAsync();
 
-    expect(container.textContent).toMatch(/repository not found/i);
+    // The lookup failure is surfaced as the URL field error (same treatment as
+    // client validation), and Open is disabled — no doomed submit into a
+    // different, jarring error state.
+    expect(container.querySelector('.new-project-error')?.textContent).toMatch(
+      /repository not found/i
+    );
     const submitBtn = container.querySelector<HTMLButtonElement>('[aria-label="Open project"]')!;
-    expect(submitBtn.disabled).toBe(false);
+    expect(submitBtn.disabled).toBe(true);
 
     submitBtn.click();
     await flush();
-    expect(onSubmit).toHaveBeenCalledWith(
-      expect.objectContaining({ src: 'https://github.com/o/nope' })
-    );
+    expect(onSubmit).not.toHaveBeenCalled();
   });
 
   it('rejects a web-page URL (with a #anchor) inline, blocking submit and the branch lookup', async () => {
