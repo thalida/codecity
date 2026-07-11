@@ -51,9 +51,14 @@ export function openProjectsView(opts: OpenOpts = {}): void {
   PROJECTS_VIEW.value = { visible: true, opts };
 }
 
-/** Close the projects view. */
+/** Close the projects view. Reads the prior state with .peek() (not .value):
+ *  App's committed-source reaction calls this from inside a useSignalEffect, and
+ *  a tracked .value read would subscribe that effect to PROJECTS_VIEW — so
+ *  opening the view (while a city is loaded, CURRENT_SOURCE truthy) would
+ *  re-fire the effect and close the view right back. peek() keeps the reaction
+ *  keyed on CURRENT_SOURCE alone. Mirrors the LOADING_OVERLAY setters. */
 export function closeProjectsView(): void {
-  PROJECTS_VIEW.value = { ...PROJECTS_VIEW.value, visible: false };
+  PROJECTS_VIEW.value = { ...PROJECTS_VIEW.peek(), visible: false };
 }
 
 /** Open the view pre-filled with the current `?src`/`?branch` — the
