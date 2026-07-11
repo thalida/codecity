@@ -15,7 +15,6 @@ import { useEffect, useRef } from 'preact/hooks';
 import { NodeKind } from '@/types';
 import type { DirNode, Manifest, TreeNode } from '@/types';
 import { ChevronDown, ChevronRight, FolderOpen } from 'lucide-preact';
-import { GemIcon } from '@/components/GemIcon/GemIcon';
 import { NodeIcon } from '@/components/NodeIcon/NodeIcon';
 import { Pane, PaneEmpty } from '@/components/Pane';
 
@@ -51,7 +50,6 @@ function _sortChildren(children: readonly TreeNode[] | undefined): TreeNode[] {
 
 interface TreeItemProps {
   node: TreeNode;
-  isRoot?: boolean;
   rootPath: string;
   expanded: Signal<Set<string>>;
   selectedPath: ReadonlySignal<string | null>;
@@ -64,7 +62,6 @@ interface TreeItemProps {
 
 function TreeItem({
   node,
-  isRoot = false,
   rootPath,
   expanded,
   selectedPath,
@@ -107,7 +104,6 @@ function TreeItem({
   }
 
   const classes: string[] = ['tree-item'];
-  if (isRoot) classes.push('tree-root-item');
   if (isDir) classes.push('tree-dir', isExpanded ? 'tree-expanded' : 'tree-collapsed');
   else classes.push('tree-file');
   if (isSelected) classes.push('tree-selected');
@@ -130,10 +126,9 @@ function TreeItem({
         onMouseEnter={() => onHover?.(node)}
         onMouseLeave={() => onHoverEnd?.(node)}
       >
-        {/* Chevron column — for directories, clickable toggle; for
-            files (and the root, where collapse is a dead-end), a
-            placeholder so labels line up across siblings. */}
-        {isDir && !isRoot ? (
+        {/* Chevron column — for directories, a clickable expand/collapse
+            toggle; for files, an empty placeholder so labels line up. */}
+        {isDir ? (
           <span
             class="tree-chevron"
             onClick={(e) => {
@@ -148,13 +143,9 @@ function TreeItem({
             )}
           </span>
         ) : (
-          <span class="tree-chevron">
-            {isDir && isRoot && <ChevronDown class="lucide-icon tree-icon tree-icon-dir" />}
-          </span>
+          <span class="tree-chevron" />
         )}
-        {/* Glyph: root uses the brand gem (monochrome); every other node
-            gets its Material file/folder icon (NodeIcon dispatches on type). */}
-        {isDir && isRoot ? <GemIcon simple class="tree-root-glyph" /> : <NodeIcon node={node} />}
+        <NodeIcon node={node} />
         <span class="tree-label">{node.name || ''}</span>
       </div>
       {isDir && isExpanded && children.length > 0 && (
@@ -230,7 +221,13 @@ export function TreePane({
     !tree || !('children' in tree) || ((tree as DirNode).children?.length ?? 0) === 0;
 
   return (
-    <Pane paneClass="tree-pane" title="Explorer" onClose={onClose}>
+    <Pane
+      paneClass="tree-pane"
+      // Header shows the repo name — the root node itself is no longer rendered
+      // as a row, so its children are the top level.
+      title={tree?.name || 'Explorer'}
+      onClose={onClose}
+    >
       {noChildren ? (
         <PaneEmpty
           icon={FolderOpen}
@@ -239,18 +236,20 @@ export function TreePane({
         />
       ) : (
         <ul class="tree-list tree-root">
-          <TreeItem
-            node={tree as TreeNode}
-            isRoot
-            rootPath={rootPath}
-            expanded={expanded}
-            selectedPath={selectedPath}
-            hoveredPath={hoveredPath}
-            onSelect={onSelect}
-            onFocus={onFocus}
-            onHover={onHover}
-            onHoverEnd={onHoverEnd}
-          />
+          {_sortChildren((tree as DirNode).children).map((child) => (
+            <TreeItem
+              key={child.path ?? child.name}
+              node={child}
+              rootPath={rootPath}
+              expanded={expanded}
+              selectedPath={selectedPath}
+              hoveredPath={hoveredPath}
+              onSelect={onSelect}
+              onFocus={onFocus}
+              onHover={onHover}
+              onHoverEnd={onHoverEnd}
+            />
+          ))}
         </ul>
       )}
     </Pane>
