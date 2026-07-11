@@ -152,6 +152,9 @@
 .landing-delight--trees .lucide-icon {
   color: var(--gem-lime);
 }
+.landing-delight--authors .lucide-icon {
+  color: var(--gem-magenta);
+}
 
 /* ── Action column ── stacked cards (open project, then recents). */
 

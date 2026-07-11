@@ -12,7 +12,7 @@
 
 import './ProjectsView.css';
 import { useEffect } from 'preact/hooks';
-import { X, Waypoints, Building2, TreePine } from 'lucide-preact';
+import { X, Waypoints, Building2, TreePine, Sparkles } from 'lucide-preact';
 import { GemIcon } from '@/components/GemIcon/GemIcon';
 import { PROJECTS_VIEW, type SourcePayload } from '@/state/stores/ui';
 import { SERVER_CONFIG } from '@/state/stores/serverConfig';
@@ -80,6 +80,12 @@ export function ProjectsView({ onSubmit, onCancel, onClose }: ProjectsViewProps)
               <TreePine class="lucide-icon" aria-hidden="true" />
               <span>
                 Every commit grows a <strong>tree</strong>
+              </span>
+            </li>
+            <li class="landing-delight landing-delight--authors">
+              <Sparkles class="lucide-icon" aria-hidden="true" />
+              <span>
+                Commit authors drift by as <strong>fireflies</strong>
               </span>
             </li>
           </ul>
