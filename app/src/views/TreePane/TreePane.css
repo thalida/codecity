@@ -68,6 +68,9 @@
    .row--selected highlight's rounded corner. */
 .tree-item > .row {
   padding-left: var(--tree-row-inset);
+  /* Squared hover/selected highlight (Zed-style), overriding .row's rounded
+     corners so the fill reads as a full-width band. */
+  border-radius: var(--cc-radius-0);
 }
 
 .tree-label {
