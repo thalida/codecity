@@ -57,7 +57,11 @@
   margin: 0 auto;
   padding: var(--cc-space-9) var(--cc-space-7);
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  /* minmax(0, 1fr) — a true 50/50 cap. Plain 1fr is minmax(auto, 1fr), which
+     lets a wide child (a long recents URL) push the action column past half and
+     squeeze the hero. min-width: 0 on the column below lets that content
+     truncate instead. */
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   align-items: center;
   gap: var(--cc-space-9);
 }
@@ -166,12 +170,14 @@
 
 .landing-actions {
   align-self: center;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   gap: var(--cc-space-6);
 }
 
 .landing-card {
+  min-width: 0;
   display: flex;
   flex-direction: column;
   gap: var(--cc-space-6);
