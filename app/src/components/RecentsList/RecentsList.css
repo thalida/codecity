@@ -33,6 +33,18 @@
 .recent-row:hover {
   background: var(--cc-overlay-bg);
 }
+/* Kind glyph — fix the size so the (font-relative) Folder/warning lucide icons
+   match the fixed-16px HostingIcon instead of rendering smaller. */
+.recent-icon {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+}
+.recent-icon .lucide-icon {
+  width: 16px;
+  height: 16px;
+}
+
 .recent-row-body {
   flex: 1 1 auto;
   min-width: 0;

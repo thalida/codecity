@@ -11,7 +11,7 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center;
-  column-gap: var(--cc-space-2);
+  column-gap: var(--cc-space-6);
   height: 32px;
   padding: 0 var(--cc-space-4);
   border-bottom: 1px solid var(--cc-border-subtle);
