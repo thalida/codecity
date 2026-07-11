@@ -30,12 +30,12 @@
 }
 
 /* Zed-style indent guide: every nested level draws a vertical rule down its full
-   left edge — spanning all of that folder's children — sitting under the parent
+   left edge — spanning all of that folder's children — centered under the parent
    row's disclosure chevron, so the open folder chain reads as one connected
-   column. The margin is one chevron width, which also slots each child's chevron
-   under its parent's folder icon. */
+   column. The offset is the row inset (space-4) plus half the 14px chevron,
+   less the line's own width, so the rule sits ON the arrow, not to its right. */
 .tree-item > .tree-list {
-  margin-left: var(--cc-space-7);
+  margin-left: calc(var(--cc-space-4) + 6px);
   border-left: 1px solid var(--cc-border-input);
 }
 
