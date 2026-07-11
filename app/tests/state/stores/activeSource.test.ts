@@ -116,4 +116,16 @@ describe('setCurrentSource', () => {
     expect(CURRENT_SOURCE.value).toEqual({ src: 'https://github.com/o/r', branch: 'dev' });
     expect(listRecents()[0].branchIsDefault).toBe(false);
   });
+
+  it('never tags a local source as default — it shows the working-tree checkout', () => {
+    // A local worktree ignores any requested branch and reports its checkout
+    // (feat/…). That's neither a repo default nor a chosen branch, so no tag.
+    setCurrentSource('/Users/me/worktrees/feat-x', undefined, {
+      tree: { name: 'owner/codecity' },
+      repo: { branch: 'feat/issue-77' },
+    } as unknown as Manifest);
+    const recent = listRecents()[0];
+    expect(recent.branch).toBe('feat/issue-77');
+    expect(recent.branchIsDefault).toBe(false);
+  });
 });

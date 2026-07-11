@@ -176,7 +176,10 @@ export function setCurrentSource(
     // is the folder name (e.g. a git-worktree dir), not the repo.
     label: manifest.tree?.name || labelFromSource(src) || src,
     branch: resolvedBranch,
-    branchIsDefault: isDefault,
+    // Only a remote has a "repo default vs branch you chose" distinction. A
+    // local source always shows its working-tree checkout — never a default —
+    // so it's never tagged.
+    branchIsDefault: srcKind(src) === SourceKind.Remote && isDefault,
   });
 }
 

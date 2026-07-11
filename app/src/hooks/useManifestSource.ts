@@ -92,6 +92,10 @@ async function pumpManifestStream(
 
     // Skeleton or final.
     SCAN_PROGRESS.value = { ...meta, phase: event.phase };
+    // Once a manifest lands, its tree.name is the canonical repo name (the
+    // remote's owner/repo), better than the display_root basename — which for a
+    // local working tree is the folder name (e.g. a git-worktree dir).
+    if (event.manifest.tree?.name) PENDING_SOURCE_LABEL.value = event.manifest.tree.name;
     await onManifest(event.manifest, event.phase);
     lastManifest = event.manifest;
   }
