@@ -35,7 +35,9 @@ export function RecentsList({ onOpen }: RecentsListProps) {
   const keyOf = (r: { src: string; branch?: string }) => `${r.src}:${r.branch ?? ''}`;
   const isActive = (r: { src: string; branch?: string }) =>
     !!cur && r.src === cur.src && (r.branch ?? '') === (cur.branch ?? '');
-  const isDisabled = (r: { src: string }) => srcKind(r.src) === SourceKind.Local && !allowLocal;
+  // A local recent while local repos are off can't load; still clickable (the
+  // server error explains why), just flagged with a hint glyph.
+  const isUnavailable = (r: { src: string }) => srcKind(r.src) === SourceKind.Local && !allowLocal;
 
   if (recents.length === 0) return null;
 
@@ -63,11 +65,9 @@ export function RecentsList({ onOpen }: RecentsListProps) {
               key={keyOf(r)}
               recent={r}
               active={isActive(r)}
-              disabled={isDisabled(r)}
+              unavailable={isUnavailable(r)}
               confirmingRemove={confirming === keyOf(r)}
-              onOpen={() => {
-                if (!isActive(r) && !isDisabled(r)) onOpen({ src: r.src, branch: r.branch });
-              }}
+              onOpen={() => onOpen({ src: r.src, branch: r.branch })}
               onAskRemove={() => setConfirming(keyOf(r))}
               onCancelRemove={() => setConfirming(null)}
               onConfirmRemove={() => {

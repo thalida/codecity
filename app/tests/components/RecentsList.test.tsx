@@ -46,6 +46,17 @@ describe('RecentsList', () => {
     expect(container.textContent).toContain('(default)');
   });
 
+  it('the active row is clickable and re-opens (reloads) the current project', async () => {
+    const onOpen = vi.fn();
+    render(<RecentsList onOpen={onOpen} />, container);
+    await flush();
+
+    const activeRow = container.querySelector<HTMLButtonElement>('.recent-row--active')!;
+    expect(activeRow.disabled).toBe(false);
+    activeRow.click();
+    expect(onOpen).toHaveBeenCalledWith({ src: 'https://github.com/o/alpha', branch: 'main' });
+  });
+
   it('filters by label/src as you type', async () => {
     render(<RecentsList onOpen={() => {}} />, container);
     await flush();

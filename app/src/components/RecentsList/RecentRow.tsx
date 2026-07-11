@@ -1,6 +1,8 @@
 // components/RecentsList/RecentRow.tsx — one recent-source row: kind glyph,
 // label, sub (src + branch pill + "(default)" tag), active badge, inline-confirm
-// remove.
+// remove. Every row is clickable — the active row re-opens (reloads) the current
+// project; an unavailable row (a local path while local repos are off) is still
+// clickable and surfaces the server's reason on open, with a hint glyph up front.
 
 import { Folder, Trash2, TriangleAlert } from 'lucide-preact';
 import { HostingIcon } from '@/components/HostingIcon';
@@ -10,7 +12,7 @@ import type { RecentSource } from '@/state/stores/source';
 export interface RecentRowProps {
   recent: RecentSource;
   active: boolean;
-  disabled: boolean; // local row while local repos are off
+  unavailable: boolean; // a local path while local repos are off
   confirmingRemove: boolean;
   onOpen: () => void;
   onAskRemove: () => void;
@@ -19,12 +21,12 @@ export interface RecentRowProps {
 }
 
 export function RecentRow(props: RecentRowProps) {
-  const { recent: r, active, disabled, confirmingRemove } = props;
+  const { recent: r, active, unavailable, confirmingRemove } = props;
   const isLocal = srcKind(r.src) === SourceKind.Local;
   const rowClass = [
     'row recent-row',
     active && 'recent-row--active',
-    disabled && 'recent-row--disabled',
+    unavailable && 'recent-row--unavailable',
   ]
     .filter(Boolean)
     .join(' ');
@@ -34,16 +36,15 @@ export function RecentRow(props: RecentRowProps) {
       <button
         type="button"
         class={rowClass}
-        disabled={active || disabled}
         title={
-          disabled
+          unavailable
             ? 'Local repos are disabled. Restart codecity with CODECITY_ALLOW_LOCAL_REPOS=1 to load this.'
             : undefined
         }
         onClick={props.onOpen}
       >
         <span class="recent-icon">
-          {disabled ? (
+          {unavailable ? (
             <TriangleAlert class="lucide-icon" />
           ) : isLocal ? (
             <Folder class="lucide-icon" />

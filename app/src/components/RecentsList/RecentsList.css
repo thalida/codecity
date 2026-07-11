@@ -88,20 +88,19 @@
   color: var(--cc-text-faint);
 }
 
+/* Active row: highlighted as the current project, but still clickable to
+   reload it. */
 .recent-row--active {
   background: var(--cc-accent-bg-soft);
-  cursor: default;
 }
 .recent-row--active:hover {
   background: var(--cc-accent-bg);
 }
 
-.recent-row--disabled {
+/* Unavailable (a local recent while local repos are off): dimmed as a hint,
+   but still clickable — opening it surfaces the server's reason. */
+.recent-row--unavailable {
   opacity: 0.55;
-  cursor: not-allowed;
-}
-.recent-row--disabled:hover {
-  background: transparent;
 }
 
 .recent-row-badge {
