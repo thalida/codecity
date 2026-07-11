@@ -153,10 +153,16 @@
   color: var(--gem-lime);
 }
 
-/* ── Action panel ── */
+/* ── Action column ── stacked cards (open project, then recents). */
 
-.landing-action {
+.landing-actions {
   align-self: center;
+  display: flex;
+  flex-direction: column;
+  gap: var(--cc-space-6);
+}
+
+.landing-card {
   display: flex;
   flex-direction: column;
   gap: var(--cc-space-6);

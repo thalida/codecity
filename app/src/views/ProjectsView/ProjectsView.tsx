@@ -17,7 +17,7 @@ import { GemIcon } from '@/components/GemIcon/GemIcon';
 import { PROJECTS_VIEW, type SourcePayload } from '@/state/stores/ui';
 import { SERVER_CONFIG } from '@/state/stores/serverConfig';
 import { SCAN_PROGRESS } from '@/state/stores/scanProgress';
-import { PENDING_SOURCE_LABEL } from '@/state/stores/source';
+import { PENDING_SOURCE_LABEL, listRecents } from '@/state/stores/source';
 import { LOADING_STEP_LABELS, stepForPhase } from '@/constants/loadingSteps';
 import { NewProjectForm } from '@/components/NewProjectForm/NewProjectForm';
 import { RecentsList } from '@/components/RecentsList/RecentsList';
@@ -32,6 +32,7 @@ export function ProjectsView({ onSubmit, onCancel, onClose }: ProjectsViewProps)
   const pv = PROJECTS_VIEW.value;
   const scan = SCAN_PROGRESS.value;
   const loading = scan !== null;
+  const hasRecents = listRecents().length > 0;
 
   // Escape closes the page when dismissible and not mid-load.
   useEffect(() => {
@@ -84,37 +85,45 @@ export function ProjectsView({ onSubmit, onCancel, onClose }: ProjectsViewProps)
           </ul>
         </section>
 
-        <section class="landing-action surface-sidebar">
+        <div class="landing-actions">
           {loading && scan ? (
-            <div class="landing-progress" role="status" aria-live="polite">
-              {PENDING_SOURCE_LABEL.value && (
-                <div class="loading-pending-label">{PENDING_SOURCE_LABEL.value}</div>
-              )}
-              <div class="loading-spinner" />
-              <div class="text-card-title is-loading">
-                {LOADING_STEP_LABELS[stepForPhase(scan.phase, scan.kind)]}
-                {'…'}
+            <section class="landing-card surface-sidebar">
+              <div class="landing-progress" role="status" aria-live="polite">
+                {PENDING_SOURCE_LABEL.value && (
+                  <div class="loading-pending-label">{PENDING_SOURCE_LABEL.value}</div>
+                )}
+                <div class="loading-spinner" />
+                <div class="text-card-title is-loading">
+                  {LOADING_STEP_LABELS[stepForPhase(scan.phase, scan.kind)]}
+                  {'…'}
+                </div>
+                <button type="button" class="btn-secondary" onClick={onCancel}>
+                  Cancel
+                </button>
               </div>
-              <button type="button" class="btn-secondary" onClick={onCancel}>
-                Cancel
-              </button>
-            </div>
+            </section>
           ) : (
             <>
-              <h2 class="landing-action-title">Open a project</h2>
-              {/* A stale error from a prior attempt is dropped once a new load
-                  starts (see the loading branch above) — here it sits above the
-                  fresh form. */}
-              {pv.opts.error && <div class="card-error">{pv.opts.error}</div>}
-              <NewProjectForm
-                allowLocalRepos={SERVER_CONFIG.value.allowLocalRepos}
-                prefill={pv.opts.prefill}
-                onSubmit={onSubmit}
-              />
-              <RecentsList onOpen={onSubmit} />
+              <section class="landing-card surface-sidebar">
+                <h2 class="landing-action-title">Open a project</h2>
+                {/* A stale error from a prior attempt is dropped once a new load
+                    starts (see the loading branch above) — here it sits above the
+                    fresh form. */}
+                {pv.opts.error && <div class="card-error">{pv.opts.error}</div>}
+                <NewProjectForm
+                  allowLocalRepos={SERVER_CONFIG.value.allowLocalRepos}
+                  prefill={pv.opts.prefill}
+                  onSubmit={onSubmit}
+                />
+              </section>
+              {hasRecents && (
+                <section class="landing-card surface-sidebar">
+                  <RecentsList onOpen={onSubmit} />
+                </section>
+              )}
             </>
           )}
-        </section>
+        </div>
       </div>
     </div>
   );
