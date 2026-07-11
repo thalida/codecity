@@ -38,7 +38,7 @@ import {
 import { SERVER_CONFIG } from '@/state/stores/serverConfig';
 import { MANIFEST, setManifest, markError } from '@/state/stores/manifest';
 import { SCAN_PROGRESS } from '@/state/stores/scanProgress';
-import { srcKind, labelFromSource, SourceKind } from '@/utils/sources';
+import { srcKind, labelFromSource, SourceKind, srcNeedsBranch } from '@/utils/sources';
 import { isEmptyManifest } from '@/utils/manifest';
 import { URL_PARAMS } from '@/constants/urlParams';
 import type { Manifest } from '@/types';
@@ -337,11 +337,13 @@ export function useManifestSource(): {
     let disposeLiveUpdates: (() => void) | null = null;
     (async () => {
       const qp = new URLSearchParams(window.location.search);
-      if (qp.has(URL_PARAMS.SRC)) {
-        await loadSource({
-          src: qp.get(URL_PARAMS.SRC)!,
-          branch: qp.get(URL_PARAMS.BRANCH) ?? undefined,
-        });
+      const bootSrc = qp.get(URL_PARAMS.SRC);
+      const bootBranch = qp.get(URL_PARAMS.BRANCH) ?? undefined;
+      // A remote ?src with no ?branch can't load without a branch choice — App
+      // opens the picker (prefilled) for it, just like a no-src cold boot. Only
+      // auto-load a fully-specified source here.
+      if (bootSrc && !srcNeedsBranch(bootSrc, bootBranch)) {
+        await loadSource({ src: bootSrc, branch: bootBranch });
       }
       if (cancelled) return;
 

@@ -85,7 +85,6 @@ export function RecentRow(props: RecentRowProps) {
           <div class="recent-sub">
             <span class="recent-src">{r.src}</span>
             {r.branch && <span class="app-header-branch-pill">@{r.branch}</span>}
-            {r.branchIsDefault && <span class="recent-default-tag">(default)</span>}
           </div>
         </div>
         {active && <span class="recent-row-badge">Active</span>}

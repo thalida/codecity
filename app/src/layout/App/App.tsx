@@ -43,6 +43,7 @@ import { SOURCE_ERROR, CURRENT_SOURCE } from '@/state/stores/source';
 import { MANIFEST } from '@/state/stores/manifest';
 import { isEmptyManifest } from '@/utils/manifest';
 import { URL_PARAMS } from '@/constants/urlParams';
+import { srcNeedsBranch } from '@/utils/sources';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { useManifestSource } from '@/hooks/useManifestSource';
 import { attachLoadingReactions } from '@/state/loadingReactions';
@@ -72,10 +73,18 @@ export function App() {
     SOURCE_ERROR.value = null;
   };
 
-  // Cold boot with no ?src → prompt for a source (non-dismissible).
+  // Cold boot needs a source pick when there's no ?src, OR when ?src is a remote
+  // URL with no ?branch (branch choice is explicit — the hook won't auto-load
+  // it). Prefill the URL so the picker resolves its branches and preselects the
+  // default. Non-dismissible either way: nothing is loaded to fall back to.
   useEffect(() => {
-    if (!new URLSearchParams(window.location.search).has(URL_PARAMS.SRC)) {
+    const qp = new URLSearchParams(window.location.search);
+    const src = qp.get(URL_PARAMS.SRC);
+    const branch = qp.get(URL_PARAMS.BRANCH) ?? undefined;
+    if (!src) {
       openProjectsView({ dismissible: false });
+    } else if (srcNeedsBranch(src, branch)) {
+      openProjectsView({ dismissible: false, prefill: { src } });
     }
   }, []);
 

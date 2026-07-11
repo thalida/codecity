@@ -5,6 +5,7 @@ import {
   SourceKind,
   toHttpsRepoUrl,
   repoUrlForBranch,
+  srcNeedsBranch,
 } from '@/utils/sources';
 
 // NOTE: the manifest → display-name derivation (display_root / remote_url /
@@ -97,5 +98,19 @@ describe('srcKind', () => {
     expect(srcKind('/Users/x/repo')).toBe(SourceKind.Local);
     expect(srcKind('./relative')).toBe(SourceKind.Local);
     expect(srcKind('bare-name')).toBe(SourceKind.Local);
+  });
+});
+
+describe('srcNeedsBranch', () => {
+  it('is true for a remote URL with no branch (must be picked)', () => {
+    expect(srcNeedsBranch('https://github.com/o/r')).toBe(true);
+    expect(srcNeedsBranch('git@github.com:o/r.git', '')).toBe(true);
+  });
+  it('is false once a remote URL has a branch', () => {
+    expect(srcNeedsBranch('https://github.com/o/r', 'main')).toBe(false);
+  });
+  it('is false for a local path (no branch axis)', () => {
+    expect(srcNeedsBranch('/Users/x/repo')).toBe(false);
+    expect(srcNeedsBranch('./relative', undefined)).toBe(false);
   });
 });

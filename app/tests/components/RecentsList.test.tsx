@@ -19,7 +19,6 @@ describe('RecentsList', () => {
       {
         src: 'https://github.com/o/alpha',
         branch: 'main',
-        branchIsDefault: true,
         label: 'o/alpha',
         lastOpenedAt: 2,
       },
@@ -36,14 +35,13 @@ describe('RecentsList', () => {
     SERVER_CONFIG.value = { allowLocalRepos: false };
   });
 
-  it('marks the CURRENT_SOURCE row active and tags default branches', async () => {
+  it('marks the CURRENT_SOURCE row active', async () => {
     render(<RecentsList onOpen={() => {}} />, container);
     await flush();
 
     const activeRow = container.querySelector('.recent-row--active');
     expect(activeRow).toBeTruthy();
     expect(activeRow?.textContent).toContain('o/alpha');
-    expect(container.textContent).toContain('(default)');
   });
 
   it('the active row is clickable and re-opens (reloads) the current project', async () => {

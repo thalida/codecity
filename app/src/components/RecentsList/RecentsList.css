@@ -64,10 +64,6 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.recent-default-tag {
-  flex: 0 0 auto;
-  color: var(--cc-text-faint);
-}
 
 /* Active row: highlighted as the current project, but still clickable to
    reload it. */

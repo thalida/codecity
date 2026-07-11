@@ -106,7 +106,7 @@ export const SOURCE_INFO = computed<SourceInfo>(() => {
   const manifest = m as Manifest;
   return {
     label: manifest.tree?.name ?? '',
-    branch: resolveBranch(manifest, cur.branch).branch,
+    branch: resolveBranch(manifest, cur.branch),
     sourceUrl: srcKind(cur.src) === SourceKind.Remote ? cur.src : undefined,
   };
 });
@@ -115,12 +115,7 @@ export const SOURCE_INFO = computed<SourceInfo>(() => {
 
 export interface RecentSource {
   src: string; // exactly what was typed / passed; goes into ?src=
-  branch?: string; // only meaningful for git URLs
-  /** True when `branch` was filled in from the manifest's resolved
-   *  HEAD (i.e. the user didn't type a branch — we recorded the
-   *  repo's default). The picker annotates these rows with "(default)"
-   *  so the user knows the branch was inferred, not chosen. */
-  branchIsDefault?: boolean;
+  branch?: string; // the loaded branch (remote: picked in the picker; local: checkout)
   label: string; // derived at save time: basename(src) or "owner/repo"
   lastOpenedAt: number; // ms since epoch, for MRU sort
 }
@@ -136,22 +131,12 @@ export function listRecents(): RecentSource[] {
  * Push (or update) an entry. Dedupes by (src, branch ?? ''). The pushed
  * entry becomes the most-recent. List is capped at MAX_RECENT_SOURCES
  * entries (oldest dropped).
- *
- * Special case for `branchIsDefault`: when an entry's branch was filled
- * in from the manifest's resolved HEAD (the user didn't type one), we
- * also drop any pre-existing entry for the same src with NO branch
- * recorded. Those are the same logical project — the empty-branch row
- * was just from before we resolved the default — and keeping both
- * leaves a confusing duplicate in the picker.
  */
 export function pushRecent(entry: Omit<RecentSource, 'lastOpenedAt'>): void {
   const now = Date.now();
-  const filtered = RECENTS.value.filter((r) => {
-    if (r.src !== entry.src) return true;
-    if ((r.branch ?? '') === (entry.branch ?? '')) return false;
-    if (entry.branchIsDefault && !r.branch) return false;
-    return true;
-  });
+  const filtered = RECENTS.value.filter(
+    (r) => !(r.src === entry.src && (r.branch ?? '') === (entry.branch ?? ''))
+  );
   filtered.unshift({ ...entry, lastOpenedAt: now });
   RECENTS.value = filtered.slice(0, MAX_RECENT_SOURCES);
 }
@@ -168,18 +153,13 @@ export function setCurrentSource(
   manifest: Manifest
 ): void {
   CURRENT_SOURCE.value = { src, branch };
-  const { branch: resolvedBranch, isDefault } = resolveBranch(manifest, branch);
   pushRecent({
     src,
     // Prefer the manifest's server-derived name (the repo's canonical
     // owner/repo) over the raw src — for a local working tree the src basename
     // is the folder name (e.g. a git-worktree dir), not the repo.
     label: manifest.tree?.name || labelFromSource(src) || src,
-    branch: resolvedBranch,
-    // Only a remote has a "repo default vs branch you chose" distinction. A
-    // local source always shows its working-tree checkout — never a default —
-    // so it's never tagged.
-    branchIsDefault: srcKind(src) === SourceKind.Remote && isDefault,
+    branch: resolveBranch(manifest, branch),
   });
 }
 

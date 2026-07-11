@@ -94,21 +94,29 @@ export function labelFromSource(src: string | null | undefined): string | null {
 }
 
 /**
- * Resolve which branch label to show and whether it's the repo default. The
- * server sometimes reports a non-branch (detached HEAD, "(no branch)", names
- * with spaces) — treat those as "no branch". An explicitly requested branch
- * always wins and is never considered the default.
+ * The branch label to record/show for a loaded source: the explicitly requested
+ * branch when given, else the manifest's resolved HEAD when it looks like a real
+ * branch (the server sometimes reports a detached HEAD, "(no branch)", or names
+ * with spaces — treat those as "no branch"). A requested branch always wins.
  */
 export function resolveBranch(
   manifest: { repo: { branch?: string } },
   requested?: string
-): { branch?: string; isDefault: boolean } {
+): string | undefined {
   const mb = manifest.repo.branch;
   const looksReal = !!mb && !/\s/.test(mb) && !mb.startsWith('(') && !mb.startsWith('detached');
-  return {
-    branch: requested ?? (looksReal ? mb! : undefined),
-    isDefault: !requested && looksReal,
-  };
+  return requested ?? (looksReal ? mb : undefined);
+}
+
+/**
+ * True when a source can't be loaded without first choosing a branch: a remote
+ * URL with no branch specified. The picker resolves the repo's branches and
+ * preselects the default, so branch choice is explicit rather than an implicit
+ * "whatever main happens to be". Local sources have no branch axis (they scan
+ * the working-tree checkout), so they never need one.
+ */
+export function srcNeedsBranch(src: string, branch?: string): boolean {
+  return srcKind(src) === SourceKind.Remote && !branch;
 }
 
 /**
