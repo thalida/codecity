@@ -18,41 +18,7 @@
 
 import type { Manifest } from '@/types/manifest';
 import { URL_PARAMS } from '@/constants/urlParams';
-// ── URL helper ───────────────────────────────────────────────────────────
-
-export interface BuildApiUrlOpts {
-  noCache?: boolean;
-}
-
-/**
- * Build the URL for a server endpoint, forwarding the page's `src`
- * (and optional `branch`) params. When `opts.noCache` is true,
- * appends `no_cache=true` to force a fresh scan on this request.
- * When no `src` is present, returns the endpoint URL without any
- * source params — boot uses this to detect "no source picked yet".
- *
- * Pure function (no `window` access) so the endpoint wrappers below can
- * bind it to live `window.location.*` values while this helper stays
- * directly unit-testable.
- */
-export function buildApiUrl(
-  endpoint: string,
-  pageSearch: string,
-  origin: string,
-  opts: BuildApiUrlOpts = {}
-): string {
-  const qp = new URLSearchParams(pageSearch);
-  const u = new URL(endpoint, origin);
-  if (qp.has(URL_PARAMS.SRC)) {
-    u.searchParams.set(URL_PARAMS.SRC, qp.get(URL_PARAMS.SRC)!);
-    if (qp.has(URL_PARAMS.BRANCH))
-      u.searchParams.set(URL_PARAMS.BRANCH, qp.get(URL_PARAMS.BRANCH)!);
-  }
-  if (opts.noCache) {
-    u.searchParams.set(URL_PARAMS.NO_CACHE, 'true');
-  }
-  return u.toString();
-}
+import { apiUrl } from '@/api/apiUrl';
 
 // ── Endpoint URL builders ────────────────────────────────────────────────
 //
@@ -61,27 +27,21 @@ export function buildApiUrl(
 // poll targets the committed CURRENT_SOURCE — never the page URL, which lags a
 // load and would make the poll fetch the wrong source mid-switch.
 
-function _sourceSearch(src: string, branch?: string): string {
-  const search = new URLSearchParams({ [URL_PARAMS.SRC]: src });
-  if (branch) search.set(URL_PARAMS.BRANCH, branch);
-  return search.toString();
-}
-
 /** URL for the manifest stream of an explicit source. */
 export function manifestUrlFor(opts: { src: string; branch?: string; noCache?: boolean }): string {
-  return buildApiUrl(
-    '/api/manifest',
-    _sourceSearch(opts.src, opts.branch),
-    window.location.origin,
-    {
-      noCache: opts.noCache,
-    }
-  );
+  return apiUrl('manifest', {
+    [URL_PARAMS.SRC]: opts.src,
+    [URL_PARAMS.BRANCH]: opts.branch,
+    [URL_PARAMS.NO_CACHE]: opts.noCache ? 'true' : undefined,
+  });
 }
 
 /** URL for the lightweight signature poll of an explicit source. */
 export function signatureUrlFor(src: string, branch?: string): string {
-  return buildApiUrl('/api/manifest/signature', _sourceSearch(src, branch), window.location.origin);
+  return apiUrl('manifest/signature', {
+    [URL_PARAMS.SRC]: src,
+    [URL_PARAMS.BRANCH]: branch,
+  });
 }
 
 // ── SSE streaming reader ─────────────────────────────────────────────────
@@ -257,8 +217,6 @@ export function streamManifest(
  * failures are swallowed (cache-clear is a UX nicety, not a correctness path).
  */
 export function clearManifestCache(src: string, branch?: string): void {
-  const url = new URL('/api/manifest/cache', window.location.origin);
-  url.searchParams.set(URL_PARAMS.SRC, src);
-  if (branch) url.searchParams.set(URL_PARAMS.BRANCH, branch);
-  fetch(url.toString(), { method: 'DELETE' }).catch(() => {});
+  const url = apiUrl('manifest/cache', { [URL_PARAMS.SRC]: src, [URL_PARAMS.BRANCH]: branch });
+  fetch(url, { method: 'DELETE' }).catch(() => {});
 }

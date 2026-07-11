@@ -3,6 +3,7 @@
 // instead of a free-text field. Remote URLs only (local sources have no branch).
 
 import { URL_PARAMS } from '@/constants/urlParams';
+import { apiUrl } from '@/api/apiUrl';
 
 export interface BranchList {
   branches: string[];
@@ -10,9 +11,7 @@ export interface BranchList {
 }
 
 export async function fetchBranches(src: string): Promise<BranchList> {
-  const url = new URL('/api/branches', window.location.origin);
-  url.searchParams.set(URL_PARAMS.SRC, src);
-  const resp = await fetch(url.toString());
+  const resp = await fetch(apiUrl('branches', { [URL_PARAMS.SRC]: src }));
   if (!resp.ok) {
     let message = `branch lookup failed (${resp.status})`;
     try {

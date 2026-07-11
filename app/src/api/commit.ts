@@ -3,6 +3,8 @@
 // the commit pane. Author + subject are already in the manifest;
 // body comes from /api/commit on demand to keep the manifest small.
 
+import { apiUrl } from '@/api/apiUrl';
+
 export interface CommitDetail {
   sha: string;
   authors: string[];
@@ -12,7 +14,7 @@ export interface CommitDetail {
 }
 
 export async function fetchCommitDetail(sha: string): Promise<CommitDetail> {
-  const resp = await fetch(`/api/commit?sha=${encodeURIComponent(sha)}`);
+  const resp = await fetch(apiUrl('commit', { sha }));
   if (!resp.ok) {
     throw new Error(`commit fetch failed: ${resp.status}`);
   }
