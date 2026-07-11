@@ -58,7 +58,6 @@ describe('TreePane', () => {
   interface MountOpts {
     onClose?: () => void;
     onSelect?: (node: TreeNode) => void;
-    onFocus?: (node: TreeNode) => void;
     onHover?: (node: TreeNode) => void;
     onHoverEnd?: (node: TreeNode) => void;
   }
@@ -91,7 +90,6 @@ describe('TreePane', () => {
           rootPath={rootPath}
           onClose={opts.onClose}
           onSelect={opts.onSelect}
-          onFocus={opts.onFocus}
           onHover={opts.onHover}
           onHoverEnd={opts.onHoverEnd}
         />,
@@ -207,20 +205,6 @@ describe('TreePane', () => {
     fileRow.click();
     expect(picked).not.toBeNull();
     expect(picked!.type).toBe('file');
-  });
-
-  it('row dblclick invokes onFocus with the node', () => {
-    let focused: TreeNode | null = null;
-    const pane = mount(TEST_TREE, {
-      onFocus(node) {
-        focused = node;
-      },
-    });
-    const fileRow = pane.querySelector<HTMLElement>('.tree-file > .row')!;
-    const ev = new window.MouseEvent('dblclick', { bubbles: true, cancelable: true });
-    fileRow.dispatchEvent(ev);
-    expect(focused).not.toBeNull();
-    expect(focused!.type).toBe('file');
   });
 
   it('setSelectedPath highlights the matching row and expands ancestors', async () => {

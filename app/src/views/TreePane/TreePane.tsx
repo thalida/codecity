@@ -55,7 +55,6 @@ interface TreeItemProps {
   selectedPath: ReadonlySignal<string | null>;
   hoveredPath: ReadonlySignal<string | null>;
   onSelect?: (node: TreeNode) => void;
-  onFocus?: (node: TreeNode) => void;
   onHover?: (node: TreeNode) => void;
   onHoverEnd?: (node: TreeNode) => void;
 }
@@ -67,7 +66,6 @@ function TreeItem({
   selectedPath,
   hoveredPath,
   onSelect,
-  onFocus,
   onHover,
   onHoverEnd,
 }: TreeItemProps) {
@@ -123,10 +121,6 @@ function TreeItem({
           e.stopPropagation();
           handleClick();
         }}
-        onDblClick={(e) => {
-          e.stopPropagation();
-          if (onFocus) onFocus(node);
-        }}
         onMouseEnter={() => onHover?.(node)}
         onMouseLeave={() => onHoverEnd?.(node)}
       >
@@ -147,7 +141,6 @@ function TreeItem({
               selectedPath={selectedPath}
               hoveredPath={hoveredPath}
               onSelect={onSelect}
-              onFocus={onFocus}
               onHover={onHover}
               onHoverEnd={onHoverEnd}
             />
@@ -173,7 +166,6 @@ export interface TreePaneProps {
   rootPath: string;
   onClose?: () => void;
   onSelect?: (node: TreeNode) => void;
-  onFocus?: (node: TreeNode) => void;
   onHover?: (node: TreeNode) => void;
   onHoverEnd?: (node: TreeNode) => void;
 }
@@ -186,7 +178,6 @@ export function TreePane({
   rootPath,
   onClose,
   onSelect,
-  onFocus,
   onHover,
   onHoverEnd,
 }: TreePaneProps) {
@@ -233,7 +224,6 @@ export function TreePane({
               selectedPath={selectedPath}
               hoveredPath={hoveredPath}
               onSelect={onSelect}
-              onFocus={onFocus}
               onHover={onHover}
               onHoverEnd={onHoverEnd}
             />
