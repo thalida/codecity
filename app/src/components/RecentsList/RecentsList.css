@@ -116,14 +116,15 @@
   white-space: nowrap;
 }
 
-/* Destructive trash button next to each recent. */
+/* Remove-from-list button next to each recent. Neutral, not destructive:
+   removing only forgets the entry, it doesn't delete anything. */
 .recent-item > .btn-icon[aria-label='Remove from recents'] {
   padding: var(--cc-space-4) var(--cc-space-2);
-  color: var(--cc-error);
+  color: var(--cc-text-faint);
 }
 .recent-item > .btn-icon[aria-label='Remove from recents']:hover {
-  color: var(--cc-error-light);
-  background: var(--cc-error-bg);
+  color: var(--cc-text-primary);
+  background: var(--cc-overlay-bg);
 }
 
 /* Inline "Remove? [Cancel] [Remove]" confirm — swaps in for the trash button

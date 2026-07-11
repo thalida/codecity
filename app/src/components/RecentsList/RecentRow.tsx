@@ -4,7 +4,7 @@
 // project; an unavailable row (a local path while local repos are off) is still
 // clickable and surfaces the server's reason on open, with a hint glyph up front.
 
-import { Folder, Trash2, TriangleAlert } from 'lucide-preact';
+import { Folder, X, TriangleAlert } from 'lucide-preact';
 import { HostingIcon } from '@/components/HostingIcon';
 import { srcKind, SourceKind } from '@/utils/sources';
 import type { RecentSource } from '@/state/stores/source';
@@ -80,7 +80,7 @@ export function RecentRow(props: RecentRowProps) {
           aria-label="Remove from recents"
           onClick={props.onAskRemove}
         >
-          <Trash2 class="lucide-icon" />
+          <X class="lucide-icon" />
         </button>
       )}
     </div>
