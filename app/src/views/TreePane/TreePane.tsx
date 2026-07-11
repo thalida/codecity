@@ -145,7 +145,7 @@ function TreeItem({
         ) : (
           <span class="tree-chevron" />
         )}
-        <NodeIcon node={node} />
+        <NodeIcon node={node} open={isExpanded} />
         <span class="tree-label">{node.name || ''}</span>
       </div>
       {isDir && isExpanded && children.length > 0 && (

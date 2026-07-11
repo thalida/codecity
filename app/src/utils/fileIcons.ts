@@ -25,7 +25,9 @@ export function getFileIconName(file: FileNode | { name?: string; extension?: st
 }
 
 /** Material icon basename for a folder — see getFileIconName. */
-export function getFolderIconName(dir: DirNode | { name?: string }): string {
+export function getFolderIconName(dir: DirNode | { name?: string }, open = false): string {
   const name = (dir.name || '').toLowerCase();
-  return FOLDER_ICON[name] ?? GENERIC_FOLDER;
+  const base = FOLDER_ICON[name] ?? GENERIC_FOLDER;
+  // Every Material folder glyph ships an `-open` twin for the expanded state.
+  return open ? `${base}-open` : base;
 }

@@ -110,4 +110,18 @@ describe('NodeIcon — directories', () => {
     const img = container.querySelector('img') as HTMLImageElement;
     expect(img.dataset.iconName).toBe('folder');
   });
+
+  it('renders the open-folder variant when expanded (src → folder-src-open)', async () => {
+    render(<NodeIcon node={{ name: 'src', type: NodeKind.Directory }} open />, container);
+    await flush();
+    const img = container.querySelector('img') as HTMLImageElement;
+    expect(img.dataset.iconName).toBe('folder-src-open');
+  });
+
+  it('ignores `open` for files (a file has no open variant)', async () => {
+    render(<NodeIcon node={{ name: 'a.ts', extension: '.ts' }} open />, container);
+    await flush();
+    const img = container.querySelector('img') as HTMLImageElement;
+    expect(img.dataset.iconName).toBe('typescript');
+  });
 });

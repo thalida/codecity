@@ -24,11 +24,15 @@ import { getFileIconName, getFolderIconName } from '@/utils/fileIcons';
 
 export interface NodeIconProps {
   node: TreeNode | { name?: string; type?: NodeKind; extension?: string };
+  /** For directories, render the open-folder variant (expanded in the tree). */
+  open?: boolean;
 }
 
-export function NodeIcon({ node }: NodeIconProps) {
+export function NodeIcon({ node, open = false }: NodeIconProps) {
   const isDir = node.type === NodeKind.Directory;
-  const iconName = isDir ? getFolderIconName(node as DirNode) : getFileIconName(node as FileNode);
+  const iconName = isDir
+    ? getFolderIconName(node as DirNode, open)
+    : getFileIconName(node as FileNode);
   const label = node.name || '';
   return (
     <img
