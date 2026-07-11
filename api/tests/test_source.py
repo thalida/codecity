@@ -49,15 +49,27 @@ class LabelFromSourceTests(unittest.TestCase):
 
 
 class DisplayNameForManifestTests(unittest.TestCase):
-    def test_prefers_display_root(self) -> None:
+    def test_prefers_remote_url_over_display_root(self) -> None:
+        # The remote is the canonical identity — it wins over the source URL.
         m = {
             "display_root": "https://github.com/owner/repo",
             "repo": {"remote_url": "https://github.com/other/thing"},
             "tree": {"name": "abc123hash"},
         }
-        self.assertEqual(display_name_for_manifest(m), "owner/repo")
+        self.assertEqual(display_name_for_manifest(m), "other/thing")
 
-    def test_local_display_root_basename(self) -> None:
+    def test_local_worktree_uses_remote_name_not_folder(self) -> None:
+        # A git worktree: the on-disk folder is a branch-y worktree name, but the
+        # remote is the real repo — show the repo name, not the folder.
+        m = {
+            "display_root": "/Users/me/worktrees/feat-x",
+            "repo": {"remote_url": "https://github.com/owner/codecity"},
+            "tree": {"name": "feat-x"},
+        }
+        self.assertEqual(display_name_for_manifest(m), "owner/codecity")
+
+    def test_local_display_root_basename_without_remote(self) -> None:
+        # No remote (a bare `git init`): fall back to the folder basename.
         m = {"display_root": "/Users/me/my-repo", "tree": {"name": "my-repo"}}
         self.assertEqual(display_name_for_manifest(m), "my-repo")
 

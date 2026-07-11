@@ -171,9 +171,12 @@ export function setCurrentSource(
   const { branch: resolvedBranch, isDefault } = resolveBranch(manifest, branch);
   pushRecent({
     src,
+    // Prefer the manifest's server-derived name (the repo's canonical
+    // owner/repo) over the raw src — for a local working tree the src basename
+    // is the folder name (e.g. a git-worktree dir), not the repo.
+    label: manifest.tree?.name || labelFromSource(src) || src,
     branch: resolvedBranch,
     branchIsDefault: isDefault,
-    label: labelFromSource(src) ?? src,
   });
 }
 

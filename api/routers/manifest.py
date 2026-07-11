@@ -174,16 +174,14 @@ async def manifest(
         if kind is SourceKind.INVALID:
             yield _sse_error("unrecognized source — pass a local path or a git URL")
             return
+        display = src
         local_path: Path | None = None
-        if kind is SourceKind.REMOTE:
-            display = f"{src}@{branch}" if branch else src
-        else:
+        if kind is SourceKind.LOCAL:
             try:
                 local_path = await asyncio.to_thread(resolve_local, src)
             except ResolveError as e:
                 yield _sse_error(e.message)
                 return
-            display = src
 
         cancel = threading.Event()
         loop = asyncio.get_running_loop()

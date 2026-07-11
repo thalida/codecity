@@ -94,17 +94,18 @@ def label_from_source(src: str | None) -> str | None:
 
 
 def display_name_for_manifest(manifest: dict[str, Any]) -> str | None:
-    """The repo's friendly display name, from the manifest's own fields:
-    display_root, then repo.remote_url, then the raw tree name as a fallback.
-    Set server-side onto tree.name so every consumer reads one authoritative
-    label instead of the cache-dir basename a cloned repo's root carries."""
+    """The repo's friendly display name. Prefer the remote's owner/repo (the
+    canonical identity) so a local working tree shows its repo name rather than
+    the working-dir basename (e.g. a git-worktree folder). Fall back to the
+    source path/URL, then the raw tree name. Set server-side onto tree.name so
+    every consumer reads one authoritative label."""
     if not manifest:
         return None
-    display_root = manifest.get("display_root")
-    if display_root and (label := label_from_source(display_root)):
-        return label
     remote_url = (manifest.get("repo") or {}).get("remote_url")
     if remote_url and (label := label_from_source(remote_url)):
+        return label
+    display_root = manifest.get("display_root")
+    if display_root and (label := label_from_source(display_root)):
         return label
     return (manifest.get("tree") or {}).get("name")
 
