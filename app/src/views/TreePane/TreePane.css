@@ -8,6 +8,12 @@
   --tree-guide: 1px; /* indent-guide line width */
 }
 
+/* Match the header's left inset to the rows so the repo name lines up over the
+   first icon column instead of sitting further in than the tree below it. */
+.tree-pane .pane-header {
+  padding-left: var(--tree-row-inset);
+}
+
 .tree-item.tree-hovered > .row {
   background: var(--cc-overlay-bg-soft);
 }
