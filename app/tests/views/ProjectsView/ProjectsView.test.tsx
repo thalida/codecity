@@ -39,7 +39,7 @@ describe('ProjectsView', () => {
   it('renders nothing when closed', async () => {
     render(<ProjectsView onSubmit={() => {}} onCancel={() => {}} onClose={() => {}} />, container);
     await flush();
-    expect(container.querySelector('.projects-view')).toBeNull();
+    expect(container.querySelector('.landing')).toBeNull();
   });
 
   it('renders the new-project form when open and idle', async () => {
@@ -47,7 +47,7 @@ describe('ProjectsView', () => {
     render(<ProjectsView onSubmit={() => {}} onCancel={() => {}} onClose={() => {}} />, container);
     await flush();
     expect(container.querySelector('.new-project')).not.toBeNull();
-    expect(container.querySelector('.projects-view-progress')).toBeNull();
+    expect(container.querySelector('.landing-progress')).toBeNull();
   });
 
   it('shows inline progress and hides the form/recents while a load is in flight', async () => {
@@ -68,7 +68,7 @@ describe('ProjectsView', () => {
     expect(container.querySelector('.new-project')).toBeNull();
     expect(container.querySelector('.recents')).toBeNull();
 
-    const progress = container.querySelector('.projects-view-progress');
+    const progress = container.querySelector('.landing-progress');
     expect(progress).not.toBeNull();
     expect(progress?.textContent).toContain('o/r');
     expect(progress?.textContent).toMatch(/Cloning/i);

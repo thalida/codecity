@@ -5,9 +5,9 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render } from 'preact';
 import { RECENTS, CURRENT_SOURCE } from '@/state/stores/source';
 import { SERVER_CONFIG } from '@/state/stores/serverConfig';
-import { RecentsList } from '@/views/ProjectsView/RecentsList';
+import { RecentsList } from '@/components/RecentsList/RecentsList';
 import * as manifestApi from '@/api/manifest';
-import { flush } from '../../_helpers/preact';
+import { flush } from '../_helpers/preact';
 
 describe('RecentsList', () => {
   let container: HTMLDivElement;
@@ -84,26 +84,16 @@ describe('RecentsList', () => {
     expect(spy).not.toHaveBeenCalled();
   });
 
-  it('supports keyboard navigation: arrow keys move the highlight, Enter opens it', async () => {
-    const onOpen = vi.fn();
-    render(<RecentsList onOpen={onOpen} />, container);
+  it('shows a no-match hint when the filter excludes everything', async () => {
+    render(<RecentsList onOpen={() => {}} />, container);
     await flush();
 
-    const list = container.querySelector<HTMLDivElement>('.recents')!;
-    // Cursor starts at 0 (alpha, which is active/disabled-for-open); move down to beta.
-    list.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
+    const filterInput = container.querySelector<HTMLInputElement>('.recents-filter')!;
+    filterInput.value = 'zzzznomatch';
+    filterInput.dispatchEvent(new Event('input', { bubbles: true }));
     await flush();
 
-    const highlighted = container.querySelector('.recent-row--highlighted');
-    expect(highlighted?.textContent).toContain('o/beta');
-
-    list.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
-    await flush();
-
-    expect(onOpen).toHaveBeenCalledWith({ src: 'https://github.com/o/beta', branch: 'dev' });
-
-    list.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true }));
-    await flush();
-    expect(container.querySelector('.recent-row--highlighted')?.textContent).toContain('o/alpha');
+    expect(container.querySelector('.recent-row')).toBeNull();
+    expect(container.querySelector('.recents-empty')).not.toBeNull();
   });
 });

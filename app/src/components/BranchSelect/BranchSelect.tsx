@@ -1,5 +1,5 @@
-// views/ProjectsView/BranchSelect.tsx — repo-resolved branch dropdown. Fetches
-// the branch list for `url` and preselects the repo default. Owns no
+// components/BranchSelect/BranchSelect.tsx — repo-resolved branch dropdown.
+// Fetches the branch list for `url` and preselects the repo default. Owns no
 // url-change tracking of its own: the parent re-keys it per resolved url
 // (key={url}), so a branch pick from a previous repo can never leak into the
 // next one — that remount is the actual fix for bug #2, not anything here.
@@ -52,11 +52,8 @@ export function BranchSelect({ url, value, onChange }: BranchSelectProps) {
 
   if (state.status === 'idle') return null;
 
-  // .new-project-field is the shared field-wrapper layout from
-  // NewProjectForm.css — safe to reuse because this component only ever
-  // renders inside <NewProjectForm>, never standalone.
   return (
-    <div class="new-project-field branch-select">
+    <div class="branch-select">
       <label>Branch</label>
       {state.status === 'loading' && (
         <div class="branch-select-status">

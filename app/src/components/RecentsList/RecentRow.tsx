@@ -1,5 +1,5 @@
-// views/ProjectsView/RecentRow.tsx — one recent-source row: kind glyph, label,
-// sub (src + branch pill + "(default)" tag), active badge, inline-confirm
+// components/RecentsList/RecentRow.tsx — one recent-source row: kind glyph,
+// label, sub (src + branch pill + "(default)" tag), active badge, inline-confirm
 // remove.
 
 import { Folder, Trash2, TriangleAlert } from 'lucide-preact';
@@ -11,7 +11,6 @@ export interface RecentRowProps {
   recent: RecentSource;
   active: boolean;
   disabled: boolean; // local row while local repos are off
-  highlighted: boolean; // keyboard cursor
   confirmingRemove: boolean;
   onOpen: () => void;
   onAskRemove: () => void;
@@ -20,13 +19,12 @@ export interface RecentRowProps {
 }
 
 export function RecentRow(props: RecentRowProps) {
-  const { recent: r, active, disabled, highlighted, confirmingRemove } = props;
+  const { recent: r, active, disabled, confirmingRemove } = props;
   const isLocal = srcKind(r.src) === SourceKind.Local;
   const rowClass = [
     'row recent-row',
     active && 'recent-row--active',
     disabled && 'recent-row--disabled',
-    highlighted && 'recent-row--highlighted',
   ]
     .filter(Boolean)
     .join(' ');

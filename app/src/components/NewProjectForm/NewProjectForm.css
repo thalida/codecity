@@ -30,19 +30,32 @@
   font-size: var(--cc-font-lg);
 }
 
+/* Advanced disclosure — reads as an interactive link with a caret that turns
+   down when open, not dead label text. */
 .new-project-advanced-toggle {
   appearance: none;
   background: none;
   border: none;
   align-self: flex-start;
-  color: var(--cc-text-faint);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cc-space-2);
+  color: var(--cc-accent-light);
   font: inherit;
   font-size: var(--cc-font-md);
   cursor: pointer;
   padding: 0;
 }
 .new-project-advanced-toggle:hover {
-  color: var(--cc-text-secondary);
+  color: var(--cc-accent);
+}
+.new-project-advanced-caret {
+  width: 14px;
+  height: 14px;
+  transition: transform var(--cc-t-base);
+}
+.new-project-advanced-toggle[aria-expanded='true'] .new-project-advanced-caret {
+  transform: rotate(90deg);
 }
 
 .new-project-skip-cache {

@@ -3,10 +3,10 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render } from 'preact';
-import { NewProjectForm } from '@/views/ProjectsView/NewProjectForm';
+import { NewProjectForm } from '@/components/NewProjectForm/NewProjectForm';
 import * as branchesApi from '@/api/branches';
 import { SCAN_PROGRESS } from '@/state/stores/scanProgress';
-import { flush, drainAsync } from '../../_helpers/preact';
+import { flush, drainAsync } from '../_helpers/preact';
 
 function setInput(el: HTMLInputElement, value: string) {
   el.value = value;
@@ -14,7 +14,7 @@ function setInput(el: HTMLInputElement, value: string) {
 }
 
 function activeSegment(container: HTMLElement): string | undefined {
-  return container.querySelector('.btn-toggle.is-active')?.textContent ?? undefined;
+  return container.querySelector('.pane-tab--active')?.textContent ?? undefined;
 }
 
 describe('NewProjectForm', () => {
@@ -148,8 +148,10 @@ describe('NewProjectForm', () => {
     // Concise, not a wall: no leftover path input competing with the note.
     expect(container.querySelector('input[aria-label="Path"]')).toBeNull();
 
-    const submitBtn = container.querySelector<HTMLButtonElement>('[aria-label="Open project"]')!;
-    expect(submitBtn.disabled).toBe(true);
+    // Nothing is submittable in this state, so the submit button and the
+    // Advanced disclosure are hidden entirely (not just disabled).
+    expect(container.querySelector('[aria-label="Open project"]')).toBeNull();
+    expect(container.querySelector('.new-project-advanced-toggle')).toBeNull();
   });
 
   it('never uses an em-dash in the disabled-local copy', async () => {

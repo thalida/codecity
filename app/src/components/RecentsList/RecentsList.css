@@ -1,30 +1,35 @@
-/* ── Recents hero ────────────────────────────────────────────────────────
-   Filter box + keyboard-navigable list (filter input,
-   .recent-row--highlighted keyboard cursor, inline remove-confirm). */
+/* ── Recent projects ─────────────────────────────────────────────────────
+   Heading + optional filter + the list of recent-source rows. */
 
 .recents {
-  margin-top: var(--cc-space-7);
-  border-top: 1px solid var(--cc-border-subtle);
-  padding-top: var(--cc-space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--cc-space-4);
 }
 
-.recents-filter {
-  width: 100%;
-  background-color: var(--cc-bg-chrome);
-  border: 1px solid var(--cc-border-input);
-  border-radius: var(--cc-radius-sm);
-  color: var(--cc-text-primary);
-  font: inherit;
+.recents-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--cc-space-4);
+}
+.recents-title {
+  margin: 0;
   font-size: var(--cc-font-lg);
+  font-weight: var(--cc-fw-semibold);
+  color: var(--cc-text-secondary);
+}
+.recents-filter {
+  width: 160px;
+  font-size: var(--cc-font-md);
   padding: var(--cc-space-2) var(--cc-space-4);
-  outline: none;
-  margin-bottom: var(--cc-space-4);
 }
-.recents-filter::placeholder {
+
+.recents-empty {
+  margin: 0;
+  padding: var(--cc-space-4) var(--cc-space-2);
   color: var(--cc-text-faint);
-}
-.recents-filter:focus {
-  border-color: var(--cc-accent-border);
+  font-size: var(--cc-font-md);
 }
 
 .recents-list {
@@ -97,12 +102,6 @@
 }
 .recent-row--disabled:hover {
   background: transparent;
-}
-
-/* Keyboard cursor — accent inset ring, distinct from hover/active fills so
-   arrow-key navigation stays visible even over an active/disabled row. */
-.recent-row--highlighted {
-  box-shadow: inset 0 0 0 1px var(--cc-accent-border);
 }
 
 .recent-row-badge {

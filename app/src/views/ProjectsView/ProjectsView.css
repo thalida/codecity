@@ -1,51 +1,185 @@
-/* ── Projects view ──────────────────────────────────────────────────────────
-   Full-viewport surface (replaces the old .modal-backdrop overlay): opaque,
-   fixed, above the app shell, flex-centered panel. Panel surface (bg + radius
-   + shadow + color) comes from .card-overlay; this file adds size + layout. */
+/* ── codecity landing / project switcher ────────────────────────────────────
+   Full-bleed page (not a modal): a brand hero beside an action panel. The gem
+   palette (lime/cyan/purple/magenta) doubles as a soft holographic backdrop and
+   colors the three "what it does" cues. */
 
-.projects-view {
+.landing {
   position: fixed;
   inset: 0;
-  background: var(--cc-bg-app);
-  display: flex;
-  align-items: center;
-  justify-content: center;
   z-index: 1000;
+  overflow-y: auto;
+  background: var(--cc-bg-app);
+
+  --gem-lime: #bfff33;
+  --gem-cyan: #26e5ff;
+  --gem-purple: #9940ff;
+  --gem-magenta: #ff338c;
 }
 
-.projects-view-panel {
-  width: 640px;
-  max-width: 92vw;
-  max-height: 86vh;
+/* Subtle holographic wash — two low-opacity gem-tinted glows, non-interactive,
+   behind the content. */
+.landing::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(
+      55% 45% at 18% 12%,
+      color-mix(in oklch, var(--gem-cyan) 10%, transparent),
+      transparent 70%
+    ),
+    radial-gradient(
+      50% 45% at 88% 85%,
+      color-mix(in oklch, var(--gem-purple) 10%, transparent),
+      transparent 70%
+    );
+}
+
+.landing-close {
+  position: absolute;
+  top: var(--cc-space-5);
+  right: var(--cc-space-5);
+  z-index: 1;
+}
+
+.landing-inner {
+  position: relative;
+  box-sizing: border-box;
+  min-height: 100%;
+  max-width: 1040px;
+  margin: 0 auto;
+  padding: var(--cc-space-9) var(--cc-space-7);
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  align-items: center;
+  gap: var(--cc-space-9);
+}
+
+@media (max-width: 900px) {
+  .landing-inner {
+    grid-template-columns: 1fr;
+    align-items: start;
+    gap: var(--cc-space-8);
+  }
+}
+
+/* ── Brand hero ── */
+
+.landing-hero {
   display: flex;
   flex-direction: column;
-  overflow: hidden;
-  font-family: inherit;
+  gap: var(--cc-space-6);
 }
 
-.projects-view-header {
+.landing-brand {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: var(--cc-space-5) var(--cc-space-6);
-  border-bottom: 1px solid var(--cc-border-subtle);
-  font-weight: var(--cc-fw-semibold);
+  gap: var(--cc-space-4);
 }
 
-.projects-view-body {
-  padding: var(--cc-space-5) var(--cc-space-6);
-  overflow-y: auto;
-  flex: 1;
+.landing-gem {
+  display: inline-flex;
+  width: 48px;
+  height: 48px;
+  filter: drop-shadow(0 0 16px color-mix(in oklch, var(--gem-cyan) 40%, transparent));
+  animation: landing-gem-float 6s ease-in-out infinite;
+}
+.landing-gem .gem-icon {
+  width: 48px;
+  height: 48px;
+}
+@keyframes landing-gem-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-5px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .landing-gem {
+    animation: none;
+  }
+}
+
+.landing-wordmark {
+  margin: 0;
+  font-size: var(--cc-font-4xl);
+  font-weight: var(--cc-fw-bold);
+  letter-spacing: -0.01em;
+  color: var(--cc-text-primary);
+}
+
+.landing-tagline {
+  margin: 0;
+  max-width: 32ch;
+  font-size: var(--cc-font-2xl);
+  color: var(--cc-text-secondary);
+}
+
+.landing-delights {
+  list-style: none;
+  margin: var(--cc-space-2) 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--cc-space-4);
+}
+.landing-delight {
+  display: flex;
+  align-items: center;
+  gap: var(--cc-space-4);
+  color: var(--cc-text-muted);
+  font-size: var(--cc-font-xl);
+}
+.landing-delight strong {
+  color: var(--cc-text-primary);
+  font-weight: var(--cc-fw-semibold);
+}
+.landing-delight .lucide-icon {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
+}
+.landing-delight--streets .lucide-icon {
+  color: var(--gem-cyan);
+}
+.landing-delight--buildings .lucide-icon {
+  color: var(--gem-purple);
+}
+.landing-delight--trees .lucide-icon {
+  color: var(--gem-lime);
+}
+
+/* ── Action panel ── */
+
+.landing-action {
+  align-self: center;
+  display: flex;
+  flex-direction: column;
+  gap: var(--cc-space-6);
+  padding: var(--cc-space-7);
+  border: 1px solid var(--cc-border-subtle);
+  border-radius: var(--cc-radius-lg);
+}
+
+.landing-action-title {
+  margin: 0;
+  font-size: var(--cc-font-2xl);
+  font-weight: var(--cc-fw-semibold);
+  color: var(--cc-text-primary);
 }
 
 /* Inline load progress, replacing the form + recents while SCAN_PROGRESS is
-   non-null. Spinner + pending-label look reuse LoadingOverlay's classes
-   (LoadingOverlay.css is loaded globally via App), so the switch flow and the
-   deep-link-boot flow read as one system. */
-.projects-view-progress {
+   non-null. Spinner + pending-label reuse LoadingOverlay's classes (its CSS is
+   loaded globally via App), so the switch flow and the deep-link-boot flow read
+   as one system. */
+.landing-progress {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: var(--cc-space-6);
-  padding: var(--cc-space-8) 0;
+  padding: var(--cc-space-7) 0;
 }

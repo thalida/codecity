@@ -1,5 +1,18 @@
 /* ── Branch select ── */
 
+.branch-select {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cc-space-3);
+}
+.branch-select > label {
+  font-size: var(--cc-font-lg);
+  color: var(--cc-text-muted);
+}
+.branch-select .form-input {
+  width: 100%;
+}
+
 .branch-select-status {
   display: flex;
   align-items: center;

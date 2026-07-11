@@ -1,24 +1,26 @@
-// views/ProjectsView/ProjectsView.tsx — full-viewport project switcher. Reads
-// PROJECTS_VIEW + SERVER_CONFIG for open-state/prefill; App owns
-// onSubmit/onCancel/onClose. Renders null when closed so the form/list state
-// resets on next open.
+// views/ProjectsView/ProjectsView.tsx — the codecity landing + project switcher.
+// A full-bleed page (not a modal): a brand hero next to an action panel that
+// opens a new project or returns to a recent one. Reads PROJECTS_VIEW +
+// SERVER_CONFIG for open-state/prefill; App owns onSubmit/onCancel/onClose.
+// Renders null when closed so the form/list state resets on next open.
 //
-// This view is the loading surface for every switch it initiates (design
-// invariant): while SCAN_PROGRESS is non-null it renders inline progress in
-// place of the form + recents, and <LoadingOverlay> (App-level) suppresses
-// itself whenever this view is visible, so the two never stack. LoadingOverlay
-// keeps its narrow role of deep-link cold boot (no view open yet).
+// This page is also the loading surface for every switch it initiates (design
+// invariant): while SCAN_PROGRESS is non-null the action panel shows inline
+// progress + Cancel, and <LoadingOverlay> (App-level) suppresses itself while
+// this page is visible so the two never stack. LoadingOverlay keeps its narrow
+// role of deep-link cold boot (no page open yet).
 
 import './ProjectsView.css';
 import { useEffect } from 'preact/hooks';
-import { X } from 'lucide-preact';
+import { X, Waypoints, Building2, TreePine } from 'lucide-preact';
+import { GemIcon } from '@/components/GemIcon/GemIcon';
 import { PROJECTS_VIEW, type SourcePayload } from '@/state/stores/ui';
 import { SERVER_CONFIG } from '@/state/stores/serverConfig';
 import { SCAN_PROGRESS } from '@/state/stores/scanProgress';
 import { PENDING_SOURCE_LABEL } from '@/state/stores/source';
 import { LOADING_STEP_LABELS, stepForPhase } from '@/constants/loadingSteps';
-import { NewProjectForm } from './NewProjectForm';
-import { RecentsList } from './RecentsList';
+import { NewProjectForm } from '@/components/NewProjectForm/NewProjectForm';
+import { RecentsList } from '@/components/RecentsList/RecentsList';
 
 export interface ProjectsViewProps {
   onSubmit: (payload: SourcePayload) => void;
@@ -31,7 +33,7 @@ export function ProjectsView({ onSubmit, onCancel, onClose }: ProjectsViewProps)
   const scan = SCAN_PROGRESS.value;
   const loading = scan !== null;
 
-  // Escape closes the view when dismissible and not mid-load.
+  // Escape closes the page when dismissible and not mid-load.
   useEffect(() => {
     if (!pv.visible || !pv.opts.dismissible) return;
     const onKey = (e: KeyboardEvent) => {
@@ -44,23 +46,47 @@ export function ProjectsView({ onSubmit, onCancel, onClose }: ProjectsViewProps)
   if (!pv.visible) return null;
 
   return (
-    <div class="projects-view" role="dialog" aria-modal="true" aria-label="Open project">
-      <div class="projects-view-panel card-overlay">
-        <div class="projects-view-header surface-chrome">
-          <span>Open project</span>
-          {pv.opts.dismissible && !loading && (
-            <button class="btn-icon btn-icon--lg" aria-label="Close" onClick={onClose}>
-              <X class="lucide-icon" />
-            </button>
-          )}
-        </div>
-        <div class="projects-view-body">
-          {/* A stale error from a prior attempt is no longer current once a
-              new load starts — drop it rather than showing it next to the
-              new attempt's progress. */}
-          {pv.opts.error && !loading && <div class="card-error">{pv.opts.error}</div>}
+    <div class="landing" aria-label="codecity: open a project">
+      {pv.opts.dismissible && !loading && (
+        <button class="landing-close btn-icon btn-icon--lg" aria-label="Close" onClick={onClose}>
+          <X class="lucide-icon" />
+        </button>
+      )}
+
+      <div class="landing-inner">
+        <section class="landing-hero">
+          <div class="landing-brand">
+            <span class="landing-gem">
+              <GemIcon />
+            </span>
+            <h1 class="landing-wordmark">codecity</h1>
+          </div>
+          <p class="landing-tagline">Turn any git repo into a living 3D city.</p>
+          <ul class="landing-delights">
+            <li class="landing-delight landing-delight--streets">
+              <Waypoints class="lucide-icon" aria-hidden="true" />
+              <span>
+                Directories become <strong>streets</strong>
+              </span>
+            </li>
+            <li class="landing-delight landing-delight--buildings">
+              <Building2 class="lucide-icon" aria-hidden="true" />
+              <span>
+                Files rise into <strong>buildings</strong>
+              </span>
+            </li>
+            <li class="landing-delight landing-delight--trees">
+              <TreePine class="lucide-icon" aria-hidden="true" />
+              <span>
+                Every commit grows a <strong>tree</strong>
+              </span>
+            </li>
+          </ul>
+        </section>
+
+        <section class="landing-action surface-sidebar">
           {loading && scan ? (
-            <div class="projects-view-progress" role="status" aria-live="polite">
+            <div class="landing-progress" role="status" aria-live="polite">
               {PENDING_SOURCE_LABEL.value && (
                 <div class="loading-pending-label">{PENDING_SOURCE_LABEL.value}</div>
               )}
@@ -69,12 +95,17 @@ export function ProjectsView({ onSubmit, onCancel, onClose }: ProjectsViewProps)
                 {LOADING_STEP_LABELS[stepForPhase(scan.phase, scan.kind)]}
                 {'…'}
               </div>
-              <button type="button" class="btn-primary" onClick={onCancel}>
+              <button type="button" class="btn-secondary" onClick={onCancel}>
                 Cancel
               </button>
             </div>
           ) : (
             <>
+              <h2 class="landing-action-title">Open a project</h2>
+              {/* A stale error from a prior attempt is dropped once a new load
+                  starts (see the loading branch above) — here it sits above the
+                  fresh form. */}
+              {pv.opts.error && <div class="card-error">{pv.opts.error}</div>}
               <NewProjectForm
                 allowLocalRepos={SERVER_CONFIG.value.allowLocalRepos}
                 prefill={pv.opts.prefill}
@@ -83,7 +114,7 @@ export function ProjectsView({ onSubmit, onCancel, onClose }: ProjectsViewProps)
               <RecentsList onOpen={onSubmit} />
             </>
           )}
-        </div>
+        </section>
       </div>
     </div>
   );

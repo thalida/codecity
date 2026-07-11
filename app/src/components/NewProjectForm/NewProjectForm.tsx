@@ -1,20 +1,18 @@
-// views/ProjectsView/NewProjectForm.tsx — new-source entry. A single source
-// field that classifies itself as you type (srcKind) and drives a Git URL /
-// Local path segment — manual override still works via the segment itself.
-// Git sources get a repo-resolved branch dropdown; skip-cache is tucked
-// behind an Advanced disclosure so the common path stays a one-field form.
-//
-// ProjectsView unmounts this component while a load is in flight (its own
-// inline progress block + Cancel take over) — `loading` here only guards
-// submit against a stray double-fire in the render that flips it true.
+// components/NewProjectForm/NewProjectForm.tsx — new-source entry. A single
+// source field that classifies itself as you type (srcKind) and drives a Git
+// URL / Local path tab — manual override still works via the tab itself. Git
+// sources get a repo-resolved branch dropdown; skip-cache is tucked behind an
+// Advanced disclosure so the common path stays a one-field form. Submits on
+// Enter (real <form>) or the Open project button.
 
 import './NewProjectForm.css';
 import { useState } from 'preact/hooks';
-import { SegmentedSelect } from '@/components/SegmentedSelect/SegmentedSelect';
+import { ChevronRight } from 'lucide-preact';
+import { PaneTabs } from '@/components/PaneTabs/PaneTabs';
+import { BranchSelect } from '@/components/BranchSelect/BranchSelect';
 import { srcKind, SourceKind } from '@/utils/sources';
 import type { SourcePayload } from '@/state/stores/ui';
 import { SCAN_PROGRESS } from '@/state/stores/scanProgress';
-import { BranchSelect } from './BranchSelect';
 
 export interface NewProjectFormProps {
   allowLocalRepos: boolean;
@@ -22,9 +20,9 @@ export interface NewProjectFormProps {
   onSubmit: (payload: SourcePayload) => void;
 }
 
-const KIND_OPTIONS = [
-  { value: SourceKind.Remote, label: 'Git URL' },
-  { value: SourceKind.Local, label: 'Local path' },
+const KIND_TABS = [
+  { id: SourceKind.Remote, label: 'Git URL' },
+  { id: SourceKind.Local, label: 'Local path' },
 ];
 
 // A source string worth resolving branches for: has a scheme (https://,
@@ -53,8 +51,8 @@ export function NewProjectForm({ allowLocalRepos, prefill, onSubmit }: NewProjec
   // Smart kind auto-select: reclassify on every keystroke, in either
   // direction (a URL pasted into what was the Local tab flips back to Git).
   // A full clear keeps the current kind rather than snapping to Local on
-  // empty input. Clicking the segment directly (onCommit below) is a manual
-  // override that bypasses this — it always wins until the next keystroke.
+  // empty input. Clicking a tab directly is a manual override that bypasses
+  // this — it always wins until the next keystroke.
   function onSourceInput(v: string) {
     setSource(v);
     const k = v.trim() ? srcKind(v) : kind;
@@ -87,12 +85,14 @@ export function NewProjectForm({ allowLocalRepos, prefill, onSubmit }: NewProjec
   }
 
   return (
-    <div class="new-project">
-      <SegmentedSelect
-        value={kind}
-        options={KIND_OPTIONS}
-        onCommit={(v) => setKind(v as SourceKind)}
-      />
+    <form
+      class="new-project"
+      onSubmit={(e) => {
+        e.preventDefault();
+        submit();
+      }}
+    >
+      <PaneTabs tabs={KIND_TABS} active={kind} onSelect={(id) => setKind(id as SourceKind)} />
 
       {!localOff && (
         <div class="new-project-field">
@@ -127,35 +127,34 @@ export function NewProjectForm({ allowLocalRepos, prefill, onSubmit }: NewProjec
         </div>
       )}
 
-      <button
-        type="button"
-        class="new-project-advanced-toggle"
-        aria-expanded={advanced}
-        aria-controls="new-project-advanced"
-        onClick={() => setAdvanced((a) => !a)}
-      >
-        Advanced
-      </button>
-      {advanced && (
-        <label id="new-project-advanced" class="new-project-skip-cache">
-          <input
-            type="checkbox"
-            checked={skipCache}
-            onChange={(e) => setSkipCache((e.target as HTMLInputElement).checked)}
-          />
-          Skip cache (fresh scan)
-        </label>
-      )}
+      {!localOff && (
+        <>
+          <button
+            type="button"
+            class="new-project-advanced-toggle"
+            aria-expanded={advanced}
+            aria-controls="new-project-advanced"
+            onClick={() => setAdvanced((a) => !a)}
+          >
+            <ChevronRight class="lucide-icon new-project-advanced-caret" />
+            Advanced
+          </button>
+          {advanced && (
+            <label id="new-project-advanced" class="new-project-skip-cache">
+              <input
+                type="checkbox"
+                checked={skipCache}
+                onChange={(e) => setSkipCache((e.target as HTMLInputElement).checked)}
+              />
+              Skip cache (fresh scan)
+            </label>
+          )}
 
-      <button
-        type="button"
-        class="btn-primary"
-        aria-label="Open project"
-        disabled={!canSubmit}
-        onClick={submit}
-      >
-        Open project
-      </button>
-    </div>
+          <button type="submit" class="btn-primary" aria-label="Open project" disabled={!canSubmit}>
+            Open project
+          </button>
+        </>
+      )}
+    </form>
   );
 }

@@ -3,9 +3,9 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render } from 'preact';
-import { BranchSelect } from '@/views/ProjectsView/BranchSelect';
+import { BranchSelect } from '@/components/BranchSelect/BranchSelect';
 import * as branchesApi from '@/api/branches';
-import { flush, drainAsync } from '../../_helpers/preact';
+import { flush, drainAsync } from '../_helpers/preact';
 
 describe('BranchSelect', () => {
   let container: HTMLDivElement;
