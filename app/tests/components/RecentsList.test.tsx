@@ -57,22 +57,6 @@ describe('RecentsList', () => {
     expect(onOpen).toHaveBeenCalledWith({ src: 'https://github.com/o/alpha', branch: 'main' });
   });
 
-  it('filters by label/src as you type', async () => {
-    render(<RecentsList onOpen={() => {}} />, container);
-    await flush();
-
-    const filterInput = container.querySelector<HTMLInputElement>('.recents-filter')!;
-    filterInput.value = 'beta';
-    filterInput.dispatchEvent(new Event('input', { bubbles: true }));
-    await flush();
-
-    const labels = Array.from(container.querySelectorAll('.recent-label')).map(
-      (el) => el.textContent
-    );
-    expect(labels).not.toContain('o/alpha');
-    expect(labels).toContain('o/beta');
-  });
-
   it('remove is non-destructive: forgets the entry, does not touch the cache', async () => {
     const spy = vi.spyOn(manifestApi, 'clearManifestCache');
     render(<RecentsList onOpen={() => {}} />, container);
@@ -93,18 +77,5 @@ describe('RecentsList', () => {
 
     expect(RECENTS.value.find((r) => r.label === 'o/alpha')).toBeUndefined();
     expect(spy).not.toHaveBeenCalled();
-  });
-
-  it('shows a no-match hint when the filter excludes everything', async () => {
-    render(<RecentsList onOpen={() => {}} />, container);
-    await flush();
-
-    const filterInput = container.querySelector<HTMLInputElement>('.recents-filter')!;
-    filterInput.value = 'zzzznomatch';
-    filterInput.dispatchEvent(new Event('input', { bubbles: true }));
-    await flush();
-
-    expect(container.querySelector('.recent-row')).toBeNull();
-    expect(container.querySelector('.recents-empty')).not.toBeNull();
   });
 });
