@@ -234,43 +234,6 @@ export function OverviewPane({ manifest }: OverviewPaneProps) {
         <h2 class="almanac-name">{overview.name}</h2>
         {blurb && <p class="almanac-blurb">{blurb}</p>}
         <dl class="almanac-meta">
-          {overview.founded && (
-            <div>
-              <dt>Founded</dt>
-              <dd>{overview.founded}</dd>
-            </div>
-          )}
-          {head && (
-            <div>
-              <dt>Latest</dt>
-              <dd>
-                <div class="almanac-latest">
-                  <span class="almanac-latest-head">
-                    {latestUrl ? (
-                      <a
-                        class="almanac-sha-link link--chrome"
-                        href={latestUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        title="View this commit on the remote"
-                      >
-                        {head.sha}
-                      </a>
-                    ) : (
-                      <span class="almanac-sha">{head.sha}</span>
-                    )}
-                    <span class="almanac-latest-subject">{head.subject}</span>
-                  </span>
-                  {(latestAgo || repo.branch) && (
-                    <span class="almanac-latest-sub">
-                      {latestAgo && <span>{latestAgo}</span>}
-                      {repo.branch && <span class="almanac-branch">{repo.branch}</span>}
-                    </span>
-                  )}
-                </div>
-              </dd>
-            </div>
-          )}
           {repo.remote_url && (
             <div>
               <dt>Remote</dt>
@@ -279,6 +242,49 @@ export function OverviewPane({ manifest }: OverviewPaneProps) {
                   {repo.remote_url}
                 </a>
               </dd>
+            </div>
+          )}
+          {repo.branch && (
+            <div>
+              <dt>Branch</dt>
+              <dd>
+                <span class="almanac-branch">{repo.branch}</span>
+              </dd>
+            </div>
+          )}
+          {head && (
+            <div>
+              <dt>Latest</dt>
+              <dd>
+                <span class="almanac-latest-head">
+                  {latestUrl ? (
+                    <a
+                      class="almanac-sha-link link--chrome"
+                      href={latestUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      title="View this commit on the remote"
+                    >
+                      {head.sha}
+                    </a>
+                  ) : (
+                    <span class="almanac-sha">{head.sha}</span>
+                  )}
+                  <span class="almanac-latest-subject">{head.subject}</span>
+                </span>
+              </dd>
+            </div>
+          )}
+          {latestAgo && (
+            <div>
+              <dt>Updated</dt>
+              <dd>{latestAgo}</dd>
+            </div>
+          )}
+          {overview.founded && (
+            <div>
+              <dt>Founded</dt>
+              <dd>{overview.founded}</dd>
             </div>
           )}
         </dl>
