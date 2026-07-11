@@ -28,14 +28,13 @@
   white-space: nowrap;
 }
 
-/* Inside the header chip the branch pill truncates (a long branch would
-   otherwise push the chip past its max-width). In the recents list the same
-   pill has room and is left alone. inline-block (not inline-flex) so
+/* Inside the header chip the branch pill can shrink and truncate when the chip
+   runs out of room (rather than pushing the chip wider). In the recents list
+   the same pill has room and is left alone. inline-block (not inline-flex) so
    text-overflow applies to the text. */
 .btn-chip .app-header-branch-pill {
   display: inline-block;
   min-width: 0;
-  max-width: 20ch;
   line-height: 16px;
   overflow: hidden;
   text-overflow: ellipsis;

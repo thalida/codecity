@@ -118,7 +118,11 @@
 
 .btn-chip {
   appearance: none;
-  flex: 0 0 auto;
+  /* Grow with its content up to the header's left column (1fr), then shrink and
+     truncate — no hard cap, so it uses the space it's given before ellipsizing
+     (min-width: 0 lets the flex item shrink below its content width). */
+  flex: 0 1 auto;
+  min-width: 0;
   display: inline-flex;
   align-items: center;
   gap: var(--cc-space-3);
@@ -131,7 +135,6 @@
   font: inherit;
   font-size: var(--cc-font-lg);
   white-space: nowrap;
-  max-width: 280px;
   cursor: pointer;
   -webkit-app-region: no-drag;
 }
