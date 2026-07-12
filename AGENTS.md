@@ -79,12 +79,12 @@ the docker stack `just dev` spun up for it.
 N=61; BRANCH=fix/issue-$N-image-tooltips          # the issue's branch
 
 # 1. confirm it actually merged before deleting anything
-gh issue view $N --json state -q .state            # CLOSED
-git fetch origin main && git cherry origin/main $BRANCH   # all lines prefixed "-" = upstream
+gh issue view $N --json state -q .state                              # CLOSED
+gh pr list --state merged --head $BRANCH --json number,mergedAt      # the authoritative check
 
 # 2. docker: containers are named codecity-<branch-with-dashes>-{app,api}-1
 docker rm -f $(docker ps -aq --filter "name=codecity-${BRANCH//\//-}")
-docker network prune -f                            # only removes empty networks; running stacks are safe
+docker network rm codecity-${BRANCH//\//-}_default 2>/dev/null || true   # THIS issue's network only
 
 # 3. worktree + branches
 git worktree remove .claude/worktrees/fix+issue-$N-image-tooltips
@@ -92,9 +92,15 @@ git branch -D $BRANCH                               # -D: squash-merges look "un
 git remote prune origin                             # remote head is usually auto-deleted on merge
 ```
 
-`docker network prune` also clears other stale empty networks from old branches —
-harmless, but scope it with `docker network rm codecity-${BRANCH//\//-}_default` if
-you want to touch only this issue's network.
+The merged-PR query is the authoritative "is it safe to delete" check — don't rely
+on `git cherry origin/main $BRANCH`: a multi-commit branch squash-merges to a single
+commit, so cherry reports every commit as `+` (not upstream) even though it's merged.
+
+Remove **only this issue's** network — do NOT run `docker network prune -f`. The
+global prune reaches beyond the torn-down issue: it once deleted `codecity-main_default`
+while the main dev stack was mid-restart, leaving those containers pointing at a gone
+network (`just dev` then fails with "network ... not found"; recover with
+`docker compose -p codecity-main -f docker-compose.dev.yml down`, then re-run).
 
 ## Layout
 
