@@ -44,7 +44,13 @@ function SwatchRow({ label, tip, axis, store, options, defaultValue }: SwatchRow
     0,
     options.findIndex((o) => o.value === current)
   );
-  const chipVar = axis === 'accent' ? 'var(--cc-accent)' : 'var(--cc-bg-app)';
+  // Accent chips show the flat accent; surface chips show the full surface
+  // ladder as a gradient (app -> chrome -> sidebar) so the otherwise near-black
+  // tint reads at the lighter sidebar end and the presets are distinguishable.
+  const chipVar =
+    axis === 'accent'
+      ? 'var(--cc-accent)'
+      : 'linear-gradient(135deg, var(--cc-bg-app), var(--cc-bg-chrome), var(--cc-bg-sidebar))';
   const defaultLabel = options.find((o) => o.value === defaultValue)?.label ?? defaultValue;
 
   const btnRefs = useRef<(HTMLButtonElement | null)[]>([]);
