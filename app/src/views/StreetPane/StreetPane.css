@@ -45,11 +45,6 @@
   display: flex;
   align-items: center;
   gap: var(--cc-space-3);
-  font-size: var(--cc-font-xs);
-  text-transform: uppercase;
-  letter-spacing: var(--cc-track-label);
-  color: var(--cc-text-primary);
-  font-weight: var(--cc-fw-semibold);
 }
 
 .street-ext-icon {

@@ -179,11 +179,6 @@
   align-items: center;
   gap: 7px;
   margin: 0 0 8px;
-  font-size: var(--cc-font-xs);
-  font-weight: var(--cc-fw-semibold);
-  text-transform: uppercase;
-  letter-spacing: var(--cc-track-label);
-  color: var(--cc-text-primary);
 }
 
 .almanac-section-icon {
@@ -220,9 +215,11 @@
 .almanac-duo-dim {
   display: block;
   margin: 0 0 1px 0;
-  font-size: var(--cc-font-2xs);
-  text-transform: uppercase;
-  letter-spacing: var(--cc-track-label);
+}
+/* Accented to the section's own layer color (like the section title icon)
+   instead of .text-label's default primary — overrides via a compound
+   selector so it wins regardless of stylesheet order. */
+.almanac-duo-dim.text-label {
   color: var(--sec-accent);
 }
 

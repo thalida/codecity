@@ -28,11 +28,6 @@
   align-items: center;
   gap: 7px;
   margin: 0 0 6px;
-  font-size: var(--cc-font-xs);
-  font-weight: var(--cc-fw-semibold);
-  text-transform: uppercase;
-  letter-spacing: var(--cc-track-label);
-  color: var(--cc-text-primary);
 }
 
 .legend-layer-icon {
@@ -84,11 +79,6 @@
   margin: 6px 0 0;
   padding-top: 12px;
   border-top: 1px solid var(--cc-border-subtle);
-  font-size: var(--cc-font-xs);
-  font-weight: var(--cc-fw-semibold);
-  text-transform: uppercase;
-  letter-spacing: var(--cc-track-label);
-  color: var(--cc-text-primary);
 }
 
 .legend-cue-list {
