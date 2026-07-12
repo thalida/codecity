@@ -12,6 +12,9 @@
   position: fixed;
   inset: 0;
   background: var(--cc-bg-backdrop);
+  /* Soft blur of the scene/UI behind the card. */
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
   display: flex;
   align-items: center;
   justify-content: center;
