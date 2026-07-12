@@ -11,7 +11,7 @@
   margin: 0 0 2px;
   color: var(--cc-text-primary);
   line-height: var(--cc-lh-base);
-  font-size: var(--cc-font-lg);
+  font-size: var(--cc-font-md);
 }
 
 /* One world layer: header + lead + its cue rows, separated by a hairline like

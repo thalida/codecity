@@ -69,12 +69,12 @@
   border-bottom: 1px solid var(--cc-border-subtle);
 }
 .info-markdown h2 {
-  font-size: var(--cc-font-lg);
+  font-size: var(--cc-font-md);
   padding-bottom: var(--cc-space-2);
   border-bottom: 1px solid var(--cc-track);
 }
 .info-markdown h3 {
-  font-size: var(--cc-font-md);
+  font-size: var(--cc-font-sm);
 }
 .info-markdown h4 {
   font-size: var(--cc-font-sm);
