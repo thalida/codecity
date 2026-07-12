@@ -25,6 +25,17 @@
   color: var(--cc-error-light);
 }
 
+/* Standing notice shown when local repos are off: a quiet, single-line
+   explanation with a how-to-enable link (subtle amber tint, no border). */
+.new-project-note {
+  margin: 0;
+  background: var(--cc-warning-bg);
+  color: var(--cc-text-primary);
+  border-radius: var(--cc-radius-md);
+  padding: var(--cc-space-3) var(--cc-space-4);
+  font-size: var(--cc-font-xs);
+}
+
 /* Advanced disclosure — reads as an interactive link with a caret that turns
    down when open, not dead label text. */
 .new-project-advanced-toggle {

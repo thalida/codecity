@@ -8,7 +8,8 @@ import * as branchesApi from '@/api/branches';
 import { SCAN_PROGRESS } from '@/state/stores/scanProgress';
 import { flush, drainAsync } from '../_helpers/preact';
 
-const FIELD = 'input[aria-label="Repo URL or local path"]';
+// Label-independent: the source field's label switches on allowLocalRepos.
+const FIELD = 'input.form-input';
 
 function setInput(el: HTMLInputElement, value: string) {
   el.value = value;
@@ -145,29 +146,29 @@ describe('NewProjectForm', () => {
     expect(checkbox.checked).toBe(false);
   });
 
-  it('shows an inline "not enabled" error and blocks submit for a local path when local repos are off', async () => {
+  it('when local repos are off: URL-only label + a standing "how to enable" notice, and a path blocks submit', async () => {
     render(<NewProjectForm allowLocalRepos={false} onSubmit={() => {}} />, container);
     await flush();
 
-    // The field is always present (no tab to hide it); typing a clear path is
-    // the error, not a mode you can't leave.
+    // Label reflects the URL-only mode.
+    expect(container.querySelector('label')?.textContent).toBe('Repo URL');
+    // The notice stands on its own (before any input), with the how-to link.
+    const note = container.querySelector('.new-project-note');
+    expect(note?.textContent).toMatch(/local paths aren't enabled/i);
+    expect(note?.querySelector('a')?.getAttribute('href')).toMatch(/local-directories/);
+
+    // Typing a clear path blocks submit (the button stays present, just disabled).
     setInput(field(container), '/Users/thalida/repo');
     await flush();
-
-    expect(container.querySelector('.new-project-error')?.textContent).toMatch(
-      /local paths aren't enabled/i
-    );
     const submitBtn = container.querySelector<HTMLButtonElement>('[aria-label="Open project"]')!;
-    expect(submitBtn).not.toBeNull(); // present, just disabled (not hidden)
+    expect(submitBtn).not.toBeNull();
     expect(submitBtn.disabled).toBe(true);
   });
 
-  it('never uses an em-dash in the local-path-disabled error copy', async () => {
+  it('never uses an em-dash in the disabled-local notice copy', async () => {
     render(<NewProjectForm allowLocalRepos={false} onSubmit={() => {}} />, container);
     await flush();
-    setInput(field(container), '/Users/thalida/repo');
-    await flush();
-    expect(container.querySelector('.new-project-error')?.textContent).not.toMatch(/—/);
+    expect(container.querySelector('.new-project-note')?.textContent).not.toMatch(/—/);
   });
 
   it('keeps the field mounted (and shows no path error) while typing a git URL char-by-char when local repos are off', async () => {

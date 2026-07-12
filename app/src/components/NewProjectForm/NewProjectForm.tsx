@@ -1,9 +1,10 @@
 // components/NewProjectForm/NewProjectForm.tsx — new-source entry. One field
 // that takes either a git URL or a local path and classifies itself as you type
 // (srcKind): a URL gets a repo-resolved branch dropdown; a local path is opened
-// directly. When local repos are off, a clearly-local path shows an inline
-// "not enabled" error instead of silently accepting it. skip-cache is tucked
-// behind an Advanced disclosure. Submits on Enter (real <form>) or the button.
+// directly. When local repos are off, the field is URL-only — the label,
+// placeholder, and a standing "how to enable" notice all reflect that, and a
+// typed path is blocked. skip-cache is tucked behind an Advanced disclosure.
+// Submits on Enter (real <form>) or the button.
 
 import './NewProjectForm.css';
 import { useState } from 'preact/hooks';
@@ -25,7 +26,6 @@ export interface NewProjectFormProps {
   onSubmit: (payload: SourcePayload) => void;
 }
 
-const SOURCE_LABEL = 'Repo URL or local path';
 const LOCAL_DOCS_URL = 'https://github.com/thalida/codecity#local-directories';
 
 export function NewProjectForm({ allowLocalRepos, prefill, onSubmit }: NewProjectFormProps) {
@@ -40,13 +40,20 @@ export function NewProjectForm({ allowLocalRepos, prefill, onSubmit }: NewProjec
   const [advanced, setAdvanced] = useState(false);
   const [branchError, setBranchError] = useState<string | null>(null); // from BranchSelect
 
+  // Label + placeholder reflect what the field actually accepts here.
+  const sourceLabel = allowLocalRepos ? 'Repo URL or local path' : 'Repo URL';
+  const placeholder = allowLocalRepos
+    ? 'https://github.com/owner/repo or ~/projects/repo'
+    : 'https://github.com/owner/repo';
+
   const loading = SCAN_PROGRESS.value !== null;
   const activeSrc = source.trim();
   // One field, classified by what's typed. Empty defaults to a URL so the
   // branch dropdown's absence (not a path) is the resting state.
   const isRemote = activeSrc ? srcKind(activeSrc) === SourceKind.Remote : true;
-  // The one thing this form can't open: a local path while local repos are off.
-  // Gated on looksLikePath so a half-typed URL never blinks this error.
+  // A local path typed while local repos are off is the one thing this form
+  // can't open. Gated on looksLikePath so a half-typed URL never trips it, and
+  // it suppresses the "enter a git URL" nudge (the standing notice is the why).
   const pathBlocked = !isRemote && !allowLocalRepos && looksLikePath(activeSrc);
 
   // A path change on a URL resets the branch (no stale pick rides along) and
@@ -62,11 +69,10 @@ export function NewProjectForm({ allowLocalRepos, prefill, onSubmit }: NewProjec
     }
   }
 
-  // Validate as a git URL for a URL, and also when local is off and the text
-  // isn't a clear path (a partial/typo'd URL) so the guidance stays "enter a URL".
   const urlError = isRemote || (!allowLocalRepos && !pathBlocked) ? validateGitUrl(source) : null;
   const fieldError = urlError ?? (isRemote ? branchError : null);
   const canSubmit = !loading && activeSrc.length > 0 && !fieldError && !pathBlocked;
+  const hasError = Boolean(fieldError) || pathBlocked;
 
   function submit() {
     if (!canSubmit) return;
@@ -77,8 +83,6 @@ export function NewProjectForm({ allowLocalRepos, prefill, onSubmit }: NewProjec
     });
   }
 
-  const hasError = Boolean(fieldError) || pathBlocked;
-
   return (
     <form
       class="new-project"
@@ -88,33 +92,29 @@ export function NewProjectForm({ allowLocalRepos, prefill, onSubmit }: NewProjec
       }}
     >
       <div class="new-project-field">
-        <label>{SOURCE_LABEL}</label>
+        <label>{sourceLabel}</label>
         <input
           class={hasError ? 'form-input form-input--error' : 'form-input'}
           type="text"
-          aria-label={SOURCE_LABEL}
+          aria-label={sourceLabel}
           aria-invalid={hasError ? 'true' : undefined}
           autoComplete="off"
           spellcheck={false}
-          placeholder={
-            allowLocalRepos
-              ? 'https://github.com/owner/repo or ~/projects/repo'
-              : 'https://github.com/owner/repo'
-          }
+          placeholder={placeholder}
           value={source}
           onInput={(e) => onSourceInput((e.target as HTMLInputElement).value)}
         />
-        {pathBlocked ? (
-          <p class="new-project-error">
-            Local paths aren't enabled.{' '}
-            <a class="link--chrome" href={LOCAL_DOCS_URL} target="_blank" rel="noopener noreferrer">
-              How to enable
-            </a>
-          </p>
-        ) : (
-          fieldError && <p class="new-project-error">{fieldError}</p>
-        )}
+        {fieldError && <p class="new-project-error">{fieldError}</p>}
       </div>
+
+      {!allowLocalRepos && (
+        <p class="new-project-note">
+          Local paths aren't enabled.{' '}
+          <a class="link--chrome" href={LOCAL_DOCS_URL} target="_blank" rel="noopener noreferrer">
+            How to enable
+          </a>
+        </p>
+      )}
 
       {isRemote && (
         <BranchSelect
