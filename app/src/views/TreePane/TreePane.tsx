@@ -1,7 +1,8 @@
-// views/TreePane.tsx — Left sidebar tree view. Renders a
+// views/TreePane.tsx — the Explore pane's "File tree" subtab body. Renders a
 // collapsible folder/file tree that mirrors the city's layout
 // (alphabetical, files+dirs intermingled — see layout.js _layoutDir)
 // and stays bidirectionally synced with the scene's current selection.
+// Body-only — ExplorePane owns the Pane chrome + tab strip.
 //
 // Single-branch invariant: only one chain from the root is ever
 // exposed at a time. Expanding a dir closes every other branch;
@@ -16,7 +17,7 @@ import { NodeKind } from '@/types';
 import type { DirNode, Manifest, TreeNode } from '@/types';
 import { FolderOpen } from 'lucide-preact';
 import { NodeIcon } from '@/components/NodeIcon/NodeIcon';
-import { Pane, PaneEmpty } from '@/components/Pane';
+import { PaneEmpty } from '@/components/Pane';
 
 // ── Helpers ──────────────────────────────────────────────────────────
 
@@ -164,7 +165,6 @@ export interface TreePaneProps {
    *  signal's current value. */
   expanded: Signal<Set<string>>;
   rootPath: string;
-  onClose?: () => void;
   onSelect?: (node: TreeNode) => void;
   onHover?: (node: TreeNode) => void;
   onHoverEnd?: (node: TreeNode) => void;
@@ -176,7 +176,6 @@ export function TreePane({
   hoveredPath,
   expanded,
   rootPath,
-  onClose,
   onSelect,
   onHover,
   onHoverEnd,
@@ -199,37 +198,30 @@ export function TreePane({
   const noChildren =
     !tree || !('children' in tree) || ((tree as DirNode).children?.length ?? 0) === 0;
 
+  if (noChildren) {
+    return (
+      <PaneEmpty
+        icon={FolderOpen}
+        title={tree?.name ? 'Empty repository' : 'No project loaded'}
+        sub={tree?.name ? 'This project has no files yet.' : 'Open one to explore its file tree.'}
+      />
+    );
+  }
   return (
-    <Pane
-      paneClass="tree-pane"
-      // Header shows the repo name — the root node itself is no longer rendered
-      // as a row, so its children are the top level.
-      title={tree?.name || 'Explorer'}
-      onClose={onClose}
-    >
-      {noChildren ? (
-        <PaneEmpty
-          icon={FolderOpen}
-          title={tree?.name ? 'Empty repository' : 'No project loaded'}
-          sub={tree?.name ? 'This project has no files yet.' : 'Open one to explore its file tree.'}
+    <ul class="tree-list tree-root">
+      {_sortChildren((tree as DirNode).children).map((child) => (
+        <TreeItem
+          key={child.path ?? child.name}
+          node={child}
+          rootPath={rootPath}
+          expanded={expanded}
+          selectedPath={selectedPath}
+          hoveredPath={hoveredPath}
+          onSelect={onSelect}
+          onHover={onHover}
+          onHoverEnd={onHoverEnd}
         />
-      ) : (
-        <ul class="tree-list tree-root">
-          {_sortChildren((tree as DirNode).children).map((child) => (
-            <TreeItem
-              key={child.path ?? child.name}
-              node={child}
-              rootPath={rootPath}
-              expanded={expanded}
-              selectedPath={selectedPath}
-              hoveredPath={hoveredPath}
-              onSelect={onSelect}
-              onHover={onHover}
-              onHoverEnd={onHoverEnd}
-            />
-          ))}
-        </ul>
-      )}
-    </Pane>
+      ))}
+    </ul>
   );
 }

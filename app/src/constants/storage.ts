@@ -19,6 +19,4 @@ export const PERSISTED_KEYS = {
   LEFT_SIDEBAR_WIDTH: 'leftSidebarWidth',
   /** Right (file/commit/street pane) sidebar drag-handle width in px. */
   RIGHT_SIDEBAR_WIDTH: 'rightSidebarWidth',
-  /** Left sidebar collapsed state. */
-  LEFT_SIDEBAR_COLLAPSED: 'leftSidebarCollapsed',
 } as const;

@@ -143,9 +143,9 @@ describe('FilePreviewPane', () => {
   });
 
   it('renders the × close button only when onClose is provided', () => {
-    // No onClose (and no onFocus) → header renders no .btn-icon--text buttons.
+    // No onClose (and no onFocus) → header renders no trailing icon button.
     mount();
-    expect(container.querySelector('.pane-header .btn-icon--text:last-child')).toBeNull();
+    expect(container.querySelector('.pane-header .btn-icon:last-child')).toBeNull();
 
     // Tear down the no-close mount before remounting into the same container.
     render(null, container);
@@ -157,7 +157,7 @@ describe('FilePreviewPane', () => {
       },
     });
     const btn = container.querySelector(
-      '.pane-header .btn-icon--text:last-child'
+      '.pane-header .btn-icon:last-child'
     ) as HTMLButtonElement | null;
     expect(btn).not.toBeNull();
     btn!.click();

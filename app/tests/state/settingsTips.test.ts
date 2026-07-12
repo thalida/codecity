@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { forEachSettingStore, getFieldKeys, getFieldDef } from '@/state/settingsSchema';
 // Import every settings store so it self-registers before we iterate.
 import '@/state/stores/settings/buildings';
+import '@/state/stores/settings/camera';
 import '@/state/stores/settings/effects';
 import '@/state/stores/settings/fireflies';
 import '@/state/stores/settings/footprint';

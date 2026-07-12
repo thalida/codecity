@@ -1,16 +1,23 @@
 /* ── Search pane ── */
 
 /* ── Search pane (Search tab in left sidebar) ───────────────────────────
-   Header (shared .pane-header) + input row + scrollable result list.
-   Matched query characters in each result are wrapped in <mark>. */
+   The search field IS the header row (no separate title bar): the input
+   fills the row with the × close button pinned right, and the result list
+   scrolls below. Matched query characters in each result are wrapped in <mark>. */
+
+/* The input takes the place of a title, so the row hugs the field: a uniform
+   inset all round, and the icon→input gap matches it so the search glyph sits
+   with equal space on both sides. */
+.pane-header--search {
+  padding: var(--cc-space-4);
+}
 
 .search-input-wrap {
-  flex-shrink: 0;
+  flex: 1 1 auto;
+  min-width: 0;
   display: flex;
   align-items: center;
-  gap: var(--cc-space-3);
-  padding: var(--cc-space-7); /* shared pane content inset, all sides */
-  border-bottom: 1px solid var(--cc-border-subtle);
+  gap: var(--cc-space-4);
 }
 
 .search-input-icon {

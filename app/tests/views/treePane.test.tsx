@@ -56,14 +56,13 @@ describe('TreePane', () => {
   let expanded: ReturnType<typeof signal<Set<string>>>;
 
   interface MountOpts {
-    onClose?: () => void;
     onSelect?: (node: TreeNode) => void;
     onHover?: (node: TreeNode) => void;
     onHoverEnd?: (node: TreeNode) => void;
   }
 
-  // Renders <TreePane> into the test container with fresh signals and
-  // returns the `.pane` element (mirrors the old buildTreePane().pane).
+  // Renders the body-only <TreePane> into the test container with fresh signals
+  // and returns the container (TreePane owns no chrome — ExplorePane does).
   function mount(initialManifest: TreeLike, opts: MountOpts = {}): HTMLElement {
     manifest = signal<TreeLike | null>(initialManifest);
     selectedPath = signal<string | null>(null);
@@ -88,7 +87,6 @@ describe('TreePane', () => {
           hoveredPath={hoveredPath}
           expanded={expanded}
           rootPath={rootPath}
-          onClose={opts.onClose}
           onSelect={opts.onSelect}
           onHover={opts.onHover}
           onHoverEnd={opts.onHoverEnd}
@@ -96,7 +94,7 @@ describe('TreePane', () => {
         container
       );
     });
-    return container.querySelector('.pane') as HTMLElement;
+    return container;
   }
 
   beforeEach(() => {
@@ -132,28 +130,17 @@ describe('TreePane', () => {
     expect(collapsedDir.querySelector(':scope > .tree-list')).toBeNull();
   });
 
-  it('returns a pane with header + tree content', () => {
+  it('renders the tree content as a root list (chrome is ExplorePane’s)', () => {
     const pane = mount({ tree: TEST_TREE });
-
-    expect(pane.classList.contains('pane')).toBe(true);
-    expect(pane.classList.contains('tree-pane')).toBe(true);
-
-    const header = pane.querySelector('.pane-header');
-    expect(header).not.toBeNull();
-
-    const title = pane.querySelector('.text-pane-title');
-    expect(title).not.toBeNull();
-    // Header shows the repo name, not a static "Explorer" label.
-    expect(title!.textContent).toBe('project');
-
+    expect(pane.querySelector('ul.tree-root')).not.toBeNull();
     const items = pane.querySelectorAll<HTMLLIElement>('.tree-item');
     expect(items.length).toBeGreaterThan(0);
   });
 
   it('accepts a bare tree (no { tree } wrapper)', () => {
     const pane = mount(TEST_TREE);
-    const title = pane.querySelector('.text-pane-title');
-    expect(title!.textContent).toBe('project');
+    const labels = pane.querySelectorAll<HTMLElement>('ul.tree-root > li > .row > .tree-label');
+    expect(Array.from(labels, (el) => el.textContent)).toEqual(['index.ts', 'README.md', 'src']);
   });
 
   it("renders the root's children as the top level (root node has no row)", () => {

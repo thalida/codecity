@@ -1,5 +1,27 @@
 /* ── Info pane ── */
 
+/* World-layer accents — one --sec-accent per data-section, shared by the
+ * Overview sections and the Legend rows (both live in .info-body) so the color
+ * cue reads from a single source. */
+.info-body [data-section] {
+  --sec-accent: var(--cc-text-secondary);
+}
+.info-body [data-section='buildings'] {
+  --sec-accent: var(--cc-layer-buildings);
+}
+.info-body [data-section='media'] {
+  --sec-accent: var(--cc-layer-media);
+}
+.info-body [data-section='streets'] {
+  --sec-accent: var(--cc-layer-streets);
+}
+.info-body [data-section='forest'] {
+  --sec-accent: var(--cc-layer-forest);
+}
+.info-body [data-section='fireflies'] {
+  --sec-accent: var(--cc-layer-fireflies);
+}
+
 .info-markdown code {
   display: inline-block;
   background: var(--cc-accent-bg-soft);

@@ -1,6 +1,6 @@
 // constants/ui.ts — UI metadata that isn't user-tunable.
 
-import { FolderTree, Search, Info, Settings2, type LucideIcon } from 'lucide-preact';
+import { Compass, Search, Info, Settings2, type LucideIcon } from 'lucide-preact';
 import { SidebarTab } from '@/types/ui';
 
 /** Max number of recently-opened sources kept in the source-picker MRU list
@@ -32,7 +32,7 @@ export const ACTIVITY_BAR_TABS: readonly ActivityBarTab[] = [
   // Info leads: the almanac is the first thing a freshly-loaded world greets you
   // with (see DEFAULT_SIDEBAR_TAB + LeftSidebar's on-load switch).
   { id: SidebarTab.Info, icon: Info, title: 'Info' },
-  { id: SidebarTab.Tree, icon: FolderTree, title: 'Tree' },
+  { id: SidebarTab.Explore, icon: Compass, title: 'Explore' },
   { id: SidebarTab.Search, icon: Search, title: 'Search' },
   { id: SidebarTab.Controls, icon: Settings2, title: 'Settings', placement: TabPlacement.Bottom },
 ] as const;

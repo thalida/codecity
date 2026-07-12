@@ -1,0 +1,136 @@
+.legend {
+  padding: var(--cc-space-7); /* shared pane content inset, all sides */
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  /* Default accent for cue rows (no data-section); layer blocks override it via
+   * the shared .info-body [data-section] map. */
+  --sec-accent: var(--cc-text-secondary);
+}
+
+.legend-intro {
+  margin: 0 0 2px;
+  color: var(--cc-text-secondary);
+  line-height: 1.5;
+  font-size: var(--cc-font-xl);
+}
+
+/* One world layer: header + lead + its cue rows, separated by a hairline like
+ * the Overview sections so the two tabs read as one family. */
+.legend-layer {
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid var(--cc-border-subtle);
+  padding-top: 12px;
+}
+
+.legend-layer-title {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0 0 6px;
+  font-size: var(--cc-font-md);
+  font-weight: var(--cc-fw-semibold);
+  text-transform: uppercase;
+  letter-spacing: var(--cc-track-label);
+  color: var(--cc-text-secondary);
+}
+
+.legend-layer-icon {
+  width: 15px;
+  height: 15px;
+  color: var(--sec-accent);
+}
+
+.legend-layer-lead {
+  margin: 0 0 8px;
+  color: var(--cc-text-secondary);
+  font-size: var(--cc-font-lg);
+  line-height: 1.45;
+}
+
+/* The cue → meaning key: a fixed label rail so every "meaning" starts on the
+ * same column. */
+.legend-cues {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.legend-cue {
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+  min-width: 0;
+  font-size: var(--cc-font-lg);
+}
+
+.legend-cue-label {
+  flex: 0 0 128px;
+  font-weight: var(--cc-fw-semibold);
+  color: var(--cc-text-primary);
+}
+
+.legend-cue-detail {
+  margin: 0;
+  min-width: 0;
+  color: var(--cc-text-secondary);
+}
+
+/* "Reading the city" group heading, in the layer-title idiom. */
+.legend-group-title {
+  display: flex;
+  align-items: center;
+  margin: 6px 0 0;
+  padding-top: 12px;
+  border-top: 1px solid var(--cc-border-subtle);
+  font-size: var(--cc-font-md);
+  font-weight: var(--cc-fw-semibold);
+  text-transform: uppercase;
+  letter-spacing: var(--cc-track-label);
+  color: var(--cc-text-secondary);
+}
+
+.legend-cue-list {
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* A non-layer cue row: glyph on its own rail, name + description stacked. */
+.legend-row {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.legend-row-icon {
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+  margin-top: 1px; /* optical align with the title cap-height */
+  color: var(--sec-accent);
+}
+
+.legend-row-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.legend-row-title {
+  font-size: var(--cc-font-lg);
+  font-weight: var(--cc-fw-semibold);
+  color: var(--cc-text-primary);
+}
+
+.legend-row-rule {
+  font-size: var(--cc-font-lg);
+  line-height: 1.45;
+  color: var(--cc-text-secondary);
+}

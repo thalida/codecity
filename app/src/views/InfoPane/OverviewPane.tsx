@@ -7,8 +7,7 @@
 import './OverviewPane.css';
 import { useMemo } from 'preact/hooks';
 import type { Signal } from '@preact/signals';
-import { FolderOpen, Focus, Building2, Image, Signpost, TreePine, Sparkles } from 'lucide-preact';
-import type { LucideIcon } from 'lucide-preact';
+import { FolderOpen, Focus } from 'lucide-preact';
 import { NodeKind } from '@/types';
 import type { DirNode, Manifest } from '@/types';
 import { PaneEmpty } from '@/components/Pane';
@@ -22,18 +21,8 @@ import { commitUrl } from '@/utils/commit';
 import { languageLabelForExt } from '@/utils/syntaxLanguages';
 import { formatCount, pluralize } from '@/utils/format';
 import { computeAlmanac } from './almanac';
-import type { AlmanacFact, AlmanacSectionKey, LandmarkRef, LanguageStat } from './almanac';
-
-// Each section gets its world layer's icon — the panel reads as a legend for
-// the city, not a generic stats list. The accent color is keyed off
-// data-section in the CSS so it stays a single source of truth.
-const SECTION_ICON: Record<AlmanacSectionKey, LucideIcon> = {
-  buildings: Building2,
-  media: Image,
-  streets: Signpost,
-  forest: TreePine,
-  fireflies: Sparkles,
-};
+import type { AlmanacFact, LandmarkRef, LanguageStat } from './almanac';
+import { SECTION_ICON } from './sectionIcons';
 
 function visit(landmark: LandmarkRef): void {
   if (landmark.kind === NodeKind.Commit) {

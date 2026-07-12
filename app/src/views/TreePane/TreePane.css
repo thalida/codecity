@@ -1,17 +1,11 @@
 /* ── Tree pane ─────────────────────────────────────────────────────────────── */
 
-.tree-pane {
+.tree-root {
   /* Row geometry the indent guide is derived from — single-sourced so the guide
      stays centered on the chevron if any of these change. */
   --tree-row-inset: var(--cc-space-4); /* row's left padding (the start indent) */
   --tree-glyph: 14px; /* file/folder icon column width (matches .file-icon) */
   --tree-guide: 1px; /* indent-guide line width */
-}
-
-/* Match the header's left inset to the rows so the repo name lines up over the
-   first icon column instead of sitting further in than the tree below it. */
-.tree-pane .pane-header {
-  padding-left: var(--tree-row-inset);
 }
 
 .tree-item.tree-hovered > .row {

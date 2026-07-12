@@ -56,7 +56,7 @@
 .street-ext-icon {
   width: 15px;
   height: 15px;
-  color: #d3a85f; /* the almanac's "streets" accent */
+  color: var(--cc-layer-streets);
 }
 
 /* Shared 3-column grid (badge | bar | metric) so every row's bar is the same

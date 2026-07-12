@@ -89,17 +89,10 @@ const TREE = {
 describe('SearchPane', () => {
   let container: HTMLDivElement;
 
-  function mount(
-    opts: { onSelect?: (p: string) => void; onFocus?: (p: string) => void } = {}
-  ): ReturnType<typeof signal> {
+  function mount(opts: { onSelect?: (p: string) => void } = {}): ReturnType<typeof signal> {
     const manifest = signal<unknown>({ tree: TREE });
     render(
-      <SearchPane
-        manifest={manifest as never}
-        onClose={() => {}}
-        onSelect={opts.onSelect}
-        onFocus={opts.onFocus}
-      />,
+      <SearchPane manifest={manifest as never} onClose={() => {}} onSelect={opts.onSelect} />,
       container
     );
     return manifest;
@@ -195,20 +188,6 @@ describe('SearchPane', () => {
     const first = container.querySelector<HTMLLIElement>('.search-result')!;
     first.click();
     expect(selected).toBe('src/coordinator.ts');
-  });
-
-  it('calls onFocus(path) when a result is double-clicked', async () => {
-    let focused: string | null = null;
-    mount({
-      onFocus: (p: string) => {
-        focused = p;
-      },
-    });
-    await typeQuery('coord');
-
-    const first = container.querySelector<HTMLLIElement>('.search-result')!;
-    first.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
-    expect(focused).toBe('src/coordinator.ts');
   });
 
   it('re-indexes when the manifest signal changes', async () => {

@@ -21,10 +21,8 @@
   font-style: normal;
 }
 
-/* Keyboard / mouse shortcuts table. Two-column grid:
- *   [keys / mouse]   [action]
- * Section breaks (null entries in the data) render as a thin divider
- * spanning both columns. */
+/* Keyboard / mouse shortcuts table. Two-column grid: [keys / mouse] [action].
+ * One grid per labelled section (Keyboard, Mouse). */
 .shortcuts-list {
   display: grid;
   grid-template-columns: auto 1fr;
@@ -32,6 +30,11 @@
   align-items: center;
   margin: var(--cc-space-4) 0 0;
   font-size: var(--cc-font-md);
+}
+
+/* Space a following section label off the list above it. */
+.shortcuts-list + .text-label {
+  margin-top: var(--cc-space-6);
 }
 .shortcuts-list dt {
   color: var(--cc-text-secondary);
@@ -46,10 +49,4 @@
   color: var(--cc-text-faint);
   font-size: var(--cc-font-sm);
   margin-left: var(--cc-space-1);
-}
-.shortcuts-divider {
-  grid-column: 1 / -1;
-  height: 1px;
-  background: var(--cc-track);
-  margin: var(--cc-space-2) 0;
 }
