@@ -1,0 +1,75 @@
+.legend {
+  padding: var(--cc-space-7); /* shared pane content inset, all sides */
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  /* Default accent for cue rows (no data-section); layer rows override it via
+   * the shared .info-body [data-section] map. */
+  --sec-accent: var(--cc-text-secondary);
+}
+
+.legend-intro {
+  margin: 0 0 2px;
+  color: var(--cc-text-secondary);
+  line-height: 1.5;
+  font-size: var(--cc-font-xl);
+}
+
+/* A group heading in the almanac section-title idiom (uppercase, tracked) so the
+ * Legend and Overview read as the same family. */
+.legend-group-title {
+  display: flex;
+  align-items: center;
+  margin: 6px 0 0;
+  padding-top: 12px;
+  border-top: 1px solid var(--cc-border-subtle);
+  font-size: var(--cc-font-md);
+  font-weight: var(--cc-fw-semibold);
+  text-transform: uppercase;
+  letter-spacing: var(--cc-track-label);
+  color: var(--cc-text-secondary);
+}
+
+.legend-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* One key row: accented layer glyph on its own rail, name + rule stacked beside
+ * it so the eye scans icon → name → meaning. */
+.legend-row {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.legend-row-icon {
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+  margin-top: 1px; /* optical align with the title cap-height */
+  color: var(--sec-accent);
+}
+
+.legend-row-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.legend-row-title {
+  font-size: var(--cc-font-lg);
+  font-weight: var(--cc-fw-semibold);
+  color: var(--cc-text-primary);
+}
+
+.legend-row-rule {
+  font-size: var(--cc-font-lg);
+  line-height: 1.45;
+  color: var(--cc-text-secondary);
+}

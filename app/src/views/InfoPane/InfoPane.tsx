@@ -7,7 +7,7 @@ import { useState } from 'preact/hooks';
 import { useSignalEffect } from '@preact/signals';
 import type { Signal } from '@preact/signals';
 import type { ComponentType } from 'preact';
-import { Globe, BookOpen } from 'lucide-preact';
+import { Globe, Map, BookOpen } from 'lucide-preact';
 import type { LucideIcon } from 'lucide-preact';
 import type { DirNode, Manifest } from '@/types';
 import { Pane } from '@/components/Pane';
@@ -15,12 +15,14 @@ import { PaneCloseButton } from '@/components/PaneHeader/PaneHeader';
 import { PaneTabs } from '@/components/PaneTabs/PaneTabs';
 import { CURRENT_SOURCE } from '@/state/stores/source';
 import { OverviewPane } from './OverviewPane';
+import { LegendPane } from './LegendPane';
 import { ReadmePane } from './ReadmePane';
 
 type ManifestSignal = Signal<Manifest | DirNode | { tree?: unknown; [k: string]: unknown } | null>;
 
 export enum InfoTab {
   Overview = 'overview',
+  Legend = 'legend',
   Readme = 'readme',
 }
 
@@ -31,8 +33,11 @@ interface InfoTabDef {
   Component: ComponentType<{ manifest: ManifestSignal }>;
 }
 
+// Legend is static (no manifest) but keeps the shared signature so INFO_TABS
+// stays uniform; it simply ignores the prop.
 const INFO_TABS: InfoTabDef[] = [
   { id: InfoTab.Overview, label: 'Overview', icon: Globe, Component: OverviewPane },
+  { id: InfoTab.Legend, label: 'Legend', icon: Map, Component: LegendPane },
   { id: InfoTab.Readme, label: 'Readme', icon: BookOpen, Component: ReadmePane },
 ];
 
