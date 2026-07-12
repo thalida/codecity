@@ -44,6 +44,8 @@ import {
 import { NodeKind, StreetAxis } from '@/types';
 import type { Building, PickTarget, Street } from '@/types';
 import type { CityState } from '@/city/state';
+import { computeFramingDir } from './framingDir';
+import { CAMERA } from '@/state/stores/settings/camera';
 
 /** Narrow accessor surface the rig needs from the composer for component
  *  geometry (repoLabel/trees). World framing inputs (bbox, gem, root street,
@@ -86,18 +88,6 @@ const STREET_FOCUS_RATIO = 1.2;
 // controls.maxPolarAngle.
 const TOP_DOWN_ELEVATION_DEG = 80;
 const TOP_DOWN_PADDING_MULT = 2.8;
-
-// y-component of the start framing direction vector (before normalization).
-// Combined with FRAMING_DIR_LATERAL below: with lateral=0.3, y=1.0 gives
-// ~43.7° elevation.
-const FRAMING_DIR_Y = 1.0;
-
-// Lateral component on the framing direction vector — perpendicular to
-// the root street's long axis. Adds an isometric-style off-axis tilt so
-// the camera doesn't look straight down the road; both sides of the
-// street read in 3D instead of stacking face-on. 0.3 → ~15° lateral
-// angle from the street axis.
-const FRAMING_DIR_LATERAL = 0.3;
 
 // Headroom above the tallest building's roof when fitting the start
 // framing. 1.0 = spire flush at the top edge of the vertical FOV
@@ -224,23 +214,17 @@ export function createCameraRig({
     // screen" framing. INITIAL_DISTANCE_MULT (<1) tightens the sphere fit
     // intentionally; tuned for the typical city shape.
     const widthDist = (framingRadius / Math.sin(halfFov)) * CAMERA_INITIAL_DISTANCE_MULT;
-    // Default framing direction: place the camera BEHIND the gem along
-    // the root street's long axis (the street extends in +X for X-oriented
-    // or +Z for Y-oriented; the gem sits at the low end — see
-    // city/components/gem/mesh.ts:createRootGem) at a moderate elevation with a slight
-    // lateral offset so the view reads as 3D oblique rather than face-on
-    // down the road. FRAMING_DIR_Y (1.0) → ~44° elevation after the
-    // lateral mix; FRAMING_DIR_LATERAL (0.3) → ~15° azimuth off the
-    // street axis. Fallback (no gem) uses a high-oblique direction.
-    let dir: THREE.Vector3;
-    if (rootStreet) {
-      dir =
-        rootStreet.orientation === StreetAxis.X
-          ? new THREE.Vector3(-1, FRAMING_DIR_Y, FRAMING_DIR_LATERAL).normalize()
-          : new THREE.Vector3(FRAMING_DIR_LATERAL, FRAMING_DIR_Y, -1).normalize();
-    } else {
-      dir = new THREE.Vector3(-1, 1, 1).normalize();
-    }
+    // Default framing direction: place the camera BEHIND the gem along the root
+    // street's long axis (the street extends in +X for X-oriented or +Z for
+    // Y-oriented; the gem sits at the low end — see gem/mesh.ts:createRootGem),
+    // lifted + swung by the user's elevation/azimuth (CAMERA store). Read
+    // untracked here — the reframe effect this runs inside tracks bbox only; a
+    // dedicated CAMERA effect re-frames on angle changes.
+    const dir = computeFramingDir(
+      CAMERA.value.ELEVATION,
+      CAMERA.value.AZIMUTH,
+      rootStreet ? rootStreet.orientation : null
+    );
 
     // Height fit: project the tallest building's 4 roof corners through
     // the camera math and find the minimum D such that they all sit
@@ -353,6 +337,15 @@ export function createCameraRig({
     // change in lockstep with bbox anyway, but tracking just bbox keeps the
     // dependency set exactly what it claims to be.
     untracked(_captureFraming);
+  });
+
+  // Re-frame live when the user drags the default camera angle. CAMERA is an
+  // autosave store, so the slider writes through immediately; reset() reads the
+  // fresh angle (via _captureFraming) and hard-snaps to the new pose. Subscribes
+  // to CAMERA only; on construction bbox is empty so reset() no-ops.
+  const _disposeCameraAngleEffect = effect(() => {
+    void CAMERA.value;
+    untracked(reset);
   });
 
   function update(_dtMs: number): void {
@@ -525,6 +518,7 @@ export function createCameraRig({
 
   function dispose() {
     _disposeReframeEffect();
+    _disposeCameraAngleEffect();
     if (typeof controls.dispose === 'function') controls.dispose();
   }
 

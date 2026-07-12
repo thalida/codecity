@@ -17,6 +17,7 @@ import { Boxes, RefreshCw, Eye } from 'lucide-preact';
 import type { LucideIcon } from 'lucide-preact';
 import { FilePreviewSection } from './partials/FilePreviewSection';
 import { DynamicSection, type SectionNode } from './partials';
+import { CAMERA_SECTION } from './partials/Camera';
 import { SCENE_SECTION } from './partials/Scene';
 import { ISLAND_SECTION } from './partials/Island';
 import { BUILDINGS_SECTION } from './partials/Buildings';
@@ -60,6 +61,7 @@ export function ControlsPane({ onClose, collapsed }: ControlsPaneProps) {
       icon: Boxes,
       draftable: true,
       sections: [
+        CAMERA_SECTION,
         SCENE_SECTION,
         ISLAND_SECTION,
         BUILDINGS_SECTION,
