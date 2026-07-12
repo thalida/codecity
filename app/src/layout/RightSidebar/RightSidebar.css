@@ -18,7 +18,9 @@
 }
 
 #right-sidebar.open {
-  width: var(--sidebar-width, 360px);
+  /* Default to a third of the viewport until the user drags a width; min/max
+     below clamp it on narrow/wide screens. */
+  width: var(--sidebar-width, calc(100vw / 3));
   min-width: 280px;
   max-width: 70vw;
 }
