@@ -45,7 +45,7 @@ function _committedValue(store: SignalLike, key: DraftKey): unknown {
 
 export function setDraft(store: SignalLike, key: DraftKey, value: unknown): void {
   if (isAutosave(store as object)) {
-    // Write-through: apply immediately, never stage (Updates / Preview tabs).
+    // Write-through: apply immediately, never stage (Updates / Appearance tabs).
     store.value = key === null ? value : { ...store.value, [key]: value };
     _emit();
     return;

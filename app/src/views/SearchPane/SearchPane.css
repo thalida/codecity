@@ -40,11 +40,11 @@
 .search-results {
   list-style: none;
   margin: var(--cc-space-0);
-  padding: var(--cc-space-7) 0; /* rows supply the matching horizontal inset */
+  padding: var(--cc-pane-inset) 0; /* rows supply the matching horizontal inset */
 }
 .search-result {
   display: block;
-  padding: var(--cc-space-2) var(--cc-space-7);
+  padding: var(--cc-space-2) var(--cc-pane-inset);
   cursor: pointer;
   border-left: 2px solid transparent;
   font-family: var(--cc-font-mono);

@@ -138,7 +138,7 @@ export function ReadmePane({ manifest }: ReadmePaneProps) {
         <PaneEmpty icon={FileWarning} title="Couldn't load README" sub={body.message} />
       )}
       {body.kind === InfoBodyKind.Markdown && (
-        <article class="info-markdown" dangerouslySetInnerHTML={{ __html: body.html }} />
+        <article class="info-markdown pane-inset" dangerouslySetInnerHTML={{ __html: body.html }} />
       )}
     </>
   );

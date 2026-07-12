@@ -40,7 +40,12 @@ export function StreetPane({ state, onClose, onFocus }: StreetPaneProps) {
 
   if (!d) {
     return (
-      <Pane paneClass="street-pane" title="Road" onClose={onClose} bodyClass="street-body">
+      <Pane
+        paneClass="street-pane"
+        title="Road"
+        onClose={onClose}
+        bodyClass="street-body pane-inset"
+      >
         <PaneEmpty
           icon={Route}
           title="No road selected"
@@ -70,7 +75,7 @@ export function StreetPane({ state, onClose, onFocus }: StreetPaneProps) {
       onFocus={typeof onFocus === 'function' ? () => onFocus(d) : undefined}
       focusTitle={`Focus the camera on this road (${KEY_BINDINGS.FOCUS_SELECTION.label})`}
       onClose={onClose}
-      bodyClass="street-body"
+      bodyClass="street-body pane-inset"
     >
       {dateRange && (
         <div class="street-dates" title="Oldest file created → newest change">

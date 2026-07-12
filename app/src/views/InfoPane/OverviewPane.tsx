@@ -16,7 +16,7 @@ import { selectPath, focusPath, selectCommit, focusCommit } from '@/state/stores
 import { TREES } from '@/state/stores/settings/trees';
 import { BUILDINGS } from '@/state/stores/settings/buildings';
 import { extHueColor } from '@/city/components/buildings/color';
-import { humanAge, formatRelativeAge } from '@/utils/dates';
+import { humanAge, formatShortDate, formatRelativeAge } from '@/utils/dates';
 import { commitUrl } from '@/utils/commit';
 import { languageLabelForExt } from '@/utils/syntaxLanguages';
 import { formatCount, pluralize } from '@/utils/format';
@@ -213,12 +213,14 @@ export function OverviewPane({ manifest }: OverviewPaneProps) {
     repo.head_sha && repo.head_subject
       ? { sha: repo.head_sha.slice(0, 7), subject: repo.head_subject }
       : null;
-  const latestAgo = overview.latestDate ? formatRelativeAge(overview.latestDate) : null;
+  const lastUpdatedOn = overview.latestDate ? formatShortDate(overview.latestDate) : null;
+  const lastUpdatedAgo = overview.latestDate ? formatRelativeAge(overview.latestDate) : null;
+  const foundedAgo = overview.foundedISO ? formatRelativeAge(overview.foundedISO) : null;
   const latestUrl =
     repo.remote_url && repo.head_sha ? commitUrl(repo.remote_url, repo.head_sha) : null;
 
   return (
-    <div class="almanac">
+    <div class="almanac pane-inset">
       <header class="almanac-overview">
         <h2 class="almanac-name">{overview.name}</h2>
         {blurb && <p class="almanac-blurb">{blurb}</p>}
@@ -264,16 +266,22 @@ export function OverviewPane({ manifest }: OverviewPaneProps) {
               </dd>
             </div>
           )}
-          {latestAgo && (
+          {lastUpdatedOn && (
             <div>
-              <dt>Updated</dt>
-              <dd>{latestAgo}</dd>
+              <dt>Last Updated</dt>
+              <dd>
+                {lastUpdatedOn}
+                {lastUpdatedAgo && <span class="almanac-rel">{lastUpdatedAgo}</span>}
+              </dd>
             </div>
           )}
           {overview.founded && (
             <div>
               <dt>Founded</dt>
-              <dd>{overview.founded}</dd>
+              <dd>
+                {overview.founded}
+                {foundedAgo && <span class="almanac-rel">{foundedAgo}</span>}
+              </dd>
             </div>
           )}
         </dl>

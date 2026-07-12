@@ -60,7 +60,7 @@ function LayerBlock({ layerKey }: { layerKey: (typeof LAYER_LEGEND)[number]['key
 
 export function LegendPane() {
   return (
-    <div class="legend">
+    <div class="legend pane-inset">
       <p class="legend-intro">How a repo's structure and history become this city.</p>
       {LAYER_LEGEND.map((l) => (
         <LayerBlock key={l.key} layerKey={l.key} />

@@ -1,0 +1,71 @@
+/* styles/themes.css — Interface theme presets (issue #87).
+
+   Each preset overrides its base token(s); every color-mix variant in
+   tokens.css cascades from them. Applied via data-cc-accent / data-cc-surface
+   on <html> (see stores/settings/theme.ts).
+
+   The default preset (blue / cool) has a block too, but only the swatch-picker
+   chips ever match it: the applier removes the attribute from <html> for the
+   default, so on the page tokens.css :root stays the source. Each chip carries
+   its own data-cc-* so it previews its true color even while another preset is
+   active; without a default block the default chip would inherit the active
+   theme. The blue/cool values here mirror tokens.css :root.
+
+   OKLCH only. Accents hold the default blue's L/C profile (accent L.70/C.16,
+   light L.80/C.10, dark L.59/C.20) and vary hue. Surfaces hold the lightness
+   ladder (app .151 / chrome .162 / sidebar .181) and vary hue/chroma, so
+   contrast against the fixed text ladder is preserved by construction. */
+
+/* ── Accent presets ─────────────────────────────────────────────────────── */
+[data-cc-accent='blue'] {
+  --cc-accent: oklch(0.697 0.16 258.2);
+  --cc-accent-light: oklch(0.806 0.097 260);
+  --cc-accent-dark: oklch(0.588 0.196 268.5);
+}
+[data-cc-accent='cyan'] {
+  --cc-accent: oklch(0.697 0.16 200);
+  --cc-accent-light: oklch(0.806 0.097 202);
+  --cc-accent-dark: oklch(0.588 0.196 205);
+}
+[data-cc-accent='purple'] {
+  --cc-accent: oklch(0.697 0.16 295);
+  --cc-accent-light: oklch(0.806 0.097 297);
+  --cc-accent-dark: oklch(0.588 0.196 300);
+}
+[data-cc-accent='green'] {
+  --cc-accent: oklch(0.72 0.15 150);
+  --cc-accent-light: oklch(0.82 0.1 152);
+  --cc-accent-dark: oklch(0.6 0.17 155);
+}
+[data-cc-accent='pink'] {
+  --cc-accent: oklch(0.7 0.17 350);
+  --cc-accent-light: oklch(0.81 0.1 352);
+  --cc-accent-dark: oklch(0.59 0.2 355);
+}
+[data-cc-accent='amber'] {
+  --cc-accent: oklch(0.78 0.15 85);
+  --cc-accent-light: oklch(0.86 0.1 88);
+  --cc-accent-dark: oklch(0.66 0.15 80);
+}
+
+/* ── Surface presets ────────────────────────────────────────────────────── */
+[data-cc-surface='cool'] {
+  --cc-bg-app: oklch(0.151 0.011 276.2);
+  --cc-bg-chrome: oklch(0.162 0.015 278.3);
+  --cc-bg-sidebar: oklch(0.181 0.019 279.4);
+}
+[data-cc-surface='neutral'] {
+  --cc-bg-app: oklch(0.151 0.002 277);
+  --cc-bg-chrome: oklch(0.162 0.003 277);
+  --cc-bg-sidebar: oklch(0.181 0.004 277);
+}
+[data-cc-surface='green'] {
+  --cc-bg-app: oklch(0.151 0.012 155);
+  --cc-bg-chrome: oklch(0.162 0.016 155);
+  --cc-bg-sidebar: oklch(0.181 0.02 155);
+}
+[data-cc-surface='warm'] {
+  --cc-bg-app: oklch(0.151 0.012 55);
+  --cc-bg-chrome: oklch(0.162 0.016 55);
+  --cc-bg-sidebar: oklch(0.181 0.02 55);
+}

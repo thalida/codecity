@@ -135,6 +135,10 @@
   --cc-space-8: 24px;
   --cc-space-9: 32px;
   --cc-space-base: var(--cc-space-4);
+  /* Semantic: the inset from a pane/panel edge to its content. Pane-body
+     paddings, row insets, and full-bleed row margins all key off this, so
+     changing it here reflows every panel's content inset in lockstep. */
+  --cc-pane-inset: var(--cc-space-6);
 
   /* ── SCALES — Radius ──────────────────────────────────────────────────── */
   --cc-radius-0: 0;
@@ -183,5 +187,5 @@
   --cc-shadow-lg: 0 10px 40px oklch(0 0 0 / 0.6); /* modal, loading-card */
   --cc-shadow-base: var(--cc-shadow-md);
   --cc-shadow-text: 0 1px 2px oklch(0 0 0 / 0.5); /* canvas overlay text */
-  --cc-glow-accent: 0 0 6px oklch(0.697 0.16 258.2 / 0.35); /* range-pair fill */
+  --cc-glow-accent: 0 0 6px color-mix(in oklch, var(--cc-accent) 35%, transparent); /* range-pair fill */
 }

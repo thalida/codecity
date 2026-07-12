@@ -41,7 +41,6 @@
 }
 
 .info-markdown {
-  padding: var(--cc-space-7);
   color: var(--cc-text-secondary);
   font-size: var(--cc-font-lg);
   line-height: 1.6;

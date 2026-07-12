@@ -47,9 +47,9 @@ export const SYNTAX_THEME_OPTIONS: SyntaxThemeOption[] = [
 export const SYNTAX_THEME_DEFAULT = 'atom-one-dark';
 export const SYNTAX_THEME = persistedSignal<string>('SYNTAX_THEME', SYNTAX_THEME_DEFAULT);
 
-// SYNTAX_THEME is a setting (it lives in the Preview tab) but uses a plain
+// SYNTAX_THEME is a setting (it lives in the Appearance tab) but uses a plain
 // persistedSignal rather than settingSignal, so register it explicitly.
 markSettingStore(SYNTAX_THEME);
-// Autosave (write-through): the Preview tab applies on change, no Save step;
+// Autosave (write-through): the Appearance tab applies on change, no Save step;
 // "Reset all" (World-only) skips it — see settingsDrafts.ts.
 markAutosave(SYNTAX_THEME);

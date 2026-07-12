@@ -9,7 +9,9 @@
  * file-preview — mounts this same DOM so they look identical and
  * adding a pane is a single buildPaneHeader() call. */
 .pane-header {
-  padding: var(--cc-space-6) var(--cc-space-6) var(--cc-space-6) var(--cc-space-7);
+  /* Uniform inset on all sides so the leading focus button and the trailing
+     close button sit equidistant from the pane edges. */
+  padding: var(--cc-space-4);
   border-bottom: 1px solid var(--cc-border-subtle);
   flex-shrink: 0;
   display: flex;
@@ -24,7 +26,7 @@
  * line (their active underline overlaps it). Folding the title bar + separate
  * strip into one row is the vertical-space win. */
 .pane-header--tabs {
-  padding: 0 var(--cc-space-6) 0 0; /* first tab sits flush with the pane edge */
+  padding: 0 var(--cc-space-4) 0 0; /* first tab sits flush with the pane edge */
   align-items: stretch;
 }
 .pane-header--tabs .pane-tabs {
