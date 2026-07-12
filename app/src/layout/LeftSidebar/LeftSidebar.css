@@ -7,9 +7,10 @@
   position: relative;
   flex: 0 0 auto;
   /* Resizable: the drag handle mutates --sidebar-width; CSS owns `width` so the
-     handle never fights an inline style. Default width = activity bar +
-     panel. */
-  width: var(--sidebar-width, 360px);
+     handle never fights an inline style. Default is a third of the viewport
+     (matching the right sidebar) until the user drags a width; min/max below
+     clamp it on narrow/wide screens. */
+  width: var(--sidebar-width, calc(100vw / 3));
   min-width: 280px;
   max-width: 600px;
   height: 100%;
