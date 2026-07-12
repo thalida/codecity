@@ -18,7 +18,7 @@ const CAMERA_FIELDS = {
   ELEVATION: {
     route: ChangeRoute.Live,
     kind: FieldKind.Slider,
-    default: 44,
+    default: 5,
     min: 0,
     max: 90,
     step: 1,
@@ -28,7 +28,7 @@ const CAMERA_FIELDS = {
   AZIMUTH: {
     route: ChangeRoute.Live,
     kind: FieldKind.Slider,
-    default: 17,
+    default: 0,
     min: -180,
     max: 180,
     step: 1,
