@@ -23,7 +23,7 @@
 /* Short SHA rendered inline inside the pane-header title. */
 .commit-sha {
   font-family: var(--cc-font-mono);
-  font-size: var(--cc-font-sm); /* inherits title size */
+  font-size: var(--cc-font-sm);
   font-weight: var(--cc-fw-semibold);
   color: var(--cc-text-strong);
 }

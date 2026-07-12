@@ -91,29 +91,26 @@
   font-weight: var(--cc-fw-bold);
   letter-spacing: var(--cc-track-label);
   text-transform: uppercase;
-  color: var(--cc-text-primary);
+  color: var(--cc-text-secondary);
 }
 /* Muted variant — used by the theme-subgroup label (both the <div>
    non-collapsible and the <summary> collapsible). */
 .text-label--muted {
-  color: var(--cc-text-secondary);
+  color: var(--cc-text-muted);
 }
 
-/* Composite: pane header title. */
+/* Composite: pane header title. Sized to match the left pane tabs (chrome,
+   not a content title); weight + color carry the header emphasis. */
 .text-pane-title {
-  font-size: var(--cc-font-lg);
+  font-size: var(--cc-font-sm);
   font-weight: var(--cc-fw-semibold);
-  color: var(--cc-text-primary);
+  color: var(--cc-text-strong);
 }
 
 /* Composite: state-card title (loading, empty preview, empty search). */
 .text-card-title {
   font-size: var(--cc-font-lg);
   font-weight: var(--cc-fw-semibold);
-  color: var(--cc-text-primary);
-}
-/* Loading-state title is emphasized: brighter color. */
-.text-card-title.is-loading {
   color: var(--cc-text-strong);
 }
 

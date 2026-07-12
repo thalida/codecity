@@ -23,9 +23,15 @@
     transform: rotate(360deg);
   }
 }
-/* Typography in .text-card-title.is-loading (loading variant). */
 .text-card-title.is-loading {
   text-align: center;
+}
+/* In the loading card the repo name (.loading-pending-label) is the header;
+   the status verb reads as a secondary line below it, not the headline. */
+.loading-card .text-card-title.is-loading {
+  font-size: var(--cc-font-sm);
+  font-weight: var(--cc-fw-normal);
+  color: var(--cc-text-secondary);
 }
 /* Server-emitted project label rendered above the spinner from the moment
  * the first phase event lands — before any manifest exists. Once `final`
@@ -33,9 +39,9 @@
  * itself is hidden in main.ts's finally block, so this header is only
  * visible during clone/scan. */
 .loading-pending-label {
-  font-size: var(--cc-font-sm);
+  font-size: var(--cc-font-lg);
   font-weight: var(--cc-fw-semibold);
-  color: var(--cc-text-base);
+  color: var(--cc-text-strong);
   text-align: center;
 }
 .loading-steps {
