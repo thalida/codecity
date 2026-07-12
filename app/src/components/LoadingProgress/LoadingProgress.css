@@ -1,0 +1,87 @@
+/* ── Loading progress ──────────────────────────────────────────────────────
+   Shared column: repo label + spinner + current-step status + stepped list.
+   Used by LoadingOverlay (cold boot) and ProjectsView (in-app switches). */
+
+/* Repo name — the header of the loading column. */
+.loading-pending-label {
+  font-size: var(--cc-font-lg);
+  font-weight: var(--cc-fw-semibold);
+  color: var(--cc-text-strong);
+  text-align: center;
+}
+
+.loading-spinner {
+  width: 28px;
+  height: 28px;
+  border: 3px solid var(--cc-overlay-border);
+  border-top-color: var(--cc-accent);
+  border-radius: var(--cc-radius-circle);
+  animation: cc-spin 0.8s linear infinite;
+}
+@keyframes cc-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Current-step status — a quiet sub-line under the repo header; the active step
+   is also highlighted in the list below, so this stays secondary. */
+.loading-status {
+  font-size: var(--cc-font-md);
+  color: var(--cc-text-secondary);
+  text-align: center;
+}
+
+.loading-steps {
+  list-style: none;
+  margin: var(--cc-space-0);
+  padding: var(--cc-space-0);
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: var(--cc-space-3);
+}
+.loading-steps li {
+  font-size: var(--cc-font-sm);
+  padding: var(--cc-space-1) 0 var(--cc-space-1) var(--cc-space-8);
+  position: relative;
+  color: var(--cc-text-secondary); /* AA: 4.39:1 on the card surface */
+  transition: color var(--cc-t-base);
+}
+.loading-steps li::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 12px;
+  text-align: center;
+  font-size: var(--cc-font-xs);
+}
+.loading-steps li[data-state='pending'] {
+  color: var(--cc-text-secondary);
+}
+.loading-steps li[data-state='active'] {
+  color: var(--cc-accent);
+}
+.loading-steps li[data-state='active']::before {
+  content: '›';
+  color: var(--cc-accent);
+  font-size: var(--cc-font-md);
+  font-weight: var(--cc-fw-bold);
+}
+.loading-steps li[data-state='done'] {
+  color: var(--cc-text-secondary);
+}
+.loading-steps li[data-state='done']::before {
+  content: '✓';
+  color: var(--cc-success-dark);
+  font-size: var(--cc-font-2xs);
+}
+/* Trailing progress text (clone %, scanned file count) — secondary to the
+   step label. */
+.loading-step-tail {
+  color: var(--cc-text-secondary);
+  font-size: var(--cc-font-xs);
+  font-variant-numeric: tabular-nums;
+}

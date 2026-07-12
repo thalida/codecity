@@ -1,7 +1,8 @@
 /* ── Loading overlay ── */
 
-/* Loading overlay. Surface from .card-overlay; this adds the centered column
-   layout + padding + min width. */
+/* The deep-link cold-boot surface: a centered card over a full-viewport
+   backdrop. The inner column comes from <LoadingProgress> (LoadingProgress.css);
+   this only owns the card shell. Surface from .card-overlay. */
 .loading-card {
   display: flex;
   flex-direction: column;
@@ -9,93 +10,4 @@
   gap: var(--cc-space-7);
   padding: var(--cc-space-8) var(--cc-space-9);
   min-width: 260px;
-}
-.loading-spinner {
-  width: 28px;
-  height: 28px;
-  border: 3px solid var(--cc-overlay-border);
-  border-top-color: var(--cc-accent);
-  border-radius: var(--cc-radius-circle);
-  animation: cc-spin 0.8s linear infinite;
-}
-@keyframes cc-spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-.text-card-title.is-loading {
-  text-align: center;
-}
-/* In the loading card the repo name (.loading-pending-label) is the header;
-   the status verb reads as a secondary line below it, not the headline. */
-.loading-card .text-card-title.is-loading {
-  font-size: var(--cc-font-sm);
-  font-weight: var(--cc-fw-normal);
-  color: var(--cc-text-secondary);
-}
-/* Server-emitted project label rendered above the spinner from the moment
- * the first phase event lands — before any manifest exists. Once `final`
- * arrives, the (pending) suffix in document.title goes away; the overlay
- * itself is hidden in main.ts's finally block, so this header is only
- * visible during clone/scan. */
-.loading-pending-label {
-  font-size: var(--cc-font-lg);
-  font-weight: var(--cc-fw-semibold);
-  color: var(--cc-text-strong);
-  text-align: center;
-}
-.loading-steps {
-  list-style: none;
-  margin: var(--cc-space-0);
-  padding: var(--cc-space-0);
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  gap: var(--cc-space-3);
-}
-.loading-steps li {
-  font-size: var(--cc-font-sm);
-  padding: var(--cc-space-1) 0 var(--cc-space-1) var(--cc-space-8);
-  position: relative;
-  color: var(--cc-text-secondary); /* was 0.35 (2.85:1 → now 4.39:1, WCAG AA) */
-  transition: color var(--cc-t-base);
-}
-.loading-steps li::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 12px;
-  text-align: center;
-  font-size: var(--cc-font-xs);
-}
-.loading-steps li[data-state='pending'] {
-  color: var(--cc-text-secondary); /* was 0.35 (2.85:1 → now 4.39:1, WCAG AA) */
-}
-.loading-steps li[data-state='active'] {
-  color: var(--cc-accent);
-}
-.loading-steps li[data-state='active']::before {
-  content: '›';
-  color: var(--cc-accent);
-  font-size: var(--cc-font-md);
-  font-weight: var(--cc-fw-bold);
-}
-.loading-steps li[data-state='done'] {
-  color: var(--cc-text-secondary);
-}
-.loading-steps li[data-state='done']::before {
-  content: '✓';
-  color: var(--cc-success-dark);
-  font-size: var(--cc-font-2xs);
-}
-/* Trailing progress text appended via setStepTail (clone %, scanned file
- * count). Muted compared to the step label so it reads as secondary info
- * — present on the active step only in practice, since setStep advances
- * forward and main.ts wipes the tail on phase transitions. */
-.loading-step-tail {
-  color: var(--cc-text-secondary);
-  font-size: var(--cc-font-xs);
-  font-variant-numeric: tabular-nums;
 }
