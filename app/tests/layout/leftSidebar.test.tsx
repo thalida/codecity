@@ -77,16 +77,14 @@ describe('LeftSidebar', () => {
     expect(Array.from(bottom).map((b) => b.dataset.tab)).toEqual(['controls']);
   });
 
-  it('shows the info pane by default and does not render the controls pane', () => {
-    // In the Preact port, hidden tabs aren't rendered at all (rather
-    // than mounted with display:none) — the activeTab signal drives a
-    // conditional render. Info is the default tab so a loaded world opens
-    // straight to its almanac.
+  it('starts collapsed by default, with no active tab', () => {
+    // The sidebar opens closed so a fresh load shows the city unobscured.
+    expect(container.querySelector('#left-sidebar')!.classList.contains('is-collapsed')).toBe(true);
+    expect(container.querySelector('.activity-bar-icon.active')).toBeNull();
+    // Info is still the default tab (its pane is mounted, just hidden), so
+    // opening the sidebar lands on the almanac; inactive tabs aren't rendered.
     expect(container.querySelector('.info-pane')).not.toBeNull();
     expect(container.querySelector('.controls-pane')).toBeNull();
-    expect(
-      container.querySelector('.activity-bar-icon[data-tab="info"]')!.classList.contains('active')
-    ).toBe(true);
   });
 
   it('switches panes when an icon is clicked', async () => {
@@ -105,20 +103,22 @@ describe('LeftSidebar', () => {
     ).toBe(true);
   });
 
-  it('reopens the Info tab when a new world loads', async () => {
-    // Switch away from Info.
+  it('collapses and resets to Info on world load (open state not remembered)', async () => {
+    // Open the sidebar on a non-default tab.
     container.querySelector<HTMLButtonElement>('.activity-bar-icon[data-tab="explore"]')!.click();
     await flush();
+    expect(container.querySelector('#left-sidebar')!.classList.contains('is-collapsed')).toBe(
+      false
+    );
     expect(container.querySelector('.explore-pane')).not.toBeNull();
     // A world commits (cold-boot ?src= or a user switch both write CURRENT_SOURCE)
-    // → snap back to the almanac.
+    // → force closed and reset to Info; the open state is not carried over.
     CURRENT_SOURCE.value = { src: 'github.com/o/r' };
-    // Two-hop settle: CURRENT_SOURCE → effect → activeTab → re-render.
+    // Two-hop settle: CURRENT_SOURCE → effect → activeTab/collapsed → re-render.
     await drainAsync();
-    expect(
-      container.querySelector('.activity-bar-icon[data-tab="info"]')!.classList.contains('active')
-    ).toBe(true);
-    expect(container.querySelector('.info-pane')).not.toBeNull();
+    expect(container.querySelector('#left-sidebar')!.classList.contains('is-collapsed')).toBe(true);
+    expect(container.querySelector('.activity-bar-icon.active')).toBeNull();
     expect(container.querySelector('.explore-pane')).toBeNull();
+    expect(container.querySelector('.info-pane')).not.toBeNull();
   });
 });

@@ -36,10 +36,6 @@ import { Sidebar, SidebarSide } from '@/components/Sidebar/Sidebar';
 // abstraction) so persistence/hydration is handled for us — no hand-rolled
 // localStorage. Width is null until the user first drags the resize handle
 // (null ⇒ fall back to the CSS default width).
-const LEFT_SIDEBAR_COLLAPSED = persistedSignal<boolean>(
-  PERSISTED_KEYS.LEFT_SIDEBAR_COLLAPSED,
-  false
-);
 const LEFT_SIDEBAR_WIDTH = persistedSignal<number | null>(PERSISTED_KEYS.LEFT_SIDEBAR_WIDTH, null);
 
 // ── Helpers ──────────────────────────────────────────────────────────
@@ -94,7 +90,9 @@ function ActivityBar({ activeTab, collapsed, onIconClick }: ActivityBarProps) {
 
 export function LeftSidebar() {
   const activeTab = useSignal<SidebarTab>(DEFAULT_SIDEBAR_TAB);
-  const collapsed = useSignal<boolean>(LEFT_SIDEBAR_COLLAPSED.value);
+  // Always starts closed and is force-closed on every world load; the open
+  // state is intentionally not persisted or remembered across worlds.
+  const collapsed = useSignal<boolean>(true);
 
   // Tree selection + hover paths, derived from picker signals.
   const selectedPath = useSignal<string | null>(null);
@@ -124,19 +122,15 @@ export function LeftSidebar() {
     hoveredPath.value = _pathOf(handle.picker.hover.value);
   });
 
-  // Persist collapsed → localStorage via the persistedSignal.
-  useSignalEffect(() => {
-    LEFT_SIDEBAR_COLLAPSED.value = collapsed.value;
-  });
-
-  // Open to Info AND expand the panel whenever a world commits — cold-boot
-  // ?src= and a user source switch both write CURRENT_SOURCE; live-reloads
-  // don't, so this fires once per real load and won't fight a manual tab/
-  // collapse change between loads.
+  // Force the sidebar closed and reset to Info on every world commit, so a new
+  // world always opens with the city unobscured (the open state is never
+  // remembered across worlds). Cold-boot ?src= and a user source switch both
+  // write CURRENT_SOURCE; live-reloads don't, so this fires once per real load
+  // and won't fight a manual tab/collapse change between loads.
   useSignalEffect(() => {
     if (CURRENT_SOURCE.value) {
       activeTab.value = DEFAULT_SIDEBAR_TAB;
-      collapsed.value = false;
+      collapsed.value = true;
     }
   });
 
