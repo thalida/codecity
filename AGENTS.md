@@ -48,6 +48,28 @@ git worktree add .claude/worktrees/${PREFIX}+issue-$N-$SLUG $BRANCH
 `gh pr create`); plain `git worktree add -b` skips that link. Open the PR with
 `Closes #N` so merging auto-closes the issue.
 
+**Never commit to `main`.** All work for an issue is committed on its worktree
+branch — do every edit and `git commit` from inside the worktree, never in the
+main checkout. Before each commit, confirm you're on the feature branch:
+
+```sh
+git branch --show-current    # must be your feat/fix/... branch, NOT main
+```
+
+A commit made in the main checkout is stranded off the branch: it never reaches
+the PR, and it lingers on local `main` after the real work is squash-merged.
+
+**Before opening a PR, check `main` is clean of stray commits:**
+
+```sh
+git fetch origin
+git log --oneline origin/main..main    # must be EMPTY — nothing local-only on main
+```
+
+If that lists anything, a commit landed on `main` by mistake — move it to the
+right branch (`git cherry-pick` onto the feature branch, then `git reset --hard
+origin/main` on main) before continuing.
+
 ## Tearing down a merged issue
 
 Once the PR is merged, clean up that issue's workspace — worktree, branches, and
