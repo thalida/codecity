@@ -8,13 +8,15 @@ import * as branchesApi from '@/api/branches';
 import { SCAN_PROGRESS } from '@/state/stores/scanProgress';
 import { flush, drainAsync } from '../_helpers/preact';
 
+const FIELD = 'input[aria-label="Repo URL or local path"]';
+
 function setInput(el: HTMLInputElement, value: string) {
   el.value = value;
   el.dispatchEvent(new Event('input', { bubbles: true }));
 }
 
-function activeSegment(container: HTMLElement): string | undefined {
-  return container.querySelector('.pane-tab--active')?.textContent ?? undefined;
+function field(container: HTMLElement): HTMLInputElement {
+  return container.querySelector<HTMLInputElement>(FIELD)!;
 }
 
 describe('NewProjectForm', () => {
@@ -32,28 +34,23 @@ describe('NewProjectForm', () => {
     vi.restoreAllMocks();
   });
 
-  it('auto-selects Git for a URL and Local for a bare path, but a manual click still overrides it', async () => {
+  it('is one field (no tabs): a URL gets a branch dropdown, a local path does not', async () => {
+    vi.spyOn(branchesApi, 'fetchBranches').mockResolvedValue({
+      branches: ['main', 'dev'],
+      default: 'main',
+    });
     render(<NewProjectForm allowLocalRepos onSubmit={() => {}} />, container);
     await flush();
-    expect(activeSegment(container)).toBe('Repo URL');
+    // No Repo URL / Local Path tabs — a single unified field.
+    expect(container.querySelectorAll('.pane-tab').length).toBe(0);
 
-    const urlInput = container.querySelector<HTMLInputElement>('input[aria-label="URL"]')!;
-    setInput(urlInput, '/Users/thalida/repo');
-    await flush();
-    expect(activeSegment(container)).toBe('Local Path');
+    setInput(field(container), 'https://github.com/o/r');
+    await drainAsync();
+    expect(container.querySelector('select')).not.toBeNull(); // URL → branch dropdown
 
-    const pathInput = container.querySelector<HTMLInputElement>('input[aria-label="Path"]')!;
-    setInput(pathInput, 'https://github.com/o/r');
+    setInput(field(container), '/Users/thalida/repo');
     await flush();
-    expect(activeSegment(container)).toBe('Repo URL');
-
-    // Manual override: force Local even though the typed text still looks remote.
-    const localTab = Array.from(container.querySelectorAll('button')).find(
-      (b) => b.textContent === 'Local Path'
-    )!;
-    localTab.click();
-    await flush();
-    expect(activeSegment(container)).toBe('Local Path');
+    expect(container.querySelector('select')).toBeNull(); // local path → no branch dropdown
   });
 
   it('resets the branch when the URL changes to a different repo (bug #2)', async () => {
@@ -64,8 +61,7 @@ describe('NewProjectForm', () => {
     render(<NewProjectForm allowLocalRepos onSubmit={onSubmit} />, container);
     await flush();
 
-    const urlInput = container.querySelector<HTMLInputElement>('input[aria-label="URL"]')!;
-    setInput(urlInput, 'https://github.com/o/first');
+    setInput(field(container), 'https://github.com/o/first');
     await drainAsync();
 
     // User picks the non-default branch on the first repo.
@@ -76,11 +72,10 @@ describe('NewProjectForm', () => {
     expect(select.value).toBe('feat');
 
     // Now point the field at a different repo entirely. This repo has no
-    // detectable default (default: null), so nothing auto-preselects a
-    // branch for it — if the stale 'feat' pick isn't explicitly cleared,
-    // it's the only branch value left standing and rides along unnoticed.
+    // detectable default (default: null), so nothing auto-preselects a branch —
+    // if the stale 'feat' pick isn't cleared, it rides along unnoticed.
     resolve.mockResolvedValueOnce({ branches: ['main'], default: null });
-    setInput(urlInput, 'https://github.com/o/second');
+    setInput(field(container), 'https://github.com/o/second');
     await drainAsync();
 
     const submitBtn = container.querySelector<HTMLButtonElement>('[aria-label="Open project"]')!;
@@ -89,8 +84,6 @@ describe('NewProjectForm', () => {
 
     const payload = onSubmit.mock.calls.at(-1)?.[0];
     expect(payload.src).toBe('https://github.com/o/second');
-    // The load-bearing assertion: 'feat' (the FIRST repo's pick) must never
-    // ride along to the second repo's submit.
     expect(payload.branch).not.toBe('feat');
     expect(payload.branch).toBeUndefined();
   });
@@ -104,13 +97,9 @@ describe('NewProjectForm', () => {
     render(<NewProjectForm allowLocalRepos onSubmit={onSubmit} />, container);
     await flush();
 
-    const urlInput = container.querySelector<HTMLInputElement>('input[aria-label="URL"]')!;
-    setInput(urlInput, 'https://github.com/o/nope');
+    setInput(field(container), 'https://github.com/o/nope');
     await drainAsync();
 
-    // The lookup failure is surfaced as the URL field error (same treatment as
-    // client validation), and Open is disabled — no doomed submit into a
-    // different, jarring error state.
     expect(container.querySelector('.new-project-error')?.textContent).toMatch(
       /repository not found/i
     );
@@ -129,13 +118,10 @@ describe('NewProjectForm', () => {
     render(<NewProjectForm allowLocalRepos onSubmit={() => {}} />, container);
     await flush();
 
-    const urlInput = container.querySelector<HTMLInputElement>('input[aria-label="URL"]')!;
-    setInput(urlInput, 'https://github.com/thalida/codecity#local-directories');
+    setInput(field(container), 'https://github.com/thalida/codecity#local-directories');
     await drainAsync();
 
-    // One standard inline form error (not a raw branch/clone failure).
     expect(container.querySelector('.new-project-error')?.textContent).toMatch(/# or \?/);
-    // Submit disabled, no branch lookup fired, and no Branch dropdown for a bad URL.
     const submitBtn = container.querySelector<HTMLButtonElement>('[aria-label="Open project"]')!;
     expect(submitBtn.disabled).toBe(true);
     expect(resolve).not.toHaveBeenCalled();
@@ -159,58 +145,47 @@ describe('NewProjectForm', () => {
     expect(checkbox.checked).toBe(false);
   });
 
-  it('shows a concise disabled-local note and blocks submit when local repos are off', async () => {
+  it('shows an inline "not enabled" error and blocks submit for a local path when local repos are off', async () => {
     render(<NewProjectForm allowLocalRepos={false} onSubmit={() => {}} />, container);
     await flush();
 
-    const localTab = Array.from(container.querySelectorAll('button')).find(
-      (b) => b.textContent === 'Local Path'
-    )!;
-    localTab.click();
+    // The field is always present (no tab to hide it); typing a clear path is
+    // the error, not a mode you can't leave.
+    setInput(field(container), '/Users/thalida/repo');
     await flush();
 
-    expect(container.textContent).toMatch(/local repos are off/i);
-    // Concise, not a wall: no leftover path input competing with the note.
-    expect(container.querySelector('input[aria-label="Path"]')).toBeNull();
-
-    // Nothing is submittable in this state, so the submit button and the
-    // Advanced disclosure are hidden entirely (not just disabled).
-    expect(container.querySelector('[aria-label="Open project"]')).toBeNull();
-    expect(container.querySelector('.new-project-advanced-toggle')).toBeNull();
+    expect(container.querySelector('.new-project-error')?.textContent).toMatch(
+      /local paths aren't enabled/i
+    );
+    const submitBtn = container.querySelector<HTMLButtonElement>('[aria-label="Open project"]')!;
+    expect(submitBtn).not.toBeNull(); // present, just disabled (not hidden)
+    expect(submitBtn.disabled).toBe(true);
   });
 
-  it('never uses an em-dash in the disabled-local copy', async () => {
+  it('never uses an em-dash in the local-path-disabled error copy', async () => {
     render(<NewProjectForm allowLocalRepos={false} onSubmit={() => {}} />, container);
     await flush();
-    const localTab = Array.from(container.querySelectorAll('button')).find(
-      (b) => b.textContent === 'Local Path'
-    )!;
-    localTab.click();
+    setInput(field(container), '/Users/thalida/repo');
     await flush();
-
-    expect(container.querySelector('.new-project-note')?.textContent).not.toMatch(/—/);
+    expect(container.querySelector('.new-project-error')?.textContent).not.toMatch(/—/);
   });
 
-  it('keeps the URL field mounted while typing a git URL char-by-char when local repos are off', async () => {
-    // Regression guard: srcKind() classifies any string without "://" or a
-    // user@host: prefix as Local, so the very first keystroke of a URL ("h")
-    // used to flip kind→Local. With local repos off that made localOff true,
-    // which unmounted the shared source input mid-keystroke and dropped focus.
-    // With local disabled, Local isn't a reachable destination, so kind must
-    // pin to Git and the field must never disappear while the user types.
+  it('keeps the field mounted (and shows no path error) while typing a git URL char-by-char when local repos are off', async () => {
+    // Regression guard: srcKind() classifies any string without "://" as Local,
+    // so a URL's first keystrokes read as a path. The field must never unmount
+    // (it once did, dropping focus), and a half-typed URL must not flash the
+    // "local paths" error — that's gated on looksLikePath.
     render(<NewProjectForm allowLocalRepos={false} onSubmit={() => {}} />, container);
     await flush();
-
-    const urlInput = container.querySelector<HTMLInputElement>('input[aria-label="URL"]')!;
-    expect(urlInput).not.toBeNull();
+    expect(container.querySelector(FIELD)).not.toBeNull();
 
     for (const chunk of ['h', 'ht', 'htt', 'http']) {
-      setInput(urlInput, chunk);
+      setInput(field(container), chunk);
       await flush();
-      // The input the user is typing into must stay in the DOM at every step.
-      expect(container.querySelector('input[aria-label="URL"]')).not.toBeNull();
-      // ...and kind stays Git, never flipping to the unreachable Local.
-      expect(activeSegment(container)).toBe('Repo URL');
+      expect(container.querySelector(FIELD)).not.toBeNull();
+      expect(container.querySelector('.new-project-error')?.textContent ?? '').not.toMatch(
+        /local paths/i
+      );
     }
   });
 });

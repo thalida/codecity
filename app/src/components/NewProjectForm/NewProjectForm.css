@@ -25,17 +25,6 @@
   color: var(--cc-error-light);
 }
 
-/* Inline notice for the disabled-local state. Quieter than .card-error:
-   subtle amber tint, no border, single line — the old modal's version was a
-   multi-paragraph wall, this one stays scannable. */
-.new-project-note {
-  background: var(--cc-warning-bg);
-  color: var(--cc-text-primary);
-  border-radius: var(--cc-radius-md);
-  padding: var(--cc-space-4) var(--cc-space-5);
-  font-size: var(--cc-font-sm);
-}
-
 /* Advanced disclosure — reads as an interactive link with a caret that turns
    down when open, not dead label text. */
 .new-project-advanced-toggle {

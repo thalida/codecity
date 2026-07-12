@@ -101,6 +101,17 @@ export function looksResolvable(v: string): boolean {
 }
 
 /**
+ * Heuristic: the string is *clearly* a filesystem path (absolute, home-relative,
+ * dot-relative, or a Windows drive), not a half-typed URL. The unified source
+ * field uses this to show a path-specific error only when it's unmistakably a
+ * path — so typing a URL never flickers a "local path" error before "://" lands
+ * (srcKind classifies everything without "://" as Local).
+ */
+export function looksLikePath(v: string): boolean {
+  return /^(~|\.{1,2}\/|\/|[a-zA-Z]:[\\/])/.test(v.trim());
+}
+
+/**
  * Client-side validation for a git URL: catches the common paste mistakes (a
  * web-page URL with a #anchor or ?query, spaces, or a non-URL) before any
  * network call, so the form shows one clean inline error instead of a raw git

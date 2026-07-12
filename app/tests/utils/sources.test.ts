@@ -5,6 +5,7 @@ import {
   toHttpsRepoUrl,
   repoUrlForBranch,
   srcNeedsBranch,
+  looksLikePath,
 } from '@/utils/sources';
 
 // NOTE: repo display-name derivation lives entirely server-side now (see
@@ -88,5 +89,24 @@ describe('srcNeedsBranch', () => {
   it('is false for a local path (no branch axis)', () => {
     expect(srcNeedsBranch('/Users/x/repo')).toBe(false);
     expect(srcNeedsBranch('./relative', undefined)).toBe(false);
+  });
+});
+
+describe('looksLikePath', () => {
+  it('is true for clear filesystem paths', () => {
+    expect(looksLikePath('/Users/x/repo')).toBe(true);
+    expect(looksLikePath('~/projects/x')).toBe(true);
+    expect(looksLikePath('./relative')).toBe(true);
+    expect(looksLikePath('../up')).toBe(true);
+    expect(looksLikePath('C:\\repo')).toBe(true);
+    expect(looksLikePath('  /leading/space')).toBe(true);
+  });
+  it('is false for URLs and half-typed URLs (so the field never flashes a path error)', () => {
+    expect(looksLikePath('https://github.com/o/r')).toBe(false);
+    expect(looksLikePath('git@github.com:o/r')).toBe(false);
+    expect(looksLikePath('h')).toBe(false);
+    expect(looksLikePath('http')).toBe(false);
+    expect(looksLikePath('bare-name')).toBe(false);
+    expect(looksLikePath('')).toBe(false);
   });
 });
