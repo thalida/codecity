@@ -148,16 +148,16 @@
   flex: 0 0 auto;
 }
 .landing-delight--streets > svg {
-  color: var(--cc-gem-cyan);
+  color: var(--cc-layer-streets);
 }
 .landing-delight--buildings > svg {
-  color: var(--cc-gem-purple);
+  color: var(--cc-layer-buildings);
 }
 .landing-delight--trees > svg {
-  color: var(--cc-gem-lime);
+  color: var(--cc-layer-forest);
 }
 .landing-delight--authors > svg {
-  color: var(--cc-gem-magenta);
+  color: var(--cc-layer-fireflies);
 }
 
 /* ── Action column ── stacked cards (open project, then recents). */

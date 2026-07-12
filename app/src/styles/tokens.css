@@ -70,12 +70,22 @@
   --cc-accent-light-border: color-mix(in oklch, var(--cc-accent-light) 45%, transparent);
 
   /* ── COLORS — Gem palette (the codecity mark's four faces) ─────────────
-     Single source for the brand gem: drives the GemIcon SVG fills, the landing
-     backdrop wash, and the "what it does" cue icons. */
+     Single source for the brand gem: drives the GemIcon SVG fills and the
+     landing backdrop wash. */
   --cc-gem-lime: #bfff33;
   --cc-gem-cyan: #26e5ff;
   --cc-gem-purple: #9940ff;
   --cc-gem-magenta: #ff338c;
+
+  /* ── COLORS — World-layer accents ─────────────────────────────────────
+     One hue per city layer. Single source for the Info tab's Legend + Overview
+     section accents and the landing "what it does" cue icons, so both screens
+     read the same key. */
+  --cc-layer-buildings: #7aa2f7;
+  --cc-layer-media: #d98fd0;
+  --cc-layer-streets: #4fb8c9;
+  --cc-layer-forest: #84c98a;
+  --cc-layer-fireflies: #efc560;
 
   /* ── COLORS — Semantic (success / warning / error) ────────────────────── */
   --cc-success: oklch(0.8 0.182 151.7);
