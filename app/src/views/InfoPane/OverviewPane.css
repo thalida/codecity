@@ -20,37 +20,49 @@
   font-size: var(--cc-font-xl);
 }
 
+/* Two-column grid: the label column sizes to the widest label (max-content),
+ * so every value lands on the same rail without a hardcoded width, and a longer
+ * label like "Last Updated" just widens the rail. align-items: start keeps each
+ * label top-aligned with a taller two-line value (the Latest cell). */
 .almanac-meta {
   margin: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.almanac-meta div {
-  display: flex;
-  gap: 8px;
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  column-gap: var(--cc-space-4);
+  row-gap: var(--cc-space-2);
+  align-items: start;
   font-size: var(--cc-font-lg);
-  min-width: 0;
 }
 
-/* Fixed label column so every value starts on the same rail (Founded / Latest /
- * Remote line up) and the rows top-align with the taller two-line Latest cell. */
+/* Each conditional row wrapper collapses so its dt/dd become direct grid items
+ * (one grid row per pair), sharing the rail. */
+.almanac-meta > div {
+  display: contents;
+}
+
 .almanac-meta dt {
-  flex: 0 0 64px;
   color: var(--cc-text-muted);
+  white-space: nowrap;
 }
 
 .almanac-meta dd {
-  /* Fill the rest of the row past the fixed label column, so the Latest cell's
-   * button spans the full right column (and long values truncate at its edge). */
-  flex: 1 1 0;
   margin: 0;
   min-width: 0;
   color: var(--cc-text-secondary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* Relative age appended after an absolute date (Founded / Last Updated), set
+ * off by a faint middot. */
+.almanac-rel {
+  color: var(--cc-text-faint);
+}
+.almanac-rel::before {
+  content: '·';
+  margin: 0 var(--cc-space-3);
+  color: var(--cc-text-ghost);
 }
 
 /* The sha as plain text (no remote) vs. as the one link in the row. Both stay
