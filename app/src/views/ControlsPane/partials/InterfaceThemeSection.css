@@ -38,6 +38,9 @@
   box-shadow: inset 0 0 0 1px var(--cc-overlay-border);
 }
 
+/* Selected-state ring on the chip itself (aria-checked), not a focus
+   indicator: the button keeps the global :focus-visible ring from
+   focus.css independently, so this persists regardless of focus. */
 .swatch.is-active .swatch-chip {
   outline: 2px solid var(--cc-accent);
   outline-offset: 2px;

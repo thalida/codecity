@@ -92,15 +92,8 @@
   margin: var(--cc-space-4) 0;
 }
 
-.info-markdown a {
-  color: var(--cc-accent-light);
-  text-decoration: underline;
-  text-underline-offset: 2px;
-  text-decoration-color: var(--cc-accent-light-border);
-}
-.info-markdown a:hover {
-  text-decoration-color: var(--cc-accent-light);
-}
+/* .info-markdown a styling lives in text.css, composed onto the shared .link
+   selector list (markdown anchors can't carry a `link` class in TSX). */
 
 .info-markdown strong {
   color: var(--cc-text-strong);

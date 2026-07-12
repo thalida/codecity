@@ -55,14 +55,18 @@
    link must opt into one of these.
      .link         — prose/markdown: ALWAYS underlined (not color-only, AA-safe).
      .link--chrome — standalone chrome (repo URL, SHA): underline on hover only,
-                     where surrounding context already signals a link. */
-.link {
+                     where surrounding context already signals a link.
+   .info-markdown a joins this selector list: those anchors come from
+   dangerouslySetInnerHTML'd markdown, so a `link` class can't be added in TSX. */
+.link,
+.info-markdown a {
   color: var(--cc-accent-light);
   text-decoration: underline;
   text-underline-offset: 2px;
   text-decoration-color: var(--cc-accent-light-border);
 }
-.link:hover {
+.link:hover,
+.info-markdown a:hover {
   text-decoration-color: var(--cc-accent-light);
 }
 .link--chrome {
