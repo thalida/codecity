@@ -98,25 +98,24 @@
 
 /* Composite: pane header title. */
 .text-pane-title {
-  font-size: var(--cc-font-sm);
+  font-size: var(--cc-font-lg);
   font-weight: var(--cc-fw-semibold);
   color: var(--cc-text-primary);
 }
 
 /* Composite: state-card title (loading, empty preview, empty search). */
 .text-card-title {
-  font-size: var(--cc-font-sm);
-  font-weight: var(--cc-fw-medium);
+  font-size: var(--cc-font-lg);
+  font-weight: var(--cc-fw-semibold);
   color: var(--cc-text-primary);
 }
-/* Loading-state title is emphasized: brighter color, heavier weight. */
+/* Loading-state title is emphasized: brighter color. */
 .text-card-title.is-loading {
-  font-weight: var(--cc-fw-semibold);
   color: var(--cc-text-strong);
 }
 
 /* Composite: state-card subtitle. */
 .text-card-sub {
   font-size: var(--cc-font-xs);
-  color: var(--cc-text-muted);
+  color: var(--cc-text-secondary);
 }
