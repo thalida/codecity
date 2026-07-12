@@ -18,7 +18,7 @@
   border-radius: var(--cc-radius-sm);
   color: var(--cc-text-strong);
   font: inherit;
-  font-size: var(--cc-font-sm);
+  font-size: var(--cc-font-md);
   padding: var(--cc-space-2) var(--cc-space-4);
   outline: none;
 }
