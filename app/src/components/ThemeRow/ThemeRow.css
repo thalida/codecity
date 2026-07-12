@@ -61,5 +61,5 @@
 .theme-row-desc {
   color: var(--cc-text-secondary);
   font-size: var(--cc-font-2xs);
-  line-height: 1.45;
+  line-height: var(--cc-lh-base);
 }

@@ -9,7 +9,7 @@ body {
   color: var(--cc-text-strong);
   font-family: var(--cc-font-sans);
   font-size: var(--cc-font-md);
-  line-height: 1.5;
+  line-height: var(--cc-lh-base);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }

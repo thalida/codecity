@@ -43,7 +43,7 @@
 .info-markdown {
   color: var(--cc-text-primary);
   font-size: var(--cc-font-sm);
-  line-height: 1.6;
+  line-height: var(--cc-lh-relaxed);
   word-wrap: break-word;
 }
 
@@ -56,7 +56,7 @@
   color: var(--cc-text-strong);
   font-weight: var(--cc-fw-bold);
   margin: var(--cc-space-7) 0 var(--cc-space-4);
-  line-height: 1.3;
+  line-height: var(--cc-lh-tight);
 }
 .info-markdown h1:first-child,
 .info-markdown h2:first-child,
@@ -157,7 +157,7 @@
   overflow-x: auto;
   font-family: var(--cc-font-mono);
   font-size: var(--cc-font-sm);
-  line-height: 1.5;
+  line-height: var(--cc-lh-base);
 }
 .info-markdown pre code {
   background: transparent;

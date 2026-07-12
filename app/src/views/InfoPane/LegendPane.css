@@ -10,7 +10,7 @@
 .legend-intro {
   margin: 0 0 2px;
   color: var(--cc-text-primary);
-  line-height: 1.5;
+  line-height: var(--cc-lh-base);
   font-size: var(--cc-font-md);
 }
 
@@ -45,7 +45,7 @@
   margin: 0 0 8px;
   color: var(--cc-text-primary);
   font-size: var(--cc-font-sm);
-  line-height: 1.45;
+  line-height: var(--cc-lh-base);
 }
 
 /* The cue → meaning key: a fixed label rail so every "meaning" starts on the
@@ -130,6 +130,6 @@
 
 .legend-row-rule {
   font-size: var(--cc-font-sm);
-  line-height: 1.45;
+  line-height: var(--cc-lh-base);
   color: var(--cc-text-primary);
 }

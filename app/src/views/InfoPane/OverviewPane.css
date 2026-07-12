@@ -15,7 +15,7 @@
 .almanac-blurb {
   margin: 0 0 12px;
   color: var(--cc-text-primary);
-  line-height: 1.5;
+  line-height: var(--cc-lh-base);
   font-size: var(--cc-font-md);
 }
 
@@ -101,7 +101,7 @@
   background: var(--cc-overlay-bg);
   color: var(--cc-text-primary);
   font-size: var(--cc-font-2xs);
-  line-height: 1.6;
+  line-height: var(--cc-lh-relaxed);
 }
 
 /* Stacked composition bar: each language's share of the repo, in the same hues

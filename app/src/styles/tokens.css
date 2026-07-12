@@ -175,6 +175,11 @@
   --cc-track-label: 0.08em; /* uppercase section labels */
   --cc-track-base: 0;
 
+  /* ── SCALES — Line height (leading) ──────────────────────────────────── */
+  --cc-lh-tight: 1.25; /* headings / titles */
+  --cc-lh-base: 1.5; /* body / default */
+  --cc-lh-relaxed: 1.6; /* long-form prose */
+
   /* ── SCALES — Transition durations ───────────────────────────────────── */
   --cc-t-fast: 0.1s; /* row hover */
   --cc-t-base: 0.15s; /* button/input hover (default) */

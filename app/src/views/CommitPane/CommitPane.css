@@ -67,7 +67,7 @@
   white-space: normal; /* wrap freely — no ellipsization */
   overflow-wrap: anywhere;
   word-break: break-word;
-  line-height: 1.4;
+  line-height: var(--cc-lh-base);
 }
 
 /* Persistent wrapper for the lazy-fetched body. Swaps between Loading…

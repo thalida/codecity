@@ -17,7 +17,7 @@
   color: var(--cc-text-primary);
   font-size: var(--cc-font-2xs);
   margin: 0 var(--cc-space-px);
-  line-height: 1.2;
+  line-height: var(--cc-lh-tight);
   font-style: normal;
 }
 
@@ -43,7 +43,7 @@
 .shortcuts-list dd {
   color: var(--cc-text-secondary);
   margin: var(--cc-space-0);
-  line-height: 1.3;
+  line-height: var(--cc-lh-tight);
 }
 .shortcuts-list .shortcuts-or {
   color: var(--cc-text-muted);

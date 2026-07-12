@@ -41,7 +41,7 @@
 .empty-state .text-card-sub {
   margin: var(--cc-space-0);
   max-width: 240px;
-  line-height: 1.5;
+  line-height: var(--cc-lh-base);
 }
 .empty-state--lg .text-card-sub {
   max-width: 280px;
