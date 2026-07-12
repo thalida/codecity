@@ -14,7 +14,7 @@ import type { LucideIcon } from 'lucide-preact';
 import { PaneHeader } from './PaneHeader/PaneHeader';
 
 export interface PaneProps {
-  /** Extra class on the outer `.pane` (e.g. 'commit-pane', 'tree-pane'). */
+  /** Extra class on the outer `.pane` (e.g. 'commit-pane', 'explore-pane'). */
   paneClass?: string;
   /** Replaces the entire default <PaneHeader> — for panes whose header isn't a
    *  title bar (e.g. a tabbed pane whose tab strip IS the header). When set,

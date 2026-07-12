@@ -1,0 +1,5 @@
+/* The Readme subtab body scrolls in its own .pane-body; let its empty states
+ * fill the pane like the tree's do (mirrors .info-body > .empty-state). */
+.explore-pane .pane-body > .empty-state {
+  flex: 1 1 auto;
+}

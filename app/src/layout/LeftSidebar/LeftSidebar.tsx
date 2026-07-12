@@ -26,7 +26,7 @@ import { SCENE_HANDLE, selectPath, focusPath, hoverPath, clearHover } from '@/st
 import { MANIFEST } from '@/state/stores/manifest';
 import { CURRENT_SOURCE } from '@/state/stores/source';
 import { isEmptyManifest } from '@/utils/manifest';
-import { TreePane } from '@/views/TreePane/TreePane';
+import { ExplorePane } from '@/views/ExplorePane/ExplorePane';
 import { InfoPane } from '@/views/InfoPane/InfoPane';
 import { SearchPane } from '@/views/SearchPane/SearchPane';
 import { ControlsPane } from '@/views/ControlsPane/ControlsPane';
@@ -181,8 +181,8 @@ export function LeftSidebar() {
     >
       <ActivityBar activeTab={tab} collapsed={effectiveCollapsed} onIconClick={onIconClick} />
       <div class="pane">
-        {tab === SidebarTab.Tree && (
-          <TreePane
+        {tab === SidebarTab.Explore && (
+          <ExplorePane
             manifest={MANIFEST}
             selectedPath={selectedPath}
             hoveredPath={hoveredPath}

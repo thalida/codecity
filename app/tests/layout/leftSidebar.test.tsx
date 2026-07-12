@@ -61,7 +61,7 @@ describe('LeftSidebar', () => {
     const icons = container.querySelectorAll<HTMLButtonElement>('.activity-bar .activity-bar-icon');
     expect(icons.length).toBe(4);
     expect(icons[0].dataset.tab).toBe('info');
-    expect(icons[1].dataset.tab).toBe('tree');
+    expect(icons[1].dataset.tab).toBe('explore');
     expect(icons[2].dataset.tab).toBe('search');
     expect(icons[3].dataset.tab).toBe('controls');
   });
@@ -73,7 +73,7 @@ describe('LeftSidebar', () => {
     const bottom = container.querySelectorAll<HTMLButtonElement>(
       '.activity-bar-bottom .activity-bar-icon'
     );
-    expect(Array.from(top).map((b) => b.dataset.tab)).toEqual(['info', 'tree', 'search']);
+    expect(Array.from(top).map((b) => b.dataset.tab)).toEqual(['info', 'explore', 'search']);
     expect(Array.from(bottom).map((b) => b.dataset.tab)).toEqual(['controls']);
   });
 
@@ -107,9 +107,9 @@ describe('LeftSidebar', () => {
 
   it('reopens the Info tab when a new world loads', async () => {
     // Switch away from Info.
-    container.querySelector<HTMLButtonElement>('.activity-bar-icon[data-tab="tree"]')!.click();
+    container.querySelector<HTMLButtonElement>('.activity-bar-icon[data-tab="explore"]')!.click();
     await flush();
-    expect(container.querySelector('.tree-pane')).not.toBeNull();
+    expect(container.querySelector('.explore-pane')).not.toBeNull();
     // A world commits (cold-boot ?src= or a user switch both write CURRENT_SOURCE)
     // → snap back to the almanac.
     CURRENT_SOURCE.value = { src: 'github.com/o/r' };
@@ -119,6 +119,6 @@ describe('LeftSidebar', () => {
       container.querySelector('.activity-bar-icon[data-tab="info"]')!.classList.contains('active')
     ).toBe(true);
     expect(container.querySelector('.info-pane')).not.toBeNull();
-    expect(container.querySelector('.tree-pane')).toBeNull();
+    expect(container.querySelector('.explore-pane')).toBeNull();
   });
 });

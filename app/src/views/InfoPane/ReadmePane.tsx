@@ -1,6 +1,7 @@
 // views/InfoPane/ReadmePane.tsx — renders the body of the README panel:
 // finds the root README in the manifest, fetches + renders it as markdown,
-// and shows appropriate empty states. No <Pane> wrapper — InfoPane owns the chrome.
+// and shows appropriate empty states. No <Pane> wrapper — the Explore pane
+// owns the chrome.
 
 import './InfoPane.css';
 import { useState, useEffect } from 'preact/hooks';

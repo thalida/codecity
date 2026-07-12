@@ -1,13 +1,14 @@
 // views/InfoPane/InfoPane.tsx — the "Info" tab shell. Hosts two subtabs:
-// Overview (the almanac, default) and Readme (the rendered root README). Owns
-// the Pane chrome + active-subtab state; the subtab bodies render themselves.
+// Overview (the almanac, default) and Legend (how the city reads). Owns the
+// Pane chrome + active-subtab state; the subtab bodies render themselves. The
+// repo's own content (file tree, README) lives in the Explore pane.
 
 import './InfoPane.css';
 import { useState } from 'preact/hooks';
 import { useSignalEffect } from '@preact/signals';
 import type { Signal } from '@preact/signals';
 import type { ComponentType } from 'preact';
-import { Globe, Map, BookOpen } from 'lucide-preact';
+import { Globe, Map } from 'lucide-preact';
 import type { LucideIcon } from 'lucide-preact';
 import type { DirNode, Manifest } from '@/types';
 import { Pane } from '@/components/Pane';
@@ -16,14 +17,12 @@ import { PaneTabs } from '@/components/PaneTabs/PaneTabs';
 import { CURRENT_SOURCE } from '@/state/stores/source';
 import { OverviewPane } from './OverviewPane';
 import { LegendPane } from './LegendPane';
-import { ReadmePane } from './ReadmePane';
 
 type ManifestSignal = Signal<Manifest | DirNode | { tree?: unknown; [k: string]: unknown } | null>;
 
 export enum InfoTab {
   Overview = 'overview',
   Legend = 'legend',
-  Readme = 'readme',
 }
 
 interface InfoTabDef {
@@ -38,7 +37,6 @@ interface InfoTabDef {
 const INFO_TABS: InfoTabDef[] = [
   { id: InfoTab.Overview, label: 'Overview', icon: Globe, Component: OverviewPane },
   { id: InfoTab.Legend, label: 'Legend', icon: Map, Component: LegendPane },
-  { id: InfoTab.Readme, label: 'Readme', icon: BookOpen, Component: ReadmePane },
 ];
 
 export interface InfoPaneProps {
