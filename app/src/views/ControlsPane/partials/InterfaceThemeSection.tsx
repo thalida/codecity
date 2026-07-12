@@ -1,6 +1,8 @@
 // views/ControlsPane/partials/InterfaceThemeSection.tsx — Accent + surface
 // preset pickers for the Appearance tab. Each axis is a radiogroup of color
-// swatches; picking one write-through-applies (autosave, no Save step). A chip
+// swatches: one tab stop, arrow keys move focus AND selection (the WAI-ARIA
+// radio pattern). Picking one write-through-applies (autosave, no Save step).
+// A chip
 // carries the same data-cc-* attribute its preset uses, so its color resolves
 // from themes.css via var(--cc-accent) / var(--cc-bg-app) with no duplicated
 // hex. Reset is hand-rolled (ResetButton only supports keyed object stores;
@@ -8,6 +10,7 @@
 // picker).
 
 import './InterfaceThemeSection.css';
+import { useRef } from 'preact/hooks';
 import { RotateCcw } from 'lucide-preact';
 import { getEffective, setDraft, stageReset, DRAFTS_REV } from '@/state/settingsDrafts';
 import {
@@ -44,6 +47,7 @@ function SwatchRow({ label, tip, axis, store, options, defaultValue }: SwatchRow
   const chipVar = axis === 'accent' ? 'var(--cc-accent)' : 'var(--cc-bg-app)';
   const defaultLabel = options.find((o) => o.value === defaultValue)?.label ?? defaultValue;
 
+  const btnRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const select = (value: string) => setDraft(store, null, value);
 
   const onKeyDown = (e: KeyboardEvent) => {
@@ -55,7 +59,11 @@ function SwatchRow({ label, tip, axis, store, options, defaultValue }: SwatchRow
           : 0;
     if (!delta) return;
     e.preventDefault();
-    select(options[(activeIndex + delta + options.length) % options.length].value);
+    // Move selection AND focus together (WAI-ARIA radiogroup): flipping
+    // tabIndex on re-render doesn't move the browser's focus, so do it here.
+    const next = (activeIndex + delta + options.length) % options.length;
+    select(options[next].value);
+    btnRefs.current[next]?.focus();
   };
 
   return (
@@ -67,6 +75,9 @@ function SwatchRow({ label, tip, axis, store, options, defaultValue }: SwatchRow
             return (
               <button
                 key={opt.value}
+                ref={(el) => {
+                  btnRefs.current[i] = el;
+                }}
                 type="button"
                 role="radio"
                 aria-checked={checked}

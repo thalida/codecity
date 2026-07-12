@@ -3,7 +3,7 @@
 // Widgets write to the draft layer; Save commits to stores (triggers
 // existing persist + commit-reaction subscriptions). Discard drops pending
 // drafts. Reset all stages every overridden value back to its default, user
-// still must Save to apply. Updates and Preview are autosave (write straight
+// still must Save to apply. Updates and Appearance are autosave (write straight
 // to their stores, no draft layer), so they never render this bar and Reset
 // all only ever covers World's draft-backed settings.
 

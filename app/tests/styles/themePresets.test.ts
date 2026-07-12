@@ -16,22 +16,20 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const css = readFileSync(resolve(__dirname, '../../src/styles/themes.css'), 'utf8');
 
 describe('themes.css preset blocks', () => {
-  it('defines a data-cc-accent block for every non-default accent preset', () => {
+  it('defines a data-cc-accent block for every accent preset', () => {
     for (const p of ACCENT_PRESETS) {
-      if (p.value === ACCENT_THEME_DEFAULT) continue;
       expect(css).toContain(`[data-cc-accent='${p.value}']`);
     }
   });
 
-  it('defines a data-cc-surface block for every non-default surface preset', () => {
+  it('defines a data-cc-surface block for every surface preset', () => {
     for (const p of SURFACE_PRESETS) {
-      if (p.value === SURFACE_THEME_DEFAULT) continue;
       expect(css).toContain(`[data-cc-surface='${p.value}']`);
     }
   });
 
-  it('defines no block for the default preset (tokens.css stands)', () => {
-    expect(css).not.toContain(`[data-cc-accent='${ACCENT_THEME_DEFAULT}']`);
-    expect(css).not.toContain(`[data-cc-surface='${SURFACE_THEME_DEFAULT}']`);
+  it('includes explicit blocks for the default presets so their swatch chips do not inherit the active theme', () => {
+    expect(css).toContain(`[data-cc-accent='${ACCENT_THEME_DEFAULT}']`);
+    expect(css).toContain(`[data-cc-surface='${SURFACE_THEME_DEFAULT}']`);
   });
 });

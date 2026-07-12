@@ -51,6 +51,20 @@ describe('InterfaceThemeSection', () => {
     expect(radio('Cyan').getAttribute('aria-checked')).toBe('true');
   });
 
+  it('arrow key moves selection and focus together (radiogroup pattern)', async () => {
+    mount();
+    // Rainbow order is [amber, green, cyan, blue, purple, pink]; blue is the
+    // default/active, so ArrowRight lands on purple.
+    const blue = radio('Blue');
+    blue.focus();
+    act(() => {
+      blue.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+    });
+    await flush();
+    expect(ACCENT_THEME.value).toBe('purple');
+    expect(document.activeElement).toBe(radio('Purple'));
+  });
+
   it('reset returns the axis to its default', async () => {
     mount();
     act(() => radio('Warm').click());

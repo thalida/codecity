@@ -16,18 +16,19 @@ export interface ThemePresetOption {
   label: string;
 }
 
-// Accent presets — plain color names. `blue` is the default and has NO block in
-// themes.css: absent data-cc-accent, tokens.css stands as its single source.
+// Accent presets in rainbow (hue) order. `blue` is the default; the applier
+// omits the attribute for it so tokens.css :root stays the page source (the
+// picker chip still previews blue via themes.css's [data-cc-accent='blue']).
 export const ACCENT_PRESETS: ThemePresetOption[] = [
-  { value: 'blue', label: 'Blue' },
-  { value: 'cyan', label: 'Cyan' },
-  { value: 'purple', label: 'Purple' },
-  { value: 'green', label: 'Green' },
-  { value: 'pink', label: 'Pink' },
   { value: 'amber', label: 'Amber' },
+  { value: 'green', label: 'Green' },
+  { value: 'cyan', label: 'Cyan' },
+  { value: 'blue', label: 'Blue' },
+  { value: 'purple', label: 'Purple' },
+  { value: 'pink', label: 'Pink' },
 ];
 
-// Surface presets — plain tint names. `cool` is the default (no block).
+// Surface presets — plain tint names. `cool` is the default.
 export const SURFACE_PRESETS: ThemePresetOption[] = [
   { value: 'cool', label: 'Cool' },
   { value: 'neutral', label: 'Neutral' },

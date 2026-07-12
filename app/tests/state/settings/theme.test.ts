@@ -14,20 +14,22 @@ afterEach(() => {
 });
 
 describe('theme stores', () => {
-  it('defaults are blue / cool and are the first preset of each list', () => {
+  it('defaults are blue / cool; accents are in rainbow order', () => {
     expect(ACCENT_THEME_DEFAULT).toBe('blue');
     expect(SURFACE_THEME_DEFAULT).toBe('cool');
-    expect(ACCENT_PRESETS[0].value).toBe('blue');
-    expect(SURFACE_PRESETS[0].value).toBe('cool');
+    // Accents ordered by hue (rainbow), not with the default first.
     expect(ACCENT_PRESETS.map((p) => p.value)).toEqual([
-      'blue',
-      'cyan',
-      'purple',
-      'green',
-      'pink',
       'amber',
+      'green',
+      'cyan',
+      'blue',
+      'purple',
+      'pink',
     ]);
     expect(SURFACE_PRESETS.map((p) => p.value)).toEqual(['cool', 'neutral', 'green', 'warm']);
+    // Each default is a real member of its list.
+    expect(ACCENT_PRESETS.some((p) => p.value === ACCENT_THEME_DEFAULT)).toBe(true);
+    expect(SURFACE_PRESETS.some((p) => p.value === SURFACE_THEME_DEFAULT)).toBe(true);
   });
 
   it('sets no html attribute for the default preset', () => {

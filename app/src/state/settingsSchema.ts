@@ -116,7 +116,7 @@ const _AUTOSAVE_STORES = new WeakSet<object>();
 
 /** Mark a settings store as write-through: its widgets apply on change
  *  (bypassing the draft/Save layer) instead of staging drafts. Used by the
- *  autosave tabs (Updates, Preview) whose settings are cheap and want instant
+ *  autosave tabs (Updates, Appearance) whose settings are cheap and want instant
  *  feedback. */
 export function markAutosave(store: object): void {
   _AUTOSAVE_STORES.add(store);
