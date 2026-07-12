@@ -76,10 +76,12 @@ export function RecentRow(props: RecentRowProps) {
           )}
         </span>
         <div class="recent-row-body">
-          <div class="recent-label">{r.label}</div>
+          <div class="recent-label-row">
+            <span class="recent-label">{r.label}</span>
+            {r.branch && <span class="app-header-branch-pill">@{r.branch}</span>}
+          </div>
           <div class="recent-sub">
             <span class="recent-src">{r.src}</span>
-            {r.branch && <span class="app-header-branch-pill">@{r.branch}</span>}
           </div>
         </div>
         {active && <span class="recent-row-badge">Active</span>}

@@ -52,8 +52,22 @@
   flex: 1 1 auto;
   min-width: 0;
 }
+/* Repo name + branch pill share the title line; the pill's header-context
+   margin is dropped in favor of the row's flex gap. */
+.recent-row .recent-label-row {
+  display: flex;
+  align-items: center;
+  gap: var(--cc-space-2);
+  min-width: 0;
+}
 .recent-row .recent-label {
   font-weight: var(--cc-fw-medium);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.recent-row .recent-label-row .app-header-branch-pill {
+  margin-left: 0;
 }
 .recent-row .recent-sub {
   display: flex;

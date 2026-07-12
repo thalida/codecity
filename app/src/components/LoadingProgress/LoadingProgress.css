@@ -2,12 +2,21 @@
    Shared column: repo label + spinner + current-step status + stepped list.
    Used by LoadingOverlay (cold boot) and ProjectsView (in-app switches). */
 
-/* Repo name — the header of the loading column. */
+/* Repo name (+ branch pill) — the header of the loading column. */
+.loading-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--cc-space-3);
+}
 .loading-pending-label {
   font-size: var(--cc-font-lg);
   font-weight: var(--cc-fw-semibold);
   color: var(--cc-text-strong);
-  text-align: center;
+}
+/* The flex gap spaces the pill; drop its header-context margin. */
+.loading-header .app-header-branch-pill {
+  margin-left: 0;
 }
 
 .loading-spinner {

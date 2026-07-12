@@ -39,11 +39,15 @@ export function LoadingProgress({
 
   return (
     <>
-      {pendingLabel && <div class="loading-pending-label">{pendingLabel}</div>}
+      {pendingLabel && (
+        <div class="loading-header">
+          <span class="loading-pending-label">{pendingLabel}</span>
+          {branch && <span class="app-header-branch-pill">@{branch}</span>}
+        </div>
+      )}
       <div class="loading-spinner" />
       <div class="loading-status" role="status" aria-live="polite">
         {LOADING_STEP_LABELS[activeStep]}
-        {branch ? ` (branch ${branch})` : ''}
         {'…'}
       </div>
       <ol class="loading-steps">
