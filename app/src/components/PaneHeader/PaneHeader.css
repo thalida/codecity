@@ -9,7 +9,10 @@
  * file-preview — mounts this same DOM so they look identical and
  * adding a pane is a single buildPaneHeader() call. */
 .pane-header {
-  padding: var(--cc-space-6) var(--cc-space-6) var(--cc-space-6) var(--cc-space-7);
+  /* Symmetric horizontal inset so a leading focus button and the trailing
+     close button sit equidistant from the pane edges (and the title lines up
+     with the content below). */
+  padding: var(--cc-space-6) var(--cc-space-7);
   border-bottom: 1px solid var(--cc-border-subtle);
   flex-shrink: 0;
   display: flex;
