@@ -1,10 +1,10 @@
 // layout/AppHeader.tsx — Sitewide top header. Composition shell only: derives
 // display state from runtime signals and slots the header sub-components into a
 // 3-column grid. The slot widgets are components/ (CommitChip, PathBreadcrumbs,
-// ProjectSwitcher, RepoLink, ResetViewButton); this file owns only the grid.
+// ProjectSwitcher, CopyButton, ResetViewButton); this file owns only the grid.
 //
 // Layout (left → right):
-//   #app-header-left  — ResetViewButton + ProjectSwitcher + RepoLink
+//   #app-header-left  — ResetViewButton + ProjectSwitcher + CopyButton (source)
 //   #app-title        — CommitChip | PathBreadcrumbs (per current selection)
 //   #app-header-right — debug icon (flag-gated) + keyboard-shortcuts icon
 
@@ -20,7 +20,7 @@ import { isDebugMode } from '@/utils/debugMode';
 import { NodeKind, type Manifest } from '@/types';
 import { ResetViewButton } from '@/components/ResetViewButton';
 import { ProjectSwitcher } from '@/components/ProjectSwitcher/ProjectSwitcher';
-import { RepoLink } from '@/components/RepoLink';
+import { CopyButton } from '@/components/CopyButton/CopyButton';
 import { CommitChip } from '@/components/CommitChip';
 import { PathBreadcrumbs } from '@/components/PathBreadcrumbs/PathBreadcrumbs';
 
@@ -88,7 +88,7 @@ export function AppHeader({
           branch={si.branch}
           onSwitchSource={onSwitchSource ?? (() => openProjectsView({ dismissible: true }))}
         />
-        <RepoLink sourceUrl={si.sourceUrl} branch={si.branch} />
+        {si.src && <CopyButton text={si.src} label="Copy repo source" />}
       </div>
       <div id="app-title">{title}</div>
       <div id="app-header-right">
