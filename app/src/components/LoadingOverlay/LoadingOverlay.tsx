@@ -13,7 +13,12 @@ import './LoadingOverlay.css';
 import { LOADING_OVERLAY, PROJECTS_VIEW } from '@/state/stores/ui';
 import { LoadingProgress } from '@/components/LoadingProgress/LoadingProgress';
 
-export function LoadingOverlay() {
+export interface LoadingOverlayProps {
+  // Aborts the cold-boot load and opens the project list (App wires both).
+  onCancel: () => void;
+}
+
+export function LoadingOverlay({ onCancel }: LoadingOverlayProps) {
   const lo = LOADING_OVERLAY.value;
   if (!lo.visible || !lo.activeStep) return null;
   if (PROJECTS_VIEW.value.visible) return null;
@@ -26,6 +31,7 @@ export function LoadingOverlay() {
           kind={lo.showOpts?.kind ?? null}
           branch={lo.showOpts?.branch ?? null}
           stepTails={lo.stepTails}
+          onCancel={onCancel}
         />
       </div>
     </div>

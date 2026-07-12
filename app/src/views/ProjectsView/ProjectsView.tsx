@@ -99,10 +99,8 @@ export function ProjectsView({ onSubmit, onCancel, onClose }: ProjectsViewProps)
                 <LoadingProgress
                   activeStep={stepForPhase(scan.phase, scan.kind)}
                   kind={scan.kind}
+                  onCancel={onCancel}
                 />
-                <button type="button" class="btn-secondary" onClick={onCancel}>
-                  Cancel
-                </button>
               </div>
             </section>
           ) : (

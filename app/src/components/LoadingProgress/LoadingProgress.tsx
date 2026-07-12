@@ -21,9 +21,18 @@ export interface LoadingProgressProps {
   // Trailing per-step progress text (clone %, scanned file count). Only the
   // overlay flow supplies these; ProjectsView omits them.
   stepTails?: Partial<Record<LoadingStep, string | null>>;
+  // Aborts the load and returns to the project list. Each surface wires the
+  // routing (ProjectsView is already the list; the overlay opens it).
+  onCancel: () => void;
 }
 
-export function LoadingProgress({ activeStep, kind, branch, stepTails }: LoadingProgressProps) {
+export function LoadingProgress({
+  activeStep,
+  kind,
+  branch,
+  stepTails,
+  onCancel,
+}: LoadingProgressProps) {
   const pendingLabel = PENDING_SOURCE_LABEL.value;
   const activeIdx = LOADING_STEPS.indexOf(activeStep);
   const isLocal = kind === SourceKind.Local;
@@ -66,6 +75,9 @@ export function LoadingProgress({ activeStep, kind, branch, stepTails }: Loading
           );
         })}
       </ol>
+      <button type="button" class="btn-secondary loading-cancel" onClick={onCancel}>
+        Cancel
+      </button>
     </>
   );
 }

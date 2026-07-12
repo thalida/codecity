@@ -32,7 +32,7 @@ beforeEach(() => {
   PENDING_SOURCE_LABEL.value = null;
   container = document.createElement('div');
   document.body.appendChild(container);
-  render(<LoadingOverlay />, container);
+  render(<LoadingOverlay onCancel={() => {}} />, container);
 });
 
 afterEach(() => {

@@ -32,11 +32,13 @@
   text-align: center;
 }
 
+/* Shrinks to its widest row and centers as a block (the parent columns are
+   align-items: center), so the checklist sits centered while each row's text
+   stays left-aligned. */
 .loading-steps {
   list-style: none;
   margin: var(--cc-space-0);
   padding: var(--cc-space-0);
-  width: 100%;
   display: flex;
   flex-direction: column;
   gap: var(--cc-space-3);
@@ -84,4 +86,9 @@
   color: var(--cc-text-secondary);
   font-size: var(--cc-font-xs);
   font-variant-numeric: tabular-nums;
+}
+
+/* Full width across the loading column (the parent centers other children). */
+.loading-cancel {
+  align-self: stretch;
 }
