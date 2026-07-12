@@ -34,7 +34,7 @@
  * visible during clone/scan. */
 .loading-pending-label {
   font-size: var(--cc-font-sm);
-  font-weight: 600;
+  font-weight: var(--cc-fw-semibold);
   color: var(--cc-text-base);
   text-align: center;
 }

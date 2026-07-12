@@ -64,7 +64,7 @@
   margin-top: var(--cc-space-0);
 }
 .info-markdown h1 {
-  font-size: var(--cc-font-xl);
+  font-size: var(--cc-font-lg);
   padding-bottom: var(--cc-space-3);
   border-bottom: 1px solid var(--cc-border-subtle);
 }
