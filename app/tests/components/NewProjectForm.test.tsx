@@ -165,6 +165,20 @@ describe('NewProjectForm', () => {
     expect(submitBtn.disabled).toBe(true);
   });
 
+  it('hides the local notice once the input reads as a URL', async () => {
+    vi.spyOn(branchesApi, 'fetchBranches').mockResolvedValue({
+      branches: ['main'],
+      default: 'main',
+    });
+    render(<NewProjectForm allowLocalRepos={false} onSubmit={() => {}} />, container);
+    await flush();
+    expect(container.querySelector('.new-project-note')).not.toBeNull(); // standing while empty
+
+    setInput(field(container), 'https://github.com/o/r');
+    await drainAsync();
+    expect(container.querySelector('.new-project-note')).toBeNull(); // gone for a URL
+  });
+
   it('never uses an em-dash in the disabled-local notice copy', async () => {
     render(<NewProjectForm allowLocalRepos={false} onSubmit={() => {}} />, container);
     await flush();

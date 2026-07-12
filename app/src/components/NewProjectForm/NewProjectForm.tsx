@@ -55,6 +55,9 @@ export function NewProjectForm({ allowLocalRepos, prefill, onSubmit }: NewProjec
   // can't open. Gated on looksLikePath so a half-typed URL never trips it, and
   // it suppresses the "enter a git URL" nudge (the standing notice is the why).
   const pathBlocked = !isRemote && !allowLocalRepos && looksLikePath(activeSrc);
+  // The "local paths off" notice is only useful while the field could be a path
+  // — hide it once the input reads as a URL so the URL flow stays clean.
+  const showLocalNotice = !allowLocalRepos && !(isRemote && activeSrc.length > 0);
 
   // A path change on a URL resets the branch (no stale pick rides along) and
   // only resolves branches for a URL that passes validation.
@@ -107,7 +110,7 @@ export function NewProjectForm({ allowLocalRepos, prefill, onSubmit }: NewProjec
         {fieldError && <p class="new-project-error">{fieldError}</p>}
       </div>
 
-      {!allowLocalRepos && (
+      {showLocalNotice && (
         <p class="new-project-note">
           Local paths aren't enabled.{' '}
           <a class="link--chrome" href={LOCAL_DOCS_URL} target="_blank" rel="noopener noreferrer">
