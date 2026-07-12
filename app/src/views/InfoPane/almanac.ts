@@ -91,17 +91,60 @@ export interface Almanac {
 
 const MAX_LANGUAGES = 6;
 
-// What each world layer encodes — surfaced as the section header tooltips.
-const SECTION_TIPS: Record<AlmanacSectionKey, string> = {
-  buildings:
-    'Every code file is a building — height from line count, footprint from byte size, brightness from how recently it changed.',
-  media: 'Image & video files render as billboard panels, sized by aspect ratio instead of lines.',
-  streets: 'Directories are streets; the more files a directory holds, the wider its road.',
-  forest:
-    'Each commit plants a tree — older commits grow taller, bigger commits grow wider canopies.',
-  fireflies:
-    'Each distinct commit author is a uniquely colored firefly orbiting the trees they touched.',
-};
+export interface LayerLegend {
+  key: AlmanacSectionKey;
+  title: string;
+  /** The layer's one-line encoding rule. Single source for both the section
+   *  header tooltip (Overview) and the Legend subtab's rows. */
+  rule: string;
+}
+
+// What each world layer encodes, in world-build order. The single source for
+// the Overview section-header tooltips and the Legend subtab, so the two can't
+// drift.
+export const LAYER_LEGEND: LayerLegend[] = [
+  {
+    key: 'buildings',
+    title: 'Buildings',
+    rule: 'Every code file is a building: height from line count, footprint from byte size, brightness from how recently it changed.',
+  },
+  {
+    key: 'media',
+    title: 'Billboards',
+    rule: 'Image & video files render as billboard panels, sized by aspect ratio instead of lines.',
+  },
+  {
+    key: 'streets',
+    title: 'Streets',
+    rule: 'Directories are streets; the more files a directory holds, the wider its road.',
+  },
+  {
+    key: 'forest',
+    title: 'Forest',
+    rule: 'Each commit plants a tree: older commits grow taller, bigger commits grow wider canopies.',
+  },
+  {
+    key: 'fireflies',
+    title: 'Fireflies',
+    rule: 'Each distinct commit author is a uniquely colored firefly orbiting the trees they touched.',
+  },
+];
+
+const LAYER_BY_KEY = Object.fromEntries(LAYER_LEGEND.map((l) => [l.key, l])) as Record<
+  AlmanacSectionKey,
+  LayerLegend
+>;
+
+/** A section's shared header — key, display title, and encoding rule (its
+ *  tooltip) — all read from LAYER_LEGEND. */
+function layerHeader(key: AlmanacSectionKey): {
+  key: AlmanacSectionKey;
+  title: string;
+  tip: string;
+} {
+  const l = LAYER_BY_KEY[key];
+  return { key, title: l.title, tip: l.rule };
+}
 
 function isManifest(m: unknown): m is Manifest {
   return !!m && typeof m === 'object' && 'tree' in (m as object) && (m as Manifest).tree != null;
@@ -292,9 +335,7 @@ function buildingsSection(m: Manifest): AlmanacSection {
     pluralize(count, 'building') +
     (avgLines !== null ? ` · ~${formatCount(avgLines)} lines each` : '');
   return {
-    key: 'buildings',
-    title: 'Buildings',
-    tip: SECTION_TIPS.buildings,
+    ...layerHeader('buildings'),
     overview,
     facts,
     note: facts.length ? undefined : 'No code files yet.',
@@ -308,9 +349,7 @@ function mediaSection(m: Manifest): AlmanacSection {
   const overview = pluralize(s.mediaCount, 'billboard');
   if (s.mediaCount === 0) {
     return {
-      key: 'media',
-      title: 'Billboards',
-      tip: SECTION_TIPS.media,
+      ...layerHeader('media'),
       overview,
       facts: [],
       note: 'No images or videos.',
@@ -334,9 +373,7 @@ function mediaSection(m: Manifest): AlmanacSection {
   if (!sizePair && !resPair && hi) {
     const dims = hasRes(hiRes) ? ` · ${resFmt(hiRes)}` : '';
     return {
-      key: 'media',
-      title: 'Billboards',
-      tip: SECTION_TIPS.media,
+      ...layerHeader('media'),
       overview,
       facts: compact([
         fileFact({
@@ -385,7 +422,7 @@ function mediaSection(m: Manifest): AlmanacSection {
         })
       : null,
   ]);
-  return { key: 'media', title: 'Billboards', tip: SECTION_TIPS.media, overview, facts };
+  return { ...layerHeader('media'), overview, facts };
 }
 
 function streetsSection(m: Manifest): AlmanacSection {
@@ -423,9 +460,7 @@ function streetsSection(m: Manifest): AlmanacSection {
     }),
   ]);
   return {
-    key: 'streets',
-    title: 'Streets',
-    tip: SECTION_TIPS.streets,
+    ...layerHeader('streets'),
     overview,
     facts,
     note: facts.length ? undefined : 'Everything lives at the root — no sub-directories.',
@@ -437,7 +472,7 @@ function forestSection(m: Manifest, treesEnabled: boolean): AlmanacSection {
   const cd = m.stats.commitDates;
   const span = cd.oldest && cd.newest ? humanSpan(cd.oldest, cd.newest) : '';
   const overview = `${pluralize(trees, 'tree')}${span ? ` · ${span} of history` : ''}`;
-  const base = { key: 'forest', title: 'Forest', tip: SECTION_TIPS.forest, overview } as const;
+  const base = { ...layerHeader('forest'), overview };
   // Canopies fly the camera to a tree; with the Trees layer off those targets
   // don't exist, so the notice lives here (not the view) like any empty state.
   if (!treesEnabled) {
@@ -491,12 +526,7 @@ function firefliesSection(m: Manifest): AlmanacSection {
   const noun = count === 1 ? 'firefly' : 'fireflies';
   const each = avgCommits !== null ? ` · ~${formatCount(avgCommits)} commits each` : '';
   const overview = `${formatCount(count)} ${noun}${each}`;
-  const base = {
-    key: 'fireflies',
-    title: 'Fireflies',
-    tip: SECTION_TIPS.fireflies,
-    overview,
-  } as const;
+  const base = { ...layerHeader('fireflies'), overview };
   if (count === 0) {
     return { ...base, facts: [], note: 'No commits yet — no fireflies.' };
   }

@@ -149,25 +149,8 @@
   cursor: default;
 }
 
-/* Each section carries its world-layer accent (icon + dimension labels). */
-.almanac-section {
-  --sec-accent: var(--cc-text-secondary);
-}
-.almanac-section[data-section='buildings'] {
-  --sec-accent: #7aa2f7;
-}
-.almanac-section[data-section='media'] {
-  --sec-accent: #d98fd0;
-}
-.almanac-section[data-section='streets'] {
-  --sec-accent: #d3a85f;
-}
-.almanac-section[data-section='forest'] {
-  --sec-accent: #84c98a;
-}
-.almanac-section[data-section='fireflies'] {
-  --sec-accent: #efc560;
-}
+/* Section accents (--sec-accent per data-section) are shared with the Legend
+ * subtab, so they live in InfoPane.css scoped to .info-body. */
 
 /* Hairline divider above every section — including the first, so the intro
  * title-card is separated from the data sections the same way they're separated
