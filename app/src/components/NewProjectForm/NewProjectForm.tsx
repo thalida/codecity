@@ -106,6 +106,9 @@ export function NewProjectForm({ allowLocalRepos, prefill, onSubmit }: NewProjec
             aria-invalid={fieldError ? 'true' : undefined}
             autoComplete="off"
             spellcheck={false}
+            placeholder={
+              kind === SourceKind.Remote ? 'https://github.com/owner/repo' : '~/projects/my-repo'
+            }
             value={source}
             onInput={(e) => onSourceInput((e.target as HTMLInputElement).value)}
           />
