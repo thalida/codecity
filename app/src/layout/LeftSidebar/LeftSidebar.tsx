@@ -22,7 +22,7 @@ import { PERSISTED_KEYS } from '@/constants/storage';
 import { SidebarTab, NodeKind } from '@/types';
 import type { PickTarget, TreeNode } from '@/types';
 import { persistedSignal } from '@/state/persist';
-import { SCENE_HANDLE, selectPath, focusPath, hoverPath, clearHover } from '@/state/stores/scene';
+import { SCENE_HANDLE, selectPath, hoverPath, clearHover } from '@/state/stores/scene';
 import { MANIFEST } from '@/state/stores/manifest';
 import { CURRENT_SOURCE } from '@/state/stores/source';
 import { isEmptyManifest } from '@/utils/manifest';
@@ -195,12 +195,7 @@ export function LeftSidebar() {
           />
         )}
         {tab === SidebarTab.Search && (
-          <SearchPane
-            manifest={MANIFEST}
-            onClose={onPaneClose}
-            onSelect={selectPath}
-            onFocus={focusPath}
-          />
+          <SearchPane manifest={MANIFEST} onClose={onPaneClose} onSelect={selectPath} />
         )}
         {tab === SidebarTab.Info && <InfoPane manifest={MANIFEST} onClose={onPaneClose} />}
         {tab === SidebarTab.Controls && (

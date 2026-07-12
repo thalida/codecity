@@ -41,10 +41,9 @@ export interface SearchPaneProps {
   manifest: Signal<Manifest | DirNode | { tree?: unknown; [k: string]: unknown } | null>;
   onClose?: () => void;
   onSelect?: (path: string) => void;
-  onFocus?: (path: string) => void;
 }
 
-export function SearchPane({ manifest, onClose, onSelect, onFocus }: SearchPaneProps) {
+export function SearchPane({ manifest, onClose, onSelect }: SearchPaneProps) {
   const [query, setQuery] = useState('');
   // Flatten once per manifest, not per keystroke — _flattenFiles is an O(N)
   // tree walk and setQuery re-renders on every character typed.
@@ -98,9 +97,6 @@ export function SearchPane({ manifest, onClose, onSelect, onFocus }: SearchPaneP
                 tabIndex={0}
                 onClick={() => {
                   if (onSelect && file.path) onSelect(file.path);
-                }}
-                onDblClick={() => {
-                  if (onFocus && file.path) onFocus(file.path);
                 }}
                 onKeyDown={(e: KeyboardEvent) => {
                   if (e.key === 'Enter' && onSelect && file.path) onSelect(file.path);
