@@ -89,9 +89,8 @@
   text-transform: uppercase;
   color: var(--cc-text-primary);
 }
-/* Muted variant — dimmer than the default secondary text color. Used by
-   the theme-subgroup label (both the <div> non-collapsible and the
-   <summary> collapsible). */
+/* Muted variant — used by the theme-subgroup label (both the <div>
+   non-collapsible and the <summary> collapsible). */
 .text-label--muted {
   color: var(--cc-text-secondary);
 }
