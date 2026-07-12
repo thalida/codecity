@@ -84,7 +84,7 @@
 .btn-icon--lg {
   width: auto;
   height: auto;
-  padding: var(--cc-space-2) var(--cc-space-4);
+  padding: var(--cc-space-2);
   border-radius: var(--cc-radius-md);
   font-size: var(--cc-font-2xl);
   color: inherit;
