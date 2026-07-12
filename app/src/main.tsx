@@ -4,6 +4,10 @@
 
 import { render } from 'preact';
 import './styles/index.css';
+// Applies the persisted accent/surface theme to <html> before the first
+// render (no flash). persistedSignal hydrates synchronously, so the module's
+// effect sets data-cc-* before Preact mounts.
+import '@/state/stores/settings/theme';
 import { App } from '@/layout/App/App';
 
 const mount = document.getElementById('app');
