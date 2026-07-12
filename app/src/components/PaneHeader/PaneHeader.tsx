@@ -78,12 +78,13 @@ export interface PaneCloseButtonProps {
 }
 
 /** The pane's × close button. Shared by the default header and by panes that
- *  compose their own header (e.g. InfoPane's tab strip). */
+ *  compose their own header (e.g. InfoPane's tab strip). Plain .btn-icon so it
+ *  matches the icon-only buttons in the app header. */
 export function PaneCloseButton({ onClose, title = 'Hide sidebar' }: PaneCloseButtonProps) {
   return (
     <button
       type="button"
-      class="btn-icon btn-icon--text"
+      class="btn-icon"
       title={title}
       aria-label={title}
       onClick={() => onClose()}

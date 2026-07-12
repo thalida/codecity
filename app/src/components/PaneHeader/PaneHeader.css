@@ -31,11 +31,12 @@
   flex: 1 1 auto;
   border-bottom: 0;
 }
-.pane-header--tabs > .btn-icon--text {
+.pane-header--tabs > .btn-icon {
   align-self: center;
 }
 
-/* Pane-header close + action buttons use .btn-icon + .btn-icon--text. */
+/* Pane-header action buttons (e.g. focus) use .btn-icon--text; the close button
+ * is a plain .btn-icon so it matches the app-header icons. */
 .pane-header .btn-icon--text {
   line-height: 1;
 }
