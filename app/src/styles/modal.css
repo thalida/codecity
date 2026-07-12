@@ -29,6 +29,11 @@
   flex-direction: column;
   overflow: hidden;
   font-family: inherit;
+  /* A faint full border (header-divider color) lifts the modal off the blurred
+     backdrop, and an even, slightly darker shadow (no downward offset) rings it
+     equally rather than casting downward. */
+  border: 1px solid var(--cc-border-subtle);
+  box-shadow: 0 0 40px oklch(0 0 0 / 0.7);
 }
 
 .modal-header {
