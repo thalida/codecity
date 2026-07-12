@@ -17,13 +17,18 @@ describe('LegendPane', () => {
     container.remove();
   });
 
-  it('renders every layer rule from the single source, keyed by section accent', () => {
+  it('renders every layer + its cue rows from the single source, keyed by section accent', () => {
     render(<LegendPane />, container);
     for (const layer of LAYER_LEGEND) {
-      const row = container.querySelector(`.legend-row[data-section="${layer.key}"]`);
-      expect(row, `row for ${layer.key}`).toBeTruthy();
-      expect(row!.textContent).toContain(layer.title);
-      expect(row!.textContent).toContain(layer.rule);
+      const block = container.querySelector(`.legend-layer[data-section="${layer.key}"]`);
+      expect(block, `block for ${layer.key}`).toBeTruthy();
+      const text = block!.textContent ?? '';
+      expect(text).toContain(layer.title);
+      expect(text).toContain(layer.lead);
+      for (const cue of layer.cues) {
+        expect(text, `${layer.key} cue ${cue.label}`).toContain(cue.label);
+        expect(text, `${layer.key} cue ${cue.detail}`).toContain(cue.detail);
+      }
     }
   });
 

@@ -91,42 +91,78 @@ export interface Almanac {
 
 const MAX_LANGUAGES = 6;
 
+export interface LayerCue {
+  /** The visual property, e.g. "Height". */
+  label: string;
+  /** The repo-data factor that drives it, e.g. "line count". */
+  detail: string;
+}
+
 export interface LayerLegend {
   key: AlmanacSectionKey;
   title: string;
-  /** The layer's one-line encoding rule. Single source for both the section
-   *  header tooltip (Overview) and the Legend subtab's rows. */
-  rule: string;
+  /** One-line "what this layer is". */
+  lead: string;
+  /** The cue → meaning rows that make up the map key. */
+  cues: LayerCue[];
 }
 
 // What each world layer encodes, in world-build order. The single source for
-// the Overview section-header tooltips and the Legend subtab, so the two can't
-// drift.
+// the Legend subtab and the Overview section-header tooltips (composed via
+// layerTip), so the two can't drift. Kept to the salient, viewer-noticeable
+// encodings, not every downstream shader detail.
 export const LAYER_LEGEND: LayerLegend[] = [
   {
     key: 'buildings',
     title: 'Buildings',
-    rule: 'Every code file is a building: height from line count, footprint from byte size, brightness from how recently it changed.',
+    lead: 'Every code file is a building.',
+    cues: [
+      { label: 'Height', detail: 'line count' },
+      { label: 'Footprint', detail: 'file size' },
+      { label: 'Color & roof icon', detail: 'file type' },
+      { label: 'Brightness', detail: 'how recently it changed' },
+      { label: 'Grime & lean', detail: "how long it's existed" },
+    ],
   },
   {
     key: 'media',
     title: 'Billboards',
-    rule: 'Image & video files render as billboard panels, sized by aspect ratio instead of lines.',
+    lead: 'Image & video files render as billboard panels showing the file itself.',
+    cues: [
+      { label: 'Shape', detail: "the file's aspect ratio" },
+      { label: 'Width', detail: 'file size' },
+      { label: 'Video', detail: 'adds a play button' },
+    ],
   },
   {
     key: 'streets',
     title: 'Streets',
-    rule: 'Directories are streets; the more files a directory holds, the wider its road.',
+    lead: 'Directories are streets.',
+    cues: [
+      { label: 'Width', detail: 'how many files it holds' },
+      { label: 'Length', detail: 'how much it contains' },
+      { label: 'Label', detail: 'the directory name' },
+    ],
   },
   {
     key: 'forest',
     title: 'Forest',
-    rule: 'Each commit plants a tree: older commits grow taller, bigger commits grow wider canopies.',
+    lead: 'Each commit plants a tree.',
+    cues: [
+      { label: 'Height', detail: 'older commits grow taller' },
+      { label: 'Canopy', detail: 'wider for bigger commits' },
+      { label: 'Color', detail: "how busy the commit's day was" },
+      { label: 'Position', detail: 'older commits sit nearer the center' },
+    ],
   },
   {
     key: 'fireflies',
     title: 'Fireflies',
-    rule: 'Each distinct commit author is a uniquely colored firefly orbiting the trees they touched.',
+    lead: 'Each commit author is a firefly, orbiting the trees they touched.',
+    cues: [
+      { label: 'Color', detail: 'unique per author' },
+      { label: 'Size', detail: 'how many commits they made' },
+    ],
   },
 ];
 
@@ -135,15 +171,21 @@ const LAYER_BY_KEY = Object.fromEntries(LAYER_LEGEND.map((l) => [l.key, l])) as 
   LayerLegend
 >;
 
-/** A section's shared header — key, display title, and encoding rule (its
- *  tooltip) — all read from LAYER_LEGEND. */
+/** The layer's encodings as one tooltip string: the lead sentence followed by
+ *  its cue → meaning pairs. */
+function layerTip(l: LayerLegend): string {
+  return `${l.lead} ${l.cues.map((c) => `${c.label}: ${c.detail}`).join('; ')}.`;
+}
+
+/** A section's shared header — key, display title, and composed encoding tip —
+ *  all read from LAYER_LEGEND. */
 function layerHeader(key: AlmanacSectionKey): {
   key: AlmanacSectionKey;
   title: string;
   tip: string;
 } {
   const l = LAYER_BY_KEY[key];
-  return { key, title: l.title, tip: l.rule };
+  return { key, title: l.title, tip: layerTip(l) };
 }
 
 function isManifest(m: unknown): m is Manifest {
