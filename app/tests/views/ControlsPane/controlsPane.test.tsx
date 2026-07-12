@@ -7,6 +7,7 @@ import { ControlsPane } from '@/views/ControlsPane/ControlsPane';
 import '@/state/stores/settings/updates';
 import '@/state/stores/settings/scene';
 import '@/state/stores/settings/syntaxTheme';
+import '@/state/stores/settings/theme';
 import '@/state/stores/settings/streets';
 import '@/state/stores/settings/buildings';
 import '@/state/stores/settings/gem';
@@ -52,7 +53,7 @@ describe('ControlsPane subtabs', () => {
   it('renders exactly three subtabs, World active by default', () => {
     const pane = mount();
     expect(pane.classList.contains('controls-pane')).toBe(true);
-    for (const label of ['World', 'Live updates', 'Preview']) {
+    for (const label of ['World', 'Live updates', 'Appearance']) {
       expect(tab(pane, label)).toBeTruthy();
     }
     expect(tab(pane, 'Shortcuts')).toBeUndefined();
@@ -60,12 +61,12 @@ describe('ControlsPane subtabs', () => {
     expect(tab(pane, 'World').getAttribute('aria-selected')).toBe('true');
   });
 
-  it('shows the action bar only on World; Updates/Preview autosave with no footer', () => {
+  it('shows the action bar only on World; Updates/Appearance autosave with no footer', () => {
     const pane = mount();
     expect(pane.querySelector('.controls-actions')).toBeTruthy(); // World
     clickTab(pane, 'Live updates');
     expect(pane.querySelector('.controls-actions')).toBeNull();
-    clickTab(pane, 'Preview');
+    clickTab(pane, 'Appearance');
     expect(pane.querySelector('.controls-actions')).toBeNull();
   });
 

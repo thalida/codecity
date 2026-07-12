@@ -1,0 +1,38 @@
+/* InterfaceThemeSection.css — accent/surface swatch pickers (Appearance tab). */
+
+.swatch-row {
+  display: flex;
+  align-items: center;
+  gap: var(--cc-space-4);
+}
+
+.swatch-group {
+  display: flex;
+  gap: var(--cc-space-3);
+  flex-wrap: wrap;
+}
+
+.swatch {
+  display: inline-flex;
+  padding: var(--cc-space-px);
+  border: 1px solid transparent;
+  border-radius: var(--cc-radius-circle);
+  background: none;
+  cursor: pointer;
+  transition: border-color var(--cc-t-base);
+}
+
+.swatch:hover {
+  border-color: var(--cc-overlay-border);
+}
+
+.swatch.is-active {
+  border-color: var(--cc-accent);
+}
+
+.swatch-chip {
+  width: var(--cc-space-7);
+  height: var(--cc-space-7);
+  border-radius: var(--cc-radius-circle);
+  box-shadow: inset 0 0 0 1px var(--cc-overlay-border);
+}

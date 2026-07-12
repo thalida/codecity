@@ -1,11 +1,12 @@
 // views/ControlsPane/ControlsPane.tsx — "Settings" tab in the left sidebar.
 //
-// Composition shell: World, Updates, Preview subtabs. The active subtab's
-// sections render into the scrolling body. World is draft-backed (9
+// Composition shell: World, Updates, Appearance subtabs. The active subtab's
+// sections render into the scrolling body. World is draft-backed (10
 // accordion sections + the sticky Reset all/Discard/Save ActionsBar);
-// Updates and Preview autosave (Task 6) and each hold one section, so they
-// render inline (no footer, no <details> — a one-item accordion is pointless
-// UI). Shortcuts and Debug moved to header-triggered modals (Tasks 8/9).
+// Updates and Appearance autosave. Updates holds one section; Appearance holds
+// two (interface theme + syntax), all rendered inline (no footer, no <details>
+// — a one-item accordion is pointless UI). Shortcuts and Debug moved to
+// header-triggered modals.
 //
 // Section / subgroup open-state is intentionally NOT persisted: when the pane
 // hides we collapse every <details> and reset the active subtab to World, so
@@ -13,9 +14,10 @@
 
 import './ControlsPane.css';
 import { useEffect, useRef, useState } from 'preact/hooks';
-import { Boxes, RefreshCw, Eye } from 'lucide-preact';
+import { Boxes, RefreshCw, Palette } from 'lucide-preact';
 import type { LucideIcon } from 'lucide-preact';
 import { FilePreviewSection } from './partials/FilePreviewSection';
+import { InterfaceThemeSection } from './partials/InterfaceThemeSection';
 import { DynamicSection, type SectionNode } from './partials';
 import { CAMERA_SECTION } from './partials/Camera';
 import { SCENE_SECTION } from './partials/Scene';
@@ -81,11 +83,14 @@ export function ControlsPane({ onClose, collapsed }: ControlsPaneProps) {
       sections: [{ ...UPDATES_SECTION, inline: true }],
     },
     {
-      id: 'preview',
-      label: 'Preview',
-      icon: Eye,
+      id: 'appearance',
+      label: 'Appearance',
+      icon: Palette,
       draftable: false,
-      sections: [{ key: 'file-preview', render: <FilePreviewSection /> }],
+      sections: [
+        { key: 'interface-theme', render: <InterfaceThemeSection /> },
+        { key: 'file-preview', render: <FilePreviewSection /> },
+      ],
     },
   ];
 

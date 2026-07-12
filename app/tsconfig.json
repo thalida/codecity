@@ -55,6 +55,7 @@
     // time — checked by tsconfig.node.json which adds @types/node.
     "tests/city/utils/color/hsl-glsl-parity.test.ts",
     "tests/city/components/buildings/building-shader.test.ts",
-    "tests/city/components/sky/skyShader.test.ts"
+    "tests/city/components/sky/skyShader.test.ts",
+    "tests/styles/themePresets.test.ts"
   ]
 }
