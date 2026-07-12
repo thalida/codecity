@@ -111,14 +111,14 @@
 
 .landing-wordmark {
   margin: 0;
-  font-size: var(--cc-font-4xl);
+  font-size: var(--cc-font-2xl);
   font-weight: var(--cc-fw-bold);
   color: var(--cc-text-primary);
 }
 
 .landing-tagline {
   margin: 0;
-  font-size: var(--cc-font-2xl);
+  font-size: var(--cc-font-lg);
   color: var(--cc-text-secondary);
 }
 
@@ -135,14 +135,14 @@
   align-items: center;
   gap: var(--cc-space-4);
   color: var(--cc-text-muted);
-  font-size: var(--cc-font-xl);
+  font-size: var(--cc-font-md);
 }
 .landing-delight strong {
   color: var(--cc-text-primary);
   font-weight: var(--cc-fw-semibold);
 }
 .landing-delight > svg {
-  font-size: var(--cc-font-2xl); /* icons are 1em (icons.css) — size off a token */
+  font-size: var(--cc-font-lg); /* icons are 1em (icons.css) — size off a token */
   width: 1em;
   height: 1em;
   flex: 0 0 auto;
@@ -184,7 +184,7 @@
    consistent title style. */
 .landing-card-title {
   margin: 0;
-  font-size: var(--cc-font-2xl);
+  font-size: var(--cc-font-lg);
   font-weight: var(--cc-fw-semibold);
   color: var(--cc-text-primary);
 }

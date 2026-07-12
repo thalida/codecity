@@ -18,7 +18,7 @@
   border-radius: var(--cc-radius-sm);
   color: var(--cc-text-primary);
   font: inherit;
-  font-size: var(--cc-font-lg);
+  font-size: var(--cc-font-sm);
   padding: var(--cc-space-2) var(--cc-space-4);
   outline: none;
 }
@@ -44,7 +44,7 @@
 .form-input--mono {
   width: 70px;
   font-family: var(--cc-font-mono);
-  font-size: var(--cc-font-md);
+  font-size: var(--cc-font-xs);
   padding: var(--cc-space-1) var(--cc-space-3);
   text-align: right;
 }

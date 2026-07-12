@@ -83,7 +83,7 @@
 
 /* Composite: uppercase section label. */
 .text-label {
-  font-size: var(--cc-font-sm);
+  font-size: var(--cc-font-2xs);
   font-weight: var(--cc-fw-bold);
   letter-spacing: var(--cc-track-label);
   text-transform: uppercase;
@@ -98,14 +98,14 @@
 
 /* Composite: pane header title. */
 .text-pane-title {
-  font-size: var(--cc-font-lg);
+  font-size: var(--cc-font-sm);
   font-weight: var(--cc-fw-semibold);
   color: var(--cc-text-secondary);
 }
 
 /* Composite: state-card title (loading, empty preview, empty search). */
 .text-card-title {
-  font-size: var(--cc-font-lg);
+  font-size: var(--cc-font-sm);
   font-weight: var(--cc-fw-medium);
   color: var(--cc-text-secondary);
 }
@@ -117,6 +117,6 @@
 
 /* Composite: state-card subtitle. */
 .text-card-sub {
-  font-size: var(--cc-font-md);
+  font-size: var(--cc-font-xs);
   color: var(--cc-text-faint);
 }

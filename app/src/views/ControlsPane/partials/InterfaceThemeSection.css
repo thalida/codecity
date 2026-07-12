@@ -44,7 +44,7 @@
 }
 
 .swatch-label {
-  font-size: var(--cc-font-sm);
+  font-size: var(--cc-font-2xs);
   color: var(--cc-text-faint);
   white-space: nowrap;
 }

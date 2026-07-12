@@ -21,7 +21,7 @@
   background: transparent;
   color: var(--cc-text-muted); /* AA: faint fails 4.5:1 on the modal (bg-sidebar) surface */
   font: inherit;
-  font-size: var(--cc-font-lg);
+  font-size: var(--cc-font-sm);
   cursor: pointer;
   transition:
     color var(--cc-t-base),
@@ -38,5 +38,5 @@
 }
 
 .pane-tab .lucide-icon {
-  font-size: var(--cc-font-xl); /* icons are 1em (icons.css) — size off a token */
+  font-size: var(--cc-font-md); /* icons are 1em (icons.css) — size off a token */
 }

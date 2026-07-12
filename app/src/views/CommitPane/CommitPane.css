@@ -23,7 +23,7 @@
 /* Short SHA rendered inline inside the pane-header title. */
 .commit-sha {
   font-family: var(--cc-font-mono);
-  font-size: var(--cc-font-lg); /* inherits title size */
+  font-size: var(--cc-font-sm); /* inherits title size */
   font-weight: 600;
   color: var(--cc-text-primary);
 }
@@ -55,13 +55,13 @@
 }
 
 .commit-author-name {
-  font-size: var(--cc-font-lg); /* secondary metadata under the title */
+  font-size: var(--cc-font-sm); /* secondary metadata under the title */
   font-weight: 500;
   color: var(--cc-text-secondary);
 }
 
 .commit-message-subject {
-  font-size: var(--cc-font-xl); /* title-of-message-block weight */
+  font-size: var(--cc-font-md); /* title-of-message-block weight */
   color: var(--cc-text-primary);
   font-weight: 600;
   white-space: normal; /* wrap freely — no ellipsization */
@@ -74,7 +74,7 @@
    text, the body <pre>, an error line, or display:none. The slot itself
    carries no own styling — only the loading/error modifiers below. */
 .commit-message-body-slot--loading {
-  font-size: var(--cc-font-md);
+  font-size: var(--cc-font-xs);
   color: var(--cc-text-muted);
   font-style: italic;
   opacity: 0.7;
@@ -83,7 +83,7 @@
 
 .commit-message-body {
   font-family: var(--cc-font-mono);
-  font-size: var(--cc-font-md);
+  font-size: var(--cc-font-xs);
   white-space: pre-wrap;
   padding: var(--cc-space-4);
   background: var(--cc-overlay-bg-soft);
@@ -92,7 +92,7 @@
 }
 
 .commit-message-error {
-  font-size: var(--cc-font-md);
+  font-size: var(--cc-font-xs);
   color: var(--cc-text-muted);
   opacity: 0.7;
 }
@@ -104,7 +104,7 @@
   align-items: baseline;
   gap: var(--cc-space-3); /* breathing room around the · separator */
   color: var(--cc-text-muted);
-  font-size: var(--cc-font-lg);
+  font-size: var(--cc-font-sm);
   flex-wrap: wrap;
 }
 
@@ -129,7 +129,7 @@
   align-items: center;
   gap: 6px;
   color: var(--cc-text-muted);
-  font-size: var(--cc-font-lg);
+  font-size: var(--cc-font-sm);
 }
 
 .commit-swatch {

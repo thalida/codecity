@@ -7,7 +7,7 @@
 }
 
 .controls-section-hint {
-  font-size: var(--cc-font-md);
+  font-size: var(--cc-font-xs);
   color: var(--cc-text-faint);
   line-height: 1.5;
   margin-bottom: var(--cc-space-6);

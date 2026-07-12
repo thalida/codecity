@@ -8,7 +8,7 @@ body {
   background: var(--cc-bg-app);
   color: var(--cc-text-primary);
   font-family: var(--cc-font-sans);
-  font-size: var(--cc-font-xl);
+  font-size: var(--cc-font-md);
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;

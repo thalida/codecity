@@ -14,7 +14,7 @@
   height: 24px;
   border-top: 1px solid var(--cc-track);
   font-family: var(--cc-font-mono);
-  font-size: var(--cc-font-sm);
+  font-size: var(--cc-font-2xs);
   color: var(--cc-text-muted);
   white-space: nowrap;
 }

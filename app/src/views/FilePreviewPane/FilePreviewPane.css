@@ -24,7 +24,7 @@
 .file-path-sep {
   flex: 0 0 auto;
   color: var(--cc-text-ghost);
-  font-size: var(--cc-font-lg);
+  font-size: var(--cc-font-sm);
   pointer-events: none;
   padding: 0 var(--cc-space-px);
 }
@@ -128,12 +128,12 @@
   gap: var(--cc-space-4);
   color: var(--cc-accent-light);
   font-family: var(--cc-font-sans);
-  font-size: var(--cc-font-md);
+  font-size: var(--cc-font-xs);
   line-height: 1.4;
 }
 .code-editor-banner .lucide-icon {
   flex: 0 0 auto;
-  font-size: var(--cc-font-xl);
+  font-size: var(--cc-font-md);
   opacity: 0.85;
 }
 
@@ -145,7 +145,7 @@
   width: 100%;
   overflow: auto;
   font-family: var(--cc-font-mono);
-  font-size: var(--cc-font-lg);
+  font-size: var(--cc-font-sm);
   line-height: 1.55;
   tab-size: 4;
 }

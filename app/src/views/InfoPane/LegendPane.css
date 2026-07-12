@@ -11,7 +11,7 @@
   margin: 0 0 2px;
   color: var(--cc-text-secondary);
   line-height: 1.5;
-  font-size: var(--cc-font-xl);
+  font-size: var(--cc-font-md);
 }
 
 /* One world layer: header + lead + its cue rows, separated by a hairline like
@@ -28,7 +28,7 @@
   align-items: center;
   gap: 7px;
   margin: 0 0 6px;
-  font-size: var(--cc-font-md);
+  font-size: var(--cc-font-xs);
   font-weight: var(--cc-fw-semibold);
   text-transform: uppercase;
   letter-spacing: var(--cc-track-label);
@@ -44,7 +44,7 @@
 .legend-layer-lead {
   margin: 0 0 8px;
   color: var(--cc-text-secondary);
-  font-size: var(--cc-font-lg);
+  font-size: var(--cc-font-sm);
   line-height: 1.45;
 }
 
@@ -62,7 +62,7 @@
   gap: 10px;
   align-items: baseline;
   min-width: 0;
-  font-size: var(--cc-font-lg);
+  font-size: var(--cc-font-sm);
 }
 
 .legend-cue-label {
@@ -84,7 +84,7 @@
   margin: 6px 0 0;
   padding-top: 12px;
   border-top: 1px solid var(--cc-border-subtle);
-  font-size: var(--cc-font-md);
+  font-size: var(--cc-font-xs);
   font-weight: var(--cc-fw-semibold);
   text-transform: uppercase;
   letter-spacing: var(--cc-track-label);
@@ -123,13 +123,13 @@
 }
 
 .legend-row-title {
-  font-size: var(--cc-font-lg);
+  font-size: var(--cc-font-sm);
   font-weight: var(--cc-fw-semibold);
   color: var(--cc-text-primary);
 }
 
 .legend-row-rule {
-  font-size: var(--cc-font-lg);
+  font-size: var(--cc-font-sm);
   line-height: 1.45;
   color: var(--cc-text-secondary);
 }

@@ -41,7 +41,7 @@
   align-items: center;
   /* Size icons by font-size so any glyph — lucide fallback OR the HostingIcon
      brand SVGs — sizes uniformly off one token (icons are 1em; see icons.css). */
-  font-size: var(--cc-font-xl);
+  font-size: var(--cc-font-md);
 }
 .recent-icon > svg {
   width: 1em;
@@ -59,7 +59,7 @@
   display: flex;
   align-items: center;
   gap: var(--cc-space-2);
-  font-size: var(--cc-font-md);
+  font-size: var(--cc-font-xs);
   color: var(--cc-text-muted);
 }
 .recent-row .recent-src {
@@ -85,7 +85,7 @@
 
 .recent-row-badge {
   margin-left: auto;
-  font-size: var(--cc-font-sm);
+  font-size: var(--cc-font-2xs);
   font-weight: var(--cc-fw-semibold);
   letter-spacing: var(--cc-track-label);
   color: var(--cc-accent);

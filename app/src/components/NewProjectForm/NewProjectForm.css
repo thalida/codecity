@@ -12,7 +12,7 @@
   gap: var(--cc-space-3);
 }
 .new-project-field label {
-  font-size: var(--cc-font-lg);
+  font-size: var(--cc-font-sm);
   color: var(--cc-text-muted);
 }
 .new-project-field .form-input {
@@ -21,7 +21,7 @@
 /* Inline field-level validation message, below the input. */
 .new-project-error {
   margin: 0;
-  font-size: var(--cc-font-md);
+  font-size: var(--cc-font-xs);
   color: var(--cc-error-light);
 }
 
@@ -33,7 +33,7 @@
   color: var(--cc-text-secondary);
   border-radius: var(--cc-radius-md);
   padding: var(--cc-space-4) var(--cc-space-5);
-  font-size: var(--cc-font-lg);
+  font-size: var(--cc-font-sm);
 }
 
 /* Advanced disclosure — reads as an interactive link with a caret that turns
@@ -48,7 +48,7 @@
   gap: var(--cc-space-2);
   color: var(--cc-accent-light);
   font: inherit;
-  font-size: var(--cc-font-md);
+  font-size: var(--cc-font-xs);
   cursor: pointer;
   padding: 0;
 }
@@ -68,7 +68,7 @@
   display: flex;
   align-items: center;
   gap: var(--cc-space-3);
-  font-size: var(--cc-font-lg);
+  font-size: var(--cc-font-sm);
   color: var(--cc-text-secondary);
   margin-top: calc(var(--cc-space-4) * -1);
 }

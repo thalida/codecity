@@ -42,7 +42,7 @@
 
 .info-markdown {
   color: var(--cc-text-secondary);
-  font-size: var(--cc-font-lg);
+  font-size: var(--cc-font-sm);
   line-height: 1.6;
   word-wrap: break-word;
 }
@@ -64,25 +64,25 @@
   margin-top: var(--cc-space-0);
 }
 .info-markdown h1 {
-  font-size: var(--cc-font-3xl);
+  font-size: var(--cc-font-xl);
   padding-bottom: var(--cc-space-3);
   border-bottom: 1px solid var(--cc-border-subtle);
 }
 .info-markdown h2 {
-  font-size: var(--cc-font-2xl);
+  font-size: var(--cc-font-lg);
   padding-bottom: var(--cc-space-2);
   border-bottom: 1px solid var(--cc-track);
 }
 .info-markdown h3 {
-  font-size: var(--cc-font-xl);
+  font-size: var(--cc-font-md);
 }
 .info-markdown h4 {
-  font-size: var(--cc-font-lg);
+  font-size: var(--cc-font-sm);
   color: var(--cc-text-secondary);
 }
 .info-markdown h5,
 .info-markdown h6 {
-  font-size: var(--cc-font-lg);
+  font-size: var(--cc-font-sm);
   color: var(--cc-text-muted);
   text-transform: uppercase;
   letter-spacing: var(--cc-track-label);
@@ -145,7 +145,7 @@
 .info-markdown code {
   border: 1px solid var(--cc-accent-bg);
   color: var(--cc-text-primary);
-  font-size: var(--cc-font-lg);
+  font-size: var(--cc-font-sm);
 }
 
 .info-markdown pre {
@@ -156,7 +156,7 @@
   margin: var(--cc-space-5) 0;
   overflow-x: auto;
   font-family: var(--cc-font-mono);
-  font-size: var(--cc-font-lg);
+  font-size: var(--cc-font-sm);
   line-height: 1.5;
 }
 .info-markdown pre code {
@@ -175,7 +175,7 @@
 .info-markdown table {
   border-collapse: collapse;
   margin: var(--cc-space-5) 0;
-  font-size: var(--cc-font-lg);
+  font-size: var(--cc-font-sm);
 }
 .info-markdown th,
 .info-markdown td {

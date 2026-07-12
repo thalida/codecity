@@ -16,7 +16,7 @@
   padding: 0 var(--cc-space-4);
   border-bottom: 1px solid var(--cc-border-subtle);
   font-family: var(--cc-font-mono);
-  font-size: var(--cc-font-md);
+  font-size: var(--cc-font-xs);
   color: var(--cc-text-secondary);
   -webkit-app-region: drag; /* in pywebview's native frame this lets you drag */
   user-select: none;

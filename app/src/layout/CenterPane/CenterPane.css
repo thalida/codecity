@@ -21,7 +21,7 @@ canvas {
 #hover-tooltip {
   position: fixed;
   color: var(--cc-text-primary);
-  font-size: var(--cc-font-md);
+  font-size: var(--cc-font-xs);
   pointer-events: none;
   z-index: 200;
   font-family: var(--cc-font-mono);

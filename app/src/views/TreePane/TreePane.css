@@ -68,7 +68,7 @@
 }
 
 .tree-label {
-  font-size: var(--cc-font-lg);
+  font-size: var(--cc-font-sm);
   color: var(--cc-text-base);
   white-space: nowrap;
   overflow: hidden;

@@ -3,7 +3,7 @@
 .street-label {
   position: absolute;
   font-family: var(--cc-font-sans);
-  font-size: var(--cc-font-sm);
+  font-size: var(--cc-font-2xs);
   font-weight: var(--cc-fw-medium);
   color: var(--cc-text-base);
   pointer-events: none;
@@ -29,7 +29,7 @@
   display: flex;
   align-items: center;
   gap: var(--cc-space-3);
-  font-size: var(--cc-font-md);
+  font-size: var(--cc-font-xs);
   color: var(--cc-text-muted);
 }
 
@@ -45,7 +45,7 @@
   display: flex;
   align-items: center;
   gap: var(--cc-space-3);
-  font-size: var(--cc-font-md);
+  font-size: var(--cc-font-xs);
   text-transform: uppercase;
   letter-spacing: var(--cc-track-label);
   color: var(--cc-text-secondary);
@@ -67,7 +67,7 @@
   align-items: center;
   column-gap: var(--cc-space-3);
   row-gap: var(--cc-space-4);
-  font-size: var(--cc-font-lg);
+  font-size: var(--cc-font-sm);
 }
 
 /* Rows place their cells into the list's shared columns rather than forming

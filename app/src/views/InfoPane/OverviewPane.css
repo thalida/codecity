@@ -6,7 +6,7 @@
 
 .almanac-name {
   margin: 0 0 6px;
-  font-size: var(--cc-font-2xl);
+  font-size: var(--cc-font-lg);
   font-weight: var(--cc-fw-semibold);
   color: var(--cc-text-primary);
   word-break: break-word;
@@ -16,7 +16,7 @@
   margin: 0 0 12px;
   color: var(--cc-text-secondary);
   line-height: 1.5;
-  font-size: var(--cc-font-xl);
+  font-size: var(--cc-font-md);
 }
 
 /* Two-column grid: the label column sizes to the widest label (max-content),
@@ -30,7 +30,7 @@
   column-gap: var(--cc-space-4);
   row-gap: var(--cc-space-2);
   align-items: start;
-  font-size: var(--cc-font-lg);
+  font-size: var(--cc-font-sm);
 }
 
 /* Each conditional row wrapper collapses so its dt/dd become direct grid items
@@ -100,7 +100,7 @@
   border-radius: var(--cc-radius-pill);
   background: var(--cc-overlay-bg);
   color: var(--cc-text-secondary);
-  font-size: var(--cc-font-sm);
+  font-size: var(--cc-font-2xs);
   line-height: 1.6;
 }
 
@@ -147,7 +147,7 @@
 }
 
 .almanac-language-count {
-  font-size: var(--cc-font-md);
+  font-size: var(--cc-font-xs);
   color: var(--cc-text-secondary);
 }
 
@@ -155,7 +155,7 @@
  * reads as "top types + everything else", not an arbitrary cut-off. */
 .almanac-language--more {
   padding: 2px 8px;
-  font-size: var(--cc-font-md);
+  font-size: var(--cc-font-xs);
   color: var(--cc-text-muted);
   cursor: default;
 }
@@ -179,7 +179,7 @@
   align-items: center;
   gap: 7px;
   margin: 0 0 8px;
-  font-size: var(--cc-font-md);
+  font-size: var(--cc-font-xs);
   font-weight: var(--cc-fw-semibold);
   text-transform: uppercase;
   letter-spacing: var(--cc-track-label);
@@ -197,14 +197,14 @@
 .almanac-section-overview {
   margin: -2px 0 8px 0;
   color: var(--cc-text-secondary);
-  font-size: var(--cc-font-lg);
+  font-size: var(--cc-font-sm);
 }
 
 .almanac-section-note {
   margin: 0;
   padding: 2px 0 4px;
   color: var(--cc-text-muted);
-  font-size: var(--cc-font-lg);
+  font-size: var(--cc-font-sm);
   font-style: italic;
 }
 
@@ -220,7 +220,7 @@
 .almanac-duo-dim {
   display: block;
   margin: 0 0 1px 0;
-  font-size: var(--cc-font-sm);
+  font-size: var(--cc-font-2xs);
   text-transform: uppercase;
   letter-spacing: var(--cc-track-label);
   color: var(--sec-accent);
@@ -264,7 +264,7 @@
 .almanac-fact-label {
   flex: 0 0 76px;
   color: var(--cc-text-muted);
-  font-size: var(--cc-font-md);
+  font-size: var(--cc-font-xs);
 }
 
 /* basis 0 so it grows into the free space and truncates predictably. One value
@@ -273,7 +273,7 @@
   flex: 1 1 0;
   min-width: 0;
   color: var(--cc-text-primary);
-  font-size: var(--cc-font-md);
+  font-size: var(--cc-font-xs);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -304,7 +304,7 @@
 .almanac-fact-metric {
   flex: 0 0 auto;
   color: var(--cc-text-muted);
-  font-size: var(--cc-font-md);
+  font-size: var(--cc-font-xs);
   white-space: nowrap;
 }
 

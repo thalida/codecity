@@ -22,7 +22,7 @@
 
 .search-input-icon {
   flex: 0 0 auto;
-  font-size: var(--cc-font-xl);
+  font-size: var(--cc-font-md);
   color: var(--cc-text-faint);
 }
 
@@ -48,7 +48,7 @@
   cursor: pointer;
   border-left: 2px solid transparent;
   font-family: var(--cc-font-mono);
-  font-size: var(--cc-font-md);
+  font-size: var(--cc-font-xs);
   color: var(--cc-text-muted);
   white-space: nowrap;
   overflow: hidden;

@@ -33,7 +33,7 @@
  * itself is hidden in main.ts's finally block, so this header is only
  * visible during clone/scan. */
 .loading-pending-label {
-  font-size: var(--cc-font-lg);
+  font-size: var(--cc-font-sm);
   font-weight: 600;
   color: var(--cc-text-base);
   text-align: center;
@@ -48,7 +48,7 @@
   gap: var(--cc-space-3);
 }
 .loading-steps li {
-  font-size: var(--cc-font-lg);
+  font-size: var(--cc-font-sm);
   padding: var(--cc-space-1) 0 var(--cc-space-1) var(--cc-space-8);
   position: relative;
   color: var(--cc-text-muted); /* was 0.35 (2.85:1 → now 4.39:1, WCAG AA) */
@@ -62,7 +62,7 @@
   transform: translateY(-50%);
   width: 12px;
   text-align: center;
-  font-size: var(--cc-font-md);
+  font-size: var(--cc-font-xs);
 }
 .loading-steps li[data-state='pending'] {
   color: var(--cc-text-muted); /* was 0.35 (2.85:1 → now 4.39:1, WCAG AA) */
@@ -73,7 +73,7 @@
 .loading-steps li[data-state='active']::before {
   content: '›';
   color: var(--cc-accent);
-  font-size: var(--cc-font-xl);
+  font-size: var(--cc-font-md);
   font-weight: var(--cc-fw-bold);
 }
 .loading-steps li[data-state='done'] {
@@ -82,7 +82,7 @@
 .loading-steps li[data-state='done']::before {
   content: '✓';
   color: var(--cc-success-dark);
-  font-size: var(--cc-font-sm);
+  font-size: var(--cc-font-2xs);
 }
 /* Trailing progress text appended via setStepTail (clone %, scanned file
  * count). Muted compared to the step label so it reads as secondary info
@@ -90,6 +90,6 @@
  * forward and main.ts wipes the tail on phase transitions. */
 .loading-step-tail {
   color: var(--cc-text-muted);
-  font-size: var(--cc-font-md);
+  font-size: var(--cc-font-xs);
   font-variant-numeric: tabular-nums;
 }
