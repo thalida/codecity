@@ -98,6 +98,7 @@ function SwatchRow({ label, tip, axis, store, options, defaultValue }: SwatchRow
                   style={{ background: chipVar }}
                   {...{ [`data-cc-${axis}`]: opt.value }}
                 />
+                <span class="swatch-label">{opt.label}</span>
               </button>
             );
           })}
