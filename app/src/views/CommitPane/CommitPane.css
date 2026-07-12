@@ -75,8 +75,7 @@
    carries no own styling — only the loading/error modifiers below. */
 .commit-message-body-slot--loading {
   font-size: var(--cc-font-xs);
-  color: var(--cc-text-secondary);
-  opacity: 0.7;
+  color: var(--cc-text-muted);
   padding: var(--cc-space-3) 0;
 }
 
@@ -92,8 +91,7 @@
 
 .commit-message-error {
   font-size: var(--cc-font-xs);
-  color: var(--cc-text-secondary);
-  opacity: 0.7;
+  color: var(--cc-text-muted);
 }
 
 /* Meta line: "committed <relative age> · <N> file(s) changed".

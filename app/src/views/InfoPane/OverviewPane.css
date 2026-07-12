@@ -148,7 +148,7 @@
 
 .almanac-language-count {
   font-size: var(--cc-font-xs);
-  color: var(--cc-text-primary);
+  color: var(--cc-text-secondary);
 }
 
 /* Trailing "+N more" — same chip shell, no badge; a muted summary so the list
