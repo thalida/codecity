@@ -60,7 +60,7 @@
   align-items: center;
   gap: var(--cc-space-2);
   font-size: var(--cc-font-xs);
-  color: var(--cc-text-muted);
+  color: var(--cc-text-secondary);
 }
 .recent-row .recent-src {
   overflow: hidden;
@@ -100,10 +100,10 @@
    removing only forgets the entry, it doesn't delete anything. */
 .recent-item > .btn-icon[aria-label='Remove from recents'] {
   padding: var(--cc-space-4) var(--cc-space-2);
-  color: var(--cc-text-faint);
+  color: var(--cc-text-muted);
 }
 .recent-item > .btn-icon[aria-label='Remove from recents']:hover {
-  color: var(--cc-text-primary);
+  color: var(--cc-text-strong);
   background: var(--cc-overlay-bg);
 }
 
@@ -125,7 +125,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  color: var(--cc-text-secondary);
+  color: var(--cc-text-primary);
 }
 .recent-confirm-actions {
   display: flex;

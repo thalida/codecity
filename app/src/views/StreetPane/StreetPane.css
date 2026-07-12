@@ -30,13 +30,13 @@
   align-items: center;
   gap: var(--cc-space-3);
   font-size: var(--cc-font-xs);
-  color: var(--cc-text-muted);
+  color: var(--cc-text-secondary);
 }
 
 .street-dates-icon {
   width: 14px;
   height: 14px;
-  color: var(--cc-text-ghost);
+  color: var(--cc-text-faint);
 }
 
 /* "By extension" heading — icon + uppercase label, matching the almanac's
@@ -48,7 +48,7 @@
   font-size: var(--cc-font-xs);
   text-transform: uppercase;
   letter-spacing: var(--cc-track-label);
-  color: var(--cc-text-secondary);
+  color: var(--cc-text-primary);
   font-weight: var(--cc-fw-semibold);
 }
 
@@ -107,6 +107,6 @@
    column so every row's metric ends at the same x. */
 .street-ext-meta {
   justify-self: end;
-  color: var(--cc-text-secondary);
+  color: var(--cc-text-primary);
   white-space: nowrap;
 }

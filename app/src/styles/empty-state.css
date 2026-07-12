@@ -16,7 +16,7 @@
   justify-content: center;
   gap: var(--cc-space-4);
   padding: var(--cc-space-8) var(--cc-pane-inset);
-  color: var(--cc-text-faint);
+  color: var(--cc-text-muted);
   text-align: center;
 }
 .empty-state .lucide-icon {

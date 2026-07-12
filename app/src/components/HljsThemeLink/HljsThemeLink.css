@@ -2,7 +2,7 @@
 
 /* ── highlight.js token theme (dark, codecity-tinted) ─────────────────── */
 .hljs {
-  color: var(--cc-text-secondary);
+  color: var(--cc-text-primary);
   background: transparent;
 }
 .hljs-keyword,

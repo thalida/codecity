@@ -14,7 +14,7 @@
   gap: var(--cc-space-3);
   padding: var(--cc-space-3) 0;
   font-size: var(--cc-font-xs);
-  color: var(--cc-text-secondary);
+  color: var(--cc-text-primary);
   cursor: default;
   min-width: 0;
 }
@@ -36,7 +36,7 @@
 .theme-row-label {
   flex: 1 1 auto;
   min-width: 0;
-  color: var(--cc-text-primary);
+  color: var(--cc-text-strong);
   font-weight: var(--cc-fw-medium);
 }
 
@@ -59,7 +59,7 @@
 }
 
 .theme-row-desc {
-  color: var(--cc-text-muted);
+  color: var(--cc-text-secondary);
   font-size: var(--cc-font-2xs);
   line-height: 1.45;
 }

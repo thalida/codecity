@@ -51,7 +51,7 @@
   font-size: var(--cc-font-sm);
   padding: var(--cc-space-1) 0 var(--cc-space-1) var(--cc-space-8);
   position: relative;
-  color: var(--cc-text-muted); /* was 0.35 (2.85:1 → now 4.39:1, WCAG AA) */
+  color: var(--cc-text-secondary); /* was 0.35 (2.85:1 → now 4.39:1, WCAG AA) */
   transition: color var(--cc-t-base);
 }
 .loading-steps li::before {
@@ -65,7 +65,7 @@
   font-size: var(--cc-font-xs);
 }
 .loading-steps li[data-state='pending'] {
-  color: var(--cc-text-muted); /* was 0.35 (2.85:1 → now 4.39:1, WCAG AA) */
+  color: var(--cc-text-secondary); /* was 0.35 (2.85:1 → now 4.39:1, WCAG AA) */
 }
 .loading-steps li[data-state='active'] {
   color: var(--cc-accent);
@@ -77,7 +77,7 @@
   font-weight: var(--cc-fw-bold);
 }
 .loading-steps li[data-state='done'] {
-  color: var(--cc-text-muted);
+  color: var(--cc-text-secondary);
 }
 .loading-steps li[data-state='done']::before {
   content: '✓';
@@ -89,7 +89,7 @@
  * — present on the active step only in practice, since setStep advances
  * forward and main.ts wipes the tail on phase transitions. */
 .loading-step-tail {
-  color: var(--cc-text-muted);
+  color: var(--cc-text-secondary);
   font-size: var(--cc-font-xs);
   font-variant-numeric: tabular-nums;
 }

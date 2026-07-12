@@ -2,7 +2,7 @@
 
 .debug-hint {
   font-size: var(--cc-font-xs);
-  color: var(--cc-text-faint);
+  color: var(--cc-text-muted);
   line-height: 1.5;
   margin: var(--cc-space-0) var(--cc-space-0) var(--cc-space-4);
 }

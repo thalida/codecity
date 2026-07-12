@@ -45,10 +45,10 @@
 
 .swatch-label {
   font-size: var(--cc-font-2xs);
-  color: var(--cc-text-faint);
+  color: var(--cc-text-muted);
   white-space: nowrap;
 }
 
 .swatch.is-active .swatch-label {
-  color: var(--cc-text-primary);
+  color: var(--cc-text-strong);
 }

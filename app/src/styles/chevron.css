@@ -11,6 +11,6 @@
   width: 14px;
   height: 14px;
   flex-shrink: 0;
-  color: var(--cc-text-secondary);
+  color: var(--cc-text-primary);
   transition: transform var(--cc-t-fast) ease;
 }

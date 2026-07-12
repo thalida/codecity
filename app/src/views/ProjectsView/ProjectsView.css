@@ -113,13 +113,13 @@
   margin: 0;
   font-size: var(--cc-font-2xl);
   font-weight: var(--cc-fw-bold);
-  color: var(--cc-text-primary);
+  color: var(--cc-text-strong);
 }
 
 .landing-tagline {
   margin: 0;
   font-size: var(--cc-font-lg);
-  color: var(--cc-text-secondary);
+  color: var(--cc-text-primary);
 }
 
 .landing-delights {
@@ -134,11 +134,11 @@
   display: flex;
   align-items: center;
   gap: var(--cc-space-4);
-  color: var(--cc-text-muted);
+  color: var(--cc-text-secondary);
   font-size: var(--cc-font-md);
 }
 .landing-delight strong {
-  color: var(--cc-text-primary);
+  color: var(--cc-text-strong);
   font-weight: var(--cc-fw-semibold);
 }
 .landing-delight > svg {
@@ -186,7 +186,7 @@
   margin: 0;
   font-size: var(--cc-font-lg);
   font-weight: var(--cc-fw-semibold);
-  color: var(--cc-text-primary);
+  color: var(--cc-text-strong);
 }
 
 /* Inline load progress, replacing the form + recents while SCAN_PROGRESS is

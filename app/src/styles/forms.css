@@ -16,14 +16,14 @@
   background-color: var(--cc-bg-chrome);
   border: 1px solid var(--cc-border-input);
   border-radius: var(--cc-radius-sm);
-  color: var(--cc-text-primary);
+  color: var(--cc-text-strong);
   font: inherit;
   font-size: var(--cc-font-sm);
   padding: var(--cc-space-2) var(--cc-space-4);
   outline: none;
 }
 .form-input::placeholder {
-  color: var(--cc-text-faint);
+  color: var(--cc-text-muted);
 }
 .form-input:focus {
   border-color: var(--cc-accent-border);

@@ -4,7 +4,7 @@
    One class per text role. Components compose 1–2 of these instead of
    each rolling its own color + font-size + font-weight + family triplet.
 
-   Atomic (color-only):    .text-{primary,secondary,muted,faint,ghost,
+   Atomic (color-only):    .text-{strong,primary,secondary,muted,faint,
                                   inverse,accent,success,warning,error}
    Atomic (family-only):   .text-mono
    Utility:                .text-truncate  (nowrap + ellipsis)
@@ -14,6 +14,9 @@
    ═══════════════════════════════════════════════════════════════════════════ */
 
 /* Atomic color classes — drop into a selector list as an alias. */
+.text-strong {
+  color: var(--cc-text-strong);
+}
 .text-primary {
   color: var(--cc-text-primary);
 }
@@ -25,9 +28,6 @@
 }
 .text-faint {
   color: var(--cc-text-faint);
-}
-.text-ghost {
-  color: var(--cc-text-ghost);
 }
 .text-inverse {
   color: var(--cc-text-inverse);
@@ -87,36 +87,36 @@
   font-weight: var(--cc-fw-bold);
   letter-spacing: var(--cc-track-label);
   text-transform: uppercase;
-  color: var(--cc-text-secondary);
+  color: var(--cc-text-primary);
 }
 /* Muted variant — dimmer than the default secondary text color. Used by
    the theme-subgroup label (both the <div> non-collapsible and the
    <summary> collapsible). */
 .text-label--muted {
-  color: var(--cc-text-muted);
+  color: var(--cc-text-secondary);
 }
 
 /* Composite: pane header title. */
 .text-pane-title {
   font-size: var(--cc-font-sm);
   font-weight: var(--cc-fw-semibold);
-  color: var(--cc-text-secondary);
+  color: var(--cc-text-primary);
 }
 
 /* Composite: state-card title (loading, empty preview, empty search). */
 .text-card-title {
   font-size: var(--cc-font-sm);
   font-weight: var(--cc-fw-medium);
-  color: var(--cc-text-secondary);
+  color: var(--cc-text-primary);
 }
 /* Loading-state title is emphasized: brighter color, heavier weight. */
 .text-card-title.is-loading {
   font-weight: var(--cc-fw-semibold);
-  color: var(--cc-text-primary);
+  color: var(--cc-text-strong);
 }
 
 /* Composite: state-card subtitle. */
 .text-card-sub {
   font-size: var(--cc-font-xs);
-  color: var(--cc-text-faint);
+  color: var(--cc-text-muted);
 }

@@ -7,7 +7,7 @@
 }
 .branch-select > label {
   font-size: var(--cc-font-sm);
-  color: var(--cc-text-muted);
+  color: var(--cc-text-secondary);
 }
 .branch-select .form-input {
   width: 100%;
@@ -18,7 +18,7 @@
   align-items: center;
   gap: var(--cc-space-3);
   font-size: var(--cc-font-sm);
-  color: var(--cc-text-muted);
+  color: var(--cc-text-secondary);
 }
 
 .branch-select-spinner {

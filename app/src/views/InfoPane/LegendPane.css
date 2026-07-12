@@ -4,12 +4,12 @@
   gap: 12px;
   /* Default accent for cue rows (no data-section); layer blocks override it via
    * the shared .info-body [data-section] map. */
-  --sec-accent: var(--cc-text-secondary);
+  --sec-accent: var(--cc-text-primary);
 }
 
 .legend-intro {
   margin: 0 0 2px;
-  color: var(--cc-text-secondary);
+  color: var(--cc-text-primary);
   line-height: 1.5;
   font-size: var(--cc-font-md);
 }
@@ -32,7 +32,7 @@
   font-weight: var(--cc-fw-semibold);
   text-transform: uppercase;
   letter-spacing: var(--cc-track-label);
-  color: var(--cc-text-secondary);
+  color: var(--cc-text-primary);
 }
 
 .legend-layer-icon {
@@ -43,7 +43,7 @@
 
 .legend-layer-lead {
   margin: 0 0 8px;
-  color: var(--cc-text-secondary);
+  color: var(--cc-text-primary);
   font-size: var(--cc-font-sm);
   line-height: 1.45;
 }
@@ -68,13 +68,13 @@
 .legend-cue-label {
   flex: 0 0 128px;
   font-weight: var(--cc-fw-semibold);
-  color: var(--cc-text-primary);
+  color: var(--cc-text-strong);
 }
 
 .legend-cue-detail {
   margin: 0;
   min-width: 0;
-  color: var(--cc-text-secondary);
+  color: var(--cc-text-primary);
 }
 
 /* "Reading the city" group heading, in the layer-title idiom. */
@@ -88,7 +88,7 @@
   font-weight: var(--cc-fw-semibold);
   text-transform: uppercase;
   letter-spacing: var(--cc-track-label);
-  color: var(--cc-text-secondary);
+  color: var(--cc-text-primary);
 }
 
 .legend-cue-list {
@@ -125,11 +125,11 @@
 .legend-row-title {
   font-size: var(--cc-font-sm);
   font-weight: var(--cc-fw-semibold);
-  color: var(--cc-text-primary);
+  color: var(--cc-text-strong);
 }
 
 .legend-row-rule {
   font-size: var(--cc-font-sm);
   line-height: 1.45;
-  color: var(--cc-text-secondary);
+  color: var(--cc-text-primary);
 }

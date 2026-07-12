@@ -6,7 +6,7 @@ body {
   height: 100%;
   overflow: hidden;
   background: var(--cc-bg-app);
-  color: var(--cc-text-primary);
+  color: var(--cc-text-strong);
   font-family: var(--cc-font-sans);
   font-size: var(--cc-font-md);
   line-height: 1.5;

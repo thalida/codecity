@@ -64,7 +64,7 @@
 .activity-bar-icon {
   background: none;
   border: none;
-  color: var(--cc-text-faint);
+  color: var(--cc-text-muted);
   height: 40px;
   display: flex;
   align-items: center;
@@ -77,7 +77,7 @@
 }
 
 .activity-bar-icon:hover {
-  color: var(--cc-text-secondary);
+  color: var(--cc-text-primary);
   background: var(--cc-overlay-bg-soft);
 }
 

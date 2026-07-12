@@ -58,13 +58,13 @@
   height: 24px;
   background: none;
   border: none;
-  color: var(--cc-text-faint);
+  color: var(--cc-text-muted);
   border-radius: var(--cc-radius-sm);
   font-size: var(--cc-font-md);
   cursor: pointer;
 }
 .btn-icon:not(:disabled):hover {
-  color: var(--cc-text-primary);
+  color: var(--cc-text-strong);
   background: var(--cc-overlay-bg);
 }
 .btn-icon:disabled {
@@ -94,7 +94,7 @@
   height: auto;
   padding: var(--cc-space-px) var(--cc-space-2);
   font: inherit;
-  color: var(--cc-text-muted);
+  color: var(--cc-text-secondary);
 }
 /* Non-leaf text buttons (breadcrumb segments) hint interactivity on hover with
    an underline — they sit in body-text color and otherwise read as static. The
@@ -130,7 +130,7 @@
   padding: 0 var(--cc-space-3); /* symmetric padding each side */
   background: none;
   border: none;
-  color: var(--cc-text-faint);
+  color: var(--cc-text-muted);
   border-radius: var(--cc-radius-sm);
   font: inherit;
   font-size: var(--cc-font-sm);
@@ -139,7 +139,7 @@
   -webkit-app-region: no-drag;
 }
 .btn-chip:not(:disabled):hover {
-  color: var(--cc-text-primary);
+  color: var(--cc-text-strong);
   background: var(--cc-overlay-bg);
 }
 .btn-chip:disabled {
@@ -162,7 +162,7 @@
   background: var(--cc-overlay-bg-soft);
   border: 1px solid var(--cc-overlay-bg-strong);
   border-radius: var(--cc-radius-md);
-  color: var(--cc-text-secondary);
+  color: var(--cc-text-primary);
   padding: var(--cc-space-4) var(--cc-space-7); /* matches .btn-primary */
   cursor: pointer;
   font: inherit;
@@ -175,7 +175,7 @@
 .btn-secondary:hover:not(:disabled) {
   background: var(--cc-overlay-bg-strong);
   border-color: var(--cc-overlay-border);
-  color: var(--cc-text-primary);
+  color: var(--cc-text-strong);
 }
 .btn-secondary:active:not(:disabled) {
   background: var(--cc-overlay-border);
@@ -195,7 +195,7 @@
   appearance: none;
   background: none;
   border: none;
-  color: var(--cc-text-faint);
+  color: var(--cc-text-muted);
   font-family: inherit;
   cursor: pointer;
   font-size: var(--cc-font-sm);
@@ -207,11 +207,11 @@
     background var(--cc-t-base);
 }
 .btn-toggle:hover {
-  color: var(--cc-text-secondary);
+  color: var(--cc-text-primary);
 }
 .btn-toggle.is-active {
   background: var(--cc-accent-bg);
-  color: var(--cc-text-primary);
+  color: var(--cc-text-strong);
 }
 /* .btn-toggle--separated — modifier that adds a vertical separator
    between sibling options. Used inside .theme-select where the buttons

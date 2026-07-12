@@ -20,7 +20,7 @@ canvas {
    .card-tooltip; this adds positioning + text styling. */
 #hover-tooltip {
   position: fixed;
-  color: var(--cc-text-primary);
+  color: var(--cc-text-strong);
   font-size: var(--cc-font-xs);
   pointer-events: none;
   z-index: 200;

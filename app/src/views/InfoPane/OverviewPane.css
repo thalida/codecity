@@ -8,13 +8,13 @@
   margin: 0 0 6px;
   font-size: var(--cc-font-lg);
   font-weight: var(--cc-fw-semibold);
-  color: var(--cc-text-primary);
+  color: var(--cc-text-strong);
   word-break: break-word;
 }
 
 .almanac-blurb {
   margin: 0 0 12px;
-  color: var(--cc-text-secondary);
+  color: var(--cc-text-primary);
   line-height: 1.5;
   font-size: var(--cc-font-md);
 }
@@ -40,14 +40,14 @@
 }
 
 .almanac-meta dt {
-  color: var(--cc-text-muted);
+  color: var(--cc-text-secondary);
   white-space: nowrap;
 }
 
 .almanac-meta dd {
   margin: 0;
   min-width: 0;
-  color: var(--cc-text-secondary);
+  color: var(--cc-text-primary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -56,12 +56,12 @@
 /* Relative age appended after an absolute date (Founded / Last Updated), set
  * off by a faint middot. */
 .almanac-rel {
-  color: var(--cc-text-faint);
+  color: var(--cc-text-muted);
 }
 .almanac-rel::before {
   content: '·';
   margin: 0 var(--cc-space-3);
-  color: var(--cc-text-ghost);
+  color: var(--cc-text-faint);
 }
 
 /* The sha as plain text (no remote) vs. as the one link in the row. Both stay
@@ -73,7 +73,7 @@
 }
 
 .almanac-sha {
-  color: var(--cc-text-primary);
+  color: var(--cc-text-strong);
 }
 
 /* Latest commit row — the sha link + commit subject (relative age and branch
@@ -90,7 +90,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  color: var(--cc-text-secondary);
+  color: var(--cc-text-primary);
 }
 
 /* Branch name as a small pill — the chip vocabulary the language legend uses. */
@@ -99,7 +99,7 @@
   border: 1px solid var(--cc-border-subtle);
   border-radius: var(--cc-radius-pill);
   background: var(--cc-overlay-bg);
-  color: var(--cc-text-secondary);
+  color: var(--cc-text-primary);
   font-size: var(--cc-font-2xs);
   line-height: 1.6;
 }
@@ -148,7 +148,7 @@
 
 .almanac-language-count {
   font-size: var(--cc-font-xs);
-  color: var(--cc-text-secondary);
+  color: var(--cc-text-primary);
 }
 
 /* Trailing "+N more" — same chip shell, no badge; a muted summary so the list
@@ -156,7 +156,7 @@
 .almanac-language--more {
   padding: 2px 8px;
   font-size: var(--cc-font-xs);
-  color: var(--cc-text-muted);
+  color: var(--cc-text-secondary);
   cursor: default;
 }
 
@@ -183,7 +183,7 @@
   font-weight: var(--cc-fw-semibold);
   text-transform: uppercase;
   letter-spacing: var(--cc-track-label);
-  color: var(--cc-text-secondary);
+  color: var(--cc-text-primary);
 }
 
 .almanac-section-icon {
@@ -196,14 +196,14 @@
  * section. Flush-left with the header (no indent — the header already groups). */
 .almanac-section-overview {
   margin: -2px 0 8px 0;
-  color: var(--cc-text-secondary);
+  color: var(--cc-text-primary);
   font-size: var(--cc-font-sm);
 }
 
 .almanac-section-note {
   margin: 0;
   padding: 2px 0 4px;
-  color: var(--cc-text-muted);
+  color: var(--cc-text-secondary);
   font-size: var(--cc-font-sm);
   font-style: italic;
 }
@@ -263,7 +263,7 @@
  * length). Sized to fit the longest label in use ("Least active"). */
 .almanac-fact-label {
   flex: 0 0 76px;
-  color: var(--cc-text-muted);
+  color: var(--cc-text-secondary);
   font-size: var(--cc-font-xs);
 }
 
@@ -272,7 +272,7 @@
 .almanac-fact-primary {
   flex: 1 1 0;
   min-width: 0;
-  color: var(--cc-text-primary);
+  color: var(--cc-text-strong);
   font-size: var(--cc-font-xs);
   white-space: nowrap;
   overflow: hidden;
@@ -303,7 +303,7 @@
 /* Metric pinned right so every row shares one rail. */
 .almanac-fact-metric {
   flex: 0 0 auto;
-  color: var(--cc-text-muted);
+  color: var(--cc-text-secondary);
   font-size: var(--cc-font-xs);
   white-space: nowrap;
 }
@@ -316,11 +316,11 @@
   flex: 0 0 auto;
   width: 14px;
   height: 14px;
-  color: var(--cc-text-faint);
+  color: var(--cc-text-muted);
   transition: color 0.12s ease;
 }
 
 .almanac-fact--nav:hover .almanac-fact-focus,
 .almanac-fact--nav:focus-visible .almanac-fact-focus {
-  color: var(--cc-text-primary);
+  color: var(--cc-text-strong);
 }

@@ -6,7 +6,7 @@
  * hidden segment names. */
 .file-path-ellipsis {
   flex: 0 0 auto;
-  color: var(--cc-text-faint);
+  color: var(--cc-text-muted);
   padding: 0 var(--cc-space-1);
   cursor: help;
   user-select: none;
@@ -15,15 +15,15 @@
 /* File-preview pane path segments rendered inside .text-pane-title. */
 .file-path-segment {
   flex: 0 0 auto;
-  color: var(--cc-text-muted);
+  color: var(--cc-text-secondary);
   white-space: nowrap;
 }
 .file-path-segment.is-leaf {
-  color: var(--cc-text-secondary);
+  color: var(--cc-text-primary);
 }
 .file-path-sep {
   flex: 0 0 auto;
-  color: var(--cc-text-ghost);
+  color: var(--cc-text-faint);
   font-size: var(--cc-font-sm);
   pointer-events: none;
   padding: 0 var(--cc-space-px);
@@ -158,8 +158,8 @@
   background: var(--cc-bg-chrome);
   border-right: 1px solid var(--cc-track);
   color: var(
-    --cc-text-faint
-  ); /* was var(--cc-text-ghost) (2.15:1 → now 3.41:1, WCAG AA for UI text) */
+    --cc-text-muted
+  ); /* was var(--cc-text-faint) (2.15:1 → now 3.41:1, WCAG AA for UI text) */
   text-align: right;
   user-select: none;
   /* The gutter's width is content-driven (3 digits + padding) and stays
@@ -182,7 +182,7 @@
   flex: 1 1 auto;
   white-space: pre;
   background: transparent;
-  color: var(--cc-text-secondary);
+  color: var(--cc-text-primary);
 }
 
 .code-editor-code {

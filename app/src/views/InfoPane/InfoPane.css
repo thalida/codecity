@@ -4,7 +4,7 @@
  * Overview sections and the Legend rows (both live in .info-body) so the color
  * cue reads from a single source. */
 .info-body [data-section] {
-  --sec-accent: var(--cc-text-secondary);
+  --sec-accent: var(--cc-text-primary);
 }
 .info-body [data-section='buildings'] {
   --sec-accent: var(--cc-layer-buildings);
@@ -41,7 +41,7 @@
 }
 
 .info-markdown {
-  color: var(--cc-text-secondary);
+  color: var(--cc-text-primary);
   font-size: var(--cc-font-sm);
   line-height: 1.6;
   word-wrap: break-word;
@@ -53,7 +53,7 @@
 .info-markdown h4,
 .info-markdown h5,
 .info-markdown h6 {
-  color: var(--cc-text-primary);
+  color: var(--cc-text-strong);
   font-weight: var(--cc-fw-bold);
   margin: var(--cc-space-7) 0 var(--cc-space-4);
   line-height: 1.3;
@@ -78,12 +78,12 @@
 }
 .info-markdown h4 {
   font-size: var(--cc-font-sm);
-  color: var(--cc-text-secondary);
+  color: var(--cc-text-primary);
 }
 .info-markdown h5,
 .info-markdown h6 {
   font-size: var(--cc-font-sm);
-  color: var(--cc-text-muted);
+  color: var(--cc-text-secondary);
   text-transform: uppercase;
   letter-spacing: var(--cc-track-label);
 }
@@ -103,11 +103,11 @@
 }
 
 .info-markdown strong {
-  color: var(--cc-text-primary);
+  color: var(--cc-text-strong);
   font-weight: var(--cc-fw-bold);
 }
 .info-markdown em {
-  color: var(--cc-text-primary);
+  color: var(--cc-text-strong);
   font-style: italic;
 }
 
@@ -127,7 +127,7 @@
   margin: var(--cc-space-5) 0;
   padding: var(--cc-space-2) var(--cc-space-6);
   border-left: 3px solid var(--cc-border-tooltip);
-  color: var(--cc-text-muted);
+  color: var(--cc-text-secondary);
   background: var(--cc-accent-bg-soft);
 }
 .info-markdown blockquote > p {
@@ -144,7 +144,7 @@
    larger font and primary text color. */
 .info-markdown code {
   border: 1px solid var(--cc-accent-bg);
-  color: var(--cc-text-primary);
+  color: var(--cc-text-strong);
   font-size: var(--cc-font-sm);
 }
 
@@ -163,7 +163,7 @@
   background: transparent;
   border: none;
   padding: var(--cc-space-0);
-  color: var(--cc-text-secondary);
+  color: var(--cc-text-primary);
   font-size: inherit;
 }
 
@@ -185,7 +185,7 @@
 }
 .info-markdown th {
   background: var(--cc-bg-chrome);
-  color: var(--cc-text-primary);
+  color: var(--cc-text-strong);
 }
 
 .info-markdown input[type='checkbox'] {

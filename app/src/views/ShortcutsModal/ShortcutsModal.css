@@ -14,7 +14,7 @@
 .shortcuts-list kbd,
 .shortcuts-list .shortcuts-mouse {
   border: 1px solid var(--cc-border-input);
-  color: var(--cc-text-secondary);
+  color: var(--cc-text-primary);
   font-size: var(--cc-font-2xs);
   margin: 0 var(--cc-space-px);
   line-height: 1.2;
@@ -37,16 +37,16 @@
   margin-top: var(--cc-space-6);
 }
 .shortcuts-list dt {
-  color: var(--cc-text-secondary);
+  color: var(--cc-text-primary);
   white-space: nowrap;
 }
 .shortcuts-list dd {
-  color: var(--cc-text-muted);
+  color: var(--cc-text-secondary);
   margin: var(--cc-space-0);
   line-height: 1.3;
 }
 .shortcuts-list .shortcuts-or {
-  color: var(--cc-text-faint);
+  color: var(--cc-text-muted);
   font-size: var(--cc-font-2xs);
   margin-left: var(--cc-space-1);
 }

@@ -23,7 +23,7 @@
 .search-input-icon {
   flex: 0 0 auto;
   font-size: var(--cc-font-md);
-  color: var(--cc-text-faint);
+  color: var(--cc-text-muted);
 }
 
 /* Visual style in .form-input; this rule adds the flex-fill layout. */
@@ -49,7 +49,7 @@
   border-left: 2px solid transparent;
   font-family: var(--cc-font-mono);
   font-size: var(--cc-font-xs);
-  color: var(--cc-text-muted);
+  color: var(--cc-text-secondary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -57,12 +57,12 @@
 }
 .search-result:hover {
   background: var(--cc-overlay-bg-soft);
-  color: var(--cc-text-primary);
+  color: var(--cc-text-strong);
 }
 .search-result:focus-visible {
   background: var(--cc-accent-bg);
   border-left-color: var(--cc-accent);
-  color: var(--cc-text-primary);
+  color: var(--cc-text-strong);
 }
 .search-result mark {
   background: transparent;
