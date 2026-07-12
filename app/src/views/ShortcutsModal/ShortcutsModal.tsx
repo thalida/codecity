@@ -19,11 +19,13 @@ interface ShortcutItem {
   or?: string;
 }
 
-const GENERAL_SHORTCUTS: Array<ShortcutItem | null> = [
+const KEYBOARD_SHORTCUTS: ShortcutItem[] = [
   { kbd: [KEY_BINDINGS.RESET_VIEW.label], action: 'Reset the camera view' },
   { kbd: [KEY_BINDINGS.FOCUS_SELECTION.label], action: 'Focus camera on the current selection' },
   { kbd: [KEY_BINDINGS.CLEAR_SELECTION.label], action: 'Clear selection' },
-  null,
+];
+
+const MOUSE_SHORTCUTS: ShortcutItem[] = [
   { mouse: 'Click', action: 'Select building / street / gem' },
   { mouse: 'Double-click', action: 'Focus camera on the target' },
   { mouse: 'Left drag', action: 'Orbit' },
@@ -32,13 +34,10 @@ const GENERAL_SHORTCUTS: Array<ShortcutItem | null> = [
   { mouse: 'Scroll', action: 'Zoom toward cursor' },
 ];
 
-function ShortcutsList({ items }: { items: Array<ShortcutItem | null> }) {
+function ShortcutsList({ items }: { items: ShortcutItem[] }) {
   return (
     <dl class="shortcuts-list">
       {items.map((item, idx) => {
-        if (item == null) {
-          return <div key={`div-${idx}`} class="shortcuts-divider" />;
-        }
         const dt =
           item.kbd != null ? (
             <dt key={`dt-${idx}`}>
@@ -113,8 +112,10 @@ export function ShortcutsModal() {
           </button>
         </div>
         <div class="modal-body">
-          <h3 class="text-label">General</h3>
-          <ShortcutsList items={GENERAL_SHORTCUTS} />
+          <h3 class="text-label">Keyboard</h3>
+          <ShortcutsList items={KEYBOARD_SHORTCUTS} />
+          <h3 class="text-label">Mouse</h3>
+          <ShortcutsList items={MOUSE_SHORTCUTS} />
         </div>
       </div>
     </div>
