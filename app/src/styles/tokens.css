@@ -92,7 +92,7 @@
   --cc-warning: oklch(0.837 0.164 84.4);
   --cc-warning-bg: color-mix(in oklch, var(--cc-warning) 15%, transparent);
   --cc-error: oklch(0.637 0.208 25.3);
-  --cc-error-light: oklch(0.843 0.088 10.3);
+  --cc-error-light: oklch(0.843 0.088 25.3); /* light shade of --cc-error (shares its hue) */
   --cc-error-bg: color-mix(in oklch, var(--cc-error) 18%, transparent);
   --cc-error-border: color-mix(in oklch, var(--cc-error) 45%, transparent);
 
