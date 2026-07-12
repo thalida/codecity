@@ -76,7 +76,6 @@
 .commit-message-body-slot--loading {
   font-size: var(--cc-font-xs);
   color: var(--cc-text-secondary);
-  font-style: italic;
   opacity: 0.7;
   padding: var(--cc-space-3) 0;
 }

@@ -127,7 +127,6 @@
   align-items: center;
   gap: var(--cc-space-4);
   color: var(--cc-accent-light);
-  font-family: var(--cc-font-sans);
   font-size: var(--cc-font-xs);
   line-height: var(--cc-lh-base);
 }

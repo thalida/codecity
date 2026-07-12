@@ -2,7 +2,6 @@
 
 .street-label {
   position: absolute;
-  font-family: var(--cc-font-sans);
   font-size: var(--cc-font-2xs);
   font-weight: var(--cc-fw-medium);
   color: var(--cc-text-base);

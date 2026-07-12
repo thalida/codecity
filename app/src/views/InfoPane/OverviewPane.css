@@ -200,7 +200,6 @@
   padding: 2px 0 4px;
   color: var(--cc-text-secondary);
   font-size: var(--cc-font-sm);
-  font-style: italic;
 }
 
 /* A min↔max duo: two endpoints under a shared dimension label so the
