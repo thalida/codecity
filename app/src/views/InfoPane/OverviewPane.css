@@ -1,11 +1,11 @@
 .almanac {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: var(--cc-space-6);
 }
 
 .almanac-name {
-  margin: 0 0 6px;
+  margin: 0 0 var(--cc-space-3);
   font-size: var(--cc-font-lg);
   font-weight: var(--cc-fw-semibold);
   color: var(--cc-text-strong);
@@ -13,7 +13,7 @@
 }
 
 .almanac-blurb {
-  margin: 0 0 12px;
+  margin: 0 0 var(--cc-space-6);
   color: var(--cc-text-primary);
   line-height: var(--cc-lh-base);
   font-size: var(--cc-font-md);
@@ -81,7 +81,7 @@
 .almanac-latest-head {
   display: flex;
   align-items: baseline;
-  gap: 6px;
+  gap: var(--cc-space-3);
   min-width: 0;
 }
 
@@ -95,7 +95,7 @@
 
 /* Branch name as a small pill — the chip vocabulary the language legend uses. */
 .almanac-branch {
-  padding: 0 7px;
+  padding: 0 var(--cc-space-3);
   border: 1px solid var(--cc-border-subtle);
   border-radius: var(--cc-radius-pill);
   background: var(--cc-overlay-bg);
@@ -108,9 +108,9 @@
  * as its legend chip. The gaps let the track show through as hairlines. */
 .almanac-langbar {
   display: flex;
-  gap: 1px;
+  gap: var(--cc-space-px);
   height: 8px;
-  margin: 12px 0 0;
+  margin: var(--cc-space-6) 0 0;
   border-radius: var(--cc-radius-pill);
   background: var(--cc-border-subtle);
   overflow: hidden;
@@ -127,11 +127,11 @@
 
 .almanac-languages {
   list-style: none;
-  margin: 8px 0 0;
+  margin: var(--cc-space-4) 0 0;
   padding: 0;
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: var(--cc-space-3);
 }
 
 /* Each language is a single bordered chip: the colored extension badge and its
@@ -139,8 +139,8 @@
 .almanac-language {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  padding: 2px 7px 2px 3px;
+  gap: var(--cc-space-2);
+  padding: var(--cc-space-1) var(--cc-space-3) var(--cc-space-1) var(--cc-space-1);
   border: 1px solid var(--cc-border-subtle);
   border-radius: var(--cc-radius-md);
   background: var(--cc-overlay-bg);
@@ -154,7 +154,7 @@
 /* Trailing "+N more" — same chip shell, no badge; a muted summary so the list
  * reads as "top types + everything else", not an arbitrary cut-off. */
 .almanac-language--more {
-  padding: 2px 8px;
+  padding: var(--cc-space-1) var(--cc-space-4);
   font-size: var(--cc-font-xs);
   color: var(--cc-text-secondary);
   cursor: default;
@@ -171,14 +171,14 @@
   display: flex;
   flex-direction: column;
   border-top: 1px solid var(--cc-border-subtle);
-  padding-top: 12px;
+  padding-top: var(--cc-space-6);
 }
 
 .almanac-section-title {
   display: flex;
   align-items: center;
-  gap: 7px;
-  margin: 0 0 8px;
+  gap: var(--cc-space-3);
+  margin: 0 0 var(--cc-space-4);
 }
 
 .almanac-section-icon {
@@ -190,14 +190,14 @@
 /* Summary line under each header — count + one aggregate, same rhythm in every
  * section. Flush-left with the header (no indent — the header already groups). */
 .almanac-section-overview {
-  margin: -2px 0 8px 0;
+  margin: -2px 0 var(--cc-space-4) 0;
   color: var(--cc-text-primary);
   font-size: var(--cc-font-sm);
 }
 
 .almanac-section-note {
   margin: 0;
-  padding: 2px 0 4px;
+  padding: var(--cc-space-1) 0 var(--cc-space-2);
   color: var(--cc-text-secondary);
   font-size: var(--cc-font-sm);
 }
@@ -208,12 +208,12 @@
 .almanac-duo {
   display: flex;
   flex-direction: column;
-  margin: 2px 0 6px;
+  margin: var(--cc-space-1) 0 var(--cc-space-3);
 }
 
 .almanac-duo-dim {
   display: block;
-  margin: 0 0 1px 0;
+  margin: 0 0 var(--cc-space-px) 0;
 }
 /* Accented to the section's own layer color (like the section title icon)
    instead of .text-label's default primary — overrides via a compound
@@ -228,14 +228,14 @@
 .almanac-fact {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--cc-space-4);
   /* The row is a flex item, so it stretches to the section/duo width on its own
    * (definite width → the value truncates instead of overflowing — no calc()
    * hack needed). The negative margins then do one job: bleed the hover highlight
    * into the gutter so the text stays flush with the header while the highlight
    * keeps its own inner padding. */
-  margin: 0 -8px;
-  padding: 5px 8px;
+  margin: 0 calc(-1 * var(--cc-space-4));
+  padding: var(--cc-space-2) var(--cc-space-4);
   border-radius: var(--cc-radius-md);
   text-align: left;
   background: none;

@@ -1,14 +1,14 @@
 .legend {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: var(--cc-space-6);
   /* Default accent for cue rows (no data-section); layer blocks override it via
    * the shared .info-body [data-section] map. */
   --sec-accent: var(--cc-text-primary);
 }
 
 .legend-intro {
-  margin: 0 0 2px;
+  margin: 0 0 var(--cc-space-1);
   color: var(--cc-text-primary);
   line-height: var(--cc-lh-base);
   font-size: var(--cc-font-md);
@@ -20,14 +20,14 @@
   display: flex;
   flex-direction: column;
   border-top: 1px solid var(--cc-border-subtle);
-  padding-top: 12px;
+  padding-top: var(--cc-space-6);
 }
 
 .legend-layer-title {
   display: flex;
   align-items: center;
-  gap: 7px;
-  margin: 0 0 6px;
+  gap: var(--cc-space-3);
+  margin: 0 0 var(--cc-space-3);
 }
 
 .legend-layer-icon {
@@ -37,7 +37,7 @@
 }
 
 .legend-layer-lead {
-  margin: 0 0 8px;
+  margin: 0 0 var(--cc-space-4);
   color: var(--cc-text-primary);
   font-size: var(--cc-font-sm);
   line-height: var(--cc-lh-base);
@@ -49,12 +49,12 @@
   margin: 0;
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: var(--cc-space-1);
 }
 
 .legend-cue {
   display: flex;
-  gap: 10px;
+  gap: var(--cc-space-5);
   align-items: baseline;
   min-width: 0;
   font-size: var(--cc-font-sm);
@@ -76,24 +76,24 @@
 .legend-group-title {
   display: flex;
   align-items: center;
-  margin: 6px 0 0;
-  padding-top: 12px;
+  margin: var(--cc-space-3) 0 0;
+  padding-top: var(--cc-space-6);
   border-top: 1px solid var(--cc-border-subtle);
 }
 
 .legend-cue-list {
-  margin: 8px 0 0;
+  margin: var(--cc-space-4) 0 0;
   padding: 0;
   list-style: none;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: var(--cc-space-6);
 }
 
 /* A non-layer cue row: glyph on its own rail, name + description stacked. */
 .legend-row {
   display: flex;
-  gap: 10px;
+  gap: var(--cc-space-5);
   align-items: flex-start;
 }
 
@@ -108,7 +108,7 @@
 .legend-row-text {
   display: flex;
   flex-direction: column;
-  gap: 1px;
+  gap: var(--cc-space-px);
   min-width: 0;
 }
 
