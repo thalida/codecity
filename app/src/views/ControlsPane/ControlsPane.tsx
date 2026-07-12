@@ -73,7 +73,7 @@ export function ControlsPane({ onClose, collapsed }: ControlsPaneProps) {
     },
     {
       id: 'updates',
-      label: 'Updates',
+      label: 'Live updates',
       icon: RefreshCw,
       draftable: false,
       sections: [{ ...UPDATES_SECTION, inline: true }],

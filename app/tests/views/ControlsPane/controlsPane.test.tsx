@@ -52,7 +52,7 @@ describe('ControlsPane subtabs', () => {
   it('renders exactly three subtabs, World active by default', () => {
     const pane = mount();
     expect(pane.classList.contains('controls-pane')).toBe(true);
-    for (const label of ['World', 'Updates', 'Preview']) {
+    for (const label of ['World', 'Live updates', 'Preview']) {
       expect(tab(pane, label)).toBeTruthy();
     }
     expect(tab(pane, 'Shortcuts')).toBeUndefined();
@@ -63,7 +63,7 @@ describe('ControlsPane subtabs', () => {
   it('shows the action bar only on World; Updates/Preview autosave with no footer', () => {
     const pane = mount();
     expect(pane.querySelector('.controls-actions')).toBeTruthy(); // World
-    clickTab(pane, 'Updates');
+    clickTab(pane, 'Live updates');
     expect(pane.querySelector('.controls-actions')).toBeNull();
     clickTab(pane, 'Preview');
     expect(pane.querySelector('.controls-actions')).toBeNull();
@@ -71,7 +71,7 @@ describe('ControlsPane subtabs', () => {
 
   it('renders the Updates section inline, with no collapsible section wrapper', () => {
     const pane = mount();
-    clickTab(pane, 'Updates');
+    clickTab(pane, 'Live updates');
     expect(pane.querySelector('.controls-section')).toBeNull();
     expect(pane.querySelectorAll('.theme-row').length).toBeGreaterThan(0);
   });
@@ -100,7 +100,7 @@ describe('ControlsPane subtabs', () => {
   it('collapsed=true closes all <details> and resets to the World subtab', async () => {
     const pane = mount({ collapsed: false });
     pane.querySelectorAll<HTMLDetailsElement>('details').forEach((d) => (d.open = true));
-    clickTab(pane, 'Updates');
+    clickTab(pane, 'Live updates');
     act(() => {
       render(<ControlsPane onClose={() => {}} collapsed={true} />, container);
     });
