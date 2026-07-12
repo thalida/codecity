@@ -26,14 +26,16 @@
   pointer-events: none;
   background:
     radial-gradient(
-      55% 45% at 18% 12%,
+      75% 65% at 18% 12%,
       color-mix(in oklch, var(--cc-gem-cyan) 10%, transparent),
-      transparent 70%
+      color-mix(in oklch, var(--cc-gem-cyan) 3%, transparent) 45%,
+      transparent 100%
     ),
     radial-gradient(
-      50% 45% at 88% 85%,
+      70% 65% at 88% 85%,
       color-mix(in oklch, var(--cc-gem-purple) 10%, transparent),
-      transparent 70%
+      color-mix(in oklch, var(--cc-gem-purple) 3%, transparent) 45%,
+      transparent 100%
     );
 }
 
