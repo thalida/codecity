@@ -96,7 +96,11 @@ export function NewProjectForm({ allowLocalRepos, prefill, onSubmit }: NewProjec
           aria-invalid={hasError ? 'true' : undefined}
           autoComplete="off"
           spellcheck={false}
-          placeholder="https://github.com/owner/repo"
+          placeholder={
+            allowLocalRepos
+              ? 'https://github.com/owner/repo or ~/projects/repo'
+              : 'https://github.com/owner/repo'
+          }
           value={source}
           onInput={(e) => onSourceInput((e.target as HTMLInputElement).value)}
         />
