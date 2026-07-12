@@ -23,6 +23,7 @@ import { NodeKind } from '@/types';
 import type { DirNode, FileNode, Manifest, TreeNode } from '@/types';
 import { Search, SearchX } from 'lucide-preact';
 import { Pane, PaneEmpty } from '@/components/Pane';
+import { PaneCloseButton } from '@/components/PaneHeader/PaneHeader';
 
 const MAX_RESULTS = 50;
 const WORD_BOUNDARY_RE = /[/_\-.]/;
@@ -52,17 +53,25 @@ export function SearchPane({ manifest, onClose, onSelect, onFocus }: SearchPaneP
   const results = trimmed ? _searchFiles(trimmed, files) : null;
 
   return (
-    <Pane paneClass="search-pane" title="Search" onClose={onClose}>
-      <div class="search-input-wrap">
-        <Search class="lucide-icon search-input-icon" />
-        <input
-          type="search"
-          class="form-input search-input"
-          placeholder="Search files by path"
-          value={query}
-          onInput={(e) => setQuery((e.target as HTMLInputElement).value)}
-        />
-      </div>
+    <Pane
+      paneClass="search-pane"
+      headerSlot={
+        <div class="pane-header pane-header--search">
+          <div class="search-input-wrap">
+            <Search class="lucide-icon search-input-icon" aria-hidden="true" />
+            <input
+              type="search"
+              class="form-input search-input"
+              placeholder="Search files by path"
+              aria-label="Search files by path"
+              value={query}
+              onInput={(e) => setQuery((e.target as HTMLInputElement).value)}
+            />
+          </div>
+          {onClose && <PaneCloseButton onClose={onClose} />}
+        </div>
+      }
+    >
       <div class="pane-body">
         {!trimmed && (
           <PaneEmpty
