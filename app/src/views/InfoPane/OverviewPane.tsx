@@ -220,7 +220,7 @@ export function OverviewPane({ manifest }: OverviewPaneProps) {
     repo.remote_url && repo.head_sha ? commitUrl(repo.remote_url, repo.head_sha) : null;
 
   return (
-    <div class="almanac">
+    <div class="almanac pane-inset">
       <header class="almanac-overview">
         <h2 class="almanac-name">{overview.name}</h2>
         {blurb && <p class="almanac-blurb">{blurb}</p>}

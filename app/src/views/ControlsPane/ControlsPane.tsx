@@ -114,7 +114,7 @@ export function ControlsPane({ onClose, collapsed }: ControlsPaneProps) {
           {onClose && <PaneCloseButton onClose={onClose} />}
         </div>
       }
-      bodyClass="pane-body--padded"
+      bodyClass="pane-inset"
       footerSlot={active.draftable ? <ActionsBar /> : null}
     >
       {active.sections.map((node) => (

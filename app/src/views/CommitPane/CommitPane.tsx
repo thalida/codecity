@@ -121,7 +121,12 @@ export function CommitPane({ state, onClose, onFocus }: CommitPaneProps) {
 
   if (!commit) {
     return (
-      <Pane paneClass="commit-pane" title="Commit" onClose={onClose} bodyClass="commit-body">
+      <Pane
+        paneClass="commit-pane"
+        title="Commit"
+        onClose={onClose}
+        bodyClass="commit-body pane-inset"
+      >
         <PaneEmpty
           icon={GitCommitHorizontal}
           title="No commit"
@@ -161,7 +166,7 @@ export function CommitPane({ state, onClose, onFocus }: CommitPaneProps) {
       onFocus={typeof onFocus === 'function' ? () => onFocus(commit) : undefined}
       focusTitle={`Focus the camera on this commit (${KEY_BINDINGS.FOCUS_SELECTION.label})`}
       onClose={onClose}
-      bodyClass="commit-body"
+      bodyClass="commit-body pane-inset"
     >
       <div class="commit-message-subject">{commit.subject || '(no subject)'}</div>
       {(commit.authors ?? []).map((author) => (

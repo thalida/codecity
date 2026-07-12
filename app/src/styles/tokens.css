@@ -135,6 +135,10 @@
   --cc-space-8: 24px;
   --cc-space-9: 32px;
   --cc-space-base: var(--cc-space-4);
+  /* Semantic: the inset from a pane/panel edge to its content. Pane-body
+     paddings, row insets, and full-bleed row margins all key off this, so
+     changing it here reflows every panel's content inset in lockstep. */
+  --cc-pane-inset: var(--cc-space-6);
 
   /* ── SCALES — Radius ──────────────────────────────────────────────────── */
   --cc-radius-0: 0;

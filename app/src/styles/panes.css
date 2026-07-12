@@ -6,7 +6,9 @@
                  shells that don't scroll themselves.
    .pane-body  — like .pane, but the body itself scrolls vertically. Used
                  when the contents need to scroll inside the pane.
-                 .pane-body--padded adds inset padding.
+   .pane-inset — standard content inset (var(--cc-pane-inset)) for any pane or
+                 panel content wrapper. The one shared padding class; every
+                 panel uses it so the inset lives in one place.
    ═══════════════════════════════════════════════════════════════════════════ */
 
 .pane,
@@ -27,7 +29,7 @@
   overflow-y: auto;
 }
 
-.pane-body--padded {
-  padding: var(--cc-space-7);
+.pane-inset {
+  padding: var(--cc-pane-inset);
   box-sizing: border-box;
 }
