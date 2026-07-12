@@ -5,11 +5,11 @@
    fills the row with the × close button pinned right, and the result list
    scrolls below. Matched query characters in each result are wrapped in <mark>. */
 
-/* The input takes the place of a title, so the row hugs the field: shorter than
-   the default header, and the left inset matches the icon→input gap so the
-   search glyph sits with equal space on both sides. */
+/* The input takes the place of a title, so the row hugs the field: a uniform
+   inset all round, and the icon→input gap matches it so the search glyph sits
+   with equal space on both sides. */
 .pane-header--search {
-  padding: var(--cc-space-4) var(--cc-space-6) var(--cc-space-4) var(--cc-space-3);
+  padding: var(--cc-space-4);
 }
 
 .search-input-wrap {
@@ -17,7 +17,7 @@
   min-width: 0;
   display: flex;
   align-items: center;
-  gap: var(--cc-space-3);
+  gap: var(--cc-space-4);
 }
 
 .search-input-icon {
