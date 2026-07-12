@@ -81,11 +81,11 @@
   background: var(--cc-overlay-bg-soft);
 }
 
-/* Selected tab: accent-colored glyph + a faint accent fill (softer than the
-   standard -bg-soft tint), no left border. */
+/* Selected tab: accent-colored glyph + the canonical accent selected fill
+   (--cc-accent-bg), matching every other selected state. */
 .activity-bar-icon.active {
   color: var(--cc-accent);
-  background: color-mix(in oklch, var(--cc-accent) 6%, transparent);
+  background: var(--cc-accent-bg-soft);
 }
 
 /* Lucide glyph sizing: CSS width/height override the SVG's own size attrs so

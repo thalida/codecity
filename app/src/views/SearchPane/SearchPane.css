@@ -60,7 +60,7 @@
   color: var(--cc-text-strong);
 }
 .search-result:focus-visible {
-  background: var(--cc-accent-bg);
+  background: var(--cc-accent-bg-soft);
   border-left-color: var(--cc-accent);
   color: var(--cc-text-strong);
 }

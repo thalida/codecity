@@ -210,7 +210,7 @@
   color: var(--cc-text-primary);
 }
 .btn-toggle.is-active {
-  background: var(--cc-accent-bg);
+  background: var(--cc-accent-bg-soft);
   color: var(--cc-text-strong);
 }
 /* .btn-toggle--separated — modifier that adds a vertical separator

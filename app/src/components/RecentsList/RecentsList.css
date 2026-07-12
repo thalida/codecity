@@ -74,7 +74,7 @@
   background: var(--cc-accent-bg-soft);
 }
 .recent-row--active:hover {
-  background: var(--cc-accent-bg);
+  background: var(--cc-accent-bg-soft);
 }
 
 /* Unavailable (a local recent while local repos are off): dimmed as a hint,
@@ -83,17 +83,32 @@
   opacity: 0.55;
 }
 
+/* Active badge: a neutral "live" status pill (white dot + label). Deliberately
+   NOT accent-tinted so the current-project marker stays constant across accent
+   presets. */
 .recent-row-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cc-space-2);
   margin-left: auto;
   font-size: var(--cc-font-2xs);
   font-weight: var(--cc-fw-semibold);
   letter-spacing: var(--cc-track-label);
-  color: var(--cc-accent);
-  background: var(--cc-accent-bg);
-  border: 1px solid var(--cc-accent-border);
-  border-radius: var(--cc-radius-lg);
+  text-transform: uppercase;
+  color: var(--cc-text-strong);
+  background: var(--cc-overlay-bg);
+  border: 1px solid var(--cc-overlay-border);
+  border-radius: var(--cc-radius-pill);
   padding: var(--cc-space-1) var(--cc-space-3);
   white-space: nowrap;
+}
+.recent-row-badge::before {
+  content: '';
+  flex: 0 0 auto;
+  width: 6px;
+  height: 6px;
+  border-radius: var(--cc-radius-circle);
+  background: var(--cc-text-strong);
 }
 
 /* Remove-from-list button next to each recent. Neutral, not destructive:
