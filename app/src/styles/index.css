@@ -4,6 +4,7 @@
    with its own .tsx. */
 @import './reset.css';
 @import './tokens.css';
+@import './themes.css';
 @import './text.css';
 @import './atoms.css';
 @import './panes.css';
