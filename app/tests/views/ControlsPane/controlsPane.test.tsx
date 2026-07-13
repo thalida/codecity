@@ -98,9 +98,15 @@ describe('ControlsPane subtabs', () => {
     expect(pane.querySelector('.theme-row-rebuild-badge')).toBeNull();
   });
 
-  it('collapsed=true closes all <details> and resets to the World subtab', async () => {
+  it('collapsed=true collapses all sections and resets to the World subtab', async () => {
     const pane = mount({ collapsed: false });
-    pane.querySelectorAll<HTMLDetailsElement>('details').forEach((d) => (d.open = true));
+    // Open every disclosure, then confirm at least one is expanded.
+    pane.querySelectorAll<HTMLButtonElement>('.controls-disclosure-toggle').forEach((b) => {
+      if (b.getAttribute('aria-expanded') === 'false') b.click();
+    });
+    await flush();
+    expect(pane.querySelectorAll('.controls-section.is-open').length).toBeGreaterThan(0);
+
     clickTab(pane, 'Live updates');
     act(() => {
       render(<ControlsPane onClose={() => {}} collapsed={true} />, container);
@@ -108,10 +114,9 @@ describe('ControlsPane subtabs', () => {
     await flush();
     const repane = container.querySelector('.pane') as HTMLElement;
     expect(tab(repane, 'World').getAttribute('aria-selected')).toBe('true');
-    const openDetails = Array.from(repane.querySelectorAll<HTMLDetailsElement>('details')).filter(
-      (d) => d.open
-    );
-    expect(openDetails).toHaveLength(0);
+    // Sections remounted collapsed: no expanded disclosure remains.
+    expect(repane.querySelectorAll('.is-open').length).toBe(0);
+    expect(repane.querySelectorAll('[aria-expanded="true"]').length).toBe(0);
   });
 });
 
@@ -136,7 +141,7 @@ describe('subgroup group reset button', () => {
 
   it('renders a draft-driven group reset for collapsible World subgroups that have fields', () => {
     const pane = mount();
-    expect(pane.querySelectorAll('details.theme-subgroup-collapsible').length).toBeGreaterThan(0);
+    expect(pane.querySelectorAll('.theme-subgroup-collapsible').length).toBeGreaterThan(0);
     expect(pane.querySelectorAll('.controls-subgroup-reset').length).toBeGreaterThan(0);
   });
 

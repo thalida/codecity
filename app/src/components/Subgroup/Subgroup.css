@@ -18,15 +18,12 @@
   margin-bottom: var(--cc-space-4);
 }
 
-/* Collapsible subgroup variant — a <details> whose <summary> doubles as
- * the subgroup label. Same Lucide chevron + hover row treatment as
- * .controls-section-summary so the open/closed affordance is consistent
- * at every level of the panel. The <summary> carries
- * .row + .row--bleed + .text-label + .text-label--muted in the DOM. */
-/* This rule only hides the native disclosure triangle (a custom
-   .chevron renders instead). */
-.theme-subgroup-collapsible > summary {
-  list-style: none;
+/* Collapsible subgroup variant — a button-driven disclosure (see Subgroup.tsx)
+ * whose header doubles as the subgroup label. Same Lucide chevron + hover row
+ * treatment as .controls-section-summary so the open/closed affordance is
+ * consistent at every level of the panel. The header carries
+ * .row + .row--bleed in the DOM; the toggle button carries the label typography. */
+.theme-subgroup-collapsible > .theme-subgroup-summary {
   /* Sticky header stacked below the sticky section header (offset = section
    * header height, set on .controls-pane). Opaque bg so rows don't show through. */
   position: sticky;
@@ -34,8 +31,10 @@
   z-index: 2;
   margin-bottom: 0; /* keep it flush with the rows below when pinned */
   background: var(--cc-bg-sidebar);
+  cursor: default; /* the toggle button carries the pointer affordance */
 }
-.theme-subgroup-collapsible > summary::-webkit-details-marker {
+/* Collapsed: hide everything but the header (mirrors a closed <details>). */
+.theme-subgroup-collapsible:not(.is-open) > :not(.theme-subgroup-summary) {
   display: none;
 }
 

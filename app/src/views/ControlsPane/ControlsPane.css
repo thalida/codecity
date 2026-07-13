@@ -17,22 +17,40 @@
   margin-top: var(--cc-pane-inset);
 }
 
+/* The disclosure toggle fills the header row: chevron + label, transparent so
+ * the row's own hover/sticky background shows through, and stretched (flex:1)
+ * so the reset button sits at the far right as a sibling. */
+.controls-disclosure-toggle {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--cc-space-1);
+  background: none;
+  border: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  /* Fill the row's padding box so the whole header height is clickable. */
+  margin: calc(-1 * var(--cc-space-2)) 0;
+  padding: var(--cc-space-2) 0;
+}
+
 /* Accordion header interaction — identical at every level (section + nested
  * subgroup). Hover stays OPAQUE (a sticky header must never go translucent and
  * let scrolled rows show through): the same tinted gray as .row:hover, but
  * composited over the pane instead of transparent. Focus is inset so the ring
  * stays fully visible inside the header rather than being clipped by the scroll
  * container or a stacked neighbor. */
-.controls-section > summary.controls-section-summary:hover,
-.theme-subgroup-collapsible > summary:hover {
+.controls-section > .controls-section-summary:hover,
+.theme-subgroup-collapsible > .theme-subgroup-summary:hover {
   background: color-mix(in oklch, var(--cc-white) 4%, var(--cc-bg-sidebar));
 }
-.controls-section > summary.controls-section-summary:focus-visible,
-.theme-subgroup-collapsible > summary:focus-visible {
+.controls-disclosure-toggle:focus-visible {
   outline-offset: -2px;
 }
 
-.controls-section[open] > summary > .chevron,
-.theme-subgroup-collapsible[open] > summary > .chevron {
+.controls-disclosure-toggle[aria-expanded='true'] .chevron {
   transform: rotate(90deg);
 }

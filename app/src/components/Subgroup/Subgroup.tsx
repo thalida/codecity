@@ -8,6 +8,7 @@
 
 import './Subgroup.css';
 import type { ComponentChildren } from 'preact';
+import { useSignal } from '@preact/signals';
 import { ChevronRight, RotateCcw } from 'lucide-preact';
 import { stageReset } from '@/state/settingsDrafts';
 import { useAnyResettable, type ResettableRef } from '@/hooks/useSettings';
@@ -28,6 +29,7 @@ export function Subgroup({ name, collapsible = true, resetKeys, children }: Subg
   // Called unconditionally (before the branch) to satisfy rules-of-hooks; with
   // no keys it's a cheap no-op that just returns false.
   const canReset = useAnyResettable(keys);
+  const open = useSignal(false);
 
   if (!collapsible) {
     return (
@@ -38,14 +40,31 @@ export function Subgroup({ name, collapsible = true, resetKeys, children }: Subg
     );
   }
 
-  // Reset button lives INSIDE <summary> (flex child, margin-left:auto) so it
-  // stays visible when the subgroup is collapsed; preventDefault +
-  // stopPropagation keep it from toggling the disclosure.
+  // A disclosure, NOT a <details>: the header is a flex row with a real
+  // aria-expanded toggle button and the reset button as SIBLINGS. (An
+  // interactive control nested inside <summary> is unreliable for keyboard/AT.)
+  // The body stays a direct child so structural CSS is unchanged; .is-open
+  // hides it when collapsed.
   return (
-    <details class="theme-subgroup theme-subgroup-collapsible">
-      <summary class="row row--bleed text-label text-label--muted">
-        <ChevronRight class="lucide-icon chevron" />
-        <span class="theme-subgroup-label-text">{name}</span>
+    <div
+      class={
+        open.value
+          ? 'theme-subgroup theme-subgroup-collapsible is-open'
+          : 'theme-subgroup theme-subgroup-collapsible'
+      }
+    >
+      <div class="row row--bleed theme-subgroup-summary">
+        <button
+          type="button"
+          class="controls-disclosure-toggle text-label text-label--muted"
+          aria-expanded={open.value}
+          onClick={() => {
+            open.value = !open.value;
+          }}
+        >
+          <ChevronRight class="lucide-icon chevron" />
+          <span class="theme-subgroup-label-text">{name}</span>
+        </button>
         {keys.length > 0 && (
           <button
             type="button"
@@ -53,17 +72,15 @@ export function Subgroup({ name, collapsible = true, resetKeys, children }: Subg
             title={`Reset all values in ${name} to defaults`}
             aria-label="Reset group to defaults"
             disabled={!canReset}
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
+            onClick={() => {
               for (const r of keys) stageReset(r.store, r.key);
             }}
           >
             <RotateCcw class="lucide-icon" />
           </button>
         )}
-      </summary>
+      </div>
       {children}
-    </details>
+    </div>
   );
 }

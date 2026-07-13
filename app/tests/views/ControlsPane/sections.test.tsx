@@ -110,13 +110,13 @@ describe('DynamicSection rendering', () => {
     render(<DynamicSection node={BUILDINGS_SECTION} />, container);
     await flush();
 
-    const summaries = Array.from(container.querySelectorAll('summary')).map(
+    const toggles = Array.from(container.querySelectorAll('.controls-disclosure-toggle')).map(
       (s) => s.textContent ?? ''
     );
-    // Facade (depth 2) is still a collapsible accordion (rendered in a <summary>).
-    expect(summaries.some((t) => t.includes('Facade'))).toBe(true);
-    // Geometry (depth 3) is past the cap → a flat labeled cluster, not a <summary>…
-    expect(summaries.some((t) => t.includes('Geometry'))).toBe(false);
+    // Facade (depth 2) is still a collapsible accordion (a disclosure toggle).
+    expect(toggles.some((t) => t.includes('Facade'))).toBe(true);
+    // Geometry (depth 3) is past the cap → a flat labeled cluster, no toggle…
+    expect(toggles.some((t) => t.includes('Geometry'))).toBe(false);
     // …but its label + fields still render.
     expect(container.textContent).toContain('Geometry');
   });
