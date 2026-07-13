@@ -47,7 +47,7 @@ export interface PaneProps {
    *  outside the scrolling body region. */
   footerSlot?: ComponentChildren;
   /** Ref to the outer `.pane` element — for panes that need to query their own
-   *  DOM (e.g. ControlsPane collapsing its `<details>` sections). */
+   *  DOM. */
   paneRef?: Ref<HTMLDivElement>;
   children?: ComponentChildren;
 }

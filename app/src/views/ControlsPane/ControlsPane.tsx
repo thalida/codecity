@@ -13,7 +13,7 @@
 // the panel always reopens fresh.
 
 import './ControlsPane.css';
-import { useEffect, useRef, useState } from 'preact/hooks';
+import { useEffect, useState } from 'preact/hooks';
 import { Boxes, RefreshCw, Palette } from 'lucide-preact';
 import type { LucideIcon } from 'lucide-preact';
 import { FilePreviewSection } from './partials/FilePreviewSection';
@@ -53,7 +53,6 @@ export interface ControlsPaneProps {
 }
 
 export function ControlsPane({ onClose, collapsed }: ControlsPaneProps) {
-  const paneRef = useRef<HTMLDivElement>(null);
   const [activeId, setActiveId] = useState('world');
   // Sections/subgroups own their open-state locally; bumping this nonce on
   // collapse remounts them so they all reopen collapsed.
@@ -108,7 +107,6 @@ export function ControlsPane({ onClose, collapsed }: ControlsPaneProps) {
   return (
     <Pane
       paneClass="controls-pane"
-      paneRef={paneRef}
       headerSlot={
         <div class="pane-header pane-header--tabs">
           <PaneTabs
