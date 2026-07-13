@@ -122,7 +122,6 @@ export function ControlsPane({ onClose, collapsed }: ControlsPaneProps) {
       bodyProps={{
         id: 'controls-panel',
         role: 'tabpanel',
-        tabIndex: 0,
         'aria-labelledby': `controls-panel-tab-${activeId}`,
       }}
       footerSlot={active.draftable ? <ActionsBar /> : null}

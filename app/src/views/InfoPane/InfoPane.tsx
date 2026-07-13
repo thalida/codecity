@@ -73,7 +73,6 @@ export function InfoPane({ manifest, onClose }: InfoPaneProps) {
         class="pane-body info-body"
         id="info-panel"
         role="tabpanel"
-        tabIndex={0}
         aria-labelledby={`info-panel-tab-${tab}`}
       >
         <active.Component manifest={manifest} />
