@@ -194,14 +194,18 @@ export function CommitPane({ state, onClose, onFocus }: CommitPaneProps) {
         </div>
       )}
       <div class="commit-message-body-slot">
+        {/* role=status on the transient states only, so the async load /
+            failure is announced without reading out the whole commit body. */}
         {bodyState.kind === CommitBodyKind.Loading && (
-          <div class="commit-message-body-slot--loading">Loading…</div>
+          <div class="commit-message-body-slot--loading" role="status">
+            Loading…
+          </div>
         )}
         {bodyState.kind === CommitBodyKind.Text && (
           <pre class="commit-message-body">{bodyState.body}</pre>
         )}
         {bodyState.kind === CommitBodyKind.Error && (
-          <div class="commit-message-body-slot--error">
+          <div class="commit-message-body-slot--error" role="status">
             <div class="commit-message-error">
               {`Failed to load message: ${bodyState.err instanceof Error ? bodyState.err.message : String(bodyState.err)}`}
             </div>

@@ -135,7 +135,12 @@ function FileTextPreview({ file }: FileTextPreviewProps) {
         <PaneEmpty icon={FileWarning} title="Couldn't load this file" sub={textState.message} />
       ) : textState.kind === TextStateKind.Text ? (
         <CodeEditor text={textState.text} file={file} />
-      ) : null}
+      ) : (
+        // Loading: the pane is otherwise blank while fetching; announce it.
+        <span class="sr-only" role="status">
+          Loading file
+        </span>
+      )}
     </div>
   );
 }

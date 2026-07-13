@@ -73,17 +73,17 @@ export function BranchSelect({ url, value, onChange, onError }: BranchSelectProp
 
   return (
     <div class="branch-select">
-      <label>Branch</label>
+      <label htmlFor="branch-select">Branch</label>
       {state.status === BranchStatus.Loading && (
-        <div class="branch-select-status">
-          <LoaderCircle class="lucide-icon branch-select-spinner" />
+        <div class="branch-select-status" role="status">
+          <LoaderCircle class="lucide-icon branch-select-spinner" aria-hidden="true" />
           Resolving branches…
         </div>
       )}
       {state.status === BranchStatus.Ready && (
         <select
+          id="branch-select"
           class="form-input form-input--select"
-          aria-label="Branch"
           value={value || state.def || ''}
           onChange={(e) => onChange((e.target as HTMLSelectElement).value)}
         >
