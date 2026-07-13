@@ -8,6 +8,16 @@
   --tree-guide: 1px; /* indent-guide line width */
 }
 
+/* Focus lands on the <li role=treeitem>, which wraps its whole subtree — so
+   draw the keyboard ring on the row band only, not around every descendant. */
+.tree-item:focus-visible {
+  outline: none;
+}
+.tree-item:focus-visible > .row {
+  outline: 2px solid var(--cc-accent);
+  outline-offset: -2px;
+}
+
 .tree-item.tree-hovered > .row {
   background: var(--cc-overlay-bg-soft);
 }
