@@ -56,14 +56,14 @@ export function Subgroup({ name, collapsible = true, resetKeys, children }: Subg
       <div class="row row--bleed theme-subgroup-summary">
         <button
           type="button"
-          class="controls-disclosure-toggle text-label text-label--muted"
+          class="controls-disclosure-toggle"
           aria-expanded={open.value}
           onClick={() => {
             open.value = !open.value;
           }}
         >
           <ChevronRight class="lucide-icon chevron" />
-          <span class="theme-subgroup-label-text">{name}</span>
+          <span class="theme-subgroup-label-text text-label text-label--muted">{name}</span>
         </button>
         {keys.length > 0 && (
           <button
