@@ -35,11 +35,9 @@ _NOT_GIT_ERROR = (
     "URL instead."
 )
 
-_LOCAL_DISABLED_ERROR = (
-    "local repositories are disabled — restart codecity with "
-    "CODECITY_ALLOW_LOCAL_REPOS=1. "
-    "See https://github.com/thalida/codecity#local-directories"
-)
+# Terse on purpose: the UI pairs this with a "how to enable" notice + link, so
+# the restart instructions here would just duplicate it.
+_LOCAL_DISABLED_ERROR = "local repositories are disabled"
 
 
 @dataclass
