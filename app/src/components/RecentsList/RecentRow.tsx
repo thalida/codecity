@@ -1,11 +1,11 @@
 // components/RecentsList/RecentRow.tsx — one recent-source row: kind glyph,
 // label, sub (src + branch pill + "(default)" tag), active badge, and a
-// remove control. Every row is clickable — the active row re-opens (reloads)
-// the current project; an unavailable row (a local path while local repos are
-// off) is still clickable and surfaces the server's reason on open, with a hint
-// glyph up front. Asking to remove takes over the whole row (no reflow).
+// remove control. A row re-opens (reloads) its project on click; an unavailable
+// row (a local path while local repos are off) is NOT clickable: it can't load,
+// so it's dimmed + aria-disabled with a title explaining why (only its remove
+// control works). Asking to remove takes over the whole row (no reflow).
 
-import { Folder, X, TriangleAlert } from 'lucide-preact';
+import { Folder, X } from 'lucide-preact';
 import { HostingIcon } from '@/components/HostingIcon';
 import { srcKind, SourceKind } from '@/utils/sources';
 import type { RecentSource } from '@/state/stores/source';
@@ -64,22 +64,21 @@ export function RecentRow(props: RecentRowProps) {
             ? 'Local repos are disabled. Restart codecity with CODECITY_ALLOW_LOCAL_REPOS=1 to load this.'
             : undefined
         }
-        onClick={props.onOpen}
+        aria-disabled={unavailable ? 'true' : undefined}
+        // Unavailable rows can't load, so don't attempt it (which briefly flashed
+        // the loading/error state) — the title explains why; only remove works.
+        onClick={unavailable ? undefined : props.onOpen}
       >
         <span class="recent-icon">
-          {unavailable ? (
-            <TriangleAlert class="lucide-icon" />
-          ) : isLocal ? (
-            <Folder class="lucide-icon" />
-          ) : (
-            <HostingIcon src={r.src} />
-          )}
+          {isLocal ? <Folder class="lucide-icon" /> : <HostingIcon src={r.src} />}
         </span>
         <div class="recent-row-body">
-          <div class="recent-label">{r.label}</div>
+          <div class="recent-label-row">
+            <span class="recent-label">{r.label}</span>
+            {r.branch && <span class="app-header-branch-pill">@{r.branch}</span>}
+          </div>
           <div class="recent-sub">
             <span class="recent-src">{r.src}</span>
-            {r.branch && <span class="app-header-branch-pill">@{r.branch}</span>}
           </div>
         </div>
         {active && <span class="recent-row-badge">Active</span>}

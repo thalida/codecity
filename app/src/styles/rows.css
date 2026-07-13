@@ -42,8 +42,8 @@
 
 /* Selected variant — tree row in selected state. */
 .row--selected {
-  background: var(--cc-accent-bg);
+  background: var(--cc-accent-bg-soft);
 }
 .row--selected:hover {
-  background: var(--cc-accent-bg); /* keep selected state on hover */
+  background: var(--cc-accent-bg-soft); /* keep selected state on hover */
 }

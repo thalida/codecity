@@ -11,7 +11,7 @@
   display: inline-block;
   padding: var(--cc-space-px) var(--cc-space-3);
   border-radius: var(--cc-radius-sm);
-  font-size: var(--cc-font-sm);
+  font-size: var(--cc-font-2xs);
   font-weight: var(--cc-fw-bold);
   letter-spacing: var(--cc-track-label);
   text-transform: lowercase;

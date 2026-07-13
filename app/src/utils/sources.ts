@@ -6,8 +6,7 @@
 //
 // Public surface:
 //   - srcKind(src)               — SourceKind (Remote | Local) discriminator.
-//   - toHttpsRepoUrl(src)        — canonical https URL from any repo URL form.
-//   - repoUrlForBranch(url, ref) — forge URL pointing at a branch tree.
+//   - looksResolvable / looksLikePath / validateGitUrl — field classification.
 
 /** What kind of thing a source string points at. Every source is a git repo;
  *  the axis is whether it's a remote URL (cloned) or an on-disk local working
@@ -22,47 +21,6 @@ export enum SourceKind {
  *  `user@host:path` form. Anything else is local. */
 export function srcKind(src: string): SourceKind {
   return /:\/\//.test(src) || /^[^@]+@[^:]+:/.test(src) ? SourceKind.Remote : SourceKind.Local;
-}
-
-/**
- * Convert any recognisable repo URL form to an https:// URL.
- *   https://… / http://… → returned as-is.
- *   git@host:path.git    → https://host/path  (SSH → HTTPS)
- *   anything else        → returned unchanged (best effort).
- */
-export function toHttpsRepoUrl(src: string): string {
-  if (src.startsWith('https://') || src.startsWith('http://')) return src;
-  // SSH form: git@github.com:owner/repo.git
-  const sshMatch = /^[^@]+@([^:]+):(.+?)(?:\.git)?$/.exec(src);
-  if (sshMatch) {
-    const host = sshMatch[1];
-    const path = sshMatch[2];
-    return `https://${host}/${path}`;
-  }
-  return src;
-}
-
-/**
- * Append a branch-tree path to a forge HTTPS URL so a link opens the given
- * branch instead of the repo root. The path shape is forge-specific (GitHub
- * `/tree`, GitLab `/-/tree`, Gitea/Forgejo/Codeberg `/src/branch`, Bitbucket
- * `/src`); unrecognised hosts get the bare repo URL back.
- */
-export function repoUrlForBranch(repoHttpsUrl: string, branch: string): string {
-  const ref = encodeURIComponent(branch);
-  if (/codeberg\.org|forgejo|gitea/i.test(repoHttpsUrl)) {
-    return `${repoHttpsUrl}/src/branch/${ref}`;
-  }
-  if (/github\.com|sr\.ht/i.test(repoHttpsUrl)) {
-    return `${repoHttpsUrl}/tree/${ref}`;
-  }
-  if (/gitlab\.com/i.test(repoHttpsUrl)) {
-    return `${repoHttpsUrl}/-/tree/${ref}`;
-  }
-  if (/bitbucket\.org/i.test(repoHttpsUrl)) {
-    return `${repoHttpsUrl}/src/${ref}`;
-  }
-  return repoHttpsUrl;
 }
 
 /**
@@ -98,6 +56,17 @@ export function srcNeedsBranch(src: string, branch?: string): boolean {
  */
 export function looksResolvable(v: string): boolean {
   return srcKind(v) === SourceKind.Remote && (/:\/\/.+\/.+/.test(v) || /^[^@]+@[^:]+:.+/.test(v));
+}
+
+/**
+ * Heuristic: the string is *clearly* a filesystem path (absolute, home-relative,
+ * dot-relative, or a Windows drive), not a half-typed URL. The unified source
+ * field uses this to show a path-specific error only when it's unmistakably a
+ * path — so typing a URL never flickers a "local path" error before "://" lands
+ * (srcKind classifies everything without "://" as Local).
+ */
+export function looksLikePath(v: string): boolean {
+  return /^(~|\.{1,2}\/|\/|[a-zA-Z]:[\\/])/.test(v.trim());
 }
 
 /**

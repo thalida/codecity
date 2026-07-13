@@ -16,8 +16,8 @@
   padding: 0 var(--cc-space-4);
   border-bottom: 1px solid var(--cc-border-subtle);
   font-family: var(--cc-font-mono);
-  font-size: var(--cc-font-md);
-  color: var(--cc-text-secondary);
+  font-size: var(--cc-font-xs);
+  color: var(--cc-text-primary);
   -webkit-app-region: drag; /* in pywebview's native frame this lets you drag */
   user-select: none;
 }
@@ -41,7 +41,7 @@
   gap: var(--cc-space-4);
   min-width: 0;
   letter-spacing: var(--cc-track-base); /* was 0.02em (dropped) */
-  color: var(--cc-text-muted);
+  color: var(--cc-text-secondary);
 }
 
 /* Visual style fully in .btn-icon (with --no-drag modifier where needed). */

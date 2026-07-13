@@ -10,7 +10,7 @@
   text-overflow: ellipsis;
 }
 .btn-chip .lucide-icon {
-  font-size: var(--cc-font-xl);
+  font-size: var(--cc-font-md);
   flex: 0 0 auto;
 }
 
@@ -23,7 +23,7 @@
   border-radius: var(--cc-radius-md);
   background: var(--cc-accent-bg-soft);
   color: var(--cc-accent-light);
-  font-size: var(--cc-font-sm);
+  font-size: var(--cc-font-2xs);
   font-family: var(--cc-font-mono);
   white-space: nowrap;
 }

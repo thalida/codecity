@@ -14,8 +14,8 @@
   height: 24px;
   border-top: 1px solid var(--cc-track);
   font-family: var(--cc-font-mono);
-  font-size: var(--cc-font-sm);
-  color: var(--cc-text-muted);
+  font-size: var(--cc-font-2xs);
+  color: var(--cc-text-secondary);
   white-space: nowrap;
 }
 
@@ -57,7 +57,7 @@
  * fall on the dot. */
 .app-footer-sep {
   flex: 0 0 auto;
-  color: var(--cc-text-ghost);
+  color: var(--cc-text-faint);
   pointer-events: none;
 }
 
@@ -79,7 +79,7 @@
 /* Shape in .dot above; state-driven colors come from the .is-* parent
    modifiers below. */
 .app-footer-status-detail {
-  color: var(--cc-text-muted);
+  color: var(--cc-text-secondary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

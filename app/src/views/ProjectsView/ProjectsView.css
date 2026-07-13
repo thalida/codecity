@@ -8,10 +8,16 @@
   inset: 0;
   z-index: 1000;
   overflow-y: auto;
-  /* Translucent + blurred so a loaded city shows through as soft hints behind
-     the overlay. On cold boot the backdrop is just the empty dark canvas, so it
-     reads as a plain dark surface. The tint stays dark enough to keep the hero
-     text and cards readable over any city. */
+  /* Full-page mode (non-dismissible: cold boot / nothing loaded to fall back to).
+     A solid surface with the gem wash (::before) — nothing meaningful is behind
+     to reveal, so no blur. */
+  background: var(--cc-bg-app);
+}
+
+/* Modal mode (dismissible, over a loaded city): translucent + blurred so the
+   city shows through as soft hints behind the overlay. Tint stays dark enough to
+   keep the hero text and cards readable over any city. */
+.landing--modal {
   background: color-mix(in oklch, var(--cc-bg-app) 82%, transparent);
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
@@ -26,14 +32,16 @@
   pointer-events: none;
   background:
     radial-gradient(
-      55% 45% at 18% 12%,
+      75% 65% at 18% 12%,
       color-mix(in oklch, var(--cc-gem-cyan) 10%, transparent),
-      transparent 70%
+      color-mix(in oklch, var(--cc-gem-cyan) 3%, transparent) 45%,
+      transparent 100%
     ),
     radial-gradient(
-      50% 45% at 88% 85%,
+      70% 65% at 88% 85%,
       color-mix(in oklch, var(--cc-gem-purple) 10%, transparent),
-      transparent 70%
+      color-mix(in oklch, var(--cc-gem-purple) 3%, transparent) 45%,
+      transparent 100%
     );
 }
 
@@ -111,15 +119,15 @@
 
 .landing-wordmark {
   margin: 0;
-  font-size: var(--cc-font-4xl);
+  font-size: var(--cc-font-2xl);
   font-weight: var(--cc-fw-bold);
-  color: var(--cc-text-primary);
+  color: var(--cc-text-strong);
 }
 
 .landing-tagline {
   margin: 0;
-  font-size: var(--cc-font-2xl);
-  color: var(--cc-text-secondary);
+  font-size: var(--cc-font-lg);
+  color: var(--cc-text-primary);
 }
 
 .landing-delights {
@@ -134,15 +142,15 @@
   display: flex;
   align-items: center;
   gap: var(--cc-space-4);
-  color: var(--cc-text-muted);
-  font-size: var(--cc-font-xl);
+  color: var(--cc-text-secondary);
+  font-size: var(--cc-font-md);
 }
 .landing-delight strong {
-  color: var(--cc-text-primary);
+  color: var(--cc-text-strong);
   font-weight: var(--cc-fw-semibold);
 }
 .landing-delight > svg {
-  font-size: var(--cc-font-2xl); /* icons are 1em (icons.css) — size off a token */
+  font-size: var(--cc-font-lg); /* icons are 1em (icons.css) — size off a token */
   width: 1em;
   height: 1em;
   flex: 0 0 auto;
@@ -184,9 +192,9 @@
    consistent title style. */
 .landing-card-title {
   margin: 0;
-  font-size: var(--cc-font-2xl);
+  font-size: var(--cc-font-lg);
   font-weight: var(--cc-fw-semibold);
-  color: var(--cc-text-primary);
+  color: var(--cc-text-strong);
 }
 
 /* Inline load progress, replacing the form + recents while SCAN_PROGRESS is

@@ -32,7 +32,7 @@ beforeEach(() => {
   PENDING_SOURCE_LABEL.value = null;
   container = document.createElement('div');
   document.body.appendChild(container);
-  render(<LoadingOverlay />, container);
+  render(<LoadingOverlay onCancel={() => {}} />, container);
 });
 
 afterEach(() => {
@@ -119,10 +119,11 @@ describe('LoadingOverlay', () => {
     );
   });
 
-  it('branch is included in the title when provided', async () => {
+  it('shows the branch as a pill beside the repo name when provided', async () => {
+    PENDING_SOURCE_LABEL.value = 'owner/repo';
     showLoadingOverlay({ kind: SourceKind.Remote, branch: 'main' });
     await flush();
-    expect(container.textContent).toContain('branch main');
+    expect(container.querySelector('.app-header-branch-pill')?.textContent).toBe('@main');
   });
 
   it('git mode starts with resolving active', async () => {

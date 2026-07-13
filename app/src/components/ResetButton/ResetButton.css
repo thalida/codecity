@@ -16,7 +16,7 @@
   padding: var(--cc-space-1) var(--cc-space-2);
   border-radius: var(--cc-radius-sm);
   color: var(--cc-accent);
-  font-size: var(--cc-font-xl);
+  font-size: var(--cc-font-md);
   line-height: 1;
   cursor: pointer;
 }

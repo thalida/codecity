@@ -1,107 +1,38 @@
-// components/LoadingOverlay.tsx — Centered spinner + stepped progress
-// indicator shown whenever a manifest is being fetched or applied. Reused for
-// cold-boot loads and source-picker submits so the user sees the same UI
-// regardless of entry point.
+// components/LoadingOverlay.tsx — Full-viewport centered progress shown for a
+// deep-link cold boot (no page open yet). Mounted once by App.tsx and driven by
+// the LOADING_OVERLAY signal (fed by the SCAN_PROGRESS reaction and the
+// REBUILD_STATUS → Decorating bridge). The inner column — repo label, spinner,
+// current step, and stepped list — is the shared <LoadingProgress>, which
+// ProjectsView also renders for in-app switches.
 //
-// Signal-driven: reads LOADING_OVERLAY and is mounted once by App.tsx. State is
-// driven by the uiState helpers (showLoadingOverlay / setLoadingStep /
-// setLoadingStepTail / hideLoadingOverlay), called from the SCAN_PROGRESS
-// reaction (state/loadingReactions) — which the fetch layer feeds — and the
-// REBUILD_STATUS → Decorating bridge in stores/manifest. The "loading {project}"
-// header reads PENDING_SOURCE_LABEL — the same canonical signal that drives the
-// document title — so the project name isn't duplicated into this store. Every
-// visible advancement maps to a real NDJSON phase event (cloning, scanning,
-// skeleton, building) or the client-side decoration pass — no wall-clock timers.
-// The step vocabulary lives in constants/loadingSteps.
-//
-// Narrow role by design: a load driven from <ProjectsView> (every switch)
-// renders its OWN inline progress and this overlay stays hidden — two
-// full-viewport surfaces stacking on the same load would leave the user
-// looking at this overlay's no-controls backdrop on top of the view's Cancel
-// button. This overlay now only ever shows for a deep-link cold boot (no
-// view open yet).
+// Narrow role by design: a load driven from <ProjectsView> renders its OWN
+// inline progress and this overlay suppresses itself (below), so two
+// full-viewport surfaces never stack.
 
 import './LoadingOverlay.css';
 import { LOADING_OVERLAY, PROJECTS_VIEW } from '@/state/stores/ui';
-import { PENDING_SOURCE_LABEL } from '@/state/stores/source';
-import { SourceKind } from '@/utils/sources';
-import {
-  LoadingStep,
-  LoadingStepState,
-  LOADING_STEPS,
-  LOADING_STEP_LABELS,
-} from '@/constants/loadingSteps';
+import { LoadingProgress } from '@/components/LoadingProgress/LoadingProgress';
 
-// LoadingOverlayShowOpts (the show() contract) lives in state/stores/ui, so
-// state stays view-independent.
-
-// ── Internal state shape (for Preact component) ─────────────────────────────
-
-export interface OverlayState {
-  visible: boolean;
-  kind: SourceKind | null;
-  branch: string | null;
-  activeStep: LoadingStep | null;
-  stepTails: Partial<Record<LoadingStep, string | null>>;
+export interface LoadingOverlayProps {
+  // Aborts the cold-boot load and opens the project list (App wires both).
+  onCancel: () => void;
 }
 
-// ── Preact component ────────────────────────────────────────────────────────
-// Signal-driven: reads LOADING_OVERLAY directly. No props required.
-
-export function LoadingOverlay() {
+export function LoadingOverlay({ onCancel }: LoadingOverlayProps) {
   const lo = LOADING_OVERLAY.value;
-  const pendingLabel = PENDING_SOURCE_LABEL.value;
-  const s: OverlayState = {
-    visible: lo.visible,
-    kind: lo.showOpts?.kind ?? null,
-    branch: lo.showOpts?.branch ?? null,
-    activeStep: lo.activeStep,
-    stepTails: lo.stepTails,
-  };
-  if (!s.visible || !s.activeStep) return null;
+  if (!lo.visible || !lo.activeStep) return null;
   if (PROJECTS_VIEW.value.visible) return null;
-
-  const activeStep = s.activeStep;
-  const activeIdx = LOADING_STEPS.indexOf(activeStep);
 
   return (
     <div class="loading-backdrop">
       <div class="loading-card card-overlay">
-        {pendingLabel && <div class="loading-pending-label">{pendingLabel}</div>}
-        <div class="loading-spinner" />
-        <div class="text-card-title is-loading" role="status" aria-live="polite">
-          {LOADING_STEP_LABELS[activeStep]}
-          {s.branch ? ` (branch ${s.branch})` : ''}
-          {'…'}
-        </div>
-        <ol class="loading-steps">
-          {LOADING_STEPS.map((step) => {
-            const isLocal = s.kind === SourceKind.Local;
-            if (isLocal && (step === LoadingStep.Resolving || step === LoadingStep.Cloning)) {
-              return (
-                <li
-                  key={step}
-                  data-step={step}
-                  data-state={LoadingStepState.Pending}
-                  style={{ display: 'none' }}
-                >
-                  {LOADING_STEP_LABELS[step]}
-                </li>
-              );
-            }
-            const thisIdx = LOADING_STEPS.indexOf(step);
-            let stepState: LoadingStepState = LoadingStepState.Pending;
-            if (thisIdx < activeIdx) stepState = LoadingStepState.Done;
-            else if (thisIdx === activeIdx) stepState = LoadingStepState.Active;
-            const tail = s.stepTails[step];
-            return (
-              <li key={step} data-step={step} data-state={stepState}>
-                {LOADING_STEP_LABELS[step]}
-                {tail != null && <span class="loading-step-tail"> {tail}</span>}
-              </li>
-            );
-          })}
-        </ol>
+        <LoadingProgress
+          activeStep={lo.activeStep}
+          kind={lo.showOpts?.kind ?? null}
+          branch={lo.showOpts?.branch ?? null}
+          stepTails={lo.stepTails}
+          onCancel={onCancel}
+        />
       </div>
     </div>
   );

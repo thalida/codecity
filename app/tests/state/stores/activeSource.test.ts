@@ -71,7 +71,12 @@ describe('SOURCE_INFO (derived from MANIFEST + CURRENT_SOURCE)', () => {
   it('is empty when nothing is applied', () => {
     CURRENT_SOURCE.value = null;
     setManifest(EMPTY_MANIFEST);
-    expect(SOURCE_INFO.value).toEqual({ label: '', branch: undefined, sourceUrl: undefined });
+    expect(SOURCE_INFO.value).toEqual({
+      label: '',
+      branch: undefined,
+      sourceUrl: undefined,
+      src: undefined,
+    });
   });
 
   it('exposes the git URL as sourceUrl for a git source', () => {

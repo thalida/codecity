@@ -41,7 +41,7 @@ function LayerBlock({ layerKey }: { layerKey: (typeof LAYER_LEGEND)[number]['key
   const Icon = SECTION_ICON[layer.key];
   return (
     <section class="legend-layer" data-section={layer.key}>
-      <h3 class="legend-layer-title">
+      <h3 class="legend-layer-title text-label">
         <Icon class="lucide-icon legend-layer-icon" aria-hidden="true" />
         {layer.title}
       </h3>
@@ -65,7 +65,7 @@ export function LegendPane() {
       {LAYER_LEGEND.map((l) => (
         <LayerBlock key={l.key} layerKey={l.key} />
       ))}
-      <h3 class="legend-group-title">Reading the city</h3>
+      <h3 class="legend-group-title text-label">Reading the city</h3>
       <ul class="legend-cue-list">
         {WORLD_CUES.map((c) => (
           <li key={c.title} class="legend-row">

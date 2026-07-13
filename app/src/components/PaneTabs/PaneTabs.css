@@ -1,6 +1,6 @@
 .pane-tabs {
   display: flex;
-  padding: 6px 0 0; /* no side inset → first tab sits flush with content */
+  padding: var(--cc-space-3) 0 0; /* no side inset → first tab sits flush with content */
   border-bottom: 1px solid var(--cc-border-subtle);
   overflow-x: auto;
   scrollbar-width: none; /* the baseline underline reads as the affordance; hide the bar */
@@ -12,16 +12,16 @@
 .pane-tab {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--cc-space-3);
   flex: 0 0 auto; /* never squash a tab; overflow scrolls instead */
-  padding: 6px 10px 8px; /* side padding runs the underline wider than the label */
+  padding: var(--cc-space-3) var(--cc-space-5) var(--cc-space-4); /* side padding runs the underline wider than the label */
   border: 0;
   border-bottom: 2px solid transparent;
   margin-bottom: -1px; /* overlap the strip's baseline */
   background: transparent;
-  color: var(--cc-text-muted); /* AA: faint fails 4.5:1 on the modal (bg-sidebar) surface */
+  color: var(--cc-text-secondary); /* AA: muted fails 4.5:1 on the modal (bg-sidebar) surface */
   font: inherit;
-  font-size: var(--cc-font-lg);
+  font-size: var(--cc-font-sm);
   cursor: pointer;
   transition:
     color var(--cc-t-base),
@@ -29,14 +29,14 @@
 }
 
 .pane-tab:hover {
-  color: var(--cc-text-primary);
+  color: var(--cc-text-strong);
 }
 
 .pane-tab--active {
-  color: var(--cc-text-primary);
+  color: var(--cc-text-strong);
   border-bottom-color: var(--cc-accent);
 }
 
 .pane-tab .lucide-icon {
-  font-size: var(--cc-font-xl); /* icons are 1em (icons.css) — size off a token */
+  font-size: var(--cc-font-md); /* icons are 1em (icons.css) — size off a token */
 }

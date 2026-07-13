@@ -58,13 +58,13 @@
   height: 24px;
   background: none;
   border: none;
-  color: var(--cc-text-faint);
+  color: var(--cc-text-muted);
   border-radius: var(--cc-radius-sm);
-  font-size: var(--cc-font-xl);
+  font-size: var(--cc-font-md);
   cursor: pointer;
 }
 .btn-icon:not(:disabled):hover {
-  color: var(--cc-text-primary);
+  color: var(--cc-text-strong);
   background: var(--cc-overlay-bg);
 }
 .btn-icon:disabled {
@@ -79,14 +79,14 @@
 .btn-icon--sm {
   width: 22px;
   height: 22px;
-  font-size: var(--cc-font-lg);
+  font-size: var(--cc-font-sm);
 }
 .btn-icon--lg {
   width: auto;
   height: auto;
   padding: var(--cc-space-2);
   border-radius: var(--cc-radius-md);
-  font-size: var(--cc-font-2xl);
+  font-size: var(--cc-font-lg);
   color: inherit;
 }
 .btn-icon--text {
@@ -94,7 +94,7 @@
   height: auto;
   padding: var(--cc-space-px) var(--cc-space-2);
   font: inherit;
-  color: var(--cc-text-muted);
+  color: var(--cc-text-secondary);
 }
 /* Non-leaf text buttons (breadcrumb segments) hint interactivity on hover with
    an underline — they sit in body-text color and otherwise read as static. The
@@ -130,16 +130,16 @@
   padding: 0 var(--cc-space-3); /* symmetric padding each side */
   background: none;
   border: none;
-  color: var(--cc-text-faint);
+  color: var(--cc-text-muted);
   border-radius: var(--cc-radius-sm);
   font: inherit;
-  font-size: var(--cc-font-lg);
+  font-size: var(--cc-font-sm);
   white-space: nowrap;
   cursor: pointer;
   -webkit-app-region: no-drag;
 }
 .btn-chip:not(:disabled):hover {
-  color: var(--cc-text-primary);
+  color: var(--cc-text-strong);
   background: var(--cc-overlay-bg);
 }
 .btn-chip:disabled {
@@ -148,7 +148,7 @@
 /* Trailing switch cue — signals the chip is a switcher you can change (opens
    the project switcher), not a static label. */
 .btn-chip-affordance {
-  font-size: var(--cc-font-md);
+  font-size: var(--cc-font-xs);
   opacity: 0.7;
 }
 
@@ -162,7 +162,7 @@
   background: var(--cc-overlay-bg-soft);
   border: 1px solid var(--cc-overlay-bg-strong);
   border-radius: var(--cc-radius-md);
-  color: var(--cc-text-secondary);
+  color: var(--cc-text-primary);
   padding: var(--cc-space-4) var(--cc-space-7); /* matches .btn-primary */
   cursor: pointer;
   font: inherit;
@@ -175,7 +175,7 @@
 .btn-secondary:hover:not(:disabled) {
   background: var(--cc-overlay-bg-strong);
   border-color: var(--cc-overlay-border);
-  color: var(--cc-text-primary);
+  color: var(--cc-text-strong);
 }
 .btn-secondary:active:not(:disabled) {
   background: var(--cc-overlay-border);
@@ -195,10 +195,10 @@
   appearance: none;
   background: none;
   border: none;
-  color: var(--cc-text-faint);
+  color: var(--cc-text-muted);
   font-family: inherit;
   cursor: pointer;
-  font-size: var(--cc-font-lg);
+  font-size: var(--cc-font-sm);
   font-weight: var(--cc-fw-medium);
   padding: var(--cc-space-2) var(--cc-space-5);
   border-radius: var(--cc-radius-sm);
@@ -207,11 +207,11 @@
     background var(--cc-t-base);
 }
 .btn-toggle:hover {
-  color: var(--cc-text-secondary);
+  color: var(--cc-text-primary);
 }
 .btn-toggle.is-active {
-  background: var(--cc-accent-bg);
-  color: var(--cc-text-primary);
+  background: var(--cc-accent-bg-soft);
+  color: var(--cc-text-strong);
 }
 /* .btn-toggle--separated — modifier that adds a vertical separator
    between sibling options. Used inside .theme-select where the buttons
@@ -219,7 +219,7 @@
    inline-flex shell, and adds a soft hover background. */
 .btn-toggle--separated {
   border-right: 1px solid var(--cc-track);
-  font-size: var(--cc-font-sm);
+  font-size: var(--cc-font-2xs);
   padding: var(--cc-space-2) var(--cc-space-4);
 }
 .btn-toggle--separated:last-child {

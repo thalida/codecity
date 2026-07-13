@@ -16,18 +16,18 @@
   justify-content: center;
   gap: var(--cc-space-4);
   padding: var(--cc-space-8) var(--cc-pane-inset);
-  color: var(--cc-text-faint);
+  color: var(--cc-text-muted);
   text-align: center;
 }
 .empty-state .lucide-icon {
   opacity: 0.55;
-  font-size: var(--cc-font-3xl);
+  font-size: var(--cc-font-xl);
   margin-bottom: var(--cc-space-1);
 }
 /* Large variant — bigger gap + padding + icon. Used by the file-preview
    pane and the info pane's empty / error states. */
 .empty-state--lg .lucide-icon {
-  font-size: var(--cc-font-4xl);
+  font-size: var(--cc-font-2xl);
   margin-bottom: var(--cc-space-2);
 }
 .empty-state--lg {
@@ -41,7 +41,7 @@
 .empty-state .text-card-sub {
   margin: var(--cc-space-0);
   max-width: 240px;
-  line-height: 1.5;
+  line-height: var(--cc-lh-base);
 }
 .empty-state--lg .text-card-sub {
   max-width: 280px;

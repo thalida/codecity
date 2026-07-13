@@ -14,10 +14,10 @@
 .shortcuts-list kbd,
 .shortcuts-list .shortcuts-mouse {
   border: 1px solid var(--cc-border-input);
-  color: var(--cc-text-secondary);
-  font-size: var(--cc-font-sm);
+  color: var(--cc-text-primary);
+  font-size: var(--cc-font-2xs);
   margin: 0 var(--cc-space-px);
-  line-height: 1.2;
+  line-height: var(--cc-lh-tight);
   font-style: normal;
 }
 
@@ -29,7 +29,7 @@
   gap: var(--cc-space-3) var(--cc-space-7);
   align-items: center;
   margin: var(--cc-space-4) 0 0;
-  font-size: var(--cc-font-md);
+  font-size: var(--cc-font-xs);
 }
 
 /* Space a following section label off the list above it. */
@@ -37,16 +37,16 @@
   margin-top: var(--cc-space-6);
 }
 .shortcuts-list dt {
-  color: var(--cc-text-secondary);
+  color: var(--cc-text-primary);
   white-space: nowrap;
 }
 .shortcuts-list dd {
-  color: var(--cc-text-muted);
+  color: var(--cc-text-secondary);
   margin: var(--cc-space-0);
-  line-height: 1.3;
+  line-height: var(--cc-lh-tight);
 }
 .shortcuts-list .shortcuts-or {
-  color: var(--cc-text-faint);
-  font-size: var(--cc-font-sm);
+  color: var(--cc-text-muted);
+  font-size: var(--cc-font-2xs);
   margin-left: var(--cc-space-1);
 }

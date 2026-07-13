@@ -116,7 +116,12 @@ export function App() {
       </main>
       <AppFooter />
       <ProjectsView onSubmit={(p) => submitSource(p)} onCancel={cancelLoad} onClose={dismissView} />
-      <LoadingOverlay />
+      <LoadingOverlay
+        onCancel={() => {
+          cancelLoad();
+          openProjectsView({ dismissible: false });
+        }}
+      />
       <ShortcutsModal />
       <DebugModal onRunCollisionCheck={runCollisionCheck} onRunStemDiagnostic={runStemDiagnostic} />
       <HljsThemeLink />

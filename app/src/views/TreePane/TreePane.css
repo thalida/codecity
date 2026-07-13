@@ -12,11 +12,11 @@
   background: var(--cc-overlay-bg-soft);
 }
 .tree-item.tree-selected > .row {
-  background: var(--cc-accent-bg);
+  background: var(--cc-accent-bg-soft);
 }
 .tree-item.tree-selected > .row:hover,
 .tree-item.tree-selected.tree-hovered > .row {
-  background: var(--cc-accent-bg); /* keep selected state on hover */
+  background: var(--cc-accent-bg-soft); /* keep selected state on hover */
 }
 
 .tree-root {
@@ -44,7 +44,10 @@
    minus half the line's own width, so the rule sits ON the arrow. */
 .tree-item > .tree-list {
   margin-left: calc(var(--tree-row-inset) + var(--tree-glyph) / 2 - var(--tree-guide) / 2);
-  border-left: var(--tree-guide) solid var(--cc-border-input);
+  /* Open-folder guide uses the canonical accent selected fill (--cc-accent-bg);
+     as a 1px line it reads quieter than an 18% fill, so it recolors with the
+     theme yet never outshines a selected row. */
+  border-left: var(--tree-guide) solid var(--cc-accent-bg-soft);
 }
 
 .tree-item {
@@ -68,7 +71,7 @@
 }
 
 .tree-label {
-  font-size: var(--cc-font-lg);
+  font-size: var(--cc-font-sm);
   color: var(--cc-text-base);
   white-space: nowrap;
   overflow: hidden;

@@ -95,19 +95,22 @@ export interface SourceInfo {
   branch: string | undefined;
   /** Original git URL when the source is a hosted git repo. */
   sourceUrl: string | undefined;
+  /** Raw source as entered: the git URL for a remote, the path for a local. */
+  src: string | undefined;
 }
 
 export const SOURCE_INFO = computed<SourceInfo>(() => {
   const cur = CURRENT_SOURCE.value;
   const m = MANIFEST.value;
   if (!cur || isEmptyManifest(m)) {
-    return { label: '', branch: undefined, sourceUrl: undefined };
+    return { label: '', branch: undefined, sourceUrl: undefined, src: undefined };
   }
   const manifest = m as Manifest;
   return {
     label: manifest.tree?.name ?? '',
     branch: resolveBranch(manifest, cur.branch),
     sourceUrl: srcKind(cur.src) === SourceKind.Remote ? cur.src : undefined,
+    src: cur.src,
   };
 });
 

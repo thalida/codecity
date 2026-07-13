@@ -3,7 +3,7 @@
 
    Layer-1 of the system per docs/ui-component-system.md. Two kinds of tokens:
 
-   ① SCALE TOKENS — concrete values on a scale (e.g. --cc-font-sm,
+   ① SCALE TOKENS — concrete values on a scale (e.g. --cc-font-2xs,
                     --cc-overlay-strong = rgba(...,.18))
    ② BASE ALIASES — semantic names that point AT a scale token
                     (e.g. --cc-font-base = var(--cc-font-md))
@@ -47,15 +47,13 @@
   --cc-border-base: var(--cc-border-subtle);
 
   /* ── COLORS — Text. Ladder of brightness. ─────────────────────────────── */
-  --cc-text-primary: oklch(0.921 0.023 275.3); /* brightest — active/hover text */
-  --cc-text-secondary: oklch(0.823 0.028 276.8); /* default body, tree directories */
-  --cc-text-muted: oklch(
-    0.655 0.038 276.4
-  ); /* breadcrumbs, footer chrome, modal labels, tree files */
-  --cc-text-faint: oklch(0.586 0.063 276.8); /* icon buttons rest, hints, placeholders */
-  --cc-text-ghost: oklch(0.407 0.037 276.6); /* decorative separators ("·") only */
+  --cc-text-strong: oklch(0.921 0.023 275.3); /* emphasis / hover / active / titles */
+  --cc-text-primary: oklch(0.823 0.028 276.8); /* default body copy */
+  --cc-text-secondary: oklch(0.655 0.038 276.4); /* subtitles, subtext, captions, meta */
+  --cc-text-muted: oklch(0.586 0.063 276.8); /* hints, placeholders, resting icon buttons */
+  --cc-text-faint: oklch(0.407 0.037 276.6); /* decorative separators only */
   --cc-text-inverse: oklch(0.148 0.013 284.7); /* dark text on accent CTA */
-  --cc-text-base: var(--cc-text-secondary);
+  --cc-text-base: var(--cc-text-primary);
 
   /* ── COLORS — Accent (brand blue + role-based alpha variants) ──────────
      Alpha variants derive from --cc-accent via color-mix → swap that one
@@ -94,7 +92,7 @@
   --cc-warning: oklch(0.837 0.164 84.4);
   --cc-warning-bg: color-mix(in oklch, var(--cc-warning) 15%, transparent);
   --cc-error: oklch(0.637 0.208 25.3);
-  --cc-error-light: oklch(0.843 0.088 10.3);
+  --cc-error-light: oklch(0.843 0.088 25.3); /* light shade of --cc-error (shares its hue) */
   --cc-error-bg: color-mix(in oklch, var(--cc-error) 18%, transparent);
   --cc-error-border: color-mix(in oklch, var(--cc-error) 45%, transparent);
 
@@ -150,15 +148,15 @@
   --cc-radius-base: var(--cc-radius-sm);
 
   /* ── SCALES — Font sizes ──────────────────────────────────────────────── */
-  --cc-font-sm: 10px;
-  --cc-font-md: 11px;
-  --cc-font-lg: 12px;
-  --cc-font-xl: 14px;
-  --cc-font-2xl: 18px;
-  --cc-font-3xl: 22px;
-  --cc-font-4xl: 28px;
-  --cc-font-base: var(--cc-font-lg);
-  --cc-font-root: var(--cc-font-xl); /* html/body */
+  --cc-font-2xs: 10px;
+  --cc-font-xs: 11px;
+  --cc-font-sm: 12px;
+  --cc-font-md: 14px;
+  --cc-font-lg: 18px;
+  --cc-font-xl: 22px;
+  --cc-font-2xl: 28px;
+  --cc-font-base: var(--cc-font-md); /* body / default */
+  --cc-font-root: var(--cc-font-md); /* html/body */
 
   /* ── SCALES — Font weights ────────────────────────────────────────────── */
   --cc-fw-normal: 400;
@@ -176,6 +174,11 @@
   /* ── SCALES — Letter-spacing (tracking) ──────────────────────────────── */
   --cc-track-label: 0.08em; /* uppercase section labels */
   --cc-track-base: 0;
+
+  /* ── SCALES — Line height (leading) ──────────────────────────────────── */
+  --cc-lh-tight: 1.25; /* headings / titles */
+  --cc-lh-base: 1.5; /* body / default */
+  --cc-lh-relaxed: 1.6; /* long-form prose */
 
   /* ── SCALES — Transition durations ───────────────────────────────────── */
   --cc-t-fast: 0.1s; /* row hover */

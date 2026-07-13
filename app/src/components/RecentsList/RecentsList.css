@@ -41,7 +41,7 @@
   align-items: center;
   /* Size icons by font-size so any glyph — lucide fallback OR the HostingIcon
      brand SVGs — sizes uniformly off one token (icons are 1em; see icons.css). */
-  font-size: var(--cc-font-xl);
+  font-size: var(--cc-font-md);
 }
 .recent-icon > svg {
   width: 1em;
@@ -52,15 +52,29 @@
   flex: 1 1 auto;
   min-width: 0;
 }
+/* Repo name + branch pill share the title line; the pill's header-context
+   margin is dropped in favor of the row's flex gap. */
+.recent-row .recent-label-row {
+  display: flex;
+  align-items: center;
+  gap: var(--cc-space-2);
+  min-width: 0;
+}
 .recent-row .recent-label {
   font-weight: var(--cc-fw-medium);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.recent-row .recent-label-row .app-header-branch-pill {
+  margin-left: 0;
 }
 .recent-row .recent-sub {
   display: flex;
   align-items: center;
   gap: var(--cc-space-2);
-  font-size: var(--cc-font-md);
-  color: var(--cc-text-muted);
+  font-size: var(--cc-font-xs);
+  color: var(--cc-text-secondary);
 }
 .recent-row .recent-src {
   overflow: hidden;
@@ -74,36 +88,52 @@
   background: var(--cc-accent-bg-soft);
 }
 .recent-row--active:hover {
-  background: var(--cc-accent-bg);
+  background: var(--cc-accent-bg-soft);
 }
 
 /* Unavailable (a local recent while local repos are off): dimmed as a hint,
    but still clickable — opening it surfaces the server's reason. */
 .recent-row--unavailable {
   opacity: 0.55;
+  cursor: not-allowed;
 }
 
+/* Active badge: a neutral "live" status pill (white dot + label). Deliberately
+   NOT accent-tinted so the current-project marker stays constant across accent
+   presets. */
 .recent-row-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cc-space-2);
   margin-left: auto;
-  font-size: var(--cc-font-sm);
+  font-size: var(--cc-font-2xs);
   font-weight: var(--cc-fw-semibold);
   letter-spacing: var(--cc-track-label);
-  color: var(--cc-accent);
-  background: var(--cc-accent-bg);
-  border: 1px solid var(--cc-accent-border);
-  border-radius: var(--cc-radius-lg);
+  text-transform: uppercase;
+  color: var(--cc-text-strong);
+  background: var(--cc-overlay-bg);
+  border: 1px solid var(--cc-overlay-border);
+  border-radius: var(--cc-radius-pill);
   padding: var(--cc-space-1) var(--cc-space-3);
   white-space: nowrap;
+}
+.recent-row-badge::before {
+  content: '';
+  flex: 0 0 auto;
+  width: 6px;
+  height: 6px;
+  border-radius: var(--cc-radius-circle);
+  background: var(--cc-text-strong);
 }
 
 /* Remove-from-list button next to each recent. Neutral, not destructive:
    removing only forgets the entry, it doesn't delete anything. */
 .recent-item > .btn-icon[aria-label='Remove from recents'] {
   padding: var(--cc-space-4) var(--cc-space-2);
-  color: var(--cc-text-faint);
+  color: var(--cc-text-muted);
 }
 .recent-item > .btn-icon[aria-label='Remove from recents']:hover {
-  color: var(--cc-text-primary);
+  color: var(--cc-text-strong);
   background: var(--cc-overlay-bg);
 }
 
@@ -125,7 +155,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  color: var(--cc-text-secondary);
+  color: var(--cc-text-primary);
 }
 .recent-confirm-actions {
   display: flex;

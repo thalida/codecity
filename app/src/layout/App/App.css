@@ -6,10 +6,10 @@ body {
   height: 100%;
   overflow: hidden;
   background: var(--cc-bg-app);
-  color: var(--cc-text-primary);
+  color: var(--cc-text-strong);
   font-family: var(--cc-font-sans);
-  font-size: var(--cc-font-xl);
-  line-height: 1.5;
+  font-size: var(--cc-font-md);
+  line-height: var(--cc-lh-base);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }

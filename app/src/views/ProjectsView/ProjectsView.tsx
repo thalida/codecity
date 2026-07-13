@@ -17,8 +17,9 @@ import { GemIcon } from '@/components/GemIcon/GemIcon';
 import { PROJECTS_VIEW, type SourcePayload } from '@/state/stores/ui';
 import { SERVER_CONFIG } from '@/state/stores/serverConfig';
 import { SCAN_PROGRESS } from '@/state/stores/scanProgress';
-import { PENDING_SOURCE_LABEL, listRecents } from '@/state/stores/source';
-import { LOADING_STEP_LABELS, stepForPhase } from '@/constants/loadingSteps';
+import { listRecents } from '@/state/stores/source';
+import { stepForPhase } from '@/constants/loadingSteps';
+import { LoadingProgress } from '@/components/LoadingProgress/LoadingProgress';
 import { NewProjectForm } from '@/components/NewProjectForm/NewProjectForm';
 import { RecentsList } from '@/components/RecentsList/RecentsList';
 
@@ -47,7 +48,10 @@ export function ProjectsView({ onSubmit, onCancel, onClose }: ProjectsViewProps)
   if (!pv.visible) return null;
 
   return (
-    <div class="landing" aria-label="codecity: open a project">
+    <div
+      class={`landing${pv.opts.dismissible ? ' landing--modal' : ''}`}
+      aria-label="codecity: open a project"
+    >
       {pv.opts.dismissible && !loading && (
         <button class="landing-close btn-icon btn-icon--lg" aria-label="Close" onClick={onClose}>
           <X class="lucide-icon" />
@@ -94,18 +98,13 @@ export function ProjectsView({ onSubmit, onCancel, onClose }: ProjectsViewProps)
         <div class="landing-actions">
           {loading && scan ? (
             <section class="landing-card surface-sidebar">
-              <div class="landing-progress" role="status" aria-live="polite">
-                {PENDING_SOURCE_LABEL.value && (
-                  <div class="loading-pending-label">{PENDING_SOURCE_LABEL.value}</div>
-                )}
-                <div class="loading-spinner" />
-                <div class="text-card-title is-loading">
-                  {LOADING_STEP_LABELS[stepForPhase(scan.phase, scan.kind)]}
-                  {'…'}
-                </div>
-                <button type="button" class="btn-secondary" onClick={onCancel}>
-                  Cancel
-                </button>
+              <div class="landing-progress">
+                <LoadingProgress
+                  activeStep={stepForPhase(scan.phase, scan.kind)}
+                  kind={scan.kind}
+                  branch={scan.branch}
+                  onCancel={onCancel}
+                />
               </div>
             </section>
           ) : (
@@ -117,6 +116,11 @@ export function ProjectsView({ onSubmit, onCancel, onClose }: ProjectsViewProps)
                     fresh form. */}
                 {pv.opts.error && <div class="card-error">{pv.opts.error}</div>}
                 <NewProjectForm
+                  // Re-key on the prefill source so a failed submit (which
+                  // reopens the view with the attempted src as prefill) remounts
+                  // the form with that value restored — the field keeps what the
+                  // user entered instead of clearing.
+                  key={pv.opts.prefill?.src ?? ''}
                   allowLocalRepos={SERVER_CONFIG.value.allowLocalRepos}
                   prefill={pv.opts.prefill}
                   onSubmit={onSubmit}

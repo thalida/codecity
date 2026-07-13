@@ -12,8 +12,8 @@
   gap: var(--cc-space-3);
 }
 .new-project-field label {
-  font-size: var(--cc-font-lg);
-  color: var(--cc-text-muted);
+  font-size: var(--cc-font-sm);
+  color: var(--cc-text-secondary);
 }
 .new-project-field .form-input {
   width: 100%;
@@ -21,19 +21,19 @@
 /* Inline field-level validation message, below the input. */
 .new-project-error {
   margin: 0;
-  font-size: var(--cc-font-md);
+  font-size: var(--cc-font-xs);
   color: var(--cc-error-light);
 }
 
-/* Inline notice for the disabled-local state. Quieter than .card-error:
-   subtle amber tint, no border, single line — the old modal's version was a
-   multi-paragraph wall, this one stays scannable. */
+/* Standing notice shown when local repos are off: a quiet, single-line
+   explanation with a how-to-enable link (subtle amber tint, no border). */
 .new-project-note {
+  margin: 0;
   background: var(--cc-warning-bg);
-  color: var(--cc-text-secondary);
+  color: var(--cc-text-primary);
   border-radius: var(--cc-radius-md);
-  padding: var(--cc-space-4) var(--cc-space-5);
-  font-size: var(--cc-font-lg);
+  padding: var(--cc-space-3) var(--cc-space-4);
+  font-size: var(--cc-font-xs);
 }
 
 /* Advanced disclosure — reads as an interactive link with a caret that turns
@@ -46,14 +46,16 @@
   display: inline-flex;
   align-items: center;
   gap: var(--cc-space-2);
-  color: var(--cc-accent-light);
+  color: var(--cc-accent);
   font: inherit;
-  font-size: var(--cc-font-md);
+  font-size: var(--cc-font-xs);
   cursor: pointer;
   padding: 0;
 }
+/* Brightens on hover to match the button affordance (accent -> accent-light,
+   same direction as .btn-primary). */
 .new-project-advanced-toggle:hover {
-  color: var(--cc-accent);
+  color: var(--cc-accent-light);
 }
 .new-project-advanced-caret {
   width: 14px;
@@ -68,7 +70,7 @@
   display: flex;
   align-items: center;
   gap: var(--cc-space-3);
-  font-size: var(--cc-font-lg);
-  color: var(--cc-text-secondary);
+  font-size: var(--cc-font-sm);
+  color: var(--cc-text-primary);
   margin-top: calc(var(--cc-space-4) * -1);
 }

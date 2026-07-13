@@ -104,7 +104,7 @@ function SectionBody({ facts }: { facts: AlmanacFact[] }) {
       {groupFacts(facts).map((g, i) =>
         g.dimension ? (
           <div key={i} class="almanac-duo">
-            <span class="almanac-duo-dim">{g.dimension}</span>
+            <span class="almanac-duo-dim text-label">{g.dimension}</span>
             {g.facts.map((f, j) => (
               <FactRow key={j} fact={f} />
             ))}
@@ -315,7 +315,7 @@ export function OverviewPane({ manifest }: OverviewPaneProps) {
         const Icon = SECTION_ICON[s.key];
         return (
           <section key={s.key} class="almanac-section" data-section={s.key}>
-            <h3 class="almanac-section-title" title={s.tip}>
+            <h3 class="almanac-section-title text-label" title={s.tip}>
               <Icon class="lucide-icon almanac-section-icon" aria-hidden="true" />
               {s.title}
             </h3>

@@ -85,7 +85,7 @@ export function StreetPane({ state, onClose, onFocus }: StreetPaneProps) {
       )}
       {stats.length > 0 && (
         <>
-          <div class="street-ext-h">
+          <div class="street-ext-h text-label">
             <FileType class="lucide-icon street-ext-icon" aria-hidden="true" />
             By extension
           </div>

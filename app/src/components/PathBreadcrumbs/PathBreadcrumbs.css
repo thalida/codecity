@@ -16,7 +16,7 @@
    Leaf-state behavior moved to .is-leaf modifier (used by breadcrumb
    leaf segment + file-path-segment leaf). */
 .btn-icon.is-leaf {
-  color: var(--cc-text-primary);
+  color: var(--cc-text-strong);
   cursor: default;
 }
 .btn-icon.is-leaf:not(:disabled):hover {
@@ -25,8 +25,8 @@
 
 .app-header-sep {
   flex: 0 0 auto;
-  color: var(--cc-text-ghost);
-  font-size: var(--cc-font-lg);
+  color: var(--cc-text-faint);
+  font-size: var(--cc-font-sm);
   pointer-events: none;
 }
 
@@ -34,7 +34,7 @@
    hidden to prevent overflow; hover reveals the hidden segment names. */
 .app-header-ellipsis {
   flex: 0 0 auto;
-  color: var(--cc-text-faint);
+  color: var(--cc-text-muted);
   padding: 0 var(--cc-space-1);
   cursor: help;
   user-select: none;

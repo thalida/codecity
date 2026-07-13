@@ -1,22 +1,22 @@
 .almanac {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: var(--cc-space-6);
 }
 
 .almanac-name {
-  margin: 0 0 6px;
-  font-size: var(--cc-font-2xl);
+  margin: 0 0 var(--cc-space-3);
+  font-size: var(--cc-font-lg);
   font-weight: var(--cc-fw-semibold);
-  color: var(--cc-text-primary);
+  color: var(--cc-text-strong);
   word-break: break-word;
 }
 
 .almanac-blurb {
-  margin: 0 0 12px;
-  color: var(--cc-text-secondary);
-  line-height: 1.5;
-  font-size: var(--cc-font-xl);
+  margin: 0 0 var(--cc-space-6);
+  color: var(--cc-text-primary);
+  line-height: var(--cc-lh-base);
+  font-size: var(--cc-font-md);
 }
 
 /* Two-column grid: the label column sizes to the widest label (max-content),
@@ -30,7 +30,7 @@
   column-gap: var(--cc-space-4);
   row-gap: var(--cc-space-2);
   align-items: start;
-  font-size: var(--cc-font-lg);
+  font-size: var(--cc-font-sm);
 }
 
 /* Each conditional row wrapper collapses so its dt/dd become direct grid items
@@ -40,14 +40,14 @@
 }
 
 .almanac-meta dt {
-  color: var(--cc-text-muted);
+  color: var(--cc-text-secondary);
   white-space: nowrap;
 }
 
 .almanac-meta dd {
   margin: 0;
   min-width: 0;
-  color: var(--cc-text-secondary);
+  color: var(--cc-text-primary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -56,12 +56,12 @@
 /* Relative age appended after an absolute date (Founded / Last Updated), set
  * off by a faint middot. */
 .almanac-rel {
-  color: var(--cc-text-faint);
+  color: var(--cc-text-muted);
 }
 .almanac-rel::before {
   content: '·';
   margin: 0 var(--cc-space-3);
-  color: var(--cc-text-ghost);
+  color: var(--cc-text-faint);
 }
 
 /* The sha as plain text (no remote) vs. as the one link in the row. Both stay
@@ -73,7 +73,7 @@
 }
 
 .almanac-sha {
-  color: var(--cc-text-primary);
+  color: var(--cc-text-strong);
 }
 
 /* Latest commit row — the sha link + commit subject (relative age and branch
@@ -81,7 +81,7 @@
 .almanac-latest-head {
   display: flex;
   align-items: baseline;
-  gap: 6px;
+  gap: var(--cc-space-3);
   min-width: 0;
 }
 
@@ -90,27 +90,27 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  color: var(--cc-text-secondary);
+  color: var(--cc-text-primary);
 }
 
 /* Branch name as a small pill — the chip vocabulary the language legend uses. */
 .almanac-branch {
-  padding: 0 7px;
+  padding: 0 var(--cc-space-3);
   border: 1px solid var(--cc-border-subtle);
   border-radius: var(--cc-radius-pill);
   background: var(--cc-overlay-bg);
-  color: var(--cc-text-secondary);
-  font-size: var(--cc-font-sm);
-  line-height: 1.6;
+  color: var(--cc-text-primary);
+  font-size: var(--cc-font-2xs);
+  line-height: var(--cc-lh-relaxed);
 }
 
 /* Stacked composition bar: each language's share of the repo, in the same hues
  * as its legend chip. The gaps let the track show through as hairlines. */
 .almanac-langbar {
   display: flex;
-  gap: 1px;
+  gap: var(--cc-space-px);
   height: 8px;
-  margin: 12px 0 0;
+  margin: var(--cc-space-6) 0 0;
   border-radius: var(--cc-radius-pill);
   background: var(--cc-border-subtle);
   overflow: hidden;
@@ -127,11 +127,11 @@
 
 .almanac-languages {
   list-style: none;
-  margin: 8px 0 0;
+  margin: var(--cc-space-4) 0 0;
   padding: 0;
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: var(--cc-space-3);
 }
 
 /* Each language is a single bordered chip: the colored extension badge and its
@@ -139,24 +139,24 @@
 .almanac-language {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  padding: 2px 7px 2px 3px;
+  gap: var(--cc-space-2);
+  padding: var(--cc-space-1) var(--cc-space-3) var(--cc-space-1) var(--cc-space-1);
   border: 1px solid var(--cc-border-subtle);
   border-radius: var(--cc-radius-md);
   background: var(--cc-overlay-bg);
 }
 
 .almanac-language-count {
-  font-size: var(--cc-font-md);
+  font-size: var(--cc-font-xs);
   color: var(--cc-text-secondary);
 }
 
 /* Trailing "+N more" — same chip shell, no badge; a muted summary so the list
  * reads as "top types + everything else", not an arbitrary cut-off. */
 .almanac-language--more {
-  padding: 2px 8px;
-  font-size: var(--cc-font-md);
-  color: var(--cc-text-muted);
+  padding: var(--cc-space-1) var(--cc-space-4);
+  font-size: var(--cc-font-xs);
+  color: var(--cc-text-secondary);
   cursor: default;
 }
 
@@ -171,19 +171,14 @@
   display: flex;
   flex-direction: column;
   border-top: 1px solid var(--cc-border-subtle);
-  padding-top: 12px;
+  padding-top: var(--cc-space-6);
 }
 
 .almanac-section-title {
   display: flex;
   align-items: center;
-  gap: 7px;
-  margin: 0 0 8px;
-  font-size: var(--cc-font-md);
-  font-weight: var(--cc-fw-semibold);
-  text-transform: uppercase;
-  letter-spacing: var(--cc-track-label);
-  color: var(--cc-text-secondary);
+  gap: var(--cc-space-3);
+  margin: 0 0 var(--cc-space-4);
 }
 
 .almanac-section-icon {
@@ -195,17 +190,16 @@
 /* Summary line under each header — count + one aggregate, same rhythm in every
  * section. Flush-left with the header (no indent — the header already groups). */
 .almanac-section-overview {
-  margin: -2px 0 8px 0;
-  color: var(--cc-text-secondary);
-  font-size: var(--cc-font-lg);
+  margin: -2px 0 var(--cc-space-4) 0;
+  color: var(--cc-text-primary);
+  font-size: var(--cc-font-sm);
 }
 
 .almanac-section-note {
   margin: 0;
-  padding: 2px 0 4px;
-  color: var(--cc-text-muted);
-  font-size: var(--cc-font-lg);
-  font-style: italic;
+  padding: var(--cc-space-1) 0 var(--cc-space-2);
+  color: var(--cc-text-secondary);
+  font-size: var(--cc-font-sm);
 }
 
 /* A min↔max duo: two endpoints under a shared dimension label so the
@@ -214,15 +208,17 @@
 .almanac-duo {
   display: flex;
   flex-direction: column;
-  margin: 2px 0 6px;
+  margin: var(--cc-space-1) 0 var(--cc-space-3);
 }
 
 .almanac-duo-dim {
   display: block;
-  margin: 0 0 1px 0;
-  font-size: var(--cc-font-sm);
-  text-transform: uppercase;
-  letter-spacing: var(--cc-track-label);
+  margin: 0 0 var(--cc-space-px) 0;
+}
+/* Accented to the section's own layer color (like the section title icon)
+   instead of .text-label's default primary — overrides via a compound
+   selector so it wins regardless of stylesheet order. */
+.almanac-duo-dim.text-label {
   color: var(--sec-accent);
 }
 
@@ -232,14 +228,14 @@
 .almanac-fact {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--cc-space-4);
   /* The row is a flex item, so it stretches to the section/duo width on its own
    * (definite width → the value truncates instead of overflowing — no calc()
    * hack needed). The negative margins then do one job: bleed the hover highlight
    * into the gutter so the text stays flush with the header while the highlight
    * keeps its own inner padding. */
-  margin: 0 -8px;
-  padding: 5px 8px;
+  margin: 0 calc(-1 * var(--cc-space-4));
+  padding: var(--cc-space-2) var(--cc-space-4);
   border-radius: var(--cc-radius-md);
   text-align: left;
   background: none;
@@ -263,8 +259,8 @@
  * length). Sized to fit the longest label in use ("Least active"). */
 .almanac-fact-label {
   flex: 0 0 76px;
-  color: var(--cc-text-muted);
-  font-size: var(--cc-font-md);
+  color: var(--cc-text-secondary);
+  font-size: var(--cc-font-xs);
 }
 
 /* basis 0 so it grows into the free space and truncates predictably. One value
@@ -272,8 +268,8 @@
 .almanac-fact-primary {
   flex: 1 1 0;
   min-width: 0;
-  color: var(--cc-text-primary);
-  font-size: var(--cc-font-md);
+  color: var(--cc-text-strong);
+  font-size: var(--cc-font-xs);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -303,8 +299,8 @@
 /* Metric pinned right so every row shares one rail. */
 .almanac-fact-metric {
   flex: 0 0 auto;
-  color: var(--cc-text-muted);
-  font-size: var(--cc-font-md);
+  color: var(--cc-text-secondary);
+  font-size: var(--cc-font-xs);
   white-space: nowrap;
 }
 
@@ -316,11 +312,11 @@
   flex: 0 0 auto;
   width: 14px;
   height: 14px;
-  color: var(--cc-text-faint);
+  color: var(--cc-text-muted);
   transition: color 0.12s ease;
 }
 
 .almanac-fact--nav:hover .almanac-fact-focus,
 .almanac-fact--nav:focus-visible .almanac-fact-focus {
-  color: var(--cc-text-primary);
+  color: var(--cc-text-strong);
 }
