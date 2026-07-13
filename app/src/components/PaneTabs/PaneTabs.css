@@ -3,6 +3,11 @@
   padding: var(--cc-space-3) 0 0; /* no side inset → first tab sits flush with content */
   border-bottom: 1px solid var(--cc-border-subtle);
   overflow-x: auto;
+  /* overflow-x:auto would force overflow-y to `auto` too, making this a vertical
+   * scroll container; the tabs' -1px baseline overlap then overflows by 1px, so
+   * focusing a tab scrolls the strip 1px and shifts the underline off the
+   * divider permanently. `clip` keeps horizontal scroll without a scrollable y. */
+  overflow-y: clip;
   scrollbar-width: none; /* the baseline underline reads as the affordance; hide the bar */
 }
 .pane-tabs::-webkit-scrollbar {
