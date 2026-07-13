@@ -51,8 +51,19 @@
   margin: var(--cc-space-0);
   padding: var(--cc-space-0);
 }
+/* The transparent overlay input spans the whole container, so a default
+ * focus outline would frame the entire pair. Suppress that and put the
+ * keyboard ring on the thumb instead, where the focused value actually is. */
 .theme-range-pair input[type='range']:focus {
   outline: none;
+}
+.theme-range-pair input[type='range']:focus-visible::-webkit-slider-thumb {
+  outline: 2px solid var(--cc-accent-light);
+  outline-offset: 2px;
+}
+.theme-range-pair input[type='range']:focus-visible::-moz-range-thumb {
+  outline: 2px solid var(--cc-accent-light);
+  outline-offset: 2px;
 }
 
 /* Filled track HEIGHT = pair container height. Webkit centers the thumb

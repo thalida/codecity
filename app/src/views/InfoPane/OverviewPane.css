@@ -249,10 +249,13 @@
   transition: background-color 0.12s ease;
 }
 
-.almanac-fact--nav:hover,
+.almanac-fact--nav:hover {
+  background: var(--cc-overlay-bg);
+}
+/* Keep the global :focus-visible ring (focus.css); the hover wash alone is
+ * too faint to serve as a keyboard focus indicator. */
 .almanac-fact--nav:focus-visible {
   background: var(--cc-overlay-bg);
-  outline: none;
 }
 
 /* Fixed column so the values line up row to row (not jittering with label
