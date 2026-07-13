@@ -16,9 +16,9 @@ export interface ThemePresetOption {
   label: string;
 }
 
-// Accent presets in rainbow (hue) order. `blue` is the default; the applier
+// Accent presets in rainbow (hue) order. `purple` is the default; the applier
 // omits the attribute for it so tokens.css :root stays the page source (the
-// picker chip still previews blue via themes.css's [data-cc-accent='blue']).
+// picker chip still previews purple via themes.css's [data-cc-accent='purple']).
 export const ACCENT_PRESETS: ThemePresetOption[] = [
   { value: 'amber', label: 'Amber' },
   { value: 'green', label: 'Green' },
@@ -36,7 +36,7 @@ export const SURFACE_PRESETS: ThemePresetOption[] = [
   { value: 'warm', label: 'Warm' },
 ];
 
-export const ACCENT_THEME_DEFAULT = 'blue';
+export const ACCENT_THEME_DEFAULT = 'purple';
 export const SURFACE_THEME_DEFAULT = 'cool';
 
 export const ACCENT_THEME = persistedSignal<string>('ACCENT_THEME', ACCENT_THEME_DEFAULT);

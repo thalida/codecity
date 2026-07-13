@@ -60,9 +60,9 @@
   /* ── COLORS — Accent (brand blue + role-based alpha variants) ──────────
      Alpha variants derive from --cc-accent via color-mix → swap that one
      to recolor the brand everywhere. */
-  --cc-accent: oklch(0.697 0.16 258.2);
-  --cc-accent-light: oklch(0.806 0.097 260);
-  --cc-accent-dark: oklch(0.588 0.196 268.5);
+  --cc-accent: oklch(0.697 0.16 295);
+  --cc-accent-light: oklch(0.806 0.097 297);
+  --cc-accent-dark: oklch(0.588 0.196 300);
   --cc-accent-bg-soft: color-mix(in oklch, var(--cc-accent) 10%, transparent);
   --cc-accent-bg: color-mix(in oklch, var(--cc-accent) 18%, transparent);
   --cc-accent-bg-strong: color-mix(in oklch, var(--cc-accent) 30%, transparent);

@@ -14,8 +14,8 @@ afterEach(() => {
 });
 
 describe('theme stores', () => {
-  it('defaults are blue / cool; accents are in rainbow order', () => {
-    expect(ACCENT_THEME_DEFAULT).toBe('blue');
+  it('defaults are purple / cool; accents are in rainbow order', () => {
+    expect(ACCENT_THEME_DEFAULT).toBe('purple');
     expect(SURFACE_THEME_DEFAULT).toBe('cool');
     // Accents ordered by hue (rainbow), not with the default first.
     expect(ACCENT_PRESETS.map((p) => p.value)).toEqual([
