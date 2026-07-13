@@ -32,3 +32,10 @@
 .controls-section:not(.is-open) > :not(.controls-section-summary) {
   display: none;
 }
+
+/* Top-level section headers read as the emphasis tier (white); nested subgroup
+   headers step one shade down to the secondary tier (Subgroup.tsx), so the two
+   accordion levels are visually distinct. */
+.controls-section-summary .text-label {
+  color: var(--cc-text-strong);
+}

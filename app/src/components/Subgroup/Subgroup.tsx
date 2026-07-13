@@ -34,7 +34,7 @@ export function Subgroup({ name, collapsible = true, resetKeys, children }: Subg
   if (!collapsible) {
     return (
       <div class="theme-subgroup">
-        <div class="text-label text-label--muted">{name}</div>
+        <div class="text-label">{name}</div>
         {children}
       </div>
     );
@@ -63,7 +63,7 @@ export function Subgroup({ name, collapsible = true, resetKeys, children }: Subg
           }}
         >
           <ChevronRight class="lucide-icon chevron" />
-          <span class="theme-subgroup-label-text text-label text-label--muted">{name}</span>
+          <span class="theme-subgroup-label-text text-label">{name}</span>
         </button>
         {keys.length > 0 && (
           <button
