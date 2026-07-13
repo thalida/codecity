@@ -45,6 +45,9 @@
   flex: 0 0 auto;
   min-width: 36px;
   text-align: right;
+  /* Match the reset button's right padding so the readout's right edge lines up
+   * with the reset icon in the column above it. */
+  padding-right: var(--cc-space-2);
   font-family: var(--cc-font-mono);
   font-size: var(--cc-font-2xs);
   color: var(--cc-text-secondary);
