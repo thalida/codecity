@@ -111,11 +111,22 @@ export function ControlsPane({ onClose, collapsed }: ControlsPaneProps) {
       paneRef={paneRef}
       headerSlot={
         <div class="pane-header pane-header--tabs">
-          <PaneTabs tabs={subtabs} active={activeId} onSelect={setActiveId} />
+          <PaneTabs
+            tabs={subtabs}
+            active={activeId}
+            onSelect={setActiveId}
+            panelId="controls-panel"
+          />
           {onClose && <PaneCloseButton onClose={onClose} />}
         </div>
       }
       bodyClass="pane-inset"
+      bodyProps={{
+        id: 'controls-panel',
+        role: 'tabpanel',
+        tabIndex: 0,
+        'aria-labelledby': `controls-panel-tab-${activeId}`,
+      }}
       footerSlot={active.draftable ? <ActionsBar /> : null}
     >
       {active.sections.map((node) => (

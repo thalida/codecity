@@ -9,7 +9,7 @@
 // <PaneEmpty> is the shared centered icon + headline + subtitle block used
 // for every "nothing selected / nothing to show" empty state.
 
-import type { ComponentChildren, Ref } from 'preact';
+import type { ComponentChildren, JSX, Ref } from 'preact';
 import type { LucideIcon } from 'lucide-preact';
 import { PaneHeader } from './PaneHeader/PaneHeader';
 
@@ -40,6 +40,9 @@ export interface PaneProps {
   /** Ref to the `.pane-body` element — for panes that mount body content
    *  imperatively (e.g. FilePreviewPane's highlight.js output). */
   bodyRef?: Ref<HTMLDivElement>;
+  /** Extra attributes spread onto the `.pane-body` (e.g. tabpanel role/id for a
+   *  tabbed pane whose body is the panel). Only applies when Pane owns the body. */
+  bodyProps?: JSX.HTMLAttributes<HTMLDivElement>;
   /** Content rendered AFTER the body (e.g. ControlsPane's sticky action bar),
    *  outside the scrolling body region. */
   footerSlot?: ComponentChildren;
@@ -62,6 +65,7 @@ export function Pane({
   closeTitle,
   bodyClass,
   bodyRef,
+  bodyProps,
   footerSlot,
   paneRef,
   children,
@@ -82,7 +86,11 @@ export function Pane({
         />
       )}
       {ownsBody ? (
-        <div class={bodyClass ? `pane-body ${bodyClass}` : 'pane-body'} ref={bodyRef}>
+        <div
+          class={bodyClass ? `pane-body ${bodyClass}` : 'pane-body'}
+          ref={bodyRef}
+          {...bodyProps}
+        >
           {children}
         </div>
       ) : (

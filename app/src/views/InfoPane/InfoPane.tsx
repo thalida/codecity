@@ -59,12 +59,23 @@ export function InfoPane({ manifest, onClose }: InfoPaneProps) {
       paneClass="info-pane"
       headerSlot={
         <div class="pane-header pane-header--tabs">
-          <PaneTabs tabs={INFO_TABS} active={tab} onSelect={(id) => setTab(id as InfoTab)} />
+          <PaneTabs
+            tabs={INFO_TABS}
+            active={tab}
+            onSelect={(id) => setTab(id as InfoTab)}
+            panelId="info-panel"
+          />
           {onClose && <PaneCloseButton onClose={onClose} />}
         </div>
       }
     >
-      <div class="pane-body info-body">
+      <div
+        class="pane-body info-body"
+        id="info-panel"
+        role="tabpanel"
+        tabIndex={0}
+        aria-labelledby={`info-panel-tab-${tab}`}
+      >
         <active.Component manifest={manifest} />
       </div>
     </Pane>

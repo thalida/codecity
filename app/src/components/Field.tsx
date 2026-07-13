@@ -110,6 +110,7 @@ export function Field({ store, fieldKey }: FieldProps) {
           options={def.options!}
           onCommit={binding.onCommit}
           describedBy={describedBy}
+          label={def.label}
         />
       );
       break;
