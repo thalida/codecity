@@ -95,6 +95,7 @@
    but still clickable — opening it surfaces the server's reason. */
 .recent-row--unavailable {
   opacity: 0.55;
+  cursor: not-allowed;
 }
 
 /* Active badge: a neutral "live" status pill (white dot + label). Deliberately
