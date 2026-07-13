@@ -184,10 +184,11 @@ function FooterStatusSection({ status }: FooterStatusSectionProps) {
   return (
     <span
       class={`app-footer-status ${buildClass} ${liveClass}`}
+      role="status"
       title={titleText}
       aria-label={titleText}
     >
-      <span class="dot app-footer-status-dot" />
+      <span class="dot app-footer-status-dot" aria-hidden="true" />
       <span class="app-footer-status-detail">{detailText}</span>
     </span>
   );

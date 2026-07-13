@@ -84,6 +84,9 @@ export interface SidebarProps {
   /** DOM id — drives CSS (e.g. #left-sidebar). */
   id: string;
   side: SidebarSide;
+  /** Accessible name for the complementary landmark, so the two <aside>s are
+   *  distinguishable to assistive tech. */
+  ariaLabel?: string;
   /** State class for the <aside> (e.g. 'is-collapsed', 'open'); caller-computed. */
   class?: string;
   /** Persisted drag-resize width (px); null ⇒ fall back to the CSS default.
@@ -93,7 +96,7 @@ export interface SidebarProps {
   children: ComponentChildren;
 }
 
-export function Sidebar({ id, side, class: cls, widthSignal, children }: SidebarProps) {
+export function Sidebar({ id, side, class: cls, ariaLabel, widthSignal, children }: SidebarProps) {
   const ref = useRef<HTMLElement>(null);
 
   // Apply the persisted width on mount. CSS min-width/max-width clamp it, so a
@@ -104,7 +107,12 @@ export function Sidebar({ id, side, class: cls, widthSignal, children }: Sidebar
   }, []);
 
   return (
-    <aside ref={ref} id={id} class={cls ? `surface-sidebar ${cls}` : 'surface-sidebar'}>
+    <aside
+      ref={ref}
+      id={id}
+      class={cls ? `surface-sidebar ${cls}` : 'surface-sidebar'}
+      aria-label={ariaLabel}
+    >
       {children}
       <ResizeHandle side={side} targetRef={ref} widthSignal={widthSignal} />
     </aside>

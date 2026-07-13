@@ -72,6 +72,15 @@ export function SearchPane({ manifest, onClose, onSelect }: SearchPaneProps) {
       }
     >
       <div class="pane-body">
+        {/* Announce the result count as the query changes (screen-reader users
+            get no visual cue of how many matches appeared). */}
+        <div class="sr-only" role="status" aria-live="polite">
+          {trimmed && results
+            ? results.length === 0
+              ? 'No files match'
+              : `${results.length} result${results.length === 1 ? '' : 's'}`
+            : ''}
+        </div>
         {!trimmed && (
           <PaneEmpty
             large={false}
@@ -91,18 +100,18 @@ export function SearchPane({ manifest, onClose, onSelect }: SearchPaneProps) {
         {results && results.length > 0 && (
           <ul class="search-results">
             {results.map(({ file, match }) => (
-              <li
-                key={file.path}
-                class="search-result"
-                tabIndex={0}
-                onClick={() => {
-                  if (onSelect && file.path) onSelect(file.path);
-                }}
-                onKeyDown={(e: KeyboardEvent) => {
-                  if (e.key === 'Enter' && onSelect && file.path) onSelect(file.path);
-                }}
-              >
-                <span class="search-result-path">{_highlightJsx(file.path, match.positions)}</span>
+              <li key={file.path}>
+                <button
+                  type="button"
+                  class="search-result"
+                  onClick={() => {
+                    if (onSelect && file.path) onSelect(file.path);
+                  }}
+                >
+                  <span class="search-result-path">
+                    {_highlightJsx(file.path, match.positions)}
+                  </span>
+                </button>
               </li>
             ))}
           </ul>

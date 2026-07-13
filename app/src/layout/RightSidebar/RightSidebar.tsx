@@ -142,6 +142,7 @@ export function RightSidebar() {
     <Sidebar
       id="right-sidebar"
       side={SidebarSide.Right}
+      ariaLabel="Selection details"
       class={open ? 'open' : ''}
       widthSignal={RIGHT_SIDEBAR_WIDTH}
     >
