@@ -5,8 +5,11 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render } from 'preact';
 import { RECENTS, CURRENT_SOURCE } from '@/state/stores/source';
 import { SERVER_CONFIG } from '@/state/stores/serverConfig';
+import { setManifest } from '@/state/stores/manifest';
+import { EMPTY_MANIFEST } from '@/constants/manifest';
 import { RecentsList } from '@/components/RecentsList/RecentsList';
 import * as manifestApi from '@/api/manifest';
+import type { Manifest } from '@/types';
 import { flush } from '../_helpers/preact';
 
 describe('RecentsList', () => {
@@ -25,6 +28,8 @@ describe('RecentsList', () => {
       { src: 'https://github.com/o/beta', branch: 'dev', label: 'o/beta', lastOpenedAt: 1 },
     ];
     CURRENT_SOURCE.value = { src: 'https://github.com/o/alpha', branch: 'main' };
+    // SOURCE_INFO (which active detection reads) derives from a loaded manifest.
+    setManifest({ tree: { name: 'o/alpha' }, repo: { branch: 'main' } } as unknown as Manifest);
   });
 
   afterEach(() => {
@@ -32,6 +37,7 @@ describe('RecentsList', () => {
     document.body.removeChild(container);
     RECENTS.value = [];
     CURRENT_SOURCE.value = null;
+    setManifest(EMPTY_MANIFEST);
     SERVER_CONFIG.value = { allowLocalRepos: false };
   });
 
