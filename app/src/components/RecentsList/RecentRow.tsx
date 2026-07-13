@@ -1,11 +1,11 @@
 // components/RecentsList/RecentRow.tsx — one recent-source row: kind glyph,
 // label, sub (src + branch pill + "(default)" tag), active badge, and a
 // remove control. A row re-opens (reloads) its project on click; an unavailable
-// row (a local path while local repos are off) is NOT clickable — it can't load,
-// so it's aria-disabled with a hint glyph and a title explaining why (only its
-// remove control works). Asking to remove takes over the whole row (no reflow).
+// row (a local path while local repos are off) is NOT clickable: it can't load,
+// so it's dimmed + aria-disabled with a title explaining why (only its remove
+// control works). Asking to remove takes over the whole row (no reflow).
 
-import { Folder, X, TriangleAlert } from 'lucide-preact';
+import { Folder, X } from 'lucide-preact';
 import { HostingIcon } from '@/components/HostingIcon';
 import { srcKind, SourceKind } from '@/utils/sources';
 import type { RecentSource } from '@/state/stores/source';
@@ -70,13 +70,7 @@ export function RecentRow(props: RecentRowProps) {
         onClick={unavailable ? undefined : props.onOpen}
       >
         <span class="recent-icon">
-          {unavailable ? (
-            <TriangleAlert class="lucide-icon" />
-          ) : isLocal ? (
-            <Folder class="lucide-icon" />
-          ) : (
-            <HostingIcon src={r.src} />
-          )}
+          {isLocal ? <Folder class="lucide-icon" /> : <HostingIcon src={r.src} />}
         </span>
         <div class="recent-row-body">
           <div class="recent-label-row">
