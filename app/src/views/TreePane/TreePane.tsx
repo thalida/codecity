@@ -123,6 +123,10 @@ function TreeItem({
   }
 
   function onKeyDown(e: KeyboardEvent) {
+    // Keydown bubbles up through ancestor treeitems, whose handlers would
+    // otherwise re-run and hijack focus. Only the focused item (the event
+    // target) acts on its own keys.
+    if (e.target !== e.currentTarget) return;
     const li = e.currentTarget as HTMLElement;
     switch (e.key) {
       case 'Enter':

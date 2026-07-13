@@ -380,6 +380,40 @@ describe('TreePane', () => {
     expect(picked!.path).toBe('index.ts');
   });
 
+  it('ArrowDown moves past the first child inside a nested folder', async () => {
+    // Regression: keydown bubbled to ancestor treeitems, whose handlers
+    // re-ran and yanked focus back to the folder's first child.
+    const deepTree = {
+      name: 'project',
+      type: 'directory',
+      path: '.',
+      children: [
+        {
+          name: 'dir',
+          type: 'directory',
+          path: 'dir',
+          children: [
+            { name: 'c1.ts', type: 'file', path: 'dir/c1.ts' },
+            { name: 'c2.ts', type: 'file', path: 'dir/c2.ts' },
+            { name: 'c3.ts', type: 'file', path: 'dir/c3.ts' },
+          ],
+        },
+      ],
+    };
+    const pane = mount(deepTree);
+    selectedPath.value = 'dir/c1.ts'; // expands the branch
+    await flush();
+
+    const c1 = pane.querySelector<HTMLElement>('[data-path="dir/c1.ts"]')!;
+    const c2 = pane.querySelector<HTMLElement>('[data-path="dir/c2.ts"]')!;
+    const c3 = pane.querySelector<HTMLElement>('[data-path="dir/c3.ts"]')!;
+    c1.focus();
+    keydown(c1, 'ArrowDown');
+    expect(document.activeElement).toBe(c2);
+    keydown(c2, 'ArrowDown');
+    expect(document.activeElement).toBe(c3);
+  });
+
   it('ArrowRight expands a collapsed directory; ArrowLeft collapses it', async () => {
     const pane = mount(TEST_TREE);
     const dir = () => pane.querySelector<HTMLElement>('[data-path="src"]')!;
