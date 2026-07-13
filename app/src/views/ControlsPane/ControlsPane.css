@@ -5,6 +5,37 @@
  * section header's rendered height. Tune if the two overlap or leave a gap. */
 .controls-pane {
   --cc-controls-header-h: 28px;
+  /* Tree-style accordion indent-guide geometry (mirrors TreePane): the header
+   * chevron sits in a small left gutter, and an open section/subgroup draws a
+   * vertical rule centered under that chevron down its nested body. */
+  --cc-ctrl-inset: var(--cc-space-2); /* header row left padding = chevron gutter */
+  --cc-ctrl-glyph: 14px; /* chevron column width */
+  --cc-ctrl-guide: 1px;
+}
+
+/* Every row carries the same left inset (the tree-row-inset way), so headers
+ * and the field rows / descriptions beneath them line up to the right of the
+ * guide at each nesting level. */
+.controls-section-summary,
+.theme-subgroup-summary,
+.controls-pane .theme-row,
+.controls-pane .theme-subgroup > .text-label {
+  padding-left: var(--cc-ctrl-inset);
+}
+/* Headers inherit .row's side padding; drop the right pad so their reset button
+ * lines up with the field-row resets + slider readouts (which sit flush at the
+ * content edge). */
+.controls-section-summary,
+.theme-subgroup-summary {
+  padding-right: 0;
+}
+/* The nested body draws the guide: margin-left centers a 1px rule under the
+ * parent chevron; padding-left then insets the nested rows clearly to its
+ * right so each level reads as stepped. */
+.controls-disclosure-body {
+  margin-left: calc(var(--cc-ctrl-inset) + var(--cc-ctrl-glyph) / 2 - var(--cc-ctrl-guide) / 2);
+  padding-left: var(--cc-space-4);
+  border-left: var(--cc-ctrl-guide) solid var(--cc-accent-bg-soft);
 }
 
 /* Sticky headers pin flush to the very top, so the scroll body can't keep top

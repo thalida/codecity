@@ -21,30 +21,18 @@
 /* Collapsible subgroup variant — a button-driven disclosure (see Subgroup.tsx)
  * whose header doubles as the subgroup label. Same Lucide chevron + hover row
  * treatment as .controls-section-summary so the open/closed affordance is
- * consistent at every level of the panel. The header carries
- * .row + .row--bleed in the DOM; the toggle button carries the label typography. */
+ * consistent at every level of the panel; nesting is shown by the indent guide
+ * on .controls-disclosure-body (ControlsPane.css). */
 .theme-subgroup-collapsible > .theme-subgroup-summary {
   /* Sticky header stacked below the sticky section header (offset = section
    * header height, set on .controls-pane). Opaque bg so rows don't show through. */
   position: sticky;
   top: var(--cc-controls-header-h);
   z-index: 2;
-  margin-bottom: 0; /* keep it flush with the rows below when pinned */
   background: var(--cc-bg-sidebar);
   cursor: default; /* the toggle button carries the pointer affordance */
 }
-/* Collapsed: hide everything but the header (mirrors a closed <details>). */
-.theme-subgroup-collapsible:not(.is-open) > :not(.theme-subgroup-summary) {
+/* Collapsed: hide the nested body (mirrors a closed <details>). */
+.theme-subgroup-collapsible:not(.is-open) > .controls-disclosure-body {
   display: none;
-}
-
-/* Nested subgroups inside a collapsible parent (e.g. Buildings > Facade >
- * Geometry / Contrast / Window lighting). A small left padding indents
- * the whole nested block so the hierarchy reads. */
-.theme-subgroup-collapsible > .theme-subgroup {
-  padding-left: var(--cc-space-5);
-}
-.theme-subgroup-collapsible > .theme-subgroup:first-of-type {
-  margin-top: var(--cc-space-4);
-  padding-top: var(--cc-space-0);
 }

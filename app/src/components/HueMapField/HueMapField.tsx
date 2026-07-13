@@ -31,7 +31,29 @@ export function HueMapField({ store, fieldKey }: FieldProps) {
           const descId = `${baseId}-${k}`;
           const controlId = `${baseId}-${k}-c`;
           return (
-            <ThemeRow label={k} tip={tip} descId={descId} htmlFor={controlId} key={k}>
+            <ThemeRow
+              label={k}
+              tip={tip}
+              descId={descId}
+              htmlFor={controlId}
+              key={k}
+              resetSlot={
+                <button
+                  type="button"
+                  class="theme-row-reset"
+                  title={`Default: ${defaultVal}`}
+                  aria-label="Reset to default"
+                  disabled={disabled}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    commit({ ...map, [k]: defaultVal });
+                  }}
+                >
+                  <RotateCcw class="lucide-icon" />
+                </button>
+              }
+            >
               <Slider
                 value={value}
                 min={0}
@@ -42,20 +64,6 @@ export function HueMapField({ store, fieldKey }: FieldProps) {
                 onCommit={(v) => commit({ ...map, [k]: v })}
               />
               <span class="theme-hue-preview" style={{ background: fileTagHsl(value) }} />
-              <button
-                type="button"
-                class="theme-row-reset"
-                title={`Default: ${defaultVal}`}
-                aria-label="Reset to default"
-                disabled={disabled}
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  commit({ ...map, [k]: defaultVal });
-                }}
-              >
-                <RotateCcw class="lucide-icon" />
-              </button>
             </ThemeRow>
           );
         })}

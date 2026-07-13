@@ -43,8 +43,8 @@ export function Subgroup({ name, collapsible = true, resetKeys, children }: Subg
   // A disclosure, NOT a <details>: the header is a flex row with a real
   // aria-expanded toggle button and the reset button as SIBLINGS. (An
   // interactive control nested inside <summary> is unreliable for keyboard/AT.)
-  // The body stays a direct child so structural CSS is unchanged; .is-open
-  // hides it when collapsed.
+  // The body is wrapped so it can carry a tree-style indent guide and is hidden
+  // by .is-open when collapsed.
   return (
     <div
       class={
@@ -53,7 +53,7 @@ export function Subgroup({ name, collapsible = true, resetKeys, children }: Subg
           : 'theme-subgroup theme-subgroup-collapsible'
       }
     >
-      <div class="row row--bleed theme-subgroup-summary">
+      <div class="row theme-subgroup-summary">
         <button
           type="button"
           class="controls-disclosure-toggle"
@@ -80,7 +80,7 @@ export function Subgroup({ name, collapsible = true, resetKeys, children }: Subg
           </button>
         )}
       </div>
-      {children}
+      <div class="controls-disclosure-body">{children}</div>
     </div>
   );
 }

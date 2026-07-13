@@ -32,11 +32,11 @@ export function Section({ name, hint, resetKeys, children }: SectionProps) {
   // A disclosure, NOT a <details>: the header is a flex row with a real
   // aria-expanded toggle button and the reset button as SIBLINGS. (An
   // interactive control nested inside <summary> is unreliable for keyboard/AT.)
-  // The body stays a direct child so structural CSS is unchanged; .is-open
-  // hides it when collapsed.
+  // The body is wrapped so it can carry a tree-style indent guide (a vertical
+  // rule under the chevron) and is hidden by .is-open when collapsed.
   return (
     <div class={open.value ? 'controls-section is-open' : 'controls-section'}>
-      <div class="row row--bleed controls-section-summary">
+      <div class="row controls-section-summary">
         <button
           type="button"
           class="controls-disclosure-toggle"
@@ -63,8 +63,10 @@ export function Section({ name, hint, resetKeys, children }: SectionProps) {
           </button>
         )}
       </div>
-      {hint && <div class="controls-section-hint">{hint}</div>}
-      {children}
+      <div class="controls-disclosure-body">
+        {hint && <div class="controls-section-hint">{hint}</div>}
+        {children}
+      </div>
     </div>
   );
 }

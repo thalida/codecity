@@ -37,6 +37,10 @@ export interface ThemeRowProps {
   store?: SignalLike | null;
   /** Keys this row covers. Required if `store` is set. */
   keys?: string[];
+  /** Custom reset control for the head (e.g. a per-entry reset for array fields
+   *  like TierWidths / HueMap). Renders in the same head slot as the store/keys
+   *  ResetButton so every row's reset lines up. */
+  resetSlot?: ComponentChildren;
   children: ComponentChildren;
 }
 
@@ -48,10 +52,13 @@ export function ThemeRow({
   htmlFor,
   store,
   keys,
+  resetSlot,
   children,
 }: ThemeRowProps) {
   const fullTip = tip ? `${label}: ${tip}` : label;
-  const reset = store && keys && keys.length > 0 ? <ResetButton store={store} keys={keys} /> : null;
+  const reset =
+    resetSlot ??
+    (store && keys && keys.length > 0 ? <ResetButton store={store} keys={keys} /> : null);
   return (
     <div class={inline ? 'theme-row theme-row--inline' : 'theme-row'}>
       <label class="theme-row-main" htmlFor={htmlFor} title={fullTip}>

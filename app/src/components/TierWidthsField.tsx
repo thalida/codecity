@@ -28,7 +28,31 @@ export function TierWidthsField({ store, fieldKey }: FieldProps) {
         const descId = `${baseId}-${i}`;
         const controlId = `${baseId}-${i}-c`;
         return (
-          <ThemeRow label={label} tip={tip} descId={descId} htmlFor={controlId} key={`tier-${i}`}>
+          <ThemeRow
+            label={label}
+            tip={tip}
+            descId={descId}
+            htmlFor={controlId}
+            key={`tier-${i}`}
+            resetSlot={
+              <button
+                type="button"
+                class="theme-row-reset"
+                title={`Default: ${defaultWidth}`}
+                aria-label="Reset to default"
+                disabled={disabled}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  const next = tiers.slice();
+                  next[i] = { ...tiers[i], width: defaultWidth };
+                  commit(next);
+                }}
+              >
+                <RotateCcw class="lucide-icon" />
+              </button>
+            }
+          >
             <Slider
               value={tier.width}
               min={1}
@@ -42,22 +66,6 @@ export function TierWidthsField({ store, fieldKey }: FieldProps) {
                 commit(next);
               }}
             />
-            <button
-              type="button"
-              class="theme-row-reset"
-              title={`Default: ${defaultWidth}`}
-              aria-label="Reset to default"
-              disabled={disabled}
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                const next = tiers.slice();
-                next[i] = { ...tiers[i], width: defaultWidth };
-                commit(next);
-              }}
-            >
-              <RotateCcw class="lucide-icon" />
-            </button>
           </ThemeRow>
         );
       })}
