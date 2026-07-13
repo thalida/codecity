@@ -8,10 +8,16 @@
   inset: 0;
   z-index: 1000;
   overflow-y: auto;
-  /* Translucent + blurred so a loaded city shows through as soft hints behind
-     the overlay. On cold boot the backdrop is just the empty dark canvas, so it
-     reads as a plain dark surface. The tint stays dark enough to keep the hero
-     text and cards readable over any city. */
+  /* Full-page mode (non-dismissible: cold boot / nothing loaded to fall back to).
+     A solid surface with the gem wash (::before) — nothing meaningful is behind
+     to reveal, so no blur. */
+  background: var(--cc-bg-app);
+}
+
+/* Modal mode (dismissible, over a loaded city): translucent + blurred so the
+   city shows through as soft hints behind the overlay. Tint stays dark enough to
+   keep the hero text and cards readable over any city. */
+.landing--modal {
   background: color-mix(in oklch, var(--cc-bg-app) 82%, transparent);
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);

@@ -48,7 +48,10 @@ export function ProjectsView({ onSubmit, onCancel, onClose }: ProjectsViewProps)
   if (!pv.visible) return null;
 
   return (
-    <div class="landing" aria-label="codecity: open a project">
+    <div
+      class={`landing${pv.opts.dismissible ? ' landing--modal' : ''}`}
+      aria-label="codecity: open a project"
+    >
       {pv.opts.dismissible && !loading && (
         <button class="landing-close btn-icon btn-icon--lg" aria-label="Close" onClick={onClose}>
           <X class="lucide-icon" />
