@@ -43,7 +43,7 @@ export function NewProjectForm({ allowLocalRepos, prefill, onSubmit }: NewProjec
   // Label + placeholder reflect what the field actually accepts here.
   const sourceLabel = allowLocalRepos ? 'Repo URL or local path' : 'Repo URL';
   const placeholder = allowLocalRepos
-    ? 'https://github.com/owner/repo or ~/projects/repo'
+    ? 'https://github.com/owner/repo or /path/to/repo'
     : 'https://github.com/owner/repo';
 
   const loading = SCAN_PROGRESS.value !== null;
