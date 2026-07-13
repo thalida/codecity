@@ -95,19 +95,24 @@ export function NewProjectForm({ allowLocalRepos, prefill, onSubmit }: NewProjec
       }}
     >
       <div class="new-project-field">
-        <label>{sourceLabel}</label>
+        <label htmlFor="new-project-source">{sourceLabel}</label>
         <input
+          id="new-project-source"
           class={hasError ? 'form-input form-input--error' : 'form-input'}
           type="text"
-          aria-label={sourceLabel}
           aria-invalid={hasError ? 'true' : undefined}
+          aria-describedby={fieldError ? 'new-project-error' : undefined}
           autoComplete="off"
           spellcheck={false}
           placeholder={placeholder}
           value={source}
           onInput={(e) => onSourceInput((e.target as HTMLInputElement).value)}
         />
-        {fieldError && <p class="new-project-error">{fieldError}</p>}
+        {fieldError && (
+          <p id="new-project-error" role="alert" class="new-project-error">
+            {fieldError}
+          </p>
+        )}
       </div>
 
       {showLocalNotice && (

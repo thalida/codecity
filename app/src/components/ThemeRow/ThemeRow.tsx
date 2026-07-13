@@ -29,6 +29,10 @@ export interface ThemeRowProps {
   inline?: boolean;
   /** id for the description element so the control can aria-describedby it. */
   descId?: string;
+  /** id of the control this row labels; associates the label via htmlFor.
+   *  Omit for controls that are not a single labelable field (e.g. a button
+   *  group), which carry their own accessible name. */
+  htmlFor?: string;
   /** Store the reset button binds to. Omit (with `keys`) to suppress the reset. */
   store?: SignalLike | null;
   /** Keys this row covers. Required if `store` is set. */
@@ -36,12 +40,21 @@ export interface ThemeRowProps {
   children: ComponentChildren;
 }
 
-export function ThemeRow({ label, tip, inline, descId, store, keys, children }: ThemeRowProps) {
-  const fullTip = tip ? `${label} — ${tip}` : label;
+export function ThemeRow({
+  label,
+  tip,
+  inline,
+  descId,
+  htmlFor,
+  store,
+  keys,
+  children,
+}: ThemeRowProps) {
+  const fullTip = tip ? `${label}: ${tip}` : label;
   const reset = store && keys && keys.length > 0 ? <ResetButton store={store} keys={keys} /> : null;
   return (
     <div class={inline ? 'theme-row theme-row--inline' : 'theme-row'}>
-      <label class="theme-row-main" title={fullTip}>
+      <label class="theme-row-main" htmlFor={htmlFor} title={fullTip}>
         <span class="theme-row-head">
           <span class="theme-row-label">{label}</span>
           {inline && <span class="theme-row-control">{children}</span>}

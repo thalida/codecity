@@ -26,14 +26,16 @@ export function TierWidthsField({ store, fieldKey }: FieldProps) {
         const defaultWidth = defaults[i]?.width;
         const disabled = tier.width === defaultWidth;
         const descId = `${baseId}-${i}`;
+        const controlId = `${baseId}-${i}-c`;
         return (
-          <ThemeRow label={label} tip={tip} descId={descId} key={`tier-${i}`}>
+          <ThemeRow label={label} tip={tip} descId={descId} htmlFor={controlId} key={`tier-${i}`}>
             <Slider
               value={tier.width}
               min={1}
               max={256}
               step={1}
               describedBy={descId}
+              id={controlId}
               onCommit={(v) => {
                 const next = tiers.slice();
                 next[i] = { ...tiers[i], width: v };
