@@ -103,13 +103,16 @@ export function App() {
 
   return (
     <>
+      <a class="skip-link" href="#app-body">
+        Skip to content
+      </a>
       <AppHeader
         onSegmentClick={selectPath}
         onSwitchSource={() => openProjectsView({ dismissible: true })}
         onResetView={resetView}
         onFocus={focusCurrentSelection}
       />
-      <main id="app-body">
+      <main id="app-body" tabIndex={-1}>
         <LeftSidebar />
         <CenterPane />
         <RightSidebar />

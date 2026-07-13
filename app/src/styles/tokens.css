@@ -50,7 +50,9 @@
   --cc-text-strong: oklch(0.921 0.023 275.3); /* emphasis / hover / active / titles */
   --cc-text-primary: oklch(0.823 0.028 276.8); /* default body copy */
   --cc-text-secondary: oklch(0.655 0.038 276.4); /* subtitles, subtext, captions, meta */
-  --cc-text-muted: oklch(0.596 0.063 276.8); /* hints, placeholders, resting icon buttons; L holds ≥4.5:1 on the sidebar surface */
+  --cc-text-muted: oklch(
+    0.596 0.063 276.8
+  ); /* hints, placeholders, resting icon buttons; L holds ≥4.5:1 on the sidebar surface */
   --cc-text-faint: oklch(0.407 0.037 276.6); /* decorative separators only */
   --cc-text-inverse: oklch(0.148 0.013 284.7); /* dark text on accent CTA */
   --cc-text-base: var(--cc-text-primary);

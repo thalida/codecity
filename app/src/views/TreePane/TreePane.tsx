@@ -144,12 +144,14 @@ function TreeItem({
         break;
       case 'ArrowRight':
         e.preventDefault();
-        if (isDir && !isExpanded) handleClick(); // expand this branch
+        if (isDir && !isExpanded)
+          handleClick(); // expand this branch
         else if (isDir && isExpanded) _focusSibling(li, 1); // step into first child
         break;
       case 'ArrowLeft':
         e.preventDefault();
-        if (isDir && isExpanded) handleClick(); // collapse (handleClick returns early, focus stays)
+        if (isDir && isExpanded)
+          handleClick(); // collapse (handleClick returns early, focus stays)
         else (li.parentElement?.closest('[role="treeitem"]') as HTMLElement | null)?.focus();
         break;
       case 'Home':

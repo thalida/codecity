@@ -10,6 +10,7 @@ import './DebugModal.css';
 import { useEffect, useRef } from 'preact/hooks';
 import { X } from 'lucide-preact';
 import { DEBUG_OPEN, closeDebug } from '@/state/stores/ui';
+import { useDialogFocus } from '@/hooks/useDialogFocus';
 
 export interface DebugModalProps {
   onRunCollisionCheck?: () => void;
@@ -18,15 +19,13 @@ export interface DebugModalProps {
 
 export function DebugModal({ onRunCollisionCheck, onRunStemDiagnostic }: DebugModalProps) {
   const isOpen = DEBUG_OPEN.value;
-  const closeBtnRef = useRef<HTMLButtonElement>(null);
+  const rootRef = useRef<HTMLDivElement>(null);
 
-  // Registered only while open; the effect body itself is a no-op when closed
-  // so there's nothing to tear down on the next mount. Also moves focus onto
-  // the close button so keyboard focus doesn't stay stranded behind the
-  // backdrop.
+  // Trap + restore focus and inert the background while open.
+  useDialogFocus(isOpen, rootRef);
+
   useEffect(() => {
     if (!isOpen) return;
-    closeBtnRef.current?.focus();
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') closeDebug();
     };
@@ -38,6 +37,7 @@ export function DebugModal({ onRunCollisionCheck, onRunStemDiagnostic }: DebugMo
 
   return (
     <div
+      ref={rootRef}
       class="modal-backdrop"
       onClick={(e) => {
         if (e.target === e.currentTarget) closeDebug();
@@ -47,7 +47,6 @@ export function DebugModal({ onRunCollisionCheck, onRunStemDiagnostic }: DebugMo
         <div class="modal-header surface-chrome">
           <span>Debug</span>
           <button
-            ref={closeBtnRef}
             type="button"
             class="btn-icon btn-icon--lg"
             data-action="close"

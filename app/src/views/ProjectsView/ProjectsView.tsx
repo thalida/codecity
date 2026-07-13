@@ -11,8 +11,9 @@
 // role of deep-link cold boot (no page open yet).
 
 import './ProjectsView.css';
-import { useEffect } from 'preact/hooks';
+import { useEffect, useRef } from 'preact/hooks';
 import { X, Waypoints, Building2, TreePine, Sparkles } from 'lucide-preact';
+import { useDialogFocus } from '@/hooks/useDialogFocus';
 import { GemIcon } from '@/components/GemIcon/GemIcon';
 import { PROJECTS_VIEW, type SourcePayload } from '@/state/stores/ui';
 import { SERVER_CONFIG } from '@/state/stores/serverConfig';
@@ -34,6 +35,13 @@ export function ProjectsView({ onSubmit, onCancel, onClose }: ProjectsViewProps)
   const scan = SCAN_PROGRESS.value;
   const loading = scan !== null;
   const hasRecents = listRecents().length > 0;
+  const rootRef = useRef<HTMLDivElement>(null);
+
+  // Dismissible = shown over an existing city, i.e. a real modal dialog: trap
+  // and restore focus. The non-dismissible landing IS the page (nothing behind
+  // to trap against), so it stays a plain region.
+  const isModal = pv.visible && pv.opts.dismissible;
+  useDialogFocus(isModal, rootRef);
 
   // Escape closes the page when dismissible and not mid-load.
   useEffect(() => {
@@ -49,7 +57,10 @@ export function ProjectsView({ onSubmit, onCancel, onClose }: ProjectsViewProps)
 
   return (
     <div
+      ref={rootRef}
       class={`landing${pv.opts.dismissible ? ' landing--modal' : ''}`}
+      role={isModal ? 'dialog' : undefined}
+      aria-modal={isModal ? 'true' : undefined}
       aria-label="codecity: open a project"
     >
       {pv.opts.dismissible && !loading && (
