@@ -113,6 +113,11 @@ export function ProjectsView({ onSubmit, onCancel, onClose }: ProjectsViewProps)
                     fresh form. */}
                 {pv.opts.error && <div class="card-error">{pv.opts.error}</div>}
                 <NewProjectForm
+                  // Re-key on the prefill source so a failed submit (which
+                  // reopens the view with the attempted src as prefill) remounts
+                  // the form with that value restored — the field keeps what the
+                  // user entered instead of clearing.
+                  key={pv.opts.prefill?.src ?? ''}
                   allowLocalRepos={SERVER_CONFIG.value.allowLocalRepos}
                   prefill={pv.opts.prefill}
                   onSubmit={onSubmit}
