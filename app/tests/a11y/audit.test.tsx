@@ -103,14 +103,20 @@ describe('accessibility audit (issue #79)', () => {
   }
 
   for (const surface of SURFACES) {
+    // Generous timeout: the settings DOM is large and CI is slower than a dev
+    // box. axe is also a singleton — a run that times out mid-flight leaves it
+    // "running" and the next surface throws, so it must be allowed to finish.
     it(`${surface.name}: no axe violations`, async () => {
       const c = mountSurface(surface.mount);
       const results = await axe.run(c, {
+        // Only compute violations (skip passes / incomplete / inapplicable) —
+        // a large speedup on the big settings DOM so CI doesn't time out.
+        resultTypes: ['violations'],
         rules: { 'color-contrast': { enabled: false }, region: { enabled: false } },
       });
       const summary = results.violations.map((v) => `${v.id} (${v.nodes.length})`);
       expect(summary, summary.join(', ')).toEqual([]);
-    });
+    }, 30_000);
 
     it(`${surface.name}: passes structural guards`, () => {
       const c = mountSurface(surface.mount);
