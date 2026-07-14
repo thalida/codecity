@@ -36,6 +36,7 @@ export function Field({ store, fieldKey }: FieldProps) {
   // catches — so in practice the hook always runs with a real field.
   const binding = useField(store, fieldKey);
   const descId = useId();
+  const controlId = useId();
   const describedBy = def?.tip ? descId : undefined;
   if (!def) {
     // Misconfigured schema (a (store, key) with no field def). The
@@ -62,6 +63,7 @@ export function Field({ store, fieldKey }: FieldProps) {
           value={binding.value as string}
           onCommit={binding.onCommit}
           describedBy={describedBy}
+          id={controlId}
         />
       );
       break;
@@ -74,6 +76,7 @@ export function Field({ store, fieldKey }: FieldProps) {
           step={def.step!}
           onCommit={binding.onCommit}
           describedBy={describedBy}
+          id={controlId}
         />
       );
       break;
@@ -86,12 +89,18 @@ export function Field({ store, fieldKey }: FieldProps) {
           step={def.step!}
           onCommit={binding.onCommit}
           describedBy={describedBy}
+          id={controlId}
         />
       );
       break;
     case FieldKind.Toggle:
       control = (
-        <Toggle checked={!!binding.value} onCommit={binding.onCommit} describedBy={describedBy} />
+        <Toggle
+          checked={!!binding.value}
+          onCommit={binding.onCommit}
+          describedBy={describedBy}
+          id={controlId}
+        />
       );
       break;
     case FieldKind.Select:
@@ -101,6 +110,7 @@ export function Field({ store, fieldKey }: FieldProps) {
           options={def.options!}
           onCommit={binding.onCommit}
           describedBy={describedBy}
+          label={def.label}
         />
       );
       break;
@@ -115,6 +125,8 @@ export function Field({ store, fieldKey }: FieldProps) {
           step={def.step!}
           onCommit={(l, h) => binding.onCommit([l, h] as never)}
           describedBy={describedBy}
+          id={controlId}
+          label={def.label}
         />
       );
       break;
@@ -134,6 +146,9 @@ export function Field({ store, fieldKey }: FieldProps) {
       tip={def.tip}
       inline={inline}
       descId={def.tip ? descId : undefined}
+      // Select renders a button group (no single labelable field); it's named
+      // in its own control, so don't point the row label at a missing id.
+      htmlFor={def.kind === FieldKind.Select ? undefined : controlId}
       store={store}
       keys={[fieldKey]}
     >

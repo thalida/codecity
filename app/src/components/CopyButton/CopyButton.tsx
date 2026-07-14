@@ -49,14 +49,20 @@ export function CopyButton({
   };
 
   return (
-    <button
-      type="button"
-      class={`btn-icon btn-icon--no-drag${copied ? ' is-copied' : ''}`}
-      title={label}
-      aria-label={label}
-      onClick={onClick}
-    >
-      <Copy class="lucide-icon" />
-    </button>
+    <>
+      <button
+        type="button"
+        class={`btn-icon btn-icon--no-drag${copied ? ' is-copied' : ''}`}
+        title={label}
+        aria-label={label}
+        onClick={onClick}
+      >
+        <Copy class="lucide-icon" />
+      </button>
+      {/* The copied state is otherwise a color-only flash; announce it. */}
+      <span class="sr-only" role="status">
+        {copied ? 'Copied' : ''}
+      </span>
+    </>
   );
 }

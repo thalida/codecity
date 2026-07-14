@@ -69,7 +69,11 @@ export function PathBreadcrumbs({
           const isLeaf = i === crumbs.length - 1;
           return (
             <Fragment key={`seg-${i}`}>
-              {i > 0 && <span class="app-header-sep">›</span>}
+              {i > 0 && (
+                <span class="app-header-sep" aria-hidden="true">
+                  ›
+                </span>
+              )}
               <button
                 type="button"
                 class={`btn-icon btn-icon--text btn-icon--no-drag app-header-seg${isLeaf ? ' is-leaf' : ''}`}

@@ -79,10 +79,10 @@ function ActivityBar({ activeTab, collapsed, onIconClick }: ActivityBarProps) {
   };
 
   return (
-    <div class="activity-bar surface-chrome">
+    <nav class="activity-bar surface-chrome" aria-label="Sidebar sections">
       <div class="activity-bar-group activity-bar-top">{topTabs.map(renderTab)}</div>
       <div class="activity-bar-group activity-bar-bottom">{bottomTabs.map(renderTab)}</div>
-    </div>
+    </nav>
   );
 }
 
@@ -170,6 +170,7 @@ export function LeftSidebar() {
     <Sidebar
       id="left-sidebar"
       side={SidebarSide.Left}
+      ariaLabel="Explore"
       class={effectiveCollapsed ? 'is-collapsed' : ''}
       widthSignal={LEFT_SIDEBAR_WIDTH}
     >

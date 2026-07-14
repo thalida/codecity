@@ -70,5 +70,16 @@ export function City() {
     };
   }, []);
 
-  return <canvas id="city" ref={canvasRef} />;
+  // A canvas is non-text content, so it needs a text alternative (WCAG 1.1.1).
+  // role=img + a description of what the scene shows; keyboard users browse the
+  // same data through the Explore file tree and Search panels, and selecting a
+  // building is announced by <SelectionAnnouncer>.
+  return (
+    <canvas
+      id="city"
+      ref={canvasRef}
+      role="img"
+      aria-label="3D city map of the repository. Files are buildings, directories are streets, commits are trees. Browse it with the file tree and search panels."
+    />
+  );
 }

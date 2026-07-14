@@ -42,18 +42,23 @@
   margin: var(--cc-space-0);
   padding: var(--cc-pane-inset) 0; /* rows supply the matching horizontal inset */
 }
+/* A real <button> (native keyboard + role); reset its chrome to the plain row. */
 .search-result {
+  appearance: none;
   display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  border-left: 2px solid transparent;
   padding: var(--cc-space-2) var(--cc-pane-inset);
   cursor: pointer;
-  border-left: 2px solid transparent;
   font-family: var(--cc-font-mono);
   font-size: var(--cc-font-xs);
   color: var(--cc-text-secondary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  outline: none;
 }
 .search-result:hover {
   background: var(--cc-overlay-bg-soft);

@@ -11,6 +11,7 @@ import { useEffect, useRef } from 'preact/hooks';
 import { X } from 'lucide-preact';
 import { SHORTCUTS_OPEN, closeShortcuts } from '@/state/stores/ui';
 import { KEY_BINDINGS } from '@/constants/keyboard';
+import { useDialogFocus } from '@/hooks/useDialogFocus';
 
 interface ShortcutItem {
   kbd?: string[];
@@ -67,15 +68,13 @@ function ShortcutsList({ items }: { items: ShortcutItem[] }) {
 
 export function ShortcutsModal() {
   const isOpen = SHORTCUTS_OPEN.value;
-  const closeBtnRef = useRef<HTMLButtonElement>(null);
+  const rootRef = useRef<HTMLDivElement>(null);
 
-  // Registered only while open; the effect body itself is a no-op when closed
-  // so there's nothing to tear down on the next mount. Also moves focus onto
-  // the close button so keyboard focus doesn't stay stranded behind the
-  // backdrop.
+  // Trap + restore focus and inert the background while open.
+  useDialogFocus(isOpen, rootRef);
+
   useEffect(() => {
     if (!isOpen) return;
-    closeBtnRef.current?.focus();
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') closeShortcuts();
     };
@@ -87,6 +86,7 @@ export function ShortcutsModal() {
 
   return (
     <div
+      ref={rootRef}
       class="modal-backdrop"
       onClick={(e) => {
         if (e.target === e.currentTarget) closeShortcuts();
@@ -96,12 +96,11 @@ export function ShortcutsModal() {
         class="modal-card card-overlay"
         role="dialog"
         aria-modal="true"
-        aria-label="Keyboard shortcuts"
+        aria-labelledby="shortcuts-title"
       >
         <div class="modal-header surface-chrome">
-          <span>Keyboard & Mouse</span>
+          <span id="shortcuts-title">Keyboard & Mouse</span>
           <button
-            ref={closeBtnRef}
             type="button"
             class="btn-icon btn-icon--lg"
             data-action="close"

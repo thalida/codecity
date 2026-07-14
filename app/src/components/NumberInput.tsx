@@ -9,13 +9,24 @@ export interface NumberInputProps {
   step: number;
   onCommit: (v: number) => void;
   describedBy?: string;
+  /** id so a row label can associate via htmlFor. */
+  id?: string;
 }
 
-export function NumberInput({ value, min, max, step, onCommit, describedBy }: NumberInputProps) {
+export function NumberInput({
+  value,
+  min,
+  max,
+  step,
+  onCommit,
+  describedBy,
+  id,
+}: NumberInputProps) {
   return (
     <input
       type="number"
       class="form-input form-input--mono"
+      id={id}
       min={String(min)}
       max={String(max)}
       step={String(step)}

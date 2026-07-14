@@ -135,7 +135,12 @@ function FileTextPreview({ file }: FileTextPreviewProps) {
         <PaneEmpty icon={FileWarning} title="Couldn't load this file" sub={textState.message} />
       ) : textState.kind === TextStateKind.Text ? (
         <CodeEditor text={textState.text} file={file} />
-      ) : null}
+      ) : (
+        // Loading: the pane is otherwise blank while fetching; announce it.
+        <span class="sr-only" role="status">
+          Loading file
+        </span>
+      )}
     </div>
   );
 }
@@ -239,13 +244,20 @@ function _previewBody(file: FileNode | null) {
     return <img class="preview-image" src={url} alt={file.name || ''} />;
   }
   if (kind === PreviewKind.Video) {
-    return <video class="preview-media" src={url} controls />;
+    return <video class="preview-media" src={url} controls aria-label={file.name || 'Video'} />;
   }
   if (kind === PreviewKind.Audio) {
-    return <audio class="preview-media" src={url} controls />;
+    return <audio class="preview-media" src={url} controls aria-label={file.name || 'Audio'} />;
   }
   if (kind === PreviewKind.Pdf) {
-    return <embed class="preview-pdf" type="application/pdf" src={url} />;
+    return (
+      <embed
+        class="preview-pdf"
+        type="application/pdf"
+        src={url}
+        title={`PDF preview: ${file.name || 'document'}`}
+      />
+    );
   }
 
   // Text path: skip the fetch entirely if the file is too big.

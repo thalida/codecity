@@ -29,31 +29,41 @@ export function HueMapField({ store, fieldKey }: FieldProps) {
           const disabled = value === defaultVal;
           const tip = `Hue (0 to 359 degrees) for files with this extension.`;
           const descId = `${baseId}-${k}`;
+          const controlId = `${baseId}-${k}-c`;
           return (
-            <ThemeRow label={k} tip={tip} descId={descId} key={k}>
+            <ThemeRow
+              label={k}
+              tip={tip}
+              descId={descId}
+              htmlFor={controlId}
+              key={k}
+              resetSlot={
+                <button
+                  type="button"
+                  class="theme-row-reset"
+                  title={`Default: ${defaultVal}`}
+                  aria-label="Reset to default"
+                  disabled={disabled}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    commit({ ...map, [k]: defaultVal });
+                  }}
+                >
+                  <RotateCcw class="lucide-icon" />
+                </button>
+              }
+            >
               <Slider
                 value={value}
                 min={0}
                 max={359}
                 step={1}
                 describedBy={descId}
+                id={controlId}
                 onCommit={(v) => commit({ ...map, [k]: v })}
               />
               <span class="theme-hue-preview" style={{ background: fileTagHsl(value) }} />
-              <button
-                type="button"
-                class="theme-row-reset"
-                title={`Default: ${defaultVal}`}
-                aria-label="Reset to default"
-                disabled={disabled}
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  commit({ ...map, [k]: defaultVal });
-                }}
-              >
-                <RotateCcw class="lucide-icon" />
-              </button>
             </ThemeRow>
           );
         })}

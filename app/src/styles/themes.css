@@ -4,14 +4,14 @@
    tokens.css cascades from them. Applied via data-cc-accent / data-cc-surface
    on <html> (see stores/settings/theme.ts).
 
-   The default preset (blue / cool) has a block too, but only the swatch-picker
+   The default preset (purple / cool) has a block too, but only the swatch-picker
    chips ever match it: the applier removes the attribute from <html> for the
    default, so on the page tokens.css :root stays the source. Each chip carries
    its own data-cc-* so it previews its true color even while another preset is
    active; without a default block the default chip would inherit the active
-   theme. The blue/cool values here mirror tokens.css :root.
+   theme. The purple/cool values here mirror tokens.css :root.
 
-   OKLCH only. Accents hold the default blue's L/C profile (accent L.70/C.16,
+   OKLCH only. Accents hold a shared L/C profile (accent L.70/C.16,
    light L.80/C.10, dark L.59/C.20) and vary hue. Surfaces hold the lightness
    ladder (app .151 / chrome .162 / sidebar .181) and vary hue/chroma, so
    contrast against the fixed text ladder is preserved by construction. */

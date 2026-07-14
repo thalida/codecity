@@ -14,9 +14,23 @@ export interface RangePairProps {
   step: number;
   onCommit: (lo: number, hi: number) => void;
   describedBy?: string;
+  /** id for the lo thumb (hi derives `${id}-hi`) so a row label can associate. */
+  id?: string;
+  /** Field label, used to give each thumb a distinct accessible name. */
+  label?: string;
 }
 
-export function RangePair({ lo, hi, min, max, step, onCommit, describedBy }: RangePairProps) {
+export function RangePair({
+  lo,
+  hi,
+  min,
+  max,
+  step,
+  onCommit,
+  describedBy,
+  id,
+  label,
+}: RangePairProps) {
   const span = max - min || 1;
   const fillLeft = `${((lo - min) / span) * 100}%`;
   const fillRight = `${((max - hi) / span) * 100}%`;
@@ -42,20 +56,24 @@ export function RangePair({ lo, hi, min, max, step, onCommit, describedBy }: Ran
         <input
           type="range"
           class="theme-range-pair-lo"
+          id={id}
           min={String(min)}
           max={String(max)}
           step={String(step)}
           value={String(lo)}
+          aria-label={label ? `${label} minimum` : 'Minimum'}
           aria-describedby={describedBy}
           onInput={onInputLo}
         />
         <input
           type="range"
           class="theme-range-pair-hi"
+          id={id ? `${id}-hi` : undefined}
           min={String(min)}
           max={String(max)}
           step={String(step)}
           value={String(hi)}
+          aria-label={label ? `${label} maximum` : 'Maximum'}
           aria-describedby={describedBy}
           onInput={onInputHi}
         />

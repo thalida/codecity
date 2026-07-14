@@ -126,7 +126,7 @@ describe('SearchPane', () => {
     mount();
     await typeQuery('coord');
 
-    const results = container.querySelectorAll<HTMLLIElement>('.search-result');
+    const results = container.querySelectorAll<HTMLButtonElement>('.search-result');
     expect(results.length).toBeGreaterThan(0);
     expect(results[0].textContent).toBe('src/coordinator.ts');
     expect(results[0].querySelectorAll('mark').length).toBeGreaterThan(0);
@@ -136,7 +136,7 @@ describe('SearchPane', () => {
     mount();
     await typeQuery('.png');
 
-    const results = container.querySelectorAll<HTMLLIElement>('.search-result');
+    const results = container.querySelectorAll<HTMLButtonElement>('.search-result');
     const paths = Array.from(results).map((r) => r.textContent);
     // Only assets/logo.png contains ".png" as a substring. parsing.ts
     // contains '.', 'p', 'n', 'g' characters but never the contiguous
@@ -148,7 +148,7 @@ describe('SearchPane', () => {
     mount();
     await typeQuery('src .ts');
 
-    const paths = Array.from(container.querySelectorAll<HTMLLIElement>('.search-result')).map(
+    const paths = Array.from(container.querySelectorAll<HTMLButtonElement>('.search-result')).map(
       (r) => r.textContent
     );
     expect(paths).toContain('src/coordinator.ts');
@@ -162,7 +162,7 @@ describe('SearchPane', () => {
     mount();
     await typeQuery('readme.md');
 
-    const results = container.querySelectorAll<HTMLLIElement>('.search-result');
+    const results = container.querySelectorAll<HTMLButtonElement>('.search-result');
     expect(results.length).toBeGreaterThan(0);
     expect(results[0].textContent).toBe('README.md');
   });
@@ -185,7 +185,7 @@ describe('SearchPane', () => {
     });
     await typeQuery('coord');
 
-    const first = container.querySelector<HTMLLIElement>('.search-result')!;
+    const first = container.querySelector<HTMLButtonElement>('.search-result')!;
     first.click();
     expect(selected).toBe('src/coordinator.ts');
   });
@@ -217,7 +217,7 @@ describe('SearchPane', () => {
     };
     await flush();
 
-    const results = container.querySelectorAll<HTMLLIElement>('.search-result');
+    const results = container.querySelectorAll<HTMLButtonElement>('.search-result');
     expect(results.length).toBe(1);
     expect(results[0].textContent).toBe('newfile.ts');
   });

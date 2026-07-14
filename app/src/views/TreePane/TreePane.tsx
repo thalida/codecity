@@ -47,11 +47,26 @@ function _sortChildren(children: readonly TreeNode[] | undefined): TreeNode[] {
   return children.slice().sort((a, b) => (a.name || '').localeCompare(b.name || ''));
 }
 
+/** Visible treeitems in DOM order. Collapsed subtrees aren't rendered, so every
+ *  rendered treeitem is a visible one — arrow-key nav just walks this list. */
+function _visibleItems(from: HTMLElement): HTMLElement[] {
+  const root = from.closest('[role="tree"]');
+  return root ? Array.from(root.querySelectorAll<HTMLElement>('[role="treeitem"]')) : [];
+}
+function _focusSibling(current: HTMLElement, delta: number) {
+  const items = _visibleItems(current);
+  const i = items.indexOf(current);
+  if (i !== -1) items[i + delta]?.focus();
+}
+
 // ── Item component ──────────────────────────────────────────────────
 
 interface TreeItemProps {
   node: TreeNode;
   rootPath: string;
+  /** Path of the first root item. The roving-tabindex entry point is the
+   *  selected item, or this one when nothing is selected. */
+  firstPath: string;
   expanded: Signal<Set<string>>;
   selectedPath: ReadonlySignal<string | null>;
   hoveredPath: ReadonlySignal<string | null>;
@@ -63,6 +78,7 @@ interface TreeItemProps {
 function TreeItem({
   node,
   rootPath,
+  firstPath,
   expanded,
   selectedPath,
   hoveredPath,
@@ -106,6 +122,51 @@ function TreeItem({
     onSelect?.(node);
   }
 
+  function onKeyDown(e: KeyboardEvent) {
+    // Keydown bubbles up through ancestor treeitems, whose handlers would
+    // otherwise re-run and hijack focus. Only the focused item (the event
+    // target) acts on its own keys.
+    if (e.target !== e.currentTarget) return;
+    const li = e.currentTarget as HTMLElement;
+    switch (e.key) {
+      case 'Enter':
+      case ' ':
+        e.preventDefault();
+        handleClick();
+        break;
+      case 'ArrowDown':
+        e.preventDefault();
+        _focusSibling(li, 1);
+        break;
+      case 'ArrowUp':
+        e.preventDefault();
+        _focusSibling(li, -1);
+        break;
+      case 'ArrowRight':
+        e.preventDefault();
+        if (isDir && !isExpanded)
+          handleClick(); // expand this branch
+        else if (isDir && isExpanded) _focusSibling(li, 1); // step into first child
+        break;
+      case 'ArrowLeft':
+        e.preventDefault();
+        if (isDir && isExpanded)
+          handleClick(); // collapse (handleClick returns early, focus stays)
+        else (li.parentElement?.closest('[role="treeitem"]') as HTMLElement | null)?.focus();
+        break;
+      case 'Home':
+        e.preventDefault();
+        _visibleItems(li)[0]?.focus();
+        break;
+      case 'End': {
+        e.preventDefault();
+        const items = _visibleItems(li);
+        items[items.length - 1]?.focus();
+        break;
+      }
+    }
+  }
+
   const classes: string[] = ['tree-item'];
   if (isDir) classes.push('tree-dir', isExpanded ? 'tree-expanded' : 'tree-collapsed');
   else classes.push('tree-file');
@@ -113,15 +174,27 @@ function TreeItem({
   if (isHovered) classes.push('tree-hovered');
 
   const children = isDir ? _sortChildren((node as DirNode).children) : [];
+  // Roving tabindex: exactly one item is a Tab stop — the selected one, or the
+  // first item when the tree has no selection yet. Arrow keys move focus within.
+  const isTabStop = isSelected || (selectedPath.value == null && path === firstPath);
 
   return (
-    <li ref={ref} class={classes.join(' ')} data-path={path}>
+    <li
+      ref={ref}
+      class={classes.join(' ')}
+      data-path={path}
+      role="treeitem"
+      aria-selected={isSelected}
+      aria-expanded={isDir ? isExpanded : undefined}
+      tabIndex={isTabStop ? 0 : -1}
+      onKeyDown={onKeyDown}
+      onClick={(e) => {
+        e.stopPropagation();
+        handleClick();
+      }}
+    >
       <div
         class="row row--tight"
-        onClick={(e) => {
-          e.stopPropagation();
-          handleClick();
-        }}
         onMouseEnter={() => onHover?.(node)}
         onMouseLeave={() => onHoverEnd?.(node)}
       >
@@ -132,12 +205,13 @@ function TreeItem({
         <span class="tree-label">{node.name || ''}</span>
       </div>
       {isDir && isExpanded && children.length > 0 && (
-        <ul class="tree-list">
+        <ul class="tree-list" role="group">
           {children.map((child) => (
             <TreeItem
               key={child.path ?? child.name}
               node={child}
               rootPath={rootPath}
+              firstPath={firstPath}
               expanded={expanded}
               selectedPath={selectedPath}
               hoveredPath={hoveredPath}
@@ -207,13 +281,16 @@ export function TreePane({
       />
     );
   }
+  const roots = _sortChildren((tree as DirNode).children);
+  const firstPath = roots[0]?.path ?? '';
   return (
-    <ul class="tree-list tree-root">
-      {_sortChildren((tree as DirNode).children).map((child) => (
+    <ul class="tree-list tree-root" role="tree" aria-label="File tree">
+      {roots.map((child) => (
         <TreeItem
           key={child.path ?? child.name}
           node={child}
           rootPath={rootPath}
+          firstPath={firstPath}
           expanded={expanded}
           selectedPath={selectedPath}
           hoveredPath={hoveredPath}

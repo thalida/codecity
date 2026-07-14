@@ -11,6 +11,8 @@ export interface SliderProps {
   step: number;
   onCommit: (v: number) => void;
   describedBy?: string;
+  /** id so a row label can associate via htmlFor. */
+  id?: string;
 }
 
 export function formatNumberForStep(v: number, step: number): string {
@@ -23,12 +25,13 @@ export function formatNumberForStep(v: number, step: number): string {
   return v.toFixed(decimals);
 }
 
-export function Slider({ value, min, max, step, onCommit, describedBy }: SliderProps) {
+export function Slider({ value, min, max, step, onCommit, describedBy, id }: SliderProps) {
   return (
     <span class="theme-slider-wrap">
       <input
         type="range"
         class="theme-slider"
+        id={id}
         min={String(min)}
         max={String(max)}
         step={String(step)}

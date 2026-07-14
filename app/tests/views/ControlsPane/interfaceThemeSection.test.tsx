@@ -38,7 +38,7 @@ describe('InterfaceThemeSection', () => {
 
   it('marks the active accent chip aria-checked', () => {
     mount();
-    expect(radio('Blue').getAttribute('aria-checked')).toBe('true');
+    expect(radio('Purple').getAttribute('aria-checked')).toBe('true');
     expect(radio('Cyan').getAttribute('aria-checked')).toBe('false');
   });
 
@@ -53,16 +53,16 @@ describe('InterfaceThemeSection', () => {
 
   it('arrow key moves selection and focus together (radiogroup pattern)', async () => {
     mount();
-    // Rainbow order is [amber, green, cyan, blue, purple, pink]; blue is the
-    // default/active, so ArrowRight lands on purple.
-    const blue = radio('Blue');
-    blue.focus();
+    // Rainbow order is [amber, green, cyan, blue, purple, pink]; purple is the
+    // default/active, so ArrowRight lands on pink.
+    const purple = radio('Purple');
+    purple.focus();
     act(() => {
-      blue.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+      purple.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
     });
     await flush();
-    expect(ACCENT_THEME.value).toBe('purple');
-    expect(document.activeElement).toBe(radio('Purple'));
+    expect(ACCENT_THEME.value).toBe('pink');
+    expect(document.activeElement).toBe(radio('Pink'));
   });
 
   it('reset returns the axis to its default', async () => {

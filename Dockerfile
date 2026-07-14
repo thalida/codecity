@@ -29,10 +29,15 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     CODECITY_CACHE_ROOT=/cache \
     UV_LINK_MODE=copy
 
-# System deps. Pinned via apt repo of the base image; Dependabot bumps base.
+# System deps. The base image's apt snapshot can lag published security fixes,
+# so apply available upgrades before installing — Trivy fails CI on FIXED
+# HIGH/CRITICAL OS CVEs (e.g. libcurl, pulled in by git), and waiting on a base
+# image rebuild leaves the gate red. Dependabot still bumps the base tag.
 # Note: PID 1 init duties are handled by Docker's --init flag (compose: init: true),
 # so we don't install tini here.
-RUN apt-get update && apt-get install -y --no-install-recommends \
+RUN apt-get update \
+    && apt-get upgrade -y \
+    && apt-get install -y --no-install-recommends \
         git ca-certificates wget \
     && rm -rf /var/lib/apt/lists/*
 

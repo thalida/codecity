@@ -30,6 +30,7 @@ import { ShortcutsModal } from '@/views/ShortcutsModal/ShortcutsModal';
 import { DebugModal } from '@/views/DebugModal/DebugModal';
 import { LoadingOverlay } from '@/components/LoadingOverlay/LoadingOverlay';
 import { HljsThemeLink } from '@/components/HljsThemeLink/HljsThemeLink';
+import { SelectionAnnouncer } from '@/components/SelectionAnnouncer/SelectionAnnouncer';
 import {
   selectPath,
   resetView,
@@ -103,13 +104,16 @@ export function App() {
 
   return (
     <>
+      <a class="skip-link" href="#app-body">
+        Skip to content
+      </a>
       <AppHeader
         onSegmentClick={selectPath}
         onSwitchSource={() => openProjectsView({ dismissible: true })}
         onResetView={resetView}
         onFocus={focusCurrentSelection}
       />
-      <main id="app-body">
+      <main id="app-body" tabIndex={-1}>
         <LeftSidebar />
         <CenterPane />
         <RightSidebar />
@@ -125,6 +129,7 @@ export function App() {
       <ShortcutsModal />
       <DebugModal onRunCollisionCheck={runCollisionCheck} onRunStemDiagnostic={runStemDiagnostic} />
       <HljsThemeLink />
+      <SelectionAnnouncer />
     </>
   );
 }

@@ -329,4 +329,102 @@ describe('TreePane', () => {
       true
     );
   });
+
+  // ---- Keyboard / ARIA tree semantics ----
+  function keydown(el: HTMLElement, key: string) {
+    el.dispatchEvent(new window.KeyboardEvent('keydown', { key, bubbles: true }));
+  }
+
+  it('exposes a labelled tree with treeitem roles and aria-expanded on dirs', () => {
+    const pane = mount(TEST_TREE);
+    const tree = pane.querySelector('ul.tree-root')!;
+    expect(tree.getAttribute('role')).toBe('tree');
+    expect(tree.getAttribute('aria-label')).toBe('File tree');
+
+    const dir = pane.querySelector('[data-path="src"]')!;
+    expect(dir.getAttribute('role')).toBe('treeitem');
+    expect(dir.getAttribute('aria-expanded')).toBe('false');
+
+    const file = pane.querySelector('[data-path="index.ts"]')!;
+    expect(file.getAttribute('role')).toBe('treeitem');
+    // Files are leaves: no aria-expanded.
+    expect(file.hasAttribute('aria-expanded')).toBe(false);
+  });
+
+  it('roving tabindex: only the first item is a tab stop when nothing is selected', () => {
+    const pane = mount(TEST_TREE);
+    const items = pane.querySelectorAll<HTMLElement>('.tree-root > .tree-item');
+    expect(items[0].tabIndex).toBe(0);
+    expect(items[1].tabIndex).toBe(-1);
+    expect(items[2].tabIndex).toBe(-1);
+  });
+
+  it('roving tabindex: the selected item becomes the tab stop', async () => {
+    const pane = mount(TEST_TREE);
+    selectedPath.value = 'src/utils.ts';
+    await flush();
+    const leaf = pane.querySelector<HTMLElement>('[data-path="src/utils.ts"]')!;
+    expect(leaf.tabIndex).toBe(0);
+    expect(pane.querySelector<HTMLElement>('[data-path="index.ts"]')!.tabIndex).toBe(-1);
+  });
+
+  it('Enter on a file item selects it', () => {
+    let picked: TreeNode | null = null;
+    const pane = mount(TEST_TREE, {
+      onSelect(node) {
+        picked = node;
+      },
+    });
+    keydown(pane.querySelector<HTMLElement>('[data-path="index.ts"]')!, 'Enter');
+    expect(picked).not.toBeNull();
+    expect(picked!.path).toBe('index.ts');
+  });
+
+  it('ArrowDown moves past the first child inside a nested folder', async () => {
+    // Regression: keydown bubbled to ancestor treeitems, whose handlers
+    // re-ran and yanked focus back to the folder's first child.
+    const deepTree = {
+      name: 'project',
+      type: 'directory',
+      path: '.',
+      children: [
+        {
+          name: 'dir',
+          type: 'directory',
+          path: 'dir',
+          children: [
+            { name: 'c1.ts', type: 'file', path: 'dir/c1.ts' },
+            { name: 'c2.ts', type: 'file', path: 'dir/c2.ts' },
+            { name: 'c3.ts', type: 'file', path: 'dir/c3.ts' },
+          ],
+        },
+      ],
+    };
+    const pane = mount(deepTree);
+    selectedPath.value = 'dir/c1.ts'; // expands the branch
+    await flush();
+
+    const c1 = pane.querySelector<HTMLElement>('[data-path="dir/c1.ts"]')!;
+    const c2 = pane.querySelector<HTMLElement>('[data-path="dir/c2.ts"]')!;
+    const c3 = pane.querySelector<HTMLElement>('[data-path="dir/c3.ts"]')!;
+    c1.focus();
+    keydown(c1, 'ArrowDown');
+    expect(document.activeElement).toBe(c2);
+    keydown(c2, 'ArrowDown');
+    expect(document.activeElement).toBe(c3);
+  });
+
+  it('ArrowRight expands a collapsed directory; ArrowLeft collapses it', async () => {
+    const pane = mount(TEST_TREE);
+    const dir = () => pane.querySelector<HTMLElement>('[data-path="src"]')!;
+    expect(dir().classList.contains('tree-collapsed')).toBe(true);
+
+    keydown(dir(), 'ArrowRight');
+    await flush();
+    expect(dir().classList.contains('tree-expanded')).toBe(true);
+
+    keydown(dir(), 'ArrowLeft');
+    await flush();
+    expect(dir().classList.contains('tree-collapsed')).toBe(true);
+  });
 });

@@ -26,36 +26,46 @@ export function TierWidthsField({ store, fieldKey }: FieldProps) {
         const defaultWidth = defaults[i]?.width;
         const disabled = tier.width === defaultWidth;
         const descId = `${baseId}-${i}`;
+        const controlId = `${baseId}-${i}-c`;
         return (
-          <ThemeRow label={label} tip={tip} descId={descId} key={`tier-${i}`}>
+          <ThemeRow
+            label={label}
+            tip={tip}
+            descId={descId}
+            htmlFor={controlId}
+            key={`tier-${i}`}
+            resetSlot={
+              <button
+                type="button"
+                class="theme-row-reset"
+                title={`Default: ${defaultWidth}`}
+                aria-label="Reset to default"
+                disabled={disabled}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  const next = tiers.slice();
+                  next[i] = { ...tiers[i], width: defaultWidth };
+                  commit(next);
+                }}
+              >
+                <RotateCcw class="lucide-icon" />
+              </button>
+            }
+          >
             <Slider
               value={tier.width}
               min={1}
               max={256}
               step={1}
               describedBy={descId}
+              id={controlId}
               onCommit={(v) => {
                 const next = tiers.slice();
                 next[i] = { ...tiers[i], width: v };
                 commit(next);
               }}
             />
-            <button
-              type="button"
-              class="theme-row-reset"
-              title={`Default: ${defaultWidth}`}
-              aria-label="Reset to default"
-              disabled={disabled}
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                const next = tiers.slice();
-                next[i] = { ...tiers[i], width: defaultWidth };
-                commit(next);
-              }}
-            >
-              <RotateCcw class="lucide-icon" />
-            </button>
           </ThemeRow>
         );
       })}
