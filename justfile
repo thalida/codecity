@@ -139,8 +139,8 @@ build-multiarch:
 # of codecity rendering its own repo (github.com/thalida/codecity), via the
 # debug-gated ?shot= capture harness (app/src/city/capture). Needs `just dev`
 # running in another terminal; reads its URL from `just url`. Installs the
-# Playwright Chromium build on first run. The animated demo.gif has its own
-# recipe (`just demo-gif`). Pass shot names to redo only those:
+# Playwright Chromium build on first run. The animated demo.mp4 has its own
+# recipe (`just demo-video`). Pass shot names to redo only those:
 # `just screenshots fireflies trees`.
 screenshots *shots='':
     @URL=$(just url) ; \
@@ -148,14 +148,14 @@ screenshots *shots='':
      cd app && npx playwright install chromium && \
      CODECITY_URL="$URL" node scripts/screenshots.mjs {{shots}}
 
-# Regenerate the animated .github/readme/demo.gif: a headless orbit of codecity
-# rendering its own repo, encoded with ffmpeg (required: brew install ffmpeg).
-# Needs `just dev` running in another terminal.
-demo-gif:
+# Regenerate the animated .github/readme/demo.mp4: a headless orbit of codecity
+# rendering its own repo, recorded with Playwright and encoded to a small h264
+# mp4 with ffmpeg (required: brew install ffmpeg). Needs `just dev` running.
+demo-video:
     @URL=$(just url) ; \
-     echo "[codecity] recording demo.gif from $URL" ; \
+     echo "[codecity] recording demo.mp4 from $URL" ; \
      cd app && npx playwright install chromium && \
-     CODECITY_URL="$URL" node scripts/demo-gif.mjs
+     CODECITY_URL="$URL" node scripts/demo-video.mjs
 
 # ── Onboarding ───────────────────────────────────────────────────
 # One-shot bootstrap for a fresh clone or new worktree: installs app

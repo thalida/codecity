@@ -13,14 +13,6 @@ import type { SceneHandle } from '@/state/stores/scene';
 import { NodeKind, type Manifest, type DirNode } from '@/types';
 import { CAMERA } from '@/state/stores/settings/camera';
 
-declare global {
-  interface Window {
-    /** Debug/capture only: the `orbit` shot installs this so demo-gif.mjs can
-     *  step the camera around the city one frame at a time. */
-    __ccOrbit?: (azimuth: number) => void;
-  }
-}
-
 /** Set the default-view angle (degrees); the rig re-frames the whole city to
  *  it. Elevation is height above the horizon, azimuth the swing around the gem. */
 function angle(elevation: number, azimuth: number): void {
@@ -161,10 +153,11 @@ export const SHOTS: Record<string, ShotPose> = {
     });
   },
 
-  // Demo gif: expose a deterministic per-frame orbit that the gif script drives
-  // (app/scripts/demo-gif.mjs) so the rotation is smooth and controllable rather
-  // than timing-dependent. Each call frames the whole city from `azimuth`.
-  // Tuning: ?elev = view angle, ?dist = distance (world units).
+  // Demo video: self-drive one smooth turn of the whole city, marking
+  // <html data-cc-orbit-start> / <html data-cc-orbit-done> so demo-video.mjs
+  // knows which slice of its recording to keep. Time-based, so the duration
+  // holds regardless of frame rate, and a full 360deg loops seamlessly.
+  // Tuning: ?elev = view angle, ?dist = distance, ?az = seconds per turn.
   orbit: (h, _m, o) => {
     const a = h.rig.captureAnchors();
     const target = a.gem ?? a.center;
@@ -172,10 +165,22 @@ export const SHOTS: Record<string, ShotPose> = {
     const anchor = target.clone();
     const elevation = o.elev ?? 30;
     const distance = o.dist ?? a.cityRadius * 0.95;
-    window.__ccOrbit = (azimuth: number) => {
-      h.rig.captureView({ target: anchor.clone(), distance, elevation, azimuth });
+    const durationMs = (o.az ?? 18) * 1000;
+    let startMs: number | null = null;
+    const step = (nowMs: number): void => {
+      if (startMs === null) {
+        startMs = nowMs;
+        document.documentElement.dataset.ccOrbitStart = '1';
+      }
+      const p = Math.min((nowMs - startMs) / durationMs, 1);
+      h.rig.captureView({ target: anchor.clone(), distance, elevation, azimuth: -180 + p * 360 });
+      if (p >= 1) {
+        document.documentElement.dataset.ccOrbitDone = '1';
+        return;
+      }
+      requestAnimationFrame(step);
     };
-    window.__ccOrbit(o.az ?? -180);
+    requestAnimationFrame(step);
   },
 
   // trees + fireflies are captured against a bigger, multi-author repo (see

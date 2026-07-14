@@ -7,7 +7,7 @@
 // shot's repo (codecity, or a bigger multi-author repo for the forest shots),
 // waits for the harness to pose the camera and mark the frame ready, then
 // screenshots the <canvas> (the 3D view only, no UI chrome). The animated
-// demo.gif has its own recipe: `just demo-gif` (app/scripts/demo-gif.mjs).
+// demo.mp4 has its own recipe: `just demo-video` (app/scripts/demo-video.mjs).
 //
 // Lives under app/ so `playwright` resolves from app/node_modules.
 
@@ -93,7 +93,7 @@ try {
 
     await context.close();
   }
-  console.log('[screenshots] done. Run `just demo-gif` for the animated demo.gif.');
+  console.log('[screenshots] done. Run `just demo-video` for the animated demo.mp4.');
 } finally {
   await browser.close();
 }

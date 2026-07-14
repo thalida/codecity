@@ -10,7 +10,7 @@
 
 Try it on any repo (local or remote).
 
-<img src=".github/readme/demo.gif" alt="Animated demo of codecity orbiting and exploring a rendered repo" width="800" />
+<video src=".github/readme/demo.mp4" width="800" autoplay loop muted playsinline></video>
 
 ## Requirements
 
