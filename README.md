@@ -162,8 +162,6 @@ tests/fixtures/large-repo
 
 ## Settings
 
-Open Settings from the gear in the left sidebar. It has three tabs.
-
 **World** covers how the city looks.
 
 - **Camera**: the default view angle, always looking at the root gem
