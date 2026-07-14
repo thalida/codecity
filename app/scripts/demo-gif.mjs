@@ -24,8 +24,8 @@ const SRC = 'https://github.com/thalida/codecity';
 const BRANCH = 'main';
 
 const VIEWPORT = { width: 1280, height: 720 };
-const FRAMES = 100; // full 360deg turn
-const FPS = 20; // -> 5s loop
+const FRAMES = 180; // full 360deg turn
+const FPS = 15; // -> 12s loop (FRAMES / FPS seconds per rotation)
 const GIF_WIDTH = 800; // README display width
 const READY = 'html[data-cc-capture-ready="1"]';
 
