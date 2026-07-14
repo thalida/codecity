@@ -512,18 +512,33 @@ export function createCameraRig({
    *  same as the CAMERA store. */
   function captureView(opts: {
     target: THREE.Vector3;
-    distance: number;
+    /** Explicit camera distance. If omitted, `fitRadius` is fit to the FOV. */
+    distance?: number;
+    /** Bounding-sphere radius to frame; used when `distance` is omitted. */
+    fitRadius?: number;
+    /** Extra breathing room around a fit (1 = flush to the FOV edges). */
+    padding?: number;
     elevation: number;
     azimuth: number;
   }): void {
     camAnimToken++; // cancel any in-flight focus/reset tween
+    let distance = opts.distance;
+    if (distance == null && opts.fitRadius != null) {
+      // Fit a sphere of fitRadius to the tighter of the horizontal/vertical FOV,
+      // same math as _focusTopDown, using the live camera fov + aspect.
+      const halfV = (camera.fov * Math.PI) / 180 / 2;
+      const halfH = Math.atan(Math.tan(halfV) * camera.aspect);
+      const halfFov = Math.min(halfV, halfH);
+      distance = (opts.fitRadius / Math.sin(halfFov)) * (opts.padding ?? 1);
+    }
+    distance = Math.max(distance ?? controls.minDistance, controls.minDistance);
     const dir = computeFramingDir(
       opts.elevation,
       opts.azimuth,
       cityState.rootStreet.value?.orientation ?? null
     );
     camera.up.set(0, 1, 0);
-    camera.position.copy(opts.target).addScaledVector(dir, opts.distance);
+    camera.position.copy(opts.target).addScaledVector(dir, distance);
     controls.target.copy(opts.target);
     camera.lookAt(opts.target);
     controls.update();

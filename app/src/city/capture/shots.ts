@@ -161,14 +161,16 @@ export const SHOTS: Record<string, ShotPose> = {
       h.rig.reset();
       return;
     }
-    // Really tight on one tree. Frame by the tree's HEIGHT, not its canopy
-    // radius: canopy width scales with files-changed, and the busy commit we
-    // target has a huge one, which made radius-based distance zoom way out. Aim
-    // a bit below center and keep the angle low so the whole tree frames.
-    tree.pos.y = tree.height * 0.4;
+    // Really tight on one tree: fit its bounding sphere to the view (the same
+    // way the rig's focusTree does) at a low angle, so the tree fills the frame.
+    const span = tree.radius * 2;
+    const boundingRadius = 0.5 * Math.sqrt(span * span * 2 + tree.height * tree.height);
+    tree.pos.y = tree.height * 0.45;
     h.rig.captureView({
       target: tree.pos,
-      distance: o.dist ?? Math.max(tree.height * 1.4, 24),
+      distance: o.dist, // omitted -> fit the bounding sphere below
+      fitRadius: boundingRadius,
+      padding: 1.15,
       elevation: o.elev ?? 8,
       azimuth: o.az ?? 30,
     });
