@@ -29,6 +29,19 @@ export interface ShotOverrides {
 /** Pose the camera for one named shot. */
 export type ShotPose = (handle: SceneHandle, manifest: Manifest, o: ShotOverrides) => void;
 
+/** An actually-placed tree's bounds, or null if none are placed yet.
+ *  treeAnchor(sha) is null for commits the layout didn't place a tree for, so a
+ *  specific stat sha (e.g. the busiest commit) often misses. Walk commits
+ *  most-authors-first so the tree we land on also has the most firefly orbs. */
+function placedTree(h: SceneHandle, m: Manifest) {
+  const byAuthors = [...m.commits].sort((a, b) => b.authors.length - a.authors.length);
+  for (const c of byAuthors) {
+    const tree = h.rig.treeAnchor(c.sha);
+    if (tree) return tree;
+  }
+  return null;
+}
+
 /** Directory (path) whose direct file children span the most distinct
  *  extensions: the most color-varied street, since building hue = extension. */
 function mostColorfulDirPath(root: DirNode): string | null {
@@ -140,8 +153,7 @@ export const SHOTS: Record<string, ShotPose> = {
   // fireflies: tighter on a busy tree so the author orbs read.
   trees: (h, m, o) => {
     const a = h.rig.captureAnchors();
-    const sha = m.stats.maxFilesPerCommit?.sha;
-    const tree = sha ? h.rig.treeAnchor(sha) : null;
+    const tree = placedTree(h, m);
     const target = tree?.pos ?? a.center;
     if (!target) {
       h.rig.reset();
@@ -155,14 +167,13 @@ export const SHOTS: Record<string, ShotPose> = {
     });
   },
   fireflies: (h, m, o) => {
-    const sha = m.stats.maxFilesPerCommit?.sha;
-    const tree = sha ? h.rig.treeAnchor(sha) : null;
+    const tree = placedTree(h, m);
     if (!tree) {
       h.rig.reset();
       return;
     }
-    // Really tight on one tree: fit its bounding sphere to the view (the same
-    // way the rig's focusTree does) at a low angle, so the tree fills the frame.
+    // Fit the tree's bounding sphere to the view (same math as the rig's
+    // focusTree) at a low angle, so the single tree fills the frame.
     const span = tree.radius * 2;
     const boundingRadius = 0.5 * Math.sqrt(span * span * 2 + tree.height * tree.height);
     tree.pos.y = tree.height * 0.45;
