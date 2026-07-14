@@ -26,14 +26,12 @@ docker run --rm --init --pull=always \
     ghcr.io/thalida/codecity
 ```
 
-Open <http://localhost:8080/> to reach the Projects page:
-
-- Paste a repo URL and pick a branch to build the city
-- Recent projects are saved for one-click reload
-- The chip in the header switches between projects
+Open <http://localhost:8080/> to reach the Projects page, then paste a repo URL and pick a branch to build the city.
 
 Tips:
 
+- Recent projects are saved for one-click reload
+- The chip in the header switches between projects
 - `--pull=always` keeps you on the latest image; drop it to pin to your cached copy
 - Wipe the cache: `docker volume rm codecity-cache`
 - Port in use? `-p 8081:8080`
