@@ -80,13 +80,13 @@ export const SHOTS: Record<string, ShotPose> = {
       h.rig.reset();
       return;
     }
-    // Close and looking down at the floating gem (its size scales with the root
-    // street width, so distance does too).
+    // Looking down at the floating gem, pulled back so it clears the frame (its
+    // size scales with the root street width, so distance does too).
     h.rig.captureView({
       target: a.gem.clone(),
-      distance: o.dist ?? Math.max(a.rootStreetWidth * 3, 30),
-      elevation: o.elev ?? 32,
-      azimuth: o.az ?? 15,
+      distance: o.dist ?? Math.max(a.rootStreetWidth * 6, 60),
+      elevation: o.elev ?? 46,
+      azimuth: o.az ?? 20,
     });
   },
 
@@ -119,8 +119,8 @@ export const SHOTS: Record<string, ShotPose> = {
     }
     h.rig.captureView({
       target: tree.pos,
-      distance: o.dist ?? Math.max(tree.radius * 3, 24),
-      elevation: o.elev ?? 14,
+      distance: o.dist ?? Math.max(tree.radius * 2, 18),
+      elevation: o.elev ?? 12,
       azimuth: o.az ?? 30,
     });
   },
