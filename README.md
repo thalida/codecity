@@ -188,8 +188,6 @@ tests/fixtures/large-repo
 
 ## How it works
 
-codecity has two halves: a backend that reads the repo and the browser app that draws it. Point it at a repo and:
-
 1. **Clone or read.** Remote repos are cloned into a local cache (just the current file tree, not every file's full history); local folders are read in place.
 2. **Scan.** It lists the git-tracked files with `git ls-files`, then walks the commit history once to collect each file's dates and each commit's details: how many files it touched, when, and who wrote it (co-authors included).
 3. **Stream.** All of that is packed into a single manifest and streamed to the browser as it's computed, so a rough city appears almost immediately and sharpens as the scan finishes.
