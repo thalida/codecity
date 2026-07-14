@@ -33,7 +33,13 @@ if (spawnSync('ffmpeg', ['-version']).status !== 0) {
 }
 
 const videoDir = await mkdtemp(join(tmpdir(), 'cc-demo-vid-'));
-const browser = await chromium.launch();
+// Headed: headless Chromium renders WebGL in software (SwiftShader) at a low,
+// choppy frame rate. A real window uses the GPU, so the orbit records smoothly.
+// A Chromium window appears for the ~20s capture.
+const browser = await chromium.launch({
+  headless: false,
+  args: ['--disable-gpu-vsync', '--disable-frame-rate-limit', '--ignore-gpu-blocklist'],
+});
 
 try {
   const context = await browser.newContext({
