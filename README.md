@@ -10,7 +10,7 @@
 
 Try it on any repo (local or remote).
 
-<video src=".github/readme/demo.mp4" width="800" autoplay loop muted playsinline></video>
+<video src="https://github.com/thalida/codecity/raw/main/.github/readme/demo.mp4" width="800" autoplay loop muted playsinline></video>
 
 ## Requirements
 
