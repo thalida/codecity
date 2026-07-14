@@ -1,8 +1,15 @@
 // city/capture/shots.ts — camera poses for the README screenshot set, keyed by
-// the ?shot= name the capture harness reads. Each pose reuses the real rig
-// (reset / focus) and picks its subject from the manifest's precomputed
-// leaderboards, so the shots stay stable as the demo repo grows. Debug-only:
-// nothing here runs outside the capture harness.
+// the ?shot= name the capture harness reads. Whole-city shots use the rig's
+// reset framing at a chosen angle; close-ups use rig.captureView aimed at a
+// landmark from rig.captureAnchors. Distances are relative to the city's own
+// scale so they hold as the demo repo grows. Debug-only: nothing here runs
+// outside the capture harness.
+//
+// Tuning: every pose reads optional ?elev=&az=&dist= overrides, so you can dial
+// a shot in live in the browser (e.g. ?shot=gem&debug&elev=22&az=10&dist=48)
+// before baking the numbers in below.
+
+import * as THREE from 'three';
 
 import type { SceneHandle } from '@/state/stores/scene';
 import type { Manifest } from '@/types';
@@ -14,42 +21,83 @@ function angle(elevation: number, azimuth: number): void {
   CAMERA.value = { ...CAMERA.value, ELEVATION: elevation, AZIMUTH: azimuth };
 }
 
-/** Pose the camera for one named shot: set the angle and/or focus a landmark. */
-export type ShotPose = (handle: SceneHandle, manifest: Manifest) => void;
+/** Live overrides from ?elev=&az=&dist=, undefined when absent/non-numeric. */
+export interface ShotOverrides {
+  elev?: number;
+  az?: number;
+  dist?: number;
+}
+
+/** Pose the camera for one named shot. */
+export type ShotPose = (handle: SceneHandle, manifest: Manifest, o: ShotOverrides) => void;
 
 export const SHOTS: Record<string, ShotPose> = {
-  // Whole-city framings: pick an angle, snap the rig to it.
-  banner: (h) => {
-    angle(9, 18);
+  // Whole-city framings: the rig fits the entire city to the chosen angle.
+  banner: (h, _m, o) => {
+    angle(o.elev ?? 9, o.az ?? 18);
     h.rig.reset();
   },
-  overview: (h) => {
-    angle(46, 34);
+  overview: (h, _m, o) => {
+    angle(o.elev ?? 46, o.az ?? 34);
     h.rig.reset();
   },
-  trees: (h) => {
-    angle(19, 128);
+
+  // Close-ups: aim at a landmark, low and near, for a street-level read.
+  buildings: (h, _m, o) => {
+    const a = h.rig.captureAnchors();
+    const target = a.tallestBuilding ?? a.center;
+    if (!target) {
+      h.rig.reset();
+      return;
+    }
+    target.y *= 0.45; // mid-height of the tallest tower, not its roof
+    h.rig.captureView({
+      target,
+      distance: o.dist ?? a.tallestHeight * 1.5,
+      elevation: o.elev ?? 15,
+      azimuth: o.az ?? 24,
+    });
+  },
+  streets: (h, _m, o) => {
+    const a = h.rig.captureAnchors();
+    const target = a.gem ? new THREE.Vector3(a.gem.x, 0, a.gem.z) : a.center;
+    if (!target) {
+      h.rig.reset();
+      return;
+    }
+    // Angled down over the central intersection, close enough that the road
+    // labels stay legible.
+    h.rig.captureView({
+      target,
+      distance: o.dist ?? a.cityRadius * 0.4,
+      elevation: o.elev ?? 56,
+      azimuth: o.az ?? 20,
+    });
+  },
+  gem: (h, _m, o) => {
+    const a = h.rig.captureAnchors();
+    if (!a.gem) {
+      h.rig.reset();
+      return;
+    }
+    h.rig.captureView({
+      target: a.gem.clone(),
+      distance: o.dist ?? Math.max(a.tallestHeight * 0.25, 30),
+      elevation: o.elev ?? 20,
+      azimuth: o.az ?? 12,
+    });
+  },
+
+  // trees + fireflies are data-limited on the codecity repo (few commits, one
+  // main author), so these stay whole-city framings until they point at a
+  // bigger, multi-author repo. See app/scripts/screenshots.mjs.
+  trees: (h, _m, o) => {
+    angle(o.elev ?? 24, o.az ?? 128);
     h.rig.reset();
   },
-  gem: (h) => {
-    angle(13, 0);
+  fireflies: (h, _m, o) => {
+    angle(o.elev ?? 20, o.az ?? 150);
     h.rig.reset();
-  },
-  // Subject framings: focus a landmark chosen from the manifest leaderboards.
-  buildings: (h, m) => {
-    const path = m.stats.maxLinesFile?.path;
-    if (path) h.focusByPath(path);
-    else h.rig.reset();
-  },
-  streets: (h, m) => {
-    const path = m.stats.maxChildrenDir?.path;
-    if (path) h.focusByPath(path);
-    else h.rig.reset();
-  },
-  fireflies: (h, m) => {
-    const sha = m.stats.maxFilesPerCommit?.sha;
-    if (sha) h.rig.focusTree(sha);
-    else h.rig.reset();
   },
 };
 

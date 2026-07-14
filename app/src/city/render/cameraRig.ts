@@ -505,6 +505,58 @@ export function createCameraRig({
     _focusTopDown(center, span, span, b.height, BUILDING_FOCUS_RATIO);
   }
 
+  /** Debug/capture only (see city/capture): snap the camera to a pose looking
+   *  at `target` from `elevation`/`azimuth` degrees at `distance` world units.
+   *  Bypasses the top-down focus framing so README screenshots can get low,
+   *  close, street-level angles. Azimuth is measured off the root-street axis,
+   *  same as the CAMERA store. */
+  function captureView(opts: {
+    target: THREE.Vector3;
+    distance: number;
+    elevation: number;
+    azimuth: number;
+  }): void {
+    camAnimToken++; // cancel any in-flight focus/reset tween
+    const dir = computeFramingDir(
+      opts.elevation,
+      opts.azimuth,
+      cityState.rootStreet.value?.orientation ?? null
+    );
+    camera.up.set(0, 1, 0);
+    camera.position.copy(opts.target).addScaledVector(dir, opts.distance);
+    controls.target.copy(opts.target);
+    camera.lookAt(opts.target);
+    controls.update();
+  }
+
+  /** Debug/capture only: world anchor points + scales the shot poses frame
+   *  against (see city/capture/shots.ts). */
+  function captureAnchors(): {
+    gem: THREE.Vector3 | null;
+    tallestBuilding: THREE.Vector3 | null;
+    center: THREE.Vector3 | null;
+    tallestHeight: number;
+    cityRadius: number;
+  } {
+    const gem = cityState.gemWorldPos.value;
+    const tb = cityState.tallestBuilding.value;
+    const bbox = cityState.bbox.value;
+    let center: THREE.Vector3 | null = null;
+    let cityRadius = 0;
+    if (bbox && !bbox.isEmpty()) {
+      const c = bbox.getCenter(new THREE.Vector3());
+      center = new THREE.Vector3(c.x, 0, c.z);
+      cityRadius = bbox.getSize(new THREE.Vector3()).length() * 0.5;
+    }
+    return {
+      gem: gem ? gem.clone() : null,
+      tallestBuilding: tb ? new THREE.Vector3(tb.x, tb.h, tb.y) : null,
+      center,
+      tallestHeight: tb ? tb.h : 0,
+      cityRadius,
+    };
+  }
+
   /** Single entry-point for "focus the camera on whatever is selected".
    *  Dispatches to focusBuilding / focusStreet / focusTree based on the
    *  PickTarget kind. Lives on the scene side so view code doesn't have
@@ -532,6 +584,8 @@ export function createCameraRig({
     focusStreet,
     focusTree,
     focusSelection,
+    captureView,
+    captureAnchors,
     dispose,
   };
 }

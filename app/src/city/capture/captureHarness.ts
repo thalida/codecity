@@ -13,13 +13,14 @@ import { MANIFEST, REBUILD_STATUS, RebuildStatus } from '@/state/stores/manifest
 import { isEmptyManifest } from '@/utils/manifest';
 import type { Manifest } from '@/types';
 
-import { SHOTS } from './shots';
+import { SHOTS, type ShotOverrides } from './shots';
 
 // Camera tween + bloom ramp + ad-panel texture fades all settle well under this.
 const SETTLE_MS = 2200;
 
 export function initCaptureHarness(): void {
-  const shot = new URLSearchParams(window.location.search).get('shot');
+  const params = new URLSearchParams(window.location.search);
+  const shot = params.get('shot');
   if (!shot || !isDebugMode()) return;
 
   const pose = SHOTS[shot];
@@ -27,6 +28,15 @@ export function initCaptureHarness(): void {
     console.warn(`[capture] unknown shot "${shot}"; known: ${Object.keys(SHOTS).join(', ')}`);
     return;
   }
+
+  // Optional live tuning: ?elev=&az=&dist= override the shot's baked angles.
+  const num = (key: string): number | undefined => {
+    const raw = params.get(key);
+    if (raw == null) return undefined;
+    const n = Number(raw);
+    return Number.isFinite(n) ? n : undefined;
+  };
+  const overrides: ShotOverrides = { elev: num('elev'), az: num('az'), dist: num('dist') };
 
   let posed = false;
   const stop = effect(() => {
@@ -46,7 +56,7 @@ export function initCaptureHarness(): void {
     // starts a rig tween, and a signal write inside the sync scope would cycle.
     queueMicrotask(() => {
       stop();
-      pose(h, manifest);
+      pose(h, manifest, overrides);
       window.setTimeout(() => {
         document.documentElement.dataset.ccCaptureReady = '1';
       }, SETTLE_MS);
