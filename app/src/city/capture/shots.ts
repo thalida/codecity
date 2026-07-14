@@ -35,9 +35,7 @@ function mostColorfulDirPath(root: DirNode): string | null {
   let bestPath: string | null = null;
   let bestColors = 0;
   let bestFiles = 0;
-  // Skip the root itself: its street holds the gem, and we want a shot without
-  // it. Descend into the root's children as candidates.
-  const visit = (dir: DirNode, isRoot: boolean): void => {
+  const visit = (dir: DirNode): void => {
     const exts = new Set<string>();
     let files = 0;
     for (const child of dir.children) {
@@ -45,20 +43,16 @@ function mostColorfulDirPath(root: DirNode): string | null {
         files += 1;
         exts.add(child.extension);
       } else {
-        visit(child, false);
+        visit(child);
       }
     }
-    if (
-      !isRoot &&
-      files > 0 &&
-      (exts.size > bestColors || (exts.size === bestColors && files > bestFiles))
-    ) {
+    if (files > 0 && (exts.size > bestColors || (exts.size === bestColors && files > bestFiles))) {
       bestPath = dir.path;
       bestColors = exts.size;
       bestFiles = files;
     }
   };
-  visit(root, true);
+  visit(root);
   return bestPath;
 }
 
@@ -87,8 +81,8 @@ export const SHOTS: Record<string, ShotPose> = {
     h.rig.reset();
   },
 
-  // Close-ups: aim at a landmark, low and near, for a street-level read.
-  // Frame the street with the widest spread of file types (most hues).
+  // Close-up on the street whose buildings span the most file types (hue =
+  // extension), for the widest spread of colors. The gem may be in view.
   buildings: (h, m, o) => {
     const a = h.rig.captureAnchors();
     const path = mostColorfulDirPath(m.tree);
@@ -142,8 +136,8 @@ export const SHOTS: Record<string, ShotPose> = {
 
   // trees + fireflies are captured against a bigger, multi-author repo (see
   // app/scripts/screenshots.mjs); codecity itself is too sparse to show either.
-  // trees: tight on a busy tree; fireflies: wider forest immersion where the
-  // orbs drifting between many trees read.
+  // trees: wide forest immersion (dense trees fill the foreground, city behind);
+  // fireflies: tighter on a busy tree so the author orbs read.
   trees: (h, m, o) => {
     const a = h.rig.captureAnchors();
     const sha = m.stats.maxFilesPerCommit?.sha;
@@ -155,8 +149,8 @@ export const SHOTS: Record<string, ShotPose> = {
     }
     h.rig.captureView({
       target,
-      distance: o.dist ?? (tree ? Math.max(tree.radius * 4, 60) : a.cityRadius * 0.5),
-      elevation: o.elev ?? 14,
+      distance: o.dist ?? (tree ? tree.radius * 6 : a.cityRadius * 0.5),
+      elevation: o.elev ?? 20,
       azimuth: o.az ?? 30,
     });
   },
@@ -169,8 +163,8 @@ export const SHOTS: Record<string, ShotPose> = {
     }
     h.rig.captureView({
       target: tree.pos,
-      distance: o.dist ?? tree.radius * 6,
-      elevation: o.elev ?? 20,
+      distance: o.dist ?? Math.max(tree.radius * 4, 60),
+      elevation: o.elev ?? 14,
       azimuth: o.az ?? 30,
     });
   },
