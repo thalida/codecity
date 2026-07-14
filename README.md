@@ -30,9 +30,9 @@ Open <http://localhost:8080/>. codecity opens to a Projects page: paste a repo U
 
 Tips:
 
-- `--pull=always` keeps you on the latest image; drop it to pin to your cached copy.
-- Wipe the cache: `docker volume rm codecity-cache`.
-- Port in use? `-p 8081:8080`.
+- `--pull=always` keeps you on the latest image; drop it to pin to your cached copy
+- Wipe the cache: `docker volume rm codecity-cache`
+- Port in use? `-p 8081:8080`
 
 ## Local directories
 
@@ -71,39 +71,39 @@ Use multiple `-v` flags for multiple directories. codecity only renders git work
 
 <img src=".github/readme/buildings.png" alt="Skyscrapers close-up showing lit windows, file-extension hues, and the street label below" width="600" />
 
-- **Height**: line count (sqrt-interp across the floor range).
-- **Width & depth**: byte size (log-interp, square footprint).
-- **Hue**: file extension.
-- **Saturation**: last-modified (recent → vivid).
-- **Lightness**: last-modified (recent → bright).
-- **Windows**: lit-pane density, plus a glow that tracks how recently the file was created (newer files glow brighter).
-- **Aging**: older files get grime streaks and a slight lean.
-- **Media files** (images, video) render an ad-panel face on the front above the door.
+- **Height**: line count (sqrt-interp across the floor range)
+- **Width & depth**: byte size (log-interp, square footprint)
+- **Hue**: file extension
+- **Saturation**: last-modified (recent → vivid)
+- **Lightness**: last-modified (recent → bright)
+- **Windows**: lit-pane density, plus a glow that tracks how recently the file was created (newer files glow brighter)
+- **Aging**: older files get grime streaks and a slight lean
+- **Media files** (images, video) render an ad-panel face on the front above the door
 
 ### Streets: one per directory
 
 <img src=".github/readme/streets.png" alt="Top-down view of the street grid with directory labels painted on the asphalt" width="600" />
 
-- **Width tier**: descendant count (step function).
-- **Length**: packed siblings + spacing.
-- **Label**: directory name painted on the asphalt.
+- **Width tier**: descendant count (step function)
+- **Length**: packed siblings + spacing
+- **Label**: directory name painted on the asphalt
 
 ### Trees: one per commit
 
 <img src=".github/readme/trees.png" alt="A repo with thousands of commits rendered as a dense forest overtaking the city" width="600" />
 
-- **Placement**: oldest commit closest to the gem, newest at the edges.
-- **Height**: commit age (older = taller).
-- **Canopy width**: files changed in that commit.
-- **Color**: commits-per-day (solo-day vs busy-day color blend).
+- **Placement**: oldest commit closest to the gem, newest at the edges
+- **Height**: commit age (older = taller)
+- **Canopy width**: files changed in that commit
+- **Color**: commits-per-day (solo-day vs busy-day color blend)
 
 ### Fireflies: one orb per author on each commit
 
 <img src=".github/readme/fireflies.png" alt="Close-up of low-poly trees with white firefly orbs drifting between them" width="600" />
 
-- **Color**: per author. Each committer gets their own hue.
-- **Scale**: that author's total commit count.
-- **Co-authored commits**: `Co-authored-by:` trailers parsed out of the commit message. Each distinct contributor on a commit gets their own firefly orbiting that tree, in their own color.
+- **Color**: per author. Each committer gets their own hue
+- **Scale**: that author's total commit count
+- **Co-authored commits**: `Co-authored-by:` trailers parsed out of the commit message. Each distinct contributor on a commit gets their own firefly orbiting that tree, in their own color
 
 ### Gem: the root beacon
 
@@ -115,8 +115,8 @@ Floats above the root street's origin-end cap. Size scales with the root street'
 
 Open the info panel from the left sidebar to read the city two ways:
 
-- **Overview**: a travel guide of repo stats and superlatives, from the city's age and its building, street, and file counts to the language breakdown and per-layer highlights (tallest building, busiest commit day, top contributor). Click any highlight to fly the camera straight to it.
-- **Legend**: a key to every shape and color, plus two reading cues: the root gem, and how hovering a building fades the unrelated ones.
+- **Overview**: a travel guide of repo stats and superlatives, from the city's age and its building, street, and file counts to the language breakdown and per-layer highlights (tallest building, busiest commit day, top contributor). Click any highlight to fly the camera straight to it
+- **Legend**: a key to every shape and color, plus two reading cues: the root gem, and how hovering a building fades the unrelated ones
 
 ## Scanning
 
@@ -156,9 +156,9 @@ tests/fixtures/large-repo
 !package-lock.json
 ```
 
-- No `/` → matches a name anywhere in the tree.
-- Has `/` → anchored to the scan root.
-- `!` prefix un-ignores either form (`!name` or `!path/to/thing`). `!.git` is silently rejected; the object database is never walked.
+- No `/` → matches a name anywhere in the tree
+- Has `/` → anchored to the scan root
+- `!` prefix un-ignores either form (`!name` or `!path/to/thing`). `!.git` is silently rejected; the object database is never walked
 
 ## Settings
 
@@ -166,16 +166,16 @@ Open Settings from the gear in the left sidebar. It has three tabs.
 
 **World** covers how the city looks. Changes stage as drafts; click Save to apply them or Discard to drop them.
 
-- **Camera**: the default view angle, always looking at the root gem.
-- **Scene**: sky color and stars.
-- **Island**: the floating island the city sits on, its silhouette and materials.
-- **Buildings**: floor and width ranges, per-extension hue map, palette ranges, facade detail, aging, and the selection-fade that dims unrelated buildings when one is selected.
-- **Streets**: width tiers, spacing, colors, label typography.
-- **City footprint**: the dark paved apron that follows the city's outline.
-- **Gem**: sizing and materials.
-- **Trees**: visibility, color (commits-per-day), height (by age), width (by files changed), and outlines.
-- **Fireflies**: visibility, scale range, motion, orbit ring.
-- **Effects**: bloom, selection outline, and level-of-detail thresholds.
+- **Camera**: the default view angle, always looking at the root gem
+- **Scene**: sky color and stars
+- **Island**: the floating island the city sits on, its silhouette and materials
+- **Buildings**: floor and width ranges, per-extension hue map, palette ranges, facade detail, aging, and the selection-fade that dims unrelated buildings when one is selected
+- **Streets**: width tiers, spacing, colors, label typography
+- **City footprint**: the dark paved apron that follows the city's outline
+- **Gem**: sizing and materials
+- **Trees**: visibility, color (commits-per-day), height (by age), width (by files changed), and outlines
+- **Fireflies**: visibility, scale range, motion, orbit ring
+- **Effects**: bloom, selection outline, and level-of-detail thresholds
 
 **Live updates** is off by default. Turn it on to re-render the city when files change on disk; the poll interval is configurable (1 to 60 s). Changes apply immediately.
 
