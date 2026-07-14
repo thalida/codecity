@@ -15,6 +15,8 @@ import { act } from 'preact/test-utils';
 import { signal } from '@preact/signals';
 import axe from 'axe-core';
 import { ControlsPane } from '@/views/ControlsPane/ControlsPane';
+import { DynamicSection } from '@/views/ControlsPane/partials';
+import { BUILDINGS_SECTION } from '@/views/ControlsPane/partials/Buildings';
 import { ProjectsView } from '@/views/ProjectsView/ProjectsView';
 import { DebugModal } from '@/views/DebugModal/DebugModal';
 import { ShortcutsModal } from '@/views/ShortcutsModal/ShortcutsModal';
@@ -43,8 +45,27 @@ const TREE = {
   ],
 };
 
-const SURFACES: { name: string; mount: (c: HTMLElement) => void }[] = [
-  { name: 'ControlsPane', mount: (c) => render(<ControlsPane />, c) },
+interface Surface {
+  name: string;
+  mount: (c: HTMLElement) => void;
+  /** Lighter mount for the axe scan when the full surface is too large to scan
+   *  under CI's coverage instrumentation. Structural guards still use `mount`. */
+  axeMount?: (c: HTMLElement) => void;
+}
+
+const SURFACES: Surface[] = [
+  {
+    name: 'ControlsPane',
+    mount: (c) => render(<ControlsPane />, c),
+    // The full panel (271 controls) is too slow to axe-scan under coverage.
+    // Buildings alone exercises every control kind (color/hue/number/range/
+    // select/slider/toggle); expand every disclosure so the controls are
+    // visible (axe skips display:none) and scan just that.
+    axeMount: (c) => {
+      render(<DynamicSection node={BUILDINGS_SECTION} />, c);
+      c.querySelectorAll<HTMLElement>('.controls-disclosure-toggle').forEach((t) => t.click());
+    },
+  },
   {
     name: 'ProjectsView',
     mount: (c) => {
@@ -107,7 +128,7 @@ describe('accessibility audit (issue #79)', () => {
     // box. axe is also a singleton — a run that times out mid-flight leaves it
     // "running" and the next surface throws, so it must be allowed to finish.
     it(`${surface.name}: no axe violations`, async () => {
-      const c = mountSurface(surface.mount);
+      const c = mountSurface(surface.axeMount ?? surface.mount);
       const results = await axe.run(c, {
         // Only compute violations (skip passes / incomplete / inapplicable) —
         // a large speedup on the big settings DOM so CI doesn't time out.
