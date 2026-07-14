@@ -178,7 +178,9 @@ Open Settings from the gear in the left sidebar. It has three tabs.
 - **Effects**: bloom, selection outline, and level-of-detail thresholds
 
 **Live updates** is off by default. Turn it on to re-render the city when files change on disk; the poll interval is configurable (1 to 60 s).
+
 **Appearance** sets the interface accent color (Amber, Green, Cyan, Blue, Purple, Pink) and surface palette (Cool, Neutral, Green, Warm), plus the file-preview syntax theme.
+
 ## How it works
 
 codecity has two halves: a backend that reads the repo and the browser app that draws it. Point it at a repo and:
