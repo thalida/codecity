@@ -29,7 +29,11 @@ export interface ShotOverrides {
 /** Pose the camera for one named shot. Return `false` when the shot's target
  *  isn't ready yet (e.g. trees still placing) so the harness retries; any other
  *  return (void/true) means posed. */
-export type ShotPose = (handle: SceneHandle, manifest: Manifest, o: ShotOverrides) => boolean | void;
+export type ShotPose = (
+  handle: SceneHandle,
+  manifest: Manifest,
+  o: ShotOverrides
+) => boolean | void;
 
 /** An actually-placed tree's bounds, or null if none are placed yet.
  *  treeAnchor(sha) is null for commits the layout didn't place a tree for, so a
