@@ -56,7 +56,7 @@ Use multiple `-v` flags for multiple directories. codecity only renders git work
 | `R` | Reset the camera view |
 | `F` | Focus camera on the current selection |
 | `Esc` | Clear selection |
-| Click | Select building / street / gem |
+| Click | Select a building or street |
 | Double-click | Focus camera on the target |
 | Left drag | Orbit |
 | Right drag | Pan |
@@ -76,7 +76,7 @@ Use multiple `-v` flags for multiple directories. codecity only renders git work
 - **Hue**: file extension.
 - **Saturation**: last-modified (recent → vivid).
 - **Lightness**: last-modified (recent → bright).
-- **Windows**: lit-pane density and glow track recency. Newer files glow brighter.
+- **Windows**: lit-pane density, plus a glow that tracks how recently the file was created (newer files glow brighter).
 - **Aging**: older files get grime streaks and a slight lean.
 - **Media files** (images, video) render an ad-panel face on the front above the door.
 
@@ -94,9 +94,8 @@ Use multiple `-v` flags for multiple directories. codecity only renders git work
 
 - **Placement**: oldest commit closest to the gem, newest at the edges.
 - **Height**: commit age (older = taller).
-- **Canopy width + facet detail**: files changed in that commit.
+- **Canopy width**: files changed in that commit.
 - **Color**: commits-per-day (solo-day vs busy-day color blend).
-- Age desaturation (optional) fades the oldest commits toward gray.
 
 ### Fireflies: one orb per author on each commit
 
@@ -110,7 +109,7 @@ Use multiple `-v` flags for multiple directories. codecity only renders git work
 
 <img src=".github/readme/gem.png" alt="The glowing pink gem floating above the root street, lighting the buildings around it" width="600" />
 
-Floats above the root street's origin-end cap. Size scales with the root street's width.
+Floats above the root street's origin-end cap. Size scales with the root street's width. Click it (or press `R`) to clear your selection and reset the camera.
 
 ## Info pane
 
@@ -121,7 +120,9 @@ Open the info panel from the left sidebar to read the city two ways:
 
 ## Scanning
 
-codecity scans only **git-tracked** files (`git ls-files`). Gitignored and untracked paths are hidden automatically. Per-file git history (created + most-recent-modify dates) and per-commit metadata (file count, authors, date) feed the visuals above. Remote repos are cloned into the cache the first time you open them (just the current files, not every past version) and refreshed on later visits; local repos are read in place.
+codecity reads only **git-tracked** files (`git ls-files`), so gitignored and untracked paths never show up. For each file it records the git dates (created and last-modified); for each commit, the files changed, the authors, and the date. Those are what the buildings, trees, and fireflies above are built from.
+
+Remote repos are cloned into the cache the first time you open them (just the current files, not every past version) and refreshed on later visits. Local repos are read in place.
 
 Some directories and files are always skipped, even when tracked:
 
@@ -163,7 +164,18 @@ tests/fixtures/large-repo
 
 Open Settings from the gear in the left sidebar. It has three tabs.
 
-**World** covers how the city looks. Changes stage as drafts; click Save to apply them or Discard to drop them. Sections: **Camera** (the default view angle, always looking at the root gem), **Scene** (sky color and stars), **Island** (the floating island the city sits on, its silhouette and materials), **Buildings** (floor and width ranges, per-extension hue map, palette ranges, facade detail, aging, and the selection-fade that dims unrelated buildings when one is selected), **Streets** (width tiers, spacing, colors, label typography), **City footprint** (the dark paved apron that follows the city's outline), **Gem** (sizing and materials), **Trees** (density falloff, height and width ranges, color encoding, age desaturation, facet detail), **Fireflies** (visibility, scale range, motion, orbit ring), and **Effects** (bloom, selection outline, and level-of-detail thresholds).
+**World** covers how the city looks. Changes stage as drafts; click Save to apply them or Discard to drop them.
+
+- **Camera**: the default view angle, always looking at the root gem.
+- **Scene**: sky color and stars.
+- **Island**: the floating island the city sits on, its silhouette and materials.
+- **Buildings**: floor and width ranges, per-extension hue map, palette ranges, facade detail, aging, and the selection-fade that dims unrelated buildings when one is selected.
+- **Streets**: width tiers, spacing, colors, label typography.
+- **City footprint**: the dark paved apron that follows the city's outline.
+- **Gem**: sizing and materials.
+- **Trees**: visibility, color (commits-per-day), height (by age), width (by files changed), and outlines.
+- **Fireflies**: visibility, scale range, motion, orbit ring.
+- **Effects**: bloom, selection outline, and level-of-detail thresholds.
 
 **Live updates** is off by default. Turn it on to re-render the city when files change on disk; the poll interval is configurable (1 to 60 s). Changes apply immediately.
 
@@ -171,11 +183,14 @@ Open Settings from the gear in the left sidebar. It has three tabs.
 
 ## How it works
 
-codecity has two halves: a backend that reads the repo, and the browser app that draws it.
+codecity has two halves: a backend that reads the repo and the browser app that draws it. Point it at a repo and:
 
-When you point it at a repo, the backend scans it. Remote repos are cloned into a local cache first (just the current file tree, not the full history of every file); local folders are read in place. It lists the git-tracked files with `git ls-files`, then walks the commit history once to collect each file's dates and each commit's details: how many files it touched, when, and who wrote it (co-authors included). All of that is packed into a single manifest and streamed to the browser as it's computed, so a rough city shows up almost immediately and sharpens as the scan finishes.
-
-The browser turns the manifest into the city. A layout pass runs off the main thread and packs the streets so nothing overlaps: each directory is a street, its files line up along it as buildings, and subdirectories branch off at right angles. Each building is sized from its file (height from line count, footprint from byte size), one tree is planted per commit with the oldest closest to the gem, and a firefly for every author. Then it all gets drawn with WebGL.
+1. **Clone or read.** Remote repos are cloned into a local cache (just the current file tree, not every file's full history); local folders are read in place.
+2. **Scan.** It lists the git-tracked files with `git ls-files`, then walks the commit history once to collect each file's dates and each commit's details: how many files it touched, when, and who wrote it (co-authors included).
+3. **Stream.** All of that is packed into a single manifest and streamed to the browser as it's computed, so a rough city appears almost immediately and sharpens as the scan finishes.
+4. **Lay out.** In the browser, an off-main-thread pass packs the streets so nothing overlaps: each directory becomes a street, its files line up as buildings, and subdirectories branch off at right angles.
+5. **Size and plant.** Each building is sized from its file (height from line count, footprint from byte size), one tree is planted per commit with the oldest closest to the gem, and a firefly for every author.
+6. **Render.** It all gets drawn with WebGL.
 
 ## Development
 
@@ -184,12 +199,21 @@ You need [Docker](https://docs.docker.com/get-docker/), [just](https://github.co
 ```sh
 git clone https://github.com/thalida/codecity.git
 cd codecity
-just install-hooks   # pre-push: lint + prettier + tests
-just dev             # http://<worktree-slug>.localhost:<port>/
-just test            # pytest + vitest in containers
-just build           # build the local image
-just run             # run the local image like an end user
+just install-hooks   # one-time: pre-push hooks (lint + prettier + tests)
 ```
+
+| Command | What it does |
+| --- | --- |
+| `just dev` | Vite HMR + API auto-reload at `http://<slug>.localhost:<port>/` |
+| `just test` | pytest + vitest in containers |
+| `just lint` | ruff, eslint, prettier, and typecheck |
+| `just fmt` | apply Python formatting (ruff) |
+| `just gen-types` | regenerate the frontend wire types from the OpenAPI schema |
+| `just build` | build the local Docker image |
+| `just run` | run the local image like an end user |
+| `just screenshots [names]` | regenerate the README screenshots |
+| `just demo-video` | record the README `demo.mp4` |
+| `just clean` | tear down this worktree's containers and volumes |
 
 `just dev` and `just run` accept a path arg to mount a local repo: `just dev ~/Documents/Repos/myproj`. The path arg also sets `CODECITY_ALLOW_LOCAL_REPOS=1` for you (see [Local directories](#local-directories)). Without an arg, codecity is git-URL-only.
 
