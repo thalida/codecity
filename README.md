@@ -6,7 +6,9 @@
   </h1>
 </div>
 
-Turn any git repo into a living 3D city. codecity walks the tree, reads file and git history, and paints an isometric world in your browser: directories become streets, files rise into buildings, every commit grows a tree.
+**codecity turns any git repo into a 3D city.** It walks the file tree and git history and builds a world: directories become streets, files become buildings, every commit grows a tree, and every author a firefly.
+
+Try it on any repo (local or remote).
 
 <img src=".github/readme/demo.gif" alt="Animated demo of codecity orbiting and exploring a rendered repo" width="800" />
 
@@ -24,7 +26,7 @@ docker run --rm --init --pull=always \
     ghcr.io/thalida/codecity
 ```
 
-Open <http://localhost:8080/> and paste a git URL into the source picker.
+Open <http://localhost:8080/>. codecity opens to a Projects page: paste a repo URL, pick a branch, and it builds the city. Recent projects are saved, and the chip in the header switches between them.
 
 Tips:
 
@@ -102,7 +104,7 @@ Use multiple `-v` flags for multiple directories. codecity only renders git work
 
 - **Color**: per author. Each committer gets their own hue.
 - **Scale**: that author's total commit count.
-- **Co-authored commits**: `Co-authored-by:` trailers parsed out of the commit message — each distinct contributor on a commit gets their own firefly orbiting that tree, in their own color.
+- **Co-authored commits**: `Co-authored-by:` trailers parsed out of the commit message. Each distinct contributor on a commit gets their own firefly orbiting that tree, in their own color.
 
 ### Gem: the root beacon
 
@@ -110,9 +112,16 @@ Use multiple `-v` flags for multiple directories. codecity only renders git work
 
 Floats above the root street's origin-end cap. Size scales with the root street's width.
 
+## Info pane
+
+Open the info panel from the left sidebar to read the city two ways:
+
+- **Overview**: a travel guide of repo stats and superlatives, from the city's age and its building, street, and file counts to the language breakdown and per-layer highlights (tallest building, busiest commit day, top contributor). Click any highlight to fly the camera straight to it.
+- **Legend**: a key to every shape and color, plus two reading cues: the root gem, and how hovering a building fades the unrelated ones.
+
 ## Scanning
 
-codecity scans only **git-tracked** files (`git ls-files`). Gitignored and untracked paths are hidden automatically. Per-file git history (created + most-recent-modify dates) and per-commit metadata (file count, authors, date) feed the visuals above.
+codecity scans only **git-tracked** files (`git ls-files`). Gitignored and untracked paths are hidden automatically. Per-file git history (created + most-recent-modify dates) and per-commit metadata (file count, authors, date) feed the visuals above. Remote repos are cloned into the cache the first time you open them (just the current files, not every past version) and refreshed on later visits; local repos are read in place.
 
 Some directories and files are always skipped, even when tracked:
 
@@ -152,22 +161,25 @@ tests/fixtures/large-repo
 
 ## Settings
 
-Click the gear in the left sidebar to open the Settings pane. Tweaks stage as drafts; click Save to apply.
+Open Settings from the gear in the left sidebar. It has three tabs.
 
-What you can tune:
+**World** covers how the city looks. Changes stage as drafts; click Save to apply them or Discard to drop them. Sections: **Camera** (the default view angle, always looking at the root gem), **Scene** (sky color and stars), **Island** (the floating island the city sits on, its silhouette and materials), **Buildings** (floor and width ranges, per-extension hue map, palette ranges, facade detail, aging, and the selection-fade that dims unrelated buildings when one is selected), **Streets** (width tiers, spacing, colors, label typography), **City footprint** (the dark paved apron that follows the city's outline), **Gem** (sizing and materials), **Trees** (density falloff, height and width ranges, color encoding, age desaturation, facet detail), **Fireflies** (visibility, scale range, motion, orbit ring), and **Effects** (bloom, selection outline, and level-of-detail thresholds).
 
-- **Live updates**: off by default. Turn on to re-render the city when files change on disk; poll interval is configurable (1–60 s).
-- **Buildings**: floor and width ranges, per-extension hue map, palette ranges, facade detail, aging, and the selection-fade cascade that dims unrelated buildings when one is selected.
-- **Streets**: width tiers, spacing, colors, label typography.
-- **Trees**: density falloff, height/width ranges, color encoding, age desaturation, facet detail.
-- **Fireflies**: visibility, scale range, motion, orbit ring.
-- **Scene**: sky color and stars.
-- **Gem**: sizing and materials.
-- **File preview**: syntax highlight theme.
+**Live updates** is off by default. Turn it on to re-render the city when files change on disk; the poll interval is configurable (1 to 60 s). Changes apply immediately.
+
+**Appearance** sets the interface accent color (Amber, Green, Cyan, Blue, Purple, Pink) and surface palette (Cool, Neutral, Green, Warm), plus the file-preview syntax theme. Changes apply immediately.
+
+## How it works
+
+codecity has two halves: a backend that reads the repo, and the browser app that draws it.
+
+When you point it at a repo, the backend scans it. Remote repos are cloned into a local cache first (just the current file tree, not the full history of every file); local folders are read in place. It lists the git-tracked files with `git ls-files`, then walks the commit history once to collect each file's dates and each commit's details: how many files it touched, when, and who wrote it (co-authors included). All of that is packed into a single manifest and streamed to the browser as it's computed, so a rough city shows up almost immediately and sharpens as the scan finishes.
+
+The browser turns the manifest into the city. A layout pass runs off the main thread and packs the streets so nothing overlaps: each directory is a street, its files line up along it as buildings, and subdirectories branch off at right angles. Each building is sized from its file (height from line count, footprint from byte size), one tree is planted per commit with the oldest closest to the gem, and a firefly for every author. Then it all gets drawn with WebGL.
 
 ## Development
 
-You need [Docker](https://docs.docker.com/get-docker/), [just](https://github.com/casey/just#installation), and [python3](https://www.python.org/downloads/).
+You need [Docker](https://docs.docker.com/get-docker/), [just](https://github.com/casey/just#installation), [python3](https://www.python.org/downloads/), and [uv](https://docs.astral.sh/uv/) (for `just fmt` and `just gen-types`).
 
 ```sh
 git clone https://github.com/thalida/codecity.git
@@ -185,7 +197,7 @@ Each worktree gets its own `<slug>.localhost` URL so source-picker recents stay 
 
 The pre-push hook runs pytest, ruff (Python format), vitest, eslint, prettier, and typecheck before pushing to origin. Bypass with `git push --no-verify` if needed. Docker must be running. Apply Python formatting with `just fmt`.
 
-The backend is a [FastAPI](https://fastapi.tiangolo.com/) app on uvicorn — a single process by design, since the in-memory scan-root trust set (`api/security.py`) can't be split across workers. Scan progress streams over Server-Sent Events (`GET /api/manifest`). Interactive API docs render at `/api/docs` ([Scalar](https://github.com/scalar/scalar)), with the raw schema at `/api/openapi.json` — the source of truth for the generated frontend wire types (`just gen-types`, guarded against drift by `app/src/types/manifest.contract.ts`).
+The backend is a [FastAPI](https://fastapi.tiangolo.com/) app on uvicorn, a single process by design, since the in-memory scan-root trust set (`api/security.py`) can't be split across workers. Scan progress streams over Server-Sent Events (`GET /api/manifest`). Interactive API docs render at `/api/docs` ([Scalar](https://github.com/scalar/scalar)), with the raw schema at `/api/openapi.json`, the source of truth for the generated frontend wire types (`just gen-types`, guarded against drift by `app/src/types/manifest.contract.ts`).
 
 ## Release
 
