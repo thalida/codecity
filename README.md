@@ -164,7 +164,7 @@ tests/fixtures/large-repo
 
 Open Settings from the gear in the left sidebar. It has three tabs.
 
-**World** covers how the city looks. Changes stage as drafts; click Save to apply them or Discard to drop them.
+**World** covers how the city looks.
 
 - **Camera**: the default view angle, always looking at the root gem
 - **Scene**: sky color and stars
