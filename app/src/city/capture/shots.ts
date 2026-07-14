@@ -9,8 +9,6 @@
 // a shot in live in the browser (e.g. ?shot=gem&debug&elev=22&az=10&dist=48)
 // before baking the numbers in below.
 
-import * as THREE from 'three';
-
 import type { SceneHandle } from '@/state/stores/scene';
 import type { Manifest } from '@/types';
 import { CAMERA } from '@/state/stores/settings/camera';
@@ -58,20 +56,22 @@ export const SHOTS: Record<string, ShotPose> = {
       azimuth: o.az ?? 24,
     });
   },
-  streets: (h, _m, o) => {
+  streets: (h, m, o) => {
     const a = h.rig.captureAnchors();
-    const target = a.gem ? new THREE.Vector3(a.gem.x, 0, a.gem.z) : a.center;
+    const path = m.stats.maxChildrenDir?.path;
+    const street = path ? h.rig.streetAnchor(path) : null;
+    const target = street?.pos ?? a.center;
     if (!target) {
       h.rig.reset();
       return;
     }
-    // Angled down over the central intersection, close enough that the road
-    // labels stay legible.
+    // Steep look down over the densest directory's street so the labeled road
+    // grid fills the frame, not the gem.
     h.rig.captureView({
       target,
-      distance: o.dist ?? a.cityRadius * 0.4,
-      elevation: o.elev ?? 56,
-      azimuth: o.az ?? 20,
+      distance: o.dist ?? a.cityRadius * 0.3,
+      elevation: o.elev ?? 64,
+      azimuth: o.az ?? 18,
     });
   },
   gem: (h, _m, o) => {

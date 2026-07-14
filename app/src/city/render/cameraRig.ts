@@ -565,6 +565,16 @@ export function createCameraRig({
     return { pos: new THREE.Vector3(b.x, b.height * 0.5, b.z), radius: b.radius, height: b.height };
   }
 
+  /** Debug/capture only: ground position + span of the street for directory
+   *  `path`, or null if absent (for the streets shot). */
+  function streetAnchor(
+    path: string
+  ): { pos: THREE.Vector3; width: number; length: number } | null {
+    const s = cityState.streetsByDirMap.value[path];
+    if (!s) return null;
+    return { pos: new THREE.Vector3(s.x, 0, s.y), width: s.width, length: s.length };
+  }
+
   /** Single entry-point for "focus the camera on whatever is selected".
    *  Dispatches to focusBuilding / focusStreet / focusTree based on the
    *  PickTarget kind. Lives on the scene side so view code doesn't have
@@ -595,6 +605,7 @@ export function createCameraRig({
     captureView,
     captureAnchors,
     treeAnchor,
+    streetAnchor,
     dispose,
   };
 }
