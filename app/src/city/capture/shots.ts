@@ -10,7 +10,7 @@
 // before baking the numbers in below.
 
 import type { SceneHandle } from '@/state/stores/scene';
-import type { Manifest } from '@/types';
+import { NodeKind, type Manifest, type DirNode } from '@/types';
 import { CAMERA } from '@/state/stores/settings/camera';
 
 /** Set the default-view angle (degrees); the rig re-frames the whole city to
@@ -29,19 +29,54 @@ export interface ShotOverrides {
 /** Pose the camera for one named shot. */
 export type ShotPose = (handle: SceneHandle, manifest: Manifest, o: ShotOverrides) => void;
 
+/** Directory (path) whose direct file children span the most distinct
+ *  extensions: the most color-varied street, since building hue = extension. */
+function mostColorfulDirPath(root: DirNode): string | null {
+  let bestPath: string | null = null;
+  let bestColors = 0;
+  let bestFiles = 0;
+  // Skip the root itself: its street holds the gem, and we want a shot without
+  // it. Descend into the root's children as candidates.
+  const visit = (dir: DirNode, isRoot: boolean): void => {
+    const exts = new Set<string>();
+    let files = 0;
+    for (const child of dir.children) {
+      if (child.type === NodeKind.File) {
+        files += 1;
+        exts.add(child.extension);
+      } else {
+        visit(child, false);
+      }
+    }
+    if (
+      !isRoot &&
+      files > 0 &&
+      (exts.size > bestColors || (exts.size === bestColors && files > bestFiles))
+    ) {
+      bestPath = dir.path;
+      bestColors = exts.size;
+      bestFiles = files;
+    }
+  };
+  visit(root, true);
+  return bestPath;
+}
+
 export const SHOTS: Record<string, ShotPose> = {
-  // Low side-on skyline. Centered on the city (not the gem, which sits at the
-  // edge and leaves dead space) and pulled in close so the repo label reads.
+  // Low side-on skyline. Aim just above the gem (toward the floating repo
+  // label) and pull in close so the label reads and stays framed.
   banner: (h, _m, o) => {
     const a = h.rig.captureAnchors();
-    const target = a.center ?? a.gem;
-    if (!target) {
+    const base = a.gem ?? a.center;
+    if (!base) {
       h.rig.reset();
       return;
     }
+    const target = base.clone();
+    target.y += a.cityRadius * 0.12; // lift toward the label so it stays in frame
     h.rig.captureView({
       target,
-      distance: o.dist ?? a.cityRadius * 0.75,
+      distance: o.dist ?? a.cityRadius * 0.55,
       elevation: o.elev ?? 9,
       azimuth: o.az ?? 12,
     });
@@ -53,18 +88,21 @@ export const SHOTS: Record<string, ShotPose> = {
   },
 
   // Close-ups: aim at a landmark, low and near, for a street-level read.
-  buildings: (h, _m, o) => {
+  // Frame the street with the widest spread of file types (most hues).
+  buildings: (h, m, o) => {
     const a = h.rig.captureAnchors();
-    const target = a.tallestBuilding ?? a.center;
+    const path = mostColorfulDirPath(m.tree);
+    const street = path ? h.rig.streetAnchor(path) : null;
+    const target = street?.pos ?? a.tallestBuilding ?? a.center;
     if (!target) {
       h.rig.reset();
       return;
     }
-    target.y *= 0.45; // mid-height of the tallest tower, not its roof
+    if (street) target.y = a.tallestHeight * 0.25; // look at building mid-height, not the road
     h.rig.captureView({
       target,
-      distance: o.dist ?? a.tallestHeight * 1.5,
-      elevation: o.elev ?? 15,
+      distance: o.dist ?? a.tallestHeight * 1.6,
+      elevation: o.elev ?? 16,
       azimuth: o.az ?? 24,
     });
   },
@@ -104,8 +142,8 @@ export const SHOTS: Record<string, ShotPose> = {
 
   // trees + fireflies are captured against a bigger, multi-author repo (see
   // app/scripts/screenshots.mjs); codecity itself is too sparse to show either.
-  // trees: low and immersive, dense forest fills the foreground with the city
-  // behind it; fireflies: tighter on a busy tree so the author orbs read.
+  // trees: tight on a busy tree; fireflies: wider forest immersion where the
+  // orbs drifting between many trees read.
   trees: (h, m, o) => {
     const a = h.rig.captureAnchors();
     const sha = m.stats.maxFilesPerCommit?.sha;
@@ -117,8 +155,8 @@ export const SHOTS: Record<string, ShotPose> = {
     }
     h.rig.captureView({
       target,
-      distance: o.dist ?? (tree ? tree.radius * 6 : a.cityRadius * 0.5),
-      elevation: o.elev ?? 20,
+      distance: o.dist ?? (tree ? Math.max(tree.radius * 2, 18) : a.cityRadius * 0.5),
+      elevation: o.elev ?? 12,
       azimuth: o.az ?? 30,
     });
   },
@@ -131,8 +169,8 @@ export const SHOTS: Record<string, ShotPose> = {
     }
     h.rig.captureView({
       target: tree.pos,
-      distance: o.dist ?? Math.max(tree.radius * 2, 18),
-      elevation: o.elev ?? 12,
+      distance: o.dist ?? tree.radius * 6,
+      elevation: o.elev ?? 20,
       azimuth: o.az ?? 30,
     });
   },
