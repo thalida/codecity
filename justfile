@@ -140,11 +140,12 @@ build-multiarch:
 # debug-gated ?shot= capture harness (app/src/city/capture). Needs `just dev`
 # running in another terminal; reads its URL from `just url`. Installs the
 # Playwright Chromium build on first run. The animated demo.gif is not automated.
-screenshots:
+# Pass shot names to redo only those: `just screenshots fireflies trees`.
+screenshots *shots='':
     @URL=$(just url) ; \
      echo "[codecity] capturing README screenshots from $URL" ; \
      cd app && npx playwright install chromium && \
-     CODECITY_URL="$URL" node scripts/screenshots.mjs
+     CODECITY_URL="$URL" node scripts/screenshots.mjs {{shots}}
 
 # ── Onboarding ───────────────────────────────────────────────────
 # One-shot bootstrap for a fresh clone or new worktree: installs app

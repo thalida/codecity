@@ -43,11 +43,25 @@ const SHOTS = [
 
 const READY = 'html[data-cc-capture-ready="1"]';
 
+// Optional CLI filter: `node screenshots.mjs fireflies trees` captures only
+// those; no args captures all. Unknown names are reported and skipped.
+const requested = process.argv.slice(2);
+for (const name of requested) {
+  if (!SHOTS.some((s) => s.name === name)) {
+    console.warn(`[screenshots] unknown shot "${name}" (skipping)`);
+  }
+}
+const shots = requested.length ? SHOTS.filter((s) => requested.includes(s.name)) : SHOTS;
+if (!shots.length) {
+  console.error(`[screenshots] no matching shots. Known: ${SHOTS.map((s) => s.name).join(', ')}`);
+  process.exit(1);
+}
+
 await mkdir(OUT_DIR, { recursive: true });
 const browser = await chromium.launch();
 
 try {
-  for (const shot of SHOTS) {
+  for (const shot of shots) {
     // Fresh context per shot: the capture harness writes the camera angle to
     // localStorage, so an isolated context keeps shots from leaking into each
     // other.
