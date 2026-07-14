@@ -36,7 +36,9 @@ Tips:
 - Wipe the cache: `docker volume rm codecity-cache`
 - Port in use? `-p 8081:8080`
 
-## Local directories
+## Advanced setup
+
+### Local directories
 
 Local-repo support is **disabled by default**. To enable it, set `CODECITY_ALLOW_LOCAL_REPOS=1` *and* mount the directory read-only into the container at the same absolute path:
 
@@ -49,28 +51,50 @@ docker run --rm --init --pull=always \
     ghcr.io/thalida/codecity
 ```
 
-Tips:
-
 - Use multiple `-v` flags to mount more than one directory
 - codecity only renders git working trees: `git init` first to render a non-git directory
 
-## Controls
+### Ignoring files
 
-| Input | Action |
-|-------|--------|
-| `R` | Reset the camera view |
-| `F` | Focus camera on the current selection |
-| `Esc` | Clear selection |
-| Click | Select a building or street |
-| Double-click | Focus camera on the target |
-| Left drag | Orbit |
-| Right drag | Pan |
-| Middle drag | Dolly (zoom) |
-| Scroll | Zoom toward cursor |
+Some directories and files are always skipped, even when tracked:
 
-## What gets rendered
+- VCS: `.git`, `.hg`, `.svn`
+- JS: `node_modules`, `package-lock.json`, `yarn.lock`, `pnpm-lock.yaml`, `bun.lock`, `bun.lockb`, `deno.lock`
+- Python: `.venv`, `venv`, `env`, `__pycache__`, `poetry.lock`, `uv.lock`, `Pipfile.lock`
+- Rust: `target`, `.cargo`, `Cargo.lock`
+- Go: `Gopkg.lock`, `go.sum`
+- PHP: `composer.lock`
+- Ruby: `Gemfile.lock`
+- Elixir: `mix.lock`
+- CocoaPods: `Podfile.lock`
+- Nix: `flake.lock`
+- Framework caches: `.next`, `.nuxt`, `.svelte-kit`
+- Test / coverage: `.pytest_cache`, `.mypy_cache`, `.ruff_cache`, `.tox`, `.coverage`, `htmlcov`
+- IDE / OS: `.idea`, `.vscode`, `.DS_Store`
+- Vendored single-file amalgamations: `sqlite3.c`, `miniz.c`, `lua.c` (one giant `.c` blob inlining a whole library: 100k+ lines that would otherwise render as a single skyscraper distorting every height-based visual)
+
+For per-project ignores, drop a `.codecityignore` at the scan root, one pattern per line:
+
+```gitignore
+# Skip anywhere named "fixtures"
+fixtures
+
+# Skip a specific path (relative to scan root)
+tests/fixtures/large-repo
+
+# Un-ignore a default skip (! prefix overrides ALWAYS_SKIP)
+!package-lock.json
+```
+
+- No `/` → matches a name anywhere in the tree
+- Has `/` → anchored to the scan root
+- `!` prefix un-ignores either form (`!name` or `!path/to/thing`). `!.git` is silently rejected; the object database is never walked
+
+## Reading the city
 
 <img src=".github/readme/overview.png" alt="A large repo rendered with the gem, streets, buildings, and fireflies all visible at once" width="800" />
+
+Every model maps to real data.
 
 ### Buildings: one per file
 
@@ -114,56 +138,17 @@ Tips:
 
 <img src=".github/readme/gem.png" alt="The glowing pink gem floating above the root street, lighting the buildings around it" width="600" />
 
-Floats above the root street's origin-end cap. Size scales with the root street's width. Click it (or press `R`) to clear the selection and reset the view.
+Marks the repo root, floating above the root street. Click it to clear the selection and reset the view.
 
-## Info pane
+### Info pane
 
-The info panel in the left sidebar reads the city two ways:
+The info panel in the left sidebar reads the city back to you:
 
-- **Overview**: repo stats and superlatives (age, file/street/building counts, language breakdown, tallest building, busiest commit day, top contributor)
-- **Legend**: what each city model means and how it's rendered from the repo, plus the root-gem and hover-fade cues
-
-## Scanning
-
-codecity reads only **git-tracked** files (`git ls-files`); gitignored and untracked paths are skipped. For each file it records the git dates (created + last-modified); for each commit, the files changed, authors, and date. That's what feeds the visuals above.
-
-Remote repos are cloned to the cache on first open (current files only) and refreshed on later visits; local repos are read in place.
-
-Some directories and files are always skipped, even when tracked:
-
-- VCS: `.git`, `.hg`, `.svn`
-- JS: `node_modules`, `package-lock.json`, `yarn.lock`, `pnpm-lock.yaml`, `bun.lock`, `bun.lockb`, `deno.lock`
-- Python: `.venv`, `venv`, `env`, `__pycache__`, `poetry.lock`, `uv.lock`, `Pipfile.lock`
-- Rust: `target`, `.cargo`, `Cargo.lock`
-- Go: `Gopkg.lock`, `go.sum`
-- PHP: `composer.lock`
-- Ruby: `Gemfile.lock`
-- Elixir: `mix.lock`
-- CocoaPods: `Podfile.lock`
-- Nix: `flake.lock`
-- Framework caches: `.next`, `.nuxt`, `.svelte-kit`
-- Test / coverage: `.pytest_cache`, `.mypy_cache`, `.ruff_cache`, `.tox`, `.coverage`, `htmlcov`
-- IDE / OS: `.idea`, `.vscode`, `.DS_Store`
-- Vendored single-file amalgamations: `sqlite3.c`, `miniz.c`, `lua.c` (one giant `.c` blob inlining a whole library: 100k+ lines that would otherwise render as a single skyscraper distorting every height-based visual)
-
-### `.codecityignore`
-
-Drop a `.codecityignore` file at the scan root for per-project ignores. One pattern per line.
-
-```gitignore
-# Skip anywhere named "fixtures"
-fixtures
-
-# Skip a specific path (relative to scan root)
-tests/fixtures/large-repo
-
-# Un-ignore a default skip (! prefix overrides ALWAYS_SKIP)
-!package-lock.json
-```
-
-- No `/` → matches a name anywhere in the tree
-- Has `/` → anchored to the scan root
-- `!` prefix un-ignores either form (`!name` or `!path/to/thing`). `!.git` is silently rejected; the object database is never walked
+- **Overview**: repo stats and superlatives
+  - age, and file / street / building counts
+  - language breakdown
+  - superlatives: tallest building, busiest commit day, top contributor
+- **Legend**: what each city model means and how it maps to the repo, plus the root-gem and hover-fade cues
 
 ## Settings
 
@@ -194,7 +179,7 @@ tests/fixtures/large-repo
 ## How it works
 
 1. **Clone or read.** Remote repos clone into a local cache (current tree only); local folders are read in place.
-2. **Scan.** `git ls-files` for the tracked files, then one pass over the commit history for each file's dates and each commit's files, authors, and date.
+2. **Scan.** codecity reads only git-tracked files (`git ls-files`), recording each file's git dates and each commit's files, authors, and date.
 3. **Stream.** Packed into one manifest and streamed to the browser as it's computed: a skeleton city renders first as a placeholder, then fills in with the full scan.
 4. **Lay out.** An off-main-thread pass packs the streets so nothing overlaps: directories become streets, files line up as buildings, subdirectories branch off at right angles.
 5. **Build.** Each building is sized from its file (height = lines, footprint = bytes), one tree per commit (oldest nearest the gem), a firefly per author.
