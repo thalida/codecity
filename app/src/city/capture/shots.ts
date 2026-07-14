@@ -168,6 +168,13 @@ export const SHOTS: Record<string, ShotPose> = {
   },
   fireflies: (h, m, o) => {
     const tree = placedTree(h, m);
+    // eslint-disable-next-line no-console
+    console.log(
+      '[capture] fireflies: commits=' +
+        m.commits.length +
+        ' tree=' +
+        (tree ? `{radius:${tree.radius.toFixed(1)},height:${tree.height.toFixed(1)}}` : 'null')
+    );
     if (!tree) {
       h.rig.reset();
       return;

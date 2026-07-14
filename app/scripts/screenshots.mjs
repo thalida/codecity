@@ -70,6 +70,8 @@ try {
       deviceScaleFactor: 2,
     });
     const page = await context.newPage();
+    page.on('console', (msg) => console.log(`\n  [page] ${msg.text()}`));
+    page.on('pageerror', (err) => console.log(`\n  [page:error] ${err.message}`));
     const params = new URLSearchParams({
       src: shot.src ?? SRC,
       branch: shot.branch ?? BRANCH,
