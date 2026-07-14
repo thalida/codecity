@@ -161,10 +161,13 @@ export const SHOTS: Record<string, ShotPose> = {
       h.rig.reset();
       return;
     }
+    // Really tight on one tree: aim a bit below the canopy center and keep the
+    // angle low so the whole tree (trunk + canopy + orbs) frames, not a green wall.
+    tree.pos.y = tree.height * 0.4;
     h.rig.captureView({
       target: tree.pos,
-      distance: o.dist ?? Math.max(tree.radius * 2.5, 40),
-      elevation: o.elev ?? 12,
+      distance: o.dist ?? Math.max(tree.radius * 2, 32),
+      elevation: o.elev ?? 10,
       azimuth: o.az ?? 30,
     });
   },
