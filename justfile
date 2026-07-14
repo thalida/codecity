@@ -144,7 +144,7 @@ screenshots:
     @URL=$(just url) ; \
      echo "[codecity] capturing README screenshots from $URL" ; \
      cd app && npx playwright install chromium && \
-     CODECITY_URL="$URL" node ../scripts/screenshots.mjs
+     CODECITY_URL="$URL" node scripts/screenshots.mjs
 
 # ── Onboarding ───────────────────────────────────────────────────
 # One-shot bootstrap for a fresh clone or new worktree: installs app

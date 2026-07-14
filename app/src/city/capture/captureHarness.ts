@@ -3,7 +3,7 @@
 // render, pose the camera for that shot, let the tween + effects settle, then
 // mark <html data-cc-capture-ready="1"> so an external screenshot script knows
 // the frame is ready. Lazy-loaded from main.tsx only when ?shot is present, so
-// it never ships in a normal session. See scripts/screenshots.mjs.
+// it never ships in a normal session. See app/scripts/screenshots.mjs.
 
 import { effect } from '@preact/signals';
 
