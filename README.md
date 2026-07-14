@@ -26,12 +26,12 @@ docker run --rm --init --pull=always \
     ghcr.io/thalida/codecity
 ```
 
-Open <http://localhost:8080/> to reach the Projects page, then paste a repo URL and pick a branch to build the city.
+1. Open <http://localhost:8080/> to reach the Projects page
+2. Enter a repo URL and pick a branch
+3. Explore your city!
 
-Tips:
+**Tips**
 
-- Recent projects are saved for one-click reload
-- The chip in the header switches between projects
 - `--pull=always` keeps you on the latest image; drop it to pin to your cached copy
 - Wipe the cache: `docker volume rm codecity-cache`
 - Port in use? `-p 8081:8080`
@@ -40,7 +40,7 @@ Tips:
 
 ### Local directories
 
-Local-repo support is **disabled by default**. To enable it, set `CODECITY_ALLOW_LOCAL_REPOS=1` *and* mount the directory read-only into the container at the same absolute path:
+Local repo support is **disabled by default**. To enable it, set `CODECITY_ALLOW_LOCAL_REPOS=1` *and* mount the directory read-only into the container at the same absolute path:
 
 ```sh
 docker run --rm --init --pull=always \
@@ -54,7 +54,7 @@ docker run --rm --init --pull=always \
 - Use multiple `-v` flags to mount more than one directory
 - codecity only renders git working trees: `git init` first to render a non-git directory
 
-### Ignoring files
+### Always skipped
 
 Some directories and files are always skipped, even when tracked:
 
@@ -73,7 +73,9 @@ Some directories and files are always skipped, even when tracked:
 - IDE / OS: `.idea`, `.vscode`, `.DS_Store`
 - Vendored single-file amalgamations: `sqlite3.c`, `miniz.c`, `lua.c` (one giant `.c` blob inlining a whole library: 100k+ lines that would otherwise render as a single skyscraper distorting every height-based visual)
 
-For per-project ignores, drop a `.codecityignore` at the scan root, one pattern per line:
+### `.codecityignore`
+
+For per-project ignores, drop one at the scan root, one pattern per line:
 
 ```gitignore
 # Skip anywhere named "fixtures"
@@ -86,15 +88,11 @@ tests/fixtures/large-repo
 !package-lock.json
 ```
 
-- No `/` → matches a name anywhere in the tree
-- Has `/` → anchored to the scan root
 - `!` prefix un-ignores either form (`!name` or `!path/to/thing`). `!.git` is silently rejected; the object database is never walked
 
 ## Reading the city
 
 <img src=".github/readme/overview.png" alt="A large repo rendered with the gem, streets, buildings, and fireflies all visible at once" width="800" />
-
-Every model maps to real data.
 
 ### Buildings: one per file
 
@@ -138,11 +136,12 @@ Every model maps to real data.
 
 <img src=".github/readme/gem.png" alt="The glowing pink gem floating above the root street, lighting the buildings around it" width="600" />
 
-Marks the repo root, floating above the root street. Click it to clear the selection and reset the view.
+- Marks the repo root, floating above the root street
+- Click it to clear the selection and reset the view
 
 ### Info pane
 
-The info panel in the left sidebar reads the city back to you:
+The info panel in the left sidebar describes the city:
 
 - **Overview**: repo stats and superlatives
   - age, and file / street / building counts
