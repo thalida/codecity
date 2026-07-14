@@ -183,7 +183,7 @@ export const SHOTS: Record<string, ShotPose> = {
       target: tree.pos,
       distance: o.dist, // omitted -> fit the bounding sphere below
       fitRadius: boundingRadius,
-      padding: 1.15,
+      padding: 1.6,
       elevation: o.elev ?? 8,
       azimuth: o.az ?? 30,
     });
