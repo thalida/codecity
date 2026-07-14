@@ -158,12 +158,15 @@ export const SHOTS: Record<string, ShotPose> = {
   // trees: wide forest immersion (dense trees fill the foreground, city behind);
   // fireflies: tighter on a busy tree so the author orbs read.
   trees: (h, m, o) => {
+    const a = h.rig.captureAnchors();
     const tree = placedTree(h, m);
     if (!tree) return false; // trees not placed yet: retry
+    // Wide, low pull-back over a forest tree (distance scales with the city, not
+    // the tree's canopy) so the forest fills the foreground with the city behind.
     h.rig.captureView({
       target: tree.pos,
-      distance: o.dist ?? tree.radius * 6,
-      elevation: o.elev ?? 20,
+      distance: o.dist ?? a.cityRadius * 0.45,
+      elevation: o.elev ?? 18,
       azimuth: o.az ?? 30,
     });
   },
