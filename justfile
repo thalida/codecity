@@ -147,6 +147,15 @@ screenshots *shots='':
      cd app && npx playwright install chromium && \
      CODECITY_URL="$URL" node scripts/screenshots.mjs {{shots}}
 
+# Regenerate the animated .github/readme/demo.gif: a headless orbit of codecity
+# rendering its own repo, encoded with ffmpeg (required: brew install ffmpeg).
+# Needs `just dev` running in another terminal.
+demo-gif:
+    @URL=$(just url) ; \
+     echo "[codecity] recording demo.gif from $URL" ; \
+     cd app && npx playwright install chromium && \
+     CODECITY_URL="$URL" node scripts/demo-gif.mjs
+
 # ── Onboarding ───────────────────────────────────────────────────
 # One-shot bootstrap for a fresh clone or new worktree: installs app
 # node_modules (so local vitest / IDE intellisense work — runtime

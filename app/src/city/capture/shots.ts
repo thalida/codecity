@@ -13,6 +13,14 @@ import type { SceneHandle } from '@/state/stores/scene';
 import { NodeKind, type Manifest, type DirNode } from '@/types';
 import { CAMERA } from '@/state/stores/settings/camera';
 
+declare global {
+  interface Window {
+    /** Debug/capture only: the `orbit` shot installs this so demo-gif.mjs can
+     *  step the camera around the city one frame at a time. */
+    __ccOrbit?: (azimuth: number) => void;
+  }
+}
+
 /** Set the default-view angle (degrees); the rig re-frames the whole city to
  *  it. Elevation is height above the horizon, azimuth the swing around the gem. */
 function angle(elevation: number, azimuth: number): void {
@@ -151,6 +159,23 @@ export const SHOTS: Record<string, ShotPose> = {
       elevation: o.elev ?? 46,
       azimuth: o.az ?? 20,
     });
+  },
+
+  // Demo gif: expose a deterministic per-frame orbit that the gif script drives
+  // (app/scripts/demo-gif.mjs) so the rotation is smooth and controllable rather
+  // than timing-dependent. Each call frames the whole city from `azimuth`.
+  // Tuning: ?elev = view angle, ?dist = distance (world units).
+  orbit: (h, _m, o) => {
+    const a = h.rig.captureAnchors();
+    const target = a.gem ?? a.center;
+    if (!target) return false;
+    const anchor = target.clone();
+    const elevation = o.elev ?? 30;
+    const distance = o.dist ?? a.cityRadius * 0.95;
+    window.__ccOrbit = (azimuth: number) => {
+      h.rig.captureView({ target: anchor.clone(), distance, elevation, azimuth });
+    };
+    window.__ccOrbit(o.az ?? -180);
   },
 
   // trees + fireflies are captured against a bigger, multi-author repo (see
