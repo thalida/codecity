@@ -165,8 +165,8 @@ export const SHOTS: Record<string, ShotPose> = {
     // the tree's canopy) so the forest fills the foreground with the city behind.
     h.rig.captureView({
       target: tree.pos,
-      distance: o.dist ?? a.cityRadius * 0.2,
-      elevation: o.elev ?? 18,
+      distance: o.dist ?? a.cityRadius * 0.16,
+      elevation: o.elev ?? 9,
       azimuth: o.az ?? 30,
     });
   },
