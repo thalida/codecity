@@ -177,9 +177,16 @@ Open Settings from the gear in the left sidebar. It has three tabs.
 - **Fireflies**: visibility, scale range, motion, orbit ring
 - **Effects**: bloom, selection outline, and level-of-detail thresholds
 
-**Live updates** is off by default. Turn it on to re-render the city when files change on disk; the poll interval is configurable (1 to 60 s).
+**Live updates** keep the city in sync when files change on disk (off by default).
 
-**Appearance** sets the interface accent color (Amber, Green, Cyan, Blue, Purple, Pink) and surface palette (Cool, Neutral, Green, Warm), plus the file-preview syntax theme.
+- **Enabled**: the on/off toggle
+- **Poll interval**: how often to check for changes (1 to 60 s)
+
+**Appearance** themes the interface.
+
+- **Accent**: highlight color (Amber, Green, Cyan, Blue, Purple, Pink)
+- **Surface**: background palette (Cool, Neutral, Green, Warm)
+- **Syntax theme**: highlighting in the file preview
 
 ## How it works
 
