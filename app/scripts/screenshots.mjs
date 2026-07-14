@@ -3,10 +3,11 @@
 //
 // Run it via `just screenshots` (which needs `just dev` up in another
 // terminal). It drives the debug-gated ?shot= capture harness
-// (app/src/city/capture): for each shot it opens the app pointed at
-// github.com/thalida/codecity, waits for the harness to pose the camera and
-// mark the frame ready, then screenshots the <canvas> (the 3D view only, no
-// UI chrome). The animated demo.gif is NOT covered here — capture it by hand.
+// (app/src/city/capture): for each shot it opens the app pointed at that
+// shot's repo (codecity, or a bigger multi-author repo for the forest shots),
+// waits for the harness to pose the camera and mark the frame ready, then
+// screenshots the <canvas> (the 3D view only, no UI chrome). The animated
+// demo.gif is NOT covered here — capture it by hand.
 //
 // Lives under app/ so `playwright` resolves from app/node_modules.
 
@@ -23,15 +24,20 @@ const BASE_URL = (process.env.CODECITY_URL || 'http://localhost:8080').replace(/
 const SRC = 'https://github.com/thalida/codecity';
 const BRANCH = 'main';
 
+// The forest + firefly shots need a big, multi-author repo to look like the
+// feature they demo (codecity itself is too sparse: few commits, one author).
+const FOREST = { src: 'https://github.com/fastapi/fastapi', branch: 'master' };
+
 // name = the ?shot= pose in app/src/city/capture/shots.ts; file = output PNG.
 // Viewport is CSS px; a 2x device scale factor gives retina-crisp captures.
+// src/branch default to codecity (SRC/BRANCH) unless a shot overrides them.
 const SHOTS = [
   { name: 'banner', file: 'banner.png', width: 1600, height: 560 },
   { name: 'overview', file: 'overview.png', width: 1280, height: 860 },
   { name: 'buildings', file: 'buildings.png', width: 1040, height: 860 },
   { name: 'streets', file: 'streets.png', width: 1040, height: 860 },
-  { name: 'trees', file: 'trees.png', width: 1280, height: 860 },
-  { name: 'fireflies', file: 'fireflies.png', width: 1040, height: 860 },
+  { name: 'trees', file: 'trees.png', width: 1280, height: 860, ...FOREST },
+  { name: 'fireflies', file: 'fireflies.png', width: 1040, height: 860, ...FOREST },
   { name: 'gem', file: 'gem.png', width: 1040, height: 860 },
 ];
 
@@ -51,8 +57,8 @@ try {
     });
     const page = await context.newPage();
     const params = new URLSearchParams({
-      src: SRC,
-      branch: BRANCH,
+      src: shot.src ?? SRC,
+      branch: shot.branch ?? BRANCH,
       shot: shot.name,
       debug: '1',
     });

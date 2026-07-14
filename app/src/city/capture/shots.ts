@@ -88,16 +88,36 @@ export const SHOTS: Record<string, ShotPose> = {
     });
   },
 
-  // trees + fireflies are data-limited on the codecity repo (few commits, one
-  // main author), so these stay whole-city framings until they point at a
-  // bigger, multi-author repo. See app/scripts/screenshots.mjs.
+  // trees + fireflies are captured against a bigger, multi-author repo (see
+  // app/scripts/screenshots.mjs); codecity itself is too sparse to show either.
+  // Wide, low pull-back so the forest ringing the city fills the frame.
   trees: (h, _m, o) => {
-    angle(o.elev ?? 24, o.az ?? 128);
-    h.rig.reset();
+    const a = h.rig.captureAnchors();
+    if (!a.center) {
+      h.rig.reset();
+      return;
+    }
+    h.rig.captureView({
+      target: a.center,
+      distance: o.dist ?? a.cityRadius * 1.7,
+      elevation: o.elev ?? 20,
+      azimuth: o.az ?? 130,
+    });
   },
-  fireflies: (h, _m, o) => {
-    angle(o.elev ?? 20, o.az ?? 150);
-    h.rig.reset();
+  // Close on a busy commit's tree so its authors' fireflies are visible.
+  fireflies: (h, m, o) => {
+    const sha = m.stats.maxFilesPerCommit?.sha;
+    const tree = sha ? h.rig.treeAnchor(sha) : null;
+    if (!tree) {
+      h.rig.reset();
+      return;
+    }
+    h.rig.captureView({
+      target: tree.pos,
+      distance: o.dist ?? Math.max(tree.radius * 6, 40),
+      elevation: o.elev ?? 22,
+      azimuth: o.az ?? 30,
+    });
   },
 };
 

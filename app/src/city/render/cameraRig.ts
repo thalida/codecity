@@ -557,6 +557,14 @@ export function createCameraRig({
     };
   }
 
+  /** Debug/capture only: world position + size of the tree for commit `sha`,
+   *  or null if it isn't placed (for the fireflies close-up). */
+  function treeAnchor(sha: string): { pos: THREE.Vector3; radius: number; height: number } | null {
+    const b = deps.getTreeBoundsBySha(sha);
+    if (!b) return null;
+    return { pos: new THREE.Vector3(b.x, b.height * 0.5, b.z), radius: b.radius, height: b.height };
+  }
+
   /** Single entry-point for "focus the camera on whatever is selected".
    *  Dispatches to focusBuilding / focusStreet / focusTree based on the
    *  PickTarget kind. Lives on the scene side so view code doesn't have
@@ -586,6 +594,7 @@ export function createCameraRig({
     focusSelection,
     captureView,
     captureAnchors,
+    treeAnchor,
     dispose,
   };
 }
