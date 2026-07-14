@@ -163,8 +163,8 @@ export const SHOTS: Record<string, ShotPose> = {
     }
     h.rig.captureView({
       target: tree.pos,
-      distance: o.dist ?? Math.max(tree.radius * 4, 60),
-      elevation: o.elev ?? 14,
+      distance: o.dist ?? Math.max(tree.radius * 3, 45),
+      elevation: o.elev ?? 12,
       azimuth: o.az ?? 30,
     });
   },
