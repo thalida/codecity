@@ -109,20 +109,20 @@ Use multiple `-v` flags for multiple directories. codecity only renders git work
 
 <img src=".github/readme/gem.png" alt="The glowing pink gem floating above the root street, lighting the buildings around it" width="600" />
 
-Floats above the root street's origin-end cap. Size scales with the root street's width. Click it (or press `R`) to clear your selection and reset the camera.
+Floats above the root street's origin-end cap. Size scales with the root street's width. Click it (or press `R`) to clear the selection and reset the view.
 
 ## Info pane
 
-Open the info panel from the left sidebar to read the city two ways:
+The info panel in the left sidebar reads the city two ways:
 
-- **Overview**: a travel guide of repo stats and superlatives, from the city's age and its building, street, and file counts to the language breakdown and per-layer highlights (tallest building, busiest commit day, top contributor). Click any highlight to fly the camera straight to it
-- **Legend**: a key to every shape and color, plus two reading cues: the root gem, and how hovering a building fades the unrelated ones
+- **Overview**: repo stats and superlatives (age, file/street/building counts, language breakdown, tallest building, busiest commit day, top contributor)
+- **Legend**: what each city model means and how it's rendered from the repo, plus the root-gem and hover-fade cues
 
 ## Scanning
 
-codecity reads only **git-tracked** files (`git ls-files`), so gitignored and untracked paths never show up. For each file it records the git dates (created and last-modified); for each commit, the files changed, the authors, and the date. Those are what the buildings, trees, and fireflies above are built from.
+codecity reads only **git-tracked** files (`git ls-files`); gitignored and untracked paths are skipped. For each file it records the git dates (created + last-modified); for each commit, the files changed, authors, and date. That's what feeds the visuals above.
 
-Remote repos are cloned into the cache the first time you open them (just the current files, not every past version) and refreshed on later visits. Local repos are read in place.
+Remote repos are cloned to the cache on first open (current files only) and refreshed on later visits; local repos are read in place.
 
 Some directories and files are always skipped, even when tracked:
 
@@ -175,7 +175,7 @@ tests/fixtures/large-repo
 - **Fireflies**: visibility, scale range, motion, orbit ring
 - **Effects**: bloom, selection outline, and level-of-detail thresholds
 
-**Live updates** keep the city in sync when files change on disk (off by default).
+**Live updates** re-render the city when files change on disk (off by default).
 
 - **Enabled**: the on/off toggle
 - **Poll interval**: how often to check for changes (1 to 60 s)
@@ -188,12 +188,12 @@ tests/fixtures/large-repo
 
 ## How it works
 
-1. **Clone or read.** Remote repos are cloned into a local cache (just the current file tree, not every file's full history); local folders are read in place.
-2. **Scan.** It lists the git-tracked files with `git ls-files`, then walks the commit history once to collect each file's dates and each commit's details: how many files it touched, when, and who wrote it (co-authors included).
-3. **Stream.** All of that is packed into a single manifest and streamed to the browser as it's computed, so a rough city appears almost immediately and sharpens as the scan finishes.
-4. **Lay out.** In the browser, an off-main-thread pass packs the streets so nothing overlaps: each directory becomes a street, its files line up as buildings, and subdirectories branch off at right angles.
-5. **Size and plant.** Each building is sized from its file (height from line count, footprint from byte size), one tree is planted per commit with the oldest closest to the gem, and a firefly for every author.
-6. **Render.** It all gets drawn with WebGL.
+1. **Clone or read.** Remote repos clone into a local cache (current tree only); local folders are read in place.
+2. **Scan.** `git ls-files` for the tracked files, then one pass over the commit history for each file's dates and each commit's files, authors, and date.
+3. **Stream.** Packed into one manifest and streamed to the browser as it's computed: a skeleton city renders first as a placeholder, then fills in with the full scan.
+4. **Lay out.** An off-main-thread pass packs the streets so nothing overlaps: directories become streets, files line up as buildings, subdirectories branch off at right angles.
+5. **Build.** Each building is sized from its file (height = lines, footprint = bytes), one tree per commit (oldest nearest the gem), a firefly per author.
+6. **Render.** Drawn with three.js (WebGL).
 
 ## Development
 
