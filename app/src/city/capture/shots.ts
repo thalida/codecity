@@ -26,8 +26,10 @@ export interface ShotOverrides {
   dist?: number;
 }
 
-/** Pose the camera for one named shot. */
-export type ShotPose = (handle: SceneHandle, manifest: Manifest, o: ShotOverrides) => void;
+/** Pose the camera for one named shot. Return `false` when the shot's target
+ *  isn't ready yet (e.g. trees still placing) so the harness retries; any other
+ *  return (void/true) means posed. */
+export type ShotPose = (handle: SceneHandle, manifest: Manifest, o: ShotOverrides) => boolean | void;
 
 /** An actually-placed tree's bounds, or null if none are placed yet.
  *  treeAnchor(sha) is null for commits the layout didn't place a tree for, so a
@@ -152,16 +154,11 @@ export const SHOTS: Record<string, ShotPose> = {
   // trees: wide forest immersion (dense trees fill the foreground, city behind);
   // fireflies: tighter on a busy tree so the author orbs read.
   trees: (h, m, o) => {
-    const a = h.rig.captureAnchors();
     const tree = placedTree(h, m);
-    const target = tree?.pos ?? a.center;
-    if (!target) {
-      h.rig.reset();
-      return;
-    }
+    if (!tree) return false; // trees not placed yet: retry
     h.rig.captureView({
-      target,
-      distance: o.dist ?? (tree ? tree.radius * 6 : a.cityRadius * 0.5),
+      target: tree.pos,
+      distance: o.dist ?? tree.radius * 6,
       elevation: o.elev ?? 20,
       azimuth: o.az ?? 30,
     });
@@ -172,10 +169,7 @@ export const SHOTS: Record<string, ShotPose> = {
       ? `{radius:${tree.radius.toFixed(1)},height:${tree.height.toFixed(1)}}`
       : 'null';
     console.log(`[capture] fireflies: commits=${m.commits.length} tree=${treeDesc}`);
-    if (!tree) {
-      h.rig.reset();
-      return;
-    }
+    if (!tree) return false; // trees not placed yet: retry
     // Fit the tree's bounding sphere to the view (same math as the rig's
     // focusTree) at a low angle, so the single tree fills the frame.
     const span = tree.radius * 2;

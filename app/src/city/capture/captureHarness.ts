@@ -17,6 +17,10 @@ import { SHOTS, type ShotOverrides } from './shots';
 
 // Camera tween + bloom ramp + ad-panel texture fades all settle well under this.
 const SETTLE_MS = 2200;
+// Retry a not-yet-ready shot (e.g. trees still placing) this often, up to a cap
+// (~12s) that covers a big repo's tree placement.
+const POSE_RETRY_MS = 400;
+const MAX_POSE_ATTEMPTS = 30;
 
 export function initCaptureHarness(): void {
   const params = new URLSearchParams(window.location.search);
@@ -54,18 +58,28 @@ export function initCaptureHarness(): void {
 
     // Pose OUTSIDE the effect's tracking scope: it writes CAMERA (a signal) and
     // starts a rig tween, and a signal write inside the sync scope would cycle.
+    // Retry: a shot returns false when its target isn't ready yet (e.g. trees
+    // still placing on a big repo), so poll until it lands or we give up.
     queueMicrotask(() => {
       stop();
-      try {
-        pose(h, manifest, overrides);
-      } catch (err) {
-        // Signal ready anyway so the capture doesn't hang; the shot will just
-        // show the default view and the error is logged for debugging.
-        console.error(`[capture] shot "${shot}" pose failed`, err);
-      }
-      window.setTimeout(() => {
-        document.documentElement.dataset.ccCaptureReady = '1';
-      }, SETTLE_MS);
+      let attempts = 0;
+      const tryPose = () => {
+        let ready = true;
+        try {
+          ready = pose(h, MANIFEST.peek() as Manifest, overrides) !== false;
+        } catch (err) {
+          console.error(`[capture] shot "${shot}" pose failed`, err);
+        }
+        attempts += 1;
+        if (ready || attempts >= MAX_POSE_ATTEMPTS) {
+          window.setTimeout(() => {
+            document.documentElement.dataset.ccCaptureReady = '1';
+          }, SETTLE_MS);
+        } else {
+          window.setTimeout(tryPose, POSE_RETRY_MS);
+        }
+      };
+      tryPose();
     });
   });
 }
