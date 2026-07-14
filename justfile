@@ -134,6 +134,18 @@ build-multiarch:
         --build-arg VERSION=0.0.0+g$(git rev-parse --short HEAD) \
         -t codecity:local .
 
+# ── Screenshots ──────────────────────────────────────────────────
+# Regenerate the README screenshots in .github/readme/ from a headless capture
+# of codecity rendering its own repo (github.com/thalida/codecity), via the
+# debug-gated ?shot= capture harness (app/src/city/capture). Needs `just dev`
+# running in another terminal; reads its URL from `just url`. Installs the
+# Playwright Chromium build on first run. The animated demo.gif is not automated.
+screenshots:
+    @URL=$(just url) ; \
+     echo "[codecity] capturing README screenshots from $URL" ; \
+     cd app && npx playwright install chromium && \
+     CODECITY_URL="$URL" node ../scripts/screenshots.mjs
+
 # ── Onboarding ───────────────────────────────────────────────────
 # One-shot bootstrap for a fresh clone or new worktree: installs app
 # node_modules (so local vitest / IDE intellisense work — runtime
