@@ -30,19 +30,20 @@ export interface ShotOverrides {
 export type ShotPose = (handle: SceneHandle, manifest: Manifest, o: ShotOverrides) => void;
 
 export const SHOTS: Record<string, ShotPose> = {
-  // Low side-on skyline, pulled in on the gem/label so the repo name reads.
+  // Low side-on skyline. Centered on the city (not the gem, which sits at the
+  // edge and leaves dead space) and pulled in close so the repo label reads.
   banner: (h, _m, o) => {
     const a = h.rig.captureAnchors();
-    const target = a.gem ?? a.center;
+    const target = a.center ?? a.gem;
     if (!target) {
       h.rig.reset();
       return;
     }
     h.rig.captureView({
       target,
-      distance: o.dist ?? a.cityRadius * 1.5,
+      distance: o.dist ?? a.cityRadius * 0.75,
       elevation: o.elev ?? 9,
-      azimuth: o.az ?? 18,
+      azimuth: o.az ?? 12,
     });
   },
   // Whole-city framing: the rig fits the entire city to the chosen angle.
