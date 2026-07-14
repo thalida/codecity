@@ -80,9 +80,9 @@ try {
 
     process.stdout.write(`[screenshots] ${shot.name} … `);
     await page.goto(url, { waitUntil: 'domcontentloaded' });
-    // First run clones + scans the repo, so allow generous time; cache is warm
-    // on later runs.
-    await page.waitForSelector(READY, { timeout: 180_000 });
+    // First run clones + scans the repo (a big repo's git-log walk is slow), so
+    // allow generous time; cache is warm on later runs.
+    await page.waitForSelector(READY, { timeout: 360_000 });
     await page.locator('canvas#city').screenshot({ path: join(OUT_DIR, shot.file) });
     console.log(`→ .github/readme/${shot.file}`);
 

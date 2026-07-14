@@ -56,7 +56,13 @@ export function initCaptureHarness(): void {
     // starts a rig tween, and a signal write inside the sync scope would cycle.
     queueMicrotask(() => {
       stop();
-      pose(h, manifest, overrides);
+      try {
+        pose(h, manifest, overrides);
+      } catch (err) {
+        // Signal ready anyway so the capture doesn't hang; the shot will just
+        // show the default view and the error is logged for debugging.
+        console.error(`[capture] shot "${shot}" pose failed`, err);
+      }
       window.setTimeout(() => {
         document.documentElement.dataset.ccCaptureReady = '1';
       }, SETTLE_MS);
