@@ -533,7 +533,6 @@ export function createCameraRig({
     }
     distance = Math.max(distance ?? controls.minDistance, controls.minDistance);
     if (opts.fitRadius != null) {
-      // eslint-disable-next-line no-console
       console.log(
         `[capture] captureView fit: distance=${distance.toFixed(1)} fitRadius=${opts.fitRadius.toFixed(1)} fov=${camera.fov} aspect=${camera.aspect.toFixed(2)} minDist=${controls.minDistance}`
       );
