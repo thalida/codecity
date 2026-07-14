@@ -537,6 +537,7 @@ export function createCameraRig({
     center: THREE.Vector3 | null;
     tallestHeight: number;
     cityRadius: number;
+    rootStreetWidth: number;
   } {
     const gem = cityState.gemWorldPos.value;
     const tb = cityState.tallestBuilding.value;
@@ -554,6 +555,7 @@ export function createCameraRig({
       center,
       tallestHeight: tb ? tb.h : 0,
       cityRadius,
+      rootStreetWidth: cityState.rootStreet.value?.width ?? 0,
     };
   }
 

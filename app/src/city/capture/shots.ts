@@ -80,31 +80,36 @@ export const SHOTS: Record<string, ShotPose> = {
       h.rig.reset();
       return;
     }
+    // Close and looking down at the floating gem (its size scales with the root
+    // street width, so distance does too).
     h.rig.captureView({
       target: a.gem.clone(),
-      distance: o.dist ?? Math.max(a.tallestHeight * 0.25, 30),
-      elevation: o.elev ?? 20,
-      azimuth: o.az ?? 12,
+      distance: o.dist ?? Math.max(a.rootStreetWidth * 3, 30),
+      elevation: o.elev ?? 32,
+      azimuth: o.az ?? 15,
     });
   },
 
   // trees + fireflies are captured against a bigger, multi-author repo (see
   // app/scripts/screenshots.mjs); codecity itself is too sparse to show either.
-  // Wide, low pull-back so the forest ringing the city fills the frame.
-  trees: (h, _m, o) => {
+  // trees: low and immersive, dense forest fills the foreground with the city
+  // behind it; fireflies: tighter on a busy tree so the author orbs read.
+  trees: (h, m, o) => {
     const a = h.rig.captureAnchors();
-    if (!a.center) {
+    const sha = m.stats.maxFilesPerCommit?.sha;
+    const tree = sha ? h.rig.treeAnchor(sha) : null;
+    const target = tree?.pos ?? a.center;
+    if (!target) {
       h.rig.reset();
       return;
     }
     h.rig.captureView({
-      target: a.center,
-      distance: o.dist ?? a.cityRadius * 1.7,
+      target,
+      distance: o.dist ?? (tree ? tree.radius * 6 : a.cityRadius * 0.5),
       elevation: o.elev ?? 20,
-      azimuth: o.az ?? 130,
+      azimuth: o.az ?? 30,
     });
   },
-  // Close on a busy commit's tree so its authors' fireflies are visible.
   fireflies: (h, m, o) => {
     const sha = m.stats.maxFilesPerCommit?.sha;
     const tree = sha ? h.rig.treeAnchor(sha) : null;
@@ -114,8 +119,8 @@ export const SHOTS: Record<string, ShotPose> = {
     }
     h.rig.captureView({
       target: tree.pos,
-      distance: o.dist ?? Math.max(tree.radius * 6, 40),
-      elevation: o.elev ?? 22,
+      distance: o.dist ?? Math.max(tree.radius * 3, 24),
+      elevation: o.elev ?? 14,
       azimuth: o.az ?? 30,
     });
   },
