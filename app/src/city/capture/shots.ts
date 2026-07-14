@@ -169,10 +169,6 @@ export const SHOTS: Record<string, ShotPose> = {
   },
   fireflies: (h, m, o) => {
     const tree = placedTree(h, m);
-    const treeDesc = tree
-      ? `{radius:${tree.radius.toFixed(1)},height:${tree.height.toFixed(1)}}`
-      : 'null';
-    console.log(`[capture] fireflies: commits=${m.commits.length} tree=${treeDesc}`);
     if (!tree) return false; // trees not placed yet: retry
     // Fit the tree's bounding sphere to the view (same math as the rig's
     // focusTree) at a low angle, so the single tree fills the frame.

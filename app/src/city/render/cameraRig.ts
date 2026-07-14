@@ -532,11 +532,6 @@ export function createCameraRig({
       distance = (opts.fitRadius / Math.sin(halfFov)) * (opts.padding ?? 1);
     }
     distance = Math.max(distance ?? controls.minDistance, controls.minDistance);
-    if (opts.fitRadius != null) {
-      console.log(
-        `[capture] captureView fit: distance=${distance.toFixed(1)} fitRadius=${opts.fitRadius.toFixed(1)} fov=${camera.fov} aspect=${camera.aspect.toFixed(2)} minDist=${controls.minDistance}`
-      );
-    }
     const dir = computeFramingDir(
       opts.elevation,
       opts.azimuth,

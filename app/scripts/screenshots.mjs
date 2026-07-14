@@ -70,7 +70,10 @@ try {
       deviceScaleFactor: 2,
     });
     const page = await context.newPage();
-    page.on('console', (msg) => console.log(`\n  [page] ${msg.text()}`));
+    // Surface real page errors (e.g. a failed pose), not the vite/GL noise.
+    page.on('console', (msg) => {
+      if (msg.type() === 'error') console.log(`\n  [page:error] ${msg.text()}`);
+    });
     page.on('pageerror', (err) => console.log(`\n  [page:error] ${err.message}`));
     const params = new URLSearchParams({
       src: shot.src ?? SRC,
