@@ -26,7 +26,11 @@ docker run --rm --init --pull=always \
     ghcr.io/thalida/codecity
 ```
 
-Open <http://localhost:8080/>. codecity opens to a Projects page: paste a repo URL, pick a branch, and it builds the city. Recent projects are saved, and the chip in the header switches between them.
+Open <http://localhost:8080/> to reach the Projects page:
+
+- Paste a repo URL and pick a branch to build the city
+- Recent projects are saved for one-click reload
+- The chip in the header switches between projects
 
 Tips:
 
@@ -47,7 +51,10 @@ docker run --rm --init --pull=always \
     ghcr.io/thalida/codecity
 ```
 
-Use multiple `-v` flags for multiple directories. codecity only renders git working trees: `git init` first if you want to render a non-git directory.
+Tips:
+
+- Use multiple `-v` flags to mount more than one directory
+- codecity only renders git working trees: `git init` first to render a non-git directory
 
 ## Controls
 
