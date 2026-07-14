@@ -161,13 +161,15 @@ export const SHOTS: Record<string, ShotPose> = {
       h.rig.reset();
       return;
     }
-    // Really tight on one tree: aim a bit below the canopy center and keep the
-    // angle low so the whole tree (trunk + canopy + orbs) frames, not a green wall.
+    // Really tight on one tree. Frame by the tree's HEIGHT, not its canopy
+    // radius: canopy width scales with files-changed, and the busy commit we
+    // target has a huge one, which made radius-based distance zoom way out. Aim
+    // a bit below center and keep the angle low so the whole tree frames.
     tree.pos.y = tree.height * 0.4;
     h.rig.captureView({
       target: tree.pos,
-      distance: o.dist ?? Math.max(tree.radius * 2, 32),
-      elevation: o.elev ?? 10,
+      distance: o.dist ?? Math.max(tree.height * 1.4, 24),
+      elevation: o.elev ?? 8,
       azimuth: o.az ?? 30,
     });
   },
