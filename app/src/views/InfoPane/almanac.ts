@@ -5,11 +5,10 @@
 // to fly the camera there.
 
 import { NodeKind } from '@/types';
-import type { Manifest, DirNode, RepoInfo, FileLeader, DirLeader, CommitLeader } from '@/types';
+import type { Manifest, DirNode, FileLeader, DirLeader, CommitLeader } from '@/types';
 import { formatShortDate, humanSpan } from '@/utils/dates';
 import { formatBytes } from '@/utils/bytes';
 import { formatCount, pluralize } from '@/utils/format';
-import { languageLabelForExt } from '@/utils/syntaxLanguages';
 
 export type LandmarkKind = NodeKind.File | NodeKind.Directory | NodeKind.Commit;
 
@@ -52,44 +51,9 @@ export interface AlmanacSection {
   note?: string;
 }
 
-export interface LanguageStat {
-  ext: string | null;
-  count: number;
-}
-
-export interface AlmanacOverview {
-  name: string;
-  /** Founding date as a short calendar string ("Mar 23, 2024"), or null. */
-  founded: string | null;
-  /** Raw founding timestamp (earliest file creation) — lets the view derive a
-   *  live "N-year-old" age against the current clock. Null when undated. */
-  foundedISO: string | null;
-  /** Newest commit date — the "Latest" row's relative-age anchor. Null when
-   *  there are no commits. */
-  latestDate: string | null;
-  /** Friendly name of the dominant language ("TypeScript"), for the flavor
-   *  blurb. Null when the top file type has no nameable language (extensionless
-   *  or unrecognized). */
-  topLanguage: string | null;
-  /** Building count for the blurb — non-media files, matching the Buildings
-   *  section (media render as billboards, not buildings). */
-  buildings: number;
-  totals: { files: number; dirs: number; commits: number; authors: number };
-  repo: RepoInfo;
-  languages: LanguageStat[];
-  /** File types beyond the shown top languages, and the files they cover —
-   *  surfaced as a trailing "+N more" so the chip list accounts for the whole
-   *  repo, not just the top few. Both 0 when nothing is truncated. */
-  moreLanguages: number;
-  moreLanguageFiles: number;
-}
-
 export interface Almanac {
-  overview: AlmanacOverview;
   sections: AlmanacSection[];
 }
-
-const MAX_LANGUAGES = 6;
 
 export interface LayerCue {
   /** The visual property, e.g. "Height". */
@@ -277,33 +241,6 @@ function compact(facts: (AlmanacFact | null)[]): AlmanacFact[] {
  *  rendering NaN. */
 function perEach(total: number, n: number): number | null {
   return n > 0 && Number.isFinite(total) ? Math.round(total / n) : null;
-}
-
-function buildOverview(m: Manifest): AlmanacOverview {
-  const root = m.tree;
-  const exts = root.descendants_ext_breakdown; // sorted by count desc on the backend
-  const rest = exts.slice(MAX_LANGUAGES);
-  return {
-    // The server bakes the friendly "owner/repo" (or folder basename) into
-    // tree.name; the full remote URL still appears, clickable, in the meta list.
-    name: root.name || 'this project',
-    founded: m.dateRanges.minCreated ? formatShortDate(m.dateRanges.minCreated) : null,
-    foundedISO: m.dateRanges.minCreated ?? null,
-    latestDate: m.stats.commitDates.newest ?? null,
-    // Dominant file type → a nameable language for the flavor blurb.
-    topLanguage: exts.length ? languageLabelForExt(exts[0].ext) : null,
-    buildings: Math.max(0, root.descendants_file_count - m.stats.mediaCount),
-    totals: {
-      files: root.descendants_file_count,
-      dirs: root.descendants_dir_count,
-      commits: m.commits.length,
-      authors: m.stats.authors.length,
-    },
-    repo: m.repo,
-    languages: exts.slice(0, MAX_LANGUAGES).map((e) => ({ ext: e.ext, count: e.count })),
-    moreLanguages: rest.length,
-    moreLanguageFiles: rest.reduce((sum, e) => sum + e.count, 0),
-  };
 }
 
 function buildingsSection(m: Manifest): AlmanacSection {
@@ -619,5 +556,5 @@ export function computeAlmanac(
     forestSection(m, treesEnabled),
     firefliesSection(m),
   ];
-  return { overview: buildOverview(m), sections };
+  return { sections };
 }

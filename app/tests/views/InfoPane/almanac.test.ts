@@ -62,7 +62,7 @@ function manifest(tree: DirNode, overrides: Partial<Manifest> = {}): Manifest {
   };
 }
 
-describe('computeAlmanac — overview + buildings', () => {
+describe('computeAlmanac — buildings + media', () => {
   const tree = dir('repo', '', [
     file({
       name: 'old.ts',
@@ -129,57 +129,6 @@ describe('computeAlmanac — overview + buildings', () => {
   it('returns null for null manifest', () => {
     expect(computeAlmanac(null)).toBeNull();
   });
-  it('overview totals come from the root node', () => {
-    expect(a!.overview.totals.files).toBe(3);
-    expect(a!.overview.totals.dirs).toBe(0);
-  });
-  it('overview name + branch', () => {
-    expect(a!.overview.name).toBe('repo');
-    expect(a!.overview.repo.branch).toBe('main');
-  });
-  it('languages come from root ext breakdown', () => {
-    expect(a!.overview.languages[0]).toEqual({ ext: '.ts', count: 3 });
-  });
-  it('exposes founding timestamp + dominant language for the flavor blurb', () => {
-    expect(a!.overview.foundedISO).toBe('2020-01-01T00:00:00Z');
-    expect(a!.overview.topLanguage).toBe('TypeScript');
-  });
-  it('buildings count excludes media (matches the Buildings section)', () => {
-    expect(a!.overview.buildings).toBe(3); // 3 files, no media
-    const withMedia = computeAlmanac(
-      manifest(tree, { stats: { ...buildingsStats, mediaCount: 1 } })
-    )!;
-    expect(withMedia.overview.buildings).toBe(2); // 3 files − 1 billboard
-  });
-  it('latestDate is the newest commit date (null when no commits)', () => {
-    expect(a!.overview.latestDate).toBeNull();
-    const withDates = computeAlmanac(
-      manifest(tree, {
-        stats: { ...buildingsStats, commitDates: { oldest: '2020-01-01', newest: '2023-09-12' } },
-      })
-    )!;
-    expect(withDates.overview.latestDate).toBe('2023-09-12');
-  });
-  it('topLanguage is null when the dominant file type has no nameable language', () => {
-    const t = {
-      ...dir('repo', '', []),
-      descendants_ext_breakdown: [{ ext: null, count: 4, size: 0 }],
-    } as DirNode;
-    expect(computeAlmanac(manifest(t))!.overview.topLanguage).toBeNull();
-  });
-  it('summarizes file types beyond the top languages as "+N more"', () => {
-    const exts = Array.from({ length: 9 }, (_, i) => ({
-      ext: `.t${i}`,
-      count: 90 - i * 5,
-      size: 0,
-    }));
-    const t = { ...dir('repo', '', []), descendants_ext_breakdown: exts } as DirNode;
-    const o = computeAlmanac(manifest(t))!.overview;
-    expect(o.languages).toHaveLength(6); // capped
-    expect(o.moreLanguages).toBe(3); // 9 − 6 remaining types
-    expect(o.moreLanguageFiles).toBe(exts.slice(6).reduce((sum, e) => sum + e.count, 0));
-  });
-
   function fact(key: string, label: string) {
     const section = a!.sections.find((s) => s.key === key)!;
     return section.facts.find((f) => f.label === label)!;
