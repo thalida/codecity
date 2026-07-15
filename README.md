@@ -139,64 +139,28 @@ Always ignored, even when tracked (`!` un-ignores them):
 
 ## Settings
 
-**World** covers how the city looks.
-
-- **Camera**
-  - default view angle (elevation + azimuth)
-  - always looks at the root gem
-- **Scene**
-  - sky color
-  - stars
-- **Island**
-  - silhouette
-  - materials
-- **Buildings**
-  - floor and width ranges
-  - per-extension hue map
-  - palette ranges
-  - facade detail
-  - aging
-  - selection-fade (dims unrelated buildings when one is selected)
-- **Streets**
-  - width tiers
-  - spacing
-  - colors
-  - label typography
-- **City footprint**: the dark paved apron that follows the city's outline
-- **Gem**
-  - sizing
-  - materials
-- **Trees**
-  - visibility
-  - color (commits-per-day)
-  - height (by age)
-  - width (by files changed)
-  - outlines
-- **Fireflies**
-  - visibility
-  - scale range
-  - motion
-  - orbit ring
-- **Effects**
-  - bloom
-  - selection outline
-  - level-of-detail thresholds
-
-**Live updates** re-render the city when files change on disk (off by default).
-
-- **Enabled**: the on/off toggle
-- **Poll interval**: how often to check for changes (min: 1s / max: 60s)
-
-**Appearance** themes the interface.
-
-- **Accent**: highlight color (Amber, Green, Cyan, Blue, Purple, Pink)
-- **Surface**: background palette (Cool, Neutral, Green, Warm)
-- **Syntax theme**: highlighting in the file preview
+| Tab | Section | Tweaks |
+| --- | --- | --- |
+| **World** | Camera | view angle (elevation + azimuth), always aimed at the root gem |
+| | Scene | sky color, stars |
+| | Island | silhouette, materials |
+| | Buildings | floor + width ranges, per-extension hue map, palette ranges, facade detail, aging, selection-fade |
+| | Streets | width tiers, spacing, colors, label typography |
+| | City footprint | the paved apron under the city |
+| | Gem | sizing, materials |
+| | Trees | visibility, color (commits-per-day), height (by age), width (by files), outlines |
+| | Fireflies | visibility, scale range, motion, orbit ring |
+| | Effects | bloom, selection outline, level-of-detail |
+| **Live updates** | Enabled | re-render when files change on disk (off by default) |
+| | Poll interval | how often to check (min 1s / max 60s) |
+| **Appearance** | Accent | highlight color (Amber, Green, Cyan, Blue, Purple, Pink) |
+| | Surface | background palette (Cool, Neutral, Green, Warm) |
+| | Syntax theme | file-preview highlighting |
 
 ## How it works
 
 1. **Clone or read:** Remote repos clone into a local cache (current tree only); local folders are read in place.
-2. **Scan:** codecity reads only git-tracked files (`git ls-files`), honoring `.codecityignore` and the default skips, and records each file's git dates and each commit's files, authors, and date.
+2. **Scan:** codecity reads only git-tracked files (`git ls-files`), honoring `.codecityignore` and the default skips, and records each file's created and last-modified dates plus each commit's files, authors, and date.
 3. **Stream:** Packed into one manifest and streamed to the browser as it's computed: a skeleton city renders first as a placeholder, then fills in with the full scan.
 4. **Layout:** An off-main-thread pass packs the streets so nothing overlaps: directories become streets, files line up as buildings, subdirectories branch off at right angles.
 5. **Build:** Each building is sized from its file (height = lines, footprint = bytes), one tree per commit (oldest nearest the gem), a firefly per author.
@@ -238,7 +202,7 @@ The pre-push hook runs the full lint + tests before pushing; bypass with `git pu
 
 ### Worktrees
 
-- Each worktree gets its own `<slug>.localhost` URL, so source-picker recents stay isolated per project in localStorage
+- Each worktree gets its own `<slug>.localhost` URL, so source-picker recents stay isolated per project in localstorage
 - `just dev` and `just run` take a path arg to mount a local repo (`just dev ~/Documents/Repos/myproj`), which also sets `CODECITY_ALLOW_LOCAL_REPOS=1`; without it, codecity is git-URL-only
 
 ### Backend
