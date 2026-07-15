@@ -6,9 +6,11 @@
   </h1>
 </div>
 
-Turn any git repo into a living 3D city. codecity walks the tree, reads file and git history, and paints an isometric world in your browser: directories become streets, files rise into buildings, every commit grows a tree.
+**codecity turns any git repo into a 3D city.** It walks the file tree and git history and builds a world: directories become streets, files become buildings, every commit grows a tree, and every author a firefly.
 
-<img src=".github/readme/demo.gif" alt="Animated demo of codecity orbiting and exploring a rendered repo" width="800" />
+Try it on any repo (local or remote).
+
+<video src="https://github.com/thalida/codecity/raw/main/.github/readme/demo.mp4" width="800" autoplay loop muted playsinline></video>
 
 ## Requirements
 
@@ -24,17 +26,21 @@ docker run --rm --init --pull=always \
     ghcr.io/thalida/codecity
 ```
 
-Open <http://localhost:8080/> and paste a git URL into the source picker.
+1. Open <http://localhost:8080/> to reach the Projects page
+2. Enter a repo URL and pick a branch
+3. Explore your city!
 
-Tips:
+**Tips**
 
-- `--pull=always` keeps you on the latest image; drop it to pin to your cached copy.
-- Wipe the cache: `docker volume rm codecity-cache`.
-- Port in use? `-p 8081:8080`.
+- `--pull=always` keeps you on the latest image; drop it to pin to your cached copy
+- Wipe the cache: `docker volume rm codecity-cache`
+- Port in use? `-p 8081:8080`
 
-## Local directories
+## Advanced setup
 
-Local-repo support is **disabled by default**. To enable it, set `CODECITY_ALLOW_LOCAL_REPOS=1` *and* mount the directory read-only into the container at the same absolute path:
+### Local directories
+
+Local repo support is **disabled by default**. To enable it, set `CODECITY_ALLOW_LOCAL_REPOS=1` *and* mount the directory read-only into the container at the same absolute path:
 
 ```sh
 docker run --rm --init --pull=always \
@@ -45,76 +51,27 @@ docker run --rm --init --pull=always \
     ghcr.io/thalida/codecity
 ```
 
-Use multiple `-v` flags for multiple directories. codecity only renders git working trees: `git init` first if you want to render a non-git directory.
+- Use multiple `-v` flags to mount more than one directory
+- codecity only renders git working trees: `git init` first to render a non-git directory
 
-## Controls
+### `.codecityignore`
 
-| Input | Action |
-|-------|--------|
-| `R` | Reset the camera view |
-| `F` | Focus camera on the current selection |
-| `Esc` | Clear selection |
-| Click | Select building / street / gem |
-| Double-click | Focus camera on the target |
-| Left drag | Orbit |
-| Right drag | Pan |
-| Middle drag | Dolly (zoom) |
-| Scroll | Zoom toward cursor |
+For per-project ignores, drop a `.codecityignore` at the scan root, one pattern per line:
 
-## What gets rendered
+```gitignore
+# Skip anywhere named "fixtures"
+fixtures
 
-<img src=".github/readme/overview.png" alt="A large repo rendered with the gem, streets, buildings, and fireflies all visible at once" width="800" />
+# Skip a specific path (relative to scan root)
+tests/fixtures/large-repo
 
-### Buildings: one per file
+# Un-ignore a default skip (! prefix overrides ALWAYS_SKIP)
+!package-lock.json
+```
 
-<img src=".github/readme/buildings.png" alt="Skyscrapers close-up showing lit windows, file-extension hues, and the street label below" width="600" />
+#### Skipped by default
 
-- **Height**: line count (sqrt-interp across the floor range).
-- **Width & depth**: byte size (log-interp, square footprint).
-- **Hue**: file extension.
-- **Saturation**: last-modified (recent → vivid).
-- **Lightness**: last-modified (recent → bright).
-- **Windows**: lit-pane density and glow track recency. Newer files glow brighter.
-- **Aging**: older files get grime streaks and a slight lean.
-- **Media files** (images, video) render an ad-panel face on the front above the door.
-
-### Streets: one per directory
-
-<img src=".github/readme/streets.png" alt="Top-down view of the street grid with directory labels painted on the asphalt" width="600" />
-
-- **Width tier**: descendant count (step function).
-- **Length**: packed siblings + spacing.
-- **Label**: directory name painted on the asphalt.
-
-### Trees: one per commit
-
-<img src=".github/readme/trees.png" alt="A repo with thousands of commits rendered as a dense forest overtaking the city" width="600" />
-
-- **Placement**: oldest commit closest to the gem, newest at the edges.
-- **Height**: commit age (older = taller).
-- **Canopy width + facet detail**: files changed in that commit.
-- **Color**: commits-per-day (solo-day vs busy-day color blend).
-- Age desaturation (optional) fades the oldest commits toward gray.
-
-### Fireflies: one orb per author on each commit
-
-<img src=".github/readme/fireflies.png" alt="Close-up of low-poly trees with white firefly orbs drifting between them" width="600" />
-
-- **Color**: per author. Each committer gets their own hue.
-- **Scale**: that author's total commit count.
-- **Co-authored commits**: `Co-authored-by:` trailers parsed out of the commit message — each distinct contributor on a commit gets their own firefly orbiting that tree, in their own color.
-
-### Gem: the root beacon
-
-<img src=".github/readme/gem.png" alt="The glowing pink gem floating above the root street, lighting the buildings around it" width="600" />
-
-Floats above the root street's origin-end cap. Size scales with the root street's width.
-
-## Scanning
-
-codecity scans only **git-tracked** files (`git ls-files`). Gitignored and untracked paths are hidden automatically. Per-file git history (created + most-recent-modify dates) and per-commit metadata (file count, authors, date) feed the visuals above.
-
-Some directories and files are always skipped, even when tracked:
+Always ignored, even when tracked (`!` un-ignores them):
 
 - VCS: `.git`, `.hg`, `.svn`
 - JS: `node_modules`, `package-lock.json`, `yarn.lock`, `pnpm-lock.yaml`, `bun.lock`, `bun.lockb`, `deno.lock`
@@ -131,61 +88,129 @@ Some directories and files are always skipped, even when tracked:
 - IDE / OS: `.idea`, `.vscode`, `.DS_Store`
 - Vendored single-file amalgamations: `sqlite3.c`, `miniz.c`, `lua.c` (one giant `.c` blob inlining a whole library: 100k+ lines that would otherwise render as a single skyscraper distorting every height-based visual)
 
-### `.codecityignore`
+## Reading the city
 
-Drop a `.codecityignore` file at the scan root for per-project ignores. One pattern per line.
+<img src=".github/readme/overview.png" alt="A large repo rendered with the gem, streets, buildings, and fireflies all visible at once" width="800" />
 
-```gitignore
-# Skip anywhere named "fixtures"
-fixtures
+### Buildings: one per file
 
-# Skip a specific path (relative to scan root)
-tests/fixtures/large-repo
+<img src=".github/readme/buildings.png" alt="Skyscrapers close-up showing lit windows, file-extension hues, and the street label below" width="600" />
 
-# Un-ignore a default skip (! prefix overrides ALWAYS_SKIP)
-!package-lock.json
-```
+- **Height**: line count (sqrt-interp across the floor range)
+- **Width & depth**: byte size (log-interp, square footprint)
+- **Hue**: file extension
+- **Saturation**: last-modified (recent → vivid)
+- **Lightness**: last-modified (recent → bright)
+- **Windows**: lit-pane density, plus a glow that tracks how recently the file was created (newer files glow brighter)
+- **Aging**: older files get grime streaks and a slight lean
+- **Media files** (images, video) render an ad-panel face on the front above the door
 
-- No `/` → matches a name anywhere in the tree.
-- Has `/` → anchored to the scan root.
-- `!` prefix un-ignores either form (`!name` or `!path/to/thing`). `!.git` is silently rejected; the object database is never walked.
+### Streets: one per directory
+
+<img src=".github/readme/streets.png" alt="Top-down view of the street grid with directory labels painted on the asphalt" width="600" />
+
+- **Width tier**: descendant count (step function)
+- **Length**: packed siblings + spacing
+- **Label**: directory name painted on the asphalt
+
+### Trees: one per commit
+
+<img src=".github/readme/trees.png" alt="A repo with thousands of commits rendered as a dense forest overtaking the city" width="600" />
+
+- **Placement**: oldest commit closest to the gem, newest at the edges
+- **Height**: commit age (older = taller)
+- **Canopy width**: files changed in that commit
+- **Color**: commits-per-day (solo-day vs busy-day color blend)
+
+### Fireflies: one orb per author on each commit
+
+<img src=".github/readme/fireflies.png" alt="Close-up of low-poly trees with white firefly orbs drifting between them" width="600" />
+
+- **Color**: per author. Each committer gets their own hue
+- **Scale**: that author's total commit count
+- **Co-authored commits**: `Co-authored-by:` trailers parsed out of the commit message. Each distinct contributor on a commit gets their own firefly orbiting that tree, in their own color
+
+### Gem: the root beacon
+
+<img src=".github/readme/gem.png" alt="The glowing pink gem floating above the root street, lighting the buildings around it" width="600" />
+
+- **Root marker**: floats above the root street
+- **Click**: clears the selection and resets the view
 
 ## Settings
 
-Click the gear in the left sidebar to open the Settings pane. Tweaks stage as drafts; click Save to apply.
+| Tab | Section | Tweaks |
+| --- | --- | --- |
+| **World** | Camera | view angle (elevation + azimuth), always aimed at the root gem |
+| | Scene | sky color, stars |
+| | Island | silhouette, materials |
+| | Buildings | floor + width ranges, per-extension hue map, palette ranges, facade detail, aging, selection-fade |
+| | Streets | width tiers, spacing, colors, label typography |
+| | City footprint | the paved apron under the city |
+| | Gem | sizing, materials |
+| | Trees | visibility, color (commits-per-day), height (by age), width (by files), outlines |
+| | Fireflies | visibility, scale range, motion, orbit ring |
+| | Effects | bloom, selection outline, level-of-detail |
+| **Live updates** | Enabled | re-render when files change on disk (off by default) |
+| | Poll interval | how often to check (min 1s / max 60s) |
+| **Appearance** | Accent | highlight color (Amber, Green, Cyan, Blue, Purple, Pink) |
+| | Surface | background palette (Cool, Neutral, Green, Warm) |
+| | Syntax theme | file-preview highlighting |
 
-What you can tune:
+## How it works
 
-- **Live updates**: off by default. Turn on to re-render the city when files change on disk; poll interval is configurable (1–60 s).
-- **Buildings**: floor and width ranges, per-extension hue map, palette ranges, facade detail, aging, and the selection-fade cascade that dims unrelated buildings when one is selected.
-- **Streets**: width tiers, spacing, colors, label typography.
-- **Trees**: density falloff, height/width ranges, color encoding, age desaturation, facet detail.
-- **Fireflies**: visibility, scale range, motion, orbit ring.
-- **Scene**: sky color and stars.
-- **Gem**: sizing and materials.
-- **File preview**: syntax highlight theme.
+1. **Clone or read:** Remote repos clone into a local cache (current tree only); local folders are read in place.
+2. **Scan:** codecity reads only git-tracked files (`git ls-files`), honoring `.codecityignore` and the default skips, and records each file's created and last-modified dates plus each commit's files, authors, and date.
+3. **Stream:** Packed into one manifest and streamed to the browser as it's computed: a skeleton city renders first as a placeholder, then fills in with the full scan.
+4. **Layout:** An off-main-thread pass packs the streets so nothing overlaps: directories become streets, files line up as buildings, subdirectories branch off at right angles.
+5. **Build:** Each building is sized from its file (height = lines, footprint = bytes), one tree per commit (oldest nearest the gem), a firefly per author.
+6. **Render:** Drawn with three.js (WebGL).
 
 ## Development
 
-You need [Docker](https://docs.docker.com/get-docker/), [just](https://github.com/casey/just#installation), and [python3](https://www.python.org/downloads/).
+### Setup
+
+You need:
+
+- [Docker](https://docs.docker.com/get-docker/)
+- [just](https://github.com/casey/just#installation)
+- [python3](https://www.python.org/downloads/)
+- [uv](https://docs.astral.sh/uv/) (for `just fmt` and `just gen-types`)
 
 ```sh
 git clone https://github.com/thalida/codecity.git
 cd codecity
-just install-hooks   # pre-push: lint + prettier + tests
-just dev             # http://<worktree-slug>.localhost:<port>/
-just test            # pytest + vitest in containers
-just build           # build the local image
-just run             # run the local image like an end user
+just install-hooks   # one-time: pre-push hooks (lint + prettier + tests)
 ```
 
-`just dev` and `just run` accept a path arg to mount a local repo: `just dev ~/Documents/Repos/myproj`. The path arg also sets `CODECITY_ALLOW_LOCAL_REPOS=1` for you (see [Local directories](#local-directories)). Without an arg, codecity is git-URL-only.
+The pre-push hook runs the full lint + tests before pushing; bypass with `git push --no-verify` (Docker must be running).
 
-Each worktree gets its own `<slug>.localhost` URL so source-picker recents stay isolated per project in localStorage.
+### Commands
 
-The pre-push hook runs pytest, ruff (Python format), vitest, eslint, prettier, and typecheck before pushing to origin. Bypass with `git push --no-verify` if needed. Docker must be running. Apply Python formatting with `just fmt`.
+| Command | What it does |
+| --- | --- |
+| `just dev` | Vite HMR + API auto-reload at `http://<slug>.localhost:<port>/` |
+| `just test` | pytest + vitest in containers |
+| `just lint` | ruff, eslint, prettier, and typecheck |
+| `just fmt` | apply Python formatting (ruff) |
+| `just gen-types` | regenerate the frontend wire types from the OpenAPI schema |
+| `just build` | build the local Docker image |
+| `just run` | run the local image like an end user |
+| `just screenshots [names]` | regenerate the README screenshots |
+| `just demo-video` | record the README `demo.mp4` |
+| `just clean` | tear down this worktree's containers and volumes |
 
-The backend is a [FastAPI](https://fastapi.tiangolo.com/) app on uvicorn — a single process by design, since the in-memory scan-root trust set (`api/security.py`) can't be split across workers. Scan progress streams over Server-Sent Events (`GET /api/manifest`). Interactive API docs render at `/api/docs` ([Scalar](https://github.com/scalar/scalar)), with the raw schema at `/api/openapi.json` — the source of truth for the generated frontend wire types (`just gen-types`, guarded against drift by `app/src/types/manifest.contract.ts`).
+### Worktrees
+
+- Each worktree gets its own `<slug>.localhost` URL, so source-picker recents stay isolated per project in localstorage
+- `just dev` and `just run` take a path arg to mount a local repo (`just dev ~/Documents/Repos/myproj`), which also sets `CODECITY_ALLOW_LOCAL_REPOS=1`; without it, codecity is git-URL-only
+
+### Backend
+
+- [FastAPI](https://fastapi.tiangolo.com/) on uvicorn, single process by design (the in-memory scan-root trust set in `api/security.py` can't be split across workers)
+- scan progress streams over Server-Sent Events (`GET /api/manifest`)
+- API docs at `/api/docs` ([Scalar](https://github.com/scalar/scalar)); raw schema at `/api/openapi.json`
+- that schema is the source of truth for the generated frontend wire types (`just gen-types`, drift-guarded by `app/src/types/manifest.contract.ts`)
 
 ## Release
 
@@ -193,9 +218,20 @@ The backend is a [FastAPI](https://fastapi.tiangolo.com/) app on uvicorn — a s
 just release v0.2.0
 ```
 
-`just release` verifies you're on a clean `main` in sync with origin, creates an annotated tag, and pushes it. GitHub Actions then builds a multi-arch image (linux/amd64 + linux/arm64), pushes to `ghcr.io/thalida/codecity` with all tag aliases, signs with cosign keyless via OIDC, smoke-tests via `/api/health`, and creates a GitHub Release.
+`just release`:
 
-Verify image signatures:
+- verifies you're on a clean `main` in sync with origin
+- creates an annotated tag and pushes it
+
+Pushing the tag triggers GitHub Actions, which:
+
+- builds a multi-arch image (linux/amd64 + linux/arm64)
+- pushes to `ghcr.io/thalida/codecity` with all tag aliases
+- signs with cosign (keyless via OIDC)
+- smoke-tests via `/api/health`
+- creates a GitHub Release
+
+### Verify signatures
 
 ```sh
 cosign verify \
