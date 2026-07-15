@@ -15,6 +15,8 @@ import { useDialogFocus } from '@/hooks/useDialogFocus';
 
 interface ShortcutItem {
   kbd?: string[];
+  /** Modifier keys held while performing the mouse gesture (rendered as kbd chips). */
+  mod?: string[];
   mouse?: string;
   action: string;
   or?: string;
@@ -31,6 +33,11 @@ const MOUSE_SHORTCUTS: ShortcutItem[] = [
   { mouse: 'Double-click', action: 'Focus camera on the target' },
   { mouse: 'Left drag', action: 'Orbit' },
   { mouse: 'Right drag', action: 'Pan' },
+  {
+    mod: ['⌘', 'Ctrl', 'Shift'],
+    mouse: 'Left drag',
+    action: 'Pan (for trackpads / one-button mice)',
+  },
   { mouse: 'Middle drag', action: 'Dolly (zoom)' },
   { mouse: 'Scroll', action: 'Zoom toward cursor' },
 ];
@@ -52,6 +59,13 @@ function ShortcutsList({ items }: { items: ShortcutItem[] }) {
             </dt>
           ) : (
             <dt key={`dt-${idx}`}>
+              {item.mod?.map((m, k) => (
+                <>
+                  {k > 0 && ' / '}
+                  <kbd key={`mod-${idx}-${k}`}>{m}</kbd>
+                </>
+              ))}
+              {item.mod && ' + '}
               <span class="shortcuts-mouse">{item.mouse}</span>
             </dt>
           );
