@@ -1,8 +1,8 @@
 // views/InfoPane/OverviewPane.tsx — the "Overview" subtab: a travel-guide of
-// repo superlatives derived by computeAlmanac. Each section reads as a legend
-// for one world layer (icon + accent); min↔max facts render as bound duos, and
-// a landmark row is itself the button that flies the camera there. Body-only —
-// InfoPane owns the chrome.
+// repo superlatives derived by computeAlmanac. The pane leads with a one-line
+// descriptor, then a section per world layer (icon + accent); min↔max facts
+// render as bound duos, and a landmark row is itself the button that flies the
+// camera there. Body-only — InfoPane owns the chrome.
 
 import './OverviewPane.css';
 import { useMemo } from 'preact/hooks';
@@ -11,17 +11,10 @@ import { FolderOpen, Focus } from 'lucide-preact';
 import { NodeKind } from '@/types';
 import type { DirNode, Manifest } from '@/types';
 import { PaneEmpty } from '@/components/Pane';
-import { ExtensionBadge } from '@/components/Badge/Badge';
 import { selectPath, focusPath, selectCommit, focusCommit } from '@/state/stores/scene';
 import { TREES } from '@/state/stores/settings/trees';
-import { BUILDINGS } from '@/state/stores/settings/buildings';
-import { extHueColor } from '@/city/components/buildings/color';
-import { humanAge, formatShortDate, formatRelativeAge } from '@/utils/dates';
-import { commitUrl } from '@/utils/commit';
-import { languageLabelForExt } from '@/utils/syntaxLanguages';
-import { formatCount, pluralize } from '@/utils/format';
 import { computeAlmanac } from './almanac';
-import type { AlmanacFact, LandmarkRef, LanguageStat } from './almanac';
+import type { AlmanacFact, LandmarkRef } from './almanac';
 import { SECTION_ICON } from './sectionIcons';
 
 function visit(landmark: LandmarkRef): void {
@@ -117,71 +110,6 @@ function SectionBody({ facts }: { facts: AlmanacFact[] }) {
   );
 }
 
-/** "A"/"An" for an age phrase ("8-year-old" → "An"), keyed on the spoken sound
- *  of its leading number. Vowel-sound starts in the realistic age range: 8, 11,
- *  18, and the eighties. */
-function articleFor(age: string): 'A' | 'An' {
-  const n = parseInt(age, 10);
-  return n === 8 || n === 11 || n === 18 || (n >= 80 && n <= 89) ? 'An' : 'A';
-}
-
-/** A flavor one-liner weaving the city's age, scale, and dominant language into
- *  one sentence ("An 8-year-old city of 312 buildings, mostly Python.") — enough
- *  texture to set the scene, without the per-layer counts (those live in each
- *  section's overview). Each clause drops out when its input is absent; empty
- *  when the repo has nothing to say. */
-export function flavorBlurb(age: string, buildings: number, language: string | null): string {
-  if (!age && !buildings && !language) return '';
-  let s = age ? `${articleFor(age)} ${age} city` : 'A city';
-  if (buildings > 0) s += ` of ${pluralize(buildings, 'building')}`;
-  if (language) s += `, mostly ${language}`;
-  return `${s}.`;
-}
-
-/** GitHub-style stacked composition bar: one segment per top language (width ∝
- *  file count, painted with the same extension→hue the city and the legend chips
- *  use), plus a neutral tail for everything past the top few. The chips below it
- *  read as its legend. */
-function LanguageBar({
-  languages,
-  moreLanguages,
-  moreFiles,
-}: {
-  languages: LanguageStat[];
-  moreLanguages: number;
-  moreFiles: number;
-}) {
-  const palette = BUILDINGS.value.HUE_EXT_MAP;
-  const total = languages.reduce((sum, l) => sum + l.count, 0) + moreFiles;
-  if (total <= 0) return null;
-  const share = (n: number) => `${Math.round((n / total) * 100)}%`;
-  return (
-    <div class="almanac-langbar" aria-hidden="true">
-      {languages.map((l) => {
-        const name = languageLabelForExt(l.ext) ?? 'No extension';
-        return (
-          <span
-            key={l.ext ?? ''}
-            class="almanac-langbar-seg"
-            title={`${name} · ${pluralize(l.count, 'file')} (${share(l.count)})`}
-            style={{
-              width: share(l.count),
-              background: extHueColor(l.ext, palette),
-            }}
-          />
-        );
-      })}
-      {moreFiles > 0 && (
-        <span
-          class="almanac-langbar-seg almanac-langbar-seg--more"
-          title={`${pluralize(moreFiles, 'file')} across ${pluralize(moreLanguages, 'other file type')} (${share(moreFiles)})`}
-          style={{ width: share(moreFiles) }}
-        />
-      )}
-    </div>
-  );
-}
-
 export interface OverviewPaneProps {
   manifest: Signal<Manifest | DirNode | { tree?: unknown; [k: string]: unknown } | null>;
 }
@@ -202,115 +130,11 @@ export function OverviewPane({ manifest }: OverviewPaneProps) {
     );
   }
 
-  const { overview, sections } = almanac;
-  const { repo } = overview;
-  // Live age against the current clock ("2-year-old") for the flavor blurb.
-  const age = overview.foundedISO ? humanAge(overview.foundedISO, new Date().toISOString()) : '';
-  const blurb = flavorBlurb(age, overview.buildings, overview.topLanguage);
-  // The HEAD commit, if any — an informational row; the sha is the one link,
-  // pointing at the commit on the remote (when there is one).
-  const head =
-    repo.head_sha && repo.head_subject
-      ? { sha: repo.head_sha.slice(0, 7), subject: repo.head_subject }
-      : null;
-  const lastUpdatedOn = overview.latestDate ? formatShortDate(overview.latestDate) : null;
-  const lastUpdatedAgo = overview.latestDate ? formatRelativeAge(overview.latestDate) : null;
-  const foundedAgo = overview.foundedISO ? formatRelativeAge(overview.foundedISO) : null;
-  const latestUrl =
-    repo.remote_url && repo.head_sha ? commitUrl(repo.remote_url, repo.head_sha) : null;
+  const { sections } = almanac;
 
   return (
     <div class="almanac pane-inset">
-      <header class="almanac-overview">
-        <h2 class="almanac-name">{overview.name}</h2>
-        {blurb && <p class="almanac-blurb">{blurb}</p>}
-        <dl class="almanac-meta">
-          {repo.remote_url && (
-            <div>
-              <dt>Remote</dt>
-              <dd>
-                <a class="link--chrome" href={repo.remote_url} target="_blank" rel="noreferrer">
-                  {repo.remote_url}
-                </a>
-              </dd>
-            </div>
-          )}
-          {repo.branch && (
-            <div>
-              <dt>Branch</dt>
-              <dd>
-                <span class="almanac-branch">{repo.branch}</span>
-              </dd>
-            </div>
-          )}
-          {head && (
-            <div>
-              <dt>Latest</dt>
-              <dd>
-                <span class="almanac-latest-head">
-                  {latestUrl ? (
-                    <a
-                      class="almanac-sha-link link--chrome"
-                      href={latestUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      title="View this commit on the remote"
-                    >
-                      {head.sha}
-                    </a>
-                  ) : (
-                    <span class="almanac-sha">{head.sha}</span>
-                  )}
-                  <span class="almanac-latest-subject">{head.subject}</span>
-                </span>
-              </dd>
-            </div>
-          )}
-          {lastUpdatedOn && (
-            <div>
-              <dt>Last Updated</dt>
-              <dd>
-                {lastUpdatedOn}
-                {lastUpdatedAgo && <span class="almanac-rel">{lastUpdatedAgo}</span>}
-              </dd>
-            </div>
-          )}
-          {overview.founded && (
-            <div>
-              <dt>Founded</dt>
-              <dd>
-                {overview.founded}
-                {foundedAgo && <span class="almanac-rel">{foundedAgo}</span>}
-              </dd>
-            </div>
-          )}
-        </dl>
-        {overview.languages.length > 0 && (
-          <>
-            <LanguageBar
-              languages={overview.languages}
-              moreLanguages={overview.moreLanguages}
-              moreFiles={overview.moreLanguageFiles}
-            />
-            <ul class="almanac-languages">
-              {overview.languages.map((l) => (
-                <li key={l.ext ?? ''} class="almanac-language">
-                  <ExtensionBadge extension={l.ext} isDir={false} />
-                  <span class="almanac-language-count">{formatCount(l.count)}</span>
-                </li>
-              ))}
-              {overview.moreLanguages > 0 && (
-                <li
-                  class="almanac-language almanac-language--more"
-                  title={`${formatCount(overview.moreLanguageFiles)} more files across ${overview.moreLanguages} other file ${overview.moreLanguages === 1 ? 'type' : 'types'}`}
-                >
-                  +{formatCount(overview.moreLanguages)} more
-                </li>
-              )}
-            </ul>
-          </>
-        )}
-      </header>
+      <p class="almanac-intro">A guided tour of the city&apos;s landmarks.</p>
       {sections.map((s) => {
         const Icon = SECTION_ICON[s.key];
         return (

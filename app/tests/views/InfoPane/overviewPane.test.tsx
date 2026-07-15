@@ -22,7 +22,7 @@ vi.mock('@/state/stores/settings/trees', () => ({
   },
 }));
 
-import { OverviewPane, flavorBlurb } from '@/views/InfoPane/OverviewPane';
+import { OverviewPane } from '@/views/InfoPane/OverviewPane';
 import { InfoPane } from '@/views/InfoPane/InfoPane';
 import { NodeKind } from '@/types';
 import type { Manifest } from '@/types';
@@ -109,6 +109,16 @@ describe('OverviewPane', () => {
     render(<OverviewPane manifest={sig as never} />, container);
     await flush();
     expect(container.textContent).toContain('No project loaded');
+  });
+
+  it('leads with a one-line descriptor (no repo name/metadata)', async () => {
+    const sig = signal(manifest);
+    render(<OverviewPane manifest={sig as never} />, container);
+    await flush();
+    expect(container.querySelector('.almanac-intro')).toBeTruthy();
+    // The old repo-name/meta header is gone.
+    expect(container.querySelector('.almanac-name')).toBeNull();
+    expect(container.querySelector('.almanac-meta')).toBeNull();
   });
 
   it('updates when the manifest signal changes (live update)', async () => {
@@ -203,88 +213,6 @@ describe('OverviewPane', () => {
     expect(row).toBeTruthy();
     // Non-landmark rows carry no focus button.
     expect(row.querySelector('button')).toBeNull();
-  });
-
-  it('renders a flavor blurb (age + dominant language), not raw counts', async () => {
-    const sig = signal(manifest);
-    render(<OverviewPane manifest={sig as never} />, container);
-    await flush();
-    const blurb = container.querySelector('.almanac-blurb');
-    expect(blurb).toBeTruthy();
-    // "An? <age> city of 1 building, mostly TypeScript." — age is live (depends
-    // on the clock), so match the shape rather than an exact age.
-    expect(blurb!.textContent).toMatch(/^An? .+ city of 1 building, mostly TypeScript\.$/);
-    // The old counts-blurb is gone (and with it the "1 fireflies" plural bug).
-    expect(container.textContent).not.toContain('sprawls across');
-  });
-
-  it('flavorBlurb weaves age + scale + language with a correct article', () => {
-    expect(flavorBlurb('8-year-old', 312, 'Python')).toBe(
-      'An 8-year-old city of 312 buildings, mostly Python.'
-    );
-    expect(flavorBlurb('2-year-old', 312, 'Python')).toBe(
-      'A 2-year-old city of 312 buildings, mostly Python.'
-    );
-    expect(flavorBlurb('11-month-old', 5, 'Go')).toBe(
-      'An 11-month-old city of 5 buildings, mostly Go.'
-    );
-    // Singular building, and clauses drop out when their input is absent.
-    expect(flavorBlurb('1-year-old', 1, 'CSS')).toBe(
-      'A 1-year-old city of 1 building, mostly CSS.'
-    );
-    expect(flavorBlurb('', 312, 'Python')).toBe('A city of 312 buildings, mostly Python.');
-    expect(flavorBlurb('5-day-old', 0, null)).toBe('A 5-day-old city.');
-    expect(flavorBlurb('', 0, null)).toBe('');
-  });
-
-  it('renders a language composition bar mirroring the legend, each segment titled', async () => {
-    const sig = signal(manifest);
-    render(<OverviewPane manifest={sig as never} />, container);
-    await flush();
-    expect(container.querySelector('.almanac-langbar')).toBeTruthy();
-    const segs = Array.from(container.querySelectorAll('.almanac-langbar-seg'));
-    expect(segs.length).toBeGreaterThan(0);
-    // The lone .ts segment is named, counted, and shows its share on hover.
-    expect(segs[0].getAttribute('title')).toBe('TypeScript · 1 file (100%)');
-  });
-
-  it('Latest is an informational row; the commit hash links to the remote', async () => {
-    const withHead: Manifest = {
-      ...manifest,
-      repo: {
-        ...manifest.repo,
-        remote_url: 'https://github.com/o/r',
-        head_sha: 'deadbeefcafe',
-        head_subject: 'Fix the thing',
-      },
-      stats: { ...singleFileStats, commitDates: { oldest: '2020-01-01', newest: '2024-03-10' } },
-    };
-    const sig = signal(withHead);
-    render(<OverviewPane manifest={sig as never} />, container);
-    await flush();
-    // The commit hash is the one link, pointing at the commit on the remote.
-    const link = container.querySelector('a.almanac-sha-link') as HTMLAnchorElement;
-    expect(link).not.toBeNull();
-    expect(link.textContent).toBe('deadbee');
-    expect(link.getAttribute('href')).toBe('https://github.com/o/r/commit/deadbeefcafe');
-    // The row is not a button — the sha link sits in a plain head span.
-    const head = container.querySelector('.almanac-latest-head') as HTMLElement;
-    expect(head.tagName).toBe('SPAN');
-    expect(head.querySelector('button')).toBeNull();
-    // Branch is its own meta row now.
-    expect(container.querySelector('.almanac-branch')?.textContent).toBe('main');
-  });
-
-  it('renders the commit hash as plain text (no link) when there is no remote', async () => {
-    const withHead: Manifest = {
-      ...manifest,
-      repo: { ...manifest.repo, remote_url: null, head_sha: 'deadbeefcafe', head_subject: 'x' },
-    };
-    const sig = signal(withHead);
-    render(<OverviewPane manifest={sig as never} />, container);
-    await flush();
-    expect(container.querySelector('a.almanac-sha-link')).toBeNull();
-    expect(container.querySelector('.almanac-sha')?.textContent).toBe('deadbee');
   });
 
   it('gates the Forest section when the Trees layer is disabled', async () => {
