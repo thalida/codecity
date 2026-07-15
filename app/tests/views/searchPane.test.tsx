@@ -221,4 +221,26 @@ describe('SearchPane', () => {
     expect(results.length).toBe(1);
     expect(results[0].textContent).toBe('newfile.ts');
   });
+
+  it('arrow keys move focus through the results and back to the input', async () => {
+    mount();
+    await typeQuery('.ts'); // matches several .ts files
+    const input = container.querySelector<HTMLInputElement>('input.search-input')!;
+    const buttons = () =>
+      Array.from(container.querySelectorAll<HTMLButtonElement>('.search-result'));
+    expect(buttons().length).toBeGreaterThan(1);
+
+    const arrow = (key: 'ArrowDown' | 'ArrowUp') =>
+      document.activeElement!.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true }));
+
+    input.focus();
+    arrow('ArrowDown'); // enter the list at the first result
+    expect(document.activeElement).toBe(buttons()[0]);
+    arrow('ArrowDown'); // next result
+    expect(document.activeElement).toBe(buttons()[1]);
+    arrow('ArrowUp'); // back up
+    expect(document.activeElement).toBe(buttons()[0]);
+    arrow('ArrowUp'); // off the top returns to the query field
+    expect(document.activeElement).toBe(input);
+  });
 });

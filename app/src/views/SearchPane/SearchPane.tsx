@@ -17,7 +17,7 @@
 
 import './SearchPane.css';
 import type { VNode } from 'preact';
-import { useMemo, useState } from 'preact/hooks';
+import { useMemo, useRef, useState } from 'preact/hooks';
 import type { Signal } from '@preact/signals';
 import { NodeKind } from '@/types';
 import type { DirNode, FileNode, Manifest, TreeNode } from '@/types';
@@ -51,6 +51,47 @@ export function SearchPane({ manifest, onClose, onSelect }: SearchPaneProps) {
   const trimmed = query.trim();
   const results = trimmed ? _searchFiles(trimmed, files) : null;
 
+  // Arrow-key navigation over the result buttons, on top of Tab. Focus-based
+  // (not aria-activedescendant) so the buttons keep their native Enter/click
+  // and screen readers announce the focused result.
+  const inputRef = useRef<HTMLInputElement>(null);
+  const resultsRef = useRef<HTMLUListElement>(null);
+
+  const resultButtons = () =>
+    Array.from(resultsRef.current?.querySelectorAll<HTMLButtonElement>('.search-result') ?? []);
+
+  const focusResultAt = (index: number) => {
+    const btns = resultButtons();
+    if (btns.length === 0) return;
+    btns[Math.max(0, Math.min(index, btns.length - 1))].focus();
+  };
+
+  const onInputKeyDown = (e: KeyboardEvent) => {
+    const btns = resultButtons();
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      focusResultAt(0);
+    } else if (e.key === 'ArrowUp' && btns.length > 0) {
+      e.preventDefault();
+      focusResultAt(btns.length - 1);
+    }
+  };
+
+  const onResultsKeyDown = (e: KeyboardEvent) => {
+    if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
+    const btns = resultButtons();
+    if (btns.length === 0) return;
+    e.preventDefault();
+    const current = btns.indexOf(document.activeElement as HTMLButtonElement);
+    if (e.key === 'ArrowDown') {
+      focusResultAt(current < 0 ? 0 : current + 1);
+    } else if (current <= 0) {
+      inputRef.current?.focus(); // ArrowUp off the top returns to the query field
+    } else {
+      focusResultAt(current - 1);
+    }
+  };
+
   return (
     <Pane
       paneClass="search-pane"
@@ -59,12 +100,14 @@ export function SearchPane({ manifest, onClose, onSelect }: SearchPaneProps) {
           <div class="search-input-wrap">
             <Search class="lucide-icon search-input-icon" aria-hidden="true" />
             <input
+              ref={inputRef}
               type="search"
               class="form-input search-input"
               placeholder="Search files by path"
               aria-label="Search files by path"
               value={query}
               onInput={(e) => setQuery((e.target as HTMLInputElement).value)}
+              onKeyDown={onInputKeyDown}
             />
           </div>
           {onClose && <PaneCloseButton onClose={onClose} />}
@@ -98,7 +141,7 @@ export function SearchPane({ manifest, onClose, onSelect }: SearchPaneProps) {
           />
         )}
         {results && results.length > 0 && (
-          <ul class="search-results">
+          <ul class="search-results" ref={resultsRef} onKeyDown={onResultsKeyDown}>
             {results.map(({ file, match }) => (
               <li key={file.path}>
                 <button
