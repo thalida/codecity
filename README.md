@@ -69,8 +69,6 @@ tests/fixtures/large-repo
 !package-lock.json
 ```
 
-- `!` prefix un-ignores either form (`!name` or `!path/to/thing`). `!.git` is silently rejected; the object database is never walked
-
 Skipped by default (even when tracked), which `!` can un-ignore:
 
 - VCS: `.git`, `.hg`, `.svn`
