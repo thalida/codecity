@@ -135,7 +135,7 @@ const BUILDINGS_FIELDS = {
   SATURATION_MIN: {
     route: ChangeRoute.Rebuild,
     kind: FieldKind.Slider,
-    default: 5,
+    default: 50,
     min: 0,
     max: 100,
     step: 5,
