@@ -41,7 +41,7 @@ def get_file(
         target = TRUST.assert_inside(Path(path))
     except NoRootsRegisteredError:
         raise HTTPException(
-            403, "no scan root registered yet — fetch /api/manifest first"
+            403, "no scan root registered yet: fetch /api/manifest first"
         )
     except OutsideRootError:
         raise HTTPException(403, "outside scan root")

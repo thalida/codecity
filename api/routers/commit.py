@@ -27,7 +27,7 @@ def get_commit(sha: str = Query(...)) -> CommitDetailResponse:
     roots = TRUST.snapshot()
     if not roots:
         raise HTTPException(
-            404, "no scan root registered yet — fetch /api/manifest first"
+            404, "no scan root registered yet: fetch /api/manifest first"
         )
     for root in roots:
         try:

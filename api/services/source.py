@@ -31,7 +31,7 @@ _GIT_SSH_FORM = re.compile(r"^[^@]+@[^:]+:")
 
 _NOT_GIT_ERROR = (
     "path is not inside a git working tree. CodeCity requires a git "
-    "project — try `git init` inside the directory, or paste a git "
+    "project: try `git init` inside the directory, or paste a git "
     "URL instead."
 )
 
