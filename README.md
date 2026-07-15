@@ -69,7 +69,9 @@ tests/fixtures/large-repo
 !package-lock.json
 ```
 
-Skipped by default (even when tracked), which `!` can un-ignore:
+#### Skipped by default
+
+Always ignored, even when tracked (`!` un-ignores them):
 
 - VCS: `.git`, `.hg`, `.svn`
 - JS: `node_modules`, `package-lock.json`, `yarn.lock`, `pnpm-lock.yaml`, `bun.lock`, `bun.lockb`, `deno.lock`
@@ -132,8 +134,8 @@ Skipped by default (even when tracked), which `!` can un-ignore:
 
 <img src=".github/readme/gem.png" alt="The glowing pink gem floating above the root street, lighting the buildings around it" width="600" />
 
-- Marks the repo root, floating above the root street
-- Click it to clear the selection and reset the view
+- **Root marker**: floats above the root street
+- **Click**: clears the selection and resets the view
 
 ## Settings
 
