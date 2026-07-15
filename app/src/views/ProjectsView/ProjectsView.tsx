@@ -15,7 +15,7 @@ import { useEffect, useRef } from 'preact/hooks';
 import { X, Waypoints, Building2, TreePine, Sparkles } from 'lucide-preact';
 import { useDialogFocus } from '@/hooks/useDialogFocus';
 import { GemIcon } from '@/components/GemIcon/GemIcon';
-import { PROJECTS_VIEW, type SourcePayload } from '@/state/stores/ui';
+import { PROJECTS_VIEW, clearProjectsViewError, type SourcePayload } from '@/state/stores/ui';
 import { SERVER_CONFIG } from '@/state/stores/serverConfig';
 import { SCAN_PROGRESS } from '@/state/stores/scanProgress';
 import { listRecents } from '@/state/stores/source';
@@ -123,8 +123,8 @@ export function ProjectsView({ onSubmit, onCancel, onClose }: ProjectsViewProps)
               <section class="landing-card surface-sidebar">
                 <h2 class="landing-card-title">Open a project</h2>
                 {/* A stale error from a prior attempt is dropped once a new load
-                    starts (see the loading branch above) — here it sits above the
-                    fresh form. */}
+                    starts (see the loading branch above) or as soon as the user
+                    edits the source (onDirty); here it sits above the fresh form. */}
                 {pv.opts.error && <div class="card-error">{pv.opts.error}</div>}
                 <NewProjectForm
                   // Re-key on the prefill source so a failed submit (which
@@ -135,6 +135,7 @@ export function ProjectsView({ onSubmit, onCancel, onClose }: ProjectsViewProps)
                   allowLocalRepos={SERVER_CONFIG.value.allowLocalRepos}
                   prefill={pv.opts.prefill}
                   onSubmit={onSubmit}
+                  onDirty={clearProjectsViewError}
                 />
               </section>
               {hasRecents && (

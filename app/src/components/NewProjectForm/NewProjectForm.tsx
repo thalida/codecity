@@ -24,11 +24,19 @@ export interface NewProjectFormProps {
   allowLocalRepos: boolean;
   prefill?: SourcePayload;
   onSubmit: (payload: SourcePayload) => void;
+  /** Fired when the user edits the source field, so the host can drop a stale
+   *  open-error banner (the form itself owns no such error). */
+  onDirty?: () => void;
 }
 
 const LOCAL_DOCS_URL = 'https://github.com/thalida/codecity#local-directories';
 
-export function NewProjectForm({ allowLocalRepos, prefill, onSubmit }: NewProjectFormProps) {
+export function NewProjectForm({
+  allowLocalRepos,
+  prefill,
+  onSubmit,
+  onDirty,
+}: NewProjectFormProps) {
   const [source, setSource] = useState(prefill?.src ?? '');
   const [branch, setBranch] = useState(prefill?.branch ?? '');
   const [resolvedUrl, setResolvedUrl] = useState(
@@ -62,6 +70,7 @@ export function NewProjectForm({ allowLocalRepos, prefill, onSubmit }: NewProjec
   // A path change on a URL resets the branch (no stale pick rides along) and
   // only resolves branches for a URL that passes validation.
   function onSourceInput(v: string) {
+    onDirty?.(); // editing the source clears any stale open-error banner
     setSource(v);
     if (v.trim() && srcKind(v) === SourceKind.Remote) {
       setBranch('');

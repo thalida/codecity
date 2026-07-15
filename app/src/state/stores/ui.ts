@@ -59,6 +59,15 @@ export function closeProjectsView(): void {
   PROJECTS_VIEW.value = { ...PROJECTS_VIEW.peek(), visible: false };
 }
 
+/** Drop a stale open-error banner (e.g. once the user edits the source), leaving
+ *  the view open and its prefill intact. No-ops when there's no error so it's
+ *  cheap to call on every keystroke. peek() to avoid subscribing callers. */
+export function clearProjectsViewError(): void {
+  const prev = PROJECTS_VIEW.peek();
+  if (!prev.opts.error) return;
+  PROJECTS_VIEW.value = { ...prev, opts: { ...prev.opts, error: undefined } };
+}
+
 // ── Loading overlay ──────────────────────────────────────────────────────────
 
 import { LoadingStep } from '@/constants/loadingSteps';

@@ -109,6 +109,27 @@ describe('ProjectsView', () => {
     expect(container.textContent).not.toMatch(/repository not found/i);
   });
 
+  it('drops a stale error banner as soon as the user edits the source', async () => {
+    openProjectsView({
+      dismissible: true,
+      error: 'unrecognized source',
+      prefill: { src: 'https://forgejo.example/o/r' },
+    });
+    render(<ProjectsView onSubmit={() => {}} onCancel={() => {}} onClose={() => {}} />, container);
+    await flush();
+    expect(container.textContent).toMatch(/unrecognized source/i);
+
+    const input = container.querySelector<HTMLInputElement>('#new-project-source')!;
+    input.value = 'https://forgejo.example/o/r2';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    await flush();
+    // Banner gone; the field keeps what the user typed (no remount).
+    expect(container.textContent).not.toMatch(/unrecognized source/i);
+    expect(container.querySelector<HTMLInputElement>('#new-project-source')!.value).toBe(
+      'https://forgejo.example/o/r2'
+    );
+  });
+
   it('closes on Escape only when dismissible and not loading', async () => {
     openProjectsView({ dismissible: true });
     const onClose = vi.fn();
