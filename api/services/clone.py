@@ -592,14 +592,51 @@ def remove_clone(url: str, branch: str | None) -> bool:
 _LS_REMOTE_TIMEOUT_S = 20
 
 
+# Fallback default-branch names, in priority order, for servers that don't
+# advertise a symbolic HEAD (seen on some Forgejo/Gitea instances). Used only
+# when ls-remote gives no symref HEAD to read.
+_DEFAULT_BRANCH_FALLBACKS = ("main", "master", "develop", "trunk", "default")
+
+
+def _parse_ls_remote(stdout: str) -> tuple[list[str], str | None]:
+    """Parse ``git ls-remote --symref`` output into ``(branch_names, default)``.
+
+    ``default`` is the symref HEAD target when the server advertises one. When it
+    doesn't (some servers omit a symbolic HEAD), fall back: a lone branch is
+    unambiguously the default; otherwise the first conventional name present
+    (``main``/``master``/…). ``None`` only when there's nothing to pick from."""
+    default: str | None = None
+    branches: list[str] = []
+    for line in stdout.splitlines():
+        # Symref line: "ref: refs/heads/main\tHEAD"
+        if line.startswith("ref: ") and line.endswith("\tHEAD"):
+            target = line[len("ref: ") :].split("\t", 1)[0]
+            if target.startswith("refs/heads/"):
+                default = target[len("refs/heads/") :]
+            continue
+        # Ref line: "<sha>\trefs/heads/<name>"
+        parts = line.split("\t")
+        if len(parts) == 2 and parts[1].startswith("refs/heads/"):
+            branches.append(parts[1][len("refs/heads/") :])
+    if default is None and branches:
+        if len(branches) == 1:
+            default = branches[0]
+        else:
+            default = next(
+                (b for b in _DEFAULT_BRANCH_FALLBACKS if b in branches), None
+            )
+    return branches, default
+
+
 def list_remote_branches(url: str) -> tuple[list[str], str | None]:
     """Return ``(branch_names, default_branch)`` for a remote git URL via
     ``git ls-remote --symref`` — no clone required (strictly less capability
     than the clone the server already does for the same URL).
 
-    ``default_branch`` is the name HEAD points at (None if the remote has no
-    symbolic HEAD, e.g. an empty repo). Raises the same clean CloneError
-    subclasses ``ensure_clone`` raises so routers reuse one error taxonomy."""
+    ``default_branch`` is the name HEAD points at, or — when the remote omits a
+    symbolic HEAD — a fallback (lone branch, else a conventional name); see
+    ``_parse_ls_remote``. Raises the same clean CloneError subclasses
+    ``ensure_clone`` raises so routers reuse one error taxonomy."""
     try:
         proc = subprocess.run(
             ["git", "ls-remote", "--symref", "--", url],
@@ -617,17 +654,4 @@ def list_remote_branches(url: str) -> tuple[list[str], str | None]:
         _maybe_raise_clean_clone_error(url, None, proc.stderr)
         raise CloneError(f"git ls-remote failed: {proc.stderr.strip()}")
 
-    default: str | None = None
-    branches: list[str] = []
-    for line in proc.stdout.splitlines():
-        # Symref line: "ref: refs/heads/main\tHEAD"
-        if line.startswith("ref: ") and line.endswith("\tHEAD"):
-            target = line[len("ref: ") :].split("\t", 1)[0]
-            if target.startswith("refs/heads/"):
-                default = target[len("refs/heads/") :]
-            continue
-        # Ref line: "<sha>\trefs/heads/<name>"
-        parts = line.split("\t")
-        if len(parts) == 2 and parts[1].startswith("refs/heads/"):
-            branches.append(parts[1][len("refs/heads/") :])
-    return branches, default
+    return _parse_ls_remote(proc.stdout)
