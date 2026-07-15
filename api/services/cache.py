@@ -69,7 +69,8 @@ _MANIFEST_SCHEMA_VERSION = (
     # v12: per-dir descendants_created_min / descendants_modified_max
     # v13: ext_breakdown `ext` is null (was "(none)") for extensionless files
     # v14: tree.name baked to the git remote's owner/repo at scan time
-    14
+    # v15: sbom.json added to ALWAYS_SKIP
+    15
 )
 # Composite: invalidates when EITHER the manifest schema OR the git-history
 # shape changes. Stored as a string in the cache file's `version` field.

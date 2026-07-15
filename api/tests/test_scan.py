@@ -739,6 +739,19 @@ class ScanTreeIntegrationTests(_CacheRedirectMixin, unittest.TestCase):
             names = [n["name"] for n in _walk_dirs(m["tree"])]
             self.assertIn("node_modules", names)
 
+    def test_sbom_json_is_always_skipped(self):
+        # sbom.json is a generated artifact (CycloneDX/SPDX), not authored code.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            _init_repo(root)
+            (root / "app.py").write_text("print('hi')\n")
+            (root / "sbom.json").write_text('{"bomFormat": "CycloneDX"}\n')
+            _commit_all(root)
+            m = _final_manifest(str(root))
+            names = [n["name"] for n in _walk_files(m["tree"])]
+            self.assertIn("app.py", names)
+            self.assertNotIn("sbom.json", names)
+
     def test_codecityignore_negation_path_anchored(self):
         # `!stash/legacy` un-ignores only that exact path. Another dir
         # named `legacy` at a different rel-path stays excluded by the

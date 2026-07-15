@@ -86,6 +86,7 @@ Always ignored, even when tracked (`!` un-ignores them):
 - Framework caches: `.next`, `.nuxt`, `.svelte-kit`
 - Test / coverage: `.pytest_cache`, `.mypy_cache`, `.ruff_cache`, `.tox`, `.coverage`, `htmlcov`
 - IDE / OS: `.idea`, `.vscode`, `.DS_Store`
+- Generated artifacts: `sbom.json` (CycloneDX / SPDX software bill of materials)
 - Vendored single-file amalgamations: `sqlite3.c`, `miniz.c`, `lua.c` (one giant `.c` blob inlining a whole library: 100k+ lines that would otherwise render as a single skyscraper distorting every height-based visual)
 
 ## Reading the city

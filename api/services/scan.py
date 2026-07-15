@@ -614,6 +614,8 @@ ALWAYS_SKIP: frozenset[str] = frozenset(
         "flake.lock",  # Nix
         "Gopkg.lock",
         "go.sum",  # Go
+        # Generated artifacts — machine-produced metadata, not authored code.
+        "sbom.json",  # CycloneDX / SPDX software bill of materials
         # Vendored single-file amalgamations — one giant .c file (often
         # 100k+ lines) that's the entire library inlined. Like lockfiles,
         # they're boilerplate from upstream rather than meaningful "code" —
