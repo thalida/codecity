@@ -50,7 +50,6 @@
   text-align: left;
   background: none;
   border: none;
-  border-left: 2px solid transparent;
   padding: var(--cc-space-2) var(--cc-pane-inset);
   cursor: pointer;
   font-family: var(--cc-font-mono);
@@ -66,7 +65,6 @@
 }
 .search-result:focus-visible {
   background: var(--cc-accent-bg-soft);
-  border-left-color: var(--cc-accent);
   color: var(--cc-text-strong);
 }
 .search-result mark {

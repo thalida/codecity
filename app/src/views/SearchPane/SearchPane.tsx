@@ -146,7 +146,7 @@ export function SearchPane({ manifest, onClose, onSelect }: SearchPaneProps) {
               <li key={file.path}>
                 <button
                   type="button"
-                  class="search-result"
+                  class="search-result focus-inset"
                   onClick={() => {
                     if (onSelect && file.path) onSelect(file.path);
                   }}
