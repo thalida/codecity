@@ -146,7 +146,7 @@ def resolve_source(src: str, branch: str | None) -> Path:
         raise ResolveError(400, "missing 'src' query param")
     kind = classify(src)
     if kind is SourceKind.INVALID:
-        raise ResolveError(400, "unrecognized source — pass a local path or a git URL")
+        raise ResolveError(400, "unrecognized source: pass a local path or a git URL")
     if kind is SourceKind.REMOTE:
         try:
             with TRUST.clone_lock:

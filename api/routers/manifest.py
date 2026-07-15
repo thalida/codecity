@@ -85,7 +85,7 @@ def clear_cache(
         raise HTTPException(400, "missing 'src' query param")
     kind = classify(src)
     if kind is SourceKind.INVALID:
-        raise HTTPException(400, "unrecognized source — pass a local path or a git URL")
+        raise HTTPException(400, "unrecognized source: pass a local path or a git URL")
     if kind is SourceKind.REMOTE:
         abs_root = clone_dir_for(src, branch)
     else:
@@ -161,7 +161,7 @@ async def manifest(
             return
         kind = classify(src)
         if kind is SourceKind.INVALID:
-            yield _sse_error("unrecognized source — pass a local path or a git URL")
+            yield _sse_error("unrecognized source: pass a local path or a git URL")
             return
         # The PENDING label — the ONLY name derivation left in this route. Before
         # the repo is scanned, `src` is all we have; the scanner bakes the
