@@ -191,3 +191,76 @@
   background: transparent !important;
   padding: 0 !important;
 }
+
+/* ── Font specimen (font preview) ───────────────────────────────────────
+   A scrollable column with two sections: a Google-Fonts-style Preview
+   waterfall (uppercase / lowercase / digits / pangram) and a Font-Book-style
+   Repertoire grid of every glyph. The loaded face is applied via an inline
+   font-family (a per-mount family name), so these rules only own layout,
+   section chrome, and neutral color. */
+
+.font-specimen {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--cc-space-9);
+  padding: var(--cc-space-8);
+  color: var(--cc-text-primary);
+}
+
+.font-specimen-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cc-space-6);
+}
+
+/* The Preview / Repertoire eyebrows stay in the UI font (.text-label), never
+   the previewed face, so they read even for display / symbol fonts. */
+.font-specimen-label {
+  color: var(--cc-text-muted);
+}
+
+.font-specimen-waterfall {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cc-space-2);
+}
+
+.font-specimen-line {
+  margin: var(--cc-space-0);
+  font-size: 44px;
+  line-height: var(--cc-lh-tight);
+  word-break: break-word;
+}
+
+.font-specimen-pangram {
+  margin: var(--cc-space-4) var(--cc-space-0) var(--cc-space-0);
+  font-size: 24px;
+  line-height: var(--cc-lh-base);
+  color: var(--cc-text-secondary);
+  word-break: break-word;
+}
+
+/* Character grid — auto-fill so it reflows to the pane width; each glyph is
+   centered in a fixed-height cell so rows stay aligned regardless of glyph
+   metrics. */
+.font-specimen-repertoire {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(2.75rem, 1fr));
+  gap: var(--cc-space-1);
+}
+
+.font-specimen-glyph {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 2.75rem;
+  font-size: 28px;
+  line-height: 1;
+  border-radius: var(--cc-radius-sm);
+}
+.font-specimen-glyph:hover {
+  background: var(--cc-bg-chrome);
+}

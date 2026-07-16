@@ -2,7 +2,11 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { render } from 'preact';
 import { act } from 'preact/test-utils';
 import { signal } from '@preact/signals';
-import { FilePreviewPane } from '@/views/FilePreviewPane/FilePreviewPane';
+import {
+  FilePreviewPane,
+  PreviewKind,
+  _previewKind,
+} from '@/views/FilePreviewPane/FilePreviewPane';
 import type { FilePreviewPaneState } from '@/views/FilePreviewPane/FilePreviewPane';
 import { NodeKind } from '@/types';
 import type { FileNode } from '@/types';
@@ -140,6 +144,95 @@ describe('FilePreviewPane', () => {
     expect(container.querySelector('.preview-shell')).toBeNull();
     expect(container.querySelector('.empty-state')).not.toBeNull();
     expect(container.querySelector('.text-card-title')!.textContent).toContain('too large');
+  });
+
+  describe('font specimen', () => {
+    const FONT_NODE: FileNode = {
+      ...FILE_NODE,
+      name: 'Inter.woff2',
+      path: 'fonts/Inter.woff2',
+      fullPath: '/tmp/project/fonts/Inter.woff2',
+      extension: '.woff2',
+      binary: true,
+    };
+
+    // A minimal valid TrueType signature (0x00010000) padded to a few bytes.
+    const TTF_BYTES = new Uint8Array([0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]);
+    const LFS_POINTER = new TextEncoder().encode(
+      'version https://git-lfs.github.com/spec/v1\noid sha256:abc\nsize 4\n'
+    );
+
+    // jsdom ships no FontFace/document.fonts and the component now fetches the
+    // bytes itself, so stub a controllable FontFace plus a fetch that returns a
+    // chosen byte body. `loads` controls whether FontFace.load() resolves.
+    let origFontFace: unknown;
+    let origFonts: unknown;
+    let loadCalls = 0;
+    function installFont(bytes: Uint8Array, loads = true): void {
+      loadCalls = 0;
+      class FakeFontFace {
+        family: string;
+        constructor(family: string) {
+          this.family = family;
+        }
+        load(): Promise<FakeFontFace> {
+          loadCalls += 1;
+          return loads ? Promise.resolve(this) : Promise.reject(new Error('bad font table'));
+        }
+      }
+      origFontFace = (globalThis as Record<string, unknown>).FontFace;
+      origFonts = (document as unknown as Record<string, unknown>).fonts;
+      (globalThis as Record<string, unknown>).FontFace = FakeFontFace;
+      (document as unknown as Record<string, unknown>).fonts = { add() {}, delete() {} };
+      globalThis.fetch = (async () =>
+        new Response(bytes.buffer as ArrayBuffer, { status: 200 })) as unknown as typeof fetch;
+    }
+    afterEach(() => {
+      (globalThis as Record<string, unknown>).FontFace = origFontFace;
+      (document as unknown as Record<string, unknown>).fonts = origFonts;
+    });
+
+    it('_previewKind maps font extensions to Font', () => {
+      expect(_previewKind({ extension: '.woff2' })).toBe(PreviewKind.Font);
+      expect(_previewKind({ extension: '.WOFF' })).toBe(PreviewKind.Font);
+      expect(_previewKind({ extension: '.ttf' })).toBe(PreviewKind.Font);
+      expect(_previewKind({ extension: '.otf' })).toBe(PreviewKind.Font);
+      // Non-fonts still fall through to text.
+      expect(_previewKind({ extension: '.ts' })).toBe(PreviewKind.Text);
+    });
+
+    it('renders a specimen (alphabet + pangram + glyph grid) once the face loads', async () => {
+      installFont(TTF_BYTES);
+      mount();
+      await setFile(FONT_NODE);
+      const specimen = container.querySelector('.font-specimen') as HTMLElement;
+      expect(specimen).not.toBeNull();
+      expect(specimen.textContent).toContain('ABCDEFGHIJKLMNOPQRSTUVWXYZ');
+      expect(specimen.textContent).toContain('The quick brown fox jumps over the lazy dog');
+      // Repertoire grid renders a cell per glyph (well past the 26-letter alphabet).
+      expect(container.querySelectorAll('.font-specimen-glyph').length).toBeGreaterThan(26);
+    });
+
+    it('rejects a Git LFS pointer without attempting to decode it', async () => {
+      installFont(LFS_POINTER);
+      mount();
+      await setFile(FONT_NODE);
+      expect(container.querySelector('.font-specimen')).toBeNull();
+      expect(container.querySelector('.empty-state')).not.toBeNull();
+      expect(container.querySelector('.text-card-sub')!.textContent).toContain('Git LFS');
+      // The whole point: never hand non-font bytes to the browser's decoder.
+      expect(loadCalls).toBe(0);
+    });
+
+    it('falls back to a graceful notice when a real font fails to parse', async () => {
+      installFont(TTF_BYTES, false);
+      mount();
+      await setFile(FONT_NODE);
+      expect(container.querySelector('.font-specimen')).toBeNull();
+      expect(container.querySelector('.empty-state')).not.toBeNull();
+      expect(container.querySelector('.text-card-title')!.textContent).toContain('font');
+      expect(loadCalls).toBe(1);
+    });
   });
 
   it('renders the × close button only when onClose is provided', () => {

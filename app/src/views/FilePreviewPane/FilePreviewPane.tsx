@@ -24,9 +24,10 @@ export enum PreviewKind {
   Video = 'video',
   Audio = 'audio',
   Pdf = 'pdf',
+  Font = 'font',
   Text = 'text',
 }
-import { fileUrl, fetchFileText } from '@/api/file';
+import { fileUrl, fetchFileText, fetchFileBytes } from '@/api/file';
 import { FileWarning, FileX, Info, MousePointerClick } from 'lucide-preact';
 import { Pane, PaneEmpty } from '@/components/Pane';
 import { KEY_BINDINGS } from '@/constants/keyboard';
@@ -54,6 +55,7 @@ const IMAGE_EXTS = ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg', '.bmp', '.
 const VIDEO_EXTS = ['.mp4', '.webm', '.mov', '.ogv', '.m4v'];
 const AUDIO_EXTS = ['.mp3', '.wav', '.ogg', '.flac', '.aac', '.m4a'];
 const PDF_EXTS = ['.pdf'];
+const FONT_EXTS = ['.woff2', '.woff', '.ttf', '.otf'];
 
 // ── State shape for Preact component ─────────────────────────────────────────
 
@@ -67,12 +69,13 @@ export interface FilePreviewPaneProps {
   onFocus?: (file: FileNode) => void;
 }
 
-function _previewKind(file: FileNode | { extension?: string }): PreviewKind {
+export function _previewKind(file: FileNode | { extension?: string }): PreviewKind {
   const ext = (file.extension || '').toLowerCase();
   if (IMAGE_EXTS.includes(ext)) return PreviewKind.Image;
   if (VIDEO_EXTS.includes(ext)) return PreviewKind.Video;
   if (AUDIO_EXTS.includes(ext)) return PreviewKind.Audio;
   if (PDF_EXTS.includes(ext)) return PreviewKind.Pdf;
+  if (FONT_EXTS.includes(ext)) return PreviewKind.Font;
   // Anything else: try as text. The Preview helper will swap to a "Binary"
   // notice if the response isn't decodable as UTF-8.
   return PreviewKind.Text;
@@ -223,6 +226,183 @@ function CodeEditor({ text, file }: CodeEditorProps) {
   );
 }
 
+// ── Font specimen preview sub-component ──────────────────────────────────────
+
+// Discriminant for the FontFace load — mirrors FileTextPreview's
+// loading → ready → error state machine.
+enum FontStateKind {
+  Loading = 'loading',
+  Ready = 'ready',
+  Error = 'error',
+}
+
+type FontState =
+  | { kind: FontStateKind.Loading }
+  | { kind: FontStateKind.Ready }
+  | { kind: FontStateKind.Error; message: string };
+
+// Specimen content. The Preview block is a Google-Fonts-style waterfall
+// (uppercase, lowercase, digits, then a pangram); the Repertoire block is a
+// Font-Book-style grid of every glyph we render.
+const SPECIMEN_UPPER = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+const SPECIMEN_LOWER = 'abcdefghijklmnopqrstuvwxyz';
+const SPECIMEN_DIGITS = '1234567890';
+const SPECIMEN_PANGRAM = 'The quick brown fox jumps over the lazy dog';
+
+// Repertoire: printable ASCII (skip 0x20 space — it's a blank cell) plus a
+// curated run of common Latin-1 / extended glyphs, ligatures, and punctuation,
+// mirroring a Font Book character grid. Glyphs the face lacks fall back to the
+// browser's default font rather than being hidden — detecting true coverage
+// needs font-table parsing this preview intentionally avoids.
+const REPERTOIRE: string[] = [
+  ...Array.from({ length: 0x7e - 0x21 + 1 }, (_, i) => String.fromCharCode(0x21 + i)),
+  ...'¡¿€£¥¢©®™°±×÷§¶†‡–—…«»‹›“”‘’·•',
+  ...'ÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏÐÑÒÓÔÕÖØŒÙÚÛÜÝÞ',
+  ...'àáâãäåæçèéêëìíîïðñòóôõöøœùúûüýþÿ',
+  ...'ﬁﬂßıŁłĐđ',
+];
+
+// Monotonic id so each mounted preview registers a distinct @font-face family;
+// two files with the same basename must not collide on one document-level face.
+let fontFamilySeq = 0;
+
+// sfnt / WOFF signatures (first 4 bytes, big-endian) for the formats a browser
+// can render via FontFace. We sniff these before handing bytes to FontFace so a
+// non-font (a Git LFS pointer, a text file with a .ttf name) never reaches the
+// decoder, which would otherwise log "Failed to decode downloaded font" to the
+// console for every attempt.
+const FONT_SIGNATURES = new Set([
+  0x00010000, // TrueType outlines
+  0x4f54544f, // 'OTTO' — OpenType with CFF outlines
+  0x74727565, // 'true' — TrueType (legacy Mac)
+  0x74797031, // 'typ1' — PostScript in an sfnt wrapper
+  0x74746366, // 'ttcf' — TrueType/OpenType collection
+  0x774f4646, // 'wOFF' — WOFF
+  0x774f4632, // 'wOF2' — WOFF2
+]);
+
+/**
+ * Decide whether a file's bytes are a font we can render. Returns null when
+ * they are; otherwise a human-readable reason for the fallback notice. Catches
+ * the common "font stored via Git LFS, not smudged on clone" case with a
+ * specific message.
+ */
+function fontRejectReason(buf: ArrayBuffer): string | null {
+  if (buf.byteLength < 4) return 'This file is empty or too small to be a font.';
+  const signature = new DataView(buf).getUint32(0, false);
+  if (FONT_SIGNATURES.has(signature)) return null;
+
+  const head = new TextDecoder().decode(new Uint8Array(buf, 0, Math.min(48, buf.byteLength)));
+  if (head.startsWith('version https://git-lfs')) {
+    return 'This is a Git LFS pointer, not the font itself. Clone with Git LFS to preview it.';
+  }
+  return 'This file is not a recognized font (ttf, otf, woff, or woff2).';
+}
+
+interface FontPreviewProps {
+  file: FileNode;
+}
+
+/**
+ * Loads a font file through the FontFace API and renders a live specimen in
+ * that face. The face is registered on document.fonts for the component's
+ * lifetime and removed on unmount / file change, so switching files never
+ * leaves orphaned faces behind. Parse failures fall back to a graceful notice
+ * rather than dumping the binary bytes.
+ */
+function FontPreview({ file }: FontPreviewProps) {
+  const [family] = useState(() => `cc-font-specimen-${(fontFamilySeq += 1)}`);
+  const [fontState, setFontState] = useState<FontState>({ kind: FontStateKind.Loading });
+
+  useEffect(() => {
+    setFontState({ kind: FontStateKind.Loading });
+
+    if (typeof FontFace === 'undefined' || typeof document.fonts === 'undefined') {
+      setFontState({ kind: FontStateKind.Error, message: 'Font preview is unavailable here.' });
+      return;
+    }
+
+    let cancelled = false;
+    // Only faces we actually register get cleaned up, so a rejected load never
+    // tries to delete a face that was never added.
+    let added: FontFace | null = null;
+
+    fetchFileBytes(file.fullPath || '').then(
+      async (buf) => {
+        if (cancelled) return;
+        const reason = fontRejectReason(buf);
+        if (reason) {
+          // Bail before FontFace so the browser never logs a decode error.
+          setFontState({ kind: FontStateKind.Error, message: reason });
+          return;
+        }
+        try {
+          // Build from the bytes we already have (not a url()), so there's no
+          // second network round trip.
+          const loaded = await new FontFace(family, buf).load();
+          if (cancelled) return;
+          document.fonts.add(loaded);
+          added = loaded;
+          setFontState({ kind: FontStateKind.Ready });
+        } catch {
+          if (cancelled) return;
+          setFontState({
+            kind: FontStateKind.Error,
+            message: 'This file could not be read as a font.',
+          });
+        }
+      },
+      (err) => {
+        if (cancelled) return;
+        setFontState({
+          kind: FontStateKind.Error,
+          message: err && err.message ? err.message : 'Could not load this file.',
+        });
+      }
+    );
+
+    return () => {
+      cancelled = true;
+      if (added) document.fonts?.delete(added);
+    };
+    // Key on fullPath so a live-update poll (same path, new bytes) re-loads.
+  }, [file.fullPath, family]);
+
+  return (
+    <div class="pane preview-shell">
+      {fontState.kind === FontStateKind.Error ? (
+        <PaneEmpty icon={FileWarning} title="Couldn't render this font" sub={fontState.message} />
+      ) : fontState.kind === FontStateKind.Ready ? (
+        <div class="font-specimen" style={{ fontFamily: `"${family}", sans-serif` }}>
+          <section class="font-specimen-section">
+            <h3 class="text-label font-specimen-label">Preview</h3>
+            <div class="font-specimen-waterfall">
+              <p class="font-specimen-line">{SPECIMEN_UPPER}</p>
+              <p class="font-specimen-line">{SPECIMEN_LOWER}</p>
+              <p class="font-specimen-line">{SPECIMEN_DIGITS}</p>
+              <p class="font-specimen-pangram">{SPECIMEN_PANGRAM}</p>
+            </div>
+          </section>
+          <section class="font-specimen-section">
+            <h3 class="text-label font-specimen-label">Repertoire</h3>
+            <div class="font-specimen-repertoire">
+              {REPERTOIRE.map((ch, i) => (
+                <span key={i} class="font-specimen-glyph">
+                  {ch}
+                </span>
+              ))}
+            </div>
+          </section>
+        </div>
+      ) : (
+        <span class="sr-only" role="status">
+          Loading font
+        </span>
+      )}
+    </div>
+  );
+}
+
 // ── Body content ─────────────────────────────────────────────────────────────
 
 function _previewBody(file: FileNode | null) {
@@ -258,6 +438,11 @@ function _previewBody(file: FileNode | null) {
         title={`PDF preview: ${file.name || 'document'}`}
       />
     );
+  }
+
+  if (kind === PreviewKind.Font) {
+    // Keyed on fullPath so switching files remounts the FontFace state machine.
+    return <FontPreview key={file.fullPath} file={file} />;
   }
 
   // Text path: skip the fetch entirely if the file is too big.
