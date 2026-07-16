@@ -15,6 +15,7 @@ import { useEffect, useRef } from 'preact/hooks';
 import { X, Waypoints, Building2, TreePine, Sparkles } from 'lucide-preact';
 import { useDialogFocus } from '@/hooks/useDialogFocus';
 import { GemIcon } from '@/components/GemIcon/GemIcon';
+import { LandingBackdrop } from '@/components/LandingBackdrop/LandingBackdrop';
 import { PROJECTS_VIEW, clearProjectsViewError, type SourcePayload } from '@/state/stores/ui';
 import { SERVER_CONFIG } from '@/state/stores/serverConfig';
 import { SCAN_PROGRESS } from '@/state/stores/scanProgress';
@@ -63,6 +64,10 @@ export function ProjectsView({ onSubmit, onCancel, onClose }: ProjectsViewProps)
       aria-modal={isModal ? 'true' : undefined}
       aria-label="codecity: open a project"
     >
+      {/* Cold-boot only: the swirl backdrop. The dismissible modal shows the
+          live city behind it instead (useSwitcherShowcase). */}
+      {!pv.opts.dismissible && <LandingBackdrop />}
+
       {pv.opts.dismissible && !loading && (
         <button class="landing-close btn-icon btn-icon--lg" aria-label="Close" onClick={onClose}>
           <X class="lucide-icon" />

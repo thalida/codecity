@@ -20,3 +20,12 @@ export const CAMERA_INITIAL_DISTANCE_MULT = 0.75; // boot framing tightness (1.0
 // all camera tweens (1 = linear, 3 = ease-out cubic, higher = snappier).
 export const CAMERA_BASE_DURATION_MS = 500;
 export const CAMERA_EASING_POWER = 3;
+
+// Showcase framing — the "hero turntable" the project switcher drives the live
+// city into while its overlay is up (see hooks/useSwitcherShowcase). A tight,
+// low, slowly-rotating whole-city shot that reads as a backdrop.
+export const SHOWCASE_FILL_MULT = 0.62; // < INITIAL_DISTANCE_MULT: tighter, "fills the view"
+export const SHOWCASE_ELEVATION_DEG = 20; // low, cinematic angle above the horizon
+export const SHOWCASE_AZIMUTH_DEG = 35; // 3/4 starting swing; auto-rotate carries it on
+export const SHOWCASE_TARGET_Y_FRAC = 0.32; // aim a third up the skyline, not the ground
+export const SHOWCASE_ROTATE_SPEED = 0.3; // OrbitControls autoRotateSpeed

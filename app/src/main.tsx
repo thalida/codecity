@@ -8,7 +8,12 @@ import './styles/index.css';
 // render (no flash). persistedSignal hydrates synchronously, so the module's
 // effect sets data-cc-* before Preact mounts.
 import '@/state/stores/settings/theme';
+import { openBootPickerIfNeeded } from '@/state/bootView';
 import { App } from '@/layout/App/App';
+
+// Decide the cold-boot picker BEFORE the first render so the full-page landing
+// covers the chrome from frame one (no chrome flash).
+openBootPickerIfNeeded();
 
 const mount = document.getElementById('app');
 if (mount) {

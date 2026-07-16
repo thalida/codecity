@@ -40,6 +40,11 @@ import {
   CAMERA_INITIAL_DISTANCE_MULT,
   CAMERA_BASE_DURATION_MS,
   CAMERA_EASING_POWER,
+  SHOWCASE_FILL_MULT,
+  SHOWCASE_ELEVATION_DEG,
+  SHOWCASE_AZIMUTH_DEG,
+  SHOWCASE_TARGET_Y_FRAC,
+  SHOWCASE_ROTATE_SPEED,
 } from '@/constants/camera';
 import { NodeKind, StreetAxis } from '@/types';
 import type { Building, PickTarget, Street } from '@/types';
@@ -51,6 +56,13 @@ import { CAMERA } from '@/state/stores/settings/camera';
  *  geometry (repoLabel/trees). World framing inputs (bbox, gem, root street,
  *  tallest building) come from cityState directly, not through here. createCity
  *  (city/index.ts) passes a small deps literal that satisfies this. */
+/** A snapshot of the user's camera, restored verbatim on switcher dismiss. */
+export interface CameraPose {
+  position: THREE.Vector3;
+  target: THREE.Vector3;
+  up: THREE.Vector3;
+}
+
 export interface CameraRigDeps {
   getRepoLabelBounds(): {
     centerX: number;
@@ -603,6 +615,77 @@ export function createCameraRig({
     else if (sel.kind === NodeKind.Commit) focusTree(sel.commit.sha);
   }
 
+  // ── Showcase mode ────────────────────────────────────────────────
+  // The project switcher drives the live city into a hero turntable behind its
+  // overlay. The user's pose isn't stored in any signal (it lives on
+  // camera/controls), so the caller snapshots getPose() before entering and
+  // hard-snaps back with applyPose() on dismiss. Both transitions snap (no
+  // tween): the entry animation read as jarring on top of the chrome-hide.
+
+  function getPose(): CameraPose {
+    return {
+      position: camera.position.clone(),
+      target: controls.target.clone(),
+      up: camera.up.clone(),
+    };
+  }
+
+  /** Hard-snap the camera to a pose, matching reset()'s damping-off snap so
+   *  residual inertia can't drift it off the restored pose. */
+  function _snapTo(target: THREE.Vector3, camPos: THREE.Vector3, up: THREE.Vector3): void {
+    camAnimToken++; // cancel any in-flight tween
+    const wasDamping = controls.enableDamping;
+    controls.enableDamping = false;
+    camera.up.copy(up);
+    camera.position.copy(camPos);
+    controls.target.copy(target);
+    camera.lookAt(target);
+    controls.update();
+    controls.enableDamping = wasDamping;
+    controls.saveState();
+  }
+
+  /** Restore a snapshot verbatim (the switcher's dismiss path). */
+  function applyPose(pose: CameraPose): void {
+    _snapTo(pose.target, pose.position, pose.up);
+  }
+
+  /** Snap to a tight, low, whole-city frame and (optionally) start spinning. */
+  function enterShowcase({ autoRotate }: { autoRotate: boolean }): void {
+    const a = captureAnchors();
+    if (a.center && a.cityRadius > 0) {
+      // Frame against the viewport the canvas is ABOUT to fill once the chrome
+      // is hidden, not its current sidebar-constrained aspect — otherwise the
+      // zoom distance depends on how much room the city had when the switcher
+      // opened (e.g. whether the right sidebar was showing).
+      const aspect = window.innerWidth / Math.max(1, window.innerHeight);
+      const halfV = (camera.fov * Math.PI) / 180 / 2;
+      const halfH = Math.atan(Math.tan(halfV) * aspect);
+      const halfFov = Math.min(halfV, halfH);
+      const dist = Math.max(
+        (a.cityRadius / Math.sin(halfFov)) * SHOWCASE_FILL_MULT,
+        controls.minDistance
+      );
+      const target = new THREE.Vector3(
+        a.center.x,
+        a.tallestHeight * SHOWCASE_TARGET_Y_FRAC,
+        a.center.z
+      );
+      const dir = computeFramingDir(
+        SHOWCASE_ELEVATION_DEG,
+        SHOWCASE_AZIMUTH_DEG,
+        cityState.rootStreet.value?.orientation ?? null
+      );
+      _snapTo(target, target.clone().addScaledVector(dir, dist), new THREE.Vector3(0, 1, 0));
+    }
+    controls.autoRotate = autoRotate;
+    controls.autoRotateSpeed = SHOWCASE_ROTATE_SPEED;
+  }
+
+  function exitShowcase(): void {
+    controls.autoRotate = false;
+  }
+
   function dispose() {
     _disposeReframeEffect();
     _disposeCameraAngleEffect();
@@ -623,6 +706,10 @@ export function createCameraRig({
     captureAnchors,
     treeAnchor,
     streetAnchor,
+    getPose,
+    applyPose,
+    enterShowcase,
+    exitShowcase,
     dispose,
   };
 }
