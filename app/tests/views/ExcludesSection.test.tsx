@@ -24,7 +24,9 @@ describe('ExcludesSection', () => {
     const host = mount(<ExcludesSection />);
     expect(host.textContent).toContain('vendor');
     expect(host.textContent).toContain('a.md');
-    const removeVendor = host.querySelector<HTMLButtonElement>('button[aria-label="Restore vendor"]');
+    const removeVendor = host.querySelector<HTMLButtonElement>(
+      'button[aria-label="Restore vendor"]'
+    );
     removeVendor!.click();
     await flush(); // signal-driven re-render is microtask-scheduled
     expect(host.textContent).not.toContain('vendor');
