@@ -26,6 +26,7 @@ from api.services.clone import (
     _maybe_raise_clean_clone_error,
     ensure_clone,
 )
+from api.services.scan import ScanCancelledError
 
 
 os.environ["CODECITY_QUIET"] = "1"
@@ -541,11 +542,17 @@ def test_ensure_clone_emits_throttled_progress_via_callback(tmp_path):
 
     cache = tmp_path / "cache"
     on_progress = MagicMock()
-    with mock.patch.object(clone_mod, "CLONES_ROOT", cache):
-        with mock.patch.object(subprocess, "Popen", return_value=FakeProc()):
-            clone_mod.ensure_clone(
-                "https://example.com/foo.git", None, on_progress=on_progress
-            )
+    with (
+        mock.patch.object(clone_mod, "CLONES_ROOT", cache),
+        # This test fakes the whole subprocess layer to exercise clone-progress
+        # emission; the post-clone LFS pull is a separate concern and would try
+        # to spawn a real git against the fake tree, so stub it out.
+        mock.patch.object(clone_mod, "_pull_lfs"),
+        mock.patch.object(subprocess, "Popen", return_value=FakeProc()),
+    ):
+        clone_mod.ensure_clone(
+            "https://example.com/foo.git", None, on_progress=on_progress
+        )
 
     assert on_progress.call_count >= 1, (
         f"callback should fire at least once; calls={on_progress.call_args_list}"
@@ -608,11 +615,17 @@ def test_ensure_clone_emits_terminal_percent_of_each_stage(tmp_path):
 
     cache = tmp_path / "cache"
     on_progress = MagicMock()
-    with mock.patch.object(clone_mod, "CLONES_ROOT", cache):
-        with mock.patch.object(subprocess, "Popen", return_value=FakeProc()):
-            clone_mod.ensure_clone(
-                "https://example.com/foo.git", None, on_progress=on_progress
-            )
+    with (
+        mock.patch.object(clone_mod, "CLONES_ROOT", cache),
+        # This test fakes the whole subprocess layer to exercise clone-progress
+        # emission; the post-clone LFS pull is a separate concern and would try
+        # to spawn a real git against the fake tree, so stub it out.
+        mock.patch.object(clone_mod, "_pull_lfs"),
+        mock.patch.object(subprocess, "Popen", return_value=FakeProc()),
+    ):
+        clone_mod.ensure_clone(
+            "https://example.com/foo.git", None, on_progress=on_progress
+        )
 
     # Collect per-stage the highest percent ever emitted.
     per_stage_max: dict[str, int] = {}
@@ -630,6 +643,101 @@ def test_ensure_clone_emits_terminal_percent_of_each_stage(tmp_path):
     assert per_stage_max.get("resolving") == 100, (
         f"resolving should reach 100%; per-stage max: {per_stage_max}"
     )
+
+
+class GitLfsTests(unittest.TestCase):
+    """Git LFS materialization: a plain clone leaves LFS files as pointer stubs,
+    so ensure_clone runs `git lfs pull` to swap in the real bytes. Mocked at the
+    subprocess boundary so these run without git-lfs installed on the host."""
+
+    def test_repo_uses_lfs_true_when_pointers_listed(self) -> None:
+        with mock.patch.object(
+            clone_mod, "_run_git", return_value="fonts/Inter.woff2\n"
+        ):
+            self.assertTrue(clone_mod._repo_uses_lfs(Path("/x")))
+
+    def test_repo_uses_lfs_false_when_no_lfs_files(self) -> None:
+        with mock.patch.object(clone_mod, "_run_git", return_value="\n"):
+            self.assertFalse(clone_mod._repo_uses_lfs(Path("/x")))
+
+    def test_repo_uses_lfs_false_when_git_lfs_unavailable(self) -> None:
+        # Host without git-lfs: `git lfs ls-files` errors → treat as non-LFS and
+        # fall back to a plain clone rather than crashing.
+        with mock.patch.object(
+            clone_mod, "_run_git", side_effect=CloneError("'lfs' is not a git command")
+        ):
+            self.assertFalse(clone_mod._repo_uses_lfs(Path("/x")))
+
+    def test_pull_lfs_skips_non_lfs_repo(self) -> None:
+        with (
+            mock.patch.object(clone_mod, "_repo_uses_lfs", return_value=False),
+            mock.patch.object(clone_mod, "_run_git_streaming") as streamed,
+        ):
+            clone_mod._pull_lfs(Path("/x"))
+            streamed.assert_not_called()
+
+    def test_pull_lfs_runs_git_lfs_pull(self) -> None:
+        with (
+            mock.patch.object(clone_mod, "_repo_uses_lfs", return_value=True),
+            mock.patch.object(
+                clone_mod, "_run_git_streaming", return_value=""
+            ) as streamed,
+        ):
+            clone_mod._pull_lfs(Path("/x"))
+            streamed.assert_called_once()
+            self.assertEqual(streamed.call_args.args[:2], ("lfs", "pull"))
+
+    def test_pull_lfs_swallows_failure(self) -> None:
+        # LFS server down / quota / auth: leave the pointer files in place and
+        # let the scan continue rather than failing the whole load.
+        with (
+            mock.patch.object(clone_mod, "_repo_uses_lfs", return_value=True),
+            mock.patch.object(
+                clone_mod,
+                "_run_git_streaming",
+                side_effect=CloneError("lfs fetch failed"),
+            ),
+        ):
+            clone_mod._pull_lfs(Path("/x"))  # must not raise
+
+    def test_pull_lfs_propagates_cancel(self) -> None:
+        with (
+            mock.patch.object(clone_mod, "_repo_uses_lfs", return_value=True),
+            mock.patch.object(
+                clone_mod, "_run_git_streaming", side_effect=ScanCancelledError()
+            ),
+        ):
+            with self.assertRaises(ScanCancelledError):
+                clone_mod._pull_lfs(Path("/x"))
+
+
+class EnsureCloneLfsWiringTests(unittest.TestCase):
+    """ensure_clone must invoke the LFS pull on both the fresh-clone and the
+    update path, against the checked-out clone directory."""
+
+    def setUp(self) -> None:
+        self.tmp = TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.tmp_path = Path(self.tmp.name)
+        self.cache = self.tmp_path / "cache"
+        patch = mock.patch.object(clone_mod, "CLONES_ROOT", self.cache)
+        patch.start()
+        self.addCleanup(patch.stop)
+        self.remote, _ = _make_fake_remote(self.tmp_path)
+        self.url = str(self.remote)
+
+    def test_fresh_clone_pulls_lfs(self) -> None:
+        with mock.patch.object(clone_mod, "_pull_lfs") as pull:
+            local = ensure_clone(self.url)
+            pull.assert_called_once()
+            self.assertEqual(pull.call_args.args[0], local)
+
+    def test_update_path_pulls_lfs(self) -> None:
+        ensure_clone(self.url)  # first clone (real pull, no-op on this repo)
+        with mock.patch.object(clone_mod, "_pull_lfs") as pull:
+            local = ensure_clone(self.url)  # second call takes the update path
+            pull.assert_called_once()
+            self.assertEqual(pull.call_args.args[0], local)
 
 
 if __name__ == "__main__":
