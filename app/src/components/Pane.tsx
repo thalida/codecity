@@ -121,7 +121,7 @@ export interface PaneEmptyProps {
 export function PaneEmpty({ icon: Icon, title, sub, large = true }: PaneEmptyProps) {
   return (
     <div class={large ? 'empty-state empty-state--lg' : 'empty-state'}>
-      {Icon && <Icon class="lucide-icon" />}
+      {Icon && <Icon class="icon" />}
       <p class="text-card-title">{title}</p>
       {sub && <p class="text-card-sub">{sub}</p>}
     </div>

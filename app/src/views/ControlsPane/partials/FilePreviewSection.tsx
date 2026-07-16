@@ -52,7 +52,7 @@ export function FilePreviewSection() {
             stageReset(SYNTAX_THEME, null);
           }}
         >
-          <RotateCcw class="lucide-icon" />
+          <RotateCcw class="icon" />
         </button>
       </ThemeRow>
     </div>

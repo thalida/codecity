@@ -100,7 +100,7 @@ export function AppHeader({
             aria-label="Debug tools"
             onClick={openDebug}
           >
-            <Bug class="lucide-icon" />
+            <Bug class="icon" />
           </button>
         )}
         <button
@@ -110,7 +110,7 @@ export function AppHeader({
           aria-label="Keyboard shortcuts"
           onClick={openShortcuts}
         >
-          <Keyboard class="lucide-icon" />
+          <Keyboard class="icon" />
         </button>
       </div>
     </header>

@@ -50,7 +50,7 @@ export function HueMapField({ store, fieldKey }: FieldProps) {
                     commit({ ...map, [k]: defaultVal });
                   }}
                 >
-                  <RotateCcw class="lucide-icon" />
+                  <RotateCcw class="icon" />
                 </button>
               }
             >

@@ -121,7 +121,7 @@ export function ShortcutsModal() {
             aria-label="Close"
             onClick={closeShortcuts}
           >
-            <X class="lucide-icon" />
+            <X class="icon" />
           </button>
         </div>
         <div class="modal-body">

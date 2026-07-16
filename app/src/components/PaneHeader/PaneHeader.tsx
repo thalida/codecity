@@ -65,7 +65,7 @@ export function PaneHeader({
             onFocus();
           }}
         >
-          <Focus class="lucide-icon" />
+          <Focus class="icon" />
         </button>
       )}
       {prefixSlot ?? null}
@@ -78,7 +78,7 @@ export function PaneHeader({
           aria-label={excludeTitle ?? 'Exclude from city'}
           onClick={() => onExclude()}
         >
-          <EyeOff class="lucide-icon" />
+          <EyeOff class="icon" />
         </button>
       )}
       {typeof onClose === 'function' && <PaneCloseButton onClose={onClose} title={closeTitle} />}
@@ -106,7 +106,7 @@ export function PaneCloseButton({ onClose, title = 'Hide sidebar' }: PaneCloseBu
       aria-label={title}
       onClick={() => onClose()}
     >
-      <X class="lucide-icon" />
+      <X class="icon" />
     </button>
   );
 }

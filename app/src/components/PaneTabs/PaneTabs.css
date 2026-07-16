@@ -40,6 +40,6 @@
   border-bottom-color: var(--cc-accent);
 }
 
-.pane-tab .lucide-icon {
+.pane-tab .icon {
   font-size: var(--cc-font-md); /* icons are 1em (icons.css) — size off a token */
 }

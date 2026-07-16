@@ -57,7 +57,7 @@ export function ResetButton({ store, keys, formatTitle = _defaultTitle }: ResetB
         for (const k of keys) stageReset(store, k);
       }}
     >
-      <RotateCcw class="lucide-icon" />
+      <RotateCcw class="icon" />
     </button>
   );
 }

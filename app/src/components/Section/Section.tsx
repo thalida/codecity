@@ -64,7 +64,7 @@ export function Section({
             open.value = !open.value;
           }}
         >
-          <ChevronRight class="lucide-icon chevron" />
+          <ChevronRight class="icon chevron" />
           <span class="text-label">{name}</span>
         </button>
         {showReset && (
@@ -82,7 +82,7 @@ export function Section({
               for (const r of keys) stageReset(r.store, r.key);
             }}
           >
-            <RotateCcw class="lucide-icon" />
+            <RotateCcw class="icon" />
           </button>
         )}
       </div>

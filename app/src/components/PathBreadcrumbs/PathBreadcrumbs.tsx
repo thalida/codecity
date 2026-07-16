@@ -56,7 +56,7 @@ export function PathBreadcrumbs({
           aria-label={focusTitle}
           onClick={() => onFocus()}
         >
-          <Focus class="lucide-icon" />
+          <Focus class="icon" />
         </button>
       )}
       <ExtensionBadge extension={isFileSel ? (extension ?? null) : null} isDir={!isFileSel} />

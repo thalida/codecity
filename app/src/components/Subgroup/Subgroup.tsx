@@ -62,7 +62,7 @@ export function Subgroup({ name, collapsible = true, resetKeys, children }: Subg
             open.value = !open.value;
           }}
         >
-          <ChevronRight class="lucide-icon chevron" />
+          <ChevronRight class="icon chevron" />
           <span class="theme-subgroup-label-text text-label">{name}</span>
         </button>
         {keys.length > 0 && (
@@ -76,7 +76,7 @@ export function Subgroup({ name, collapsible = true, resetKeys, children }: Subg
               for (const r of keys) stageReset(r.store, r.key);
             }}
           >
-            <RotateCcw class="lucide-icon" />
+            <RotateCcw class="icon" />
           </button>
         )}
       </div>

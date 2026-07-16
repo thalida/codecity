@@ -71,7 +71,7 @@ export function PaneTabs({ tabs, active, onSelect, class: className, panelId }: 
             onClick={() => onSelect(t.id)}
             onKeyDown={(e) => onKeyDown(e, idx)}
           >
-            {Icon && <Icon class="lucide-icon" aria-hidden="true" />}
+            {Icon && <Icon class="icon" aria-hidden="true" />}
             <span>{t.label}</span>
           </button>
         );

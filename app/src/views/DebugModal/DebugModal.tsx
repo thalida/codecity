@@ -53,7 +53,7 @@ export function DebugModal({ onRunCollisionCheck, onRunStemDiagnostic }: DebugMo
             aria-label="Close"
             onClick={closeDebug}
           >
-            <X class="lucide-icon" />
+            <X class="icon" />
           </button>
         </div>
         <div class="modal-body">

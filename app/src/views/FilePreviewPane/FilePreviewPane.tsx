@@ -196,7 +196,7 @@ function CodeEditor({ text, file }: CodeEditorProps) {
     <div class="code-editor-shell">
       {(skipHighlight || skipGutter) && (
         <div class="code-editor-banner card-banner">
-          <Info class="lucide-icon" />
+          <Info class="icon" />
           <span>{bannerText}</span>
         </div>
       )}

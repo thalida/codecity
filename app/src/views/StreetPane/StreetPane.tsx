@@ -86,14 +86,14 @@ export function StreetPane({ state, onClose, onFocus, onExclude }: StreetPanePro
     >
       {dateRange && (
         <div class="street-dates" title="Oldest file created → newest change">
-          <CalendarRange class="lucide-icon street-dates-icon" aria-hidden="true" />
+          <CalendarRange class="icon street-dates-icon" aria-hidden="true" />
           {dateRange}
         </div>
       )}
       {stats.length > 0 && (
         <>
           <div class="street-ext-h text-label">
-            <FileType class="lucide-icon street-ext-icon" aria-hidden="true" />
+            <FileType class="icon street-ext-icon" aria-hidden="true" />
             By extension
           </div>
           <div class="street-ext-list">

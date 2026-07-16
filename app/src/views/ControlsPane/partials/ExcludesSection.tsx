@@ -28,7 +28,7 @@ export function ExcludesSection() {
         <ul class="excludes-list">
           {paths.map((p) => (
             <li key={p} class="excludes-row">
-              <EyeOff class="lucide-icon excludes-row-icon" aria-hidden="true" />
+              <EyeOff class="icon excludes-row-icon" aria-hidden="true" />
               <span class="excludes-path text-mono text-truncate" title={p}>
                 {p}
               </span>
@@ -39,7 +39,7 @@ export function ExcludesSection() {
                 aria-label={`Restore ${p}`}
                 onClick={() => removeExclude(p)}
               >
-                <RotateCcw class="lucide-icon" />
+                <RotateCcw class="icon" />
               </button>
             </li>
           ))}

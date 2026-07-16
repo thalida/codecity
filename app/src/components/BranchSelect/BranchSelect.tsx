@@ -76,7 +76,7 @@ export function BranchSelect({ url, value, onChange, onError }: BranchSelectProp
       <label htmlFor="branch-select">Branch</label>
       {state.status === BranchStatus.Loading && (
         <div class="branch-select-status" role="status">
-          <LoaderCircle class="lucide-icon branch-select-spinner" aria-hidden="true" />
+          <LoaderCircle class="icon branch-select-spinner" aria-hidden="true" />
           Resolving branches…
         </div>
       )}

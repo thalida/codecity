@@ -115,7 +115,7 @@ function SwatchRow({ label, tip, axis, store, options, defaultValue }: SwatchRow
             stageReset(store, null);
           }}
         >
-          <RotateCcw class="lucide-icon" />
+          <RotateCcw class="icon" />
         </button>
       </span>
     </ThemeRow>

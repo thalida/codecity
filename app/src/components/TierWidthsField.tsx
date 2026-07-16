@@ -49,7 +49,7 @@ export function TierWidthsField({ store, fieldKey }: FieldProps) {
                   commit(next);
                 }}
               >
-                <RotateCcw class="lucide-icon" />
+                <RotateCcw class="icon" />
               </button>
             }
           >
