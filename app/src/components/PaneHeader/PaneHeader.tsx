@@ -6,7 +6,7 @@
 
 import './PaneHeader.css';
 import type { ComponentChildren } from 'preact';
-import { Focus, X } from 'lucide-preact';
+import { Focus, X, EyeOff } from 'lucide-preact';
 
 // ── Props interface ─────────────────────────────────────────────────────────
 
@@ -24,6 +24,10 @@ export interface PaneHeaderProps {
   onClose?: () => void;
   /** Tooltip text on the × button. Defaults to "Hide sidebar". */
   closeTitle?: string;
+  /** fn() when the user clicks the "exclude from city" button. Omit to render none. */
+  onExclude?: () => void;
+  /** Tooltip / aria-label for the exclude button. */
+  excludeTitle?: string;
   /** Optional prefix element rendered between focus button and title. */
   prefixSlot?: ComponentChildren;
   /** Rich title content rendered inside the title element instead of the
@@ -40,6 +44,8 @@ export function PaneHeader({
   focusTitle = 'Focus camera',
   onClose,
   closeTitle = 'Hide sidebar',
+  onExclude,
+  excludeTitle,
   prefixSlot,
   titleSlot,
 }: PaneHeaderProps) {
@@ -64,6 +70,17 @@ export function PaneHeader({
       )}
       {prefixSlot ?? null}
       <h3 class={`text-pane-title${mono ? ' is-mono' : ''}`}>{titleSlot ?? title}</h3>
+      {typeof onExclude === 'function' && (
+        <button
+          type="button"
+          class="btn-icon"
+          title={excludeTitle ?? 'Exclude from city'}
+          aria-label={excludeTitle ?? 'Exclude from city'}
+          onClick={() => onExclude()}
+        >
+          <EyeOff class="lucide-icon" />
+        </button>
+      )}
       {typeof onClose === 'function' && <PaneCloseButton onClose={onClose} title={closeTitle} />}
     </div>
   );

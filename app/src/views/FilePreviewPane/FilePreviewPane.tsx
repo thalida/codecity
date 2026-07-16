@@ -67,6 +67,7 @@ export interface FilePreviewPaneProps {
   state: ReadonlySignal<FilePreviewPaneState>;
   onClose?: () => void;
   onFocus?: (file: FileNode) => void;
+  onExclude?: (file: FileNode) => void;
 }
 
 export function _previewKind(file: FileNode | { extension?: string }): PreviewKind {
@@ -463,7 +464,7 @@ function _previewBody(file: FileNode | null) {
 
 // ── Preact component ─────────────────────────────────────────────────────────
 
-export function FilePreviewPane({ state, onClose, onFocus }: FilePreviewPaneProps) {
+export function FilePreviewPane({ state, onClose, onFocus, onExclude }: FilePreviewPaneProps) {
   const { file } = state.value;
 
   const leaf = file
@@ -482,6 +483,8 @@ export function FilePreviewPane({ state, onClose, onFocus }: FilePreviewPaneProp
       onFocus={file && typeof onFocus === 'function' ? () => onFocus(file) : undefined}
       focusTitle={`Focus the camera on this file (${KEY_BINDINGS.FOCUS_SELECTION.label})`}
       onClose={onClose}
+      onExclude={file && typeof onExclude === 'function' ? () => onExclude(file) : undefined}
+      excludeTitle="Exclude this file from the city"
       bodyClass="editor-body surface-app"
     >
       {_previewBody(file)}
