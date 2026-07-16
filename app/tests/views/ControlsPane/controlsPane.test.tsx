@@ -53,7 +53,7 @@ describe('ControlsPane subtabs', () => {
   it('renders exactly three subtabs, World active by default', () => {
     const pane = mount();
     expect(pane.classList.contains('controls-pane')).toBe(true);
-    for (const label of ['World', 'Live updates', 'Appearance']) {
+    for (const label of ['World', 'Scan', 'Appearance']) {
       expect(tab(pane, label)).toBeTruthy();
     }
     expect(tab(pane, 'Shortcuts')).toBeUndefined();
@@ -61,19 +61,22 @@ describe('ControlsPane subtabs', () => {
     expect(tab(pane, 'World').getAttribute('aria-selected')).toBe('true');
   });
 
-  it('shows the action bar only on World; Updates/Appearance autosave with no footer', () => {
+  it('shows the action bar only on World; Scan/Appearance autosave with no footer', () => {
     const pane = mount();
     expect(pane.querySelector('.controls-actions')).toBeTruthy(); // World
-    clickTab(pane, 'Live updates');
+    clickTab(pane, 'Scan');
     expect(pane.querySelector('.controls-actions')).toBeNull();
     clickTab(pane, 'Appearance');
     expect(pane.querySelector('.controls-actions')).toBeNull();
   });
 
-  it('renders the Updates section inline, with no collapsible section wrapper', () => {
+  it('renders the Scan tab as two collapsible sections: Live updates and Excluded from city', () => {
     const pane = mount();
-    clickTab(pane, 'Live updates');
-    expect(pane.querySelector('.controls-section')).toBeNull();
+    clickTab(pane, 'Scan');
+    const sectionLabels = Array.from(
+      pane.querySelectorAll('.controls-section-summary .text-label')
+    ).map((el) => el.textContent);
+    expect(sectionLabels).toEqual(['Live updates', 'Excluded from city']);
     expect(pane.querySelectorAll('.theme-row').length).toBeGreaterThan(0);
   });
 
@@ -107,7 +110,7 @@ describe('ControlsPane subtabs', () => {
     await flush();
     expect(pane.querySelectorAll('.controls-section.is-open').length).toBeGreaterThan(0);
 
-    clickTab(pane, 'Live updates');
+    clickTab(pane, 'Scan');
     act(() => {
       render(<ControlsPane onClose={() => {}} collapsed={true} />, container);
     });

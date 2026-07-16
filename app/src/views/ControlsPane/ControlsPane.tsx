@@ -1,12 +1,13 @@
 // views/ControlsPane/ControlsPane.tsx — "Settings" tab in the left sidebar.
 //
-// Composition shell: World, Updates, Appearance subtabs. The active subtab's
+// Composition shell: World, Scan, Appearance subtabs. The active subtab's
 // sections render into the scrolling body. World is draft-backed (10
 // accordion sections + the sticky Reset all/Discard/Save ActionsBar);
-// Updates and Appearance autosave. Updates holds one section; Appearance holds
-// two (interface theme + syntax), all rendered inline (no footer, no <details>
-// — a one-item accordion is pointless UI). Shortcuts and Debug moved to
-// header-triggered modals.
+// Scan and Appearance autosave. Scan holds two collapsible sections (live
+// updates polling + the excluded-from-city list); Appearance holds two
+// (interface theme + syntax) rendered inline (no footer, no <details> — a
+// one-item accordion is pointless UI, and both are single-control pickers).
+// Shortcuts and Debug moved to header-triggered modals.
 //
 // Section / subgroup open-state is intentionally NOT persisted: when the pane
 // hides we collapse every <details> and reset the active subtab to World, so
@@ -16,6 +17,7 @@ import './ControlsPane.css';
 import { useEffect, useState } from 'preact/hooks';
 import { Boxes, RefreshCw, Palette } from 'lucide-preact';
 import type { LucideIcon } from 'lucide-preact';
+import { ExcludesSection } from './partials/ExcludesSection';
 import { FilePreviewSection } from './partials/FilePreviewSection';
 import { InterfaceThemeSection } from './partials/InterfaceThemeSection';
 import { DynamicSection, type SectionNode } from './partials';
@@ -79,10 +81,13 @@ export function ControlsPane({ onClose, collapsed }: ControlsPaneProps) {
     },
     {
       id: 'updates',
-      label: 'Live updates',
+      label: 'Scan',
       icon: RefreshCw,
       draftable: false,
-      sections: [{ ...UPDATES_SECTION, inline: true }],
+      sections: [
+        UPDATES_SECTION,
+        { key: 'excludes', label: 'Excluded from city', render: <ExcludesSection /> },
+      ],
     },
     {
       id: 'appearance',

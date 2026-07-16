@@ -1,0 +1,34 @@
+/* ExcludesSection.css — Excluded-from-city list (Scan settings tab). Rows are
+   plain flex containers (not buttons): unlike RecentRow, nothing on the row
+   itself is clickable, only the restore control, so there's no row hover. */
+
+.excludes-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cc-space-1);
+}
+
+.excludes-row {
+  display: flex;
+  align-items: center;
+  gap: var(--cc-space-2);
+  padding: var(--cc-space-2) var(--cc-space-4);
+}
+
+.excludes-row-icon {
+  flex: 0 0 auto;
+  color: var(--cc-text-muted);
+}
+
+.excludes-path {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.excludes-clear {
+  margin-top: var(--cc-space-3);
+}
+
+.excludes-empty {
+  margin: 0;
+}
