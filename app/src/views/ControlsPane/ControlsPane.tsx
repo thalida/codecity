@@ -55,30 +55,12 @@ export interface ControlsPaneProps {
 }
 
 export function ControlsPane({ onClose, collapsed }: ControlsPaneProps) {
-  const [activeId, setActiveId] = useState('world');
+  const [activeId, setActiveId] = useState('updates');
   // Sections/subgroups own their open-state locally; bumping this nonce on
   // collapse remounts them so they all reopen collapsed.
   const [collapseNonce, setCollapseNonce] = useState(0);
 
   const subtabs: Subtab[] = [
-    {
-      id: 'world',
-      label: 'World',
-      icon: Boxes,
-      draftable: true,
-      sections: [
-        CAMERA_SECTION,
-        SCENE_SECTION,
-        ISLAND_SECTION,
-        BUILDINGS_SECTION,
-        STREETS_SECTION,
-        FOOTPRINT_SECTION,
-        GEM_SECTION,
-        TREES_SECTION,
-        FIREFLIES_SECTION,
-        EFFECTS_SECTION,
-      ],
-    },
     {
       id: 'updates',
       label: 'Scan',
@@ -99,13 +81,31 @@ export function ControlsPane({ onClose, collapsed }: ControlsPaneProps) {
         { key: 'file-preview', render: <FilePreviewSection /> },
       ],
     },
+    {
+      id: 'world',
+      label: 'World',
+      icon: Boxes,
+      draftable: true,
+      sections: [
+        CAMERA_SECTION,
+        SCENE_SECTION,
+        ISLAND_SECTION,
+        BUILDINGS_SECTION,
+        STREETS_SECTION,
+        FOOTPRINT_SECTION,
+        GEM_SECTION,
+        TREES_SECTION,
+        FIREFLIES_SECTION,
+        EFFECTS_SECTION,
+      ],
+    },
   ];
 
   const active = subtabs.find((t) => t.id === activeId) ?? subtabs[0];
 
   useEffect(() => {
     if (!collapsed) return;
-    setActiveId('world');
+    setActiveId('updates');
     setCollapseNonce((n) => n + 1);
   }, [collapsed]);
 

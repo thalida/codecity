@@ -50,22 +50,23 @@ describe('ControlsPane subtabs', () => {
     container.remove();
   });
 
-  it('renders exactly three subtabs, World active by default', () => {
+  it('renders exactly three subtabs in Scan, Appearance, World order with Scan active by default', () => {
     const pane = mount();
     expect(pane.classList.contains('controls-pane')).toBe(true);
-    for (const label of ['World', 'Scan', 'Appearance']) {
-      expect(tab(pane, label)).toBeTruthy();
-    }
+    const labels = Array.from(pane.querySelectorAll('[role="tab"]')).map((t) =>
+      t.textContent?.trim()
+    );
+    expect(labels).toEqual(['Scan', 'Appearance', 'World']);
     expect(tab(pane, 'Shortcuts')).toBeUndefined();
     expect(tab(pane, 'Debug')).toBeUndefined();
-    expect(tab(pane, 'World').getAttribute('aria-selected')).toBe('true');
+    expect(tab(pane, 'Scan').getAttribute('aria-selected')).toBe('true');
   });
 
   it('shows the action bar only on World; Scan/Appearance autosave with no footer', () => {
     const pane = mount();
-    expect(pane.querySelector('.controls-actions')).toBeTruthy(); // World
-    clickTab(pane, 'Scan');
-    expect(pane.querySelector('.controls-actions')).toBeNull();
+    expect(pane.querySelector('.controls-actions')).toBeNull(); // Scan (default)
+    clickTab(pane, 'World');
+    expect(pane.querySelector('.controls-actions')).toBeTruthy();
     clickTab(pane, 'Appearance');
     expect(pane.querySelector('.controls-actions')).toBeNull();
   });
@@ -82,6 +83,7 @@ describe('ControlsPane subtabs', () => {
 
   it('renders three action-bar buttons; Save/Discard disabled when clean', () => {
     const pane = mount();
+    clickTab(pane, 'World'); // the action bar lives on the draftable World tab
     const buttons = Array.from(
       pane.querySelectorAll<HTMLButtonElement>('.controls-actions .controls-button')
     );
@@ -101,7 +103,7 @@ describe('ControlsPane subtabs', () => {
     expect(pane.querySelector('.theme-row-rebuild-badge')).toBeNull();
   });
 
-  it('collapsed=true collapses all sections and resets to the World subtab', async () => {
+  it('collapsed=true collapses all sections and resets to the Scan subtab', async () => {
     const pane = mount({ collapsed: false });
     // Open every disclosure, then confirm at least one is expanded.
     pane.querySelectorAll<HTMLButtonElement>('.controls-disclosure-toggle').forEach((b) => {
@@ -110,13 +112,13 @@ describe('ControlsPane subtabs', () => {
     await flush();
     expect(pane.querySelectorAll('.controls-section.is-open').length).toBeGreaterThan(0);
 
-    clickTab(pane, 'Scan');
+    clickTab(pane, 'World'); // move off the default so the reset-to-Scan is observable
     act(() => {
       render(<ControlsPane onClose={() => {}} collapsed={true} />, container);
     });
     await flush();
     const repane = container.querySelector('.pane') as HTMLElement;
-    expect(tab(repane, 'World').getAttribute('aria-selected')).toBe('true');
+    expect(tab(repane, 'Scan').getAttribute('aria-selected')).toBe('true');
     // Sections remounted collapsed: no expanded disclosure remains.
     expect(repane.querySelectorAll('.is-open').length).toBe(0);
     expect(repane.querySelectorAll('[aria-expanded="true"]').length).toBe(0);
@@ -130,7 +132,14 @@ describe('subgroup group reset button', () => {
     act(() => {
       render(<ControlsPane />, container);
     });
-    return container.querySelector('.pane') as HTMLElement;
+    const pane = container.querySelector('.pane') as HTMLElement;
+    // These tests inspect World-tab subgroups; Scan is the default tab now.
+    act(() => {
+      Array.from(pane.querySelectorAll<HTMLButtonElement>('[role="tab"]'))
+        .find((t) => t.textContent?.includes('World'))
+        ?.click();
+    });
+    return pane;
   }
 
   beforeEach(() => {
