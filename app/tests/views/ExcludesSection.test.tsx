@@ -36,4 +36,23 @@ describe('ExcludesSection', () => {
     const host = mount(<ExcludesSection />);
     expect(host.textContent).toMatch(/nothing excluded/i);
   });
+
+  it('clears every exclude via the section header reset button', async () => {
+    addExclude('vendor');
+    addExclude('a.md');
+    const host = mount(<ExcludesSection />);
+    const reset = host.querySelector<HTMLButtonElement>('button.controls-section-reset');
+    expect(reset).not.toBeNull();
+    expect(reset!.disabled).toBe(false); // enabled while there are excludes
+    reset!.click();
+    await flush();
+    expect(host.textContent).toMatch(/nothing excluded/i);
+  });
+
+  it('disables the header reset button when nothing is excluded', () => {
+    const host = mount(<ExcludesSection />);
+    const reset = host.querySelector<HTMLButtonElement>('button.controls-section-reset');
+    expect(reset).not.toBeNull();
+    expect(reset!.disabled).toBe(true);
+  });
 });

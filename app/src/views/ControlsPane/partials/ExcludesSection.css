@@ -8,11 +8,14 @@
   gap: var(--cc-space-1);
 }
 
+/* Left inset comes from the disclosure body's guide padding; keep the row flush
+   on the right so the per-row restore glyph lines up with the section header's
+   reset button (which sits at the content edge). */
 .excludes-row {
   display: flex;
   align-items: center;
   gap: var(--cc-space-2);
-  padding: var(--cc-space-2) var(--cc-space-4);
+  padding: var(--cc-space-2) 0;
 }
 
 .excludes-row-icon {
@@ -23,10 +26,6 @@
 .excludes-path {
   flex: 1 1 auto;
   min-width: 0;
-}
-
-.excludes-clear {
-  margin-top: var(--cc-space-3);
 }
 
 .excludes-empty {

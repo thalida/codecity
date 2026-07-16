@@ -21,12 +21,31 @@ export interface SectionProps {
   /** The (store, key) refs of every field under this section. Drives the
    *  header reset button; omit (bespoke sections) to render no section reset. */
   resetKeys?: ResettableRef[];
+  /** Custom reset for sections not backed by the settings-draft system (e.g. the
+   *  excludes list): the header reset button calls this instead of stageReset,
+   *  enabled iff `resetEnabled`. Takes precedence over `resetKeys`. */
+  onReset?: () => void;
+  resetEnabled?: boolean;
+  /** Tooltip + aria-label for the reset button when the default draft-reset copy
+   *  ("...values...to defaults") doesn't fit the section. */
+  resetTitle?: string;
   children: ComponentChildren;
 }
 
-export function Section({ name, hint, resetKeys, children }: SectionProps) {
+export function Section({
+  name,
+  hint,
+  resetKeys,
+  onReset,
+  resetEnabled,
+  resetTitle,
+  children,
+}: SectionProps) {
   const keys = resetKeys ?? [];
-  const canReset = useAnyResettable(keys);
+  const keysResettable = useAnyResettable(keys);
+  const customReset = typeof onReset === 'function';
+  const showReset = customReset || keys.length > 0;
+  const canReset = customReset ? !!resetEnabled : keysResettable;
   const open = useSignal(false);
 
   // A disclosure, NOT a <details>: the header is a flex row with a real
@@ -48,14 +67,18 @@ export function Section({ name, hint, resetKeys, children }: SectionProps) {
           <ChevronRight class="lucide-icon chevron" />
           <span class="text-label">{name}</span>
         </button>
-        {keys.length > 0 && (
+        {showReset && (
           <button
             type="button"
             class="controls-section-reset"
-            title="Reset all values in this section to defaults"
-            aria-label="Reset section to defaults"
+            title={resetTitle ?? 'Reset all values in this section to defaults'}
+            aria-label={resetTitle ?? 'Reset section to defaults'}
             disabled={!canReset}
             onClick={() => {
+              if (customReset) {
+                onReset!();
+                return;
+              }
               for (const r of keys) stageReset(r.store, r.key);
             }}
           >

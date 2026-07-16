@@ -1,9 +1,10 @@
 // ControlsPane/partials/ExcludesSection.tsx — the "Excluded from city" list in
 // the Scan settings tab. Shows the loaded repo's UI excludes (rel-paths hidden
-// from the city, saved in this browser), each individually restorable, with a
-// clear-all. Autosave: removeExclude/clearExcludes write straight through, no
-// draft/Save step. Renders its own Section chrome (a render-based SectionNode
-// supplies its own header) so it collapses like every other Scan/World section.
+// from the city, saved in this browser), each individually restorable. The
+// header reset button (same chrome as every other section) restores them all.
+// Autosave: removeExclude/clearExcludes write straight through, no draft/Save
+// step. Renders its own Section chrome (a render-based SectionNode supplies its
+// own header) so it collapses like every other Scan/World section.
 import './ExcludesSection.css';
 import { EyeOff, RotateCcw } from 'lucide-preact';
 import { ACTIVE_EXCLUDES, removeExclude, clearExcludes } from '@/state/stores/excludes';
@@ -15,40 +16,34 @@ export function ExcludesSection() {
     <Section
       name="Excluded from city"
       hint="Paths you hide from the city, saved in this browser. This does not change the repo."
+      onReset={clearExcludes}
+      resetEnabled={paths.length > 0}
+      resetTitle="Restore all excluded paths"
     >
       {paths.length === 0 ? (
         <p class="text-card-sub excludes-empty">
           Nothing excluded. Select a road or building and choose Exclude from city.
         </p>
       ) : (
-        <>
-          <ul class="excludes-list">
-            {paths.map((p) => (
-              <li key={p} class="excludes-row">
-                <EyeOff class="lucide-icon excludes-row-icon" aria-hidden="true" />
-                <span class="excludes-path text-mono text-truncate" title={p}>
-                  {p}
-                </span>
-                <button
-                  type="button"
-                  class="btn-icon"
-                  title={`Restore ${p}`}
-                  aria-label={`Restore ${p}`}
-                  onClick={() => removeExclude(p)}
-                >
-                  <RotateCcw class="lucide-icon" />
-                </button>
-              </li>
-            ))}
-          </ul>
-          <button
-            type="button"
-            class="btn-icon btn-icon--text excludes-clear"
-            onClick={() => clearExcludes()}
-          >
-            Clear all
-          </button>
-        </>
+        <ul class="excludes-list">
+          {paths.map((p) => (
+            <li key={p} class="excludes-row">
+              <EyeOff class="lucide-icon excludes-row-icon" aria-hidden="true" />
+              <span class="excludes-path text-mono text-truncate" title={p}>
+                {p}
+              </span>
+              <button
+                type="button"
+                class="theme-row-reset"
+                title={`Restore ${p}`}
+                aria-label={`Restore ${p}`}
+                onClick={() => removeExclude(p)}
+              >
+                <RotateCcw class="lucide-icon" />
+              </button>
+            </li>
+          ))}
+        </ul>
       )}
     </Section>
   );
