@@ -10,8 +10,14 @@ import { persistedSignal } from '@/state/persist';
 import { PERSISTED_KEYS } from '@/constants/storage';
 import { CURRENT_SOURCE, sourceKey } from '@/state/stores/source';
 
-/** repo key -> sorted, de-duped rel-paths. One localStorage slot for all repos. */
-export const EXCLUDES = persistedSignal<Record<string, string[]>>(PERSISTED_KEYS.EXCLUDES, {});
+/** repo key -> sorted, de-duped rel-paths. One localStorage slot for all repos.
+ *  Whole-object persistence: keys are runtime repo hashes, not in the default,
+ *  so diff-vs-default mode would drop every write. */
+export const EXCLUDES = persistedSignal<Record<string, string[]>>(
+  PERSISTED_KEYS.EXCLUDES,
+  {},
+  { whole: true }
+);
 
 /** Repo-scoped key: src only (branch ignored) so excludes hold across branches. */
 function repoKeyFor(src: string): string {

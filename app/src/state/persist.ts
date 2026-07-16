@@ -111,10 +111,20 @@ function _serialize<T>(value: T, defaultValue: T): unknown {
  * storage immediately at module load. Writes back on every change (diff-vs-
  * default for object-valued signals; whole value for scalar/array).
  *
+ * `opts.whole` opts an object-valued signal out of diff-vs-default and stores
+ * the whole object instead. Required for dynamic-key `Record` stores whose keys
+ * are runtime values (not present in the default), which diff mode would drop:
+ * diff mode only emits/reads keys that exist in the default. An empty object
+ * still deep-equals the default and removes the slot, same as diff mode.
+ *
  * The `key` string is the localStorage suffix after `cc.` — keep it stable
  * across deploys so existing users don't lose their settings.
  */
-export function persistedSignal<T>(key: string, defaultValue: T): Signal<T> {
+export function persistedSignal<T>(
+  key: string,
+  defaultValue: T,
+  opts?: { whole?: boolean }
+): Signal<T> {
   if (typeof localStorage === 'undefined') {
     // SSR / test environment without localStorage — return a plain signal.
     const s = signal<T>(defaultValue);
@@ -122,13 +132,18 @@ export function persistedSignal<T>(key: string, defaultValue: T): Signal<T> {
     return s;
   }
   const saved = _safeGet(key);
-  const initial = saved !== null ? _hydrate(saved, defaultValue) : defaultValue;
+  const initial =
+    saved !== null ? (opts?.whole ? (saved as T) : _hydrate(saved, defaultValue)) : defaultValue;
   const s = signal<T>(initial);
   _STORES.set(s, { name: key, default: deepClone(defaultValue) });
 
   effect(() => {
     const v = s.value;
-    const serialized = _serialize(v, defaultValue);
+    const serialized = opts?.whole
+      ? deepEqual(v, defaultValue)
+        ? null
+        : v
+      : _serialize(v, defaultValue);
     if (serialized === null) _safeRemove(key);
     else _safeSet(key, serialized);
   });

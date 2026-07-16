@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { CURRENT_SOURCE } from '@/state/stores/source';
+import { CURRENT_SOURCE, sourceKey } from '@/state/stores/source';
 import {
   EXCLUDES,
   ACTIVE_EXCLUDES,
@@ -52,5 +52,18 @@ describe('excludes store', () => {
     addExclude('x');
     expect(activeExcludePathsFor('s')).toEqual(['x']);
     expect(activeExcludePathsFor('other')).toEqual([]);
+  });
+
+  it('persists the whole map to localStorage (survives reload)', () => {
+    CURRENT_SOURCE.value = { src: 'github.com/o/r', branch: 'main' };
+    addExclude('vendor');
+
+    const raw = localStorage.getItem('cc.excludes');
+    expect(raw).not.toBeNull();
+    expect(JSON.parse(raw as string)).toEqual({ [sourceKey('github.com/o/r')]: ['vendor'] });
+
+    // Clearing the last path removes the slot entirely (empty map == default).
+    clearExcludes();
+    expect(localStorage.getItem('cc.excludes')).toBeNull();
   });
 });
