@@ -59,6 +59,8 @@ export interface SectionNode {
    *  For a subtab whose only section would otherwise be a one-item
    *  accordion — collapsing a single section is pointless UI. */
   inline?: boolean;
+  /** Start the accordion expanded instead of collapsed. */
+  defaultOpen?: boolean;
 }
 
 function isGroup(child: SectionChild): child is GroupNode {
@@ -130,6 +132,7 @@ export function DynamicSection({ node }: { node: SectionNode }) {
       name={node.label ?? ''}
       hint={node.description}
       resetKeys={collectRefs(node.children ?? [])}
+      defaultOpen={node.defaultOpen}
     >
       {(node.children ?? []).map((c) => renderChild(c, 2))}
     </Section>

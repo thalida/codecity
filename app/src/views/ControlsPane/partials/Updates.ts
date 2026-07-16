@@ -6,5 +6,6 @@ import { LIVE_UPDATES } from '@/state/stores/settings/updates';
 export const UPDATES_SECTION: SectionNode = {
   key: 'updates',
   label: 'Live updates',
+  defaultOpen: true,
   children: [field(LIVE_UPDATES, 'ENABLED'), field(LIVE_UPDATES, 'POLL_SECONDS')],
 };

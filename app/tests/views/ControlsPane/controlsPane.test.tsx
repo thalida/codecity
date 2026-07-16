@@ -103,25 +103,25 @@ describe('ControlsPane subtabs', () => {
     expect(pane.querySelector('.theme-row-rebuild-badge')).toBeNull();
   });
 
-  it('collapsed=true collapses all sections and resets to the Scan subtab', async () => {
+  it('collapsed=true remounts sections at their defaults and resets to the Scan subtab', async () => {
     const pane = mount({ collapsed: false });
-    // Open every disclosure, then confirm at least one is expanded.
+    // Move to World and expand its (default-collapsed) sections — a non-default
+    // state that the remount-on-collapse must discard.
+    clickTab(pane, 'World');
     pane.querySelectorAll<HTMLButtonElement>('.controls-disclosure-toggle').forEach((b) => {
       if (b.getAttribute('aria-expanded') === 'false') b.click();
     });
     await flush();
     expect(pane.querySelectorAll('.controls-section.is-open').length).toBeGreaterThan(0);
 
-    clickTab(pane, 'World'); // move off the default so the reset-to-Scan is observable
     act(() => {
       render(<ControlsPane onClose={() => {}} collapsed={true} />, container);
     });
     await flush();
     const repane = container.querySelector('.pane') as HTMLElement;
+    // Reset to Scan, whose two sections are defaultOpen — so exactly those reopen.
     expect(tab(repane, 'Scan').getAttribute('aria-selected')).toBe('true');
-    // Sections remounted collapsed: no expanded disclosure remains.
-    expect(repane.querySelectorAll('.is-open').length).toBe(0);
-    expect(repane.querySelectorAll('[aria-expanded="true"]').length).toBe(0);
+    expect(repane.querySelectorAll('.controls-section.is-open').length).toBe(2);
   });
 });
 

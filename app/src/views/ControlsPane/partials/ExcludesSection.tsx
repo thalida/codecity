@@ -19,6 +19,7 @@ export function ExcludesSection() {
       onReset={clearExcludes}
       resetEnabled={paths.length > 0}
       resetTitle="Restore all excluded paths"
+      defaultOpen
     >
       {paths.length === 0 ? (
         <p class="text-card-sub excludes-empty">

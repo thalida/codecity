@@ -29,6 +29,9 @@ export interface SectionProps {
   /** Tooltip + aria-label for the reset button when the default draft-reset copy
    *  ("...values...to defaults") doesn't fit the section. */
   resetTitle?: string;
+  /** Start expanded instead of collapsed (e.g. the Scan/Appearance tabs, where a
+   *  section or two reads better open). Defaults to collapsed. */
+  defaultOpen?: boolean;
   children: ComponentChildren;
 }
 
@@ -39,6 +42,7 @@ export function Section({
   onReset,
   resetEnabled,
   resetTitle,
+  defaultOpen,
   children,
 }: SectionProps) {
   const keys = resetKeys ?? [];
@@ -46,7 +50,7 @@ export function Section({
   const customReset = typeof onReset === 'function';
   const showReset = customReset || keys.length > 0;
   const canReset = customReset ? !!resetEnabled : keysResettable;
-  const open = useSignal(false);
+  const open = useSignal(defaultOpen ?? false);
 
   // A disclosure, NOT a <details>: the header is a flex row with a real
   // aria-expanded toggle button and the reset button as SIBLINGS. (An

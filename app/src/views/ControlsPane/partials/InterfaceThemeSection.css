@@ -1,11 +1,5 @@
 /* InterfaceThemeSection.css — accent/surface swatch pickers (Appearance tab). */
 
-.swatch-row {
-  display: flex;
-  align-items: center;
-  gap: var(--cc-space-4);
-}
-
 .swatch-group {
   display: flex;
   gap: var(--cc-space-3);

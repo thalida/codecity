@@ -57,7 +57,8 @@ export interface ControlsPaneProps {
 export function ControlsPane({ onClose, collapsed }: ControlsPaneProps) {
   const [activeId, setActiveId] = useState('updates');
   // Sections/subgroups own their open-state locally; bumping this nonce on
-  // collapse remounts them so they all reopen collapsed.
+  // collapse remounts them so each reopens at its default (World collapsed,
+  // Scan/Appearance expanded via defaultOpen).
   const [collapseNonce, setCollapseNonce] = useState(0);
 
   const subtabs: Subtab[] = [
