@@ -924,6 +924,84 @@ def _walk_dirs(node):
         yield from _walk_dirs(c)
 
 
+class ExtraExcludePathsTests(_CacheRedirectMixin, unittest.TestCase):
+    def test_excludes_directory_and_subtree(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            _init_repo(root)
+            (root / "keep.txt").write_text("k")
+            vendored = root / "vendor" / "big"
+            vendored.mkdir(parents=True)
+            (vendored / "lib.js").write_text("x\n" * 100)
+            _commit_all(root)
+            m = _final_manifest(str(root), extra_exclude_paths=frozenset({"vendor"}))
+            paths = [n["path"] for n in _walk_dirs(m["tree"])]
+            self.assertNotIn("vendor", paths)
+            self.assertNotIn("vendor/big", paths)
+
+    def test_excludes_root_level_file(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            _init_repo(root)
+            (root / "keep.txt").write_text("k")
+            (root / "drop.md").write_text("d")
+            _commit_all(root)
+            m = _final_manifest(str(root), extra_exclude_paths=frozenset({"drop.md"}))
+            names = [c["name"] for c in m["tree"]["children"]]
+            self.assertIn("keep.txt", names)
+            self.assertNotIn("drop.md", names)
+
+    def test_rollups_reflect_smaller_tree(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            _init_repo(root)
+            (root / "a.txt").write_text("a")
+            sub = root / "sub"
+            sub.mkdir()
+            (sub / "b.txt").write_text("b")
+            _commit_all(root)
+            full = _final_manifest(str(root))
+            filtered = _final_manifest(
+                str(root), extra_exclude_paths=frozenset({"sub"})
+            )
+            self.assertLess(
+                filtered["tree"]["descendants_file_count"],
+                full["tree"]["descendants_file_count"],
+            )
+
+    def test_signature_differs_and_is_stable(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            _init_repo(root)
+            (root / "a.txt").write_text("a")
+            sub = root / "sub"
+            sub.mkdir()
+            (sub / "b.txt").write_text("b")
+            _commit_all(root)
+            base = signature_tree(str(root))["signature"]
+            ex1 = signature_tree(str(root), extra_exclude_paths=frozenset({"sub"}))[
+                "signature"
+            ]
+            ex2 = signature_tree(str(root), extra_exclude_paths=frozenset({"sub"}))[
+                "signature"
+            ]
+            self.assertNotEqual(base, ex1)
+            self.assertEqual(ex1, ex2)
+
+    def test_cannot_override_always_skip(self):
+        # An extra-exclude is additive: it can't un-hide .git or a lockfile.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            _init_repo(root)
+            (root / "a.txt").write_text("a")
+            _commit_all(root)
+            # Excluding a normal file still works; .git stays gone regardless.
+            m = _final_manifest(str(root), extra_exclude_paths=frozenset({"a.txt"}))
+            names = [c["name"] for c in m["tree"]["children"]]
+            self.assertNotIn(".git", names)
+            self.assertNotIn("a.txt", names)
+
+
 class BuildAuthorsListTests(unittest.TestCase):
     """Direct coverage for the build_authors_list helper.
 
