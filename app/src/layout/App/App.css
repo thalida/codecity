@@ -32,3 +32,14 @@ body {
   flex-direction: row;
   align-items: stretch;
 }
+
+/* Switcher showcase: with the switcher open over a loaded city, hide the chrome
+   so the canvas fills the viewport as a backdrop. #app-body then grows to the
+   full column and the canvas auto-fits (ResizeObserver + per-frame size guard).
+   Toggled by useSwitcherShowcase. */
+#app.cc-showcase #app-header,
+#app.cc-showcase #left-sidebar,
+#app.cc-showcase #right-sidebar,
+#app.cc-showcase #app-footer {
+  display: none;
+}

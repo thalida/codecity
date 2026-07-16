@@ -59,6 +59,14 @@ export function closeProjectsView(): void {
   PROJECTS_VIEW.value = { ...PROJECTS_VIEW.peek(), visible: false };
 }
 
+/** True while the switcher is open OVER a loaded city (the dismissible / modal
+ *  case) — the only case with a city behind it to turn into a backdrop. Drives
+ *  the showcase: chrome hidden, camera into a hero turntable (useSwitcherShowcase).
+ *  The non-dismissible full-page boot has no city behind, so it stays false. */
+export const SWITCHER_SHOWCASE = computed(
+  () => PROJECTS_VIEW.value.visible && PROJECTS_VIEW.value.opts.dismissible === true
+);
+
 /** Drop a stale open-error banner (e.g. once the user edits the source), leaving
  *  the view open and its prefill intact. No-ops when there's no error so it's
  *  cheap to call on every keystroke. peek() to avoid subscribing callers. */

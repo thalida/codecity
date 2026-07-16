@@ -1,7 +1,6 @@
 /* ── codecity landing / project switcher ────────────────────────────────────
    Full-bleed page (not a modal): a brand hero beside an action panel. The gem
-   palette (lime/cyan/purple/magenta) doubles as a soft holographic backdrop and
-   colors the three "what it does" cues. */
+   palette (lime/cyan/purple/magenta) colors the three "what it does" cues. */
 
 .landing {
   position: fixed;
@@ -9,40 +8,33 @@
   z-index: 1000;
   overflow-y: auto;
   /* Full-page mode (non-dismissible: cold boot / nothing loaded to fall back to).
-     A solid surface with the gem wash (::before) — nothing meaningful is behind
-     to reveal, so no blur. */
+     A solid surface — nothing meaningful is behind to reveal, so no blur. */
   background: var(--cc-bg-app);
 }
 
-/* Modal mode (dismissible, over a loaded city): translucent + blurred so the
-   city shows through as soft hints behind the overlay. Tint stays dark enough to
-   keep the hero text and cards readable over any city. */
+/* Modal mode (dismissible, over a loaded city): the live city is driven into an
+   auto-rotating backdrop (useSwitcherShowcase). Reveal it rather than blur it
+   away, softened by just a touch of blur for depth + readability. Scrim only the
+   hero side, letting its text keep AA contrast over the city; the action cards
+   carry their own opaque surface and the center/right stays clear. */
 .landing--modal {
-  background: color-mix(in oklch, var(--cc-bg-app) 82%, transparent);
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
+  background: linear-gradient(
+    100deg,
+    color-mix(in oklch, var(--cc-bg-app) 82%, transparent) 0%,
+    color-mix(in oklch, var(--cc-bg-app) 62%, transparent) 24%,
+    color-mix(in oklch, var(--cc-bg-app) 24%, transparent) 46%,
+    transparent 64%
+  );
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
 }
 
-/* Subtle holographic wash — two low-opacity gem-tinted glows, non-interactive,
-   behind the content. */
-.landing::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  background:
-    radial-gradient(
-      75% 65% at 18% 12%,
-      color-mix(in oklch, var(--cc-gem-cyan) 10%, transparent),
-      color-mix(in oklch, var(--cc-gem-cyan) 3%, transparent) 45%,
-      transparent 100%
-    ),
-    radial-gradient(
-      70% 65% at 88% 85%,
-      color-mix(in oklch, var(--cc-gem-purple) 10%, transparent),
-      color-mix(in oklch, var(--cc-gem-purple) 3%, transparent) 45%,
-      transparent 100%
-    );
+/* Stacked layout: the hero is full-width at the top with no card column beside
+   it, so a directional scrim can't cover it, fall back to an even veil. */
+@media (max-width: 900px) {
+  .landing--modal {
+    background: color-mix(in oklch, var(--cc-bg-app) 70%, transparent);
+  }
 }
 
 .landing-close {

@@ -43,14 +43,14 @@ import { openProjectsView, closeProjectsView } from '@/state/stores/ui';
 import { SOURCE_ERROR, CURRENT_SOURCE } from '@/state/stores/source';
 import { MANIFEST } from '@/state/stores/manifest';
 import { isEmptyManifest } from '@/utils/manifest';
-import { URL_PARAMS } from '@/constants/urlParams';
-import { srcNeedsBranch } from '@/utils/sources';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { useManifestSource } from '@/hooks/useManifestSource';
+import { useSwitcherShowcase } from '@/hooks/useSwitcherShowcase';
 import { attachLoadingReactions } from '@/state/loadingReactions';
 
 export function App() {
   useDocumentTitle();
+  useSwitcherShowcase();
   const { submitSource, cancelLoad } = useManifestSource();
 
   useEffect(() => attachLoadingReactions(), []);
@@ -74,20 +74,8 @@ export function App() {
     SOURCE_ERROR.value = null;
   };
 
-  // Cold boot needs a source pick when there's no ?src, OR when ?src is a remote
-  // URL with no ?branch (branch choice is explicit — the hook won't auto-load
-  // it). Prefill the URL so the picker resolves its branches and preselects the
-  // default. Non-dismissible either way: nothing is loaded to fall back to.
-  useEffect(() => {
-    const qp = new URLSearchParams(window.location.search);
-    const src = qp.get(URL_PARAMS.SRC);
-    const branch = qp.get(URL_PARAMS.BRANCH) ?? undefined;
-    if (!src) {
-      openProjectsView({ dismissible: false });
-    } else if (srcNeedsBranch(src, branch)) {
-      openProjectsView({ dismissible: false, prefill: { src } });
-    }
-  }, []);
+  // The cold-boot picker decision runs pre-paint in main.tsx (openBootPickerIfNeeded)
+  // so the landing covers the chrome from frame one; App only handles reopens below.
 
   // A source-load failure (boot or submit) reopens the view. Dismissible only
   // when a city is already loaded to fall back to (a failed FIRST pick stays
