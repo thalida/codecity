@@ -69,10 +69,20 @@ describe('exclude-driven re-fetch', () => {
   });
 
   it('does not re-fetch merely because the source switched', async () => {
+    // Load s1 first so the reaction records a non-null key for it — otherwise
+    // the switch run exits on the `prev === null` branch and the actual
+    // switch-guard (`prevRepo !== repoKey`) is never exercised.
+    const load = loadSource({ src: 's1', branch: undefined });
+    await flush();
+    StubEventSource.instances[0].emit('manifest-complete', MANIFEST_JSON);
+    await load;
+    expect(CURRENT_SOURCE.value?.src).toBe('s1');
+
     const dispose = setupLiveUpdates();
     const before = StubEventSource.instances.length;
-    CURRENT_SOURCE.value = { src: 's2', branch: undefined }; // switch, no exclude edit
+    CURRENT_SOURCE.value = { src: 's2', branch: undefined }; // real repo-key change, no exclude edit
     await flush();
+    // The switch alone must NOT refetch — the load owns sending s2's excludes.
     expect(StubEventSource.instances.length).toBe(before);
     dispose();
   });
