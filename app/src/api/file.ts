@@ -16,3 +16,15 @@ export async function fetchFileText(path: string): Promise<string> {
   if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
   return resp.text();
 }
+
+/**
+ * Fetch the raw bytes for a file. Throws on non-2xx. Used by the font preview,
+ * which sniffs the bytes and builds a FontFace from them directly (rather than
+ * pointing FontFace at the URL) so it can reject non-fonts before the browser
+ * attempts — and noisily fails — to decode them.
+ */
+export async function fetchFileBytes(path: string): Promise<ArrayBuffer> {
+  const resp = await fetch(fileUrl(path));
+  if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+  return resp.arrayBuffer();
+}

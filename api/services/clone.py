@@ -455,6 +455,57 @@ def _resolve_default_branch(repo: Path) -> str | None:
     return out.rsplit("/", 1)[-1] if out else None
 
 
+def _repo_uses_lfs(target: Path) -> bool:
+    """True when the checked-out tree has Git-LFS-tracked files. Authoritative
+    (reads the index + .gitattributes wherever they live, not just the root) and
+    cheap — it lists pointers, not object contents. Returns False when git-lfs
+    isn't installed, so a host without it degrades to plain clones instead of
+    erroring."""
+    try:
+        return bool(_run_git("lfs", "ls-files", "-n", cwd=target).strip())
+    except CloneError:
+        return False
+
+
+def _pull_lfs(
+    target: Path,
+    *,
+    on_heartbeat: Callable[[int | None], None] | None = None,
+    cancel_event: "threading.Event | None" = None,
+) -> None:
+    """Materialize Git LFS objects for the checked-out tree, replacing pointer
+    stubs with real bytes. A plain clone leaves LFS files as tiny text pointers,
+    so without this a font/image/video stored in LFS reads as garbage (fonts
+    fail to parse; image billboards render broken).
+
+    Fetches only what HEAD references — consistent with the blobless clone, which
+    already skips historical blobs the scanner never reads.
+
+    Best effort: a failure (LFS server down, quota, auth) leaves the pointer
+    files in place and is logged, not raised. The scan still completes and the
+    preview / billboard falls back gracefully on the pointer bytes rather than
+    the whole load failing over unreachable LFS storage."""
+    if not _repo_uses_lfs(target):
+        return
+    _log(f"pulling git lfs objects for {target}")
+    try:
+        # Heartbeat off the LFS object store (not .git/objects/pack — LFS bytes
+        # land there) so a big download shows progress instead of a silent wait.
+        _run_git_streaming(
+            "lfs",
+            "pull",
+            cwd=target,
+            progress_dir=target / ".git" / "lfs" / "objects",
+            on_heartbeat=on_heartbeat,
+            cancel_event=cancel_event,
+        )
+        _log("git lfs pull complete")
+    except ScanCancelledError:
+        raise
+    except CloneError as e:
+        _log(f"git lfs pull failed ({e}); leaving pointer files in place")
+
+
 def _fresh_clone(
     url: str,
     branch: str | None,
@@ -497,6 +548,7 @@ def _fresh_clone(
         shutil.rmtree(target, ignore_errors=True)
         _maybe_raise_clean_clone_error(url, branch, str(e))
         raise
+    _pull_lfs(target, on_heartbeat=on_heartbeat, cancel_event=cancel_event)
     return target
 
 
@@ -550,6 +602,7 @@ def ensure_clone(
                 # the working tree empty; the scanner will produce an
                 # empty manifest and the frontend renders an empty world.
                 _log("remote has no commits; skipping reset")
+            _pull_lfs(target, on_heartbeat=on_heartbeat, cancel_event=cancel_event)
             _log("update complete")
             return target
         except CloneError as e:

@@ -38,7 +38,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 RUN apt-get update \
     && apt-get upgrade -y \
     && apt-get install -y --no-install-recommends \
-        git ca-certificates wget \
+        git git-lfs ca-certificates wget \
     && rm -rf /var/lib/apt/lists/*
 
 # uv: bring in the static binary from the official image.
