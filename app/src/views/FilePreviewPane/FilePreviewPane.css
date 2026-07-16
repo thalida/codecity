@@ -230,14 +230,14 @@
 
 .font-specimen-line {
   margin: var(--cc-space-0);
-  font-size: 36px;
+  font-size: 28px;
   line-height: var(--cc-lh-tight);
   word-break: break-word;
 }
 
 .font-specimen-pangram {
   margin: var(--cc-space-4) var(--cc-space-0) var(--cc-space-0);
-  font-size: 20px;
+  font-size: 16px;
   line-height: var(--cc-lh-base);
   color: var(--cc-text-secondary);
   word-break: break-word;
@@ -248,7 +248,7 @@
    metrics. */
 .font-specimen-repertoire {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(2.25rem, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(2rem, 1fr));
   gap: var(--cc-space-1);
 }
 
@@ -256,8 +256,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  height: 2.25rem;
-  font-size: 22px;
+  height: 2rem;
+  font-size: 18px;
   line-height: 1;
   border-radius: var(--cc-radius-sm);
 }
