@@ -294,7 +294,7 @@ function fontRejectReason(buf: ArrayBuffer): string | null {
 
   const head = new TextDecoder().decode(new Uint8Array(buf, 0, Math.min(48, buf.byteLength)));
   if (head.startsWith('version https://git-lfs')) {
-    return 'This is a Git LFS pointer, not the font itself. Clone with Git LFS to preview it.';
+    return 'This font is stored in Git LFS and its content could not be fetched (the LFS object may be missing, private, or over its bandwidth quota).';
   }
   return 'This file is not a recognized font (ttf, otf, woff, or woff2).';
 }
