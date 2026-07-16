@@ -28,4 +28,4 @@ export const SHOWCASE_FILL_MULT = 0.62; // < INITIAL_DISTANCE_MULT: tighter, "fi
 export const SHOWCASE_ELEVATION_DEG = 20; // low, cinematic angle above the horizon
 export const SHOWCASE_AZIMUTH_DEG = 35; // 3/4 starting swing; auto-rotate carries it on
 export const SHOWCASE_TARGET_Y_FRAC = 0.32; // aim a third up the skyline, not the ground
-export const SHOWCASE_ROTATE_SPEED = 0.6; // OrbitControls autoRotateSpeed
+export const SHOWCASE_ROTATE_SPEED = 0.3; // OrbitControls autoRotateSpeed
