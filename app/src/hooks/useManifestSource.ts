@@ -332,7 +332,11 @@ export function setupLiveUpdates(): () => void {
     if (prev === nextKey) return; // no actual change
     if (SCAN_PROGRESS.peek() !== null) return; // yield to a foreground load
     if (!cur) return;
-    void fetchAndApply(cur.src, cur.branch);
+    if (inFlight) return; // the poll's tick is already covering this refresh
+    inFlight = true;
+    void fetchAndApply(cur.src, cur.branch).finally(() => {
+      inFlight = false;
+    });
   });
 
   return () => {

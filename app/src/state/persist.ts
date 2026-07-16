@@ -16,8 +16,13 @@ import { deepEqual, deepClone } from '@/utils/deep';
 // ── Registry ───────────────────────────────────────────────────────────────
 // One map keyed by the store signal itself; each entry holds the persisted
 // key name (localStorage suffix) and the pre-hydration default. Keying by the
-// signal (not the name) makes getDefault / HAS_ANY_NON_DEFAULT /
-// forEachRegisteredStore direct lookups — no reverse name↔signal scan.
+// signal (not the name) makes getDefault a direct lookup — no reverse
+// name↔signal scan. This is EVERY persisted store (e.g. EXCLUDES, recents,
+// sidebar width). The narrower "which of these are panel-owned settings"
+// registry (_SETTING_STORES, with its own HAS_ANY_NON_DEFAULT/
+// forEachSettingStore) lives in settingsSchema.ts — "Reset all settings"
+// iterates that one, so a store only in _STORES (like EXCLUDES) is untouched
+// by it.
 interface StoreEntry {
   name: string;
   default: any;
