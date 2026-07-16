@@ -38,6 +38,8 @@ import {
 import { SERVER_CONFIG } from '@/state/stores/serverConfig';
 import { MANIFEST, setManifest, markError } from '@/state/stores/manifest';
 import { SCAN_PROGRESS } from '@/state/stores/scanProgress';
+import { activeExcludePathsFor, ACTIVE_EXCLUDES } from '@/state/stores/excludes';
+import { sourceKey } from '@/state/stores/source';
 import { srcKind, SourceKind, srcNeedsBranch } from '@/utils/sources';
 import { isEmptyManifest } from '@/utils/manifest';
 import { URL_PARAMS } from '@/constants/urlParams';
@@ -147,6 +149,7 @@ export async function loadSource(payload: SourcePayload): Promise<void> {
       src: payload.src,
       branch: payload.branch,
       noCache: !!payload.skipCache,
+      exclude: activeExcludePathsFor(payload.src),
     });
     // Publish the skeleton as it streams (early structure, behind the overlay);
     // the final is published below, AFTER committing the source.
@@ -233,16 +236,22 @@ interface SignatureResponse {
  * error). The loop no-ops until a source is loaded and yields (via loadGeneration
  * + the SCAN_PROGRESS gate) while a foreground load is in flight, so an update
  * firing mid-load can't clobber the world being loaded. Returns a dispose fn
- * (stop timer + tear down the ENABLED effect). Gated on LIVE_UPDATES.ENABLED.
+ * (stop timer + tear down the ENABLED effect + the exclude-refresh reaction).
+ * The poll loop itself is gated on LIVE_UPDATES.ENABLED, but the exclude-refresh
+ * reaction below is NOT — it's the only trigger for an exclude edit and must run
+ * regardless of the live-update toggle. Exported so the exclude-refresh reaction
+ * is directly testable.
  */
-function setupLiveUpdates(): () => void {
+export function setupLiveUpdates(): () => void {
   let timer: number | null = null;
   let inFlight = false;
 
   async function fetchAndApply(src: string, branch: string | undefined): Promise<void> {
     const myGen = loadGeneration; // capture; a foreground load bumping this drops our write
     try {
-      for await (const event of streamManifest(manifestUrlFor({ src, branch }))) {
+      for await (const event of streamManifest(
+        manifestUrlFor({ src, branch, exclude: activeExcludePathsFor(src) })
+      )) {
         if (event.phase === ScanPhase.Error) throw new Error(event.error);
         // Live-update path: skip skeleton. The city is already drawn; applying
         // a skeleton would animate every building to placeholder heights and
@@ -272,7 +281,9 @@ function setupLiveUpdates(): () => void {
     const applied = (current as Manifest).signature;
     inFlight = true;
     try {
-      const sigResp = await fetch(signatureUrlFor(cur.src, cur.branch));
+      const sigResp = await fetch(
+        signatureUrlFor(cur.src, cur.branch, activeExcludePathsFor(cur.src))
+      );
       if (!sigResp.ok) return;
       const sig: SignatureResponse | null = await sigResp.json();
       if (!sig?.signature || sig.signature === applied) return;
@@ -302,9 +313,32 @@ function setupLiveUpdates(): () => void {
     else stop();
   });
 
+  // Re-fetch the loaded source in place when ITS exclude set changes. The poll
+  // is gated by LIVE_UPDATES.ENABLED (default off), so excludes need their own
+  // trigger. Uses fetchAndApply (final-only, no overlay/skeleton) for a smooth
+  // in-place update. Key-guarded: ACTIVE_EXCLUDES also recomputes on a source
+  // switch (repo key changes) — only a same-repo list change refreshes.
+  let lastExcludeKey: string | null = null;
+  const disposeExcludeRefresh = effect(() => {
+    const serialized = ACTIVE_EXCLUDES.value.join('\n');
+    const cur = CURRENT_SOURCE.peek();
+    const repoKey = cur ? sourceKey(cur.src) : null;
+    const nextKey = repoKey === null ? null : `${repoKey}|${serialized}`;
+    const prev = lastExcludeKey;
+    lastExcludeKey = nextKey;
+    if (prev === null || nextKey === null) return; // first run / no source
+    const [prevRepo] = prev.split('|', 1);
+    if (prevRepo !== repoKey) return; // source switched — the load owns it
+    if (prev === nextKey) return; // no actual change
+    if (SCAN_PROGRESS.peek() !== null) return; // yield to a foreground load
+    if (!cur) return;
+    void fetchAndApply(cur.src, cur.branch);
+  });
+
   return () => {
     stop();
     disposeEnabledEffect();
+    disposeExcludeRefresh();
   };
 }
 
