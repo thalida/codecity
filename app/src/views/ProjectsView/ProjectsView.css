@@ -13,8 +13,7 @@
 }
 
 /* Modal mode (dismissible, over a loaded city): the live city is driven into an
-   auto-rotating backdrop (useSwitcherShowcase). Reveal it rather than blur it
-   away, softened by just a touch of blur for depth + readability. Scrim only the
+   auto-rotating backdrop (useSwitcherShowcase), revealed crisp. Scrim only the
    hero side, letting its text keep AA contrast over the city; the action cards
    carry their own opaque surface and the center/right stays clear. */
 .landing--modal {
@@ -25,8 +24,6 @@
     color-mix(in oklch, var(--cc-bg-app) 24%, transparent) 46%,
     transparent 64%
   );
-  backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px);
 }
 
 /* Stacked layout: the hero is full-width at the top with no card column beside
@@ -36,6 +33,10 @@
     background: color-mix(in oklch, var(--cc-bg-app) 70%, transparent);
   }
 }
+
+/* The cold-boot backdrop is a WebGL domain-warped gradient — see the
+   <LandingBackdrop> component (ProjectsView renders it on the full-page landing
+   only; the modal shows the live city). */
 
 .landing-close {
   position: absolute;
