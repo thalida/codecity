@@ -59,18 +59,29 @@ router = APIRouter(prefix="/api", tags=["manifest"])
 logger = logging.getLogger("codecity.manifest")
 
 
+def _norm_excludes(exclude: list[str]) -> frozenset[str]:
+    """Normalize repeated ?exclude= params to root-anchored rel-paths:
+    trim whitespace, drop empties, strip a single leading '/'."""
+    return frozenset(e.strip().lstrip("/") for e in exclude if e.strip())
+
+
 @router.get("/manifest/signature", response_model=SignatureResponse)
 def signature(
     src: str = Query(...),
     branch: str | None = Query(None),
     no_cache: bool = Query(False),
+    exclude: list[str] = Query(default_factory=list),
 ) -> SignatureResponse:
     try:
         target = resolve_source(src, branch)
     except ResolveError as e:
         raise HTTPException(e.status, e.message)
     try:
-        sig = signature_tree(str(target), use_cache=not no_cache)
+        sig = signature_tree(
+            str(target),
+            use_cache=not no_cache,
+            extra_exclude_paths=_norm_excludes(exclude),
+        )
     except Exception as e:  # noqa: BLE001
         raise HTTPException(500, f"signature failed: {e}")
     return SignatureResponse.model_validate(dict(sig))
@@ -148,8 +159,10 @@ async def manifest(
     src: str = Query(""),
     branch: str | None = Query(None),
     no_cache: bool = Query(False),
+    exclude: list[str] = Query(default_factory=list),
 ) -> EventSourceResponse:
     use_cache = not no_cache
+    excludes = _norm_excludes(exclude)
 
     async def gen() -> AsyncIterator[dict[str, Any]]:
         # Classify + (for local) validate WITHOUT cloning. The git clone runs
@@ -249,7 +262,9 @@ async def manifest(
                 _put(_sse(ScanEvent.SCAN_PROGRESS, {"label": pending_label}))
 
                 # Signature (cache key) + warm-cache short-circuit.
-                sig = signature_tree(str(path), use_cache=use_cache)["signature"]
+                sig = signature_tree(
+                    str(path), use_cache=use_cache, extra_exclude_paths=excludes
+                )["signature"]
                 holder["sig"] = sig
                 if use_cache:
                     cached = cache_load_manifest(path.resolve(), sig)
@@ -263,6 +278,7 @@ async def manifest(
                     use_cache=use_cache,
                     cancel_event=cancel,
                     on_scan_progress=_on_scan,
+                    extra_exclude_paths=excludes,
                 ):
                     phase = ev["phase"]  # ScanEvent.MANIFEST_PARTIAL | _COMPLETE
                     m = ev["manifest"]

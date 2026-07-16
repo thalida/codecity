@@ -10,6 +10,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from api.app import create_app
+from api.routers.manifest import _norm_excludes
 
 
 def _git(*a: str, cwd: Path) -> None:
@@ -51,6 +52,13 @@ def _parse_sse(text: str) -> list[tuple[str, dict]]:
                 events.append((name, json.loads("".join(data_lines))))
             name, data_lines = "message", []
     return events
+
+
+class TestExcludeParam:
+    def test_normalizer_strips_and_drops_empties(self) -> None:
+        assert _norm_excludes(["", " sub ", "/a.md", "sub"]) == frozenset(
+            {"sub", "a.md"}
+        )
 
 
 def test_manifest_stream_local(
