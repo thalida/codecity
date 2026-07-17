@@ -70,7 +70,7 @@ export function ProjectsView({ onSubmit, onCancel, onClose }: ProjectsViewProps)
 
       {pv.opts.dismissible && !loading && (
         <button class="landing-close btn-icon btn-icon--lg" aria-label="Close" onClick={onClose}>
-          <X class="lucide-icon" />
+          <X class="icon" />
         </button>
       )}
 
@@ -85,25 +85,25 @@ export function ProjectsView({ onSubmit, onCancel, onClose }: ProjectsViewProps)
           <p class="landing-tagline">Turn any git repo into a 3D city</p>
           <ul class="landing-delights">
             <li class="landing-delight landing-delight--streets">
-              <Waypoints class="lucide-icon" aria-hidden="true" />
+              <Waypoints class="icon" aria-hidden="true" />
               <span>
                 Directories become <strong>streets</strong>
               </span>
             </li>
             <li class="landing-delight landing-delight--buildings">
-              <Building2 class="lucide-icon" aria-hidden="true" />
+              <Building2 class="icon" aria-hidden="true" />
               <span>
                 Files rise into <strong>buildings</strong>
               </span>
             </li>
             <li class="landing-delight landing-delight--trees">
-              <TreePine class="lucide-icon" aria-hidden="true" />
+              <TreePine class="icon" aria-hidden="true" />
               <span>
                 Every commit grows a <strong>tree</strong>
               </span>
             </li>
             <li class="landing-delight landing-delight--authors">
-              <Sparkles class="lucide-icon" aria-hidden="true" />
+              <Sparkles class="icon" aria-hidden="true" />
               <span>
                 Commit authors orbit trees as <strong>fireflies</strong>
               </span>

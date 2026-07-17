@@ -10,4 +10,6 @@ export const URL_PARAMS = {
   BRANCH: 'branch',
   /** When 'true', forces a fresh server-side scan (bypasses the scan cache). */
   NO_CACHE: 'no_cache',
+  /** Repeated rel-path the UI hides from the rendered city (client-side pref). */
+  EXCLUDE: 'exclude',
 } as const;

@@ -22,7 +22,8 @@ import {
   SURFACE_PRESETS,
   type ThemePresetOption,
 } from '@/state/stores/settings/theme';
-import { ThemeRow } from '@/components/ThemeRow/ThemeRow';
+import { SettingRow } from '@/components/SettingRow/SettingRow';
+import { Section } from '@/components/Section/Section';
 
 interface SignalLike {
   get value(): string;
@@ -72,60 +73,73 @@ function SwatchRow({ label, tip, axis, store, options, defaultValue }: SwatchRow
     btnRefs.current[next]?.focus();
   };
 
+  // Per-row reset lives in SettingRow's head slot (right of the label), the same
+  // place every schema-driven row's reset sits, so all tabs line up.
+  const resetBtn = (
+    <button
+      type="button"
+      class="setting-row-reset"
+      title={`Default: ${defaultLabel}`}
+      aria-label={`Reset ${label.toLowerCase()} to default`}
+      disabled={current === defaultValue}
+      onClick={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        stageReset(store, null);
+      }}
+    >
+      <RotateCcw class="icon" />
+    </button>
+  );
   return (
-    <ThemeRow label={label} tip={tip}>
-      <span class="swatch-row">
-        <span class="swatch-group" role="radiogroup" aria-label={label} onKeyDown={onKeyDown}>
-          {options.map((opt, i) => {
-            const checked = opt.value === current;
-            return (
-              <button
-                key={opt.value}
-                ref={(el) => {
-                  btnRefs.current[i] = el;
-                }}
-                type="button"
-                role="radio"
-                aria-checked={checked}
-                aria-label={opt.label}
-                title={opt.label}
-                tabIndex={i === activeIndex ? 0 : -1}
-                class={checked ? 'swatch is-active' : 'swatch'}
-                onClick={() => select(opt.value)}
-              >
-                <span
-                  class="swatch-chip"
-                  style={{ background: chipVar }}
-                  {...{ [`data-cc-${axis}`]: opt.value }}
-                />
-                <span class="swatch-label">{opt.label}</span>
-              </button>
-            );
-          })}
-        </span>
-        <button
-          type="button"
-          class="theme-row-reset"
-          title={`Default: ${defaultLabel}`}
-          aria-label={`Reset ${label.toLowerCase()} to default`}
-          disabled={current === defaultValue}
-          onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            stageReset(store, null);
-          }}
-        >
-          <RotateCcw class="lucide-icon" />
-        </button>
+    <SettingRow label={label} tip={tip} resetSlot={resetBtn}>
+      <span class="swatch-group" role="radiogroup" aria-label={label} onKeyDown={onKeyDown}>
+        {options.map((opt, i) => {
+          const checked = opt.value === current;
+          return (
+            <button
+              key={opt.value}
+              ref={(el) => {
+                btnRefs.current[i] = el;
+              }}
+              type="button"
+              role="radio"
+              aria-checked={checked}
+              aria-label={opt.label}
+              title={opt.label}
+              tabIndex={i === activeIndex ? 0 : -1}
+              class={checked ? 'swatch is-active' : 'swatch'}
+              onClick={() => select(opt.value)}
+            >
+              <span
+                class="swatch-chip"
+                style={{ background: chipVar }}
+                {...{ [`data-cc-${axis}`]: opt.value }}
+              />
+              <span class="swatch-label">{opt.label}</span>
+            </button>
+          );
+        })}
       </span>
-    </ThemeRow>
+    </SettingRow>
   );
 }
 
 export function InterfaceThemeSection() {
   void DRAFTS_REV.value; // re-render on write-through / reset
+  const accentDiffers = getEffective(ACCENT_THEME, null) !== ACCENT_THEME_DEFAULT;
+  const surfaceDiffers = getEffective(SURFACE_THEME, null) !== SURFACE_THEME_DEFAULT;
   return (
-    <div class="controls-inline-section">
+    <Section
+      name="Interface theme"
+      defaultOpen
+      onReset={() => {
+        stageReset(ACCENT_THEME, null);
+        stageReset(SURFACE_THEME, null);
+      }}
+      resetEnabled={accentDiffers || surfaceDiffers}
+      resetTitle="Reset interface theme to defaults"
+    >
       <SwatchRow
         label="Accent"
         tip="Accent color for buttons, links, and highlights; applies immediately."
@@ -142,6 +156,6 @@ export function InterfaceThemeSection() {
         options={SURFACE_PRESETS}
         defaultValue={SURFACE_THEME_DEFAULT}
       />
-    </div>
+    </Section>
   );
 }

@@ -131,7 +131,7 @@
   font-size: var(--cc-font-xs);
   line-height: var(--cc-lh-base);
 }
-.code-editor-banner .lucide-icon {
+.code-editor-banner .icon {
   flex: 0 0 auto;
   font-size: var(--cc-font-md);
   opacity: 0.85;

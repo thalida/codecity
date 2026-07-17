@@ -10,7 +10,8 @@ import {
   SYNTAX_THEME_OPTIONS,
 } from '@/state/stores/settings/syntaxTheme';
 import { RotateCcw } from 'lucide-preact';
-import { ThemeRow } from '@/components/ThemeRow/ThemeRow';
+import { SettingRow } from '@/components/SettingRow/SettingRow';
+import { Section } from '@/components/Section/Section';
 
 export function FilePreviewSection() {
   void DRAFTS_REV.value; // re-render on draft/commit changes
@@ -20,12 +21,35 @@ export function FilePreviewSection() {
     SYNTAX_THEME_DEFAULT;
   const isDefault = current === SYNTAX_THEME_DEFAULT;
 
+  const resetBtn = (
+    <button
+      type="button"
+      class="setting-row-reset"
+      title={`Default: ${defaultLabel}`}
+      aria-label="Reset syntax theme to default"
+      disabled={isDefault}
+      onClick={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        stageReset(SYNTAX_THEME, null);
+      }}
+    >
+      <RotateCcw class="icon" />
+    </button>
+  );
   return (
-    <div class="controls-inline-section">
-      <ThemeRow
+    <Section
+      name="File preview"
+      defaultOpen
+      onReset={() => stageReset(SYNTAX_THEME, null)}
+      resetEnabled={!isDefault}
+      resetTitle="Reset file preview to default"
+    >
+      <SettingRow
         label="Syntax theme"
         tip="Highlight theme for the file preview; applies immediately."
         inline
+        resetSlot={resetBtn}
       >
         <select
           class="form-input form-input--select"
@@ -40,21 +64,7 @@ export function FilePreviewSection() {
             </option>
           ))}
         </select>
-        <button
-          type="button"
-          class="theme-row-reset"
-          title={`Default: ${defaultLabel}`}
-          aria-label="Reset syntax theme to default"
-          disabled={isDefault}
-          onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            stageReset(SYNTAX_THEME, null);
-          }}
-        >
-          <RotateCcw class="lucide-icon" />
-        </button>
-      </ThemeRow>
-    </div>
+      </SettingRow>
+    </Section>
   );
 }

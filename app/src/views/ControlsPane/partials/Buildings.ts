@@ -32,9 +32,11 @@ export const BUILDINGS_SECTION: SectionNode = {
       children: [
         field(BUILDING_DIMENSIONS, 'MIN_FLOORS'),
         field(BUILDING_DIMENSIONS, 'MAX_FLOORS'),
+        field(BUILDING_DIMENSIONS, 'FULL_HEIGHT_LINES'),
         field(BUILDING_DIMENSIONS, 'FLOOR_HEIGHT'),
         field(BUILDING_DIMENSIONS, 'MIN_WIDTH'),
         field(BUILDING_DIMENSIONS, 'MAX_WIDTH'),
+        field(BUILDING_DIMENSIONS, 'FULL_WIDTH_KB'),
         field(BUILDING_DIMENSIONS, 'DISTANCE_FROM_ROAD'),
       ],
     },

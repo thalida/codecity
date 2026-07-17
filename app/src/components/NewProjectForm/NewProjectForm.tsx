@@ -150,7 +150,7 @@ export function NewProjectForm({
         aria-controls="new-project-advanced"
         onClick={() => setAdvanced((a) => !a)}
       >
-        <ChevronRight class="lucide-icon new-project-advanced-caret" />
+        <ChevronRight class="icon new-project-advanced-caret" />
         Advanced
       </button>
       {advanced && (

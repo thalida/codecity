@@ -9,7 +9,7 @@ import { setDraft } from '@/state/settingsDrafts';
 import type { StreetTier } from '@/state/stores/settings/streets';
 import { RotateCcw } from 'lucide-preact';
 import { Slider } from '@/components/Slider/Slider';
-import { ThemeRow } from './ThemeRow/ThemeRow';
+import { SettingRow } from './SettingRow/SettingRow';
 import type { FieldProps } from './Field';
 
 export function TierWidthsField({ store, fieldKey }: FieldProps) {
@@ -28,7 +28,7 @@ export function TierWidthsField({ store, fieldKey }: FieldProps) {
         const descId = `${baseId}-${i}`;
         const controlId = `${baseId}-${i}-c`;
         return (
-          <ThemeRow
+          <SettingRow
             label={label}
             tip={tip}
             descId={descId}
@@ -37,7 +37,7 @@ export function TierWidthsField({ store, fieldKey }: FieldProps) {
             resetSlot={
               <button
                 type="button"
-                class="theme-row-reset"
+                class="setting-row-reset"
                 title={`Default: ${defaultWidth}`}
                 aria-label="Reset to default"
                 disabled={disabled}
@@ -49,7 +49,7 @@ export function TierWidthsField({ store, fieldKey }: FieldProps) {
                   commit(next);
                 }}
               >
-                <RotateCcw class="lucide-icon" />
+                <RotateCcw class="icon" />
               </button>
             }
           >
@@ -66,7 +66,7 @@ export function TierWidthsField({ store, fieldKey }: FieldProps) {
                 commit(next);
               }}
             />
-          </ThemeRow>
+          </SettingRow>
         );
       })}
     </>

@@ -2,7 +2,7 @@
 
 /* Segmented select — used for enum picks like "Detail: full / silhouette
  * / hidden". One button per option; the active option lights up. */
-.theme-select {
+.setting-select {
   display: inline-flex;
   background: var(--cc-bg-chrome);
   border: 1px solid var(--cc-border-input);

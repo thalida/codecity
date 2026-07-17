@@ -6,7 +6,7 @@
  * webkit naturally centers each thumb vertically on the input box, which
  * is the same vertical center as the visual track (top:50%/translateY).
  * Result: thumbs sit ON the track, never below it. */
-.theme-range-pair {
+.setting-range-pair {
   position: relative;
   flex: 1 1 auto;
   min-width: 60px;
@@ -14,7 +14,7 @@
 }
 
 /* Visual track: a thin bar centered vertically in the pair container. */
-.theme-range-pair-track {
+.setting-range-pair-track {
   position: absolute;
   top: 50%;
   transform: translateY(-50%);
@@ -24,7 +24,7 @@
   background: var(--cc-track);
   border-radius: var(--cc-radius-sm);
 }
-.theme-range-pair-fill {
+.setting-range-pair-fill {
   position: absolute;
   top: 50%;
   transform: translateY(-50%);
@@ -39,7 +39,7 @@
  * is transparent (we draw the visible track above), so each input only
  * contributes its thumb to the visual. pointer-events:none on the input
  * lets clicks pass through except where the thumb itself sits. */
-.theme-range-pair input[type='range'] {
+.setting-range-pair input[type='range'] {
   position: absolute;
   inset: 0;
   width: 100%;
@@ -54,14 +54,14 @@
 /* The transparent overlay input spans the whole container, so a default
  * focus outline would frame the entire pair. Suppress that and put the
  * keyboard ring on the thumb instead, where the focused value actually is. */
-.theme-range-pair input[type='range']:focus {
+.setting-range-pair input[type='range']:focus {
   outline: none;
 }
-.theme-range-pair input[type='range']:focus-visible::-webkit-slider-thumb {
+.setting-range-pair input[type='range']:focus-visible::-webkit-slider-thumb {
   outline: 2px solid var(--cc-accent-light);
   outline-offset: 2px;
 }
-.theme-range-pair input[type='range']:focus-visible::-moz-range-thumb {
+.setting-range-pair input[type='range']:focus-visible::-moz-range-thumb {
   outline: 2px solid var(--cc-accent-light);
   outline-offset: 2px;
 }
@@ -70,12 +70,12 @@
  * on the runnable-track midline, so a full-height track means the thumb's
  * vertical center aligns with the input's vertical center — and that's
  * the same center as our visible track element above. */
-.theme-range-pair input[type='range']::-webkit-slider-runnable-track {
+.setting-range-pair input[type='range']::-webkit-slider-runnable-track {
   background: transparent;
   height: 100%;
   border: none;
 }
-.theme-range-pair input[type='range']::-moz-range-track {
+.setting-range-pair input[type='range']::-moz-range-track {
   background: transparent;
   height: 100%;
   border: none;
@@ -85,7 +85,7 @@
  * sit centered on a track of the same height — but since we set the
  * runnable-track to fill the input, the natural centering takes over and
  * no margin nudge is needed. */
-.theme-range-pair input[type='range']::-webkit-slider-thumb {
+.setting-range-pair input[type='range']::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
   width: 14px;
@@ -97,7 +97,7 @@
   pointer-events: auto;
   box-shadow: var(--cc-shadow-sm);
 }
-.theme-range-pair input[type='range']::-moz-range-thumb {
+.setting-range-pair input[type='range']::-moz-range-thumb {
   width: 14px;
   height: 14px;
   background: var(--cc-accent);
@@ -109,9 +109,9 @@
 }
 /* Lo thumb a touch darker so it reads as the "lower" anchor when the
  * two thumbs sit at the same value (otherwise they'd be a single dot). */
-.theme-range-pair input.theme-range-pair-lo::-webkit-slider-thumb {
+.setting-range-pair input.setting-range-pair-lo::-webkit-slider-thumb {
   background: var(--cc-accent-dark);
 }
-.theme-range-pair input.theme-range-pair-lo::-moz-range-thumb {
+.setting-range-pair input.setting-range-pair-lo::-moz-range-thumb {
   background: var(--cc-accent-dark);
 }

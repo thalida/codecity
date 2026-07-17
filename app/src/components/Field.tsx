@@ -9,7 +9,7 @@
 import { useId } from 'preact/hooks';
 import { FieldKind, getFieldDef } from '@/state/settingsSchema';
 import { useField } from '@/hooks/useSettings';
-import { ThemeRow } from './ThemeRow/ThemeRow';
+import { SettingRow } from './SettingRow/SettingRow';
 import { TierWidthsField } from './TierWidthsField';
 import { HueMapField } from './HueMapField/HueMapField';
 import { ColorInput } from '@/components/ColorInput/ColorInput';
@@ -141,7 +141,7 @@ export function Field({ store, fieldKey }: FieldProps) {
     def.kind === FieldKind.Number ||
     def.kind === FieldKind.Select;
   return (
-    <ThemeRow
+    <SettingRow
       label={def.label}
       tip={def.tip}
       inline={inline}
@@ -153,6 +153,6 @@ export function Field({ store, fieldKey }: FieldProps) {
       keys={[fieldKey]}
     >
       {control}
-    </ThemeRow>
+    </SettingRow>
   );
 }

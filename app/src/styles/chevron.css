@@ -1,7 +1,7 @@
 /* ═══════════════════════════════════════════════════════════════════════════
    LAYER-2 COMPONENTS — Chevron
    ═══════════════════════════════════════════════════════════════════════════
-   Disclosure chevron — shared by the controls-section and theme-subgroup
+   Disclosure chevron — shared by the controls-section and setting-subgroup
    <details> summaries. Width matches the standard icon column so labels at all
    depths line up. The open state is driven purely by the parent <details open>
    (the rotate override lives with each owning component).

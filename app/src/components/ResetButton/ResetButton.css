@@ -1,11 +1,11 @@
 /* ── ResetButton ── */
 
-/* Tiny accent reset buttons (controls section + subgroup + theme row).
+/* Tiny accent reset buttons (controls section + subgroup + setting row).
    Two near-identical rules from the audit consolidated into a shared
    ruleset; no new component class. */
 .controls-section-reset,
 .controls-subgroup-reset,
-.theme-row-reset {
+.setting-row-reset {
   flex: 0 0 auto;
   appearance: none;
   display: inline-flex;
@@ -22,19 +22,19 @@
 }
 .controls-section-reset:not(:disabled):hover,
 .controls-subgroup-reset:not(:disabled):hover,
-.theme-row-reset:not(:disabled):hover {
+.setting-row-reset:not(:disabled):hover {
   color: var(--cc-white);
   background: var(--cc-accent-bg);
   border-color: var(--cc-accent-border);
 }
 .controls-section-reset:not(:disabled):active,
 .controls-subgroup-reset:not(:disabled):active,
-.theme-row-reset:not(:disabled):active {
+.setting-row-reset:not(:disabled):active {
   background: var(--cc-accent-bg-strong);
 }
 .controls-section-reset:disabled,
 .controls-subgroup-reset:disabled,
-.theme-row-reset:disabled {
+.setting-row-reset:disabled {
   color: var(--cc-accent-bg);
   cursor: default;
 }
@@ -49,7 +49,7 @@
 
 /* Per-row reset icon. ACTIONABLE — clearly shown in brand-blue when the
  * row's value differs from its default, fades in on hover. */
-/* .theme-row-reset typography in .btn-reset-inline. */
-.theme-row-reset {
+/* .setting-row-reset typography in .btn-reset-inline. */
+.setting-row-reset {
   margin: var(--cc-space-0);
 }

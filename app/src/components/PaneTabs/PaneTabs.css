@@ -35,11 +35,30 @@
   color: var(--cc-text-strong);
 }
 
+/* Count of changed-from-default items under this tab (PaneTabs.tsx). A small
+ * rounded-square chip: a light surface fill + surface-toned border, light text. */
+.pane-tab-badge {
+  flex: 0 0 auto;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 var(--cc-space-1);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--cc-radius-sm);
+  background: var(--cc-overlay-bg-strong);
+  border: 1px solid var(--cc-border-subtle);
+  color: var(--cc-text-strong);
+  font-size: var(--cc-font-2xs);
+  font-weight: var(--cc-fw-medium);
+  line-height: 1;
+}
+
 .pane-tab--active {
   color: var(--cc-text-strong);
   border-bottom-color: var(--cc-accent);
 }
 
-.pane-tab .lucide-icon {
+.pane-tab .icon {
   font-size: var(--cc-font-md); /* icons are 1em (icons.css) — size off a token */
 }

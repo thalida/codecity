@@ -45,11 +45,13 @@ const CASES: Array<[string, number]> = [
   ['t-30k', 30000],
 ];
 
-// Captured against main before the #63 perf work. Format: `${nBuildings}/${nStreets}/${hash}`.
+// Format: `${nBuildings}/${nStreets}/${hash}`. Recaptured for #98's absolute
+// height/width ceiling (small-file repos no longer stretch to full height) —
+// the building/street counts are unchanged, only dimensions shifted.
 const EXPECTED: Record<string, string> = {
-  't-2k': '2000/644/a47ac69',
-  't-10k': '10000/3190/83797bd1',
-  't-30k': '30000/8129/14c61670',
+  't-2k': '2000/644/1a3845ab',
+  't-10k': '10000/3190/46986f99',
+  't-30k': '30000/8129/857d1160',
 };
 
 describe('layoutCity golden (bit-identical guard)', () => {

@@ -47,7 +47,7 @@ export function ResetButton({ store, keys, formatTitle = _defaultTitle }: ResetB
   return (
     <button
       type="button"
-      class="theme-row-reset"
+      class="setting-row-reset"
       title={title}
       aria-label="Reset to default"
       disabled={!hasDiff}
@@ -57,7 +57,7 @@ export function ResetButton({ store, keys, formatTitle = _defaultTitle }: ResetB
         for (const k of keys) stageReset(store, k);
       }}
     >
-      <RotateCcw class="lucide-icon" />
+      <RotateCcw class="icon" />
     </button>
   );
 }

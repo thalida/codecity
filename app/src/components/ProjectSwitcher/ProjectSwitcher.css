@@ -9,7 +9,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.btn-chip .lucide-icon {
+.btn-chip .icon {
   font-size: var(--cc-font-md);
   flex: 0 0 auto;
 }

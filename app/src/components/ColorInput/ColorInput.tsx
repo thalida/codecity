@@ -17,7 +17,7 @@ export function ColorInput({ value, onCommit, describedBy, id }: ColorInputProps
   return (
     <input
       type="color"
-      class="theme-color"
+      class="setting-color"
       id={id}
       value={normalizeHex(value)}
       aria-describedby={describedBy}

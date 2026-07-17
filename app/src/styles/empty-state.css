@@ -19,14 +19,14 @@
   color: var(--cc-text-muted);
   text-align: center;
 }
-.empty-state .lucide-icon {
+.empty-state .icon {
   opacity: 0.55;
   font-size: var(--cc-font-xl);
   margin-bottom: var(--cc-space-1);
 }
 /* Large variant — bigger gap + padding + icon. Used by the file-preview
    pane and the info pane's empty / error states. */
-.empty-state--lg .lucide-icon {
+.empty-state--lg .icon {
   font-size: var(--cc-font-2xl);
   margin-bottom: var(--cc-space-2);
 }

@@ -14,6 +14,20 @@ describe('apiUrl', () => {
     expect(u).toContain('src=%2Ffoo%2Fbar');
     expect(u).not.toContain('branch=');
   });
+
+  it('emits repeated params for array values', () => {
+    const url = apiUrl('manifest', { src: 'x', exclude: ['a', 'b'] });
+    const params = new URL(url).searchParams;
+    expect(params.getAll('exclude')).toEqual(['a', 'b']);
+    expect(params.get('src')).toBe('x');
+  });
+
+  it('skips empty arrays and undefined', () => {
+    const url = apiUrl('manifest', { src: 'x', exclude: [], branch: undefined });
+    const params = new URL(url).searchParams;
+    expect(params.getAll('exclude')).toEqual([]);
+    expect(params.has('branch')).toBe(false);
+  });
 });
 
 // The live-update poll targets the committed CURRENT_SOURCE via these builders,
@@ -50,5 +64,15 @@ describe('explicit-source URL builders', () => {
     expect(u).toContain('src=https%3A%2F%2Fgithub.com%2Fo%2Fr');
     expect(u).toContain('branch=feat');
     expect(u).not.toContain('PAGE_SRC');
+  });
+
+  it('includes exclude params on the manifest url', () => {
+    const params = new URL(manifestUrlFor({ src: 's', exclude: ['sub', 'a.md'] })).searchParams;
+    expect(params.getAll('exclude')).toEqual(['sub', 'a.md']);
+  });
+
+  it('includes exclude params on the signature url', () => {
+    const params = new URL(signatureUrlFor('s', undefined, ['sub'])).searchParams;
+    expect(params.getAll('exclude')).toEqual(['sub']);
   });
 });

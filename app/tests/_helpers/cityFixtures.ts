@@ -145,9 +145,11 @@ export function resetBuildingsConfig(): void {
   BUILDING_DIMENSIONS.value = {
     MIN_FLOORS: 2,
     MAX_FLOORS: 96,
+    FULL_HEIGHT_LINES: 2000,
     FLOOR_HEIGHT: 16,
     MIN_WIDTH: 8,
     MAX_WIDTH: 8,
+    FULL_WIDTH_KB: 64,
     DISTANCE_FROM_ROAD: 8,
   };
 }

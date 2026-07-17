@@ -19,8 +19,9 @@ import {
 } from '../tests/_helpers/layoutTreeFixtures';
 import { commitStats, fileStats } from '../tests/_helpers/statsFixtures';
 
-// Captured before the decoration-pass perf work.
-const EXPECTED = '12k:trees43000:orbs51600:74166740';
+// Recaptured for #98's building height/width ceiling (decorations place relative
+// to building heights); tree/orb counts unchanged, only positions shifted.
+const EXPECTED = '12k:trees43000:orbs51600:4c54aab2';
 
 describe('decoration golden (bit-identical guard)', () => {
   it('placeTrees + placeFireflies + renderer buffers match baseline', () => {

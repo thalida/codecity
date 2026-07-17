@@ -16,8 +16,10 @@
 // they too are ported.
 
 import './LeftSidebar.css';
+import { useRef, useLayoutEffect } from 'preact/hooks';
 import { useComputed, useSignal, useSignalEffect } from '@preact/signals';
 import { ACTIVITY_BAR_TABS, DEFAULT_SIDEBAR_TAB, TabPlacement } from '@/constants/ui';
+import { CHANGED_SETTINGS_COUNT } from '@/state/stores/settingsIndicators';
 import { PERSISTED_KEYS } from '@/constants/storage';
 import { SidebarTab, NodeKind } from '@/types';
 import type { PickTarget, TreeNode } from '@/types';
@@ -47,6 +49,21 @@ function _pathOf(target: PickTarget | null): string | null {
   return null;
 }
 
+// "Settings differ from default" dot. Replays its ring on every `count` change:
+// a keyed remount doesn't restart a CSS animation (Preact reuses the DOM node),
+// so we force it with the animation-reset + reflow trick.
+function SettingsChangeDot({ count }: { count: number }) {
+  const ref = useRef<HTMLSpanElement>(null);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    el.style.animation = 'none';
+    void el.offsetWidth; // reflow so the next assignment restarts the animation
+    el.style.animation = '';
+  }, [count]);
+  return <span ref={ref} class="activity-bar-dot" aria-hidden="true" />;
+}
+
 // ── ActivityBar sub-component ────────────────────────────────────────
 
 interface ActivityBarProps {
@@ -59,21 +76,27 @@ function ActivityBar({ activeTab, collapsed, onIconClick }: ActivityBarProps) {
   const tabs = ACTIVITY_BAR_TABS;
   const topTabs = tabs.filter((t) => t.placement !== TabPlacement.Bottom);
   const bottomTabs = tabs.filter((t) => t.placement === TabPlacement.Bottom);
+  // Total settings + excludes that differ from default. The Settings icon shows
+  // a single dirty dot (the per-tab counts live on the subtabs); a customized
+  // render stays discoverable from anywhere.
+  const changedCount = CHANGED_SETTINGS_COUNT.value;
 
   const renderTab = (tab: (typeof tabs)[number]) => {
     const isActive = !collapsed && tab.id === activeTab;
+    const showDot = tab.id === SidebarTab.Controls && changedCount > 0;
     return (
       <button
         key={tab.id}
         type="button"
         class={`activity-bar-icon${isActive ? ' active' : ''}`}
         data-tab={tab.id}
-        title={tab.title}
-        aria-label={tab.title}
+        title={showDot ? `${tab.title} (${changedCount} changed from default)` : tab.title}
+        aria-label={showDot ? `${tab.title}, ${changedCount} changed from default` : tab.title}
         aria-pressed={isActive}
         onClick={() => onIconClick(tab.id)}
       >
         <tab.icon class="activity-bar-glyph" />
+        {showDot && <SettingsChangeDot count={changedCount} />}
       </button>
     );
   };

@@ -28,7 +28,7 @@ export function ProjectSwitcher({ rootLabel, branch, onSwitchSource }: ProjectSw
     >
       <span class="btn-chip-label">{rootLabel}</span>
       {branch && <span class="app-header-branch-pill">@{branch}</span>}
-      <ChevronsUpDown class="lucide-icon btn-chip-affordance" />
+      <ChevronsUpDown class="icon btn-chip-affordance" />
     </button>
   );
 }

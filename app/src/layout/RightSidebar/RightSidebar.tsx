@@ -31,6 +31,7 @@ import {
   focusCommit,
 } from '@/state/stores/scene';
 import { MANIFEST } from '@/state/stores/manifest';
+import { addExclude } from '@/state/stores/excludes';
 import { FilePreviewPane } from '@/views/FilePreviewPane/FilePreviewPane';
 import type { FilePreviewPaneState } from '@/views/FilePreviewPane/FilePreviewPane';
 import { CommitPane } from '@/views/CommitPane/CommitPane';
@@ -135,6 +136,11 @@ export function RightSidebar() {
   const onCommitFocus = (commit: CommitEntry) => focusCommit(commit.sha);
   const onStreetFocus = (dir: DirNode) => focusPath(dir.path);
 
+  const onExcludeNode = (path: string) => {
+    addExclude(path);
+    clearSelection(); // the node is about to vanish from the re-fetched manifest
+  };
+
   const kind = activeKind.value;
   const open = isOpen.value;
 
@@ -147,13 +153,23 @@ export function RightSidebar() {
       widthSignal={RIGHT_SIDEBAR_WIDTH}
     >
       {kind === SidebarPaneKind.File && (
-        <FilePreviewPane state={fileState} onClose={onClose} onFocus={onFileFocus} />
+        <FilePreviewPane
+          state={fileState}
+          onClose={onClose}
+          onFocus={onFileFocus}
+          onExclude={(f) => onExcludeNode(f.path)}
+        />
       )}
       {kind === SidebarPaneKind.Commit && (
         <CommitPane state={commitState} onClose={onClose} onFocus={onCommitFocus} />
       )}
       {kind === SidebarPaneKind.Street && (
-        <StreetPane state={streetState} onClose={onClose} onFocus={onStreetFocus} />
+        <StreetPane
+          state={streetState}
+          onClose={onClose}
+          onFocus={onStreetFocus}
+          onExclude={(d) => onExcludeNode(d.path)}
+        />
       )}
     </Sidebar>
   );

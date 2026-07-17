@@ -59,6 +59,16 @@ const BUILDING_DIMENSIONS_FIELDS = {
     label: 'Max floors',
     tip: 'Floors for the largest file, the top of the height range. Above ~200 the tallest buildings dwarf the city.',
   },
+  FULL_HEIGHT_LINES: {
+    route: ChangeRoute.Rebuild,
+    kind: FieldKind.Slider,
+    default: 2000,
+    min: 100,
+    max: 10000,
+    step: 100,
+    label: 'Full height at (lines)',
+    tip: 'Line count that earns a max-floors building. A repo whose largest file is smaller stays proportionally shorter, so a repo of tiny files reads as a low-rise city rather than being stretched to full height.',
+  },
   FLOOR_HEIGHT: {
     route: ChangeRoute.Rebuild,
     kind: FieldKind.Slider,
@@ -88,6 +98,16 @@ const BUILDING_DIMENSIONS_FIELDS = {
     step: 1,
     label: 'Max width',
     tip: 'Footprint width for the largest file, the top of the width range.',
+  },
+  FULL_WIDTH_KB: {
+    route: ChangeRoute.Rebuild,
+    kind: FieldKind.Slider,
+    default: 64,
+    min: 1,
+    max: 1024,
+    step: 1,
+    label: 'Full width at (KB)',
+    tip: 'File size that earns a max-width footprint. A repo whose largest file is smaller keeps proportionally narrower footprints.',
   },
   DISTANCE_FROM_ROAD: {
     route: ChangeRoute.Rebuild,

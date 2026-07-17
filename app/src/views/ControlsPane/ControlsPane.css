@@ -17,16 +17,16 @@
  * and the field rows / descriptions beneath them line up to the right of the
  * guide at each nesting level. */
 .controls-section-summary,
-.theme-subgroup-summary,
-.controls-pane .theme-row,
-.controls-pane .theme-subgroup > .text-label {
+.setting-subgroup-summary,
+.controls-pane .setting-row,
+.controls-pane .setting-subgroup > .text-label {
   padding-left: var(--cc-ctrl-inset);
 }
 /* Headers inherit .row's side padding; drop the right pad so their reset button
  * lines up with the field-row resets + slider readouts (which sit flush at the
  * content edge). */
 .controls-section-summary,
-.theme-subgroup-summary {
+.setting-subgroup-summary {
   padding-right: 0;
 }
 /* The nested body draws the guide: margin-left centers a 1px rule under the
@@ -75,7 +75,7 @@
  * stays fully visible inside the header rather than being clipped by the scroll
  * container or a stacked neighbor. */
 .controls-section > .controls-section-summary:hover,
-.theme-subgroup-collapsible > .theme-subgroup-summary:hover {
+.setting-subgroup-collapsible > .setting-subgroup-summary:hover {
   background: color-mix(in oklch, var(--cc-white) 4%, var(--cc-bg-sidebar));
 }
 .controls-disclosure-toggle:focus-visible {

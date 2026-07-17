@@ -57,7 +57,7 @@ export function CopyButton({
         aria-label={label}
         onClick={onClick}
       >
-        <Copy class="lucide-icon" />
+        <Copy class="icon" />
       </button>
       {/* The copied state is otherwise a color-only flash; announce it. */}
       <span class="sr-only" role="status">

@@ -171,17 +171,27 @@ describe('getBuildingDimensions', () => {
     expect(dim.floors).toBe(1);
   });
 
-  it('largest file in the project maps to max_floors', () => {
-    const dim = getBuildingDimensions({ lines: 1000, size: 10000 }, { min: 10, max: 1000 });
+  it('largest file maps to max_floors when the repo reaches the full-height line count', () => {
+    // Biggest file at FULL_HEIGHT_LINES (2000) → the absolute ceiling is the cap.
+    const dim = getBuildingDimensions({ lines: 2000, size: 10000 }, { min: 10, max: 2000 });
     expect(dim.floors).toBe(TEST_BUILDING_DIMS.MAX_FLOORS);
   });
 
-  it('midrange file uses sqrt-interpolated floors', () => {
+  it('caps the tallest building below max_floors when the biggest file is small', () => {
+    // Repo whose largest file is 1000 lines (< FULL_HEIGHT_LINES 2000): even its
+    // biggest file tops out below the cap at 1 + sqrt(1000/2000) * (30 - 1) ≈ 21.5.
+    const dim = getBuildingDimensions({ lines: 1000, size: 10000 }, { min: 10, max: 1000 });
+    expect(dim.floors).toBeLessThan(TEST_BUILDING_DIMS.MAX_FLOORS as number);
+    expect(dim.floors).toBe(22);
+  });
+
+  it('midrange file uses sqrt-interpolated floors within the repo ceiling', () => {
+    // Biggest file is 1000 lines (< 2000) → repo ceiling ≈ 21.5 floors.
     // sMin=sqrt(10)=3.162, sMax=sqrt(1000)=31.62, sLines=sqrt(100)=10
     // t = (10 - 3.162) / (31.62 - 3.162) ≈ 0.240
-    // floors ≈ round(1 + 0.240 * 29) = round(7.96) = 8
+    // floors ≈ round(1 + 0.240 * (21.5 - 1)) = round(5.93) = 6
     const dim = getBuildingDimensions({ lines: 100, size: 1000 }, { min: 10, max: 1000 });
-    expect(dim.floors).toBe(8);
+    expect(dim.floors).toBe(6);
   });
 
   it('without lineStats falls back to min_floors', () => {

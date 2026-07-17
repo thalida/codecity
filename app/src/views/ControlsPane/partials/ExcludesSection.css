@@ -1,0 +1,33 @@
+/* ExcludesSection.css — Excluded-from-city list (Scan settings tab). Rows are
+   plain flex containers (not buttons): unlike RecentRow, nothing on the row
+   itself is clickable, only the restore control, so there's no row hover. */
+
+.excludes-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cc-space-1);
+}
+
+/* Left inset comes from the disclosure body's guide padding; keep the row flush
+   on the right so the per-row restore glyph lines up with the section header's
+   reset button (which sits at the content edge). */
+.excludes-row {
+  display: flex;
+  align-items: center;
+  gap: var(--cc-space-2);
+  padding: var(--cc-space-2) 0;
+}
+
+.excludes-row-icon {
+  flex: 0 0 auto;
+  color: var(--cc-text-muted);
+}
+
+.excludes-path {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.excludes-empty {
+  margin: 0;
+}

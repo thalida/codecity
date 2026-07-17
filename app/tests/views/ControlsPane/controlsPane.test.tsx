@@ -50,35 +50,40 @@ describe('ControlsPane subtabs', () => {
     container.remove();
   });
 
-  it('renders exactly three subtabs, World active by default', () => {
+  it('renders exactly three subtabs in Scan, Appearance, World order with Scan active by default', () => {
     const pane = mount();
     expect(pane.classList.contains('controls-pane')).toBe(true);
-    for (const label of ['World', 'Live updates', 'Appearance']) {
-      expect(tab(pane, label)).toBeTruthy();
-    }
+    const labels = Array.from(pane.querySelectorAll('[role="tab"]')).map((t) =>
+      t.textContent?.trim()
+    );
+    expect(labels).toEqual(['Scan', 'Appearance', 'World']);
     expect(tab(pane, 'Shortcuts')).toBeUndefined();
     expect(tab(pane, 'Debug')).toBeUndefined();
-    expect(tab(pane, 'World').getAttribute('aria-selected')).toBe('true');
+    expect(tab(pane, 'Scan').getAttribute('aria-selected')).toBe('true');
   });
 
-  it('shows the action bar only on World; Updates/Appearance autosave with no footer', () => {
+  it('shows the action bar only on World; Scan/Appearance autosave with no footer', () => {
     const pane = mount();
-    expect(pane.querySelector('.controls-actions')).toBeTruthy(); // World
-    clickTab(pane, 'Live updates');
-    expect(pane.querySelector('.controls-actions')).toBeNull();
+    expect(pane.querySelector('.controls-actions')).toBeNull(); // Scan (default)
+    clickTab(pane, 'World');
+    expect(pane.querySelector('.controls-actions')).toBeTruthy();
     clickTab(pane, 'Appearance');
     expect(pane.querySelector('.controls-actions')).toBeNull();
   });
 
-  it('renders the Updates section inline, with no collapsible section wrapper', () => {
+  it('renders the Scan tab as two collapsible sections: Live updates and Excluded from city', () => {
     const pane = mount();
-    clickTab(pane, 'Live updates');
-    expect(pane.querySelector('.controls-section')).toBeNull();
-    expect(pane.querySelectorAll('.theme-row').length).toBeGreaterThan(0);
+    clickTab(pane, 'Scan');
+    const sectionLabels = Array.from(
+      pane.querySelectorAll('.controls-section-summary .text-label')
+    ).map((el) => el.textContent);
+    expect(sectionLabels).toEqual(['Live updates', 'Excluded from city']);
+    expect(pane.querySelectorAll('.setting-row').length).toBeGreaterThan(0);
   });
 
   it('renders three action-bar buttons; Save/Discard disabled when clean', () => {
     const pane = mount();
+    clickTab(pane, 'World'); // the action bar lives on the draftable World tab
     const buttons = Array.from(
       pane.querySelectorAll<HTMLButtonElement>('.controls-actions .controls-button')
     );
@@ -95,28 +100,28 @@ describe('ControlsPane subtabs', () => {
 
   it('does not render any rebuild badges on rows', () => {
     const pane = mount();
-    expect(pane.querySelector('.theme-row-rebuild-badge')).toBeNull();
+    expect(pane.querySelector('.setting-row-rebuild-badge')).toBeNull();
   });
 
-  it('collapsed=true collapses all sections and resets to the World subtab', async () => {
+  it('collapsed=true remounts sections at their defaults and resets to the Scan subtab', async () => {
     const pane = mount({ collapsed: false });
-    // Open every disclosure, then confirm at least one is expanded.
+    // Move to World and expand its (default-collapsed) sections — a non-default
+    // state that the remount-on-collapse must discard.
+    clickTab(pane, 'World');
     pane.querySelectorAll<HTMLButtonElement>('.controls-disclosure-toggle').forEach((b) => {
       if (b.getAttribute('aria-expanded') === 'false') b.click();
     });
     await flush();
     expect(pane.querySelectorAll('.controls-section.is-open').length).toBeGreaterThan(0);
 
-    clickTab(pane, 'Live updates');
     act(() => {
       render(<ControlsPane onClose={() => {}} collapsed={true} />, container);
     });
     await flush();
     const repane = container.querySelector('.pane') as HTMLElement;
-    expect(tab(repane, 'World').getAttribute('aria-selected')).toBe('true');
-    // Sections remounted collapsed: no expanded disclosure remains.
-    expect(repane.querySelectorAll('.is-open').length).toBe(0);
-    expect(repane.querySelectorAll('[aria-expanded="true"]').length).toBe(0);
+    // Reset to Scan, whose two sections are defaultOpen — so exactly those reopen.
+    expect(tab(repane, 'Scan').getAttribute('aria-selected')).toBe('true');
+    expect(repane.querySelectorAll('.controls-section.is-open').length).toBe(2);
   });
 });
 
@@ -127,7 +132,14 @@ describe('subgroup group reset button', () => {
     act(() => {
       render(<ControlsPane />, container);
     });
-    return container.querySelector('.pane') as HTMLElement;
+    const pane = container.querySelector('.pane') as HTMLElement;
+    // These tests inspect World-tab subgroups; Scan is the default tab now.
+    act(() => {
+      Array.from(pane.querySelectorAll<HTMLButtonElement>('[role="tab"]'))
+        .find((t) => t.textContent?.includes('World'))
+        ?.click();
+    });
+    return pane;
   }
 
   beforeEach(() => {
@@ -141,7 +153,7 @@ describe('subgroup group reset button', () => {
 
   it('renders a draft-driven group reset for collapsible World subgroups that have fields', () => {
     const pane = mount();
-    expect(pane.querySelectorAll('.theme-subgroup-collapsible').length).toBeGreaterThan(0);
+    expect(pane.querySelectorAll('.setting-subgroup-collapsible').length).toBeGreaterThan(0);
     expect(pane.querySelectorAll('.controls-subgroup-reset').length).toBeGreaterThan(0);
   });
 

@@ -31,11 +31,12 @@ export interface StreetPaneProps {
   state: ReadonlySignal<StreetPaneState>;
   onClose?: () => void;
   onFocus?: (dir: DirNode) => void;
+  onExclude?: (dir: DirNode) => void;
 }
 
 // ── Preact component ─────────────────────────────────────────────────────────
 
-export function StreetPane({ state, onClose, onFocus }: StreetPaneProps) {
+export function StreetPane({ state, onClose, onFocus, onExclude }: StreetPaneProps) {
   const { directory: d } = state.value;
 
   if (!d) {
@@ -75,18 +76,24 @@ export function StreetPane({ state, onClose, onFocus }: StreetPaneProps) {
       onFocus={typeof onFocus === 'function' ? () => onFocus(d) : undefined}
       focusTitle={`Focus the camera on this road (${KEY_BINDINGS.FOCUS_SELECTION.label})`}
       onClose={onClose}
+      onExclude={
+        typeof onExclude === 'function' && d.path && d.path !== ROOT_PATH
+          ? () => onExclude(d)
+          : undefined
+      }
+      excludeTitle="Exclude this road from the city"
       bodyClass="street-body pane-inset"
     >
       {dateRange && (
         <div class="street-dates" title="Oldest file created → newest change">
-          <CalendarRange class="lucide-icon street-dates-icon" aria-hidden="true" />
+          <CalendarRange class="icon street-dates-icon" aria-hidden="true" />
           {dateRange}
         </div>
       )}
       {stats.length > 0 && (
         <>
           <div class="street-ext-h text-label">
-            <FileType class="lucide-icon street-ext-icon" aria-hidden="true" />
+            <FileType class="icon street-ext-icon" aria-hidden="true" />
             By extension
           </div>
           <div class="street-ext-list">

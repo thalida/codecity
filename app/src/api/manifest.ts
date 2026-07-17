@@ -27,19 +27,26 @@ import { apiUrl } from '@/api/apiUrl';
 // load and would make the poll fetch the wrong source mid-switch.
 
 /** URL for the manifest stream of an explicit source. */
-export function manifestUrlFor(opts: { src: string; branch?: string; noCache?: boolean }): string {
+export function manifestUrlFor(opts: {
+  src: string;
+  branch?: string;
+  noCache?: boolean;
+  exclude?: string[];
+}): string {
   return apiUrl('manifest', {
     [URL_PARAMS.SRC]: opts.src,
     [URL_PARAMS.BRANCH]: opts.branch,
     [URL_PARAMS.NO_CACHE]: opts.noCache ? 'true' : undefined,
+    [URL_PARAMS.EXCLUDE]: opts.exclude,
   });
 }
 
 /** URL for the lightweight signature poll of an explicit source. */
-export function signatureUrlFor(src: string, branch?: string): string {
+export function signatureUrlFor(src: string, branch?: string, exclude?: string[]): string {
   return apiUrl('manifest/signature', {
     [URL_PARAMS.SRC]: src,
     [URL_PARAMS.BRANCH]: branch,
+    [URL_PARAMS.EXCLUDE]: exclude,
   });
 }
 

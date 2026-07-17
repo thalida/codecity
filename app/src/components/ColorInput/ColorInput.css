@@ -1,7 +1,7 @@
 /* ── ColorInput ── */
 
 /* Color swatch — small native color picker */
-.theme-color {
+.setting-color {
   -webkit-appearance: none;
   appearance: none;
   width: 32px;
@@ -12,14 +12,14 @@
   border-radius: var(--cc-radius-sm);
   cursor: pointer;
 }
-.theme-color::-webkit-color-swatch-wrapper {
+.setting-color::-webkit-color-swatch-wrapper {
   padding: var(--cc-space-0);
 }
-.theme-color::-webkit-color-swatch {
+.setting-color::-webkit-color-swatch {
   border: none;
   border-radius: var(--cc-radius-sm);
 }
-.theme-color::-moz-color-swatch {
+.setting-color::-moz-color-swatch {
   border: none;
   border-radius: var(--cc-radius-sm);
 }

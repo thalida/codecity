@@ -30,7 +30,7 @@ export function CommitChip({ sha, authors, onFocus }: CommitChipProps) {
           aria-label={focusTitle}
           onClick={() => onFocus()}
         >
-          <Focus class="lucide-icon" />
+          <Focus class="icon" />
         </button>
       )}
       {'Commit '}

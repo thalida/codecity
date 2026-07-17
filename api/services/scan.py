@@ -1288,6 +1288,7 @@ def scan_tree(
     use_cache: bool = True,
     cancel_event: "threading.Event | None" = None,
     on_scan_progress: Callable[[int], None] | None = None,
+    extra_exclude_paths: frozenset[str] = frozenset(),
 ) -> Iterator["ScanStreamEvent"]:
     """Scan a git working tree and yield manifest events.
 
@@ -1304,7 +1305,10 @@ def scan_tree(
     is always applied on top of the tracked-files filter — handy for
     hiding committed noise like ``node_modules/`` or vendor bundles.
     Per-project additions go in ``<root>/.codecityignore`` (one literal
-    name per line, or relative paths containing ``/``)."""
+    name per line, or relative paths containing ``/``).
+
+    ``extra_exclude_paths`` — extra rel-paths skipped in addition to
+    ``.codecityignore``, supplied by the UI."""
     root_abs = str(Path(root).resolve())
     _log(f"resolving {root_abs}")
 
@@ -1325,6 +1329,11 @@ def scan_tree(
     ignore_names, ignore_paths, unignore_names, unignore_paths = _load_codecityignore(
         Path(root_abs)
     )
+    # UI excludes are additive rel-path skips on top of .codecityignore. They
+    # feed ignore_paths so _should_skip's existing precedence (negation,
+    # ALWAYS_SKIP, then ignores) holds — a UI exclude can't resurrect a default.
+    if extra_exclude_paths:
+        ignore_paths = ignore_paths | extra_exclude_paths
 
     heartbeat = _Heartbeat(on_progress=on_scan_progress)
     _log("walking tree…")
@@ -1472,6 +1481,7 @@ def signature_tree(
     root: str,
     *,
     use_cache: bool = True,
+    extra_exclude_paths: frozenset[str] = frozenset(),
 ) -> SignatureResponse:
     """Cheap fingerprint of the tree — equivalent to scan_tree(root)['signature']
     but without building the full manifest.
@@ -1490,6 +1500,9 @@ def signature_tree(
     params) but is a no-op here — signature_tree doesn't compute
     per-file lines/binary or per-file git history, so there's nothing
     to cache.
+
+    ``extra_exclude_paths`` — extra rel-paths skipped in addition to
+    ``.codecityignore``, supplied by the UI.
     """
     root_abs = str(Path(root).resolve())
     root_path = Path(root_abs)
@@ -1502,6 +1515,8 @@ def signature_tree(
     ignore_names, ignore_paths, unignore_names, unignore_paths = _load_codecityignore(
         root_path
     )
+    if extra_exclude_paths:
+        ignore_paths = ignore_paths | extra_exclude_paths
 
     sig = hashlib.blake2b(digest_size=16)
     _walk_for_signature(

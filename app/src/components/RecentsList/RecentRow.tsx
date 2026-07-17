@@ -70,7 +70,7 @@ export function RecentRow(props: RecentRowProps) {
         onClick={unavailable ? undefined : props.onOpen}
       >
         <span class="recent-icon">
-          {isLocal ? <Folder class="lucide-icon" /> : <HostingIcon src={r.src} />}
+          {isLocal ? <Folder class="icon" /> : <HostingIcon src={r.src} />}
         </span>
         <div class="recent-row-body">
           <div class="recent-label-row">
@@ -90,7 +90,7 @@ export function RecentRow(props: RecentRowProps) {
         aria-label="Remove from recents"
         onClick={props.onAskRemove}
       >
-        <X class="lucide-icon" />
+        <X class="icon" />
       </button>
     </div>
   );

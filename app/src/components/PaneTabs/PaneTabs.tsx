@@ -9,6 +9,9 @@ export interface PaneTab {
   id: string;
   label: string;
   icon?: LucideIcon;
+  /** Count of changed-from-default items under this tab; renders a small count
+   *  badge when > 0, omitted otherwise. */
+  badge?: number;
 }
 
 export interface PaneTabsProps {
@@ -71,8 +74,13 @@ export function PaneTabs({ tabs, active, onSelect, class: className, panelId }: 
             onClick={() => onSelect(t.id)}
             onKeyDown={(e) => onKeyDown(e, idx)}
           >
-            {Icon && <Icon class="lucide-icon" aria-hidden="true" />}
+            {Icon && <Icon class="icon" aria-hidden="true" />}
             <span>{t.label}</span>
+            {t.badge != null && t.badge > 0 && (
+              <span class="pane-tab-badge" aria-label={`${t.badge} changed from default`}>
+                {t.badge}
+              </span>
+            )}
           </button>
         );
       })}

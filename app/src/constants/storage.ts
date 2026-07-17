@@ -19,4 +19,6 @@ export const PERSISTED_KEYS = {
   LEFT_SIDEBAR_WIDTH: 'leftSidebarWidth',
   /** Right (file/commit/street pane) sidebar drag-handle width in px. */
   RIGHT_SIDEBAR_WIDTH: 'rightSidebarWidth',
+  /** Per-repo UI exclude lists (repo key -> rel-paths hidden from the city). */
+  EXCLUDES: 'excludes',
 } as const;

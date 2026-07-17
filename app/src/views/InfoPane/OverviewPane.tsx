@@ -66,7 +66,7 @@ function FactRow({ fact }: { fact: AlmanacFact }) {
       {fact.label && <span class="almanac-fact-label">{fact.label}</span>}
       <PrimaryValue fact={fact} />
       {fact.secondary && <span class="almanac-fact-metric">{fact.secondary}</span>}
-      {landmark && <Focus class="lucide-icon almanac-fact-focus" aria-hidden="true" />}
+      {landmark && <Focus class="icon almanac-fact-focus" aria-hidden="true" />}
     </>
   );
   if (!landmark) {
@@ -140,7 +140,7 @@ export function OverviewPane({ manifest }: OverviewPaneProps) {
         return (
           <section key={s.key} class="almanac-section" data-section={s.key}>
             <h3 class="almanac-section-title text-label" title={s.tip}>
-              <Icon class="lucide-icon almanac-section-icon" aria-hidden="true" />
+              <Icon class="icon almanac-section-icon" aria-hidden="true" />
               {s.title}
             </h3>
             {s.facts.length > 0 ? (

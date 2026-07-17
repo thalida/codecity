@@ -5,8 +5,8 @@
    .btn-secondary     — outlined neutral (modifier on .btn-accent-outline).
    .btn-accent-outline — accent-tinted outlined (controls-pane Save / debug).
    .btn-icon          — 24x24 icon-only button.
-   .btn-toggle        — one-of-N option button (segmented / theme-select).
-   .btn-reset-inline  — tiny inline reset (controls-section + theme-row).
+   .btn-toggle        — one-of-N option button (segmented / setting-select).
+   .btn-reset-inline  — tiny inline reset (controls-section + setting-row).
    ═══════════════════════════════════════════════════════════════════════════ */
 
 /* .btn-primary — solid accent CTA. Used everywhere a "primary action"
@@ -189,7 +189,7 @@
    Base shell + active state. The `.is-active` class flips the option to
    the accent-tinted "selected" look. Modifiers:
      .btn-toggle--separated — adds vertical separator borders between
-       sibling options, used by the controls-pane theme-select where the
+       sibling options, used by the controls-pane setting-select where the
        buttons sit edge-to-edge inside a bordered shell. */
 .btn-toggle {
   appearance: none;
@@ -214,7 +214,7 @@
   color: var(--cc-text-strong);
 }
 /* .btn-toggle--separated — modifier that adds a vertical separator
-   between sibling options. Used inside .theme-select where the buttons
+   between sibling options. Used inside .setting-select where the buttons
    sit edge-to-edge. Also tightens the padding + font for the dense
    inline-flex shell, and adds a soft hover background. */
 .btn-toggle--separated {

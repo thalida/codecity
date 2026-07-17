@@ -98,7 +98,7 @@ export function SearchPane({ manifest, onClose, onSelect }: SearchPaneProps) {
       headerSlot={
         <div class="pane-header pane-header--search">
           <div class="search-input-wrap">
-            <Search class="lucide-icon search-input-icon" aria-hidden="true" />
+            <Search class="icon search-input-icon" aria-hidden="true" />
             <input
               ref={inputRef}
               type="search"

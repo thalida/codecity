@@ -39,7 +39,7 @@ export function ActionsBar() {
           disabled={!canReset}
           onClick={() => stageResetAll()}
         >
-          <RotateCcw class="lucide-icon controls-button-icon" />
+          <RotateCcw class="icon controls-button-icon" />
           Reset all
         </button>
       </div>

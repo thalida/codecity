@@ -49,13 +49,13 @@ export function RangePair({
   }
 
   return (
-    <span class="theme-slider-wrap">
-      <span class="theme-range-pair">
-        <span class="theme-range-pair-track" />
-        <span class="theme-range-pair-fill" style={{ left: fillLeft, right: fillRight }} />
+    <span class="setting-slider-wrap">
+      <span class="setting-range-pair">
+        <span class="setting-range-pair-track" />
+        <span class="setting-range-pair-fill" style={{ left: fillLeft, right: fillRight }} />
         <input
           type="range"
-          class="theme-range-pair-lo"
+          class="setting-range-pair-lo"
           id={id}
           min={String(min)}
           max={String(max)}
@@ -67,7 +67,7 @@ export function RangePair({
         />
         <input
           type="range"
-          class="theme-range-pair-hi"
+          class="setting-range-pair-hi"
           id={id ? `${id}-hi` : undefined}
           min={String(min)}
           max={String(max)}
@@ -78,7 +78,7 @@ export function RangePair({
           onInput={onInputHi}
         />
       </span>
-      <span class="theme-slider-readout">
+      <span class="setting-slider-readout">
         {formatNumberForStep(lo, step)} – {formatNumberForStep(hi, step)}
       </span>
     </span>

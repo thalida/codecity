@@ -153,7 +153,7 @@ export function CommitPane({ state, onClose, onFocus }: CommitPaneProps) {
           title="Open this commit on the origin remote"
           aria-label="Open commit on origin"
         >
-          <ExternalLink class="lucide-icon" />
+          <ExternalLink class="icon" />
         </a>
       )}
     </>

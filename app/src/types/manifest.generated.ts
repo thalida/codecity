@@ -759,6 +759,7 @@ export interface operations {
                 src: string;
                 branch?: string | null;
                 no_cache?: boolean;
+                exclude?: string[];
             };
             header?: never;
             path?: never;
@@ -824,6 +825,7 @@ export interface operations {
                 src?: string;
                 branch?: string | null;
                 no_cache?: boolean;
+                exclude?: string[];
             };
             header?: never;
             path?: never;

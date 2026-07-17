@@ -9,7 +9,7 @@ import { useEffective, useDefault } from '@/hooks/useSettings';
 import { setDraft } from '@/state/settingsDrafts';
 import { RotateCcw } from 'lucide-preact';
 import { Slider } from '@/components/Slider/Slider';
-import { ThemeRow } from '../ThemeRow/ThemeRow';
+import { SettingRow } from '../SettingRow/SettingRow';
 import { fileTagHsl } from '@/utils/colors';
 import type { FieldProps } from '../Field';
 
@@ -31,7 +31,7 @@ export function HueMapField({ store, fieldKey }: FieldProps) {
           const descId = `${baseId}-${k}`;
           const controlId = `${baseId}-${k}-c`;
           return (
-            <ThemeRow
+            <SettingRow
               label={k}
               tip={tip}
               descId={descId}
@@ -40,7 +40,7 @@ export function HueMapField({ store, fieldKey }: FieldProps) {
               resetSlot={
                 <button
                   type="button"
-                  class="theme-row-reset"
+                  class="setting-row-reset"
                   title={`Default: ${defaultVal}`}
                   aria-label="Reset to default"
                   disabled={disabled}
@@ -50,7 +50,7 @@ export function HueMapField({ store, fieldKey }: FieldProps) {
                     commit({ ...map, [k]: defaultVal });
                   }}
                 >
-                  <RotateCcw class="lucide-icon" />
+                  <RotateCcw class="icon" />
                 </button>
               }
             >
@@ -63,8 +63,8 @@ export function HueMapField({ store, fieldKey }: FieldProps) {
                 id={controlId}
                 onCommit={(v) => commit({ ...map, [k]: v })}
               />
-              <span class="theme-hue-preview" style={{ background: fileTagHsl(value) }} />
-            </ThemeRow>
+              <span class="setting-hue-preview" style={{ background: fileTagHsl(value) }} />
+            </SettingRow>
           );
         })}
     </>
