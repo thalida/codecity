@@ -206,7 +206,8 @@ export function createTreeRenderer(
   placements: TreePlacement[],
   commits: CommitEntry[] | null,
   busyness: BusynessThresholds,
-  stats: RepoStats | null | undefined
+  stats: RepoStats | null | undefined,
+  scannedAt?: string | null
 ): Trees {
   let cfg = TREES.value;
 
@@ -220,8 +221,9 @@ export function createTreeRenderer(
   const canopyOverlapFrac = Math.max(0, Math.min(1, cfg.CANOPY_TRUNK_OVERLAP_FRAC));
 
   // Age + size ranges come from the backend-precomputed stats (commitDates +
-  // sparsest/grandest commit), not a client-side scan of `commits`.
-  const ageRange: AgeRange = computeAgeRange(stats);
+  // sparsest/grandest commit), not a client-side scan of `commits`. scannedAt
+  // (manifest.scanned_at) drives the absolute-age staleness lift on height.
+  const ageRange: AgeRange = computeAgeRange(stats, scannedAt);
   const sizeRange: SizeRange = computeSizeRange(stats);
 
   /** Resolve the commit a placement points at, or null when the index is

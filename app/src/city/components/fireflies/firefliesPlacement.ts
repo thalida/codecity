@@ -76,7 +76,8 @@ const MAX_FIREFLY_ORBS = 200_000;
 export function placeFireflies(
   placements: TreePlacement[],
   commits: CommitEntry[] | null,
-  stats: RepoStats | null | undefined
+  stats: RepoStats | null | undefined,
+  scannedAt?: string | null
 ): FireflyPlacement[] {
   if (!commits || commits.length === 0) return [];
 
@@ -113,8 +114,9 @@ export function placeFireflies(
   const cfg = TREES.value;
 
   // Age + size ranges also come from stats (commitDates + sparsest/grandest),
-  // shared with the tree renderer so orbs stay pinned to their trees.
-  const ageRange = computeAgeRange(stats);
+  // shared with the tree renderer so orbs stay pinned to their trees. scannedAt
+  // must match what the tree renderer passes so the staleness height lift agrees.
+  const ageRange = computeAgeRange(stats, scannedAt);
   const sizeRange = computeSizeRange(stats);
 
   const out: FireflyPlacement[] = [];

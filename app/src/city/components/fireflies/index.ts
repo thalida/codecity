@@ -66,7 +66,8 @@ export function createFireflies(ctx: SceneContext): FirefliesComponent {
   function rebuild(
     placements: TreePlacement[],
     commits: CommitEntry[] | null,
-    stats: RepoStats | null | undefined
+    stats: RepoStats | null | undefined,
+    scannedAt?: string | null
   ): void {
     clear();
     // Deliberately does NOT push current hover/selection into the fresh
@@ -74,7 +75,7 @@ export function createFireflies(ctx: SceneContext): FirefliesComponent {
     // no-push rule below; the next signal change pushes them.
     // The FIREFLIES.ENABLED gate stays inside fireflies.ts (an empty stub
     // assembly is returned when disabled).
-    _inner = assembleFireflies(placements, commits, stats);
+    _inner = assembleFireflies(placements, commits, stats, scannedAt);
     group.add(_inner.group);
   }
 
@@ -104,7 +105,7 @@ export function createFireflies(ctx: SceneContext): FirefliesComponent {
     if (placements)
       untracked(() => {
         const manifest = cityState.manifest.peek();
-        rebuild(placements, manifest?.commits ?? null, manifest?.stats);
+        rebuild(placements, manifest?.commits ?? null, manifest?.stats, manifest?.scanned_at);
       });
     else clear();
   });

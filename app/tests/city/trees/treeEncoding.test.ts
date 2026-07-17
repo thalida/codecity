@@ -48,6 +48,44 @@ describe('computeAgeRange()', () => {
   });
 });
 
+describe('computeAgeRange() staleness', () => {
+  // staleness = clamp((asOf − newestCommitDay) / STALE_HORIZON_DAYS, 0, CAP),
+  // where asOf is the manifest scanned_at. Newest commit here is 2026-01-21.
+  it('is 0 when scanned_at is omitted (feature off / backward compatible)', () => {
+    expect(computeAgeRange(commitStats(commits)).staleness).toBe(0);
+  });
+
+  it('is 0 when scanned on the newest commit day (fresh repo)', () => {
+    expect(computeAgeRange(commitStats(commits), '2026-01-21').staleness).toBe(0);
+  });
+
+  it('is 0 when scanned before the newest commit (negative age clamps up)', () => {
+    expect(computeAgeRange(commitStats(commits), '2025-06-01').staleness).toBe(0);
+  });
+
+  it('ramps linearly toward the 2-year horizon (365 days → ~0.5)', () => {
+    // 2026-01-21 → 2027-01-21 is exactly 365 days; 365 / 730 = 0.5.
+    expect(computeAgeRange(commitStats(commits), '2027-01-21').staleness).toBeCloseTo(0.5, 5);
+  });
+
+  it('caps at 0.85 for very stale repos (never fully flattens)', () => {
+    expect(computeAgeRange(commitStats(commits), '2036-01-21').staleness).toBe(0.85);
+  });
+
+  it('is 0 when there are no commits, regardless of scanned_at', () => {
+    expect(computeAgeRange(commitStats([]), '2036-01-21').staleness).toBe(0);
+    expect(computeAgeRange(null, '2036-01-21').staleness).toBe(0);
+  });
+
+  it('accepts an ISO datetime scanned_at (day precision)', () => {
+    // Same 365-day gap, but scanned_at as a full ISO timestamp.
+    expect(computeAgeRange(commitStats(commits), '2027-01-21T13:45:00Z').staleness).toBeCloseTo(
+      0.5,
+      5
+    );
+  });
+});
+
 describe('computeSizeRange()', () => {
   it('returns min and max file counts', () => {
     const r = computeSizeRange(commitStats(commits));
@@ -87,7 +125,7 @@ describe('ageT()', () => {
   });
 
   it('returns 0.5 when the range has zero span', () => {
-    const zero: AgeRange = { oldest: 0, newest: 0, span: 0 };
+    const zero: AgeRange = { oldest: 0, newest: 0, span: 0, staleness: 0 };
     expect(
       ageT(
         {
@@ -266,6 +304,61 @@ describe('treeHeight() / treeRadius()', () => {
       // (8 + 96) * 0.5 = 52
       expect(treeHeight(null, ageRange, cfg)).toBe(52);
       expect(treeHeight(undefined, ageRange, cfg)).toBe(52);
+    });
+
+    // Absolute-age (staleness) lift: a repo untouched for a while reads old
+    // across the whole forest, while keeping intra-repo oldest→newest spread.
+    // maturity = staleness + (1 − staleness)·relT, where relT is the existing
+    // repo-relative height fraction (oldest = 1, newest = 0).
+    describe('staleness lift', () => {
+      // scanned exactly on the newest commit → staleness 0 → identical to today.
+      const fresh = computeAgeRange(commitStats(sizing), '2026-01-21');
+      // scanned 365 days after the newest commit → staleness 0.5.
+      const stale = computeAgeRange(commitStats(sizing), '2027-01-21');
+      // scanned far in the future → staleness capped at 0.85.
+      const ancient = computeAgeRange(commitStats(sizing), '2036-01-21');
+
+      it('a fresh repo is a no-op (heights identical to today)', () => {
+        expect(treeHeight(sizing[0], fresh, cfg)).toBe(96); // oldest → MAX
+        expect(treeHeight(sizing[1], fresh, cfg)).toBeCloseTo(52, 5); // middle
+        expect(treeHeight(sizing[2], fresh, cfg)).toBe(8); // newest → MIN
+      });
+
+      it('lifts the whole forest while keeping the oldest at MAX', () => {
+        // staleness 0.5: oldest maturity 1 → 96, middle 0.75 → 74, newest 0.5 → 52.
+        expect(treeHeight(sizing[0], stale, cfg)).toBeCloseTo(96, 5);
+        expect(treeHeight(sizing[1], stale, cfg)).toBeCloseTo(74, 5);
+        expect(treeHeight(sizing[2], stale, cfg)).toBeCloseTo(52, 5);
+      });
+
+      it('preserves oldest→newest ordering and lifts every tree vs fresh', () => {
+        const h = sizing.map((c) => treeHeight(c, stale, cfg));
+        expect(h[0]).toBeGreaterThan(h[1]);
+        expect(h[1]).toBeGreaterThan(h[2]);
+        // Every tree is at least as tall as it was fresh; the newest strictly taller.
+        expect(treeHeight(sizing[2], stale, cfg)).toBeGreaterThan(
+          treeHeight(sizing[2], fresh, cfg)
+        );
+      });
+
+      it('honors the staleness cap: the newest tree never fully flattens', () => {
+        // maturity = 0.85 → 8 + 0.85·88 = 82.8.
+        expect(treeHeight(sizing[2], ancient, cfg)).toBeCloseTo(82.8, 5);
+        // The oldest tree stays pinned at MAX regardless of staleness.
+        expect(treeHeight(sizing[0], ancient, cfg)).toBeCloseTo(96, 5);
+      });
+
+      it('degrades sanely for a same-day (span 0) stale repo', () => {
+        const sameDay = buildCommits(
+          { date: '2026-01-01', files: 1 },
+          { date: '2026-01-01', files: 9 }
+        );
+        const range = computeAgeRange(commitStats(sameDay), '2027-01-01'); // staleness 0.5
+        // relT = 0.5 (span 0) → maturity = 0.5 + 0.5·0.5 = 0.75 → 8 + 0.75·88 = 74.
+        const height = treeHeight(sameDay[0], range, cfg);
+        expect(Number.isFinite(height)).toBe(true);
+        expect(height).toBeCloseTo(74, 5);
+      });
     });
   });
 
