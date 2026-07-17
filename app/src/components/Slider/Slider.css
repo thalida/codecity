@@ -4,7 +4,7 @@
  * auto-sized to its content (with a small floor so short numbers don't
  * collapse). No fixed widths anywhere — this row scales cleanly from a
  * narrow sidebar up to the max width. */
-.theme-slider-wrap {
+.setting-slider-wrap {
   flex: 1 1 auto;
   min-width: 0;
   display: flex;
@@ -12,7 +12,7 @@
   gap: var(--cc-space-4);
 }
 
-.theme-slider {
+.setting-slider {
   -webkit-appearance: none;
   appearance: none;
   flex: 1 1 auto;
@@ -22,7 +22,7 @@
   border-radius: var(--cc-radius-sm);
   cursor: pointer;
 }
-.theme-slider::-webkit-slider-thumb {
+.setting-slider::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
   width: 12px;
@@ -32,7 +32,7 @@
   border-radius: var(--cc-radius-circle);
   cursor: pointer;
 }
-.theme-slider::-moz-range-thumb {
+.setting-slider::-moz-range-thumb {
   width: 12px;
   height: 12px;
   background: var(--cc-accent);
@@ -41,7 +41,7 @@
   cursor: pointer;
 }
 
-.theme-slider-readout {
+.setting-slider-readout {
   flex: 0 0 auto;
   min-width: 36px;
   text-align: right;

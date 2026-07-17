@@ -35,7 +35,7 @@ export function ExcludesSection() {
               </span>
               <button
                 type="button"
-                class="theme-row-reset"
+                class="setting-row-reset"
                 title={`Restore ${p}`}
                 aria-label={`Restore ${p}`}
                 onClick={() => removeExclude(p)}

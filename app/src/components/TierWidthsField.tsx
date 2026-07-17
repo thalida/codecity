@@ -37,7 +37,7 @@ export function TierWidthsField({ store, fieldKey }: FieldProps) {
             resetSlot={
               <button
                 type="button"
-                class="theme-row-reset"
+                class="setting-row-reset"
                 title={`Default: ${defaultWidth}`}
                 aria-label="Reset to default"
                 disabled={disabled}

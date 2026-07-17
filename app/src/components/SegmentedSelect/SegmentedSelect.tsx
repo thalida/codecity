@@ -55,7 +55,12 @@ export function SegmentedSelect({
   }
 
   return (
-    <span class="theme-select" role="radiogroup" aria-label={label} aria-describedby={describedBy}>
+    <span
+      class="setting-select"
+      role="radiogroup"
+      aria-label={label}
+      aria-describedby={describedBy}
+    >
       {options.map((opt, idx) => {
         const checked = opt.value === value;
         return (

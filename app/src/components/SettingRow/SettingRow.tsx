@@ -1,4 +1,4 @@
-// components/SettingRow.tsx — Labeled control-panel row (renders .theme-row).
+// components/SettingRow.tsx — Labeled control-panel row (renders .setting-row).
 // Layout B (stacked): a head row (label + reset; plus the control itself for
 // inline kinds like toggle/color), then — for stacked kinds — the full-width
 // control, then the field's description when it has one.
@@ -60,17 +60,17 @@ export function SettingRow({
     resetSlot ??
     (store && keys && keys.length > 0 ? <ResetButton store={store} keys={keys} /> : null);
   return (
-    <div class={inline ? 'theme-row theme-row--inline' : 'theme-row'}>
-      <label class="theme-row-main" htmlFor={htmlFor} title={fullTip}>
-        <span class="theme-row-head">
-          <span class="theme-row-label">{label}</span>
-          {inline && <span class="theme-row-control">{children}</span>}
+    <div class={inline ? 'setting-row setting-row--inline' : 'setting-row'}>
+      <label class="setting-row-main" htmlFor={htmlFor} title={fullTip}>
+        <span class="setting-row-head">
+          <span class="setting-row-label">{label}</span>
+          {inline && <span class="setting-row-control">{children}</span>}
           {reset}
         </span>
-        {!inline && <span class="theme-row-control">{children}</span>}
+        {!inline && <span class="setting-row-control">{children}</span>}
       </label>
       {tip && (
-        <span class="theme-row-desc" id={descId}>
+        <span class="setting-row-desc" id={descId}>
           {tip}
         </span>
       )}

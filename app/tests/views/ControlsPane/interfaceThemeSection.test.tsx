@@ -70,7 +70,7 @@ describe('InterfaceThemeSection', () => {
     act(() => radio('Warm').click());
     await flush();
     expect(SURFACE_THEME.value).toBe('warm');
-    const surfaceReset = container.querySelectorAll<HTMLButtonElement>('.theme-row-reset')[1];
+    const surfaceReset = container.querySelectorAll<HTMLButtonElement>('.setting-row-reset')[1];
     act(() => surfaceReset.click());
     await flush();
     expect(SURFACE_THEME.value).toBe(SURFACE_THEME_DEFAULT);

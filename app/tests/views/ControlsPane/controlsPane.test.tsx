@@ -78,7 +78,7 @@ describe('ControlsPane subtabs', () => {
       pane.querySelectorAll('.controls-section-summary .text-label')
     ).map((el) => el.textContent);
     expect(sectionLabels).toEqual(['Live updates', 'Excluded from city']);
-    expect(pane.querySelectorAll('.theme-row').length).toBeGreaterThan(0);
+    expect(pane.querySelectorAll('.setting-row').length).toBeGreaterThan(0);
   });
 
   it('renders three action-bar buttons; Save/Discard disabled when clean', () => {
@@ -100,7 +100,7 @@ describe('ControlsPane subtabs', () => {
 
   it('does not render any rebuild badges on rows', () => {
     const pane = mount();
-    expect(pane.querySelector('.theme-row-rebuild-badge')).toBeNull();
+    expect(pane.querySelector('.setting-row-rebuild-badge')).toBeNull();
   });
 
   it('collapsed=true remounts sections at their defaults and resets to the Scan subtab', async () => {
@@ -153,7 +153,7 @@ describe('subgroup group reset button', () => {
 
   it('renders a draft-driven group reset for collapsible World subgroups that have fields', () => {
     const pane = mount();
-    expect(pane.querySelectorAll('.theme-subgroup-collapsible').length).toBeGreaterThan(0);
+    expect(pane.querySelectorAll('.setting-subgroup-collapsible').length).toBeGreaterThan(0);
     expect(pane.querySelectorAll('.controls-subgroup-reset').length).toBeGreaterThan(0);
   });
 

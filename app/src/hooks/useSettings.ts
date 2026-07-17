@@ -96,7 +96,7 @@ export function useAnyDiffersFromDefault(store: SignalLike, keys: string[]): boo
  * differing from its default. Draft-aware — tracks DRAFTS_REV + each store's
  * value, so it re-runs on any draft or committed change. Used by the
  * Section / Subgroup reset buttons over their descendant fields
- * (replaces the old DOM-scrape that read each `.theme-row-reset`'s disabled).
+ * (replaces the old DOM-scrape that read each `.setting-row-reset`'s disabled).
  */
 export function useAnyResettable(refs: ResettableRef[]): boolean {
   void DRAFTS_REV.value;

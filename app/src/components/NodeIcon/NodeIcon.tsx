@@ -11,7 +11,7 @@
 // Why not lucide masks: lucide icons render via CSS mask-image so they pick
 // up currentColor. The Material icons are full-color brand glyphs — the
 // COLOR is the info — so we render them as plain <img> instead. Trade: no
-// theme-tint, but every-node-recognizable-at-a-glance is the whole point.
+// setting-tint, but every-node-recognizable-at-a-glance is the whole point.
 //
 // Lookup tables live in constants/fileIcons.ts; the name resolvers live in
 // utils/fileIcons.ts. This file just renders.

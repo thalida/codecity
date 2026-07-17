@@ -98,9 +98,9 @@ describe('DynamicSection rendering', () => {
     expect(container.textContent).toContain('Height by age');
     expect(container.textContent).toContain('Outlines');
 
-    // One .theme-row per placed field (RangePair counts as one row).
+    // One .setting-row per placed field (RangePair counts as one row).
     const placed = collectRefs(TREES_SECTION.children ?? []).length;
-    expect(container.querySelectorAll('.theme-row').length).toBe(placed);
+    expect(container.querySelectorAll('.setting-row').length).toBe(placed);
   });
 
   it('caps collapsible nesting at MAX_COLLAPSE_DEPTH: deeper groups render flat', async () => {

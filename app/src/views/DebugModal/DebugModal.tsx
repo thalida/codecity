@@ -59,7 +59,7 @@ export function DebugModal({ onRunCollisionCheck, onRunStemDiagnostic }: DebugMo
         <div class="modal-body">
           <p class="debug-hint">Developer-only diagnostics. Output goes to the browser console.</p>
           {onRunCollisionCheck && (
-            <div class="theme-row">
+            <div class="setting-row">
               <button
                 type="button"
                 class="btn-secondary"
@@ -71,7 +71,7 @@ export function DebugModal({ onRunCollisionCheck, onRunStemDiagnostic }: DebugMo
             </div>
           )}
           {onRunStemDiagnostic && (
-            <div class="theme-row">
+            <div class="setting-row">
               <button
                 type="button"
                 class="btn-secondary"

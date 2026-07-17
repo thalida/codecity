@@ -40,7 +40,7 @@ export function HueMapField({ store, fieldKey }: FieldProps) {
               resetSlot={
                 <button
                   type="button"
-                  class="theme-row-reset"
+                  class="setting-row-reset"
                   title={`Default: ${defaultVal}`}
                   aria-label="Reset to default"
                   disabled={disabled}
@@ -63,7 +63,7 @@ export function HueMapField({ store, fieldKey }: FieldProps) {
                 id={controlId}
                 onCommit={(v) => commit({ ...map, [k]: v })}
               />
-              <span class="theme-hue-preview" style={{ background: fileTagHsl(value) }} />
+              <span class="setting-hue-preview" style={{ background: fileTagHsl(value) }} />
             </SettingRow>
           );
         })}

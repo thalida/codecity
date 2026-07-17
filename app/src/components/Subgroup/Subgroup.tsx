@@ -33,7 +33,7 @@ export function Subgroup({ name, collapsible = true, resetKeys, children }: Subg
 
   if (!collapsible) {
     return (
-      <div class="theme-subgroup">
+      <div class="setting-subgroup">
         <div class="text-label">{name}</div>
         {children}
       </div>
@@ -49,11 +49,11 @@ export function Subgroup({ name, collapsible = true, resetKeys, children }: Subg
     <div
       class={
         open.value
-          ? 'theme-subgroup theme-subgroup-collapsible is-open'
-          : 'theme-subgroup theme-subgroup-collapsible'
+          ? 'setting-subgroup setting-subgroup-collapsible is-open'
+          : 'setting-subgroup setting-subgroup-collapsible'
       }
     >
-      <div class="row theme-subgroup-summary">
+      <div class="row setting-subgroup-summary">
         <button
           type="button"
           class="controls-disclosure-toggle"
@@ -63,7 +63,7 @@ export function Subgroup({ name, collapsible = true, resetKeys, children }: Subg
           }}
         >
           <ChevronRight class="icon chevron" />
-          <span class="theme-subgroup-label-text text-label">{name}</span>
+          <span class="setting-subgroup-label-text text-label">{name}</span>
         </button>
         {keys.length > 0 && (
           <button

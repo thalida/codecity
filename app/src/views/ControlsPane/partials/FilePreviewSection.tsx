@@ -24,7 +24,7 @@ export function FilePreviewSection() {
   const resetBtn = (
     <button
       type="button"
-      class="theme-row-reset"
+      class="setting-row-reset"
       title={`Default: ${defaultLabel}`}
       aria-label="Reset syntax theme to default"
       disabled={isDefault}

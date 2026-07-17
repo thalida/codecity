@@ -47,7 +47,7 @@ export function ResetButton({ store, keys, formatTitle = _defaultTitle }: ResetB
   return (
     <button
       type="button"
-      class="theme-row-reset"
+      class="setting-row-reset"
       title={title}
       aria-label="Reset to default"
       disabled={!hasDiff}

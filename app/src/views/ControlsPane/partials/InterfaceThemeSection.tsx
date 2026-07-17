@@ -78,7 +78,7 @@ function SwatchRow({ label, tip, axis, store, options, defaultValue }: SwatchRow
   const resetBtn = (
     <button
       type="button"
-      class="theme-row-reset"
+      class="setting-row-reset"
       title={`Default: ${defaultLabel}`}
       aria-label={`Reset ${label.toLowerCase()} to default`}
       disabled={current === defaultValue}

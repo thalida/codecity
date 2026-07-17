@@ -26,7 +26,7 @@ describe('SettingRow layout B', () => {
       </SettingRow>
     );
     await flush();
-    const desc = container.querySelector('.theme-row-desc');
+    const desc = container.querySelector('.setting-row-desc');
     expect(desc?.textContent).toBe('Floors for the largest file.');
   });
 
@@ -37,7 +37,7 @@ describe('SettingRow layout B', () => {
       </SettingRow>
     );
     await flush();
-    expect(container.querySelector('.theme-row-desc')).toBeNull();
+    expect(container.querySelector('.setting-row-desc')).toBeNull();
   });
 
   it('marks the row inline when inline is set (toggle/color)', async () => {
@@ -47,7 +47,7 @@ describe('SettingRow layout B', () => {
       </SettingRow>
     );
     await flush();
-    expect(container.querySelector('.theme-row')?.classList.contains('theme-row--inline')).toBe(
+    expect(container.querySelector('.setting-row')?.classList.contains('setting-row--inline')).toBe(
       true
     );
   });
@@ -59,7 +59,7 @@ describe('SettingRow layout B', () => {
       </SettingRow>
     );
     await flush();
-    expect(container.querySelector('.theme-row')?.classList.contains('theme-row--inline')).toBe(
+    expect(container.querySelector('.setting-row')?.classList.contains('setting-row--inline')).toBe(
       false
     );
   });
@@ -73,7 +73,7 @@ describe('SettingRow layout B', () => {
     await flush();
     const label = container.querySelector('label');
     expect(label?.textContent).not.toContain('Floors for the largest file.');
-    expect(container.querySelector('.theme-row-desc')?.textContent).toBe(
+    expect(container.querySelector('.setting-row-desc')?.textContent).toBe(
       'Floors for the largest file.'
     );
   });
@@ -97,7 +97,7 @@ describe('Field a11y wiring (description via aria-describedby)', () => {
     mount(<Field store={BUILDING_DIMENSIONS} fieldKey="MIN_FLOORS" />);
     await flush();
     const input = container.querySelector('input');
-    const desc = container.querySelector('.theme-row-desc');
+    const desc = container.querySelector('.setting-row-desc');
     expect(desc).not.toBeNull();
     expect(desc?.id).toBeTruthy();
     expect(input?.getAttribute('aria-describedby')).toBe(desc?.id);
@@ -107,7 +107,7 @@ describe('Field a11y wiring (description via aria-describedby)', () => {
     mount(<Field store={BUILDINGS} fieldKey="OUTLINE_HOVER_OPACITY" />);
     await flush();
     const input = container.querySelector('input');
-    expect(container.querySelector('.theme-row-desc')).toBeNull();
+    expect(container.querySelector('.setting-row-desc')).toBeNull();
     expect(input?.hasAttribute('aria-describedby')).toBe(false);
   });
 });

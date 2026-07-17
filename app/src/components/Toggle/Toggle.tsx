@@ -14,7 +14,7 @@ export function Toggle({ checked, onCommit, describedBy, id }: ToggleProps) {
   return (
     <input
       type="checkbox"
-      class="theme-toggle"
+      class="setting-toggle"
       id={id}
       checked={checked}
       aria-describedby={describedBy}
