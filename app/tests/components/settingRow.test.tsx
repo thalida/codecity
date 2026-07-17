@@ -1,11 +1,11 @@
 import { describe, it, expect, afterEach } from 'vitest';
 import { render } from 'preact';
-import { ThemeRow } from '@/components/ThemeRow/ThemeRow';
+import { SettingRow } from '@/components/SettingRow/SettingRow';
 import { Field } from '@/components/Field';
 import { BUILDING_DIMENSIONS, BUILDINGS } from '@/state/stores/settings/buildings';
 import { flush } from '../_helpers/preact';
 
-describe('ThemeRow layout B', () => {
+describe('SettingRow layout B', () => {
   let container: HTMLDivElement;
   afterEach(() => {
     if (container) {
@@ -21,9 +21,9 @@ describe('ThemeRow layout B', () => {
 
   it('shows the tip as an inline description when present', async () => {
     mount(
-      <ThemeRow label="Max floors" tip="Floors for the largest file.">
+      <SettingRow label="Max floors" tip="Floors for the largest file.">
         <input />
-      </ThemeRow>
+      </SettingRow>
     );
     await flush();
     const desc = container.querySelector('.theme-row-desc');
@@ -32,9 +32,9 @@ describe('ThemeRow layout B', () => {
 
   it('renders no description element when tip is absent', async () => {
     mount(
-      <ThemeRow label="Saturation">
+      <SettingRow label="Saturation">
         <input />
-      </ThemeRow>
+      </SettingRow>
     );
     await flush();
     expect(container.querySelector('.theme-row-desc')).toBeNull();
@@ -42,9 +42,9 @@ describe('ThemeRow layout B', () => {
 
   it('marks the row inline when inline is set (toggle/color)', async () => {
     mount(
-      <ThemeRow label="Enabled" inline>
+      <SettingRow label="Enabled" inline>
         <input type="checkbox" />
-      </ThemeRow>
+      </SettingRow>
     );
     await flush();
     expect(container.querySelector('.theme-row')?.classList.contains('theme-row--inline')).toBe(
@@ -54,9 +54,9 @@ describe('ThemeRow layout B', () => {
 
   it('is stacked (not inline) by default', async () => {
     mount(
-      <ThemeRow label="Speed">
+      <SettingRow label="Speed">
         <input />
-      </ThemeRow>
+      </SettingRow>
     );
     await flush();
     expect(container.querySelector('.theme-row')?.classList.contains('theme-row--inline')).toBe(
@@ -66,9 +66,9 @@ describe('ThemeRow layout B', () => {
 
   it('keeps the description out of the label (accessible name stays just the label text)', async () => {
     mount(
-      <ThemeRow label="Max floors" tip="Floors for the largest file.">
+      <SettingRow label="Max floors" tip="Floors for the largest file.">
         <input />
-      </ThemeRow>
+      </SettingRow>
     );
     await flush();
     const label = container.querySelector('label');

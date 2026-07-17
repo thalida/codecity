@@ -10,7 +10,7 @@ import {
   SYNTAX_THEME_OPTIONS,
 } from '@/state/stores/settings/syntaxTheme';
 import { RotateCcw } from 'lucide-preact';
-import { ThemeRow } from '@/components/ThemeRow/ThemeRow';
+import { SettingRow } from '@/components/SettingRow/SettingRow';
 import { Section } from '@/components/Section/Section';
 
 export function FilePreviewSection() {
@@ -45,7 +45,7 @@ export function FilePreviewSection() {
       resetEnabled={!isDefault}
       resetTitle="Reset file preview to default"
     >
-      <ThemeRow
+      <SettingRow
         label="Syntax theme"
         tip="Highlight theme for the file preview; applies immediately."
         inline
@@ -64,7 +64,7 @@ export function FilePreviewSection() {
             </option>
           ))}
         </select>
-      </ThemeRow>
+      </SettingRow>
     </Section>
   );
 }

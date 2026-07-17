@@ -22,7 +22,7 @@ import {
   SURFACE_PRESETS,
   type ThemePresetOption,
 } from '@/state/stores/settings/theme';
-import { ThemeRow } from '@/components/ThemeRow/ThemeRow';
+import { SettingRow } from '@/components/SettingRow/SettingRow';
 import { Section } from '@/components/Section/Section';
 
 interface SignalLike {
@@ -73,7 +73,7 @@ function SwatchRow({ label, tip, axis, store, options, defaultValue }: SwatchRow
     btnRefs.current[next]?.focus();
   };
 
-  // Per-row reset lives in ThemeRow's head slot (right of the label), the same
+  // Per-row reset lives in SettingRow's head slot (right of the label), the same
   // place every schema-driven row's reset sits, so all tabs line up.
   const resetBtn = (
     <button
@@ -92,7 +92,7 @@ function SwatchRow({ label, tip, axis, store, options, defaultValue }: SwatchRow
     </button>
   );
   return (
-    <ThemeRow label={label} tip={tip} resetSlot={resetBtn}>
+    <SettingRow label={label} tip={tip} resetSlot={resetBtn}>
       <span class="swatch-group" role="radiogroup" aria-label={label} onKeyDown={onKeyDown}>
         {options.map((opt, i) => {
           const checked = opt.value === current;
@@ -121,7 +121,7 @@ function SwatchRow({ label, tip, axis, store, options, defaultValue }: SwatchRow
           );
         })}
       </span>
-    </ThemeRow>
+    </SettingRow>
   );
 }
 

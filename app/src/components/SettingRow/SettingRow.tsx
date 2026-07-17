@@ -1,4 +1,4 @@
-// components/ThemeRow.tsx — Labeled control-panel row (renders .theme-row).
+// components/SettingRow.tsx — Labeled control-panel row (renders .theme-row).
 // Layout B (stacked): a head row (label + reset; plus the control itself for
 // inline kinds like toggle/color), then — for stacked kinds — the full-width
 // control, then the field's description when it has one.
@@ -10,7 +10,7 @@
 // inline toggle/color rows) make clicking the description text activate the
 // control. The caller wires it back via aria-describedby using `descId`.
 
-import './ThemeRow.css';
+import './SettingRow.css';
 import type { ComponentChildren } from 'preact';
 import { ResetButton } from '../ResetButton/ResetButton';
 
@@ -19,7 +19,7 @@ interface SignalLike {
   set value(v: any);
 }
 
-export interface ThemeRowProps {
+export interface SettingRowProps {
   label: string;
   /** One-line description, shown inline under the control and as the hover
    *  title. Omit for controls that need no explanation. */
@@ -44,7 +44,7 @@ export interface ThemeRowProps {
   children: ComponentChildren;
 }
 
-export function ThemeRow({
+export function SettingRow({
   label,
   tip,
   inline,
@@ -54,7 +54,7 @@ export function ThemeRow({
   keys,
   resetSlot,
   children,
-}: ThemeRowProps) {
+}: SettingRowProps) {
   const fullTip = tip ? `${label}: ${tip}` : label;
   const reset =
     resetSlot ??

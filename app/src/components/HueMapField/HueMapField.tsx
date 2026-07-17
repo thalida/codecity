@@ -9,7 +9,7 @@ import { useEffective, useDefault } from '@/hooks/useSettings';
 import { setDraft } from '@/state/settingsDrafts';
 import { RotateCcw } from 'lucide-preact';
 import { Slider } from '@/components/Slider/Slider';
-import { ThemeRow } from '../ThemeRow/ThemeRow';
+import { SettingRow } from '../SettingRow/SettingRow';
 import { fileTagHsl } from '@/utils/colors';
 import type { FieldProps } from '../Field';
 
@@ -31,7 +31,7 @@ export function HueMapField({ store, fieldKey }: FieldProps) {
           const descId = `${baseId}-${k}`;
           const controlId = `${baseId}-${k}-c`;
           return (
-            <ThemeRow
+            <SettingRow
               label={k}
               tip={tip}
               descId={descId}
@@ -64,7 +64,7 @@ export function HueMapField({ store, fieldKey }: FieldProps) {
                 onCommit={(v) => commit({ ...map, [k]: v })}
               />
               <span class="theme-hue-preview" style={{ background: fileTagHsl(value) }} />
-            </ThemeRow>
+            </SettingRow>
           );
         })}
     </>
