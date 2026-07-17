@@ -91,10 +91,10 @@ void main() {
     const vec3 GEM_LIME    = vec3(0.749, 1.000, 0.200);
 
     const float SCALE = 1.6;      // domain frequency: lower = broader forms
-    const float INTENSITY = 0.32; // peak add-on, kept under bloom threshold (0.5)
+    const float INTENSITY = 0.16; // peak add-on, kept under bloom threshold (0.5)
 
     vec3 p = dir * SCALE;
-    float t = uTime * 0.03; // slow drift
+    float t = uTime * 0.006; // very slow drift
 
     // Inigo Quilez domain warp — bends the hue ramp into curved ribbons.
     vec3 q = vec3(
