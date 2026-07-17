@@ -91,7 +91,7 @@ const SCENE_FIELDS = {
   FOG_HEIGHT_FRAC: {
     route: ChangeRoute.Refresh,
     kind: FieldKind.Slider,
-    default: 0.5,
+    default: 0.25,
     min: 0,
     max: 1,
     step: 0.05,
