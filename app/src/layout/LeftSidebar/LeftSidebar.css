@@ -89,38 +89,34 @@
   background: var(--cc-accent-bg-soft);
 }
 
-/* Count of settings + excludes changed from default, badged over the Settings
- * icon. Remounted with a key on the count (LeftSidebar.tsx), so it replays the
- * pop each time the number changes — the "something was customized" cue. */
-.activity-bar-badge {
+/* "Settings differ from default" dot over the Settings icon. Remounted with a
+ * key on the total (LeftSidebar.tsx), so it replays the expanding ring each time
+ * the count changes — the "something was customized" cue. The per-tab counts
+ * live on the subtabs. */
+.activity-bar-dot {
   position: absolute;
-  top: var(--cc-space-1);
-  right: var(--cc-space-1);
-  min-width: 16px;
-  height: 16px;
-  padding: 0 var(--cc-space-1);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  /* Surface fill (opaque, covers the glyph) + accent border + accent text reads
-   * cleaner at this size than solid accent with white text. */
-  border-radius: var(--cc-radius-pill);
-  background: var(--cc-bg-sidebar);
-  border: 1px solid var(--cc-accent-border);
-  color: var(--cc-accent);
-  font-size: var(--cc-font-2xs);
-  font-weight: var(--cc-fw-medium);
-  line-height: 1;
+  top: var(--cc-space-2);
+  right: var(--cc-space-2);
+  width: var(--cc-space-3);
+  height: var(--cc-space-3);
+  border-radius: var(--cc-radius-circle);
+  background: var(--cc-accent);
   pointer-events: none;
-  animation: cc-badge-pop var(--cc-t-base) ease-out;
+  animation: cc-dot-ring 1.2s ease-out;
 }
 
-@keyframes cc-badge-pop {
+@keyframes cc-dot-ring {
   from {
-    transform: scale(1.5);
+    box-shadow: 0 0 0 0 var(--cc-accent-bg);
   }
   to {
-    transform: scale(1);
+    box-shadow: 0 0 0 7px transparent;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .activity-bar-dot {
+    animation: none;
   }
 }
 

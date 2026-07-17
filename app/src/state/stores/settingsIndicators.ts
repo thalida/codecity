@@ -1,11 +1,12 @@
-// state/stores/settingsIndicators.ts — "how customized is this render" signals
-// that drive the Settings badge (a total count) and the per-tab change dots.
+// state/stores/settingsIndicators.ts — "how customized is this render" signals.
+// Each subtab shows its own count of changed-from-default settings; the Settings
+// activity-bar icon shows a single dirty dot (CHANGED_SETTINGS_COUNT > 0).
 //
 // A setting counts as changed when its committed value differs from its
 // registered default. Excludes aren't settings-draft stores, so they're folded
-// in explicitly against the Scan tab (and the total). Per-tab grouping mirrors
-// the ControlsPane subtabs: Scan = live-updates + excludes, Appearance = the
-// three theme pickers, World = every other registered store.
+// into the Scan count explicitly. Per-tab grouping mirrors the ControlsPane
+// subtabs: Scan = live-updates + excludes, Appearance = the three theme pickers,
+// World = every other registered store.
 
 import { computed } from '@preact/signals';
 import { forEachSettingStore, getFieldKeys } from '@/state/settingsSchema';
@@ -41,36 +42,28 @@ function changedFieldCount(store: AnyStore): number {
   return n;
 }
 
-function anyChanged(stores: AnyStore[]): boolean {
-  return stores.some((s) => changedFieldCount(s) > 0);
+function countStores(stores: AnyStore[]): number {
+  return stores.reduce((n, s) => n + changedFieldCount(s), 0);
 }
 
-/** Total settings changed from default across every tab, plus the exclude count.
- *  Drives the count badge on the Settings activity-bar entry. */
-export const CHANGED_SETTINGS_COUNT = computed(() => {
+/** Scan tab: changed live-update settings + the number of excluded paths. */
+export const SCAN_COUNT = computed(() => countStores(SCAN_STORES) + ACTIVE_EXCLUDES.value.length);
+
+/** Appearance tab: changed theme pickers (accent / surface / syntax). */
+export const APPEARANCE_COUNT = computed(() => countStores(APPEARANCE_STORES));
+
+/** World tab: every registered store that isn't a Scan/Appearance store.
+ *  Derived from the registry so new World stores are covered automatically. */
+export const WORLD_COUNT = computed(() => {
   let n = 0;
   forEachSettingStore((store) => {
+    if (SCAN_STORES.includes(store) || APPEARANCE_STORES.includes(store)) return;
     n += changedFieldCount(store);
   });
-  return n + ACTIVE_EXCLUDES.value.length;
+  return n;
 });
 
-/** Scan tab has a change: live-update settings differ, or something is excluded. */
-export const SCAN_CHANGED = computed(
-  () => anyChanged(SCAN_STORES) || ACTIVE_EXCLUDES.value.length > 0
+/** Total across every tab. Drives the dirty dot on the Settings icon. */
+export const CHANGED_SETTINGS_COUNT = computed(
+  () => SCAN_COUNT.value + APPEARANCE_COUNT.value + WORLD_COUNT.value
 );
-
-/** Appearance tab has a change: any of the three theme pickers differ. */
-export const APPEARANCE_CHANGED = computed(() => anyChanged(APPEARANCE_STORES));
-
-/** World tab has a change: any registered store that isn't a Scan/Appearance
- *  store differs. Derived from the registry so new World stores are covered
- *  without listing them here. */
-export const WORLD_CHANGED = computed(() => {
-  let changed = false;
-  forEachSettingStore((store) => {
-    if (SCAN_STORES.includes(store) || APPEARANCE_STORES.includes(store)) return;
-    if (changedFieldCount(store) > 0) changed = true;
-  });
-  return changed;
-});

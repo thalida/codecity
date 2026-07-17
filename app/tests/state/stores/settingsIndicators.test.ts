@@ -1,9 +1,9 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import {
   CHANGED_SETTINGS_COUNT,
-  SCAN_CHANGED,
-  APPEARANCE_CHANGED,
-  WORLD_CHANGED,
+  SCAN_COUNT,
+  APPEARANCE_COUNT,
+  WORLD_COUNT,
 } from '@/state/stores/settingsIndicators';
 import { LIVE_UPDATES } from '@/state/stores/settings/updates';
 import { ACCENT_THEME, ACCENT_THEME_DEFAULT } from '@/state/stores/settings/theme';
@@ -22,29 +22,29 @@ beforeEach(() => {
 });
 
 describe('settings indicators', () => {
-  it('excludes count into the total and flag the Scan tab only', () => {
+  it('excludes count into the Scan total and the overall total only', () => {
     const base = CHANGED_SETTINGS_COUNT.value;
-    expect(SCAN_CHANGED.value).toBe(false);
+    expect(SCAN_COUNT.value).toBe(0);
     addExclude('vendor');
-    expect(SCAN_CHANGED.value).toBe(true);
-    expect(APPEARANCE_CHANGED.value).toBe(false);
+    expect(SCAN_COUNT.value).toBe(1);
+    expect(APPEARANCE_COUNT.value).toBe(0);
     expect(CHANGED_SETTINGS_COUNT.value).toBe(base + 1);
     clearExcludes();
-    expect(SCAN_CHANGED.value).toBe(false);
+    expect(SCAN_COUNT.value).toBe(0);
     expect(CHANGED_SETTINGS_COUNT.value).toBe(base);
   });
 
-  it('a changed theme flags Appearance and adds to the count', () => {
+  it('a changed theme counts on Appearance and the total', () => {
     const base = CHANGED_SETTINGS_COUNT.value;
-    expect(APPEARANCE_CHANGED.value).toBe(false);
+    expect(APPEARANCE_COUNT.value).toBe(0);
     ACCENT_THEME.value = (ACCENT_THEME_DEFAULT as string) === 'blue' ? 'green' : 'blue';
-    expect(APPEARANCE_CHANGED.value).toBe(true);
-    expect(WORLD_CHANGED.value).toBe(false);
+    expect(APPEARANCE_COUNT.value).toBe(1);
+    expect(WORLD_COUNT.value).toBe(0);
     expect(CHANGED_SETTINGS_COUNT.value).toBe(base + 1);
   });
 
-  it('a changed World field flags World', () => {
-    expect(WORLD_CHANGED.value).toBe(false);
+  it('a changed World field counts on World', () => {
+    expect(WORLD_COUNT.value).toBe(0);
     const key = getFieldKeys(BUILDINGS)[0];
     const cur = (BUILDINGS.value as Record<string, unknown>)[key];
     const next =
@@ -59,6 +59,6 @@ describe('settings indicators', () => {
       ...(BUILDINGS.value as Record<string, unknown>),
       [key]: next,
     } as typeof BUILDINGS.value;
-    expect(WORLD_CHANGED.value).toBe(true);
+    expect(WORLD_COUNT.value).toBeGreaterThan(0);
   });
 });

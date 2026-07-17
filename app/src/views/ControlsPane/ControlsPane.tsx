@@ -1,7 +1,7 @@
 // views/ControlsPane/ControlsPane.tsx — "Settings" tab in the left sidebar.
 //
-// Composition shell: Scan, Appearance, World subtabs, each carrying a "changed
-// from default" dot. The active subtab's sections render into the scrolling
+// Composition shell: Scan, Appearance, World subtabs, each carrying a count of
+// its changed-from-default items. The active subtab's sections render into the scrolling
 // body. Scan + Appearance autosave (their sections open by default); World is
 // draft-backed (10 collapsed accordion sections + the sticky Reset all/Discard/
 // Save ActionsBar). Shortcuts and Debug moved to header-triggered modals.
@@ -31,7 +31,7 @@ import { FIREFLIES_SECTION } from './partials/Fireflies';
 import { EFFECTS_SECTION } from './partials/Effects';
 import { UPDATES_SECTION } from './partials/Updates';
 import { ActionsBar } from './ActionsBar/ActionsBar';
-import { SCAN_CHANGED, APPEARANCE_CHANGED, WORLD_CHANGED } from '@/state/stores/settingsIndicators';
+import { SCAN_COUNT, APPEARANCE_COUNT, WORLD_COUNT } from '@/state/stores/settingsIndicators';
 import { Pane } from '@/components/Pane';
 import { PaneCloseButton } from '@/components/PaneHeader/PaneHeader';
 import { PaneTabs } from '@/components/PaneTabs/PaneTabs';
@@ -40,8 +40,8 @@ interface Subtab {
   id: string;
   label: string;
   icon: LucideIcon;
-  /** Show the "something under here differs from default" dot on the tab. */
-  indicator?: boolean;
+  /** Count of changed-from-default items under this tab; shown as a tab badge. */
+  badge?: number;
   /** Draftable subtabs get the Save/Discard/Reset footer. */
   draftable: boolean;
   sections: SectionNode[];
@@ -67,7 +67,7 @@ export function ControlsPane({ onClose, collapsed }: ControlsPaneProps) {
       id: 'updates',
       label: 'Scan',
       icon: RefreshCw,
-      indicator: SCAN_CHANGED.value,
+      badge: SCAN_COUNT.value,
       draftable: false,
       sections: [
         UPDATES_SECTION,
@@ -78,7 +78,7 @@ export function ControlsPane({ onClose, collapsed }: ControlsPaneProps) {
       id: 'appearance',
       label: 'Appearance',
       icon: Palette,
-      indicator: APPEARANCE_CHANGED.value,
+      badge: APPEARANCE_COUNT.value,
       draftable: false,
       sections: [
         { key: 'interface-theme', render: <InterfaceThemeSection /> },
@@ -89,7 +89,7 @@ export function ControlsPane({ onClose, collapsed }: ControlsPaneProps) {
       id: 'world',
       label: 'World',
       icon: Boxes,
-      indicator: WORLD_CHANGED.value,
+      badge: WORLD_COUNT.value,
       draftable: true,
       sections: [
         CAMERA_SECTION,

@@ -60,30 +60,29 @@ function ActivityBar({ activeTab, collapsed, onIconClick }: ActivityBarProps) {
   const tabs = ACTIVITY_BAR_TABS;
   const topTabs = tabs.filter((t) => t.placement !== TabPlacement.Bottom);
   const bottomTabs = tabs.filter((t) => t.placement === TabPlacement.Bottom);
-  // Count of settings + excludes that differ from default; badged on the
-  // Settings icon so a customized render is discoverable from anywhere.
+  // Total settings + excludes that differ from default. The Settings icon shows
+  // a single dirty dot (the per-tab counts live on the subtabs); a customized
+  // render stays discoverable from anywhere.
   const changedCount = CHANGED_SETTINGS_COUNT.value;
 
   const renderTab = (tab: (typeof tabs)[number]) => {
     const isActive = !collapsed && tab.id === activeTab;
-    const showBadge = tab.id === SidebarTab.Controls && changedCount > 0;
+    const showDot = tab.id === SidebarTab.Controls && changedCount > 0;
     return (
       <button
         key={tab.id}
         type="button"
         class={`activity-bar-icon${isActive ? ' active' : ''}`}
         data-tab={tab.id}
-        title={showBadge ? `${tab.title} (${changedCount} changed from default)` : tab.title}
-        aria-label={showBadge ? `${tab.title}, ${changedCount} changed from default` : tab.title}
+        title={showDot ? `${tab.title} (${changedCount} changed from default)` : tab.title}
+        aria-label={showDot ? `${tab.title}, ${changedCount} changed from default` : tab.title}
         aria-pressed={isActive}
         onClick={() => onIconClick(tab.id)}
       >
         <tab.icon class="activity-bar-glyph" />
-        {showBadge && (
-          // key on the count so a change remounts the badge and replays its pulse.
-          <span key={changedCount} class="activity-bar-badge">
-            {changedCount}
-          </span>
+        {showDot && (
+          // key on the count so each change remounts the dot and replays its ring.
+          <span key={changedCount} class="activity-bar-dot" />
         )}
       </button>
     );
