@@ -48,41 +48,35 @@ describe('computeAgeRange()', () => {
   });
 });
 
-describe('computeAgeRange() staleness', () => {
-  // staleness = clamp((asOf − newestCommitDay) / STALE_HORIZON_DAYS, 0, CAP),
-  // where asOf is the manifest scanned_at. Newest commit here is 2026-01-21.
+describe('computeAgeRange() daysIdle', () => {
+  // daysIdle = max(0, scanned_at − newest commit), in whole days. It's the raw,
+  // settings-independent fact; treeHeight turns it into a staleness lift using
+  // the TREES horizon/cap. Newest commit in this fixture is 2026-01-21.
   it('is 0 when scanned_at is omitted (feature off / backward compatible)', () => {
-    expect(computeAgeRange(commitStats(commits)).staleness).toBe(0);
+    expect(computeAgeRange(commitStats(commits)).daysIdle).toBe(0);
   });
 
   it('is 0 when scanned on the newest commit day (fresh repo)', () => {
-    expect(computeAgeRange(commitStats(commits), '2026-01-21').staleness).toBe(0);
+    expect(computeAgeRange(commitStats(commits), '2026-01-21').daysIdle).toBe(0);
   });
 
-  it('is 0 when scanned before the newest commit (negative age clamps up)', () => {
-    expect(computeAgeRange(commitStats(commits), '2025-06-01').staleness).toBe(0);
+  it('clamps to 0 when scanned before the newest commit', () => {
+    expect(computeAgeRange(commitStats(commits), '2025-06-01').daysIdle).toBe(0);
   });
 
-  it('ramps linearly toward the 2-year horizon (365 days → ~0.5)', () => {
-    // 2026-01-21 → 2027-01-21 is exactly 365 days; 365 / 730 = 0.5.
-    expect(computeAgeRange(commitStats(commits), '2027-01-21').staleness).toBeCloseTo(0.5, 5);
-  });
-
-  it('caps at 0.85 for very stale repos (never fully flattens)', () => {
-    expect(computeAgeRange(commitStats(commits), '2036-01-21').staleness).toBe(0.85);
+  it('counts whole days between the newest commit and the scan', () => {
+    // 2026-01-21 → 2027-01-21 is exactly 365 days.
+    expect(computeAgeRange(commitStats(commits), '2027-01-21').daysIdle).toBe(365);
   });
 
   it('is 0 when there are no commits, regardless of scanned_at', () => {
-    expect(computeAgeRange(commitStats([]), '2036-01-21').staleness).toBe(0);
-    expect(computeAgeRange(null, '2036-01-21').staleness).toBe(0);
+    expect(computeAgeRange(commitStats([]), '2036-01-21').daysIdle).toBe(0);
+    expect(computeAgeRange(null, '2036-01-21').daysIdle).toBe(0);
   });
 
   it('accepts an ISO datetime scanned_at (day precision)', () => {
     // Same 365-day gap, but scanned_at as a full ISO timestamp.
-    expect(computeAgeRange(commitStats(commits), '2027-01-21T13:45:00Z').staleness).toBeCloseTo(
-      0.5,
-      5
-    );
+    expect(computeAgeRange(commitStats(commits), '2027-01-21T13:45:00Z').daysIdle).toBe(365);
   });
 });
 
@@ -125,7 +119,7 @@ describe('ageT()', () => {
   });
 
   it('returns 0.5 when the range has zero span', () => {
-    const zero: AgeRange = { oldest: 0, newest: 0, span: 0, staleness: 0 };
+    const zero: AgeRange = { oldest: 0, newest: 0, span: 0, daysIdle: 0 };
     expect(
       ageT(
         {
@@ -276,6 +270,8 @@ describe('treeHeight() / treeRadius()', () => {
     MIN_WIDTH: 32,
     MAX_WIDTH: 64,
     WIDTH_AGE_FLOOR: 0.5,
+    STALE_HORIZON_DAYS: 730,
+    STALENESS_CAP: 0.85,
   } as TreesConfig;
 
   const sizing = buildCommits(
@@ -309,7 +305,8 @@ describe('treeHeight() / treeRadius()', () => {
     // Absolute-age (staleness) lift: a repo untouched for a while reads old
     // across the whole forest, while keeping intra-repo oldest→newest spread.
     // maturity = staleness + (1 − staleness)·relT, where relT is the existing
-    // repo-relative height fraction (oldest = 1, newest = 0).
+    // repo-relative height fraction (oldest = 1, newest = 0). staleness =
+    // clamp(daysIdle / STALE_HORIZON_DAYS, 0, STALENESS_CAP), both from cfg.
     describe('staleness lift', () => {
       // scanned exactly on the newest commit → staleness 0 → identical to today.
       const fresh = computeAgeRange(commitStats(sizing), '2026-01-21');
@@ -358,6 +355,18 @@ describe('treeHeight() / treeRadius()', () => {
         const height = treeHeight(sameDay[0], range, cfg);
         expect(Number.isFinite(height)).toBe(true);
         expect(height).toBeCloseTo(74, 5);
+      });
+
+      it('is driven by the cfg horizon and cap (settings tune the lift)', () => {
+        // Halve the horizon → the same 365 idle days now reads fully stale, but
+        // the cap still holds it below 1: newest maturity = cap 0.85 → 82.8.
+        const tuned = { ...cfg, STALE_HORIZON_DAYS: 365, STALENESS_CAP: 0.85 } as TreesConfig;
+        expect(treeHeight(sizing[2], stale, tuned)).toBeCloseTo(82.8, 5);
+
+        // A cap of 0 disables the lift entirely: heights match the fresh repo.
+        const off = { ...cfg, STALENESS_CAP: 0 } as TreesConfig;
+        expect(treeHeight(sizing[2], ancient, off)).toBe(8);
+        expect(treeHeight(sizing[1], ancient, off)).toBeCloseTo(52, 5);
       });
     });
   });
