@@ -33,6 +33,14 @@ body {
   align-items: stretch;
 }
 
+/* tabIndex=-1 makes this the skip-link / post-dialog focus catcher, not an
+   interactive control. The global :focus-visible ring would draw a 2px accent
+   outline around the whole content region (reads as a ring around the city);
+   suppress it here since focus only passes through on its way to the content. */
+#app-body:focus-visible {
+  outline: none;
+}
+
 /* Switcher showcase: with the switcher open over a loaded city, hide the chrome
    so the canvas fills the viewport as a backdrop. #app-body then grows to the
    full column and the canvas auto-fits (ResizeObserver + per-frame size guard).
