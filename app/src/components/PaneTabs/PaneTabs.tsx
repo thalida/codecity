@@ -9,6 +9,8 @@ export interface PaneTab {
   id: string;
   label: string;
   icon?: LucideIcon;
+  /** Show a small "something under here changed from default" dot on the tab. */
+  indicator?: boolean;
 }
 
 export interface PaneTabsProps {
@@ -73,6 +75,13 @@ export function PaneTabs({ tabs, active, onSelect, class: className, panelId }: 
           >
             {Icon && <Icon class="icon" aria-hidden="true" />}
             <span>{t.label}</span>
+            {t.indicator && (
+              <span
+                class="pane-tab-dot"
+                aria-label="changed from default"
+                title="Changed from default"
+              />
+            )}
           </button>
         );
       })}

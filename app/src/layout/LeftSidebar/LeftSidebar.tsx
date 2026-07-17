@@ -18,6 +18,7 @@
 import './LeftSidebar.css';
 import { useComputed, useSignal, useSignalEffect } from '@preact/signals';
 import { ACTIVITY_BAR_TABS, DEFAULT_SIDEBAR_TAB, TabPlacement } from '@/constants/ui';
+import { CHANGED_SETTINGS_COUNT } from '@/state/stores/settingsIndicators';
 import { PERSISTED_KEYS } from '@/constants/storage';
 import { SidebarTab, NodeKind } from '@/types';
 import type { PickTarget, TreeNode } from '@/types';
@@ -59,21 +60,31 @@ function ActivityBar({ activeTab, collapsed, onIconClick }: ActivityBarProps) {
   const tabs = ACTIVITY_BAR_TABS;
   const topTabs = tabs.filter((t) => t.placement !== TabPlacement.Bottom);
   const bottomTabs = tabs.filter((t) => t.placement === TabPlacement.Bottom);
+  // Count of settings + excludes that differ from default; badged on the
+  // Settings icon so a customized render is discoverable from anywhere.
+  const changedCount = CHANGED_SETTINGS_COUNT.value;
 
   const renderTab = (tab: (typeof tabs)[number]) => {
     const isActive = !collapsed && tab.id === activeTab;
+    const showBadge = tab.id === SidebarTab.Controls && changedCount > 0;
     return (
       <button
         key={tab.id}
         type="button"
         class={`activity-bar-icon${isActive ? ' active' : ''}`}
         data-tab={tab.id}
-        title={tab.title}
-        aria-label={tab.title}
+        title={showBadge ? `${tab.title} (${changedCount} changed from default)` : tab.title}
+        aria-label={showBadge ? `${tab.title}, ${changedCount} changed from default` : tab.title}
         aria-pressed={isActive}
         onClick={() => onIconClick(tab.id)}
       >
         <tab.icon class="activity-bar-glyph" />
+        {showBadge && (
+          // key on the count so a change remounts the badge and replays its pulse.
+          <span key={changedCount} class="activity-bar-badge">
+            {changedCount}
+          </span>
+        )}
       </button>
     );
   };

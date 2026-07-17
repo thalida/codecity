@@ -1,17 +1,15 @@
 // views/ControlsPane/ControlsPane.tsx — "Settings" tab in the left sidebar.
 //
-// Composition shell: World, Scan, Appearance subtabs. The active subtab's
-// sections render into the scrolling body. World is draft-backed (10
-// accordion sections + the sticky Reset all/Discard/Save ActionsBar);
-// Scan and Appearance autosave. Scan holds two collapsible sections (live
-// updates polling + the excluded-from-city list); Appearance holds two
-// (interface theme + syntax) rendered inline (no footer, no <details> — a
-// one-item accordion is pointless UI, and both are single-control pickers).
-// Shortcuts and Debug moved to header-triggered modals.
+// Composition shell: Scan, Appearance, World subtabs, each carrying a "changed
+// from default" dot. The active subtab's sections render into the scrolling
+// body. Scan + Appearance autosave (their sections open by default); World is
+// draft-backed (10 collapsed accordion sections + the sticky Reset all/Discard/
+// Save ActionsBar). Shortcuts and Debug moved to header-triggered modals.
 //
 // Section / subgroup open-state is intentionally NOT persisted: when the pane
-// hides we collapse every <details> and reset the active subtab to World, so
-// the panel always reopens fresh.
+// hides we remount every section (via collapseNonce) so each returns to its
+// default open-state, and reset the active subtab to Scan, so the panel always
+// reopens fresh.
 
 import './ControlsPane.css';
 import { useEffect, useState } from 'preact/hooks';
@@ -33,6 +31,7 @@ import { FIREFLIES_SECTION } from './partials/Fireflies';
 import { EFFECTS_SECTION } from './partials/Effects';
 import { UPDATES_SECTION } from './partials/Updates';
 import { ActionsBar } from './ActionsBar/ActionsBar';
+import { SCAN_CHANGED, APPEARANCE_CHANGED, WORLD_CHANGED } from '@/state/stores/settingsIndicators';
 import { Pane } from '@/components/Pane';
 import { PaneCloseButton } from '@/components/PaneHeader/PaneHeader';
 import { PaneTabs } from '@/components/PaneTabs/PaneTabs';
@@ -41,6 +40,8 @@ interface Subtab {
   id: string;
   label: string;
   icon: LucideIcon;
+  /** Show the "something under here differs from default" dot on the tab. */
+  indicator?: boolean;
   /** Draftable subtabs get the Save/Discard/Reset footer. */
   draftable: boolean;
   sections: SectionNode[];
@@ -66,6 +67,7 @@ export function ControlsPane({ onClose, collapsed }: ControlsPaneProps) {
       id: 'updates',
       label: 'Scan',
       icon: RefreshCw,
+      indicator: SCAN_CHANGED.value,
       draftable: false,
       sections: [
         UPDATES_SECTION,
@@ -76,6 +78,7 @@ export function ControlsPane({ onClose, collapsed }: ControlsPaneProps) {
       id: 'appearance',
       label: 'Appearance',
       icon: Palette,
+      indicator: APPEARANCE_CHANGED.value,
       draftable: false,
       sections: [
         { key: 'interface-theme', render: <InterfaceThemeSection /> },
@@ -86,6 +89,7 @@ export function ControlsPane({ onClose, collapsed }: ControlsPaneProps) {
       id: 'world',
       label: 'World',
       icon: Boxes,
+      indicator: WORLD_CHANGED.value,
       draftable: true,
       sections: [
         CAMERA_SECTION,

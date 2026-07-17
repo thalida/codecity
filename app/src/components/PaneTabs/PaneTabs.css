@@ -35,6 +35,15 @@
   color: var(--cc-text-strong);
 }
 
+/* "Something under this tab differs from default" dot (PaneTabs.tsx). */
+.pane-tab-dot {
+  flex: 0 0 auto;
+  width: var(--cc-space-3);
+  height: var(--cc-space-3);
+  border-radius: var(--cc-radius-circle);
+  background: var(--cc-accent);
+}
+
 .pane-tab--active {
   color: var(--cc-text-strong);
   border-bottom-color: var(--cc-accent);
