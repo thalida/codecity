@@ -55,10 +55,6 @@ export interface SectionNode {
   description?: string;
   children?: SectionChild[];
   render?: ComponentChildren;
-  /** Render flat (hint + children, no <details> chrome, no section reset).
-   *  For a subtab whose only section would otherwise be a one-item
-   *  accordion — collapsing a single section is pointless UI. */
-  inline?: boolean;
   /** Start the accordion expanded instead of collapsed. */
   defaultOpen?: boolean;
 }
@@ -119,14 +115,6 @@ function renderChild(child: SectionChild, depth: number): ComponentChildren {
 /** Render one section node into the panel shells. */
 export function DynamicSection({ node }: { node: SectionNode }) {
   if (node.render) return <>{node.render}</>;
-  if (node.inline) {
-    return (
-      <div class="controls-inline-section">
-        {node.description && <div class="controls-section-hint">{node.description}</div>}
-        {renderChildren(node.children ?? [])}
-      </div>
-    );
-  }
   return (
     <Section
       name={node.label ?? ''}
