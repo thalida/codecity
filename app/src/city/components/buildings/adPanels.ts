@@ -30,6 +30,20 @@ import adPanelFragSrc from './adPanel.frag.glsl?raw';
 // face. Tuned to clear typical 8–96 unit-wide buildings at oblique angles.
 const AD_FRONT_FACE_OFFSET = 1.5;
 
+// Distance LOD thresholds (approx. on-screen panel height in CSS px). Ad panels
+// are transparent + DoubleSide + never frustum-culled, so every panel draws
+// every frame; zoomed far out they collapse into a small screen region and the
+// transparent overdraw stalls the GPU (the media-heavy "zoom out + rotate hangs"
+// report). Below AD_LOD_HIDE_PX a panel is an unreadable speck, so we hide the
+// whole mesh (zero draw); we only re-show once it projects back above
+// AD_LOD_SHOW_PX. The gap is hysteresis so a panel hovering at the boundary
+// doesn't flicker on/off frame to frame.
+const AD_LOD_HIDE_PX = 6;
+const AD_LOD_SHOW_PX = 12;
+
+// Scratch vector for growing the panel AABB during registration (no per-panel alloc).
+const _scratchVec3 = new THREE.Vector3();
+
 // ---------------------------------------------------------------------------
 // Face layout helpers. 4 faces per building; each face is one InstancedMesh
 // slot.
@@ -103,6 +117,12 @@ export class InstancedAdPanels {
   // registerMediaBuilding and consumed by applyBuildingFades so the
   // fader doesn't need to know the slot layout.
   private readonly _buildingSlotsByPath = new Map<string, number[]>();
+
+  // World-space AABB of every panel center + the tallest panel height, both
+  // accumulated during registration. updateLOD() uses them to estimate the
+  // panels' on-screen size and toggle mesh visibility (distance LOD).
+  private readonly _panelBounds = new THREE.Box3();
+  private _maxPanelHeight = 0;
 
   constructor(mediaFileCapacity: number) {
     this._capacity = mediaFileCapacity;
@@ -273,6 +293,9 @@ export class InstancedAdPanels {
     const dHalf = b.d / 2;
     const wHalf = b.w / 2;
 
+    // Track the tallest panel + grow the panel AABB (see updateLOD).
+    if (adHeight > this._maxPanelHeight) this._maxPanelHeight = adHeight;
+
     const panelSlots: number[] = [];
 
     for (const orient of PANEL_ORIENTS) {
@@ -291,6 +314,7 @@ export class InstancedAdPanels {
       const zOffset = halfExtent + AD_FRONT_FACE_OFFSET;
       const worldX = b.x + sin * zOffset;
       const worldZ = b.y + cos * zOffset;
+      this._panelBounds.expandByPoint(_scratchVec3.set(worldX, centerY, worldZ));
 
       // Build instance matrix: translate to face center, rotate about Y, scale to ad dimensions.
       const m = new THREE.Matrix4();
@@ -427,6 +451,30 @@ export class InstancedAdPanels {
     }
     const geo = this.mesh.geometry as THREE.BufferGeometry;
     (geo.getAttribute('iColor') as THREE.InstancedBufferAttribute).needsUpdate = true;
+  }
+
+  /**
+   * Distance LOD: toggle whole-mesh visibility from the panels' estimated
+   * on-screen size at the current camera. Called once per frame from the
+   * buildings tick. Ad panels are transparent + DoubleSide + never
+   * frustum-culled, so when the camera zooms far out they all render into a
+   * tiny screen region and the overdraw stalls the GPU; hiding the mesh once
+   * the panels are sub-pixel keeps a media-heavy repo smooth on zoom-out +
+   * rotate. `viewportHeightPx` is the canvas CSS height (0 while unmeasured →
+   * no-op so we never hide on a bogus size).
+   */
+  updateLOD(camera: THREE.PerspectiveCamera, viewportHeightPx: number): void {
+    if (viewportHeightPx <= 0 || this._nextSlot === 0 || this._panelBounds.isEmpty()) return;
+    // Distance to the nearest point of the panel cloud (0 when the camera sits
+    // among the buildings) so a close corner of a huge city keeps its panels.
+    const dist = Math.max(this._panelBounds.distanceToPoint(camera.position), 1e-3);
+    const halfFovTan = Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2);
+    const projPx = (this._maxPanelHeight * viewportHeightPx) / (2 * dist * halfFovTan);
+    if (this.mesh.visible) {
+      if (projPx < AD_LOD_HIDE_PX) this.mesh.visible = false;
+    } else if (projPx > AD_LOD_SHOW_PX) {
+      this.mesh.visible = true;
+    }
   }
 
   /**

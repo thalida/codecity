@@ -2,7 +2,7 @@
 // ad panel system (introduced in the #21 cell-render migration).
 
 import { describe, it, expect } from 'vitest';
-import type * as THREE from 'three';
+import * as THREE from 'three';
 import { InstancedAdPanels } from '@/city/components/buildings/adPanels';
 import {
   AdPanelTextureArray,
@@ -263,6 +263,59 @@ describe('AdPanelTextureArray storage', () => {
     // many pages are actually in use — the shader's uPanelArrays uniform
     // is declared at MAX_PAGES and every slot needs a bound sampler.
     expect(arr.shaderTextures.length).toBe(8);
+  });
+});
+
+describe('InstancedAdPanels distance LOD (updateLOD)', () => {
+  // A large media building at the origin. viewportHeightPx fixed at 800.
+  function adsAtOrigin(): InstancedAdPanels {
+    const ads = new InstancedAdPanels(4);
+    ads.registerMediaBuilding(
+      fakeMediaBuilding({ x: 0, y: 0, w: 12, d: 12, h: 24 })
+    );
+    return ads;
+  }
+  const VIEWPORT_H = 800;
+
+  function cameraAt(x: number, y: number, z: number): THREE.PerspectiveCamera {
+    const cam = new THREE.PerspectiveCamera(50, 1.6, 1, 100000);
+    cam.position.set(x, y, z);
+    cam.lookAt(0, 0, 0);
+    cam.updateMatrixWorld(true);
+    return cam;
+  }
+
+  it('keeps panels visible when the camera is close (panels project large)', () => {
+    const ads = adsAtOrigin();
+    ads.updateLOD(cameraAt(0, 30, 40), VIEWPORT_H);
+    expect(ads.mesh.visible).toBe(true);
+  });
+
+  it('hides panels when zoomed far out (panels project sub-pixel) — kills overdraw', () => {
+    const ads = adsAtOrigin();
+    ads.updateLOD(cameraAt(0, 4000, 5000), VIEWPORT_H);
+    expect(ads.mesh.visible).toBe(false);
+  });
+
+  it('re-shows panels when the camera zooms back in', () => {
+    const ads = adsAtOrigin();
+    ads.updateLOD(cameraAt(0, 4000, 5000), VIEWPORT_H);
+    expect(ads.mesh.visible).toBe(false);
+    ads.updateLOD(cameraAt(0, 30, 40), VIEWPORT_H);
+    expect(ads.mesh.visible).toBe(true);
+  });
+
+  it('is a no-op with no registered panels (nothing to draw either way)', () => {
+    const ads = new InstancedAdPanels(4);
+    expect(() => ads.updateLOD(cameraAt(0, 5000, 5000), VIEWPORT_H)).not.toThrow();
+  });
+
+  it('does not toggle visibility when the viewport height is unknown (0)', () => {
+    const ads = adsAtOrigin();
+    // A close camera would normally show; a 0 viewport must leave state untouched.
+    ads.mesh.visible = false;
+    ads.updateLOD(cameraAt(0, 30, 40), 0);
+    expect(ads.mesh.visible).toBe(false);
   });
 });
 

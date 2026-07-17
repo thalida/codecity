@@ -109,6 +109,9 @@ interface PhaseResult {
   bboxMs: number;
   assemblyMs: number;
   mediaRegMs: number;
+  drawnNoLod: number;
+  drawnLodFar: number;
+  visibleLodNear: boolean;
   labelMs: number;
   labelCount: number;
   pickMs: number;
@@ -157,7 +160,14 @@ function profile(label: string, fileBudget: number, mediaFraction: number): Phas
   const ta1 = performance.now();
 
   // ── 5. media ad-panel registration (synchronous CPU: matrix build + attr writes) ──
+  // Also validates the distance-LOD fix for the "zoom out + rotate hangs" report:
+  // at a zoomed-far-out camera the LOD must hide the panel mesh so its
+  // transparent overdraw drops to zero (drawnOutMs proxy = instances that would
+  // draw). At a close camera the panels stay visible (feature intact).
   let mediaRegMs = 0;
+  let drawnNoLod = 0;
+  let drawnLodFar = 0;
+  let visibleLodNear = false;
   const mediaBuildings = layout.buildings.filter((b) => isMediaFile(b.file));
   if (mediaBuildings.length > 0) {
     const adCapacity = Math.max(64, Math.ceil(mediaBuildings.length * 1.5));
@@ -166,6 +176,24 @@ function profile(label: string, fileBudget: number, mediaFraction: number): Phas
     for (const b of mediaBuildings) ads.registerMediaBuilding(b);
     const tm1 = performance.now();
     mediaRegMs = tm1 - tm0;
+
+    drawnNoLod = ads.mesh.visible ? ads.mesh.count : 0; // today: all panels every frame
+    const span = Math.max(box.max.x - box.min.x, box.max.z - box.min.z) || 1000;
+    const cx = (box.min.x + box.max.x) / 2;
+    const cz = (box.min.z + box.max.z) / 2;
+    const farCam = new THREE.PerspectiveCamera(50, 1.6, 1, 100000);
+    farCam.position.set(cx, span * 6, cz + span * 6);
+    farCam.lookAt(cx, 0, cz);
+    farCam.updateMatrixWorld(true);
+    ads.updateLOD(farCam, 900);
+    drawnLodFar = ads.mesh.visible ? ads.mesh.count : 0; // with LOD: 0 when zoomed out
+    const nearCam = new THREE.PerspectiveCamera(50, 1.6, 1, 100000);
+    nearCam.position.set(cx, span * 0.05, cz + span * 0.05);
+    nearCam.lookAt(cx, 0, cz);
+    nearCam.updateMatrixWorld(true);
+    ads.updateLOD(nearCam, 900);
+    visibleLodNear = ads.mesh.visible;
+
     ads.dispose();
   }
 
@@ -205,8 +233,8 @@ function profile(label: string, fileBudget: number, mediaFraction: number): Phas
   return {
     label, files, buildings: layout.buildings.length, streets: layout.streets.length, media,
     layoutMs: t1 - t0, cloneFullMs: tc1 - tc0, cloneSlimMs: tc3 - tc2, bboxMs: tb1 - tb0,
-    assemblyMs: ta1 - ta0, mediaRegMs, labelMs: tl1 - tl0, labelCount,
-    pickMs: tp1 - tp0, pickCasts: CASTS,
+    assemblyMs: ta1 - ta0, mediaRegMs, drawnNoLod, drawnLodFar, visibleLodNear,
+    labelMs: tl1 - tl0, labelCount, pickMs: tp1 - tp0, pickCasts: CASTS,
   };
 }
 
@@ -222,6 +250,7 @@ function report(r: PhaseResult): void {
       row('3 bbox', r.bboxMs),
       row('4 buildings assembly', r.assemblyMs),
       row('5 media registration', r.mediaRegMs, `${r.media} media buildings`),
+      `  ${'  ad-panel LOD'.padEnd(22)} ${''.padStart(8)}     zoom-out draws ${r.drawnLodFar}/${r.drawnNoLod} instances (near visible=${r.visibleLodNear})`,
       row('6 street labels (jsdom-inflated)', r.labelMs, `${r.labelCount} label planes`),
       row('7 picker raycast', r.pickMs, `${r.pickCasts} casts → ${(r.pickMs / r.pickCasts).toFixed(2)}ms/cast`),
     ].join('\n')
