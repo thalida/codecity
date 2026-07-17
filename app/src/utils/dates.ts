@@ -78,19 +78,67 @@ function pluralizeAgo(n: number, unit: string): string {
   return `${n} ${unit}${n === 1 ? '' : 's'} ago`;
 }
 
-/** Format a date string as an English relative-age ("3 days ago",
- *  "1 minute ago", "just now"). YYYY-MM-DD is treated as UTC midnight so
- *  the threshold buckets ('day', 'month', 'year') are deterministic. */
+/** Whole years/months/days from `from` to `to` (to >= from), calendar-accurate
+ *  (real month lengths, not fixed 30/365-day buckets — so month gaps between two
+ *  same-year dates aren't lost). `utc` picks UTC vs local component reads and MUST
+ *  match how the two Dates were parsed, or the day arithmetic drifts by the tz. */
+function _calendarSpan(
+  from: Date,
+  to: Date,
+  utc: boolean
+): { years: number; months: number; days: number } {
+  const y = (d: Date) => (utc ? d.getUTCFullYear() : d.getFullYear());
+  const mo = (d: Date) => (utc ? d.getUTCMonth() : d.getMonth());
+  const dy = (d: Date) => (utc ? d.getUTCDate() : d.getDate());
+  let years = y(to) - y(from);
+  let months = mo(to) - mo(from);
+  let days = dy(to) - dy(from);
+  if (days < 0) {
+    // Borrow days from the month before `to` (day 0 = last day of prev month).
+    const prevMonthDays = utc
+      ? new Date(Date.UTC(y(to), mo(to), 0)).getUTCDate()
+      : new Date(y(to), mo(to), 0).getDate();
+    days += prevMonthDays;
+    months -= 1;
+  }
+  if (months < 0) {
+    months += 12;
+    years -= 1;
+  }
+  return { years, months, days };
+}
+
+/** Join the largest `max` NON-zero units of a calendar span as "2 years 4
+ *  months" (zeros are skipped, so an exact anniversary is just "2 years").
+ *  Empty string when every unit is zero (a sub-day span). */
+function _joinSpan(span: { years: number; months: number; days: number }, max: number): string {
+  const parts: [number, string][] = [
+    [span.years, 'year'],
+    [span.months, 'month'],
+    [span.days, 'day'],
+  ];
+  return parts
+    .filter(([n]) => n > 0)
+    .slice(0, max)
+    .map(([n, u]) => `${n} ${u}${n === 1 ? '' : 's'}`)
+    .join(' ');
+}
+
+/** Format a date string as an English relative-age. Under a day it's a single
+ *  coarse unit ("just now", "5 minutes ago", "3 hours ago"); a day or more is
+ *  calendar-accurate to two units ("2 years 4 months ago", "5 months 12 days
+ *  ago", "3 days ago"). YYYY-MM-DD is treated as UTC midnight so the result is
+ *  timezone-deterministic. */
 export function formatRelativeAge(dateStr: string, now: Date = new Date()): string {
   const iso = /^\d{4}-\d{2}-\d{2}$/.test(dateStr) ? `${dateStr}T00:00:00Z` : dateStr;
-  const then = new Date(iso).getTime();
-  const diff = now.getTime() - then;
+  const then = new Date(iso);
+  if (Number.isNaN(then.getTime())) return dateStr;
+  const diff = now.getTime() - then.getTime();
   if (diff < MS_MINUTE) return 'just now';
   if (diff < MS_HOUR) return pluralizeAgo(Math.floor(diff / MS_MINUTE), 'minute');
   if (diff < MS_DAY) return pluralizeAgo(Math.floor(diff / MS_HOUR), 'hour');
-  if (diff < MS_MONTH) return pluralizeAgo(Math.floor(diff / MS_DAY), 'day');
-  if (diff < MS_YEAR) return pluralizeAgo(Math.floor(diff / MS_MONTH), 'month');
-  return pluralizeAgo(Math.floor(diff / MS_YEAR), 'year');
+  // A day or more: calendar-accurate, up to two units.
+  return `${_joinSpan(_calendarSpan(then, now, true), 2) || '1 day'} ago`;
 }
 
 /** Compact relative-time formatter ("3d ago", "5m ago", "just now"). Takes
@@ -108,26 +156,23 @@ export function formatRelativeAgeShort(thenMs: number, nowMs: number): string {
   return `${Math.floor(diff / MS_YEAR)}y ago`;
 }
 
-/** Coarse human duration between two dates, one unit only ("2 years",
- *  "5 months", "3 weeks", "4 days"). Deterministic (no "now"), so it's safe for
- *  spans/ages in pure view-models. Returns '' if either date is unparseable. */
+/** Human duration between two dates, calendar-accurate to two units ("2 years
+ *  4 months", "5 months 12 days", "3 days"). Deterministic (no "now"), so it's
+ *  safe for spans in pure view-models. Returns '' if either date is unparseable. */
 export function humanSpan(fromISO: string, toISO: string): string {
   const a = parseLocalDate(fromISO);
   const b = parseLocalDate(toISO);
   if (!a || !b) return '';
-  const diff = Math.max(0, b.getTime() - a.getTime());
-  const unit = (n: number, u: string) => `${n} ${u}${n === 1 ? '' : 's'}`;
-  if (diff >= MS_YEAR) return unit(Math.round(diff / MS_YEAR), 'year');
-  if (diff >= MS_MONTH) return unit(Math.round(diff / MS_MONTH), 'month');
-  if (diff >= 7 * MS_DAY) return unit(Math.round(diff / (7 * MS_DAY)), 'week');
-  return unit(Math.max(1, Math.round(diff / MS_DAY)), 'day');
+  const [from, to] = a.getTime() <= b.getTime() ? [a, b] : [b, a];
+  // parseLocalDate builds LOCAL-midnight dates, so read local components.
+  return _joinSpan(_calendarSpan(from, to, false), 2) || '1 day';
 }
 
 /** Age as an adjective phrase relative to a reference date ("2-year-old",
- *  "5-month-old", "3-week-old", "4-day-old"). Built on humanSpan, so it shares
- *  the same coarse single-unit bucket. Returns '' if `fromISO` is unparseable. */
+ *  "5-month-old", "3-day-old") — the single largest unit of humanSpan. Returns
+ *  '' if `fromISO` is unparseable. */
 export function humanAge(fromISO: string, toISO: string): string {
-  const span = humanSpan(fromISO, toISO); // "2 years"
+  const span = humanSpan(fromISO, toISO); // "2 years 4 months" → take the lead unit
   if (!span) return '';
   const [n, unit] = span.split(' ');
   return `${n}-${unit.replace(/s$/, '')}-old`;

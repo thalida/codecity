@@ -101,7 +101,7 @@ describe('CommitPane', () => {
     await drainAsync();
 
     // Age is inside .commit-meta
-    expect(container.querySelector('.commit-age')!.textContent).toContain('2 months ago');
+    expect(container.querySelector('.commit-age')!.textContent).toContain('2 months 12 days ago');
 
     // Files is inside .commit-meta
     expect(container.querySelector('.commit-files')!.textContent).toBe('4 files changed');
@@ -614,7 +614,7 @@ describe('CommitPane', () => {
     globalThis.fetch = (() => new Promise(() => {})) as unknown as typeof fetch;
     mount();
     await setCommit(COMMIT, { now: new Date('2026-05-24T12:00:00Z') });
-    expect(container.querySelector('.commit-age')!.textContent).toContain('2 months ago');
+    expect(container.querySelector('.commit-age')!.textContent).toContain('2 months 12 days ago');
     expect(container.querySelector('.commit-files')!.textContent).toBe('4 files changed');
   });
 

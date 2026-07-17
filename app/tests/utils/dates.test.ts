@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { formatRelativeAge, humanAge } from '@/utils/dates';
+import { formatRelativeAge, humanSpan, humanAge } from '@/utils/dates';
 
 const NOW = new Date('2026-05-24T12:00:00Z');
 
@@ -27,18 +27,35 @@ describe('formatRelativeAge', () => {
     expect(formatRelativeAge('2026-05-21', NOW)).toBe('3 days ago');
   });
 
-  it('returns months for under a year (30-day buckets)', () => {
-    expect(formatRelativeAge('2026-03-12', NOW)).toBe('2 months ago');
-    expect(formatRelativeAge('2026-04-23', NOW)).toBe('1 month ago');
+  it('shows two calendar-accurate units for month-scale gaps', () => {
+    expect(formatRelativeAge('2026-03-12', NOW)).toBe('2 months 12 days ago');
+    expect(formatRelativeAge('2026-04-23', NOW)).toBe('1 month 1 day ago');
   });
 
-  it('returns years for one year or more (365-day buckets)', () => {
+  it('shows two units for year-scale gaps, dropping zero units', () => {
+    // Exact anniversary → just the year (zero months + days dropped).
     expect(formatRelativeAge('2024-05-24', NOW)).toBe('2 years ago');
-    expect(formatRelativeAge('2025-05-22', NOW)).toBe('1 year ago');
+    // Year + a month gap, kept together (the gap that a single-unit format lost).
+    expect(formatRelativeAge('2023-01-24', NOW)).toBe('3 years 4 months ago');
+    // Zero-month gap is skipped so the next non-zero unit still shows.
+    expect(formatRelativeAge('2025-05-22', NOW)).toBe('1 year 2 days ago');
   });
 
   it('handles future dates as "just now"', () => {
     expect(formatRelativeAge('2026-05-25T00:00:00Z', NOW)).toBe('just now');
+  });
+});
+
+describe('humanSpan', () => {
+  it('renders up to two calendar-accurate units', () => {
+    expect(humanSpan('2024-01-10', '2026-05-24')).toBe('2 years 4 months');
+    expect(humanSpan('2026-03-12', '2026-05-24')).toBe('2 months 12 days');
+    expect(humanSpan('2026-05-20', '2026-05-24')).toBe('4 days');
+  });
+  it('order-independent, min one day, empty on bad input', () => {
+    expect(humanSpan('2026-05-24', '2026-03-12')).toBe('2 months 12 days');
+    expect(humanSpan('2026-05-24', '2026-05-24')).toBe('1 day');
+    expect(humanSpan('nope', '2026-05-24')).toBe('');
   });
 });
 
@@ -49,7 +66,7 @@ describe('humanAge', () => {
     expect(humanAge('2024-05-24', TO)).toBe('2-year-old');
     expect(humanAge('2025-05-24', TO)).toBe('1-year-old');
     expect(humanAge('2026-03-24', TO)).toBe('2-month-old');
-    expect(humanAge('2026-05-03', TO)).toBe('3-week-old');
+    expect(humanAge('2026-05-03', TO)).toBe('21-day-old');
     expect(humanAge('2026-05-20', TO)).toBe('4-day-old');
   });
 
