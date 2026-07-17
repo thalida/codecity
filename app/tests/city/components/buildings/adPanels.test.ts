@@ -267,9 +267,11 @@ describe('AdPanelTextureArray storage', () => {
 });
 
 describe('InstancedAdPanels distance LOD (updateLOD)', () => {
-  // A large media building at the origin. viewportHeightPx fixed at 800.
+  // A large media building at the origin. viewportHeightPx fixed at 800. A
+  // no-op onStartLoad keeps updateLOD's visibility logic from firing real
+  // image loads (fetch/decode) during these visibility-only tests.
   function adsAtOrigin(): InstancedAdPanels {
-    const ads = new InstancedAdPanels(4);
+    const ads = new InstancedAdPanels(4, { onStartLoad: () => {} });
     ads.registerMediaBuilding(
       fakeMediaBuilding({ x: 0, y: 0, w: 12, d: 12, h: 24 })
     );
@@ -316,6 +318,70 @@ describe('InstancedAdPanels distance LOD (updateLOD)', () => {
     ads.mesh.visible = false;
     ads.updateLOD(cameraAt(0, 30, 40), 0);
     expect(ads.mesh.visible).toBe(false);
+  });
+});
+
+describe('InstancedAdPanels visibility-gated loading', () => {
+  const VIEWPORT_H = 800;
+  function mediaAt(path: string, x: number, y: number): Building {
+    return fakeMediaBuilding({
+      x, y, w: 12, d: 12, h: 24,
+      file: {
+        path, name: path, type: NodeKind.File, fullPath: `/${path}`, extension: '.png',
+        mediaKind: 'image', size: 1, lines: 0, binary: true, created: '', modified: '',
+      },
+    });
+  }
+  function cameraAt(x: number, y: number, z: number): THREE.PerspectiveCamera {
+    const cam = new THREE.PerspectiveCamera(50, 1.6, 1, 100000);
+    cam.position.set(x, y, z);
+    cam.lookAt(0, 0, 0);
+    cam.updateMatrixWorld(true);
+    return cam;
+  }
+
+  it('registerMediaBuilding does NOT start a load on its own (no eager burst)', () => {
+    const started: string[] = [];
+    const ads = new InstancedAdPanels(64, { onStartLoad: (b) => started.push(b.file!.path) });
+    ads.registerMediaBuilding(mediaAt('a.png', 0, 0));
+    ads.registerMediaBuilding(mediaAt('b.png', 5, 5));
+    expect(started).toEqual([]);
+  });
+
+  it('starts loads only for panels inside the camera frustum', () => {
+    const started: string[] = [];
+    const ads = new InstancedAdPanels(64, { onStartLoad: (b) => started.push(b.file!.path) });
+    ads.registerMediaBuilding(mediaAt('near.png', 0, 0)); // at origin, in view
+    ads.registerMediaBuilding(mediaAt('far.png', 8000, 8000)); // far off to the side
+    // Camera close above origin, looking down — origin is framed, far is not.
+    ads.updateLOD(cameraAt(0, 30, 40), VIEWPORT_H);
+    expect(started).toContain('near.png');
+    expect(started).not.toContain('far.png');
+  });
+
+  it('spreads starts across frames via a per-frame budget', () => {
+    const started: string[] = [];
+    const ads = new InstancedAdPanels(64, { onStartLoad: (b) => started.push(b.file!.path) });
+    // 12 clustered media buildings, all in view.
+    for (let i = 0; i < 12; i++) ads.registerMediaBuilding(mediaAt(`m${i}.png`, (i % 4) - 2, Math.floor(i / 4) - 1));
+    const cam = cameraAt(0, 40, 40);
+    ads.updateLOD(cam, VIEWPORT_H);
+    const afterFrame1 = started.length;
+    expect(afterFrame1).toBeGreaterThan(0);
+    expect(afterFrame1).toBeLessThan(12); // budgeted — not all at once
+    // Subsequent frames drain the rest, and nothing is started twice.
+    for (let f = 0; f < 12; f++) ads.updateLOD(cam, VIEWPORT_H);
+    expect(started.length).toBe(12);
+    expect(new Set(started).size).toBe(12);
+  });
+
+  it('does not start loads while zoomed out (mesh hidden — nothing visible to load)', () => {
+    const started: string[] = [];
+    const ads = new InstancedAdPanels(64, { onStartLoad: (b) => started.push(b.file!.path) });
+    ads.registerMediaBuilding(mediaAt('a.png', 0, 0));
+    ads.updateLOD(cameraAt(0, 40000, 50000), VIEWPORT_H); // way out → mesh hidden
+    expect(ads.mesh.visible).toBe(false);
+    expect(started).toEqual([]);
   });
 });
 

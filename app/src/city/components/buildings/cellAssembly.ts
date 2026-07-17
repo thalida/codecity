@@ -10,7 +10,7 @@ import * as THREE from 'three';
 import { SpatialGrid, type WorldBounds } from './spatialGrid';
 import { createEmptyCellTile, type CellTile, allocateSlot } from './cellTile';
 import { attachBuildingMeshToCell, writeBuildingToSlot } from './cellMesh';
-import { InstancedAdPanels, asyncLoadMediaForBuilding } from './adPanels';
+import { InstancedAdPanels } from './adPanels';
 import { isMediaFile } from '@/city/utils/mediaKind';
 import { BuildingIndex } from './buildingIndex';
 import type { Building } from '@/types/index';
@@ -116,13 +116,10 @@ export function buildCellsFromLayout(
   if (mediaBuildings.length > 0) {
     const adCapacity = Math.max(64, Math.ceil(mediaBuildings.length * 1.5));
     adPanels = new InstancedAdPanels(adCapacity);
-    for (const b of mediaBuildings) {
-      const reg = adPanels.registerMediaBuilding(b);
-      if (reg) {
-        // Async: fetch + upload texture, then set iTextureFade → 1.
-        asyncLoadMediaForBuilding(adPanels, b, reg.layer, reg.panelSlots);
-      }
-    }
+    // Register (allocate slots + faces) now, but DON'T load the images here — the
+    // per-frame updateLOD streams them in for on-screen panels only, so a
+    // media-heavy repo doesn't hang on a load burst. See InstancedAdPanels.
+    for (const b of mediaBuildings) adPanels.registerMediaBuilding(b);
     sceneRoot.add(adPanels.mesh);
   }
 

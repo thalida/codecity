@@ -175,7 +175,8 @@ function profile(label: string, fileBudget: number, mediaFraction: number): Phas
   if (mediaBuildings.length > 0) {
     const adCapacity = Math.max(64, Math.ceil(mediaBuildings.length * 1.5));
     const tm0 = performance.now();
-    const ads = new InstancedAdPanels(adCapacity);
+    // No-op loader: profile registration + LOD without firing real image loads.
+    const ads = new InstancedAdPanels(adCapacity, { onStartLoad: () => {} });
     for (const b of mediaBuildings) ads.registerMediaBuilding(b);
     const tm1 = performance.now();
     mediaRegMs = tm1 - tm0;

@@ -41,8 +41,17 @@ const AD_FRONT_FACE_OFFSET = 1.5;
 const AD_LOD_HIDE_PX = 6;
 const AD_LOD_SHOW_PX = 12;
 
-// Scratch vector for growing the panel AABB during registration (no per-panel alloc).
+// Max image loads STARTED per frame. A media-heavy repo (PostHog: ~1.4k images)
+// otherwise fires every fetch + base64 decode + canvas scale + GPU upload in one
+// burst on load, and that main-thread work janks navigation while it drains.
+// Starting a few per frame, only for on-screen panels (see updateLOD), spreads
+// the cost so zooming/rotating stays smooth as billboards stream in.
+const AD_LOAD_BUDGET_PER_FRAME = 4;
+
+// Scratch objects for the per-frame LOD/load pass (no per-frame alloc).
 const _scratchVec3 = new THREE.Vector3();
+const _lodFrustum = new THREE.Frustum();
+const _lodProjScreen = new THREE.Matrix4();
 
 // ---------------------------------------------------------------------------
 // Face layout helpers. 4 faces per building; each face is one InstancedMesh
@@ -124,7 +133,26 @@ export class InstancedAdPanels {
   private readonly _panelBounds = new THREE.Box3();
   private _maxPanelHeight = 0;
 
-  constructor(mediaFileCapacity: number) {
+  // Registered-but-not-yet-loaded media buildings. Loading is deferred out of
+  // registration and driven per frame by updateLOD (on-screen + budgeted), so a
+  // media-heavy repo doesn't fire every image load at once on rebuild.
+  private _pendingLoads: Array<{
+    b: Building;
+    layer: number;
+    panelSlots: number[];
+    center: THREE.Vector3;
+  }> = [];
+  // Starts one building's image load. Defaults to the real fetch/decode/upload
+  // chain; overridable in tests to observe scheduling without touching the net.
+  private readonly _startLoad: (b: Building, layer: number, panelSlots: number[]) => void;
+
+  constructor(
+    mediaFileCapacity: number,
+    opts?: { onStartLoad?: (b: Building, layer: number, panelSlots: number[]) => void }
+  ) {
+    this._startLoad =
+      opts?.onStartLoad ??
+      ((b, layer, panelSlots) => asyncLoadMediaForBuilding(this, b, layer, panelSlots));
     this._capacity = mediaFileCapacity;
     // 4 faces per media building → total slot count.
     const slotCount = mediaFileCapacity * 4;
@@ -346,6 +374,16 @@ export class InstancedAdPanels {
     const key = b.file?.path;
     if (key != null) this._buildingSlotsByPath.set(key, panelSlots.slice());
 
+    // Queue the image load; updateLOD starts it once the panel is on-screen.
+    // center = building footprint center at panel height (a good frustum proxy
+    // for the 4 faces, which sit a hair outside it).
+    this._pendingLoads.push({
+      b,
+      layer,
+      panelSlots,
+      center: new THREE.Vector3(b.x, centerY, b.y),
+    });
+
     return { layer, panelSlots };
   }
 
@@ -475,6 +513,28 @@ export class InstancedAdPanels {
     } else if (projPx > AD_LOD_SHOW_PX) {
       this.mesh.visible = true;
     }
+
+    // Zoomed out (panels hidden) or nothing left to load → no load work.
+    if (!this.mesh.visible || this._pendingLoads.length === 0) return;
+
+    // Start up to AD_LOAD_BUDGET_PER_FRAME image loads for on-screen panels,
+    // compacting the ones we start out of the pending list. Off-screen and
+    // over-budget panels stay queued for a later frame (e.g. after the user
+    // rotates them into view).
+    _lodProjScreen.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
+    _lodFrustum.setFromProjectionMatrix(_lodProjScreen);
+    let started = 0;
+    let write = 0;
+    for (let read = 0; read < this._pendingLoads.length; read++) {
+      const entry = this._pendingLoads[read];
+      if (started < AD_LOAD_BUDGET_PER_FRAME && _lodFrustum.containsPoint(entry.center)) {
+        this._startLoad(entry.b, entry.layer, entry.panelSlots);
+        started++;
+      } else {
+        this._pendingLoads[write++] = entry;
+      }
+    }
+    this._pendingLoads.length = write;
   }
 
   /**
