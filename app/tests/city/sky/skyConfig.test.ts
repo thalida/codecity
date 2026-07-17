@@ -12,5 +12,7 @@ describe('SCENE sky/stars keys', () => {
     expect(v.SKY_COLOR).toMatch(/^#[0-9a-f]{6}$/i);
     expect(typeof v.STARS_ENABLED).toBe('boolean');
     expect(typeof v.STARS_DENSITY).toBe('number');
+    expect(typeof v.AURORA_ENABLED).toBe('boolean');
+    expect(typeof v.AURORA_INTENSITY).toBe('number');
   });
 });
