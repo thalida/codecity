@@ -102,21 +102,33 @@
   border-radius: var(--cc-radius-circle);
   background: var(--cc-accent);
   pointer-events: none;
-  animation: cc-dot-ring 1.2s ease-out;
+  animation: cc-dot-pulse 0.6s ease-out;
 }
 
-@keyframes cc-dot-ring {
+/* Bold scale bounce so a change is unmistakable at this size. */
+@keyframes cc-dot-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  35% {
+    transform: scale(2);
+  }
+}
+
+/* Reduced motion: keep a cue, but a quick opacity flash instead of scaling. */
+@keyframes cc-dot-flash {
   from {
-    box-shadow: 0 0 0 0 var(--cc-accent-bg);
+    opacity: 0.25;
   }
   to {
-    box-shadow: 0 0 0 7px transparent;
+    opacity: 1;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .activity-bar-dot {
-    animation: none;
+    animation-name: cc-dot-flash;
   }
 }
 
