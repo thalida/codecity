@@ -27,6 +27,7 @@ vi.mock('three', async () => {
     }
     render() {}
     dispose() {}
+    forceContextLoss() {}
     copyTextureToTexture() {}
     setRenderTarget() {}
     getContext() {

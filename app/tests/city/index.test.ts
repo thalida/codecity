@@ -18,6 +18,8 @@ import { EMPTY_MANIFEST } from '@/constants/manifest';
 // createCity / the frame loop call (setPixelRatio/setSize/getSize/render/
 // domElement); getSize fills the passed Vector2 so the per-frame size guard
 // is a no-op.
+const { forceContextLossSpy } = vi.hoisted(() => ({ forceContextLossSpy: vi.fn() }));
+
 vi.mock('three', async () => {
   const actual = await vi.importActual<typeof import('three')>('three');
   class FakeWebGLRenderer {
@@ -32,6 +34,9 @@ vi.mock('three', async () => {
     }
     render() {}
     dispose() {}
+    forceContextLoss() {
+      forceContextLossSpy();
+    }
     copyTextureToTexture() {}
     setRenderTarget() {}
     getContext() {
@@ -92,5 +97,12 @@ describe('createCity', () => {
     expect(handle.rig).toBeDefined();
     expect(typeof handle.rig.reset).toBe('function');
     expect(typeof handle.focusByPath).toBe('function');
+  });
+
+  it('dispose() releases the WebGL context (forceContextLoss), not just its resources', async () => {
+    const handle = await createCity(makeCanvas(), EMPTY_MANIFEST);
+    expect(forceContextLossSpy).not.toHaveBeenCalled();
+    handle.dispose();
+    expect(forceContextLossSpy).toHaveBeenCalled();
   });
 });

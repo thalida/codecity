@@ -232,7 +232,12 @@ export async function createCity(canvas: HTMLCanvasElement, manifest: Manifest):
       postFx.dispose();
       for (const c of components) c.dispose();
       layoutClient.dispose();
+      // dispose() frees GPU resources but leaves the WebGL context alive;
+      // forceContextLoss() actually releases it. Without this, every teardown
+      // (HMR reload, project switch) leaks a context until Chrome hits its
+      // per-page cap (~16) and blocks new ones ("context loss ... blocked").
       renderer.dispose();
+      renderer.forceContextLoss();
     },
   };
 }
