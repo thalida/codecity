@@ -16,7 +16,12 @@ import { X, Waypoints, Building2, TreePine, Sparkles } from 'lucide-preact';
 import { useDialogFocus } from '@/hooks/useDialogFocus';
 import { GemIcon } from '@/components/GemIcon/GemIcon';
 import { LandingBackdrop } from '@/components/LandingBackdrop/LandingBackdrop';
-import { PROJECTS_VIEW, clearProjectsViewError, type SourcePayload } from '@/state/stores/ui';
+import {
+  PROJECTS_VIEW,
+  LOADING_OVERLAY,
+  clearProjectsViewError,
+  type SourcePayload,
+} from '@/state/stores/ui';
 import { SERVER_CONFIG } from '@/state/stores/serverConfig';
 import { SCAN_PROGRESS } from '@/state/stores/scanProgress';
 import { listRecents } from '@/state/stores/source';
@@ -119,6 +124,11 @@ export function ProjectsView({ onSubmit, onCancel, onClose }: ProjectsViewProps)
                   activeStep={stepForPhase(scan.phase, scan.kind)}
                   kind={scan.kind}
                   branch={scan.branch}
+                  // Per-step tails (clone %, files scanned) are computed into
+                  // LOADING_OVERLAY by loadingReactions even while this inline
+                  // surface owns the load; forward them so the numbers show here
+                  // too (the App-level overlay is suppressed).
+                  stepTails={LOADING_OVERLAY.value.stepTails}
                   onCancel={onCancel}
                 />
               </div>

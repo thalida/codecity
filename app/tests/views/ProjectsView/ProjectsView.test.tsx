@@ -8,7 +8,13 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render } from 'preact';
 import { ProjectsView } from '@/views/ProjectsView/ProjectsView';
-import { PROJECTS_VIEW, openProjectsView, closeProjectsView } from '@/state/stores/ui';
+import {
+  PROJECTS_VIEW,
+  openProjectsView,
+  closeProjectsView,
+  setLoadingStepTail,
+} from '@/state/stores/ui';
+import { LoadingStep } from '@/constants/loadingSteps';
 import { SCAN_PROGRESS } from '@/state/stores/scanProgress';
 import { PENDING_SOURCE_LABEL } from '@/state/stores/source';
 import { SERVER_CONFIG } from '@/state/stores/serverConfig';
@@ -73,6 +79,20 @@ describe('ProjectsView', () => {
     expect(progress?.textContent).toContain('o/r');
     expect(progress?.textContent).toMatch(/Cloning/i);
     expect(container.querySelector('.loading-spinner')).not.toBeNull();
+  });
+
+  it('forwards per-step tails (clone %) into the inline switcher progress', async () => {
+    openProjectsView({ dismissible: true });
+    render(<ProjectsView onSubmit={() => {}} onCancel={() => {}} onClose={() => {}} />, container);
+    SCAN_PROGRESS.value = { kind: SourceKind.Remote, phase: ScanPhase.CloneProgress };
+    setLoadingStepTail(LoadingStep.Cloning, '45% (Receiving)');
+    await flush();
+
+    const tail = container.querySelector('.loading-step-tail');
+    expect(tail).not.toBeNull();
+    expect(tail!.textContent).toContain('45%');
+
+    setLoadingStepTail(LoadingStep.Cloning, null); // reset the shared overlay state
   });
 
   it('wires the Cancel button to onCancel', async () => {
