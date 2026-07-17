@@ -61,8 +61,19 @@ describe('sky.frag.glsl', () => {
     }
   });
 
-  it('uses a hash to scatter stars (deterministic per direction)', () => {
-    expect(src).toMatch(/sin\(\s*dot\([^)]*,\s*vec2\s*\(\s*12\.9898/);
+  it('declares the aurora enable + intensity uniforms', () => {
+    expect(src).toContain('uAuroraEnabled');
+    expect(src).toContain('uAuroraIntensity');
+  });
+
+  it('scatters stars with a hash-without-sine over a cube-face grid', () => {
+    // Star presence + placement come from hash13/hash33 (Dave Hoskins),
+    // replacing the old fract(sin(dot(...))) hash that banded into moiré, and
+    // the cube-face projection replaces the equirectangular grid that crowded
+    // stars into meridian lines at the poles.
+    expect(src).toMatch(/hash13\s*\(/);
+    expect(src).toMatch(/hash33\s*\(/);
+    expect(src).toMatch(/starCubeUV\s*\(/);
   });
 
   it('drives twinkle through sin(uTime * ...)', () => {

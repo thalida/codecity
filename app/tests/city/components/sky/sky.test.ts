@@ -20,6 +20,8 @@ function resetStores() {
     SKY_COLOR: '#010005',
     STARS_ENABLED: true,
     STARS_DENSITY: 0.0075,
+    AURORA_ENABLED: true,
+    AURORA_INTENSITY: 0.022,
   };
 }
 
@@ -92,6 +94,15 @@ describe('createSky()', () => {
     expect(mat.uniforms.uStarsEnabled.value).toBe(0.0);
     SCENE.value = { ...SCENE.value, STARS_ENABLED: true };
     expect(mat.uniforms.uStarsEnabled.value).toBe(1.0);
+  });
+
+  it('settings effect reflects AURORA_ENABLED / AURORA_INTENSITY into uniforms', () => {
+    const mat = sky.group.material as THREE.ShaderMaterial;
+    SCENE.value = { ...SCENE.value, AURORA_ENABLED: false, AURORA_INTENSITY: 0.05 };
+    expect(mat.uniforms.uAuroraEnabled.value).toBe(0.0);
+    expect(mat.uniforms.uAuroraIntensity.value).toBeCloseTo(0.05);
+    SCENE.value = { ...SCENE.value, AURORA_ENABLED: true };
+    expect(mat.uniforms.uAuroraEnabled.value).toBe(1.0);
   });
 
   it('tick() advances uTime AND copies the camera position into group.position', () => {

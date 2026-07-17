@@ -17,10 +17,10 @@
 //   sky.tick(dt, frameCtx);          // each frame, LAST before render
 //   sky.dispose();                   // on teardown
 //
-// The settings effect reads SCENE (SKY_COLOR, STARS_ENABLED, STARS_DENSITY)
-// and pushes fresh values into the material uniforms with no rebuild, re-running
-// on every SCENE Save. It runs once at construction (idempotently
-// re-applying the same values the constructor baked).
+// The settings effect reads SCENE (SKY_COLOR, STARS_ENABLED, STARS_DENSITY,
+// AURORA_ENABLED, AURORA_INTENSITY) and pushes fresh values into the material
+// uniforms with no rebuild, re-running on every SCENE Save. It runs once at
+// construction (idempotently re-applying the same values the constructor baked).
 //
 // Construction-time bridge: the sky is
 // built by createCity BEFORE the picker/camera/renderer exist. The
@@ -114,6 +114,9 @@ export function createSky(ctx: SceneContext): Sky {
       uTwinkleEnabled: { value: TWINKLE_ENABLED },
       uTwinkleSpeed: { value: TWINKLE_SPEED },
       uTwinkleAmplitude: { value: TWINKLE_AMPLITUDE },
+
+      uAuroraEnabled: { value: cfg.AURORA_ENABLED ? 1.0 : 0.0 },
+      uAuroraIntensity: { value: cfg.AURORA_INTENSITY },
     },
   });
   setColorFromHex(material.uniforms.uSkyColor.value as THREE.Color, cfg.SKY_COLOR);
@@ -123,15 +126,17 @@ export function createSky(ctx: SceneContext): Sky {
   group.frustumCulled = false;
   group.userData.cyberpunkValley = 'sky';
 
-  // Settings effect — reacts to SCENE changes (Save). Reads only SKY_COLOR /
-  // STARS_ENABLED / STARS_DENSITY and pushes them into the uniforms. Runs once
-  // at construction, re-applying the same values the constructor baked
-  // (idempotent).
+  // Settings effect — reacts to SCENE changes (Save). Reads SKY_COLOR /
+  // STARS_ENABLED / STARS_DENSITY / AURORA_ENABLED / AURORA_INTENSITY and
+  // pushes them into the uniforms. Runs once at construction, re-applying the
+  // same values the constructor baked (idempotent).
   const stopEffect = onSettings(SCENE, () => {
     const c = SCENE.value;
     setColorFromHex(material.uniforms.uSkyColor.value as THREE.Color, c.SKY_COLOR);
     material.uniforms.uStarsEnabled.value = c.STARS_ENABLED ? 1.0 : 0.0;
     material.uniforms.uStarDensity.value = c.STARS_DENSITY;
+    material.uniforms.uAuroraEnabled.value = c.AURORA_ENABLED ? 1.0 : 0.0;
+    material.uniforms.uAuroraIntensity.value = c.AURORA_INTENSITY;
     // Scene clear color (the RenderPass background behind the sky sphere) =
     // SKY_COLOR. Sky owns this — runs at construction + on every SCENE Save, so
     // applyManifest no longer needs to set it.

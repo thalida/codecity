@@ -44,6 +44,25 @@ const SCENE_FIELDS = {
     tip: 'Higher values paint more stars. Above ~0.01 the sky reads as a noise field.',
   },
 
+  // ── Aurora ──
+  AURORA_ENABLED: {
+    route: ChangeRoute.Refresh,
+    kind: FieldKind.Toggle,
+    default: true,
+    label: 'Enabled',
+    tip: 'When off, no aurora appears.',
+  },
+  AURORA_INTENSITY: {
+    route: ChangeRoute.Refresh,
+    kind: FieldKind.Slider,
+    default: 0.022,
+    min: 0,
+    max: 0.15,
+    step: 0.002,
+    label: 'Intensity',
+    tip: 'Peak brightness of the aurora bands. Kept low so they read as a faint nebula and stay under the bloom threshold.',
+  },
+
   // ── Ground haze (fog) ──
   FOG_ENABLED: {
     route: ChangeRoute.Refresh,
