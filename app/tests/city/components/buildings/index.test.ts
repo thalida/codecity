@@ -20,8 +20,13 @@ import { signal } from '@preact/signals';
 
 import { createBuildings } from '@/city/components/buildings';
 import { makeCityState } from '../../../_helpers/cityFixtures';
-import { getBuildingMaterial } from '@/city/components/buildings/material';
-import { BUILDINGS } from '@/state/stores/settings/buildings';
+import {
+  getBuildingMaterial,
+  refreshBuildingMaterial,
+  setTallestBuildingHeight,
+} from '@/city/components/buildings/material';
+import { BUILDINGS, BUILDING_DIMENSIONS } from '@/state/stores/settings/buildings';
+import { SCENE } from '@/state/stores/settings/scene';
 import { NodeKind } from '@/types';
 import type { Building, CityLayout, DateRanges, FileTarget, PickTarget } from '@/types';
 import type { Picker } from '@/city/interaction/picker';
@@ -237,6 +242,29 @@ describe('createBuildings()', () => {
 
     BUILDINGS.value = { ...BUILDINGS.value, OUTLINE_WIDTH: 2.25 };
     expect(uniforms.uOutlineWidth.value).toBe(2.25);
+  });
+
+  it('fog falloff height tracks the tallest rendered building, else the possible max', async () => {
+    const { ctx } = makeCtx();
+    buildings = createBuildings(ctx);
+    await buildings.rebuild(
+      buildingLayout([building({ x: 1, y: 1, file: fileOf('src/a.ts') as never })]),
+      EMPTY_DATE_RANGES
+    );
+    const uniforms = getBuildingMaterial().uniforms;
+
+    // With a city loaded, falloff = FOG_HEIGHT_FRAC × the tallest currently
+    // rendered building (pushed in via the material effect / setter).
+    setTallestBuildingHeight(500);
+    refreshBuildingMaterial();
+    expect(uniforms.uFogHeight.value).toBeCloseTo(SCENE.value.FOG_HEIGHT_FRAC * 500, 5);
+
+    // No city → fall back to the tallest POSSIBLE building.
+    setTallestBuildingHeight(null);
+    refreshBuildingMaterial();
+    const possibleMax =
+      BUILDING_DIMENSIONS.value.MAX_FLOORS * BUILDING_DIMENSIONS.value.FLOOR_HEIGHT;
+    expect(uniforms.uFogHeight.value).toBeCloseTo(SCENE.value.FOG_HEIGHT_FRAC * possibleMax, 5);
   });
 
   // ---------------------------------------------------------------------------

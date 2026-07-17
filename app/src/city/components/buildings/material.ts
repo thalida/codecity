@@ -65,14 +65,28 @@ export function getIconAtlas(): IconAtlas | null {
   return _atlas;
 }
 
-// Half-fall-off height for ground haze, in world units. Computed as
-// FOG_HEIGHT_FRAC × the tallest possible building (MAX_FLOORS × FLOOR_HEIGHT)
-// so the haze sits in the same relative band of the skyline regardless
-// of how the user has tuned building sizes.
+// Tallest building actually in the current city, in world units. Pushed in by
+// the material effect (which subscribes to cityState.tallestBuilding); 0 before
+// a city loads. The shared material is a singleton with no cityState handle, so
+// the height is threaded in rather than read directly.
+let _tallestBuildingHeight = 0;
+
+/** Set the tallest currently-rendered building height (world units) that drives
+ *  the ground-haze falloff. Pass null / 0 to fall back to the possible-max. */
+export function setTallestBuildingHeight(h: number | null): void {
+  _tallestBuildingHeight = h != null && h > 0 ? h : 0;
+}
+
+// Half-fall-off height for ground haze, in world units. FOG_HEIGHT_FRAC × the
+// tallest building CURRENTLY rendered, so the haze sits in the same relative
+// band of the actual skyline (a repo whose tallest building is well below the
+// cap no longer has the fog fade out far above it). Falls back to the tallest
+// POSSIBLE building (MAX_FLOORS × FLOOR_HEIGHT) before a city has loaded.
 function _computeFogHeight(): number {
   const dims = BUILDING_DIMENSIONS.value;
-  const maxHeight = Math.max(1, dims.MAX_FLOORS * dims.FLOOR_HEIGHT);
-  return SCENE.value.FOG_HEIGHT_FRAC * maxHeight;
+  const possibleMax = Math.max(1, dims.MAX_FLOORS * dims.FLOOR_HEIGHT);
+  const base = _tallestBuildingHeight > 0 ? _tallestBuildingHeight : possibleMax;
+  return SCENE.value.FOG_HEIGHT_FRAC * base;
 }
 
 // Grime/tilt are age-scaled: each is a [newest, oldest] range the shader lerps
