@@ -30,16 +30,22 @@ import adPanelFragSrc from './adPanel.frag.glsl?raw';
 // face. Tuned to clear typical 8–96 unit-wide buildings at oblique angles.
 const AD_FRONT_FACE_OFFSET = 1.5;
 
-// Distance LOD thresholds (approx. on-screen panel height in CSS px). Ad panels
-// are transparent + DoubleSide + never frustum-culled, so every panel draws
-// every frame; zoomed far out they collapse into a small screen region and the
-// transparent overdraw stalls the GPU (the media-heavy "zoom out + rotate hangs"
-// report). Below AD_LOD_HIDE_PX a panel is an unreadable speck, so we hide the
-// whole mesh (zero draw); we only re-show once it projects back above
-// AD_LOD_SHOW_PX. The gap is hysteresis so a panel hovering at the boundary
-// doesn't flicker on/off frame to frame.
+// Whole-mesh early-out thresholds (approx. on-screen panel height in CSS px,
+// measured against the NEAREST panel). Ad panels are transparent + DoubleSide +
+// never frustum-culled, so when the whole cloud is a speck (zoomed far out) we
+// hide the entire mesh — zero draw, and skip the per-instance pass below. The
+// gap is hysteresis so the mesh doesn't flicker at the boundary.
 const AD_LOD_HIDE_PX = 6;
 const AD_LOD_SHOW_PX = 12;
+
+// Per-INSTANCE cull thresholds (on-screen height of each panel, CSS px). When
+// the mesh is visible we still collapse individual panels that project too small
+// to read — e.g. background billboards while the foreground is zoomed in. Below
+// this you can't make out the image anyway, so rendering it is pure overdraw and
+// loading it is wasted main-thread work. Hysteresis (cull below HIDE, restore
+// above SHOW) avoids per-panel flicker as the camera damps.
+const AD_CULL_HIDE_PX = 28;
+const AD_CULL_SHOW_PX = 44;
 
 // Max image loads STARTED per frame. A media-heavy repo (PostHog: ~1.4k images)
 // otherwise fires every fetch + base64 decode + canvas scale + GPU upload in one
@@ -52,6 +58,9 @@ const AD_LOAD_BUDGET_PER_FRAME = 4;
 const _scratchVec3 = new THREE.Vector3();
 const _lodFrustum = new THREE.Frustum();
 const _lodProjScreen = new THREE.Matrix4();
+// Shared zero-scale matrix used to collapse a culled panel to a point (the
+// vertex shader then emits a degenerate quad — no fragments, no overdraw).
+const _lodZeroMatrix = new THREE.Matrix4().makeScale(0, 0, 0);
 
 // ---------------------------------------------------------------------------
 // Face layout helpers. 4 faces per building; each face is one InstancedMesh
@@ -133,14 +142,22 @@ export class InstancedAdPanels {
   private readonly _panelBounds = new THREE.Box3();
   private _maxPanelHeight = 0;
 
-  // Registered-but-not-yet-loaded media buildings. Loading is deferred out of
-  // registration and driven per frame by updateLOD (on-screen + budgeted), so a
-  // media-heavy repo doesn't fire every image load at once on rebuild.
-  private _pendingLoads: Array<{
+  // One record per registered media building, driven per frame by updateLOD:
+  //   - render cull: collapse the 4 panels to zero-scale when they project too
+  //     small to read (or leave the frustum), restore when big + on-screen.
+  //   - streamed loading: start the image load only for panels we actually
+  //     render, budgeted per frame, so a media-heavy repo never loads in a burst.
+  // `real` holds each panel's real instance matrix so a culled panel can be
+  // restored without recomputing it.
+  private _panels: Array<{
     b: Building;
     layer: number;
-    panelSlots: number[];
+    slots: number[];
+    real: THREE.Matrix4[];
     center: THREE.Vector3;
+    height: number;
+    shown: boolean;
+    loaded: boolean;
   }> = [];
   // Starts one building's image load. Defaults to the real fetch/decode/upload
   // chain; overridable in tests to observe scheduling without touching the net.
@@ -325,6 +342,7 @@ export class InstancedAdPanels {
     if (adHeight > this._maxPanelHeight) this._maxPanelHeight = adHeight;
 
     const panelSlots: number[] = [];
+    const realMatrices: THREE.Matrix4[] = [];
 
     for (const orient of PANEL_ORIENTS) {
       const slot = this._nextSlot++;
@@ -352,6 +370,7 @@ export class InstancedAdPanels {
       m.multiply(scale);
       m.setPosition(worldX, centerY, worldZ);
       this.mesh.setMatrixAt(slot, m);
+      realMatrices.push(m.clone());
 
       // Layer index — same for all 4 faces of this building.
       this._iLayerIndex[slot] = layer;
@@ -374,14 +393,19 @@ export class InstancedAdPanels {
     const key = b.file?.path;
     if (key != null) this._buildingSlotsByPath.set(key, panelSlots.slice());
 
-    // Queue the image load; updateLOD starts it once the panel is on-screen.
-    // center = building footprint center at panel height (a good frustum proxy
-    // for the 4 faces, which sit a hair outside it).
-    this._pendingLoads.push({
+    // Register for the per-frame LOD/load pass. Panels start SHOWN (their real
+    // matrices are already written above) and unloaded; updateLOD culls +
+    // streams them. center = building footprint center at panel height (a good
+    // proxy for the 4 faces, which sit a hair outside it).
+    this._panels.push({
       b,
       layer,
-      panelSlots,
+      slots: panelSlots,
+      real: realMatrices,
       center: new THREE.Vector3(b.x, centerY, b.y),
+      height: adHeight,
+      shown: true,
+      loaded: false,
     });
 
     return { layer, panelSlots };
@@ -503,38 +527,52 @@ export class InstancedAdPanels {
    */
   updateLOD(camera: THREE.PerspectiveCamera, viewportHeightPx: number): void {
     if (viewportHeightPx <= 0 || this._nextSlot === 0 || this._panelBounds.isEmpty()) return;
-    // Distance to the nearest point of the panel cloud (0 when the camera sits
-    // among the buildings) so a close corner of a huge city keeps its panels.
-    const dist = Math.max(this._panelBounds.distanceToPoint(camera.position), 1e-3);
     const halfFovTan = Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2);
-    const projPx = (this._maxPanelHeight * viewportHeightPx) / (2 * dist * halfFovTan);
+    // Screen-height (px) a world height H projects to at distance D.
+    const projPxAt = (h: number, d: number) =>
+      (h * viewportHeightPx) / (2 * Math.max(d, 1e-3) * halfFovTan);
+
+    // Whole-mesh early-out: distance to the nearest point of the panel cloud (0
+    // when the camera sits among the buildings). If even the nearest panel is a
+    // speck, hide the whole mesh and skip the per-instance pass.
+    const nearDist = this._panelBounds.distanceToPoint(camera.position);
+    const nearPx = projPxAt(this._maxPanelHeight, nearDist);
     if (this.mesh.visible) {
-      if (projPx < AD_LOD_HIDE_PX) this.mesh.visible = false;
-    } else if (projPx > AD_LOD_SHOW_PX) {
+      if (nearPx < AD_LOD_HIDE_PX) this.mesh.visible = false;
+    } else if (nearPx > AD_LOD_SHOW_PX) {
       this.mesh.visible = true;
     }
+    if (!this.mesh.visible) return;
 
-    // Zoomed out (panels hidden) or nothing left to load → no load work.
-    if (!this.mesh.visible || this._pendingLoads.length === 0) return;
-
-    // Start up to AD_LOAD_BUDGET_PER_FRAME image loads for on-screen panels,
-    // compacting the ones we start out of the pending list. Off-screen and
-    // over-budget panels stay queued for a later frame (e.g. after the user
-    // rotates them into view).
+    // Per-instance pass: cull panels that project too small or leave the
+    // frustum, and stream loads for the ones we actually render (budgeted).
     _lodProjScreen.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
     _lodFrustum.setFromProjectionMatrix(_lodProjScreen);
     let started = 0;
-    let write = 0;
-    for (let read = 0; read < this._pendingLoads.length; read++) {
-      const entry = this._pendingLoads[read];
-      if (started < AD_LOAD_BUDGET_PER_FRAME && _lodFrustum.containsPoint(entry.center)) {
-        this._startLoad(entry.b, entry.layer, entry.panelSlots);
+    let matricesDirty = false;
+    for (const rec of this._panels) {
+      const px = projPxAt(rec.height, camera.position.distanceTo(rec.center));
+      // Hysteresis: a shown panel survives down to HIDE, a hidden one restores
+      // only above SHOW. Off-screen panels are always culled.
+      const bigEnough = rec.shown ? px >= AD_CULL_HIDE_PX : px >= AD_CULL_SHOW_PX;
+      const wantShown = bigEnough && _lodFrustum.containsPoint(rec.center);
+
+      if (wantShown !== rec.shown) {
+        for (let i = 0; i < rec.slots.length; i++) {
+          this.mesh.setMatrixAt(rec.slots[i], wantShown ? rec.real[i] : _lodZeroMatrix);
+        }
+        rec.shown = wantShown;
+        matricesDirty = true;
+      }
+
+      // Load only what we render, at most AD_LOAD_BUDGET_PER_FRAME new per frame.
+      if (wantShown && !rec.loaded && started < AD_LOAD_BUDGET_PER_FRAME) {
+        this._startLoad(rec.b, rec.layer, rec.slots);
+        rec.loaded = true;
         started++;
-      } else {
-        this._pendingLoads[write++] = entry;
       }
     }
-    this._pendingLoads.length = write;
+    if (matricesDirty) this.mesh.instanceMatrix.needsUpdate = true;
   }
 
   /**

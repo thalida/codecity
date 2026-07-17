@@ -375,6 +375,38 @@ describe('InstancedAdPanels visibility-gated loading', () => {
     expect(new Set(started).size).toBe(12);
   });
 
+  it('culls (and does not load) small background panels while a foreground panel is close', () => {
+    const started: string[] = [];
+    const ads = new InstancedAdPanels(64, { onStartLoad: (b) => started.push(b.file!.path) });
+    ads.registerMediaBuilding(mediaAt('close.png', 0, 350)); // slots 0-3, near camera
+    ads.registerMediaBuilding(mediaAt('background.png', 0, -4000)); // slots 4-7, far but in view
+    // Camera on the +z axis looking toward -z: both buildings are centred in
+    // the frustum, but 'background' is ~90x farther → sub-pixel.
+    const cam = new THREE.PerspectiveCamera(50, 1.6, 1, 100000);
+    cam.position.set(0, 0, 400);
+    cam.lookAt(0, 0, 0);
+    cam.updateMatrixWorld(true);
+
+    ads.updateLOD(cam, VIEWPORT_H);
+
+    // Foreground loads; background does not.
+    expect(started).toContain('close.png');
+    expect(started).not.toContain('background.png');
+
+    // Background panels are collapsed to zero-scale (no overdraw); foreground
+    // keeps its real size. Measure the matrix's X-axis column length directly:
+    // THREE's Matrix4.decompose returns a bogus [1,1,1] for an all-zero matrix,
+    // so it can't be used to detect the collapse.
+    const m = new THREE.Matrix4();
+    const xAxisLen = (slot: number): number => {
+      ads.mesh.getMatrixAt(slot, m);
+      const e = m.elements;
+      return Math.hypot(e[0], e[1], e[2]);
+    };
+    expect(xAxisLen(4)).toBeLessThan(1e-6); // background collapsed
+    expect(xAxisLen(0)).toBeGreaterThan(0.1); // foreground at real size
+  });
+
   it('does not start loads while zoomed out (mesh hidden — nothing visible to load)', () => {
     const started: string[] = [];
     const ads = new InstancedAdPanels(64, { onStartLoad: (b) => started.push(b.file!.path) });
