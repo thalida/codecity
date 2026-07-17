@@ -16,6 +16,7 @@
 // they too are ported.
 
 import './LeftSidebar.css';
+import { useRef, useLayoutEffect } from 'preact/hooks';
 import { useComputed, useSignal, useSignalEffect } from '@preact/signals';
 import { ACTIVITY_BAR_TABS, DEFAULT_SIDEBAR_TAB, TabPlacement } from '@/constants/ui';
 import { CHANGED_SETTINGS_COUNT } from '@/state/stores/settingsIndicators';
@@ -46,6 +47,21 @@ function _pathOf(target: PickTarget | null): string | null {
   if (target.kind === NodeKind.File) return target.file?.path ?? null;
   if (target.kind === NodeKind.Directory) return target.dir?.path ?? null;
   return null;
+}
+
+// "Settings differ from default" dot. Replays its ring on every `count` change:
+// a keyed remount doesn't restart a CSS animation (Preact reuses the DOM node),
+// so we force it with the animation-reset + reflow trick.
+function SettingsChangeDot({ count }: { count: number }) {
+  const ref = useRef<HTMLSpanElement>(null);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    el.style.animation = 'none';
+    void el.offsetWidth; // reflow so the next assignment restarts the animation
+    el.style.animation = '';
+  }, [count]);
+  return <span ref={ref} class="activity-bar-dot" aria-hidden="true" />;
 }
 
 // ── ActivityBar sub-component ────────────────────────────────────────
@@ -80,10 +96,7 @@ function ActivityBar({ activeTab, collapsed, onIconClick }: ActivityBarProps) {
         onClick={() => onIconClick(tab.id)}
       >
         <tab.icon class="activity-bar-glyph" />
-        {showDot && (
-          // key on the count so each change remounts the dot and replays its ring.
-          <span key={changedCount} class="activity-bar-dot" />
-        )}
+        {showDot && <SettingsChangeDot count={changedCount} />}
       </button>
     );
   };
