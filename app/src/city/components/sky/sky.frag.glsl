@@ -43,6 +43,27 @@ float hash21(vec2 p) {
   return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453);
 }
 
+// --- Aurora (domain-warped gem bands) ---
+// Ported from LandingBackdrop's fbm domain warp, but the domain is the
+// world view direction instead of screen UV, so the bands wrap the sky.
+float auroraHash(vec2 p) {
+  p = fract(p * vec2(123.34, 456.21));
+  p += dot(p, p + 45.32);
+  return fract(p.x * p.y);
+}
+float auroraNoise(vec2 p) {
+  vec2 i = floor(p), f = fract(p);
+  float a = auroraHash(i), b = auroraHash(i + vec2(1.0, 0.0));
+  float c = auroraHash(i + vec2(0.0, 1.0)), d = auroraHash(i + vec2(1.0, 1.0));
+  vec2 u = f * f * (3.0 - 2.0 * f);
+  return mix(mix(a, b, u.x), mix(c, d, u.x), u.y);
+}
+float auroraFbm(vec2 p) {
+  float v = 0.0, a = 0.5;
+  for (int i = 0; i < 5; i++) { v += a * auroraNoise(p); p = p * 2.0 + 11.3; a *= 0.5; }
+  return v;
+}
+
 // Equirectangular (longitude, latitude) projection. Longitude wraps over
 // [-π, π], latitude over [-π/2, π/2]. Near the poles the projection
 // distorts star density slightly — acceptable for a starfield where
@@ -56,6 +77,49 @@ void main() {
 
   // ----- Sky base color -----
   vec3 color = uSkyColor;
+
+  // ----- Aurora (gem-hued bands drifting up from the horizon) -----
+  // Dome projection of the view direction: dir.xz stretched by a small
+  // horizon bias so the domain is seamless over the upper hemisphere and
+  // detail concentrates near the horizon (denominator shrinks there).
+  // First-pass values are hardcoded and subtle; gems become theme uniforms later.
+  {
+    const vec3 GEM_CYAN    = vec3(0.149, 0.898, 1.000);
+    const vec3 GEM_PURPLE  = vec3(0.600, 0.251, 1.000);
+    const vec3 GEM_MAGENTA = vec3(1.000, 0.200, 0.549);
+    const vec3 GEM_LIME    = vec3(0.749, 1.000, 0.200);
+
+    const float SCALE = 1.6;      // domain frequency: lower = broader curtains
+    const float INTENSITY = 0.32; // peak add-on, kept under bloom threshold (0.5)
+
+    vec2 p = dir.xz / max(dir.y + 0.12, 0.12) * SCALE;
+    float t = uTime * 0.03; // slow horizontal drift
+
+    // Inigo Quilez domain warp — bends the hue ramp into curved ribbons.
+    vec2 q = vec2(
+      auroraFbm(p + vec2(t, 0.0)),
+      auroraFbm(p + vec2(5.2, 1.3) - vec2(t, 0.0))
+    );
+    vec2 r = vec2(
+      auroraFbm(p + 2.0 * q + vec2(1.7, 9.2) + 0.5 * t),
+      auroraFbm(p + 2.0 * q + vec2(8.3, 2.8))
+    );
+    float f = auroraFbm(p + 2.0 * r);
+
+    // Hue sweep through the gems, bent by the warp: cyan->purple->magenta->lime.
+    float h = clamp(0.5 + 1.0 * (r.x - 0.5) + 0.6 * (q.y - 0.5), 0.0, 1.0);
+    vec3 gem = GEM_CYAN;
+    gem = mix(gem, GEM_PURPLE, smoothstep(0.12, 0.40, h));
+    gem = mix(gem, GEM_MAGENTA, smoothstep(0.40, 0.66, h));
+    gem = mix(gem, GEM_LIME, smoothstep(0.66, 0.90, h));
+
+    // Ridge mask so it reads as discrete curtains, not a flat wash.
+    float energy = smoothstep(0.42, 0.85, f);
+    // Vertical confinement: fade in just above the horizon, out before zenith.
+    float band = smoothstep(0.0, 0.14, dir.y) * (1.0 - smoothstep(0.42, 0.85, dir.y));
+
+    color += gem * (energy * band * INTENSITY);
+  }
 
   // ----- Stars (full sphere) -----
   if (uStarsEnabled > 0.5) {
