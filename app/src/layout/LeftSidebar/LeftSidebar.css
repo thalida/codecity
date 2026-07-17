@@ -96,15 +96,18 @@
   position: absolute;
   top: var(--cc-space-1);
   right: var(--cc-space-1);
-  min-width: 14px;
-  height: 14px;
+  min-width: 16px;
+  height: 16px;
   padding: 0 var(--cc-space-1);
   display: flex;
   align-items: center;
   justify-content: center;
+  /* Surface fill (opaque, covers the glyph) + accent border + accent text reads
+   * cleaner at this size than solid accent with white text. */
   border-radius: var(--cc-radius-pill);
-  background: var(--cc-accent);
-  color: var(--cc-white);
+  background: var(--cc-bg-sidebar);
+  border: 1px solid var(--cc-accent-border);
+  color: var(--cc-accent);
   font-size: var(--cc-font-2xs);
   font-weight: var(--cc-fw-medium);
   line-height: 1;
