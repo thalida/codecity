@@ -8,7 +8,9 @@
 //   1. Solid uSkyColor everywhere. The world floor mesh handles the
 //      real ground; past its edge the camera sees the sky directly
 //      and the plane reads as floating in space.
-//   2. Hashed point-star field with per-star sine twinkle driven by
+//   2. A domain-warped gem-hued aurora nebula, faded so it tints the
+//      full sphere without crossing the bloom threshold.
+//   3. Hashed point-star field with per-star sine twinkle driven by
 //      uTime, painted across the FULL sphere — stars surround the
 //      camera in every direction, including below the horizon line.
 //
@@ -35,6 +37,10 @@ uniform float uTwinkleEnabled;
 uniform float uTwinkleSpeed;
 uniform float uTwinkleAmplitude;  // 0=no twinkle, 1=full on/off
 uniform float uTime;              // seconds; advanced once per frame
+
+// --- Aurora ---
+uniform float uAuroraEnabled;
+uniform float uAuroraIntensity;   // peak add-on; low so it stays under bloom
 
 // Hash-without-sine (Dave Hoskins). The classic fract(sin(dot(...))) hash
 // bands into visible moiré at large coordinates; these stay well-distributed
@@ -101,15 +107,14 @@ void main() {
   // ----- Aurora (gem-hued nebula across the full sphere) -----
   // The domain IS the world view direction, so the nebula wraps the whole
   // sky with no seam or pole distortion — right for a city floating in space.
-  // First-pass values are hardcoded and subtle; gems become theme uniforms later.
-  {
+  // Gems are hardcoded; enable + peak intensity come from SCENE.
+  if (uAuroraEnabled > 0.5 && uAuroraIntensity > 0.0) {
     const vec3 GEM_CYAN    = vec3(0.149, 0.898, 1.000);
     const vec3 GEM_PURPLE  = vec3(0.600, 0.251, 1.000);
     const vec3 GEM_MAGENTA = vec3(1.000, 0.200, 0.549);
     const vec3 GEM_LIME    = vec3(0.749, 1.000, 0.200);
 
-    const float SCALE = 1.6;      // domain frequency: lower = broader forms
-    const float INTENSITY = 0.022; // peak add-on, kept well under bloom threshold (0.5)
+    const float SCALE = 1.6; // domain frequency: lower = broader forms
 
     vec3 p = dir * SCALE;
     float t = uTime * 0.006; // very slow drift
@@ -137,7 +142,7 @@ void main() {
     // Ridge mask so it reads as discrete wisps, not a flat wash.
     float energy = smoothstep(0.42, 0.85, f);
 
-    color += gem * (energy * INTENSITY);
+    color += gem * (energy * uAuroraIntensity);
   }
 
   // ----- Stars (full sphere) -----

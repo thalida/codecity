@@ -61,6 +61,11 @@ describe('sky.frag.glsl', () => {
     }
   });
 
+  it('declares the aurora enable + intensity uniforms', () => {
+    expect(src).toContain('uAuroraEnabled');
+    expect(src).toContain('uAuroraIntensity');
+  });
+
   it('scatters stars with a hash-without-sine over a cube-face grid', () => {
     // Star presence + placement come from hash13/hash33 (Dave Hoskins),
     // replacing the old fract(sin(dot(...))) hash that banded into moiré, and

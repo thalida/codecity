@@ -17,6 +17,11 @@ export const SCENE_SECTION: SectionNode = {
       children: [field(SCENE, 'STARS_ENABLED'), field(SCENE, 'STARS_DENSITY')],
     },
     {
+      key: 'aurora',
+      label: 'Aurora',
+      children: [field(SCENE, 'AURORA_ENABLED'), field(SCENE, 'AURORA_INTENSITY')],
+    },
+    {
       key: 'ground-sizing',
       label: 'Ground sizing',
       children: [field(WORLD, 'GROUND_BUFFER_PERCENT')],
