@@ -40,7 +40,8 @@ export interface TreesComponent extends SceneComponent {
     placements: TreePlacement[],
     commits: CommitEntry[] | null,
     busyness: BusynessThresholds,
-    stats: RepoStats | null | undefined
+    stats: RepoStats | null | undefined,
+    scannedAt?: string | null
   ): void;
   /** Dispose the inner meshes + null the handle. */
   clear(): void;
@@ -80,10 +81,11 @@ export function createTrees(ctx: SceneContext): TreesComponent {
     placements: TreePlacement[],
     commits: CommitEntry[] | null,
     busyness: BusynessThresholds,
-    stats: RepoStats | null | undefined
+    stats: RepoStats | null | undefined,
+    scannedAt?: string | null
   ): void {
     clear();
-    _inner = createTreeRenderer(placements, commits, busyness, stats);
+    _inner = createTreeRenderer(placements, commits, busyness, stats, scannedAt);
     group.add(_inner.group);
   }
 
@@ -146,7 +148,8 @@ export function createTrees(ctx: SceneContext): TreesComponent {
         placements,
         manifest.commits ?? null,
         manifest.busyness ?? { avg: 1, busy: 1 },
-        manifest.stats
+        manifest.stats,
+        manifest.scanned_at
       );
       // Publish placements (fireflies rebuilds off this) and re-notify the picker
       // now that the live tree meshes exist (re-resolve a Commit selection +

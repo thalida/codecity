@@ -133,6 +133,8 @@ export function resetTreesConfig(): void {
     SHADING_STRENGTH: 0.35,
     TRUNK_COLOR: '#4a3220',
     WIDTH_AGE_FLOOR: 1.0,
+    STALE_HORIZON_DAYS: 730,
+    STALENESS_CAP: 0.85,
     OUTLINE_WIDTH: 1,
     OUTLINE_HOVER_COLOR: '#ffffff',
     OUTLINE_HOVER_OPACITY: 0.5,

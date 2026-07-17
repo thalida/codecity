@@ -26,6 +26,14 @@ export interface AgeRange {
   newest: number;
   /** newest - oldest. 0 when there is no meaningful range. */
   span: number;
+  /** Whole days the repo sat idle at scan time: max(0, scanned_at − newest
+   *  commit). 0 for a repo scanned on/before its newest commit, with no
+   *  commits, or when scanned_at wasn't supplied. treeHeight turns this into a
+   *  staleness lift using the TREES horizon/cap, so a long-untouched repo reads
+   *  old across the whole forest while keeping its internal oldest→newest
+   *  spread. Kept raw here (settings-independent) so both the tree renderer and
+   *  the firefly field apply the identical, currently-configured lift. */
+  daysIdle: number;
 }
 
 export interface SizeRange {
@@ -63,16 +71,27 @@ function clamp01(t: number): number {
 }
 
 /** Oldest/newest commit dates as epoch days, from the backend-computed
- *  stats.commitDates. {0,0,0} when stats are absent or the repo has no
- *  commits (commitDates null) — collapses ageT to the 0.5 midpoint. */
-export function computeAgeRange(stats: RepoStats | null | undefined): AgeRange {
+ *  stats.commitDates, plus the repo's scan-time idle span (see AgeRange).
+ *  {0,0,0,0} when stats are absent or the repo has no commits (commitDates
+ *  null) — collapses ageT to the 0.5 midpoint and daysIdle to 0.
+ *
+ *  `scannedAt` is the manifest's `scanned_at` (any Date.parse-able string;
+ *  day precision). Pass it to activate the absolute-age lift; omit it (or
+ *  pass null) and daysIdle stays 0, i.e. height is repo-relative only —
+ *  the pre-feature behavior. Deliberately NOT `Date.now()`: a live clock
+ *  would drift tree height over time and break the deterministic goldens. */
+export function computeAgeRange(
+  stats: RepoStats | null | undefined,
+  scannedAt?: string | null
+): AgeRange {
   const cd = stats?.commitDates;
   if (!cd || cd.oldest === null || cd.newest === null) {
-    return { oldest: 0, newest: 0, span: 0 };
+    return { oldest: 0, newest: 0, span: 0, daysIdle: 0 };
   }
   const oldest = dateToDays(cd.oldest);
   const newest = dateToDays(cd.newest);
-  return { oldest, newest, span: newest - oldest };
+  const daysIdle = scannedAt == null ? 0 : Math.max(0, dateToDays(scannedAt) - newest);
+  return { oldest, newest, span: newest - oldest, daysIdle };
 }
 
 /** Min/max files-changed across commits, from the backend-computed
@@ -130,9 +149,22 @@ export function dailyCountTByIndex(
 
 /** Canopy height for a tree.
  *
- *  HEIGHT is driven by AGE: older commits grow taller. ageT=0 (oldest)
- *  → MAX_HEIGHT; ageT=1 (newest) → MIN_HEIGHT. A null/missing commit
- *  collapses to the midpoint.
+ *  HEIGHT is driven by AGE: older commits grow taller. The repo-relative
+ *  height fraction relT is 1 for the oldest commit and 0 for the newest
+ *  (relT = 1 − ageT). The repo's scan-time staleness then lifts the whole
+ *  forest:
+ *
+ *    staleness = clamp(daysIdle / STALE_HORIZON_DAYS, 0, STALENESS_CAP)
+ *    maturity  = staleness + (1 − staleness)·relT
+ *    height    = MIN_HEIGHT + maturity·(MAX_HEIGHT − MIN_HEIGHT)
+ *
+ *  A fresh repo (staleness 0) gives maturity = relT → MAX_HEIGHT for the
+ *  oldest, MIN_HEIGHT for the newest, i.e. identical to repo-relative sizing.
+ *  As staleness rises the whole forest lifts toward MAX while preserving the
+ *  oldest→newest ordering; the oldest tree stays pinned at MAX (maturity 1)
+ *  and the newest floors at `staleness`. A cap below 1 keeps the forest from
+ *  fully flattening; a cap of 0 disables the lift. A null/missing commit has no
+ *  date, so it collapses to the midpoint (no staleness lift).
  *
  *  Single source of truth for the tree renderer's canopy/trunk height
  *  AND the firefly orbit height — both must derive from the identical
@@ -145,8 +177,19 @@ export function treeHeight(
   const minHeight = cfg.MIN_HEIGHT;
   const maxHeight = cfg.MAX_HEIGHT;
   if (!commit) return (minHeight + maxHeight) * 0.5;
-  const t = ageT(commit, ageRange);
-  return maxHeight - t * (maxHeight - minHeight);
+  const relT = 1 - ageT(commit, ageRange);
+  const staleness = repoStaleness(ageRange.daysIdle, cfg);
+  const maturity = staleness + (1 - staleness) * relT;
+  return minHeight + maturity * (maxHeight - minHeight);
+}
+
+/** Turn a repo's idle-day count into the [0, STALENESS_CAP] forest lift, using
+ *  the configured horizon (days to reach the cap). Horizon is floored at 1 day
+ *  so a mis-set 0 can't divide by zero. */
+function repoStaleness(daysIdle: number, cfg: TreesConfig): number {
+  if (daysIdle <= 0 || cfg.STALENESS_CAP <= 0) return 0;
+  const horizon = Math.max(1, cfg.STALE_HORIZON_DAYS);
+  return Math.min(cfg.STALENESS_CAP, daysIdle / horizon);
 }
 
 /** Canopy XZ radius for a tree.

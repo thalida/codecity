@@ -2,7 +2,9 @@
 //
 // One tree per commit, scattered around the world floor (denser near the city)
 // sorted by distance to the gem (oldest commit closest). Visual signals:
-//   HEIGHT  ← commit AGE  (older = taller)
+//   HEIGHT  ← commit AGE  (older = taller), lifted by how long the repo has sat
+//             idle at scan time (STALE_HORIZON_DAYS / STALENESS_CAP) so a stale
+//             repo reads old across the whole forest, not just at its old end.
 //   WIDTH   ← commit FILES (more files = wider)
 //   COLOR   ← COMMITS-PER-DAY (solo-day vs busy-day interpolation).
 //
@@ -79,6 +81,27 @@ const TREES_FIELDS = {
     label: 'Max height',
     tip: 'Tree height for the oldest commit.',
   },
+  STALE_HORIZON_DAYS: {
+    route: ChangeRoute.Rebuild,
+    kind: FieldKind.Slider,
+    default: 730,
+    min: 30,
+    max: 3650,
+    step: 10,
+    label: 'Staleness horizon (days)',
+    tip: 'How long a repo must sit untouched, from its newest commit to the scan date, for the whole forest to reach its oldest look. Shorter makes idle repos read old faster.',
+  },
+  STALENESS_CAP: {
+    route: ChangeRoute.Rebuild,
+    kind: FieldKind.Slider,
+    default: 0.85,
+    min: 0,
+    max: 1,
+    step: 0.05,
+    label: 'Staleness cap',
+    tip: 'Ceiling on the staleness lift. Below 1 the newest tree in a long-idle repo still stays shorter than the oldest, so the forest never fully flattens. 0 turns the absolute-age lift off, leaving height purely repo-relative.',
+  },
+
   TRUNK_HEIGHT_FRAC: {
     route: ChangeRoute.Rebuild,
     kind: FieldKind.Slider,

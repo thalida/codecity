@@ -29,7 +29,8 @@ export interface Fireflies {
 export function createFireflies(
   placements: TreePlacement[],
   commits: CommitEntry[] | null,
-  stats: RepoStats | null | undefined
+  stats: RepoStats | null | undefined,
+  scannedAt?: string | null
 ): Fireflies {
   const parent = new THREE.Group();
   parent.name = 'fireflies-system';
@@ -48,7 +49,7 @@ export function createFireflies(
       dispose: stub.dispose.bind(stub),
     };
   }
-  const orbs: FireflyPlacement[] = placeFireflies(placements, commits ?? [], stats);
+  const orbs: FireflyPlacement[] = placeFireflies(placements, commits ?? [], stats, scannedAt);
   const rings = createOrbitRings(orbs);
   const renderer = createFireflyRenderer(orbs);
 
