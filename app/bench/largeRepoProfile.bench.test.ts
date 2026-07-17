@@ -32,12 +32,11 @@ import { describe, it } from 'vitest';
 import * as THREE from 'three';
 import { ObjectBVH } from 'three-mesh-bvh';
 import { layoutCity } from '@/city/layout/algorithm.js';
-import { rectOfStreet } from '@/city/layout/rect';
 import { buildCellsFromLayout } from '@/city/components/buildings/cellAssembly';
 import { InstancedAdPanels } from '@/city/components/buildings/adPanels';
 import { createStreetLabels } from '@/city/components/streets/streetLabels';
 import { isMediaFile } from '@/city/utils/mediaKind';
-import { NodeKind } from '@/types';
+import { NodeKind, StreetAxis } from '@/types';
 import type { Building, CityLayout } from '@/types';
 import { makeRng, genWeightedTree } from '../tests/_helpers/layoutTreeFixtures';
 import { commitStats, fileStats } from '../tests/_helpers/statsFixtures';
@@ -73,16 +72,38 @@ function tagMediaFiles(node: any, fraction: number, rng: () => number): number {
 // bbox: faithful copy of the state/index.ts computed (street rects + building
 // footprints + Y height). Mirrored here so the bench times the exact work
 // without constructing a full CityState/layoutClient. Halo omitted (default 0).
+// Mirrors the inlined direct-min/max bbox in city/state/index.ts.
 function computeBbox(layout: CityLayout): THREE.Box3 {
   const box = new THREE.Box3();
+  const min = box.min;
+  const max = box.max;
   for (const s of layout.streets) {
-    const r = rectOfStreet(s);
-    box.expandByPoint(new THREE.Vector3(r.x - r.w / 2, 0, r.y - r.d / 2));
-    box.expandByPoint(new THREE.Vector3(r.x + r.w / 2, 0, r.y + r.d / 2));
+    const w = s.orientation === StreetAxis.X ? s.length : s.width;
+    const d = s.orientation === StreetAxis.X ? s.width : s.length;
+    const x0 = s.x - w / 2;
+    const x1 = s.x + w / 2;
+    const z0 = s.y - d / 2;
+    const z1 = s.y + d / 2;
+    if (x0 < min.x) min.x = x0;
+    if (x1 > max.x) max.x = x1;
+    if (z0 < min.z) min.z = z0;
+    if (z1 > max.z) max.z = z1;
+    if (0 < min.y) min.y = 0;
+    if (0 > max.y) max.y = 0;
   }
   for (const b of layout.buildings) {
-    box.expandByPoint(new THREE.Vector3(b.x - b.w / 2, 0, b.y - b.d / 2));
-    box.expandByPoint(new THREE.Vector3(b.x + b.w / 2, b.h, b.y + b.d / 2));
+    const x0 = b.x - b.w / 2;
+    const x1 = b.x + b.w / 2;
+    const z0 = b.y - b.d / 2;
+    const z1 = b.y + b.d / 2;
+    if (x0 < min.x) min.x = x0;
+    if (x1 > max.x) max.x = x1;
+    if (z0 < min.z) min.z = z0;
+    if (z1 > max.z) max.z = z1;
+    if (0 < min.y) min.y = 0;
+    if (b.h < min.y) min.y = b.h;
+    if (0 > max.y) max.y = 0;
+    if (b.h > max.y) max.y = b.h;
   }
   return box;
 }
