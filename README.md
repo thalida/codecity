@@ -93,6 +93,8 @@ Always ignored, even when tracked (`!` un-ignores them):
 
 <img src=".github/readme/overview.png" alt="A large repo rendered with the gem, streets, buildings, and fireflies all visible at once" width="800" />
 
+Just about every aspect of the rendering is tunable in the Settings pane, opened via the gear in the left sidebar.
+
 ### Buildings: one per file
 
 <img src=".github/readme/buildings.png" alt="Skyscrapers close-up showing lit windows, file-extension hues, and the street label below" width="600" />
@@ -137,26 +139,6 @@ Always ignored, even when tracked (`!` un-ignores them):
 
 - **Root marker**: floats above the root street
 - **Click**: clears the selection and resets the view
-
-## Settings
-
-| Tab | Section | Tweaks |
-| --- | --- | --- |
-| **World** | Camera | view angle (elevation + azimuth), always aimed at the root gem |
-| | Scene | sky color, stars |
-| | Island | silhouette, materials |
-| | Buildings | floor + width ranges, per-extension hue map, palette ranges, facade detail, aging, selection-fade |
-| | Streets | width tiers, spacing, colors, label typography |
-| | City footprint | the paved apron under the city |
-| | Gem | sizing, materials |
-| | Trees | visibility, color (commits-per-day), height (by age), width (by files), outlines |
-| | Fireflies | visibility, scale range, motion, orbit ring |
-| | Effects | bloom, selection outline, level-of-detail |
-| **Live updates** | Enabled | re-render when files change on disk (off by default) |
-| | Poll interval | how often to check (min 1s / max 60s) |
-| **Appearance** | Accent | highlight color (Amber, Green, Cyan, Blue, Purple, Pink) |
-| | Surface | background palette (Cool, Neutral, Green, Warm) |
-| | Syntax theme | file-preview highlighting |
 
 ## How it works
 
