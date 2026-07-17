@@ -30,6 +30,7 @@
 
 import { describe, it } from 'vitest';
 import * as THREE from 'three';
+import { ObjectBVH } from 'three-mesh-bvh';
 import { layoutCity } from '@/city/layout/algorithm.js';
 import { rectOfStreet } from '@/city/layout/rect';
 import { buildCellsFromLayout } from '@/city/components/buildings/cellAssembly';
@@ -116,6 +117,8 @@ interface PhaseResult {
   labelCount: number;
   pickMs: number;
   pickCasts: number;
+  bvhBuildMs: number;
+  bvhCastMs: number;
 }
 
 function profile(label: string, fileBudget: number, mediaFraction: number): PhaseResult {
@@ -203,7 +206,7 @@ function profile(label: string, fileBudget: number, mediaFraction: number): Phas
   for (const s of layout.streets) labelCount += createStreetLabels(s).length;
   const tl1 = performance.now();
 
-  // ── 7. picker raycast against every building instance ──
+  // ── 7. picker raycast: THREE brute-force (old) vs ObjectBVH (now) ──
   const pickables: THREE.Object3D[] = [];
   for (const cell of cellOut.cells.values()) if (cell.detailMesh) pickables.push(cell.detailMesh);
   const camera = new THREE.PerspectiveCamera(50, 1.6, 1, 100000);
@@ -215,14 +218,27 @@ function profile(label: string, fileBudget: number, mediaFraction: number): Phas
   const raycaster = new THREE.Raycaster();
   const pointer = new THREE.Vector2();
   const CASTS = 20;
-  const tp0 = performance.now();
-  for (let i = 0; i < CASTS; i++) {
+  const aim = (i: number) => {
     pointer.x = (i / CASTS) * 1.6 - 0.8;
     pointer.y = ((i * 7) % CASTS) / CASTS - 0.5;
     raycaster.setFromCamera(pointer, camera);
+  };
+  const tp0 = performance.now();
+  for (let i = 0; i < CASTS; i++) {
+    aim(i);
     raycaster.intersectObjects(pickables, false);
   }
   const tp1 = performance.now();
+  // ObjectBVH path (what the picker now uses).
+  const tvb0 = performance.now();
+  const objBvh = pickables.length > 0 ? new ObjectBVH(pickables) : null;
+  const bvhBuildMs = performance.now() - tvb0;
+  const tv0 = performance.now();
+  for (let i = 0; i < CASTS; i++) {
+    aim(i);
+    objBvh?.raycast(raycaster, []);
+  }
+  const bvhCastMs = (performance.now() - tv0) / CASTS;
 
   // Free the assembled meshes' JS-side arrays promptly between cases.
   cellOut.sceneRoot.traverse((o) => {
@@ -235,6 +251,7 @@ function profile(label: string, fileBudget: number, mediaFraction: number): Phas
     layoutMs: t1 - t0, cloneFullMs: tc1 - tc0, cloneSlimMs: tc3 - tc2, bboxMs: tb1 - tb0,
     assemblyMs: ta1 - ta0, mediaRegMs, drawnNoLod, drawnLodFar, visibleLodNear,
     labelMs: tl1 - tl0, labelCount, pickMs: tp1 - tp0, pickCasts: CASTS,
+    bvhBuildMs, bvhCastMs,
   };
 }
 
@@ -252,7 +269,8 @@ function report(r: PhaseResult): void {
       row('5 media registration', r.mediaRegMs, `${r.media} media buildings`),
       `  ${'  ad-panel LOD'.padEnd(22)} ${''.padStart(8)}     zoom-out draws ${r.drawnLodFar}/${r.drawnNoLod} instances (near visible=${r.visibleLodNear})`,
       row('6 street labels (jsdom-inflated)', r.labelMs, `${r.labelCount} label planes`),
-      row('7 picker raycast', r.pickMs, `${r.pickCasts} casts → ${(r.pickMs / r.pickCasts).toFixed(2)}ms/cast`),
+      row('7 picker raycast (core)', r.pickMs, `${(r.pickMs / r.pickCasts).toFixed(2)}ms/cast (brute force)`),
+      row('  picker raycast (BVH)', r.bvhCastMs * r.pickCasts, `${r.bvhCastMs.toFixed(3)}ms/cast, build ${r.bvhBuildMs.toFixed(0)}ms`),
     ].join('\n')
   );
 }
