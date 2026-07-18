@@ -30,22 +30,20 @@ import adPanelFragSrc from './adPanel.frag.glsl?raw';
 // face. Tuned to clear typical 8–96 unit-wide buildings at oblique angles.
 const AD_FRONT_FACE_OFFSET = 1.5;
 
-// Whole-mesh early-out thresholds (approx. on-screen panel height in CSS px,
-// measured against the NEAREST panel). Ad panels are transparent + DoubleSide +
-// never frustum-culled, so when the whole cloud is a speck (zoomed far out) we
-// hide the entire mesh — zero draw, and skip the per-instance pass below. The
-// gap is hysteresis so the mesh doesn't flicker at the boundary.
+// LOD thresholds — the on-screen height (CSS px) a REFERENCE panel
+// (the tallest in the repo) would project to at a given camera distance. Both
+// the whole-mesh early-out (measured at the nearest panel) and the per-instance
+// cull (measured at each panel) use this ONE reference height rather than each
+// panel's own height, so panels at the same distance always decide together — a
+// small file's short billboard next to a big one's tall billboard load/cull as a
+// unit instead of the finicky mixed row you'd get from per-panel sizes.
+//
+// Ad panels are transparent + DoubleSide + never frustum-culled, so a panel this
+// far away is a sub-pixel speck contributing only overdraw; hiding it (and not
+// loading it) is free. Hysteresis (cull below HIDE, restore above SHOW) keeps a
+// panel at the boundary from flickering as OrbitControls damps.
 const AD_LOD_HIDE_PX = 6;
 const AD_LOD_SHOW_PX = 12;
-
-// Per-INSTANCE cull thresholds (on-screen height of each panel, CSS px). When
-// the mesh is visible we still collapse individual panels that project too small
-// to read — e.g. background billboards while the foreground is zoomed in. Below
-// this you can't make out the image anyway, so rendering it is pure overdraw and
-// loading it is wasted main-thread work. Hysteresis (cull below HIDE, restore
-// above SHOW) avoids per-panel flicker as the camera damps.
-const AD_CULL_HIDE_PX = 28;
-const AD_CULL_SHOW_PX = 44;
 
 // Max image loads STARTED per frame. A media-heavy repo (PostHog: ~1.4k images)
 // otherwise fires every fetch + base64 decode + canvas scale + GPU upload in one
@@ -155,7 +153,6 @@ export class InstancedAdPanels {
     slots: number[];
     real: THREE.Matrix4[];
     center: THREE.Vector3;
-    height: number;
     shown: boolean;
     loaded: boolean;
   }> = [];
@@ -403,7 +400,6 @@ export class InstancedAdPanels {
       slots: panelSlots,
       real: realMatrices,
       center: new THREE.Vector3(b.x, centerY, b.y),
-      height: adHeight,
       shown: true,
       loaded: false,
     });
@@ -551,10 +547,11 @@ export class InstancedAdPanels {
     let started = 0;
     let matricesDirty = false;
     for (const rec of this._panels) {
-      const px = projPxAt(rec.height, camera.position.distanceTo(rec.center));
+      // Reference height (not rec's own) so same-distance panels decide together.
+      const px = projPxAt(this._maxPanelHeight, camera.position.distanceTo(rec.center));
       // Hysteresis: a shown panel survives down to HIDE, a hidden one restores
       // only above SHOW. Off-screen panels are always culled.
-      const bigEnough = rec.shown ? px >= AD_CULL_HIDE_PX : px >= AD_CULL_SHOW_PX;
+      const bigEnough = rec.shown ? px >= AD_LOD_HIDE_PX : px >= AD_LOD_SHOW_PX;
       const wantShown = bigEnough && _lodFrustum.containsPoint(rec.center);
 
       if (wantShown !== rec.shown) {
