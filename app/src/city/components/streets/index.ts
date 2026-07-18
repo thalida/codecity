@@ -29,6 +29,10 @@ import { disposeObject3D } from '@/city/utils/disposeObject3D';
 
 type FlatMesh = THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial>;
 
+// Above this street count, drop labels on the smallest-tier (leaf-dir) streets
+// — see the LOD note in rebuild(). Below it, every street keeps its label.
+const LABEL_LOD_MIN_STREETS = 500;
+
 /** Public contract for the streets component. */
 export interface Streets extends SceneComponent {
   /** Rebuild every street mesh + label from the given layout, disposing any
@@ -138,11 +142,24 @@ export function createStreets(ctx: SceneContext): Streets {
     _flipDirty = true;
 
     const streets = layout.streets ?? [];
+    // Label LOD: on a large city, skip labels for the SMALLEST-tier streets
+    // (leaf directories). They dominate the count (~35% at PostHog scale), yet
+    // their labels are unreadable specks when zoomed out — exactly where the
+    // per-label draw call + transparent-sort cost bites — and marginal up close.
+    // Scale-gated so a normal repo keeps every label.
+    let minLabelWidth = -Infinity;
+    if (streets.length > LABEL_LOD_MIN_STREETS) {
+      let minW = Infinity;
+      for (const s of streets) if (s.width < minW) minW = s.width;
+      minLabelWidth = minW;
+    }
+
     for (const street of streets) {
       const sw = createSidewalkMesh(street, 0);
       group.add(sw);
       pickables.push(sw);
 
+      if (street.width <= minLabelWidth) continue; // LOD-skipped leaf-dir label
       const labels = createStreetLabels(street);
       for (const label of labels) {
         group.add(label);
