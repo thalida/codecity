@@ -29,9 +29,12 @@ import { disposeObject3D } from '@/city/utils/disposeObject3D';
 
 type FlatMesh = THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial>;
 
-// Above this street count, drop labels on the smallest-tier (leaf-dir) streets
-// — see the LOD note in rebuild(). Below it, every street keeps its label.
-const LABEL_LOD_MIN_STREETS = 500;
+// Per-frame label visibility LOD (on-screen label height in CSS px). A label
+// hides once it projects below HIDE and re-shows above SHOW (hysteresis). Low
+// thresholds: when you're close a label is tens–hundreds of px tall and always
+// shows; only far-away specks (the zoomed-out draw-call cost) get culled.
+const LABEL_LOD_HIDE_PX = 7;
+const LABEL_LOD_SHOW_PX = 12;
 
 /** Public contract for the streets component. */
 export interface Streets extends SceneComponent {
@@ -81,6 +84,11 @@ export function createStreets(ctx: SceneContext): Streets {
   let _xFlipped = false;
   let _zFlipped = false;
   let _flipDirty = true;
+
+  // Label visibility LOD state: recompute only when the camera moves (distances
+  // change) or after a rebuild swaps in fresh labels — otherwise it's O(1)/frame.
+  const _lastCamPos = new THREE.Vector3(NaN, NaN, NaN);
+  let _labelVisDirty = true;
 
   // Tint colors as THREE.Color (written into the merged sidewalk's per-vertex
   // color attribute). The theme effect refreshes them whenever STREETS mutates.
@@ -178,25 +186,17 @@ export function createStreets(ctx: SceneContext): Streets {
     asphaltMesh = createMergedAsphaltMesh(streets, 0);
     if (asphaltMesh) group.add(asphaltMesh);
 
-    // Label LOD: on a large city, skip labels for the SMALLEST-tier streets
-    // (leaf directories). They dominate the count (~35% at PostHog scale), yet
-    // their labels are unreadable specks when zoomed out — exactly where the
-    // per-label draw call + transparent-sort cost bites — and marginal up close.
-    // Scale-gated so a normal repo keeps every label.
-    let minLabelWidth = -Infinity;
-    if (streets.length > LABEL_LOD_MIN_STREETS) {
-      let minW = Infinity;
-      for (const s of streets) if (s.width < minW) minW = s.width;
-      minLabelWidth = minW;
-    }
+    // Labels for every street. Their DRAW cost is culled per-frame in tick()
+    // (hidden once they project too small to read), not by dropping them at
+    // build time — so zooming in always brings a nearby label back.
     for (const street of streets) {
-      if (street.width <= minLabelWidth) continue; // LOD-skipped leaf-dir label
       const labels = createStreetLabels(street);
       for (const label of labels) {
         group.add(label);
         labelGroups.push(label);
       }
     }
+    _labelVisDirty = true;
   }
 
   // (0) Layout effect — the reactive rebuild entry point. Tracks
@@ -309,8 +309,24 @@ export function createStreets(ctx: SceneContext): Streets {
     if (nx ? rightX > THRESH : rightX < -THRESH) nx = !nx;
     if (nz ? rightZ > THRESH : rightZ < -THRESH) nz = !nz;
 
-    // Common case: no flip crossed and labels already reflect the state — nothing
-    // to touch. Only walk the labels when a boolean flips or after a rebuild.
+    // ── Visibility LOD ── hide labels that project too small to read (the
+    // zoomed-out draw-call cost); keep every nearby one. Recompute only when the
+    // camera moved or a rebuild swapped in fresh labels.
+    const vpH = ctx.canvas?.clientHeight ?? 0;
+    if (vpH > 0 && (_labelVisDirty || !camera.position.equals(_lastCamPos))) {
+      _lastCamPos.copy(camera.position);
+      _labelVisDirty = false;
+      const halfTan = Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2);
+      const k = vpH / (2 * halfTan);
+      for (const lbl of labelGroups) {
+        const d = Math.max(camera.position.distanceTo(lbl.position), 1e-3);
+        const px = ((lbl.userData.worldH ?? 0) * k) / d;
+        lbl.visible = lbl.visible ? px >= LABEL_LOD_HIDE_PX : px >= LABEL_LOD_SHOW_PX;
+      }
+    }
+
+    // ── Camera-follow flip ── only walk labels when a boolean flips or after a
+    // rebuild; the common frame is O(1).
     if (!_flipDirty && nx === _xFlipped && nz === _zFlipped) return;
     _xFlipped = nx;
     _zFlipped = nz;

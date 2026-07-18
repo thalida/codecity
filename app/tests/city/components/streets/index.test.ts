@@ -301,6 +301,31 @@ describe('createStreets()', () => {
     expect(sidewalkColorHex(streets)).toBe(hoverHex);
   });
 
+  it('tick() hides labels that project too small (visibility LOD) and re-shows up close', () => {
+    const { ctx } = makeCtx();
+    Object.defineProperty(ctx.canvas, 'clientHeight', { value: 800, configurable: true });
+    streets = createStreets(ctx);
+    streets.rebuild(singleStreetLayout());
+    const label = labelsOf(streets)[0];
+
+    const camAt = (dist: number) => {
+      const c = new THREE.PerspectiveCamera(50, 1.6, 1, 100000);
+      c.position.set(label.position.x, dist, label.position.z + dist);
+      c.updateMatrixWorld(true);
+      return c;
+    };
+
+    // Close → visible.
+    streets.tick(0.016, { dt: 0.016, time: 0, camera: camAt(30) });
+    expect(label.visible).toBe(true);
+    // Far → hidden (sub-pixel).
+    streets.tick(0.016, { dt: 0.016, time: 0, camera: camAt(30000) });
+    expect(label.visible).toBe(false);
+    // Zoom back in → shown again.
+    streets.tick(0.016, { dt: 0.016, time: 0, camera: camAt(30) });
+    expect(label.visible).toBe(true);
+  });
+
   // ---------------------------------------------------------------------------
   // tick() — label camera-orientation hysteresis
   // ---------------------------------------------------------------------------

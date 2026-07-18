@@ -194,6 +194,9 @@ export function createStreetLabels(street: Street): THREE.Group[] {
     group.userData.streetWidth = street.width;
     group.userData.textureAspect = info.aspect;
     group.userData.origHeightFrac = streets.LABEL_HEIGHT_FRAC;
+    // World-space label height — the streets component's per-frame visibility LOD
+    // estimates on-screen size from it.
+    group.userData.worldH = worldH;
     labels.push(group);
   }
   return labels;
