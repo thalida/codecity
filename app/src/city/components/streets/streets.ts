@@ -4,6 +4,7 @@
 // the curved ends.
 
 import * as THREE from 'three';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { STREETS } from '@/state/stores/settings/streets';
 import { ASPHALT_WIDTH_FRAC } from '@/constants/streets';
 import { RENDER_ORDERS } from '@/city/types/renderOrders';
@@ -15,6 +16,7 @@ import type { Street } from '@/types';
 // merges into its parent at a T-intersection. Used to pick the cap
 // style so the joining end is flat.
 type StreetWithJoin = Street & { joinSide?: JoinSide };
+type FlatMesh = THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial>;
 
 // Stadium-cap tessellation count for the asphalt + sidewalk shapes.
 const STADIUM_SEGMENTS = 16;
@@ -127,59 +129,66 @@ function _buildStadiumGeometry(
   return new THREE.ShapeGeometry(shape, STADIUM_SEGMENTS);
 }
 
-// createStreetMesh(street) -> THREE.Group
-//
-// A street is two stacked flat pill-shaped slabs — sidewalk (outer) and
-// asphalt (inner). The asphalt pill is sized and positioned so its cap
-// circle is CONCENTRIC with the sidewalk cap circle, which keeps the
-// visible sidewalk strip a uniform width all the way around the perimeter
-// (including around the curved end caps). The group's userData.street
-// points back to the layout street so raycaster hits can recover the
-// directory this street represents.
-export function createStreetMesh(street: StreetWithJoin, yBase: number): THREE.Group {
+// Cap style: the root has rounded caps both sides; non-root streets are FLAT at
+// their joining end (so they merge cleanly into the parent at the T-intersection)
+// and rounded only at the open end. Layout stamps each non-root street with
+// `joinSide`. The SAME cap style feeds both sidewalk + asphalt so their flat ends
+// line up and the visible sidewalk strip stays uniform around the cap.
+export function capStyleFor(street: StreetWithJoin): CapStyle {
+  if (street.isRoot) return CapStyle.Both;
+  if (street.joinSide === JoinSide.High) return CapStyle.Low; // round the low/open end
+  return CapStyle.High; // round the high/open end
+}
+
+// createSidewalkMesh(street) -> the clickable sidewalk slab (outer pill). Per
+// street because it carries userData.street for picking + is tinted individually
+// on hover/selection. renderOrder=SIDEWALK draws all sidewalks as the bottom
+// ground layer.
+export function createSidewalkMesh(street: StreetWithJoin, yBase: number): FlatMesh {
   const streets = STREETS.value;
-  const group = new THREE.Group();
-  const { asphaltWidth, asphaltLength } = asphaltDims(street);
-
-  // Cap style: the root has rounded caps both sides; non-root streets are
-  // FLAT at their joining end (so they merge cleanly into the parent at
-  // the T-intersection) and rounded only at the open end. Layout stamps
-  // each non-root street with `joinSide` after layout.
-  // Same capStyle is passed to BOTH sidewalk + asphalt so their flat ends
-  // line up and the visible sidewalk strip stays uniform around the cap.
-  let capStyle: CapStyle;
-  if (street.isRoot) capStyle = CapStyle.Both;
-  else if (street.joinSide === JoinSide.High)
-    capStyle = CapStyle.Low; // round the low/open end
-  else capStyle = CapStyle.High; // round the high/open end
-
-  // Sidewalk — the clickable target for street picking. renderOrder=1
-  // means all sidewalks across the city draw first, as a single bottom layer.
-  const orders = RENDER_ORDERS;
+  const capStyle = capStyleFor(street);
   const sidewalk = new THREE.Mesh(
     _buildStadiumGeometry(street.length, street.width, street.orientation, capStyle),
-    flatGroundMaterial(streets.SIDEWALK_DEFAULT, orders.SIDEWALK)
-  );
+    flatGroundMaterial(streets.SIDEWALK_DEFAULT, RENDER_ORDERS.SIDEWALK)
+  ) as FlatMesh;
   sidewalk.rotation.x = -Math.PI / 2;
   sidewalk.position.set(street.x, yBase, street.y);
-  sidewalk.renderOrder = orders.SIDEWALK;
+  sidewalk.renderOrder = RENDER_ORDERS.SIDEWALK;
   sidewalk.userData.street = street;
   sidewalk.userData.type = NodeKind.Directory;
-  group.add(sidewalk);
+  return sidewalk;
+}
 
-  // Asphalt — narrower, always draws on top of every sidewalk.
-  const asphalt = new THREE.Mesh(
-    _buildStadiumGeometry(asphaltLength, asphaltWidth, street.orientation, capStyle),
-    flatGroundMaterial(streets.ASPHALT_COLOR, orders.ASPHALT)
-  );
-  asphalt.rotation.x = -Math.PI / 2;
-  asphalt.position.set(street.x, yBase, street.y);
-  asphalt.renderOrder = orders.ASPHALT;
-  group.add(asphalt);
+// buildAsphaltGeometry(street) -> the asphalt pill geometry, BAKED into world
+// space (rotated flat + translated to the street position). Asphalt is one solid
+// color and not pickable, so every street's asphalt merges into a single mesh —
+// see the streets component. Concentric with the sidewalk cap (asphaltDims) so
+// the sidewalk strip stays a uniform width around the perimeter.
+export function buildAsphaltGeometry(street: StreetWithJoin, yBase: number): THREE.BufferGeometry {
+  const { asphaltWidth, asphaltLength } = asphaltDims(street);
+  const geo = _buildStadiumGeometry(asphaltLength, asphaltWidth, street.orientation, capStyleFor(street));
+  geo.rotateX(-Math.PI / 2);
+  geo.translate(street.x, yBase, street.y);
+  return geo;
+}
 
-  group.userData.street = street;
-  group.userData.sidewalk = sidewalk; // exposed so callers can pick on it
-  group.userData.asphalt = asphalt; // exposed for live theme recolor
-  group.userData.type = NodeKind.Directory;
-  return group;
+// createMergedAsphaltMesh(streets) -> ONE mesh holding every street's asphalt.
+// Baking all asphalt pills into a single geometry collapses ~8k draw calls (two
+// per street) to one — the biggest render-load win at Linux scale, since asphalt
+// is a single solid color and never picked. Returns null for an empty layout.
+export function createMergedAsphaltMesh(
+  streets: StreetWithJoin[],
+  yBase: number
+): FlatMesh | null {
+  if (streets.length === 0) return null;
+  const geos = streets.map((s) => buildAsphaltGeometry(s, yBase));
+  const merged = mergeGeometries(geos, false);
+  for (const g of geos) g.dispose();
+  const mesh = new THREE.Mesh(
+    merged,
+    flatGroundMaterial(STREETS.value.ASPHALT_COLOR, RENDER_ORDERS.ASPHALT)
+  ) as FlatMesh;
+  mesh.renderOrder = RENDER_ORDERS.ASPHALT;
+  mesh.name = 'city-asphalt';
+  return mesh;
 }

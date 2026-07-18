@@ -23,7 +23,7 @@ import type { CityLayout } from '@/types';
 import type { FrameContext, SceneComponent, SceneContext } from '../../types';
 import { armOnFirstTick } from '../../utils/armOnFirstTick';
 import { onSettings } from '../../utils/onSettings';
-import { createStreetMesh } from './streets';
+import { createSidewalkMesh, createMergedAsphaltMesh } from './streets';
 import { createStreetLabels } from './streetLabels';
 import { disposeObject3D } from '@/city/utils/disposeObject3D';
 
@@ -54,9 +54,9 @@ export function createStreets(ctx: SceneContext): Streets {
   // Component-level mutable refs, reassigned each rebuild. The effects /
   // tick target these (NOT stale closure captures) so they hit the live
   // meshes after every rebuild.
-  let streetGroups: THREE.Group[] = [];
   let pickables: FlatMesh[] = [];
-  let asphaltMeshes: FlatMesh[] = [];
+  // One merged mesh for ALL asphalt (see createMergedAsphaltMesh); null pre-build.
+  let asphaltMesh: FlatMesh | null = null;
   let labelGroups: THREE.Group[] = [];
   let sidewalksByDirPath: Record<string, FlatMesh> = {};
 
@@ -114,8 +114,15 @@ export function createStreets(ctx: SceneContext): Streets {
   // materials are NOT shared, so its sharedMaterial guard is a no-op here
   // and each mesh's material disposes normally.
   function _disposeInner(): void {
-    const all = [...streetGroups, ...labelGroups];
-    for (const g of all) {
+    for (const sw of pickables) {
+      if (sw.parent) sw.parent.remove(sw);
+      disposeObject3D(sw);
+    }
+    if (asphaltMesh) {
+      if (asphaltMesh.parent) asphaltMesh.parent.remove(asphaltMesh);
+      disposeObject3D(asphaltMesh);
+    }
+    for (const g of labelGroups) {
       if (g.parent) g.parent.remove(g);
       g.traverse(disposeObject3D);
     }
@@ -124,19 +131,17 @@ export function createStreets(ctx: SceneContext): Streets {
   function rebuild(layout: CityLayout): void {
     _disposeInner();
 
-    streetGroups = [];
     pickables = [];
-    asphaltMeshes = [];
+    asphaltMesh = null;
     labelGroups = [];
     // Fresh labels default to un-flipped; force tick() to apply the live state.
     _flipDirty = true;
 
-    for (const street of layout.streets ?? []) {
-      const sg = createStreetMesh(street, 0);
-      group.add(sg);
-      streetGroups.push(sg);
-      pickables.push(sg.userData.sidewalk as FlatMesh);
-      if (sg.userData.asphalt) asphaltMeshes.push(sg.userData.asphalt as FlatMesh);
+    const streets = layout.streets ?? [];
+    for (const street of streets) {
+      const sw = createSidewalkMesh(street, 0);
+      group.add(sw);
+      pickables.push(sw);
 
       const labels = createStreetLabels(street);
       for (const label of labels) {
@@ -144,6 +149,10 @@ export function createStreets(ctx: SceneContext): Streets {
         labelGroups.push(label);
       }
     }
+
+    // All asphalt in one draw call.
+    asphaltMesh = createMergedAsphaltMesh(streets, 0);
+    if (asphaltMesh) group.add(asphaltMesh);
 
     // Rebuild the sidewalk lookup from each sidewalk's userData.street.dir.path.
     // (The parallel street-by-dir map now lives on cityState.streetsByDirMap.)
@@ -196,9 +205,8 @@ export function createStreets(ctx: SceneContext): Streets {
     // effects.
     _refreshSidewalkTints();
 
-    const asphaltHex = new THREE.Color(streets.ASPHALT_COLOR).getHex();
-    for (const mesh of asphaltMeshes) {
-      mesh.material.color.setHex(asphaltHex);
+    if (asphaltMesh) {
+      asphaltMesh.material.color.setHex(new THREE.Color(streets.ASPHALT_COLOR).getHex());
     }
 
     for (const lg of labelGroups) {
