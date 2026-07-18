@@ -60,6 +60,16 @@ export function createStreets(ctx: SceneContext): Streets {
   let labelGroups: THREE.Group[] = [];
   let sidewalksByDirPath: Record<string, FlatMesh> = {};
 
+  // Camera-follow flip state for labels. Every X-oriented label flips together
+  // (they all key off the camera's world-right X), likewise Y-labels off Z — so
+  // the flip is TWO booleans, not per-label. tick() re-applies to the label
+  // meshes only when a boolean actually flips (rare, on a threshold crossing);
+  // _flipDirty forces a re-apply after a rebuild swaps in fresh labels. Without
+  // this, tick walked all ~12k labels every frame (a real cost at Linux scale).
+  let _xFlipped = false;
+  let _zFlipped = false;
+  let _flipDirty = true;
+
   // SIDEWALK_COLORS holds CSS strings; pre-convert to numeric hex so the tint
   // loop calls material.color.setHex() without re-parsing every change. The
   // theme effect refreshes these whenever STREETS mutates.
@@ -118,6 +128,8 @@ export function createStreets(ctx: SceneContext): Streets {
     pickables = [];
     asphaltMeshes = [];
     labelGroups = [];
+    // Fresh labels default to un-flipped; force tick() to apply the live state.
+    _flipDirty = true;
 
     for (const street of layout.streets ?? []) {
       const sg = createStreetMesh(street, 0);
@@ -238,19 +250,21 @@ export function createStreets(ctx: SceneContext): Streets {
     // near zero) cause floating-point jitter from OrbitControls' damping to
     // flip labels back and forth every frame.
     const THRESH = 0.15;
+    let nx = _xFlipped;
+    let nz = _zFlipped;
+    if (nx ? rightX > THRESH : rightX < -THRESH) nx = !nx;
+    if (nz ? rightZ > THRESH : rightZ < -THRESH) nz = !nz;
+
+    // Common case: no flip crossed and labels already reflect the state — nothing
+    // to touch. Only walk the labels when a boolean flips or after a rebuild.
+    if (!_flipDirty && nx === _xFlipped && nz === _zFlipped) return;
+    _xFlipped = nx;
+    _zFlipped = nz;
+    _flipDirty = false;
 
     for (const lbl of labelGroups) {
-      const street = lbl.userData.street;
       const base = lbl.userData.baseRotY || 0;
-      const axis = street.orientation === StreetAxis.X ? rightX : rightZ;
-      let flipped = lbl.userData.flipped || false;
-      if (flipped) {
-        // Currently flipped — only un-flip when axis clearly crosses POSITIVE.
-        if (axis > THRESH) flipped = false;
-      } else {
-        // Not flipped — only flip when axis clearly crosses NEGATIVE.
-        if (axis < -THRESH) flipped = true;
-      }
+      const flipped = lbl.userData.street.orientation === StreetAxis.X ? _xFlipped : _zFlipped;
       lbl.userData.flipped = flipped;
       lbl.rotation.y = base + (flipped ? Math.PI : 0);
     }
