@@ -29,12 +29,12 @@ import { disposeObject3D } from '@/city/utils/disposeObject3D';
 
 type FlatMesh = THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial>;
 
-// Per-frame label visibility LOD (on-screen label height in CSS px). A label
-// hides once it projects below HIDE and re-shows above SHOW (hysteresis). Low
-// thresholds: when you're close a label is tens–hundreds of px tall and always
-// shows; only far-away specks (the zoomed-out draw-call cost) get culled.
-const LABEL_LOD_HIDE_PX = 7;
-const LABEL_LOD_SHOW_PX = 12;
+// Per-frame label visibility LOD (approx on-screen label height in CSS px, from
+// the street's natural label size). A label hides below HIDE and re-shows above
+// SHOW (hysteresis). Kept low so anything you're plausibly reading stays on —
+// only far-away specks (the zoomed-out draw-call cost) get culled.
+const LABEL_LOD_HIDE_PX = 3;
+const LABEL_LOD_SHOW_PX = 6;
 
 /** Public contract for the streets component. */
 export interface Streets extends SceneComponent {
