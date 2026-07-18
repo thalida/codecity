@@ -56,6 +56,7 @@ const AD_LOAD_BUDGET_PER_FRAME = 4;
 const _scratchVec3 = new THREE.Vector3();
 const _lodFrustum = new THREE.Frustum();
 const _lodProjScreen = new THREE.Matrix4();
+const _lodSphere = new THREE.Sphere();
 // Shared zero-scale matrix used to collapse a culled panel to a point (the
 // vertex shader then emits a degenerate quad — no fragments, no overdraw).
 const _lodZeroMatrix = new THREE.Matrix4().makeScale(0, 0, 0);
@@ -153,6 +154,11 @@ export class InstancedAdPanels {
     slots: number[];
     real: THREE.Matrix4[];
     center: THREE.Vector3;
+    // Bounding radius around `center` covering the building's 4 panels — the
+    // frustum test uses a sphere, not the center point, so a large building at
+    // the screen edge (center off-frame, geometry on-frame) still counts as
+    // on-screen and loads/renders.
+    radius: number;
     shown: boolean;
     loaded: boolean;
   }> = [];
@@ -400,6 +406,9 @@ export class InstancedAdPanels {
       slots: panelSlots,
       real: realMatrices,
       center: new THREE.Vector3(b.x, centerY, b.y),
+      // Cover the panels: they sit ~half the footprint out from center on each
+      // face, and stand adHeight tall. Generous so an edge building isn't missed.
+      radius: Math.max(b.w, b.d, adHeight),
       shown: true,
       loaded: false,
     });
@@ -552,7 +561,11 @@ export class InstancedAdPanels {
       // Hysteresis: a shown panel survives down to HIDE, a hidden one restores
       // only above SHOW. Off-screen panels are always culled.
       const bigEnough = rec.shown ? px >= AD_LOD_HIDE_PX : px >= AD_LOD_SHOW_PX;
-      const wantShown = bigEnough && _lodFrustum.containsPoint(rec.center);
+      // Sphere, not center point: a big building at the screen edge (center
+      // off-frame) still counts as visible.
+      _lodSphere.center.copy(rec.center);
+      _lodSphere.radius = rec.radius;
+      const wantShown = bigEnough && _lodFrustum.intersectsSphere(_lodSphere);
 
       if (wantShown !== rec.shown) {
         for (let i = 0; i < rec.slots.length; i++) {

@@ -359,6 +359,32 @@ describe('InstancedAdPanels visibility-gated loading', () => {
     expect(started).not.toContain('far.png');
   });
 
+  it('loads a big building at the frustum edge whose CENTER is off-frame', () => {
+    const started: string[] = [];
+    const ads = new InstancedAdPanels(64, { onStartLoad: (b) => started.push(b.file!.path) });
+    // The panel sits ~20 units up (bottom offset), so aim the camera near that
+    // height. Building x=15 at z=-10 is past the frustum's right plane (~11 wide
+    // at that distance) — its CENTER is off-frame, but it's close so its
+    // bounding sphere still crosses in.
+    ads.registerMediaBuilding(mediaAt('edge.png', 15, -10));
+    const cam = new THREE.PerspectiveCamera(50, 1.6, 1, 100000);
+    cam.position.set(0, 20, 5);
+    cam.lookAt(0, 20, -100);
+    cam.updateMatrixWorld(true);
+
+    // Sanity: the center point alone is NOT in the frustum (x=15 fails the right
+    // plane regardless of height) — the old containsPoint path would skip it.
+    const proj = new THREE.Matrix4().multiplyMatrices(
+      cam.projectionMatrix,
+      cam.matrixWorldInverse
+    );
+    const frustum = new THREE.Frustum().setFromProjectionMatrix(proj);
+    expect(frustum.containsPoint(new THREE.Vector3(15, 20, -10))).toBe(false);
+
+    ads.updateLOD(cam, VIEWPORT_H);
+    expect(started).toContain('edge.png'); // sphere test rescues it
+  });
+
   it('spreads starts across frames via a per-frame budget', () => {
     const started: string[] = [];
     const ads = new InstancedAdPanels(64, { onStartLoad: (b) => started.push(b.file!.path) });
