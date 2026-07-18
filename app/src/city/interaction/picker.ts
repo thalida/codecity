@@ -45,6 +45,7 @@ import * as THREE from 'three';
 import { ObjectBVH } from 'three-mesh-bvh';
 import { signal, effect, untracked } from '@preact/signals';
 import { NodeKind } from '@/types';
+import { sidewalkStreetForFace } from '@/city/components/streets/streets';
 
 import type { PickTarget, PickerWorld, PickerSelectionKey } from '@/types';
 import type { CityState } from '@/city/state';
@@ -416,6 +417,20 @@ export function createPicker({
         file: building.file,
         instanceId: slot,
       };
+    }
+    // Merged sidewalk: all streets share one mesh, so resolve the hit face to
+    // its street via the faceIndex→street map baked onto userData.
+    if (ud.type === NodeKind.Directory && ud.pickStreets) {
+      const street = sidewalkStreetForFace(hit.object, hit.faceIndex ?? 0);
+      if (street?.dir) {
+        return {
+          kind: NodeKind.Directory,
+          sidewalk: hit.object as THREE.Mesh,
+          street,
+          dir: street.dir,
+        };
+      }
+      return null;
     }
     if (ud.street && ud.street.dir) {
       return {

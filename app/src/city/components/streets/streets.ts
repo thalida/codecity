@@ -140,23 +140,99 @@ export function capStyleFor(street: StreetWithJoin): CapStyle {
   return CapStyle.High; // round the high/open end
 }
 
-// createSidewalkMesh(street) -> the clickable sidewalk slab (outer pill). Per
-// street because it carries userData.street for picking + is tinted individually
-// on hover/selection. renderOrder=SIDEWALK draws all sidewalks as the bottom
-// ground layer.
-export function createSidewalkMesh(street: StreetWithJoin, yBase: number): FlatMesh {
-  const streets = STREETS.value;
-  const capStyle = capStyleFor(street);
-  const sidewalk = new THREE.Mesh(
-    _buildStadiumGeometry(street.length, street.width, street.orientation, capStyle),
-    flatGroundMaterial(streets.SIDEWALK_DEFAULT, RENDER_ORDERS.SIDEWALK)
-  ) as FlatMesh;
-  sidewalk.rotation.x = -Math.PI / 2;
-  sidewalk.position.set(street.x, yBase, street.y);
-  sidewalk.renderOrder = RENDER_ORDERS.SIDEWALK;
-  sidewalk.userData.street = street;
-  sidewalk.userData.type = NodeKind.Directory;
-  return sidewalk;
+// Per-street span within the merged sidewalk mesh — for hover/select tinting
+// (vertex-color range) and picking (faceIndex → street). faceStart is cumulative
+// in the merged index; streets are stored in build order so faceStarts sorts
+// ascending, which the picker binary-searches.
+export interface SidewalkRange {
+  street: StreetWithJoin;
+  path: string | null;
+  vStart: number;
+  vCount: number;
+  faceStart: number;
+}
+
+// createMergedSidewalkMesh(streets) -> ONE mesh holding every sidewalk slab,
+// collapsing ~8k draw calls to 1. Sidewalks are still individually pickable +
+// tintable, so unlike asphalt this carries a per-vertex color attribute (hover/
+// select recolor a street's vertex span) and a faceIndex→street map on userData
+// (the picker resolves a raycast hit to its directory). Returns null for an
+// empty layout. yBase is baked into every vertex; the mesh sits at origin.
+export function createMergedSidewalkMesh(
+  streets: StreetWithJoin[],
+  yBase: number
+): { mesh: FlatMesh; ranges: SidewalkRange[] } | null {
+  if (streets.length === 0) return null;
+  const geos: THREE.BufferGeometry[] = [];
+  const ranges: SidewalkRange[] = [];
+  let vAcc = 0;
+  let fAcc = 0;
+  for (const s of streets) {
+    const geo = _buildStadiumGeometry(s.length, s.width, s.orientation, capStyleFor(s));
+    geo.rotateX(-Math.PI / 2);
+    geo.translate(s.x, yBase, s.y);
+    const vCount = geo.attributes.position.count;
+    const fCount = geo.index ? geo.index.count / 3 : vCount / 3;
+    ranges.push({ street: s, path: s.dir?.path ?? null, vStart: vAcc, vCount, faceStart: fAcc });
+    vAcc += vCount;
+    fAcc += fCount;
+    geos.push(geo);
+  }
+  const merged = mergeGeometries(geos, false);
+  for (const g of geos) g.dispose();
+
+  // Per-vertex color, seeded to the default sidewalk color. Tinting rewrites a
+  // street's span; the material's base color stays white so vertex colors show
+  // as-is (vertexColors multiplies vertexColor × material.color).
+  const def = new THREE.Color(STREETS.value.SIDEWALK_DEFAULT);
+  const colors = new Float32Array(vAcc * 3);
+  for (let i = 0; i < vAcc; i++) {
+    colors[i * 3] = def.r;
+    colors[i * 3 + 1] = def.g;
+    colors[i * 3 + 2] = def.b;
+  }
+  merged.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+
+  const mat = new THREE.MeshBasicMaterial({
+    color: 0xffffff,
+    vertexColors: true,
+    depthWrite: false,
+    polygonOffset: true,
+    polygonOffsetFactor: -RENDER_ORDERS.SIDEWALK,
+    polygonOffsetUnits: -RENDER_ORDERS.SIDEWALK,
+  });
+  const mesh = new THREE.Mesh(merged, mat) as FlatMesh;
+  mesh.renderOrder = RENDER_ORDERS.SIDEWALK;
+  mesh.name = 'city-sidewalk';
+  mesh.userData.type = NodeKind.Directory;
+  mesh.userData.pickFaceStarts = ranges.map((r) => r.faceStart);
+  mesh.userData.pickStreets = ranges.map((r) => r.street);
+  return { mesh, ranges };
+}
+
+// Resolve a raycast faceIndex on the merged sidewalk to its street, via the
+// pickFaceStarts/pickStreets stored on userData. Binary-searches for the largest
+// faceStart <= faceIndex (streets occupy contiguous ascending face ranges).
+export function sidewalkStreetForFace(
+  mesh: THREE.Object3D,
+  faceIndex: number
+): StreetWithJoin | null {
+  const starts = mesh.userData.pickFaceStarts as number[] | undefined;
+  const streets = mesh.userData.pickStreets as StreetWithJoin[] | undefined;
+  if (!starts || !streets) return null;
+  let lo = 0;
+  let hi = starts.length - 1;
+  let idx = -1;
+  while (lo <= hi) {
+    const mid = (lo + hi) >> 1;
+    if (starts[mid] <= faceIndex) {
+      idx = mid;
+      lo = mid + 1;
+    } else {
+      hi = mid - 1;
+    }
+  }
+  return idx >= 0 ? (streets[idx] ?? null) : null;
 }
 
 // buildAsphaltGeometry(street) -> the asphalt pill geometry, BAKED into world

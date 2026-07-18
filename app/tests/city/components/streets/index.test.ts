@@ -103,6 +103,16 @@ function asphaltMeshOf(s: ReturnType<typeof createStreets>): FlatMesh | null {
 function labelsOf(s: ReturnType<typeof createStreets>): THREE.Group[] {
   return s.group.children.filter((c) => c.userData.type === NodeKind.Label) as THREE.Group[];
 }
+// The merged sidewalk carries per-vertex colors; the single-street fixtures put
+// every vertex on one street, so vertex 0's color is that street's tint.
+function sidewalkColorHex(s: ReturnType<typeof createStreets>): number {
+  const sw = s.getPickables()[0];
+  const attr = sw.geometry.getAttribute('color') as THREE.BufferAttribute;
+  return new THREE.Color(attr.getX(0), attr.getY(0), attr.getZ(0)).getHex();
+}
+function firstStreetDir(s: ReturnType<typeof createStreets>): unknown {
+  return (s.getPickables()[0].userData.pickStreets[0] as { dir: unknown }).dir;
+}
 
 describe('createStreets()', () => {
   let streets: ReturnType<typeof createStreets>;
@@ -211,11 +221,9 @@ describe('createStreets()', () => {
     streets.rebuild(singleStreetLayout());
 
     STREETS.value = { ...STREETS.value, SIDEWALK_DEFAULT: '#010203' };
-    const sw = streets.getPickables()[0];
     const expected = new THREE.Color('#010203').getHex();
     // No selection/hover → sidewalk paints the default.
-    expect(sw.material.color.getHex()).toBe(expected);
-    expect(sw.userData.origColor).toBe(expected);
+    expect(sidewalkColorHex(streets)).toBe(expected);
   });
 
   it('theme effect rescales label height on LABEL_HEIGHT_FRAC mutation', () => {
@@ -241,15 +249,15 @@ describe('createStreets()', () => {
     streets.rebuild(singleStreetLayout());
     const sw = streets.getPickables()[0];
     const defaultHex = new THREE.Color(DEFAULTS.SIDEWALK_DEFAULT).getHex();
-    expect(sw.material.color.getHex()).toBe(defaultHex);
+    expect(sidewalkColorHex(streets)).toBe(defaultHex);
 
     // Set a selection BEFORE any tick — effects aren't armed, so no re-tint.
     selection.value = {
       kind: NodeKind.Directory,
       sidewalk: sw,
-      dir: sw.userData.street.dir,
+      dir: firstStreetDir(streets),
     } as unknown as PickTarget;
-    expect(sw.material.color.getHex()).toBe(defaultHex);
+    expect(sidewalkColorHex(streets)).toBe(defaultHex);
   });
 
   it('arms picker-tint effects on first tick; a later selection re-tints to SELECTED', () => {
@@ -262,19 +270,19 @@ describe('createStreets()', () => {
 
     // First tick: arms the effects; with no selection yet, sidewalk stays DEFAULT.
     streets.tick(0.016, { dt: 0.016, time: 0, camera: cameraRight(1) });
-    expect(sw.material.color.getHex()).toBe(defaultHex);
+    expect(sidewalkColorHex(streets)).toBe(defaultHex);
 
     // Now select this sidewalk — the live, armed effect fires synchronously.
     selection.value = {
       kind: NodeKind.Directory,
       sidewalk: sw,
-      dir: sw.userData.street.dir,
+      dir: firstStreetDir(streets),
     } as unknown as PickTarget;
-    expect(sw.material.color.getHex()).toBe(selectedHex);
+    expect(sidewalkColorHex(streets)).toBe(selectedHex);
 
     // Clearing the selection restores the default tint.
     selection.value = null;
-    expect(sw.material.color.getHex()).toBe(defaultHex);
+    expect(sidewalkColorHex(streets)).toBe(defaultHex);
   });
 
   it('arms hover tinting; hovering this sidewalk paints SIDEWALK_HOVER', () => {
@@ -288,9 +296,9 @@ describe('createStreets()', () => {
     hover.value = {
       kind: NodeKind.Directory,
       sidewalk: sw,
-      dir: sw.userData.street.dir,
+      dir: firstStreetDir(streets),
     } as unknown as PickTarget;
-    expect(sw.material.color.getHex()).toBe(hoverHex);
+    expect(sidewalkColorHex(streets)).toBe(hoverHex);
   });
 
   // ---------------------------------------------------------------------------
@@ -347,12 +355,10 @@ describe('createStreets()', () => {
       selection.value = {
         kind: NodeKind.Directory,
         sidewalk: sw,
-        dir: sw.userData.street.dir,
+        dir: firstStreetDir(streets),
       } as unknown as PickTarget;
       STREETS.value = { ...STREETS.value, ASPHALT_COLOR: '#000000' };
     }).not.toThrow();
-    expect(sw.material.color.getHex()).not.toBe(
-      new THREE.Color(DEFAULTS.SIDEWALK_SELECTED).getHex()
-    );
+    expect(sidewalkColorHex(streets)).not.toBe(new THREE.Color(DEFAULTS.SIDEWALK_SELECTED).getHex());
   });
 });
