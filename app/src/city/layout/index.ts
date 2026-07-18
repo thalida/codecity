@@ -231,7 +231,11 @@ export function createLayoutClient(): LayoutClient {
       const request: LayoutRequest = {
         type: 'layout',
         id,
-        manifest,
+        // Send ONLY what layoutCity reads (tree + stats). The full manifest
+        // carries the commits array (100k–1M entries at Linux scale), which
+        // postMessage would structured-clone on the main thread every apply —
+        // ~240ms at 200k commits vs ~65ms for this slice, all wasted.
+        manifest: { tree: manifest.tree, stats: manifest.stats },
         configSnapshot: _snapshot(),
       };
       w.postMessage(request);
