@@ -12,6 +12,7 @@ import { createEmptyCellTile, type CellTile, allocateSlot } from './cellTile';
 import { attachBuildingMeshToCell, writeBuildingToSlot } from './cellMesh';
 import { InstancedAdPanels } from './adPanels';
 import { isMediaFile } from '@/city/utils/mediaKind';
+import { BUILDINGS } from '@/state/stores/settings/buildings';
 import { BuildingIndex } from './buildingIndex';
 import type { Building } from '@/types/index';
 
@@ -111,7 +112,11 @@ export function buildCellsFromLayout(
 
   // ---- Instanced ad panels for media buildings ----
   // Build one InstancedMesh backed by a DataArrayTexture for all media files.
-  const mediaBuildings = buildings.filter((b) => isMediaFile(b.file));
+  // Skipped entirely when AD_ENABLED is off (no mesh, no fetch/decode/upload) —
+  // the A/B toggle for isolating whether the billboards are a perf cost.
+  const mediaBuildings = BUILDINGS.value.AD_ENABLED
+    ? buildings.filter((b) => isMediaFile(b.file))
+    : [];
   let adPanels: InstancedAdPanels | null = null;
   if (mediaBuildings.length > 0) {
     const adCapacity = Math.max(64, Math.ceil(mediaBuildings.length * 1.5));
