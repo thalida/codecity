@@ -502,6 +502,35 @@ def _normalize_remote_to_web_url(remote: str) -> str:
     return s
 
 
+def _parse_dirty_paths(porcelain_z: str) -> set[str]:
+    """Repo-relative paths whose working tree differs from HEAD, parsed from
+    `git status --porcelain -z`. Excludes untracked (`??`) and ignored (`!!`);
+    for a rename entry (status starts with `R`/`C`) the destination path is the
+    dirty one and the following NUL-separated field (the source) is skipped."""
+    fields = [f for f in porcelain_z.split("\0") if f]
+    dirty: set[str] = set()
+    i = 0
+    while i < len(fields):
+        entry = fields[i]
+        i += 1
+        # Porcelain entry: two status chars, a space, then the path.
+        status, path = entry[:2], entry[3:]
+        if status in ("??", "!!"):
+            continue
+        # Rename/copy: the NEXT field is the source path — consume + ignore it.
+        if status and status[0] in ("R", "C"):
+            i += 1
+        if path:
+            dirty.add(path)
+    return dirty
+
+
+def _collect_dirty_paths(root: Path) -> set[str]:
+    """Fresh (never cached — dirty changes without HEAD moving) set of dirty
+    tracked paths from a single porcelain call."""
+    return _parse_dirty_paths(_run_git(root, "status", "--porcelain", "-z"))
+
+
 def _collect_repo_info(root: Path) -> RepoInfo:
     """Repo-level git metadata for the manifest's `repo` field.
 
@@ -543,11 +572,7 @@ def _collect_repo_info(root: Path) -> RepoInfo:
         info["head_sha"] = sha or None
         info["head_subject"] = subject or None
 
-    # --porcelain prints one line per changed/untracked path; non-empty
-    # output means the working tree differs from HEAD or has untracked
-    # files. Matches what most prompts mean by "dirty".
-    status = _run_git(root, "status", "--porcelain")
-    info["dirty"] = bool(status.strip())
+    info["dirty"] = bool(_collect_dirty_paths(root))
 
     return info
 
