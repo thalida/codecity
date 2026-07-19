@@ -46,13 +46,17 @@ export interface IconAtlas {
 }
 
 /**
- * Build an icon atlas for the manifest's files. Resolves once every
- * unique icon SVG has either drawn into the atlas or failed (failures
- * just leave their slot blank; the building skips the sample).
+ * Build an icon atlas for the manifest's files. Returns SYNCHRONOUSLY: the
+ * iconName→slot UV map is assigned up front (a plain index walk), so the
+ * buildings can bake correct roof UVs immediately, and each SVG is fetched +
+ * drawn in the BACKGROUND — flagging the texture for re-upload as it lands, so
+ * icons pop onto the already-built roofs progressively. This is what lets the
+ * whole city render without waiting on a burst of icon fetches (a multi-second
+ * empty gap on a big, extension-diverse repo).
  */
-export async function buildIconAtlas(
+export function buildIconAtlas(
   manifest: Manifest | DirNode | { tree?: unknown; [k: string]: unknown } | null
-): Promise<IconAtlas> {
+): IconAtlas {
   const iconNames = _collectIconNames(manifest);
 
   const canvas = document.createElement('canvas');
@@ -63,26 +67,6 @@ export async function buildIconAtlas(
     // Should be unreachable in any sane browser; degrade gracefully.
     return _emptyAtlas();
   }
-
-  const uvMap = new Map<string, [number, number]>();
-  const drawJobs: Promise<void>[] = [];
-  for (let i = 0; i < iconNames.length && i < MAX_SLOTS; i++) {
-    const name = iconNames[i];
-    const col = i % SLOTS_PER_SIDE;
-    const row = Math.floor(i / SLOTS_PER_SIDE);
-    const px = col * SLOT_SIZE;
-    const py = row * SLOT_SIZE;
-    // Tentatively assign the UV; we'll clear it if the load fails.
-    uvMap.set(name, [col * SLOT_UV, row * SLOT_UV]);
-    drawJobs.push(
-      _drawIconInto(ctx, name, px, py).catch(() => {
-        // Failed fetch → drop the mapping so the building stays uniconned.
-        uvMap.delete(name);
-      })
-    );
-  }
-
-  await Promise.all(drawJobs);
 
   const texture = new THREE.CanvasTexture(canvas);
   // Atlas-UV math here is "canvas-native" (Y goes down from top-left
@@ -97,6 +81,24 @@ export async function buildIconAtlas(
   // and a no-op on devices that don't support it.
   texture.anisotropy = 16;
   texture.needsUpdate = true;
+
+  const uvMap = new Map<string, [number, number]>();
+  for (let i = 0; i < iconNames.length && i < MAX_SLOTS; i++) {
+    const name = iconNames[i];
+    const col = i % SLOTS_PER_SIDE;
+    const row = Math.floor(i / SLOTS_PER_SIDE);
+    uvMap.set(name, [col * SLOT_UV, row * SLOT_UV]);
+    // Fire-and-forget: draw into the slot when the SVG lands, then re-upload.
+    // A failure just leaves the slot blank (the roof shows no icon there) — the
+    // UV stays mapped, so we never reshuffle slots after the roofs baked them.
+    void _drawIconInto(ctx, name, col * SLOT_SIZE, row * SLOT_SIZE)
+      .then(() => {
+        texture.needsUpdate = true;
+      })
+      .catch(() => {
+        /* blank slot */
+      });
+  }
 
   return {
     texture,

@@ -93,17 +93,25 @@ function cameraRight(x: number): THREE.PerspectiveCamera {
   return cam;
 }
 
-// The component renders asphalt + labels into the scene graph; read them off
-// the live tree (street groups carry userData.asphalt; label groups are tagged
-// userData.type === Label) — there are no handle accessors for them.
+// The component renders sidewalks (pickable, userData.type === Directory), ONE
+// merged asphalt mesh (name 'city-asphalt'), and labels (userData.type === Label)
+// as direct children of its group. Read them off the live tree.
 type FlatMesh = THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial>;
-function asphaltOf(s: ReturnType<typeof createStreets>): FlatMesh[] {
-  return s.group.children
-    .filter((c) => c.userData.type === NodeKind.Directory)
-    .map((g) => g.userData.asphalt as FlatMesh);
+function asphaltMeshOf(s: ReturnType<typeof createStreets>): FlatMesh | null {
+  return (s.group.children.find((c) => c.name === 'city-asphalt') as FlatMesh) ?? null;
 }
 function labelsOf(s: ReturnType<typeof createStreets>): THREE.Group[] {
   return s.group.children.filter((c) => c.userData.type === NodeKind.Label) as THREE.Group[];
+}
+// The merged sidewalk carries per-vertex colors; the single-street fixtures put
+// every vertex on one street, so vertex 0's color is that street's tint.
+function sidewalkColorHex(s: ReturnType<typeof createStreets>): number {
+  const sw = s.getPickables()[0];
+  const attr = sw.geometry.getAttribute('color') as THREE.BufferAttribute;
+  return new THREE.Color(attr.getX(0), attr.getY(0), attr.getZ(0)).getHex();
+}
+function firstStreetDir(s: ReturnType<typeof createStreets>): unknown {
+  return (s.getPickables()[0].userData.pickStreets[0] as { dir: unknown }).dir;
 }
 
 describe('createStreets()', () => {
@@ -153,12 +161,12 @@ describe('createStreets()', () => {
     streets = createStreets(ctx);
     streets.rebuild(singleStreetLayout());
 
-    // One sidewalk + one asphalt + ≥1 label group all under the outer group.
+    // One sidewalk mesh + one merged asphalt mesh + ≥1 label group under group.
     expect(streets.getPickables()).toHaveLength(1);
-    expect(asphaltOf(streets)).toHaveLength(1);
+    expect(asphaltMeshOf(streets)).not.toBeNull();
     expect(labelsOf(streets).length).toBeGreaterThanOrEqual(1);
-    // Group holds the street group (sidewalk+asphalt) + each label group.
-    expect(streets.group.children.length).toBe(1 + labelsOf(streets).length);
+    // Group holds: 1 sidewalk + 1 asphalt + each label group.
+    expect(streets.group.children.length).toBe(2 + labelsOf(streets).length);
   });
 
   it('rebuild() builds the sidewalk lookup keyed by street dir.path', () => {
@@ -180,17 +188,14 @@ describe('createStreets()', () => {
     streets = createStreets(ctx);
     streets.rebuild(singleStreetLayout());
     const firstSidewalk = streets.getPickables()[0];
-    // The sidewalk's parent is its street group; that street group is the
-    // outer group's child.
-    const firstStreetGroup = firstSidewalk.parent!;
-    expect(firstStreetGroup.parent).toBe(streets.group);
+    // Sidewalk meshes are direct children of the outer group now.
+    expect(firstSidewalk.parent).toBe(streets.group);
     const firstChildCount = streets.group.children.length;
 
     streets.rebuild(singleStreetLayout());
-    // Old street group detached from the outer group; new sidewalk is a
-    // different mesh.
-    expect(firstStreetGroup.parent).toBeNull();
-    expect(streets.group.children).not.toContain(firstStreetGroup);
+    // Old sidewalk detached from the outer group; new sidewalk is a different mesh.
+    expect(firstSidewalk.parent).toBeNull();
+    expect(streets.group.children).not.toContain(firstSidewalk);
     expect(streets.getPickables()[0]).not.toBe(firstSidewalk);
     // Child count is stable across an identical rebuild (no accumulation).
     expect(streets.group.children.length).toBe(firstChildCount);
@@ -206,7 +211,7 @@ describe('createStreets()', () => {
     streets.rebuild(singleStreetLayout());
 
     STREETS.value = { ...STREETS.value, ASPHALT_COLOR: '#abcdef' };
-    const asphalt = asphaltOf(streets)[0];
+    const asphalt = asphaltMeshOf(streets)!;
     expect(asphalt.material.color.getHex()).toBe(new THREE.Color('#abcdef').getHex());
   });
 
@@ -216,11 +221,9 @@ describe('createStreets()', () => {
     streets.rebuild(singleStreetLayout());
 
     STREETS.value = { ...STREETS.value, SIDEWALK_DEFAULT: '#010203' };
-    const sw = streets.getPickables()[0];
     const expected = new THREE.Color('#010203').getHex();
     // No selection/hover → sidewalk paints the default.
-    expect(sw.material.color.getHex()).toBe(expected);
-    expect(sw.userData.origColor).toBe(expected);
+    expect(sidewalkColorHex(streets)).toBe(expected);
   });
 
   it('theme effect rescales label height on LABEL_HEIGHT_FRAC mutation', () => {
@@ -246,15 +249,15 @@ describe('createStreets()', () => {
     streets.rebuild(singleStreetLayout());
     const sw = streets.getPickables()[0];
     const defaultHex = new THREE.Color(DEFAULTS.SIDEWALK_DEFAULT).getHex();
-    expect(sw.material.color.getHex()).toBe(defaultHex);
+    expect(sidewalkColorHex(streets)).toBe(defaultHex);
 
     // Set a selection BEFORE any tick — effects aren't armed, so no re-tint.
     selection.value = {
       kind: NodeKind.Directory,
       sidewalk: sw,
-      dir: sw.userData.street.dir,
+      dir: firstStreetDir(streets),
     } as unknown as PickTarget;
-    expect(sw.material.color.getHex()).toBe(defaultHex);
+    expect(sidewalkColorHex(streets)).toBe(defaultHex);
   });
 
   it('arms picker-tint effects on first tick; a later selection re-tints to SELECTED', () => {
@@ -267,19 +270,19 @@ describe('createStreets()', () => {
 
     // First tick: arms the effects; with no selection yet, sidewalk stays DEFAULT.
     streets.tick(0.016, { dt: 0.016, time: 0, camera: cameraRight(1) });
-    expect(sw.material.color.getHex()).toBe(defaultHex);
+    expect(sidewalkColorHex(streets)).toBe(defaultHex);
 
     // Now select this sidewalk — the live, armed effect fires synchronously.
     selection.value = {
       kind: NodeKind.Directory,
       sidewalk: sw,
-      dir: sw.userData.street.dir,
+      dir: firstStreetDir(streets),
     } as unknown as PickTarget;
-    expect(sw.material.color.getHex()).toBe(selectedHex);
+    expect(sidewalkColorHex(streets)).toBe(selectedHex);
 
     // Clearing the selection restores the default tint.
     selection.value = null;
-    expect(sw.material.color.getHex()).toBe(defaultHex);
+    expect(sidewalkColorHex(streets)).toBe(defaultHex);
   });
 
   it('arms hover tinting; hovering this sidewalk paints SIDEWALK_HOVER', () => {
@@ -293,9 +296,34 @@ describe('createStreets()', () => {
     hover.value = {
       kind: NodeKind.Directory,
       sidewalk: sw,
-      dir: sw.userData.street.dir,
+      dir: firstStreetDir(streets),
     } as unknown as PickTarget;
-    expect(sw.material.color.getHex()).toBe(hoverHex);
+    expect(sidewalkColorHex(streets)).toBe(hoverHex);
+  });
+
+  it('tick() hides labels that project too small (visibility LOD) and re-shows up close', () => {
+    const { ctx } = makeCtx();
+    Object.defineProperty(ctx.canvas, 'clientHeight', { value: 800, configurable: true });
+    streets = createStreets(ctx);
+    streets.rebuild(singleStreetLayout());
+    const label = labelsOf(streets)[0];
+
+    const camAt = (dist: number) => {
+      const c = new THREE.PerspectiveCamera(50, 1.6, 1, 100000);
+      c.position.set(label.position.x, dist, label.position.z + dist);
+      c.updateMatrixWorld(true);
+      return c;
+    };
+
+    // Close → visible.
+    streets.tick(0.016, { dt: 0.016, time: 0, camera: camAt(30) });
+    expect(label.visible).toBe(true);
+    // Far → hidden (sub-pixel).
+    streets.tick(0.016, { dt: 0.016, time: 0, camera: camAt(30000) });
+    expect(label.visible).toBe(false);
+    // Zoom back in → shown again.
+    streets.tick(0.016, { dt: 0.016, time: 0, camera: camAt(30) });
+    expect(label.visible).toBe(true);
   });
 
   // ---------------------------------------------------------------------------
@@ -352,11 +380,11 @@ describe('createStreets()', () => {
       selection.value = {
         kind: NodeKind.Directory,
         sidewalk: sw,
-        dir: sw.userData.street.dir,
+        dir: firstStreetDir(streets),
       } as unknown as PickTarget;
       STREETS.value = { ...STREETS.value, ASPHALT_COLOR: '#000000' };
     }).not.toThrow();
-    expect(sw.material.color.getHex()).not.toBe(
+    expect(sidewalkColorHex(streets)).not.toBe(
       new THREE.Color(DEFAULTS.SIDEWALK_SELECTED).getHex()
     );
   });

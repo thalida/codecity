@@ -8,10 +8,16 @@ import type { BuildingDimensionsConfig } from '@/state/stores/settings/buildings
 import type { GemSizingConfig } from '@/state/stores/settings/gem';
 import type { Manifest, CityLayout } from '@/types';
 
+/** The only manifest slice the layout worker needs. layoutCity reads just
+ *  `tree` + `stats`; sending the full Manifest structured-clones the entire
+ *  commits array (up to ~1M entries) across the postMessage boundary on the
+ *  main thread every apply, for nothing — see createLayoutClient.compute. */
+export type LayoutManifest = Pick<Manifest, 'tree' | 'stats'>;
+
 export interface LayoutRequest {
   type: 'layout';
   id: number;
-  manifest: Manifest;
+  manifest: LayoutManifest;
   configSnapshot: {
     streetLayout: StreetLayoutConfig;
     buildingDimensions: BuildingDimensionsConfig;

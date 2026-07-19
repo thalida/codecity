@@ -77,7 +77,8 @@ export function createInputHandlers({
       // canonical building identity).
       return a.file?.path === (b as typeof a).file?.path;
     }
-    if (a.kind === NodeKind.Directory) return a.sidewalk === (b as typeof a).sidewalk;
+    // All directories share one merged sidewalk mesh, so compare by dir path.
+    if (a.kind === NodeKind.Directory) return a.dir?.path === (b as typeof a).dir?.path;
     if (a.kind === NodeKind.Commit) {
       return a.commit.sha === (b as typeof a).commit.sha;
     }

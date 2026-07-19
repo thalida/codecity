@@ -6,6 +6,7 @@
 
 import { effect } from '@preact/signals';
 import { SCAN_PROGRESS } from '@/state/stores/scanProgress';
+import { REBUILD_STATUS, RebuildStatus } from '@/state/stores/manifest';
 import {
   showLoadingOverlay,
   hideLoadingOverlay,
@@ -19,7 +20,18 @@ export function attachLoadingReactions(): () => void {
   let wasActive = false;
   return effect(() => {
     const p = SCAN_PROGRESS.value;
+    // The stream finishing (p === null) does NOT mean the city is on screen:
+    // setManifest only KICKS OFF applyManifest, whose layoutCity runs async for
+    // a second-plus on a big repo. Hold the overlay through that build (status
+    // stays Rebuilding until the city renders) so we never flash an empty 3D
+    // world between "stream done" and "city painted".
+    const building = REBUILD_STATUS.value === RebuildStatus.Rebuilding;
     if (!p) {
+      if (building) {
+        // Stream done, city still assembling — keep the overlay on "Building".
+        if (wasActive) setLoadingStep(LoadingStep.Building);
+        return;
+      }
       if (wasActive) hideLoadingOverlay();
       wasActive = false;
       return;

@@ -3,9 +3,10 @@
 //
 // SpatialGrid uses MIN_CELL_SIZE=12 world units per cell.
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, afterEach } from 'vitest';
 import * as THREE from 'three';
 import { buildCellsFromLayout } from '@/city/components/buildings/cellAssembly';
+import { BUILDINGS } from '@/state/stores/settings/buildings';
 import { NodeKind } from '@/types/index';
 import { building } from '../../../_helpers/buildingFixture';
 
@@ -129,5 +130,45 @@ describe('buildCellsFromLayout', () => {
 
     expect(out.cells.size).toBe(0);
     expect(out.sceneRoot.children.length).toBe(0);
+  });
+
+  describe('AD_ENABLED gate', () => {
+    const bounds = { minX: 0, maxX: 50, minZ: 0, maxZ: 50 };
+    const mediaBuilding = () =>
+      building({
+        x: 5,
+        y: 5,
+        file: {
+          path: 'logo.png',
+          name: 'logo.png',
+          type: NodeKind.File,
+          fullPath: '/abs/logo.png',
+          extension: '.png',
+          mediaKind: 'image',
+          size: 100,
+          lines: 0,
+          binary: true,
+          created: '',
+          modified: '',
+        },
+      });
+
+    afterEach(() => {
+      BUILDINGS.value = { ...BUILDINGS.value, AD_ENABLED: true };
+    });
+
+    it('builds an ad-panel mesh for media buildings when AD_ENABLED (default)', () => {
+      const out = buildCellsFromLayout(bounds, [mediaBuilding()]);
+      expect(out.adPanels).not.toBeNull();
+    });
+
+    it('skips the ad-panel mesh entirely when AD_ENABLED is off', () => {
+      BUILDINGS.value = { ...BUILDINGS.value, AD_ENABLED: false };
+      const out = buildCellsFromLayout(bounds, [mediaBuilding()]);
+      expect(out.adPanels).toBeNull();
+      // The building itself still renders (its cell + detail mesh exist).
+      expect(out.cells.size).toBeGreaterThan(0);
+      expect(out.index.byPath.get('logo.png')).toBeDefined();
+    });
   });
 });

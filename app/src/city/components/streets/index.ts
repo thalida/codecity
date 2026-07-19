@@ -23,11 +23,18 @@ import type { CityLayout } from '@/types';
 import type { FrameContext, SceneComponent, SceneContext } from '../../types';
 import { armOnFirstTick } from '../../utils/armOnFirstTick';
 import { onSettings } from '../../utils/onSettings';
-import { createStreetMesh } from './streets';
+import { createMergedSidewalkMesh, createMergedAsphaltMesh, type SidewalkRange } from './streets';
 import { createStreetLabels } from './streetLabels';
 import { disposeObject3D } from '@/city/utils/disposeObject3D';
 
 type FlatMesh = THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial>;
+
+// Per-frame label visibility LOD (approx on-screen label height in CSS px, from
+// the street's natural label size). A label hides below HIDE and re-shows above
+// SHOW (hysteresis). Kept low so anything you're plausibly reading stays on —
+// only far-away specks (the zoomed-out draw-call cost) get culled.
+const LABEL_LOD_HIDE_PX = 3;
+const LABEL_LOD_SHOW_PX = 6;
 
 /** Public contract for the streets component. */
 export interface Streets extends SceneComponent {
@@ -54,49 +61,90 @@ export function createStreets(ctx: SceneContext): Streets {
   // Component-level mutable refs, reassigned each rebuild. The effects /
   // tick target these (NOT stale closure captures) so they hit the live
   // meshes after every rebuild.
-  let streetGroups: THREE.Group[] = [];
+  // ONE merged mesh for all sidewalks (pickable + per-street vertex-color tint)
+  // and one for all asphalt; both null pre-build. See createMerged*Mesh.
+  let sidewalkMesh: FlatMesh | null = null;
+  // Stable pickables array (the picker + tests compare it by reference across
+  // reuse applies) — reassigned only on rebuild.
   let pickables: FlatMesh[] = [];
-  let asphaltMeshes: FlatMesh[] = [];
+  let sidewalkRanges: SidewalkRange[] = [];
+  let sidewalkRangeByPath = new Map<string, SidewalkRange>();
+  let asphaltMesh: FlatMesh | null = null;
   let labelGroups: THREE.Group[] = [];
-  let sidewalksByDirPath: Record<string, FlatMesh> = {};
+  // Dir paths currently tinted non-default (selection + hover), so a tint refresh
+  // rewrites only the changed streets' vertex spans, not the whole color buffer.
+  let _lastTintPaths: string[] = [];
 
-  // SIDEWALK_COLORS holds CSS strings; pre-convert to numeric hex so the tint
-  // loop calls material.color.setHex() without re-parsing every change. The
-  // theme effect refreshes these whenever STREETS mutates.
+  // Camera-follow flip state for labels. Every X-oriented label flips together
+  // (they all key off the camera's world-right X), likewise Y-labels off Z — so
+  // the flip is TWO booleans, not per-label. tick() re-applies to the label
+  // meshes only when a boolean actually flips (rare, on a threshold crossing);
+  // _flipDirty forces a re-apply after a rebuild swaps in fresh labels. Without
+  // this, tick walked all ~12k labels every frame (a real cost at Linux scale).
+  let _xFlipped = false;
+  let _zFlipped = false;
+  let _flipDirty = true;
+
+  // Label visibility LOD state: recompute only when the camera moves (distances
+  // change) or after a rebuild swaps in fresh labels — otherwise it's O(1)/frame.
+  const _lastCamPos = new THREE.Vector3(NaN, NaN, NaN);
+  let _labelVisDirty = true;
+
+  // Tint colors as THREE.Color (written into the merged sidewalk's per-vertex
+  // color attribute). The theme effect refreshes them whenever STREETS mutates.
   const _swc0 = STREETS.value;
-  let SIDEWALK_HOVER_COLOR = new THREE.Color(_swc0.SIDEWALK_HOVER).getHex();
-  let SIDEWALK_SELECTED_COLOR = new THREE.Color(_swc0.SIDEWALK_SELECTED).getHex();
-  let SIDEWALK_DEFAULT_COLOR = new THREE.Color(_swc0.SIDEWALK_DEFAULT).getHex();
+  const _defColor = new THREE.Color(_swc0.SIDEWALK_DEFAULT);
+  const _hovColor = new THREE.Color(_swc0.SIDEWALK_HOVER);
+  const _selColor = new THREE.Color(_swc0.SIDEWALK_SELECTED);
 
-  // _refreshSidewalkTints() — repaint every sidewalk's material.color based on
-  // the current picker.selection / picker.hover state. Reads the picker
-  // DYNAMICALLY off the captured SceneContext so the pre-population window
-  // null-guards.
-  //
-  // Match the picked target to a mesh by DIRECTORY PATH, not mesh reference: a
-  // rebuild swaps in fresh sidewalk meshes, and if the picker's selection/hover
-  // still holds a pre-rebuild mesh (it re-syncs on its own schedule), a
-  // ref-equality check would silently miss every sidewalk. Path is the stable
-  // identity that survives any mesh swap.
+  // Write one street's vertex-color span in the merged sidewalk, queuing a
+  // partial GPU upload for just that span (addUpdateRange) so tinting a hovered
+  // street never re-uploads the whole color buffer.
+  function _writeStreetColor(range: SidewalkRange, c: THREE.Color): void {
+    const attr = sidewalkMesh!.geometry.getAttribute('color') as THREE.BufferAttribute;
+    const arr = attr.array as Float32Array;
+    for (let v = range.vStart; v < range.vStart + range.vCount; v++) {
+      arr[v * 3] = c.r;
+      arr[v * 3 + 1] = c.g;
+      arr[v * 3 + 2] = c.b;
+    }
+    attr.addUpdateRange(range.vStart * 3, range.vCount * 3);
+  }
+
+  // _refreshSidewalkTints() — recolor the selection/hover streets' vertex spans
+  // in the merged sidewalk (everything else stays default). Matches by DIRECTORY
+  // PATH (stable across rebuilds), and only rewrites the streets whose tint
+  // changed since last call (tracked via _lastTintPaths). Reads the picker
+  // dynamically so the pre-population window null-guards.
   function _refreshSidewalkTints(): void {
+    if (!sidewalkMesh) return;
     const sel = ctx.picker?.selection.value ?? null;
     const hov = ctx.picker?.hover.value ?? null;
-    const selPath = sel?.kind === NodeKind.Directory ? sel.dir?.path : null;
-    const hovPath = hov?.kind === NodeKind.Directory ? hov.dir?.path : null;
-    for (const sw of pickables) {
-      if (sw.userData.origColor == null) {
-        sw.userData.origColor = sw.material.color.getHex();
-      }
-      const swPath = sw.userData.street?.dir?.path;
-      let expected = null;
-      if (selPath != null && swPath === selPath) {
-        expected = SIDEWALK_SELECTED_COLOR;
-      } else if (hovPath != null && swPath === hovPath) {
-        expected = SIDEWALK_HOVER_COLOR;
-      }
-      const swColor = expected ?? sw.userData.origColor;
-      sw.material.color.setHex(swColor);
+    const selPath = sel?.kind === NodeKind.Directory ? (sel.dir?.path ?? null) : null;
+    const hovPath = hov?.kind === NodeKind.Directory ? (hov.dir?.path ?? null) : null;
+
+    // Selection wins over hover. Only keep paths we actually have a range for.
+    const next: Array<[string, THREE.Color]> = [];
+    if (selPath != null && sidewalkRangeByPath.has(selPath)) next.push([selPath, _selColor]);
+    if (hovPath != null && hovPath !== selPath && sidewalkRangeByPath.has(hovPath)) {
+      next.push([hovPath, _hovColor]);
     }
+    const nextPaths = next.map(([p]) => p);
+
+    // Reset streets that were tinted but no longer are.
+    for (const p of _lastTintPaths) {
+      if (!nextPaths.includes(p)) {
+        const r = sidewalkRangeByPath.get(p);
+        if (r) _writeStreetColor(r, _defColor);
+      }
+    }
+    // Apply the current tints.
+    for (const [p, c] of next) {
+      const r = sidewalkRangeByPath.get(p);
+      if (r) _writeStreetColor(r, c);
+    }
+    _lastTintPaths = nextPaths;
+    (sidewalkMesh.geometry.getAttribute('color') as THREE.BufferAttribute).needsUpdate = true;
   }
 
   // Deeply remove + dispose the prior street + label groups (geometry +
@@ -104,8 +152,12 @@ export function createStreets(ctx: SceneContext): Streets {
   // materials are NOT shared, so its sharedMaterial guard is a no-op here
   // and each mesh's material disposes normally.
   function _disposeInner(): void {
-    const all = [...streetGroups, ...labelGroups];
-    for (const g of all) {
+    for (const m of [sidewalkMesh, asphaltMesh]) {
+      if (!m) continue;
+      if (m.parent) m.parent.remove(m);
+      disposeObject3D(m);
+    }
+    for (const g of labelGroups) {
       if (g.parent) g.parent.remove(g);
       g.traverse(disposeObject3D);
     }
@@ -114,32 +166,37 @@ export function createStreets(ctx: SceneContext): Streets {
   function rebuild(layout: CityLayout): void {
     _disposeInner();
 
-    streetGroups = [];
-    pickables = [];
-    asphaltMeshes = [];
+    asphaltMesh = null;
     labelGroups = [];
+    _lastTintPaths = [];
+    // Fresh labels default to un-flipped; force tick() to apply the live state.
+    _flipDirty = true;
 
-    for (const street of layout.streets ?? []) {
-      const sg = createStreetMesh(street, 0);
-      group.add(sg);
-      streetGroups.push(sg);
-      pickables.push(sg.userData.sidewalk as FlatMesh);
-      if (sg.userData.asphalt) asphaltMeshes.push(sg.userData.asphalt as FlatMesh);
+    const streets = layout.streets ?? [];
 
+    // Sidewalks + asphalt: one merged mesh each (see createMerged*Mesh).
+    const built = createMergedSidewalkMesh(streets, 0);
+    sidewalkMesh = built?.mesh ?? null;
+    sidewalkRanges = built?.ranges ?? [];
+    sidewalkRangeByPath = new Map();
+    for (const r of sidewalkRanges) if (r.path != null) sidewalkRangeByPath.set(r.path, r);
+    pickables = sidewalkMesh ? [sidewalkMesh] : [];
+    if (sidewalkMesh) group.add(sidewalkMesh);
+
+    asphaltMesh = createMergedAsphaltMesh(streets, 0);
+    if (asphaltMesh) group.add(asphaltMesh);
+
+    // Labels for every street. Their DRAW cost is culled per-frame in tick()
+    // (hidden once they project too small to read), not by dropping them at
+    // build time — so zooming in always brings a nearby label back.
+    for (const street of streets) {
       const labels = createStreetLabels(street);
       for (const label of labels) {
         group.add(label);
         labelGroups.push(label);
       }
     }
-
-    // Rebuild the sidewalk lookup from each sidewalk's userData.street.dir.path.
-    // (The parallel street-by-dir map now lives on cityState.streetsByDirMap.)
-    sidewalksByDirPath = {};
-    for (const sw of pickables) {
-      const swDir = sw.userData.street?.dir;
-      if (swDir?.path != null) sidewalksByDirPath[swDir.path] = sw;
-    }
+    _labelVisDirty = true;
   }
 
   // (0) Layout effect — the reactive rebuild entry point. Tracks
@@ -169,11 +226,21 @@ export function createStreets(ctx: SceneContext): Streets {
   const stopTheme = onSettings(STREETS, () => {
     const streets = STREETS.value;
 
-    SIDEWALK_HOVER_COLOR = new THREE.Color(streets.SIDEWALK_HOVER).getHex();
-    SIDEWALK_SELECTED_COLOR = new THREE.Color(streets.SIDEWALK_SELECTED).getHex();
-    SIDEWALK_DEFAULT_COLOR = new THREE.Color(streets.SIDEWALK_DEFAULT).getHex();
-    for (const sw of pickables) {
-      sw.userData.origColor = SIDEWALK_DEFAULT_COLOR;
+    _defColor.set(streets.SIDEWALK_DEFAULT);
+    _hovColor.set(streets.SIDEWALK_HOVER);
+    _selColor.set(streets.SIDEWALK_SELECTED);
+    // Repaint every sidewalk vertex to the new default, then re-apply the live
+    // selection/hover tints on top.
+    if (sidewalkMesh) {
+      const attr = sidewalkMesh.geometry.getAttribute('color') as THREE.BufferAttribute;
+      const arr = attr.array as Float32Array;
+      for (let i = 0; i < arr.length; i += 3) {
+        arr[i] = _defColor.r;
+        arr[i + 1] = _defColor.g;
+        arr[i + 2] = _defColor.b;
+      }
+      attr.needsUpdate = true;
+      _lastTintPaths = [];
     }
     // _refreshSidewalkTints reads ctx.picker.selection/hover. onSettings runs
     // this whole apply UNTRACKED, so the theme effect subscribes ONLY to
@@ -184,9 +251,8 @@ export function createStreets(ctx: SceneContext): Streets {
     // effects.
     _refreshSidewalkTints();
 
-    const asphaltHex = new THREE.Color(streets.ASPHALT_COLOR).getHex();
-    for (const mesh of asphaltMeshes) {
-      mesh.material.color.setHex(asphaltHex);
+    if (asphaltMesh) {
+      asphaltMesh.material.color.setHex(new THREE.Color(streets.ASPHALT_COLOR).getHex());
     }
 
     for (const lg of labelGroups) {
@@ -238,19 +304,37 @@ export function createStreets(ctx: SceneContext): Streets {
     // near zero) cause floating-point jitter from OrbitControls' damping to
     // flip labels back and forth every frame.
     const THRESH = 0.15;
+    let nx = _xFlipped;
+    let nz = _zFlipped;
+    if (nx ? rightX > THRESH : rightX < -THRESH) nx = !nx;
+    if (nz ? rightZ > THRESH : rightZ < -THRESH) nz = !nz;
+
+    // ── Visibility LOD ── hide labels that project too small to read (the
+    // zoomed-out draw-call cost); keep every nearby one. Recompute only when the
+    // camera moved or a rebuild swapped in fresh labels.
+    const vpH = ctx.canvas?.clientHeight ?? 0;
+    if (vpH > 0 && (_labelVisDirty || !camera.position.equals(_lastCamPos))) {
+      _lastCamPos.copy(camera.position);
+      _labelVisDirty = false;
+      const halfTan = Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2);
+      const k = vpH / (2 * halfTan);
+      for (const lbl of labelGroups) {
+        const d = Math.max(camera.position.distanceTo(lbl.position), 1e-3);
+        const px = ((lbl.userData.worldH ?? 0) * k) / d;
+        lbl.visible = lbl.visible ? px >= LABEL_LOD_HIDE_PX : px >= LABEL_LOD_SHOW_PX;
+      }
+    }
+
+    // ── Camera-follow flip ── only walk labels when a boolean flips or after a
+    // rebuild; the common frame is O(1).
+    if (!_flipDirty && nx === _xFlipped && nz === _zFlipped) return;
+    _xFlipped = nx;
+    _zFlipped = nz;
+    _flipDirty = false;
 
     for (const lbl of labelGroups) {
-      const street = lbl.userData.street;
       const base = lbl.userData.baseRotY || 0;
-      const axis = street.orientation === StreetAxis.X ? rightX : rightZ;
-      let flipped = lbl.userData.flipped || false;
-      if (flipped) {
-        // Currently flipped — only un-flip when axis clearly crosses POSITIVE.
-        if (axis > THRESH) flipped = false;
-      } else {
-        // Not flipped — only flip when axis clearly crosses NEGATIVE.
-        if (axis < -THRESH) flipped = true;
-      }
+      const flipped = lbl.userData.street.orientation === StreetAxis.X ? _xFlipped : _zFlipped;
       lbl.userData.flipped = flipped;
       lbl.rotation.y = base + (flipped ? Math.PI : 0);
     }
@@ -268,7 +352,8 @@ export function createStreets(ctx: SceneContext): Streets {
     rebuild,
     tick,
     dispose,
+    // ONE merged mesh now; the picker raycasts it and resolves faceIndex→street.
     getPickables: () => pickables,
-    getSidewalkByDir: (p) => sidewalksByDirPath[p] || null,
+    getSidewalkByDir: (p) => (sidewalkRangeByPath.has(p) ? sidewalkMesh : null),
   };
 }

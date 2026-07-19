@@ -21,8 +21,10 @@ from api.services import clone as clone_mod
 from api.services.clone import (
     BranchNotFoundError,
     CloneError,
+    CloneInterruptedError,
     HostUnreachableError,
     RepoNotFoundError,
+    _clean_git_stderr,
     _maybe_raise_clean_clone_error,
     ensure_clone,
 )
@@ -200,6 +202,83 @@ class CleanCloneErrorDispatcherTests(unittest.TestCase):
                 "fatal: unable to access 'https://no-such-host.example/x.git/': "
                 "Could not resolve host: no-such-host.example",
             )
+
+    def test_retryable_over_http1_1_then_succeeds(self) -> None:
+        # A transient network drop retries (forcing HTTP/1.1) and then succeeds.
+        calls: list[tuple[str, ...]] = []
+
+        def fake(*args: str, **kw: object) -> str:
+            calls.append(args)
+            if len(calls) < 2:
+                raise CloneError("git clone failed (exit 128): fatal: early EOF")
+            return "ok"
+
+        with (
+            mock.patch.object(clone_mod, "_run_git_streaming", side_effect=fake),
+            mock.patch.object(clone_mod.time, "sleep"),
+        ):
+            out = clone_mod._run_net_git("clone", "--", "url", "t")
+        self.assertEqual(out, "ok")
+        self.assertEqual(len(calls), 2)  # one retry
+        self.assertIn("http.version=HTTP/1.1", calls[0])  # forced on every attempt
+
+    def test_non_network_error_is_not_retried(self) -> None:
+        calls: list[tuple[str, ...]] = []
+
+        def fake(*args: str, **kw: object) -> str:
+            calls.append(args)
+            raise CloneError("fatal: Authentication failed")
+
+        with mock.patch.object(clone_mod, "_run_git_streaming", side_effect=fake):
+            with self.assertRaises(CloneError):
+                clone_mod._run_net_git("fetch")
+        self.assertEqual(len(calls), 1)  # no retry for a non-network failure
+
+    def test_before_retry_cleans_up_between_attempts(self) -> None:
+        cleaned: list[int] = []
+
+        def fake(*args: str, **kw: object) -> str:
+            raise CloneError("error: RPC failed; ... fatal: early EOF")
+
+        with (
+            mock.patch.object(clone_mod, "_run_git_streaming", side_effect=fake),
+            mock.patch.object(clone_mod.time, "sleep"),
+        ):
+            with self.assertRaises(CloneError):
+                clone_mod._run_net_git("clone", before_retry=lambda: cleaned.append(1))
+        self.assertEqual(len(cleaned), clone_mod._NET_RETRY_ATTEMPTS - 1)
+
+    def test_network_interrupted(self) -> None:
+        # A dropped connection mid-transfer (huge repo) — the real linux-kernel
+        # failure tail. Must classify to a clean, retryable message.
+        with self.assertRaises(CloneInterruptedError) as ctx:
+            _maybe_raise_clean_clone_error(
+                "https://github.com/torvalds/linux",
+                "master",
+                "error: RPC failed; curl 92 HTTP/2 stream 5 was not closed cleanly\n"
+                "error: 3948 bytes of body are still expected\n"
+                "fetch-pack: unexpected disconnect while reading sideband packet\n"
+                "fatal: early EOF\n"
+                "fatal: fetch-pack: invalid index-pack output",
+            )
+        self.assertIn("try again", str(ctx.exception).lower())
+
+    def test_clean_git_stderr_strips_progress_noise(self) -> None:
+        # A wall of --progress lines with the real error at the end → only the
+        # error survives, no percentages.
+        raw = (
+            "remote: Enumerating objects: 8526369, done.\n"
+            "Receiving objects:  66% (5643220/8526369), 1.41 GiB | 94.00 KiB/s\n"
+            "Resolving deltas:  10% (1/10)\n"
+            "error: RPC failed; curl 92 HTTP/2 stream 5 was not closed cleanly\n"
+            "fatal: early EOF"
+        )
+        cleaned = _clean_git_stderr(raw)
+        self.assertNotIn("Receiving objects", cleaned)
+        self.assertNotIn("Enumerating objects", cleaned)
+        self.assertNotIn("Resolving deltas", cleaned)
+        self.assertIn("early EOF", cleaned)
+        self.assertIn("RPC failed", cleaned)
 
     def test_auth_failure_passes_through(self) -> None:
         # Auth failures are NOT translated. Caller sees no exception from

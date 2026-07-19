@@ -344,7 +344,7 @@ export function createBuildings(ctx: SceneContext): Buildings {
   // ghost.update. The composer (city/index.ts) runs treeOutlineRenderer/
   // pathLineRenderer AFTER this tick — their writes are disjoint from these and
   // are only consumed at postFx.render.
-  function tick(_dt: number, _frame: FrameContext): void {
+  function tick(_dt: number, frame: FrameContext): void {
     // Entering/staying tweens run FIRST within the tick. Nothing between that
     // slot and this one reads instance matrices; outline/ghost read them
     // AFTER, within this tick.
@@ -353,6 +353,10 @@ export function createBuildings(ctx: SceneContext): Buildings {
     _fader?.update(0);
     _outline?.update(0);
     _ghost?.update(0);
+    // Distance LOD: hide the transparent ad panels once they're sub-pixel
+    // (zoomed far out) so their overdraw doesn't stall the GPU on media-heavy
+    // repos. Cheap O(1) visibility toggle off the panel AABB + camera.
+    _adPanels?.updateLOD(frame.camera, ctx.canvas.clientHeight);
   }
 
   function onResize(): void {

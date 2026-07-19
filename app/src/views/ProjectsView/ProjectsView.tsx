@@ -154,7 +154,7 @@ export function ProjectsView({ onSubmit, onCancel, onClose }: ProjectsViewProps)
                 />
               </section>
               {hasRecents && (
-                <section class="landing-card surface-sidebar">
+                <section class="landing-card landing-card--recents surface-sidebar">
                   <h2 class="landing-card-title">Recent projects</h2>
                   <RecentsList onOpen={onSubmit} />
                 </section>

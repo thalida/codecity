@@ -114,6 +114,7 @@ export const BUILDINGS_SECTION: SectionNode = {
           key: 'facade-ads',
           label: 'Ad panels (media files)',
           children: [
+            field(BUILDINGS, 'AD_ENABLED'),
             field(BUILDINGS, 'AD_SIDE_MARGIN_FRAC'),
             field(BUILDINGS, 'AD_BOTTOM_OFFSET_FLOORS'),
             field(BUILDINGS, 'AD_PLACEHOLDER_COLOR'),

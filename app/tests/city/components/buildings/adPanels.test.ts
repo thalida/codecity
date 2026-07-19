@@ -2,7 +2,7 @@
 // ad panel system (introduced in the #21 cell-render migration).
 
 import { describe, it, expect } from 'vitest';
-import type * as THREE from 'three';
+import * as THREE from 'three';
 import { InstancedAdPanels } from '@/city/components/buildings/adPanels';
 import {
   AdPanelTextureArray,
@@ -263,6 +263,192 @@ describe('AdPanelTextureArray storage', () => {
     // many pages are actually in use — the shader's uPanelArrays uniform
     // is declared at MAX_PAGES and every slot needs a bound sampler.
     expect(arr.shaderTextures.length).toBe(8);
+  });
+});
+
+describe('InstancedAdPanels distance LOD (updateLOD)', () => {
+  // A large media building at the origin. viewportHeightPx fixed at 800. A
+  // no-op onStartLoad keeps updateLOD's visibility logic from firing real
+  // image loads (fetch/decode) during these visibility-only tests.
+  function adsAtOrigin(): InstancedAdPanels {
+    const ads = new InstancedAdPanels(4, { onStartLoad: () => {} });
+    ads.registerMediaBuilding(fakeMediaBuilding({ x: 0, y: 0, w: 12, d: 12, h: 24 }));
+    return ads;
+  }
+  const VIEWPORT_H = 800;
+
+  function cameraAt(x: number, y: number, z: number): THREE.PerspectiveCamera {
+    const cam = new THREE.PerspectiveCamera(50, 1.6, 1, 100000);
+    cam.position.set(x, y, z);
+    cam.lookAt(0, 0, 0);
+    cam.updateMatrixWorld(true);
+    return cam;
+  }
+
+  it('keeps panels visible when the camera is close (panels project large)', () => {
+    const ads = adsAtOrigin();
+    ads.updateLOD(cameraAt(0, 30, 40), VIEWPORT_H);
+    expect(ads.mesh.visible).toBe(true);
+  });
+
+  it('hides panels when zoomed far out (panels project sub-pixel) — kills overdraw', () => {
+    const ads = adsAtOrigin();
+    ads.updateLOD(cameraAt(0, 4000, 5000), VIEWPORT_H);
+    expect(ads.mesh.visible).toBe(false);
+  });
+
+  it('re-shows panels when the camera zooms back in', () => {
+    const ads = adsAtOrigin();
+    ads.updateLOD(cameraAt(0, 4000, 5000), VIEWPORT_H);
+    expect(ads.mesh.visible).toBe(false);
+    ads.updateLOD(cameraAt(0, 30, 40), VIEWPORT_H);
+    expect(ads.mesh.visible).toBe(true);
+  });
+
+  it('is a no-op with no registered panels (nothing to draw either way)', () => {
+    const ads = new InstancedAdPanels(4);
+    expect(() => ads.updateLOD(cameraAt(0, 5000, 5000), VIEWPORT_H)).not.toThrow();
+  });
+
+  it('does not toggle visibility when the viewport height is unknown (0)', () => {
+    const ads = adsAtOrigin();
+    // A close camera would normally show; a 0 viewport must leave state untouched.
+    ads.mesh.visible = false;
+    ads.updateLOD(cameraAt(0, 30, 40), 0);
+    expect(ads.mesh.visible).toBe(false);
+  });
+});
+
+describe('InstancedAdPanels visibility-gated loading', () => {
+  const VIEWPORT_H = 800;
+  function mediaAt(path: string, x: number, y: number): Building {
+    return fakeMediaBuilding({
+      x,
+      y,
+      w: 12,
+      d: 12,
+      h: 24,
+      file: {
+        path,
+        name: path,
+        type: NodeKind.File,
+        fullPath: `/${path}`,
+        extension: '.png',
+        mediaKind: 'image',
+        size: 1,
+        lines: 0,
+        binary: true,
+        created: '',
+        modified: '',
+      },
+    });
+  }
+  function cameraAt(x: number, y: number, z: number): THREE.PerspectiveCamera {
+    const cam = new THREE.PerspectiveCamera(50, 1.6, 1, 100000);
+    cam.position.set(x, y, z);
+    cam.lookAt(0, 0, 0);
+    cam.updateMatrixWorld(true);
+    return cam;
+  }
+
+  it('registerMediaBuilding does NOT start a load on its own (no eager burst)', () => {
+    const started: string[] = [];
+    const ads = new InstancedAdPanels(64, { onStartLoad: (b) => started.push(b.file!.path) });
+    ads.registerMediaBuilding(mediaAt('a.png', 0, 0));
+    ads.registerMediaBuilding(mediaAt('b.png', 5, 5));
+    expect(started).toEqual([]);
+  });
+
+  it('starts loads only for panels inside the camera frustum', () => {
+    const started: string[] = [];
+    const ads = new InstancedAdPanels(64, { onStartLoad: (b) => started.push(b.file!.path) });
+    ads.registerMediaBuilding(mediaAt('near.png', 0, 0)); // at origin, in view
+    ads.registerMediaBuilding(mediaAt('far.png', 8000, 8000)); // far off to the side
+    // Camera close above origin, looking down — origin is framed, far is not.
+    ads.updateLOD(cameraAt(0, 30, 40), VIEWPORT_H);
+    expect(started).toContain('near.png');
+    expect(started).not.toContain('far.png');
+  });
+
+  it('loads a big building at the frustum edge whose CENTER is off-frame', () => {
+    const started: string[] = [];
+    const ads = new InstancedAdPanels(64, { onStartLoad: (b) => started.push(b.file!.path) });
+    // The panel sits ~20 units up (bottom offset), so aim the camera near that
+    // height. Building x=15 at z=-10 is past the frustum's right plane (~11 wide
+    // at that distance) — its CENTER is off-frame, but it's close so its
+    // bounding sphere still crosses in.
+    ads.registerMediaBuilding(mediaAt('edge.png', 15, -10));
+    const cam = new THREE.PerspectiveCamera(50, 1.6, 1, 100000);
+    cam.position.set(0, 20, 5);
+    cam.lookAt(0, 20, -100);
+    cam.updateMatrixWorld(true);
+
+    // Sanity: the center point alone is NOT in the frustum (x=15 fails the right
+    // plane regardless of height) — the old containsPoint path would skip it.
+    const proj = new THREE.Matrix4().multiplyMatrices(cam.projectionMatrix, cam.matrixWorldInverse);
+    const frustum = new THREE.Frustum().setFromProjectionMatrix(proj);
+    expect(frustum.containsPoint(new THREE.Vector3(15, 20, -10))).toBe(false);
+
+    ads.updateLOD(cam, VIEWPORT_H);
+    expect(started).toContain('edge.png'); // sphere test rescues it
+  });
+
+  it('spreads starts across frames via a per-frame budget', () => {
+    const started: string[] = [];
+    const ads = new InstancedAdPanels(64, { onStartLoad: (b) => started.push(b.file!.path) });
+    // 12 clustered media buildings, all in view.
+    for (let i = 0; i < 12; i++)
+      ads.registerMediaBuilding(mediaAt(`m${i}.png`, (i % 4) - 2, Math.floor(i / 4) - 1));
+    const cam = cameraAt(0, 40, 40);
+    ads.updateLOD(cam, VIEWPORT_H);
+    const afterFrame1 = started.length;
+    expect(afterFrame1).toBeGreaterThan(0);
+    expect(afterFrame1).toBeLessThan(12); // budgeted — not all at once
+    // Subsequent frames drain the rest, and nothing is started twice.
+    for (let f = 0; f < 12; f++) ads.updateLOD(cam, VIEWPORT_H);
+    expect(started.length).toBe(12);
+    expect(new Set(started).size).toBe(12);
+  });
+
+  it('culls (and does not load) small background panels while a foreground panel is close', () => {
+    const started: string[] = [];
+    const ads = new InstancedAdPanels(64, { onStartLoad: (b) => started.push(b.file!.path) });
+    ads.registerMediaBuilding(mediaAt('close.png', 0, 350)); // slots 0-3, near camera
+    ads.registerMediaBuilding(mediaAt('background.png', 0, -4000)); // slots 4-7, far but in view
+    // Camera on the +z axis looking toward -z: both buildings are centred in
+    // the frustum, but 'background' is ~90x farther → sub-pixel.
+    const cam = new THREE.PerspectiveCamera(50, 1.6, 1, 100000);
+    cam.position.set(0, 0, 400);
+    cam.lookAt(0, 0, 0);
+    cam.updateMatrixWorld(true);
+
+    ads.updateLOD(cam, VIEWPORT_H);
+
+    // Foreground loads; background does not.
+    expect(started).toContain('close.png');
+    expect(started).not.toContain('background.png');
+
+    // Background panels are collapsed to zero-scale (no overdraw); foreground
+    // keeps its real size. Measure the matrix's X-axis column length directly:
+    // THREE's Matrix4.decompose returns a bogus [1,1,1] for an all-zero matrix,
+    // so it can't be used to detect the collapse.
+    const m = new THREE.Matrix4();
+    const xAxisLen = (slot: number): number => {
+      ads.mesh.getMatrixAt(slot, m);
+      const e = m.elements;
+      return Math.hypot(e[0], e[1], e[2]);
+    };
+    expect(xAxisLen(4)).toBeLessThan(1e-6); // background collapsed
+    expect(xAxisLen(0)).toBeGreaterThan(0.1); // foreground at real size
+  });
+
+  it('does not start loads while zoomed out (mesh hidden — nothing visible to load)', () => {
+    const started: string[] = [];
+    const ads = new InstancedAdPanels(64, { onStartLoad: (b) => started.push(b.file!.path) });
+    ads.registerMediaBuilding(mediaAt('a.png', 0, 0));
+    ads.updateLOD(cameraAt(0, 40000, 50000), VIEWPORT_H); // way out → mesh hidden
+    expect(ads.mesh.visible).toBe(false);
+    expect(started).toEqual([]);
   });
 });
 

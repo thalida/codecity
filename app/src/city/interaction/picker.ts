@@ -42,8 +42,10 @@
 // sessions or source switches.
 
 import * as THREE from 'three';
+import { ObjectBVH } from 'three-mesh-bvh';
 import { signal, effect, untracked } from '@preact/signals';
 import { NodeKind } from '@/types';
+import { sidewalkStreetForFace } from '@/city/components/streets/streets';
 
 import type { PickTarget, PickerWorld, PickerSelectionKey } from '@/types';
 import type { CityState } from '@/city/state';
@@ -72,6 +74,14 @@ export function createPicker({
   // Cached pickables list. Refreshed on the cityRevision/decorationRevision
   // effects below so per-frame raycasts don't allocate a new array.
   let pickables: THREE.Object3D[] = [];
+  // Spatial index over the pickables. THREE's intersectObjects tests every
+  // building instance per pointer move (~34ms/cast at 80k); an ObjectBVH (each
+  // InstancedMesh instance is a BVH primitive) turns that into ~0.07ms/cast.
+  // Built lazily on the first pickAt after a refresh — deferred so the ~180ms
+  // build (80k instances) stays off the manifest-apply path, AND so the world
+  // matrices the BVH reads are already fresh from the frame loop by then.
+  let _bvh: ObjectBVH | null = null;
+  let _bvhDirty = true;
   function _refreshPickables() {
     pickables = world.getStreetPickables().slice();
 
@@ -98,6 +108,9 @@ export function createPicker({
         }
       }
     }
+    // Invalidate the spatial index; rebuilt lazily on the next pickAt.
+    _bvh = null;
+    _bvhDirty = true;
   }
 
   // ── Selection → key derivation ────────────────────────────────────
@@ -339,14 +352,22 @@ export function createPicker({
   }
 
   // pickAt(x, y) — raycast at canvas-relative client coords; returns
-  // the first hit or null. Pickables list is cached and refreshed on
-  // world rebuild.
+  // the first hit or null. Pickables are cached + spatially indexed (ObjectBVH),
+  // both refreshed on world rebuild. The BVH is (re)built here on first use so
+  // its object world matrices are already fresh from the frame loop.
   function pickAt(clientX: number, clientY: number): THREE.Intersection<THREE.Object3D> | null {
     const rect = canvas.getBoundingClientRect();
     pointer.x = ((clientX - rect.left) / rect.width) * 2 - 1;
     pointer.y = -((clientY - rect.top) / rect.height) * 2 + 1;
     raycaster.setFromCamera(pointer, camera);
-    const hits = raycaster.intersectObjects(pickables, false);
+    if (_bvhDirty) {
+      _bvh = pickables.length > 0 ? new ObjectBVH(pickables) : null;
+      _bvhDirty = false;
+    }
+    if (!_bvh) return null;
+    // ObjectBVH returns hits unsorted; _resolveTieBreak needs nearest-first.
+    const hits = _bvh.raycast(raycaster, []);
+    hits.sort((a, b) => a.distance - b.distance);
     return _resolveTieBreak(hits);
   }
 
@@ -396,6 +417,20 @@ export function createPicker({
         file: building.file,
         instanceId: slot,
       };
+    }
+    // Merged sidewalk: all streets share one mesh, so resolve the hit face to
+    // its street via the faceIndex→street map baked onto userData.
+    if (ud.type === NodeKind.Directory && ud.pickStreets) {
+      const street = sidewalkStreetForFace(hit.object, hit.faceIndex ?? 0);
+      if (street?.dir) {
+        return {
+          kind: NodeKind.Directory,
+          sidewalk: hit.object as THREE.Mesh,
+          street,
+          dir: street.dir,
+        };
+      }
+      return null;
     }
     if (ud.street && ud.street.dir) {
       return {

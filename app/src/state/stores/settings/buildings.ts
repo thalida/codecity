@@ -433,6 +433,13 @@ const BUILDINGS_FIELDS = {
   },
 
   // ── Ad panels (media files) — rebuild (geometry baked at apply time) ──
+  AD_ENABLED: {
+    route: ChangeRoute.Rebuild,
+    kind: FieldKind.Toggle,
+    default: true,
+    label: 'Enabled',
+    tip: 'Render the image/video billboard on the face of media-file buildings. Off skips the ad-panel mesh entirely (no fetch, decode, upload, or draw): the buildings still show, just without their picture.',
+  },
   AD_SIDE_MARGIN_FRAC: {
     route: ChangeRoute.Rebuild,
     kind: FieldKind.Slider,

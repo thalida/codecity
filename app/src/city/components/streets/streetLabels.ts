@@ -194,6 +194,11 @@ export function createStreetLabels(street: Street): THREE.Group[] {
     group.userData.streetWidth = street.width;
     group.userData.textureAspect = info.aspect;
     group.userData.origHeightFrac = streets.LABEL_HEIGHT_FRAC;
+    // The street's NATURAL label height (before any shrink-to-fit), used by the
+    // streets component's per-frame visibility LOD to estimate on-screen size.
+    // Natural (not the shrunk worldH) so a long directory name on a narrow street
+    // isn't culled just for being text-shrunk — visibility tracks street size.
+    group.userData.worldH = naturalHeight;
     labels.push(group);
   }
   return labels;
