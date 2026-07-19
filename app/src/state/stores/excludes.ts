@@ -8,7 +8,8 @@
 import { computed, type ReadonlySignal } from '@preact/signals';
 import { persistedSignal } from '@/state/persist';
 import { PERSISTED_KEYS } from '@/constants/storage';
-import { CURRENT_SOURCE, sourceKey } from '@/state/stores/source';
+import { CURRENT_SOURCE } from '@/state/stores/source';
+import { sourceKey } from '@/utils/sources';
 
 /** repo key -> sorted, de-duped rel-paths. One localStorage slot for all repos.
  *  Whole-object persistence: keys are runtime repo hashes, not in the default,

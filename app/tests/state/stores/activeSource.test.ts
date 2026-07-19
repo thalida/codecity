@@ -1,6 +1,5 @@
 import { describe, it, expect, afterEach } from 'vitest';
 import {
-  sourceKey,
   CURRENT_SOURCE_KEY,
   CURRENT_SOURCE,
   SOURCE_INFO,
@@ -8,28 +7,10 @@ import {
   listRecents,
   RECENTS,
 } from '@/state/stores/source';
+import { sourceKey } from '@/utils/sources';
 import { setManifest } from '@/state/stores/manifest';
 import { EMPTY_MANIFEST } from '@/constants/manifest';
 import type { Manifest } from '@/types';
-
-describe('sourceKey', () => {
-  it('is deterministic for the same (src, branch)', () => {
-    expect(sourceKey('/foo', 'main')).toBe(sourceKey('/foo', 'main'));
-  });
-
-  it('distinguishes branches', () => {
-    expect(sourceKey('/foo', 'main')).not.toBe(sourceKey('/foo', 'develop'));
-  });
-
-  it('distinguishes (src, undefined) from (src, "main")', () => {
-    expect(sourceKey('/foo')).not.toBe(sourceKey('/foo', 'main'));
-  });
-
-  it('produces a short alphanumeric string', () => {
-    const k = sourceKey('/Users/example/repos/codecity');
-    expect(k).toMatch(/^[a-z0-9]{1,10}$/);
-  });
-});
 
 describe('CURRENT_SOURCE → CURRENT_SOURCE_KEY (derived)', () => {
   afterEach(() => {
@@ -121,12 +102,41 @@ describe('setCurrentSource', () => {
     expect(listRecents()[0].branch).toBe('dev');
   });
 
-  it('records a local source with its working-tree checkout branch', () => {
-    // A local worktree ignores any requested branch and reports its checkout.
+  it('records a local source with no branch (branch is not part of its identity)', () => {
+    // A local worktree scans whatever is checked out; storing that branch would
+    // be a lie (it changes on disk), so the recent and CURRENT_SOURCE omit it.
     setCurrentSource('/Users/me/worktrees/feat-x', undefined, {
       tree: { name: 'owner/codecity' },
       repo: { branch: 'feat/issue-77' },
     } as unknown as Manifest);
-    expect(listRecents()[0].branch).toBe('feat/issue-77');
+    expect(CURRENT_SOURCE.value).toEqual({ src: '/Users/me/worktrees/feat-x', branch: undefined });
+    expect(listRecents()[0].branch).toBeUndefined();
+  });
+
+  it('dedupes a local path across checkouts into one recent', () => {
+    // Opening the same local path at two different checkouts must not spawn a
+    // second row: both commits store branch: undefined, so they dedupe by src.
+    setCurrentSource('/proj', undefined, {
+      tree: { name: 'proj' },
+      repo: { branch: 'main' },
+    } as unknown as Manifest);
+    setCurrentSource('/proj', undefined, {
+      tree: { name: 'proj' },
+      repo: { branch: 'feat/x' },
+    } as unknown as Manifest);
+    expect(listRecents()).toHaveLength(1);
+    expect(listRecents()[0].branch).toBeUndefined();
+  });
+
+  it('drops the branch from CURRENT_SOURCE + the URL for a local source', () => {
+    // Even if a stale branch is passed in (old deep-link, recents onOpen), a
+    // local source never carries it: CURRENT_SOURCE and the page URL stay clean.
+    setCurrentSource('/Users/me/proj', 'stale-branch', {
+      tree: { name: 'proj' },
+      repo: { branch: 'main' },
+    } as unknown as Manifest);
+    expect(CURRENT_SOURCE.value).toEqual({ src: '/Users/me/proj', branch: undefined });
+    const u = new URL(window.location.href);
+    expect(u.searchParams.has('branch')).toBe(false);
   });
 });

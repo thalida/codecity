@@ -32,7 +32,7 @@ describe('sourceRecents', () => {
     expect(list[0].src).toBe('/foo'); // moved to MRU
   });
 
-  it('treats different branches as distinct entries', () => {
+  it('treats different branches as distinct entries for a remote source', () => {
     pushRecent({ src: 'https://x/r', branch: 'main', label: 'x/r' });
     pushRecent({ src: 'https://x/r', branch: 'dev', label: 'x/r' });
     expect(listRecents()).toHaveLength(2);

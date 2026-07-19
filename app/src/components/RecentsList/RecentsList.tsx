@@ -1,16 +1,16 @@
 // components/RecentsList/RecentsList.tsx — recent projects: a heading and the
-// list. Active state derives from SOURCE_INFO (the resolved branch, matching
-// how recents store it — CURRENT_SOURCE keeps the raw submitted branch, which is
-// undefined for a local repo whose recent carries its resolved HEAD).
-// Remove is non-destructive: it forgets the entry only, it does not
-// clear the scan cache (that's the skip-cache control's job). Renders nothing
-// when there are no recents.
+// list. Active state matches each row against CURRENT_SOURCE by source identity
+// (the canonical applied source, not the manifest's display fields): a local
+// path is branch-less on both sides, so a checkout change never re-keys the row
+// or drops its active badge. Remove is non-destructive: it forgets the entry
+// only, it does not clear the scan cache (that's the skip-cache control's job).
+// Renders nothing when there are no recents.
 
 import './RecentsList.css';
 import { useState } from 'preact/hooks';
-import { listRecents, removeRecent, SOURCE_INFO } from '@/state/stores/source';
+import { listRecents, removeRecent, CURRENT_SOURCE } from '@/state/stores/source';
 import { SERVER_CONFIG } from '@/state/stores/serverConfig';
-import { srcKind, SourceKind } from '@/utils/sources';
+import { srcKind, SourceKind, sourceIdentity, sameSourceIdentity } from '@/utils/sources';
 import type { SourcePayload } from '@/state/stores/ui';
 import { RecentRow } from './RecentRow';
 
@@ -20,13 +20,12 @@ export interface RecentsListProps {
 
 export function RecentsList({ onOpen }: RecentsListProps) {
   const recents = listRecents(); // reads RECENTS signal
-  const si = SOURCE_INFO.value;
+  const cur = CURRENT_SOURCE.value;
   const allowLocal = SERVER_CONFIG.value.allowLocalRepos;
   const [confirming, setConfirming] = useState<string | null>(null); // key of row
 
-  const keyOf = (r: { src: string; branch?: string }) => `${r.src}:${r.branch ?? ''}`;
-  const isActive = (r: { src: string; branch?: string }) =>
-    !!si.src && r.src === si.src && (r.branch ?? '') === (si.branch ?? '');
+  const keyOf = (r: { src: string; branch?: string }) => sourceIdentity(r.src, r.branch);
+  const isActive = (r: { src: string; branch?: string }) => !!cur && sameSourceIdentity(r, cur);
   // A local recent while local repos are off can't load; still clickable (the
   // server error explains why), just flagged with a hint glyph.
   const isUnavailable = (r: { src: string }) => srcKind(r.src) === SourceKind.Local && !allowLocal;

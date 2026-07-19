@@ -61,6 +61,22 @@ describe('RecentsList', () => {
     expect(onOpen).toHaveBeenCalledWith({ src: 'https://github.com/o/alpha', branch: 'main' });
   });
 
+  it('renders a branch-less local recent with no @branch pill, matched active by path', async () => {
+    SERVER_CONFIG.value = { allowLocalRepos: true };
+    // A local recent is branch-less; CURRENT_SOURCE is too, so they match by src
+    // even though the loaded manifest reports a checkout branch (display only).
+    RECENTS.value = [{ src: '/Users/me/proj', label: 'proj', lastOpenedAt: 3 }];
+    CURRENT_SOURCE.value = { src: '/Users/me/proj' };
+    setManifest({ tree: { name: 'proj' }, repo: { branch: 'feat/x' } } as unknown as Manifest);
+    render(<RecentsList onOpen={() => {}} />, container);
+    await flush();
+
+    const rows = container.querySelectorAll('.recent-item');
+    expect(rows).toHaveLength(1);
+    expect(container.querySelector('.app-header-branch-pill')).toBeNull();
+    expect(container.querySelector('.recent-row--active')).toBeTruthy();
+  });
+
   it('remove is non-destructive: forgets the entry, does not touch the cache', async () => {
     const spy = vi.spyOn(manifestApi, 'clearManifestCache');
     render(<RecentsList onOpen={() => {}} />, container);

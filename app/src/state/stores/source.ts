@@ -1,6 +1,8 @@
 // state/stores/source.ts — Everything about *which source is loaded*: the
-// current source's stable key + display info, the per-(src,branch) hash used to
-// namespace per-source localStorage slots, and the recently-opened list.
+// current source's stable key + display info and the recently-opened list. The
+// pure source-identity helpers (sourceKey/sourceIdentity/sameSourceIdentity)
+// live in utils/sources; this module owns the signals and persistence built on
+// them.
 //
 // CURRENT_SOURCE is session-scoped (set on every successful source apply);
 // CURRENT_SOURCE_KEY + SOURCE_INFO derive from it (the latter also from
@@ -14,30 +16,16 @@ import { PERSISTED_KEYS } from '@/constants/storage';
 import { MAX_RECENT_SOURCES } from '@/constants/ui';
 import { URL_PARAMS } from '@/constants/urlParams';
 import { MANIFEST } from '@/state/stores/manifest';
-import { srcKind, SourceKind, resolveBranch } from '@/utils/sources';
+import {
+  srcKind,
+  SourceKind,
+  resolveBranch,
+  identityBranch,
+  sourceKey,
+  sameSourceIdentity,
+} from '@/utils/sources';
 import { isEmptyManifest } from '@/utils/manifest';
 import type { Manifest } from '@/types';
-
-// ── sourceKey: stable short hash of (src, branch) ────────────────────
-
-function djb2(s: string): string {
-  let h = 5381;
-  for (let i = 0; i < s.length; i++) {
-    h = ((h << 5) + h + s.charCodeAt(i)) | 0;
-  }
-  return (h >>> 0).toString(36); // unsigned, base-36 — ~6-7 chars
-}
-
-/**
- * Compute a short stable hash for a (src, branch) pair. Used to namespace
- * per-source state (selection, camera pose) in localStorage.
- *
- * The hash distinguishes (src, undefined) from (src, ""), but in practice
- * we treat empty-string branch as "no branch" — callers should pass undefined.
- */
-export function sourceKey(src: string, branch?: string): string {
-  return djb2(`${src}\0${branch ?? ''}`);
-}
 
 // ── Currently-loaded source ──────────────────────────────────────────
 
@@ -131,15 +119,13 @@ export function listRecents(): RecentSource[] {
 }
 
 /**
- * Push (or update) an entry. Dedupes by (src, branch ?? ''). The pushed
- * entry becomes the most-recent. List is capped at MAX_RECENT_SOURCES
- * entries (oldest dropped).
+ * Push (or update) an entry. Dedupes by source identity (src, plus branch for a
+ * remote — a local path is one row regardless of checkout). The pushed entry
+ * becomes the most-recent. List is capped at MAX_RECENT_SOURCES (oldest dropped).
  */
 export function pushRecent(entry: Omit<RecentSource, 'lastOpenedAt'>): void {
   const now = Date.now();
-  const filtered = RECENTS.value.filter(
-    (r) => !(r.src === entry.src && (r.branch ?? '') === (entry.branch ?? ''))
-  );
+  const filtered = RECENTS.value.filter((r) => !sameSourceIdentity(r, entry));
   filtered.unshift({ ...entry, lastOpenedAt: now });
   RECENTS.value = filtered.slice(0, MAX_RECENT_SOURCES);
 }
@@ -155,20 +141,23 @@ export function setCurrentSource(
   branch: string | undefined,
   manifest: Manifest
 ): void {
-  CURRENT_SOURCE.value = { src, branch };
+  // A local source carries no branch (identityBranch): its checkout is dynamic,
+  // so CURRENT_SOURCE, the URL, the cache key, and the recent all omit it. The
+  // checked-out branch is still shown in the header via SOURCE_INFO, which reads
+  // it from the manifest — display only, not identity.
+  const idBranch = identityBranch(src, branch);
+  CURRENT_SOURCE.value = { src, branch: idBranch };
   pushRecent({
     src,
     // The server bakes the canonical owner/repo name into tree.name (a local
     // worktree's src basename would be the folder name, not the repo); keep the
     // raw src only as a defensive fallback.
     label: manifest.tree?.name || src,
-    branch: resolveBranch(manifest, branch),
+    branch: identityBranch(src, resolveBranch(manifest, branch)),
   });
 }
 
-/** Drop the entry matching (src, branch). No-op if not present. */
+/** Drop the entry matching the given source identity. No-op if not present. */
 export function removeRecent(src: string, branch?: string): void {
-  RECENTS.value = RECENTS.value.filter(
-    (r) => !(r.src === src && (r.branch ?? '') === (branch ?? ''))
-  );
+  RECENTS.value = RECENTS.value.filter((r) => !sameSourceIdentity(r, { src, branch }));
 }

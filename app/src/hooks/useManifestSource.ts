@@ -39,8 +39,7 @@ import { SERVER_CONFIG } from '@/state/stores/serverConfig';
 import { MANIFEST, setManifest, markError } from '@/state/stores/manifest';
 import { SCAN_PROGRESS } from '@/state/stores/scanProgress';
 import { activeExcludePathsFor, ACTIVE_EXCLUDES } from '@/state/stores/excludes';
-import { sourceKey } from '@/state/stores/source';
-import { srcKind, SourceKind, srcNeedsBranch } from '@/utils/sources';
+import { srcKind, SourceKind, srcNeedsBranch, identityBranch, sourceKey } from '@/utils/sources';
 import { isEmptyManifest } from '@/utils/manifest';
 import { URL_PARAMS } from '@/constants/urlParams';
 import type { Manifest } from '@/types';
@@ -134,9 +133,13 @@ export async function loadSource(payload: SourcePayload): Promise<void> {
   loadController?.abort(); // supersede any in-flight load
   const controller = new AbortController();
   loadController = controller;
+  // A local source has no branch axis — drop any branch (a stale deep-link or a
+  // legacy recent could carry one) so the fetch URL, overlay, committed source,
+  // and prefill all stay branch-less. The checked-out branch is display-only.
+  const branch = identityBranch(payload.src, payload.branch);
   const meta = {
     kind: srcKind(payload.src),
-    branch: payload.branch,
+    branch,
   };
   SCAN_PROGRESS.value = { ...meta, phase: null }; // show overlay immediately
   // Snapshot the applied manifest so a cancel that lands after a skeleton was
@@ -147,7 +150,7 @@ export async function loadSource(payload: SourcePayload): Promise<void> {
   try {
     const url = manifestUrlFor({
       src: payload.src,
-      branch: payload.branch,
+      branch,
       noCache: !!payload.skipCache,
       exclude: activeExcludePathsFor(payload.src),
     });
@@ -174,7 +177,7 @@ export async function loadSource(payload: SourcePayload): Promise<void> {
     // camera-reframe reaction keys off CURRENT_SOURCE captured at apply-START, so
     // the new key must be live for the FINAL apply (the one to frame on) and NOT
     // for the preceding skeleton apply (which must not reframe).
-    setCurrentSource(payload.src, payload.branch, manifest);
+    setCurrentSource(payload.src, branch, manifest);
     setManifest(manifest);
   } catch (err) {
     if (myGen !== loadGeneration) return; // superseded — its error isn't current
@@ -184,7 +187,7 @@ export async function loadSource(payload: SourcePayload): Promise<void> {
     }
     SOURCE_ERROR.value = {
       error: err instanceof Error ? err.message : String(err),
-      prefill: { src: payload.src, branch: payload.branch },
+      prefill: { src: payload.src, branch },
     };
   } finally {
     // Only the authoritative load tears down the overlay; a superseded one must
