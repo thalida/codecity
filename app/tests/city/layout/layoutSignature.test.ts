@@ -32,3 +32,28 @@ it('is stable when only dates change (size unchanged)', () => {
     computeLayoutSignature(mkManifest(10, '2026-09-09T00:00:00Z'))
   );
 });
+
+it('changes when the path set changes (same file sizes)', () => {
+  const file = {
+    name: 'a.py',
+    type: NodeKind.File,
+    path: 'a.py',
+    fullPath: '/r/a.py',
+    extension: '.py',
+    size: 10,
+    lines: 3,
+    binary: false,
+    created: '2026-01-01T00:00:00Z',
+    modified: '2026-01-01T00:00:00Z',
+    mediaKind: null,
+    dirty: false,
+  };
+  const renamed = { ...file, name: 'b.py', path: 'b.py', fullPath: '/r/b.py' };
+
+  const original = mkManifest(10);
+  const withRenamedFile = {
+    tree: { name: 'r', type: NodeKind.Directory, path: '.', children: [renamed] },
+  } as unknown as Manifest;
+
+  expect(computeLayoutSignature(original)).not.toBe(computeLayoutSignature(withRenamedFile));
+});

@@ -126,7 +126,11 @@ export function computeLayoutSignature(manifest: Manifest): string {
     } else {
       mix(node.path);
       mix('/');
-      for (const c of node.children) walk(c);
+      // Sort by path for determinism, regardless of manifest child order.
+      for (const c of [...node.children].sort((a, b) =>
+        a.path < b.path ? -1 : a.path > b.path ? 1 : 0
+      ))
+        walk(c);
     }
   };
   walk(manifest.tree as unknown as TreeNode);
