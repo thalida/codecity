@@ -72,3 +72,16 @@ def test_dirty_file_uses_worktree_mtime_and_flag(tmp_path: Path):
     # modified would be OLDER than b.py; the override flips that).
     assert nodes["a.py"]["modified"] >= nodes["b.py"]["modified"]
     assert manifest["repo"]["dirty"] is True
+
+
+def test_dirty_file_count_matches_flags(tmp_path: Path):
+    _git(tmp_path, "init", "-q")
+    _git(tmp_path, "config", "user.email", "t@t")
+    _git(tmp_path, "config", "user.name", "t")
+    (tmp_path / "a.py").write_text("1\n")
+    (tmp_path / "b.py").write_text("2\n")
+    _git(tmp_path, "add", ".")
+    _git(tmp_path, "commit", "-qm", "init")
+    (tmp_path / "a.py").write_text("1\n2\n")  # dirty one file
+    manifest = _final_manifest(str(tmp_path), use_cache=False)
+    assert manifest["stats"]["dirtyFileCount"] == 1
