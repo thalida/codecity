@@ -23,7 +23,7 @@ import type { TreePlacement } from '../components/trees/treePlacement';
 import { gemAnchorXZ } from '@/city/components/gem/anchor';
 import { buildIconAtlas } from '../components/buildings/atlas';
 import { setIconAtlas } from '../components/buildings/material';
-import type { createLayoutClient } from '../layout';
+import { computeLayoutSignature, type createLayoutClient } from '../layout';
 
 export interface CityState {
   manifest: Signal<Manifest | null>;
@@ -269,12 +269,16 @@ export function createCityState(layoutClient: ReturnType<typeof createLayoutClie
       }
     }
 
-    // Reuse the committed layout's positions when the structure is unchanged
-    // (same tree_signature as the live manifest) and a config Save hasn't
-    // invalidated — the committed manifest + layout signals ARE the cache.
-    // `invalidated` is one-shot, consumed here.
-    const shouldReuse =
-      !invalidated && treeSig !== '' && treeSig === manifest.peek()?.tree_signature;
+    // Reuse the packed layout only when the packer's own inputs (structure +
+    // per-file size) are unchanged — NOT merely the tree structure. A live
+    // content edit changes sizes, so it takes the full re-pack path and
+    // streets/positions re-solve; a dates-only change (or a settings re-apply
+    // of the identical manifest) still reuses.
+    const prev = manifest.peek();
+    const prevIsFull = !!prev && 'tree_signature' in (prev as object);
+    const layoutSig = computeLayoutSignature(newManifest);
+    const prevLayoutSig = prevIsFull ? computeLayoutSignature(prev as Manifest) : '';
+    const shouldReuse = !invalidated && prevLayoutSig !== '' && layoutSig === prevLayoutSig;
     invalidated = false;
     const reusedLayout = shouldReuse ? layout.peek() : null;
     let newLayout: CityLayout;

@@ -53,7 +53,7 @@ const EMPTY_DATE_RANGES: DateRanges = {
 
 function makeManifest(treeSig: string): Manifest {
   return {
-    tree: { type: 'directory', name: treeSig, children: [] },
+    tree: { type: 'directory', name: treeSig, path: '.', children: [] },
     tree_signature: treeSig,
     dateRanges: EMPTY_DATE_RANGES,
     commits: [],
