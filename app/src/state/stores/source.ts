@@ -14,11 +14,11 @@ import { PERSISTED_KEYS } from '@/constants/storage';
 import { MAX_RECENT_SOURCES } from '@/constants/ui';
 import { URL_PARAMS } from '@/constants/urlParams';
 import { MANIFEST } from '@/state/stores/manifest';
-import { srcKind, SourceKind, resolveBranch } from '@/utils/sources';
+import { srcKind, SourceKind, resolveBranch, identityBranch } from '@/utils/sources';
 import { isEmptyManifest } from '@/utils/manifest';
 import type { Manifest } from '@/types';
 
-// ── sourceKey: stable short hash of (src, branch) ────────────────────
+// ── sourceKey: stable short hash of a source's identity ──────────────
 
 function djb2(s: string): string {
   let h = 5381;
@@ -29,14 +29,13 @@ function djb2(s: string): string {
 }
 
 /**
- * Compute a short stable hash for a (src, branch) pair. Used to namespace
- * per-source state (selection, camera pose) in localStorage.
- *
- * The hash distinguishes (src, undefined) from (src, ""), but in practice
- * we treat empty-string branch as "no branch" — callers should pass undefined.
+ * Compute a short stable hash for a source's identity. Used to namespace
+ * per-source state (selection, camera pose) in localStorage. The branch is part
+ * of the identity only for a remote source; a local source is branch-less (see
+ * identityBranch), so its checkout never fragments the namespace.
  */
 export function sourceKey(src: string, branch?: string): string {
-  return djb2(`${src}\0${branch ?? ''}`);
+  return djb2(`${src}\0${identityBranch(src, branch) ?? ''}`);
 }
 
 // ── Currently-loaded source ──────────────────────────────────────────
@@ -130,16 +129,26 @@ export function listRecents(): RecentSource[] {
   return RECENTS.value;
 }
 
+/** Whether two recents refer to the same source: same src and same identity
+ *  branch (undefined for a local path, so its checkout never splits the row). */
+function sameRecentIdentity(
+  a: { src: string; branch?: string },
+  b: { src: string; branch?: string }
+): boolean {
+  return (
+    a.src === b.src &&
+    (identityBranch(a.src, a.branch) ?? '') === (identityBranch(b.src, b.branch) ?? '')
+  );
+}
+
 /**
- * Push (or update) an entry. Dedupes by (src, branch ?? ''). The pushed
- * entry becomes the most-recent. List is capped at MAX_RECENT_SOURCES
- * entries (oldest dropped).
+ * Push (or update) an entry. Dedupes by source identity (src, plus branch for a
+ * remote — a local path is one row regardless of checkout). The pushed entry
+ * becomes the most-recent. List is capped at MAX_RECENT_SOURCES (oldest dropped).
  */
 export function pushRecent(entry: Omit<RecentSource, 'lastOpenedAt'>): void {
   const now = Date.now();
-  const filtered = RECENTS.value.filter(
-    (r) => !(r.src === entry.src && (r.branch ?? '') === (entry.branch ?? ''))
-  );
+  const filtered = RECENTS.value.filter((r) => !sameRecentIdentity(r, entry));
   filtered.unshift({ ...entry, lastOpenedAt: now });
   RECENTS.value = filtered.slice(0, MAX_RECENT_SOURCES);
 }
@@ -155,20 +164,23 @@ export function setCurrentSource(
   branch: string | undefined,
   manifest: Manifest
 ): void {
-  CURRENT_SOURCE.value = { src, branch };
+  // A local source carries no branch (identityBranch): its checkout is dynamic,
+  // so CURRENT_SOURCE, the URL, the cache key, and the recent all omit it. The
+  // checked-out branch is still shown in the header via SOURCE_INFO, which reads
+  // it from the manifest — display only, not identity.
+  const idBranch = identityBranch(src, branch);
+  CURRENT_SOURCE.value = { src, branch: idBranch };
   pushRecent({
     src,
     // The server bakes the canonical owner/repo name into tree.name (a local
     // worktree's src basename would be the folder name, not the repo); keep the
     // raw src only as a defensive fallback.
     label: manifest.tree?.name || src,
-    branch: resolveBranch(manifest, branch),
+    branch: identityBranch(src, resolveBranch(manifest, branch)),
   });
 }
 
-/** Drop the entry matching (src, branch). No-op if not present. */
+/** Drop the entry matching the given source identity. No-op if not present. */
 export function removeRecent(src: string, branch?: string): void {
-  RECENTS.value = RECENTS.value.filter(
-    (r) => !(r.src === src && (r.branch ?? '') === (branch ?? ''))
-  );
+  RECENTS.value = RECENTS.value.filter((r) => !sameRecentIdentity(r, { src, branch }));
 }

@@ -39,6 +39,18 @@ export function resolveBranch(
 }
 
 /**
+ * The branch that forms part of a source's identity. A local source has no
+ * branch axis: it scans whatever is checked out on disk, so a stored branch
+ * would be a lie and must never namespace its cache, URL, or recents. Its
+ * identity branch is therefore always undefined; a remote source keeps its
+ * branch. Callers pass this through sourceKey, the URL, and recents dedupe so
+ * "local is branch-less" is enforced in one place, not re-derived everywhere.
+ */
+export function identityBranch(src: string, branch?: string): string | undefined {
+  return srcKind(src) === SourceKind.Local ? undefined : branch;
+}
+
+/**
  * True when a source can't be loaded without first choosing a branch: a remote
  * URL with no branch specified. The picker resolves the repo's branches and
  * preselects the default, so branch choice is explicit rather than an implicit

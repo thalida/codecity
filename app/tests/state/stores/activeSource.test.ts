@@ -14,15 +14,22 @@ import type { Manifest } from '@/types';
 
 describe('sourceKey', () => {
   it('is deterministic for the same (src, branch)', () => {
-    expect(sourceKey('/foo', 'main')).toBe(sourceKey('/foo', 'main'));
+    expect(sourceKey('https://x/r', 'main')).toBe(sourceKey('https://x/r', 'main'));
   });
 
-  it('distinguishes branches', () => {
-    expect(sourceKey('/foo', 'main')).not.toBe(sourceKey('/foo', 'develop'));
+  it('distinguishes branches for a remote source', () => {
+    expect(sourceKey('https://x/r', 'main')).not.toBe(sourceKey('https://x/r', 'develop'));
   });
 
-  it('distinguishes (src, undefined) from (src, "main")', () => {
-    expect(sourceKey('/foo')).not.toBe(sourceKey('/foo', 'main'));
+  it('distinguishes (src, undefined) from (src, "main") for a remote source', () => {
+    expect(sourceKey('https://x/r')).not.toBe(sourceKey('https://x/r', 'main'));
+  });
+
+  it('ignores the branch for a local source (no branch axis)', () => {
+    // A local repo scans whatever is checked out; branch is not part of its
+    // identity, so the same path always hashes to one namespace.
+    expect(sourceKey('/foo', 'main')).toBe(sourceKey('/foo'));
+    expect(sourceKey('/foo', 'main')).toBe(sourceKey('/foo', 'develop'));
   });
 
   it('produces a short alphanumeric string', () => {
@@ -121,12 +128,26 @@ describe('setCurrentSource', () => {
     expect(listRecents()[0].branch).toBe('dev');
   });
 
-  it('records a local source with its working-tree checkout branch', () => {
-    // A local worktree ignores any requested branch and reports its checkout.
+  it('records a local source with no branch (branch is not part of its identity)', () => {
+    // A local worktree scans whatever is checked out; storing that branch would
+    // be a lie (it changes on disk), so the recent and CURRENT_SOURCE omit it.
     setCurrentSource('/Users/me/worktrees/feat-x', undefined, {
       tree: { name: 'owner/codecity' },
       repo: { branch: 'feat/issue-77' },
     } as unknown as Manifest);
-    expect(listRecents()[0].branch).toBe('feat/issue-77');
+    expect(CURRENT_SOURCE.value).toEqual({ src: '/Users/me/worktrees/feat-x', branch: undefined });
+    expect(listRecents()[0].branch).toBeUndefined();
+  });
+
+  it('drops the branch from CURRENT_SOURCE + the URL for a local source', () => {
+    // Even if a stale branch is passed in (old deep-link, recents onOpen), a
+    // local source never carries it: CURRENT_SOURCE and the page URL stay clean.
+    setCurrentSource('/Users/me/proj', 'stale-branch', {
+      tree: { name: 'proj' },
+      repo: { branch: 'main' },
+    } as unknown as Manifest);
+    expect(CURRENT_SOURCE.value).toEqual({ src: '/Users/me/proj', branch: undefined });
+    const u = new URL(window.location.href);
+    expect(u.searchParams.has('branch')).toBe(false);
   });
 });

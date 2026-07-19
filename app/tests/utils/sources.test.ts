@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { srcKind, SourceKind, srcNeedsBranch, looksLikePath } from '@/utils/sources';
+import {
+  srcKind,
+  SourceKind,
+  srcNeedsBranch,
+  identityBranch,
+  looksLikePath,
+} from '@/utils/sources';
 
 // NOTE: repo display-name derivation lives entirely server-side now (see
 // api/tests/test_source.py — label_from_source / display_name_for_manifest).
@@ -31,6 +37,19 @@ describe('srcNeedsBranch', () => {
   it('is false for a local path (no branch axis)', () => {
     expect(srcNeedsBranch('/Users/x/repo')).toBe(false);
     expect(srcNeedsBranch('./relative', undefined)).toBe(false);
+  });
+});
+
+describe('identityBranch', () => {
+  it('keeps the branch for a remote source', () => {
+    expect(identityBranch('https://github.com/o/r', 'main')).toBe('main');
+    expect(identityBranch('git@github.com:o/r.git', 'dev')).toBe('dev');
+    expect(identityBranch('https://github.com/o/r', undefined)).toBeUndefined();
+  });
+  it('drops the branch for a local source (no branch axis)', () => {
+    expect(identityBranch('/Users/x/repo', 'main')).toBeUndefined();
+    expect(identityBranch('./relative', 'feat/x')).toBeUndefined();
+    expect(identityBranch('/Users/x/repo', undefined)).toBeUndefined();
   });
 });
 

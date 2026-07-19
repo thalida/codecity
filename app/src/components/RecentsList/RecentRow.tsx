@@ -75,7 +75,9 @@ export function RecentRow(props: RecentRowProps) {
         <div class="recent-row-body">
           <div class="recent-label-row">
             <span class="recent-label">{r.label}</span>
-            {r.branch && <span class="app-header-branch-pill">@{r.branch}</span>}
+            {/* Local paths have no branch identity (the checkout is dynamic), so
+                no @branch pill — only a remote's picked branch is shown. */}
+            {!isLocal && r.branch && <span class="app-header-branch-pill">@{r.branch}</span>}
           </div>
           <div class="recent-sub">
             <span class="recent-src">{r.src}</span>

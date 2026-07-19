@@ -1,16 +1,15 @@
 // components/RecentsList/RecentsList.tsx — recent projects: a heading and the
-// list. Active state derives from SOURCE_INFO (the resolved branch, matching
-// how recents store it — CURRENT_SOURCE keeps the raw submitted branch, which is
-// undefined for a local repo whose recent carries its resolved HEAD).
-// Remove is non-destructive: it forgets the entry only, it does not
-// clear the scan cache (that's the skip-cache control's job). Renders nothing
-// when there are no recents.
+// list. Active state derives from SOURCE_INFO and matches on source identity
+// (src + remote branch; a local path ignores branch, since its recent stores
+// none and SOURCE_INFO shows the live checkout). Remove is non-destructive: it
+// forgets the entry only, it does not clear the scan cache (that's the
+// skip-cache control's job). Renders nothing when there are no recents.
 
 import './RecentsList.css';
 import { useState } from 'preact/hooks';
 import { listRecents, removeRecent, SOURCE_INFO } from '@/state/stores/source';
 import { SERVER_CONFIG } from '@/state/stores/serverConfig';
-import { srcKind, SourceKind } from '@/utils/sources';
+import { srcKind, SourceKind, identityBranch } from '@/utils/sources';
 import type { SourcePayload } from '@/state/stores/ui';
 import { RecentRow } from './RecentRow';
 
@@ -24,9 +23,15 @@ export function RecentsList({ onOpen }: RecentsListProps) {
   const allowLocal = SERVER_CONFIG.value.allowLocalRepos;
   const [confirming, setConfirming] = useState<string | null>(null); // key of row
 
-  const keyOf = (r: { src: string; branch?: string }) => `${r.src}:${r.branch ?? ''}`;
+  // Key + active-match on source identity: a local path ignores branch (its
+  // recent stores none and SOURCE_INFO shows the live checkout), so a checkout
+  // change neither re-keys the row nor drops its active badge.
+  const keyOf = (r: { src: string; branch?: string }) =>
+    `${r.src}:${identityBranch(r.src, r.branch) ?? ''}`;
   const isActive = (r: { src: string; branch?: string }) =>
-    !!si.src && r.src === si.src && (r.branch ?? '') === (si.branch ?? '');
+    !!si.src &&
+    r.src === si.src &&
+    (identityBranch(r.src, r.branch) ?? '') === (identityBranch(si.src, si.branch) ?? '');
   // A local recent while local repos are off can't load; still clickable (the
   // server error explains why), just flagged with a hint glyph.
   const isUnavailable = (r: { src: string }) => srcKind(r.src) === SourceKind.Local && !allowLocal;
