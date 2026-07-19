@@ -1,6 +1,8 @@
 // state/stores/source.ts — Everything about *which source is loaded*: the
-// current source's stable key + display info, the per-(src,branch) hash used to
-// namespace per-source localStorage slots, and the recently-opened list.
+// current source's stable key + display info and the recently-opened list. The
+// pure source-identity helpers (sourceKey/sourceIdentity/sameSourceIdentity)
+// live in utils/sources; this module owns the signals and persistence built on
+// them.
 //
 // CURRENT_SOURCE is session-scoped (set on every successful source apply);
 // CURRENT_SOURCE_KEY + SOURCE_INFO derive from it (the latter also from
@@ -14,41 +16,16 @@ import { PERSISTED_KEYS } from '@/constants/storage';
 import { MAX_RECENT_SOURCES } from '@/constants/ui';
 import { URL_PARAMS } from '@/constants/urlParams';
 import { MANIFEST } from '@/state/stores/manifest';
-import { srcKind, SourceKind, resolveBranch, identityBranch } from '@/utils/sources';
+import {
+  srcKind,
+  SourceKind,
+  resolveBranch,
+  identityBranch,
+  sourceKey,
+  sameSourceIdentity,
+} from '@/utils/sources';
 import { isEmptyManifest } from '@/utils/manifest';
 import type { Manifest } from '@/types';
-
-// ── sourceKey: stable short hash of a source's identity ──────────────
-
-function djb2(s: string): string {
-  let h = 5381;
-  for (let i = 0; i < s.length; i++) {
-    h = ((h << 5) + h + s.charCodeAt(i)) | 0;
-  }
-  return (h >>> 0).toString(36); // unsigned, base-36 — ~6-7 chars
-}
-
-/**
- * The canonical identity string for a source: its src joined with its branch.
- * Two sources with the same identity string are "the same source" everywhere it
- * matters — the localStorage namespace (sourceKey hashes this), recents dedupe,
- * and the active-row match. Trusts branch to already be normalized upstream: a
- * local source commits `branch: undefined` (see identityBranch, applied when the
- * source is committed), so its checkout never reaches here to fragment identity.
- * NUL-separated (can't appear in a path or URL) so src and branch can't collide
- * across the boundary.
- */
-export function sourceIdentity(src: string, branch?: string): string {
-  return `${src}\0${branch ?? ''}`;
-}
-
-/**
- * Compute a short stable hash for a source's identity. Used to namespace
- * per-source state (selection, camera pose) in localStorage.
- */
-export function sourceKey(src: string, branch?: string): string {
-  return djb2(sourceIdentity(src, branch));
-}
 
 // ── Currently-loaded source ──────────────────────────────────────────
 
@@ -139,16 +116,6 @@ export const RECENTS = persistedSignal<RecentSource[]>(PERSISTED_KEYS.RECENTS, [
 
 export function listRecents(): RecentSource[] {
   return RECENTS.value;
-}
-
-/** Whether two source refs are the same source (same identity string). Local
- *  refs are committed branch-less, so a checkout change never splits them.
- *  Shared by recents dedupe/removal and the active-row match. */
-export function sameSourceIdentity(
-  a: { src: string; branch?: string },
-  b: { src: string; branch?: string }
-): boolean {
-  return sourceIdentity(a.src, a.branch) === sourceIdentity(b.src, b.branch);
 }
 
 /**

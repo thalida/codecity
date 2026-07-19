@@ -1,6 +1,5 @@
 import { describe, it, expect, afterEach } from 'vitest';
 import {
-  sourceKey,
   CURRENT_SOURCE_KEY,
   CURRENT_SOURCE,
   SOURCE_INFO,
@@ -8,28 +7,10 @@ import {
   listRecents,
   RECENTS,
 } from '@/state/stores/source';
+import { sourceKey } from '@/utils/sources';
 import { setManifest } from '@/state/stores/manifest';
 import { EMPTY_MANIFEST } from '@/constants/manifest';
 import type { Manifest } from '@/types';
-
-describe('sourceKey', () => {
-  it('is deterministic for the same (src, branch)', () => {
-    expect(sourceKey('https://x/r', 'main')).toBe(sourceKey('https://x/r', 'main'));
-  });
-
-  it('distinguishes branches for a remote source', () => {
-    expect(sourceKey('https://x/r', 'main')).not.toBe(sourceKey('https://x/r', 'develop'));
-  });
-
-  it('distinguishes (src, undefined) from (src, "main") for a remote source', () => {
-    expect(sourceKey('https://x/r')).not.toBe(sourceKey('https://x/r', 'main'));
-  });
-
-  it('produces a short alphanumeric string', () => {
-    const k = sourceKey('/Users/example/repos/codecity');
-    expect(k).toMatch(/^[a-z0-9]{1,10}$/);
-  });
-});
 
 describe('CURRENT_SOURCE → CURRENT_SOURCE_KEY (derived)', () => {
   afterEach(() => {

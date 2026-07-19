@@ -8,15 +8,9 @@
 
 import './RecentsList.css';
 import { useState } from 'preact/hooks';
-import {
-  listRecents,
-  removeRecent,
-  CURRENT_SOURCE,
-  sourceIdentity,
-  sameSourceIdentity,
-} from '@/state/stores/source';
+import { listRecents, removeRecent, CURRENT_SOURCE } from '@/state/stores/source';
 import { SERVER_CONFIG } from '@/state/stores/serverConfig';
-import { srcKind, SourceKind } from '@/utils/sources';
+import { srcKind, SourceKind, sourceIdentity, sameSourceIdentity } from '@/utils/sources';
 import type { SourcePayload } from '@/state/stores/ui';
 import { RecentRow } from './RecentRow';
 

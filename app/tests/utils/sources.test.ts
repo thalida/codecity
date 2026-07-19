@@ -4,6 +4,9 @@ import {
   SourceKind,
   srcNeedsBranch,
   identityBranch,
+  sourceIdentity,
+  sameSourceIdentity,
+  sourceKey,
   looksLikePath,
 } from '@/utils/sources';
 
@@ -50,6 +53,57 @@ describe('identityBranch', () => {
     expect(identityBranch('/Users/x/repo', 'main')).toBeUndefined();
     expect(identityBranch('./relative', 'feat/x')).toBeUndefined();
     expect(identityBranch('/Users/x/repo', undefined)).toBeUndefined();
+  });
+});
+
+describe('sourceIdentity', () => {
+  it('is equal for the same src + branch and differs on either', () => {
+    expect(sourceIdentity('https://x/r', 'main')).toBe(sourceIdentity('https://x/r', 'main'));
+    expect(sourceIdentity('https://x/r', 'main')).not.toBe(sourceIdentity('https://x/r', 'dev'));
+    expect(sourceIdentity('https://x/r')).not.toBe(sourceIdentity('https://y/r'));
+  });
+  it('treats undefined and empty-string branch as the same (no branch)', () => {
+    expect(sourceIdentity('/foo', undefined)).toBe(sourceIdentity('/foo', ''));
+  });
+});
+
+describe('sameSourceIdentity', () => {
+  it('matches two refs with the same identity', () => {
+    expect(sameSourceIdentity({ src: '/foo' }, { src: '/foo', branch: undefined })).toBe(true);
+    expect(
+      sameSourceIdentity(
+        { src: 'https://x/r', branch: 'main' },
+        { src: 'https://x/r', branch: 'main' }
+      )
+    ).toBe(true);
+  });
+  it('rejects a different src or branch', () => {
+    expect(sameSourceIdentity({ src: '/foo' }, { src: '/bar' })).toBe(false);
+    expect(
+      sameSourceIdentity(
+        { src: 'https://x/r', branch: 'main' },
+        { src: 'https://x/r', branch: 'dev' }
+      )
+    ).toBe(false);
+  });
+});
+
+describe('sourceKey', () => {
+  it('is deterministic for the same (src, branch)', () => {
+    expect(sourceKey('https://x/r', 'main')).toBe(sourceKey('https://x/r', 'main'));
+  });
+
+  it('distinguishes branches for a remote source', () => {
+    expect(sourceKey('https://x/r', 'main')).not.toBe(sourceKey('https://x/r', 'develop'));
+  });
+
+  it('distinguishes (src, undefined) from (src, "main") for a remote source', () => {
+    expect(sourceKey('https://x/r')).not.toBe(sourceKey('https://x/r', 'main'));
+  });
+
+  it('produces a short alphanumeric string', () => {
+    const k = sourceKey('/Users/example/repos/codecity');
+    expect(k).toMatch(/^[a-z0-9]{1,10}$/);
   });
 });
 

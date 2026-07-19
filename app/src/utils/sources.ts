@@ -51,6 +51,48 @@ export function identityBranch(src: string, branch?: string): string | undefined
   return srcKind(src) === SourceKind.Local ? undefined : branch;
 }
 
+// ── Source identity ──────────────────────────────────────────────────
+// A source's identity is (src + its identity branch). These derive a comparable
+// string, a boolean match, and a short hash from it — used for the localStorage
+// namespace, recents dedupe, and the active-row match. All pure: they trust the
+// branch to be normalized at the commit boundary (identityBranch), so a local
+// source is already branch-less by the time it reaches here.
+
+/**
+ * The canonical identity string for a source: its src joined with its branch.
+ * Two sources with the same identity string are "the same source". NUL-separated
+ * (can't appear in a path or URL) so src and branch can't collide across the
+ * boundary.
+ */
+export function sourceIdentity(src: string, branch?: string): string {
+  return `${src}\0${branch ?? ''}`;
+}
+
+/** Whether two source refs are the same source (same identity string). Local
+ *  refs are committed branch-less, so a checkout change never splits them. */
+export function sameSourceIdentity(
+  a: { src: string; branch?: string },
+  b: { src: string; branch?: string }
+): boolean {
+  return sourceIdentity(a.src, a.branch) === sourceIdentity(b.src, b.branch);
+}
+
+function djb2(s: string): string {
+  let h = 5381;
+  for (let i = 0; i < s.length; i++) {
+    h = ((h << 5) + h + s.charCodeAt(i)) | 0;
+  }
+  return (h >>> 0).toString(36); // unsigned, base-36 — ~6-7 chars
+}
+
+/**
+ * Compute a short stable hash for a source's identity. Used to namespace
+ * per-source state (selection, camera pose) in localStorage.
+ */
+export function sourceKey(src: string, branch?: string): string {
+  return djb2(sourceIdentity(src, branch));
+}
+
 /**
  * True when a source can't be loaded without first choosing a branch: a remote
  * URL with no branch specified. The picker resolves the repo's branches and
