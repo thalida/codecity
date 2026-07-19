@@ -39,12 +39,13 @@ export function resolveBranch(
 }
 
 /**
- * The branch that forms part of a source's identity. A local source has no
- * branch axis: it scans whatever is checked out on disk, so a stored branch
- * would be a lie and must never namespace its cache, URL, or recents. Its
- * identity branch is therefore always undefined; a remote source keeps its
- * branch. Callers pass this through sourceKey, the URL, and recents dedupe so
- * "local is branch-less" is enforced in one place, not re-derived everywhere.
+ * The branch to commit for a source. A local source has no branch axis: it
+ * scans whatever is checked out on disk, so a stored branch would be a lie and
+ * must never namespace its cache, URL, or recents. It therefore commits
+ * `undefined`; a remote source keeps its branch. Applied once at the commit
+ * boundary (the source load + setCurrentSource) so everything downstream — the
+ * URL, the cache key, recents identity — can trust a local source is branch-
+ * less without re-checking the source kind on every read.
  */
 export function identityBranch(src: string, branch?: string): string | undefined {
   return srcKind(src) === SourceKind.Local ? undefined : branch;

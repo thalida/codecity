@@ -38,22 +38,6 @@ describe('sourceRecents', () => {
     expect(listRecents()).toHaveLength(2);
   });
 
-  it('dedupes a local path by src only (branch is not part of its identity)', () => {
-    // Opening the same local path at different checkouts must not spawn a second
-    // row — a local source has no branch axis.
-    pushRecent({ src: '/repo', branch: 'main', label: 'repo' });
-    pushRecent({ src: '/repo', branch: 'feat/x', label: 'repo' });
-    const list = listRecents();
-    expect(list).toHaveLength(1);
-    expect(list[0].src).toBe('/repo');
-  });
-
-  it('removeRecent drops a local path regardless of any stored branch', () => {
-    pushRecent({ src: '/repo', branch: 'main', label: 'repo' });
-    removeRecent('/repo');
-    expect(listRecents()).toHaveLength(0);
-  });
-
   it('caps at 10 entries', () => {
     for (let i = 0; i < 15; i++) {
       pushRecent({ src: `/s${i}`, label: `s${i}` });

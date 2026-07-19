@@ -61,9 +61,11 @@ describe('RecentsList', () => {
     expect(onOpen).toHaveBeenCalledWith({ src: 'https://github.com/o/alpha', branch: 'main' });
   });
 
-  it('does not render an @branch pill on a local recent row', async () => {
+  it('renders a branch-less local recent with no @branch pill, matched active by path', async () => {
     SERVER_CONFIG.value = { allowLocalRepos: true };
-    RECENTS.value = [{ src: '/Users/me/proj', branch: 'feat/x', label: 'proj', lastOpenedAt: 3 }];
+    // A local recent is branch-less; CURRENT_SOURCE is too, so they match by src
+    // even though the loaded manifest reports a checkout branch (display only).
+    RECENTS.value = [{ src: '/Users/me/proj', label: 'proj', lastOpenedAt: 3 }];
     CURRENT_SOURCE.value = { src: '/Users/me/proj' };
     setManifest({ tree: { name: 'proj' }, repo: { branch: 'feat/x' } } as unknown as Manifest);
     render(<RecentsList onOpen={() => {}} />, container);
@@ -72,7 +74,6 @@ describe('RecentsList', () => {
     const rows = container.querySelectorAll('.recent-item');
     expect(rows).toHaveLength(1);
     expect(container.querySelector('.app-header-branch-pill')).toBeNull();
-    // The local row still matches the active source (by path, ignoring branch).
     expect(container.querySelector('.recent-row--active')).toBeTruthy();
   });
 

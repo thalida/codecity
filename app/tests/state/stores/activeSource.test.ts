@@ -25,13 +25,6 @@ describe('sourceKey', () => {
     expect(sourceKey('https://x/r')).not.toBe(sourceKey('https://x/r', 'main'));
   });
 
-  it('ignores the branch for a local source (no branch axis)', () => {
-    // A local repo scans whatever is checked out; branch is not part of its
-    // identity, so the same path always hashes to one namespace.
-    expect(sourceKey('/foo', 'main')).toBe(sourceKey('/foo'));
-    expect(sourceKey('/foo', 'main')).toBe(sourceKey('/foo', 'develop'));
-  });
-
   it('produces a short alphanumeric string', () => {
     const k = sourceKey('/Users/example/repos/codecity');
     expect(k).toMatch(/^[a-z0-9]{1,10}$/);
@@ -136,6 +129,21 @@ describe('setCurrentSource', () => {
       repo: { branch: 'feat/issue-77' },
     } as unknown as Manifest);
     expect(CURRENT_SOURCE.value).toEqual({ src: '/Users/me/worktrees/feat-x', branch: undefined });
+    expect(listRecents()[0].branch).toBeUndefined();
+  });
+
+  it('dedupes a local path across checkouts into one recent', () => {
+    // Opening the same local path at two different checkouts must not spawn a
+    // second row: both commits store branch: undefined, so they dedupe by src.
+    setCurrentSource('/proj', undefined, {
+      tree: { name: 'proj' },
+      repo: { branch: 'main' },
+    } as unknown as Manifest);
+    setCurrentSource('/proj', undefined, {
+      tree: { name: 'proj' },
+      repo: { branch: 'feat/x' },
+    } as unknown as Manifest);
+    expect(listRecents()).toHaveLength(1);
     expect(listRecents()[0].branch).toBeUndefined();
   });
 

@@ -29,13 +29,25 @@ function djb2(s: string): string {
 }
 
 /**
+ * The canonical identity string for a source: its src joined with its branch.
+ * Two sources with the same identity string are "the same source" everywhere it
+ * matters — the localStorage namespace (sourceKey hashes this), recents dedupe,
+ * and the active-row match. Trusts branch to already be normalized upstream: a
+ * local source commits `branch: undefined` (see identityBranch, applied when the
+ * source is committed), so its checkout never reaches here to fragment identity.
+ * NUL-separated (can't appear in a path or URL) so src and branch can't collide
+ * across the boundary.
+ */
+export function sourceIdentity(src: string, branch?: string): string {
+  return `${src}\0${branch ?? ''}`;
+}
+
+/**
  * Compute a short stable hash for a source's identity. Used to namespace
- * per-source state (selection, camera pose) in localStorage. The branch is part
- * of the identity only for a remote source; a local source is branch-less (see
- * identityBranch), so its checkout never fragments the namespace.
+ * per-source state (selection, camera pose) in localStorage.
  */
 export function sourceKey(src: string, branch?: string): string {
-  return djb2(`${src}\0${identityBranch(src, branch) ?? ''}`);
+  return djb2(sourceIdentity(src, branch));
 }
 
 // ── Currently-loaded source ──────────────────────────────────────────
@@ -135,10 +147,7 @@ function sameRecentIdentity(
   a: { src: string; branch?: string },
   b: { src: string; branch?: string }
 ): boolean {
-  return (
-    a.src === b.src &&
-    (identityBranch(a.src, a.branch) ?? '') === (identityBranch(b.src, b.branch) ?? '')
-  );
+  return sourceIdentity(a.src, a.branch) === sourceIdentity(b.src, b.branch);
 }
 
 /**
