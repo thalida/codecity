@@ -32,7 +32,9 @@ export interface FileNode {
    *  file has one, filesystem date otherwise (e.g. staged-but-uncommitted). */
   created: string;
   /** ISO modify date, resolved server-side: git history date when the
-   *  file has one, filesystem date otherwise (e.g. staged-but-uncommitted). */
+   *  file has one, filesystem date otherwise (e.g. staged-but-uncommitted).
+   *  When dirty is true, this is always the working-tree filesystem date,
+   *  regardless of git history. */
   modified: string;
   /**
    * Media classification by extension, computed by the backend (single

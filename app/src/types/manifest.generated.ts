@@ -443,7 +443,7 @@ export interface components {
             created: string;
             /**
              * Modified
-             * @description ISO modify date (UTC, Z-suffixed), resolved server-side: git history date when the file has one, filesystem date otherwise
+             * @description ISO modify date (UTC, Z-suffixed), resolved server-side: git history date when the file has one, filesystem date otherwise. When dirty is true, this is always the working-tree filesystem date, regardless of git history
              */
             modified: string;
             /**

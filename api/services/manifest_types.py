@@ -59,6 +59,8 @@ class FileNode(TypedDict):
     dirty: bool
     # Resolved server-side: git history date when the file has one,
     # filesystem date otherwise (e.g. staged-but-uncommitted files).
+    # When dirty is true, modified is always the working-tree filesystem
+    # date, regardless of git history.
     created: str
     modified: str
     # Optional pixel dimensions for recognized media files (png/jpg/svg/

@@ -531,12 +531,15 @@ def _collect_dirty_paths(root: Path) -> set[str]:
     return _parse_dirty_paths(_run_git(root, "status", "--porcelain", "-z"))
 
 
-def _collect_repo_info(root: Path) -> RepoInfo:
-    """Repo-level git metadata for the manifest's `repo` field.
+def _collect_repo_info(root: Path) -> tuple[RepoInfo, set[str]]:
+    """Repo-level git metadata for the manifest's `repo` field, plus the
+    dirty-path set the caller needs to thread into the tree walk.
 
     Cheap-ish: one rev-parse, one symbolic-ref, one config read, one
     log -1, and one porcelain status. The status walk dominates on
-    large dirty trees but is still a single git invocation.
+    large dirty trees, so it's collected here ONCE and returned
+    alongside `info` rather than re-run by callers that also need the
+    per-path set (`repo.dirty` is just `bool(dirty_paths)`).
     """
     info: RepoInfo = {
         "branch": None,
@@ -572,9 +575,10 @@ def _collect_repo_info(root: Path) -> RepoInfo:
         info["head_sha"] = sha or None
         info["head_subject"] = subject or None
 
-    info["dirty"] = bool(_collect_dirty_paths(root))
+    dirty_paths = _collect_dirty_paths(root)
+    info["dirty"] = bool(dirty_paths)
 
-    return info
+    return info, dirty_paths
 
 
 # ── Skip list ────────────────────────────────────────────────────────────────
@@ -1358,8 +1362,7 @@ def scan_tree(
         Path(root_abs),
         use_cache=use_cache,
     )
-    repo_info = _collect_repo_info(Path(root_abs))
-    dirty_paths = _collect_dirty_paths(Path(root_abs))
+    repo_info, dirty_paths = _collect_repo_info(Path(root_abs))
 
     _check_cancel(cancel_event)  # after git metadata, before tree walk
 
@@ -1548,7 +1551,7 @@ def signature_tree(
         raise NotAGitRepoError(root_abs)
 
     tracked_files = _collect_tracked_set(root_path)
-    repo_info = _collect_repo_info(root_path)
+    repo_info, _dirty_paths = _collect_repo_info(root_path)
 
     ignore_names, ignore_paths, unignore_names, unignore_paths = _load_codecityignore(
         root_path

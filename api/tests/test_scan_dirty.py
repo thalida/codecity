@@ -1,5 +1,9 @@
 # api/tests/test_scan_dirty.py
-from api.services.scan import _parse_dirty_paths
+import subprocess
+from pathlib import Path
+
+from api.services.manifest_types import Manifest
+from api.services.scan import _parse_dirty_paths, scan_tree
 
 
 def test_parse_dirty_paths_reads_modified_and_staged_skips_untracked():
@@ -25,12 +29,6 @@ def test_parse_dirty_paths_rename_takes_destination():
 
 def test_parse_dirty_paths_empty():
     assert _parse_dirty_paths("") == set()
-
-
-import subprocess
-from pathlib import Path
-from api.services.scan import scan_tree
-from api.services.manifest_types import Manifest
 
 
 def _git(root: Path, *args: str) -> None:
