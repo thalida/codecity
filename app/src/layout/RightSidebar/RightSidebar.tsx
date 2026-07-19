@@ -31,6 +31,7 @@ import {
   focusCommit,
 } from '@/state/stores/scene';
 import { MANIFEST } from '@/state/stores/manifest';
+import { findNodeByPath } from '@/utils/manifest';
 import { addExclude } from '@/state/stores/excludes';
 import { FilePreviewPane } from '@/views/FilePreviewPane/FilePreviewPane';
 import type { FilePreviewPaneState } from '@/views/FilePreviewPane/FilePreviewPane';
@@ -98,8 +99,11 @@ export function RightSidebar() {
     return null;
   });
   const fileState = useComputed<FilePreviewPaneState>(() => {
+    const m = MANIFEST.value as Manifest | DirNode | null; // re-derive on live-update publishes
     const sel = SCENE_HANDLE.value?.picker.selection.value ?? null;
-    return { file: sel?.kind === NodeKind.File ? sel.file : null };
+    if (sel?.kind !== NodeKind.File) return { file: null };
+    const fresh = findNodeByPath(m, sel.file.path);
+    return { file: fresh?.type === NodeKind.File ? fresh : sel.file };
   });
   const commitState = useComputed<CommitPaneState>(() => {
     void MANIFEST.value; // re-derive on live-update rebuilds
@@ -110,10 +114,11 @@ export function RightSidebar() {
       : { commit: null };
   });
   const streetState = useComputed<StreetPaneState>(() => {
-    // The picker's Directory selection already carries the live street's dir
-    // (re-resolved on rebuild), so the pane just reflects it — no world lookup.
+    const m = MANIFEST.value as Manifest | DirNode | null; // re-derive on live-update publishes
     const sel = SCENE_HANDLE.value?.picker.selection.value ?? null;
-    return sel?.kind === NodeKind.Directory ? { directory: sel.dir } : { directory: null };
+    if (sel?.kind !== NodeKind.Directory) return { directory: null };
+    const fresh = findNodeByPath(m, sel.dir.path);
+    return { directory: fresh?.type === NodeKind.Directory ? fresh : sel.dir };
   });
 
   // Re-open after a manual close once a fresh selection arrives.

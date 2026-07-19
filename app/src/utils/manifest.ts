@@ -1,4 +1,4 @@
-// utils/manifest.ts — Pure predicates over the Manifest shape.
+// utils/manifest.ts — Pure predicates over, and lookups into, the Manifest shape.
 
 import { EMPTY_MANIFEST } from '@/constants/manifest';
 import { NodeKind, type Manifest, type DirNode, type TreeNode } from '@/types';
