@@ -176,6 +176,19 @@ describe('computeAlmanac — buildings + media', () => {
   it('stalest building = longest since modified', () => {
     expect(fact('buildings', 'Stalest').landmark).toEqual({ kind: 'file', id: 'tall.ts' });
   });
+  it('shows an Uncommitted fact when dirtyFileCount > 0', () => {
+    const dirty = computeAlmanac(
+      manifest(tree, { stats: { ...buildingsStats, dirtyFileCount: 4 } })
+    )!;
+    const f = dirty.sections
+      .find((s) => s.key === 'buildings')!
+      .facts.find((f) => f.label === 'Uncommitted');
+    expect(f?.primary).toBe('4 files');
+    expect(f?.landmark).toBeUndefined();
+  });
+  it('omits the Uncommitted fact when clean', () => {
+    expect(fact('buildings', 'Uncommitted')).toBeUndefined();
+  });
   it('splits media into its own Billboards section', () => {
     const withMedia = dir('repo', '', [
       file({ name: 'code.ts', path: 'code.ts', lines: 40, size: 400 }),
