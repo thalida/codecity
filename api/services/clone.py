@@ -151,6 +151,20 @@ _PROGRESS_NOISE_RE = re.compile(
 )
 
 
+# Force HTTP/1.1 for the big network ops (clone/fetch). GitHub serves git over
+# HTTP/2, whose stream multiplexing intermittently RSTs the pack transfer on very
+# large repos ("curl 92 … HTTP/2 stream … CANCEL" → early EOF). HTTP/1.1 uses a
+# single unmultiplexed stream and doesn't hit it; throughput is equivalent for a
+# one-pack clone. `-c key=value` must precede the git subcommand.
+_HTTP1_1 = ("-c", "http.version=HTTP/1.1")
+# How many times to retry a clone/fetch that died on a transient network drop.
+_NET_RETRY_ATTEMPTS = 3
+
+
+def _is_network_interruption(text: str) -> bool:
+    return any(pat.search(text) for pat in _NETWORK_INTERRUPTED_PATTERNS)
+
+
 def _clean_git_stderr(text: str, limit: int = 12) -> str:
     """Strip git's --progress lines so a failure message shows the actual error
     (the `error:`/`fatal:` lines), not a wall of percentages. Keep the last
@@ -185,12 +199,11 @@ def _maybe_raise_clean_clone_error(
     for pat in _HOST_UNREACHABLE_PATTERNS:
         if pat.search(stderr_text):
             raise HostUnreachableError("could not resolve host")
-    for pat in _NETWORK_INTERRUPTED_PATTERNS:
-        if pat.search(stderr_text):
-            raise CloneInterruptedError(
-                "the clone was interrupted mid-download (the connection dropped). "
-                "This is common on very large repos, so please try again."
-            )
+    if _is_network_interruption(stderr_text):
+        raise CloneInterruptedError(
+            "the clone was interrupted mid-download (the connection dropped). "
+            "This is common on very large repos, so please try again."
+        )
 
 
 def _git_env() -> dict[str, str]:
@@ -466,6 +479,49 @@ def _run_git_streaming(
     return stdout
 
 
+def _run_net_git(
+    *args: str,
+    before_retry: Callable[[], None] | None = None,
+    cancel_event: "threading.Event | None" = None,
+    **stream_kwargs: object,
+) -> str:
+    """_run_git_streaming for the big network ops (clone/fetch), hardened against
+    the flaky-transfer failures that plague very large repos:
+
+      - forces HTTP/1.1 (see _HTTP1_1) so GitHub's HTTP/2 stream multiplexing
+        can't RST the pack mid-download, which is the root cause of the
+        `curl 92 … CANCEL` → `early EOF` clone failures;
+      - retries a transient network drop up to _NET_RETRY_ATTEMPTS times with a
+        short backoff. `before_retry` runs between attempts (e.g. remove the
+        half-written clone, which `git clone` can't resume into).
+
+    Non-network failures (auth, repo-not-found, branch-not-found) are NOT
+    retried — they re-raise on the first try. Cancellation short-circuits.
+    """
+    last_err: CloneError | None = None
+    for attempt in range(_NET_RETRY_ATTEMPTS):
+        try:
+            return _run_git_streaming(
+                *_HTTP1_1, *args, cancel_event=cancel_event, **stream_kwargs
+            )
+        except CloneError as e:
+            last_err = e
+            if not _is_network_interruption(str(e)):
+                raise
+            if cancel_event is not None and cancel_event.is_set():
+                raise ScanCancelledError() from e
+            if attempt < _NET_RETRY_ATTEMPTS - 1:
+                _log(
+                    f"network drop mid-transfer; retrying "
+                    f"({attempt + 2}/{_NET_RETRY_ATTEMPTS})"
+                )
+                if before_retry is not None:
+                    before_retry()
+                time.sleep(min(2**attempt, 5))
+    assert last_err is not None
+    raise last_err
+
+
 def clone_dir_for(url: str, branch: str | None) -> Path:
     # SHA-256 (not SHA-1) — same length when truncated to 16 hex chars,
     # but avoids the FIPS-environment DeprecationWarning on SHA-1.
@@ -577,8 +633,11 @@ def _fresh_clone(
         args += ["--branch", branch]
     args += ["--", url, str(target)]
     try:
-        _run_git_streaming(
+        # HTTP/1.1 + retry (see _run_net_git). A retry must start from a clean
+        # target — git clone can't resume into a half-written directory.
+        _run_net_git(
             *args,
+            before_retry=lambda: shutil.rmtree(target, ignore_errors=True),
             progress_dir=pack_dir,
             on_progress=on_progress,
             on_heartbeat=on_heartbeat,
@@ -622,7 +681,9 @@ def ensure_clone(
     if target.exists():
         try:
             _log(f"fetching updates for {url}")
-            _run_git_streaming(
+            # Same HTTP/1.1 + retry hardening as the clone. No before_retry: a
+            # fetch into the existing repo is safe to re-run as-is.
+            _run_net_git(
                 "fetch",
                 "--prune",
                 "--progress",

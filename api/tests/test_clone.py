@@ -203,6 +203,51 @@ class CleanCloneErrorDispatcherTests(unittest.TestCase):
                 "Could not resolve host: no-such-host.example",
             )
 
+    def test_retryable_over_http1_1_then_succeeds(self) -> None:
+        # A transient network drop retries (forcing HTTP/1.1) and then succeeds.
+        calls: list[tuple[str, ...]] = []
+
+        def fake(*args: str, **kw: object) -> str:
+            calls.append(args)
+            if len(calls) < 2:
+                raise CloneError("git clone failed (exit 128): fatal: early EOF")
+            return "ok"
+
+        with (
+            mock.patch.object(clone_mod, "_run_git_streaming", side_effect=fake),
+            mock.patch.object(clone_mod.time, "sleep"),
+        ):
+            out = clone_mod._run_net_git("clone", "--", "url", "t")
+        self.assertEqual(out, "ok")
+        self.assertEqual(len(calls), 2)  # one retry
+        self.assertIn("http.version=HTTP/1.1", calls[0])  # forced on every attempt
+
+    def test_non_network_error_is_not_retried(self) -> None:
+        calls: list[tuple[str, ...]] = []
+
+        def fake(*args: str, **kw: object) -> str:
+            calls.append(args)
+            raise CloneError("fatal: Authentication failed")
+
+        with mock.patch.object(clone_mod, "_run_git_streaming", side_effect=fake):
+            with self.assertRaises(CloneError):
+                clone_mod._run_net_git("fetch")
+        self.assertEqual(len(calls), 1)  # no retry for a non-network failure
+
+    def test_before_retry_cleans_up_between_attempts(self) -> None:
+        cleaned: list[int] = []
+
+        def fake(*args: str, **kw: object) -> str:
+            raise CloneError("error: RPC failed; ... fatal: early EOF")
+
+        with (
+            mock.patch.object(clone_mod, "_run_git_streaming", side_effect=fake),
+            mock.patch.object(clone_mod.time, "sleep"),
+        ):
+            with self.assertRaises(CloneError):
+                clone_mod._run_net_git("clone", before_retry=lambda: cleaned.append(1))
+        self.assertEqual(len(cleaned), clone_mod._NET_RETRY_ATTEMPTS - 1)
+
     def test_network_interrupted(self) -> None:
         # A dropped connection mid-transfer (huge repo) — the real linux-kernel
         # failure tail. Must classify to a clean, retryable message.
