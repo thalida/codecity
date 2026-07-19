@@ -775,6 +775,7 @@ def _file_node(
     rel_path: str,
     git_created: dict[str, str],
     git_modified: dict[str, str],
+    dirty_paths: set[str],
     sig: Any,
 ) -> FileNode:
     """Build a FileNode skeleton — `lines` and `binary` are placeholders
@@ -792,6 +793,10 @@ def _file_node(
     # git_created/git_modified if no commit ever touched it (e.g. just added,
     # not yet committed) — those fall back to the fs dates. (Falsy `or`:
     # missing key → None → fs date; the maps never hold empty strings.)
+    # A dirty file's history date is stale by definition (the working tree has
+    # since diverged from HEAD), so its `modified` is forced to the fs date
+    # regardless of what git log last recorded.
+    is_dirty = rel_path in dirty_paths
     return {
         "name": entry.name,
         "type": NodeKind.FILE,
@@ -802,8 +807,11 @@ def _file_node(
         "size": size,
         "lines": 0,  # filled in by _populate_file_metadata
         "binary": False,  # filled in by _populate_file_metadata
+        "dirty": is_dirty,
         "created": git_created.get(rel_path) or fs_created,
-        "modified": git_modified.get(rel_path) or fs_modified,
+        "modified": fs_modified
+        if is_dirty
+        else (git_modified.get(rel_path) or fs_modified),
     }
 
 
@@ -1054,6 +1062,7 @@ def _build_tree(
     git_created: dict[str, str],
     git_modified: dict[str, str],
     tracked_files: set[str],
+    dirty_paths: set[str],
     ignore_names: frozenset[str],
     ignore_paths: frozenset[str],
     unignore_names: frozenset[str],
@@ -1091,7 +1100,9 @@ def _build_tree(
                 continue
 
             if entry.is_file(follow_symlinks=False):
-                node = _file_node(entry, entry_rel, git_created, git_modified, sig)
+                node = _file_node(
+                    entry, entry_rel, git_created, git_modified, dirty_paths, sig
+                )
                 top.files.append(node)
                 top.descendants_count += 1
                 top.descendants_file_count += 1
@@ -1348,6 +1359,7 @@ def scan_tree(
         use_cache=use_cache,
     )
     repo_info = _collect_repo_info(Path(root_abs))
+    dirty_paths = _collect_dirty_paths(Path(root_abs))
 
     _check_cancel(cancel_event)  # after git metadata, before tree walk
 
@@ -1369,6 +1381,7 @@ def scan_tree(
         git_created=git_created,
         git_modified=git_modified,
         tracked_files=tracked_files,
+        dirty_paths=dirty_paths,
         ignore_names=ignore_names,
         ignore_paths=ignore_paths,
         unignore_names=unignore_names,
