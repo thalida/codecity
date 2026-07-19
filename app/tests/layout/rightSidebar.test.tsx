@@ -16,6 +16,7 @@ const FILE_NODE: FileNode = {
   size: 1536,
   lines: 50,
   binary: false,
+  dirty: false,
   created: '2024-01-10T09:00:00Z',
   modified: '2024-03-20T10:00:00Z',
 };

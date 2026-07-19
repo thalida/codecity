@@ -25,6 +25,9 @@ export interface FileNode {
   size: number;
   lines: number;
   binary: boolean;
+  /** Working-tree differs from HEAD for this tracked file (staged or
+   *  unstaged). Always false for clean/remote repos. */
+  dirty: boolean;
   /** ISO create date, resolved server-side: git history date when the
    *  file has one, filesystem date otherwise (e.g. staged-but-uncommitted). */
   created: string;
@@ -262,6 +265,8 @@ export interface RepoStats {
   mediaCount: number;
   /** Sum of lines over non-media files (for the buildings overview average). */
   totalLines: number;
+  /** Count of file nodes with dirty === true (media included). */
+  dirtyFileCount: number;
   /** Sum of bytes over non-media files. */
   codeBytes: number;
   maxDepthDir: DirLeader | null;

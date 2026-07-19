@@ -432,6 +432,11 @@ export interface components {
             /** Binary */
             binary: boolean;
             /**
+             * Dirty
+             * @description Working-tree differs from HEAD for this tracked file (staged or unstaged). Always False for clean/remote repos.
+             */
+            dirty: boolean;
+            /**
              * Created
              * @description ISO create date (UTC, Z-suffixed), resolved server-side: git history date when the file has one, filesystem date otherwise
              */
@@ -528,6 +533,8 @@ export interface components {
             mediaCount: number;
             /** Totallines */
             totalLines: number;
+            /** Dirtyfilecount */
+            dirtyFileCount: number;
             /** Codebytes */
             codeBytes: number;
             maxDepthDir: components["schemas"]["DirLeader"] | null;

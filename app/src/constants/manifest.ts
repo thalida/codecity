@@ -30,6 +30,7 @@ export const EMPTY_REPO_STATS: RepoStats = {
   minMediaPixelsFile: null,
   mediaCount: 0,
   totalLines: 0,
+  dirtyFileCount: 0,
   codeBytes: 0,
   maxDepthDir: null,
   maxChildrenDir: null,

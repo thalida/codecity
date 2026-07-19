@@ -54,6 +54,9 @@ class FileNode(TypedDict):
     size: int
     lines: int
     binary: bool
+    # Working-tree differs from HEAD for this tracked file (staged or
+    # unstaged). Always False for clean/remote repos.
+    dirty: bool
     # Resolved server-side: git history date when the file has one,
     # filesystem date otherwise (e.g. staged-but-uncommitted files).
     created: str
@@ -256,6 +259,7 @@ class RepoStats(TypedDict):
     minMediaPixelsFile: FileLeader | None
     mediaCount: int
     totalLines: int
+    dirtyFileCount: int
     codeBytes: int
     maxDepthDir: DirLeader | None
     maxChildrenDir: DirLeader | None

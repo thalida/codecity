@@ -26,6 +26,12 @@ class FileNode(BaseModel):
     size: int
     lines: int
     binary: bool
+    dirty: bool = Field(
+        description=(
+            "Working-tree differs from HEAD for this tracked file (staged or "
+            "unstaged). Always False for clean/remote repos."
+        )
+    )
     created: str = Field(
         description=(
             "ISO create date (UTC, Z-suffixed), resolved server-side: git "
@@ -205,6 +211,7 @@ class RepoStats(BaseModel):
     minMediaPixelsFile: Optional[FileLeader]
     mediaCount: int
     totalLines: int
+    dirtyFileCount: int
     codeBytes: int
     maxDepthDir: Optional[DirLeader]
     maxChildrenDir: Optional[DirLeader]

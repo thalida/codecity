@@ -13,6 +13,7 @@ function file(partial: Partial<FileNode> & { name: string; path: string }): File
     size: 100,
     lines: 10,
     binary: false,
+    dirty: false,
     created: '2020-01-01T00:00:00Z',
     modified: '2020-01-01T00:00:00Z',
     ...partial,
