@@ -54,9 +54,15 @@ class HostUnreachableError(CloneError):
     """DNS / network failure reaching the remote host."""
 
 
+class CloneInterruptedError(CloneError):
+    """The connection dropped mid-transfer (early EOF / RPC failed / unexpected
+    disconnect). Common on very large repos over a flaky link; retryable."""
+
+
 __all__ = [
     "BranchNotFoundError",
     "CloneError",
+    "CloneInterruptedError",
     "HostUnreachableError",
     "RepoNotFoundError",
     "clone_dir_for",
@@ -126,6 +132,35 @@ _NOT_A_REPO_PATTERNS = (
     re.compile(r"is this a git repository", re.IGNORECASE),
     re.compile(r"does not appear to be a git repository", re.IGNORECASE),
 )
+# The transfer started but the connection dropped part-way — a flaky link or a
+# giant repo (linux kernel: ~2 GB). git prints these AFTER a wall of progress.
+_NETWORK_INTERRUPTED_PATTERNS = (
+    re.compile(r"early EOF", re.IGNORECASE),
+    re.compile(r"RPC failed", re.IGNORECASE),
+    re.compile(r"unexpected disconnect", re.IGNORECASE),
+    re.compile(r"fetch-pack: invalid index-pack output", re.IGNORECASE),
+    re.compile(r"The remote end hung up unexpectedly", re.IGNORECASE),
+)
+
+# git --progress spam ("Receiving objects: 42%", "remote: Enumerating objects: …")
+# arrives on stderr and, on failure, would otherwise be dumped verbatim into the
+# error — thousands of percentage lines burying the one that matters.
+_PROGRESS_NOISE_RE = re.compile(
+    r"(?:Receiving|Resolving|Compressing|Counting|Enumerating)\s+(?:objects|deltas)",
+    re.IGNORECASE,
+)
+
+
+def _clean_git_stderr(text: str, limit: int = 12) -> str:
+    """Strip git's --progress lines so a failure message shows the actual error
+    (the `error:`/`fatal:` lines), not a wall of percentages. Keep the last
+    `limit` meaningful lines."""
+    kept = [
+        ln
+        for ln in text.splitlines()
+        if ln.strip() and not _PROGRESS_NOISE_RE.search(ln)
+    ]
+    return "\n".join(kept[-limit:]).strip()
 
 
 def _maybe_raise_clean_clone_error(
@@ -150,6 +185,12 @@ def _maybe_raise_clean_clone_error(
     for pat in _HOST_UNREACHABLE_PATTERNS:
         if pat.search(stderr_text):
             raise HostUnreachableError("could not resolve host")
+    for pat in _NETWORK_INTERRUPTED_PATTERNS:
+        if pat.search(stderr_text):
+            raise CloneInterruptedError(
+                "the clone was interrupted mid-download (the connection dropped). "
+                "This is common on very large repos, so please try again."
+            )
 
 
 def _git_env() -> dict[str, str]:
@@ -176,7 +217,7 @@ def _run_git(*args: str, cwd: Path | None = None) -> str:
     if proc.returncode != 0:
         raise CloneError(
             f"git {' '.join(args)} failed (exit {proc.returncode}): "
-            f"{proc.stderr.strip() or proc.stdout.strip()}"
+            f"{_clean_git_stderr(proc.stderr) or proc.stdout.strip()}"
         )
     return proc.stdout
 
@@ -417,7 +458,7 @@ def _run_git_streaming(
 
     stdout = stdout_holder[0] if stdout_holder else ""
     if proc.returncode != 0:
-        stderr_text = "\n".join(captured_stderr).strip()
+        stderr_text = _clean_git_stderr("\n".join(captured_stderr))
         raise CloneError(
             f"git {' '.join(args)} failed (exit {proc.returncode}): "
             f"{stderr_text or stdout.strip()}"
