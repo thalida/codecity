@@ -169,6 +169,11 @@
   display: flex;
   flex-direction: column;
   gap: var(--cc-space-6);
+  /* Cap the column at the viewport (minus the inner's own vertical padding) so a
+     long recents list scrolls inside its card instead of scrolling the page. The
+     column still shrink-wraps and stays centered while it fits. */
+  min-height: 0;
+  max-height: calc(100vh - 2 * var(--cc-space-9));
 }
 
 .landing-card {
@@ -179,6 +184,16 @@
   padding: var(--cc-space-7);
   border: 1px solid var(--cc-border-subtle);
   border-radius: var(--cc-radius-lg);
+}
+
+/* When the column is height-capped, the "Open a project" card keeps its natural
+   size and the recents card absorbs the remaining space (its list scrolls). */
+.landing-actions > .landing-card:not(.landing-card--recents) {
+  flex: 0 0 auto;
+}
+.landing-card--recents {
+  flex: 1 1 auto;
+  min-height: 0;
 }
 
 /* Shared card heading — "Open a project" and "Recent projects" read as one
