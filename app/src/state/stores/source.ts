@@ -141,9 +141,10 @@ export function listRecents(): RecentSource[] {
   return RECENTS.value;
 }
 
-/** Whether two recents refer to the same source: same src and same identity
- *  branch (undefined for a local path, so its checkout never splits the row). */
-function sameRecentIdentity(
+/** Whether two source refs are the same source (same identity string). Local
+ *  refs are committed branch-less, so a checkout change never splits them.
+ *  Shared by recents dedupe/removal and the active-row match. */
+export function sameSourceIdentity(
   a: { src: string; branch?: string },
   b: { src: string; branch?: string }
 ): boolean {
@@ -157,7 +158,7 @@ function sameRecentIdentity(
  */
 export function pushRecent(entry: Omit<RecentSource, 'lastOpenedAt'>): void {
   const now = Date.now();
-  const filtered = RECENTS.value.filter((r) => !sameRecentIdentity(r, entry));
+  const filtered = RECENTS.value.filter((r) => !sameSourceIdentity(r, entry));
   filtered.unshift({ ...entry, lastOpenedAt: now });
   RECENTS.value = filtered.slice(0, MAX_RECENT_SOURCES);
 }
@@ -191,5 +192,5 @@ export function setCurrentSource(
 
 /** Drop the entry matching the given source identity. No-op if not present. */
 export function removeRecent(src: string, branch?: string): void {
-  RECENTS.value = RECENTS.value.filter((r) => !sameRecentIdentity(r, { src, branch }));
+  RECENTS.value = RECENTS.value.filter((r) => !sameSourceIdentity(r, { src, branch }));
 }
