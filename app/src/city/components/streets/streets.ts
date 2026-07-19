@@ -242,7 +242,12 @@ export function sidewalkStreetForFace(
 // the sidewalk strip stays a uniform width around the perimeter.
 export function buildAsphaltGeometry(street: StreetWithJoin, yBase: number): THREE.BufferGeometry {
   const { asphaltWidth, asphaltLength } = asphaltDims(street);
-  const geo = _buildStadiumGeometry(asphaltLength, asphaltWidth, street.orientation, capStyleFor(street));
+  const geo = _buildStadiumGeometry(
+    asphaltLength,
+    asphaltWidth,
+    street.orientation,
+    capStyleFor(street)
+  );
   geo.rotateX(-Math.PI / 2);
   geo.translate(street.x, yBase, street.y);
   return geo;
@@ -252,10 +257,7 @@ export function buildAsphaltGeometry(street: StreetWithJoin, yBase: number): THR
 // Baking all asphalt pills into a single geometry collapses ~8k draw calls (two
 // per street) to one — the biggest render-load win at Linux scale, since asphalt
 // is a single solid color and never picked. Returns null for an empty layout.
-export function createMergedAsphaltMesh(
-  streets: StreetWithJoin[],
-  yBase: number
-): FlatMesh | null {
+export function createMergedAsphaltMesh(streets: StreetWithJoin[], yBase: number): FlatMesh | null {
   if (streets.length === 0) return null;
   const geos = streets.map((s) => buildAsphaltGeometry(s, yBase));
   const merged = mergeGeometries(geos, false);

@@ -61,7 +61,11 @@ beforeEach(() => {
 describe('picker BVH raycast', () => {
   it('picks the building under the cursor, matching a brute-force core raycast', () => {
     const target = mkBuilding('src/a.ts', 40, -30);
-    const world = makeCellWorld([target, mkBuilding('src/b.ts', -60, 50), mkBuilding('lib/c.ts', 0, 0)]);
+    const world = makeCellWorld([
+      target,
+      mkBuilding('src/b.ts', -60, 50),
+      mkBuilding('lib/c.ts', 0, 0),
+    ]);
 
     // Camera straight above the target, looking down — the screen-center ray
     // hits the target building's top.
@@ -87,7 +91,8 @@ describe('picker BVH raycast', () => {
     // Equivalence: a brute-force core raycast over the same pickables must land
     // on the same object + instance at (near) the same distance.
     const pickables: THREE.Object3D[] = [];
-    for (const cell of world.cellOut.cells.values()) if (cell.detailMesh) pickables.push(cell.detailMesh);
+    for (const cell of world.cellOut.cells.values())
+      if (cell.detailMesh) pickables.push(cell.detailMesh);
     const ray = new THREE.Raycaster();
     ray.setFromCamera(new THREE.Vector2(0, 0), camera);
     const coreHits = ray.intersectObjects(pickables, false);

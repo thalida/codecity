@@ -272,9 +272,7 @@ describe('InstancedAdPanels distance LOD (updateLOD)', () => {
   // image loads (fetch/decode) during these visibility-only tests.
   function adsAtOrigin(): InstancedAdPanels {
     const ads = new InstancedAdPanels(4, { onStartLoad: () => {} });
-    ads.registerMediaBuilding(
-      fakeMediaBuilding({ x: 0, y: 0, w: 12, d: 12, h: 24 })
-    );
+    ads.registerMediaBuilding(fakeMediaBuilding({ x: 0, y: 0, w: 12, d: 12, h: 24 }));
     return ads;
   }
   const VIEWPORT_H = 800;
@@ -325,10 +323,23 @@ describe('InstancedAdPanels visibility-gated loading', () => {
   const VIEWPORT_H = 800;
   function mediaAt(path: string, x: number, y: number): Building {
     return fakeMediaBuilding({
-      x, y, w: 12, d: 12, h: 24,
+      x,
+      y,
+      w: 12,
+      d: 12,
+      h: 24,
       file: {
-        path, name: path, type: NodeKind.File, fullPath: `/${path}`, extension: '.png',
-        mediaKind: 'image', size: 1, lines: 0, binary: true, created: '', modified: '',
+        path,
+        name: path,
+        type: NodeKind.File,
+        fullPath: `/${path}`,
+        extension: '.png',
+        mediaKind: 'image',
+        size: 1,
+        lines: 0,
+        binary: true,
+        created: '',
+        modified: '',
       },
     });
   }
@@ -374,10 +385,7 @@ describe('InstancedAdPanels visibility-gated loading', () => {
 
     // Sanity: the center point alone is NOT in the frustum (x=15 fails the right
     // plane regardless of height) — the old containsPoint path would skip it.
-    const proj = new THREE.Matrix4().multiplyMatrices(
-      cam.projectionMatrix,
-      cam.matrixWorldInverse
-    );
+    const proj = new THREE.Matrix4().multiplyMatrices(cam.projectionMatrix, cam.matrixWorldInverse);
     const frustum = new THREE.Frustum().setFromProjectionMatrix(proj);
     expect(frustum.containsPoint(new THREE.Vector3(15, 20, -10))).toBe(false);
 
@@ -389,7 +397,8 @@ describe('InstancedAdPanels visibility-gated loading', () => {
     const started: string[] = [];
     const ads = new InstancedAdPanels(64, { onStartLoad: (b) => started.push(b.file!.path) });
     // 12 clustered media buildings, all in view.
-    for (let i = 0; i < 12; i++) ads.registerMediaBuilding(mediaAt(`m${i}.png`, (i % 4) - 2, Math.floor(i / 4) - 1));
+    for (let i = 0; i < 12; i++)
+      ads.registerMediaBuilding(mediaAt(`m${i}.png`, (i % 4) - 2, Math.floor(i / 4) - 1));
     const cam = cameraAt(0, 40, 40);
     ads.updateLOD(cam, VIEWPORT_H);
     const afterFrame1 = started.length;

@@ -384,6 +384,8 @@ describe('createStreets()', () => {
       } as unknown as PickTarget;
       STREETS.value = { ...STREETS.value, ASPHALT_COLOR: '#000000' };
     }).not.toThrow();
-    expect(sidewalkColorHex(streets)).not.toBe(new THREE.Color(DEFAULTS.SIDEWALK_SELECTED).getHex());
+    expect(sidewalkColorHex(streets)).not.toBe(
+      new THREE.Color(DEFAULTS.SIDEWALK_SELECTED).getHex()
+    );
   });
 });

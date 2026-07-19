@@ -163,7 +163,12 @@ function profile(label: string, fileBudget: number, mediaFraction: number): Phas
   const tc1 = performance.now();
   const slim = {
     streets: layout.streets.map((s: any) => ({
-      x: s.x, y: s.y, length: s.length, width: s.width, orientation: s.orientation, isRoot: s.isRoot,
+      x: s.x,
+      y: s.y,
+      length: s.length,
+      width: s.width,
+      orientation: s.orientation,
+      isRoot: s.isRoot,
     })),
     buildings: layout.buildings.map((b: any) => ({ x: b.x, y: b.y, w: b.w, d: b.d, h: b.h })),
   };
@@ -269,11 +274,26 @@ function profile(label: string, fileBudget: number, mediaFraction: number): Phas
   });
 
   return {
-    label, files, buildings: layout.buildings.length, streets: layout.streets.length, media,
-    layoutMs: t1 - t0, cloneFullMs: tc1 - tc0, cloneSlimMs: tc3 - tc2, bboxMs: tb1 - tb0,
-    assemblyMs: ta1 - ta0, mediaRegMs, drawnNoLod, drawnLodFar, visibleLodNear,
-    labelMs: tl1 - tl0, labelCount, pickMs: tp1 - tp0, pickCasts: CASTS,
-    bvhBuildMs, bvhCastMs,
+    label,
+    files,
+    buildings: layout.buildings.length,
+    streets: layout.streets.length,
+    media,
+    layoutMs: t1 - t0,
+    cloneFullMs: tc1 - tc0,
+    cloneSlimMs: tc3 - tc2,
+    bboxMs: tb1 - tb0,
+    assemblyMs: ta1 - ta0,
+    mediaRegMs,
+    drawnNoLod,
+    drawnLodFar,
+    visibleLodNear,
+    labelMs: tl1 - tl0,
+    labelCount,
+    pickMs: tp1 - tp0,
+    pickCasts: CASTS,
+    bvhBuildMs,
+    bvhCastMs,
   };
 }
 
@@ -291,8 +311,16 @@ function report(r: PhaseResult): void {
       row('5 media registration', r.mediaRegMs, `${r.media} media buildings`),
       `  ${'  ad-panel LOD'.padEnd(22)} ${''.padStart(8)}     zoom-out draws ${r.drawnLodFar}/${r.drawnNoLod} instances (near visible=${r.visibleLodNear})`,
       row('6 street labels (jsdom-inflated)', r.labelMs, `${r.labelCount} label planes`),
-      row('7 picker raycast (core)', r.pickMs, `${(r.pickMs / r.pickCasts).toFixed(2)}ms/cast (brute force)`),
-      row('  picker raycast (BVH)', r.bvhCastMs * r.pickCasts, `${r.bvhCastMs.toFixed(3)}ms/cast, build ${r.bvhBuildMs.toFixed(0)}ms`),
+      row(
+        '7 picker raycast (core)',
+        r.pickMs,
+        `${(r.pickMs / r.pickCasts).toFixed(2)}ms/cast (brute force)`
+      ),
+      row(
+        '  picker raycast (BVH)',
+        r.bvhCastMs * r.pickCasts,
+        `${r.bvhCastMs.toFixed(3)}ms/cast, build ${r.bvhBuildMs.toFixed(0)}ms`
+      ),
     ].join('\n')
   );
 }
