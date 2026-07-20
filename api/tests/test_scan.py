@@ -21,6 +21,7 @@ from api.services.scan import (
     _epoch_to_iso,
     _extension,
     _is_binary,
+    _tracked_entries,
     scan_tree,
     signature_tree,
 )
@@ -1863,6 +1864,25 @@ def test_layout_signature_tracks_size_not_dates(tmp_path):
     assert a.layout_signature != b.layout_signature
     assert a.layout_signature == c.layout_signature
     assert a.tree_signature == b.tree_signature == c.tree_signature  # structure same
+
+
+def test_tracked_entries_filters_and_orders(tmp_path):
+    (tmp_path / "b.py").write_text("")
+    (tmp_path / "a.py").write_text("")
+    (tmp_path / "skip.py").write_text("")
+    out = _tracked_entries(
+        str(tmp_path),
+        ".",
+        tracked_files={"a.py", "b.py"},
+        ignore_names=frozenset(),
+        ignore_paths=frozenset(),
+        unignore_names=frozenset(),
+        unignore_paths=frozenset(),
+    )
+    assert [rel for _e, rel in out] == [
+        "a.py",
+        "b.py",
+    ]  # sorted, skip.py filtered (untracked)
 
 
 class ScanTreeStreamingTests(unittest.TestCase):

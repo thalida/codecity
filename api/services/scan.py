@@ -782,6 +782,42 @@ def _should_skip(
 # ── Tree walk ────────────────────────────────────────────────────────────────
 
 
+def _tracked_entries(
+    abs_dir: str,
+    rel_dir: str,
+    *,
+    tracked_files: set[str],
+    ignore_names: frozenset[str],
+    ignore_paths: frozenset[str],
+    unignore_names: frozenset[str],
+    unignore_paths: frozenset[str],
+) -> list[tuple[os.DirEntry[str], str]]:
+    """Sorted-scandir survivors of one directory: skip-list + tracked filter
+    applied, each paired with its repo-relative path. The single source of
+    'which entries, in what order' shared by _build_tree and _walk_for_signature
+    — the contract that keeps their signatures byte-identical."""
+    try:
+        entries = sorted(os.scandir(abs_dir), key=lambda e: e.name)
+    except OSError:
+        return []
+    out: list[tuple[os.DirEntry[str], str]] = []
+    for entry in entries:
+        entry_rel = entry.name if rel_dir == "." else f"{rel_dir}/{entry.name}"
+        if _should_skip(
+            entry.name,
+            entry_rel,
+            ignore_names=ignore_names,
+            ignore_paths=ignore_paths,
+            unignore_names=unignore_names,
+            unignore_paths=unignore_paths,
+        ):
+            continue
+        if entry_rel not in tracked_files:
+            continue
+        out.append((entry, entry_rel))
+    return out
+
+
 # Both scan_tree and signature_tree feed bytes into the same hash; keeping
 # the per-file and per-repo contributions in dedicated helpers is the
 # contract that lets the cheap signature endpoint match the full scan's
@@ -1070,18 +1106,19 @@ class _DirFrame:
         "ext_breakdown",
     )
 
-    def __init__(self, abs_dir: str, rel_dir: str) -> None:
+    def __init__(
+        self,
+        abs_dir: str,
+        rel_dir: str,
+        pending_entries: list[tuple[os.DirEntry[str], str]],
+    ) -> None:
         self.abs_dir = abs_dir
         self.rel_dir = rel_dir
         self.name = os.path.basename(abs_dir)
-        # Sort entries alphabetically for deterministic output AND for
-        # signature-hash stability (the order entries land in `sig`
-        # must match scan-to-scan, so two scans of the same tree
-        # produce the same fingerprint).
-        try:
-            self.pending_entries = sorted(os.scandir(abs_dir), key=lambda e: e.name)
-        except OSError:
-            self.pending_entries = []
+        # Order (and the skip/tracked filter) comes from _tracked_entries —
+        # the same order signature-hash stability depends on, shared with
+        # _walk_for_signature so scan-to-scan and endpoint fingerprints match.
+        self.pending_entries = pending_entries
         self.files: list[FileNode] = []
         self.subdirs: list[DirNode] = []
         self.descendants_count = 0
@@ -1112,7 +1149,19 @@ def _build_tree(
     sig: Any,
     heartbeat: _Heartbeat,
 ) -> DirNode:
-    stack: list[_DirFrame] = [_DirFrame(abs_dir, rel_dir)]
+    def _frame(abs_dir: str, rel_dir: str) -> _DirFrame:
+        entries = _tracked_entries(
+            abs_dir,
+            rel_dir,
+            tracked_files=tracked_files,
+            ignore_names=ignore_names,
+            ignore_paths=ignore_paths,
+            unignore_names=unignore_names,
+            unignore_paths=unignore_paths,
+        )
+        return _DirFrame(abs_dir, rel_dir, entries)
+
+    stack: list[_DirFrame] = [_frame(abs_dir, rel_dir)]
 
     while True:
         top = stack[-1]
@@ -1120,26 +1169,7 @@ def _build_tree(
             # Process the next entry in sorted order. Entries are popped
             # from the front (not back) so the iteration order matches
             # the original recursive code's — required for hash stability.
-            entry = top.pending_entries.pop(0)
-            entry_rel = (
-                entry.name if top.rel_dir == "." else f"{top.rel_dir}/{entry.name}"
-            )
-
-            if _should_skip(
-                entry.name,
-                entry_rel,
-                ignore_names=ignore_names,
-                ignore_paths=ignore_paths,
-                unignore_names=unignore_names,
-                unignore_paths=unignore_paths,
-            ):
-                continue
-
-            # Skip anything not tracked (covers .gitignore + uncommitted
-            # additions). scan_tree rejects non-git roots upstream, so
-            # tracked_files is always meaningful here.
-            if entry_rel not in tracked_files:
-                continue
+            entry, entry_rel = top.pending_entries.pop(0)
 
             if entry.is_file(follow_symlinks=False):
                 node = _file_node(
@@ -1167,7 +1197,7 @@ def _build_tree(
             elif entry.is_dir(follow_symlinks=False):
                 # Descend by pushing a new frame; rollup happens when it
                 # pops below.
-                stack.append(_DirFrame(entry.path, entry_rel))
+                stack.append(_frame(entry.path, entry_rel))
             continue
 
         # All entries processed — finalize this frame and either return it
@@ -1510,24 +1540,17 @@ def _walk_for_signature(
     Skips _is_binary, _line_count, and per-file git history — that's
     where the cost lives on a large repo.
     """
-    try:
-        entries = sorted(os.scandir(abs_dir), key=lambda e: e.name)
-    except OSError:
-        return
+    entries = _tracked_entries(
+        abs_dir,
+        rel_dir,
+        tracked_files=tracked_files,
+        ignore_names=ignore_names,
+        ignore_paths=ignore_paths,
+        unignore_names=unignore_names,
+        unignore_paths=unignore_paths,
+    )
 
-    for entry in entries:
-        entry_rel = entry.name if rel_dir == "." else f"{rel_dir}/{entry.name}"
-        if _should_skip(
-            entry.name,
-            entry_rel,
-            ignore_names=ignore_names,
-            ignore_paths=ignore_paths,
-            unignore_names=unignore_names,
-            unignore_paths=unignore_paths,
-        ):
-            continue
-        if entry_rel not in tracked_files:
-            continue
+    for entry, entry_rel in entries:
         if entry.is_file(follow_symlinks=False):
             size, _created, _modified, mtime = _stat_fields(entry)
             _hash_file_entry(sig, entry_rel, size, mtime, entry_rel in dirty_paths)
