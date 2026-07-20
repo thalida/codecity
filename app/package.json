@@ -52,6 +52,7 @@
     "highlight.js": "^11.11.1",
     "lucide-preact": "^1.17.0",
     "marked": "^18.0.3",
+    "monaco-editor": "^0.56.0",
     "preact": "^10.29.2",
     "rbush": "^4.0.1",
     "three": "^0.184.0",

@@ -11,8 +11,15 @@
 import './FilePreviewPane.css';
 import type { ReadonlySignal } from '@preact/signals';
 import { useState, useEffect } from 'preact/hooks';
+import { lazy, Suspense } from 'preact/compat';
 import hljs from 'highlight.js/lib/common';
 import type { FileNode } from '@/types';
+import { monacoSupported } from './monaco/support';
+
+// Monaco is heavy (MBs). Load it as its own chunk only when a text file is
+// actually previewed in a browser that supports it; jsdom/SSR fall through to
+// the highlight.js CodeEditor below, which also stays as the fallback path.
+const MonacoCodeEditor = lazy(() => import('./monaco/MonacoCodeEditor'));
 
 /**
  * What kind of preview a file gets in the right sidebar. Decided by
@@ -139,7 +146,19 @@ function FileTextPreview({ file }: FileTextPreviewProps) {
       {textState.kind === TextStateKind.Error ? (
         <PaneEmpty icon={FileWarning} title="Couldn't load this file" sub={textState.message} />
       ) : textState.kind === TextStateKind.Text ? (
-        <CodeEditor text={textState.text} file={file} />
+        monacoSupported() ? (
+          <Suspense
+            fallback={
+              <span class="sr-only" role="status">
+                Loading editor
+              </span>
+            }
+          >
+            <MonacoCodeEditor text={textState.text} file={file} />
+          </Suspense>
+        ) : (
+          <CodeEditor text={textState.text} file={file} />
+        )
       ) : (
         // Loading: the pane is otherwise blank while fetching; announce it.
         <span class="sr-only" role="status">

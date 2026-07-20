@@ -1,0 +1,24 @@
+/* MonacoCodeEditor.css — sizing for the read-only Monaco preview. Mirrors
+   .code-editor-shell: a flex column that fills .preview-shell, with the
+   editor host taking the remaining height (Monaco measures the host's box
+   for its own layout, so it needs a concrete min-height:0 flex child). */
+
+.monaco-preview {
+  flex: 1 1 auto;
+  min-height: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.monaco-host {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+/* Monaco paints its own background; drop the rounded editor inset it would
+   otherwise inherit so it reaches the pane edges like the other previews. */
+.monaco-host .monaco-editor,
+.monaco-host .monaco-editor .overflow-guard {
+  border-radius: 0;
+}
