@@ -72,7 +72,7 @@ export interface CityState {
   // The async manifest pipeline cityState owns: compute the layout off-thread,
   // then set the source signals (every component rebuilds reactively off them).
   applyManifest(newManifest: Manifest): Promise<void>;
-  // Forces the next apply onto the non-reuse path (rebuild for the same tree_signature).
+  // Forces the next apply onto the non-reuse path (rebuild for the same layout signature).
   invalidateLayoutCache(): void;
 }
 
@@ -241,8 +241,8 @@ export function createCityState(layoutClient: ReturnType<typeof createLayoutClie
   //     set by invalidateLayoutCache on a config Save.
   //   generation — supersession: a newer call wins; an older one bails at its
   //     post-await checks.
-  // There is no separate layout cache: the committed manifest + layout signals
-  // ARE the reuse source.
+  // The reuse check compares against the committed manifest signal directly
+  // (manifest.peek()) — no separate cache needed.
   let lastAtlasTreeSig: string | null = null;
   let invalidated = false;
   let generation = 0;
@@ -250,10 +250,11 @@ export function createCityState(layoutClient: ReturnType<typeof createLayoutClie
   async function applyManifest(newManifest: Manifest): Promise<void> {
     const myGeneration = ++generation;
 
-    // Structure-only tree_signature (paths + nesting, NO mtime/size — stable
-    // across skeleton/final for one scan). Gates BOTH the icon atlas rebuild and
-    // the layout reuse decision below.
-    const treeSig = newManifest.tree_signature ?? '';
+    // Structure-only structure_signature (paths + nesting, NO mtime/size — stable
+    // across skeleton/final for one scan). Gates ONLY the icon atlas rebuild
+    // below; the layout reuse decision uses layout_signature instead (backend-
+    // computed, also mixes in per-file size/dims).
+    const treeSig = newManifest.structure_signature ?? '';
 
     // Icon atlas is expensive (a fetch+draw per unique icon), so rebuild it only
     // when treeSig changes (settings re-applies skip). Must run BEFORE the layout
@@ -269,12 +270,17 @@ export function createCityState(layoutClient: ReturnType<typeof createLayoutClie
       }
     }
 
-    // Reuse the committed layout's positions when the structure is unchanged
-    // (same tree_signature as the live manifest) and a config Save hasn't
-    // invalidated — the committed manifest + layout signals ARE the cache.
-    // `invalidated` is one-shot, consumed here.
+    // Reuse the packed layout only when the packer's own inputs (structure +
+    // per-file size, per the backend-computed layout_signature) are unchanged
+    // — NOT merely the tree structure. A live content edit changes sizes, so
+    // it takes the full re-pack path and streets/positions re-solve; a
+    // dates-only change (or a settings re-apply of the identical manifest)
+    // still reuses.
+    const prev = manifest.peek();
+    const prevLayoutSig =
+      prev && 'layout_signature' in prev ? (prev as Manifest).layout_signature : '';
     const shouldReuse =
-      !invalidated && treeSig !== '' && treeSig === manifest.peek()?.tree_signature;
+      !invalidated && prevLayoutSig !== '' && newManifest.layout_signature === prevLayoutSig;
     invalidated = false;
     const reusedLayout = shouldReuse ? layout.peek() : null;
     let newLayout: CityLayout;
@@ -305,7 +311,7 @@ export function createCityState(layoutClient: ReturnType<typeof createLayoutClie
 
   // A config-only Save calls this before re-applying the same manifest, forcing
   // the next apply onto the non-reuse path (so the scenic effects rebuild even
-  // though the tree_signature is unchanged). Does NOT touch the signals.
+  // though the layout signature is unchanged). Does NOT touch the signals.
   function invalidateLayoutCache(): void {
     invalidated = true;
   }

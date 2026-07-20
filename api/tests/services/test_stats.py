@@ -9,6 +9,7 @@ def _file(
     created="2020-01-01T00:00:00Z",
     modified="2020-01-01T00:00:00Z",
     binary=False,
+    dirty=False,
     media=None,
     mw=None,
     mh=None,
@@ -23,6 +24,7 @@ def _file(
         "size": size,
         "lines": lines,
         "binary": binary,
+        "dirty": dirty,
         "created": created,
         "modified": modified,
     }

@@ -25,11 +25,16 @@ export interface FileNode {
   size: number;
   lines: number;
   binary: boolean;
+  /** Working-tree differs from HEAD for this tracked file (staged or
+   *  unstaged). Always false for clean/remote repos. */
+  dirty: boolean;
   /** ISO create date, resolved server-side: git history date when the
    *  file has one, filesystem date otherwise (e.g. staged-but-uncommitted). */
   created: string;
   /** ISO modify date, resolved server-side: git history date when the
-   *  file has one, filesystem date otherwise (e.g. staged-but-uncommitted). */
+   *  file has one, filesystem date otherwise (e.g. staged-but-uncommitted).
+   *  When dirty is true, this is always the working-tree filesystem date,
+   *  regardless of git history. */
   modified: string;
   /**
    * Media classification by extension, computed by the backend (single
@@ -126,19 +131,36 @@ export interface CommitEntry {
   same_day_total: number;
 }
 
+/**
+ * Three signature fields form a ladder, each a superset of the one before:
+ *  - structure_signature: paths and nesting only. Drives icon-atlas
+ *    assignment and skeleton/final render stability.
+ *  - layout_signature: structure, plus per-file size. Gates layout reuse,
+ *    skipping the expensive re-pack when only unrelated metadata changed.
+ *  - content_signature: structure, plus size, mtime, dirty, and repo HEAD.
+ *    The full change-detection fingerprint: drives the live-update poll
+ *    and is the manifest cache key.
+ */
 export interface Manifest {
   root: string;
   scanned_at: string;
-  /** Metadata-sensitive fingerprint (mtime/size based). Changes between
-   *  skeleton and final events for the same scan. Used by live-update polls
-   *  to detect when any file has changed on disk. */
-  signature: string;
+  /** Full change-detection fingerprint (structure + size + mtime + dirty +
+   *  repo HEAD). Changes between skeleton and final events for the same
+   *  scan. Used by live-update polls to detect when any file has changed
+   *  on disk, and as the manifest cache key. */
+  content_signature: string;
   /** Structure-only fingerprint (paths + nesting, NO mtime/size/metadata).
-   *  Identical for skeleton and final manifests of the same scan.
-   *  Used as the layout-cache key in world so the expensive layout
-   *  computation is skipped on skeleton→final transitions when the tree
-   *  shape hasn't changed. */
-  tree_signature: string;
+   *  Identical for skeleton and final manifests of the same scan. Gates the
+   *  icon atlas rebuild and skeleton/final stability checks; the layout
+   *  reuse decision uses layout_signature instead. */
+  structure_signature: string;
+  /** Structure + per-file byte size fingerprint (the layout packer's inputs:
+   *  footprints + street length). Between structure_signature (too coarse)
+   *  and content_signature (too fine, includes mtime). This is the
+   *  layout-reuse cache key: the reuse gate compares a fresh manifest's
+   *  value against the committed one, and skips the expensive re-pack when
+   *  they match. */
+  layout_signature: string;
   tree: DirNode;
   repo: RepoInfo;
   /** Per-commit metadata, oldest-first. `[]` when the repo has zero
@@ -262,6 +284,8 @@ export interface RepoStats {
   mediaCount: number;
   /** Sum of lines over non-media files (for the buildings overview average). */
   totalLines: number;
+  /** Count of file nodes with dirty === true (media included). */
+  dirtyFileCount: number;
   /** Sum of bytes over non-media files. */
   codeBytes: number;
   maxDepthDir: DirLeader | null;

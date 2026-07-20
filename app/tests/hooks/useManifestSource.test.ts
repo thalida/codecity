@@ -64,7 +64,9 @@ describe('useManifestSource loadSource cancellation', () => {
     // skeleton — the success path must still refuse to commit it.
     StubEventSource.instances[0]!.emit(
       'manifest-partial',
-      JSON.stringify({ manifest: { root: '/r', tree: { type: 'directory' }, signature: 'sig' } })
+      JSON.stringify({
+        manifest: { root: '/r', tree: { type: 'directory' }, content_signature: 'sig' },
+      })
     );
     await flush();
     cancelLoad();
@@ -78,7 +80,7 @@ describe('useManifestSource loadSource cancellation', () => {
 
   it('canceling AFTER a skeleton rolls MANIFEST back to the prior city', async () => {
     // City A is already applied (source unchanged throughout this load of B).
-    const cityA = { root: '/a', tree: { type: 'directory' }, signature: 'sig-a' };
+    const cityA = { root: '/a', tree: { type: 'directory' }, content_signature: 'sig-a' };
     MANIFEST.value = cityA;
     const before = CURRENT_SOURCE.value;
 
@@ -88,7 +90,9 @@ describe('useManifestSource loadSource cancellation', () => {
     // B's skeleton streams into MANIFEST (behind the overlay)...
     StubEventSource.instances[0]!.emit(
       'manifest-partial',
-      JSON.stringify({ manifest: { root: '/b', tree: { type: 'directory' }, signature: 'sig-b' } })
+      JSON.stringify({
+        manifest: { root: '/b', tree: { type: 'directory' }, content_signature: 'sig-b' },
+      })
     );
     await flush();
     expect(MANIFEST.value).not.toBe(cityA); // sanity: B's skeleton IS applied mid-load

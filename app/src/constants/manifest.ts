@@ -30,6 +30,7 @@ export const EMPTY_REPO_STATS: RepoStats = {
   minMediaPixelsFile: null,
   mediaCount: 0,
   totalLines: 0,
+  dirtyFileCount: 0,
   codeBytes: 0,
   maxDepthDir: null,
   maxChildrenDir: null,
@@ -45,8 +46,9 @@ export const EMPTY_REPO_STATS: RepoStats = {
 export const EMPTY_MANIFEST: Manifest = {
   root: '',
   scanned_at: new Date().toISOString(),
-  signature: '',
-  tree_signature: '',
+  content_signature: '',
+  structure_signature: '',
+  layout_signature: '',
   tree: {
     name: '',
     type: NodeKind.Directory,

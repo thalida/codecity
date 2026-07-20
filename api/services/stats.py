@@ -99,6 +99,7 @@ def compute_repo_stats(tree: DirNode, commits: list[CommitEntry]) -> RepoStats:
     # strict > / <), instead of a separate scan per superlative.
     line_min = line_max = byte_min = byte_max = None  # non-zero ranges, all files
     media_count = 0
+    dirty_count = 0
     total_lines = code_bytes = 0  # sums over non-media files (for overview averages)
     oldest = newest = freshest = stalest = None  # non-media, by created/modified
     tallest = shortest = None  # text (non-media, non-binary, lines>0), by lines
@@ -107,6 +108,8 @@ def compute_repo_stats(tree: DirNode, commits: list[CommitEntry]) -> RepoStats:
     sharpest_media = coarsest_media = None  # media, by pixels (most / fewest)
     sharpest_px = coarsest_px = None
     for f in _iter_files(tree):
+        if f["dirty"]:
+            dirty_count += 1
         lines, size = f["lines"], f["size"]
         if lines > 0:
             line_min = lines if line_min is None or lines < line_min else line_min
@@ -227,6 +230,7 @@ def compute_repo_stats(tree: DirNode, commits: list[CommitEntry]) -> RepoStats:
         "minMediaPixelsFile": _file_leader(coarsest_media),
         "mediaCount": media_count,
         "totalLines": total_lines,
+        "dirtyFileCount": dirty_count,
         "codeBytes": code_bytes,
         "maxDepthDir": _dir_leader(deepest),
         "maxChildrenDir": _dir_leader(biggest),

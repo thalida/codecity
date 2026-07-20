@@ -26,6 +26,12 @@ class FileNode(BaseModel):
     size: int
     lines: int
     binary: bool
+    dirty: bool = Field(
+        description=(
+            "Working-tree differs from HEAD for this tracked file (staged or "
+            "unstaged). Always False for clean/remote repos."
+        )
+    )
     created: str = Field(
         description=(
             "ISO create date (UTC, Z-suffixed), resolved server-side: git "
@@ -35,7 +41,9 @@ class FileNode(BaseModel):
     modified: str = Field(
         description=(
             "ISO modify date (UTC, Z-suffixed), resolved server-side: git "
-            "history date when the file has one, filesystem date otherwise"
+            "history date when the file has one, filesystem date otherwise. "
+            "When dirty is true, this is always the working-tree filesystem "
+            "date, regardless of git history"
         )
     )
     mediaKind: Optional[Literal["image", "video"]] = Field(
@@ -205,6 +213,7 @@ class RepoStats(BaseModel):
     minMediaPixelsFile: Optional[FileLeader]
     mediaCount: int
     totalLines: int
+    dirtyFileCount: int
     codeBytes: int
     maxDepthDir: Optional[DirLeader]
     maxChildrenDir: Optional[DirLeader]
@@ -217,11 +226,20 @@ class RepoStats(BaseModel):
     authors: list[AuthorStat]
 
 
+# Three signatures form a ladder, each a superset of the one before:
+#   structure_signature: paths + nesting only. Drives icon-atlas assignment
+#     and skeleton/final render stability.
+#   layout_signature: structure, plus per-file size. Gates layout reuse (a
+#     size-only change can still skip a full relayout if paths didn't move).
+#   content_signature: structure, plus size, mtime, dirty, and repo HEAD. The
+#     full change-detection fingerprint: drives the live-update poll and is
+#     the manifest cache key.
 class Manifest(BaseModel):
     root: str
     scanned_at: str
-    signature: str
-    tree_signature: str
+    content_signature: str
+    structure_signature: str
+    layout_signature: str
     tree: DirNode
     repo: RepoInfo
     commits: list[CommitEntry]
@@ -233,7 +251,7 @@ class Manifest(BaseModel):
 class SignatureResponse(BaseModel):
     root: str
     scanned_at: str
-    signature: str
+    content_signature: str
 
 
 DirNode.model_rebuild()

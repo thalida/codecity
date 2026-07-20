@@ -17,6 +17,7 @@ function fileFor(path: string): FileNode {
     size: 0,
     lines: 0,
     binary: false,
+    dirty: false,
     created: '',
     modified: '',
   };

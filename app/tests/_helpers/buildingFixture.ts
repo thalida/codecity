@@ -24,6 +24,7 @@ const DEFAULT_FILE: FileNode = {
   size: 100,
   lines: 10,
   binary: false,
+  dirty: false,
   created: '',
   modified: '',
 };

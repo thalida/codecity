@@ -27,6 +27,7 @@ const FILE_NODE: FileNode = {
   size: 1536,
   lines: 50,
   binary: false,
+  dirty: false,
   created: '2024-01-10T09:00:00Z',
   modified: '2024-03-20T10:00:00Z',
 };
@@ -125,6 +126,26 @@ describe('FilePreviewPane', () => {
     // exactly one preview-shell, no leftover from the first call
     expect(container.querySelectorAll('.preview-shell').length).toBe(1);
     expect(container.querySelector('.text-pane-title')!.textContent).toBe('utils.ts');
+  });
+
+  it('re-fetches content when a still-selected file is edited (mtime changes)', async () => {
+    // A live-update poll re-derives the selected FileNode with the same path
+    // but a newer mtime; the preview must re-fetch, not wait for a re-select.
+    const urls: string[] = [];
+    globalThis.fetch = (async (input: RequestInfo | URL) => {
+      urls.push(String(input));
+      return new Response('body\n', { status: 200 });
+    }) as unknown as typeof fetch;
+    mount();
+    await setFile(FILE_NODE);
+    const afterFirst = urls.length;
+    expect(afterFirst).toBeGreaterThan(0);
+    // Same path, newer mtime + size — what an edit-then-poll yields.
+    await setFile({ ...FILE_NODE, modified: '2026-07-19T12:00:00Z', size: 1600 });
+    expect(urls.length).toBeGreaterThan(afterFirst);
+    // The refetch URL carries the mtime cache-buster so the browser can't serve
+    // the stale body for the unchanged path.
+    expect(urls[urls.length - 1]).toContain('v=');
   });
 
   it('falls through to preview (no "too large" state) for a 10 MB file', async () => {

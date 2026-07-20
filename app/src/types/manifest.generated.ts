@@ -432,13 +432,18 @@ export interface components {
             /** Binary */
             binary: boolean;
             /**
+             * Dirty
+             * @description Working-tree differs from HEAD for this tracked file (staged or unstaged). Always False for clean/remote repos.
+             */
+            dirty: boolean;
+            /**
              * Created
              * @description ISO create date (UTC, Z-suffixed), resolved server-side: git history date when the file has one, filesystem date otherwise
              */
             created: string;
             /**
              * Modified
-             * @description ISO modify date (UTC, Z-suffixed), resolved server-side: git history date when the file has one, filesystem date otherwise
+             * @description ISO modify date (UTC, Z-suffixed), resolved server-side: git history date when the file has one, filesystem date otherwise. When dirty is true, this is always the working-tree filesystem date, regardless of git history
              */
             modified: string;
             /**
@@ -467,10 +472,12 @@ export interface components {
             root: string;
             /** Scanned At */
             scanned_at: string;
-            /** Signature */
-            signature: string;
-            /** Tree Signature */
-            tree_signature: string;
+            /** Content Signature */
+            content_signature: string;
+            /** Structure Signature */
+            structure_signature: string;
+            /** Layout Signature */
+            layout_signature: string;
             tree: components["schemas"]["DirNode"];
             repo: components["schemas"]["RepoInfo"];
             /** Commits */
@@ -528,6 +535,8 @@ export interface components {
             mediaCount: number;
             /** Totallines */
             totalLines: number;
+            /** Dirtyfilecount */
+            dirtyFileCount: number;
             /** Codebytes */
             codeBytes: number;
             maxDepthDir: components["schemas"]["DirLeader"] | null;
@@ -559,8 +568,8 @@ export interface components {
             root: string;
             /** Scanned At */
             scanned_at: string;
-            /** Signature */
-            signature: string;
+            /** Content Signature */
+            content_signature: string;
         };
         /** ValidationError */
         ValidationError: {

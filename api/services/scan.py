@@ -23,7 +23,7 @@ import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Callable, Iterator
+from typing import Any, Callable, Iterator, NamedTuple
 
 from api.config import quiet
 from api.models.events import ScanEvent
@@ -72,7 +72,6 @@ __all__ = [
     "NotAGitRepoError",
     "ScanCancelledError",
     "build_authors_list",
-    "compute_tree_signature",
     "scan_tree",
     "signature_tree",
 ]
@@ -147,7 +146,8 @@ def _git_iso_to_utc(iso: str) -> str:
     """Normalize a git %aI date (which carries the author's UTC offset,
     e.g. +02:00) to the same Z-suffixed UTC format _epoch_to_iso emits.
     Every date on the wire then shares one format, so lexical order ==
-    chronological order (which _compute_date_ranges relies on). Returns
+    chronological order (which _derive_tree_signals' date-range pass relies
+    on). Returns
     the input unchanged if it doesn't parse (defensive; %aI always
     parses)."""
     try:
@@ -423,20 +423,18 @@ def _collect_git_dates(
     return created, modified, commits_oldest_first
 
 
-def _collect_git_metadata(
+def _collect_git_history(
     root: Path,
     *,
     use_cache: bool = True,
-) -> tuple[dict[str, str], dict[str, str], set[str], list[CommitEntry]]:
-    """Return (created_map, modified_map, tracked_set, commits).
+) -> tuple[dict[str, str], dict[str, str], list[CommitEntry]]:
+    """Return (created_map, modified_map, commits).
 
     - created_map[path]  = ISO date of most recent ``A``-event for path
                            across the full git history. Files never
                            added are absent.
     - modified_map[path] = ISO date of most recent commit touching the
                            path. Untouched files are absent.
-    - tracked_set        = all tracked paths + parent dirs (for the
-                           gitignore filter — independent of history).
     - commits            = oldest-first list of CommitEntry (date, files, sha)
                            for each commit in the history.
 
@@ -449,18 +447,13 @@ def _collect_git_metadata(
         cached = cache_load_git_history(root, head_sha)
         if cached is not None:
             created, modified, commits = cached
-            tracked = _collect_tracked_set(root)
-            return created, modified, tracked, commits
+            return created, modified, commits
 
     _log("  collecting creation + modified dates…")
     created, modified, commits = _collect_git_dates(root)
     _log(
         f"    {len(created)} created, {len(modified)} modified, {len(commits)} commits"
     )
-
-    _log("  listing tracked files…")
-    tracked = _collect_tracked_set(root)
-    _log(f"    {len(tracked)} tracked entries (files + dirs)")
 
     # Always write the cache (only `head_sha` is required to key it) —
     # `use_cache` gates the READ above, not the write. A skip-cache scan
@@ -473,7 +466,7 @@ def _collect_git_metadata(
             # must never block a scan. The next run will retry the write.
             pass
 
-    return created, modified, tracked, commits
+    return created, modified, commits
 
 
 def _normalize_remote_to_web_url(remote: str) -> str:
@@ -502,12 +495,46 @@ def _normalize_remote_to_web_url(remote: str) -> str:
     return s
 
 
-def _collect_repo_info(root: Path) -> RepoInfo:
-    """Repo-level git metadata for the manifest's `repo` field.
+def _parse_dirty_paths(porcelain_z: str) -> set[str]:
+    """Repo-relative paths whose working tree differs from HEAD, parsed from
+    `git status --porcelain -z`. Excludes untracked (`??`) and ignored (`!!`);
+    for a rename/copy entry (`R`/`C` in either the index or worktree status
+    char) the destination path is the dirty one and the following
+    NUL-separated field (the source) is skipped."""
+    fields = [f for f in porcelain_z.split("\0") if f]
+    dirty: set[str] = set()
+    i = 0
+    while i < len(fields):
+        entry = fields[i]
+        i += 1
+        # Porcelain entry: two status chars, a space, then the path.
+        status, path = entry[:2], entry[3:]
+        if status in ("??", "!!"):
+            continue
+        # Rename/copy (index-side R/C or worktree-side R/C): the NEXT field
+        # is the source path — consume + ignore it.
+        if "R" in status or "C" in status:
+            i += 1
+        if path:
+            dirty.add(path)
+    return dirty
+
+
+def _collect_dirty_paths(root: Path) -> set[str]:
+    """Fresh (never cached — dirty changes without HEAD moving) set of dirty
+    tracked paths from a single porcelain call."""
+    return _parse_dirty_paths(_run_git(root, "status", "--porcelain", "-z"))
+
+
+def _collect_repo_info(root: Path) -> tuple[RepoInfo, set[str]]:
+    """Repo-level git metadata for the manifest's `repo` field, plus the
+    dirty-path set the caller needs to thread into the tree walk.
 
     Cheap-ish: one rev-parse, one symbolic-ref, one config read, one
     log -1, and one porcelain status. The status walk dominates on
-    large dirty trees but is still a single git invocation.
+    large dirty trees, so it's collected here ONCE and returned
+    alongside `info` rather than re-run by callers that also need the
+    per-path set (`repo.dirty` is just `bool(dirty_paths)`).
     """
     info: RepoInfo = {
         "branch": None,
@@ -543,13 +570,45 @@ def _collect_repo_info(root: Path) -> RepoInfo:
         info["head_sha"] = sha or None
         info["head_subject"] = subject or None
 
-    # --porcelain prints one line per changed/untracked path; non-empty
-    # output means the working tree differs from HEAD or has untracked
-    # files. Matches what most prompts mean by "dirty".
-    status = _run_git(root, "status", "--porcelain")
-    info["dirty"] = bool(status.strip())
+    dirty_paths = _collect_dirty_paths(root)
+    info["dirty"] = bool(dirty_paths)
 
-    return info
+    return info, dirty_paths
+
+
+def _tracked_set(root: Path) -> set[str]:
+    """Just the tracked-files set from `git ls-files` (no per-file history).
+
+    Cheaper subset of _collect_git_history for callers that only need
+    the gitignore filter, not the per-file created/modified maps. The
+    returned set includes parent directories of every tracked file.
+    """
+    tracked: set[str] = set()
+    out = _run_git(root, "ls-files")
+    for line in out.splitlines():
+        if not line:
+            continue
+        tracked.add(line)
+        parts = line.split("/")
+        for i in range(1, len(parts)):
+            tracked.add("/".join(parts[:i]))
+    return tracked
+
+
+class GitState(NamedTuple):
+    """One always-fresh snapshot of the index/working tree: the repo footer
+    fields, the tracked-path set (gitignore filter), and the dirty-path set.
+    Never cached — all three change without HEAD moving."""
+
+    repo: RepoInfo
+    tracked: set[str]
+    dirty: set[str]
+
+
+def _collect_git_state(root: Path) -> GitState:
+    repo, dirty = _collect_repo_info(root)  # branch/remote/head/dirty + dirty set
+    tracked = _tracked_set(root)
+    return GitState(repo=repo, tracked=tracked, dirty=dirty)
 
 
 # ── Skip list ────────────────────────────────────────────────────────────────
@@ -723,16 +782,58 @@ def _should_skip(
 # ── Tree walk ────────────────────────────────────────────────────────────────
 
 
+def _tracked_entries(
+    abs_dir: str,
+    rel_dir: str,
+    *,
+    tracked_files: set[str],
+    ignore_names: frozenset[str],
+    ignore_paths: frozenset[str],
+    unignore_names: frozenset[str],
+    unignore_paths: frozenset[str],
+) -> list[tuple[os.DirEntry[str], str]]:
+    """Sorted-scandir survivors of one directory: skip-list + tracked filter
+    applied, each paired with its repo-relative path. The single source of
+    'which entries, in what order' shared by _build_tree and _walk_for_signature
+    — the contract that keeps their signatures byte-identical."""
+    try:
+        entries = sorted(os.scandir(abs_dir), key=lambda e: e.name)
+    except OSError:
+        return []
+    out: list[tuple[os.DirEntry[str], str]] = []
+    for entry in entries:
+        entry_rel = entry.name if rel_dir == "." else f"{rel_dir}/{entry.name}"
+        if _should_skip(
+            entry.name,
+            entry_rel,
+            ignore_names=ignore_names,
+            ignore_paths=ignore_paths,
+            unignore_names=unignore_names,
+            unignore_paths=unignore_paths,
+        ):
+            continue
+        if entry_rel not in tracked_files:
+            continue
+        out.append((entry, entry_rel))
+    return out
+
+
 # Both scan_tree and signature_tree feed bytes into the same hash; keeping
 # the per-file and per-repo contributions in dedicated helpers is the
 # contract that lets the cheap signature endpoint match the full scan's
 # signature exactly. Don't inline these — drift here breaks live updates.
-def _hash_file_entry(sig: Any, rel_path: str, size: int, mtime: float) -> None:
+def _hash_file_entry(
+    sig: Any, rel_path: str, size: int, mtime: float, is_dirty: bool
+) -> None:
     sig.update(rel_path.encode("utf-8"))
     sig.update(b"\0")
     sig.update(str(size).encode("ascii"))
     sig.update(b"\0")
     sig.update(repr(mtime).encode("ascii"))
+    sig.update(b"\0")
+    # Dirty rides with each file: a mode-only edit flips it without moving
+    # size/mtime, and a cached manifest would otherwise serve a stale flag.
+    sig.update(b"1" if is_dirty else b"0")
     sig.update(b"\0")
 
 
@@ -750,6 +851,7 @@ def _file_node(
     rel_path: str,
     git_created: dict[str, str],
     git_modified: dict[str, str],
+    dirty_paths: set[str],
     sig: Any,
 ) -> FileNode:
     """Build a FileNode skeleton — `lines` and `binary` are placeholders
@@ -759,14 +861,16 @@ def _file_node(
     abs_path = entry.path
     size, fs_created, fs_modified, mtime = _stat_fields(entry)
 
-    _hash_file_entry(sig, rel_path, size, mtime)
+    is_dirty = rel_path in dirty_paths
 
-    # Single resolution point for file dates: git history when the file has
-    # one, filesystem otherwise. Every scanned file is git-tracked (scan_tree
-    # rejects non-git roots), but a tracked file may still have no entry in
-    # git_created/git_modified if no commit ever touched it (e.g. just added,
-    # not yet committed) — those fall back to the fs dates. (Falsy `or`:
-    # missing key → None → fs date; the maps never hold empty strings.)
+    _hash_file_entry(sig, rel_path, size, mtime, is_dirty)
+
+    # git history date, or the fs date when the file has no history entry
+    # (a tracked file that's never been committed).
+    created = git_created.get(rel_path) or fs_created
+    # A dirty file's last-commit date is stale, so use the working-tree mtime.
+    modified = fs_modified if is_dirty else (git_modified.get(rel_path) or fs_modified)
+
     return {
         "name": entry.name,
         "type": NodeKind.FILE,
@@ -777,8 +881,9 @@ def _file_node(
         "size": size,
         "lines": 0,  # filled in by _populate_file_metadata
         "binary": False,  # filled in by _populate_file_metadata
-        "created": git_created.get(rel_path) or fs_created,
-        "modified": git_modified.get(rel_path) or fs_modified,
+        "dirty": is_dirty,
+        "created": created,
+        "modified": modified,
     }
 
 
@@ -995,18 +1100,19 @@ class _DirFrame:
         "ext_breakdown",
     )
 
-    def __init__(self, abs_dir: str, rel_dir: str) -> None:
+    def __init__(
+        self,
+        abs_dir: str,
+        rel_dir: str,
+        pending_entries: list[tuple[os.DirEntry[str], str]],
+    ) -> None:
         self.abs_dir = abs_dir
         self.rel_dir = rel_dir
         self.name = os.path.basename(abs_dir)
-        # Sort entries alphabetically for deterministic output AND for
-        # signature-hash stability (the order entries land in `sig`
-        # must match scan-to-scan, so two scans of the same tree
-        # produce the same fingerprint).
-        try:
-            self.pending_entries = sorted(os.scandir(abs_dir), key=lambda e: e.name)
-        except OSError:
-            self.pending_entries = []
+        # Order (and the skip/tracked filter) comes from _tracked_entries —
+        # the same order signature-hash stability depends on, shared with
+        # _walk_for_signature so scan-to-scan and endpoint fingerprints match.
+        self.pending_entries = pending_entries
         self.files: list[FileNode] = []
         self.subdirs: list[DirNode] = []
         self.descendants_count = 0
@@ -1029,6 +1135,7 @@ def _build_tree(
     git_created: dict[str, str],
     git_modified: dict[str, str],
     tracked_files: set[str],
+    dirty_paths: set[str],
     ignore_names: frozenset[str],
     ignore_paths: frozenset[str],
     unignore_names: frozenset[str],
@@ -1036,7 +1143,19 @@ def _build_tree(
     sig: Any,
     heartbeat: _Heartbeat,
 ) -> DirNode:
-    stack: list[_DirFrame] = [_DirFrame(abs_dir, rel_dir)]
+    def _frame(abs_dir: str, rel_dir: str) -> _DirFrame:
+        entries = _tracked_entries(
+            abs_dir,
+            rel_dir,
+            tracked_files=tracked_files,
+            ignore_names=ignore_names,
+            ignore_paths=ignore_paths,
+            unignore_names=unignore_names,
+            unignore_paths=unignore_paths,
+        )
+        return _DirFrame(abs_dir, rel_dir, entries)
+
+    stack: list[_DirFrame] = [_frame(abs_dir, rel_dir)]
 
     while True:
         top = stack[-1]
@@ -1044,29 +1163,12 @@ def _build_tree(
             # Process the next entry in sorted order. Entries are popped
             # from the front (not back) so the iteration order matches
             # the original recursive code's — required for hash stability.
-            entry = top.pending_entries.pop(0)
-            entry_rel = (
-                entry.name if top.rel_dir == "." else f"{top.rel_dir}/{entry.name}"
-            )
-
-            if _should_skip(
-                entry.name,
-                entry_rel,
-                ignore_names=ignore_names,
-                ignore_paths=ignore_paths,
-                unignore_names=unignore_names,
-                unignore_paths=unignore_paths,
-            ):
-                continue
-
-            # Skip anything not tracked (covers .gitignore + uncommitted
-            # additions). scan_tree rejects non-git roots upstream, so
-            # tracked_files is always meaningful here.
-            if entry_rel not in tracked_files:
-                continue
+            entry, entry_rel = top.pending_entries.pop(0)
 
             if entry.is_file(follow_symlinks=False):
-                node = _file_node(entry, entry_rel, git_created, git_modified, sig)
+                node = _file_node(
+                    entry, entry_rel, git_created, git_modified, dirty_paths, sig
+                )
                 top.files.append(node)
                 top.descendants_count += 1
                 top.descendants_file_count += 1
@@ -1089,7 +1191,7 @@ def _build_tree(
             elif entry.is_dir(follow_symlinks=False):
                 # Descend by pushing a new frame; rollup happens when it
                 # pops below.
-                stack.append(_DirFrame(entry.path, entry_rel))
+                stack.append(_frame(entry.path, entry_rel))
             continue
 
         # All entries processed — finalize this frame and either return it
@@ -1149,32 +1251,63 @@ def _build_tree(
 # ── Public entry ─────────────────────────────────────────────────────────────
 
 
-def compute_tree_signature(tree_root: DirNode) -> str:
-    """Stable fingerprint of the manifest tree's structure.
+class TreeSignals(NamedTuple):
+    structure_signature: str
+    layout_signature: str
+    date_ranges: DateRanges
 
-    Ignores per-file metadata; depends ONLY on the set of paths and
-    their nesting. Returns the same value for skeleton and final
-    manifests of the same scan, and for live-update polls until the
-    tree shape actually changes.
 
-    Uses blake2b with digest_size=8 (16-char hex string). Children are
-    sorted by path before walking — scan.py already sorts entries
-    alphabetically during _build_tree, so this sort is a no-op in
-    practice, but we apply it defensively to guarantee determinism if
-    the tree-builder ever changes its iteration order.
-    """
-    h = hashlib.blake2b(digest_size=8)
+def _derive_tree_signals(tree_root: DirNode) -> TreeSignals:
+    """Single pass over the built (pre-populate) tree producing every signal that
+    depends only on structure + build-time metadata:
+
+    - structure_signature  — structure only (paths + nesting); drives the icon-atlas
+      gate + skeleton/final stability. Ignores size/dates.
+    - layout_signature — structure + per-file byte size (the layout packer's
+      inputs: footprints + street length). Between structure_signature (too coarse)
+      and content_signature (too fine — includes mtime). The frontend
+      reuses the packed layout iff this is unchanged. Each node's bytes are
+      prefixed with a one-byte type marker (d/f) so a file's size token can
+      never be misread as a sibling's path token.
+    - date_ranges     — repo-wide min/max of resolved created/modified.
+
+    All inputs are real in the pre-populate tree, so the values are identical for
+    the skeleton and final manifests of a scan. Children sorted by path for
+    determinism (no-op when _build_tree already sorts)."""
+    struct = hashlib.blake2b(digest_size=8)
+    layout = hashlib.blake2b(digest_size=8)
+    cmin = cmax = mmin = mmax = None
 
     def _walk(node: TreeNode) -> None:
-        h.update(node["path"].encode("utf-8"))
-        h.update(b"\x00")
-        if node["type"] == "directory":
-            # Sort by path for determinism (no-op when _build_tree already sorts).
+        nonlocal cmin, cmax, mmin, mmax
+        struct.update(node["path"].encode("utf-8"))
+        struct.update(b"\x00")
+        layout.update(b"d" if node["type"] == NodeKind.DIRECTORY else b"f")
+        layout.update(node["path"].encode("utf-8"))
+        layout.update(b"\x00")
+        if node["type"] == NodeKind.DIRECTORY:
             for c in sorted(node["children"], key=lambda n: n["path"]):
                 _walk(c)
+        else:
+            layout.update(str(node["size"]).encode("ascii"))
+            layout.update(b"\x00")
+            cr, md = node["created"], node["modified"]
+            cmin = cr if cmin is None or cr < cmin else cmin
+            cmax = cr if cmax is None or cr > cmax else cmax
+            mmin = md if mmin is None or md < mmin else mmin
+            mmax = md if mmax is None or md > mmax else mmax
 
     _walk(tree_root)
-    return h.hexdigest()
+    return TreeSignals(
+        structure_signature=struct.hexdigest(),
+        layout_signature=layout.hexdigest(),
+        date_ranges={
+            "minCreated": cmin,
+            "maxCreated": cmax,
+            "minModified": mmin,
+            "maxModified": mmax,
+        },
+    )
 
 
 def _compute_busyness(commits: list[CommitEntry]) -> BusynessThresholds:
@@ -1198,35 +1331,11 @@ def _compute_busyness(commits: list[CommitEntry]) -> BusynessThresholds:
     return {"avg": avg, "busy": busy}
 
 
-def _compute_date_ranges(tree: DirNode) -> DateRanges:
-    """Repo-wide min/max of the resolved created/modified dates, compared
-    lexically (same semantics as the frontend walk this replaces). All four
-    are None for a tree with zero files.
-
-    Lexical comparison is exact here, not approximate: every date is
-    Z-suffixed UTC in one fixed format (git dates via _git_iso_to_utc,
-    fs dates via _epoch_to_iso), and ISO-8601 strings in a single zone
-    sort lexically in chronological order."""
-    cmin = cmax = mmin = mmax = None
-    for node in _iter_file_nodes(tree):
-        c, m = node["created"], node["modified"]
-        cmin = c if cmin is None or c < cmin else cmin
-        cmax = c if cmax is None or c > cmax else cmax
-        mmin = m if mmin is None or m < mmin else mmin
-        mmax = m if mmax is None or m > mmax else mmax
-    return {
-        "minCreated": cmin,
-        "maxCreated": cmax,
-        "minModified": mmin,
-        "maxModified": mmax,
-    }
-
-
 def _wrap_manifest(
     root_abs: str,
     tree: DirNode,
     sig: Any,
-    tree_signature: str,
+    signals: TreeSignals,
     repo_info: RepoInfo,
     commits: list[CommitEntry],
 ) -> Manifest:
@@ -1248,13 +1357,14 @@ def _wrap_manifest(
     return {
         "root": root_abs,
         "scanned_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
-        "signature": sig.hexdigest(),
-        "tree_signature": tree_signature,
+        "content_signature": sig.hexdigest(),
+        "structure_signature": signals.structure_signature,
+        "layout_signature": signals.layout_signature,
         "tree": tree,
         "repo": repo_info,
         "commits": commits,
         "busyness": _compute_busyness(commits),
-        "dateRanges": _compute_date_ranges(tree),
+        "dateRanges": signals.date_ranges,
         "stats": compute_repo_stats(tree, commits),
     }
 
@@ -1315,14 +1425,14 @@ def scan_tree(
     if not _is_git_repo(Path(root_abs)):
         raise NotAGitRepoError(root_abs)
 
-    _check_cancel(cancel_event)  # before _collect_git_metadata
+    _check_cancel(cancel_event)  # before _collect_git_history
 
     _log("collecting git metadata…")
-    git_created, git_modified, tracked_files, commits_list = _collect_git_metadata(
+    git_created, git_modified, commits_list = _collect_git_history(
         Path(root_abs),
         use_cache=use_cache,
     )
-    repo_info = _collect_repo_info(Path(root_abs))
+    git = _collect_git_state(Path(root_abs))
 
     _check_cancel(cancel_event)  # after git metadata, before tree walk
 
@@ -1343,7 +1453,8 @@ def scan_tree(
         ".",
         git_created=git_created,
         git_modified=git_modified,
-        tracked_files=tracked_files,
+        tracked_files=git.tracked,
+        dirty_paths=git.dirty,
         ignore_names=ignore_names,
         ignore_paths=ignore_paths,
         unignore_names=unignore_names,
@@ -1354,10 +1465,11 @@ def scan_tree(
     heartbeat.flush()  # ensure UI sees the true final count, not whatever the throttle last allowed through
     _log(f"walked {heartbeat.seen} files; emitting skeleton")
 
-    # Compute tree_signature once after the tree is built. This is
-    # structure-only (paths + nesting, NO mtime/size/metadata), so it is
-    # identical for skeleton and final manifests of the same scan.
-    tree_sig = compute_tree_signature(tree)
+    # Derive structure_signature/layout_signature/dateRanges once after the tree is
+    # built, from the real pre-populate metadata (structure + size + dates, NO
+    # mtime), so they are identical for skeleton and final manifests of the
+    # same scan.
+    signals = _derive_tree_signals(tree)
 
     _check_cancel(cancel_event)  # after tree walk, before skeleton emit
 
@@ -1372,8 +1484,8 @@ def scan_tree(
             root_abs,
             skeleton_tree,
             sig,
-            tree_sig,
-            repo_info,
+            signals,
+            git.repo,
             commits_list,
         ),
     }
@@ -1391,7 +1503,7 @@ def scan_tree(
     # Repo-level metadata — branch, remote, head, dirty — feeds the
     # signature so the footer's "live" indicator catches a checkout or
     # commit without waiting for file mtimes to shift.
-    _hash_repo_info(sig, repo_info)
+    _hash_repo_info(sig, git.repo)
 
     yield {
         "phase": ScanEvent.MANIFEST_COMPLETE,
@@ -1399,30 +1511,11 @@ def scan_tree(
             root_abs,
             tree,
             sig,
-            tree_sig,
-            repo_info,
+            signals,
+            git.repo,
             commits_list,
         ),
     }
-
-
-def _collect_tracked_set(root: Path) -> set[str]:
-    """Just the tracked-files set from `git ls-files` (no per-file history).
-
-    Cheaper subset of _collect_git_metadata for callers that only need
-    the gitignore filter, not the per-file created/modified maps. The
-    returned set includes parent directories of every tracked file.
-    """
-    tracked: set[str] = set()
-    out = _run_git(root, "ls-files")
-    for line in out.splitlines():
-        if not line:
-            continue
-        tracked.add(line)
-        parts = line.split("/")
-        for i in range(1, len(parts)):
-            tracked.add("/".join(parts[:i]))
-    return tracked
 
 
 def _walk_for_signature(
@@ -1430,6 +1523,7 @@ def _walk_for_signature(
     rel_dir: str,
     *,
     tracked_files: set[str],
+    dirty_paths: set[str],
     ignore_names: frozenset[str],
     ignore_paths: frozenset[str],
     unignore_names: frozenset[str],
@@ -1443,32 +1537,26 @@ def _walk_for_signature(
     Skips _is_binary, _line_count, and per-file git history — that's
     where the cost lives on a large repo.
     """
-    try:
-        entries = sorted(os.scandir(abs_dir), key=lambda e: e.name)
-    except OSError:
-        return
+    entries = _tracked_entries(
+        abs_dir,
+        rel_dir,
+        tracked_files=tracked_files,
+        ignore_names=ignore_names,
+        ignore_paths=ignore_paths,
+        unignore_names=unignore_names,
+        unignore_paths=unignore_paths,
+    )
 
-    for entry in entries:
-        entry_rel = entry.name if rel_dir == "." else f"{rel_dir}/{entry.name}"
-        if _should_skip(
-            entry.name,
-            entry_rel,
-            ignore_names=ignore_names,
-            ignore_paths=ignore_paths,
-            unignore_names=unignore_names,
-            unignore_paths=unignore_paths,
-        ):
-            continue
-        if entry_rel not in tracked_files:
-            continue
+    for entry, entry_rel in entries:
         if entry.is_file(follow_symlinks=False):
             size, _created, _modified, mtime = _stat_fields(entry)
-            _hash_file_entry(sig, entry_rel, size, mtime)
+            _hash_file_entry(sig, entry_rel, size, mtime, entry_rel in dirty_paths)
         elif entry.is_dir(follow_symlinks=False):
             _walk_for_signature(
                 entry.path,
                 entry_rel,
                 tracked_files=tracked_files,
+                dirty_paths=dirty_paths,
                 ignore_names=ignore_names,
                 ignore_paths=ignore_paths,
                 unignore_names=unignore_names,
@@ -1483,14 +1571,14 @@ def signature_tree(
     use_cache: bool = True,
     extra_exclude_paths: frozenset[str] = frozenset(),
 ) -> SignatureResponse:
-    """Cheap fingerprint of the tree — equivalent to scan_tree(root)['signature']
+    """Cheap fingerprint of the tree — equivalent to scan_tree(root)['content_signature']
     but without building the full manifest.
 
-    Walks the tree once with os.scandir, hashing (rel_path, size, mtime)
-    plus repo-level git fields (branch / remote / head / dirty). Skips
-    file content reads and the `git log` walk scan_tree uses for
-    per-file created/modified history; both are cost-dominant on a big
-    repo and don't feed the signature anyway.
+    Walks the tree once with os.scandir, hashing (rel_path, size, mtime,
+    dirty) per file plus repo-level git fields (branch / remote / head /
+    dirty). Skips file content reads and the `git log` walk scan_tree
+    uses for per-file created/modified history; both are cost-dominant
+    on a big repo and don't feed the signature anyway.
 
     Honors the same skip list and ``<root>/.codecityignore`` file as
     scan_tree, so signatures stay in lockstep.
@@ -1509,8 +1597,7 @@ def signature_tree(
     if not _is_git_repo(root_path):
         raise NotAGitRepoError(root_abs)
 
-    tracked_files = _collect_tracked_set(root_path)
-    repo_info = _collect_repo_info(root_path)
+    git = _collect_git_state(root_path)
 
     ignore_names, ignore_paths, unignore_names, unignore_paths = _load_codecityignore(
         root_path
@@ -1522,17 +1609,18 @@ def signature_tree(
     _walk_for_signature(
         root_abs,
         ".",
-        tracked_files=tracked_files,
+        tracked_files=git.tracked,
+        dirty_paths=git.dirty,
         ignore_names=ignore_names,
         ignore_paths=ignore_paths,
         unignore_names=unignore_names,
         unignore_paths=unignore_paths,
         sig=sig,
     )
-    _hash_repo_info(sig, repo_info)
+    _hash_repo_info(sig, git.repo)
 
     return {
         "root": root_abs,
         "scanned_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
-        "signature": sig.hexdigest(),
+        "content_signature": sig.hexdigest(),
     }

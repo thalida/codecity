@@ -17,11 +17,11 @@ import pytest
 from api.services.scan import (
     _annotate_same_day_totals,
     _compute_busyness,
-    _compute_date_ranges,
+    _derive_tree_signals,
     _epoch_to_iso,
     _extension,
     _is_binary,
-    compute_tree_signature,
+    _tracked_entries,
     scan_tree,
     signature_tree,
 )
@@ -242,8 +242,9 @@ class ComputeBusynessTests(unittest.TestCase):
 class ComputeDateRangesTests(unittest.TestCase):
     @staticmethod
     def _tree(*files: tuple[str, str, str]) -> dict:
-        # Minimal DirNode with (name, created, modified) file children —
-        # _compute_date_ranges only reads type/children/created/modified.
+        # Minimal DirNode with (name, created, modified) file children. `size`
+        # is required because _derive_tree_signals reads every FileNode field
+        # in one pass, but this test only inspects the date-range output.
         return {
             "type": "directory",
             "path": ".",
@@ -255,6 +256,7 @@ class ComputeDateRangesTests(unittest.TestCase):
                     "name": name,
                     "created": created,
                     "modified": modified,
+                    "size": 0,
                 }
                 for name, created, modified in files
             ],
@@ -262,7 +264,7 @@ class ComputeDateRangesTests(unittest.TestCase):
 
     def test_empty_tree_is_all_none(self):
         self.assertEqual(
-            _compute_date_ranges(self._tree()),
+            _derive_tree_signals(self._tree()).date_ranges,
             {
                 "minCreated": None,
                 "maxCreated": None,
@@ -272,9 +274,9 @@ class ComputeDateRangesTests(unittest.TestCase):
         )
 
     def test_single_file_min_equals_max(self):
-        ranges = _compute_date_ranges(
+        ranges = _derive_tree_signals(
             self._tree(("a.py", "2024-01-10T09:00:00Z", "2024-03-22T14:30:00Z"))
-        )
+        ).date_ranges
         self.assertEqual(
             ranges,
             {
@@ -286,13 +288,13 @@ class ComputeDateRangesTests(unittest.TestCase):
         )
 
     def test_multi_file_lexical_extremes(self):
-        ranges = _compute_date_ranges(
+        ranges = _derive_tree_signals(
             self._tree(
                 ("a.py", "2024-02-15T10:00:00Z", "2024-02-15T10:00:00Z"),
                 ("b.py", "2024-01-10T09:00:00Z", "2024-03-22T14:30:00Z"),
                 ("c.py", "2024-01-20T12:00:00Z", "2024-01-20T12:00:00Z"),
             )
-        )
+        ).date_ranges
         self.assertEqual(
             ranges,
             {
@@ -552,9 +554,9 @@ class ScanTreeIntegrationTests(_CacheRedirectMixin, unittest.TestCase):
     def test_signature_present_and_stable(self):
         m1 = _final_manifest(str(FIXTURE))
         m2 = _final_manifest(str(FIXTURE))
-        self.assertIn("signature", m1)
-        self.assertIsInstance(m1["signature"], str)
-        self.assertEqual(m1["signature"], m2["signature"])
+        self.assertIn("content_signature", m1)
+        self.assertIsInstance(m1["content_signature"], str)
+        self.assertEqual(m1["content_signature"], m2["content_signature"])
 
     def test_resolved_dates_prefer_git(self):
         # created/modified are resolved server-side: a committed file
@@ -820,28 +822,46 @@ class SignatureTreeTests(_CacheRedirectMixin, unittest.TestCase):
     def test_signature_matches_scan_tree(self):
         m = _final_manifest(str(FIXTURE))
         s = signature_tree(str(FIXTURE))
-        self.assertEqual(s["signature"], m["signature"])
+        self.assertEqual(s["content_signature"], m["content_signature"])
+
+    def test_signature_matches_scan_tree_on_dirty_repo(self):
+        # The per-file dirty bit is computed at different call sites in the
+        # two walks (_file_node's dirty_paths lookup vs _walk_for_signature's
+        # inline `entry_rel in dirty_paths`) — a dirty repo is where
+        # cross-walk drift in that bit would land undetected by the
+        # clean-repo parity test above.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            _init_repo(root)
+            tracked = root / "tracked.py"
+            tracked.write_text("x = 1\n")
+            _commit_all(root)
+            tracked.write_text("x = 2\n")  # edit after commit: repo is dirty
+
+            m = _final_manifest(str(root))
+            s = signature_tree(str(root))
+            self.assertEqual(s["content_signature"], m["content_signature"])
 
     def test_signature_response_shape(self):
         s = signature_tree(str(FIXTURE))
         self.assertIn("root", s)
         self.assertIn("scanned_at", s)
-        self.assertIn("signature", s)
-        self.assertIsInstance(s["signature"], str)
+        self.assertIn("content_signature", s)
+        self.assertIsInstance(s["content_signature"], str)
         # No tree / repo fields — that's the whole point.
         self.assertNotIn("tree", s)
         self.assertNotIn("repo", s)
 
     def test_signature_changes_when_tracked_file_changes(self):
         # Add a tracked file, signature must shift; remove it, restored.
-        before = signature_tree(str(FIXTURE))["signature"]
+        before = signature_tree(str(FIXTURE))["content_signature"]
         new_file = FIXTURE / "sig-test-temp.txt"
         new_file.write_text("hello")
         try:
             subprocess.check_call(
                 ["git", "-C", str(FIXTURE), "add", str(new_file.name)]
             )
-            after_add = signature_tree(str(FIXTURE))["signature"]
+            after_add = signature_tree(str(FIXTURE))["content_signature"]
             self.assertNotEqual(before, after_add)
         finally:
             subprocess.run(
@@ -866,16 +886,45 @@ class SignatureTreeTests(_CacheRedirectMixin, unittest.TestCase):
             ignore_file = root / ".codecityignore"
 
             # Without ignore file, target is visible.
-            before_sig = signature_tree(str(root))["signature"]
-            before_full = _final_manifest(str(root))["signature"]
+            before_sig = signature_tree(str(root))["content_signature"]
+            before_full = _final_manifest(str(root))["content_signature"]
             self.assertEqual(before_sig, before_full)
 
             # Add ignore entry, both signatures must shift in lockstep.
             ignore_file.write_text("sig-noise-fixture\n")
-            after_sig = signature_tree(str(root))["signature"]
-            after_full = _final_manifest(str(root))["signature"]
+            after_sig = signature_tree(str(root))["content_signature"]
+            after_full = _final_manifest(str(root))["content_signature"]
             self.assertEqual(after_sig, after_full)
             self.assertNotEqual(before_sig, after_sig)
+
+    def test_signature_changes_with_dirty_path_set(self):
+        # A per-file dirty transition that moves NO file's mtime/size and NO
+        # head_sha (a mode-only edit) must still shift the signature, or a
+        # cached manifest would serve a stale per-file dirty flag/count.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            _init_repo(root)
+            a = root / "a.py"
+            a.write_text("x = 1\n")
+            b = root / "b.py"
+            b.write_text("y = 2\n")
+            _commit_all(root)
+
+            # Dirty b.py's content only — repo is dirty, dirty set is {b.py}.
+            b.write_text("y = 2\nz = 3\n")
+            before_stat = a.stat()
+            sig_one_dirty = signature_tree(str(root))["content_signature"]
+
+            # Now also flip a.py's executable bit: git sees it as modified
+            # (added to the dirty set) but a.py's own mtime/size are
+            # untouched, and head_sha/repo.dirty (already True) don't move.
+            os.chmod(a, before_stat.st_mode | 0o111)
+            after_stat = a.stat()
+            self.assertEqual(before_stat.st_size, after_stat.st_size)
+            self.assertEqual(before_stat.st_mtime, after_stat.st_mtime)
+
+            sig_two_dirty = signature_tree(str(root))["content_signature"]
+            self.assertNotEqual(sig_one_dirty, sig_two_dirty)
 
 
 class LineCountCapTests(unittest.TestCase):
@@ -978,12 +1027,12 @@ class ExtraExcludePathsTests(_CacheRedirectMixin, unittest.TestCase):
             sub.mkdir()
             (sub / "b.txt").write_text("b")
             _commit_all(root)
-            base = signature_tree(str(root))["signature"]
+            base = signature_tree(str(root))["content_signature"]
             ex1 = signature_tree(str(root), extra_exclude_paths=frozenset({"sub"}))[
-                "signature"
+                "content_signature"
             ]
             ex2 = signature_tree(str(root), extra_exclude_paths=frozenset({"sub"}))[
-                "signature"
+                "content_signature"
             ]
             self.assertNotEqual(base, ex1)
             self.assertEqual(ex1, ex2)
@@ -1067,7 +1116,7 @@ class BuildAuthorsListTests(unittest.TestCase):
         )
 
 
-class GitMetadataParallelTests(_CacheRedirectMixin, unittest.TestCase):
+class GitHistoryParallelTests(_CacheRedirectMixin, unittest.TestCase):
     """The two git log walks (created + modified) are independent and
     should run concurrently."""
 
@@ -1077,13 +1126,13 @@ class GitMetadataParallelTests(_CacheRedirectMixin, unittest.TestCase):
 
     def test_single_walk_invocation(self):
         # The combined --name-status walk replaces the previous two
-        # parallel walks — _collect_git_metadata should now fire `git
+        # parallel walks — _collect_git_history should now fire `git
         # log` exactly once. _collect_git_dates streams output
         # via Popen; the short auxiliary commands (rev-parse, ls-files)
         # go through subprocess.run. Wrap both so we catch git log
         # regardless of which API the implementation chose.
         from unittest.mock import patch
-        from api.services.scan import _collect_git_metadata
+        from api.services.scan import _collect_git_history
 
         original_run = subprocess.run
         original_popen = subprocess.Popen
@@ -1114,16 +1163,16 @@ class GitMetadataParallelTests(_CacheRedirectMixin, unittest.TestCase):
             patch("api.services.scan.subprocess.run", side_effect=counting_run),
             patch("api.services.scan.subprocess.Popen", side_effect=counting_popen),
         ):
-            _collect_git_metadata(FIXTURE, use_cache=False)
+            _collect_git_history(FIXTURE, use_cache=False)
 
         self.assertEqual(
             len(log_calls), 1, f"expected exactly 1 git log call, got: {log_calls}"
         )
 
-    def test_collect_git_metadata_returns_commits_list(self):
-        from api.services.scan import _collect_git_metadata
+    def test_collect_git_history_returns_commits_list(self):
+        from api.services.scan import _collect_git_history
 
-        _created, _modified, _tracked, commits = _collect_git_metadata(
+        _created, _modified, commits = _collect_git_history(
             FIXTURE,
             use_cache=False,
         )
@@ -1150,14 +1199,14 @@ class GitMetadataParallelTests(_CacheRedirectMixin, unittest.TestCase):
             # Subject must NOT contain a newline — git %s is first line only.
             self.assertNotIn("\n", c["subject"])
 
-    def test_collect_git_metadata_captures_second_author_and_subject_only(self):
+    def test_collect_git_history_captures_second_author_and_subject_only(self):
         """The fixture's "Other Fixture Person" commit is now the
         second-to-last commit (the multi-author "feat: co-authored work"
         commit is newest). Subject must be the first line only; author
         must be the second author's name (not the bot)."""
-        from api.services.scan import _collect_git_metadata
+        from api.services.scan import _collect_git_history
 
-        _c, _m, _t, commits = _collect_git_metadata(
+        _c, _m, commits = _collect_git_history(
             FIXTURE,
             use_cache=False,
         )
@@ -1192,11 +1241,11 @@ class GitMetadataParallelTests(_CacheRedirectMixin, unittest.TestCase):
         # the right one).
         self.assertEqual(multi["subject"], "feat: co-authored work")
 
-    def test_collect_git_metadata_counts_merge_files(self):
+    def test_collect_git_history_counts_merge_files(self):
         """A merge commit's combined-diff file count must be > 0, not the
         empty count git log emits by default for merges."""
         import tempfile
-        from api.services.scan import _collect_git_metadata
+        from api.services.scan import _collect_git_history
 
         with tempfile.TemporaryDirectory() as td:
             tdp = Path(td)
@@ -1232,7 +1281,7 @@ class GitMetadataParallelTests(_CacheRedirectMixin, unittest.TestCase):
             (tdp / "base.txt").write_text("merged\n")
             subprocess.run(["git", "-C", td, "add", "."], check=True)
             subprocess.run(["git", "-C", td, "commit", "-aq", "--no-edit"], check=True)
-            _c, _m, _t, commits = _collect_git_metadata(
+            _c, _m, commits = _collect_git_history(
                 Path(td),
                 use_cache=False,
             )
@@ -1244,13 +1293,13 @@ class GitMetadataParallelTests(_CacheRedirectMixin, unittest.TestCase):
                 f"merge commit files count should be >= 1; got {commits[-1]['files']}",
             )
 
-    def test_collect_git_metadata_counts_clean_merge_files(self):
+    def test_collect_git_history_counts_clean_merge_files(self):
         """A clean (non-conflicting) merge commit must also report its
         files. With `-c`, clean merges report 0; with
         `--diff-merges=first-parent` they report the side-branch diff."""
         import tempfile
         import subprocess
-        from api.services.scan import _collect_git_metadata
+        from api.services.scan import _collect_git_history
 
         with tempfile.TemporaryDirectory() as td:
             tdp = Path(td)
@@ -1278,7 +1327,7 @@ class GitMetadataParallelTests(_CacheRedirectMixin, unittest.TestCase):
                 ["git", "-C", td, "merge", "-q", "--no-ff", "-m", "merge side", "side"],
                 check=True,
             )
-            _c, _m, _t, commits = _collect_git_metadata(
+            _c, _m, commits = _collect_git_history(
                 Path(td),
                 use_cache=False,
             )
@@ -1309,7 +1358,7 @@ class GitLogRobustnessTests(_CacheRedirectMixin, unittest.TestCase):
     def test_non_utf8_author_bytes_do_not_crash(self):
         """Failure mode A: a commit with non-UTF-8 author metadata must
         parse without raising. Bytes are replaced, not crashed-on."""
-        from api.services.scan import _collect_git_metadata
+        from api.services.scan import _collect_git_history
 
         with TemporaryDirectory() as td:
             td_path = Path(td)
@@ -1356,7 +1405,7 @@ class GitLogRobustnessTests(_CacheRedirectMixin, unittest.TestCase):
 
             def go() -> None:
                 try:
-                    _c, _m, _t, commits = _collect_git_metadata(
+                    _c, _m, commits = _collect_git_history(
                         td_path,
                         use_cache=False,
                     )
@@ -1453,7 +1502,7 @@ class GitLogRobustnessTests(_CacheRedirectMixin, unittest.TestCase):
 
 
 class GitHistoryCacheTests(_CacheRedirectMixin, unittest.TestCase):
-    """When HEAD hasn't moved, _collect_git_metadata should hit the
+    """When HEAD hasn't moved, _collect_git_history should hit the
     persistent cache and skip the two `git log` walks entirely."""
 
     @classmethod
@@ -1462,10 +1511,10 @@ class GitHistoryCacheTests(_CacheRedirectMixin, unittest.TestCase):
 
     def test_warm_run_skips_git_log(self):
         from unittest.mock import patch
-        from api.services.scan import _collect_git_metadata
+        from api.services.scan import _collect_git_history
 
         # Cold run: populates cache.
-        _collect_git_metadata(FIXTURE, use_cache=True)
+        _collect_git_history(FIXTURE, use_cache=True)
 
         original_run = subprocess.run
         log_calls: list[list[str]] = []
@@ -1477,14 +1526,14 @@ class GitHistoryCacheTests(_CacheRedirectMixin, unittest.TestCase):
 
         # Warm run: must not invoke `git log` at all.
         with patch("api.services.scan.subprocess.run", side_effect=counting_run):
-            _collect_git_metadata(FIXTURE, use_cache=True)
+            _collect_git_history(FIXTURE, use_cache=True)
         self.assertEqual(log_calls, [], "expected zero git log calls on warm run")
 
     def test_use_cache_false_bypasses(self):
         from unittest.mock import patch
-        from api.services.scan import _collect_git_metadata
+        from api.services.scan import _collect_git_history
 
-        _collect_git_metadata(FIXTURE, use_cache=True)  # populate
+        _collect_git_history(FIXTURE, use_cache=True)  # populate
 
         original_run = subprocess.run
         original_popen = subprocess.Popen
@@ -1506,7 +1555,7 @@ class GitHistoryCacheTests(_CacheRedirectMixin, unittest.TestCase):
             patch("api.services.scan.subprocess.run", side_effect=counting_run),
             patch("api.services.scan.subprocess.Popen", side_effect=counting_popen),
         ):
-            _collect_git_metadata(FIXTURE, use_cache=False)
+            _collect_git_history(FIXTURE, use_cache=False)
         self.assertEqual(
             len(log_calls), 1, "use_cache=False must run the combined log walk"
         )
@@ -1514,9 +1563,9 @@ class GitHistoryCacheTests(_CacheRedirectMixin, unittest.TestCase):
     def test_cache_invalidated_after_new_commit(self):
         # Make a commit, confirm next call re-walks history.
         from unittest.mock import patch
-        from api.services.scan import _collect_git_metadata
+        from api.services.scan import _collect_git_history
 
-        _collect_git_metadata(FIXTURE, use_cache=True)
+        _collect_git_history(FIXTURE, use_cache=True)
 
         # Commit something to move HEAD.
         new_file = FIXTURE / "cache-bust.txt"
@@ -1549,7 +1598,7 @@ class GitHistoryCacheTests(_CacheRedirectMixin, unittest.TestCase):
                 patch("api.services.scan.subprocess.run", side_effect=counting_run),
                 patch("api.services.scan.subprocess.Popen", side_effect=counting_popen),
             ):
-                _collect_git_metadata(FIXTURE, use_cache=True)
+                _collect_git_history(FIXTURE, use_cache=True)
             self.assertEqual(len(log_calls), 1, "HEAD moved -> must re-walk")
         finally:
             # Reset fixture: undo the commit and remove the file.
@@ -1589,7 +1638,7 @@ class FileStatCacheTests(_CacheRedirectMixin, unittest.TestCase):
     def test_warm_run_signature_matches_cold_run(self):
         cold = _final_manifest(str(FIXTURE))
         warm = _final_manifest(str(FIXTURE))
-        self.assertEqual(cold["signature"], warm["signature"])
+        self.assertEqual(cold["content_signature"], warm["content_signature"])
         # And tree shape — confirm `lines` survives the cache roundtrip.
         cold_lines = {n["path"]: n["lines"] for n in _walk_files(cold["tree"])}
         warm_lines = {n["path"]: n["lines"] for n in _walk_files(warm["tree"])}
@@ -1648,8 +1697,14 @@ def _line_count_real():
     return _line_count
 
 
+def _sig(tree: dict) -> str:
+    """structure_signature of a minimal test tree, via _derive_tree_signals."""
+    return _derive_tree_signals(tree).structure_signature
+
+
 class TreeSignatureTests(unittest.TestCase):
-    """compute_tree_signature produces a stable, structure-only fingerprint.
+    """_derive_tree_signals' structure_signature is a stable, structure-only
+    fingerprint.
 
     The signature must:
     1. Be identical for identical tree shapes regardless of file metadata.
@@ -1668,7 +1723,12 @@ class TreeSignatureTests(unittest.TestCase):
         }
 
     def _make_file(
-        self, path: str, size: int = 100, mtime: float = 1_000_000.0
+        self,
+        path: str,
+        size: int = 100,
+        mtime: float = 1_000_000.0,
+        created: str = "2024-01-01T00:00:00Z",
+        modified: str = "2024-01-01T00:00:00Z",
     ) -> dict:
         """Build a minimal FileNode-like dict for testing."""
         return {
@@ -1677,33 +1737,29 @@ class TreeSignatureTests(unittest.TestCase):
             "name": path.rsplit("/", 1)[-1],
             "size": size,
             "mtime": mtime,
+            "created": created,
+            "modified": modified,
         }
 
     def test_same_shape_same_metadata_produces_same_signature(self):
         tree = self._make_tree([self._make_file("a.py"), self._make_file("b.py")])
-        self.assertEqual(compute_tree_signature(tree), compute_tree_signature(tree))
+        self.assertEqual(_sig(tree), _sig(tree))
 
     def test_same_shape_different_metadata_produces_same_signature(self):
-        # Metadata (size, mtime) must NOT affect tree_signature.
+        # Metadata (size, mtime) must NOT affect structure_signature.
         tree_a = self._make_tree([self._make_file("a.py", size=100, mtime=1.0)])
         tree_b = self._make_tree([self._make_file("a.py", size=999, mtime=9.9)])
-        self.assertEqual(compute_tree_signature(tree_a), compute_tree_signature(tree_b))
+        self.assertEqual(_sig(tree_a), _sig(tree_b))
 
     def test_adding_a_file_changes_signature(self):
         tree_before = self._make_tree([self._make_file("a.py")])
         tree_after = self._make_tree([self._make_file("a.py"), self._make_file("b.py")])
-        self.assertNotEqual(
-            compute_tree_signature(tree_before),
-            compute_tree_signature(tree_after),
-        )
+        self.assertNotEqual(_sig(tree_before), _sig(tree_after))
 
     def test_renaming_a_file_changes_signature(self):
         tree_before = self._make_tree([self._make_file("a.py")])
         tree_after = self._make_tree([self._make_file("z.py")])
-        self.assertNotEqual(
-            compute_tree_signature(tree_before),
-            compute_tree_signature(tree_after),
-        )
+        self.assertNotEqual(_sig(tree_before), _sig(tree_after))
 
     def test_adding_a_directory_changes_signature(self):
         tree_before = self._make_tree([self._make_file("a.py")])
@@ -1718,10 +1774,7 @@ class TreeSignatureTests(unittest.TestCase):
                 },
             ]
         )
-        self.assertNotEqual(
-            compute_tree_signature(tree_before),
-            compute_tree_signature(tree_after),
-        )
+        self.assertNotEqual(_sig(tree_before), _sig(tree_after))
 
     def test_deterministic_across_repeated_calls(self):
         tree = self._make_tree(
@@ -1736,21 +1789,19 @@ class TreeSignatureTests(unittest.TestCase):
                 },
             ]
         )
-        results = {compute_tree_signature(tree) for _ in range(5)}
-        self.assertEqual(
-            len(results), 1, "compute_tree_signature must be deterministic"
-        )
+        results = {_sig(tree) for _ in range(5)}
+        self.assertEqual(len(results), 1, "structure_signature must be deterministic")
 
     def test_returns_hex_string_of_expected_length(self):
         # blake2b digest_size=8 → 8 bytes → 16 hex chars.
         tree = self._make_tree([self._make_file("a.py")])
-        sig = compute_tree_signature(tree)
+        sig = _sig(tree)
         self.assertIsInstance(sig, str)
         self.assertEqual(len(sig), 16)
         int(sig, 16)  # must be valid hex — raises ValueError if not
 
-    def test_skeleton_and_final_manifests_share_same_tree_signature(self):
-        """The same tree_signature must appear in both the skeleton and final
+    def test_skeleton_and_final_manifests_share_same_structure_signature(self):
+        """The same structure_signature must appear in both the skeleton and final
         manifest events for the same scan — the whole point of this feature."""
         from api.services.scan import scan_tree
 
@@ -1762,16 +1813,16 @@ class TreeSignatureTests(unittest.TestCase):
             _commit_all(root)
             events = list(scan_tree(td))
         self.assertEqual(len(events), 2)
-        skeleton_sig = events[0]["manifest"]["tree_signature"]
-        final_sig = events[1]["manifest"]["tree_signature"]
+        skeleton_sig = events[0]["manifest"]["structure_signature"]
+        final_sig = events[1]["manifest"]["structure_signature"]
         self.assertEqual(
             skeleton_sig,
             final_sig,
-            "skeleton and final manifests must carry the same tree_signature",
+            "skeleton and final manifests must carry the same structure_signature",
         )
 
-    def test_tree_signature_stable_when_only_metadata_changes(self):
-        """tree_signature must be unchanged when only file content/lines/binary
+    def test_structure_signature_stable_when_only_metadata_changes(self):
+        """structure_signature must be unchanged when only file content/lines/binary
         differs — i.e., between skeleton and final phases."""
         from api.services.scan import scan_tree
 
@@ -1784,8 +1835,74 @@ class TreeSignatureTests(unittest.TestCase):
         skeleton = events[0]["manifest"]
         final = events[1]["manifest"]
         # Metadata-sensitive signature changes between skeleton and final.
-        # tree_signature must NOT change.
-        self.assertEqual(skeleton["tree_signature"], final["tree_signature"])
+        # structure_signature must NOT change.
+        self.assertEqual(skeleton["structure_signature"], final["structure_signature"])
+
+
+def test_layout_signature_tracks_size_not_dates(tmp_path):
+    # Build two trees differing only in a file size, and two differing only in a date.
+    def node(size, modified):
+        return {
+            "name": "a",
+            "type": "file",
+            "path": "a",
+            "fullPath": "/r/a",
+            "extension": "",
+            "mediaKind": None,
+            "size": size,
+            "lines": 1,
+            "binary": False,
+            "dirty": False,
+            "created": "2026-01-01T00:00:00Z",
+            "modified": modified,
+        }
+
+    def tree(size, modified):
+        return {
+            "name": "r",
+            "type": "directory",
+            "path": ".",
+            "fullPath": "/r",
+            "children": [node(size, modified)],
+            "children_count": 1,
+            "children_file_count": 1,
+            "children_dir_count": 0,
+            "descendants_count": 1,
+            "descendants_file_count": 1,
+            "descendants_dir_count": 0,
+            "descendants_size": size,
+            "descendants_created_min": None,
+            "descendants_modified_max": None,
+            "descendants_ext_breakdown": [],
+        }
+
+    a = _derive_tree_signals(tree(10, "2026-01-01T00:00:00Z"))
+    b = _derive_tree_signals(tree(20, "2026-01-01T00:00:00Z"))  # size changed
+    c = _derive_tree_signals(tree(10, "2026-09-09T00:00:00Z"))  # date changed
+    assert a.layout_signature != b.layout_signature
+    assert a.layout_signature == c.layout_signature
+    assert (
+        a.structure_signature == b.structure_signature == c.structure_signature
+    )  # structure same
+
+
+def test_tracked_entries_filters_and_orders(tmp_path):
+    (tmp_path / "b.py").write_text("")
+    (tmp_path / "a.py").write_text("")
+    (tmp_path / "skip.py").write_text("")
+    out = _tracked_entries(
+        str(tmp_path),
+        ".",
+        tracked_files={"a.py", "b.py"},
+        ignore_names=frozenset(),
+        ignore_paths=frozenset(),
+        unignore_names=frozenset(),
+        unignore_paths=frozenset(),
+    )
+    assert [rel for _e, rel in out] == [
+        "a.py",
+        "b.py",
+    ]  # sorted, skip.py filtered (untracked)
 
 
 class ScanTreeStreamingTests(unittest.TestCase):

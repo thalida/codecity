@@ -1,0 +1,91 @@
+// applyManifestReuse.test.ts — the reuse gate must key on the backend
+// layout_signature (structure + per-file size), not the structure-only
+// structure_signature (#74). A live content edit changes a file's size without
+// touching paths/nesting, so the old structure_signature-only gate reused a stale
+// layout on every edit; the new gate re-packs (bumps structureRevision)
+// whenever layout_signature changes.
+
+import { describe, it, expect, vi } from 'vitest';
+import { createCityState } from '@/city/state';
+import { NodeKind } from '@/types';
+import type { CityLayout, DateRanges, Manifest } from '@/types';
+
+const EMPTY_DATE_RANGES: DateRanges = {
+  minCreated: null,
+  maxCreated: null,
+  minModified: null,
+  maxModified: null,
+} as unknown as DateRanges;
+
+// The gate must key on the backend layout_signature FIELD, not on anything it
+// recomputes from the tree. So these fixtures decouple the field from the
+// tree's file size: `layoutSig` is set independently of `size`. A test that
+// varies one while holding the other proves the field — not the tree — drives
+// the reuse decision. structure_signature is held fixed so it's never the variable.
+function manifest(layoutSig: string, size = 10, modified = '2026-01-01T00:00:00Z'): Manifest {
+  const file = {
+    name: 'a.py',
+    type: NodeKind.File,
+    path: 'a.py',
+    fullPath: '/r/a.py',
+    extension: '.py',
+    size,
+    lines: 3,
+    binary: false,
+    created: '2026-01-01T00:00:00Z',
+    modified,
+    mediaKind: null,
+    dirty: false,
+  };
+  return {
+    tree: { name: 'r', type: NodeKind.Directory, path: '.', children: [file] },
+    structure_signature: 'sig-fixed',
+    layout_signature: layoutSig,
+    dateRanges: EMPTY_DATE_RANGES,
+    commits: [],
+    busyness: { avg: 1, busy: 1 },
+  } as unknown as Manifest;
+}
+
+// Distinct layout object per compute() unless reuseLayoutFrom is supplied, in
+// which case it returns that exact reference — mirroring the real
+// layoutClient's reuse contract (see applyManifestScenic.test.ts).
+function fakeLayoutClient() {
+  return {
+    compute: vi.fn(async (_m: Manifest, reuseFrom?: CityLayout | null) => {
+      return (
+        reuseFrom ??
+        ({
+          buildings: [],
+          streets: [],
+          lineStats: { min: 0, max: 0 },
+          byteStats: { min: 0, max: 0 },
+          bbox: { minX: 0, minY: 0, maxX: 0, maxY: 0, cx: 0, cy: 0, width: 0, depth: 0 },
+        } as unknown as CityLayout)
+      );
+    }),
+    dispose: vi.fn(),
+  };
+}
+
+describe('cityState.applyManifest — reuse gate keys on the layout signature (#74)', () => {
+  it('bumps structureRevision when layout_signature changes (full re-pack)', async () => {
+    const state = createCityState(fakeLayoutClient() as never);
+    await state.applyManifest(manifest('L1'));
+    const before = state.structureRevision.value;
+    await state.applyManifest(manifest('L2')); // layout_signature changed
+    expect(state.structureRevision.value).toBe(before + 1);
+  });
+
+  // The discriminating case: the tree's file size changes but layout_signature
+  // does NOT. A gate that recomputed the signature from the tree would re-pack;
+  // the field-reading gate must reuse. This fails against the old tree-derived
+  // gate, so it actually proves the switch.
+  it('reuses when layout_signature is unchanged even if the tree size differs', async () => {
+    const state = createCityState(fakeLayoutClient() as never);
+    await state.applyManifest(manifest('L1', 10));
+    const before = state.structureRevision.value;
+    await state.applyManifest(manifest('L1', 999)); // different tree size, SAME field
+    expect(state.structureRevision.value).toBe(before);
+  });
+});

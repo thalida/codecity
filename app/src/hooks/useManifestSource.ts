@@ -225,13 +225,13 @@ function _clampPollSeconds(s: number | unknown): number {
 interface SignatureResponse {
   root: string;
   scanned_at: string;
-  signature: string;
+  content_signature: string;
 }
 
 /**
  * Start the live-update poll loop. Two-stage poll: each tick hits the cheap
  * /signature endpoint for the committed CURRENT_SOURCE and only fetches the full
- * manifest when it differs from the currently-applied manifest's signature (both
+ * manifest when it differs from the currently-applied manifest's content_signature (both
  * read from canonical signals — no private mirror). On the final event of a
  * fetch it WRITES MANIFEST; the render effect applies it and owns
  * Rebuilding/Decorating/Idle. A live-update FETCH/network failure is surfaced via
@@ -262,7 +262,7 @@ export function setupLiveUpdates(): () => void {
         if (event.phase !== ScanPhase.CompleteManifest) continue;
         if (myGen !== loadGeneration) return; // a foreground load started — this refresh is stale
         const m = event.manifest;
-        if (m?.signature) setManifest(m);
+        if (m?.content_signature) setManifest(m);
       }
     } catch (err) {
       if (myGen !== loadGeneration) return; // superseded by a load — not our error to surface
@@ -271,7 +271,7 @@ export function setupLiveUpdates(): () => void {
   }
 
   // Poll tick: cheap signature first, full manifest only when it differs from
-  // the applied manifest's signature. Targets the committed CURRENT_SOURCE (not
+  // the applied manifest's content_signature. Targets the committed CURRENT_SOURCE (not
   // the page URL, which lags a switch) and yields while a foreground load owns
   // the overlay, so the poll never probes/applies a source that's mid-load.
   async function tick(): Promise<void> {
@@ -281,7 +281,7 @@ export function setupLiveUpdates(): () => void {
     if (!cur) return; // nothing loaded yet
     const current = MANIFEST.peek();
     if (isEmptyManifest(current)) return;
-    const applied = (current as Manifest).signature;
+    const applied = (current as Manifest).content_signature;
     inFlight = true;
     try {
       const sigResp = await fetch(
@@ -289,7 +289,7 @@ export function setupLiveUpdates(): () => void {
       );
       if (!sigResp.ok) return;
       const sig: SignatureResponse | null = await sigResp.json();
-      if (!sig?.signature || sig.signature === applied) return;
+      if (!sig?.content_signature || sig.content_signature === applied) return;
       await fetchAndApply(cur.src, cur.branch);
     } catch (_) {
       // Cheap-probe network blip: no rebuild attempted, so not surfaced. Next
@@ -390,8 +390,8 @@ export function useManifestSource(): {
       SERVER_CONFIG.value = { allowLocalRepos: serverConfig.allowLocalRepos };
 
       // One poll loop for the app's lifetime; no-ops until a source is loaded,
-      // re-reads CURRENT_SOURCE + MANIFEST.signature each tick (covers boot +
-      // every switch).
+      // re-reads CURRENT_SOURCE + MANIFEST.content_signature each tick (covers
+      // boot + every switch).
       disposeLiveUpdates = setupLiveUpdates();
       // No ?src on cold boot → App opens the picker (the hook doesn't manage UI).
     })();

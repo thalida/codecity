@@ -423,7 +423,7 @@ class ManifestCacheTests(CacheTestBase):
         return {
             "root": "/some/repo",
             "scanned_at": "2026-05-17T00:00:00Z",
-            "signature": "deadbeef" * 4,
+            "content_signature": "deadbeef" * 4,
             "tree": {
                 "name": "repo",
                 "type": "dir",
@@ -495,8 +495,8 @@ class ManifestCacheTests(CacheTestBase):
                 "manifest": {
                     "root": str(root),
                     "scanned_at": "x",
-                    "signature": sig,
-                    "tree_signature": sig,
+                    "content_signature": sig,
+                    "structure_signature": sig,
                     "tree": {},
                     "repo": None,
                     "commits": None,

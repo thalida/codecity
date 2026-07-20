@@ -43,7 +43,7 @@ import buildingFragSrc from './building.frag.glsl?raw';
 let _sharedMaterial: THREE.ShaderMaterial | null = null;
 
 // The icon atlas the buildings sample for roof glyphs. cityState.applyManifest
-// builds it (gated on tree_signature) and pushes it in via setIconAtlas before
+// builds it (gated on structure_signature) and pushes it in via setIconAtlas before
 // the cell pass, so the buildings have it as they're constructed. Stays null
 // while it's still loading or if the atlas build failed — the shader treats
 // iconUV.x < 0 as "no icon" and just paints the base roof color. Two consumers:

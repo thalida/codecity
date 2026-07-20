@@ -54,8 +54,13 @@ class FileNode(TypedDict):
     size: int
     lines: int
     binary: bool
+    # Working-tree differs from HEAD for this tracked file (staged or
+    # unstaged). Always False for clean/remote repos.
+    dirty: bool
     # Resolved server-side: git history date when the file has one,
     # filesystem date otherwise (e.g. staged-but-uncommitted files).
+    # When dirty is true, modified is always the working-tree filesystem
+    # date, regardless of git history.
     created: str
     modified: str
     # Optional pixel dimensions for recognized media files (png/jpg/svg/
@@ -256,6 +261,7 @@ class RepoStats(TypedDict):
     minMediaPixelsFile: FileLeader | None
     mediaCount: int
     totalLines: int
+    dirtyFileCount: int
     codeBytes: int
     maxDepthDir: DirLeader | None
     maxChildrenDir: DirLeader | None
@@ -274,8 +280,9 @@ class Manifest(TypedDict):
 
     root: str
     scanned_at: str
-    signature: str
-    tree_signature: str
+    content_signature: str
+    structure_signature: str
+    layout_signature: str
     tree: DirNode
     repo: RepoInfo
     commits: list[CommitEntry]
@@ -294,7 +301,7 @@ class SignatureResponse(TypedDict):
 
     root: str
     scanned_at: str
-    signature: str
+    content_signature: str
 
 
 class ScanStreamEvent(TypedDict):

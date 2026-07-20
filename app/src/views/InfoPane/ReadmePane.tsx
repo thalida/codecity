@@ -100,7 +100,9 @@ export function ReadmePane({ manifest }: ReadmePaneProps) {
       }
       setBody({ kind: InfoBodyKind.Loading });
       const readmePath = readme.fullPath;
-      fetchFileText(readmePath)
+      // Version by mtime so an edited README re-fetches fresh bytes rather than
+      // a cached body for the same path (doFetch already re-runs per manifest).
+      fetchFileText(readmePath, readme.modified)
         .then((text) => {
           if (!cancelled)
             setBody({ kind: InfoBodyKind.Markdown, html: _renderReadme(text, readmePath) });

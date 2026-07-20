@@ -307,6 +307,15 @@ function buildingsSection(m: Manifest): AlmanacSection {
       tip: "Largest file by bytes; file size sets a building's footprint.",
     }),
   ]);
+  if (s.dirtyFileCount > 0) {
+    facts.push(
+      statFact({
+        label: 'Uncommitted',
+        primary: pluralize(s.dirtyFileCount, 'file'),
+        tip: 'Files with uncommitted changes: their buildings glow at their working-tree recency, not their last commit.',
+      })
+    );
+  }
   // Buildings = non-media files; media render as billboards in their own section.
   const count = Math.max(0, m.tree.descendants_file_count - s.mediaCount);
   const avgLines = perEach(s.totalLines, count);

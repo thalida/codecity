@@ -8,8 +8,9 @@ function makeMinimalManifest(): Manifest {
   return {
     root: '/tmp/x',
     scanned_at: '2026-05-13T00:00:00Z',
-    signature: 'sig',
-    tree_signature: 'test-fp-1234',
+    content_signature: 'sig',
+    structure_signature: 'test-fp-1234',
+    layout_signature: 'test-fp-1234',
     repo: { branch: null, remote_url: null, head_sha: null, head_subject: null, dirty: false },
     commits: [],
     busyness: { avg: 1, busy: 1 },
@@ -30,6 +31,7 @@ function makeMinimalManifest(): Manifest {
           size: 10,
           lines: 1,
           binary: false,
+          dirty: false,
           created: '2024-01-01T00:00:00Z',
           modified: '2024-01-01T00:00:00Z',
         },
@@ -95,8 +97,9 @@ describe('layoutClient', () => {
     const m1: Manifest = {
       root: '/tmp/x',
       scanned_at: '2026-05-13T00:00:00Z',
-      signature: 'sig',
-      tree_signature: 'test-fp-reuse',
+      content_signature: 'sig',
+      structure_signature: 'test-fp-reuse',
+      layout_signature: 'test-fp-reuse',
       repo: { branch: null, remote_url: null, head_sha: null, head_subject: null, dirty: false },
       commits: [],
       busyness: { avg: 1, busy: 1 },
@@ -117,6 +120,7 @@ describe('layoutClient', () => {
             size: 10,
             lines: 1,
             binary: false,
+            dirty: false,
             created: '2024-01-01T00:00:00Z',
             modified: '2024-01-01T00:00:00Z',
           },
@@ -129,6 +133,7 @@ describe('layoutClient', () => {
             size: 10000,
             lines: 1000,
             binary: false,
+            dirty: false,
             created: '2024-01-01T00:00:00Z',
             modified: '2024-01-01T00:00:00Z',
           },
@@ -152,7 +157,7 @@ describe('layoutClient', () => {
     // large and vice-versa.
     const m2: Manifest = {
       ...m1,
-      signature: 'sig2',
+      content_signature: 'sig2',
       tree: {
         ...m1.tree,
         children: [

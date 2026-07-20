@@ -224,8 +224,9 @@ describe('layoutCityWithTrace', () => {
     const manifest: Manifest = {
       root: '/tmp/root',
       scanned_at: '2026-05-11T00:00:00Z',
-      signature: 'test',
-      tree_signature: 'test-fp-1234',
+      content_signature: 'test',
+      structure_signature: 'test-fp-1234',
+      layout_signature: 'test-fp-1234',
       repo: { branch: null, remote_url: null, head_sha: null, head_subject: null, dirty: false },
       commits: [],
       busyness: { avg: 1, busy: 1 },
@@ -300,8 +301,9 @@ describe('layoutCityWithTrace', () => {
     const manifest: Manifest = {
       root: '/tmp/root',
       scanned_at: '2026-05-11T00:00:00Z',
-      signature: 'test2',
-      tree_signature: 'test-fp-5678',
+      content_signature: 'test2',
+      structure_signature: 'test-fp-5678',
+      layout_signature: 'test-fp-5678',
       repo: { branch: null, remote_url: null, head_sha: null, head_subject: null, dirty: false },
       commits: [],
       busyness: { avg: 1, busy: 1 },
