@@ -139,15 +139,15 @@ export interface Manifest {
    *  to detect when any file has changed on disk. */
   signature: string;
   /** Structure-only fingerprint (paths + nesting, NO mtime/size/metadata).
-   *  Identical for skeleton and final manifests of the same scan.
-   *  Used as the layout-cache key in world so the expensive layout
-   *  computation is skipped on skeleton→final transitions when the tree
-   *  shape hasn't changed. */
+   *  Identical for skeleton and final manifests of the same scan. Gates the
+   *  icon atlas rebuild and skeleton/final stability checks; the layout
+   *  reuse decision uses layout_signature instead. */
   tree_signature: string;
   /** Structure + per-file byte size fingerprint (the layout packer's inputs:
    *  footprints + street length). Between tree_signature (too coarse) and
-   *  signature (too fine — includes mtime). Not yet consumed by the
-   *  frontend, which still computes its own layout signature client-side. */
+   *  signature (too fine — includes mtime). This is the layout-reuse cache
+   *  key: the reuse gate compares a fresh manifest's value against the
+   *  committed one, and skips the expensive re-pack when they match. */
   layout_signature: string;
   tree: DirNode;
   repo: RepoInfo;

@@ -48,8 +48,8 @@ export interface LayoutClient {
    *
    * If `reuseLayoutFrom` is non-null, skips the worker round-trip and returns a
    * cheap in-JS layout that reuses that prior layout's positions and recomputes
-   * per-file metadata from the new manifest. The caller must ensure the tree
-   * shape matches (same tree_signature).
+   * per-file metadata from the new manifest. The caller must ensure the
+   * packer's inputs are unchanged (same layout_signature).
    */
   compute(manifest: Manifest, reuseLayoutFrom?: CityLayout | null): Promise<CityLayout>;
   /** Tear down the worker and reject every pending request. */

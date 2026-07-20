@@ -242,9 +242,9 @@ class ComputeBusynessTests(unittest.TestCase):
 class ComputeDateRangesTests(unittest.TestCase):
     @staticmethod
     def _tree(*files: tuple[str, str, str]) -> dict:
-        # Minimal DirNode with (name, created, modified) file children —
-        # _derive_tree_signals' date-range pass only reads
-        # type/children/created/modified/size (size added, unused here).
+        # Minimal DirNode with (name, created, modified) file children. `size`
+        # is required because _derive_tree_signals reads every FileNode field
+        # in one pass, but this test only inspects the date-range output.
         return {
             "type": "directory",
             "path": ".",
@@ -823,6 +823,24 @@ class SignatureTreeTests(_CacheRedirectMixin, unittest.TestCase):
         m = _final_manifest(str(FIXTURE))
         s = signature_tree(str(FIXTURE))
         self.assertEqual(s["signature"], m["signature"])
+
+    def test_signature_matches_scan_tree_on_dirty_repo(self):
+        # The per-file dirty bit is computed at different call sites in the
+        # two walks (_file_node's dirty_paths lookup vs _walk_for_signature's
+        # inline `entry_rel in dirty_paths`) — a dirty repo is where
+        # cross-walk drift in that bit would land undetected by the
+        # clean-repo parity test above.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            _init_repo(root)
+            tracked = root / "tracked.py"
+            tracked.write_text("x = 1\n")
+            _commit_all(root)
+            tracked.write_text("x = 2\n")  # edit after commit: repo is dirty
+
+            m = _final_manifest(str(root))
+            s = signature_tree(str(root))
+            self.assertEqual(s["signature"], m["signature"])
 
     def test_signature_response_shape(self):
         s = signature_tree(str(FIXTURE))
@@ -1686,7 +1704,7 @@ def _sig(tree: dict) -> str:
 
 class TreeSignatureTests(unittest.TestCase):
     """_derive_tree_signals' tree_signature is a stable, structure-only
-    fingerprint (the old compute_tree_signature, now inlined).
+    fingerprint.
 
     The signature must:
     1. Be identical for identical tree shapes regardless of file metadata.

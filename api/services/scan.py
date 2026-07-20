@@ -1272,7 +1272,9 @@ def _derive_tree_signals(tree_root: DirNode) -> TreeSignals:
     - layout_signature — structure + per-file byte size (the layout packer's
       inputs: footprints + street length). Between tree_signature (too coarse)
       and the full scan signature (too fine — includes mtime). The frontend
-      reuses the packed layout iff this is unchanged.
+      reuses the packed layout iff this is unchanged. Each node's bytes are
+      prefixed with a one-byte type marker (d/f) so a file's size token can
+      never be misread as a sibling's path token.
     - date_ranges     — repo-wide min/max of resolved created/modified.
 
     All inputs are real in the pre-populate tree, so the values are identical for
@@ -1286,6 +1288,7 @@ def _derive_tree_signals(tree_root: DirNode) -> TreeSignals:
         nonlocal cmin, cmax, mmin, mmax
         struct.update(node["path"].encode("utf-8"))
         struct.update(b"\x00")
+        layout.update(b"d" if node["type"] == NodeKind.DIRECTORY else b"f")
         layout.update(node["path"].encode("utf-8"))
         layout.update(b"\x00")
         if node["type"] == NodeKind.DIRECTORY:
