@@ -25,7 +25,6 @@ import { layoutCity } from './algorithm';
 import { makeHeightContext, recomputeBuildingDimensions } from './dimensions';
 import type { LayoutRequest, LayoutResponse } from './protocol';
 import type { Manifest, CityLayout, FileNode, TreeNode } from '@/types';
-import { NodeKind } from '@/types';
 
 interface PendingRequest {
   resolve: (layout: CityLayout) => void;
@@ -103,45 +102,6 @@ function reuseLayout(prior: CityLayout, newManifest: Manifest): CityLayout {
     buildings: newBuildings,
     // streets, paths, gem, sidewalks, bbox stay the same
   };
-}
-
-// Fingerprint of the inputs the packer + street sizing consume: the path set
-// (structure) and each file's byte size (footprint / street-length driver).
-// Deliberately ignores dates/lines/mtime — those refresh via the per-apply
-// building rebuild without needing a re-pack. FNV-1a over the walk.
-export function computeLayoutSignature(manifest: Manifest): string {
-  let h = 0x811c9dc5;
-  const mix = (s: string): void => {
-    for (let i = 0; i < s.length; i++) {
-      h ^= s.charCodeAt(i);
-      h = Math.imul(h, 0x01000193);
-    }
-  };
-  const walk = (node: TreeNode): void => {
-    if (node.type === NodeKind.File) {
-      mix(node.path);
-      mix('\0');
-      mix(String(node.size));
-      mix('\0');
-      // Media pixel dims drive the packer's footprint aspect (dimensions.ts)
-      // independent of byte size, so a re-encode at the same size that
-      // changes dims must still bust the reuse cache.
-      mix(String(node.media_width ?? ''));
-      mix('\0');
-      mix(String(node.media_height ?? ''));
-      mix('\n');
-    } else {
-      mix(node.path);
-      mix('/');
-      // Sort by path for determinism, regardless of manifest child order.
-      for (const c of [...node.children].sort((a, b) =>
-        a.path < b.path ? -1 : a.path > b.path ? 1 : 0
-      ))
-        walk(c);
-    }
-  };
-  walk(manifest.tree as unknown as TreeNode);
-  return (h >>> 0).toString(16);
 }
 
 function _snapshot(): ConfigSnapshot {

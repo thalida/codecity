@@ -23,7 +23,7 @@ import type { TreePlacement } from '../components/trees/treePlacement';
 import { gemAnchorXZ } from '@/city/components/gem/anchor';
 import { buildIconAtlas } from '../components/buildings/atlas';
 import { setIconAtlas } from '../components/buildings/material';
-import { computeLayoutSignature, type createLayoutClient } from '../layout';
+import type { createLayoutClient } from '../layout';
 
 export interface CityState {
   manifest: Signal<Manifest | null>;
@@ -237,18 +237,13 @@ export function createCityState(layoutClient: ReturnType<typeof createLayoutClie
   // --- The manifest pipeline. Private to this closure:
   //   lastAtlasTreeSig — tree_sig the icon atlas was last SUCCESSFULLY built for
   //     (lags the manifest if a build throws → retried next apply).
-  //   lastLayoutSig — layout signature of the last COMMITTED apply, cached so
-  //     the reuse check doesn't re-walk the previous manifest's tree every
-  //     apply (computeLayoutSignature(prev) was redundant with the value
-  //     already computed as layoutSig on that prior apply).
   //   invalidated — one-shot "force the next apply onto the non-reuse path",
   //     set by invalidateLayoutCache on a config Save.
   //   generation — supersession: a newer call wins; an older one bails at its
   //     post-await checks.
-  // The committed manifest + layout signals ARE the reuse source; lastLayoutSig
-  // is just a memo of a value derivable from them.
+  // The reuse check compares against the committed manifest signal directly
+  // (manifest.peek()) — no separate cache needed.
   let lastAtlasTreeSig: string | null = null;
-  let lastLayoutSig = '';
   let invalidated = false;
   let generation = 0;
 
@@ -257,8 +252,8 @@ export function createCityState(layoutClient: ReturnType<typeof createLayoutClie
 
     // Structure-only tree_signature (paths + nesting, NO mtime/size — stable
     // across skeleton/final for one scan). Gates ONLY the icon atlas rebuild
-    // below; the layout reuse decision uses the layout signature instead
-    // (computeLayoutSignature, which also mixes in per-file size/dims).
+    // below; the layout reuse decision uses layout_signature instead (backend-
+    // computed, also mixes in per-file size/dims).
     const treeSig = newManifest.tree_signature ?? '';
 
     // Icon atlas is expensive (a fetch+draw per unique icon), so rebuild it only
@@ -276,12 +271,16 @@ export function createCityState(layoutClient: ReturnType<typeof createLayoutClie
     }
 
     // Reuse the packed layout only when the packer's own inputs (structure +
-    // per-file size) are unchanged — NOT merely the tree structure. A live
-    // content edit changes sizes, so it takes the full re-pack path and
-    // streets/positions re-solve; a dates-only change (or a settings re-apply
-    // of the identical manifest) still reuses.
-    const layoutSig = computeLayoutSignature(newManifest);
-    const shouldReuse = !invalidated && lastLayoutSig !== '' && layoutSig === lastLayoutSig;
+    // per-file size, per the backend-computed layout_signature) are unchanged
+    // — NOT merely the tree structure. A live content edit changes sizes, so
+    // it takes the full re-pack path and streets/positions re-solve; a
+    // dates-only change (or a settings re-apply of the identical manifest)
+    // still reuses.
+    const prev = manifest.peek();
+    const prevLayoutSig =
+      prev && 'layout_signature' in prev ? (prev as Manifest).layout_signature : '';
+    const shouldReuse =
+      !invalidated && prevLayoutSig !== '' && newManifest.layout_signature === prevLayoutSig;
     invalidated = false;
     const reusedLayout = shouldReuse ? layout.peek() : null;
     let newLayout: CityLayout;
@@ -305,7 +304,6 @@ export function createCityState(layoutClient: ReturnType<typeof createLayoutClie
     batch(() => {
       manifest.value = newManifest;
       layout.value = newLayout;
-      lastLayoutSig = layoutSig;
       if (!shouldReuse) structureRevision.value++;
       cityRevision.value++;
     });

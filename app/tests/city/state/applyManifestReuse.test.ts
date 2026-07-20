@@ -1,9 +1,9 @@
-// applyManifestReuse.test.ts — the reuse gate must key on the layout
-// signature (structure + per-file size), not the structure-only
+// applyManifestReuse.test.ts — the reuse gate must key on the backend
+// layout_signature (structure + per-file size), not the structure-only
 // tree_signature (#74). A live content edit changes a file's size without
 // touching paths/nesting, so the old tree_signature-only gate reused a stale
 // layout on every edit; the new gate re-packs (bumps structureRevision)
-// whenever the packer's actual inputs change.
+// whenever layout_signature changes.
 
 import { describe, it, expect, vi } from 'vitest';
 import { createCityState } from '@/city/state';
@@ -20,6 +20,9 @@ const EMPTY_DATE_RANGES: DateRanges = {
 // Same path set/nesting (tree_signature) across every call in a test — the
 // only thing that varies is the file's size (and optionally its modified
 // date), isolating the layout-signature gate from the tree_signature one.
+// layout_signature is keyed off size only (the backend never mixes dates into
+// it), so two calls with the same size but different dates carry the same
+// value and calls with different sizes carry different values.
 function manifestWithSize(size: number, modified = '2026-01-01T00:00:00Z'): Manifest {
   const file = {
     name: 'a.py',
@@ -38,7 +41,7 @@ function manifestWithSize(size: number, modified = '2026-01-01T00:00:00Z'): Mani
   return {
     tree: { name: 'r', type: NodeKind.Directory, path: '.', children: [file] },
     tree_signature: 'sig-fixed',
-    layout_signature: 'sig-fixed',
+    layout_signature: `sig-${size}`,
     dateRanges: EMPTY_DATE_RANGES,
     commits: [],
     busyness: { avg: 1, busy: 1 },
