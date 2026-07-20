@@ -1,6 +1,8 @@
-/* ── Hljs theme link ── */
+/* hljsFallback.css — token-tinted highlight.js theme for the fallback code
+   preview (CodeEditor), used only where Monaco can't run (jsdom/SSR, see
+   monaco/support.ts). Monaco is the primary preview and themes itself; this
+   is a single static default, so there's no runtime CDN theme swap anymore. */
 
-/* ── highlight.js token theme (dark, codecity-tinted) ─────────────────── */
 .hljs {
   color: var(--cc-text-primary);
   background: transparent;

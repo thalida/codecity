@@ -29,7 +29,6 @@ import { ProjectsView } from '@/views/ProjectsView/ProjectsView';
 import { ShortcutsModal } from '@/views/ShortcutsModal/ShortcutsModal';
 import { DebugModal } from '@/views/DebugModal/DebugModal';
 import { LoadingOverlay } from '@/components/LoadingOverlay/LoadingOverlay';
-import { HljsThemeLink } from '@/components/HljsThemeLink/HljsThemeLink';
 import { SelectionAnnouncer } from '@/components/SelectionAnnouncer/SelectionAnnouncer';
 import {
   selectPath,
@@ -116,7 +115,6 @@ export function App() {
       />
       <ShortcutsModal />
       <DebugModal onRunCollisionCheck={runCollisionCheck} onRunStemDiagnostic={runStemDiagnostic} />
-      <HljsThemeLink />
       <SelectionAnnouncer />
     </>
   );

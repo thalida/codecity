@@ -6,12 +6,13 @@
 // (support.ts gates jsdom/SSR to the highlight.js fallback).
 
 import './MonacoCodeEditor.css';
-import { useRef } from 'preact/hooks';
-import { useEffect } from 'preact/hooks';
+import { useRef, useEffect } from 'preact/hooks';
+import { useSignalEffect } from '@preact/signals';
 import { Info } from 'lucide-preact';
 import type { FileNode } from '@/types';
 import { formatBytes } from '@/utils/bytes';
-import { monaco, ensureMonacoTheme, monacoLanguageFor } from './monacoSetup';
+import { SYNTAX_THEME } from '@/state/stores/settings/syntaxTheme';
+import { monaco, resolveMonacoTheme, monacoLanguageFor } from './monacoSetup';
 
 // Above this size we drop code folding so scrolling stays smooth on multi-MB
 // files. Monaco also stops tokenizing very large models on its own, so it
@@ -28,10 +29,17 @@ export default function MonacoCodeEditor({ text, file }: MonacoCodeEditorProps) 
   const sizeBytes = typeof file.size === 'number' ? file.size : text.length;
   const heavy = sizeBytes > HEAVY_FEATURES_MAX_BYTES;
 
+  // Live-follow the SYNTAX_THEME setting: setTheme is global (one preview is
+  // mounted at a time), so this restyles the open editor the moment the picker
+  // changes, no remount.
+  useSignalEffect(() => {
+    monaco.editor.setTheme(resolveMonacoTheme(SYNTAX_THEME.value));
+  });
+
   useEffect(() => {
     const host = hostRef.current;
     if (!host) return;
-    const theme = ensureMonacoTheme();
+    const theme = resolveMonacoTheme(SYNTAX_THEME.peek());
     const fontFamily =
       getComputedStyle(document.documentElement).getPropertyValue('--cc-font-mono').trim() ||
       'monospace';

@@ -16,6 +16,17 @@
 import * as monaco from 'monaco-editor/editor/editor.api';
 import 'monaco-editor/basic-languages/monaco.contribution';
 import EditorWorker from 'monaco-editor/editor/editor.worker?worker';
+import cobalt2 from './themes/cobalt2.json';
+import dracula from './themes/dracula.json';
+import githubDark from './themes/github-dark.json';
+import monoindustrial from './themes/monoindustrial.json';
+import monokai from './themes/monokai.json';
+import nightOwl from './themes/night-owl.json';
+import nord from './themes/nord.json';
+import oceanicNext from './themes/oceanic-next.json';
+import solarizedDark from './themes/solarized-dark.json';
+import tomorrowNightEighties from './themes/tomorrow-night-eighties.json';
+import twilight from './themes/twilight.json';
 
 // Monaco resolves web workers through this global. With no language
 // contributions registered, the base editor worker is the only one ever
@@ -40,10 +51,43 @@ export function monacoLanguageFor(file: { extension?: string; name?: string }): 
 }
 
 // ── Theme ──────────────────────────────────────────────────────────────────
-// Monaco brings its own theme model (token-scope rules + a color map) that
-// doesn't map 1:1 to the highlight.js CSS themes. We derive a single Monaco
-// theme from codecity's live design tokens instead, so the editor matches the
-// app surfaces and tracks the accent/surface presets (#87).
+// Two sources feed the SYNTAX_THEME picker: 'codecity' is derived at runtime
+// from the app's design tokens (below), so it tracks the accent/surface
+// presets (#87); every other value is a vendored TextMate theme (themes/*.json,
+// keyed by the setting value). resolveMonacoTheme() maps a setting value to the
+// Monaco theme name to hand monaco.editor.setTheme().
+
+// Vendored themes are static IStandaloneThemeData; the JSON `base` field widens
+// to string on import, so cast the whole registry once.
+const VENDORED = {
+  cobalt2,
+  dracula,
+  'github-dark': githubDark,
+  monoindustrial,
+  monokai,
+  'night-owl': nightOwl,
+  nord,
+  'oceanic-next': oceanicNext,
+  'solarized-dark': solarizedDark,
+  'tomorrow-night-eighties': tomorrowNightEighties,
+  twilight,
+} as unknown as Record<string, monaco.editor.IStandaloneThemeData>;
+
+const definedVendored = new Set<string>();
+
+// Resolve a SYNTAX_THEME value to a Monaco theme name, defining the vendored
+// theme on first use. 'codecity' (and any unrecognized value) falls back to
+// the token-derived theme.
+export function resolveMonacoTheme(value: string): string {
+  const data = VENDORED[value];
+  if (!data) return ensureMonacoTheme();
+  const name = `cc-${value}`;
+  if (!definedVendored.has(value)) {
+    monaco.editor.defineTheme(name, data);
+    definedVendored.add(value);
+  }
+  return name;
+}
 
 const THEME_NAME = 'codecity';
 

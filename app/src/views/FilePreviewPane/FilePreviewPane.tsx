@@ -9,6 +9,8 @@
 // that's layout/RightSidebar.tsx.
 
 import './FilePreviewPane.css';
+// Styles the highlight.js fallback (CodeEditor) used where Monaco can't run.
+import './hljsFallback.css';
 import type { ReadonlySignal } from '@preact/signals';
 import { useState, useEffect } from 'preact/hooks';
 import { lazy, Suspense } from 'preact/compat';

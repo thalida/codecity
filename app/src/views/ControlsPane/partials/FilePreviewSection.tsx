@@ -1,6 +1,6 @@
-// views/ControlsPane/partials/FilePreviewSection.tsx — Syntax-highlight theme
-// picker. SYNTAX_THEME is autosave (write-through): setDraft/stageReset apply
-// the CSS <link> swap immediately, no Save step.
+// views/ControlsPane/partials/FilePreviewSection.tsx — file-preview editor
+// theme picker. SYNTAX_THEME is autosave (write-through): setDraft/stageReset
+// restyle the open Monaco editor immediately, no Save step.
 
 import { getEffective, setDraft, stageReset } from '@/state/settingsDrafts';
 import { DRAFTS_REV } from '@/state/settingsDrafts';
@@ -47,7 +47,7 @@ export function FilePreviewSection() {
     >
       <SettingRow
         label="Syntax theme"
-        tip="Highlight theme for the file preview; applies immediately."
+        tip="Color theme for the file preview editor; applies immediately."
         inline
         resetSlot={resetBtn}
       >
