@@ -23,7 +23,7 @@ import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Callable, Iterator
+from typing import Any, Callable, Iterator, NamedTuple
 
 from api.config import quiet
 from api.models.events import ScanEvent
@@ -423,20 +423,18 @@ def _collect_git_dates(
     return created, modified, commits_oldest_first
 
 
-def _collect_git_metadata(
+def _collect_git_history(
     root: Path,
     *,
     use_cache: bool = True,
-) -> tuple[dict[str, str], dict[str, str], set[str], list[CommitEntry]]:
-    """Return (created_map, modified_map, tracked_set, commits).
+) -> tuple[dict[str, str], dict[str, str], list[CommitEntry]]:
+    """Return (created_map, modified_map, commits).
 
     - created_map[path]  = ISO date of most recent ``A``-event for path
                            across the full git history. Files never
                            added are absent.
     - modified_map[path] = ISO date of most recent commit touching the
                            path. Untouched files are absent.
-    - tracked_set        = all tracked paths + parent dirs (for the
-                           gitignore filter — independent of history).
     - commits            = oldest-first list of CommitEntry (date, files, sha)
                            for each commit in the history.
 
@@ -449,18 +447,13 @@ def _collect_git_metadata(
         cached = cache_load_git_history(root, head_sha)
         if cached is not None:
             created, modified, commits = cached
-            tracked = _collect_tracked_set(root)
-            return created, modified, tracked, commits
+            return created, modified, commits
 
     _log("  collecting creation + modified dates…")
     created, modified, commits = _collect_git_dates(root)
     _log(
         f"    {len(created)} created, {len(modified)} modified, {len(commits)} commits"
     )
-
-    _log("  listing tracked files…")
-    tracked = _collect_tracked_set(root)
-    _log(f"    {len(tracked)} tracked entries (files + dirs)")
 
     # Always write the cache (only `head_sha` is required to key it) —
     # `use_cache` gates the READ above, not the write. A skip-cache scan
@@ -473,7 +466,7 @@ def _collect_git_metadata(
             # must never block a scan. The next run will retry the write.
             pass
 
-    return created, modified, tracked, commits
+    return created, modified, commits
 
 
 def _normalize_remote_to_web_url(remote: str) -> str:
@@ -581,6 +574,41 @@ def _collect_repo_info(root: Path) -> tuple[RepoInfo, set[str]]:
     info["dirty"] = bool(dirty_paths)
 
     return info, dirty_paths
+
+
+def _tracked_set(root: Path) -> set[str]:
+    """Just the tracked-files set from `git ls-files` (no per-file history).
+
+    Cheaper subset of _collect_git_history for callers that only need
+    the gitignore filter, not the per-file created/modified maps. The
+    returned set includes parent directories of every tracked file.
+    """
+    tracked: set[str] = set()
+    out = _run_git(root, "ls-files")
+    for line in out.splitlines():
+        if not line:
+            continue
+        tracked.add(line)
+        parts = line.split("/")
+        for i in range(1, len(parts)):
+            tracked.add("/".join(parts[:i]))
+    return tracked
+
+
+class GitState(NamedTuple):
+    """One always-fresh snapshot of the index/working tree: the repo footer
+    fields, the tracked-path set (gitignore filter), and the dirty-path set.
+    Never cached — all three change without HEAD moving."""
+
+    repo: RepoInfo
+    tracked: set[str]
+    dirty: set[str]
+
+
+def _collect_git_state(root: Path) -> GitState:
+    repo, dirty = _collect_repo_info(root)  # branch/remote/head/dirty + dirty set
+    tracked = _tracked_set(root)
+    return GitState(repo=repo, tracked=tracked, dirty=dirty)
 
 
 # ── Skip list ────────────────────────────────────────────────────────────────
@@ -1363,14 +1391,14 @@ def scan_tree(
     if not _is_git_repo(Path(root_abs)):
         raise NotAGitRepoError(root_abs)
 
-    _check_cancel(cancel_event)  # before _collect_git_metadata
+    _check_cancel(cancel_event)  # before _collect_git_history
 
     _log("collecting git metadata…")
-    git_created, git_modified, tracked_files, commits_list = _collect_git_metadata(
+    git_created, git_modified, commits_list = _collect_git_history(
         Path(root_abs),
         use_cache=use_cache,
     )
-    repo_info, dirty_paths = _collect_repo_info(Path(root_abs))
+    git = _collect_git_state(Path(root_abs))
 
     _check_cancel(cancel_event)  # after git metadata, before tree walk
 
@@ -1391,8 +1419,8 @@ def scan_tree(
         ".",
         git_created=git_created,
         git_modified=git_modified,
-        tracked_files=tracked_files,
-        dirty_paths=dirty_paths,
+        tracked_files=git.tracked,
+        dirty_paths=git.dirty,
         ignore_names=ignore_names,
         ignore_paths=ignore_paths,
         unignore_names=unignore_names,
@@ -1422,7 +1450,7 @@ def scan_tree(
             skeleton_tree,
             sig,
             tree_sig,
-            repo_info,
+            git.repo,
             commits_list,
         ),
     }
@@ -1440,7 +1468,7 @@ def scan_tree(
     # Repo-level metadata — branch, remote, head, dirty — feeds the
     # signature so the footer's "live" indicator catches a checkout or
     # commit without waiting for file mtimes to shift.
-    _hash_repo_info(sig, repo_info, dirty_paths)
+    _hash_repo_info(sig, git.repo, git.dirty)
 
     yield {
         "phase": ScanEvent.MANIFEST_COMPLETE,
@@ -1449,29 +1477,10 @@ def scan_tree(
             tree,
             sig,
             tree_sig,
-            repo_info,
+            git.repo,
             commits_list,
         ),
     }
-
-
-def _collect_tracked_set(root: Path) -> set[str]:
-    """Just the tracked-files set from `git ls-files` (no per-file history).
-
-    Cheaper subset of _collect_git_metadata for callers that only need
-    the gitignore filter, not the per-file created/modified maps. The
-    returned set includes parent directories of every tracked file.
-    """
-    tracked: set[str] = set()
-    out = _run_git(root, "ls-files")
-    for line in out.splitlines():
-        if not line:
-            continue
-        tracked.add(line)
-        parts = line.split("/")
-        for i in range(1, len(parts)):
-            tracked.add("/".join(parts[:i]))
-    return tracked
 
 
 def _walk_for_signature(
@@ -1558,8 +1567,7 @@ def signature_tree(
     if not _is_git_repo(root_path):
         raise NotAGitRepoError(root_abs)
 
-    tracked_files = _collect_tracked_set(root_path)
-    repo_info, dirty_paths = _collect_repo_info(root_path)
+    git = _collect_git_state(root_path)
 
     ignore_names, ignore_paths, unignore_names, unignore_paths = _load_codecityignore(
         root_path
@@ -1571,14 +1579,14 @@ def signature_tree(
     _walk_for_signature(
         root_abs,
         ".",
-        tracked_files=tracked_files,
+        tracked_files=git.tracked,
         ignore_names=ignore_names,
         ignore_paths=ignore_paths,
         unignore_names=unignore_names,
         unignore_paths=unignore_paths,
         sig=sig,
     )
-    _hash_repo_info(sig, repo_info, dirty_paths)
+    _hash_repo_info(sig, git.repo, git.dirty)
 
     return {
         "root": root_abs,

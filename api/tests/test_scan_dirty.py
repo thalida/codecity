@@ -3,7 +3,7 @@ import subprocess
 from pathlib import Path
 
 from api.services.manifest_types import Manifest
-from api.services.scan import _parse_dirty_paths, scan_tree
+from api.services.scan import _collect_git_state, _parse_dirty_paths, scan_tree
 
 
 def test_parse_dirty_paths_reads_modified_and_staged_skips_untracked():
@@ -50,6 +50,23 @@ def _final_manifest(root: str, **kwargs) -> Manifest:
             final = event["manifest"]
     assert final is not None, "scan_tree must yield a final event"
     return final
+
+
+def test_collect_git_state_one_snapshot(tmp_path: Path):
+    _git(tmp_path, "init", "-q")
+    _git(tmp_path, "config", "user.email", "t@t")
+    _git(tmp_path, "config", "user.name", "t")
+    (tmp_path / "a.py").write_text("1\n")
+    (tmp_path / "b.py").write_text("2\n")
+    _git(tmp_path, "add", ".")
+    _git(tmp_path, "commit", "-qm", "init")
+    (tmp_path / "a.py").write_text("1\n2\n")  # dirty one file
+
+    state = _collect_git_state(tmp_path)
+    assert "a.py" in state.tracked and "b.py" in state.tracked
+    assert state.dirty == {"a.py"}
+    assert state.repo["dirty"] is True
+    assert state.repo["branch"] in ("main", "master")
 
 
 def test_dirty_file_uses_worktree_mtime_and_flag(tmp_path: Path):

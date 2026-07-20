@@ -1096,7 +1096,7 @@ class BuildAuthorsListTests(unittest.TestCase):
         )
 
 
-class GitMetadataParallelTests(_CacheRedirectMixin, unittest.TestCase):
+class GitHistoryParallelTests(_CacheRedirectMixin, unittest.TestCase):
     """The two git log walks (created + modified) are independent and
     should run concurrently."""
 
@@ -1106,13 +1106,13 @@ class GitMetadataParallelTests(_CacheRedirectMixin, unittest.TestCase):
 
     def test_single_walk_invocation(self):
         # The combined --name-status walk replaces the previous two
-        # parallel walks — _collect_git_metadata should now fire `git
+        # parallel walks — _collect_git_history should now fire `git
         # log` exactly once. _collect_git_dates streams output
         # via Popen; the short auxiliary commands (rev-parse, ls-files)
         # go through subprocess.run. Wrap both so we catch git log
         # regardless of which API the implementation chose.
         from unittest.mock import patch
-        from api.services.scan import _collect_git_metadata
+        from api.services.scan import _collect_git_history
 
         original_run = subprocess.run
         original_popen = subprocess.Popen
@@ -1143,16 +1143,16 @@ class GitMetadataParallelTests(_CacheRedirectMixin, unittest.TestCase):
             patch("api.services.scan.subprocess.run", side_effect=counting_run),
             patch("api.services.scan.subprocess.Popen", side_effect=counting_popen),
         ):
-            _collect_git_metadata(FIXTURE, use_cache=False)
+            _collect_git_history(FIXTURE, use_cache=False)
 
         self.assertEqual(
             len(log_calls), 1, f"expected exactly 1 git log call, got: {log_calls}"
         )
 
-    def test_collect_git_metadata_returns_commits_list(self):
-        from api.services.scan import _collect_git_metadata
+    def test_collect_git_history_returns_commits_list(self):
+        from api.services.scan import _collect_git_history
 
-        _created, _modified, _tracked, commits = _collect_git_metadata(
+        _created, _modified, commits = _collect_git_history(
             FIXTURE,
             use_cache=False,
         )
@@ -1179,14 +1179,14 @@ class GitMetadataParallelTests(_CacheRedirectMixin, unittest.TestCase):
             # Subject must NOT contain a newline — git %s is first line only.
             self.assertNotIn("\n", c["subject"])
 
-    def test_collect_git_metadata_captures_second_author_and_subject_only(self):
+    def test_collect_git_history_captures_second_author_and_subject_only(self):
         """The fixture's "Other Fixture Person" commit is now the
         second-to-last commit (the multi-author "feat: co-authored work"
         commit is newest). Subject must be the first line only; author
         must be the second author's name (not the bot)."""
-        from api.services.scan import _collect_git_metadata
+        from api.services.scan import _collect_git_history
 
-        _c, _m, _t, commits = _collect_git_metadata(
+        _c, _m, commits = _collect_git_history(
             FIXTURE,
             use_cache=False,
         )
@@ -1221,11 +1221,11 @@ class GitMetadataParallelTests(_CacheRedirectMixin, unittest.TestCase):
         # the right one).
         self.assertEqual(multi["subject"], "feat: co-authored work")
 
-    def test_collect_git_metadata_counts_merge_files(self):
+    def test_collect_git_history_counts_merge_files(self):
         """A merge commit's combined-diff file count must be > 0, not the
         empty count git log emits by default for merges."""
         import tempfile
-        from api.services.scan import _collect_git_metadata
+        from api.services.scan import _collect_git_history
 
         with tempfile.TemporaryDirectory() as td:
             tdp = Path(td)
@@ -1261,7 +1261,7 @@ class GitMetadataParallelTests(_CacheRedirectMixin, unittest.TestCase):
             (tdp / "base.txt").write_text("merged\n")
             subprocess.run(["git", "-C", td, "add", "."], check=True)
             subprocess.run(["git", "-C", td, "commit", "-aq", "--no-edit"], check=True)
-            _c, _m, _t, commits = _collect_git_metadata(
+            _c, _m, commits = _collect_git_history(
                 Path(td),
                 use_cache=False,
             )
@@ -1273,13 +1273,13 @@ class GitMetadataParallelTests(_CacheRedirectMixin, unittest.TestCase):
                 f"merge commit files count should be >= 1; got {commits[-1]['files']}",
             )
 
-    def test_collect_git_metadata_counts_clean_merge_files(self):
+    def test_collect_git_history_counts_clean_merge_files(self):
         """A clean (non-conflicting) merge commit must also report its
         files. With `-c`, clean merges report 0; with
         `--diff-merges=first-parent` they report the side-branch diff."""
         import tempfile
         import subprocess
-        from api.services.scan import _collect_git_metadata
+        from api.services.scan import _collect_git_history
 
         with tempfile.TemporaryDirectory() as td:
             tdp = Path(td)
@@ -1307,7 +1307,7 @@ class GitMetadataParallelTests(_CacheRedirectMixin, unittest.TestCase):
                 ["git", "-C", td, "merge", "-q", "--no-ff", "-m", "merge side", "side"],
                 check=True,
             )
-            _c, _m, _t, commits = _collect_git_metadata(
+            _c, _m, commits = _collect_git_history(
                 Path(td),
                 use_cache=False,
             )
@@ -1338,7 +1338,7 @@ class GitLogRobustnessTests(_CacheRedirectMixin, unittest.TestCase):
     def test_non_utf8_author_bytes_do_not_crash(self):
         """Failure mode A: a commit with non-UTF-8 author metadata must
         parse without raising. Bytes are replaced, not crashed-on."""
-        from api.services.scan import _collect_git_metadata
+        from api.services.scan import _collect_git_history
 
         with TemporaryDirectory() as td:
             td_path = Path(td)
@@ -1385,7 +1385,7 @@ class GitLogRobustnessTests(_CacheRedirectMixin, unittest.TestCase):
 
             def go() -> None:
                 try:
-                    _c, _m, _t, commits = _collect_git_metadata(
+                    _c, _m, commits = _collect_git_history(
                         td_path,
                         use_cache=False,
                     )
@@ -1482,7 +1482,7 @@ class GitLogRobustnessTests(_CacheRedirectMixin, unittest.TestCase):
 
 
 class GitHistoryCacheTests(_CacheRedirectMixin, unittest.TestCase):
-    """When HEAD hasn't moved, _collect_git_metadata should hit the
+    """When HEAD hasn't moved, _collect_git_history should hit the
     persistent cache and skip the two `git log` walks entirely."""
 
     @classmethod
@@ -1491,10 +1491,10 @@ class GitHistoryCacheTests(_CacheRedirectMixin, unittest.TestCase):
 
     def test_warm_run_skips_git_log(self):
         from unittest.mock import patch
-        from api.services.scan import _collect_git_metadata
+        from api.services.scan import _collect_git_history
 
         # Cold run: populates cache.
-        _collect_git_metadata(FIXTURE, use_cache=True)
+        _collect_git_history(FIXTURE, use_cache=True)
 
         original_run = subprocess.run
         log_calls: list[list[str]] = []
@@ -1506,14 +1506,14 @@ class GitHistoryCacheTests(_CacheRedirectMixin, unittest.TestCase):
 
         # Warm run: must not invoke `git log` at all.
         with patch("api.services.scan.subprocess.run", side_effect=counting_run):
-            _collect_git_metadata(FIXTURE, use_cache=True)
+            _collect_git_history(FIXTURE, use_cache=True)
         self.assertEqual(log_calls, [], "expected zero git log calls on warm run")
 
     def test_use_cache_false_bypasses(self):
         from unittest.mock import patch
-        from api.services.scan import _collect_git_metadata
+        from api.services.scan import _collect_git_history
 
-        _collect_git_metadata(FIXTURE, use_cache=True)  # populate
+        _collect_git_history(FIXTURE, use_cache=True)  # populate
 
         original_run = subprocess.run
         original_popen = subprocess.Popen
@@ -1535,7 +1535,7 @@ class GitHistoryCacheTests(_CacheRedirectMixin, unittest.TestCase):
             patch("api.services.scan.subprocess.run", side_effect=counting_run),
             patch("api.services.scan.subprocess.Popen", side_effect=counting_popen),
         ):
-            _collect_git_metadata(FIXTURE, use_cache=False)
+            _collect_git_history(FIXTURE, use_cache=False)
         self.assertEqual(
             len(log_calls), 1, "use_cache=False must run the combined log walk"
         )
@@ -1543,9 +1543,9 @@ class GitHistoryCacheTests(_CacheRedirectMixin, unittest.TestCase):
     def test_cache_invalidated_after_new_commit(self):
         # Make a commit, confirm next call re-walks history.
         from unittest.mock import patch
-        from api.services.scan import _collect_git_metadata
+        from api.services.scan import _collect_git_history
 
-        _collect_git_metadata(FIXTURE, use_cache=True)
+        _collect_git_history(FIXTURE, use_cache=True)
 
         # Commit something to move HEAD.
         new_file = FIXTURE / "cache-bust.txt"
@@ -1578,7 +1578,7 @@ class GitHistoryCacheTests(_CacheRedirectMixin, unittest.TestCase):
                 patch("api.services.scan.subprocess.run", side_effect=counting_run),
                 patch("api.services.scan.subprocess.Popen", side_effect=counting_popen),
             ):
-                _collect_git_metadata(FIXTURE, use_cache=True)
+                _collect_git_history(FIXTURE, use_cache=True)
             self.assertEqual(len(log_calls), 1, "HEAD moved -> must re-walk")
         finally:
             # Reset fixture: undo the commit and remove the file.
