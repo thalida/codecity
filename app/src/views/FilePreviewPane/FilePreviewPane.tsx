@@ -113,7 +113,7 @@ function FileTextPreview({ file }: FileTextPreviewProps) {
   useEffect(() => {
     setTextState({ kind: TextStateKind.Loading });
     let cancelled = false;
-    fetchFileText(file.fullPath || '').then(
+    fetchFileText(file.fullPath || '', file.modified).then(
       (text) => {
         if (cancelled) return;
         setTextState({ kind: TextStateKind.Text, text });
@@ -129,9 +129,10 @@ function FileTextPreview({ file }: FileTextPreviewProps) {
     return () => {
       cancelled = true;
     };
-    // Key on fullPath: a live-update poll yields a fresh FileNode with the
-    // same path but changed content, and re-selecting it must re-fetch.
-  }, [file.fullPath]);
+    // Also key on modified (mtime): a live-update poll yields a fresh FileNode
+    // with the same path but a newer mtime when the file was edited, so the
+    // still-selected preview re-fetches instead of waiting for a re-select.
+  }, [file.fullPath, file.modified]);
 
   return (
     <div class="pane preview-shell">
@@ -328,7 +329,7 @@ function FontPreview({ file }: FontPreviewProps) {
     // tries to delete a face that was never added.
     let added: FontFace | null = null;
 
-    fetchFileBytes(file.fullPath || '').then(
+    fetchFileBytes(file.fullPath || '', file.modified).then(
       async (buf) => {
         if (cancelled) return;
         const reason = fontRejectReason(buf);
@@ -366,8 +367,9 @@ function FontPreview({ file }: FontPreviewProps) {
       cancelled = true;
       if (added) document.fonts?.delete(added);
     };
-    // Key on fullPath so a live-update poll (same path, new bytes) re-loads.
-  }, [file.fullPath, family]);
+    // Also key on modified (mtime) so a live-update poll (same path, edited
+    // bytes) re-loads the face without waiting for a re-select.
+  }, [file.fullPath, file.modified, family]);
 
   return (
     <div class="pane preview-shell">
@@ -418,7 +420,9 @@ function _previewBody(file: FileNode | null) {
   }
   if (!file.fullPath) return null;
 
-  const url = fileUrl(file.fullPath || '');
+  // Version the URL by mtime so an edited image/video/pdf re-fetches on a live
+  // update instead of the browser serving the cached bytes for the same path.
+  const url = fileUrl(file.fullPath || '', file.modified);
   const kind = _previewKind(file);
 
   if (kind === PreviewKind.Image) {
