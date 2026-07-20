@@ -33,6 +33,34 @@ it('is stable when only dates change (size unchanged)', () => {
   );
 });
 
+it('changes when media_width changes (same byte size)', () => {
+  const mkMediaManifest = (mediaWidth: number): Manifest => {
+    const file = {
+      name: 'a.png',
+      type: NodeKind.File,
+      path: 'a.png',
+      fullPath: '/r/a.png',
+      extension: '.png',
+      size: 10,
+      lines: 0,
+      binary: true,
+      created: '2026-01-01T00:00:00Z',
+      modified: '2026-01-01T00:00:00Z',
+      mediaKind: 'image',
+      media_width: mediaWidth,
+      media_height: 100,
+      dirty: false,
+    };
+    return {
+      tree: { name: 'r', type: NodeKind.Directory, path: '.', children: [file] },
+    } as unknown as Manifest;
+  };
+
+  expect(computeLayoutSignature(mkMediaManifest(200))).not.toBe(
+    computeLayoutSignature(mkMediaManifest(400))
+  );
+});
+
 it('changes when the path set changes (same file sizes)', () => {
   const file = {
     name: 'a.py',

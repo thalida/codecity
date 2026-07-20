@@ -122,6 +122,13 @@ export function computeLayoutSignature(manifest: Manifest): string {
       mix(node.path);
       mix('\0');
       mix(String(node.size));
+      mix('\0');
+      // Media pixel dims drive the packer's footprint aspect (dimensions.ts)
+      // independent of byte size, so a re-encode at the same size that
+      // changes dims must still bust the reuse cache.
+      mix(String(node.media_width ?? ''));
+      mix('\0');
+      mix(String(node.media_height ?? ''));
       mix('\n');
     } else {
       mix(node.path);

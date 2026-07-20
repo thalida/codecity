@@ -72,7 +72,7 @@ export interface CityState {
   // The async manifest pipeline cityState owns: compute the layout off-thread,
   // then set the source signals (every component rebuilds reactively off them).
   applyManifest(newManifest: Manifest): Promise<void>;
-  // Forces the next apply onto the non-reuse path (rebuild for the same tree_signature).
+  // Forces the next apply onto the non-reuse path (rebuild for the same layout signature).
   invalidateLayoutCache(): void;
 }
 
@@ -237,13 +237,18 @@ export function createCityState(layoutClient: ReturnType<typeof createLayoutClie
   // --- The manifest pipeline. Private to this closure:
   //   lastAtlasTreeSig — tree_sig the icon atlas was last SUCCESSFULLY built for
   //     (lags the manifest if a build throws → retried next apply).
+  //   lastLayoutSig — layout signature of the last COMMITTED apply, cached so
+  //     the reuse check doesn't re-walk the previous manifest's tree every
+  //     apply (computeLayoutSignature(prev) was redundant with the value
+  //     already computed as layoutSig on that prior apply).
   //   invalidated — one-shot "force the next apply onto the non-reuse path",
   //     set by invalidateLayoutCache on a config Save.
   //   generation — supersession: a newer call wins; an older one bails at its
   //     post-await checks.
-  // There is no separate layout cache: the committed manifest + layout signals
-  // ARE the reuse source.
+  // The committed manifest + layout signals ARE the reuse source; lastLayoutSig
+  // is just a memo of a value derivable from them.
   let lastAtlasTreeSig: string | null = null;
+  let lastLayoutSig = '';
   let invalidated = false;
   let generation = 0;
 
@@ -251,8 +256,9 @@ export function createCityState(layoutClient: ReturnType<typeof createLayoutClie
     const myGeneration = ++generation;
 
     // Structure-only tree_signature (paths + nesting, NO mtime/size — stable
-    // across skeleton/final for one scan). Gates BOTH the icon atlas rebuild and
-    // the layout reuse decision below.
+    // across skeleton/final for one scan). Gates ONLY the icon atlas rebuild
+    // below; the layout reuse decision uses the layout signature instead
+    // (computeLayoutSignature, which also mixes in per-file size/dims).
     const treeSig = newManifest.tree_signature ?? '';
 
     // Icon atlas is expensive (a fetch+draw per unique icon), so rebuild it only
@@ -274,11 +280,8 @@ export function createCityState(layoutClient: ReturnType<typeof createLayoutClie
     // content edit changes sizes, so it takes the full re-pack path and
     // streets/positions re-solve; a dates-only change (or a settings re-apply
     // of the identical manifest) still reuses.
-    const prev = manifest.peek();
-    const prevIsFull = !!prev && 'tree_signature' in (prev as object);
     const layoutSig = computeLayoutSignature(newManifest);
-    const prevLayoutSig = prevIsFull ? computeLayoutSignature(prev as Manifest) : '';
-    const shouldReuse = !invalidated && prevLayoutSig !== '' && layoutSig === prevLayoutSig;
+    const shouldReuse = !invalidated && lastLayoutSig !== '' && layoutSig === lastLayoutSig;
     invalidated = false;
     const reusedLayout = shouldReuse ? layout.peek() : null;
     let newLayout: CityLayout;
@@ -302,6 +305,7 @@ export function createCityState(layoutClient: ReturnType<typeof createLayoutClie
     batch(() => {
       manifest.value = newManifest;
       layout.value = newLayout;
+      lastLayoutSig = layoutSig;
       if (!shouldReuse) structureRevision.value++;
       cityRevision.value++;
     });
@@ -309,7 +313,7 @@ export function createCityState(layoutClient: ReturnType<typeof createLayoutClie
 
   // A config-only Save calls this before re-applying the same manifest, forcing
   // the next apply onto the non-reuse path (so the scenic effects rebuild even
-  // though the tree_signature is unchanged). Does NOT touch the signals.
+  // though the layout signature is unchanged). Does NOT touch the signals.
   function invalidateLayoutCache(): void {
     invalidated = true;
   }

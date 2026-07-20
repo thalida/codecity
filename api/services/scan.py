@@ -505,8 +505,9 @@ def _normalize_remote_to_web_url(remote: str) -> str:
 def _parse_dirty_paths(porcelain_z: str) -> set[str]:
     """Repo-relative paths whose working tree differs from HEAD, parsed from
     `git status --porcelain -z`. Excludes untracked (`??`) and ignored (`!!`);
-    for a rename entry (status starts with `R`/`C`) the destination path is the
-    dirty one and the following NUL-separated field (the source) is skipped."""
+    for a rename/copy entry (`R`/`C` in either the index or worktree status
+    char) the destination path is the dirty one and the following
+    NUL-separated field (the source) is skipped."""
     fields = [f for f in porcelain_z.split("\0") if f]
     dirty: set[str] = set()
     i = 0
@@ -517,8 +518,9 @@ def _parse_dirty_paths(porcelain_z: str) -> set[str]:
         status, path = entry[:2], entry[3:]
         if status in ("??", "!!"):
             continue
-        # Rename/copy: the NEXT field is the source path — consume + ignore it.
-        if status and status[0] in ("R", "C"):
+        # Rename/copy (index-side R/C or worktree-side R/C): the NEXT field
+        # is the source path — consume + ignore it.
+        if "R" in status or "C" in status:
             i += 1
         if path:
             dirty.add(path)
@@ -765,13 +767,17 @@ def _hash_file_entry(sig: Any, rel_path: str, size: int, mtime: float) -> None:
     sig.update(b"\0")
 
 
-def _hash_repo_info(sig: Any, repo_info: RepoInfo) -> None:
+def _hash_repo_info(sig: Any, repo_info: RepoInfo, dirty_paths: set[str]) -> None:
     sig.update(
         (
             f"{repo_info['branch']}|{repo_info['remote_url']}|"
             f"{repo_info['head_sha']}|{repo_info['dirty']}"
         ).encode("utf-8")
     )
+    # Per-file dirty membership can change (e.g. a mode-only edit) without
+    # moving any mtime/size/head_sha, so the path set itself must feed the
+    # signature or a cached manifest would serve stale per-file dirty flags.
+    sig.update("\0".join(sorted(dirty_paths)).encode("utf-8"))
 
 
 def _file_node(
@@ -1432,7 +1438,7 @@ def scan_tree(
     # Repo-level metadata — branch, remote, head, dirty — feeds the
     # signature so the footer's "live" indicator catches a checkout or
     # commit without waiting for file mtimes to shift.
-    _hash_repo_info(sig, repo_info)
+    _hash_repo_info(sig, repo_info, dirty_paths)
 
     yield {
         "phase": ScanEvent.MANIFEST_COMPLETE,
@@ -1528,10 +1534,10 @@ def signature_tree(
     but without building the full manifest.
 
     Walks the tree once with os.scandir, hashing (rel_path, size, mtime)
-    plus repo-level git fields (branch / remote / head / dirty). Skips
-    file content reads and the `git log` walk scan_tree uses for
-    per-file created/modified history; both are cost-dominant on a big
-    repo and don't feed the signature anyway.
+    plus repo-level git fields (branch / remote / head / dirty) and the
+    dirty-path set. Skips file content reads and the `git log` walk
+    scan_tree uses for per-file created/modified history; both are
+    cost-dominant on a big repo and don't feed the signature anyway.
 
     Honors the same skip list and ``<root>/.codecityignore`` file as
     scan_tree, so signatures stay in lockstep.
@@ -1551,7 +1557,7 @@ def signature_tree(
         raise NotAGitRepoError(root_abs)
 
     tracked_files = _collect_tracked_set(root_path)
-    repo_info, _dirty_paths = _collect_repo_info(root_path)
+    repo_info, dirty_paths = _collect_repo_info(root_path)
 
     ignore_names, ignore_paths, unignore_names, unignore_paths = _load_codecityignore(
         root_path
@@ -1570,7 +1576,7 @@ def signature_tree(
         unignore_paths=unignore_paths,
         sig=sig,
     )
-    _hash_repo_info(sig, repo_info)
+    _hash_repo_info(sig, repo_info, dirty_paths)
 
     return {
         "root": root_abs,

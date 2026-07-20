@@ -27,6 +27,12 @@ def test_parse_dirty_paths_rename_takes_destination():
     assert _parse_dirty_paths(z) == {"api/renamed_to.py"}
 
 
+def test_parse_dirty_paths_worktree_rename_takes_destination():
+    # Worktree-side rename (X=space, Y=R): the source field still follows.
+    z = " R api/renamed_to.py\0api/renamed_from.py\0"
+    assert _parse_dirty_paths(z) == {"api/renamed_to.py"}
+
+
 def test_parse_dirty_paths_empty():
     assert _parse_dirty_paths("") == set()
 

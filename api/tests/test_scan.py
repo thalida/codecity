@@ -877,6 +877,35 @@ class SignatureTreeTests(_CacheRedirectMixin, unittest.TestCase):
             self.assertEqual(after_sig, after_full)
             self.assertNotEqual(before_sig, after_sig)
 
+    def test_signature_changes_with_dirty_path_set(self):
+        # A per-file dirty transition that moves NO file's mtime/size and NO
+        # head_sha (a mode-only edit) must still shift the signature, or a
+        # cached manifest would serve a stale per-file dirty flag/count.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            _init_repo(root)
+            a = root / "a.py"
+            a.write_text("x = 1\n")
+            b = root / "b.py"
+            b.write_text("y = 2\n")
+            _commit_all(root)
+
+            # Dirty b.py's content only — repo is dirty, dirty set is {b.py}.
+            b.write_text("y = 2\nz = 3\n")
+            before_stat = a.stat()
+            sig_one_dirty = signature_tree(str(root))["signature"]
+
+            # Now also flip a.py's executable bit: git sees it as modified
+            # (added to the dirty set) but a.py's own mtime/size are
+            # untouched, and head_sha/repo.dirty (already True) don't move.
+            os.chmod(a, before_stat.st_mode | 0o111)
+            after_stat = a.stat()
+            self.assertEqual(before_stat.st_size, after_stat.st_size)
+            self.assertEqual(before_stat.st_mtime, after_stat.st_mtime)
+
+            sig_two_dirty = signature_tree(str(root))["signature"]
+            self.assertNotEqual(sig_one_dirty, sig_two_dirty)
+
 
 class LineCountCapTests(unittest.TestCase):
     """Above ~5 MB the line counter samples and extrapolates instead of
