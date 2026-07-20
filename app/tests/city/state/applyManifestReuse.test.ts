@@ -38,6 +38,7 @@ function manifestWithSize(size: number, modified = '2026-01-01T00:00:00Z'): Mani
   return {
     tree: { name: 'r', type: NodeKind.Directory, path: '.', children: [file] },
     tree_signature: 'sig-fixed',
+    layout_signature: 'sig-fixed',
     dateRanges: EMPTY_DATE_RANGES,
     commits: [],
     busyness: { avg: 1, busy: 1 },

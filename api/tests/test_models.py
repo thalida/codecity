@@ -84,6 +84,7 @@ class ModelTests(unittest.TestCase):
             scanned_at="2020",
             signature="s",
             tree_signature="t",
+            layout_signature="l",
             tree={
                 "name": "r",
                 "type": "directory",

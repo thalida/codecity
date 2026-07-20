@@ -144,6 +144,11 @@ export interface Manifest {
    *  computation is skipped on skeleton→final transitions when the tree
    *  shape hasn't changed. */
   tree_signature: string;
+  /** Structure + per-file byte size fingerprint (the layout packer's inputs:
+   *  footprints + street length). Between tree_signature (too coarse) and
+   *  signature (too fine — includes mtime). Not yet consumed by the
+   *  frontend, which still computes its own layout signature client-side. */
+  layout_signature: string;
   tree: DirNode;
   repo: RepoInfo;
   /** Per-commit metadata, oldest-first. `[]` when the repo has zero

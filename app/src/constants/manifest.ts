@@ -48,6 +48,7 @@ export const EMPTY_MANIFEST: Manifest = {
   scanned_at: new Date().toISOString(),
   signature: '',
   tree_signature: '',
+  layout_signature: '',
   tree: {
     name: '',
     type: NodeKind.Directory,

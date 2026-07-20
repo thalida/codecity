@@ -71,7 +71,8 @@ _MANIFEST_SCHEMA_VERSION = (
     # v14: tree.name baked to the git remote's owner/repo at scan time
     # v15: sbom.json added to ALWAYS_SKIP
     # v16: FileNode.dirty + RepoStats.dirtyFileCount; dirty files use working-tree mtime
-    16
+    # v17: layout_signature field; dirty in per-file signature
+    17
 )
 # Composite: invalidates when EITHER the manifest schema OR the git-history
 # shape changes. Stored as a string in the cache file's `version` field.

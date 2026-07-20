@@ -55,6 +55,7 @@ function makeManifest(treeSig: string): Manifest {
   return {
     tree: { type: 'directory', name: treeSig, path: '.', children: [] },
     tree_signature: treeSig,
+    layout_signature: treeSig,
     dateRanges: EMPTY_DATE_RANGES,
     commits: [],
     busyness: { avg: 1, busy: 1 },

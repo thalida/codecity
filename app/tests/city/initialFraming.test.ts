@@ -100,6 +100,7 @@ describe('initial-load framing (issue #62)', () => {
       ...EMPTY_MANIFEST,
       tree,
       tree_signature: 'sig-repo',
+      layout_signature: 'sig-repo',
       signature: 'full-sig',
     } as unknown as Manifest;
   }

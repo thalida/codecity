@@ -231,6 +231,7 @@ class Manifest(BaseModel):
     scanned_at: str
     signature: str
     tree_signature: str
+    layout_signature: str
     tree: DirNode
     repo: RepoInfo
     commits: list[CommitEntry]

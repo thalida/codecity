@@ -32,6 +32,7 @@ const MANIFEST_JSON = JSON.stringify({
   manifest: {
     signature: 'sig0',
     tree_signature: 't0',
+    layout_signature: 't0',
     tree: { name: 'r', type: 'directory', path: '.', children: [] },
     repo: {},
   },

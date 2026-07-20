@@ -17,11 +17,10 @@ import pytest
 from api.services.scan import (
     _annotate_same_day_totals,
     _compute_busyness,
-    _compute_date_ranges,
+    _derive_tree_signals,
     _epoch_to_iso,
     _extension,
     _is_binary,
-    compute_tree_signature,
     scan_tree,
     signature_tree,
 )
@@ -243,7 +242,8 @@ class ComputeDateRangesTests(unittest.TestCase):
     @staticmethod
     def _tree(*files: tuple[str, str, str]) -> dict:
         # Minimal DirNode with (name, created, modified) file children —
-        # _compute_date_ranges only reads type/children/created/modified.
+        # _derive_tree_signals' date-range pass only reads
+        # type/children/created/modified/size (size added, unused here).
         return {
             "type": "directory",
             "path": ".",
@@ -255,6 +255,7 @@ class ComputeDateRangesTests(unittest.TestCase):
                     "name": name,
                     "created": created,
                     "modified": modified,
+                    "size": 0,
                 }
                 for name, created, modified in files
             ],
@@ -262,7 +263,7 @@ class ComputeDateRangesTests(unittest.TestCase):
 
     def test_empty_tree_is_all_none(self):
         self.assertEqual(
-            _compute_date_ranges(self._tree()),
+            _derive_tree_signals(self._tree()).date_ranges,
             {
                 "minCreated": None,
                 "maxCreated": None,
@@ -272,9 +273,9 @@ class ComputeDateRangesTests(unittest.TestCase):
         )
 
     def test_single_file_min_equals_max(self):
-        ranges = _compute_date_ranges(
+        ranges = _derive_tree_signals(
             self._tree(("a.py", "2024-01-10T09:00:00Z", "2024-03-22T14:30:00Z"))
-        )
+        ).date_ranges
         self.assertEqual(
             ranges,
             {
@@ -286,13 +287,13 @@ class ComputeDateRangesTests(unittest.TestCase):
         )
 
     def test_multi_file_lexical_extremes(self):
-        ranges = _compute_date_ranges(
+        ranges = _derive_tree_signals(
             self._tree(
                 ("a.py", "2024-02-15T10:00:00Z", "2024-02-15T10:00:00Z"),
                 ("b.py", "2024-01-10T09:00:00Z", "2024-03-22T14:30:00Z"),
                 ("c.py", "2024-01-20T12:00:00Z", "2024-01-20T12:00:00Z"),
             )
-        )
+        ).date_ranges
         self.assertEqual(
             ranges,
             {
@@ -1677,8 +1678,14 @@ def _line_count_real():
     return _line_count
 
 
+def _sig(tree: dict) -> str:
+    """tree_signature of a minimal test tree, via _derive_tree_signals."""
+    return _derive_tree_signals(tree).tree_signature
+
+
 class TreeSignatureTests(unittest.TestCase):
-    """compute_tree_signature produces a stable, structure-only fingerprint.
+    """_derive_tree_signals' tree_signature is a stable, structure-only
+    fingerprint (the old compute_tree_signature, now inlined).
 
     The signature must:
     1. Be identical for identical tree shapes regardless of file metadata.
@@ -1697,7 +1704,12 @@ class TreeSignatureTests(unittest.TestCase):
         }
 
     def _make_file(
-        self, path: str, size: int = 100, mtime: float = 1_000_000.0
+        self,
+        path: str,
+        size: int = 100,
+        mtime: float = 1_000_000.0,
+        created: str = "2024-01-01T00:00:00Z",
+        modified: str = "2024-01-01T00:00:00Z",
     ) -> dict:
         """Build a minimal FileNode-like dict for testing."""
         return {
@@ -1706,33 +1718,29 @@ class TreeSignatureTests(unittest.TestCase):
             "name": path.rsplit("/", 1)[-1],
             "size": size,
             "mtime": mtime,
+            "created": created,
+            "modified": modified,
         }
 
     def test_same_shape_same_metadata_produces_same_signature(self):
         tree = self._make_tree([self._make_file("a.py"), self._make_file("b.py")])
-        self.assertEqual(compute_tree_signature(tree), compute_tree_signature(tree))
+        self.assertEqual(_sig(tree), _sig(tree))
 
     def test_same_shape_different_metadata_produces_same_signature(self):
         # Metadata (size, mtime) must NOT affect tree_signature.
         tree_a = self._make_tree([self._make_file("a.py", size=100, mtime=1.0)])
         tree_b = self._make_tree([self._make_file("a.py", size=999, mtime=9.9)])
-        self.assertEqual(compute_tree_signature(tree_a), compute_tree_signature(tree_b))
+        self.assertEqual(_sig(tree_a), _sig(tree_b))
 
     def test_adding_a_file_changes_signature(self):
         tree_before = self._make_tree([self._make_file("a.py")])
         tree_after = self._make_tree([self._make_file("a.py"), self._make_file("b.py")])
-        self.assertNotEqual(
-            compute_tree_signature(tree_before),
-            compute_tree_signature(tree_after),
-        )
+        self.assertNotEqual(_sig(tree_before), _sig(tree_after))
 
     def test_renaming_a_file_changes_signature(self):
         tree_before = self._make_tree([self._make_file("a.py")])
         tree_after = self._make_tree([self._make_file("z.py")])
-        self.assertNotEqual(
-            compute_tree_signature(tree_before),
-            compute_tree_signature(tree_after),
-        )
+        self.assertNotEqual(_sig(tree_before), _sig(tree_after))
 
     def test_adding_a_directory_changes_signature(self):
         tree_before = self._make_tree([self._make_file("a.py")])
@@ -1747,10 +1755,7 @@ class TreeSignatureTests(unittest.TestCase):
                 },
             ]
         )
-        self.assertNotEqual(
-            compute_tree_signature(tree_before),
-            compute_tree_signature(tree_after),
-        )
+        self.assertNotEqual(_sig(tree_before), _sig(tree_after))
 
     def test_deterministic_across_repeated_calls(self):
         tree = self._make_tree(
@@ -1765,15 +1770,13 @@ class TreeSignatureTests(unittest.TestCase):
                 },
             ]
         )
-        results = {compute_tree_signature(tree) for _ in range(5)}
-        self.assertEqual(
-            len(results), 1, "compute_tree_signature must be deterministic"
-        )
+        results = {_sig(tree) for _ in range(5)}
+        self.assertEqual(len(results), 1, "tree_signature must be deterministic")
 
     def test_returns_hex_string_of_expected_length(self):
         # blake2b digest_size=8 → 8 bytes → 16 hex chars.
         tree = self._make_tree([self._make_file("a.py")])
-        sig = compute_tree_signature(tree)
+        sig = _sig(tree)
         self.assertIsInstance(sig, str)
         self.assertEqual(len(sig), 16)
         int(sig, 16)  # must be valid hex — raises ValueError if not
@@ -1815,6 +1818,51 @@ class TreeSignatureTests(unittest.TestCase):
         # Metadata-sensitive signature changes between skeleton and final.
         # tree_signature must NOT change.
         self.assertEqual(skeleton["tree_signature"], final["tree_signature"])
+
+
+def test_layout_signature_tracks_size_not_dates(tmp_path):
+    # Build two trees differing only in a file size, and two differing only in a date.
+    def node(size, modified):
+        return {
+            "name": "a",
+            "type": "file",
+            "path": "a",
+            "fullPath": "/r/a",
+            "extension": "",
+            "mediaKind": None,
+            "size": size,
+            "lines": 1,
+            "binary": False,
+            "dirty": False,
+            "created": "2026-01-01T00:00:00Z",
+            "modified": modified,
+        }
+
+    def tree(size, modified):
+        return {
+            "name": "r",
+            "type": "directory",
+            "path": ".",
+            "fullPath": "/r",
+            "children": [node(size, modified)],
+            "children_count": 1,
+            "children_file_count": 1,
+            "children_dir_count": 0,
+            "descendants_count": 1,
+            "descendants_file_count": 1,
+            "descendants_dir_count": 0,
+            "descendants_size": size,
+            "descendants_created_min": None,
+            "descendants_modified_max": None,
+            "descendants_ext_breakdown": [],
+        }
+
+    a = _derive_tree_signals(tree(10, "2026-01-01T00:00:00Z"))
+    b = _derive_tree_signals(tree(20, "2026-01-01T00:00:00Z"))  # size changed
+    c = _derive_tree_signals(tree(10, "2026-09-09T00:00:00Z"))  # date changed
+    assert a.layout_signature != b.layout_signature
+    assert a.layout_signature == c.layout_signature
+    assert a.tree_signature == b.tree_signature == c.tree_signature  # structure same
 
 
 class ScanTreeStreamingTests(unittest.TestCase):

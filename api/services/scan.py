@@ -72,7 +72,6 @@ __all__ = [
     "NotAGitRepoError",
     "ScanCancelledError",
     "build_authors_list",
-    "compute_tree_signature",
     "scan_tree",
     "signature_tree",
 ]
@@ -147,7 +146,8 @@ def _git_iso_to_utc(iso: str) -> str:
     """Normalize a git %aI date (which carries the author's UTC offset,
     e.g. +02:00) to the same Z-suffixed UTC format _epoch_to_iso emits.
     Every date on the wire then shares one format, so lexical order ==
-    chronological order (which _compute_date_ranges relies on). Returns
+    chronological order (which _derive_tree_signals' date-range pass relies
+    on). Returns
     the input unchanged if it doesn't parse (defensive; %aI always
     parses)."""
     try:
@@ -1225,32 +1225,60 @@ def _build_tree(
 # ── Public entry ─────────────────────────────────────────────────────────────
 
 
-def compute_tree_signature(tree_root: DirNode) -> str:
-    """Stable fingerprint of the manifest tree's structure.
+class TreeSignals(NamedTuple):
+    tree_signature: str
+    layout_signature: str
+    date_ranges: DateRanges
 
-    Ignores per-file metadata; depends ONLY on the set of paths and
-    their nesting. Returns the same value for skeleton and final
-    manifests of the same scan, and for live-update polls until the
-    tree shape actually changes.
 
-    Uses blake2b with digest_size=8 (16-char hex string). Children are
-    sorted by path before walking — scan.py already sorts entries
-    alphabetically during _build_tree, so this sort is a no-op in
-    practice, but we apply it defensively to guarantee determinism if
-    the tree-builder ever changes its iteration order.
-    """
-    h = hashlib.blake2b(digest_size=8)
+def _derive_tree_signals(tree_root: DirNode) -> TreeSignals:
+    """Single pass over the built (pre-populate) tree producing every signal that
+    depends only on structure + build-time metadata:
+
+    - tree_signature  — structure only (paths + nesting); drives the icon-atlas
+      gate + skeleton/final stability. Ignores size/dates.
+    - layout_signature — structure + per-file byte size (the layout packer's
+      inputs: footprints + street length). Between tree_signature (too coarse)
+      and the full scan signature (too fine — includes mtime). The frontend
+      reuses the packed layout iff this is unchanged.
+    - date_ranges     — repo-wide min/max of resolved created/modified.
+
+    All inputs are real in the pre-populate tree, so the values are identical for
+    the skeleton and final manifests of a scan. Children sorted by path for
+    determinism (no-op when _build_tree already sorts)."""
+    struct = hashlib.blake2b(digest_size=8)
+    layout = hashlib.blake2b(digest_size=8)
+    cmin = cmax = mmin = mmax = None
 
     def _walk(node: TreeNode) -> None:
-        h.update(node["path"].encode("utf-8"))
-        h.update(b"\x00")
-        if node["type"] == "directory":
-            # Sort by path for determinism (no-op when _build_tree already sorts).
+        nonlocal cmin, cmax, mmin, mmax
+        struct.update(node["path"].encode("utf-8"))
+        struct.update(b"\x00")
+        layout.update(node["path"].encode("utf-8"))
+        layout.update(b"\x00")
+        if node["type"] == NodeKind.DIRECTORY:
             for c in sorted(node["children"], key=lambda n: n["path"]):
                 _walk(c)
+        else:
+            layout.update(str(node["size"]).encode("ascii"))
+            layout.update(b"\x00")
+            cr, md = node["created"], node["modified"]
+            cmin = cr if cmin is None or cr < cmin else cmin
+            cmax = cr if cmax is None or cr > cmax else cmax
+            mmin = md if mmin is None or md < mmin else mmin
+            mmax = md if mmax is None or md > mmax else mmax
 
     _walk(tree_root)
-    return h.hexdigest()
+    return TreeSignals(
+        tree_signature=struct.hexdigest(),
+        layout_signature=layout.hexdigest(),
+        date_ranges={
+            "minCreated": cmin,
+            "maxCreated": cmax,
+            "minModified": mmin,
+            "maxModified": mmax,
+        },
+    )
 
 
 def _compute_busyness(commits: list[CommitEntry]) -> BusynessThresholds:
@@ -1274,35 +1302,11 @@ def _compute_busyness(commits: list[CommitEntry]) -> BusynessThresholds:
     return {"avg": avg, "busy": busy}
 
 
-def _compute_date_ranges(tree: DirNode) -> DateRanges:
-    """Repo-wide min/max of the resolved created/modified dates, compared
-    lexically (same semantics as the frontend walk this replaces). All four
-    are None for a tree with zero files.
-
-    Lexical comparison is exact here, not approximate: every date is
-    Z-suffixed UTC in one fixed format (git dates via _git_iso_to_utc,
-    fs dates via _epoch_to_iso), and ISO-8601 strings in a single zone
-    sort lexically in chronological order."""
-    cmin = cmax = mmin = mmax = None
-    for node in _iter_file_nodes(tree):
-        c, m = node["created"], node["modified"]
-        cmin = c if cmin is None or c < cmin else cmin
-        cmax = c if cmax is None or c > cmax else cmax
-        mmin = m if mmin is None or m < mmin else mmin
-        mmax = m if mmax is None or m > mmax else mmax
-    return {
-        "minCreated": cmin,
-        "maxCreated": cmax,
-        "minModified": mmin,
-        "maxModified": mmax,
-    }
-
-
 def _wrap_manifest(
     root_abs: str,
     tree: DirNode,
     sig: Any,
-    tree_signature: str,
+    signals: TreeSignals,
     repo_info: RepoInfo,
     commits: list[CommitEntry],
 ) -> Manifest:
@@ -1325,12 +1329,13 @@ def _wrap_manifest(
         "root": root_abs,
         "scanned_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "signature": sig.hexdigest(),
-        "tree_signature": tree_signature,
+        "tree_signature": signals.tree_signature,
+        "layout_signature": signals.layout_signature,
         "tree": tree,
         "repo": repo_info,
         "commits": commits,
         "busyness": _compute_busyness(commits),
-        "dateRanges": _compute_date_ranges(tree),
+        "dateRanges": signals.date_ranges,
         "stats": compute_repo_stats(tree, commits),
     }
 
@@ -1431,10 +1436,11 @@ def scan_tree(
     heartbeat.flush()  # ensure UI sees the true final count, not whatever the throttle last allowed through
     _log(f"walked {heartbeat.seen} files; emitting skeleton")
 
-    # Compute tree_signature once after the tree is built. This is
-    # structure-only (paths + nesting, NO mtime/size/metadata), so it is
-    # identical for skeleton and final manifests of the same scan.
-    tree_sig = compute_tree_signature(tree)
+    # Derive tree_signature/layout_signature/dateRanges once after the tree is
+    # built, from the real pre-populate metadata (structure + size + dates, NO
+    # mtime), so they are identical for skeleton and final manifests of the
+    # same scan.
+    signals = _derive_tree_signals(tree)
 
     _check_cancel(cancel_event)  # after tree walk, before skeleton emit
 
@@ -1449,7 +1455,7 @@ def scan_tree(
             root_abs,
             skeleton_tree,
             sig,
-            tree_sig,
+            signals,
             git.repo,
             commits_list,
         ),
@@ -1476,7 +1482,7 @@ def scan_tree(
             root_abs,
             tree,
             sig,
-            tree_sig,
+            signals,
             git.repo,
             commits_list,
         ),

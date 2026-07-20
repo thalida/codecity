@@ -476,6 +476,8 @@ export interface components {
             signature: string;
             /** Tree Signature */
             tree_signature: string;
+            /** Layout Signature */
+            layout_signature: string;
             tree: components["schemas"]["DirNode"];
             repo: components["schemas"]["RepoInfo"];
             /** Commits */

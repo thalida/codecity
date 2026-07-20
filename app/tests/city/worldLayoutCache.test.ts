@@ -47,6 +47,7 @@ describe('attachSettingsReactions invalidates layout cache before applyManifest'
   it('calls world.invalidateLayoutCache() BEFORE world.applyManifest() on a rebuildStore commit', async () => {
     const stubManifest = {
       tree_signature: 'abc',
+      layout_signature: 'abc',
       tree: { type: 'directory', children: [] },
       dateRanges: { minCreated: null, maxCreated: null, minModified: null, maxModified: null },
     };
