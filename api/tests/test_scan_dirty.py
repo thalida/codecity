@@ -1,9 +1,17 @@
 # api/tests/test_scan_dirty.py
+import inspect
+import os
 import subprocess
 from pathlib import Path
 
 from api.services.manifest_types import Manifest
-from api.services.scan import _collect_git_state, _parse_dirty_paths, scan_tree
+from api.services.scan import (
+    _collect_git_state,
+    _hash_repo_info,
+    _parse_dirty_paths,
+    scan_tree,
+    signature_tree,
+)
 
 
 def test_parse_dirty_paths_reads_modified_and_staged_skips_untracked():
@@ -106,3 +114,24 @@ def test_dirty_file_count_matches_flags(tmp_path: Path):
     (tmp_path / "a.py").write_text("1\n2\n")  # dirty one file
     manifest = _final_manifest(str(tmp_path), use_cache=False)
     assert manifest["stats"]["dirtyFileCount"] == 1
+
+
+def test_hash_repo_info_has_no_repo_level_dirty_set_param():
+    # Dirty rides per-file now (Task 4); _hash_repo_info must not accept a
+    # repo-wide dirty_paths set anymore.
+    assert list(inspect.signature(_hash_repo_info).parameters) == ["sig", "repo_info"]
+
+
+def test_mode_only_change_moves_signature(tmp_path: Path):
+    _git(tmp_path, "init", "-q")
+    _git(tmp_path, "config", "user.email", "t@t")
+    _git(tmp_path, "config", "user.name", "t")
+    _git(tmp_path, "config", "core.fileMode", "true")
+    f = tmp_path / "s.sh"
+    f.write_text("echo hi\n")
+    _git(tmp_path, "add", ".")
+    _git(tmp_path, "commit", "-qm", "i")
+    sig1 = signature_tree(str(tmp_path))["signature"]
+    os.chmod(f, 0o755)  # dirty via mode only: size + mtime unchanged
+    sig2 = signature_tree(str(tmp_path))["signature"]
+    assert sig1 != sig2  # per-file dirty bit is in the signature

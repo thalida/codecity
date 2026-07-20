@@ -786,26 +786,28 @@ def _should_skip(
 # the per-file and per-repo contributions in dedicated helpers is the
 # contract that lets the cheap signature endpoint match the full scan's
 # signature exactly. Don't inline these — drift here breaks live updates.
-def _hash_file_entry(sig: Any, rel_path: str, size: int, mtime: float) -> None:
+def _hash_file_entry(
+    sig: Any, rel_path: str, size: int, mtime: float, is_dirty: bool
+) -> None:
     sig.update(rel_path.encode("utf-8"))
     sig.update(b"\0")
     sig.update(str(size).encode("ascii"))
     sig.update(b"\0")
     sig.update(repr(mtime).encode("ascii"))
     sig.update(b"\0")
+    # Dirty rides with each file: a mode-only edit flips it without moving
+    # size/mtime, and a cached manifest would otherwise serve a stale flag.
+    sig.update(b"1" if is_dirty else b"0")
+    sig.update(b"\0")
 
 
-def _hash_repo_info(sig: Any, repo_info: RepoInfo, dirty_paths: set[str]) -> None:
+def _hash_repo_info(sig: Any, repo_info: RepoInfo) -> None:
     sig.update(
         (
             f"{repo_info['branch']}|{repo_info['remote_url']}|"
             f"{repo_info['head_sha']}|{repo_info['dirty']}"
         ).encode("utf-8")
     )
-    # Per-file dirty membership can change (e.g. a mode-only edit) without
-    # moving any mtime/size/head_sha, so the path set itself must feed the
-    # signature or a cached manifest would serve stale per-file dirty flags.
-    sig.update("\0".join(sorted(dirty_paths)).encode("utf-8"))
 
 
 def _file_node(
@@ -823,9 +825,9 @@ def _file_node(
     abs_path = entry.path
     size, fs_created, fs_modified, mtime = _stat_fields(entry)
 
-    _hash_file_entry(sig, rel_path, size, mtime)
-
     is_dirty = rel_path in dirty_paths
+
+    _hash_file_entry(sig, rel_path, size, mtime, is_dirty)
 
     # Resolve file dates: git history when the file has one, filesystem
     # otherwise. Every scanned file is git-tracked (scan_tree rejects non-git
@@ -1474,7 +1476,7 @@ def scan_tree(
     # Repo-level metadata — branch, remote, head, dirty — feeds the
     # signature so the footer's "live" indicator catches a checkout or
     # commit without waiting for file mtimes to shift.
-    _hash_repo_info(sig, git.repo, git.dirty)
+    _hash_repo_info(sig, git.repo)
 
     yield {
         "phase": ScanEvent.MANIFEST_COMPLETE,
@@ -1494,6 +1496,7 @@ def _walk_for_signature(
     rel_dir: str,
     *,
     tracked_files: set[str],
+    dirty_paths: set[str],
     ignore_names: frozenset[str],
     ignore_paths: frozenset[str],
     unignore_names: frozenset[str],
@@ -1527,12 +1530,13 @@ def _walk_for_signature(
             continue
         if entry.is_file(follow_symlinks=False):
             size, _created, _modified, mtime = _stat_fields(entry)
-            _hash_file_entry(sig, entry_rel, size, mtime)
+            _hash_file_entry(sig, entry_rel, size, mtime, entry_rel in dirty_paths)
         elif entry.is_dir(follow_symlinks=False):
             _walk_for_signature(
                 entry.path,
                 entry_rel,
                 tracked_files=tracked_files,
+                dirty_paths=dirty_paths,
                 ignore_names=ignore_names,
                 ignore_paths=ignore_paths,
                 unignore_names=unignore_names,
@@ -1550,11 +1554,11 @@ def signature_tree(
     """Cheap fingerprint of the tree — equivalent to scan_tree(root)['signature']
     but without building the full manifest.
 
-    Walks the tree once with os.scandir, hashing (rel_path, size, mtime)
-    plus repo-level git fields (branch / remote / head / dirty) and the
-    dirty-path set. Skips file content reads and the `git log` walk
-    scan_tree uses for per-file created/modified history; both are
-    cost-dominant on a big repo and don't feed the signature anyway.
+    Walks the tree once with os.scandir, hashing (rel_path, size, mtime,
+    dirty) per file plus repo-level git fields (branch / remote / head /
+    dirty). Skips file content reads and the `git log` walk scan_tree
+    uses for per-file created/modified history; both are cost-dominant
+    on a big repo and don't feed the signature anyway.
 
     Honors the same skip list and ``<root>/.codecityignore`` file as
     scan_tree, so signatures stay in lockstep.
@@ -1586,13 +1590,14 @@ def signature_tree(
         root_abs,
         ".",
         tracked_files=git.tracked,
+        dirty_paths=git.dirty,
         ignore_names=ignore_names,
         ignore_paths=ignore_paths,
         unignore_names=unignore_names,
         unignore_paths=unignore_paths,
         sig=sig,
     )
-    _hash_repo_info(sig, git.repo, git.dirty)
+    _hash_repo_info(sig, git.repo)
 
     return {
         "root": root_abs,
