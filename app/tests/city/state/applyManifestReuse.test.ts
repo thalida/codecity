@@ -17,13 +17,12 @@ const EMPTY_DATE_RANGES: DateRanges = {
   maxModified: null,
 } as unknown as DateRanges;
 
-// Same path set/nesting (tree_signature) across every call in a test — the
-// only thing that varies is the file's size (and optionally its modified
-// date), isolating the layout-signature gate from the tree_signature one.
-// layout_signature is keyed off size only (the backend never mixes dates into
-// it), so two calls with the same size but different dates carry the same
-// value and calls with different sizes carry different values.
-function manifestWithSize(size: number, modified = '2026-01-01T00:00:00Z'): Manifest {
+// The gate must key on the backend layout_signature FIELD, not on anything it
+// recomputes from the tree. So these fixtures decouple the field from the
+// tree's file size: `layoutSig` is set independently of `size`. A test that
+// varies one while holding the other proves the field — not the tree — drives
+// the reuse decision. tree_signature is held fixed so it's never the variable.
+function manifest(layoutSig: string, size = 10, modified = '2026-01-01T00:00:00Z'): Manifest {
   const file = {
     name: 'a.py',
     type: NodeKind.File,
@@ -41,7 +40,7 @@ function manifestWithSize(size: number, modified = '2026-01-01T00:00:00Z'): Mani
   return {
     tree: { name: 'r', type: NodeKind.Directory, path: '.', children: [file] },
     tree_signature: 'sig-fixed',
-    layout_signature: `sig-${size}`,
+    layout_signature: layoutSig,
     dateRanges: EMPTY_DATE_RANGES,
     commits: [],
     busyness: { avg: 1, busy: 1 },
@@ -70,19 +69,23 @@ function fakeLayoutClient() {
 }
 
 describe('cityState.applyManifest — reuse gate keys on the layout signature (#74)', () => {
-  it('bumps structureRevision when a file size changes (full re-pack)', async () => {
+  it('bumps structureRevision when layout_signature changes (full re-pack)', async () => {
     const state = createCityState(fakeLayoutClient() as never);
-    await state.applyManifest(manifestWithSize(10));
+    await state.applyManifest(manifest('L1'));
     const before = state.structureRevision.value;
-    await state.applyManifest(manifestWithSize(20)); // same paths, new size
+    await state.applyManifest(manifest('L2')); // layout_signature changed
     expect(state.structureRevision.value).toBe(before + 1);
   });
 
-  it('does not bump structureRevision when only dates change (reuse)', async () => {
+  // The discriminating case: the tree's file size changes but layout_signature
+  // does NOT. A gate that recomputed the signature from the tree would re-pack;
+  // the field-reading gate must reuse. This fails against the old tree-derived
+  // gate, so it actually proves the switch.
+  it('reuses when layout_signature is unchanged even if the tree size differs', async () => {
     const state = createCityState(fakeLayoutClient() as never);
-    await state.applyManifest(manifestWithSize(10, '2026-01-01T00:00:00Z'));
+    await state.applyManifest(manifest('L1', 10));
     const before = state.structureRevision.value;
-    await state.applyManifest(manifestWithSize(10, '2026-09-09T00:00:00Z')); // size unchanged
+    await state.applyManifest(manifest('L1', 999)); // different tree size, SAME field
     expect(state.structureRevision.value).toBe(before);
   });
 });
