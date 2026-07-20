@@ -1265,7 +1265,7 @@ def _derive_tree_signals(tree_root: DirNode) -> TreeSignals:
       gate + skeleton/final stability. Ignores size/dates.
     - layout_signature — structure + per-file byte size (the layout packer's
       inputs: footprints + street length). Between structure_signature (too coarse)
-      and the full scan signature (too fine — includes mtime). The frontend
+      and content_signature (too fine — includes mtime). The frontend
       reuses the packed layout iff this is unchanged. Each node's bytes are
       prefixed with a one-byte type marker (d/f) so a file's size token can
       never be misread as a sibling's path token.
