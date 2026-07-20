@@ -797,16 +797,20 @@ def _file_node(
 
     _hash_file_entry(sig, rel_path, size, mtime)
 
-    # Single resolution point for file dates: git history when the file has
-    # one, filesystem otherwise. Every scanned file is git-tracked (scan_tree
-    # rejects non-git roots), but a tracked file may still have no entry in
-    # git_created/git_modified if no commit ever touched it (e.g. just added,
-    # not yet committed) — those fall back to the fs dates. (Falsy `or`:
-    # missing key → None → fs date; the maps never hold empty strings.)
-    # A dirty file's history date is stale by definition (the working tree has
-    # since diverged from HEAD), so its `modified` is forced to the fs date
-    # regardless of what git log last recorded.
     is_dirty = rel_path in dirty_paths
+
+    # Resolve file dates: git history when the file has one, filesystem
+    # otherwise. Every scanned file is git-tracked (scan_tree rejects non-git
+    # roots), but a tracked file may have no entry in git_created/git_modified
+    # if no commit ever touched it (e.g. just added, not yet committed) — those
+    # fall back to the fs dates. (Falsy `or`: missing key → None → fs date; the
+    # maps never hold empty strings.)
+    created = git_created.get(rel_path) or fs_created
+    # A dirty file's history date is stale by definition (the working tree has
+    # diverged from HEAD), so force `modified` to the fs mtime regardless of
+    # what git log last recorded.
+    modified = fs_modified if is_dirty else (git_modified.get(rel_path) or fs_modified)
+
     return {
         "name": entry.name,
         "type": NodeKind.FILE,
@@ -818,10 +822,8 @@ def _file_node(
         "lines": 0,  # filled in by _populate_file_metadata
         "binary": False,  # filled in by _populate_file_metadata
         "dirty": is_dirty,
-        "created": git_created.get(rel_path) or fs_created,
-        "modified": fs_modified
-        if is_dirty
-        else (git_modified.get(rel_path) or fs_modified),
+        "created": created,
+        "modified": modified,
     }
 
 
