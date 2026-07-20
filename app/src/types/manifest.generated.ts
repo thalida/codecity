@@ -472,10 +472,10 @@ export interface components {
             root: string;
             /** Scanned At */
             scanned_at: string;
-            /** Signature */
-            signature: string;
-            /** Tree Signature */
-            tree_signature: string;
+            /** Content Signature */
+            content_signature: string;
+            /** Structure Signature */
+            structure_signature: string;
             /** Layout Signature */
             layout_signature: string;
             tree: components["schemas"]["DirNode"];
@@ -568,8 +568,8 @@ export interface components {
             root: string;
             /** Scanned At */
             scanned_at: string;
-            /** Signature */
-            signature: string;
+            /** Content Signature */
+            content_signature: string;
         };
         /** ValidationError */
         ValidationError: {

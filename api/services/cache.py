@@ -72,7 +72,9 @@ _MANIFEST_SCHEMA_VERSION = (
     # v15: sbom.json added to ALWAYS_SKIP
     # v16: FileNode.dirty + RepoStats.dirtyFileCount; dirty files use working-tree mtime
     # v17: layout_signature field; dirty in per-file signature
-    17
+    # v18: Manifest/SignatureResponse field `signature` renamed `content_signature`
+    #   (field rename is a shape change; old blobs lack the new key)
+    18
 )
 # Composite: invalidates when EITHER the manifest schema OR the git-history
 # shape changes. Stored as a string in the cache file's `version` field.
@@ -298,19 +300,21 @@ def cache_save_git_history(
     _atomic_write(_git_history_cache_path(abs_root), json.dumps(payload))
 
 
-def _manifest_cache_path(abs_root: Path, signature: str) -> Path:
-    return CACHE_ROOT / "manifests" / f"{repo_key(abs_root)}__{signature}.json.gz"
+def _manifest_cache_path(abs_root: Path, content_signature: str) -> Path:
+    return (
+        CACHE_ROOT / "manifests" / f"{repo_key(abs_root)}__{content_signature}.json.gz"
+    )
 
 
 def cache_load_manifest(
     abs_root: Path,
-    signature: str,
+    content_signature: str,
 ) -> "Manifest | None":
-    """Load the cached manifest for this (root, signature). Returns
+    """Load the cached manifest for this (root, content_signature). Returns
     None on any error (missing file, gzip corruption, JSON parse,
     schema/version mismatch). Same hygiene as the other cache loaders:
     a corrupt cache is treated as a miss, never a hard failure."""
-    path = _manifest_cache_path(abs_root, signature)
+    path = _manifest_cache_path(abs_root, content_signature)
     try:
         with gzip.open(path, "rb") as fh:
             raw = json.loads(fh.read().decode("utf-8"))
@@ -331,13 +335,13 @@ def cache_load_manifest(
 
 def cache_save_manifest(
     abs_root: Path,
-    signature: str,
+    content_signature: str,
     manifest: "Manifest",
 ) -> None:
-    """Atomically write the manifest cache for this (root, signature).
+    """Atomically write the manifest cache for this (root, content_signature).
     Swallows OSError — cache save failures must never break the
     response."""
-    path = _manifest_cache_path(abs_root, signature)
+    path = _manifest_cache_path(abs_root, content_signature)
     path.parent.mkdir(parents=True, exist_ok=True)
     payload = json.dumps(
         {

@@ -131,23 +131,35 @@ export interface CommitEntry {
   same_day_total: number;
 }
 
+/**
+ * Three signature fields form a ladder, each a superset of the one before:
+ *  - structure_signature: paths and nesting only. Drives icon-atlas
+ *    assignment and skeleton/final render stability.
+ *  - layout_signature: structure, plus per-file size. Gates layout reuse,
+ *    skipping the expensive re-pack when only unrelated metadata changed.
+ *  - content_signature: structure, plus size, mtime, dirty, and repo HEAD.
+ *    The full change-detection fingerprint: drives the live-update poll
+ *    and is the manifest cache key.
+ */
 export interface Manifest {
   root: string;
   scanned_at: string;
-  /** Metadata-sensitive fingerprint (mtime/size based). Changes between
-   *  skeleton and final events for the same scan. Used by live-update polls
-   *  to detect when any file has changed on disk. */
-  signature: string;
+  /** Full change-detection fingerprint (structure + size + mtime + dirty +
+   *  repo HEAD). Changes between skeleton and final events for the same
+   *  scan. Used by live-update polls to detect when any file has changed
+   *  on disk, and as the manifest cache key. */
+  content_signature: string;
   /** Structure-only fingerprint (paths + nesting, NO mtime/size/metadata).
    *  Identical for skeleton and final manifests of the same scan. Gates the
    *  icon atlas rebuild and skeleton/final stability checks; the layout
    *  reuse decision uses layout_signature instead. */
-  tree_signature: string;
+  structure_signature: string;
   /** Structure + per-file byte size fingerprint (the layout packer's inputs:
-   *  footprints + street length). Between tree_signature (too coarse) and
-   *  signature (too fine — includes mtime). This is the layout-reuse cache
-   *  key: the reuse gate compares a fresh manifest's value against the
-   *  committed one, and skips the expensive re-pack when they match. */
+   *  footprints + street length). Between structure_signature (too coarse)
+   *  and content_signature (too fine, includes mtime). This is the
+   *  layout-reuse cache key: the reuse gate compares a fresh manifest's
+   *  value against the committed one, and skips the expensive re-pack when
+   *  they match. */
   layout_signature: string;
   tree: DirNode;
   repo: RepoInfo;

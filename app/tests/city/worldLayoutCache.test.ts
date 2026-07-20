@@ -1,5 +1,5 @@
 // Regression for the Save-does-nothing bug: world.applyManifest caches
-// the prior CityLayout keyed by tree_signature, and a config-only Save
+// the prior CityLayout keyed by structure_signature, and a config-only Save
 // fires applyManifest with the same manifest → cache hit → reuseLayout
 // returns the old positions unchanged. The fix is for attachSettingsReactions
 // to call world.invalidateLayoutCache() before each applyManifest, forcing
@@ -46,7 +46,7 @@ describe('attachSettingsReactions invalidates layout cache before applyManifest'
 
   it('calls world.invalidateLayoutCache() BEFORE world.applyManifest() on a rebuildStore commit', async () => {
     const stubManifest = {
-      tree_signature: 'abc',
+      structure_signature: 'abc',
       layout_signature: 'abc',
       tree: { type: 'directory', children: [] },
       dateRanges: { minCreated: null, maxCreated: null, minModified: null, maxModified: null },

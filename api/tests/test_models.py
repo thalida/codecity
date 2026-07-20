@@ -82,8 +82,8 @@ class ModelTests(unittest.TestCase):
         m = Manifest(
             root="/r",
             scanned_at="2020",
-            signature="s",
-            tree_signature="t",
+            content_signature="s",
+            structure_signature="t",
             layout_signature="l",
             tree={
                 "name": "r",

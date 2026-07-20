@@ -131,7 +131,7 @@ def test_mode_only_change_moves_signature(tmp_path: Path):
     f.write_text("echo hi\n")
     _git(tmp_path, "add", ".")
     _git(tmp_path, "commit", "-qm", "i")
-    sig1 = signature_tree(str(tmp_path))["signature"]
+    sig1 = signature_tree(str(tmp_path))["content_signature"]
     os.chmod(f, 0o755)  # dirty via mode only: size + mtime unchanged
-    sig2 = signature_tree(str(tmp_path))["signature"]
+    sig2 = signature_tree(str(tmp_path))["content_signature"]
     assert sig1 != sig2  # per-file dirty bit is in the signature

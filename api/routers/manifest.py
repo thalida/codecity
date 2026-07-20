@@ -264,7 +264,7 @@ async def manifest(
                 # Signature (cache key) + warm-cache short-circuit.
                 sig = signature_tree(
                     str(path), use_cache=use_cache, extra_exclude_paths=excludes
-                )["signature"]
+                )["content_signature"]
                 holder["sig"] = sig
                 if use_cache:
                     cached = cache_load_manifest(path.resolve(), sig)

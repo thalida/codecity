@@ -250,11 +250,11 @@ export function createCityState(layoutClient: ReturnType<typeof createLayoutClie
   async function applyManifest(newManifest: Manifest): Promise<void> {
     const myGeneration = ++generation;
 
-    // Structure-only tree_signature (paths + nesting, NO mtime/size — stable
+    // Structure-only structure_signature (paths + nesting, NO mtime/size — stable
     // across skeleton/final for one scan). Gates ONLY the icon atlas rebuild
     // below; the layout reuse decision uses layout_signature instead (backend-
     // computed, also mixes in per-file size/dims).
-    const treeSig = newManifest.tree_signature ?? '';
+    const treeSig = newManifest.structure_signature ?? '';
 
     // Icon atlas is expensive (a fetch+draw per unique icon), so rebuild it only
     // when treeSig changes (settings re-applies skip). Must run BEFORE the layout

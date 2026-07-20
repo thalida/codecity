@@ -46,8 +46,8 @@ function manifest(tree: DirNode, overrides: Partial<Manifest> = {}): Manifest {
   return {
     root: '/repo',
     scanned_at: '2024-01-01T00:00:00Z',
-    signature: 's',
-    tree_signature: 't',
+    content_signature: 's',
+    structure_signature: 't',
     layout_signature: 'l',
     tree,
     repo: { branch: 'main', remote_url: null, head_sha: null, head_subject: null, dirty: false },

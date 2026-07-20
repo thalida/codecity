@@ -280,8 +280,8 @@ class Manifest(TypedDict):
 
     root: str
     scanned_at: str
-    signature: str
-    tree_signature: str
+    content_signature: str
+    structure_signature: str
     layout_signature: str
     tree: DirNode
     repo: RepoInfo
@@ -301,7 +301,7 @@ class SignatureResponse(TypedDict):
 
     root: str
     scanned_at: str
-    signature: str
+    content_signature: str
 
 
 class ScanStreamEvent(TypedDict):

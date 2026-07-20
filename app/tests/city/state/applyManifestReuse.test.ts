@@ -1,7 +1,7 @@
 // applyManifestReuse.test.ts — the reuse gate must key on the backend
 // layout_signature (structure + per-file size), not the structure-only
-// tree_signature (#74). A live content edit changes a file's size without
-// touching paths/nesting, so the old tree_signature-only gate reused a stale
+// structure_signature (#74). A live content edit changes a file's size without
+// touching paths/nesting, so the old structure_signature-only gate reused a stale
 // layout on every edit; the new gate re-packs (bumps structureRevision)
 // whenever layout_signature changes.
 
@@ -21,7 +21,7 @@ const EMPTY_DATE_RANGES: DateRanges = {
 // recomputes from the tree. So these fixtures decouple the field from the
 // tree's file size: `layoutSig` is set independently of `size`. A test that
 // varies one while holding the other proves the field — not the tree — drives
-// the reuse decision. tree_signature is held fixed so it's never the variable.
+// the reuse decision. structure_signature is held fixed so it's never the variable.
 function manifest(layoutSig: string, size = 10, modified = '2026-01-01T00:00:00Z'): Manifest {
   const file = {
     name: 'a.py',
@@ -39,7 +39,7 @@ function manifest(layoutSig: string, size = 10, modified = '2026-01-01T00:00:00Z
   };
   return {
     tree: { name: 'r', type: NodeKind.Directory, path: '.', children: [file] },
-    tree_signature: 'sig-fixed',
+    structure_signature: 'sig-fixed',
     layout_signature: layoutSig,
     dateRanges: EMPTY_DATE_RANGES,
     commits: [],

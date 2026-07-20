@@ -554,9 +554,9 @@ class ScanTreeIntegrationTests(_CacheRedirectMixin, unittest.TestCase):
     def test_signature_present_and_stable(self):
         m1 = _final_manifest(str(FIXTURE))
         m2 = _final_manifest(str(FIXTURE))
-        self.assertIn("signature", m1)
-        self.assertIsInstance(m1["signature"], str)
-        self.assertEqual(m1["signature"], m2["signature"])
+        self.assertIn("content_signature", m1)
+        self.assertIsInstance(m1["content_signature"], str)
+        self.assertEqual(m1["content_signature"], m2["content_signature"])
 
     def test_resolved_dates_prefer_git(self):
         # created/modified are resolved server-side: a committed file
@@ -822,7 +822,7 @@ class SignatureTreeTests(_CacheRedirectMixin, unittest.TestCase):
     def test_signature_matches_scan_tree(self):
         m = _final_manifest(str(FIXTURE))
         s = signature_tree(str(FIXTURE))
-        self.assertEqual(s["signature"], m["signature"])
+        self.assertEqual(s["content_signature"], m["content_signature"])
 
     def test_signature_matches_scan_tree_on_dirty_repo(self):
         # The per-file dirty bit is computed at different call sites in the
@@ -840,28 +840,28 @@ class SignatureTreeTests(_CacheRedirectMixin, unittest.TestCase):
 
             m = _final_manifest(str(root))
             s = signature_tree(str(root))
-            self.assertEqual(s["signature"], m["signature"])
+            self.assertEqual(s["content_signature"], m["content_signature"])
 
     def test_signature_response_shape(self):
         s = signature_tree(str(FIXTURE))
         self.assertIn("root", s)
         self.assertIn("scanned_at", s)
-        self.assertIn("signature", s)
-        self.assertIsInstance(s["signature"], str)
+        self.assertIn("content_signature", s)
+        self.assertIsInstance(s["content_signature"], str)
         # No tree / repo fields — that's the whole point.
         self.assertNotIn("tree", s)
         self.assertNotIn("repo", s)
 
     def test_signature_changes_when_tracked_file_changes(self):
         # Add a tracked file, signature must shift; remove it, restored.
-        before = signature_tree(str(FIXTURE))["signature"]
+        before = signature_tree(str(FIXTURE))["content_signature"]
         new_file = FIXTURE / "sig-test-temp.txt"
         new_file.write_text("hello")
         try:
             subprocess.check_call(
                 ["git", "-C", str(FIXTURE), "add", str(new_file.name)]
             )
-            after_add = signature_tree(str(FIXTURE))["signature"]
+            after_add = signature_tree(str(FIXTURE))["content_signature"]
             self.assertNotEqual(before, after_add)
         finally:
             subprocess.run(
@@ -886,14 +886,14 @@ class SignatureTreeTests(_CacheRedirectMixin, unittest.TestCase):
             ignore_file = root / ".codecityignore"
 
             # Without ignore file, target is visible.
-            before_sig = signature_tree(str(root))["signature"]
-            before_full = _final_manifest(str(root))["signature"]
+            before_sig = signature_tree(str(root))["content_signature"]
+            before_full = _final_manifest(str(root))["content_signature"]
             self.assertEqual(before_sig, before_full)
 
             # Add ignore entry, both signatures must shift in lockstep.
             ignore_file.write_text("sig-noise-fixture\n")
-            after_sig = signature_tree(str(root))["signature"]
-            after_full = _final_manifest(str(root))["signature"]
+            after_sig = signature_tree(str(root))["content_signature"]
+            after_full = _final_manifest(str(root))["content_signature"]
             self.assertEqual(after_sig, after_full)
             self.assertNotEqual(before_sig, after_sig)
 
@@ -913,7 +913,7 @@ class SignatureTreeTests(_CacheRedirectMixin, unittest.TestCase):
             # Dirty b.py's content only — repo is dirty, dirty set is {b.py}.
             b.write_text("y = 2\nz = 3\n")
             before_stat = a.stat()
-            sig_one_dirty = signature_tree(str(root))["signature"]
+            sig_one_dirty = signature_tree(str(root))["content_signature"]
 
             # Now also flip a.py's executable bit: git sees it as modified
             # (added to the dirty set) but a.py's own mtime/size are
@@ -923,7 +923,7 @@ class SignatureTreeTests(_CacheRedirectMixin, unittest.TestCase):
             self.assertEqual(before_stat.st_size, after_stat.st_size)
             self.assertEqual(before_stat.st_mtime, after_stat.st_mtime)
 
-            sig_two_dirty = signature_tree(str(root))["signature"]
+            sig_two_dirty = signature_tree(str(root))["content_signature"]
             self.assertNotEqual(sig_one_dirty, sig_two_dirty)
 
 
@@ -1027,12 +1027,12 @@ class ExtraExcludePathsTests(_CacheRedirectMixin, unittest.TestCase):
             sub.mkdir()
             (sub / "b.txt").write_text("b")
             _commit_all(root)
-            base = signature_tree(str(root))["signature"]
+            base = signature_tree(str(root))["content_signature"]
             ex1 = signature_tree(str(root), extra_exclude_paths=frozenset({"sub"}))[
-                "signature"
+                "content_signature"
             ]
             ex2 = signature_tree(str(root), extra_exclude_paths=frozenset({"sub"}))[
-                "signature"
+                "content_signature"
             ]
             self.assertNotEqual(base, ex1)
             self.assertEqual(ex1, ex2)
@@ -1638,7 +1638,7 @@ class FileStatCacheTests(_CacheRedirectMixin, unittest.TestCase):
     def test_warm_run_signature_matches_cold_run(self):
         cold = _final_manifest(str(FIXTURE))
         warm = _final_manifest(str(FIXTURE))
-        self.assertEqual(cold["signature"], warm["signature"])
+        self.assertEqual(cold["content_signature"], warm["content_signature"])
         # And tree shape — confirm `lines` survives the cache roundtrip.
         cold_lines = {n["path"]: n["lines"] for n in _walk_files(cold["tree"])}
         warm_lines = {n["path"]: n["lines"] for n in _walk_files(warm["tree"])}
@@ -1698,12 +1698,12 @@ def _line_count_real():
 
 
 def _sig(tree: dict) -> str:
-    """tree_signature of a minimal test tree, via _derive_tree_signals."""
-    return _derive_tree_signals(tree).tree_signature
+    """structure_signature of a minimal test tree, via _derive_tree_signals."""
+    return _derive_tree_signals(tree).structure_signature
 
 
 class TreeSignatureTests(unittest.TestCase):
-    """_derive_tree_signals' tree_signature is a stable, structure-only
+    """_derive_tree_signals' structure_signature is a stable, structure-only
     fingerprint.
 
     The signature must:
@@ -1746,7 +1746,7 @@ class TreeSignatureTests(unittest.TestCase):
         self.assertEqual(_sig(tree), _sig(tree))
 
     def test_same_shape_different_metadata_produces_same_signature(self):
-        # Metadata (size, mtime) must NOT affect tree_signature.
+        # Metadata (size, mtime) must NOT affect structure_signature.
         tree_a = self._make_tree([self._make_file("a.py", size=100, mtime=1.0)])
         tree_b = self._make_tree([self._make_file("a.py", size=999, mtime=9.9)])
         self.assertEqual(_sig(tree_a), _sig(tree_b))
@@ -1790,7 +1790,7 @@ class TreeSignatureTests(unittest.TestCase):
             ]
         )
         results = {_sig(tree) for _ in range(5)}
-        self.assertEqual(len(results), 1, "tree_signature must be deterministic")
+        self.assertEqual(len(results), 1, "structure_signature must be deterministic")
 
     def test_returns_hex_string_of_expected_length(self):
         # blake2b digest_size=8 → 8 bytes → 16 hex chars.
@@ -1800,8 +1800,8 @@ class TreeSignatureTests(unittest.TestCase):
         self.assertEqual(len(sig), 16)
         int(sig, 16)  # must be valid hex — raises ValueError if not
 
-    def test_skeleton_and_final_manifests_share_same_tree_signature(self):
-        """The same tree_signature must appear in both the skeleton and final
+    def test_skeleton_and_final_manifests_share_same_structure_signature(self):
+        """The same structure_signature must appear in both the skeleton and final
         manifest events for the same scan — the whole point of this feature."""
         from api.services.scan import scan_tree
 
@@ -1813,16 +1813,16 @@ class TreeSignatureTests(unittest.TestCase):
             _commit_all(root)
             events = list(scan_tree(td))
         self.assertEqual(len(events), 2)
-        skeleton_sig = events[0]["manifest"]["tree_signature"]
-        final_sig = events[1]["manifest"]["tree_signature"]
+        skeleton_sig = events[0]["manifest"]["structure_signature"]
+        final_sig = events[1]["manifest"]["structure_signature"]
         self.assertEqual(
             skeleton_sig,
             final_sig,
-            "skeleton and final manifests must carry the same tree_signature",
+            "skeleton and final manifests must carry the same structure_signature",
         )
 
-    def test_tree_signature_stable_when_only_metadata_changes(self):
-        """tree_signature must be unchanged when only file content/lines/binary
+    def test_structure_signature_stable_when_only_metadata_changes(self):
+        """structure_signature must be unchanged when only file content/lines/binary
         differs — i.e., between skeleton and final phases."""
         from api.services.scan import scan_tree
 
@@ -1835,8 +1835,8 @@ class TreeSignatureTests(unittest.TestCase):
         skeleton = events[0]["manifest"]
         final = events[1]["manifest"]
         # Metadata-sensitive signature changes between skeleton and final.
-        # tree_signature must NOT change.
-        self.assertEqual(skeleton["tree_signature"], final["tree_signature"])
+        # structure_signature must NOT change.
+        self.assertEqual(skeleton["structure_signature"], final["structure_signature"])
 
 
 def test_layout_signature_tracks_size_not_dates(tmp_path):
@@ -1881,7 +1881,9 @@ def test_layout_signature_tracks_size_not_dates(tmp_path):
     c = _derive_tree_signals(tree(10, "2026-09-09T00:00:00Z"))  # date changed
     assert a.layout_signature != b.layout_signature
     assert a.layout_signature == c.layout_signature
-    assert a.tree_signature == b.tree_signature == c.tree_signature  # structure same
+    assert (
+        a.structure_signature == b.structure_signature == c.structure_signature
+    )  # structure same
 
 
 def test_tracked_entries_filters_and_orders(tmp_path):

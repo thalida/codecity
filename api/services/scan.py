@@ -1252,7 +1252,7 @@ def _build_tree(
 
 
 class TreeSignals(NamedTuple):
-    tree_signature: str
+    structure_signature: str
     layout_signature: str
     date_ranges: DateRanges
 
@@ -1261,10 +1261,10 @@ def _derive_tree_signals(tree_root: DirNode) -> TreeSignals:
     """Single pass over the built (pre-populate) tree producing every signal that
     depends only on structure + build-time metadata:
 
-    - tree_signature  — structure only (paths + nesting); drives the icon-atlas
+    - structure_signature  — structure only (paths + nesting); drives the icon-atlas
       gate + skeleton/final stability. Ignores size/dates.
     - layout_signature — structure + per-file byte size (the layout packer's
-      inputs: footprints + street length). Between tree_signature (too coarse)
+      inputs: footprints + street length). Between structure_signature (too coarse)
       and the full scan signature (too fine — includes mtime). The frontend
       reuses the packed layout iff this is unchanged. Each node's bytes are
       prefixed with a one-byte type marker (d/f) so a file's size token can
@@ -1299,7 +1299,7 @@ def _derive_tree_signals(tree_root: DirNode) -> TreeSignals:
 
     _walk(tree_root)
     return TreeSignals(
-        tree_signature=struct.hexdigest(),
+        structure_signature=struct.hexdigest(),
         layout_signature=layout.hexdigest(),
         date_ranges={
             "minCreated": cmin,
@@ -1357,8 +1357,8 @@ def _wrap_manifest(
     return {
         "root": root_abs,
         "scanned_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
-        "signature": sig.hexdigest(),
-        "tree_signature": signals.tree_signature,
+        "content_signature": sig.hexdigest(),
+        "structure_signature": signals.structure_signature,
         "layout_signature": signals.layout_signature,
         "tree": tree,
         "repo": repo_info,
@@ -1465,7 +1465,7 @@ def scan_tree(
     heartbeat.flush()  # ensure UI sees the true final count, not whatever the throttle last allowed through
     _log(f"walked {heartbeat.seen} files; emitting skeleton")
 
-    # Derive tree_signature/layout_signature/dateRanges once after the tree is
+    # Derive structure_signature/layout_signature/dateRanges once after the tree is
     # built, from the real pre-populate metadata (structure + size + dates, NO
     # mtime), so they are identical for skeleton and final manifests of the
     # same scan.
@@ -1571,7 +1571,7 @@ def signature_tree(
     use_cache: bool = True,
     extra_exclude_paths: frozenset[str] = frozenset(),
 ) -> SignatureResponse:
-    """Cheap fingerprint of the tree — equivalent to scan_tree(root)['signature']
+    """Cheap fingerprint of the tree — equivalent to scan_tree(root)['content_signature']
     but without building the full manifest.
 
     Walks the tree once with os.scandir, hashing (rel_path, size, mtime,
@@ -1622,5 +1622,5 @@ def signature_tree(
     return {
         "root": root_abs,
         "scanned_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
-        "signature": sig.hexdigest(),
+        "content_signature": sig.hexdigest(),
     }

@@ -68,7 +68,7 @@ function makeLayout(street: Street = makeRootStreet()): CityLayout {
 function makeManifest(name: string): Manifest {
   return {
     tree: { type: 'directory', name, children: [] },
-    tree_signature: name,
+    structure_signature: name,
     layout_signature: name,
     dateRanges: { minCreated: null, maxCreated: null, minModified: null, maxModified: null },
   } as unknown as Manifest;

@@ -42,7 +42,7 @@ describe('layout worker payload slimming', () => {
       stats,
       commits,
       dateRanges: {},
-      tree_signature: 'sig',
+      structure_signature: 'sig',
       layout_signature: 'sig',
       busyness: { avg: 1, busy: 1 },
     };

@@ -46,8 +46,8 @@ export const EMPTY_REPO_STATS: RepoStats = {
 export const EMPTY_MANIFEST: Manifest = {
   root: '',
   scanned_at: new Date().toISOString(),
-  signature: '',
-  tree_signature: '',
+  content_signature: '',
+  structure_signature: '',
   layout_signature: '',
   tree: {
     name: '',

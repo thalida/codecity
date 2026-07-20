@@ -54,7 +54,7 @@ const EMPTY_DATE_RANGES: DateRanges = {
 function makeManifest(treeSig: string): Manifest {
   return {
     tree: { type: 'directory', name: treeSig, path: '.', children: [] },
-    tree_signature: treeSig,
+    structure_signature: treeSig,
     layout_signature: treeSig,
     dateRanges: EMPTY_DATE_RANGES,
     commits: [],
@@ -117,14 +117,14 @@ describe('cityState.applyManifest — scenic reactivity parity', () => {
     expect(cityState.latestWorldBounds.value).not.toBeNull();
   });
 
-  it('#1 scenic-reuse: re-applying the SAME tree_signature does NOT rebuild streets', async () => {
+  it('#1 scenic-reuse: re-applying the SAME structure_signature does NOT rebuild streets', async () => {
     const { cityState, streets, layoutClient } = setup();
     await cityState.applyManifest(makeManifest('sig-1'));
     const pickablesAfterFirst = streets.getPickables();
     const layoutAfterFirst = cityState.layout.value;
     const bboxAfterFirst = cityState.bbox.value;
 
-    // Same tree_signature → layout cache hit → layoutClient returns the SAME
+    // Same structure_signature → layout cache hit → layoutClient returns the SAME
     // layout reference (reuseLayoutFrom) → layout.value not reassigned → the
     // streets effect does NOT re-fire.
     await cityState.applyManifest(makeManifest('sig-1'));
@@ -158,8 +158,8 @@ describe('cityState.applyManifest — scenic reactivity parity', () => {
     const p2 = cityState.applyManifest(makeManifest('sig-2'));
     await Promise.all([p1, p2]);
 
-    // The winning (last) apply owns the final state: tree_signature sig-2.
-    expect(cityState.manifest.value!.tree_signature).toBe('sig-2');
+    // The winning (last) apply owns the final state: structure_signature sig-2.
+    expect(cityState.manifest.value!.structure_signature).toBe('sig-2');
     // Streets were built (exactly once for the winner — the loser bailed
     // before reassigning layout.value).
     expect(streets.getPickables().length).toBe(1);

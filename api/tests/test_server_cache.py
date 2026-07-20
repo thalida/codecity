@@ -49,7 +49,7 @@ def test_cache_invalid_src_400(client: TestClient) -> None:
 
 def test_cache_clears_warmed_local_source(client: TestClient, repo: Path) -> None:
     # Warm the cache directly via the service layer (no SSE stream yet).
-    sig = signature_tree(str(repo), use_cache=False)["signature"]
+    sig = signature_tree(str(repo), use_cache=False)["content_signature"]
     cache_save_manifest(repo.resolve(), sig, {"root": str(repo)})  # type: ignore[arg-type]
     r = client.delete("/api/manifest/cache", params={"src": str(repo)})
     assert r.status_code == 200
@@ -85,7 +85,7 @@ def test_cache_clear_does_not_delete_local_project(
 ) -> None:
     # A LOCAL source's actual project directory must NEVER be deleted — only
     # its per-root caches under CACHE_ROOT are dropped.
-    sig = signature_tree(str(repo), use_cache=False)["signature"]
+    sig = signature_tree(str(repo), use_cache=False)["content_signature"]
     cache_save_manifest(repo.resolve(), sig, {"root": str(repo)})  # type: ignore[arg-type]
     r = client.delete("/api/manifest/cache", params={"src": str(repo)})
     assert r.status_code == 200

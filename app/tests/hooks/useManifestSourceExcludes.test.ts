@@ -30,8 +30,8 @@ const flush = (): Promise<void> => new Promise((r) => setTimeout(r, 0));
 // EventSource itself) — no separate "done" event exists on the wire.
 const MANIFEST_JSON = JSON.stringify({
   manifest: {
-    signature: 'sig0',
-    tree_signature: 't0',
+    content_signature: 'sig0',
+    structure_signature: 't0',
     layout_signature: 't0',
     tree: { name: 'r', type: 'directory', path: '.', children: [] },
     repo: {},

@@ -1,6 +1,7 @@
 // state/stores/settings/updates.ts — Live-update polling. When ENABLED, the
 // frontend re-fetches /api/manifest every POLL_SECONDS and re-renders in place
-// when the manifest's signature changes (the tree's mtime/size state shifted).
+// when the manifest's content_signature changes (the tree's mtime/size/dirty
+// state shifted).
 //
 // Default OFF so the tool stays cheap when nobody's actively editing.
 // Schema-driven (see state/schema); POLL_SECONDS is clamped to a
