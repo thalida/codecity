@@ -13,9 +13,9 @@ import type { FileNode } from '@/types';
 import { formatBytes } from '@/utils/bytes';
 import { monaco, ensureMonacoTheme, monacoLanguageFor } from './monacoSetup';
 
-// Above this size we drop the minimap + folding so scrolling stays smooth on
-// multi-MB files. Monaco also stops tokenizing very large models on its own,
-// so it degrades further above ~20MB without extra help here.
+// Above this size we drop code folding so scrolling stays smooth on multi-MB
+// files. Monaco also stops tokenizing very large models on its own, so it
+// degrades further above ~20MB without extra help here.
 const HEAVY_FEATURES_MAX_BYTES = 2 * 1024 * 1024;
 
 interface MonacoCodeEditorProps {
@@ -49,7 +49,7 @@ export default function MonacoCodeEditor({ text, file }: MonacoCodeEditorProps) 
       fontFamily,
       fontSize: 12,
       lineHeight: 18,
-      minimap: { enabled: !heavy },
+      minimap: { enabled: false },
       folding: !heavy,
       scrollBeyondLastLine: false,
       renderLineHighlight: 'all',
@@ -72,8 +72,7 @@ export default function MonacoCodeEditor({ text, file }: MonacoCodeEditorProps) 
         <div class="code-editor-banner card-banner">
           <Info class="icon" />
           <span>
-            Large file ({formatBytes(sizeBytes)}) — minimap and folding are off to keep scrolling
-            smooth.
+            Large file ({formatBytes(sizeBytes)}) — code folding is off to keep scrolling smooth.
           </span>
         </div>
       )}
