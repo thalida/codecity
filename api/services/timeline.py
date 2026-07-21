@@ -3,11 +3,23 @@ client-side for smooth scrubbing. Read-only; reuses gitobj's git plumbing."""
 
 from __future__ import annotations
 
+import hashlib
 import subprocess
 from pathlib import Path
 from typing import NamedTuple
 
-from .gitobj import _git_argv
+from .gitobj import _git_argv, blob_sizes_batch, blob_stats_batch
+from .manifest_types import CommitEntry, FileNode, Manifest, NodeKind
+from .media import media_kind
+from .scan import (
+    _build_tree,
+    _derive_tree_signals,
+    _dir_children_from_paths,
+    _extension,
+    _hash_file_entry,
+    _reconstructed_repo_info,
+    _wrap_manifest,
+)
 
 
 class CommitDelta(NamedTuple):
@@ -70,3 +82,86 @@ def walk_deltas(root: Path, ref: str | None = None) -> list[CommitDelta]:
         proc.wait()
     newest_first.reverse()
     return newest_first
+
+
+def _collect_blob_tables(
+    root: Path, deltas: list[CommitDelta]
+) -> tuple[dict[str, int], dict[str, int]]:
+    """Resolve every touched blob's (lines, byte size) in two batched
+    cat-file passes, keyed by sha."""
+    shas = list({sha for d in deltas for _, sha in d.changes if sha})
+    lines = {s: st.lines for s, st in blob_stats_batch(root, shas).items()}
+    sizes = blob_sizes_batch(root, shas)
+    return lines, sizes
+
+
+def build_union_manifest(
+    root: Path,
+    deltas: list[CommitDelta],
+    blob_lines: dict[str, int],
+    blob_sizes: dict[str, int],
+    commits: list[CommitEntry],
+) -> Manifest:
+    """City for the union of every path that ever existed. Each file's
+    footprint `size` (and placeholder `lines`) is its MAX over history so a
+    building never outgrows its lot; created/modified span first/last touch.
+    Flows through the SHARED tree builder so the layout matches every
+    per-commit reconstruction it will be scrubbed against."""
+    dates = {c["sha"]: c["date"] for c in commits}
+    max_size: dict[str, int] = {}
+    max_lines: dict[str, int] = {}
+    created: dict[str, str] = {}
+    modified: dict[str, str] = {}
+    for d in deltas:
+        date = dates.get(d.sha, "")
+        for path, sha in d.changes:
+            created.setdefault(path, date)
+            modified[path] = date
+            if sha is None:
+                continue
+            max_size[path] = max(max_size.get(path, 0), blob_sizes.get(sha, 0))
+            max_lines[path] = max(max_lines.get(path, 0), blob_lines.get(sha, 0))
+
+    root_abs = str(Path(root).resolve())
+    children_map = _dir_children_from_paths(max_size.keys())
+    sig = hashlib.blake2b(digest_size=16)
+
+    def list_children(rel_dir: str) -> list[tuple[str, str, bool]]:
+        return children_map.get(rel_dir, [])
+
+    def make_file_node(name: str, rel_path: str) -> FileNode:
+        size = max_size.get(rel_path, 0)
+        _hash_file_entry(sig, rel_path, size, 0.0, False)
+        ext = _extension(name)
+        return {
+            "name": name,
+            "type": NodeKind.FILE,
+            "path": rel_path,
+            "fullPath": f"{root_abs}/{rel_path}",
+            "extension": ext,
+            "mediaKind": media_kind(ext),
+            "size": size,
+            "lines": max_lines.get(rel_path, 0),
+            "binary": False,
+            "dirty": False,
+            "created": created.get(rel_path, ""),
+            "modified": modified.get(rel_path, ""),
+        }
+
+    tree = _build_tree(
+        root_abs, ".", list_children=list_children, make_file_node=make_file_node
+    )
+    signals = _derive_tree_signals(tree)
+    head_sha = commits[-1]["sha"] if commits else ""
+    repo_info = (
+        _reconstructed_repo_info(Path(root_abs), head_sha)
+        if head_sha
+        else {
+            "branch": None,
+            "remote_url": None,
+            "head_sha": None,
+            "head_subject": None,
+            "dirty": False,
+        }
+    )
+    return _wrap_manifest(root_abs, tree, sig, signals, repo_info, commits)
