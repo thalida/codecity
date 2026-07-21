@@ -40,7 +40,3 @@
   text-overflow: ellipsis;
   color: var(--cc-text-primary);
 }
-
-.time-travel-live {
-  flex: 0 0 auto;
-}

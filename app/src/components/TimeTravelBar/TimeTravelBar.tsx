@@ -3,7 +3,7 @@
 import './TimeTravelBar.css';
 import { signal, effect } from '@preact/signals';
 import { useState, useRef, useEffect } from 'preact/hooks';
-import { History } from 'lucide-preact';
+import { History, RotateCcw } from 'lucide-preact';
 import { MANIFEST } from '@/state/stores/manifest';
 import { CURRENT_SOURCE_KEY } from '@/state/stores/source';
 import { TIME_TRAVEL_REF } from '@/state/stores/timeTravel';
@@ -76,10 +76,12 @@ export function TimeTravelBar() {
         {ref !== null && (
           <button
             type="button"
-            class="btn-secondary time-travel-live"
+            class="btn-icon btn-icon--sm"
+            title="Back to live"
+            aria-label="Back to live"
             onClick={() => exitTimeTravel()}
           >
-            Back to live
+            <RotateCcw class="icon" aria-hidden="true" />
           </button>
         )}
       </div>
