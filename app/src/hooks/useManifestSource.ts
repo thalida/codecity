@@ -38,6 +38,7 @@ import {
 import { SERVER_CONFIG } from '@/state/stores/serverConfig';
 import { MANIFEST, setManifest, markError } from '@/state/stores/manifest';
 import { SCAN_PROGRESS } from '@/state/stores/scanProgress';
+import { TIME_TRAVEL_REF } from '@/state/stores/timeTravel';
 import { activeExcludePathsFor, ACTIVE_EXCLUDES } from '@/state/stores/excludes';
 import { srcKind, SourceKind, srcNeedsBranch, identityBranch, sourceKey } from '@/utils/sources';
 import { isEmptyManifest } from '@/utils/manifest';
@@ -209,6 +210,60 @@ export function cancelLoad(): void {
   loadController?.abort();
 }
 
+// ── Time-travel: load a past ref in place ────────────────────────────
+// A sibling of loadSource for viewing the SAME repo at a past commit rather
+// than switching to a different one: fetches ?ref=<sha> for the committed
+// CURRENT_SOURCE, shares the generation guard so a foreground loadSource still
+// wins, but never touches CURRENT_SOURCE/recents (identity doesn't change) and
+// skips the skeleton (final-only — the city is already drawn; the tween carries
+// the morph, same as a live-update refresh).
+export async function loadRef(sha: string): Promise<void> {
+  const cur = CURRENT_SOURCE.peek();
+  if (!cur) return;
+  const myGen = ++loadGeneration; // supersedes any in-flight load/poll
+  loadController?.abort();
+  const controller = new AbortController();
+  loadController = controller;
+  const meta = { kind: srcKind(cur.src), branch: cur.branch };
+  try {
+    const url = manifestUrlFor({
+      src: cur.src,
+      branch: cur.branch,
+      ref: sha,
+      exclude: activeExcludePathsFor(cur.src),
+    });
+    await pumpManifestStream(
+      url,
+      meta,
+      (m, phase) => {
+        if (phase === ScanPhase.CompleteManifest && myGen === loadGeneration) setManifest(m);
+      },
+      controller.signal
+    );
+    if (myGen !== loadGeneration || controller.signal.aborted) return;
+    TIME_TRAVEL_REF.value = sha; // pin AFTER a successful apply
+  } catch (err) {
+    if (myGen !== loadGeneration || controller.signal.aborted) return;
+    SOURCE_ERROR.value = {
+      error: err instanceof Error ? err.message : String(err),
+      prefill: { src: cur.src, branch: cur.branch },
+    };
+  } finally {
+    if (myGen === loadGeneration && loadController === controller) loadController = null;
+  }
+}
+
+/**
+ * Leave time-travel: clear the pin (so the live-update poll resumes on its
+ * next tick) THEN reload the committed source at HEAD through the canonical
+ * loadSource path, so the city returns to the live manifest.
+ */
+export function exitTimeTravel(): void {
+  const cur = CURRENT_SOURCE.peek();
+  TIME_TRAVEL_REF.value = null; // clear first so the poll resumes
+  if (cur) void loadSource({ src: cur.src, branch: cur.branch });
+}
+
 // ── Live-update poll loop ────────────────────────────────────────────
 
 // Hard bounds for the user-set poll interval. 1s floor — the server does a real
@@ -276,6 +331,7 @@ export function setupLiveUpdates(): () => void {
   // the overlay, so the poll never probes/applies a source that's mid-load.
   async function tick(): Promise<void> {
     if (inFlight) return;
+    if (TIME_TRAVEL_REF.peek() !== null) return; // pinned to a past ref — the poll must not pull HEAD back in
     if (SCAN_PROGRESS.peek() !== null) return; // a foreground load is in flight — yield
     const cur = CURRENT_SOURCE.peek();
     if (!cur) return; // nothing loaded yet
@@ -333,6 +389,7 @@ export function setupLiveUpdates(): () => void {
     const [prevRepo] = prev.split('|', 1);
     if (prevRepo !== repoKey) return; // source switched — the load owns it
     if (prev === nextKey) return; // no actual change
+    if (TIME_TRAVEL_REF.peek() !== null) return; // pinned to a past ref — don't pull HEAD back in
     if (SCAN_PROGRESS.peek() !== null) return; // yield to a foreground load
     if (!cur) return;
     if (inFlight) return; // the poll's tick is already covering this refresh
