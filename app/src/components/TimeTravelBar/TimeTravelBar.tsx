@@ -60,6 +60,7 @@ export function TimeTravelBar() {
   return (
     <div class="time-travel-bar">
       <div class="time-travel-track">
+        <History class="icon time-travel-history" aria-hidden="true" />
         <input
           type="range"
           class="setting-slider time-travel-slider"
@@ -81,7 +82,6 @@ export function TimeTravelBar() {
         </button>
       </div>
       <div class="time-travel-info">
-        <History class="icon" aria-hidden="true" />
         <span class="time-travel-sha">{commit.sha.slice(0, 7)}</span>
         <span class="time-travel-date">{formatShortDate(commit.date)}</span>
         <span class="time-travel-subject">{commit.subject || '(no subject)'}</span>

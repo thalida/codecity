@@ -26,6 +26,11 @@
   gap: var(--cc-space-2);
 }
 
+.time-travel-history {
+  flex: 0 0 auto;
+  color: var(--cc-text-muted);
+}
+
 .time-travel-slider {
   flex: 1;
   min-width: 0;
