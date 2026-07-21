@@ -30,12 +30,14 @@ import { apiUrl } from '@/api/apiUrl';
 export function manifestUrlFor(opts: {
   src: string;
   branch?: string;
+  ref?: string;
   noCache?: boolean;
   exclude?: string[];
 }): string {
   return apiUrl('manifest', {
     [URL_PARAMS.SRC]: opts.src,
     [URL_PARAMS.BRANCH]: opts.branch,
+    [URL_PARAMS.REF]: opts.ref,
     [URL_PARAMS.NO_CACHE]: opts.noCache ? 'true' : undefined,
     [URL_PARAMS.EXCLUDE]: opts.exclude,
   });

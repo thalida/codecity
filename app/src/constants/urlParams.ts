@@ -12,4 +12,6 @@ export const URL_PARAMS = {
   NO_CACHE: 'no_cache',
   /** Repeated rel-path the UI hides from the rendered city (client-side pref). */
   EXCLUDE: 'exclude',
+  /** Reconstruct + render the repo at this commit sha (time-travel). */
+  REF: 'ref',
 } as const;
