@@ -58,32 +58,33 @@ export function TimeTravelBar() {
   };
 
   return (
-    <div class="time-travel-bar card-overlay">
-      <input
-        type="range"
-        class="setting-slider time-travel-slider"
-        min={String(0)}
-        max={String(headIndex)}
-        value={String(pos)}
-        onInput={onInput}
-        aria-label="Scrub commit history"
-      />
+    <div class="time-travel-bar">
+      <div class="time-travel-track">
+        <input
+          type="range"
+          class="setting-slider time-travel-slider"
+          min={String(0)}
+          max={String(headIndex)}
+          value={String(pos)}
+          onInput={onInput}
+          aria-label="Scrub commit history"
+        />
+        <button
+          type="button"
+          class="setting-row-reset"
+          title="Back to live"
+          aria-label="Back to live"
+          disabled={ref === null}
+          onClick={() => exitTimeTravel()}
+        >
+          <RotateCcw class="icon" />
+        </button>
+      </div>
       <div class="time-travel-info">
         <History class="icon" aria-hidden="true" />
         <span class="time-travel-sha">{commit.sha.slice(0, 7)}</span>
         <span class="time-travel-date">{formatShortDate(commit.date)}</span>
         <span class="time-travel-subject">{commit.subject || '(no subject)'}</span>
-        {ref !== null && (
-          <button
-            type="button"
-            class="btn-icon btn-icon--sm"
-            title="Back to live"
-            aria-label="Back to live"
-            onClick={() => exitTimeTravel()}
-          >
-            <RotateCcw class="icon" aria-hidden="true" />
-          </button>
-        )}
       </div>
     </div>
   );

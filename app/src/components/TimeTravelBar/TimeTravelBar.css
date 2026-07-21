@@ -1,6 +1,7 @@
 /* components/TimeTravelBar.css — floating bar over the scene canvas. */
 
-/* Fixed width so the centered bar never re-centers as the commit text changes. */
+/* Fixed width so the centered bar never re-centers as the commit text changes.
+   Glass: dark semi-transparent fill that blurs the scene behind it, no shadow. */
 .time-travel-bar {
   position: absolute;
   left: 50%;
@@ -12,10 +13,21 @@
   gap: var(--cc-space-4);
   padding: var(--cc-space-5) var(--cc-space-7);
   width: min(32rem, calc(100% - var(--cc-space-9) * 2));
+  background: var(--cc-bg-backdrop);
+  border-radius: var(--cc-radius-lg);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.time-travel-track {
+  display: flex;
+  align-items: center;
+  gap: var(--cc-space-5);
 }
 
 .time-travel-slider {
-  width: 100%;
+  flex: 1;
+  min-width: 0;
 }
 
 .time-travel-info {
