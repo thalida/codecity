@@ -12,7 +12,7 @@ import { buildingHeightForLines } from '@/city/layout/dimensions';
 import type { HeightContext } from '@/city/layout/dimensions';
 import type { Building } from '@/types';
 import type { BuildingIndex } from '@/city/components/buildings/buildingIndex';
-import { linesAt, presenceAt } from './replay';
+import { isPresent, linesAt, presenceAt } from './replay';
 import type { PathTimeline } from './replay';
 
 // v1: deleted things fully vanish. A future "ghost ruins" toggle flips this to a
@@ -53,7 +53,8 @@ export function createScrubController(deps: ScrubControllerDeps) {
       const { mesh, slot } = resolved;
 
       const lines = linesAt(pt, pos);
-      const f = lines > 0 && b.h > 0 ? buildingHeightForLines(b.file, lines, deps.heightCtx) / b.h : 0;
+      // Gate on presence (intervals), not line count: media/empty files are present with 0 lines.
+      const f = isPresent(pt, pos) && b.h > 0 ? buildingHeightForLines(b.file, lines, deps.heightCtx) / b.h : 0;
       const sy = b.h * f;
       _m.makeScale(b.w, sy, b.d);
       _m.setPosition(b.x, sy / 2, b.y);

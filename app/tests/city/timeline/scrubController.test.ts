@@ -172,3 +172,173 @@ test('sets needsUpdate exactly once per mesh and per iFade attribute', () => {
   expect(fake.matUpdates).toBe(1);
   expect(fake.iFadeUpdates).toBe(1);
 });
+
+test('a present media/0-line file gets a non-zero scaleY; an absent one stays flat', () => {
+  // m.png: present the whole window, but blobLines is 0 throughout (a media file
+  // carries 0 code lines). getBuildingDimensions clamps lines->MIN_FLOORS, so the
+  // regression this guards is `lines > 0` gating scaleY to 0 despite presence.
+  const mediaBundle = {
+    commits: [{ sha: 'a' }, { sha: 'b' }],
+    unionManifest: { tree: { name: 'r' } },
+    deltas: [
+      { sha: 'a', changes: [{ path: 'm.png', sha: 's0' }] },
+      { sha: 'b', changes: [{ path: 'm.png', sha: 's0' }] },
+    ],
+    blobLines: { s0: 0 },
+    note: null,
+  } as unknown as TimelineBundle;
+
+  const mediaFile = { path: 'm.png', lines: 0, size: 5000, extension: 'png' } as unknown as FileNode;
+  const b = {
+    x: 1,
+    y: 1,
+    w: 2,
+    d: 2,
+    h: buildingHeightForLines(mediaFile, 0, heightCtx),
+    color: '#fff',
+    file: mediaFile,
+    cellId: 0,
+    slotId: 0,
+  } as unknown as Building;
+
+  const index = new BuildingIndex();
+  index.insert(b);
+  const fake = makeFakeMesh();
+  const timelines = buildPathTimelines(mediaBundle);
+
+  const controller = createScrubController({
+    getBuildingIndex: () => index,
+    getMeshForBuilding: () => ({ mesh: fake.mesh, slot: 0 }),
+    timelines,
+    heightCtx,
+  });
+
+  SCRUB_POS.value = 1;
+  controller.update();
+  expect(fake.scaleY).toBeGreaterThan(0);
+  expect(fake.iFadeX).toBeCloseTo(1, 5);
+});
+
+test('an absent building (never present) stays flat at scaleY 0', () => {
+  const { fake, controller } = setup();
+  SCRUB_POS.value = -1; // strictly before f.txt's creation
+  controller.update();
+  expect(fake.scaleY).toBe(0);
+});
+
+test('dedup: two buildings sharing one InstancedMesh set needsUpdate exactly once', () => {
+  // f2.txt mirrors f.txt's timeline shape under a second path, so both buildings
+  // resolve to the same (shared) fake mesh at different slots.
+  const twoPathBundle = {
+    commits: [{ sha: 'a' }, { sha: 'b' }, { sha: 'c' }, { sha: 'd' }],
+    unionManifest: { tree: { name: 'r' } },
+    deltas: [
+      { sha: 'a', changes: [] },
+      {
+        sha: 'b',
+        changes: [
+          { path: 'f.txt', sha: 's1' },
+          { path: 'f2.txt', sha: 's1' },
+        ],
+      },
+      {
+        sha: 'c',
+        changes: [
+          { path: 'f.txt', sha: 's2' },
+          { path: 'f2.txt', sha: 's2' },
+        ],
+      },
+      {
+        sha: 'd',
+        changes: [
+          { path: 'f.txt', sha: null },
+          { path: 'f2.txt', sha: null },
+        ],
+      },
+    ],
+    blobLines: { s1: 2, s2: 6 },
+    note: null,
+  } as unknown as TimelineBundle;
+
+  const file2 = { path: 'f2.txt', lines: 6, size: 500, extension: 'txt' } as unknown as FileNode;
+  const b1 = {
+    x: 5,
+    y: 7,
+    w: 2,
+    d: 2,
+    h: buildingHeightForLines(file, 6, heightCtx),
+    color: '#fff',
+    file,
+    cellId: 0,
+    slotId: 0,
+  } as unknown as Building;
+  const b2 = {
+    x: 8,
+    y: 9,
+    w: 2,
+    d: 2,
+    h: buildingHeightForLines(file2, 6, heightCtx),
+    color: '#fff',
+    file: file2,
+    cellId: 0,
+    slotId: 1,
+  } as unknown as Building;
+
+  const index = new BuildingIndex();
+  index.insert(b1);
+  index.insert(b2);
+
+  const slotMatrices = new Map<number, THREE.Matrix4>();
+  const slotFadeX = new Map<number, number>();
+  let matUpdates = 0;
+  let iFadeUpdates = 0;
+
+  const iFade = {
+    getY: () => 0,
+    getZ: () => 0,
+    setXYZ: (slot: number, x: number) => {
+      slotFadeX.set(slot, x);
+    },
+    set needsUpdate(v: boolean) {
+      if (v) iFadeUpdates++;
+    },
+    get needsUpdate() {
+      return false;
+    },
+  };
+
+  const sharedMesh = {
+    setMatrixAt: (slot: number, m: THREE.Matrix4) => {
+      slotMatrices.set(slot, m.clone());
+    },
+    instanceMatrix: {
+      set needsUpdate(v: boolean) {
+        if (v) matUpdates++;
+      },
+      get needsUpdate() {
+        return false;
+      },
+    },
+    geometry: {
+      getAttribute: (n: string) => (n === 'iFade' ? iFade : undefined),
+    },
+  } as unknown as THREE.InstancedMesh;
+
+  const timelines = buildPathTimelines(twoPathBundle);
+  const controller = createScrubController({
+    getBuildingIndex: () => index,
+    getMeshForBuilding: (b) => ({ mesh: sharedMesh, slot: b.slotId }),
+    timelines,
+    heightCtx,
+  });
+
+  SCRUB_POS.value = 1.5;
+  controller.update();
+
+  expect(matUpdates).toBe(1);
+  expect(iFadeUpdates).toBe(1);
+  expect(slotMatrices.get(0)!.elements[5]).toBeCloseTo(buildingHeightForLines(file, 4, heightCtx), 5);
+  expect(slotMatrices.get(1)!.elements[5]).toBeCloseTo(buildingHeightForLines(file2, 4, heightCtx), 5);
+  expect(slotFadeX.get(0)).toBeCloseTo(1, 5);
+  expect(slotFadeX.get(1)).toBeCloseTo(1, 5);
+});
