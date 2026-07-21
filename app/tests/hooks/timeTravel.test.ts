@@ -170,4 +170,30 @@ describe('loadRef / exitTimeTravel', () => {
     expect(fresh.length).toBeGreaterThan(0);
     expect(new URL(fresh[0].url).searchParams.get('ref')).toBeNull(); // HEAD, not the pinned ref
   });
+
+  it('loadSource (a source switch) clears a pin left over from a different source', async () => {
+    const load = loadSource({ src: 's', branch: undefined });
+    await flush();
+    StubEventSource.instances[0].emit('manifest-complete', MANIFEST_JSON('sig0'));
+    await load;
+
+    const p = loadRef('abc1234');
+    await flush();
+    StubEventSource.instances[StubEventSource.instances.length - 1].emit(
+      'manifest-complete',
+      MANIFEST_JSON('sig-past')
+    );
+    await p;
+    expect(TIME_TRAVEL_REF.value).toBe('abc1234');
+
+    const switchLoad = loadSource({ src: 'other', branch: undefined });
+    await flush();
+    StubEventSource.instances[StubEventSource.instances.length - 1].emit(
+      'manifest-complete',
+      MANIFEST_JSON('sig-other')
+    );
+    await switchLoad;
+
+    expect(TIME_TRAVEL_REF.value).toBeNull();
+  });
 });

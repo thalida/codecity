@@ -130,6 +130,7 @@ let loadController: AbortController | null = null;
 // below is a SEPARATE op — a background refresh of the current source that
 // shares only the MANIFEST sink, and yields to a foreground load via the gen.)
 export async function loadSource(payload: SourcePayload): Promise<void> {
+  TIME_TRAVEL_REF.value = null; // any real source load means back to live
   const myGen = ++loadGeneration; // claim authority; supersedes any in-flight load/poll
   loadController?.abort(); // supersede any in-flight load
   const controller = new AbortController();
