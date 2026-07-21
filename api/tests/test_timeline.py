@@ -1,6 +1,7 @@
 """Tests for api/services/timeline.py — the per-commit blob-delta walk
 that the client replays to reconstruct any commit's file set."""
 
+import os
 import subprocess
 from pathlib import Path
 
@@ -87,7 +88,10 @@ def test_union_manifest_is_all_paths_max_size(tmp_path: Path) -> None:
 
 def test_bundle_replay_matches_reconstruct(tmp_path: Path) -> None:
     """Replaying deltas[0..i] reproduces reconstruct_manifest's file set + lines
-    at that ref — ties the bundle to the proven phase-1 reconstruction."""
+    at that ref — ties the bundle to the proven phase-1 reconstruction. The
+    fixture commits paths the live scan drops (ALWAYS_SKIP lockfile, a symlink,
+    a .codecityignore entry) to guard that the timeline path applies the
+    identical skip filter at every commit."""
     from api.services.timeline import build_timeline_bundle
     from api.services.scan import reconstruct_manifest
 
@@ -95,12 +99,34 @@ def test_bundle_replay_matches_reconstruct(tmp_path: Path) -> None:
     (tmp_path / "a.txt").write_text("1\n2\n")
     (tmp_path / "d").mkdir()
     (tmp_path / "d" / "b.py").write_text("x=1\n")
+    # Skipped-by-name lockfile (ALWAYS_SKIP), a committed symlink (mode 120000),
+    # and a .codecityignore path exclude — none may reach the bundle.
+    (tmp_path / "package-lock.json").write_text('{"a":1}\n' * 50)
+    os.symlink("a.txt", tmp_path / "link.txt")
+    (tmp_path / "secret").mkdir()
+    (tmp_path / "secret" / "hush.txt").write_text("shh\n")
+    (tmp_path / ".codecityignore").write_text("secret/hush.txt\n")
     _commit(tmp_path, "c1")
     (tmp_path / "a.txt").write_text("1\n2\n3\n4\n")
     (tmp_path / "d" / "b.py").unlink()
+    (tmp_path / "package-lock.json").write_text('{"a":2}\n' * 60)
     _commit(tmp_path, "c2")
 
     bundle = build_timeline_bundle(str(tmp_path), use_cache=False)
+
+    excluded = {"package-lock.json", "link.txt", "secret/hush.txt"}
+    union_paths: set[str] = set()
+
+    def walk_union(n: dict) -> None:
+        if n["type"] == "file":
+            union_paths.add(n["path"])
+        else:
+            for ch in n["children"]:
+                walk_union(ch)
+
+    walk_union(bundle["unionManifest"]["tree"])
+    assert union_paths & excluded == set(), "skipped paths leaked into the union"
+
     for i, c in enumerate(bundle["commits"]):
         state: dict[str, str] = {}
         for d in bundle["deltas"][: i + 1]:
@@ -109,6 +135,7 @@ def test_bundle_replay_matches_reconstruct(tmp_path: Path) -> None:
                     state.pop(ch["path"], None)
                 else:
                     state[ch["path"]] = ch["sha"]
+        assert state.keys() & excluded == set(), f"skipped path replayed at {i}"
         replay = {p: bundle["blobLines"][s] for p, s in state.items()}
         recon = reconstruct_manifest(str(tmp_path), c["sha"], use_cache=False)
         expect: dict[str, int] = {}

@@ -119,6 +119,8 @@ def timeline(
         bundle = build_timeline_bundle(str(target), use_cache=use_cache)
     except NotAGitRepoError as e:
         raise HTTPException(400, str(e))
+    except Exception as e:  # noqa: BLE001
+        raise HTTPException(500, f"timeline failed: {e}")
     if head is not None:
         cache_save_timeline(target.resolve(), head, bundle)
     return TimelineBundle.model_validate(bundle)

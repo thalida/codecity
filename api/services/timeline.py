@@ -8,11 +8,13 @@ import subprocess
 from pathlib import Path
 from typing import NamedTuple
 
+from .cache import BlobEntry, cache_load_blobs, cache_save_blobs
 from .gitobj import _git_argv, blob_sizes_batch, blob_stats_batch
 from .manifest_types import CommitEntry, FileNode, Manifest, NodeKind, TimelineBundle
 from .media import media_kind
 from .scan import (
     NotAGitRepoError,
+    _basename,
     _build_tree,
     _collect_git_history,
     _derive_tree_signals,
@@ -20,6 +22,8 @@ from .scan import (
     _extension,
     _hash_file_entry,
     _is_git_repo,
+    _load_codecityignore,
+    _path_is_skipped,
     _reconstructed_repo_info,
     _wrap_manifest,
 )
@@ -77,7 +81,11 @@ def walk_deltas(root: Path, ref: str | None = None) -> list[CommitDelta]:
             parts = meta.split()
             if len(parts) < 5:
                 continue
-            sha_after, status = parts[3], parts[4]
+            mode_after, sha_after, status = parts[1], parts[3], parts[4]
+            # Drop symlink (120000) / gitlink-submodule (160000) adds+mods, as the
+            # live scan does; a deletion (mode_after 000000) is left as a no-op.
+            if mode_after in ("120000", "160000"):
+                continue
             deleted = status.startswith("D") or sha_after.strip("0") == ""
             cur.changes.append((path, None if deleted else sha_after))
     finally:
@@ -90,12 +98,32 @@ def walk_deltas(root: Path, ref: str | None = None) -> list[CommitDelta]:
 
 
 def _collect_blob_tables(
-    root: Path, deltas: list[CommitDelta]
+    root: Path, deltas: list[CommitDelta], *, use_cache: bool = True
 ) -> tuple[dict[str, int], dict[str, int]]:
-    """Resolve every touched blob's (lines, byte size) in two batched
-    cat-file passes, keyed by sha."""
+    """Resolve every touched blob's (lines, byte size) keyed by sha. Lines go
+    through the same content-addressed blob cache reconstruct_manifest uses
+    (cat-file only the misses); sizes are a separate uncached batch."""
     shas = list({sha for d in deltas for _, sha in d.changes if sha})
-    lines = {s: st.lines for s, st in blob_stats_batch(root, shas).items()}
+    media_shas = frozenset(
+        sha
+        for d in deltas
+        for path, sha in d.changes
+        if sha and media_kind(_extension(_basename(path)))
+    )
+    cached = cache_load_blobs(root) if use_cache else {}
+    misses = [s for s in shas if s not in cached]
+    fresh = blob_stats_batch(root, misses, media_shas=media_shas) if misses else {}
+    for sha, st in fresh.items():
+        entry: BlobEntry = {"lines": st.lines, "binary": st.binary}
+        if st.media_width is not None and st.media_height is not None:
+            entry["media_width"], entry["media_height"] = (
+                st.media_width,
+                st.media_height,
+            )
+        cached[sha] = entry
+    if fresh:
+        cache_save_blobs(root, cached)
+    lines = {s: cached[s]["lines"] for s in shas if s in cached}
     sizes = blob_sizes_batch(root, shas)
     return lines, sizes
 
@@ -185,6 +213,25 @@ def build_timeline_bundle(root: str, *, use_cache: bool = True) -> TimelineBundl
     # both walks enumerate the same first-parent history in the same order
     assert len(deltas) == len(commits), "delta/commit walks misaligned"
 
+    # Apply the live scan's path skip filter ONCE, upstream, so the union
+    # manifest + deltas + blobLines all share the identical filtered file set.
+    ignore_names, ignore_paths, unignore_names, unignore_paths = _load_codecityignore(
+        root_path
+    )
+    deltas = [
+        CommitDelta(
+            sha=d.sha,
+            changes=[
+                (p, s)
+                for p, s in d.changes
+                if not _path_is_skipped(
+                    p, ignore_names, ignore_paths, unignore_names, unignore_paths
+                )
+            ],
+        )
+        for d in deltas
+    ]
+
     note = None
     union = {p for d in deltas for p, sha in d.changes if sha}
     if len(union) > _UNION_FILE_CAP:
@@ -201,7 +248,15 @@ def build_timeline_bundle(root: str, *, use_cache: bool = True) -> TimelineBundl
         commits = commits[cut:]
         note = f"timeline covers the most recent {len(commits)} commits"
 
-    blob_lines, blob_sizes = _collect_blob_tables(root_path, deltas)
+    blob_lines, blob_sizes = _collect_blob_tables(
+        root_path, deltas, use_cache=use_cache
+    )
+    # Contract: every non-null delta sha must have a blobLines entry so the
+    # client can't KeyError; an unresolvable sha defaults to 0.
+    for d in deltas:
+        for _, sha in d.changes:
+            if sha is not None:
+                blob_lines.setdefault(sha, 0)
     union_manifest = build_union_manifest(
         root_path, deltas, blob_lines, blob_sizes, commits, git_created, git_modified
     )
