@@ -18,6 +18,7 @@ import * as THREE from 'three';
 import { effect, untracked } from '@preact/signals';
 import { BUILDINGS } from '@/state/stores/settings/buildings';
 import type { BuildingsConfig } from '@/state/stores/settings/buildings';
+import { TIMELINE_MODE } from '@/state/stores/timeline';
 import { FadeDetail, NodeKind } from '@/types';
 import type { DirNode, FileNode, PickTarget } from '@/types';
 import { parentDirPath } from '@/city/utils/path';
@@ -147,6 +148,9 @@ export function createBuildingFader({
   }
 
   function _sweepAll(): void {
+    // Timeline mode owns iFade per frame (scrub controller); a hover/select sweep
+    // here would fight it. Live mode never takes this branch, so it stays identical.
+    if (TIMELINE_MODE.peek()) return;
     const sel = picker.selection.value;
     const hov = picker.hover.value;
 

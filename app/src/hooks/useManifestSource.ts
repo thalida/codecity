@@ -39,6 +39,7 @@ import { SERVER_CONFIG } from '@/state/stores/serverConfig';
 import { MANIFEST, setManifest, markError, markRebuilding } from '@/state/stores/manifest';
 import { SCAN_PROGRESS } from '@/state/stores/scanProgress';
 import { TIME_TRAVEL_REF } from '@/state/stores/timeTravel';
+import { TIMELINE_MODE } from '@/state/stores/timeline';
 import { activeExcludePathsFor, ACTIVE_EXCLUDES } from '@/state/stores/excludes';
 import { srcKind, SourceKind, srcNeedsBranch, identityBranch, sourceKey } from '@/utils/sources';
 import { isEmptyManifest } from '@/utils/manifest';
@@ -320,6 +321,7 @@ export function setupLiveUpdates(): () => void {
   // the overlay, so the poll never probes/applies a source that's mid-load.
   async function tick(): Promise<void> {
     if (inFlight) return;
+    if (TIMELINE_MODE.peek()) return; // Timeline mode owns the scene (union city + scrub) — no live poll
     if (TIME_TRAVEL_REF.peek() !== null) return; // pinned to a past ref — the poll must not pull HEAD back in
     if (SCAN_PROGRESS.peek() !== null) return; // a foreground load is in flight — yield
     const cur = CURRENT_SOURCE.peek();
@@ -378,6 +380,7 @@ export function setupLiveUpdates(): () => void {
     const [prevRepo] = prev.split('|', 1);
     if (prevRepo !== repoKey) return; // source switched — the load owns it
     if (prev === nextKey) return; // no actual change
+    if (TIMELINE_MODE.peek()) return; // Timeline mode owns the scene — no in-place refresh
     if (TIME_TRAVEL_REF.peek() !== null) return; // pinned to a past ref — don't pull HEAD back in
     if (SCAN_PROGRESS.peek() !== null) return; // yield to a foreground load
     if (!cur) return;

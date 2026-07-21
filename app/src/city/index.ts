@@ -11,6 +11,9 @@ import { CURRENT_SOURCE_KEY } from '@/state/stores/source';
 
 import { registerShaderChunks } from './utils/shaders/registerShaderChunks';
 import { createBuildings } from './components/buildings';
+import { makeHeightContext } from './layout/dimensions';
+import { createScrubController } from './timeline/scrubController';
+import type { PathTimeline } from './timeline/replay';
 import { createLayoutClient } from './layout';
 import { createCityState } from './state';
 import { runCollisionCheck, runStemPlacementDiagnostic } from './diagnostics';
@@ -177,6 +180,10 @@ export async function createCity(canvas: HTMLCanvasElement, manifest: Manifest):
     onResetView: rig.reset,
   });
 
+  // Timeline scrub controller — built + installed on entering Timeline mode
+  // (see hooks/useTimelineMode). Held here so uninstall can dispose it.
+  let _scrubController: ReturnType<typeof createScrubController> | null = null;
+
   // Reused scratch vector to avoid per-frame allocations from renderer.getSize().
   const renderSize = new THREE.Vector2();
   const stopFrameLoop = startFrameLoop(components, ctx, {
@@ -216,6 +223,26 @@ export async function createCity(canvas: HTMLCanvasElement, manifest: Manifest):
       runCollisionCheck: () => runCollisionCheck(cityState),
       runStemPlacementDiagnostic: () => runStemPlacementDiagnostic(cityState),
     },
+    timeline: {
+      installScrubController(timelines: Map<string, PathTimeline>): void {
+        _scrubController?.dispose();
+        _scrubController = createScrubController({
+          getBuildingIndex: () => buildings.getBuildingIndex(),
+          getMeshForBuilding: (b) => buildings.getMeshForBuilding(b),
+          timelines,
+          heightCtx: makeHeightContext(cityState.manifest.peek()?.stats),
+          streets: { setStreetOpacity: (s, o) => streets.setStreetOpacity(s, o) },
+          streetsByDir: cityState.streetsByDirMap.peek(),
+        });
+        buildings.setScrubController(_scrubController);
+      },
+      uninstallScrubController(): void {
+        buildings.setScrubController(null);
+        _scrubController?.dispose();
+        _scrubController = null;
+      },
+      setStreetsTransparent: (on: boolean): void => streets.setStreetsTransparent(on),
+    },
     /** Tear the whole city down: stop the frame loop, detach input listeners,
      *  dispose the picker/rig/postFx/components (GPU geometry + their effects),
      *  the layout worker, and the renderer. Without this, a remount (or HMR)
@@ -226,6 +253,7 @@ export async function createCity(canvas: HTMLCanvasElement, manifest: Manifest):
     dispose(): void {
       stopFrameLoop();
       stopReframe();
+      _scrubController?.dispose();
       handlers.dispose();
       picker.dispose();
       rig.dispose();
