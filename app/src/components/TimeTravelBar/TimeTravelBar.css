@@ -1,0 +1,40 @@
+/* components/TimeTravelBar.css — floating bar over the scene canvas. */
+
+.time-travel-bar {
+  position: absolute;
+  left: 50%;
+  bottom: var(--cc-space-8);
+  transform: translateX(-50%);
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  gap: var(--cc-space-6);
+  padding: var(--cc-space-5) var(--cc-space-7);
+  max-width: calc(100% - var(--cc-space-9) * 2);
+}
+
+.time-travel-slider {
+  width: 220px;
+  flex: 0 0 auto;
+}
+
+.time-travel-info {
+  display: flex;
+  align-items: center;
+  gap: var(--cc-space-3);
+  min-width: 0;
+  font-family: var(--cc-font-mono);
+  font-size: var(--cc-font-xs);
+  color: var(--cc-text-secondary);
+  white-space: nowrap;
+}
+
+.time-travel-sha {
+  color: var(--cc-text-strong);
+}
+
+.time-travel-subject {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--cc-text-primary);
+}

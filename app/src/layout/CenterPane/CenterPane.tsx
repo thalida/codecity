@@ -3,11 +3,13 @@
 
 import './CenterPane.css';
 import { City } from '@/components/City';
+import { TimeTravelBar } from '@/components/TimeTravelBar/TimeTravelBar';
 
 export function CenterPane() {
   return (
     <div id="center-pane">
       <City />
+      <TimeTravelBar />
     </div>
   );
 }

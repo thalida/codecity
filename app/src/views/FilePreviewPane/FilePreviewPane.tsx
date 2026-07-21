@@ -28,11 +28,12 @@ export enum PreviewKind {
   Text = 'text',
 }
 import { fileUrl, fetchFileText, fetchFileBytes } from '@/api/file';
-import { FileWarning, FileX, Info, MousePointerClick } from 'lucide-preact';
+import { FileWarning, FileX, History, Info, MousePointerClick } from 'lucide-preact';
 import { Pane, PaneEmpty } from '@/components/Pane';
 import { KEY_BINDINGS } from '@/constants/keyboard';
 import { ExtensionBadge } from '@/components/Badge/Badge';
 import { formatBytes } from '@/utils/bytes';
+import { TIME_TRAVEL_REF } from '@/state/stores/timeTravel';
 import { languageFor } from '@/utils/syntaxLanguages';
 
 // Auto-load images/video/audio/PDF (browser handles streaming + memory).
@@ -419,6 +420,17 @@ function _previewBody(file: FileNode | null) {
     );
   }
   if (!file.fullPath) return null;
+
+  // /api/file reads the current checkout, which would be wrong for a reconstructed past ref.
+  if (TIME_TRAVEL_REF.value !== null) {
+    return (
+      <PaneEmpty
+        icon={History}
+        title="Not available in time travel"
+        sub="File preview reads the current checkout, not this commit."
+      />
+    );
+  }
 
   // Version the URL by mtime so an edited image/video/pdf re-fetches on a live
   // update instead of the browser serving the cached bytes for the same path.
