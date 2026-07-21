@@ -15,13 +15,24 @@ from typing import NamedTuple
 from .media import probe_media_dims_from_bytes
 
 _SHA40 = re.compile(r"^[0-9a-f]{40}$")
-_BINARY_CHUNK = 8192
+# Unprefixed: scan.py's _is_binary(path) delegates to is_binary_bytes below so
+# the live scan and the time-travel reconstruction classify file content
+# identically. _TEXT_CHARACTERS stays private — only is_binary_bytes needs it.
+BINARY_CHUNK = 8192
 _TEXT_CHARACTERS = bytes({7, 8, 9, 10, 11, 12, 13, 27}) + bytes(range(0x20, 0x100))
+
+
+def _git_argv(root: Path, *args: str) -> list[str]:
+    """The `-c safe.directory=* -C <root>` prefix shared by every git
+    invocation in this module — the ref-injection guard (`--end-of-options`
+    callers add themselves) and the safe.directory bypass (see _run_git's
+    docstring in scan.py) live in exactly one place."""
+    return ["git", "-c", "safe.directory=*", "-C", str(root), *args]
 
 
 def _git(root: Path, *args: str) -> subprocess.CompletedProcess[bytes]:
     return subprocess.run(
-        ["git", "-c", "safe.directory=*", "-C", str(root), *args],
+        _git_argv(root, *args),
         capture_output=True,
         check=False,
     )
@@ -81,8 +92,8 @@ class BlobStats(NamedTuple):
     media_height: int | None
 
 
-def _is_binary_bytes(chunk: bytes) -> bool:
-    head = chunk[:_BINARY_CHUNK]
+def is_binary_bytes(chunk: bytes) -> bool:
+    head = chunk[:BINARY_CHUNK]
     if not head:
         return False
     if b"\x00" in head:
@@ -109,7 +120,7 @@ def blob_stats_batch(
     if not unique:
         return {}
     proc = subprocess.run(
-        ["git", "-c", "safe.directory=*", "-C", str(root), "cat-file", "--batch"],
+        _git_argv(root, "cat-file", "--batch"),
         input="\n".join(unique).encode("ascii"),
         capture_output=True,
         check=False,
@@ -131,7 +142,7 @@ def blob_stats_batch(
         sha, size = hp[0], int(hp[2])
         content = out[i : i + size]
         i += size + 1  # trailing newline after content
-        binary = _is_binary_bytes(content)
+        binary = is_binary_bytes(content)
         lines = 0 if binary else content.count(b"\n")
         mw, mh = probe_media_dims_from_bytes(content) if sha in media_shas else (None, None)
         result[sha] = BlobStats(

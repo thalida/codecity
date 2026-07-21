@@ -35,6 +35,7 @@ from .cache import (
     cache_save_files,
     cache_save_git_history,
 )
+from .gitobj import BINARY_CHUNK, is_binary_bytes
 from .media import media_kind, probe_media_dims
 from .stats import compute_repo_stats
 from .manifest_types import (
@@ -95,27 +96,21 @@ def _log(msg: str) -> None:
 
 
 # ── Binary detection ─────────────────────────────────────────────────────────
-
-_BINARY_CHUNK_SIZE = 8192
-# Bytes that are suspicious for text files. Control chars below 0x20
-# except whitespace + null are usually binary indicators.
-_TEXT_CHARACTERS = bytes({7, 8, 9, 10, 11, 12, 13, 27}) + bytes(range(0x20, 0x100))
+#
+# The heuristic itself lives in gitobj.is_binary_bytes — the live scan
+# (here) and the time-travel reconstruction (gitobj.blob_stats_batch) must
+# classify the same file content identically, or a file's binary/line-count
+# would differ between the live city and its past-commit reconstruction.
 
 
 def _is_binary(path: Path) -> bool:
     """Null-byte / non-text-char heuristic. Fast, no subprocess."""
     try:
         with path.open("rb") as fh:
-            chunk = fh.read(_BINARY_CHUNK_SIZE)
+            chunk = fh.read(BINARY_CHUNK)
     except OSError:
         return True
-    if not chunk:
-        return False
-    if b"\x00" in chunk:
-        return True
-    # If >30% of bytes are outside the "text" set, call it binary.
-    non_text = sum(1 for b in chunk if b not in _TEXT_CHARACTERS)
-    return non_text / len(chunk) > 0.30
+    return is_binary_bytes(chunk)
 
 
 # ── Extension ────────────────────────────────────────────────────────────────
