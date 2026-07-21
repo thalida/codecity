@@ -4,29 +4,32 @@ const PRESENCE_RAMP = 0.5;
 
 export interface PathTimeline {
   changes: { i: number; lines: number }[];
-  createdIdx: number;
-  deletedIdx: number | null;
+  intervals: { start: number; end: number | null }[];
 }
 
 // Mirrors the backend replay: walking deltas[0..i] reproduces the file set + lines at commit i.
+// Intervals (not a single created/deleted pair) let a resurrected path have a dead gap in between.
 export function buildPathTimelines(bundle: TimelineBundle): Map<string, PathTimeline> {
   const timelines = new Map<string, PathTimeline>();
 
   bundle.deltas.forEach((delta, i) => {
     for (const change of delta.changes) {
+      let pt = timelines.get(change.path);
+      if (!pt) {
+        pt = { changes: [], intervals: [] };
+        timelines.set(change.path, pt);
+      }
+
       if (change.sha === null) {
-        const pt = timelines.get(change.path);
-        if (pt) pt.deletedIdx = i;
+        const open = pt.intervals[pt.intervals.length - 1];
+        if (open && open.end === null) open.end = i;
+        pt.changes.push({ i, lines: 0 });
         continue;
       }
 
       const lines = bundle.blobLines[change.sha] ?? 0;
-      let pt = timelines.get(change.path);
-      if (!pt) {
-        pt = { changes: [], createdIdx: i, deletedIdx: null };
-        timelines.set(change.path, pt);
-      }
-      pt.deletedIdx = null; // a re-add resurrects the path
+      const open = pt.intervals[pt.intervals.length - 1];
+      if (!open || open.end !== null) pt.intervals.push({ start: i, end: null });
       pt.changes.push({ i, lines });
     }
   });
@@ -34,11 +37,14 @@ export function buildPathTimelines(bundle: TimelineBundle): Map<string, PathTime
   return timelines;
 }
 
+function isPresent(pt: PathTimeline, pos: number): boolean {
+  return pt.intervals.some((iv) => pos >= iv.start && (iv.end === null || pos < iv.end));
+}
+
 export function linesAt(pt: PathTimeline, pos: number): number {
-  if (pos < pt.createdIdx || (pt.deletedIdx != null && pos >= pt.deletedIdx)) return 0;
+  if (!isPresent(pt, pos)) return 0;
 
   const { changes } = pt;
-  if (changes.length === 0) return 0;
   if (pos <= changes[0].i) return changes[0].lines;
   if (pos >= changes[changes.length - 1].i) return changes[changes.length - 1].lines;
 
@@ -57,11 +63,19 @@ export function linesAt(pt: PathTimeline, pos: number): number {
 }
 
 export function presenceAt(pt: PathTimeline, pos: number, ruinFloor: number): number {
-  if (pos < pt.createdIdx) return 0;
-  if (pt.deletedIdx != null && pos >= pt.deletedIdx) return ruinFloor;
+  if (pt.intervals.length === 0 || pos < pt.intervals[0].start) return 0;
 
-  const rampT = pos - pt.createdIdx;
-  if (rampT < PRESENCE_RAMP) return rampT / PRESENCE_RAMP;
+  for (let idx = 0; idx < pt.intervals.length; idx++) {
+    const iv = pt.intervals[idx];
+    if (pos >= iv.start && (iv.end === null || pos < iv.end)) {
+      // only the genesis interval grows in; a resurrection reappears at full presence
+      if (idx === 0) {
+        const rampT = pos - iv.start;
+        if (rampT < PRESENCE_RAMP) return rampT / PRESENCE_RAMP;
+      }
+      return 1;
+    }
+  }
 
-  return 1;
+  return ruinFloor;
 }
