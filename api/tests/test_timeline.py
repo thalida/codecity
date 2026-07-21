@@ -65,21 +65,21 @@ def test_union_manifest_is_all_paths_max_size(tmp_path: Path) -> None:
     lines, sizes = _collect_blob_tables(tmp_path, deltas)
     from api.services.scan import _collect_git_history
 
-    _, _, commits = _collect_git_history(tmp_path, use_cache=False)
-    m = build_union_manifest(tmp_path, deltas, lines, sizes, commits)
+    created, modified, commits = _collect_git_history(tmp_path, use_cache=False)
+    m = build_union_manifest(tmp_path, deltas, lines, sizes, commits, created, modified)
 
-    paths: set[tuple[str, int]] = set()
+    nodes: dict[str, dict] = {}
 
     def walk(n: dict) -> None:
         if n["type"] == "file":
-            paths.add((n["path"], n["size"]))
+            nodes[n["path"]] = n
         else:
             for c in n["children"]:
                 walk(c)
 
     walk(m["tree"])
-    names = {p for p, _ in paths}
-    assert names == {"a.txt", "gone.txt"}  # deleted file is in the union
-    a_size = next(s for p, s in paths if p == "a.txt")
-    assert a_size == len("x\ny\nz\n")  # MAX size over history
+    assert set(nodes) == {"a.txt", "gone.txt"}  # deleted file is in the union
+    assert nodes["a.txt"]["size"] == len("x\ny\nz\n")  # MAX size over history
     assert m["repo"]["dirty"] is False
+    assert "T" in nodes["a.txt"]["created"]  # full ISO timestamp, not day-precision
+    assert "T" in nodes["a.txt"]["modified"]

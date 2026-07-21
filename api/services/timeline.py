@@ -101,22 +101,19 @@ def build_union_manifest(
     blob_lines: dict[str, int],
     blob_sizes: dict[str, int],
     commits: list[CommitEntry],
+    git_created: dict[str, str],
+    git_modified: dict[str, str],
 ) -> Manifest:
     """City for the union of every path that ever existed. Each file's
-    footprint `size` (and placeholder `lines`) is its MAX over history so a
-    building never outgrows its lot; created/modified span first/last touch.
-    Flows through the SHARED tree builder so the layout matches every
-    per-commit reconstruction it will be scrubbed against."""
-    dates = {c["sha"]: c["date"] for c in commits}
+    footprint `size` (and placeholder `lines`) is its MAX over history.
+    created/modified come from the same full-ISO maps `reconstruct_manifest`
+    uses (not day-precision commit dates), so precision matches everywhere
+    else in the app. Flows through the SHARED tree builder so the layout
+    matches every per-commit reconstruction it will be scrubbed against."""
     max_size: dict[str, int] = {}
     max_lines: dict[str, int] = {}
-    created: dict[str, str] = {}
-    modified: dict[str, str] = {}
     for d in deltas:
-        date = dates.get(d.sha, "")
         for path, sha in d.changes:
-            created.setdefault(path, date)
-            modified[path] = date
             if sha is None:
                 continue
             max_size[path] = max(max_size.get(path, 0), blob_sizes.get(sha, 0))
@@ -144,8 +141,8 @@ def build_union_manifest(
             "lines": max_lines.get(rel_path, 0),
             "binary": False,
             "dirty": False,
-            "created": created.get(rel_path, ""),
-            "modified": modified.get(rel_path, ""),
+            "created": git_created.get(rel_path, ""),
+            "modified": git_modified.get(rel_path, ""),
         }
 
     tree = _build_tree(
