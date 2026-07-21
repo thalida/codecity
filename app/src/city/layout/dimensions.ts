@@ -215,6 +215,21 @@ export function recomputeBuildingDimensions(
   return getBuildingDimensions(file, ctx.lineStats, ctx.byteStats);
 }
 
+// buildingHeightForLines(file, lines, ctx) → number
+//
+// The scene-Y height a building would have at a given line count, reusing the
+// exact getBuildingDimensions curve (sqrt-normalized floors × FLOOR_HEIGHT).
+// Timeline scrub recomputes this per frame from the file's replayed line count.
+// Media files ignore lines (height comes from aspect), so this returns their
+// constant height regardless.
+export function buildingHeightForLines(
+  file: Parameters<typeof getBuildingDimensions>[0],
+  lines: number,
+  ctx: HeightContext
+): number {
+  return getBuildingDimensions({ ...file, lines }, ctx.lineStats, ctx.byteStats).h;
+}
+
 // -----------------------------------------------------------------------------
 // _streetWidthForDir(dir) -> number
 //
