@@ -1,10 +1,10 @@
 """The manifest routes: GET /api/manifest (SSE stream), GET
-/api/manifest/signature, DELETE /api/manifest/cache.
+/api/manifest/signature, GET /api/timeline, DELETE /api/manifest/cache.
 
 Source classification/resolution lives in api.services.source; these are the
 thin HTTP handlers over it. A ResolveError carries a status + message: the
-signature/cache routes turn it into an HTTPException, while the SSE route turns
-it into an `error` event (EventSource can't read 4xx bodies)."""
+signature/timeline/cache routes turn it into an HTTPException, while the SSE
+route turns it into an `error` event (EventSource can't read 4xx bodies)."""
 
 from __future__ import annotations
 
@@ -26,15 +26,17 @@ from api.models.events import (
     ScanEvent,
     ScanProgressEvent,
 )
-from api.models.manifest import SignatureResponse
+from api.models.manifest import SignatureResponse, TimelineBundle
 from api.models.responses import CacheClearResponse
 from api.security import TRUST
 from api.services.cache import (
     cache_clear_all,
     cache_load_manifest,
     cache_load_ref_manifest,
+    cache_load_timeline,
     cache_save_manifest,
     cache_save_ref_manifest,
+    cache_save_timeline,
 )
 from api.services.clone import (
     BranchNotFoundError,
@@ -47,6 +49,7 @@ from api.services.clone import (
 )
 from api.services.gitobj import resolve_ref
 from api.services.scan import (
+    NotAGitRepoError,
     ScanCancelledError,
     reconstruct_manifest,
     scan_tree,
@@ -60,6 +63,7 @@ from api.services.source import (
     resolve_local,
     resolve_source,
 )
+from api.services.timeline import build_timeline_bundle
 
 router = APIRouter(prefix="/api", tags=["manifest"])
 
@@ -93,6 +97,31 @@ def signature(
     except Exception as e:  # noqa: BLE001
         raise HTTPException(500, f"signature failed: {e}")
     return SignatureResponse.model_validate(dict(sig))
+
+
+@router.get("/timeline", response_model=TimelineBundle)
+def timeline(
+    src: str = Query(...),
+    branch: str | None = Query(None),
+    no_cache: bool = Query(False),
+) -> TimelineBundle:
+    try:
+        target = resolve_source(src, branch)
+    except ResolveError as e:
+        raise HTTPException(e.status, e.message)
+    use_cache = not no_cache
+    head = resolve_ref(target, "HEAD")
+    if use_cache and head is not None:
+        cached = cache_load_timeline(target.resolve(), head)
+        if cached is not None:
+            return TimelineBundle.model_validate(cached)
+    try:
+        bundle = build_timeline_bundle(str(target), use_cache=use_cache)
+    except NotAGitRepoError as e:
+        raise HTTPException(400, str(e))
+    if head is not None:
+        cache_save_timeline(target.resolve(), head, bundle)
+    return TimelineBundle.model_validate(bundle)
 
 
 @router.delete("/manifest/cache", response_model=CacheClearResponse)

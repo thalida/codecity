@@ -254,4 +254,26 @@ class SignatureResponse(BaseModel):
     content_signature: str
 
 
+class TimelineChange(BaseModel):
+    path: str
+    sha: Optional[str] = Field(description="New blob sha, or null when deleted")
+
+
+class TimelineDelta(BaseModel):
+    sha: str
+    changes: list[TimelineChange]
+
+
+class TimelineBundle(BaseModel):
+    """Everything the client replays for smooth commit scrubbing. See
+    api/services/manifest_types.py:TimelineBundle for the field-by-field
+    rationale (this mirrors that TypedDict for the wire schema)."""
+
+    commits: list[CommitEntry]
+    unionManifest: Manifest
+    deltas: list[TimelineDelta]
+    blobLines: dict[str, int]
+    note: Optional[str]
+
+
 DirNode.model_rebuild()

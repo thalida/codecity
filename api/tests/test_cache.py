@@ -556,6 +556,39 @@ class ManifestCacheTests(CacheTestBase):
         self.assertIsNone(cache_mod.cache_load_manifest(root, "a" * 32))
         self.assertIsNone(cache_mod.cache_load_ref_manifest(root, "b" * 40))
 
+    def _make_bundle(self) -> dict:
+        return {
+            "commits": [],
+            "unionManifest": self._make_manifest(),
+            "deltas": [],
+            "blobLines": {},
+            "note": None,
+        }
+
+    def test_timeline_roundtrip(self) -> None:
+        root = Path("/some/repo")
+        sha = "a" * 40
+        bundle = self._make_bundle()
+        cache_mod.cache_save_timeline(root, sha, bundle)
+        self.assertEqual(cache_mod.cache_load_timeline(root, sha), bundle)
+
+    def test_timeline_load_missing_returns_none(self) -> None:
+        self.assertIsNone(
+            cache_mod.cache_load_timeline(Path("/never/scanned"), "b" * 40)
+        )
+
+    def test_clear_manifests_also_sweeps_timeline(self) -> None:
+        # cache_clear_manifests's `{repo_key}__*.json.gz` glob covers
+        # content-signature, `__ref-<sha>`, AND `__timeline-<sha>` keyed files.
+        root = Path("/x")
+        cache_mod.cache_save_manifest(root, "a" * 32, self._make_manifest())
+        cache_mod.cache_save_timeline(root, "b" * 40, self._make_bundle())
+
+        deleted = cache_mod.cache_clear_manifests(root)
+        self.assertEqual(deleted, 2)
+        self.assertIsNone(cache_mod.cache_load_manifest(root, "a" * 32))
+        self.assertIsNone(cache_mod.cache_load_timeline(root, "b" * 40))
+
 
 class MediaDimsCacheTests(CacheTestBase):
     def setUp(self) -> None:

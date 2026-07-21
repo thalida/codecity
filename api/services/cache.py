@@ -35,7 +35,7 @@ from typing import TYPE_CHECKING, NotRequired, TypedDict, cast
 from api.config import CACHE_ROOT
 
 if TYPE_CHECKING:
-    from api.services.manifest_types import CommitEntry, Manifest
+    from api.services.manifest_types import CommitEntry, Manifest, TimelineBundle
 
 
 class FileEntry(TypedDict):
@@ -76,6 +76,7 @@ class BlobEntry(TypedDict):
 _FILE_CACHE_VERSION = 1
 _BLOB_STATS_CACHE_VERSION = 1  # blob_sha -> (lines, binary, media dims)
 _GIT_HISTORY_CACHE_VERSION = 13  # v13: key generalized head_sha -> commit_sha (any ref)
+_TIMELINE_CACHE_VERSION = 1  # bundle shape: commits/unionManifest/deltas/blobLines/note
 _MANIFEST_SCHEMA_VERSION = (
     # v12: per-dir descendants_created_min / descendants_modified_max
     # v13: ext_breakdown `ext` is null (was "(none)") for extensionless files
@@ -380,12 +381,15 @@ def _ref_manifest_cache_path(abs_root: Path, ref_sha: str) -> Path:
     return CACHE_ROOT / "manifests" / f"{repo_key(abs_root)}__ref-{ref_sha}.json.gz"
 
 
-def _load_gz_manifest(path: Path) -> "Manifest | None":
-    """Load a gzip-envelope manifest cache file. Returns None on any error
-    (missing file, gzip corruption, JSON parse, schema/version mismatch).
-    Shared body for both the content-signature and ref-keyed manifest
-    caches — same envelope shape, same error hygiene: a corrupt cache is
-    treated as a miss, never a hard failure."""
+def _load_gz_envelope(
+    path: Path, *, envelope_key: str, version: object
+) -> dict[str, object] | None:
+    """Load a gzip-envelope JSON cache file (``{"version", envelope_key:
+    <dict>}``). Returns None on any error (missing file, gzip corruption,
+    JSON parse, schema/version mismatch, or a non-dict payload). Shared body
+    for every gzip-envelope cache (manifest, ref-manifest, timeline bundle) —
+    same shape, same error hygiene: a corrupt cache is a miss, never a hard
+    failure."""
     try:
         with gzip.open(path, "rb") as fh:
             raw = json.loads(fh.read().decode("utf-8"))
@@ -394,39 +398,56 @@ def _load_gz_manifest(path: Path) -> "Manifest | None":
     if not isinstance(raw, dict):
         return None
     envelope = cast(dict[str, object], raw)
-    if envelope.get("version") != _MANIFEST_CACHE_VERSION:
+    if envelope.get("version") != version:
         return None
-    manifest = envelope.get("manifest")
-    if not isinstance(manifest, dict):
+    payload = envelope.get(envelope_key)
+    if not isinstance(payload, dict):
         return None
-    # TypedDict is structurally compatible with dict at runtime; the
-    # `Manifest` annotation is a documentation aid for callers.
-    return manifest  # type: ignore[return-value]
+    return cast(dict[str, object], payload)
 
 
-def _save_gz_manifest(path: Path, manifest: "Manifest") -> None:
-    """Atomically write a gzip-envelope manifest cache file. Swallows
-    OSError — cache save failures must never break the response. Shared
-    body for both the content-signature and ref-keyed manifest caches."""
+def _save_gz_envelope(
+    path: Path, *, envelope_key: str, version: object, payload: dict[str, object]
+) -> None:
+    """Atomically write a gzip-envelope JSON cache file. Swallows OSError —
+    cache save failures must never break the response. Shared body for every
+    gzip-envelope cache."""
     path.parent.mkdir(parents=True, exist_ok=True)
-    payload = json.dumps(
-        {
-            "version": _MANIFEST_CACHE_VERSION,
-            "manifest": manifest,
-        }
-    ).encode("utf-8")
+    data = json.dumps({"version": version, envelope_key: payload}).encode("utf-8")
     fd, tmp = tempfile.mkstemp(
         dir=str(path.parent), prefix=f".{path.name}.", suffix=".tmp"
     )
     try:
         with os.fdopen(fd, "wb") as fh:
             with gzip.GzipFile(fileobj=fh, mode="wb") as gz:
-                gz.write(payload)
+                gz.write(data)
             fh.flush()
             os.fsync(fh.fileno())
         os.replace(tmp, path)
     except OSError:
         Path(tmp).unlink(missing_ok=True)
+
+
+def _load_gz_manifest(path: Path) -> "Manifest | None":
+    """Load a gzip-envelope manifest cache file. Shared body for both the
+    content-signature and ref-keyed manifest caches."""
+    manifest = _load_gz_envelope(
+        path, envelope_key="manifest", version=_MANIFEST_CACHE_VERSION
+    )
+    # TypedDict is structurally compatible with dict at runtime; the
+    # `Manifest` annotation is a documentation aid for callers.
+    return manifest  # type: ignore[return-value]
+
+
+def _save_gz_manifest(path: Path, manifest: "Manifest") -> None:
+    """Atomically write a gzip-envelope manifest cache file. Shared body for
+    both the content-signature and ref-keyed manifest caches."""
+    _save_gz_envelope(
+        path,
+        envelope_key="manifest",
+        version=_MANIFEST_CACHE_VERSION,
+        payload=cast("dict[str, object]", manifest),
+    )
 
 
 def cache_load_manifest(
@@ -459,10 +480,44 @@ def cache_save_ref_manifest(abs_root: Path, ref_sha: str, manifest: "Manifest") 
     _save_gz_manifest(_ref_manifest_cache_path(abs_root, ref_sha), manifest)
 
 
+def _timeline_cache_path(abs_root: Path, head_sha: str) -> Path:
+    # Lives alongside the manifest caches (same dir, same `__*.json.gz`
+    # glob) so cache_clear_manifests/cache_clear_all sweep it too.
+    return (
+        CACHE_ROOT / "manifests" / f"{repo_key(abs_root)}__timeline-{head_sha}.json.gz"
+    )
+
+
+def cache_load_timeline(abs_root: Path, head_sha: str) -> "TimelineBundle | None":
+    """Load the cached timeline bundle for this (root, head_sha). A bundle is
+    immutable per HEAD (it replays fixed history), so unlike the content-
+    signature manifest cache this key never needs invalidating — only
+    `cache_clear_manifests`/`cache_clear_all` remove it."""
+    bundle = _load_gz_envelope(
+        _timeline_cache_path(abs_root, head_sha),
+        envelope_key="bundle",
+        version=_TIMELINE_CACHE_VERSION,
+    )
+    return bundle  # type: ignore[return-value]
+
+
+def cache_save_timeline(
+    abs_root: Path, head_sha: str, bundle: "TimelineBundle"
+) -> None:
+    """Atomically write the timeline bundle cache for (root, head_sha)."""
+    _save_gz_envelope(
+        _timeline_cache_path(abs_root, head_sha),
+        envelope_key="bundle",
+        version=_TIMELINE_CACHE_VERSION,
+        payload=cast("dict[str, object]", bundle),
+    )
+
+
 def cache_clear_manifests(abs_root: Path) -> int:
     """Delete every cached manifest file for this root, across all
-    signatures AND every ref-keyed manifest (the `__*.json.gz` glob below
-    matches both `__<signature>.json.gz` and `__ref-<sha>.json.gz`).
+    signatures, every ref-keyed manifest, AND every timeline bundle (the
+    `__*.json.gz` glob below matches `__<signature>.json.gz`,
+    `__ref-<sha>.json.gz`, and `__timeline-<sha>.json.gz`).
     Returns the count deleted.
 
     Silently ignores I/O errors per the rest of this module's hygiene —

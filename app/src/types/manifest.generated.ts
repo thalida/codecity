@@ -134,6 +134,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/timeline": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Timeline */
+        get: operations["timeline_api_timeline_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/manifest/cache": {
         parameters: {
             query?: never;
@@ -571,6 +588,42 @@ export interface components {
             /** Content Signature */
             content_signature: string;
         };
+        /**
+         * TimelineBundle
+         * @description Everything the client replays for smooth commit scrubbing. See
+         *     api/services/manifest_types.py:TimelineBundle for the field-by-field
+         *     rationale (this mirrors that TypedDict for the wire schema).
+         */
+        TimelineBundle: {
+            /** Commits */
+            commits: components["schemas"]["CommitEntry"][];
+            unionManifest: components["schemas"]["Manifest"];
+            /** Deltas */
+            deltas: components["schemas"]["TimelineDelta"][];
+            /** Bloblines */
+            blobLines: {
+                [key: string]: number;
+            };
+            /** Note */
+            note: string | null;
+        };
+        /** TimelineChange */
+        TimelineChange: {
+            /** Path */
+            path: string;
+            /**
+             * Sha
+             * @description New blob sha, or null when deleted
+             */
+            sha: string | null;
+        };
+        /** TimelineDelta */
+        TimelineDelta: {
+            /** Sha */
+            sha: string;
+            /** Changes */
+            changes: components["schemas"]["TimelineChange"][];
+        };
         /** ValidationError */
         ValidationError: {
             /** Location */
@@ -783,6 +836,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SignatureResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    timeline_api_timeline_get: {
+        parameters: {
+            query: {
+                src: string;
+                branch?: string | null;
+                no_cache?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TimelineBundle"];
                 };
             };
             /** @description Validation Error */
