@@ -1,5 +1,4 @@
-// Native-harness test for TimeTravelBar — mirrors BranchSelect.test.tsx's
-// render/flush/vi.spyOn pattern (this repo has no @testing-library/preact).
+// Mirrors BranchSelect.test.tsx's native render/flush/vi.spyOn harness.
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render } from 'preact';
@@ -8,7 +7,7 @@ import * as useManifestSourceModule from '@/hooks/useManifestSource';
 import { MANIFEST } from '@/state/stores/manifest';
 import { TIME_TRAVEL_REF } from '@/state/stores/timeTravel';
 import { flush } from '../_helpers/preact';
-import type { CommitEntry } from '@/types';
+import type { CommitEntry, Manifest } from '@/types';
 
 const commit = (sha: string, date: string, subject: string): CommitEntry => ({
   sha,
@@ -41,7 +40,7 @@ describe('TimeTravelBar', () => {
     const old = commit('aaaaaaa1111111111111111111111111111111', '2026-01-01', 'oldest');
     const mid = commit('bbbbbbb2222222222222222222222222222222', '2026-02-01', 'middle');
     const head = commit('ccccccc3333333333333333333333333333333', '2026-03-01', 'head');
-    MANIFEST.value = { tree: { name: 'r' }, commits: [old, mid, head] } as never;
+    MANIFEST.value = { tree: { name: 'r' }, commits: [old, mid, head] } as unknown as Manifest;
     await flush();
 
     render(<TimeTravelBar />, container);
