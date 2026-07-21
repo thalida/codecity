@@ -531,6 +531,31 @@ class ManifestCacheTests(CacheTestBase):
         self.assertFalse((cache_mod.CACHE_ROOT / "manifests").exists())
         self.assertEqual(cache_mod.cache_clear_manifests(Path("/x")), 0)
 
+    def test_ref_manifest_roundtrip(self) -> None:
+        root = Path("/some/repo")
+        sha = "a" * 40
+        manifest = self._make_manifest()
+        cache_mod.cache_save_ref_manifest(root, sha, manifest)
+        self.assertEqual(cache_mod.cache_load_ref_manifest(root, sha), manifest)
+
+    def test_ref_manifest_load_missing_returns_none(self) -> None:
+        self.assertIsNone(
+            cache_mod.cache_load_ref_manifest(Path("/never/scanned"), "b" * 40)
+        )
+
+    def test_clear_manifests_also_sweeps_ref_manifests(self) -> None:
+        # cache_clear_manifests's `{repo_key}__*.json.gz` glob covers BOTH
+        # content-signature and `__ref-<sha>` keyed files.
+        root = Path("/x")
+        manifest = self._make_manifest()
+        cache_mod.cache_save_manifest(root, "a" * 32, manifest)
+        cache_mod.cache_save_ref_manifest(root, "b" * 40, manifest)
+
+        deleted = cache_mod.cache_clear_manifests(root)
+        self.assertEqual(deleted, 2)
+        self.assertIsNone(cache_mod.cache_load_manifest(root, "a" * 32))
+        self.assertIsNone(cache_mod.cache_load_ref_manifest(root, "b" * 40))
+
 
 class MediaDimsCacheTests(CacheTestBase):
     def setUp(self) -> None:

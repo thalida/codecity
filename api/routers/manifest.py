@@ -32,7 +32,9 @@ from api.security import TRUST
 from api.services.cache import (
     cache_clear_all,
     cache_load_manifest,
+    cache_load_ref_manifest,
     cache_save_manifest,
+    cache_save_ref_manifest,
 )
 from api.services.clone import (
     BranchNotFoundError,
@@ -43,7 +45,13 @@ from api.services.clone import (
     ensure_clone,
     remove_clone,
 )
-from api.services.scan import ScanCancelledError, scan_tree, signature_tree
+from api.services.gitobj import resolve_ref
+from api.services.scan import (
+    ScanCancelledError,
+    reconstruct_manifest,
+    scan_tree,
+    signature_tree,
+)
 from api.services.source import (
     ResolveError,
     SourceKind,
@@ -148,7 +156,12 @@ SSEEvent = Union[
                 "`scan-progress` (ScanProgressEvent), `manifest-partial` "
                 "(PartialManifestEvent), `manifest-complete` (CompleteManifestEvent), "
                 "`error` (ErrorEvent). The client closes the connection on "
-                "`manifest-complete`/`error`."
+                "`manifest-complete`/`error`. When `ref` is set, the manifest is "
+                "reconstructed as of that commit instead of the working tree "
+                "(a remote source still emits `clone-progress` if it isn't cloned "
+                "yet, but never `scan-progress`/`manifest-partial` for the "
+                "reconstruction itself — the city is already drawn, so a skeleton "
+                "would flash placeholders)."
             ),
             "model": SSEEvent,
         },
@@ -160,6 +173,7 @@ async def manifest(
     branch: str | None = Query(None),
     no_cache: bool = Query(False),
     exclude: list[str] = Query(default_factory=list),
+    ref: str | None = Query(None),
 ) -> EventSourceResponse:
     use_cache = not no_cache
     excludes = _norm_excludes(exclude)
@@ -259,6 +273,35 @@ async def manifest(
 
                 holder["path"] = path
                 TRUST.register(path)
+
+                # Time-travel: reconstruct the manifest as of `ref` instead of
+                # scanning the working tree. Resolve to a sha FIRST — it's both
+                # the cache key and the early "bad ref" error, and it keeps only
+                # a validated sha flowing into reconstruct_manifest (which
+                # re-validates internally too, so this is defense-in-depth, not
+                # the sole guard). No skeleton events: the city is already
+                # drawn for the live tree, so scan-progress/manifest-partial
+                # would just flash placeholders over it.
+                if ref is not None:
+                    sha = resolve_ref(path, ref)
+                    if sha is None:
+                        _put(_sse_error(f"ref does not resolve to a commit: {ref}"))
+                        return
+                    if use_cache:
+                        cached_ref = cache_load_ref_manifest(path.resolve(), sha)
+                        if cached_ref is not None:
+                            _put(
+                                _sse(
+                                    ScanEvent.MANIFEST_COMPLETE,
+                                    {"manifest": cached_ref},
+                                )
+                            )
+                            return
+                    m = reconstruct_manifest(str(path), sha, use_cache=use_cache)
+                    cache_save_ref_manifest(path.resolve(), sha, m)
+                    _put(_sse(ScanEvent.MANIFEST_COMPLETE, {"manifest": m}))
+                    return
+
                 _put(_sse(ScanEvent.SCAN_PROGRESS, {"label": pending_label}))
 
                 # Signature (cache key) + warm-cache short-circuit.

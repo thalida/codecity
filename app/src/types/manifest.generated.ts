@@ -835,6 +835,7 @@ export interface operations {
                 branch?: string | null;
                 no_cache?: boolean;
                 exclude?: string[];
+                ref?: string | null;
             };
             header?: never;
             path?: never;
@@ -842,7 +843,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Server-Sent Events stream (`text/event-stream`). Named events and their JSON `data` payloads: `clone-progress` (CloneProgressEvent), `scan-progress` (ScanProgressEvent), `manifest-partial` (PartialManifestEvent), `manifest-complete` (CompleteManifestEvent), `error` (ErrorEvent). The client closes the connection on `manifest-complete`/`error`. */
+            /** @description Server-Sent Events stream (`text/event-stream`). Named events and their JSON `data` payloads: `clone-progress` (CloneProgressEvent), `scan-progress` (ScanProgressEvent), `manifest-partial` (PartialManifestEvent), `manifest-complete` (CompleteManifestEvent), `error` (ErrorEvent). The client closes the connection on `manifest-complete`/`error`. When `ref` is set, the manifest is reconstructed as of that commit instead of the working tree (a remote source still emits `clone-progress` if it isn't cloned yet, but never `scan-progress`/`manifest-partial` for the reconstruction itself — the city is already drawn, so a skeleton would flash placeholders). */
             200: {
                 headers: {
                     [name: string]: unknown;

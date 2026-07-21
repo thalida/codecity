@@ -38,6 +38,32 @@ def client(tmp_path: Path, redirect_cache_root) -> TestClient:
     return TestClient(create_app(static_dir=static))
 
 
+@pytest.fixture()
+def two_commit_repo(tmp_path: Path) -> tuple[Path, str]:
+    """A repo with two commits; c2 adds b.txt on top of c1's a.txt.
+    Returns (repo_path, c1_sha) so tests can request ?ref=<c1_sha> and
+    assert b.txt is absent from the reconstructed tree."""
+    p = tmp_path / "repo2"
+    p.mkdir()
+    _git("init", "-q", cwd=p)
+    _git("config", "user.email", "a@b.c", cwd=p)
+    _git("config", "user.name", "T", cwd=p)
+    (p / "a.txt").write_text("hello\n")
+    _git("add", ".", cwd=p)
+    _git("commit", "-qm", "c1", cwd=p)
+    first_sha = (
+        subprocess.run(
+            ["git", "rev-parse", "HEAD"], cwd=p, check=True, capture_output=True
+        )
+        .stdout.decode()
+        .strip()
+    )
+    (p / "b.txt").write_text("world\n")
+    _git("add", ".", cwd=p)
+    _git("commit", "-qm", "c2", cwd=p)
+    return p, first_sha
+
+
 def _parse_sse(text: str) -> list[tuple[str, dict]]:
     events: list[tuple[str, dict]] = []
     name = "message"
@@ -148,3 +174,48 @@ def test_manifest_stream_uncompressed_when_not_accepted(
         assert "content-encoding" not in r.headers
         events = _parse_sse("".join(r.iter_text()))
     assert [n for n, _ in events][-1] == "manifest-complete"
+
+
+def test_manifest_at_ref_returns_old_tree(
+    client: TestClient, two_commit_repo: tuple[Path, str], allow_local_repos
+) -> None:
+    repo_path, old_sha = two_commit_repo
+    with client.stream(
+        "GET",
+        "/api/manifest",
+        params={"src": str(repo_path), "ref": old_sha, "no_cache": "true"},
+    ) as r:
+        assert r.status_code == 200
+        events = _parse_sse("".join(r.iter_text()))
+    # No skeleton for a ref: only manifest-complete, never scan-progress/partial.
+    assert [n for n, _ in events] == ["manifest-complete"]
+    tree = events[-1][1]["manifest"]["tree"]
+    names = {c["name"] for c in tree["children"] if c["type"] == "file"}
+    assert "b.txt" not in names  # added in c2, after old_sha
+    assert "a.txt" in names
+
+
+def test_manifest_ref_warm_cache_hit(
+    client: TestClient, two_commit_repo: tuple[Path, str], allow_local_repos
+) -> None:
+    repo_path, old_sha = two_commit_repo
+    params = {"src": str(repo_path), "ref": old_sha}
+    with client.stream("GET", "/api/manifest", params=params) as r:
+        cold = _parse_sse("".join(r.iter_text()))
+    with client.stream("GET", "/api/manifest", params=params) as r:
+        warm = _parse_sse("".join(r.iter_text()))
+    assert [n for n, _ in cold] == ["manifest-complete"]
+    assert [n for n, _ in warm] == ["manifest-complete"]
+    assert cold[-1][1]["manifest"] == warm[-1][1]["manifest"]
+
+
+def test_manifest_bad_ref_emits_error_event(
+    client: TestClient, two_commit_repo: tuple[Path, str], allow_local_repos
+) -> None:
+    repo_path, _ = two_commit_repo
+    with client.stream(
+        "GET", "/api/manifest", params={"src": str(repo_path), "ref": "nope123"}
+    ) as r:
+        events = _parse_sse("".join(r.iter_text()))
+    assert events[-1][0] == "error"
+    assert "ref" in events[-1][1]["error"]

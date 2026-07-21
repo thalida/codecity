@@ -372,15 +372,20 @@ def _manifest_cache_path(abs_root: Path, content_signature: str) -> Path:
     )
 
 
-def cache_load_manifest(
-    abs_root: Path,
-    content_signature: str,
-) -> "Manifest | None":
-    """Load the cached manifest for this (root, content_signature). Returns
-    None on any error (missing file, gzip corruption, JSON parse,
-    schema/version mismatch). Same hygiene as the other cache loaders:
-    a corrupt cache is treated as a miss, never a hard failure."""
-    path = _manifest_cache_path(abs_root, content_signature)
+def _ref_manifest_cache_path(abs_root: Path, ref_sha: str) -> Path:
+    # `__ref-` (not `__`) so cache_clear_manifests's `{repo_key}__*.json.gz`
+    # glob still sweeps these alongside content-signature entries, while the
+    # prefix keeps a ref-sha visually distinct from a content signature in
+    # directory listings.
+    return CACHE_ROOT / "manifests" / f"{repo_key(abs_root)}__ref-{ref_sha}.json.gz"
+
+
+def _load_gz_manifest(path: Path) -> "Manifest | None":
+    """Load a gzip-envelope manifest cache file. Returns None on any error
+    (missing file, gzip corruption, JSON parse, schema/version mismatch).
+    Shared body for both the content-signature and ref-keyed manifest
+    caches — same envelope shape, same error hygiene: a corrupt cache is
+    treated as a miss, never a hard failure."""
     try:
         with gzip.open(path, "rb") as fh:
             raw = json.loads(fh.read().decode("utf-8"))
@@ -399,15 +404,10 @@ def cache_load_manifest(
     return manifest  # type: ignore[return-value]
 
 
-def cache_save_manifest(
-    abs_root: Path,
-    content_signature: str,
-    manifest: "Manifest",
-) -> None:
-    """Atomically write the manifest cache for this (root, content_signature).
-    Swallows OSError — cache save failures must never break the
-    response."""
-    path = _manifest_cache_path(abs_root, content_signature)
+def _save_gz_manifest(path: Path, manifest: "Manifest") -> None:
+    """Atomically write a gzip-envelope manifest cache file. Swallows
+    OSError — cache save failures must never break the response. Shared
+    body for both the content-signature and ref-keyed manifest caches."""
     path.parent.mkdir(parents=True, exist_ok=True)
     payload = json.dumps(
         {
@@ -429,9 +429,41 @@ def cache_save_manifest(
         Path(tmp).unlink(missing_ok=True)
 
 
+def cache_load_manifest(
+    abs_root: Path,
+    content_signature: str,
+) -> "Manifest | None":
+    """Load the cached manifest for this (root, content_signature)."""
+    return _load_gz_manifest(_manifest_cache_path(abs_root, content_signature))
+
+
+def cache_save_manifest(
+    abs_root: Path,
+    content_signature: str,
+    manifest: "Manifest",
+) -> None:
+    """Atomically write the manifest cache for this (root, content_signature)."""
+    _save_gz_manifest(_manifest_cache_path(abs_root, content_signature), manifest)
+
+
+def cache_load_ref_manifest(abs_root: Path, ref_sha: str) -> "Manifest | None":
+    """Load the cached manifest for this (root, ref_sha). A resolved commit
+    sha's manifest is immutable (the commit's content never changes), so
+    unlike the content-signature cache this key never needs invalidating —
+    only `cache_clear_manifests`/`cache_clear_all` remove it."""
+    return _load_gz_manifest(_ref_manifest_cache_path(abs_root, ref_sha))
+
+
+def cache_save_ref_manifest(abs_root: Path, ref_sha: str, manifest: "Manifest") -> None:
+    """Atomically write the ref-keyed manifest cache for (root, ref_sha)."""
+    _save_gz_manifest(_ref_manifest_cache_path(abs_root, ref_sha), manifest)
+
+
 def cache_clear_manifests(abs_root: Path) -> int:
     """Delete every cached manifest file for this root, across all
-    signatures. Returns the count deleted.
+    signatures AND every ref-keyed manifest (the `__*.json.gz` glob below
+    matches both `__<signature>.json.gz` and `__ref-<sha>.json.gz`).
+    Returns the count deleted.
 
     Silently ignores I/O errors per the rest of this module's hygiene —
     cache cleanup failures must never break the response."""
