@@ -210,13 +210,8 @@ export function cancelLoad(): void {
   loadController?.abort();
 }
 
-// ── Time-travel: load a past ref in place ────────────────────────────
-// A sibling of loadSource for viewing the SAME repo at a past commit rather
-// than switching to a different one: fetches ?ref=<sha> for the committed
-// CURRENT_SOURCE, shares the generation guard so a foreground loadSource still
-// wins, but never touches CURRENT_SOURCE/recents (identity doesn't change) and
-// skips the skeleton (final-only — the city is already drawn; the tween carries
-// the morph, same as a live-update refresh).
+// Load a past ref of CURRENT_SOURCE in place: shares loadSource's generation
+// guard, but leaves CURRENT_SOURCE/recents alone and skips the skeleton.
 export async function loadRef(sha: string): Promise<void> {
   const cur = CURRENT_SOURCE.peek();
   if (!cur) return;
@@ -249,15 +244,17 @@ export async function loadRef(sha: string): Promise<void> {
       prefill: { src: cur.src, branch: cur.branch },
     };
   } finally {
-    if (myGen === loadGeneration && loadController === controller) loadController = null;
+    // Authoritative-gen only: a superseded call must not clear the overlay
+    // out from under a newer load.
+    if (myGen === loadGeneration) {
+      SCAN_PROGRESS.value = null;
+      PENDING_SOURCE_LABEL.value = null;
+      if (loadController === controller) loadController = null;
+    }
   }
 }
 
-/**
- * Leave time-travel: clear the pin (so the live-update poll resumes on its
- * next tick) THEN reload the committed source at HEAD through the canonical
- * loadSource path, so the city returns to the live manifest.
- */
+// Clear the pin (poll resumes) then reload HEAD via loadSource.
 export function exitTimeTravel(): void {
   const cur = CURRENT_SOURCE.peek();
   TIME_TRAVEL_REF.value = null; // clear first so the poll resumes

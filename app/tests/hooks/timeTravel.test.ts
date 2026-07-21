@@ -4,6 +4,7 @@ import { loadSource, loadRef, exitTimeTravel, setupLiveUpdates } from '@/hooks/u
 import { CURRENT_SOURCE } from '@/state/stores/source';
 import { MANIFEST } from '@/state/stores/manifest';
 import { LIVE_UPDATES } from '@/state/stores/settings/updates';
+import { SCAN_PROGRESS } from '@/state/stores/scanProgress';
 
 // EventSource stub mirrors useManifestSource.test.ts: records listeners so a
 // test can emit a named SSE event and records instances for URL assertions.
@@ -128,6 +129,22 @@ describe('loadRef / exitTimeTravel', () => {
     expect((MANIFEST.value as { content_signature?: string }).content_signature).toBe('sig-past');
     expect(TIME_TRAVEL_REF.value).toBe('abc1234');
     expect(CURRENT_SOURCE.value).toBe(committed); // unchanged
+  });
+
+  it('resets SCAN_PROGRESS to null after a successful ref load (no stuck loading overlay)', async () => {
+    const load = loadSource({ src: 's', branch: undefined });
+    await flush();
+    StubEventSource.instances[0].emit('manifest-complete', MANIFEST_JSON('sig0'));
+    await load;
+    expect(SCAN_PROGRESS.value).toBeNull(); // loadSource already tears its own overlay down
+
+    const p = loadRef('abc1234');
+    await flush();
+    const refStream = StubEventSource.instances[StubEventSource.instances.length - 1];
+    refStream.emit('manifest-complete', MANIFEST_JSON('sig-past'));
+    await p;
+
+    expect(SCAN_PROGRESS.value).toBeNull();
   });
 
   it('exitTimeTravel clears the pin and reloads the committed source at HEAD', async () => {

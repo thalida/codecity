@@ -1,8 +1,5 @@
-// state/stores/timeTravel.ts — View state: which past commit the city is
-// pinned to (null = live HEAD). Deliberately NOT part of CURRENT_SOURCE —
-// you're viewing the same repo in the past, so recents/the source chip stay
-// put and the live-update poll (which reads CURRENT_SOURCE, not this) yields
-// instead of pulling HEAD back in underneath the pinned view.
+// Which past commit the city is pinned to (null = live HEAD). Separate from
+// CURRENT_SOURCE so recents/the source chip stay put and the poll yields.
 
 import { signal } from '@preact/signals';
 
