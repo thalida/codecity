@@ -3,6 +3,7 @@
 // without remembering which subfile owns what.
 
 export * from './manifest';
+export * from './timeline';
 export * from './building';
 export * from './street';
 export * from './scene';
