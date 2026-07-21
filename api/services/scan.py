@@ -1087,9 +1087,9 @@ class _DirFrame:
     available heap, not the C stack."""
 
     __slots__ = (
-        "abs_dir",
         "rel_dir",
         "name",
+        "full_path",
         "pending_entries",
         "files",
         "subdirs",
@@ -1104,16 +1104,18 @@ class _DirFrame:
 
     def __init__(
         self,
-        abs_dir: str,
         rel_dir: str,
-        pending_entries: list[tuple[os.DirEntry[str], str]],
+        name: str,
+        full_path: str,
+        pending_entries: list[tuple[str, str, bool]],
     ) -> None:
-        self.abs_dir = abs_dir
         self.rel_dir = rel_dir
-        self.name = os.path.basename(abs_dir)
-        # Order (and the skip/tracked filter) comes from _tracked_entries —
-        # the same order signature-hash stability depends on, shared with
-        # _walk_for_signature so scan-to-scan and endpoint fingerprints match.
+        self.name = name
+        self.full_path = full_path
+        # Order (and the skip/tracked filter) comes from the injected
+        # list_children — the same order signature-hash stability depends on,
+        # shared with _walk_for_signature so scan-to-scan and endpoint
+        # fingerprints match.
         self.pending_entries = pending_entries
         self.files: list[FileNode] = []
         self.subdirs: list[DirNode] = []
@@ -1131,33 +1133,35 @@ class _DirFrame:
 
 
 def _build_tree(
-    abs_dir: str,
-    rel_dir: str,
+    root_abs: str,
+    rel_root: str,
     *,
-    git_created: dict[str, str],
-    git_modified: dict[str, str],
-    tracked_files: set[str],
-    dirty_paths: set[str],
-    ignore_names: frozenset[str],
-    ignore_paths: frozenset[str],
-    unignore_names: frozenset[str],
-    unignore_paths: frozenset[str],
-    sig: Any,
-    heartbeat: _Heartbeat,
+    list_children: Callable[[str], list[tuple[str, str, bool]]],
+    make_file_node: Callable[[str, str], FileNode],
 ) -> DirNode:
-    def _frame(abs_dir: str, rel_dir: str) -> _DirFrame:
-        entries = _tracked_entries(
-            abs_dir,
-            rel_dir,
-            tracked_files=tracked_files,
-            ignore_names=ignore_names,
-            ignore_paths=ignore_paths,
-            unignore_names=unignore_names,
-            unignore_paths=unignore_paths,
-        )
-        return _DirFrame(abs_dir, rel_dir, entries)
+    """Iterative DFS tree builder shared by the live scan and the
+    time-travel reconstruction. Its two filesystem touch-points are
+    injected so a git-object reconstruction can feed the identical
+    frame/rollup/ordering loop:
 
-    stack: list[_DirFrame] = [_frame(abs_dir, rel_dir)]
+    - ``list_children(rel_dir)`` — sorted ``(name, rel_path, is_dir)``
+      survivors of the skip/tracked filter for one directory (files and
+      dirs only; entries that are neither are pre-filtered by the caller).
+    - ``make_file_node(name, rel_path)`` — build the leaf FileNode and
+      push its bytes into the content hash (the injector owns the sig +
+      heartbeat).
+
+    ``[*files, *subdirs]`` child order and the ext-breakdown sort are the
+    contract the layout packer + signature hashes depend on, so both
+    callers get byte-identical structure/layout signatures."""
+
+    def _dir_full_path(rel_dir: str) -> str:
+        return root_abs if rel_dir == rel_root else f"{root_abs}/{rel_dir}"
+
+    def _frame(rel_dir: str, name: str) -> _DirFrame:
+        return _DirFrame(rel_dir, name, _dir_full_path(rel_dir), list_children(rel_dir))
+
+    stack: list[_DirFrame] = [_frame(rel_root, os.path.basename(root_abs))]
 
     while True:
         top = stack[-1]
@@ -1165,12 +1169,14 @@ def _build_tree(
             # Process the next entry in sorted order. Entries are popped
             # from the front (not back) so the iteration order matches
             # the original recursive code's — required for hash stability.
-            entry, entry_rel = top.pending_entries.pop(0)
+            name, entry_rel, is_dir = top.pending_entries.pop(0)
 
-            if entry.is_file(follow_symlinks=False):
-                node = _file_node(
-                    entry, entry_rel, git_created, git_modified, dirty_paths, sig
-                )
+            if is_dir:
+                # Descend by pushing a new frame; rollup happens when it
+                # pops below.
+                stack.append(_frame(entry_rel, name))
+            else:
+                node = make_file_node(name, entry_rel)
                 top.files.append(node)
                 top.descendants_count += 1
                 top.descendants_file_count += 1
@@ -1189,11 +1195,6 @@ def _build_tree(
                 else:
                     bucket[0] += 1
                     bucket[1] += node["size"]
-                heartbeat.tick()
-            elif entry.is_dir(follow_symlinks=False):
-                # Descend by pushing a new frame; rollup happens when it
-                # pops below.
-                stack.append(_frame(entry.path, entry_rel))
             continue
 
         # All entries processed — finalize this frame and either return it
@@ -1213,7 +1214,7 @@ def _build_tree(
             "name": finished.name,
             "type": NodeKind.DIRECTORY,
             "path": finished.rel_dir,
-            "fullPath": finished.abs_dir,
+            "fullPath": finished.full_path,
             "children_count": len(children),
             "children_file_count": len(finished.files),
             "children_dir_count": len(finished.subdirs),
@@ -1450,19 +1451,47 @@ def scan_tree(
     heartbeat = _Heartbeat(on_progress=on_scan_progress)
     _log("walking tree…")
     sig = hashlib.blake2b(digest_size=16)
+
+    # Live FS adapters for the shared _build_tree. list_children keeps the
+    # scandir survivors + their order; make_file_node reuses the real
+    # os.DirEntry (threaded via entry_by_rel) so _file_node's stat/hash is
+    # byte-for-byte what it was before the callable seam.
+    entry_by_rel: dict[str, os.DirEntry[str]] = {}
+
+    def _live_list_children(rel_dir: str) -> list[tuple[str, str, bool]]:
+        abs_dir = root_abs if rel_dir == "." else f"{root_abs}/{rel_dir}"
+        out: list[tuple[str, str, bool]] = []
+        for entry, entry_rel in _tracked_entries(
+            abs_dir,
+            rel_dir,
+            tracked_files=git.tracked,
+            ignore_names=ignore_names,
+            ignore_paths=ignore_paths,
+            unignore_names=unignore_names,
+            unignore_paths=unignore_paths,
+        ):
+            is_dir = entry.is_dir(follow_symlinks=False)
+            # Preserve the old file/dir gate: an entry that is neither (a
+            # dangling symlink, socket, fifo) fell through both branches and
+            # was never noded. Drop it here so is_dir alone drives the loop.
+            if not is_dir and not entry.is_file(follow_symlinks=False):
+                continue
+            if not is_dir:
+                entry_by_rel[entry_rel] = entry
+            out.append((entry.name, entry_rel, is_dir))
+        return out
+
+    def _live_make_file_node(name: str, rel_path: str) -> FileNode:
+        entry = entry_by_rel.pop(rel_path)
+        node = _file_node(entry, rel_path, git_created, git_modified, git.dirty, sig)
+        heartbeat.tick()
+        return node
+
     tree = _build_tree(
         root_abs,
         ".",
-        git_created=git_created,
-        git_modified=git_modified,
-        tracked_files=git.tracked,
-        dirty_paths=git.dirty,
-        ignore_names=ignore_names,
-        ignore_paths=ignore_paths,
-        unignore_names=unignore_names,
-        unignore_paths=unignore_paths,
-        sig=sig,
-        heartbeat=heartbeat,
+        list_children=_live_list_children,
+        make_file_node=_live_make_file_node,
     )
     heartbeat.flush()  # ensure UI sees the true final count, not whatever the throttle last allowed through
     _log(f"walked {heartbeat.seen} files; emitting skeleton")

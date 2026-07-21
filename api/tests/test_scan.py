@@ -1626,7 +1626,7 @@ def test_history_as_of_ref_excludes_future_commits(tmp_path):
         tmp_path, use_cache=False, ref=ref
     )
     assert "b.txt" not in modified  # b.txt didn't exist at ref
-    assert len(commits) == 1        # only c1 is an ancestor of ref
+    assert len(commits) == 1  # only c1 is an ancestor of ref
 
 
 class FileStatCacheTests(_CacheRedirectMixin, unittest.TestCase):
@@ -2131,6 +2131,96 @@ def test_heartbeat_flush_noop_when_already_emitted():
     # No new ticks between the last emit and flush: should be a no-op.
     hb.flush()
     assert cb.call_count == 2
+
+
+def test_build_tree_callable_seam_matches_live_scan(tmp_path):
+    """_build_tree, driven directly by the same live FS adapters scan_tree
+    wires up, reproduces a live scan's tree exactly (structure, paths,
+    names, fullPaths, sizes, dates, ext-breakdown). lines/binary are filled
+    in by _populate_file_metadata after the build, so they're normalized
+    away here. This locks the injected-callable seam to live behavior."""
+    from api.services import scan as scanmod
+
+    _init_repo(tmp_path)
+    (tmp_path / "a.txt").write_text("one\ntwo\nthree\n")
+    (tmp_path / "z.md").write_text("# doc\n")
+    (tmp_path / "pkg").mkdir()
+    (tmp_path / "pkg" / "b.py").write_text("x = 1\ny = 2\n")
+    (tmp_path / "pkg" / "sub").mkdir()
+    (tmp_path / "pkg" / "sub" / "c.py").write_text("z = 3\n")
+    _commit_all(tmp_path, "c1")
+
+    root_abs = str(tmp_path.resolve())
+    live = _final_manifest(root_abs, use_cache=False)["tree"]
+
+    # Rebuild the exact adapters scan_tree constructs, then call the shared
+    # builder directly — proving the loop is a pure function of the seam.
+    git = scanmod._collect_git_state(Path(root_abs))
+    git_created, git_modified, _ = scanmod._collect_git_history(
+        Path(root_abs), use_cache=False
+    )
+    ignore_names, ignore_paths, unignore_names, unignore_paths = (
+        scanmod._load_codecityignore(Path(root_abs))
+    )
+    sig = hashlib.blake2b(digest_size=16)
+    heartbeat = scanmod._Heartbeat()
+    entry_by_rel: dict = {}
+
+    def list_children(rel_dir):
+        abs_dir = root_abs if rel_dir == "." else f"{root_abs}/{rel_dir}"
+        out = []
+        for entry, entry_rel in scanmod._tracked_entries(
+            abs_dir,
+            rel_dir,
+            tracked_files=git.tracked,
+            ignore_names=ignore_names,
+            ignore_paths=ignore_paths,
+            unignore_names=unignore_names,
+            unignore_paths=unignore_paths,
+        ):
+            is_dir = entry.is_dir(follow_symlinks=False)
+            if not is_dir and not entry.is_file(follow_symlinks=False):
+                continue
+            if not is_dir:
+                entry_by_rel[entry_rel] = entry
+            out.append((entry.name, entry_rel, is_dir))
+        return out
+
+    def make_file_node(name, rel_path):
+        entry = entry_by_rel.pop(rel_path)
+        node = scanmod._file_node(
+            entry, rel_path, git_created, git_modified, git.dirty, sig
+        )
+        heartbeat.tick()
+        return node
+
+    built = scanmod._build_tree(
+        root_abs, ".", list_children=list_children, make_file_node=make_file_node
+    )
+
+    def normalize(node):
+        n = dict(node)
+        if n["type"] == "file":
+            # Filled in post-build by _populate_file_metadata, so absent here.
+            n["lines"] = 0
+            n["binary"] = False
+            n.pop("media_width", None)
+            n.pop("media_height", None)
+        else:
+            n["children"] = [normalize(c) for c in n["children"]]
+        return n
+
+    built_norm = normalize(built)
+    live_norm = normalize(live)
+    # _wrap_manifest overwrites the root name with the git-remote label; the
+    # raw builder uses the root basename. Everything below the root matches.
+    live_norm["name"] = built_norm["name"]
+    assert built_norm == live_norm
+    # Signatures are derived purely from the built tree, so they must match.
+    assert (
+        scanmod._derive_tree_signals(built).layout_signature
+        == scanmod._derive_tree_signals(live).layout_signature
+    )
 
 
 if __name__ == "__main__":
