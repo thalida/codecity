@@ -2,6 +2,7 @@
 to reconstruct a manifest at a past ref (resolve_ref, ls_tree_files,
 blob_stats_batch)."""
 
+import os
 import subprocess
 from pathlib import Path
 
@@ -58,6 +59,22 @@ def test_ls_tree_and_blob_stats(tmp_path: Path) -> None:
     assert stats[by_path["a.txt"].sha].binary is False
     assert stats[by_path["bin.dat"].sha].binary is True
     assert stats[by_path["bin.dat"].sha].lines == 0
+
+
+def test_ls_tree_files_skips_symlinks(tmp_path: Path) -> None:
+    # A committed symlink is git type "blob" (mode 120000) too, but the live
+    # scan drops symlinks entirely (is_file()/is_dir() with
+    # follow_symlinks=False match neither). ls_tree_files must skip them so
+    # reconstruction doesn't introduce an extra node the live scan lacks.
+    _init(tmp_path)
+    (tmp_path / "a.txt").write_text("one\ntwo\n")
+    os.symlink("a.txt", tmp_path / "link.txt")
+    sha = _commit(tmp_path, "c1")
+
+    files = ls_tree_files(tmp_path, sha)
+    by_path = {f.path: f for f in files}
+    assert set(by_path) == {"a.txt"}
+    assert "link.txt" not in by_path
 
 
 def test_blob_stats_batch_empty_and_missing_sha(tmp_path: Path) -> None:

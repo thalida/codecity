@@ -2299,10 +2299,20 @@ def test_reconstruct_head_matches_live_scan(tmp_path):
     (tmp_path / "src" / "lib" / "types.ts").write_text("export type T = number\n")
     (tmp_path / "docs").mkdir()
     (tmp_path / "docs" / "guide.md").write_text("a\nb\nc\n")
+    # A committed symlink must vanish from BOTH the live scan and the
+    # reconstruction (gitobj.ls_tree_files skips mode-120000 entries to match
+    # the live scan's follow_symlinks=False gate) — otherwise this guard
+    # would miss a divergence where reconstruction alone kept it.
+    os.symlink("README.md", tmp_path / "link.md")
     _commit_all(tmp_path, "c1")
 
     live = _final_manifest(str(tmp_path), use_cache=False)
     recon = reconstruct_manifest(str(tmp_path), "HEAD", use_cache=False)
+
+    live_paths = {n["path"] for n in _walk_files(live["tree"])}
+    recon_paths = {n["path"] for n in _walk_files(recon["tree"])}
+    assert "link.md" not in live_paths
+    assert "link.md" not in recon_paths
 
     assert recon["structure_signature"] == live["structure_signature"]
     assert recon["layout_signature"] == live["layout_signature"]

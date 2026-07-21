@@ -79,6 +79,12 @@ def ls_tree_files(root: Path, commit_sha: str) -> list[TreeBlob]:
         parts = meta.split()
         if len(parts) < 4 or parts[1] != "blob":
             continue  # skip submodules (commit) / trees
+        if parts[0] == "120000":
+            # A committed symlink is git type "blob" too, but the live scan's
+            # _live_list_children only keeps is_file()/is_dir() with
+            # follow_symlinks=False, which excludes symlinks entirely. Skip
+            # them here so reconstruction matches the live scan.
+            continue
         sha = parts[2]
         size = 0 if parts[3] == "-" else int(parts[3])
         files.append(TreeBlob(path=path, sha=sha, size=size))
