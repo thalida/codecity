@@ -121,7 +121,9 @@ describe('street opacity', () => {
     const sidewalk = streets.getPickables()[0] as FlatMesh;
     const asphalt = asphaltMeshOf(streets);
     const ranges = streets.getStreetRanges();
+    const asphaltRanges = streets.getAsphaltRanges();
     expect(ranges).toHaveLength(3);
+    expect(asphaltRanges).toHaveLength(3);
 
     const target = ranges[1].street;
     const swVer = opacityAttr(sidewalk).version;
@@ -135,8 +137,10 @@ describe('street opacity', () => {
     expect(spanIs(swOp, ranges[1].vStart, ranges[1].vCount, 0.3)).toBe(true);
     expect(spanIs(swOp, ranges[0].vStart, ranges[0].vCount, 1)).toBe(true);
     expect(spanIs(swOp, ranges[2].vStart, ranges[2].vCount, 1)).toBe(true);
-    // The asphalt of the same street fades in lockstep (its own span layout).
-    expect((asOp.array as Float32Array).includes(Math.fround(0.3))).toBe(true);
+    // The asphalt of the same street fades in lockstep, on its own (narrower) span; flanking asphalt stays 1.
+    expect(spanIs(asOp, asphaltRanges[1].vStart, asphaltRanges[1].vCount, 0.3)).toBe(true);
+    expect(spanIs(asOp, asphaltRanges[0].vStart, asphaltRanges[0].vCount, 1)).toBe(true);
+    expect(spanIs(asOp, asphaltRanges[2].vStart, asphaltRanges[2].vCount, 1)).toBe(true);
 
     // Deduped GPU upload: a single needsUpdate bump per call, not per vertex.
     expect(swOp.version).toBe(swVer + 1);

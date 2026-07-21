@@ -56,12 +56,11 @@ export interface Streets extends SceneComponent {
   getSidewalkByDir(path: string): FlatMesh | null;
   /** Per-street sidewalk spans (street + vertex range), for Timeline scrubbing. */
   getStreetRanges(): SidewalkRange[];
-  /** Fade one street: write `opacity` across its span on both the sidewalk and
-   *  asphalt merged meshes (needsUpdate deduped to one GPU upload per call). */
+  /** Per-street asphalt spans, in the same street order as getStreetRanges(). */
+  getAsphaltRanges(): AsphaltRange[];
+  /** Fade one street: write `opacity` across its span on both the sidewalk and asphalt merged meshes. */
   setStreetOpacity(street: Street, opacity: number): void;
-  /** Move both street materials into (or out of) the transparent render pass.
-   *  Timeline mode enables it on enter; live mode never does, so streets stay
-   *  opaque and byte-identical. */
+  /** Move both street materials into (or out of) the transparent render pass. */
   setStreetsTransparent(on: boolean): void;
 }
 
@@ -84,8 +83,8 @@ export function createStreets(ctx: SceneContext): Streets {
   let sidewalkRanges: SidewalkRange[] = [];
   let sidewalkRangeByPath = new Map<string, SidewalkRange>();
   let asphaltMesh: FlatMesh | null = null;
-  // Sidewalk + asphalt vertex spans per street, for setStreetOpacity. Both merged
-  // meshes are built from the same streets array in order, so index i lines up.
+  let asphaltRanges: AsphaltRange[] = [];
+  // Sidewalk + asphalt vertex spans per street, for setStreetOpacity (both merged meshes share build order, so index i lines up).
   let opacityRangeByStreet = new Map<Street, { sidewalk: SidewalkRange; asphalt: AsphaltRange | null }>();
   let labelGroups: THREE.Group[] = [];
   // Dir paths currently tinted non-default (selection + hover), so a tint refresh
@@ -128,9 +127,7 @@ export function createStreets(ctx: SceneContext): Streets {
     attr.addUpdateRange(range.vStart * 3, range.vCount * 3);
   }
 
-  // Write one street's vertex-opacity span in a merged street mesh, queuing a
-  // partial GPU upload for just that span (mirrors _writeStreetColor). Caller
-  // flips needsUpdate once per setStreetOpacity call (deduped).
+  // Write one street's vertex-opacity span, queuing a partial GPU upload (mirrors _writeStreetColor).
   function _writeOpacitySpan(
     mesh: FlatMesh,
     vStart: number,
@@ -143,8 +140,7 @@ export function createStreets(ctx: SceneContext): Streets {
     attr.addUpdateRange(vStart, vCount);
   }
 
-  // setStreetOpacity(street, opacity) — fade one street by writing its span on
-  // both merged meshes. No-op for an unknown street (e.g. pre-rebuild).
+  // Fade one street by writing its span on both merged meshes; no-op for an unknown street (e.g. pre-rebuild).
   function setStreetOpacity(street: Street, opacity: number): void {
     const r = opacityRangeByStreet.get(street);
     if (!r) return;
@@ -158,9 +154,7 @@ export function createStreets(ctx: SceneContext): Streets {
     }
   }
 
-  // setStreetsTransparent(on) — flip both street materials in/out of the
-  // transparent render pass. Live mode never calls it → streets stay opaque and
-  // byte-identical; Timeline mode enables it on enter so aOpacity can blend.
+  // Flip both street materials in/out of the transparent pass; live mode never calls it, so streets stay byte-identical.
   function setStreetsTransparent(on: boolean): void {
     for (const m of [sidewalkMesh, asphaltMesh]) {
       if (!m || m.material.transparent === on) continue;
@@ -247,7 +241,7 @@ export function createStreets(ctx: SceneContext): Streets {
 
     // Pair each street's sidewalk + asphalt span (same build order in both meshes).
     opacityRangeByStreet = new Map();
-    const asphaltRanges = asphaltBuilt?.ranges ?? [];
+    asphaltRanges = asphaltBuilt?.ranges ?? [];
     for (let i = 0; i < sidewalkRanges.length; i++) {
       opacityRangeByStreet.set(sidewalkRanges[i].street, {
         sidewalk: sidewalkRanges[i],
@@ -425,6 +419,7 @@ export function createStreets(ctx: SceneContext): Streets {
     getPickables: () => pickables,
     getSidewalkByDir: (p) => (sidewalkRangeByPath.has(p) ? sidewalkMesh : null),
     getStreetRanges: () => sidewalkRanges,
+    getAsphaltRanges: () => asphaltRanges,
     setStreetOpacity,
     setStreetsTransparent,
   };

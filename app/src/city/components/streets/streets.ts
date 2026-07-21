@@ -21,11 +21,7 @@ type FlatMesh = THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial>;
 // Stadium-cap tessellation count for the asphalt + sidewalk shapes.
 const STADIUM_SEGMENTS = 16;
 
-// Inject a per-vertex `aOpacity` float into a MeshBasicMaterial so streets can
-// fade during Timeline scrubbing. The material stays `transparent: false` by
-// default, so the alpha is written but never blended (opaque pass disables
-// blending) → rendering is byte-identical to the un-injected material until
-// setStreetsTransparent flips it on.
+// Per-vertex alpha via onBeforeCompile; transparent stays false so live mode is byte-identical.
 function injectStreetOpacity(mat: THREE.MeshBasicMaterial): void {
   mat.onBeforeCompile = (shader) => {
     shader.vertexShader = shader.vertexShader
@@ -174,10 +170,7 @@ export interface SidewalkRange {
   faceStart: number;
 }
 
-// Per-street vertex span within the merged asphalt mesh — for fading a street's
-// asphalt (aOpacity) in lockstep with its sidewalk. Asphalt is never picked, so
-// this carries no face map. Asphalt spans differ from sidewalk spans (a separate,
-// narrower stadium), so opacity writes need their own ranges.
+// Per-street vertex span within the merged asphalt mesh, for fading a street's asphalt in lockstep with its sidewalk.
 export interface AsphaltRange {
   street: StreetWithJoin;
   vStart: number;
