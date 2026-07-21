@@ -7,7 +7,7 @@ import { buildingHeightForLines } from '@/city/layout/dimensions';
 import type { HeightContext } from '@/city/layout/dimensions';
 import { SCRUB_POS } from '@/state/stores/timeline';
 import { BuildingIndex } from '@/city/components/buildings/buildingIndex';
-import type { Building, FileNode, TimelineBundle } from '@/types';
+import type { Building, FileNode, Street, TimelineBundle } from '@/types';
 
 // f.txt: absent at commit 0, created at 1 (2 lines), grows at 2 (6 lines),
 // deleted at 3. So createdIdx=1, deletedIdx=3, union lines=6.
@@ -116,6 +116,8 @@ function setup() {
     getMeshForBuilding: () => ({ mesh: fake.mesh, slot: 0 }),
     timelines,
     heightCtx,
+    streets: { setStreetOpacity: () => {} },
+    streetsByDir: {},
   });
 
   return { b, fake, controller, timelines };
@@ -211,6 +213,8 @@ test('a present media/0-line file gets a non-zero scaleY; an absent one stays fl
     getMeshForBuilding: () => ({ mesh: fake.mesh, slot: 0 }),
     timelines,
     heightCtx,
+    streets: { setStreetOpacity: () => {} },
+    streetsByDir: {},
   });
 
   SCRUB_POS.value = 1;
@@ -330,6 +334,8 @@ test('dedup: two buildings sharing one InstancedMesh set needsUpdate exactly onc
     getMeshForBuilding: (b) => ({ mesh: sharedMesh, slot: b.slotId }),
     timelines,
     heightCtx,
+    streets: { setStreetOpacity: () => {} },
+    streetsByDir: {},
   });
 
   SCRUB_POS.value = 1.5;
@@ -341,4 +347,96 @@ test('dedup: two buildings sharing one InstancedMesh set needsUpdate exactly onc
   expect(slotMatrices.get(1)!.elements[5]).toBeCloseTo(buildingHeightForLines(file2, 4, heightCtx), 5);
   expect(slotFadeX.get(0)).toBeCloseTo(1, 5);
   expect(slotFadeX.get(1)).toBeCloseTo(1, 5);
+});
+
+test('couples street opacity to the max opacity of its buildings (block fade)', () => {
+  // d/ has two buildings, both deleted at commit index 3 (K); e/ has one that survives.
+  const dStreet = { dir: { path: 'd' } } as unknown as Street;
+  const eStreet = { dir: { path: 'e' } } as unknown as Street;
+
+  const fileD1 = { path: 'd/f1.txt', lines: 6, size: 500, extension: 'txt' } as unknown as FileNode;
+  const fileD2 = { path: 'd/f2.txt', lines: 6, size: 500, extension: 'txt' } as unknown as FileNode;
+  const fileE1 = { path: 'e/f3.txt', lines: 6, size: 500, extension: 'txt' } as unknown as FileNode;
+
+  const blockBundle = {
+    commits: [{ sha: 'a' }, { sha: 'b' }, { sha: 'c' }, { sha: 'd' }],
+    unionManifest: { tree: { name: 'r' } },
+    deltas: [
+      {
+        sha: 'a',
+        changes: [
+          { path: 'd/f1.txt', sha: 's1' },
+          { path: 'd/f2.txt', sha: 's1' },
+          { path: 'e/f3.txt', sha: 's1' },
+        ],
+      },
+      { sha: 'b', changes: [] },
+      { sha: 'c', changes: [] },
+      {
+        sha: 'd',
+        changes: [
+          { path: 'd/f1.txt', sha: null },
+          { path: 'd/f2.txt', sha: null },
+        ],
+      },
+    ],
+    blobLines: { s1: 6 },
+    note: null,
+  } as unknown as TimelineBundle;
+
+  function makeBuilding(f: FileNode, slotId: number): Building {
+    return {
+      x: 0,
+      y: 0,
+      w: 2,
+      d: 2,
+      h: buildingHeightForLines(f, 6, heightCtx),
+      color: '#fff',
+      file: f,
+      cellId: 0,
+      slotId,
+    } as unknown as Building;
+  }
+
+  const bD1 = makeBuilding(fileD1, 0);
+  const bD2 = makeBuilding(fileD2, 1);
+  const bE1 = makeBuilding(fileE1, 2);
+
+  const index = new BuildingIndex();
+  index.insert(bD1);
+  index.insert(bD2);
+  index.insert(bE1);
+
+  const meshByBuilding = new Map<Building, ReturnType<typeof makeFakeMesh>>([
+    [bD1, makeFakeMesh()],
+    [bD2, makeFakeMesh()],
+    [bE1, makeFakeMesh()],
+  ]);
+
+  const opacityByStreet = new Map<Street, number>();
+  const streets = {
+    setStreetOpacity: (street: Street, opacity: number) => {
+      opacityByStreet.set(street, opacity);
+    },
+  };
+
+  const timelines = buildPathTimelines(blockBundle);
+  const controller = createScrubController({
+    getBuildingIndex: () => index,
+    getMeshForBuilding: (b) => ({ mesh: meshByBuilding.get(b)!.mesh, slot: 0 }),
+    timelines,
+    heightCtx,
+    streets,
+    streetsByDir: { d: dStreet, e: eStreet },
+  });
+
+  SCRUB_POS.value = 2; // before K, everything present
+  controller.update();
+  expect(opacityByStreet.get(dStreet)).toBeCloseTo(1, 5);
+  expect(opacityByStreet.get(eStreet)).toBeCloseTo(1, 5);
+
+  SCRUB_POS.value = 3.5; // after K, d/'s buildings are both deleted
+  controller.update();
+  expect(opacityByStreet.get(dStreet)).toBe(RUIN_FLOOR);
+  expect(opacityByStreet.get(eStreet)).toBeCloseTo(1, 5);
 });
