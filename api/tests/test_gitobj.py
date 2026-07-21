@@ -75,3 +75,37 @@ def test_blob_stats_batch_empty_and_missing_sha(tmp_path: Path) -> None:
     stats = blob_stats_batch(tmp_path, [bogus, blob.sha])
     assert bogus not in stats
     assert stats[blob.sha].lines == 1
+
+
+def test_blob_stats_batch_media_probe_gated_by_extension(tmp_path: Path) -> None:
+    """The media-dimension probe must only run for blobs the caller marks
+    as media (by extension, mirroring the live scanner) — never for plain
+    source files, which would otherwise pay hachoir's full format battery
+    (and its stderr `[warn] Skip parser ...` spam) for nothing."""
+    _init(tmp_path)
+    png_bytes = (
+        Path(__file__).parent / "fixtures" / "sample-repo" / "logo.png"
+    ).read_bytes()
+    (tmp_path / "logo.png").write_bytes(png_bytes)
+    (tmp_path / "a.txt").write_text("one\ntwo\n")
+    sha = _commit(tmp_path, "c1")
+
+    files = ls_tree_files(tmp_path, sha)
+    by_path = {f.path: f for f in files}
+    png_sha = by_path["logo.png"].sha
+    txt_sha = by_path["a.txt"].sha
+
+    # Without media_shas (default), nothing is probed — even the image.
+    stats = blob_stats_batch(tmp_path, [f.sha for f in files])
+    assert stats[png_sha].media_width is None
+    assert stats[png_sha].media_height is None
+    assert stats[txt_sha].media_width is None
+
+    # With media_shas naming only the image blob, it alone gets dims.
+    stats = blob_stats_batch(
+        tmp_path, [f.sha for f in files], media_shas=frozenset({png_sha})
+    )
+    assert stats[png_sha].media_width is not None
+    assert stats[png_sha].media_height is not None
+    assert stats[txt_sha].media_width is None
+    assert stats[txt_sha].media_height is None

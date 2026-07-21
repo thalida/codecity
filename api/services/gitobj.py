@@ -91,10 +91,20 @@ def _is_binary_bytes(chunk: bytes) -> bool:
     return non_text / len(head) > 0.30
 
 
-def blob_stats_batch(root: Path, shas: list[str]) -> dict[str, BlobStats]:
+def blob_stats_batch(
+    root: Path, shas: list[str], *, media_shas: frozenset[str] = frozenset()
+) -> dict[str, BlobStats]:
     """Compute (lines, binary, media dims) for each blob via one
     `cat-file --batch`. Duplicate shas are de-duped; the returned dict is
-    keyed by blob sha."""
+    keyed by blob sha.
+
+    The media-dimension probe (hachoir-based) only runs for blobs whose
+    sha is in `media_shas` — mirroring the live scanner, which only probes
+    dims for files whose extension is a recognized media kind. Running it
+    on every blob is wasteful (hachoir tries its whole format battery
+    against plain source files) and noisy (hachoir logs a `[warn] Skip
+    parser ...` line per rejected format). Lines + binary are still
+    computed for every blob regardless."""
     unique = list(dict.fromkeys(shas))
     if not unique:
         return {}
@@ -123,7 +133,7 @@ def blob_stats_batch(root: Path, shas: list[str]) -> dict[str, BlobStats]:
         i += size + 1  # trailing newline after content
         binary = _is_binary_bytes(content)
         lines = 0 if binary else content.count(b"\n")
-        mw, mh = probe_media_dims_from_bytes(content)
+        mw, mh = probe_media_dims_from_bytes(content) if sha in media_shas else (None, None)
         result[sha] = BlobStats(
             lines=lines, binary=binary, media_width=mw, media_height=mh
         )
