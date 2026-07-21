@@ -157,3 +157,23 @@ def blob_stats_batch(
             lines=lines, binary=binary, media_width=mw, media_height=mh
         )
     return result
+
+
+def blob_sizes_batch(root: Path, shas: list[str]) -> dict[str, int]:
+    """Byte size of each blob via one `cat-file --batch-check` (no content)."""
+    unique = list(dict.fromkeys(shas))
+    if not unique:
+        return {}
+    proc = subprocess.run(
+        _git_argv(root, "cat-file", "--batch-check"),
+        input="\n".join(unique).encode("ascii"),
+        capture_output=True,
+        check=False,
+    )
+    out: dict[str, int] = {}
+    for line in proc.stdout.decode("ascii", "replace").splitlines():
+        parts = line.split()
+        # "<sha> blob <size>"; "<sha> missing" for unknown objects.
+        if len(parts) == 3 and parts[1] == "blob":
+            out[parts[0]] = int(parts[2])
+    return out

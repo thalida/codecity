@@ -10,6 +10,7 @@ from api.services.gitobj import (
     resolve_ref,
     ls_tree_files,
     blob_stats_batch,
+    blob_sizes_batch,
 )
 
 
@@ -126,3 +127,14 @@ def test_blob_stats_batch_media_probe_gated_by_extension(tmp_path: Path) -> None
     assert stats[png_sha].media_height is not None
     assert stats[txt_sha].media_width is None
     assert stats[txt_sha].media_height is None
+
+
+def test_blob_sizes_batch(tmp_path):
+    _init(tmp_path)
+    (tmp_path / "a.txt").write_text("hello\nworld\n")  # 12 bytes
+    _commit(tmp_path, "c1")
+    blobs = ls_tree_files(tmp_path, resolve_ref(tmp_path, "HEAD"))
+    a = next(b for b in blobs if b.path == "a.txt")
+    sizes = blob_sizes_batch(tmp_path, [a.sha])
+    assert sizes[a.sha] == 12
+    assert blob_sizes_batch(tmp_path, []) == {}
