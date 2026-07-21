@@ -55,7 +55,7 @@ export function createScrubController(deps: ScrubControllerDeps) {
     const pos = SCRUB_POS.peek();
     const dirtyMeshes = new Set<THREE.InstancedMesh>();
     const dirtyFades = new Set<THREE.BufferAttribute>();
-    // A street's opacity is the max of its buildings' — the whole block fades together.
+    // A street's opacity is the max of its buildings', so the whole block fades together.
     const maxOp = new Map<Street, number>();
 
     for (const { b, pt, street } of entries) {

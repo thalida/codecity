@@ -440,3 +440,82 @@ test('couples street opacity to the max opacity of its buildings (block fade)', 
   expect(opacityByStreet.get(dStreet)).toBe(RUIN_FLOOR);
   expect(opacityByStreet.get(eStreet)).toBeCloseTo(1, 5);
 });
+
+test('block-fade is a true max, not last-write-wins: one deleted sibling cannot drag a street down', () => {
+  // d/f1.txt survives to the end; d/f2.txt is deleted at commit index 3 (K). f2 is
+  // inserted into the index AFTER f1, so it is iterated (and its opacity written)
+  // last: a last-write-wins implementation would leave the street at 0, while
+  // Math.max correctly keeps it at 1 because f1 is still alive.
+  const dStreet = { dir: { path: 'd' } } as unknown as Street;
+
+  const fileD1 = { path: 'd/f1.txt', lines: 6, size: 500, extension: 'txt' } as unknown as FileNode;
+  const fileD2 = { path: 'd/f2.txt', lines: 6, size: 500, extension: 'txt' } as unknown as FileNode;
+
+  const siblingBundle = {
+    commits: [{ sha: 'a' }, { sha: 'b' }, { sha: 'c' }, { sha: 'd' }],
+    unionManifest: { tree: { name: 'r' } },
+    deltas: [
+      {
+        sha: 'a',
+        changes: [
+          { path: 'd/f1.txt', sha: 's1' },
+          { path: 'd/f2.txt', sha: 's1' },
+        ],
+      },
+      { sha: 'b', changes: [] },
+      { sha: 'c', changes: [] },
+      { sha: 'd', changes: [{ path: 'd/f2.txt', sha: null }] },
+    ],
+    blobLines: { s1: 6 },
+    note: null,
+  } as unknown as TimelineBundle;
+
+  function makeBuilding(f: FileNode, slotId: number): Building {
+    return {
+      x: 0,
+      y: 0,
+      w: 2,
+      d: 2,
+      h: buildingHeightForLines(f, 6, heightCtx),
+      color: '#fff',
+      file: f,
+      cellId: 0,
+      slotId,
+    } as unknown as Building;
+  }
+
+  const bD1 = makeBuilding(fileD1, 0); // survives
+  const bD2 = makeBuilding(fileD2, 1); // deleted at K
+
+  const index = new BuildingIndex();
+  // Insert the surviving building first and the deleted one last, so the
+  // deleted building's (lower) opacity is written last into the accumulator.
+  index.insert(bD1);
+  index.insert(bD2);
+
+  const meshByBuilding = new Map<Building, ReturnType<typeof makeFakeMesh>>([
+    [bD1, makeFakeMesh()],
+    [bD2, makeFakeMesh()],
+  ]);
+
+  const opacityByStreet = new Map<Street, number>();
+  const streets = {
+    setStreetOpacity: (street: Street, opacity: number) => {
+      opacityByStreet.set(street, opacity);
+    },
+  };
+
+  const timelines = buildPathTimelines(siblingBundle);
+  const controller = createScrubController({
+    getBuildingIndex: () => index,
+    getMeshForBuilding: (b) => ({ mesh: meshByBuilding.get(b)!.mesh, slot: 0 }),
+    timelines,
+    heightCtx,
+    streets,
+    streetsByDir: { d: dStreet },
+  });
+
+  SCRUB_POS.value = 3.5; // after K: f2 deleted, f1 still alive
+  controller.update();
+  expect(opacityByStreet.get(dStreet)).toBeCloseTo(1, 5);
+});
