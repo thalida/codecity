@@ -291,6 +291,34 @@ class Manifest(TypedDict):
     stats: RepoStats
 
 
+class TimelineChange(TypedDict):
+    """One path's blob change in a commit. sha is the new 40-hex blob sha,
+    or None when the path was deleted."""
+
+    path: str
+    sha: str | None
+
+
+class TimelineDelta(TypedDict):
+    """A commit's blob-level changes, keyed by full sha."""
+
+    sha: str
+    changes: list[TimelineChange]
+
+
+class TimelineBundle(TypedDict):
+    """Everything the client replays for smooth commit scrubbing: the commit
+    list, the union-of-all-paths manifest (layout target), per-commit blob
+    deltas, and a sha -> line-count table. `note` is set (else None) when a
+    pathological repo is windowed to its most recent commits."""
+
+    commits: list[CommitEntry]
+    unionManifest: Manifest
+    deltas: list[TimelineDelta]
+    blobLines: dict[str, int]
+    note: str | None
+
+
 class SignatureResponse(TypedDict):
     """Cheap fingerprint of the tree, returned by /api/manifest/signature.
 

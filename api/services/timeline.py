@@ -9,17 +9,22 @@ from pathlib import Path
 from typing import NamedTuple
 
 from .gitobj import _git_argv, blob_sizes_batch, blob_stats_batch
-from .manifest_types import CommitEntry, FileNode, Manifest, NodeKind
+from .manifest_types import CommitEntry, FileNode, Manifest, NodeKind, TimelineBundle
 from .media import media_kind
 from .scan import (
+    NotAGitRepoError,
     _build_tree,
+    _collect_git_history,
     _derive_tree_signals,
     _dir_children_from_paths,
     _extension,
     _hash_file_entry,
+    _is_git_repo,
     _reconstructed_repo_info,
     _wrap_manifest,
 )
+
+_UNION_FILE_CAP = 20000  # union files above this window to the most recent commits
 
 
 class CommitDelta(NamedTuple):
@@ -162,3 +167,48 @@ def build_union_manifest(
         }
     )
     return _wrap_manifest(root_abs, tree, sig, signals, repo_info, commits)
+
+
+def build_timeline_bundle(root: str, *, use_cache: bool = True) -> TimelineBundle:
+    """Assemble the full replay bundle: commits, the union manifest, per-commit
+    blob deltas, and a sha -> line-count table. Pathological repos (union above
+    `_UNION_FILE_CAP`) are windowed to their most recent commits, surfaced via
+    `note`."""
+    root_path = Path(root).resolve()
+    if not _is_git_repo(root_path):
+        raise NotAGitRepoError(str(root_path))
+
+    deltas = walk_deltas(root_path)
+    git_created, git_modified, commits = _collect_git_history(
+        root_path, use_cache=use_cache
+    )
+
+    note = None
+    union = {p for d in deltas for p, sha in d.changes if sha}
+    if len(union) > _UNION_FILE_CAP:
+        kept: set[str] = set()
+        cut = len(deltas)
+        for i in range(len(deltas) - 1, -1, -1):
+            kept |= {p for p, sha in deltas[i].changes if sha}
+            if len(kept) > _UNION_FILE_CAP:
+                cut = i + 1
+                break
+        deltas = deltas[cut:]
+        commits = commits[cut:]
+        note = f"timeline covers the most recent {len(commits)} commits"
+
+    blob_lines, blob_sizes = _collect_blob_tables(root_path, deltas)
+    union_manifest = build_union_manifest(
+        root_path, deltas, blob_lines, blob_sizes, commits, git_created, git_modified
+    )
+
+    return {
+        "commits": commits,
+        "unionManifest": union_manifest,
+        "deltas": [
+            {"sha": d.sha, "changes": [{"path": p, "sha": s} for p, s in d.changes]}
+            for d in deltas
+        ],
+        "blobLines": blob_lines,
+        "note": note,
+    }
