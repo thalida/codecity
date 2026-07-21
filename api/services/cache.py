@@ -57,6 +57,16 @@ class FileEntry(TypedDict):
     media_height: NotRequired[int]
 
 
+class BlobEntry(TypedDict):
+    """Content-addressed per-blob stats. Immutable: a git blob's sha
+    fully determines its bytes, so an entry is never invalidated."""
+
+    lines: int
+    binary: bool
+    media_width: NotRequired[int]
+    media_height: NotRequired[int]
+
+
 # CACHE_ROOT is imported from config (the single source of truth). The subdir
 # helpers below derive manifests/files/git-history paths from it at call time,
 # so a test monkeypatching cache.CACHE_ROOT cascades through.
@@ -64,6 +74,7 @@ class FileEntry(TypedDict):
 # Cache-format versions: bump when the cached shape changes so stale blobs are
 # treated as a miss and re-scanned. (Per-bump rationale lives in git history.)
 _FILE_CACHE_VERSION = 1
+_BLOB_STATS_CACHE_VERSION = 1  # blob_sha -> (lines, binary, media dims)
 _GIT_HISTORY_CACHE_VERSION = 12  # v12: dates UTC-normalized (file maps + commit days)
 _MANIFEST_SCHEMA_VERSION = (
     # v12: per-dir descendants_created_min / descendants_modified_max
@@ -200,6 +211,58 @@ def cache_save_files(abs_root: Path, entries: dict[str, FileEntry]) -> None:
         "entries": entries,
     }
     _atomic_write(_file_cache_path(abs_root), json.dumps(payload))
+
+
+def _blob_cache_path(abs_root: Path) -> Path:
+    return CACHE_ROOT / "blobs" / f"{repo_key(abs_root)}.json"
+
+
+def cache_load_blobs(abs_root: Path) -> dict[str, "BlobEntry"]:
+    """Load the per-repo blob-stats cache. {} on any error/version miss."""
+    path = _blob_cache_path(abs_root)
+    try:
+        parsed = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+    if not isinstance(parsed, dict):
+        return {}
+    raw = cast(dict[str, object], parsed)
+    if raw.get("version") != _BLOB_STATS_CACHE_VERSION:
+        return {}
+    entries = raw.get("entries")
+    if not isinstance(entries, dict):
+        return {}
+    out: dict[str, BlobEntry] = {}
+    for sha, v in cast(dict[str, object], entries).items():
+        if not isinstance(v, dict):
+            continue
+        d = cast(dict[str, object], v)
+        lines, binary = d.get("lines"), d.get("binary")
+        if not isinstance(lines, int) or isinstance(lines, bool):
+            continue
+        if not isinstance(binary, bool):
+            continue
+        entry: BlobEntry = {"lines": lines, "binary": binary}
+        mw, mh = d.get("media_width"), d.get("media_height")
+        if (
+            isinstance(mw, int)
+            and not isinstance(mw, bool)
+            and isinstance(mh, int)
+            and not isinstance(mh, bool)
+        ):
+            entry["media_width"], entry["media_height"] = mw, mh
+        out[sha] = entry
+    return out
+
+
+def cache_save_blobs(abs_root: Path, entries: dict[str, "BlobEntry"]) -> None:
+    """Union-merge write of the blob-stats cache (callers pass the merged
+    dict). Atomic; swallowed on OSError like the other caches."""
+    payload = {"version": _BLOB_STATS_CACHE_VERSION, "entries": entries}
+    try:
+        _atomic_write(_blob_cache_path(abs_root), json.dumps(payload))
+    except OSError:
+        pass
 
 
 def _git_history_cache_path(abs_root: Path) -> Path:
@@ -393,7 +456,11 @@ def cache_clear_all(abs_root: Path) -> int:
     hygiene as the rest of this module — cleanup failures must never
     break the response."""
     count = cache_clear_manifests(abs_root)
-    for path in (_file_cache_path(abs_root), _git_history_cache_path(abs_root)):
+    for path in (
+        _file_cache_path(abs_root),
+        _git_history_cache_path(abs_root),
+        _blob_cache_path(abs_root),
+    ):
         try:
             path.unlink()
             count += 1
