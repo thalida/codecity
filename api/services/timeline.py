@@ -182,6 +182,8 @@ def build_timeline_bundle(root: str, *, use_cache: bool = True) -> TimelineBundl
     git_created, git_modified, commits = _collect_git_history(
         root_path, use_cache=use_cache
     )
+    # both walks enumerate the same first-parent history in the same order
+    assert len(deltas) == len(commits), "delta/commit walks misaligned"
 
     note = None
     union = {p for d in deltas for p, sha in d.changes if sha}
@@ -193,6 +195,8 @@ def build_timeline_bundle(root: str, *, use_cache: bool = True) -> TimelineBundl
             if len(kept) > _UNION_FILE_CAP:
                 cut = i + 1
                 break
+        if deltas:
+            cut = min(cut, len(deltas) - 1)  # always keep the most recent commit
         deltas = deltas[cut:]
         commits = commits[cut:]
         note = f"timeline covers the most recent {len(commits)} commits"

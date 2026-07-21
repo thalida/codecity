@@ -135,3 +135,20 @@ def test_bundle_caps_to_recent_window(tmp_path: Path, monkeypatch) -> None:
     bundle = timeline.build_timeline_bundle(str(tmp_path), use_cache=False)
     assert bundle["note"] is not None  # windowed, surfaced
     assert len(bundle["commits"]) < 4
+
+
+def test_bundle_window_never_empty_even_if_newest_commit_alone_exceeds_cap(
+    tmp_path: Path, monkeypatch
+) -> None:
+    """Even a single (newest) commit that alone busts the cap must still leave
+    a non-empty timeline, not window itself down to zero commits."""
+    from api.services import timeline
+
+    monkeypatch.setattr(timeline, "_UNION_FILE_CAP", 0)  # every commit exceeds this
+    _init(tmp_path)
+    for i in range(3):
+        (tmp_path / f"f{i}.txt").write_text("x\n")
+        _commit(tmp_path, f"c{i}")
+    bundle = timeline.build_timeline_bundle(str(tmp_path), use_cache=False)
+    assert len(bundle["commits"]) >= 1  # never an empty timeline
+    assert bundle["note"] is not None
