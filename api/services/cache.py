@@ -384,12 +384,7 @@ def _ref_manifest_cache_path(abs_root: Path, ref_sha: str) -> Path:
 def _load_gz_envelope(
     path: Path, *, envelope_key: str, version: object
 ) -> dict[str, object] | None:
-    """Load a gzip-envelope JSON cache file (``{"version", envelope_key:
-    <dict>}``). Returns None on any error (missing file, gzip corruption,
-    JSON parse, schema/version mismatch, or a non-dict payload). Shared body
-    for every gzip-envelope cache (manifest, ref-manifest, timeline bundle) —
-    same shape, same error hygiene: a corrupt cache is a miss, never a hard
-    failure."""
+    """Load a ``{"version", envelope_key: <dict>}`` gzip cache; None on any error (a corrupt cache is a miss)."""
     try:
         with gzip.open(path, "rb") as fh:
             raw = json.loads(fh.read().decode("utf-8"))
@@ -409,9 +404,7 @@ def _load_gz_envelope(
 def _save_gz_envelope(
     path: Path, *, envelope_key: str, version: object, payload: dict[str, object]
 ) -> None:
-    """Atomically write a gzip-envelope JSON cache file. Swallows OSError —
-    cache save failures must never break the response. Shared body for every
-    gzip-envelope cache."""
+    """Atomically write a ``{"version", envelope_key: <dict>}`` gzip cache; swallows OSError."""
     path.parent.mkdir(parents=True, exist_ok=True)
     data = json.dumps({"version": version, envelope_key: payload}).encode("utf-8")
     fd, tmp = tempfile.mkstemp(
@@ -481,18 +474,14 @@ def cache_save_ref_manifest(abs_root: Path, ref_sha: str, manifest: "Manifest") 
 
 
 def _timeline_cache_path(abs_root: Path, head_sha: str) -> Path:
-    # Lives alongside the manifest caches (same dir, same `__*.json.gz`
-    # glob) so cache_clear_manifests/cache_clear_all sweep it too.
+    # Same dir + `__*.json.gz` glob as the manifest caches, so the clear paths sweep it.
     return (
         CACHE_ROOT / "manifests" / f"{repo_key(abs_root)}__timeline-{head_sha}.json.gz"
     )
 
 
 def cache_load_timeline(abs_root: Path, head_sha: str) -> "TimelineBundle | None":
-    """Load the cached timeline bundle for this (root, head_sha). A bundle is
-    immutable per HEAD (it replays fixed history), so unlike the content-
-    signature manifest cache this key never needs invalidating — only
-    `cache_clear_manifests`/`cache_clear_all` remove it."""
+    """Cached bundle for (root, head_sha); immutable per HEAD, cleared only by cache_clear_*."""
     bundle = _load_gz_envelope(
         _timeline_cache_path(abs_root, head_sha),
         envelope_key="bundle",

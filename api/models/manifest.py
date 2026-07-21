@@ -265,9 +265,7 @@ class TimelineDelta(BaseModel):
 
 
 class TimelineBundle(BaseModel):
-    """Everything the client replays for smooth commit scrubbing. See
-    api/services/manifest_types.py:TimelineBundle for the field-by-field
-    rationale (this mirrors that TypedDict for the wire schema)."""
+    """Wire schema for the scrub bundle; mirrors manifest_types.TimelineBundle."""
 
     commits: list[CommitEntry]
     unionManifest: Manifest
