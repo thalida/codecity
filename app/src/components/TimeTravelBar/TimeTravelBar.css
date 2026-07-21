@@ -51,6 +51,10 @@
   color: var(--cc-text-strong);
 }
 
+a.time-travel-sha:hover {
+  text-decoration: underline;
+}
+
 .time-travel-subject {
   flex: 1;
   min-width: 0;

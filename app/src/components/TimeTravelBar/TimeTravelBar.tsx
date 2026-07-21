@@ -10,10 +10,13 @@ import { TIME_TRAVEL_REF } from '@/state/stores/timeTravel';
 import { loadRef, exitTimeTravel } from '@/hooks/useManifestSource';
 import { isEmptyManifest } from '@/utils/manifest';
 import { formatShortDate } from '@/utils/dates';
+import { commitUrl } from '@/utils/commit';
 import type { CommitEntry, Manifest } from '@/types';
 
-// Stable HEAD-history axis: locked in per source so a past-ref manifest's shorter commits list never shrinks the slider.
+// Stable HEAD-history axis + repo web URL: locked in per source so a past-ref
+// manifest's shorter commits list never shrinks the slider.
 const AXIS = signal<CommitEntry[]>([]);
+const REMOTE = signal<string | null>(null);
 let _axisSourceKey: string | null = null;
 
 effect(() => {
@@ -21,12 +24,16 @@ effect(() => {
   if (key !== _axisSourceKey) {
     _axisSourceKey = key;
     AXIS.value = [];
+    REMOTE.value = null;
   }
   if (AXIS.value.length > 0) return;
   const m = MANIFEST.value;
   if (isEmptyManifest(m)) return;
   const commits = (m as Manifest).commits;
-  if (commits && commits.length > 0) AXIS.value = commits;
+  if (commits && commits.length > 0) {
+    AXIS.value = commits;
+    REMOTE.value = (m as Manifest).repo?.remote_url ?? null;
+  }
 });
 
 export function TimeTravelBar() {
@@ -44,6 +51,7 @@ export function TimeTravelBar() {
   if (axis.length < 2) return null;
 
   const commit = axis[Math.min(Math.max(pos, 0), headIndex)];
+  const url = REMOTE.value ? commitUrl(REMOTE.value, commit.sha) : null;
 
   const onInput = (e: Event) => {
     const i = Number((e.currentTarget as HTMLInputElement).value);
@@ -82,7 +90,19 @@ export function TimeTravelBar() {
         </button>
       </div>
       <div class="time-travel-info">
-        <span class="time-travel-sha">{commit.sha.slice(0, 7)}</span>
+        {url ? (
+          <a
+            class="time-travel-sha"
+            href={url}
+            target="_blank"
+            rel="noopener noreferrer"
+            title="View this commit on the remote"
+          >
+            {commit.sha.slice(0, 7)}
+          </a>
+        ) : (
+          <span class="time-travel-sha">{commit.sha.slice(0, 7)}</span>
+        )}
         <span class="time-travel-date">{formatShortDate(commit.date)}</span>
         <span class="time-travel-subject">{commit.subject || '(no subject)'}</span>
       </div>
