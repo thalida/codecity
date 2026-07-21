@@ -73,12 +73,16 @@ export function TimeTravelBar() {
         <span class="time-travel-sha">{commit.sha.slice(0, 7)}</span>
         <span class="time-travel-date">{formatShortDate(commit.date)}</span>
         <span class="time-travel-subject">{commit.subject || '(no subject)'}</span>
+        {ref !== null && (
+          <button
+            type="button"
+            class="btn-secondary time-travel-live"
+            onClick={() => exitTimeTravel()}
+          >
+            Back to live
+          </button>
+        )}
       </div>
-      {ref !== null && (
-        <button type="button" class="btn-secondary" onClick={() => exitTimeTravel()}>
-          Back to live
-        </button>
-      )}
     </div>
   );
 }
