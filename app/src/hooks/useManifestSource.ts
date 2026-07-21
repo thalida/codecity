@@ -36,7 +36,7 @@ import {
   CURRENT_SOURCE,
 } from '@/state/stores/source';
 import { SERVER_CONFIG } from '@/state/stores/serverConfig';
-import { MANIFEST, setManifest, markError } from '@/state/stores/manifest';
+import { MANIFEST, setManifest, markError, markRebuilding } from '@/state/stores/manifest';
 import { SCAN_PROGRESS } from '@/state/stores/scanProgress';
 import { TIME_TRAVEL_REF } from '@/state/stores/timeTravel';
 import { activeExcludePathsFor, ACTIVE_EXCLUDES } from '@/state/stores/excludes';
@@ -222,6 +222,7 @@ export async function loadRef(sha: string): Promise<void> {
   loadController?.abort();
   const controller = new AbortController();
   loadController = controller;
+  markRebuilding(); // footer shows "rebuilding…" through the fetch, before the apply
   try {
     const url = manifestUrlFor({
       src: cur.src,
@@ -239,10 +240,7 @@ export async function loadRef(sha: string): Promise<void> {
     TIME_TRAVEL_REF.value = sha; // pin AFTER a successful apply
   } catch (err) {
     if (myGen !== loadGeneration || controller.signal.aborted) return;
-    SOURCE_ERROR.value = {
-      error: err instanceof Error ? err.message : String(err),
-      prefill: { src: cur.src, branch: cur.branch },
-    };
+    markError(err); // footer error, not the source picker (a bad slider sha is rare)
   } finally {
     if (myGen === loadGeneration && loadController === controller) loadController = null;
   }

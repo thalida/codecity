@@ -5,6 +5,7 @@ import { CURRENT_SOURCE } from '@/state/stores/source';
 import { MANIFEST } from '@/state/stores/manifest';
 import { LIVE_UPDATES } from '@/state/stores/settings/updates';
 import { SCAN_PROGRESS } from '@/state/stores/scanProgress';
+import { REBUILD_STATUS, RebuildStatus } from '@/state/stores/manifest';
 
 // EventSource stub mirrors useManifestSource.test.ts: records listeners so a
 // test can emit a named SSE event and records instances for URL assertions.
@@ -110,6 +111,24 @@ describe('loadRef / exitTimeTravel', () => {
   afterEach(() => {
     (globalThis as unknown as { EventSource: unknown }).EventSource = originalEventSource;
     TIME_TRAVEL_REF.value = null;
+    REBUILD_STATUS.value = RebuildStatus.Idle;
+  });
+
+  it('marks REBUILD_STATUS Rebuilding on start and Error on a failed ref load', async () => {
+    const load = loadSource({ src: 's', branch: undefined });
+    await flush();
+    StubEventSource.instances[0].emit('manifest-complete', MANIFEST_JSON('sig0'));
+    await load;
+    REBUILD_STATUS.value = RebuildStatus.Idle;
+
+    const p = loadRef('abc1234');
+    await flush();
+    expect(REBUILD_STATUS.value).toBe(RebuildStatus.Rebuilding); // footer feedback during the fetch
+
+    const refStream = StubEventSource.instances[StubEventSource.instances.length - 1];
+    refStream.emit('error', JSON.stringify({ error: 'boom' }));
+    await p;
+    expect(REBUILD_STATUS.value).toBe(RebuildStatus.Error); // footer error, no source picker
   });
 
   it('applies the ref manifest and sets TIME_TRAVEL_REF without touching CURRENT_SOURCE', async () => {
