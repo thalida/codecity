@@ -82,9 +82,10 @@ def walk_deltas(root: Path, ref: str | None = None) -> list[CommitDelta]:
             if len(parts) < 5:
                 continue
             mode_after, sha_after, status = parts[1], parts[3], parts[4]
-            # Drop symlink (120000) / gitlink-submodule (160000) adds+mods, as the
-            # live scan does; a deletion (mode_after 000000) is left as a no-op.
+            # Symlinks/submodules are excluded like the live scan; recording as a
+            # deletion (not a drop) also pops any pre-typechange regular-file content.
             if mode_after in ("120000", "160000"):
+                cur.changes.append((path, None))
                 continue
             deleted = status.startswith("D") or sha_after.strip("0") == ""
             cur.changes.append((path, None if deleted else sha_after))
@@ -213,8 +214,7 @@ def build_timeline_bundle(root: str, *, use_cache: bool = True) -> TimelineBundl
     # both walks enumerate the same first-parent history in the same order
     assert len(deltas) == len(commits), "delta/commit walks misaligned"
 
-    # Apply the live scan's path skip filter ONCE, upstream, so the union
-    # manifest + deltas + blobLines all share the identical filtered file set.
+    # Apply the live scan's skip filter ONCE, upstream, so every downstream stage shares one filtered set.
     ignore_names, ignore_paths, unignore_names, unignore_paths = _load_codecityignore(
         root_path
     )
@@ -251,8 +251,7 @@ def build_timeline_bundle(root: str, *, use_cache: bool = True) -> TimelineBundl
     blob_lines, blob_sizes = _collect_blob_tables(
         root_path, deltas, use_cache=use_cache
     )
-    # Contract: every non-null delta sha must have a blobLines entry so the
-    # client can't KeyError; an unresolvable sha defaults to 0.
+    # Contract: every non-null delta sha needs a blobLines entry (default 0) so the client can't KeyError.
     for d in deltas:
         for _, sha in d.changes:
             if sha is not None:

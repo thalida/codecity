@@ -46,6 +46,52 @@ def test_walk_deltas_add_modify_delete(tmp_path: Path) -> None:
     assert deltas[2].changes == [("a.txt", None)]
 
 
+def test_walk_deltas_file_to_symlink_typechange_is_a_deletion(tmp_path: Path) -> None:
+    """A tracked file replaced in-place by a symlink at the same path (:100644
+    120000 ... T) must be recorded as a deletion, so replay drops it exactly
+    like reconstruct_manifest (via ls_tree_files) excludes symlinks."""
+    from api.services.scan import reconstruct_manifest
+
+    _init(tmp_path)
+    (tmp_path / "x.txt").write_text("hello\n")
+    _commit(tmp_path, "c1")
+    (tmp_path / "x.txt").unlink()
+    os.symlink("target", tmp_path / "x.txt")
+    _commit(tmp_path, "c2")
+    head = subprocess.run(
+        ["git", "-C", str(tmp_path), "rev-parse", "HEAD"],
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout.strip()
+
+    deltas = walk_deltas(tmp_path)
+    assert deltas[1].changes == [("x.txt", None)]
+
+    state: dict[str, str] = {}
+    for d in deltas:
+        for path, sha in d.changes:
+            if sha is None:
+                state.pop(path, None)
+            else:
+                state[path] = sha
+    assert "x.txt" not in state
+
+    recon = reconstruct_manifest(str(tmp_path), head, use_cache=False)
+    recon_paths: set[str] = set()
+
+    def walk(n: dict) -> None:
+        if n["type"] == "file":
+            recon_paths.add(n["path"])
+        else:
+            for ch in n["children"]:
+                walk(ch)
+
+    walk(recon["tree"])
+    assert "x.txt" not in recon_paths
+    assert set(state) == recon_paths
+
+
 def test_union_manifest_is_all_paths_max_size(tmp_path: Path) -> None:
     from api.services.timeline import (
         walk_deltas,
@@ -99,8 +145,7 @@ def test_bundle_replay_matches_reconstruct(tmp_path: Path) -> None:
     (tmp_path / "a.txt").write_text("1\n2\n")
     (tmp_path / "d").mkdir()
     (tmp_path / "d" / "b.py").write_text("x=1\n")
-    # Skipped-by-name lockfile (ALWAYS_SKIP), a committed symlink (mode 120000),
-    # and a .codecityignore path exclude — none may reach the bundle.
+    # ALWAYS_SKIP lockfile, a committed symlink, and a .codecityignore exclude — none may reach the bundle.
     (tmp_path / "package-lock.json").write_text('{"a":1}\n' * 50)
     os.symlink("a.txt", tmp_path / "link.txt")
     (tmp_path / "secret").mkdir()
