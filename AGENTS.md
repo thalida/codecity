@@ -8,29 +8,30 @@ Open work is tracked in **GitHub Issues**, not in this repo. Don't keep a `TODO.
 
 ```sh
 gh issue list                          # everything open
-gh issue list --label bug              # just bugs
-gh issue list --label nice-to-have     # deferred-but-real, lower priority
+gh issue list --label cat:bug          # just bugs
+gh issue list --label P1               # highest priority
 gh issue view <n>                      # full context for one item
 ```
 
-Labels: `bug`, `enhancement`, `documentation`, `nice-to-have` (deferred / not urgent),
-`question`, `wontfix`, `duplicate`, `invalid`.
+Labels are namespaced. **Category:** `cat:bug`, `cat:enhancement`, `cat:documentation`,
+`cat:security`. **Priority:** `P1`–`P4` (P1 highest). **Status:** `status:in-progress`,
+`status:duplicate`, `status:wontfix`, `status:abandoned`. Plus `question`.
 
 If you discover new work, file an issue rather than leaving an inline `TODO`.
 
 ## Working an issue
 
 Start each issue in its own git worktree on a branch that GitHub links back to the
-issue. Pick the branch prefix from the issue's primary type label:
+issue. Pick the branch prefix from the issue's `cat:` (category) label:
 
-| Label           | Prefix  |
-| --------------- | ------- |
-| `bug`           | `fix/`  |
-| `enhancement`   | `feat/` |
-| `documentation` | `docs/` |
-| anything else   | `chore/`|
+| Category label      | Prefix  |
+| ------------------- | ------- |
+| `cat:bug`           | `fix/`  |
+| `cat:enhancement`   | `feat/` |
+| `cat:documentation` | `docs/` |
+| anything else       | `chore/`|
 
-(`nice-to-have` is a priority tag, not a type — use the type label underneath it.)
+(Priority is a separate axis: `P1`–`P4` are priority tags, not types — pick the prefix from the `cat:` label.)
 
 ```sh
 N=62                      # issue number
