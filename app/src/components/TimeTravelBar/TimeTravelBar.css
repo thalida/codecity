@@ -11,9 +11,10 @@
   display: flex;
   flex-direction: column;
   gap: var(--cc-space-4);
-  padding: var(--cc-space-5) var(--cc-space-7);
+  /* Tighter right padding seats the reset near the edge; left keeps the slider inset. */
+  padding: var(--cc-space-5) var(--cc-space-3) var(--cc-space-5) var(--cc-space-7);
   width: min(32rem, calc(100% - var(--cc-space-9) * 2));
-  background: var(--cc-bg-backdrop);
+  background: color-mix(in oklch, var(--cc-bg-modal) 78%, transparent);
   border-radius: var(--cc-radius-lg);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
@@ -22,7 +23,7 @@
 .time-travel-track {
   display: flex;
   align-items: center;
-  gap: var(--cc-space-5);
+  gap: var(--cc-space-2);
 }
 
 .time-travel-slider {
