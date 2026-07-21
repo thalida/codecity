@@ -23,15 +23,19 @@ import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Callable, Iterator, NamedTuple
+from typing import Any, Callable, Iterable, Iterator, NamedTuple
 
 from api.config import quiet
 from api.models.events import ScanEvent
 from .date_utils import max_iso, min_iso
+from . import gitobj
 from .cache import (
+    BlobEntry,
     FileEntry,
+    cache_load_blobs,
     cache_load_files,
     cache_load_git_history,
+    cache_save_blobs,
     cache_save_files,
     cache_save_git_history,
 )
@@ -73,6 +77,7 @@ __all__ = [
     "NotAGitRepoError",
     "ScanCancelledError",
     "build_authors_list",
+    "reconstruct_manifest",
     "scan_tree",
     "signature_tree",
 ]
@@ -1655,3 +1660,174 @@ def signature_tree(
         "scanned_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "content_signature": sig.hexdigest(),
     }
+
+
+# ── Time-travel reconstruction ───────────────────────────────────────────────
+#
+# Rebuild a Manifest AS OF a past ref using only read-only git plumbing
+# (ls-tree + cat-file); the repo is never checked out or written. It shares
+# _build_tree with the live scan, so structure_signature + layout_signature
+# are byte-identical to a live scan of the same tree. content_signature does
+# NOT match a live scan (the live hash folds in real fs mtime, which a ref
+# reconstruction has no access to) — the ref manifest is keyed by ref sha, not
+# by content_signature, so that's expected and harmless.
+
+
+def _basename(rel_path: str) -> str:
+    return rel_path.rsplit("/", 1)[-1]
+
+
+def _path_is_skipped(
+    rel_path: str,
+    ignore_names: frozenset[str],
+    ignore_paths: frozenset[str],
+    unignore_names: frozenset[str],
+    unignore_paths: frozenset[str],
+) -> bool:
+    """Apply _should_skip to every path segment (a skipped parent dir hides
+    the file), mirroring the live tracked-walk's per-segment filtering."""
+    parts = rel_path.split("/")
+    for i in range(len(parts)):
+        seg_rel = "/".join(parts[: i + 1])
+        if _should_skip(
+            parts[i],
+            seg_rel,
+            ignore_names=ignore_names,
+            ignore_paths=ignore_paths,
+            unignore_names=unignore_names,
+            unignore_paths=unignore_paths,
+        ):
+            return True
+    return False
+
+
+def _dir_children_from_paths(
+    paths: Iterable[str],
+) -> dict[str, list[tuple[str, str, bool]]]:
+    """Group a flat file-path list into a ``{rel_dir -> sorted [(name, rel,
+    is_dir)]}`` map, materializing every intermediate directory. Entries in a
+    dir are sorted by name; _build_tree then re-splits them into files-first,
+    subdirs-second (each already name-sorted), matching the live scandir order
+    the layout packer + signatures depend on."""
+    children: dict[str, set[tuple[str, str, bool]]] = {}
+    for p in paths:
+        parts = p.split("/")
+        for i in range(len(parts)):
+            parent = "." if i == 0 else "/".join(parts[:i])
+            name = parts[i]
+            rel = "/".join(parts[: i + 1])
+            is_dir = i < len(parts) - 1
+            children.setdefault(parent, set()).add((name, rel, is_dir))
+    return {k: sorted(v, key=lambda t: t[0]) for k, v in children.items()}
+
+
+def _reconstructed_repo_info(root_path: Path, commit_sha: str) -> RepoInfo:
+    """Repo footer for a detached ref: branch shows the short ref (there's no
+    live branch), dirty is always False (a committed tree can't be dirty)."""
+    subject = _run_git(root_path, "log", "-1", "--format=%s", commit_sha).strip()
+    remote = _run_git(root_path, "config", "--get", "remote.origin.url").strip()
+    return {
+        "branch": f"@ {commit_sha[:8]}",
+        "remote_url": _normalize_remote_to_web_url(remote) or None,
+        "head_sha": commit_sha[:8],
+        "head_subject": subject or None,
+        "dirty": False,
+    }
+
+
+def reconstruct_manifest(root: str, ref: str, *, use_cache: bool = True) -> Manifest:
+    """Build a Manifest for the repo AS OF ``ref``, read-only (ls-tree +
+    cat-file). Never checks out or writes to the working tree.
+
+    Raises ``NotAGitRepoError`` for a non-repo and ``ValueError`` for a ref
+    that doesn't resolve to a commit."""
+    root_abs = str(Path(root).resolve())
+    root_path = Path(root_abs)
+    if not _is_git_repo(root_path):
+        raise NotAGitRepoError(root_abs)
+    commit_sha = gitobj.resolve_ref(root_path, ref)
+    if commit_sha is None:
+        raise ValueError(f"ref does not resolve to a commit: {ref!r}")
+
+    # File set + sizes (one ls-tree), filtered through the SAME skip rules the
+    # live scan uses — .codecityignore is read from the CURRENT working copy so
+    # the filter doesn't jump around as the ref moves.
+    ignore_names, ignore_paths, unignore_names, unignore_paths = _load_codecityignore(
+        root_path
+    )
+    blobs = [
+        b
+        for b in gitobj.ls_tree_files(root_path, commit_sha)
+        if not _path_is_skipped(
+            b.path, ignore_names, ignore_paths, unignore_names, unignore_paths
+        )
+    ]
+    by_path = {b.path: b for b in blobs}
+
+    # lines/binary/media: content-addressed blob cache first, cat-file only the
+    # misses. Media dims are probed only for blobs whose path is a media file
+    # (by extension) — same gate as the live scan, and it keeps hachoir off
+    # every source blob.
+    cached = cache_load_blobs(root_path) if use_cache else {}
+    media_shas = frozenset(
+        b.sha for b in blobs if media_kind(_extension(_basename(b.path)))
+    )
+    misses = [b.sha for b in blobs if b.sha not in cached]
+    fresh = (
+        gitobj.blob_stats_batch(root_path, misses, media_shas=media_shas)
+        if misses
+        else {}
+    )
+    for sha, s in fresh.items():
+        entry: BlobEntry = {"lines": s.lines, "binary": s.binary}
+        if s.media_width is not None and s.media_height is not None:
+            entry["media_width"], entry["media_height"] = s.media_width, s.media_height
+        cached[sha] = entry
+    if fresh:
+        cache_save_blobs(root_path, cached)
+
+    # Ref-correct created/modified dates + the commit list, walked from the
+    # resolved sha (not HEAD).
+    git_created, git_modified, commits = _collect_git_history(
+        root_path, use_cache=use_cache, ref=commit_sha
+    )
+
+    children_map = _dir_children_from_paths(by_path.keys())
+    sig = hashlib.blake2b(digest_size=16)
+
+    def list_children(rel_dir: str) -> list[tuple[str, str, bool]]:
+        return children_map.get(rel_dir, [])
+
+    def make_file_node(name: str, rel_path: str) -> FileNode:
+        blob = by_path[rel_path]
+        stats = cached.get(blob.sha, {"lines": 0, "binary": False})
+        # mtime 0.0 + dirty False: a committed ref has no working-tree mtime and
+        # can't be dirty. This makes content_signature diverge from a live scan
+        # (expected — the ref manifest is keyed by ref sha, not content_sig).
+        _hash_file_entry(sig, rel_path, blob.size, 0.0, False)
+        ext = _extension(name)
+        node: FileNode = {
+            "name": name,
+            "type": NodeKind.FILE,
+            "path": rel_path,
+            "fullPath": f"{root_abs}/{rel_path}",
+            "extension": ext,
+            "mediaKind": media_kind(ext),
+            "size": blob.size,
+            "lines": stats["lines"],
+            "binary": stats["binary"],
+            "dirty": False,
+            "created": git_created.get(rel_path, ""),
+            "modified": git_modified.get(rel_path, ""),
+        }
+        if "media_width" in stats and "media_height" in stats:
+            node["media_width"] = stats["media_width"]
+            node["media_height"] = stats["media_height"]
+        return node
+
+    tree = _build_tree(
+        root_abs, ".", list_children=list_children, make_file_node=make_file_node
+    )
+    signals = _derive_tree_signals(tree)
+    repo_info = _reconstructed_repo_info(root_path, commit_sha)
+    return _wrap_manifest(root_abs, tree, sig, signals, repo_info, commits)

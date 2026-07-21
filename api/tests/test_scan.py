@@ -2223,5 +2223,91 @@ def test_build_tree_callable_seam_matches_live_scan(tmp_path):
     )
 
 
+def _tree_file_paths(manifest: Manifest) -> set[str]:
+    paths: set[str] = set()
+
+    def walk(n):
+        if n["type"] == "file":
+            paths.add(n["path"])
+        else:
+            for c in n["children"]:
+                walk(c)
+
+    walk(manifest["tree"])
+    return paths
+
+
+def _tree_file_stats(manifest: Manifest) -> dict[str, tuple[int, int, bool]]:
+    """{path -> (size, lines, binary)} for every file node — the fields the
+    reconstruction guard compares against a live scan (content_signature is
+    NOT compared: it hashes real fs mtime, which a ref reconstruction lacks)."""
+    stats: dict[str, tuple[int, int, bool]] = {}
+
+    def walk(n):
+        if n["type"] == "file":
+            stats[n["path"]] = (n["size"], n["lines"], n["binary"])
+        else:
+            for c in n["children"]:
+                walk(c)
+
+    walk(manifest["tree"])
+    return stats
+
+
+def test_reconstruct_at_old_ref_shrinks_city(tmp_path):
+    from api.services.scan import reconstruct_manifest, _run_git
+
+    _init_repo(tmp_path)
+    (tmp_path / "a.txt").write_text("1\n")
+    _commit_all(tmp_path, "c1")
+    old = _run_git(tmp_path, "rev-parse", "HEAD").strip()
+    (tmp_path / "b.txt").write_text("2\n")
+    _commit_all(tmp_path, "c2")
+
+    m_old = reconstruct_manifest(str(tmp_path), old, use_cache=False)
+    assert _tree_file_paths(m_old) == {"a.txt"}  # b.txt didn't exist yet
+    assert m_old["repo"]["dirty"] is False
+    assert len(m_old["commits"]) == 1
+
+
+def test_reconstruct_bad_ref_raises(tmp_path):
+    from api.services.scan import reconstruct_manifest
+
+    _init_repo(tmp_path)
+    (tmp_path / "a.txt").write_text("1\n")
+    _commit_all(tmp_path, "c1")
+    with pytest.raises(ValueError):
+        reconstruct_manifest(str(tmp_path), "--upload-pack=x", use_cache=False)
+
+
+def test_reconstruct_head_matches_live_scan(tmp_path):
+    """Reconstructing HEAD must reproduce a live scan's structure + layout
+    signatures and per-file (size, lines, binary). This is the Task-4 guard:
+    reconstruction and the live walk share _build_tree, so any divergence in
+    ordering/structure surfaces here. content_signature is intentionally NOT
+    compared (it hashes fs mtime, absent in a ref reconstruction)."""
+    from api.services.scan import reconstruct_manifest
+
+    _init_repo(tmp_path)
+    (tmp_path / "README.md").write_text("# title\nsecond line\n")
+    (tmp_path / "config.json").write_text('{"a": 1}\n')
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "main.py").write_text("print('hi')\nprint('bye')\n")
+    (tmp_path / "src" / "util.py").write_text("x = 1\n")
+    (tmp_path / "src" / "lib").mkdir()
+    (tmp_path / "src" / "lib" / "helper.ts").write_text("export const a = 1\n")
+    (tmp_path / "src" / "lib" / "types.ts").write_text("export type T = number\n")
+    (tmp_path / "docs").mkdir()
+    (tmp_path / "docs" / "guide.md").write_text("a\nb\nc\n")
+    _commit_all(tmp_path, "c1")
+
+    live = _final_manifest(str(tmp_path), use_cache=False)
+    recon = reconstruct_manifest(str(tmp_path), "HEAD", use_cache=False)
+
+    assert recon["structure_signature"] == live["structure_signature"]
+    assert recon["layout_signature"] == live["layout_signature"]
+    assert _tree_file_stats(recon) == _tree_file_stats(live)
+
+
 if __name__ == "__main__":
     unittest.main()
