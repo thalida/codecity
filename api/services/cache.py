@@ -257,7 +257,8 @@ def cache_load_blobs(abs_root: Path) -> dict[str, "BlobEntry"]:
 
 def cache_save_blobs(abs_root: Path, entries: dict[str, "BlobEntry"]) -> None:
     """Union-merge write of the blob-stats cache (callers pass the merged
-    dict). Atomic; swallowed on OSError like the other caches."""
+    dict). Atomic; swallows OSError on save, same as cache_save_manifest —
+    a cache write failure must never break the response."""
     payload = {"version": _BLOB_STATS_CACHE_VERSION, "entries": entries}
     try:
         _atomic_write(_blob_cache_path(abs_root), json.dumps(payload))
@@ -448,7 +449,8 @@ def cache_clear_manifests(abs_root: Path) -> int:
 
 def cache_clear_all(abs_root: Path) -> int:
     """Delete EVERY per-root cache for this root — manifest (all
-    signatures), file-stat, and git-history. Returns the count deleted.
+    signatures), file-stat, git-history, and blob-stats. Returns the count
+    deleted.
 
     Backs the "clear cache" flow's clean-slate guarantee for a source.
     The git clone working tree lives outside CACHE_ROOT, so the caller

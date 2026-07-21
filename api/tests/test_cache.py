@@ -662,6 +662,7 @@ def test_blob_stats_cache_roundtrip(tmp_path, monkeypatch):
     loaded = cache.cache_load_blobs(root)
     assert loaded["a" * 40] == {"lines": 12, "binary": False}
     assert loaded["b" * 40]["media_width"] == 4
+    assert loaded["b" * 40]["media_height"] == 8
 
 
 def test_blob_stats_cache_version_mismatch_is_miss(tmp_path, monkeypatch):
