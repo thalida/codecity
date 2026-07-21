@@ -21,6 +21,28 @@ type FlatMesh = THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial>;
 // Stadium-cap tessellation count for the asphalt + sidewalk shapes.
 const STADIUM_SEGMENTS = 16;
 
+// Inject a per-vertex `aOpacity` float into a MeshBasicMaterial so streets can
+// fade during Timeline scrubbing. The material stays `transparent: false` by
+// default, so the alpha is written but never blended (opaque pass disables
+// blending) → rendering is byte-identical to the un-injected material until
+// setStreetsTransparent flips it on.
+function injectStreetOpacity(mat: THREE.MeshBasicMaterial): void {
+  mat.onBeforeCompile = (shader) => {
+    shader.vertexShader = shader.vertexShader
+      .replace('#include <common>', '#include <common>\nattribute float aOpacity;\nvarying float vOpacity;')
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvOpacity = aOpacity;');
+    shader.fragmentShader = shader.fragmentShader
+      .replace('#include <common>', '#include <common>\nvarying float vOpacity;')
+      .replace('#include <dithering_fragment>', '#include <dithering_fragment>\ngl_FragColor.a *= vOpacity;');
+  };
+}
+
+// Per-vertex opacity attribute (all 1) for a merged street geometry.
+function seedOpacityAttribute(geo: THREE.BufferGeometry): void {
+  const opacity = new Float32Array(geo.attributes.position.count).fill(1);
+  geo.setAttribute('aOpacity', new THREE.BufferAttribute(opacity, 1));
+}
+
 // Ground-plane materials — all the flat pieces (sidewalk, asphalt,
 // paths) sit at the same world Y. `polygonOffset` alone isn't enough
 // to kill z-fighting between coplanar meshes at typical camera
@@ -152,6 +174,16 @@ export interface SidewalkRange {
   faceStart: number;
 }
 
+// Per-street vertex span within the merged asphalt mesh — for fading a street's
+// asphalt (aOpacity) in lockstep with its sidewalk. Asphalt is never picked, so
+// this carries no face map. Asphalt spans differ from sidewalk spans (a separate,
+// narrower stadium), so opacity writes need their own ranges.
+export interface AsphaltRange {
+  street: StreetWithJoin;
+  vStart: number;
+  vCount: number;
+}
+
 // createMergedSidewalkMesh(streets) -> ONE mesh holding every sidewalk slab,
 // collapsing ~8k draw calls to 1. Sidewalks are still individually pickable +
 // tintable, so unlike asphalt this carries a per-vertex color attribute (hover/
@@ -192,6 +224,7 @@ export function createMergedSidewalkMesh(
     colors[i * 3 + 2] = def.b;
   }
   merged.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+  seedOpacityAttribute(merged);
 
   const mat = new THREE.MeshBasicMaterial({
     color: 0xffffff,
@@ -201,6 +234,7 @@ export function createMergedSidewalkMesh(
     polygonOffsetFactor: -RENDER_ORDERS.SIDEWALK,
     polygonOffsetUnits: -RENDER_ORDERS.SIDEWALK,
   });
+  injectStreetOpacity(mat);
   const mesh = new THREE.Mesh(merged, mat) as FlatMesh;
   mesh.renderOrder = RENDER_ORDERS.SIDEWALK;
   mesh.name = 'city-sidewalk';
@@ -256,17 +290,30 @@ export function buildAsphaltGeometry(street: StreetWithJoin, yBase: number): THR
 // createMergedAsphaltMesh(streets) -> ONE mesh holding every street's asphalt.
 // Baking all asphalt pills into a single geometry collapses ~8k draw calls (two
 // per street) to one — the biggest render-load win at Linux scale, since asphalt
-// is a single solid color and never picked. Returns null for an empty layout.
-export function createMergedAsphaltMesh(streets: StreetWithJoin[], yBase: number): FlatMesh | null {
+// is a single solid color and never picked. Returns per-street vertex ranges so
+// Timeline mode can fade a street's asphalt (aOpacity). Null for an empty layout.
+export function createMergedAsphaltMesh(
+  streets: StreetWithJoin[],
+  yBase: number
+): { mesh: FlatMesh; ranges: AsphaltRange[] } | null {
   if (streets.length === 0) return null;
-  const geos = streets.map((s) => buildAsphaltGeometry(s, yBase));
+  const geos: THREE.BufferGeometry[] = [];
+  const ranges: AsphaltRange[] = [];
+  let vAcc = 0;
+  for (const s of streets) {
+    const geo = buildAsphaltGeometry(s, yBase);
+    const vCount = geo.attributes.position.count;
+    ranges.push({ street: s, vStart: vAcc, vCount });
+    vAcc += vCount;
+    geos.push(geo);
+  }
   const merged = mergeGeometries(geos, false);
   for (const g of geos) g.dispose();
-  const mesh = new THREE.Mesh(
-    merged,
-    flatGroundMaterial(STREETS.value.ASPHALT_COLOR, RENDER_ORDERS.ASPHALT)
-  ) as FlatMesh;
+  seedOpacityAttribute(merged);
+  const mat = flatGroundMaterial(STREETS.value.ASPHALT_COLOR, RENDER_ORDERS.ASPHALT);
+  injectStreetOpacity(mat);
+  const mesh = new THREE.Mesh(merged, mat) as FlatMesh;
   mesh.renderOrder = RENDER_ORDERS.ASPHALT;
   mesh.name = 'city-asphalt';
-  return mesh;
+  return { mesh, ranges };
 }

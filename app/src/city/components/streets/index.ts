@@ -18,12 +18,17 @@ import { effect, untracked } from '@preact/signals';
 
 import { STREETS } from '@/state/stores/settings/streets';
 import { NodeKind, StreetAxis } from '@/types';
-import type { CityLayout } from '@/types';
+import type { CityLayout, Street } from '@/types';
 
 import type { FrameContext, SceneComponent, SceneContext } from '../../types';
 import { armOnFirstTick } from '../../utils/armOnFirstTick';
 import { onSettings } from '../../utils/onSettings';
-import { createMergedSidewalkMesh, createMergedAsphaltMesh, type SidewalkRange } from './streets';
+import {
+  createMergedSidewalkMesh,
+  createMergedAsphaltMesh,
+  type SidewalkRange,
+  type AsphaltRange,
+} from './streets';
 import { createStreetLabels } from './streetLabels';
 import { disposeObject3D } from '@/city/utils/disposeObject3D';
 
@@ -49,6 +54,15 @@ export interface Streets extends SceneComponent {
   getPickables(): FlatMesh[];
   /** Sidewalk lookup by street directory path. */
   getSidewalkByDir(path: string): FlatMesh | null;
+  /** Per-street sidewalk spans (street + vertex range), for Timeline scrubbing. */
+  getStreetRanges(): SidewalkRange[];
+  /** Fade one street: write `opacity` across its span on both the sidewalk and
+   *  asphalt merged meshes (needsUpdate deduped to one GPU upload per call). */
+  setStreetOpacity(street: Street, opacity: number): void;
+  /** Move both street materials into (or out of) the transparent render pass.
+   *  Timeline mode enables it on enter; live mode never does, so streets stay
+   *  opaque and byte-identical. */
+  setStreetsTransparent(on: boolean): void;
 }
 
 export function createStreets(ctx: SceneContext): Streets {
@@ -70,6 +84,9 @@ export function createStreets(ctx: SceneContext): Streets {
   let sidewalkRanges: SidewalkRange[] = [];
   let sidewalkRangeByPath = new Map<string, SidewalkRange>();
   let asphaltMesh: FlatMesh | null = null;
+  // Sidewalk + asphalt vertex spans per street, for setStreetOpacity. Both merged
+  // meshes are built from the same streets array in order, so index i lines up.
+  let opacityRangeByStreet = new Map<Street, { sidewalk: SidewalkRange; asphalt: AsphaltRange | null }>();
   let labelGroups: THREE.Group[] = [];
   // Dir paths currently tinted non-default (selection + hover), so a tint refresh
   // rewrites only the changed streets' vertex spans, not the whole color buffer.
@@ -109,6 +126,47 @@ export function createStreets(ctx: SceneContext): Streets {
       arr[v * 3 + 2] = c.b;
     }
     attr.addUpdateRange(range.vStart * 3, range.vCount * 3);
+  }
+
+  // Write one street's vertex-opacity span in a merged street mesh, queuing a
+  // partial GPU upload for just that span (mirrors _writeStreetColor). Caller
+  // flips needsUpdate once per setStreetOpacity call (deduped).
+  function _writeOpacitySpan(
+    mesh: FlatMesh,
+    vStart: number,
+    vCount: number,
+    opacity: number
+  ): void {
+    const attr = mesh.geometry.getAttribute('aOpacity') as THREE.BufferAttribute;
+    const arr = attr.array as Float32Array;
+    for (let v = vStart; v < vStart + vCount; v++) arr[v] = opacity;
+    attr.addUpdateRange(vStart, vCount);
+  }
+
+  // setStreetOpacity(street, opacity) — fade one street by writing its span on
+  // both merged meshes. No-op for an unknown street (e.g. pre-rebuild).
+  function setStreetOpacity(street: Street, opacity: number): void {
+    const r = opacityRangeByStreet.get(street);
+    if (!r) return;
+    if (sidewalkMesh) {
+      _writeOpacitySpan(sidewalkMesh, r.sidewalk.vStart, r.sidewalk.vCount, opacity);
+      (sidewalkMesh.geometry.getAttribute('aOpacity') as THREE.BufferAttribute).needsUpdate = true;
+    }
+    if (asphaltMesh && r.asphalt) {
+      _writeOpacitySpan(asphaltMesh, r.asphalt.vStart, r.asphalt.vCount, opacity);
+      (asphaltMesh.geometry.getAttribute('aOpacity') as THREE.BufferAttribute).needsUpdate = true;
+    }
+  }
+
+  // setStreetsTransparent(on) — flip both street materials in/out of the
+  // transparent render pass. Live mode never calls it → streets stay opaque and
+  // byte-identical; Timeline mode enables it on enter so aOpacity can blend.
+  function setStreetsTransparent(on: boolean): void {
+    for (const m of [sidewalkMesh, asphaltMesh]) {
+      if (!m || m.material.transparent === on) continue;
+      m.material.transparent = on;
+      m.material.needsUpdate = true;
+    }
   }
 
   // _refreshSidewalkTints() — recolor the selection/hover streets' vertex spans
@@ -183,8 +241,19 @@ export function createStreets(ctx: SceneContext): Streets {
     pickables = sidewalkMesh ? [sidewalkMesh] : [];
     if (sidewalkMesh) group.add(sidewalkMesh);
 
-    asphaltMesh = createMergedAsphaltMesh(streets, 0);
+    const asphaltBuilt = createMergedAsphaltMesh(streets, 0);
+    asphaltMesh = asphaltBuilt?.mesh ?? null;
     if (asphaltMesh) group.add(asphaltMesh);
+
+    // Pair each street's sidewalk + asphalt span (same build order in both meshes).
+    opacityRangeByStreet = new Map();
+    const asphaltRanges = asphaltBuilt?.ranges ?? [];
+    for (let i = 0; i < sidewalkRanges.length; i++) {
+      opacityRangeByStreet.set(sidewalkRanges[i].street, {
+        sidewalk: sidewalkRanges[i],
+        asphalt: asphaltRanges[i] ?? null,
+      });
+    }
 
     // Labels for every street. Their DRAW cost is culled per-frame in tick()
     // (hidden once they project too small to read), not by dropping them at
@@ -355,5 +424,8 @@ export function createStreets(ctx: SceneContext): Streets {
     // ONE merged mesh now; the picker raycasts it and resolves faceIndex→street.
     getPickables: () => pickables,
     getSidewalkByDir: (p) => (sidewalkRangeByPath.has(p) ? sidewalkMesh : null),
+    getStreetRanges: () => sidewalkRanges,
+    setStreetOpacity,
+    setStreetsTransparent,
   };
 }
