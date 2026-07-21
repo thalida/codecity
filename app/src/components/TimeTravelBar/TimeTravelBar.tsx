@@ -80,7 +80,7 @@ export function TimeTravelBar() {
         />
         <button
           type="button"
-          class="setting-row-reset"
+          class="setting-row-reset time-travel-reset"
           title="Back to live"
           aria-label="Back to live"
           disabled={ref === null}

@@ -11,8 +11,7 @@
   display: flex;
   flex-direction: column;
   gap: var(--cc-space-4);
-  /* Tighter right padding seats the reset near the edge; left keeps the slider inset. */
-  padding: var(--cc-space-5) var(--cc-space-3) var(--cc-space-5) var(--cc-space-7);
+  padding: var(--cc-space-5) var(--cc-space-3);
   width: min(32rem, calc(100% - var(--cc-space-9) * 2));
   background: color-mix(in oklch, var(--cc-bg-modal) 78%, transparent);
   border-radius: var(--cc-radius-lg);
@@ -29,6 +28,11 @@
 .time-travel-history {
   flex: 0 0 auto;
   color: var(--cc-text-muted);
+}
+
+/* Bare glyph like the history icon (no side padding) so both sit symmetrically. */
+.time-travel-reset {
+  padding-inline: 0;
 }
 
 .time-travel-slider {
