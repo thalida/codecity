@@ -269,7 +269,7 @@ def build_authors_list(primary: str, trailers_raw: str) -> list[str]:
 
 
 def _collect_git_dates(
-    root: Path,
+    root: Path, ref: str | None = None
 ) -> tuple[dict[str, str], dict[str, str], list[CommitEntry]]:
     """One newest→oldest `git log --name-status` walk that populates
     both created_map and modified_map in a single pass, and also
@@ -307,6 +307,8 @@ def _collect_git_dates(
         "--no-renames",
         "--diff-merges=first-parent",
     ]
+    if ref is not None:
+        log_argv.append(ref)  # a resolved sha; limits the walk to its ancestors
     try:
         proc = subprocess.Popen(
             log_argv,
@@ -422,40 +424,45 @@ def _collect_git_history(
     root: Path,
     *,
     use_cache: bool = True,
+    ref: str | None = None,
 ) -> tuple[dict[str, str], dict[str, str], list[CommitEntry]]:
     """Return (created_map, modified_map, commits).
 
     - created_map[path]  = ISO date of most recent ``A``-event for path
-                           across the full git history. Files never
+                           across the walked history. Files never
                            added are absent.
     - modified_map[path] = ISO date of most recent commit touching the
                            path. Untouched files are absent.
     - commits            = oldest-first list of CommitEntry (date, files, sha)
-                           for each commit in the history.
+                           for each commit in the walked history.
 
     Single `git log --name-status --no-renames` walk populates both
-    maps in one pass. With ``use_cache=True`` (default), the HEAD-keyed
-    git-history cache short-circuits the walk when HEAD hasn't moved.
+    maps in one pass. With ``use_cache=True`` (default), the cache
+    short-circuits the walk when the key hasn't moved.
+
+    ``ref``, when given, must already be a resolved sha (immutable) —
+    the walk starts there instead of HEAD, and the cache keys on it
+    directly rather than re-resolving HEAD each call.
     """
-    head_sha = _run_git(root, "rev-parse", "HEAD").strip()
-    if use_cache and head_sha:
-        cached = cache_load_git_history(root, head_sha)
+    key_sha = ref if ref is not None else _run_git(root, "rev-parse", "HEAD").strip()
+    if use_cache and key_sha:
+        cached = cache_load_git_history(root, key_sha)
         if cached is not None:
             created, modified, commits = cached
             return created, modified, commits
 
     _log("  collecting creation + modified dates…")
-    created, modified, commits = _collect_git_dates(root)
+    created, modified, commits = _collect_git_dates(root, ref)
     _log(
         f"    {len(created)} created, {len(modified)} modified, {len(commits)} commits"
     )
 
-    # Always write the cache (only `head_sha` is required to key it) —
+    # Always write the cache (only `key_sha` is required to key it) —
     # `use_cache` gates the READ above, not the write. A skip-cache scan
     # still refreshes the cache so the next normal run is up to date.
-    if head_sha:
+    if key_sha:
         try:
-            cache_save_git_history(root, head_sha, created, modified, commits)
+            cache_save_git_history(root, key_sha, created, modified, commits)
         except OSError:
             # Cache failures (disk full, permission denied, read-only fs)
             # must never block a scan. The next run will retry the write.

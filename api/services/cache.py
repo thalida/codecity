@@ -75,7 +75,7 @@ class BlobEntry(TypedDict):
 # treated as a miss and re-scanned. (Per-bump rationale lives in git history.)
 _FILE_CACHE_VERSION = 1
 _BLOB_STATS_CACHE_VERSION = 1  # blob_sha -> (lines, binary, media dims)
-_GIT_HISTORY_CACHE_VERSION = 12  # v12: dates UTC-normalized (file maps + commit days)
+_GIT_HISTORY_CACHE_VERSION = 13  # v13: key generalized head_sha -> commit_sha (any ref)
 _MANIFEST_SCHEMA_VERSION = (
     # v12: per-dir descendants_created_min / descendants_modified_max
     # v13: ext_breakdown `ext` is null (was "(none)") for extensionless files
@@ -272,9 +272,11 @@ def _git_history_cache_path(abs_root: Path) -> Path:
 
 def cache_load_git_history(
     abs_root: Path,
-    head_sha: str,
+    commit_sha: str,
 ) -> tuple[dict[str, str], dict[str, str], list["CommitEntry"]] | None:
-    """Load git-history maps + commits if cached for this root + HEAD.
+    """Load git-history maps + commits if cached for this root + commit.
+
+    ``commit_sha`` may be HEAD or any other resolved ref sha.
 
     Returns None on miss or any error."""
     path = _git_history_cache_path(abs_root)
@@ -287,7 +289,7 @@ def cache_load_git_history(
     raw = cast(dict[str, object], parsed)
     if raw.get("version") != _GIT_HISTORY_CACHE_VERSION:
         return None
-    if raw.get("head_sha") != head_sha:
+    if raw.get("commit_sha") != commit_sha:
         return None
     created_raw = raw.get("created")
     modified_raw = raw.get("modified")
@@ -347,16 +349,16 @@ def cache_load_git_history(
 
 def cache_save_git_history(
     abs_root: Path,
-    head_sha: str,
+    commit_sha: str,
     created: dict[str, str],
     modified: dict[str, str],
     commits: list["CommitEntry"],
 ) -> None:
-    """Atomically write the git-history cache for this root + HEAD."""
+    """Atomically write the git-history cache for this root + commit."""
     payload = {
         "version": _GIT_HISTORY_CACHE_VERSION,
         "root": str(abs_root),
-        "head_sha": head_sha,
+        "commit_sha": commit_sha,
         "created": created,
         "modified": modified,
         "commits": commits,

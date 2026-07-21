@@ -189,7 +189,7 @@ class GitHistoryCacheTests(CacheTestBase):
         bad = {
             "version": 999,
             "root": str(root),
-            "head_sha": "abc",
+            "commit_sha": "abc",
             "created": {},
             "modified": {},
         }
@@ -205,7 +205,7 @@ class GitHistoryCacheTests(CacheTestBase):
         payload = {
             "version": cache_mod._GIT_HISTORY_CACHE_VERSION,
             "root": str(root),
-            "head_sha": "abc",
+            "commit_sha": "abc",
             "created": {
                 "good.py": "2024-01-01T00:00:00Z",
                 "bad.py": 12345,  # not a string
@@ -244,7 +244,7 @@ class GitHistoryCacheTests(CacheTestBase):
         ]
         cache_mod.cache_save_git_history(
             root,
-            head_sha="abc",
+            commit_sha="abc",
             created={"a.py": "2024-01-01"},
             modified={"a.py": "2024-02-15"},
             commits=commits,
@@ -268,7 +268,7 @@ class GitHistoryCacheTests(CacheTestBase):
                 {
                     "version": cache_mod._GIT_HISTORY_CACHE_VERSION,
                     "root": str(root),
-                    "head_sha": "abc",
+                    "commit_sha": "abc",
                     "created": {},
                     "modified": {},
                     "commits": [
@@ -389,7 +389,7 @@ class GitHistoryCacheTests(CacheTestBase):
         # Simulate a cache file with the previous version number.
         old = {
             "version": cache_mod._GIT_HISTORY_CACHE_VERSION - 1,
-            "head_sha": "HEADSHA",
+            "commit_sha": "HEADSHA",
             "created": {},
             "modified": {},
             "commits": [{"date": "2026-03-12", "files": 1}],
@@ -408,7 +408,7 @@ class GitHistoryCacheTests(CacheTestBase):
                 {
                     "version": 2,
                     "root": str(root),
-                    "head_sha": "abc",
+                    "commit_sha": "abc",
                     "created": {},
                     "modified": {},
                 }

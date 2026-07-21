@@ -1610,6 +1610,25 @@ class GitHistoryCacheTests(_CacheRedirectMixin, unittest.TestCase):
             new_file.unlink(missing_ok=True)
 
 
+def test_history_as_of_ref_excludes_future_commits(tmp_path):
+    from api.services.scan import _collect_git_history, _run_git
+
+    _init_repo(tmp_path)
+    (tmp_path / "a.txt").write_text("1\n")
+    _commit_all(tmp_path, "c1")
+    ref = _run_git(tmp_path, "rev-parse", "HEAD").strip()
+    # A later commit modifies a.txt; the ref-bound walk must not see it.
+    (tmp_path / "a.txt").write_text("1\n2\n")
+    (tmp_path / "b.txt").write_text("new\n")
+    _commit_all(tmp_path, "c2")
+
+    created, modified, commits = _collect_git_history(
+        tmp_path, use_cache=False, ref=ref
+    )
+    assert "b.txt" not in modified  # b.txt didn't exist at ref
+    assert len(commits) == 1        # only c1 is an ancestor of ref
+
+
 class FileStatCacheTests(_CacheRedirectMixin, unittest.TestCase):
     """Warm runs of scan_tree should hit the file-stat cache for
     unchanged files and skip _is_binary + _line_count entirely."""
