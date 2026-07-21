@@ -2,6 +2,7 @@
 
 import './TimeTravelBar.css';
 import { signal, effect } from '@preact/signals';
+import { useState, useRef, useEffect } from 'preact/hooks';
 import { History } from 'lucide-preact';
 import { MANIFEST } from '@/state/stores/manifest';
 import { CURRENT_SOURCE_KEY } from '@/state/stores/source';
@@ -30,18 +31,30 @@ effect(() => {
 
 export function TimeTravelBar() {
   const axis = AXIS.value;
-  if (axis.length < 2) return null;
-
   const ref = TIME_TRAVEL_REF.value;
   const headIndex = axis.length - 1;
   const refIndex = ref === null ? -1 : axis.findIndex((c) => c.sha === ref);
-  const index = refIndex === -1 ? headIndex : refIndex;
-  const commit = axis[index];
+  const derived = refIndex === -1 ? headIndex : refIndex;
 
-  const onChange = (e: Event) => {
+  // pos drives the thumb so it tracks the drag before the (debounced) load lands.
+  const [pos, setPos] = useState(derived);
+  const timer = useRef<number | null>(null);
+  useEffect(() => setPos(derived), [derived]);
+
+  if (axis.length < 2) return null;
+
+  const commit = axis[Math.min(Math.max(pos, 0), headIndex)];
+
+  const onInput = (e: Event) => {
     const i = Number((e.currentTarget as HTMLInputElement).value);
-    if (i === headIndex) exitTimeTravel();
-    else void loadRef(axis[i].sha);
+    setPos(i);
+    // Debounce: a drag = one load on settle, not one per step.
+    if (timer.current !== null) clearTimeout(timer.current);
+    timer.current = window.setTimeout(() => {
+      timer.current = null;
+      if (i === headIndex) exitTimeTravel();
+      else void loadRef(axis[i].sha);
+    }, 150);
   };
 
   return (
@@ -51,8 +64,8 @@ export function TimeTravelBar() {
         class="setting-slider time-travel-slider"
         min={String(0)}
         max={String(headIndex)}
-        value={String(index)}
-        onChange={onChange}
+        value={String(pos)}
+        onInput={onInput}
         aria-label="Scrub commit history"
       />
       <div class="time-travel-info">

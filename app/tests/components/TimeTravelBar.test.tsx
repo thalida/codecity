@@ -32,9 +32,10 @@ describe('TimeTravelBar', () => {
     MANIFEST.value = null;
     TIME_TRAVEL_REF.value = null;
     vi.restoreAllMocks();
+    vi.useRealTimers();
   });
 
-  it('slider spans the full commit history and jumps on change', async () => {
+  it('spans the full history and loads the settled commit after the debounce', async () => {
     const loadRefSpy = vi.spyOn(useManifestSourceModule, 'loadRef').mockResolvedValue(undefined);
 
     const old = commit('aaaaaaa1111111111111111111111111111111', '2026-01-01', 'oldest');
@@ -50,10 +51,11 @@ describe('TimeTravelBar', () => {
     expect(input).not.toBeNull();
     expect(input.max).toBe('2');
 
+    vi.useFakeTimers();
     input.value = '0';
-    input.dispatchEvent(new Event('change', { bubbles: true }));
-    await flush();
-
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    expect(loadRefSpy).not.toHaveBeenCalled(); // debounced, not immediate
+    vi.advanceTimersByTime(150);
     expect(loadRefSpy).toHaveBeenCalledWith(old.sha);
   });
 });

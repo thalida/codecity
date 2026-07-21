@@ -211,8 +211,10 @@ export function cancelLoad(): void {
   loadController?.abort();
 }
 
-// Load a past ref of CURRENT_SOURCE in place: shares loadSource's generation
-// guard, but leaves CURRENT_SOURCE/recents alone and skips the skeleton.
+// Load a past ref of CURRENT_SOURCE in place. Streams the final directly (like
+// the live-update refresh) instead of via pumpManifestStream, so it never writes
+// SCAN_PROGRESS: no loading overlay, the scene tween carries the morph. Shares
+// the generation guard; leaves CURRENT_SOURCE/recents alone.
 export async function loadRef(sha: string): Promise<void> {
   const cur = CURRENT_SOURCE.peek();
   if (!cur) return;
@@ -220,7 +222,6 @@ export async function loadRef(sha: string): Promise<void> {
   loadController?.abort();
   const controller = new AbortController();
   loadController = controller;
-  const meta = { kind: srcKind(cur.src), branch: cur.branch };
   try {
     const url = manifestUrlFor({
       src: cur.src,
@@ -228,14 +229,12 @@ export async function loadRef(sha: string): Promise<void> {
       ref: sha,
       exclude: activeExcludePathsFor(cur.src),
     });
-    await pumpManifestStream(
-      url,
-      meta,
-      (m, phase) => {
-        if (phase === ScanPhase.CompleteManifest && myGen === loadGeneration) setManifest(m);
-      },
-      controller.signal
-    );
+    for await (const event of streamManifest(url, { signal: controller.signal })) {
+      if (event.phase === ScanPhase.Error) throw new Error(event.error);
+      if (event.phase !== ScanPhase.CompleteManifest) continue;
+      if (myGen !== loadGeneration) return;
+      setManifest(event.manifest);
+    }
     if (myGen !== loadGeneration || controller.signal.aborted) return;
     TIME_TRAVEL_REF.value = sha; // pin AFTER a successful apply
   } catch (err) {
@@ -245,13 +244,7 @@ export async function loadRef(sha: string): Promise<void> {
       prefill: { src: cur.src, branch: cur.branch },
     };
   } finally {
-    // Authoritative-gen only: a superseded call must not clear the overlay
-    // out from under a newer load.
-    if (myGen === loadGeneration) {
-      SCAN_PROGRESS.value = null;
-      PENDING_SOURCE_LABEL.value = null;
-      if (loadController === controller) loadController = null;
-    }
+    if (myGen === loadGeneration && loadController === controller) loadController = null;
   }
 }
 
