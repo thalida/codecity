@@ -144,7 +144,9 @@ def blob_stats_batch(
         i += size + 1  # trailing newline after content
         binary = is_binary_bytes(content)
         lines = 0 if binary else content.count(b"\n")
-        mw, mh = probe_media_dims_from_bytes(content) if sha in media_shas else (None, None)
+        mw, mh = (
+            probe_media_dims_from_bytes(content) if sha in media_shas else (None, None)
+        )
         result[sha] = BlobStats(
             lines=lines, binary=binary, media_width=mw, media_height=mh
         )
