@@ -62,6 +62,23 @@ export function linesAt(pt: PathTimeline, pos: number): number {
   return a.lines + (b.lines - a.lines) * t;
 }
 
+// Latest change index <= pos, for scrub-relative recency (weathering).
+export function lastModifiedIndexAt(pt: PathTimeline, pos: number): number {
+  const { changes } = pt;
+  if (changes.length === 0) return 0;
+  if (pos <= changes[0].i) return changes[0].i;
+  if (pos >= changes[changes.length - 1].i) return changes[changes.length - 1].i;
+
+  let lo = 0;
+  let hi = changes.length - 1;
+  while (hi - lo > 1) {
+    const mid = (lo + hi) >> 1;
+    if (changes[mid].i <= pos) lo = mid;
+    else hi = mid;
+  }
+  return changes[lo].i;
+}
+
 export function presenceAt(pt: PathTimeline, pos: number, ruinFloor: number): number {
   if (pt.intervals.length === 0 || pos < pt.intervals[0].start) return 0;
 

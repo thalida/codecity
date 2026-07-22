@@ -1,13 +1,16 @@
 import * as THREE from 'three';
-import { beforeEach, expect, test } from 'vitest';
+import { afterEach, beforeEach, expect, test } from 'vitest';
 
 import { buildPathTimelines } from '@/city/timeline/replay';
 import { createScrubController, RUIN_FLOOR } from '@/city/timeline/scrubController';
 import { buildingHeightForLines } from '@/city/layout/dimensions';
 import type { HeightContext } from '@/city/layout/dimensions';
-import { SCRUB_POS } from '@/state/stores/timeline';
+import { SCRUB_POS, TIMELINE_BUNDLE } from '@/state/stores/timeline';
 import { BuildingIndex } from '@/city/components/buildings/buildingIndex';
 import type { InstancedAdPanels } from '@/city/components/buildings/adPanels';
+import { getBuildingColorForRecency } from '@/city/components/buildings/color';
+import { BUILDINGS } from '@/state/stores/settings/buildings';
+import type { BuildingsConfig } from '@/state/stores/settings/buildings';
 import type { Building, FileNode, Street, TimelineBundle } from '@/types';
 import { ROOT_PATH } from '@/constants/manifest';
 
@@ -85,6 +88,9 @@ function makeFakeMesh() {
   let iFadeZ = 0;
   let iFadeUpdates = 0;
   let matUpdates = 0;
+  let lastColor: THREE.Color | null = null;
+  let colorSetCount = 0;
+  let colorUpdates = 0;
 
   const iFade = {
     getY: () => iFadeY,
@@ -105,6 +111,18 @@ function makeFakeMesh() {
   const mesh = {
     setMatrixAt: (_slot: number, m: THREE.Matrix4) => {
       lastMatrix.copy(m);
+    },
+    setColorAt: (_slot: number, c: THREE.Color) => {
+      lastColor = c.clone();
+      colorSetCount++;
+    },
+    instanceColor: {
+      set needsUpdate(v: boolean) {
+        if (v) colorUpdates++;
+      },
+      get needsUpdate() {
+        return false;
+      },
     },
     instanceMatrix: {
       set needsUpdate(v: boolean) {
@@ -138,6 +156,15 @@ function makeFakeMesh() {
     },
     get iFadeUpdates() {
       return iFadeUpdates;
+    },
+    get lastColor() {
+      return lastColor;
+    },
+    get colorSetCount() {
+      return colorSetCount;
+    },
+    get colorUpdates() {
+      return colorUpdates;
     },
   };
 }
@@ -184,6 +211,7 @@ function setup(
 
   const fake = makeFakeMesh();
   const timelines = buildPathTimelines(bundle);
+  TIMELINE_BUNDLE.value = bundle;
 
   const controller = createScrubController({
     getBuildingIndex: () => index,
@@ -201,8 +229,28 @@ function setup(
   return { b, fake, controller, timelines };
 }
 
+// Deterministic saturation/lightness range so the "fresh" vs "weathered"
+// ends of the age-color curve are easy to assert on.
+const TEST_SATURATION = { min: 20, max: 100 };
+const TEST_LIGHTNESS = { min: 25, max: 70 };
+let _origPalette: BuildingsConfig | null = null;
+
 beforeEach(() => {
   SCRUB_POS.value = 0;
+  TIMELINE_BUNDLE.value = null;
+  _origPalette = { ...BUILDINGS.value };
+  BUILDINGS.value = {
+    ...BUILDINGS.value,
+    SATURATION_MIN: TEST_SATURATION.min,
+    SATURATION_MAX: TEST_SATURATION.max,
+    LIGHTNESS_MIN: TEST_LIGHTNESS.min,
+    LIGHTNESS_MAX: TEST_LIGHTNESS.max,
+  };
+});
+
+afterEach(() => {
+  if (_origPalette) BUILDINGS.value = _origPalette;
+  TIMELINE_BUNDLE.value = null;
 });
 
 test('scaleY reflects the interpolated height at the scrub position', () => {
@@ -444,6 +492,13 @@ test('dedup: two buildings sharing one InstancedMesh set needsUpdate exactly onc
   const sharedMesh = {
     setMatrixAt: (slot: number, m: THREE.Matrix4) => {
       slotMatrices.set(slot, m.clone());
+    },
+    setColorAt: () => {},
+    instanceColor: {
+      set needsUpdate(_v: boolean) {},
+      get needsUpdate() {
+        return false;
+      },
     },
     instanceMatrix: {
       set needsUpdate(v: boolean) {
@@ -906,4 +961,153 @@ test('the ROOT street stays at opacity 1 even when every building is absent, unl
 
   expect(opacityByStreet.get(dStreet)).toBe(0);
   expect(labelOpacityByStreet.get(dStreet)).toBe(0);
+});
+
+// ── Weathering (color re-evaluated per scrub frame from scrub-relative recency) ──
+
+function colorDist(a: THREE.Color, b: THREE.Color): number {
+  return Math.hypot(a.r - b.r, a.g - b.g, a.b - b.b);
+}
+
+test('weathering: at the exact scrub position of last modification, color matches the freshest end of the reused age-color curve', () => {
+  const { fake, controller } = setup();
+  SCRUB_POS.value = 2; // f.txt's last-modified index
+  controller.update();
+
+  const expected = new THREE.Color(
+    getBuildingColorForRecency(
+      file as unknown as Parameters<typeof getBuildingColorForRecency>[0],
+      1
+    )
+  );
+  expect(fake.lastColor).not.toBeNull();
+  expect(fake.lastColor!.r).toBeCloseTo(expected.r, 5);
+  expect(fake.lastColor!.g).toBeCloseTo(expected.g, 5);
+  expect(fake.lastColor!.b).toBeCloseTo(expected.b, 5);
+});
+
+test('weathering: recency-at-scrub runs through the exact same reused color function, not a reimplementation', () => {
+  const { fake, controller } = setup();
+  SCRUB_POS.value = 2.3; // just after last-modified index (2), history span 3
+
+  controller.update();
+
+  const expectedRecency = 1 - (2.3 - 2) / 3;
+  const expected = new THREE.Color(
+    getBuildingColorForRecency(
+      file as unknown as Parameters<typeof getBuildingColorForRecency>[0],
+      expectedRecency
+    )
+  );
+  expect(fake.lastColor!.r).toBeCloseTo(expected.r, 5);
+  expect(fake.lastColor!.g).toBeCloseTo(expected.g, 5);
+  expect(fake.lastColor!.b).toBeCloseTo(expected.b, 5);
+
+  // Still much closer to the freshest end than the weathered end.
+  const fresh = new THREE.Color(
+    getBuildingColorForRecency(
+      file as unknown as Parameters<typeof getBuildingColorForRecency>[0],
+      1
+    )
+  );
+  const weathered = new THREE.Color(
+    getBuildingColorForRecency(
+      file as unknown as Parameters<typeof getBuildingColorForRecency>[0],
+      0
+    )
+  );
+  expect(colorDist(fake.lastColor!, fresh)).toBeLessThan(colorDist(fake.lastColor!, weathered));
+});
+
+test('weathering: far past its last modification, color approaches the weathered end of the curve', () => {
+  // f.txt is modified once at i=1 and never touched again through a long
+  // 11-commit history (span 10), so recency at pos=10 should read as mostly weathered.
+  const longBundle = {
+    commits: Array.from({ length: 11 }, (_, i) => ({ sha: `c${i}` })),
+    unionManifest: { tree: { name: 'r' } },
+    deltas: [
+      { sha: 'c0', changes: [] },
+      { sha: 'c1', changes: [{ path: 'f.txt', sha: 's1' }] },
+      ...Array.from({ length: 9 }, (_, i) => ({ sha: `c${i + 2}`, changes: [] })),
+    ],
+    blobLines: { s1: 6 },
+    note: null,
+  } as unknown as TimelineBundle;
+
+  const b = {
+    x: 0,
+    y: 0,
+    w: 2,
+    d: 2,
+    h: buildingHeightForLines(file, 6, heightCtx),
+    color: '#fff',
+    file,
+    cellId: 0,
+    slotId: 0,
+  } as unknown as Building;
+  const index = new BuildingIndex();
+  index.insert(b);
+  const fake = makeFakeMesh();
+  const timelines = buildPathTimelines(longBundle);
+  TIMELINE_BUNDLE.value = longBundle;
+
+  const controller = createScrubController({
+    getBuildingIndex: () => index,
+    getAdPanels: () => null,
+    getMeshForBuilding: () => ({ mesh: fake.mesh, slot: 0 }),
+    timelines,
+    heightCtx,
+    footprints: noopFootprints,
+    streets: { setStreetOpacity: () => {}, setStreetLabelOpacity: () => {} },
+    streetsByDir: {},
+    trees: noopTrees,
+    fireflies: noopFireflies,
+  });
+
+  SCRUB_POS.value = 10;
+  controller.update();
+
+  const expectedRecency = 1 - (10 - 1) / 10;
+  const expected = new THREE.Color(
+    getBuildingColorForRecency(
+      file as unknown as Parameters<typeof getBuildingColorForRecency>[0],
+      expectedRecency
+    )
+  );
+  expect(fake.lastColor!.r).toBeCloseTo(expected.r, 5);
+  expect(fake.lastColor!.g).toBeCloseTo(expected.g, 5);
+  expect(fake.lastColor!.b).toBeCloseTo(expected.b, 5);
+
+  const fresh = new THREE.Color(
+    getBuildingColorForRecency(
+      file as unknown as Parameters<typeof getBuildingColorForRecency>[0],
+      1
+    )
+  );
+  const weathered = new THREE.Color(
+    getBuildingColorForRecency(
+      file as unknown as Parameters<typeof getBuildingColorForRecency>[0],
+      0
+    )
+  );
+  expect(colorDist(fake.lastColor!, weathered)).toBeLessThan(colorDist(fake.lastColor!, fresh));
+});
+
+test('weathering: absent buildings (before creation / after deletion) are not colored', () => {
+  const { fake, controller } = setup();
+
+  SCRUB_POS.value = 0.5; // before f.txt's creation
+  controller.update();
+  expect(fake.colorSetCount).toBe(0);
+
+  SCRUB_POS.value = 3; // after deletion
+  controller.update();
+  expect(fake.colorSetCount).toBe(0);
+});
+
+test('weathering: sets instanceColor.needsUpdate exactly once per mesh', () => {
+  const { fake, controller } = setup();
+  SCRUB_POS.value = 2;
+  controller.update();
+  expect(fake.colorUpdates).toBe(1);
 });
