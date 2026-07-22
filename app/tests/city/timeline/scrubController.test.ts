@@ -3,7 +3,7 @@ import { afterEach, beforeEach, expect, test } from 'vitest';
 
 import { buildPathTimelines } from '@/city/timeline/replay';
 import { createScrubController, RUIN_FLOOR } from '@/city/timeline/scrubController';
-import { buildingHeightForLines } from '@/city/layout/dimensions';
+import { buildingHeightForLines, getBuildingDimensions } from '@/city/layout/dimensions';
 import type { HeightContext } from '@/city/layout/dimensions';
 import { SCRUB_POS, TIMELINE_BUNDLE } from '@/state/stores/timeline';
 import { BuildingIndex } from '@/city/components/buildings/buildingIndex';
@@ -91,6 +91,12 @@ function makeFakeMesh(initialFadeZ = 0) {
   let lastColor: THREE.Color | null = null;
   let colorSetCount = 0;
   let colorUpdates = 0;
+  let floors = 0;
+  let floorsUpdates = 0;
+  let modifiedAge = 0;
+  let modifiedAgeUpdates = 0;
+  let iconUvW = 0;
+  let iconUvUpdates = 0;
 
   const iFade = {
     getY: () => iFadeY,
@@ -102,6 +108,42 @@ function makeFakeMesh(initialFadeZ = 0) {
     },
     set needsUpdate(v: boolean) {
       if (v) iFadeUpdates++;
+    },
+    get needsUpdate() {
+      return false;
+    },
+  };
+
+  const iFloors = {
+    setX: (_slot: number, x: number) => {
+      floors = x;
+    },
+    set needsUpdate(v: boolean) {
+      if (v) floorsUpdates++;
+    },
+    get needsUpdate() {
+      return false;
+    },
+  };
+
+  const iModifiedAge = {
+    setX: (_slot: number, x: number) => {
+      modifiedAge = x;
+    },
+    set needsUpdate(v: boolean) {
+      if (v) modifiedAgeUpdates++;
+    },
+    get needsUpdate() {
+      return false;
+    },
+  };
+
+  const iIconUV = {
+    setW: (_slot: number, w: number) => {
+      iconUvW = w;
+    },
+    set needsUpdate(v: boolean) {
+      if (v) iconUvUpdates++;
     },
     get needsUpdate() {
       return false;
@@ -133,7 +175,13 @@ function makeFakeMesh(initialFadeZ = 0) {
       },
     },
     geometry: {
-      getAttribute: (n: string) => (n === 'iFade' ? iFade : undefined),
+      getAttribute: (n: string) => {
+        if (n === 'iFade') return iFade;
+        if (n === 'iFloors') return iFloors;
+        if (n === 'iModifiedAge') return iModifiedAge;
+        if (n === 'iIconUV') return iIconUV;
+        return undefined;
+      },
     },
   } as unknown as THREE.InstancedMesh;
 
@@ -174,6 +222,24 @@ function makeFakeMesh(initialFadeZ = 0) {
     },
     get colorUpdates() {
       return colorUpdates;
+    },
+    get floors() {
+      return floors;
+    },
+    get floorsUpdates() {
+      return floorsUpdates;
+    },
+    get modifiedAge() {
+      return modifiedAge;
+    },
+    get modifiedAgeUpdates() {
+      return modifiedAgeUpdates;
+    },
+    get iconUvW() {
+      return iconUvW;
+    },
+    get iconUvUpdates() {
+      return iconUvUpdates;
     },
   };
 }
@@ -1149,6 +1215,113 @@ test('weathering: absent buildings (before creation / after deletion) are not co
   SCRUB_POS.value = 3; // after deletion
   controller.update();
   expect(fake.colorSetCount).toBe(0);
+});
+
+// ── Full-attribute scrub (iFloors, iModifiedAge, iIconUV.w) ──────────────────
+
+test('iFloors reflects the scrub-position line count, not the union/final-commit value', () => {
+  const { fake, controller } = setup();
+  SCRUB_POS.value = 1.5; // lines lerp 2->6 at pos 1.5 => 4 lines
+  controller.update();
+
+  const scrubDims = getBuildingDimensions(
+    { ...file, lines: 4 },
+    heightCtx.lineStats,
+    heightCtx.byteStats
+  );
+  const unionDims = getBuildingDimensions(
+    { ...file, lines: 6 },
+    heightCtx.lineStats,
+    heightCtx.byteStats
+  );
+  expect(fake.floors).toBe(scrubDims.floors);
+  expect(fake.floors).not.toBe(unionDims.floors);
+});
+
+test('iFloors changes as SCRUB_POS moves: an earlier (shorter) scrub state has fewer or equal floors', () => {
+  const { fake, controller } = setup();
+
+  SCRUB_POS.value = 1; // createdIdx, 2 lines
+  controller.update();
+  const earlyFloors = fake.floors;
+
+  SCRUB_POS.value = 2; // last live commit, 6 lines
+  controller.update();
+  const lateFloors = fake.floors;
+
+  expect(earlyFloors).toBeLessThanOrEqual(lateFloors);
+  expect(earlyFloors).toBeLessThan(lateFloors);
+});
+
+test('iFloors: needsUpdate set exactly once per mesh per frame', () => {
+  const { fake, controller } = setup();
+  SCRUB_POS.value = 1.5;
+  controller.update();
+  expect(fake.floorsUpdates).toBe(1);
+});
+
+test('iModifiedAge matches the recency direction: 0 at the exact last-modified scrub position (freshest)', () => {
+  const { fake, controller } = setup();
+  SCRUB_POS.value = 2; // f.txt's last-modified index
+  controller.update();
+  expect(fake.modifiedAge).toBeCloseTo(0, 5);
+});
+
+test('iModifiedAge grows toward 1 (most stale) as scrub moves away from the last-modified index', () => {
+  const { fake, controller } = setup();
+  SCRUB_POS.value = 2; // exact last-modified index
+  controller.update();
+  const atModified = fake.modifiedAge;
+
+  SCRUB_POS.value = 2.3; // just after
+  controller.update();
+  const afterModified = fake.modifiedAge;
+
+  expect(afterModified).toBeGreaterThan(atModified);
+});
+
+test('iModifiedAge: needsUpdate set exactly once per mesh per frame', () => {
+  const { fake, controller } = setup();
+  SCRUB_POS.value = 2;
+  controller.update();
+  expect(fake.modifiedAgeUpdates).toBe(1);
+});
+
+test('iIconUV.w (createdAge) is 0 at the exact scrub-position creation index (newest)', () => {
+  const { fake, controller } = setup();
+  SCRUB_POS.value = 1; // f.txt's createdIdx
+  controller.update();
+  expect(fake.iconUvW).toBeCloseTo(0, 5);
+});
+
+test('iIconUV.w grows toward 1 (oldest) as scrub moves away from the created index', () => {
+  const { fake, controller } = setup();
+  SCRUB_POS.value = 1; // createdIdx
+  controller.update();
+  const atCreated = fake.iconUvW;
+
+  SCRUB_POS.value = 2; // one full history-span step later (historySpan=3)
+  controller.update();
+  const later = fake.iconUvW;
+
+  expect(later).toBeGreaterThan(atCreated);
+  expect(later).toBeCloseTo(1 / 3, 5);
+});
+
+test('iIconUV.w: needsUpdate set exactly once per mesh per frame', () => {
+  const { fake, controller } = setup();
+  SCRUB_POS.value = 1.5;
+  controller.update();
+  expect(fake.iconUvUpdates).toBe(1);
+});
+
+test('absent buildings leave iFloors/iModifiedAge/iIconUV.w untouched (not overwritten with stale/garbage values)', () => {
+  const { fake, controller } = setup();
+  SCRUB_POS.value = 0.5; // before createdIdx = 1: absent
+  controller.update();
+  expect(fake.floorsUpdates).toBe(0);
+  expect(fake.modifiedAgeUpdates).toBe(0);
+  expect(fake.iconUvUpdates).toBe(0);
 });
 
 test('weathering: sets instanceColor.needsUpdate exactly once per mesh', () => {

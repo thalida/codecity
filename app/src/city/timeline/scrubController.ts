@@ -1,14 +1,18 @@
 // city/timeline/scrubController.ts — per-frame building driver for Timeline mode.
 //
-// Reads SCRUB_POS and writes each union building's height (instance matrix
-// scaleY, tween.ts field) + presence opacity (iFade.x, fader.ts field) + weathered
-// color (instanceColor) with no re-pack. It owns these fields while in mode; the
+// Reads SCRUB_POS and writes every scrub-varying per-instance attribute so a
+// building renders as a real scan at that commit would: instance matrix
+// (scaleY + floor count), presence opacity (iFade.x), weathered color
+// (instanceColor), lit-window recency (iModifiedAge), and grime/tilt age
+// (iIconUV.w) — all with no re-pack. It owns these fields while in mode; the
 // tween queue and fader are dormant (index.ts gates them on TIMELINE_MODE).
+// iCols/iDoorWidth/iOrient/iIconUV.xyz don't vary with scrub (driven by
+// bytes/ext/path, which the delta replay never changes) so they stay untouched.
 
 import * as THREE from 'three';
 
 import { SCRUB_POS, TIMELINE_BUNDLE } from '@/state/stores/timeline';
-import { buildingHeightForLines } from '@/city/layout/dimensions';
+import { getBuildingDimensions } from '@/city/layout/dimensions';
 import type { HeightContext } from '@/city/layout/dimensions';
 import type { Building, Street } from '@/types';
 import type { BuildingIndex } from '@/city/components/buildings/buildingIndex';
@@ -56,7 +60,7 @@ export function createScrubController(deps: ScrubControllerDeps) {
   // chain (its own street PLUS every containing directory up to root) once; a
   // container street (e.g. `src/` with only subdirs) must stay visible as long as
   // ANY descendant file is live, not just direct children.
-  const entries: { b: Building; pt: PathTimeline; streets: Street[] }[] = [];
+  const entries: { b: Building; pt: PathTimeline; streets: Street[]; createdIdx: number }[] = [];
   const allStreets: Street[] = [];
   const index = deps.getBuildingIndex();
   if (index) {
@@ -67,7 +71,9 @@ export function createScrubController(deps: ScrubControllerDeps) {
       if (!pt) continue;
       const dir = parentDirPath(path);
       const streets = streetChainForDirPath(dir, deps.streetsByDir);
-      entries.push({ b, pt, streets });
+      // First interval's start is the commit index the path was created at (genesis, not resurrection).
+      const createdIdx = pt.intervals.length ? pt.intervals[0].start : 0;
+      entries.push({ b, pt, streets, createdIdx });
     }
   }
   for (const street of Object.values(deps.streetsByDir)) allStreets.push(street);
@@ -82,6 +88,9 @@ export function createScrubController(deps: ScrubControllerDeps) {
     const dirtyMeshes = new Set<THREE.InstancedMesh>();
     const dirtyFades = new Set<THREE.BufferAttribute>();
     const dirtyColors = new Set<THREE.InstancedMesh>();
+    const dirtyFloors = new Set<THREE.BufferAttribute>();
+    const dirtyModifiedAges = new Set<THREE.BufferAttribute>();
+    const dirtyIconUVs = new Set<THREE.BufferAttribute>();
     // A street's opacity is the max of its buildings', so the whole block fades together.
     const maxOp = new Map<Street, number>();
     // Keyed by path so ad panels fade in lockstep with their building body.
@@ -90,7 +99,7 @@ export function createScrubController(deps: ScrubControllerDeps) {
     // Recency denominator: how far back "fully weathered" sits, in commit indices.
     const historySpan = Math.max(1, (TIMELINE_BUNDLE.peek()?.commits.length ?? 1) - 1);
 
-    for (const { b, pt, streets } of entries) {
+    for (const { b, pt, streets, createdIdx } of entries) {
       const resolved = deps.getMeshForBuilding(b);
       if (!resolved) continue;
       const { mesh, slot } = resolved;
@@ -100,15 +109,29 @@ export function createScrubController(deps: ScrubControllerDeps) {
       const present = isPresent(pt, pos);
 
       // Absent buildings get a fully zero-scaled matrix, not a flat (w, 0, d) quad:
-      // a flat quad still writes depth and occludes/outlines on the road.
+      // a flat quad still writes depth and occludes/outlines on the road. Skip
+      // iFloors/iModifiedAge/iIconUV.w too: they're invisible, no need to touch them.
       if (absent) {
         _m.makeScale(0, 0, 0);
       } else {
         const lines = linesAt(pt, pos);
         // Gate on presence (intervals), not line count: media/empty files are present with 0 lines.
-        const f =
-          present && b.h > 0 ? buildingHeightForLines(b.file, lines, deps.heightCtx) / b.h : 0;
-        const sy = b.h * f;
+        let sy = 0;
+        if (present) {
+          const dims = getBuildingDimensions(
+            { ...b.file, lines },
+            deps.heightCtx.lineStats,
+            deps.heightCtx.byteStats
+          );
+          sy = dims.h;
+          const iFloorsAttr = mesh.geometry.getAttribute('iFloors') as
+            | THREE.BufferAttribute
+            | undefined;
+          if (iFloorsAttr) {
+            iFloorsAttr.setX(slot, dims.floors);
+            dirtyFloors.add(iFloorsAttr);
+          }
+        }
         _m.makeScale(b.w, sy, b.d);
         _m.setPosition(b.x, sy / 2, b.y);
       }
@@ -127,11 +150,18 @@ export function createScrubController(deps: ScrubControllerDeps) {
         dirtyFades.add(iFade);
       }
 
-      // Weather: color re-evaluated from recency relative to the scrub position, not a fixed date.
-      // Absent buildings are already scaled/faded to 0, so skip coloring them.
+      // Weather: color/lit-windows/grime-age re-evaluated from recency relative to the
+      // scrub position, not a fixed date. Absent buildings are already scaled/faded to
+      // 0, so skip them.
       if (present) {
         const lastModifiedIndex = lastModifiedIndexAt(pt, pos);
-        const recency = 1 - Math.max(0, Math.min(1, (pos - lastModifiedIndex) / historySpan));
+        // 0=just modified, 1=historySpan-ago-or-more — matches getModifiedAge's polarity
+        // (iModifiedAge/vModifiedAge: 0=most recent, 1=longest-untouched) directly.
+        const modifiedAgeAtScrub = Math.max(
+          0,
+          Math.min(1, (pos - lastModifiedIndex) / historySpan)
+        );
+        const recency = 1 - modifiedAgeAtScrub;
         _color.set(
           getBuildingColorForRecency(
             b.file as unknown as Parameters<typeof getBuildingColorForRecency>[0],
@@ -140,6 +170,24 @@ export function createScrubController(deps: ScrubControllerDeps) {
         );
         mesh.setColorAt(slot, _color);
         dirtyColors.add(mesh);
+
+        const iModifiedAgeAttr = mesh.geometry.getAttribute('iModifiedAge') as
+          | THREE.BufferAttribute
+          | undefined;
+        if (iModifiedAgeAttr) {
+          iModifiedAgeAttr.setX(slot, modifiedAgeAtScrub);
+          dirtyModifiedAges.add(iModifiedAgeAttr);
+        }
+
+        // Same 0=new/1=old polarity as getCreatedAge, on the creation-date axis instead.
+        const createdAgeAtScrub = Math.max(0, Math.min(1, (pos - createdIdx) / historySpan));
+        const iIconUVAttr = mesh.geometry.getAttribute('iIconUV') as
+          | THREE.BufferAttribute
+          | undefined;
+        if (iIconUVAttr) {
+          iIconUVAttr.setW(slot, createdAgeAtScrub);
+          dirtyIconUVs.add(iIconUVAttr);
+        }
       }
     }
 
@@ -148,6 +196,9 @@ export function createScrubController(deps: ScrubControllerDeps) {
     for (const mesh of dirtyColors) {
       if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
     }
+    for (const attr of dirtyFloors) attr.needsUpdate = true;
+    for (const attr of dirtyModifiedAges) attr.needsUpdate = true;
+    for (const attr of dirtyIconUVs) attr.needsUpdate = true;
     deps.getAdPanels()?.applyBuildingFades((p) => opByPath.get(p) ?? null);
     // Every street gets written each frame (defaulting to 0) so an orphaned street can't stick at a stale opacity.
     // ROOT is forced to 1: the repo root directory always exists, even when scrubbed back to an empty tree.
