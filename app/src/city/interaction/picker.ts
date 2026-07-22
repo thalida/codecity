@@ -47,6 +47,7 @@ import { signal, effect, untracked } from '@preact/signals';
 import { NodeKind } from '@/types';
 import { sidewalkStreetForFace } from '@/city/components/streets/streets';
 import { TIMELINE_MODE } from '@/state/stores/timeline';
+import { RUINED_STREET_DIRS } from '@/city/timeline/scrubController';
 
 import type { PickTarget, PickerWorld, PickerSelectionKey } from '@/types';
 import type { CityState } from '@/city/state';
@@ -335,10 +336,14 @@ export function createPicker({
   const SCRUB_HIDE_EPS = 0.02;
   const _scrubMatrix = new THREE.Matrix4();
 
-  // Building presence is iFade.x, the same value the shader reads for opacity.
+  // Non-interactive in Timeline mode: a building faded out (iFade.x below eps)
+  // OR a ghost-ruin (iRuin) — a ruin is a visible stub but must not be
+  // hoverable/selectable, it's a marker for a deleted file, not a live one.
   function _buildingScrubHidden(mesh: THREE.InstancedMesh, slot: number): boolean {
     const iFade = mesh.geometry.getAttribute('iFade') as THREE.BufferAttribute | undefined;
-    return !!iFade && iFade.getX(slot) < SCRUB_HIDE_EPS;
+    if (iFade && iFade.getX(slot) < SCRUB_HIDE_EPS) return true;
+    const iRuin = mesh.geometry.getAttribute('iRuin') as THREE.BufferAttribute | undefined;
+    return !!iRuin && iRuin.getX(slot) > 0.5;
   }
 
   // Trees are gated by zero-scaling their instance matrix (setScrubCommit).
@@ -460,6 +465,9 @@ export function createPicker({
     if (ud.type === NodeKind.Directory && ud.pickStreets) {
       if (TIMELINE_MODE.peek() && _streetScrubHidden(hit)) return null;
       const street = sidewalkStreetForFace(hit.object, hit.faceIndex ?? 0);
+      // A ruined road is a visible ghost but not interactive.
+      if (TIMELINE_MODE.peek() && street?.dir && RUINED_STREET_DIRS.has(street.dir.path))
+        return null;
       if (street?.dir) {
         return {
           kind: NodeKind.Directory,

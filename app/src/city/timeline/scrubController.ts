@@ -32,6 +32,11 @@ import type { PathTimeline } from './replay';
 const RUIN_BASE_RECENCY = 0.5; // sample the building's hue at mid-recency before graying
 const _RUIN_GRAY = new THREE.Color(0.3, 0.31, 0.34);
 
+// Dir paths of streets currently rendered as ruins — the picker rejects hits on
+// them so a ruined road isn't hoverable/selectable (buildings use iRuin instead).
+// Owned here, repopulated each update(); read by interaction/picker.ts.
+export const RUINED_STREET_DIRS = new Set<string>();
+
 export interface ScrubControllerDeps {
   getBuildingIndex(): BuildingIndex | null;
   getMeshForBuilding(b: Building): { mesh: THREE.InstancedMesh; slot: number } | null;
@@ -99,6 +104,7 @@ export function createScrubController(deps: ScrubControllerDeps) {
     const opByPath = new Map<string, number>();
     // Streets with at least one PRESENT descendant — the rest (op>0) are ruin-only.
     const presentStreets = new Set<Street>();
+    RUINED_STREET_DIRS.clear();
 
     // Recency denominator: how far back "fully weathered" sits, in commit indices.
     const historySpan = Math.max(1, (TIMELINE_BUNDLE.peek()?.commits.length ?? 1) - 1);
@@ -248,13 +254,16 @@ export function createScrubController(deps: ScrubControllerDeps) {
       const streetRuin = ruinsOn && !street.isRoot && op > 0 && !presentStreets.has(street);
       deps.streets.setStreetOpacity(street, op);
       deps.streets.setStreetLabelOpacity(street, op);
-      if (street.dir?.path != null)
+      if (street.dir?.path != null) {
         deps.footprints.setStreetFootprintOpacity(street.dir.path, op, streetRuin);
+        if (streetRuin) RUINED_STREET_DIRS.add(street.dir.path);
+      }
     }
   }
 
   function dispose(): void {
     entries.length = 0;
+    RUINED_STREET_DIRS.clear();
   }
 
   return { update, dispose };

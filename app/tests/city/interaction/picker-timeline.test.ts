@@ -9,6 +9,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { createPicker, PICKER_SELECTION_KEY } from '@/city/interaction/picker';
 import { buildCellsFromLayout } from '@/city/components/buildings/cellAssembly';
 import { createMergedSidewalkMesh } from '@/city/components/streets/streets';
+import { RUINED_STREET_DIRS } from '@/city/timeline/scrubController';
 import { TIMELINE_MODE } from '@/state/stores/timeline';
 import { makeCityState } from '../../_helpers/cityFixtures';
 import { NodeKind, StreetAxis } from '@/types';
@@ -57,6 +58,7 @@ beforeEach(() => {
 });
 afterEach(() => {
   TIMELINE_MODE.value = false;
+  RUINED_STREET_DIRS.clear();
 });
 
 describe('picker: Timeline scrub-hidden guard — buildings', () => {
@@ -71,7 +73,8 @@ describe('picker: Timeline scrub-hidden guard — buildings', () => {
     const building = world.cellOut.index.byPath.get('src/a.ts')!;
     const cell = world.cellOut.cells.get(building.cellId!)!;
     const iFade = cell.detailMesh.geometry.getAttribute('iFade') as THREE.InstancedBufferAttribute;
-    return { picker, iFade, slot: building.slotId! };
+    const iRuin = cell.detailMesh.geometry.getAttribute('iRuin') as THREE.InstancedBufferAttribute;
+    return { picker, iFade, iRuin, slot: building.slotId! };
   }
 
   it('rejects a hit whose iFade.x is scrub-faded to 0', () => {
@@ -94,6 +97,18 @@ describe('picker: Timeline scrub-hidden guard — buildings', () => {
     const t = picker.interpretHit(hit);
     expect(t?.kind).toBe(NodeKind.File);
     expect(t?.kind === NodeKind.File && t.file.path).toBe('src/a.ts');
+    picker.dispose();
+  });
+
+  it('rejects a ghost-ruin building (iRuin=1) even at full opacity', () => {
+    const { picker, iFade, iRuin, slot } = setup();
+    TIMELINE_MODE.value = true;
+    iFade.setXYZ(slot, 1, 0, 0); // visible stub
+    iRuin.setX(slot, 1); // but a ruin
+
+    const hit = picker.pickAt(400, 300);
+    expect(hit).not.toBeNull();
+    expect(picker.interpretHit(hit)).toBeNull();
     picker.dispose();
   });
 
@@ -270,6 +285,17 @@ describe('picker: Timeline scrub-hidden guard — streets', () => {
     const t = picker.interpretHit(hit);
     expect(t?.kind).toBe(NodeKind.Directory);
     expect(t?.kind === NodeKind.Directory && t.dir.path).toBe('lib');
+    picker.dispose();
+  });
+
+  it('rejects a hit on a ruined street (in RUINED_STREET_DIRS) even at full opacity', () => {
+    const { picker } = setup();
+    TIMELINE_MODE.value = true;
+    RUINED_STREET_DIRS.add('lib');
+
+    const hit = picker.pickAt(400, 300);
+    expect(hit).not.toBeNull();
+    expect(picker.interpretHit(hit)).toBeNull();
     picker.dispose();
   });
 
