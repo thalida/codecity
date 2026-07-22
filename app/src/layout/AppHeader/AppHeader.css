@@ -22,16 +22,11 @@
   user-select: none;
 }
 
-#app-header-left,
-#app-header-right {
+#app-header-left {
   display: flex;
   align-items: center;
   gap: var(--cc-space-2);
   min-width: 0;
-}
-
-#app-header-right {
-  justify-content: flex-end;
 }
 
 #app-title {

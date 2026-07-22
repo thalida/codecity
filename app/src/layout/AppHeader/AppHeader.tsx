@@ -6,18 +6,14 @@
 // Layout (left → right):
 //   #app-header-left  — ResetViewButton + ProjectSwitcher + CopyButton (source)
 //   #app-title        — CommitChip | PathBreadcrumbs (per current selection)
-//   #app-header-right — Timeline mode toggle (shown once a source is loaded)
 
 import './AppHeader.css';
 import type { ComponentChildren } from 'preact';
-import { History } from 'lucide-preact';
 import { SCENE_HANDLE } from '@/state/stores/scene';
 import { MANIFEST } from '@/state/stores/manifest';
 import { ROOT_PATH } from '@/constants/manifest';
 import { SOURCE_INFO } from '@/state/stores/source';
 import { openProjectsView } from '@/state/stores/ui';
-import { TIMELINE_MODE } from '@/state/stores/timeline';
-import { enterTimelineMode, exitTimelineMode } from '@/hooks/useTimelineMode';
 import { NodeKind, type Manifest } from '@/types';
 import { ResetViewButton } from '@/components/ResetViewButton';
 import { ProjectSwitcher } from '@/components/ProjectSwitcher/ProjectSwitcher';
@@ -92,19 +88,6 @@ export function AppHeader({
         {si.src && <CopyButton text={si.src} label="Copy repo source" />}
       </div>
       <div id="app-title">{title}</div>
-      <div id="app-header-right">
-        {si.src && (
-          <button
-            type="button"
-            class={`btn-icon btn-icon--no-drag${TIMELINE_MODE.value ? ' is-active' : ''}`}
-            title="Timeline"
-            aria-label="Timeline"
-            onClick={() => (TIMELINE_MODE.value ? exitTimelineMode() : void enterTimelineMode())}
-          >
-            <History class="icon" />
-          </button>
-        )}
-      </div>
     </header>
   );
 }

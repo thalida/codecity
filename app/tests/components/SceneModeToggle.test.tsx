@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render } from 'preact';
-import { AppHeader } from '@/layout/AppHeader/AppHeader';
+import { SceneModeToggle } from '@/components/SceneModeToggle/SceneModeToggle';
 import { CURRENT_SOURCE } from '@/state/stores/source';
 import { setManifest } from '@/state/stores/manifest';
 import { EMPTY_MANIFEST } from '@/constants/manifest';
@@ -18,7 +18,11 @@ const TEST_MANIFEST = {
   repo: { remote_url: null, branch: 'main' },
 };
 
-describe('AppHeader — Timeline toggle', () => {
+function btns(container: HTMLElement) {
+  return Array.from(container.querySelectorAll<HTMLButtonElement>('.scene-mode-btn'));
+}
+
+describe('SceneModeToggle', () => {
   let container: HTMLDivElement;
 
   beforeEach(() => {
@@ -35,63 +39,55 @@ describe('AppHeader — Timeline toggle', () => {
     vi.clearAllMocks();
   });
 
-  it('does not render the toggle before a source is loaded', async () => {
-    render(<AppHeader />, container);
+  it('does not render before a source is loaded', async () => {
+    render(<SceneModeToggle />, container);
     await flush();
-
-    expect(container.querySelector('#app-header-right .btn-icon')).toBeNull();
+    expect(container.querySelector('.scene-mode-toggle')).toBeNull();
   });
 
-  it('renders the toggle once a source is loaded, off by default', async () => {
+  it('renders once a source is loaded, Live active by default', async () => {
     CURRENT_SOURCE.value = { src: '/repo' };
     setManifest(TEST_MANIFEST as never);
-
-    render(<AppHeader />, container);
+    render(<SceneModeToggle />, container);
     await flush();
 
-    const btn = container.querySelector('#app-header-right .btn-icon')!;
-    expect(btn).not.toBeNull();
-    expect(btn.classList.contains('is-active')).toBe(false);
+    const [live, timeline] = btns(container);
+    expect(live.textContent).toBe('Live');
+    expect(live.classList.contains('is-active')).toBe(true);
+    expect(timeline.classList.contains('is-active')).toBe(false);
   });
 
-  it('shows is-active when TIMELINE_MODE is on', async () => {
+  it('Timeline is active when TIMELINE_MODE is on', async () => {
     CURRENT_SOURCE.value = { src: '/repo' };
     setManifest(TEST_MANIFEST as never);
     TIMELINE_MODE.value = true;
-
-    render(<AppHeader />, container);
+    render(<SceneModeToggle />, container);
     await flush();
 
-    const btn = container.querySelector('#app-header-right .btn-icon')!;
-    expect(btn.classList.contains('is-active')).toBe(true);
+    const [live, timeline] = btns(container);
+    expect(timeline.classList.contains('is-active')).toBe(true);
+    expect(live.classList.contains('is-active')).toBe(false);
   });
 
-  it('clicking while off calls enterTimelineMode, not exit', async () => {
+  it('clicking Timeline while live calls enterTimelineMode, not exit', async () => {
     CURRENT_SOURCE.value = { src: '/repo' };
     setManifest(TEST_MANIFEST as never);
-    TIMELINE_MODE.value = false;
-
-    render(<AppHeader />, container);
+    render(<SceneModeToggle />, container);
     await flush();
 
-    const btn = container.querySelector<HTMLButtonElement>('#app-header-right .btn-icon')!;
-    btn.click();
-
+    btns(container)[1].click(); // Timeline
     expect(enterTimelineMode).toHaveBeenCalledTimes(1);
     expect(exitTimelineMode).not.toHaveBeenCalled();
   });
 
-  it('clicking while on calls exitTimelineMode, not enter', async () => {
+  it('clicking Live while in timeline calls exitTimelineMode, not enter', async () => {
     CURRENT_SOURCE.value = { src: '/repo' };
     setManifest(TEST_MANIFEST as never);
     TIMELINE_MODE.value = true;
-
-    render(<AppHeader />, container);
+    render(<SceneModeToggle />, container);
     await flush();
 
-    const btn = container.querySelector<HTMLButtonElement>('#app-header-right .btn-icon')!;
-    btn.click();
-
+    btns(container)[0].click(); // Live
     expect(exitTimelineMode).toHaveBeenCalledTimes(1);
     expect(enterTimelineMode).not.toHaveBeenCalled();
   });

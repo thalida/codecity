@@ -1,19 +1,13 @@
 /* components/TimeTravelBar.css — floating bar over the scene canvas. */
 
-/* Wider than the label row needs: the time track wants room for its commit
-   ticks. Centered, and it never re-centers as the commit text changes.
+/* A flex child of #scene-controls (which owns the bottom-center positioning).
    Glass: dark semi-transparent fill that blurs the scene behind it, no shadow. */
 .time-travel-bar {
-  position: absolute;
-  left: 50%;
-  bottom: var(--cc-space-8);
-  transform: translateX(-50%);
-  z-index: 50;
   display: flex;
   flex-direction: column;
   gap: var(--cc-space-4);
   padding: var(--cc-space-5) var(--cc-space-5);
-  width: min(52rem, calc(100% - var(--cc-space-9) * 2));
+  width: 100%;
   background: color-mix(in oklch, var(--cc-bg-modal) 78%, transparent);
   border-radius: var(--cc-radius-lg);
   backdrop-filter: blur(12px);

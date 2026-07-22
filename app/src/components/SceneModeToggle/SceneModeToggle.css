@@ -1,0 +1,34 @@
+/* components/SceneModeToggle.css — glass Live/Timeline pill on the scene. */
+
+.scene-mode-toggle {
+  display: inline-flex;
+  gap: var(--cc-space-1);
+  padding: var(--cc-space-1);
+  background: color-mix(in oklch, var(--cc-bg-modal) 82%, transparent);
+  border-radius: var(--cc-radius-lg);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.scene-mode-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cc-space-2);
+  padding: var(--cc-space-3) var(--cc-space-6);
+  border: 0;
+  border-radius: var(--cc-radius-md);
+  background: none;
+  color: var(--cc-text-secondary);
+  font-size: var(--cc-font-sm);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.scene-mode-btn:hover {
+  color: var(--cc-text-strong);
+}
+
+.scene-mode-btn.is-active {
+  background: var(--cc-accent);
+  color: var(--cc-text-inverse);
+}
