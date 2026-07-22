@@ -29,8 +29,7 @@ import { GEM_SECTION } from './partials/Gem';
 import { TREES_SECTION } from './partials/Trees';
 import { FIREFLIES_SECTION } from './partials/Fireflies';
 import { EFFECTS_SECTION } from './partials/Effects';
-import { RUINS_SECTION } from './partials/Ruins';
-import { BLUEPRINTS_SECTION } from './partials/Blueprints';
+import { TIMELINE_SECTION } from './partials/Timeline';
 import { UPDATES_SECTION } from './partials/Updates';
 import { ActionsBar } from './ActionsBar/ActionsBar';
 import { SCAN_COUNT, APPEARANCE_COUNT, WORLD_COUNT } from '@/state/stores/settingsIndicators';
@@ -104,8 +103,7 @@ export function ControlsPane({ onClose, collapsed }: ControlsPaneProps) {
         TREES_SECTION,
         FIREFLIES_SECTION,
         EFFECTS_SECTION,
-        RUINS_SECTION,
-        BLUEPRINTS_SECTION,
+        TIMELINE_SECTION,
       ],
     },
   ];
