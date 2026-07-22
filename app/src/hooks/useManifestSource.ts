@@ -38,7 +38,7 @@ import {
 import { SERVER_CONFIG } from '@/state/stores/serverConfig';
 import { MANIFEST, setManifest, markError } from '@/state/stores/manifest';
 import { SCAN_PROGRESS } from '@/state/stores/scanProgress';
-import { TIMELINE_MODE } from '@/state/stores/timeline';
+import { TIMELINE_MODE, resetTimelineMode } from '@/state/stores/timeline';
 import { activeExcludePathsFor, ACTIVE_EXCLUDES } from '@/state/stores/excludes';
 import { srcKind, SourceKind, srcNeedsBranch, identityBranch, sourceKey } from '@/utils/sources';
 import { isEmptyManifest } from '@/utils/manifest';
@@ -130,6 +130,8 @@ let loadController: AbortController | null = null;
 // below is a SEPARATE op — a background refresh of the current source that
 // shares only the MANIFEST sink, and yields to a foreground load via the gen.)
 export async function loadSource(payload: SourcePayload): Promise<void> {
+  // A source switch always exits Timeline mode; the city-layer effect reacts to the flip and tears down the scene.
+  if (TIMELINE_MODE.peek()) resetTimelineMode();
   const myGen = ++loadGeneration; // claim authority; supersedes any in-flight load/poll
   loadController?.abort(); // supersede any in-flight load
   const controller = new AbortController();

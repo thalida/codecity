@@ -8,6 +8,7 @@ import { effect, untracked } from '@preact/signals';
 
 import type { Manifest } from '@/types';
 import { CURRENT_SOURCE_KEY } from '@/state/stores/source';
+import { TIMELINE_MODE } from '@/state/stores/timeline';
 
 import { registerShaderChunks } from './utils/shaders/registerShaderChunks';
 import { createBuildings } from './components/buildings';
@@ -204,6 +205,49 @@ export async function createCity(canvas: HTMLCanvasElement, manifest: Manifest):
     },
   });
 
+  const timelineApi = {
+    installScrubController(timelines: Map<string, PathTimeline>): void {
+      _scrubController?.dispose();
+      _scrubController = createScrubController({
+        getBuildingIndex: () => buildings.getBuildingIndex(),
+        getMeshForBuilding: (b) => buildings.getMeshForBuilding(b),
+        getAdPanels: () => buildings.getAdPanels(),
+        timelines,
+        heightCtx: makeHeightContext(cityState.manifest.peek()?.stats),
+        streets: {
+          setStreetOpacity: (s, o) => streets.setStreetOpacity(s, o),
+          setStreetLabelOpacity: (s, o) => streets.setStreetLabelOpacity(s, o),
+        },
+        streetsByDir: cityState.streetsByDirMap.peek(),
+        footprints: {
+          setBuildingFootprintOpacity: (p, o) => footprint.setBuildingFootprintOpacity(p, o),
+          setStreetFootprintOpacity: (p, o) => footprint.setStreetFootprintOpacity(p, o),
+        },
+        trees: {
+          setScrubCommit: (maxCommitIndex) => trees.setScrubCommit(maxCommitIndex),
+        },
+      });
+      buildings.setScrubController(_scrubController);
+    },
+    uninstallScrubController(): void {
+      buildings.setScrubController(null);
+      _scrubController?.dispose();
+      _scrubController = null;
+      // Restore the full forest immediately — don't wait on exit's manifest reload.
+      trees.setScrubCommit(null);
+    },
+    setStreetsTransparent: (on: boolean): void => streets.setStreetsTransparent(on),
+    setFootprintsTransparent: (on: boolean): void => footprint.setFootprintsTransparent(on),
+  };
+
+  // Reacts to every Timeline-mode exit (toggle, source switch) so the scene teardown is uniform regardless of trigger.
+  const stopTimelineTeardown = effect(() => {
+    if (TIMELINE_MODE.value || !_scrubController) return;
+    timelineApi.uninstallScrubController();
+    timelineApi.setStreetsTransparent(false);
+    timelineApi.setFootprintsTransparent(false);
+  });
+
   return {
     scene,
     picker,
@@ -222,40 +266,7 @@ export async function createCity(canvas: HTMLCanvasElement, manifest: Manifest):
       runCollisionCheck: () => runCollisionCheck(cityState),
       runStemPlacementDiagnostic: () => runStemPlacementDiagnostic(cityState),
     },
-    timeline: {
-      installScrubController(timelines: Map<string, PathTimeline>): void {
-        _scrubController?.dispose();
-        _scrubController = createScrubController({
-          getBuildingIndex: () => buildings.getBuildingIndex(),
-          getMeshForBuilding: (b) => buildings.getMeshForBuilding(b),
-          getAdPanels: () => buildings.getAdPanels(),
-          timelines,
-          heightCtx: makeHeightContext(cityState.manifest.peek()?.stats),
-          streets: {
-            setStreetOpacity: (s, o) => streets.setStreetOpacity(s, o),
-            setStreetLabelOpacity: (s, o) => streets.setStreetLabelOpacity(s, o),
-          },
-          streetsByDir: cityState.streetsByDirMap.peek(),
-          footprints: {
-            setBuildingFootprintOpacity: (p, o) => footprint.setBuildingFootprintOpacity(p, o),
-            setStreetFootprintOpacity: (p, o) => footprint.setStreetFootprintOpacity(p, o),
-          },
-          trees: {
-            setScrubCommit: (maxCommitIndex) => trees.setScrubCommit(maxCommitIndex),
-          },
-        });
-        buildings.setScrubController(_scrubController);
-      },
-      uninstallScrubController(): void {
-        buildings.setScrubController(null);
-        _scrubController?.dispose();
-        _scrubController = null;
-        // Restore the full forest immediately — don't wait on exit's manifest reload.
-        trees.setScrubCommit(null);
-      },
-      setStreetsTransparent: (on: boolean): void => streets.setStreetsTransparent(on),
-      setFootprintsTransparent: (on: boolean): void => footprint.setFootprintsTransparent(on),
-    },
+    timeline: timelineApi,
     /** Tear the whole city down: stop the frame loop, detach input listeners,
      *  dispose the picker/rig/postFx/components (GPU geometry + their effects),
      *  the layout worker, and the renderer. Without this, a remount (or HMR)
@@ -266,6 +277,7 @@ export async function createCity(canvas: HTMLCanvasElement, manifest: Manifest):
     dispose(): void {
       stopFrameLoop();
       stopReframe();
+      stopTimelineTeardown();
       _scrubController?.dispose();
       handlers.dispose();
       picker.dispose();

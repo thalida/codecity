@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
-import { enterTimelineMode, exitTimelineMode } from '@/hooks/useTimelineMode';
+import { enterTimelineMode, exitTimelineMode, teardownTimelineMode } from '@/hooks/useTimelineMode';
 import { TIMELINE_MODE, SCRUB_POS, TIMELINE_BUNDLE } from '@/state/stores/timeline';
 import { CURRENT_SOURCE } from '@/state/stores/source';
 import { SCENE_HANDLE } from '@/state/stores/scene';
@@ -162,6 +162,8 @@ describe('exitTimelineMode', () => {
     (globalThis as unknown as { EventSource: unknown }).EventSource = StubEventSource;
     CURRENT_SOURCE.value = { src: 's', branch: undefined };
     TIMELINE_MODE.value = true;
+    SCRUB_POS.value = 2;
+    TIMELINE_BUNDLE.value = BUNDLE;
   });
   afterEach(() => {
     (globalThis as unknown as { EventSource: unknown }).EventSource = originalEventSource;
@@ -169,19 +171,36 @@ describe('exitTimelineMode', () => {
     SCENE_HANDLE.value = null;
   });
 
-  it('leaves mode, uninstalls the controller, un-transparents streets, and reloads live HEAD', async () => {
-    const f = fakeHandle();
-    SCENE_HANDLE.value = f.handle as never;
-
+  // The scene-side teardown (uninstall controller, un-transparent streets/footprints,
+  // restore trees) is owned by the city-layer effect in city/index.ts, which reacts
+  // to TIMELINE_MODE — see tests/city/index.test.ts. This test covers the hook's contract.
+  it('flips TIMELINE_MODE, clears the scrub store, and reloads live HEAD', async () => {
     exitTimelineMode();
 
     expect(TIMELINE_MODE.value).toBe(false);
-    expect(f.uninstallScrubController).toHaveBeenCalledTimes(1);
-    expect(f.setStreetsTransparent).toHaveBeenCalledWith(false);
-    expect(f.setFootprintsTransparent).toHaveBeenCalledWith(false);
+    expect(SCRUB_POS.value).toBe(0);
+    expect(TIMELINE_BUNDLE.value).toBeNull();
     await flush();
     expect(StubEventSource.instances.length).toBeGreaterThan(0); // live HEAD reload started
     expect(new URL(StubEventSource.instances[0].url).searchParams.get('ref')).toBeNull();
+  });
+});
+
+describe('teardownTimelineMode', () => {
+  afterEach(() => {
+    TIMELINE_MODE.value = false;
+  });
+
+  it('is a pure signal flip — no source reload, scene-free', () => {
+    TIMELINE_MODE.value = true;
+    SCRUB_POS.value = 2;
+    TIMELINE_BUNDLE.value = BUNDLE;
+
+    teardownTimelineMode();
+
+    expect(TIMELINE_MODE.value).toBe(false);
+    expect(SCRUB_POS.value).toBe(0);
+    expect(TIMELINE_BUNDLE.value).toBeNull();
   });
 });
 

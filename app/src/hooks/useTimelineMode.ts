@@ -4,6 +4,7 @@
 // controller (which owns each building's scaleY + iFade and its street's opacity
 // per frame), and flip TIMELINE_MODE so the live poll + fader stand down. Exit:
 // tear the controller down and reload live HEAD. Called by the header toggle.
+// teardownTimelineMode only flips TIMELINE_MODE; the city-layer effect (city/index.ts) does the actual scene teardown for every exit path.
 
 import { batch } from '@preact/signals';
 
@@ -15,7 +16,12 @@ import { markError } from '@/state/stores/manifest';
 import { showLoadingOverlay, setLoadingStep, hideLoadingOverlay } from '@/state/stores/ui';
 import { LoadingStep, TIMELINE_LOADING_STEPS } from '@/constants/loadingSteps';
 import { srcKind } from '@/utils/sources';
-import { TIMELINE_MODE, SCRUB_POS, TIMELINE_BUNDLE } from '@/state/stores/timeline';
+import {
+  TIMELINE_MODE,
+  SCRUB_POS,
+  TIMELINE_BUNDLE,
+  resetTimelineMode,
+} from '@/state/stores/timeline';
 import { loadSource } from '@/hooks/useManifestSource';
 import type { Manifest } from '@/types';
 
@@ -48,7 +54,8 @@ export async function enterTimelineMode(): Promise<void> {
     requestAnimationFrame(() => hideLoadingOverlay());
   } catch (err) {
     // Leave nothing half-set: revert to live and surface via the footer.
-    TIMELINE_MODE.value = false;
+    // Explicit handle calls too: a failure here may predate the controller install, so the effect wouldn't fire.
+    resetTimelineMode();
     handle.timeline.uninstallScrubController();
     handle.timeline.setStreetsTransparent(false);
     handle.timeline.setFootprintsTransparent(false);
@@ -57,12 +64,13 @@ export async function enterTimelineMode(): Promise<void> {
   }
 }
 
+// Scene-free: the city-layer effect (city/index.ts) reacts to TIMELINE_MODE and does the scene teardown.
+export function teardownTimelineMode(): void {
+  resetTimelineMode();
+}
+
 export function exitTimelineMode(): void {
   const cur = CURRENT_SOURCE.peek();
-  const handle = SCENE_HANDLE.peek();
-  TIMELINE_MODE.value = false; // clears the poll + fader guards
-  handle?.timeline.uninstallScrubController();
-  handle?.timeline.setStreetsTransparent(false);
-  handle?.timeline.setFootprintsTransparent(false);
+  teardownTimelineMode();
   if (cur) void loadSource({ src: cur.src, branch: cur.branch });
 }
