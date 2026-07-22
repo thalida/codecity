@@ -30,6 +30,8 @@ export interface OpenOpts {
 export interface LoadingOverlayShowOpts {
   kind: SourceKind;
   branch?: string;
+  // Custom step list (e.g. Timeline-mode entry). Defaults to LOADING_STEPS.
+  steps?: readonly LoadingStep[];
 }
 
 // ── Projects view ────────────────────────────────────────────────────────────
@@ -102,7 +104,8 @@ export const LOADING_OVERLAY = signal<LoadingOverlayState>({
 
 export function showLoadingOverlay(opts: LoadingOverlayShowOpts): void {
   const initialStep: LoadingStep =
-    opts.kind === SourceKind.Local ? LoadingStep.Scanning : LoadingStep.Resolving;
+    opts.steps?.[0] ??
+    (opts.kind === SourceKind.Local ? LoadingStep.Scanning : LoadingStep.Resolving);
   LOADING_OVERLAY.value = {
     visible: true,
     showOpts: opts,

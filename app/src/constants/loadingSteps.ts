@@ -17,6 +17,8 @@ export enum LoadingStep {
   // pass (trees, future mesa bounds) finishes. Triggered by REBUILD_STATUS →
   // 'decorating'. Only inserted when at least one decoration layer is enabled.
   Decorating = 'decorating',
+  // Timeline-mode entry: fetching the history bundle (commits + union manifest).
+  TimelineLoading = 'timeline-loading',
 }
 
 // Steps in display order. 'skeleton' is the placeholder-painting phase while
@@ -29,6 +31,14 @@ export const LOADING_STEPS: readonly LoadingStep[] = [
   LoadingStep.Skeleton,
   LoadingStep.Building,
   LoadingStep.Decorating,
+];
+
+// Timeline-mode entry's own short step list: fetch the history bundle, then
+// pack the union city. Reuses LoadingStep.Building rather than inventing a
+// second "building the city" label.
+export const TIMELINE_LOADING_STEPS: readonly LoadingStep[] = [
+  LoadingStep.TimelineLoading,
+  LoadingStep.Building,
 ];
 
 // A step row's progress relative to the active step: not yet reached, the one
@@ -48,6 +58,7 @@ export const LOADING_STEP_LABELS: Record<LoadingStep, string> = {
   [LoadingStep.Skeleton]: 'Sketching layout',
   [LoadingStep.Building]: 'Building city',
   [LoadingStep.Decorating]: 'Adding decorations',
+  [LoadingStep.TimelineLoading]: 'Loading history',
 };
 
 /**

@@ -4,11 +4,17 @@ import { enterTimelineMode, exitTimelineMode } from '@/hooks/useTimelineMode';
 import { TIMELINE_MODE, SCRUB_POS, TIMELINE_BUNDLE } from '@/state/stores/timeline';
 import { CURRENT_SOURCE } from '@/state/stores/source';
 import { SCENE_HANDLE } from '@/state/stores/scene';
-import { MANIFEST } from '@/state/stores/manifest';
+import { MANIFEST, REBUILD_STATUS, RebuildStatus } from '@/state/stores/manifest';
+import { LOADING_OVERLAY } from '@/state/stores/ui';
+import { LoadingStep } from '@/constants/loadingSteps';
 import { LIVE_UPDATES } from '@/state/stores/settings/updates';
 import { SCAN_PROGRESS } from '@/state/stores/scanProgress';
 import { setupLiveUpdates } from '@/hooks/useManifestSource';
 import type { TimelineBundle } from '@/types';
+
+// jsdom's rAF fires for real on a ~16ms timer; wait for one tick to observe
+// the post-paint hide (mirrors filePreviewPane.test.tsx's rAF handling).
+const nextFrame = (): Promise<void> => new Promise((r) => requestAnimationFrame(() => r()));
 
 vi.mock('@/api/timeline', () => ({ fetchTimelineBundle: vi.fn() }));
 import { fetchTimelineBundle } from '@/api/timeline';
@@ -60,6 +66,8 @@ describe('enterTimelineMode', () => {
     TIMELINE_MODE.value = false;
     SCRUB_POS.value = 0;
     TIMELINE_BUNDLE.value = null;
+    LOADING_OVERLAY.value = { visible: false, showOpts: null, activeStep: null, stepTails: {} };
+    REBUILD_STATUS.value = RebuildStatus.Idle;
     (fetchTimelineBundle as unknown as ReturnType<typeof vi.fn>).mockReset();
   });
   afterEach(() => {
@@ -82,6 +90,36 @@ describe('enterTimelineMode', () => {
     expect(TIMELINE_BUNDLE.value).toBe(BUNDLE);
     expect(TIMELINE_MODE.value).toBe(true);
     expect(SCRUB_POS.value).toBe(2); // commits.length - 1 → start at present
+
+    // Overlay held through the first painted frame, then hidden.
+    await nextFrame();
+    expect(LOADING_OVERLAY.value.visible).toBe(false);
+  });
+
+  it('shows the full loading overlay (not just the footer) and drives it through TimelineLoading then Building', async () => {
+    let resolveFetch!: (b: TimelineBundle) => void;
+    (fetchTimelineBundle as unknown as ReturnType<typeof vi.fn>).mockImplementation(
+      () =>
+        new Promise<TimelineBundle>((resolve) => {
+          resolveFetch = resolve;
+        })
+    );
+    const f = fakeHandle();
+    SCENE_HANDLE.value = f.handle as never;
+
+    const entering = enterTimelineMode();
+    await flush();
+    expect(LOADING_OVERLAY.value.visible).toBe(true);
+    expect(LOADING_OVERLAY.value.activeStep).toBe(LoadingStep.TimelineLoading);
+
+    resolveFetch(BUNDLE);
+    await entering;
+    expect(LOADING_OVERLAY.value.activeStep).toBe(LoadingStep.Building);
+    // Not hidden yet — reveal waits for the first painted frame.
+    expect(LOADING_OVERLAY.value.visible).toBe(true);
+
+    await nextFrame();
+    expect(LOADING_OVERLAY.value.visible).toBe(false);
   });
 
   it('no-ops without a current source', async () => {
@@ -91,9 +129,10 @@ describe('enterTimelineMode', () => {
     await enterTimelineMode();
     expect(fetchTimelineBundle).not.toHaveBeenCalled();
     expect(TIMELINE_MODE.value).toBe(false);
+    expect(LOADING_OVERLAY.value.visible).toBe(false);
   });
 
-  it('surfaces a fetch error and leaves mode unset', async () => {
+  it('surfaces a fetch error, leaves mode unset, and hides the overlay', async () => {
     (fetchTimelineBundle as unknown as ReturnType<typeof vi.fn>).mockRejectedValue(
       new Error('boom')
     );
@@ -102,6 +141,8 @@ describe('enterTimelineMode', () => {
     await enterTimelineMode();
     expect(TIMELINE_MODE.value).toBe(false);
     expect(f.installScrubController).not.toHaveBeenCalled();
+    expect(LOADING_OVERLAY.value.visible).toBe(false);
+    expect(REBUILD_STATUS.value).toBe(RebuildStatus.Error);
   });
 });
 

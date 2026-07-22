@@ -148,6 +148,23 @@ describe('LoadingOverlay', () => {
     );
   });
 
+  it('a custom steps list (Timeline entry) renders those rows verbatim, starting on the first step', async () => {
+    showLoadingOverlay({
+      kind: SourceKind.Remote,
+      steps: [LoadingStep.TimelineLoading, LoadingStep.Building],
+    });
+    await flush();
+    expect(container.querySelector('[data-step="timeline-loading"]')).toBeTruthy();
+    expect(container.querySelector('[data-step="building"]')).toBeTruthy();
+    // No resolving/cloning/scanning/skeleton/decorating rows from the default list.
+    expect(container.querySelector('[data-step="resolving"]')).toBeNull();
+    expect(container.querySelector('[data-step="cloning"]')).toBeNull();
+    expect(
+      container.querySelector('[data-step="timeline-loading"]')?.getAttribute('data-state')
+    ).toBe('active');
+    expect(container.textContent).toContain('Loading history');
+  });
+
   // ── Pending-label header ────────────────────────────────────────────────
 
   it('renders the pending label as a header when set', async () => {

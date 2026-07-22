@@ -31,6 +31,7 @@ export function LoadingOverlay({ onCancel }: LoadingOverlayProps) {
           kind={lo.showOpts?.kind ?? null}
           branch={lo.showOpts?.branch ?? null}
           stepTails={lo.stepTails}
+          steps={lo.showOpts?.steps}
           onCancel={onCancel}
         />
       </div>
