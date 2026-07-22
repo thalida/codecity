@@ -71,6 +71,8 @@ export interface Buildings extends SceneComponent {
   getCells(): Map<number, CellTile>;
   /** Building index, or null pre-rebuild. */
   getBuildingIndex(): BuildingIndex | null;
+  /** Instanced ad panels, or null pre-rebuild / while disposed. */
+  getAdPanels(): InstancedAdPanels | null;
   /** Resolve a building's live InstancedMesh + slot. Null if no live mesh. */
   getMeshForBuilding(b: Building): { mesh: THREE.InstancedMesh; slot: number } | null;
   /** Install (or clear with null) the Timeline scrub controller, which drives
@@ -498,6 +500,7 @@ export function createBuildings(ctx: SceneContext): Buildings {
     getBuildingByPath: (p) => _buildingsByPath[p] || null,
     getCells: () => _cells,
     getBuildingIndex: () => _buildingIndex,
+    getAdPanels: () => _adPanels,
     getMeshForBuilding,
     setScrubController: (c) => {
       _scrubController = c;

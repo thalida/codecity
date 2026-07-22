@@ -12,6 +12,7 @@ import { buildingHeightForLines } from '@/city/layout/dimensions';
 import type { HeightContext } from '@/city/layout/dimensions';
 import type { Building, Street } from '@/types';
 import type { BuildingIndex } from '@/city/components/buildings/buildingIndex';
+import type { InstancedAdPanels } from '@/city/components/buildings/adPanels';
 import { parentDirPath } from '@/city/utils/path';
 import { streetChainForDirPath } from '@/city/layout/streetPath';
 import { isPresent, linesAt, presenceAt } from './replay';
@@ -24,6 +25,7 @@ export const RUIN_FLOOR = 0;
 export interface ScrubControllerDeps {
   getBuildingIndex(): BuildingIndex | null;
   getMeshForBuilding(b: Building): { mesh: THREE.InstancedMesh; slot: number } | null;
+  getAdPanels(): InstancedAdPanels | null;
   timelines: Map<string, PathTimeline>;
   heightCtx: HeightContext;
   streets: { setStreetOpacity(street: Street, opacity: number): void };
@@ -60,6 +62,8 @@ export function createScrubController(deps: ScrubControllerDeps) {
     const dirtyFades = new Set<THREE.BufferAttribute>();
     // A street's opacity is the max of its buildings', so the whole block fades together.
     const maxOp = new Map<Street, number>();
+    // Keyed by path so ad panels fade in lockstep with their building body.
+    const opByPath = new Map<string, number>();
 
     for (const { b, pt, streets } of entries) {
       const resolved = deps.getMeshForBuilding(b);
@@ -80,6 +84,7 @@ export function createScrubController(deps: ScrubControllerDeps) {
 
       const op = presenceAt(pt, pos, RUIN_FLOOR);
       for (const street of streets) maxOp.set(street, Math.max(maxOp.get(street) ?? 0, op));
+      opByPath.set(b.file.path, op);
 
       const iFade = mesh.geometry.getAttribute('iFade') as THREE.BufferAttribute | undefined;
       if (iFade) {
@@ -90,6 +95,7 @@ export function createScrubController(deps: ScrubControllerDeps) {
 
     for (const mesh of dirtyMeshes) mesh.instanceMatrix.needsUpdate = true;
     for (const iFade of dirtyFades) iFade.needsUpdate = true;
+    deps.getAdPanels()?.applyBuildingFades((p) => opByPath.get(p) ?? null);
     // Every street gets written each frame (defaulting to 0) so an orphaned street can't stick at a stale opacity.
     for (const street of allStreets) deps.streets.setStreetOpacity(street, maxOp.get(street) ?? 0);
   }

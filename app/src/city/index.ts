@@ -228,6 +228,7 @@ export async function createCity(canvas: HTMLCanvasElement, manifest: Manifest):
         _scrubController = createScrubController({
           getBuildingIndex: () => buildings.getBuildingIndex(),
           getMeshForBuilding: (b) => buildings.getMeshForBuilding(b),
+          getAdPanels: () => buildings.getAdPanels(),
           timelines,
           heightCtx: makeHeightContext(cityState.manifest.peek()?.stats),
           streets: { setStreetOpacity: (s, o) => streets.setStreetOpacity(s, o) },

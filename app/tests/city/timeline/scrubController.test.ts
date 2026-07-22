@@ -7,6 +7,7 @@ import { buildingHeightForLines } from '@/city/layout/dimensions';
 import type { HeightContext } from '@/city/layout/dimensions';
 import { SCRUB_POS } from '@/state/stores/timeline';
 import { BuildingIndex } from '@/city/components/buildings/buildingIndex';
+import type { InstancedAdPanels } from '@/city/components/buildings/adPanels';
 import type { Building, FileNode, Street, TimelineBundle } from '@/types';
 
 // f.txt: absent at commit 0, created at 1 (2 lines), grows at 2 (6 lines),
@@ -95,7 +96,27 @@ function makeFakeMesh() {
   };
 }
 
-function setup() {
+function makeFakeAdPanels() {
+  let calls = 0;
+  let lastGetFade: ((path: string) => number | null | undefined) | null = null;
+  const adPanels = {
+    applyBuildingFades: (getFade: (path: string) => number | null | undefined) => {
+      calls++;
+      lastGetFade = getFade;
+    },
+  } as unknown as InstancedAdPanels;
+  return {
+    adPanels,
+    get calls() {
+      return calls;
+    },
+    get lastGetFade() {
+      return lastGetFade;
+    },
+  };
+}
+
+function setup(getAdPanels: () => InstancedAdPanels | null = () => null) {
   const b = {
     x: 5,
     y: 7,
@@ -116,6 +137,7 @@ function setup() {
 
   const controller = createScrubController({
     getBuildingIndex: () => index,
+    getAdPanels,
     getMeshForBuilding: () => ({ mesh: fake.mesh, slot: 0 }),
     timelines,
     heightCtx,
@@ -161,6 +183,23 @@ test('after deletion opacity drops to RUIN_FLOOR and the body flattens', () => {
   controller.update();
   expect(fake.scaleY).toBe(0);
   expect(fake.iFadeX).toBe(RUIN_FLOOR);
+});
+
+test('ad panels fade in lockstep with a present building body', () => {
+  const fakeAdPanels = makeFakeAdPanels();
+  const { b, controller } = setup(() => fakeAdPanels.adPanels);
+  SCRUB_POS.value = 1.5;
+  controller.update();
+  expect(fakeAdPanels.calls).toBe(1);
+  expect(fakeAdPanels.lastGetFade!(b.file.path)).toBeCloseTo(1, 5);
+});
+
+test('ad panels fade to RUIN_FLOOR once the building is deleted', () => {
+  const fakeAdPanels = makeFakeAdPanels();
+  const { b, controller } = setup(() => fakeAdPanels.adPanels);
+  SCRUB_POS.value = 3; // deletedIdx
+  controller.update();
+  expect(fakeAdPanels.lastGetFade!(b.file.path)).toBe(RUIN_FLOOR);
 });
 
 test('preserves the silhouette/outline iFade channels', () => {
@@ -218,6 +257,7 @@ test('a present media/0-line file gets a non-zero scaleY; an absent one stays fl
 
   const controller = createScrubController({
     getBuildingIndex: () => index,
+    getAdPanels: () => null,
     getMeshForBuilding: () => ({ mesh: fake.mesh, slot: 0 }),
     timelines,
     heightCtx,
@@ -339,6 +379,7 @@ test('dedup: two buildings sharing one InstancedMesh set needsUpdate exactly onc
   const timelines = buildPathTimelines(twoPathBundle);
   const controller = createScrubController({
     getBuildingIndex: () => index,
+    getAdPanels: () => null,
     getMeshForBuilding: (b) => ({ mesh: sharedMesh, slot: b.slotId }),
     timelines,
     heightCtx,
@@ -437,6 +478,7 @@ test('couples street opacity to the max opacity of its buildings (block fade)', 
   const timelines = buildPathTimelines(blockBundle);
   const controller = createScrubController({
     getBuildingIndex: () => index,
+    getAdPanels: () => null,
     getMeshForBuilding: (b) => ({ mesh: meshByBuilding.get(b)!.mesh, slot: 0 }),
     timelines,
     heightCtx,
@@ -522,6 +564,7 @@ test('block-fade is a true max, not last-write-wins: one deleted sibling cannot 
   const timelines = buildPathTimelines(siblingBundle);
   const controller = createScrubController({
     getBuildingIndex: () => index,
+    getAdPanels: () => null,
     getMeshForBuilding: (b) => ({ mesh: meshByBuilding.get(b)!.mesh, slot: 0 }),
     timelines,
     heightCtx,
@@ -606,6 +649,7 @@ test('descendant rollup: a container street with no direct files inherits its ch
   const timelines = buildPathTimelines(rollupBundle);
   const controller = createScrubController({
     getBuildingIndex: () => index,
+    getAdPanels: () => null,
     getMeshForBuilding: (b) => ({ mesh: meshByBuilding.get(b)!.mesh, slot: 0 }),
     timelines,
     heightCtx,
