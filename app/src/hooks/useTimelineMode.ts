@@ -79,10 +79,15 @@ export async function enterTimelineMode(): Promise<void> {
   } catch (err) {
     // Leave nothing half-set: revert to live and surface via the footer.
     // Explicit handle calls too: a failure here may predate the controller install, so the effect wouldn't fire.
-    resetTimelineMode();
-    handle.timeline.uninstallScrubController();
-    handle.timeline.setStreetsTransparent(false);
-    handle.timeline.setFootprintsTransparent(false);
+    // Cleanup is best-effort — swallow its own throw so it can't bury `err` or strand the overlay (a silent stuck load).
+    try {
+      resetTimelineMode();
+      handle.timeline.uninstallScrubController();
+      handle.timeline.setStreetsTransparent(false);
+      handle.timeline.setFootprintsTransparent(false);
+    } catch {
+      /* teardown failed; surfacing err + hiding the overlay below is what matters */
+    }
     markError(err);
     hideLoadingOverlay();
   }

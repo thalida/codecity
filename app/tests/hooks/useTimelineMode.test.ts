@@ -180,6 +180,25 @@ describe('enterTimelineMode', () => {
     expect(LOADING_OVERLAY.value.visible).toBe(false);
     expect(REBUILD_STATUS.value).toBe(RebuildStatus.Error);
   });
+
+  it('still surfaces the error and hides the overlay when post-fetch work AND cleanup throw', async () => {
+    // A throw after the fetch resolves (applyManifest) lands in catch; if a
+    // cleanup call there ALSO throws, markError + hideLoadingOverlay must still
+    // run (the finally) — otherwise the overlay is stranded, no error shown.
+    (fetchTimelineBundle as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(BUNDLE);
+    const f = fakeHandle();
+    f.applyManifest.mockRejectedValue(new Error('pack failed'));
+    f.uninstallScrubController.mockImplementation(() => {
+      throw new Error('cleanup boom');
+    });
+    SCENE_HANDLE.value = f.handle as never;
+
+    await enterTimelineMode();
+
+    expect(TIMELINE_MODE.value).toBe(false);
+    expect(LOADING_OVERLAY.value.visible).toBe(false);
+    expect(REBUILD_STATUS.value).toBe(RebuildStatus.Error);
+  });
 });
 
 describe('exitTimelineMode', () => {
