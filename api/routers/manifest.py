@@ -36,6 +36,7 @@ from api.models.responses import CacheClearResponse
 from api.security import TRUST
 from api.services.cache import (
     cache_clear_all,
+    cache_clear_timeline,
     cache_load_manifest,
     cache_load_ref_manifest,
     cache_load_timeline,
@@ -415,6 +416,12 @@ async def manifest(
 
                 holder["path"] = path
                 TRUST.register(path)
+
+                # A no_cache scan means "rebuild everything for this source" —
+                # evict the per-HEAD timeline bundle too, so re-entering Timeline
+                # mode rebuilds fresh rather than serving a stale/older-code one.
+                if not use_cache:
+                    cache_clear_timeline(path.resolve())
 
                 # Time-travel: reconstruct the manifest as of `ref` instead of
                 # scanning the working tree. Resolve to a sha FIRST — it's both

@@ -589,6 +589,24 @@ class ManifestCacheTests(CacheTestBase):
         self.assertIsNone(cache_mod.cache_load_manifest(root, "a" * 32))
         self.assertIsNone(cache_mod.cache_load_timeline(root, "b" * 40))
 
+    def test_clear_timeline_evicts_all_heads_only(self) -> None:
+        # A no_cache scan clears every timeline bundle for the root (all HEADs)
+        # but leaves the manifest caches untouched.
+        root = Path("/x")
+        cache_mod.cache_save_manifest(root, "a" * 32, self._make_manifest())
+        cache_mod.cache_save_timeline(root, "b" * 40, self._make_bundle())
+        cache_mod.cache_save_timeline(root, "c" * 40, self._make_bundle())
+
+        deleted = cache_mod.cache_clear_timeline(root)
+        self.assertEqual(deleted, 2)
+        self.assertIsNone(cache_mod.cache_load_timeline(root, "b" * 40))
+        self.assertIsNone(cache_mod.cache_load_timeline(root, "c" * 40))
+        self.assertIsNotNone(cache_mod.cache_load_manifest(root, "a" * 32))
+
+    def test_clear_timeline_missing_dir_returns_zero(self) -> None:
+        self.assertFalse((cache_mod.CACHE_ROOT / "manifests").exists())
+        self.assertEqual(cache_mod.cache_clear_timeline(Path("/never")), 0)
+
 
 class MediaDimsCacheTests(CacheTestBase):
     def setUp(self) -> None:

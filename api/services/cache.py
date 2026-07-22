@@ -502,6 +502,25 @@ def cache_save_timeline(
     )
 
 
+def cache_clear_timeline(abs_root: Path) -> int:
+    """Delete every cached timeline bundle for this root (all HEADs). Returns
+    the count deleted. A no_cache scan calls this so re-entering Timeline mode
+    rebuilds fresh — the bundle is immutable per HEAD, so nothing else evicts a
+    stale one built by older code. Same swallow-errors hygiene as the rest of
+    this module."""
+    manifests_dir = CACHE_ROOT / "manifests"
+    if not manifests_dir.exists():
+        return 0
+    count = 0
+    for path in manifests_dir.glob(f"{repo_key(abs_root)}__timeline-*.json.gz"):
+        try:
+            path.unlink()
+            count += 1
+        except OSError:
+            pass
+    return count
+
+
 def cache_clear_manifests(abs_root: Path) -> int:
     """Delete every cached manifest file for this root, across all
     signatures, every ref-keyed manifest, AND every timeline bundle (the
