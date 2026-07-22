@@ -36,9 +36,8 @@ import {
   CURRENT_SOURCE,
 } from '@/state/stores/source';
 import { SERVER_CONFIG } from '@/state/stores/serverConfig';
-import { MANIFEST, setManifest, markError, markRebuilding } from '@/state/stores/manifest';
+import { MANIFEST, setManifest, markError } from '@/state/stores/manifest';
 import { SCAN_PROGRESS } from '@/state/stores/scanProgress';
-import { TIME_TRAVEL_REF } from '@/state/stores/timeTravel';
 import { TIMELINE_MODE } from '@/state/stores/timeline';
 import { activeExcludePathsFor, ACTIVE_EXCLUDES } from '@/state/stores/excludes';
 import { srcKind, SourceKind, srcNeedsBranch, identityBranch, sourceKey } from '@/utils/sources';
@@ -131,7 +130,6 @@ let loadController: AbortController | null = null;
 // below is a SEPARATE op — a background refresh of the current source that
 // shares only the MANIFEST sink, and yields to a foreground load via the gen.)
 export async function loadSource(payload: SourcePayload): Promise<void> {
-  TIME_TRAVEL_REF.value = null; // any real source load means back to live
   const myGen = ++loadGeneration; // claim authority; supersedes any in-flight load/poll
   loadController?.abort(); // supersede any in-flight load
   const controller = new AbortController();
@@ -212,48 +210,6 @@ export function cancelLoad(): void {
   loadController?.abort();
 }
 
-// Load a past ref of CURRENT_SOURCE in place. Streams the final directly (like
-// the live-update refresh) instead of via pumpManifestStream, so it never writes
-// SCAN_PROGRESS: no loading overlay, the scene tween carries the morph. Shares
-// the generation guard; leaves CURRENT_SOURCE/recents alone.
-export async function loadRef(sha: string): Promise<void> {
-  const cur = CURRENT_SOURCE.peek();
-  if (!cur) return;
-  const myGen = ++loadGeneration; // supersedes any in-flight load/poll
-  loadController?.abort();
-  const controller = new AbortController();
-  loadController = controller;
-  markRebuilding(); // footer shows "rebuilding…" through the fetch, before the apply
-  try {
-    const url = manifestUrlFor({
-      src: cur.src,
-      branch: cur.branch,
-      ref: sha,
-      exclude: activeExcludePathsFor(cur.src),
-    });
-    for await (const event of streamManifest(url, { signal: controller.signal })) {
-      if (event.phase === ScanPhase.Error) throw new Error(event.error);
-      if (event.phase !== ScanPhase.CompleteManifest) continue;
-      if (myGen !== loadGeneration) return;
-      setManifest(event.manifest);
-    }
-    if (myGen !== loadGeneration || controller.signal.aborted) return;
-    TIME_TRAVEL_REF.value = sha; // pin AFTER a successful apply
-  } catch (err) {
-    if (myGen !== loadGeneration || controller.signal.aborted) return;
-    markError(err); // footer error, not the source picker (a bad slider sha is rare)
-  } finally {
-    if (myGen === loadGeneration && loadController === controller) loadController = null;
-  }
-}
-
-// Clear the pin (poll resumes) then reload HEAD via loadSource.
-export function exitTimeTravel(): void {
-  const cur = CURRENT_SOURCE.peek();
-  TIME_TRAVEL_REF.value = null; // clear first so the poll resumes
-  if (cur) void loadSource({ src: cur.src, branch: cur.branch });
-}
-
 // ── Live-update poll loop ────────────────────────────────────────────
 
 // Hard bounds for the user-set poll interval. 1s floor — the server does a real
@@ -322,7 +278,6 @@ export function setupLiveUpdates(): () => void {
   async function tick(): Promise<void> {
     if (inFlight) return;
     if (TIMELINE_MODE.peek()) return; // Timeline mode owns the scene (union city + scrub) — no live poll
-    if (TIME_TRAVEL_REF.peek() !== null) return; // pinned to a past ref — the poll must not pull HEAD back in
     if (SCAN_PROGRESS.peek() !== null) return; // a foreground load is in flight — yield
     const cur = CURRENT_SOURCE.peek();
     if (!cur) return; // nothing loaded yet
@@ -381,7 +336,6 @@ export function setupLiveUpdates(): () => void {
     if (prevRepo !== repoKey) return; // source switched — the load owns it
     if (prev === nextKey) return; // no actual change
     if (TIMELINE_MODE.peek()) return; // Timeline mode owns the scene — no in-place refresh
-    if (TIME_TRAVEL_REF.peek() !== null) return; // pinned to a past ref — don't pull HEAD back in
     if (SCAN_PROGRESS.peek() !== null) return; // yield to a foreground load
     if (!cur) return;
     if (inFlight) return; // the poll's tick is already covering this refresh

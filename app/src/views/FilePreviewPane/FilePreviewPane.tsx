@@ -33,7 +33,7 @@ import { Pane, PaneEmpty } from '@/components/Pane';
 import { KEY_BINDINGS } from '@/constants/keyboard';
 import { ExtensionBadge } from '@/components/Badge/Badge';
 import { formatBytes } from '@/utils/bytes';
-import { TIME_TRAVEL_REF } from '@/state/stores/timeTravel';
+import { TIMELINE_MODE } from '@/state/stores/timeline';
 import { languageFor } from '@/utils/syntaxLanguages';
 
 // Auto-load images/video/audio/PDF (browser handles streaming + memory).
@@ -421,8 +421,8 @@ function _previewBody(file: FileNode | null) {
   }
   if (!file.fullPath) return null;
 
-  // /api/file reads the current checkout, which would be wrong for a reconstructed past ref.
-  if (TIME_TRAVEL_REF.value !== null) {
+  // /api/file reads the current checkout, which would be wrong while scrubbing a past commit.
+  if (TIMELINE_MODE.value) {
     return (
       <PaneEmpty
         icon={History}

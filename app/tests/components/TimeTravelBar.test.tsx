@@ -3,7 +3,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render } from 'preact';
 import { TimeTravelBar } from '@/components/TimeTravelBar/TimeTravelBar';
-import * as useManifestSourceModule from '@/hooks/useManifestSource';
 import { TIMELINE_MODE, SCRUB_POS, TIMELINE_BUNDLE } from '@/state/stores/timeline';
 import { flush } from '../_helpers/preact';
 import type { CommitEntry, TimelineBundle } from '@/types';
@@ -57,9 +56,7 @@ describe('TimeTravelBar', () => {
     expect(container.querySelector('.time-travel-bar')).toBeNull();
   });
 
-  it('spans the full history and scrubs SCRUB_POS continuously with no debounce or loadRef call', async () => {
-    const loadRefSpy = vi.spyOn(useManifestSourceModule, 'loadRef').mockResolvedValue(undefined);
-
+  it('spans the full history and scrubs SCRUB_POS continuously with no debounce', async () => {
     TIMELINE_MODE.value = true;
     TIMELINE_BUNDLE.value = BUNDLE;
     SCRUB_POS.value = 2;
@@ -79,7 +76,6 @@ describe('TimeTravelBar', () => {
     input.dispatchEvent(new Event('input', { bubbles: true }));
 
     expect(SCRUB_POS.value).toBe(0); // synchronous, no debounce
-    expect(loadRefSpy).not.toHaveBeenCalled();
   });
 
   it('tracks SCRUB_POS updates from outside the component', async () => {

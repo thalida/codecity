@@ -1,5 +1,5 @@
-import { describe, it, expect, test } from 'vitest';
-import { streamManifest, manifestUrlFor, ScanPhase, type ScanStreamEvent } from '@/api/manifest';
+import { describe, it, expect } from 'vitest';
+import { streamManifest, ScanPhase, type ScanStreamEvent } from '@/api/manifest';
 
 // Minimal EventSource stub: records listeners; the test drives events via emit().
 class StubEventSource {
@@ -34,14 +34,6 @@ function makeES(): { ctor: typeof EventSource; last: () => StubEventSource } {
 }
 
 const fakeManifest = { root: '/r', tree: { type: 'directory' } };
-
-test('manifestUrlFor includes ref when provided', () => {
-  const url = manifestUrlFor({ src: '/repo', ref: 'abc1234' });
-  expect(url).toContain('ref=abc1234');
-});
-test('manifestUrlFor omits ref when absent', () => {
-  expect(manifestUrlFor({ src: '/repo' })).not.toContain('ref=');
-});
 
 describe('streamManifest (EventSource)', () => {
   it('maps named SSE events to ScanStreamEvents in order and stops after manifest-complete', async () => {

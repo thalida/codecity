@@ -15,7 +15,7 @@ import type { DirNode, FileNode, Manifest } from '@/types';
 import { PaneEmpty } from '@/components/Pane';
 import { isEmptyManifest } from '@/utils/manifest';
 import { resolveReadmeAssetUrl, rewriteHtmlImageUrls } from '@/utils/readmeAssets';
-import { TIME_TRAVEL_REF } from '@/state/stores/timeTravel';
+import { TIMELINE_MODE } from '@/state/stores/timeline';
 
 /**
  * Render README markdown to HTML, rewriting relative image refs to route
@@ -101,8 +101,8 @@ export function ReadmePane({ manifest }: ReadmePaneProps) {
         setBody({ kind: InfoBodyKind.NoReadme });
         return;
       }
-      // /api/file reads the current checkout, which would be wrong for a reconstructed past ref.
-      if (TIME_TRAVEL_REF.value !== null) {
+      // /api/file reads the current checkout, which would be wrong while scrubbing a past commit.
+      if (TIMELINE_MODE.value) {
         setBody({ kind: InfoBodyKind.TimeTravel });
         return;
       }

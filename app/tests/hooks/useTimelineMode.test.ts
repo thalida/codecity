@@ -7,7 +7,6 @@ import { SCENE_HANDLE } from '@/state/stores/scene';
 import { MANIFEST } from '@/state/stores/manifest';
 import { LIVE_UPDATES } from '@/state/stores/settings/updates';
 import { SCAN_PROGRESS } from '@/state/stores/scanProgress';
-import { TIME_TRAVEL_REF } from '@/state/stores/timeTravel';
 import { setupLiveUpdates } from '@/hooks/useManifestSource';
 import type { TimelineBundle } from '@/types';
 
@@ -106,7 +105,6 @@ describe('exitTimelineMode', () => {
     (globalThis as unknown as { EventSource: unknown }).EventSource = StubEventSource;
     CURRENT_SOURCE.value = { src: 's', branch: undefined };
     TIMELINE_MODE.value = true;
-    TIME_TRAVEL_REF.value = null;
   });
   afterEach(() => {
     (globalThis as unknown as { EventSource: unknown }).EventSource = originalEventSource;
@@ -139,7 +137,6 @@ describe('live poll suspends in Timeline mode', () => {
     CURRENT_SOURCE.value = { src: 's', branch: undefined };
     MANIFEST.value = { content_signature: 'sig0', tree: {} } as never;
     SCAN_PROGRESS.value = null;
-    TIME_TRAVEL_REF.value = null;
     TIMELINE_MODE.value = false;
   });
   afterEach(() => {
