@@ -6,17 +6,18 @@
 // Layout (left → right):
 //   #app-header-left  — ResetViewButton + ProjectSwitcher + CopyButton (source)
 //   #app-title        — CommitChip | PathBreadcrumbs (per current selection)
-//   #app-header-right — debug icon (flag-gated) + keyboard-shortcuts icon
+//   #app-header-right — Timeline mode toggle (shown once a source is loaded)
 
 import './AppHeader.css';
 import type { ComponentChildren } from 'preact';
-import { Keyboard, Bug } from 'lucide-preact';
+import { History } from 'lucide-preact';
 import { SCENE_HANDLE } from '@/state/stores/scene';
 import { MANIFEST } from '@/state/stores/manifest';
 import { ROOT_PATH } from '@/constants/manifest';
 import { SOURCE_INFO } from '@/state/stores/source';
-import { openProjectsView, openShortcuts, openDebug } from '@/state/stores/ui';
-import { isDebugMode } from '@/utils/debugMode';
+import { openProjectsView } from '@/state/stores/ui';
+import { TIMELINE_MODE } from '@/state/stores/timeline';
+import { enterTimelineMode, exitTimelineMode } from '@/hooks/useTimelineMode';
 import { NodeKind, type Manifest } from '@/types';
 import { ResetViewButton } from '@/components/ResetViewButton';
 import { ProjectSwitcher } from '@/components/ProjectSwitcher/ProjectSwitcher';
@@ -92,26 +93,17 @@ export function AppHeader({
       </div>
       <div id="app-title">{title}</div>
       <div id="app-header-right">
-        {isDebugMode() && (
+        {si.src && (
           <button
             type="button"
-            class="btn-icon btn-icon--no-drag"
-            title="Debug tools"
-            aria-label="Debug tools"
-            onClick={openDebug}
+            class={`btn-icon btn-icon--no-drag${TIMELINE_MODE.value ? ' is-active' : ''}`}
+            title="Timeline"
+            aria-label="Timeline"
+            onClick={() => (TIMELINE_MODE.value ? exitTimelineMode() : void enterTimelineMode())}
           >
-            <Bug class="icon" />
+            <History class="icon" />
           </button>
         )}
-        <button
-          type="button"
-          class="btn-icon btn-icon--no-drag"
-          title="Keyboard shortcuts"
-          aria-label="Keyboard shortcuts"
-          onClick={openShortcuts}
-        >
-          <Keyboard class="icon" />
-        </button>
       </div>
     </header>
   );

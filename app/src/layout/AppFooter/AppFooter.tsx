@@ -10,13 +10,15 @@
 //            ("rebuilt 5s ago", "rebuilding…", "error: <msg>", "paused").
 //            title= on the wrapper is a fallback tooltip for narrow widths.
 //   right  — current selection metadata (language · lines · size · created
-//            · modified for files; file/dir counts + size for directories)
+//            · modified for files; file/dir counts + size for directories),
+//            then a far-right icon cluster (keyboard shortcuts, debug)
 //
 // The refresh/reset-view button has moved to the header (far right).
 
 import './AppFooter.css';
 import { useSignal } from '@preact/signals';
 import { useEffect } from 'preact/hooks';
+import { Keyboard, Bug } from 'lucide-preact';
 import { NodeKind } from '@/types';
 import { formatShortDate, formatRelativeAgeShort } from '@/utils/dates';
 import { formatBytes } from '@/utils/bytes';
@@ -28,6 +30,8 @@ import {
   LAST_REBUILD_ERROR,
   LAST_UPDATED_AT,
 } from '@/state/stores/manifest';
+import { openShortcuts, openDebug } from '@/state/stores/ui';
+import { isDebugMode } from '@/utils/debugMode';
 import { humanLanguageFor } from '@/utils/syntaxLanguages';
 
 interface FooterFileSelection {
@@ -303,6 +307,28 @@ export function AppFooter() {
       </div>
       <div class="app-footer-section app-footer-right">
         <FooterSelectionSection selection={selection} />
+        <div class="app-footer-icons">
+          {isDebugMode() && (
+            <button
+              type="button"
+              class="btn-icon btn-icon--sm"
+              title="Debug tools"
+              aria-label="Debug tools"
+              onClick={openDebug}
+            >
+              <Bug class="icon" />
+            </button>
+          )}
+          <button
+            type="button"
+            class="btn-icon btn-icon--sm"
+            title="Keyboard shortcuts"
+            aria-label="Keyboard shortcuts"
+            onClick={openShortcuts}
+          >
+            <Keyboard class="icon" />
+          </button>
+        </div>
       </div>
     </footer>
   );
