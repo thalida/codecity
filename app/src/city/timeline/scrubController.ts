@@ -65,7 +65,10 @@ export function createScrubController(deps: ScrubControllerDeps) {
 
       const lines = linesAt(pt, pos);
       // Gate on presence (intervals), not line count: media/empty files are present with 0 lines.
-      const f = isPresent(pt, pos) && b.h > 0 ? buildingHeightForLines(b.file, lines, deps.heightCtx) / b.h : 0;
+      const f =
+        isPresent(pt, pos) && b.h > 0
+          ? buildingHeightForLines(b.file, lines, deps.heightCtx) / b.h
+          : 0;
       const sy = b.h * f;
       _m.makeScale(b.w, sy, b.d);
       _m.setPosition(b.x, sy / 2, b.y);

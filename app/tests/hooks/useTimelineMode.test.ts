@@ -45,7 +45,13 @@ function fakeHandle() {
     applyManifest,
     timeline: { installScrubController, uninstallScrubController, setStreetsTransparent },
   };
-  return { handle, applyManifest, installScrubController, uninstallScrubController, setStreetsTransparent };
+  return {
+    handle,
+    applyManifest,
+    installScrubController,
+    uninstallScrubController,
+    setStreetsTransparent,
+  };
 }
 
 describe('enterTimelineMode', () => {
@@ -88,7 +94,9 @@ describe('enterTimelineMode', () => {
   });
 
   it('surfaces a fetch error and leaves mode unset', async () => {
-    (fetchTimelineBundle as unknown as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('boom'));
+    (fetchTimelineBundle as unknown as ReturnType<typeof vi.fn>).mockRejectedValue(
+      new Error('boom')
+    );
     const f = fakeHandle();
     SCENE_HANDLE.value = f.handle as never;
     await enterTimelineMode();

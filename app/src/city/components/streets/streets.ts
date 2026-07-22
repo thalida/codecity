@@ -25,11 +25,17 @@ const STADIUM_SEGMENTS = 16;
 function injectStreetOpacity(mat: THREE.MeshBasicMaterial): void {
   mat.onBeforeCompile = (shader) => {
     shader.vertexShader = shader.vertexShader
-      .replace('#include <common>', '#include <common>\nattribute float aOpacity;\nvarying float vOpacity;')
+      .replace(
+        '#include <common>',
+        '#include <common>\nattribute float aOpacity;\nvarying float vOpacity;'
+      )
       .replace('#include <begin_vertex>', '#include <begin_vertex>\nvOpacity = aOpacity;');
     shader.fragmentShader = shader.fragmentShader
       .replace('#include <common>', '#include <common>\nvarying float vOpacity;')
-      .replace('#include <dithering_fragment>', '#include <dithering_fragment>\ngl_FragColor.a *= vOpacity;');
+      .replace(
+        '#include <dithering_fragment>',
+        '#include <dithering_fragment>\ngl_FragColor.a *= vOpacity;'
+      );
   };
 }
 

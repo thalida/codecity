@@ -85,7 +85,10 @@ export function createStreets(ctx: SceneContext): Streets {
   let asphaltMesh: FlatMesh | null = null;
   let asphaltRanges: AsphaltRange[] = [];
   // Sidewalk + asphalt vertex spans per street, for setStreetOpacity (both merged meshes share build order, so index i lines up).
-  let opacityRangeByStreet = new Map<Street, { sidewalk: SidewalkRange; asphalt: AsphaltRange | null }>();
+  let opacityRangeByStreet = new Map<
+    Street,
+    { sidewalk: SidewalkRange; asphalt: AsphaltRange | null }
+  >();
   let labelGroups: THREE.Group[] = [];
   // Dir paths currently tinted non-default (selection + hover), so a tint refresh
   // rewrites only the changed streets' vertex spans, not the whole color buffer.

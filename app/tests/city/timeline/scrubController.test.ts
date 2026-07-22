@@ -24,7 +24,10 @@ const bundle = {
   note: null,
 } as unknown as TimelineBundle;
 
-const heightCtx: HeightContext = { lineStats: { min: 1, max: 200 }, byteStats: { min: 1, max: 5000 } };
+const heightCtx: HeightContext = {
+  lineStats: { min: 1, max: 200 },
+  byteStats: { min: 1, max: 5000 },
+};
 
 const file = { path: 'f.txt', lines: 6, size: 500, extension: 'txt' } as unknown as FileNode;
 
@@ -190,7 +193,12 @@ test('a present media/0-line file gets a non-zero scaleY; an absent one stays fl
     note: null,
   } as unknown as TimelineBundle;
 
-  const mediaFile = { path: 'm.png', lines: 0, size: 5000, extension: 'png' } as unknown as FileNode;
+  const mediaFile = {
+    path: 'm.png',
+    lines: 0,
+    size: 5000,
+    extension: 'png',
+  } as unknown as FileNode;
   const b = {
     x: 1,
     y: 1,
@@ -343,8 +351,14 @@ test('dedup: two buildings sharing one InstancedMesh set needsUpdate exactly onc
 
   expect(matUpdates).toBe(1);
   expect(iFadeUpdates).toBe(1);
-  expect(slotMatrices.get(0)!.elements[5]).toBeCloseTo(buildingHeightForLines(file, 4, heightCtx), 5);
-  expect(slotMatrices.get(1)!.elements[5]).toBeCloseTo(buildingHeightForLines(file2, 4, heightCtx), 5);
+  expect(slotMatrices.get(0)!.elements[5]).toBeCloseTo(
+    buildingHeightForLines(file, 4, heightCtx),
+    5
+  );
+  expect(slotMatrices.get(1)!.elements[5]).toBeCloseTo(
+    buildingHeightForLines(file2, 4, heightCtx),
+    5
+  );
   expect(slotFadeX.get(0)).toBeCloseTo(1, 5);
   expect(slotFadeX.get(1)).toBeCloseTo(1, 5);
 });

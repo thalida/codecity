@@ -37,7 +37,10 @@ function makeCtx(): SceneContext {
   return {
     scene: new THREE.Scene(),
     canvas: document.createElement('canvas'),
-    picker: { selection: signal<PickTarget | null>(null), hover: signal<PickTarget | null>(null) } as unknown as Picker,
+    picker: {
+      selection: signal<PickTarget | null>(null),
+      hover: signal<PickTarget | null>(null),
+    } as unknown as Picker,
     cityState: makeCityState(),
   } as unknown as SceneContext;
 }
@@ -78,7 +81,12 @@ function opacityAttr(mesh: FlatMesh): THREE.BufferAttribute {
   return mesh.geometry.getAttribute('aOpacity') as THREE.BufferAttribute;
 }
 // Every value in a vertex span equals `expected` (Float32-rounded).
-function spanIs(attr: THREE.BufferAttribute, vStart: number, vCount: number, expected: number): boolean {
+function spanIs(
+  attr: THREE.BufferAttribute,
+  vStart: number,
+  vCount: number,
+  expected: number
+): boolean {
   const arr = attr.array as Float32Array;
   const want = Math.fround(expected);
   for (let v = vStart; v < vStart + vCount; v++) if (arr[v] !== want) return false;
