@@ -486,11 +486,11 @@ test('after deletion (ruins off) opacity drops to 0 and the body vanishes', () =
 });
 
 test('ruins on: a deleted building becomes a faint, blank-facade stub shorter than its lived height', () => {
-  RUINS.value = { ...RUINS.value, ENABLED: true, OPACITY: 0.3, STUB_HEIGHT: 0.35 };
+  RUINS.value = { ...RUINS.value, ENABLED: true, BUILDING_OPACITY: 0.3, STUB_HEIGHT: 0.35 };
   const { fake, controller } = setup();
   SCRUB_POS.value = 3; // deletedIdx → ruin
   controller.update();
-  expect(fake.iFadeX).toBeCloseTo(0.3, 5); // the OPACITY setting, faint
+  expect(fake.iFadeX).toBeCloseTo(0.3, 5); // the BUILDING_OPACITY setting, faint
   expect(fake.scaleY).toBeGreaterThan(0); // a stub, not vanished
   expect(fake.scaleY).toBeLessThan(buildingHeightForLines(file, 6, heightCtx)); // shorter than it ever was
   expect(fake.floors).toBe(0); // blank facade (no windows)
@@ -612,7 +612,7 @@ test('ad panels fade to 0 once the building is deleted (ruins off)', () => {
 });
 
 test('ad panels stay hidden on a ruin (media is gone, only the stub shows)', () => {
-  RUINS.value = { ...RUINS.value, ENABLED: true, OPACITY: 0.3 };
+  RUINS.value = { ...RUINS.value, ENABLED: true, BUILDING_OPACITY: 0.3 };
   const fakeAdPanels = makeFakeAdPanels();
   const { b, controller } = setup(() => fakeAdPanels.adPanels);
   SCRUB_POS.value = 3; // deleted → ruin

@@ -102,18 +102,20 @@ export function createScrubController(deps: ScrubControllerDeps) {
     const dirtyModifiedAges = new Set<THREE.BufferAttribute>();
     const dirtyIconUVs = new Set<THREE.BufferAttribute>();
     const dirtyRuins = new Set<THREE.BufferAttribute>();
-    // A street's opacity is the max of its buildings', so the whole block fades together.
-    const maxOp = new Map<Street, number>();
+    // A street fades with its PRESENT descendants; a ruin-only street uses the
+    // road opacity instead, so building vs road opacity stay independent.
+    const maxPresentOp = new Map<Street, number>();
+    const ruinStreets = new Set<Street>();
     // Ad-panel opacity by path: the building's op when present, else 0 (a ruin or
     // absent building shows no media image). Feeds applyBuildingFades only.
     const opByPath = new Map<string, number>();
-    // Streets with at least one PRESENT descendant — the rest (op>0) are ruin-only.
     const presentStreets = new Set<Street>();
     RUINED_STREET_DIRS.clear();
 
     const ruins = RUINS.peek();
     const ruinsOn = ruins.ENABLED;
-    const ruinOpacity = ruins.OPACITY;
+    const ruinBuildingOpacity = ruins.BUILDING_OPACITY;
+    const ruinRoadOpacity = ruins.ROAD_OPACITY;
     const ruinHeight = ruins.STUB_HEIGHT * BUILDING_DIMENSIONS.peek().FLOOR_HEIGHT;
     const ruinGrayMix = ruins.DESATURATION;
 
@@ -154,15 +156,17 @@ export function createScrubController(deps: ScrubControllerDeps) {
       const present = state === 'present';
       const ruin = state === 'ruin' && ruinsOn;
       // present → genesis grow-in ramp; ruin → faint stub; before-genesis or ruins-off deletion → gone.
-      const op = present ? presenceAt(pt, pos, 0) : ruin ? ruinOpacity : 0;
+      const op = present ? presenceAt(pt, pos, 0) : ruin ? ruinBuildingOpacity : 0;
 
-      // Footprint + street opacity are driven for EVERY union building, even one
-      // in an LOD cell with no detail mesh (getMeshForBuilding → null on a large
-      // repo). Skipping them below would strand the footprint at its opaque
-      // default and under-count the street's max-opacity.
+      // Driven for EVERY union building (even one with no detail mesh on a large
+      // repo), else the footprint/street strand at their defaults.
       for (const street of streets) {
-        maxOp.set(street, Math.max(maxOp.get(street) ?? 0, op));
-        if (present) presentStreets.add(street);
+        if (present) {
+          maxPresentOp.set(street, Math.max(maxPresentOp.get(street) ?? 0, op));
+          presentStreets.add(street);
+        } else if (ruin) {
+          ruinStreets.add(street);
+        }
       }
       // opByPath feeds ONLY the ad panels — gate on presence so a ruin/absent
       // building shows no media image (its media is gone), just its stub.
@@ -290,9 +294,16 @@ export function createScrubController(deps: ScrubControllerDeps) {
     // Every street gets written each frame (defaulting to 0) so an orphaned street can't stick at a stale opacity.
     // ROOT is forced to 1: the repo root directory always exists, even when scrubbed back to an empty tree.
     for (const street of allStreets) {
-      const op = street.isRoot ? 1 : (maxOp.get(street) ?? 0);
-      // A ruined street: faint (op>0) with no live descendant → tint its plot.
-      const streetRuin = ruinsOn && !street.isRoot && op > 0 && !presentStreets.has(street);
+      const hasPresent = presentStreets.has(street);
+      // Present descendants fade the road; a ruin-only street uses the road opacity.
+      const streetRuin = ruinsOn && !street.isRoot && !hasPresent && ruinStreets.has(street);
+      const op = street.isRoot
+        ? 1
+        : hasPresent
+          ? (maxPresentOp.get(street) ?? 0)
+          : streetRuin
+            ? ruinRoadOpacity
+            : 0;
       deps.streets.setStreetOpacity(street, op, streetRuin);
       deps.streets.setStreetLabelOpacity(street, op);
       if (street.dir?.path != null) {

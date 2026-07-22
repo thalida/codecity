@@ -11,7 +11,8 @@ export const RUINS_SECTION: SectionNode = {
     'In Timeline mode, a file deleted before the scrubbed commit leaves a faint gray stub instead of vanishing; its folder’s roads and plots ghost in too.',
   children: [
     field(RUINS, 'ENABLED'),
-    field(RUINS, 'OPACITY'),
+    field(RUINS, 'BUILDING_OPACITY'),
+    field(RUINS, 'ROAD_OPACITY'),
     field(RUINS, 'STUB_HEIGHT'),
     field(RUINS, 'DESATURATION'),
     field(RUINS, 'ROAD_COLOR'),

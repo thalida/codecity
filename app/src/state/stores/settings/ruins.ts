@@ -20,15 +20,25 @@ const RUINS_FIELDS = {
     label: 'Show ruins',
     tip: 'When on, a file deleted before the scrubbed commit leaves a faint gray stub instead of vanishing. Roads and plots of a deleted folder ghost in too.',
   },
-  OPACITY: {
+  BUILDING_OPACITY: {
     route: ChangeRoute.Live,
     kind: FieldKind.Slider,
     default: 0.5,
     min: 0.02,
     max: 1,
     step: 0.02,
-    label: 'Opacity',
-    tip: 'How faint a ruin is. Low reads as a ghost; 1 is fully solid.',
+    label: 'Building opacity',
+    tip: 'How faint a ruined building stub is. Low reads as a ghost; 1 is fully solid.',
+  },
+  ROAD_OPACITY: {
+    route: ChangeRoute.Live,
+    kind: FieldKind.Slider,
+    default: 0.5,
+    min: 0.02,
+    max: 1,
+    step: 0.02,
+    label: 'Road opacity',
+    tip: 'How faint a deleted folder road and plots are.',
   },
   STUB_HEIGHT: {
     route: ChangeRoute.Live,
