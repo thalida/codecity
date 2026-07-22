@@ -81,11 +81,11 @@ function makeFakeFootprints() {
   };
 }
 
-function makeFakeMesh() {
+function makeFakeMesh(initialFadeZ = 0) {
   const lastMatrix = new THREE.Matrix4();
   let iFadeX = 1;
   let iFadeY = 0;
-  let iFadeZ = 0;
+  let iFadeZ = initialFadeZ;
   let iFadeUpdates = 0;
   let matUpdates = 0;
   let lastColor: THREE.Color | null = null;
@@ -139,8 +139,14 @@ function makeFakeMesh() {
 
   return {
     mesh,
+    get scaleX() {
+      return lastMatrix.elements[0];
+    },
     get scaleY() {
       return lastMatrix.elements[5];
+    },
+    get scaleZ() {
+      return lastMatrix.elements[10];
     },
     get posY() {
       return lastMatrix.elements[13];
@@ -150,6 +156,9 @@ function makeFakeMesh() {
     },
     get iFadeY() {
       return iFadeY;
+    },
+    get iFadeZ() {
+      return iFadeZ;
     },
     get matUpdates() {
       return matUpdates;
@@ -192,7 +201,8 @@ function makeFakeAdPanels() {
 function setup(
   getAdPanels: () => InstancedAdPanels | null = () => null,
   trees: { setScrubCommit(maxCommitIndex: number | null): void } = noopTrees,
-  fireflies: { setScrubCommit(maxCommitIndex: number | null): void } = noopFireflies
+  fireflies: { setScrubCommit(maxCommitIndex: number | null): void } = noopFireflies,
+  initialFadeZ = 0
 ) {
   const b = {
     x: 5,
@@ -209,7 +219,7 @@ function setup(
   const index = new BuildingIndex();
   index.insert(b);
 
-  const fake = makeFakeMesh();
+  const fake = makeFakeMesh(initialFadeZ);
   const timelines = buildPathTimelines(bundle);
   TIMELINE_BUNDLE.value = bundle;
 
@@ -284,6 +294,42 @@ test('after deletion opacity drops to RUIN_FLOOR and the body flattens', () => {
   controller.update();
   expect(fake.scaleY).toBe(0);
   expect(fake.iFadeX).toBe(RUIN_FLOOR);
+});
+
+// An absent building must get a fully zero-scaled matrix, not a flat (w, 0, d)
+// quad: a flat quad still writes depth and shows as a cutout/outline on the road.
+test('an absent building (before creation) gets a fully zero-scale matrix, not a flat quad', () => {
+  const { fake, controller } = setup();
+  SCRUB_POS.value = 0.5; // before createdIdx = 1
+  controller.update();
+  expect(fake.scaleX).toBeCloseTo(0, 5);
+  expect(fake.scaleY).toBeCloseTo(0, 5);
+  expect(fake.scaleZ).toBeCloseTo(0, 5);
+});
+
+test('an absent building (after deletion) gets a fully zero-scale matrix, not a flat quad', () => {
+  const { fake, controller } = setup();
+  SCRUB_POS.value = 3; // deletedIdx
+  controller.update();
+  expect(fake.scaleX).toBeCloseTo(0, 5);
+  expect(fake.scaleY).toBeCloseTo(0, 5);
+  expect(fake.scaleZ).toBeCloseTo(0, 5);
+});
+
+test('a present building keeps its full footprint (scaleX/scaleZ), only height animates', () => {
+  const { b, fake, controller } = setup();
+  SCRUB_POS.value = 1.5; // mid-growth: height interpolated, footprint stays full
+  controller.update();
+  expect(fake.scaleX).toBeCloseTo(b.w, 5);
+  expect(fake.scaleZ).toBeCloseTo(b.d, 5);
+  expect(fake.scaleY).toBeGreaterThan(0);
+});
+
+test('an absent building has its outline (iFade.z) driven to 0, even if left over from a Live-mode fade sweep', () => {
+  const { fake, controller } = setup(undefined, undefined, undefined, 0.8);
+  SCRUB_POS.value = 3; // deletedIdx: absent
+  controller.update();
+  expect(fake.iFadeZ).toBe(0);
 });
 
 test('ad panels fade in lockstep with a present building body', () => {

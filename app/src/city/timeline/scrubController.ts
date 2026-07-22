@@ -23,6 +23,10 @@ import type { PathTimeline } from './replay';
 // small floor so removed buildings persist faintly.
 export const RUIN_FLOOR = 0;
 
+// Below this presence, collapse to a fully zero-scaled matrix instead of a flat
+// (w, 0, d) quad, which would still occlude the road and outline as a cutout.
+const ABSENT_EPSILON = 0.001;
+
 export interface ScrubControllerDeps {
   getBuildingIndex(): BuildingIndex | null;
   getMeshForBuilding(b: Building): { mesh: THREE.InstancedMesh; slot: number } | null;
@@ -91,25 +95,35 @@ export function createScrubController(deps: ScrubControllerDeps) {
       if (!resolved) continue;
       const { mesh, slot } = resolved;
 
+      const op = presenceAt(pt, pos, RUIN_FLOOR);
+      const absent = op <= ABSENT_EPSILON;
       const present = isPresent(pt, pos);
-      const lines = linesAt(pt, pos);
-      // Gate on presence (intervals), not line count: media/empty files are present with 0 lines.
-      const f =
-        present && b.h > 0 ? buildingHeightForLines(b.file, lines, deps.heightCtx) / b.h : 0;
-      const sy = b.h * f;
-      _m.makeScale(b.w, sy, b.d);
-      _m.setPosition(b.x, sy / 2, b.y);
+
+      // Absent buildings get a fully zero-scaled matrix, not a flat (w, 0, d) quad:
+      // a flat quad still writes depth and occludes/outlines on the road.
+      if (absent) {
+        _m.makeScale(0, 0, 0);
+      } else {
+        const lines = linesAt(pt, pos);
+        // Gate on presence (intervals), not line count: media/empty files are present with 0 lines.
+        const f =
+          present && b.h > 0 ? buildingHeightForLines(b.file, lines, deps.heightCtx) / b.h : 0;
+        const sy = b.h * f;
+        _m.makeScale(b.w, sy, b.d);
+        _m.setPosition(b.x, sy / 2, b.y);
+      }
       mesh.setMatrixAt(slot, _m);
       dirtyMeshes.add(mesh);
 
-      const op = presenceAt(pt, pos, RUIN_FLOOR);
       for (const street of streets) maxOp.set(street, Math.max(maxOp.get(street) ?? 0, op));
       opByPath.set(b.file.path, op);
       deps.footprints.setBuildingFootprintOpacity(b.file.path, op);
 
       const iFade = mesh.geometry.getAttribute('iFade') as THREE.BufferAttribute | undefined;
       if (iFade) {
-        iFade.setXYZ(slot, op, iFade.getY(slot), iFade.getZ(slot));
+        // Tie outline opacity (.z) to presence too, so a leftover Live-mode outline
+        // (from a hover/select fade sweep) can't linger on an absent building.
+        iFade.setXYZ(slot, op, iFade.getY(slot), absent ? 0 : iFade.getZ(slot));
         dirtyFades.add(iFade);
       }
 
