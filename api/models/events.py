@@ -95,12 +95,14 @@ class TimelineEvent(StrEnum):
 
 
 class TimelineProgressEvent(BaseModel):
-    """`timeline-progress` — the git-history walk or blob-table resolution is
-    in progress. The `history` stage carries `commits`; the `blobs` stage
-    carries `blobsDone`/`blobsTotal` (the total is known up front from the
-    batch blob lookup, so this stage reports two ticks, not a live stream)."""
+    """`timeline-progress` — the history walk, blob-table resolution, or (for a
+    blobless remote clone) the up-front blob backfill is in progress. The
+    `fetch` stage carries `percent`; `history` carries `commits`; `blobs`
+    carries `blobsDone`/`blobsTotal` (the total is known up front from the batch
+    blob lookup, so that stage reports two ticks, not a live stream)."""
 
-    stage: Literal["history", "blobs"]
+    stage: Literal["fetch", "history", "blobs"]
+    percent: OptionalInt = None
     commits: OptionalInt = None
     blobsDone: OptionalInt = None
     blobsTotal: OptionalInt = None

@@ -67,6 +67,7 @@ __all__ = [
     "RepoNotFoundError",
     "clone_dir_for",
     "ensure_clone",
+    "hydrate_blobs",
     "list_remote_branches",
     "remove_clone",
 ]
@@ -728,6 +729,68 @@ def ensure_clone(
         on_heartbeat=on_heartbeat,
         cancel_event=cancel_event,
     )
+
+
+# Per-blob size ceiling for the timeline backfill. Source/lock/media blobs sit
+# far below this; the cap only skips checked-in monster binaries (datasets,
+# models) whose per-commit copies would otherwise pull unbounded data across
+# history. A skipped blob stays absent and reads as 0 lines (GIT_NO_LAZY_FETCH),
+# never a hang.
+_HYDRATE_BLOB_LIMIT = "50m"
+
+
+def hydrate_blobs(
+    target: Path,
+    *,
+    on_progress: Callable[[tuple[str, int]], None] | None = None,
+    on_heartbeat: Callable[[int | None], None] | None = None,
+    cancel_event: "threading.Event | None" = None,
+) -> bool:
+    """Backfill a blobless (--filter=blob:none) clone so historical blobs are
+    local. The live scan only needs HEAD's blobs, but the timeline walks all
+    history — and lazy per-blob promisor fetches hang for minutes on a large
+    repo. One `--refetch` pulls them all in a single packfile. No-op (returns
+    False) for an already-hydrated / full clone or a local repo. Returns True
+    when it fetched.
+
+    Widening the filter to `blob:limit` (from `blob:none`) BEFORE the refetch
+    makes it fetch every blob under the cap and leaves the clone at that filter,
+    so later `git fetch` updates stay hydrated and the next timeline entry skips
+    this (the check below only fires for a pristine `blob:none` clone)."""
+    if _partial_clone_filter(target) != "blob:none":
+        return False
+    _run_git(
+        "config",
+        "remote.origin.partialclonefilter",
+        f"blob:limit={_HYDRATE_BLOB_LIMIT}",
+        cwd=target,
+    )
+    _log(f"hydrating blobless clone {target} for timeline (backfilling history)")
+    _run_net_git(
+        "fetch",
+        "--refetch",
+        f"--filter=blob:limit={_HYDRATE_BLOB_LIMIT}",
+        "--progress",
+        "origin",
+        cwd=target,
+        progress_dir=target / ".git" / "objects" / "pack",
+        on_progress=on_progress,
+        on_heartbeat=on_heartbeat,
+        cancel_event=cancel_event,
+    )
+    _log("hydrate complete")
+    return True
+
+
+def _partial_clone_filter(target: Path) -> str | None:
+    """The clone's configured partial-clone filter (e.g. `blob:none`), or None
+    for a full clone / when the key is absent."""
+    try:
+        return _run_git(
+            "config", "--get", "remote.origin.partialclonefilter", cwd=target
+        ).strip()
+    except CloneError:
+        return None
 
 
 def remove_clone(url: str, branch: str | None) -> bool:

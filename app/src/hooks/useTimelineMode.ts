@@ -30,9 +30,13 @@ import {
 import { loadSource } from '@/hooks/useManifestSource';
 import type { Manifest, TimelineProgress } from '@/types';
 
-/** Progress tail for the "Loading history" step: running commit count during
- *  the history walk, done/total during blob resolution. */
+/** Progress tail for the "Loading history" step: download % while backfilling a
+ *  blobless clone, commit count during the history walk, done/total during blob
+ *  resolution. */
 function timelineLoadingTail(p: TimelineProgress): string | null {
+  if (p.stage === 'fetch') {
+    return p.percent != null ? `downloading ${p.percent}%` : 'downloading history';
+  }
   if (p.stage === 'history') {
     return p.commits !== undefined ? `${p.commits.toLocaleString()} commits` : null;
   }

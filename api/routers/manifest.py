@@ -50,6 +50,7 @@ from api.services.clone import (
     RepoNotFoundError,
     clone_dir_for,
     ensure_clone,
+    hydrate_blobs,
     remove_clone,
 )
 from api.services.gitobj import resolve_ref
@@ -133,10 +134,13 @@ async def timeline(
     use_cache = not no_cache
     pending_label = label_from_source(src)
 
+    is_remote = classify(src) is SourceKind.REMOTE
+
     async def gen() -> AsyncIterator[dict[str, Any]]:
         loop = asyncio.get_running_loop()
         q: asyncio.Queue[dict[str, Any] | None] = asyncio.Queue()
         holder: dict[str, Any] = {"bundle": None, "path": None, "head": None}
+        cancel = threading.Event()
 
         def _put(item: dict[str, Any] | None) -> None:
             loop.call_soon_threadsafe(q.put_nowait, item)
@@ -150,6 +154,15 @@ async def timeline(
                 data["blobsDone"] = payload.get("done")
                 data["blobsTotal"] = payload.get("total")
             _put(_sse(TimelineEvent.PROGRESS, data))
+
+        def _on_hydrate(payload: tuple[str, int]) -> None:
+            # git fetch (stage, percent) → the "downloading history" tick.
+            _put(
+                _sse(
+                    TimelineEvent.PROGRESS,
+                    {"stage": "fetch", "percent": payload[1], "label": pending_label},
+                )
+            )
 
         def _run() -> None:
             try:
@@ -166,11 +179,18 @@ async def timeline(
                     if cached is not None:
                         _put(_sse(TimelineEvent.COMPLETE, {"bundle": cached}))
                         return
+                # A blobless remote clone has no historical blob content — backfill
+                # it before the walk so blob resolution reads local objects (no
+                # per-blob promisor fetch hang). Never touches a local repo.
+                if is_remote:
+                    hydrate_blobs(target, on_progress=_on_hydrate, cancel_event=cancel)
                 bundle = build_timeline_bundle(
                     str(target), use_cache=use_cache, on_progress=_on_progress
                 )
                 holder["bundle"] = bundle
                 _put(_sse(TimelineEvent.COMPLETE, {"bundle": bundle}))
+            except ScanCancelledError:
+                pass  # client disconnected mid-hydrate; nothing to report
             except NotAGitRepoError as e:
                 _put(_sse_error(str(e)))
             except Exception as e:  # noqa: BLE001
@@ -187,6 +207,7 @@ async def timeline(
             while True:
                 if await request.is_disconnected():
                     disconnected = True
+                    cancel.set()  # kill an in-flight hydrate fetch
                     break
                 try:
                     item = await asyncio.wait_for(q.get(), timeout=0.5)
@@ -196,6 +217,7 @@ async def timeline(
                     break
                 yield item
         finally:
+            cancel.set()
             await asyncio.to_thread(worker.join, 2.0)
 
         # ALWAYS write cache on a clean final (read gated by no_cache; write is

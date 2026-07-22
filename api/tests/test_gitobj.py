@@ -138,3 +138,19 @@ def test_blob_sizes_batch(tmp_path):
     sizes = blob_sizes_batch(tmp_path, [a.sha])
     assert sizes[a.sha] == 12
     assert blob_sizes_batch(tmp_path, []) == {}
+
+
+def test_missing_blob_is_skipped_not_fetched(tmp_path):
+    # A sha absent from the object store (on a blobless clone: a historical blob
+    # not backfilled) must report as missing — GIT_NO_LAZY_FETCH keeps it from
+    # triggering a per-object promisor fetch, which would hang. Present blobs
+    # still resolve alongside the missing one.
+    _init(tmp_path)
+    (tmp_path / "a.txt").write_text("one\ntwo\n")
+    _commit(tmp_path, "c1")
+    present = ls_tree_files(tmp_path, resolve_ref(tmp_path, "HEAD"))[0].sha
+    absent = "0" * 40
+    stats = blob_stats_batch(tmp_path, [present, absent])
+    assert present in stats and absent not in stats
+    sizes = blob_sizes_batch(tmp_path, [present, absent])
+    assert present in sizes and absent not in sizes

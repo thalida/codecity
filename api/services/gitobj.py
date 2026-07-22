@@ -7,6 +7,7 @@ mirrors scan._run_git so we can read repos the process doesn't own.
 
 from __future__ import annotations
 
+import os
 import re
 import subprocess
 from pathlib import Path
@@ -15,6 +16,14 @@ from typing import NamedTuple
 from .media import probe_media_dims_from_bytes
 
 _SHA40 = re.compile(r"^[0-9a-f]{40}$")
+
+# GIT_NO_LAZY_FETCH=1: on a blobless (--filter=blob:none) clone a missing
+# historical blob reports "missing" instead of triggering a per-object promisor
+# fetch — which for thousands of blobs hangs for minutes. The timeline hydrates
+# the clone up front (clone.hydrate_blobs); this guarantees the fallback (a blob
+# still absent, e.g. a monster file the hydrate skipped) degrades to 0 lines, not
+# a hang.
+_GIT_ENV = {**os.environ, "GIT_NO_LAZY_FETCH": "1"}
 # Unprefixed: scan.py's _is_binary(path) delegates to is_binary_bytes below so
 # the live scan and the time-travel reconstruction classify file content
 # identically. _TEXT_CHARACTERS stays private — only is_binary_bytes needs it.
@@ -35,6 +44,7 @@ def _git(root: Path, *args: str) -> subprocess.CompletedProcess[bytes]:
         _git_argv(root, *args),
         capture_output=True,
         check=False,
+        env=_GIT_ENV,
     )
 
 
@@ -130,6 +140,7 @@ def blob_stats_batch(
         input="\n".join(unique).encode("ascii"),
         capture_output=True,
         check=False,
+        env=_GIT_ENV,
     )
     out = proc.stdout
     result: dict[str, BlobStats] = {}
@@ -169,6 +180,7 @@ def blob_sizes_batch(root: Path, shas: list[str]) -> dict[str, int]:
         input="\n".join(unique).encode("ascii"),
         capture_output=True,
         check=False,
+        env=_GIT_ENV,
     )
     out: dict[str, int] = {}
     for line in proc.stdout.decode("ascii", "replace").splitlines():

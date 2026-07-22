@@ -632,17 +632,20 @@ export interface components {
         };
         /**
          * TimelineProgressEvent
-         * @description `timeline-progress` — the git-history walk or blob-table resolution is
-         *     in progress. The `history` stage carries `commits`; the `blobs` stage
-         *     carries `blobsDone`/`blobsTotal` (the total is known up front from the
-         *     batch blob lookup, so this stage reports two ticks, not a live stream).
+         * @description `timeline-progress` — the history walk, blob-table resolution, or (for a
+         *     blobless remote clone) the up-front blob backfill is in progress. The
+         *     `fetch` stage carries `percent`; `history` carries `commits`; `blobs`
+         *     carries `blobsDone`/`blobsTotal` (the total is known up front from the batch
+         *     blob lookup, so that stage reports two ticks, not a live stream).
          */
         TimelineProgressEvent: {
             /**
              * Stage
              * @enum {string}
              */
-            stage: "history" | "blobs";
+            stage: "fetch" | "history" | "blobs";
+            /** Percent */
+            percent?: number;
             /** Commits */
             commits?: number;
             /** Blobsdone */
