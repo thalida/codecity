@@ -165,7 +165,7 @@ function setup(getAdPanels: () => InstancedAdPanels | null = () => null) {
     timelines,
     heightCtx,
     footprints: noopFootprints,
-    streets: { setStreetOpacity: () => {} },
+    streets: { setStreetOpacity: () => {}, setStreetLabelOpacity: () => {} },
     streetsByDir: {},
   });
 
@@ -286,7 +286,7 @@ test('a present media/0-line file gets a non-zero scaleY; an absent one stays fl
     timelines,
     heightCtx,
     footprints: noopFootprints,
-    streets: { setStreetOpacity: () => {} },
+    streets: { setStreetOpacity: () => {}, setStreetLabelOpacity: () => {} },
     streetsByDir: {},
   });
 
@@ -409,7 +409,7 @@ test('dedup: two buildings sharing one InstancedMesh set needsUpdate exactly onc
     timelines,
     heightCtx,
     footprints: noopFootprints,
-    streets: { setStreetOpacity: () => {} },
+    streets: { setStreetOpacity: () => {}, setStreetLabelOpacity: () => {} },
     streetsByDir: {},
   });
 
@@ -495,9 +495,13 @@ test('couples street opacity to the max opacity of its buildings (block fade)', 
   ]);
 
   const opacityByStreet = new Map<Street, number>();
+  const labelOpacityByStreet = new Map<Street, number>();
   const streets = {
     setStreetOpacity: (street: Street, opacity: number) => {
       opacityByStreet.set(street, opacity);
+    },
+    setStreetLabelOpacity: (street: Street, opacity: number) => {
+      labelOpacityByStreet.set(street, opacity);
     },
   };
 
@@ -522,6 +526,9 @@ test('couples street opacity to the max opacity of its buildings (block fade)', 
   controller.update();
   expect(opacityByStreet.get(dStreet)).toBe(RUIN_FLOOR);
   expect(opacityByStreet.get(eStreet)).toBeCloseTo(1, 5);
+  // Labels fade in lockstep with the road: the deleted street's label opacity drops to 0, the live one stays ~1.
+  expect(labelOpacityByStreet.get(dStreet)).toBe(RUIN_FLOOR);
+  expect(labelOpacityByStreet.get(eStreet)).toBeCloseTo(1, 5);
 });
 
 test('block-fade is a true max, not last-write-wins: one deleted sibling cannot drag a street down', () => {
@@ -586,6 +593,7 @@ test('block-fade is a true max, not last-write-wins: one deleted sibling cannot 
     setStreetOpacity: (street: Street, opacity: number) => {
       opacityByStreet.set(street, opacity);
     },
+    setStreetLabelOpacity: () => {},
   };
 
   const timelines = buildPathTimelines(siblingBundle);
@@ -672,6 +680,7 @@ test('descendant rollup: a container street with no direct files inherits its ch
     setStreetOpacity: (street: Street, opacity: number) => {
       opacityByStreet.set(street, opacity);
     },
+    setStreetLabelOpacity: () => {},
   };
 
   const timelines = buildPathTimelines(rollupBundle);
@@ -763,7 +772,7 @@ test('footprints: a deleted building/street fades to 0 while a live sibling stay
     timelines,
     heightCtx,
     footprints: fakeFootprints.footprints,
-    streets: { setStreetOpacity: () => {} },
+    streets: { setStreetOpacity: () => {}, setStreetLabelOpacity: () => {} },
     streetsByDir: { d: dStreet, e: eStreet },
   });
 

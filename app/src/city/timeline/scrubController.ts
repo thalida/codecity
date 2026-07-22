@@ -28,7 +28,10 @@ export interface ScrubControllerDeps {
   getAdPanels(): InstancedAdPanels | null;
   timelines: Map<string, PathTimeline>;
   heightCtx: HeightContext;
-  streets: { setStreetOpacity(street: Street, opacity: number): void };
+  streets: {
+    setStreetOpacity(street: Street, opacity: number): void;
+    setStreetLabelOpacity(street: Street, opacity: number): void;
+  };
   // { street dir.path → Street } from the union layout, for resolving a building's street.
   streetsByDir: Record<string, Street>;
   footprints: {
@@ -105,6 +108,7 @@ export function createScrubController(deps: ScrubControllerDeps) {
     for (const street of allStreets) {
       const op = maxOp.get(street) ?? 0;
       deps.streets.setStreetOpacity(street, op);
+      deps.streets.setStreetLabelOpacity(street, op);
       if (street.dir?.path != null) deps.footprints.setStreetFootprintOpacity(street.dir.path, op);
     }
   }

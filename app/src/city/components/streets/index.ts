@@ -60,6 +60,8 @@ export interface Streets extends SceneComponent {
   getAsphaltRanges(): AsphaltRange[];
   /** Fade one street: write `opacity` across its span on both the sidewalk and asphalt merged meshes. */
   setStreetOpacity(street: Street, opacity: number): void;
+  /** Fade one street's road labels in lockstep with setStreetOpacity; 0 force-hides (overriding the visibility LOD). */
+  setStreetLabelOpacity(street: Street, opacity: number): void;
   /** Move both street materials into (or out of) the transparent render pass. */
   setStreetsTransparent(on: boolean): void;
 }
@@ -90,6 +92,8 @@ export function createStreets(ctx: SceneContext): Streets {
     { sidewalk: SidewalkRange; asphalt: AsphaltRange | null }
   >();
   let labelGroups: THREE.Group[] = [];
+  // Label groups keyed by street, for setStreetLabelOpacity (a street can repeat its label several times).
+  let labelGroupsByStreet = new Map<Street, THREE.Group[]>();
   // Dir paths currently tinted non-default (selection + hover), so a tint refresh
   // rewrites only the changed streets' vertex spans, not the whole color buffer.
   let _lastTintPaths: string[] = [];
@@ -154,6 +158,28 @@ export function createStreets(ctx: SceneContext): Streets {
     if (asphaltMesh && r.asphalt) {
       _writeOpacitySpan(asphaltMesh, r.asphalt.vStart, r.asphalt.vCount, opacity);
       (asphaltMesh.geometry.getAttribute('aOpacity') as THREE.BufferAttribute).needsUpdate = true;
+    }
+  }
+
+  // Fade one street's labels; scrubHidden is a hard override the visibility LOD respects (tick()),
+  // so a faded-out street can't be re-shown by a camera move before its opacity climbs back up.
+  function setStreetLabelOpacity(street: Street, opacity: number): void {
+    const groups = labelGroupsByStreet.get(street);
+    if (!groups) return;
+    const hidden = opacity <= 0;
+    for (const g of groups) {
+      const wasHidden = !!g.userData.scrubHidden;
+      if (hidden) {
+        g.userData.scrubHidden = true;
+        g.visible = false;
+        continue;
+      }
+      const plane = g.children[0] as FlatMesh | undefined;
+      if (plane) plane.material.opacity = opacity;
+      g.userData.scrubHidden = false;
+      // Re-run the LOD once for the street that just came back, so it reappears
+      // even if the camera hasn't moved since it was scrub-hidden.
+      if (wasHidden) _labelVisDirty = true;
     }
   }
 
@@ -223,6 +249,7 @@ export function createStreets(ctx: SceneContext): Streets {
 
     asphaltMesh = null;
     labelGroups = [];
+    labelGroupsByStreet = new Map();
     _lastTintPaths = [];
     // Fresh labels default to un-flipped; force tick() to apply the live state.
     _flipDirty = true;
@@ -261,6 +288,7 @@ export function createStreets(ctx: SceneContext): Streets {
         group.add(label);
         labelGroups.push(label);
       }
+      if (labels.length) labelGroupsByStreet.set(street, labels);
     }
     _labelVisDirty = true;
   }
@@ -385,6 +413,11 @@ export function createStreets(ctx: SceneContext): Streets {
       const halfTan = Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2);
       const k = vpH / (2 * halfTan);
       for (const lbl of labelGroups) {
+        // A scrub-faded street stays hidden regardless of on-screen size (setStreetLabelOpacity owns it).
+        if (lbl.userData.scrubHidden) {
+          lbl.visible = false;
+          continue;
+        }
         const d = Math.max(camera.position.distanceTo(lbl.position), 1e-3);
         const px = ((lbl.userData.worldH ?? 0) * k) / d;
         lbl.visible = lbl.visible ? px >= LABEL_LOD_HIDE_PX : px >= LABEL_LOD_SHOW_PX;
@@ -424,6 +457,7 @@ export function createStreets(ctx: SceneContext): Streets {
     getStreetRanges: () => sidewalkRanges,
     getAsphaltRanges: () => asphaltRanges,
     setStreetOpacity,
+    setStreetLabelOpacity,
     setStreetsTransparent,
   };
 }

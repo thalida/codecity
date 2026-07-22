@@ -155,6 +155,50 @@ describe('street opacity', () => {
     expect(asOp.version).toBe(asVer + 1);
   });
 
+  it("setStreetLabelOpacity fades one street's labels without touching another street's", () => {
+    streets = createStreets(makeCtx());
+    streets.rebuild(threeStreetLayout());
+
+    const ranges = streets.getStreetRanges();
+    const target = ranges[1].street;
+    const other = ranges[0].street;
+    const labelsOf = (s: Street) =>
+      streets.group.children.filter(
+        (c) => c.userData.type === NodeKind.Label && c.userData.street === s
+      ) as THREE.Group[];
+
+    streets.setStreetLabelOpacity(target, 0.3);
+
+    for (const g of labelsOf(target)) {
+      const plane = g.children[0] as THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial>;
+      expect(plane.material.opacity).toBeCloseTo(0.3, 5);
+      expect(g.visible).not.toBe(false); // opacity > 0: LOD (not scrub) owns visibility
+    }
+    for (const g of labelsOf(other)) {
+      const plane = g.children[0] as THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial>;
+      expect(plane.material.opacity).toBeCloseTo(1, 5);
+    }
+  });
+
+  it("setStreetLabelOpacity(street, 0) force-hides that street's label group", () => {
+    streets = createStreets(makeCtx());
+    streets.rebuild(threeStreetLayout());
+
+    const ranges = streets.getStreetRanges();
+    const target = ranges[1].street;
+    const labelsOf = (s: Street) =>
+      streets.group.children.filter(
+        (c) => c.userData.type === NodeKind.Label && c.userData.street === s
+      ) as THREE.Group[];
+
+    streets.setStreetLabelOpacity(target, 0);
+    for (const g of labelsOf(target)) expect(g.visible).toBe(false);
+
+    // Bringing it back up unhides it (scrubHidden lifted) even without a camera move.
+    streets.setStreetLabelOpacity(target, 1);
+    for (const g of labelsOf(target)) expect(g.userData.scrubHidden).toBe(false);
+  });
+
   it('setStreetsTransparent(true) moves both materials into the transparent pass', () => {
     streets = createStreets(makeCtx());
     streets.rebuild(threeStreetLayout());
