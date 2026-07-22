@@ -5,7 +5,7 @@
 // Commit selections are unaffected — they open the panel normally.
 
 import './TimelineNotice.css';
-import { useRef, useState } from 'preact/hooks';
+import { useEffect, useRef, useState } from 'preact/hooks';
 import { useSignalEffect } from '@preact/signals';
 import { SCENE_HANDLE } from '@/state/stores/scene';
 import { TIMELINE_MODE } from '@/state/stores/timeline';
@@ -28,6 +28,9 @@ export function TimelineNotice() {
     if (timer.current) clearTimeout(timer.current);
     timer.current = setTimeout(() => setVisible(false), LINGER_MS);
   });
+
+  // Clear a pending timer on unmount so it can't fire after teardown.
+  useEffect(() => () => void (timer.current && clearTimeout(timer.current)), []);
 
   if (!visible) return null;
   return (
