@@ -173,7 +173,7 @@ function FooterStatusSection({ status }: FooterStatusSectionProps) {
   const liveClass = status.liveEnabled ? LiveClass.Live : LiveClass.Paused;
 
   // Compose hover tooltip
-  const liveLabel = `Live updates: ${status.liveEnabled ? 'on' : 'off'}`;
+  const liveLabel = `Auto-refresh: ${status.liveEnabled ? 'on' : 'off'}`;
   let titleText: string;
   if (status.rebuildStatus === RebuildStatus.Error && status.errorMessage) {
     titleText = `${liveLabel} · error: ${status.errorMessage}`;

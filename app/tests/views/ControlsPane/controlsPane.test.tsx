@@ -71,13 +71,13 @@ describe('ControlsPane subtabs', () => {
     expect(pane.querySelector('.controls-actions')).toBeNull();
   });
 
-  it('renders the Scan tab as two collapsible sections: Live updates and Excluded from city', () => {
+  it('renders the Scan tab as two collapsible sections: Auto-refresh and Excluded from city', () => {
     const pane = mount();
     clickTab(pane, 'Scan');
     const sectionLabels = Array.from(
       pane.querySelectorAll('.controls-section-summary .text-label')
     ).map((el) => el.textContent);
-    expect(sectionLabels).toEqual(['Live updates', 'Excluded from city']);
+    expect(sectionLabels).toEqual(['Auto-refresh', 'Excluded from city']);
     expect(pane.querySelectorAll('.setting-row').length).toBeGreaterThan(0);
   });
 
