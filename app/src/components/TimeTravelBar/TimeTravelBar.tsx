@@ -1,68 +1,26 @@
-// components/TimeTravelBar.tsx — bottom bar: slider over the full commit history to jump the city to any past commit.
+// components/TimeTravelBar.tsx — bottom bar: scrubs SCRUB_POS across the timeline bundle's commit history.
 
 import './TimeTravelBar.css';
-import { signal, effect } from '@preact/signals';
-import { useState, useRef, useEffect } from 'preact/hooks';
 import { History, RotateCcw } from 'lucide-preact';
-import { MANIFEST } from '@/state/stores/manifest';
-import { CURRENT_SOURCE_KEY } from '@/state/stores/source';
-import { TIME_TRAVEL_REF } from '@/state/stores/timeTravel';
-import { loadRef, exitTimeTravel } from '@/hooks/useManifestSource';
-import { isEmptyManifest } from '@/utils/manifest';
+import { TIMELINE_MODE, SCRUB_POS, TIMELINE_BUNDLE } from '@/state/stores/timeline';
+import { exitTimelineMode } from '@/hooks/useTimelineMode';
 import { formatShortDate } from '@/utils/dates';
 import { commitUrl } from '@/utils/commit';
-import type { CommitEntry, Manifest } from '@/types';
-
-// Stable HEAD-history axis + repo web URL: locked in per source so a past-ref
-// manifest's shorter commits list never shrinks the slider.
-const AXIS = signal<CommitEntry[]>([]);
-const REMOTE = signal<string | null>(null);
-let _axisSourceKey: string | null = null;
-
-effect(() => {
-  const key = CURRENT_SOURCE_KEY.value;
-  if (key !== _axisSourceKey) {
-    _axisSourceKey = key;
-    AXIS.value = [];
-    REMOTE.value = null;
-  }
-  if (AXIS.value.length > 0) return;
-  const m = MANIFEST.value;
-  if (isEmptyManifest(m)) return;
-  const commits = (m as Manifest).commits;
-  if (commits && commits.length > 0) {
-    AXIS.value = commits;
-    REMOTE.value = (m as Manifest).repo?.remote_url ?? null;
-  }
-});
 
 export function TimeTravelBar() {
-  const axis = AXIS.value;
-  const ref = TIME_TRAVEL_REF.value;
-  const headIndex = axis.length - 1;
-  const refIndex = ref === null ? -1 : axis.findIndex((c) => c.sha === ref);
-  const derived = refIndex === -1 ? headIndex : refIndex;
+  if (!TIMELINE_MODE.value) return null;
 
-  // pos drives the thumb so it tracks the drag before the (debounced) load lands.
-  const [pos, setPos] = useState(derived);
-  const timer = useRef<number | null>(null);
-  useEffect(() => setPos(derived), [derived]);
+  const bundle = TIMELINE_BUNDLE.value;
+  const commits = bundle?.commits ?? [];
+  if (commits.length === 0) return null;
 
-  if (axis.length < 2) return null;
-
-  const commit = axis[Math.min(Math.max(pos, 0), headIndex)];
-  const url = REMOTE.value ? commitUrl(REMOTE.value, commit.sha) : null;
+  const maxIndex = commits.length - 1;
+  const commit = commits[Math.min(Math.max(Math.round(SCRUB_POS.value), 0), maxIndex)];
+  const remote = bundle?.unionManifest?.repo?.remote_url ?? null;
+  const url = remote ? commitUrl(remote, commit.sha) : null;
 
   const onInput = (e: Event) => {
-    const i = Number((e.currentTarget as HTMLInputElement).value);
-    setPos(i);
-    // Debounce: a drag = one load on settle, not one per step.
-    if (timer.current !== null) clearTimeout(timer.current);
-    timer.current = window.setTimeout(() => {
-      timer.current = null;
-      if (i === headIndex) exitTimeTravel();
-      else void loadRef(axis[i].sha);
-    }, 150);
+    SCRUB_POS.value = Number((e.currentTarget as HTMLInputElement).value);
   };
 
   return (
@@ -73,8 +31,8 @@ export function TimeTravelBar() {
           type="range"
           class="setting-slider time-travel-slider"
           min={String(0)}
-          max={String(headIndex)}
-          value={String(pos)}
+          max={String(maxIndex)}
+          value={String(SCRUB_POS.value)}
           onInput={onInput}
           aria-label="Scrub commit history"
         />
@@ -83,8 +41,7 @@ export function TimeTravelBar() {
           class="setting-row-reset time-travel-reset"
           title="Back to live"
           aria-label="Back to live"
-          disabled={ref === null}
-          onClick={() => exitTimeTravel()}
+          onClick={() => exitTimelineMode()}
         >
           <RotateCcw class="icon" />
         </button>
