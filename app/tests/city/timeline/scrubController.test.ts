@@ -1652,21 +1652,14 @@ test('weathering: sets instanceColor.needsUpdate exactly once per mesh', () => {
 
 // ── Blueprints (future files render as a faint ghost while scrubbed before them) ──
 
-test('blueprint: a not-yet-created building renders as a faint tinted future ghost', () => {
-  BLUEPRINTS.value = {
-    ...BLUEPRINTS.value,
-    ENABLED: true,
-    OPACITY: 0.4,
-    LOOK_AHEAD: 100,
-    COLOR: '#00ffff',
-  };
+test('blueprint: a not-yet-created building renders as a uniform tinted future ghost', () => {
+  BLUEPRINTS.value = { ...BLUEPRINTS.value, ENABLED: true, OPACITY: 0.4, COLOR: '#00ffff' };
   const { b, fake, controller } = setup();
   SCRUB_POS.value = 0.5; // before f.txt's creation at commit 1 → future
   controller.update();
 
   expect(fake.scaleY).toBeCloseTo(b.h, 5); // shown at its eventual height, not zero-scaled
-  expect(fake.iFadeX).toBeGreaterThan(0); // faint, not hidden
-  expect(fake.iFadeX).toBeLessThanOrEqual(0.4); // capped by OPACITY
+  expect(fake.iFadeX).toBeCloseTo(0.4, 5); // uniform blueprint opacity, no distance fade
   // Blueprint tint (cyan), not the file's own hue.
   expect(fake.lastColor).not.toBeNull();
   expect(fake.lastColor!.r).toBeCloseTo(0, 5);
@@ -1674,18 +1667,20 @@ test('blueprint: a not-yet-created building renders as a faint tinted future gho
   expect(fake.lastColor!.b).toBeCloseTo(1, 5);
 });
 
-test('blueprint: opacity fades with how far ahead the creation is', () => {
-  // aheadDist = createdIdx(1) - pos(0.5) = 0.5; LOOK_AHEAD 1 → op = 0.4 * (1 - 0.5) = 0.2.
-  BLUEPRINTS.value = { ...BLUEPRINTS.value, ENABLED: true, OPACITY: 0.4, LOOK_AHEAD: 1 };
+test('blueprint: opacity is uniform regardless of how far ahead the creation is', () => {
+  BLUEPRINTS.value = { ...BLUEPRINTS.value, ENABLED: true, OPACITY: 0.3 };
   const { fake, controller } = setup();
-  SCRUB_POS.value = 0.5;
+  SCRUB_POS.value = 0; // furthest before creation
   controller.update();
-  expect(fake.iFadeX).toBeCloseTo(0.2, 5);
+  const far = fake.iFadeX;
+  SCRUB_POS.value = 0.9; // just before creation
+  controller.update();
+  expect(fake.iFadeX).toBeCloseTo(far, 5); // no distance fade
+  expect(fake.iFadeX).toBeCloseTo(0.3, 5);
 });
 
-test('blueprint: a building created beyond the look-ahead horizon stays hidden', () => {
-  // aheadDist 0.5 > LOOK_AHEAD 0.2 → not a blueprint → zero-scaled.
-  BLUEPRINTS.value = { ...BLUEPRINTS.value, ENABLED: true, LOOK_AHEAD: 0.2 };
+test('blueprint: with blueprints off, a future building stays hidden', () => {
+  BLUEPRINTS.value = { ...BLUEPRINTS.value, ENABLED: false };
   const { fake, controller } = setup();
   SCRUB_POS.value = 0.5;
   controller.update();

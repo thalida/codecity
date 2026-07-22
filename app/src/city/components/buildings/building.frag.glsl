@@ -416,7 +416,8 @@ vec4 renderWallFace() {
   vec3 withWin  = mix(wallOut, winColor, winMask);
 
   // Door: ground floor of the door face only. Replaces windows for that row.
-  if (isDoorFace() && row < 0.5) {
+  // Suppressed on ruin/blueprint stubs (vRuin > 0), whose facades are blank.
+  if (isDoorFace() && row < 0.5 && vRuin < 0.5) {
     // Door world-width / face world-width = door UV width.
     // vScale = (w, h, d) recovered from instance matrix columns.
     // ±X faces span depth d (vScale.z); ±Z faces span width w (vScale.x).

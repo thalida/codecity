@@ -8,11 +8,10 @@ export const BLUEPRINTS_SECTION: SectionNode = {
   key: 'blueprints',
   label: 'Timeline blueprints',
   description:
-    'In Timeline mode, a file created after the scrubbed commit shows as a faint ghost of what it will become, fading in as its creation nears.',
+    'In Timeline mode, a file created after the scrubbed commit shows as a faint ghost of what it will become; its folder’s roads and plots ghost in too.',
   children: [
     field(BLUEPRINTS, 'ENABLED'),
     field(BLUEPRINTS, 'OPACITY'),
-    field(BLUEPRINTS, 'LOOK_AHEAD'),
     field(BLUEPRINTS, 'COLOR'),
   ],
 };

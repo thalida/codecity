@@ -27,17 +27,7 @@ const BLUEPRINTS_FIELDS = {
     max: 1,
     step: 0.02,
     label: 'Opacity',
-    tip: 'How faint a blueprint is at its brightest (right before it is created).',
-  },
-  LOOK_AHEAD: {
-    route: ChangeRoute.Live,
-    kind: FieldKind.Slider,
-    default: 400,
-    min: 10,
-    max: 5000,
-    step: 10,
-    label: 'Look ahead (commits)',
-    tip: 'How far into the future to reveal blueprints. A building fades from full at its creation back to nothing this many commits earlier.',
+    tip: 'How faint a not-yet-built blueprint is.',
   },
   COLOR: {
     route: ChangeRoute.Live,

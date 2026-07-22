@@ -124,7 +124,6 @@ export function createScrubController(deps: ScrubControllerDeps) {
     const bp = BLUEPRINTS.peek();
     const blueprintsOn = bp.ENABLED;
     const blueprintOpacity = bp.OPACITY;
-    const blueprintLookAhead = bp.LOOK_AHEAD;
     _blueprintColor.set(bp.COLOR);
 
     // Pre-pass: weathering ranges over the PRESENT buildings at this scrub
@@ -163,14 +162,9 @@ export function createScrubController(deps: ScrubControllerDeps) {
       const state = ruinStateAt(pt, pos);
       const present = state === 'present';
       const ruin = state === 'ruin' && ruinsOn;
-      // Blueprint: not yet created (genesis ahead), within the look-ahead horizon;
-      // fades from full at its creation back to nothing lookAhead commits earlier.
-      const aheadDist = createdIdx - pos;
-      const blueprint =
-        !present && !ruin && blueprintsOn && aheadDist > 0 && aheadDist <= blueprintLookAhead;
-      const blueprintOp = blueprint
-        ? blueprintOpacity * Math.max(0, 1 - aheadDist / blueprintLookAhead)
-        : 0;
+      // Blueprint: not yet created at this scrub position (genesis is ahead).
+      const blueprint = !present && !ruin && blueprintsOn && createdIdx > pos;
+      const blueprintOp = blueprint ? blueprintOpacity : 0;
       // present → genesis grow-in ramp; ruin → faint stub; blueprint → faint future
       // ghost; before-genesis (out of range) or ruins-off deletion → gone.
       const op = present
