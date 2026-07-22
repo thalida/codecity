@@ -495,6 +495,16 @@ test('ad panels fade to 0 once the building is deleted (ruins off)', () => {
   expect(fakeAdPanels.lastGetFade!(b.file.path)).toBe(0);
 });
 
+test('ad panels stay hidden on a ruin (media is gone, only the stub shows)', () => {
+  RUINS.value = { ...RUINS.value, ENABLED: true, OPACITY: 0.3 };
+  const fakeAdPanels = makeFakeAdPanels();
+  const { b, controller } = setup(() => fakeAdPanels.adPanels);
+  SCRUB_POS.value = 3; // deleted → ruin
+  controller.update();
+  // The stub/footprint ghost at 0.3, but the media panel must be 0 (no image on a ruin).
+  expect(fakeAdPanels.lastGetFade!(b.file.path)).toBe(0);
+});
+
 test('preserves the silhouette/outline iFade channels', () => {
   const { fake, controller } = setup();
   SCRUB_POS.value = 2;

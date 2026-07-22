@@ -100,7 +100,8 @@ export function createScrubController(deps: ScrubControllerDeps) {
     const dirtyRuins = new Set<THREE.BufferAttribute>();
     // A street's opacity is the max of its buildings', so the whole block fades together.
     const maxOp = new Map<Street, number>();
-    // Keyed by path so ad panels fade in lockstep with their building body.
+    // Ad-panel opacity by path: the building's op when present, else 0 (a ruin or
+    // absent building shows no media image). Feeds applyBuildingFades only.
     const opByPath = new Map<string, number>();
     // Streets with at least one PRESENT descendant — the rest (op>0) are ruin-only.
     const presentStreets = new Set<Street>();
@@ -129,7 +130,9 @@ export function createScrubController(deps: ScrubControllerDeps) {
         maxOp.set(street, Math.max(maxOp.get(street) ?? 0, op));
         if (present) presentStreets.add(street);
       }
-      opByPath.set(b.file.path, op);
+      // opByPath feeds ONLY the ad panels — gate on presence so a ruin/absent
+      // building shows no media image (its media is gone), just its stub.
+      opByPath.set(b.file.path, present ? op : 0);
       deps.footprints.setBuildingFootprintOpacity(b.file.path, op, ruin);
 
       const resolved = deps.getMeshForBuilding(b);
@@ -245,7 +248,10 @@ export function createScrubController(deps: ScrubControllerDeps) {
     for (const attr of dirtyModifiedAges) attr.needsUpdate = true;
     for (const attr of dirtyIconUVs) attr.needsUpdate = true;
     for (const attr of dirtyRuins) attr.needsUpdate = true;
-    deps.getAdPanels()?.applyBuildingFades((p) => opByPath.get(p) ?? null);
+    // ?? 0 (not null): a panel the scrub never drives must HIDE, not linger at
+    // its shown default — mirrors the footprint default-hidden fix. (Live-mode
+    // buildingFader still uses null = "leave untouched".)
+    deps.getAdPanels()?.applyBuildingFades((p) => opByPath.get(p) ?? 0);
     // Every street gets written each frame (defaulting to 0) so an orphaned street can't stick at a stale opacity.
     // ROOT is forced to 1: the repo root directory always exists, even when scrubbed back to an empty tree.
     for (const street of allStreets) {
