@@ -46,6 +46,7 @@ import { ObjectBVH } from 'three-mesh-bvh';
 import { signal, effect, untracked } from '@preact/signals';
 import { NodeKind } from '@/types';
 import { sidewalkStreetForFace } from '@/city/components/streets/streets';
+import { TIMELINE_MODE } from '@/state/stores/timeline';
 
 import type { PickTarget, PickerWorld, PickerSelectionKey } from '@/types';
 import type { CityState } from '@/city/state';
@@ -326,6 +327,40 @@ export function createPicker({
     if (t) setHover(t);
   }
 
+  // ── Timeline scrub-hidden guard ─────────────────────────────────────
+  // Scrub-faded/zeroed meshes stay in the scene (never removed), so the
+  // raycast still hits them; reject a resolved hit here rather than let a
+  // faded-out building/tree/street stay hoverable or selectable. Only
+  // active in Timeline mode — live-mode resolution is untouched.
+  const SCRUB_HIDE_EPS = 0.02;
+  const _scrubMatrix = new THREE.Matrix4();
+
+  // Building presence is iFade.x, the same value the shader reads for opacity.
+  function _buildingScrubHidden(mesh: THREE.InstancedMesh, slot: number): boolean {
+    const iFade = mesh.geometry.getAttribute('iFade') as THREE.BufferAttribute | undefined;
+    return !!iFade && iFade.getX(slot) < SCRUB_HIDE_EPS;
+  }
+
+  // Trees are gated by zero-scaling their instance matrix (setScrubCommit).
+  // Read the X-column length directly rather than Matrix4.decompose, which
+  // special-cases a zero-determinant (fully collapsed) matrix back to scale (1,1,1).
+  function _treeScrubHidden(mesh: THREE.InstancedMesh, slot: number): boolean {
+    mesh.getMatrixAt(slot, _scrubMatrix);
+    const e = _scrubMatrix.elements;
+    const sx = Math.hypot(e[0], e[1], e[2]);
+    return sx < SCRUB_HIDE_EPS;
+  }
+
+  // Streets fade per-vertex (aOpacity); read the hit face's vertex directly
+  // so this can't drift from what the shader is actually drawing.
+  function _streetScrubHidden(hit: THREE.Intersection<THREE.Object3D>): boolean {
+    const mesh = hit.object as THREE.Mesh;
+    const aOpacity = mesh.geometry?.getAttribute('aOpacity') as THREE.BufferAttribute | undefined;
+    const vi = hit.face?.a;
+    if (!aOpacity || vi == null) return false;
+    return aOpacity.getX(vi) < SCRUB_HIDE_EPS;
+  }
+
   // ── Raycasting ────────────────────────────────────────────────────
 
   // Tie-break: when an InstancedMesh (cell detail) hit lies within
@@ -387,6 +422,7 @@ export function createPicker({
     ) {
       const slot = hit.instanceId;
       if (slot == null) return null;
+      if (TIMELINE_MODE.peek() && _treeScrubHidden(hit.object, slot)) return null;
       const trees = world.getTrees();
       const commit = trees?.commitForInstance(hit.object, slot);
       if (!commit) return null;
@@ -407,6 +443,7 @@ export function createPicker({
     ) {
       const slot = hit.instanceId;
       if (slot == null) return null;
+      if (TIMELINE_MODE.peek() && _buildingScrubHidden(hit.object, slot)) return null;
       const idx = world.getBuildingIndex();
       const building = idx?.byCellSlot(`${ud.cellId}:${slot}`);
       if (!building?.file) return null;
@@ -421,6 +458,7 @@ export function createPicker({
     // Merged sidewalk: all streets share one mesh, so resolve the hit face to
     // its street via the faceIndex→street map baked onto userData.
     if (ud.type === NodeKind.Directory && ud.pickStreets) {
+      if (TIMELINE_MODE.peek() && _streetScrubHidden(hit)) return null;
       const street = sidewalkStreetForFace(hit.object, hit.faceIndex ?? 0);
       if (street?.dir) {
         return {
