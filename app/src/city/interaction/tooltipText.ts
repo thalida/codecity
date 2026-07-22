@@ -44,10 +44,11 @@ export function formatHoverTooltip(
     // meaningless 0 — surface pixel dimensions instead. The backend only
     // stamps media_width/height on recognized media, so their presence is a
     // reliable "this is dimensioned media" signal.
-    if (f.media_width != null && f.media_height != null) {
-      return `${fpath}  ·  ${f.media_width}×${f.media_height}`;
-    }
-    return fpath + (f.lines != null ? `  ·  ${f.lines} lines` : '');
+    const base =
+      f.media_width != null && f.media_height != null
+        ? `${fpath}  ·  ${f.media_width}×${f.media_height}`
+        : fpath + (f.lines != null ? `  ·  ${f.lines} lines` : '');
+    return base + _ruinNote(target);
   }
   if (target.kind === NodeKind.Directory && target.dir) {
     const d = target.dir;
@@ -59,7 +60,12 @@ export function formatHoverTooltip(
     const counts = `${fileCount} file${fileCount === 1 ? '' : 's'}, ${dirCount} dir${
       dirCount === 1 ? '' : 's'
     }`;
-    return `${dpath || 'directory'}  ·  ${counts}`;
+    return `${dpath || 'directory'}  ·  ${counts}${_ruinNote(target)}`;
   }
   return null;
+}
+
+// Timeline ghost-ruin marker, appended to a file/dir tooltip.
+function _ruinNote(target: { isRuin?: boolean }): string {
+  return target.isRuin ? '  ·  ruin (deleted)' : '';
 }

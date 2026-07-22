@@ -336,12 +336,16 @@ export function createPicker({
   const SCRUB_HIDE_EPS = 0.02;
   const _scrubMatrix = new THREE.Matrix4();
 
-  // Non-interactive in Timeline mode: a building faded out (iFade.x below eps)
-  // OR a ghost-ruin (iRuin) — a ruin is a visible stub but must not be
-  // hoverable/selectable, it's a marker for a deleted file, not a live one.
+  // Building presence is iFade.x, the same value the shader reads for opacity.
+  // A ruin is NOT hidden — it's a visible stub, hoverable + selectable (the
+  // tooltip flags it as a ruin, and the right panel is suppressed elsewhere).
   function _buildingScrubHidden(mesh: THREE.InstancedMesh, slot: number): boolean {
     const iFade = mesh.geometry.getAttribute('iFade') as THREE.BufferAttribute | undefined;
-    if (iFade && iFade.getX(slot) < SCRUB_HIDE_EPS) return true;
+    return !!iFade && iFade.getX(slot) < SCRUB_HIDE_EPS;
+  }
+
+  // A visible ghost-ruin building (for the hover tooltip's "ruin" note).
+  function _buildingIsRuin(mesh: THREE.InstancedMesh, slot: number): boolean {
     const iRuin = mesh.geometry.getAttribute('iRuin') as THREE.BufferAttribute | undefined;
     return !!iRuin && iRuin.getX(slot) > 0.5;
   }
@@ -458,6 +462,7 @@ export function createPicker({
         data: building,
         file: building.file,
         instanceId: slot,
+        isRuin: TIMELINE_MODE.peek() && _buildingIsRuin(hit.object, slot),
       };
     }
     // Merged sidewalk: all streets share one mesh, so resolve the hit face to
@@ -465,15 +470,13 @@ export function createPicker({
     if (ud.type === NodeKind.Directory && ud.pickStreets) {
       if (TIMELINE_MODE.peek() && _streetScrubHidden(hit)) return null;
       const street = sidewalkStreetForFace(hit.object, hit.faceIndex ?? 0);
-      // A ruined road is a visible ghost but not interactive.
-      if (TIMELINE_MODE.peek() && street?.dir && RUINED_STREET_DIRS.has(street.dir.path))
-        return null;
       if (street?.dir) {
         return {
           kind: NodeKind.Directory,
           sidewalk: hit.object as THREE.Mesh,
           street,
           dir: street.dir,
+          isRuin: TIMELINE_MODE.peek() && RUINED_STREET_DIRS.has(street.dir.path),
         };
       }
       return null;

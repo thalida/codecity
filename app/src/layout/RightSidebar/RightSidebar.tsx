@@ -31,6 +31,7 @@ import {
   focusCommit,
 } from '@/state/stores/scene';
 import { MANIFEST } from '@/state/stores/manifest';
+import { TIMELINE_MODE } from '@/state/stores/timeline';
 import { findNodeByPath } from '@/utils/manifest';
 import { addExclude } from '@/state/stores/excludes';
 import { FilePreviewPane } from '@/views/FilePreviewPane/FilePreviewPane';
@@ -93,8 +94,12 @@ export function RightSidebar() {
   // live-update poll re-derives the enriched panes.
   const activeKind = useComputed<SidebarPaneKind | null>(() => {
     const sel = SCENE_HANDLE.value?.picker.selection.value ?? null;
-    if (sel?.kind === NodeKind.File) return SidebarPaneKind.File;
+    // Commits open the panel even while scrubbing; a file/dir details panel does
+    // NOT (its data is the union city, not a real scan at that commit) — the
+    // building/street is still selectable + shows a tooltip, just no panel.
     if (sel?.kind === NodeKind.Commit) return SidebarPaneKind.Commit;
+    if (TIMELINE_MODE.value) return null;
+    if (sel?.kind === NodeKind.File) return SidebarPaneKind.File;
     if (sel?.kind === NodeKind.Directory) return SidebarPaneKind.Street;
     return null;
   });

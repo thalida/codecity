@@ -79,4 +79,14 @@ describe('formatHoverTooltip', () => {
     const t = fileTarget({ path: 'a.ts', lines: 1 });
     expect(formatHoverTooltip(t, null)).toBe('a.ts  ·  1 lines');
   });
+
+  it('appends a ruin note for a ghost-ruin file/dir', () => {
+    const f = { ...fileTarget({ path: 'a.ts', lines: 1 }), isRuin: true } as PickTarget;
+    expect(formatHoverTooltip(f, 'r')).toBe('/r/a.ts  ·  1 lines  ·  ruin (deleted)');
+    const d = {
+      ...dirTarget({ path: 'app', children_file_count: 2, children_dir_count: 0 }),
+      isRuin: true,
+    } as PickTarget;
+    expect(formatHoverTooltip(d, 'r')).toBe('/r/app  ·  2 files, 0 dirs  ·  ruin (deleted)');
+  });
 });

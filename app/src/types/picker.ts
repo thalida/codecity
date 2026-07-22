@@ -16,6 +16,8 @@ export interface FileTarget {
   file: FileNode;
   /** Slot index within the cell's InstancedMesh. */
   instanceId?: number;
+  /** Timeline mode: this building is a ghost-ruin (deleted before the scrubbed commit). */
+  isRuin?: boolean;
 }
 
 /** Hovered/selected directory (a sidewalk mesh + its street group). */
@@ -24,6 +26,8 @@ export interface DirTarget {
   sidewalk: THREE.Mesh;
   street: Street;
   dir: DirNode;
+  /** Timeline mode: this road's folder is a ghost-ruin (all its files deleted). */
+  isRuin?: boolean;
 }
 
 /** Hovered/selected root gem. */

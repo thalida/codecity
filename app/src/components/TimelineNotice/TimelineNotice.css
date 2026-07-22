@@ -1,0 +1,32 @@
+/* components/TimelineNotice.css — transient toast above the time-travel bar.
+   Same glass treatment as the scrub bar (dark semi-transparent, blurred, no
+   shadow); fades in, then unmounts after its timer. */
+.timeline-notice {
+  position: absolute;
+  left: 50%;
+  bottom: calc(var(--cc-space-8) + 5.5rem);
+  transform: translateX(-50%);
+  z-index: 50;
+  max-width: min(28rem, calc(100% - var(--cc-space-9) * 2));
+  padding: var(--cc-space-3) var(--cc-space-5);
+  background: color-mix(in oklch, var(--cc-bg-modal) 78%, transparent);
+  border-radius: var(--cc-radius-lg);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  color: var(--cc-text-secondary);
+  font-size: var(--cc-font-xs);
+  white-space: nowrap;
+  pointer-events: none;
+  animation: timeline-notice-in 140ms ease-out;
+}
+
+@keyframes timeline-notice-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 4px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}

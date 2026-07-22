@@ -100,15 +100,15 @@ describe('picker: Timeline scrub-hidden guard — buildings', () => {
     picker.dispose();
   });
 
-  it('rejects a ghost-ruin building (iRuin=1) even at full opacity', () => {
+  it('a ghost-ruin building is still selectable, flagged isRuin for the tooltip', () => {
     const { picker, iFade, iRuin, slot } = setup();
     TIMELINE_MODE.value = true;
     iFade.setXYZ(slot, 1, 0, 0); // visible stub
-    iRuin.setX(slot, 1); // but a ruin
+    iRuin.setX(slot, 1); // a ruin
 
-    const hit = picker.pickAt(400, 300);
-    expect(hit).not.toBeNull();
-    expect(picker.interpretHit(hit)).toBeNull();
+    const t = picker.interpretHit(picker.pickAt(400, 300));
+    expect(t?.kind).toBe(NodeKind.File);
+    expect(t?.kind === NodeKind.File && t.isRuin).toBe(true);
     picker.dispose();
   });
 
@@ -288,14 +288,14 @@ describe('picker: Timeline scrub-hidden guard — streets', () => {
     picker.dispose();
   });
 
-  it('rejects a hit on a ruined street (in RUINED_STREET_DIRS) even at full opacity', () => {
+  it('a ruined street is still selectable, flagged isRuin for the tooltip', () => {
     const { picker } = setup();
     TIMELINE_MODE.value = true;
     RUINED_STREET_DIRS.add('lib');
 
-    const hit = picker.pickAt(400, 300);
-    expect(hit).not.toBeNull();
-    expect(picker.interpretHit(hit)).toBeNull();
+    const t = picker.interpretHit(picker.pickAt(400, 300));
+    expect(t?.kind).toBe(NodeKind.Directory);
+    expect(t?.kind === NodeKind.Directory && t.isRuin).toBe(true);
     picker.dispose();
   });
 
