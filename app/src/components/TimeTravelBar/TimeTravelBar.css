@@ -42,15 +42,10 @@
   color: var(--cc-text-strong);
 }
 
-/* The time axis: a solid played fill + two-tone commit ticks (past vs future),
-   painted on the canvas. --tt-played (scrubbed-past region), --tt-tick-played
-   (past commit lines), --tt-tick (future commit lines) are read by the painter,
-   so they must be canvas-parseable colors (rgba, not oklch). */
+/* The time axis, painted on the canvas: an accent played fill + past ticks
+   (from --cc-accent) and neutral future ticks (--tt-tick, a canvas-parseable
+   soft gray that composites over the dark bar). */
 .time-travel-track {
-  --tt-played: rgba(120, 90, 240, 0.3);
-  --tt-tick-played: rgba(150, 110, 255, 0.95);
-  /* Future ticks: a soft neutral gray at low alpha, so it composites over the
-     dark bar surface and blends instead of reading as bright white. */
   --tt-tick: rgba(148, 151, 168, 0.5);
   position: relative;
   flex: 1;

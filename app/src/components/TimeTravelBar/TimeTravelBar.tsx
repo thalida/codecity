@@ -7,6 +7,7 @@
 import './TimeTravelBar.css';
 import { useEffect, useMemo, useRef } from 'preact/hooks';
 import { TIMELINE_MODE, SCRUB_POS, TIMELINE_BUNDLE } from '@/state/stores/timeline';
+import { ACCENT_THEME } from '@/state/stores/settings/theme';
 import { formatShortDate } from '@/utils/dates';
 import { commitUrl } from '@/utils/commit';
 import {
@@ -34,13 +35,10 @@ export function TimeTravelBar() {
 
   const maxIndex = Math.max(0, commits.length - 1);
   const pos = Math.min(Math.max(SCRUB_POS.value, 0), maxIndex);
+  const accentTheme = ACCENT_THEME.value; // repaint the canvas when the accent changes
 
-  // Paint the track. Two signals encode played-vs-unplayed so it reads at ANY
-  // tick density: (1) a solid accent fill over the scrubbed-past region — carries
-  // sparse repos, where the bg shows between ticks; (2) two-tone ticks — past
-  // commits in vivid purple, future in light — carries dense repos (react: 7k
-  // ticks blanket the bg, so only tick COLOR can tell the sides apart). One canvas
-  // draw for all commits, DPR-crisp, null-guards a missing 2d context.
+  // Paint the track: an accent played-fill + past ticks, neutral future ticks.
+  // One canvas draw for all commits, DPR-crisp, null-guards a missing 2d context.
   useEffect(() => {
     const canvas = canvasRef.current;
     const track = trackRef.current;
@@ -58,25 +56,29 @@ export function TimeTravelBar() {
       ctx.clearRect(0, 0, w, h);
 
       const cs = getComputedStyle(track);
-      const played = cs.getPropertyValue('--tt-played').trim() || 'rgba(120,90,240,0.3)';
-      const tickPlayed = cs.getPropertyValue('--tt-tick-played').trim() || 'rgba(150,110,255,0.95)';
+      // Played fill + past ticks track the theme accent (matches the handle). The
+      // resolved --cc-accent is passed straight to canvas; empty in headless
+      // jsdom (no stylesheet) → the fallback, which node-canvas can parse.
+      const accent = cs.getPropertyValue('--cc-accent').trim() || 'rgb(140, 110, 245)';
       const tick = cs.getPropertyValue('--tt-tick').trim() || 'rgba(148,151,168,0.5)';
-
-      ctx.fillStyle = played;
-      ctx.fillRect(0, 0, Math.round(indexToFraction(scale, pos) * w), h);
 
       const cut = Math.floor(pos);
       const at = (i: number) => Math.round(commitFraction(scale, i) * (w - 1));
-      ctx.fillStyle = tickPlayed;
+
+      ctx.fillStyle = accent;
+      ctx.globalAlpha = 0.3; // played region wash
+      ctx.fillRect(0, 0, Math.round(indexToFraction(scale, pos) * w), h);
+      ctx.globalAlpha = 0.95; // past ticks
       for (let i = 0; i <= cut && i < scale.ms.length; i++) ctx.fillRect(at(i), 0, 1, h);
-      ctx.fillStyle = tick;
+      ctx.globalAlpha = 1;
+      ctx.fillStyle = tick; // future ticks
       for (let i = cut + 1; i < scale.ms.length; i++) ctx.fillRect(at(i), 0, 1, h);
     };
     draw();
     const ro = new ResizeObserver(draw);
     ro.observe(track);
     return () => ro.disconnect();
-  }, [scale, pos]);
+  }, [scale, pos, accentTheme]);
 
   if (commits.length === 0) return null;
 
