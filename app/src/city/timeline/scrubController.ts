@@ -33,10 +33,21 @@ import type { PathTimeline } from './replay';
 const RUIN_BASE_RECENCY = 0.5; // sample the building's hue at mid-recency before graying
 const _RUIN_GRAY = new THREE.Color(0.3, 0.31, 0.34);
 
+// A future (not-yet-created) building: an ultra-low slab at the building's real
+// footprint, tinted the future color — a ground marker of where it will land,
+// via the building mesh (NOT the footprint plots, so it's independent of the
+// footprint controls). Height in floors, ×FLOOR_HEIGHT at draw time.
+export const FUTURE_SLAB_FLOORS = 0.05;
+
 // Dir paths of streets currently rendered as ruins — the picker rejects hits on
 // them so a ruined road isn't hoverable/selectable (buildings use iRuin instead).
 // Owned here, repopulated each update(); read by interaction/picker.ts.
 export const RUINED_STREET_DIRS = new Set<string>();
+
+// Dir paths of streets rendered as future roads — not yet created at the scrub
+// position, so the picker rejects hits (you can't select a folder that doesn't
+// exist yet). Future buildings use iRuin (2), which the picker treats as hidden.
+export const FUTURE_STREET_DIRS = new Set<string>();
 
 export interface ScrubControllerDeps {
   getBuildingIndex(): BuildingIndex | null;
@@ -45,7 +56,7 @@ export interface ScrubControllerDeps {
   timelines: Map<string, PathTimeline>;
   heightCtx: HeightContext;
   streets: {
-    setStreetOpacity(street: Street, opacity: number, ruin: boolean): void;
+    setStreetOpacity(street: Street, opacity: number, tint: number): void;
     setStreetLabelOpacity(street: Street, opacity: number): void;
   };
   // { street dir.path → Street } from the union layout, for resolving a building's street.
@@ -91,7 +102,7 @@ export function createScrubController(deps: ScrubControllerDeps) {
 
   const _m = new THREE.Matrix4();
   const _color = new THREE.Color();
-  const _blueprintColor = new THREE.Color();
+  const _futureColor = new THREE.Color();
 
   function update(): void {
     const pos = SCRUB_POS.peek();
@@ -104,8 +115,9 @@ export function createScrubController(deps: ScrubControllerDeps) {
     const dirtyModifiedAges = new Set<THREE.BufferAttribute>();
     const dirtyIconUVs = new Set<THREE.BufferAttribute>();
     const dirtyRuins = new Set<THREE.BufferAttribute>();
-    // A street fades with its PRESENT descendants; a ruin-only street uses the
-    // road opacity instead, so building vs road opacity stay independent.
+    // A street fades with its PRESENT descendants; a ruin-only or future-only
+    // street uses the road opacity instead, so building vs road opacity stay
+    // independent.
     const maxPresentOp = new Map<Street, number>();
     const ruinStreets = new Set<Street>();
     // Ad-panel opacity by path: the building's op when present, else 0 (a ruin or
@@ -113,18 +125,22 @@ export function createScrubController(deps: ScrubControllerDeps) {
     const opByPath = new Map<string, number>();
     const presentStreets = new Set<Street>();
     RUINED_STREET_DIRS.clear();
+    FUTURE_STREET_DIRS.clear();
 
+    const floorHeight = BUILDING_DIMENSIONS.peek().FLOOR_HEIGHT;
     const ruins = RUINS.peek();
     const ruinsOn = ruins.ENABLED;
     const ruinBuildingOpacity = ruins.BUILDING_OPACITY;
     const ruinRoadOpacity = ruins.ROAD_OPACITY;
-    const ruinHeight = ruins.STUB_HEIGHT * BUILDING_DIMENSIONS.peek().FLOOR_HEIGHT;
+    const ruinHeight = ruins.STUB_HEIGHT * floorHeight;
     const ruinGrayMix = ruins.DESATURATION;
 
     const bp = BLUEPRINTS.peek();
-    const blueprintsOn = bp.ENABLED;
-    const blueprintOpacity = bp.OPACITY;
-    _blueprintColor.set(bp.COLOR);
+    const futureOn = bp.ENABLED;
+    const futureBuildingOpacity = bp.BUILDING_OPACITY;
+    const futureRoadOpacity = bp.ROAD_OPACITY;
+    const futureHeight = FUTURE_SLAB_FLOORS * floorHeight;
+    _futureColor.set(bp.BUILDING_COLOR);
 
     // Pre-pass: weathering ranges over the PRESENT buildings at this scrub
     // position — last-modified + created commit dates, and line counts. Color,
@@ -162,21 +178,24 @@ export function createScrubController(deps: ScrubControllerDeps) {
       const state = ruinStateAt(pt, pos);
       const present = state === 'present';
       const ruin = state === 'ruin' && ruinsOn;
-      // Blueprint: not yet created at this scrub position (genesis is ahead).
-      const blueprint = !present && !ruin && blueprintsOn && createdIdx > pos;
-      const blueprintOp = blueprint ? blueprintOpacity : 0;
-      // present → genesis grow-in ramp; ruin → faint stub; blueprint → faint future
-      // ghost; before-genesis (out of range) or ruins-off deletion → gone.
+      // Future: not yet created at this scrub position (genesis is ahead). Shown
+      // as an ultra-low tinted slab at its eventual footprint — a marker of where
+      // it WILL land, rendered via the building mesh (not the footprint plots).
+      const future = !present && !ruin && futureOn && createdIdx > pos;
+      // present → genesis grow-in ramp; ruin → faint stub; future → faint slab;
+      // before-genesis (out of range) or ruins-off deletion → gone.
       const op = present
         ? presenceAt(pt, pos, 0)
         : ruin
           ? ruinBuildingOpacity
-          : blueprint
-            ? blueprintOp
+          : future
+            ? futureBuildingOpacity
             : 0;
 
       // Driven for EVERY union building (even one with no detail mesh on a large
-      // repo), else the footprint/street strand at their defaults.
+      // repo), else the footprint/street strand at their defaults. A street's
+      // future state isn't tracked per-building: any non-present, non-ruin street
+      // is a future road (see the final loop), so the whole road network shows.
       for (const street of streets) {
         if (present) {
           maxPresentOp.set(street, Math.max(maxPresentOp.get(street) ?? 0, op));
@@ -185,10 +204,12 @@ export function createScrubController(deps: ScrubControllerDeps) {
           ruinStreets.add(street);
         }
       }
-      // opByPath feeds ONLY the ad panels — gate on presence so a ruin/absent
-      // building shows no media image (its media is gone), just its stub.
+      // opByPath feeds ONLY the ad panels — gate on presence so a ruin/absent/
+      // future building shows no media image, just its stub or slab.
       opByPath.set(b.file.path, present ? op : 0);
-      deps.footprints.setBuildingFootprintOpacity(b.file.path, op, ruin);
+      // Footprint plot: present + ruin only. A future building IS the slab, so it
+      // gets no plot (keeps future independent of the footprint controls).
+      deps.footprints.setBuildingFootprintOpacity(b.file.path, future ? 0 : op, ruin);
 
       const resolved = deps.getMeshForBuilding(b);
       if (!resolved) continue;
@@ -218,14 +239,14 @@ export function createScrubController(deps: ScrubControllerDeps) {
         }
         _m.makeScale(b.w, ruinHeight, b.d);
         _m.setPosition(b.x, ruinHeight / 2, b.y);
-      } else if (blueprint) {
-        // A future ghost at its eventual footprint + height, blank facade.
+      } else if (future) {
+        // A future building: ultra-low slab at its real footprint, blank facade.
         if (iFloorsAttr) {
           iFloorsAttr.setX(slot, 0);
           dirtyFloors.add(iFloorsAttr);
         }
-        _m.makeScale(b.w, b.h, b.d);
-        _m.setPosition(b.x, b.h / 2, b.y);
+        _m.makeScale(b.w, futureHeight, b.d);
+        _m.setPosition(b.x, futureHeight / 2, b.y);
       } else {
         // Absent → fully zero-scaled, not a flat (w, 0, d) quad that would still
         // write depth and outline as a cutout on the road.
@@ -234,19 +255,18 @@ export function createScrubController(deps: ScrubControllerDeps) {
       mesh.setMatrixAt(slot, _m);
       dirtyMeshes.add(mesh);
 
-      // Ruin flag → the frag crumbles the top + weathers the facade. Written for
-      // every building each frame so a resurrected one clears back to 0.
-      // iRuin is a 3-state the frag branches on: 1 = ruin (crumble), 2 = blueprint
-      // (hologram scanlines). Written every frame so a state change clears.
+      // iRuin is a 3-state the frag branches on: 1 = ruin (crumble + grime),
+      // 2 = future (blank slab, no crumble). Both suppress the door. Written
+      // every frame so a state change clears back to 0.
       const iRuinAttr = mesh.geometry.getAttribute('iRuin') as THREE.BufferAttribute | undefined;
       if (iRuinAttr) {
-        iRuinAttr.setX(slot, ruin ? 1 : blueprint ? 2 : 0);
+        iRuinAttr.setX(slot, ruin ? 1 : future ? 2 : 0);
         dirtyRuins.add(iRuinAttr);
       }
 
       const iFade = mesh.geometry.getAttribute('iFade') as THREE.BufferAttribute | undefined;
       if (iFade) {
-        // Outline (.z) only while present, so a leftover Live-mode outline can't linger on a ruin/absent building.
+        // Outline (.z) only while present, so a leftover Live-mode outline can't linger on a ruin/future/absent building.
         iFade.setXYZ(slot, op, iFade.getY(slot), present ? iFade.getZ(slot) : 0);
         dirtyFades.add(iFade);
       }
@@ -302,9 +322,9 @@ export function createScrubController(deps: ScrubControllerDeps) {
           .lerp(_RUIN_GRAY, ruinGrayMix);
         mesh.setColorAt(slot, _color);
         dirtyColors.add(mesh);
-      } else if (blueprint) {
-        // A future ghost reads in the blueprint tint, not its eventual file hue.
-        mesh.setColorAt(slot, _blueprintColor);
+      } else if (future) {
+        // A future slab reads in the future tint, not its eventual file hue.
+        mesh.setColorAt(slot, _futureColor);
         dirtyColors.add(mesh);
       }
     }
@@ -326,20 +346,30 @@ export function createScrubController(deps: ScrubControllerDeps) {
     // ROOT is forced to 1: the repo root directory always exists, even when scrubbed back to an empty tree.
     for (const street of allStreets) {
       const hasPresent = presentStreets.has(street);
-      // Present descendants fade the road; a ruin-only street uses the road opacity.
+      // Present descendants fade the road; else a deleted-folder road is a ruin,
+      // and any remaining non-root road is future (a folder not yet created at
+      // this scrub position). Present wins over ruin wins over future.
       const streetRuin = ruinsOn && !street.isRoot && !hasPresent && ruinStreets.has(street);
+      const streetFuture = futureOn && !street.isRoot && !hasPresent && !streetRuin;
       const op = street.isRoot
         ? 1
         : hasPresent
           ? (maxPresentOp.get(street) ?? 0)
           : streetRuin
             ? ruinRoadOpacity
-            : 0;
-      deps.streets.setStreetOpacity(street, op, streetRuin);
+            : streetFuture
+              ? futureRoadOpacity
+              : 0;
+      // Asphalt tint (streets machinery): 1 = ruin, 2 = future. Independent of the footprint controls.
+      const tint = streetRuin ? 1 : streetFuture ? 2 : 0;
+      deps.streets.setStreetOpacity(street, op, tint);
       deps.streets.setStreetLabelOpacity(street, op);
       if (street.dir?.path != null) {
-        deps.footprints.setStreetFootprintOpacity(street.dir.path, op, streetRuin);
+        // Footprint plot: present + ruin only. A future road is the tinted asphalt,
+        // so its plot stays hidden (keeps future independent of footprint controls).
+        deps.footprints.setStreetFootprintOpacity(street.dir.path, streetFuture ? 0 : op, streetRuin);
         if (streetRuin) RUINED_STREET_DIRS.add(street.dir.path);
+        else if (streetFuture) FUTURE_STREET_DIRS.add(street.dir.path);
       }
     }
   }
@@ -347,6 +377,7 @@ export function createScrubController(deps: ScrubControllerDeps) {
   function dispose(): void {
     entries.length = 0;
     RUINED_STREET_DIRS.clear();
+    FUTURE_STREET_DIRS.clear();
   }
 
   return { update, dispose };

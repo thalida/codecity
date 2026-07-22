@@ -215,7 +215,7 @@ export async function createCity(canvas: HTMLCanvasElement, manifest: Manifest):
         timelines,
         heightCtx: makeHeightContext(cityState.manifest.peek()?.stats),
         streets: {
-          setStreetOpacity: (s, o, ruin) => streets.setStreetOpacity(s, o, ruin),
+          setStreetOpacity: (s, o, tint) => streets.setStreetOpacity(s, o, tint),
           setStreetLabelOpacity: (s, o) => streets.setStreetLabelOpacity(s, o),
         },
         streetsByDir: cityState.streetsByDirMap.peek(),

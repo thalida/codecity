@@ -1,7 +1,7 @@
-// state/stores/settings/blueprints.ts — Blueprints in Timeline mode: a file not
-// yet created at the scrubbed commit shows as a faint ghost of the building it
-// will become, fading out the further ahead its creation is. World-tab
-// (draft-backed) store like ruins; ChangeRoute.Live (scrub reads it per frame).
+// state/stores/settings/blueprints.ts — Future files in Timeline mode: a file
+// not yet created at the scrubbed commit shows as an ultra-low tinted slab where
+// it will land. World-tab (draft-backed) store like ruins; ChangeRoute.Live
+// (scrub reads it per frame).
 
 import {
   settingSignal,
@@ -16,25 +16,42 @@ const BLUEPRINTS_FIELDS = {
     route: ChangeRoute.Live,
     kind: FieldKind.Toggle,
     default: true,
-    label: 'Show blueprints',
-    tip: 'When on, a file created after the scrubbed commit shows as a faint ghost of what it will become, instead of nothing.',
+    label: 'Show future files',
+    tip: 'When on, a file created after the scrubbed commit shows as an ultra-low tinted slab where it will land, instead of nothing.',
   },
-  OPACITY: {
+  BUILDING_OPACITY: {
     route: ChangeRoute.Live,
     kind: FieldKind.Slider,
-    default: 0.3,
+    default: 0.2,
     min: 0.02,
     max: 1,
     step: 0.02,
-    label: 'Opacity',
-    tip: 'How faint a not-yet-built blueprint is.',
+    label: 'Building opacity',
+    tip: 'How faint a future building slab is.',
   },
-  COLOR: {
+  ROAD_OPACITY: {
+    route: ChangeRoute.Live,
+    kind: FieldKind.Slider,
+    default: 0.15,
+    min: 0.02,
+    max: 1,
+    step: 0.02,
+    label: 'Road opacity',
+    tip: 'How faint a future folder road is.',
+  },
+  BUILDING_COLOR: {
     route: ChangeRoute.Live,
     kind: FieldKind.Color,
-    default: '#4fd6e8',
-    label: 'Blueprint color',
-    tip: 'Tint for not-yet-built buildings and their roads, so the future reads apart from the live city.',
+    default: '#2c7d68',
+    label: 'Building color',
+    tip: 'Tint for future building slabs, so they read apart from the live city.',
+  },
+  ROAD_COLOR: {
+    route: ChangeRoute.Live,
+    kind: FieldKind.Color,
+    default: '#020807',
+    label: 'Road color',
+    tip: 'Tint for future folder roads, so a future block reads apart from a live one.',
   },
 } satisfies FieldMap;
 

@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { afterEach, beforeEach, expect, test } from 'vitest';
 
 import { buildPathTimelines } from '@/city/timeline/replay';
-import { createScrubController } from '@/city/timeline/scrubController';
+import { createScrubController, FUTURE_SLAB_FLOORS } from '@/city/timeline/scrubController';
 import { buildingHeightForLines, getBuildingDimensions } from '@/city/layout/dimensions';
 import type { HeightContext } from '@/city/layout/dimensions';
 import { SCRUB_POS, TIMELINE_BUNDLE } from '@/state/stores/timeline';
@@ -1650,25 +1650,34 @@ test('weathering: sets instanceColor.needsUpdate exactly once per mesh', () => {
   expect(fake.colorUpdates).toBe(1);
 });
 
-// ── Blueprints (future files render as a faint ghost while scrubbed before them) ──
+// ── Future files (render as an ultra-low tinted slab while scrubbed before them) ──
 
-test('blueprint: a not-yet-created building renders as a uniform tinted future ghost', () => {
-  BLUEPRINTS.value = { ...BLUEPRINTS.value, ENABLED: true, OPACITY: 0.4, COLOR: '#00ffff' };
+test('future: a not-yet-created building renders as an ultra-low tinted slab', () => {
+  BLUEPRINTS.value = {
+    ...BLUEPRINTS.value,
+    ENABLED: true,
+    BUILDING_OPACITY: 0.4,
+    BUILDING_COLOR: '#00ffff',
+  };
   const { b, fake, controller } = setup();
   SCRUB_POS.value = 0.5; // before f.txt's creation at commit 1 → future
   controller.update();
 
-  expect(fake.scaleY).toBeCloseTo(b.h, 5); // shown at its eventual height, not zero-scaled
-  expect(fake.iFadeX).toBeCloseTo(0.4, 5); // uniform blueprint opacity, no distance fade
-  // Blueprint tint (cyan), not the file's own hue.
+  const slabHeight = FUTURE_SLAB_FLOORS * BUILDING_DIMENSIONS.value.FLOOR_HEIGHT;
+  expect(fake.scaleY).toBeCloseTo(slabHeight, 5); // an ultra-low slab, far shorter than the real building
+  expect(fake.scaleY).toBeLessThan(b.h);
+  expect(fake.scaleX).toBeCloseTo(b.w, 5); // at the building's real footprint width
+  expect(fake.scaleZ).toBeCloseTo(b.d, 5);
+  expect(fake.iFadeX).toBeCloseTo(0.4, 5); // uniform future opacity, no distance fade
+  // Future tint (cyan), not the file's own hue.
   expect(fake.lastColor).not.toBeNull();
   expect(fake.lastColor!.r).toBeCloseTo(0, 5);
   expect(fake.lastColor!.g).toBeCloseTo(1, 5);
   expect(fake.lastColor!.b).toBeCloseTo(1, 5);
 });
 
-test('blueprint: opacity is uniform regardless of how far ahead the creation is', () => {
-  BLUEPRINTS.value = { ...BLUEPRINTS.value, ENABLED: true, OPACITY: 0.3 };
+test('future: opacity is uniform regardless of how far ahead the creation is', () => {
+  BLUEPRINTS.value = { ...BLUEPRINTS.value, ENABLED: true, BUILDING_OPACITY: 0.3 };
   const { fake, controller } = setup();
   SCRUB_POS.value = 0; // furthest before creation
   controller.update();
@@ -1679,11 +1688,65 @@ test('blueprint: opacity is uniform regardless of how far ahead the creation is'
   expect(fake.iFadeX).toBeCloseTo(0.3, 5);
 });
 
-test('blueprint: with blueprints off, a future building stays hidden', () => {
+test('future: with future files off, a not-yet-created building stays hidden', () => {
   BLUEPRINTS.value = { ...BLUEPRINTS.value, ENABLED: false };
   const { fake, controller } = setup();
   SCRUB_POS.value = 0.5;
   controller.update();
   expect(fake.scaleY).toBe(0);
   expect(fake.iFadeX).toBe(0);
+});
+
+test('future roads always render: a non-present, non-ruin street is a future road (tint 2)', () => {
+  // With future on, EVERY road that isn't present or ruin renders as a future
+  // road — even a street with no future building detected on it directly. So the
+  // whole road network shows faintly from the start of history.
+  BLUEPRINTS.value = { ...BLUEPRINTS.value, ENABLED: true, ROAD_OPACITY: 0.15 };
+  const rootStreet = { dir: { path: ROOT_PATH }, isRoot: true } as unknown as Street;
+  const dStreet = { dir: { path: 'd' } } as unknown as Street; // no buildings at all
+
+  const index = new BuildingIndex();
+  index.insert({
+    x: 0,
+    y: 0,
+    w: 2,
+    d: 2,
+    h: buildingHeightForLines(file, 6, heightCtx),
+    color: '#fff',
+    file,
+    cellId: 0,
+    slotId: 0,
+  } as unknown as Building);
+
+  const opacityByStreet = new Map<Street, number>();
+  const tintByStreet = new Map<Street, number>();
+  const streets = {
+    setStreetOpacity: (street: Street, opacity: number, tint: number) => {
+      opacityByStreet.set(street, opacity);
+      tintByStreet.set(street, tint);
+    },
+    setStreetLabelOpacity: () => {},
+  };
+
+  const fake = makeFakeMesh();
+  const timelines = buildPathTimelines(bundle);
+  const controller = createScrubController({
+    getBuildingIndex: () => index,
+    getAdPanels: () => null,
+    getMeshForBuilding: () => ({ mesh: fake.mesh, slot: 0 }),
+    timelines,
+    heightCtx,
+    footprints: noopFootprints,
+    streets,
+    streetsByDir: { [ROOT_PATH]: rootStreet, d: dStreet },
+    trees: noopTrees,
+    fireflies: noopFireflies,
+  });
+
+  SCRUB_POS.value = 0.5; // before f.txt's creation: root empty, d never has a file
+  controller.update();
+
+  expect(opacityByStreet.get(rootStreet)).toBe(1); // root always renders
+  expect(opacityByStreet.get(dStreet)).toBeCloseTo(0.15, 5); // future road, not hidden
+  expect(tintByStreet.get(dStreet)).toBe(2); // future tint
 });

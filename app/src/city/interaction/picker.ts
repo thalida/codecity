@@ -47,7 +47,7 @@ import { signal, effect, untracked } from '@preact/signals';
 import { NodeKind } from '@/types';
 import { sidewalkStreetForFace } from '@/city/components/streets/streets';
 import { TIMELINE_MODE } from '@/state/stores/timeline';
-import { RUINED_STREET_DIRS } from '@/city/timeline/scrubController';
+import { RUINED_STREET_DIRS, FUTURE_STREET_DIRS } from '@/city/timeline/scrubController';
 
 import type { PickTarget, PickerWorld, PickerSelectionKey } from '@/types';
 import type { CityState } from '@/city/state';
@@ -338,16 +338,21 @@ export function createPicker({
 
   // Building presence is iFade.x, the same value the shader reads for opacity.
   // A ruin is NOT hidden — it's a visible stub, hoverable + selectable (the
-  // tooltip flags it as a ruin, and the right panel is suppressed elsewhere).
+  // tooltip flags it as a ruin, and the right panel is suppressed elsewhere). A
+  // future slab (iRuin 2) IS treated as hidden: it's a marker for a file that
+  // doesn't exist yet, so it can't be selected.
   function _buildingScrubHidden(mesh: THREE.InstancedMesh, slot: number): boolean {
     const iFade = mesh.geometry.getAttribute('iFade') as THREE.BufferAttribute | undefined;
-    return !!iFade && iFade.getX(slot) < SCRUB_HIDE_EPS;
+    if (iFade && iFade.getX(slot) < SCRUB_HIDE_EPS) return true;
+    const iRuin = mesh.geometry.getAttribute('iRuin') as THREE.BufferAttribute | undefined;
+    return !!iRuin && iRuin.getX(slot) > 1.5;
   }
 
-  // A visible ghost-ruin building (for the hover tooltip's "ruin" note).
+  // A visible ghost-ruin building (for the hover tooltip's "ruin" note); the
+  // future slab (iRuin 2) isn't a ruin, and is unpickable anyway.
   function _buildingIsRuin(mesh: THREE.InstancedMesh, slot: number): boolean {
     const iRuin = mesh.geometry.getAttribute('iRuin') as THREE.BufferAttribute | undefined;
-    return !!iRuin && iRuin.getX(slot) > 0.5;
+    return !!iRuin && iRuin.getX(slot) > 0.5 && iRuin.getX(slot) < 1.5;
   }
 
   // Trees are gated by zero-scaling their instance matrix (setScrubCommit).
@@ -470,6 +475,8 @@ export function createPicker({
     if (ud.type === NodeKind.Directory && ud.pickStreets) {
       if (TIMELINE_MODE.peek() && _streetScrubHidden(hit)) return null;
       const street = sidewalkStreetForFace(hit.object, hit.faceIndex ?? 0);
+      // A future folder's road is only a pad — it doesn't exist at this scrub position, so it's not selectable.
+      if (street?.dir && TIMELINE_MODE.peek() && FUTURE_STREET_DIRS.has(street.dir.path)) return null;
       if (street?.dir) {
         return {
           kind: NodeKind.Directory,

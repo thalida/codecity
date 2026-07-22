@@ -35,7 +35,7 @@ flat varying vec3 vScale;
 //        files still look weathered.
 flat varying vec4 vIconUV;
 flat varying float vModifiedAge; // 0=most recently modified, 1=longest-untouched. Drives lit-window count + HDR emission via recencyCurve.
-flat varying float vRuin;        // Timeline state: 1 = ruin (crumble), 2 = blueprint (scanlines).
+flat varying float vRuin;        // Timeline state: 1 = ruin (deleted, crumbled stub), 2 = future (blank low slab).
 
 // Hidden-tier wireframe thickness in screen-pixels. Sourced from
 // BUILDING_OUTLINE.WIDTH; refreshed via refreshBuildingMaterial() on Save via applyTheme().
@@ -416,7 +416,7 @@ vec4 renderWallFace() {
   vec3 withWin  = mix(wallOut, winColor, winMask);
 
   // Door: ground floor of the door face only. Replaces windows for that row.
-  // Suppressed on ruin/blueprint stubs (vRuin > 0), whose facades are blank.
+  // Suppressed on ruin + future stubs (vRuin > 0), whose facades are blank.
   if (isDoorFace() && row < 0.5 && vRuin < 0.5) {
     // Door world-width / face world-width = door UV width.
     // vScale = (w, h, d) recovered from instance matrix columns.
@@ -546,7 +546,7 @@ void main() {
   // but punch sparse "missing brick" holes into the walls (blocky hashed cells)
   // plus a jagged nibble along the very top rim, so it reads as broken. Roof
   // (2) and bottom (3) stay solid.
-  // vRuin: 1 = ruin (crumble), 2 = blueprint (handled below). Crumble only for ruins.
+  // Crumble only for ruins (vRuin 1), never the future slab (vRuin 2).
   if (vRuin > 0.5 && vRuin < 1.5 && vFace != 2 && vFace != 3) {
     float seed = float(vFace) * 7.0;
     if (hash21(floor(vUv * 11.0) + seed) < 0.09) discard; // missing bricks
@@ -561,11 +561,8 @@ void main() {
   else                        body = renderWallFace();
   vec4 outColor = compositeOutline(body);
 
-  // Ruin facade: coarse grime so the blank stub looks weathered, not painted.
+  // Ruin facade: coarse grime so the blank stub looks weathered, not painted. Ruins only, not the future slab.
   if (vRuin > 0.5 && vRuin < 1.5) outColor.rgb *= 0.7 + 0.3 * hash21(floor(vUv * 9.0));
-
-  // Blueprint: horizontal hologram scanlines over the faint tinted ghost.
-  if (vRuin > 1.5) outColor.a *= 0.55 + 0.45 * sin(vWorldPos.y * 26.0);
 
   // Height fog: dense at y=0, thins with altitude. Handled by applyFog()
   // from the shared fog_apply chunk.

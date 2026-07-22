@@ -18,6 +18,7 @@ import { effect, untracked } from '@preact/signals';
 
 import { STREETS } from '@/state/stores/settings/streets';
 import { RUINS } from '@/state/stores/settings/ruins';
+import { BLUEPRINTS } from '@/state/stores/settings/blueprints';
 import { setColorFromHex } from '@/city/utils/color/setColorFromHex';
 import { NodeKind, StreetAxis } from '@/types';
 import type { CityLayout, Street } from '@/types';
@@ -61,9 +62,9 @@ export interface Streets extends SceneComponent {
   /** Per-street asphalt spans, in the same street order as getStreetRanges(). */
   getAsphaltRanges(): AsphaltRange[];
   /** Fade one street: write `opacity` across its span on both the sidewalk and
-   *  asphalt merged meshes. `ruin` tints the asphalt toward RUINS.ROAD_COLOR (a
-   *  deleted folder's road); false clears the tint. */
-  setStreetOpacity(street: Street, opacity: number, ruin?: boolean): void;
+   *  asphalt merged meshes. `tint` tints the asphalt (0 none, 1 deleted folder →
+   *  ruin color, 2 future folder → future color). */
+  setStreetOpacity(street: Street, opacity: number, tint?: number): void;
   /** Fade one street's road labels in lockstep with setStreetOpacity; 0 force-hides (overriding the visibility LOD). */
   setStreetLabelOpacity(street: Street, opacity: number): void;
   /** Move both street materials into (or out of) the transparent render pass. */
@@ -155,9 +156,10 @@ export function createStreets(ctx: SceneContext): Streets {
   }
 
   // Fade one street by writing its span on both merged meshes; no-op for an
-  // unknown street (e.g. pre-rebuild). `ruin` tints the asphalt span toward
-  // RUINS.ROAD_COLOR (asphalt-only; the sidewalk carries hover/select tints).
-  function setStreetOpacity(street: Street, opacity: number, ruin = false): void {
+  // unknown street (e.g. pre-rebuild). `tint` tints the asphalt span (0 none, 1
+  // deleted → ruin color, 2 future → future color); asphalt-only, since the
+  // sidewalk carries hover/select tints.
+  function setStreetOpacity(street: Street, opacity: number, tint = 0): void {
     const r = opacityRangeByStreet.get(street);
     if (!r) return;
     if (sidewalkMesh) {
@@ -165,7 +167,7 @@ export function createStreets(ctx: SceneContext): Streets {
     }
     if (asphaltMesh && r.asphalt) {
       _writeSpan(asphaltMesh, 'aOpacity', r.asphalt.vStart, r.asphalt.vCount, opacity);
-      _writeSpan(asphaltMesh, 'aRuin', r.asphalt.vStart, r.asphalt.vCount, ruin ? 1 : 0);
+      _writeSpan(asphaltMesh, 'aRuin', r.asphalt.vStart, r.asphalt.vCount, tint);
     }
   }
 
@@ -375,6 +377,14 @@ export function createStreets(ctx: SceneContext): Streets {
     if (u) setColorFromHex(u.value, hex);
   });
 
+  // Future-road tint — keeps the asphalt's uFutureColor uniform current when
+  // BLUEPRINTS.COLOR is Saved (mirrors stopRuinColor).
+  const stopFutureColor = effect(() => {
+    const hex = BLUEPRINTS.value.ROAD_COLOR;
+    const u = asphaltMesh?.material.userData.uFutureColor as { value: THREE.Color } | undefined;
+    if (u) setColorFromHex(u.value, hex);
+  });
+
   // (2)+(3) Picker-driven sidewalk-tint effects — ARMED on the first tick(),
   // NOT at construction. At construction ctx.picker is null, so an effect
   // reading ctx.picker?.selection.value would track NO signal and never
@@ -462,6 +472,7 @@ export function createStreets(ctx: SceneContext): Streets {
     stopLayout();
     stopTheme();
     stopRuinColor();
+    stopFutureColor();
   }
 
   return {

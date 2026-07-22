@@ -96,8 +96,11 @@ export function presenceAt(pt: PathTimeline, pos: number, ruinFloor: number): nu
   for (let idx = 0; idx < pt.intervals.length; idx++) {
     const iv = pt.intervals[idx];
     if (pos >= iv.start && (iv.end === null || pos < iv.end)) {
-      // only the genesis interval grows in; a resurrection reappears at full presence
-      if (idx === 0) {
+      // Only the genesis interval grows in; a resurrection reappears at full
+      // presence. A file present from the very first commit (start === 0) was
+      // always there, so it has no genesis to grow in from — full presence at the
+      // timeline start, not a 0-opacity ghost.
+      if (idx === 0 && iv.start > 0) {
         const rampT = pos - iv.start;
         if (rampT < PRESENCE_RAMP) return rampT / PRESENCE_RAMP;
       }

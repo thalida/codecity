@@ -87,11 +87,33 @@ describe('linesAt', () => {
 });
 
 describe('presenceAt', () => {
-  test('ramps from 0 to 1 over the first 0.5 of a commit-index at creation', () => {
+  test('a file present from the first commit is fully present at the start (no genesis ramp)', () => {
+    // f.txt is created at commit 0 (start === 0): it was always there, so it must
+    // NOT grow in from 0 at the timeline start — otherwise every first-commit file
+    // renders as a 0-opacity ghost.
     const pt = buildPathTimelines(bundle).get('f.txt')!;
-    expect(presenceAt(pt, 0, 0)).toBe(0);
-    expect(presenceAt(pt, 0.25, 0)).toBeCloseTo(0.5);
-    expect(presenceAt(pt, 0.5, 0)).toBe(1);
+    expect(pt.intervals[0].start).toBe(0);
+    expect(presenceAt(pt, 0, 0)).toBe(1);
+    expect(presenceAt(pt, 0.25, 0)).toBe(1);
+  });
+
+  test('a file created mid-history ramps from 0 to 1 over the first 0.5 of a commit-index', () => {
+    const mid = {
+      commits: [{ sha: 'a' }, { sha: 'b' }, { sha: 'c' }],
+      unionManifest: { tree: { name: 'r' } },
+      deltas: [
+        { sha: 'a', changes: [] },
+        { sha: 'b', changes: [{ path: 'g.txt', sha: 's1' }] },
+        { sha: 'c', changes: [] },
+      ],
+      blobLines: { s1: 6 },
+      note: null,
+    } as unknown as TimelineBundle;
+    const pt = buildPathTimelines(mid).get('g.txt')!; // created at commit 1
+    expect(pt.intervals[0].start).toBe(1);
+    expect(presenceAt(pt, 1, 0)).toBe(0);
+    expect(presenceAt(pt, 1.25, 0)).toBeCloseTo(0.5);
+    expect(presenceAt(pt, 1.5, 0)).toBe(1);
   });
 
   test('is 0 strictly before creation and honors a non-zero ruinFloor after deletion', () => {
