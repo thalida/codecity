@@ -1,11 +1,11 @@
 // state/stores/settings/ruins.ts — Ghost-ruins in Timeline mode: how a deleted
 // file's building persists as you scrub past its deletion (instead of vanishing).
-// Read live by the scrub controller each frame (ChangeRoute.Live) and autosave
-// (instant, no Save button) so toggling reads back immediately while scrubbing.
+// A World-tab (draft-backed) store like the rest of that tab: edits apply on
+// Save, not live. ChangeRoute.Live because the scrub controller reads the
+// committed value each frame — a commit needs no scene rebuild/refresh.
 
 import {
   settingSignal,
-  markAutosave,
   FieldKind,
   ChangeRoute,
   type ConfigOf,
@@ -60,5 +60,4 @@ const RUINS_FIELDS = {
 } satisfies FieldMap;
 
 export const RUINS = settingSignal('RUINS', RUINS_FIELDS);
-markAutosave(RUINS);
 export type RuinsConfig = ConfigOf<typeof RUINS_FIELDS>;

@@ -1,6 +1,6 @@
 // views/ControlsPane/partials/Ruins.ts — Timeline ghost-ruins section. How a
-// deleted file's building persists as you scrub past its deletion. Applies live
-// (autosave store), so it only does anything while in Timeline mode.
+// deleted file's building persists as you scrub past its deletion. Draft-backed
+// like the rest of the World tab (applies on Save); only visible in Timeline mode.
 import { field, type SectionNode } from '.';
 import { RUINS } from '@/state/stores/settings/ruins';
 

@@ -254,8 +254,8 @@ export function createFootprint(ctx: SceneContext): Footprint {
     group.visible = c.ENABLED;
   });
 
-  // Ruin road color — RUINS is autosave (applies live), so a plain effect keeps
-  // the uRuinColor uniform current; rebuild seeds the fresh material's value.
+  // Ruin road color — reacts to the committed RUINS.ROAD_COLOR (updates on Save);
+  // rebuild seeds a fresh material's value, this keeps it current afterward.
   const stopRuinColor = effect(() => {
     const hex = RUINS.value.ROAD_COLOR;
     if (material) setColorFromHex(material.uniforms.uRuinColor.value as THREE.Color, hex);
