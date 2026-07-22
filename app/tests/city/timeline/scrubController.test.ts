@@ -9,6 +9,7 @@ import { SCRUB_POS } from '@/state/stores/timeline';
 import { BuildingIndex } from '@/city/components/buildings/buildingIndex';
 import type { InstancedAdPanels } from '@/city/components/buildings/adPanels';
 import type { Building, FileNode, Street, TimelineBundle } from '@/types';
+import { ROOT_PATH } from '@/constants/manifest';
 
 // f.txt: absent at commit 0, created at 1 (2 lines), grows at 2 (6 lines),
 // deleted at 3. So createdIdx=1, deletedIdx=3, union lines=6.
@@ -41,10 +42,21 @@ const noopFootprints = {
 // Most tests don't assert on the tree scrub gate; this stub keeps their deps minimal.
 const noopTrees = { setScrubCommit: () => {} };
 
+// Most tests don't assert on the fireflies scrub gate; this stub keeps their deps minimal.
+const noopFireflies = { setScrubCommit: () => {} };
+
 function makeFakeTrees() {
   const calls: (number | null)[] = [];
   return {
     trees: { setScrubCommit: (maxCommitIndex: number | null) => calls.push(maxCommitIndex) },
+    calls,
+  };
+}
+
+function makeFakeFireflies() {
+  const calls: (number | null)[] = [];
+  return {
+    fireflies: { setScrubCommit: (maxCommitIndex: number | null) => calls.push(maxCommitIndex) },
     calls,
   };
 }
@@ -152,7 +164,8 @@ function makeFakeAdPanels() {
 
 function setup(
   getAdPanels: () => InstancedAdPanels | null = () => null,
-  trees: { setScrubCommit(maxCommitIndex: number | null): void } = noopTrees
+  trees: { setScrubCommit(maxCommitIndex: number | null): void } = noopTrees,
+  fireflies: { setScrubCommit(maxCommitIndex: number | null): void } = noopFireflies
 ) {
   const b = {
     x: 5,
@@ -182,6 +195,7 @@ function setup(
     streets: { setStreetOpacity: () => {}, setStreetLabelOpacity: () => {} },
     streetsByDir: {},
     trees,
+    fireflies,
   });
 
   return { b, fake, controller, timelines };
@@ -269,6 +283,19 @@ test('gates trees on the floored scrub position', () => {
   expect(fakeTrees.calls.at(-1)).toBe(-1);
 });
 
+test('gates fireflies on the floored scrub position, same value as the tree gate', () => {
+  const fakeFireflies = makeFakeFireflies();
+  const { controller } = setup(() => null, noopTrees, fakeFireflies.fireflies);
+
+  SCRUB_POS.value = 1.9;
+  controller.update();
+  expect(fakeFireflies.calls.at(-1)).toBe(1);
+
+  SCRUB_POS.value = -0.5;
+  controller.update();
+  expect(fakeFireflies.calls.at(-1)).toBe(-1);
+});
+
 test('a present media/0-line file gets a non-zero scaleY; an absent one stays flat', () => {
   // m.png: present the whole window, but blobLines is 0 throughout (a media file
   // carries 0 code lines). getBuildingDimensions clamps lines->MIN_FLOORS, so the
@@ -317,6 +344,7 @@ test('a present media/0-line file gets a non-zero scaleY; an absent one stays fl
     streets: { setStreetOpacity: () => {}, setStreetLabelOpacity: () => {} },
     streetsByDir: {},
     trees: noopTrees,
+    fireflies: noopFireflies,
   });
 
   SCRUB_POS.value = 1;
@@ -441,6 +469,7 @@ test('dedup: two buildings sharing one InstancedMesh set needsUpdate exactly onc
     streets: { setStreetOpacity: () => {}, setStreetLabelOpacity: () => {} },
     streetsByDir: {},
     trees: noopTrees,
+    fireflies: noopFireflies,
   });
 
   SCRUB_POS.value = 1.5;
@@ -546,6 +575,7 @@ test('couples street opacity to the max opacity of its buildings (block fade)', 
     streets,
     streetsByDir: { d: dStreet, e: eStreet },
     trees: noopTrees,
+    fireflies: noopFireflies,
   });
 
   SCRUB_POS.value = 2; // before K, everything present
@@ -638,6 +668,7 @@ test('block-fade is a true max, not last-write-wins: one deleted sibling cannot 
     streets,
     streetsByDir: { d: dStreet },
     trees: noopTrees,
+    fireflies: noopFireflies,
   });
 
   SCRUB_POS.value = 3.5; // after K: f2 deleted, f1 still alive
@@ -726,6 +757,7 @@ test('descendant rollup: a container street with no direct files inherits its ch
     streets,
     streetsByDir: { src: srcStreet, 'src/a': srcAStreet, e: eStreet },
     trees: noopTrees,
+    fireflies: noopFireflies,
   });
 
   SCRUB_POS.value = 2; // before deletion, everything present
@@ -808,6 +840,7 @@ test('footprints: a deleted building/street fades to 0 while a live sibling stay
     streets: { setStreetOpacity: () => {}, setStreetLabelOpacity: () => {} },
     streetsByDir: { d: dStreet, e: eStreet },
     trees: noopTrees,
+    fireflies: noopFireflies,
   });
 
   SCRUB_POS.value = 3.5; // after K: d/f1.txt deleted, e/f2.txt still alive
@@ -817,4 +850,60 @@ test('footprints: a deleted building/street fades to 0 while a live sibling stay
   expect(fakeFootprints.buildingOpacity.get('e/f2.txt')).toBeCloseTo(1, 5);
   expect(fakeFootprints.streetOpacity.get('d')).toBe(RUIN_FLOOR);
   expect(fakeFootprints.streetOpacity.get('e')).toBeCloseTo(1, 5);
+});
+
+test('the ROOT street stays at opacity 1 even when every building is absent, unlike a non-root empty street', () => {
+  // f.txt lives at repo root (parentDirPath('f.txt') === ROOT_PATH), so its street
+  // chain is just [rootStreet]. dStreet has no buildings at all, mirroring the
+  // "scrubbed back to an empty repo" case where every road would otherwise fade.
+  const rootStreet = { dir: { path: ROOT_PATH }, isRoot: true } as unknown as Street;
+  const dStreet = { dir: { path: 'd' } } as unknown as Street;
+
+  const index = new BuildingIndex();
+  const b = {
+    x: 0,
+    y: 0,
+    w: 2,
+    d: 2,
+    h: buildingHeightForLines(file, 6, heightCtx),
+    color: '#fff',
+    file,
+    cellId: 0,
+    slotId: 0,
+  } as unknown as Building;
+  index.insert(b);
+
+  const opacityByStreet = new Map<Street, number>();
+  const labelOpacityByStreet = new Map<Street, number>();
+  const streets = {
+    setStreetOpacity: (street: Street, opacity: number) => opacityByStreet.set(street, opacity),
+    setStreetLabelOpacity: (street: Street, opacity: number) =>
+      labelOpacityByStreet.set(street, opacity),
+  };
+  const fakeFootprints = makeFakeFootprints();
+
+  const fake = makeFakeMesh();
+  const timelines = buildPathTimelines(bundle);
+  const controller = createScrubController({
+    getBuildingIndex: () => index,
+    getAdPanels: () => null,
+    getMeshForBuilding: () => ({ mesh: fake.mesh, slot: 0 }),
+    timelines,
+    heightCtx,
+    footprints: fakeFootprints.footprints,
+    streets,
+    streetsByDir: { [ROOT_PATH]: rootStreet, d: dStreet },
+    trees: noopTrees,
+    fireflies: noopFireflies,
+  });
+
+  SCRUB_POS.value = 0.5; // before f.txt's creation: every building absent
+  controller.update();
+
+  expect(opacityByStreet.get(rootStreet)).toBe(1);
+  expect(labelOpacityByStreet.get(rootStreet)).toBe(1);
+  expect(fakeFootprints.streetOpacity.get(ROOT_PATH)).toBe(1);
+
+  expect(opacityByStreet.get(dStreet)).toBe(0);
+  expect(labelOpacityByStreet.get(dStreet)).toBe(0);
 });

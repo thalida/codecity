@@ -41,6 +41,9 @@ export interface ScrubControllerDeps {
   trees: {
     setScrubCommit(maxCommitIndex: number | null): void;
   };
+  fireflies: {
+    setScrubCommit(maxCommitIndex: number | null): void;
+  };
 }
 
 export function createScrubController(deps: ScrubControllerDeps) {
@@ -69,6 +72,7 @@ export function createScrubController(deps: ScrubControllerDeps) {
   function update(): void {
     const pos = SCRUB_POS.peek();
     deps.trees.setScrubCommit(Math.floor(pos));
+    deps.fireflies.setScrubCommit(Math.floor(pos));
     const dirtyMeshes = new Set<THREE.InstancedMesh>();
     const dirtyFades = new Set<THREE.BufferAttribute>();
     // A street's opacity is the max of its buildings', so the whole block fades together.
@@ -109,8 +113,9 @@ export function createScrubController(deps: ScrubControllerDeps) {
     for (const iFade of dirtyFades) iFade.needsUpdate = true;
     deps.getAdPanels()?.applyBuildingFades((p) => opByPath.get(p) ?? null);
     // Every street gets written each frame (defaulting to 0) so an orphaned street can't stick at a stale opacity.
+    // ROOT is forced to 1: the repo root directory always exists, even when scrubbed back to an empty tree.
     for (const street of allStreets) {
-      const op = maxOp.get(street) ?? 0;
+      const op = street.isRoot ? 1 : (maxOp.get(street) ?? 0);
       deps.streets.setStreetOpacity(street, op);
       deps.streets.setStreetLabelOpacity(street, op);
       if (street.dir?.path != null) deps.footprints.setStreetFootprintOpacity(street.dir.path, op);

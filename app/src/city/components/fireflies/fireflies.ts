@@ -20,6 +20,8 @@ export interface Fireflies {
   setHoveredCommit(sha: string | null): void;
   /** Select-highlight fireflies for the commit with this sha. Pass null to clear. */
   setSelectedCommit(sha: string | null): void;
+  /** Timeline scrub gate: hide orbs whose commitIndex is past maxCommitIndex. Null restores all. */
+  setScrubCommit(maxCommitIndex: number | null): void;
   /** Update LineMaterial resolution uniform on canvas resize. */
   onResize(width: number, height: number): void;
   refresh: FireflyRenderer['refresh'];
@@ -44,6 +46,7 @@ export function createFireflies(
       setTime: stub.setTime.bind(stub),
       setHoveredCommit() {},
       setSelectedCommit() {},
+      setScrubCommit() {},
       onResize() {},
       refresh: stub.refresh.bind(stub),
       dispose: stub.dispose.bind(stub),
@@ -80,6 +83,9 @@ export function createFireflies(
       const idx = sha === null ? null : (shaToIndex.get(sha) ?? null);
       renderer.setSelectedCommit(idx);
       rings.setSelectedCommit(idx);
+    },
+    setScrubCommit(maxCommitIndex: number | null) {
+      renderer.setScrubCommit(maxCommitIndex);
     },
     onResize(width: number, height: number) {
       rings.onResize(width, height);

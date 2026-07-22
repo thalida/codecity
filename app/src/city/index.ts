@@ -226,6 +226,9 @@ export async function createCity(canvas: HTMLCanvasElement, manifest: Manifest):
         trees: {
           setScrubCommit: (maxCommitIndex) => trees.setScrubCommit(maxCommitIndex),
         },
+        fireflies: {
+          setScrubCommit: (maxCommitIndex) => fireflies.setScrubCommit(maxCommitIndex),
+        },
       });
       buildings.setScrubController(_scrubController);
     },
@@ -235,6 +238,7 @@ export async function createCity(canvas: HTMLCanvasElement, manifest: Manifest):
       _scrubController = null;
       // Restore the full forest immediately — don't wait on exit's manifest reload.
       trees.setScrubCommit(null);
+      fireflies.setScrubCommit(null);
     },
     setStreetsTransparent: (on: boolean): void => streets.setStreetsTransparent(on),
     setFootprintsTransparent: (on: boolean): void => footprint.setFootprintsTransparent(on),
