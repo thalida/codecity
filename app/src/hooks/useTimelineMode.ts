@@ -10,7 +10,7 @@ import { batch } from '@preact/signals';
 
 import { fetchTimelineBundle } from '@/api/timeline';
 import { buildPathTimelines } from '@/city/timeline/replay';
-import { CURRENT_SOURCE } from '@/state/stores/source';
+import { CURRENT_SOURCE, SOURCE_INFO, PENDING_SOURCE_LABEL } from '@/state/stores/source';
 import { SCENE_HANDLE } from '@/state/stores/scene';
 import { markError } from '@/state/stores/manifest';
 import {
@@ -53,7 +53,9 @@ export async function enterTimelineMode(): Promise<void> {
   if (!handle) return;
 
   // Full overlay, not the footer "rebuilding…" — this is a mode switch, not a
-  // background refresh, so it deserves the same treatment as a cold load.
+  // background refresh, so it deserves the same treatment as a cold load, repo
+  // name header included (PENDING_SOURCE_LABEL, the same signal the live load sets).
+  PENDING_SOURCE_LABEL.value = SOURCE_INFO.peek().label || null;
   showLoadingOverlay({ kind: srcKind(cur.src), branch: cur.branch, steps: TIMELINE_LOADING_STEPS });
   setLoadingStep(LoadingStep.TimelineLoading);
   try {
@@ -75,7 +77,10 @@ export async function enterTimelineMode(): Promise<void> {
       SCRUB_POS.value = Math.max(0, bundle.commits.length - 1); // start at present
     });
     // Hold the overlay through the union city's first painted frame, then reveal.
-    requestAnimationFrame(() => hideLoadingOverlay());
+    requestAnimationFrame(() => {
+      hideLoadingOverlay();
+      PENDING_SOURCE_LABEL.value = null;
+    });
   } catch (err) {
     // Leave nothing half-set: revert to live and surface via the footer.
     // Explicit handle calls too: a failure here may predate the controller install, so the effect wouldn't fire.
@@ -90,6 +95,7 @@ export async function enterTimelineMode(): Promise<void> {
     }
     markError(err);
     hideLoadingOverlay();
+    PENDING_SOURCE_LABEL.value = null;
   }
 }
 
