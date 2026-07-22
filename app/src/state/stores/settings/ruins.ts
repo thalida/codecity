@@ -23,7 +23,7 @@ const RUINS_FIELDS = {
   OPACITY: {
     route: ChangeRoute.Live,
     kind: FieldKind.Slider,
-    default: 0.75,
+    default: 0.5,
     min: 0.02,
     max: 1,
     step: 0.02,
