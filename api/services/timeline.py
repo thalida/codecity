@@ -31,7 +31,7 @@ from .scan import (
     _wrap_manifest,
 )
 
-_UNION_FILE_CAP = 20000  # union files above this window to the most recent commits
+_UNION_FILE_CAP = 50000  # union files above this window to the most recent commits
 
 # Progress payload shape: {"stage": "history", "commits": int} while walking
 # git log, or {"stage": "blobs", "done": int, "total": int} while resolving
