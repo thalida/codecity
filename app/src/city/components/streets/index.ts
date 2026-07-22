@@ -17,6 +17,8 @@ import * as THREE from 'three';
 import { effect, untracked } from '@preact/signals';
 
 import { STREETS } from '@/state/stores/settings/streets';
+import { RUINS } from '@/state/stores/settings/ruins';
+import { setColorFromHex } from '@/city/utils/color/setColorFromHex';
 import { NodeKind, StreetAxis } from '@/types';
 import type { CityLayout, Street } from '@/types';
 
@@ -58,8 +60,10 @@ export interface Streets extends SceneComponent {
   getStreetRanges(): SidewalkRange[];
   /** Per-street asphalt spans, in the same street order as getStreetRanges(). */
   getAsphaltRanges(): AsphaltRange[];
-  /** Fade one street: write `opacity` across its span on both the sidewalk and asphalt merged meshes. */
-  setStreetOpacity(street: Street, opacity: number): void;
+  /** Fade one street: write `opacity` across its span on both the sidewalk and
+   *  asphalt merged meshes. `ruin` tints the asphalt toward RUINS.ROAD_COLOR (a
+   *  deleted folder's road); false clears the tint. */
+  setStreetOpacity(street: Street, opacity: number, ruin?: boolean): void;
   /** Fade one street's road labels in lockstep with setStreetOpacity; 0 force-hides (overriding the visibility LOD). */
   setStreetLabelOpacity(street: Street, opacity: number): void;
   /** Move both street materials into (or out of) the transparent render pass. */
@@ -134,30 +138,34 @@ export function createStreets(ctx: SceneContext): Streets {
     attr.addUpdateRange(range.vStart * 3, range.vCount * 3);
   }
 
-  // Write one street's vertex-opacity span, queuing a partial GPU upload (mirrors _writeStreetColor).
-  function _writeOpacitySpan(
+  // Write one street's span of a named per-vertex float attribute, queuing a
+  // partial GPU upload (mirrors _writeStreetColor). Used for aOpacity + aRuin.
+  function _writeSpan(
     mesh: FlatMesh,
+    name: string,
     vStart: number,
     vCount: number,
-    opacity: number
+    value: number
   ): void {
-    const attr = mesh.geometry.getAttribute('aOpacity') as THREE.BufferAttribute;
+    const attr = mesh.geometry.getAttribute(name) as THREE.BufferAttribute;
     const arr = attr.array as Float32Array;
-    for (let v = vStart; v < vStart + vCount; v++) arr[v] = opacity;
+    for (let v = vStart; v < vStart + vCount; v++) arr[v] = value;
     attr.addUpdateRange(vStart, vCount);
+    attr.needsUpdate = true;
   }
 
-  // Fade one street by writing its span on both merged meshes; no-op for an unknown street (e.g. pre-rebuild).
-  function setStreetOpacity(street: Street, opacity: number): void {
+  // Fade one street by writing its span on both merged meshes; no-op for an
+  // unknown street (e.g. pre-rebuild). `ruin` tints the asphalt span toward
+  // RUINS.ROAD_COLOR (asphalt-only; the sidewalk carries hover/select tints).
+  function setStreetOpacity(street: Street, opacity: number, ruin = false): void {
     const r = opacityRangeByStreet.get(street);
     if (!r) return;
     if (sidewalkMesh) {
-      _writeOpacitySpan(sidewalkMesh, r.sidewalk.vStart, r.sidewalk.vCount, opacity);
-      (sidewalkMesh.geometry.getAttribute('aOpacity') as THREE.BufferAttribute).needsUpdate = true;
+      _writeSpan(sidewalkMesh, 'aOpacity', r.sidewalk.vStart, r.sidewalk.vCount, opacity);
     }
     if (asphaltMesh && r.asphalt) {
-      _writeOpacitySpan(asphaltMesh, r.asphalt.vStart, r.asphalt.vCount, opacity);
-      (asphaltMesh.geometry.getAttribute('aOpacity') as THREE.BufferAttribute).needsUpdate = true;
+      _writeSpan(asphaltMesh, 'aOpacity', r.asphalt.vStart, r.asphalt.vCount, opacity);
+      _writeSpan(asphaltMesh, 'aRuin', r.asphalt.vStart, r.asphalt.vCount, ruin ? 1 : 0);
     }
   }
 
@@ -358,6 +366,15 @@ export function createStreets(ctx: SceneContext): Streets {
     }
   });
 
+  // Ruined-road tint — keeps the asphalt's uRuinColor uniform current when
+  // RUINS.ROAD_COLOR is Saved. rebuild() seeds a fresh mesh's uniform from the
+  // committed value; this maintains it afterward (mirrors the footprint).
+  const stopRuinColor = effect(() => {
+    const hex = RUINS.value.ROAD_COLOR;
+    const u = asphaltMesh?.material.userData.uRuinColor as { value: THREE.Color } | undefined;
+    if (u) setColorFromHex(u.value, hex);
+  });
+
   // (2)+(3) Picker-driven sidewalk-tint effects — ARMED on the first tick(),
   // NOT at construction. At construction ctx.picker is null, so an effect
   // reading ctx.picker?.selection.value would track NO signal and never
@@ -444,6 +461,7 @@ export function createStreets(ctx: SceneContext): Streets {
     _arm.dispose();
     stopLayout();
     stopTheme();
+    stopRuinColor();
   }
 
   return {

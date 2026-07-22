@@ -307,6 +307,110 @@ function setup(
   return { b, fake, controller, timelines };
 }
 
+// ── Anchored multi-building scenes ──────────────────────────────────────────
+// The scrub controller normalizes each present building's floors/weathering
+// against the range of the OTHER present buildings at that scrub position, not
+// against a commit index. A lone present building therefore has a degenerate
+// range (floors collapse to MIN_FLOORS, recency pins to 1). These helpers build
+// scenes with always-present "anchor" files so the range is real:
+//   - anchorLo/anchorHi (1 and 200 lines) restore presentLineStats = {1, 200},
+//     which equals heightCtx.lineStats, so the subject's floors/height curve
+//     matches the single-file baseline again.
+//   - dated commits + distinct anchor modify/create schedules give the
+//     last-modified / created date spans that drive recency + createdAge.
+// Each building gets its OWN fake mesh at slot 0, so a scene records the subject
+// and every anchor independently; assert on the subject's fake only.
+const DAY_MS = 86_400_000;
+const BASE_MS = Date.UTC(2021, 0, 1);
+const isoAt = (i: number): string => new Date(BASE_MS + i * DAY_MS).toISOString();
+
+const anchorLoFile = {
+  path: 'anchorLo.txt',
+  lines: 1,
+  size: 100,
+  extension: 'txt',
+} as unknown as FileNode;
+const anchorHiFile = {
+  path: 'anchorHi.txt',
+  lines: 200,
+  size: 100,
+  extension: 'txt',
+} as unknown as FileNode;
+
+function makeAnchoredScene(
+  sceneBundle: TimelineBundle,
+  files: FileNode[]
+): {
+  controller: ReturnType<typeof createScrubController>;
+  fakes: Map<string, ReturnType<typeof makeFakeMesh>>;
+} {
+  const index = new BuildingIndex();
+  const fakes = new Map<string, ReturnType<typeof makeFakeMesh>>();
+  const meshByBuilding = new Map<Building, ReturnType<typeof makeFakeMesh>>();
+  files.forEach((f, slotId) => {
+    const b = {
+      x: 5,
+      y: 7,
+      w: 2,
+      d: 2,
+      h: buildingHeightForLines(f, (f as unknown as { lines: number }).lines, heightCtx),
+      color: '#fff',
+      file: f,
+      cellId: 0,
+      slotId,
+    } as unknown as Building;
+    index.insert(b);
+    const fake = makeFakeMesh();
+    fakes.set(f.path, fake);
+    meshByBuilding.set(b, fake);
+  });
+
+  const timelines = buildPathTimelines(sceneBundle);
+  TIMELINE_BUNDLE.value = sceneBundle;
+
+  const controller = createScrubController({
+    getBuildingIndex: () => index,
+    getAdPanels: () => null,
+    getMeshForBuilding: (b) => ({ mesh: meshByBuilding.get(b)!.mesh, slot: 0 }),
+    timelines,
+    heightCtx,
+    footprints: noopFootprints,
+    streets: { setStreetOpacity: () => {}, setStreetLabelOpacity: () => {} },
+    streetsByDir: {},
+    trees: noopTrees,
+    fireflies: noopFireflies,
+  });
+
+  return { controller, fakes };
+}
+
+// Standard 4-commit timeline for the subject `file` (f.txt: created@1 with 2
+// lines, grows to 6 lines@2, deleted@3) PLUS the two line-range anchors, so
+// presentLineStats stays {1, 200} for every present-at scrub position.
+const anchoredBundle = {
+  commits: [
+    { sha: 'a', date: isoAt(0) },
+    { sha: 'b', date: isoAt(1) },
+    { sha: 'c', date: isoAt(2) },
+    { sha: 'd', date: isoAt(3) },
+  ],
+  unionManifest: { tree: { name: 'r' } },
+  deltas: [
+    {
+      sha: 'a',
+      changes: [
+        { path: 'anchorLo.txt', sha: 'lo' },
+        { path: 'anchorHi.txt', sha: 'hi' },
+      ],
+    },
+    { sha: 'b', changes: [{ path: 'f.txt', sha: 's1' }] },
+    { sha: 'c', changes: [{ path: 'f.txt', sha: 's2' }] },
+    { sha: 'd', changes: [{ path: 'f.txt', sha: null }] },
+  ],
+  blobLines: { s1: 2, s2: 6, lo: 1, hi: 200 },
+  note: null,
+} as unknown as TimelineBundle;
+
 // Deterministic saturation/lightness range so the "fresh" vs "weathered"
 // ends of the age-color curve are easy to assert on.
 const TEST_SATURATION = { min: 20, max: 100 };
@@ -337,7 +441,14 @@ afterEach(() => {
 });
 
 test('scaleY reflects the interpolated height at the scrub position', () => {
-  const { fake, controller } = setup();
+  // Anchors pin presentLineStats to {1, 200} (= heightCtx.lineStats), so the
+  // subject's height normalizes over the same range as the single-file baseline.
+  const { controller, fakes } = makeAnchoredScene(anchoredBundle, [
+    file,
+    anchorLoFile,
+    anchorHiFile,
+  ]);
+  const fake = fakes.get('f.txt')!;
   SCRUB_POS.value = 1.5;
   controller.update();
 
@@ -347,10 +458,15 @@ test('scaleY reflects the interpolated height at the scrub position', () => {
 });
 
 test('at HEAD the height factor is ~1 (matches the union baseline)', () => {
-  const { b, fake, controller } = setup();
+  const { controller, fakes } = makeAnchoredScene(anchoredBundle, [
+    file,
+    anchorLoFile,
+    anchorHiFile,
+  ]);
+  const fake = fakes.get('f.txt')!;
   SCRUB_POS.value = 2; // last live commit index, 6 lines
   controller.update();
-  expect(fake.scaleY).toBeCloseTo(b.h, 5);
+  expect(fake.scaleY).toBeCloseTo(buildingHeightForLines(file, 6, heightCtx), 5);
 });
 
 test('before its creation the building is flat and fully transparent', () => {
@@ -613,11 +729,20 @@ test('an absent building (never present) stays flat at scaleY 0', () => {
 test('dedup: two buildings sharing one InstancedMesh set needsUpdate exactly once', () => {
   // f2.txt mirrors f.txt's timeline shape under a second path, so both buildings
   // resolve to the same (shared) fake mesh at different slots.
+  // anchorLo/anchorHi are always-present so presentLineStats stays {1, 200}; they
+  // live on a SEPARATE mesh, so the shared-mesh needsUpdate counts stay about the
+  // two subject slots only.
   const twoPathBundle = {
     commits: [{ sha: 'a' }, { sha: 'b' }, { sha: 'c' }, { sha: 'd' }],
     unionManifest: { tree: { name: 'r' } },
     deltas: [
-      { sha: 'a', changes: [] },
+      {
+        sha: 'a',
+        changes: [
+          { path: 'anchorLo.txt', sha: 'lo' },
+          { path: 'anchorHi.txt', sha: 'hi' },
+        ],
+      },
       {
         sha: 'b',
         changes: [
@@ -640,7 +765,7 @@ test('dedup: two buildings sharing one InstancedMesh set needsUpdate exactly onc
         ],
       },
     ],
-    blobLines: { s1: 2, s2: 6 },
+    blobLines: { s1: 2, s2: 6, lo: 1, hi: 200 },
     note: null,
   } as unknown as TimelineBundle;
 
@@ -668,9 +793,34 @@ test('dedup: two buildings sharing one InstancedMesh set needsUpdate exactly onc
     slotId: 1,
   } as unknown as Building;
 
+  const anchorLo = {
+    x: 0,
+    y: 0,
+    w: 2,
+    d: 2,
+    h: 1,
+    color: '#fff',
+    file: anchorLoFile,
+    cellId: 0,
+    slotId: 2,
+  } as unknown as Building;
+  const anchorHi = {
+    x: 0,
+    y: 0,
+    w: 2,
+    d: 2,
+    h: 1,
+    color: '#fff',
+    file: anchorHiFile,
+    cellId: 0,
+    slotId: 3,
+  } as unknown as Building;
+
   const index = new BuildingIndex();
   index.insert(b1);
   index.insert(b2);
+  index.insert(anchorLo);
+  index.insert(anchorHi);
 
   const slotMatrices = new Map<number, THREE.Matrix4>();
   const slotFadeX = new Map<number, number>();
@@ -715,11 +865,17 @@ test('dedup: two buildings sharing one InstancedMesh set needsUpdate exactly onc
     },
   } as unknown as THREE.InstancedMesh;
 
+  const anchorMesh = makeFakeMesh();
   const timelines = buildPathTimelines(twoPathBundle);
   const controller = createScrubController({
     getBuildingIndex: () => index,
     getAdPanels: () => null,
-    getMeshForBuilding: (b) => ({ mesh: sharedMesh, slot: b.slotId }),
+    // Subjects share one mesh (the dedup case); anchors live on a separate mesh
+    // so they don't inflate the shared mesh's needsUpdate counts.
+    getMeshForBuilding: (b) =>
+      b === anchorLo || b === anchorHi
+        ? { mesh: anchorMesh.mesh, slot: b.slotId }
+        : { mesh: sharedMesh, slot: b.slotId },
     timelines,
     heightCtx,
     footprints: noopFootprints,
@@ -1171,6 +1327,18 @@ function colorDist(a: THREE.Color, b: THREE.Color): number {
   return Math.hypot(a.r - b.r, a.g - b.g, a.b - b.b);
 }
 
+// The subject building's color at a given recency, through the exact reused
+// production curve (not a reimplementation) — the assertion the weathering
+// tests pin against.
+function colorForRecency(recency: number): THREE.Color {
+  return new THREE.Color(
+    getBuildingColorForRecency(
+      file as unknown as Parameters<typeof getBuildingColorForRecency>[0],
+      recency
+    )
+  );
+}
+
 test('weathering: at the exact scrub position of last modification, color matches the freshest end of the reused age-color curve', () => {
   const { fake, controller } = setup();
   SCRUB_POS.value = 2; // f.txt's last-modified index
@@ -1189,110 +1357,94 @@ test('weathering: at the exact scrub position of last modification, color matche
 });
 
 test('weathering: recency-at-scrub runs through the exact same reused color function, not a reimplementation', () => {
-  const { fake, controller } = setup();
-  SCRUB_POS.value = 2.3; // just after last-modified index (2), history span 3
+  // Three present buildings give a real last-modified DATE range: anchorHi (oldest,
+  // touched only at genesis), the subject f.txt (modified at commit 1), and anchorLo
+  // (freshest, re-touched at commit 2). The subject's color is its last-mod date
+  // normalized into that present range, pushed through getBuildingColorForRecency.
+  const datedBundle = {
+    commits: [
+      { sha: 'a', date: isoAt(0) }, // anchorHi last-mod (oldest present)
+      { sha: 'b', date: isoAt(6) }, // f.txt last-mod (subject)
+      { sha: 'c', date: isoAt(8) }, // anchorLo re-touch (freshest present)
+      { sha: 'd', date: isoAt(12) },
+    ],
+    unionManifest: { tree: { name: 'r' } },
+    deltas: [
+      {
+        sha: 'a',
+        changes: [
+          { path: 'anchorLo.txt', sha: 'lo' },
+          { path: 'anchorHi.txt', sha: 'hi' },
+        ],
+      },
+      { sha: 'b', changes: [{ path: 'f.txt', sha: 's1' }] },
+      { sha: 'c', changes: [{ path: 'anchorLo.txt', sha: 'lo' }] },
+      { sha: 'd', changes: [{ path: 'f.txt', sha: null }] },
+    ],
+    blobLines: { s1: 6, lo: 1, hi: 200 },
+    note: null,
+  } as unknown as TimelineBundle;
 
+  const { controller, fakes } = makeAnchoredScene(datedBundle, [file, anchorLoFile, anchorHiFile]);
+  const fake = fakes.get('f.txt')!;
+  SCRUB_POS.value = 2.3; // subject last-modified at commit 1; anchorLo freshest at commit 2
   controller.update();
 
-  const expectedRecency = 1 - (2.3 - 2) / 3;
-  const expected = new THREE.Color(
-    getBuildingColorForRecency(
-      file as unknown as Parameters<typeof getBuildingColorForRecency>[0],
-      expectedRecency
-    )
-  );
+  const minMod = Date.parse(isoAt(0)); // anchorHi
+  const maxMod = Date.parse(isoAt(8)); // anchorLo
+  const modMs = Date.parse(isoAt(6)); // subject f.txt
+  const expectedRecency = (modMs - minMod) / (maxMod - minMod); // 6/8 = 0.75
+  const expected = colorForRecency(expectedRecency);
   expect(fake.lastColor!.r).toBeCloseTo(expected.r, 5);
   expect(fake.lastColor!.g).toBeCloseTo(expected.g, 5);
   expect(fake.lastColor!.b).toBeCloseTo(expected.b, 5);
 
   // Still much closer to the freshest end than the weathered end.
-  const fresh = new THREE.Color(
-    getBuildingColorForRecency(
-      file as unknown as Parameters<typeof getBuildingColorForRecency>[0],
-      1
-    )
+  expect(colorDist(fake.lastColor!, colorForRecency(1))).toBeLessThan(
+    colorDist(fake.lastColor!, colorForRecency(0))
   );
-  const weathered = new THREE.Color(
-    getBuildingColorForRecency(
-      file as unknown as Parameters<typeof getBuildingColorForRecency>[0],
-      0
-    )
-  );
-  expect(colorDist(fake.lastColor!, fresh)).toBeLessThan(colorDist(fake.lastColor!, weathered));
 });
 
 test('weathering: far past its last modification, color approaches the weathered end of the curve', () => {
-  // f.txt is modified once at i=1 and never touched again through a long
-  // 11-commit history (span 10), so recency at pos=10 should read as mostly weathered.
+  // f.txt is modified once at commit 1 and never touched again across an 11-commit
+  // history, while anchorLo is re-touched at HEAD (commit 10). At pos=10 the subject's
+  // last-mod date sits near the OLD end of the present last-mod range, so recency is low.
   const longBundle = {
-    commits: Array.from({ length: 11 }, (_, i) => ({ sha: `c${i}` })),
+    commits: Array.from({ length: 11 }, (_, i) => ({ sha: `c${i}`, date: isoAt(i) })),
     unionManifest: { tree: { name: 'r' } },
     deltas: [
-      { sha: 'c0', changes: [] },
+      {
+        sha: 'c0',
+        changes: [
+          { path: 'anchorLo.txt', sha: 'lo' },
+          { path: 'anchorHi.txt', sha: 'hi' },
+        ],
+      },
       { sha: 'c1', changes: [{ path: 'f.txt', sha: 's1' }] },
-      ...Array.from({ length: 9 }, (_, i) => ({ sha: `c${i + 2}`, changes: [] })),
+      ...Array.from({ length: 8 }, (_, i) => ({ sha: `c${i + 2}`, changes: [] })),
+      { sha: 'c10', changes: [{ path: 'anchorLo.txt', sha: 'lo' }] },
     ],
-    blobLines: { s1: 6 },
+    blobLines: { s1: 6, lo: 1, hi: 200 },
     note: null,
   } as unknown as TimelineBundle;
 
-  const b = {
-    x: 0,
-    y: 0,
-    w: 2,
-    d: 2,
-    h: buildingHeightForLines(file, 6, heightCtx),
-    color: '#fff',
-    file,
-    cellId: 0,
-    slotId: 0,
-  } as unknown as Building;
-  const index = new BuildingIndex();
-  index.insert(b);
-  const fake = makeFakeMesh();
-  const timelines = buildPathTimelines(longBundle);
-  TIMELINE_BUNDLE.value = longBundle;
-
-  const controller = createScrubController({
-    getBuildingIndex: () => index,
-    getAdPanels: () => null,
-    getMeshForBuilding: () => ({ mesh: fake.mesh, slot: 0 }),
-    timelines,
-    heightCtx,
-    footprints: noopFootprints,
-    streets: { setStreetOpacity: () => {}, setStreetLabelOpacity: () => {} },
-    streetsByDir: {},
-    trees: noopTrees,
-    fireflies: noopFireflies,
-  });
-
+  const { controller, fakes } = makeAnchoredScene(longBundle, [file, anchorLoFile, anchorHiFile]);
+  const fake = fakes.get('f.txt')!;
   SCRUB_POS.value = 10;
   controller.update();
 
-  const expectedRecency = 1 - (10 - 1) / 10;
-  const expected = new THREE.Color(
-    getBuildingColorForRecency(
-      file as unknown as Parameters<typeof getBuildingColorForRecency>[0],
-      expectedRecency
-    )
-  );
+  const minMod = Date.parse(isoAt(0)); // anchorHi, oldest present last-mod
+  const maxMod = Date.parse(isoAt(10)); // anchorLo, re-touched at HEAD
+  const modMs = Date.parse(isoAt(1)); // subject, untouched since commit 1
+  const expectedRecency = (modMs - minMod) / (maxMod - minMod); // 1/10 = 0.1
+  const expected = colorForRecency(expectedRecency);
   expect(fake.lastColor!.r).toBeCloseTo(expected.r, 5);
   expect(fake.lastColor!.g).toBeCloseTo(expected.g, 5);
   expect(fake.lastColor!.b).toBeCloseTo(expected.b, 5);
 
-  const fresh = new THREE.Color(
-    getBuildingColorForRecency(
-      file as unknown as Parameters<typeof getBuildingColorForRecency>[0],
-      1
-    )
+  expect(colorDist(fake.lastColor!, colorForRecency(0))).toBeLessThan(
+    colorDist(fake.lastColor!, colorForRecency(1))
   );
-  const weathered = new THREE.Color(
-    getBuildingColorForRecency(
-      file as unknown as Parameters<typeof getBuildingColorForRecency>[0],
-      0
-    )
-  );
-  expect(colorDist(fake.lastColor!, weathered)).toBeLessThan(colorDist(fake.lastColor!, fresh));
 });
 
 test('weathering: absent buildings (before creation / after deletion) are not colored', () => {
@@ -1310,7 +1462,14 @@ test('weathering: absent buildings (before creation / after deletion) are not co
 // ── Full-attribute scrub (iFloors, iModifiedAge, iIconUV.w) ──────────────────
 
 test('iFloors reflects the scrub-position line count, not the union/final-commit value', () => {
-  const { fake, controller } = setup();
+  // Anchors keep presentLineStats == heightCtx.lineStats, so the subject's floor
+  // count is getBuildingDimensions at its scrub-position line count over that range.
+  const { controller, fakes } = makeAnchoredScene(anchoredBundle, [
+    file,
+    anchorLoFile,
+    anchorHiFile,
+  ]);
+  const fake = fakes.get('f.txt')!;
   SCRUB_POS.value = 1.5; // lines lerp 2->6 at pos 1.5 => 4 lines
   controller.update();
 
@@ -1329,7 +1488,12 @@ test('iFloors reflects the scrub-position line count, not the union/final-commit
 });
 
 test('iFloors changes as SCRUB_POS moves: an earlier (shorter) scrub state has fewer or equal floors', () => {
-  const { fake, controller } = setup();
+  const { controller, fakes } = makeAnchoredScene(anchoredBundle, [
+    file,
+    anchorLoFile,
+    anchorHiFile,
+  ]);
+  const fake = fakes.get('f.txt')!;
 
   SCRUB_POS.value = 1; // createdIdx, 2 lines
   controller.update();
@@ -1358,12 +1522,40 @@ test('iModifiedAge matches the recency direction: 0 at the exact last-modified s
 });
 
 test('iModifiedAge grows toward 1 (most stale) as scrub moves away from the last-modified index', () => {
-  const { fake, controller } = setup();
-  SCRUB_POS.value = 2; // exact last-modified index
+  // f.txt is modified once (commit 1); anchorLo keeps getting re-touched (commit 1,
+  // then commit 2). As the scrub advances past anchorLo's later touch, the freshest
+  // present last-mod date pulls ahead of the subject, so its relative staleness grows.
+  const datedBundle = {
+    commits: [
+      { sha: 'a', date: isoAt(0) },
+      { sha: 'b', date: isoAt(1) },
+      { sha: 'c', date: isoAt(2) },
+      { sha: 'd', date: isoAt(3) },
+    ],
+    unionManifest: { tree: { name: 'r' } },
+    deltas: [
+      { sha: 'a', changes: [{ path: 'anchorHi.txt', sha: 'hi' }] },
+      {
+        sha: 'b',
+        changes: [
+          { path: 'f.txt', sha: 's1' },
+          { path: 'anchorLo.txt', sha: 'lo' },
+        ],
+      },
+      { sha: 'c', changes: [{ path: 'anchorLo.txt', sha: 'lo' }] },
+      { sha: 'd', changes: [{ path: 'f.txt', sha: null }] },
+    ],
+    blobLines: { s1: 6, lo: 1, hi: 200 },
+    note: null,
+  } as unknown as TimelineBundle;
+
+  const { controller, fakes } = makeAnchoredScene(datedBundle, [file, anchorLoFile, anchorHiFile]);
+  const fake = fakes.get('f.txt')!;
+  SCRUB_POS.value = 1.5; // anchorLo's latest touch is still commit 1, tied with the subject
   controller.update();
   const atModified = fake.modifiedAge;
 
-  SCRUB_POS.value = 2.3; // just after
+  SCRUB_POS.value = 2.5; // anchorLo re-touched at commit 2, now the freshest present file
   controller.update();
   const afterModified = fake.modifiedAge;
 
@@ -1385,17 +1577,49 @@ test('iIconUV.w (createdAge) is 0 at the exact scrub-position creation index (ne
 });
 
 test('iIconUV.w grows toward 1 (oldest) as scrub moves away from the created index', () => {
-  const { fake, controller } = setup();
-  SCRUB_POS.value = 1; // createdIdx
+  // f.txt is created at commit 1; anchorOld predates it (commit 0) and anchorNew is
+  // created later (commit 2). Once anchorNew appears, the newest present creation date
+  // pulls ahead of the subject, so the subject reads as relatively older (createdAge↑).
+  const anchorNewFile = {
+    path: 'anchorNew.txt',
+    lines: 1,
+    size: 100,
+    extension: 'txt',
+  } as unknown as FileNode;
+  const datedBundle = {
+    commits: [
+      { sha: 'a', date: isoAt(0) }, // anchorOld created (oldest)
+      { sha: 'b', date: isoAt(1) }, // f.txt created (subject)
+      { sha: 'c', date: isoAt(2) }, // anchorNew created (newest)
+      { sha: 'd', date: isoAt(3) },
+    ],
+    unionManifest: { tree: { name: 'r' } },
+    deltas: [
+      { sha: 'a', changes: [{ path: 'anchorLo.txt', sha: 'lo' }] },
+      { sha: 'b', changes: [{ path: 'f.txt', sha: 's1' }] },
+      { sha: 'c', changes: [{ path: 'anchorNew.txt', sha: 'nw' }] },
+      { sha: 'd', changes: [] },
+    ],
+    blobLines: { s1: 6, lo: 1, nw: 1 },
+    note: null,
+  } as unknown as TimelineBundle;
+
+  const { controller, fakes } = makeAnchoredScene(datedBundle, [file, anchorLoFile, anchorNewFile]);
+  const fake = fakes.get('f.txt')!;
+  SCRUB_POS.value = 1; // subject's creation index; only it + anchorOld are present
   controller.update();
   const atCreated = fake.iconUvW;
 
-  SCRUB_POS.value = 2; // one full history-span step later (historySpan=3)
+  SCRUB_POS.value = 2; // anchorNew now present, created after the subject
   controller.update();
   const later = fake.iconUvW;
 
   expect(later).toBeGreaterThan(atCreated);
-  expect(later).toBeCloseTo(1 / 3, 5);
+  // createdAge = 1 - (subjectCreated - minCreated) / (maxCreated - minCreated)
+  const minCreated = Date.parse(isoAt(0)); // anchorOld
+  const maxCreated = Date.parse(isoAt(2)); // anchorNew
+  const createdMs = Date.parse(isoAt(1)); // subject
+  expect(later).toBeCloseTo(1 - (createdMs - minCreated) / (maxCreated - minCreated), 5); // 0.5
 });
 
 test('iIconUV.w: needsUpdate set exactly once per mesh per frame', () => {

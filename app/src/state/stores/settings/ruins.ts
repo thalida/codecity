@@ -53,7 +53,7 @@ const RUINS_FIELDS = {
   ROAD_COLOR: {
     route: ChangeRoute.Live,
     kind: FieldKind.Color,
-    default: '#3d3a4a',
+    default: '#040301',
     label: 'Ruined road color',
     tip: 'Tint for the plots and roads of a deleted folder, so a ruined block reads apart from a live one.',
   },

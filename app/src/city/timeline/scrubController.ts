@@ -44,7 +44,7 @@ export interface ScrubControllerDeps {
   timelines: Map<string, PathTimeline>;
   heightCtx: HeightContext;
   streets: {
-    setStreetOpacity(street: Street, opacity: number): void;
+    setStreetOpacity(street: Street, opacity: number, ruin: boolean): void;
     setStreetLabelOpacity(street: Street, opacity: number): void;
   };
   // { street dir.path → Street } from the union layout, for resolving a building's street.
@@ -84,6 +84,10 @@ export function createScrubController(deps: ScrubControllerDeps) {
   }
   for (const street of Object.values(deps.streetsByDir)) allStreets.push(street);
 
+  // Commit dates as ms, for date-based weathering (matches the live view's
+  // date-normalized color/age, not a commit-index proxy). Precomputed once.
+  const _commitMs = (TIMELINE_BUNDLE.peek()?.commits ?? []).map((c) => Date.parse(c.date) || 0);
+
   const _m = new THREE.Matrix4();
   const _color = new THREE.Color();
 
@@ -107,13 +111,43 @@ export function createScrubController(deps: ScrubControllerDeps) {
     const presentStreets = new Set<Street>();
     RUINED_STREET_DIRS.clear();
 
-    // Recency denominator: how far back "fully weathered" sits, in commit indices.
-    const historySpan = Math.max(1, (TIMELINE_BUNDLE.peek()?.commits.length ?? 1) - 1);
     const ruins = RUINS.peek();
     const ruinsOn = ruins.ENABLED;
     const ruinOpacity = ruins.OPACITY;
     const ruinHeight = ruins.STUB_HEIGHT * BUILDING_DIMENSIONS.peek().FLOOR_HEIGHT;
     const ruinGrayMix = ruins.DESATURATION;
+
+    // Pre-pass: weathering ranges over the PRESENT buildings at this scrub
+    // position — last-modified + created commit dates, and line counts. Color,
+    // window-lighting, grime, and floors all normalize against these, so a
+    // building renders as a real scan at this commit would (and at HEAD, where
+    // present == the live file set, it matches the non-timeline view exactly).
+    let minMod = Infinity;
+    let maxMod = -Infinity;
+    let minCreated = Infinity;
+    let maxCreated = -Infinity;
+    let minLines = Infinity;
+    let maxLines = -Infinity;
+    for (const { pt, createdIdx } of entries) {
+      if (ruinStateAt(pt, pos) !== 'present') continue;
+      const modMs = _commitMs[lastModifiedIndexAt(pt, pos)] ?? 0;
+      const createdMs = _commitMs[createdIdx] ?? 0;
+      const lines = linesAt(pt, pos);
+      if (modMs < minMod) minMod = modMs;
+      if (modMs > maxMod) maxMod = modMs;
+      if (createdMs < minCreated) minCreated = createdMs;
+      if (createdMs > maxCreated) maxCreated = createdMs;
+      if (lines < minLines) minLines = lines;
+      if (lines > maxLines) maxLines = lines;
+    }
+    // Spread 0 (all present files share a date) → the live view's getSaturation/
+    // getModifiedAge treat that as freshest (recency 1); createdAge as newest (0).
+    const modSpread = maxMod - minMod;
+    const createdSpread = maxCreated - minCreated;
+    const presentLineStats = {
+      min: minLines === Infinity ? 0 : minLines,
+      max: maxLines === -Infinity ? 0 : maxLines,
+    };
 
     for (const { b, pt, streets, createdIdx } of entries) {
       const state = ruinStateAt(pt, pos);
@@ -146,7 +180,7 @@ export function createScrubController(deps: ScrubControllerDeps) {
         // Gate height on presence (intervals), not line count: media/empty files are present with 0 lines.
         const dims = getBuildingDimensions(
           { ...b.file, lines: linesAt(pt, pos) },
-          deps.heightCtx.lineStats,
+          presentLineStats, // present-file line range → floors match a real scan (byteStats drives width only, unused: matrix uses b.w)
           deps.heightCtx.byteStats
         );
         if (iFloorsAttr) {
@@ -186,18 +220,14 @@ export function createScrubController(deps: ScrubControllerDeps) {
         dirtyFades.add(iFade);
       }
 
-      // Weather: color/lit-windows/grime-age re-evaluated from recency relative to the
-      // scrub position, not a fixed date. Absent buildings are already scaled/faded to
-      // 0, so skip them.
+      // Weather: color / lit-windows / grime-age from the file's DATES at this
+      // scrub position (not a commit-index proxy), normalized against the
+      // present-file ranges — the exact formulas the live view bakes, so HEAD
+      // matches. Absent buildings are already scaled/faded to 0, so skip them.
       if (present) {
-        const lastModifiedIndex = lastModifiedIndexAt(pt, pos);
-        // 0=just modified, 1=historySpan-ago-or-more — matches getModifiedAge's polarity
-        // (iModifiedAge/vModifiedAge: 0=most recent, 1=longest-untouched) directly.
-        const modifiedAgeAtScrub = Math.max(
-          0,
-          Math.min(1, (pos - lastModifiedIndex) / historySpan)
-        );
-        const recency = 1 - modifiedAgeAtScrub;
+        // recency = modified-date t (0=oldest, 1=newest) → getBuildingColor's curve.
+        const modMs = _commitMs[lastModifiedIndexAt(pt, pos)] ?? 0;
+        const recency = modSpread > 0 ? Math.max(0, Math.min(1, (modMs - minMod) / modSpread)) : 1;
         _color.set(
           getBuildingColorForRecency(
             b.file as unknown as Parameters<typeof getBuildingColorForRecency>[0],
@@ -207,21 +237,26 @@ export function createScrubController(deps: ScrubControllerDeps) {
         mesh.setColorAt(slot, _color);
         dirtyColors.add(mesh);
 
+        // getModifiedAge polarity: 0=most recent, 1=longest-untouched.
         const iModifiedAgeAttr = mesh.geometry.getAttribute('iModifiedAge') as
           | THREE.BufferAttribute
           | undefined;
         if (iModifiedAgeAttr) {
-          iModifiedAgeAttr.setX(slot, modifiedAgeAtScrub);
+          iModifiedAgeAttr.setX(slot, 1 - recency);
           dirtyModifiedAges.add(iModifiedAgeAttr);
         }
 
-        // Same 0=new/1=old polarity as getCreatedAge, on the creation-date axis instead.
-        const createdAgeAtScrub = Math.max(0, Math.min(1, (pos - createdIdx) / historySpan));
+        // getCreatedAge polarity: 0=newest, 1=oldest, on the creation-date axis.
+        const createdMs = _commitMs[createdIdx] ?? 0;
+        const createdAge =
+          createdSpread > 0
+            ? 1 - Math.max(0, Math.min(1, (createdMs - minCreated) / createdSpread))
+            : 0;
         const iIconUVAttr = mesh.geometry.getAttribute('iIconUV') as
           | THREE.BufferAttribute
           | undefined;
         if (iIconUVAttr) {
-          iIconUVAttr.setW(slot, createdAgeAtScrub);
+          iIconUVAttr.setW(slot, createdAge);
           dirtyIconUVs.add(iIconUVAttr);
         }
       } else if (ruin) {
@@ -258,7 +293,7 @@ export function createScrubController(deps: ScrubControllerDeps) {
       const op = street.isRoot ? 1 : (maxOp.get(street) ?? 0);
       // A ruined street: faint (op>0) with no live descendant → tint its plot.
       const streetRuin = ruinsOn && !street.isRoot && op > 0 && !presentStreets.has(street);
-      deps.streets.setStreetOpacity(street, op);
+      deps.streets.setStreetOpacity(street, op, streetRuin);
       deps.streets.setStreetLabelOpacity(street, op);
       if (street.dir?.path != null) {
         deps.footprints.setStreetFootprintOpacity(street.dir.path, op, streetRuin);

@@ -215,13 +215,15 @@ export async function createCity(canvas: HTMLCanvasElement, manifest: Manifest):
         timelines,
         heightCtx: makeHeightContext(cityState.manifest.peek()?.stats),
         streets: {
-          setStreetOpacity: (s, o) => streets.setStreetOpacity(s, o),
+          setStreetOpacity: (s, o, ruin) => streets.setStreetOpacity(s, o, ruin),
           setStreetLabelOpacity: (s, o) => streets.setStreetLabelOpacity(s, o),
         },
         streetsByDir: cityState.streetsByDirMap.peek(),
         footprints: {
-          setBuildingFootprintOpacity: (p, o) => footprint.setBuildingFootprintOpacity(p, o),
-          setStreetFootprintOpacity: (p, o) => footprint.setStreetFootprintOpacity(p, o),
+          setBuildingFootprintOpacity: (p, o, ruin) =>
+            footprint.setBuildingFootprintOpacity(p, o, ruin),
+          setStreetFootprintOpacity: (p, o, ruin) =>
+            footprint.setStreetFootprintOpacity(p, o, ruin),
         },
         trees: {
           setScrubCommit: (maxCommitIndex) => trees.setScrubCommit(maxCommitIndex),

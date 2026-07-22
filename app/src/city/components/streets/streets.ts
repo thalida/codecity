@@ -6,8 +6,10 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { STREETS } from '@/state/stores/settings/streets';
+import { RUINS } from '@/state/stores/settings/ruins';
 import { ASPHALT_WIDTH_FRAC } from '@/constants/streets';
 import { RENDER_ORDERS } from '@/city/types/renderOrders';
+import { setColorFromHex } from '@/city/utils/color/setColorFromHex';
 import { CapStyle, JoinSide, NodeKind, StreetAxis } from '@/types';
 import type { Street } from '@/types';
 
@@ -21,23 +23,39 @@ type FlatMesh = THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial>;
 // Stadium-cap tessellation count for the asphalt + sidewalk shapes.
 const STADIUM_SEGMENTS = 16;
 
-// Per-vertex alpha via onBeforeCompile; transparent stays false so live mode is byte-identical.
-function injectStreetOpacity(mat: THREE.MeshBasicMaterial): void {
+// Per-vertex alpha via onBeforeCompile; transparent stays false so live mode is
+// byte-identical. When `ruinUniform` is passed the shader also mixes toward a
+// ruin tint per-vertex (aRuin), for a deleted folder's road in Timeline mode —
+// vRuin stays 0 in live mode, so the result is unchanged there.
+function injectStreetOpacity(
+  mat: THREE.MeshBasicMaterial,
+  ruinUniform?: { value: THREE.Color }
+): void {
   // Distinguishes this variant in three's program cache so a plain MeshBasicMaterial
   // with the same param signature can't collide and skip the onBeforeCompile injection.
-  mat.customProgramCacheKey = () => 'street-opacity';
+  mat.customProgramCacheKey = () => (ruinUniform ? 'street-opacity-ruin' : 'street-opacity');
   mat.onBeforeCompile = (shader) => {
+    if (ruinUniform) shader.uniforms.uRuinColor = ruinUniform;
+    const ruinDecl = ruinUniform ? '\nattribute float aRuin;\nvarying float vRuin;' : '';
+    const ruinAssign = ruinUniform ? '\nvRuin = aRuin;' : '';
     shader.vertexShader = shader.vertexShader
       .replace(
         '#include <common>',
-        '#include <common>\nattribute float aOpacity;\nvarying float vOpacity;'
+        `#include <common>\nattribute float aOpacity;\nvarying float vOpacity;${ruinDecl}`
       )
-      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvOpacity = aOpacity;');
+      .replace(
+        '#include <begin_vertex>',
+        `#include <begin_vertex>\nvOpacity = aOpacity;${ruinAssign}`
+      );
+    const fragDecl = ruinUniform ? '\nvarying float vRuin;\nuniform vec3 uRuinColor;' : '';
+    const fragMix = ruinUniform
+      ? 'gl_FragColor.rgb = mix(gl_FragColor.rgb, uRuinColor, vRuin);\n'
+      : '';
     shader.fragmentShader = shader.fragmentShader
-      .replace('#include <common>', '#include <common>\nvarying float vOpacity;')
+      .replace('#include <common>', `#include <common>\nvarying float vOpacity;${fragDecl}`)
       .replace(
         '#include <dithering_fragment>',
-        '#include <dithering_fragment>\ngl_FragColor.a *= vOpacity;'
+        `${fragMix}#include <dithering_fragment>\ngl_FragColor.a *= vOpacity;`
       );
   };
 }
@@ -312,8 +330,16 @@ export function createMergedAsphaltMesh(
   const merged = mergeGeometries(geos, false);
   for (const g of geos) g.dispose();
   seedOpacityAttribute(merged);
+  // Per-vertex ruin tint [0..1], written per-street by the scrub controller so a
+  // deleted folder's road reads in the RUINS.ROAD_COLOR. All 0 in live mode.
+  merged.setAttribute('aRuin', new THREE.BufferAttribute(new Float32Array(vAcc), 1));
   const mat = flatGroundMaterial(STREETS.value.ASPHALT_COLOR, RENDER_ORDERS.ASPHALT);
-  injectStreetOpacity(mat);
+  // Shared with the shader (onBeforeCompile) AND the component's RUINS effect,
+  // which keeps .value current on a Save. Stored on userData for that effect.
+  const ruinUniform = { value: new THREE.Color() };
+  setColorFromHex(ruinUniform.value, RUINS.value.ROAD_COLOR);
+  injectStreetOpacity(mat, ruinUniform);
+  mat.userData.uRuinColor = ruinUniform;
   const mesh = new THREE.Mesh(merged, mat) as FlatMesh;
   mesh.renderOrder = RENDER_ORDERS.ASPHALT;
   mesh.name = 'city-asphalt';
