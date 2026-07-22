@@ -78,6 +78,10 @@ export function createFootprint(ctx: SceneContext): Footprint {
   // (build order), streets follow. Rebuilt every rebuild() alongside the mesh.
   let pathToInstance = new Map<string, number>();
   let streetDirToInstance = new Map<string, number>();
+  // Timeline mode: footprints default INVISIBLE (the scrub controller drives the
+  // live ones up per frame), so a footprint it never keys can't strand opaque.
+  // Persisted here so it survives a rebuild. Live mode: opaque, byte-identical.
+  let _transparent = false;
 
   function _disposeInnerMesh(): void {
     if (!mesh) return;
@@ -104,11 +108,20 @@ export function createFootprint(ctx: SceneContext): Footprint {
     _setInstanceOpacity(streetDirToInstance.get(dirPath), opacity);
   }
 
-  // Live mode never calls it, so footprints stay byte-identical (material.transparent default false).
+  // Enter/exit Timeline mode. Flips the material to alpha-blended AND resets
+  // every instance's opacity (0 = hidden in timeline so the scrub controller
+  // opts each live footprint back in; 1 = opaque for live mode). Live mode never
+  // calls it, so footprints stay byte-identical.
   function setFootprintsTransparent(on: boolean): void {
-    if (!material || material.transparent === on) return;
-    material.transparent = on;
-    material.needsUpdate = true;
+    _transparent = on;
+    if (!material || !mesh) return;
+    if (material.transparent !== on) {
+      material.transparent = on;
+      material.needsUpdate = true;
+    }
+    const attr = mesh.geometry.getAttribute('aOpacity') as THREE.InstancedBufferAttribute;
+    (attr.array as Float32Array).fill(on ? 0 : 1);
+    attr.needsUpdate = true;
   }
 
   function rebuild(layout: CityLayout): void {
@@ -158,8 +171,9 @@ export function createFootprint(ctx: SceneContext): Footprint {
     }
     geometry.setAttribute('aHalfExtent', new THREE.InstancedBufferAttribute(halfExtents, 2));
 
-    // Per-instance opacity for Timeline fading; default 1 (opaque) so live mode is unaffected.
-    const opacity = new Float32Array(rects.length).fill(1);
+    // Per-instance opacity for Timeline fading. Default 1 (opaque) in live mode;
+    // 0 (hidden) in timeline mode so the scrub controller opts live ones back in.
+    const opacity = new Float32Array(rects.length).fill(_transparent ? 0 : 1);
     geometry.setAttribute('aOpacity', new THREE.InstancedBufferAttribute(opacity, 1));
 
     const colorUniform = new THREE.Color();
@@ -169,7 +183,7 @@ export function createFootprint(ctx: SceneContext): Footprint {
       vertexShader: FOOTPRINT_VERT,
       fragmentShader: FOOTPRINT_FRAG,
       depthWrite: false,
-      transparent: false,
+      transparent: _transparent,
       uniforms: {
         uColor: { value: colorUniform },
         // CORNER_RADIUS is a fraction of HALO_WIDTH (0 → sharp, 1 → one

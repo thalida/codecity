@@ -369,4 +369,28 @@ describe('createFootprint()', () => {
     fp.setFootprintsTransparent(false);
     expect(mat.transparent).toBe(false);
   });
+
+  it('setFootprintsTransparent(true) hides every instance (0), false restores opaque (1)', () => {
+    fp.rebuild(layoutWithBuildingAndStreet());
+    const attr = () =>
+      (fp.group.children[0] as THREE.InstancedMesh).geometry.getAttribute(
+        'aOpacity'
+      ) as THREE.InstancedBufferAttribute;
+    fp.setFootprintsTransparent(true);
+    expect(attr().getX(0)).toBe(0);
+    expect(attr().getX(1)).toBe(0);
+    fp.setFootprintsTransparent(false);
+    expect(attr().getX(0)).toBe(1);
+    expect(attr().getX(1)).toBe(1);
+  });
+
+  it('a rebuild while transparent keeps instances hidden (0), so a re-pack cannot strand them opaque', () => {
+    fp.setFootprintsTransparent(true); // enter timeline mode before any mesh exists
+    fp.rebuild(layoutWithBuildingAndStreet());
+    const attr = (fp.group.children[0] as THREE.InstancedMesh).geometry.getAttribute(
+      'aOpacity'
+    ) as THREE.InstancedBufferAttribute;
+    expect(attr.getX(0)).toBe(0);
+    expect(attr.getX(1)).toBe(0);
+  });
 });
