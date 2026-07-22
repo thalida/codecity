@@ -9,13 +9,12 @@
   z-index: 50;
   max-width: min(30rem, calc(100% - var(--cc-space-9) * 2));
   padding: var(--cc-space-3) var(--cc-space-6);
-  background: color-mix(in oklch, var(--cc-bg-modal) 88%, var(--cc-accent) 12%);
-  border: 1px solid color-mix(in oklch, var(--cc-accent) 55%, transparent);
+  background: color-mix(in oklch, var(--cc-bg-modal) 90%, var(--cc-error) 10%);
+  border: 1px solid var(--cc-error-border);
   border-radius: var(--cc-radius-lg);
-  box-shadow: 0 0 18px color-mix(in oklch, var(--cc-accent) 28%, transparent);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  color: var(--cc-text-strong);
+  color: var(--cc-error-light);
   font-size: var(--cc-font-sm);
   font-weight: 500;
   white-space: nowrap;
