@@ -7,6 +7,7 @@ import { buildingHeightForLines, getBuildingDimensions } from '@/city/layout/dim
 import type { HeightContext } from '@/city/layout/dimensions';
 import { SCRUB_POS, TIMELINE_BUNDLE } from '@/state/stores/timeline';
 import { RUINS } from '@/state/stores/settings/ruins';
+import { BLUEPRINTS } from '@/state/stores/settings/blueprints';
 import { BuildingIndex } from '@/city/components/buildings/buildingIndex';
 import type { InstancedAdPanels } from '@/city/components/buildings/adPanels';
 import { getBuildingColorForRecency } from '@/city/components/buildings/color';
@@ -417,13 +418,16 @@ const TEST_SATURATION = { min: 20, max: 100 };
 const TEST_LIGHTNESS = { min: 25, max: 70 };
 let _origPalette: BuildingsConfig | null = null;
 let _origRuins: typeof RUINS.value | null = null;
+let _origBlueprints: typeof BLUEPRINTS.value | null = null;
 
 beforeEach(() => {
   SCRUB_POS.value = 0;
   TIMELINE_BUNDLE.value = null;
   _origRuins = { ...RUINS.value };
+  _origBlueprints = { ...BLUEPRINTS.value };
   // Base-mechanics tests assert the vanish path; ruins get their own block.
   RUINS.value = { ...RUINS.value, ENABLED: false };
+  BLUEPRINTS.value = { ...BLUEPRINTS.value, ENABLED: false };
   _origPalette = { ...BUILDINGS.value };
   BUILDINGS.value = {
     ...BUILDINGS.value,
@@ -437,6 +441,7 @@ beforeEach(() => {
 afterEach(() => {
   if (_origPalette) BUILDINGS.value = _origPalette;
   if (_origRuins) RUINS.value = _origRuins;
+  if (_origBlueprints) BLUEPRINTS.value = _origBlueprints;
   TIMELINE_BUNDLE.value = null;
 });
 
@@ -1643,4 +1648,47 @@ test('weathering: sets instanceColor.needsUpdate exactly once per mesh', () => {
   SCRUB_POS.value = 2;
   controller.update();
   expect(fake.colorUpdates).toBe(1);
+});
+
+// ── Blueprints (future files render as a faint ghost while scrubbed before them) ──
+
+test('blueprint: a not-yet-created building renders as a faint tinted future ghost', () => {
+  BLUEPRINTS.value = {
+    ...BLUEPRINTS.value,
+    ENABLED: true,
+    OPACITY: 0.4,
+    LOOK_AHEAD: 100,
+    COLOR: '#00ffff',
+  };
+  const { b, fake, controller } = setup();
+  SCRUB_POS.value = 0.5; // before f.txt's creation at commit 1 → future
+  controller.update();
+
+  expect(fake.scaleY).toBeCloseTo(b.h, 5); // shown at its eventual height, not zero-scaled
+  expect(fake.iFadeX).toBeGreaterThan(0); // faint, not hidden
+  expect(fake.iFadeX).toBeLessThanOrEqual(0.4); // capped by OPACITY
+  // Blueprint tint (cyan), not the file's own hue.
+  expect(fake.lastColor).not.toBeNull();
+  expect(fake.lastColor!.r).toBeCloseTo(0, 5);
+  expect(fake.lastColor!.g).toBeCloseTo(1, 5);
+  expect(fake.lastColor!.b).toBeCloseTo(1, 5);
+});
+
+test('blueprint: opacity fades with how far ahead the creation is', () => {
+  // aheadDist = createdIdx(1) - pos(0.5) = 0.5; LOOK_AHEAD 1 → op = 0.4 * (1 - 0.5) = 0.2.
+  BLUEPRINTS.value = { ...BLUEPRINTS.value, ENABLED: true, OPACITY: 0.4, LOOK_AHEAD: 1 };
+  const { fake, controller } = setup();
+  SCRUB_POS.value = 0.5;
+  controller.update();
+  expect(fake.iFadeX).toBeCloseTo(0.2, 5);
+});
+
+test('blueprint: a building created beyond the look-ahead horizon stays hidden', () => {
+  // aheadDist 0.5 > LOOK_AHEAD 0.2 → not a blueprint → zero-scaled.
+  BLUEPRINTS.value = { ...BLUEPRINTS.value, ENABLED: true, LOOK_AHEAD: 0.2 };
+  const { fake, controller } = setup();
+  SCRUB_POS.value = 0.5;
+  controller.update();
+  expect(fake.scaleY).toBe(0);
+  expect(fake.iFadeX).toBe(0);
 });

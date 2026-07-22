@@ -35,7 +35,7 @@ flat varying vec3 vScale;
 //        files still look weathered.
 flat varying vec4 vIconUV;
 flat varying float vModifiedAge; // 0=most recently modified, 1=longest-untouched. Drives lit-window count + HDR emission via recencyCurve.
-flat varying float vRuin;        // 1 = Timeline ghost-ruin: crumble the top, weather the facade.
+flat varying float vRuin;        // Timeline state: 1 = ruin (crumble), 2 = blueprint (scanlines).
 
 // Hidden-tier wireframe thickness in screen-pixels. Sourced from
 // BUILDING_OUTLINE.WIDTH; refreshed via refreshBuildingMaterial() on Save via applyTheme().
@@ -545,7 +545,8 @@ void main() {
   // but punch sparse "missing brick" holes into the walls (blocky hashed cells)
   // plus a jagged nibble along the very top rim, so it reads as broken. Roof
   // (2) and bottom (3) stay solid.
-  if (vRuin > 0.5 && vFace != 2 && vFace != 3) {
+  // vRuin: 1 = ruin (crumble), 2 = blueprint (handled below). Crumble only for ruins.
+  if (vRuin > 0.5 && vRuin < 1.5 && vFace != 2 && vFace != 3) {
     float seed = float(vFace) * 7.0;
     if (hash21(floor(vUv * 11.0) + seed) < 0.09) discard; // missing bricks
     float rim = 0.86 + 0.14 * hash21(vec2(floor(vUv.x * 9.0), seed)); // ~0.86..1.0
@@ -560,7 +561,10 @@ void main() {
   vec4 outColor = compositeOutline(body);
 
   // Ruin facade: coarse grime so the blank stub looks weathered, not painted.
-  if (vRuin > 0.5) outColor.rgb *= 0.7 + 0.3 * hash21(floor(vUv * 9.0));
+  if (vRuin > 0.5 && vRuin < 1.5) outColor.rgb *= 0.7 + 0.3 * hash21(floor(vUv * 9.0));
+
+  // Blueprint: horizontal hologram scanlines over the faint tinted ghost.
+  if (vRuin > 1.5) outColor.a *= 0.55 + 0.45 * sin(vWorldPos.y * 26.0);
 
   // Height fog: dense at y=0, thins with altitude. Handled by applyFog()
   // from the shared fog_apply chunk.

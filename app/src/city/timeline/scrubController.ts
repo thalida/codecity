@@ -17,6 +17,7 @@ import { getBuildingDimensions } from '@/city/layout/dimensions';
 import type { HeightContext } from '@/city/layout/dimensions';
 import { BUILDING_DIMENSIONS } from '@/state/stores/settings/buildings';
 import { RUINS } from '@/state/stores/settings/ruins';
+import { BLUEPRINTS } from '@/state/stores/settings/blueprints';
 import type { Building, Street } from '@/types';
 import type { BuildingIndex } from '@/city/components/buildings/buildingIndex';
 import type { InstancedAdPanels } from '@/city/components/buildings/adPanels';
@@ -90,6 +91,7 @@ export function createScrubController(deps: ScrubControllerDeps) {
 
   const _m = new THREE.Matrix4();
   const _color = new THREE.Color();
+  const _blueprintColor = new THREE.Color();
 
   function update(): void {
     const pos = SCRUB_POS.peek();
@@ -118,6 +120,12 @@ export function createScrubController(deps: ScrubControllerDeps) {
     const ruinRoadOpacity = ruins.ROAD_OPACITY;
     const ruinHeight = ruins.STUB_HEIGHT * BUILDING_DIMENSIONS.peek().FLOOR_HEIGHT;
     const ruinGrayMix = ruins.DESATURATION;
+
+    const bp = BLUEPRINTS.peek();
+    const blueprintsOn = bp.ENABLED;
+    const blueprintOpacity = bp.OPACITY;
+    const blueprintLookAhead = bp.LOOK_AHEAD;
+    _blueprintColor.set(bp.COLOR);
 
     // Pre-pass: weathering ranges over the PRESENT buildings at this scrub
     // position — last-modified + created commit dates, and line counts. Color,
@@ -155,8 +163,23 @@ export function createScrubController(deps: ScrubControllerDeps) {
       const state = ruinStateAt(pt, pos);
       const present = state === 'present';
       const ruin = state === 'ruin' && ruinsOn;
-      // present → genesis grow-in ramp; ruin → faint stub; before-genesis or ruins-off deletion → gone.
-      const op = present ? presenceAt(pt, pos, 0) : ruin ? ruinBuildingOpacity : 0;
+      // Blueprint: not yet created (genesis ahead), within the look-ahead horizon;
+      // fades from full at its creation back to nothing lookAhead commits earlier.
+      const aheadDist = createdIdx - pos;
+      const blueprint =
+        !present && !ruin && blueprintsOn && aheadDist > 0 && aheadDist <= blueprintLookAhead;
+      const blueprintOp = blueprint
+        ? blueprintOpacity * Math.max(0, 1 - aheadDist / blueprintLookAhead)
+        : 0;
+      // present → genesis grow-in ramp; ruin → faint stub; blueprint → faint future
+      // ghost; before-genesis (out of range) or ruins-off deletion → gone.
+      const op = present
+        ? presenceAt(pt, pos, 0)
+        : ruin
+          ? ruinBuildingOpacity
+          : blueprint
+            ? blueprintOp
+            : 0;
 
       // Driven for EVERY union building (even one with no detail mesh on a large
       // repo), else the footprint/street strand at their defaults.
@@ -201,6 +224,14 @@ export function createScrubController(deps: ScrubControllerDeps) {
         }
         _m.makeScale(b.w, ruinHeight, b.d);
         _m.setPosition(b.x, ruinHeight / 2, b.y);
+      } else if (blueprint) {
+        // A future ghost at its eventual footprint + height, blank facade.
+        if (iFloorsAttr) {
+          iFloorsAttr.setX(slot, 0);
+          dirtyFloors.add(iFloorsAttr);
+        }
+        _m.makeScale(b.w, b.h, b.d);
+        _m.setPosition(b.x, b.h / 2, b.y);
       } else {
         // Absent → fully zero-scaled, not a flat (w, 0, d) quad that would still
         // write depth and outline as a cutout on the road.
@@ -211,9 +242,11 @@ export function createScrubController(deps: ScrubControllerDeps) {
 
       // Ruin flag → the frag crumbles the top + weathers the facade. Written for
       // every building each frame so a resurrected one clears back to 0.
+      // iRuin is a 3-state the frag branches on: 1 = ruin (crumble), 2 = blueprint
+      // (hologram scanlines). Written every frame so a state change clears.
       const iRuinAttr = mesh.geometry.getAttribute('iRuin') as THREE.BufferAttribute | undefined;
       if (iRuinAttr) {
-        iRuinAttr.setX(slot, ruin ? 1 : 0);
+        iRuinAttr.setX(slot, ruin ? 1 : blueprint ? 2 : 0);
         dirtyRuins.add(iRuinAttr);
       }
 
@@ -274,6 +307,10 @@ export function createScrubController(deps: ScrubControllerDeps) {
           )
           .lerp(_RUIN_GRAY, ruinGrayMix);
         mesh.setColorAt(slot, _color);
+        dirtyColors.add(mesh);
+      } else if (blueprint) {
+        // A future ghost reads in the blueprint tint, not its eventual file hue.
+        mesh.setColorAt(slot, _blueprintColor);
         dirtyColors.add(mesh);
       }
     }

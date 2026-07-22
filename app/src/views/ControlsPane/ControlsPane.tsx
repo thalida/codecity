@@ -30,6 +30,7 @@ import { TREES_SECTION } from './partials/Trees';
 import { FIREFLIES_SECTION } from './partials/Fireflies';
 import { EFFECTS_SECTION } from './partials/Effects';
 import { RUINS_SECTION } from './partials/Ruins';
+import { BLUEPRINTS_SECTION } from './partials/Blueprints';
 import { UPDATES_SECTION } from './partials/Updates';
 import { ActionsBar } from './ActionsBar/ActionsBar';
 import { SCAN_COUNT, APPEARANCE_COUNT, WORLD_COUNT } from '@/state/stores/settingsIndicators';
@@ -104,6 +105,7 @@ export function ControlsPane({ onClose, collapsed }: ControlsPaneProps) {
         FIREFLIES_SECTION,
         EFFECTS_SECTION,
         RUINS_SECTION,
+        BLUEPRINTS_SECTION,
       ],
     },
   ];
