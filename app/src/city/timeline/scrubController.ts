@@ -100,13 +100,21 @@ export function createScrubController(deps: ScrubControllerDeps) {
     const historySpan = Math.max(1, (TIMELINE_BUNDLE.peek()?.commits.length ?? 1) - 1);
 
     for (const { b, pt, streets, createdIdx } of entries) {
-      const resolved = deps.getMeshForBuilding(b);
-      if (!resolved) continue;
-      const { mesh, slot } = resolved;
-
       const op = presenceAt(pt, pos, RUIN_FLOOR);
       const absent = op <= ABSENT_EPSILON;
       const present = isPresent(pt, pos);
+
+      // Footprint + street opacity are driven for EVERY union building, even one
+      // in an LOD cell with no detail mesh (getMeshForBuilding → null on a large
+      // repo). Skipping them below would strand the footprint at its opaque
+      // default and under-count the street's max-opacity.
+      for (const street of streets) maxOp.set(street, Math.max(maxOp.get(street) ?? 0, op));
+      opByPath.set(b.file.path, op);
+      deps.footprints.setBuildingFootprintOpacity(b.file.path, op);
+
+      const resolved = deps.getMeshForBuilding(b);
+      if (!resolved) continue;
+      const { mesh, slot } = resolved;
 
       // Absent buildings get a fully zero-scaled matrix, not a flat (w, 0, d) quad:
       // a flat quad still writes depth and occludes/outlines on the road. Skip
@@ -137,10 +145,6 @@ export function createScrubController(deps: ScrubControllerDeps) {
       }
       mesh.setMatrixAt(slot, _m);
       dirtyMeshes.add(mesh);
-
-      for (const street of streets) maxOp.set(street, Math.max(maxOp.get(street) ?? 0, op));
-      opByPath.set(b.file.path, op);
-      deps.footprints.setBuildingFootprintOpacity(b.file.path, op);
 
       const iFade = mesh.geometry.getAttribute('iFade') as THREE.BufferAttribute | undefined;
       if (iFade) {

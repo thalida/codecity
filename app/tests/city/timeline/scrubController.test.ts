@@ -382,6 +382,47 @@ test('an absent building (after deletion) gets a fully zero-scale matrix, not a 
   expect(fake.scaleZ).toBeCloseTo(0, 5);
 });
 
+test('drives footprint opacity even when the building has no detail mesh (LOD cell)', () => {
+  // On a large repo most cells stay at impostor LOD, so getMeshForBuilding
+  // returns null. The footprint must still fade with presence rather than
+  // stranding at its opaque default (the stray-footprints bug).
+  const b = {
+    x: 5,
+    y: 7,
+    w: 2,
+    d: 2,
+    h: 1,
+    color: '#fff',
+    file,
+    cellId: 0,
+    slotId: 0,
+  } as unknown as Building;
+  const index = new BuildingIndex();
+  index.insert(b);
+  const fp = makeFakeFootprints();
+  TIMELINE_BUNDLE.value = bundle;
+  const controller = createScrubController({
+    getBuildingIndex: () => index,
+    getAdPanels: () => null,
+    getMeshForBuilding: () => null, // impostor LOD cell: no detail mesh
+    timelines: buildPathTimelines(bundle),
+    heightCtx,
+    footprints: fp.footprints,
+    streets: { setStreetOpacity: () => {}, setStreetLabelOpacity: () => {} },
+    streetsByDir: {},
+    trees: noopTrees,
+    fireflies: noopFireflies,
+  });
+
+  SCRUB_POS.value = 0; // before genesis → absent
+  controller.update();
+  expect(fp.buildingOpacity.get('f.txt')).toBe(0);
+
+  SCRUB_POS.value = 2; // present
+  controller.update();
+  expect(fp.buildingOpacity.get('f.txt')).toBe(1);
+});
+
 test('a present building keeps its full footprint (scaleX/scaleZ), only height animates', () => {
   const { b, fake, controller } = setup();
   SCRUB_POS.value = 1.5; // mid-growth: height interpolated, footprint stays full
