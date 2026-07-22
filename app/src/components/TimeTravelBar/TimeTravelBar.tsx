@@ -1,8 +1,8 @@
 // components/TimeTravelBar.tsx — bottom bar: scrubs SCRUB_POS across the timeline bundle's commit history.
 
 import './TimeTravelBar.css';
-import { History, RotateCcw, Ghost } from 'lucide-preact';
-import { TIMELINE_MODE, SCRUB_POS, TIMELINE_BUNDLE, RUINS_ENABLED } from '@/state/stores/timeline';
+import { History, RotateCcw } from 'lucide-preact';
+import { TIMELINE_MODE, SCRUB_POS, TIMELINE_BUNDLE } from '@/state/stores/timeline';
 import { exitTimelineMode } from '@/hooks/useTimelineMode';
 import { formatShortDate } from '@/utils/dates';
 import { commitUrl } from '@/utils/commit';
@@ -37,20 +37,6 @@ export function TimeTravelBar() {
           onInput={onInput}
           aria-label="Scrub commit history"
         />
-        <button
-          type="button"
-          class={`setting-row-reset time-travel-ruins${RUINS_ENABLED.value ? ' is-active' : ''}`}
-          title={
-            RUINS_ENABLED.value ? 'Hide ruins of deleted files' : 'Show ruins of deleted files'
-          }
-          aria-label="Toggle ruins"
-          aria-pressed={RUINS_ENABLED.value}
-          onClick={() => {
-            RUINS_ENABLED.value = !RUINS_ENABLED.value;
-          }}
-        >
-          <Ghost class="icon" />
-        </button>
         <button
           type="button"
           class="setting-row-reset time-travel-reset"

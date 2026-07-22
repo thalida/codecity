@@ -5,7 +5,8 @@ import { buildPathTimelines } from '@/city/timeline/replay';
 import { createScrubController } from '@/city/timeline/scrubController';
 import { buildingHeightForLines, getBuildingDimensions } from '@/city/layout/dimensions';
 import type { HeightContext } from '@/city/layout/dimensions';
-import { SCRUB_POS, TIMELINE_BUNDLE, RUINS_ENABLED } from '@/state/stores/timeline';
+import { SCRUB_POS, TIMELINE_BUNDLE } from '@/state/stores/timeline';
+import { RUINS } from '@/state/stores/settings/ruins';
 import { BuildingIndex } from '@/city/components/buildings/buildingIndex';
 import type { InstancedAdPanels } from '@/city/components/buildings/adPanels';
 import { getBuildingColorForRecency } from '@/city/components/buildings/color';
@@ -311,12 +312,14 @@ function setup(
 const TEST_SATURATION = { min: 20, max: 100 };
 const TEST_LIGHTNESS = { min: 25, max: 70 };
 let _origPalette: BuildingsConfig | null = null;
+let _origRuins: typeof RUINS.value | null = null;
 
 beforeEach(() => {
   SCRUB_POS.value = 0;
   TIMELINE_BUNDLE.value = null;
+  _origRuins = { ...RUINS.value };
   // Base-mechanics tests assert the vanish path; ruins get their own block.
-  RUINS_ENABLED.value = false;
+  RUINS.value = { ...RUINS.value, ENABLED: false };
   _origPalette = { ...BUILDINGS.value };
   BUILDINGS.value = {
     ...BUILDINGS.value,
@@ -329,8 +332,8 @@ beforeEach(() => {
 
 afterEach(() => {
   if (_origPalette) BUILDINGS.value = _origPalette;
+  if (_origRuins) RUINS.value = _origRuins;
   TIMELINE_BUNDLE.value = null;
-  RUINS_ENABLED.value = true;
 });
 
 test('scaleY reflects the interpolated height at the scrub position', () => {
@@ -367,30 +370,30 @@ test('after deletion (ruins off) opacity drops to 0 and the body vanishes', () =
 });
 
 test('ruins on: a deleted building becomes a faint, blank-facade stub shorter than its lived height', () => {
-  RUINS_ENABLED.value = true;
+  RUINS.value = { ...RUINS.value, ENABLED: true, OPACITY: 0.3, STUB_HEIGHT: 0.35 };
   const { fake, controller } = setup();
   SCRUB_POS.value = 3; // deletedIdx → ruin
   controller.update();
-  expect(fake.iFadeX).toBeCloseTo(0.5, 5); // RUIN_OPACITY, faint
+  expect(fake.iFadeX).toBeCloseTo(0.3, 5); // the OPACITY setting, faint
   expect(fake.scaleY).toBeGreaterThan(0); // a stub, not vanished
   expect(fake.scaleY).toBeLessThan(buildingHeightForLines(file, 6, heightCtx)); // shorter than it ever was
   expect(fake.floors).toBe(0); // blank facade (no windows)
   expect(fake.colorSetCount).toBeGreaterThan(0); // grayed color written
 });
 
-test('ruins on: the stub height is a fixed fraction of a floor, not the building lived height', () => {
-  RUINS_ENABLED.value = true;
+test('ruins on: the stub height is the STUB_HEIGHT setting × a floor, not the lived height', () => {
+  RUINS.value = { ...RUINS.value, ENABLED: true, STUB_HEIGHT: 0.5 };
   const { fake, controller } = setup();
   SCRUB_POS.value = 3;
   controller.update();
-  // Uniform: 0.35 of one floor (see RUIN_HEIGHT_FLOORS), independent of the file's size/lines.
-  const expected = 0.35 * BUILDING_DIMENSIONS.value.FLOOR_HEIGHT;
+  // Uniform: STUB_HEIGHT floors, independent of the file's size/lines.
+  const expected = 0.5 * BUILDING_DIMENSIONS.value.FLOOR_HEIGHT;
   expect(fake.scaleY).toBeCloseTo(expected, 5);
   expect(fake.posY).toBeCloseTo(expected / 2, 5); // sits on the ground
 });
 
 test('ruins on: a before-genesis building stays absent (nothing to ruin yet)', () => {
-  RUINS_ENABLED.value = true;
+  RUINS.value = { ...RUINS.value, ENABLED: true };
   const { fake, controller } = setup();
   SCRUB_POS.value = 0; // f.txt created at 1 → before it existed
   controller.update();
@@ -1090,9 +1093,9 @@ test('footprints: a deleted building/street fades to 0 while a live sibling stay
   SCRUB_POS.value = 3.5; // after K: d/f1.txt deleted, e/f2.txt still alive
   controller.update();
 
-  expect(fakeFootprints.buildingOpacity.get("d/f1.txt")).toBe(0);
+  expect(fakeFootprints.buildingOpacity.get('d/f1.txt')).toBe(0);
   expect(fakeFootprints.buildingOpacity.get('e/f2.txt')).toBeCloseTo(1, 5);
-  expect(fakeFootprints.streetOpacity.get("d")).toBe(0);
+  expect(fakeFootprints.streetOpacity.get('d')).toBe(0);
   expect(fakeFootprints.streetOpacity.get('e')).toBeCloseTo(1, 5);
 });
 

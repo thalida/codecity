@@ -346,6 +346,23 @@ describe('createFootprint()', () => {
     expect(attr.getX(0)).toBe(1); // building instance untouched
   });
 
+  it('the ruin flag writes aRuin, and setFootprintsTransparent clears it', () => {
+    fp.rebuild(layoutWithBuildingAndStreet());
+    const ruin = () =>
+      (fp.group.children[0] as THREE.InstancedMesh).geometry.getAttribute(
+        'aRuin'
+      ) as THREE.InstancedBufferAttribute;
+    fp.setBuildingFootprintOpacity('a/b.txt', 0.2, true);
+    fp.setStreetFootprintOpacity('a', 0.2, true);
+    expect(ruin().getX(0)).toBe(1);
+    expect(ruin().getX(1)).toBe(1);
+    fp.setBuildingFootprintOpacity('a/b.txt', 0.2, false);
+    expect(ruin().getX(0)).toBe(0);
+    // a mode switch clears all ruin tint
+    fp.setFootprintsTransparent(true);
+    expect(ruin().getX(1)).toBe(0);
+  });
+
   it('opacity setters no-op for an unknown path (pre-rebuild or stale lookup)', () => {
     expect(() => {
       fp.setBuildingFootprintOpacity('nope', 0.5);

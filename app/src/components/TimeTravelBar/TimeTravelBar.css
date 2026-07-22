@@ -30,18 +30,9 @@
   color: var(--cc-text-muted);
 }
 
-/* Bare glyphs like the history icon (no side padding) so they sit symmetrically. */
-.time-travel-reset,
-.time-travel-ruins {
+/* Bare glyph like the history icon (no side padding) so both sit symmetrically. */
+.time-travel-reset {
   padding-inline: 0;
-}
-
-/* Ruins toggle: muted when off, accent when the deleted-file ruins are showing. */
-.time-travel-ruins {
-  color: var(--cc-text-muted);
-}
-.time-travel-ruins.is-active {
-  color: var(--cc-accent);
 }
 
 .time-travel-slider {

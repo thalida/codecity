@@ -34,6 +34,7 @@ import * as THREE from 'three';
 import { effect } from '@preact/signals';
 
 import { FOOTPRINT } from '@/state/stores/settings/footprint';
+import { RUINS } from '@/state/stores/settings/ruins';
 import { RENDER_ORDERS } from '@/city/types/renderOrders';
 import type { CityLayout } from '@/types';
 import { setColorFromHex } from '@/city/utils/color/setColorFromHex';
@@ -53,10 +54,10 @@ export interface Footprint extends SceneComponent {
    *  (incl. a reuse apply), so the footprint must re-match. When halo <= 0 or no
    *  rects, leaves the group EMPTY (prior mesh disposed). */
   rebuild(layout: CityLayout): void;
-  /** Fade one building's footprint slab, keyed by file path. No-op for an unknown path. */
-  setBuildingFootprintOpacity(path: string, opacity: number): void;
-  /** Fade one street's footprint slab, keyed by its directory path. No-op for an unknown street. */
-  setStreetFootprintOpacity(dirPath: string, opacity: number): void;
+  /** Fade one building's footprint slab, keyed by file path (ruin = tint toward the ruin color). No-op for an unknown path. */
+  setBuildingFootprintOpacity(path: string, opacity: number, ruin?: boolean): void;
+  /** Fade one street's footprint slab, keyed by its directory path (ruin = tint toward the ruin color). No-op for an unknown street. */
+  setStreetFootprintOpacity(dirPath: string, opacity: number, ruin?: boolean): void;
   /** Move the footprint material into (or out of) the transparent render pass. */
   setFootprintsTransparent(on: boolean): void;
 }
@@ -92,20 +93,23 @@ export function createFootprint(ctx: SceneContext): Footprint {
     material = null;
   }
 
-  // Fade one instance by writing its aOpacity slot; no-op for an unknown instance (e.g. pre-rebuild).
-  function _setInstanceOpacity(idx: number | undefined, opacity: number): void {
+  // Write one instance's opacity + ruin-tint slots; no-op for an unknown instance (e.g. pre-rebuild).
+  function _setInstance(idx: number | undefined, opacity: number, ruin: boolean): void {
     if (idx === undefined || !mesh) return;
-    const attr = mesh.geometry.getAttribute('aOpacity') as THREE.InstancedBufferAttribute;
-    attr.setX(idx, opacity);
-    attr.needsUpdate = true;
+    const op = mesh.geometry.getAttribute('aOpacity') as THREE.InstancedBufferAttribute;
+    op.setX(idx, opacity);
+    op.needsUpdate = true;
+    const ru = mesh.geometry.getAttribute('aRuin') as THREE.InstancedBufferAttribute;
+    ru.setX(idx, ruin ? 1 : 0);
+    ru.needsUpdate = true;
   }
 
-  function setBuildingFootprintOpacity(path: string, opacity: number): void {
-    _setInstanceOpacity(pathToInstance.get(path), opacity);
+  function setBuildingFootprintOpacity(path: string, opacity: number, ruin = false): void {
+    _setInstance(pathToInstance.get(path), opacity, ruin);
   }
 
-  function setStreetFootprintOpacity(dirPath: string, opacity: number): void {
-    _setInstanceOpacity(streetDirToInstance.get(dirPath), opacity);
+  function setStreetFootprintOpacity(dirPath: string, opacity: number, ruin = false): void {
+    _setInstance(streetDirToInstance.get(dirPath), opacity, ruin);
   }
 
   // Enter/exit Timeline mode. Flips the material to alpha-blended AND resets
@@ -119,9 +123,13 @@ export function createFootprint(ctx: SceneContext): Footprint {
       material.transparent = on;
       material.needsUpdate = true;
     }
-    const attr = mesh.geometry.getAttribute('aOpacity') as THREE.InstancedBufferAttribute;
-    (attr.array as Float32Array).fill(on ? 0 : 1);
-    attr.needsUpdate = true;
+    const op = mesh.geometry.getAttribute('aOpacity') as THREE.InstancedBufferAttribute;
+    (op.array as Float32Array).fill(on ? 0 : 1);
+    op.needsUpdate = true;
+    // Clear ruin tint on every mode switch; the scrub controller re-flags ruins each frame.
+    const ru = mesh.geometry.getAttribute('aRuin') as THREE.InstancedBufferAttribute;
+    (ru.array as Float32Array).fill(0);
+    ru.needsUpdate = true;
   }
 
   function rebuild(layout: CityLayout): void {
@@ -175,9 +183,16 @@ export function createFootprint(ctx: SceneContext): Footprint {
     // 0 (hidden) in timeline mode so the scrub controller opts live ones back in.
     const opacity = new Float32Array(rects.length).fill(_transparent ? 0 : 1);
     geometry.setAttribute('aOpacity', new THREE.InstancedBufferAttribute(opacity, 1));
+    // Per-instance ruin tint [0..1], driven by the scrub controller for deleted-folder plots/roads.
+    geometry.setAttribute(
+      'aRuin',
+      new THREE.InstancedBufferAttribute(new Float32Array(rects.length), 1)
+    );
 
     const colorUniform = new THREE.Color();
     setColorFromHex(colorUniform, cfg.COLOR);
+    const ruinColorUniform = new THREE.Color();
+    setColorFromHex(ruinColorUniform, RUINS.value.ROAD_COLOR);
 
     const mat = new THREE.ShaderMaterial({
       vertexShader: FOOTPRINT_VERT,
@@ -186,6 +201,7 @@ export function createFootprint(ctx: SceneContext): Footprint {
       transparent: _transparent,
       uniforms: {
         uColor: { value: colorUniform },
+        uRuinColor: { value: ruinColorUniform },
         // CORNER_RADIUS is a fraction of HALO_WIDTH (0 → sharp, 1 → one
         // halo width, 2 → two). Compute world-units radius here so the
         // shader's SDF can keep using a single uniform.
@@ -238,6 +254,13 @@ export function createFootprint(ctx: SceneContext): Footprint {
     group.visible = c.ENABLED;
   });
 
+  // Ruin road color — RUINS is autosave (applies live), so a plain effect keeps
+  // the uRuinColor uniform current; rebuild seeds the fresh material's value.
+  const stopRuinColor = effect(() => {
+    const hex = RUINS.value.ROAD_COLOR;
+    if (material) setColorFromHex(material.uniforms.uRuinColor.value as THREE.Color, hex);
+  });
+
   // Layout effect — reactive rebuild entry point. Subscribes to cityState.layout
   // (the EVERY-apply signal — NOT structureRevision): per-building dims recompute
   // every apply, so the footprint slabs must re-match even on a reuse apply.
@@ -250,6 +273,7 @@ export function createFootprint(ctx: SceneContext): Footprint {
   function dispose(): void {
     _disposeInnerMesh();
     stopEffect();
+    stopRuinColor();
     stopLayout();
   }
 

@@ -11,10 +11,11 @@
 
 import * as THREE from 'three';
 
-import { SCRUB_POS, TIMELINE_BUNDLE, RUINS_ENABLED } from '@/state/stores/timeline';
+import { SCRUB_POS, TIMELINE_BUNDLE } from '@/state/stores/timeline';
 import { getBuildingDimensions } from '@/city/layout/dimensions';
 import type { HeightContext } from '@/city/layout/dimensions';
 import { BUILDING_DIMENSIONS } from '@/state/stores/settings/buildings';
+import { RUINS } from '@/state/stores/settings/ruins';
 import type { Building, Street } from '@/types';
 import type { BuildingIndex } from '@/city/components/buildings/buildingIndex';
 import type { InstancedAdPanels } from '@/city/components/buildings/adPanels';
@@ -24,12 +25,9 @@ import { streetChainForDirPath } from '@/city/layout/streetPath';
 import { lastModifiedIndexAt, linesAt, presenceAt, ruinStateAt } from './replay';
 import type { PathTimeline } from './replay';
 
-// Ghost-ruin look for a deleted building (RUINS_ENABLED): a uniform low stub
-// (fraction of one floor, independent of its last size), semi-transparent, with
-// a blank facade (0 window rows) and its own hue pulled most of the way to gray.
-const RUIN_HEIGHT_FLOORS = 0.35;
-const RUIN_OPACITY = 0.5;
-const RUIN_GRAY_MIX = 0.7;
+// A deleted building's ghost-ruin: a uniform low stub with a blank facade (0
+// window rows), its hue pulled toward gray. Height/opacity/gray come from the
+// RUINS settings store; these two are fixed.
 const RUIN_BASE_RECENCY = 0.5; // sample the building's hue at mid-recency before graying
 const _RUIN_GRAY = new THREE.Color(0.3, 0.31, 0.34);
 
@@ -46,8 +44,8 @@ export interface ScrubControllerDeps {
   // { street dir.path → Street } from the union layout, for resolving a building's street.
   streetsByDir: Record<string, Street>;
   footprints: {
-    setBuildingFootprintOpacity(path: string, opacity: number): void;
-    setStreetFootprintOpacity(dirPath: string, opacity: number): void;
+    setBuildingFootprintOpacity(path: string, opacity: number, ruin?: boolean): void;
+    setStreetFootprintOpacity(dirPath: string, opacity: number, ruin?: boolean): void;
   };
   trees: {
     setScrubCommit(maxCommitIndex: number | null): void;
@@ -97,26 +95,34 @@ export function createScrubController(deps: ScrubControllerDeps) {
     const maxOp = new Map<Street, number>();
     // Keyed by path so ad panels fade in lockstep with their building body.
     const opByPath = new Map<string, number>();
+    // Streets with at least one PRESENT descendant — the rest (op>0) are ruin-only.
+    const presentStreets = new Set<Street>();
 
     // Recency denominator: how far back "fully weathered" sits, in commit indices.
     const historySpan = Math.max(1, (TIMELINE_BUNDLE.peek()?.commits.length ?? 1) - 1);
-    const ruinsOn = RUINS_ENABLED.peek();
-    const ruinHeight = RUIN_HEIGHT_FLOORS * BUILDING_DIMENSIONS.peek().FLOOR_HEIGHT;
+    const ruins = RUINS.peek();
+    const ruinsOn = ruins.ENABLED;
+    const ruinOpacity = ruins.OPACITY;
+    const ruinHeight = ruins.STUB_HEIGHT * BUILDING_DIMENSIONS.peek().FLOOR_HEIGHT;
+    const ruinGrayMix = ruins.DESATURATION;
 
     for (const { b, pt, streets, createdIdx } of entries) {
       const state = ruinStateAt(pt, pos);
       const present = state === 'present';
       const ruin = state === 'ruin' && ruinsOn;
       // present → genesis grow-in ramp; ruin → faint stub; before-genesis or ruins-off deletion → gone.
-      const op = present ? presenceAt(pt, pos, 0) : ruin ? RUIN_OPACITY : 0;
+      const op = present ? presenceAt(pt, pos, 0) : ruin ? ruinOpacity : 0;
 
       // Footprint + street opacity are driven for EVERY union building, even one
       // in an LOD cell with no detail mesh (getMeshForBuilding → null on a large
       // repo). Skipping them below would strand the footprint at its opaque
       // default and under-count the street's max-opacity.
-      for (const street of streets) maxOp.set(street, Math.max(maxOp.get(street) ?? 0, op));
+      for (const street of streets) {
+        maxOp.set(street, Math.max(maxOp.get(street) ?? 0, op));
+        if (present) presentStreets.add(street);
+      }
       opByPath.set(b.file.path, op);
-      deps.footprints.setBuildingFootprintOpacity(b.file.path, op);
+      deps.footprints.setBuildingFootprintOpacity(b.file.path, op, ruin);
 
       const resolved = deps.getMeshForBuilding(b);
       if (!resolved) continue;
@@ -208,7 +214,7 @@ export function createScrubController(deps: ScrubControllerDeps) {
               RUIN_BASE_RECENCY
             )
           )
-          .lerp(_RUIN_GRAY, RUIN_GRAY_MIX);
+          .lerp(_RUIN_GRAY, ruinGrayMix);
         mesh.setColorAt(slot, _color);
         dirtyColors.add(mesh);
       }
@@ -227,9 +233,12 @@ export function createScrubController(deps: ScrubControllerDeps) {
     // ROOT is forced to 1: the repo root directory always exists, even when scrubbed back to an empty tree.
     for (const street of allStreets) {
       const op = street.isRoot ? 1 : (maxOp.get(street) ?? 0);
+      // A ruined street: faint (op>0) with no live descendant → tint its plot.
+      const streetRuin = ruinsOn && !street.isRoot && op > 0 && !presentStreets.has(street);
       deps.streets.setStreetOpacity(street, op);
       deps.streets.setStreetLabelOpacity(street, op);
-      if (street.dir?.path != null) deps.footprints.setStreetFootprintOpacity(street.dir.path, op);
+      if (street.dir?.path != null)
+        deps.footprints.setStreetFootprintOpacity(street.dir.path, op, streetRuin);
     }
   }
 

@@ -5,8 +5,6 @@ import type { TimelineBundle } from '@/types';
 export const TIMELINE_MODE = signal(false);
 export const SCRUB_POS = signal(0);
 export const TIMELINE_BUNDLE = signal<TimelineBundle | null>(null);
-// Ghost-ruins: deleted buildings persist as a broken gray stub instead of vanishing. Toggle on the time-travel bar; on by default.
-export const RUINS_ENABLED = signal(true);
 
 // Shared by every exit path (toggle-off, source switch); scene-free, the scene layer reacts to TIMELINE_MODE.
 export function resetTimelineMode(): void {
