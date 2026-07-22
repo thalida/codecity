@@ -1,8 +1,8 @@
 // components/TimeTravelBar.tsx — bottom bar: scrubs SCRUB_POS across the timeline bundle's commit history.
 
 import './TimeTravelBar.css';
-import { History, RotateCcw } from 'lucide-preact';
-import { TIMELINE_MODE, SCRUB_POS, TIMELINE_BUNDLE } from '@/state/stores/timeline';
+import { History, RotateCcw, Ghost } from 'lucide-preact';
+import { TIMELINE_MODE, SCRUB_POS, TIMELINE_BUNDLE, RUINS_ENABLED } from '@/state/stores/timeline';
 import { exitTimelineMode } from '@/hooks/useTimelineMode';
 import { formatShortDate } from '@/utils/dates';
 import { commitUrl } from '@/utils/commit';
@@ -39,6 +39,20 @@ export function TimeTravelBar() {
         />
         <button
           type="button"
+          class={`setting-row-reset time-travel-ruins${RUINS_ENABLED.value ? ' is-active' : ''}`}
+          title={
+            RUINS_ENABLED.value ? 'Hide ruins of deleted files' : 'Show ruins of deleted files'
+          }
+          aria-label="Toggle ruins"
+          aria-pressed={RUINS_ENABLED.value}
+          onClick={() => {
+            RUINS_ENABLED.value = !RUINS_ENABLED.value;
+          }}
+        >
+          <Ghost class="icon" />
+        </button>
+        <button
+          type="button"
           class="setting-row-reset time-travel-reset"
           title="Back to live"
           aria-label="Back to live"
@@ -48,6 +62,7 @@ export function TimeTravelBar() {
         </button>
       </div>
       <div class="time-travel-info">
+        <span class="time-travel-date">{formatShortDate(commit.date)}</span>
         {url ? (
           <a
             class="time-travel-sha"
@@ -61,7 +76,6 @@ export function TimeTravelBar() {
         ) : (
           <span class="time-travel-sha">{commit.sha.slice(0, 7)}</span>
         )}
-        <span class="time-travel-date">{formatShortDate(commit.date)}</span>
         <span class="time-travel-subject">{commit.subject || '(no subject)'}</span>
       </div>
     </div>

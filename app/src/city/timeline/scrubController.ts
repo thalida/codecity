@@ -11,25 +11,27 @@
 
 import * as THREE from 'three';
 
-import { SCRUB_POS, TIMELINE_BUNDLE } from '@/state/stores/timeline';
+import { SCRUB_POS, TIMELINE_BUNDLE, RUINS_ENABLED } from '@/state/stores/timeline';
 import { getBuildingDimensions } from '@/city/layout/dimensions';
 import type { HeightContext } from '@/city/layout/dimensions';
+import { BUILDING_DIMENSIONS } from '@/state/stores/settings/buildings';
 import type { Building, Street } from '@/types';
 import type { BuildingIndex } from '@/city/components/buildings/buildingIndex';
 import type { InstancedAdPanels } from '@/city/components/buildings/adPanels';
 import { getBuildingColorForRecency } from '@/city/components/buildings/color';
 import { parentDirPath } from '@/city/utils/path';
 import { streetChainForDirPath } from '@/city/layout/streetPath';
-import { isPresent, lastModifiedIndexAt, linesAt, presenceAt } from './replay';
+import { lastModifiedIndexAt, linesAt, presenceAt, ruinStateAt } from './replay';
 import type { PathTimeline } from './replay';
 
-// v1: deleted things fully vanish. A future "ghost ruins" toggle flips this to a
-// small floor so removed buildings persist faintly.
-export const RUIN_FLOOR = 0;
-
-// Below this presence, collapse to a fully zero-scaled matrix instead of a flat
-// (w, 0, d) quad, which would still occlude the road and outline as a cutout.
-const ABSENT_EPSILON = 0.001;
+// Ghost-ruin look for a deleted building (RUINS_ENABLED): a uniform low stub
+// (fraction of one floor, independent of its last size), semi-transparent, with
+// a blank facade (0 window rows) and its own hue pulled most of the way to gray.
+const RUIN_HEIGHT_FLOORS = 0.35;
+const RUIN_OPACITY = 0.5;
+const RUIN_GRAY_MIX = 0.7;
+const RUIN_BASE_RECENCY = 0.5; // sample the building's hue at mid-recency before graying
+const _RUIN_GRAY = new THREE.Color(0.3, 0.31, 0.34);
 
 export interface ScrubControllerDeps {
   getBuildingIndex(): BuildingIndex | null;
@@ -98,11 +100,15 @@ export function createScrubController(deps: ScrubControllerDeps) {
 
     // Recency denominator: how far back "fully weathered" sits, in commit indices.
     const historySpan = Math.max(1, (TIMELINE_BUNDLE.peek()?.commits.length ?? 1) - 1);
+    const ruinsOn = RUINS_ENABLED.peek();
+    const ruinHeight = RUIN_HEIGHT_FLOORS * BUILDING_DIMENSIONS.peek().FLOOR_HEIGHT;
 
     for (const { b, pt, streets, createdIdx } of entries) {
-      const op = presenceAt(pt, pos, RUIN_FLOOR);
-      const absent = op <= ABSENT_EPSILON;
-      const present = isPresent(pt, pos);
+      const state = ruinStateAt(pt, pos);
+      const present = state === 'present';
+      const ruin = state === 'ruin' && ruinsOn;
+      // present → genesis grow-in ramp; ruin → faint stub; before-genesis or ruins-off deletion → gone.
+      const op = present ? presenceAt(pt, pos, 0) : ruin ? RUIN_OPACITY : 0;
 
       // Footprint + street opacity are driven for EVERY union building, even one
       // in an LOD cell with no detail mesh (getMeshForBuilding → null on a large
@@ -116,41 +122,42 @@ export function createScrubController(deps: ScrubControllerDeps) {
       if (!resolved) continue;
       const { mesh, slot } = resolved;
 
-      // Absent buildings get a fully zero-scaled matrix, not a flat (w, 0, d) quad:
-      // a flat quad still writes depth and occludes/outlines on the road. Skip
-      // iFloors/iModifiedAge/iIconUV.w too: they're invisible, no need to touch them.
-      if (absent) {
-        _m.makeScale(0, 0, 0);
-      } else {
-        const lines = linesAt(pt, pos);
-        // Gate on presence (intervals), not line count: media/empty files are present with 0 lines.
-        let sy = 0;
-        if (present) {
-          const dims = getBuildingDimensions(
-            { ...b.file, lines },
-            deps.heightCtx.lineStats,
-            deps.heightCtx.byteStats
-          );
-          sy = dims.h;
-          const iFloorsAttr = mesh.geometry.getAttribute('iFloors') as
-            | THREE.BufferAttribute
-            | undefined;
-          if (iFloorsAttr) {
-            iFloorsAttr.setX(slot, dims.floors);
-            dirtyFloors.add(iFloorsAttr);
-          }
+      const iFloorsAttr = mesh.geometry.getAttribute('iFloors') as
+        | THREE.BufferAttribute
+        | undefined;
+      if (present) {
+        // Gate height on presence (intervals), not line count: media/empty files are present with 0 lines.
+        const dims = getBuildingDimensions(
+          { ...b.file, lines: linesAt(pt, pos) },
+          deps.heightCtx.lineStats,
+          deps.heightCtx.byteStats
+        );
+        if (iFloorsAttr) {
+          iFloorsAttr.setX(slot, dims.floors);
+          dirtyFloors.add(iFloorsAttr);
         }
-        _m.makeScale(b.w, sy, b.d);
-        _m.setPosition(b.x, sy / 2, b.y);
+        _m.makeScale(b.w, dims.h, b.d);
+        _m.setPosition(b.x, dims.h / 2, b.y);
+      } else if (ruin) {
+        // A deleted building: uniform low stub, blank facade (0 window rows) — reads as rubble.
+        if (iFloorsAttr) {
+          iFloorsAttr.setX(slot, 0);
+          dirtyFloors.add(iFloorsAttr);
+        }
+        _m.makeScale(b.w, ruinHeight, b.d);
+        _m.setPosition(b.x, ruinHeight / 2, b.y);
+      } else {
+        // Absent → fully zero-scaled, not a flat (w, 0, d) quad that would still
+        // write depth and outline as a cutout on the road.
+        _m.makeScale(0, 0, 0);
       }
       mesh.setMatrixAt(slot, _m);
       dirtyMeshes.add(mesh);
 
       const iFade = mesh.geometry.getAttribute('iFade') as THREE.BufferAttribute | undefined;
       if (iFade) {
-        // Tie outline opacity (.z) to presence too, so a leftover Live-mode outline
-        // (from a hover/select fade sweep) can't linger on an absent building.
-        iFade.setXYZ(slot, op, iFade.getY(slot), absent ? 0 : iFade.getZ(slot));
+        // Outline (.z) only while present, so a leftover Live-mode outline can't linger on a ruin/absent building.
+        iFade.setXYZ(slot, op, iFade.getY(slot), present ? iFade.getZ(slot) : 0);
         dirtyFades.add(iFade);
       }
 
@@ -192,6 +199,18 @@ export function createScrubController(deps: ScrubControllerDeps) {
           iIconUVAttr.setW(slot, createdAgeAtScrub);
           dirtyIconUVs.add(iIconUVAttr);
         }
+      } else if (ruin) {
+        // A ghost ruin keeps a muted memory of its file's hue, pulled toward gray.
+        _color
+          .set(
+            getBuildingColorForRecency(
+              b.file as unknown as Parameters<typeof getBuildingColorForRecency>[0],
+              RUIN_BASE_RECENCY
+            )
+          )
+          .lerp(_RUIN_GRAY, RUIN_GRAY_MIX);
+        mesh.setColorAt(slot, _color);
+        dirtyColors.add(mesh);
       }
     }
 

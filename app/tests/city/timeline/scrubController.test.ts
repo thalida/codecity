@@ -2,14 +2,15 @@ import * as THREE from 'three';
 import { afterEach, beforeEach, expect, test } from 'vitest';
 
 import { buildPathTimelines } from '@/city/timeline/replay';
-import { createScrubController, RUIN_FLOOR } from '@/city/timeline/scrubController';
+import { createScrubController } from '@/city/timeline/scrubController';
 import { buildingHeightForLines, getBuildingDimensions } from '@/city/layout/dimensions';
 import type { HeightContext } from '@/city/layout/dimensions';
-import { SCRUB_POS, TIMELINE_BUNDLE } from '@/state/stores/timeline';
+import { SCRUB_POS, TIMELINE_BUNDLE, RUINS_ENABLED } from '@/state/stores/timeline';
 import { BuildingIndex } from '@/city/components/buildings/buildingIndex';
 import type { InstancedAdPanels } from '@/city/components/buildings/adPanels';
 import { getBuildingColorForRecency } from '@/city/components/buildings/color';
 import { BUILDINGS } from '@/state/stores/settings/buildings';
+import { BUILDING_DIMENSIONS } from '@/state/stores/settings/buildings';
 import type { BuildingsConfig } from '@/state/stores/settings/buildings';
 import type { Building, FileNode, Street, TimelineBundle } from '@/types';
 import { ROOT_PATH } from '@/constants/manifest';
@@ -314,6 +315,8 @@ let _origPalette: BuildingsConfig | null = null;
 beforeEach(() => {
   SCRUB_POS.value = 0;
   TIMELINE_BUNDLE.value = null;
+  // Base-mechanics tests assert the vanish path; ruins get their own block.
+  RUINS_ENABLED.value = false;
   _origPalette = { ...BUILDINGS.value };
   BUILDINGS.value = {
     ...BUILDINGS.value,
@@ -327,6 +330,7 @@ beforeEach(() => {
 afterEach(() => {
   if (_origPalette) BUILDINGS.value = _origPalette;
   TIMELINE_BUNDLE.value = null;
+  RUINS_ENABLED.value = true;
 });
 
 test('scaleY reflects the interpolated height at the scrub position', () => {
@@ -354,12 +358,44 @@ test('before its creation the building is flat and fully transparent', () => {
   expect(fake.iFadeX).toBeCloseTo(0, 5);
 });
 
-test('after deletion opacity drops to RUIN_FLOOR and the body flattens', () => {
+test('after deletion (ruins off) opacity drops to 0 and the body vanishes', () => {
   const { fake, controller } = setup();
   SCRUB_POS.value = 3; // deletedIdx
   controller.update();
   expect(fake.scaleY).toBe(0);
-  expect(fake.iFadeX).toBe(RUIN_FLOOR);
+  expect(fake.iFadeX).toBe(0);
+});
+
+test('ruins on: a deleted building becomes a faint, blank-facade stub shorter than its lived height', () => {
+  RUINS_ENABLED.value = true;
+  const { fake, controller } = setup();
+  SCRUB_POS.value = 3; // deletedIdx → ruin
+  controller.update();
+  expect(fake.iFadeX).toBeCloseTo(0.5, 5); // RUIN_OPACITY, faint
+  expect(fake.scaleY).toBeGreaterThan(0); // a stub, not vanished
+  expect(fake.scaleY).toBeLessThan(buildingHeightForLines(file, 6, heightCtx)); // shorter than it ever was
+  expect(fake.floors).toBe(0); // blank facade (no windows)
+  expect(fake.colorSetCount).toBeGreaterThan(0); // grayed color written
+});
+
+test('ruins on: the stub height is a fixed fraction of a floor, not the building lived height', () => {
+  RUINS_ENABLED.value = true;
+  const { fake, controller } = setup();
+  SCRUB_POS.value = 3;
+  controller.update();
+  // Uniform: 0.35 of one floor (see RUIN_HEIGHT_FLOORS), independent of the file's size/lines.
+  const expected = 0.35 * BUILDING_DIMENSIONS.value.FLOOR_HEIGHT;
+  expect(fake.scaleY).toBeCloseTo(expected, 5);
+  expect(fake.posY).toBeCloseTo(expected / 2, 5); // sits on the ground
+});
+
+test('ruins on: a before-genesis building stays absent (nothing to ruin yet)', () => {
+  RUINS_ENABLED.value = true;
+  const { fake, controller } = setup();
+  SCRUB_POS.value = 0; // f.txt created at 1 → before it existed
+  controller.update();
+  expect(fake.iFadeX).toBe(0);
+  expect(fake.scaleY).toBe(0);
 });
 
 // An absent building must get a fully zero-scaled matrix, not a flat (w, 0, d)
@@ -448,12 +484,12 @@ test('ad panels fade in lockstep with a present building body', () => {
   expect(fakeAdPanels.lastGetFade!(b.file.path)).toBeCloseTo(1, 5);
 });
 
-test('ad panels fade to RUIN_FLOOR once the building is deleted', () => {
+test('ad panels fade to 0 once the building is deleted (ruins off)', () => {
   const fakeAdPanels = makeFakeAdPanels();
   const { b, controller } = setup(() => fakeAdPanels.adPanels);
   SCRUB_POS.value = 3; // deletedIdx
   controller.update();
-  expect(fakeAdPanels.lastGetFade!(b.file.path)).toBe(RUIN_FLOOR);
+  expect(fakeAdPanels.lastGetFade!(b.file.path)).toBe(0);
 });
 
 test('preserves the silhouette/outline iFade channels', () => {
@@ -793,10 +829,10 @@ test('couples street opacity to the max opacity of its buildings (block fade)', 
 
   SCRUB_POS.value = 3.5; // after K, d/'s buildings are both deleted
   controller.update();
-  expect(opacityByStreet.get(dStreet)).toBe(RUIN_FLOOR);
+  expect(opacityByStreet.get(dStreet)).toBe(0);
   expect(opacityByStreet.get(eStreet)).toBeCloseTo(1, 5);
   // Labels fade in lockstep with the road: the deleted street's label opacity drops to 0, the live one stays ~1.
-  expect(labelOpacityByStreet.get(dStreet)).toBe(RUIN_FLOOR);
+  expect(labelOpacityByStreet.get(dStreet)).toBe(0);
   expect(labelOpacityByStreet.get(eStreet)).toBeCloseTo(1, 5);
 });
 
@@ -976,8 +1012,8 @@ test('descendant rollup: a container street with no direct files inherits its ch
 
   SCRUB_POS.value = 3.5; // after deletion, src/a/f.txt is gone
   controller.update();
-  expect(opacityByStreet.get(srcAStreet)).toBe(RUIN_FLOOR);
-  expect(opacityByStreet.get(srcStreet)).toBe(RUIN_FLOOR); // dropped along with its only child
+  expect(opacityByStreet.get(srcAStreet)).toBe(0);
+  expect(opacityByStreet.get(srcStreet)).toBe(0); // dropped along with its only child
   expect(opacityByStreet.get(eStreet)).toBeCloseTo(1, 5); // still unaffected
 });
 
@@ -1054,9 +1090,9 @@ test('footprints: a deleted building/street fades to 0 while a live sibling stay
   SCRUB_POS.value = 3.5; // after K: d/f1.txt deleted, e/f2.txt still alive
   controller.update();
 
-  expect(fakeFootprints.buildingOpacity.get('d/f1.txt')).toBe(RUIN_FLOOR);
+  expect(fakeFootprints.buildingOpacity.get("d/f1.txt")).toBe(0);
   expect(fakeFootprints.buildingOpacity.get('e/f2.txt')).toBeCloseTo(1, 5);
-  expect(fakeFootprints.streetOpacity.get('d')).toBe(RUIN_FLOOR);
+  expect(fakeFootprints.streetOpacity.get("d")).toBe(0);
   expect(fakeFootprints.streetOpacity.get('e')).toBeCloseTo(1, 5);
 });
 

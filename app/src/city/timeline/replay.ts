@@ -79,6 +79,17 @@ export function lastModifiedIndexAt(pt: PathTimeline, pos: number): number {
   return changes[lo].i;
 }
 
+// 'absent' = before the path's first commit (nothing to show). 'present' = live
+// at pos. 'ruin' = existed once, then deleted (in a dead gap or past the last
+// interval) — the only state ghost-ruins render.
+export function ruinStateAt(pt: PathTimeline, pos: number): 'present' | 'ruin' | 'absent' {
+  if (pt.intervals.length === 0 || pos < pt.intervals[0].start) return 'absent';
+  for (const iv of pt.intervals) {
+    if (pos >= iv.start && (iv.end === null || pos < iv.end)) return 'present';
+  }
+  return 'ruin';
+}
+
 export function presenceAt(pt: PathTimeline, pos: number, ruinFloor: number): number {
   if (pt.intervals.length === 0 || pos < pt.intervals[0].start) return 0;
 

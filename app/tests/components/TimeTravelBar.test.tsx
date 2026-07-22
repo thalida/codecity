@@ -3,7 +3,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render } from 'preact';
 import { TimeTravelBar } from '@/components/TimeTravelBar/TimeTravelBar';
-import { TIMELINE_MODE, SCRUB_POS, TIMELINE_BUNDLE } from '@/state/stores/timeline';
+import { TIMELINE_MODE, SCRUB_POS, TIMELINE_BUNDLE, RUINS_ENABLED } from '@/state/stores/timeline';
 import { flush } from '../_helpers/preact';
 import type { CommitEntry, TimelineBundle } from '@/types';
 
@@ -42,6 +42,7 @@ describe('TimeTravelBar', () => {
     TIMELINE_MODE.value = false;
     SCRUB_POS.value = 0;
     TIMELINE_BUNDLE.value = null;
+    RUINS_ENABLED.value = true;
     vi.restoreAllMocks();
   });
 
@@ -91,6 +92,40 @@ describe('TimeTravelBar', () => {
     expect(input.value).toBe('1.5');
     const sha = container.querySelector('.time-travel-sha')!;
     expect(sha.textContent).toBe(head.sha.slice(0, 7)); // Math.round(1.5) -> 2 -> head
+  });
+
+  it('labels the commit as date, then sha, then subject (date leads)', async () => {
+    TIMELINE_MODE.value = true;
+    TIMELINE_BUNDLE.value = BUNDLE;
+    SCRUB_POS.value = 2;
+
+    render(<TimeTravelBar />, container);
+    await flush();
+
+    const info = container.querySelector('.time-travel-info')!;
+    const order = Array.from(info.children).map((c) => c.className.split(' ')[0]);
+    expect(order).toEqual(['time-travel-date', 'time-travel-sha', 'time-travel-subject']);
+    expect(info.querySelector('.time-travel-subject')!.textContent).toBe('head');
+  });
+
+  it('ruins toggle flips RUINS_ENABLED and reflects it in is-active', async () => {
+    TIMELINE_MODE.value = true;
+    TIMELINE_BUNDLE.value = BUNDLE;
+    RUINS_ENABLED.value = true;
+
+    render(<TimeTravelBar />, container);
+    await flush();
+
+    const btn = container.querySelector<HTMLButtonElement>('.time-travel-ruins')!;
+    expect(btn).not.toBeNull();
+    expect(btn.classList.contains('is-active')).toBe(true);
+
+    btn.click();
+    await flush();
+    expect(RUINS_ENABLED.value).toBe(false);
+    expect(
+      container.querySelector('.time-travel-ruins')!.classList.contains('is-active')
+    ).toBe(false);
   });
 
   it('tracks SCRUB_POS updates from outside the component', async () => {
