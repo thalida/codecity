@@ -10,7 +10,7 @@ import { LoadingStep } from '@/constants/loadingSteps';
 import { LIVE_UPDATES } from '@/state/stores/settings/updates';
 import { SCAN_PROGRESS } from '@/state/stores/scanProgress';
 import { setupLiveUpdates } from '@/hooks/useManifestSource';
-import type { TimelineBundle } from '@/types';
+import type { TimelineBundle, TimelineProgress } from '@/types';
 
 // jsdom's rAF fires for real on a ~16ms timer; wait for one tick to observe
 // the post-paint hide (mirrors filePreviewPane.test.tsx's rAF handling).
@@ -89,7 +89,7 @@ describe('enterTimelineMode', () => {
 
     await enterTimelineMode();
 
-    expect(fetchTimelineBundle).toHaveBeenCalledWith('s', undefined);
+    expect(fetchTimelineBundle).toHaveBeenCalledWith('s', undefined, expect.any(Function));
     expect(f.applyManifest).toHaveBeenCalledTimes(1);
     expect(f.applyManifest).toHaveBeenCalledWith(BUNDLE.unionManifest);
     expect(f.setStreetsTransparent).toHaveBeenCalledWith(true);
@@ -128,6 +128,34 @@ describe('enterTimelineMode', () => {
 
     await nextFrame();
     expect(LOADING_OVERLAY.value.visible).toBe(false);
+  });
+
+  it('drives the TimelineLoading step tail from progress events, then clears it for Building', async () => {
+    let onProgress!: (p: TimelineProgress) => void;
+    let resolveFetch!: (b: TimelineBundle) => void;
+    (fetchTimelineBundle as unknown as ReturnType<typeof vi.fn>).mockImplementation(
+      (_src: string, _branch: string | undefined, progress: (p: TimelineProgress) => void) =>
+        new Promise<TimelineBundle>((resolve) => {
+          onProgress = progress;
+          resolveFetch = resolve;
+        })
+    );
+    const f = fakeHandle();
+    SCENE_HANDLE.value = f.handle as never;
+
+    const entering = enterTimelineMode();
+    await flush();
+
+    onProgress({ stage: 'history', commits: 42 });
+    expect(LOADING_OVERLAY.value.stepTails[LoadingStep.TimelineLoading]).toBe('42 commits');
+
+    onProgress({ stage: 'blobs', blobsDone: 5, blobsTotal: 10 });
+    expect(LOADING_OVERLAY.value.stepTails[LoadingStep.TimelineLoading]).toBe('5/10 files');
+
+    resolveFetch(BUNDLE);
+    await entering;
+    expect(LOADING_OVERLAY.value.stepTails[LoadingStep.TimelineLoading]).toBeNull();
+    expect(LOADING_OVERLAY.value.activeStep).toBe(LoadingStep.Building);
   });
 
   it('no-ops without a current source', async () => {

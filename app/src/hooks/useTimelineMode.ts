@@ -13,7 +13,12 @@ import { buildPathTimelines } from '@/city/timeline/replay';
 import { CURRENT_SOURCE } from '@/state/stores/source';
 import { SCENE_HANDLE } from '@/state/stores/scene';
 import { markError } from '@/state/stores/manifest';
-import { showLoadingOverlay, setLoadingStep, hideLoadingOverlay } from '@/state/stores/ui';
+import {
+  showLoadingOverlay,
+  setLoadingStep,
+  setLoadingStepTail,
+  hideLoadingOverlay,
+} from '@/state/stores/ui';
 import { LoadingStep, TIMELINE_LOADING_STEPS } from '@/constants/loadingSteps';
 import { srcKind } from '@/utils/sources';
 import {
@@ -23,7 +28,19 @@ import {
   resetTimelineMode,
 } from '@/state/stores/timeline';
 import { loadSource } from '@/hooks/useManifestSource';
-import type { Manifest } from '@/types';
+import type { Manifest, TimelineProgress } from '@/types';
+
+/** Progress tail for the "Loading history" step: running commit count during
+ *  the history walk, done/total during blob resolution. */
+function timelineLoadingTail(p: TimelineProgress): string | null {
+  if (p.stage === 'history') {
+    return p.commits !== undefined ? `${p.commits.toLocaleString()} commits` : null;
+  }
+  if (p.blobsDone !== undefined && p.blobsTotal !== undefined) {
+    return `${p.blobsDone}/${p.blobsTotal} files`;
+  }
+  return 'resolving files';
+}
 
 export async function enterTimelineMode(): Promise<void> {
   const cur = CURRENT_SOURCE.peek();
@@ -36,9 +53,12 @@ export async function enterTimelineMode(): Promise<void> {
   showLoadingOverlay({ kind: srcKind(cur.src), branch: cur.branch, steps: TIMELINE_LOADING_STEPS });
   setLoadingStep(LoadingStep.TimelineLoading);
   try {
-    const bundle = await fetchTimelineBundle(cur.src, cur.branch);
+    const bundle = await fetchTimelineBundle(cur.src, cur.branch, (p) =>
+      setLoadingStepTail(LoadingStep.TimelineLoading, timelineLoadingTail(p))
+    );
     TIMELINE_BUNDLE.value = bundle;
     const timelines = buildPathTimelines(bundle);
+    setLoadingStepTail(LoadingStep.TimelineLoading, null);
     setLoadingStep(LoadingStep.Building);
     // unionManifest is the generated Manifest; the packer reads it structurally.
     await handle.applyManifest(bundle.unionManifest as unknown as Manifest);

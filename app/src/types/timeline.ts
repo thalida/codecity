@@ -4,3 +4,4 @@ import type { components } from './manifest.generated';
 export type TimelineBundle = components['schemas']['TimelineBundle'];
 export type TimelineDelta = components['schemas']['TimelineDelta'];
 export type TimelineChange = components['schemas']['TimelineChange'];
+export type TimelineProgress = components['schemas']['TimelineProgressEvent'];
