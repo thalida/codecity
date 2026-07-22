@@ -3,8 +3,9 @@
 // Reads SCRUB_POS and writes every scrub-varying per-instance attribute so a
 // building renders as a real scan at that commit would: instance matrix
 // (scaleY + floor count), presence opacity (iFade.x), weathered color
-// (instanceColor), lit-window recency (iModifiedAge), and grime/tilt age
-// (iIconUV.w) — all with no re-pack. It owns these fields while in mode; the
+// (instanceColor), lit-window recency (iModifiedAge), grime/tilt age
+// (iIconUV.w), and the ghost-ruin flag (iRuin) — all with no re-pack. It owns
+// these fields while in mode; the
 // tween queue and fader are dormant (index.ts gates them on TIMELINE_MODE).
 // iCols/iDoorWidth/iOrient/iIconUV.xyz don't vary with scrub (driven by
 // bytes/ext/path, which the delta replay never changes) so they stay untouched.
@@ -91,6 +92,7 @@ export function createScrubController(deps: ScrubControllerDeps) {
     const dirtyFloors = new Set<THREE.BufferAttribute>();
     const dirtyModifiedAges = new Set<THREE.BufferAttribute>();
     const dirtyIconUVs = new Set<THREE.BufferAttribute>();
+    const dirtyRuins = new Set<THREE.BufferAttribute>();
     // A street's opacity is the max of its buildings', so the whole block fades together.
     const maxOp = new Map<Street, number>();
     // Keyed by path so ad panels fade in lockstep with their building body.
@@ -160,6 +162,14 @@ export function createScrubController(deps: ScrubControllerDeps) {
       mesh.setMatrixAt(slot, _m);
       dirtyMeshes.add(mesh);
 
+      // Ruin flag → the frag crumbles the top + weathers the facade. Written for
+      // every building each frame so a resurrected one clears back to 0.
+      const iRuinAttr = mesh.geometry.getAttribute('iRuin') as THREE.BufferAttribute | undefined;
+      if (iRuinAttr) {
+        iRuinAttr.setX(slot, ruin ? 1 : 0);
+        dirtyRuins.add(iRuinAttr);
+      }
+
       const iFade = mesh.geometry.getAttribute('iFade') as THREE.BufferAttribute | undefined;
       if (iFade) {
         // Outline (.z) only while present, so a leftover Live-mode outline can't linger on a ruin/absent building.
@@ -228,6 +238,7 @@ export function createScrubController(deps: ScrubControllerDeps) {
     for (const attr of dirtyFloors) attr.needsUpdate = true;
     for (const attr of dirtyModifiedAges) attr.needsUpdate = true;
     for (const attr of dirtyIconUVs) attr.needsUpdate = true;
+    for (const attr of dirtyRuins) attr.needsUpdate = true;
     deps.getAdPanels()?.applyBuildingFades((p) => opByPath.get(p) ?? null);
     // Every street gets written each frame (defaulting to 0) so an orphaned street can't stick at a stale opacity.
     // ROOT is forced to 1: the repo root directory always exists, even when scrubbed back to an empty tree.

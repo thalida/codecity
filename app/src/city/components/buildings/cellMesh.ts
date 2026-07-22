@@ -115,6 +115,13 @@ export function attachBuildingMeshToCell(cell: CellTile): void {
     'iModifiedAge',
     new THREE.InstancedBufferAttribute(new Float32Array(cell.capacity), 1)
   );
+  // iRuin: float — 0 normally, 1 for a Timeline ghost-ruin (crumbled top in the
+  // frag). Live mode never writes it (stays 0). 16th vertex attribute — the
+  // WebGL2 minimum; any further attribute must pack into an existing one.
+  geom.setAttribute(
+    'iRuin',
+    new THREE.InstancedBufferAttribute(new Float32Array(cell.capacity), 1)
+  );
 
   const mat = getBuildingMaterial();
 

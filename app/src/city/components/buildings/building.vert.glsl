@@ -41,6 +41,8 @@ attribute vec4 iIconUV;
 // keyed off the modified-date axis. Used in the fragment shader's
 // renderWallFace via vModifiedAge.
 attribute float iModifiedAge;
+// 0 normally, 1 for a Timeline ghost-ruin (frag crumbles the top + darkens).
+attribute float iRuin;
 
 // Age-tilt range in radians as [newest, oldest], lerped per-building by
 // createdAge (iIconUV.w). Both ends 0 when TILT_ENABLED is off. Pushed
@@ -61,6 +63,7 @@ flat varying vec3 vColor;
 flat varying vec3 vScale;       // (w, h, d) recovered from instance matrix
 flat varying vec4 vIconUV;      // pass-through of iIconUV; .xy = atlas UV, .z = seed, .w = createdAge
 flat varying float vModifiedAge; // pass-through of iModifiedAge
+flat varying float vRuin;        // pass-through of iRuin
 varying float vWorldY;          // world-space height, for height-based ground haze in frag
 varying vec3 vWorldPos;         // world-space position, for distance fog in frag
 
@@ -84,6 +87,7 @@ void main() {
   vOutlineOpacity = iFade.z;
   vIconUV = iIconUV;
   vModifiedAge = iModifiedAge;
+  vRuin = iRuin;
   // Three.js sets `instanceColor` automatically when an InstancedBufferAttribute
   // named `instanceColor` is added; access via the predefined uniform path.
   // For our case we declare it as a varying derived from a custom attribute.

@@ -35,6 +35,7 @@ flat varying vec3 vScale;
 //        files still look weathered.
 flat varying vec4 vIconUV;
 flat varying float vModifiedAge; // 0=most recently modified, 1=longest-untouched. Drives lit-window count + HDR emission via recencyCurve.
+flat varying float vRuin;        // 1 = Timeline ghost-ruin: crumble the top, weather the facade.
 
 // Hidden-tier wireframe thickness in screen-pixels. Sourced from
 // BUILDING_OUTLINE.WIDTH; refreshed via refreshBuildingMaterial() on Save via applyTheme().
@@ -540,12 +541,29 @@ vec4 compositeOutline(vec4 body) {
 }
 
 void main() {
+  // Ghost-ruin: crumble the top away before shading — no roof, and a jagged
+  // (hashed, blocky) bite off the top of each wall — so the blank gray stub
+  // reads as broken rubble rather than a plain short box.
+  if (vRuin > 0.5) {
+    if (vFace == 2) discard; // roof crumbled off
+    if (vFace == 0 || vFace == 1 || vFace == 4 || vFace == 5) {
+      float seed = float(vFace) * 3.0;
+      float coarse = hash21(vec2(floor(vUv.x * 6.0), seed));
+      float fine   = hash21(vec2(floor(vUv.x * 15.0), seed + 1.0));
+      float crumbleTop = 0.45 + 0.4 * coarse + 0.15 * fine; // ~0.45..1.0, stepped
+      if (vUv.y > crumbleTop) discard;
+    }
+  }
+
   vec4 body;
   if (vSilhouette > 0.5)      body = renderSilhouette();
   else if (vFace == 2)        body = renderRoofFace();
   else if (vFace == 3)        body = renderBottomFace();
   else                        body = renderWallFace();
   vec4 outColor = compositeOutline(body);
+
+  // Ruin facade: coarse grime so the blank stub looks weathered, not painted.
+  if (vRuin > 0.5) outColor.rgb *= 0.7 + 0.3 * hash21(floor(vUv * 9.0));
 
   // Height fog: dense at y=0, thins with altitude. Handled by applyFog()
   // from the shared fog_apply chunk.
