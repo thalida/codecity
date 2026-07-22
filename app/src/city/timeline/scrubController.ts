@@ -13,6 +13,7 @@ import type { HeightContext } from '@/city/layout/dimensions';
 import type { Building, Street } from '@/types';
 import type { BuildingIndex } from '@/city/components/buildings/buildingIndex';
 import { parentDirPath } from '@/city/utils/path';
+import { streetChainForDirPath } from '@/city/layout/streetPath';
 import { isPresent, linesAt, presenceAt } from './replay';
 import type { PathTimeline } from './replay';
 
@@ -31,9 +32,11 @@ export interface ScrubControllerDeps {
 }
 
 export function createScrubController(deps: ScrubControllerDeps) {
-  // Pair each union building with its replay timeline + street once; buildings
-  // without a timeline (never touched in the window) are left at their baseline.
-  const entries: { b: Building; pt: PathTimeline; street: Street | undefined }[] = [];
+  // Pair each union building with its replay timeline + the full ancestor street
+  // chain (its own street PLUS every containing directory up to root) once; a
+  // container street (e.g. `src/` with only subdirs) must stay visible as long as
+  // ANY descendant file is live, not just direct children.
+  const entries: { b: Building; pt: PathTimeline; streets: Street[] }[] = [];
   const allStreets: Street[] = [];
   const index = deps.getBuildingIndex();
   if (index) {
@@ -43,8 +46,8 @@ export function createScrubController(deps: ScrubControllerDeps) {
       const pt = deps.timelines.get(path);
       if (!pt) continue;
       const dir = parentDirPath(path);
-      const street = dir != null ? deps.streetsByDir[dir] : undefined;
-      entries.push({ b, pt, street });
+      const streets = streetChainForDirPath(dir, deps.streetsByDir);
+      entries.push({ b, pt, streets });
     }
   }
   for (const street of Object.values(deps.streetsByDir)) allStreets.push(street);
@@ -58,7 +61,7 @@ export function createScrubController(deps: ScrubControllerDeps) {
     // A street's opacity is the max of its buildings', so the whole block fades together.
     const maxOp = new Map<Street, number>();
 
-    for (const { b, pt, street } of entries) {
+    for (const { b, pt, streets } of entries) {
       const resolved = deps.getMeshForBuilding(b);
       if (!resolved) continue;
       const { mesh, slot } = resolved;
@@ -76,7 +79,7 @@ export function createScrubController(deps: ScrubControllerDeps) {
       dirtyMeshes.add(mesh);
 
       const op = presenceAt(pt, pos, RUIN_FLOOR);
-      if (street) maxOp.set(street, Math.max(maxOp.get(street) ?? 0, op));
+      for (const street of streets) maxOp.set(street, Math.max(maxOp.get(street) ?? 0, op));
 
       const iFade = mesh.geometry.getAttribute('iFade') as THREE.BufferAttribute | undefined;
       if (iFade) {

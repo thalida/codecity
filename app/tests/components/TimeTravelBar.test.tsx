@@ -68,6 +68,7 @@ describe('TimeTravelBar', () => {
     expect(input).not.toBeNull();
     expect(input.max).toBe('2');
     expect(input.value).toBe('2');
+    expect(input.step).toBe('any'); // fractional drag must reach SCRUB_POS for smooth interpolation
 
     const sha = container.querySelector('.time-travel-sha')!;
     expect(sha.textContent).toBe(head.sha.slice(0, 7));
@@ -76,6 +77,20 @@ describe('TimeTravelBar', () => {
     input.dispatchEvent(new Event('input', { bubbles: true }));
 
     expect(SCRUB_POS.value).toBe(0); // synchronous, no debounce
+  });
+
+  it('renders a fractional SCRUB_POS without error, rounding the commit label', async () => {
+    TIMELINE_MODE.value = true;
+    TIMELINE_BUNDLE.value = BUNDLE;
+    SCRUB_POS.value = 1.5;
+
+    render(<TimeTravelBar />, container);
+    await flush();
+
+    const input = container.querySelector<HTMLInputElement>('input[type=range]')!;
+    expect(input.value).toBe('1.5');
+    const sha = container.querySelector('.time-travel-sha')!;
+    expect(sha.textContent).toBe(head.sha.slice(0, 7)); // Math.round(1.5) -> 2 -> head
   });
 
   it('tracks SCRUB_POS updates from outside the component', async () => {

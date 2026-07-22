@@ -23,6 +23,9 @@ const STADIUM_SEGMENTS = 16;
 
 // Per-vertex alpha via onBeforeCompile; transparent stays false so live mode is byte-identical.
 function injectStreetOpacity(mat: THREE.MeshBasicMaterial): void {
+  // Distinguishes this variant in three's program cache so a plain MeshBasicMaterial
+  // with the same param signature can't collide and skip the onBeforeCompile injection.
+  mat.customProgramCacheKey = () => 'street-opacity';
   mat.onBeforeCompile = (shader) => {
     shader.vertexShader = shader.vertexShader
       .replace(

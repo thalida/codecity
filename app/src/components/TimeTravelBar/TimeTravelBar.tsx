@@ -32,6 +32,7 @@ export function TimeTravelBar() {
           class="setting-slider time-travel-slider"
           min={String(0)}
           max={String(maxIndex)}
+          step="any"
           value={String(SCRUB_POS.value)}
           onInput={onInput}
           aria-label="Scrub commit history"

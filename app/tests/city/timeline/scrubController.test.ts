@@ -533,3 +533,95 @@ test('block-fade is a true max, not last-write-wins: one deleted sibling cannot 
   controller.update();
   expect(opacityByStreet.get(dStreet)).toBeCloseTo(1, 5);
 });
+
+test('descendant rollup: a container street with no direct files inherits its child street opacity', () => {
+  // src/a/f.txt is the only building; src/ has no direct file buildings, only the
+  // subdir src/a/. Both streets must track the building's presence (live, then deleted),
+  // not just src/a/ — a container-only street must never go stale/invisible while its
+  // subtree is alive.
+  const srcStreet = { dir: { path: 'src' } } as unknown as Street;
+  const srcAStreet = { dir: { path: 'src/a' } } as unknown as Street;
+  const eStreet = { dir: { path: 'e' } } as unknown as Street; // unrelated sibling container
+
+  const fileF = {
+    path: 'src/a/f.txt',
+    lines: 6,
+    size: 500,
+    extension: 'txt',
+  } as unknown as FileNode;
+  const fileE = { path: 'e/g.txt', lines: 6, size: 500, extension: 'txt' } as unknown as FileNode;
+
+  const rollupBundle = {
+    commits: [{ sha: 'a' }, { sha: 'b' }, { sha: 'c' }, { sha: 'd' }],
+    unionManifest: { tree: { name: 'r' } },
+    deltas: [
+      {
+        sha: 'a',
+        changes: [
+          { path: 'src/a/f.txt', sha: 's1' },
+          { path: 'e/g.txt', sha: 's1' },
+        ],
+      },
+      { sha: 'b', changes: [] },
+      { sha: 'c', changes: [] },
+      { sha: 'd', changes: [{ path: 'src/a/f.txt', sha: null }] },
+    ],
+    blobLines: { s1: 6 },
+    note: null,
+  } as unknown as TimelineBundle;
+
+  function makeBuilding(f: FileNode, slotId: number): Building {
+    return {
+      x: 0,
+      y: 0,
+      w: 2,
+      d: 2,
+      h: buildingHeightForLines(f, 6, heightCtx),
+      color: '#fff',
+      file: f,
+      cellId: 0,
+      slotId,
+    } as unknown as Building;
+  }
+
+  const bF = makeBuilding(fileF, 0);
+  const bE = makeBuilding(fileE, 1);
+
+  const index = new BuildingIndex();
+  index.insert(bF);
+  index.insert(bE);
+
+  const meshByBuilding = new Map<Building, ReturnType<typeof makeFakeMesh>>([
+    [bF, makeFakeMesh()],
+    [bE, makeFakeMesh()],
+  ]);
+
+  const opacityByStreet = new Map<Street, number>();
+  const streets = {
+    setStreetOpacity: (street: Street, opacity: number) => {
+      opacityByStreet.set(street, opacity);
+    },
+  };
+
+  const timelines = buildPathTimelines(rollupBundle);
+  const controller = createScrubController({
+    getBuildingIndex: () => index,
+    getMeshForBuilding: (b) => ({ mesh: meshByBuilding.get(b)!.mesh, slot: 0 }),
+    timelines,
+    heightCtx,
+    streets,
+    streetsByDir: { src: srcStreet, 'src/a': srcAStreet, e: eStreet },
+  });
+
+  SCRUB_POS.value = 2; // before deletion, everything present
+  controller.update();
+  expect(opacityByStreet.get(srcAStreet)).toBeCloseTo(1, 5);
+  expect(opacityByStreet.get(srcStreet)).toBeCloseTo(1, 5); // rolled up from src/a
+  expect(opacityByStreet.get(eStreet)).toBeCloseTo(1, 5); // unrelated container unaffected
+
+  SCRUB_POS.value = 3.5; // after deletion, src/a/f.txt is gone
+  controller.update();
+  expect(opacityByStreet.get(srcAStreet)).toBe(RUIN_FLOOR);
+  expect(opacityByStreet.get(srcStreet)).toBe(RUIN_FLOOR); // dropped along with its only child
+  expect(opacityByStreet.get(eStreet)).toBeCloseTo(1, 5); // still unaffected
+});
