@@ -1,9 +1,8 @@
 // components/TimeTravelBar.tsx — bottom bar: scrubs SCRUB_POS across the timeline bundle's commit history.
 
 import './TimeTravelBar.css';
-import { History, RotateCcw } from 'lucide-preact';
+import { History } from 'lucide-preact';
 import { TIMELINE_MODE, SCRUB_POS, TIMELINE_BUNDLE } from '@/state/stores/timeline';
-import { exitTimelineMode } from '@/hooks/useTimelineMode';
 import { formatShortDate } from '@/utils/dates';
 import { commitUrl } from '@/utils/commit';
 
@@ -37,15 +36,6 @@ export function TimeTravelBar() {
           onInput={onInput}
           aria-label="Scrub commit history"
         />
-        <button
-          type="button"
-          class="setting-row-reset time-travel-reset"
-          title="Back to live"
-          aria-label="Back to live"
-          onClick={() => exitTimelineMode()}
-        >
-          <RotateCcw class="icon" />
-        </button>
       </div>
       <div class="time-travel-info">
         <span class="time-travel-date">{formatShortDate(commit.date)}</span>

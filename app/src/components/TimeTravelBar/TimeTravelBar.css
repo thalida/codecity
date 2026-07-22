@@ -30,11 +30,6 @@
   color: var(--cc-text-muted);
 }
 
-/* Bare glyph like the history icon (no side padding) so both sit symmetrically. */
-.time-travel-reset {
-  padding-inline: 0;
-}
-
 .time-travel-slider {
   flex: 1;
   min-width: 0;
