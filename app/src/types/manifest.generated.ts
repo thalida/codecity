@@ -590,9 +590,7 @@ export interface components {
         };
         /**
          * TimelineBundle
-         * @description Everything the client replays for smooth commit scrubbing. See
-         *     api/services/manifest_types.py:TimelineBundle for the field-by-field
-         *     rationale (this mirrors that TypedDict for the wire schema).
+         * @description Wire schema for the scrub bundle; mirrors manifest_types.TimelineBundle.
          */
         TimelineBundle: {
             /** Commits */
@@ -617,12 +615,42 @@ export interface components {
              */
             sha: string | null;
         };
+        /**
+         * TimelineCompleteEvent
+         * @description `timeline-complete` — the full replay bundle (fresh build or warm
+         *     cache hit).
+         */
+        TimelineCompleteEvent: {
+            bundle: components["schemas"]["TimelineBundle"];
+        };
         /** TimelineDelta */
         TimelineDelta: {
             /** Sha */
             sha: string;
             /** Changes */
             changes: components["schemas"]["TimelineChange"][];
+        };
+        /**
+         * TimelineProgressEvent
+         * @description `timeline-progress` — the git-history walk or blob-table resolution is
+         *     in progress. The `history` stage carries `commits`; the `blobs` stage
+         *     carries `blobsDone`/`blobsTotal` (the total is known up front from the
+         *     batch blob lookup, so this stage reports two ticks, not a live stream).
+         */
+        TimelineProgressEvent: {
+            /**
+             * Stage
+             * @enum {string}
+             */
+            stage: "history" | "blobs";
+            /** Commits */
+            commits?: number;
+            /** Blobsdone */
+            blobsDone?: number;
+            /** Blobstotal */
+            blobsTotal?: number;
+            /** Label */
+            label?: string;
         };
         /** ValidationError */
         ValidationError: {
@@ -862,13 +890,13 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Successful Response */
+            /** @description Server-Sent Events stream (`text/event-stream`). Named events and their JSON `data` payloads: `timeline-progress` (TimelineProgressEvent, one or more while the history walk / blob resolution run), `timeline-complete` (TimelineCompleteEvent, the full bundle), `error` (ErrorEvent). A warm cache hit emits only `timeline-complete`, no progress. The client closes the connection on `timeline-complete`/`error`. */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["TimelineBundle"];
+                    "application/json": components["schemas"]["TimelineProgressEvent"] | components["schemas"]["TimelineCompleteEvent"] | components["schemas"]["ErrorEvent"];
                 };
             };
             /** @description Validation Error */

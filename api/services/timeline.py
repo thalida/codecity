@@ -5,14 +5,16 @@ from __future__ import annotations
 
 import hashlib
 import subprocess
+import time
 from pathlib import Path
-from typing import NamedTuple
+from typing import Callable, NamedTuple
 
 from .cache import BlobEntry, cache_load_blobs, cache_save_blobs
 from .gitobj import _git_argv, blob_sizes_batch, blob_stats_batch
 from .manifest_types import CommitEntry, FileNode, Manifest, NodeKind, TimelineBundle
 from .media import media_kind
 from .scan import (
+    SCAN_PROGRESS_THROTTLE_S,
     NotAGitRepoError,
     _basename,
     _build_tree,
@@ -23,6 +25,7 @@ from .scan import (
     _hash_file_entry,
     _is_git_repo,
     _load_codecityignore,
+    _log,
     _path_is_skipped,
     _reconstructed_repo_info,
     _wrap_manifest,
@@ -30,16 +33,33 @@ from .scan import (
 
 _UNION_FILE_CAP = 20000  # union files above this window to the most recent commits
 
+# Progress payload shape: {"stage": "history", "commits": int} while walking
+# git log, or {"stage": "blobs", "done": int, "total": int} while resolving
+# blob tables. The router (api/routers/manifest.py) translates this into the
+# wire-facing TimelineProgressEvent.
+OnTimelineProgress = Callable[[dict[str, object]], None]
+
+_HISTORY_HEARTBEAT_EVERY = 2000  # commits between progress ticks
+
 
 class CommitDelta(NamedTuple):
     sha: str
     changes: list[tuple[str, str | None]]  # (path, new_blob_sha | None=delete)
 
 
-def walk_deltas(root: Path, ref: str | None = None) -> list[CommitDelta]:
+def walk_deltas(
+    root: Path,
+    ref: str | None = None,
+    *,
+    on_progress: OnTimelineProgress | None = None,
+) -> list[CommitDelta]:
     """Per-commit (path -> new blob sha, or None on delete), oldest-first.
     --no-abbrev keeps full 40-hex shas so blob lookups resolve; --no-renames
-    records a rename as delete+add (matches the reconstruction semantics)."""
+    records a rename as delete+add (matches the reconstruction semantics).
+    ``on_progress`` gets a heartbeat every ``_HISTORY_HEARTBEAT_EVERY``
+    commits (also time-throttled, for repos where git log outpaces that
+    count), plus a final tick with the true total."""
+    _log("walking commit history for timeline deltas…")
     argv = _git_argv(
         root,
         "log",
@@ -62,6 +82,8 @@ def walk_deltas(root: Path, ref: str | None = None) -> list[CommitDelta]:
     )
     newest_first: list[CommitDelta] = []
     cur: CommitDelta | None = None
+    commits = 0
+    last_emit = 0.0
     assert proc.stdout is not None
     try:
         for raw in proc.stdout:
@@ -71,6 +93,14 @@ def walk_deltas(root: Path, ref: str | None = None) -> list[CommitDelta]:
             if line.startswith("COMMIT:"):
                 cur = CommitDelta(sha=line[len("COMMIT:") :], changes=[])
                 newest_first.append(cur)
+                commits += 1
+                if commits % _HISTORY_HEARTBEAT_EVERY == 0:
+                    _log(f"  walked {commits:,} commits…")
+                    if on_progress is not None:
+                        now = time.monotonic()
+                        if now - last_emit >= SCAN_PROGRESS_THROTTLE_S:
+                            on_progress({"stage": "history", "commits": commits})
+                            last_emit = now
                 continue
             if not line.startswith(":") or cur is None:
                 continue
@@ -94,17 +124,27 @@ def walk_deltas(root: Path, ref: str | None = None) -> list[CommitDelta]:
         if proc.poll() is None:
             proc.kill()
         proc.wait()
+    _log(f"  done — {commits:,} commits walked")
+    if on_progress is not None:
+        on_progress({"stage": "history", "commits": commits})  # final, unthrottled
     newest_first.reverse()
     return newest_first
 
 
 def _collect_blob_tables(
-    root: Path, deltas: list[CommitDelta], *, use_cache: bool = True
+    root: Path,
+    deltas: list[CommitDelta],
+    *,
+    use_cache: bool = True,
+    on_progress: OnTimelineProgress | None = None,
 ) -> tuple[dict[str, int], dict[str, int]]:
     """Resolve every touched blob's (lines, byte size) keyed by sha. Lines go
     through the same content-addressed blob cache reconstruct_manifest uses
-    (cat-file only the misses); sizes are a separate uncached batch."""
+    (cat-file only the misses); sizes are a separate uncached batch. The
+    blob-check batch resolves the total up front, so ``on_progress`` only
+    needs a start + done tick (no incremental stream mid-batch)."""
     shas = list({sha for d in deltas for _, sha in d.changes if sha})
+    total = len(shas)
     media_shas = frozenset(
         sha
         for d in deltas
@@ -113,6 +153,9 @@ def _collect_blob_tables(
     )
     cached = cache_load_blobs(root) if use_cache else {}
     misses = [s for s in shas if s not in cached]
+    _log(f"resolving {len(misses):,}/{total:,} blobs ({total - len(misses):,} cached)…")
+    if on_progress is not None:
+        on_progress({"stage": "blobs", "done": total - len(misses), "total": total})
     fresh = blob_stats_batch(root, misses, media_shas=media_shas) if misses else {}
     for sha, st in fresh.items():
         entry: BlobEntry = {"lines": st.lines, "binary": st.binary}
@@ -124,6 +167,9 @@ def _collect_blob_tables(
         cached[sha] = entry
     if fresh:
         cache_save_blobs(root, cached)
+    _log(f"  done — {total:,} blobs resolved")
+    if on_progress is not None:
+        on_progress({"stage": "blobs", "done": total, "total": total})
     lines = {s: cached[s]["lines"] for s in shas if s in cached}
     sizes = blob_sizes_batch(root, shas)
     return lines, sizes
@@ -198,16 +244,23 @@ def build_union_manifest(
     return _wrap_manifest(root_abs, tree, sig, signals, repo_info, commits)
 
 
-def build_timeline_bundle(root: str, *, use_cache: bool = True) -> TimelineBundle:
+def build_timeline_bundle(
+    root: str,
+    *,
+    use_cache: bool = True,
+    on_progress: OnTimelineProgress | None = None,
+) -> TimelineBundle:
     """Assemble the full replay bundle: commits, the union manifest, per-commit
     blob deltas, and a sha -> line-count table. Pathological repos (union above
     `_UNION_FILE_CAP`) are windowed to their most recent commits, surfaced via
-    `note`."""
+    `note`. ``on_progress`` threads through to the history walk + blob
+    resolution — see their docstrings for the payload shape."""
     root_path = Path(root).resolve()
     if not _is_git_repo(root_path):
         raise NotAGitRepoError(str(root_path))
 
-    deltas = walk_deltas(root_path)
+    _log(f"building timeline bundle for {root_path}")
+    deltas = walk_deltas(root_path, on_progress=on_progress)
     git_created, git_modified, commits = _collect_git_history(
         root_path, use_cache=use_cache
     )
@@ -249,7 +302,7 @@ def build_timeline_bundle(root: str, *, use_cache: bool = True) -> TimelineBundl
         note = f"timeline covers the most recent {len(commits)} commits"
 
     blob_lines, blob_sizes = _collect_blob_tables(
-        root_path, deltas, use_cache=use_cache
+        root_path, deltas, use_cache=use_cache, on_progress=on_progress
     )
     # Contract: every non-null delta sha needs a blobLines entry (default 0) so the client can't KeyError.
     for d in deltas:
@@ -259,6 +312,7 @@ def build_timeline_bundle(root: str, *, use_cache: bool = True) -> TimelineBundl
     union_manifest = build_union_manifest(
         root_path, deltas, blob_lines, blob_sizes, commits, git_created, git_modified
     )
+    _log("timeline bundle complete")
 
     return {
         "commits": commits,
