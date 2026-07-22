@@ -1340,6 +1340,41 @@ class GitHistoryParallelTests(_CacheRedirectMixin, unittest.TestCase):
                 f"clean merge files count should be >= 1; got {commits[-1]['files']}",
             )
 
+    def test_merge_does_not_overwrite_created_date(self):
+        """A file added on a branch keeps its branch creation date; the merge
+        that brings it onto main must NOT re-date it to the merge day."""
+        import tempfile
+        from api.services.scan import _collect_git_history
+
+        with tempfile.TemporaryDirectory() as td:
+            tdp = Path(td)
+
+            def run(*a: str) -> None:
+                subprocess.run(["git", "-C", td, *a], check=True)
+
+            subprocess.run(["git", "init", "-q", "-b", "main", td], check=True)
+            run("config", "user.email", "t@example.com")
+            run("config", "user.name", "T")
+            (tdp / "a.txt").write_text("a\n")
+            run("add", ".")
+            run("commit", "-q", "-m", "initial", "--date=2020-01-01T00:00:00")
+            run("checkout", "-q", "-b", "side")
+            (tdp / "b.txt").write_text("b\n")
+            run("add", ".")
+            run(
+                "-c",
+                "commit.gpgsign=false",
+                "commit",
+                "-q",
+                "-m",
+                "add b",
+                "--date=2020-02-01T00:00:00",
+            )
+            run("checkout", "-q", "main")
+            run("merge", "-q", "--no-ff", "-m", "merge side", "side")
+            created, _m, _commits = _collect_git_history(Path(td), use_cache=False)
+            self.assertEqual(created["b.txt"][:10], "2020-02-01")
+
 
 class GitLogRobustnessTests(_CacheRedirectMixin, unittest.TestCase):
     """The git-log streamer must survive two failure modes seen on real

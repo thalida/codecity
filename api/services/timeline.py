@@ -67,7 +67,8 @@ def walk_deltas(
         "--raw",
         "--no-abbrev",
         "--no-renames",
-        "--diff-merges=first-parent",
+        # Merges undiffed (matches the scan walk): a subtree merge must not
+        # re-add its files on the merge date.
     )
     if ref is not None:
         argv.append(ref)
@@ -264,7 +265,7 @@ def build_timeline_bundle(
     git_created, git_modified, commits = _collect_git_history(
         root_path, use_cache=use_cache
     )
-    # both walks enumerate the same first-parent history in the same order
+    # same commit set + order across both walks, so index i lines up
     assert len(deltas) == len(commits), "delta/commit walks misaligned"
 
     # Apply the live scan's skip filter ONCE, upstream, so every downstream stage shares one filtered set.

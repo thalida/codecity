@@ -75,8 +75,8 @@ class BlobEntry(TypedDict):
 # treated as a miss and re-scanned. (Per-bump rationale lives in git history.)
 _FILE_CACHE_VERSION = 1
 _BLOB_STATS_CACHE_VERSION = 1  # blob_sha -> (lines, binary, media dims)
-_GIT_HISTORY_CACHE_VERSION = 13  # v13: key generalized head_sha -> commit_sha (any ref)
-_TIMELINE_CACHE_VERSION = 1  # bundle shape: commits/unionManifest/deltas/blobLines/note
+_GIT_HISTORY_CACHE_VERSION = 14  # v14: merges no longer diffed
+_TIMELINE_CACHE_VERSION = 2  # v2: delta walk stopped diffing merges
 _MANIFEST_SCHEMA_VERSION = (
     # v12: per-dir descendants_created_min / descendants_modified_max
     # v13: ext_breakdown `ext` is null (was "(none)") for extensionless files

@@ -305,11 +305,13 @@ def _collect_git_dates(
         "-C",
         str(root),
         "log",
-        "--format=COMMIT:%aI%x09%H%x09%an%x09"
+        "--format=COMMIT:%aI%x09%P%x09%H%x09%an%x09"
         "%(trailers:key=Co-authored-by,valueonly,separator=%x1f)"
         "%x09%s",
         "--name-status",
         "--no-renames",
+        # Merges diffed so a merge commit still reports a file count; their
+        # A/M events are skipped when writing the date maps (see the parse).
         "--diff-merges=first-parent",
     ]
     if ref is not None:
@@ -338,6 +340,7 @@ def _collect_git_dates(
     # Always UTC (Z-suffixed), normalized once per COMMIT line — the per-file
     # date maps, commit entries, and same-day buckets all share one zone.
     current_date = ""
+    current_is_merge = False
     current_sha = ""
     current_author = ""
     current_trailers = ""
@@ -371,14 +374,15 @@ def _collect_git_dates(
                         }
                     )
                 rest = line[len("COMMIT:") :]
-                # %aI%x09%H%x09%an%x09<trailers>%x09%s — split with maxsplit=4
-                # so any tabs IN the subject stay inside the subject field.
-                parts = rest.split("\t", 4)
+                # %aI%x09%P%x09%H%x09%an%x09<trailers>%x09%s — maxsplit=5 keeps
+                # tabs in the subject. %P is space-separated parents.
+                parts = rest.split("\t", 5)
                 current_date = _git_iso_to_utc(parts[0])
-                current_sha = parts[1] if len(parts) > 1 else ""
-                current_author = parts[2] if len(parts) > 2 else ""
-                current_trailers = parts[3] if len(parts) > 3 else ""
-                current_subject = parts[4] if len(parts) > 4 else ""
+                current_is_merge = " " in (parts[1] if len(parts) > 1 else "")
+                current_sha = parts[2] if len(parts) > 2 else ""
+                current_author = parts[3] if len(parts) > 3 else ""
+                current_trailers = parts[4] if len(parts) > 4 else ""
+                current_subject = parts[5] if len(parts) > 5 else ""
                 current_files = 0
                 commits += 1
                 if commits % heartbeat_every == 0:
@@ -396,6 +400,10 @@ def _collect_git_dates(
             status = line[:tab_idx]
             path = line[tab_idx + 1 :]
             current_files += 1
+            # A subtree merge re-adds its files; don't let the merge date
+            # overwrite each file's real creation/modification.
+            if current_is_merge:
+                continue
             if path not in modified:
                 modified[path] = current_date
             if status.startswith("A") and path not in created:
