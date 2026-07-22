@@ -30,6 +30,19 @@ describe('buildCellsFromLayout', () => {
     expect(out.sceneRoot.name).toBe('CellRoot');
   });
 
+  it('a dense cell over the global average allocates every building (no overflow skip)', () => {
+    // 96×96 → cellSize 12. 100 buildings in cell 0 (x,z < 12) + 4 lone cells.
+    // Old global cap = max(64, avg*4) ≈ 84 < 100, so the dense cell dropped
+    // buildings; per-cell sizing must place all 100.
+    const bounds = { minX: 0, maxX: 96, minZ: 0, maxZ: 96 };
+    const dense = Array.from({ length: 100 }, (_, i) => building({ x: i % 10, y: 1 }));
+    const sparse = [20, 32, 44, 56].map((x) => building({ x, y: 1 }));
+    const out = buildCellsFromLayout(bounds, [...dense, ...sparse]);
+
+    const cell0 = out.cells.get(0)!;
+    expect(cell0.buildings.filter(Boolean).length).toBe(100);
+  });
+
   it('sparse allocation: only occupied cells are created', () => {
     // Small bounds (96×96) keep cellSize at MIN_CELL_SIZE(12).
     // 96×96 / 12 = 8×8 = 64 total cells.
