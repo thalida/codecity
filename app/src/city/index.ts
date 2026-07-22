@@ -240,6 +240,9 @@ export async function createCity(canvas: HTMLCanvasElement, manifest: Manifest):
             setBuildingFootprintOpacity: (p, o) => footprint.setBuildingFootprintOpacity(p, o),
             setStreetFootprintOpacity: (p, o) => footprint.setStreetFootprintOpacity(p, o),
           },
+          trees: {
+            setScrubCommit: (maxCommitIndex) => trees.setScrubCommit(maxCommitIndex),
+          },
         });
         buildings.setScrubController(_scrubController);
       },
@@ -247,6 +250,8 @@ export async function createCity(canvas: HTMLCanvasElement, manifest: Manifest):
         buildings.setScrubController(null);
         _scrubController?.dispose();
         _scrubController = null;
+        // Restore the full forest immediately — don't wait on exit's manifest reload.
+        trees.setScrubCommit(null);
       },
       setStreetsTransparent: (on: boolean): void => streets.setStreetsTransparent(on),
       setFootprintsTransparent: (on: boolean): void => footprint.setFootprintsTransparent(on),

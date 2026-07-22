@@ -38,6 +38,9 @@ export interface ScrubControllerDeps {
     setBuildingFootprintOpacity(path: string, opacity: number): void;
     setStreetFootprintOpacity(dirPath: string, opacity: number): void;
   };
+  trees: {
+    setScrubCommit(maxCommitIndex: number | null): void;
+  };
 }
 
 export function createScrubController(deps: ScrubControllerDeps) {
@@ -65,6 +68,7 @@ export function createScrubController(deps: ScrubControllerDeps) {
 
   function update(): void {
     const pos = SCRUB_POS.peek();
+    deps.trees.setScrubCommit(Math.floor(pos));
     const dirtyMeshes = new Set<THREE.InstancedMesh>();
     const dirtyFades = new Set<THREE.BufferAttribute>();
     // A street's opacity is the max of its buildings', so the whole block fades together.

@@ -38,6 +38,17 @@ const noopFootprints = {
   setStreetFootprintOpacity: () => {},
 };
 
+// Most tests don't assert on the tree scrub gate; this stub keeps their deps minimal.
+const noopTrees = { setScrubCommit: () => {} };
+
+function makeFakeTrees() {
+  const calls: (number | null)[] = [];
+  return {
+    trees: { setScrubCommit: (maxCommitIndex: number | null) => calls.push(maxCommitIndex) },
+    calls,
+  };
+}
+
 function makeFakeFootprints() {
   const buildingOpacity = new Map<string, number>();
   const streetOpacity = new Map<string, number>();
@@ -139,7 +150,10 @@ function makeFakeAdPanels() {
   };
 }
 
-function setup(getAdPanels: () => InstancedAdPanels | null = () => null) {
+function setup(
+  getAdPanels: () => InstancedAdPanels | null = () => null,
+  trees: { setScrubCommit(maxCommitIndex: number | null): void } = noopTrees
+) {
   const b = {
     x: 5,
     y: 7,
@@ -167,6 +181,7 @@ function setup(getAdPanels: () => InstancedAdPanels | null = () => null) {
     footprints: noopFootprints,
     streets: { setStreetOpacity: () => {}, setStreetLabelOpacity: () => {} },
     streetsByDir: {},
+    trees,
   });
 
   return { b, fake, controller, timelines };
@@ -241,6 +256,19 @@ test('sets needsUpdate exactly once per mesh and per iFade attribute', () => {
   expect(fake.iFadeUpdates).toBe(1);
 });
 
+test('gates trees on the floored scrub position', () => {
+  const fakeTrees = makeFakeTrees();
+  const { controller } = setup(() => null, fakeTrees.trees);
+
+  SCRUB_POS.value = 1.9;
+  controller.update();
+  expect(fakeTrees.calls.at(-1)).toBe(1);
+
+  SCRUB_POS.value = -0.5;
+  controller.update();
+  expect(fakeTrees.calls.at(-1)).toBe(-1);
+});
+
 test('a present media/0-line file gets a non-zero scaleY; an absent one stays flat', () => {
   // m.png: present the whole window, but blobLines is 0 throughout (a media file
   // carries 0 code lines). getBuildingDimensions clamps lines->MIN_FLOORS, so the
@@ -288,6 +316,7 @@ test('a present media/0-line file gets a non-zero scaleY; an absent one stays fl
     footprints: noopFootprints,
     streets: { setStreetOpacity: () => {}, setStreetLabelOpacity: () => {} },
     streetsByDir: {},
+    trees: noopTrees,
   });
 
   SCRUB_POS.value = 1;
@@ -411,6 +440,7 @@ test('dedup: two buildings sharing one InstancedMesh set needsUpdate exactly onc
     footprints: noopFootprints,
     streets: { setStreetOpacity: () => {}, setStreetLabelOpacity: () => {} },
     streetsByDir: {},
+    trees: noopTrees,
   });
 
   SCRUB_POS.value = 1.5;
@@ -515,6 +545,7 @@ test('couples street opacity to the max opacity of its buildings (block fade)', 
     footprints: noopFootprints,
     streets,
     streetsByDir: { d: dStreet, e: eStreet },
+    trees: noopTrees,
   });
 
   SCRUB_POS.value = 2; // before K, everything present
@@ -606,6 +637,7 @@ test('block-fade is a true max, not last-write-wins: one deleted sibling cannot 
     footprints: noopFootprints,
     streets,
     streetsByDir: { d: dStreet },
+    trees: noopTrees,
   });
 
   SCRUB_POS.value = 3.5; // after K: f2 deleted, f1 still alive
@@ -693,6 +725,7 @@ test('descendant rollup: a container street with no direct files inherits its ch
     footprints: noopFootprints,
     streets,
     streetsByDir: { src: srcStreet, 'src/a': srcAStreet, e: eStreet },
+    trees: noopTrees,
   });
 
   SCRUB_POS.value = 2; // before deletion, everything present
@@ -774,6 +807,7 @@ test('footprints: a deleted building/street fades to 0 while a live sibling stay
     footprints: fakeFootprints.footprints,
     streets: { setStreetOpacity: () => {}, setStreetLabelOpacity: () => {} },
     streetsByDir: { d: dStreet, e: eStreet },
+    trees: noopTrees,
   });
 
   SCRUB_POS.value = 3.5; // after K: d/f1.txt deleted, e/f2.txt still alive
