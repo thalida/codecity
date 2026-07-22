@@ -73,11 +73,11 @@
   color: var(--cc-text-secondary);
 }
 .loading-steps li[data-state='active'] {
-  color: var(--cc-accent);
+  color: var(--cc-text-strong);
 }
 .loading-steps li[data-state='active']::before {
   content: '›';
-  color: var(--cc-accent);
+  color: var(--cc-text-strong);
   font-size: var(--cc-font-md);
   font-weight: var(--cc-fw-bold);
 }
