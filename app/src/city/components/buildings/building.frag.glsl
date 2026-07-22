@@ -541,18 +541,15 @@ vec4 compositeOutline(vec4 body) {
 }
 
 void main() {
-  // Ghost-ruin: crumble the top away before shading — no roof, and a jagged
-  // (hashed, blocky) bite off the top of each wall — so the blank gray stub
-  // reads as broken rubble rather than a plain short box.
-  if (vRuin > 0.5) {
-    if (vFace == 2) discard; // roof crumbled off
-    if (vFace == 0 || vFace == 1 || vFace == 4 || vFace == 5) {
-      float seed = float(vFace) * 3.0;
-      float coarse = hash21(vec2(floor(vUv.x * 6.0), seed));
-      float fine   = hash21(vec2(floor(vUv.x * 15.0), seed + 1.0));
-      float crumbleTop = 0.45 + 0.4 * coarse + 0.15 * fine; // ~0.45..1.0, stepped
-      if (vUv.y > crumbleTop) discard;
-    }
+  // Ghost-ruin: keep all four walls AND a roof (not a hollow open-top shell),
+  // but punch sparse "missing brick" holes into the walls (blocky hashed cells)
+  // plus a jagged nibble along the very top rim, so it reads as broken. Roof
+  // (2) and bottom (3) stay solid.
+  if (vRuin > 0.5 && vFace != 2 && vFace != 3) {
+    float seed = float(vFace) * 7.0;
+    if (hash21(floor(vUv * 11.0) + seed) < 0.09) discard; // missing bricks
+    float rim = 0.86 + 0.14 * hash21(vec2(floor(vUv.x * 9.0), seed)); // ~0.86..1.0
+    if (vUv.y > rim) discard; // jagged top edge under the roof line
   }
 
   vec4 body;
