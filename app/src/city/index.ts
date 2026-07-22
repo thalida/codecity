@@ -180,8 +180,7 @@ export async function createCity(canvas: HTMLCanvasElement, manifest: Manifest):
     onResetView: rig.reset,
   });
 
-  // Timeline scrub controller — built + installed on entering Timeline mode
-  // (see hooks/useTimelineMode). Held here so uninstall can dispose it.
+  // Scrub controller: built on entering Timeline mode (useTimelineMode); held here to dispose on uninstall.
   let _scrubController: ReturnType<typeof createScrubController> | null = null;
 
   // Reused scratch vector to avoid per-frame allocations from renderer.getSize().

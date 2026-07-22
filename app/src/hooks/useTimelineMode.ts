@@ -29,8 +29,7 @@ export async function enterTimelineMode(): Promise<void> {
     const timelines = buildPathTimelines(bundle);
     // unionManifest is the generated Manifest; the packer reads it structurally.
     await handle.applyManifest(bundle.unionManifest as unknown as Manifest);
-    // After the pack: the rebuild recreates the street meshes at default (opaque),
-    // so flip transparency on now, not before applyManifest.
+    // Flip after the pack: applyManifest rebuilds the street meshes opaque.
     handle.timeline.setStreetsTransparent(true);
     handle.timeline.installScrubController(timelines);
     batch(() => {
