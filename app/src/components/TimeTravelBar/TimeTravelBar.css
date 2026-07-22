@@ -1,6 +1,7 @@
 /* components/TimeTravelBar.css — floating bar over the scene canvas. */
 
-/* Fixed width so the centered bar never re-centers as the commit text changes.
+/* Wider than the label row needs: the time track wants room for its commit
+   ticks. Centered, and it never re-centers as the commit text changes.
    Glass: dark semi-transparent fill that blurs the scene behind it, no shadow. */
 .time-travel-bar {
   position: absolute;
@@ -11,28 +12,86 @@
   display: flex;
   flex-direction: column;
   gap: var(--cc-space-4);
-  padding: var(--cc-space-5) var(--cc-space-3);
-  width: min(32rem, calc(100% - var(--cc-space-9) * 2));
+  padding: var(--cc-space-5) var(--cc-space-5);
+  width: min(52rem, calc(100% - var(--cc-space-9) * 2));
   background: color-mix(in oklch, var(--cc-bg-modal) 78%, transparent);
   border-radius: var(--cc-radius-lg);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
 }
 
-.time-travel-track {
+/* Start date | time track | end date. */
+.time-travel-scrubber {
   display: flex;
   align-items: center;
-  gap: var(--cc-space-2);
+  gap: var(--cc-space-4);
 }
 
-.time-travel-history {
+/* The two calendar bookends — click to jump to the first / latest commit.
+   Dimmed + uppercased like the reference; brighten on hover to signal clickable. */
+.time-travel-edge {
   flex: 0 0 auto;
+  padding: 0;
+  border: 0;
+  background: none;
+  font-family: var(--cc-font-mono);
+  font-size: var(--cc-font-xs);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
   color: var(--cc-text-muted);
+  white-space: nowrap;
+  cursor: pointer;
 }
 
-.time-travel-slider {
+.time-travel-edge:hover {
+  color: var(--cc-text-strong);
+}
+
+/* The time axis: a solid played fill + two-tone commit ticks (past vs future),
+   painted on the canvas. --tt-played (scrubbed-past region), --tt-tick-played
+   (past commit lines), --tt-tick (future commit lines) are read by the painter,
+   so they must be canvas-parseable colors (rgba, not oklch). */
+.time-travel-track {
+  --tt-played: rgba(120, 90, 240, 0.3);
+  --tt-tick-played: rgba(150, 110, 255, 0.95);
+  /* Future ticks: a soft neutral gray at low alpha, so it composites over the
+     dark bar surface and blends instead of reading as bright white. */
+  --tt-tick: rgba(148, 151, 168, 0.5);
+  position: relative;
   flex: 1;
   min-width: 0;
+  height: var(--cc-space-8);
+  background: color-mix(in oklch, var(--cc-bg-base) 60%, transparent);
+  cursor: pointer;
+  touch-action: none;
+  /* Square corners, and no clip so the playhead can overhang top + bottom. */
+}
+
+.time-travel-track:focus-visible {
+  outline: 2px solid var(--cc-accent);
+  outline-offset: 2px;
+}
+
+.time-travel-ticks {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+/* The playhead: a bold accent line at the current commit's point in time, poking
+   out above and below the track so it stays obvious against a dense tick field. */
+.time-travel-handle {
+  position: absolute;
+  top: calc(-1 * var(--cc-space-3));
+  bottom: calc(-1 * var(--cc-space-3));
+  width: 3px;
+  margin-left: -1.5px;
+  border-radius: var(--cc-radius-sm);
+  background: var(--cc-accent);
+  box-shadow: 0 0 2px color-mix(in oklch, var(--cc-accent) 30%, transparent);
+  pointer-events: none;
 }
 
 .time-travel-info {
@@ -67,4 +126,9 @@ a.time-travel-sha:hover {
   overflow: hidden;
   text-overflow: ellipsis;
   color: var(--cc-text-secondary);
+}
+
+.time-travel-nocommit {
+  color: var(--cc-text-muted);
+  font-style: italic;
 }

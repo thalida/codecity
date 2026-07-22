@@ -10,7 +10,7 @@
 
 import './AppHeader.css';
 import type { ComponentChildren } from 'preact';
-import { GitGraph } from 'lucide-preact';
+import { History } from 'lucide-preact';
 import { SCENE_HANDLE } from '@/state/stores/scene';
 import { MANIFEST } from '@/state/stores/manifest';
 import { ROOT_PATH } from '@/constants/manifest';
@@ -101,7 +101,7 @@ export function AppHeader({
             aria-label="Timeline"
             onClick={() => (TIMELINE_MODE.value ? exitTimelineMode() : void enterTimelineMode())}
           >
-            <GitGraph class="icon" />
+            <History class="icon" />
           </button>
         )}
       </div>
