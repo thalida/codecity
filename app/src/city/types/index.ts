@@ -67,6 +67,8 @@ export interface CityTimeline {
   uninstallScrubController(): void;
   /** Move both street materials into (true) or out of (false) the transparent pass. */
   setStreetsTransparent(on: boolean): void;
+  /** Move the footprint material into (true) or out of (false) the transparent pass. */
+  setFootprintsTransparent(on: boolean): void;
 }
 
 /** The top-level city object returned by the city composer (createCity). */

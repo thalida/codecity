@@ -36,8 +36,9 @@ export async function enterTimelineMode(): Promise<void> {
     setLoadingStep(LoadingStep.Building);
     // unionManifest is the generated Manifest; the packer reads it structurally.
     await handle.applyManifest(bundle.unionManifest as unknown as Manifest);
-    // Flip after the pack: applyManifest rebuilds the street meshes opaque.
+    // Flip after the pack: applyManifest rebuilds the street + footprint meshes opaque.
     handle.timeline.setStreetsTransparent(true);
+    handle.timeline.setFootprintsTransparent(true);
     handle.timeline.installScrubController(timelines);
     batch(() => {
       TIMELINE_MODE.value = true;
@@ -50,6 +51,7 @@ export async function enterTimelineMode(): Promise<void> {
     TIMELINE_MODE.value = false;
     handle.timeline.uninstallScrubController();
     handle.timeline.setStreetsTransparent(false);
+    handle.timeline.setFootprintsTransparent(false);
     markError(err);
     hideLoadingOverlay();
   }
@@ -61,5 +63,6 @@ export function exitTimelineMode(): void {
   TIMELINE_MODE.value = false; // clears the poll + fader guards
   handle?.timeline.uninstallScrubController();
   handle?.timeline.setStreetsTransparent(false);
+  handle?.timeline.setFootprintsTransparent(false);
   if (cur) void loadSource({ src: cur.src, branch: cur.branch });
 }

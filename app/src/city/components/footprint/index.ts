@@ -53,6 +53,12 @@ export interface Footprint extends SceneComponent {
    *  (incl. a reuse apply), so the footprint must re-match. When halo <= 0 or no
    *  rects, leaves the group EMPTY (prior mesh disposed). */
   rebuild(layout: CityLayout): void;
+  /** Fade one building's footprint slab, keyed by file path. No-op for an unknown path. */
+  setBuildingFootprintOpacity(path: string, opacity: number): void;
+  /** Fade one street's footprint slab, keyed by its directory path. No-op for an unknown street. */
+  setStreetFootprintOpacity(dirPath: string, opacity: number): void;
+  /** Move the footprint material into (or out of) the transparent render pass. */
+  setFootprintsTransparent(on: boolean): void;
 }
 
 export function createFootprint(ctx: SceneContext): Footprint {
@@ -68,6 +74,10 @@ export function createFootprint(ctx: SceneContext): Footprint {
   // live mesh/material after every rebuild.
   let mesh: THREE.InstancedMesh | null = null;
   let material: THREE.ShaderMaterial | null = null;
+  // Instance index lookup for Timeline scrubbing: buildings occupy 0..buildingCount-1
+  // (build order), streets follow. Rebuilt every rebuild() alongside the mesh.
+  let pathToInstance = new Map<string, number>();
+  let streetDirToInstance = new Map<string, number>();
 
   function _disposeInnerMesh(): void {
     if (!mesh) return;
@@ -78,12 +88,37 @@ export function createFootprint(ctx: SceneContext): Footprint {
     material = null;
   }
 
+  // Fade one instance by writing its aOpacity slot; no-op for an unknown instance (e.g. pre-rebuild).
+  function _setInstanceOpacity(idx: number | undefined, opacity: number): void {
+    if (idx === undefined || !mesh) return;
+    const attr = mesh.geometry.getAttribute('aOpacity') as THREE.InstancedBufferAttribute;
+    attr.setX(idx, opacity);
+    attr.needsUpdate = true;
+  }
+
+  function setBuildingFootprintOpacity(path: string, opacity: number): void {
+    _setInstanceOpacity(pathToInstance.get(path), opacity);
+  }
+
+  function setStreetFootprintOpacity(dirPath: string, opacity: number): void {
+    _setInstanceOpacity(streetDirToInstance.get(dirPath), opacity);
+  }
+
+  // Live mode never calls it, so footprints stay byte-identical (material.transparent default false).
+  function setFootprintsTransparent(on: boolean): void {
+    if (!material || material.transparent === on) return;
+    material.transparent = on;
+    material.needsUpdate = true;
+  }
+
   function rebuild(layout: CityLayout): void {
     const cfg = FOOTPRINT.value;
     const halo = Math.max(0, cfg.HALO_WIDTH);
 
     // Dispose prior mesh first (swap pattern mirrors gem).
     _disposeInnerMesh();
+    pathToInstance = new Map();
+    streetDirToInstance = new Map();
 
     // Halo at zero (or negative — clamped to 0 above) means the footprint
     // would render as a 0-area asphalt halo that's invisible to the user.
@@ -93,9 +128,17 @@ export function createFootprint(ctx: SceneContext): Footprint {
       return;
     }
 
+    // Instance order is load-bearing for Timeline scrubbing: buildings first
+    // (0..buildingCount-1), then streets, matching the loops below.
     const rects: Rect[] = [];
-    for (const b of layout.buildings) rects.push(rectOfBuilding(b));
-    for (const s of layout.streets) rects.push(rectOfStreet(s));
+    for (const b of layout.buildings) {
+      pathToInstance.set(b.file.path, rects.length);
+      rects.push(rectOfBuilding(b));
+    }
+    for (const s of layout.streets) {
+      if (s.dir?.path != null) streetDirToInstance.set(s.dir.path, rects.length);
+      rects.push(rectOfStreet(s));
+    }
 
     // Also nothing to render if there are no rects.
     if (rects.length === 0) {
@@ -115,6 +158,10 @@ export function createFootprint(ctx: SceneContext): Footprint {
     }
     geometry.setAttribute('aHalfExtent', new THREE.InstancedBufferAttribute(halfExtents, 2));
 
+    // Per-instance opacity for Timeline fading; default 1 (opaque) so live mode is unaffected.
+    const opacity = new Float32Array(rects.length).fill(1);
+    geometry.setAttribute('aOpacity', new THREE.InstancedBufferAttribute(opacity, 1));
+
     const colorUniform = new THREE.Color();
     setColorFromHex(colorUniform, cfg.COLOR);
 
@@ -122,6 +169,7 @@ export function createFootprint(ctx: SceneContext): Footprint {
       vertexShader: FOOTPRINT_VERT,
       fragmentShader: FOOTPRINT_FRAG,
       depthWrite: false,
+      transparent: false,
       uniforms: {
         uColor: { value: colorUniform },
         // CORNER_RADIUS is a fraction of HALO_WIDTH (0 → sharp, 1 → one
@@ -191,5 +239,12 @@ export function createFootprint(ctx: SceneContext): Footprint {
     stopLayout();
   }
 
-  return { group, rebuild, dispose };
+  return {
+    group,
+    rebuild,
+    dispose,
+    setBuildingFootprintOpacity,
+    setStreetFootprintOpacity,
+    setFootprintsTransparent,
+  };
 }

@@ -32,6 +32,29 @@ const heightCtx: HeightContext = {
 
 const file = { path: 'f.txt', lines: 6, size: 500, extension: 'txt' } as unknown as FileNode;
 
+// Most tests don't assert on footprint opacity; this stub keeps their deps minimal.
+const noopFootprints = {
+  setBuildingFootprintOpacity: () => {},
+  setStreetFootprintOpacity: () => {},
+};
+
+function makeFakeFootprints() {
+  const buildingOpacity = new Map<string, number>();
+  const streetOpacity = new Map<string, number>();
+  return {
+    footprints: {
+      setBuildingFootprintOpacity: (path: string, opacity: number) => {
+        buildingOpacity.set(path, opacity);
+      },
+      setStreetFootprintOpacity: (dirPath: string, opacity: number) => {
+        streetOpacity.set(dirPath, opacity);
+      },
+    },
+    buildingOpacity,
+    streetOpacity,
+  };
+}
+
 function makeFakeMesh() {
   const lastMatrix = new THREE.Matrix4();
   let iFadeX = 1;
@@ -141,6 +164,7 @@ function setup(getAdPanels: () => InstancedAdPanels | null = () => null) {
     getMeshForBuilding: () => ({ mesh: fake.mesh, slot: 0 }),
     timelines,
     heightCtx,
+    footprints: noopFootprints,
     streets: { setStreetOpacity: () => {} },
     streetsByDir: {},
   });
@@ -261,6 +285,7 @@ test('a present media/0-line file gets a non-zero scaleY; an absent one stays fl
     getMeshForBuilding: () => ({ mesh: fake.mesh, slot: 0 }),
     timelines,
     heightCtx,
+    footprints: noopFootprints,
     streets: { setStreetOpacity: () => {} },
     streetsByDir: {},
   });
@@ -383,6 +408,7 @@ test('dedup: two buildings sharing one InstancedMesh set needsUpdate exactly onc
     getMeshForBuilding: (b) => ({ mesh: sharedMesh, slot: b.slotId }),
     timelines,
     heightCtx,
+    footprints: noopFootprints,
     streets: { setStreetOpacity: () => {} },
     streetsByDir: {},
   });
@@ -482,6 +508,7 @@ test('couples street opacity to the max opacity of its buildings (block fade)', 
     getMeshForBuilding: (b) => ({ mesh: meshByBuilding.get(b)!.mesh, slot: 0 }),
     timelines,
     heightCtx,
+    footprints: noopFootprints,
     streets,
     streetsByDir: { d: dStreet, e: eStreet },
   });
@@ -568,6 +595,7 @@ test('block-fade is a true max, not last-write-wins: one deleted sibling cannot 
     getMeshForBuilding: (b) => ({ mesh: meshByBuilding.get(b)!.mesh, slot: 0 }),
     timelines,
     heightCtx,
+    footprints: noopFootprints,
     streets,
     streetsByDir: { d: dStreet },
   });
@@ -653,6 +681,7 @@ test('descendant rollup: a container street with no direct files inherits its ch
     getMeshForBuilding: (b) => ({ mesh: meshByBuilding.get(b)!.mesh, slot: 0 }),
     timelines,
     heightCtx,
+    footprints: noopFootprints,
     streets,
     streetsByDir: { src: srcStreet, 'src/a': srcAStreet, e: eStreet },
   });
@@ -668,4 +697,81 @@ test('descendant rollup: a container street with no direct files inherits its ch
   expect(opacityByStreet.get(srcAStreet)).toBe(RUIN_FLOOR);
   expect(opacityByStreet.get(srcStreet)).toBe(RUIN_FLOOR); // dropped along with its only child
   expect(opacityByStreet.get(eStreet)).toBeCloseTo(1, 5); // still unaffected
+});
+
+test('footprints: a deleted building/street fades to 0 while a live sibling stays ~1', () => {
+  // d/ is deleted at commit index 3 (K); e/ survives. Mirrors the street block-fade
+  // scenario but asserts on the footprint slabs, which used to stay stuck opaque.
+  const dStreet = { dir: { path: 'd' } } as unknown as Street;
+  const eStreet = { dir: { path: 'e' } } as unknown as Street;
+
+  const fileD = { path: 'd/f1.txt', lines: 6, size: 500, extension: 'txt' } as unknown as FileNode;
+  const fileE = { path: 'e/f2.txt', lines: 6, size: 500, extension: 'txt' } as unknown as FileNode;
+
+  const footprintBundle = {
+    commits: [{ sha: 'a' }, { sha: 'b' }, { sha: 'c' }, { sha: 'd' }],
+    unionManifest: { tree: { name: 'r' } },
+    deltas: [
+      {
+        sha: 'a',
+        changes: [
+          { path: 'd/f1.txt', sha: 's1' },
+          { path: 'e/f2.txt', sha: 's1' },
+        ],
+      },
+      { sha: 'b', changes: [] },
+      { sha: 'c', changes: [] },
+      { sha: 'd', changes: [{ path: 'd/f1.txt', sha: null }] },
+    ],
+    blobLines: { s1: 6 },
+    note: null,
+  } as unknown as TimelineBundle;
+
+  function makeBuilding(f: FileNode, slotId: number): Building {
+    return {
+      x: 0,
+      y: 0,
+      w: 2,
+      d: 2,
+      h: buildingHeightForLines(f, 6, heightCtx),
+      color: '#fff',
+      file: f,
+      cellId: 0,
+      slotId,
+    } as unknown as Building;
+  }
+
+  const bD = makeBuilding(fileD, 0);
+  const bE = makeBuilding(fileE, 1);
+
+  const index = new BuildingIndex();
+  index.insert(bD);
+  index.insert(bE);
+
+  const meshByBuilding = new Map<Building, ReturnType<typeof makeFakeMesh>>([
+    [bD, makeFakeMesh()],
+    [bE, makeFakeMesh()],
+  ]);
+
+  const fakeFootprints = makeFakeFootprints();
+
+  const timelines = buildPathTimelines(footprintBundle);
+  const controller = createScrubController({
+    getBuildingIndex: () => index,
+    getAdPanels: () => null,
+    getMeshForBuilding: (b) => ({ mesh: meshByBuilding.get(b)!.mesh, slot: 0 }),
+    timelines,
+    heightCtx,
+    footprints: fakeFootprints.footprints,
+    streets: { setStreetOpacity: () => {} },
+    streetsByDir: { d: dStreet, e: eStreet },
+  });
+
+  SCRUB_POS.value = 3.5; // after K: d/f1.txt deleted, e/f2.txt still alive
+  controller.update();
+
+  expect(fakeFootprints.buildingOpacity.get('d/f1.txt')).toBe(RUIN_FLOOR);
+  expect(fakeFootprints.buildingOpacity.get('e/f2.txt')).toBeCloseTo(1, 5);
+  expect(fakeFootprints.streetOpacity.get('d')).toBe(RUIN_FLOOR);
+  expect(fakeFootprints.streetOpacity.get('e')).toBeCloseTo(1, 5);
 });

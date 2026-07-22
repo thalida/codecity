@@ -233,6 +233,10 @@ export async function createCity(canvas: HTMLCanvasElement, manifest: Manifest):
           heightCtx: makeHeightContext(cityState.manifest.peek()?.stats),
           streets: { setStreetOpacity: (s, o) => streets.setStreetOpacity(s, o) },
           streetsByDir: cityState.streetsByDirMap.peek(),
+          footprints: {
+            setBuildingFootprintOpacity: (p, o) => footprint.setBuildingFootprintOpacity(p, o),
+            setStreetFootprintOpacity: (p, o) => footprint.setStreetFootprintOpacity(p, o),
+          },
         });
         buildings.setScrubController(_scrubController);
       },
@@ -242,6 +246,7 @@ export async function createCity(canvas: HTMLCanvasElement, manifest: Manifest):
         _scrubController = null;
       },
       setStreetsTransparent: (on: boolean): void => streets.setStreetsTransparent(on),
+      setFootprintsTransparent: (on: boolean): void => footprint.setFootprintsTransparent(on),
     },
     /** Tear the whole city down: stop the frame loop, detach input listeners,
      *  dispose the picker/rig/postFx/components (GPU geometry + their effects),

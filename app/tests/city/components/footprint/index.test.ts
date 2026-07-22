@@ -284,4 +284,89 @@ describe('createFootprint()', () => {
       FOOTPRINT.value = { ...FOOTPRINT.value, COLOR: '#abcdef' };
     }).not.toThrow();
   });
+
+  // ---------------------------------------------------------------------------
+  // Timeline opacity (Timeline mode fading)
+  // ---------------------------------------------------------------------------
+
+  function layoutWithBuildingAndStreet(): CityLayout {
+    return {
+      buildings: [
+        {
+          x: 0,
+          y: 0,
+          w: 10,
+          d: 10,
+          h: 16,
+          floors: 1,
+          file: { path: 'a/b.txt', size: 0, lines: 0 },
+        } as never,
+      ],
+      streets: [
+        {
+          x: 0,
+          y: 0,
+          length: 20,
+          width: 8,
+          orientation: StreetAxis.X,
+          isRoot: true,
+          name: 'a',
+          dir: { path: 'a' },
+        } as never,
+      ],
+      lineStats: { min: 0, max: 0 },
+      byteStats: { min: 0, max: 0 },
+      bbox: { minX: -10, minY: -10, maxX: 10, maxY: 10, cx: 0, cy: 0, width: 20, depth: 20 },
+    };
+  }
+
+  it('defaults every instance aOpacity to 1 (opaque)', () => {
+    fp.rebuild(layoutWithBuildingAndStreet());
+    const mesh = fp.group.children[0] as THREE.InstancedMesh;
+    const attr = mesh.geometry.getAttribute('aOpacity') as THREE.InstancedBufferAttribute;
+    expect(attr.getX(0)).toBe(1);
+    expect(attr.getX(1)).toBe(1);
+  });
+
+  it('setBuildingFootprintOpacity writes aOpacity at the building instance', () => {
+    fp.rebuild(layoutWithBuildingAndStreet());
+    fp.setBuildingFootprintOpacity('a/b.txt', 0.3);
+    const mesh = fp.group.children[0] as THREE.InstancedMesh;
+    const attr = mesh.geometry.getAttribute('aOpacity') as THREE.InstancedBufferAttribute;
+    expect(attr.getX(0)).toBeCloseTo(0.3);
+    expect(attr.getX(1)).toBe(1); // street instance untouched
+  });
+
+  it('setStreetFootprintOpacity writes aOpacity at the street instance', () => {
+    fp.rebuild(layoutWithBuildingAndStreet());
+    fp.setStreetFootprintOpacity('a', 0.3);
+    const mesh = fp.group.children[0] as THREE.InstancedMesh;
+    const attr = mesh.geometry.getAttribute('aOpacity') as THREE.InstancedBufferAttribute;
+    expect(attr.getX(1)).toBeCloseTo(0.3);
+    expect(attr.getX(0)).toBe(1); // building instance untouched
+  });
+
+  it('opacity setters no-op for an unknown path (pre-rebuild or stale lookup)', () => {
+    expect(() => {
+      fp.setBuildingFootprintOpacity('nope', 0.5);
+      fp.setStreetFootprintOpacity('nope', 0.5);
+    }).not.toThrow();
+  });
+
+  it('material defaults to opaque (transparent: false)', () => {
+    fp.rebuild(singleBuildingLayout());
+    const mesh = fp.group.children[0] as THREE.InstancedMesh;
+    const mat = mesh.material as THREE.ShaderMaterial;
+    expect(mat.transparent).toBe(false);
+  });
+
+  it('setFootprintsTransparent(true) flips the material into the transparent pass', () => {
+    fp.rebuild(singleBuildingLayout());
+    fp.setFootprintsTransparent(true);
+    const mesh = fp.group.children[0] as THREE.InstancedMesh;
+    const mat = mesh.material as THREE.ShaderMaterial;
+    expect(mat.transparent).toBe(true);
+    fp.setFootprintsTransparent(false);
+    expect(mat.transparent).toBe(false);
+  });
 });

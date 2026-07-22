@@ -31,6 +31,10 @@ export interface ScrubControllerDeps {
   streets: { setStreetOpacity(street: Street, opacity: number): void };
   // { street dir.path → Street } from the union layout, for resolving a building's street.
   streetsByDir: Record<string, Street>;
+  footprints: {
+    setBuildingFootprintOpacity(path: string, opacity: number): void;
+    setStreetFootprintOpacity(dirPath: string, opacity: number): void;
+  };
 }
 
 export function createScrubController(deps: ScrubControllerDeps) {
@@ -85,6 +89,7 @@ export function createScrubController(deps: ScrubControllerDeps) {
       const op = presenceAt(pt, pos, RUIN_FLOOR);
       for (const street of streets) maxOp.set(street, Math.max(maxOp.get(street) ?? 0, op));
       opByPath.set(b.file.path, op);
+      deps.footprints.setBuildingFootprintOpacity(b.file.path, op);
 
       const iFade = mesh.geometry.getAttribute('iFade') as THREE.BufferAttribute | undefined;
       if (iFade) {
@@ -97,7 +102,11 @@ export function createScrubController(deps: ScrubControllerDeps) {
     for (const iFade of dirtyFades) iFade.needsUpdate = true;
     deps.getAdPanels()?.applyBuildingFades((p) => opByPath.get(p) ?? null);
     // Every street gets written each frame (defaulting to 0) so an orphaned street can't stick at a stale opacity.
-    for (const street of allStreets) deps.streets.setStreetOpacity(street, maxOp.get(street) ?? 0);
+    for (const street of allStreets) {
+      const op = maxOp.get(street) ?? 0;
+      deps.streets.setStreetOpacity(street, op);
+      if (street.dir?.path != null) deps.footprints.setStreetFootprintOpacity(street.dir.path, op);
+    }
   }
 
   function dispose(): void {

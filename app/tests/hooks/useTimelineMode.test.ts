@@ -47,9 +47,15 @@ function fakeHandle() {
   const installScrubController = vi.fn();
   const uninstallScrubController = vi.fn();
   const setStreetsTransparent = vi.fn();
+  const setFootprintsTransparent = vi.fn();
   const handle = {
     applyManifest,
-    timeline: { installScrubController, uninstallScrubController, setStreetsTransparent },
+    timeline: {
+      installScrubController,
+      uninstallScrubController,
+      setStreetsTransparent,
+      setFootprintsTransparent,
+    },
   };
   return {
     handle,
@@ -57,6 +63,7 @@ function fakeHandle() {
     installScrubController,
     uninstallScrubController,
     setStreetsTransparent,
+    setFootprintsTransparent,
   };
 }
 
@@ -86,6 +93,7 @@ describe('enterTimelineMode', () => {
     expect(f.applyManifest).toHaveBeenCalledTimes(1);
     expect(f.applyManifest).toHaveBeenCalledWith(BUNDLE.unionManifest);
     expect(f.setStreetsTransparent).toHaveBeenCalledWith(true);
+    expect(f.setFootprintsTransparent).toHaveBeenCalledWith(true);
     expect(f.installScrubController).toHaveBeenCalledTimes(1);
     expect(TIMELINE_BUNDLE.value).toBe(BUNDLE);
     expect(TIMELINE_MODE.value).toBe(true);
@@ -170,6 +178,7 @@ describe('exitTimelineMode', () => {
     expect(TIMELINE_MODE.value).toBe(false);
     expect(f.uninstallScrubController).toHaveBeenCalledTimes(1);
     expect(f.setStreetsTransparent).toHaveBeenCalledWith(false);
+    expect(f.setFootprintsTransparent).toHaveBeenCalledWith(false);
     await flush();
     expect(StubEventSource.instances.length).toBeGreaterThan(0); // live HEAD reload started
     expect(new URL(StubEventSource.instances[0].url).searchParams.get('ref')).toBeNull();
