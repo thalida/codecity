@@ -1,45 +1,29 @@
 // state/stores/historyManifest.ts — the manifest the left-sidebar file tree +
-// search read. While scrubbing, the all-time UNION manifest (so deleted paths
-// still appear and can be inspected); otherwise the live HEAD manifest. The
-// README pane stays on HEAD (it fetches the current checkout), so it reads
-// MANIFEST directly rather than this.
+// search read. While scrubbing, the union manifest filtered to just the paths
+// PRESENT at the scrubbed commit (deleted + not-yet-created paths are excluded),
+// so the tree/search always match what's actually alive in the city at that
+// point in history. Outside Timeline it's the live HEAD manifest.
 //
-// The union is filtered to honor the same toggles as the city: deleted (ruin)
-// paths are hidden when "Show deleted files" is off, and future (not-yet-created)
-// paths are hidden when "Show future files" is off — so the sidebar shows exactly
-// the set of paths the scene renders at this commit.
+// The README pane stays on HEAD (it fetches the current checkout), so it reads
+// MANIFEST directly rather than this.
 
 import { computed, type ReadonlySignal } from '@preact/signals';
 import { MANIFEST, type ManifestValue } from './manifest';
 import { TIMELINE_MODE, TIMELINE_BUNDLE } from './timeline';
-import { HISTORY_NODE_STATE, HistoryState } from './historyNodeState';
-import { RUINS } from './settings/ruins';
-import { BLUEPRINTS } from './settings/blueprints';
+import { PRESENT_PATHS } from './presentPaths';
 import { NodeKind } from '@/types';
-import type { TreeNode } from '@/types';
+import type { DirNode, TreeNode } from '@/types';
 
-// Keep a node iff its scrub-relative state is enabled. Directories are dropped
-// when nothing under them survives (empty folders would just be clutter), except
-// the root, which always stays so the tree still has a container to render.
-function _filterVisible(
-  node: TreeNode,
-  states: ReadonlyMap<string, HistoryState>,
-  showDeleted: boolean,
-  showFuture: boolean,
-  isRoot: boolean
-): TreeNode | null {
-  if (node.type === NodeKind.File) {
-    const st = states.get(node.path ?? '');
-    if (st === HistoryState.Deleted && !showDeleted) return null;
-    if (st === HistoryState.Future && !showFuture) return null;
-    return node;
-  }
+// Keep a node iff it's present at the scrubbed commit. A present directory always
+// has ≥1 present descendant, so filtering its children never leaves it empty.
+function _filterPresent(node: TreeNode, present: ReadonlySet<string>): TreeNode | null {
+  if (!present.has(node.path ?? '')) return null;
+  if (node.type === NodeKind.File) return node;
   const children: TreeNode[] = [];
   for (const child of node.children ?? []) {
-    const kept = _filterVisible(child, states, showDeleted, showFuture, false);
+    const kept = _filterPresent(child, present);
     if (kept) children.push(kept);
   }
-  if (!isRoot && children.length === 0) return null;
   return { ...node, children };
 }
 
@@ -48,13 +32,16 @@ export const HISTORY_MANIFEST: ReadonlySignal<ManifestValue> = computed(() => {
   if (!TIMELINE_MODE.value || !bundle) return MANIFEST.value;
 
   const union = bundle.unionManifest as unknown as ManifestValue;
-  const showDeleted = RUINS.value.ENABLED;
-  const showFuture = BLUEPRINTS.value.ENABLED;
-  // Nothing hidden → the raw union, no per-commit tree rebuild.
-  if (showDeleted && showFuture) return union;
-
-  const tree = (union as { tree?: TreeNode } | null)?.tree;
+  const tree = (union as { tree?: DirNode } | null)?.tree;
   if (!tree) return union;
-  const filtered = _filterVisible(tree, HISTORY_NODE_STATE.value, showDeleted, showFuture, true);
-  return { ...(union as object), tree: filtered } as unknown as ManifestValue;
+
+  // Root always stays (an empty tree still needs a container); its children are
+  // filtered to the present-at-scrub subtrees.
+  const present = PRESENT_PATHS.value;
+  const children: TreeNode[] = [];
+  for (const child of tree.children ?? []) {
+    const kept = _filterPresent(child, present);
+    if (kept) children.push(kept);
+  }
+  return { ...(union as object), tree: { ...tree, children } } as unknown as ManifestValue;
 });

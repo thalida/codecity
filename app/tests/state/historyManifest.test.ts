@@ -6,7 +6,7 @@ import { RUINS } from '@/state/stores/settings/ruins';
 import { BLUEPRINTS } from '@/state/stores/settings/blueprints';
 import { HISTORY_MANIFEST } from '@/state/stores/historyManifest';
 
-// At commit 2: present.txt present, gone.txt deleted, future.txt not yet created.
+// At commit 2: present.txt present, gone.txt deleted, future/y.txt not yet created.
 const bundle = {
   commits: [{ sha: 'a' }, { sha: 'b' }, { sha: 'c' }, { sha: 'd' }],
   unionManifest: {
@@ -46,7 +46,7 @@ function paths(m: unknown): Set<string> {
   const out = new Set<string>();
   const walk = (n: TreeNode) => {
     if (n.path != null) out.add(n.path);
-    for (const c of n.children ?? []) walk(c);
+    for (const c of (n as { children?: TreeNode[] }).children ?? []) walk(c);
   };
   const tree = (m as { tree?: TreeNode })?.tree;
   if (tree) walk(tree);
@@ -57,38 +57,21 @@ afterEach(() => {
   TIMELINE_MODE.value = false;
   TIMELINE_BUNDLE.value = null;
   SCRUB_POS.value = 0;
-  RUINS.value = { ...RUINS.value, ENABLED: true };
-  BLUEPRINTS.value = { ...BLUEPRINTS.value, ENABLED: false };
 });
 
-test('ruins on + future off (default): show deleted, hide future (+ its empty dir)', () => {
+test('only present-at-scrub paths survive (deleted + future dropped, empty dirs pruned)', () => {
   TIMELINE_BUNDLE.value = bundle;
   TIMELINE_MODE.value = true;
   SCRUB_POS.value = 2;
-  RUINS.value = { ...RUINS.value, ENABLED: true };
-  BLUEPRINTS.value = { ...BLUEPRINTS.value, ENABLED: false };
 
   const p = paths(HISTORY_MANIFEST.value);
   expect(p.has('present.txt')).toBe(true);
-  expect(p.has('gone.txt')).toBe(true); // deleted, shown (ruins on)
-  expect(p.has('future/y.txt')).toBe(false); // future, hidden
+  expect(p.has('gone.txt')).toBe(false); // deleted at commit 2
+  expect(p.has('future/y.txt')).toBe(false); // not created until commit 3
   expect(p.has('future')).toBe(false); // dir emptied → dropped
 });
 
-test('ruins off + future off: only present paths', () => {
-  TIMELINE_BUNDLE.value = bundle;
-  TIMELINE_MODE.value = true;
-  SCRUB_POS.value = 2;
-  RUINS.value = { ...RUINS.value, ENABLED: false };
-  BLUEPRINTS.value = { ...BLUEPRINTS.value, ENABLED: false };
-
-  const p = paths(HISTORY_MANIFEST.value);
-  expect(p.has('present.txt')).toBe(true);
-  expect(p.has('gone.txt')).toBe(false); // deleted, hidden (ruins off)
-  expect(p.has('future/y.txt')).toBe(false);
-});
-
-test('ruins on + future on: full union, nothing filtered', () => {
+test('present-only regardless of the ruins / future toggles', () => {
   TIMELINE_BUNDLE.value = bundle;
   TIMELINE_MODE.value = true;
   SCRUB_POS.value = 2;
@@ -96,6 +79,7 @@ test('ruins on + future on: full union, nothing filtered', () => {
   BLUEPRINTS.value = { ...BLUEPRINTS.value, ENABLED: true };
 
   const p = paths(HISTORY_MANIFEST.value);
-  expect(p.has('gone.txt')).toBe(true);
-  expect(p.has('future/y.txt')).toBe(true);
+  expect(p.has('gone.txt')).toBe(false);
+  expect(p.has('future/y.txt')).toBe(false);
+  expect(p.has('present.txt')).toBe(true);
 });
