@@ -46,7 +46,7 @@ import { ObjectBVH } from 'three-mesh-bvh';
 import { signal, effect, untracked } from '@preact/signals';
 import { NodeKind } from '@/types';
 import { sidewalkStreetForFace } from '@/city/components/streets/streets';
-import { TIMELINE_MODE } from '@/state/stores/timeline';
+import { TIMELINE_MODE, SCRUB_POS } from '@/state/stores/timeline';
 import { RUINED_STREET_DIRS, FUTURE_STREET_DIRS } from '@/city/timeline/scrubController';
 
 import type { PickTarget, PickerWorld, PickerSelectionKey } from '@/types';
@@ -257,6 +257,19 @@ export function createPicker({
   });
   // Note: both effects fire ONCE at construction (revisions start at 0). That
   // initial resolve runs with key null → selection cleared + pickables primed.
+
+  // Timeline scrub mutates every building's instance matrix each frame (height +
+  // the age-lean shear). The cached ObjectBVH stores bounds at build time, so
+  // without this it keeps the heights from whenever it was last built — the
+  // hitbox freezes while the render follows the scrub. Invalidate on SCRUB_POS so
+  // the next pickAt rebuilds against the scrubbed matrices. Live mode never fires
+  // the rebuild (matrices are static there).
+  const _disposeScrubBvhEffect = effect(() => {
+    void SCRUB_POS.value;
+    if (!TIMELINE_MODE.peek()) return;
+    _bvh = null;
+    _bvhDirty = true;
+  });
 
   // ── Public setters ─────────────────────────────────────────────────
   function setHover(h: PickTarget | null): void {
@@ -502,6 +515,7 @@ export function createPicker({
   function dispose() {
     _disposeCityRevEffect();
     _disposeDecorationRevEffect();
+    _disposeScrubBvhEffect();
     _disposeSelectionEffect();
   }
 

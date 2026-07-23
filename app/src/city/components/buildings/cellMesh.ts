@@ -17,7 +17,7 @@ import type { CellTile } from './cellTile';
 import type { Building } from '@/types/index';
 import { getBuildingMaterial, getIconAtlas } from './material';
 import { getFileIconName } from '@/utils/fileIcons';
-import { seedFromPath, attachLeanAwareRaycast } from './tilt';
+import { seedFromPath, getBuildingTilt, composeShearMatrix } from './tilt';
 
 // ---------------------------------------------------------------------------
 // Shared geometry — unit box, constructed once at module load and
@@ -26,6 +26,12 @@ import { seedFromPath, attachLeanAwareRaycast } from './tilt';
 // ---------------------------------------------------------------------------
 
 const SHARED_BUILDING_GEOMETRY: THREE.BufferGeometry = new THREE.BoxGeometry(1, 1, 1);
+
+// Scratch for composing each building's sheared instance matrix (writeBuildingToSlot
+// is called once per building on a rebuild — reuse instead of allocating each call).
+const _writePos = new THREE.Vector3();
+const _writeScale = new THREE.Vector3();
+const _writeMatrix = new THREE.Matrix4();
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -141,10 +147,6 @@ export function attachBuildingMeshToCell(cell: CellTile): void {
     3
   );
 
-  // Replace the default InstancedMesh raycast with one that honors the
-  // vertex shader's Y-shear so click targets hit the leaned silhouette.
-  // See ./tilt.ts.
-  attachLeanAwareRaycast(cell.detailMesh);
 }
 
 /**
@@ -169,14 +171,15 @@ export function writeBuildingToSlot(cell: CellTile, b: Building): void {
   const widthPerWindowCol = facade.WIDTH_PER_WINDOW_COL;
   const doorWidthFrac = facade.DOOR_WIDTH_FRAC;
 
-  // --- Transform matrix ---
-  // Layout (x, y) → scene (x, z); building.h is scene-Y.
-  // Position y = h/2 so the base sits on z=0 (the convention the
-  // building shader assumes — see building.vert.glsl).
-  const m = new THREE.Matrix4();
-  m.makeScale(b.w, b.h, b.d);
-  m.setPosition(b.x, b.h / 2, b.y);
-  mesh.setMatrixAt(slot, m);
+  // --- Transform matrix (scale + translate + age-lean shear) ---
+  // Layout (x, y) → scene (x, z); building.h is scene-Y. Position y = h/2 so the
+  // base sits on z=0. The lean is baked in as a Y-driven XZ shear (see tilt.ts)
+  // so the render, outline, and picker all read one sheared matrix.
+  const { tiltX, tiltZ } = getBuildingTilt(b);
+  _writePos.set(b.x, b.h / 2, b.y);
+  _writeScale.set(b.w, b.h, b.d);
+  composeShearMatrix(_writePos, _writeScale, tiltX, tiltZ, _writeMatrix);
+  mesh.setMatrixAt(slot, _writeMatrix);
 
   // --- Color (linear RGB via Three.Color) ---
   const colorTmp = new THREE.Color();

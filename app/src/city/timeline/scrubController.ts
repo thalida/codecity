@@ -22,6 +22,7 @@ import type { Building, Street } from '@/types';
 import type { BuildingIndex } from '@/city/components/buildings/buildingIndex';
 import type { InstancedAdPanels } from '@/city/components/buildings/adPanels';
 import { getBuildingColorForRecency } from '@/city/components/buildings/color';
+import { getBuildingTiltAtAge, composeShearMatrix } from '@/city/components/buildings/tilt';
 import { parentDirPath } from '@/city/utils/path';
 import { streetChainForDirPath } from '@/city/layout/streetPath';
 import { lastModifiedIndexAt, linesAt, presenceAt, ruinStateAt } from './replay';
@@ -105,6 +106,8 @@ export function createScrubController(deps: ScrubControllerDeps) {
   const _commitMs = (TIMELINE_BUNDLE.peek()?.commits ?? []).map((c) => Date.parse(c.date) || 0);
 
   const _m = new THREE.Matrix4();
+  const _pos = new THREE.Vector3();
+  const _scale = new THREE.Vector3();
   const _color = new THREE.Color();
   const _futureColor = new THREE.Color();
 
@@ -217,6 +220,14 @@ export function createScrubController(deps: ScrubControllerDeps) {
       if (!resolved) continue;
       const { mesh, slot } = resolved;
 
+      // createdAge (0=newest, 1=oldest) is scrub-relative here — needed for both
+      // the lean shear (below) and the window/grime weathering (iIconUV.w later).
+      const createdMs = _commitMs[createdIdx] ?? 0;
+      const createdAge =
+        present && createdSpread > 0
+          ? 1 - Math.max(0, Math.min(1, (createdMs - minCreated) / createdSpread))
+          : 0;
+
       const iFloorsAttr = mesh.geometry.getAttribute('iFloors') as
         | THREE.BufferAttribute
         | undefined;
@@ -231,8 +242,11 @@ export function createScrubController(deps: ScrubControllerDeps) {
           iFloorsAttr.setX(slot, dims.floors);
           dirtyFloors.add(iFloorsAttr);
         }
-        _m.makeScale(b.w, dims.h, b.d);
-        _m.setPosition(b.x, dims.h / 2, b.y);
+        // Bake the age-lean shear into the matrix so the picker + outline follow it.
+        const { tiltX, tiltZ } = getBuildingTiltAtAge(b.file.path, createdAge);
+        _pos.set(b.x, dims.h / 2, b.y);
+        _scale.set(b.w, dims.h, b.d);
+        composeShearMatrix(_pos, _scale, tiltX, tiltZ, _m);
       } else if (ruin) {
         // A deleted building: uniform low stub, blank facade (0 window rows) — reads as rubble.
         if (iFloorsAttr) {
@@ -299,12 +313,7 @@ export function createScrubController(deps: ScrubControllerDeps) {
           dirtyModifiedAges.add(iModifiedAgeAttr);
         }
 
-        // getCreatedAge polarity: 0=newest, 1=oldest, on the creation-date axis.
-        const createdMs = _commitMs[createdIdx] ?? 0;
-        const createdAge =
-          createdSpread > 0
-            ? 1 - Math.max(0, Math.min(1, (createdMs - minCreated) / createdSpread))
-            : 0;
+        // createdAge (hoisted above) drives grime/weathering: 0=newest, 1=oldest.
         const iIconUVAttr = mesh.geometry.getAttribute('iIconUV') as
           | THREE.BufferAttribute
           | undefined;

@@ -507,14 +507,17 @@ const BUILDINGS_FIELDS = {
     tip: 'Fraction of vertical bands that streak, from newest buildings (left) to oldest (right). Lower is sparser, higher is nearly every band.',
   },
   TILT_ENABLED: {
-    route: ChangeRoute.Refresh,
+    // Rebuild (not Refresh): the lean is baked into each building's instance
+    // matrix (tilt.ts), so a change must re-bake matrices — a full apply — not
+    // just push a uniform. Keeps the picker + outline in sync with the render.
+    route: ChangeRoute.Rebuild,
     kind: FieldKind.Toggle,
     default: true,
     label: 'Enabled',
     tip: "Small lean at the base that grows with a building's age. Each one leans in a fixed direction. Turn off to keep every building upright.",
   },
   TILT_DEGREES: {
-    route: ChangeRoute.Refresh,
+    route: ChangeRoute.Rebuild,
     kind: FieldKind.RangePair,
     default: [0, 1] as [number, number],
     min: 0,
