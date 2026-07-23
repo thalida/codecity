@@ -393,7 +393,10 @@ export function createPicker({
   // visible. Used to prune a dangling selection each frame while scrubbing.
   function _selectionScrubHidden(sel: PickTarget): boolean {
     if (sel.kind === NodeKind.File) {
-      return sel.instanceId != null && _buildingScrubHidden(sel.mesh as THREE.InstancedMesh, sel.instanceId);
+      return (
+        sel.instanceId != null &&
+        _buildingScrubHidden(sel.mesh as THREE.InstancedMesh, sel.instanceId)
+      );
     }
     if (sel.kind === NodeKind.Commit) {
       return _treeScrubHidden(sel.mesh, sel.instanceId);
@@ -515,7 +518,8 @@ export function createPicker({
       }
       const street = sidewalkStreetForFace(hit.object, hit.faceIndex ?? 0);
       // A future folder's road is only a pad — it doesn't exist at this scrub position, so it's not selectable.
-      if (street?.dir && TIMELINE_MODE.peek() && FUTURE_STREET_DIRS.has(street.dir.path)) return null;
+      if (street?.dir && TIMELINE_MODE.peek() && FUTURE_STREET_DIRS.has(street.dir.path))
+        return null;
       if (street?.dir) {
         return {
           kind: NodeKind.Directory,

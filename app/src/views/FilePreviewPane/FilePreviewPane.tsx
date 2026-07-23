@@ -530,7 +530,9 @@ export function FilePreviewPane({ state, onClose, onFocus, onExclude }: FilePrev
         <div class="empty-state empty-state--lg file-deleted-state">
           <FileX class="icon" aria-hidden="true" />
           <p class="text-card-title">This file was deleted</p>
-          <p class="text-card-sub">It no longer exists in the repo, so there&rsquo;s nothing to preview.</p>
+          <p class="text-card-sub">
+            It no longer exists in the repo, so there&rsquo;s nothing to preview.
+          </p>
         </div>
       ) : (
         _previewBody(file)

@@ -29,20 +29,11 @@ export function commitUrl(remote: string, sha: string): string | null {
  * always copyable as a fallback. Returns null for an empty remote/ref/path
  * (e.g. a local repo with no remote, or the root directory).
  */
-export function nodeUrl(
-  remote: string,
-  ref: string,
-  path: string,
-  isDir: boolean
-): string | null {
+export function nodeUrl(remote: string, ref: string, path: string, isDir: boolean): string | null {
   if (!remote || !ref || !path) return null;
   const trimmed = remote.endsWith('/') ? remote.slice(0, -1) : remote;
   const seg = isDir ? 'tree' : 'blob';
-  const cleanPath = path
-    .replace(/^\/+/, '')
-    .split('/')
-    .map(encodeURIComponent)
-    .join('/');
+  const cleanPath = path.replace(/^\/+/, '').split('/').map(encodeURIComponent).join('/');
   if (!cleanPath) return null;
   return `${trimmed}/${seg}/${encodeURIComponent(ref)}/${cleanPath}`;
 }

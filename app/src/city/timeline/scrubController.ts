@@ -421,7 +421,11 @@ export function createScrubController(deps: ScrubControllerDeps) {
       if (street.dir?.path != null) {
         // Footprint plot: present + ruin only. A future road is the tinted asphalt,
         // so its plot stays hidden (keeps future independent of footprint controls).
-        deps.footprints.setStreetFootprintOpacity(street.dir.path, streetFuture ? 0 : op, streetRuin);
+        deps.footprints.setStreetFootprintOpacity(
+          street.dir.path,
+          streetFuture ? 0 : op,
+          streetRuin
+        );
         if (streetRuin) RUINED_STREET_DIRS.add(street.dir.path);
         else if (streetFuture) FUTURE_STREET_DIRS.add(street.dir.path);
       }

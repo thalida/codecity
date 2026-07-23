@@ -171,9 +171,7 @@ export function CommitPane({ state, onClose, onFocus, onViewInTimeline }: Commit
             type="button"
             class="btn-icon btn-icon--no-drag"
             title={
-              inTimeline
-                ? 'Scrub the timeline to this commit'
-                : 'View this commit on the timeline'
+              inTimeline ? 'Scrub the timeline to this commit' : 'View this commit on the timeline'
             }
             aria-label="View on timeline"
             onClick={() => onViewInTimeline(commit)}

@@ -167,9 +167,7 @@ describe('CommitPane', () => {
 
     await setCommit(COMMIT, { inTimeline: true, now: new Date('2026-05-24T12:00:00Z') });
     expect(
-      container
-        .querySelector('.pane-header [aria-label="View on timeline"]')!
-        .getAttribute('title')
+      container.querySelector('.pane-header [aria-label="View on timeline"]')!.getAttribute('title')
     ).toContain('Scrub the timeline to this commit');
   });
 

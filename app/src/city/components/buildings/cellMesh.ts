@@ -146,7 +146,6 @@ export function attachBuildingMeshToCell(cell: CellTile): void {
     new Float32Array(cell.capacity * 3),
     3
   );
-
 }
 
 /**

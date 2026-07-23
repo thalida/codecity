@@ -87,9 +87,7 @@ export function StreetPane({ state, onClose, onFocus, onExclude }: StreetPanePro
   return (
     <Pane
       paneClass="street-pane"
-      titleSlot={
-        <PathBreadcrumbs path={dirPath} isDir rootLabel={rootLabel} rootPath={rootPath} />
-      }
+      titleSlot={<PathBreadcrumbs path={dirPath} isDir rootLabel={rootLabel} rootPath={rootPath} />}
       mono
       onFocus={typeof onFocus === 'function' ? () => onFocus(d) : undefined}
       focusTitle={`Focus the camera on this road (${KEY_BINDINGS.FOCUS_SELECTION.label})`}

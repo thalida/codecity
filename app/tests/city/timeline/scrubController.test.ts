@@ -1696,7 +1696,12 @@ test('future: a not-yet-created building renders as an ultra-low tinted slab', (
 });
 
 test('future: at tint 0 the slab keeps its own file hue, not the building color', () => {
-  BLUEPRINTS.value = { ...BLUEPRINTS.value, ENABLED: true, BUILDING_COLOR: '#00ffff', BUILDING_TINT: 0 };
+  BLUEPRINTS.value = {
+    ...BLUEPRINTS.value,
+    ENABLED: true,
+    BUILDING_COLOR: '#00ffff',
+    BUILDING_TINT: 0,
+  };
   const { fake, controller } = setup();
   SCRUB_POS.value = 0.5;
   controller.update();
