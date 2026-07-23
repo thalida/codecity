@@ -17,10 +17,11 @@ import { SHOTS, type ShotOverrides } from './shots';
 
 // Camera tween + bloom ramp + ad-panel texture fades all settle well under this.
 const SETTLE_MS = 2200;
-// Retry a not-yet-ready shot (e.g. trees still placing) this often, up to a cap
-// (~12s) that covers a big repo's tree placement.
+// Retry a not-yet-ready shot (e.g. trees still placing, or the timeline shot
+// waiting on the async history-bundle fetch + union pack) this often, up to a cap
+// (~48s) that covers a big repo's tree placement or a warm-cache timeline build.
 const POSE_RETRY_MS = 400;
-const MAX_POSE_ATTEMPTS = 30;
+const MAX_POSE_ATTEMPTS = 120;
 
 export function initCaptureHarness(): void {
   const params = new URLSearchParams(window.location.search);

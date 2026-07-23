@@ -140,6 +140,17 @@ Just about every aspect of the rendering is tunable in the Settings pane, opened
 - **Root marker**: floats above the root street
 - **Click**: clears the selection and resets the view
 
+## Timeline
+
+<img src=".github/readme/timeline.png" alt="An older commit rebuilt: a part-built city with deleted files left as gray stubs and future files marked by low tinted slabs" width="800" />
+
+**Scrub the whole history and watch the city grow.** The scene toggle flips from Live to Timeline, and a dated slider spans the repo, a tick per commit. Drag it and the city rebuilds at that commit.
+
+Files that don't exist at that commit still get a place, set in the World tab under Timeline:
+
+- **Deleted files** leave a faint gray stub where the building stood, so a folder that's been cleared out reads as a block instead of a hole.
+- **Future files** mark where a not-yet-created file will land with an ultra-low slab, tinted toward its own color. Off by default; turn it on to see the shape the city is growing toward.
+
 ## How it works
 
 1. **Clone or read:** Remote repos clone into a local cache (current tree only); local folders are read in place.

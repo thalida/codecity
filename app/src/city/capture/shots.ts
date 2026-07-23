@@ -12,6 +12,10 @@
 import type { SceneHandle } from '@/state/stores/scene';
 import { NodeKind, type Manifest, type DirNode } from '@/types';
 import { CAMERA } from '@/state/stores/settings/camera';
+import { RUINS } from '@/state/stores/settings/ruins';
+import { BLUEPRINTS } from '@/state/stores/settings/blueprints';
+import { TIMELINE_MODE, SCRUB_POS, TIMELINE_BUNDLE } from '@/state/stores/timeline';
+import { enterTimelineMode } from '@/hooks/useTimelineMode';
 
 /** Set the default-view angle (degrees); the rig re-frames the whole city to
  *  it. Elevation is height above the horizon, azimuth the swing around the gem. */
@@ -75,6 +79,10 @@ function mostColorfulDirPath(root: DirNode): string | null {
   return bestPath;
 }
 
+// Fire enterTimelineMode() exactly once across the timeline shot's pose retries
+// (it's async; the harness re-invokes the pose until it returns non-false).
+let _timelineKickedOff = false;
+
 export const SHOTS: Record<string, ShotPose> = {
   // Low side-on skyline. Aim just above the gem (toward the floating repo
   // label) and pull in close so the label reads and stays framed.
@@ -97,6 +105,27 @@ export const SHOTS: Record<string, ShotPose> = {
   // Whole-city framing: the rig fits the entire city to the chosen angle.
   overview: (h, _m, o) => {
     angle(o.elev ?? 46, o.az ?? 34);
+    h.rig.reset();
+  },
+
+  // The whole city part-built at an older commit: enter Timeline mode (with both
+  // deleted stubs and future slabs on so the shot shows every representation),
+  // scrub to mid-history, and frame the union city. enterTimelineMode is async, so
+  // return false until the mode + bundle are live — the harness retries.
+  timeline: (h, _m, o) => {
+    if (!TIMELINE_MODE.peek()) {
+      if (!_timelineKickedOff) {
+        _timelineKickedOff = true;
+        RUINS.value = { ...RUINS.value, ENABLED: true };
+        BLUEPRINTS.value = { ...BLUEPRINTS.value, ENABLED: true };
+        void enterTimelineMode();
+      }
+      return false;
+    }
+    const bundle = TIMELINE_BUNDLE.peek();
+    if (!bundle || bundle.commits.length === 0) return false;
+    SCRUB_POS.value = Math.floor((bundle.commits.length - 1) * 0.5);
+    angle(o.elev ?? 44, o.az ?? 32);
     h.rig.reset();
   },
 

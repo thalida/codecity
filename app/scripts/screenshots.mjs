@@ -39,6 +39,7 @@ const SHOTS = [
   { name: 'trees', file: 'trees.png', width: 1280, height: 860, ...FOREST },
   { name: 'fireflies', file: 'fireflies.png', width: 1040, height: 860, ...FOREST },
   { name: 'gem', file: 'gem.png', width: 1040, height: 860 },
+  { name: 'timeline', file: 'timeline.png', width: 1280, height: 860 },
 ];
 
 const READY = 'html[data-cc-capture-ready="1"]';
