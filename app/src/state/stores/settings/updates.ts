@@ -3,7 +3,7 @@
 // when the manifest's content_signature changes (the tree's mtime/size/dirty
 // state shifted).
 //
-// Default OFF so the tool stays cheap when nobody's actively editing.
+// Default ON at a 3s poll so the city tracks edits out of the box.
 // Schema-driven (see state/schema); POLL_SECONDS is clamped to a
 // hard [min, max] range at the caller (manifestPoll), where those bounds live.
 
@@ -20,14 +20,14 @@ const LIVE_UPDATES_FIELDS = {
   ENABLED: {
     route: ChangeRoute.Live,
     kind: FieldKind.Toggle,
-    default: false,
+    default: true,
     label: 'Enabled',
     tip: "When on, the city re-renders in place whenever the project's files change, checked every poll interval.",
   },
   POLL_SECONDS: {
     route: ChangeRoute.Live,
     kind: FieldKind.Number,
-    default: 10,
+    default: 3,
     min: 1,
     max: 60,
     step: 1,
