@@ -13,7 +13,7 @@ import type { ReadonlySignal } from '@preact/signals';
 import type { DirNode, ExtBreakdownEntry } from '@/types';
 import { Pane, PaneEmpty } from '@/components/Pane';
 import { KEY_BINDINGS } from '@/constants/keyboard';
-import { Route, FileType, CalendarRange, History } from 'lucide-preact';
+import { Route, FileType, CalendarRange, TriangleAlert } from 'lucide-preact';
 import { ExtensionBadge } from '@/components/Badge/Badge';
 import { PathBreadcrumbs } from '@/components/PathBreadcrumbs/PathBreadcrumbs';
 import { nodeUrl } from '@/utils/commit';
@@ -108,33 +108,35 @@ export function StreetPane({ state, onClose, onFocus, onExclude }: StreetPanePro
           : undefined
       }
       excludeTitle="Exclude this road from the city"
-      bodyClass="street-body pane-inset"
+      bodyClass={`street-body${inTimeline ? ' has-stale-note' : ''}`}
     >
       {inTimeline && (
-        <div class="street-timeline-note" role="note">
-          <History class="icon" aria-hidden="true" />
-          All-time folder stats, not the scrubbed commit.
+        <div class="timeline-stale-note" role="alert">
+          <TriangleAlert class="icon" aria-hidden="true" />
+          All-time folder stats, not based on the timeline commit.
         </div>
       )}
-      {dateRange && (
-        <div class="street-dates" title="Oldest file created → newest change">
-          <CalendarRange class="icon street-dates-icon" aria-hidden="true" />
-          {dateRange}
-        </div>
-      )}
-      {stats.length > 0 && (
-        <>
-          <div class="street-ext-h text-label">
-            <FileType class="icon street-ext-icon" aria-hidden="true" />
-            By extension
+      <div class="street-content pane-inset">
+        {dateRange && (
+          <div class="street-dates" title="Oldest file created → newest change">
+            <CalendarRange class="icon street-dates-icon" aria-hidden="true" />
+            {dateRange}
           </div>
-          <div class="street-ext-list">
-            {stats.map((s) => (
-              <StreetExtRow key={s.ext ?? ''} s={s} total={total} />
-            ))}
-          </div>
-        </>
-      )}
+        )}
+        {stats.length > 0 && (
+          <>
+            <div class="street-ext-h text-label">
+              <FileType class="icon street-ext-icon" aria-hidden="true" />
+              By extension
+            </div>
+            <div class="street-ext-list">
+              {stats.map((s) => (
+                <StreetExtRow key={s.ext ?? ''} s={s} total={total} />
+              ))}
+            </div>
+          </>
+        )}
+      </div>
     </Pane>
   );
 }

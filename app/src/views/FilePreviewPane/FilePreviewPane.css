@@ -43,6 +43,12 @@
   flex: 1 1 auto;
   min-height: 0;
 }
+/* When the stale-data toast is up (shared .timeline-stale-note in panes.css),
+   drop the code's first line below it so it isn't covered on load — the toast
+   floats over everything past that as you scroll. */
+.editor-body.has-stale-note .code-editor {
+  padding-top: calc(var(--cc-space-8) + var(--cc-space-8));
+}
 
 /* Empty/error/too-large states all use the .empty-state + .empty-state--lg
    helper (centered icon + headline + subtitle) in the search-pane section. */
@@ -154,7 +160,7 @@
   flex: 0 0 auto;
   display: flex;
   flex-direction: column;
-  padding: var(--cc-space-5) var(--cc-space-4) var(--cc-space-5) var(--cc-space-5);
+  padding: var(--cc-space-5);
   background: var(--cc-bg-chrome);
   border-right: 1px solid var(--cc-track);
   color: var(
@@ -175,6 +181,13 @@
   font-variant-numeric: tabular-nums;
   min-width: 1.5em;
 }
+/* Same trailing spacer as the code column so the gutter's background/divider
+   extends down alongside the bottom gap. */
+.code-editor-gutter::after {
+  content: '';
+  display: block;
+  height: var(--cc-space-8);
+}
 
 .code-editor-pre {
   margin: var(--cc-space-0);
@@ -183,6 +196,14 @@
   white-space: pre;
   background: transparent;
   color: var(--cc-text-primary);
+}
+/* Trailing gap so the last line clears the bottom edge. A real block (not
+   padding) — a flex scroll-container can clip a child's end padding out of the
+   scrollable range, but never in-flow content. */
+.code-editor-pre::after {
+  content: '';
+  display: block;
+  height: var(--cc-space-8);
 }
 
 .code-editor-code {
@@ -263,21 +284,4 @@
 }
 .font-specimen-glyph:hover {
   background: var(--cc-bg-chrome);
-}
-
-/* Timeline note: the preview reads HEAD, not the scrubbed commit. Sits above the
-   file body as a muted banner. */
-.preview-timeline-note {
-  display: flex;
-  align-items: center;
-  gap: var(--cc-space-3);
-  padding: var(--cc-space-3) var(--cc-space-4);
-  border-bottom: 1px solid var(--cc-border-subtle);
-  background: var(--cc-bg-chrome);
-  color: var(--cc-text-secondary);
-  font-size: var(--cc-font-sm);
-}
-.preview-timeline-note .icon {
-  flex-shrink: 0;
-  color: var(--cc-text-muted);
 }

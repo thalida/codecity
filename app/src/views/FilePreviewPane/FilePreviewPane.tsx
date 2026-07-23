@@ -28,7 +28,7 @@ export enum PreviewKind {
   Text = 'text',
 }
 import { fileUrl, fetchFileText, fetchFileBytes } from '@/api/file';
-import { FileWarning, FileX, History, Info, MousePointerClick } from 'lucide-preact';
+import { FileWarning, FileX, TriangleAlert, Info, MousePointerClick } from 'lucide-preact';
 import { Pane, PaneEmpty } from '@/components/Pane';
 import { KEY_BINDINGS } from '@/constants/keyboard';
 import { PathBreadcrumbs } from '@/components/PathBreadcrumbs/PathBreadcrumbs';
@@ -506,12 +506,12 @@ export function FilePreviewPane({ state, onClose, onFocus, onExclude }: FilePrev
       onClose={onClose}
       onExclude={file && typeof onExclude === 'function' ? () => onExclude(file) : undefined}
       excludeTitle="Exclude this file from the city"
-      bodyClass="editor-body surface-app"
+      bodyClass={`editor-body surface-app${file && inTimeline ? ' has-stale-note' : ''}`}
     >
       {file && inTimeline && (
-        <div class="preview-timeline-note" role="note">
-          <History class="icon" aria-hidden="true" />
-          Showing the current version (HEAD), not the scrubbed commit.
+        <div class="timeline-stale-note" role="alert">
+          <TriangleAlert class="icon" aria-hidden="true" />
+          Showing the current version (HEAD), not the current timeline commit.
         </div>
       )}
       {_previewBody(file)}

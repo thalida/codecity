@@ -33,3 +33,38 @@
   padding: var(--cc-pane-inset);
   box-sizing: border-box;
 }
+
+/* Timeline stale-data notice — a compact frosted-red toast floating at the top of
+   the file/dir panes while scrubbing, warning that the content is HEAD / all-time
+   (or the file is deleted), not the timeline commit. Absolutely positioned so it
+   floats over the pane's scrolling content (which clears it via a has-stale-note
+   top pad); both bodies are inset-free so the toast sits at an identical space-4
+   from the pane edges in either pane. */
+.editor-body,
+.street-body {
+  position: relative;
+}
+.timeline-stale-note {
+  position: absolute;
+  top: var(--cc-space-4);
+  left: var(--cc-space-4);
+  right: var(--cc-space-4);
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: var(--cc-space-3);
+  padding: var(--cc-space-3) var(--cc-space-4);
+  background: var(--cc-error-bg);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  color: var(--cc-error-light);
+  border: 1px solid var(--cc-error-border);
+  border-radius: var(--cc-radius-md);
+  box-shadow: var(--cc-shadow-md);
+  font-size: var(--cc-font-sm);
+  font-weight: 600;
+}
+.timeline-stale-note .icon {
+  flex-shrink: 0;
+  color: var(--cc-error);
+}

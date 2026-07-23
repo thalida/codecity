@@ -20,7 +20,25 @@
 .street-body {
   display: flex;
   flex-direction: column;
+}
+
+/* Inset content column. The body itself is inset-free so the stale-data toast
+   floats at the same space-4 from the pane edges as the file pane's; the inset
+   lives here (via .pane-inset) instead. This column is the scroller (not the
+   body) so the body stays a fixed positioning context and the toast pins to the
+   top instead of scrolling away with the stats. */
+.street-content {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
   gap: var(--cc-space-6);
+}
+/* When the toast is up, drop the first stat below it so it isn't covered on
+   load (matches the file pane's code clearance). */
+.street-body.has-stale-note .street-content {
+  padding-top: calc(var(--cc-space-8) + var(--cc-space-8));
 }
 
 /* Activity span: oldest file created → newest change. */
@@ -103,17 +121,4 @@
   justify-self: end;
   color: var(--cc-text-primary);
   white-space: nowrap;
-}
-
-/* Timeline note: folder stats are all-time (union), not the scrubbed commit. */
-.street-timeline-note {
-  display: flex;
-  align-items: center;
-  gap: var(--cc-space-3);
-  color: var(--cc-text-secondary);
-  font-size: var(--cc-font-sm);
-}
-.street-timeline-note .icon {
-  flex-shrink: 0;
-  color: var(--cc-text-muted);
 }
