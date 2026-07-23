@@ -6,9 +6,9 @@ export const TIMELINE_MODE = signal(false);
 export const SCRUB_POS = signal(0);
 export const TIMELINE_BUNDLE = signal<TimelineBundle | null>(null);
 
-// The whole commit index SCRUB_POS lands on. Per-path state only changes at
-// integer commits, so signals keyed on this (the sidebar tree/search marking)
-// recompute once per commit crossing, not on every sub-commit interpolation frame.
+// The whole commit index SCRUB_POS lands on. Per-path presence only changes at
+// integer commits, so the sidebar's present-path filter (keyed on this) recomputes
+// once per commit crossing, not on every sub-commit interpolation frame.
 export const SCRUB_COMMIT = computed(() => Math.floor(SCRUB_POS.value));
 
 // True while the user is actively dragging the scrubber handle. Consumers that

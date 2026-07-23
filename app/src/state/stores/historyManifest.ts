@@ -1,11 +1,6 @@
-// state/stores/historyManifest.ts — the manifest the left-sidebar file tree +
-// search read. While scrubbing, the union manifest filtered to just the paths
-// PRESENT at the scrubbed commit (deleted + not-yet-created paths are excluded),
-// so the tree/search always match what's actually alive in the city at that
-// point in history. Outside Timeline it's the live HEAD manifest.
-//
-// The README pane stays on HEAD (it fetches the current checkout), so it reads
-// MANIFEST directly rather than this.
+// The manifest the sidebar tree + search read: while scrubbing, the union
+// filtered to the paths present at the scrubbed commit; else the HEAD manifest.
+// (README stays on HEAD — it reads MANIFEST directly.)
 
 import { computed, type ReadonlySignal } from '@preact/signals';
 import { MANIFEST, type ManifestValue } from './manifest';

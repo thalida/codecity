@@ -13,6 +13,8 @@ import { Marked } from 'marked';
 import { NodeKind } from '@/types';
 import type { DirNode, FileNode, Manifest } from '@/types';
 import { PaneEmpty } from '@/components/Pane';
+import { TimelineStaleNote } from '@/components/TimelineStaleNote/TimelineStaleNote';
+import { TIMELINE_MODE } from '@/state/stores/timeline';
 import { isEmptyManifest } from '@/utils/manifest';
 import { resolveReadmeAssetUrl, rewriteHtmlImageUrls } from '@/utils/readmeAssets';
 
@@ -125,23 +127,35 @@ export function ReadmePane({ manifest }: ReadmePaneProps) {
   }, [manifest]);
 
   return (
-    <>
-      {body.kind === InfoBodyKind.NoProject && (
-        <PaneEmpty icon={FolderOpen} title="No project loaded" sub="Open one to read its README." />
+    <div class="pane readme-pane">
+      {TIMELINE_MODE.value && (
+        <TimelineStaleNote>Showing the README at HEAD, not this timeline commit.</TimelineStaleNote>
       )}
-      {body.kind === InfoBodyKind.NoReadme && (
-        <PaneEmpty
-          icon={BookOpen}
-          title="No README"
-          sub="Add a README at the project root to fill this panel."
-        />
-      )}
-      {body.kind === InfoBodyKind.Error && (
-        <PaneEmpty icon={FileWarning} title="Couldn't load README" sub={body.message} />
-      )}
-      {body.kind === InfoBodyKind.Markdown && (
-        <article class="info-markdown pane-inset" dangerouslySetInnerHTML={{ __html: body.html }} />
-      )}
-    </>
+      <div class={`pane-body${TIMELINE_MODE.value ? ' has-stale-note' : ''}`}>
+        {body.kind === InfoBodyKind.NoProject && (
+          <PaneEmpty
+            icon={FolderOpen}
+            title="No project loaded"
+            sub="Open one to read its README."
+          />
+        )}
+        {body.kind === InfoBodyKind.NoReadme && (
+          <PaneEmpty
+            icon={BookOpen}
+            title="No README"
+            sub="Add a README at the project root to fill this panel."
+          />
+        )}
+        {body.kind === InfoBodyKind.Error && (
+          <PaneEmpty icon={FileWarning} title="Couldn't load README" sub={body.message} />
+        )}
+        {body.kind === InfoBodyKind.Markdown && (
+          <article
+            class="info-markdown pane-inset"
+            dangerouslySetInnerHTML={{ __html: body.html }}
+          />
+        )}
+      </div>
+    </div>
   );
 }

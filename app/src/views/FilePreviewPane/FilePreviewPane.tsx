@@ -28,8 +28,9 @@ export enum PreviewKind {
   Text = 'text',
 }
 import { fileUrl, fetchFileText, fetchFileBytes } from '@/api/file';
-import { FileWarning, FileX, TriangleAlert, Info, MousePointerClick } from 'lucide-preact';
+import { FileWarning, FileX, Info, MousePointerClick } from 'lucide-preact';
 import { Pane, PaneEmpty } from '@/components/Pane';
+import { TimelineStaleNote } from '@/components/TimelineStaleNote/TimelineStaleNote';
 import { KEY_BINDINGS } from '@/constants/keyboard';
 import { PathBreadcrumbs } from '@/components/PathBreadcrumbs/PathBreadcrumbs';
 import { nodeUrl } from '@/utils/commit';
@@ -521,10 +522,9 @@ export function FilePreviewPane({ state, onClose, onFocus, onExclude }: FilePrev
       bodyClass={`editor-body surface-app${file && inTimeline && !deleted ? ' has-stale-note' : ''}`}
     >
       {file && inTimeline && !deleted && (
-        <div class="timeline-stale-note" role="alert">
-          <TriangleAlert class="icon" aria-hidden="true" />
+        <TimelineStaleNote>
           Showing the current version (HEAD), not the current timeline commit.
-        </div>
+        </TimelineStaleNote>
       )}
       {deleted ? (
         <div class="empty-state empty-state--lg file-deleted-state">

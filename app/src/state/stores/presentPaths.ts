@@ -1,8 +1,5 @@
-// state/stores/presentPaths.ts — the set of union paths PRESENT at the current
-// scrub commit: every file live at that commit, plus every ancestor directory of
-// a live file. The left-sidebar tree + search filter the union to this set, so
-// they always match the set of files the city renders at that point in history.
-// Empty outside Timeline.
+// Union paths present at the current scrub commit (live files + their ancestor
+// dirs). The sidebar tree/search filter to this set. Empty outside Timeline.
 
 import { computed, type ReadonlySignal } from '@preact/signals';
 import { TIMELINE_MODE, TIMELINE_BUNDLE, SCRUB_COMMIT } from './timeline';

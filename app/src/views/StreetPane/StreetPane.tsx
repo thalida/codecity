@@ -12,8 +12,9 @@ import './StreetPane.css';
 import type { ReadonlySignal } from '@preact/signals';
 import type { DirNode, ExtBreakdownEntry } from '@/types';
 import { Pane, PaneEmpty } from '@/components/Pane';
+import { TimelineStaleNote } from '@/components/TimelineStaleNote/TimelineStaleNote';
 import { KEY_BINDINGS } from '@/constants/keyboard';
-import { Route, FileType, CalendarRange, TriangleAlert } from 'lucide-preact';
+import { Route, FileType, CalendarRange } from 'lucide-preact';
 import { ExtensionBadge } from '@/components/Badge/Badge';
 import { PathBreadcrumbs } from '@/components/PathBreadcrumbs/PathBreadcrumbs';
 import { nodeUrl } from '@/utils/commit';
@@ -109,10 +110,9 @@ export function StreetPane({ state, onClose, onFocus, onExclude }: StreetPanePro
       bodyClass={`street-body${inTimeline ? ' has-stale-note' : ''}`}
     >
       {inTimeline && (
-        <div class="timeline-stale-note" role="alert">
-          <TriangleAlert class="icon" aria-hidden="true" />
+        <TimelineStaleNote>
           All-time folder stats, not based on the timeline commit.
-        </div>
+        </TimelineStaleNote>
       )}
       <div class="street-content pane-inset">
         {dateRange && (

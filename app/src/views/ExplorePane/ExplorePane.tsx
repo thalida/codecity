@@ -87,11 +87,8 @@ export function ExplorePane({
           onHoverEnd={onHoverEnd}
         />
       ) : (
-        <div class="pane-body">
-          {/* README always reads HEAD (it fetches the current checkout), never the
-              scrubbed union — so it gets MANIFEST, not the tree's history manifest. */}
-          <ReadmePane manifest={MANIFEST} />
-        </div>
+        // README reads HEAD (fetches the current checkout), never the scrubbed union.
+        <ReadmePane manifest={MANIFEST} />
       )}
     </Pane>
   );
