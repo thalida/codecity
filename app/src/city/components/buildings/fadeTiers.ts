@@ -24,7 +24,7 @@ export interface TierResult {
 // 2 = two hops (L3); 3+ = far (L4). Going up matters the same as going down so a
 // file in `src/lib/` and one in `src/foo/bar/` are equally "near" a selection in
 // `src/foo/`.
-export function tierLevelFor(file: FileNode | null, dir: DirNode): 1 | 2 | 3 | 4 {
+function tierLevelFor(file: FileNode | null, dir: DirNode): 1 | 2 | 3 | 4 {
   if (!file?.path || !dir || dir.path == null) return 4;
   let parent = parentDirPath(file.path);
   if (parent == null) parent = ROOT_PATH;
@@ -76,7 +76,7 @@ export function resolveDirTarget(
 // Read one tier's four config values by key prefix. The BUILDINGS store is flat
 // (DEFAULT_*, LEVEL1_*…LEVEL4_*); dir-tree level N maps to the LEVEL{N} prefix,
 // every other tier to DEFAULT.
-export function tierFromPrefix(
+function tierFromPrefix(
   fadeCfg: BuildingsConfig,
   prefix: 'DEFAULT' | 'LEVEL1' | 'LEVEL2' | 'LEVEL3' | 'LEVEL4'
 ): TierResult {

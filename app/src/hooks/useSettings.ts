@@ -8,7 +8,7 @@
 // Same layer, different granularity:
 //   useField                — per-field binding ({ value, onCommit }); <Field> uses it.
 //   useEffective / useDefault — a field's effective value / its registered default.
-//   useDiffersFromDefault / useAnyDiffersFromDefault / useAnyResettable
+//   useAnyDiffersFromDefault / useAnyResettable
 //                           — reset-button enabled state over one or more fields.
 
 import { getEffective, setDraft, DRAFTS_REV } from '@/state/settingsDrafts';
@@ -68,16 +68,6 @@ export function useEffective<T = unknown>(store: SignalLike, key: DraftKey): T {
  */
 export function useDefault<T = unknown>(store: SignalLike, key: DraftKey): T {
   return (key === null ? getDefault(store) : getDefault(store, key)) as T;
-}
-
-/**
- * True iff the effective value at `store[key]` differs from its registered
- * default. Reactive via useEffective.
- */
-export function useDiffersFromDefault(store: SignalLike, key: DraftKey): boolean {
-  const eff = useEffective(store, key);
-  const def = useDefault(store, key);
-  return !deepEqual(eff, def);
 }
 
 /**

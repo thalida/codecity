@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { formatRelativeAge, humanSpan, humanAge } from '@/utils/dates';
+import { formatRelativeAge, humanSpan } from '@/utils/dates';
 
 const NOW = new Date('2026-05-24T12:00:00Z');
 
@@ -56,21 +56,5 @@ describe('humanSpan', () => {
     expect(humanSpan('2026-05-24', '2026-03-12')).toBe('2 months 12 days');
     expect(humanSpan('2026-05-24', '2026-05-24')).toBe('1 day');
     expect(humanSpan('nope', '2026-05-24')).toBe('');
-  });
-});
-
-describe('humanAge', () => {
-  const TO = '2026-05-24';
-
-  it('renders a singular-unit adjective phrase', () => {
-    expect(humanAge('2024-05-24', TO)).toBe('2-year-old');
-    expect(humanAge('2025-05-24', TO)).toBe('1-year-old');
-    expect(humanAge('2026-03-24', TO)).toBe('2-month-old');
-    expect(humanAge('2026-05-03', TO)).toBe('21-day-old');
-    expect(humanAge('2026-05-20', TO)).toBe('4-day-old');
-  });
-
-  it('returns empty string for an unparseable date', () => {
-    expect(humanAge('not-a-date', TO)).toBe('');
   });
 });

@@ -243,5 +243,3 @@ export const SHOTS: Record<string, ShotPose> = {
     });
   },
 };
-
-export type ShotName = keyof typeof SHOTS;
