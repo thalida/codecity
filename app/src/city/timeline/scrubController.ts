@@ -15,13 +15,16 @@ import * as THREE from 'three';
 import { SCRUB_POS, TIMELINE_BUNDLE } from '@/state/stores/timeline';
 import { getBuildingDimensions } from '@/city/layout/dimensions';
 import type { HeightContext } from '@/city/layout/dimensions';
-import { BUILDING_DIMENSIONS } from '@/state/stores/settings/buildings';
+import { BUILDING_DIMENSIONS, BUILDINGS } from '@/state/stores/settings/buildings';
 import { RUINS } from '@/state/stores/settings/ruins';
 import { BLUEPRINTS } from '@/state/stores/settings/blueprints';
+import { FadeDetail, NodeKind } from '@/types';
 import type { Building, Street } from '@/types';
 import type { BuildingIndex } from '@/city/components/buildings/buildingIndex';
 import type { InstancedAdPanels } from '@/city/components/buildings/adPanels';
+import type { createPicker } from '@/city/interaction/picker';
 import { getBuildingColorForRecency } from '@/city/components/buildings/color';
+import { resolveDirTarget, tierFor } from '@/city/components/buildings/fadeTiers';
 import { getBuildingTiltAtAge, composeShearMatrix } from '@/city/components/buildings/tilt';
 import { parentDirPath } from '@/city/utils/path';
 import { streetChainForDirPath } from '@/city/layout/streetPath';
@@ -58,6 +61,9 @@ export interface ScrubControllerDeps {
   getBuildingIndex(): BuildingIndex | null;
   getMeshForBuilding(b: Building): { mesh: THREE.InstancedMesh; slot: number } | null;
   getAdPanels(): InstancedAdPanels | null;
+  // The picker's selection/hover — drives the neighborhood fade cascade so a
+  // hover dims the surrounding city here exactly as buildingFader does in Live.
+  picker: Pick<ReturnType<typeof createPicker>, 'selection' | 'hover'>;
   timelines: Map<string, PathTimeline>;
   heightCtx: HeightContext;
   streets: {
@@ -179,6 +185,17 @@ export function createScrubController(deps: ScrubControllerDeps) {
       max: maxLines === -Infinity ? 0 : maxLines,
     };
 
+    // Neighborhood fade cascade — the SAME tier decision buildingFader uses in
+    // Live, so a hover/selection dims the surrounding city identically while
+    // scrubbing. The fader is dormant in Timeline (it owns iFade in Live; the
+    // scrub controller owns it here), so this is where the cascade gets applied.
+    const sel = deps.picker.selection.peek();
+    const hov = deps.picker.hover.peek();
+    const bldgTargetFile = sel?.kind === NodeKind.File ? sel.file : null;
+    const dirTarget = resolveDirTarget(sel, hov, deps.streetsByDir);
+    const hoverFile = hov?.kind === NodeKind.File ? hov.file : null;
+    const fadeCfg = BUILDINGS.peek();
+
     for (const { b, pt, streets, createdIdx } of entries) {
       const state = ruinStateAt(pt, pos);
       const present = state === 'present';
@@ -197,6 +214,21 @@ export function createScrubController(deps: ScrubControllerDeps) {
             ? futureBuildingOpacity
             : 0;
 
+      // Neighborhood fade cascade for PRESENT buildings: dim / silhouette /
+      // outline this building by its dir-tree distance from the hover/selection
+      // target, exactly as Live's fader does (op is 1 for a present file, so
+      // op * tier.bodyOpacity reproduces the Live absolute). Non-present states
+      // (ruin/future/absent) keep their own faint opacity, no cascade.
+      let bodyOp = op;
+      let silhouette = 0;
+      let tierOutlineOp = 0;
+      if (present) {
+        const tier = tierFor(b.file, bldgTargetFile, dirTarget, hoverFile, fadeCfg);
+        bodyOp = tier.detail === FadeDetail.Hidden ? 0 : op * tier.bodyOpacity;
+        silhouette = tier.detail === FadeDetail.Silhouette ? 1 : 0;
+        tierOutlineOp = tier.outlineEnabled ? tier.outlineOpacity : 0;
+      }
+
       // Driven for EVERY union building (even one with no detail mesh on a large
       // repo), else the footprint/street strand at their defaults. A street's
       // future state isn't tracked per-building: any non-present, non-ruin street
@@ -210,8 +242,9 @@ export function createScrubController(deps: ScrubControllerDeps) {
         }
       }
       // opByPath feeds ONLY the ad panels — gate on presence so a ruin/absent/
-      // future building shows no media image, just its stub or slab.
-      opByPath.set(b.file.path, present ? op : 0);
+      // future building shows no media image, just its stub or slab. Uses the
+      // neighborhood-dimmed bodyOp so a media panel fades with its building body.
+      opByPath.set(b.file.path, present ? bodyOp : 0);
       // Footprint plot: present + ruin only. A future building IS the slab, so it
       // gets no plot (keeps future independent of the footprint controls).
       deps.footprints.setBuildingFootprintOpacity(b.file.path, future ? 0 : op, ruin);
@@ -282,8 +315,11 @@ export function createScrubController(deps: ScrubControllerDeps) {
 
       const iFade = mesh.geometry.getAttribute('iFade') as THREE.BufferAttribute | undefined;
       if (iFade) {
-        // Outline (.z) only while present, so a leftover Live-mode outline can't linger on a ruin/future/absent building.
-        iFade.setXYZ(slot, op, iFade.getY(slot), present ? iFade.getZ(slot) : 0);
+        // Present → neighborhood-tiered body(.x)/silhouette(.y)/outline(.z), owning
+        // all three so a hover cascade actually shows. Non-present → its faint op
+        // with no silhouette/outline, so a leftover Live-mode overlay can't linger.
+        if (present) iFade.setXYZ(slot, bodyOp, silhouette, tierOutlineOp);
+        else iFade.setXYZ(slot, op, 0, 0);
         dirtyFades.add(iFade);
       }
 

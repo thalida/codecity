@@ -212,6 +212,7 @@ export async function createCity(canvas: HTMLCanvasElement, manifest: Manifest):
         getBuildingIndex: () => buildings.getBuildingIndex(),
         getMeshForBuilding: (b) => buildings.getMeshForBuilding(b),
         getAdPanels: () => buildings.getAdPanels(),
+        picker,
         timelines,
         heightCtx: makeHeightContext(cityState.manifest.peek()?.stats),
         streets: {

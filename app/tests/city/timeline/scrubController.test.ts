@@ -14,8 +14,16 @@ import { getBuildingColorForRecency } from '@/city/components/buildings/color';
 import { BUILDINGS } from '@/state/stores/settings/buildings';
 import { BUILDING_DIMENSIONS } from '@/state/stores/settings/buildings';
 import type { BuildingsConfig } from '@/state/stores/settings/buildings';
-import type { Building, FileNode, Street, TimelineBundle } from '@/types';
+import type { Building, FileNode, PickTarget, Street, TimelineBundle } from '@/types';
 import { ROOT_PATH } from '@/constants/manifest';
+import { signal } from '@preact/signals';
+
+// The scrub controller reads picker.selection/hover for the neighborhood fade
+// cascade; these tests don't drive hover, so a null-selection stub suffices.
+const mockPicker = () => ({
+  selection: signal<PickTarget | null>(null),
+  hover: signal<PickTarget | null>(null),
+});
 
 // f.txt: absent at commit 0, created at 1 (2 lines), grows at 2 (6 lines),
 // deleted at 3. So createdIdx=1, deletedIdx=3, union lines=6.
@@ -301,6 +309,7 @@ function setup(
     footprints: noopFootprints,
     streets: { setStreetOpacity: () => {}, setStreetLabelOpacity: () => {} },
     streetsByDir: {},
+    picker: mockPicker(),
     trees,
     fireflies,
   });
@@ -378,6 +387,7 @@ function makeAnchoredScene(
     footprints: noopFootprints,
     streets: { setStreetOpacity: () => {}, setStreetLabelOpacity: () => {} },
     streetsByDir: {},
+    picker: mockPicker(),
     trees: noopTrees,
     fireflies: noopFireflies,
   });
@@ -570,6 +580,7 @@ test('drives footprint opacity even when the building has no detail mesh (LOD ce
     footprints: fp.footprints,
     streets: { setStreetOpacity: () => {}, setStreetLabelOpacity: () => {} },
     streetsByDir: {},
+    picker: mockPicker(),
     trees: noopTrees,
     fireflies: noopFireflies,
   });
@@ -714,6 +725,7 @@ test('a present media/0-line file gets a non-zero scaleY; an absent one stays fl
     footprints: noopFootprints,
     streets: { setStreetOpacity: () => {}, setStreetLabelOpacity: () => {} },
     streetsByDir: {},
+    picker: mockPicker(),
     trees: noopTrees,
     fireflies: noopFireflies,
   });
@@ -886,6 +898,7 @@ test('dedup: two buildings sharing one InstancedMesh set needsUpdate exactly onc
     footprints: noopFootprints,
     streets: { setStreetOpacity: () => {}, setStreetLabelOpacity: () => {} },
     streetsByDir: {},
+    picker: mockPicker(),
     trees: noopTrees,
     fireflies: noopFireflies,
   });
@@ -992,6 +1005,7 @@ test('couples street opacity to the max opacity of its buildings (block fade)', 
     footprints: noopFootprints,
     streets,
     streetsByDir: { d: dStreet, e: eStreet },
+    picker: mockPicker(),
     trees: noopTrees,
     fireflies: noopFireflies,
   });
@@ -1085,6 +1099,7 @@ test('block-fade is a true max, not last-write-wins: one deleted sibling cannot 
     footprints: noopFootprints,
     streets,
     streetsByDir: { d: dStreet },
+    picker: mockPicker(),
     trees: noopTrees,
     fireflies: noopFireflies,
   });
@@ -1174,6 +1189,7 @@ test('descendant rollup: a container street with no direct files inherits its ch
     footprints: noopFootprints,
     streets,
     streetsByDir: { src: srcStreet, 'src/a': srcAStreet, e: eStreet },
+    picker: mockPicker(),
     trees: noopTrees,
     fireflies: noopFireflies,
   });
@@ -1257,6 +1273,7 @@ test('footprints: a deleted building/street fades to 0 while a live sibling stay
     footprints: fakeFootprints.footprints,
     streets: { setStreetOpacity: () => {}, setStreetLabelOpacity: () => {} },
     streetsByDir: { d: dStreet, e: eStreet },
+    picker: mockPicker(),
     trees: noopTrees,
     fireflies: noopFireflies,
   });
@@ -1311,6 +1328,7 @@ test('the ROOT street stays at opacity 1 even when every building is absent, unl
     footprints: fakeFootprints.footprints,
     streets,
     streetsByDir: { [ROOT_PATH]: rootStreet, d: dStreet },
+    picker: mockPicker(),
     trees: noopTrees,
     fireflies: noopFireflies,
   });
@@ -1755,6 +1773,7 @@ test('future roads always render: a non-present, non-ruin street is a future roa
     footprints: noopFootprints,
     streets,
     streetsByDir: { [ROOT_PATH]: rootStreet, d: dStreet },
+    picker: mockPicker(),
     trees: noopTrees,
     fireflies: noopFireflies,
   });
