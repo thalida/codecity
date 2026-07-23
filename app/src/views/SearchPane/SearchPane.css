@@ -76,3 +76,16 @@
 .search-result:focus-visible mark {
   color: var(--cc-accent-light);
 }
+
+/* ── Timeline: scrub-relative result state ────────────────────────────────
+   Match the file tree: a path deleted (ruin) at the scrubbed commit reads as
+   gone (faded + struck through); a future (not-yet-created) path is faded +
+   italic. */
+.search-result.search-deleted .search-result-path {
+  opacity: 0.5;
+  text-decoration: line-through;
+}
+.search-result.search-future .search-result-path {
+  opacity: 0.5;
+  font-style: italic;
+}

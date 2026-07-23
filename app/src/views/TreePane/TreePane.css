@@ -93,3 +93,19 @@
 .tree-dir > .row > .tree-label {
   font-weight: var(--cc-fw-medium);
 }
+
+/* ── Timeline: scrub-relative path state ──────────────────────────────────
+   Mark paths by their state at the scrubbed commit so the tree tracks the city:
+   deleted (ruin) reads as gone (faded + struck through, echoing the gray ruin
+   stubs); future (not yet created) is faded + italic. Only this item's own row
+   dims — the nested child list is a sibling of .row, not inside it. */
+.tree-item.tree-deleted > .row,
+.tree-item.tree-future > .row {
+  opacity: 0.5;
+}
+.tree-item.tree-deleted > .row > .tree-label {
+  text-decoration: line-through;
+}
+.tree-item.tree-future > .row > .tree-label {
+  font-style: italic;
+}

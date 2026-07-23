@@ -21,6 +21,7 @@ import { useMemo, useRef, useState } from 'preact/hooks';
 import type { ReadonlySignal } from '@preact/signals';
 import { NodeKind } from '@/types';
 import type { DirNode, FileNode, Manifest, TreeNode } from '@/types';
+import { HISTORY_NODE_STATE, HistoryState } from '@/state/stores/historyNodeState';
 import { Search, SearchX } from 'lucide-preact';
 import { Pane, PaneEmpty } from '@/components/Pane';
 import { PaneCloseButton } from '@/components/PaneHeader/PaneHeader';
@@ -146,7 +147,7 @@ export function SearchPane({ manifest, onClose, onSelect }: SearchPaneProps) {
               <li key={file.path}>
                 <button
                   type="button"
-                  class="search-result focus-inset"
+                  class={`search-result focus-inset${_histClass(HISTORY_NODE_STATE.value.get(file.path ?? ''))}`}
                   onClick={() => {
                     if (onSelect && file.path) onSelect(file.path);
                   }}
@@ -162,6 +163,13 @@ export function SearchPane({ manifest, onClose, onSelect }: SearchPaneProps) {
       </div>
     </Pane>
   );
+}
+
+/** Scrub-relative state class for a result row (empty outside Timeline). */
+function _histClass(state: HistoryState | undefined): string {
+  if (state === HistoryState.Deleted) return ' search-deleted';
+  if (state === HistoryState.Future) return ' search-future';
+  return '';
 }
 
 /** Render highlighted path as JSX with <mark> for matched positions. */

@@ -15,6 +15,7 @@ import type { ReadonlySignal, Signal } from '@preact/signals';
 import { useEffect, useRef } from 'preact/hooks';
 import { NodeKind } from '@/types';
 import type { DirNode, Manifest, TreeNode } from '@/types';
+import { HISTORY_NODE_STATE, HistoryState } from '@/state/stores/historyNodeState';
 import { FolderOpen } from 'lucide-preact';
 import { NodeIcon } from '@/components/NodeIcon/NodeIcon';
 import { PaneEmpty } from '@/components/Pane';
@@ -172,6 +173,11 @@ function TreeItem({
   else classes.push('tree-file');
   if (isSelected) classes.push('tree-selected');
   if (isHovered) classes.push('tree-hovered');
+  // Scrub-relative state: mark paths deleted (ruin) / not-yet-created (future) at
+  // the current commit, so the tree tracks the city. Empty outside Timeline.
+  const histState = HISTORY_NODE_STATE.value.get(path);
+  if (histState === HistoryState.Deleted) classes.push('tree-deleted');
+  else if (histState === HistoryState.Future) classes.push('tree-future');
 
   const children = isDir ? _sortChildren((node as DirNode).children) : [];
   // Roving tabindex: exactly one item is a Tab stop — the selected one, or the
