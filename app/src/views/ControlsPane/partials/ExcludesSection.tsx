@@ -15,7 +15,19 @@ export function ExcludesSection() {
   return (
     <Section
       name="Excluded from city"
-      hint="Paths you hide from the city, saved in this browser. This does not change the repo."
+      hint={
+        <>
+          Paths you hide from the city, saved in this browser. This does not change the repo.{' '}
+          <a
+            class="link--chrome"
+            href="https://github.com/thalida/codecity#skipped-by-default"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            See what&rsquo;s excluded by default.
+          </a>
+        </>
+      }
       onReset={clearExcludes}
       resetEnabled={paths.length > 0}
       resetTitle="Restore all excluded paths"
