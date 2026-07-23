@@ -8,7 +8,7 @@ import { effect, untracked } from '@preact/signals';
 
 import type { Manifest } from '@/types';
 import { CURRENT_SOURCE_KEY } from '@/state/stores/source';
-import { TIMELINE_MODE, SCRUB_DRAGGING } from '@/state/stores/timeline';
+import { TIMELINE_MODE, SCRUB_DRAGGING, SCRUB_POS } from '@/state/stores/timeline';
 
 import { registerShaderChunks } from './utils/shaders/registerShaderChunks';
 import { createBuildings } from './components/buildings';
@@ -186,6 +186,9 @@ export async function createCity(canvas: HTMLCanvasElement, manifest: Manifest):
 
   // Reused scratch vector to avoid per-frame allocations from renderer.getSize().
   const renderSize = new THREE.Vector2();
+  // Last scrub position the removed-selection prune ran at — so it fires only when
+  // the scrub actually MOVES, never on a static selection.
+  let _lastPrunedScrubPos = -1;
   const stopFrameLoop = startFrameLoop(components, ctx, {
     rig,
     postFx,
@@ -205,11 +208,18 @@ export async function createCity(canvas: HTMLCanvasElement, manifest: Manifest):
     },
     after() {
       // Runs after every component tick, so the scrub controller has written this
-      // frame's presence attributes: drop a selection the scrub just removed so a
-      // building/road/tree outline can't dangle over empty space. Deferred while
-      // the scrubber is being dragged — closing the right sidebar mid-drag would
-      // reflow the track under the pointer and jump the position; prune on release.
-      if (TIMELINE_MODE.peek() && !SCRUB_DRAGGING.peek()) picker.pruneScrubHiddenSelection();
+      // frame's presence attributes. Drop a selection the scrub REMOVED so its
+      // outline can't dangle over empty space — but only when the scrub actually
+      // moved (never every frame), and not mid-drag (closing the right sidebar
+      // then would reflow the track under the pointer and jump the position;
+      // prune on release). A static explicit selection — e.g. clicking a deleted
+      // path in the left-sidebar tree — is kept even if the city doesn't render
+      // it at this commit.
+      if (!TIMELINE_MODE.peek() || SCRUB_DRAGGING.peek()) return;
+      const pos = SCRUB_POS.peek();
+      if (pos === _lastPrunedScrubPos) return;
+      _lastPrunedScrubPos = pos;
+      picker.pruneScrubHiddenSelection();
     },
   });
 
