@@ -1,6 +1,9 @@
 .app-header-crumbs {
   flex: 0 1 auto;
   min-width: 0;
+  /* Clear separation from the extension badge that precedes it (the pane title's
+     own gap is only 2px, too tight against the chip). */
+  margin-left: var(--cc-space-4);
   display: flex;
   align-items: center;
   gap: var(--cc-space-1);
@@ -21,6 +24,16 @@
 }
 .btn-icon.is-leaf:not(:disabled):hover {
   background: transparent;
+}
+
+/* Display-only segment (no onSegmentClick handler): plain text, not a button.
+   Muted for parents, strong for the leaf (the file-ending, most important). */
+.app-header-seg--static {
+  color: var(--cc-text-muted);
+  white-space: nowrap;
+}
+.app-header-seg--static.is-leaf {
+  color: var(--cc-text-strong);
 }
 
 .app-header-sep {

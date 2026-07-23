@@ -32,9 +32,7 @@ import { LoadingOverlay } from '@/components/LoadingOverlay/LoadingOverlay';
 import { HljsThemeLink } from '@/components/HljsThemeLink/HljsThemeLink';
 import { SelectionAnnouncer } from '@/components/SelectionAnnouncer/SelectionAnnouncer';
 import {
-  selectPath,
   resetView,
-  focusCurrentSelection,
   clearSelection,
   runCollisionCheck,
   runStemDiagnostic,
@@ -96,10 +94,8 @@ export function App() {
         Skip to content
       </a>
       <AppHeader
-        onSegmentClick={selectPath}
         onSwitchSource={() => openProjectsView({ dismissible: true })}
         onResetView={resetView}
-        onFocus={focusCurrentSelection}
       />
       <main id="app-body" tabIndex={-1}>
         <LeftSidebar />

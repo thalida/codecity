@@ -1,14 +1,13 @@
-// components/PathBreadcrumbs.tsx — Header title slot for a selected
-// file/dir: a focus button + extension badge + clickable path breadcrumb +
-// copy-path button. The breadcrumb owns a ResizeObserver (useMiddleEllipsis)
-// that middle-truncates the path to fit the header width.
+// components/PathBreadcrumbs.tsx — Display-only header title slot for a selected
+// file/dir: an extension badge + a middle-ellipsized path breadcrumb (leaf
+// emphasized). The header's focus/copy/close buttons live in the pane header's
+// right-hand action group, not here. The breadcrumb owns a ResizeObserver
+// (useMiddleEllipsis) that middle-truncates the path to fit the header width.
+// Segments are buttons only when onSegmentClick is given (else plain labels).
 
 import './PathBreadcrumbs.css';
 import { Fragment } from 'preact';
-import { Focus } from 'lucide-preact';
-import { KEY_BINDINGS } from '@/constants/keyboard';
 import { ExtensionBadge } from '@/components/Badge/Badge';
-import { CopyButton } from '@/components/CopyButton/CopyButton';
 import { useMiddleEllipsis } from '@/hooks/useMiddleEllipsis';
 import { buildPathCrumbs } from '@/utils/pathCrumbs';
 
@@ -21,7 +20,6 @@ export interface PathBreadcrumbsProps {
   rootLabel: string;
   rootPath: string;
   onSegmentClick?: ((path: string) => void) | null;
-  onFocus?: () => void;
 }
 
 export function PathBreadcrumbs({
@@ -31,7 +29,6 @@ export function PathBreadcrumbs({
   rootLabel,
   rootPath,
   onSegmentClick,
-  onFocus,
 }: PathBreadcrumbsProps) {
   const crumbsRef = useMiddleEllipsis<HTMLDivElement>(
     {
@@ -44,21 +41,9 @@ export function PathBreadcrumbs({
 
   const isFileSel = !isDir;
   const { isRoot, crumbs } = buildPathCrumbs(path, { isDir, rootLabel, rootPath });
-  const focusTitle = `Focus camera on selection (${KEY_BINDINGS.FOCUS_SELECTION.label})`;
 
   return (
     <>
-      {onFocus && (
-        <button
-          type="button"
-          class="btn-icon btn-icon--no-drag"
-          title={focusTitle}
-          aria-label={focusTitle}
-          onClick={() => onFocus()}
-        >
-          <Focus class="icon" />
-        </button>
-      )}
       <ExtensionBadge extension={isFileSel ? (extension ?? null) : null} isDir={!isFileSel} />
       <div
         ref={crumbsRef}
@@ -67,6 +52,7 @@ export function PathBreadcrumbs({
       >
         {crumbs.map((crumb, i) => {
           const isLeaf = i === crumbs.length - 1;
+          const leafClass = isLeaf ? ' is-leaf' : '';
           return (
             <Fragment key={`seg-${i}`}>
               {i > 0 && (
@@ -74,20 +60,24 @@ export function PathBreadcrumbs({
                   ›
                 </span>
               )}
-              <button
-                type="button"
-                class={`btn-icon btn-icon--text btn-icon--no-drag app-header-seg${isLeaf ? ' is-leaf' : ''}`}
-                onClick={() => {
-                  if (onSegmentClick) onSegmentClick(crumb.segPath);
-                }}
-              >
-                {crumb.label}
-              </button>
+              {onSegmentClick ? (
+                <button
+                  type="button"
+                  class={`btn-icon btn-icon--text btn-icon--no-drag app-header-seg${leafClass}`}
+                  onClick={() => onSegmentClick(crumb.segPath)}
+                >
+                  {crumb.label}
+                </button>
+              ) : (
+                // Display-only: a plain segment, not a faded disabled button.
+                <span class={`app-header-seg app-header-seg--static${leafClass}`}>
+                  {crumb.label}
+                </span>
+              )}
             </Fragment>
           );
         })}
       </div>
-      <CopyButton text={isRoot ? rootPath : path} />
     </>
   );
 }

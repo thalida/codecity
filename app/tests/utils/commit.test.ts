@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { commitUrl } from '@/utils/commit';
+import { commitUrl, nodeUrl } from '@/utils/commit';
 
 describe('commitUrl', () => {
   it('appends /commit/<sha> for a github URL', () => {
@@ -32,5 +32,31 @@ describe('commitUrl', () => {
 
   it('returns null for an empty sha', () => {
     expect(commitUrl('https://github.com/org/repo', '')).toBeNull();
+  });
+});
+
+describe('nodeUrl', () => {
+  it('builds a /blob/<ref>/<path> URL for a file', () => {
+    expect(nodeUrl('https://github.com/org/repo', 'main', 'src/app.ts', false)).toBe(
+      'https://github.com/org/repo/blob/main/src/app.ts'
+    );
+  });
+
+  it('builds a /tree/<ref>/<path> URL for a directory', () => {
+    expect(nodeUrl('https://github.com/org/repo', 'main', 'src/utils', true)).toBe(
+      'https://github.com/org/repo/tree/main/src/utils'
+    );
+  });
+
+  it('encodes ref and path segments and strips leading slashes', () => {
+    expect(nodeUrl('https://github.com/org/repo/', 'feat/x', '/a b/c.ts', false)).toBe(
+      'https://github.com/org/repo/blob/feat%2Fx/a%20b/c.ts'
+    );
+  });
+
+  it('returns null for an empty remote, ref, or path', () => {
+    expect(nodeUrl('', 'main', 'a.ts', false)).toBeNull();
+    expect(nodeUrl('https://github.com/org/repo', '', 'a.ts', false)).toBeNull();
+    expect(nodeUrl('https://github.com/org/repo', 'main', '', true)).toBeNull();
   });
 });

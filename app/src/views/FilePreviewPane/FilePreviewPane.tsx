@@ -31,7 +31,8 @@ import { fileUrl, fetchFileText, fetchFileBytes } from '@/api/file';
 import { FileWarning, FileX, History, Info, MousePointerClick } from 'lucide-preact';
 import { Pane, PaneEmpty } from '@/components/Pane';
 import { KEY_BINDINGS } from '@/constants/keyboard';
-import { ExtensionBadge } from '@/components/Badge/Badge';
+import { PathBreadcrumbs } from '@/components/PathBreadcrumbs/PathBreadcrumbs';
+import { nodeUrl } from '@/utils/commit';
 import { formatBytes } from '@/utils/bytes';
 import { TIMELINE_MODE } from '@/state/stores/timeline';
 import { languageFor } from '@/utils/syntaxLanguages';
@@ -62,6 +63,12 @@ const FONT_EXTS = ['.woff2', '.woff', '.ttf', '.otf'];
 
 export interface FilePreviewPaneState {
   file: FileNode | null;
+  /** Repo label + root path, for the header path breadcrumb. */
+  rootLabel?: string;
+  rootPath?: string;
+  /** Repo remote URL + branch, for the header open-on-origin link. */
+  remoteUrl?: string | null;
+  branch?: string;
 }
 
 export interface FilePreviewPaneProps {
@@ -481,23 +488,30 @@ function _previewBody(file: FileNode | null) {
 // ── Preact component ─────────────────────────────────────────────────────────
 
 export function FilePreviewPane({ state, onClose, onFocus, onExclude }: FilePreviewPaneProps) {
-  const { file } = state.value;
-
-  const leaf = file
-    ? (file.path ?? '').split('/').filter(Boolean).pop() || file.name || 'No file'
-    : 'No file';
-
-  const badge = file ? (
-    <ExtensionBadge extension={file.extension ?? null} isDir={false} />
-  ) : undefined;
+  const { file, rootLabel = '', rootPath = '', remoteUrl, branch = '' } = state.value;
+  const path = file?.path ?? '';
 
   return (
     <Pane
-      titleSlot={<span title={file?.path || undefined}>{leaf}</span>}
+      titleSlot={
+        file ? (
+          <PathBreadcrumbs
+            path={path}
+            extension={file.extension}
+            rootLabel={rootLabel}
+            rootPath={rootPath}
+          />
+        ) : (
+          <span>No file</span>
+        )
+      }
       mono
-      prefixSlot={badge}
       onFocus={file && typeof onFocus === 'function' ? () => onFocus(file) : undefined}
       focusTitle={`Focus the camera on this file (${KEY_BINDINGS.FOCUS_SELECTION.label})`}
+      copyText={file ? path || rootPath : undefined}
+      copyLabel="Copy path"
+      openUrl={file && remoteUrl ? nodeUrl(remoteUrl, branch, path, false) : null}
+      openLabel="Open file on origin"
       onClose={onClose}
       onExclude={file && typeof onExclude === 'function' ? () => onExclude(file) : undefined}
       excludeTitle="Exclude this file from the city"

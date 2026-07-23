@@ -28,12 +28,6 @@
   color: var(--cc-text-strong);
 }
 
-/* Open-on-origin link sits inline next to the SHA inside the title.
-   Inherits .btn-icon + .btn-icon--link (24×24, muted, hover overlay). */
-.commit-open {
-  flex-shrink: 0;
-}
-
 .commit-author {
   display: flex;
   align-items: center;
@@ -135,4 +129,13 @@
   height: 8px;
   border-radius: 50%;
   flex-shrink: 0;
+}
+
+/* Primary author shown after the SHA in the pane header title (muted, ellipsized
+   with the title). */
+.commit-title-author {
+  color: var(--cc-text-secondary);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }

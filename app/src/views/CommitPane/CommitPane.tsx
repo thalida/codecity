@@ -17,7 +17,7 @@ import './CommitPane.css';
 import { useState, useEffect, useRef } from 'preact/hooks';
 import type { ReadonlySignal } from '@preact/signals';
 import type { CommitEntry } from '@/types';
-import { ExternalLink, GitCommitHorizontal } from 'lucide-preact';
+import { GitCommitHorizontal, History } from 'lucide-preact';
 import { Pane, PaneEmpty } from '@/components/Pane';
 import { KEY_BINDINGS } from '@/constants/keyboard';
 import { commitUrl } from '@/utils/commit';
@@ -61,17 +61,22 @@ export interface CommitPaneState {
   busynessThresholds?: { avg: number; busy: number };
   color?: string;
   now?: Date;
+  /** Whether Timeline mode is already on — wording only for the timeline
+   *  button's tooltip. */
+  inTimeline?: boolean;
 }
 
 export interface CommitPaneProps {
   state: ReadonlySignal<CommitPaneState>;
   onClose?: () => void;
   onFocus?: (commit: CommitEntry) => void;
+  /** Enter Timeline mode (if needed) and scrub to this commit. */
+  onViewInTimeline?: (commit: CommitEntry) => void;
 }
 
 // ── Preact component ─────────────────────────────────────────────────────────
 
-export function CommitPane({ state, onClose, onFocus }: CommitPaneProps) {
+export function CommitPane({ state, onClose, onFocus, onViewInTimeline }: CommitPaneProps) {
   const {
     commit,
     remoteUrl,
@@ -79,6 +84,7 @@ export function CommitPane({ state, onClose, onFocus }: CommitPaneProps) {
     busynessThresholds = { avg: 1, busy: 1 },
     color,
     now = new Date(),
+    inTimeline = false,
   } = state.value;
 
   const [bodyState, setBodyState] = useState<BodyState>({ kind: CommitBodyKind.Loading });
@@ -140,22 +146,12 @@ export function CommitPane({ state, onClose, onFocus }: CommitPaneProps) {
   const url = remoteUrl ? commitUrl(remoteUrl, commit.sha) : null;
   const label = _busynessLabel(sameDayTotal, busynessThresholds);
   const commitWord = sameDayTotal === 1 ? 'commit' : 'commits';
+  const primaryAuthor = (commit.authors ?? [])[0] || '(unknown)';
 
   const titleSlot = (
     <>
       Commit <span class="commit-sha">{shortSha}</span>
-      {url && (
-        <a
-          class="commit-open btn-icon btn-icon--link"
-          href={url}
-          target="_blank"
-          rel="noopener noreferrer"
-          title="Open this commit on the origin remote"
-          aria-label="Open commit on origin"
-        >
-          <ExternalLink class="icon" />
-        </a>
-      )}
+      <span class="commit-title-author"> · {primaryAuthor}</span>
     </>
   );
 
@@ -165,6 +161,27 @@ export function CommitPane({ state, onClose, onFocus }: CommitPaneProps) {
       titleSlot={titleSlot}
       onFocus={typeof onFocus === 'function' ? () => onFocus(commit) : undefined}
       focusTitle={`Focus the camera on this commit (${KEY_BINDINGS.FOCUS_SELECTION.label})`}
+      copyText={commit.sha}
+      copyLabel="Copy SHA"
+      openUrl={url}
+      openLabel="Open commit on origin"
+      actionsSlot={
+        typeof onViewInTimeline === 'function' ? (
+          <button
+            type="button"
+            class="btn-icon btn-icon--no-drag"
+            title={
+              inTimeline
+                ? 'Scrub the timeline to this commit'
+                : 'View this commit on the timeline'
+            }
+            aria-label="View on timeline"
+            onClick={() => onViewInTimeline(commit)}
+          >
+            <History class="icon" />
+          </button>
+        ) : undefined
+      }
       onClose={onClose}
       bodyClass="commit-body pane-inset"
     >

@@ -99,6 +99,21 @@ export async function enterTimelineMode(): Promise<void> {
   }
 }
 
+// Enter Timeline mode if it isn't already on, then scrub to the given commit.
+// Called by the commit pane's "view in timeline" button — in Live mode it enters
+// first, in Timeline mode it just jumps. No-op if the sha isn't in the bundle
+// (e.g. a commit the union cap dropped) or the mode failed to engage.
+export async function viewCommitInTimeline(sha: string): Promise<void> {
+  if (!TIMELINE_MODE.peek()) {
+    await enterTimelineMode();
+    if (!TIMELINE_MODE.peek()) return; // enter failed; the error is surfaced already
+  }
+  const bundle = TIMELINE_BUNDLE.peek();
+  if (!bundle) return;
+  const idx = bundle.commits.findIndex((c) => c.sha === sha);
+  if (idx >= 0) SCRUB_POS.value = idx;
+}
+
 // Scene-free: the city-layer effect (city/index.ts) reacts to TIMELINE_MODE and does the scene teardown.
 export function teardownTimelineMode(): void {
   resetTimelineMode();

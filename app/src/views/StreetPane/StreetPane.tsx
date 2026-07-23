@@ -15,6 +15,8 @@ import { Pane, PaneEmpty } from '@/components/Pane';
 import { KEY_BINDINGS } from '@/constants/keyboard';
 import { Route, FileType, CalendarRange } from 'lucide-preact';
 import { ExtensionBadge } from '@/components/Badge/Badge';
+import { PathBreadcrumbs } from '@/components/PathBreadcrumbs/PathBreadcrumbs';
+import { nodeUrl } from '@/utils/commit';
 import { extHueColor } from '@/city/components/buildings/color';
 import { BUILDINGS } from '@/state/stores/settings/buildings';
 import { pluralize } from '@/utils/format';
@@ -25,6 +27,12 @@ import { extBarPct, extShareLabel, extTypeLabel, streetDateRange } from './stree
 
 export interface StreetPaneState {
   directory: DirNode | null;
+  /** Repo label + root path, for the header path breadcrumb. */
+  rootLabel?: string;
+  rootPath?: string;
+  /** Repo remote URL + branch, for the header open-on-origin link. */
+  remoteUrl?: string | null;
+  branch?: string;
 }
 
 export interface StreetPaneProps {
@@ -37,7 +45,7 @@ export interface StreetPaneProps {
 // ── Preact component ─────────────────────────────────────────────────────────
 
 export function StreetPane({ state, onClose, onFocus, onExclude }: StreetPaneProps) {
-  const { directory: d } = state.value;
+  const { directory: d, rootLabel = '', rootPath = '', remoteUrl, branch = '' } = state.value;
 
   if (!d) {
     return (
@@ -56,8 +64,7 @@ export function StreetPane({ state, onClose, onFocus, onExclude }: StreetPanePro
     );
   }
 
-  const path = d.path && d.path !== ROOT_PATH ? d.path : '';
-  const leaf = (path ? path.split('/').filter(Boolean).pop() : null) || d.name || 'Road';
+  const dirPath = d.path ?? '';
 
   // Backend-computed (api/scan.py), sorted by count desc. Guard against a
   // manifest that predates the field (stale cache / skeleton / in-flight) so a
@@ -70,11 +77,20 @@ export function StreetPane({ state, onClose, onFocus, onExclude }: StreetPanePro
   return (
     <Pane
       paneClass="street-pane"
-      prefixSlot={<ExtensionBadge extension={null} isDir />}
-      titleSlot={<span title={path || undefined}>{leaf}</span>}
+      titleSlot={
+        <PathBreadcrumbs path={dirPath} isDir rootLabel={rootLabel} rootPath={rootPath} />
+      }
       mono
       onFocus={typeof onFocus === 'function' ? () => onFocus(d) : undefined}
       focusTitle={`Focus the camera on this road (${KEY_BINDINGS.FOCUS_SELECTION.label})`}
+      copyText={dirPath && dirPath !== ROOT_PATH ? dirPath : rootPath}
+      copyLabel="Copy path"
+      openUrl={
+        remoteUrl && dirPath && dirPath !== ROOT_PATH
+          ? nodeUrl(remoteUrl, branch, dirPath, true)
+          : null
+      }
+      openLabel="Open folder on origin"
       onClose={onClose}
       onExclude={
         typeof onExclude === 'function' && d.path && d.path !== ROOT_PATH

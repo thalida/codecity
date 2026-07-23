@@ -29,13 +29,14 @@
   min-width: 0;
 }
 
+/* Centered cluster: project switcher, copy-source, open-remote (the gem stays
+   left, in #app-header-left). */
 #app-title {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: var(--cc-space-4);
+  gap: var(--cc-space-2);
   min-width: 0;
-  letter-spacing: var(--cc-track-base); /* was 0.02em (dropped) */
   color: var(--cc-text-secondary);
 }
 

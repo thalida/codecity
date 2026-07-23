@@ -19,3 +19,30 @@ export function commitUrl(remote: string, sha: string): string | null {
   const trimmed = remote.endsWith('/') ? remote.slice(0, -1) : remote;
   return `${trimmed}/commit/${sha}`;
 }
+
+/**
+ * Build a browseable file/directory URL on the origin remote at a given ref.
+ *
+ * GitHub, GitLab, Gitea, Codeberg, and Forgejo all share `/blob/{ref}/{path}`
+ * for files and `/tree/{ref}/{path}` for directories. Best-effort like
+ * {@link commitUrl}: hosts with a different convention 404, and the path is
+ * always copyable as a fallback. Returns null for an empty remote/ref/path
+ * (e.g. a local repo with no remote, or the root directory).
+ */
+export function nodeUrl(
+  remote: string,
+  ref: string,
+  path: string,
+  isDir: boolean
+): string | null {
+  if (!remote || !ref || !path) return null;
+  const trimmed = remote.endsWith('/') ? remote.slice(0, -1) : remote;
+  const seg = isDir ? 'tree' : 'blob';
+  const cleanPath = path
+    .replace(/^\/+/, '')
+    .split('/')
+    .map(encodeURIComponent)
+    .join('/');
+  if (!cleanPath) return null;
+  return `${trimmed}/${seg}/${encodeURIComponent(ref)}/${cleanPath}`;
+}
