@@ -1658,6 +1658,7 @@ test('future: a not-yet-created building renders as an ultra-low tinted slab', (
     ENABLED: true,
     BUILDING_OPACITY: 0.4,
     BUILDING_COLOR: '#00ffff',
+    BUILDING_TINT: 1, // full tint → pure building color, independent of the file hue
   };
   const { b, fake, controller } = setup();
   SCRUB_POS.value = 0.5; // before f.txt's creation at commit 1 → future
@@ -1669,11 +1670,26 @@ test('future: a not-yet-created building renders as an ultra-low tinted slab', (
   expect(fake.scaleX).toBeCloseTo(b.w, 5); // at the building's real footprint width
   expect(fake.scaleZ).toBeCloseTo(b.d, 5);
   expect(fake.iFadeX).toBeCloseTo(0.4, 5); // uniform future opacity, no distance fade
-  // Future tint (cyan), not the file's own hue.
+  // At full tint (1) the slab is the building color (cyan), not the file's hue.
   expect(fake.lastColor).not.toBeNull();
   expect(fake.lastColor!.r).toBeCloseTo(0, 5);
   expect(fake.lastColor!.g).toBeCloseTo(1, 5);
   expect(fake.lastColor!.b).toBeCloseTo(1, 5);
+});
+
+test('future: at tint 0 the slab keeps its own file hue, not the building color', () => {
+  BLUEPRINTS.value = { ...BLUEPRINTS.value, ENABLED: true, BUILDING_COLOR: '#00ffff', BUILDING_TINT: 0 };
+  const { fake, controller } = setup();
+  SCRUB_POS.value = 0.5;
+  controller.update();
+  const fileHue = new THREE.Color(
+    getBuildingColorForRecency(
+      file as unknown as Parameters<typeof getBuildingColorForRecency>[0],
+      0.5 // FUTURE_BASE_RECENCY
+    )
+  );
+  expect(fake.lastColor).not.toBeNull();
+  expect(colorDist(fake.lastColor!, fileHue)).toBeCloseTo(0, 5);
 });
 
 test('future: opacity is uniform regardless of how far ahead the creation is', () => {
@@ -1700,8 +1716,8 @@ test('future: with future files off, a not-yet-created building stays hidden', (
 test('future roads always render: a non-present, non-ruin street is a future road (tint 2)', () => {
   // With future on, EVERY road that isn't present or ruin renders as a future
   // road — even a street with no future building detected on it directly. So the
-  // whole road network shows faintly from the start of history.
-  BLUEPRINTS.value = { ...BLUEPRINTS.value, ENABLED: true, ROAD_OPACITY: 0.15 };
+  // whole road network shows from the start of history, fully opaque, set apart by color.
+  BLUEPRINTS.value = { ...BLUEPRINTS.value, ENABLED: true };
   const rootStreet = { dir: { path: ROOT_PATH }, isRoot: true } as unknown as Street;
   const dStreet = { dir: { path: 'd' } } as unknown as Street; // no buildings at all
 
@@ -1747,6 +1763,6 @@ test('future roads always render: a non-present, non-ruin street is a future roa
   controller.update();
 
   expect(opacityByStreet.get(rootStreet)).toBe(1); // root always renders
-  expect(opacityByStreet.get(dStreet)).toBeCloseTo(0.15, 5); // future road, not hidden
+  expect(opacityByStreet.get(dStreet)).toBe(1); // future road, fully opaque
   expect(tintByStreet.get(dStreet)).toBe(2); // future tint
 });

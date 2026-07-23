@@ -23,22 +23,12 @@ const RUINS_FIELDS = {
   BUILDING_OPACITY: {
     route: ChangeRoute.Live,
     kind: FieldKind.Slider,
-    default: 0.3,
+    default: 0.2,
     min: 0.02,
     max: 1,
     step: 0.02,
     label: 'Building opacity',
     tip: 'How faint a deleted file’s building stub is. Low reads as a ghost; 1 is fully solid.',
-  },
-  ROAD_OPACITY: {
-    route: ChangeRoute.Live,
-    kind: FieldKind.Slider,
-    default: 0.3,
-    min: 0.02,
-    max: 1,
-    step: 0.02,
-    label: 'Road opacity',
-    tip: 'How faint a deleted folder’s road and plots are.',
   },
   STUB_HEIGHT: {
     route: ChangeRoute.Live,
@@ -63,9 +53,16 @@ const RUINS_FIELDS = {
   ROAD_COLOR: {
     route: ChangeRoute.Live,
     kind: FieldKind.Color,
-    default: '#040301',
+    default: '#050703',
     label: 'Road color',
     tip: 'Tint for the plots and roads of a deleted folder, so a deleted block reads apart from a live one.',
+  },
+  SIDEWALK_COLOR: {
+    route: ChangeRoute.Live,
+    kind: FieldKind.Color,
+    default: '#070906',
+    label: 'Sidewalk color',
+    tip: 'Color for the sidewalk border strip of a deleted folder road.',
   },
 } satisfies FieldMap;
 

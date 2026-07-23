@@ -164,6 +164,7 @@ export function createStreets(ctx: SceneContext): Streets {
     if (!r) return;
     if (sidewalkMesh) {
       _writeSpan(sidewalkMesh, 'aOpacity', r.sidewalk.vStart, r.sidewalk.vCount, opacity);
+      _writeSpan(sidewalkMesh, 'aRuin', r.sidewalk.vStart, r.sidewalk.vCount, tint);
     }
     if (asphaltMesh && r.asphalt) {
       _writeSpan(asphaltMesh, 'aOpacity', r.asphalt.vStart, r.asphalt.vCount, opacity);
@@ -372,17 +373,24 @@ export function createStreets(ctx: SceneContext): Streets {
   // RUINS.ROAD_COLOR is Saved. rebuild() seeds a fresh mesh's uniform from the
   // committed value; this maintains it afterward (mirrors the footprint).
   const stopRuinColor = effect(() => {
-    const hex = RUINS.value.ROAD_COLOR;
-    const u = asphaltMesh?.material.userData.uRuinColor as { value: THREE.Color } | undefined;
-    if (u) setColorFromHex(u.value, hex);
+    const road = RUINS.value.ROAD_COLOR;
+    const border = RUINS.value.SIDEWALK_COLOR;
+    const a = asphaltMesh?.material.userData.uRuinColor as { value: THREE.Color } | undefined;
+    if (a) setColorFromHex(a.value, road);
+    const s = sidewalkMesh?.material.userData.uRuinColor as { value: THREE.Color } | undefined;
+    if (s) setColorFromHex(s.value, border);
   });
 
-  // Future-road tint — keeps the asphalt's uFutureColor uniform current when
-  // BLUEPRINTS.COLOR is Saved (mirrors stopRuinColor).
+  // Future road + sidewalk-border tint — keeps the asphalt (road color) and
+  // sidewalk (border color) uFutureColor uniforms current on a Save (mirrors
+  // stopRuinColor).
   const stopFutureColor = effect(() => {
-    const hex = BLUEPRINTS.value.ROAD_COLOR;
-    const u = asphaltMesh?.material.userData.uFutureColor as { value: THREE.Color } | undefined;
-    if (u) setColorFromHex(u.value, hex);
+    const road = BLUEPRINTS.value.ROAD_COLOR;
+    const border = BLUEPRINTS.value.SIDEWALK_COLOR;
+    const a = asphaltMesh?.material.userData.uFutureColor as { value: THREE.Color } | undefined;
+    if (a) setColorFromHex(a.value, road);
+    const s = sidewalkMesh?.material.userData.uFutureColor as { value: THREE.Color } | undefined;
+    if (s) setColorFromHex(s.value, border);
   });
 
   // (2)+(3) Picker-driven sidewalk-tint effects — ARMED on the first tick(),

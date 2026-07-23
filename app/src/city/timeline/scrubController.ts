@@ -39,6 +39,10 @@ const _RUIN_GRAY = new THREE.Color(0.3, 0.31, 0.34);
 // footprint controls). Height in floors, ×FLOOR_HEIGHT at draw time.
 export const FUTURE_SLAB_FLOORS = 0.05;
 
+// A future slab keeps its file's own hue, sampled at mid-recency (it has no real
+// last-modified date yet), then pulled toward the future color by BUILDING_TINT.
+const FUTURE_BASE_RECENCY = 0.5;
+
 // Dir paths of streets currently rendered as ruins — the picker rejects hits on
 // them so a ruined road isn't hoverable/selectable (buildings use iRuin instead).
 // Owned here, repopulated each update(); read by interaction/picker.ts.
@@ -116,8 +120,7 @@ export function createScrubController(deps: ScrubControllerDeps) {
     const dirtyIconUVs = new Set<THREE.BufferAttribute>();
     const dirtyRuins = new Set<THREE.BufferAttribute>();
     // A street fades with its PRESENT descendants; a ruin-only or future-only
-    // street uses the road opacity instead, so building vs road opacity stay
-    // independent.
+    // street renders fully opaque, set apart by color instead of fading.
     const maxPresentOp = new Map<Street, number>();
     const ruinStreets = new Set<Street>();
     // Ad-panel opacity by path: the building's op when present, else 0 (a ruin or
@@ -131,15 +134,14 @@ export function createScrubController(deps: ScrubControllerDeps) {
     const ruins = RUINS.peek();
     const ruinsOn = ruins.ENABLED;
     const ruinBuildingOpacity = ruins.BUILDING_OPACITY;
-    const ruinRoadOpacity = ruins.ROAD_OPACITY;
     const ruinHeight = ruins.STUB_HEIGHT * floorHeight;
     const ruinGrayMix = ruins.DESATURATION;
 
     const bp = BLUEPRINTS.peek();
     const futureOn = bp.ENABLED;
     const futureBuildingOpacity = bp.BUILDING_OPACITY;
-    const futureRoadOpacity = bp.ROAD_OPACITY;
     const futureHeight = FUTURE_SLAB_FLOORS * floorHeight;
+    const futureTint = bp.BUILDING_TINT;
     _futureColor.set(bp.BUILDING_COLOR);
 
     // Pre-pass: weathering ranges over the PRESENT buildings at this scrub
@@ -182,7 +184,7 @@ export function createScrubController(deps: ScrubControllerDeps) {
       // as an ultra-low tinted slab at its eventual footprint — a marker of where
       // it WILL land, rendered via the building mesh (not the footprint plots).
       const future = !present && !ruin && futureOn && createdIdx > pos;
-      // present → genesis grow-in ramp; ruin → faint stub; future → faint slab;
+      // present → fully present; ruin → faint stub; future → faint slab;
       // before-genesis (out of range) or ruins-off deletion → gone.
       const op = present
         ? presenceAt(pt, pos, 0)
@@ -323,8 +325,16 @@ export function createScrubController(deps: ScrubControllerDeps) {
         mesh.setColorAt(slot, _color);
         dirtyColors.add(mesh);
       } else if (future) {
-        // A future slab reads in the future tint, not its eventual file hue.
-        mesh.setColorAt(slot, _futureColor);
+        // A future slab keeps its file's own hue, pulled toward the future color.
+        _color
+          .set(
+            getBuildingColorForRecency(
+              b.file as unknown as Parameters<typeof getBuildingColorForRecency>[0],
+              FUTURE_BASE_RECENCY
+            )
+          )
+          .lerp(_futureColor, futureTint);
+        mesh.setColorAt(slot, _color);
         dirtyColors.add(mesh);
       }
     }
@@ -346,20 +356,19 @@ export function createScrubController(deps: ScrubControllerDeps) {
     // ROOT is forced to 1: the repo root directory always exists, even when scrubbed back to an empty tree.
     for (const street of allStreets) {
       const hasPresent = presentStreets.has(street);
-      // Present descendants fade the road; else a deleted-folder road is a ruin,
-      // and any remaining non-root road is future (a folder not yet created at
-      // this scrub position). Present wins over ruin wins over future.
+      // Present descendants fade the road with the buildings; else a deleted-folder
+      // road is a ruin, and any remaining non-root road is future (a folder not yet
+      // created at this scrub position). Ruin + future roads render fully opaque,
+      // set apart by their color, not by fading. Present wins over ruin over future.
       const streetRuin = ruinsOn && !street.isRoot && !hasPresent && ruinStreets.has(street);
       const streetFuture = futureOn && !street.isRoot && !hasPresent && !streetRuin;
       const op = street.isRoot
         ? 1
         : hasPresent
           ? (maxPresentOp.get(street) ?? 0)
-          : streetRuin
-            ? ruinRoadOpacity
-            : streetFuture
-              ? futureRoadOpacity
-              : 0;
+          : streetRuin || streetFuture
+            ? 1
+            : 0;
       // Asphalt tint (streets machinery): 1 = ruin, 2 = future. Independent of the footprint controls.
       const tint = streetRuin ? 1 : streetFuture ? 2 : 0;
       deps.streets.setStreetOpacity(street, op, tint);

@@ -15,7 +15,7 @@ const BLUEPRINTS_FIELDS = {
   ENABLED: {
     route: ChangeRoute.Live,
     kind: FieldKind.Toggle,
-    default: true,
+    default: false,
     label: 'Show future files',
     tip: 'When on, a file created after the scrubbed commit shows as an ultra-low tinted slab where it will land, instead of nothing.',
   },
@@ -29,22 +29,22 @@ const BLUEPRINTS_FIELDS = {
     label: 'Building opacity',
     tip: 'How faint a future building slab is.',
   },
-  ROAD_OPACITY: {
-    route: ChangeRoute.Live,
-    kind: FieldKind.Slider,
-    default: 0.15,
-    min: 0.02,
-    max: 1,
-    step: 0.02,
-    label: 'Road opacity',
-    tip: 'How faint a future folder road is.',
-  },
   BUILDING_COLOR: {
     route: ChangeRoute.Live,
     kind: FieldKind.Color,
-    default: '#2c7d68',
+    default: '#0d2126',
     label: 'Building color',
-    tip: 'Tint for future building slabs, so they read apart from the live city.',
+    tip: 'The color a future slab is tinted toward. Its own file color is pulled this way by the tint amount.',
+  },
+  BUILDING_TINT: {
+    route: ChangeRoute.Live,
+    kind: FieldKind.Slider,
+    default: 0.5,
+    min: 0,
+    max: 1,
+    step: 0.05,
+    label: 'Building tint',
+    tip: 'How far a future slab is pulled from its own file color toward the building color. 0 keeps the file color, 1 is fully the building color.',
   },
   ROAD_COLOR: {
     route: ChangeRoute.Live,
@@ -52,6 +52,13 @@ const BLUEPRINTS_FIELDS = {
     default: '#020807',
     label: 'Road color',
     tip: 'Tint for future folder roads, so a future block reads apart from a live one.',
+  },
+  SIDEWALK_COLOR: {
+    route: ChangeRoute.Live,
+    kind: FieldKind.Color,
+    default: '#071013',
+    label: 'Sidewalk color',
+    tip: 'Color for the sidewalk border strip of a future folder road.',
   },
 } satisfies FieldMap;
 

@@ -1,7 +1,5 @@
 import type { TimelineBundle } from '@/types';
 
-const PRESENCE_RAMP = 0.5;
-
 export interface PathTimeline {
   changes: { i: number; lines: number }[];
   intervals: { start: number; end: number | null }[];
@@ -93,19 +91,12 @@ export function ruinStateAt(pt: PathTimeline, pos: number): 'present' | 'ruin' |
 export function presenceAt(pt: PathTimeline, pos: number, ruinFloor: number): number {
   if (pt.intervals.length === 0 || pos < pt.intervals[0].start) return 0;
 
-  for (let idx = 0; idx < pt.intervals.length; idx++) {
-    const iv = pt.intervals[idx];
-    if (pos >= iv.start && (iv.end === null || pos < iv.end)) {
-      // Only the genesis interval grows in; a resurrection reappears at full
-      // presence. A file present from the very first commit (start === 0) was
-      // always there, so it has no genesis to grow in from — full presence at the
-      // timeline start, not a 0-opacity ghost.
-      if (idx === 0 && iv.start > 0) {
-        const rampT = pos - iv.start;
-        if (rampT < PRESENCE_RAMP) return rampT / PRESENCE_RAMP;
-      }
-      return 1;
-    }
+  // A file is fully present at every commit inside a live interval — including the
+  // commit it was created at (a snapshot at that commit contains it). No genesis
+  // grow-in ramp: landing on a file's creation commit (or on HEAD after a rename
+  // records the moved file as freshly created) must show it, not fade it from 0.
+  for (const iv of pt.intervals) {
+    if (pos >= iv.start && (iv.end === null || pos < iv.end)) return 1;
   }
 
   return ruinFloor;

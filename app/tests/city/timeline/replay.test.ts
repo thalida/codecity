@@ -87,17 +87,15 @@ describe('linesAt', () => {
 });
 
 describe('presenceAt', () => {
-  test('a file present from the first commit is fully present at the start (no genesis ramp)', () => {
-    // f.txt is created at commit 0 (start === 0): it was always there, so it must
-    // NOT grow in from 0 at the timeline start — otherwise every first-commit file
-    // renders as a 0-opacity ghost.
-    const pt = buildPathTimelines(bundle).get('f.txt')!;
-    expect(pt.intervals[0].start).toBe(0);
-    expect(presenceAt(pt, 0, 0)).toBe(1);
-    expect(presenceAt(pt, 0.25, 0)).toBe(1);
-  });
+  test('a file is fully present at its creation commit (no genesis grow-in ramp)', () => {
+    // A file exists in the snapshot at the commit it was created, so landing on
+    // that commit must show it fully — not fade it in from 0. This holds at the
+    // first commit (start 0), mid-history, and at HEAD (a rename records the moved
+    // file as freshly created there).
+    const first = buildPathTimelines(bundle).get('f.txt')!; // created at commit 0
+    expect(first.intervals[0].start).toBe(0);
+    expect(presenceAt(first, 0, 0)).toBe(1);
 
-  test('a file created mid-history ramps from 0 to 1 over the first 0.5 of a commit-index', () => {
     const mid = {
       commits: [{ sha: 'a' }, { sha: 'b' }, { sha: 'c' }],
       unionManifest: { tree: { name: 'r' } },
@@ -111,9 +109,9 @@ describe('presenceAt', () => {
     } as unknown as TimelineBundle;
     const pt = buildPathTimelines(mid).get('g.txt')!; // created at commit 1
     expect(pt.intervals[0].start).toBe(1);
-    expect(presenceAt(pt, 1, 0)).toBe(0);
-    expect(presenceAt(pt, 1.25, 0)).toBeCloseTo(0.5);
+    expect(presenceAt(pt, 1, 0)).toBe(1); // full at its creation commit
     expect(presenceAt(pt, 1.5, 0)).toBe(1);
+    expect(presenceAt(pt, 0.9, 0)).toBe(0); // still absent just before creation
   });
 
   test('is 0 strictly before creation and honors a non-zero ruinFloor after deletion', () => {

@@ -251,6 +251,10 @@ export function createMergedSidewalkMesh(
   }
   merged.setAttribute('color', new THREE.BufferAttribute(colors, 3));
   seedOpacityAttribute(merged);
+  // Per-vertex Timeline tint (0 none, 1 deleted, 2 future), written per-street by
+  // the scrub controller so the sidewalk border reads in the deleted/future color.
+  // All 0 in live mode, where the vertex color (hover/select) shows unchanged.
+  merged.setAttribute('aRuin', new THREE.BufferAttribute(new Float32Array(vAcc), 1));
 
   const mat = new THREE.MeshBasicMaterial({
     color: 0xffffff,
@@ -260,7 +264,14 @@ export function createMergedSidewalkMesh(
     polygonOffsetFactor: -RENDER_ORDERS.SIDEWALK,
     polygonOffsetUnits: -RENDER_ORDERS.SIDEWALK,
   });
-  injectStreetOpacity(mat);
+  // Sidewalk border tint uses SIDEWALK_COLOR (distinct from the asphalt's road color).
+  const ruinUniform = { value: new THREE.Color() };
+  setColorFromHex(ruinUniform.value, RUINS.value.SIDEWALK_COLOR);
+  const futureUniform = { value: new THREE.Color() };
+  setColorFromHex(futureUniform.value, BLUEPRINTS.value.SIDEWALK_COLOR);
+  injectStreetOpacity(mat, { ruin: ruinUniform, future: futureUniform });
+  mat.userData.uRuinColor = ruinUniform;
+  mat.userData.uFutureColor = futureUniform;
   const mesh = new THREE.Mesh(merged, mat) as FlatMesh;
   mesh.renderOrder = RENDER_ORDERS.SIDEWALK;
   mesh.name = 'city-sidewalk';

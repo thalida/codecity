@@ -21,10 +21,10 @@ export const TIMELINE_SECTION: SectionNode = {
       children: [
         field(RUINS, 'ENABLED'),
         field(RUINS, 'BUILDING_OPACITY'),
-        field(RUINS, 'ROAD_OPACITY'),
         field(RUINS, 'STUB_HEIGHT'),
         field(RUINS, 'DESATURATION'),
         field(RUINS, 'ROAD_COLOR'),
+        field(RUINS, 'SIDEWALK_COLOR'),
       ],
     },
     {
@@ -35,9 +35,10 @@ export const TIMELINE_SECTION: SectionNode = {
       children: [
         field(BLUEPRINTS, 'ENABLED'),
         field(BLUEPRINTS, 'BUILDING_OPACITY'),
-        field(BLUEPRINTS, 'ROAD_OPACITY'),
         field(BLUEPRINTS, 'BUILDING_COLOR'),
+        field(BLUEPRINTS, 'BUILDING_TINT'),
         field(BLUEPRINTS, 'ROAD_COLOR'),
+        field(BLUEPRINTS, 'SIDEWALK_COLOR'),
       ],
     },
   ],
