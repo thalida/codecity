@@ -8,14 +8,13 @@ import { useState, useEffect } from 'preact/hooks';
 import { effect } from '@preact/signals';
 import type { Signal } from '@preact/signals';
 import { fetchFileText } from '@/api/file';
-import { BookOpen, FileWarning, FolderOpen, History } from 'lucide-preact';
+import { BookOpen, FileWarning, FolderOpen } from 'lucide-preact';
 import { Marked } from 'marked';
 import { NodeKind } from '@/types';
 import type { DirNode, FileNode, Manifest } from '@/types';
 import { PaneEmpty } from '@/components/Pane';
 import { isEmptyManifest } from '@/utils/manifest';
 import { resolveReadmeAssetUrl, rewriteHtmlImageUrls } from '@/utils/readmeAssets';
-import { TIMELINE_MODE } from '@/state/stores/timeline';
 
 /**
  * Render README markdown to HTML, rewriting relative image refs to route
@@ -68,7 +67,6 @@ export enum InfoBodyKind {
   Loading = 'loading',
   Markdown = 'markdown',
   Error = 'error',
-  TimeTravel = 'time-travel',
 }
 
 type InfoBodyState =
@@ -76,8 +74,7 @@ type InfoBodyState =
   | { kind: InfoBodyKind.NoReadme }
   | { kind: InfoBodyKind.Loading }
   | { kind: InfoBodyKind.Markdown; html: string }
-  | { kind: InfoBodyKind.Error; message: string }
-  | { kind: InfoBodyKind.TimeTravel };
+  | { kind: InfoBodyKind.Error; message: string };
 
 export interface ReadmePaneProps {
   manifest: Signal<Manifest | DirNode | { tree?: unknown; [k: string]: unknown } | null>;
@@ -99,11 +96,6 @@ export function ReadmePane({ manifest }: ReadmePaneProps) {
       const readme = _findRootReadme(m as Manifest | DirNode | null);
       if (!readme || !readme.fullPath) {
         setBody({ kind: InfoBodyKind.NoReadme });
-        return;
-      }
-      // /api/file reads the current checkout, which would be wrong while scrubbing a past commit.
-      if (TIMELINE_MODE.value) {
-        setBody({ kind: InfoBodyKind.TimeTravel });
         return;
       }
       setBody({ kind: InfoBodyKind.Loading });
@@ -146,13 +138,6 @@ export function ReadmePane({ manifest }: ReadmePaneProps) {
       )}
       {body.kind === InfoBodyKind.Error && (
         <PaneEmpty icon={FileWarning} title="Couldn't load README" sub={body.message} />
-      )}
-      {body.kind === InfoBodyKind.TimeTravel && (
-        <PaneEmpty
-          icon={History}
-          title="Not available in time travel"
-          sub="File preview reads the current checkout, not this commit."
-        />
       )}
       {body.kind === InfoBodyKind.Markdown && (
         <article class="info-markdown pane-inset" dangerouslySetInnerHTML={{ __html: body.html }} />

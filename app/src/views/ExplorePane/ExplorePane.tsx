@@ -13,10 +13,15 @@ import { Pane } from '@/components/Pane';
 import { PaneCloseButton } from '@/components/PaneHeader/PaneHeader';
 import { PaneTabs } from '@/components/PaneTabs/PaneTabs';
 import { CURRENT_SOURCE } from '@/state/stores/source';
+import { MANIFEST } from '@/state/stores/manifest';
 import { TreePane } from '@/views/TreePane/TreePane';
 import { ReadmePane } from '@/views/InfoPane/ReadmePane';
 
-type ManifestSignal = Signal<Manifest | DirNode | { tree?: unknown; [k: string]: unknown } | null>;
+// The tree reads whatever it's given (the union while scrubbing); read-only —
+// the panes never write it.
+type ManifestSignal = ReadonlySignal<
+  Manifest | DirNode | { tree?: unknown; [k: string]: unknown } | null
+>;
 
 export enum ExploreTab {
   Tree = 'tree',
@@ -83,7 +88,9 @@ export function ExplorePane({
         />
       ) : (
         <div class="pane-body">
-          <ReadmePane manifest={manifest} />
+          {/* README always reads HEAD (it fetches the current checkout), never the
+              scrubbed union — so it gets MANIFEST, not the tree's history manifest. */}
+          <ReadmePane manifest={MANIFEST} />
         </div>
       )}
     </Pane>

@@ -18,7 +18,7 @@
 import './SearchPane.css';
 import type { VNode } from 'preact';
 import { useMemo, useRef, useState } from 'preact/hooks';
-import type { Signal } from '@preact/signals';
+import type { ReadonlySignal } from '@preact/signals';
 import { NodeKind } from '@/types';
 import type { DirNode, FileNode, Manifest, TreeNode } from '@/types';
 import { Search, SearchX } from 'lucide-preact';
@@ -38,7 +38,7 @@ interface PathMatch {
 // ── Preact component ─────────────────────────────────────────────────────────
 
 export interface SearchPaneProps {
-  manifest: Signal<Manifest | DirNode | { tree?: unknown; [k: string]: unknown } | null>;
+  manifest: ReadonlySignal<Manifest | DirNode | { tree?: unknown; [k: string]: unknown } | null>;
   onClose?: () => void;
   onSelect?: (path: string) => void;
 }
