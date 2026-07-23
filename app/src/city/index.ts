@@ -203,6 +203,12 @@ export async function createCity(canvas: HTMLCanvasElement, manifest: Manifest):
         for (const c of components) c.onResize?.(cw, ch);
       }
     },
+    after() {
+      // Runs after every component tick, so the scrub controller has written this
+      // frame's presence attributes: drop a selection the scrub just removed so a
+      // building/road/tree outline can't dangle over empty space.
+      if (TIMELINE_MODE.peek()) picker.pruneScrubHiddenSelection();
+    },
   });
 
   const timelineApi = {

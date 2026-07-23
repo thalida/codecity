@@ -112,6 +112,25 @@ describe('picker: Timeline scrub-hidden guard — buildings', () => {
     picker.dispose();
   });
 
+  it('pruneScrubHiddenSelection drops a selected building the scrub removed', () => {
+    const { picker, iFade, slot } = setup();
+    TIMELINE_MODE.value = true;
+    iFade.setXYZ(slot, 1, 0, 0);
+    const sel = picker.interpretHit(picker.pickAt(400, 300));
+    picker.setSelection(sel);
+    expect(picker.selection.value?.kind).toBe(NodeKind.File);
+
+    // Still present → prune keeps it.
+    picker.pruneScrubHiddenSelection();
+    expect(picker.selection.value).not.toBeNull();
+
+    // Scrubbed to absent (iFade.x → 0) → prune clears it.
+    iFade.setXYZ(slot, 0, 0, 0);
+    picker.pruneScrubHiddenSelection();
+    expect(picker.selection.value).toBeNull();
+    picker.dispose();
+  });
+
   it('live mode (TIMELINE_MODE off) still picks a faded building — guard is a no-op', () => {
     const { picker, iFade, slot } = setup();
     TIMELINE_MODE.value = false;

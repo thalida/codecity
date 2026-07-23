@@ -28,6 +28,9 @@ export interface DirTarget {
   dir: DirNode;
   /** Timeline mode: this road's folder is a ghost-ruin (all its files deleted). */
   isRuin?: boolean;
+  /** The picked face's first sidewalk vertex — lets the scrub-hidden re-check
+   *  read this street's aOpacity without a fresh raycast. */
+  vertexHint?: number;
 }
 
 /** Hovered/selected root gem. */

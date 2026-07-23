@@ -378,14 +378,38 @@ export function createPicker({
     return sx < SCRUB_HIDE_EPS;
   }
 
-  // Streets fade per-vertex (aOpacity); read the hit face's vertex directly
-  // so this can't drift from what the shader is actually drawing.
-  function _streetScrubHidden(hit: THREE.Intersection<THREE.Object3D>): boolean {
-    const mesh = hit.object as THREE.Mesh;
+  // Streets fade per-vertex (aOpacity); read a face vertex directly so this
+  // can't drift from what the shader is actually drawing. Takes a bare mesh +
+  // vertex (not a hit) so a stored selection can be re-checked on scrub without
+  // a fresh raycast.
+  function _streetScrubHidden(mesh: THREE.Mesh, vi: number | null | undefined): boolean {
     const aOpacity = mesh.geometry?.getAttribute('aOpacity') as THREE.BufferAttribute | undefined;
-    const vi = hit.face?.a;
     if (!aOpacity || vi == null) return false;
     return aOpacity.getX(vi) < SCRUB_HIDE_EPS;
+  }
+
+  // Whether the current selection has been removed by the scrub (absent building,
+  // faded-out road, zero-scaled tree). A ruin stub stays selected — it's still
+  // visible. Used to prune a dangling selection each frame while scrubbing.
+  function _selectionScrubHidden(sel: PickTarget): boolean {
+    if (sel.kind === NodeKind.File) {
+      return sel.instanceId != null && _buildingScrubHidden(sel.mesh as THREE.InstancedMesh, sel.instanceId);
+    }
+    if (sel.kind === NodeKind.Commit) {
+      return _treeScrubHidden(sel.mesh, sel.instanceId);
+    }
+    if (sel.kind === NodeKind.Directory) {
+      return _streetScrubHidden(sel.sidewalk, sel.vertexHint);
+    }
+    return false;
+  }
+
+  // Called each frame in Timeline (after the scrub controller writes the frame's
+  // presence attributes): drop a selection the scrub just removed so its outline
+  // can't dangle over empty space.
+  function pruneScrubHiddenSelection(): void {
+    const sel = selection.peek();
+    if (sel && _selectionScrubHidden(sel)) selection.value = null;
   }
 
   // ── Raycasting ────────────────────────────────────────────────────
@@ -486,7 +510,9 @@ export function createPicker({
     // Merged sidewalk: all streets share one mesh, so resolve the hit face to
     // its street via the faceIndex→street map baked onto userData.
     if (ud.type === NodeKind.Directory && ud.pickStreets) {
-      if (TIMELINE_MODE.peek() && _streetScrubHidden(hit)) return null;
+      if (TIMELINE_MODE.peek() && _streetScrubHidden(hit.object as THREE.Mesh, hit.face?.a)) {
+        return null;
+      }
       const street = sidewalkStreetForFace(hit.object, hit.faceIndex ?? 0);
       // A future folder's road is only a pad — it doesn't exist at this scrub position, so it's not selectable.
       if (street?.dir && TIMELINE_MODE.peek() && FUTURE_STREET_DIRS.has(street.dir.path)) return null;
@@ -497,6 +523,7 @@ export function createPicker({
           street,
           dir: street.dir,
           isRuin: TIMELINE_MODE.peek() && RUINED_STREET_DIRS.has(street.dir.path),
+          vertexHint: hit.face?.a,
         };
       }
       return null;
@@ -532,6 +559,7 @@ export function createPicker({
     targetForPath,
     pickAt,
     interpretHit,
+    pruneScrubHiddenSelection,
     dispose,
   };
 }
