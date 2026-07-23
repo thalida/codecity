@@ -89,7 +89,12 @@ describe('enterTimelineMode', () => {
 
     await enterTimelineMode();
 
-    expect(fetchTimelineBundle).toHaveBeenCalledWith('s', undefined, expect.any(Function));
+    expect(fetchTimelineBundle).toHaveBeenCalledWith(
+      's',
+      undefined,
+      expect.any(Function),
+      expect.objectContaining({ signal: expect.any(AbortSignal) })
+    );
     expect(f.applyManifest).toHaveBeenCalledTimes(1);
     expect(f.applyManifest).toHaveBeenCalledWith(BUNDLE.unionManifest);
     expect(f.setStreetsTransparent).toHaveBeenCalledWith(true);

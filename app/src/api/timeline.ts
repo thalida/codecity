@@ -26,7 +26,7 @@ export function fetchTimelineBundle(
   src: string,
   branch?: string,
   onProgress?: (p: TimelineProgress) => void,
-  opts: { EventSourceImpl?: typeof EventSource } = {}
+  opts: { EventSourceImpl?: typeof EventSource; signal?: AbortSignal } = {}
 ): Promise<TimelineBundle> {
   const EventSourceImpl = opts.EventSourceImpl ?? EventSource;
   return new Promise((resolve, reject) => {
@@ -37,8 +37,23 @@ export function fetchTimelineBundle(
       if (done) return;
       done = true;
       es.close();
+      opts.signal?.removeEventListener('abort', onAbort);
       fn();
     };
+
+    // The caller (a user Cancel on the loading overlay) aborts the in-flight
+    // history stream; close it and reject as an abort so the caller stays put.
+    const onAbort = (): void =>
+      finish(() => {
+        const e = new Error('Timeline load aborted');
+        e.name = 'AbortError';
+        reject(e);
+      });
+    if (opts.signal?.aborted) {
+      onAbort();
+      return;
+    }
+    opts.signal?.addEventListener('abort', onAbort);
 
     // Parse an event's JSON data, ending the stream with a rejection (rather
     // than throwing into the swallowed event listener, which would leave the

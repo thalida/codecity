@@ -56,12 +56,32 @@ export async function enterTimelineMode(): Promise<void> {
   // background refresh, so it deserves the same treatment as a cold load, repo
   // name header included (PENDING_SOURCE_LABEL, the same signal the live load sets).
   PENDING_SOURCE_LABEL.value = SOURCE_INFO.peek().label || null;
-  showLoadingOverlay({ kind: srcKind(cur.src), branch: cur.branch, steps: TIMELINE_LOADING_STEPS });
+
+  // Cancel handler for the overlay: abort the history fetch (the long part) and
+  // stay on the live city — nothing is touched until the pack below (committed).
+  const abort = new AbortController();
+  let cancelled = false;
+  let committed = false;
+  showLoadingOverlay(
+    { kind: srcKind(cur.src), branch: cur.branch, steps: TIMELINE_LOADING_STEPS },
+    () => {
+      if (committed) return;
+      cancelled = true;
+      abort.abort();
+      hideLoadingOverlay();
+      PENDING_SOURCE_LABEL.value = null;
+    }
+  );
   setLoadingStep(LoadingStep.TimelineLoading);
   try {
-    const bundle = await fetchTimelineBundle(cur.src, cur.branch, (p) =>
-      setLoadingStepTail(LoadingStep.TimelineLoading, timelineLoadingTail(p))
+    const bundle = await fetchTimelineBundle(
+      cur.src,
+      cur.branch,
+      (p) => setLoadingStepTail(LoadingStep.TimelineLoading, timelineLoadingTail(p)),
+      { signal: abort.signal }
     );
+    if (cancelled) return; // user backed out during the fetch — live view stands
+    committed = true; // past here the scene is repacked; no longer cancellable
     TIMELINE_BUNDLE.value = bundle;
     const timelines = buildPathTimelines(bundle);
     setLoadingStepTail(LoadingStep.TimelineLoading, null);
@@ -82,6 +102,7 @@ export async function enterTimelineMode(): Promise<void> {
       PENDING_SOURCE_LABEL.value = null;
     });
   } catch (err) {
+    if (cancelled) return; // user cancel already aborted the fetch + restored live
     // Leave nothing half-set: revert to live and surface via the footer.
     // Explicit handle calls too: a failure here may predate the controller install, so the effect wouldn't fire.
     // Cleanup is best-effort — swallow its own throw so it can't bury `err` or strand the overlay (a silent stuck load).

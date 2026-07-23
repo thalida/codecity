@@ -37,7 +37,7 @@ import {
   runCollisionCheck,
   runStemDiagnostic,
 } from '@/state/stores/scene';
-import { openProjectsView, closeProjectsView } from '@/state/stores/ui';
+import { openProjectsView, closeProjectsView, LOADING_CANCEL } from '@/state/stores/ui';
 import { SOURCE_ERROR, CURRENT_SOURCE } from '@/state/stores/source';
 import { MANIFEST } from '@/state/stores/manifest';
 import { isEmptyManifest } from '@/utils/manifest';
@@ -106,8 +106,15 @@ export function App() {
       <ProjectsView onSubmit={(p) => submitSource(p)} onCancel={cancelLoad} onClose={dismissView} />
       <LoadingOverlay
         onCancel={() => {
-          cancelLoad();
-          openProjectsView({ dismissible: false });
+          // A load that can be backed out of (timeline enter) registers its own
+          // restore-the-last-view handler; the cold-boot live load has no prior
+          // view, so it falls back to the project list.
+          const registered = LOADING_CANCEL.peek();
+          if (registered) registered();
+          else {
+            cancelLoad();
+            openProjectsView({ dismissible: false });
+          }
         }}
       />
       <ShortcutsModal />
