@@ -137,11 +137,13 @@ describe('RightSidebar', () => {
     expect(aside.querySelector('.pane')).not.toBeNull();
   });
 
-  it('Timeline mode: a file selection does NOT open the panel, but a commit does', async () => {
+  it('Timeline mode: every selection opens the panel (file, dir, and commit)', async () => {
     TIMELINE_MODE.value = true;
     const handle = SCENE_HANDLE.peek() as unknown as ReturnType<typeof makeSceneHandle>;
+    const aside = container.querySelector<HTMLElement>('aside#right-sidebar')!;
 
-    // File selection while scrubbing → panel stays closed (still selectable in the scene).
+    // File selection while scrubbing → panel opens (the sidebar is now the only
+    // place a selection is shown; the pane notes it reads HEAD, not the commit).
     handle.picker.setSelection({
       kind: NodeKind.File,
       file: FILE_NODE,
@@ -149,10 +151,9 @@ describe('RightSidebar', () => {
       data: {} as never,
     });
     await flush();
-    const aside = container.querySelector<HTMLElement>('aside#right-sidebar')!;
-    expect(aside.classList.contains('open')).toBe(false);
+    expect(aside.classList.contains('open')).toBe(true);
 
-    // Commit selection is exempt → panel opens.
+    // Commit selection also opens.
     handle.picker.setSelection({
       kind: NodeKind.Commit,
       commit: { sha: 'abc1234', date: '2024-01-01', subject: 's', files: 1 } as never,

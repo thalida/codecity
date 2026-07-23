@@ -34,7 +34,6 @@ import { KEY_BINDINGS } from '@/constants/keyboard';
 import { PathBreadcrumbs } from '@/components/PathBreadcrumbs/PathBreadcrumbs';
 import { nodeUrl } from '@/utils/commit';
 import { formatBytes } from '@/utils/bytes';
-import { TIMELINE_MODE } from '@/state/stores/timeline';
 import { languageFor } from '@/utils/syntaxLanguages';
 
 // Auto-load images/video/audio/PDF (browser handles streaming + memory).
@@ -69,6 +68,9 @@ export interface FilePreviewPaneState {
   /** Repo remote URL + branch, for the header open-on-origin link. */
   remoteUrl?: string | null;
   branch?: string;
+  /** In Timeline mode the preview reads HEAD (the checkout), not the scrubbed
+   *  commit — show a note saying so. */
+  inTimeline?: boolean;
 }
 
 export interface FilePreviewPaneProps {
@@ -428,17 +430,6 @@ function _previewBody(file: FileNode | null) {
   }
   if (!file.fullPath) return null;
 
-  // /api/file reads the current checkout, which would be wrong while scrubbing a past commit.
-  if (TIMELINE_MODE.value) {
-    return (
-      <PaneEmpty
-        icon={History}
-        title="Not available in time travel"
-        sub="File preview reads the current checkout, not this commit."
-      />
-    );
-  }
-
   // Version the URL by mtime so an edited image/video/pdf re-fetches on a live
   // update instead of the browser serving the cached bytes for the same path.
   const url = fileUrl(file.fullPath || '', file.modified);
@@ -488,7 +479,7 @@ function _previewBody(file: FileNode | null) {
 // ── Preact component ─────────────────────────────────────────────────────────
 
 export function FilePreviewPane({ state, onClose, onFocus, onExclude }: FilePreviewPaneProps) {
-  const { file, rootLabel = '', rootPath = '', remoteUrl, branch = '' } = state.value;
+  const { file, rootLabel = '', rootPath = '', remoteUrl, branch = '', inTimeline } = state.value;
   const path = file?.path ?? '';
 
   return (
@@ -517,6 +508,12 @@ export function FilePreviewPane({ state, onClose, onFocus, onExclude }: FilePrev
       excludeTitle="Exclude this file from the city"
       bodyClass="editor-body surface-app"
     >
+      {file && inTimeline && (
+        <div class="preview-timeline-note" role="note">
+          <History class="icon" aria-hidden="true" />
+          Showing the current version (HEAD), not the scrubbed commit.
+        </div>
+      )}
       {_previewBody(file)}
     </Pane>
   );

@@ -264,3 +264,20 @@
 .font-specimen-glyph:hover {
   background: var(--cc-bg-chrome);
 }
+
+/* Timeline note: the preview reads HEAD, not the scrubbed commit. Sits above the
+   file body as a muted banner. */
+.preview-timeline-note {
+  display: flex;
+  align-items: center;
+  gap: var(--cc-space-3);
+  padding: var(--cc-space-3) var(--cc-space-4);
+  border-bottom: 1px solid var(--cc-border-subtle);
+  background: var(--cc-bg-chrome);
+  color: var(--cc-text-secondary);
+  font-size: var(--cc-font-sm);
+}
+.preview-timeline-note .icon {
+  flex-shrink: 0;
+  color: var(--cc-text-muted);
+}

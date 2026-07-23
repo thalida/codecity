@@ -104,3 +104,16 @@
   color: var(--cc-text-primary);
   white-space: nowrap;
 }
+
+/* Timeline note: folder stats are all-time (union), not the scrubbed commit. */
+.street-timeline-note {
+  display: flex;
+  align-items: center;
+  gap: var(--cc-space-3);
+  color: var(--cc-text-secondary);
+  font-size: var(--cc-font-sm);
+}
+.street-timeline-note .icon {
+  flex-shrink: 0;
+  color: var(--cc-text-muted);
+}

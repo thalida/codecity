@@ -13,7 +13,7 @@ import type { ReadonlySignal } from '@preact/signals';
 import type { DirNode, ExtBreakdownEntry } from '@/types';
 import { Pane, PaneEmpty } from '@/components/Pane';
 import { KEY_BINDINGS } from '@/constants/keyboard';
-import { Route, FileType, CalendarRange } from 'lucide-preact';
+import { Route, FileType, CalendarRange, History } from 'lucide-preact';
 import { ExtensionBadge } from '@/components/Badge/Badge';
 import { PathBreadcrumbs } from '@/components/PathBreadcrumbs/PathBreadcrumbs';
 import { nodeUrl } from '@/utils/commit';
@@ -33,6 +33,9 @@ export interface StreetPaneState {
   /** Repo remote URL + branch, for the header open-on-origin link. */
   remoteUrl?: string | null;
   branch?: string;
+  /** In Timeline mode the folder stats are the union (all-time), not the scrubbed
+   *  commit — show a note saying so. */
+  inTimeline?: boolean;
 }
 
 export interface StreetPaneProps {
@@ -45,7 +48,14 @@ export interface StreetPaneProps {
 // ── Preact component ─────────────────────────────────────────────────────────
 
 export function StreetPane({ state, onClose, onFocus, onExclude }: StreetPaneProps) {
-  const { directory: d, rootLabel = '', rootPath = '', remoteUrl, branch = '' } = state.value;
+  const {
+    directory: d,
+    rootLabel = '',
+    rootPath = '',
+    remoteUrl,
+    branch = '',
+    inTimeline,
+  } = state.value;
 
   if (!d) {
     return (
@@ -100,6 +110,12 @@ export function StreetPane({ state, onClose, onFocus, onExclude }: StreetPanePro
       excludeTitle="Exclude this road from the city"
       bodyClass="street-body pane-inset"
     >
+      {inTimeline && (
+        <div class="street-timeline-note" role="note">
+          <History class="icon" aria-hidden="true" />
+          All-time folder stats, not the scrubbed commit.
+        </div>
+      )}
       {dateRange && (
         <div class="street-dates" title="Oldest file created → newest change">
           <CalendarRange class="icon street-dates-icon" aria-hidden="true" />

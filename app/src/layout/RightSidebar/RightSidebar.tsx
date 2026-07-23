@@ -91,11 +91,11 @@ export function RightSidebar() {
   // live-update poll re-derives the enriched panes.
   const activeKind = useComputed<SidebarPaneKind | null>(() => {
     const sel = SCENE_HANDLE.value?.picker.selection.value ?? null;
-    // Commits open the panel even while scrubbing; a file/dir details panel does
-    // NOT (its data is the union city, not a real scan at that commit) — the
-    // building/street is still selectable + shows a tooltip, just no panel.
+    // Every selection opens the panel, in Live and Timeline alike — the sidebar is
+    // now the only place a selection is shown. In Timeline the panes handle the
+    // union-city caveat themselves (file preview reads HEAD with a note; the
+    // street pane shows the union folder).
     if (sel?.kind === NodeKind.Commit) return SidebarPaneKind.Commit;
-    if (TIMELINE_MODE.value) return null;
     if (sel?.kind === NodeKind.File) return SidebarPaneKind.File;
     if (sel?.kind === NodeKind.Directory) return SidebarPaneKind.Street;
     return null;
@@ -111,6 +111,7 @@ export function RightSidebar() {
       rootPath: (m as Manifest)?.tree?.path ?? ROOT_PATH,
       remoteUrl: (m as Manifest)?.repo?.remote_url ?? null,
       branch: SOURCE_INFO.value.branch,
+      inTimeline: TIMELINE_MODE.value,
     };
   });
   const commitState = useComputed<CommitPaneState>(() => {
@@ -133,6 +134,7 @@ export function RightSidebar() {
       rootPath: (m as Manifest)?.tree?.path ?? ROOT_PATH,
       remoteUrl: (m as Manifest)?.repo?.remote_url ?? null,
       branch: SOURCE_INFO.value.branch,
+      inTimeline: TIMELINE_MODE.value,
     };
   });
 
