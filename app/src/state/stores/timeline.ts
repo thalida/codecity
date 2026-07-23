@@ -1,10 +1,15 @@
-import { signal, batch } from '@preact/signals';
+import { signal, batch, computed } from '@preact/signals';
 import type { TimelineBundle } from '@/types';
 
 // Distinct render mode (union city + scrub). SCRUB_POS is a float commit index so scrubbing interpolates.
 export const TIMELINE_MODE = signal(false);
 export const SCRUB_POS = signal(0);
 export const TIMELINE_BUNDLE = signal<TimelineBundle | null>(null);
+
+// The whole commit index SCRUB_POS lands on. Per-path state only changes at
+// integer commits, so signals keyed on this (the sidebar tree/search marking)
+// recompute once per commit crossing, not on every sub-commit interpolation frame.
+export const SCRUB_COMMIT = computed(() => Math.floor(SCRUB_POS.value));
 
 // True while the user is actively dragging the scrubber handle. Consumers that
 // would reflow the layout mid-scrub (e.g. auto-closing the right sidebar when a

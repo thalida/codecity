@@ -8,7 +8,7 @@
 // the scrub controller decides a street's state from its buildings.
 
 import { computed, type ReadonlySignal } from '@preact/signals';
-import { TIMELINE_MODE, TIMELINE_BUNDLE, SCRUB_POS } from './timeline';
+import { TIMELINE_MODE, TIMELINE_BUNDLE, SCRUB_COMMIT } from './timeline';
 import { buildPathTimelines, ruinStateAt } from '@/city/timeline/replay';
 import type { PathTimeline } from '@/city/timeline/replay';
 import { NodeKind } from '@/types';
@@ -71,7 +71,7 @@ export const HISTORY_NODE_STATE: ReadonlySignal<ReadonlyMap<string, HistoryState
     const bundle = TIMELINE_BUNDLE.value;
     const timelines = _TIMELINES.value;
     if (!bundle || !timelines) return EMPTY;
-    const pos = SCRUB_POS.value;
+    const pos = SCRUB_COMMIT.value;
     const tree = (bundle.unionManifest as unknown as { tree?: TreeNode }).tree;
     if (!tree) return EMPTY;
     const out = new Map<string, HistoryState>();
