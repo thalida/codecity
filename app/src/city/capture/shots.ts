@@ -12,8 +12,6 @@
 import type { SceneHandle } from '@/state/stores/scene';
 import { NodeKind, type Manifest, type DirNode } from '@/types';
 import { CAMERA } from '@/state/stores/settings/camera';
-import { RUINS } from '@/state/stores/settings/ruins';
-import { BLUEPRINTS } from '@/state/stores/settings/blueprints';
 import { TIMELINE_MODE, SCRUB_POS, TIMELINE_BUNDLE } from '@/state/stores/timeline';
 import { enterTimelineMode } from '@/hooks/useTimelineMode';
 
@@ -108,16 +106,14 @@ export const SHOTS: Record<string, ShotPose> = {
     h.rig.reset();
   },
 
-  // The whole city part-built at an older commit: enter Timeline mode (with both
-  // deleted stubs and future slabs on so the shot shows every representation),
-  // scrub to mid-history, and frame the union city. enterTimelineMode is async, so
-  // return false until the mode + bundle are live — the harness retries.
+  // The whole city part-built at an older commit: enter Timeline mode, scrub to
+  // mid-history, and frame the union city. No settings overrides — the shot
+  // reflects the defaults (deleted stubs on, future files off). enterTimelineMode
+  // is async, so return false until the mode + bundle are live — the harness retries.
   timeline: (h, _m, o) => {
     if (!TIMELINE_MODE.peek()) {
       if (!_timelineKickedOff) {
         _timelineKickedOff = true;
-        RUINS.value = { ...RUINS.value, ENABLED: true };
-        BLUEPRINTS.value = { ...BLUEPRINTS.value, ENABLED: true };
         void enterTimelineMode();
       }
       return false;
