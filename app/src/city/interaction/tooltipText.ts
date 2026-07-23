@@ -44,11 +44,9 @@ export function formatHoverTooltip(
     // meaningless 0 — surface pixel dimensions instead. The backend only
     // stamps media_width/height on recognized media, so their presence is a
     // reliable "this is dimensioned media" signal.
-    const base =
-      f.media_width != null && f.media_height != null
-        ? `${fpath}  ·  ${f.media_width}×${f.media_height}`
-        : fpath + (f.lines != null ? `  ·  ${f.lines} lines` : '');
-    return base + _ruinNote(target);
+    return f.media_width != null && f.media_height != null
+      ? `${fpath}  ·  ${f.media_width}×${f.media_height}`
+      : fpath + (f.lines != null ? `  ·  ${f.lines} lines` : '');
   }
   if (target.kind === NodeKind.Directory && target.dir) {
     const d = target.dir;
@@ -60,12 +58,17 @@ export function formatHoverTooltip(
     const counts = `${fileCount} file${fileCount === 1 ? '' : 's'}, ${dirCount} dir${
       dirCount === 1 ? '' : 's'
     }`;
-    return `${dpath || 'directory'}  ·  ${counts}${_ruinNote(target)}`;
+    return `${dpath || 'directory'}  ·  ${counts}`;
   }
   return null;
 }
 
-// Timeline ghost-ruin marker, appended to a file/dir tooltip.
-function _ruinNote(target: { isRuin?: boolean }): string {
-  return target.isRuin ? '  ·  ruin (deleted)' : '';
+// Whether a hovered file/dir is a ghost-ruin (deleted at the scrubbed commit).
+// The tooltip renderer leads with a red "deleted" badge for these, so the marker
+// lives with the render, not in this identity-text formatter.
+export function isDeletedTarget(target: PickTarget | null): boolean {
+  if (target?.kind === NodeKind.File || target?.kind === NodeKind.Directory) {
+    return Boolean(target.isRuin);
+  }
+  return false;
 }

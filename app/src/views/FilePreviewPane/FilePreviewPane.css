@@ -53,6 +53,16 @@
 /* Empty/error/too-large states all use the .empty-state + .empty-state--lg
    helper (centered icon + headline + subtitle) in the search-pane section. */
 
+/* Deleted-file state (a ruin building selected while scrubbing): the file is
+   gone at this commit, so lead with a red icon + headline so "deleted" reads
+   at a glance rather than as a generic empty state. */
+.file-deleted-state .icon {
+  color: var(--cc-error);
+}
+.file-deleted-state .text-card-title {
+  color: var(--cc-error-light);
+}
+
 /* ── File preview elements (children of .editor-body) ───────────────────
    Each preview kind drops directly into the editor body and grabs the
    full available height via .editor-body > * { flex: 1 1 auto }. */

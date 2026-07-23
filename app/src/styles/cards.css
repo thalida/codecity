@@ -38,3 +38,10 @@
   padding: var(--cc-space-2) var(--cc-space-4);
   box-shadow: var(--cc-shadow-md);
 }
+
+/* Leading "deleted" badge on a ruin's hover tooltip — red + bold so it reads
+   at a glance before the path. */
+.tooltip-deleted {
+  color: var(--cc-error-light);
+  font-weight: var(--cc-fw-semibold);
+}

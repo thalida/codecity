@@ -105,13 +105,17 @@ export function RightSidebar() {
     const sel = SCENE_HANDLE.value?.picker.selection.value ?? null;
     if (sel?.kind !== NodeKind.File) return { file: null };
     const fresh = findNodeByPath(m, sel.file.path);
+    // MANIFEST stays HEAD in Timeline (the union goes to cityState, not this
+    // store), so a union file missing here is deleted at HEAD → /api/file 404s.
+    const atHead = fresh?.type === NodeKind.File;
     return {
-      file: fresh?.type === NodeKind.File ? fresh : sel.file,
+      file: atHead ? fresh : sel.file,
       rootLabel: SOURCE_INFO.value.label,
       rootPath: (m as Manifest)?.tree?.path ?? ROOT_PATH,
       remoteUrl: (m as Manifest)?.repo?.remote_url ?? null,
       branch: SOURCE_INFO.value.branch,
       inTimeline: TIMELINE_MODE.value,
+      isDeleted: TIMELINE_MODE.value && !atHead,
     };
   });
   const commitState = useComputed<CommitPaneState>(() => {

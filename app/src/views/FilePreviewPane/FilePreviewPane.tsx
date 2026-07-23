@@ -71,6 +71,9 @@ export interface FilePreviewPaneState {
   /** In Timeline mode the preview reads HEAD (the checkout), not the scrubbed
    *  commit — show a note saying so. */
   inTimeline?: boolean;
+  /** The file is deleted at HEAD (not in the checked-out tree), so /api/file
+   *  would 404 — show a deleted state instead of fetching. */
+  isDeleted?: boolean;
 }
 
 export interface FilePreviewPaneProps {
@@ -479,8 +482,17 @@ function _previewBody(file: FileNode | null) {
 // ── Preact component ─────────────────────────────────────────────────────────
 
 export function FilePreviewPane({ state, onClose, onFocus, onExclude }: FilePreviewPaneProps) {
-  const { file, rootLabel = '', rootPath = '', remoteUrl, branch = '', inTimeline } = state.value;
+  const {
+    file,
+    rootLabel = '',
+    rootPath = '',
+    remoteUrl,
+    branch = '',
+    inTimeline,
+    isDeleted,
+  } = state.value;
   const path = file?.path ?? '';
+  const deleted = Boolean(file && isDeleted);
 
   return (
     <Pane
@@ -501,20 +513,28 @@ export function FilePreviewPane({ state, onClose, onFocus, onExclude }: FilePrev
       focusTitle={`Focus the camera on this file (${KEY_BINDINGS.FOCUS_SELECTION.label})`}
       copyText={file ? path || rootPath : undefined}
       copyLabel="Copy path"
-      openUrl={file && remoteUrl ? nodeUrl(remoteUrl, branch, path, false) : null}
+      openUrl={file && !deleted && remoteUrl ? nodeUrl(remoteUrl, branch, path, false) : null}
       openLabel="Open file on origin"
       onClose={onClose}
       onExclude={file && typeof onExclude === 'function' ? () => onExclude(file) : undefined}
       excludeTitle="Exclude this file from the city"
-      bodyClass={`editor-body surface-app${file && inTimeline ? ' has-stale-note' : ''}`}
+      bodyClass={`editor-body surface-app${file && inTimeline && !deleted ? ' has-stale-note' : ''}`}
     >
-      {file && inTimeline && (
+      {file && inTimeline && !deleted && (
         <div class="timeline-stale-note" role="alert">
           <TriangleAlert class="icon" aria-hidden="true" />
           Showing the current version (HEAD), not the current timeline commit.
         </div>
       )}
-      {_previewBody(file)}
+      {deleted ? (
+        <div class="empty-state empty-state--lg file-deleted-state">
+          <FileX class="icon" aria-hidden="true" />
+          <p class="text-card-title">This file was deleted</p>
+          <p class="text-card-sub">It no longer exists in the repo, so there&rsquo;s nothing to preview.</p>
+        </div>
+      ) : (
+        _previewBody(file)
+      )}
     </Pane>
   );
 }
