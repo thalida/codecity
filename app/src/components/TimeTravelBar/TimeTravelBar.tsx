@@ -6,7 +6,7 @@
 
 import './TimeTravelBar.css';
 import { useEffect, useMemo, useRef } from 'preact/hooks';
-import { TIMELINE_MODE, SCRUB_POS, TIMELINE_BUNDLE } from '@/state/stores/timeline';
+import { TIMELINE_MODE, SCRUB_POS, TIMELINE_BUNDLE, SCRUB_DRAGGING } from '@/state/stores/timeline';
 import { ACCENT_THEME } from '@/state/stores/settings/theme';
 import { formatShortDate } from '@/utils/dates';
 import { commitUrl } from '@/utils/commit';
@@ -31,7 +31,6 @@ export function TimeTravelBar() {
 
   const trackRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const dragging = useRef(false);
 
   const maxIndex = Math.max(0, commits.length - 1);
   const pos = Math.min(Math.max(SCRUB_POS.value, 0), maxIndex);
@@ -102,16 +101,16 @@ export function TimeTravelBar() {
   };
 
   const onPointerDown = (e: PointerEvent) => {
-    dragging.current = true;
+    SCRUB_DRAGGING.value = true;
     // Optional-chained: jsdom (and old browsers) lack pointer capture.
     (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
     setFromClientX(e.clientX);
   };
   const onPointerMove = (e: PointerEvent) => {
-    if (dragging.current) setFromClientX(e.clientX);
+    if (SCRUB_DRAGGING.peek()) setFromClientX(e.clientX);
   };
   const onPointerUp = (e: PointerEvent) => {
-    dragging.current = false;
+    SCRUB_DRAGGING.value = false;
     const el = e.currentTarget as HTMLElement;
     el.releasePointerCapture?.(e.pointerId);
     // Hand focus back to the scene so a pointer user's next R/F hits the camera

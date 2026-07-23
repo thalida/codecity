@@ -8,7 +8,7 @@ import { effect, untracked } from '@preact/signals';
 
 import type { Manifest } from '@/types';
 import { CURRENT_SOURCE_KEY } from '@/state/stores/source';
-import { TIMELINE_MODE } from '@/state/stores/timeline';
+import { TIMELINE_MODE, SCRUB_DRAGGING } from '@/state/stores/timeline';
 
 import { registerShaderChunks } from './utils/shaders/registerShaderChunks';
 import { createBuildings } from './components/buildings';
@@ -206,8 +206,10 @@ export async function createCity(canvas: HTMLCanvasElement, manifest: Manifest):
     after() {
       // Runs after every component tick, so the scrub controller has written this
       // frame's presence attributes: drop a selection the scrub just removed so a
-      // building/road/tree outline can't dangle over empty space.
-      if (TIMELINE_MODE.peek()) picker.pruneScrubHiddenSelection();
+      // building/road/tree outline can't dangle over empty space. Deferred while
+      // the scrubber is being dragged — closing the right sidebar mid-drag would
+      // reflow the track under the pointer and jump the position; prune on release.
+      if (TIMELINE_MODE.peek() && !SCRUB_DRAGGING.peek()) picker.pruneScrubHiddenSelection();
     },
   });
 
