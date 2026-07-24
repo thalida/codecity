@@ -13,6 +13,8 @@ import { createCity } from '@/city';
 import { attachSettingsReactions } from '@/state/settingsReactions';
 import { SCENE_HANDLE } from '@/state/stores/scene';
 import { MANIFEST, markRebuilding, markError } from '@/state/stores/manifest';
+import { TIMELINE_MODE } from '@/state/stores/timeline';
+import { reapplyTimelineScene } from '@/hooks/useTimelineMode';
 import { EMPTY_MANIFEST } from '@/constants/manifest';
 import { isEmptyManifest } from '@/utils/manifest';
 import type { Manifest } from '@/types';
@@ -40,7 +42,11 @@ export function City() {
       city = handle;
       SCENE_HANDLE.value = handle;
       disposeReactions = attachSettingsReactions({
-        applyManifest: handle.applyManifest,
+        // Rebuild the current mode (Timeline: union + scrub; Live: HEAD).
+        rebuildScene: () =>
+          TIMELINE_MODE.peek()
+            ? reapplyTimelineScene()
+            : handle.applyManifest(MANIFEST.peek() as Manifest),
         invalidateLayoutCache: handle.invalidateLayoutCache,
       });
 
