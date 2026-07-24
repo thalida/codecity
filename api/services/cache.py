@@ -80,7 +80,7 @@ class BlobEntry(TypedDict):
 _FILE_CACHE_VERSION = 2  # v2: binaryType (magic-byte type for binary files)
 _BLOB_STATS_CACHE_VERSION = 2  # v2: binaryType added
 _GIT_HISTORY_CACHE_VERSION = 14  # v14: merges no longer diffed
-_TIMELINE_CACHE_VERSION = 2  # v2: delta walk stopped diffing merges
+_TIMELINE_CACHE_VERSION = 3  # v3: union nodes carry binary/binaryType/media dims
 _MANIFEST_SCHEMA_VERSION = (
     # v12: per-dir descendants_created_min / descendants_modified_max
     # v13: ext_breakdown `ext` is null (was "(none)") for extensionless files
