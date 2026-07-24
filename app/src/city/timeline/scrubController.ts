@@ -26,6 +26,7 @@ import type { createPicker } from '@/city/interaction/picker';
 import { getBuildingColorForRecency } from '@/city/components/buildings/color';
 import { BuildingKind } from '@/city/components/buildings/buildingKind';
 import { isDataBuilding } from '@/city/utils/binaryKind';
+import { isEmptyFile } from '@/city/utils/emptyKind';
 import { resolveDirTarget, tierFor } from '@/city/components/buildings/fadeTiers';
 import { getBuildingTiltAtAge, composeShearMatrix } from '@/city/components/buildings/tilt';
 import { parentDirPath } from '@/city/utils/path';
@@ -284,6 +285,10 @@ export function createScrubController(deps: ScrubControllerDeps) {
       const iFloorsAttr = mesh.geometry.getAttribute('iFloors') as
         | THREE.BufferAttribute
         | undefined;
+      // The file as it stood at this scrub position: its replayed line count
+      // drives both the height curve and the empty test (a text file at 0 lines
+      // held 0 bytes at that commit; `size` is frozen at HEAD).
+      const scrubFile = present ? { ...b.file, lines: linesAt(pt, pos) } : b.file;
       if (present) {
         // Gate height on presence (intervals), not line count: media/empty files are present with 0 lines.
         // Normalize floors against the fixed UNION line range (not the per-commit
@@ -291,7 +296,7 @@ export function createScrubController(deps: ScrubControllerDeps) {
         // file grows — instead of resizing when siblings appear/vanish. Matches how
         // width already uses the union byteStats. (dims.w unused: matrix uses b.w.)
         const dims = getBuildingDimensions(
-          { ...b.file, lines: linesAt(pt, pos) },
+          scrubFile,
           deps.heightCtx.lineStats,
           deps.heightCtx.byteStats
         );
@@ -329,12 +334,14 @@ export function createScrubController(deps: ScrubControllerDeps) {
       dirtyMeshes.add(mesh);
 
       // iKind render mode, rewritten every frame so a state change resets it:
-      // Ruin/Future for scrub states, else Data for a present binary, else Normal.
+      // Ruin/Future for scrub states, else Empty for a file with no content at
+      // this position, else Data for a present binary, else Normal.
       const iKindAttr = mesh.geometry.getAttribute('iKind') as THREE.BufferAttribute | undefined;
       if (iKindAttr) {
         let kind: number = BuildingKind.Normal;
         if (ruin) kind = BuildingKind.Ruin;
         else if (future) kind = BuildingKind.Future;
+        else if (isEmptyFile(scrubFile)) kind = BuildingKind.Empty;
         else if (isDataBuilding(b.file)) kind = BuildingKind.Data;
         iKindAttr.setX(slot, kind);
         dirtyKinds.add(iKindAttr);

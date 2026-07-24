@@ -3,8 +3,13 @@ import { afterEach, beforeEach, expect, test } from 'vitest';
 
 import { buildPathTimelines } from '@/city/timeline/replay';
 import { createScrubController, FUTURE_SLAB_FLOORS } from '@/city/timeline/scrubController';
-import { buildingHeightForLines, getBuildingDimensions } from '@/city/layout/dimensions';
+import {
+  buildingHeightForLines,
+  getBuildingDimensions,
+  EMPTY_SLAB_FLOORS,
+} from '@/city/layout/dimensions';
 import type { HeightContext } from '@/city/layout/dimensions';
+import { BuildingKind } from '@/city/components/buildings/buildingKind';
 import { SCRUB_POS, TIMELINE_BUNDLE } from '@/state/stores/timeline';
 import { RUINS } from '@/state/stores/settings/ruins';
 import { BLUEPRINTS } from '@/state/stores/settings/blueprints';
@@ -108,6 +113,8 @@ function makeFakeMesh(initialFadeZ = 0) {
   let modifiedAgeUpdates = 0;
   let iconUvW = 0;
   let iconUvUpdates = 0;
+  let kind = -1;
+  let kindUpdates = 0;
 
   const iFade = {
     getY: () => iFadeY,
@@ -161,6 +168,18 @@ function makeFakeMesh(initialFadeZ = 0) {
     },
   };
 
+  const iKind = {
+    setX: (_slot: number, x: number) => {
+      kind = x;
+    },
+    set needsUpdate(v: boolean) {
+      if (v) kindUpdates++;
+    },
+    get needsUpdate() {
+      return false;
+    },
+  };
+
   const mesh = {
     setMatrixAt: (_slot: number, m: THREE.Matrix4) => {
       lastMatrix.copy(m);
@@ -191,6 +210,7 @@ function makeFakeMesh(initialFadeZ = 0) {
         if (n === 'iFloors') return iFloors;
         if (n === 'iModifiedAge') return iModifiedAge;
         if (n === 'iIconUV') return iIconUV;
+        if (n === 'iKind') return iKind;
         return undefined;
       },
     },
@@ -251,6 +271,12 @@ function makeFakeMesh(initialFadeZ = 0) {
     },
     get iconUvUpdates() {
       return iconUvUpdates;
+    },
+    get kind() {
+      return kind;
+    },
+    get kindUpdates() {
+      return kindUpdates;
     },
   };
 }
@@ -1850,4 +1876,72 @@ test('future roads always render: a non-present, non-ruin street is a future roa
   expect(opacityByStreet.get(rootStreet)).toBe(1); // root always renders
   expect(opacityByStreet.get(dStreet)).toBe(1); // future road, fully opaque
   expect(tintByStreet.get(dStreet)).toBe(2); // future tint
+});
+
+test('a file empty at the scrub position renders as a slab, not a MIN_FLOORS building', () => {
+  // empty.txt is created empty at commit 1 and gains 6 lines at commit 2, so at
+  // pos 1 the replayed line count is 0 while its HEAD size is non-zero.
+  const emptyBundle = {
+    commits: [{ sha: 'a' }, { sha: 'b' }, { sha: 'c' }],
+    unionManifest: { tree: { name: 'r' } },
+    deltas: [
+      { sha: 'a', changes: [] },
+      { sha: 'b', changes: [{ path: 'empty.txt', sha: 's1' }] },
+      { sha: 'c', changes: [{ path: 'empty.txt', sha: 's2' }] },
+    ],
+    blobLines: { s1: 0, s2: 6 },
+    note: null,
+  } as unknown as TimelineBundle;
+
+  const emptyFile = {
+    path: 'empty.txt',
+    lines: 6,
+    size: 500,
+    extension: 'txt',
+  } as unknown as FileNode;
+
+  const b = {
+    x: 5,
+    y: 7,
+    w: 2,
+    d: 2,
+    h: 96,
+    color: '#fff',
+    file: emptyFile,
+    cellId: 0,
+    slotId: 0,
+  } as unknown as Building;
+
+  const index = new BuildingIndex();
+  index.insert(b);
+  const fake = makeFakeMesh();
+  TIMELINE_BUNDLE.value = emptyBundle;
+
+  const controller = createScrubController({
+    getBuildingIndex: () => index,
+    getFacadePanels: () => null,
+    getMeshForBuilding: () => ({ mesh: fake.mesh, slot: 0 }),
+    timelines: buildPathTimelines(emptyBundle),
+    heightCtx,
+    footprints: noopFootprints,
+    streets: { setStreetOpacity: () => {}, setStreetLabelOpacity: () => {} },
+    streetsByDir: {},
+    picker: mockPicker(),
+    trees: noopTrees,
+    fireflies: noopFireflies,
+  });
+
+  SCRUB_POS.value = 1;
+  controller.update();
+
+  const slabHeight = EMPTY_SLAB_FLOORS * BUILDING_DIMENSIONS.value.FLOOR_HEIGHT;
+  expect(fake.scaleY).toBeCloseTo(slabHeight, 5);
+  expect(fake.floors).toBe(0);
+  expect(fake.kind).toBe(BuildingKind.Empty);
+
+  // ...and it grows into a real building once the file has content.
+  SCRUB_POS.value = 2;
+  controller.update();
+  expect(fake.scaleY).toBeGreaterThan(slabHeight);
+  expect(fake.kind).toBe(BuildingKind.Normal);
 });
