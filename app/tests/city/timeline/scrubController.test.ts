@@ -1362,6 +1362,67 @@ function colorForRecency(recency: number): THREE.Color {
   );
 }
 
+test('weathering at HEAD is 1:1 with live: same-day commits still spread by full-precision file dates', () => {
+  // Both files land on the SAME calendar day, so day-precision commit dates are
+  // identical — the old commit-date path collapsed the range and painted both at
+  // recency 1. Each file's own full-precision modified date restores the real
+  // spread at HEAD, matching the live view.
+  const day = '2026-07-24';
+  const fresh = {
+    path: 'fresh.txt',
+    lines: 6,
+    size: 500,
+    extension: 'txt',
+    created: `${day}T09:00:00Z`,
+    modified: `${day}T18:00:00Z`,
+  } as unknown as FileNode;
+  const stale = {
+    path: 'stale.txt',
+    lines: 6,
+    size: 500,
+    extension: 'txt',
+    created: `${day}T09:00:00Z`,
+    modified: `${day}T09:00:00Z`,
+  } as unknown as FileNode;
+  const sameDayBundle = {
+    commits: [
+      { sha: 'a', date: day },
+      { sha: 'b', date: day },
+    ],
+    unionManifest: { tree: { name: 'r' } },
+    deltas: [
+      {
+        sha: 'a',
+        changes: [
+          { path: 'fresh.txt', sha: 'f0' },
+          { path: 'stale.txt', sha: 's0' },
+        ],
+      },
+      { sha: 'b', changes: [{ path: 'fresh.txt', sha: 'f1' }] },
+    ],
+    blobLines: { f0: 6, f1: 6, s0: 6 },
+    note: null,
+  } as unknown as TimelineBundle;
+
+  const { controller, fakes } = makeAnchoredScene(sameDayBundle, [fresh, stale]);
+  SCRUB_POS.value = 1; // HEAD
+  controller.update();
+
+  const freshColor = fakes.get('fresh.txt')!.lastColor!;
+  const staleColor = fakes.get('stale.txt')!.lastColor!;
+  const at = (f: FileNode, r: number) =>
+    new THREE.Color(
+      getBuildingColorForRecency(
+        f as unknown as Parameters<typeof getBuildingColorForRecency>[0],
+        r
+      )
+    );
+  // Freshest → recency 1, stalest → recency 0. NOT both collapsed to recency 1.
+  expect(freshColor.r).toBeCloseTo(at(fresh, 1).r, 5);
+  expect(staleColor.r).toBeCloseTo(at(stale, 0).r, 5);
+  expect(colorDist(freshColor, staleColor)).toBeGreaterThan(0.05);
+});
+
 test('weathering: at the exact scrub position of last modification, color matches the freshest end of the reused age-color curve', () => {
   const { fake, controller } = setup();
   SCRUB_POS.value = 2; // f.txt's last-modified index

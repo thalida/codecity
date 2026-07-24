@@ -89,7 +89,13 @@ export function createScrubController(deps: ScrubControllerDeps) {
   // chain (its own street PLUS every containing directory up to root) once; a
   // container street (e.g. `src/` with only subdirs) must stay visible as long as
   // ANY descendant file is live, not just direct children.
-  const entries: { b: Building; pt: PathTimeline; streets: Street[]; createdIdx: number }[] = [];
+  const entries: {
+    b: Building;
+    pt: PathTimeline;
+    streets: Street[];
+    createdIdx: number;
+    finalIdx: number;
+  }[] = [];
   const allStreets: Street[] = [];
   const index = deps.getBuildingIndex();
   if (index) {
@@ -102,7 +108,9 @@ export function createScrubController(deps: ScrubControllerDeps) {
       const streets = streetChainForDirPath(dir, deps.streetsByDir);
       // First interval's start is the commit index the path was created at (genesis, not resurrection).
       const createdIdx = pt.intervals.length ? pt.intervals[0].start : 0;
-      entries.push({ b, pt, streets, createdIdx });
+      // Last change index = the file's final (HEAD) modification.
+      const finalIdx = pt.changes.length ? pt.changes[pt.changes.length - 1].i : 0;
+      entries.push({ b, pt, streets, createdIdx, finalIdx });
     }
   }
   for (const street of Object.values(deps.streetsByDir)) allStreets.push(street);
@@ -110,6 +118,25 @@ export function createScrubController(deps: ScrubControllerDeps) {
   // Commit dates as ms, for date-based weathering (matches the live view's
   // date-normalized color/age, not a commit-index proxy). Precomputed once.
   const _commitMs = (TIMELINE_BUNDLE.peek()?.commits ?? []).map((c) => Date.parse(c.date) || 0);
+
+  // Scrub-relative modified date in ms. Once the file has reached its final (HEAD)
+  // modification, use its own full-precision date so HEAD weathering is 1:1 with
+  // Live; earlier in history only the day-precise commit date is available.
+  // Falls back to the commit date when the file carries no modified date.
+  const modifiedMsAt = (b: Building, pt: PathTimeline, finalIdx: number, pos: number): number => {
+    const lmIdx = lastModifiedIndexAt(pt, pos);
+    if (lmIdx >= finalIdx) {
+      const full = Date.parse(b.file?.modified ?? '');
+      if (!Number.isNaN(full)) return full;
+    }
+    return _commitMs[lmIdx] ?? 0;
+  };
+  // Creation is a fixed event: prefer the file's full-precision created date
+  // (matches Live's createdAge), fall back to its genesis commit date.
+  const createdMsFor = (b: Building, createdIdx: number): number => {
+    const full = Date.parse(b.file?.created ?? '');
+    return Number.isNaN(full) ? (_commitMs[createdIdx] ?? 0) : full;
+  };
 
   const _m = new THREE.Matrix4();
   const _pos = new THREE.Vector3();
@@ -154,17 +181,18 @@ export function createScrubController(deps: ScrubControllerDeps) {
     _futureColor.set(bp.BUILDING_COLOR);
 
     // Pre-pass: weathering DATE ranges over the PRESENT buildings at this scrub
-    // position — last-modified + created commit dates. Color, window-lighting,
-    // and grime normalize against these, so a building weathers as a real scan at
-    // this commit would. (Heights do NOT: see the getBuildingDimensions call.)
+    // position — the file set + dates a real scan at this commit would see, so
+    // color/window-lighting/grime normalize against them (and at HEAD the present
+    // set == the live file set, matching the live view). Heights do NOT: see the
+    // getBuildingDimensions call.
     let minMod = Infinity;
     let maxMod = -Infinity;
     let minCreated = Infinity;
     let maxCreated = -Infinity;
-    for (const { pt, createdIdx } of entries) {
+    for (const { b, pt, createdIdx, finalIdx } of entries) {
       if (ruinStateAt(pt, pos) !== 'present') continue;
-      const modMs = _commitMs[lastModifiedIndexAt(pt, pos)] ?? 0;
-      const createdMs = _commitMs[createdIdx] ?? 0;
+      const modMs = modifiedMsAt(b, pt, finalIdx, pos);
+      const createdMs = createdMsFor(b, createdIdx);
       if (modMs < minMod) minMod = modMs;
       if (modMs > maxMod) maxMod = modMs;
       if (createdMs < minCreated) minCreated = createdMs;
@@ -186,7 +214,7 @@ export function createScrubController(deps: ScrubControllerDeps) {
     const hoverFile = hov?.kind === NodeKind.File ? hov.file : null;
     const fadeCfg = BUILDINGS.peek();
 
-    for (const { b, pt, streets, createdIdx } of entries) {
+    for (const { b, pt, streets, createdIdx, finalIdx } of entries) {
       const state = ruinStateAt(pt, pos);
       const present = state === 'present';
       const ruin = state === 'ruin' && ruinsOn;
@@ -245,7 +273,7 @@ export function createScrubController(deps: ScrubControllerDeps) {
 
       // createdAge (0=newest, 1=oldest) is scrub-relative here — needed for both
       // the lean shear (below) and the window/grime weathering (iIconUV.w later).
-      const createdMs = _commitMs[createdIdx] ?? 0;
+      const createdMs = createdMsFor(b, createdIdx);
       const createdAge =
         present && createdSpread > 0
           ? 1 - Math.max(0, Math.min(1, (createdMs - minCreated) / createdSpread))
@@ -323,7 +351,7 @@ export function createScrubController(deps: ScrubControllerDeps) {
       // matches. Absent buildings are already scaled/faded to 0, so skip them.
       if (present) {
         // recency = modified-date t (0=oldest, 1=newest) → getBuildingColor's curve.
-        const modMs = _commitMs[lastModifiedIndexAt(pt, pos)] ?? 0;
+        const modMs = modifiedMsAt(b, pt, finalIdx, pos);
         const recency = modSpread > 0 ? Math.max(0, Math.min(1, (modMs - minMod) / modSpread)) : 1;
         _color.set(
           getBuildingColorForRecency(
