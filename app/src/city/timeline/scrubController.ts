@@ -4,7 +4,7 @@
 // building renders as a real scan at that commit would: instance matrix
 // (scaleY + floor count), presence opacity (iFade.x), weathered color
 // (instanceColor), lit-window recency (iModifiedAge), grime/tilt age
-// (iIconUV.w), and the ghost-ruin flag (iRuin) — all with no re-pack. It owns
+// (iIconUV.w), and the iKind render mode — all with no re-pack. It owns
 // these fields while in mode; the
 // tween queue and fader are dormant (index.ts gates them on TIMELINE_MODE).
 // iCols/iDoorWidth/iOrient/iIconUV.xyz don't vary with scrub (driven by
@@ -24,6 +24,8 @@ import type { BuildingIndex } from '@/city/components/buildings/buildingIndex';
 import type { InstancedAdPanels } from '@/city/components/buildings/adPanels';
 import type { createPicker } from '@/city/interaction/picker';
 import { getBuildingColorForRecency } from '@/city/components/buildings/color';
+import { BuildingKind } from '@/city/components/buildings/buildingKind';
+import { isDataBuilding } from '@/city/utils/binaryKind';
 import { resolveDirTarget, tierFor } from '@/city/components/buildings/fadeTiers';
 import { getBuildingTiltAtAge, composeShearMatrix } from '@/city/components/buildings/tilt';
 import { parentDirPath } from '@/city/utils/path';
@@ -48,13 +50,13 @@ export const FUTURE_SLAB_FLOORS = 0.05;
 const FUTURE_BASE_RECENCY = 0.5;
 
 // Dir paths of streets currently rendered as ruins — the picker rejects hits on
-// them so a ruined road isn't hoverable/selectable (buildings use iRuin instead).
+// them so a ruined road isn't hoverable/selectable (buildings use iKind instead).
 // Owned here, repopulated each update(); read by interaction/picker.ts.
 export const RUINED_STREET_DIRS = new Set<string>();
 
 // Dir paths of streets rendered as future roads — not yet created at the scrub
 // position, so the picker rejects hits (you can't select a folder that doesn't
-// exist yet). Future buildings use iRuin (2), which the picker treats as hidden.
+// exist yet). Future buildings use iKind Future, which the picker treats as hidden.
 export const FUTURE_STREET_DIRS = new Set<string>();
 
 export interface ScrubControllerDeps {
@@ -154,7 +156,7 @@ export function createScrubController(deps: ScrubControllerDeps) {
     const dirtyFloors = new Set<THREE.BufferAttribute>();
     const dirtyModifiedAges = new Set<THREE.BufferAttribute>();
     const dirtyIconUVs = new Set<THREE.BufferAttribute>();
-    const dirtyRuins = new Set<THREE.BufferAttribute>();
+    const dirtyKinds = new Set<THREE.BufferAttribute>();
     // A street fades with its PRESENT descendants; a ruin-only or future-only
     // street renders fully opaque, set apart by color instead of fading.
     const maxPresentOp = new Map<Street, number>();
@@ -326,13 +328,19 @@ export function createScrubController(deps: ScrubControllerDeps) {
       mesh.setMatrixAt(slot, _m);
       dirtyMeshes.add(mesh);
 
-      // iRuin is a 3-state the frag branches on: 1 = ruin (crumble + grime),
-      // 2 = future (blank slab, no crumble). Both suppress the door. Written
-      // every frame so a state change clears back to 0.
-      const iRuinAttr = mesh.geometry.getAttribute('iRuin') as THREE.BufferAttribute | undefined;
-      if (iRuinAttr) {
-        iRuinAttr.setX(slot, ruin ? 1 : future ? 2 : 0);
-        dirtyRuins.add(iRuinAttr);
+      // iKind render mode, rewritten every frame so a state change resets it:
+      // Ruin/Future for scrub states, else Data for a present binary, else Normal.
+      const iKindAttr = mesh.geometry.getAttribute('iKind') as THREE.BufferAttribute | undefined;
+      if (iKindAttr) {
+        const kind = ruin
+          ? BuildingKind.Ruin
+          : future
+            ? BuildingKind.Future
+            : isDataBuilding(b.file)
+              ? BuildingKind.Data
+              : BuildingKind.Normal;
+        iKindAttr.setX(slot, kind);
+        dirtyKinds.add(iKindAttr);
       }
 
       const iFade = mesh.geometry.getAttribute('iFade') as THREE.BufferAttribute | undefined;
@@ -414,7 +422,7 @@ export function createScrubController(deps: ScrubControllerDeps) {
     for (const attr of dirtyFloors) attr.needsUpdate = true;
     for (const attr of dirtyModifiedAges) attr.needsUpdate = true;
     for (const attr of dirtyIconUVs) attr.needsUpdate = true;
-    for (const attr of dirtyRuins) attr.needsUpdate = true;
+    for (const attr of dirtyKinds) attr.needsUpdate = true;
     // ?? 0 (not null): a panel the scrub never drives must HIDE, not linger at
     // its shown default — mirrors the footprint default-hidden fix. (Live-mode
     // buildingFader still uses null = "leave untouched".)

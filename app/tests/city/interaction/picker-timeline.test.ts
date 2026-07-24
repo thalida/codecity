@@ -73,8 +73,8 @@ describe('picker: Timeline scrub-hidden guard — buildings', () => {
     const building = world.cellOut.index.byPath.get('src/a.ts')!;
     const cell = world.cellOut.cells.get(building.cellId!)!;
     const iFade = cell.detailMesh.geometry.getAttribute('iFade') as THREE.InstancedBufferAttribute;
-    const iRuin = cell.detailMesh.geometry.getAttribute('iRuin') as THREE.InstancedBufferAttribute;
-    return { picker, iFade, iRuin, slot: building.slotId! };
+    const iKind = cell.detailMesh.geometry.getAttribute('iKind') as THREE.InstancedBufferAttribute;
+    return { picker, iFade, iKind, slot: building.slotId! };
   }
 
   it('rejects a hit whose iFade.x is scrub-faded to 0', () => {
@@ -101,10 +101,10 @@ describe('picker: Timeline scrub-hidden guard — buildings', () => {
   });
 
   it('a ghost-ruin building is still selectable, flagged isRuin for the tooltip', () => {
-    const { picker, iFade, iRuin, slot } = setup();
+    const { picker, iFade, iKind, slot } = setup();
     TIMELINE_MODE.value = true;
     iFade.setXYZ(slot, 1, 0, 0); // visible stub
-    iRuin.setX(slot, 1); // a ruin
+    iKind.setX(slot, 1); // a ruin
 
     const t = picker.interpretHit(picker.pickAt(400, 300));
     expect(t?.kind).toBe(NodeKind.File);

@@ -18,6 +18,7 @@ import type { Building } from '@/types/index';
 import { getBuildingMaterial, getIconAtlas } from './material';
 import { getFileIconName } from '@/utils/fileIcons';
 import { isDataBuilding } from '../../utils/binaryKind';
+import { BuildingKind } from './buildingKind';
 import { seedFromPath, getBuildingTilt, composeShearMatrix } from './tilt';
 
 // ---------------------------------------------------------------------------
@@ -122,12 +123,11 @@ export function attachBuildingMeshToCell(cell: CellTile): void {
     'iModifiedAge',
     new THREE.InstancedBufferAttribute(new Float32Array(cell.capacity), 1)
   );
-  // iRuin: float — 0 normally, 1 for a Timeline ghost-ruin (crumbled top in the
-  // frag), 2 for a future slab (blank). Live mode never writes it (stays 0). 16th
-  // vertex attribute — the WebGL2 minimum; any further attribute must pack into an
-  // existing one.
+  // iKind: float render-mode enum (see BuildingKind) — Normal, Data (windowless
+  // binary), or Ruin/Future written by Timeline. 16th attribute (WebGL2 cap), so
+  // any further per-instance signal must pack into an existing one.
   geom.setAttribute(
-    'iRuin',
+    'iKind',
     new THREE.InstancedBufferAttribute(new Float32Array(cell.capacity), 1)
   );
 
@@ -205,11 +205,13 @@ export function writeBuildingToSlot(cell: CellTile, b: Building): void {
   const iOrientAttr = mesh.geometry.getAttribute('iOrient') as THREE.InstancedBufferAttribute;
   iOrientAttr.setX(slot, orientToIndex(b.orient));
 
-  // --- Door width (doubles as the is-binary flag) ---
-  // A negative sentinel flags a windowless binary "data" building (no door),
-  // packed here because the mesh is at the WebGL2 16-attribute cap (see iRuin).
+  // --- Door width ---
   const iDoorWidthAttr = mesh.geometry.getAttribute('iDoorWidth') as THREE.InstancedBufferAttribute;
-  iDoorWidthAttr.setX(slot, isDataBuilding(b.file) ? -1 : b.w * doorWidthFrac);
+  iDoorWidthAttr.setX(slot, b.w * doorWidthFrac);
+
+  // --- Render kind (Data → windowless facade; Timeline overwrites Ruin/Future) ---
+  const iKindAttr = mesh.geometry.getAttribute('iKind') as THREE.InstancedBufferAttribute;
+  iKindAttr.setX(slot, isDataBuilding(b.file) ? BuildingKind.Data : BuildingKind.Normal);
 
   // --- Fade (opacity defaults to 1.0; silhouette + outlineOpacity default to 0) ---
   const iFadeAttr = mesh.geometry.getAttribute('iFade') as THREE.InstancedBufferAttribute;
