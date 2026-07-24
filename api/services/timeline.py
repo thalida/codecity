@@ -11,13 +11,14 @@ from typing import Callable, NamedTuple
 
 from .cache import BlobEntry, cache_load_blobs, cache_save_blobs
 from .gitobj import _git_argv, blob_sizes_batch, blob_stats_batch
-from .manifest_types import CommitEntry, FileNode, Manifest, NodeKind, TimelineBundle
+from .manifest_types import CommitEntry, FileNode, Manifest, TimelineBundle
 from .media import media_kind
 from .scan import (
     SCAN_PROGRESS_THROTTLE_S,
     NotAGitRepoError,
     _basename,
     _build_tree,
+    build_file_node,
     _collect_git_history,
     _derive_tree_signals,
     _dir_children_from_paths,
@@ -138,12 +139,12 @@ def _collect_blob_tables(
     *,
     use_cache: bool = True,
     on_progress: OnTimelineProgress | None = None,
-) -> tuple[dict[str, int], dict[str, int]]:
-    """Resolve every touched blob's (lines, byte size) keyed by sha. Lines go
-    through the same content-addressed blob cache reconstruct_manifest uses
-    (cat-file only the misses); sizes are a separate uncached batch. The
-    blob-check batch resolves the total up front, so ``on_progress`` only
-    needs a start + done tick (no incremental stream mid-batch)."""
+) -> tuple[dict[str, int], dict[str, int], dict[str, BlobEntry]]:
+    """Resolve every touched blob's stats (lines, binary, binaryType, media dims)
+    keyed by sha, plus a byte-size table. Stats go through the same content-
+    addressed blob cache reconstruct_manifest uses (cat-file only the misses);
+    sizes are a separate uncached batch. The blob-check batch resolves the total
+    up front, so ``on_progress`` only needs a start + done tick."""
     shas = list({sha for d in deltas for _, sha in d.changes if sha})
     total = len(shas)
     media_shas = frozenset(
@@ -165,6 +166,8 @@ def _collect_blob_tables(
                 st.media_width,
                 st.media_height,
             )
+        if st.binary_type is not None:
+            entry["binaryType"] = st.binary_type
         cached[sha] = entry
     if fresh:
         cache_save_blobs(root, cached)
@@ -173,7 +176,8 @@ def _collect_blob_tables(
         on_progress({"stage": "blobs", "done": total, "total": total})
     lines = {s: cached[s]["lines"] for s in shas if s in cached}
     sizes = blob_sizes_batch(root, shas)
-    return lines, sizes
+    blob_stats = {s: cached[s] for s in shas if s in cached}
+    return lines, sizes, blob_stats
 
 
 def build_union_manifest(
@@ -181,23 +185,33 @@ def build_union_manifest(
     deltas: list[CommitDelta],
     blob_lines: dict[str, int],
     blob_sizes: dict[str, int],
+    blob_stats: dict[str, BlobEntry],
     commits: list[CommitEntry],
     git_created: dict[str, str],
     git_modified: dict[str, str],
 ) -> Manifest:
-    """City for the union of every path that ever existed. Each file's
-    footprint `size` (and placeholder `lines`) is its MAX over history.
-    created/modified come from the same full-ISO maps `reconstruct_manifest`
-    uses (not day-precision commit dates), so precision matches everywhere
-    else in the app. Flows through the SHARED tree builder so the layout
-    matches every per-commit reconstruction it will be scrubbed against."""
+    """City for the union of every path that ever existed. Each file's footprint
+    `size` (and placeholder `lines`) is its MAX over history; binary/binaryType/
+    media dims come from that largest-seen version's blob stats, so a binary file
+    renders as a data building in Timeline exactly as it does live. created/
+    modified come from the same full-ISO maps reconstruct_manifest uses. Flows
+    through the SHARED tree builder + build_file_node so the layout matches every
+    per-commit reconstruction it will be scrubbed against."""
     max_size: dict[str, int] = {}
     max_lines: dict[str, int] = {}
+    # Stats of each path's largest-seen blob — the representative version whose
+    # binary/media character the union node inherits (binary-ness is stable per
+    # file, so any version's flag is fine; the largest keeps it consistent with
+    # the footprint `size`).
+    rep_stats: dict[str, BlobEntry] = {}
     for d in deltas:
         for path, sha in d.changes:
             if sha is None:
                 continue
-            max_size[path] = max(max_size.get(path, 0), blob_sizes.get(sha, 0))
+            size = blob_sizes.get(sha, 0)
+            if path not in max_size or size >= max_size[path]:
+                max_size[path] = size
+                rep_stats[path] = blob_stats.get(sha, {"lines": 0, "binary": False})
             max_lines[path] = max(max_lines.get(path, 0), blob_lines.get(sha, 0))
 
     root_abs = str(Path(root).resolve())
@@ -210,21 +224,22 @@ def build_union_manifest(
     def make_file_node(name: str, rel_path: str) -> FileNode:
         size = max_size.get(rel_path, 0)
         _hash_file_entry(sig, rel_path, size, 0.0, False)
-        ext = _extension(name)
-        return {
-            "name": name,
-            "type": NodeKind.FILE,
-            "path": rel_path,
-            "fullPath": f"{root_abs}/{rel_path}",
-            "extension": ext,
-            "mediaKind": media_kind(ext),
-            "size": size,
-            "lines": max_lines.get(rel_path, 0),
-            "binary": False,
-            "dirty": False,
-            "created": git_created.get(rel_path, ""),
-            "modified": git_modified.get(rel_path, ""),
-        }
+        st = rep_stats.get(rel_path, {"lines": 0, "binary": False})
+        return build_file_node(
+            name=name,
+            rel_path=rel_path,
+            full_path=f"{root_abs}/{rel_path}",
+            ext=_extension(name),
+            size=size,
+            lines=max_lines.get(rel_path, 0),
+            binary=st["binary"],
+            dirty=False,
+            created=git_created.get(rel_path, ""),
+            modified=git_modified.get(rel_path, ""),
+            media_width=st.get("media_width"),
+            media_height=st.get("media_height"),
+            binary_type=st.get("binaryType"),
+        )
 
     tree = _build_tree(
         root_abs, ".", list_children=list_children, make_file_node=make_file_node
@@ -308,7 +323,7 @@ def build_timeline_bundle(
         commits = commits[cut:]
         note = f"timeline covers the most recent {len(commits)} commits"
 
-    blob_lines, blob_sizes = _collect_blob_tables(
+    blob_lines, blob_sizes, blob_stats = _collect_blob_tables(
         root_path, deltas, use_cache=use_cache, on_progress=on_progress
     )
     # Contract: every non-null delta sha needs a blobLines entry (default 0) so the client can't KeyError.
@@ -317,7 +332,14 @@ def build_timeline_bundle(
             if sha is not None:
                 blob_lines.setdefault(sha, 0)
     union_manifest = build_union_manifest(
-        root_path, deltas, blob_lines, blob_sizes, commits, git_created, git_modified
+        root_path,
+        deltas,
+        blob_lines,
+        blob_sizes,
+        blob_stats,
+        commits,
+        git_created,
+        git_modified,
     )
     _log("timeline bundle complete")
 
