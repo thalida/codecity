@@ -35,10 +35,11 @@ flat varying vec3 vScale;
 //        files still look weathered.
 flat varying vec4 vIconUV;
 flat varying float vModifiedAge; // 0=most recently modified, 1=longest-untouched. Drives lit-window count + HDR emission via recencyCurve.
-flat varying float vKind;        // Render-mode enum (BuildingKind): 1 = ruin (crumbled stub), 2 = future (blank slab), 3 = data (windowless).
-const float KIND_RUIN = 1.0;
-const float KIND_FUTURE = 2.0;
-const float KIND_DATA = 3.0;
+flat varying int vKind;          // Render-mode enum (BuildingKind).
+const int KIND_NORMAL = 0;
+const int KIND_RUIN = 1;   // crumbled stub (Timeline)
+const int KIND_FUTURE = 2; // blank slab (Timeline)
+const int KIND_DATA = 3;   // windowless binary facade
 
 // Hidden-tier wireframe thickness in screen-pixels. Sourced from
 // BUILDING_OUTLINE.WIDTH; refreshed via refreshBuildingMaterial() on Save via applyTheme().
@@ -262,7 +263,7 @@ vec4 renderWallFace() {
 
   // Data building: sealed, windowless facade with faint warehouse seams (the
   // fingerprint layers on via the overlay panels). Branch early so no window math runs.
-  if (vKind > KIND_DATA - 0.5) {
+  if (vKind == KIND_DATA) {
     float seam = smoothstep(0.96, 1.0, fract(vUv.y * max(vFloors, 1.0)));
     vec3 sealed = mix(wallColor, slabColor, seam * 0.6);
     return vec4(sealed, vOpacity);
@@ -428,8 +429,8 @@ vec4 renderWallFace() {
   vec3 withWin  = mix(wallOut, winColor, winMask);
 
   // Door: ground floor of the door face only. Replaces windows for that row.
-  // Suppressed on ruin + future stubs (vKind > 0), whose facades are blank.
-  if (isDoorFace() && row < 0.5 && vKind < 0.5) {
+  // Only Normal buildings get a door; ruin/future/data facades are blank.
+  if (isDoorFace() && row < 0.5 && vKind == KIND_NORMAL) {
     // Door world-width / face world-width = door UV width.
     // vScale = (w, h, d) recovered from instance matrix columns.
     // ±X faces span depth d (vScale.z); ±Z faces span width w (vScale.x).
@@ -559,7 +560,7 @@ void main() {
   // plus a jagged nibble along the very top rim, so it reads as broken. Roof
   // (2) and bottom (3) stay solid.
   // Crumble only for ruins (KIND_RUIN), never the future slab.
-  if (vKind > KIND_RUIN - 0.5 && vKind < KIND_RUIN + 0.5 && vFace != 2 && vFace != 3) {
+  if (vKind == KIND_RUIN && vFace != 2 && vFace != 3) {
     float seed = float(vFace) * 7.0;
     if (hash21(floor(vUv * 11.0) + seed) < 0.09) discard; // missing bricks
     float rim = 0.86 + 0.14 * hash21(vec2(floor(vUv.x * 9.0), seed)); // ~0.86..1.0
@@ -574,7 +575,7 @@ void main() {
   vec4 outColor = compositeOutline(body);
 
   // Ruin facade: coarse grime so the blank stub looks weathered, not painted. Ruins only, not the future slab.
-  if (vKind > KIND_RUIN - 0.5 && vKind < KIND_RUIN + 0.5) outColor.rgb *= 0.7 + 0.3 * hash21(floor(vUv * 9.0));
+  if (vKind == KIND_RUIN) outColor.rgb *= 0.7 + 0.3 * hash21(floor(vUv * 9.0));
 
   // Height fog: dense at y=0, thins with altitude. Handled by applyFog()
   // from the shared fog_apply chunk.

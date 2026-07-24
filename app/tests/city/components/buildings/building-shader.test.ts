@@ -45,12 +45,13 @@ describe('building.frag.glsl', () => {
     expect(src).toContain('#include <hsl_glsl_inline>');
   });
   it('crumbles the top off a ghost-ruin (KIND_RUIN branch discards)', () => {
-    expect(src).toMatch(/vKind > KIND_RUIN/);
+    expect(src).toMatch(/vKind == KIND_RUIN/);
     expect(src).toMatch(/discard/);
   });
 
   it('renders data buildings windowless via the KIND_DATA branch', () => {
-    expect(src).toMatch(/vKind > KIND_DATA/);
-    expect(src).toContain('const float KIND_DATA');
+    expect(src).toMatch(/vKind == KIND_DATA/);
+    // iKind is a flat int enum (exact equality), not a float threshold.
+    expect(src).toContain('const int KIND_DATA');
   });
 });
