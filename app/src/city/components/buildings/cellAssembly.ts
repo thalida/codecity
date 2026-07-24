@@ -10,8 +10,9 @@ import * as THREE from 'three';
 import { SpatialGrid, type WorldBounds } from './spatialGrid';
 import { createEmptyCellTile, type CellTile, allocateSlot } from './cellTile';
 import { attachBuildingMeshToCell, writeBuildingToSlot } from './cellMesh';
-import { InstancedAdPanels } from './adPanels';
+import { InstancedFacadePanels } from './facadePanels';
 import { isMediaFile } from '@/city/utils/mediaKind';
+import { isDataBuilding } from '@/city/utils/binaryKind';
 import { BUILDINGS } from '@/state/stores/settings/buildings';
 import { BuildingIndex } from './buildingIndex';
 import type { Building } from '@/types/index';
@@ -21,8 +22,8 @@ export interface CellAssemblyOutput {
   cells: Map<number, CellTile>;
   index: BuildingIndex;
   sceneRoot: THREE.Group;
-  /** Instanced ad panels for media files. Null when there are no media buildings. */
-  adPanels: InstancedAdPanels | null;
+  /** Media + binary facade panels; null when there are neither. */
+  facadePanels: InstancedFacadePanels | null;
 }
 
 /**
@@ -109,25 +110,29 @@ export function buildCellsFromLayout(
     cell.detailMesh.instanceMatrix.needsUpdate = true;
   }
 
-  // ---- Instanced ad panels for media buildings ----
-  // Build one InstancedMesh backed by a DataArrayTexture for all media files.
-  // Skipped entirely when AD_ENABLED is off (no mesh, no fetch/decode/upload) —
-  // the A/B toggle for isolating whether the billboards are a perf cost.
-  const mediaBuildings = BUILDINGS.value.AD_ENABLED
+  // ---- Instanced facade panels (media billboards + binary fingerprints) ----
+  // One InstancedMesh serves both; each building carries its own loader + aspect,
+  // so the LOD/streaming/fade machinery is shared. Media is gated on MEDIA_ENABLED
+  // (the billboard A/B toggle); binary fingerprints are a distinct feature and
+  // always render. Textures aren't loaded here — updateLOD streams on-screen ones.
+  const mediaBuildings = BUILDINGS.value.MEDIA_ENABLED
     ? buildings.filter((b) => isMediaFile(b.file))
     : [];
-  let adPanels: InstancedAdPanels | null = null;
-  if (mediaBuildings.length > 0) {
-    const adCapacity = Math.max(64, Math.ceil(mediaBuildings.length * 1.5));
-    adPanels = new InstancedAdPanels(adCapacity);
-    // Register (allocate slots + faces) now, but DON'T load the images here — the
-    // per-frame updateLOD streams them in for on-screen panels only, so a
-    // media-heavy repo doesn't hang on a load burst. See InstancedAdPanels.
-    for (const b of mediaBuildings) adPanels.registerMediaBuilding(b);
-    sceneRoot.add(adPanels.mesh);
+  // DATA_ENABLED gates only the facade texture; the windowless block still
+  // renders from the building mesh (cellMesh) regardless.
+  const binaryBuildings = BUILDINGS.value.DATA_ENABLED
+    ? buildings.filter((b) => isDataBuilding(b.file))
+    : [];
+  let facadePanels: InstancedFacadePanels | null = null;
+  const panelCount = mediaBuildings.length + binaryBuildings.length;
+  if (panelCount > 0) {
+    facadePanels = new InstancedFacadePanels(Math.max(64, Math.ceil(panelCount * 1.5)));
+    for (const b of mediaBuildings) facadePanels.registerMediaBuilding(b);
+    for (const b of binaryBuildings) facadePanels.registerBinaryBuilding(b);
+    sceneRoot.add(facadePanels.mesh);
   }
 
-  return { grid, cells, index, sceneRoot, adPanels };
+  return { grid, cells, index, sceneRoot, facadePanels };
 }
 
 // Per-cell capacity: the cell's own building count plus 50% headroom for

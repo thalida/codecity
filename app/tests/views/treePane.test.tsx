@@ -137,6 +137,44 @@ describe('TreePane', () => {
     expect(items.length).toBeGreaterThan(0);
   });
 
+  it('hex is the fallback for an unmatched binary; known types keep their icon', () => {
+    const tree = {
+      name: 'project',
+      type: 'directory',
+      path: '.',
+      children_count: 4,
+      children_file_count: 4,
+      children_dir_count: 0,
+      descendants_count: 4,
+      descendants_file_count: 4,
+      descendants_dir_count: 0,
+      descendants_size: 0,
+      children: [
+        { name: 'code.ts', type: 'file', path: 'code.ts', extension: '.ts', size: 100, lines: 10 },
+        { name: 'blob.bin', type: 'file', path: 'blob.bin', extension: '.bin', binary: true },
+        { name: 'song.mp3', type: 'file', path: 'song.mp3', extension: '.mp3', binary: true },
+        {
+          name: 'pic.png',
+          type: 'file',
+          path: 'pic.png',
+          extension: '.png',
+          binary: true,
+          mediaKind: 'image',
+        },
+      ],
+    };
+    const pane = mount(tree);
+    const icon = (p: string) =>
+      pane
+        .querySelector<HTMLElement>(`[data-path="${p}"]`)!
+        .querySelector('.file-icon')!
+        .getAttribute('data-icon-name');
+    expect(icon('blob.bin')).toBe('hex'); // unmatched binary → hex fallback
+    expect(icon('song.mp3')).toBe('audio'); // known binary type keeps its icon
+    expect(icon('code.ts')).not.toBe('hex');
+    expect(icon('pic.png')).not.toBe('hex'); // media renders as a billboard
+  });
+
   it('accepts a bare tree (no { tree } wrapper)', () => {
     const pane = mount(TEST_TREE);
     const labels = pane.querySelectorAll<HTMLElement>('ul.tree-root > li > .row > .tree-label');

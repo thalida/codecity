@@ -39,6 +39,7 @@ from .cache import (
     cache_save_files,
     cache_save_git_history,
 )
+from .binfmt import detect_binary_type
 from .gitobj import BINARY_CHUNK, is_binary_bytes
 from .media import media_kind, probe_media_dims
 from .stats import compute_repo_stats
@@ -870,6 +871,50 @@ def _hash_repo_info(sig: Any, repo_info: RepoInfo) -> None:
     )
 
 
+def build_file_node(
+    *,
+    name: str,
+    rel_path: str,
+    full_path: str,
+    ext: str,
+    size: int,
+    lines: int,
+    binary: bool,
+    dirty: bool,
+    created: str,
+    modified: str,
+    media_width: int | None = None,
+    media_height: int | None = None,
+    binary_type: str | None = None,
+) -> FileNode:
+    """The one place a FileNode dict is assembled. All three build paths — live
+    scan skeleton, single-ref reconstruction, timeline union — go through here so
+    a new field is added once and no path can silently omit it (a hardcoded
+    `binary: False` in one copy is what left binaries un-rendered in Timeline).
+    Callers resolve the field VALUES their own way (filesystem stat vs blob
+    stats); this fixes the SHAPE."""
+    node: FileNode = {
+        "name": name,
+        "type": NodeKind.FILE,
+        "path": rel_path,
+        "fullPath": full_path,
+        "extension": ext,
+        "mediaKind": media_kind(ext),
+        "size": size,
+        "lines": lines,
+        "binary": binary,
+        "dirty": dirty,
+        "created": created,
+        "modified": modified,
+    }
+    if media_width is not None and media_height is not None:
+        node["media_width"] = media_width
+        node["media_height"] = media_height
+    if binary_type is not None:
+        node["binaryType"] = binary_type
+    return node
+
+
 def _file_node(
     entry: os.DirEntry[str],
     rel_path: str,
@@ -878,37 +923,29 @@ def _file_node(
     dirty_paths: set[str],
     sig: Any,
 ) -> FileNode:
-    """Build a FileNode skeleton — `lines` and `binary` are placeholders
-    that get filled in by _populate_file_metadata after the walk
-    completes. Content I/O is deferred so it can be parallelized and
-    cache-resolved in a single batch."""
-    abs_path = entry.path
+    """Live-scan FileNode skeleton — `lines`/`binary` (and media dims /
+    binaryType) are placeholders filled in by _populate_file_metadata after the
+    walk, so content I/O batches once instead of per-node."""
     size, fs_created, fs_modified, mtime = _stat_fields(entry)
-
     is_dirty = rel_path in dirty_paths
-
     _hash_file_entry(sig, rel_path, size, mtime, is_dirty)
-
     # git history date, or the fs date when the file has no history entry
     # (a tracked file that's never been committed).
     created = git_created.get(rel_path) or fs_created
     # A dirty file's last-commit date is stale, so use the working-tree mtime.
     modified = fs_modified if is_dirty else (git_modified.get(rel_path) or fs_modified)
-
-    return {
-        "name": entry.name,
-        "type": NodeKind.FILE,
-        "path": rel_path,
-        "fullPath": abs_path,
-        "extension": _extension(entry.name),
-        "mediaKind": media_kind(_extension(entry.name)),
-        "size": size,
-        "lines": 0,  # filled in by _populate_file_metadata
-        "binary": False,  # filled in by _populate_file_metadata
-        "dirty": is_dirty,
-        "created": created,
-        "modified": modified,
-    }
+    return build_file_node(
+        name=entry.name,
+        rel_path=rel_path,
+        full_path=entry.path,
+        ext=_extension(entry.name),
+        size=size,
+        lines=0,
+        binary=False,
+        dirty=is_dirty,
+        created=created,
+        modified=modified,
+    )
 
 
 # Worker pool size for parallel file content reads. Capped at 32 to
@@ -918,14 +955,29 @@ def _file_node(
 _FILE_IO_POOL_SIZE = min(32, (os.cpu_count() or 1) * 2)
 
 
-def _read_file_metadata(path_obj: Path) -> tuple[bool, int, int | None, int | None]:
-    """Return (binary, lines, media_width, media_height) for one file.
-    Worker function for _populate_file_metadata's thread pool. Media
-    dims are None for non-media files or files the probe can't read."""
+def _read_file_metadata(
+    path_obj: Path,
+) -> tuple[bool, int, int | None, int | None, str | None]:
+    """Return (binary, lines, media_width, media_height, binary_type) for one
+    file. Worker function for _populate_file_metadata's thread pool. Media dims
+    are None for non-media files or files the probe can't read; binary_type is
+    the friendly magic-byte type, set only for recognized binary files."""
     binary = _is_binary(path_obj)
     lines = 0 if binary else _line_count(path_obj)
     mw, mh = probe_media_dims(path_obj)
-    return binary, lines, mw, mh
+    binary_type = _detect_binary_type(path_obj) if binary else None
+    return binary, lines, mw, mh, binary_type
+
+
+def _detect_binary_type(path_obj: Path) -> str | None:
+    """Friendly magic-byte type for a binary file, or None. Reads only the
+    leading bytes (enough for every signature); silent on read failure."""
+    try:
+        with path_obj.open("rb") as fh:
+            head = fh.read(64)
+    except OSError:
+        return None
+    return detect_binary_type(head)
 
 
 def _node_mtime(node: FileNode) -> float:
@@ -972,6 +1024,9 @@ def _populate_file_metadata(
             if mw is not None and mh is not None:
                 node["media_width"] = mw
                 node["media_height"] = mh
+            bt = cached.get("binaryType")
+            if bt is not None:
+                node["binaryType"] = bt
             continue
         miss_indices.append(i)
         miss_paths.append(Path(node["fullPath"]))
@@ -1001,12 +1056,14 @@ def _populate_file_metadata(
                             f.cancel()
                         raise ScanCancelledError()
                     idx = future_to_idx[fut]
-                    binary, lines, mw, mh = fut.result()
+                    binary, lines, mw, mh, binary_type = fut.result()
                     nodes[idx]["binary"] = binary
                     nodes[idx]["lines"] = lines
                     if mw is not None and mh is not None:
                         nodes[idx]["media_width"] = mw
                         nodes[idx]["media_height"] = mh
+                    if binary_type is not None:
+                        nodes[idx]["binaryType"] = binary_type
                     done += 1
                     if done % heartbeat_step == 0:
                         _log(f"    read {done}/{len(miss_paths)} files…")
@@ -1031,6 +1088,8 @@ def _populate_file_metadata(
         if "media_width" in node and "media_height" in node:
             entry["media_width"] = node["media_width"]
             entry["media_height"] = node["media_height"]
+        if "binaryType" in node:
+            entry["binaryType"] = node["binaryType"]
         cache_entries[node["path"]] = entry
     try:
         cache_save_files(abs_root, cache_entries)
@@ -1799,6 +1858,8 @@ def reconstruct_manifest(root: str, ref: str, *, use_cache: bool = True) -> Mani
         entry: BlobEntry = {"lines": s.lines, "binary": s.binary}
         if s.media_width is not None and s.media_height is not None:
             entry["media_width"], entry["media_height"] = s.media_width, s.media_height
+        if s.binary_type is not None:
+            entry["binaryType"] = s.binary_type
         cached[sha] = entry
     if fresh:
         cache_save_blobs(root_path, cached)
@@ -1822,25 +1883,21 @@ def reconstruct_manifest(root: str, ref: str, *, use_cache: bool = True) -> Mani
         # can't be dirty. This makes content_signature diverge from a live scan
         # (expected — the ref manifest is keyed by ref sha, not content_sig).
         _hash_file_entry(sig, rel_path, blob.size, 0.0, False)
-        ext = _extension(name)
-        node: FileNode = {
-            "name": name,
-            "type": NodeKind.FILE,
-            "path": rel_path,
-            "fullPath": f"{root_abs}/{rel_path}",
-            "extension": ext,
-            "mediaKind": media_kind(ext),
-            "size": blob.size,
-            "lines": stats["lines"],
-            "binary": stats["binary"],
-            "dirty": False,
-            "created": git_created.get(rel_path, ""),
-            "modified": git_modified.get(rel_path, ""),
-        }
-        if "media_width" in stats and "media_height" in stats:
-            node["media_width"] = stats["media_width"]
-            node["media_height"] = stats["media_height"]
-        return node
+        return build_file_node(
+            name=name,
+            rel_path=rel_path,
+            full_path=f"{root_abs}/{rel_path}",
+            ext=_extension(name),
+            size=blob.size,
+            lines=stats["lines"],
+            binary=stats["binary"],
+            dirty=False,
+            created=git_created.get(rel_path, ""),
+            modified=git_modified.get(rel_path, ""),
+            media_width=stats.get("media_width"),
+            media_height=stats.get("media_height"),
+            binary_type=stats.get("binaryType"),
+        )
 
     tree = _build_tree(
         root_abs, ".", list_children=list_children, make_file_node=make_file_node

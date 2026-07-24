@@ -21,16 +21,16 @@ import { TIMELINE_MODE } from '@/state/stores/timeline';
 import { FadeDetail, NodeKind } from '@/types';
 import { resolveDirTarget, tierFor } from './fadeTiers';
 import type { CellTile } from './cellTile';
-import type { InstancedAdPanels } from './adPanels';
+import type { InstancedFacadePanels } from './facadePanels';
 import type { createPicker } from '@/city/interaction/picker';
 import type { CityState } from '@/city/state';
 
-// Narrow world surface the fader needs (cells + ad panels are component-local).
+// Narrow world surface the fader needs (cells + facade panels are component-local).
 // The street-by-dir lookup comes from cityState directly. Decouples the fader
 // from the buildings component's broader handle.
 interface FaderWorld {
   getCells(): Map<number, CellTile>;
-  getAdPanels(): InstancedAdPanels | null;
+  getFacadePanels(): InstancedFacadePanels | null;
 }
 
 export function createBuildingFader({
@@ -56,7 +56,7 @@ export function createBuildingFader({
     const fadeCfg = BUILDINGS.value;
 
     // Collected by the cell sweep, drained into the ad-panel sweep below
-    // so a media building's ad panel dims by exactly the same factor as
+    // so a media building's facade panel dims by exactly the same factor as
     // its building body when the selection cascade demotes it to a
     // lower tier. Built once per sweep rather than recomputed inside
     // applyBuildingFades' per-slot callback to avoid an O(N²) tree-walk.
@@ -94,13 +94,13 @@ export function createBuildingFader({
       iFadeAttr.needsUpdate = true;
     }
 
-    // Mirror the body opacity onto the ad panel mesh: each media
+    // Mirror the body opacity onto the facade panel mesh: each media
     // building's 4 panel instances pick up the same opacity tier as the
     // building body itself. Skipped silently when no media files exist
     // in this manifest.
-    const adPanels = world.getAdPanels();
-    if (adPanels) {
-      adPanels.applyBuildingFades((path) => bodyOpacityByPath.get(path) ?? null);
+    const facadePanels = world.getFacadePanels();
+    if (facadePanels) {
+      facadePanels.applyBuildingFades((path) => bodyOpacityByPath.get(path) ?? null);
     }
   }
 

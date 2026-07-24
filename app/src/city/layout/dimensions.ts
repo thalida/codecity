@@ -93,6 +93,7 @@ export function getBuildingDimensions(
     mediaKind?: 'image' | 'video' | null;
     media_width?: number;
     media_height?: number;
+    binary?: boolean;
   },
   lineStats?: RangeStat,
   byteStats?: RangeStat
@@ -158,15 +159,21 @@ export function getBuildingDimensions(
   // floor count so the facade shader's window tiling stays consistent
   // with regular buildings. Missing dims → 1:1 aspect (square fallback).
   let h = height;
-  let mediaFloors = floors;
+  let outFloors = floors;
   if (isMediaFile(file)) {
     const mw = file.media_width;
     const mh = file.media_height;
     const rawAspect = mw && mh && mw > 0 ? mh / mw : 1.0;
     const aspect = Math.min(2.5, Math.max(0.4, rawAspect));
     const rawHeight = width * aspect;
-    mediaFloors = Math.max(dims.MIN_FLOORS, Math.round(rawHeight / dims.FLOOR_HEIGHT));
-    h = mediaFloors * dims.FLOOR_HEIGHT;
+    outFloors = Math.max(dims.MIN_FLOORS, Math.round(rawHeight / dims.FLOOR_HEIGHT));
+    h = outFloors * dims.FLOOR_HEIGHT;
+  } else if (file.binary) {
+    // Height from bytes (via width), not lines, so a data block is byte-sized
+    // both ways instead of the lines-driven MIN_FLOORS stub.
+    const rawHeight = width * dims.DATA_HEIGHT_RATIO;
+    outFloors = Math.max(dims.MIN_FLOORS, Math.round(rawHeight / dims.FLOOR_HEIGHT));
+    h = outFloors * dims.FLOOR_HEIGHT;
   }
 
   // Depth == width keeps footprints square so tall thin towers don't
@@ -175,7 +182,7 @@ export function getBuildingDimensions(
     w: Math.round(width * 10) / 10,
     d: Math.round(width * 10) / 10,
     h: Math.round(h * 10) / 10,
-    floors: mediaFloors,
+    floors: outFloors,
   };
 }
 

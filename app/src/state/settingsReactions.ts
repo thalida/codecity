@@ -29,13 +29,14 @@ import {
 } from '@/state/stores/manifest';
 import { routeSignature, ChangeRoute } from '@/state/settingsSchema';
 import { isEmptyManifest } from '@/utils/manifest';
-import type { Manifest } from '@/types';
 
 // Min-dwell for the 'rebuilding' indicator on the material-only path.
 const HOT_REBUILD_MIN_DWELL_MS = 220;
 
 interface SettingsReactionsOpts {
-  applyManifest(m: unknown): Promise<void>;
+  /** Re-pack the current mode's scene (Live: HEAD; Timeline: union + scrub), so a
+   *  Save keeps the user in the mode they're in. */
+  rebuildScene(): Promise<void>;
   invalidateLayoutCache(): void;
 }
 
@@ -50,7 +51,7 @@ const REBUILD_SIGNATURE = computed(() => routeSignature(ChangeRoute.Rebuild));
 const REFRESH_SIGNATURE = computed(() => routeSignature(ChangeRoute.Refresh));
 
 export function attachSettingsReactions({
-  applyManifest,
+  rebuildScene,
   invalidateLayoutCache,
 }: SettingsReactionsOpts): () => void {
   // Effects fire synchronously on first call. Suppress reactions until all
@@ -69,17 +70,14 @@ export function attachSettingsReactions({
       // have no visible effect. Live-update polls never trigger scheduleRebuild
       // so they keep using the cache.
       invalidateLayoutCache();
-      // Re-apply the current MANIFEST (the fetch layer's source of truth) with
-      // the new settings + invalidated layout cache. peek() — NOT .value — so
-      // the rebuild effect tracks ONLY REBUILD_SIGNATURE; a tracked read would
-      // subscribe it to MANIFEST and double-apply alongside the City component's
-      // render effect on every manifest change.
-      const manifest = MANIFEST.peek();
-      if (isEmptyManifest(manifest)) {
+      // peek(), not .value: track ONLY REBUILD_SIGNATURE (a tracked read would
+      // double-apply with the City render effect). MANIFEST is just the
+      // "project loaded?" proxy; rebuildScene picks the right-mode city.
+      if (isEmptyManifest(MANIFEST.peek())) {
         markIdle(); // no world to rebuild — settle immediately
         return;
       }
-      await applyManifest(manifest as Manifest);
+      await rebuildScene();
       // Idle is owned by the trees decoration pass (markIdle), the last stage of
       // applyManifest — setting it here would stomp its Decorating state.
     } catch (err) {

@@ -55,6 +55,9 @@ class FileEntry(TypedDict):
     # falls back to a square aspect.
     media_width: NotRequired[int]
     media_height: NotRequired[int]
+    # Optional — friendly magic-byte type, present only for recognized
+    # binary files. Wire/node key (camelCase) reused as the cache key.
+    binaryType: NotRequired[str]
 
 
 class BlobEntry(TypedDict):
@@ -65,6 +68,7 @@ class BlobEntry(TypedDict):
     binary: bool
     media_width: NotRequired[int]
     media_height: NotRequired[int]
+    binaryType: NotRequired[str]
 
 
 # CACHE_ROOT is imported from config (the single source of truth). The subdir
@@ -73,10 +77,10 @@ class BlobEntry(TypedDict):
 
 # Cache-format versions: bump when the cached shape changes so stale blobs are
 # treated as a miss and re-scanned. (Per-bump rationale lives in git history.)
-_FILE_CACHE_VERSION = 1
-_BLOB_STATS_CACHE_VERSION = 1  # blob_sha -> (lines, binary, media dims)
+_FILE_CACHE_VERSION = 2  # v2: binaryType (magic-byte type for binary files)
+_BLOB_STATS_CACHE_VERSION = 2  # v2: binaryType added
 _GIT_HISTORY_CACHE_VERSION = 14  # v14: merges no longer diffed
-_TIMELINE_CACHE_VERSION = 2  # v2: delta walk stopped diffing merges
+_TIMELINE_CACHE_VERSION = 3  # v3: union nodes carry binary/binaryType/media dims
 _MANIFEST_SCHEMA_VERSION = (
     # v12: per-dir descendants_created_min / descendants_modified_max
     # v13: ext_breakdown `ext` is null (was "(none)") for extensionless files
@@ -86,7 +90,9 @@ _MANIFEST_SCHEMA_VERSION = (
     # v17: layout_signature field; dirty in per-file signature
     # v18: Manifest/SignatureResponse field `signature` renamed `content_signature`
     #   (field rename is a shape change; old blobs lack the new key)
-    18
+    # v19: FileNode.binaryType + RepoStats.binaryCount/maxBinaryBytesFile/
+    #   minBinaryBytesFile (binary files as a first-class "data" category)
+    19
 )
 # Composite: invalidates when EITHER the manifest schema OR the git-history
 # shape changes. Stored as a string in the cache file's `version` field.
@@ -145,6 +151,9 @@ def _coerce_file_entry(value: object) -> FileEntry | None:
     ):
         entry["media_width"] = mw
         entry["media_height"] = mh
+    bt = d.get("binaryType")
+    if isinstance(bt, str):
+        entry["binaryType"] = bt
     return entry
 
 
@@ -252,6 +261,9 @@ def cache_load_blobs(abs_root: Path) -> dict[str, "BlobEntry"]:
             and not isinstance(mh, bool)
         ):
             entry["media_width"], entry["media_height"] = mw, mh
+        bt = d.get("binaryType")
+        if isinstance(bt, str):
+            entry["binaryType"] = bt
         out[sha] = entry
     return out
 

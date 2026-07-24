@@ -84,7 +84,7 @@ function makeFader(opts: {
 
   const world = {
     getCells: () => cells,
-    getAdPanels: () => null,
+    getFacadePanels: () => null,
   } as unknown as Parameters<typeof createBuildingFader>[0]['world'];
 
   const picker = {

@@ -1,4 +1,4 @@
-// adPanel.vert.glsl — Per-instance ad panel quad for the cell rendering path.
+// facadePanel.vert.glsl — Per-instance ad panel quad for the cell rendering path.
 //
 // Geometry: PlaneGeometry(1, 1) lying in the XY plane. The caller sizes
 // each instance via instanceMatrix (position, Y-axis rotation, scale).
@@ -29,15 +29,18 @@ attribute float iTextureFade;
 // into final alpha by the fragment shader so a panel matches its
 // building body's opacity tier.
 attribute float iBuildingFade;
+// 0 = media panel, 1 = data facade — the frag picks emission + tint from it.
+attribute float iIsData;
 
 out vec2 vUv;
 out highp float vLayerIndex;
 out vec3 vColor;
 out float vTextureFade;
 out float vBuildingFade;
+flat out float vIsData;
 
 void main() {
-  // Flip V to compensate for the data orientation in adPanelTextureArray.
+  // Flip V to compensate for the data orientation in facadePanelTextureArray.
   // uploadImage/uploadCanvas populate the DataArrayTexture via
   // ctx.getImageData(), which returns canvas rows top-down (row 0 = top
   // of the image). WebGL's UV origin is at the bottom, so without a flip
@@ -51,5 +54,6 @@ void main() {
   vColor = iColor;
   vTextureFade = iTextureFade;
   vBuildingFade = iBuildingFade;
+  vIsData = iIsData;
   gl_Position = projectionMatrix * modelViewMatrix * instanceMatrix * vec4(position, 1.0);
 }

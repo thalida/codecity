@@ -96,7 +96,7 @@ class FileCacheTests(CacheTestBase):
         cache_mod.cache_save_files(root, {})
         path = cache_mod.CACHE_ROOT / "files" / f"{cache_mod.repo_key(root)}.json"
         payload = {
-            "version": 1,
+            "version": cache_mod._FILE_CACHE_VERSION,
             "root": str(root),
             "entries": {
                 "good.py": {
@@ -671,7 +671,7 @@ class MediaDimsCacheTests(CacheTestBase):
         cache_path.write_text(
             json.dumps(
                 {
-                    "version": 1,
+                    "version": cache_mod._FILE_CACHE_VERSION,
                     "entries": {
                         "weird.png": {
                             "size": 10,
@@ -698,7 +698,7 @@ class MediaDimsCacheTests(CacheTestBase):
         cache_path.write_text(
             json.dumps(
                 {
-                    "version": 1,
+                    "version": cache_mod._FILE_CACHE_VERSION,
                     "entries": {
                         "fake.png": {
                             "size": 10,
@@ -724,7 +724,7 @@ class MediaDimsCacheTests(CacheTestBase):
         cache_path.write_text(
             json.dumps(
                 {
-                    "version": 1,
+                    "version": cache_mod._FILE_CACHE_VERSION,
                     "entries": {
                         "weird.png": {
                             "size": 10,

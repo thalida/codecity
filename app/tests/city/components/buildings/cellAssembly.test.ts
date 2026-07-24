@@ -146,7 +146,7 @@ describe('buildCellsFromLayout', () => {
     expect(out.sceneRoot.children.length).toBe(0);
   });
 
-  describe('AD_ENABLED gate', () => {
+  describe('MEDIA_ENABLED gate', () => {
     const bounds = { minX: 0, maxX: 50, minZ: 0, maxZ: 50 };
     const mediaBuilding = () =>
       building({
@@ -169,21 +169,60 @@ describe('buildCellsFromLayout', () => {
       });
 
     afterEach(() => {
-      BUILDINGS.value = { ...BUILDINGS.value, AD_ENABLED: true };
+      BUILDINGS.value = { ...BUILDINGS.value, MEDIA_ENABLED: true };
     });
 
-    it('builds an ad-panel mesh for media buildings when AD_ENABLED (default)', () => {
+    it('builds an ad-panel mesh for media buildings when MEDIA_ENABLED (default)', () => {
       const out = buildCellsFromLayout(bounds, [mediaBuilding()]);
-      expect(out.adPanels).not.toBeNull();
+      expect(out.facadePanels).not.toBeNull();
     });
 
-    it('skips the ad-panel mesh entirely when AD_ENABLED is off', () => {
-      BUILDINGS.value = { ...BUILDINGS.value, AD_ENABLED: false };
+    it('skips the ad-panel mesh entirely when MEDIA_ENABLED is off', () => {
+      BUILDINGS.value = { ...BUILDINGS.value, MEDIA_ENABLED: false };
       const out = buildCellsFromLayout(bounds, [mediaBuilding()]);
-      expect(out.adPanels).toBeNull();
+      expect(out.facadePanels).toBeNull();
       // The building itself still renders (its cell + detail mesh exist).
       expect(out.cells.size).toBeGreaterThan(0);
       expect(out.index.byPath.get('logo.png')).toBeDefined();
+    });
+  });
+
+  describe('DATA_ENABLED gate', () => {
+    const bounds = { minX: 0, maxX: 50, minZ: 0, maxZ: 50 };
+    const dataBuilding = () =>
+      building({
+        x: 5,
+        y: 5,
+        file: {
+          path: 'app.db',
+          name: 'app.db',
+          type: NodeKind.File,
+          fullPath: '/abs/app.db',
+          extension: '.db',
+          mediaKind: null,
+          size: 5000,
+          lines: 0,
+          binary: true,
+          dirty: false,
+          created: '',
+          modified: '',
+        },
+      });
+
+    afterEach(() => {
+      BUILDINGS.value = { ...BUILDINGS.value, DATA_ENABLED: true };
+    });
+
+    it('registers a facade panel for a binary building when DATA_ENABLED (default)', () => {
+      expect(buildCellsFromLayout(bounds, [dataBuilding()]).facadePanels).not.toBeNull();
+    });
+
+    it('skips the facade when DATA_ENABLED is off, but the block still renders', () => {
+      BUILDINGS.value = { ...BUILDINGS.value, DATA_ENABLED: false };
+      const out = buildCellsFromLayout(bounds, [dataBuilding()]);
+      expect(out.facadePanels).toBeNull();
+      expect(out.cells.size).toBeGreaterThan(0);
+      expect(out.index.byPath.get('app.db')).toBeDefined();
     });
   });
 });

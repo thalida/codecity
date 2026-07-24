@@ -9,7 +9,7 @@ const SHADERS = resolve(__dirname, '../../../../src/city/components/buildings');
 describe('building.vert.glsl', () => {
   const src = readFileSync(resolve(SHADERS, 'building.vert.glsl'), 'utf-8');
   it('declares all required instance attributes', () => {
-    for (const a of ['iCols', 'iFloors', 'iOrient', 'iDoorWidth', 'iFade', 'iRuin']) {
+    for (const a of ['iCols', 'iFloors', 'iOrient', 'iDoorWidth', 'iFade', 'iKind']) {
       expect(src).toMatch(new RegExp(`attribute \\w+ ${a}`));
     }
   });
@@ -24,7 +24,7 @@ describe('building.vert.glsl', () => {
       'vOpacity',
       'vColor',
       'vScale',
-      'vRuin',
+      'vKind',
     ]) {
       expect(src).toContain(v);
     }
@@ -37,15 +37,22 @@ describe('building.frag.glsl', () => {
     expect(src).toContain('fwidth(');
     expect(src).toContain('smoothstep(');
   });
-  it('branches on face index', () => {
-    expect(src).toMatch(/vFace == 2/); // roof
-    expect(src).toMatch(/vFace == 3/); // bottom
+  it('branches on named face constants', () => {
+    expect(src).toMatch(/vFace == FACE_ROOF/);
+    expect(src).toMatch(/vFace == FACE_BOTTOM/);
+    expect(src).toContain('const int FACE_ROOF = 2;');
   });
   it('declares hsl_glsl_inline include marker', () => {
     expect(src).toContain('#include <hsl_glsl_inline>');
   });
-  it('crumbles the top off a ghost-ruin (vRuin branch discards)', () => {
-    expect(src).toMatch(/vRuin > 0\.5/);
+  it('crumbles the top off a ghost-ruin (KIND_RUIN branch discards)', () => {
+    expect(src).toMatch(/vKind == KIND_RUIN/);
     expect(src).toMatch(/discard/);
+  });
+
+  it('renders data buildings windowless via the KIND_DATA branch', () => {
+    expect(src).toMatch(/vKind == KIND_DATA/);
+    // iKind is a flat int enum (exact equality), not a float threshold.
+    expect(src).toContain('const int KIND_DATA');
   });
 });

@@ -119,6 +119,16 @@ const BUILDING_DIMENSIONS_FIELDS = {
     label: 'Distance from road',
     tip: "Gap between every building's wall and the street edge.",
   },
+  DATA_HEIGHT_RATIO: {
+    route: ChangeRoute.Rebuild,
+    kind: FieldKind.Slider,
+    default: 0.7,
+    min: 0.1,
+    max: 2,
+    step: 0.05,
+    label: 'Data block height × width',
+    tip: 'Binary files render as squat, windowless data blocks sized by bytes; this sets their height as a fraction of that byte-driven width. Below 1 they stay warehouse-like, above 1 they tower.',
+  },
 } satisfies FieldMap;
 
 export const BUILDING_DIMENSIONS = settingSignal('BUILDING_DIMENSIONS', BUILDING_DIMENSIONS_FIELDS);
@@ -137,7 +147,7 @@ export type BuildingDimensionsConfig = ConfigOf<typeof BUILDING_DIMENSIONS_FIELD
 //                                      — procedural facade geometry + contrast +
 //     window lighting (mostly refresh; the JS-side *_COLS/WIDTH_PER/DOOR_WIDTH
 //     keys rebuild since they bake into per-instance attributes).
-//   AD_*                               — media-building ad panels (rebuild;
+//   AD_*                               — media-building billboards (rebuild;
 //     geometry baked at apply time).
 //   GRIME_/TILT_                       — createdAge weathering (refresh:
 //     refreshBuildingMaterial uniforms, lerped per-building by age).
@@ -333,7 +343,7 @@ const BUILDINGS_FIELDS = {
   DOOR_WIDTH_FRAC: {
     route: ChangeRoute.Rebuild,
     kind: FieldKind.Slider,
-    default: 0.4,
+    default: 0.2,
     min: 0,
     max: 1,
     step: 0.05,
@@ -432,15 +442,15 @@ const BUILDINGS_FIELDS = {
     tip: "How brightly the newest building's lit windows glow, fading to none for the oldest. Requires Bloom enabled in Effects. 0 = no glow, 1 = moderate, 3 = full neon.",
   },
 
-  // ── Ad panels (media files) — rebuild (geometry baked at apply time) ──
-  AD_ENABLED: {
+  // ── Billboards (media files) — rebuild (geometry baked at apply time) ──
+  MEDIA_ENABLED: {
     route: ChangeRoute.Rebuild,
     kind: FieldKind.Toggle,
     default: true,
     label: 'Enabled',
-    tip: 'Render the image/video billboard on the face of media-file buildings. Off skips the ad-panel mesh entirely (no fetch, decode, upload, or draw): the buildings still show, just without their picture.',
+    tip: 'Render the image/video billboard on the face of media-file buildings. Off skips the billboard mesh entirely (no fetch, decode, upload, or draw): the buildings still show, just without their picture.',
   },
-  AD_SIDE_MARGIN_FRAC: {
+  MEDIA_SIDE_MARGIN_FRAC: {
     route: ChangeRoute.Rebuild,
     kind: FieldKind.Slider,
     default: 0.1,
@@ -448,9 +458,9 @@ const BUILDINGS_FIELDS = {
     max: 0.4,
     step: 0.01,
     label: 'Side margin × width',
-    tip: 'Horizontal margin on each side of the ad, as a fraction of building width. Above 0.4 the ad shrinks to a sliver.',
+    tip: 'Horizontal margin on each side of the billboard, as a fraction of building width. Above 0.4 the billboard shrinks to a sliver.',
   },
-  AD_BOTTOM_OFFSET_FLOORS: {
+  MEDIA_BOTTOM_OFFSET_FLOORS: {
     route: ChangeRoute.Rebuild,
     kind: FieldKind.Slider,
     default: 1.0,
@@ -458,16 +468,16 @@ const BUILDINGS_FIELDS = {
     max: 3,
     step: 0.1,
     label: 'Bottom offset × floors',
-    tip: "How many floor heights above the ground the ad's bottom edge sits. 1.0 clears the door; raise it to lift the ad higher on the building.",
+    tip: "How many floor heights above the ground the billboard's bottom edge sits. 1.0 clears the door; raise it to lift the billboard higher on the building.",
   },
-  AD_PLACEHOLDER_COLOR: {
+  MEDIA_PLACEHOLDER_COLOR: {
     route: ChangeRoute.Rebuild,
     kind: FieldKind.Color,
     default: '#29293d',
     label: 'Placeholder color',
-    tip: 'Color shown on the ad plane while the texture is loading, or if the load fails.',
+    tip: 'Color shown on the billboard while the texture is loading, or if the load fails.',
   },
-  AD_EMISSION: {
+  MEDIA_EMISSION: {
     route: ChangeRoute.Refresh,
     kind: FieldKind.Slider,
     default: 0.6,
@@ -475,7 +485,33 @@ const BUILDINGS_FIELDS = {
     max: 5.0,
     step: 0.1,
     label: 'Emission (bloom)',
-    tip: 'Brightness multiplier on ad images. Requires Bloom enabled in Effects to glow. 0 = black, 1 = normal, higher = neon storefront.',
+    tip: 'Brightness multiplier on billboard images. Requires Bloom enabled in Effects to glow. 0 = black, 1 = normal, higher = neon storefront.',
+  },
+
+  // ── Data blocks (binary files) — rebuild ──
+  DATA_ENABLED: {
+    route: ChangeRoute.Rebuild,
+    kind: FieldKind.Toggle,
+    default: true,
+    label: 'Enabled',
+    tip: 'Wrap binary-file data blocks in a facade of their own bytes: a byte-pattern fingerprint, a font glyph, or an audio waveform. Off leaves them sealed and windowless with no facade.',
+  },
+  DATA_COLOR: {
+    route: ChangeRoute.Refresh,
+    kind: FieldKind.Color,
+    default: '#ffffff',
+    label: 'Facade color',
+    tip: 'Tint for the data facades: the byte-pattern fingerprint, font glyph, and audio waveform render white by default, recolor them here.',
+  },
+  DATA_EMISSION: {
+    route: ChangeRoute.Refresh,
+    kind: FieldKind.Slider,
+    default: 0.6,
+    min: 0,
+    max: 5.0,
+    step: 0.1,
+    label: 'Emission (bloom)',
+    tip: 'Brightness multiplier on the data facades. Requires Bloom enabled in Effects to glow. 0 is black, 1 is normal, higher is neon.',
   },
 
   // ── Aging (createdAge-driven weathering) — refresh ──

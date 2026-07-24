@@ -127,6 +127,51 @@ describe('FilePreviewPane', () => {
     expect(container.querySelector('.text-pane-title .is-leaf')!.textContent).toBe('utils.ts');
   });
 
+  const BINARY_NODE: FileNode = {
+    name: 'data.db',
+    type: NodeKind.File,
+    path: 'data/data.db',
+    fullPath: '/tmp/project/data.db',
+    extension: '.db',
+    size: 50000,
+    lines: 0,
+    binary: true,
+    binaryType: 'SQLite database',
+    dirty: false,
+    created: '2024-01-10T09:00:00Z',
+    modified: '2024-03-20T10:00:00Z',
+  };
+
+  it('renders a data card (type + size + dates) for a binary file, not garbled text', async () => {
+    mount();
+    await setFile(BINARY_NODE);
+    // The data card, not the syntax-highlighted text dump: only the card shows
+    // the detected type + formatted size.
+    const card = container.querySelector('.binary-card');
+    expect(card).not.toBeNull();
+    expect(card!.textContent).toContain('SQLite database'); // detected type
+    expect(card!.textContent).toContain('48.8 KB'); // formatted size
+    expect(container.querySelector('.binary-fingerprint-frame')).not.toBeNull();
+  });
+
+  it('embeds the fetched fingerprint as a data-URL image', async () => {
+    const b64 = 'iVBORw0KGgoAAAANSg==';
+    globalThis.fetch = (async (url: string) =>
+      String(url).includes('/api/fingerprints')
+        ? new Response(JSON.stringify({ '/tmp/project/data.db': { b64 } }), { status: 200 })
+        : new Response('', { status: 200 })) as unknown as typeof fetch;
+
+    mount();
+    await setFile(BINARY_NODE);
+    // The fingerprint fetch coalesces on a 16ms timer; drain past it.
+    await act(async () => {
+      await drainAsync(40, 1);
+    });
+    const img = container.querySelector('.binary-fingerprint') as HTMLImageElement | null;
+    expect(img).not.toBeNull();
+    expect(img!.getAttribute('src')).toBe(`data:image/png;base64,${b64}`);
+  });
+
   it('re-fetches content when a still-selected file is edited (mtime changes)', async () => {
     // A live-update poll re-derives the selected FileNode with the same path
     // but a newer mtime; the preview must re-fetch, not wait for a re-select.

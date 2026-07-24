@@ -46,6 +46,7 @@ import { ObjectBVH } from 'three-mesh-bvh';
 import { signal, effect, untracked } from '@preact/signals';
 import { NodeKind } from '@/types';
 import { sidewalkStreetForFace } from '@/city/components/streets/streets';
+import { BuildingKind } from '@/city/components/buildings/buildingKind';
 import { TIMELINE_MODE, SCRUB_POS } from '@/state/stores/timeline';
 import { RUINED_STREET_DIRS, FUTURE_STREET_DIRS } from '@/city/timeline/scrubController';
 
@@ -349,23 +350,19 @@ export function createPicker({
   const SCRUB_HIDE_EPS = 0.02;
   const _scrubMatrix = new THREE.Matrix4();
 
-  // Building presence is iFade.x, the same value the shader reads for opacity.
-  // A ruin is NOT hidden — it's a visible stub, hoverable + selectable (the
-  // tooltip flags it as a ruin, and the right panel is suppressed elsewhere). A
-  // future slab (iRuin 2) IS treated as hidden: it's a marker for a file that
-  // doesn't exist yet, so it can't be selected.
+  // Only a Future slab is unpickable (a marker for a not-yet-created file); ruins
+  // and data buildings stay selectable. Presence is iFade.x (shader opacity).
   function _buildingScrubHidden(mesh: THREE.InstancedMesh, slot: number): boolean {
     const iFade = mesh.geometry.getAttribute('iFade') as THREE.BufferAttribute | undefined;
     if (iFade && iFade.getX(slot) < SCRUB_HIDE_EPS) return true;
-    const iRuin = mesh.geometry.getAttribute('iRuin') as THREE.BufferAttribute | undefined;
-    return !!iRuin && iRuin.getX(slot) > 1.5;
+    const iKind = mesh.geometry.getAttribute('iKind') as THREE.BufferAttribute | undefined;
+    return !!iKind && Math.round(iKind.getX(slot)) === BuildingKind.Future;
   }
 
-  // A visible ghost-ruin building (for the hover tooltip's "ruin" note); the
-  // future slab (iRuin 2) isn't a ruin, and is unpickable anyway.
+  // A visible ghost-ruin building (for the hover tooltip's "ruin" note).
   function _buildingIsRuin(mesh: THREE.InstancedMesh, slot: number): boolean {
-    const iRuin = mesh.geometry.getAttribute('iRuin') as THREE.BufferAttribute | undefined;
-    return !!iRuin && iRuin.getX(slot) > 0.5 && iRuin.getX(slot) < 1.5;
+    const iKind = mesh.geometry.getAttribute('iKind') as THREE.BufferAttribute | undefined;
+    return !!iKind && Math.round(iKind.getX(slot)) === BuildingKind.Ruin;
   }
 
   // Trees are gated by zero-scaling their instance matrix (setScrubCommit).

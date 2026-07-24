@@ -28,12 +28,12 @@ export const RENDER_ORDERS = {
   BUILDING_OUTLINE: 5, // per-building default wireframe
   STREET_LABEL: 6, // baked road-name plane
   SELECTED_OUTLINE: 7, // chasing-rainbow selected wireframe
-  // Media-building ad panels. Must sort AFTER street labels so the
+  // Media-building facade panels. Must sort AFTER street labels so the
   // road-name plane (also depthWrite:false) doesn't paint over a panel
   // hanging out past its building wall — both surfaces have
   // depthWrite:false so the transparent-pass sort falls back to
   // renderOrder, and the panel needs to win.
-  AD_PANEL: 8,
+  FACADE_PANEL: 8,
   // Floating repo-name label — drawn above buildings/outlines so it
   // reads cleanly against any silhouette. Additive blending; depth
   // test still on so distant city geometry never punches a hole in it.

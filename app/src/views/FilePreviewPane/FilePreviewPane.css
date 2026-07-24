@@ -306,3 +306,62 @@
     transform: rotate(360deg);
   }
 }
+
+/* ── Binary "data" file card ──────────────────────────────────────────────── */
+
+.binary-card {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--cc-space-8);
+  padding: var(--cc-space-8);
+}
+
+/* The fingerprint sits on a dark ground so its white byte-pattern reads (the
+   same image the building facade wears). Pixelated keeps the digram cells crisp. */
+.binary-fingerprint-frame {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  align-self: center;
+  width: 100%;
+  max-width: 320px;
+  aspect-ratio: 1;
+  background: var(--cc-track);
+  border-radius: var(--cc-radius-sm);
+}
+
+.binary-fingerprint {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  image-rendering: pixelated;
+  border-radius: var(--cc-radius-sm);
+}
+
+.binary-fingerprint-fallback {
+  width: 33%;
+  height: 33%;
+  color: var(--cc-text-faint);
+}
+
+/* Label / value rows: labels size to content, values take the rest. */
+.binary-card-facts {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: var(--cc-space-3) var(--cc-space-6);
+  margin: var(--cc-space-0);
+}
+
+.binary-card-facts dt {
+  align-self: baseline;
+}
+
+.binary-card-facts dd {
+  margin: var(--cc-space-0);
+  color: var(--cc-text-primary);
+  font-size: var(--cc-font-sm);
+  word-break: break-word;
+}

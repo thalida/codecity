@@ -279,6 +279,37 @@ describe('computeAlmanac — buildings + media', () => {
     expect(media.facts).toHaveLength(0);
     expect(media.note).toMatch(/No images or videos/);
   });
+
+  it('excludes binaries from buildings and gives them a Data section with byte leaders', () => {
+    const withBinary = dir('repo', '', [
+      file({ name: 'code.ts', path: 'code.ts', lines: 40, size: 400 }),
+      file({ name: 'small.db', path: 'small.db', lines: 0, size: 800, binary: true }),
+      file({ name: 'big.wasm', path: 'big.wasm', lines: 0, size: 50000, binary: true }),
+    ]);
+    const stats: RepoStats = {
+      ...uniformFileStats('code.ts', 40, 400),
+      binaryCount: 2,
+      minBinaryBytesFile: fileLeader('small.db', 0, 800),
+      maxBinaryBytesFile: fileLeader('big.wasm', 0, 50000),
+    };
+    const m = computeAlmanac(manifest(withBinary, { stats }))!;
+    const buildings = m.sections.find((s) => s.key === 'buildings')!;
+    const data = m.sections.find((s) => s.key === 'data')!;
+    // 3 files − 2 binaries = 1 building; binaries never win a code superlative.
+    expect(buildings.overview).toContain('1 building');
+    expect(buildings.facts.every((f) => f.landmark?.id !== 'big.wasm')).toBe(true);
+    // Data section: byte Size pair over the binary leaders.
+    expect(data.overview).toContain('2 data files');
+    const byLabel = (l: string) => data.facts.find((f) => f.label === l)!;
+    expect(byLabel('Smallest').landmark).toEqual({ kind: 'file', id: 'small.db' });
+    expect(byLabel('Largest').landmark).toEqual({ kind: 'file', id: 'big.wasm' });
+  });
+
+  it('keeps the Data section with a note when there are no binaries', () => {
+    const data = a!.sections.find((s) => s.key === 'data')!;
+    expect(data.facts).toHaveLength(0);
+    expect(data.note).toMatch(/No binary files/);
+  });
 });
 
 describe('computeAlmanac — streets, forest, fireflies', () => {

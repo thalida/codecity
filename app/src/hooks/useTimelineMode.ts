@@ -137,6 +137,20 @@ export async function viewCommitInTimeline(sha: string): Promise<void> {
   if (idx >= 0) SCRUB_POS.value = idx;
 }
 
+// Re-pack the union city + re-install the scrub controller from the warm bundle
+// (no re-fetch), holding SCRUB_POS — so a Timeline-mode settings Save stays in
+// Timeline instead of dropping to live HEAD.
+export async function reapplyTimelineScene(): Promise<void> {
+  const handle = SCENE_HANDLE.peek();
+  const bundle = TIMELINE_BUNDLE.peek();
+  if (!handle || !bundle) return;
+  const timelines = buildPathTimelines(bundle);
+  await handle.applyManifest(bundle.unionManifest as unknown as Manifest);
+  handle.timeline.setStreetsTransparent(true);
+  handle.timeline.setFootprintsTransparent(true);
+  handle.timeline.installScrubController(timelines);
+}
+
 // Scene-free: the city-layer effect (city/index.ts) reacts to TIMELINE_MODE and does the scene teardown.
 export function teardownTimelineMode(): void {
   resetTimelineMode();

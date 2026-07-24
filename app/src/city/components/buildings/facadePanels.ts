@@ -1,34 +1,33 @@
-// city/components/buildings/adPanels.ts — Instanced ad panels for media
-// buildings. A single InstancedMesh backed by a DataArrayTexture (one
-// layer per media file). Each media building gets 4 panel slots, one
-// per face (S/N/E/W).
-//
-// Picking: ad panels are NOT pickable. Per-instance userData isn't
-// supported by Three.js raycasting without a custom implementation;
-// adding it would restore click-to-select on media buildings.
-//
-// WebGL2 requirement: the underlying DataArrayTexture + GLSL3 shader
-// require WebGL2.
+// city/components/buildings/facadePanels.ts — Instanced facade panels: 4 quads
+// per building (S/N/E/W) on a shared DataArrayTexture, each carrying its own
+// loader (media image / binary fingerprint / font glyph / waveform) + aspect.
+// Not pickable (no per-instance raycast userData). WebGL2 (DataArrayTexture + GLSL3).
 
 import * as THREE from 'three';
 import { BuildingOrient } from '@/types/index';
 import { BLOOM } from '@/state/stores/settings/effects';
 import { BUILDING_DIMENSIONS, BUILDINGS } from '@/state/stores/settings/buildings';
-import { AD_ERROR_COLOR } from '@/constants/buildings';
+import { MEDIA_ERROR_COLOR } from '@/constants/buildings';
 import { RENDER_ORDERS } from '@/city/types/renderOrders';
 import { mediaKindOf, MediaKind } from '@/city/utils/mediaKind';
-import { AdPanelTextureArray, MAX_PAGES as AD_PANEL_MAX_PAGES } from './adPanelTextureArray';
+import { isDataBuilding } from '@/city/utils/binaryKind';
+import {
+  FacadePanelTextureArray,
+  MAX_PAGES as FACADE_PANEL_MAX_PAGES,
+} from './facadePanelTextureArray';
 import { fetchMediaBlob } from './mediaBatch';
+import { fetchFingerprintB64 } from '@/api/fingerprint';
+import { dataFacadeKind, renderFontGlyphFacade, renderWaveformFacade } from './dataFacade';
 import type { Building } from '@/types/index';
 
-import adPanelVertSrc from './adPanel.vert.glsl?raw';
-import adPanelFragSrc from './adPanel.frag.glsl?raw';
+import facadePanelVertSrc from './facadePanel.vert.glsl?raw';
+import facadePanelFragSrc from './facadePanel.frag.glsl?raw';
 
 // World-unit z-offset from the building's front face. depthWrite:false on
 // the panel material means polygonOffset has no effect, so this is the only
 // thing keeping the panel quad from co-planar z-fighting with the building
 // face. Tuned to clear typical 8–96 unit-wide buildings at oblique angles.
-const AD_FRONT_FACE_OFFSET = 1.5;
+const FACADE_FRONT_FACE_OFFSET = 1.5;
 
 // LOD thresholds — the on-screen height (CSS px) a REFERENCE panel
 // (the tallest in the repo) would project to at a given camera distance. Both
@@ -38,19 +37,19 @@ const AD_FRONT_FACE_OFFSET = 1.5;
 // small file's short billboard next to a big one's tall billboard load/cull as a
 // unit instead of the finicky mixed row you'd get from per-panel sizes.
 //
-// Ad panels are transparent + DoubleSide + never frustum-culled, so a panel this
+// Facade panels are transparent + DoubleSide + never frustum-culled, so a panel this
 // far away is a sub-pixel speck contributing only overdraw; hiding it (and not
 // loading it) is free. Hysteresis (cull below HIDE, restore above SHOW) keeps a
 // panel at the boundary from flickering as OrbitControls damps.
-const AD_LOD_HIDE_PX = 6;
-const AD_LOD_SHOW_PX = 12;
+const FACADE_LOD_HIDE_PX = 6;
+const FACADE_LOD_SHOW_PX = 12;
 
 // Max image loads STARTED per frame. A media-heavy repo (PostHog: ~1.4k images)
 // otherwise fires every fetch + base64 decode + canvas scale + GPU upload in one
 // burst on load, and that main-thread work janks navigation while it drains.
 // Starting a few per frame, only for on-screen panels (see updateLOD), spreads
 // the cost so zooming/rotating stays smooth as billboards stream in.
-const AD_LOAD_BUDGET_PER_FRAME = 4;
+const FACADE_LOAD_BUDGET_PER_FRAME = 4;
 
 // Scratch objects for the per-frame LOD/load pass (no per-frame alloc).
 const _scratchVec3 = new THREE.Vector3();
@@ -90,10 +89,10 @@ const PANEL_ORIENTS: BuildingOrient[] = [
 ];
 
 // ---------------------------------------------------------------------------
-// InstancedAdPanels
+// InstancedFacadePanels
 // ---------------------------------------------------------------------------
 
-export interface AdPanelRegistration {
+export interface FacadePanelRegistration {
   /** DataArrayTexture layer index allocated for this building's image. */
   layer: number;
   /**
@@ -103,30 +102,31 @@ export interface AdPanelRegistration {
   panelSlots: number[];
 }
 
-export class InstancedAdPanels {
+export class InstancedFacadePanels {
   /** The instanced mesh — add this to the scene. */
   readonly mesh: THREE.InstancedMesh;
 
-  private readonly _texArray: AdPanelTextureArray;
+  private readonly _texArray: FacadePanelTextureArray;
   private readonly _capacity: number;
   private _nextSlot = 0;
   // Tracks dispose() — async load tasks that started before dispose
   // but completed after (very likely during a skeleton→final or live-
   // update rebuild) check this before touching iTextureFade so they
-  // don't clobber the new InstancedAdPanels' slot state.
+  // don't clobber the new InstancedFacadePanels' slot state.
   private _disposed = false;
 
   // Per-instance attribute arrays (raw typed arrays for direct write).
   private readonly _iLayerIndex: Float32Array;
   private readonly _iColor: Float32Array;
   private readonly _iTextureFade: Float32Array;
-  // Per-instance opacity multiplier, driven by buildingFader so an ad
-  // panel fades down in lockstep with its underlying building body when
-  // the selection cascade demotes that building to Level 1-4 tiers.
+  // Per-instance opacity multiplier, driven by buildingFader so a facade panel
+  // fades down in lockstep with its building body when the selection cascade
+  // demotes that building to a Level 1-4 tier.
   private readonly _iBuildingFade: Float32Array;
-  // Plain AD_ERROR_COLOR (no emission bake) — emission is applied uniformly
-  // via uEmissionBoost in the shader. Cached so markBuildingErrored doesn't
-  // have to reparse the hex string on every error call.
+  // 0 = media panel, 1 = data facade; the shader picks emission + tint from it.
+  private readonly _iIsData: Float32Array;
+  // Plain MEDIA_ERROR_COLOR (no emission bake) — emission is applied per-kind in
+  // the shader. Cached so markBuildingErrored doesn't reparse the hex each call.
   private readonly _errorColor!: THREE.Color;
   // Shader material reference — held so refresh() can update uniforms live.
   private readonly _material!: THREE.ShaderMaterial;
@@ -161,23 +161,25 @@ export class InstancedAdPanels {
     radius: number;
     shown: boolean;
     loaded: boolean;
+    // Per-building loader (media image vs binary fingerprint), chosen at register.
+    startLoad: (b: Building, layer: number, panelSlots: number[]) => void;
   }> = [];
-  // Starts one building's image load. Defaults to the real fetch/decode/upload
-  // chain; overridable in tests to observe scheduling without touching the net.
-  private readonly _startLoad: (b: Building, layer: number, panelSlots: number[]) => void;
+  // Constructor override: when set, replaces every panel's loader so tests can
+  // observe LOD scheduling without hitting the network. null in production.
+  private readonly _overrideStartLoad:
+    | ((b: Building, layer: number, panelSlots: number[]) => void)
+    | null;
 
   constructor(
     mediaFileCapacity: number,
     opts?: { onStartLoad?: (b: Building, layer: number, panelSlots: number[]) => void }
   ) {
-    this._startLoad =
-      opts?.onStartLoad ??
-      ((b, layer, panelSlots) => asyncLoadMediaForBuilding(this, b, layer, panelSlots));
+    this._overrideStartLoad = opts?.onStartLoad ?? null;
     this._capacity = mediaFileCapacity;
     // 4 faces per media building → total slot count.
     const slotCount = mediaFileCapacity * 4;
 
-    this._texArray = new AdPanelTextureArray(Math.max(1, mediaFileCapacity));
+    this._texArray = new FacadePanelTextureArray(Math.max(1, mediaFileCapacity));
 
     // Shared quad geometry — unit plane in XY (same as PlaneGeometry(1,1)).
     // Each instance is positioned/rotated/scaled via instanceMatrix.
@@ -185,22 +187,20 @@ export class InstancedAdPanels {
 
     // Material — GLSL3 required for sampler2DArray.
     const adCfg = BUILDINGS.value;
-    const placeholderColor = new THREE.Color(adCfg.AD_PLACEHOLDER_COLOR);
-    // Cached for markBuildingErrored — recolors a panel slot's iColor
-    // when its image load/decode/upload fails permanently. Stored without
-    // emission multiply; uEmissionBoost in the shader applies uniformly to
-    // both placeholder and error colors so brightness stays consistent.
-    this._errorColor = new THREE.Color(AD_ERROR_COLOR);
+    const placeholderColor = new THREE.Color(adCfg.MEDIA_PLACEHOLDER_COLOR);
+    // Cached for markBuildingErrored — recolors a slot's iColor on a permanent
+    // media load failure. No emission bake; the shader applies it per kind.
+    this._errorColor = new THREE.Color(MEDIA_ERROR_COLOR);
 
     const bloomCfg = BLOOM.value;
     const mat = new THREE.ShaderMaterial({
       glslVersion: THREE.GLSL3,
-      // AD_PANEL_MAX_PAGES injected as a shader #define — sizes the
+      // FACADE_PANEL_MAX_PAGES injected as a shader #define — sizes the
       // uPanelArrays sampler array AND gates the sampleLayer dispatch
-      // branches (each `#if AD_PANEL_MAX_PAGES > N`), so the page count
+      // branches (each `#if FACADE_PANEL_MAX_PAGES > N`), so the page count
       // lives only in MAX_PAGES.
       defines: {
-        AD_PANEL_MAX_PAGES,
+        FACADE_PANEL_MAX_PAGES,
       },
       uniforms: {
         // Sampler array — one DataArrayTexture per page. Padded to
@@ -211,14 +211,15 @@ export class InstancedAdPanels {
         // Layers per page (hardware MAX_ARRAY_TEXTURE_LAYERS). The
         // shader uses it to split iLayerIndex into (page, localLayer).
         uPageSize: { value: this._texArray.pageSize },
-        // Emission boost — multiplied onto the final fragment color so
-        // both placeholder/error colors and loaded textures share the
-        // same emission scaling. BUILDINGS.AD_EMISSION supplies the level,
-        // gated on BLOOM.ENABLED; updated live via refresh().
-        uEmissionBoost: { value: bloomCfg.ENABLED ? adCfg.AD_EMISSION : 1.0 },
+        // Per-kind emission (media billboard vs data facade), both gated on
+        // BLOOM.ENABLED; the shader picks via iIsData. uDataTint colors the
+        // white data facades (fingerprint / glyph / waveform). Live via refresh().
+        uMediaEmission: { value: bloomCfg.ENABLED ? adCfg.MEDIA_EMISSION : 1.0 },
+        uDataEmission: { value: bloomCfg.ENABLED ? adCfg.DATA_EMISSION : 1.0 },
+        uDataTint: { value: new THREE.Color(adCfg.DATA_COLOR) },
       },
-      vertexShader: adPanelVertSrc,
-      fragmentShader: adPanelFragSrc,
+      vertexShader: facadePanelVertSrc,
+      fragmentShader: facadePanelFragSrc,
       transparent: true,
       depthWrite: false,
       // DoubleSide so panels stay visible through the edge-on transition
@@ -238,44 +239,45 @@ export class InstancedAdPanels {
     this._material = mat;
     this.mesh = new THREE.InstancedMesh(geo, mat, slotCount);
     this.mesh.count = 0; // grow as panels are registered
-    this.mesh.userData.meshKind = 'adPanel';
-    // Ad panels are NOT pickable in cell mode — see file header.
+    this.mesh.userData.meshKind = 'facadePanel';
+    // Facade panels are NOT pickable in cell mode — see file header.
     this.mesh.raycast = () => {};
     // Disable Three.js frustum culling for this InstancedMesh: the
     // built-in cull uses the *geometry's* bounding sphere (a tiny
     // unit-plane sphere at origin) and ignores per-instance transforms.
     // When the camera rotates so origin is outside the view, Three.js
-    // culls the whole mesh — making ad panels disappear even when
+    // culls the whole mesh — making facade panels disappear even when
     // their world-space positions are still on-screen. Per-instance
     // frustum testing would be the principled fix, but slotCount is
     // bounded (≤1024 in typical usage) so always-draw is cheap and
     // correct.
     this.mesh.frustumCulled = false;
-    // Force ad panels to render AFTER buildings AND street labels in the
-    // transparent pass. Buildings, street labels and ad panels are all
+    // Force facade panels to render AFTER buildings AND street labels in the
+    // transparent pass. Buildings, street labels and facade panels are all
     // transparent: true, so they sort by renderOrder first and distance
-    // to camera second. The ad-panel mesh's bounding sphere lives at
+    // to camera second. The facade-panel mesh's bounding sphere lives at
     // world origin (we never set mesh.position — instance transforms
     // live in instanceMatrix), so it sorts as if it's at (0,0,0). For
     // any building far from origin (i.e., everywhere in practice), the
     // panel mesh appears FARTHER from the camera than the cell building
-    // mesh, so back-to-front sort would render ad panels FIRST. Then
+    // mesh, so back-to-front sort would render facade panels FIRST. Then
     // the building (with depthWrite:true) would overwrite those panel
     // pixels — making panels invisible on the camera-facing walls.
     // renderOrder bumps the panel mesh into a later sort bucket so it
     // always draws on top; polygonOffset on the material then keeps
-    // the panel correctly anchored to its wall. AD_PANEL must also
+    // the panel correctly anchored to its wall. FACADE_PANEL must also
     // out-rank STREET_LABEL — both have depthWrite:false, and the
-    // panel hangs out past its wall by AD_FRONT_FACE_OFFSET, so without the bump
+    // panel hangs out past its wall by FACADE_FRONT_FACE_OFFSET, so without the bump
     // the road-name plane wins the painter sort and bleeds through the
     // panel's overhang.
-    this.mesh.renderOrder = RENDER_ORDERS.AD_PANEL;
+    this.mesh.renderOrder = RENDER_ORDERS.FACADE_PANEL;
 
     // Pre-allocate per-instance attribute arrays.
     this._iLayerIndex = new Float32Array(slotCount); // 1 float per slot
     this._iColor = new Float32Array(slotCount * 3); // vec3 per slot
     this._iTextureFade = new Float32Array(slotCount); // 1 float per slot
     this._iBuildingFade = new Float32Array(slotCount); // 1 float per slot
+    this._iIsData = new Float32Array(slotCount); // 1 float per slot (0=media, 1=data)
 
     // Initialize iColor to placeholder, iTextureFade to 0 (no texture yet),
     // and iBuildingFade to 1.0 (no fade until buildingFader writes a tier).
@@ -292,6 +294,7 @@ export class InstancedAdPanels {
     geo.setAttribute('iColor', new THREE.InstancedBufferAttribute(this._iColor, 3));
     geo.setAttribute('iTextureFade', new THREE.InstancedBufferAttribute(this._iTextureFade, 1));
     geo.setAttribute('iBuildingFade', new THREE.InstancedBufferAttribute(this._iBuildingFade, 1));
+    geo.setAttribute('iIsData', new THREE.InstancedBufferAttribute(this._iIsData, 1));
 
     // Hide all instances initially via scale-zero matrices.
     const zero = new THREE.Matrix4().makeScale(0, 0, 0);
@@ -302,47 +305,78 @@ export class InstancedAdPanels {
   }
 
   /**
-   * Register a media building: allocate a texture layer and 4 panel slots,
-   * compute the face matrices from building dimensions, and write them.
-   *
-   * Returns null when capacity is exhausted (silently skipped — building
-   * shows no instanced ad panel rather than crashing).
+   * Media building: a poster panel on each face showing the file's image, sized
+   * to its aspect and floated on the facade like a billboard. Null for a
+   * non-media building or on capacity exhaustion.
    */
-  registerMediaBuilding(b: Building): AdPanelRegistration | null {
-    const kind = mediaKindOf(b.file);
-    if (!kind) return null;
+  registerMediaBuilding(b: Building): FacadePanelRegistration | null {
+    if (!mediaKindOf(b.file)) return null;
+    // Aspect: clamp degenerate / missing metadata to a square.
+    const mw = b.file.media_width;
+    const mh = b.file.media_height;
+    const rawAspect = mw && mh && mw > 0 ? mh / mw : 1.0;
+    const aspect = Math.min(2.5, Math.max(0.4, rawAspect));
+    const cfg = BUILDINGS.value;
+    const dims = BUILDING_DIMENSIONS.value;
+    const panelWidth = Math.max(0.1, b.w * (1 - 2 * cfg.MEDIA_SIDE_MARGIN_FRAC));
+    const panelHeight = panelWidth * aspect;
+    const centerY = cfg.MEDIA_BOTTOM_OFFSET_FLOORS * dims.FLOOR_HEIGHT + panelHeight / 2;
+    return this._registerPanel(b, panelWidth, panelHeight, centerY, (bb, layer, slots) =>
+      asyncLoadMediaForBuilding(this, bb, layer, slots)
+    );
+  }
 
+  /**
+   * Binary "data" building: a byte-pattern fingerprint on each face. Unlike a
+   * media billboard the fingerprint IS the facade — it fills the whole face
+   * (contained to the building, not floating), and its transparent background
+   * lets the sealed wall show through. The placeholder is the building's own
+   * color so it blends in before the fingerprint streams in. Null for a non-data
+   * building or on capacity exhaustion.
+   */
+  registerBinaryBuilding(b: Building): FacadePanelRegistration | null {
+    if (!isDataBuilding(b.file)) return null;
+    return this._registerPanel(
+      b,
+      Math.max(0.1, b.w),
+      Math.max(0.1, b.h),
+      b.h / 2,
+      (bb, layer, slots) => asyncLoadDataFacadeForBuilding(this, bb, layer, slots),
+      new THREE.Color(b.color)
+    );
+  }
+
+  /**
+   * Allocate a texture layer + 4 panel slots, place a (panelWidth × panelHeight)
+   * quad at `centerY` on each face, wire the per-building `startLoad`, optionally
+   * tint the placeholder. Null on capacity exhaustion.
+   */
+  private _registerPanel(
+    b: Building,
+    panelWidth: number,
+    panelHeight: number,
+    centerY: number,
+    startLoad: (b: Building, layer: number, panelSlots: number[]) => void,
+    color?: THREE.Color
+  ): FacadePanelRegistration | null {
     // Overflow check — 4 slots per building.
     if (this._nextSlot + 4 > this._capacity * 4) {
-      console.warn('[adPanels] slot capacity exhausted for', b.file?.path);
+      console.warn('[facadePanels] slot capacity exhausted for', b.file?.path);
       return null;
     }
 
     const layer = this._texArray.allocate();
     if (layer < 0) {
-      console.warn('[adPanels] texture layer capacity exhausted for', b.file?.path);
+      console.warn('[facadePanels] texture layer capacity exhausted for', b.file?.path);
       return null;
     }
 
-    const cfg = BUILDINGS.value;
-    const dims = BUILDING_DIMENSIONS.value;
-
-    // Aspect ratio: clamp degenerate or missing metadata to a square.
-    const mw = b.file.media_width;
-    const mh = b.file.media_height;
-    const rawAspect = mw && mh && mw > 0 ? mh / mw : 1.0;
-    const aspect = Math.min(2.5, Math.max(0.4, rawAspect));
-
-    const adWidth = Math.max(0.1, b.w * (1 - 2 * cfg.AD_SIDE_MARGIN_FRAC));
-    const adHeight = adWidth * aspect;
-    const bottomY = cfg.AD_BOTTOM_OFFSET_FLOORS * dims.FLOOR_HEIGHT;
-    const centerY = bottomY + adHeight / 2;
-
     const dHalf = b.d / 2;
     const wHalf = b.w / 2;
+    const isData = isDataBuilding(b.file);
 
     // Track the tallest panel + grow the panel AABB (see updateLOD).
-    if (adHeight > this._maxPanelHeight) this._maxPanelHeight = adHeight;
+    if (panelHeight > this._maxPanelHeight) this._maxPanelHeight = panelHeight;
 
     const panelSlots: number[] = [];
     const realMatrices: THREE.Matrix4[] = [];
@@ -359,17 +393,16 @@ export class InstancedAdPanels {
         orient === BuildingOrient.South || orient === BuildingOrient.North ? dHalf : wHalf;
       // Z-offset from the building face. depthWrite:false means the panel
       // would z-fight with the wall at coplanar; this lifts it off. Promoted
-      // from a config key (was AD_PANEL.AD_OFFSET).
-      const zOffset = halfExtent + AD_FRONT_FACE_OFFSET;
+      const zOffset = halfExtent + FACADE_FRONT_FACE_OFFSET;
       const worldX = b.x + sin * zOffset;
       const worldZ = b.y + cos * zOffset;
       this._panelBounds.expandByPoint(_scratchVec3.set(worldX, centerY, worldZ));
 
-      // Build instance matrix: translate to face center, rotate about Y, scale to ad dimensions.
+      // Build instance matrix: translate to face center, rotate about Y, scale to panel dimensions.
       const m = new THREE.Matrix4();
       m.makeRotationY(angle);
       // Apply scale first via a separate matrix, then multiply.
-      const scale = new THREE.Matrix4().makeScale(adWidth, adHeight, 1);
+      const scale = new THREE.Matrix4().makeScale(panelWidth, panelHeight, 1);
       m.multiply(scale);
       m.setPosition(worldX, centerY, worldZ);
       this.mesh.setMatrixAt(slot, m);
@@ -377,17 +410,28 @@ export class InstancedAdPanels {
 
       // Layer index — same for all 4 faces of this building.
       this._iLayerIndex[slot] = layer;
+      this._iIsData[slot] = isData ? 1 : 0;
 
-      // iColor is already set to placeholder in constructor; no-op here.
+      // Optional per-building placeholder tint (binary → the wall color).
+      if (color) {
+        this._iColor[slot * 3 + 0] = color.r;
+        this._iColor[slot * 3 + 1] = color.g;
+        this._iColor[slot * 3 + 2] = color.b;
+      }
     }
 
     // Extend the visible count to include the newly written slots.
     this.mesh.count = Math.max(this.mesh.count, this._nextSlot);
     this.mesh.instanceMatrix.needsUpdate = true;
 
-    // Mark attribute buffers dirty so the GPU sees the new layer indices.
+    // Mark attribute buffers dirty so the GPU sees the new layer indices (and
+    // the tinted placeholder color, when a per-building color was applied).
     const geo = this.mesh.geometry as THREE.BufferGeometry;
     (geo.getAttribute('iLayerIndex') as THREE.InstancedBufferAttribute).needsUpdate = true;
+    (geo.getAttribute('iIsData') as THREE.InstancedBufferAttribute).needsUpdate = true;
+    if (color) {
+      (geo.getAttribute('iColor') as THREE.InstancedBufferAttribute).needsUpdate = true;
+    }
 
     // Remember which 4 slots back this building, keyed on file.path so
     // buildingFader can look the slots up by FileNode.path during its
@@ -407,10 +451,11 @@ export class InstancedAdPanels {
       real: realMatrices,
       center: new THREE.Vector3(b.x, centerY, b.y),
       // Cover the panels: they sit ~half the footprint out from center on each
-      // face, and stand adHeight tall. Generous so an edge building isn't missed.
-      radius: Math.max(b.w, b.d, adHeight),
+      // face, and stand panelHeight tall. Generous so an edge building isn't missed.
+      radius: Math.max(b.w, b.d, panelHeight),
       shown: true,
       loaded: false,
+      startLoad,
     });
 
     return { layer, panelSlots };
@@ -473,8 +518,8 @@ export class InstancedAdPanels {
   }
 
   /**
-   * Push a per-building opacity multiplier onto every ad panel for which
-   * `getFade` returns a value. Used by buildingFader so an ad panel fades
+   * Push a per-building opacity multiplier onto every facade panel for which
+   * `getFade` returns a value. Used by buildingFader so an facade panel fades
    * to the same opacity as its underlying building body during a selection
    * cascade — a Level-1 building's panel drops to LEVEL1_BODY_OPACITY in
    * lockstep, not full brightness.
@@ -502,7 +547,7 @@ export class InstancedAdPanels {
   }
 
   /**
-   * Recolor a building's 4 panel slots to the AD_ERROR_COLOR tint. Called
+   * Recolor a building's 4 panel slots to the MEDIA_ERROR_COLOR tint. Called
    * by asyncLoadMediaForBuilding when the fetch / decode / upload chain
    * fails permanently. iTextureFade stays at 0 so the shader keeps
    * showing the per-instance color (now error red) instead of sampling
@@ -523,7 +568,7 @@ export class InstancedAdPanels {
   /**
    * Distance LOD: toggle whole-mesh visibility from the panels' estimated
    * on-screen size at the current camera. Called once per frame from the
-   * buildings tick. Ad panels are transparent + DoubleSide + never
+   * buildings tick. Facade panels are transparent + DoubleSide + never
    * frustum-culled, so when the camera zooms far out they all render into a
    * tiny screen region and the overdraw stalls the GPU; hiding the mesh once
    * the panels are sub-pixel keeps a media-heavy repo smooth on zoom-out +
@@ -543,8 +588,8 @@ export class InstancedAdPanels {
     const nearDist = this._panelBounds.distanceToPoint(camera.position);
     const nearPx = projPxAt(this._maxPanelHeight, nearDist);
     if (this.mesh.visible) {
-      if (nearPx < AD_LOD_HIDE_PX) this.mesh.visible = false;
-    } else if (nearPx > AD_LOD_SHOW_PX) {
+      if (nearPx < FACADE_LOD_HIDE_PX) this.mesh.visible = false;
+    } else if (nearPx > FACADE_LOD_SHOW_PX) {
       this.mesh.visible = true;
     }
     if (!this.mesh.visible) return;
@@ -560,7 +605,7 @@ export class InstancedAdPanels {
       const px = projPxAt(this._maxPanelHeight, camera.position.distanceTo(rec.center));
       // Hysteresis: a shown panel survives down to HIDE, a hidden one restores
       // only above SHOW. Off-screen panels are always culled.
-      const bigEnough = rec.shown ? px >= AD_LOD_HIDE_PX : px >= AD_LOD_SHOW_PX;
+      const bigEnough = rec.shown ? px >= FACADE_LOD_HIDE_PX : px >= FACADE_LOD_SHOW_PX;
       // Sphere, not center point: a big building at the screen edge (center
       // off-frame) still counts as visible.
       _lodSphere.center.copy(rec.center);
@@ -575,9 +620,9 @@ export class InstancedAdPanels {
         matricesDirty = true;
       }
 
-      // Load only what we render, at most AD_LOAD_BUDGET_PER_FRAME new per frame.
-      if (wantShown && !rec.loaded && started < AD_LOAD_BUDGET_PER_FRAME) {
-        this._startLoad(rec.b, rec.layer, rec.slots);
+      // Load only what we render, at most FACADE_LOAD_BUDGET_PER_FRAME new per frame.
+      if (wantShown && !rec.loaded && started < FACADE_LOAD_BUDGET_PER_FRAME) {
+        (this._overrideStartLoad ?? rec.startLoad)(rec.b, rec.layer, rec.slots);
         rec.loaded = true;
         started++;
       }
@@ -585,14 +630,14 @@ export class InstancedAdPanels {
     if (matricesDirty) this.mesh.instanceMatrix.needsUpdate = true;
   }
 
-  /**
-   * Hot-reload emission from config. Called whenever the user changes
-   * BUILDINGS.AD_EMISSION (or BLOOM.ENABLED) so the uniform updates without a
-   * full scene rebuild.
-   */
+  /** Hot-reload emission + data tint from config (no rebuild). */
   refresh(): void {
     const enabled = BLOOM.value.ENABLED;
-    this._material.uniforms.uEmissionBoost.value = enabled ? BUILDINGS.value.AD_EMISSION : 1.0;
+    const cfg = BUILDINGS.value;
+    const u = this._material.uniforms;
+    u.uMediaEmission.value = enabled ? cfg.MEDIA_EMISSION : 1.0;
+    u.uDataEmission.value = enabled ? cfg.DATA_EMISSION : 1.0;
+    (u.uDataTint.value as THREE.Color).set(cfg.DATA_COLOR);
   }
 
   dispose(): void {
@@ -647,7 +692,7 @@ function _releaseSlot(): void {
 
 /**
  * Trigger async load of a media building's image/video and upload to the given
- * InstancedAdPanels instance once ready.
+ * InstancedFacadePanels instance once ready.
  *
  * Images: bytes come from the batched POST /api/files endpoint (see
  * mediaBatch.ts) — the network fetch is coalesced across all media buildings,
@@ -661,7 +706,7 @@ function _releaseSlot(): void {
  * enough to grab it) — loaded individually through the same semaphore.
  */
 export function asyncLoadMediaForBuilding(
-  ads: InstancedAdPanels,
+  ads: InstancedFacadePanels,
   b: Building,
   layer: number,
   panelSlots: number[]
@@ -679,8 +724,77 @@ export function asyncLoadMediaForBuilding(
   }
 }
 
+/**
+ * Load a data building's facade, dispatched by kind: a font gets its own 'a'
+ * glyph, audio gets a waveform (both rendered client-side to a canvas), and any
+ * other binary gets the server byte-pattern fingerprint. A missing/failed facade
+ * just leaves the sealed placeholder — a valid look, so no error tint.
+ */
+export function asyncLoadDataFacadeForBuilding(
+  ads: InstancedFacadePanels,
+  b: Building,
+  layer: number,
+  panelSlots: number[]
+): void {
+  const filePath = b.file.fullPath || b.file.path || '';
+  const version = b.file.modified || '';
+  switch (dataFacadeKind(b.file.extension || '')) {
+    case 'font':
+      void _loadCanvasFacade(
+        ads,
+        () => renderFontGlyphFacade(filePath, version),
+        layer,
+        panelSlots
+      );
+      break;
+    case 'audio':
+      void _loadCanvasFacade(ads, () => renderWaveformFacade(filePath, version), layer, panelSlots);
+      break;
+    default:
+      void _loadFingerprintBuilding(ads, filePath, layer, panelSlots);
+  }
+}
+
+async function _loadCanvasFacade(
+  ads: InstancedFacadePanels,
+  render: () => Promise<HTMLCanvasElement | null>,
+  layer: number,
+  panelSlots: number[]
+): Promise<void> {
+  await _acquireSlot();
+  try {
+    const canvas = await render();
+    if (canvas) await ads.loadCanvasForBuilding(layer, panelSlots, canvas);
+  } catch {
+    // Render/decode failure — leave the sealed placeholder facade.
+  } finally {
+    _releaseSlot();
+  }
+}
+
+async function _loadFingerprintBuilding(
+  ads: InstancedFacadePanels,
+  filePath: string,
+  layer: number,
+  panelSlots: number[]
+): Promise<void> {
+  // Fetch (batched) outside the semaphore so the coalescing window sees every
+  // data building at once; only decode + upload is slot-gated.
+  const b64 = await fetchFingerprintB64(filePath);
+  if (b64 === null) return;
+  await _acquireSlot();
+  try {
+    const img = await _loadImage(`data:image/png;base64,${b64}`);
+    if (img !== null) await ads.loadTextureForBuilding(layer, panelSlots, img);
+  } catch {
+    // Decode/upload failure — leave the sealed placeholder facade.
+  } finally {
+    _releaseSlot();
+  }
+}
+
 async function _loadImageBuilding(
-  ads: InstancedAdPanels,
+  ads: InstancedFacadePanels,
   filePath: string,
   fallbackUrl: string,
   layer: number,
@@ -708,7 +822,7 @@ async function _loadImageBuilding(
 }
 
 async function _loadVideoBuilding(
-  ads: InstancedAdPanels,
+  ads: InstancedFacadePanels,
   url: string,
   layer: number,
   panelSlots: number[]

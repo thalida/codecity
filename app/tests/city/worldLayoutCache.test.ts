@@ -25,13 +25,11 @@ import type { Manifest } from '@/types';
 
 describe('attachSettingsReactions invalidates layout cache before applyManifest', () => {
   let calls: string[];
-  let appliedManifests: unknown[];
   let detach: (() => void) | null;
   let originalChildGap: number;
 
   beforeEach(() => {
     calls = [];
-    appliedManifests = [];
     detach = null;
     originalChildGap = STREET_LAYOUT.value.BUILDING_GAP;
   });
@@ -55,9 +53,8 @@ describe('attachSettingsReactions invalidates layout cache before applyManifest'
     setManifest(stubManifest as unknown as Manifest);
 
     detach = attachSettingsReactions({
-      async applyManifest(m: unknown) {
-        calls.push('applyManifest');
-        appliedManifests.push(m);
+      async rebuildScene() {
+        calls.push('rebuildScene');
       },
       invalidateLayoutCache() {
         calls.push('invalidateLayoutCache');
@@ -73,11 +70,10 @@ describe('attachSettingsReactions invalidates layout cache before applyManifest'
     // applyManifest await resolves before we assert.
     await new Promise<void>((resolve) => setTimeout(resolve, 0));
 
-    // The bug: pre-fix this is `["applyManifest"]` — invalidateLayoutCache
-    // never runs, so applyManifest hits the layout cache and reuseLayout
-    // returns identical positions. The fix wires invalidateLayoutCache()
-    // into scheduleRebuild BEFORE applyManifest.
-    expect(calls).toEqual(['invalidateLayoutCache', 'applyManifest']);
-    expect(appliedManifests).toEqual([stubManifest]);
+    // The bug: pre-fix this is `["rebuildScene"]` — invalidateLayoutCache never
+    // runs, so the rebuild hits the layout cache and reuseLayout returns
+    // identical positions. The fix runs invalidateLayoutCache() BEFORE the
+    // rebuild.
+    expect(calls).toEqual(['invalidateLayoutCache', 'rebuildScene']);
   });
 });

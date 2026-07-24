@@ -84,6 +84,47 @@ def test_files_batch_returns_images_only(
     assert base64.b64decode(body[pic]["b64"]) == b"\x89PNG\r\n\x1a\nDATA"
 
 
+def test_fingerprints_batch_returns_png_for_in_root_files(
+    client: TestClient, project: Path, tmp_path: Path
+) -> None:
+    import base64
+    import io
+
+    from PIL import Image
+
+    TRUST.register(project)
+    db = project / "src" / "data.db"
+    db.write_bytes(b"SQLite format 3\x00" + bytes(range(256)) * 40)
+    outside = tmp_path / "secret.db"
+    outside.write_bytes(b"nope")
+    db_path = str(db)
+    r = client.post(
+        "/api/fingerprints",
+        json={
+            "paths": [
+                db_path,
+                str(outside),  # out of root → omitted
+                str(project / "src" / "missing.db"),  # missing → omitted
+            ]
+        },
+    )
+    assert r.status_code == 200
+    body = r.json()
+    assert set(body.keys()) == {db_path}  # only the in-root file survives
+    # The b64 decodes to a valid fingerprint PNG (raw bytes never shipped).
+    img = Image.open(io.BytesIO(base64.b64decode(body[db_path]["b64"])))
+    assert img.format == "PNG"
+    assert img.size == (128, 128)
+
+
+def test_fingerprints_no_root_omits_all(client: TestClient, project: Path) -> None:
+    r = client.post(
+        "/api/fingerprints", json={"paths": [str(project / "src" / "pic.png")]}
+    )
+    assert r.status_code == 200
+    assert r.json() == {}
+
+
 def test_files_batch_no_root_omits_all(client: TestClient, project: Path) -> None:
     # No TRUST.register → every path is out-of-root → empty map (still 200, so a
     # cold client can batch-request without first racing the manifest).

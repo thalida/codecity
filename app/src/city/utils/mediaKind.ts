@@ -5,7 +5,7 @@
 // api/services/media.py and ships the result on the wire). Shared by the
 // layout pass (which runs in the layout WORKER, so this module must stay
 // THREE-free) and the instanced ad-panel renderer
-// (components/buildings/adPanels.ts). This module knows no extensions.
+// (components/buildings/facadePanels.ts). This module knows no extensions.
 
 // String enum so consumers reference MediaKind.Image instead of the raw
 // 'image' literal — keeps the values centralized and TS-narrowable. The

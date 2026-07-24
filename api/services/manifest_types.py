@@ -69,6 +69,9 @@ class FileNode(TypedDict):
     # 1:1 aspect fallback. See api/media.py.
     media_width: NotRequired[int]
     media_height: NotRequired[int]
+    # Friendly magic-byte type for binary files ("SQLite database"), absent for
+    # non-binary or unrecognized files. See api/services/binfmt.py.
+    binaryType: NotRequired[str]
 
 
 class ExtBreakdownEntry(TypedDict):
@@ -259,7 +262,10 @@ class RepoStats(TypedDict):
     minMediaBytesFile: FileLeader | None
     maxMediaPixelsFile: FileLeader | None
     minMediaPixelsFile: FileLeader | None
+    maxBinaryBytesFile: FileLeader | None
+    minBinaryBytesFile: FileLeader | None
     mediaCount: int
+    binaryCount: int
     totalLines: int
     dirtyFileCount: int
     codeBytes: int

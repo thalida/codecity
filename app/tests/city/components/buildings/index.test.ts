@@ -2,7 +2,7 @@
 //
 // Tests for the persistent createBuildings(ctx) component.
 // API: createBuildings(ctx) → { group, rebuild(layout, dateRanges),
-//      disposeAdPanels, tick(dt, frame), onResize(), dispose(),
+//      disposeFacadePanels, tick(dt, frame), onResize(), dispose(),
 //      getBuildingByPath, getCells, getBuildingIndex,
 //      getMeshForBuilding }.
 //

@@ -112,13 +112,23 @@ export const BUILDINGS_SECTION: SectionNode = {
         },
         {
           key: 'facade-ads',
-          label: 'Ad panels (media files)',
+          label: 'Billboards (media files)',
           children: [
-            field(BUILDINGS, 'AD_ENABLED'),
-            field(BUILDINGS, 'AD_SIDE_MARGIN_FRAC'),
-            field(BUILDINGS, 'AD_BOTTOM_OFFSET_FLOORS'),
-            field(BUILDINGS, 'AD_PLACEHOLDER_COLOR'),
-            field(BUILDINGS, 'AD_EMISSION'),
+            field(BUILDINGS, 'MEDIA_ENABLED'),
+            field(BUILDINGS, 'MEDIA_SIDE_MARGIN_FRAC'),
+            field(BUILDINGS, 'MEDIA_BOTTOM_OFFSET_FLOORS'),
+            field(BUILDINGS, 'MEDIA_PLACEHOLDER_COLOR'),
+            field(BUILDINGS, 'MEDIA_EMISSION'),
+          ],
+        },
+        {
+          key: 'facade-data',
+          label: 'Data blocks (binary files)',
+          children: [
+            field(BUILDINGS, 'DATA_ENABLED'),
+            field(BUILDING_DIMENSIONS, 'DATA_HEIGHT_RATIO'),
+            field(BUILDINGS, 'DATA_COLOR'),
+            field(BUILDINGS, 'DATA_EMISSION'),
           ],
         },
         {

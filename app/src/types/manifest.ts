@@ -52,6 +52,13 @@ export interface FileNode {
    */
   media_width?: number;
   media_height?: number;
+  /**
+   * Friendly magic-byte type for binary files ("SQLite database",
+   * "WebAssembly module"); absent for non-binary or unrecognized files.
+   * Media files never carry it (they render as billboards, not data
+   * buildings). See api/services/binfmt.py:detect_binary_type.
+   */
+  binaryType?: string;
 }
 
 /**
@@ -281,12 +288,19 @@ export interface RepoStats {
   minMediaBytesFile: FileLeader | null;
   maxMediaPixelsFile: FileLeader | null;
   minMediaPixelsFile: FileLeader | null;
+  /** Largest / smallest binary ("data") file by bytes. Binaries are their own
+   *  category, excluded from the code superlatives above (a giant .db never
+   *  wins "widest building"). null when the repo has no binary files. */
+  maxBinaryBytesFile: FileLeader | null;
+  minBinaryBytesFile: FileLeader | null;
   mediaCount: number;
-  /** Sum of lines over non-media files (for the buildings overview average). */
+  /** Count of binary ("data") files, excluded from the code-building count. */
+  binaryCount: number;
+  /** Sum of lines over code files only (non-media, non-binary). */
   totalLines: number;
   /** Count of file nodes with dirty === true (media included). */
   dirtyFileCount: number;
-  /** Sum of bytes over non-media files. */
+  /** Sum of bytes over code files only (non-media, non-binary). */
   codeBytes: number;
   maxDepthDir: DirLeader | null;
   maxChildrenDir: DirLeader | null;

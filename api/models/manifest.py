@@ -57,6 +57,10 @@ class FileNode(BaseModel):
     # otherwise — never null); see OptionalInt above.
     media_width: OptionalInt = None
     media_height: OptionalInt = None
+    # Friendly magic-byte type for binary files ("SQLite database",
+    # "WebAssembly module"); absent for non-binary or unrecognized files.
+    # See api/services/binfmt.py:detect_binary_type.
+    binaryType: OptionalStr = None
 
     @model_validator(mode="after")
     def _media_both_or_neither(self) -> "FileNode":
@@ -211,7 +215,10 @@ class RepoStats(BaseModel):
     minMediaBytesFile: Optional[FileLeader]
     maxMediaPixelsFile: Optional[FileLeader]
     minMediaPixelsFile: Optional[FileLeader]
+    maxBinaryBytesFile: Optional[FileLeader]
+    minBinaryBytesFile: Optional[FileLeader]
     mediaCount: int
+    binaryCount: int
     totalLines: int
     dirtyFileCount: int
     codeBytes: int

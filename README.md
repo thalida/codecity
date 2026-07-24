@@ -107,6 +107,7 @@ Just about every aspect of the rendering is tunable in the Settings pane, opened
 - **Windows**: lit-pane density, plus a glow that tracks how recently the file was created (newer files glow brighter)
 - **Aging**: older files get grime streaks and a slight lean
 - **Media files** (images, video) render an ad-panel face on the front above the door
+- **Binary files** (databases, `.wasm`, `.so`, fonts, audio) become windowless data blocks sized by byte count, faced with a fingerprint of their own bytes — or, for fonts and audio, a letter set in the font and the waveform itself
 
 ### Streets: one per directory
 
