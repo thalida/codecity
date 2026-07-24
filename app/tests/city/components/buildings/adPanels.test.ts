@@ -228,6 +228,93 @@ describe('InstancedAdPanels', () => {
   });
 });
 
+// A binary "data" building (binary=true, NOT media) — gets a fingerprint panel.
+function fakeBinaryBuilding(overrides: Partial<Building> = {}): Building {
+  return {
+    x: overrides.x ?? 0,
+    y: overrides.y ?? 0,
+    w: overrides.w ?? 6,
+    d: overrides.d ?? 6,
+    h: overrides.h ?? 4,
+    color: overrides.color ?? '#3355ff',
+    orient: overrides.orient ?? BuildingOrient.South,
+    floors: overrides.floors ?? 1,
+    createdAge: overrides.createdAge ?? 0,
+    modifiedAge: overrides.modifiedAge ?? 0,
+    file: overrides.file ?? {
+      path: 'app.db',
+      name: 'app.db',
+      type: NodeKind.File,
+      fullPath: '/abs/app.db',
+      extension: '.db',
+      mediaKind: null,
+      size: 50000,
+      lines: 0,
+      binary: true,
+      dirty: false,
+      created: '',
+      modified: '',
+      binaryType: 'SQLite database',
+    },
+  } as Building;
+}
+
+describe('InstancedAdPanels — binary fingerprint panels', () => {
+  it('registerBinaryBuilding returns a layer + 4 slots for a data building', () => {
+    const panels = new InstancedAdPanels(4);
+    const reg = panels.registerBinaryBuilding(fakeBinaryBuilding());
+    expect(reg).not.toBeNull();
+    expect(reg!.layer).toBe(0);
+    expect(reg!.panelSlots).toEqual([0, 1, 2, 3]);
+  });
+
+  it('registerBinaryBuilding returns null for a code (non-binary) building', () => {
+    const panels = new InstancedAdPanels(4);
+    const code = fakeBinaryBuilding({
+      file: {
+        path: 'main.ts',
+        name: 'main.ts',
+        type: NodeKind.File,
+        fullPath: '/main.ts',
+        extension: '.ts',
+        mediaKind: null,
+        size: 500,
+        lines: 100,
+        binary: false,
+        dirty: false,
+        created: '',
+        modified: '',
+      },
+    });
+    expect(panels.registerBinaryBuilding(code)).toBeNull();
+  });
+
+  it('registerBinaryBuilding returns null for a media building (media renders as a billboard, not data)', () => {
+    const panels = new InstancedAdPanels(4);
+    // media file is binary=true too, but isDataBuilding excludes it.
+    expect(panels.registerBinaryBuilding(fakeMediaBuilding())).toBeNull();
+  });
+
+  it('media and binary buildings share one instance (mesh.count spans both)', () => {
+    const panels = new InstancedAdPanels(8);
+    panels.registerMediaBuilding(fakeMediaBuilding());
+    panels.registerBinaryBuilding(fakeBinaryBuilding());
+    expect(panels.mesh.count).toBe(8); // 2 buildings × 4 faces
+  });
+
+  it('schedules a streamed load for an on-screen binary building via updateLOD', () => {
+    const started: string[] = [];
+    const panels = new InstancedAdPanels(8, { onStartLoad: (b) => started.push(b.file!.path) });
+    panels.registerBinaryBuilding(fakeBinaryBuilding({ x: 0, y: 0, w: 12, d: 12, h: 8 }));
+    const cam = new THREE.PerspectiveCamera(50, 1.6, 1, 100000);
+    cam.position.set(0, 30, 40);
+    cam.lookAt(0, 0, 0);
+    cam.updateMatrixWorld(true);
+    panels.updateLOD(cam, 800);
+    expect(started).toContain('app.db');
+  });
+});
+
 describe('AdPanelTextureArray storage', () => {
   // Regression: a media-heavy repo (Infisical: 2,604 media files →
   // adCapacity ≈ 3,906) previously triggered V8 `RangeError: Array buffer

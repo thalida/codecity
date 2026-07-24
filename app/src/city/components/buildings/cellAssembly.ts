@@ -12,6 +12,7 @@ import { createEmptyCellTile, type CellTile, allocateSlot } from './cellTile';
 import { attachBuildingMeshToCell, writeBuildingToSlot } from './cellMesh';
 import { InstancedAdPanels } from './adPanels';
 import { isMediaFile } from '@/city/utils/mediaKind';
+import { isDataBuilding } from '@/city/utils/binaryKind';
 import { BUILDINGS } from '@/state/stores/settings/buildings';
 import { BuildingIndex } from './buildingIndex';
 import type { Building } from '@/types/index';
@@ -109,21 +110,26 @@ export function buildCellsFromLayout(
     cell.detailMesh.instanceMatrix.needsUpdate = true;
   }
 
-  // ---- Instanced ad panels for media buildings ----
-  // Build one InstancedMesh backed by a DataArrayTexture for all media files.
-  // Skipped entirely when AD_ENABLED is off (no mesh, no fetch/decode/upload) —
-  // the A/B toggle for isolating whether the billboards are a perf cost.
+  // ---- Instanced facade panels (media billboards + binary fingerprints) ----
+  // One InstancedMesh backed by a DataArrayTexture serves both: each registered
+  // building carries its own loader (media image vs byte-pattern fingerprint) and
+  // aspect, so the LOD/streaming/fade machinery is shared. Media panels are gated
+  // on AD_ENABLED (the A/B toggle for isolating billboard perf cost); binary
+  // fingerprint panels are a distinct feature and always render.
   const mediaBuildings = BUILDINGS.value.AD_ENABLED
     ? buildings.filter((b) => isMediaFile(b.file))
     : [];
+  const binaryBuildings = buildings.filter((b) => isDataBuilding(b.file));
   let adPanels: InstancedAdPanels | null = null;
-  if (mediaBuildings.length > 0) {
-    const adCapacity = Math.max(64, Math.ceil(mediaBuildings.length * 1.5));
-    adPanels = new InstancedAdPanels(adCapacity);
-    // Register (allocate slots + faces) now, but DON'T load the images here — the
-    // per-frame updateLOD streams them in for on-screen panels only, so a
-    // media-heavy repo doesn't hang on a load burst. See InstancedAdPanels.
+  const panelCount = mediaBuildings.length + binaryBuildings.length;
+  if (panelCount > 0) {
+    const capacity = Math.max(64, Math.ceil(panelCount * 1.5));
+    adPanels = new InstancedAdPanels(capacity);
+    // Register (allocate slots + faces) now, but DON'T load the textures here —
+    // the per-frame updateLOD streams them in for on-screen panels only, so a
+    // media/binary-heavy repo doesn't hang on a load burst. See InstancedAdPanels.
     for (const b of mediaBuildings) adPanels.registerMediaBuilding(b);
+    for (const b of binaryBuildings) adPanels.registerBinaryBuilding(b);
     sceneRoot.add(adPanels.mesh);
   }
 
