@@ -18,7 +18,9 @@ export function fileUrl(path: string, version?: string): string {
  * file's mtime as `version` so a live edit re-fetches (see fileUrl).
  */
 export async function fetchFileText(path: string, version?: string): Promise<string> {
-  const resp = await fetch(fileUrl(path, version));
+  // High priority: the file preview is the user's active focus, so it should
+  // jump ahead of any background manifest/blob fetches in flight.
+  const resp = await fetch(fileUrl(path, version), { priority: 'high' });
   if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
   return resp.text();
 }
@@ -31,7 +33,8 @@ export async function fetchFileText(path: string, version?: string): Promise<str
  * `version` so a live edit re-fetches (see fileUrl).
  */
 export async function fetchFileBytes(path: string, version?: string): Promise<ArrayBuffer> {
-  const resp = await fetch(fileUrl(path, version));
+  // High priority: same as fetchFileText, the font preview is the active pane.
+  const resp = await fetch(fileUrl(path, version), { priority: 'high' });
   if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
   return resp.arrayBuffer();
 }

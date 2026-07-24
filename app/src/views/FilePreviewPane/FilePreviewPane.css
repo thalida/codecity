@@ -295,3 +295,14 @@
 .font-specimen-glyph:hover {
   background: var(--cc-bg-chrome);
 }
+
+/* Spinning loader for the file-preview fetch (empty-state layout). */
+.file-preview-loading .icon {
+  color: var(--cc-accent);
+  animation: file-preview-spin 0.8s linear infinite;
+}
+@keyframes file-preview-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

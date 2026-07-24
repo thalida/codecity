@@ -28,7 +28,7 @@ export enum PreviewKind {
   Text = 'text',
 }
 import { fileUrl, fetchFileText, fetchFileBytes } from '@/api/file';
-import { FileWarning, FileX, Info, MousePointerClick } from 'lucide-preact';
+import { FileWarning, FileX, Info, MousePointerClick, LoaderCircle } from 'lucide-preact';
 import { Pane, PaneEmpty } from '@/components/Pane';
 import { TimelineStaleNote } from '@/components/TimelineStaleNote/TimelineStaleNote';
 import { KEY_BINDINGS } from '@/constants/keyboard';
@@ -155,10 +155,11 @@ function FileTextPreview({ file }: FileTextPreviewProps) {
       ) : textState.kind === TextStateKind.Text ? (
         <CodeEditor text={textState.text} file={file} />
       ) : (
-        // Loading: the pane is otherwise blank while fetching; announce it.
-        <span class="sr-only" role="status">
-          Loading file
-        </span>
+        // Visible loading state — big repos can take a beat to serve the bytes.
+        <div class="empty-state empty-state--lg file-preview-loading" role="status">
+          <LoaderCircle class="icon" aria-hidden="true" />
+          <p class="text-card-sub">Loading file…</p>
+        </div>
       )}
     </div>
   );
