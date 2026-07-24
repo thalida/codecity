@@ -118,7 +118,11 @@ export function buildCellsFromLayout(
   const mediaBuildings = BUILDINGS.value.MEDIA_ENABLED
     ? buildings.filter((b) => isMediaFile(b.file))
     : [];
-  const binaryBuildings = buildings.filter((b) => isDataBuilding(b.file));
+  // DATA_ENABLED gates only the facade texture; the windowless block still
+  // renders from the building mesh (cellMesh) regardless.
+  const binaryBuildings = BUILDINGS.value.DATA_ENABLED
+    ? buildings.filter((b) => isDataBuilding(b.file))
+    : [];
   let facadePanels: InstancedFacadePanels | null = null;
   const panelCount = mediaBuildings.length + binaryBuildings.length;
   if (panelCount > 0) {

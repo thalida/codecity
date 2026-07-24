@@ -122,6 +122,14 @@ export const BUILDINGS_SECTION: SectionNode = {
           ],
         },
         {
+          key: 'facade-data',
+          label: 'Data blocks (binary files)',
+          children: [
+            field(BUILDINGS, 'DATA_ENABLED'),
+            field(BUILDING_DIMENSIONS, 'DATA_HEIGHT_RATIO'),
+          ],
+        },
+        {
           key: 'facade-grime',
           label: 'Grime streaks',
           children: [

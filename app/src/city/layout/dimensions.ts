@@ -85,10 +85,6 @@ export function computeFileStats(stats: RepoStats | null | undefined): {
 // out below MAX_* (short/narrow city) instead of always stretching to the cap,
 // while the per-repo relative order is retained. Without a stats object, the
 // corresponding dimension falls back to MIN_*.
-// Binary "data" building height as a fraction of its byte-driven width — a squat
-// warehouse block. < 1 so it never reads as a lines-driven code tower.
-const BINARY_HEIGHT_RATIO = 0.7;
-
 export function getBuildingDimensions(
   file: {
     lines?: number | null;
@@ -173,9 +169,9 @@ export function getBuildingDimensions(
     outFloors = Math.max(dims.MIN_FLOORS, Math.round(rawHeight / dims.FLOOR_HEIGHT));
     h = outFloors * dims.FLOOR_HEIGHT;
   } else if (file.binary) {
-    // Height from bytes (via width), not lines — a 5 MB .wasm is a big block, a
-    // tiny .db a small one, never the lines-driven MIN_FLOORS stub.
-    const rawHeight = width * BINARY_HEIGHT_RATIO;
+    // Height from bytes (via width), not lines, so a data block is byte-sized
+    // both ways instead of the lines-driven MIN_FLOORS stub.
+    const rawHeight = width * dims.DATA_HEIGHT_RATIO;
     outFloors = Math.max(dims.MIN_FLOORS, Math.round(rawHeight / dims.FLOOR_HEIGHT));
     h = outFloors * dims.FLOOR_HEIGHT;
   }

@@ -119,6 +119,16 @@ const BUILDING_DIMENSIONS_FIELDS = {
     label: 'Distance from road',
     tip: "Gap between every building's wall and the street edge.",
   },
+  DATA_HEIGHT_RATIO: {
+    route: ChangeRoute.Rebuild,
+    kind: FieldKind.Slider,
+    default: 0.7,
+    min: 0.1,
+    max: 2,
+    step: 0.05,
+    label: 'Data block height × width',
+    tip: 'Binary files render as squat, windowless data blocks sized by bytes; this sets their height as a fraction of that byte-driven width. Below 1 they stay warehouse-like, above 1 they tower.',
+  },
 } satisfies FieldMap;
 
 export const BUILDING_DIMENSIONS = settingSignal('BUILDING_DIMENSIONS', BUILDING_DIMENSIONS_FIELDS);
@@ -476,6 +486,15 @@ const BUILDINGS_FIELDS = {
     step: 0.1,
     label: 'Emission (bloom)',
     tip: 'Brightness multiplier on billboard images. Requires Bloom enabled in Effects to glow. 0 = black, 1 = normal, higher = neon storefront.',
+  },
+
+  // ── Data blocks (binary files) — rebuild ──
+  DATA_ENABLED: {
+    route: ChangeRoute.Rebuild,
+    kind: FieldKind.Toggle,
+    default: true,
+    label: 'Enabled',
+    tip: 'Wrap binary-file data blocks in a facade of their own bytes: a byte-pattern fingerprint, a font glyph, or an audio waveform. Off leaves them sealed and windowless with no facade.',
   },
 
   // ── Aging (createdAge-driven weathering) — refresh ──

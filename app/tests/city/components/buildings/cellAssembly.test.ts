@@ -186,4 +186,43 @@ describe('buildCellsFromLayout', () => {
       expect(out.index.byPath.get('logo.png')).toBeDefined();
     });
   });
+
+  describe('DATA_ENABLED gate', () => {
+    const bounds = { minX: 0, maxX: 50, minZ: 0, maxZ: 50 };
+    const dataBuilding = () =>
+      building({
+        x: 5,
+        y: 5,
+        file: {
+          path: 'app.db',
+          name: 'app.db',
+          type: NodeKind.File,
+          fullPath: '/abs/app.db',
+          extension: '.db',
+          mediaKind: null,
+          size: 5000,
+          lines: 0,
+          binary: true,
+          dirty: false,
+          created: '',
+          modified: '',
+        },
+      });
+
+    afterEach(() => {
+      BUILDINGS.value = { ...BUILDINGS.value, DATA_ENABLED: true };
+    });
+
+    it('registers a facade panel for a binary building when DATA_ENABLED (default)', () => {
+      expect(buildCellsFromLayout(bounds, [dataBuilding()]).facadePanels).not.toBeNull();
+    });
+
+    it('skips the facade when DATA_ENABLED is off, but the block still renders', () => {
+      BUILDINGS.value = { ...BUILDINGS.value, DATA_ENABLED: false };
+      const out = buildCellsFromLayout(bounds, [dataBuilding()]);
+      expect(out.facadePanels).toBeNull();
+      expect(out.cells.size).toBeGreaterThan(0);
+      expect(out.index.byPath.get('app.db')).toBeDefined();
+    });
+  });
 });

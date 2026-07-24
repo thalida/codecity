@@ -153,5 +153,6 @@ export function resetBuildingsConfig(): void {
     MAX_WIDTH: 8,
     FULL_WIDTH_KB: 64,
     DISTANCE_FROM_ROAD: 8,
+    DATA_HEIGHT_RATIO: 0.7,
   };
 }
