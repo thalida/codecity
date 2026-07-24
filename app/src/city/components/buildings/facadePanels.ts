@@ -123,9 +123,10 @@ export class InstancedFacadePanels {
   // fades down in lockstep with its building body when the selection cascade
   // demotes that building to a Level 1-4 tier.
   private readonly _iBuildingFade: Float32Array;
-  // Plain MEDIA_ERROR_COLOR (no emission bake) — emission is applied uniformly
-  // via uEmissionBoost in the shader. Cached so markBuildingErrored doesn't
-  // have to reparse the hex string on every error call.
+  // 0 = media panel, 1 = data facade; the shader picks emission + tint from it.
+  private readonly _iIsData: Float32Array;
+  // Plain MEDIA_ERROR_COLOR (no emission bake) — emission is applied per-kind in
+  // the shader. Cached so markBuildingErrored doesn't reparse the hex each call.
   private readonly _errorColor!: THREE.Color;
   // Shader material reference — held so refresh() can update uniforms live.
   private readonly _material!: THREE.ShaderMaterial;
@@ -187,10 +188,8 @@ export class InstancedFacadePanels {
     // Material — GLSL3 required for sampler2DArray.
     const adCfg = BUILDINGS.value;
     const placeholderColor = new THREE.Color(adCfg.MEDIA_PLACEHOLDER_COLOR);
-    // Cached for markBuildingErrored — recolors a panel slot's iColor
-    // when its image load/decode/upload fails permanently. Stored without
-    // emission multiply; uEmissionBoost in the shader applies uniformly to
-    // both placeholder and error colors so brightness stays consistent.
+    // Cached for markBuildingErrored — recolors a slot's iColor on a permanent
+    // media load failure. No emission bake; the shader applies it per kind.
     this._errorColor = new THREE.Color(MEDIA_ERROR_COLOR);
 
     const bloomCfg = BLOOM.value;
@@ -212,11 +211,12 @@ export class InstancedFacadePanels {
         // Layers per page (hardware MAX_ARRAY_TEXTURE_LAYERS). The
         // shader uses it to split iLayerIndex into (page, localLayer).
         uPageSize: { value: this._texArray.pageSize },
-        // Emission boost — multiplied onto the final fragment color so
-        // both placeholder/error colors and loaded textures share the
-        // same emission scaling. BUILDINGS.MEDIA_EMISSION supplies the level,
-        // gated on BLOOM.ENABLED; updated live via refresh().
-        uEmissionBoost: { value: bloomCfg.ENABLED ? adCfg.MEDIA_EMISSION : 1.0 },
+        // Per-kind emission (media billboard vs data facade), both gated on
+        // BLOOM.ENABLED; the shader picks via iIsData. uDataTint colors the
+        // white data facades (fingerprint / glyph / waveform). Live via refresh().
+        uMediaEmission: { value: bloomCfg.ENABLED ? adCfg.MEDIA_EMISSION : 1.0 },
+        uDataEmission: { value: bloomCfg.ENABLED ? adCfg.DATA_EMISSION : 1.0 },
+        uDataTint: { value: new THREE.Color(adCfg.DATA_COLOR) },
       },
       vertexShader: facadePanelVertSrc,
       fragmentShader: facadePanelFragSrc,
@@ -277,6 +277,7 @@ export class InstancedFacadePanels {
     this._iColor = new Float32Array(slotCount * 3); // vec3 per slot
     this._iTextureFade = new Float32Array(slotCount); // 1 float per slot
     this._iBuildingFade = new Float32Array(slotCount); // 1 float per slot
+    this._iIsData = new Float32Array(slotCount); // 1 float per slot (0=media, 1=data)
 
     // Initialize iColor to placeholder, iTextureFade to 0 (no texture yet),
     // and iBuildingFade to 1.0 (no fade until buildingFader writes a tier).
@@ -293,6 +294,7 @@ export class InstancedFacadePanels {
     geo.setAttribute('iColor', new THREE.InstancedBufferAttribute(this._iColor, 3));
     geo.setAttribute('iTextureFade', new THREE.InstancedBufferAttribute(this._iTextureFade, 1));
     geo.setAttribute('iBuildingFade', new THREE.InstancedBufferAttribute(this._iBuildingFade, 1));
+    geo.setAttribute('iIsData', new THREE.InstancedBufferAttribute(this._iIsData, 1));
 
     // Hide all instances initially via scale-zero matrices.
     const zero = new THREE.Matrix4().makeScale(0, 0, 0);
@@ -371,6 +373,7 @@ export class InstancedFacadePanels {
 
     const dHalf = b.d / 2;
     const wHalf = b.w / 2;
+    const isData = isDataBuilding(b.file);
 
     // Track the tallest panel + grow the panel AABB (see updateLOD).
     if (panelHeight > this._maxPanelHeight) this._maxPanelHeight = panelHeight;
@@ -407,6 +410,7 @@ export class InstancedFacadePanels {
 
       // Layer index — same for all 4 faces of this building.
       this._iLayerIndex[slot] = layer;
+      this._iIsData[slot] = isData ? 1 : 0;
 
       // Optional per-building placeholder tint (binary → the wall color).
       if (color) {
@@ -424,6 +428,7 @@ export class InstancedFacadePanels {
     // the tinted placeholder color, when a per-building color was applied).
     const geo = this.mesh.geometry as THREE.BufferGeometry;
     (geo.getAttribute('iLayerIndex') as THREE.InstancedBufferAttribute).needsUpdate = true;
+    (geo.getAttribute('iIsData') as THREE.InstancedBufferAttribute).needsUpdate = true;
     if (color) {
       (geo.getAttribute('iColor') as THREE.InstancedBufferAttribute).needsUpdate = true;
     }
@@ -625,14 +630,14 @@ export class InstancedFacadePanels {
     if (matricesDirty) this.mesh.instanceMatrix.needsUpdate = true;
   }
 
-  /**
-   * Hot-reload emission from config. Called whenever the user changes
-   * BUILDINGS.MEDIA_EMISSION (or BLOOM.ENABLED) so the uniform updates without a
-   * full scene rebuild.
-   */
+  /** Hot-reload emission + data tint from config (no rebuild). */
   refresh(): void {
     const enabled = BLOOM.value.ENABLED;
-    this._material.uniforms.uEmissionBoost.value = enabled ? BUILDINGS.value.MEDIA_EMISSION : 1.0;
+    const cfg = BUILDINGS.value;
+    const u = this._material.uniforms;
+    u.uMediaEmission.value = enabled ? cfg.MEDIA_EMISSION : 1.0;
+    u.uDataEmission.value = enabled ? cfg.DATA_EMISSION : 1.0;
+    (u.uDataTint.value as THREE.Color).set(cfg.DATA_COLOR);
   }
 
   dispose(): void {

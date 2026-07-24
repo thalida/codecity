@@ -30,13 +30,16 @@ precision highp sampler2DArray;
 
 uniform sampler2DArray uPanelArrays[FACADE_PANEL_MAX_PAGES];
 uniform float uPageSize;
-uniform float uEmissionBoost;
+uniform float uMediaEmission;
+uniform float uDataEmission;
+uniform vec3 uDataTint;
 
 in vec2 vUv;
 in highp float vLayerIndex;
 in vec3 vColor;
 in float vTextureFade;
 in float vBuildingFade;
+flat in float vIsData;
 
 out vec4 fragColor;
 
@@ -81,13 +84,17 @@ void main() {
   int page = int(vLayerIndex / uPageSize);
   float localLayer = mod(vLayerIndex, uPageSize);
   vec4 texSample = sampleLayer(page, localLayer);
+  // Per kind: a data facade tints its white texture + uses the data emission.
+  bool isData = vIsData > 0.5;
+  vec3 tex = isData ? texSample.rgb * uDataTint : texSample.rgb;
+  float emission = isData ? uDataEmission : uMediaEmission;
   // Blend: at iTextureFade=0 show the placeholder color; at 1 show the texture.
-  vec3 finalColor = mix(vColor, texSample.rgb, vTextureFade);
+  vec3 finalColor = mix(vColor, tex, vTextureFade);
   // Use texture alpha blended toward 1.0 as fade advances, so a fully
   // transparent texture corner doesn't punch a hole before the image loads.
   float finalAlpha = mix(1.0, texSample.a, vTextureFade);
   // Selection-cascade body fade — multiplied in last so it dims the
   // panel by the same factor as its building body (see buildingFader).
   finalAlpha *= vBuildingFade;
-  fragColor = vec4(finalColor * uEmissionBoost, finalAlpha);
+  fragColor = vec4(finalColor * emission, finalAlpha);
 }

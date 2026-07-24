@@ -546,14 +546,27 @@ describe('InstancedFacadePanels visibility-gated loading', () => {
   });
 });
 
-describe('InstancedFacadePanels emission refresh', () => {
-  it('refresh() pushes BUILDINGS.MEDIA_EMISSION into uEmissionBoost uniform', () => {
+describe('InstancedFacadePanels emission + tint refresh', () => {
+  it('refresh() pushes per-kind emission + the data tint into the uniforms', () => {
     const ads = new InstancedFacadePanels(4);
     BLOOM.value = { ...BLOOM.value, ENABLED: true };
-    BUILDINGS.value = { ...BUILDINGS.value, MEDIA_EMISSION: 2.5 };
+    BUILDINGS.value = {
+      ...BUILDINGS.value,
+      MEDIA_EMISSION: 2.5,
+      DATA_EMISSION: 1.5,
+      DATA_COLOR: '#00ff00',
+    };
     ads.refresh();
-    const mat = ads.mesh.material as unknown as { uniforms: { uEmissionBoost: { value: number } } };
-    expect(mat.uniforms.uEmissionBoost.value).toBeCloseTo(2.5);
+    const mat = ads.mesh.material as unknown as {
+      uniforms: {
+        uMediaEmission: { value: number };
+        uDataEmission: { value: number };
+        uDataTint: { value: { g: number } };
+      };
+    };
+    expect(mat.uniforms.uMediaEmission.value).toBeCloseTo(2.5);
+    expect(mat.uniforms.uDataEmission.value).toBeCloseTo(1.5);
+    expect(mat.uniforms.uDataTint.value.g).toBeCloseTo(1); // #00ff00 → green
   });
 });
 
@@ -576,5 +589,13 @@ describe('sampleLayer page dispatch', () => {
     expect(mat.fragmentShader).toContain('#if FACADE_PANEL_MAX_PAGES > 0');
     // Regression guard: a dynamic sampler index won't compile in WebGL2.
     expect(mat.fragmentShader).not.toContain('uPanelArrays[i]');
+  });
+
+  it('picks per-kind emission + tint from vIsData (jsdom cannot compile GLSL)', () => {
+    const mat = new InstancedFacadePanels(4).mesh.material as unknown as { fragmentShader: string };
+    expect(mat.fragmentShader).toContain('vIsData > 0.5');
+    expect(mat.fragmentShader).toContain('uDataTint');
+    expect(mat.fragmentShader).toContain('uDataEmission');
+    expect(mat.fragmentShader).toContain('uMediaEmission');
   });
 });

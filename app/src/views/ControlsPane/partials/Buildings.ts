@@ -127,6 +127,8 @@ export const BUILDINGS_SECTION: SectionNode = {
           children: [
             field(BUILDINGS, 'DATA_ENABLED'),
             field(BUILDING_DIMENSIONS, 'DATA_HEIGHT_RATIO'),
+            field(BUILDINGS, 'DATA_COLOR'),
+            field(BUILDINGS, 'DATA_EMISSION'),
           ],
         },
         {

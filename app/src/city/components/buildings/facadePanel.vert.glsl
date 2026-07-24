@@ -29,12 +29,15 @@ attribute float iTextureFade;
 // into final alpha by the fragment shader so a panel matches its
 // building body's opacity tier.
 attribute float iBuildingFade;
+// 0 = media panel, 1 = data facade — the frag picks emission + tint from it.
+attribute float iIsData;
 
 out vec2 vUv;
 out highp float vLayerIndex;
 out vec3 vColor;
 out float vTextureFade;
 out float vBuildingFade;
+flat out float vIsData;
 
 void main() {
   // Flip V to compensate for the data orientation in facadePanelTextureArray.
@@ -51,5 +54,6 @@ void main() {
   vColor = iColor;
   vTextureFade = iTextureFade;
   vBuildingFade = iBuildingFade;
+  vIsData = iIsData;
   gl_Position = projectionMatrix * modelViewMatrix * instanceMatrix * vec4(position, 1.0);
 }

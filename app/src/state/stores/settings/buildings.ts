@@ -496,6 +496,23 @@ const BUILDINGS_FIELDS = {
     label: 'Enabled',
     tip: 'Wrap binary-file data blocks in a facade of their own bytes: a byte-pattern fingerprint, a font glyph, or an audio waveform. Off leaves them sealed and windowless with no facade.',
   },
+  DATA_COLOR: {
+    route: ChangeRoute.Refresh,
+    kind: FieldKind.Color,
+    default: '#ffffff',
+    label: 'Facade color',
+    tip: 'Tint for the data facades: the byte-pattern fingerprint, font glyph, and audio waveform render white by default, recolor them here.',
+  },
+  DATA_EMISSION: {
+    route: ChangeRoute.Refresh,
+    kind: FieldKind.Slider,
+    default: 0.6,
+    min: 0,
+    max: 5.0,
+    step: 0.1,
+    label: 'Emission (bloom)',
+    tip: 'Brightness multiplier on the data facades. Requires Bloom enabled in Effects to glow. 0 is black, 1 is normal, higher is neon.',
+  },
 
   // ── Aging (createdAge-driven weathering) — refresh ──
   GRIME_ENABLED: {
