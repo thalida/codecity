@@ -14,7 +14,7 @@ import { effect, useComputed } from '@preact/signals';
 import type { ReadonlySignal, Signal } from '@preact/signals';
 import { useEffect, useRef } from 'preact/hooks';
 import { NodeKind } from '@/types';
-import type { DirNode, Manifest, TreeNode } from '@/types';
+import type { DirNode, FileNode, Manifest, TreeNode } from '@/types';
 import { FolderOpen } from 'lucide-preact';
 import { NodeIcon } from '@/components/NodeIcon/NodeIcon';
 import { PaneEmpty } from '@/components/Pane';
@@ -167,9 +167,14 @@ function TreeItem({
     }
   }
 
+  // A binary "data" file (binary, not media) reads as data, not code — flag the
+  // row for a distinct indicator.
+  const isBinaryData = !isDir && !!(node as FileNode).binary && !(node as FileNode).mediaKind;
+
   const classes: string[] = ['tree-item'];
   if (isDir) classes.push('tree-dir', isExpanded ? 'tree-expanded' : 'tree-collapsed');
   else classes.push('tree-file');
+  if (isBinaryData) classes.push('tree-binary');
   if (isSelected) classes.push('tree-selected');
   if (isHovered) classes.push('tree-hovered');
 
@@ -203,6 +208,7 @@ function TreeItem({
             both lead with the icon, so sibling icons line up. */}
         <NodeIcon node={node} open={isExpanded} />
         <span class="tree-label">{node.name || ''}</span>
+        {isBinaryData && <span class="tree-binary-pip" title="Binary data" aria-hidden="true" />}
       </div>
       {isDir && isExpanded && children.length > 0 && (
         <ul class="tree-list" role="group">

@@ -35,7 +35,7 @@ export interface AlmanacFact {
   group?: string;
 }
 
-export type AlmanacSectionKey = 'buildings' | 'media' | 'streets' | 'forest' | 'fireflies';
+export type AlmanacSectionKey = 'buildings' | 'media' | 'data' | 'streets' | 'forest' | 'fireflies';
 
 export interface AlmanacSection {
   key: AlmanacSectionKey;
@@ -96,6 +96,15 @@ export const LAYER_LEGEND: LayerLegend[] = [
       { label: 'Shape', detail: "the file's aspect ratio" },
       { label: 'Width', detail: 'file size' },
       { label: 'Video', detail: 'adds a play button' },
+    ],
+  },
+  {
+    key: 'data',
+    title: 'Data',
+    lead: 'Binary files render as windowless data blocks wearing their byte pattern.',
+    cues: [
+      { label: 'Size', detail: 'file size (both footprint and height)' },
+      { label: 'Facade', detail: "a fingerprint of the file's bytes" },
     ],
   },
   {
@@ -316,8 +325,9 @@ function buildingsSection(m: Manifest): AlmanacSection {
       })
     );
   }
-  // Buildings = non-media files; media render as billboards in their own section.
-  const count = Math.max(0, m.tree.descendants_file_count - s.mediaCount);
+  // Buildings = code files; media (billboards) and binaries (data blocks) each
+  // render in their own section.
+  const count = Math.max(0, m.tree.descendants_file_count - s.mediaCount - s.binaryCount);
   const avgLines = perEach(s.totalLines, count);
   const overview =
     pluralize(count, 'building') +
@@ -411,6 +421,41 @@ function mediaSection(m: Manifest): AlmanacSection {
       : null,
   ]);
   return { ...layerHeader('media'), overview, facts };
+}
+
+function dataSection(m: Manifest): AlmanacSection {
+  // Binary files render as windowless data blocks sized by bytes, not lines —
+  // their own class, with byte-only superlatives (no line/resolution axis).
+  const s = m.stats;
+  const overview = pluralize(s.binaryCount, 'data file');
+  if (s.binaryCount === 0) {
+    return { ...layerHeader('data'), overview, facts: [], note: 'No binary files.' };
+  }
+  const bytesFmt = (l: FileLeader) => formatBytes(l.bytes);
+  // Pair only when the endpoints are genuinely different files (a one-binary
+  // repo would otherwise repeat the same file as Smallest and Largest).
+  const lo = s.minBinaryBytesFile;
+  const hi = s.maxBinaryBytesFile;
+  const sizePair = !!(lo && hi && lo.path !== hi.path);
+  const facts = compact([
+    sizePair
+      ? fileFact({
+          group: 'Size',
+          label: 'Smallest',
+          leader: lo,
+          secondary: bytesFmt,
+          tip: 'Smallest binary file by bytes.',
+        })
+      : null,
+    fileFact({
+      group: 'Size',
+      label: 'Largest',
+      leader: hi,
+      secondary: bytesFmt,
+      tip: "Biggest binary file by bytes; a data block's size sets its footprint.",
+    }),
+  ]);
+  return { ...layerHeader('data'), overview, facts };
 }
 
 function streetsSection(m: Manifest): AlmanacSection {
@@ -561,6 +606,7 @@ export function computeAlmanac(
   const sections: AlmanacSection[] = [
     buildingsSection(m),
     mediaSection(m),
+    dataSection(m),
     streetsSection(m),
     forestSection(m, treesEnabled),
     firefliesSection(m),

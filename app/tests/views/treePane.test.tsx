@@ -137,6 +137,51 @@ describe('TreePane', () => {
     expect(items.length).toBeGreaterThan(0);
   });
 
+  it('marks binary data files with a pip, but not code or media', () => {
+    const tree = {
+      name: 'project',
+      type: 'directory',
+      path: '.',
+      children_count: 3,
+      children_file_count: 3,
+      children_dir_count: 0,
+      descendants_count: 3,
+      descendants_file_count: 3,
+      descendants_dir_count: 0,
+      descendants_size: 0,
+      children: [
+        { name: 'code.ts', type: 'file', path: 'code.ts', extension: '.ts', size: 100, lines: 10 },
+        {
+          name: 'data.db',
+          type: 'file',
+          path: 'data.db',
+          extension: '.db',
+          size: 800,
+          lines: 0,
+          binary: true,
+        },
+        {
+          name: 'pic.png',
+          type: 'file',
+          path: 'pic.png',
+          extension: '.png',
+          size: 900,
+          lines: 0,
+          binary: true,
+          mediaKind: 'image',
+        },
+      ],
+    };
+    const pane = mount(tree);
+    const row = (p: string) => pane.querySelector<HTMLElement>(`[data-path="${p}"]`)!;
+    // Binary data file: pip + class.
+    expect(row('data.db').classList.contains('tree-binary')).toBe(true);
+    expect(row('data.db').querySelector('.tree-binary-pip')).not.toBeNull();
+    // Code + media (media is binary on the wire but renders as a billboard): no pip.
+    expect(row('code.ts').classList.contains('tree-binary')).toBe(false);
+    expect(row('pic.png').classList.contains('tree-binary')).toBe(false);
+  });
+
   it('accepts a bare tree (no { tree } wrapper)', () => {
     const pane = mount(TEST_TREE);
     const labels = pane.querySelectorAll<HTMLElement>('ul.tree-root > li > .row > .tree-label');

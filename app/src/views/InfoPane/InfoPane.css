@@ -12,6 +12,9 @@
 .info-body [data-section='media'] {
   --sec-accent: var(--cc-layer-media);
 }
+.info-body [data-section='data'] {
+  --sec-accent: var(--cc-layer-data);
+}
 .info-body [data-section='streets'] {
   --sec-accent: var(--cc-layer-streets);
 }
