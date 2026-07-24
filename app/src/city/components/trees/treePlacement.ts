@@ -103,6 +103,11 @@ const TREE_MAX_CELLS = 100_000;
  *  Independent of TREE_MAX_CELLS — the cap wins for huge repos. */
 const TREE_CELL_OVERSAMPLE = 4;
 
+/** Floor on the candidate grid so a tiny repo still samples enough positions to
+ *  place every commit's tree: at 4× alone a 2-commit repo gets ~8 cells, most of
+ *  which collide with the city on a small island. Big repos exceed it anyway. */
+const TREE_MIN_CELLS = 256;
+
 /**
  * Mulberry32 — small PRNG with proper avalanche.
  */
@@ -287,7 +292,10 @@ export function placeTrees(
   // Aspect ratio follows the sampling region.
   const samplingW = sampleHalfW * 2;
   const samplingD = sampleHalfD * 2;
-  const desiredCells = Math.min(TREE_MAX_CELLS, Math.max(1, treeTarget) * TREE_CELL_OVERSAMPLE);
+  const desiredCells = Math.min(
+    TREE_MAX_CELLS,
+    Math.max(TREE_MIN_CELLS, Math.max(1, treeTarget) * TREE_CELL_OVERSAMPLE)
+  );
   const aspect = samplingW / Math.max(1e-6, samplingD);
   let cellsX = Math.max(1, Math.round(Math.sqrt(desiredCells * aspect)));
   let cellsZ = Math.max(1, Math.round(Math.sqrt(desiredCells / aspect)));
