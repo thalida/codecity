@@ -93,13 +93,3 @@
 .tree-dir > .row > .tree-label {
   font-weight: var(--cc-fw-medium);
 }
-
-/* Binary "data" files carry a small pip in the data-layer accent so they read
-   as data at a glance, matching the almanac's Data section. */
-.tree-binary-pip {
-  flex: none;
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--cc-layer-data);
-}

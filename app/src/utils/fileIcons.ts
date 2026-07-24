@@ -9,16 +9,22 @@ import {
   NAME_ICON,
   FOLDER_ICON,
   GENERIC_FILE,
+  GENERIC_BINARY,
   GENERIC_FOLDER,
 } from '../constants/fileIcons';
 
 /**
- * Resolve the Material icon basename for a file node. Lookup order:
- * exact filename > extension > generic. (Exact-filename hints carry
- * richer semantics than the bare extension — package.json → npm,
- * not json.)
+ * Resolve the Material icon basename for a file node. Binary "data" files (not
+ * media) share the hex glyph so they read as data in both the tree and the
+ * building roof; otherwise: exact filename > extension > generic (filename hints
+ * carry richer semantics than the bare extension — package.json → npm, not json).
  */
-export function getFileIconName(file: FileNode | { name?: string; extension?: string }): string {
+export function getFileIconName(
+  file:
+    | FileNode
+    | { name?: string; extension?: string; binary?: boolean; mediaKind?: string | null }
+): string {
+  if (file.binary && !file.mediaKind) return GENERIC_BINARY;
   const name = (file.name || '').toLowerCase();
   const ext = (file.extension || '').toLowerCase();
   return NAME_ICON[name] ?? EXT_ICON[ext] ?? GENERIC_FILE;

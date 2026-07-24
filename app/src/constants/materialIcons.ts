@@ -115,6 +115,7 @@ import goMod from 'material-icon-theme/icons/go-mod.svg?url';
 import graphql from 'material-icon-theme/icons/graphql.svg?url';
 import h from 'material-icon-theme/icons/h.svg?url';
 import haskell from 'material-icon-theme/icons/haskell.svg?url';
+import hex from 'material-icon-theme/icons/hex.svg?url';
 import hpp from 'material-icon-theme/icons/hpp.svg?url';
 import html from 'material-icon-theme/icons/html.svg?url';
 import image from 'material-icon-theme/icons/image.svg?url';
@@ -282,6 +283,7 @@ export const MATERIAL_ICON_URLS: Record<string, string> = {
   graphql,
   h,
   haskell,
+  hex,
   hpp,
   html,
   image,

@@ -137,7 +137,7 @@ describe('TreePane', () => {
     expect(items.length).toBeGreaterThan(0);
   });
 
-  it('marks binary data files with a pip, but not code or media', () => {
+  it('gives binary data files the hex icon, but not code or media', () => {
     const tree = {
       name: 'project',
       type: 'directory',
@@ -173,13 +173,16 @@ describe('TreePane', () => {
       ],
     };
     const pane = mount(tree);
-    const row = (p: string) => pane.querySelector<HTMLElement>(`[data-path="${p}"]`)!;
-    // Binary data file: pip + class.
-    expect(row('data.db').classList.contains('tree-binary')).toBe(true);
-    expect(row('data.db').querySelector('.tree-binary-pip')).not.toBeNull();
-    // Code + media (media is binary on the wire but renders as a billboard): no pip.
-    expect(row('code.ts').classList.contains('tree-binary')).toBe(false);
-    expect(row('pic.png').classList.contains('tree-binary')).toBe(false);
+    const icon = (p: string) =>
+      pane
+        .querySelector<HTMLElement>(`[data-path="${p}"]`)!
+        .querySelector('.file-icon')!
+        .getAttribute('data-icon-name');
+    // Binary data file → the shared hex glyph (same in the building roof).
+    expect(icon('data.db')).toBe('hex');
+    // Code + media (media is binary on the wire but renders as a billboard): not hex.
+    expect(icon('code.ts')).not.toBe('hex');
+    expect(icon('pic.png')).not.toBe('hex');
   });
 
   it('accepts a bare tree (no { tree } wrapper)', () => {

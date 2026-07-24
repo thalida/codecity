@@ -10,6 +10,9 @@
 // instead of looking like an unloved placeholder. The onerror handler
 // falls all the way back to `file` if `document` ever goes missing.
 export const GENERIC_FILE = 'document';
+// Binary "data" files (tree row + building roof) — a hex-dump glyph reads as
+// "raw bytes" for any binary, whatever its specific format.
+export const GENERIC_BINARY = 'hex';
 export const GENERIC_FOLDER = 'folder';
 export const HARD_FALLBACK_FILE = 'file';
 export const HARD_FALLBACK_FOLDER = 'folder';
