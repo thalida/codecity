@@ -168,42 +168,24 @@ def _stat_fields(entry: os.DirEntry[str]) -> tuple[int, str, str, float]:
     return st.st_size, _epoch_to_iso(birth), _epoch_to_iso(st.st_mtime), st.st_mtime
 
 
-# Above this size, sample first 1 MB and extrapolate. Building height
-# is relative, so ±20% on a 6+ MB file is fine and saves megabytes
-# of read I/O per file.
-_LINE_COUNT_FULL_THRESHOLD = 5 * 1024 * 1024  # 5 MB
-_LINE_COUNT_SAMPLE_BYTES = 1 * 1024 * 1024  # 1 MB
-
-
 def _line_count(path: Path) -> int:
+    # Exact count, streamed in 1 MB chunks to stay memory-flat on large files.
+    # Same rule as gitobj.count_lines (newlines + 1 for an unterminated final
+    # line) so a file's Live count equals its Timeline blob count. No sampling:
+    # an estimate here wouldn't match the exact blob count and skews height.
     try:
-        size = path.stat().st_size
-        if size <= _LINE_COUNT_FULL_THRESHOLD:
-            # Exact path — count LINES (newline terminators) in 1 MB chunks.
-            total = 0
-            last_byte = b""
-            with path.open("rb") as fh:
-                while True:
-                    chunk = fh.read(1 << 20)
-                    if not chunk:
-                        break
-                    total += chunk.count(b"\n")
-                    last_byte = chunk[-1:]
-            # A non-empty final line with no trailing newline still counts, so a
-            # single unterminated line (e.g. a minified file / source map) is 1
-            # line, not 0. Empty files (no bytes read) stay 0.
-            if last_byte and last_byte != b"\n":
-                total += 1
-            return total
-        # Sample-extrapolate path.
+        total = 0
+        last_byte = b""
         with path.open("rb") as fh:
-            chunk = fh.read(_LINE_COUNT_SAMPLE_BYTES)
-            sampled = chunk.count(b"\n")
-        # No newline in the sample, but the file is past the threshold (non-empty):
-        # at least one (very long) line, never 0.
-        if sampled == 0:
-            return 1
-        return int(sampled * (size / _LINE_COUNT_SAMPLE_BYTES))
+            while True:
+                chunk = fh.read(1 << 20)
+                if not chunk:
+                    break
+                total += chunk.count(b"\n")
+                last_byte = chunk[-1:]
+        if last_byte and last_byte != b"\n":
+            total += 1
+        return total
     except OSError:
         return 0
 

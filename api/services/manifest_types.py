@@ -315,13 +315,16 @@ class TimelineDelta(TypedDict):
 class TimelineBundle(TypedDict):
     """Everything the client replays for smooth commit scrubbing: the commit
     list, the union-of-all-paths manifest (layout target), per-commit blob
-    deltas, and a sha -> line-count table. `note` is set (else None) when a
-    pathological repo is windowed to its most recent commits."""
+    deltas, a sha -> line-count table, and the per-commit line range used to
+    normalize building heights (so a scrub point matches Live-at-that-commit;
+    range[HEAD] equals the live manifest's lineCountRange). `note` is set (else
+    None) when a pathological repo is windowed to its most recent commits."""
 
     commits: list[CommitEntry]
     unionManifest: Manifest
     deltas: list[TimelineDelta]
     blobLines: dict[str, int]
+    commitLineRanges: list[RangeStat]
     note: str | None
 
 

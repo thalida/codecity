@@ -6,7 +6,7 @@
 import * as THREE from 'three';
 import { effect, untracked } from '@preact/signals';
 
-import type { Manifest } from '@/types';
+import type { Manifest, RangeStat } from '@/types';
 import { CURRENT_SOURCE_KEY } from '@/state/stores/source';
 import { TIMELINE_MODE, SCRUB_DRAGGING, SCRUB_POS } from '@/state/stores/timeline';
 
@@ -218,7 +218,10 @@ export async function createCity(canvas: HTMLCanvasElement, manifest: Manifest):
   });
 
   const timelineApi = {
-    installScrubController(timelines: Map<string, PathTimeline>): void {
+    installScrubController(
+      timelines: Map<string, PathTimeline>,
+      commitLineRanges: RangeStat[]
+    ): void {
       _scrubController?.dispose();
       _scrubController = createScrubController({
         getBuildingIndex: () => buildings.getBuildingIndex(),
@@ -226,6 +229,7 @@ export async function createCity(canvas: HTMLCanvasElement, manifest: Manifest):
         getFacadePanels: () => buildings.getFacadePanels(),
         picker,
         timelines,
+        commitLineRanges,
         heightCtx: makeHeightContext(cityState.manifest.peek()?.stats),
         streets: {
           setStreetOpacity: (s, o, tint) => streets.setStreetOpacity(s, o, tint),

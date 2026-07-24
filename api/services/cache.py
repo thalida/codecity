@@ -77,10 +77,10 @@ class BlobEntry(TypedDict):
 
 # Cache-format versions: bump when the cached shape changes so stale blobs are
 # treated as a miss and re-scanned. (Per-bump rationale lives in git history.)
-_FILE_CACHE_VERSION = 2  # v2: binaryType (magic-byte type for binary files)
-_BLOB_STATS_CACHE_VERSION = 2  # v2: binaryType added
+_FILE_CACHE_VERSION = 3  # v3: exact line counts (dropped the >5MB sampling estimate)
+_BLOB_STATS_CACHE_VERSION = 3  # v3: count_lines (+1 for an unterminated final line)
 _GIT_HISTORY_CACHE_VERSION = 14  # v14: merges no longer diffed
-_TIMELINE_CACHE_VERSION = 3  # v3: union nodes carry binary/binaryType/media dims
+_TIMELINE_CACHE_VERSION = 4  # v4: per-commit present-set ranges + exact blob counts
 _MANIFEST_SCHEMA_VERSION = (
     # v12: per-dir descendants_created_min / descendants_modified_max
     # v13: ext_breakdown `ext` is null (was "(none)") for extensionless files
@@ -92,7 +92,10 @@ _MANIFEST_SCHEMA_VERSION = (
     #   (field rename is a shape change; old blobs lack the new key)
     # v19: FileNode.binaryType + RepoStats.binaryCount/maxBinaryBytesFile/
     #   minBinaryBytesFile (binary files as a first-class "data" category)
-    19
+    # v20: exact line counts (was sampled/extrapolated over 5MB) — line VALUES
+    #   change with no shape change; content_signature is unaffected, so bump
+    #   here to force cached manifests to rebuild with the exact counts
+    20
 )
 # Composite: invalidates when EITHER the manifest schema OR the git-history
 # shape changes. Stored as a string in the cache file's `version` field.

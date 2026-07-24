@@ -120,6 +120,15 @@ def is_binary_bytes(chunk: bytes) -> bool:
     return non_text / len(head) > 0.30
 
 
+def count_lines(data: bytes) -> int:
+    """Canonical line count: newline terminators + 1 for a non-empty final line
+    lacking one (so one unterminated line is 1, an empty file is 0). Live's
+    scan._line_count streams the identical rule, so counts match across modes."""
+    if not data:
+        return 0
+    return data.count(b"\n") + (0 if data.endswith(b"\n") else 1)
+
+
 def blob_stats_batch(
     root: Path, shas: list[str], *, media_shas: frozenset[str] = frozenset()
 ) -> dict[str, BlobStats]:
@@ -162,7 +171,7 @@ def blob_stats_batch(
         content = out[i : i + size]
         i += size + 1  # trailing newline after content
         binary = is_binary_bytes(content)
-        lines = 0 if binary else content.count(b"\n")
+        lines = 0 if binary else count_lines(content)
         mw, mh = (
             probe_media_dims_from_bytes(content) if sha in media_shas else (None, None)
         )

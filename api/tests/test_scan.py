@@ -21,6 +21,7 @@ from api.services.scan import (
     _epoch_to_iso,
     _extension,
     _is_binary,
+    _line_count,
     _tracked_entries,
     scan_tree,
     signature_tree,
@@ -2386,6 +2387,22 @@ def test_reconstruct_head_matches_live_scan(tmp_path):
     assert recon["structure_signature"] == live["structure_signature"]
     assert recon["layout_signature"] == live["layout_signature"]
     assert _tree_file_stats(recon) == _tree_file_stats(live)
+
+
+def test_line_count_is_exact_not_sampled_over_5mb(tmp_path):
+    """A >5MB file is counted EXACTLY, not sample-extrapolated. The first 1MB is
+    newline-free (the old sample window), so the dropped estimator would have
+    returned 1; the exact stream count returns the true total. Matches
+    gitobj.count_lines so a file's Live count equals its Timeline blob count."""
+    from api.services.gitobj import count_lines
+
+    content = (
+        b"x" * (1024 * 1024) + b"y\n" * 2_500_000
+    )  # 1MB no-newline head + 5MB of lines
+    p = tmp_path / "big.txt"
+    p.write_bytes(content)
+    assert _line_count(p) == 2_500_000
+    assert count_lines(content) == 2_500_000
 
 
 if __name__ == "__main__":

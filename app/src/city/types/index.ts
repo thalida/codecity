@@ -11,7 +11,7 @@ import type { CameraRig } from '../render/cameraRig';
 import type { CityState } from '../state';
 import type { Trees } from '../components/trees/treeRenderer';
 import type { PathTimeline } from '../timeline/replay';
-import type { Manifest } from '@/types';
+import type { Manifest, RangeStat } from '@/types';
 
 /** Everything a scene component needs to wire itself into the scene. scene /
  *  canvas / cityState are set at construction; picker is null until the rig +
@@ -60,9 +60,10 @@ export interface CityWorld {
 /** Timeline-mode install surface on the City handle. Owns building the scrub
  *  controller from the components + moving the streets into the transparent pass. */
 export interface CityTimeline {
-  /** Build + install the scrub controller from the per-path replay timelines.
+  /** Build + install the scrub controller from the per-path replay timelines +
+   *  the per-commit line ranges (height normalization at each scrub position).
    *  Call AFTER the union has been packed (applyManifest awaited). */
-  installScrubController(timelines: Map<string, PathTimeline>): void;
+  installScrubController(timelines: Map<string, PathTimeline>, commitLineRanges: RangeStat[]): void;
   /** Uninstall + dispose the scrub controller (returns the tweens to the tick). */
   uninstallScrubController(): void;
   /** Move both street materials into (true) or out of (false) the transparent pass. */

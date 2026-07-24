@@ -115,7 +115,7 @@ describe('createCity', () => {
   describe('Timeline-mode scene teardown', () => {
     it('reacts to TIMELINE_MODE going true→false by uninstalling the controller and un-transparenting streets/footprints', async () => {
       const handle = await createCity(makeCanvas(), EMPTY_MANIFEST);
-      handle.timeline.installScrubController(new Map());
+      handle.timeline.installScrubController(new Map(), []);
       const uninstallSpy = vi.spyOn(handle.timeline, 'uninstallScrubController');
       const streetsSpy = vi.spyOn(handle.timeline, 'setStreetsTransparent');
       const footprintsSpy = vi.spyOn(handle.timeline, 'setFootprintsTransparent');

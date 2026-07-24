@@ -11,7 +11,7 @@ from typing import Callable, NamedTuple
 
 from .cache import BlobEntry, cache_load_blobs, cache_save_blobs
 from .gitobj import _git_argv, blob_sizes_batch, blob_stats_batch
-from .manifest_types import CommitEntry, FileNode, Manifest, TimelineBundle
+from .manifest_types import CommitEntry, FileNode, Manifest, RangeStat, TimelineBundle
 from .media import media_kind
 from .scan import (
     SCAN_PROGRESS_THROTTLE_S,
@@ -260,6 +260,35 @@ def build_union_manifest(
     return _wrap_manifest(root_abs, tree, sig, signals, repo_info, commits)
 
 
+def compute_commit_line_ranges(
+    deltas: list[CommitDelta], blob_lines: dict[str, int]
+) -> list[RangeStat]:
+    """Per-commit inclusive line range over the files present at each commit,
+    counting only non-zero line counts (binaries/empties excluded) — mirrors
+    compute_repo_stats, so range[HEAD] equals the live manifest's lineCountRange.
+    The client normalizes building height against range[pos] at each scrub point
+    so Timeline matches Live-at-that-commit. Empty commit -> {0, 0} (the client
+    applies the same safe fallback the live path uses for a degenerate range)."""
+    present: dict[str, int] = {}  # path -> current line count
+    ranges: list[RangeStat] = []
+    for d in deltas:
+        for path, sha in d.changes:
+            if sha is None:
+                present.pop(path, None)
+            else:
+                present[path] = blob_lines.get(sha, 0)
+        lo = hi = 0
+        for n in present.values():
+            if n <= 0:
+                continue
+            if lo == 0 or n < lo:
+                lo = n
+            if n > hi:
+                hi = n
+        ranges.append({"min": lo, "max": hi})
+    return ranges
+
+
 def build_timeline_bundle(
     root: str,
     *,
@@ -341,6 +370,7 @@ def build_timeline_bundle(
         git_created,
         git_modified,
     )
+    commit_line_ranges = compute_commit_line_ranges(deltas, blob_lines)
     _log("timeline bundle complete")
 
     return {
@@ -351,5 +381,6 @@ def build_timeline_bundle(
             for d in deltas
         ],
         "blobLines": blob_lines,
+        "commitLineRanges": commit_line_ranges,
         "note": note,
     }
