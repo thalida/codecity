@@ -332,13 +332,10 @@ export function createScrubController(deps: ScrubControllerDeps) {
       // Ruin/Future for scrub states, else Data for a present binary, else Normal.
       const iKindAttr = mesh.geometry.getAttribute('iKind') as THREE.BufferAttribute | undefined;
       if (iKindAttr) {
-        const kind = ruin
-          ? BuildingKind.Ruin
-          : future
-            ? BuildingKind.Future
-            : isDataBuilding(b.file)
-              ? BuildingKind.Data
-              : BuildingKind.Normal;
+        let kind: number = BuildingKind.Normal;
+        if (ruin) kind = BuildingKind.Ruin;
+        else if (future) kind = BuildingKind.Future;
+        else if (isDataBuilding(b.file)) kind = BuildingKind.Data;
         iKindAttr.setX(slot, kind);
         dirtyKinds.add(iKindAttr);
       }

@@ -41,6 +41,28 @@ const int KIND_RUIN = 1;   // crumbled stub (Timeline)
 const int KIND_FUTURE = 2; // blank slab (Timeline)
 const int KIND_DATA = 3;   // windowless binary facade
 
+// Face indices (BoxGeometry material-slot order), mirroring building.vert.
+const int FACE_EAST = 0;   // +X
+const int FACE_WEST = 1;   // -X
+const int FACE_ROOF = 2;   // +Y
+const int FACE_BOTTOM = 3; // -Y
+const int FACE_SOUTH = 4;  // +Z
+const int FACE_NORTH = 5;  // -Z
+
+bool isWallFace() { return vFace != FACE_ROOF && vFace != FACE_BOTTOM; }
+bool isEastWest() { return vFace == FACE_EAST || vFace == FACE_WEST; }
+
+// Ghost-ruin decay tuning (all by eye).
+const float RUIN_FACE_SEED = 7.0;    // per-face hash offset so the 4 walls differ
+const float RUIN_BRICK_CELLS = 11.0; // hashed cells per face for the missing-brick holes
+const float RUIN_HOLE_CHANCE = 0.09; // fraction of brick cells punched out
+const float RUIN_RIM_MIN = 0.86;     // jagged top nibble starts this far up the face
+const float RUIN_RIM_JITTER = 0.14;  // ...varying the rest of the way to the roof line
+const float RUIN_RIM_CELLS = 9.0;    // horizontal cells across the top rim
+const float RUIN_GRIME_CELLS = 9.0;  // coarse grime cell grid
+const float RUIN_GRIME_FLOOR = 0.7;  // grime darkens to 0.7x at most...
+const float RUIN_GRIME_RANGE = 0.3;  // ...up to 1.0x (no darkening)
+
 // Hidden-tier wireframe thickness in screen-pixels. Sourced from
 // BUILDING_OUTLINE.WIDTH; refreshed via refreshBuildingMaterial() on Save via applyTheme().
 uniform float uOutlineWidth;
@@ -194,10 +216,10 @@ uniform float uWindowEmissionBoost;
 
 bool isDoorFace() {
   // vOrient: 0=S(+Z=face4), 1=N(-Z=face5), 2=E(+X=face0), 3=W(-X=face1)
-  if (vOrient < 0.5) return vFace == 4;
-  if (vOrient < 1.5) return vFace == 5;
-  if (vOrient < 2.5) return vFace == 0;
-  return vFace == 1;
+  if (vOrient < 0.5) return vFace == FACE_SOUTH;
+  if (vOrient < 1.5) return vFace == FACE_NORTH;
+  if (vOrient < 2.5) return vFace == FACE_EAST;
+  return vFace == FACE_WEST;
 }
 
 // ---------------------------------------------------------------------------
@@ -276,7 +298,7 @@ vec4 renderWallFace() {
   // "unlit" so the facade doesn't read as a copy-paste grid.
 
   // vCols.x = cols_ew (for ±X faces), vCols.y = cols_ns (for ±Z faces).
-  float cols = (vFace == 0 || vFace == 1) ? vCols.x : vCols.y;
+  float cols = isEastWest() ? vCols.x : vCols.y;
 
   // UV: (0,0) = bottom-left of face, (1,1) = top-right.
   vec2 uv = vUv;
@@ -292,7 +314,8 @@ vec4 renderWallFace() {
   float colIdx = floor(colF);
   float cellU  = fract(colF);
   float rowF   = uv.y * vFloors;
-  float row    = floor(rowF);
+  float row    = floor(rowF); // integer-valued floor index (also feeds the cell hash)
+  bool onGroundFloor = row < 0.5; // == row 0, where the door lives
   float cellV  = fract(rowF);
 
   // Screen-space derivatives for AA. Computed from the CONTINUOUS coords
@@ -322,7 +345,7 @@ vec4 renderWallFace() {
   // that whole row, and otherwise the door rectangle clips into the windows
   // (door is 0.7 of one floor tall, window center sits at 0.56 of one floor
   // → vertical overlap regardless of horizontal position).
-  float bottomDoorRow = (isDoorFace() && row < 0.5) ? 0.0 : 1.0;
+  float bottomDoorRow = (isDoorFace() && onGroundFloor) ? 0.0 : 1.0;
   // Per-cell randomness — gap (window missing) + lit (brighter/dimmer
   // window pane). Seeded by the per-instance seed (stable hash of
   // file.path, packed into vIconUV.z) + vFace so every building gets
@@ -430,14 +453,14 @@ vec4 renderWallFace() {
 
   // Door: ground floor of the door face only. Replaces windows for that row.
   // Only Normal buildings get a door; ruin/future/data facades are blank.
-  if (isDoorFace() && row < 0.5 && vKind == KIND_NORMAL) {
+  if (isDoorFace() && onGroundFloor && vKind == KIND_NORMAL) {
     // Door world-width / face world-width = door UV width.
     // vScale = (w, h, d) recovered from instance matrix columns.
     // ±X faces span depth d (vScale.z); ±Z faces span width w (vScale.x).
     // max(..., 1e-6) guards against a degenerate zero-scale building (which
     // would also produce a NaN normal in the vertex shader — see the guard
     // there); without it, this division would be Inf and propagate through.
-    float faceWorldWidth = max((vFace == 0 || vFace == 1) ? vScale.z : vScale.x, 1e-6);
+    float faceWorldWidth = max(isEastWest() ? vScale.z : vScale.x, 1e-6);
     float doorUvWidth  = vDoorWidth / faceWorldWidth;
     float doorLeft     = 0.5 - doorUvWidth * 0.5;
     float doorRight    = 0.5 + doorUvWidth * 0.5;
@@ -515,7 +538,7 @@ vec4 renderBottomFace() {
 // building reads consistently when the camera transitions between LODs.
 vec4 renderSilhouette() {
   vec3 baseColor = linearToSrgb(vColor);
-  if (vFace == 2) {
+  if (vFace == FACE_ROOF) {
     // Roof — solid base color, no directional shading (matches detail tier).
     return vec4(baseColor, vOpacity);
   }
@@ -556,26 +579,24 @@ vec4 compositeOutline(vec4 body) {
 
 void main() {
   // Ghost-ruin: keep all four walls AND a roof (not a hollow open-top shell),
-  // but punch sparse "missing brick" holes into the walls (blocky hashed cells)
-  // plus a jagged nibble along the very top rim, so it reads as broken. Roof
-  // (2) and bottom (3) stay solid.
-  // Crumble only for ruins (KIND_RUIN), never the future slab.
-  if (vKind == KIND_RUIN && vFace != 2 && vFace != 3) {
-    float seed = float(vFace) * 7.0;
-    if (hash21(floor(vUv * 11.0) + seed) < 0.09) discard; // missing bricks
-    float rim = 0.86 + 0.14 * hash21(vec2(floor(vUv.x * 9.0), seed)); // ~0.86..1.0
+  // but punch sparse "missing brick" holes into the walls plus a jagged top-rim
+  // nibble so it reads as broken. Roof + bottom stay solid; future slab excluded.
+  if (vKind == KIND_RUIN && isWallFace()) {
+    float seed = float(vFace) * RUIN_FACE_SEED;
+    if (hash21(floor(vUv * RUIN_BRICK_CELLS) + seed) < RUIN_HOLE_CHANCE) discard; // missing bricks
+    float rim = RUIN_RIM_MIN + RUIN_RIM_JITTER * hash21(vec2(floor(vUv.x * RUIN_RIM_CELLS), seed));
     if (vUv.y > rim) discard; // jagged top edge under the roof line
   }
 
   vec4 body;
   if (vSilhouette > 0.5)      body = renderSilhouette();
-  else if (vFace == 2)        body = renderRoofFace();
-  else if (vFace == 3)        body = renderBottomFace();
+  else if (vFace == FACE_ROOF)        body = renderRoofFace();
+  else if (vFace == FACE_BOTTOM)        body = renderBottomFace();
   else                        body = renderWallFace();
   vec4 outColor = compositeOutline(body);
 
   // Ruin facade: coarse grime so the blank stub looks weathered, not painted. Ruins only, not the future slab.
-  if (vKind == KIND_RUIN) outColor.rgb *= 0.7 + 0.3 * hash21(floor(vUv * 9.0));
+  if (vKind == KIND_RUIN) outColor.rgb *= RUIN_GRIME_FLOOR + RUIN_GRIME_RANGE * hash21(floor(vUv * RUIN_GRIME_CELLS));
 
   // Height fog: dense at y=0, thins with altitude. Handled by applyFog()
   // from the shared fog_apply chunk.

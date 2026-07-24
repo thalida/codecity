@@ -37,9 +37,10 @@ describe('building.frag.glsl', () => {
     expect(src).toContain('fwidth(');
     expect(src).toContain('smoothstep(');
   });
-  it('branches on face index', () => {
-    expect(src).toMatch(/vFace == 2/); // roof
-    expect(src).toMatch(/vFace == 3/); // bottom
+  it('branches on named face constants', () => {
+    expect(src).toMatch(/vFace == FACE_ROOF/);
+    expect(src).toMatch(/vFace == FACE_BOTTOM/);
+    expect(src).toContain('const int FACE_ROOF = 2;');
   });
   it('declares hsl_glsl_inline include marker', () => {
     expect(src).toContain('#include <hsl_glsl_inline>');
