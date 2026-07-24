@@ -207,14 +207,8 @@ export async function createCity(canvas: HTMLCanvasElement, manifest: Manifest):
       }
     },
     after() {
-      // Runs after every component tick, so the scrub controller has written this
-      // frame's presence attributes. Drop a selection the scrub REMOVED so its
-      // outline can't dangle over empty space — but only when the scrub actually
-      // moved (never every frame), and not mid-drag (closing the right sidebar
-      // then would reflow the track under the pointer and jump the position;
-      // prune on release). A static explicit selection — e.g. clicking a deleted
-      // path in the left-sidebar tree — is kept even if the city doesn't render
-      // it at this commit.
+      // Drop a selection the scrub removed, but not mid-drag: closing the right
+      // sidebar then reflows the track under the pointer and jumps the position.
       if (!TIMELINE_MODE.peek() || SCRUB_DRAGGING.peek()) return;
       const pos = SCRUB_POS.peek();
       if (pos === _lastPrunedScrubPos) return;
