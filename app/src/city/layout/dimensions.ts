@@ -6,6 +6,7 @@ import { BUILDING_DIMENSIONS } from '@/state/stores/settings/buildings';
 import type { StreetTier } from '@/state/stores/settings/streets';
 import type { RangeStat, RepoStats } from '@/types';
 import { isMediaFile } from '../utils/mediaKind';
+import { isEmptyFile } from '../utils/emptyKind';
 
 // Structural shapes — kept lenient so test fixtures (which omit fields the
 // helpers don't read, like name/path on intermediate nodes) stay
@@ -75,6 +76,10 @@ export function computeFileStats(stats: RepoStats | null | undefined): {
   };
 }
 
+// An empty file's slab height, in floors. Small enough to read as ground, tall
+// enough to raycast; expressed in floors so it scales with FLOOR_HEIGHT.
+export const EMPTY_SLAB_FLOORS = 0.05;
+
 // getBuildingDimensions(file, lineStats?, byteStats?) -> { w, d, h, floors }
 //
 // Floors and width are project-relative: the smallest file lands at MIN_*, and
@@ -101,10 +106,14 @@ export function getBuildingDimensions(
   const dims = BUILDING_DIMENSIONS.value;
   const maxFloorsCap = dims.MAX_FLOORS != null ? dims.MAX_FLOORS : 30;
 
+  // MIN_FLOORS is the floor for files that HAVE content, so an empty file skips
+  // the whole floors curve and takes the slab branch below instead.
+  const empty = isEmptyFile(file);
+
   // ---- Floors from line count (sqrt-normalized over project range) ----
   const lines = file.lines && file.lines > 0 ? file.lines : 1;
   let floors = dims.MIN_FLOORS;
-  if (lineStats && lineStats.max > lineStats.min) {
+  if (!empty && lineStats && lineStats.max > lineStats.min) {
     const sMin = Math.sqrt(lineStats.min);
     const sMax = Math.sqrt(lineStats.max);
     const sLines = Math.sqrt(lines);
@@ -160,7 +169,12 @@ export function getBuildingDimensions(
   // with regular buildings. Missing dims → 1:1 aspect (square fallback).
   let h = height;
   let outFloors = floors;
-  if (isMediaFile(file)) {
+  if (empty) {
+    // Nothing to stack: a flat slab at the file's footprint. First branch, so a
+    // 0-byte image or blob slabs too rather than taking its kind's sizing.
+    outFloors = 0;
+    h = EMPTY_SLAB_FLOORS * dims.FLOOR_HEIGHT;
+  } else if (isMediaFile(file)) {
     const mw = file.media_width;
     const mh = file.media_height;
     const rawAspect = mw && mh && mw > 0 ? mh / mw : 1.0;
