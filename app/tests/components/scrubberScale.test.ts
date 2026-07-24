@@ -18,6 +18,17 @@ describe('scrubberScale', () => {
     expect(s.maxMs).toBe(Date.parse('2020-01-10'));
   });
 
+  it('pins a single-commit repo to the present (right edge), inert to drags', () => {
+    const s = buildScrubberScale(['2026-07-24']);
+    // The lone commit IS the present: handle + its tick sit at the far right.
+    expect(indexToFraction(s, 0)).toBe(1);
+    expect(commitFraction(s, 0)).toBe(1);
+    // Clicking anywhere can't move off the only commit.
+    expect(fractionToIndex(s, 0)).toBe(0);
+    expect(fractionToIndex(s, 0.5)).toBe(0);
+    expect(fractionToIndex(s, 1)).toBe(0);
+  });
+
   it('span floors at 1 for a single-day (degenerate) range', () => {
     const s = buildScrubberScale(['2020-01-01', '2020-01-01']);
     expect(s.span).toBe(1);
@@ -73,13 +84,11 @@ describe('scrubberScale', () => {
     expect(fractionToIndex(s, 2)).toBe(2);
   });
 
-  it('handles an empty / single commit set without throwing', () => {
+  it('handles an empty commit set without throwing', () => {
     const empty = buildScrubberScale([]);
     expect(commitFraction(empty, 0)).toBe(0);
+    expect(indexToFraction(empty, 0)).toBe(0);
     expect(fractionToIndex(empty, 0.5)).toBe(0);
-    const one = buildScrubberScale(['2020-01-01']);
-    expect(indexToFraction(one, 0)).toBe(0);
-    expect(fractionToIndex(one, 0.9)).toBe(0);
   });
 
   it('a uniform daily cadence maps index fraction ≈ date fraction', () => {

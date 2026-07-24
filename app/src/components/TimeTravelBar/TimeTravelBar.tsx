@@ -34,6 +34,9 @@ export function TimeTravelBar() {
 
   const maxIndex = Math.max(0, commits.length - 1);
   const pos = Math.min(Math.max(SCRUB_POS.value, 0), maxIndex);
+  // A single-commit repo has no history to scrub: the handle pins to the present
+  // (right edge, via the scale) and the track is inert rather than grab-and-freeze.
+  const inert = maxIndex === 0;
   const accentTheme = ACCENT_THEME.value; // repaint the canvas when the accent changes
 
   // Paint the track: an accent played-fill + past ticks, neutral future ticks.
@@ -101,6 +104,7 @@ export function TimeTravelBar() {
   };
 
   const onPointerDown = (e: PointerEvent) => {
+    if (inert) return;
     SCRUB_DRAGGING.value = true;
     // Optional-chained: jsdom (and old browsers) lack pointer capture.
     (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
@@ -151,10 +155,11 @@ export function TimeTravelBar() {
         </button>
         <div
           ref={trackRef}
-          class="time-travel-track"
+          class={`time-travel-track${inert ? ' is-inert' : ''}`}
           role="slider"
-          tabIndex={0}
+          tabIndex={inert ? -1 : 0}
           aria-label="Scrub commit history"
+          aria-disabled={inert}
           aria-valuemin={0}
           aria-valuemax={maxIndex}
           aria-valuenow={Math.round(pos)}

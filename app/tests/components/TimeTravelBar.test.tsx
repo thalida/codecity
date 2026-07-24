@@ -159,6 +159,39 @@ describe('TimeTravelBar', () => {
     expect(container.querySelector('.time-travel-date')!.textContent).toContain('Feb');
   });
 
+  it('single-commit repo: handle pins right, track is inert (no drag)', async () => {
+    const only = commit('ddddddd4444444444444444444444444444444', '2026-07-24', 'init');
+    TIMELINE_BUNDLE.value = {
+      commits: [only],
+      unionManifest: { tree: { name: 'r' }, repo: { remote_url: null } },
+      deltas: [],
+      blobLines: {},
+      note: null,
+    } as unknown as TimelineBundle;
+    SCRUB_POS.value = 0;
+    render(<TimeTravelBar />, container);
+    await flush();
+
+    const t = track(container);
+    expect(t.getAttribute('aria-disabled')).toBe('true');
+    expect(t.getAttribute('tabindex')).toBe('-1');
+    expect(t.classList.contains('is-inert')).toBe(true);
+    // Handle at the present (far right), not the left.
+    expect(container.querySelector<HTMLElement>('.time-travel-handle')!.style.left).toBe('100%');
+
+    // A pointer press does nothing: no drag engaged, SCRUB_POS unmoved.
+    t.getBoundingClientRect = () =>
+      ({ left: 0, top: 0, width: 100, height: 20, right: 100, bottom: 20 }) as DOMRect;
+    const ev = new Event('pointerdown', { bubbles: true }) as Event & {
+      clientX: number;
+      pointerId: number;
+    };
+    ev.clientX = 10;
+    ev.pointerId = 1;
+    t.dispatchEvent(ev);
+    expect(SCRUB_POS.value).toBe(0);
+  });
+
   it('tracks SCRUB_POS updates from outside the component', async () => {
     SCRUB_POS.value = 0;
     render(<TimeTravelBar />, container);

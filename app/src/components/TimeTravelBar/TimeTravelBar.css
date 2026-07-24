@@ -62,6 +62,11 @@
   outline-offset: 2px;
 }
 
+/* Single-commit repo: no history to scrub, so the track doesn't invite a drag. */
+.time-travel-track.is-inert {
+  cursor: default;
+}
+
 .time-travel-ticks {
   position: absolute;
   inset: 0;

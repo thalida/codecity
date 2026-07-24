@@ -26,6 +26,7 @@ export function buildScrubberScale(dates: string[]): ScrubberScale {
 export function commitFraction(scale: ScrubberScale, index: number): number {
   const { ms, minMs, span } = scale;
   if (ms.length === 0) return 0;
+  if (ms.length === 1) return 1; // a lone commit is the present: pin it to the right edge
   const i = Math.max(0, Math.min(ms.length - 1, index));
   return Math.max(0, Math.min(1, (ms[i] - minMs) / span));
 }
@@ -35,6 +36,7 @@ export function commitFraction(scale: ScrubberScale, index: number): number {
 export function indexToFraction(scale: ScrubberScale, pos: number): number {
   const { ms, minMs, span } = scale;
   if (ms.length === 0) return 0;
+  if (ms.length === 1) return 1; // single-commit repo: nothing to scrub, sit at the present
   const clamped = Math.max(0, Math.min(ms.length - 1, pos));
   const lo = Math.floor(clamped);
   const hi = Math.min(ms.length - 1, lo + 1);
