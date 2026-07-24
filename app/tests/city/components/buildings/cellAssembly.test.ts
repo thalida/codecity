@@ -185,6 +185,30 @@ describe('buildCellsFromLayout', () => {
       expect(out.cells.size).toBeGreaterThan(0);
       expect(out.index.byPath.get('logo.png')).toBeDefined();
     });
+
+    it('skips the panel for a 0-byte image (nothing to billboard)', () => {
+      const empty = building({
+        x: 5,
+        y: 5,
+        file: {
+          path: 'blank.png',
+          name: 'blank.png',
+          type: NodeKind.File,
+          fullPath: '/abs/blank.png',
+          extension: '.png',
+          mediaKind: 'image',
+          size: 0,
+          lines: 0,
+          binary: true,
+          dirty: false,
+          created: '',
+          modified: '',
+        },
+      });
+      const out = buildCellsFromLayout(bounds, [empty]);
+      expect(out.facadePanels).toBeNull();
+      expect(out.index.byPath.get('blank.png')).toBeDefined();
+    });
   });
 
   describe('DATA_ENABLED gate', () => {
@@ -223,6 +247,30 @@ describe('buildCellsFromLayout', () => {
       expect(out.facadePanels).toBeNull();
       expect(out.cells.size).toBeGreaterThan(0);
       expect(out.index.byPath.get('app.db')).toBeDefined();
+    });
+
+    it('skips the fingerprint for a 0-byte binary (no bytes to fingerprint)', () => {
+      const empty = building({
+        x: 5,
+        y: 5,
+        file: {
+          path: 'empty.db',
+          name: 'empty.db',
+          type: NodeKind.File,
+          fullPath: '/abs/empty.db',
+          extension: '.db',
+          mediaKind: null,
+          size: 0,
+          lines: 0,
+          binary: true,
+          dirty: false,
+          created: '',
+          modified: '',
+        },
+      });
+      const out = buildCellsFromLayout(bounds, [empty]);
+      expect(out.facadePanels).toBeNull();
+      expect(out.index.byPath.get('empty.db')).toBeDefined();
     });
   });
 });
