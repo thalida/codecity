@@ -151,6 +151,22 @@ export async function reapplyTimelineScene(): Promise<void> {
   handle.timeline.installScrubController(timelines);
 }
 
+// Re-fetch the union bundle with the current excludes, then re-pack — for an
+// exclude edit made while in Timeline. Excludes change the data, so re-packing
+// the warm bundle isn't enough; the bundle must be refetched. Holds SCRUB_POS
+// (excludes filter files, not commits), clamping only if the commit list shrank.
+export async function refetchTimelineForExcludes(): Promise<void> {
+  const cur = CURRENT_SOURCE.peek();
+  if (!cur || !SCENE_HANDLE.peek()) return;
+  const bundle = await fetchTimelineBundle(cur.src, cur.branch, undefined, {
+    exclude: activeExcludePathsFor(cur.src),
+  });
+  TIMELINE_BUNDLE.value = bundle;
+  const maxPos = Math.max(0, bundle.commits.length - 1);
+  if (SCRUB_POS.peek() > maxPos) SCRUB_POS.value = maxPos;
+  await reapplyTimelineScene();
+}
+
 // Scene-free: the city-layer effect (city/index.ts) reacts to TIMELINE_MODE and does the scene teardown.
 export function teardownTimelineMode(): void {
   resetTimelineMode();

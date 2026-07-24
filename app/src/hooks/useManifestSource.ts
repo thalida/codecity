@@ -39,6 +39,7 @@ import { SERVER_CONFIG } from '@/state/stores/serverConfig';
 import { MANIFEST, setManifest, markError, markRebuilding } from '@/state/stores/manifest';
 import { SCAN_PROGRESS } from '@/state/stores/scanProgress';
 import { TIMELINE_MODE, resetTimelineMode } from '@/state/stores/timeline';
+import { refetchTimelineForExcludes } from '@/hooks/useTimelineMode';
 import { activeExcludePathsFor, ACTIVE_EXCLUDES } from '@/state/stores/excludes';
 import { srcKind, SourceKind, srcNeedsBranch, identityBranch, sourceKey } from '@/utils/sources';
 import { isEmptyManifest } from '@/utils/manifest';
@@ -337,13 +338,17 @@ export function setupLiveUpdates(): () => void {
     const [prevRepo] = prev.split('|', 1);
     if (prevRepo !== repoKey) return; // source switched — the load owns it
     if (prev === nextKey) return; // no actual change
-    if (TIMELINE_MODE.peek()) return; // Timeline mode owns the scene — no in-place refresh
     if (SCAN_PROGRESS.peek() !== null) return; // yield to a foreground load
     if (!cur) return;
     if (inFlight) return; // the poll's tick is already covering this refresh
     inFlight = true;
     markRebuilding(); // flip the footer to "rebuilding" now, not after the re-scan streams back
-    void fetchAndApply(cur.src, cur.branch).finally(() => {
+    // Timeline owns the scene: excludes change the union data, so refetch its
+    // bundle + re-pack. Live: in-place re-scan.
+    const refresh = TIMELINE_MODE.peek()
+      ? refetchTimelineForExcludes()
+      : fetchAndApply(cur.src, cur.branch);
+    void refresh.finally(() => {
       inFlight = false;
     });
   });
