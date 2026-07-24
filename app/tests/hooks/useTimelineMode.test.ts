@@ -1,11 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
-import {
-  enterTimelineMode,
-  exitTimelineMode,
-  teardownTimelineMode,
-  refetchTimelineForExcludes,
-} from '@/hooks/useTimelineMode';
+import { loadTimelineScene, exitTimelineMode, teardownTimelineMode } from '@/hooks/useTimelineMode';
 import { EXCLUDES, addExclude } from '@/state/stores/excludes';
 import { TIMELINE_MODE, SCRUB_POS, TIMELINE_BUNDLE } from '@/state/stores/timeline';
 import { CURRENT_SOURCE } from '@/state/stores/source';
@@ -73,7 +68,7 @@ function fakeHandle() {
   };
 }
 
-describe('enterTimelineMode', () => {
+describe('loadTimelineScene', () => {
   beforeEach(() => {
     CURRENT_SOURCE.value = { src: 's', branch: undefined };
     TIMELINE_MODE.value = false;
@@ -93,7 +88,7 @@ describe('enterTimelineMode', () => {
     const f = fakeHandle();
     SCENE_HANDLE.value = f.handle as never;
 
-    await enterTimelineMode();
+    await loadTimelineScene();
 
     expect(fetchTimelineBundle).toHaveBeenCalledWith(
       's',
@@ -126,7 +121,7 @@ describe('enterTimelineMode', () => {
     const f = fakeHandle();
     SCENE_HANDLE.value = f.handle as never;
 
-    const entering = enterTimelineMode();
+    const entering = loadTimelineScene();
     await flush();
     expect(LOADING_OVERLAY.value.visible).toBe(true);
     expect(LOADING_OVERLAY.value.activeStep).toBe(LoadingStep.TimelineLoading);
@@ -154,7 +149,7 @@ describe('enterTimelineMode', () => {
     const f = fakeHandle();
     SCENE_HANDLE.value = f.handle as never;
 
-    const entering = enterTimelineMode();
+    const entering = loadTimelineScene();
     await flush();
 
     onProgress({ stage: 'history', commits: 42 });
@@ -173,7 +168,7 @@ describe('enterTimelineMode', () => {
     CURRENT_SOURCE.value = null;
     const f = fakeHandle();
     SCENE_HANDLE.value = f.handle as never;
-    await enterTimelineMode();
+    await loadTimelineScene();
     expect(fetchTimelineBundle).not.toHaveBeenCalled();
     expect(TIMELINE_MODE.value).toBe(false);
     expect(LOADING_OVERLAY.value.visible).toBe(false);
@@ -185,7 +180,7 @@ describe('enterTimelineMode', () => {
     );
     const f = fakeHandle();
     SCENE_HANDLE.value = f.handle as never;
-    await enterTimelineMode();
+    await loadTimelineScene();
     expect(TIMELINE_MODE.value).toBe(false);
     expect(f.installScrubController).not.toHaveBeenCalled();
     expect(LOADING_OVERLAY.value.visible).toBe(false);
@@ -204,7 +199,7 @@ describe('enterTimelineMode', () => {
     });
     SCENE_HANDLE.value = f.handle as never;
 
-    await enterTimelineMode();
+    await loadTimelineScene();
 
     expect(TIMELINE_MODE.value).toBe(false);
     expect(LOADING_OVERLAY.value.visible).toBe(false);
@@ -304,12 +299,13 @@ describe('live poll suspends in Timeline mode', () => {
   });
 });
 
-describe('refetchTimelineForExcludes', () => {
+describe('loadTimelineScene inPlace refetch', () => {
   beforeEach(() => {
     CURRENT_SOURCE.value = { src: 's', branch: undefined };
     TIMELINE_MODE.value = true;
     SCRUB_POS.value = 2;
     TIMELINE_BUNDLE.value = BUNDLE;
+    REBUILD_STATUS.value = RebuildStatus.Idle; // inPlace uses the footer (markRebuilding)
     (fetchTimelineBundle as unknown as ReturnType<typeof vi.fn>).mockReset();
   });
   afterEach(() => {
@@ -326,7 +322,7 @@ describe('refetchTimelineForExcludes', () => {
     const f = fakeHandle();
     SCENE_HANDLE.value = f.handle as never;
 
-    await refetchTimelineForExcludes();
+    await loadTimelineScene({ inPlace: true });
 
     expect(fetchTimelineBundle).toHaveBeenCalledWith(
       's',
@@ -342,7 +338,7 @@ describe('refetchTimelineForExcludes', () => {
 
   it('no-ops without a scene handle', async () => {
     SCENE_HANDLE.value = null;
-    await refetchTimelineForExcludes();
+    await loadTimelineScene({ inPlace: true });
     expect(fetchTimelineBundle).not.toHaveBeenCalled();
   });
 });

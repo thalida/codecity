@@ -39,7 +39,7 @@ import { SERVER_CONFIG } from '@/state/stores/serverConfig';
 import { MANIFEST, setManifest, markError, markRebuilding } from '@/state/stores/manifest';
 import { SCAN_PROGRESS } from '@/state/stores/scanProgress';
 import { TIMELINE_MODE, resetTimelineMode } from '@/state/stores/timeline';
-import { refetchTimelineForExcludes } from '@/hooks/useTimelineMode';
+import { loadTimelineScene } from '@/hooks/useTimelineMode';
 import { activeExcludePathsFor, ACTIVE_EXCLUDES } from '@/state/stores/excludes';
 import { srcKind, SourceKind, srcNeedsBranch, identityBranch, sourceKey } from '@/utils/sources';
 import { isEmptyManifest } from '@/utils/manifest';
@@ -342,12 +342,15 @@ export function setupLiveUpdates(): () => void {
     if (!cur) return;
     if (inFlight) return; // the poll's tick is already covering this refresh
     inFlight = true;
-    markRebuilding(); // flip the footer to "rebuilding" now, not after the re-scan streams back
-    // Timeline owns the scene: excludes change the union data, so refetch its
-    // bundle + re-pack. Live: in-place re-scan.
-    const refresh = TIMELINE_MODE.peek()
-      ? refetchTimelineForExcludes()
-      : fetchAndApply(cur.src, cur.branch);
+    // Timeline owns the scene: excludes change the union data, so refetch its bundle
+    // + re-pack (it owns its own rebuilding footer). Live: in-place re-scan.
+    let refresh: Promise<void>;
+    if (TIMELINE_MODE.peek()) {
+      refresh = loadTimelineScene({ inPlace: true });
+    } else {
+      markRebuilding(); // flip the footer now, not after the re-scan streams back
+      refresh = fetchAndApply(cur.src, cur.branch);
+    }
     void refresh.finally(() => {
       inFlight = false;
     });

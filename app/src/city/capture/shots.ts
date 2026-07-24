@@ -13,7 +13,7 @@ import type { SceneHandle } from '@/state/stores/scene';
 import { NodeKind, type Manifest, type DirNode } from '@/types';
 import { CAMERA } from '@/state/stores/settings/camera';
 import { TIMELINE_MODE, SCRUB_POS, TIMELINE_BUNDLE } from '@/state/stores/timeline';
-import { enterTimelineMode } from '@/hooks/useTimelineMode';
+import { loadTimelineScene } from '@/hooks/useTimelineMode';
 
 /** Set the default-view angle (degrees); the rig re-frames the whole city to
  *  it. Elevation is height above the horizon, azimuth the swing around the gem. */
@@ -77,7 +77,7 @@ function mostColorfulDirPath(root: DirNode): string | null {
   return bestPath;
 }
 
-// Fire enterTimelineMode() exactly once across the timeline shot's pose retries
+// Fire loadTimelineScene() exactly once across the timeline shot's pose retries
 // (it's async; the harness re-invokes the pose until it returns non-false).
 let _timelineKickedOff = false;
 
@@ -108,13 +108,13 @@ export const SHOTS: Record<string, ShotPose> = {
 
   // The whole city part-built at an older commit: enter Timeline mode, scrub to
   // mid-history, and frame the union city. No settings overrides — the shot
-  // reflects the defaults (deleted stubs on, future files off). enterTimelineMode
+  // reflects the defaults (deleted stubs on, future files off). loadTimelineScene
   // is async, so return false until the mode + bundle are live — the harness retries.
   timeline: (h, _m, o) => {
     if (!TIMELINE_MODE.peek()) {
       if (!_timelineKickedOff) {
         _timelineKickedOff = true;
-        void enterTimelineMode();
+        void loadTimelineScene();
       }
       return false;
     }
