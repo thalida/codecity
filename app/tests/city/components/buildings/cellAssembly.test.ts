@@ -272,5 +272,53 @@ describe('buildCellsFromLayout', () => {
       expect(out.facadePanels).toBeNull();
       expect(out.index.byPath.get('empty.db')).toBeDefined();
     });
+
+    it('mixed scene: empty binary excluded, non-empty binary registered', () => {
+      const empty = building({
+        x: 5,
+        y: 5,
+        file: {
+          path: 'empty.db',
+          name: 'empty.db',
+          type: NodeKind.File,
+          fullPath: '/abs/empty.db',
+          extension: '.db',
+          mediaKind: null,
+          size: 0,
+          lines: 0,
+          binary: true,
+          dirty: false,
+          created: '',
+          modified: '',
+        },
+      });
+
+      const nonEmpty = building({
+        x: 10,
+        y: 10,
+        file: {
+          path: 'data.db',
+          name: 'data.db',
+          type: NodeKind.File,
+          fullPath: '/abs/data.db',
+          extension: '.db',
+          mediaKind: null,
+          size: 5000,
+          lines: 0,
+          binary: true,
+          dirty: false,
+          created: '',
+          modified: '',
+        },
+      });
+
+      const out = buildCellsFromLayout(bounds, [empty, nonEmpty]);
+      // Only the non-empty building should be registered (4 slots).
+      expect(out.facadePanels).not.toBeNull();
+      expect(out.facadePanels!.mesh.count).toBe(4);
+      // Both buildings exist and are indexed (empty one still renders as slab).
+      expect(out.index.byPath.get('empty.db')).toBeDefined();
+      expect(out.index.byPath.get('data.db')).toBeDefined();
+    });
   });
 });
