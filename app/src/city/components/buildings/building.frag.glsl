@@ -256,6 +256,17 @@ vec4 renderWallFace() {
 
   vec3 wallColor = baseColor * lightFactor;
   vec3 slabColor = shadeColor(baseColor, uSlabLightnessDelta) * lightFactor;
+
+  // Binary "data" building (iDoorWidth packed as a negative sentinel): a sealed,
+  // windowless facade — no window grid, no door. Faint horizontal seams read as
+  // a warehouse / data-center panel wall; the byte-pattern fingerprint is layered
+  // on by the overlay panels. Branch early so none of the window-grid math runs.
+  if (vDoorWidth < 0.0) {
+    float seam = smoothstep(0.96, 1.0, fract(vUv.y * max(vFloors, 1.0)));
+    vec3 sealed = mix(wallColor, slabColor, seam * 0.6);
+    return vec4(sealed, vOpacity);
+  }
+
   // Door stays a dark rectangle — small ambient response so it's not pitch-black
   // on sun-side walls but still reads as "open doorway".
   vec3 doorColor = shadeAndShiftHue(baseColor, uDoorLightnessDelta, 0.0, -1.0) * (uAmbient + uSunContrast * lambert * 0.4);

@@ -17,6 +17,7 @@ import type { CellTile } from './cellTile';
 import type { Building } from '@/types/index';
 import { getBuildingMaterial, getIconAtlas } from './material';
 import { getFileIconName } from '@/utils/fileIcons';
+import { isDataBuilding } from '../../utils/binaryKind';
 import { seedFromPath, getBuildingTilt, composeShearMatrix } from './tilt';
 
 // ---------------------------------------------------------------------------
@@ -204,10 +205,13 @@ export function writeBuildingToSlot(cell: CellTile, b: Building): void {
   const iOrientAttr = mesh.geometry.getAttribute('iOrient') as THREE.InstancedBufferAttribute;
   iOrientAttr.setX(slot, orientToIndex(b.orient));
 
-  // --- Door width ---
-  // doorWorldWidth = building.w × DOOR_WIDTH_FRAC
+  // --- Door width (doubles as the is-binary flag) ---
+  // doorWorldWidth = building.w × DOOR_WIDTH_FRAC. A binary "data" building has
+  // no door or windows, so a negative sentinel here means "windowless facade" —
+  // packed into this existing attribute because the mesh is already at the
+  // WebGL2 16-attribute cap (see iRuin above). The frag reads vDoorWidth < 0.
   const iDoorWidthAttr = mesh.geometry.getAttribute('iDoorWidth') as THREE.InstancedBufferAttribute;
-  iDoorWidthAttr.setX(slot, b.w * doorWidthFrac);
+  iDoorWidthAttr.setX(slot, isDataBuilding(b.file) ? -1 : b.w * doorWidthFrac);
 
   // --- Fade (opacity defaults to 1.0; silhouette + outlineOpacity default to 0) ---
   const iFadeAttr = mesh.geometry.getAttribute('iFade') as THREE.InstancedBufferAttribute;
