@@ -107,9 +107,12 @@ export const LOADING_CANCEL = signal<(() => void) | null>(null);
 // would auto-subscribe that effect to LOADING_OVERLAY, producing a cycle
 // when the same effect later writes back.
 
+// onCancel: pass to set the overlay's cancel handler; OMIT (undefined) to leave
+// any already-registered handler in place — the live-load reaction shows the
+// overlay without one, so a caller (exit-Timeline) can pre-register its cancel.
 export function showLoadingOverlay(
   opts: LoadingOverlayShowOpts,
-  onCancel: (() => void) | null = null
+  onCancel?: (() => void) | null
 ): void {
   const initialStep: LoadingStep =
     opts.steps?.[0] ??
@@ -120,6 +123,10 @@ export function showLoadingOverlay(
     activeStep: initialStep,
     stepTails: {},
   };
+  if (onCancel !== undefined) LOADING_CANCEL.value = onCancel;
+}
+
+export function setLoadingCancel(onCancel: (() => void) | null): void {
   LOADING_CANCEL.value = onCancel;
 }
 

@@ -18,6 +18,7 @@ import {
   setLoadingStep,
   setLoadingStepTail,
   hideLoadingOverlay,
+  setLoadingCancel,
 } from '@/state/stores/ui';
 import { LoadingStep, TIMELINE_LOADING_STEPS } from '@/constants/loadingSteps';
 import { srcKind } from '@/utils/sources';
@@ -27,7 +28,7 @@ import {
   TIMELINE_BUNDLE,
   resetTimelineMode,
 } from '@/state/stores/timeline';
-import { loadSource } from '@/hooks/useManifestSource';
+import { loadSource, cancelLoad } from '@/hooks/useManifestSource';
 import type { Manifest, TimelineProgress } from '@/types';
 
 /** Progress tail for the "Loading history" step: download % while backfilling a
@@ -142,6 +143,18 @@ export function teardownTimelineMode(): void {
 
 export function exitTimelineMode(): void {
   const cur = CURRENT_SOURCE.peek();
+  const scrubPos = SCRUB_POS.peek(); // remember where the scrubber was
   teardownTimelineMode();
-  if (cur) void loadSource({ src: cur.src, branch: cur.branch });
+  if (!cur) return;
+  // Reloading live HEAD behind the overlay. Cancelling it re-enters Timeline
+  // where you were (the bundle is warm-cached) rather than dumping you on the
+  // project switcher. Registered before loadSource so its reaction's overlay
+  // (shown without a cancel) leaves this in place.
+  setLoadingCancel(() => {
+    cancelLoad();
+    void enterTimelineMode().then(() => {
+      if (TIMELINE_MODE.peek()) SCRUB_POS.value = scrubPos;
+    });
+  });
+  void loadSource({ src: cur.src, branch: cur.branch });
 }

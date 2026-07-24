@@ -3,7 +3,7 @@
 // when the manifest's content_signature changes (the tree's mtime/size/dirty
 // state shifted).
 //
-// Default ON at a 3s poll so the city tracks edits out of the box.
+// Default ON at a 5s poll so the city tracks edits out of the box.
 // Schema-driven (see state/schema); POLL_SECONDS is clamped to a
 // hard [min, max] range at the caller (manifestPoll), where those bounds live.
 
@@ -27,7 +27,7 @@ const LIVE_UPDATES_FIELDS = {
   POLL_SECONDS: {
     route: ChangeRoute.Live,
     kind: FieldKind.Number,
-    default: 3,
+    default: 5,
     min: 1,
     max: 60,
     step: 1,
