@@ -249,13 +249,17 @@ def build_timeline_bundle(
     root: str,
     *,
     use_cache: bool = True,
+    extra_exclude_paths: frozenset[str] = frozenset(),
     on_progress: OnTimelineProgress | None = None,
 ) -> TimelineBundle:
     """Assemble the full replay bundle: commits, the union manifest, per-commit
     blob deltas, and a sha -> line-count table. Pathological repos (union above
     `_UNION_FILE_CAP`) are windowed to their most recent commits, surfaced via
-    `note`. ``on_progress`` threads through to the history walk + blob
-    resolution — see their docstrings for the payload shape."""
+    `note`. ``extra_exclude_paths`` are the user's city excludes, folded into the
+    same skip filter as .codecityignore so an excluded path is absent everywhere
+    (union, deltas, blobs) — the timeline equivalent of the live scan's excludes.
+    ``on_progress`` threads through to the history walk + blob resolution — see
+    their docstrings for the payload shape."""
     root_path = Path(root).resolve()
     if not _is_git_repo(root_path):
         raise NotAGitRepoError(str(root_path))
@@ -272,6 +276,8 @@ def build_timeline_bundle(
     ignore_names, ignore_paths, unignore_names, unignore_paths = _load_codecityignore(
         root_path
     )
+    if extra_exclude_paths:
+        ignore_paths = ignore_paths | extra_exclude_paths
     deltas = [
         CommitDelta(
             sha=d.sha,

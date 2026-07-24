@@ -577,6 +577,26 @@ class ManifestCacheTests(CacheTestBase):
             cache_mod.cache_load_timeline(Path("/never/scanned"), "b" * 40)
         )
 
+    def test_timeline_excludes_key_separately(self) -> None:
+        # Excludes reshape the filtered union, so they're part of the cache key:
+        # a bundle saved with one exclude set must not be served for another,
+        # and the empty-set key stays independent of both.
+        root = Path("/some/repo")
+        sha = "a" * 40
+        base, filtered = self._make_bundle(), self._make_bundle()
+        filtered["note"] = "filtered"  # make the two bundles distinguishable
+        cache_mod.cache_save_timeline(root, sha, base)
+        cache_mod.cache_save_timeline(root, sha, filtered, frozenset({"secrets"}))
+
+        self.assertEqual(cache_mod.cache_load_timeline(root, sha), base)
+        self.assertEqual(
+            cache_mod.cache_load_timeline(root, sha, frozenset({"secrets"})), filtered
+        )
+        # A different exclude set is a miss, not a wrong-bundle hit.
+        self.assertIsNone(
+            cache_mod.cache_load_timeline(root, sha, frozenset({"other"}))
+        )
+
     def test_clear_manifests_also_sweeps_timeline(self) -> None:
         # cache_clear_manifests's `{repo_key}__*.json.gz` glob covers
         # content-signature, `__ref-<sha>`, AND `__timeline-<sha>` keyed files.

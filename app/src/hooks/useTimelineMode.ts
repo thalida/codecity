@@ -29,6 +29,7 @@ import {
   resetTimelineMode,
 } from '@/state/stores/timeline';
 import { loadSource, cancelLoad } from '@/hooks/useManifestSource';
+import { activeExcludePathsFor } from '@/state/stores/excludes';
 import type { Manifest, TimelineProgress } from '@/types';
 
 /** Progress tail for the "Loading history" step: download % while backfilling a
@@ -79,7 +80,7 @@ export async function enterTimelineMode(): Promise<void> {
       cur.src,
       cur.branch,
       (p) => setLoadingStepTail(LoadingStep.TimelineLoading, timelineLoadingTail(p)),
-      { signal: abort.signal }
+      { signal: abort.signal, exclude: activeExcludePathsFor(cur.src) }
     );
     if (cancelled) return; // user backed out during the fetch — live view stands
     committed = true; // past here the scene is repacked; no longer cancellable

@@ -93,7 +93,7 @@ describe('enterTimelineMode', () => {
       's',
       undefined,
       expect.any(Function),
-      expect.objectContaining({ signal: expect.any(AbortSignal) })
+      expect.objectContaining({ signal: expect.any(AbortSignal), exclude: expect.any(Array) })
     );
     expect(f.applyManifest).toHaveBeenCalledTimes(1);
     expect(f.applyManifest).toHaveBeenCalledWith(BUNDLE.unionManifest);

@@ -129,6 +129,45 @@ def test_timeline_cold_scan_then_warm_cache_hit(
     assert cold[-1][1]["bundle"] == warm[-1][1]["bundle"]
 
 
+def test_timeline_exclude_param_filters_bundle(
+    client: TestClient, tmp_path: Path, allow_local_repos
+) -> None:
+    p = tmp_path / "repo"
+    p.mkdir()
+    _git("init", "-q", cwd=p)
+    _git("config", "user.email", "a@b.c", cwd=p)
+    _git("config", "user.name", "T", cwd=p)
+    (p / "keep.txt").write_text("hi\n")
+    (p / "secrets").mkdir()
+    (p / "secrets" / "token.txt").write_text("shh\n")
+    _git("add", ".", cwd=p)
+    _git("commit", "-qm", "c1", cwd=p)
+
+    def union_paths(params: dict) -> set[str]:
+        with client.stream("GET", "/api/timeline", params=params) as r:
+            events = _parse_sse("".join(r.iter_text()))
+        bundle = events[-1][1]["bundle"]
+        found: set[str] = set()
+
+        def walk(n: dict) -> None:
+            if n["type"] == "file":
+                found.add(n["path"])
+            else:
+                for ch in n["children"]:
+                    walk(ch)
+
+        walk(bundle["unionManifest"]["tree"])
+        return found
+
+    src = str(p)
+    assert "secrets/token.txt" in union_paths({"src": src})
+    # Same HEAD, but excluding "secrets" must serve a distinct (filtered) bundle,
+    # not the warm-cache hit from the unfiltered request above.
+    filtered = union_paths({"src": src, "exclude": "secrets"})
+    assert "keep.txt" in filtered
+    assert not any(pth.startswith("secrets") for pth in filtered)
+
+
 def test_timeline_bad_src_emits_error_event(
     client: TestClient, tmp_path: Path, allow_local_repos
 ) -> None:

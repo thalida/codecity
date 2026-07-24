@@ -8,6 +8,12 @@ test('timelineUrlFor builds the endpoint URL with src', () => {
   expect(u).toContain('src=%2Frepo');
 });
 
+test('timelineUrlFor emits one repeated exclude param per path', () => {
+  const u = timelineUrlFor('/repo', undefined, ['a.txt', 'secrets']);
+  expect(u).toContain('exclude=a.txt');
+  expect(u).toContain('exclude=secrets');
+});
+
 // Minimal EventSource stub, mirrors tests/api/manifest.test.ts.
 class StubEventSource {
   url: string;

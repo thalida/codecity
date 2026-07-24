@@ -36,7 +36,7 @@ import { ROOT_PATH } from '@/constants/manifest';
 import { TIMELINE_MODE } from '@/state/stores/timeline';
 import { viewCommitInTimeline } from '@/hooks/useTimelineMode';
 import { findNodeByPath } from '@/utils/manifest';
-import { addExclude, ACTIVE_EXCLUDES } from '@/state/stores/excludes';
+import { addExclude } from '@/state/stores/excludes';
 import { FilePreviewPane } from '@/views/FilePreviewPane/FilePreviewPane';
 import type { FilePreviewPaneState } from '@/views/FilePreviewPane/FilePreviewPane';
 import { CommitPane } from '@/views/CommitPane/CommitPane';
@@ -107,11 +107,9 @@ export function RightSidebar() {
     const fresh = findNodeByPath(m, sel.file.path);
     // MANIFEST stays HEAD in Timeline (the union goes to cityState, not this
     // store), so a union file missing here is deleted at HEAD → /api/file 404s.
+    // Excludes never reach here: they're filtered out of the timeline union too,
+    // so an excluded file has no building to select.
     const atHead = fresh?.type === NodeKind.File;
-    // ...unless it's just EXCLUDED: excludes also drop a file from the HEAD
-    // manifest, but it's still on disk and fetchable — not deleted.
-    const p = sel.file.path;
-    const excluded = ACTIVE_EXCLUDES.value.some((ex) => p === ex || p.startsWith(`${ex}/`));
     return {
       file: atHead ? fresh : sel.file,
       rootLabel: SOURCE_INFO.value.label,
@@ -119,7 +117,7 @@ export function RightSidebar() {
       remoteUrl: (m as Manifest)?.repo?.remote_url ?? null,
       branch: SOURCE_INFO.value.branch,
       inTimeline: TIMELINE_MODE.value,
-      isDeleted: TIMELINE_MODE.value && !atHead && !excluded,
+      isDeleted: TIMELINE_MODE.value && !atHead,
     };
   });
   const commitState = useComputed<CommitPaneState>(() => {

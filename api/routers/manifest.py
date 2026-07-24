@@ -131,8 +131,10 @@ async def timeline(
     src: str = Query(...),
     branch: str | None = Query(None),
     no_cache: bool = Query(False),
+    exclude: list[str] = Query(default_factory=list),
 ) -> EventSourceResponse:
     use_cache = not no_cache
+    excludes = _norm_excludes(exclude)
     pending_label = label_from_source(src)
 
     is_remote = classify(src) is SourceKind.REMOTE
@@ -176,7 +178,7 @@ async def timeline(
                 head = resolve_ref(target, "HEAD")
                 holder["head"] = head
                 if use_cache and head is not None:
-                    cached = cache_load_timeline(target.resolve(), head)
+                    cached = cache_load_timeline(target.resolve(), head, excludes)
                     if cached is not None:
                         _put(_sse(TimelineEvent.COMPLETE, {"bundle": cached}))
                         return
@@ -186,7 +188,10 @@ async def timeline(
                 if is_remote:
                     hydrate_blobs(target, on_progress=_on_hydrate, cancel_event=cancel)
                 bundle = build_timeline_bundle(
-                    str(target), use_cache=use_cache, on_progress=_on_progress
+                    str(target),
+                    use_cache=use_cache,
+                    extra_exclude_paths=excludes,
+                    on_progress=_on_progress,
                 )
                 holder["bundle"] = bundle
                 _put(_sse(TimelineEvent.COMPLETE, {"bundle": bundle}))
@@ -232,7 +237,9 @@ async def timeline(
             and path is not None
             and head is not None
         ):
-            await asyncio.to_thread(cache_save_timeline, path.resolve(), head, bundle)
+            await asyncio.to_thread(
+                cache_save_timeline, path.resolve(), head, bundle, excludes
+            )
 
     return EventSourceResponse(gen())
 

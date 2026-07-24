@@ -473,17 +473,32 @@ def cache_save_ref_manifest(abs_root: Path, ref_sha: str, manifest: "Manifest") 
     _save_gz_manifest(_ref_manifest_cache_path(abs_root, ref_sha), manifest)
 
 
-def _timeline_cache_path(abs_root: Path, head_sha: str) -> Path:
+def _excludes_key(excludes: frozenset[str]) -> str:
+    """Short stable digest of an exclude set for the cache filename. Order-free
+    (sorted) so the same set always keys the same file."""
+    return hashlib.sha256("\n".join(sorted(excludes)).encode("utf-8")).hexdigest()[:12]
+
+
+def _timeline_cache_path(
+    abs_root: Path, head_sha: str, excludes: frozenset[str] = frozenset()
+) -> Path:
     # Same dir + `__*.json.gz` glob as the manifest caches, so the clear paths sweep it.
+    # Excludes reshape the filtered union, so they're part of the key; an empty set
+    # keeps the bare head-sha name (existing caches + clear glob stay valid).
+    suffix = f"-{_excludes_key(excludes)}" if excludes else ""
     return (
-        CACHE_ROOT / "manifests" / f"{repo_key(abs_root)}__timeline-{head_sha}.json.gz"
+        CACHE_ROOT
+        / "manifests"
+        / f"{repo_key(abs_root)}__timeline-{head_sha}{suffix}.json.gz"
     )
 
 
-def cache_load_timeline(abs_root: Path, head_sha: str) -> "TimelineBundle | None":
-    """Cached bundle for (root, head_sha); immutable per HEAD, cleared only by cache_clear_*."""
+def cache_load_timeline(
+    abs_root: Path, head_sha: str, excludes: frozenset[str] = frozenset()
+) -> "TimelineBundle | None":
+    """Cached bundle for (root, head_sha, excludes); immutable per key, cleared only by cache_clear_*."""
     bundle = _load_gz_envelope(
-        _timeline_cache_path(abs_root, head_sha),
+        _timeline_cache_path(abs_root, head_sha, excludes),
         envelope_key="bundle",
         version=_TIMELINE_CACHE_VERSION,
     )
@@ -491,11 +506,14 @@ def cache_load_timeline(abs_root: Path, head_sha: str) -> "TimelineBundle | None
 
 
 def cache_save_timeline(
-    abs_root: Path, head_sha: str, bundle: "TimelineBundle"
+    abs_root: Path,
+    head_sha: str,
+    bundle: "TimelineBundle",
+    excludes: frozenset[str] = frozenset(),
 ) -> None:
-    """Atomically write the timeline bundle cache for (root, head_sha)."""
+    """Atomically write the timeline bundle cache for (root, head_sha, excludes)."""
     _save_gz_envelope(
-        _timeline_cache_path(abs_root, head_sha),
+        _timeline_cache_path(abs_root, head_sha, excludes),
         envelope_key="bundle",
         version=_TIMELINE_CACHE_VERSION,
         payload=cast("dict[str, object]", bundle),

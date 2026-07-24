@@ -196,6 +196,43 @@ def test_bundle_replay_matches_reconstruct(tmp_path: Path) -> None:
         assert replay == expect, f"mismatch at commit {i}"
 
 
+def test_bundle_excludes_drop_paths_everywhere(tmp_path: Path) -> None:
+    """extra_exclude_paths (the user's city excludes) removes a path from the
+    union, every delta, and the blob tables — the same skip filter as
+    .codecityignore — so an excluded file is absent everywhere in the bundle.
+    Excludes filter changes within each commit, never the commit list itself."""
+    from api.services.timeline import build_timeline_bundle
+
+    _init(tmp_path)
+    (tmp_path / "keep.txt").write_text("1\n2\n")
+    (tmp_path / "secrets").mkdir()
+    (tmp_path / "secrets" / "token.txt").write_text("hunter2\n")
+    _commit(tmp_path, "c1")
+    (tmp_path / "secrets" / "token.txt").write_text("hunter2\nrotated\n")
+    _commit(tmp_path, "c2")
+
+    bundle = build_timeline_bundle(
+        str(tmp_path), use_cache=False, extra_exclude_paths=frozenset({"secrets"})
+    )
+
+    union_paths: set[str] = set()
+
+    def walk(n: dict) -> None:
+        if n["type"] == "file":
+            union_paths.add(n["path"])
+        else:
+            for ch in n["children"]:
+                walk(ch)
+
+    walk(bundle["unionManifest"]["tree"])
+    assert "keep.txt" in union_paths
+    assert not any(p.startswith("secrets") for p in union_paths)
+
+    delta_paths = {c["path"] for d in bundle["deltas"] for c in d["changes"]}
+    assert not any(p.startswith("secrets") for p in delta_paths)
+    assert len(bundle["deltas"]) == len(bundle["commits"]) == 2
+
+
 def test_bundle_caps_to_recent_window(tmp_path: Path, monkeypatch) -> None:
     from api.services import timeline
 

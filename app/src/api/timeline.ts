@@ -8,9 +8,15 @@ import { apiUrl } from '@/api/apiUrl';
 import { URL_PARAMS } from '@/constants/urlParams';
 import type { TimelineBundle, TimelineProgress } from '@/types';
 
-/** URL for the timeline bundle stream of an explicit source. */
-export function timelineUrlFor(src: string, branch?: string): string {
-  return apiUrl('timeline', { [URL_PARAMS.SRC]: src, [URL_PARAMS.BRANCH]: branch });
+/** URL for the timeline bundle stream of an explicit source. Excludes ride the
+ *  same repeated `exclude` param as the live manifest so the union city drops
+ *  the user's excluded paths too. */
+export function timelineUrlFor(src: string, branch?: string, exclude?: string[]): string {
+  return apiUrl('timeline', {
+    [URL_PARAMS.SRC]: src,
+    [URL_PARAMS.BRANCH]: branch,
+    [URL_PARAMS.EXCLUDE]: exclude,
+  });
 }
 
 /**
@@ -26,11 +32,15 @@ export function fetchTimelineBundle(
   src: string,
   branch?: string,
   onProgress?: (p: TimelineProgress) => void,
-  opts: { EventSourceImpl?: typeof EventSource; signal?: AbortSignal } = {}
+  opts: {
+    EventSourceImpl?: typeof EventSource;
+    signal?: AbortSignal;
+    exclude?: string[];
+  } = {}
 ): Promise<TimelineBundle> {
   const EventSourceImpl = opts.EventSourceImpl ?? EventSource;
   return new Promise((resolve, reject) => {
-    const es = new EventSourceImpl(timelineUrlFor(src, branch));
+    const es = new EventSourceImpl(timelineUrlFor(src, branch, opts.exclude));
     let done = false;
 
     const finish = (fn: () => void): void => {
