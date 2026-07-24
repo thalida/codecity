@@ -101,10 +101,16 @@ def test_blob_stats_batch_media_probe_gated_by_extension(tmp_path: Path) -> None
     source files, which would otherwise pay hachoir's full format battery
     (and its stderr `[warn] Skip parser ...` spam) for nothing."""
     _init(tmp_path)
-    png_bytes = (
-        Path(__file__).parent / "fixtures" / "sample-repo" / "logo.png"
-    ).read_bytes()
-    (tmp_path / "logo.png").write_bytes(png_bytes)
+    # Generate a real PNG inline (PIL is the probe's own decoder) rather than read
+    # a committed fixture — the fixtures/sample-repo dir is gitignored, so a file
+    # there is absent on a fresh CI checkout.
+    import io
+
+    from PIL import Image
+
+    buf = io.BytesIO()
+    Image.new("RGB", (2, 3)).save(buf, format="PNG")
+    (tmp_path / "logo.png").write_bytes(buf.getvalue())
     (tmp_path / "a.txt").write_text("one\ntwo\n")
     sha = _commit(tmp_path, "c1")
 
