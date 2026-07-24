@@ -164,6 +164,22 @@ describe('RightSidebar', () => {
     expect(aside.classList.contains('open')).toBe(true);
   });
 
+  // #128: excludes now re-fetch the union in Timeline, so the exclude button is
+  // offered there too (previously hidden as a would-be no-op).
+  it('Timeline mode: the exclude button is available for a selected file', async () => {
+    TIMELINE_MODE.value = true;
+    const handle = SCENE_HANDLE.peek() as unknown as ReturnType<typeof makeSceneHandle>;
+    const aside = container.querySelector<HTMLElement>('aside#right-sidebar')!;
+    handle.picker.setSelection({
+      kind: NodeKind.File,
+      file: FILE_NODE,
+      mesh: {} as never,
+      data: {} as never,
+    });
+    await flush();
+    expect(aside.querySelector('button[aria-label*="Exclude"]')).not.toBeNull();
+  });
+
   it('renders the resize handle on the inside (left) edge', () => {
     const handle = container.querySelector('.resize-handle--left');
     expect(handle).not.toBeNull();

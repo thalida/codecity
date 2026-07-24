@@ -12,7 +12,7 @@ import { fetchTimelineBundle } from '@/api/timeline';
 import { buildPathTimelines } from '@/city/timeline/replay';
 import { CURRENT_SOURCE, SOURCE_INFO, PENDING_SOURCE_LABEL } from '@/state/stores/source';
 import { SCENE_HANDLE } from '@/state/stores/scene';
-import { markError } from '@/state/stores/manifest';
+import { markError, markRebuilding } from '@/state/stores/manifest';
 import {
   showLoadingOverlay,
   setLoadingStep,
@@ -48,46 +48,61 @@ function timelineLoadingTail(p: TimelineProgress): string | null {
   return 'resolving files';
 }
 
-export async function enterTimelineMode(): Promise<void> {
+// Fetch the union bundle for the current source + excludes, pack the union city,
+// and install the scrub controller. Two modes:
+//   - fresh enter (from Live): full overlay + cancel-back-to-Live, scrub at present.
+//   - inPlace (already in Timeline — an exclude edit changed the union DATA, so the
+//     warm bundle is stale and must be refetched): footer "rebuilding" instead of the
+//     overlay, hold the scrub position, and stay in Timeline on error (no Live scene
+//     to fall back to). Settings changes don't come here — they re-pack the warm
+//     bundle via reapplyTimelineScene with no refetch.
+export async function loadTimelineScene({ inPlace = false } = {}): Promise<void> {
   const cur = CURRENT_SOURCE.peek();
   if (!cur) return;
   const handle = SCENE_HANDLE.peek();
   if (!handle) return;
 
-  // Full overlay, not the footer "rebuilding…" — this is a mode switch, not a
-  // background refresh, so it deserves the same treatment as a cold load, repo
-  // name header included (PENDING_SOURCE_LABEL, the same signal the live load sets).
-  PENDING_SOURCE_LABEL.value = SOURCE_INFO.peek().label || null;
-
-  // Cancel handler for the overlay: abort the history fetch (the long part) and
-  // stay on the live city — nothing is touched until the pack below (committed).
   const abort = new AbortController();
   let cancelled = false;
   let committed = false;
-  showLoadingOverlay(
-    { kind: srcKind(cur.src), branch: cur.branch, steps: TIMELINE_LOADING_STEPS },
-    () => {
-      if (committed) return;
-      cancelled = true;
-      abort.abort();
-      hideLoadingOverlay();
-      PENDING_SOURCE_LABEL.value = null;
-    }
-  );
-  setLoadingStep(LoadingStep.TimelineLoading);
+
+  if (inPlace) {
+    markRebuilding(); // footer status; the trees decoration pass clears it after the pack
+  } else {
+    // Full overlay, repo-name header included (PENDING_SOURCE_LABEL, the same signal
+    // the live load sets), with a cancel that aborts the history fetch and stays on
+    // the live city — nothing is touched until the pack below (committed).
+    PENDING_SOURCE_LABEL.value = SOURCE_INFO.peek().label || null;
+    showLoadingOverlay(
+      { kind: srcKind(cur.src), branch: cur.branch, steps: TIMELINE_LOADING_STEPS },
+      () => {
+        if (committed) return;
+        cancelled = true;
+        abort.abort();
+        hideLoadingOverlay();
+        PENDING_SOURCE_LABEL.value = null;
+      }
+    );
+    setLoadingStep(LoadingStep.TimelineLoading);
+  }
+
   try {
     const bundle = await fetchTimelineBundle(
       cur.src,
       cur.branch,
-      (p) => setLoadingStepTail(LoadingStep.TimelineLoading, timelineLoadingTail(p)),
+      inPlace
+        ? undefined
+        : (p) => setLoadingStepTail(LoadingStep.TimelineLoading, timelineLoadingTail(p)),
       { signal: abort.signal, exclude: activeExcludePathsFor(cur.src) }
     );
     if (cancelled) return; // user backed out during the fetch — live view stands
     committed = true; // past here the scene is repacked; no longer cancellable
     TIMELINE_BUNDLE.value = bundle;
     const timelines = buildPathTimelines(bundle);
-    setLoadingStepTail(LoadingStep.TimelineLoading, null);
-    setLoadingStep(LoadingStep.Building);
+    if (!inPlace) {
+      setLoadingStepTail(LoadingStep.TimelineLoading, null);
+      setLoadingStep(LoadingStep.Building);
+    }
     // unionManifest is the generated Manifest; the packer reads it structurally.
     await handle.applyManifest(bundle.unionManifest as unknown as Manifest);
     // Flip after the pack: applyManifest rebuilds the street + footprint meshes opaque.
@@ -96,29 +111,39 @@ export async function enterTimelineMode(): Promise<void> {
     handle.timeline.installScrubController(timelines);
     batch(() => {
       TIMELINE_MODE.value = true;
-      SCRUB_POS.value = Math.max(0, bundle.commits.length - 1); // start at present
+      if (inPlace) {
+        // Excludes filter files, not commits, but clamp in case the list shrank.
+        const maxPos = Math.max(0, bundle.commits.length - 1);
+        if (SCRUB_POS.peek() > maxPos) SCRUB_POS.value = maxPos;
+      } else {
+        SCRUB_POS.value = Math.max(0, bundle.commits.length - 1); // start at present
+      }
     });
-    // Hold the overlay through the union city's first painted frame, then reveal.
-    requestAnimationFrame(() => {
-      hideLoadingOverlay();
-      PENDING_SOURCE_LABEL.value = null;
-    });
+    if (!inPlace) {
+      // Hold the overlay through the union city's first painted frame, then reveal.
+      requestAnimationFrame(() => {
+        hideLoadingOverlay();
+        PENDING_SOURCE_LABEL.value = null;
+      });
+    }
   } catch (err) {
     if (cancelled) return; // user cancel already aborted the fetch + restored live
-    // Leave nothing half-set: revert to live and surface via the footer.
-    // Explicit handle calls too: a failure here may predate the controller install, so the effect wouldn't fire.
-    // Cleanup is best-effort — swallow its own throw so it can't bury `err` or strand the overlay (a silent stuck load).
-    try {
-      resetTimelineMode();
-      handle.timeline.uninstallScrubController();
-      handle.timeline.setStreetsTransparent(false);
-      handle.timeline.setFootprintsTransparent(false);
-    } catch {
-      /* teardown failed; surfacing err + hiding the overlay below is what matters */
+    // Fresh enter reverts to live and tears the half-set scene down (a failure may
+    // predate the controller install, so the effect wouldn't fire); best-effort so
+    // its own throw can't bury `err`. An in-place refetch stays in Timeline.
+    if (!inPlace) {
+      try {
+        resetTimelineMode();
+        handle.timeline.uninstallScrubController();
+        handle.timeline.setStreetsTransparent(false);
+        handle.timeline.setFootprintsTransparent(false);
+      } catch {
+        /* teardown failed; surfacing err + hiding the overlay below is what matters */
+      }
+      hideLoadingOverlay();
+      PENDING_SOURCE_LABEL.value = null;
     }
     markError(err);
-    hideLoadingOverlay();
-    PENDING_SOURCE_LABEL.value = null;
   }
 }
 
@@ -128,7 +153,7 @@ export async function enterTimelineMode(): Promise<void> {
 // (e.g. a commit the union cap dropped) or the mode failed to engage.
 export async function viewCommitInTimeline(sha: string): Promise<void> {
   if (!TIMELINE_MODE.peek()) {
-    await enterTimelineMode();
+    await loadTimelineScene();
     if (!TIMELINE_MODE.peek()) return; // enter failed; the error is surfaced already
   }
   const bundle = TIMELINE_BUNDLE.peek();
@@ -167,7 +192,7 @@ export function exitTimelineMode(): void {
   // (shown without a cancel) leaves this in place.
   setLoadingCancel(() => {
     cancelLoad();
-    void enterTimelineMode().then(() => {
+    void loadTimelineScene().then(() => {
       if (TIMELINE_MODE.peek()) SCRUB_POS.value = scrubPos;
     });
   });

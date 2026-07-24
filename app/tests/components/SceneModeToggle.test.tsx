@@ -8,10 +8,10 @@ import { TIMELINE_MODE } from '@/state/stores/timeline';
 import { flush } from '../_helpers/preact';
 
 vi.mock('@/hooks/useTimelineMode', () => ({
-  enterTimelineMode: vi.fn().mockResolvedValue(undefined),
+  loadTimelineScene: vi.fn().mockResolvedValue(undefined),
   exitTimelineMode: vi.fn(),
 }));
-import { enterTimelineMode, exitTimelineMode } from '@/hooks/useTimelineMode';
+import { loadTimelineScene, exitTimelineMode } from '@/hooks/useTimelineMode';
 
 const TEST_MANIFEST = {
   tree: { name: 'project', type: 'directory', path: '.', children: [] },
@@ -69,14 +69,14 @@ describe('SceneModeToggle', () => {
     expect(live.classList.contains('is-active')).toBe(false);
   });
 
-  it('clicking Timeline while live calls enterTimelineMode, not exit', async () => {
+  it('clicking Timeline while live calls loadTimelineScene, not exit', async () => {
     CURRENT_SOURCE.value = { src: '/repo' };
     setManifest(TEST_MANIFEST as never);
     render(<SceneModeToggle />, container);
     await flush();
 
     btns(container)[1].click(); // Timeline
-    expect(enterTimelineMode).toHaveBeenCalledTimes(1);
+    expect(loadTimelineScene).toHaveBeenCalledTimes(1);
     expect(exitTimelineMode).not.toHaveBeenCalled();
   });
 
@@ -89,6 +89,6 @@ describe('SceneModeToggle', () => {
 
     btns(container)[0].click(); // Live
     expect(exitTimelineMode).toHaveBeenCalledTimes(1);
-    expect(enterTimelineMode).not.toHaveBeenCalled();
+    expect(loadTimelineScene).not.toHaveBeenCalled();
   });
 });

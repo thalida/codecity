@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
-import { enterTimelineMode, exitTimelineMode, teardownTimelineMode } from '@/hooks/useTimelineMode';
+import { loadTimelineScene, exitTimelineMode, teardownTimelineMode } from '@/hooks/useTimelineMode';
+import { EXCLUDES, addExclude } from '@/state/stores/excludes';
 import { TIMELINE_MODE, SCRUB_POS, TIMELINE_BUNDLE } from '@/state/stores/timeline';
 import { CURRENT_SOURCE } from '@/state/stores/source';
 import { SCENE_HANDLE } from '@/state/stores/scene';
@@ -67,7 +68,7 @@ function fakeHandle() {
   };
 }
 
-describe('enterTimelineMode', () => {
+describe('loadTimelineScene', () => {
   beforeEach(() => {
     CURRENT_SOURCE.value = { src: 's', branch: undefined };
     TIMELINE_MODE.value = false;
@@ -87,7 +88,7 @@ describe('enterTimelineMode', () => {
     const f = fakeHandle();
     SCENE_HANDLE.value = f.handle as never;
 
-    await enterTimelineMode();
+    await loadTimelineScene();
 
     expect(fetchTimelineBundle).toHaveBeenCalledWith(
       's',
@@ -120,7 +121,7 @@ describe('enterTimelineMode', () => {
     const f = fakeHandle();
     SCENE_HANDLE.value = f.handle as never;
 
-    const entering = enterTimelineMode();
+    const entering = loadTimelineScene();
     await flush();
     expect(LOADING_OVERLAY.value.visible).toBe(true);
     expect(LOADING_OVERLAY.value.activeStep).toBe(LoadingStep.TimelineLoading);
@@ -148,7 +149,7 @@ describe('enterTimelineMode', () => {
     const f = fakeHandle();
     SCENE_HANDLE.value = f.handle as never;
 
-    const entering = enterTimelineMode();
+    const entering = loadTimelineScene();
     await flush();
 
     onProgress({ stage: 'history', commits: 42 });
@@ -167,7 +168,7 @@ describe('enterTimelineMode', () => {
     CURRENT_SOURCE.value = null;
     const f = fakeHandle();
     SCENE_HANDLE.value = f.handle as never;
-    await enterTimelineMode();
+    await loadTimelineScene();
     expect(fetchTimelineBundle).not.toHaveBeenCalled();
     expect(TIMELINE_MODE.value).toBe(false);
     expect(LOADING_OVERLAY.value.visible).toBe(false);
@@ -179,7 +180,7 @@ describe('enterTimelineMode', () => {
     );
     const f = fakeHandle();
     SCENE_HANDLE.value = f.handle as never;
-    await enterTimelineMode();
+    await loadTimelineScene();
     expect(TIMELINE_MODE.value).toBe(false);
     expect(f.installScrubController).not.toHaveBeenCalled();
     expect(LOADING_OVERLAY.value.visible).toBe(false);
@@ -198,7 +199,7 @@ describe('enterTimelineMode', () => {
     });
     SCENE_HANDLE.value = f.handle as never;
 
-    await enterTimelineMode();
+    await loadTimelineScene();
 
     expect(TIMELINE_MODE.value).toBe(false);
     expect(LOADING_OVERLAY.value.visible).toBe(false);
@@ -294,6 +295,89 @@ describe('live poll suspends in Timeline mode', () => {
     await vi.advanceTimersByTimeAsync(1000);
     expect(fetchSpy).toHaveBeenCalled();
 
+    dispose();
+  });
+});
+
+describe('loadTimelineScene inPlace refetch', () => {
+  beforeEach(() => {
+    CURRENT_SOURCE.value = { src: 's', branch: undefined };
+    TIMELINE_MODE.value = true;
+    SCRUB_POS.value = 2;
+    TIMELINE_BUNDLE.value = BUNDLE;
+    REBUILD_STATUS.value = RebuildStatus.Idle; // inPlace uses the footer (markRebuilding)
+    (fetchTimelineBundle as unknown as ReturnType<typeof vi.fn>).mockReset();
+  });
+  afterEach(() => {
+    TIMELINE_MODE.value = false;
+    SCENE_HANDLE.value = null;
+  });
+
+  it('refetches the bundle with the current excludes, re-packs, and holds SCRUB_POS', async () => {
+    const NEXT = {
+      ...BUNDLE,
+      unionManifest: { tree: { name: 'r2' }, stats: {} },
+    } as unknown as TimelineBundle;
+    (fetchTimelineBundle as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(NEXT);
+    const f = fakeHandle();
+    SCENE_HANDLE.value = f.handle as never;
+
+    await loadTimelineScene({ inPlace: true });
+
+    expect(fetchTimelineBundle).toHaveBeenCalledWith(
+      's',
+      undefined,
+      undefined,
+      expect.objectContaining({ exclude: expect.any(Array) })
+    );
+    expect(TIMELINE_BUNDLE.value).toBe(NEXT);
+    expect(f.applyManifest).toHaveBeenCalledWith(NEXT.unionManifest);
+    expect(f.installScrubController).toHaveBeenCalledTimes(1);
+    expect(SCRUB_POS.value).toBe(2); // held at present, not reset
+  });
+
+  it('no-ops without a scene handle', async () => {
+    SCENE_HANDLE.value = null;
+    await loadTimelineScene({ inPlace: true });
+    expect(fetchTimelineBundle).not.toHaveBeenCalled();
+  });
+});
+
+describe('exclude edit in Timeline routes to a bundle refetch (regression: #128)', () => {
+  let originalEventSource: typeof EventSource;
+  beforeEach(() => {
+    originalEventSource = globalThis.EventSource;
+    StubEventSource.instances = [];
+    (globalThis as unknown as { EventSource: unknown }).EventSource = StubEventSource;
+    CURRENT_SOURCE.value = { src: 's', branch: undefined };
+    MANIFEST.value = { content_signature: 'sig0', tree: {} } as never;
+    SCAN_PROGRESS.value = null;
+    TIMELINE_MODE.value = true;
+    SCRUB_POS.value = 2;
+    TIMELINE_BUNDLE.value = BUNDLE;
+    EXCLUDES.value = {};
+    (fetchTimelineBundle as unknown as ReturnType<typeof vi.fn>).mockReset();
+    (fetchTimelineBundle as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(BUNDLE);
+  });
+  afterEach(() => {
+    (globalThis as unknown as { EventSource: unknown }).EventSource = originalEventSource;
+    TIMELINE_MODE.value = false;
+    SCENE_HANDLE.value = null;
+    EXCLUDES.value = {};
+  });
+
+  it('refetches the union bundle with the new exclude and opens no live stream', async () => {
+    const f = fakeHandle();
+    SCENE_HANDLE.value = f.handle as never;
+    const dispose = setupLiveUpdates();
+
+    addExclude('vendor');
+    await flush();
+
+    expect(fetchTimelineBundle).toHaveBeenCalledTimes(1);
+    const opts = (fetchTimelineBundle as unknown as ReturnType<typeof vi.fn>).mock.calls[0][3];
+    expect(opts).toEqual(expect.objectContaining({ exclude: ['vendor'] }));
+    expect(StubEventSource.instances.length).toBe(0); // Timeline must not fall back to a live re-scan
     dispose();
   });
 });
