@@ -234,7 +234,7 @@ release VERSION:
 clean:
     @SLUG=$( ( git symbolic-ref --short -q HEAD 2>/dev/null || basename $(pwd) ) | tr '[:upper:]' '[:lower:]' | tr -c '[:alnum:]' '-' | sed 's/-*$//') ; \
      docker compose -p codecity-$SLUG -f docker-compose.dev.yml down --volumes --rmi local 2>/dev/null || true ; \
-     docker compose -f docker-compose.test.yml down --rmi local 2>/dev/null || true
+     docker compose -f docker-compose.test.yml down --volumes --rmi local 2>/dev/null || true
     rm -f .local/worktree-ports.json
 
 # Wipe this worktree's cache volume (clones + manifest/timeline/blob caches); re-clones + re-scans on next `just dev`.
