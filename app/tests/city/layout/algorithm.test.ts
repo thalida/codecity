@@ -1,6 +1,11 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { layoutCity, sortForRendering, __test } from '@/city/layout/algorithm';
-import { getStreetWidth, getBuildingDimensions, computeFileStats } from '@/city/layout/dimensions';
+import {
+  getStreetWidth,
+  getBuildingDimensions,
+  computeFileStats,
+  EMPTY_SLAB_FLOORS,
+} from '@/city/layout/dimensions';
 import { BUILDING_DIMENSIONS } from '@/state/stores/settings/buildings';
 import { BuildingOrient, NodeKind, StreetAxis } from '@/types';
 import type { BuildingDimensionsConfig } from '@/state/stores/settings/buildings';
@@ -146,11 +151,13 @@ describe('getBuildingDimensions', () => {
     expect(dim.d).toBe(dim.w);
   });
 
-  it('zero lines treated as 1 (no -Infinity)', () => {
+  it('zero lines/bytes is the empty slab, with finite dimensions', () => {
     const dim = getBuildingDimensions({ lines: 0, size: 0 });
-    expect(dim.floors).toBe(1);
-    expect(dim.h).toBe(10);
-    expect(dim.w).toBe(6);
+    expect(dim.floors).toBe(0);
+    expect(dim.h).toBe(EMPTY_SLAB_FLOORS * (TEST_BUILDING_DIMS.FLOOR_HEIGHT as number));
+    expect(dim.w).toBe(TEST_BUILDING_DIMS.MIN_WIDTH);
+    expect(Number.isFinite(dim.h)).toBe(true);
+    expect(Number.isFinite(dim.w)).toBe(true);
   });
 
   it('a 0-byte file in the project byte range does not produce NaN', () => {
