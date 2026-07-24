@@ -10,8 +10,10 @@ import {
   writeBuildingToSlot,
 } from '@/city/components/buildings/cellMesh';
 import { setIconAtlas } from '@/city/components/buildings/material';
-import { BuildingOrient } from '@/types/index';
+import { BuildingKind } from '@/city/components/buildings/buildingKind';
+import { BuildingOrient, NodeKind } from '@/types/index';
 import type { IconAtlas } from '@/city/components/buildings/atlas';
+import type { FileNode } from '@/types';
 import { building } from '../../../_helpers/buildingFixture';
 
 // ---------------------------------------------------------------------------
@@ -215,6 +217,30 @@ describe('cellMesh factory', () => {
     expect(m9.elements[0]).toBe(0);
     expect(m9.elements[5]).toBe(0);
     expect(m9.elements[10]).toBe(0);
+  });
+
+  it('writeBuildingToSlot tags a 0-byte file as BuildingKind.Empty', () => {
+    const grid = new SpatialGrid({ minX: 0, maxX: 48, minZ: 0, maxZ: 48 });
+    const cell = createEmptyCellTile(grid, 0, 64);
+    attachBuildingMeshToCell(cell);
+
+    const emptyFile: FileNode = {
+      name: '__init__.py',
+      type: NodeKind.File,
+      path: 'pkg/__init__.py',
+      fullPath: '/abs/pkg/__init__.py',
+      extension: '.py',
+      size: 0,
+      lines: 0,
+      binary: false,
+      dirty: false,
+      created: '',
+      modified: '',
+    };
+    writeBuildingToSlot(cell, building({ slotId: 0, h: 0.8, floors: 0, file: emptyFile }));
+
+    const iKind = cell.detailMesh.geometry.getAttribute('iKind');
+    expect(iKind.getX(0)).toBe(BuildingKind.Empty);
   });
 });
 

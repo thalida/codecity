@@ -41,7 +41,7 @@ attribute vec4 iIconUV;
 // keyed off the modified-date axis. Used in the fragment shader's
 // renderWallFace via vModifiedAge.
 attribute float iModifiedAge;
-// Render-mode enum (BuildingKind): 0 Normal, 1 Ruin, 2 Future, 3 Data.
+// Render-mode enum (BuildingKind): 0 Normal, 1 Ruin, 2 Future, 3 Data, 4 Empty.
 attribute float iKind;
 
 flat varying int vFace;         // 0..5
