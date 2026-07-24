@@ -164,9 +164,6 @@ export function RightSidebar() {
 
   const kind = activeKind.value;
   const open = isOpen.value;
-  // Exclude re-scans the live HEAD manifest, which Timeline's fixed union scene
-  // can't reflect — so hide the button there rather than offer a no-op.
-  const canExclude = !TIMELINE_MODE.value;
 
   return (
     <Sidebar
@@ -181,7 +178,7 @@ export function RightSidebar() {
           state={fileState}
           onClose={onClose}
           onFocus={onFileFocus}
-          onExclude={canExclude ? (f) => onExcludeNode(f.path) : undefined}
+          onExclude={(f) => onExcludeNode(f.path)}
         />
       )}
       {kind === SidebarPaneKind.Commit && (
@@ -197,7 +194,7 @@ export function RightSidebar() {
           state={streetState}
           onClose={onClose}
           onFocus={onStreetFocus}
-          onExclude={canExclude ? (d) => onExcludeNode(d.path) : undefined}
+          onExclude={(d) => onExcludeNode(d.path)}
         />
       )}
     </Sidebar>
