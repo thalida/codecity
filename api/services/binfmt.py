@@ -1,19 +1,8 @@
-"""Binary-file format detection + byte-pattern fingerprinting.
+"""Binary-file format detection + byte-pattern fingerprinting (issue #116).
 
-Two concerns for the "data building" treatment of binary files (issue #116):
-
-  - detect_binary_type(head) — a friendly type name from magic bytes
-    ("SQLite database", "WebAssembly module", "ELF shared object"), or None
-    when the signature isn't recognized. Covers non-media binary formats only:
-    images/video are classified as media by extension (media.py) and never
-    reach this path.
-  - fingerprint_png(data) — a small fixed-size grayscale PNG "digram" of the
-    file's byte pattern. Distinct file *types* land visually distinct textures.
-    Computed server-side so raw binaries never ship to the client (a 5 MB .wasm
-    fingerprints from its first 64 KiB, not its full bytes).
-
-Both are pure functions of the input bytes, so their results are safe to cache
-content-addressed (per blob sha) alongside lines/binary.
+Both are pure functions of the input bytes (safe to cache content-addressed per
+blob sha). Fingerprints are computed server-side so raw binaries never ship — a
+5 MB .wasm fingerprints from its first 64 KiB.
 """
 
 from __future__ import annotations
@@ -25,11 +14,8 @@ from PIL import Image
 
 # ── Magic-byte type detection ───────────────────────────────────────────
 
-# Longest-prefix-wins isn't needed: every signature below is unambiguous at its
-# offset, so a simple first-match walk suffices. Ordered roughly by how specific
-# / common the format is. Image and video magics are intentionally absent —
-# those files are media (classified by extension in media.py) and render as
-# billboards, not data buildings.
+# Image/video magics are absent on purpose: those are media (classified by
+# extension in media.py), not data buildings, so they never reach this path.
 
 
 def detect_binary_type(head: bytes) -> str | None:
@@ -40,8 +26,7 @@ def detect_binary_type(head: bytes) -> str | None:
     if head.startswith(b"\x00asm"):
         return "WebAssembly module"
     if head.startswith(b"\x7fELF"):
-        # e_type is a little-endian half at offset 16: 2 = executable,
-        # 3 = shared object (also PIE executables). Low byte is enough.
+        # e_type (LE half at offset 16): 2 = executable, 3 = shared object / PIE.
         etype = head[16] if len(head) > 16 else 0
         if etype == 3:
             return "ELF shared object"
@@ -86,39 +71,41 @@ def detect_binary_type(head: bytes) -> str | None:
 
 # ── Byte-pattern fingerprint ────────────────────────────────────────────
 
-# Read at most this many bytes to fingerprint — a representative digram, never
-# the whole file. A big .wasm/.so reads its head, not its megabytes.
+# Head bytes sampled — never the whole file (a big .wasm/.so reads its head).
 FINGERPRINT_SAMPLE_BYTES = 1 << 16  # 64 KiB
-# Digram grid is intrinsically 256x256 (one cell per byte-value pair); we emit
-# it at that resolution and let the facade texture pipeline downscale.
-_DIGRAM_EDGE = 256
+# Emitted at the frontend PANEL_TEX_SIZE so the texture pipeline never downscales
+# it (which averages the sparse marks into near-invisibility). Byte pairs bin to
+# EDGE cells per axis (value >> 1), which also makes each cell denser.
+_DIGRAM_EDGE = 128
+# Any byte-pair that occurs at all is at least this opaque, so a sparse pattern
+# still reads clearly over the wall rather than fading to nothing.
+_ALPHA_FLOOR = 160
 
 
 def fingerprint_png(data: bytes) -> bytes:
-    """Render a byte-pair 'digram' fingerprint of `data` as a 256x256 grayscale
-    PNG. Each consecutive pair (b[i], b[i+1]) is a coordinate in the grid; cell
-    intensity is the log-scaled hit frequency. Text clusters along the ASCII
-    diagonal, compressed data fills uniformly, executables show grid structure,
-    so distinct file types read as distinct textures. Neutral grayscale — the
-    shader and preview card tint it to theme."""
+    """Byte-pair 'digram' fingerprint of `data` as a white-on-transparent PNG
+    (mode LA): each consecutive pair (b[i], b[i+1]) is a grid cell whose ALPHA is
+    its log-scaled frequency (floored so present pairs read), transparent where a
+    pair never occurs. Distinct file types land distinct patterns (text on the
+    ASCII diagonal, compressed uniform, executables gridded)."""
     sample = data[:FINGERPRINT_SAMPLE_BYTES]
     counts = [0] * (_DIGRAM_EDGE * _DIGRAM_EDGE)
     prev = -1
     for b in sample:
         if prev >= 0:
-            counts[prev * _DIGRAM_EDGE + b] += 1
+            counts[(prev >> 1) * _DIGRAM_EDGE + (b >> 1)] += 1
         prev = b
 
     peak = max(counts) if counts else 0
-    if peak == 0:
-        # 0 or 1 byte: no digrams. A flat black tile is an honest "no pattern".
-        img = Image.new("L", (_DIGRAM_EDGE, _DIGRAM_EDGE), 0)
-    else:
+    pixels = bytearray(len(counts) * 2)
+    if peak > 0:
         log_peak = math.log1p(peak)
-        pixels = bytes(
-            0 if c == 0 else int(255 * math.log1p(c) / log_peak) for c in counts
-        )
-        img = Image.frombytes("L", (_DIGRAM_EDGE, _DIGRAM_EDGE), pixels)
+        span = 255 - _ALPHA_FLOOR
+        for i, c in enumerate(counts):
+            if c:
+                pixels[2 * i] = 255  # white mark
+                pixels[2 * i + 1] = _ALPHA_FLOOR + int(span * math.log1p(c) / log_peak)
+    img = Image.frombytes("LA", (_DIGRAM_EDGE, _DIGRAM_EDGE), bytes(pixels))
 
     buf = io.BytesIO()
     img.save(buf, format="PNG")

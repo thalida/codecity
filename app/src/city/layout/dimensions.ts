@@ -85,10 +85,8 @@ export function computeFileStats(stats: RepoStats | null | undefined): {
 // out below MAX_* (short/narrow city) instead of always stretching to the cap,
 // while the per-repo relative order is retained. Without a stats object, the
 // corresponding dimension falls back to MIN_*.
-// A binary "data" building is byte-sized on BOTH axes: its height tracks the
-// byte-driven footprint width (already log-normalized) rather than lines, which
-// a binary doesn't have. < 1 keeps it a squat, windowless warehouse/data-center
-// block instead of a code tower.
+// Binary "data" building height as a fraction of its byte-driven width — a squat
+// warehouse block. < 1 so it never reads as a lines-driven code tower.
 const BINARY_HEIGHT_RATIO = 0.7;
 
 export function getBuildingDimensions(
@@ -175,9 +173,8 @@ export function getBuildingDimensions(
     outFloors = Math.max(dims.MIN_FLOORS, Math.round(rawHeight / dims.FLOOR_HEIGHT));
     h = outFloors * dims.FLOOR_HEIGHT;
   } else if (file.binary) {
-    // Binary "data" building: height tracks the byte-driven footprint (both
-    // axes from bytes) so a 5 MB .wasm is a big block and a tiny .db a small
-    // one — never the lines-driven MIN_FLOORS stub it used to collapse to.
+    // Height from bytes (via width), not lines — a 5 MB .wasm is a big block, a
+    // tiny .db a small one, never the lines-driven MIN_FLOORS stub.
     const rawHeight = width * BINARY_HEIGHT_RATIO;
     outFloors = Math.max(dims.MIN_FLOORS, Math.round(rawHeight / dims.FLOOR_HEIGHT));
     h = outFloors * dims.FLOOR_HEIGHT;

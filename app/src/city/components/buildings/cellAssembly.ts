@@ -111,11 +111,10 @@ export function buildCellsFromLayout(
   }
 
   // ---- Instanced facade panels (media billboards + binary fingerprints) ----
-  // One InstancedMesh backed by a DataArrayTexture serves both: each registered
-  // building carries its own loader (media image vs byte-pattern fingerprint) and
-  // aspect, so the LOD/streaming/fade machinery is shared. Media panels are gated
-  // on AD_ENABLED (the A/B toggle for isolating billboard perf cost); binary
-  // fingerprint panels are a distinct feature and always render.
+  // One InstancedMesh serves both; each building carries its own loader + aspect,
+  // so the LOD/streaming/fade machinery is shared. Media is gated on AD_ENABLED
+  // (the billboard A/B toggle); binary fingerprints are a distinct feature and
+  // always render. Textures aren't loaded here — updateLOD streams on-screen ones.
   const mediaBuildings = BUILDINGS.value.AD_ENABLED
     ? buildings.filter((b) => isMediaFile(b.file))
     : [];
@@ -123,11 +122,7 @@ export function buildCellsFromLayout(
   let adPanels: InstancedAdPanels | null = null;
   const panelCount = mediaBuildings.length + binaryBuildings.length;
   if (panelCount > 0) {
-    const capacity = Math.max(64, Math.ceil(panelCount * 1.5));
-    adPanels = new InstancedAdPanels(capacity);
-    // Register (allocate slots + faces) now, but DON'T load the textures here —
-    // the per-frame updateLOD streams them in for on-screen panels only, so a
-    // media/binary-heavy repo doesn't hang on a load burst. See InstancedAdPanels.
+    adPanels = new InstancedAdPanels(Math.max(64, Math.ceil(panelCount * 1.5)));
     for (const b of mediaBuildings) adPanels.registerMediaBuilding(b);
     for (const b of binaryBuildings) adPanels.registerBinaryBuilding(b);
     sceneRoot.add(adPanels.mesh);

@@ -1,19 +1,11 @@
 // city/components/buildings/fingerprintBatch.ts — coalesces binary-file
-// fingerprint fetches into POST /api/fingerprints batches. Mirrors mediaBatch:
-// data-building facades register in a burst at scene build, so a one-frame
-// coalescing window gathers essentially all of them into a handful of batched
-// requests instead of one GET per building.
-//
-// The server returns a small base64 grayscale PNG per path (the byte-pattern
-// digram, computed from the file's head — raw binaries never ship). Callers get
-// the base64 back and feed it to an <img> via a data URL. A path the endpoint
-// omits (out of root, unreadable) resolves to null; the caller then just leaves
-// the sealed placeholder facade.
+// fingerprint fetches into POST /api/fingerprints batches (mirrors mediaBatch).
+// The server returns a small base64 byte-pattern PNG per path; callers feed it to
+// an <img> via a data URL. A path the endpoint omits resolves to null.
 
-/** Max paths per POST /api/fingerprints request — mirrors the server-side cap. */
+/** Max paths per request — mirrors the server-side cap. */
 const BATCH_SIZE = 32;
-/** Coalescing window: data buildings register in a burst at scene build, so a
- *  one-frame delay gathers essentially all of them before the first flush. */
+/** Coalescing window: data buildings register in a burst at scene build. */
 const FLUSH_MS = 16;
 
 interface BatchEntry {

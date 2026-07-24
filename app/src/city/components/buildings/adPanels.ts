@@ -163,14 +163,11 @@ export class InstancedAdPanels {
     radius: number;
     shown: boolean;
     loaded: boolean;
-    // Per-building loader — media image (asyncLoadMediaForBuilding) or binary
-    // fingerprint (asyncLoadFingerprintForBuilding), chosen at register time.
+    // Per-building loader (media image vs binary fingerprint), chosen at register.
     startLoad: (b: Building, layer: number, panelSlots: number[]) => void;
   }> = [];
-  // Test/override hook: when set (constructor opts.onStartLoad), it replaces the
-  // per-building loader for EVERY panel so tests can observe LOD scheduling
-  // without touching the network. null in production, where each panel record
-  // carries its own loader (media image vs binary fingerprint).
+  // Constructor override: when set, replaces every panel's loader so tests can
+  // observe LOD scheduling without hitting the network. null in production.
   private readonly _overrideStartLoad:
     | ((b: Building, layer: number, panelSlots: number[]) => void)
     | null;
@@ -309,51 +306,57 @@ export class InstancedAdPanels {
   }
 
   /**
-   * Register a media building: a poster panel on each of the 4 faces showing
-   * the file's image, sized to the image's aspect ratio. Returns null for a
-   * non-media building or on capacity exhaustion (silently skipped).
+   * Media building: a poster panel on each face showing the file's image, sized
+   * to its aspect and floated on the facade like a billboard. Null for a
+   * non-media building or on capacity exhaustion.
    */
   registerMediaBuilding(b: Building): AdPanelRegistration | null {
     if (!mediaKindOf(b.file)) return null;
-    // Aspect ratio: clamp degenerate or missing metadata to a square.
+    // Aspect: clamp degenerate / missing metadata to a square.
     const mw = b.file.media_width;
     const mh = b.file.media_height;
     const rawAspect = mw && mh && mw > 0 ? mh / mw : 1.0;
     const aspect = Math.min(2.5, Math.max(0.4, rawAspect));
-    return this._registerPanel(b, aspect, (bb, layer, slots) =>
+    const cfg = BUILDINGS.value;
+    const dims = BUILDING_DIMENSIONS.value;
+    const panelWidth = Math.max(0.1, b.w * (1 - 2 * cfg.AD_SIDE_MARGIN_FRAC));
+    const panelHeight = panelWidth * aspect;
+    const centerY = cfg.AD_BOTTOM_OFFSET_FLOORS * dims.FLOOR_HEIGHT + panelHeight / 2;
+    return this._registerPanel(b, panelWidth, panelHeight, centerY, (bb, layer, slots) =>
       asyncLoadMediaForBuilding(this, bb, layer, slots)
     );
   }
 
   /**
-   * Register a binary "data" building: a byte-pattern fingerprint panel on each
-   * of the 4 faces. Aspect matches the building's own squat proportions so the
-   * fingerprint sits flush on the sealed facade. The placeholder color is the
-   * building's own color, so before the fingerprint streams in the panel blends
-   * into the wall (no magenta flash). Returns null for a non-data building or on
-   * capacity exhaustion.
+   * Binary "data" building: a byte-pattern fingerprint on each face. Unlike a
+   * media billboard the fingerprint IS the facade — it fills the whole face
+   * (contained to the building, not floating), and its transparent background
+   * lets the sealed wall show through. The placeholder is the building's own
+   * color so it blends in before the fingerprint streams in. Null for a non-data
+   * building or on capacity exhaustion.
    */
   registerBinaryBuilding(b: Building): AdPanelRegistration | null {
     if (!isDataBuilding(b.file)) return null;
-    // Match the building's face proportions (height / width) so the fingerprint
-    // covers the wall rather than overhanging the squat roof. Guard div-by-zero.
-    const aspect = b.w > 0 ? Math.max(0.1, b.h / b.w) : 1.0;
     return this._registerPanel(
       b,
-      aspect,
+      Math.max(0.1, b.w),
+      Math.max(0.1, b.h),
+      b.h / 2,
       (bb, layer, slots) => asyncLoadFingerprintForBuilding(this, bb, layer, slots),
       new THREE.Color(b.color)
     );
   }
 
   /**
-   * Shared registration: allocate a texture layer + 4 panel slots, size the face
-   * quads to `aspect`, wire the per-building `startLoad`, and (optionally) tint
-   * the placeholder color. Returns null on capacity exhaustion.
+   * Allocate a texture layer + 4 panel slots, place a (panelWidth × panelHeight)
+   * quad at `centerY` on each face, wire the per-building `startLoad`, optionally
+   * tint the placeholder. Null on capacity exhaustion.
    */
   private _registerPanel(
     b: Building,
-    aspect: number,
+    panelWidth: number,
+    panelHeight: number,
+    centerY: number,
     startLoad: (b: Building, layer: number, panelSlots: number[]) => void,
     color?: THREE.Color
   ): AdPanelRegistration | null {
@@ -369,19 +372,11 @@ export class InstancedAdPanels {
       return null;
     }
 
-    const cfg = BUILDINGS.value;
-    const dims = BUILDING_DIMENSIONS.value;
-
-    const adWidth = Math.max(0.1, b.w * (1 - 2 * cfg.AD_SIDE_MARGIN_FRAC));
-    const adHeight = adWidth * aspect;
-    const bottomY = cfg.AD_BOTTOM_OFFSET_FLOORS * dims.FLOOR_HEIGHT;
-    const centerY = bottomY + adHeight / 2;
-
     const dHalf = b.d / 2;
     const wHalf = b.w / 2;
 
     // Track the tallest panel + grow the panel AABB (see updateLOD).
-    if (adHeight > this._maxPanelHeight) this._maxPanelHeight = adHeight;
+    if (panelHeight > this._maxPanelHeight) this._maxPanelHeight = panelHeight;
 
     const panelSlots: number[] = [];
     const realMatrices: THREE.Matrix4[] = [];
@@ -404,11 +399,11 @@ export class InstancedAdPanels {
       const worldZ = b.y + cos * zOffset;
       this._panelBounds.expandByPoint(_scratchVec3.set(worldX, centerY, worldZ));
 
-      // Build instance matrix: translate to face center, rotate about Y, scale to ad dimensions.
+      // Build instance matrix: translate to face center, rotate about Y, scale to panel dimensions.
       const m = new THREE.Matrix4();
       m.makeRotationY(angle);
       // Apply scale first via a separate matrix, then multiply.
-      const scale = new THREE.Matrix4().makeScale(adWidth, adHeight, 1);
+      const scale = new THREE.Matrix4().makeScale(panelWidth, panelHeight, 1);
       m.multiply(scale);
       m.setPosition(worldX, centerY, worldZ);
       this.mesh.setMatrixAt(slot, m);
@@ -417,9 +412,7 @@ export class InstancedAdPanels {
       // Layer index — same for all 4 faces of this building.
       this._iLayerIndex[slot] = layer;
 
-      // iColor defaults to the shared placeholder (constructor); a per-building
-      // color (binary → the building's own color) overrides it so the pre-load
-      // panel blends into the wall.
+      // Optional per-building placeholder tint (binary → the wall color).
       if (color) {
         this._iColor[slot * 3 + 0] = color.r;
         this._iColor[slot * 3 + 1] = color.g;
@@ -457,8 +450,8 @@ export class InstancedAdPanels {
       real: realMatrices,
       center: new THREE.Vector3(b.x, centerY, b.y),
       // Cover the panels: they sit ~half the footprint out from center on each
-      // face, and stand adHeight tall. Generous so an edge building isn't missed.
-      radius: Math.max(b.w, b.d, adHeight),
+      // face, and stand panelHeight tall. Generous so an edge building isn't missed.
+      radius: Math.max(b.w, b.d, panelHeight),
       shown: true,
       loaded: false,
       startLoad,
@@ -627,8 +620,6 @@ export class InstancedAdPanels {
       }
 
       // Load only what we render, at most AD_LOAD_BUDGET_PER_FRAME new per frame.
-      // The constructor override (tests) wins; otherwise each record's own loader
-      // (media image or binary fingerprint) runs.
       if (wantShown && !rec.loaded && started < AD_LOAD_BUDGET_PER_FRAME) {
         (this._overrideStartLoad ?? rec.startLoad)(rec.b, rec.layer, rec.slots);
         rec.loaded = true;
@@ -733,13 +724,9 @@ export function asyncLoadMediaForBuilding(
 }
 
 /**
- * Trigger async load of a binary building's byte-pattern fingerprint and upload
- * it once ready. The fingerprint PNG (base64) comes from the batched POST
- * /api/fingerprints endpoint (see fingerprintBatch), so a binary-heavy repo
- * coalesces into a few requests; only decode + GPU upload is slot-gated by the
- * shared concurrency semaphore. A path the server omits, or a decode failure,
- * leaves the sealed placeholder facade visible — the wall itself is a valid
- * look, so there's no error tint (unlike a missing media image).
+ * Load a binary building's byte-pattern fingerprint (batched base64 PNG from
+ * POST /api/fingerprints) and upload it. A missing/failed fingerprint just
+ * leaves the sealed placeholder facade — a valid look, so no error tint.
  */
 export function asyncLoadFingerprintForBuilding(
   ads: InstancedAdPanels,
@@ -757,16 +744,16 @@ async function _loadFingerprintBuilding(
   layer: number,
   panelSlots: number[]
 ): Promise<void> {
-  // Fetch (batched) outside the GPU semaphore so the coalescing window sees
-  // every data building at once; only decode + upload is slot-gated.
+  // Fetch (batched) outside the semaphore so the coalescing window sees every
+  // data building at once; only decode + upload is slot-gated.
   const b64 = await fetchFingerprintB64(filePath);
-  if (b64 === null) return; // server omitted it — keep the sealed placeholder
+  if (b64 === null) return;
   await _acquireSlot();
   try {
     const img = await _loadImage(`data:image/png;base64,${b64}`);
     if (img !== null) await ads.loadTextureForBuilding(layer, panelSlots, img);
   } catch {
-    // Decode / upload failure — leave the sealed placeholder facade visible.
+    // Decode/upload failure — leave the sealed placeholder facade.
   } finally {
     _releaseSlot();
   }

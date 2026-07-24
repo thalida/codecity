@@ -111,10 +111,10 @@ def test_fingerprints_batch_returns_png_for_in_root_files(
     assert r.status_code == 200
     body = r.json()
     assert set(body.keys()) == {db_path}  # only the in-root file survives
-    # The b64 decodes to a valid 256x256 PNG (raw bytes never shipped).
+    # The b64 decodes to a valid fingerprint PNG (raw bytes never shipped).
     img = Image.open(io.BytesIO(base64.b64decode(body[db_path]["b64"])))
     assert img.format == "PNG"
-    assert img.size == (256, 256)
+    assert img.size == (128, 128)
 
 
 def test_fingerprints_no_root_omits_all(client: TestClient, project: Path) -> None:

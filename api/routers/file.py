@@ -114,11 +114,9 @@ def get_files(req: FileBatchRequest) -> dict[str, FileBatchEntry]:
 
 @lru_cache(maxsize=512)
 def _fingerprint_b64(path: str, mtime: float, size: int) -> str:
-    """Compute (and memoize) a file's base64 byte-pattern fingerprint PNG. Keyed
-    on (path, mtime, size) so an edited file re-fingerprints; only the file's
-    head is read, so a multi-MB binary costs one small read regardless of size.
-    Both the facade texture loader and the preview card hit this, so the cache
-    collapses their duplicate requests."""
+    """Base64 byte-pattern fingerprint PNG, memoized on (path, mtime, size) so an
+    edit re-fingerprints and the facade + preview requests collapse to one. Reads
+    only the head, so a multi-MB binary costs one small read."""
     with open(path, "rb") as fh:
         head = fh.read(FINGERPRINT_SAMPLE_BYTES)
     return base64.b64encode(fingerprint_png(head)).decode()
@@ -126,14 +124,10 @@ def _fingerprint_b64(path: str, mtime: float, size: int) -> str:
 
 @router.post("/fingerprints")
 def get_fingerprints(req: FileBatchRequest) -> dict[str, FingerprintEntry]:
-    """Batch byte-pattern fingerprint fetch — return {path: {b64}} of a small
-    grayscale PNG per binary file, one round trip for many buildings. The city's
-    data-building facade loader and the preview data card both request these;
-    raw binary bytes never leave the server (only the head is read, and only a
-    fingerprint image is returned).
-
-    Each path is trust-checked exactly like GET /api/file. Paths that are out of
-    root, missing, or unreadable are silently omitted."""
+    """Batch byte-pattern fingerprint fetch — {path: {b64}}, one round trip for
+    many buildings. Trust-checked like GET /api/file; out-of-root / missing /
+    unreadable paths are silently omitted. Raw binary bytes never leave the
+    server — only the head is read, and only the fingerprint image returned."""
     out: dict[str, FingerprintEntry] = {}
     for path in req.paths[:_MAX_BATCH_PATHS]:
         try:

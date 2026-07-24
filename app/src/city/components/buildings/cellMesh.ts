@@ -206,10 +206,8 @@ export function writeBuildingToSlot(cell: CellTile, b: Building): void {
   iOrientAttr.setX(slot, orientToIndex(b.orient));
 
   // --- Door width (doubles as the is-binary flag) ---
-  // doorWorldWidth = building.w × DOOR_WIDTH_FRAC. A binary "data" building has
-  // no door or windows, so a negative sentinel here means "windowless facade" —
-  // packed into this existing attribute because the mesh is already at the
-  // WebGL2 16-attribute cap (see iRuin above). The frag reads vDoorWidth < 0.
+  // A negative sentinel flags a windowless binary "data" building (no door),
+  // packed here because the mesh is at the WebGL2 16-attribute cap (see iRuin).
   const iDoorWidthAttr = mesh.geometry.getAttribute('iDoorWidth') as THREE.InstancedBufferAttribute;
   iDoorWidthAttr.setX(slot, isDataBuilding(b.file) ? -1 : b.w * doorWidthFrac);
 

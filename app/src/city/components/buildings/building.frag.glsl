@@ -257,10 +257,9 @@ vec4 renderWallFace() {
   vec3 wallColor = baseColor * lightFactor;
   vec3 slabColor = shadeColor(baseColor, uSlabLightnessDelta) * lightFactor;
 
-  // Binary "data" building (iDoorWidth packed as a negative sentinel): a sealed,
-  // windowless facade — no window grid, no door. Faint horizontal seams read as
-  // a warehouse / data-center panel wall; the byte-pattern fingerprint is layered
-  // on by the overlay panels. Branch early so none of the window-grid math runs.
+  // Binary "data" building (iDoorWidth < 0 sentinel): a sealed, windowless facade
+  // with faint warehouse panel seams. The byte-pattern fingerprint is layered on
+  // by the overlay panels. Branch early so no window-grid math runs.
   if (vDoorWidth < 0.0) {
     float seam = smoothstep(0.96, 1.0, fract(vUv.y * max(vFloors, 1.0)));
     vec3 sealed = mix(wallColor, slabColor, seam * 0.6);

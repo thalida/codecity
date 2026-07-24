@@ -35,11 +35,17 @@ class TestFingerprintPng:
     def _decode(self, data: bytes) -> Image.Image:
         return Image.open(io.BytesIO(data))
 
-    def test_returns_256_grayscale_png(self):
+    def test_white_on_transparent_png_with_alpha_floor(self):
+        from api.services.binfmt import _ALPHA_FLOOR
+
         img = self._decode(fingerprint_png(b"the quick brown fox " * 200))
         assert img.format == "PNG"
-        assert img.size == (256, 256)
-        assert img.mode == "L"
+        assert img.size == (128, 128)
+        # LA: white luminance, alpha = byte-pair density (transparent background).
+        assert img.mode == "LA"
+        lo, hi = img.getchannel("A").getextrema()
+        assert lo == 0  # empty cells fully transparent
+        assert hi >= _ALPHA_FLOOR  # present pairs read at the floor or above
 
     def test_deterministic_and_type_distinct(self):
         # Same bytes → identical fingerprint; different byte patterns → different
@@ -54,4 +60,4 @@ class TestFingerprintPng:
         # 0 and 1 byte have no digrams; must not crash and stay a valid PNG.
         for data in (b"", b"\x00"):
             img = self._decode(fingerprint_png(data))
-            assert img.size == (256, 256)
+            assert img.size == (128, 128)
