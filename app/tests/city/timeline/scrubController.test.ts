@@ -3,11 +3,7 @@ import { afterEach, beforeEach, expect, test } from 'vitest';
 
 import { buildPathTimelines } from '@/city/timeline/replay';
 import { createScrubController, FUTURE_SLAB_FLOORS } from '@/city/timeline/scrubController';
-import {
-  buildingHeightForLines,
-  getBuildingDimensions,
-  EMPTY_SLAB_FLOORS,
-} from '@/city/layout/dimensions';
+import { getBuildingDimensions, EMPTY_SLAB_FLOORS } from '@/city/layout/dimensions';
 import type { HeightContext } from '@/city/layout/dimensions';
 import { BuildingKind } from '@/city/components/buildings/buildingKind';
 import { SCRUB_POS, TIMELINE_BUNDLE } from '@/state/stores/timeline';
@@ -51,6 +47,10 @@ const heightCtx: HeightContext = {
 };
 
 const file = { path: 'f.txt', lines: 6, size: 500, extension: 'txt' } as unknown as FileNode;
+
+// Scene-Y height at a given line count, off the same curve the controller drives.
+const heightForLines = (f: Parameters<typeof getBuildingDimensions>[0], lines: number): number =>
+  getBuildingDimensions({ ...f, lines }, heightCtx.lineStats, heightCtx.byteStats).h;
 
 // Most tests don't assert on footprint opacity; this stub keeps their deps minimal.
 const noopFootprints = {
@@ -312,7 +312,7 @@ function setup(
     y: 7,
     w: 2,
     d: 2,
-    h: buildingHeightForLines(file, 6, heightCtx),
+    h: heightForLines(file, 6),
     color: '#fff',
     file,
     cellId: 0,
@@ -381,7 +381,7 @@ function makeAnchoredScene(
       y: 7,
       w: 2,
       d: 2,
-      h: buildingHeightForLines(f, (f as unknown as { lines: number }).lines, heightCtx),
+      h: heightForLines(f, (f as unknown as { lines: number }).lines),
       color: '#fff',
       file: f,
       cellId: 0,
@@ -485,7 +485,7 @@ test('scaleY reflects the interpolated height at the scrub position', () => {
   SCRUB_POS.value = 1.5;
   controller.update();
 
-  const expected = buildingHeightForLines(file, 4, heightCtx); // lines lerp 2→6 at pos 1.5
+  const expected = heightForLines(file, 4); // lines lerp 2→6 at pos 1.5
   expect(fake.scaleY).toBeCloseTo(expected, 5);
   expect(fake.posY).toBeCloseTo(expected / 2, 5);
 });
@@ -499,7 +499,7 @@ test('at HEAD the height factor is ~1 (matches the union baseline)', () => {
   const fake = fakes.get('f.txt')!;
   SCRUB_POS.value = 2; // last live commit index, 6 lines
   controller.update();
-  expect(fake.scaleY).toBeCloseTo(buildingHeightForLines(file, 6, heightCtx), 5);
+  expect(fake.scaleY).toBeCloseTo(heightForLines(file, 6), 5);
 });
 
 test('height is its OWN size, not the present-set range: a lone present building keeps full height', () => {
@@ -507,7 +507,7 @@ test('height is its OWN size, not the present-set range: a lone present building
   const { fake, controller } = setup(); // no anchors: f.txt is the only present file
   SCRUB_POS.value = 2; // last live commit, 6 lines
   controller.update();
-  expect(fake.scaleY).toBeCloseTo(buildingHeightForLines(file, 6, heightCtx), 5);
+  expect(fake.scaleY).toBeCloseTo(heightForLines(file, 6), 5);
 });
 
 test('before its creation the building is flat and fully transparent', () => {
@@ -533,7 +533,7 @@ test('ruins on: a deleted building becomes a faint, blank-facade stub shorter th
   controller.update();
   expect(fake.iFadeX).toBeCloseTo(0.3, 5); // the BUILDING_OPACITY setting, faint
   expect(fake.scaleY).toBeGreaterThan(0); // a stub, not vanished
-  expect(fake.scaleY).toBeLessThan(buildingHeightForLines(file, 6, heightCtx)); // shorter than it ever was
+  expect(fake.scaleY).toBeLessThan(heightForLines(file, 6)); // shorter than it ever was
   expect(fake.floors).toBe(0); // blank facade (no windows)
   expect(fake.colorSetCount).toBeGreaterThan(0); // grayed color written
 });
@@ -730,7 +730,7 @@ test('a present media/0-line file gets a non-zero scaleY; an absent one stays fl
     y: 1,
     w: 2,
     d: 2,
-    h: buildingHeightForLines(mediaFile, 0, heightCtx),
+    h: heightForLines(mediaFile, 0),
     color: '#fff',
     file: mediaFile,
     cellId: 0,
@@ -818,7 +818,7 @@ test('dedup: two buildings sharing one InstancedMesh set needsUpdate exactly onc
     y: 7,
     w: 2,
     d: 2,
-    h: buildingHeightForLines(file, 6, heightCtx),
+    h: heightForLines(file, 6),
     color: '#fff',
     file,
     cellId: 0,
@@ -829,7 +829,7 @@ test('dedup: two buildings sharing one InstancedMesh set needsUpdate exactly onc
     y: 9,
     w: 2,
     d: 2,
-    h: buildingHeightForLines(file2, 6, heightCtx),
+    h: heightForLines(file2, 6),
     color: '#fff',
     file: file2,
     cellId: 0,
@@ -934,14 +934,8 @@ test('dedup: two buildings sharing one InstancedMesh set needsUpdate exactly onc
 
   expect(matUpdates).toBe(1);
   expect(iFadeUpdates).toBe(1);
-  expect(slotMatrices.get(0)!.elements[5]).toBeCloseTo(
-    buildingHeightForLines(file, 4, heightCtx),
-    5
-  );
-  expect(slotMatrices.get(1)!.elements[5]).toBeCloseTo(
-    buildingHeightForLines(file2, 4, heightCtx),
-    5
-  );
+  expect(slotMatrices.get(0)!.elements[5]).toBeCloseTo(heightForLines(file, 4), 5);
+  expect(slotMatrices.get(1)!.elements[5]).toBeCloseTo(heightForLines(file2, 4), 5);
   expect(slotFadeX.get(0)).toBeCloseTo(1, 5);
   expect(slotFadeX.get(1)).toBeCloseTo(1, 5);
 });
@@ -987,7 +981,7 @@ test('couples street opacity to the max opacity of its buildings (block fade)', 
       y: 0,
       w: 2,
       d: 2,
-      h: buildingHeightForLines(f, 6, heightCtx),
+      h: heightForLines(f, 6),
       color: '#fff',
       file: f,
       cellId: 0,
@@ -1085,7 +1079,7 @@ test('block-fade is a true max, not last-write-wins: one deleted sibling cannot 
       y: 0,
       w: 2,
       d: 2,
-      h: buildingHeightForLines(f, 6, heightCtx),
+      h: heightForLines(f, 6),
       color: '#fff',
       file: f,
       cellId: 0,
@@ -1177,7 +1171,7 @@ test('descendant rollup: a container street with no direct files inherits its ch
       y: 0,
       w: 2,
       d: 2,
-      h: buildingHeightForLines(f, 6, heightCtx),
+      h: heightForLines(f, 6),
       color: '#fff',
       file: f,
       cellId: 0,
@@ -1267,7 +1261,7 @@ test('footprints: a deleted building/street fades to 0 while a live sibling stay
       y: 0,
       w: 2,
       d: 2,
-      h: buildingHeightForLines(f, 6, heightCtx),
+      h: heightForLines(f, 6),
       color: '#fff',
       file: f,
       cellId: 0,
@@ -1326,7 +1320,7 @@ test('the ROOT street stays at opacity 1 even when every building is absent, unl
     y: 0,
     w: 2,
     d: 2,
-    h: buildingHeightForLines(file, 6, heightCtx),
+    h: heightForLines(file, 6),
     color: '#fff',
     file,
     cellId: 0,
@@ -1837,7 +1831,7 @@ test('future roads always render: a non-present, non-ruin street is a future roa
     y: 0,
     w: 2,
     d: 2,
-    h: buildingHeightForLines(file, 6, heightCtx),
+    h: heightForLines(file, 6),
     color: '#fff',
     file,
     cellId: 0,
