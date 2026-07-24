@@ -214,11 +214,9 @@ export function writeBuildingToSlot(cell: CellTile, b: Building): void {
   // Empty first, so a 0-byte binary is a slab rather than a data block — same
   // precedence as getBuildingDimensions.
   const iKindAttr = mesh.geometry.getAttribute('iKind') as THREE.InstancedBufferAttribute;
-  const kind = isEmptyFile(b.file)
-    ? BuildingKind.Empty
-    : isDataBuilding(b.file)
-      ? BuildingKind.Data
-      : BuildingKind.Normal;
+  let kind: number = BuildingKind.Normal;
+  if (isEmptyFile(b.file)) kind = BuildingKind.Empty;
+  else if (isDataBuilding(b.file)) kind = BuildingKind.Data;
   iKindAttr.setX(slot, kind);
 
   // --- Fade (opacity defaults to 1.0; silhouette + outlineOpacity default to 0) ---
