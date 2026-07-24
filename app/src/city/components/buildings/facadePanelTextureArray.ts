@@ -1,4 +1,4 @@
-// city/components/buildings/adPanelTextureArray.ts — Paged DataArrayTexture manager
+// city/components/buildings/facadePanelTextureArray.ts — Paged DataArrayTexture manager
 // for instanced ad panels. Each media file (image or video) gets one
 // "flat layer" index in the caller's view; internally that flat index is
 // split into (page, localLayer) so we can use multiple smaller
@@ -40,9 +40,9 @@ export const PANEL_TEX_SIZE = 128;
 
 // Maximum number of texture-array pages the fragment shader can dispatch
 // into. Single source of truth for the shader side too: it's injected as
-// the AD_PANEL_MAX_PAGES #define (adPanels.ts), which sizes the
+// the FACADE_PANEL_MAX_PAGES #define (facadePanels.ts), which sizes the
 // `uPanelArrays` sampler array AND gates the sampleLayer dispatch branches
-// (each `#if AD_PANEL_MAX_PAGES > N`), so the page count can't drift. At
+// (each `#if FACADE_PANEL_MAX_PAGES > N`), so the page count can't drift. At
 // MAX_PAGES = 8 with a typical pageSize of 2048 layers, this supports
 // 16,384 media files per repo — well beyond any realistic codebase.
 export const MAX_PAGES = 8;
@@ -110,7 +110,7 @@ function _detectMaxArrayLayers(): number {
   return _maxArrayLayersCache;
 }
 
-export class AdPanelTextureArray {
+export class FacadePanelTextureArray {
   /** One DataArrayTexture per used page; length is in [1, MAX_PAGES].
    *  `shaderTextures` pads this to exactly MAX_PAGES for the shader's
    *  fixed-size sampler array. */
@@ -126,7 +126,7 @@ export class AdPanelTextureArray {
   // _whenRendererReady — or already past it but still doing
   // copyTextureToTexture — bail out instead of writing to deleted
   // textures. The skeleton→final manifest sequence (live updates too)
-  // disposes the old AdPanelTextureArray before the new one's loads
+  // disposes the old FacadePanelTextureArray before the new one's loads
   // have all drained; without this guard the old loads can still hit
   // the GPU and silently mutate state we no longer own.
   private _disposed = false;
@@ -140,10 +140,10 @@ export class AdPanelTextureArray {
       // Genuinely past what the shader can address. Bumping MAX_PAGES
       // (and the matching `else if` branches in the shader) is the fix.
       console.warn(
-        `[adPanelTextureArray] requested capacity ${capacity} exceeds ` +
+        `[facadePanelTextureArray] requested capacity ${capacity} exceeds ` +
           `MAX_PAGES (${MAX_PAGES}) × pageSize (${pageSize}) = ${hardCap}. ` +
-          `Bump MAX_PAGES in adPanelTextureArray.ts and add matching shader ` +
-          `branches in adPanel.frag.glsl to support more layers.`
+          `Bump MAX_PAGES in facadePanelTextureArray.ts and add matching shader ` +
+          `branches in facadePanel.frag.glsl to support more layers.`
       );
       capacity = hardCap;
     }

@@ -3,7 +3,7 @@
 // Self-contained scene component: owns its persistent group (the cell-root
 // holder), the shared building material + icon atlas, the per-cell
 // InstancedMesh cell scene (built via cellAssembly.ts on rebuild), the building
-// path/cell lookups, the instanced ad panels, and the hover/selection
+// path/cell lookups, the instanced facade panels, and the hover/selection
 // overlays (fader / outline / ghost). rebuild(layout, dateRanges) colors the
 // buildings, assembles the cells, swaps them into the persistent group, and
 // rebuilds the lookups. The material reacts to BUILDINGS/SCENE/BLOOM
@@ -38,7 +38,7 @@ import type { WorldBounds } from './spatialGrid';
 import type { CellTile } from './cellTile';
 import { BuildingIndex } from './buildingIndex';
 import { buildCellsFromLayout } from './cellAssembly';
-import type { InstancedAdPanels } from './adPanels';
+import type { InstancedFacadePanels } from './facadePanels';
 import { refreshBuildingMaterial, setTallestBuildingHeight } from './material';
 import { disposeObject3D } from '@/city/utils/disposeObject3D';
 import { getBuildingColor, getCreatedAge, getModifiedAge } from './color';
@@ -62,17 +62,17 @@ export interface Buildings extends SceneComponent {
    *  not scenic-gated). Computes its OWN enter/stay diff against the prior
    *  cells and fires the tweens (boot rebuild snaps in without animating). */
   rebuild(layout: CityLayout, dateRanges: DateRanges): Promise<void>;
-  /** Dispose the current instanced ad panels immediately; the next rebuild()
+  /** Dispose the current instanced facade panels immediately; the next rebuild()
    *  recreates them from the fresh layout. */
-  disposeAdPanels(): void;
+  disposeFacadePanels(): void;
   /** Building lookup by file path → { mesh, building, instanceId }. */
   getBuildingByPath(p: string): { mesh: THREE.Mesh; building: Building; instanceId: number } | null;
   /** Cell map (consumed by picker / fader / outline / diff mirror). */
   getCells(): Map<number, CellTile>;
   /** Building index, or null pre-rebuild. */
   getBuildingIndex(): BuildingIndex | null;
-  /** Instanced ad panels, or null pre-rebuild / while disposed. */
-  getAdPanels(): InstancedAdPanels | null;
+  /** Instanced facade panels, or null pre-rebuild / while disposed. */
+  getFacadePanels(): InstancedFacadePanels | null;
   /** Resolve a building's live InstancedMesh + slot. Null if no live mesh. */
   getMeshForBuilding(b: Building): { mesh: THREE.InstancedMesh; slot: number } | null;
   /** Install (or clear with null) the Timeline scrub controller, which drives
@@ -94,7 +94,7 @@ export function createBuildings(ctx: SceneContext): Buildings {
   let _innerCellRoot: THREE.Group | null = null;
   let _cells: Map<number, CellTile> = new Map();
   let _buildingIndex: BuildingIndex | null = null;
-  let _adPanels: InstancedAdPanels | null = null;
+  let _facadePanels: InstancedFacadePanels | null = null;
   // Boot-skip: the very first rebuild must NOT animate (the boot city snaps in).
   // Flipped true on the first rebuild; every rebuild after animates.
   let _firstBuildDone = false;
@@ -103,7 +103,7 @@ export function createBuildings(ctx: SceneContext): Buildings {
     { mesh: THREE.Mesh; building: Building; instanceId: number }
   > = {};
 
-  // Dispose + remove the prior inner cell root and instanced ad panels.
+  // Dispose + remove the prior inner cell root and instanced facade panels.
   // The cell detail meshes SHARE one ShaderMaterial (cellMesh.ts flags them
   // userData.sharedMaterial = true); disposeObject3D's sharedMaterial guard
   // skips disposing it so the new cell root's meshes keep a live material.
@@ -113,26 +113,26 @@ export function createBuildings(ctx: SceneContext): Buildings {
       if (_innerCellRoot.parent) _innerCellRoot.parent.remove(_innerCellRoot);
       _innerCellRoot = null;
     }
-    if (_adPanels) {
-      _adPanels.dispose();
-      _adPanels = null;
+    if (_facadePanels) {
+      _facadePanels.dispose();
+      _facadePanels = null;
     }
   }
 
-  function disposeAdPanels(): void {
-    if (_adPanels) {
-      _adPanels.dispose();
-      _adPanels = null;
+  function disposeFacadePanels(): void {
+    if (_facadePanels) {
+      _facadePanels.dispose();
+      _facadePanels = null;
     }
   }
 
   // (1) Shared-material theme effect — reacts to BUILDINGS / SCENE / BLOOM /
   // BUILDING_DIMENSIONS changes (Save). Reads each store's .value so the
   // effect subscribes to all of them, then re-applies the material uniforms and
-  // the ad-panel emission (BLOOM.AD_EMISSION). Safe at construction: reads only
+  // the ad-panel emission (BLOOM.MEDIA_EMISSION). Safe at construction: reads only
   // settings signals (no picker). If the shared material isn't created yet (first
   // rebuild lazily creates it), refreshBuildingMaterial() no-ops via its
-  // `if (!_sharedMaterial) return` guard and _adPanels is null, and the
+  // `if (!_sharedMaterial) return` guard and _facadePanels is null, and the
   // constructor seeds the identical values.
   const stopMaterialEffect = effect(() => {
     void BUILDINGS.value;
@@ -143,7 +143,7 @@ export function createBuildings(ctx: SceneContext): Buildings {
     // subscribe to it here and push it in before re-applying uniforms.
     setTallestBuildingHeight(ctx.cityState.tallestBuilding.value?.h ?? null);
     refreshBuildingMaterial();
-    _adPanels?.refresh();
+    _facadePanels?.refresh();
   });
 
   // Layout effect — reactive rebuild entry point. Reads cityState.layout (the
@@ -182,13 +182,13 @@ export function createBuildings(ctx: SceneContext): Buildings {
   let _ghost: Ghost | null = null;
 
   const _arm = armOnFirstTick(ctx, () => {
-    // Fader gets a world-facade for the component-local cells + ad panels;
+    // Fader gets a world-facade for the component-local cells + facade panels;
     // it reads the street-by-dir lookup off cityState. Re-sweeps on a city
     // rebuild via cityState.cityRevision.
     _fader = createBuildingFader({
       world: {
         getCells: () => _cells,
-        getAdPanels: () => _adPanels,
+        getFacadePanels: () => _facadePanels,
       },
       cityState: ctx.cityState,
       picker: ctx.picker!,
@@ -365,10 +365,10 @@ export function createBuildings(ctx: SceneContext): Buildings {
     _fader?.update(0);
     _outline?.update(0);
     _ghost?.update(0);
-    // Distance LOD: hide the transparent ad panels once they're sub-pixel
+    // Distance LOD: hide the transparent facade panels once they're sub-pixel
     // (zoomed far out) so their overdraw doesn't stall the GPU on media-heavy
     // repos. Cheap O(1) visibility toggle off the panel AABB + camera.
-    _adPanels?.updateLOD(frame.camera, ctx.canvas.clientHeight);
+    _facadePanels?.updateLOD(frame.camera, ctx.canvas.clientHeight);
   }
 
   function onResize(): void {
@@ -429,14 +429,14 @@ export function createBuildings(ctx: SceneContext): Buildings {
     const prevCells = _cells;
     const prevIndex = _buildingIndex;
 
-    // ---- Atomic swap: dispose the prior inner cell root + ad panels, then
+    // ---- Atomic swap: dispose the prior inner cell root + facade panels, then
     // adopt the fresh ones into the persistent group. ----
     _disposeInner();
 
     _innerCellRoot = cellOut.sceneRoot;
     _cells = cellOut.cells;
     _buildingIndex = cellOut.index;
-    _adPanels = cellOut.adPanels;
+    _facadePanels = cellOut.facadePanels;
 
     group.add(_innerCellRoot);
 
@@ -493,14 +493,14 @@ export function createBuildings(ctx: SceneContext): Buildings {
   return {
     group,
     rebuild,
-    disposeAdPanels,
+    disposeFacadePanels,
     tick,
     onResize,
     dispose,
     getBuildingByPath: (p) => _buildingsByPath[p] || null,
     getCells: () => _cells,
     getBuildingIndex: () => _buildingIndex,
-    getAdPanels: () => _adPanels,
+    getFacadePanels: () => _facadePanels,
     getMeshForBuilding,
     setScrubController: (c) => {
       _scrubController = c;

@@ -146,7 +146,7 @@ describe('buildCellsFromLayout', () => {
     expect(out.sceneRoot.children.length).toBe(0);
   });
 
-  describe('AD_ENABLED gate', () => {
+  describe('MEDIA_ENABLED gate', () => {
     const bounds = { minX: 0, maxX: 50, minZ: 0, maxZ: 50 };
     const mediaBuilding = () =>
       building({
@@ -169,18 +169,18 @@ describe('buildCellsFromLayout', () => {
       });
 
     afterEach(() => {
-      BUILDINGS.value = { ...BUILDINGS.value, AD_ENABLED: true };
+      BUILDINGS.value = { ...BUILDINGS.value, MEDIA_ENABLED: true };
     });
 
-    it('builds an ad-panel mesh for media buildings when AD_ENABLED (default)', () => {
+    it('builds an ad-panel mesh for media buildings when MEDIA_ENABLED (default)', () => {
       const out = buildCellsFromLayout(bounds, [mediaBuilding()]);
-      expect(out.adPanels).not.toBeNull();
+      expect(out.facadePanels).not.toBeNull();
     });
 
-    it('skips the ad-panel mesh entirely when AD_ENABLED is off', () => {
-      BUILDINGS.value = { ...BUILDINGS.value, AD_ENABLED: false };
+    it('skips the ad-panel mesh entirely when MEDIA_ENABLED is off', () => {
+      BUILDINGS.value = { ...BUILDINGS.value, MEDIA_ENABLED: false };
       const out = buildCellsFromLayout(bounds, [mediaBuilding()]);
-      expect(out.adPanels).toBeNull();
+      expect(out.facadePanels).toBeNull();
       // The building itself still renders (its cell + detail mesh exist).
       expect(out.cells.size).toBeGreaterThan(0);
       expect(out.index.byPath.get('logo.png')).toBeDefined();

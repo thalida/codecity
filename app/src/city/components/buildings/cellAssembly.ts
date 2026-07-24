@@ -10,7 +10,7 @@ import * as THREE from 'three';
 import { SpatialGrid, type WorldBounds } from './spatialGrid';
 import { createEmptyCellTile, type CellTile, allocateSlot } from './cellTile';
 import { attachBuildingMeshToCell, writeBuildingToSlot } from './cellMesh';
-import { InstancedAdPanels } from './adPanels';
+import { InstancedFacadePanels } from './facadePanels';
 import { isMediaFile } from '@/city/utils/mediaKind';
 import { isDataBuilding } from '@/city/utils/binaryKind';
 import { BUILDINGS } from '@/state/stores/settings/buildings';
@@ -22,8 +22,8 @@ export interface CellAssemblyOutput {
   cells: Map<number, CellTile>;
   index: BuildingIndex;
   sceneRoot: THREE.Group;
-  /** Instanced ad panels for media files. Null when there are no media buildings. */
-  adPanels: InstancedAdPanels | null;
+  /** Media + binary facade panels; null when there are neither. */
+  facadePanels: InstancedFacadePanels | null;
 }
 
 /**
@@ -112,23 +112,23 @@ export function buildCellsFromLayout(
 
   // ---- Instanced facade panels (media billboards + binary fingerprints) ----
   // One InstancedMesh serves both; each building carries its own loader + aspect,
-  // so the LOD/streaming/fade machinery is shared. Media is gated on AD_ENABLED
+  // so the LOD/streaming/fade machinery is shared. Media is gated on MEDIA_ENABLED
   // (the billboard A/B toggle); binary fingerprints are a distinct feature and
   // always render. Textures aren't loaded here — updateLOD streams on-screen ones.
-  const mediaBuildings = BUILDINGS.value.AD_ENABLED
+  const mediaBuildings = BUILDINGS.value.MEDIA_ENABLED
     ? buildings.filter((b) => isMediaFile(b.file))
     : [];
   const binaryBuildings = buildings.filter((b) => isDataBuilding(b.file));
-  let adPanels: InstancedAdPanels | null = null;
+  let facadePanels: InstancedFacadePanels | null = null;
   const panelCount = mediaBuildings.length + binaryBuildings.length;
   if (panelCount > 0) {
-    adPanels = new InstancedAdPanels(Math.max(64, Math.ceil(panelCount * 1.5)));
-    for (const b of mediaBuildings) adPanels.registerMediaBuilding(b);
-    for (const b of binaryBuildings) adPanels.registerBinaryBuilding(b);
-    sceneRoot.add(adPanels.mesh);
+    facadePanels = new InstancedFacadePanels(Math.max(64, Math.ceil(panelCount * 1.5)));
+    for (const b of mediaBuildings) facadePanels.registerMediaBuilding(b);
+    for (const b of binaryBuildings) facadePanels.registerBinaryBuilding(b);
+    sceneRoot.add(facadePanels.mesh);
   }
 
-  return { grid, cells, index, sceneRoot, adPanels };
+  return { grid, cells, index, sceneRoot, facadePanels };
 }
 
 // Per-cell capacity: the cell's own building count plus 50% headroom for

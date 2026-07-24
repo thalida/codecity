@@ -21,7 +21,7 @@ import { BLUEPRINTS } from '@/state/stores/settings/blueprints';
 import { FadeDetail, NodeKind } from '@/types';
 import type { Building, Street } from '@/types';
 import type { BuildingIndex } from '@/city/components/buildings/buildingIndex';
-import type { InstancedAdPanels } from '@/city/components/buildings/adPanels';
+import type { InstancedFacadePanels } from '@/city/components/buildings/facadePanels';
 import type { createPicker } from '@/city/interaction/picker';
 import { getBuildingColorForRecency } from '@/city/components/buildings/color';
 import { BuildingKind } from '@/city/components/buildings/buildingKind';
@@ -62,7 +62,7 @@ export const FUTURE_STREET_DIRS = new Set<string>();
 export interface ScrubControllerDeps {
   getBuildingIndex(): BuildingIndex | null;
   getMeshForBuilding(b: Building): { mesh: THREE.InstancedMesh; slot: number } | null;
-  getAdPanels(): InstancedAdPanels | null;
+  getFacadePanels(): InstancedFacadePanels | null;
   // The picker's selection/hover — drives the neighborhood fade cascade so a
   // hover dims the surrounding city here exactly as buildingFader does in Live.
   picker: Pick<ReturnType<typeof createPicker>, 'selection' | 'hover'>;
@@ -261,7 +261,7 @@ export function createScrubController(deps: ScrubControllerDeps) {
           ruinStreets.add(street);
         }
       }
-      // opByPath feeds ONLY the ad panels — gate on presence so a ruin/absent/
+      // opByPath feeds ONLY the facade panels — gate on presence so a ruin/absent/
       // future building shows no media image, just its stub or slab. Uses the
       // neighborhood-dimmed bodyOp so a media panel fades with its building body.
       opByPath.set(b.file.path, present ? bodyOp : 0);
@@ -426,7 +426,7 @@ export function createScrubController(deps: ScrubControllerDeps) {
     // ?? 0 (not null): a panel the scrub never drives must HIDE, not linger at
     // its shown default — mirrors the footprint default-hidden fix. (Live-mode
     // buildingFader still uses null = "leave untouched".)
-    deps.getAdPanels()?.applyBuildingFades((p) => opByPath.get(p) ?? 0);
+    deps.getFacadePanels()?.applyBuildingFades((p) => opByPath.get(p) ?? 0);
     // Every street gets written each frame (defaulting to 0) so an orphaned street can't stick at a stale opacity.
     // ROOT is forced to 1: the repo root directory always exists, even when scrubbed back to an empty tree.
     for (const street of allStreets) {

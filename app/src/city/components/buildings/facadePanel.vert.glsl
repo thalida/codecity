@@ -1,4 +1,4 @@
-// adPanel.vert.glsl — Per-instance ad panel quad for the cell rendering path.
+// facadePanel.vert.glsl — Per-instance ad panel quad for the cell rendering path.
 //
 // Geometry: PlaneGeometry(1, 1) lying in the XY plane. The caller sizes
 // each instance via instanceMatrix (position, Y-axis rotation, scale).
@@ -37,7 +37,7 @@ out float vTextureFade;
 out float vBuildingFade;
 
 void main() {
-  // Flip V to compensate for the data orientation in adPanelTextureArray.
+  // Flip V to compensate for the data orientation in facadePanelTextureArray.
   // uploadImage/uploadCanvas populate the DataArrayTexture via
   // ctx.getImageData(), which returns canvas rows top-down (row 0 = top
   // of the image). WebGL's UV origin is at the bottom, so without a flip

@@ -7,7 +7,7 @@
 
 import { fetchFileBytes } from '@/api/file';
 import { FONT_EXTS, AUDIO_EXTS } from '@/constants/fileKinds';
-import { PANEL_TEX_SIZE } from './adPanelTextureArray';
+import { PANEL_TEX_SIZE } from './facadePanelTextureArray';
 
 export type DataFacadeKind = 'font' | 'audio' | 'fingerprint';
 

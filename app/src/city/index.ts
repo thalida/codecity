@@ -34,7 +34,7 @@ import { createInputHandlers } from './interaction/inputHandlers';
 import { showTooltip, hideTooltip } from './interaction/tooltip';
 import { createPostFx } from './render/postFx';
 import { startFrameLoop } from './render/frameLoop';
-import { registerRenderer as registerAdPanelRenderer } from './components/buildings/adPanelTextureArray';
+import { registerRenderer as registerFacadePanelRenderer } from './components/buildings/facadePanelTextureArray';
 
 export async function createCity(canvas: HTMLCanvasElement, manifest: Manifest): Promise<City> {
   // Must precede any ShaderMaterial so #include <chunk> directives resolve.
@@ -50,7 +50,7 @@ export async function createCity(canvas: HTMLCanvasElement, manifest: Manifest):
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false });
   renderer.setPixelRatio(window.devicePixelRatio || 1);
   renderer.setSize(canvas.clientWidth, canvas.clientHeight, false);
-  registerAdPanelRenderer(renderer);
+  registerFacadePanelRenderer(renderer);
 
   const layoutClient = createLayoutClient();
   const cityState = createCityState(layoutClient);
@@ -108,7 +108,7 @@ export async function createCity(canvas: HTMLCanvasElement, manifest: Manifest):
   ];
   for (const c of components) scene.add(c.group);
 
-  // Boot apply — AFTER renderer + registerAdPanelRenderer (the ad-panel race),
+  // Boot apply — AFTER renderer + registerFacadePanelRenderer (the facade-panel race),
   // BEFORE the rig (so bbox is set and the rig's first frame can frame the city).
   await applyManifest(manifest);
 
@@ -223,7 +223,7 @@ export async function createCity(canvas: HTMLCanvasElement, manifest: Manifest):
       _scrubController = createScrubController({
         getBuildingIndex: () => buildings.getBuildingIndex(),
         getMeshForBuilding: (b) => buildings.getMeshForBuilding(b),
-        getAdPanels: () => buildings.getAdPanels(),
+        getFacadePanels: () => buildings.getFacadePanels(),
         picker,
         timelines,
         heightCtx: makeHeightContext(cityState.manifest.peek()?.stats),

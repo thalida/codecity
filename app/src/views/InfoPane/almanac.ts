@@ -341,7 +341,7 @@ function buildingsSection(m: Manifest): AlmanacSection {
 }
 
 function mediaSection(m: Manifest): AlmanacSection {
-  // Media files render as billboards (image/video ad panels) sized by aspect,
+  // Media files render as billboards (image/video billboards) sized by aspect,
   // not lines — a separate class of building with its own superlatives.
   const s = m.stats;
   const overview = pluralize(s.mediaCount, 'billboard');

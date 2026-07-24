@@ -9,7 +9,7 @@ import { SCRUB_POS, TIMELINE_BUNDLE } from '@/state/stores/timeline';
 import { RUINS } from '@/state/stores/settings/ruins';
 import { BLUEPRINTS } from '@/state/stores/settings/blueprints';
 import { BuildingIndex } from '@/city/components/buildings/buildingIndex';
-import type { InstancedAdPanels } from '@/city/components/buildings/adPanels';
+import type { InstancedFacadePanels } from '@/city/components/buildings/facadePanels';
 import { getBuildingColorForRecency } from '@/city/components/buildings/color';
 import { BUILDINGS } from '@/state/stores/settings/buildings';
 import { BUILDING_DIMENSIONS } from '@/state/stores/settings/buildings';
@@ -255,17 +255,17 @@ function makeFakeMesh(initialFadeZ = 0) {
   };
 }
 
-function makeFakeAdPanels() {
+function makeFakeFacadePanels() {
   let calls = 0;
   let lastGetFade: ((path: string) => number | null | undefined) | null = null;
-  const adPanels = {
+  const facadePanels = {
     applyBuildingFades: (getFade: (path: string) => number | null | undefined) => {
       calls++;
       lastGetFade = getFade;
     },
-  } as unknown as InstancedAdPanels;
+  } as unknown as InstancedFacadePanels;
   return {
-    adPanels,
+    facadePanels,
     get calls() {
       return calls;
     },
@@ -276,7 +276,7 @@ function makeFakeAdPanels() {
 }
 
 function setup(
-  getAdPanels: () => InstancedAdPanels | null = () => null,
+  getFacadePanels: () => InstancedFacadePanels | null = () => null,
   trees: { setScrubCommit(maxCommitIndex: number | null): void } = noopTrees,
   fireflies: { setScrubCommit(maxCommitIndex: number | null): void } = noopFireflies,
   initialFadeZ = 0
@@ -302,7 +302,7 @@ function setup(
 
   const controller = createScrubController({
     getBuildingIndex: () => index,
-    getAdPanels,
+    getFacadePanels,
     getMeshForBuilding: () => ({ mesh: fake.mesh, slot: 0 }),
     timelines,
     heightCtx,
@@ -372,7 +372,7 @@ function makeAnchoredScene(
 
   const controller = createScrubController({
     getBuildingIndex: () => index,
-    getAdPanels: () => null,
+    getFacadePanels: () => null,
     getMeshForBuilding: (b) => ({ mesh: meshByBuilding.get(b)!.mesh, slot: 0 }),
     timelines,
     heightCtx,
@@ -573,7 +573,7 @@ test('drives footprint opacity even when the building has no detail mesh (LOD ce
   TIMELINE_BUNDLE.value = bundle;
   const controller = createScrubController({
     getBuildingIndex: () => index,
-    getAdPanels: () => null,
+    getFacadePanels: () => null,
     getMeshForBuilding: () => null, // impostor LOD cell: no detail mesh
     timelines: buildPathTimelines(bundle),
     heightCtx,
@@ -610,31 +610,31 @@ test('an absent building has its outline (iFade.z) driven to 0, even if left ove
   expect(fake.iFadeZ).toBe(0);
 });
 
-test('ad panels fade in lockstep with a present building body', () => {
-  const fakeAdPanels = makeFakeAdPanels();
-  const { b, controller } = setup(() => fakeAdPanels.adPanels);
+test('facade panels fade in lockstep with a present building body', () => {
+  const fakeFacadePanels = makeFakeFacadePanels();
+  const { b, controller } = setup(() => fakeFacadePanels.facadePanels);
   SCRUB_POS.value = 1.5;
   controller.update();
-  expect(fakeAdPanels.calls).toBe(1);
-  expect(fakeAdPanels.lastGetFade!(b.file.path)).toBeCloseTo(1, 5);
+  expect(fakeFacadePanels.calls).toBe(1);
+  expect(fakeFacadePanels.lastGetFade!(b.file.path)).toBeCloseTo(1, 5);
 });
 
-test('ad panels fade to 0 once the building is deleted (ruins off)', () => {
-  const fakeAdPanels = makeFakeAdPanels();
-  const { b, controller } = setup(() => fakeAdPanels.adPanels);
+test('facade panels fade to 0 once the building is deleted (ruins off)', () => {
+  const fakeFacadePanels = makeFakeFacadePanels();
+  const { b, controller } = setup(() => fakeFacadePanels.facadePanels);
   SCRUB_POS.value = 3; // deletedIdx
   controller.update();
-  expect(fakeAdPanels.lastGetFade!(b.file.path)).toBe(0);
+  expect(fakeFacadePanels.lastGetFade!(b.file.path)).toBe(0);
 });
 
-test('ad panels stay hidden on a ruin (media is gone, only the stub shows)', () => {
+test('facade panels stay hidden on a ruin (media is gone, only the stub shows)', () => {
   RUINS.value = { ...RUINS.value, ENABLED: true, BUILDING_OPACITY: 0.3 };
-  const fakeAdPanels = makeFakeAdPanels();
-  const { b, controller } = setup(() => fakeAdPanels.adPanels);
+  const fakeFacadePanels = makeFakeFacadePanels();
+  const { b, controller } = setup(() => fakeFacadePanels.facadePanels);
   SCRUB_POS.value = 3; // deleted → ruin
   controller.update();
   // The stub/footprint ghost at 0.3, but the media panel must be 0 (no image on a ruin).
-  expect(fakeAdPanels.lastGetFade!(b.file.path)).toBe(0);
+  expect(fakeFacadePanels.lastGetFade!(b.file.path)).toBe(0);
 });
 
 test('preserves the silhouette/outline iFade channels', () => {
@@ -718,7 +718,7 @@ test('a present media/0-line file gets a non-zero scaleY; an absent one stays fl
 
   const controller = createScrubController({
     getBuildingIndex: () => index,
-    getAdPanels: () => null,
+    getFacadePanels: () => null,
     getMeshForBuilding: () => ({ mesh: fake.mesh, slot: 0 }),
     timelines,
     heightCtx,
@@ -886,7 +886,7 @@ test('dedup: two buildings sharing one InstancedMesh set needsUpdate exactly onc
   const timelines = buildPathTimelines(twoPathBundle);
   const controller = createScrubController({
     getBuildingIndex: () => index,
-    getAdPanels: () => null,
+    getFacadePanels: () => null,
     // Subjects share one mesh (the dedup case); anchors live on a separate mesh
     // so they don't inflate the shared mesh's needsUpdate counts.
     getMeshForBuilding: (b) =>
@@ -998,7 +998,7 @@ test('couples street opacity to the max opacity of its buildings (block fade)', 
   const timelines = buildPathTimelines(blockBundle);
   const controller = createScrubController({
     getBuildingIndex: () => index,
-    getAdPanels: () => null,
+    getFacadePanels: () => null,
     getMeshForBuilding: (b) => ({ mesh: meshByBuilding.get(b)!.mesh, slot: 0 }),
     timelines,
     heightCtx,
@@ -1092,7 +1092,7 @@ test('block-fade is a true max, not last-write-wins: one deleted sibling cannot 
   const timelines = buildPathTimelines(siblingBundle);
   const controller = createScrubController({
     getBuildingIndex: () => index,
-    getAdPanels: () => null,
+    getFacadePanels: () => null,
     getMeshForBuilding: (b) => ({ mesh: meshByBuilding.get(b)!.mesh, slot: 0 }),
     timelines,
     heightCtx,
@@ -1182,7 +1182,7 @@ test('descendant rollup: a container street with no direct files inherits its ch
   const timelines = buildPathTimelines(rollupBundle);
   const controller = createScrubController({
     getBuildingIndex: () => index,
-    getAdPanels: () => null,
+    getFacadePanels: () => null,
     getMeshForBuilding: (b) => ({ mesh: meshByBuilding.get(b)!.mesh, slot: 0 }),
     timelines,
     heightCtx,
@@ -1266,7 +1266,7 @@ test('footprints: a deleted building/street fades to 0 while a live sibling stay
   const timelines = buildPathTimelines(footprintBundle);
   const controller = createScrubController({
     getBuildingIndex: () => index,
-    getAdPanels: () => null,
+    getFacadePanels: () => null,
     getMeshForBuilding: (b) => ({ mesh: meshByBuilding.get(b)!.mesh, slot: 0 }),
     timelines,
     heightCtx,
@@ -1321,7 +1321,7 @@ test('the ROOT street stays at opacity 1 even when every building is absent, unl
   const timelines = buildPathTimelines(bundle);
   const controller = createScrubController({
     getBuildingIndex: () => index,
-    getAdPanels: () => null,
+    getFacadePanels: () => null,
     getMeshForBuilding: () => ({ mesh: fake.mesh, slot: 0 }),
     timelines,
     heightCtx,
@@ -1832,7 +1832,7 @@ test('future roads always render: a non-present, non-ruin street is a future roa
   const timelines = buildPathTimelines(bundle);
   const controller = createScrubController({
     getBuildingIndex: () => index,
-    getAdPanels: () => null,
+    getFacadePanels: () => null,
     getMeshForBuilding: () => ({ mesh: fake.mesh, slot: 0 }),
     timelines,
     heightCtx,

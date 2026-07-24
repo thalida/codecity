@@ -33,7 +33,7 @@ import * as THREE from 'three';
 import { ObjectBVH } from 'three-mesh-bvh';
 import { layoutCity } from '@/city/layout/algorithm.js';
 import { buildCellsFromLayout } from '@/city/components/buildings/cellAssembly';
-import { InstancedAdPanels } from '@/city/components/buildings/adPanels';
+import { InstancedFacadePanels } from '@/city/components/buildings/facadePanels';
 import { createStreetLabels } from '@/city/components/streets/streetLabels';
 import { isMediaFile } from '@/city/utils/mediaKind';
 import { NodeKind, StreetAxis } from '@/types';
@@ -202,7 +202,7 @@ function profile(label: string, fileBudget: number, mediaFraction: number): Phas
     const adCapacity = Math.max(64, Math.ceil(mediaBuildings.length * 1.5));
     const tm0 = performance.now();
     // No-op loader: profile registration + LOD without firing real image loads.
-    const ads = new InstancedAdPanels(adCapacity, { onStartLoad: () => {} });
+    const ads = new InstancedFacadePanels(adCapacity, { onStartLoad: () => {} });
     for (const b of mediaBuildings) ads.registerMediaBuilding(b);
     const tm1 = performance.now();
     mediaRegMs = tm1 - tm0;
