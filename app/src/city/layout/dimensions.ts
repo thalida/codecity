@@ -7,6 +7,7 @@ import type { StreetTier } from '@/state/stores/settings/streets';
 import type { RangeStat, RepoStats } from '@/types';
 import { isMediaFile } from '../utils/mediaKind';
 import { isEmptyFile } from '../utils/emptyKind';
+import { isDataBuilding } from '../utils/binaryKind';
 
 // Structural shapes — kept lenient so test fixtures (which omit fields the
 // helpers don't read, like name/path on intermediate nodes) stay
@@ -182,7 +183,7 @@ export function getBuildingDimensions(
     const rawHeight = width * aspect;
     outFloors = Math.max(dims.MIN_FLOORS, Math.round(rawHeight / dims.FLOOR_HEIGHT));
     h = outFloors * dims.FLOOR_HEIGHT;
-  } else if (file.binary) {
+  } else if (isDataBuilding(file)) {
     // Height from bytes (via width), not lines, so a data block is byte-sized
     // both ways instead of the lines-driven MIN_FLOORS stub.
     const rawHeight = width * dims.DATA_HEIGHT_RATIO;

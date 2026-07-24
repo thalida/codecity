@@ -39,6 +39,7 @@ import { nodeUrl } from '@/utils/commit';
 import { formatBytes } from '@/utils/bytes';
 import { formatFullDate } from '@/utils/dates';
 import { languageFor } from '@/utils/syntaxLanguages';
+import { isDataBuilding } from '@/city/utils/binaryKind';
 
 // Auto-load images/video/audio/PDF (browser handles streaming + memory).
 // Auto-load text up to the server's own ceiling — kept in sync with
@@ -529,9 +530,9 @@ function _previewBody(file: FileNode | null) {
   }
 
   // A binary file with no dedicated viewer above (image/pdf/font already
-  // returned) → a data card, not a garbled text dump. mediaKind guards the rare
-  // media file whose extension didn't match the image/video lists.
-  if (file.binary && !file.mediaKind) {
+  // returned) → a data card, not a garbled text dump. isDataBuilding's media
+  // exclusion covers the rare media file whose extension missed those lists.
+  if (isDataBuilding(file)) {
     return <BinaryDataCard key={file.fullPath} file={file} />;
   }
 

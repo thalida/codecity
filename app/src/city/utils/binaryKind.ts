@@ -9,9 +9,10 @@ type FileLike =
   | null
   | undefined;
 
-/** A binary file that renders as a data building: binary AND not media. The
- *  classifier for the data-building render path (sizing, render kind, facade
- *  panels); the file preview and icon picker still inline the same test. */
+/** A binary file that renders as a data building: binary AND not media. Every
+ *  data-file surface routes through this (sizing, render kind, facade panels,
+ *  preview card) except utils/fileIcons, which would invert the utils → city
+ *  layering to import it. */
 export function isDataBuilding(file: FileLike): boolean {
   return !!file?.binary && !isMediaFile(file);
 }
