@@ -137,36 +137,27 @@ describe('TreePane', () => {
     expect(items.length).toBeGreaterThan(0);
   });
 
-  it('gives binary data files the hex icon, but not code or media', () => {
+  it('hex is the fallback for an unmatched binary; known types keep their icon', () => {
     const tree = {
       name: 'project',
       type: 'directory',
       path: '.',
-      children_count: 3,
-      children_file_count: 3,
+      children_count: 4,
+      children_file_count: 4,
       children_dir_count: 0,
-      descendants_count: 3,
-      descendants_file_count: 3,
+      descendants_count: 4,
+      descendants_file_count: 4,
       descendants_dir_count: 0,
       descendants_size: 0,
       children: [
         { name: 'code.ts', type: 'file', path: 'code.ts', extension: '.ts', size: 100, lines: 10 },
-        {
-          name: 'data.db',
-          type: 'file',
-          path: 'data.db',
-          extension: '.db',
-          size: 800,
-          lines: 0,
-          binary: true,
-        },
+        { name: 'blob.bin', type: 'file', path: 'blob.bin', extension: '.bin', binary: true },
+        { name: 'song.mp3', type: 'file', path: 'song.mp3', extension: '.mp3', binary: true },
         {
           name: 'pic.png',
           type: 'file',
           path: 'pic.png',
           extension: '.png',
-          size: 900,
-          lines: 0,
           binary: true,
           mediaKind: 'image',
         },
@@ -178,11 +169,10 @@ describe('TreePane', () => {
         .querySelector<HTMLElement>(`[data-path="${p}"]`)!
         .querySelector('.file-icon')!
         .getAttribute('data-icon-name');
-    // Binary data file → the shared hex glyph (same in the building roof).
-    expect(icon('data.db')).toBe('hex');
-    // Code + media (media is binary on the wire but renders as a billboard): not hex.
+    expect(icon('blob.bin')).toBe('hex'); // unmatched binary → hex fallback
+    expect(icon('song.mp3')).toBe('audio'); // known binary type keeps its icon
     expect(icon('code.ts')).not.toBe('hex');
-    expect(icon('pic.png')).not.toBe('hex');
+    expect(icon('pic.png')).not.toBe('hex'); // media renders as a billboard
   });
 
   it('accepts a bare tree (no { tree } wrapper)', () => {

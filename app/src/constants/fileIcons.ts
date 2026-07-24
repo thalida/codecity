@@ -141,6 +141,18 @@ export const EXT_ICON: Record<string, string> = {
   '.7z': 'zip',
   '.rar': 'zip',
   '.bz2': 'zip',
+  // Binary data (hex is the fallback for anything unmatched)
+  '.db': 'database',
+  '.sqlite': 'database',
+  '.sqlite3': 'database',
+  '.wasm': 'assembly',
+  '.so': 'lib',
+  '.dylib': 'lib',
+  '.a': 'lib',
+  '.dll': 'exe',
+  '.exe': 'exe',
+  '.jar': 'jar',
+  '.node': 'nodejs',
   // Other
   '.lock': 'lock',
   '.log': 'log',

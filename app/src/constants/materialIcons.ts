@@ -6,6 +6,7 @@
 // package fails at BUILD. The icons-exist test keeps this in sync with the
 // lookup maps. Regenerate after editing constants/fileIcons.ts.
 
+import assembly from 'material-icon-theme/icons/assembly.svg?url';
 import audio from 'material-icon-theme/icons/audio.svg?url';
 import babel from 'material-icon-theme/icons/babel.svg?url';
 import bun from 'material-icon-theme/icons/bun.svg?url';
@@ -28,6 +29,7 @@ import editorconfig from 'material-icon-theme/icons/editorconfig.svg?url';
 import elixir from 'material-icon-theme/icons/elixir.svg?url';
 import erlang from 'material-icon-theme/icons/erlang.svg?url';
 import eslint from 'material-icon-theme/icons/eslint.svg?url';
+import exe from 'material-icon-theme/icons/exe.svg?url';
 import file from 'material-icon-theme/icons/file.svg?url';
 import folder from 'material-icon-theme/icons/folder.svg?url';
 import folderAnimation from 'material-icon-theme/icons/folder-animation.svg?url';
@@ -119,12 +121,14 @@ import hex from 'material-icon-theme/icons/hex.svg?url';
 import hpp from 'material-icon-theme/icons/hpp.svg?url';
 import html from 'material-icon-theme/icons/html.svg?url';
 import image from 'material-icon-theme/icons/image.svg?url';
+import jar from 'material-icon-theme/icons/jar.svg?url';
 import java from 'material-icon-theme/icons/java.svg?url';
 import javascript from 'material-icon-theme/icons/javascript.svg?url';
 import jest from 'material-icon-theme/icons/jest.svg?url';
 import json from 'material-icon-theme/icons/json.svg?url';
 import kotlin from 'material-icon-theme/icons/kotlin.svg?url';
 import less from 'material-icon-theme/icons/less.svg?url';
+import lib from 'material-icon-theme/icons/lib.svg?url';
 import lock from 'material-icon-theme/icons/lock.svg?url';
 import log from 'material-icon-theme/icons/log.svg?url';
 import lua from 'material-icon-theme/icons/lua.svg?url';
@@ -174,6 +178,7 @@ import zip from 'material-icon-theme/icons/zip.svg?url';
 
 /** Material icon basename -> served asset URL (resolved by Vite at build). */
 export const MATERIAL_ICON_URLS: Record<string, string> = {
+  assembly,
   audio,
   babel,
   bun,
@@ -196,6 +201,7 @@ export const MATERIAL_ICON_URLS: Record<string, string> = {
   elixir,
   erlang,
   eslint,
+  exe,
   file,
   folder,
   'folder-animation': folderAnimation,
@@ -287,12 +293,14 @@ export const MATERIAL_ICON_URLS: Record<string, string> = {
   hpp,
   html,
   image,
+  jar,
   java,
   javascript,
   jest,
   json,
   kotlin,
   less,
+  lib,
   lock,
   log,
   lua,
