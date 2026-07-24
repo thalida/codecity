@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { getBuildingDimensions, EMPTY_SLAB_FLOORS } from '@/city/layout/dimensions';
+import { getBuildingDimensions } from '@/city/layout/dimensions';
 import { BUILDING_DIMENSIONS } from '@/state/stores/settings/buildings';
 
 // Project ranges spanning tiny → multi-MB so binaries have room to scale.
@@ -57,7 +57,7 @@ describe('getBuildingDimensions — binary "data" buildings', () => {
 
 describe('getBuildingDimensions — empty files', () => {
   const dims = () => BUILDING_DIMENSIONS.value;
-  const slabHeight = () => Math.round(EMPTY_SLAB_FLOORS * dims().FLOOR_HEIGHT * 10) / 10;
+  const slabHeight = () => Math.round(dims().EMPTY_SLAB_FLOORS * dims().FLOOR_HEIGHT * 10) / 10;
 
   it('renders a 0-byte file as a flat slab with no floors', () => {
     const empty = getBuildingDimensions({ lines: 0, size: 0 }, lineStats, byteStats);

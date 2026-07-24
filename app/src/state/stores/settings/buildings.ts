@@ -79,6 +79,16 @@ const BUILDING_DIMENSIONS_FIELDS = {
     label: 'Floor height',
     tip: 'World units per floor. Above 50 the proportions stop reading as buildings.',
   },
+  EMPTY_SLAB_FLOORS: {
+    route: ChangeRoute.Rebuild,
+    kind: FieldKind.Slider,
+    default: 0.05,
+    min: 0.01,
+    max: 1,
+    step: 0.01,
+    label: 'Empty file height',
+    tip: 'An empty (0 byte) file has no content to stack, so it renders as a flat slab instead of a building; this is its height as a fraction of one floor. Kept above zero so the slab still catches clicks.',
+  },
   MIN_WIDTH: {
     route: ChangeRoute.Rebuild,
     kind: FieldKind.Slider,

@@ -77,10 +77,6 @@ export function computeFileStats(stats: RepoStats | null | undefined): {
   };
 }
 
-// An empty file's slab height, in floors. Small enough to read as ground, tall
-// enough to raycast; expressed in floors so it scales with FLOOR_HEIGHT.
-export const EMPTY_SLAB_FLOORS = 0.05;
-
 // getBuildingDimensions(file, lineStats?, byteStats?) -> { w, d, h, floors }
 //
 // Floors and width are project-relative: the smallest file lands at MIN_*, and
@@ -174,7 +170,7 @@ export function getBuildingDimensions(
     // Nothing to stack: a flat slab at the file's footprint. First branch, so a
     // 0-byte image or blob slabs too rather than taking its kind's sizing.
     outFloors = 0;
-    h = EMPTY_SLAB_FLOORS * dims.FLOOR_HEIGHT;
+    h = dims.EMPTY_SLAB_FLOORS * dims.FLOOR_HEIGHT;
   } else if (isMediaFile(file)) {
     const mw = file.media_width;
     const mh = file.media_height;

@@ -1,11 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { layoutCity, sortForRendering, __test } from '@/city/layout/algorithm';
-import {
-  getStreetWidth,
-  getBuildingDimensions,
-  computeFileStats,
-  EMPTY_SLAB_FLOORS,
-} from '@/city/layout/dimensions';
+import { getStreetWidth, getBuildingDimensions, computeFileStats } from '@/city/layout/dimensions';
 import { BUILDING_DIMENSIONS } from '@/state/stores/settings/buildings';
 import { BuildingOrient, NodeKind, StreetAxis } from '@/types';
 import type { BuildingDimensionsConfig } from '@/state/stores/settings/buildings';
@@ -155,7 +150,11 @@ describe('getBuildingDimensions', () => {
     const dim = getBuildingDimensions({ lines: 0, size: 0 });
     expect(dim.floors).toBe(0);
     expect(dim.h).toBe(
-      Math.round(EMPTY_SLAB_FLOORS * (TEST_BUILDING_DIMS.FLOOR_HEIGHT as number) * 10) / 10
+      Math.round(
+        BUILDING_DIMENSIONS.value.EMPTY_SLAB_FLOORS *
+          (TEST_BUILDING_DIMS.FLOOR_HEIGHT as number) *
+          10
+      ) / 10
     );
     expect(dim.w).toBe(TEST_BUILDING_DIMS.MIN_WIDTH);
     expect(Number.isFinite(dim.h)).toBe(true);

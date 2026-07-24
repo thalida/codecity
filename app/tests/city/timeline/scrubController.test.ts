@@ -3,7 +3,7 @@ import { afterEach, beforeEach, expect, test } from 'vitest';
 
 import { buildPathTimelines } from '@/city/timeline/replay';
 import { createScrubController, FUTURE_SLAB_FLOORS } from '@/city/timeline/scrubController';
-import { getBuildingDimensions, EMPTY_SLAB_FLOORS } from '@/city/layout/dimensions';
+import { getBuildingDimensions } from '@/city/layout/dimensions';
 import type { HeightContext } from '@/city/layout/dimensions';
 import { BuildingKind } from '@/city/components/buildings/buildingKind';
 import { SCRUB_POS, TIMELINE_BUNDLE } from '@/state/stores/timeline';
@@ -1928,7 +1928,8 @@ test('a file empty at the scrub position renders as a slab, not a MIN_FLOORS bui
   SCRUB_POS.value = 1;
   controller.update();
 
-  const slabHeight = EMPTY_SLAB_FLOORS * BUILDING_DIMENSIONS.value.FLOOR_HEIGHT;
+  const slabHeight =
+    BUILDING_DIMENSIONS.value.EMPTY_SLAB_FLOORS * BUILDING_DIMENSIONS.value.FLOOR_HEIGHT;
   expect(fake.scaleY).toBeCloseTo(slabHeight, 5);
   expect(fake.floors).toBe(0);
   expect(fake.kind).toBe(BuildingKind.Empty);
@@ -1969,7 +1970,7 @@ function setupAlwaysEmpty() {
     y: 7,
     w: 2,
     d: 2,
-    h: EMPTY_SLAB_FLOORS * BUILDING_DIMENSIONS.value.FLOOR_HEIGHT,
+    h: BUILDING_DIMENSIONS.value.EMPTY_SLAB_FLOORS * BUILDING_DIMENSIONS.value.FLOOR_HEIGHT,
     color: '#fff',
     file: alwaysEmptyFile,
     cellId: 0,
