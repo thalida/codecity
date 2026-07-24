@@ -29,11 +29,20 @@ describe('scrubberScale', () => {
     expect(fractionToIndex(s, 1)).toBe(0);
   });
 
-  it('span floors at 1 for a single-day (degenerate) range', () => {
-    const s = buildScrubberScale(['2020-01-01', '2020-01-01']);
-    expect(s.span).toBe(1);
-    // No divide-by-zero: fractions collapse to 0.
-    expect(indexToFraction(s, 1)).toBe(0);
+  it('a same-day repo scrubs by even index spacing, not a collapsed time axis', () => {
+    // Every commit shares one calendar day (day-precision dates), so the time
+    // span is zero. The axis must fall back to index spacing so you can still
+    // scrub across all four commits instead of them stacking on the left edge.
+    const s = buildScrubberScale(['2026-07-24', '2026-07-24', '2026-07-24', '2026-07-24']);
+    expect(s.degenerate).toBe(true);
+    expect(indexToFraction(s, 0)).toBe(0); // oldest at the left
+    expect(indexToFraction(s, 3)).toBe(1); // newest (present) at the right
+    expect(indexToFraction(s, 1)).toBeCloseTo(1 / 3, 5);
+    expect(commitFraction(s, 2)).toBeCloseTo(2 / 3, 5);
+    // Dragging maps back to a float commit index, so scrubbing lands on commits.
+    expect(fractionToIndex(s, 0)).toBe(0);
+    expect(fractionToIndex(s, 1)).toBe(3);
+    expect(fractionToIndex(s, 0.5)).toBeCloseTo(1.5, 5);
   });
 
   it('places a commit tick at its own date fraction (clusters by time, not index)', () => {

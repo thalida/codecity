@@ -12,6 +12,11 @@ export interface ScrubberScale {
   maxMs: number;
   /** maxMs - minMs, floored at 1 so a single-day repo never divides by zero. */
   span: number;
+  /** True when every commit shares one instant (day-precision dates, so a repo
+   *  whose whole history is one calendar day). The time axis can't separate them,
+   *  so the mappings fall back to even INDEX spacing — otherwise the handle would
+   *  collapse to the left edge and you couldn't scrub. */
+  degenerate: boolean;
 }
 
 export function buildScrubberScale(dates: string[]): ScrubberScale {
@@ -19,14 +24,21 @@ export function buildScrubberScale(dates: string[]): ScrubberScale {
   for (let i = 1; i < ms.length; i++) if (ms[i] < ms[i - 1]) ms[i] = ms[i - 1];
   const minMs = ms.length ? ms[0] : 0;
   const maxMs = ms.length ? ms[ms.length - 1] : 0;
-  return { ms, minMs, maxMs, span: Math.max(1, maxMs - minMs) };
+  return { ms, minMs, maxMs, span: Math.max(1, maxMs - minMs), degenerate: maxMs === minMs };
+}
+
+/** Even index spacing for a degenerate axis: index 0 at the left, the last at the
+ *  right. A lone commit is the present, pinned to the right edge. */
+function indexFraction(n: number, pos: number): number {
+  if (n <= 1) return n === 1 ? 1 : 0;
+  return Math.max(0, Math.min(1, pos / (n - 1)));
 }
 
 /** Track fraction [0,1] for a commit's own date (used to place its tick). */
 export function commitFraction(scale: ScrubberScale, index: number): number {
-  const { ms, minMs, span } = scale;
+  const { ms, minMs, span, degenerate } = scale;
   if (ms.length === 0) return 0;
-  if (ms.length === 1) return 1; // a lone commit is the present: pin it to the right edge
+  if (degenerate) return indexFraction(ms.length, index);
   const i = Math.max(0, Math.min(ms.length - 1, index));
   return Math.max(0, Math.min(1, (ms[i] - minMs) / span));
 }
@@ -34,9 +46,9 @@ export function commitFraction(scale: ScrubberScale, index: number): number {
 /** Float commit index -> track fraction [0,1], interpolating the DATE between the
  *  two bracketing commits so the handle sits at its real point in time. */
 export function indexToFraction(scale: ScrubberScale, pos: number): number {
-  const { ms, minMs, span } = scale;
+  const { ms, minMs, span, degenerate } = scale;
   if (ms.length === 0) return 0;
-  if (ms.length === 1) return 1; // single-commit repo: nothing to scrub, sit at the present
+  if (degenerate) return indexFraction(ms.length, pos);
   const clamped = Math.max(0, Math.min(ms.length - 1, pos));
   const lo = Math.floor(clamped);
   const hi = Math.min(ms.length - 1, lo + 1);
@@ -44,12 +56,14 @@ export function indexToFraction(scale: ScrubberScale, pos: number): number {
   return Math.max(0, Math.min(1, (at - minMs) / span));
 }
 
-/** Track fraction [0,1] -> float commit index by DATE (inverse of indexToFraction).
- *  Binary-searches for the date and lerps the index within the bracketing pair. */
+/** Track fraction [0,1] -> float commit index. By DATE on a real time span
+ *  (binary-search + lerp within the bracketing pair); by even index spacing on a
+ *  degenerate one, so a same-day repo scrubs across all its commits. */
 export function fractionToIndex(scale: ScrubberScale, frac: number): number {
-  const { ms, minMs, span } = scale;
+  const { ms, minMs, span, degenerate } = scale;
   const n = ms.length;
   if (n <= 1) return 0;
+  if (degenerate) return Math.max(0, Math.min(1, frac)) * (n - 1);
   const target = minMs + Math.max(0, Math.min(1, frac)) * span;
   if (target <= ms[0]) return 0;
   if (target >= ms[n - 1]) return n - 1;

@@ -192,6 +192,42 @@ describe('TimeTravelBar', () => {
     expect(SCRUB_POS.value).toBe(0);
   });
 
+  it('same-day repo stays scrubbable: track is live, a press moves SCRUB_POS', async () => {
+    const day = '2026-07-24';
+    TIMELINE_BUNDLE.value = {
+      commits: [
+        commit('1111111aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', day, 'c1'),
+        commit('2222222bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb', day, 'c2'),
+        commit('3333333ccccccccccccccccccccccccccccccccc', day, 'c3'),
+      ],
+      unionManifest: { tree: { name: 'r' }, repo: { remote_url: null } },
+      deltas: [],
+      blobLines: {},
+      note: null,
+    } as unknown as TimelineBundle;
+    SCRUB_POS.value = 2;
+    render(<TimeTravelBar />, container);
+    await flush();
+
+    const t = track(container);
+    expect(t.getAttribute('aria-disabled')).toBe('false');
+    expect(t.classList.contains('is-inert')).toBe(false);
+    // Handle starts at the present (right), not collapsed to the left.
+    expect(container.querySelector<HTMLElement>('.time-travel-handle')!.style.left).toBe('100%');
+
+    // Pressing at the left third lands on an earlier commit (index spacing).
+    t.getBoundingClientRect = () =>
+      ({ left: 0, top: 0, width: 90, height: 20, right: 90, bottom: 20 }) as DOMRect;
+    const ev = new Event('pointerdown', { bubbles: true }) as Event & {
+      clientX: number;
+      pointerId: number;
+    };
+    ev.clientX = 0;
+    ev.pointerId = 1;
+    t.dispatchEvent(ev);
+    expect(SCRUB_POS.value).toBe(0);
+  });
+
   it('tracks SCRUB_POS updates from outside the component', async () => {
     SCRUB_POS.value = 0;
     render(<TimeTravelBar />, container);
