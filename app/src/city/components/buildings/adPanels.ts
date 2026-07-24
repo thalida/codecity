@@ -20,7 +20,7 @@ import { mediaKindOf, MediaKind } from '@/city/utils/mediaKind';
 import { isDataBuilding } from '@/city/utils/binaryKind';
 import { AdPanelTextureArray, MAX_PAGES as AD_PANEL_MAX_PAGES } from './adPanelTextureArray';
 import { fetchMediaBlob } from './mediaBatch';
-import { fetchFingerprintB64 } from './fingerprintBatch';
+import { fetchFingerprintB64 } from '@/api/fingerprint';
 import type { Building } from '@/types/index';
 
 import adPanelVertSrc from './adPanel.vert.glsl?raw';

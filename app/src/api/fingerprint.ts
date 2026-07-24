@@ -1,7 +1,8 @@
-// city/components/buildings/fingerprintBatch.ts — coalesces binary-file
-// fingerprint fetches into POST /api/fingerprints batches (mirrors mediaBatch).
-// The server returns a small base64 byte-pattern PNG per path; callers feed it to
-// an <img> via a data URL. A path the endpoint omits resolves to null.
+// api/fingerprint.ts — coalesces binary-file fingerprint fetches into POST
+// /api/fingerprints batches (mirrors mediaBatch). The server returns a small
+// base64 byte-pattern PNG per path; callers feed it to an <img> via a data URL.
+// A path the endpoint omits resolves to null. Shared by the city's data-building
+// facade loader and the preview pane's data card.
 
 /** Max paths per request — mirrors the server-side cap. */
 const BATCH_SIZE = 32;
@@ -52,8 +53,7 @@ async function _sendBatch(paths: string[], pending: Map<string, Waiter[]>): Prom
     });
     if (res.ok) result = (await res.json()) as Record<string, BatchEntry>;
   } catch {
-    // Network failure → every path in this batch resolves null; the caller
-    // leaves the sealed placeholder facade.
+    // Network failure → every path resolves null; callers keep their placeholder.
   }
   for (const path of paths) {
     const entry = result[path];

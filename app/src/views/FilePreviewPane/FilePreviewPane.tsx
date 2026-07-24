@@ -28,13 +28,15 @@ export enum PreviewKind {
   Text = 'text',
 }
 import { fileUrl, fetchFileText, fetchFileBytes } from '@/api/file';
-import { FileWarning, FileX, Info, MousePointerClick, LoaderCircle } from 'lucide-preact';
+import { fetchFingerprintB64 } from '@/api/fingerprint';
+import { FileWarning, FileX, Info, MousePointerClick, LoaderCircle, Binary } from 'lucide-preact';
 import { Pane, PaneEmpty } from '@/components/Pane';
 import { TimelineStaleNote } from '@/components/TimelineStaleNote/TimelineStaleNote';
 import { KEY_BINDINGS } from '@/constants/keyboard';
 import { PathBreadcrumbs } from '@/components/PathBreadcrumbs/PathBreadcrumbs';
 import { nodeUrl } from '@/utils/commit';
 import { formatBytes } from '@/utils/bytes';
+import { formatFullDate } from '@/utils/dates';
 import { languageFor } from '@/utils/syntaxLanguages';
 
 // Auto-load images/video/audio/PDF (browser handles streaming + memory).
@@ -421,6 +423,72 @@ function FontPreview({ file }: FontPreviewProps) {
   );
 }
 
+// ── Binary "data" file card ──────────────────────────────────────────────────
+
+enum FpStateKind {
+  Loading = 'loading',
+  Ready = 'ready',
+  Error = 'error',
+}
+
+type FpState =
+  | { kind: FpStateKind.Loading }
+  | { kind: FpStateKind.Ready; b64: string }
+  | { kind: FpStateKind.Error };
+
+/**
+ * A binary file has no readable text, so instead of dumping garbled bytes we
+ * show a data card: detected type, size, dates, and the same byte-pattern
+ * fingerprint the building facade wears (so the two match). The fingerprint is
+ * fetched from the server (head-only) — raw binary bytes never reach the client.
+ */
+function BinaryDataCard({ file }: { file: FileNode }) {
+  const [fp, setFp] = useState<FpState>({ kind: FpStateKind.Loading });
+
+  useEffect(() => {
+    let cancelled = false;
+    setFp({ kind: FpStateKind.Loading });
+    fetchFingerprintB64(file.fullPath || '').then(
+      (b64) => {
+        if (!cancelled) setFp(b64 ? { kind: FpStateKind.Ready, b64 } : { kind: FpStateKind.Error });
+      },
+      () => !cancelled && setFp({ kind: FpStateKind.Error })
+    );
+    return () => {
+      cancelled = true;
+    };
+    // Key on modified so a live edit re-fingerprints (the server keys on it too).
+  }, [file.fullPath, file.modified]);
+
+  const size = typeof file.size === 'number' ? formatBytes(file.size) : '—';
+
+  return (
+    <div class="pane preview-shell binary-card">
+      <div class="binary-fingerprint-frame">
+        {fp.kind === FpStateKind.Ready ? (
+          <img
+            class="binary-fingerprint"
+            src={`data:image/png;base64,${fp.b64}`}
+            alt="Byte-pattern fingerprint"
+          />
+        ) : (
+          <Binary class="binary-fingerprint-fallback" aria-hidden="true" />
+        )}
+      </div>
+      <dl class="binary-card-facts">
+        <dt class="text-label">Type</dt>
+        <dd>{file.binaryType ?? 'Binary data'}</dd>
+        <dt class="text-label">Size</dt>
+        <dd>{size}</dd>
+        <dt class="text-label">Created</dt>
+        <dd>{formatFullDate(file.created)}</dd>
+        <dt class="text-label">Modified</dt>
+        <dd>{formatFullDate(file.modified)}</dd>
+      </dl>
+    </div>
+  );
+}
+
 // ── Body content ─────────────────────────────────────────────────────────────
 
 function _previewBody(file: FileNode | null) {
@@ -463,6 +531,13 @@ function _previewBody(file: FileNode | null) {
   if (kind === PreviewKind.Font) {
     // Keyed on fullPath so switching files remounts the FontFace state machine.
     return <FontPreview key={file.fullPath} file={file} />;
+  }
+
+  // A binary file with no dedicated viewer above (image/pdf/font already
+  // returned) → a data card, not a garbled text dump. mediaKind guards the rare
+  // media file whose extension didn't match the image/video lists.
+  if (file.binary && !file.mediaKind) {
+    return <BinaryDataCard key={file.fullPath} file={file} />;
   }
 
   // Text path: skip the fetch entirely if the file is too big.
