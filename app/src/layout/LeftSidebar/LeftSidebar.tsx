@@ -26,6 +26,7 @@ import type { PickTarget, TreeNode } from '@/types';
 import { persistedSignal } from '@/state/persist';
 import { SCENE_HANDLE, selectPath, hoverPath, clearHover } from '@/state/stores/scene';
 import { MANIFEST } from '@/state/stores/manifest';
+import { HISTORY_MANIFEST } from '@/state/stores/historyManifest';
 import { CURRENT_SOURCE } from '@/state/stores/source';
 import { isEmptyManifest } from '@/utils/manifest';
 import { ExplorePane } from '@/views/ExplorePane/ExplorePane';
@@ -201,11 +202,11 @@ export function LeftSidebar() {
       <div class="pane">
         {tab === SidebarTab.Explore && (
           <ExplorePane
-            manifest={MANIFEST}
+            manifest={HISTORY_MANIFEST}
             selectedPath={selectedPath}
             hoveredPath={hoveredPath}
             expanded={treeExpanded}
-            rootPath={(MANIFEST.value as { tree?: TreeNode })?.tree?.path ?? ''}
+            rootPath={(HISTORY_MANIFEST.value as { tree?: TreeNode })?.tree?.path ?? ''}
             onClose={onPaneClose}
             onSelect={onTreeSelect}
             onHover={onTreeHover}
@@ -213,7 +214,7 @@ export function LeftSidebar() {
           />
         )}
         {tab === SidebarTab.Search && (
-          <SearchPane manifest={MANIFEST} onClose={onPaneClose} onSelect={selectPath} />
+          <SearchPane manifest={HISTORY_MANIFEST} onClose={onPaneClose} onSelect={selectPath} />
         )}
         {tab === SidebarTab.Info && <InfoPane manifest={MANIFEST} onClose={onPaneClose} />}
         {tab === SidebarTab.Controls && (

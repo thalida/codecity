@@ -388,6 +388,102 @@ describe('createTreeRenderer()', () => {
     for (const t of tracked) expect(t.disposed).toBe(true);
   });
 
+  // Trees never rotate, so the diagonal elements ARE the scale directly.
+  // decompose() can't be used here: three.js special-cases a zero-determinant
+  // (fully zero-scaled) matrix by returning scale (1,1,1), which would mask
+  // exactly the zero-scale state these tests assert on.
+  function rawScaleX(mesh: THREE.InstancedMesh, i: number): number {
+    const m = new THREE.Matrix4();
+    mesh.getMatrixAt(i, m);
+    return m.elements[0];
+  }
+  function rawScaleY(mesh: THREE.InstancedMesh, i: number): number {
+    const m = new THREE.Matrix4();
+    mesh.getMatrixAt(i, m);
+    return m.elements[5];
+  }
+
+  describe('setScrubCommit()', () => {
+    it('zero-scales trees past the threshold on both canopy and trunk, keeps <= threshold full', () => {
+      const commits = makeCommits(4);
+      const placements = [
+        placement(0, 0, 1, 0),
+        placement(20, 0, 2, 1),
+        placement(0, 20, 3, 2),
+        placement(20, 20, 4, 3),
+      ];
+      trees = renderTrees(placements, commits, BUSY);
+      const trunk = trunkMesh(trees.group);
+
+      const fullTrunkScale = [0, 1, 2, 3].map((i) => rawScaleY(trunk, i));
+      const fullCanopyScale = [0, 1, 2, 3].map((i) => {
+        const hit = findCanopyInstance(trees.group, i)!;
+        return rawScaleX(hit.mesh, hit.instanceIdx);
+      });
+      expect(fullTrunkScale.every((s) => s > 0)).toBe(true);
+      expect(fullCanopyScale.every((s) => s > 0)).toBe(true);
+
+      trees.setScrubCommit(1);
+
+      // commitIndex 0, 1 stay full; 2, 3 collapse to scale 0.
+      expect(rawScaleY(trunk, 0)).toBeCloseTo(fullTrunkScale[0], 5);
+      expect(rawScaleY(trunk, 1)).toBeCloseTo(fullTrunkScale[1], 5);
+      expect(rawScaleY(trunk, 2)).toBe(0);
+      expect(rawScaleY(trunk, 3)).toBe(0);
+
+      const c0 = findCanopyInstance(trees.group, 0)!;
+      const c1 = findCanopyInstance(trees.group, 1)!;
+      const c2 = findCanopyInstance(trees.group, 2)!;
+      const c3 = findCanopyInstance(trees.group, 3)!;
+      expect(rawScaleX(c0.mesh, c0.instanceIdx)).toBeCloseTo(fullCanopyScale[0], 5);
+      expect(rawScaleX(c1.mesh, c1.instanceIdx)).toBeCloseTo(fullCanopyScale[1], 5);
+      expect(rawScaleX(c2.mesh, c2.instanceIdx)).toBe(0);
+      expect(rawScaleX(c3.mesh, c3.instanceIdx)).toBe(0);
+    });
+
+    it('setScrubCommit(null) restores every tree to its full matrix', () => {
+      const commits = makeCommits(3);
+      const placements = [placement(0, 0, 1, 0), placement(20, 0, 2, 1), placement(0, 20, 3, 2)];
+      trees = renderTrees(placements, commits, BUSY);
+      const trunk = trunkMesh(trees.group);
+      const fullScale = [0, 1, 2].map((i) => rawScaleY(trunk, i));
+
+      trees.setScrubCommit(0);
+      expect(rawScaleY(trunk, 1)).toBe(0);
+      expect(rawScaleY(trunk, 2)).toBe(0);
+
+      trees.setScrubCommit(null);
+      for (let i = 0; i < 3; i++) {
+        expect(rawScaleY(trunk, i)).toBeCloseTo(fullScale[i], 5);
+      }
+    });
+
+    it('only rewrites instances whose visibility actually flips between calls', () => {
+      const commits = makeCommits(3);
+      const placements = [placement(0, 0, 1, 0), placement(20, 0, 2, 1), placement(0, 20, 3, 2)];
+      trees = renderTrees(placements, commits, BUSY);
+      const trunk = trunkMesh(trees.group);
+
+      let updates = 0;
+      const origSetMatrixAt = trunk.setMatrixAt.bind(trunk);
+      trunk.setMatrixAt = (slot: number, m: THREE.Matrix4) => {
+        updates++;
+        return origSetMatrixAt(slot, m);
+      };
+
+      // Threshold 2 hides nothing (max commitIndex is 2); dropping to 1 flips only placement 2.
+      trees.setScrubCommit(2);
+      updates = 0;
+      trees.setScrubCommit(1);
+      expect(updates).toBe(1);
+
+      // Same threshold again: nothing should flip.
+      updates = 0;
+      trees.setScrubCommit(1);
+      expect(updates).toBe(0);
+    });
+  });
+
   describe('tree shading sun direction', () => {
     it('bakes directional facet shading (canopy vertex colors are non-uniform)', () => {
       // The sun position is now a fixed constant (constants/lighting), so we

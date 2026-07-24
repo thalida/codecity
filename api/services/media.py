@@ -5,10 +5,12 @@ Two related concerns under one roof:
   - is_media(content_type) — does this MIME look like something the
     browser should render in an <img>/<video>/<audio>/<iframe> tag,
     rather than text in a code preview pane?
-  - probe_media_dims(path) — read intrinsic pixel dimensions from
-    image / SVG / video containers without decoding frames. Used by
-    layout to size building silhouettes; unknown → (None, None) and
-    the building falls back to a square aspect.
+  - probe_media_dims(path) / probe_media_dims_from_bytes(data) — read
+    intrinsic pixel dimensions from image / SVG / video containers
+    without decoding frames. Used by layout to size building
+    silhouettes; unknown → (None, None) and the building falls back to
+    a square aspect. The bytes variant backs read-only git-blob probing
+    (gitobj.py), where there's no filename to dispatch on.
 
 Failures are silent throughout — corrupt files, missing optional deps
 (Pillow, hachoir), unsupported codecs all map to "no signal" so a
@@ -17,9 +19,10 @@ flaky media file never breaks a scan or a file fetch.
 
 from __future__ import annotations
 
+import io
 import xml.etree.ElementTree as ET
 from pathlib import Path
-from typing import Any
+from typing import Any, BinaryIO
 
 # ── MIME classification ─────────────────────────────────────────────────
 
@@ -96,13 +99,40 @@ def probe_media_dims(path: Path) -> tuple[int | None, int | None]:
     return None, None
 
 
+def probe_media_dims_from_bytes(data: bytes) -> tuple[int | None, int | None]:
+    """Same probe as probe_media_dims, but for an in-memory git blob that
+    has no filename to dispatch on. Each format's own container sniff
+    decides fitness in turn instead: PIL rejects non-image magic bytes
+    immediately, the <svg>-root check in _svg_dims_from_element keeps
+    other XML documents from matching, and hachoir's container guess is
+    the (slower) last resort for anything binary.
+    """
+    w, h = _dims_from_image_bytes(data)
+    if w is not None:
+        return w, h
+    w, h = _dims_from_svg_bytes(data)
+    if w is not None:
+        return w, h
+    return _dims_from_video_source(io.BytesIO(data))
+
+
 def _probe_image(path: Path) -> tuple[int | None, int | None]:
+    return _dims_from_pil_source(path)
+
+
+def _dims_from_image_bytes(data: bytes) -> tuple[int | None, int | None]:
+    return _dims_from_pil_source(io.BytesIO(data))
+
+
+def _dims_from_pil_source(source: Path | BinaryIO) -> tuple[int | None, int | None]:
+    # Image.open accepts either a path or a file-like object, so the disk
+    # and in-memory probes share this one implementation.
     try:
         from PIL import Image  # type: ignore[import-not-found]
     except ImportError:
         return None, None
     try:
-        with Image.open(path) as img:
+        with Image.open(source) as img:
             w, h = img.size
         return int(w), int(h)
     except Exception:
@@ -121,6 +151,26 @@ def _probe_svg(path: Path) -> tuple[int | None, int | None]:
         tree = ET.parse(path)
         root = tree.getroot()
     except (ET.ParseError, OSError):
+        return None, None
+    return _svg_dims_from_element(root)
+
+
+def _dims_from_svg_bytes(data: bytes) -> tuple[int | None, int | None]:
+    try:
+        tree = ET.parse(io.BytesIO(data))
+        root = tree.getroot()
+    except ET.ParseError:
+        return None, None
+    return _svg_dims_from_element(root)
+
+
+def _svg_dims_from_element(root: ET.Element) -> tuple[int | None, int | None]:
+    # The extension-gated disk probe only ever reaches here for a real
+    # .svg file, but the bytes probe has no extension to gate on, so any
+    # well-formed XML document would otherwise be mistaken for one — a
+    # pom.xml, an Android layout, etc. Requiring an <svg> root (namespace
+    # stripped) is a no-op for genuine SVGs and a hard reject for the rest.
+    if root.tag.rsplit("}", 1)[-1] != "svg":
         return None, None
 
     w = _parse_svg_length(root.get("width"))
@@ -180,9 +230,16 @@ def _parse_svg_length(value: str | None) -> int | None:
 
 
 def _probe_video(path: Path) -> tuple[int | None, int | None]:
+    return _dims_from_video_source(str(path))
+
+
+def _dims_from_video_source(source: str | BinaryIO) -> tuple[int | None, int | None]:
     """Read video dimensions from container headers via hachoir. No frame
-    decoding — hachoir parses metadata atoms only. Returns (None, None)
-    when the parser can't open the file or the metadata is missing the
+    decoding — hachoir parses metadata atoms only. `source` is a path
+    string (disk probe, lazily streamed — large videos never load fully
+    into memory) or a BytesIO (in-memory git blob, already fully read by
+    the caller); createParser accepts either. Returns (None, None) when
+    the parser can't open the source or the metadata is missing the
     width/height pair (some exotic codecs)."""
     try:
         from hachoir.parser import createParser  # type: ignore[import-not-found]
@@ -192,7 +249,7 @@ def _probe_video(path: Path) -> tuple[int | None, int | None]:
 
     parser: Any = None
     try:
-        parser = createParser(str(path))  # type: ignore[reportUnknownVariableType]
+        parser = createParser(source)  # type: ignore[reportUnknownVariableType]
         if parser is None:
             return None, None
         metadata: Any = extractMetadata(parser)  # type: ignore[reportUnknownVariableType,reportUnknownArgumentType]

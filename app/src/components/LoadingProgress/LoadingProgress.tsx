@@ -21,6 +21,9 @@ export interface LoadingProgressProps {
   // Trailing per-step progress text (clone %, scanned file count). Only the
   // overlay flow supplies these; ProjectsView omits them.
   stepTails?: Partial<Record<LoadingStep, string | null>>;
+  // Custom step list (e.g. Timeline-mode entry). Defaults to LOADING_STEPS;
+  // a custom list renders verbatim, no local-source resolve/clone hiding.
+  steps?: readonly LoadingStep[];
   // Aborts the load and returns to the project list. Each surface wires the
   // routing (ProjectsView is already the list; the overlay opens it).
   onCancel: () => void;
@@ -31,11 +34,13 @@ export function LoadingProgress({
   kind,
   branch,
   stepTails,
+  steps = LOADING_STEPS,
   onCancel,
 }: LoadingProgressProps) {
   const pendingLabel = PENDING_SOURCE_LABEL.value;
-  const activeIdx = LOADING_STEPS.indexOf(activeStep);
-  const isLocal = kind === SourceKind.Local;
+  const activeIdx = steps.indexOf(activeStep);
+  const isCustom = steps !== LOADING_STEPS;
+  const isLocal = !isCustom && kind === SourceKind.Local;
 
   return (
     <>
@@ -51,7 +56,7 @@ export function LoadingProgress({
         {'…'}
       </div>
       <ol class="loading-steps">
-        {LOADING_STEPS.map((step) => {
+        {steps.map((step) => {
           // Local sources skip resolve/clone; keep the rows in the DOM (hidden)
           // so the list height doesn't jump when the flow starts.
           if (isLocal && (step === LoadingStep.Resolving || step === LoadingStep.Cloning)) {
@@ -66,7 +71,7 @@ export function LoadingProgress({
               </li>
             );
           }
-          const thisIdx = LOADING_STEPS.indexOf(step);
+          const thisIdx = steps.indexOf(step);
           let stepState: LoadingStepState = LoadingStepState.Pending;
           if (thisIdx < activeIdx) stepState = LoadingStepState.Done;
           else if (thisIdx === activeIdx) stepState = LoadingStepState.Active;

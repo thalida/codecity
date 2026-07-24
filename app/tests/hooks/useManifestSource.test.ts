@@ -2,6 +2,8 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { loadSource, cancelLoad } from '@/hooks/useManifestSource';
 import { SOURCE_ERROR, CURRENT_SOURCE } from '@/state/stores/source';
 import { MANIFEST } from '@/state/stores/manifest';
+import { TIMELINE_MODE, SCRUB_POS, TIMELINE_BUNDLE } from '@/state/stores/timeline';
+import type { TimelineBundle } from '@/types';
 
 // EventSource stub with driveable events: records listeners so a test can emit
 // a named SSE event (e.g. a `manifest-partial` skeleton), and records
@@ -103,5 +105,53 @@ describe('useManifestSource loadSource cancellation', () => {
     expect(MANIFEST.value).toBe(cityA); // rolled back to city A
     expect(CURRENT_SOURCE.value).toBe(before); // never committed B
     expect(SOURCE_ERROR.value).toBeNull(); // cancel is not an error
+  });
+});
+
+// Issue #113: switching sources while in Timeline mode used to leave the union
+// city + scrub controller stuck on the newly loaded repo. loadSource must exit
+// Timeline mode itself; city/index.ts's effect (see tests/city/index.test.ts)
+// reacts to the flip and does the actual scene teardown.
+describe('loadSource exits Timeline mode', () => {
+  let originalEventSource: typeof EventSource;
+
+  beforeEach(() => {
+    originalEventSource = globalThis.EventSource;
+    StubEventSource.instances = [];
+    (globalThis as unknown as { EventSource: unknown }).EventSource = StubEventSource;
+    SOURCE_ERROR.value = null;
+  });
+
+  afterEach(() => {
+    (globalThis as unknown as { EventSource: unknown }).EventSource = originalEventSource;
+    TIMELINE_MODE.value = false;
+    SCRUB_POS.value = 0;
+    TIMELINE_BUNDLE.value = null;
+  });
+
+  it('flips TIMELINE_MODE off and clears the scrub store before the fetch starts', async () => {
+    TIMELINE_MODE.value = true;
+    SCRUB_POS.value = 3;
+    TIMELINE_BUNDLE.value = { commits: [{ sha: 'a' }] } as unknown as TimelineBundle;
+
+    const p = loadSource({ src: 'https://github.com/o/r' });
+
+    expect(TIMELINE_MODE.value).toBe(false);
+    expect(SCRUB_POS.value).toBe(0);
+    expect(TIMELINE_BUNDLE.value).toBeNull();
+
+    cancelLoad();
+    await p;
+  });
+
+  it('a normal switch when NOT in Timeline mode leaves it untouched', async () => {
+    TIMELINE_MODE.value = false;
+
+    const p = loadSource({ src: 'https://github.com/o/r' });
+
+    expect(TIMELINE_MODE.value).toBe(false);
+
+    cancelLoad();
+    await p;
   });
 });

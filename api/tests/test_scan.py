@@ -1340,6 +1340,41 @@ class GitHistoryParallelTests(_CacheRedirectMixin, unittest.TestCase):
                 f"clean merge files count should be >= 1; got {commits[-1]['files']}",
             )
 
+    def test_merge_does_not_overwrite_created_date(self):
+        """A file added on a branch keeps its branch creation date; the merge
+        that brings it onto main must NOT re-date it to the merge day."""
+        import tempfile
+        from api.services.scan import _collect_git_history
+
+        with tempfile.TemporaryDirectory() as td:
+            tdp = Path(td)
+
+            def run(*a: str) -> None:
+                subprocess.run(["git", "-C", td, *a], check=True)
+
+            subprocess.run(["git", "init", "-q", "-b", "main", td], check=True)
+            run("config", "user.email", "t@example.com")
+            run("config", "user.name", "T")
+            (tdp / "a.txt").write_text("a\n")
+            run("add", ".")
+            run("commit", "-q", "-m", "initial", "--date=2020-01-01T00:00:00")
+            run("checkout", "-q", "-b", "side")
+            (tdp / "b.txt").write_text("b\n")
+            run("add", ".")
+            run(
+                "-c",
+                "commit.gpgsign=false",
+                "commit",
+                "-q",
+                "-m",
+                "add b",
+                "--date=2020-02-01T00:00:00",
+            )
+            run("checkout", "-q", "main")
+            run("merge", "-q", "--no-ff", "-m", "merge side", "side")
+            created, _m, _commits = _collect_git_history(Path(td), use_cache=False)
+            self.assertEqual(created["b.txt"][:10], "2020-02-01")
+
 
 class GitLogRobustnessTests(_CacheRedirectMixin, unittest.TestCase):
     """The git-log streamer must survive two failure modes seen on real
@@ -1608,6 +1643,25 @@ class GitHistoryCacheTests(_CacheRedirectMixin, unittest.TestCase):
                 capture_output=True,
             )
             new_file.unlink(missing_ok=True)
+
+
+def test_history_as_of_ref_excludes_future_commits(tmp_path):
+    from api.services.scan import _collect_git_history, _run_git
+
+    _init_repo(tmp_path)
+    (tmp_path / "a.txt").write_text("1\n")
+    _commit_all(tmp_path, "c1")
+    ref = _run_git(tmp_path, "rev-parse", "HEAD").strip()
+    # A later commit modifies a.txt; the ref-bound walk must not see it.
+    (tmp_path / "a.txt").write_text("1\n2\n")
+    (tmp_path / "b.txt").write_text("new\n")
+    _commit_all(tmp_path, "c2")
+
+    created, modified, commits = _collect_git_history(
+        tmp_path, use_cache=False, ref=ref
+    )
+    assert "b.txt" not in modified  # b.txt didn't exist at ref
+    assert len(commits) == 1  # only c1 is an ancestor of ref
 
 
 class FileStatCacheTests(_CacheRedirectMixin, unittest.TestCase):
@@ -2112,6 +2166,192 @@ def test_heartbeat_flush_noop_when_already_emitted():
     # No new ticks between the last emit and flush: should be a no-op.
     hb.flush()
     assert cb.call_count == 2
+
+
+def test_build_tree_callable_seam_matches_live_scan(tmp_path):
+    """_build_tree, driven directly by the same live FS adapters scan_tree
+    wires up, reproduces a live scan's tree exactly (structure, paths,
+    names, fullPaths, sizes, dates, ext-breakdown). lines/binary are filled
+    in by _populate_file_metadata after the build, so they're normalized
+    away here. This locks the injected-callable seam to live behavior."""
+    from api.services import scan as scanmod
+
+    _init_repo(tmp_path)
+    (tmp_path / "a.txt").write_text("one\ntwo\nthree\n")
+    (tmp_path / "z.md").write_text("# doc\n")
+    (tmp_path / "pkg").mkdir()
+    (tmp_path / "pkg" / "b.py").write_text("x = 1\ny = 2\n")
+    (tmp_path / "pkg" / "sub").mkdir()
+    (tmp_path / "pkg" / "sub" / "c.py").write_text("z = 3\n")
+    _commit_all(tmp_path, "c1")
+
+    root_abs = str(tmp_path.resolve())
+    live = _final_manifest(root_abs, use_cache=False)["tree"]
+
+    # Rebuild the exact adapters scan_tree constructs, then call the shared
+    # builder directly — proving the loop is a pure function of the seam.
+    git = scanmod._collect_git_state(Path(root_abs))
+    git_created, git_modified, _ = scanmod._collect_git_history(
+        Path(root_abs), use_cache=False
+    )
+    ignore_names, ignore_paths, unignore_names, unignore_paths = (
+        scanmod._load_codecityignore(Path(root_abs))
+    )
+    sig = hashlib.blake2b(digest_size=16)
+    heartbeat = scanmod._Heartbeat()
+    entry_by_rel: dict = {}
+
+    def list_children(rel_dir):
+        abs_dir = root_abs if rel_dir == "." else f"{root_abs}/{rel_dir}"
+        out = []
+        for entry, entry_rel in scanmod._tracked_entries(
+            abs_dir,
+            rel_dir,
+            tracked_files=git.tracked,
+            ignore_names=ignore_names,
+            ignore_paths=ignore_paths,
+            unignore_names=unignore_names,
+            unignore_paths=unignore_paths,
+        ):
+            is_dir = entry.is_dir(follow_symlinks=False)
+            if not is_dir and not entry.is_file(follow_symlinks=False):
+                continue
+            if not is_dir:
+                entry_by_rel[entry_rel] = entry
+            out.append((entry.name, entry_rel, is_dir))
+        return out
+
+    def make_file_node(name, rel_path):
+        entry = entry_by_rel.pop(rel_path)
+        node = scanmod._file_node(
+            entry, rel_path, git_created, git_modified, git.dirty, sig
+        )
+        heartbeat.tick()
+        return node
+
+    built = scanmod._build_tree(
+        root_abs, ".", list_children=list_children, make_file_node=make_file_node
+    )
+
+    def normalize(node):
+        n = dict(node)
+        if n["type"] == "file":
+            # Filled in post-build by _populate_file_metadata, so absent here.
+            n["lines"] = 0
+            n["binary"] = False
+            n.pop("media_width", None)
+            n.pop("media_height", None)
+        else:
+            n["children"] = [normalize(c) for c in n["children"]]
+        return n
+
+    built_norm = normalize(built)
+    live_norm = normalize(live)
+    # _wrap_manifest overwrites the root name with the git-remote label; the
+    # raw builder uses the root basename. Everything below the root matches.
+    live_norm["name"] = built_norm["name"]
+    assert built_norm == live_norm
+    # Signatures are derived purely from the built tree, so they must match.
+    assert (
+        scanmod._derive_tree_signals(built).layout_signature
+        == scanmod._derive_tree_signals(live).layout_signature
+    )
+
+
+def _tree_file_paths(manifest: Manifest) -> set[str]:
+    paths: set[str] = set()
+
+    def walk(n):
+        if n["type"] == "file":
+            paths.add(n["path"])
+        else:
+            for c in n["children"]:
+                walk(c)
+
+    walk(manifest["tree"])
+    return paths
+
+
+def _tree_file_stats(manifest: Manifest) -> dict[str, tuple[int, int, bool]]:
+    """{path -> (size, lines, binary)} for every file node — the fields the
+    reconstruction guard compares against a live scan (content_signature is
+    NOT compared: it hashes real fs mtime, which a ref reconstruction lacks)."""
+    stats: dict[str, tuple[int, int, bool]] = {}
+
+    def walk(n):
+        if n["type"] == "file":
+            stats[n["path"]] = (n["size"], n["lines"], n["binary"])
+        else:
+            for c in n["children"]:
+                walk(c)
+
+    walk(manifest["tree"])
+    return stats
+
+
+def test_reconstruct_at_old_ref_shrinks_city(tmp_path):
+    from api.services.scan import reconstruct_manifest, _run_git
+
+    _init_repo(tmp_path)
+    (tmp_path / "a.txt").write_text("1\n")
+    _commit_all(tmp_path, "c1")
+    old = _run_git(tmp_path, "rev-parse", "HEAD").strip()
+    (tmp_path / "b.txt").write_text("2\n")
+    _commit_all(tmp_path, "c2")
+
+    m_old = reconstruct_manifest(str(tmp_path), old, use_cache=False)
+    assert _tree_file_paths(m_old) == {"a.txt"}  # b.txt didn't exist yet
+    assert m_old["repo"]["dirty"] is False
+    assert len(m_old["commits"]) == 1
+
+
+def test_reconstruct_bad_ref_raises(tmp_path):
+    from api.services.scan import reconstruct_manifest
+
+    _init_repo(tmp_path)
+    (tmp_path / "a.txt").write_text("1\n")
+    _commit_all(tmp_path, "c1")
+    with pytest.raises(ValueError):
+        reconstruct_manifest(str(tmp_path), "--upload-pack=x", use_cache=False)
+
+
+def test_reconstruct_head_matches_live_scan(tmp_path):
+    """Reconstructing HEAD must reproduce a live scan's structure + layout
+    signatures and per-file (size, lines, binary). This is the Task-4 guard:
+    reconstruction and the live walk share _build_tree, so any divergence in
+    ordering/structure surfaces here. content_signature is intentionally NOT
+    compared (it hashes fs mtime, absent in a ref reconstruction)."""
+    from api.services.scan import reconstruct_manifest
+
+    _init_repo(tmp_path)
+    (tmp_path / "README.md").write_text("# title\nsecond line\n")
+    (tmp_path / "config.json").write_text('{"a": 1}\n')
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "main.py").write_text("print('hi')\nprint('bye')\n")
+    (tmp_path / "src" / "util.py").write_text("x = 1\n")
+    (tmp_path / "src" / "lib").mkdir()
+    (tmp_path / "src" / "lib" / "helper.ts").write_text("export const a = 1\n")
+    (tmp_path / "src" / "lib" / "types.ts").write_text("export type T = number\n")
+    (tmp_path / "docs").mkdir()
+    (tmp_path / "docs" / "guide.md").write_text("a\nb\nc\n")
+    # A committed symlink must vanish from BOTH the live scan and the
+    # reconstruction (gitobj.ls_tree_files skips mode-120000 entries to match
+    # the live scan's follow_symlinks=False gate) — otherwise this guard
+    # would miss a divergence where reconstruction alone kept it.
+    os.symlink("README.md", tmp_path / "link.md")
+    _commit_all(tmp_path, "c1")
+
+    live = _final_manifest(str(tmp_path), use_cache=False)
+    recon = reconstruct_manifest(str(tmp_path), "HEAD", use_cache=False)
+
+    live_paths = {n["path"] for n in _walk_files(live["tree"])}
+    recon_paths = {n["path"] for n in _walk_files(recon["tree"])}
+    assert "link.md" not in live_paths
+    assert "link.md" not in recon_paths
+
+    assert recon["structure_signature"] == live["structure_signature"]
+    assert recon["layout_signature"] == live["layout_signature"]
+    assert _tree_file_stats(recon) == _tree_file_stats(live)
 
 
 if __name__ == "__main__":

@@ -46,6 +46,24 @@ describe('placeTrees (commit-driven)', () => {
     expect(placements.length).toBe(50);
   });
 
+  it('places a tree for every commit even on a tiny, city-covered island', () => {
+    // A 2- or 3-commit repo: the candidate grid is floored (TREE_MIN_CELLS) so
+    // enough positions survive rejection to place ALL commits' trees. Without the
+    // floor a handful of cells collide with the centered building and accepted
+    // falls below the commit count, silently dropping HEAD's tree.
+    const bb = bbox(-40, -40, 40, 40);
+    const layout: CityLayout = {
+      ...emptyLayout(bb),
+      buildings: [building({ x: 0, y: 0, w: 40, d: 40, h: 10 })],
+    };
+    for (const commitCount of [1, 2, 3]) {
+      const placements = placeTrees(layout, bb, { commitCount });
+      expect(placements.length).toBe(commitCount);
+      // Each commit index appears exactly once.
+      expect(new Set(placements.map((p) => p.commitIndex)).size).toBe(commitCount);
+    }
+  });
+
   it('tree placements are sorted by distance from gem (closest first)', () => {
     const layout = emptyLayout(bbox(-100, -100, 100, 100));
     const placements = placeTrees(layout, layout.bbox, { commitCount: 100 });

@@ -35,6 +35,7 @@ flat varying vec3 vScale;
 //        files still look weathered.
 flat varying vec4 vIconUV;
 flat varying float vModifiedAge; // 0=most recently modified, 1=longest-untouched. Drives lit-window count + HDR emission via recencyCurve.
+flat varying float vRuin;        // Timeline state: 1 = ruin (deleted, crumbled stub), 2 = future (blank low slab).
 
 // Hidden-tier wireframe thickness in screen-pixels. Sourced from
 // BUILDING_OUTLINE.WIDTH; refreshed via refreshBuildingMaterial() on Save via applyTheme().
@@ -415,7 +416,8 @@ vec4 renderWallFace() {
   vec3 withWin  = mix(wallOut, winColor, winMask);
 
   // Door: ground floor of the door face only. Replaces windows for that row.
-  if (isDoorFace() && row < 0.5) {
+  // Suppressed on ruin + future stubs (vRuin > 0), whose facades are blank.
+  if (isDoorFace() && row < 0.5 && vRuin < 0.5) {
     // Door world-width / face world-width = door UV width.
     // vScale = (w, h, d) recovered from instance matrix columns.
     // ±X faces span depth d (vScale.z); ±Z faces span width w (vScale.x).
@@ -540,12 +542,27 @@ vec4 compositeOutline(vec4 body) {
 }
 
 void main() {
+  // Ghost-ruin: keep all four walls AND a roof (not a hollow open-top shell),
+  // but punch sparse "missing brick" holes into the walls (blocky hashed cells)
+  // plus a jagged nibble along the very top rim, so it reads as broken. Roof
+  // (2) and bottom (3) stay solid.
+  // Crumble only for ruins (vRuin 1), never the future slab (vRuin 2).
+  if (vRuin > 0.5 && vRuin < 1.5 && vFace != 2 && vFace != 3) {
+    float seed = float(vFace) * 7.0;
+    if (hash21(floor(vUv * 11.0) + seed) < 0.09) discard; // missing bricks
+    float rim = 0.86 + 0.14 * hash21(vec2(floor(vUv.x * 9.0), seed)); // ~0.86..1.0
+    if (vUv.y > rim) discard; // jagged top edge under the roof line
+  }
+
   vec4 body;
   if (vSilhouette > 0.5)      body = renderSilhouette();
   else if (vFace == 2)        body = renderRoofFace();
   else if (vFace == 3)        body = renderBottomFace();
   else                        body = renderWallFace();
   vec4 outColor = compositeOutline(body);
+
+  // Ruin facade: coarse grime so the blank stub looks weathered, not painted. Ruins only, not the future slab.
+  if (vRuin > 0.5 && vRuin < 1.5) outColor.rgb *= 0.7 + 0.3 * hash21(floor(vUv * 9.0));
 
   // Height fog: dense at y=0, thins with altitude. Handled by applyFog()
   // from the shared fog_apply chunk.

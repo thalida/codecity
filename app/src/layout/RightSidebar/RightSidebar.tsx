@@ -18,7 +18,7 @@
 // automatically when a live-update poll publishes a fresh manifest.
 
 import './RightSidebar.css';
-import { useComputed, useSignal, useSignalEffect } from '@preact/signals';
+import { useComputed } from '@preact/signals';
 import { PERSISTED_KEYS } from '@/constants/storage';
 import { NodeKind } from '@/types';
 import type { CommitEntry, DirNode, FileNode, Manifest } from '@/types';
@@ -31,6 +31,10 @@ import {
   focusCommit,
 } from '@/state/stores/scene';
 import { MANIFEST } from '@/state/stores/manifest';
+import { SOURCE_INFO } from '@/state/stores/source';
+import { ROOT_PATH } from '@/constants/manifest';
+import { TIMELINE_MODE } from '@/state/stores/timeline';
+import { viewCommitInTimeline } from '@/hooks/useTimelineMode';
 import { findNodeByPath } from '@/utils/manifest';
 import { addExclude } from '@/state/stores/excludes';
 import { FilePreviewPane } from '@/views/FilePreviewPane/FilePreviewPane';
@@ -80,12 +84,6 @@ function commitStateFor(handle: SceneHandle, commit: CommitEntry): CommitPaneSta
 // ── Main component ───────────────────────────────────────────────────
 
 export function RightSidebar() {
-  // Local override flag — set true when the user clicks a pane's close
-  // button, cleared when the picker selection becomes non-null again.
-  // Without it, re-selecting the SAME node wouldn't re-open the sidebar
-  // (signals dedupe by reference).
-  const userClosed = useSignal(false);
-
   // Pane view-state, derived from the picker selection + manifest. Computeds
   // (read during render) so it's pure render-time reactivity — no effect
   // writing signals, no module-level bridge, no manual world.onChange — they
@@ -93,8 +91,12 @@ export function RightSidebar() {
   // live-update poll re-derives the enriched panes.
   const activeKind = useComputed<SidebarPaneKind | null>(() => {
     const sel = SCENE_HANDLE.value?.picker.selection.value ?? null;
-    if (sel?.kind === NodeKind.File) return SidebarPaneKind.File;
+    // Every selection opens the panel, in Live and Timeline alike — the sidebar is
+    // now the only place a selection is shown. In Timeline the panes handle the
+    // union-city caveat themselves (file preview reads HEAD with a note; the
+    // street pane shows the union folder).
     if (sel?.kind === NodeKind.Commit) return SidebarPaneKind.Commit;
+    if (sel?.kind === NodeKind.File) return SidebarPaneKind.File;
     if (sel?.kind === NodeKind.Directory) return SidebarPaneKind.Street;
     return null;
   });
@@ -103,14 +105,28 @@ export function RightSidebar() {
     const sel = SCENE_HANDLE.value?.picker.selection.value ?? null;
     if (sel?.kind !== NodeKind.File) return { file: null };
     const fresh = findNodeByPath(m, sel.file.path);
-    return { file: fresh?.type === NodeKind.File ? fresh : sel.file };
+    // MANIFEST stays HEAD in Timeline (the union goes to cityState, not this
+    // store), so a union file missing here is deleted at HEAD → /api/file 404s.
+    // Excludes never reach here: they're filtered out of the timeline union too,
+    // so an excluded file has no building to select.
+    const atHead = fresh?.type === NodeKind.File;
+    return {
+      file: atHead ? fresh : sel.file,
+      rootLabel: SOURCE_INFO.value.label,
+      rootPath: (m as Manifest)?.tree?.path ?? ROOT_PATH,
+      remoteUrl: (m as Manifest)?.repo?.remote_url ?? null,
+      branch: SOURCE_INFO.value.branch,
+      inTimeline: TIMELINE_MODE.value,
+      isDeleted: TIMELINE_MODE.value && !atHead,
+    };
   });
   const commitState = useComputed<CommitPaneState>(() => {
     void MANIFEST.value; // re-derive on live-update rebuilds
+    const inTimeline = TIMELINE_MODE.value; // re-derive so the button label tracks the mode
     const handle = SCENE_HANDLE.value;
     const sel = handle?.picker.selection.value ?? null;
     return handle && sel?.kind === NodeKind.Commit
-      ? commitStateFor(handle, sel.commit)
+      ? { ...commitStateFor(handle, sel.commit), inTimeline }
       : { commit: null };
   });
   const streetState = useComputed<StreetPaneState>(() => {
@@ -118,22 +134,22 @@ export function RightSidebar() {
     const sel = SCENE_HANDLE.value?.picker.selection.value ?? null;
     if (sel?.kind !== NodeKind.Directory) return { directory: null };
     const fresh = findNodeByPath(m, sel.dir.path);
-    return { directory: fresh?.type === NodeKind.Directory ? fresh : sel.dir };
+    return {
+      directory: fresh?.type === NodeKind.Directory ? fresh : sel.dir,
+      rootLabel: SOURCE_INFO.value.label,
+      rootPath: (m as Manifest)?.tree?.path ?? ROOT_PATH,
+      remoteUrl: (m as Manifest)?.repo?.remote_url ?? null,
+      branch: SOURCE_INFO.value.branch,
+      inTimeline: TIMELINE_MODE.value,
+    };
   });
 
-  // Re-open after a manual close once a fresh selection arrives.
-  useSignalEffect(() => {
-    if (activeKind.value !== null && userClosed.value) {
-      userClosed.value = false;
-    }
-  });
-
-  // Effective open state: true when there's an active pane AND the user
-  // hasn't closed it. The .open class drives the CSS transition.
-  const isOpen = useComputed(() => activeKind.value !== null && !userClosed.value);
+  // The sidebar is open exactly when something is selected — the selection has no
+  // other on-screen indicator, so the two are bound. Closing therefore deselects
+  // (below), and re-selecting reopens.
+  const isOpen = useComputed(() => activeKind.value !== null);
 
   const onClose = () => {
-    userClosed.value = true;
     clearSelection();
   };
 
@@ -148,6 +164,9 @@ export function RightSidebar() {
 
   const kind = activeKind.value;
   const open = isOpen.value;
+  // Exclude re-scans the live HEAD manifest, which Timeline's fixed union scene
+  // can't reflect — so hide the button there rather than offer a no-op.
+  const canExclude = !TIMELINE_MODE.value;
 
   return (
     <Sidebar
@@ -162,18 +181,23 @@ export function RightSidebar() {
           state={fileState}
           onClose={onClose}
           onFocus={onFileFocus}
-          onExclude={(f) => onExcludeNode(f.path)}
+          onExclude={canExclude ? (f) => onExcludeNode(f.path) : undefined}
         />
       )}
       {kind === SidebarPaneKind.Commit && (
-        <CommitPane state={commitState} onClose={onClose} onFocus={onCommitFocus} />
+        <CommitPane
+          state={commitState}
+          onClose={onClose}
+          onFocus={onCommitFocus}
+          onViewInTimeline={(commit) => void viewCommitInTimeline(commit.sha)}
+        />
       )}
       {kind === SidebarPaneKind.Street && (
         <StreetPane
           state={streetState}
           onClose={onClose}
           onFocus={onStreetFocus}
-          onExclude={(d) => onExcludeNode(d.path)}
+          onExclude={canExclude ? (d) => onExcludeNode(d.path) : undefined}
         />
       )}
     </Sidebar>

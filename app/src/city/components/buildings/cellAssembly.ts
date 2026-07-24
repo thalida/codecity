@@ -50,19 +50,18 @@ export function buildCellsFromLayout(
   const cellSize = SpatialGrid.computeOptimalCellSize(bounds);
   const grid = new SpatialGrid(bounds, cellSize);
 
-  // ---- Sparse pass: collect occupied cellIds ----
-  const occupiedIds = new Set<number>();
+  // ---- Sparse pass: count buildings per occupied cell ----
+  const cellCounts = new Map<number, number>();
   for (const b of buildings) {
     const { cellId } = grid.worldToCell(b.x, b.y);
-    occupiedIds.add(cellId);
+    cellCounts.set(cellId, (cellCounts.get(cellId) ?? 0) + 1);
   }
 
-  const capacity = computeCellCapacity(occupiedIds.size || 1, buildings.length);
-
-  // ---- Sparse allocation: only occupied cells ----
+  // ---- Sparse allocation: each cell sized to its OWN load (a global average
+  // over-fills sparse cells and overflows dense ones, e.g. a monorepo subtree). ----
   const cells = new Map<number, CellTile>();
-  for (const id of occupiedIds) {
-    const cell = createEmptyCellTile(grid, id, capacity);
+  for (const [id, count] of cellCounts) {
+    const cell = createEmptyCellTile(grid, id, cellCapacityFor(count));
     attachBuildingMeshToCell(cell);
     cells.set(id, cell);
   }
@@ -131,8 +130,8 @@ export function buildCellsFromLayout(
   return { grid, cells, index, sceneRoot, adPanels };
 }
 
-function computeCellCapacity(occupiedCellCount: number, expectedFiles: number): number {
-  if (expectedFiles === 0) return 64;
-  const avg = Math.ceil(expectedFiles / occupiedCellCount);
-  return Math.max(64, avg * 4);
+// Per-cell capacity: the cell's own building count plus 50% headroom for
+// later growth (live edits), floored at 64.
+function cellCapacityFor(count: number): number {
+  return Math.max(64, Math.ceil(count * 1.5));
 }

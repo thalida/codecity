@@ -33,3 +33,12 @@
   padding: var(--cc-pane-inset);
   box-sizing: border-box;
 }
+
+/* Positioning context for the floating <TimelineStaleNote> toast (its visual
+   lives in components/TimelineStaleNote). Each of these pane bodies is inset-free
+   so the toast sits at an identical space-4 from the pane edges. */
+.editor-body,
+.street-body,
+.readme-pane {
+  position: relative;
+}

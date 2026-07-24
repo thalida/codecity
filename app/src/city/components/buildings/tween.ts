@@ -32,6 +32,7 @@
 
 import * as THREE from 'three';
 import { BUILDINGS } from '@/state/stores/settings/buildings';
+import { getBuildingTilt, composeShearMatrix } from './tilt';
 import type { Building, EnteringBuilding, StayingBuilding } from '@/types';
 
 /** Narrow resolver surface the tween queue needs from the buildings
@@ -187,9 +188,10 @@ export function createBuildingTweens(deps: TweenDeps) {
     }
   }
 
-  // Reusable scratch matrix — allocated once, reused every frame to
-  // avoid per-tween GC pressure.
+  // Reusable scratch — allocated once, reused every frame to avoid per-tween GC.
   const _tmpMatrix = new THREE.Matrix4();
+  const _tmpPos = new THREE.Vector3();
+  const _tmpScale = new THREE.Vector3();
 
   function update(_dtMs: number): void {
     if (tweens.length === 0) return;
@@ -225,8 +227,12 @@ export function createBuildingTweens(deps: TweenDeps) {
       const py = tw.fromPosY + (tw.toPosY - tw.fromPosY) * eased;
       const pz = tw.fromPosZ + (tw.toPosZ - tw.fromPosZ) * eased;
 
-      _tmpMatrix.makeScale(sx, sy, sz);
-      _tmpMatrix.setPosition(px, py, pz);
+      // Bake the age-lean shear so a growing-in building leans like a built one
+      // (the shear scales with the animated height, so the lean grows in too).
+      const { tiltX, tiltZ } = getBuildingTilt(tw.building);
+      _tmpPos.set(px, py, pz);
+      _tmpScale.set(sx, sy, sz);
+      composeShearMatrix(_tmpPos, _tmpScale, tiltX, tiltZ, _tmpMatrix);
       targetMesh.setMatrixAt(slot, _tmpMatrix);
       dirtyMeshes.add(targetMesh);
 

@@ -237,5 +237,9 @@ clean:
      docker compose -f docker-compose.test.yml down --rmi local 2>/dev/null || true
     rm -f .local/worktree-ports.json
 
+# Wipe this worktree's cache volume (clones + manifest/timeline/blob caches); re-clones + re-scans on next `just dev`.
 clean-cache:
-    docker volume rm codecity-cache 2>/dev/null || true
+    @SLUG=$( ( git symbolic-ref --short -q HEAD 2>/dev/null || basename $(pwd) ) | tr '[:upper:]' '[:lower:]' | tr -c '[:alnum:]' '-' | sed 's/-*$//') ; \
+     docker compose -p codecity-$SLUG -f docker-compose.dev.yml down 2>/dev/null || true ; \
+     docker volume rm codecity-${SLUG}_codecity-cache 2>/dev/null || true ; \
+     echo "[codecity] wiped cache volume codecity-${SLUG}_codecity-cache"

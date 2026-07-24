@@ -28,10 +28,21 @@ describe('CommitPane', () => {
   let container: HTMLDivElement;
   let state: ReturnType<typeof signal<CommitPaneState>>;
 
-  function mount(opts: { onClose?: () => void; onFocus?: (c: CommitEntry) => void } = {}): void {
+  function mount(
+    opts: {
+      onClose?: () => void;
+      onFocus?: (c: CommitEntry) => void;
+      onViewInTimeline?: (c: CommitEntry) => void;
+    } = {}
+  ): void {
     state = signal<CommitPaneState>({ commit: null });
     render(
-      <CommitPane state={state} onClose={opts.onClose ?? (() => {})} onFocus={opts.onFocus} />,
+      <CommitPane
+        state={state}
+        onClose={opts.onClose ?? (() => {})}
+        onFocus={opts.onFocus}
+        onViewInTimeline={opts.onViewInTimeline}
+      />,
       container
     );
   }
@@ -89,8 +100,10 @@ describe('CommitPane', () => {
     // SHA is inside the pane header title.
     expect(container.querySelector('.text-pane-title .commit-sha')!.textContent).toBe('a1b2c3d');
 
-    // Open link is in the pane header title.
-    const link = container.querySelector('.text-pane-title .commit-open') as HTMLAnchorElement;
+    // Open link is in the pane header's right action group.
+    const link = container.querySelector(
+      '.pane-header-actions a[aria-label="Open commit on origin"]'
+    ) as HTMLAnchorElement;
     expect(link).not.toBeNull();
     expect(link.href).toBe(`https://github.com/org/repo/commit/${COMMIT.sha}`);
     expect(link.target).toBe('_blank');
@@ -120,7 +133,9 @@ describe('CommitPane', () => {
   it('hides the open link when remoteUrl is null', async () => {
     mount();
     await setCommit(COMMIT, { remoteUrl: null, now: new Date('2026-05-24T12:00:00Z') });
-    expect(container.querySelector('.text-pane-title .commit-open')).toBeNull();
+    expect(
+      container.querySelector('.pane-header-actions a[aria-label="Open commit on origin"]')
+    ).toBeNull();
     await drainAsync();
     // Absence of a remote is reflected by the missing open link alone —
     // no "No remote configured" hint copy.
@@ -136,6 +151,30 @@ describe('CommitPane', () => {
     await setCommit(null);
     expect(container.querySelector('.commit-sha')).toBeNull();
     expect(container.querySelector('.empty-state')).not.toBeNull();
+  });
+
+  it('shows the header timeline button (tooltip tracks mode) and fires onViewInTimeline with the commit', async () => {
+    const onViewInTimeline = vi.fn();
+    mount({ onViewInTimeline });
+    await setCommit(COMMIT, { now: new Date('2026-05-24T12:00:00Z') });
+    const btn = container.querySelector(
+      '.pane-header [aria-label="View on timeline"]'
+    ) as HTMLButtonElement;
+    expect(btn).not.toBeNull();
+    expect(btn.getAttribute('title')).toContain('View this commit on the timeline'); // live mode
+    btn.click();
+    expect(onViewInTimeline).toHaveBeenCalledWith(COMMIT);
+
+    await setCommit(COMMIT, { inTimeline: true, now: new Date('2026-05-24T12:00:00Z') });
+    expect(
+      container.querySelector('.pane-header [aria-label="View on timeline"]')!.getAttribute('title')
+    ).toContain('Scrub the timeline to this commit');
+  });
+
+  it('omits the timeline button when no onViewInTimeline handler is given', async () => {
+    mount();
+    await setCommit(COMMIT, { now: new Date('2026-05-24T12:00:00Z') });
+    expect(container.querySelector('[aria-label="View on timeline"]')).toBeNull();
   });
 
   it('onClose fires when the × is clicked', () => {

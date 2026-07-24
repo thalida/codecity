@@ -44,10 +44,9 @@ export function formatHoverTooltip(
     // meaningless 0 — surface pixel dimensions instead. The backend only
     // stamps media_width/height on recognized media, so their presence is a
     // reliable "this is dimensioned media" signal.
-    if (f.media_width != null && f.media_height != null) {
-      return `${fpath}  ·  ${f.media_width}×${f.media_height}`;
-    }
-    return fpath + (f.lines != null ? `  ·  ${f.lines} lines` : '');
+    return f.media_width != null && f.media_height != null
+      ? `${fpath}  ·  ${f.media_width}×${f.media_height}`
+      : fpath + (f.lines != null ? `  ·  ${f.lines} lines` : '');
   }
   if (target.kind === NodeKind.Directory && target.dir) {
     const d = target.dir;
@@ -62,4 +61,14 @@ export function formatHoverTooltip(
     return `${dpath || 'directory'}  ·  ${counts}`;
   }
   return null;
+}
+
+// Whether a hovered file/dir is a ghost-ruin (deleted at the scrubbed commit).
+// The tooltip renderer leads with a red "deleted" badge for these, so the marker
+// lives with the render, not in this identity-text formatter.
+export function isDeletedTarget(target: PickTarget | null): boolean {
+  if (target?.kind === NodeKind.File || target?.kind === NodeKind.Directory) {
+    return Boolean(target.isRuin);
+  }
+  return false;
 }

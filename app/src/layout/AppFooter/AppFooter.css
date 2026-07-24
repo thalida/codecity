@@ -64,6 +64,16 @@
 /* Footer button uses .btn-icon + .btn-icon--sm (defined with the icon
    button component near the top of the file). */
 
+/* Utility-icon cluster (shortcuts, debug) pinned to the true far right,
+   separated from the selection metadata by extra margin. */
+.app-footer-icons {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: var(--cc-space-2);
+  margin-left: var(--cc-space-5);
+}
+
 /* ── Combined status indicator (left section) ─────────────────────── */
 /* Layout: [dot] <status text>
  * One dot, two channels:

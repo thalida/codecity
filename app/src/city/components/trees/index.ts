@@ -51,6 +51,9 @@ export interface TreesComponent extends SceneComponent {
   getRenderer(): Trees | null;
   /** Window-resize hook — forwards to the outline LineMaterial resolutions. */
   onResize(): void;
+  /** Timeline scrub gate — forwards to the inner renderer; no-op pre-rebuild
+   *  (nothing to gate yet). See treeRenderer.ts Trees.setScrubCommit. */
+  setScrubCommit(maxCommitIndex: number | null): void;
 }
 
 export function createTrees(ctx: SceneContext): TreesComponent {
@@ -210,5 +213,6 @@ export function createTrees(ctx: SceneContext): TreesComponent {
     tick,
     onResize,
     dispose,
+    setScrubCommit: (maxCommitIndex) => _inner?.setScrubCommit(maxCommitIndex),
   };
 }

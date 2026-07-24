@@ -29,6 +29,7 @@ import { effect, untracked } from '@preact/signals';
 import { BUILDINGS, BUILDING_DIMENSIONS } from '@/state/stores/settings/buildings';
 import { BLOOM } from '@/state/stores/settings/effects';
 import { SCENE } from '@/state/stores/settings/scene';
+import { TIMELINE_MODE } from '@/state/stores/timeline';
 import type { Building, CityLayout, DateRanges, EnteringBuilding, StayingBuilding } from '@/types';
 
 import type { FrameContext, SceneComponent, SceneContext } from '../../types';
@@ -70,8 +71,13 @@ export interface Buildings extends SceneComponent {
   getCells(): Map<number, CellTile>;
   /** Building index, or null pre-rebuild. */
   getBuildingIndex(): BuildingIndex | null;
+  /** Instanced ad panels, or null pre-rebuild / while disposed. */
+  getAdPanels(): InstancedAdPanels | null;
   /** Resolve a building's live InstancedMesh + slot. Null if no live mesh. */
   getMeshForBuilding(b: Building): { mesh: THREE.InstancedMesh; slot: number } | null;
+  /** Install (or clear with null) the Timeline scrub controller, which drives
+   *  scaleY + iFade per frame while TIMELINE_MODE is on. */
+  setScrubController(controller: { update(): void } | null): void;
   /** Window-resize hook — forwards to the outline LineMaterial resolution. */
   onResize(): void;
 }
@@ -232,6 +238,10 @@ export function createBuildings(ctx: SceneContext): Buildings {
   // created at construction, not armed.
   const _tweens = createBuildingTweens({ getMeshForBuilding });
 
+  // Timeline scrub controller (installed by the timeline lifecycle). While
+  // TIMELINE_MODE, it drives scaleY + iFade per frame instead of the tweens.
+  let _scrubController: { update(): void } | null = null;
+
   // _computeBuildingDiff — compares the PRIOR cells (captured before the dispose
   // in rebuild) against the component's freshly-adopted _buildingIndex,
   // producing entering / staying buckets the tween queue consumes. Reads prev
@@ -347,8 +357,10 @@ export function createBuildings(ctx: SceneContext): Buildings {
   function tick(_dt: number, frame: FrameContext): void {
     // Entering/staying tweens run FIRST within the tick. Nothing between that
     // slot and this one reads instance matrices; outline/ghost read them
-    // AFTER, within this tick.
-    _tweens.update(0);
+    // AFTER, within this tick. In Timeline mode the scrub controller owns the
+    // matrix + iFade instead, so the tween queue stays dormant.
+    if (TIMELINE_MODE.peek() && _scrubController) _scrubController.update();
+    else _tweens.update(0);
     _arm.arm();
     _fader?.update(0);
     _outline?.update(0);
@@ -458,10 +470,12 @@ export function createBuildings(ctx: SceneContext): Buildings {
     // fresh diff above re-seeds from the current on-screen matrices, so clearing
     // loses no animation continuity.
     _tweens.clear();
-    if (_firstBuildDone) {
-      _tweens.onDiff(diff);
-    } else {
+    if (!_firstBuildDone) {
       _firstBuildDone = true;
+    } else if (!TIMELINE_MODE.peek()) {
+      // Timeline mode packs the union once; the scrub controller owns the
+      // matrix from here, so don't animate a per-commit diff against it.
+      _tweens.onDiff(diff);
     }
   }
 
@@ -486,6 +500,10 @@ export function createBuildings(ctx: SceneContext): Buildings {
     getBuildingByPath: (p) => _buildingsByPath[p] || null,
     getCells: () => _cells,
     getBuildingIndex: () => _buildingIndex,
+    getAdPanels: () => _adPanels,
     getMeshForBuilding,
+    setScrubController: (c) => {
+      _scrubController = c;
+    },
   };
 }

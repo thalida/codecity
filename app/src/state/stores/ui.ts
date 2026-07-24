@@ -30,6 +30,8 @@ export interface OpenOpts {
 export interface LoadingOverlayShowOpts {
   kind: SourceKind;
   branch?: string;
+  // Custom step list (e.g. Timeline-mode entry). Defaults to LOADING_STEPS.
+  steps?: readonly LoadingStep[];
 }
 
 // ── Projects view ────────────────────────────────────────────────────────────
@@ -94,25 +96,43 @@ export const LOADING_OVERLAY = signal<LoadingOverlayState>({
   stepTails: {},
 });
 
+// Per-load Cancel handler for the overlay. A load that can be backed out of (the
+// timeline enter) registers its own abort-and-restore; when null, the overlay
+// falls back to the App default (cancel the live load, open the project list).
+export const LOADING_CANCEL = signal<(() => void) | null>(null);
+
 // Setters use .peek() rather than .value to read the prior state — these
 // functions are sometimes called from inside other effects (e.g. the
 // REBUILD_STATUS → 'decorating' bridge), and a tracked `.value` read
 // would auto-subscribe that effect to LOADING_OVERLAY, producing a cycle
 // when the same effect later writes back.
 
-export function showLoadingOverlay(opts: LoadingOverlayShowOpts): void {
+// onCancel: pass to set the overlay's cancel handler; OMIT (undefined) to leave
+// any already-registered handler in place — the live-load reaction shows the
+// overlay without one, so a caller (exit-Timeline) can pre-register its cancel.
+export function showLoadingOverlay(
+  opts: LoadingOverlayShowOpts,
+  onCancel?: (() => void) | null
+): void {
   const initialStep: LoadingStep =
-    opts.kind === SourceKind.Local ? LoadingStep.Scanning : LoadingStep.Resolving;
+    opts.steps?.[0] ??
+    (opts.kind === SourceKind.Local ? LoadingStep.Scanning : LoadingStep.Resolving);
   LOADING_OVERLAY.value = {
     visible: true,
     showOpts: opts,
     activeStep: initialStep,
     stepTails: {},
   };
+  if (onCancel !== undefined) LOADING_CANCEL.value = onCancel;
+}
+
+export function setLoadingCancel(onCancel: (() => void) | null): void {
+  LOADING_CANCEL.value = onCancel;
 }
 
 export function hideLoadingOverlay(): void {
   LOADING_OVERLAY.value = { ...LOADING_OVERLAY.peek(), visible: false };
+  LOADING_CANCEL.value = null;
 }
 
 export function setLoadingStep(step: LoadingStep): void {

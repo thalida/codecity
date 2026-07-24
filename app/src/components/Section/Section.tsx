@@ -17,7 +17,9 @@ import { useAnyResettable, type ResettableRef } from '@/hooks/useSettings';
 
 export interface SectionProps {
   name: string;
-  hint?: string;
+  /** Sub-header helper text. A string for the common case; rich content (e.g. a
+   *  hint with a link) is fine too. */
+  hint?: ComponentChildren;
   /** The (store, key) refs of every field under this section. Drives the
    *  header reset button; omit (bespoke sections) to render no section reset. */
   resetKeys?: ResettableRef[];

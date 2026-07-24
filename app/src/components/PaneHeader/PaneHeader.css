@@ -9,15 +9,17 @@
  * file-preview — mounts this same DOM so they look identical and
  * adding a pane is a single buildPaneHeader() call. */
 .pane-header {
-  /* Uniform inset on all sides so the leading focus button and the trailing
-     close button sit equidistant from the pane edges. */
+  /* Uniform inset on all sides so the title and the trailing action group sit
+     equidistant from the pane edges. */
   padding: var(--cc-space-4);
   border-bottom: 1px solid var(--cc-border-subtle);
   flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--cc-space-4);
+  /* Forced gap between the (flex-filling) title and the right action group, so a
+     long path breadcrumb truncates well clear of the icons instead of crowding them. */
+  gap: var(--cc-space-8);
 }
 
 /* Tabbed pane header — the tab strip IS the header row (no title bar), with the
@@ -35,6 +37,17 @@
 }
 .pane-header--tabs > .btn-icon {
   align-self: center;
+}
+
+/* Right-hand action group — every pane-header button (focus, copy, open,
+ * timeline, exclude, close) sits here, so all icons are right-aligned. The title
+ * flex-fills and pushes this group to the pane edge; a tight inner gap keeps the
+ * icons grouped. */
+.pane-header-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--cc-space-1);
+  flex-shrink: 0;
 }
 
 /* Pane-header action buttons (e.g. focus) use .btn-icon--text; the close button

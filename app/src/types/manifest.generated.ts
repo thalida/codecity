@@ -134,6 +134,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/timeline": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Timeline */
+        get: operations["timeline_api_timeline_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/manifest/cache": {
         parameters: {
             query?: never;
@@ -571,6 +588,73 @@ export interface components {
             /** Content Signature */
             content_signature: string;
         };
+        /**
+         * TimelineBundle
+         * @description Wire schema for the scrub bundle; mirrors manifest_types.TimelineBundle.
+         */
+        TimelineBundle: {
+            /** Commits */
+            commits: components["schemas"]["CommitEntry"][];
+            unionManifest: components["schemas"]["Manifest"];
+            /** Deltas */
+            deltas: components["schemas"]["TimelineDelta"][];
+            /** Bloblines */
+            blobLines: {
+                [key: string]: number;
+            };
+            /** Note */
+            note: string | null;
+        };
+        /** TimelineChange */
+        TimelineChange: {
+            /** Path */
+            path: string;
+            /**
+             * Sha
+             * @description New blob sha, or null when deleted
+             */
+            sha: string | null;
+        };
+        /**
+         * TimelineCompleteEvent
+         * @description `timeline-complete` — the full replay bundle (fresh build or warm
+         *     cache hit).
+         */
+        TimelineCompleteEvent: {
+            bundle: components["schemas"]["TimelineBundle"];
+        };
+        /** TimelineDelta */
+        TimelineDelta: {
+            /** Sha */
+            sha: string;
+            /** Changes */
+            changes: components["schemas"]["TimelineChange"][];
+        };
+        /**
+         * TimelineProgressEvent
+         * @description `timeline-progress` — the history walk, blob-table resolution, or (for a
+         *     blobless remote clone) the up-front blob backfill is in progress. The
+         *     `fetch` stage carries `percent`; `history` carries `commits`; `blobs`
+         *     carries `blobsDone`/`blobsTotal` (the total is known up front from the batch
+         *     blob lookup, so that stage reports two ticks, not a live stream).
+         */
+        TimelineProgressEvent: {
+            /**
+             * Stage
+             * @enum {string}
+             */
+            stage: "fetch" | "history" | "blobs";
+            /** Percent */
+            percent?: number;
+            /** Commits */
+            commits?: number;
+            /** Blobsdone */
+            blobsDone?: number;
+            /** Blobstotal */
+            blobsTotal?: number;
+            /** Label */
+            label?: string;
+        };
         /** ValidationError */
         ValidationError: {
             /** Location */
@@ -796,6 +880,39 @@ export interface operations {
             };
         };
     };
+    timeline_api_timeline_get: {
+        parameters: {
+            query: {
+                src: string;
+                branch?: string | null;
+                no_cache?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Server-Sent Events stream (`text/event-stream`). Named events and their JSON `data` payloads: `timeline-progress` (TimelineProgressEvent, one or more while the history walk / blob resolution run), `timeline-complete` (TimelineCompleteEvent, the full bundle), `error` (ErrorEvent). A warm cache hit emits only `timeline-complete`, no progress. The client closes the connection on `timeline-complete`/`error`. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TimelineProgressEvent"] | components["schemas"]["TimelineCompleteEvent"] | components["schemas"]["ErrorEvent"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     clear_cache_api_manifest_cache_delete: {
         parameters: {
             query: {
@@ -835,6 +952,7 @@ export interface operations {
                 branch?: string | null;
                 no_cache?: boolean;
                 exclude?: string[];
+                ref?: string | null;
             };
             header?: never;
             path?: never;
@@ -842,7 +960,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Server-Sent Events stream (`text/event-stream`). Named events and their JSON `data` payloads: `clone-progress` (CloneProgressEvent), `scan-progress` (ScanProgressEvent), `manifest-partial` (PartialManifestEvent), `manifest-complete` (CompleteManifestEvent), `error` (ErrorEvent). The client closes the connection on `manifest-complete`/`error`. */
+            /** @description Server-Sent Events stream (`text/event-stream`). Named events and their JSON `data` payloads: `clone-progress` (CloneProgressEvent), `scan-progress` (ScanProgressEvent), `manifest-partial` (PartialManifestEvent), `manifest-complete` (CompleteManifestEvent), `error` (ErrorEvent). The client closes the connection on `manifest-complete`/`error`. When `ref` is set, the manifest is reconstructed as of that commit instead of the working tree (a remote source still emits `clone-progress` if it isn't cloned yet, but never `scan-progress`/`manifest-partial` for the reconstruction itself — the city is already drawn, so a skeleton would flash placeholders). */
             200: {
                 headers: {
                     [name: string]: unknown;

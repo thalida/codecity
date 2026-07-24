@@ -36,8 +36,9 @@ import {
   CURRENT_SOURCE,
 } from '@/state/stores/source';
 import { SERVER_CONFIG } from '@/state/stores/serverConfig';
-import { MANIFEST, setManifest, markError } from '@/state/stores/manifest';
+import { MANIFEST, setManifest, markError, markRebuilding } from '@/state/stores/manifest';
 import { SCAN_PROGRESS } from '@/state/stores/scanProgress';
+import { TIMELINE_MODE, resetTimelineMode } from '@/state/stores/timeline';
 import { activeExcludePathsFor, ACTIVE_EXCLUDES } from '@/state/stores/excludes';
 import { srcKind, SourceKind, srcNeedsBranch, identityBranch, sourceKey } from '@/utils/sources';
 import { isEmptyManifest } from '@/utils/manifest';
@@ -129,6 +130,8 @@ let loadController: AbortController | null = null;
 // below is a SEPARATE op — a background refresh of the current source that
 // shares only the MANIFEST sink, and yields to a foreground load via the gen.)
 export async function loadSource(payload: SourcePayload): Promise<void> {
+  // A source switch always exits Timeline mode; the city-layer effect reacts to the flip and tears down the scene.
+  if (TIMELINE_MODE.peek()) resetTimelineMode();
   const myGen = ++loadGeneration; // claim authority; supersedes any in-flight load/poll
   loadController?.abort(); // supersede any in-flight load
   const controller = new AbortController();
@@ -276,6 +279,7 @@ export function setupLiveUpdates(): () => void {
   // the overlay, so the poll never probes/applies a source that's mid-load.
   async function tick(): Promise<void> {
     if (inFlight) return;
+    if (TIMELINE_MODE.peek()) return; // Timeline mode owns the scene (union city + scrub) — no live poll
     if (SCAN_PROGRESS.peek() !== null) return; // a foreground load is in flight — yield
     const cur = CURRENT_SOURCE.peek();
     if (!cur) return; // nothing loaded yet
@@ -333,10 +337,12 @@ export function setupLiveUpdates(): () => void {
     const [prevRepo] = prev.split('|', 1);
     if (prevRepo !== repoKey) return; // source switched — the load owns it
     if (prev === nextKey) return; // no actual change
+    if (TIMELINE_MODE.peek()) return; // Timeline mode owns the scene — no in-place refresh
     if (SCAN_PROGRESS.peek() !== null) return; // yield to a foreground load
     if (!cur) return;
     if (inFlight) return; // the poll's tick is already covering this refresh
     inFlight = true;
+    markRebuilding(); // flip the footer to "rebuilding" now, not after the re-scan streams back
     void fetchAndApply(cur.src, cur.branch).finally(() => {
       inFlight = false;
     });

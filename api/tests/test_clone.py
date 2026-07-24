@@ -26,7 +26,9 @@ from api.services.clone import (
     RepoNotFoundError,
     _clean_git_stderr,
     _maybe_raise_clean_clone_error,
+    _partial_clone_filter,
     ensure_clone,
+    hydrate_blobs,
 )
 from api.services.scan import ScanCancelledError
 
@@ -320,6 +322,86 @@ class RunGitEnvTests(unittest.TestCase):
         self.assertEqual(env["GIT_TERMINAL_PROMPT"], "0")
         self.assertEqual(env["GIT_ASKPASS"], "/usr/bin/true")
         self.assertEqual(env["SSH_ASKPASS"], "/usr/bin/true")
+
+
+class HydrateBlobsTests(unittest.TestCase):
+    """hydrate_blobs backfills a blobless clone so the timeline can read
+    historical blob content locally (no per-object promisor fetch hang)."""
+
+    def setUp(self) -> None:
+        self.tmp = TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.tmp_path = Path(self.tmp.name)
+
+    def _blob_present(self, repo: Path, sha: str) -> bool:
+        # -e checks existence; GIT_NO_LAZY_FETCH so a missing promisor blob
+        # reports absent instead of being fetched by the check itself.
+        return (
+            subprocess.run(
+                ["git", "-C", str(repo), "cat-file", "-e", sha],
+                env={**os.environ, "GIT_NO_LAZY_FETCH": "1"},
+                capture_output=True,
+            ).returncode
+            == 0
+        )
+
+    def _multi_commit_remote(self) -> Path:
+        work = self.tmp_path / "work"
+        work.mkdir()
+        _run("git", "init", "-q", "--initial-branch=main", cwd=work)
+        _run("git", "config", "user.email", "t@t", cwd=work)
+        _run("git", "config", "user.name", "t", cwd=work)
+        (work / "file.txt").write_text("one\n")
+        _run("git", "add", "-A", cwd=work)
+        _run("git", "commit", "-q", "-m", "v1", cwd=work)
+        (work / "file.txt").write_text("one\ntwo\n")  # changes → old blob is history
+        _run("git", "add", "-A", cwd=work)
+        _run("git", "commit", "-q", "-m", "v2", cwd=work)
+        bare = self.tmp_path / "remote.git"
+        _run("git", "clone", "-q", "--bare", str(work), str(bare), cwd=self.tmp_path)
+        _run("git", "symbolic-ref", "HEAD", "refs/heads/main", cwd=bare)
+        # Without this a local bare silently ignores --filter and serves every
+        # blob (GitHub has it on) — the clone below wouldn't actually be blobless.
+        _run("git", "config", "uploadpack.allowFilter", "true", cwd=bare)
+        return bare
+
+    def test_hydrate_backfills_and_switches_filter(self) -> None:
+        bare = self._multi_commit_remote()
+        clone = self.tmp_path / "clone"
+        # file:// (not a plain path) so the blob filter is honored, not a local
+        # object hardlink that would defeat the partial clone.
+        _run(
+            "git",
+            "clone",
+            "-q",
+            "--filter=blob:none",
+            f"file://{bare}",
+            str(clone),
+            cwd=self.tmp_path,
+        )
+        v1_blob = subprocess.run(
+            ["git", "-C", str(clone), "rev-parse", "HEAD~1:file.txt"],
+            capture_output=True,
+            text=True,
+            check=True,
+        ).stdout.strip()
+
+        self.assertEqual(_partial_clone_filter(clone), "blob:none")
+        self.assertFalse(self._blob_present(clone, v1_blob))  # history omitted
+
+        self.assertTrue(hydrate_blobs(clone))
+        self.assertTrue(_partial_clone_filter(clone).startswith("blob:limit"))
+        self.assertTrue(self._blob_present(clone, v1_blob))  # now local
+
+        self.assertFalse(hydrate_blobs(clone))  # idempotent: no longer blob:none
+
+    def test_hydrate_noop_on_full_clone(self) -> None:
+        # A plain (non-partial) repo has no filter → nothing to backfill.
+        repo = self.tmp_path / "full"
+        repo.mkdir()
+        _run("git", "init", "-q", cwd=repo)
+        self.assertIsNone(_partial_clone_filter(repo))
+        self.assertFalse(hydrate_blobs(repo))
 
 
 class EnsureCloneErrorRoutingTests(unittest.TestCase):

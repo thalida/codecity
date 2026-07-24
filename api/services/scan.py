@@ -23,18 +23,23 @@ import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Callable, Iterator, NamedTuple
+from typing import Any, Callable, Iterable, Iterator, NamedTuple
 
 from api.config import quiet
 from api.models.events import ScanEvent
 from .date_utils import max_iso, min_iso
+from . import gitobj
 from .cache import (
+    BlobEntry,
     FileEntry,
+    cache_load_blobs,
     cache_load_files,
     cache_load_git_history,
+    cache_save_blobs,
     cache_save_files,
     cache_save_git_history,
 )
+from .gitobj import BINARY_CHUNK, is_binary_bytes
 from .media import media_kind, probe_media_dims
 from .stats import compute_repo_stats
 from .manifest_types import (
@@ -72,6 +77,7 @@ __all__ = [
     "NotAGitRepoError",
     "ScanCancelledError",
     "build_authors_list",
+    "reconstruct_manifest",
     "scan_tree",
     "signature_tree",
 ]
@@ -95,27 +101,21 @@ def _log(msg: str) -> None:
 
 
 # ── Binary detection ─────────────────────────────────────────────────────────
-
-_BINARY_CHUNK_SIZE = 8192
-# Bytes that are suspicious for text files. Control chars below 0x20
-# except whitespace + null are usually binary indicators.
-_TEXT_CHARACTERS = bytes({7, 8, 9, 10, 11, 12, 13, 27}) + bytes(range(0x20, 0x100))
+#
+# The heuristic itself lives in gitobj.is_binary_bytes — the live scan
+# (here) and the time-travel reconstruction (gitobj.blob_stats_batch) must
+# classify the same file content identically, or a file's binary/line-count
+# would differ between the live city and its past-commit reconstruction.
 
 
 def _is_binary(path: Path) -> bool:
     """Null-byte / non-text-char heuristic. Fast, no subprocess."""
     try:
         with path.open("rb") as fh:
-            chunk = fh.read(_BINARY_CHUNK_SIZE)
+            chunk = fh.read(BINARY_CHUNK)
     except OSError:
         return True
-    if not chunk:
-        return False
-    if b"\x00" in chunk:
-        return True
-    # If >30% of bytes are outside the "text" set, call it binary.
-    non_text = sum(1 for b in chunk if b not in _TEXT_CHARACTERS)
-    return non_text / len(chunk) > 0.30
+    return is_binary_bytes(chunk)
 
 
 # ── Extension ────────────────────────────────────────────────────────────────
@@ -274,7 +274,7 @@ def build_authors_list(primary: str, trailers_raw: str) -> list[str]:
 
 
 def _collect_git_dates(
-    root: Path,
+    root: Path, ref: str | None = None
 ) -> tuple[dict[str, str], dict[str, str], list[CommitEntry]]:
     """One newest→oldest `git log --name-status` walk that populates
     both created_map and modified_map in a single pass, and also
@@ -305,13 +305,17 @@ def _collect_git_dates(
         "-C",
         str(root),
         "log",
-        "--format=COMMIT:%aI%x09%H%x09%an%x09"
+        "--format=COMMIT:%aI%x09%P%x09%H%x09%an%x09"
         "%(trailers:key=Co-authored-by,valueonly,separator=%x1f)"
         "%x09%s",
         "--name-status",
         "--no-renames",
+        # Merges diffed so a merge commit still reports a file count; their
+        # A/M events are skipped when writing the date maps (see the parse).
         "--diff-merges=first-parent",
     ]
+    if ref is not None:
+        log_argv.append(ref)  # a resolved sha; limits the walk to its ancestors
     try:
         proc = subprocess.Popen(
             log_argv,
@@ -336,6 +340,7 @@ def _collect_git_dates(
     # Always UTC (Z-suffixed), normalized once per COMMIT line — the per-file
     # date maps, commit entries, and same-day buckets all share one zone.
     current_date = ""
+    current_is_merge = False
     current_sha = ""
     current_author = ""
     current_trailers = ""
@@ -369,14 +374,15 @@ def _collect_git_dates(
                         }
                     )
                 rest = line[len("COMMIT:") :]
-                # %aI%x09%H%x09%an%x09<trailers>%x09%s — split with maxsplit=4
-                # so any tabs IN the subject stay inside the subject field.
-                parts = rest.split("\t", 4)
+                # %aI%x09%P%x09%H%x09%an%x09<trailers>%x09%s — maxsplit=5 keeps
+                # tabs in the subject. %P is space-separated parents.
+                parts = rest.split("\t", 5)
                 current_date = _git_iso_to_utc(parts[0])
-                current_sha = parts[1] if len(parts) > 1 else ""
-                current_author = parts[2] if len(parts) > 2 else ""
-                current_trailers = parts[3] if len(parts) > 3 else ""
-                current_subject = parts[4] if len(parts) > 4 else ""
+                current_is_merge = " " in (parts[1] if len(parts) > 1 else "")
+                current_sha = parts[2] if len(parts) > 2 else ""
+                current_author = parts[3] if len(parts) > 3 else ""
+                current_trailers = parts[4] if len(parts) > 4 else ""
+                current_subject = parts[5] if len(parts) > 5 else ""
                 current_files = 0
                 commits += 1
                 if commits % heartbeat_every == 0:
@@ -394,6 +400,10 @@ def _collect_git_dates(
             status = line[:tab_idx]
             path = line[tab_idx + 1 :]
             current_files += 1
+            # A subtree merge re-adds its files; don't let the merge date
+            # overwrite each file's real creation/modification.
+            if current_is_merge:
+                continue
             if path not in modified:
                 modified[path] = current_date
             if status.startswith("A") and path not in created:
@@ -427,40 +437,45 @@ def _collect_git_history(
     root: Path,
     *,
     use_cache: bool = True,
+    ref: str | None = None,
 ) -> tuple[dict[str, str], dict[str, str], list[CommitEntry]]:
     """Return (created_map, modified_map, commits).
 
     - created_map[path]  = ISO date of most recent ``A``-event for path
-                           across the full git history. Files never
+                           across the walked history. Files never
                            added are absent.
     - modified_map[path] = ISO date of most recent commit touching the
                            path. Untouched files are absent.
     - commits            = oldest-first list of CommitEntry (date, files, sha)
-                           for each commit in the history.
+                           for each commit in the walked history.
 
     Single `git log --name-status --no-renames` walk populates both
-    maps in one pass. With ``use_cache=True`` (default), the HEAD-keyed
-    git-history cache short-circuits the walk when HEAD hasn't moved.
+    maps in one pass. With ``use_cache=True`` (default), the cache
+    short-circuits the walk when the key hasn't moved.
+
+    ``ref``, when given, must already be a resolved sha (immutable) —
+    the walk starts there instead of HEAD, and the cache keys on it
+    directly rather than re-resolving HEAD each call.
     """
-    head_sha = _run_git(root, "rev-parse", "HEAD").strip()
-    if use_cache and head_sha:
-        cached = cache_load_git_history(root, head_sha)
+    key_sha = ref if ref is not None else _run_git(root, "rev-parse", "HEAD").strip()
+    if use_cache and key_sha:
+        cached = cache_load_git_history(root, key_sha)
         if cached is not None:
             created, modified, commits = cached
             return created, modified, commits
 
     _log("  collecting creation + modified dates…")
-    created, modified, commits = _collect_git_dates(root)
+    created, modified, commits = _collect_git_dates(root, ref)
     _log(
         f"    {len(created)} created, {len(modified)} modified, {len(commits)} commits"
     )
 
-    # Always write the cache (only `head_sha` is required to key it) —
+    # Always write the cache (only `key_sha` is required to key it) —
     # `use_cache` gates the READ above, not the write. A skip-cache scan
     # still refreshes the cache so the next normal run is up to date.
-    if head_sha:
+    if key_sha:
         try:
-            cache_save_git_history(root, head_sha, created, modified, commits)
+            cache_save_git_history(root, key_sha, created, modified, commits)
         except OSError:
             # Cache failures (disk full, permission denied, read-only fs)
             # must never block a scan. The next run will retry the write.
@@ -1085,9 +1100,9 @@ class _DirFrame:
     available heap, not the C stack."""
 
     __slots__ = (
-        "abs_dir",
         "rel_dir",
         "name",
+        "full_path",
         "pending_entries",
         "files",
         "subdirs",
@@ -1102,16 +1117,18 @@ class _DirFrame:
 
     def __init__(
         self,
-        abs_dir: str,
         rel_dir: str,
-        pending_entries: list[tuple[os.DirEntry[str], str]],
+        name: str,
+        full_path: str,
+        pending_entries: list[tuple[str, str, bool]],
     ) -> None:
-        self.abs_dir = abs_dir
         self.rel_dir = rel_dir
-        self.name = os.path.basename(abs_dir)
-        # Order (and the skip/tracked filter) comes from _tracked_entries —
-        # the same order signature-hash stability depends on, shared with
-        # _walk_for_signature so scan-to-scan and endpoint fingerprints match.
+        self.name = name
+        self.full_path = full_path
+        # Order (and the skip/tracked filter) comes from the injected
+        # list_children — the same order signature-hash stability depends on,
+        # shared with _walk_for_signature so scan-to-scan and endpoint
+        # fingerprints match.
         self.pending_entries = pending_entries
         self.files: list[FileNode] = []
         self.subdirs: list[DirNode] = []
@@ -1129,33 +1146,35 @@ class _DirFrame:
 
 
 def _build_tree(
-    abs_dir: str,
-    rel_dir: str,
+    root_abs: str,
+    rel_root: str,
     *,
-    git_created: dict[str, str],
-    git_modified: dict[str, str],
-    tracked_files: set[str],
-    dirty_paths: set[str],
-    ignore_names: frozenset[str],
-    ignore_paths: frozenset[str],
-    unignore_names: frozenset[str],
-    unignore_paths: frozenset[str],
-    sig: Any,
-    heartbeat: _Heartbeat,
+    list_children: Callable[[str], list[tuple[str, str, bool]]],
+    make_file_node: Callable[[str, str], FileNode],
 ) -> DirNode:
-    def _frame(abs_dir: str, rel_dir: str) -> _DirFrame:
-        entries = _tracked_entries(
-            abs_dir,
-            rel_dir,
-            tracked_files=tracked_files,
-            ignore_names=ignore_names,
-            ignore_paths=ignore_paths,
-            unignore_names=unignore_names,
-            unignore_paths=unignore_paths,
-        )
-        return _DirFrame(abs_dir, rel_dir, entries)
+    """Iterative DFS tree builder shared by the live scan and the
+    time-travel reconstruction. Its two filesystem touch-points are
+    injected so a git-object reconstruction can feed the identical
+    frame/rollup/ordering loop:
 
-    stack: list[_DirFrame] = [_frame(abs_dir, rel_dir)]
+    - ``list_children(rel_dir)`` — sorted ``(name, rel_path, is_dir)``
+      survivors of the skip/tracked filter for one directory (files and
+      dirs only; entries that are neither are pre-filtered by the caller).
+    - ``make_file_node(name, rel_path)`` — build the leaf FileNode and
+      push its bytes into the content hash (the injector owns the sig +
+      heartbeat).
+
+    ``[*files, *subdirs]`` child order and the ext-breakdown sort are the
+    contract the layout packer + signature hashes depend on, so both
+    callers get byte-identical structure/layout signatures."""
+
+    def _dir_full_path(rel_dir: str) -> str:
+        return root_abs if rel_dir == rel_root else f"{root_abs}/{rel_dir}"
+
+    def _frame(rel_dir: str, name: str) -> _DirFrame:
+        return _DirFrame(rel_dir, name, _dir_full_path(rel_dir), list_children(rel_dir))
+
+    stack: list[_DirFrame] = [_frame(rel_root, os.path.basename(root_abs))]
 
     while True:
         top = stack[-1]
@@ -1163,12 +1182,14 @@ def _build_tree(
             # Process the next entry in sorted order. Entries are popped
             # from the front (not back) so the iteration order matches
             # the original recursive code's — required for hash stability.
-            entry, entry_rel = top.pending_entries.pop(0)
+            name, entry_rel, is_dir = top.pending_entries.pop(0)
 
-            if entry.is_file(follow_symlinks=False):
-                node = _file_node(
-                    entry, entry_rel, git_created, git_modified, dirty_paths, sig
-                )
+            if is_dir:
+                # Descend by pushing a new frame; rollup happens when it
+                # pops below.
+                stack.append(_frame(entry_rel, name))
+            else:
+                node = make_file_node(name, entry_rel)
                 top.files.append(node)
                 top.descendants_count += 1
                 top.descendants_file_count += 1
@@ -1187,11 +1208,6 @@ def _build_tree(
                 else:
                     bucket[0] += 1
                     bucket[1] += node["size"]
-                heartbeat.tick()
-            elif entry.is_dir(follow_symlinks=False):
-                # Descend by pushing a new frame; rollup happens when it
-                # pops below.
-                stack.append(_frame(entry.path, entry_rel))
             continue
 
         # All entries processed — finalize this frame and either return it
@@ -1211,7 +1227,7 @@ def _build_tree(
             "name": finished.name,
             "type": NodeKind.DIRECTORY,
             "path": finished.rel_dir,
-            "fullPath": finished.abs_dir,
+            "fullPath": finished.full_path,
             "children_count": len(children),
             "children_file_count": len(finished.files),
             "children_dir_count": len(finished.subdirs),
@@ -1448,19 +1464,47 @@ def scan_tree(
     heartbeat = _Heartbeat(on_progress=on_scan_progress)
     _log("walking tree…")
     sig = hashlib.blake2b(digest_size=16)
+
+    # Live FS adapters for the shared _build_tree. list_children keeps the
+    # scandir survivors + their order; make_file_node reuses the real
+    # os.DirEntry (threaded via entry_by_rel) so _file_node's stat/hash is
+    # byte-for-byte what it was before the callable seam.
+    entry_by_rel: dict[str, os.DirEntry[str]] = {}
+
+    def _live_list_children(rel_dir: str) -> list[tuple[str, str, bool]]:
+        abs_dir = root_abs if rel_dir == "." else f"{root_abs}/{rel_dir}"
+        out: list[tuple[str, str, bool]] = []
+        for entry, entry_rel in _tracked_entries(
+            abs_dir,
+            rel_dir,
+            tracked_files=git.tracked,
+            ignore_names=ignore_names,
+            ignore_paths=ignore_paths,
+            unignore_names=unignore_names,
+            unignore_paths=unignore_paths,
+        ):
+            is_dir = entry.is_dir(follow_symlinks=False)
+            # Preserve the old file/dir gate: an entry that is neither (a
+            # dangling symlink, socket, fifo) fell through both branches and
+            # was never noded. Drop it here so is_dir alone drives the loop.
+            if not is_dir and not entry.is_file(follow_symlinks=False):
+                continue
+            if not is_dir:
+                entry_by_rel[entry_rel] = entry
+            out.append((entry.name, entry_rel, is_dir))
+        return out
+
+    def _live_make_file_node(name: str, rel_path: str) -> FileNode:
+        entry = entry_by_rel.pop(rel_path)
+        node = _file_node(entry, rel_path, git_created, git_modified, git.dirty, sig)
+        heartbeat.tick()
+        return node
+
     tree = _build_tree(
         root_abs,
         ".",
-        git_created=git_created,
-        git_modified=git_modified,
-        tracked_files=git.tracked,
-        dirty_paths=git.dirty,
-        ignore_names=ignore_names,
-        ignore_paths=ignore_paths,
-        unignore_names=unignore_names,
-        unignore_paths=unignore_paths,
-        sig=sig,
-        heartbeat=heartbeat,
+        list_children=_live_list_children,
+        make_file_node=_live_make_file_node,
     )
     heartbeat.flush()  # ensure UI sees the true final count, not whatever the throttle last allowed through
     _log(f"walked {heartbeat.seen} files; emitting skeleton")
@@ -1624,3 +1668,174 @@ def signature_tree(
         "scanned_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "content_signature": sig.hexdigest(),
     }
+
+
+# ── Time-travel reconstruction ───────────────────────────────────────────────
+#
+# Rebuild a Manifest AS OF a past ref using only read-only git plumbing
+# (ls-tree + cat-file); the repo is never checked out or written. It shares
+# _build_tree with the live scan, so structure_signature + layout_signature
+# are byte-identical to a live scan of the same tree. content_signature does
+# NOT match a live scan (the live hash folds in real fs mtime, which a ref
+# reconstruction has no access to) — the ref manifest is keyed by ref sha, not
+# by content_signature, so that's expected and harmless.
+
+
+def _basename(rel_path: str) -> str:
+    return rel_path.rsplit("/", 1)[-1]
+
+
+def _path_is_skipped(
+    rel_path: str,
+    ignore_names: frozenset[str],
+    ignore_paths: frozenset[str],
+    unignore_names: frozenset[str],
+    unignore_paths: frozenset[str],
+) -> bool:
+    """Apply _should_skip to every path segment (a skipped parent dir hides
+    the file), mirroring the live tracked-walk's per-segment filtering."""
+    parts = rel_path.split("/")
+    for i in range(len(parts)):
+        seg_rel = "/".join(parts[: i + 1])
+        if _should_skip(
+            parts[i],
+            seg_rel,
+            ignore_names=ignore_names,
+            ignore_paths=ignore_paths,
+            unignore_names=unignore_names,
+            unignore_paths=unignore_paths,
+        ):
+            return True
+    return False
+
+
+def _dir_children_from_paths(
+    paths: Iterable[str],
+) -> dict[str, list[tuple[str, str, bool]]]:
+    """Group a flat file-path list into a ``{rel_dir -> sorted [(name, rel,
+    is_dir)]}`` map, materializing every intermediate directory. Entries in a
+    dir are sorted by name; _build_tree then re-splits them into files-first,
+    subdirs-second (each already name-sorted), matching the live scandir order
+    the layout packer + signatures depend on."""
+    children: dict[str, set[tuple[str, str, bool]]] = {}
+    for p in paths:
+        parts = p.split("/")
+        for i in range(len(parts)):
+            parent = "." if i == 0 else "/".join(parts[:i])
+            name = parts[i]
+            rel = "/".join(parts[: i + 1])
+            is_dir = i < len(parts) - 1
+            children.setdefault(parent, set()).add((name, rel, is_dir))
+    return {k: sorted(v, key=lambda t: t[0]) for k, v in children.items()}
+
+
+def _reconstructed_repo_info(root_path: Path, commit_sha: str) -> RepoInfo:
+    """Repo footer for a detached ref: branch shows the short ref (there's no
+    live branch), dirty is always False (a committed tree can't be dirty)."""
+    subject = _run_git(root_path, "log", "-1", "--format=%s", commit_sha).strip()
+    remote = _run_git(root_path, "config", "--get", "remote.origin.url").strip()
+    return {
+        "branch": f"@ {commit_sha[:8]}",
+        "remote_url": _normalize_remote_to_web_url(remote) or None,
+        "head_sha": commit_sha[:8],
+        "head_subject": subject or None,
+        "dirty": False,
+    }
+
+
+def reconstruct_manifest(root: str, ref: str, *, use_cache: bool = True) -> Manifest:
+    """Build a Manifest for the repo AS OF ``ref``, read-only (ls-tree +
+    cat-file). Never checks out or writes to the working tree.
+
+    Raises ``NotAGitRepoError`` for a non-repo and ``ValueError`` for a ref
+    that doesn't resolve to a commit."""
+    root_abs = str(Path(root).resolve())
+    root_path = Path(root_abs)
+    if not _is_git_repo(root_path):
+        raise NotAGitRepoError(root_abs)
+    commit_sha = gitobj.resolve_ref(root_path, ref)
+    if commit_sha is None:
+        raise ValueError(f"ref does not resolve to a commit: {ref!r}")
+
+    # File set + sizes (one ls-tree), filtered through the SAME skip rules the
+    # live scan uses — .codecityignore is read from the CURRENT working copy so
+    # the filter doesn't jump around as the ref moves.
+    ignore_names, ignore_paths, unignore_names, unignore_paths = _load_codecityignore(
+        root_path
+    )
+    blobs = [
+        b
+        for b in gitobj.ls_tree_files(root_path, commit_sha)
+        if not _path_is_skipped(
+            b.path, ignore_names, ignore_paths, unignore_names, unignore_paths
+        )
+    ]
+    by_path = {b.path: b for b in blobs}
+
+    # lines/binary/media: content-addressed blob cache first, cat-file only the
+    # misses. Media dims are probed only for blobs whose path is a media file
+    # (by extension) — same gate as the live scan, and it keeps hachoir off
+    # every source blob.
+    cached = cache_load_blobs(root_path) if use_cache else {}
+    media_shas = frozenset(
+        b.sha for b in blobs if media_kind(_extension(_basename(b.path)))
+    )
+    misses = [b.sha for b in blobs if b.sha not in cached]
+    fresh = (
+        gitobj.blob_stats_batch(root_path, misses, media_shas=media_shas)
+        if misses
+        else {}
+    )
+    for sha, s in fresh.items():
+        entry: BlobEntry = {"lines": s.lines, "binary": s.binary}
+        if s.media_width is not None and s.media_height is not None:
+            entry["media_width"], entry["media_height"] = s.media_width, s.media_height
+        cached[sha] = entry
+    if fresh:
+        cache_save_blobs(root_path, cached)
+
+    # Ref-correct created/modified dates + the commit list, walked from the
+    # resolved sha (not HEAD).
+    git_created, git_modified, commits = _collect_git_history(
+        root_path, use_cache=use_cache, ref=commit_sha
+    )
+
+    children_map = _dir_children_from_paths(by_path.keys())
+    sig = hashlib.blake2b(digest_size=16)
+
+    def list_children(rel_dir: str) -> list[tuple[str, str, bool]]:
+        return children_map.get(rel_dir, [])
+
+    def make_file_node(name: str, rel_path: str) -> FileNode:
+        blob = by_path[rel_path]
+        stats = cached.get(blob.sha, {"lines": 0, "binary": False})
+        # mtime 0.0 + dirty False: a committed ref has no working-tree mtime and
+        # can't be dirty. This makes content_signature diverge from a live scan
+        # (expected — the ref manifest is keyed by ref sha, not content_sig).
+        _hash_file_entry(sig, rel_path, blob.size, 0.0, False)
+        ext = _extension(name)
+        node: FileNode = {
+            "name": name,
+            "type": NodeKind.FILE,
+            "path": rel_path,
+            "fullPath": f"{root_abs}/{rel_path}",
+            "extension": ext,
+            "mediaKind": media_kind(ext),
+            "size": blob.size,
+            "lines": stats["lines"],
+            "binary": stats["binary"],
+            "dirty": False,
+            "created": git_created.get(rel_path, ""),
+            "modified": git_modified.get(rel_path, ""),
+        }
+        if "media_width" in stats and "media_height" in stats:
+            node["media_width"] = stats["media_width"]
+            node["media_height"] = stats["media_height"]
+        return node
+
+    tree = _build_tree(
+        root_abs, ".", list_children=list_children, make_file_node=make_file_node
+    )
+    signals = _derive_tree_signals(tree)
+    repo_info = _reconstructed_repo_info(root_path, commit_sha)
+    return _wrap_manifest(root_abs, tree, sig, signals, repo_info, commits)

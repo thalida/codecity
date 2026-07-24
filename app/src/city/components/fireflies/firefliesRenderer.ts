@@ -19,6 +19,8 @@ export interface FireflyRenderer {
   setTime(seconds: number): void;
   setHoveredCommit(commitIndex: number | null): void;
   setSelectedCommit(commitIndex: number | null): void;
+  /** Timeline scrub gate: hide orbs whose commitIndex is past maxCommitIndex. Null restores all. */
+  setScrubCommit(maxCommitIndex: number | null): void;
   refresh(): void;
   dispose(): void;
 }
@@ -33,6 +35,7 @@ export function createFireflyRenderer(orbs: FireflyPlacement[]): FireflyRenderer
       setTime() {},
       setHoveredCommit() {},
       setSelectedCommit() {},
+      setScrubCommit() {},
       refresh() {},
       dispose() {},
     };
@@ -115,12 +118,15 @@ export function createFireflyRenderer(orbs: FireflyPlacement[]): FireflyRenderer
 
   const dummy = new THREE.Object3D();
   const color = new THREE.Color();
+  // Full-scale matrix per instance, kept so setScrubCommit can restore a gated-out orb without recomputing it.
+  const fullMatrix = new Array<THREE.Matrix4>(orbs.length);
   for (let i = 0; i < orbs.length; i++) {
     const o = orbs[i];
     dummy.position.set(o.treeX, o.height, o.treeZ);
     dummy.scale.setScalar(o.scale);
     dummy.updateMatrix();
     mesh.setMatrixAt(i, dummy.matrix);
+    fullMatrix[i] = dummy.matrix.clone();
     // rgb values from FireflyPlacement are already linear-RGB (0..1).
     // Pass LinearSRGBColorSpace explicitly so three.js skips any
     // working-color-space conversion that would double-apply gamma.
@@ -132,6 +138,14 @@ export function createFireflyRenderer(orbs: FireflyPlacement[]): FireflyRenderer
 
   group.add(mesh);
 
+  const ZERO_SCALE_MATRIX = new THREE.Matrix4().makeScale(0, 0, 0);
+  // Threshold applied by the last setScrubCommit call. Starts at null (every orb full-scale, matching the build above).
+  let _scrubCommit: number | null = null;
+
+  function scrubVisible(commitIndex: number, threshold: number | null): boolean {
+    return threshold === null || commitIndex <= threshold;
+  }
+
   return {
     group,
     setTime(seconds: number) {
@@ -142,6 +156,19 @@ export function createFireflyRenderer(orbs: FireflyPlacement[]): FireflyRenderer
     },
     setSelectedCommit(commitIndex: number | null) {
       uSelectedCommit.value = commitIndex ?? -1;
+    },
+    setScrubCommit(maxCommitIndex: number | null) {
+      if (maxCommitIndex === _scrubCommit) return;
+      let changed = false;
+      for (let i = 0; i < orbs.length; i++) {
+        const wasVisible = scrubVisible(orbs[i].commitIndex, _scrubCommit);
+        const nowVisible = scrubVisible(orbs[i].commitIndex, maxCommitIndex);
+        if (wasVisible === nowVisible) continue;
+        mesh.setMatrixAt(i, nowVisible ? fullMatrix[i] : ZERO_SCALE_MATRIX);
+        changed = true;
+      }
+      if (changed) mesh.instanceMatrix.needsUpdate = true;
+      _scrubCommit = maxCommitIndex;
     },
     refresh() {
       const next = FIREFLIES.value;

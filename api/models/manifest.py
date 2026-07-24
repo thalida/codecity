@@ -254,4 +254,24 @@ class SignatureResponse(BaseModel):
     content_signature: str
 
 
+class TimelineChange(BaseModel):
+    path: str
+    sha: Optional[str] = Field(description="New blob sha, or null when deleted")
+
+
+class TimelineDelta(BaseModel):
+    sha: str
+    changes: list[TimelineChange]
+
+
+class TimelineBundle(BaseModel):
+    """Wire schema for the scrub bundle; mirrors manifest_types.TimelineBundle."""
+
+    commits: list[CommitEntry]
+    unionManifest: Manifest
+    deltas: list[TimelineDelta]
+    blobLines: dict[str, int]
+    note: Optional[str]
+
+
 DirNode.model_rebuild()

@@ -105,9 +105,8 @@ describe('FilePreviewPane', () => {
     // the body should no longer be ONLY a state message — a .preview-shell
     // wrapper is the file path's first child.
     expect(container.querySelector('.preview-shell')).not.toBeNull();
-    // The title shows just the leaf filename (compact sidebar header — the
-    // full path lives in the sitewide app header).
-    expect(container.querySelector('.text-pane-title')!.textContent).toBe('index.ts');
+    // The title is a path breadcrumb; its leaf segment is the filename.
+    expect(container.querySelector('.text-pane-title .is-leaf')!.textContent).toBe('index.ts');
   });
 
   it('setFile(null) returns to the empty state and the "No file" title', async () => {
@@ -125,7 +124,7 @@ describe('FilePreviewPane', () => {
     await setFile({ ...FILE_NODE, name: 'utils.ts', path: 'src/utils.ts' });
     // exactly one preview-shell, no leftover from the first call
     expect(container.querySelectorAll('.preview-shell').length).toBe(1);
-    expect(container.querySelector('.text-pane-title')!.textContent).toBe('utils.ts');
+    expect(container.querySelector('.text-pane-title .is-leaf')!.textContent).toBe('utils.ts');
   });
 
   it('re-fetches content when a still-selected file is edited (mtime changes)', async () => {

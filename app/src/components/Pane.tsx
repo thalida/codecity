@@ -31,6 +31,14 @@ export interface PaneProps {
   /** fn() for the header focus button. Omit to render no button. */
   onFocus?: () => void;
   focusTitle?: string;
+  /** Text the header copy button copies (a path, a SHA). Omit for no copy button. */
+  copyText?: string;
+  copyLabel?: string;
+  /** Open-on-origin URL (commit/file/dir). Omit for no open link. */
+  openUrl?: string | null;
+  openLabel?: string;
+  /** Extra header action buttons (e.g. commit view-on-timeline). */
+  actionsSlot?: ComponentChildren;
   /** fn() for the header × button. Omit to render no button. */
   onClose?: () => void;
   closeTitle?: string;
@@ -64,6 +72,11 @@ export function Pane({
   prefixSlot,
   onFocus,
   focusTitle,
+  copyText,
+  copyLabel,
+  openUrl,
+  openLabel,
+  actionsSlot,
   onClose,
   closeTitle,
   onExclude,
@@ -86,6 +99,11 @@ export function Pane({
           prefixSlot={prefixSlot}
           onFocus={onFocus}
           focusTitle={focusTitle}
+          copyText={copyText}
+          copyLabel={copyLabel}
+          openUrl={openUrl}
+          openLabel={openLabel}
+          actionsSlot={actionsSlot}
           onClose={onClose}
           closeTitle={closeTitle}
           onExclude={onExclude}

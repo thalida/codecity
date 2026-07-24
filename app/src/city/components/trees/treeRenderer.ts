@@ -77,6 +77,11 @@ export interface Trees {
     height: number;
     radius: number;
   } | null;
+  /** Timeline scrub gate: null shows every tree at full scale (live/no-scrub).
+   *  A number zero-scales every tree whose placement.commitIndex exceeds it,
+   *  restoring the cached full matrix for the rest — no rebuild, no per-tree
+   *  visibility API needed since InstancedMesh has none. */
+  setScrubCommit(maxCommitIndex: number | null): void;
 }
 
 /** Radial segment count for every canopy LatheGeometry — one shared value
@@ -286,6 +291,9 @@ export function createTreeRenderer(
   const tmpColor = new THREE.Color();
   const busyDayColor = new THREE.Color();
   const soloDayColor = new THREE.Color();
+  // Shared collapse target for scrub-gated instances — a single degenerate
+  // matrix reused across every hidden tree, so hiding costs no allocation.
+  const ZERO_SCALE_MATRIX = new THREE.Matrix4().makeScale(0, 0, 0);
   setColorFromHex(busyDayColor, cfg.COLOR_BUSY_DAY);
   setColorFromHex(soloDayColor, cfg.COLOR_SOLO_DAY);
 
@@ -330,6 +338,12 @@ export function createTreeRenderer(
   canopyMesh.userData.meshKind = 'tree-canopy';
   canopyMesh.userData.placementOrder = canopyOrder;
 
+  // Full-scale matrices cached per PLACEMENT index (not instance slot), so
+  // setScrubCommit can restore a gated-out tree without recomputing its
+  // transform. Only trees actually zero-scaled by scrubbing pay for a clone.
+  const canopyFullMatrix = new Array<THREE.Matrix4>(totalTrees);
+  const trunkFullMatrix = new Array<THREE.Matrix4>(totalTrees);
+
   for (let i = 0; i < totalTrees; i++) {
     const p = placements[i];
     const h = heights[i];
@@ -345,6 +359,7 @@ export function createTreeRenderer(
     tmpScale.set(r, h, r);
     tmpMatrix.compose(tmpV3, tmpQ, tmpScale);
     canopyMesh.setMatrixAt(i, tmpMatrix);
+    canopyFullMatrix[i] = tmpMatrix.clone();
 
     perTreeColor(i, tmpColor);
     // Cache the base color before writing it to the instance buffer; the
@@ -383,6 +398,7 @@ export function createTreeRenderer(
     tmpScale.set(trunkR, trunkH, trunkR);
     tmpMatrix.compose(tmpV3, tmpQ, tmpScale);
     trunkMesh.setMatrixAt(i, tmpMatrix);
+    trunkFullMatrix[i] = tmpMatrix.clone();
   }
   trunkMesh.instanceMatrix.needsUpdate = true;
 
@@ -482,6 +498,41 @@ export function createTreeRenderer(
     };
   }
 
+  // Threshold applied by the last setScrubCommit call. Starts at null (every
+  // tree full-scale, matching how the meshes were just baked), so the first
+  // real scrub only rewrites the instances that actually need to hide.
+  let _scrubCommit: number | null = null;
+
+  function scrubVisible(commitIndex: number, threshold: number | null): boolean {
+    return threshold === null || commitIndex <= threshold;
+  }
+
+  function applyScrubToMesh(
+    mesh: THREE.InstancedMesh,
+    fullMatrix: THREE.Matrix4[],
+    threshold: number | null
+  ): void {
+    const order = mesh.userData.placementOrder as number[];
+    let changed = false;
+    for (let slot = 0; slot < order.length; slot++) {
+      const placementIdx = order[slot];
+      const commitIndex = placements[placementIdx].commitIndex;
+      const wasVisible = scrubVisible(commitIndex, _scrubCommit);
+      const nowVisible = scrubVisible(commitIndex, threshold);
+      if (wasVisible === nowVisible) continue;
+      mesh.setMatrixAt(slot, nowVisible ? fullMatrix[placementIdx] : ZERO_SCALE_MATRIX);
+      changed = true;
+    }
+    if (changed) mesh.instanceMatrix.needsUpdate = true;
+  }
+
+  function setScrubCommit(maxCommitIndex: number | null): void {
+    if (maxCommitIndex === _scrubCommit) return;
+    applyScrubToMesh(canopyMesh, canopyFullMatrix, maxCommitIndex);
+    applyScrubToMesh(trunkMesh, trunkFullMatrix, maxCommitIndex);
+    _scrubCommit = maxCommitIndex;
+  }
+
   return {
     group,
     refresh,
@@ -491,5 +542,6 @@ export function createTreeRenderer(
     getInstanceTransform,
     colorForSha,
     getTreeBoundsBySha,
+    setScrubCommit,
   };
 }

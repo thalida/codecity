@@ -185,3 +185,8 @@
   margin: 0 var(--cc-space-3) 0 0;
   accent-color: var(--cc-accent);
 }
+
+/* Timeline: clear the floating stale-note toast so the README starts below it. */
+.readme-pane .pane-body.has-stale-note {
+  padding-top: calc(var(--cc-space-8) + var(--cc-space-8));
+}

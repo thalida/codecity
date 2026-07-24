@@ -50,12 +50,6 @@ export function focusCommit(sha: string): void {
   SCENE_HANDLE.peek()?.rig.focusTree(sha);
 }
 
-/** Focus the camera on whatever is currently selected (the F shortcut). */
-export function focusCurrentSelection(): void {
-  const handle = SCENE_HANDLE.peek();
-  handle?.rig.focusSelection(handle.picker.selection.peek());
-}
-
 /** Reset the camera framing to the current mode's default pose. */
 export function resetView(): void {
   SCENE_HANDLE.peek()?.rig.reset();

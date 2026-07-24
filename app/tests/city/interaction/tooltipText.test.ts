@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { formatHoverTooltip } from '@/city/interaction/tooltipText';
+import { formatHoverTooltip, isDeletedTarget } from '@/city/interaction/tooltipText';
 import { NodeKind } from '@/types';
 import type { FileNode, DirNode } from '@/types';
 import type { PickTarget } from '@/types';
@@ -78,5 +78,29 @@ describe('formatHoverTooltip', () => {
   it('drops the root segment when there is no root name', () => {
     const t = fileTarget({ path: 'a.ts', lines: 1 });
     expect(formatHoverTooltip(t, null)).toBe('a.ts  ·  1 lines');
+  });
+
+  it('leaves the identity text clean for a ghost-ruin (the deleted badge is a render concern)', () => {
+    const f = { ...fileTarget({ path: 'a.ts', lines: 1 }), isRuin: true } as PickTarget;
+    expect(formatHoverTooltip(f, 'r')).toBe('/r/a.ts  ·  1 lines');
+    const d = {
+      ...dirTarget({ path: 'app', children_file_count: 2, children_dir_count: 0 }),
+      isRuin: true,
+    } as PickTarget;
+    expect(formatHoverTooltip(d, 'r')).toBe('/r/app  ·  2 files, 0 dirs');
+  });
+});
+
+describe('isDeletedTarget', () => {
+  it('flags a ghost-ruin file or dir, nothing else', () => {
+    const ruin = { ...fileTarget({ path: 'a.ts', lines: 1 }), isRuin: true } as PickTarget;
+    const ruinDir = {
+      ...dirTarget({ path: 'app', children_file_count: 2, children_dir_count: 0 }),
+      isRuin: true,
+    } as PickTarget;
+    expect(isDeletedTarget(ruin)).toBe(true);
+    expect(isDeletedTarget(ruinDir)).toBe(true);
+    expect(isDeletedTarget(fileTarget({ path: 'a.ts', lines: 1 }))).toBe(false);
+    expect(isDeletedTarget(null)).toBe(false);
   });
 });

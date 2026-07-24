@@ -35,7 +35,7 @@ from typing import TYPE_CHECKING, NotRequired, TypedDict, cast
 from api.config import CACHE_ROOT
 
 if TYPE_CHECKING:
-    from api.services.manifest_types import CommitEntry, Manifest
+    from api.services.manifest_types import CommitEntry, Manifest, TimelineBundle
 
 
 class FileEntry(TypedDict):
@@ -57,6 +57,16 @@ class FileEntry(TypedDict):
     media_height: NotRequired[int]
 
 
+class BlobEntry(TypedDict):
+    """Content-addressed per-blob stats. Immutable: a git blob's sha
+    fully determines its bytes, so an entry is never invalidated."""
+
+    lines: int
+    binary: bool
+    media_width: NotRequired[int]
+    media_height: NotRequired[int]
+
+
 # CACHE_ROOT is imported from config (the single source of truth). The subdir
 # helpers below derive manifests/files/git-history paths from it at call time,
 # so a test monkeypatching cache.CACHE_ROOT cascades through.
@@ -64,7 +74,9 @@ class FileEntry(TypedDict):
 # Cache-format versions: bump when the cached shape changes so stale blobs are
 # treated as a miss and re-scanned. (Per-bump rationale lives in git history.)
 _FILE_CACHE_VERSION = 1
-_GIT_HISTORY_CACHE_VERSION = 12  # v12: dates UTC-normalized (file maps + commit days)
+_BLOB_STATS_CACHE_VERSION = 1  # blob_sha -> (lines, binary, media dims)
+_GIT_HISTORY_CACHE_VERSION = 14  # v14: merges no longer diffed
+_TIMELINE_CACHE_VERSION = 2  # v2: delta walk stopped diffing merges
 _MANIFEST_SCHEMA_VERSION = (
     # v12: per-dir descendants_created_min / descendants_modified_max
     # v13: ext_breakdown `ext` is null (was "(none)") for extensionless files
@@ -202,15 +214,70 @@ def cache_save_files(abs_root: Path, entries: dict[str, FileEntry]) -> None:
     _atomic_write(_file_cache_path(abs_root), json.dumps(payload))
 
 
+def _blob_cache_path(abs_root: Path) -> Path:
+    return CACHE_ROOT / "blobs" / f"{repo_key(abs_root)}.json"
+
+
+def cache_load_blobs(abs_root: Path) -> dict[str, "BlobEntry"]:
+    """Load the per-repo blob-stats cache. {} on any error/version miss."""
+    path = _blob_cache_path(abs_root)
+    try:
+        parsed = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+    if not isinstance(parsed, dict):
+        return {}
+    raw = cast(dict[str, object], parsed)
+    if raw.get("version") != _BLOB_STATS_CACHE_VERSION:
+        return {}
+    entries = raw.get("entries")
+    if not isinstance(entries, dict):
+        return {}
+    out: dict[str, BlobEntry] = {}
+    for sha, v in cast(dict[str, object], entries).items():
+        if not isinstance(v, dict):
+            continue
+        d = cast(dict[str, object], v)
+        lines, binary = d.get("lines"), d.get("binary")
+        if not isinstance(lines, int) or isinstance(lines, bool):
+            continue
+        if not isinstance(binary, bool):
+            continue
+        entry: BlobEntry = {"lines": lines, "binary": binary}
+        mw, mh = d.get("media_width"), d.get("media_height")
+        if (
+            isinstance(mw, int)
+            and not isinstance(mw, bool)
+            and isinstance(mh, int)
+            and not isinstance(mh, bool)
+        ):
+            entry["media_width"], entry["media_height"] = mw, mh
+        out[sha] = entry
+    return out
+
+
+def cache_save_blobs(abs_root: Path, entries: dict[str, "BlobEntry"]) -> None:
+    """Union-merge write of the blob-stats cache (callers pass the merged
+    dict). Atomic; swallows OSError on save, same as cache_save_manifest —
+    a cache write failure must never break the response."""
+    payload = {"version": _BLOB_STATS_CACHE_VERSION, "entries": entries}
+    try:
+        _atomic_write(_blob_cache_path(abs_root), json.dumps(payload))
+    except OSError:
+        pass
+
+
 def _git_history_cache_path(abs_root: Path) -> Path:
     return CACHE_ROOT / "git-history" / f"{repo_key(abs_root)}.json"
 
 
 def cache_load_git_history(
     abs_root: Path,
-    head_sha: str,
+    commit_sha: str,
 ) -> tuple[dict[str, str], dict[str, str], list["CommitEntry"]] | None:
-    """Load git-history maps + commits if cached for this root + HEAD.
+    """Load git-history maps + commits if cached for this root + commit.
+
+    ``commit_sha`` may be HEAD or any other resolved ref sha.
 
     Returns None on miss or any error."""
     path = _git_history_cache_path(abs_root)
@@ -223,7 +290,7 @@ def cache_load_git_history(
     raw = cast(dict[str, object], parsed)
     if raw.get("version") != _GIT_HISTORY_CACHE_VERSION:
         return None
-    if raw.get("head_sha") != head_sha:
+    if raw.get("commit_sha") != commit_sha:
         return None
     created_raw = raw.get("created")
     modified_raw = raw.get("modified")
@@ -283,16 +350,16 @@ def cache_load_git_history(
 
 def cache_save_git_history(
     abs_root: Path,
-    head_sha: str,
+    commit_sha: str,
     created: dict[str, str],
     modified: dict[str, str],
     commits: list["CommitEntry"],
 ) -> None:
-    """Atomically write the git-history cache for this root + HEAD."""
+    """Atomically write the git-history cache for this root + commit."""
     payload = {
         "version": _GIT_HISTORY_CACHE_VERSION,
         "root": str(abs_root),
-        "head_sha": head_sha,
+        "commit_sha": commit_sha,
         "created": created,
         "modified": modified,
         "commits": commits,
@@ -306,15 +373,18 @@ def _manifest_cache_path(abs_root: Path, content_signature: str) -> Path:
     )
 
 
-def cache_load_manifest(
-    abs_root: Path,
-    content_signature: str,
-) -> "Manifest | None":
-    """Load the cached manifest for this (root, content_signature). Returns
-    None on any error (missing file, gzip corruption, JSON parse,
-    schema/version mismatch). Same hygiene as the other cache loaders:
-    a corrupt cache is treated as a miss, never a hard failure."""
-    path = _manifest_cache_path(abs_root, content_signature)
+def _ref_manifest_cache_path(abs_root: Path, ref_sha: str) -> Path:
+    # `__ref-` (not `__`) so cache_clear_manifests's `{repo_key}__*.json.gz`
+    # glob still sweeps these alongside content-signature entries, while the
+    # prefix keeps a ref-sha visually distinct from a content signature in
+    # directory listings.
+    return CACHE_ROOT / "manifests" / f"{repo_key(abs_root)}__ref-{ref_sha}.json.gz"
+
+
+def _load_gz_envelope(
+    path: Path, *, envelope_key: str, version: object
+) -> dict[str, object] | None:
+    """Load a ``{"version", envelope_key: <dict>}`` gzip cache; None on any error (a corrupt cache is a miss)."""
     try:
         with gzip.open(path, "rb") as fh:
             raw = json.loads(fh.read().decode("utf-8"))
@@ -323,39 +393,27 @@ def cache_load_manifest(
     if not isinstance(raw, dict):
         return None
     envelope = cast(dict[str, object], raw)
-    if envelope.get("version") != _MANIFEST_CACHE_VERSION:
+    if envelope.get("version") != version:
         return None
-    manifest = envelope.get("manifest")
-    if not isinstance(manifest, dict):
+    payload = envelope.get(envelope_key)
+    if not isinstance(payload, dict):
         return None
-    # TypedDict is structurally compatible with dict at runtime; the
-    # `Manifest` annotation is a documentation aid for callers.
-    return manifest  # type: ignore[return-value]
+    return cast(dict[str, object], payload)
 
 
-def cache_save_manifest(
-    abs_root: Path,
-    content_signature: str,
-    manifest: "Manifest",
+def _save_gz_envelope(
+    path: Path, *, envelope_key: str, version: object, payload: dict[str, object]
 ) -> None:
-    """Atomically write the manifest cache for this (root, content_signature).
-    Swallows OSError — cache save failures must never break the
-    response."""
-    path = _manifest_cache_path(abs_root, content_signature)
+    """Atomically write a ``{"version", envelope_key: <dict>}`` gzip cache; swallows OSError."""
     path.parent.mkdir(parents=True, exist_ok=True)
-    payload = json.dumps(
-        {
-            "version": _MANIFEST_CACHE_VERSION,
-            "manifest": manifest,
-        }
-    ).encode("utf-8")
+    data = json.dumps({"version": version, envelope_key: payload}).encode("utf-8")
     fd, tmp = tempfile.mkstemp(
         dir=str(path.parent), prefix=f".{path.name}.", suffix=".tmp"
     )
     try:
         with os.fdopen(fd, "wb") as fh:
             with gzip.GzipFile(fileobj=fh, mode="wb") as gz:
-                gz.write(payload)
+                gz.write(data)
             fh.flush()
             os.fsync(fh.fileno())
         os.replace(tmp, path)
@@ -363,9 +421,130 @@ def cache_save_manifest(
         Path(tmp).unlink(missing_ok=True)
 
 
+def _load_gz_manifest(path: Path) -> "Manifest | None":
+    """Load a gzip-envelope manifest cache file. Shared body for both the
+    content-signature and ref-keyed manifest caches."""
+    manifest = _load_gz_envelope(
+        path, envelope_key="manifest", version=_MANIFEST_CACHE_VERSION
+    )
+    # TypedDict is structurally compatible with dict at runtime; the
+    # `Manifest` annotation is a documentation aid for callers.
+    return manifest  # type: ignore[return-value]
+
+
+def _save_gz_manifest(path: Path, manifest: "Manifest") -> None:
+    """Atomically write a gzip-envelope manifest cache file. Shared body for
+    both the content-signature and ref-keyed manifest caches."""
+    _save_gz_envelope(
+        path,
+        envelope_key="manifest",
+        version=_MANIFEST_CACHE_VERSION,
+        payload=cast("dict[str, object]", manifest),
+    )
+
+
+def cache_load_manifest(
+    abs_root: Path,
+    content_signature: str,
+) -> "Manifest | None":
+    """Load the cached manifest for this (root, content_signature)."""
+    return _load_gz_manifest(_manifest_cache_path(abs_root, content_signature))
+
+
+def cache_save_manifest(
+    abs_root: Path,
+    content_signature: str,
+    manifest: "Manifest",
+) -> None:
+    """Atomically write the manifest cache for this (root, content_signature)."""
+    _save_gz_manifest(_manifest_cache_path(abs_root, content_signature), manifest)
+
+
+def cache_load_ref_manifest(abs_root: Path, ref_sha: str) -> "Manifest | None":
+    """Load the cached manifest for this (root, ref_sha). A resolved commit
+    sha's manifest is immutable (the commit's content never changes), so
+    unlike the content-signature cache this key never needs invalidating —
+    only `cache_clear_manifests`/`cache_clear_all` remove it."""
+    return _load_gz_manifest(_ref_manifest_cache_path(abs_root, ref_sha))
+
+
+def cache_save_ref_manifest(abs_root: Path, ref_sha: str, manifest: "Manifest") -> None:
+    """Atomically write the ref-keyed manifest cache for (root, ref_sha)."""
+    _save_gz_manifest(_ref_manifest_cache_path(abs_root, ref_sha), manifest)
+
+
+def _excludes_key(excludes: frozenset[str]) -> str:
+    """Short stable digest of an exclude set for the cache filename. Order-free
+    (sorted) so the same set always keys the same file."""
+    return hashlib.sha256("\n".join(sorted(excludes)).encode("utf-8")).hexdigest()[:12]
+
+
+def _timeline_cache_path(
+    abs_root: Path, head_sha: str, excludes: frozenset[str] = frozenset()
+) -> Path:
+    # Same dir + `__*.json.gz` glob as the manifest caches, so the clear paths sweep it.
+    # Excludes reshape the filtered union, so they're part of the key; an empty set
+    # keeps the bare head-sha name (existing caches + clear glob stay valid).
+    suffix = f"-{_excludes_key(excludes)}" if excludes else ""
+    return (
+        CACHE_ROOT
+        / "manifests"
+        / f"{repo_key(abs_root)}__timeline-{head_sha}{suffix}.json.gz"
+    )
+
+
+def cache_load_timeline(
+    abs_root: Path, head_sha: str, excludes: frozenset[str] = frozenset()
+) -> "TimelineBundle | None":
+    """Cached bundle for (root, head_sha, excludes); immutable per key, cleared only by cache_clear_*."""
+    bundle = _load_gz_envelope(
+        _timeline_cache_path(abs_root, head_sha, excludes),
+        envelope_key="bundle",
+        version=_TIMELINE_CACHE_VERSION,
+    )
+    return bundle  # type: ignore[return-value]
+
+
+def cache_save_timeline(
+    abs_root: Path,
+    head_sha: str,
+    bundle: "TimelineBundle",
+    excludes: frozenset[str] = frozenset(),
+) -> None:
+    """Atomically write the timeline bundle cache for (root, head_sha, excludes)."""
+    _save_gz_envelope(
+        _timeline_cache_path(abs_root, head_sha, excludes),
+        envelope_key="bundle",
+        version=_TIMELINE_CACHE_VERSION,
+        payload=cast("dict[str, object]", bundle),
+    )
+
+
+def cache_clear_timeline(abs_root: Path) -> int:
+    """Delete every cached timeline bundle for this root (all HEADs). Returns
+    the count deleted. A no_cache scan calls this so re-entering Timeline mode
+    rebuilds fresh — the bundle is immutable per HEAD, so nothing else evicts a
+    stale one built by older code. Same swallow-errors hygiene as the rest of
+    this module."""
+    manifests_dir = CACHE_ROOT / "manifests"
+    if not manifests_dir.exists():
+        return 0
+    count = 0
+    for path in manifests_dir.glob(f"{repo_key(abs_root)}__timeline-*.json.gz"):
+        try:
+            path.unlink()
+            count += 1
+        except OSError:
+            pass
+    return count
+
+
 def cache_clear_manifests(abs_root: Path) -> int:
     """Delete every cached manifest file for this root, across all
-    signatures. Returns the count deleted.
+    signatures, every ref-keyed manifest, AND every timeline bundle (the
+    `__*.json.gz` glob below matches `__<signature>.json.gz`,
+    `__ref-<sha>.json.gz`, and `__timeline-<sha>.json.gz`).
+    Returns the count deleted.
 
     Silently ignores I/O errors per the rest of this module's hygiene —
     cache cleanup failures must never break the response."""
@@ -385,7 +564,8 @@ def cache_clear_manifests(abs_root: Path) -> int:
 
 def cache_clear_all(abs_root: Path) -> int:
     """Delete EVERY per-root cache for this root — manifest (all
-    signatures), file-stat, and git-history. Returns the count deleted.
+    signatures), file-stat, git-history, and blob-stats. Returns the count
+    deleted.
 
     Backs the "clear cache" flow's clean-slate guarantee for a source.
     The git clone working tree lives outside CACHE_ROOT, so the caller
@@ -393,7 +573,11 @@ def cache_clear_all(abs_root: Path) -> int:
     hygiene as the rest of this module — cleanup failures must never
     break the response."""
     count = cache_clear_manifests(abs_root)
-    for path in (_file_cache_path(abs_root), _git_history_cache_path(abs_root)):
+    for path in (
+        _file_cache_path(abs_root),
+        _git_history_cache_path(abs_root),
+        _blob_cache_path(abs_root),
+    ):
         try:
             path.unlink()
             count += 1

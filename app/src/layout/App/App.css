@@ -48,6 +48,8 @@ body {
 #app.cc-showcase #app-header,
 #app.cc-showcase #left-sidebar,
 #app.cc-showcase #right-sidebar,
-#app.cc-showcase #app-footer {
+#app.cc-showcase #app-footer,
+#app.cc-showcase #scene-controls,
+#app.cc-showcase .timeline-notice {
   display: none;
 }

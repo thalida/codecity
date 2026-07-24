@@ -34,6 +34,7 @@ import * as THREE from 'three';
 import { effect } from '@preact/signals';
 
 import { FOOTPRINT } from '@/state/stores/settings/footprint';
+import { RUINS } from '@/state/stores/settings/ruins';
 import { RENDER_ORDERS } from '@/city/types/renderOrders';
 import type { CityLayout } from '@/types';
 import { setColorFromHex } from '@/city/utils/color/setColorFromHex';
@@ -53,6 +54,12 @@ export interface Footprint extends SceneComponent {
    *  (incl. a reuse apply), so the footprint must re-match. When halo <= 0 or no
    *  rects, leaves the group EMPTY (prior mesh disposed). */
   rebuild(layout: CityLayout): void;
+  /** Fade one building's footprint slab, keyed by file path (ruin = tint toward the ruin color). No-op for an unknown path. */
+  setBuildingFootprintOpacity(path: string, opacity: number, ruin?: boolean): void;
+  /** Fade one street's footprint slab, keyed by its directory path (ruin = tint toward the ruin color). No-op for an unknown street. */
+  setStreetFootprintOpacity(dirPath: string, opacity: number, ruin?: boolean): void;
+  /** Move the footprint material into (or out of) the transparent render pass. */
+  setFootprintsTransparent(on: boolean): void;
 }
 
 export function createFootprint(ctx: SceneContext): Footprint {
@@ -68,6 +75,14 @@ export function createFootprint(ctx: SceneContext): Footprint {
   // live mesh/material after every rebuild.
   let mesh: THREE.InstancedMesh | null = null;
   let material: THREE.ShaderMaterial | null = null;
+  // Instance index lookup for Timeline scrubbing: buildings occupy 0..buildingCount-1
+  // (build order), streets follow. Rebuilt every rebuild() alongside the mesh.
+  let pathToInstance = new Map<string, number>();
+  let streetDirToInstance = new Map<string, number>();
+  // Timeline mode: footprints default INVISIBLE (the scrub controller drives the
+  // live ones up per frame), so a footprint it never keys can't strand opaque.
+  // Persisted here so it survives a rebuild. Live mode: opaque, byte-identical.
+  let _transparent = false;
 
   function _disposeInnerMesh(): void {
     if (!mesh) return;
@@ -78,12 +93,53 @@ export function createFootprint(ctx: SceneContext): Footprint {
     material = null;
   }
 
+  // Write one instance's opacity + ruin-tint slots; no-op for an unknown instance (e.g. pre-rebuild).
+  function _setInstance(idx: number | undefined, opacity: number, ruin: boolean): void {
+    if (idx === undefined || !mesh) return;
+    const op = mesh.geometry.getAttribute('aOpacity') as THREE.InstancedBufferAttribute;
+    op.setX(idx, opacity);
+    op.needsUpdate = true;
+    const ru = mesh.geometry.getAttribute('aRuin') as THREE.InstancedBufferAttribute;
+    ru.setX(idx, ruin ? 1 : 0);
+    ru.needsUpdate = true;
+  }
+
+  function setBuildingFootprintOpacity(path: string, opacity: number, ruin = false): void {
+    _setInstance(pathToInstance.get(path), opacity, ruin);
+  }
+
+  function setStreetFootprintOpacity(dirPath: string, opacity: number, ruin = false): void {
+    _setInstance(streetDirToInstance.get(dirPath), opacity, ruin);
+  }
+
+  // Enter/exit Timeline mode. Flips the material to alpha-blended AND resets
+  // every instance's opacity (0 = hidden in timeline so the scrub controller
+  // opts each live footprint back in; 1 = opaque for live mode). Live mode never
+  // calls it, so footprints stay byte-identical.
+  function setFootprintsTransparent(on: boolean): void {
+    _transparent = on;
+    if (!material || !mesh) return;
+    if (material.transparent !== on) {
+      material.transparent = on;
+      material.needsUpdate = true;
+    }
+    const op = mesh.geometry.getAttribute('aOpacity') as THREE.InstancedBufferAttribute;
+    (op.array as Float32Array).fill(on ? 0 : 1);
+    op.needsUpdate = true;
+    // Clear ruin tint on every mode switch; the scrub controller re-flags ruins each frame.
+    const ru = mesh.geometry.getAttribute('aRuin') as THREE.InstancedBufferAttribute;
+    (ru.array as Float32Array).fill(0);
+    ru.needsUpdate = true;
+  }
+
   function rebuild(layout: CityLayout): void {
     const cfg = FOOTPRINT.value;
     const halo = Math.max(0, cfg.HALO_WIDTH);
 
     // Dispose prior mesh first (swap pattern mirrors gem).
     _disposeInnerMesh();
+    pathToInstance = new Map();
+    streetDirToInstance = new Map();
 
     // Halo at zero (or negative — clamped to 0 above) means the footprint
     // would render as a 0-area asphalt halo that's invisible to the user.
@@ -93,9 +149,17 @@ export function createFootprint(ctx: SceneContext): Footprint {
       return;
     }
 
+    // Instance order is load-bearing for Timeline scrubbing: buildings first
+    // (0..buildingCount-1), then streets, matching the loops below.
     const rects: Rect[] = [];
-    for (const b of layout.buildings) rects.push(rectOfBuilding(b));
-    for (const s of layout.streets) rects.push(rectOfStreet(s));
+    for (const b of layout.buildings) {
+      pathToInstance.set(b.file.path, rects.length);
+      rects.push(rectOfBuilding(b));
+    }
+    for (const s of layout.streets) {
+      if (s.dir?.path != null) streetDirToInstance.set(s.dir.path, rects.length);
+      rects.push(rectOfStreet(s));
+    }
 
     // Also nothing to render if there are no rects.
     if (rects.length === 0) {
@@ -115,15 +179,29 @@ export function createFootprint(ctx: SceneContext): Footprint {
     }
     geometry.setAttribute('aHalfExtent', new THREE.InstancedBufferAttribute(halfExtents, 2));
 
+    // Per-instance opacity for Timeline fading. Default 1 (opaque) in live mode;
+    // 0 (hidden) in timeline mode so the scrub controller opts live ones back in.
+    const opacity = new Float32Array(rects.length).fill(_transparent ? 0 : 1);
+    geometry.setAttribute('aOpacity', new THREE.InstancedBufferAttribute(opacity, 1));
+    // Per-instance ruin tint [0..1], driven by the scrub controller for deleted-folder plots/roads.
+    geometry.setAttribute(
+      'aRuin',
+      new THREE.InstancedBufferAttribute(new Float32Array(rects.length), 1)
+    );
+
     const colorUniform = new THREE.Color();
     setColorFromHex(colorUniform, cfg.COLOR);
+    const ruinColorUniform = new THREE.Color();
+    setColorFromHex(ruinColorUniform, RUINS.value.ROAD_COLOR);
 
     const mat = new THREE.ShaderMaterial({
       vertexShader: FOOTPRINT_VERT,
       fragmentShader: FOOTPRINT_FRAG,
       depthWrite: false,
+      transparent: _transparent,
       uniforms: {
         uColor: { value: colorUniform },
+        uRuinColor: { value: ruinColorUniform },
         // CORNER_RADIUS is a fraction of HALO_WIDTH (0 → sharp, 1 → one
         // halo width, 2 → two). Compute world-units radius here so the
         // shader's SDF can keep using a single uniform.
@@ -176,6 +254,13 @@ export function createFootprint(ctx: SceneContext): Footprint {
     group.visible = c.ENABLED;
   });
 
+  // Ruin road color — reacts to the committed RUINS.ROAD_COLOR (updates on Save);
+  // rebuild seeds a fresh material's value, this keeps it current afterward.
+  const stopRuinColor = effect(() => {
+    const hex = RUINS.value.ROAD_COLOR;
+    if (material) setColorFromHex(material.uniforms.uRuinColor.value as THREE.Color, hex);
+  });
+
   // Layout effect — reactive rebuild entry point. Subscribes to cityState.layout
   // (the EVERY-apply signal — NOT structureRevision): per-building dims recompute
   // every apply, so the footprint slabs must re-match even on a reuse apply.
@@ -188,8 +273,16 @@ export function createFootprint(ctx: SceneContext): Footprint {
   function dispose(): void {
     _disposeInnerMesh();
     stopEffect();
+    stopRuinColor();
     stopLayout();
   }
 
-  return { group, rebuild, dispose };
+  return {
+    group,
+    rebuild,
+    dispose,
+    setBuildingFootprintOpacity,
+    setStreetFootprintOpacity,
+    setFootprintsTransparent,
+  };
 }

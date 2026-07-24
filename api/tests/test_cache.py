@@ -189,7 +189,7 @@ class GitHistoryCacheTests(CacheTestBase):
         bad = {
             "version": 999,
             "root": str(root),
-            "head_sha": "abc",
+            "commit_sha": "abc",
             "created": {},
             "modified": {},
         }
@@ -205,7 +205,7 @@ class GitHistoryCacheTests(CacheTestBase):
         payload = {
             "version": cache_mod._GIT_HISTORY_CACHE_VERSION,
             "root": str(root),
-            "head_sha": "abc",
+            "commit_sha": "abc",
             "created": {
                 "good.py": "2024-01-01T00:00:00Z",
                 "bad.py": 12345,  # not a string
@@ -244,7 +244,7 @@ class GitHistoryCacheTests(CacheTestBase):
         ]
         cache_mod.cache_save_git_history(
             root,
-            head_sha="abc",
+            commit_sha="abc",
             created={"a.py": "2024-01-01"},
             modified={"a.py": "2024-02-15"},
             commits=commits,
@@ -268,7 +268,7 @@ class GitHistoryCacheTests(CacheTestBase):
                 {
                     "version": cache_mod._GIT_HISTORY_CACHE_VERSION,
                     "root": str(root),
-                    "head_sha": "abc",
+                    "commit_sha": "abc",
                     "created": {},
                     "modified": {},
                     "commits": [
@@ -389,7 +389,7 @@ class GitHistoryCacheTests(CacheTestBase):
         # Simulate a cache file with the previous version number.
         old = {
             "version": cache_mod._GIT_HISTORY_CACHE_VERSION - 1,
-            "head_sha": "HEADSHA",
+            "commit_sha": "HEADSHA",
             "created": {},
             "modified": {},
             "commits": [{"date": "2026-03-12", "files": 1}],
@@ -408,7 +408,7 @@ class GitHistoryCacheTests(CacheTestBase):
                 {
                     "version": 2,
                     "root": str(root),
-                    "head_sha": "abc",
+                    "commit_sha": "abc",
                     "created": {},
                     "modified": {},
                 }
@@ -531,6 +531,102 @@ class ManifestCacheTests(CacheTestBase):
         self.assertFalse((cache_mod.CACHE_ROOT / "manifests").exists())
         self.assertEqual(cache_mod.cache_clear_manifests(Path("/x")), 0)
 
+    def test_ref_manifest_roundtrip(self) -> None:
+        root = Path("/some/repo")
+        sha = "a" * 40
+        manifest = self._make_manifest()
+        cache_mod.cache_save_ref_manifest(root, sha, manifest)
+        self.assertEqual(cache_mod.cache_load_ref_manifest(root, sha), manifest)
+
+    def test_ref_manifest_load_missing_returns_none(self) -> None:
+        self.assertIsNone(
+            cache_mod.cache_load_ref_manifest(Path("/never/scanned"), "b" * 40)
+        )
+
+    def test_clear_manifests_also_sweeps_ref_manifests(self) -> None:
+        # cache_clear_manifests's `{repo_key}__*.json.gz` glob covers BOTH
+        # content-signature and `__ref-<sha>` keyed files.
+        root = Path("/x")
+        manifest = self._make_manifest()
+        cache_mod.cache_save_manifest(root, "a" * 32, manifest)
+        cache_mod.cache_save_ref_manifest(root, "b" * 40, manifest)
+
+        deleted = cache_mod.cache_clear_manifests(root)
+        self.assertEqual(deleted, 2)
+        self.assertIsNone(cache_mod.cache_load_manifest(root, "a" * 32))
+        self.assertIsNone(cache_mod.cache_load_ref_manifest(root, "b" * 40))
+
+    def _make_bundle(self) -> dict:
+        return {
+            "commits": [],
+            "unionManifest": self._make_manifest(),
+            "deltas": [],
+            "blobLines": {},
+            "note": None,
+        }
+
+    def test_timeline_roundtrip(self) -> None:
+        root = Path("/some/repo")
+        sha = "a" * 40
+        bundle = self._make_bundle()
+        cache_mod.cache_save_timeline(root, sha, bundle)
+        self.assertEqual(cache_mod.cache_load_timeline(root, sha), bundle)
+
+    def test_timeline_load_missing_returns_none(self) -> None:
+        self.assertIsNone(
+            cache_mod.cache_load_timeline(Path("/never/scanned"), "b" * 40)
+        )
+
+    def test_timeline_excludes_key_separately(self) -> None:
+        # Excludes reshape the filtered union, so they're part of the cache key:
+        # a bundle saved with one exclude set must not be served for another,
+        # and the empty-set key stays independent of both.
+        root = Path("/some/repo")
+        sha = "a" * 40
+        base, filtered = self._make_bundle(), self._make_bundle()
+        filtered["note"] = "filtered"  # make the two bundles distinguishable
+        cache_mod.cache_save_timeline(root, sha, base)
+        cache_mod.cache_save_timeline(root, sha, filtered, frozenset({"secrets"}))
+
+        self.assertEqual(cache_mod.cache_load_timeline(root, sha), base)
+        self.assertEqual(
+            cache_mod.cache_load_timeline(root, sha, frozenset({"secrets"})), filtered
+        )
+        # A different exclude set is a miss, not a wrong-bundle hit.
+        self.assertIsNone(
+            cache_mod.cache_load_timeline(root, sha, frozenset({"other"}))
+        )
+
+    def test_clear_manifests_also_sweeps_timeline(self) -> None:
+        # cache_clear_manifests's `{repo_key}__*.json.gz` glob covers
+        # content-signature, `__ref-<sha>`, AND `__timeline-<sha>` keyed files.
+        root = Path("/x")
+        cache_mod.cache_save_manifest(root, "a" * 32, self._make_manifest())
+        cache_mod.cache_save_timeline(root, "b" * 40, self._make_bundle())
+
+        deleted = cache_mod.cache_clear_manifests(root)
+        self.assertEqual(deleted, 2)
+        self.assertIsNone(cache_mod.cache_load_manifest(root, "a" * 32))
+        self.assertIsNone(cache_mod.cache_load_timeline(root, "b" * 40))
+
+    def test_clear_timeline_evicts_all_heads_only(self) -> None:
+        # A no_cache scan clears every timeline bundle for the root (all HEADs)
+        # but leaves the manifest caches untouched.
+        root = Path("/x")
+        cache_mod.cache_save_manifest(root, "a" * 32, self._make_manifest())
+        cache_mod.cache_save_timeline(root, "b" * 40, self._make_bundle())
+        cache_mod.cache_save_timeline(root, "c" * 40, self._make_bundle())
+
+        deleted = cache_mod.cache_clear_timeline(root)
+        self.assertEqual(deleted, 2)
+        self.assertIsNone(cache_mod.cache_load_timeline(root, "b" * 40))
+        self.assertIsNone(cache_mod.cache_load_timeline(root, "c" * 40))
+        self.assertIsNotNone(cache_mod.cache_load_manifest(root, "a" * 32))
+
+    def test_clear_timeline_missing_dir_returns_zero(self) -> None:
+        self.assertFalse((cache_mod.CACHE_ROOT / "manifests").exists())
+        self.assertEqual(cache_mod.cache_clear_timeline(Path("/never")), 0)
+
 
 class MediaDimsCacheTests(CacheTestBase):
     def setUp(self) -> None:
@@ -647,6 +743,33 @@ class MediaDimsCacheTests(CacheTestBase):
         loaded = cache_mod.cache_load_files(self.abs_root)
         self.assertNotIn("media_width", loaded["weird.png"])
         self.assertNotIn("media_height", loaded["weird.png"])
+
+
+def test_blob_stats_cache_roundtrip(tmp_path, monkeypatch):
+    from api.services import cache
+
+    monkeypatch.setattr(cache, "CACHE_ROOT", tmp_path)
+    root = tmp_path / "repo"
+    entries = {
+        "a" * 40: {"lines": 12, "binary": False},
+        "b" * 40: {"lines": 0, "binary": True, "media_width": 4, "media_height": 8},
+    }
+    cache.cache_save_blobs(root, entries)
+    loaded = cache.cache_load_blobs(root)
+    assert loaded["a" * 40] == {"lines": 12, "binary": False}
+    assert loaded["b" * 40]["media_width"] == 4
+    assert loaded["b" * 40]["media_height"] == 8
+
+
+def test_blob_stats_cache_version_mismatch_is_miss(tmp_path, monkeypatch):
+    from api.services import cache
+
+    monkeypatch.setattr(cache, "CACHE_ROOT", tmp_path)
+    root = tmp_path / "repo"
+    p = cache._blob_cache_path(root)
+    p.parent.mkdir(parents=True, exist_ok=True)
+    p.write_text('{"version": -1, "entries": {"x": 1}}')
+    assert cache.cache_load_blobs(root) == {}
 
 
 if __name__ == "__main__":

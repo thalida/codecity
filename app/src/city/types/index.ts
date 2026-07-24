@@ -10,6 +10,7 @@ import type { Picker } from '../interaction/picker';
 import type { CameraRig } from '../render/cameraRig';
 import type { CityState } from '../state';
 import type { Trees } from '../components/trees/treeRenderer';
+import type { PathTimeline } from '../timeline/replay';
 import type { Manifest } from '@/types';
 
 /** Everything a scene component needs to wire itself into the scene. scene /
@@ -56,6 +57,20 @@ export interface CityWorld {
   runStemPlacementDiagnostic(): void;
 }
 
+/** Timeline-mode install surface on the City handle. Owns building the scrub
+ *  controller from the components + moving the streets into the transparent pass. */
+export interface CityTimeline {
+  /** Build + install the scrub controller from the per-path replay timelines.
+   *  Call AFTER the union has been packed (applyManifest awaited). */
+  installScrubController(timelines: Map<string, PathTimeline>): void;
+  /** Uninstall + dispose the scrub controller (returns the tweens to the tick). */
+  uninstallScrubController(): void;
+  /** Move both street materials into (true) or out of (false) the transparent pass. */
+  setStreetsTransparent(on: boolean): void;
+  /** Move the footprint material into (true) or out of (false) the transparent pass. */
+  setFootprintsTransparent(on: boolean): void;
+}
+
 /** The top-level city object returned by the city composer (createCity). */
 export interface City {
   scene: THREE.Scene;
@@ -65,6 +80,9 @@ export interface City {
   invalidateLayoutCache(): void;
   focusByPath(path: string): void;
   world: CityWorld;
+  /** Timeline-mode install surface (see hooks/useTimelineMode). The controller
+   *  is built here because it needs the components' mesh/attr resolvers. */
+  timeline: CityTimeline;
   /** Tear down everything: frame loop, input listeners, picker/rig/postFx,
    *  all components (GPU + effects), the layout worker, and the renderer.
    *  Must be called when the owning view unmounts so a remount doesn't stack

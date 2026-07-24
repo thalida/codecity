@@ -22,25 +22,21 @@
   user-select: none;
 }
 
-#app-header-left,
-#app-header-right {
+#app-header-left {
   display: flex;
   align-items: center;
   gap: var(--cc-space-2);
   min-width: 0;
 }
 
-#app-header-right {
-  justify-content: flex-end;
-}
-
+/* Centered cluster: project switcher, copy-source, open-remote (the gem stays
+   left, in #app-header-left). */
 #app-title {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: var(--cc-space-4);
+  gap: var(--cc-space-2);
   min-width: 0;
-  letter-spacing: var(--cc-track-base); /* was 0.02em (dropped) */
   color: var(--cc-text-secondary);
 }
 

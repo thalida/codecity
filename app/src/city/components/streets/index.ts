@@ -17,13 +17,21 @@ import * as THREE from 'three';
 import { effect, untracked } from '@preact/signals';
 
 import { STREETS } from '@/state/stores/settings/streets';
+import { RUINS } from '@/state/stores/settings/ruins';
+import { BLUEPRINTS } from '@/state/stores/settings/blueprints';
+import { setColorFromHex } from '@/city/utils/color/setColorFromHex';
 import { NodeKind, StreetAxis } from '@/types';
-import type { CityLayout } from '@/types';
+import type { CityLayout, Street } from '@/types';
 
 import type { FrameContext, SceneComponent, SceneContext } from '../../types';
 import { armOnFirstTick } from '../../utils/armOnFirstTick';
 import { onSettings } from '../../utils/onSettings';
-import { createMergedSidewalkMesh, createMergedAsphaltMesh, type SidewalkRange } from './streets';
+import {
+  createMergedSidewalkMesh,
+  createMergedAsphaltMesh,
+  type SidewalkRange,
+  type AsphaltRange,
+} from './streets';
 import { createStreetLabels } from './streetLabels';
 import { disposeObject3D } from '@/city/utils/disposeObject3D';
 
@@ -49,6 +57,18 @@ export interface Streets extends SceneComponent {
   getPickables(): FlatMesh[];
   /** Sidewalk lookup by street directory path. */
   getSidewalkByDir(path: string): FlatMesh | null;
+  /** Per-street sidewalk spans (street + vertex range), for Timeline scrubbing. */
+  getStreetRanges(): SidewalkRange[];
+  /** Per-street asphalt spans, in the same street order as getStreetRanges(). */
+  getAsphaltRanges(): AsphaltRange[];
+  /** Fade one street: write `opacity` across its span on both the sidewalk and
+   *  asphalt merged meshes. `tint` tints the asphalt (0 none, 1 deleted folder →
+   *  ruin color, 2 future folder → future color). */
+  setStreetOpacity(street: Street, opacity: number, tint?: number): void;
+  /** Fade one street's road labels in lockstep with setStreetOpacity; 0 force-hides (overriding the visibility LOD). */
+  setStreetLabelOpacity(street: Street, opacity: number): void;
+  /** Move both street materials into (or out of) the transparent render pass. */
+  setStreetsTransparent(on: boolean): void;
 }
 
 export function createStreets(ctx: SceneContext): Streets {
@@ -70,7 +90,15 @@ export function createStreets(ctx: SceneContext): Streets {
   let sidewalkRanges: SidewalkRange[] = [];
   let sidewalkRangeByPath = new Map<string, SidewalkRange>();
   let asphaltMesh: FlatMesh | null = null;
+  let asphaltRanges: AsphaltRange[] = [];
+  // Sidewalk + asphalt vertex spans per street, for setStreetOpacity (both merged meshes share build order, so index i lines up).
+  let opacityRangeByStreet = new Map<
+    Street,
+    { sidewalk: SidewalkRange; asphalt: AsphaltRange | null }
+  >();
   let labelGroups: THREE.Group[] = [];
+  // Label groups keyed by street, for setStreetLabelOpacity (a street can repeat its label several times).
+  let labelGroupsByStreet = new Map<Street, THREE.Group[]>();
   // Dir paths currently tinted non-default (selection + hover), so a tint refresh
   // rewrites only the changed streets' vertex spans, not the whole color buffer.
   let _lastTintPaths: string[] = [];
@@ -109,6 +137,70 @@ export function createStreets(ctx: SceneContext): Streets {
       arr[v * 3 + 2] = c.b;
     }
     attr.addUpdateRange(range.vStart * 3, range.vCount * 3);
+  }
+
+  // Write one street's span of a named per-vertex float attribute, queuing a
+  // partial GPU upload (mirrors _writeStreetColor). Used for aOpacity + aRuin.
+  function _writeSpan(
+    mesh: FlatMesh,
+    name: string,
+    vStart: number,
+    vCount: number,
+    value: number
+  ): void {
+    const attr = mesh.geometry.getAttribute(name) as THREE.BufferAttribute;
+    const arr = attr.array as Float32Array;
+    for (let v = vStart; v < vStart + vCount; v++) arr[v] = value;
+    attr.addUpdateRange(vStart, vCount);
+    attr.needsUpdate = true;
+  }
+
+  // Fade one street by writing its span on both merged meshes; no-op for an
+  // unknown street (e.g. pre-rebuild). `tint` tints the asphalt span (0 none, 1
+  // deleted → ruin color, 2 future → future color); asphalt-only, since the
+  // sidewalk carries hover/select tints.
+  function setStreetOpacity(street: Street, opacity: number, tint = 0): void {
+    const r = opacityRangeByStreet.get(street);
+    if (!r) return;
+    if (sidewalkMesh) {
+      _writeSpan(sidewalkMesh, 'aOpacity', r.sidewalk.vStart, r.sidewalk.vCount, opacity);
+      _writeSpan(sidewalkMesh, 'aRuin', r.sidewalk.vStart, r.sidewalk.vCount, tint);
+    }
+    if (asphaltMesh && r.asphalt) {
+      _writeSpan(asphaltMesh, 'aOpacity', r.asphalt.vStart, r.asphalt.vCount, opacity);
+      _writeSpan(asphaltMesh, 'aRuin', r.asphalt.vStart, r.asphalt.vCount, tint);
+    }
+  }
+
+  // Fade one street's labels; scrubHidden is a hard override the visibility LOD respects (tick()),
+  // so a faded-out street can't be re-shown by a camera move before its opacity climbs back up.
+  function setStreetLabelOpacity(street: Street, opacity: number): void {
+    const groups = labelGroupsByStreet.get(street);
+    if (!groups) return;
+    const hidden = opacity <= 0;
+    for (const g of groups) {
+      const wasHidden = !!g.userData.scrubHidden;
+      if (hidden) {
+        g.userData.scrubHidden = true;
+        g.visible = false;
+        continue;
+      }
+      const plane = g.children[0] as FlatMesh | undefined;
+      if (plane) plane.material.opacity = opacity;
+      g.userData.scrubHidden = false;
+      // Re-run the LOD once for the street that just came back, so it reappears
+      // even if the camera hasn't moved since it was scrub-hidden.
+      if (wasHidden) _labelVisDirty = true;
+    }
+  }
+
+  // Flip both street materials in/out of the transparent pass; live mode never calls it, so streets stay byte-identical.
+  function setStreetsTransparent(on: boolean): void {
+    for (const m of [sidewalkMesh, asphaltMesh]) {
+      if (!m || m.material.transparent === on) continue;
+      m.material.transparent = on;
+      m.material.needsUpdate = true;
+    }
   }
 
   // _refreshSidewalkTints() — recolor the selection/hover streets' vertex spans
@@ -168,6 +260,7 @@ export function createStreets(ctx: SceneContext): Streets {
 
     asphaltMesh = null;
     labelGroups = [];
+    labelGroupsByStreet = new Map();
     _lastTintPaths = [];
     // Fresh labels default to un-flipped; force tick() to apply the live state.
     _flipDirty = true;
@@ -183,8 +276,19 @@ export function createStreets(ctx: SceneContext): Streets {
     pickables = sidewalkMesh ? [sidewalkMesh] : [];
     if (sidewalkMesh) group.add(sidewalkMesh);
 
-    asphaltMesh = createMergedAsphaltMesh(streets, 0);
+    const asphaltBuilt = createMergedAsphaltMesh(streets, 0);
+    asphaltMesh = asphaltBuilt?.mesh ?? null;
     if (asphaltMesh) group.add(asphaltMesh);
+
+    // Pair each street's sidewalk + asphalt span (same build order in both meshes).
+    opacityRangeByStreet = new Map();
+    asphaltRanges = asphaltBuilt?.ranges ?? [];
+    for (let i = 0; i < sidewalkRanges.length; i++) {
+      opacityRangeByStreet.set(sidewalkRanges[i].street, {
+        sidewalk: sidewalkRanges[i],
+        asphalt: asphaltRanges[i] ?? null,
+      });
+    }
 
     // Labels for every street. Their DRAW cost is culled per-frame in tick()
     // (hidden once they project too small to read), not by dropping them at
@@ -195,6 +299,7 @@ export function createStreets(ctx: SceneContext): Streets {
         group.add(label);
         labelGroups.push(label);
       }
+      if (labels.length) labelGroupsByStreet.set(street, labels);
     }
     _labelVisDirty = true;
   }
@@ -264,6 +369,30 @@ export function createStreets(ctx: SceneContext): Streets {
     }
   });
 
+  // Ruined-road tint — keeps the asphalt's uRuinColor uniform current when
+  // RUINS.ROAD_COLOR is Saved. rebuild() seeds a fresh mesh's uniform from the
+  // committed value; this maintains it afterward (mirrors the footprint).
+  const stopRuinColor = effect(() => {
+    const road = RUINS.value.ROAD_COLOR;
+    const border = RUINS.value.SIDEWALK_COLOR;
+    const a = asphaltMesh?.material.userData.uRuinColor as { value: THREE.Color } | undefined;
+    if (a) setColorFromHex(a.value, road);
+    const s = sidewalkMesh?.material.userData.uRuinColor as { value: THREE.Color } | undefined;
+    if (s) setColorFromHex(s.value, border);
+  });
+
+  // Future road + sidewalk-border tint — keeps the asphalt (road color) and
+  // sidewalk (border color) uFutureColor uniforms current on a Save (mirrors
+  // stopRuinColor).
+  const stopFutureColor = effect(() => {
+    const road = BLUEPRINTS.value.ROAD_COLOR;
+    const border = BLUEPRINTS.value.SIDEWALK_COLOR;
+    const a = asphaltMesh?.material.userData.uFutureColor as { value: THREE.Color } | undefined;
+    if (a) setColorFromHex(a.value, road);
+    const s = sidewalkMesh?.material.userData.uFutureColor as { value: THREE.Color } | undefined;
+    if (s) setColorFromHex(s.value, border);
+  });
+
   // (2)+(3) Picker-driven sidewalk-tint effects — ARMED on the first tick(),
   // NOT at construction. At construction ctx.picker is null, so an effect
   // reading ctx.picker?.selection.value would track NO signal and never
@@ -319,6 +448,11 @@ export function createStreets(ctx: SceneContext): Streets {
       const halfTan = Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2);
       const k = vpH / (2 * halfTan);
       for (const lbl of labelGroups) {
+        // A scrub-faded street stays hidden regardless of on-screen size (setStreetLabelOpacity owns it).
+        if (lbl.userData.scrubHidden) {
+          lbl.visible = false;
+          continue;
+        }
         const d = Math.max(camera.position.distanceTo(lbl.position), 1e-3);
         const px = ((lbl.userData.worldH ?? 0) * k) / d;
         lbl.visible = lbl.visible ? px >= LABEL_LOD_HIDE_PX : px >= LABEL_LOD_SHOW_PX;
@@ -345,6 +479,8 @@ export function createStreets(ctx: SceneContext): Streets {
     _arm.dispose();
     stopLayout();
     stopTheme();
+    stopRuinColor();
+    stopFutureColor();
   }
 
   return {
@@ -355,5 +491,10 @@ export function createStreets(ctx: SceneContext): Streets {
     // ONE merged mesh now; the picker raycasts it and resolves faceIndex→street.
     getPickables: () => pickables,
     getSidewalkByDir: (p) => (sidewalkRangeByPath.has(p) ? sidewalkMesh : null),
+    getStreetRanges: () => sidewalkRanges,
+    getAsphaltRanges: () => asphaltRanges,
+    setStreetOpacity,
+    setStreetLabelOpacity,
+    setStreetsTransparent,
   };
 }

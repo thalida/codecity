@@ -13,6 +13,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import * as THREE from 'three';
 import { EMPTY_MANIFEST } from '@/constants/manifest';
+import { TIMELINE_MODE } from '@/state/stores/timeline';
 
 // Stub the WebGLRenderer — jsdom can't create a GL context. Keep the methods
 // createCity / the frame loop call (setPixelRatio/setSize/getSize/render/
@@ -78,6 +79,7 @@ describe('createCity', () => {
   afterEach(() => {
     rafSpy.mockRestore();
     vi.clearAllMocks();
+    TIMELINE_MODE.value = false;
   });
 
   function makeCanvas(): HTMLCanvasElement {
@@ -104,5 +106,40 @@ describe('createCity', () => {
     expect(forceContextLossSpy).not.toHaveBeenCalled();
     handle.dispose();
     expect(forceContextLossSpy).toHaveBeenCalled();
+  });
+
+  // Issue #113: a source switch used to leave the union city + scrub controller
+  // stuck on the newly loaded repo. useManifestSource.loadSource now flips
+  // TIMELINE_MODE off directly (scene-free); this effect is what actually tears
+  // the scene down, uniformly for the toggle button AND a source switch.
+  describe('Timeline-mode scene teardown', () => {
+    it('reacts to TIMELINE_MODE going true→false by uninstalling the controller and un-transparenting streets/footprints', async () => {
+      const handle = await createCity(makeCanvas(), EMPTY_MANIFEST);
+      handle.timeline.installScrubController(new Map());
+      const uninstallSpy = vi.spyOn(handle.timeline, 'uninstallScrubController');
+      const streetsSpy = vi.spyOn(handle.timeline, 'setStreetsTransparent');
+      const footprintsSpy = vi.spyOn(handle.timeline, 'setFootprintsTransparent');
+
+      TIMELINE_MODE.value = true; // entering must not trip the teardown
+      expect(uninstallSpy).not.toHaveBeenCalled();
+
+      TIMELINE_MODE.value = false; // same flip a source switch performs
+      expect(uninstallSpy).toHaveBeenCalledTimes(1);
+      expect(streetsSpy).toHaveBeenCalledWith(false);
+      expect(footprintsSpy).toHaveBeenCalledWith(false);
+
+      handle.dispose();
+    });
+
+    it('no-ops when no controller was ever installed', async () => {
+      const handle = await createCity(makeCanvas(), EMPTY_MANIFEST);
+      const uninstallSpy = vi.spyOn(handle.timeline, 'uninstallScrubController');
+
+      TIMELINE_MODE.value = true;
+      TIMELINE_MODE.value = false;
+
+      expect(uninstallSpy).not.toHaveBeenCalled();
+      handle.dispose();
+    });
   });
 });

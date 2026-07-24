@@ -89,19 +89,13 @@ function _computeFogHeight(): number {
   return SCENE.value.FOG_HEIGHT_FRAC * base;
 }
 
-// Grime/tilt are age-scaled: each is a [newest, oldest] range the shader lerps
-// per-building by createdAge. These write the two endpoints into a Vector2
-// uniform (both 0 when the effect is disabled, so the shader's mix → 0).
+// Grime is age-scaled: a [newest, oldest] range the shader lerps per-building by
+// createdAge, written into a Vector2 uniform (both 0 when disabled → mix → 0).
+// (The age-lean is NOT here — it's baked into the instance matrix; see tilt.ts.)
 function _grimeIntensityVec(out: THREE.Vector2): THREE.Vector2 {
   const f = BUILDINGS.value;
   const [lo, hi] = f.GRIME_ENABLED ? f.GRIME_INTENSITY : [0, 0];
   return out.set(lo, hi);
-}
-
-function _tiltRadVec(out: THREE.Vector2): THREE.Vector2 {
-  const f = BUILDINGS.value;
-  const [lo, hi] = f.TILT_ENABLED ? f.TILT_DEGREES : [0, 0];
-  return out.set((lo * Math.PI) / 180, (hi * Math.PI) / 180);
 }
 
 /**
@@ -148,7 +142,6 @@ export function getBuildingMaterial(): THREE.ShaderMaterial {
       // modifiedAge). See BUILDINGS (aging) config.
       uGrimeIntensity: { value: _grimeIntensityVec(new THREE.Vector2()) },
       uGrimeCoverage: { value: new THREE.Vector2(...BUILDINGS.value.GRIME_COVERAGE) },
-      uTiltRad: { value: _tiltRadVec(new THREE.Vector2()) },
       // Scene directional lighting (fixed LIGHTING_* constants). uSunDirWorld is
       // re-initialised below from those constants so the
       // first frame already has the configured sun direction; the
@@ -238,7 +231,6 @@ export function refreshBuildingMaterial(): void {
   // per-building by createdAge.
   _grimeIntensityVec(_sharedMaterial.uniforms.uGrimeIntensity.value as THREE.Vector2);
   (_sharedMaterial.uniforms.uGrimeCoverage.value as THREE.Vector2).set(...facade.GRIME_COVERAGE);
-  _tiltRadVec(_sharedMaterial.uniforms.uTiltRad.value as THREE.Vector2);
   _sharedMaterial.uniforms.uSlabHeightFrac.value = facade.SLAB_HEIGHT_FRAC;
   _sharedMaterial.uniforms.uWindowWidthFrac.value = facade.WINDOW_WIDTH_FRAC;
   _sharedMaterial.uniforms.uWindowHeightFrac.value = facade.WINDOW_HEIGHT_FRAC;

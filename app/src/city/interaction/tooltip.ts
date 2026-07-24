@@ -27,11 +27,20 @@ function _ensure(): HTMLElement {
   return _el;
 }
 
-// showTooltip(text, x, y) — show with the given text, positioned near cursor
-// (with auto-clamp to viewport so it doesn't bleed off-screen).
-export function showTooltip(text: string, x: number, y: number): void {
+// showTooltip(text, x, y, deleted?) — show with the given text, positioned near
+// cursor (with auto-clamp to viewport so it doesn't bleed off-screen). When
+// `deleted`, lead with a red "deleted" badge so a ruin reads at a glance.
+export function showTooltip(text: string, x: number, y: number, deleted = false): void {
   const el = _ensure();
-  el.textContent = text;
+  if (deleted) {
+    el.textContent = '';
+    const badge = document.createElement('span');
+    badge.className = 'tooltip-deleted';
+    badge.textContent = 'deleted';
+    el.append(badge, document.createTextNode(`  ·  ${text}`));
+  } else {
+    el.textContent = text;
+  }
   el.style.display = 'block';
   moveTooltip(x, y);
 }

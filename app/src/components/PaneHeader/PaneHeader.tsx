@@ -6,7 +6,8 @@
 
 import './PaneHeader.css';
 import type { ComponentChildren } from 'preact';
-import { Focus, X, EyeOff } from 'lucide-preact';
+import { Focus, X, EyeOff, ExternalLink } from 'lucide-preact';
+import { CopyButton } from '@/components/CopyButton/CopyButton';
 
 // ── Props interface ─────────────────────────────────────────────────────────
 
@@ -20,6 +21,17 @@ export interface PaneHeaderProps {
   onFocus?: () => void;
   /** Tooltip text on the focus button. Defaults to "Focus camera". */
   focusTitle?: string;
+  /** Text the copy button copies (a path, a SHA). Omit to render no copy button. */
+  copyText?: string;
+  /** Tooltip / aria-label for the copy button. */
+  copyLabel?: string;
+  /** Open-on-origin URL (a commit/file/dir link). Omit to render no open link. */
+  openUrl?: string | null;
+  /** Tooltip / aria-label for the open link. */
+  openLabel?: string;
+  /** Extra action buttons rendered in the right-hand group, between the open link
+   *  and exclude (e.g. CommitPane's view-on-timeline). */
+  actionsSlot?: ComponentChildren;
   /** fn() when the user clicks the × close button. Omit to render no button. */
   onClose?: () => void;
   /** Tooltip text on the × button. Defaults to "Hide sidebar". */
@@ -28,10 +40,10 @@ export interface PaneHeaderProps {
   onExclude?: () => void;
   /** Tooltip / aria-label for the exclude button. */
   excludeTitle?: string;
-  /** Optional prefix element rendered between focus button and title. */
+  /** Optional prefix element rendered before the title (e.g. an extension badge). */
   prefixSlot?: ComponentChildren;
   /** Rich title content rendered inside the title element instead of the
-   *  plain `title` string (e.g. CommitPane's "Commit <sha> + open-link"). */
+   *  plain `title` string (e.g. a path breadcrumb, or "Commit <sha> · author"). */
   titleSlot?: ComponentChildren;
 }
 
@@ -42,6 +54,11 @@ export function PaneHeader({
   mono,
   onFocus,
   focusTitle = 'Focus camera',
+  copyText,
+  copyLabel,
+  openUrl,
+  openLabel = 'Open on origin',
+  actionsSlot,
   onClose,
   closeTitle = 'Hide sidebar',
   onExclude,
@@ -51,37 +68,53 @@ export function PaneHeader({
 }: PaneHeaderProps) {
   return (
     <div class="pane-header">
-      {typeof onFocus === 'function' && (
-        <button
-          type="button"
-          class="btn-icon btn-icon--text"
-          title={focusTitle}
-          aria-label={focusTitle}
-          onClick={(e) => {
-            // Blur so a subsequent Space/Enter doesn't re-activate this button
-            // (re-firing focus) — let those keystrokes fall through to the
-            // document-level canvas keydown handler.
-            (e.currentTarget as HTMLButtonElement).blur();
-            onFocus();
-          }}
-        >
-          <Focus class="icon" />
-        </button>
-      )}
       {prefixSlot ?? null}
       <h3 class={`text-pane-title${mono ? ' is-mono' : ''}`}>{titleSlot ?? title}</h3>
-      {typeof onExclude === 'function' && (
-        <button
-          type="button"
-          class="btn-icon"
-          title={excludeTitle ?? 'Exclude from city'}
-          aria-label={excludeTitle ?? 'Exclude from city'}
-          onClick={() => onExclude()}
-        >
-          <EyeOff class="icon" />
-        </button>
-      )}
-      {typeof onClose === 'function' && <PaneCloseButton onClose={onClose} title={closeTitle} />}
+      <div class="pane-header-actions">
+        {typeof onFocus === 'function' && (
+          <button
+            type="button"
+            class="btn-icon btn-icon--text"
+            title={focusTitle}
+            aria-label={focusTitle}
+            onClick={(e) => {
+              // Blur so a subsequent Space/Enter doesn't re-activate this button
+              // (re-firing focus) — let those keystrokes fall through to the
+              // document-level canvas keydown handler.
+              (e.currentTarget as HTMLButtonElement).blur();
+              onFocus();
+            }}
+          >
+            <Focus class="icon" />
+          </button>
+        )}
+        {copyText != null && <CopyButton text={copyText} label={copyLabel} />}
+        {openUrl && (
+          <a
+            class="btn-icon btn-icon--link btn-icon--no-drag"
+            href={openUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            title={openLabel}
+            aria-label={openLabel}
+          >
+            <ExternalLink class="icon" />
+          </a>
+        )}
+        {actionsSlot ?? null}
+        {typeof onExclude === 'function' && (
+          <button
+            type="button"
+            class="btn-icon"
+            title={excludeTitle ?? 'Exclude from city'}
+            aria-label={excludeTitle ?? 'Exclude from city'}
+            onClick={() => onExclude()}
+          >
+            <EyeOff class="icon" />
+          </button>
+        )}
+        {typeof onClose === 'function' && <PaneCloseButton onClose={onClose} title={closeTitle} />}
+      </div>
     </div>
   );
 }

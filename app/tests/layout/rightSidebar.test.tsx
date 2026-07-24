@@ -4,6 +4,7 @@ import { signal } from '@preact/signals';
 import { RightSidebar } from '@/layout/RightSidebar/RightSidebar';
 import { SCENE_HANDLE } from '@/state/stores/scene';
 import { MANIFEST, setManifest } from '@/state/stores/manifest';
+import { TIMELINE_MODE } from '@/state/stores/timeline';
 import { EMPTY_MANIFEST } from '@/constants/manifest';
 import { NodeKind } from '@/types';
 import type { DirNode, FileNode, Manifest, PickTarget } from '@/types';
@@ -111,6 +112,7 @@ describe('RightSidebar', () => {
     render(null, container);
     document.body.removeChild(container);
     SCENE_HANDLE.value = null;
+    TIMELINE_MODE.value = false;
   });
 
   it('renders an <aside id="right-sidebar"> closed by default', () => {
@@ -133,6 +135,33 @@ describe('RightSidebar', () => {
     expect(aside.classList.contains('open')).toBe(true);
     // The file preview pane is mounted (look for its pane title slot).
     expect(aside.querySelector('.pane')).not.toBeNull();
+  });
+
+  it('Timeline mode: every selection opens the panel (file, dir, and commit)', async () => {
+    TIMELINE_MODE.value = true;
+    const handle = SCENE_HANDLE.peek() as unknown as ReturnType<typeof makeSceneHandle>;
+    const aside = container.querySelector<HTMLElement>('aside#right-sidebar')!;
+
+    // File selection while scrubbing → panel opens (the sidebar is now the only
+    // place a selection is shown; the pane notes it reads HEAD, not the commit).
+    handle.picker.setSelection({
+      kind: NodeKind.File,
+      file: FILE_NODE,
+      mesh: {} as never,
+      data: {} as never,
+    });
+    await flush();
+    expect(aside.classList.contains('open')).toBe(true);
+
+    // Commit selection also opens.
+    handle.picker.setSelection({
+      kind: NodeKind.Commit,
+      commit: { sha: 'abc1234', date: '2024-01-01', subject: 's', files: 1 } as never,
+      mesh: {} as never,
+      instanceId: 0,
+    });
+    await flush();
+    expect(aside.classList.contains('open')).toBe(true);
   });
 
   it('renders the resize handle on the inside (left) edge', () => {

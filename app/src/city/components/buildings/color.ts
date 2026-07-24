@@ -95,6 +95,15 @@ interface MinMaxRange {
   max: number;
 }
 
+// Shared by getSaturation/getLightness/getBuildingColorForRecency: t=0 → config.min
+// (oldest/weathered), t=1 → config.max (newest/vivid). Clamped so out-of-range t
+// (e.g. dates outside the observed range, or a scrub position past the recorded
+// history) still lands inside the configured bounds.
+function lerpRange(t: number, config: MinMaxRange): number {
+  const clamped = Math.max(0, Math.min(1, t));
+  return Math.round(config.min + clamped * (config.max - config.min));
+}
+
 export function getSaturation(
   date: string | null,
   minDate: string | null,
@@ -116,12 +125,8 @@ export function getSaturation(
   }
 
   // t=0 → oldest (min saturation), t=1 → newest (max saturation)
-  let t = (dateVal - min) / (max - min);
-
-  // Clamp t to [0, 1] in case dates fall outside the observed range
-  t = Math.max(0, Math.min(1, t));
-
-  return Math.round(config.min + t * (config.max - config.min));
+  const t = (dateVal - min) / (max - min);
+  return lerpRange(t, config);
 }
 
 // ── Lightness ─────────────────────────────────────────────────────────────────
@@ -160,12 +165,8 @@ export function getLightness(
   }
 
   // t=0 → oldest modification (min lightness), t=1 → newest (max lightness)
-  let t = (dateVal - min) / (max - min);
-
-  // Clamp to [0, 1]
-  t = Math.max(0, Math.min(1, t));
-
-  return Math.round(config.min + t * (config.max - config.min));
+  const t = (dateVal - min) / (max - min);
+  return lerpRange(t, config);
 }
 
 // ── Building color ────────────────────────────────────────────────────────────
@@ -246,5 +247,24 @@ export function getBuildingColor(file: FileLike, dateRanges: DateRanges): string
     max: palette.LIGHTNESS_MAX,
   });
 
+  return `hsl(${h}, ${s}%, ${l}%)`;
+}
+
+/**
+ * Same hue lookup + saturation/lightness curve as getBuildingColor, but driven
+ * by an explicit recency (0 = oldest/weathered, 1 = just modified) instead of
+ * a date lookup against dateRanges. Lets the Timeline scrub controller
+ * re-evaluate a building's weathering relative to the scrub position each
+ * frame, reusing the exact same curve the static build-time color uses.
+ *
+ * @param {Object} file    - File node (only `extension` is read).
+ * @param {number} recency - 0..1, 1 = freshest.
+ * @returns {string} CSS HSL string, e.g. "hsl(215, 80%, 55%)".
+ */
+export function getBuildingColorForRecency(file: FileLike, recency: number): string {
+  const palette = BUILDINGS.value;
+  const h = getHue(file.extension || '', palette.HUE_EXT_MAP);
+  const s = lerpRange(recency, { min: palette.SATURATION_MIN, max: palette.SATURATION_MAX });
+  const l = lerpRange(recency, { min: palette.LIGHTNESS_MIN, max: palette.LIGHTNESS_MAX });
   return `hsl(${h}, ${s}%, ${l}%)`;
 }

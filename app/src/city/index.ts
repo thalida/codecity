@@ -8,9 +8,13 @@ import { effect, untracked } from '@preact/signals';
 
 import type { Manifest } from '@/types';
 import { CURRENT_SOURCE_KEY } from '@/state/stores/source';
+import { TIMELINE_MODE, SCRUB_DRAGGING, SCRUB_POS } from '@/state/stores/timeline';
 
 import { registerShaderChunks } from './utils/shaders/registerShaderChunks';
 import { createBuildings } from './components/buildings';
+import { makeHeightContext } from './layout/dimensions';
+import { createScrubController } from './timeline/scrubController';
+import type { PathTimeline } from './timeline/replay';
 import { createLayoutClient } from './layout';
 import { createCityState } from './state';
 import { runCollisionCheck, runStemPlacementDiagnostic } from './diagnostics';
@@ -177,8 +181,14 @@ export async function createCity(canvas: HTMLCanvasElement, manifest: Manifest):
     onResetView: rig.reset,
   });
 
+  // Scrub controller: built on entering Timeline mode (useTimelineMode); held here to dispose on uninstall.
+  let _scrubController: ReturnType<typeof createScrubController> | null = null;
+
   // Reused scratch vector to avoid per-frame allocations from renderer.getSize().
   const renderSize = new THREE.Vector2();
+  // Last scrub position the removed-selection prune ran at — so it fires only when
+  // the scrub actually MOVES, never on a static selection.
+  let _lastPrunedScrubPos = -1;
   const stopFrameLoop = startFrameLoop(components, ctx, {
     rig,
     postFx,
@@ -196,6 +206,65 @@ export async function createCity(canvas: HTMLCanvasElement, manifest: Manifest):
         for (const c of components) c.onResize?.(cw, ch);
       }
     },
+    after() {
+      // Drop a selection the scrub removed, but not mid-drag: closing the right
+      // sidebar then reflows the track under the pointer and jumps the position.
+      if (!TIMELINE_MODE.peek() || SCRUB_DRAGGING.peek()) return;
+      const pos = SCRUB_POS.peek();
+      if (pos === _lastPrunedScrubPos) return;
+      _lastPrunedScrubPos = pos;
+      picker.pruneScrubHiddenSelection();
+    },
+  });
+
+  const timelineApi = {
+    installScrubController(timelines: Map<string, PathTimeline>): void {
+      _scrubController?.dispose();
+      _scrubController = createScrubController({
+        getBuildingIndex: () => buildings.getBuildingIndex(),
+        getMeshForBuilding: (b) => buildings.getMeshForBuilding(b),
+        getAdPanels: () => buildings.getAdPanels(),
+        picker,
+        timelines,
+        heightCtx: makeHeightContext(cityState.manifest.peek()?.stats),
+        streets: {
+          setStreetOpacity: (s, o, tint) => streets.setStreetOpacity(s, o, tint),
+          setStreetLabelOpacity: (s, o) => streets.setStreetLabelOpacity(s, o),
+        },
+        streetsByDir: cityState.streetsByDirMap.peek(),
+        footprints: {
+          setBuildingFootprintOpacity: (p, o, ruin) =>
+            footprint.setBuildingFootprintOpacity(p, o, ruin),
+          setStreetFootprintOpacity: (p, o, ruin) =>
+            footprint.setStreetFootprintOpacity(p, o, ruin),
+        },
+        trees: {
+          setScrubCommit: (maxCommitIndex) => trees.setScrubCommit(maxCommitIndex),
+        },
+        fireflies: {
+          setScrubCommit: (maxCommitIndex) => fireflies.setScrubCommit(maxCommitIndex),
+        },
+      });
+      buildings.setScrubController(_scrubController);
+    },
+    uninstallScrubController(): void {
+      buildings.setScrubController(null);
+      _scrubController?.dispose();
+      _scrubController = null;
+      // Restore the full forest immediately — don't wait on exit's manifest reload.
+      trees.setScrubCommit(null);
+      fireflies.setScrubCommit(null);
+    },
+    setStreetsTransparent: (on: boolean): void => streets.setStreetsTransparent(on),
+    setFootprintsTransparent: (on: boolean): void => footprint.setFootprintsTransparent(on),
+  };
+
+  // Reacts to every Timeline-mode exit (toggle, source switch) so the scene teardown is uniform regardless of trigger.
+  const stopTimelineTeardown = effect(() => {
+    if (TIMELINE_MODE.value || !_scrubController) return;
+    timelineApi.uninstallScrubController();
+    timelineApi.setStreetsTransparent(false);
+    timelineApi.setFootprintsTransparent(false);
   });
 
   return {
@@ -216,6 +285,7 @@ export async function createCity(canvas: HTMLCanvasElement, manifest: Manifest):
       runCollisionCheck: () => runCollisionCheck(cityState),
       runStemPlacementDiagnostic: () => runStemPlacementDiagnostic(cityState),
     },
+    timeline: timelineApi,
     /** Tear the whole city down: stop the frame loop, detach input listeners,
      *  dispose the picker/rig/postFx/components (GPU geometry + their effects),
      *  the layout worker, and the renderer. Without this, a remount (or HMR)
@@ -226,6 +296,8 @@ export async function createCity(canvas: HTMLCanvasElement, manifest: Manifest):
     dispose(): void {
       stopFrameLoop();
       stopReframe();
+      stopTimelineTeardown();
+      _scrubController?.dispose();
       handlers.dispose();
       picker.dispose();
       rig.dispose();

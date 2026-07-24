@@ -1,10 +1,12 @@
 """The manifest routes: GET /api/manifest (SSE stream), GET
-/api/manifest/signature, DELETE /api/manifest/cache.
+/api/manifest/signature, GET /api/timeline (SSE stream), DELETE
+/api/manifest/cache.
 
 Source classification/resolution lives in api.services.source; these are the
 thin HTTP handlers over it. A ResolveError carries a status + message: the
-signature/cache routes turn it into an HTTPException, while the SSE route turns
-it into an `error` event (EventSource can't read 4xx bodies)."""
+signature/cache routes turn it into an HTTPException, while the manifest and
+timeline SSE routes turn it into an `error` event (EventSource can't read 4xx
+bodies)."""
 
 from __future__ import annotations
 
@@ -25,14 +27,22 @@ from api.models.events import (
     PartialManifestEvent,
     ScanEvent,
     ScanProgressEvent,
+    TimelineCompleteEvent,
+    TimelineEvent,
+    TimelineProgressEvent,
 )
 from api.models.manifest import SignatureResponse
 from api.models.responses import CacheClearResponse
 from api.security import TRUST
 from api.services.cache import (
     cache_clear_all,
+    cache_clear_timeline,
     cache_load_manifest,
+    cache_load_ref_manifest,
+    cache_load_timeline,
     cache_save_manifest,
+    cache_save_ref_manifest,
+    cache_save_timeline,
 )
 from api.services.clone import (
     BranchNotFoundError,
@@ -41,9 +51,17 @@ from api.services.clone import (
     RepoNotFoundError,
     clone_dir_for,
     ensure_clone,
+    hydrate_blobs,
     remove_clone,
 )
-from api.services.scan import ScanCancelledError, scan_tree, signature_tree
+from api.services.gitobj import resolve_ref
+from api.services.scan import (
+    NotAGitRepoError,
+    ScanCancelledError,
+    reconstruct_manifest,
+    scan_tree,
+    signature_tree,
+)
 from api.services.source import (
     ResolveError,
     SourceKind,
@@ -52,6 +70,7 @@ from api.services.source import (
     resolve_local,
     resolve_source,
 )
+from api.services.timeline import build_timeline_bundle
 
 router = APIRouter(prefix="/api", tags=["manifest"])
 
@@ -87,6 +106,144 @@ def signature(
     return SignatureResponse.model_validate(dict(sig))
 
 
+TimelineSSEEvent = Union[TimelineProgressEvent, TimelineCompleteEvent, ErrorEvent]
+
+
+@router.get(
+    "/timeline",
+    responses={
+        200: {
+            "description": (
+                "Server-Sent Events stream (`text/event-stream`). Named events "
+                "and their JSON `data` payloads: `timeline-progress` "
+                "(TimelineProgressEvent, one or more while the history walk / "
+                "blob resolution run), `timeline-complete` (TimelineCompleteEvent, "
+                "the full bundle), `error` (ErrorEvent). A warm cache hit emits "
+                "only `timeline-complete`, no progress. The client closes the "
+                "connection on `timeline-complete`/`error`."
+            ),
+            "model": TimelineSSEEvent,
+        },
+    },
+)
+async def timeline(
+    request: Request,
+    src: str = Query(...),
+    branch: str | None = Query(None),
+    no_cache: bool = Query(False),
+    exclude: list[str] = Query(default_factory=list),
+) -> EventSourceResponse:
+    use_cache = not no_cache
+    excludes = _norm_excludes(exclude)
+    pending_label = label_from_source(src)
+
+    is_remote = classify(src) is SourceKind.REMOTE
+
+    async def gen() -> AsyncIterator[dict[str, Any]]:
+        loop = asyncio.get_running_loop()
+        q: asyncio.Queue[dict[str, Any] | None] = asyncio.Queue()
+        holder: dict[str, Any] = {"bundle": None, "path": None, "head": None}
+        cancel = threading.Event()
+
+        def _put(item: dict[str, Any] | None) -> None:
+            loop.call_soon_threadsafe(q.put_nowait, item)
+
+        def _on_progress(payload: dict[str, Any]) -> None:
+            stage = payload["stage"]
+            data: dict[str, Any] = {"stage": stage, "label": pending_label}
+            if stage == "history":
+                data["commits"] = payload.get("commits")
+            else:  # "blobs"
+                data["blobsDone"] = payload.get("done")
+                data["blobsTotal"] = payload.get("total")
+            _put(_sse(TimelineEvent.PROGRESS, data))
+
+        def _on_hydrate(payload: tuple[str, int]) -> None:
+            # git fetch (stage, percent) → the "downloading history" tick.
+            _put(
+                _sse(
+                    TimelineEvent.PROGRESS,
+                    {"stage": "fetch", "percent": payload[1], "label": pending_label},
+                )
+            )
+
+        def _run() -> None:
+            try:
+                try:
+                    target = resolve_source(src, branch)
+                except ResolveError as e:
+                    _put(_sse_error(e.message))
+                    return
+                holder["path"] = target
+                head = resolve_ref(target, "HEAD")
+                holder["head"] = head
+                if use_cache and head is not None:
+                    cached = cache_load_timeline(target.resolve(), head, excludes)
+                    if cached is not None:
+                        _put(_sse(TimelineEvent.COMPLETE, {"bundle": cached}))
+                        return
+                # A blobless remote clone has no historical blob content — backfill
+                # it before the walk so blob resolution reads local objects (no
+                # per-blob promisor fetch hang). Never touches a local repo.
+                if is_remote:
+                    hydrate_blobs(target, on_progress=_on_hydrate, cancel_event=cancel)
+                bundle = build_timeline_bundle(
+                    str(target),
+                    use_cache=use_cache,
+                    extra_exclude_paths=excludes,
+                    on_progress=_on_progress,
+                )
+                holder["bundle"] = bundle
+                _put(_sse(TimelineEvent.COMPLETE, {"bundle": bundle}))
+            except ScanCancelledError:
+                pass  # client disconnected mid-hydrate; nothing to report
+            except NotAGitRepoError as e:
+                _put(_sse_error(str(e)))
+            except Exception as e:  # noqa: BLE001
+                logger.exception("timeline build failed for src=%s", src)
+                _put(_sse_error(f"timeline failed: {e}"))
+            finally:
+                _put(None)  # sentinel
+
+        worker = threading.Thread(target=_run, daemon=True)
+        worker.start()
+
+        disconnected = False
+        try:
+            while True:
+                if await request.is_disconnected():
+                    disconnected = True
+                    cancel.set()  # kill an in-flight hydrate fetch
+                    break
+                try:
+                    item = await asyncio.wait_for(q.get(), timeout=0.5)
+                except asyncio.TimeoutError:
+                    continue
+                if item is None:
+                    break
+                yield item
+        finally:
+            cancel.set()
+            await asyncio.to_thread(worker.join, 2.0)
+
+        # ALWAYS write cache on a clean final (read gated by no_cache; write is
+        # not). Skipped on disconnect, and on error (where bundle stays None).
+        bundle = holder["bundle"]
+        path = holder["path"]
+        head = holder["head"]
+        if (
+            bundle is not None
+            and not disconnected
+            and path is not None
+            and head is not None
+        ):
+            await asyncio.to_thread(
+                cache_save_timeline, path.resolve(), head, bundle, excludes
+            )
+
+    return EventSourceResponse(gen())
+
+
 @router.delete("/manifest/cache", response_model=CacheClearResponse)
 def clear_cache(
     src: str = Query(...),
@@ -115,9 +272,10 @@ def clear_cache(
     return CacheClearResponse(deleted=deleted)
 
 
-def _sse(event: ScanEvent, payload: dict[str, Any]) -> dict[str, Any]:
-    """sse-starlette event dict: {'event': name, 'data': json-string}. The
-    ScanEvent StrEnum serializes to its wire string ('manifest-complete', …)."""
+def _sse(event: "ScanEvent | TimelineEvent", payload: dict[str, Any]) -> dict[str, Any]:
+    """sse-starlette event dict: {'event': name, 'data': json-string}. Both
+    StrEnums serialize to their wire string ('manifest-complete', 'timeline-
+    progress', …)."""
     return {"event": event, "data": json.dumps(payload)}
 
 
@@ -148,7 +306,12 @@ SSEEvent = Union[
                 "`scan-progress` (ScanProgressEvent), `manifest-partial` "
                 "(PartialManifestEvent), `manifest-complete` (CompleteManifestEvent), "
                 "`error` (ErrorEvent). The client closes the connection on "
-                "`manifest-complete`/`error`."
+                "`manifest-complete`/`error`. When `ref` is set, the manifest is "
+                "reconstructed as of that commit instead of the working tree "
+                "(a remote source still emits `clone-progress` if it isn't cloned "
+                "yet, but never `scan-progress`/`manifest-partial` for the "
+                "reconstruction itself — the city is already drawn, so a skeleton "
+                "would flash placeholders)."
             ),
             "model": SSEEvent,
         },
@@ -160,6 +323,7 @@ async def manifest(
     branch: str | None = Query(None),
     no_cache: bool = Query(False),
     exclude: list[str] = Query(default_factory=list),
+    ref: str | None = Query(None),
 ) -> EventSourceResponse:
     use_cache = not no_cache
     excludes = _norm_excludes(exclude)
@@ -259,6 +423,41 @@ async def manifest(
 
                 holder["path"] = path
                 TRUST.register(path)
+
+                # A no_cache scan means "rebuild everything for this source" —
+                # evict the per-HEAD timeline bundle too, so re-entering Timeline
+                # mode rebuilds fresh rather than serving a stale/older-code one.
+                if not use_cache:
+                    cache_clear_timeline(path.resolve())
+
+                # Time-travel: reconstruct the manifest as of `ref` instead of
+                # scanning the working tree. Resolve to a sha FIRST — it's both
+                # the cache key and the early "bad ref" error, and it keeps only
+                # a validated sha flowing into reconstruct_manifest (which
+                # re-validates internally too, so this is defense-in-depth, not
+                # the sole guard). No skeleton events: the city is already
+                # drawn for the live tree, so scan-progress/manifest-partial
+                # would just flash placeholders over it.
+                if ref is not None:
+                    sha = resolve_ref(path, ref)
+                    if sha is None:
+                        _put(_sse_error(f"ref does not resolve to a commit: {ref}"))
+                        return
+                    if use_cache:
+                        cached_ref = cache_load_ref_manifest(path.resolve(), sha)
+                        if cached_ref is not None:
+                            _put(
+                                _sse(
+                                    ScanEvent.MANIFEST_COMPLETE,
+                                    {"manifest": cached_ref},
+                                )
+                            )
+                            return
+                    m = reconstruct_manifest(str(path), sha, use_cache=use_cache)
+                    cache_save_ref_manifest(path.resolve(), sha, m)
+                    _put(_sse(ScanEvent.MANIFEST_COMPLETE, {"manifest": m}))
+                    return
+
                 _put(_sse(ScanEvent.SCAN_PROGRESS, {"label": pending_label}))
 
                 # Signature (cache key) + warm-cache short-circuit.

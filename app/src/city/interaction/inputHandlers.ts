@@ -19,7 +19,7 @@ import { TEXT_INPUT_TAGS } from '@/constants/dom';
 import { MODAL_OPEN } from '@/state/stores/ui';
 import { NodeKind } from '@/types';
 import type { PickTarget } from '@/types';
-import { formatHoverTooltip } from './tooltipText';
+import { formatHoverTooltip, isDeletedTarget } from './tooltipText';
 import type { createPicker } from './picker';
 import type { createCameraRig } from '../render/cameraRig';
 import type { CityState } from '../state';
@@ -40,7 +40,7 @@ export function createInputHandlers({
   rig: ReturnType<typeof createCameraRig>;
   renderer: THREE.WebGLRenderer;
   cityState: CityState;
-  showTooltip: (text: string, x: number, y: number) => void;
+  showTooltip: (text: string, x: number, y: number, deleted?: boolean) => void;
   hideTooltip: () => void;
   onResize: () => void;
   /** Reset-view action triggered by R / gem-click. Does NOT rebuild the
@@ -109,7 +109,7 @@ export function createInputHandlers({
     const rootName = cityState.manifest.peek()?.tree?.name ?? null;
     const tooltipText = formatHoverTooltip(newHover, rootName);
     if (tooltipText) {
-      showTooltip(tooltipText, e.clientX, e.clientY);
+      showTooltip(tooltipText, e.clientX, e.clientY, isDeletedTarget(newHover));
       canvas.style.cursor = 'pointer';
     } else {
       hideTooltip();

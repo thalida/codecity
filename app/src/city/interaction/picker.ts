@@ -46,6 +46,8 @@ import { ObjectBVH } from 'three-mesh-bvh';
 import { signal, effect, untracked } from '@preact/signals';
 import { NodeKind } from '@/types';
 import { sidewalkStreetForFace } from '@/city/components/streets/streets';
+import { TIMELINE_MODE, SCRUB_POS } from '@/state/stores/timeline';
+import { RUINED_STREET_DIRS, FUTURE_STREET_DIRS } from '@/city/timeline/scrubController';
 
 import type { PickTarget, PickerWorld, PickerSelectionKey } from '@/types';
 import type { CityState } from '@/city/state';
@@ -256,6 +258,19 @@ export function createPicker({
   // Note: both effects fire ONCE at construction (revisions start at 0). That
   // initial resolve runs with key null → selection cleared + pickables primed.
 
+  // Timeline scrub mutates every building's instance matrix each frame (height +
+  // the age-lean shear). The cached ObjectBVH stores bounds at build time, so
+  // without this it keeps the heights from whenever it was last built — the
+  // hitbox freezes while the render follows the scrub. Invalidate on SCRUB_POS so
+  // the next pickAt rebuilds against the scrubbed matrices. Live mode never fires
+  // the rebuild (matrices are static there).
+  const _disposeScrubBvhEffect = effect(() => {
+    void SCRUB_POS.value;
+    if (!TIMELINE_MODE.peek()) return;
+    _bvh = null;
+    _bvhDirty = true;
+  });
+
   // ── Public setters ─────────────────────────────────────────────────
   function setHover(h: PickTarget | null): void {
     hover.value = h;
@@ -326,6 +341,80 @@ export function createPicker({
     if (t) setHover(t);
   }
 
+  // ── Timeline scrub-hidden guard ─────────────────────────────────────
+  // Scrub-faded/zeroed meshes stay in the scene (never removed), so the
+  // raycast still hits them; reject a resolved hit here rather than let a
+  // faded-out building/tree/street stay hoverable or selectable. Only
+  // active in Timeline mode — live-mode resolution is untouched.
+  const SCRUB_HIDE_EPS = 0.02;
+  const _scrubMatrix = new THREE.Matrix4();
+
+  // Building presence is iFade.x, the same value the shader reads for opacity.
+  // A ruin is NOT hidden — it's a visible stub, hoverable + selectable (the
+  // tooltip flags it as a ruin, and the right panel is suppressed elsewhere). A
+  // future slab (iRuin 2) IS treated as hidden: it's a marker for a file that
+  // doesn't exist yet, so it can't be selected.
+  function _buildingScrubHidden(mesh: THREE.InstancedMesh, slot: number): boolean {
+    const iFade = mesh.geometry.getAttribute('iFade') as THREE.BufferAttribute | undefined;
+    if (iFade && iFade.getX(slot) < SCRUB_HIDE_EPS) return true;
+    const iRuin = mesh.geometry.getAttribute('iRuin') as THREE.BufferAttribute | undefined;
+    return !!iRuin && iRuin.getX(slot) > 1.5;
+  }
+
+  // A visible ghost-ruin building (for the hover tooltip's "ruin" note); the
+  // future slab (iRuin 2) isn't a ruin, and is unpickable anyway.
+  function _buildingIsRuin(mesh: THREE.InstancedMesh, slot: number): boolean {
+    const iRuin = mesh.geometry.getAttribute('iRuin') as THREE.BufferAttribute | undefined;
+    return !!iRuin && iRuin.getX(slot) > 0.5 && iRuin.getX(slot) < 1.5;
+  }
+
+  // Trees are gated by zero-scaling their instance matrix (setScrubCommit).
+  // Read the X-column length directly rather than Matrix4.decompose, which
+  // special-cases a zero-determinant (fully collapsed) matrix back to scale (1,1,1).
+  function _treeScrubHidden(mesh: THREE.InstancedMesh, slot: number): boolean {
+    mesh.getMatrixAt(slot, _scrubMatrix);
+    const e = _scrubMatrix.elements;
+    const sx = Math.hypot(e[0], e[1], e[2]);
+    return sx < SCRUB_HIDE_EPS;
+  }
+
+  // Streets fade per-vertex (aOpacity); read a face vertex directly so this
+  // can't drift from what the shader is actually drawing. Takes a bare mesh +
+  // vertex (not a hit) so a stored selection can be re-checked on scrub without
+  // a fresh raycast.
+  function _streetScrubHidden(mesh: THREE.Mesh, vi: number | null | undefined): boolean {
+    const aOpacity = mesh.geometry?.getAttribute('aOpacity') as THREE.BufferAttribute | undefined;
+    if (!aOpacity || vi == null) return false;
+    return aOpacity.getX(vi) < SCRUB_HIDE_EPS;
+  }
+
+  // Whether the current selection has been removed by the scrub (absent building,
+  // faded-out road, zero-scaled tree). A ruin stub stays selected — it's still
+  // visible. Used to prune a dangling selection each frame while scrubbing.
+  function _selectionScrubHidden(sel: PickTarget): boolean {
+    if (sel.kind === NodeKind.File) {
+      return (
+        sel.instanceId != null &&
+        _buildingScrubHidden(sel.mesh as THREE.InstancedMesh, sel.instanceId)
+      );
+    }
+    if (sel.kind === NodeKind.Commit) {
+      return _treeScrubHidden(sel.mesh, sel.instanceId);
+    }
+    if (sel.kind === NodeKind.Directory) {
+      return _streetScrubHidden(sel.sidewalk, sel.vertexHint);
+    }
+    return false;
+  }
+
+  // Called each frame in Timeline (after the scrub controller writes the frame's
+  // presence attributes): drop a selection the scrub just removed so its outline
+  // can't dangle over empty space.
+  function pruneScrubHiddenSelection(): void {
+    const sel = selection.peek();
+    if (sel && _selectionScrubHidden(sel)) selection.value = null;
+  }
+
   // ── Raycasting ────────────────────────────────────────────────────
 
   // Tie-break: when an InstancedMesh (cell detail) hit lies within
@@ -387,6 +476,7 @@ export function createPicker({
     ) {
       const slot = hit.instanceId;
       if (slot == null) return null;
+      if (TIMELINE_MODE.peek() && _treeScrubHidden(hit.object, slot)) return null;
       const trees = world.getTrees();
       const commit = trees?.commitForInstance(hit.object, slot);
       if (!commit) return null;
@@ -407,6 +497,7 @@ export function createPicker({
     ) {
       const slot = hit.instanceId;
       if (slot == null) return null;
+      if (TIMELINE_MODE.peek() && _buildingScrubHidden(hit.object, slot)) return null;
       const idx = world.getBuildingIndex();
       const building = idx?.byCellSlot(`${ud.cellId}:${slot}`);
       if (!building?.file) return null;
@@ -416,18 +507,27 @@ export function createPicker({
         data: building,
         file: building.file,
         instanceId: slot,
+        isRuin: TIMELINE_MODE.peek() && _buildingIsRuin(hit.object, slot),
       };
     }
     // Merged sidewalk: all streets share one mesh, so resolve the hit face to
     // its street via the faceIndex→street map baked onto userData.
     if (ud.type === NodeKind.Directory && ud.pickStreets) {
+      if (TIMELINE_MODE.peek() && _streetScrubHidden(hit.object as THREE.Mesh, hit.face?.a)) {
+        return null;
+      }
       const street = sidewalkStreetForFace(hit.object, hit.faceIndex ?? 0);
+      // A future folder's road is only a pad — it doesn't exist at this scrub position, so it's not selectable.
+      if (street?.dir && TIMELINE_MODE.peek() && FUTURE_STREET_DIRS.has(street.dir.path))
+        return null;
       if (street?.dir) {
         return {
           kind: NodeKind.Directory,
           sidewalk: hit.object as THREE.Mesh,
           street,
           dir: street.dir,
+          isRuin: TIMELINE_MODE.peek() && RUINED_STREET_DIRS.has(street.dir.path),
+          vertexHint: hit.face?.a,
         };
       }
       return null;
@@ -446,6 +546,7 @@ export function createPicker({
   function dispose() {
     _disposeCityRevEffect();
     _disposeDecorationRevEffect();
+    _disposeScrubBvhEffect();
     _disposeSelectionEffect();
   }
 
@@ -462,6 +563,7 @@ export function createPicker({
     targetForPath,
     pickAt,
     interpretHit,
+    pruneScrubHiddenSelection,
     dispose,
   };
 }

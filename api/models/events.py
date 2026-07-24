@@ -11,7 +11,7 @@ from typing import Annotated, Literal, Optional
 
 from pydantic import BaseModel, WithJsonSchema
 
-from api.models.manifest import Manifest, OptionalInt, OptionalStr
+from api.models.manifest import Manifest, OptionalInt, OptionalStr, TimelineBundle
 
 
 class ScanEvent(StrEnum):
@@ -83,3 +83,35 @@ class ErrorEvent(BaseModel):
     """`error` — a failure after the stream began; carries the message."""
 
     error: str
+
+
+class TimelineEvent(StrEnum):
+    """SSE event names for the /api/timeline stream — the wire contract the
+    frontend matches verbatim."""
+
+    PROGRESS = "timeline-progress"
+    COMPLETE = "timeline-complete"
+    ERROR = "error"
+
+
+class TimelineProgressEvent(BaseModel):
+    """`timeline-progress` — the history walk, blob-table resolution, or (for a
+    blobless remote clone) the up-front blob backfill is in progress. The
+    `fetch` stage carries `percent`; `history` carries `commits`; `blobs`
+    carries `blobsDone`/`blobsTotal` (the total is known up front from the batch
+    blob lookup, so that stage reports two ticks, not a live stream)."""
+
+    stage: Literal["fetch", "history", "blobs"]
+    percent: OptionalInt = None
+    commits: OptionalInt = None
+    blobsDone: OptionalInt = None
+    blobsTotal: OptionalInt = None
+    # Server-computed display label — see CloneProgressEvent.label.
+    label: OptionalStr = None
+
+
+class TimelineCompleteEvent(BaseModel):
+    """`timeline-complete` — the full replay bundle (fresh build or warm
+    cache hit)."""
+
+    bundle: TimelineBundle

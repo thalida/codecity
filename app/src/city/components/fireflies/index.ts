@@ -43,6 +43,9 @@ export interface FirefliesComponent extends SceneComponent {
   /** Canvas-resize hook — forwards to the orbit-ring LineMaterial
    *  resolution. */
   onResize(width: number, height: number): void;
+  /** Timeline scrub gate — forwards to the inner assembly; no-op pre-rebuild
+   *  (nothing to gate yet). See fireflies.ts Fireflies.setScrubCommit. */
+  setScrubCommit(maxCommitIndex: number | null): void;
 }
 
 export function createFireflies(ctx: SceneContext): FirefliesComponent {
@@ -156,5 +159,6 @@ export function createFireflies(ctx: SceneContext): FirefliesComponent {
     tick,
     onResize,
     dispose,
+    setScrubCommit: (maxCommitIndex) => _inner?.setScrubCommit(maxCommitIndex),
   };
 }
