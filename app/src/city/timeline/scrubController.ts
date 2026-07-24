@@ -286,8 +286,9 @@ export function createScrubController(deps: ScrubControllerDeps) {
         | THREE.BufferAttribute
         | undefined;
       // The file as it stood at this scrub position: its replayed line count
-      // drives both the height curve and the empty test (a text file at 0 lines
-      // held 0 bytes at that commit; `size` is frozen at HEAD).
+      // drives both the height curve and the empty test. The union node's `size`
+      // is a max-over-history footprint, never the size at this commit, so only
+      // the replayed `lines` can say the file was empty HERE.
       const scrubFile = present ? { ...b.file, lines: linesAt(pt, pos) } : b.file;
       if (present) {
         // Gate height on presence (intervals), not line count: media/empty files are present with 0 lines.

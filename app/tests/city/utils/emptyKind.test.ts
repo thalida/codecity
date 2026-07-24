@@ -23,9 +23,10 @@ describe('isEmptyFile', () => {
     expect(isEmptyFile({ size: 2000, lines: 0, binary: true, mediaKind: 'image' })).toBe(false);
   });
 
-  it('is true for a text file replayed to 0 lines, whose HEAD size is non-zero', () => {
-    // Timeline: getBuildingDimensions is called with {...file, lines: linesAt(pos)},
-    // so `size` is the HEAD size while `lines` is the count at the scrub position.
+  it('is true for a text file replayed to 0 lines, whose union `size` is non-zero', () => {
+    // Timeline: getBuildingDimensions is called with {...file, lines: linesAt(pos)}.
+    // The union node's `size` is a max-over-history footprint, not the size at
+    // this commit, so only the replayed `lines` can say the file was empty here.
     expect(isEmptyFile({ size: 500, lines: 0, binary: false })).toBe(true);
   });
 

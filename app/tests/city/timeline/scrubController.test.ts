@@ -1880,7 +1880,7 @@ test('future roads always render: a non-present, non-ruin street is a future roa
 
 test('a file empty at the scrub position renders as a slab, not a MIN_FLOORS building', () => {
   // empty.txt is created empty at commit 1 and gains 6 lines at commit 2, so at
-  // pos 1 the replayed line count is 0 while its HEAD size is non-zero.
+  // pos 1 the replayed line count is 0 while its union `size` (max over history) is non-zero.
   const emptyBundle = {
     commits: [{ sha: 'a' }, { sha: 'b' }, { sha: 'c' }],
     unionManifest: { tree: { name: 'r' } },
@@ -1944,4 +1944,78 @@ test('a file empty at the scrub position renders as a slab, not a MIN_FLOORS bui
   controller.update();
   expect(fake.scaleY).toBeGreaterThan(slabHeight);
   expect(fake.kind).toBe(BuildingKind.Normal);
+});
+
+// always-empty.txt has 0 lines every version it ever held (created@1, deleted@2),
+// so isEmptyFile(scrubFile) is true at EVERY scrub position — the ruin/future
+// arms in the iKind chain are the only thing that can still tell "deleted" or
+// "not yet created" apart from "present and empty".
+const alwaysEmptyBundle = {
+  commits: [{ sha: 'a' }, { sha: 'b' }, { sha: 'c' }],
+  unionManifest: { tree: { name: 'r' } },
+  deltas: [
+    { sha: 'a', changes: [] },
+    { sha: 'b', changes: [{ path: 'always-empty.txt', sha: 's1' }] },
+    { sha: 'c', changes: [{ path: 'always-empty.txt', sha: null }] },
+  ],
+  blobLines: { s1: 0 },
+  note: null,
+} as unknown as TimelineBundle;
+
+const alwaysEmptyFile = {
+  path: 'always-empty.txt',
+  lines: 0,
+  size: 0,
+  extension: 'txt',
+} as unknown as FileNode;
+
+function setupAlwaysEmpty() {
+  const b = {
+    x: 5,
+    y: 7,
+    w: 2,
+    d: 2,
+    h: EMPTY_SLAB_FLOORS * BUILDING_DIMENSIONS.value.FLOOR_HEIGHT,
+    color: '#fff',
+    file: alwaysEmptyFile,
+    cellId: 0,
+    slotId: 0,
+  } as unknown as Building;
+
+  const index = new BuildingIndex();
+  index.insert(b);
+  const fake = makeFakeMesh();
+  TIMELINE_BUNDLE.value = alwaysEmptyBundle;
+
+  const controller = createScrubController({
+    getBuildingIndex: () => index,
+    getFacadePanels: () => null,
+    getMeshForBuilding: () => ({ mesh: fake.mesh, slot: 0 }),
+    timelines: buildPathTimelines(alwaysEmptyBundle),
+    heightCtx,
+    footprints: noopFootprints,
+    streets: { setStreetOpacity: () => {}, setStreetLabelOpacity: () => {} },
+    streetsByDir: {},
+    picker: mockPicker(),
+    trees: noopTrees,
+    fireflies: noopFireflies,
+  });
+
+  return { fake, controller };
+}
+
+test('an always-empty file that is deleted renders as a ruin, not a slab', () => {
+  RUINS.value = { ...RUINS.value, ENABLED: true };
+  const { fake, controller } = setupAlwaysEmpty();
+  SCRUB_POS.value = 2; // deletedIdx
+  controller.update();
+  expect(fake.kind).toBe(BuildingKind.Ruin);
+});
+
+test('an always-empty file before its creation renders as future, not a slab', () => {
+  BLUEPRINTS.value = { ...BLUEPRINTS.value, ENABLED: true };
+  const { fake, controller } = setupAlwaysEmpty();
+  SCRUB_POS.value = 0.5; // before createdIdx = 1
+  controller.update();
+  expect(fake.kind).toBe(BuildingKind.Future);
 });

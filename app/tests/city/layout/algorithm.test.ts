@@ -154,7 +154,9 @@ describe('getBuildingDimensions', () => {
   it('zero lines/bytes is the empty slab, with finite dimensions', () => {
     const dim = getBuildingDimensions({ lines: 0, size: 0 });
     expect(dim.floors).toBe(0);
-    expect(dim.h).toBe(EMPTY_SLAB_FLOORS * (TEST_BUILDING_DIMS.FLOOR_HEIGHT as number));
+    expect(dim.h).toBe(
+      Math.round(EMPTY_SLAB_FLOORS * (TEST_BUILDING_DIMS.FLOOR_HEIGHT as number) * 10) / 10
+    );
     expect(dim.w).toBe(TEST_BUILDING_DIMS.MIN_WIDTH);
     expect(Number.isFinite(dim.h)).toBe(true);
     expect(Number.isFinite(dim.w)).toBe(true);
