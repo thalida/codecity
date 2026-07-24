@@ -266,7 +266,7 @@ describe('getBuildingDimensions', () => {
 describe('getBuildingDimensions — media files', () => {
   const PNG = '.png';
   // mediaKind is the backend-computed classification the layout reads
-  // (the extension is now informational only — see city/utils/mediaKind.ts).
+  // (the extension is now informational only — see utils/mediaKind.ts).
   const IMAGE = 'image' as const;
 
   it('media file without dims falls back to square (aspect=1)', () => {

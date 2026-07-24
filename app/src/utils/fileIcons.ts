@@ -4,6 +4,7 @@
 // in components/NodeIcon.tsx so both key off the same names.
 
 import type { DirNode, FileNode } from '../types';
+import { isDataBuilding } from './binaryKind';
 import {
   EXT_ICON,
   NAME_ICON,
@@ -23,13 +24,13 @@ import {
 export function getFileIconName(
   file:
     | FileNode
-    | { name?: string; extension?: string; binary?: boolean; mediaKind?: string | null }
+    | { name?: string; extension?: string; binary?: boolean; mediaKind?: 'image' | 'video' | null }
 ): string {
   const name = (file.name || '').toLowerCase();
   const ext = (file.extension || '').toLowerCase();
   const specific = NAME_ICON[name] ?? EXT_ICON[ext];
   if (specific) return specific;
-  return file.binary && !file.mediaKind ? GENERIC_BINARY : GENERIC_FILE;
+  return isDataBuilding(file) ? GENERIC_BINARY : GENERIC_FILE;
 }
 
 /** Material icon basename for a folder — see getFileIconName. */

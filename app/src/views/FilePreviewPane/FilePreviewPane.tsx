@@ -39,7 +39,7 @@ import { nodeUrl } from '@/utils/commit';
 import { formatBytes } from '@/utils/bytes';
 import { formatFullDate } from '@/utils/dates';
 import { languageFor } from '@/utils/syntaxLanguages';
-import { isDataBuilding } from '@/city/utils/binaryKind';
+import { isDataBuilding } from '@/utils/binaryKind';
 
 // Auto-load images/video/audio/PDF (browser handles streaming + memory).
 // Auto-load text up to the server's own ceiling — kept in sync with

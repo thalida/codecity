@@ -25,8 +25,8 @@ import type { InstancedFacadePanels } from '@/city/components/buildings/facadePa
 import type { createPicker } from '@/city/interaction/picker';
 import { getBuildingColorForRecency } from '@/city/components/buildings/color';
 import { BuildingKind } from '@/city/components/buildings/buildingKind';
-import { isDataBuilding } from '@/city/utils/binaryKind';
-import { isEmptyFile } from '@/city/utils/emptyKind';
+import { isDataBuilding } from '@/utils/binaryKind';
+import { isEmptyFile } from '@/utils/emptyKind';
 import { resolveDirTarget, tierFor } from '@/city/components/buildings/fadeTiers';
 import { getBuildingTiltAtAge, composeShearMatrix } from '@/city/components/buildings/tilt';
 import { parentDirPath } from '@/city/utils/path';

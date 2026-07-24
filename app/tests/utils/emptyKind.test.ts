@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { isEmptyFile } from '@/city/utils/emptyKind';
+import { isEmptyFile } from '@/utils/emptyKind';
 
 describe('isEmptyFile', () => {
   it('is true for a 0-byte text file', () => {

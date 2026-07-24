@@ -1,4 +1,4 @@
-// city/utils/binaryKind.ts — Binary "data" file classification. Media files are
+// utils/binaryKind.ts — Binary "data" file classification. Media files are
 // binary on the wire too but render as billboards, so they're excluded. THREE-
 // free so the layout worker can use it.
 
@@ -9,10 +9,9 @@ type FileLike =
   | null
   | undefined;
 
-/** A binary file that renders as a data building: binary AND not media. Every
- *  data-file surface routes through this (sizing, render kind, facade panels,
- *  preview card) except utils/fileIcons, which would invert the utils → city
- *  layering to import it. */
+/** A binary file that renders as a data building: binary AND not media. Single
+ *  source of truth for every data-file surface: sizing, render kind, facade
+ *  panels, preview card, icon. */
 export function isDataBuilding(file: FileLike): boolean {
   return !!file?.binary && !isMediaFile(file);
 }

@@ -17,8 +17,8 @@ import type { CellTile } from './cellTile';
 import type { Building } from '@/types/index';
 import { getBuildingMaterial, getIconAtlas } from './material';
 import { getFileIconName } from '@/utils/fileIcons';
-import { isDataBuilding } from '../../utils/binaryKind';
-import { isEmptyFile } from '../../utils/emptyKind';
+import { isDataBuilding } from '@/utils/binaryKind';
+import { isEmptyFile } from '@/utils/emptyKind';
 import { BuildingKind } from './buildingKind';
 import { seedFromPath, getBuildingTilt, composeShearMatrix } from './tilt';
 

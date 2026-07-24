@@ -5,9 +5,9 @@ import { STREET_TIERS } from '@/state/stores/settings/streets';
 import { BUILDING_DIMENSIONS } from '@/state/stores/settings/buildings';
 import type { StreetTier } from '@/state/stores/settings/streets';
 import type { RangeStat, RepoStats } from '@/types';
-import { isMediaFile } from '../utils/mediaKind';
-import { isEmptyFile } from '../utils/emptyKind';
-import { isDataBuilding } from '../utils/binaryKind';
+import { isMediaFile } from '@/utils/mediaKind';
+import { isEmptyFile } from '@/utils/emptyKind';
+import { isDataBuilding } from '@/utils/binaryKind';
 
 // Structural shapes — kept lenient so test fixtures (which omit fields the
 // helpers don't read, like name/path on intermediate nodes) stay

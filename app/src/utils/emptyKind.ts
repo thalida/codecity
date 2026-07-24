@@ -1,4 +1,4 @@
-// city/utils/emptyKind.ts — Empty-file classification. An empty file has no
+// utils/emptyKind.ts — Empty-file classification. An empty file has no
 // content to stack, so it renders as a flat slab rather than a MIN_FLOORS
 // building. THREE-free so the layout worker can use it.
 
