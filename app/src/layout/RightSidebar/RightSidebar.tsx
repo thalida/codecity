@@ -36,7 +36,7 @@ import { ROOT_PATH } from '@/constants/manifest';
 import { TIMELINE_MODE } from '@/state/stores/timeline';
 import { viewCommitInTimeline } from '@/hooks/useTimelineMode';
 import { findNodeByPath } from '@/utils/manifest';
-import { addExclude } from '@/state/stores/excludes';
+import { addExclude, ACTIVE_EXCLUDES } from '@/state/stores/excludes';
 import { FilePreviewPane } from '@/views/FilePreviewPane/FilePreviewPane';
 import type { FilePreviewPaneState } from '@/views/FilePreviewPane/FilePreviewPane';
 import { CommitPane } from '@/views/CommitPane/CommitPane';
@@ -108,6 +108,10 @@ export function RightSidebar() {
     // MANIFEST stays HEAD in Timeline (the union goes to cityState, not this
     // store), so a union file missing here is deleted at HEAD → /api/file 404s.
     const atHead = fresh?.type === NodeKind.File;
+    // ...unless it's just EXCLUDED: excludes also drop a file from the HEAD
+    // manifest, but it's still on disk and fetchable — not deleted.
+    const p = sel.file.path;
+    const excluded = ACTIVE_EXCLUDES.value.some((ex) => p === ex || p.startsWith(`${ex}/`));
     return {
       file: atHead ? fresh : sel.file,
       rootLabel: SOURCE_INFO.value.label,
@@ -115,7 +119,7 @@ export function RightSidebar() {
       remoteUrl: (m as Manifest)?.repo?.remote_url ?? null,
       branch: SOURCE_INFO.value.branch,
       inTimeline: TIMELINE_MODE.value,
-      isDeleted: TIMELINE_MODE.value && !atHead,
+      isDeleted: TIMELINE_MODE.value && !atHead && !excluded,
     };
   });
   const commitState = useComputed<CommitPaneState>(() => {
@@ -162,6 +166,9 @@ export function RightSidebar() {
 
   const kind = activeKind.value;
   const open = isOpen.value;
+  // Exclude re-scans the live HEAD manifest, which Timeline's fixed union scene
+  // can't reflect — so hide the button there rather than offer a no-op.
+  const canExclude = !TIMELINE_MODE.value;
 
   return (
     <Sidebar
@@ -176,7 +183,7 @@ export function RightSidebar() {
           state={fileState}
           onClose={onClose}
           onFocus={onFileFocus}
-          onExclude={(f) => onExcludeNode(f.path)}
+          onExclude={canExclude ? (f) => onExcludeNode(f.path) : undefined}
         />
       )}
       {kind === SidebarPaneKind.Commit && (
@@ -192,7 +199,7 @@ export function RightSidebar() {
           state={streetState}
           onClose={onClose}
           onFocus={onStreetFocus}
-          onExclude={(d) => onExcludeNode(d.path)}
+          onExclude={canExclude ? (d) => onExcludeNode(d.path) : undefined}
         />
       )}
     </Sidebar>

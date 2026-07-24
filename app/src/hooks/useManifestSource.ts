@@ -36,7 +36,7 @@ import {
   CURRENT_SOURCE,
 } from '@/state/stores/source';
 import { SERVER_CONFIG } from '@/state/stores/serverConfig';
-import { MANIFEST, setManifest, markError } from '@/state/stores/manifest';
+import { MANIFEST, setManifest, markError, markRebuilding } from '@/state/stores/manifest';
 import { SCAN_PROGRESS } from '@/state/stores/scanProgress';
 import { TIMELINE_MODE, resetTimelineMode } from '@/state/stores/timeline';
 import { activeExcludePathsFor, ACTIVE_EXCLUDES } from '@/state/stores/excludes';
@@ -342,6 +342,7 @@ export function setupLiveUpdates(): () => void {
     if (!cur) return;
     if (inFlight) return; // the poll's tick is already covering this refresh
     inFlight = true;
+    markRebuilding(); // flip the footer to "rebuilding" now, not after the re-scan streams back
     void fetchAndApply(cur.src, cur.branch).finally(() => {
       inFlight = false;
     });
