@@ -85,6 +85,12 @@ export function computeFileStats(stats: RepoStats | null | undefined): {
 // out below MAX_* (short/narrow city) instead of always stretching to the cap,
 // while the per-repo relative order is retained. Without a stats object, the
 // corresponding dimension falls back to MIN_*.
+// A binary "data" building is byte-sized on BOTH axes: its height tracks the
+// byte-driven footprint width (already log-normalized) rather than lines, which
+// a binary doesn't have. < 1 keeps it a squat, windowless warehouse/data-center
+// block instead of a code tower.
+const BINARY_HEIGHT_RATIO = 0.7;
+
 export function getBuildingDimensions(
   file: {
     lines?: number | null;
@@ -93,6 +99,7 @@ export function getBuildingDimensions(
     mediaKind?: 'image' | 'video' | null;
     media_width?: number;
     media_height?: number;
+    binary?: boolean;
   },
   lineStats?: RangeStat,
   byteStats?: RangeStat
@@ -158,15 +165,22 @@ export function getBuildingDimensions(
   // floor count so the facade shader's window tiling stays consistent
   // with regular buildings. Missing dims → 1:1 aspect (square fallback).
   let h = height;
-  let mediaFloors = floors;
+  let outFloors = floors;
   if (isMediaFile(file)) {
     const mw = file.media_width;
     const mh = file.media_height;
     const rawAspect = mw && mh && mw > 0 ? mh / mw : 1.0;
     const aspect = Math.min(2.5, Math.max(0.4, rawAspect));
     const rawHeight = width * aspect;
-    mediaFloors = Math.max(dims.MIN_FLOORS, Math.round(rawHeight / dims.FLOOR_HEIGHT));
-    h = mediaFloors * dims.FLOOR_HEIGHT;
+    outFloors = Math.max(dims.MIN_FLOORS, Math.round(rawHeight / dims.FLOOR_HEIGHT));
+    h = outFloors * dims.FLOOR_HEIGHT;
+  } else if (file.binary) {
+    // Binary "data" building: height tracks the byte-driven footprint (both
+    // axes from bytes) so a 5 MB .wasm is a big block and a tiny .db a small
+    // one — never the lines-driven MIN_FLOORS stub it used to collapse to.
+    const rawHeight = width * BINARY_HEIGHT_RATIO;
+    outFloors = Math.max(dims.MIN_FLOORS, Math.round(rawHeight / dims.FLOOR_HEIGHT));
+    h = outFloors * dims.FLOOR_HEIGHT;
   }
 
   // Depth == width keeps footprints square so tall thin towers don't
@@ -175,7 +189,7 @@ export function getBuildingDimensions(
     w: Math.round(width * 10) / 10,
     d: Math.round(width * 10) / 10,
     h: Math.round(h * 10) / 10,
-    floors: mediaFloors,
+    floors: outFloors,
   };
 }
 
