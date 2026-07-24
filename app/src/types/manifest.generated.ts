@@ -83,6 +83,33 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/fingerprints": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Get Fingerprints
+         * @description Batch byte-pattern fingerprint fetch — return {path: {b64}} of a small
+         *     grayscale PNG per binary file, one round trip for many buildings. The city's
+         *     data-building facade loader and the preview data card both request these;
+         *     raw binary bytes never leave the server (only the head is read, and only a
+         *     fingerprint image is returned).
+         *
+         *     Each path is trust-checked exactly like GET /api/file. Paths that are out of
+         *     root, missing, or unreadable are silently omitted.
+         */
+        post: operations["get_fingerprints_api_fingerprints_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/commit": {
         parameters: {
             query?: never;
@@ -472,6 +499,19 @@ export interface components {
             media_width?: number;
             /** Media Height */
             media_height?: number;
+            /** Binarytype */
+            binaryType?: string;
+        };
+        /**
+         * FingerprintEntry
+         * @description One binary file's byte-pattern fingerprint in a POST /api/fingerprints
+         *     batch response: a base64-encoded grayscale PNG (image/png implied), keyed
+         *     by request path. Computed server-side from the file's head — raw binary
+         *     bytes never ship to the client.
+         */
+        FingerprintEntry: {
+            /** B64 */
+            b64: string;
         };
         /** HTTPValidationError */
         HTTPValidationError: {
@@ -548,8 +588,12 @@ export interface components {
             minMediaBytesFile: components["schemas"]["FileLeader"] | null;
             maxMediaPixelsFile: components["schemas"]["FileLeader"] | null;
             minMediaPixelsFile: components["schemas"]["FileLeader"] | null;
+            maxBinaryBytesFile: components["schemas"]["FileLeader"] | null;
+            minBinaryBytesFile: components["schemas"]["FileLeader"] | null;
             /** Mediacount */
             mediaCount: number;
+            /** Binarycount */
+            binaryCount: number;
             /** Totallines */
             totalLines: number;
             /** Dirtyfilecount */
@@ -784,6 +828,41 @@ export interface operations {
             };
         };
     };
+    get_fingerprints_api_fingerprints_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FileBatchRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: components["schemas"]["FingerprintEntry"];
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_commit_api_commit_get: {
         parameters: {
             query: {
@@ -886,6 +965,7 @@ export interface operations {
                 src: string;
                 branch?: string | null;
                 no_cache?: boolean;
+                exclude?: string[];
             };
             header?: never;
             path?: never;

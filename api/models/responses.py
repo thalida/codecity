@@ -23,6 +23,15 @@ class FileBatchEntry(BaseModel):
     b64: str
 
 
+class FingerprintEntry(BaseModel):
+    """One binary file's byte-pattern fingerprint in a POST /api/fingerprints
+    batch response: a base64-encoded grayscale PNG (image/png implied), keyed
+    by request path. Computed server-side from the file's head — raw binary
+    bytes never ship to the client."""
+
+    b64: str
+
+
 class HealthResponse(BaseModel):
     ok: bool
 

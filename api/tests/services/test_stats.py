@@ -93,6 +93,30 @@ def test_file_leaders_partition_media_and_text():
     assert s["codeBytes"] == 400
 
 
+def test_binaries_are_their_own_category_not_code_superlatives():
+    # A giant binary must NOT win "widest building": binaries are partitioned
+    # into their own data category (like media), with their own size leaders.
+    code = _file("a.ts", lines=40, size=400)
+    db = _file("data.db", lines=0, size=50_000, binary=True)
+    small_bin = _file("tiny.wasm", lines=0, size=800, binary=True)
+    tree = _dir("repo", "", [code, db, small_bin])
+    s = compute_repo_stats(tree, [])
+
+    # Code superlatives ignore binaries entirely.
+    assert s["maxBytesFile"]["path"] == "a.ts"  # not data.db, despite 50 KB
+    assert s["minBytesFile"]["path"] == "a.ts"
+    assert s["maxLinesFile"]["path"] == "a.ts"
+    # Binaries get their own count + byte leaders.
+    assert s["binaryCount"] == 2
+    assert s["maxBinaryBytesFile"]["path"] == "data.db"
+    assert s["minBinaryBytesFile"]["path"] == "tiny.wasm"
+    # Binary bytes are excluded from the code overview average.
+    assert s["codeBytes"] == 400
+    # ...but binaries still count toward the world-wide byte NORMALIZATION range
+    # (they render as byte-sized buildings, so their size must scale the range).
+    assert s["byteSizeRange"] == {"min": 400, "max": 50_000}
+
+
 def test_dir_leaders_exclude_root():
     deep = _dir("b", "src/a/b", [_file("src/a/b/x.ts")])  # 1 direct child
     src = _dir("src", "src", [deep, _file("src/m.ts")])  # 2 direct children

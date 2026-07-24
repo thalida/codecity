@@ -645,6 +645,22 @@ class ScanTreeIntegrationTests(_CacheRedirectMixin, unittest.TestCase):
         self.assertEqual(kinds.get("logo.png"), "image")
         self.assertIsNone(kinds.get("package.json"))
 
+    def test_binary_type_on_file_nodes(self):
+        # A recognized binary file carries its magic-byte type; a code file
+        # carries no binaryType at all. End-to-end through the live scan.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            _init_repo(root)
+            (root / "code.py").write_text("print('hi')\n")
+            (root / "app.db").write_bytes(
+                b"SQLite format 3\x00" + bytes(range(256)) * 20
+            )
+            _commit_all(root)
+            m = _final_manifest(str(root))
+            types = {n["name"]: n.get("binaryType") for n in _walk_files(m["tree"])}
+            self.assertEqual(types.get("app.db"), "SQLite database")
+            self.assertIsNone(types.get("code.py"))
+
     def test_untracked_files_excluded_from_git_repo(self):
         # In a git repo we always honor the tracked set — uncommitted files
         # don't appear in the manifest.

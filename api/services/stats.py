@@ -98,15 +98,16 @@ def compute_repo_stats(tree: DirNode, commits: list[CommitEntry]) -> RepoStats:
     # winner/range/count for that pool as it goes (first-seen wins ties, via
     # strict > / <), instead of a separate scan per superlative.
     line_min = line_max = byte_min = byte_max = None  # non-zero ranges, all files
-    media_count = 0
+    media_count = binary_count = 0
     dirty_count = 0
-    total_lines = code_bytes = 0  # sums over non-media files (for overview averages)
-    oldest = newest = freshest = stalest = None  # non-media, by created/modified
-    tallest = shortest = None  # text (non-media, non-binary, lines>0), by lines
-    widest = narrowest = None  # non-media, by bytes
+    total_lines = code_bytes = 0  # sums over code files only (for overview averages)
+    oldest = newest = freshest = stalest = None  # code files, by created/modified
+    tallest = shortest = None  # code files (lines>0), by lines
+    widest = narrowest = None  # code files, by bytes
     largest_media = smallest_media = None  # media, by bytes
     sharpest_media = coarsest_media = None  # media, by pixels (most / fewest)
     sharpest_px = coarsest_px = None
+    largest_binary = smallest_binary = None  # binary/data files, by bytes
     for f in _iter_files(tree):
         if f["dirty"]:
             dirty_count += 1
@@ -130,6 +131,16 @@ def compute_repo_stats(tree: DirNode, commits: list[CommitEntry]) -> RepoStats:
                 if coarsest_px is None or px < coarsest_px:
                     coarsest_px, coarsest_media = px, f
             continue
+        if f["binary"]:
+            # Binary files are their own "data" category (like media): they get
+            # their own size leaders and stay OUT of the code superlatives, so a
+            # giant .db never wins "widest building".
+            binary_count += 1
+            if largest_binary is None or size > largest_binary["size"]:
+                largest_binary = f
+            if smallest_binary is None or size < smallest_binary["size"]:
+                smallest_binary = f
+            continue
         total_lines += lines
         code_bytes += size
         if oldest is None or f["created"] < oldest["created"]:
@@ -144,7 +155,7 @@ def compute_repo_stats(tree: DirNode, commits: list[CommitEntry]) -> RepoStats:
             widest = f
         if narrowest is None or size < narrowest["size"]:
             narrowest = f
-        if not f["binary"] and lines > 0:
+        if lines > 0:
             if tallest is None or lines > tallest["lines"]:
                 tallest = f
             if shortest is None or lines < shortest["lines"]:
@@ -228,7 +239,10 @@ def compute_repo_stats(tree: DirNode, commits: list[CommitEntry]) -> RepoStats:
         "minMediaBytesFile": _file_leader(smallest_media),
         "maxMediaPixelsFile": _file_leader(sharpest_media),
         "minMediaPixelsFile": _file_leader(coarsest_media),
+        "maxBinaryBytesFile": _file_leader(largest_binary),
+        "minBinaryBytesFile": _file_leader(smallest_binary),
         "mediaCount": media_count,
+        "binaryCount": binary_count,
         "totalLines": total_lines,
         "dirtyFileCount": dirty_count,
         "codeBytes": code_bytes,

@@ -39,6 +39,7 @@ from .cache import (
     cache_save_files,
     cache_save_git_history,
 )
+from .binfmt import detect_binary_type
 from .gitobj import BINARY_CHUNK, is_binary_bytes
 from .media import media_kind, probe_media_dims
 from .stats import compute_repo_stats
@@ -918,14 +919,29 @@ def _file_node(
 _FILE_IO_POOL_SIZE = min(32, (os.cpu_count() or 1) * 2)
 
 
-def _read_file_metadata(path_obj: Path) -> tuple[bool, int, int | None, int | None]:
-    """Return (binary, lines, media_width, media_height) for one file.
-    Worker function for _populate_file_metadata's thread pool. Media
-    dims are None for non-media files or files the probe can't read."""
+def _read_file_metadata(
+    path_obj: Path,
+) -> tuple[bool, int, int | None, int | None, str | None]:
+    """Return (binary, lines, media_width, media_height, binary_type) for one
+    file. Worker function for _populate_file_metadata's thread pool. Media dims
+    are None for non-media files or files the probe can't read; binary_type is
+    the friendly magic-byte type, set only for recognized binary files."""
     binary = _is_binary(path_obj)
     lines = 0 if binary else _line_count(path_obj)
     mw, mh = probe_media_dims(path_obj)
-    return binary, lines, mw, mh
+    binary_type = _detect_binary_type(path_obj) if binary else None
+    return binary, lines, mw, mh, binary_type
+
+
+def _detect_binary_type(path_obj: Path) -> str | None:
+    """Friendly magic-byte type for a binary file, or None. Reads only the
+    leading bytes (enough for every signature); silent on read failure."""
+    try:
+        with path_obj.open("rb") as fh:
+            head = fh.read(64)
+    except OSError:
+        return None
+    return detect_binary_type(head)
 
 
 def _node_mtime(node: FileNode) -> float:
@@ -972,6 +988,9 @@ def _populate_file_metadata(
             if mw is not None and mh is not None:
                 node["media_width"] = mw
                 node["media_height"] = mh
+            bt = cached.get("binaryType")
+            if bt is not None:
+                node["binaryType"] = bt
             continue
         miss_indices.append(i)
         miss_paths.append(Path(node["fullPath"]))
@@ -1001,12 +1020,14 @@ def _populate_file_metadata(
                             f.cancel()
                         raise ScanCancelledError()
                     idx = future_to_idx[fut]
-                    binary, lines, mw, mh = fut.result()
+                    binary, lines, mw, mh, binary_type = fut.result()
                     nodes[idx]["binary"] = binary
                     nodes[idx]["lines"] = lines
                     if mw is not None and mh is not None:
                         nodes[idx]["media_width"] = mw
                         nodes[idx]["media_height"] = mh
+                    if binary_type is not None:
+                        nodes[idx]["binaryType"] = binary_type
                     done += 1
                     if done % heartbeat_step == 0:
                         _log(f"    read {done}/{len(miss_paths)} files…")
@@ -1031,6 +1052,8 @@ def _populate_file_metadata(
         if "media_width" in node and "media_height" in node:
             entry["media_width"] = node["media_width"]
             entry["media_height"] = node["media_height"]
+        if "binaryType" in node:
+            entry["binaryType"] = node["binaryType"]
         cache_entries[node["path"]] = entry
     try:
         cache_save_files(abs_root, cache_entries)
@@ -1799,6 +1822,8 @@ def reconstruct_manifest(root: str, ref: str, *, use_cache: bool = True) -> Mani
         entry: BlobEntry = {"lines": s.lines, "binary": s.binary}
         if s.media_width is not None and s.media_height is not None:
             entry["media_width"], entry["media_height"] = s.media_width, s.media_height
+        if s.binary_type is not None:
+            entry["binaryType"] = s.binary_type
         cached[sha] = entry
     if fresh:
         cache_save_blobs(root_path, cached)
@@ -1840,6 +1865,8 @@ def reconstruct_manifest(root: str, ref: str, *, use_cache: bool = True) -> Mani
         if "media_width" in stats and "media_height" in stats:
             node["media_width"] = stats["media_width"]
             node["media_height"] = stats["media_height"]
+        if "binaryType" in stats:
+            node["binaryType"] = stats["binaryType"]
         return node
 
     tree = _build_tree(

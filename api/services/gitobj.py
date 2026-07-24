@@ -13,6 +13,7 @@ import subprocess
 from pathlib import Path
 from typing import NamedTuple
 
+from .binfmt import detect_binary_type
 from .media import probe_media_dims_from_bytes
 
 _SHA40 = re.compile(r"^[0-9a-f]{40}$")
@@ -106,6 +107,7 @@ class BlobStats(NamedTuple):
     binary: bool
     media_width: int | None
     media_height: int | None
+    binary_type: str | None
 
 
 def is_binary_bytes(chunk: bytes) -> bool:
@@ -164,8 +166,13 @@ def blob_stats_batch(
         mw, mh = (
             probe_media_dims_from_bytes(content) if sha in media_shas else (None, None)
         )
+        binary_type = detect_binary_type(content) if binary else None
         result[sha] = BlobStats(
-            lines=lines, binary=binary, media_width=mw, media_height=mh
+            lines=lines,
+            binary=binary,
+            media_width=mw,
+            media_height=mh,
+            binary_type=binary_type,
         )
     return result
 

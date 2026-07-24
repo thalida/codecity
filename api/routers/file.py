@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import base64
 import mimetypes
+from functools import lru_cache
 from pathlib import Path
 
 from fastapi import APIRouter, HTTPException, Query, Response
@@ -15,8 +16,13 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
 from api.config import MAX_FILE_BYTES
-from api.models.responses import FileBatchEntry, FileTooLargeResponse
+from api.models.responses import (
+    FileBatchEntry,
+    FileTooLargeResponse,
+    FingerprintEntry,
+)
 from api.security import NoRootsRegisteredError, OutsideRootError, TRUST
+from api.services.binfmt import FINGERPRINT_SAMPLE_BYTES, fingerprint_png
 from api.services.media import is_media
 
 router = APIRouter(prefix="/api", tags=["file"])
@@ -103,4 +109,44 @@ def get_files(req: FileBatchRequest) -> dict[str, FileBatchEntry]:
         out[path] = FileBatchEntry(
             mime=guessed, b64=base64.b64encode(target.read_bytes()).decode()
         )
+    return out
+
+
+@lru_cache(maxsize=512)
+def _fingerprint_b64(path: str, mtime: float, size: int) -> str:
+    """Compute (and memoize) a file's base64 byte-pattern fingerprint PNG. Keyed
+    on (path, mtime, size) so an edited file re-fingerprints; only the file's
+    head is read, so a multi-MB binary costs one small read regardless of size.
+    Both the facade texture loader and the preview card hit this, so the cache
+    collapses their duplicate requests."""
+    with open(path, "rb") as fh:
+        head = fh.read(FINGERPRINT_SAMPLE_BYTES)
+    return base64.b64encode(fingerprint_png(head)).decode()
+
+
+@router.post("/fingerprints")
+def get_fingerprints(req: FileBatchRequest) -> dict[str, FingerprintEntry]:
+    """Batch byte-pattern fingerprint fetch — return {path: {b64}} of a small
+    grayscale PNG per binary file, one round trip for many buildings. The city's
+    data-building facade loader and the preview data card both request these;
+    raw binary bytes never leave the server (only the head is read, and only a
+    fingerprint image is returned).
+
+    Each path is trust-checked exactly like GET /api/file. Paths that are out of
+    root, missing, or unreadable are silently omitted."""
+    out: dict[str, FingerprintEntry] = {}
+    for path in req.paths[:_MAX_BATCH_PATHS]:
+        try:
+            target = TRUST.assert_inside(Path(path))
+        except (NoRootsRegisteredError, OutsideRootError, OSError, RuntimeError):
+            continue
+        if not target.is_file():
+            continue
+        try:
+            st = target.stat()
+            out[path] = FingerprintEntry(
+                b64=_fingerprint_b64(str(target), st.st_mtime, st.st_size)
+            )
+        except OSError:
+            continue
     return out
