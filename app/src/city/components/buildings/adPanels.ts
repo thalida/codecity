@@ -21,6 +21,7 @@ import { isDataBuilding } from '@/city/utils/binaryKind';
 import { AdPanelTextureArray, MAX_PAGES as AD_PANEL_MAX_PAGES } from './adPanelTextureArray';
 import { fetchMediaBlob } from './mediaBatch';
 import { fetchFingerprintB64 } from '@/api/fingerprint';
+import { dataFacadeKind, renderFontGlyphFacade, renderWaveformFacade } from './dataFacade';
 import type { Building } from '@/types/index';
 
 import adPanelVertSrc from './adPanel.vert.glsl?raw';
@@ -342,7 +343,7 @@ export class InstancedAdPanels {
       Math.max(0.1, b.w),
       Math.max(0.1, b.h),
       b.h / 2,
-      (bb, layer, slots) => asyncLoadFingerprintForBuilding(this, bb, layer, slots),
+      (bb, layer, slots) => asyncLoadDataFacadeForBuilding(this, bb, layer, slots),
       new THREE.Color(b.color)
     );
   }
@@ -724,18 +725,51 @@ export function asyncLoadMediaForBuilding(
 }
 
 /**
- * Load a binary building's byte-pattern fingerprint (batched base64 PNG from
- * POST /api/fingerprints) and upload it. A missing/failed fingerprint just
- * leaves the sealed placeholder facade — a valid look, so no error tint.
+ * Load a data building's facade, dispatched by kind: a font gets its own 'a'
+ * glyph, audio gets a waveform (both rendered client-side to a canvas), and any
+ * other binary gets the server byte-pattern fingerprint. A missing/failed facade
+ * just leaves the sealed placeholder — a valid look, so no error tint.
  */
-export function asyncLoadFingerprintForBuilding(
+export function asyncLoadDataFacadeForBuilding(
   ads: InstancedAdPanels,
   b: Building,
   layer: number,
   panelSlots: number[]
 ): void {
   const filePath = b.file.fullPath || b.file.path || '';
-  void _loadFingerprintBuilding(ads, filePath, layer, panelSlots);
+  const version = b.file.modified || '';
+  switch (dataFacadeKind(b.file.extension || '')) {
+    case 'font':
+      void _loadCanvasFacade(
+        ads,
+        () => renderFontGlyphFacade(filePath, version),
+        layer,
+        panelSlots
+      );
+      break;
+    case 'audio':
+      void _loadCanvasFacade(ads, () => renderWaveformFacade(filePath, version), layer, panelSlots);
+      break;
+    default:
+      void _loadFingerprintBuilding(ads, filePath, layer, panelSlots);
+  }
+}
+
+async function _loadCanvasFacade(
+  ads: InstancedAdPanels,
+  render: () => Promise<HTMLCanvasElement | null>,
+  layer: number,
+  panelSlots: number[]
+): Promise<void> {
+  await _acquireSlot();
+  try {
+    const canvas = await render();
+    if (canvas) await ads.loadCanvasForBuilding(layer, panelSlots, canvas);
+  } catch {
+    // Render/decode failure — leave the sealed placeholder facade.
+  } finally {
+    _releaseSlot();
+  }
 }
 
 async function _loadFingerprintBuilding(

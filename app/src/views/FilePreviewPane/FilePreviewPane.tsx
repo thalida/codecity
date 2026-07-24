@@ -29,6 +29,7 @@ export enum PreviewKind {
 }
 import { fileUrl, fetchFileText, fetchFileBytes } from '@/api/file';
 import { fetchFingerprintB64 } from '@/api/fingerprint';
+import { IMAGE_EXTS, VIDEO_EXTS, AUDIO_EXTS, PDF_EXTS, FONT_EXTS } from '@/constants/fileKinds';
 import { FileWarning, FileX, Info, MousePointerClick, LoaderCircle, Binary } from 'lucide-preact';
 import { Pane, PaneEmpty } from '@/components/Pane';
 import { TimelineStaleNote } from '@/components/TimelineStaleNote/TimelineStaleNote';
@@ -54,12 +55,6 @@ const TEXT_PREVIEW_MAX_BYTES = 100 * 1024 * 1024;
 // main-thread blocking under ~250ms on commodity hardware.
 const HIGHLIGHT_MAX_BYTES = 512 * 1024;
 const GUTTER_MAX_BYTES = 1 * 1024 * 1024;
-
-const IMAGE_EXTS = ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg', '.bmp', '.ico', '.avif'];
-const VIDEO_EXTS = ['.mp4', '.webm', '.mov', '.ogv', '.m4v'];
-const AUDIO_EXTS = ['.mp3', '.wav', '.ogg', '.flac', '.aac', '.m4a'];
-const PDF_EXTS = ['.pdf'];
-const FONT_EXTS = ['.woff2', '.woff', '.ttf', '.otf'];
 
 // ── State shape for Preact component ─────────────────────────────────────────
 
