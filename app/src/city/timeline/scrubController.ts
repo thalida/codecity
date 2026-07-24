@@ -153,37 +153,27 @@ export function createScrubController(deps: ScrubControllerDeps) {
     const futureTint = bp.BUILDING_TINT;
     _futureColor.set(bp.BUILDING_COLOR);
 
-    // Pre-pass: weathering ranges over the PRESENT buildings at this scrub
-    // position — last-modified + created commit dates, and line counts. Color,
-    // window-lighting, grime, and floors all normalize against these, so a
-    // building renders as a real scan at this commit would (and at HEAD, where
-    // present == the live file set, it matches the non-timeline view exactly).
+    // Pre-pass: weathering DATE ranges over the PRESENT buildings at this scrub
+    // position — last-modified + created commit dates. Color, window-lighting,
+    // and grime normalize against these, so a building weathers as a real scan at
+    // this commit would. (Heights do NOT: see the getBuildingDimensions call.)
     let minMod = Infinity;
     let maxMod = -Infinity;
     let minCreated = Infinity;
     let maxCreated = -Infinity;
-    let minLines = Infinity;
-    let maxLines = -Infinity;
     for (const { pt, createdIdx } of entries) {
       if (ruinStateAt(pt, pos) !== 'present') continue;
       const modMs = _commitMs[lastModifiedIndexAt(pt, pos)] ?? 0;
       const createdMs = _commitMs[createdIdx] ?? 0;
-      const lines = linesAt(pt, pos);
       if (modMs < minMod) minMod = modMs;
       if (modMs > maxMod) maxMod = modMs;
       if (createdMs < minCreated) minCreated = createdMs;
       if (createdMs > maxCreated) maxCreated = createdMs;
-      if (lines < minLines) minLines = lines;
-      if (lines > maxLines) maxLines = lines;
     }
     // Spread 0 (all present files share a date) → the live view's getSaturation/
     // getModifiedAge treat that as freshest (recency 1); createdAge as newest (0).
     const modSpread = maxMod - minMod;
     const createdSpread = maxCreated - minCreated;
-    const presentLineStats = {
-      min: minLines === Infinity ? 0 : minLines,
-      max: maxLines === -Infinity ? 0 : maxLines,
-    };
 
     // Neighborhood fade cascade — the SAME tier decision buildingFader uses in
     // Live, so a hover/selection dims the surrounding city identically while
@@ -266,9 +256,13 @@ export function createScrubController(deps: ScrubControllerDeps) {
         | undefined;
       if (present) {
         // Gate height on presence (intervals), not line count: media/empty files are present with 0 lines.
+        // Normalize floors against the fixed UNION line range (not the per-commit
+        // present set), so a building's height tracks its OWN size and grows as the
+        // file grows — instead of resizing when siblings appear/vanish. Matches how
+        // width already uses the union byteStats. (dims.w unused: matrix uses b.w.)
         const dims = getBuildingDimensions(
           { ...b.file, lines: linesAt(pt, pos) },
-          presentLineStats, // present-file line range → floors match a real scan (byteStats drives width only, unused: matrix uses b.w)
+          deps.heightCtx.lineStats,
           deps.heightCtx.byteStats
         );
         if (iFloorsAttr) {

@@ -318,18 +318,10 @@ function setup(
 }
 
 // ── Anchored multi-building scenes ──────────────────────────────────────────
-// The scrub controller normalizes each present building's floors/weathering
-// against the range of the OTHER present buildings at that scrub position, not
-// against a commit index. A lone present building therefore has a degenerate
-// range (floors collapse to MIN_FLOORS, recency pins to 1). These helpers build
-// scenes with always-present "anchor" files so the range is real:
-//   - anchorLo/anchorHi (1 and 200 lines) restore presentLineStats = {1, 200},
-//     which equals heightCtx.lineStats, so the subject's floors/height curve
-//     matches the single-file baseline again.
-//   - dated commits + distinct anchor modify/create schedules give the
-//     last-modified / created date spans that drive recency + createdAge.
-// Each building gets its OWN fake mesh at slot 0, so a scene records the subject
-// and every anchor independently; assert on the subject's fake only.
+// Weathering (not height) normalizes against the OTHER present buildings' date
+// span, so a lone building pins recency to 1. The always-present anchor files
+// give a real span. Each building gets its own fake mesh at slot 0; assert on
+// the subject's fake only.
 const DAY_MS = 86_400_000;
 const BASE_MS = Date.UTC(2021, 0, 1);
 const isoAt = (i: number): string => new Date(BASE_MS + i * DAY_MS).toISOString();
@@ -480,6 +472,14 @@ test('at HEAD the height factor is ~1 (matches the union baseline)', () => {
   ]);
   const fake = fakes.get('f.txt')!;
   SCRUB_POS.value = 2; // last live commit index, 6 lines
+  controller.update();
+  expect(fake.scaleY).toBeCloseTo(buildingHeightForLines(file, 6, heightCtx), 5);
+});
+
+test('height is its OWN size, not the present-set range: a lone present building keeps full height', () => {
+  // Regression: a lone present file used to hit a degenerate present-set range and collapse to MIN_FLOORS.
+  const { fake, controller } = setup(); // no anchors: f.txt is the only present file
+  SCRUB_POS.value = 2; // last live commit, 6 lines
   controller.update();
   expect(fake.scaleY).toBeCloseTo(buildingHeightForLines(file, 6, heightCtx), 5);
 });
