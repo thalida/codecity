@@ -333,7 +333,7 @@ const BUILDINGS_FIELDS = {
   DOOR_WIDTH_FRAC: {
     route: ChangeRoute.Rebuild,
     kind: FieldKind.Slider,
-    default: 0.4,
+    default: 0.2,
     min: 0,
     max: 1,
     step: 0.05,
