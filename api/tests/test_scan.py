@@ -956,6 +956,24 @@ class LineCountCapTests(unittest.TestCase):
         self.assertGreater(result, 100_000)
         self.assertLess(result, 150_000)
 
+    def test_final_line_without_trailing_newline_counts(self):
+        # Count lines, not terminators: a final line with no trailing newline
+        # still counts. Regression — source maps / minified files are one long
+        # line with no trailing newline and used to report 0.
+        from api.services.scan import _line_count
+
+        def count(content: bytes) -> int:
+            with tempfile.NamedTemporaryFile("wb", delete=False) as fh:
+                fh.write(content)
+                p = Path(fh.name)
+            self.addCleanup(p.unlink, missing_ok=True)
+            return _line_count(p)
+
+        self.assertEqual(count(b"one line, no newline"), 1)  # was 0
+        self.assertEqual(count(b"a\nb\nc"), 3)  # final unterminated line counts
+        self.assertEqual(count(b"a\nb\nc\n"), 3)  # trailing newline unchanged
+        self.assertEqual(count(b""), 0)  # empty stays 0
+
 
 def _walk_files(node):
     """Yield every file node in the tree."""
