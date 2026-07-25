@@ -47,10 +47,14 @@ export function formatHoverTooltip(
     // meaningless 0 — surface pixel dimensions instead. The backend only
     // stamps media_width/height on recognized media, so their presence is a
     // reliable "this is dimensioned media" signal.
+    if (f.media_width != null && f.media_height != null) {
+      return `${fpath}  ·  ${f.media_width}×${f.media_height}`;
+    }
+    // A deleted file's replayed count is 0 because it is absent at this commit,
+    // not because it was empty, so the number would lie.
+    if (isDeletedTarget(target)) return fpath;
     const lines = scrubLines ?? f.lines;
-    return f.media_width != null && f.media_height != null
-      ? `${fpath}  ·  ${f.media_width}×${f.media_height}`
-      : fpath + (lines != null ? `  ·  ${lines} lines` : '');
+    return fpath + (lines != null ? `  ·  ${lines} lines` : '');
   }
   if (target.kind === NodeKind.Directory && target.dir) {
     const d = target.dir;

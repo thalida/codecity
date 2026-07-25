@@ -52,6 +52,22 @@ describe('formatHoverTooltip', () => {
     expect(formatHoverTooltip(t, 'codecity', null)).toBe('/codecity/app/main.ts  ·  42 lines');
   });
 
+  it('drops the line count for a deleted file (0 means absent, not empty)', () => {
+    const t = { ...fileTarget({ path: 'app/gone.py', lines: 0 }), isRuin: true } as PickTarget;
+    expect(formatHoverTooltip(t, 'codecity', 0)).toBe('/codecity/app/gone.py');
+    // The static count is just as misleading, so it is not a fallback either.
+    const t2 = { ...fileTarget({ path: 'app/gone.py', lines: 42 }), isRuin: true } as PickTarget;
+    expect(formatHoverTooltip(t2, 'codecity')).toBe('/codecity/app/gone.py');
+  });
+
+  it('keeps pixel dimensions on a deleted media file (intrinsic, not replayed)', () => {
+    const t = {
+      ...fileTarget({ path: 'app/logo.png', media_width: 800, media_height: 600 }),
+      isRuin: true,
+    } as PickTarget;
+    expect(formatHoverTooltip(t, 'codecity', 0)).toBe('/codecity/app/logo.png  ·  800×600');
+  });
+
   it('shows pixel dimensions instead of line count for an image file', () => {
     const t = fileTarget({
       path: 'app/logo.png',
@@ -88,9 +104,10 @@ describe('formatHoverTooltip', () => {
     expect(formatHoverTooltip(t, null)).toBe('a.ts  ·  1 lines');
   });
 
-  it('leaves the identity text clean for a ghost-ruin (the deleted badge is a render concern)', () => {
+  it('never writes a deleted marker into the text (the badge is a render concern)', () => {
+    // The count goes for a ruin, but the path is still plain identity text.
     const f = { ...fileTarget({ path: 'a.ts', lines: 1 }), isRuin: true } as PickTarget;
-    expect(formatHoverTooltip(f, 'r')).toBe('/r/a.ts  ·  1 lines');
+    expect(formatHoverTooltip(f, 'r')).toBe('/r/a.ts');
     const d = {
       ...dirTarget({ path: 'app', children_file_count: 2, children_dir_count: 0 }),
       isRuin: true,
