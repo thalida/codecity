@@ -59,8 +59,7 @@ flat varying vec3 vScale;       // (w, h, d) recovered from instance matrix
 flat varying vec4 vIconUV;      // pass-through of iIconUV; .xy = atlas UV, .z = seed, .w = createdAge
 flat varying float vModifiedAge; // pass-through of iModifiedAge
 flat varying int vKind;          // iKind as an int enum (BuildingKind)
-varying float vWorldY;          // world-space height, for height-based ground haze in frag
-varying vec3 vWorldPos;         // world-space position, for distance fog in frag
+varying vec3 vWorldPos;         // world-space position, for height fog in frag
 
 void main() {
   // Geometry's normal in object space tells us which face this vertex
@@ -88,8 +87,10 @@ void main() {
   // For our case we declare it as a varying derived from a custom attribute.
   vColor = instanceColor;
 
-  // Recover (w, h, d) from the instance matrix's scale — used by the
-  // fragment shader to size door against face world width.
+  // Recover (w, h, d) from the instance matrix's scale — the fragment shader
+  // sizes the door against face width (.x/.z) and the ground haze against
+  // height (.y). The age-lean shear overstates .y by 1/cos(lean), well under a
+  // percent at the configured angles.
   vScale = vec3(
     length(vec3(instanceMatrix[0])),
     length(vec3(instanceMatrix[1])),
@@ -110,7 +111,6 @@ void main() {
   // already leans — the picker + outline read the same sheared matrix.
   vec4 worldPos = modelMatrix * instanceMatrix * vec4(position, 1.0);
 
-  vWorldY = worldPos.y;
   vWorldPos = worldPos.xyz;
   gl_Position = projectionMatrix * viewMatrix * worldPos;
 }

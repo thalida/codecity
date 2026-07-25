@@ -23,6 +23,7 @@ void main() {
   vec3 hemiTint = mix(uHemiGroundColor, uHemiSkyColor, hemi);
   vec3 lit = vColor * hemiTint * vAO;
 
-  vec3 foggy = applyFog(lit, vWorldPos);
+  // uFogEnabled is false for the island, so the reference height is inert.
+  vec3 foggy = applyFog(lit, vWorldPos, 1.0);
   gl_FragColor = vec4(foggy, 1.0);
 }

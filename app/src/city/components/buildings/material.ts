@@ -8,7 +8,7 @@
 // uniform value object here updates every cell, since they all share it.
 
 import * as THREE from 'three';
-import { BUILDINGS, BUILDING_DIMENSIONS } from '@/state/stores/settings/buildings';
+import { BUILDINGS } from '@/state/stores/settings/buildings';
 import { BLOOM } from '@/state/stores/settings/effects';
 import { SCENE } from '@/state/stores/settings/scene';
 import type { IconAtlas } from './atlas';
@@ -65,30 +65,6 @@ export function getIconAtlas(): IconAtlas | null {
   return _atlas;
 }
 
-// Tallest building actually in the current city, in world units. Pushed in by
-// the material effect (which subscribes to cityState.tallestBuilding); 0 before
-// a city loads. The shared material is a singleton with no cityState handle, so
-// the height is threaded in rather than read directly.
-let _tallestBuildingHeight = 0;
-
-/** Set the tallest currently-rendered building height (world units) that drives
- *  the ground-haze falloff. Pass null / 0 to fall back to the possible-max. */
-export function setTallestBuildingHeight(h: number | null): void {
-  _tallestBuildingHeight = h != null && h > 0 ? h : 0;
-}
-
-// Half-fall-off height for ground haze, in world units. FOG_HEIGHT_FRAC × the
-// tallest building CURRENTLY rendered, so the haze sits in the same relative
-// band of the actual skyline (a repo whose tallest building is well below the
-// cap no longer has the fog fade out far above it). Falls back to the tallest
-// POSSIBLE building (MAX_FLOORS × FLOOR_HEIGHT) before a city has loaded.
-function _computeFogHeight(): number {
-  const dims = BUILDING_DIMENSIONS.value;
-  const possibleMax = Math.max(1, dims.MAX_FLOORS * dims.FLOOR_HEIGHT);
-  const base = _tallestBuildingHeight > 0 ? _tallestBuildingHeight : possibleMax;
-  return SCENE.value.FOG_HEIGHT_FRAC * base;
-}
-
 // Grime is age-scaled: a [newest, oldest] range the shader lerps per-building by
 // createdAge, written into a Vector2 uniform (both 0 when disabled → mix → 0).
 // (The age-lean is NOT here — it's baked into the instance matrix; see tilt.ts.)
@@ -133,7 +109,8 @@ export function getBuildingMaterial(): THREE.ShaderMaterial {
       uFogEnabled: { value: SCENE.value.FOG_ENABLED },
       uFogColor: { value: setColorFromHex(new THREE.Color(), SCENE.value.FOG_COLOR) },
       uFogIntensity: { value: SCENE.value.FOG_INTENSITY },
-      uFogHeight: { value: _computeFogHeight() },
+      // Raw fraction — the shader scales it by each building's own height.
+      uFogHeightFrac: { value: SCENE.value.FOG_HEIGHT_FRAC },
       // Extra HDR emission applied to the freshest building's lit
       // windows on top of a baseline 1.0. 0 = no bloom contribution
       // from windows; higher = brighter glow on new buildings.
@@ -206,7 +183,7 @@ export function refreshBuildingMaterial(): void {
   _sharedMaterial.uniforms.uFogEnabled.value = sceneCfg.FOG_ENABLED;
   setColorFromHex(_sharedMaterial.uniforms.uFogColor.value as THREE.Color, sceneCfg.FOG_COLOR);
   _sharedMaterial.uniforms.uFogIntensity.value = sceneCfg.FOG_ENABLED ? sceneCfg.FOG_INTENSITY : 0;
-  _sharedMaterial.uniforms.uFogHeight.value = _computeFogHeight();
+  _sharedMaterial.uniforms.uFogHeightFrac.value = sceneCfg.FOG_HEIGHT_FRAC;
   // BLOOM.ENABLED off → no HDR push for windows, so they stay LDR and
   // produce nothing the bloom pass (also bypassed via postFx.refresh)
   // could pick up.

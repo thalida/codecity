@@ -4,24 +4,26 @@
 // Height fog: dense near y=0, thinning with altitude. Driven by
 //   SCENE.FOG_* in @/state/stores/settings/scene.ts. Buildings and the island consume this.
 //
-// This module exports ONLY the GLSL strings. Each consumer wires its
-// own uniforms — we don't centralize uniform defaults here because
-// height fog (uFogHeight) is dynamically derived from BUILDING_DIMENSIONS
-// in buildings.ts, and forcing a single defaults helper would couple the
-// chunk to that derivation.
+// The falloff height is relative: uFogHeightFrac is the raw
+// SCENE.FOG_HEIGHT_FRAC and each call site passes the height it wants the
+// fraction measured against. Buildings pass their own, so a 2-floor stub and
+// a 60-floor tower wear the same relative skirt.
+//
+// This module exports ONLY the GLSL strings — each consumer wires its own
+// uniforms.
 
 export const FOG_UNIFORMS_GLSL = /* glsl */ `
 uniform bool uFogEnabled;
 uniform vec3 uFogColor;
 uniform float uFogIntensity;
-uniform float uFogHeight;
+uniform float uFogHeightFrac;
 `;
 
 export const FOG_APPLY_GLSL = /* glsl */ `
-vec3 applyFog(vec3 color, vec3 worldPos) {
+vec3 applyFog(vec3 color, vec3 worldPos, float refHeight) {
   vec3 c = color;
   if (uFogEnabled) {
-    float h = exp(-max(worldPos.y, 0.0) / max(uFogHeight, 0.001));
+    float h = exp(-max(worldPos.y, 0.0) / max(uFogHeightFrac * refHeight, 0.001));
     c = mix(c, uFogColor, h * uFogIntensity);
   }
   return c;

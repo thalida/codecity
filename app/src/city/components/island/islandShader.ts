@@ -24,7 +24,7 @@ export function createIslandMaterial(): THREE.ShaderMaterial {
       uFogEnabled: { value: false },
       uFogColor: { value: new THREE.Color('#000000') },
       uFogIntensity: { value: 0 },
-      uFogHeight: { value: 1 },
+      uFogHeightFrac: { value: 0 },
     },
     side: THREE.FrontSide,
     toneMapped: true,

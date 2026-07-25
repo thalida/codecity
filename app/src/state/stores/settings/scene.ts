@@ -96,7 +96,7 @@ const SCENE_FIELDS = {
     max: 1,
     step: 0.05,
     label: 'Falloff height ×',
-    tip: 'How high up the fog fades out, as a fraction of the tallest building in the current city. 0.5 fades halfway up the tallest building you can see, so the haze tracks the real skyline rather than a fixed ceiling.',
+    tip: "How high up the fog fades out, as a fraction of each building's own height. 0.5 fades halfway up every building, so a 2-floor stub and a 60-floor tower wear the same relative skirt of haze.",
   },
 } satisfies FieldMap;
 
