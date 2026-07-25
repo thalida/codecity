@@ -218,6 +218,11 @@ export interface components {
             name: string;
             /** Commits */
             commits: number;
+            /**
+             * Hue
+             * @description Stable 0-359 hue from the name hash; the display colour is built from it client-side
+             */
+            hue: number;
         };
         /** BranchListResponse */
         BranchListResponse: {
@@ -322,6 +327,17 @@ export interface components {
         ConfigResponse: {
             /** Allowlocalrepos */
             allowLocalRepos: boolean;
+        };
+        /** DateRangeMs */
+        DateRangeMs: {
+            /** Mincreated */
+            minCreated: number;
+            /** Maxcreated */
+            maxCreated: number;
+            /** Minmodified */
+            minModified: number;
+            /** Maxmodified */
+            maxModified: number;
         };
         /** DateRanges */
         DateRanges: {
@@ -538,6 +554,16 @@ export interface components {
             busyness: components["schemas"]["BusynessThresholds"];
             dateRanges: components["schemas"]["DateRanges"];
             stats: components["schemas"]["RepoStats"];
+            /**
+             * Readmepath
+             * @description Absolute path of the root README, or null if there isn't one
+             */
+            readmePath: string | null;
+            /**
+             * Readmemodified
+             * @description That README's mtime, for cache-busting the fetch
+             */
+            readmeModified: string | null;
         };
         /**
          * PartialManifestEvent
@@ -648,6 +674,8 @@ export interface components {
             };
             /** Commitlineranges */
             commitLineRanges: components["schemas"]["RangeStat"][];
+            /** Commitdateranges */
+            commitDateRanges: components["schemas"]["DateRangeMs"][];
             /** Note */
             note: string | null;
         };

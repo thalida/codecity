@@ -6,12 +6,20 @@ from __future__ import annotations
 import hashlib
 import subprocess
 import time
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Callable, NamedTuple
 
 from .cache import BlobEntry, cache_load_blobs, cache_save_blobs
 from .gitobj import _git_argv, blob_sizes_batch, blob_stats_batch
-from .manifest_types import CommitEntry, FileNode, Manifest, RangeStat, TimelineBundle
+from .manifest_types import (
+    CommitEntry,
+    DateRangeMs,
+    FileNode,
+    Manifest,
+    RangeStat,
+    TimelineBundle,
+)
 from .media import media_kind
 from .scan import (
     SCAN_PROGRESS_THROTTLE_S,
@@ -291,6 +299,89 @@ def compute_commit_line_ranges(
     return ranges
 
 
+def _iso_ms(value: str | None) -> int | None:
+    """Epoch ms for a Z-suffixed UTC stamp, or None. Matches JS Date.parse,
+    which the client used before this moved server-side."""
+    if not value:
+        return None
+    try:
+        parsed = datetime.strptime(value, "%Y-%m-%dT%H:%M:%SZ")
+    except ValueError:
+        return None
+    return int(parsed.replace(tzinfo=timezone.utc).timestamp() * 1000)
+
+
+def compute_commit_date_ranges(
+    deltas: list[CommitDelta],
+    commits: list[CommitEntry],
+    git_created: dict[str, str],
+    git_modified: dict[str, str],
+) -> list[DateRangeMs]:
+    """Per-commit created/modified ms ranges over the files present at each
+    commit — what the weathering (color, lit windows, grime) normalizes against,
+    so range[HEAD] equals the live manifest's dateRanges.
+
+    Mirrors the client replay it replaces: a file uses its own full-precision
+    date once it has reached its final change, and the date of its latest change
+    commit before that; creation is fixed at its own date, falling back to its
+    genesis commit."""
+    commit_ms = [_iso_ms(c["date"]) or 0 for c in commits]
+
+    final_idx: dict[str, int] = {}
+    genesis_idx: dict[str, int] = {}
+    for i, delta in enumerate(deltas):
+        for path, sha in delta.changes:
+            final_idx[path] = i
+            if sha is not None and path not in genesis_idx:
+                genesis_idx[path] = i
+
+    present: set[str] = set()
+    last_change: dict[str, int] = {}
+    ranges: list[DateRangeMs] = []
+    for i, delta in enumerate(deltas):
+        for path, sha in delta.changes:
+            last_change[path] = i
+            if sha is None:
+                present.discard(path)
+            else:
+                present.add(path)
+
+        min_created = min_modified = None
+        max_created = max_modified = None
+        for path in present:
+            lm = last_change.get(path, 0)
+            modified = None
+            if lm >= final_idx.get(path, 0):
+                modified = _iso_ms(git_modified.get(path))
+            if modified is None:
+                modified = commit_ms[lm] if lm < len(commit_ms) else 0
+            created = _iso_ms(git_created.get(path))
+            if created is None:
+                gi = genesis_idx.get(path, 0)
+                created = commit_ms[gi] if gi < len(commit_ms) else 0
+
+            if min_created is None or created < min_created:
+                min_created = created
+            if max_created is None or created > max_created:
+                max_created = created
+            if min_modified is None or modified < min_modified:
+                min_modified = modified
+            if max_modified is None or modified > max_modified:
+                max_modified = modified
+
+        # An empty present set collapses to a zero span, which the client already
+        # treats as "no spread" (freshest / newest).
+        ranges.append(
+            {
+                "minCreated": min_created or 0,
+                "maxCreated": max_created or 0,
+                "minModified": min_modified or 0,
+                "maxModified": max_modified or 0,
+            }
+        )
+    return ranges
+
+
 def build_timeline_bundle(
     root: str,
     *,
@@ -374,6 +465,9 @@ def build_timeline_bundle(
         git_modified,
     )
     commit_line_ranges = compute_commit_line_ranges(deltas, blob_lines)
+    commit_date_ranges = compute_commit_date_ranges(
+        deltas, commits, git_created, git_modified
+    )
     _log("timeline bundle complete")
 
     return {
@@ -386,5 +480,6 @@ def build_timeline_bundle(
         "blobLines": blob_lines,
         "blobSizes": blob_sizes,
         "commitLineRanges": commit_line_ranges,
+        "commitDateRanges": commit_date_ranges,
         "note": note,
     }

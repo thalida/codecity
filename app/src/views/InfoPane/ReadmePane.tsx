@@ -1,7 +1,6 @@
-// views/InfoPane/ReadmePane.tsx — renders the body of the README panel:
-// finds the root README in the manifest, fetches + renders it as markdown,
-// and shows appropriate empty states. No <Pane> wrapper — the Explore pane
-// owns the chrome.
+// views/InfoPane/ReadmePane.tsx — renders the body of the README panel: fetches
+// the manifest's readmePath and renders it as markdown, with empty states. No
+// <Pane> wrapper — the Explore pane owns the chrome.
 
 import './InfoPane.css';
 import { useState, useEffect } from 'preact/hooks';
@@ -10,8 +9,7 @@ import type { Signal } from '@preact/signals';
 import { fetchFileText } from '@/api/file';
 import { BookOpen, FileWarning, FolderOpen } from 'lucide-preact';
 import { Marked } from 'marked';
-import { NodeKind } from '@/types';
-import type { DirNode, FileNode, Manifest } from '@/types';
+import type { DirNode, Manifest } from '@/types';
 import { PaneEmpty } from '@/components/Pane';
 import { TimelineStaleNote } from '@/components/TimelineStaleNote/TimelineStaleNote';
 import { TIMELINE_MODE } from '@/state/stores/timeline';
@@ -39,24 +37,6 @@ function _renderReadme(text: string, readmeFullPath: string): string {
     },
   });
   return md.parse(text) as string;
-}
-
-// Match README, README.md, readme.markdown, README.txt — any file whose
-// stem (case-insensitive) is "readme". GitHub/VSCode use the same rule.
-const README_BASE_NAME = 'readme';
-
-function _findRootReadme(manifest: Manifest | DirNode | null): FileNode | null {
-  // Callers gate on isEmptyManifest first, so by here `manifest` is always a
-  // real Manifest (has `tree`) — never a bare DirNode.
-  const tree = manifest && 'tree' in manifest ? manifest.tree : null;
-  if (!tree || !tree.children) return null;
-  for (let i = 0; i < tree.children.length; i++) {
-    const c = tree.children[i];
-    if (c.type !== NodeKind.File) continue;
-    const name = (c.name || '').toLowerCase();
-    if (name === README_BASE_NAME || name.indexOf(`${README_BASE_NAME}.`) === 0) return c;
-  }
-  return null;
 }
 
 // ── State shape ───────────────────────────────────────────────────────────────
@@ -95,16 +75,15 @@ export function ReadmePane({ manifest }: ReadmePaneProps) {
         setBody({ kind: InfoBodyKind.NoProject });
         return;
       }
-      const readme = _findRootReadme(m as Manifest | DirNode | null);
-      if (!readme || !readme.fullPath) {
+      const readmePath = (m as Manifest).readmePath;
+      if (!readmePath) {
         setBody({ kind: InfoBodyKind.NoReadme });
         return;
       }
       setBody({ kind: InfoBodyKind.Loading });
-      const readmePath = readme.fullPath;
       // Version by mtime so an edited README re-fetches fresh bytes rather than
       // a cached body for the same path (doFetch already re-runs per manifest).
-      fetchFileText(readmePath, readme.modified)
+      fetchFileText(readmePath, (m as Manifest).readmeModified ?? undefined)
         .then((text) => {
           if (!cancelled)
             setBody({ kind: InfoBodyKind.Markdown, html: _renderReadme(text, readmePath) });

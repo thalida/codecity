@@ -1424,6 +1424,7 @@ def _wrap_manifest(
     from api.services.source import label_from_source
 
     tree["name"] = label_from_source(repo_info["remote_url"]) or tree["name"]
+    readme_path, readme_modified = _find_root_readme(tree)
     return {
         "root": root_abs,
         "scanned_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
@@ -1436,7 +1437,21 @@ def _wrap_manifest(
         "busyness": _compute_busyness(commits),
         "dateRanges": signals.date_ranges,
         "stats": compute_repo_stats(tree, commits),
+        "readmePath": readme_path,
+        "readmeModified": readme_modified,
     }
+
+
+def _find_root_readme(tree: DirNode) -> tuple[str | None, str | None]:
+    """(fullPath, modified) of the root README, or (None, None). Matches any
+    direct child whose stem is "readme" — the rule GitHub and VSCode use."""
+    for child in tree.get("children") or []:
+        if child.get("type") != NodeKind.FILE:
+            continue
+        name = (child.get("name") or "").lower()
+        if name == "readme" or name.startswith("readme."):
+            return child.get("fullPath"), child.get("modified")
+    return None, None
 
 
 def _annotate_same_day_totals(commits: list[CommitEntry]) -> None:

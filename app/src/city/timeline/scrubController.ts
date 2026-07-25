@@ -124,6 +124,7 @@ export function createScrubController(deps: ScrubControllerDeps) {
   // Commit dates as ms, for date-based weathering (matches the live view's
   // date-normalized color/age, not a commit-index proxy). Precomputed once.
   const _commitMs = (TIMELINE_BUNDLE.peek()?.commits ?? []).map((c) => Date.parse(c.date) || 0);
+  const _dateRanges = TIMELINE_BUNDLE.peek()?.commitDateRanges ?? [];
 
   // Scrub-relative modified date in ms. Once the file has reached its final (HEAD)
   // modification, use its own full-precision date so HEAD weathering is 1:1 with
@@ -190,24 +191,13 @@ export function createScrubController(deps: ScrubControllerDeps) {
     const futureTint = bp.BUILDING_TINT;
     _futureColor.set(bp.BUILDING_COLOR);
 
-    // Pre-pass: weathering DATE ranges over the PRESENT buildings at this scrub
-    // position — the file set + dates a real scan at this commit would see, so
-    // color/window-lighting/grime normalize against them (and at HEAD the present
-    // set == the live file set, matching the live view). Heights do NOT: see the
-    // getBuildingDimensions call.
-    let minMod = Infinity;
-    let maxMod = -Infinity;
-    let minCreated = Infinity;
-    let maxCreated = -Infinity;
-    for (const { b, pt, createdIdx, finalIdx } of entries) {
-      if (ruinStateAt(pt, pos) !== 'present') continue;
-      const modMs = modifiedMsAt(b, pt, finalIdx, pos);
-      const createdMs = createdMsFor(b, createdIdx);
-      if (modMs < minMod) minMod = modMs;
-      if (modMs > maxMod) maxMod = modMs;
-      if (createdMs < minCreated) minCreated = createdMs;
-      if (createdMs > maxCreated) maxCreated = createdMs;
-    }
+    // Backend-replayed date ranges over the present set, like heights use
+    // commitLineRanges. At HEAD the present set == live, so weathering matches.
+    const dateRange = _dateRanges[Math.min(Math.floor(pos), _dateRanges.length - 1)];
+    const minMod = dateRange?.minModified ?? 0;
+    const maxMod = dateRange?.maxModified ?? 0;
+    const minCreated = dateRange?.minCreated ?? 0;
+    const maxCreated = dateRange?.maxCreated ?? 0;
     // Spread 0 (all present files share a date) → the live view's getSaturation/
     // getModifiedAge treat that as freshest (recency 1); createdAge as newest (0).
     const modSpread = maxMod - minMod;

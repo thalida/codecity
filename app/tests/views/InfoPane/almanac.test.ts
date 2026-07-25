@@ -45,6 +45,8 @@ function dir(name: string, path: string, children: (FileNode | DirNode)[]): DirN
 function manifest(tree: DirNode, overrides: Partial<Manifest> = {}): Manifest {
   return {
     root: '/repo',
+    readmePath: null,
+    readmeModified: null,
     scanned_at: '2024-01-01T00:00:00Z',
     content_signature: 's',
     structure_signature: 't',
@@ -349,8 +351,8 @@ describe('computeAlmanac — streets, forest, fireflies', () => {
     maxCommitsPerDay: { date: '2022-01-02', count: 3 },
     maxCommitStreakDays: 3,
     authors: [
-      { name: 'Ada', commits: 3 },
-      { name: 'Bo', commits: 2 },
+      { name: 'Ada', commits: 3, hue: 0 },
+      { name: 'Bo', commits: 2, hue: 0 },
     ],
   };
 

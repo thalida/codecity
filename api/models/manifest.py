@@ -198,6 +198,9 @@ class DayLeader(BaseModel):
 class AuthorStat(BaseModel):
     name: str
     commits: int
+    hue: int = Field(
+        description="Stable 0-359 hue from the name hash; the display colour is built from it client-side"
+    )
 
 
 class RepoStats(BaseModel):
@@ -253,12 +256,25 @@ class Manifest(BaseModel):
     busyness: BusynessThresholds
     dateRanges: DateRanges
     stats: RepoStats
+    readmePath: Optional[str] = Field(
+        description="Absolute path of the root README, or null if there isn't one"
+    )
+    readmeModified: Optional[str] = Field(
+        description="That README's mtime, for cache-busting the fetch"
+    )
 
 
 class SignatureResponse(BaseModel):
     root: str
     scanned_at: str
     content_signature: str
+
+
+class DateRangeMs(BaseModel):
+    minCreated: int
+    maxCreated: int
+    minModified: int
+    maxModified: int
 
 
 class TimelineChange(BaseModel):
@@ -280,6 +296,7 @@ class TimelineBundle(BaseModel):
     blobLines: dict[str, int]
     blobSizes: dict[str, int]
     commitLineRanges: list[RangeStat]
+    commitDateRanges: list[DateRangeMs]
     note: Optional[str]
 
 

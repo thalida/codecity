@@ -66,6 +66,8 @@ const manifest: Manifest = {
   content_signature: 's',
   structure_signature: 't',
   layout_signature: 'l',
+  readmePath: null,
+  readmeModified: null,
   tree: tree as unknown as Manifest['tree'],
   repo: { branch: 'main', remote_url: null, head_sha: null, head_subject: null, dirty: false },
   commits: [],
@@ -86,7 +88,7 @@ const commitStats = {
   minFilesPerCommit: { sha: 'abc1234', files: 9 },
   maxCommitsPerDay: { date: '2022-01-01', count: 1 },
   maxCommitStreakDays: 1,
-  authors: [{ name: 'Ada', commits: 1 }],
+  authors: [{ name: 'Ada', commits: 1, hue: 0 }],
 };
 
 describe('OverviewPane', () => {

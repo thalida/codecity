@@ -91,6 +91,9 @@ export function placeFireflies(
   const maxCount = authors.length ? authors[0].commits : 0;
   const minCount = authors.length ? authors[authors.length - 1].commits : 0;
   const authorScale = new Map<string, number>();
+  // Hue is backend-resolved (AuthorStat.hue) so the orb and the commit pane's
+  // dot can't drift apart.
+  const hueByAuthor = new Map(authors.map((a) => [a.name, a.hue]));
   // Degenerate case: every author has the same count (most commonly: only
   // one author, or all authors tied). There's no meaningful ranking, so
   // everyone gets SCALE_MAX — the lone/tied contributor is the "top" of
@@ -138,8 +141,9 @@ export function placeFireflies(
       if (out.length >= MAX_FIREFLY_ORBS) break placements;
       const rng = seededRng(`${commit.sha}:${author}`);
       const pulseRng = seededRng(`${commit.sha}:p:${author}`);
-      const color = colorForAuthor(author);
-      const lightColor = lightColorForAuthor(author);
+      const authorHue = hueByAuthor.get(author) ?? 0;
+      const color = colorForAuthor(authorHue);
+      const lightColor = lightColorForAuthor(authorHue);
       const orbitStartAngle = rng() * Math.PI * 2;
       // Just outside the canopy — between 1.05× and 1.4× the canopy radius.
       const orbitRadius = canopyRadius * (1.05 + rng() * 0.35);

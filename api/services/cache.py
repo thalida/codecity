@@ -81,7 +81,7 @@ class BlobEntry(TypedDict):
 _FILE_CACHE_VERSION = 3  # v3: exact line counts (dropped the >5MB sampling estimate)
 _BLOB_STATS_CACHE_VERSION = 4  # v4: git-lfs pointers resolved to real content
 _GIT_HISTORY_CACHE_VERSION = 15  # v15: commit dates carry a time, not just a day
-_TIMELINE_CACHE_VERSION = 6  # v6: bundle ships blobSizes
+_TIMELINE_CACHE_VERSION = 7  # v7: bundle ships commitDateRanges
 _MANIFEST_SCHEMA_VERSION = (
     # v12: per-dir descendants_created_min / descendants_modified_max
     # v13: ext_breakdown `ext` is null (was "(none)") for extensionless files
@@ -94,7 +94,9 @@ _MANIFEST_SCHEMA_VERSION = (
     # v19: FileNode.binaryType + RepoStats.binaryCount/maxBinaryBytesFile/
     #   minBinaryBytesFile (binary files as a first-class "data" category)
     # v20: exact line counts (was sampled >5MB) — values change, bump to rebuild
-    20
+    # v21: readmePath / readmeModified resolved server-side
+    # v22: AuthorStat.hue resolved server-side
+    22
 )
 # Composite: invalidates when EITHER the manifest schema OR the git-history
 # shape changes. Stored as a string in the cache file's `version` field.

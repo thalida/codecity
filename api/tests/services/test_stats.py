@@ -1,4 +1,4 @@
-from api.services.stats import compute_repo_stats
+from api.services.stats import _author_hue, compute_repo_stats
 
 
 def _file(
@@ -169,7 +169,7 @@ def test_commit_leaders_authors_and_streak():
     assert s["commitDates"] == {"oldest": "2022-01-01", "newest": "2022-02-10"}
     assert s["maxCommitsPerDay"]["count"] == 2
     assert s["maxCommitStreakDays"] == 3
-    assert s["authors"][0] == {"name": "Ada", "commits": 3}
+    assert s["authors"][0] == {"name": "Ada", "commits": 3, "hue": _author_hue("Ada")}
     assert [a["name"] for a in s["authors"]] == ["Ada", "Bo"]
 
 
@@ -225,3 +225,14 @@ def test_empty_files_only_ranges():
     s = compute_repo_stats(_dir("repo", "", [empty]), [])
     assert s["lineCountRange"] == {"min": 0, "max": 0}
     assert s["byteSizeRange"] == {"min": 0, "max": 0}
+
+
+def test_author_hue_matches_the_javascript_hash_it_replaced():
+    """Golden values from the original client-side FNV-1a, so moving the hash
+    to Python can't silently recolor everyone's orbs."""
+    assert _author_hue("Alice") == 143
+    assert _author_hue("Bob") == 220
+    assert _author_hue("") == 61
+    # Unicode hashes over UTF-8 bytes, not UTF-16 code units.
+    assert _author_hue("Yan \U0001f680 M\u00fcller") == 181
+    assert all(0 <= _author_hue(f"user-{i}") < 360 for i in range(200))

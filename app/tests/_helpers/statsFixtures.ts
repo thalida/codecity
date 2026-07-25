@@ -49,6 +49,17 @@ export function fileLeader(
   return { path, lines, bytes, created, modified };
 }
 
+// Mirrors _author_hue in api/services/stats.py: FNV-1a over the name's UTF-8
+// bytes, mod 360 — same reason the rest of this file mirrors stats.py.
+function authorHue(name: string): number {
+  let h = 0x811c9dc5 >>> 0;
+  for (const byte of new TextEncoder().encode(name)) {
+    h ^= byte;
+    h = Math.imul(h, 0x01000193) >>> 0;
+  }
+  return h % 360;
+}
+
 /** Build the commit-derived RepoStats fields the tree renderer + firefly field
  *  read (commitDates, sparsest/grandest commit, authors), mirroring
  *  api/services/stats.py. Lets the rendering tests build terse commit fixtures
@@ -70,7 +81,7 @@ export function commitStats(commits: CommitEntry[]): RepoStats {
     for (const a of c.authors) counts.set(a, (counts.get(a) ?? 0) + 1);
   }
   const authors = [...counts.entries()]
-    .map(([name, n]) => ({ name, commits: n }))
+    .map(([name, n]) => ({ name, commits: n, hue: authorHue(name) }))
     .sort((a, b) => b.commits - a.commits || a.name.localeCompare(b.name));
   return {
     ...EMPTY_REPO_STATS,

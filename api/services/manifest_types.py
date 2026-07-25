@@ -142,7 +142,7 @@ class CommitEntry(TypedDict):
     scene tree-color both read one consistent value instead of each
     recomputing the per-day grouping."""
 
-    date: str  # "YYYY-MM-DD"
+    date: str  # ISO-8601 UTC
     files: int
     sha: str
     authors: list[str]
@@ -236,6 +236,8 @@ class AuthorStat(TypedDict):
 
     name: str
     commits: int
+    # 0-359, hashed from the name so the firefly orb and commit dot agree.
+    hue: int
 
 
 class RepoStats(TypedDict):
@@ -295,6 +297,19 @@ class Manifest(TypedDict):
     busyness: BusynessThresholds
     dateRanges: DateRanges
     stats: RepoStats
+    # Root README, resolved server-side so the client doesn't re-scan for it.
+    readmePath: str | None
+    readmeModified: str | None
+
+
+class DateRangeMs(TypedDict):
+    """Created/modified epoch-ms spread over the files present at one commit.
+    Zeroes when nothing is present, which the client reads as no spread."""
+
+    minCreated: int
+    maxCreated: int
+    minModified: int
+    maxModified: int
 
 
 class TimelineChange(TypedDict):
@@ -326,6 +341,7 @@ class TimelineBundle(TypedDict):
     blobLines: dict[str, int]
     blobSizes: dict[str, int]
     commitLineRanges: list[RangeStat]
+    commitDateRanges: list[DateRangeMs]
     note: str | None
 
 
