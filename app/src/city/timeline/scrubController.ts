@@ -300,11 +300,7 @@ export function createScrubController(deps: ScrubControllerDeps) {
       if (present) {
         // Gate height on presence (intervals), not line count: media/empty files are present with 0 lines.
         // Height uses lineStats (this commit's range); width stays layout-baked (b.w), so dims.w is unused.
-        const dims = getBuildingDimensions(
-          scrubFile,
-          lineStats,
-          deps.heightCtx.byteStats
-        );
+        const dims = getBuildingDimensions(scrubFile, lineStats, deps.heightCtx.byteStats);
         if (iFloorsAttr) {
           iFloorsAttr.setX(slot, dims.floors);
           dirtyFloors.add(iFloorsAttr);
