@@ -271,9 +271,10 @@ describe('createBuildings()', () => {
     );
     const uniforms = getBuildingMaterial().uniforms;
 
-    RUINS.value = { ...RUINS.value, X_ENABLED: true, X_COLOR: '#ff0000' };
+    RUINS.value = { ...RUINS.value, X_ENABLED: true, X_COLOR: '#ff0000', X_WIDTH: 0.3 };
     expect(uniforms.uRuinXEnabled.value).toBe(true);
     expect((uniforms.uRuinXColor.value as THREE.Color).getHexString()).toBe('ff0000');
+    expect(uniforms.uRuinXWidth.value).toBe(0.3);
 
     RUINS.value = { ...RUINS.value, X_ENABLED: false };
     expect(uniforms.uRuinXEnabled.value).toBe(false);

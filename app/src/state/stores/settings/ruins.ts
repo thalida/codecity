@@ -64,6 +64,16 @@ const RUINS_FIELDS = {
     label: 'Cross color',
     tip: 'Color of the cross over a deleted file’s roof.',
   },
+  X_WIDTH: {
+    route: ChangeRoute.Live,
+    kind: FieldKind.Slider,
+    default: 0.18,
+    min: 0.02,
+    max: 0.6,
+    step: 0.02,
+    label: 'Cross thickness',
+    tip: 'How thick each stroke of the cross is, as a fraction of the roof. High values swallow the icon underneath.',
+  },
   ROAD_COLOR: {
     route: ChangeRoute.Live,
     kind: FieldKind.Color,

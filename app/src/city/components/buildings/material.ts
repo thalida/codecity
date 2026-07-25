@@ -150,6 +150,7 @@ export function getBuildingMaterial(): THREE.ShaderMaterial {
       // composites over, so the hex bytes pass through (see setColorFromHex).
       uRuinXEnabled: { value: RUINS.value.X_ENABLED },
       uRuinXColor: { value: setColorFromHex(new THREE.Color(), RUINS.value.X_COLOR) },
+      uRuinXWidth: { value: RUINS.value.X_WIDTH },
       // WINDOW_LIGHTING store — per-cell lit/unlit lightness deltas, gap
       // thresholds, and the warm-amber tint for old/dim lit panes.
       uWindowUnlitLightnessDelta: { value: BUILDINGS.value.UNLIT_LIGHTNESS_DELTA },
@@ -225,6 +226,7 @@ export function refreshBuildingMaterial(): void {
   const ruins = RUINS.value;
   _sharedMaterial.uniforms.uRuinXEnabled.value = ruins.X_ENABLED;
   setColorFromHex(_sharedMaterial.uniforms.uRuinXColor.value as THREE.Color, ruins.X_COLOR);
+  _sharedMaterial.uniforms.uRuinXWidth.value = ruins.X_WIDTH;
   // WINDOW_LIGHTING store — pure uniform refresh into the pre-allocated
   // THREE.Color uniform values.
   const windowLighting = BUILDINGS.value;

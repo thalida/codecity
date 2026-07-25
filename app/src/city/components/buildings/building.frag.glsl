@@ -63,7 +63,7 @@ const float RUIN_RIM_CELLS = 9.0;    // horizontal cells across the top rim
 const float RUIN_GRIME_CELLS = 9.0;  // coarse grime cell grid
 const float RUIN_GRIME_FLOOR = 0.7;  // grime darkens to 0.7x at most...
 const float RUIN_GRIME_RANGE = 0.3;  // ...up to 1.0x (no darkening)
-const float RUIN_X_HALF_WIDTH = 0.07; // half-thickness of each cross stroke, in inner-roof UV
+const float RUIN_X_DIAG = 0.70710678; // sqrt(2)/2: stroke width -> half-distance along |x-y|
 
 // Hidden-tier wireframe thickness in screen-pixels. Sourced from
 // BUILDING_OUTLINE.WIDTH; refreshed via refreshBuildingMaterial() on Save via applyTheme().
@@ -110,6 +110,7 @@ uniform float uDoorLightnessDelta;
 // Deleted-file cross over the roof icon (RUINS store, Timeline only).
 uniform bool uRuinXEnabled;
 uniform vec3 uRuinXColor;
+uniform float uRuinXWidth;
 
 // Window-pane lighting — refreshed via refreshBuildingMaterial() from WINDOW_LIGHTING store.
 uniform float uWindowUnlitLightnessDelta;
@@ -532,11 +533,12 @@ vec4 renderRoofFace() {
   // Deleted-file cross, over the icon so the file type stays readable under it.
   if (vKind == KIND_RUIN && uRuinXEnabled) {
     vec2 inner = (vUv - uRoofBorderFrac) / (1.0 - 2.0 * uRoofBorderFrac);
-    // The inner square's two diagonals. Both are sqrt(2)x the true perpendicular
-    // distance, a constant the half-width absorbs.
+    // Distance to the inner square's two diagonals, sqrt(2)x the perpendicular
+    // one, so RUIN_X_DIAG converts uRuinXWidth into this space.
     float d = min(abs(inner.x - inner.y), abs(inner.x + inner.y - 1.0));
+    float halfW = uRuinXWidth * RUIN_X_DIAG;
     float aa = max(fwidth(d), 1e-6);
-    float stroke = 1.0 - smoothstep(RUIN_X_HALF_WIDTH - aa, RUIN_X_HALF_WIDTH + aa, d);
+    float stroke = 1.0 - smoothstep(halfW - aa, halfW + aa, d);
     composed = mix(composed, uRuinXColor, stroke * innerMask);
   }
 
