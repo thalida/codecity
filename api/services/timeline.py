@@ -357,11 +357,12 @@ def build_timeline_bundle(
     blob_lines, blob_sizes, blob_stats = _collect_blob_tables(
         root_path, deltas, use_cache=use_cache, on_progress=on_progress
     )
-    # Contract: every non-null delta sha needs a blobLines entry (default 0) so the client can't KeyError.
+    # Contract: every non-null delta sha needs blobLines/blobSizes entries (default 0) so the client can't KeyError.
     for d in deltas:
         for _, sha in d.changes:
             if sha is not None:
                 blob_lines.setdefault(sha, 0)
+                blob_sizes.setdefault(sha, 0)
     union_manifest = build_union_manifest(
         root_path,
         deltas,
@@ -383,6 +384,7 @@ def build_timeline_bundle(
             for d in deltas
         ],
         "blobLines": blob_lines,
+        "blobSizes": blob_sizes,
         "commitLineRanges": commit_line_ranges,
         "note": note,
     }

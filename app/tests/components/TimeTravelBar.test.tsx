@@ -26,6 +26,7 @@ const BUNDLE = {
   unionManifest: { tree: { name: 'r' }, repo: { remote_url: 'https://example.com/r' } },
   deltas: [],
   blobLines: {},
+  blobSizes: {},
   note: null,
 } as unknown as TimelineBundle;
 
@@ -166,6 +167,7 @@ describe('TimeTravelBar', () => {
       unionManifest: { tree: { name: 'r' }, repo: { remote_url: null } },
       deltas: [],
       blobLines: {},
+      blobSizes: {},
       note: null,
     } as unknown as TimelineBundle;
     SCRUB_POS.value = 0;
@@ -203,6 +205,7 @@ describe('TimeTravelBar', () => {
       unionManifest: { tree: { name: 'r' }, repo: { remote_url: null } },
       deltas: [],
       blobLines: {},
+      blobSizes: {},
       note: null,
     } as unknown as TimelineBundle;
     SCRUB_POS.value = 2;

@@ -1,5 +1,11 @@
 import { describe, test, expect } from 'vitest';
-import { buildPathTimelines, linesAt, presenceAt } from '@/city/timeline/replay';
+import {
+  buildPathTimelines,
+  linesAt,
+  bytesAt,
+  presenceAt,
+  statsAtDeletion,
+} from '@/city/timeline/replay';
 import type { TimelineBundle } from '@/types';
 
 const bundle = {
@@ -11,6 +17,7 @@ const bundle = {
     { sha: 'c', changes: [{ path: 'f.txt', sha: null }] },
   ],
   blobLines: { s1: 2, s2: 6 },
+  blobSizes: { s1: 40, s2: 120 },
   note: null,
 } as unknown as TimelineBundle;
 
@@ -36,6 +43,7 @@ describe('buildPathTimelines', () => {
         { sha: 'c', changes: [{ path: 'f.txt', sha: 's2' }] },
       ],
       blobLines: { s1: 2, s2: 6 },
+      blobSizes: { s1: 0, s2: 0 },
       note: null,
     } as unknown as TimelineBundle;
 
@@ -72,6 +80,7 @@ describe('linesAt', () => {
         { sha: 'd', changes: [] },
       ],
       blobLines: { s1: 10, s2: 20 },
+      blobSizes: { s1: 0, s2: 0 },
       note: null,
     } as unknown as TimelineBundle;
 
@@ -105,6 +114,7 @@ describe('presenceAt', () => {
         { sha: 'c', changes: [] },
       ],
       blobLines: { s1: 6 },
+      blobSizes: { s1: 0 },
       note: null,
     } as unknown as TimelineBundle;
     const pt = buildPathTimelines(mid).get('g.txt')!; // created at commit 1
@@ -130,10 +140,55 @@ describe('presenceAt', () => {
         { sha: 'c', changes: [{ path: 'f.txt', sha: 's2' }] },
       ],
       blobLines: { s1: 2, s2: 6 },
+      blobSizes: { s1: 0, s2: 0 },
       note: null,
     } as unknown as TimelineBundle;
 
     const pt = buildPathTimelines(resurrect).get('f.txt')!;
     expect(presenceAt(pt, 1, 0.2)).toBe(0.2);
+  });
+});
+
+describe('bytesAt', () => {
+  test('interpolates on the same curve as linesAt, and is 0 while absent', () => {
+    const pt = buildPathTimelines(bundle).get('f.txt')!;
+    expect(bytesAt(pt, 0)).toBe(40);
+    expect(bytesAt(pt, 0.5)).toBe(80);
+    expect(bytesAt(pt, 1)).toBe(120);
+    expect(bytesAt(pt, 2)).toBe(0);
+  });
+});
+
+describe('statsAtDeletion', () => {
+  test('reports the last live values, not the zeroes the deletion entry records', () => {
+    const pt = buildPathTimelines(bundle).get('f.txt')!;
+    expect(statsAtDeletion(pt, 2)).toEqual({ lines: 6, bytes: 120 });
+  });
+
+  test('is null while the path is still alive', () => {
+    const pt = buildPathTimelines(bundle).get('f.txt')!;
+    expect(statsAtDeletion(pt, 0)).toBeNull();
+    expect(statsAtDeletion(pt, 1)).toBeNull();
+  });
+
+  test('a resurrected path reports the latest death, not the first', () => {
+    const resurrect = {
+      commits: [{ sha: 'a' }, { sha: 'b' }, { sha: 'c' }, { sha: 'd' }],
+      unionManifest: { tree: { name: 'r' } },
+      deltas: [
+        { sha: 'a', changes: [{ path: 'f.txt', sha: 's1' }] },
+        { sha: 'b', changes: [{ path: 'f.txt', sha: null }] },
+        { sha: 'c', changes: [{ path: 'f.txt', sha: 's2' }] },
+        { sha: 'd', changes: [{ path: 'f.txt', sha: null }] },
+      ],
+      blobLines: { s1: 2, s2: 6 },
+      blobSizes: { s1: 40, s2: 120 },
+      note: null,
+    } as unknown as TimelineBundle;
+
+    const pt = buildPathTimelines(resurrect).get('f.txt')!;
+    expect(statsAtDeletion(pt, 1)).toEqual({ lines: 2, bytes: 40 });
+    expect(statsAtDeletion(pt, 2)).toBeNull(); // alive again
+    expect(statsAtDeletion(pt, 3)).toEqual({ lines: 6, bytes: 120 });
   });
 });

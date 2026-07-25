@@ -78,7 +78,20 @@ def test_timeline_stream_emits_progress_then_bundle(
     assert "timeline-progress" in names
     assert names[-1] == "timeline-complete"
     bundle = events[-1][1]["bundle"]
-    assert set(bundle) >= {"commits", "unionManifest", "deltas", "blobLines", "note"}
+    assert set(bundle) >= {
+        "commits",
+        "unionManifest",
+        "deltas",
+        "blobLines",
+        "blobSizes",
+        "note",
+    }
+    # Every referenced sha resolves in both tables, so the client can't KeyError.
+    for delta in bundle["deltas"]:
+        for change in delta["changes"]:
+            if change["sha"] is not None:
+                assert change["sha"] in bundle["blobLines"]
+                assert change["sha"] in bundle["blobSizes"]
     assert len(bundle["commits"]) == 2
 
 

@@ -562,6 +562,7 @@ class ManifestCacheTests(CacheTestBase):
             "unionManifest": self._make_manifest(),
             "deltas": [],
             "blobLines": {},
+            "blobSizes": {},
             "note": None,
         }
 

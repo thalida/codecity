@@ -23,8 +23,7 @@ function withRoot(relPath: string, rootName: string | null): string {
 export function formatHoverTooltip(
   target: PickTarget | null,
   rootName: string | null,
-  // Timeline: line count at the scrubbed commit (the height's source). Overrides
-  // the static FileNode.lines so the tooltip matches the building height.
+  // Timeline: lines at the scrubbed commit, or at deletion for a file already gone.
   scrubLines?: number | null
 ): string | null {
   if (!target) return null;
@@ -50,9 +49,6 @@ export function formatHoverTooltip(
     if (f.media_width != null && f.media_height != null) {
       return `${fpath}  ·  ${f.media_width}×${f.media_height}`;
     }
-    // A deleted file's replayed count is 0 because it is absent at this commit,
-    // not because it was empty, so the number would lie.
-    if (isDeletedTarget(target)) return fpath;
     const lines = scrubLines ?? f.lines;
     return fpath + (lines != null ? `  ·  ${lines} lines` : '');
   }

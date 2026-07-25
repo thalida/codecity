@@ -642,6 +642,10 @@ export interface components {
             blobLines: {
                 [key: string]: number;
             };
+            /** Blobsizes */
+            blobSizes: {
+                [key: string]: number;
+            };
             /** Commitlineranges */
             commitLineRanges: components["schemas"]["RangeStat"][];
             /** Note */

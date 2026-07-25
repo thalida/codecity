@@ -40,6 +40,7 @@ const BUNDLE = {
   unionManifest: { tree: { name: 'r' }, stats: {} },
   deltas: [],
   blobLines: {},
+  blobSizes: {},
   note: null,
 } as unknown as TimelineBundle;
 

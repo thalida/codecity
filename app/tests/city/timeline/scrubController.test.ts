@@ -38,6 +38,7 @@ const bundle = {
     { sha: 'd', changes: [{ path: 'f.txt', sha: null }] },
   ],
   blobLines: { s1: 2, s2: 6 },
+  blobSizes: { s1: 0, s2: 0 },
   note: null,
 } as unknown as TimelineBundle;
 
@@ -445,6 +446,7 @@ const anchoredBundle = {
     { sha: 'd', changes: [{ path: 'f.txt', sha: null }] },
   ],
   blobLines: { s1: 2, s2: 6, lo: 1, hi: 200 },
+  blobSizes: { s1: 0, s2: 0, lo: 0, hi: 0 },
   note: null,
 } as unknown as TimelineBundle;
 
@@ -750,6 +752,7 @@ test('a present media/0-line file gets a non-zero scaleY; an absent one stays fl
       { sha: 'b', changes: [{ path: 'm.png', sha: 's0' }] },
     ],
     blobLines: { s0: 0 },
+    blobSizes: { s0: 0 },
     note: null,
   } as unknown as TimelineBundle;
 
@@ -844,6 +847,7 @@ test('dedup: two buildings sharing one InstancedMesh set needsUpdate exactly onc
       },
     ],
     blobLines: { s1: 2, s2: 6, lo: 1, hi: 200 },
+    blobSizes: { s1: 0, s2: 0, lo: 0, hi: 0 },
     note: null,
   } as unknown as TimelineBundle;
 
@@ -1008,6 +1012,7 @@ test('couples street opacity to the max opacity of its buildings (block fade)', 
       },
     ],
     blobLines: { s1: 6 },
+    blobSizes: { s1: 0 },
     note: null,
   } as unknown as TimelineBundle;
 
@@ -1107,6 +1112,7 @@ test('block-fade is a true max, not last-write-wins: one deleted sibling cannot 
       { sha: 'd', changes: [{ path: 'd/f2.txt', sha: null }] },
     ],
     blobLines: { s1: 6 },
+    blobSizes: { s1: 0 },
     note: null,
   } as unknown as TimelineBundle;
 
@@ -1200,6 +1206,7 @@ test('descendant rollup: a container street with no direct files inherits its ch
       { sha: 'd', changes: [{ path: 'src/a/f.txt', sha: null }] },
     ],
     blobLines: { s1: 6 },
+    blobSizes: { s1: 0 },
     note: null,
   } as unknown as TimelineBundle;
 
@@ -1291,6 +1298,7 @@ test('footprints: a deleted building/street fades to 0 while a live sibling stay
       { sha: 'd', changes: [{ path: 'd/f1.txt', sha: null }] },
     ],
     blobLines: { s1: 6 },
+    blobSizes: { s1: 0 },
     note: null,
   } as unknown as TimelineBundle;
 
@@ -1462,6 +1470,7 @@ test('weathering at HEAD is 1:1 with live: same-day commits still spread by full
       { sha: 'b', changes: [{ path: 'fresh.txt', sha: 'f1' }] },
     ],
     blobLines: { f0: 6, f1: 6, s0: 6 },
+    blobSizes: { f0: 0, f1: 0, s0: 0 },
     note: null,
   } as unknown as TimelineBundle;
 
@@ -1527,6 +1536,7 @@ test('weathering: recency-at-scrub runs through the exact same reused color func
       { sha: 'd', changes: [{ path: 'f.txt', sha: null }] },
     ],
     blobLines: { s1: 6, lo: 1, hi: 200 },
+    blobSizes: { s1: 0, lo: 0, hi: 0 },
     note: null,
   } as unknown as TimelineBundle;
 
@@ -1570,6 +1580,7 @@ test('weathering: far past its last modification, color approaches the weathered
       { sha: 'c10', changes: [{ path: 'anchorLo.txt', sha: 'lo' }] },
     ],
     blobLines: { s1: 6, lo: 1, hi: 200 },
+    blobSizes: { s1: 0, lo: 0, hi: 0 },
     note: null,
   } as unknown as TimelineBundle;
 
@@ -1691,6 +1702,7 @@ test('iModifiedAge grows toward 1 (most stale) as scrub moves away from the last
       { sha: 'd', changes: [{ path: 'f.txt', sha: null }] },
     ],
     blobLines: { s1: 6, lo: 1, hi: 200 },
+    blobSizes: { s1: 0, lo: 0, hi: 0 },
     note: null,
   } as unknown as TimelineBundle;
 
@@ -1746,6 +1758,7 @@ test('iIconUV.w grows toward 1 (oldest) as scrub moves away from the created ind
       { sha: 'd', changes: [] },
     ],
     blobLines: { s1: 6, lo: 1, nw: 1 },
+    blobSizes: { s1: 0, lo: 0, nw: 0 },
     note: null,
   } as unknown as TimelineBundle;
 
@@ -1926,6 +1939,7 @@ test('a file empty at the scrub position renders as a slab, not a MIN_FLOORS bui
       { sha: 'c', changes: [{ path: 'empty.txt', sha: 's2' }] },
     ],
     blobLines: { s1: 0, s2: 6 },
+    blobSizes: { s1: 0, s2: 0 },
     note: null,
   } as unknown as TimelineBundle;
 
@@ -1997,6 +2011,7 @@ const alwaysEmptyBundle = {
     { sha: 'c', changes: [{ path: 'always-empty.txt', sha: null }] },
   ],
   blobLines: { s1: 0 },
+  blobSizes: { s1: 0 },
   note: null,
 } as unknown as TimelineBundle;
 
