@@ -1,4 +1,4 @@
-// city/utils/mediaKind.ts — Media-file classification.
+// utils/mediaKind.ts — Media-file classification.
 // Recognizes which files get a media-poster face rendered on their
 // building. Reads the backend-computed FileNode.mediaKind (the single
 // source of truth — the backend classifies extensions in

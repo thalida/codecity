@@ -3,8 +3,9 @@ import { afterEach, beforeEach, expect, test } from 'vitest';
 
 import { buildPathTimelines } from '@/city/timeline/replay';
 import { createScrubController, FUTURE_SLAB_FLOORS } from '@/city/timeline/scrubController';
-import { buildingHeightForLines, getBuildingDimensions } from '@/city/layout/dimensions';
+import { getBuildingDimensions } from '@/city/layout/dimensions';
 import type { HeightContext } from '@/city/layout/dimensions';
+import { BuildingKind } from '@/city/components/buildings/buildingKind';
 import { SCRUB_POS, TIMELINE_BUNDLE } from '@/state/stores/timeline';
 import { RUINS } from '@/state/stores/settings/ruins';
 import { BLUEPRINTS } from '@/state/stores/settings/blueprints';
@@ -46,6 +47,10 @@ const heightCtx: HeightContext = {
 };
 
 const file = { path: 'f.txt', lines: 6, size: 500, extension: 'txt' } as unknown as FileNode;
+
+// Scene-Y height at a given line count, off the same curve the controller drives.
+const heightForLines = (f: Parameters<typeof getBuildingDimensions>[0], lines: number): number =>
+  getBuildingDimensions({ ...f, lines }, heightCtx.lineStats, heightCtx.byteStats).h;
 
 // Most tests don't assert on footprint opacity; this stub keeps their deps minimal.
 const noopFootprints = {
@@ -108,6 +113,8 @@ function makeFakeMesh(initialFadeZ = 0) {
   let modifiedAgeUpdates = 0;
   let iconUvW = 0;
   let iconUvUpdates = 0;
+  let kind = -1;
+  let kindUpdates = 0;
 
   const iFade = {
     getY: () => iFadeY,
@@ -161,6 +168,18 @@ function makeFakeMesh(initialFadeZ = 0) {
     },
   };
 
+  const iKind = {
+    setX: (_slot: number, x: number) => {
+      kind = x;
+    },
+    set needsUpdate(v: boolean) {
+      if (v) kindUpdates++;
+    },
+    get needsUpdate() {
+      return false;
+    },
+  };
+
   const mesh = {
     setMatrixAt: (_slot: number, m: THREE.Matrix4) => {
       lastMatrix.copy(m);
@@ -191,6 +210,7 @@ function makeFakeMesh(initialFadeZ = 0) {
         if (n === 'iFloors') return iFloors;
         if (n === 'iModifiedAge') return iModifiedAge;
         if (n === 'iIconUV') return iIconUV;
+        if (n === 'iKind') return iKind;
         return undefined;
       },
     },
@@ -252,6 +272,12 @@ function makeFakeMesh(initialFadeZ = 0) {
     get iconUvUpdates() {
       return iconUvUpdates;
     },
+    get kind() {
+      return kind;
+    },
+    get kindUpdates() {
+      return kindUpdates;
+    },
   };
 }
 
@@ -286,7 +312,7 @@ function setup(
     y: 7,
     w: 2,
     d: 2,
-    h: buildingHeightForLines(file, 6, heightCtx),
+    h: heightForLines(file, 6),
     color: '#fff',
     file,
     cellId: 0,
@@ -355,7 +381,7 @@ function makeAnchoredScene(
       y: 7,
       w: 2,
       d: 2,
-      h: buildingHeightForLines(f, (f as unknown as { lines: number }).lines, heightCtx),
+      h: heightForLines(f, (f as unknown as { lines: number }).lines),
       color: '#fff',
       file: f,
       cellId: 0,
@@ -459,7 +485,7 @@ test('scaleY reflects the interpolated height at the scrub position', () => {
   SCRUB_POS.value = 1.5;
   controller.update();
 
-  const expected = buildingHeightForLines(file, 4, heightCtx); // lines lerp 2→6 at pos 1.5
+  const expected = heightForLines(file, 4); // lines lerp 2→6 at pos 1.5
   expect(fake.scaleY).toBeCloseTo(expected, 5);
   expect(fake.posY).toBeCloseTo(expected / 2, 5);
 });
@@ -473,7 +499,7 @@ test('at HEAD the height factor is ~1 (matches the union baseline)', () => {
   const fake = fakes.get('f.txt')!;
   SCRUB_POS.value = 2; // last live commit index, 6 lines
   controller.update();
-  expect(fake.scaleY).toBeCloseTo(buildingHeightForLines(file, 6, heightCtx), 5);
+  expect(fake.scaleY).toBeCloseTo(heightForLines(file, 6), 5);
 });
 
 test('height is its OWN size, not the present-set range: a lone present building keeps full height', () => {
@@ -481,7 +507,7 @@ test('height is its OWN size, not the present-set range: a lone present building
   const { fake, controller } = setup(); // no anchors: f.txt is the only present file
   SCRUB_POS.value = 2; // last live commit, 6 lines
   controller.update();
-  expect(fake.scaleY).toBeCloseTo(buildingHeightForLines(file, 6, heightCtx), 5);
+  expect(fake.scaleY).toBeCloseTo(heightForLines(file, 6), 5);
 });
 
 test('before its creation the building is flat and fully transparent', () => {
@@ -507,7 +533,7 @@ test('ruins on: a deleted building becomes a faint, blank-facade stub shorter th
   controller.update();
   expect(fake.iFadeX).toBeCloseTo(0.3, 5); // the BUILDING_OPACITY setting, faint
   expect(fake.scaleY).toBeGreaterThan(0); // a stub, not vanished
-  expect(fake.scaleY).toBeLessThan(buildingHeightForLines(file, 6, heightCtx)); // shorter than it ever was
+  expect(fake.scaleY).toBeLessThan(heightForLines(file, 6)); // shorter than it ever was
   expect(fake.floors).toBe(0); // blank facade (no windows)
   expect(fake.colorSetCount).toBeGreaterThan(0); // grayed color written
 });
@@ -704,7 +730,7 @@ test('a present media/0-line file gets a non-zero scaleY; an absent one stays fl
     y: 1,
     w: 2,
     d: 2,
-    h: buildingHeightForLines(mediaFile, 0, heightCtx),
+    h: heightForLines(mediaFile, 0),
     color: '#fff',
     file: mediaFile,
     cellId: 0,
@@ -792,7 +818,7 @@ test('dedup: two buildings sharing one InstancedMesh set needsUpdate exactly onc
     y: 7,
     w: 2,
     d: 2,
-    h: buildingHeightForLines(file, 6, heightCtx),
+    h: heightForLines(file, 6),
     color: '#fff',
     file,
     cellId: 0,
@@ -803,7 +829,7 @@ test('dedup: two buildings sharing one InstancedMesh set needsUpdate exactly onc
     y: 9,
     w: 2,
     d: 2,
-    h: buildingHeightForLines(file2, 6, heightCtx),
+    h: heightForLines(file2, 6),
     color: '#fff',
     file: file2,
     cellId: 0,
@@ -908,14 +934,8 @@ test('dedup: two buildings sharing one InstancedMesh set needsUpdate exactly onc
 
   expect(matUpdates).toBe(1);
   expect(iFadeUpdates).toBe(1);
-  expect(slotMatrices.get(0)!.elements[5]).toBeCloseTo(
-    buildingHeightForLines(file, 4, heightCtx),
-    5
-  );
-  expect(slotMatrices.get(1)!.elements[5]).toBeCloseTo(
-    buildingHeightForLines(file2, 4, heightCtx),
-    5
-  );
+  expect(slotMatrices.get(0)!.elements[5]).toBeCloseTo(heightForLines(file, 4), 5);
+  expect(slotMatrices.get(1)!.elements[5]).toBeCloseTo(heightForLines(file2, 4), 5);
   expect(slotFadeX.get(0)).toBeCloseTo(1, 5);
   expect(slotFadeX.get(1)).toBeCloseTo(1, 5);
 });
@@ -961,7 +981,7 @@ test('couples street opacity to the max opacity of its buildings (block fade)', 
       y: 0,
       w: 2,
       d: 2,
-      h: buildingHeightForLines(f, 6, heightCtx),
+      h: heightForLines(f, 6),
       color: '#fff',
       file: f,
       cellId: 0,
@@ -1059,7 +1079,7 @@ test('block-fade is a true max, not last-write-wins: one deleted sibling cannot 
       y: 0,
       w: 2,
       d: 2,
-      h: buildingHeightForLines(f, 6, heightCtx),
+      h: heightForLines(f, 6),
       color: '#fff',
       file: f,
       cellId: 0,
@@ -1151,7 +1171,7 @@ test('descendant rollup: a container street with no direct files inherits its ch
       y: 0,
       w: 2,
       d: 2,
-      h: buildingHeightForLines(f, 6, heightCtx),
+      h: heightForLines(f, 6),
       color: '#fff',
       file: f,
       cellId: 0,
@@ -1241,7 +1261,7 @@ test('footprints: a deleted building/street fades to 0 while a live sibling stay
       y: 0,
       w: 2,
       d: 2,
-      h: buildingHeightForLines(f, 6, heightCtx),
+      h: heightForLines(f, 6),
       color: '#fff',
       file: f,
       cellId: 0,
@@ -1300,7 +1320,7 @@ test('the ROOT street stays at opacity 1 even when every building is absent, unl
     y: 0,
     w: 2,
     d: 2,
-    h: buildingHeightForLines(file, 6, heightCtx),
+    h: heightForLines(file, 6),
     color: '#fff',
     file,
     cellId: 0,
@@ -1811,7 +1831,7 @@ test('future roads always render: a non-present, non-ruin street is a future roa
     y: 0,
     w: 2,
     d: 2,
-    h: buildingHeightForLines(file, 6, heightCtx),
+    h: heightForLines(file, 6),
     color: '#fff',
     file,
     cellId: 0,
@@ -1850,4 +1870,147 @@ test('future roads always render: a non-present, non-ruin street is a future roa
   expect(opacityByStreet.get(rootStreet)).toBe(1); // root always renders
   expect(opacityByStreet.get(dStreet)).toBe(1); // future road, fully opaque
   expect(tintByStreet.get(dStreet)).toBe(2); // future tint
+});
+
+test('a file empty at the scrub position renders as a slab, not a MIN_FLOORS building', () => {
+  // empty.txt is created empty at commit 1 and gains 6 lines at commit 2, so at
+  // pos 1 the replayed line count is 0 while its union `size` (max over history) is non-zero.
+  const emptyBundle = {
+    commits: [{ sha: 'a' }, { sha: 'b' }, { sha: 'c' }],
+    unionManifest: { tree: { name: 'r' } },
+    deltas: [
+      { sha: 'a', changes: [] },
+      { sha: 'b', changes: [{ path: 'empty.txt', sha: 's1' }] },
+      { sha: 'c', changes: [{ path: 'empty.txt', sha: 's2' }] },
+    ],
+    blobLines: { s1: 0, s2: 6 },
+    note: null,
+  } as unknown as TimelineBundle;
+
+  const emptyFile = {
+    path: 'empty.txt',
+    lines: 6,
+    size: 500,
+    extension: 'txt',
+  } as unknown as FileNode;
+
+  const b = {
+    x: 5,
+    y: 7,
+    w: 2,
+    d: 2,
+    h: 96,
+    color: '#fff',
+    file: emptyFile,
+    cellId: 0,
+    slotId: 0,
+  } as unknown as Building;
+
+  const index = new BuildingIndex();
+  index.insert(b);
+  const fake = makeFakeMesh();
+  TIMELINE_BUNDLE.value = emptyBundle;
+
+  const controller = createScrubController({
+    getBuildingIndex: () => index,
+    getFacadePanels: () => null,
+    getMeshForBuilding: () => ({ mesh: fake.mesh, slot: 0 }),
+    timelines: buildPathTimelines(emptyBundle),
+    heightCtx,
+    footprints: noopFootprints,
+    streets: { setStreetOpacity: () => {}, setStreetLabelOpacity: () => {} },
+    streetsByDir: {},
+    picker: mockPicker(),
+    trees: noopTrees,
+    fireflies: noopFireflies,
+  });
+
+  SCRUB_POS.value = 1;
+  controller.update();
+
+  const slabHeight =
+    BUILDING_DIMENSIONS.value.EMPTY_SLAB_FLOORS * BUILDING_DIMENSIONS.value.FLOOR_HEIGHT;
+  expect(fake.scaleY).toBeCloseTo(slabHeight, 5);
+  expect(fake.floors).toBe(0);
+  expect(fake.kind).toBe(BuildingKind.Empty);
+
+  // ...and it grows into a real building once the file has content.
+  SCRUB_POS.value = 2;
+  controller.update();
+  expect(fake.scaleY).toBeGreaterThan(slabHeight);
+  expect(fake.kind).toBe(BuildingKind.Normal);
+});
+
+// always-empty.txt has 0 lines every version it ever held (created@1, deleted@2),
+// so isEmptyFile(scrubFile) is true at EVERY scrub position — the ruin/future
+// arms in the iKind chain are the only thing that can still tell "deleted" or
+// "not yet created" apart from "present and empty".
+const alwaysEmptyBundle = {
+  commits: [{ sha: 'a' }, { sha: 'b' }, { sha: 'c' }],
+  unionManifest: { tree: { name: 'r' } },
+  deltas: [
+    { sha: 'a', changes: [] },
+    { sha: 'b', changes: [{ path: 'always-empty.txt', sha: 's1' }] },
+    { sha: 'c', changes: [{ path: 'always-empty.txt', sha: null }] },
+  ],
+  blobLines: { s1: 0 },
+  note: null,
+} as unknown as TimelineBundle;
+
+const alwaysEmptyFile = {
+  path: 'always-empty.txt',
+  lines: 0,
+  size: 0,
+  extension: 'txt',
+} as unknown as FileNode;
+
+function setupAlwaysEmpty() {
+  const b = {
+    x: 5,
+    y: 7,
+    w: 2,
+    d: 2,
+    h: BUILDING_DIMENSIONS.value.EMPTY_SLAB_FLOORS * BUILDING_DIMENSIONS.value.FLOOR_HEIGHT,
+    color: '#fff',
+    file: alwaysEmptyFile,
+    cellId: 0,
+    slotId: 0,
+  } as unknown as Building;
+
+  const index = new BuildingIndex();
+  index.insert(b);
+  const fake = makeFakeMesh();
+  TIMELINE_BUNDLE.value = alwaysEmptyBundle;
+
+  const controller = createScrubController({
+    getBuildingIndex: () => index,
+    getFacadePanels: () => null,
+    getMeshForBuilding: () => ({ mesh: fake.mesh, slot: 0 }),
+    timelines: buildPathTimelines(alwaysEmptyBundle),
+    heightCtx,
+    footprints: noopFootprints,
+    streets: { setStreetOpacity: () => {}, setStreetLabelOpacity: () => {} },
+    streetsByDir: {},
+    picker: mockPicker(),
+    trees: noopTrees,
+    fireflies: noopFireflies,
+  });
+
+  return { fake, controller };
+}
+
+test('an always-empty file that is deleted renders as a ruin, not a slab', () => {
+  RUINS.value = { ...RUINS.value, ENABLED: true };
+  const { fake, controller } = setupAlwaysEmpty();
+  SCRUB_POS.value = 2; // deletedIdx
+  controller.update();
+  expect(fake.kind).toBe(BuildingKind.Ruin);
+});
+
+test('an always-empty file before its creation renders as future, not a slab', () => {
+  BLUEPRINTS.value = { ...BLUEPRINTS.value, ENABLED: true };
+  const { fake, controller } = setupAlwaysEmpty();
+  SCRUB_POS.value = 0.5; // before createdIdx = 1
+  controller.update();
+  expect(fake.kind).toBe(BuildingKind.Future);
 });

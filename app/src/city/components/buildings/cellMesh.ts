@@ -17,7 +17,8 @@ import type { CellTile } from './cellTile';
 import type { Building } from '@/types/index';
 import { getBuildingMaterial, getIconAtlas } from './material';
 import { getFileIconName } from '@/utils/fileIcons';
-import { isDataBuilding } from '../../utils/binaryKind';
+import { isDataBuilding } from '@/utils/binaryKind';
+import { isEmptyFile } from '@/utils/emptyKind';
 import { BuildingKind } from './buildingKind';
 import { seedFromPath, getBuildingTilt, composeShearMatrix } from './tilt';
 
@@ -209,9 +210,14 @@ export function writeBuildingToSlot(cell: CellTile, b: Building): void {
   const iDoorWidthAttr = mesh.geometry.getAttribute('iDoorWidth') as THREE.InstancedBufferAttribute;
   iDoorWidthAttr.setX(slot, b.w * doorWidthFrac);
 
-  // --- Render kind (Data → windowless facade; Timeline overwrites Ruin/Future) ---
+  // --- Render kind (Empty slab / Data windowless facade; Timeline overwrites Ruin/Future) ---
+  // Empty first, so a 0-byte binary is a slab rather than a data block — same
+  // precedence as getBuildingDimensions.
   const iKindAttr = mesh.geometry.getAttribute('iKind') as THREE.InstancedBufferAttribute;
-  iKindAttr.setX(slot, isDataBuilding(b.file) ? BuildingKind.Data : BuildingKind.Normal);
+  let kind: number = BuildingKind.Normal;
+  if (isEmptyFile(b.file)) kind = BuildingKind.Empty;
+  else if (isDataBuilding(b.file)) kind = BuildingKind.Data;
+  iKindAttr.setX(slot, kind);
 
   // --- Fade (opacity defaults to 1.0; silhouette + outlineOpacity default to 0) ---
   const iFadeAttr = mesh.geometry.getAttribute('iFade') as THREE.InstancedBufferAttribute;

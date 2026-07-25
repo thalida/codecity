@@ -40,6 +40,7 @@ const int KIND_NORMAL = 0;
 const int KIND_RUIN = 1;   // crumbled stub (Timeline)
 const int KIND_FUTURE = 2; // blank slab (Timeline)
 const int KIND_DATA = 3;   // windowless binary facade
+const int KIND_EMPTY = 4;  // 0-byte file → flat slab
 
 // Face indices (BoxGeometry material-slot order), mirroring building.vert.
 const int FACE_EAST = 0;   // +X
@@ -282,6 +283,12 @@ vec4 renderWallFace() {
 
   vec3 wallColor = baseColor * lightFactor;
   vec3 slabColor = shadeColor(baseColor, uSlabLightnessDelta) * lightFactor;
+
+  // Empty file: a flat slab, so its sliver of wall stays plain — no window,
+  // door, seam, or grime math on a face that's a fraction of a floor tall.
+  if (vKind == KIND_EMPTY) {
+    return vec4(wallColor, vOpacity);
+  }
 
   // Data building: sealed, windowless facade with faint warehouse seams (the
   // fingerprint layers on via the overlay panels). Branch early so no window math runs.

@@ -11,8 +11,9 @@ import { SpatialGrid, type WorldBounds } from './spatialGrid';
 import { createEmptyCellTile, type CellTile, allocateSlot } from './cellTile';
 import { attachBuildingMeshToCell, writeBuildingToSlot } from './cellMesh';
 import { InstancedFacadePanels } from './facadePanels';
-import { isMediaFile } from '@/city/utils/mediaKind';
-import { isDataBuilding } from '@/city/utils/binaryKind';
+import { isMediaFile } from '@/utils/mediaKind';
+import { isDataBuilding } from '@/utils/binaryKind';
+import { isEmptyFile } from '@/utils/emptyKind';
 import { BUILDINGS } from '@/state/stores/settings/buildings';
 import { BuildingIndex } from './buildingIndex';
 import type { Building } from '@/types/index';
@@ -115,13 +116,15 @@ export function buildCellsFromLayout(
   // so the LOD/streaming/fade machinery is shared. Media is gated on MEDIA_ENABLED
   // (the billboard A/B toggle); binary fingerprints are a distinct feature and
   // always render. Textures aren't loaded here — updateLOD streams on-screen ones.
+  // An empty file has no image to billboard and no bytes to fingerprint — it
+  // renders as the bare slab, so it gets no panel and no texture layer.
   const mediaBuildings = BUILDINGS.value.MEDIA_ENABLED
-    ? buildings.filter((b) => isMediaFile(b.file))
+    ? buildings.filter((b) => isMediaFile(b.file) && !isEmptyFile(b.file))
     : [];
   // DATA_ENABLED gates only the facade texture; the windowless block still
   // renders from the building mesh (cellMesh) regardless.
   const binaryBuildings = BUILDINGS.value.DATA_ENABLED
-    ? buildings.filter((b) => isDataBuilding(b.file))
+    ? buildings.filter((b) => isDataBuilding(b.file) && !isEmptyFile(b.file))
     : [];
   let facadePanels: InstancedFacadePanels | null = null;
   const panelCount = mediaBuildings.length + binaryBuildings.length;

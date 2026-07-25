@@ -11,6 +11,7 @@ import { buildCellsFromLayout } from '@/city/components/buildings/cellAssembly';
 import { createMergedSidewalkMesh } from '@/city/components/streets/streets';
 import { RUINED_STREET_DIRS } from '@/city/timeline/scrubController';
 import { TIMELINE_MODE } from '@/state/stores/timeline';
+import { BuildingKind } from '@/city/components/buildings/buildingKind';
 import { makeCityState } from '../../_helpers/cityFixtures';
 import { NodeKind, StreetAxis } from '@/types';
 import type { Building, CommitEntry, PickerWorld, Street } from '@/types';
@@ -109,6 +110,18 @@ describe('picker: Timeline scrub-hidden guard — buildings', () => {
     const t = picker.interpretHit(picker.pickAt(400, 300));
     expect(t?.kind).toBe(NodeKind.File);
     expect(t?.kind === NodeKind.File && t.isRuin).toBe(true);
+    picker.dispose();
+  });
+
+  it('an empty-file slab is still selectable (only Future is unpickable)', () => {
+    const { picker, iFade, iKind, slot } = setup();
+    TIMELINE_MODE.value = true;
+    iFade.setXYZ(slot, 1, 0, 0);
+    iKind.setX(slot, BuildingKind.Empty);
+
+    const t = picker.interpretHit(picker.pickAt(400, 300));
+    expect(t?.kind).toBe(NodeKind.File);
+    expect(t?.kind === NodeKind.File && t.file.path).toBe('src/a.ts');
     picker.dispose();
   });
 

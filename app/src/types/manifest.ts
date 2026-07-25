@@ -40,7 +40,7 @@ export interface FileNode {
    * Media classification by extension, computed by the backend (single
    * source of truth — the frontend no longer hand-lists extensions). null
    * for non-media files. See api/services/media.py:media_kind and
-   * city/utils/mediaKind.ts.
+   * utils/mediaKind.ts.
    */
   mediaKind?: 'image' | 'video' | null;
   /**
