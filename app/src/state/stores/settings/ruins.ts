@@ -33,7 +33,7 @@ const RUINS_FIELDS = {
   STUB_HEIGHT: {
     route: ChangeRoute.Live,
     kind: FieldKind.Slider,
-    default: 2,
+    default: 0.05,
     min: 0.05,
     max: 4,
     step: 0.05,
@@ -43,7 +43,7 @@ const RUINS_FIELDS = {
   DESATURATION: {
     route: ChangeRoute.Live,
     kind: FieldKind.Slider,
-    default: 0.1,
+    default: 0.5,
     min: 0,
     max: 1,
     step: 0.05,
@@ -60,14 +60,14 @@ const RUINS_FIELDS = {
   X_COLOR: {
     route: ChangeRoute.Live,
     kind: FieldKind.Color,
-    default: '#ff3b3b',
+    default: '#290000',
     label: 'Cross color',
     tip: 'Color of the cross over a deleted file’s roof.',
   },
   X_WIDTH: {
     route: ChangeRoute.Live,
     kind: FieldKind.Slider,
-    default: 0.18,
+    default: 0.3,
     min: 0.02,
     max: 0.6,
     step: 0.02,
