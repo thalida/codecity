@@ -81,7 +81,7 @@ const SCENE_FIELDS = {
   FOG_INTENSITY: {
     route: ChangeRoute.Refresh,
     kind: FieldKind.Slider,
-    default: 0.8,
+    default: 0.5,
     min: 0,
     max: 1,
     step: 0.05,
@@ -91,12 +91,12 @@ const SCENE_FIELDS = {
   FOG_HEIGHT_FRAC: {
     route: ChangeRoute.Refresh,
     kind: FieldKind.Slider,
-    default: 0.25,
+    default: 0.5,
     min: 0,
     max: 1,
     step: 0.05,
     label: 'Falloff height ×',
-    tip: "How much of each building the haze covers, as a fraction of that building's own height. 0.25 hazes the bottom quarter of every building, so a 2-floor stub and a 60-floor tower wear the same relative skirt.",
+    tip: "How much of each building the haze covers, as a fraction of that building's own height. 0.5 hazes the bottom half of every building, so a 2-floor stub and a 60-floor tower wear the same relative skirt.",
   },
 } satisfies FieldMap;
 
