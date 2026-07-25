@@ -67,6 +67,7 @@ __all__ = [
     "RepoNotFoundError",
     "clone_dir_for",
     "ensure_clone",
+    "fetch_lfs_history",
     "hydrate_blobs",
     "list_remote_branches",
     "remove_clone",
@@ -611,6 +612,58 @@ def _pull_lfs(
         raise
     except CloneError as e:
         _log(f"git lfs pull failed ({e}); leaving pointer files in place")
+
+
+# git lfs pull only materializes HEAD; the timeline walks every commit, so its
+# historical blobs need their objects too. Skip a multi-GB history rather than
+# block a scan on a huge download.
+_LFS_HISTORY_CAP_BYTES = 5 * 1024 * 1024 * 1024
+
+
+def _lfs_history_bytes(target: Path) -> int:
+    """Total byte size of every-history LFS object, or -1 if unknown."""
+    try:
+        out = _run_git("lfs", "ls-files", "--all", "--size", cwd=target)
+    except CloneError:
+        return -1
+    units = {"B": 1, "KB": 1024, "MB": 1024**2, "GB": 1024**3}
+    total = 0.0
+    for m in re.finditer(r"\(([\d.]+)\s*([KMG]?B)\)", out):
+        total += float(m.group(1)) * units.get(m.group(2), 1)
+    return int(total)
+
+
+def fetch_lfs_history(
+    target: Path,
+    *,
+    on_heartbeat: Callable[[int | None], None] | None = None,
+    cancel_event: "threading.Event | None" = None,
+) -> None:
+    """Fetch ALL-history Git LFS objects so the timeline reads real content at
+    every commit, not just HEAD. Best-effort + capped; a missing object stays a
+    pointer (0 lines) rather than failing the scan."""
+    if not _repo_uses_lfs(target):
+        return
+    total = _lfs_history_bytes(target)
+    if total > _LFS_HISTORY_CAP_BYTES:
+        _log(f"lfs history ~{total // 1024**2}MB over cap; timeline uses HEAD lfs only")
+        return
+    _log(f"fetching all-history git lfs objects for {target}")
+    try:
+        _run_git_streaming(
+            "lfs",
+            "fetch",
+            "--all",
+            cwd=target,
+            progress_dir=target / ".git" / "lfs" / "objects",
+            on_heartbeat=on_heartbeat,
+            cancel_event=cancel_event,
+        )
+        _log("git lfs fetch --all complete")
+    except ScanCancelledError:
+        raise
+    except CloneError as e:
+        _log(f"git lfs fetch --all failed ({e}); historical lfs stays as pointers")
 
 
 def _fresh_clone(
