@@ -1,17 +1,8 @@
-// components/TimeTravelBar/scrubberScale.ts — pure date<->index mapping for the
-// scrubber. Each commit gets a track position blending its point in TIME with its
-// ORDINAL, so quiet stretches still spread and bursts still cluster, but no commit
-// collapses onto its neighbour. SCRUB_POS stays a float COMMIT INDEX, so the scrub
-// controller is unchanged. Commit dates are treated as non-decreasing (git commit
-// order); a locally out-of-order date is clamped up so the axis stays well-ordered.
+// Pure date<->index mapping for the scrubber. Track position blends each commit's
+// point in time with its ordinal; SCRUB_POS stays a float commit index.
 
-/**
- * How much ordinal spacing to mix into the time axis. Pure time (0) is unusable
- * on bursty repos: 100 commits in an hour of a 5-week history share ~1px and
- * can't be dragged apart. Pure ordinal (1) makes a 6-month gap look like a
- * 1-minute one. This keeps the time shape readable while guaranteeing every
- * commit a floor share of the track.
- */
+// Pure time (0) crushes a burst into ~1px; pure ordinal (1) makes a 6-month gap
+// look like a 1-minute one.
 const INDEX_WEIGHT = 0.35;
 
 export interface ScrubberScale {
@@ -57,9 +48,8 @@ export function indexToFraction(scale: ScrubberScale, pos: number): number {
   return frac[lo] + (frac[hi] - frac[lo]) * (clamped - lo);
 }
 
-/** Float commit index -> wall-clock ms, lerped between the bracketing commits.
- *  Track fraction can't be inverted back to time once the axis blends in the
- *  ordinal, so callers wanting "when is the handle" ask by index. */
+/** Float commit index -> wall-clock ms. Ask by index: track fraction is no
+ *  longer invertible to time once the ordinal is blended in. */
 export function indexToMs(scale: ScrubberScale, pos: number): number {
   const { ms } = scale;
   if (ms.length === 0) return 0;

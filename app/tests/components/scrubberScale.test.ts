@@ -56,9 +56,8 @@ describe('scrubberScale', () => {
   });
 
   it('a single-instant history scrubs by even index spacing, not a collapsed axis', () => {
-    // Every commit shares one timestamp, so the time span is zero. The axis
-    // falls back to pure index spacing so you can still scrub across all four
-    // instead of them stacking on the left edge.
+    // Zero time span, so the axis falls back to pure index spacing rather than
+    // stacking all four on the left edge.
     const s = buildScrubberScale(['2026-07-24', '2026-07-24', '2026-07-24', '2026-07-24']);
     expect(indexToFraction(s, 0)).toBe(0); // oldest at the left
     expect(indexToFraction(s, 3)).toBe(1); // newest (present) at the right
