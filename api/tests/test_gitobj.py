@@ -160,3 +160,28 @@ def test_missing_blob_is_skipped_not_fetched(tmp_path):
     assert present in stats and absent not in stats
     sizes = blob_sizes_batch(tmp_path, [present, absent])
     assert present in sizes and absent not in sizes
+
+
+def test_resolve_lfs_pointer(tmp_path):
+    """A git-lfs pointer resolves to its LOCAL object's bytes + declared size, so
+    timeline blob stats match Live's smudged working tree. Missing object (a
+    blobless clone's unfetched history) → (b'', declared size), not the pointer."""
+    from api.services.gitobj import _parse_lfs_pointer, _resolve_lfs
+
+    oid = "a" * 64
+    real = b"line1\nline2\nline3\n"
+    obj = tmp_path / ".git" / "lfs" / "objects" / oid[:2] / oid[2:4] / oid
+    obj.parent.mkdir(parents=True)
+    obj.write_bytes(real)
+    pointer = (
+        b"version https://git-lfs.github.com/spec/v1\n"
+        b"oid sha256:" + oid.encode() + b"\nsize 18\n"
+    )
+    assert _parse_lfs_pointer(pointer) == (oid, 18)
+    assert _resolve_lfs(tmp_path, pointer, 132) == (real, 18)  # present → real bytes
+    assert _resolve_lfs(tmp_path, b"plain\n", 6) == (b"plain\n", 6)  # non-pointer as-is
+    missing = pointer.replace(oid.encode(), b"f" * 64)
+    assert _resolve_lfs(tmp_path, missing, 132) == (
+        b"",
+        18,
+    )  # unfetched → declared size

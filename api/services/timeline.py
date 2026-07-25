@@ -160,7 +160,7 @@ def _collect_blob_tables(
         on_progress({"stage": "blobs", "done": total - len(misses), "total": total})
     fresh = blob_stats_batch(root, misses, media_shas=media_shas) if misses else {}
     for sha, st in fresh.items():
-        entry: BlobEntry = {"lines": st.lines, "binary": st.binary}
+        entry: BlobEntry = {"lines": st.lines, "binary": st.binary, "size": st.size}
         if st.media_width is not None and st.media_height is not None:
             entry["media_width"], entry["media_height"] = (
                 st.media_width,
@@ -175,7 +175,12 @@ def _collect_blob_tables(
     if on_progress is not None:
         on_progress({"stage": "blobs", "done": total, "total": total})
     lines = {s: cached[s]["lines"] for s in shas if s in cached}
+    # git-lfs: prefer the resolved size; blob_sizes_batch sees only the pointer.
     sizes = blob_sizes_batch(root, shas)
+    for s in shas:
+        entry = cached.get(s)
+        if entry is not None and "size" in entry:
+            sizes[s] = entry["size"]
     blob_stats = {s: cached[s] for s in shas if s in cached}
     return lines, sizes, blob_stats
 
@@ -263,12 +268,9 @@ def build_union_manifest(
 def compute_commit_line_ranges(
     deltas: list[CommitDelta], blob_lines: dict[str, int]
 ) -> list[RangeStat]:
-    """Per-commit inclusive line range over the files present at each commit,
-    counting only non-zero line counts (binaries/empties excluded) — mirrors
-    compute_repo_stats, so range[HEAD] equals the live manifest's lineCountRange.
-    The client normalizes building height against range[pos] at each scrub point
-    so Timeline matches Live-at-that-commit. Empty commit -> {0, 0} (the client
-    applies the same safe fallback the live path uses for a degenerate range)."""
+    """Per-commit line range over the present files (non-zero only) — mirrors
+    compute_repo_stats, so range[HEAD] equals the live lineCountRange. The client
+    normalizes height against range[pos] to match Live-at-that-commit."""
     present: dict[str, int] = {}  # path -> current line count
     ranges: list[RangeStat] = []
     for d in deltas:

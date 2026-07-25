@@ -169,10 +169,8 @@ def _stat_fields(entry: os.DirEntry[str]) -> tuple[int, str, str, float]:
 
 
 def _line_count(path: Path) -> int:
-    # Exact count, streamed in 1 MB chunks to stay memory-flat on large files.
-    # Same rule as gitobj.count_lines (newlines + 1 for an unterminated final
-    # line) so a file's Live count equals its Timeline blob count. No sampling:
-    # an estimate here wouldn't match the exact blob count and skews height.
+    # Exact streamed count (no sampling), same rule as gitobj.count_lines so a
+    # file's Live count equals its Timeline blob count.
     try:
         total = 0
         last_byte = b""
@@ -1837,7 +1835,7 @@ def reconstruct_manifest(root: str, ref: str, *, use_cache: bool = True) -> Mani
         else {}
     )
     for sha, s in fresh.items():
-        entry: BlobEntry = {"lines": s.lines, "binary": s.binary}
+        entry: BlobEntry = {"lines": s.lines, "binary": s.binary, "size": s.size}
         if s.media_width is not None and s.media_height is not None:
             entry["media_width"], entry["media_height"] = s.media_width, s.media_height
         if s.binary_type is not None:

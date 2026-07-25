@@ -68,9 +68,8 @@ export interface ScrubControllerDeps {
   // hover dims the surrounding city here exactly as buildingFader does in Live.
   picker: Pick<ReturnType<typeof createPicker>, 'selection' | 'hover'>;
   timelines: Map<string, PathTimeline>;
-  // Per-commit present-set line range (backend-computed, cached). Height
-  // normalizes against range[floor(pos)] so a scrub point matches Live-at-that-
-  // commit; heightCtx supplies only byteStats now (width is layout-baked).
+  // Per-commit line range (backend-computed); height normalizes against
+  // range[floor(pos)] to match Live-at-that-commit. heightCtx is byteStats only.
   commitLineRanges: RangeStat[];
   heightCtx: HeightContext;
   streets: {
@@ -155,9 +154,7 @@ export function createScrubController(deps: ScrubControllerDeps) {
     const pos = SCRUB_POS.peek();
     deps.trees.setScrubCommit(Math.floor(pos));
     deps.fireflies.setScrubCommit(Math.floor(pos));
-    // Height normalizes against THIS commit's present-set line range (same rule
-    // as the live scan's stats), so at HEAD it matches Live and each earlier
-    // commit matches Live-at-that-commit. Degenerate {0,0} -> safe {1,1}.
+    // Height range for this commit → matches Live-at-that-commit. Degenerate {0,0} → {1,1}.
     const ri = Math.max(0, Math.min(deps.commitLineRanges.length - 1, Math.floor(pos)));
     const r = deps.commitLineRanges[ri];
     const lineStats: RangeStat = r && (r.min > 0 || r.max > 0) ? r : { min: 1, max: 1 };
@@ -302,10 +299,7 @@ export function createScrubController(deps: ScrubControllerDeps) {
       const scrubFile = present ? { ...b.file, lines: linesAt(pt, pos) } : b.file;
       if (present) {
         // Gate height on presence (intervals), not line count: media/empty files are present with 0 lines.
-        // Normalize floors against this commit's present-set line range (lineStats
-        // above) so height matches Live-at-that-commit. Width stays layout-baked
-        // (b.w) from the union, so the city doesn't reflow while scrubbing;
-        // byteStats only feeds the unused dims.w here.
+        // Height uses lineStats (this commit's range); width stays layout-baked (b.w), so dims.w is unused.
         const dims = getBuildingDimensions(
           scrubFile,
           lineStats,

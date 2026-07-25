@@ -108,6 +108,7 @@ class BlobStats(NamedTuple):
     media_width: int | None
     media_height: int | None
     binary_type: str | None
+    size: int  # real byte size (resolved for git-lfs, else the blob size)
 
 
 def is_binary_bytes(chunk: bytes) -> bool:
@@ -121,12 +122,50 @@ def is_binary_bytes(chunk: bytes) -> bool:
 
 
 def count_lines(data: bytes) -> int:
-    """Canonical line count: newline terminators + 1 for a non-empty final line
-    lacking one (so one unterminated line is 1, an empty file is 0). Live's
-    scan._line_count streams the identical rule, so counts match across modes."""
+    """Line count: newlines + 1 for an unterminated final line (empty → 0).
+    scan._line_count streams the identical rule so Live == Timeline."""
     if not data:
         return 0
     return data.count(b"\n") + (0 if data.endswith(b"\n") else 1)
+
+
+# A git-lfs blob is a pointer, not content; resolve it so the timeline reads the
+# same bytes Live's smudged working tree does.
+_LFS_POINTER_PREFIX = b"version https://git-lfs.github.com/spec/v1"
+_LFS_MAX_RESOLVE_BYTES = 128 * 1024 * 1024
+
+
+def _parse_lfs_pointer(content: bytes) -> tuple[str, int] | None:
+    """(oid, byte size) if `content` is a git-lfs pointer, else None."""
+    if not content.startswith(_LFS_POINTER_PREFIX):
+        return None
+    oid: str | None = None
+    size: int | None = None
+    for line in content[:512].split(b"\n"):
+        if line.startswith(b"oid sha256:"):
+            oid = line[len(b"oid sha256:") :].strip().decode("ascii", "ignore") or None
+        elif line.startswith(b"size "):
+            try:
+                size = int(line[len(b"size ") :])
+            except ValueError:
+                pass
+    return (oid, size) if oid and size is not None else None
+
+
+def _resolve_lfs(root: Path, content: bytes, blob_size: int) -> tuple[bytes, int]:
+    """(real bytes, size) for an lfs pointer via the LOCAL object store; non-pointer
+    unchanged. Missing historical object → (b'', declared size), never a fetch."""
+    ptr = _parse_lfs_pointer(content)
+    if ptr is None:
+        return content, blob_size
+    oid, declared = ptr
+    obj = root / ".git" / "lfs" / "objects" / oid[:2] / oid[2:4] / oid
+    try:
+        if obj.is_file() and obj.stat().st_size <= _LFS_MAX_RESOLVE_BYTES:
+            return obj.read_bytes(), declared
+    except OSError:
+        pass
+    return b"", declared
 
 
 def blob_stats_batch(
@@ -170,6 +209,8 @@ def blob_stats_batch(
         sha, size = hp[0], int(hp[2])
         content = out[i : i + size]
         i += size + 1  # trailing newline after content
+        # git-lfs: pointer → real content so stats match Live.
+        content, real_size = _resolve_lfs(root, content, size)
         binary = is_binary_bytes(content)
         lines = 0 if binary else count_lines(content)
         mw, mh = (
@@ -182,6 +223,7 @@ def blob_stats_batch(
             media_width=mw,
             media_height=mh,
             binary_type=binary_type,
+            size=real_size,
         )
     return result
 

@@ -66,6 +66,7 @@ class BlobEntry(TypedDict):
 
     lines: int
     binary: bool
+    size: NotRequired[int]  # real byte size (resolved for git-lfs, else blob size)
     media_width: NotRequired[int]
     media_height: NotRequired[int]
     binaryType: NotRequired[str]
@@ -78,9 +79,9 @@ class BlobEntry(TypedDict):
 # Cache-format versions: bump when the cached shape changes so stale blobs are
 # treated as a miss and re-scanned. (Per-bump rationale lives in git history.)
 _FILE_CACHE_VERSION = 3  # v3: exact line counts (dropped the >5MB sampling estimate)
-_BLOB_STATS_CACHE_VERSION = 3  # v3: count_lines (+1 for an unterminated final line)
+_BLOB_STATS_CACHE_VERSION = 4  # v4: git-lfs pointers resolved to real content
 _GIT_HISTORY_CACHE_VERSION = 14  # v14: merges no longer diffed
-_TIMELINE_CACHE_VERSION = 4  # v4: per-commit present-set ranges + exact blob counts
+_TIMELINE_CACHE_VERSION = 5  # v5: git-lfs blob resolution (was v4: per-commit ranges)
 _MANIFEST_SCHEMA_VERSION = (
     # v12: per-dir descendants_created_min / descendants_modified_max
     # v13: ext_breakdown `ext` is null (was "(none)") for extensionless files
@@ -92,9 +93,7 @@ _MANIFEST_SCHEMA_VERSION = (
     #   (field rename is a shape change; old blobs lack the new key)
     # v19: FileNode.binaryType + RepoStats.binaryCount/maxBinaryBytesFile/
     #   minBinaryBytesFile (binary files as a first-class "data" category)
-    # v20: exact line counts (was sampled/extrapolated over 5MB) — line VALUES
-    #   change with no shape change; content_signature is unaffected, so bump
-    #   here to force cached manifests to rebuild with the exact counts
+    # v20: exact line counts (was sampled >5MB) — values change, bump to rebuild
     20
 )
 # Composite: invalidates when EITHER the manifest schema OR the git-history
@@ -256,6 +255,9 @@ def cache_load_blobs(abs_root: Path) -> dict[str, "BlobEntry"]:
         if not isinstance(binary, bool):
             continue
         entry: BlobEntry = {"lines": lines, "binary": binary}
+        sz = d.get("size")
+        if isinstance(sz, int) and not isinstance(sz, bool):
+            entry["size"] = sz
         mw, mh = d.get("media_width"), d.get("media_height")
         if (
             isinstance(mw, int)
