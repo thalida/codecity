@@ -49,11 +49,11 @@ describe('cellMesh factory', () => {
     // Geometry should have all required instanced attributes.
     expect(cell.detailMesh.geometry.getAttribute('iCols')).toBeTruthy();
     expect(cell.detailMesh.geometry.getAttribute('iFloors')).toBeTruthy();
-    expect(cell.detailMesh.geometry.getAttribute('iOrient')).toBeTruthy();
-    expect(cell.detailMesh.geometry.getAttribute('iDoorWidth')).toBeTruthy();
+    expect(cell.detailMesh.geometry.getAttribute('iDoor')).toBeTruthy();
     expect(cell.detailMesh.geometry.getAttribute('iFade')).toBeTruthy();
     expect(cell.detailMesh.geometry.getAttribute('iIconUV')).toBeTruthy();
     expect(cell.detailMesh.geometry.getAttribute('iModifiedAge')).toBeTruthy();
+    expect(cell.detailMesh.geometry.getAttribute('iRefColor')).toBeTruthy();
 
     // instanceColor should be allocated.
     expect(cell.detailMesh.instanceColor).toBeTruthy();
@@ -189,10 +189,10 @@ describe('cellMesh factory', () => {
     const b = building({ x: 0, y: 0, h: 2, orient: BuildingOrient.South, slotId: 5 });
     writeBuildingToSlot(cell, b);
 
-    const orientAttr = cell.detailMesh.geometry.getAttribute(
-      'iOrient'
+    const doorAttr = cell.detailMesh.geometry.getAttribute(
+      'iDoor'
     ) as THREE.InstancedBufferAttribute;
-    expect(orientAttr.getX(5)).toBe(0); // South = 0
+    expect(doorAttr.getX(5)).toBe(0); // South = 0
   });
 
   it('writeBuildingToSlot writes into the correct slot without touching adjacent slots', () => {

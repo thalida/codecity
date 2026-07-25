@@ -21,6 +21,7 @@ import { isDataBuilding } from '@/utils/binaryKind';
 import { isEmptyFile } from '@/utils/emptyKind';
 import { BuildingKind } from './buildingKind';
 import { seedFromPath, getBuildingTilt, composeShearMatrix } from './tilt';
+import { getBuildingColorForRecency } from './color';
 
 // ---------------------------------------------------------------------------
 // Shared geometry — unit box, constructed once at module load and
@@ -35,13 +36,14 @@ const SHARED_BUILDING_GEOMETRY: THREE.BufferGeometry = new THREE.BoxGeometry(1, 
 const _writePos = new THREE.Vector3();
 const _writeScale = new THREE.Vector3();
 const _writeMatrix = new THREE.Matrix4();
+const _writeColor = new THREE.Color();
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
 /**
- * Map BuildingOrient string enum → 0/1/2/3 per the shader's iOrient contract.
+ * Map BuildingOrient string enum → 0/1/2/3 per the shader's iDoor.x contract.
  * Shader contract (building.frag.glsl isDoorFace()):
  *   0 = South (+Z = face 4)
  *   1 = North (-Z = face 5)
@@ -99,15 +101,10 @@ export function attachBuildingMeshToCell(cell: CellTile): void {
     'iFloors',
     new THREE.InstancedBufferAttribute(new Float32Array(cell.capacity), 1)
   );
-  // iOrient: float — one float per instance (0=S, 1=N, 2=E, 3=W).
+  // iDoor: vec2 — (.x=orient 0=S/1=N/2=E/3=W, .y=door world-width).
   geom.setAttribute(
-    'iOrient',
-    new THREE.InstancedBufferAttribute(new Float32Array(cell.capacity), 1)
-  );
-  // iDoorWidth: float — one float per instance.
-  geom.setAttribute(
-    'iDoorWidth',
-    new THREE.InstancedBufferAttribute(new Float32Array(cell.capacity), 1)
+    'iDoor',
+    new THREE.InstancedBufferAttribute(new Float32Array(cell.capacity * 2), 2)
   );
   // iFade: vec3 — three floats per instance (.x=opacity, .y=silhouette, .z=outlineOpacity).
   geom.setAttribute(
@@ -125,11 +122,17 @@ export function attachBuildingMeshToCell(cell: CellTile): void {
     new THREE.InstancedBufferAttribute(new Float32Array(cell.capacity), 1)
   );
   // iKind: float render-mode enum (see BuildingKind) — Normal, Data (windowless
-  // binary), or Ruin/Future written by Timeline. 16th attribute (WebGL2 cap), so
-  // any further per-instance signal must pack into an existing one.
+  // binary), or Ruin/Future written by Timeline.
   geom.setAttribute(
     'iKind',
     new THREE.InstancedBufferAttribute(new Float32Array(cell.capacity), 1)
+  );
+  // iRefColor: vec3 — the un-aged reference colour the roof border paints.
+  // 16th attribute (WebGL2 cap), so any further per-instance signal must pack
+  // into an existing one — iDoor packs orient+width to make room for this.
+  geom.setAttribute(
+    'iRefColor',
+    new THREE.InstancedBufferAttribute(new Float32Array(cell.capacity * 3), 3)
   );
 
   const mat = getBuildingMaterial();
@@ -157,7 +160,7 @@ export function attachBuildingMeshToCell(cell: CellTile): void {
  * cellAssembly.ts).
  *
  * Per-instance attribute semantics follow the building.vert.glsl attribute
- * contract (iCols, iFloors, iOrient, iDoorWidth, iFade, iIconUV, iModifiedAge).
+ * contract (iCols, iFloors, iDoor, iFade, iIconUV, iModifiedAge, iRefColor).
  * Callers must set `mesh.instanceMatrix.needsUpdate = true` (and
  * `mesh.instanceColor.needsUpdate = true`, attribute `.needsUpdate = true`)
  * after a batch of writes.
@@ -183,11 +186,22 @@ export function writeBuildingToSlot(cell: CellTile, b: Building): void {
   mesh.setMatrixAt(slot, _writeMatrix);
 
   // --- Color (linear RGB via Three.Color) ---
-  const colorTmp = new THREE.Color();
-  colorTmp.set(b.color);
+  _writeColor.set(b.color);
   if (mesh.instanceColor) {
-    mesh.instanceColor.setXYZ(slot, colorTmp.r, colorTmp.g, colorTmp.b);
+    mesh.instanceColor.setXYZ(slot, _writeColor.r, _writeColor.g, _writeColor.b);
   }
+
+  // --- Reference color: this file's color as if it were touched today ---
+  // Recency 1 is the fresh end of the same curve b.color came off, so the
+  // border reads as "what this building's color should be".
+  _writeColor.set(
+    getBuildingColorForRecency(
+      b.file as unknown as Parameters<typeof getBuildingColorForRecency>[0],
+      1
+    )
+  );
+  const iRefColorAttr = mesh.geometry.getAttribute('iRefColor') as THREE.InstancedBufferAttribute;
+  iRefColorAttr.setXYZ(slot, _writeColor.r, _writeColor.g, _writeColor.b);
 
   // --- Window column counts ---
   // Window-column convention:
@@ -202,13 +216,9 @@ export function writeBuildingToSlot(cell: CellTile, b: Building): void {
   const iFloorsAttr = mesh.geometry.getAttribute('iFloors') as THREE.InstancedBufferAttribute;
   iFloorsAttr.setX(slot, Math.max(1, b.floors ?? 1));
 
-  // --- Orient encoding (shader: 0=S, 1=N, 2=E, 3=W) ---
-  const iOrientAttr = mesh.geometry.getAttribute('iOrient') as THREE.InstancedBufferAttribute;
-  iOrientAttr.setX(slot, orientToIndex(b.orient));
-
-  // --- Door width ---
-  const iDoorWidthAttr = mesh.geometry.getAttribute('iDoorWidth') as THREE.InstancedBufferAttribute;
-  iDoorWidthAttr.setX(slot, b.w * doorWidthFrac);
+  // --- Door: orient (0=S, 1=N, 2=E, 3=W) + world-width ---
+  const iDoorAttr = mesh.geometry.getAttribute('iDoor') as THREE.InstancedBufferAttribute;
+  iDoorAttr.setXY(slot, orientToIndex(b.orient), b.w * doorWidthFrac);
 
   // --- Render kind (Empty slab / Data windowless facade; Timeline overwrites Ruin/Future) ---
   // Empty first, so a 0-byte binary is a slab rather than a data block — same

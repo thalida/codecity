@@ -10,9 +10,18 @@ const SHADERS = resolve(__dirname, '../../../../src/city/components/buildings');
 describe('building.vert.glsl', () => {
   const src = readFileSync(resolve(SHADERS, 'building.vert.glsl'), 'utf-8');
   it('declares all required instance attributes', () => {
-    for (const a of ['iCols', 'iFloors', 'iOrient', 'iDoorWidth', 'iFade', 'iKind']) {
+    for (const a of ['iCols', 'iFloors', 'iDoor', 'iFade', 'iKind', 'iRefColor']) {
       expect(src).toMatch(new RegExp(`attribute \\w+ ${a}`));
     }
+  });
+
+  // WebGL2 guarantees only 16 vertex attributes, and this shader sits exactly
+  // at the cap: 8 declared here plus position/normal/uv, instanceMatrix (4
+  // slots) and instanceColor. A 9th declared attribute breaks on conforming
+  // hardware, which no unit test can catch (vitest has no GPU).
+  it('stays within the 16-attribute ceiling', () => {
+    const declared = src.match(/^attribute /gm) ?? [];
+    expect(declared.length).toBe(8);
   });
   it('declares all varyings the fragment expects', () => {
     for (const v of [

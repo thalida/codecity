@@ -96,7 +96,6 @@ export const BUILDINGS_SECTION: SectionNode = {
           children: [
             field(BUILDINGS, 'SLAB_LIGHTNESS_DELTA'),
             field(BUILDINGS, 'DOOR_LIGHTNESS_DELTA'),
-            field(BUILDINGS, 'ROOF_BORDER_LIGHTNESS_DELTA'),
           ],
         },
         {

@@ -382,16 +382,6 @@ const BUILDINGS_FIELDS = {
     label: 'Door',
     tip: 'Lightness offset for the door (negative darkens).',
   },
-  ROOF_BORDER_LIGHTNESS_DELTA: {
-    route: ChangeRoute.Refresh,
-    kind: FieldKind.Slider,
-    default: -10,
-    min: -100,
-    max: 100,
-    step: 1,
-    label: 'Roof border',
-    tip: 'Lightness offset for the roof border strip (negative darkens).',
-  },
 
   // ── Window lighting — refresh ──
   UNLIT_LIGHTNESS_DELTA: {

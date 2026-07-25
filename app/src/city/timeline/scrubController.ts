@@ -7,7 +7,7 @@
 // (iIconUV.w), and the iKind render mode — all with no re-pack. It owns
 // these fields while in mode; the
 // tween queue and fader are dormant (index.ts gates them on TIMELINE_MODE).
-// iCols/iDoorWidth/iOrient/iIconUV.xyz don't vary with scrub (driven by
+// iCols/iDoor/iRefColor/iIconUV.xyz don't vary with scrub (driven by
 // bytes/ext/path, which the delta replay never changes) so they stay untouched.
 
 import * as THREE from 'three';
