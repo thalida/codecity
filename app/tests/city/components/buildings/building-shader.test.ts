@@ -10,9 +10,16 @@ const SHADERS = resolve(__dirname, '../../../../src/city/components/buildings');
 describe('building.vert.glsl', () => {
   const src = readFileSync(resolve(SHADERS, 'building.vert.glsl'), 'utf-8');
   it('declares all required instance attributes', () => {
-    for (const a of ['iCols', 'iFloors', 'iOrient', 'iDoorWidth', 'iFade', 'iKind']) {
+    for (const a of ['iCols', 'iFloors', 'iDoor', 'iFade', 'iKind', 'iRefColor']) {
       expect(src).toMatch(new RegExp(`attribute \\w+ ${a}`));
     }
+  });
+
+  // 8 here + position/normal/uv + instanceMatrix (4) + instanceColor = the
+  // WebGL2 cap of 16. A 9th breaks on real hardware; vitest has no GPU.
+  it('stays within the 16-attribute ceiling', () => {
+    const declared = src.match(/^attribute /gm) ?? [];
+    expect(declared.length).toBe(8);
   });
   it('declares all varyings the fragment expects', () => {
     for (const v of [

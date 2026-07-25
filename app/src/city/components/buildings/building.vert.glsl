@@ -20,8 +20,7 @@
 
 attribute vec2 iCols;           // (cols_ew, cols_ns) — window column counts
 attribute float iFloors;        // window row count
-attribute float iOrient;        // 0=S, 1=N, 2=E, 3=W (door face)
-attribute float iDoorWidth;     // door world-width
+attribute vec2 iDoor;           // .x = orient (0=S, 1=N, 2=E, 3=W), .y = door world-width
 // Packed fader state in a single vec3 attribute (1 slot instead of 3) so
 // we stay under GL_MAX_VERTEX_ATTRIBS=16. Unpacked to the three existing
 // varyings in main(). Mutated at runtime by scene/effects/buildingFader.ts.
@@ -43,6 +42,7 @@ attribute vec4 iIconUV;
 attribute float iModifiedAge;
 // Render-mode enum (BuildingKind): 0 Normal, 1 Ruin, 2 Future, 3 Data, 4 Empty.
 attribute float iKind;
+attribute vec3 iRefColor;       // un-aged colour (linear RGB), painted on the roof border
 
 flat varying int vFace;         // 0..5
 varying vec2 vUv;
@@ -59,6 +59,7 @@ flat varying vec3 vScale;       // (w, h, d) recovered from instance matrix
 flat varying vec4 vIconUV;      // pass-through of iIconUV; .xy = atlas UV, .z = seed, .w = createdAge
 flat varying float vModifiedAge; // pass-through of iModifiedAge
 flat varying int vKind;          // iKind as an int enum (BuildingKind)
+flat varying vec3 vRefColor;     // pass-through of iRefColor
 varying vec3 vWorldPos;         // world-space position, for height fog in frag
 
 void main() {
@@ -74,14 +75,15 @@ void main() {
   vUv = uv;
   vCols = iCols;
   vFloors = iFloors;
-  vOrient = iOrient;
-  vDoorWidth = iDoorWidth;
+  vOrient = iDoor.x;
+  vDoorWidth = iDoor.y;
   vOpacity = iFade.x;
   vSilhouette = iFade.y;
   vOutlineOpacity = iFade.z;
   vIconUV = iIconUV;
   vModifiedAge = iModifiedAge;
   vKind = int(iKind);
+  vRefColor = iRefColor;
   // Three.js sets `instanceColor` automatically when an InstancedBufferAttribute
   // named `instanceColor` is added; access via the predefined uniform path.
   // For our case we declare it as a varying derived from a custom attribute.

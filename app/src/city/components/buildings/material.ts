@@ -141,11 +141,10 @@ export function getBuildingMaterial(): THREE.ShaderMaterial {
       uWindowMarginFrac: { value: BUILDINGS.value.WINDOW_MARGIN_FRAC },
       uDoorHeightFrac: { value: BUILDINGS.value.DOOR_HEIGHT_FRAC },
       uRoofBorderFrac: { value: BUILDINGS.value.ROOF_BORDER_FRAC },
-      // BUILDINGS store — HSL lightness deltas applied to slab, door,
-      // and roof-border via shadeColor/shadeAndShiftHue in the shader.
+      // BUILDINGS store — HSL lightness deltas applied to slab and door
+      // via shadeColor/shadeAndShiftHue in the shader.
       uSlabLightnessDelta: { value: BUILDINGS.value.SLAB_LIGHTNESS_DELTA },
       uDoorLightnessDelta: { value: BUILDINGS.value.DOOR_LIGHTNESS_DELTA },
-      uRoofBorderLightnessDelta: { value: BUILDINGS.value.ROOF_BORDER_LIGHTNESS_DELTA },
       // WINDOW_LIGHTING store — per-cell lit/unlit lightness deltas, gap
       // thresholds, and the warm-amber tint for old/dim lit panes.
       uWindowUnlitLightnessDelta: { value: BUILDINGS.value.UNLIT_LIGHTNESS_DELTA },
@@ -218,8 +217,6 @@ export function refreshBuildingMaterial(): void {
   const facadeDetail = BUILDINGS.value;
   _sharedMaterial.uniforms.uSlabLightnessDelta.value = facadeDetail.SLAB_LIGHTNESS_DELTA;
   _sharedMaterial.uniforms.uDoorLightnessDelta.value = facadeDetail.DOOR_LIGHTNESS_DELTA;
-  _sharedMaterial.uniforms.uRoofBorderLightnessDelta.value =
-    facadeDetail.ROOF_BORDER_LIGHTNESS_DELTA;
   // WINDOW_LIGHTING store — pure uniform refresh into the pre-allocated
   // THREE.Color uniform values.
   const windowLighting = BUILDINGS.value;

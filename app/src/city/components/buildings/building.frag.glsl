@@ -35,6 +35,7 @@ flat varying vec3 vScale;
 flat varying vec4 vIconUV;
 flat varying float vModifiedAge; // 0=most recently modified, 1=longest-untouched. Drives lit-window count + HDR emission via recencyCurve.
 flat varying int vKind;          // Render-mode enum (BuildingKind).
+flat varying vec3 vRefColor;     // un-aged colour (linear RGB), for the roof border
 const int KIND_NORMAL = 0;
 const int KIND_RUIN = 1;   // crumbled stub (Timeline)
 const int KIND_FUTURE = 2; // blank slab (Timeline)
@@ -104,7 +105,6 @@ uniform float uRoofBorderFrac;
 // Facade detail shading — refreshed via refreshBuildingMaterial() from FACADE_DETAIL store.
 uniform float uSlabLightnessDelta;
 uniform float uDoorLightnessDelta;
-uniform float uRoofBorderLightnessDelta;
 
 // Window-pane lighting — refreshed via refreshBuildingMaterial() from WINDOW_LIGHTING store.
 uniform float uWindowUnlitLightnessDelta;
@@ -203,8 +203,7 @@ uniform float uWindowEmissionBoost;
 // (The lit-vs-unlit threshold is computed per-fragment from the
 // building's brightness rather than being a fixed constant — see
 // renderWallFace for the formula.)
-// Door + roof-border lightness deltas are driven by uDoorLightnessDelta
-// and uRoofBorderLightnessDelta (FACADE_DETAIL store).
+// Door lightness delta is driven by uDoorLightnessDelta (FACADE_DETAIL store).
 
 // ---------------------------------------------------------------------------
 // Face helpers
@@ -477,7 +476,7 @@ vec4 renderWallFace() {
 }
 
 vec4 renderRoofFace() {
-  // Flat roof color with a darker border strip along all four edges.
+  // Flat roof color with a border strip along all four edges.
   // Mirrors engine.ts _buildRoofTexture: strokeRect(2, 2, 124, 124) with
   // lineWidth=4 on a 128×128 canvas → border fraction ≈ 4/128 = 0.03125.
   //
@@ -485,7 +484,8 @@ vec4 renderRoofFace() {
   // (ShaderMaterial has no automatic linearToOutputTexel pass).
   vec3 baseColor   = linearToSrgb(vColor);
   vec3 roofColor   = baseColor;
-  vec3 borderColor = shadeAndShiftHue(baseColor, uRoofBorderLightnessDelta, 0.0, -1.0);
+  // Un-aged reference: the gap to the faded walls is the aging.
+  vec3 borderColor = linearToSrgb(vRefColor);
   float innerMask  = aaband(uRoofBorderFrac, 1.0 - uRoofBorderFrac, vUv.x, fwidth(vUv.x) * 0.5)
                    * aaband(uRoofBorderFrac, 1.0 - uRoofBorderFrac, vUv.y, fwidth(vUv.y) * 0.5);
   float borderMask = 1.0 - innerMask;

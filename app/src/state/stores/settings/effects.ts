@@ -87,7 +87,7 @@ const BLOOM_FIELDS = {
   THRESHOLD: {
     route: ChangeRoute.Refresh,
     kind: FieldKind.Slider,
-    default: 0.5,
+    default: 1.0,
     min: 0,
     max: 2.0,
     step: 0.05,
