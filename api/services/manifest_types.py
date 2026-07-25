@@ -142,7 +142,7 @@ class CommitEntry(TypedDict):
     scene tree-color both read one consistent value instead of each
     recomputing the per-day grouping."""
 
-    date: str  # "YYYY-MM-DD"
+    date: str  # ISO-8601 UTC
     files: int
     sha: str
     authors: list[str]
@@ -302,6 +302,16 @@ class Manifest(TypedDict):
     readmeModified: str | None
 
 
+class DateRangeMs(TypedDict):
+    """Created/modified epoch-ms spread over the files present at one commit.
+    Zeroes when nothing is present, which the client reads as no spread."""
+
+    minCreated: int
+    maxCreated: int
+    minModified: int
+    maxModified: int
+
+
 class TimelineChange(TypedDict):
     """One path's blob change in a commit. sha is the new 40-hex blob sha,
     or None when the path was deleted."""
@@ -331,6 +341,7 @@ class TimelineBundle(TypedDict):
     blobLines: dict[str, int]
     blobSizes: dict[str, int]
     commitLineRanges: list[RangeStat]
+    commitDateRanges: list[DateRangeMs]
     note: str | None
 
 

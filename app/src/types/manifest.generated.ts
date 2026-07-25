@@ -328,6 +328,17 @@ export interface components {
             /** Allowlocalrepos */
             allowLocalRepos: boolean;
         };
+        /** DateRangeMs */
+        DateRangeMs: {
+            /** Mincreated */
+            minCreated: number;
+            /** Maxcreated */
+            maxCreated: number;
+            /** Minmodified */
+            minModified: number;
+            /** Maxmodified */
+            maxModified: number;
+        };
         /** DateRanges */
         DateRanges: {
             /**
@@ -663,6 +674,8 @@ export interface components {
             };
             /** Commitlineranges */
             commitLineRanges: components["schemas"]["RangeStat"][];
+            /** Commitdateranges */
+            commitDateRanges: components["schemas"]["DateRangeMs"][];
             /** Note */
             note: string | null;
         };

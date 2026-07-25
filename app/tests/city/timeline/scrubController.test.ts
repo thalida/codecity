@@ -42,6 +42,55 @@ const bundle = {
   note: null,
 } as unknown as TimelineBundle;
 
+// Mirrors compute_commit_date_ranges in api/services/timeline.py, so the
+// weathering tests below still assert against real ranges.
+function withCommitDateRanges(b: TimelineBundle, files: FileNode[]): TimelineBundle {
+  const byPath = new Map(files.map((f) => [f.path, f]));
+  const commitMs = (b.commits ?? []).map((c) => Date.parse(c.date) || 0);
+  const finalIdx = new Map<string, number>();
+  const genesisIdx = new Map<string, number>();
+  (b.deltas ?? []).forEach((d, i) => {
+    for (const ch of d.changes) {
+      finalIdx.set(ch.path, i);
+      if (ch.sha !== null && !genesisIdx.has(ch.path)) genesisIdx.set(ch.path, i);
+    }
+  });
+  const present = new Set<string>();
+  const lastChange = new Map<string, number>();
+  const commitDateRanges = (b.deltas ?? []).map((d, i) => {
+    for (const ch of d.changes) {
+      lastChange.set(ch.path, i);
+      if (ch.sha === null) present.delete(ch.path);
+      else present.add(ch.path);
+    }
+    let minCreated = 0;
+    let maxCreated = 0;
+    let minModified = 0;
+    let maxModified = 0;
+    let first = true;
+    for (const path of present) {
+      const f = byPath.get(path);
+      const lm = lastChange.get(path) ?? 0;
+      let modified = lm >= (finalIdx.get(path) ?? 0) ? Date.parse(f?.modified ?? '') : NaN;
+      if (Number.isNaN(modified)) modified = commitMs[lm] ?? 0;
+      let created = Date.parse(f?.created ?? '');
+      if (Number.isNaN(created)) created = commitMs[genesisIdx.get(path) ?? 0] ?? 0;
+      if (first) {
+        minCreated = maxCreated = created;
+        minModified = maxModified = modified;
+        first = false;
+      } else {
+        minCreated = Math.min(minCreated, created);
+        maxCreated = Math.max(maxCreated, created);
+        minModified = Math.min(minModified, modified);
+        maxModified = Math.max(maxModified, modified);
+      }
+    }
+    return { minCreated, maxCreated, minModified, maxModified };
+  });
+  return { ...b, commitDateRanges } as TimelineBundle;
+}
+
 const heightCtx: HeightContext = {
   lineStats: { min: 1, max: 200 },
   byteStats: { min: 1, max: 5000 },
@@ -331,7 +380,7 @@ function setup(
 
   const fake = makeFakeMesh(initialFadeZ);
   const timelines = buildPathTimelines(bundle);
-  TIMELINE_BUNDLE.value = bundle;
+  TIMELINE_BUNDLE.value = withCommitDateRanges(bundle, [file]);
 
   const controller = createScrubController({
     getBuildingIndex: () => index,
@@ -402,7 +451,7 @@ function makeAnchoredScene(
   });
 
   const timelines = buildPathTimelines(sceneBundle);
-  TIMELINE_BUNDLE.value = sceneBundle;
+  TIMELINE_BUNDLE.value = withCommitDateRanges(sceneBundle, files);
 
   const controller = createScrubController({
     getBuildingIndex: () => index,

@@ -81,7 +81,7 @@ class BlobEntry(TypedDict):
 _FILE_CACHE_VERSION = 3  # v3: exact line counts (dropped the >5MB sampling estimate)
 _BLOB_STATS_CACHE_VERSION = 4  # v4: git-lfs pointers resolved to real content
 _GIT_HISTORY_CACHE_VERSION = 15  # v15: commit dates carry a time, not just a day
-_TIMELINE_CACHE_VERSION = 6  # v6: bundle ships blobSizes
+_TIMELINE_CACHE_VERSION = 7  # v7: bundle ships commitDateRanges
 _MANIFEST_SCHEMA_VERSION = (
     # v12: per-dir descendants_created_min / descendants_modified_max
     # v13: ext_breakdown `ext` is null (was "(none)") for extensionless files
