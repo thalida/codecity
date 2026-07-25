@@ -127,9 +127,7 @@ export function attachBuildingMeshToCell(cell: CellTile): void {
     'iKind',
     new THREE.InstancedBufferAttribute(new Float32Array(cell.capacity), 1)
   );
-  // iRefColor: vec3 — the un-aged reference colour the roof border paints.
-  // 16th attribute (WebGL2 cap), so any further per-instance signal must pack
-  // into an existing one — iDoor packs orient+width to make room for this.
+  // iRefColor: vec3 — un-aged colour for the roof border. 16th attribute (WebGL2 cap).
   geom.setAttribute(
     'iRefColor',
     new THREE.InstancedBufferAttribute(new Float32Array(cell.capacity * 3), 3)
@@ -191,9 +189,7 @@ export function writeBuildingToSlot(cell: CellTile, b: Building): void {
     mesh.instanceColor.setXYZ(slot, _writeColor.r, _writeColor.g, _writeColor.b);
   }
 
-  // --- Reference color: this file's color as if it were touched today ---
-  // Recency 1 is the fresh end of the same curve b.color came off, so the
-  // border reads as "what this building's color should be".
+  // --- Reference color: recency 1 = the fresh end of the b.color curve ---
   _writeColor.set(
     getBuildingColorForRecency(
       b.file as unknown as Parameters<typeof getBuildingColorForRecency>[0],

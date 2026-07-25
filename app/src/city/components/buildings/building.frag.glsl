@@ -35,9 +35,7 @@ flat varying vec3 vScale;
 flat varying vec4 vIconUV;
 flat varying float vModifiedAge; // 0=most recently modified, 1=longest-untouched. Drives lit-window count + HDR emission via recencyCurve.
 flat varying int vKind;          // Render-mode enum (BuildingKind).
-// The building's colour as if the file were touched today (linear RGB).
-// Painted on the roof border as a fixed reference for the aged walls.
-flat varying vec3 vRefColor;
+flat varying vec3 vRefColor;     // un-aged colour (linear RGB), for the roof border
 const int KIND_NORMAL = 0;
 const int KIND_RUIN = 1;   // crumbled stub (Timeline)
 const int KIND_FUTURE = 2; // blank slab (Timeline)
@@ -205,8 +203,7 @@ uniform float uWindowEmissionBoost;
 // (The lit-vs-unlit threshold is computed per-fragment from the
 // building's brightness rather than being a fixed constant — see
 // renderWallFace for the formula.)
-// The door lightness delta is driven by uDoorLightnessDelta (FACADE_DETAIL
-// store); the roof border takes vRefColor instead of a delta off the wall.
+// Door lightness delta is driven by uDoorLightnessDelta (FACADE_DETAIL store).
 
 // ---------------------------------------------------------------------------
 // Face helpers
@@ -487,8 +484,7 @@ vec4 renderRoofFace() {
   // (ShaderMaterial has no automatic linearToOutputTexel pass).
   vec3 baseColor   = linearToSrgb(vColor);
   vec3 roofColor   = baseColor;
-  // Border carries the un-aged reference colour, so the gap between it and the
-  // faded walls IS the aging. Grime never reaches here: it is wall-face only.
+  // Un-aged reference: the gap to the faded walls is the aging.
   vec3 borderColor = linearToSrgb(vRefColor);
   float innerMask  = aaband(uRoofBorderFrac, 1.0 - uRoofBorderFrac, vUv.x, fwidth(vUv.x) * 0.5)
                    * aaband(uRoofBorderFrac, 1.0 - uRoofBorderFrac, vUv.y, fwidth(vUv.y) * 0.5);

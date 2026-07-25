@@ -15,10 +15,8 @@ describe('building.vert.glsl', () => {
     }
   });
 
-  // WebGL2 guarantees only 16 vertex attributes, and this shader sits exactly
-  // at the cap: 8 declared here plus position/normal/uv, instanceMatrix (4
-  // slots) and instanceColor. A 9th declared attribute breaks on conforming
-  // hardware, which no unit test can catch (vitest has no GPU).
+  // 8 here + position/normal/uv + instanceMatrix (4) + instanceColor = the
+  // WebGL2 cap of 16. A 9th breaks on real hardware; vitest has no GPU.
   it('stays within the 16-attribute ceiling', () => {
     const declared = src.match(/^attribute /gm) ?? [];
     expect(declared.length).toBe(8);
