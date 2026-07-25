@@ -8,6 +8,7 @@ import './TimeTravelBar.css';
 import { useEffect, useMemo, useRef } from 'preact/hooks';
 import { TIMELINE_MODE, SCRUB_POS, TIMELINE_BUNDLE, SCRUB_DRAGGING } from '@/state/stores/timeline';
 import { ACCENT_THEME } from '@/state/stores/settings/theme';
+import { SCRUBBER } from '@/state/stores/settings/scrubber';
 import { formatShortDate } from '@/utils/dates';
 import { commitUrl } from '@/utils/commit';
 import {
@@ -24,10 +25,15 @@ export function TimeTravelBar() {
   const bundle = TIMELINE_BUNDLE.value;
   const commits = bundle?.commits ?? [];
 
+  const indexWeight = SCRUBBER.value.INDEX_WEIGHT;
   const scale = useMemo(
-    () => buildScrubberScale(commits.map((c) => c.date)),
-    // Rebuild only when the commit set changes (bundle swap), not on every scrub.
-    [commits]
+    () =>
+      buildScrubberScale(
+        commits.map((c) => c.date),
+        indexWeight
+      ),
+    // Rebuild only when the commit set or the axis shape changes, not per scrub.
+    [commits, indexWeight]
   );
 
   const trackRef = useRef<HTMLDivElement>(null);

@@ -1,10 +1,6 @@
 // Pure date<->index mapping for the scrubber. Track position blends each commit's
 // point in time with its ordinal; SCRUB_POS stays a float commit index.
 
-// Pure time (0) crushes a burst into ~1px; pure ordinal (1) makes a 6-month gap
-// look like a 1-minute one.
-const INDEX_WEIGHT = 0.35;
-
 export interface ScrubberScale {
   /** Commit date ms, index-aligned, clamped non-decreasing. */
   ms: number[];
@@ -12,7 +8,8 @@ export interface ScrubberScale {
   frac: number[];
 }
 
-export function buildScrubberScale(dates: string[]): ScrubberScale {
+/** `indexWeight` 0 = place commits purely by time, 1 = purely by ordinal. */
+export function buildScrubberScale(dates: string[], indexWeight = 0): ScrubberScale {
   const ms = dates.map((d) => Date.parse(d) || 0);
   for (let i = 1; i < ms.length; i++) if (ms[i] < ms[i - 1]) ms[i] = ms[i - 1];
 
@@ -23,7 +20,7 @@ export function buildScrubberScale(dates: string[]): ScrubberScale {
   // A single-instant history has no time axis to blend, so it falls back to
   // pure ordinal rather than collapsing every commit onto the left edge.
   const span = ms[n - 1] - ms[0];
-  const w = span > 0 ? INDEX_WEIGHT : 1;
+  const w = span > 0 ? indexWeight : 1;
   const frac = ms.map((t, i) => {
     const byTime = span > 0 ? (t - ms[0]) / span : 0;
     return (1 - w) * byTime + w * (i / (n - 1));

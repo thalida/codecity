@@ -6,6 +6,7 @@
 import { field, type SectionNode } from '.';
 import { RUINS } from '@/state/stores/settings/ruins';
 import { BLUEPRINTS } from '@/state/stores/settings/blueprints';
+import { SCRUBBER } from '@/state/stores/settings/scrubber';
 
 export const TIMELINE_SECTION: SectionNode = {
   key: 'timeline',
@@ -13,6 +14,12 @@ export const TIMELINE_SECTION: SectionNode = {
   description:
     'How the scene shows files that don’t exist at the scrubbed commit: ones deleted before it, and ones created after it.',
   children: [
+    {
+      key: 'timeline-scrubber',
+      label: 'Scrubber',
+      description: 'How commits are spaced along the scrub track.',
+      children: [field(SCRUBBER, 'INDEX_WEIGHT')],
+    },
     {
       key: 'timeline-deleted',
       label: 'Deleted files',

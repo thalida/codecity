@@ -31,16 +31,24 @@ describe('scrubberScale', () => {
     expect(fractionToIndex(s, s.frac[1])).toBeCloseTo(1, 5);
   });
 
-  it('gives a burst a floor share of the track so its commits stay reachable', () => {
-    // 20 commits inside one hour, then a lone commit 100 days later. On a pure
-    // time axis the burst would occupy ~0.04% of the track and be undraggable.
-    const burst = Array.from({ length: 20 }, (_, i) =>
+  // 20 commits inside one hour, then a lone commit 100 days later.
+  const burstThenGap = [
+    ...Array.from({ length: 20 }, (_, i) =>
       new Date(Date.parse('2020-01-01T00:00:00Z') + i * 180_000).toISOString()
-    );
-    const s = buildScrubberScale([...burst, '2020-04-10T00:00:00Z']);
-    const spread = s.frac[19] - s.frac[0];
-    expect(spread).toBeGreaterThan(0.3);
-    // Every commit is still strictly ordered, so each has its own click target.
+    ),
+    '2020-04-10T00:00:00Z',
+  ];
+
+  it('defaults to pure time: a burst stays true to the clock, however tight', () => {
+    const s = buildScrubberScale(burstThenGap);
+    expect(s.frac[19] - s.frac[0]).toBeLessThan(0.01);
+    // Still strictly ordered, so the commits are distinct points, just close.
+    expect(s.frac.every((f, i) => i === 0 || f > s.frac[i - 1])).toBe(true);
+  });
+
+  it('a positive index weight gives that burst a floor share of the track', () => {
+    const s = buildScrubberScale(burstThenGap, 0.35);
+    expect(s.frac[19] - s.frac[0]).toBeGreaterThan(0.3);
     expect(s.frac.every((f, i) => i === 0 || f > s.frac[i - 1])).toBe(true);
   });
 
@@ -69,13 +77,12 @@ describe('scrubberScale', () => {
     expect(fractionToIndex(s, 0.5)).toBeCloseTo(1.5, 5);
   });
 
-  it('still clusters by time: a bunched run stays far left of even spacing', () => {
+  it('blending keeps time dominant: a bunched run stays far left of even spacing', () => {
     // 4 commits: 3 bunched in the first two days, 1 far out at day 100.
-    const s = buildScrubberScale(['2020-01-01', '2020-01-02', '2020-01-02', '2020-04-10']);
+    const s = buildScrubberScale(['2020-01-01', '2020-01-02', '2020-01-02', '2020-04-10'], 0.35);
     expect(commitFraction(s, 0)).toBeCloseTo(0, 5);
-    // Time dominates, so index 2 sits well below its even-spacing slot (2/3)...
+    // Well below its even-spacing slot (2/3), but above the ~0.01 pure time gives.
     expect(commitFraction(s, 2)).toBeLessThan(0.3);
-    // ...but above the ~0.01 a pure time axis would crush it to.
     expect(commitFraction(s, 2)).toBeGreaterThan(0.05);
     expect(commitFraction(s, 3)).toBeCloseTo(1, 5);
   });
