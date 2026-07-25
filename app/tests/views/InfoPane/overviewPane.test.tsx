@@ -66,6 +66,8 @@ const manifest: Manifest = {
   content_signature: 's',
   structure_signature: 't',
   layout_signature: 'l',
+  readmePath: null,
+  readmeModified: null,
   tree: tree as unknown as Manifest['tree'],
   repo: { branch: 'main', remote_url: null, head_sha: null, head_subject: null, dirty: false },
   commits: [],

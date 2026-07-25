@@ -80,6 +80,8 @@ class ModelTests(unittest.TestCase):
 
     def test_manifest_serializes(self) -> None:
         m = Manifest(
+            readmePath=None,
+            readmeModified=None,
             root="/r",
             scanned_at="2020",
             content_signature="s",

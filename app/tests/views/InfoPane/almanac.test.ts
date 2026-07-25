@@ -45,6 +45,8 @@ function dir(name: string, path: string, children: (FileNode | DirNode)[]): DirN
 function manifest(tree: DirNode, overrides: Partial<Manifest> = {}): Manifest {
   return {
     root: '/repo',
+    readmePath: null,
+    readmeModified: null,
     scanned_at: '2024-01-01T00:00:00Z',
     content_signature: 's',
     structure_signature: 't',

@@ -295,6 +295,9 @@ class Manifest(TypedDict):
     busyness: BusynessThresholds
     dateRanges: DateRanges
     stats: RepoStats
+    # Root README, resolved server-side so the client doesn't re-scan for it.
+    readmePath: str | None
+    readmeModified: str | None
 
 
 class TimelineChange(TypedDict):

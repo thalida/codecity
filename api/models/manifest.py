@@ -253,6 +253,12 @@ class Manifest(BaseModel):
     busyness: BusynessThresholds
     dateRanges: DateRanges
     stats: RepoStats
+    readmePath: Optional[str] = Field(
+        description="Absolute path of the root README, or null if there isn't one"
+    )
+    readmeModified: Optional[str] = Field(
+        description="That README's mtime, for cache-busting the fetch"
+    )
 
 
 class SignatureResponse(BaseModel):

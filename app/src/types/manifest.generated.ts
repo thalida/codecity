@@ -538,6 +538,16 @@ export interface components {
             busyness: components["schemas"]["BusynessThresholds"];
             dateRanges: components["schemas"]["DateRanges"];
             stats: components["schemas"]["RepoStats"];
+            /**
+             * Readmepath
+             * @description Absolute path of the root README, or null if there isn't one
+             */
+            readmePath: string | null;
+            /**
+             * Readmemodified
+             * @description That README's mtime, for cache-busting the fetch
+             */
+            readmeModified: string | null;
         };
         /**
          * PartialManifestEvent

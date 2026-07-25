@@ -458,6 +458,32 @@ class ScanTreeIntegrationTests(_CacheRedirectMixin, unittest.TestCase):
             self.assertNotIn("(none)", exts)
             self.assertIn(".py", exts)
 
+    def test_readme_path_resolves_root_readme_case_insensitively(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            _init_repo(root)
+            (root / "ReadMe.MD").write_text("# hi")
+            (root / "main.py").write_text("print()")
+            _commit_all(root)
+
+            m = _final_manifest(str(root))
+            self.assertIsNotNone(m["readmePath"])
+            self.assertTrue(m["readmePath"].endswith("ReadMe.MD"))
+            # Paired with the file's mtime so the client can cache-bust the fetch.
+            names = {c["name"]: c for c in m["tree"]["children"]}
+            self.assertEqual(m["readmeModified"], names["ReadMe.MD"]["modified"])
+
+    def test_readme_path_is_none_without_one_and_ignores_nested(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            _init_repo(root)
+            (root / "readme_notes.py").write_text("x")  # stem is not "readme"
+            (root / "docs").mkdir()
+            (root / "docs" / "README.md").write_text("# nested")
+            _commit_all(root)
+
+            self.assertIsNone(_final_manifest(str(root))["readmePath"])
+
     def test_descendant_date_range_matches_repo_ranges(self):
         m = _final_manifest(str(FIXTURE))
         tree = m["tree"]

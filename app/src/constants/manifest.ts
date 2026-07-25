@@ -48,6 +48,8 @@ export const EMPTY_REPO_STATS: RepoStats = {
 
 export const EMPTY_MANIFEST: Manifest = {
   root: '',
+  readmePath: null,
+  readmeModified: null,
   scanned_at: new Date().toISOString(),
   content_signature: '',
   structure_signature: '',
