@@ -289,7 +289,7 @@ export interface components {
         CommitEntry: {
             /**
              * Date
-             * @description YYYY-MM-DD
+             * @description ISO-8601 UTC, e.g. 2026-07-25T14:03:21Z
              */
             date: string;
             /** Files */
@@ -640,6 +640,10 @@ export interface components {
             deltas: components["schemas"]["TimelineDelta"][];
             /** Bloblines */
             blobLines: {
+                [key: string]: number;
+            };
+            /** Blobsizes */
+            blobSizes: {
                 [key: string]: number;
             };
             /** Commitlineranges */

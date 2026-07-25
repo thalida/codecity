@@ -8,12 +8,14 @@ import './TimeTravelBar.css';
 import { useEffect, useMemo, useRef } from 'preact/hooks';
 import { TIMELINE_MODE, SCRUB_POS, TIMELINE_BUNDLE, SCRUB_DRAGGING } from '@/state/stores/timeline';
 import { ACCENT_THEME } from '@/state/stores/settings/theme';
+import { SCRUBBER } from '@/state/stores/settings/scrubber';
 import { formatShortDate } from '@/utils/dates';
 import { commitUrl } from '@/utils/commit';
 import {
   buildScrubberScale,
   commitFraction,
   indexToFraction,
+  indexToMs,
   fractionToIndex,
 } from './scrubberScale';
 
@@ -23,10 +25,15 @@ export function TimeTravelBar() {
   const bundle = TIMELINE_BUNDLE.value;
   const commits = bundle?.commits ?? [];
 
+  const indexWeight = SCRUBBER.value.INDEX_WEIGHT;
   const scale = useMemo(
-    () => buildScrubberScale(commits.map((c) => c.date)),
-    // Rebuild only when the commit set changes (bundle swap), not on every scrub.
-    [commits]
+    () =>
+      buildScrubberScale(
+        commits.map((c) => c.date),
+        indexWeight
+      ),
+    // Rebuild only when the commit set or the axis shape changes, not per scrub.
+    [commits, indexWeight]
   );
 
   const trackRef = useRef<HTMLDivElement>(null);
@@ -91,7 +98,7 @@ export function TimeTravelBar() {
 
   // "no commits" only when the handle is >4 days from the nearest commit (a real lull).
   const nearestIdx = Math.min(Math.round(pos), maxIndex);
-  const handleMs = scale.minMs + indexToFraction(scale, pos) * scale.span;
+  const handleMs = indexToMs(scale, pos);
   const inGap = Math.abs(handleMs - scale.ms[nearestIdx]) > 4 * 86_400_000;
   const gapDay = new Date(handleMs).toISOString().slice(0, 10);
 

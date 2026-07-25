@@ -52,6 +52,21 @@ describe('formatHoverTooltip', () => {
     expect(formatHoverTooltip(t, 'codecity', null)).toBe('/codecity/app/main.ts  ·  42 lines');
   });
 
+  it('renders a deleted file the count it is given (the at-deletion value)', () => {
+    // scrubbedStatsFor resolves "what it measured when deleted"; this stays a
+    // pure formatter and just prints what it is handed.
+    const t = { ...fileTarget({ path: 'app/gone.py', lines: 0 }), isRuin: true } as PickTarget;
+    expect(formatHoverTooltip(t, 'codecity', 214)).toBe('/codecity/app/gone.py  ·  214 lines');
+  });
+
+  it('keeps pixel dimensions on a deleted media file (intrinsic, not replayed)', () => {
+    const t = {
+      ...fileTarget({ path: 'app/logo.png', media_width: 800, media_height: 600 }),
+      isRuin: true,
+    } as PickTarget;
+    expect(formatHoverTooltip(t, 'codecity', 0)).toBe('/codecity/app/logo.png  ·  800×600');
+  });
+
   it('shows pixel dimensions instead of line count for an image file', () => {
     const t = fileTarget({
       path: 'app/logo.png',

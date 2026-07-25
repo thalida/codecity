@@ -39,6 +39,7 @@ const bundle = {
     { sha: 'd', changes: [{ path: 'future/y.txt', sha: 's1' }] },
   ],
   blobLines: { s1: 2 },
+  blobSizes: { s1: 0 },
   note: null,
 } as unknown as TimelineBundle;
 

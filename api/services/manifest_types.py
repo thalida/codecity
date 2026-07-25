@@ -129,8 +129,8 @@ class RepoInfo(TypedDict):
 class CommitEntry(TypedDict):
     """One commit within the git lookback window. Emitted in
     oldest-first order so consumers can map commits[i] → i-th tree
-    placement (closest-to-gem). Date is day-precision for compact
-    payload + future age signal. files = count of A/M/D/T/U rows in
+    placement (closest-to-gem). Date is a full ISO-8601 UTC timestamp:
+    the scrubber's time axis needs it to separate same-day commits. files = count of A/M/D/T/U rows in
     the commit's --name-status block. sha is the full 40-char hex;
     the UI displays the first 7. authors is the deduped list of
     distinct authors for this commit — primary (git's %an) at index 0,
@@ -314,15 +314,17 @@ class TimelineDelta(TypedDict):
 
 class TimelineBundle(TypedDict):
     """Everything the client replays for smooth commit scrubbing: commit list,
-    union-of-all-paths manifest (layout target), per-commit blob deltas, a
-    sha -> line-count table, and per-commit line ranges (height normalization,
-    so a scrub point matches Live-at-that-commit). `note` is set when a
-    pathological repo is windowed to its most recent commits."""
+    union-of-all-paths manifest (layout target), per-commit blob deltas,
+    sha -> line-count and sha -> byte-size tables, and per-commit line ranges
+    (height normalization, so a scrub point matches Live-at-that-commit).
+    `note` is set when a pathological repo is windowed to its most recent
+    commits."""
 
     commits: list[CommitEntry]
     unionManifest: Manifest
     deltas: list[TimelineDelta]
     blobLines: dict[str, int]
+    blobSizes: dict[str, int]
     commitLineRanges: list[RangeStat]
     note: str | None
 

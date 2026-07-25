@@ -23,6 +23,7 @@ import { NodeKind } from '@/types';
 import { formatShortDate, formatRelativeAgeShort } from '@/utils/dates';
 import { formatBytes } from '@/utils/bytes';
 import { SCENE_HANDLE } from '@/state/stores/scene';
+import { scrubbedStatsFor } from '@/state/stores/presentPaths';
 import { LIVE_UPDATES } from '@/state/stores/settings/updates';
 import {
   REBUILD_STATUS,
@@ -279,12 +280,15 @@ export function AppFooter() {
   let selection: FooterSelection | null = null;
   if (target?.kind === NodeKind.File) {
     const f = target.file;
+    // In Timeline the static node holds max-over-history values, so prefer the
+    // replayed ones (at deletion for a file already gone).
+    const scrubbed = f.path != null ? scrubbedStatsFor(f.path) : null;
     selection = {
       kind: NodeKind.File,
       extension: f.extension || '',
       language: humanLanguageFor(f),
-      lines: f.lines,
-      size: f.size || 0,
+      lines: scrubbed ? scrubbed.lines : f.lines,
+      size: scrubbed ? scrubbed.bytes : f.size || 0,
       modified: f.modified,
       created: f.created,
     };

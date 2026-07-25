@@ -3,7 +3,13 @@
 
 import { computed, type ReadonlySignal } from '@preact/signals';
 import { TIMELINE_MODE, TIMELINE_BUNDLE, SCRUB_COMMIT, SCRUB_POS } from './timeline';
-import { buildPathTimelines, ruinStateAt, linesAt } from '@/city/timeline/replay';
+import {
+  buildPathTimelines,
+  ruinStateAt,
+  linesAt,
+  bytesAt,
+  statsAtDeletion,
+} from '@/city/timeline/replay';
 import type { PathTimeline } from '@/city/timeline/replay';
 import { NodeKind } from '@/types';
 import type { TreeNode } from '@/types';
@@ -39,15 +45,27 @@ function _collect(
   return anyPresent;
 }
 
-// Line count at the current scrub position — the SAME source the building height
-// uses (linesAt(pt, SCRUB_POS)). The hover tooltip reads this so what's shown
-// equals what drives the height. Null outside Timeline (caller falls back to the
-// static FileNode.lines).
-export function scrubbedLinesFor(path: string): number | null {
-  if (!TIMELINE_MODE.peek()) return null;
-  const pt = _TIMELINES.peek()?.get(path);
+/** A file's measures at the scrub position, or at its deletion if already gone. */
+export interface ScrubbedFileStats {
+  lines: number;
+  bytes: number;
+  /** True when these are the values the file had when it was deleted. */
+  atDeletion: boolean;
+}
+
+// .value, not .peek(): the footer calls this in render and must re-render as the scrub moves.
+export function scrubbedStatsFor(path: string): ScrubbedFileStats | null {
+  if (!TIMELINE_MODE.value) return null;
+  const pt = _TIMELINES.value?.get(path);
   if (!pt) return null;
-  return Math.round(linesAt(pt, SCRUB_POS.peek()));
+  const pos = SCRUB_POS.value;
+  const gone = statsAtDeletion(pt, pos);
+  if (gone) return { lines: gone.lines, bytes: gone.bytes, atDeletion: true };
+  return {
+    lines: Math.round(linesAt(pt, pos)),
+    bytes: Math.round(bytesAt(pt, pos)),
+    atDeletion: false,
+  };
 }
 
 export const PRESENT_PATHS: ReadonlySignal<ReadonlySet<string>> = computed(() => {

@@ -58,6 +58,18 @@ describe('building.frag.glsl', () => {
     expect(src).toMatch(/discard/);
   });
 
+  it('crosses out a ruin roof only when the RUINS toggle is on', () => {
+    expect(src).toMatch(/vKind == KIND_RUIN && uRuinXEnabled/);
+    expect(src).toContain('uRuinXColor');
+  });
+
+  it('composites the cross AFTER the icon, so the file type stays readable', () => {
+    const icon = src.indexOf('mix(composed, icon.rgb');
+    const cross = src.indexOf('mix(composed, uRuinXColor');
+    expect(icon).toBeGreaterThan(-1);
+    expect(cross).toBeGreaterThan(icon);
+  });
+
   it('renders data buildings windowless via the KIND_DATA branch', () => {
     expect(src).toMatch(/vKind == KIND_DATA/);
     // iKind is a flat int enum (exact equality), not a float threshold.

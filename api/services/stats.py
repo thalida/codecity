@@ -189,7 +189,7 @@ def compute_repo_stats(tree: DirNode, commits: list[CommitEntry]) -> RepoStats:
         # Each row carries its date's full same_day_total, so max() per date
         # deduplicates instead of multi-counting. same_day_total is NotRequired
         # (absent in raw cached entries); by manifest-wrap it is always present.
-        d = c["date"]
+        d = c["date"][:10]  # calendar day: `date` carries a full timestamp
         day_totals[d] = max(day_totals.get(d, 0), c.get("same_day_total", 1))  # type: ignore[misc]
         oldest_commit = (
             d if oldest_commit is None or d < oldest_commit else oldest_commit

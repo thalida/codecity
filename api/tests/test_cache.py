@@ -562,6 +562,7 @@ class ManifestCacheTests(CacheTestBase):
             "unionManifest": self._make_manifest(),
             "deltas": [],
             "blobLines": {},
+            "blobSizes": {},
             "note": None,
         }
 
@@ -571,6 +572,25 @@ class ManifestCacheTests(CacheTestBase):
         bundle = self._make_bundle()
         cache_mod.cache_save_timeline(root, sha, bundle)
         self.assertEqual(cache_mod.cache_load_timeline(root, sha), bundle)
+
+    def test_timeline_rejects_old_version(self) -> None:
+        """A bundle written by older code must miss, not be served. v6 added
+        blobSizes and full commit timestamps, so serving a v5 blob would hand
+        the scrubber day-precision dates and stack every same-day commit."""
+        import gzip
+
+        root = Path("/some/repo")
+        sha = "a" * 40
+        path = cache_mod._timeline_cache_path(root, sha, frozenset())
+        path.parent.mkdir(parents=True, exist_ok=True)
+        stale = {
+            "version": cache_mod._TIMELINE_CACHE_VERSION - 1,
+            "bundle": self._make_bundle(),
+        }
+        with gzip.open(path, "wb") as fh:
+            fh.write(json.dumps(stale).encode("utf-8"))
+
+        self.assertIsNone(cache_mod.cache_load_timeline(root, sha))
 
     def test_timeline_load_missing_returns_none(self) -> None:
         self.assertIsNone(

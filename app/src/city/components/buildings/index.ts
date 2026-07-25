@@ -29,6 +29,7 @@ import { effect, untracked } from '@preact/signals';
 import { BUILDINGS, BUILDING_DIMENSIONS } from '@/state/stores/settings/buildings';
 import { BLOOM } from '@/state/stores/settings/effects';
 import { SCENE } from '@/state/stores/settings/scene';
+import { RUINS } from '@/state/stores/settings/ruins';
 import { TIMELINE_MODE } from '@/state/stores/timeline';
 import type { Building, CityLayout, DateRanges, EnteringBuilding, StayingBuilding } from '@/types';
 
@@ -127,7 +128,7 @@ export function createBuildings(ctx: SceneContext): Buildings {
   }
 
   // (1) Shared-material theme effect — reacts to BUILDINGS / SCENE / BLOOM /
-  // BUILDING_DIMENSIONS changes (Save). Reads each store's .value so the
+  // BUILDING_DIMENSIONS / RUINS changes (Save). Reads each store's .value so the
   // effect subscribes to all of them, then re-applies the material uniforms and
   // the ad-panel emission (BLOOM.MEDIA_EMISSION). Safe at construction: reads only
   // settings signals (no picker). If the shared material isn't created yet (first
@@ -139,6 +140,7 @@ export function createBuildings(ctx: SceneContext): Buildings {
     void SCENE.value;
     void BLOOM.value;
     void BUILDING_DIMENSIONS.value;
+    void RUINS.value;
     refreshBuildingMaterial();
     _facadePanels?.refresh();
   });

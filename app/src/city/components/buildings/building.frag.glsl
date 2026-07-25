@@ -63,6 +63,7 @@ const float RUIN_RIM_CELLS = 9.0;    // horizontal cells across the top rim
 const float RUIN_GRIME_CELLS = 9.0;  // coarse grime cell grid
 const float RUIN_GRIME_FLOOR = 0.7;  // grime darkens to 0.7x at most...
 const float RUIN_GRIME_RANGE = 0.3;  // ...up to 1.0x (no darkening)
+const float RUIN_X_DIAG = 0.70710678; // sqrt(2)/2: stroke width -> half-distance along |x-y|
 
 // Hidden-tier wireframe thickness in screen-pixels. Sourced from
 // BUILDING_OUTLINE.WIDTH; refreshed via refreshBuildingMaterial() on Save via applyTheme().
@@ -105,6 +106,11 @@ uniform float uRoofBorderFrac;
 // Facade detail shading — refreshed via refreshBuildingMaterial() from FACADE_DETAIL store.
 uniform float uSlabLightnessDelta;
 uniform float uDoorLightnessDelta;
+
+// Deleted-file cross over the roof icon (RUINS store, Timeline only).
+uniform bool uRuinXEnabled;
+uniform vec3 uRuinXColor;
+uniform float uRuinXWidth;
 
 // Window-pane lighting — refreshed via refreshBuildingMaterial() from WINDOW_LIGHTING store.
 uniform float uWindowUnlitLightnessDelta;
@@ -522,6 +528,18 @@ vec4 renderRoofFace() {
     vec4 icon = texture2D(uIconAtlas, atlasUv);
     // Composite over the roof: icon.rgb on top, alpha-weighted.
     composed = mix(composed, icon.rgb, icon.a * innerMask);
+  }
+
+  // Deleted-file cross, over the icon so the file type stays readable under it.
+  if (vKind == KIND_RUIN && uRuinXEnabled) {
+    vec2 inner = (vUv - uRoofBorderFrac) / (1.0 - 2.0 * uRoofBorderFrac);
+    // Distance to the inner square's two diagonals, sqrt(2)x the perpendicular
+    // one, so RUIN_X_DIAG converts uRuinXWidth into this space.
+    float d = min(abs(inner.x - inner.y), abs(inner.x + inner.y - 1.0));
+    float halfW = uRuinXWidth * RUIN_X_DIAG;
+    float aa = max(fwidth(d), 1e-6);
+    float stroke = 1.0 - smoothstep(halfW - aa, halfW + aa, d);
+    composed = mix(composed, uRuinXColor, stroke * innerMask);
   }
 
   return vec4(composed, vOpacity);

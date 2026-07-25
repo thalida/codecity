@@ -143,6 +143,12 @@ def _epoch_to_iso(epoch: float) -> str:
     return datetime.fromtimestamp(epoch, tz=timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
+def _day_key(commit: "CommitEntry") -> str:
+    """Calendar day of a commit, for the same-day aggregates. `date` carries a
+    full timestamp, so the day has to be sliced back out."""
+    return commit["date"][:10]
+
+
 def _git_iso_to_utc(iso: str) -> str:
     """Normalize a git %aI date (which carries the author's UTC offset,
     e.g. +02:00) to the same Z-suffixed UTC format _epoch_to_iso emits.
@@ -354,7 +360,7 @@ def _collect_git_dates(
                 if current_date:
                     commits_newest_first.append(
                         {
-                            "date": current_date[:10],
+                            "date": current_date,
                             "files": current_files,
                             "sha": current_sha,
                             "authors": build_authors_list(
@@ -402,7 +408,7 @@ def _collect_git_dates(
         if current_date:
             commits_newest_first.append(
                 {
-                    "date": current_date[:10],
+                    "date": current_date,
                     "files": current_files,
                     "sha": current_sha,
                     "authors": build_authors_list(current_author, current_trailers),
@@ -1384,7 +1390,7 @@ def _compute_busyness(commits: list[CommitEntry]) -> BusynessThresholds:
         return {"avg": 1, "busy": 1}
     per_day: dict[str, int] = {}
     for c in commits:
-        per_day[c["date"]] = per_day.get(c["date"], 0) + 1
+        per_day[_day_key(c)] = per_day.get(_day_key(c), 0) + 1
     counts = sorted(per_day.values())
 
     def _quantile(p: float) -> int:
@@ -1440,9 +1446,9 @@ def _annotate_same_day_totals(commits: list[CommitEntry]) -> None:
     pane's badge and the scene tree-color read this one field (#35)."""
     per_day: dict[str, int] = {}
     for c in commits:
-        per_day[c["date"]] = per_day.get(c["date"], 0) + 1
+        per_day[_day_key(c)] = per_day.get(_day_key(c), 0) + 1
     for c in commits:
-        c["same_day_total"] = per_day[c["date"]]
+        c["same_day_total"] = per_day[_day_key(c)]
 
 
 def _force_skeleton_placeholders(node: DirNode | FileNode) -> None:

@@ -11,6 +11,7 @@ import * as THREE from 'three';
 import { BUILDINGS } from '@/state/stores/settings/buildings';
 import { BLOOM } from '@/state/stores/settings/effects';
 import { SCENE } from '@/state/stores/settings/scene';
+import { RUINS } from '@/state/stores/settings/ruins';
 import type { IconAtlas } from './atlas';
 import { setColorFromHex } from '@/city/utils/color/setColorFromHex';
 import { writeSunDir } from '@/city/utils/shaders/sunDir';
@@ -145,6 +146,11 @@ export function getBuildingMaterial(): THREE.ShaderMaterial {
       // via shadeColor/shadeAndShiftHue in the shader.
       uSlabLightnessDelta: { value: BUILDINGS.value.SLAB_LIGHTNESS_DELTA },
       uDoorLightnessDelta: { value: BUILDINGS.value.DOOR_LIGHTNESS_DELTA },
+      // Deleted-file cross (RUINS store) — consumed in sRGB like the roof it
+      // composites over, so the hex bytes pass through (see setColorFromHex).
+      uRuinXEnabled: { value: RUINS.value.X_ENABLED },
+      uRuinXColor: { value: setColorFromHex(new THREE.Color(), RUINS.value.X_COLOR) },
+      uRuinXWidth: { value: RUINS.value.X_WIDTH },
       // WINDOW_LIGHTING store — per-cell lit/unlit lightness deltas, gap
       // thresholds, and the warm-amber tint for old/dim lit panes.
       uWindowUnlitLightnessDelta: { value: BUILDINGS.value.UNLIT_LIGHTNESS_DELTA },
@@ -217,6 +223,10 @@ export function refreshBuildingMaterial(): void {
   const facadeDetail = BUILDINGS.value;
   _sharedMaterial.uniforms.uSlabLightnessDelta.value = facadeDetail.SLAB_LIGHTNESS_DELTA;
   _sharedMaterial.uniforms.uDoorLightnessDelta.value = facadeDetail.DOOR_LIGHTNESS_DELTA;
+  const ruins = RUINS.value;
+  _sharedMaterial.uniforms.uRuinXEnabled.value = ruins.X_ENABLED;
+  setColorFromHex(_sharedMaterial.uniforms.uRuinXColor.value as THREE.Color, ruins.X_COLOR);
+  _sharedMaterial.uniforms.uRuinXWidth.value = ruins.X_WIDTH;
   // WINDOW_LIGHTING store — pure uniform refresh into the pre-allocated
   // THREE.Color uniform values.
   const windowLighting = BUILDINGS.value;

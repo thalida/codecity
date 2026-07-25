@@ -110,7 +110,7 @@ class RepoInfo(BaseModel):
 
 
 class CommitEntry(BaseModel):
-    date: str = Field(description="YYYY-MM-DD")
+    date: str = Field(description="ISO-8601 UTC, e.g. 2026-07-25T14:03:21Z")
     files: int
     sha: str
     authors: list[str]
@@ -278,6 +278,7 @@ class TimelineBundle(BaseModel):
     unionManifest: Manifest
     deltas: list[TimelineDelta]
     blobLines: dict[str, int]
+    blobSizes: dict[str, int]
     commitLineRanges: list[RangeStat]
     note: Optional[str]
 

@@ -23,8 +23,7 @@ function withRoot(relPath: string, rootName: string | null): string {
 export function formatHoverTooltip(
   target: PickTarget | null,
   rootName: string | null,
-  // Timeline: line count at the scrubbed commit (the height's source). Overrides
-  // the static FileNode.lines so the tooltip matches the building height.
+  // Timeline: lines at the scrubbed commit, or at deletion for a file already gone.
   scrubLines?: number | null
 ): string | null {
   if (!target) return null;
@@ -47,10 +46,11 @@ export function formatHoverTooltip(
     // meaningless 0 — surface pixel dimensions instead. The backend only
     // stamps media_width/height on recognized media, so their presence is a
     // reliable "this is dimensioned media" signal.
+    if (f.media_width != null && f.media_height != null) {
+      return `${fpath}  ·  ${f.media_width}×${f.media_height}`;
+    }
     const lines = scrubLines ?? f.lines;
-    return f.media_width != null && f.media_height != null
-      ? `${fpath}  ·  ${f.media_width}×${f.media_height}`
-      : fpath + (lines != null ? `  ·  ${lines} lines` : '');
+    return fpath + (lines != null ? `  ·  ${lines} lines` : '');
   }
   if (target.kind === NodeKind.Directory && target.dir) {
     const d = target.dir;
