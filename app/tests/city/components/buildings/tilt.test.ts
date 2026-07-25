@@ -107,4 +107,26 @@ describe('composeShearMatrix()', () => {
       }
     }
   });
+
+  // The ground haze normalizes worldPos.y by vScale.y, which the vertex shader
+  // reads as length(instanceMatrix[1]). Nothing else consumes vScale.y, so a
+  // drift here would silently rescale the haze on every building.
+  it('column 1 length is the building height, and the base sits at y=0', () => {
+    for (const h of [32, 352, 1024]) {
+      const out = composeShearMatrix(
+        new THREE.Vector3(100, h / 2, 200),
+        new THREE.Vector3(20, h, 20),
+        0.04,
+        -0.03,
+        new THREE.Matrix4()
+      );
+      const e = out.elements;
+      // GLSL instanceMatrix[1] is column 1 == elements[4..6]. The lean overstates
+      // it by 1/cos(lean) — a relative error, so compare the ratio.
+      expect(new THREE.Vector3(e[4], e[5], e[6]).length() / h).toBeCloseTo(1, 2);
+
+      expect(new THREE.Vector3(0, -0.5, 0).applyMatrix4(out).y).toBeCloseTo(0, 10);
+      expect(new THREE.Vector3(0, 0.5, 0).applyMatrix4(out).y).toBeCloseTo(h, 10);
+    }
+  });
 });

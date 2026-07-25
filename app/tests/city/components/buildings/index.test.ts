@@ -20,12 +20,9 @@ import { signal } from '@preact/signals';
 
 import { createBuildings } from '@/city/components/buildings';
 import { makeCityState } from '../../../_helpers/cityFixtures';
-import {
-  getBuildingMaterial,
-  refreshBuildingMaterial,
-  setTallestBuildingHeight,
-} from '@/city/components/buildings/material';
-import { BUILDINGS, BUILDING_DIMENSIONS } from '@/state/stores/settings/buildings';
+import { getBuildingMaterial } from '@/city/components/buildings/material';
+import buildingFragSrc from '@/city/components/buildings/building.frag.glsl?raw';
+import { BUILDINGS } from '@/state/stores/settings/buildings';
 import { SCENE } from '@/state/stores/settings/scene';
 import { NodeKind } from '@/types';
 import type { Building, CityLayout, DateRanges, FileTarget, PickTarget } from '@/types';
@@ -34,9 +31,11 @@ import type { SceneContext } from '@/city/types';
 import { building } from '../../../_helpers/buildingFixture';
 
 const _origBuildings = BUILDINGS.value;
+const _origScene = SCENE.value;
 
-function resetBuildings(): void {
+function resetStores(): void {
   BUILDINGS.value = { ..._origBuildings };
+  SCENE.value = { ..._origScene };
 }
 
 // A SceneContext whose picker exposes controllable selection + hover signals,
@@ -115,7 +114,7 @@ describe('createBuildings()', () => {
   let buildings: ReturnType<typeof createBuildings>;
 
   beforeEach(() => {
-    resetBuildings();
+    resetStores();
   });
 
   afterEach(() => {
@@ -244,7 +243,7 @@ describe('createBuildings()', () => {
     expect(uniforms.uOutlineWidth.value).toBe(2.25);
   });
 
-  it('fog falloff height tracks the tallest rendered building, else the possible max', async () => {
+  it('fog falloff reaches the shader as the raw fraction, unscaled by any city height', async () => {
     const { ctx } = makeCtx();
     buildings = createBuildings(ctx);
     await buildings.rebuild(
@@ -253,18 +252,17 @@ describe('createBuildings()', () => {
     );
     const uniforms = getBuildingMaterial().uniforms;
 
-    // With a city loaded, falloff = FOG_HEIGHT_FRAC × the tallest currently
-    // rendered building (pushed in via the material effect / setter).
-    setTallestBuildingHeight(500);
-    refreshBuildingMaterial();
-    expect(uniforms.uFogHeight.value).toBeCloseTo(SCENE.value.FOG_HEIGHT_FRAC * 500, 5);
+    SCENE.value = { ...SCENE.value, FOG_HEIGHT_FRAC: 0.4 };
+    expect(uniforms.uFogHeightFrac.value).toBe(0.4);
 
-    // No city → fall back to the tallest POSSIBLE building.
-    setTallestBuildingHeight(null);
-    refreshBuildingMaterial();
-    const possibleMax =
-      BUILDING_DIMENSIONS.value.MAX_FLOORS * BUILDING_DIMENSIONS.value.FLOOR_HEIGHT;
-    expect(uniforms.uFogHeight.value).toBeCloseTo(SCENE.value.FOG_HEIGHT_FRAC * possibleMax, 5);
+    SCENE.value = { ...SCENE.value, FOG_HEIGHT_FRAC: 0.1 };
+    expect(uniforms.uFogHeightFrac.value).toBe(0.1);
+  });
+
+  it('building shader scales the haze by each instance own height', () => {
+    // vScale.y is the per-instance height recovered from the instance matrix;
+    // GLSL can't be compile-tested here, so guard the call site.
+    expect(buildingFragSrc).toMatch(/applyFog\(outColor\.rgb, vWorldPos, vScale\.y\)/);
   });
 
   // ---------------------------------------------------------------------------

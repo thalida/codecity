@@ -8,7 +8,6 @@
 // match. The mapping is documented in the per-constant comments below.
 
 #include <hsl_glsl_inline>
-#include <fog_uniforms_glsl_inline>
 
 flat varying int vFace;
 varying vec2 vUv;
@@ -82,10 +81,9 @@ uniform float uIconSlotSize;
 uniform vec2 uGrimeIntensity;
 uniform vec2 uGrimeCoverage;
 
-// Ground haze (height-based volumetric fog).
-// Uniforms declared by the fog_uniforms chunk above:
-//   uFogEnabled, uFogColor, uFogIntensity, uFogHeight (height fog)
-// Consumed via applyFog() injected by the fog_apply chunk below.
+// Ground haze — uFogEnabled / uFogColor / uFogIntensity / uFogHeightFrac plus
+// applyFog(), all from the shared chunk.
+#include <fog_glsl_inline>
 
 // Scene directional lighting — replaces SUN_DIR_WORLD / AMBIENT / DIFFUSE_GAIN.
 // Sun direction is in world space and points TOWARD the sun (positive
@@ -117,7 +115,6 @@ uniform vec3 uDimGlowColor;
 // count + emission curve. 1.0 = linear; >1.0 dims mid-age faster.
 uniform float uLitFreshnessExponent;
 
-varying float vWorldY;
 varying vec3 vWorldPos; // world-space position for height fog
 
 // ---------------------------------------------------------------------------
@@ -208,8 +205,6 @@ uniform float uWindowEmissionBoost;
 // renderWallFace for the formula.)
 // Door + roof-border lightness deltas are driven by uDoorLightnessDelta
 // and uRoofBorderLightnessDelta (FACADE_DETAIL store).
-
-#include <fog_apply_glsl_inline>
 
 // ---------------------------------------------------------------------------
 // Face helpers
@@ -605,9 +600,9 @@ void main() {
   // Ruin facade: coarse grime so the blank stub looks weathered, not painted. Ruins only, not the future slab.
   if (vKind == KIND_RUIN) outColor.rgb *= RUIN_GRIME_FLOOR + RUIN_GRIME_RANGE * hash21(floor(vUv * RUIN_GRIME_CELLS));
 
-  // Height fog: dense at y=0, thins with altitude. Handled by applyFog()
-  // from the shared fog_apply chunk.
-  outColor.rgb = applyFog(outColor.rgb, vWorldPos);
+  // Buildings sit on the ground (base y = 0), so vScale.y normalizes worldPos.y
+  // straight into height-within-this-building.
+  outColor.rgb = applyFog(outColor.rgb, vWorldPos, vScale.y);
 
   gl_FragColor = outColor;
 }

@@ -39,7 +39,7 @@ import type { CellTile } from './cellTile';
 import { BuildingIndex } from './buildingIndex';
 import { buildCellsFromLayout } from './cellAssembly';
 import type { InstancedFacadePanels } from './facadePanels';
-import { refreshBuildingMaterial, setTallestBuildingHeight } from './material';
+import { refreshBuildingMaterial } from './material';
 import { disposeObject3D } from '@/city/utils/disposeObject3D';
 import { getBuildingColor, getCreatedAge, getModifiedAge } from './color';
 import { createBuildingFader } from './fader';
@@ -139,9 +139,6 @@ export function createBuildings(ctx: SceneContext): Buildings {
     void SCENE.value;
     void BLOOM.value;
     void BUILDING_DIMENSIONS.value;
-    // Ground-haze falloff tracks the tallest currently-rendered building, so
-    // subscribe to it here and push it in before re-applying uniforms.
-    setTallestBuildingHeight(ctx.cityState.tallestBuilding.value?.h ?? null);
     refreshBuildingMaterial();
     _facadePanels?.refresh();
   });
