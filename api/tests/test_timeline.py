@@ -140,6 +140,59 @@ def test_union_manifest_is_all_paths_max_size(tmp_path: Path) -> None:
     assert nodes["a.txt"]["binary"] is False
 
 
+def test_compute_commit_line_ranges() -> None:
+    """Per-commit range tracks the present set: files add/grow/delete, and
+    zero-line files (binary/empty) are excluded — mirroring compute_repo_stats."""
+    from api.services.timeline import CommitDelta, compute_commit_line_ranges
+
+    blob_lines = {"a1": 3, "a2": 10, "b1": 5, "bin": 0, "empty": 0}
+    deltas = [
+        CommitDelta("c1", [("a.txt", "a1")]),  # a=3 present
+        CommitDelta("c2", [("a.txt", "a2"), ("b.txt", "b1")]),  # a=10, b=5
+        CommitDelta("c3", [("d.bin", "bin"), ("e.txt", "empty")]),  # +0-line files
+        CommitDelta("c4", [("a.txt", None)]),  # a.txt deleted → only b=5 present
+    ]
+    assert compute_commit_line_ranges(deltas, blob_lines) == [
+        {"min": 3, "max": 3},
+        {"min": 5, "max": 10},
+        {"min": 5, "max": 10},  # binary + empty (0 lines) excluded
+        {"min": 5, "max": 5},  # a.txt gone
+    ]
+
+
+def test_head_line_range_matches_live_scan(tmp_path: Path) -> None:
+    """The core Timeline-HEAD-equals-Live contract: commitLineRanges[-1] (HEAD)
+    equals the live scan's stats.lineCountRange for the same repo — same exact
+    counter on both paths, same present set, so height normalizes identically."""
+    from api.services.timeline import (
+        walk_deltas,
+        _collect_blob_tables,
+        compute_commit_line_ranges,
+    )
+    from api.services.scan import scan_tree
+
+    _init(tmp_path)
+    (tmp_path / "a.txt").write_text("l1\nl2\nl3\n")  # 3 lines
+    (tmp_path / "b.txt").write_text("only one line, no newline")  # 1 line
+    (tmp_path / "big.txt").write_text("x\n" * 100)  # 100 lines
+    (tmp_path / "data.bin").write_bytes(b"\x00\x01\x02" * 500)  # binary → 0, excluded
+    _commit(tmp_path, "c1")
+
+    live = None
+    for ev in scan_tree(str(tmp_path), use_cache=False):
+        if ev["phase"] == "manifest-complete":
+            live = ev["manifest"]
+    assert live is not None
+    live_range = live["stats"]["lineCountRange"]
+
+    deltas = walk_deltas(tmp_path)
+    blob_lines, _sizes, _stats = _collect_blob_tables(tmp_path, deltas, use_cache=False)
+    ranges = compute_commit_line_ranges(deltas, blob_lines)
+
+    assert live_range == {"min": 1, "max": 100}  # b=1, big=100; binary excluded
+    assert ranges[-1] == live_range  # Timeline HEAD == Live
+
+
 def test_bundle_replay_matches_reconstruct(tmp_path: Path) -> None:
     """Replaying deltas[0..i] reproduces reconstruct_manifest's file set + lines
     at that ref — ties the bundle to the proven phase-1 reconstruction. The

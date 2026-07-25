@@ -278,6 +278,7 @@ class TimelineBundle(BaseModel):
     unionManifest: Manifest
     deltas: list[TimelineDelta]
     blobLines: dict[str, int]
+    commitLineRanges: list[RangeStat]
     note: Optional[str]
 
 

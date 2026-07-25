@@ -168,42 +168,22 @@ def _stat_fields(entry: os.DirEntry[str]) -> tuple[int, str, str, float]:
     return st.st_size, _epoch_to_iso(birth), _epoch_to_iso(st.st_mtime), st.st_mtime
 
 
-# Above this size, sample first 1 MB and extrapolate. Building height
-# is relative, so ±20% on a 6+ MB file is fine and saves megabytes
-# of read I/O per file.
-_LINE_COUNT_FULL_THRESHOLD = 5 * 1024 * 1024  # 5 MB
-_LINE_COUNT_SAMPLE_BYTES = 1 * 1024 * 1024  # 1 MB
-
-
 def _line_count(path: Path) -> int:
+    # Exact streamed count (no sampling), same rule as gitobj.count_lines so a
+    # file's Live count equals its Timeline blob count.
     try:
-        size = path.stat().st_size
-        if size <= _LINE_COUNT_FULL_THRESHOLD:
-            # Exact path — count LINES (newline terminators) in 1 MB chunks.
-            total = 0
-            last_byte = b""
-            with path.open("rb") as fh:
-                while True:
-                    chunk = fh.read(1 << 20)
-                    if not chunk:
-                        break
-                    total += chunk.count(b"\n")
-                    last_byte = chunk[-1:]
-            # A non-empty final line with no trailing newline still counts, so a
-            # single unterminated line (e.g. a minified file / source map) is 1
-            # line, not 0. Empty files (no bytes read) stay 0.
-            if last_byte and last_byte != b"\n":
-                total += 1
-            return total
-        # Sample-extrapolate path.
+        total = 0
+        last_byte = b""
         with path.open("rb") as fh:
-            chunk = fh.read(_LINE_COUNT_SAMPLE_BYTES)
-            sampled = chunk.count(b"\n")
-        # No newline in the sample, but the file is past the threshold (non-empty):
-        # at least one (very long) line, never 0.
-        if sampled == 0:
-            return 1
-        return int(sampled * (size / _LINE_COUNT_SAMPLE_BYTES))
+            while True:
+                chunk = fh.read(1 << 20)
+                if not chunk:
+                    break
+                total += chunk.count(b"\n")
+                last_byte = chunk[-1:]
+        if last_byte and last_byte != b"\n":
+            total += 1
+        return total
     except OSError:
         return 0
 
@@ -1855,7 +1835,7 @@ def reconstruct_manifest(root: str, ref: str, *, use_cache: bool = True) -> Mani
         else {}
     )
     for sha, s in fresh.items():
-        entry: BlobEntry = {"lines": s.lines, "binary": s.binary}
+        entry: BlobEntry = {"lines": s.lines, "binary": s.binary, "size": s.size}
         if s.media_width is not None and s.media_height is not None:
             entry["media_width"], entry["media_height"] = s.media_width, s.media_height
         if s.binary_type is not None:

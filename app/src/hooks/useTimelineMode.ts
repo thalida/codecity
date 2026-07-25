@@ -108,7 +108,7 @@ export async function loadTimelineScene({ inPlace = false } = {}): Promise<void>
     // Flip after the pack: applyManifest rebuilds the street + footprint meshes opaque.
     handle.timeline.setStreetsTransparent(true);
     handle.timeline.setFootprintsTransparent(true);
-    handle.timeline.installScrubController(timelines);
+    handle.timeline.installScrubController(timelines, bundle.commitLineRanges);
     batch(() => {
       TIMELINE_MODE.value = true;
       if (inPlace) {
@@ -173,7 +173,7 @@ export async function reapplyTimelineScene(): Promise<void> {
   await handle.applyManifest(bundle.unionManifest as unknown as Manifest);
   handle.timeline.setStreetsTransparent(true);
   handle.timeline.setFootprintsTransparent(true);
-  handle.timeline.installScrubController(timelines);
+  handle.timeline.installScrubController(timelines, bundle.commitLineRanges);
 }
 
 // Scene-free: the city-layer effect (city/index.ts) reacts to TIMELINE_MODE and does the scene teardown.

@@ -15,7 +15,7 @@ import { getBuildingColorForRecency } from '@/city/components/buildings/color';
 import { BUILDINGS } from '@/state/stores/settings/buildings';
 import { BUILDING_DIMENSIONS } from '@/state/stores/settings/buildings';
 import type { BuildingsConfig } from '@/state/stores/settings/buildings';
-import type { Building, FileNode, PickTarget, Street, TimelineBundle } from '@/types';
+import type { Building, FileNode, PickTarget, RangeStat, Street, TimelineBundle } from '@/types';
 import { ROOT_PATH } from '@/constants/manifest';
 import { signal } from '@preact/signals';
 
@@ -45,6 +45,11 @@ const heightCtx: HeightContext = {
   lineStats: { min: 1, max: 200 },
   byteStats: { min: 1, max: 5000 },
 };
+
+// Per-commit line range fed to the controller. Pinned to heightCtx.lineStats at
+// every position so height assertions (buildingHeightForLines(..., heightCtx))
+// hold: the controller normalizes against range[floor(pos)].
+const commitLineRanges: RangeStat[] = Array.from({ length: 8 }, () => heightCtx.lineStats);
 
 const file = { path: 'f.txt', lines: 6, size: 500, extension: 'txt' } as unknown as FileNode;
 
@@ -305,7 +310,8 @@ function setup(
   getFacadePanels: () => InstancedFacadePanels | null = () => null,
   trees: { setScrubCommit(maxCommitIndex: number | null): void } = noopTrees,
   fireflies: { setScrubCommit(maxCommitIndex: number | null): void } = noopFireflies,
-  initialFadeZ = 0
+  initialFadeZ = 0,
+  ranges: RangeStat[] = commitLineRanges
 ) {
   const b = {
     x: 5,
@@ -332,6 +338,7 @@ function setup(
     getMeshForBuilding: () => ({ mesh: fake.mesh, slot: 0 }),
     timelines,
     heightCtx,
+    commitLineRanges: ranges,
     footprints: noopFootprints,
     streets: { setStreetOpacity: () => {}, setStreetLabelOpacity: () => {} },
     streetsByDir: {},
@@ -402,6 +409,7 @@ function makeAnchoredScene(
     getMeshForBuilding: (b) => ({ mesh: meshByBuilding.get(b)!.mesh, slot: 0 }),
     timelines,
     heightCtx,
+    commitLineRanges,
     footprints: noopFootprints,
     streets: { setStreetOpacity: () => {}, setStreetLabelOpacity: () => {} },
     streetsByDir: {},
@@ -502,12 +510,37 @@ test('at HEAD the height factor is ~1 (matches the union baseline)', () => {
   expect(fake.scaleY).toBeCloseTo(heightForLines(file, 6), 5);
 });
 
-test('height is its OWN size, not the present-set range: a lone present building keeps full height', () => {
-  // Regression: a lone present file used to hit a degenerate present-set range and collapse to MIN_FLOORS.
-  const { fake, controller } = setup(); // no anchors: f.txt is the only present file
-  SCRUB_POS.value = 2; // last live commit, 6 lines
+test('height normalizes against commitLineRanges[pos], not the union heightCtx', () => {
+  // heightCtx.lineStats is {1,200}; feed a WIDER per-commit range so the same
+  // 6-line file normalizes differently — proves height tracks the backend
+  // per-commit range (at HEAD this range == the live scan's lineCountRange).
+  const wide: RangeStat[] = Array.from({ length: 8 }, () => ({ min: 1, max: 20000 }));
+  const { fake, controller } = setup(undefined, undefined, undefined, 0, wide);
+  SCRUB_POS.value = 2; // HEAD, 6 lines
   controller.update();
-  expect(fake.scaleY).toBeCloseTo(heightForLines(file, 6), 5);
+  const expected = getBuildingDimensions(
+    { ...file, lines: 6 } as unknown as FileNode,
+    { min: 1, max: 20000 },
+    heightCtx.byteStats
+  ).h;
+  expect(fake.scaleY).toBeCloseTo(expected, 5);
+  expect(fake.scaleY).not.toBeCloseTo(heightForLines(file, 6), 1);
+});
+
+test('a degenerate per-commit range (min==max) collapses to MIN_FLOORS, matching Live for a lone-file commit', () => {
+  // #132 accepted behavior: when the present set is one file (or all-equal lines)
+  // the range is degenerate and the building flattens — exactly what a live scan
+  // of that 1-file state shows (getBuildingDimensions returns MIN_FLOORS).
+  const degenerate: RangeStat[] = Array.from({ length: 8 }, () => ({ min: 6, max: 6 }));
+  const { fake, controller } = setup(undefined, undefined, undefined, 0, degenerate);
+  SCRUB_POS.value = 2;
+  controller.update();
+  const minFloors = getBuildingDimensions(
+    { ...file, lines: 6 } as unknown as FileNode,
+    { min: 6, max: 6 },
+    heightCtx.byteStats
+  ).h;
+  expect(fake.scaleY).toBeCloseTo(minFloors, 5);
 });
 
 test('before its creation the building is flat and fully transparent', () => {
@@ -603,6 +636,7 @@ test('drives footprint opacity even when the building has no detail mesh (LOD ce
     getMeshForBuilding: () => null, // impostor LOD cell: no detail mesh
     timelines: buildPathTimelines(bundle),
     heightCtx,
+    commitLineRanges,
     footprints: fp.footprints,
     streets: { setStreetOpacity: () => {}, setStreetLabelOpacity: () => {} },
     streetsByDir: {},
@@ -748,6 +782,7 @@ test('a present media/0-line file gets a non-zero scaleY; an absent one stays fl
     getMeshForBuilding: () => ({ mesh: fake.mesh, slot: 0 }),
     timelines,
     heightCtx,
+    commitLineRanges,
     footprints: noopFootprints,
     streets: { setStreetOpacity: () => {}, setStreetLabelOpacity: () => {} },
     streetsByDir: {},
@@ -921,6 +956,7 @@ test('dedup: two buildings sharing one InstancedMesh set needsUpdate exactly onc
         : { mesh: sharedMesh, slot: b.slotId },
     timelines,
     heightCtx,
+    commitLineRanges,
     footprints: noopFootprints,
     streets: { setStreetOpacity: () => {}, setStreetLabelOpacity: () => {} },
     streetsByDir: {},
@@ -1022,6 +1058,7 @@ test('couples street opacity to the max opacity of its buildings (block fade)', 
     getMeshForBuilding: (b) => ({ mesh: meshByBuilding.get(b)!.mesh, slot: 0 }),
     timelines,
     heightCtx,
+    commitLineRanges,
     footprints: noopFootprints,
     streets,
     streetsByDir: { d: dStreet, e: eStreet },
@@ -1116,6 +1153,7 @@ test('block-fade is a true max, not last-write-wins: one deleted sibling cannot 
     getMeshForBuilding: (b) => ({ mesh: meshByBuilding.get(b)!.mesh, slot: 0 }),
     timelines,
     heightCtx,
+    commitLineRanges,
     footprints: noopFootprints,
     streets,
     streetsByDir: { d: dStreet },
@@ -1206,6 +1244,7 @@ test('descendant rollup: a container street with no direct files inherits its ch
     getMeshForBuilding: (b) => ({ mesh: meshByBuilding.get(b)!.mesh, slot: 0 }),
     timelines,
     heightCtx,
+    commitLineRanges,
     footprints: noopFootprints,
     streets,
     streetsByDir: { src: srcStreet, 'src/a': srcAStreet, e: eStreet },
@@ -1290,6 +1329,7 @@ test('footprints: a deleted building/street fades to 0 while a live sibling stay
     getMeshForBuilding: (b) => ({ mesh: meshByBuilding.get(b)!.mesh, slot: 0 }),
     timelines,
     heightCtx,
+    commitLineRanges,
     footprints: fakeFootprints.footprints,
     streets: { setStreetOpacity: () => {}, setStreetLabelOpacity: () => {} },
     streetsByDir: { d: dStreet, e: eStreet },
@@ -1345,6 +1385,7 @@ test('the ROOT street stays at opacity 1 even when every building is absent, unl
     getMeshForBuilding: () => ({ mesh: fake.mesh, slot: 0 }),
     timelines,
     heightCtx,
+    commitLineRanges,
     footprints: fakeFootprints.footprints,
     streets,
     streetsByDir: { [ROOT_PATH]: rootStreet, d: dStreet },
@@ -1856,6 +1897,7 @@ test('future roads always render: a non-present, non-ruin street is a future roa
     getMeshForBuilding: () => ({ mesh: fake.mesh, slot: 0 }),
     timelines,
     heightCtx,
+    commitLineRanges,
     footprints: noopFootprints,
     streets,
     streetsByDir: { [ROOT_PATH]: rootStreet, d: dStreet },
@@ -1917,6 +1959,7 @@ test('a file empty at the scrub position renders as a slab, not a MIN_FLOORS bui
     getMeshForBuilding: () => ({ mesh: fake.mesh, slot: 0 }),
     timelines: buildPathTimelines(emptyBundle),
     heightCtx,
+    commitLineRanges,
     footprints: noopFootprints,
     streets: { setStreetOpacity: () => {}, setStreetLabelOpacity: () => {} },
     streetsByDir: {},
@@ -1988,6 +2031,7 @@ function setupAlwaysEmpty() {
     getMeshForBuilding: () => ({ mesh: fake.mesh, slot: 0 }),
     timelines: buildPathTimelines(alwaysEmptyBundle),
     heightCtx,
+    commitLineRanges,
     footprints: noopFootprints,
     streets: { setStreetOpacity: () => {}, setStreetLabelOpacity: () => {} },
     streetsByDir: {},

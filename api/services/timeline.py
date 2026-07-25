@@ -11,7 +11,7 @@ from typing import Callable, NamedTuple
 
 from .cache import BlobEntry, cache_load_blobs, cache_save_blobs
 from .gitobj import _git_argv, blob_sizes_batch, blob_stats_batch
-from .manifest_types import CommitEntry, FileNode, Manifest, TimelineBundle
+from .manifest_types import CommitEntry, FileNode, Manifest, RangeStat, TimelineBundle
 from .media import media_kind
 from .scan import (
     SCAN_PROGRESS_THROTTLE_S,
@@ -160,7 +160,7 @@ def _collect_blob_tables(
         on_progress({"stage": "blobs", "done": total - len(misses), "total": total})
     fresh = blob_stats_batch(root, misses, media_shas=media_shas) if misses else {}
     for sha, st in fresh.items():
-        entry: BlobEntry = {"lines": st.lines, "binary": st.binary}
+        entry: BlobEntry = {"lines": st.lines, "binary": st.binary, "size": st.size}
         if st.media_width is not None and st.media_height is not None:
             entry["media_width"], entry["media_height"] = (
                 st.media_width,
@@ -175,7 +175,12 @@ def _collect_blob_tables(
     if on_progress is not None:
         on_progress({"stage": "blobs", "done": total, "total": total})
     lines = {s: cached[s]["lines"] for s in shas if s in cached}
+    # git-lfs: prefer the resolved size; blob_sizes_batch sees only the pointer.
     sizes = blob_sizes_batch(root, shas)
+    for s in shas:
+        entry = cached.get(s)
+        if entry is not None and "size" in entry:
+            sizes[s] = entry["size"]
     blob_stats = {s: cached[s] for s in shas if s in cached}
     return lines, sizes, blob_stats
 
@@ -260,6 +265,32 @@ def build_union_manifest(
     return _wrap_manifest(root_abs, tree, sig, signals, repo_info, commits)
 
 
+def compute_commit_line_ranges(
+    deltas: list[CommitDelta], blob_lines: dict[str, int]
+) -> list[RangeStat]:
+    """Per-commit line range over the present files (non-zero only) — mirrors
+    compute_repo_stats, so range[HEAD] equals the live lineCountRange. The client
+    normalizes height against range[pos] to match Live-at-that-commit."""
+    present: dict[str, int] = {}  # path -> current line count
+    ranges: list[RangeStat] = []
+    for d in deltas:
+        for path, sha in d.changes:
+            if sha is None:
+                present.pop(path, None)
+            else:
+                present[path] = blob_lines.get(sha, 0)
+        lo = hi = 0
+        for n in present.values():
+            if n <= 0:
+                continue
+            if lo == 0 or n < lo:
+                lo = n
+            if n > hi:
+                hi = n
+        ranges.append({"min": lo, "max": hi})
+    return ranges
+
+
 def build_timeline_bundle(
     root: str,
     *,
@@ -341,6 +372,7 @@ def build_timeline_bundle(
         git_created,
         git_modified,
     )
+    commit_line_ranges = compute_commit_line_ranges(deltas, blob_lines)
     _log("timeline bundle complete")
 
     return {
@@ -351,5 +383,6 @@ def build_timeline_bundle(
             for d in deltas
         ],
         "blobLines": blob_lines,
+        "commitLineRanges": commit_line_ranges,
         "note": note,
     }

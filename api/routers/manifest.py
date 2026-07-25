@@ -51,6 +51,7 @@ from api.services.clone import (
     RepoNotFoundError,
     clone_dir_for,
     ensure_clone,
+    fetch_lfs_history,
     hydrate_blobs,
     remove_clone,
 )
@@ -187,6 +188,8 @@ async def timeline(
                 # per-blob promisor fetch hang). Never touches a local repo.
                 if is_remote:
                     hydrate_blobs(target, on_progress=_on_hydrate, cancel_event=cancel)
+                    # All-history LFS so blob resolution reads real content at every commit, not just HEAD.
+                    fetch_lfs_history(target, cancel_event=cancel)
                 bundle = build_timeline_bundle(
                     str(target),
                     use_cache=use_cache,

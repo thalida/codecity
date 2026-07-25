@@ -19,7 +19,7 @@ import { BUILDING_DIMENSIONS, BUILDINGS } from '@/state/stores/settings/building
 import { RUINS } from '@/state/stores/settings/ruins';
 import { BLUEPRINTS } from '@/state/stores/settings/blueprints';
 import { FadeDetail, NodeKind } from '@/types';
-import type { Building, Street } from '@/types';
+import type { Building, RangeStat, Street } from '@/types';
 import type { BuildingIndex } from '@/city/components/buildings/buildingIndex';
 import type { InstancedFacadePanels } from '@/city/components/buildings/facadePanels';
 import type { createPicker } from '@/city/interaction/picker';
@@ -68,6 +68,9 @@ export interface ScrubControllerDeps {
   // hover dims the surrounding city here exactly as buildingFader does in Live.
   picker: Pick<ReturnType<typeof createPicker>, 'selection' | 'hover'>;
   timelines: Map<string, PathTimeline>;
+  // Per-commit line range (backend-computed); height normalizes against
+  // range[floor(pos)] to match Live-at-that-commit. heightCtx is byteStats only.
+  commitLineRanges: RangeStat[];
   heightCtx: HeightContext;
   streets: {
     setStreetOpacity(street: Street, opacity: number, tint: number): void;
@@ -151,6 +154,10 @@ export function createScrubController(deps: ScrubControllerDeps) {
     const pos = SCRUB_POS.peek();
     deps.trees.setScrubCommit(Math.floor(pos));
     deps.fireflies.setScrubCommit(Math.floor(pos));
+    // Height range for this commit → matches Live-at-that-commit. Degenerate {0,0} → {1,1}.
+    const ri = Math.max(0, Math.min(deps.commitLineRanges.length - 1, Math.floor(pos)));
+    const r = deps.commitLineRanges[ri];
+    const lineStats: RangeStat = r && (r.min > 0 || r.max > 0) ? r : { min: 1, max: 1 };
     const dirtyMeshes = new Set<THREE.InstancedMesh>();
     const dirtyFades = new Set<THREE.BufferAttribute>();
     const dirtyColors = new Set<THREE.InstancedMesh>();
@@ -292,15 +299,8 @@ export function createScrubController(deps: ScrubControllerDeps) {
       const scrubFile = present ? { ...b.file, lines: linesAt(pt, pos) } : b.file;
       if (present) {
         // Gate height on presence (intervals), not line count: media/empty files are present with 0 lines.
-        // Normalize floors against the fixed UNION line range (not the per-commit
-        // present set), so a building's height tracks its OWN size and grows as the
-        // file grows — instead of resizing when siblings appear/vanish. Matches how
-        // width already uses the union byteStats. (dims.w unused: matrix uses b.w.)
-        const dims = getBuildingDimensions(
-          scrubFile,
-          deps.heightCtx.lineStats,
-          deps.heightCtx.byteStats
-        );
+        // Height uses lineStats (this commit's range); width stays layout-baked (b.w), so dims.w is unused.
+        const dims = getBuildingDimensions(scrubFile, lineStats, deps.heightCtx.byteStats);
         if (iFloorsAttr) {
           iFloorsAttr.setX(slot, dims.floors);
           dirtyFloors.add(iFloorsAttr);

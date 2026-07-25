@@ -108,6 +108,7 @@ class BlobStats(NamedTuple):
     media_width: int | None
     media_height: int | None
     binary_type: str | None
+    size: int  # real byte size (resolved for git-lfs, else the blob size)
 
 
 def is_binary_bytes(chunk: bytes) -> bool:
@@ -118,6 +119,80 @@ def is_binary_bytes(chunk: bytes) -> bool:
         return True
     non_text = sum(1 for b in head if b not in _TEXT_CHARACTERS)
     return non_text / len(head) > 0.30
+
+
+def count_lines(data: bytes) -> int:
+    """Line count: newlines + 1 for an unterminated final line (empty → 0).
+    scan._line_count streams the identical rule so Live == Timeline."""
+    if not data:
+        return 0
+    return data.count(b"\n") + (0 if data.endswith(b"\n") else 1)
+
+
+# A git-lfs blob is a pointer, not content; resolve it so the timeline reads the
+# same bytes Live's smudged working tree does.
+_LFS_POINTER_PREFIX = b"version https://git-lfs.github.com/spec/v1"
+_LFS_MAX_RESOLVE_BYTES = 128 * 1024 * 1024
+_LFS_SMUDGE_TIMEOUT_S = 60  # per-object download budget before giving up (0 lines)
+
+
+def _parse_lfs_pointer(content: bytes) -> tuple[str, int] | None:
+    """(oid, byte size) if `content` is a git-lfs pointer, else None."""
+    if not content.startswith(_LFS_POINTER_PREFIX):
+        return None
+    oid: str | None = None
+    size: int | None = None
+    for line in content[:512].split(b"\n"):
+        if line.startswith(b"oid sha256:"):
+            oid = line[len(b"oid sha256:") :].strip().decode("ascii", "ignore") or None
+        elif line.startswith(b"size "):
+            try:
+                size = int(line[len(b"size ") :])
+            except ValueError:
+                pass
+    return (oid, size) if oid and size is not None else None
+
+
+def _lfs_smudge(root: Path, pointer: bytes) -> bytes | None:
+    """Resolve an lfs pointer to real bytes via `git lfs smudge`, which downloads
+    the object by oid from the remote when it isn't local (no tree scan, unlike
+    `git lfs fetch`). None if git-lfs is absent or the object can't be fetched (a
+    failed smudge echoes the pointer back)."""
+    try:
+        proc = subprocess.run(
+            _git_argv(root, "lfs", "smudge"),
+            input=pointer,
+            capture_output=True,
+            check=False,
+            env=_GIT_ENV,
+            timeout=_LFS_SMUDGE_TIMEOUT_S,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+    out = proc.stdout
+    if proc.returncode != 0 or out.startswith(_LFS_POINTER_PREFIX):
+        return None
+    return out
+
+
+def _resolve_lfs(root: Path, content: bytes, blob_size: int) -> tuple[bytes, int]:
+    """(real bytes, size) for an lfs pointer, matching the working tree Live scans;
+    non-pointer unchanged. Reads the local object, else smudges (downloads) it by
+    oid. Unresolvable → (b'', declared size): 0 lines but the true footprint."""
+    ptr = _parse_lfs_pointer(content)
+    if ptr is None:
+        return content, blob_size
+    oid, declared = ptr
+    if declared > _LFS_MAX_RESOLVE_BYTES:
+        return b"", declared
+    obj = root / ".git" / "lfs" / "objects" / oid[:2] / oid[2:4] / oid
+    try:
+        if obj.is_file():
+            return obj.read_bytes(), declared
+    except OSError:
+        pass
+    resolved = _lfs_smudge(root, content)
+    return (resolved, declared) if resolved is not None else (b"", declared)
 
 
 def blob_stats_batch(
@@ -161,8 +236,10 @@ def blob_stats_batch(
         sha, size = hp[0], int(hp[2])
         content = out[i : i + size]
         i += size + 1  # trailing newline after content
+        # git-lfs: pointer → real content so stats match Live.
+        content, real_size = _resolve_lfs(root, content, size)
         binary = is_binary_bytes(content)
-        lines = 0 if binary else content.count(b"\n")
+        lines = 0 if binary else count_lines(content)
         mw, mh = (
             probe_media_dims_from_bytes(content) if sha in media_shas else (None, None)
         )
@@ -173,6 +250,7 @@ def blob_stats_batch(
             media_width=mw,
             media_height=mh,
             binary_type=binary_type,
+            size=real_size,
         )
     return result
 

@@ -18,6 +18,7 @@ import { KEY_BINDINGS } from '@/constants/keyboard';
 import { TEXT_INPUT_TAGS } from '@/constants/dom';
 import { MODAL_OPEN } from '@/state/stores/ui';
 import { NodeKind } from '@/types';
+import { scrubbedLinesFor } from '@/state/stores/presentPaths';
 import type { PickTarget } from '@/types';
 import { formatHoverTooltip, isDeletedTarget } from './tooltipText';
 import type { createPicker } from './picker';
@@ -107,7 +108,11 @@ export function createInputHandlers({
     // the current root name each hover, never a subscription. Stays in sync
     // across manifest reloads because it's read lazily at call time.
     const rootName = cityState.manifest.peek()?.tree?.name ?? null;
-    const tooltipText = formatHoverTooltip(newHover, rootName);
+    const scrubLines =
+      newHover?.kind === NodeKind.File && newHover.file?.path != null
+        ? scrubbedLinesFor(newHover.file.path)
+        : null;
+    const tooltipText = formatHoverTooltip(newHover, rootName, scrubLines);
     if (tooltipText) {
       showTooltip(tooltipText, e.clientX, e.clientY, isDeletedTarget(newHover));
       canvas.style.cursor = 'pointer';

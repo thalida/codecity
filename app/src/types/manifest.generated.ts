@@ -94,14 +94,10 @@ export interface paths {
         put?: never;
         /**
          * Get Fingerprints
-         * @description Batch byte-pattern fingerprint fetch — return {path: {b64}} of a small
-         *     grayscale PNG per binary file, one round trip for many buildings. The city's
-         *     data-building facade loader and the preview data card both request these;
-         *     raw binary bytes never leave the server (only the head is read, and only a
-         *     fingerprint image is returned).
-         *
-         *     Each path is trust-checked exactly like GET /api/file. Paths that are out of
-         *     root, missing, or unreadable are silently omitted.
+         * @description Batch byte-pattern fingerprint fetch — {path: {b64}}, one round trip for
+         *     many buildings. Trust-checked like GET /api/file; out-of-root / missing /
+         *     unreadable paths are silently omitted. Raw binary bytes never leave the
+         *     server — only the head is read, and only the fingerprint image returned.
          */
         post: operations["get_fingerprints_api_fingerprints_post"];
         delete?: never;
@@ -646,6 +642,8 @@ export interface components {
             blobLines: {
                 [key: string]: number;
             };
+            /** Commitlineranges */
+            commitLineRanges: components["schemas"]["RangeStat"][];
             /** Note */
             note: string | null;
         };
