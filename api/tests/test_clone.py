@@ -224,6 +224,22 @@ class CleanCloneErrorDispatcherTests(unittest.TestCase):
         self.assertEqual(len(calls), 2)  # one retry
         self.assertIn("http.version=HTTP/1.1", calls[0])  # forced on every attempt
 
+    def test_net_git_disables_background_maintenance(self) -> None:
+        # Otherwise git's detached post-fetch maintenance keeps writing into the
+        # clone, racing whoever deletes or scans it next.
+        calls: list[tuple[str, ...]] = []
+
+        def fake(*args: str, **kw: object) -> str:
+            calls.append(args)
+            return "ok"
+
+        with mock.patch.object(clone_mod, "_run_git_streaming", side_effect=fake):
+            clone_mod._run_net_git("fetch", "--refetch", "origin")
+        self.assertIn("maintenance.auto=false", calls[0])
+        self.assertIn("gc.auto=0", calls[0])
+        # `-c key=value` only applies ahead of the subcommand.
+        self.assertLess(calls[0].index("gc.auto=0"), calls[0].index("fetch"))
+
     def test_non_network_error_is_not_retried(self) -> None:
         calls: list[tuple[str, ...]] = []
 

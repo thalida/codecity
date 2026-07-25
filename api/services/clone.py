@@ -158,6 +158,9 @@ _PROGRESS_NOISE_RE = re.compile(
 # single unmultiplexed stream and doesn't hit it; throughput is equivalent for a
 # one-pack clone. `-c key=value` must precede the git subcommand.
 _HTTP1_1 = ("-c", "http.version=HTTP/1.1")
+# git ends a clone/fetch with a DETACHED `maintenance run --auto` (older git:
+# `gc --auto`) that keeps writing into the repo, racing whoever reads or deletes it next.
+_NO_AUTO_MAINTENANCE = ("-c", "maintenance.auto=false", "-c", "gc.auto=0")
 # How many times to retry a clone/fetch that died on a transient network drop.
 _NET_RETRY_ATTEMPTS = 3
 
@@ -492,6 +495,8 @@ def _run_net_git(
       - forces HTTP/1.1 (see _HTTP1_1) so GitHub's HTTP/2 stream multiplexing
         can't RST the pack mid-download, which is the root cause of the
         `curl 92 … CANCEL` → `early EOF` clone failures;
+      - disables git's detached auto-maintenance (see _NO_AUTO_MAINTENANCE) so
+        no background process outlives the call, still writing into the repo;
       - retries a transient network drop up to _NET_RETRY_ATTEMPTS times with a
         short backoff. `before_retry` runs between attempts (e.g. remove the
         half-written clone, which `git clone` can't resume into).
@@ -503,7 +508,11 @@ def _run_net_git(
     for attempt in range(_NET_RETRY_ATTEMPTS):
         try:
             return _run_git_streaming(
-                *_HTTP1_1, *args, cancel_event=cancel_event, **stream_kwargs
+                *_HTTP1_1,
+                *_NO_AUTO_MAINTENANCE,
+                *args,
+                cancel_event=cancel_event,
+                **stream_kwargs,
             )
         except CloneError as e:
             last_err = e
