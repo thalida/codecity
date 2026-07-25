@@ -50,6 +50,20 @@ const RUINS_FIELDS = {
     label: 'Desaturation',
     tip: 'How far a deleted file’s building color is pulled toward gray. 0 keeps its file color, 1 is fully gray.',
   },
+  X_ENABLED: {
+    route: ChangeRoute.Live,
+    kind: FieldKind.Toggle,
+    default: true,
+    label: 'Cross out the roof',
+    tip: 'When on, a deleted file’s roof is crossed out. The file-type icon stays readable underneath.',
+  },
+  X_COLOR: {
+    route: ChangeRoute.Live,
+    kind: FieldKind.Color,
+    default: '#ff3b3b',
+    label: 'Cross color',
+    tip: 'Color of the cross over a deleted file’s roof.',
+  },
   ROAD_COLOR: {
     route: ChangeRoute.Live,
     kind: FieldKind.Color,

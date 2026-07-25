@@ -24,6 +24,7 @@ import { getBuildingMaterial } from '@/city/components/buildings/material';
 import buildingFragSrc from '@/city/components/buildings/building.frag.glsl?raw';
 import { BUILDINGS } from '@/state/stores/settings/buildings';
 import { SCENE } from '@/state/stores/settings/scene';
+import { RUINS } from '@/state/stores/settings/ruins';
 import { NodeKind } from '@/types';
 import type { Building, CityLayout, DateRanges, FileTarget, PickTarget } from '@/types';
 import type { Picker } from '@/city/interaction/picker';
@@ -32,10 +33,12 @@ import { building } from '../../../_helpers/buildingFixture';
 
 const _origBuildings = BUILDINGS.value;
 const _origScene = SCENE.value;
+const _origRuins = RUINS.value;
 
 function resetStores(): void {
   BUILDINGS.value = { ..._origBuildings };
   SCENE.value = { ..._origScene };
+  RUINS.value = { ..._origRuins };
 }
 
 // A SceneContext whose picker exposes controllable selection + hover signals,
@@ -257,6 +260,23 @@ describe('createBuildings()', () => {
 
     SCENE.value = { ...SCENE.value, FOG_HEIGHT_FRAC: 0.1 };
     expect(uniforms.uFogHeightFrac.value).toBe(0.1);
+  });
+
+  it('ruin cross uniforms track the RUINS store', async () => {
+    const { ctx } = makeCtx();
+    buildings = createBuildings(ctx);
+    await buildings.rebuild(
+      buildingLayout([building({ x: 1, y: 1, file: fileOf('src/a.ts') as never })]),
+      EMPTY_DATE_RANGES
+    );
+    const uniforms = getBuildingMaterial().uniforms;
+
+    RUINS.value = { ...RUINS.value, X_ENABLED: true, X_COLOR: '#ff0000' };
+    expect(uniforms.uRuinXEnabled.value).toBe(true);
+    expect((uniforms.uRuinXColor.value as THREE.Color).getHexString()).toBe('ff0000');
+
+    RUINS.value = { ...RUINS.value, X_ENABLED: false };
+    expect(uniforms.uRuinXEnabled.value).toBe(false);
   });
 
   it('building shader scales the haze by each instance own height', () => {

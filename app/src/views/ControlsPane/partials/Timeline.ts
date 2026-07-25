@@ -23,6 +23,8 @@ export const TIMELINE_SECTION: SectionNode = {
         field(RUINS, 'BUILDING_OPACITY'),
         field(RUINS, 'STUB_HEIGHT'),
         field(RUINS, 'DESATURATION'),
+        field(RUINS, 'X_ENABLED'),
+        field(RUINS, 'X_COLOR'),
         field(RUINS, 'ROAD_COLOR'),
         field(RUINS, 'SIDEWALK_COLOR'),
       ],
