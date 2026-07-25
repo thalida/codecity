@@ -44,6 +44,14 @@ describe('formatHoverTooltip', () => {
     expect(formatHoverTooltip(t, 'codecity')).toBe('/codecity/app/main.ts  ·  42 lines');
   });
 
+  it('prefers the scrubbed line count (Timeline) over the static FileNode.lines', () => {
+    const t = fileTarget({ path: 'app/main.ts', lines: 42 }); // union max
+    // scrubLines is the count at the scrubbed commit — the height's source.
+    expect(formatHoverTooltip(t, 'codecity', 7)).toBe('/codecity/app/main.ts  ·  7 lines');
+    // null (Live / no timeline) falls back to FileNode.lines.
+    expect(formatHoverTooltip(t, 'codecity', null)).toBe('/codecity/app/main.ts  ·  42 lines');
+  });
+
   it('shows pixel dimensions instead of line count for an image file', () => {
     const t = fileTarget({
       path: 'app/logo.png',

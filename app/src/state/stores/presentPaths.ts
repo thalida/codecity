@@ -2,8 +2,8 @@
 // dirs). The sidebar tree/search filter to this set. Empty outside Timeline.
 
 import { computed, type ReadonlySignal } from '@preact/signals';
-import { TIMELINE_MODE, TIMELINE_BUNDLE, SCRUB_COMMIT } from './timeline';
-import { buildPathTimelines, ruinStateAt } from '@/city/timeline/replay';
+import { TIMELINE_MODE, TIMELINE_BUNDLE, SCRUB_COMMIT, SCRUB_POS } from './timeline';
+import { buildPathTimelines, ruinStateAt, linesAt } from '@/city/timeline/replay';
 import type { PathTimeline } from '@/city/timeline/replay';
 import { NodeKind } from '@/types';
 import type { TreeNode } from '@/types';
@@ -37,6 +37,17 @@ function _collect(
   }
   if (anyPresent && node.path != null) out.add(node.path);
   return anyPresent;
+}
+
+// Line count at the current scrub position — the SAME source the building height
+// uses (linesAt(pt, SCRUB_POS)). The hover tooltip reads this so what's shown
+// equals what drives the height. Null outside Timeline (caller falls back to the
+// static FileNode.lines).
+export function scrubbedLinesFor(path: string): number | null {
+  if (!TIMELINE_MODE.peek()) return null;
+  const pt = _TIMELINES.peek()?.get(path);
+  if (!pt) return null;
+  return Math.round(linesAt(pt, SCRUB_POS.peek()));
 }
 
 export const PRESENT_PATHS: ReadonlySignal<ReadonlySet<string>> = computed(() => {
