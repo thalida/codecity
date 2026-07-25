@@ -218,6 +218,11 @@ export interface components {
             name: string;
             /** Commits */
             commits: number;
+            /**
+             * Hue
+             * @description Stable 0-359 hue from the name hash; the display colour is built from it client-side
+             */
+            hue: number;
         };
         /** BranchListResponse */
         BranchListResponse: {

@@ -59,6 +59,8 @@ export interface CommitPaneState {
   sameDayTotal?: number;
   /** See SetCommitOpts.busynessThresholds. */
   busynessThresholds?: { avg: number; busy: number };
+  /** name -> backend-resolved AuthorStat.hue, for the author dot. */
+  authorHues?: Record<string, number>;
   color?: string;
   now?: Date;
   /** Whether Timeline mode is already on — wording only for the timeline
@@ -82,6 +84,7 @@ export function CommitPane({ state, onClose, onFocus, onViewInTimeline }: Commit
     remoteUrl,
     sameDayTotal = 0,
     busynessThresholds = { avg: 1, busy: 1 },
+    authorHues = {},
     color,
     now = new Date(),
     inTimeline = false,
@@ -186,7 +189,10 @@ export function CommitPane({ state, onClose, onFocus, onViewInTimeline }: Commit
       <div class="commit-message-subject">{commit.subject || '(no subject)'}</div>
       {(commit.authors ?? []).map((author) => (
         <div key={author} class="commit-author">
-          <span class="commit-author-dot" style={{ backgroundColor: colorForAuthor(author).hex }} />
+          <span
+            class="commit-author-dot"
+            style={{ backgroundColor: colorForAuthor(authorHues[author] ?? 0).hex }}
+          />
           <span class="commit-author-name">{author || '(unknown)'}</span>
         </div>
       ))}

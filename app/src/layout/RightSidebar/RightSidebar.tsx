@@ -77,6 +77,7 @@ function commitStateFor(handle: SceneHandle, commit: CommitEntry): CommitPaneSta
     remoteUrl: m?.repo?.remote_url ?? null,
     sameDayTotal: commit.same_day_total,
     busynessThresholds: m?.busyness ?? { avg: 1, busy: 1 },
+    authorHues: Object.fromEntries((m?.stats?.authors ?? []).map((a) => [a.name, a.hue])),
     color: handle.world.getTrees()?.colorForSha(commit.sha) ?? undefined,
   };
 }

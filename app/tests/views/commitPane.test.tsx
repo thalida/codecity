@@ -24,6 +24,9 @@ const COMMIT: CommitEntry = {
 // value (commit + opts fields) and flushing.
 type SetOpts = Omit<CommitPaneState, 'commit'>;
 
+// Stand-in for the backend's AuthorStat.hue map, which RightSidebar threads in.
+const AUTHOR_HUES: Record<string, number> = { Alice: 10, Bob: 120, Carol: 250 };
+
 describe('CommitPane', () => {
   let container: HTMLDivElement;
   let state: ReturnType<typeof signal<CommitPaneState>>;
@@ -48,7 +51,7 @@ describe('CommitPane', () => {
   }
 
   async function setCommit(commit: CommitEntry | null, opts: SetOpts = {}): Promise<void> {
-    state.value = { commit, ...opts };
+    state.value = { commit, authorHues: AUTHOR_HUES, ...opts };
     await drainAsync();
   }
 
@@ -372,7 +375,7 @@ describe('CommitPane', () => {
     // due to rgb-vs-hex normalization).
     expect(dot.style.backgroundColor).not.toBe('');
     // Sanity: dependency on colorForAuthor is real.
-    expect(typeof colorForAuthor(COMMIT.authors[0]).hex).toBe('string');
+    expect(typeof colorForAuthor(0).hex).toBe('string');
   });
 
   it('renders one .commit-author row for a single-author commit (regression)', async () => {
@@ -411,7 +414,7 @@ describe('CommitPane', () => {
     // the hex round-trip by setting a probe element.
     const probe = document.createElement('div');
     multi.authors.forEach((author, i) => {
-      probe.style.backgroundColor = colorForAuthor(author).hex;
+      probe.style.backgroundColor = colorForAuthor(AUTHOR_HUES[author] ?? 0).hex;
       expect(dots[i].style.backgroundColor).toBe(probe.style.backgroundColor);
     });
   });

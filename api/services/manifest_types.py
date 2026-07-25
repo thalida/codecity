@@ -236,6 +236,8 @@ class AuthorStat(TypedDict):
 
     name: str
     commits: int
+    # 0-359, hashed from the name so the firefly orb and commit dot agree.
+    hue: int
 
 
 class RepoStats(TypedDict):

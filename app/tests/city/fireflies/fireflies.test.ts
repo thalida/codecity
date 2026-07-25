@@ -27,7 +27,8 @@ function ringMeshes(f: ReturnType<typeof createFireflies>): THREE.Mesh[] {
 
 describe('createFireflies', () => {
   it('returns a group containing one InstancedMesh (orbs) and an empty ring group when commits is non-empty', () => {
-    const f = createFireflies(PLACEMENTS, COMMITS, commitStats(COMMITS));
+    const stats = commitStats(COMMITS);
+    const f = createFireflies(PLACEMENTS, COMMITS, stats);
     expect(f.group).toBeInstanceOf(THREE.Group);
     // The parent group has two child Groups (rings + renderer).
     // The ring group is lazy: it starts empty and only spawns meshes on
@@ -61,7 +62,8 @@ describe('createFireflies', () => {
   });
 
   it('dispose() removes all descendant InstancedMeshes and tube Meshes', () => {
-    const f = createFireflies(PLACEMENTS, COMMITS, commitStats(COMMITS));
+    const stats = commitStats(COMMITS);
+    const f = createFireflies(PLACEMENTS, COMMITS, stats);
     f.dispose();
     const allDescendants = f.group.children.flatMap((c) => c.children);
     const instancedMeshes = allDescendants.filter((c) => c instanceof THREE.InstancedMesh);
@@ -79,7 +81,8 @@ describe('createFireflies', () => {
   });
 
   it('exposes setHoveredCommit and setSelectedCommit methods', () => {
-    const f = createFireflies(PLACEMENTS, COMMITS, commitStats(COMMITS));
+    const stats = commitStats(COMMITS);
+    const f = createFireflies(PLACEMENTS, COMMITS, stats);
     expect(typeof f.setHoveredCommit).toBe('function');
     expect(typeof f.setSelectedCommit).toBe('function');
     // No-throw on null + valid SHA.
@@ -101,7 +104,8 @@ describe('createFireflies', () => {
     const orig = FIREFLIES.value.ENABLED;
     FIREFLIES.value = { ...FIREFLIES.value, ENABLED: false };
     try {
-      const f = createFireflies(PLACEMENTS, COMMITS, commitStats(COMMITS));
+      const stats = commitStats(COMMITS);
+      const f = createFireflies(PLACEMENTS, COMMITS, stats);
       expect(f.group.children.length).toBe(0);
       f.dispose();
     } finally {
@@ -113,7 +117,8 @@ describe('createFireflies', () => {
     const orig = FIREFLIES.value.ORBIT_RING_ENABLED;
     FIREFLIES.value = { ...FIREFLIES.value, ORBIT_RING_ENABLED: false };
     try {
-      const f = createFireflies(PLACEMENTS, COMMITS, commitStats(COMMITS));
+      const stats = commitStats(COMMITS);
+      const f = createFireflies(PLACEMENTS, COMMITS, stats);
       const ringGroup = f.group.children.find((c) => c.name === 'firefly-orbit-rings');
       // The group exists but has no mesh children when disabled.
       expect(ringGroup).toBeDefined();
@@ -126,7 +131,8 @@ describe('createFireflies', () => {
 
   it("setHoveredCommit shows one ring mesh tinted with the author's pastel color", async () => {
     const { lightColorForAuthor } = await import('@/city/components/fireflies/authorColor.js');
-    const f = createFireflies(PLACEMENTS, COMMITS, commitStats(COMMITS));
+    const stats = commitStats(COMMITS);
+    const f = createFireflies(PLACEMENTS, COMMITS, stats);
     f.setHoveredCommit(COMMITS[0].sha);
     const ms = ringMeshes(f);
     expect(ms.length).toBe(1);
@@ -134,7 +140,8 @@ describe('createFireflies', () => {
     // not a shared config color. vertexColors stays false on hover.
     const mat = ms[0].material as THREE.MeshBasicMaterial;
     expect(mat.vertexColors).toBe(false);
-    const expected = lightColorForAuthor(COMMITS[0].authors[0]).rgb;
+    const hue = stats.authors.find((a) => a.name === COMMITS[0].authors[0])!.hue;
+    const expected = lightColorForAuthor(hue).rgb;
     expect(mat.color.r).toBeCloseTo(expected[0], 3);
     expect(mat.color.g).toBeCloseTo(expected[1], 3);
     expect(mat.color.b).toBeCloseTo(expected[2], 3);
@@ -142,7 +149,8 @@ describe('createFireflies', () => {
   });
 
   it('selected and hovered on the same commit shows only the selected mesh (rainbow vertex colors)', () => {
-    const f = createFireflies(PLACEMENTS, COMMITS, commitStats(COMMITS));
+    const stats = commitStats(COMMITS);
+    const f = createFireflies(PLACEMENTS, COMMITS, stats);
     f.setHoveredCommit(COMMITS[0].sha);
     f.setSelectedCommit(COMMITS[0].sha);
     const ms = ringMeshes(f);
@@ -154,7 +162,8 @@ describe('createFireflies', () => {
   });
 
   it('deselecting while still hovered restores the hover ring', () => {
-    const f = createFireflies(PLACEMENTS, COMMITS, commitStats(COMMITS));
+    const stats = commitStats(COMMITS);
+    const f = createFireflies(PLACEMENTS, COMMITS, stats);
     f.setHoveredCommit(COMMITS[0].sha);
     f.setSelectedCommit(COMMITS[0].sha);
     f.setSelectedCommit(null);
@@ -166,7 +175,8 @@ describe('createFireflies', () => {
   });
 
   it('clearing hover with no selection leaves the ring group empty', () => {
-    const f = createFireflies(PLACEMENTS, COMMITS, commitStats(COMMITS));
+    const stats = commitStats(COMMITS);
+    const f = createFireflies(PLACEMENTS, COMMITS, stats);
     f.setHoveredCommit(COMMITS[0].sha);
     f.setHoveredCommit(null);
     expect(ringMeshes(f).length).toBe(0);

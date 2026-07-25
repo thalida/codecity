@@ -93,6 +93,16 @@ def _longest_streak(dates: list[str]) -> int:
     return best
 
 
+def _author_hue(name: str) -> int:
+    """FNV-1a over the name's UTF-8 bytes, mod 360. Mirrors the 32-bit unsigned
+    arithmetic of the JS original so a name keeps the hue it already had."""
+    h = 0x811C9DC5
+    for byte in name.encode("utf-8"):
+        h ^= byte
+        h = (h * 0x01000193) & 0xFFFFFFFF
+    return h % 360
+
+
 def compute_repo_stats(tree: DirNode, commits: list[CommitEntry]) -> RepoStats:
     # One pass over files, one over dirs, one over commits — each updates every
     # winner/range/count for that pool as it goes (first-seen wins ties, via
@@ -204,7 +214,7 @@ def compute_repo_stats(tree: DirNode, commits: list[CommitEntry]) -> RepoStats:
         busiest_day = {"date": best_date, "count": best_count}
 
     authors: list[AuthorStat] = [
-        {"name": name, "commits": n}
+        {"name": name, "commits": n, "hue": _author_hue(name)}
         for name, n in sorted(author_counts.items(), key=lambda kv: (-kv[1], kv[0]))
     ]
 

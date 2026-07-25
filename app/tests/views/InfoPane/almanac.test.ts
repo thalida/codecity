@@ -351,8 +351,8 @@ describe('computeAlmanac — streets, forest, fireflies', () => {
     maxCommitsPerDay: { date: '2022-01-02', count: 3 },
     maxCommitStreakDays: 3,
     authors: [
-      { name: 'Ada', commits: 3 },
-      { name: 'Bo', commits: 2 },
+      { name: 'Ada', commits: 3, hue: 0 },
+      { name: 'Bo', commits: 2, hue: 0 },
     ],
   };
 

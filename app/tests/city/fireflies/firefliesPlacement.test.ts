@@ -87,8 +87,10 @@ describe('placeFireflies', () => {
 
   it('emits authorColor per-orb from the commit author', async () => {
     const { colorForAuthor } = await import('@/city/components/fireflies/authorColor.js');
-    const orbs = placeFireflies([placement(0, 0, 0)], COMMITS, commitStats(COMMITS));
-    const expected = colorForAuthor(COMMITS[0].authors[0]).rgb;
+    const stats = commitStats(COMMITS);
+    const orbs = placeFireflies([placement(0, 0, 0)], COMMITS, stats);
+    const hue = stats.authors.find((a) => a.name === COMMITS[0].authors[0])!.hue;
+    const expected = colorForAuthor(hue).rgb;
     for (const o of orbs) {
       expect(o.rgb).toEqual(expected);
     }
@@ -271,10 +273,12 @@ describe('placeFireflies', () => {
         same_day_total: 1,
       },
     ];
-    const orbs = placeFireflies([placement(0, 0, 0)], multiAuthor, commitStats(multiAuthor));
-    expect(orbs[0].rgb).toEqual(colorForAuthor('Alice').rgb);
-    expect(orbs[1].rgb).toEqual(colorForAuthor('Bob').rgb);
-    expect(orbs[2].rgb).toEqual(colorForAuthor('Carol').rgb);
+    const stats = commitStats(multiAuthor);
+    const orbs = placeFireflies([placement(0, 0, 0)], multiAuthor, stats);
+    const hueOf = (n: string) => stats.authors.find((a) => a.name === n)!.hue;
+    expect(orbs[0].rgb).toEqual(colorForAuthor(hueOf('Alice')).rgb);
+    expect(orbs[1].rgb).toEqual(colorForAuthor(hueOf('Bob')).rgb);
+    expect(orbs[2].rgb).toEqual(colorForAuthor(hueOf('Carol')).rgb);
   });
 
   it('per-author orbs share orbit center but have distinct angles', () => {

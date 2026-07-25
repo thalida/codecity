@@ -198,6 +198,9 @@ class DayLeader(BaseModel):
 class AuthorStat(BaseModel):
     name: str
     commits: int
+    hue: int = Field(
+        description="Stable 0-359 hue from the name hash; the display colour is built from it client-side"
+    )
 
 
 class RepoStats(BaseModel):

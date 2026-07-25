@@ -95,7 +95,8 @@ _MANIFEST_SCHEMA_VERSION = (
     #   minBinaryBytesFile (binary files as a first-class "data" category)
     # v20: exact line counts (was sampled >5MB) — values change, bump to rebuild
     # v21: readmePath / readmeModified resolved server-side
-    21
+    # v22: AuthorStat.hue resolved server-side
+    22
 )
 # Composite: invalidates when EITHER the manifest schema OR the git-history
 # shape changes. Stored as a string in the cache file's `version` field.

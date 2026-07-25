@@ -1,12 +1,6 @@
-// city/components/fireflies/authorColor.ts — deterministic per-author color.
-//
-// FNV-1a hash of the UTF-8 bytes of the author name → hue in
-// [0, 360). Fixed lightness/chroma so every author gets a bright,
-// saturated mote color that reads against the dark sky.
-//
-// Used by both the commit pane (color dot next to the author name)
-// and the fireflies renderer (per-instance orb color). Same input =
-// same output across rebuilds and across consumers.
+// Per-author color from the backend's AuthorStat.hue, at a fixed
+// lightness/chroma so every author reads against the dark sky. Shared by the
+// commit pane's dot and the fireflies renderer's orbs.
 
 import { oklchToLinearRgb, linearRgbToHex } from '@/city/utils/color/colors';
 
@@ -29,24 +23,7 @@ export interface AuthorColor {
   rgb: readonly [number, number, number]; // linear-light, 0..1 each
 }
 
-// One shared encoder — `new TextEncoder()` per hash was a measurable cost in
-// the fireflies decoration pass (one color lookup per orb).
-const _enc = new TextEncoder();
-
-/** FNV-1a over UTF-8 bytes; returns an unsigned 32-bit int. */
-function fnv1a(s: string): number {
-  let h = 0x811c9dc5 >>> 0;
-  // TextEncoder hands us the UTF-8 bytes; that means unicode names hash
-  // consistently regardless of how the JS string is encoded internally.
-  const bytes = _enc.encode(s);
-  for (let i = 0; i < bytes.length; i++) {
-    h ^= bytes[i];
-    h = Math.imul(h, 0x01000193) >>> 0;
-  }
-  return h;
-}
-
-// Memoized by name+lightness+chroma: a repo has far fewer distinct authors than
+// Memoized by hue+lightness+chroma: a repo has far fewer distinct authors than
 // commits/orbs, so this collapses ~one OKLCH conversion per orb to one per
 // author. The returned object is shared — callers must treat it as read-only.
 const _colorCache = new Map<string, AuthorColor>();
@@ -55,12 +32,10 @@ const _colorCache = new Map<string, AuthorColor>();
 // Clearing is safe — values are pure functions of the key.
 const _COLOR_CACHE_MAX = 1 << 16;
 
-function authorColorAt(name: string, l: number, c: number): AuthorColor {
-  const key = `${l}:${c}:${name}`;
+function authorColorAt(hue: number, l: number, c: number): AuthorColor {
+  const key = `${l}:${c}:${hue}`;
   const cached = _colorCache.get(key);
   if (cached) return cached;
-  const hash = fnv1a(name);
-  const hue = hash % 360;
   const rgb = oklchToLinearRgb(l, c, hue);
   const color: AuthorColor = { hex: linearRgbToHex(rgb), hue, rgb };
   if (_colorCache.size >= _COLOR_CACHE_MAX) _colorCache.clear();
@@ -68,13 +43,13 @@ function authorColorAt(name: string, l: number, c: number): AuthorColor {
   return color;
 }
 
-export function colorForAuthor(name: string): AuthorColor {
-  return authorColorAt(name, ORB_L, ORB_C);
+export function colorForAuthor(hue: number): AuthorColor {
+  return authorColorAt(hue, ORB_L, ORB_C);
 }
 
 /** Pastel variant of `colorForAuthor` — same hue, higher lightness, lower
  *  chroma. Used for the per-author orbit-ring hover highlight so each
  *  hovered orb's ring picks up its author's identity in a softer tone. */
-export function lightColorForAuthor(name: string): AuthorColor {
-  return authorColorAt(name, LIGHT_L, LIGHT_C);
+export function lightColorForAuthor(hue: number): AuthorColor {
+  return authorColorAt(hue, LIGHT_L, LIGHT_C);
 }
