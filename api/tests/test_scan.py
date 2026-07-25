@@ -1223,7 +1223,9 @@ class GitHistoryParallelTests(_CacheRedirectMixin, unittest.TestCase):
                 set(c.keys()),
                 {"date", "files", "sha", "authors", "subject"},
             )
-            self.assertEqual(len(c["date"]), 10)  # YYYY-MM-DD
+            # Full UTC timestamp, not a day: the scrubber needs the time to
+            # separate same-day commits. One format so lexical == chronological.
+            self.assertRegex(c["date"], r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$")
             self.assertGreaterEqual(c["files"], 1)
             self.assertRegex(c["sha"], r"^[0-9a-f]{40}$")
             self.assertIsInstance(c["authors"], list)

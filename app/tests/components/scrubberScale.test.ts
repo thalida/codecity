@@ -14,8 +14,34 @@ describe('scrubberScale', () => {
     // index 2 (Jan 3) sits before its predecessor (Jan 5) → clamped up to Jan 5.
     expect(s.ms[2]).toBe(s.ms[1]);
     expect(s.ms.every((m, i) => i === 0 || m >= s.ms[i - 1])).toBe(true);
-    expect(s.minMs).toBe(Date.parse('2020-01-01'));
-    expect(s.maxMs).toBe(Date.parse('2020-01-10'));
+    expect(s.ms[0]).toBe(Date.parse('2020-01-01'));
+    expect(s.ms[3]).toBe(Date.parse('2020-01-10'));
+  });
+
+  it('separates same-day commits once dates carry a time', () => {
+    // The whole point of full timestamps: three commits on one day used to share
+    // an identical ms, so they stacked on one tick and none could be dragged to.
+    const s = buildScrubberScale([
+      '2026-07-24T09:00:00Z',
+      '2026-07-24T13:00:00Z',
+      '2026-07-24T17:00:00Z',
+    ]);
+    expect(s.frac[0]).toBeLessThan(s.frac[1]);
+    expect(s.frac[1]).toBeLessThan(s.frac[2]);
+    expect(fractionToIndex(s, s.frac[1])).toBeCloseTo(1, 5);
+  });
+
+  it('gives a burst a floor share of the track so its commits stay reachable', () => {
+    // 20 commits inside one hour, then a lone commit 100 days later. On a pure
+    // time axis the burst would occupy ~0.04% of the track and be undraggable.
+    const burst = Array.from({ length: 20 }, (_, i) =>
+      new Date(Date.parse('2020-01-01T00:00:00Z') + i * 180_000).toISOString()
+    );
+    const s = buildScrubberScale([...burst, '2020-04-10T00:00:00Z']);
+    const spread = s.frac[19] - s.frac[0];
+    expect(spread).toBeGreaterThan(0.3);
+    // Every commit is still strictly ordered, so each has its own click target.
+    expect(s.frac.every((f, i) => i === 0 || f > s.frac[i - 1])).toBe(true);
   });
 
   it('pins a single-commit repo to the present (right edge), inert to drags', () => {
@@ -29,12 +55,11 @@ describe('scrubberScale', () => {
     expect(fractionToIndex(s, 1)).toBe(0);
   });
 
-  it('a same-day repo scrubs by even index spacing, not a collapsed time axis', () => {
-    // Every commit shares one calendar day (day-precision dates), so the time
-    // span is zero. The axis must fall back to index spacing so you can still
-    // scrub across all four commits instead of them stacking on the left edge.
+  it('a single-instant history scrubs by even index spacing, not a collapsed axis', () => {
+    // Every commit shares one timestamp, so the time span is zero. The axis
+    // falls back to pure index spacing so you can still scrub across all four
+    // instead of them stacking on the left edge.
     const s = buildScrubberScale(['2026-07-24', '2026-07-24', '2026-07-24', '2026-07-24']);
-    expect(s.degenerate).toBe(true);
     expect(indexToFraction(s, 0)).toBe(0); // oldest at the left
     expect(indexToFraction(s, 3)).toBe(1); // newest (present) at the right
     expect(indexToFraction(s, 1)).toBeCloseTo(1 / 3, 5);
@@ -45,13 +70,14 @@ describe('scrubberScale', () => {
     expect(fractionToIndex(s, 0.5)).toBeCloseTo(1.5, 5);
   });
 
-  it('places a commit tick at its own date fraction (clusters by time, not index)', () => {
+  it('still clusters by time: a bunched run stays far left of even spacing', () => {
     // 4 commits: 3 bunched in the first two days, 1 far out at day 100.
     const s = buildScrubberScale(['2020-01-01', '2020-01-02', '2020-01-02', '2020-04-10']);
-    // The three early commits all land in the first ~2% of the axis...
     expect(commitFraction(s, 0)).toBeCloseTo(0, 5);
-    expect(commitFraction(s, 2)).toBeLessThan(0.03);
-    // ...while the last one anchors the far end.
+    // Time dominates, so index 2 sits well below its even-spacing slot (2/3)...
+    expect(commitFraction(s, 2)).toBeLessThan(0.3);
+    // ...but above the ~0.01 a pure time axis would crush it to.
+    expect(commitFraction(s, 2)).toBeGreaterThan(0.05);
     expect(commitFraction(s, 3)).toBeCloseTo(1, 5);
   });
 

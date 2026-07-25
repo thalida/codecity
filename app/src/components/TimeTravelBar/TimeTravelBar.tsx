@@ -14,6 +14,7 @@ import {
   buildScrubberScale,
   commitFraction,
   indexToFraction,
+  indexToMs,
   fractionToIndex,
 } from './scrubberScale';
 
@@ -91,7 +92,7 @@ export function TimeTravelBar() {
 
   // "no commits" only when the handle is >4 days from the nearest commit (a real lull).
   const nearestIdx = Math.min(Math.round(pos), maxIndex);
-  const handleMs = scale.minMs + indexToFraction(scale, pos) * scale.span;
+  const handleMs = indexToMs(scale, pos);
   const inGap = Math.abs(handleMs - scale.ms[nearestIdx]) > 4 * 86_400_000;
   const gapDay = new Date(handleMs).toISOString().slice(0, 10);
 

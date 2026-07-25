@@ -129,8 +129,8 @@ class RepoInfo(TypedDict):
 class CommitEntry(TypedDict):
     """One commit within the git lookback window. Emitted in
     oldest-first order so consumers can map commits[i] → i-th tree
-    placement (closest-to-gem). Date is day-precision for compact
-    payload + future age signal. files = count of A/M/D/T/U rows in
+    placement (closest-to-gem). Date is a full ISO-8601 UTC timestamp:
+    the scrubber's time axis needs it to separate same-day commits. files = count of A/M/D/T/U rows in
     the commit's --name-status block. sha is the full 40-char hex;
     the UI displays the first 7. authors is the deduped list of
     distinct authors for this commit — primary (git's %an) at index 0,
