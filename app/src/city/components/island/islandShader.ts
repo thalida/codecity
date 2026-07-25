@@ -19,12 +19,6 @@ export function createIslandMaterial(): THREE.ShaderMaterial {
     uniforms: {
       uHemiSkyColor: { value: new THREE.Color(mats.HEMI_SKY_COLOR) },
       uHemiGroundColor: { value: new THREE.Color(mats.HEMI_GROUND_COLOR) },
-      // Height-fog uniforms — island doesn't use them; declared so the
-      // shared chunk compiles and uFogEnabled stays false.
-      uFogEnabled: { value: false },
-      uFogColor: { value: new THREE.Color('#000000') },
-      uFogIntensity: { value: 0 },
-      uFogHeightFrac: { value: 0 },
     },
     side: THREE.FrontSide,
     toneMapped: true,

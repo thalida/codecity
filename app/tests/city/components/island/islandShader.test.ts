@@ -30,11 +30,12 @@ describe('createIslandMaterial', () => {
     mat.dispose();
   });
 
-  it('vertex + fragment shader sources reference vWorldPos for distance fog', () => {
+  it('carries no ground-haze plumbing — the island opts out of fog entirely', () => {
     const mat = createIslandMaterial();
-    expect(mat.vertexShader).toMatch(/vWorldPos/);
-    expect(mat.fragmentShader).toMatch(/vWorldPos/);
-    expect(mat.fragmentShader).toMatch(/applyFog/);
+    expect(mat.fragmentShader).not.toMatch(/applyFog|uFog/);
+    // vWorldPos existed only to feed the fog.
+    expect(mat.vertexShader).not.toMatch(/vWorldPos/);
+    expect(Object.keys(mat.uniforms)).toEqual(['uHemiSkyColor', 'uHemiGroundColor']);
     mat.dispose();
   });
 
