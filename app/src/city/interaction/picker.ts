@@ -167,15 +167,15 @@ export function createPicker({
       return;
     }
     if (key.kind === NodeKind.File) {
-      const b = world.getBuildingByPath(key.path);
+      const resolved = world.getBuildingByPath(key.path);
       _suspendKeyDerive = true;
-      if (b) {
+      if (resolved) {
         selection.value = {
           kind: NodeKind.File,
-          mesh: b.mesh,
-          data: b.building,
-          file: b.building.file,
-          instanceId: b.instanceId,
+          mesh: resolved.mesh,
+          data: resolved.building,
+          file: resolved.building.file,
+          instanceId: resolved.instanceId,
         };
       } else {
         selection.value = null;
@@ -296,20 +296,20 @@ export function createPicker({
   // rig.focusSelection.
   function targetForPath(path: string): PickTarget | null {
     if (!path) return null;
-    const b = world.getBuildingByPath(path);
-    if (b) {
+    const resolved = world.getBuildingByPath(path);
+    if (resolved) {
       return {
         kind: NodeKind.File,
-        mesh: b.mesh,
-        data: b.building,
-        file: b.building.file,
-        instanceId: b.instanceId,
+        mesh: resolved.mesh,
+        data: resolved.building,
+        file: resolved.building.file,
+        instanceId: resolved.instanceId,
       };
     }
-    const sw = world.getSidewalkByDir(path);
-    const st = world.getStreetByDir(path);
-    if (sw && st && st.dir) {
-      return { kind: NodeKind.Directory, sidewalk: sw, street: st, dir: st.dir };
+    const sidewalk = world.getSidewalkByDir(path);
+    const street = world.getStreetByDir(path);
+    if (sidewalk && street && street.dir) {
+      return { kind: NodeKind.Directory, sidewalk, street, dir: street.dir };
     }
     return null;
   }
@@ -317,8 +317,8 @@ export function createPicker({
   // Resolve a path and set it as the selection. Used by tree-row clicks and
   // breadcrumb-segment clicks. No-op if the path doesn't match anything.
   function selectByPath(path: string): void {
-    const t = targetForPath(path);
-    if (t) setSelection(t);
+    const target = targetForPath(path);
+    if (target) setSelection(target);
   }
 
   // Resolve a commit sha to its live tree target and select it. No-op if
@@ -338,8 +338,8 @@ export function createPicker({
   // Resolve a path and set it as the hover target (tree-row hover → city
   // highlight). No-op if the path doesn't match anything.
   function hoverByPath(path: string): void {
-    const t = targetForPath(path);
-    if (t) setHover(t);
+    const target = targetForPath(path);
+    if (target) setHover(target);
   }
 
   // ── Timeline scrub-hidden guard ─────────────────────────────────────
