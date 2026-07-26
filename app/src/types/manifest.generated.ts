@@ -72,7 +72,7 @@ export interface paths {
          *     doesn't exhaust the browser's HTTP/1.1 connection pool on a media-heavy repo.
          *
          *     Each path is trust-checked exactly like GET /api/file. Paths that are out of
-         *     root, missing, non-image, or larger than _MAX_BATCH_FILE_BYTES are silently
+         *     root, missing, non-image, or larger than _MAX_BATCH_IMAGE_BYTES are silently
          *     omitted; the client falls back to the streaming GET for those. Videos are
          *     never batched (they stream their poster frame), so this is images only.
          */

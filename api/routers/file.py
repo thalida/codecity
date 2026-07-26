@@ -31,12 +31,10 @@ from api.services.media import is_media
 
 router = APIRouter(prefix="/api", tags=["file"])
 
-# Caps for POST /api/images. The client chunks its requests, but a server-side
-# bound keeps any single response from ballooning: at most this many paths, and
-# only images up to this size are base64-inlined — anything larger or non-image
-# is omitted so the client falls back to the streaming GET /api/file path.
+# Server-side bounds on one batch response; oversized or non-image paths are
+# omitted and the client falls back to the streaming GET /api/file.
 _MAX_BATCH_PATHS = 64
-_MAX_BATCH_FILE_BYTES = 8 * 1024 * 1024
+_MAX_BATCH_IMAGE_BYTES = 8 * 1024 * 1024
 
 _SHA_RE = re.compile(r"[0-9a-f]{40}")
 
@@ -121,7 +119,7 @@ def get_images(req: PathBatchRequest) -> dict[str, ImageBatchEntry]:
     doesn't exhaust the browser's HTTP/1.1 connection pool on a media-heavy repo.
 
     Each path is trust-checked exactly like GET /api/file. Paths that are out of
-    root, missing, non-image, or larger than _MAX_BATCH_FILE_BYTES are silently
+    root, missing, non-image, or larger than _MAX_BATCH_IMAGE_BYTES are silently
     omitted; the client falls back to the streaming GET for those. Videos are
     never batched (they stream their poster frame), so this is images only.
     """
@@ -136,7 +134,7 @@ def get_images(req: PathBatchRequest) -> dict[str, ImageBatchEntry]:
         if not guessed or not guessed.startswith("image/"):
             continue
         body = _read_versioned(target, sha)
-        if body is None or len(body) > _MAX_BATCH_FILE_BYTES:
+        if body is None or len(body) > _MAX_BATCH_IMAGE_BYTES:
             continue
         out[path] = ImageBatchEntry(mime=guessed, b64=base64.b64encode(body).decode())
     return out
