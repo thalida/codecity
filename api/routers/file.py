@@ -47,6 +47,19 @@ class FileBatchRequest(BaseModel):
     shas: dict[str, str] | None = None
 
 
+def _read_versioned(target: Path, sha: str | None) -> bytes | None:
+    """Bytes for a trust-resolved path: that git blob when `sha` is given, else
+    the working tree. None when it can't be read — a malformed or unknown sha,
+    a path outside every root, or nothing there. Callers decide how loud that is.
+    """
+    if sha is None:
+        return target.read_bytes() if target.is_file() else None
+    if not _SHA_RE.fullmatch(sha):
+        return None
+    root = TRUST.root_for(target)
+    return read_blob(root, sha) if root else None
+
+
 @router.get("/file")
 def get_file(
     path: str = Query(..., description="Absolute path inside a scanned root"),
@@ -69,16 +82,9 @@ def get_file(
     except (OSError, RuntimeError):
         raise HTTPException(404, "not found")
 
-    if sha is not None:
-        root = TRUST.root_for(target)
-        blob = read_blob(root, sha) if root else None
-        if blob is None:
-            raise HTTPException(404, "no such blob")
-        body = blob
-    else:
-        if not target.is_file():
-            raise HTTPException(404, "not a file")
-        body = target.read_bytes()
+    body = _read_versioned(target, sha)
+    if body is None:
+        raise HTTPException(404, "no such blob" if sha else "not a file")
 
     size = len(body)
     if size > MAX_FILE_BYTES:
@@ -128,17 +134,9 @@ def get_files(req: FileBatchRequest) -> dict[str, FileBatchEntry]:
         guessed, _ = mimetypes.guess_type(str(target))
         if not guessed or not guessed.startswith("image/"):
             continue
-        if sha is not None:
-            root = TRUST.root_for(target)
-            if root is None or not _SHA_RE.fullmatch(sha):
-                continue
-            body = read_blob(root, sha)
-            if body is None or len(body) > _MAX_BATCH_FILE_BYTES:
-                continue
-        else:
-            if not target.is_file() or target.stat().st_size > _MAX_BATCH_FILE_BYTES:
-                continue
-            body = target.read_bytes()
+        body = _read_versioned(target, sha)
+        if body is None or len(body) > _MAX_BATCH_FILE_BYTES:
+            continue
         out[path] = FileBatchEntry(mime=guessed, b64=base64.b64encode(body).decode())
     return out
 
