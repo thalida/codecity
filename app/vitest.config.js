@@ -8,6 +8,10 @@ const appDir = import.meta.dirname;
 //   - `unit`  → tests/**/*.test.{js,ts}   (run by `npm test`)
 //   - `bench` → bench/**/*.test.{js,ts}   (run by `npm run bench`)
 // `extends: true` inherits the root resolve.alias so we don't duplicate it.
+//
+// bench/ holds timing harnesses only. The bit-identical golden guards live in
+// tests/ because they assert correctness, not speed — parked in bench/ they ran
+// in neither CI nor the pre-push gate, which is the whole point of a guard.
 export default defineConfig({
   // Preact plugin mirrors vite.config.js so vitest can parse JSX/TSX in
   // source modules that tests transitively import.

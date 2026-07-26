@@ -41,6 +41,68 @@ export function mkDir(name: string, children: any[], path: string): any {
   };
 }
 
+// The size/line extremes that the weighted + nested generators never produce:
+// they always emit `size >= 200`, `lines >= 5`, extension `.c`. Those are the
+// inputs that broke building geometry before — a 0-byte or 0-line file reaches
+// Math.log(0) in the dimension math, and a media file takes the aspect-ratio
+// branch instead. Kept separate from the generators above so the captured
+// golden digests stay valid.
+export function edgeCaseFiles(path: string): any[] {
+  return [
+    // Empty file: both log inputs are zero.
+    {
+      name: 'empty.txt',
+      type: NodeKind.File,
+      path: `${path}/empty.txt`,
+      extension: '.txt',
+      size: 0,
+      lines: 0,
+    },
+    // Non-empty but unlined — how the scanner reports a binary blob.
+    {
+      name: 'blob.bin',
+      type: NodeKind.File,
+      path: `${path}/blob.bin`,
+      extension: '.bin',
+      size: 4096,
+      lines: 0,
+      binary: true,
+    },
+    // Media with dimensions: takes the aspect-ratio branch.
+    {
+      name: 'wide.png',
+      type: NodeKind.File,
+      path: `${path}/wide.png`,
+      extension: '.png',
+      size: 51200,
+      lines: 0,
+      media_width: 1920,
+      media_height: 1080,
+    },
+    // Media whose reported dimensions are degenerate — a divide-by-zero aspect
+    // if the ratio is taken unguarded.
+    {
+      name: 'zero.svg',
+      type: NodeKind.File,
+      path: `${path}/zero.svg`,
+      extension: '.svg',
+      size: 120,
+      lines: 1,
+      media_width: 0,
+      media_height: 0,
+    },
+    // Single byte, single line: the smallest non-degenerate file.
+    {
+      name: 'one.c',
+      type: NodeKind.File,
+      path: `${path}/one.c`,
+      extension: '.c',
+      size: 1,
+      lines: 1,
+    },
+  ];
+}
+
 /** Root directory holding `n` files and no subdirectories. */
 export function flatTree(n: number, rng: () => number): any {
   const files = Array.from({ length: n }, (_, i) =>

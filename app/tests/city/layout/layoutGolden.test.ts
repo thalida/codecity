@@ -1,8 +1,7 @@
-// layoutGolden.bench.test.ts — bit-identical output guard for the #63 perf
-// refactor. Computes a stable digest of layoutCity's full output for a set of
+// layoutGolden.test.ts — bit-identical output guard for the layout. Computes a stable digest of layoutCity's full output for a set of
 // deterministic trees and compares it against the captured baseline below. Any
 // coordinate/dimension drift fails the test, so the perf refactor can prove it
-// kept output identical. The digests are tied to the production settings
+// keeps output identical. The digests are tied to the production settings
 // defaults; an intentional default change is a real output change and would
 // (correctly) require recapturing EXPECTED.
 
@@ -14,7 +13,7 @@ import {
   genWeightedTree,
   makeDigestHasher,
   statsFromTree,
-} from '../tests/_helpers/layoutTreeFixtures';
+} from '../../_helpers/layoutTreeFixtures';
 
 // Digest: round every coordinate to 4 decimals (below the layout's OVERLAP_EPS)
 // and roll buildings + streets into a 32-bit hash.

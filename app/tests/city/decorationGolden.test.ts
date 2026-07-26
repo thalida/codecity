@@ -1,5 +1,4 @@
-// decorationGolden.bench.test.ts — bit-identical guard for the decoration-pass
-// perf work. Digests the full output of placeTrees, placeFireflies, and the
+// decorationGolden.test.ts — bit-identical guard for the decoration pass. Digests the full output of placeTrees, placeFireflies, and the
 // tree renderer's instance matrix/color buffers for deterministic inputs, and
 // compares against the captured baseline. Any drift fails, so the
 // memoization/compute-once/slim-payload changes can prove output is unchanged.
@@ -16,8 +15,8 @@ import {
   bboxOf,
   genCommits,
   makeDigestHasher,
-} from '../tests/_helpers/layoutTreeFixtures';
-import { commitStats, fileStats } from '../tests/_helpers/statsFixtures';
+} from '../_helpers/layoutTreeFixtures';
+import { commitStats, fileStats } from '../_helpers/statsFixtures';
 
 // Baseline is settings-default-sensitive: it digests the canopy instance
 // matrices, so a TREES width/height default change legitimately moves the hash
