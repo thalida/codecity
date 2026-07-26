@@ -769,11 +769,7 @@ export function _markJoinSides(streets: StreetWithJoin[]): void {
 // the building ends up on the opposite side of its own street with its door
 // pointing away.
 // -----------------------------------------------------------------------------
-function _mirrorOrient(
-  orient: BuildingOrient,
-  negateX: boolean,
-  negateY: boolean
-): BuildingOrient {
+function _mirrorOrient(orient: BuildingOrient, negateX: boolean, negateY: boolean): BuildingOrient {
   if (negateX) {
     if (orient === BuildingOrient.East) orient = BuildingOrient.West;
     else if (orient === BuildingOrient.West) orient = BuildingOrient.East;
