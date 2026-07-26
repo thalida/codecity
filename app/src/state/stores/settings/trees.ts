@@ -125,7 +125,7 @@ const TREES_FIELDS = {
   MIN_WIDTH: {
     route: ChangeRoute.Rebuild,
     kind: FieldKind.Slider,
-    default: 32,
+    default: 64,
     min: 2,
     max: 400,
     step: 2,
@@ -135,7 +135,7 @@ const TREES_FIELDS = {
   MAX_WIDTH: {
     route: ChangeRoute.Rebuild,
     kind: FieldKind.Slider,
-    default: 64,
+    default: 128,
     min: 4,
     max: 600,
     step: 2,

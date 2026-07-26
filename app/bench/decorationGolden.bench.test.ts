@@ -19,9 +19,10 @@ import {
 } from '../tests/_helpers/layoutTreeFixtures';
 import { commitStats, fileStats } from '../tests/_helpers/statsFixtures';
 
-// Recaptured for #98's building height/width ceiling (decorations place relative
-// to building heights); tree/orb counts unchanged, only positions shifted.
-const EXPECTED = '12k:trees43000:orbs51600:4c54aab2';
+// Baseline is settings-default-sensitive: it digests the canopy instance
+// matrices, so a TREES width/height default change legitimately moves the hash
+// (counts and placements stay put) and the value must be recaptured.
+const EXPECTED = '12k:trees43000:orbs51600:eb52d6b7';
 
 describe('decoration golden (bit-identical guard)', () => {
   it('placeTrees + placeFireflies + renderer buffers match baseline', () => {
