@@ -461,6 +461,90 @@ def _save_gz_manifest(path: Path, manifest: "Manifest") -> None:
     )
 
 
+# Retention per repo, per family. Every entry here is keyed by repo CONTENT, not
+# by repo — a new content signature on each edit, a new ref key per commit
+# visited, a new bundle per HEAD — so without a cap the directory grows for the
+# life of the install (this was 844 files / 281 MB on one dev machine).
+#
+# Everything under manifests/ is a pure performance cache: evicting costs a
+# rescan, never correctness. So these are deliberately small, and sized by how
+# far back a re-read is actually plausible — a couple of branches in flight for
+# content signatures, a scrub session's worth of commits for refs, and HEAD plus
+# a little slack for the (large) timeline bundles.
+_KEEP_CONTENT_MANIFESTS = 5
+_KEEP_REF_MANIFESTS = 20
+_KEEP_TIMELINE_BUNDLES = 3
+
+
+def _entry_family(name_rest: str) -> str:
+    """Which retention pool a `{repo_key}__<rest>` cache file belongs to."""
+    if name_rest.startswith("ref-"):
+        return "ref"
+    if name_rest.startswith("timeline-"):
+        return "timeline"
+    return "content"
+
+
+_FAMILY_KEEP = {
+    "content": _KEEP_CONTENT_MANIFESTS,
+    "ref": _KEEP_REF_MANIFESTS,
+    "timeline": _KEEP_TIMELINE_BUNDLES,
+}
+
+
+def prune_manifest_cache(abs_root: Path, *, protect: Path | None = None) -> int:
+    """Drop this root's oldest manifest-dir entries, per family. Returns the
+    count deleted.
+
+    `protect` is never evicted. Callers pass the path they just wrote: mtime
+    resolution is only one second on some filesystems, so a burst of saves can
+    tie and sort the newest entry into the tail — which would delete the very
+    manifest the caller is about to read back.
+
+    Ordering is by mtime rather than access time, which macOS and most Linux
+    mounts do not track (relatime), so this is write-recency, not LRU: an old
+    signature that keeps being re-read still ages out. That is the right trade
+    here, since re-reading it only ever saved a rescan.
+
+    Best-effort, like the rest of this module: a failed unlink (or a file a
+    concurrent request removed first) must never break the response."""
+    manifests_dir = CACHE_ROOT / "manifests"
+    if not manifests_dir.exists():
+        return 0
+
+    prefix = f"{repo_key(abs_root)}__"
+    families: dict[str, list[tuple[float, Path]]] = {
+        "content": [],
+        "ref": [],
+        "timeline": [],
+    }
+    for path in manifests_dir.glob(f"{prefix}*.json.gz"):
+        if protect is not None and path == protect:
+            continue  # counts against nothing; it always stays
+        try:
+            mtime = path.stat().st_mtime
+        except OSError:
+            continue  # vanished under us; nothing to prune
+        families[_entry_family(path.name[len(prefix) :])].append((mtime, path))
+
+    deleted = 0
+    for family, entries in families.items():
+        # The protected entry is out of `entries`, so leave room for it.
+        keep = _FAMILY_KEEP[family]
+        if protect is not None and _entry_family(protect.name[len(prefix) :]) == family:
+            keep -= 1
+        if len(entries) <= keep:
+            continue
+        entries.sort(key=lambda e: e[0], reverse=True)  # newest first
+        for _, path in entries[keep:]:
+            try:
+                path.unlink()
+                deleted += 1
+            except OSError:
+                pass
+    return deleted
+
+
 def cache_load_manifest(
     abs_root: Path,
     content_signature: str,
@@ -475,7 +559,9 @@ def cache_save_manifest(
     manifest: "Manifest",
 ) -> None:
     """Atomically write the manifest cache for this (root, content_signature)."""
-    _save_gz_manifest(_manifest_cache_path(abs_root, content_signature), manifest)
+    path = _manifest_cache_path(abs_root, content_signature)
+    _save_gz_manifest(path, manifest)
+    prune_manifest_cache(abs_root, protect=path)
 
 
 def cache_load_ref_manifest(abs_root: Path, ref_sha: str) -> "Manifest | None":
@@ -487,7 +573,9 @@ def cache_load_ref_manifest(abs_root: Path, ref_sha: str) -> "Manifest | None":
 
 def cache_save_ref_manifest(abs_root: Path, ref_sha: str, manifest: "Manifest") -> None:
     """Atomically write the ref-keyed manifest cache for (root, ref_sha)."""
-    _save_gz_manifest(_ref_manifest_cache_path(abs_root, ref_sha), manifest)
+    path = _ref_manifest_cache_path(abs_root, ref_sha)
+    _save_gz_manifest(path, manifest)
+    prune_manifest_cache(abs_root, protect=path)
 
 
 def _excludes_key(excludes: frozenset[str]) -> str:
@@ -529,12 +617,14 @@ def cache_save_timeline(
     excludes: frozenset[str] = frozenset(),
 ) -> None:
     """Atomically write the timeline bundle cache for (root, head_sha, excludes)."""
+    path = _timeline_cache_path(abs_root, head_sha, excludes)
     _save_gz_envelope(
-        _timeline_cache_path(abs_root, head_sha, excludes),
+        path,
         envelope_key="bundle",
         version=_TIMELINE_CACHE_VERSION,
         payload=cast("dict[str, object]", bundle),
     )
+    prune_manifest_cache(abs_root, protect=path)
 
 
 def cache_clear_timeline(abs_root: Path) -> int:

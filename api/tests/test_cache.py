@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import unittest
 from pathlib import Path
 
@@ -746,3 +747,93 @@ def test_blob_stats_cache_version_mismatch_is_miss(tmp_path, monkeypatch):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ManifestCachePruneTests(CacheTestBase):
+    """Retention on the manifests/ dir.
+
+    Every entry there is keyed by repo CONTENT, so the directory grew for the
+    life of the install — 844 files / 281 MB on one dev machine before this.
+    """
+
+    def _manifest(self) -> dict:
+        return {
+            "root": "/some/repo",
+            "scanned_at": "2026-05-17T00:00:00Z",
+            "content_signature": "deadbeef" * 4,
+            "tree": {"name": "repo", "type": "dir", "path": "", "children": []},
+        }
+
+    def _names(self, root: Path) -> list[str]:
+        prefix = f"{cache_mod.repo_key(root)}__"
+        d = cache_mod.CACHE_ROOT / "manifests"
+        return sorted(p.name[len(prefix) :] for p in d.glob(f"{prefix}*.json.gz"))
+
+    def test_content_signatures_are_capped(self) -> None:
+        root = Path("/x")
+        keep = cache_mod._KEEP_CONTENT_MANIFESTS
+        for i in range(keep + 4):
+            cache_mod.cache_save_manifest(root, f"{i:032x}", self._manifest())
+
+        self.assertEqual(len(self._names(root)), keep)
+
+    def test_the_entry_just_written_always_survives(self) -> None:
+        # Pruning runs after the save, so the newest write is never the victim.
+        root = Path("/x")
+        for i in range(cache_mod._KEEP_CONTENT_MANIFESTS + 3):
+            sig = f"{i:032x}"
+            cache_mod.cache_save_manifest(root, sig, self._manifest())
+            self.assertIsNotNone(cache_mod.cache_load_manifest(root, sig))
+
+    def test_families_are_capped_independently(self) -> None:
+        # A scrub session writing many ref manifests must not evict the live
+        # content-signature manifest out from under the running scan.
+        root = Path("/x")
+        cache_mod.cache_save_manifest(root, "a" * 32, self._manifest())
+        for i in range(cache_mod._KEEP_REF_MANIFESTS + 5):
+            cache_mod.cache_save_ref_manifest(root, f"{i:040x}", self._manifest())
+
+        self.assertIsNotNone(cache_mod.cache_load_manifest(root, "a" * 32))
+        refs = [n for n in self._names(root) if n.startswith("ref-")]
+        self.assertEqual(len(refs), cache_mod._KEEP_REF_MANIFESTS)
+
+    def test_pruning_one_repo_leaves_another_alone(self) -> None:
+        other = Path("/y")
+        cache_mod.cache_save_manifest(other, "c" * 32, self._manifest())
+        for i in range(cache_mod._KEEP_CONTENT_MANIFESTS + 3):
+            cache_mod.cache_save_manifest(Path("/x"), f"{i:032x}", self._manifest())
+
+        self.assertIsNotNone(cache_mod.cache_load_manifest(other, "c" * 32))
+
+    def test_prune_on_a_never_scanned_root_is_a_noop(self) -> None:
+        self.assertEqual(cache_mod.prune_manifest_cache(Path("/never/scanned")), 0)
+
+    def test_prune_with_no_manifests_dir_is_a_noop(self) -> None:
+        self.assertFalse((cache_mod.CACHE_ROOT / "manifests").exists())
+        self.assertEqual(cache_mod.prune_manifest_cache(Path("/x")), 0)
+
+    def test_protect_survives_even_when_it_ranks_oldest(self) -> None:
+        # Why `protect` exists rather than trusting the mtime sort: some
+        # filesystems resolve mtime only to the second, so a burst of saves ties
+        # and the just-written entry can rank anywhere — including the evicted
+        # tail. Pin it to the oldest possible mtime, the worst case, and it must
+        # still survive, because the caller is about to read it back.
+        root = Path("/x")
+        d = cache_mod.CACHE_ROOT / "manifests"
+        d.mkdir(parents=True, exist_ok=True)
+
+        # Write past the cap directly, so setup does not prune as it goes.
+        paths = []
+        for i in range(cache_mod._KEEP_CONTENT_MANIFESTS + 3):
+            path = cache_mod._manifest_cache_path(root, f"{i:032x}")
+            cache_mod._save_gz_manifest(path, self._manifest())
+            paths.append(path)
+
+        victim = paths[0]
+        os.utime(victim, (1, 1))  # oldest by a wide margin -> first to go
+
+        cache_mod.prune_manifest_cache(root, protect=victim)
+
+        self.assertTrue(victim.exists(), "protected entry was evicted")
+        remaining = list(d.glob(f"{cache_mod.repo_key(root)}__*.json.gz"))
+        self.assertEqual(len(remaining), cache_mod._KEEP_CONTENT_MANIFESTS)
