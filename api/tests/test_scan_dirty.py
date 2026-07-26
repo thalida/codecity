@@ -117,8 +117,8 @@ def test_dirty_file_count_matches_flags(tmp_path: Path):
 
 
 def test_hash_repo_info_has_no_repo_level_dirty_set_param():
-    # Dirty rides per-file now (Task 4); _hash_repo_info must not accept a
-    # repo-wide dirty_paths set anymore.
+    # Dirtiness is per-file, so a repo-wide dirty_paths set would recompute the
+    # signature for every file whenever any one of them changed.
     assert list(inspect.signature(_hash_repo_info).parameters) == ["sig", "repo_info"]
 
 

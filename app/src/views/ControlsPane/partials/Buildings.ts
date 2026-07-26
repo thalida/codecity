@@ -24,7 +24,7 @@ export const BUILDINGS_SECTION: SectionNode = {
   key: 'buildings',
   label: 'Buildings',
   description:
-    'Per-file boxes — height from line count, width from byte size, color from extension + age.',
+    'Per-file boxes: height from line count, width from byte size, color from extension + age.',
   children: [
     {
       key: 'layout',

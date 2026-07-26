@@ -264,7 +264,7 @@ function buildingsSection(m: Manifest): AlmanacSection {
       label: 'Oldest',
       leader: s.oldestCreatedFile,
       secondary: (l) => formatShortDate(l.created),
-      tip: "Earliest-created file, by git history — the city's founding structure.",
+      tip: "Earliest-created file, by git history: the city's founding structure.",
     }),
     fileFact({
       group: 'Age',
@@ -278,14 +278,14 @@ function buildingsSection(m: Manifest): AlmanacSection {
       label: 'Stalest',
       leader: s.oldestModifiedFile,
       secondary: (l) => formatShortDate(l.modified),
-      tip: 'File whose last commit is the oldest — the dimmest building.',
+      tip: 'File whose last commit is the oldest: the dimmest building.',
     }),
     fileFact({
       group: 'Last touched',
       label: 'Freshest',
       leader: s.newestModifiedFile,
       secondary: (l) => formatShortDate(l.modified),
-      tip: "File with the newest commit — the date that drives a building's brightness.",
+      tip: "File with the newest commit: the date that drives a building's brightness.",
     }),
     fileFact({
       group: 'Height',
@@ -379,7 +379,7 @@ function mediaSection(m: Manifest): AlmanacSection {
           label: 'Only',
           leader: hi,
           secondary: (l) => `${bytesFmt(l)}${dims}`,
-          tip: 'The only billboard — its byte size and pixel resolution.',
+          tip: 'The only billboard: its byte size and pixel resolution.',
         }),
       ]),
     };
@@ -482,14 +482,14 @@ function streetsSection(m: Manifest): AlmanacSection {
       label: 'Smallest',
       leader: s.minChildrenDir,
       secondary: childCount,
-      tip: 'Directory with the fewest direct children (ties broken by fewest descendants) — the quietest street.',
+      tip: 'Directory with the fewest direct children (ties broken by fewest descendants): the quietest street.',
     }),
     dirFact({
       group: 'Size',
       label: 'Biggest',
       leader: s.maxChildrenDir,
       secondary: childCount,
-      tip: 'Directory with the most direct children — files and sub-directories on that street.',
+      tip: 'Directory with the most direct children: files and sub-directories on that street.',
     }),
   ]);
   return {
@@ -524,13 +524,13 @@ function forestSection(m: Manifest, treesEnabled: boolean): AlmanacSection {
       group: 'Canopy',
       label: 'Sparsest',
       leader: s.minFilesPerCommit,
-      tip: 'Commit that changed the fewest files — the smallest tree.',
+      tip: 'Commit that changed the fewest files: the smallest tree.',
     }),
     commitFact({
       group: 'Canopy',
       label: 'Grandest',
       leader: s.maxFilesPerCommit,
-      tip: 'Commit that changed the most files — the widest tree.',
+      tip: 'Commit that changed the most files: the widest tree.',
     }),
     s.maxCommitsPerDay
       ? statFact({
@@ -573,7 +573,7 @@ function firefliesSection(m: Manifest): AlmanacSection {
     label: 'Most active',
     primary: most.name,
     secondary: pluralize(most.commits, 'commit'),
-    tip: 'Author with the most commits — the largest firefly.',
+    tip: 'Author with the most commits: the largest firefly.',
   });
   const facts =
     count >= 2
