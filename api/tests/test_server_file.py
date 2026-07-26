@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -67,7 +68,7 @@ def test_files_batch_returns_images_only(
     outside.write_bytes(b"nope")
     pic = str(project / "src" / "pic.png")
     r = client.post(
-        "/api/files",
+        "/api/images",
         json={
             "paths": [
                 pic,
@@ -128,6 +129,87 @@ def test_fingerprints_no_root_omits_all(client: TestClient, project: Path) -> No
 def test_files_batch_no_root_omits_all(client: TestClient, project: Path) -> None:
     # No TRUST.register → every path is out-of-root → empty map (still 200, so a
     # cold client can batch-request without first racing the manifest).
-    r = client.post("/api/files", json={"paths": [str(project / "src" / "pic.png")]})
+    r = client.post("/api/images", json={"paths": [str(project / "src" / "pic.png")]})
     assert r.status_code == 200
     assert r.json() == {}
+
+
+# ── GET /api/file?sha= (Timeline: file bytes at a past commit) ──────────────
+
+
+def _git_repo_with_history(root: Path) -> tuple[str, str]:
+    """Repo where doomed.txt is created then deleted. Returns (blob sha, path)."""
+    root.mkdir(parents=True, exist_ok=True)
+    subprocess.run(["git", "init", "-q", str(root)], check=True)
+    subprocess.run(["git", "-C", str(root), "config", "user.email", "t@t"], check=True)
+    subprocess.run(["git", "-C", str(root), "config", "user.name", "t"], check=True)
+    doomed = root / "doomed.txt"
+    doomed.write_text("historical content\n")
+    subprocess.run(["git", "-C", str(root), "add", "-A"], check=True)
+    subprocess.run(["git", "-C", str(root), "commit", "-q", "-m", "add"], check=True)
+    sha = subprocess.run(
+        ["git", "-C", str(root), "rev-parse", "HEAD:doomed.txt"],
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout.strip()
+    doomed.unlink()
+    subprocess.run(["git", "-C", str(root), "add", "-A"], check=True)
+    subprocess.run(["git", "-C", str(root), "commit", "-q", "-m", "rm"], check=True)
+    return sha, str(doomed)
+
+
+def test_blob_serves_a_file_that_no_longer_exists(
+    client: TestClient, tmp_path: Path
+) -> None:
+    """The whole point: a path deleted since HEAD still resolves by sha. This is
+    what stopped the Timeline media 404s."""
+    repo = tmp_path / "hist"
+    sha, gone_path = _git_repo_with_history(repo)
+    TRUST.reset()
+    TRUST.register(repo)
+
+    assert not Path(gone_path).exists()
+    r = client.get("/api/file", params={"path": gone_path, "sha": sha})
+    assert r.status_code == 200
+    assert r.text == "historical content\n"
+    # Without a sha the same URL reads the working tree, where it is gone.
+    assert client.get("/api/file", params={"path": gone_path}).status_code == 404
+
+
+def test_blob_rejects_a_malformed_sha(client: TestClient, tmp_path: Path) -> None:
+    repo = tmp_path / "hist2"
+    _sha, gone_path = _git_repo_with_history(repo)
+    TRUST.reset()
+    TRUST.register(repo)
+
+    for bad in ["", "abc", "z" * 40, "../../etc/passwd"]:
+        r = client.get("/api/file", params={"path": gone_path, "sha": bad})
+        assert r.status_code in (400, 422), bad
+
+
+def test_blob_refuses_paths_outside_the_root(
+    client: TestClient, tmp_path: Path
+) -> None:
+    """must_exist=False must not become a traversal hole: `..` is still
+    normalized before the containment check."""
+    repo = tmp_path / "hist3"
+    sha, _gone = _git_repo_with_history(repo)
+    TRUST.reset()
+    TRUST.register(repo)
+
+    escaped = str(repo / ".." / "elsewhere" / "secret.txt")
+    r = client.get("/api/file", params={"path": escaped, "sha": sha})
+    assert r.status_code == 403
+
+
+def test_blob_404s_for_a_sha_not_in_the_repo(
+    client: TestClient, tmp_path: Path
+) -> None:
+    repo = tmp_path / "hist4"
+    _sha, gone_path = _git_repo_with_history(repo)
+    TRUST.reset()
+    TRUST.register(repo)
+
+    r = client.get("/api/file", params={"path": gone_path, "sha": "0" * 40})
+    assert r.status_code == 404

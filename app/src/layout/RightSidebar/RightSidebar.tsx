@@ -19,6 +19,7 @@
 
 import './RightSidebar.css';
 import { useComputed } from '@preact/signals';
+import { useEffect } from 'preact/hooks';
 import { PERSISTED_KEYS } from '@/constants/storage';
 import { NodeKind } from '@/types';
 import type { CommitEntry, DirNode, FileNode, Manifest } from '@/types';
@@ -31,6 +32,13 @@ import {
   focusCommit,
 } from '@/state/stores/scene';
 import { MANIFEST } from '@/state/stores/manifest';
+import { HISTORY_MANIFEST } from '@/state/stores/historyManifest';
+import {
+  SCRUBBED_MANIFEST,
+  loadManifestAt,
+  resetScrubbedManifest,
+} from '@/state/stores/scrubbedManifest';
+import { SETTLED_COMMIT, TIMELINE_BUNDLE } from '@/state/stores/timeline';
 import { SOURCE_INFO } from '@/state/stores/source';
 import { ROOT_PATH } from '@/constants/manifest';
 import { TIMELINE_MODE } from '@/state/stores/timeline';
@@ -102,23 +110,22 @@ export function RightSidebar() {
     return null;
   });
   const fileState = useComputed<FilePreviewPaneState>(() => {
-    const m = MANIFEST.value as Manifest | DirNode | null; // re-derive on live-update publishes
+    // History manifest, so the pane follows the scrub: a file absent at this
+    // commit reads as deleted here instead of quietly showing HEAD's version.
+    const m = HISTORY_MANIFEST.value as Manifest | DirNode | null;
     const sel = SCENE_HANDLE.value?.picker.selection.value ?? null;
     if (sel?.kind !== NodeKind.File) return { file: null };
     const fresh = findNodeByPath(m, sel.file.path);
-    // MANIFEST stays HEAD in Timeline (the union goes to cityState, not this
-    // store), so a union file missing here is deleted at HEAD → /api/file 404s.
     // Excludes never reach here: they're filtered out of the timeline union too,
     // so an excluded file has no building to select.
-    const atHead = fresh?.type === NodeKind.File;
+    const present = fresh?.type === NodeKind.File;
     return {
-      file: atHead ? fresh : sel.file,
+      file: present ? fresh : sel.file,
       rootLabel: SOURCE_INFO.value.label,
       rootPath: (m as Manifest)?.tree?.path ?? ROOT_PATH,
       remoteUrl: (m as Manifest)?.repo?.remote_url ?? null,
       branch: SOURCE_INFO.value.branch,
-      inTimeline: TIMELINE_MODE.value,
-      isDeleted: TIMELINE_MODE.value && !atHead,
+      isDeleted: TIMELINE_MODE.value && !present,
     };
   });
   const commitState = useComputed<CommitPaneState>(() => {
@@ -131,7 +138,10 @@ export function RightSidebar() {
       : { commit: null };
   });
   const streetState = useComputed<StreetPaneState>(() => {
-    const m = MANIFEST.value as Manifest | DirNode | null; // re-derive on live-update publishes
+    // Folder rollups are all-time in the union, so in Timeline they come from a
+    // real scan of the scrubbed commit; until it lands, the union is the fallback.
+    const scrubbed = TIMELINE_MODE.value ? SCRUBBED_MANIFEST.value : null;
+    const m = (scrubbed ?? MANIFEST.value) as Manifest | DirNode | null;
     const sel = SCENE_HANDLE.value?.picker.selection.value ?? null;
     if (sel?.kind !== NodeKind.Directory) return { directory: null };
     const fresh = findNodeByPath(m, sel.dir.path);
@@ -141,9 +151,31 @@ export function RightSidebar() {
       rootPath: (m as Manifest)?.tree?.path ?? ROOT_PATH,
       remoteUrl: (m as Manifest)?.repo?.remote_url ?? null,
       branch: SOURCE_INFO.value.branch,
-      inTimeline: TIMELINE_MODE.value,
+      inTimeline: TIMELINE_MODE.value && !SCRUBBED_MANIFEST.value,
     };
   });
+
+  // Reconstructing a commit is expensive, so only fetch it when a street pane is
+  // actually open to read it, and only once the scrub has settled.
+  const streetDir = useComputed(() => {
+    const sel = SCENE_HANDLE.value?.picker.selection.value ?? null;
+    return sel?.kind === NodeKind.Directory ? sel.dir.path : null;
+  });
+  const scrubSha = useComputed(() => {
+    if (!TIMELINE_MODE.value) return null;
+    return TIMELINE_BUNDLE.value?.commits?.[SETTLED_COMMIT.value]?.sha ?? null;
+  });
+  const needsScrubbedManifest = streetDir.value !== null;
+  const scrubShaValue = scrubSha.value;
+  const srcValue = SOURCE_INFO.value.src;
+  const branchValue = SOURCE_INFO.value.branch;
+  useEffect(() => {
+    if (!needsScrubbedManifest || !scrubShaValue || !srcValue) {
+      if (!scrubShaValue) resetScrubbedManifest();
+      return;
+    }
+    void loadManifestAt(srcValue, branchValue, scrubShaValue);
+  }, [needsScrubbedManifest, scrubShaValue, srcValue, branchValue]);
 
   // The sidebar is open exactly when something is selected — the selection has no
   // other on-screen indicator, so the two are bound. Closing therefore deselects

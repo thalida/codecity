@@ -1,5 +1,5 @@
 // mediaBatch.test.ts — the image-fetch coalescer: many concurrent requests
-// collapse into one POST /api/files, each resolving to its own Blob (or null
+// collapse into one POST /api/images, each resolving to its own Blob (or null
 // when the server omits it / the network fails).
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
@@ -39,7 +39,7 @@ describe('fetchMediaBlob', () => {
     const [ba, bb] = await Promise.all([a, b]);
 
     expect(fn).toHaveBeenCalledTimes(1);
-    expect(calls[0].url).toBe('/api/files');
+    expect(calls[0].url).toBe('/api/images');
     expect(calls[0].paths).toEqual(['/x/a.png', '/x/b.png']);
     expect(ba).toBeInstanceOf(Blob);
     expect(ba!.type).toBe('image/png');

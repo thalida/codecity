@@ -29,3 +29,11 @@ export function findNodeByPath(manifest: Manifest | DirNode | null, path: string
   }
   return null;
 }
+
+/** Manifest-relative path for an absolute one, which is how the replay keys
+ *  timelines. Returns '' when the path isn't under the manifest root. */
+export function relPathIn(manifest: Manifest | null, fullPath: string): string {
+  const root = manifest?.root;
+  if (!root || !fullPath.startsWith(root)) return '';
+  return fullPath.slice(root.length).replace(/^\/+/, '');
+}

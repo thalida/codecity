@@ -255,6 +255,17 @@ def blob_stats_batch(
     return result
 
 
+def read_blob(root: Path, sha: str) -> bytes | None:
+    """Raw bytes of one blob, git-lfs pointers resolved like the live scan.
+    None when the sha is not a blob in this repo."""
+    proc = _git(root, "cat-file", "blob", sha)
+    if proc.returncode != 0:
+        return None
+    content = proc.stdout
+    resolved, _size = _resolve_lfs(root, content, len(content))
+    return resolved
+
+
 def blob_sizes_batch(root: Path, shas: list[str]) -> dict[str, int]:
     """Byte size of each blob via one `cat-file --batch-check` (no content)."""
     unique = list(dict.fromkeys(shas))

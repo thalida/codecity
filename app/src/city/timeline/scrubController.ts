@@ -31,7 +31,7 @@ import { resolveDirTarget, tierFor } from '@/city/components/buildings/fadeTiers
 import { getBuildingTiltAtAge, composeShearMatrix } from '@/city/components/buildings/tilt';
 import { parentDirPath } from '@/city/utils/path';
 import { streetChainForDirPath } from '@/city/layout/streetPath';
-import { lastModifiedIndexAt, linesAt, presenceAt, ruinStateAt } from './replay';
+import { entryAt, lastModifiedIndexAt, linesAt, presenceAt, ruinStateAt } from './replay';
 import type { PathTimeline } from './replay';
 
 // A deleted building's ghost-ruin: a uniform low stub with a blank facade (0
@@ -282,11 +282,13 @@ export function createScrubController(deps: ScrubControllerDeps) {
       const iFloorsAttr = mesh.geometry.getAttribute('iFloors') as
         | THREE.BufferAttribute
         | undefined;
-      // The file as it stood at this scrub position: its replayed line count
-      // drives both the height curve and the empty test. The union node's `size`
-      // is a max-over-history footprint, never the size at this commit, so only
-      // the replayed `lines` can say the file was empty HERE.
+      // Height tweens, so it takes the interpolated count. The union node's
+      // `size` is a max-over-history footprint, so only the replay can say what
+      // this file measured HERE.
       const scrubFile = present ? { ...b.file, lines: linesAt(pt, pos) } : b.file;
+      // Emptiness is a fact about the blob in effect, not a point on a curve:
+      // between a 0-line commit and a later big one, a lerp reads non-empty.
+      const emptyFile = present ? { ...b.file, lines: entryAt(pt, pos)?.lines ?? 0 } : b.file;
       if (present) {
         // Gate height on presence (intervals), not line count: media/empty files are present with 0 lines.
         // Height uses lineStats (this commit's range); width stays layout-baked (b.w), so dims.w is unused.
@@ -332,7 +334,7 @@ export function createScrubController(deps: ScrubControllerDeps) {
         let kind: number = BuildingKind.Normal;
         if (ruin) kind = BuildingKind.Ruin;
         else if (future) kind = BuildingKind.Future;
-        else if (isEmptyFile(scrubFile)) kind = BuildingKind.Empty;
+        else if (isEmptyFile(emptyFile)) kind = BuildingKind.Empty;
         else if (isDataBuilding(b.file)) kind = BuildingKind.Data;
         iKindAttr.setX(slot, kind);
         dirtyKinds.add(iKindAttr);

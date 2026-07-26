@@ -189,7 +189,7 @@ describe('FilePreviewPane', () => {
     expect(urls.length).toBeGreaterThan(afterFirst);
     // The refetch URL carries the mtime cache-buster so the browser can't serve
     // the stale body for the unchanged path.
-    expect(urls[urls.length - 1]).toContain('v=');
+    expect(urls[urls.length - 1]).toContain('mtime=');
   });
 
   it('falls through to preview (no "too large" state) for a 10 MB file', async () => {

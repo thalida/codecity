@@ -2,12 +2,12 @@
 // dirs). The sidebar tree/search filter to this set. Empty outside Timeline.
 
 import { computed, type ReadonlySignal } from '@preact/signals';
-import { TIMELINE_MODE, TIMELINE_BUNDLE, SCRUB_COMMIT, SCRUB_POS } from './timeline';
+import { TIMELINE_MODE, TIMELINE_BUNDLE, SCRUB_COMMIT, SETTLED_COMMIT } from './timeline';
 import {
   buildPathTimelines,
   ruinStateAt,
-  linesAt,
-  bytesAt,
+  blobShaAt,
+  entryAt,
   statsAtDeletion,
 } from '@/city/timeline/replay';
 import type { PathTimeline } from '@/city/timeline/replay';
@@ -53,19 +53,33 @@ export interface ScrubbedFileStats {
   atDeletion: boolean;
 }
 
-// .value, not .peek(): the footer calls this in render and must re-render as the scrub moves.
+// .value, not .peek(): the footer calls this in render and re-renders as the
+// scrub moves. entryAt at the SETTLED commit, so the number always describes the
+// same real blob the content fetch serves.
 export function scrubbedStatsFor(path: string): ScrubbedFileStats | null {
   if (!TIMELINE_MODE.value) return null;
   const pt = _TIMELINES.value?.get(path);
   if (!pt) return null;
-  const pos = SCRUB_POS.value;
+  const pos = SETTLED_COMMIT.value;
   const gone = statsAtDeletion(pt, pos);
   if (gone) return { lines: gone.lines, bytes: gone.bytes, atDeletion: true };
-  return {
-    lines: Math.round(linesAt(pt, pos)),
-    bytes: Math.round(bytesAt(pt, pos)),
-    atDeletion: false,
-  };
+  const entry = entryAt(pt, pos);
+  if (!entry) return null;
+  return { lines: entry.lines, bytes: entry.bytes, atDeletion: false };
+}
+
+/** Blob sha for a path at the scrub position; null in Live or when absent. */
+export function scrubbedBlobShaFor(path: string | null | undefined): string | null {
+  if (!path || !TIMELINE_MODE.value) return null;
+  const pt = _TIMELINES.value?.get(path);
+  // Settled, not live: content fetches wait for the drag to end.
+  return pt ? blobShaAt(pt, SETTLED_COMMIT.value) : null;
+}
+
+/** No content to fetch at this scrub position, so callers must NOT fall back to
+ *  a by-path read: that hits HEAD, where a union file may not exist (#122). */
+export function hasNoContentAtScrub(path: string | null | undefined): boolean {
+  return TIMELINE_MODE.value && scrubbedBlobShaFor(path) === null;
 }
 
 export const PRESENT_PATHS: ReadonlySignal<ReadonlySet<string>> = computed(() => {

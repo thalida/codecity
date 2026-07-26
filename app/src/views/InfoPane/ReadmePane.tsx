@@ -11,9 +11,8 @@ import { BookOpen, FileWarning, FolderOpen } from 'lucide-preact';
 import { Marked } from 'marked';
 import type { DirNode, Manifest } from '@/types';
 import { PaneEmpty } from '@/components/Pane';
-import { TimelineStaleNote } from '@/components/TimelineStaleNote/TimelineStaleNote';
-import { TIMELINE_MODE } from '@/state/stores/timeline';
-import { isEmptyManifest } from '@/utils/manifest';
+import { isEmptyManifest, relPathIn } from '@/utils/manifest';
+import { hasNoContentAtScrub, scrubbedBlobShaFor } from '@/state/stores/presentPaths';
 import { resolveReadmeAssetUrl, rewriteHtmlImageUrls } from '@/utils/readmeAssets';
 
 /**
@@ -80,10 +79,20 @@ export function ReadmePane({ manifest }: ReadmePaneProps) {
         setBody({ kind: InfoBodyKind.NoReadme });
         return;
       }
+      // Relative path keys the replay; readmePath is absolute for the fetch.
+      const rel = relPathIn(m as Manifest, readmePath);
+      // No README yet at this commit: say so rather than fetching HEAD's.
+      if (hasNoContentAtScrub(rel)) {
+        setBody({ kind: InfoBodyKind.NoReadme });
+        return;
+      }
       setBody({ kind: InfoBodyKind.Loading });
-      // Version by mtime so an edited README re-fetches fresh bytes rather than
-      // a cached body for the same path (doFetch already re-runs per manifest).
-      fetchFileText(readmePath, (m as Manifest).readmeModified ?? undefined)
+      // mtime busts the browser cache after a live edit (doFetch re-runs per manifest).
+      fetchFileText(
+        readmePath,
+        (m as Manifest).readmeModified ?? undefined,
+        scrubbedBlobShaFor(rel)
+      )
         .then((text) => {
           if (!cancelled)
             setBody({ kind: InfoBodyKind.Markdown, html: _renderReadme(text, readmePath) });
@@ -107,10 +116,7 @@ export function ReadmePane({ manifest }: ReadmePaneProps) {
 
   return (
     <div class="pane readme-pane">
-      {TIMELINE_MODE.value && (
-        <TimelineStaleNote>Showing the README at HEAD, not this timeline commit.</TimelineStaleNote>
-      )}
-      <div class={`pane-body${TIMELINE_MODE.value ? ' has-stale-note' : ''}`}>
+      <div class="pane-body">
         {body.kind === InfoBodyKind.NoProject && (
           <PaneEmpty
             icon={FolderOpen}

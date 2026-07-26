@@ -28,11 +28,11 @@ export enum PreviewKind {
   Text = 'text',
 }
 import { fileUrl, fetchFileText, fetchFileBytes } from '@/api/file';
+import { scrubbedBlobShaFor } from '@/state/stores/presentPaths';
 import { fetchFingerprintB64 } from '@/api/fingerprint';
 import { IMAGE_EXTS, VIDEO_EXTS, AUDIO_EXTS, PDF_EXTS, FONT_EXTS } from '@/constants/fileKinds';
 import { FileWarning, FileX, Info, MousePointerClick, LoaderCircle, Binary } from 'lucide-preact';
 import { Pane, PaneEmpty } from '@/components/Pane';
-import { TimelineStaleNote } from '@/components/TimelineStaleNote/TimelineStaleNote';
 import { KEY_BINDINGS } from '@/constants/keyboard';
 import { PathBreadcrumbs } from '@/components/PathBreadcrumbs/PathBreadcrumbs';
 import { nodeUrl } from '@/utils/commit';
@@ -69,7 +69,6 @@ export interface FilePreviewPaneState {
   branch?: string;
   /** In Timeline mode the preview reads HEAD (the checkout), not the scrubbed
    *  commit — show a note saying so. */
-  inTimeline?: boolean;
   /** The file is deleted at HEAD (not in the checked-out tree), so /api/file
    *  would 404 — show a deleted state instead of fetching. */
   isDeleted?: boolean;
@@ -125,7 +124,7 @@ function FileTextPreview({ file }: FileTextPreviewProps) {
   useEffect(() => {
     setTextState({ kind: TextStateKind.Loading });
     let cancelled = false;
-    fetchFileText(file.fullPath || '', file.modified).then(
+    fetchFileText(file.fullPath || '', file.modified, scrubbedBlobShaFor(file.path)).then(
       (text) => {
         if (cancelled) return;
         setTextState({ kind: TextStateKind.Text, text });
@@ -144,7 +143,7 @@ function FileTextPreview({ file }: FileTextPreviewProps) {
     // Also key on modified (mtime): a live-update poll yields a fresh FileNode
     // with the same path but a newer mtime when the file was edited, so the
     // still-selected preview re-fetches instead of waiting for a re-select.
-  }, [file.fullPath, file.modified]);
+  }, [file.fullPath, file.modified, scrubbedBlobShaFor(file.path)]);
 
   return (
     <div class="pane preview-shell">
@@ -342,7 +341,7 @@ function FontPreview({ file }: FontPreviewProps) {
     // tries to delete a face that was never added.
     let added: FontFace | null = null;
 
-    fetchFileBytes(file.fullPath || '', file.modified).then(
+    fetchFileBytes(file.fullPath || '', file.modified, scrubbedBlobShaFor(file.path)).then(
       async (buf) => {
         if (cancelled) return;
         const reason = fontRejectReason(buf);
@@ -382,7 +381,7 @@ function FontPreview({ file }: FontPreviewProps) {
     };
     // Also key on modified (mtime) so a live-update poll (same path, edited
     // bytes) re-loads the face without waiting for a re-select.
-  }, [file.fullPath, file.modified, family]);
+  }, [file.fullPath, file.modified, family, scrubbedBlobShaFor(file.path)]);
 
   return (
     <div class="pane preview-shell">
@@ -454,7 +453,7 @@ function BinaryDataCard({ file }: { file: FileNode }) {
       cancelled = true;
     };
     // Key on modified so a live edit re-fingerprints (the server keys on it too).
-  }, [file.fullPath, file.modified]);
+  }, [file.fullPath, file.modified, scrubbedBlobShaFor(file.path)]);
 
   const size = typeof file.size === 'number' ? formatBytes(file.size) : '—';
 
@@ -555,15 +554,7 @@ function _previewBody(file: FileNode | null) {
 // ── Preact component ─────────────────────────────────────────────────────────
 
 export function FilePreviewPane({ state, onClose, onFocus, onExclude }: FilePreviewPaneProps) {
-  const {
-    file,
-    rootLabel = '',
-    rootPath = '',
-    remoteUrl,
-    branch = '',
-    inTimeline,
-    isDeleted,
-  } = state.value;
+  const { file, rootLabel = '', rootPath = '', remoteUrl, branch = '', isDeleted } = state.value;
   const path = file?.path ?? '';
   const deleted = Boolean(file && isDeleted);
 
@@ -591,13 +582,8 @@ export function FilePreviewPane({ state, onClose, onFocus, onExclude }: FilePrev
       onClose={onClose}
       onExclude={file && typeof onExclude === 'function' ? () => onExclude(file) : undefined}
       excludeTitle="Exclude this file from the city"
-      bodyClass={`editor-body surface-app${file && inTimeline && !deleted ? ' has-stale-note' : ''}`}
+      bodyClass="editor-body surface-app"
     >
-      {file && inTimeline && !deleted && (
-        <TimelineStaleNote>
-          Showing the current version (HEAD), not the current timeline commit.
-        </TimelineStaleNote>
-      )}
       {deleted ? (
         <div class="empty-state empty-state--lg file-deleted-state">
           <FileX class="icon" aria-hidden="true" />

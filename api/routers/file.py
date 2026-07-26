@@ -1,13 +1,16 @@
-"""GET /api/file — serve a file from disk, restricted to scanned roots.
+"""GET /api/file — serve a file's bytes, restricted to scanned roots.
 
-POST /api/files is the batch sibling used by the scene's media-texture loader:
-one round trip for many small images instead of one request per billboard.
+Optional `sha` selects a version: absent reads the working tree, present reads
+that git blob, so a scrubbed Timeline commit shows its own content. POST
+/api/images and /api/fingerprints are batch loaders for the scene, named for
+what they return rather than as plurals of this.
 """
 
 from __future__ import annotations
 
 import base64
 import mimetypes
+import re
 from functools import lru_cache
 from pathlib import Path
 
@@ -17,34 +20,58 @@ from pydantic import BaseModel
 
 from api.config import MAX_FILE_BYTES
 from api.models.responses import (
-    FileBatchEntry,
+    ImageBatchEntry,
     FileTooLargeResponse,
     FingerprintEntry,
 )
 from api.security import NoRootsRegisteredError, OutsideRootError, TRUST
 from api.services.binfmt import FINGERPRINT_SAMPLE_BYTES, fingerprint_png
+from api.services.gitobj import read_blob
 from api.services.media import is_media
 
 router = APIRouter(prefix="/api", tags=["file"])
 
-# Caps for POST /api/files. The client chunks its requests, but a server-side
-# bound keeps any single response from ballooning: at most this many paths, and
-# only images up to this size are base64-inlined — anything larger or non-image
-# is omitted so the client falls back to the streaming GET /api/file path.
+# Server-side bounds on one batch response; oversized or non-image paths are
+# omitted and the client falls back to the streaming GET /api/file.
 _MAX_BATCH_PATHS = 64
-_MAX_BATCH_FILE_BYTES = 8 * 1024 * 1024
+_MAX_BATCH_IMAGE_BYTES = 8 * 1024 * 1024
+
+_SHA_RE = re.compile(r"[0-9a-f]{40}")
 
 
-class FileBatchRequest(BaseModel):
+class PathBatchRequest(BaseModel):
     paths: list[str]
+    # Timeline: path -> blob sha, so a scrubbed commit batches its own bytes
+    # instead of HEAD's. Absent/unlisted paths read the working tree.
+    shas: dict[str, str] | None = None
+
+
+def _read_versioned(target: Path, sha: str | None) -> bytes | None:
+    """Bytes for a trust-resolved path: that git blob when `sha` is given, else
+    the working tree. None when it can't be read — a malformed or unknown sha,
+    a path outside every root, or nothing there. Callers decide how loud that is.
+    """
+    if sha is None:
+        return target.read_bytes() if target.is_file() else None
+    if not _SHA_RE.fullmatch(sha):
+        return None
+    root = TRUST.root_for(target)
+    return read_blob(root, sha) if root else None
 
 
 @router.get("/file")
 def get_file(
     path: str = Query(..., description="Absolute path inside a scanned root"),
+    sha: str | None = Query(
+        None, description="Blob sha to read instead of the working tree"
+    ),
 ) -> Response:
+    if sha is not None and not _SHA_RE.fullmatch(sha):
+        raise HTTPException(400, "sha must be 40 hex characters")
     try:
-        target = TRUST.assert_inside(Path(path))
+        # With a sha the path need not exist (it names a past commit's file);
+        # `..` is still normalized, so containment holds either way.
+        target = TRUST.assert_inside(Path(path), must_exist=sha is None)
     except NoRootsRegisteredError:
         raise HTTPException(
             403, "no scan root registered yet: fetch /api/manifest first"
@@ -54,10 +81,11 @@ def get_file(
     except (OSError, RuntimeError):
         raise HTTPException(404, "not found")
 
-    if not target.is_file():
-        raise HTTPException(404, "not a file")
+    body = _read_versioned(target, sha)
+    if body is None:
+        raise HTTPException(404, "no such blob" if sha else "not a file")
 
-    size = target.stat().st_size
+    size = len(body)
     if size > MAX_FILE_BYTES:
         return JSONResponse(
             status_code=413,
@@ -66,8 +94,8 @@ def get_file(
             ).model_dump(),
         )
 
+    # Mime comes off the path's extension either way — a blob carries no name.
     guessed, _ = mimetypes.guess_type(str(target))
-    body = target.read_bytes()
     if is_media(guessed) and guessed:
         # Already-compressed media (image/video/audio/pdf): a set Content-
         # Encoding makes the app-wide GZipMiddleware skip it, so we don't burn
@@ -83,32 +111,32 @@ def get_file(
     return Response(content=body, media_type="text/plain; charset=utf-8")
 
 
-@router.post("/files")
-def get_files(req: FileBatchRequest) -> dict[str, FileBatchEntry]:
-    """Batch image fetch — return {path: {mime, b64}} for many small images in
-    one round trip. The scene loads one billboard texture per media file; firing
-    a separate GET per file exhausts the browser's HTTP/1.1 connection pool on
-    media-heavy repos, so the loader coalesces image paths into POST batches.
+@router.post("/images")
+def get_images(req: PathBatchRequest) -> dict[str, ImageBatchEntry]:
+    """Batch image fetch — {path: {mime, b64}} for many small images in one round
+    trip. NOT a plural of GET /api/file: it inlines base64, serves images only,
+    and omits anything it can't serve. It exists so the scene's billboard loader
+    doesn't exhaust the browser's HTTP/1.1 connection pool on a media-heavy repo.
 
     Each path is trust-checked exactly like GET /api/file. Paths that are out of
-    root, missing, non-image, or larger than _MAX_BATCH_FILE_BYTES are silently
+    root, missing, non-image, or larger than _MAX_BATCH_IMAGE_BYTES are silently
     omitted; the client falls back to the streaming GET for those. Videos are
     never batched (they stream their poster frame), so this is images only.
     """
-    out: dict[str, FileBatchEntry] = {}
+    out: dict[str, ImageBatchEntry] = {}
     for path in req.paths[:_MAX_BATCH_PATHS]:
+        sha = (req.shas or {}).get(path)
         try:
-            target = TRUST.assert_inside(Path(path))
+            target = TRUST.assert_inside(Path(path), must_exist=sha is None)
         except (NoRootsRegisteredError, OutsideRootError, OSError, RuntimeError):
-            continue
-        if not target.is_file() or target.stat().st_size > _MAX_BATCH_FILE_BYTES:
             continue
         guessed, _ = mimetypes.guess_type(str(target))
         if not guessed or not guessed.startswith("image/"):
             continue
-        out[path] = FileBatchEntry(
-            mime=guessed, b64=base64.b64encode(target.read_bytes()).decode()
-        )
+        body = _read_versioned(target, sha)
+        if body is None or len(body) > _MAX_BATCH_IMAGE_BYTES:
+            continue
+        out[path] = ImageBatchEntry(mime=guessed, b64=base64.b64encode(body).decode())
     return out
 
 
@@ -123,7 +151,7 @@ def _fingerprint_b64(path: str, mtime: float, size: int) -> str:
 
 
 @router.post("/fingerprints")
-def get_fingerprints(req: FileBatchRequest) -> dict[str, FingerprintEntry]:
+def get_fingerprints(req: PathBatchRequest) -> dict[str, FingerprintEntry]:
     """Batch byte-pattern fingerprint fetch — {path: {b64}}, one round trip for
     many buildings. Trust-checked like GET /api/file; out-of-root / missing /
     unreadable paths are silently omitted. Raw binary bytes never leave the
