@@ -94,8 +94,8 @@ def _longest_streak(dates: list[str]) -> int:
 
 
 def _author_hue(name: str) -> int:
-    """FNV-1a over the name's UTF-8 bytes, mod 360. Mirrors the 32-bit unsigned
-    arithmetic of the JS original so a name keeps the hue it already had."""
+    """FNV-1a over the name's UTF-8 bytes, mod 360. The & 0xFFFFFFFF keeps the
+    hash in 32-bit unsigned range; widening it would repaint every author."""
     h = 0x811C9DC5
     for byte in name.encode("utf-8"):
         h ^= byte

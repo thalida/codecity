@@ -13,10 +13,11 @@ defining them in either would create an import cycle. This is the shared
 leaf both import from. It imports only the pure models layer (never
 services), so it stays cycle-free for both.
 
-Mirrors app/types/manifest.ts. Keep both in sync — the web app consumes
-the JSON exactly as these TypedDicts describe it. Drift here is shape
-drift in the wire format and will be caught by pyright on the Python
-side and tsc on the TS side, but only within each language.
+The frontend does not mirror this module by hand: `api/models/` produces the
+OpenAPI schema, `just gen-types` turns that into
+app/src/types/manifest.generated.ts, and app/src/types/manifest.ts derives from
+it. So the pairing to keep honest is this module against `api/models/` — pyright
+checks each side internally, but nothing checks the two against each other.
 """
 
 from __future__ import annotations

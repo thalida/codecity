@@ -84,7 +84,7 @@ export function shadeByRatio(
 
 /** Linear sRGB → OKLab (Cartesian). Out-parameter for allocation-free use
  *  in per-frame / per-instance hot paths (e.g. treeRenderer color ramps). */
-export function linearToOklab(
+function linearToOklab(
   r: number,
   g: number,
   b: number,
@@ -104,7 +104,7 @@ export function linearToOklab(
 /** OKLab (Cartesian) → linear sRGB. Out-parameter; result is NOT clamped
  *  to [0, 1] — out-of-gamut highly-saturated OKLab triplets can produce
  *  negative or >1 channels and the caller decides what to do. */
-export function oklabToLinear(
+function oklabToLinear(
   L: number,
   a: number,
   b: number,

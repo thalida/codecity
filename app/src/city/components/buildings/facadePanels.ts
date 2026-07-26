@@ -707,7 +707,7 @@ function _releaseSlot(): void {
  * Videos: never batched (we only need the first frame, and <video> streams just
  * enough to grab it) — loaded individually through the same semaphore.
  */
-export function asyncLoadMediaForBuilding(
+function asyncLoadMediaForBuilding(
   ads: InstancedFacadePanels,
   b: Building,
   layer: number,
@@ -736,7 +736,7 @@ export function asyncLoadMediaForBuilding(
  * other binary gets the server byte-pattern fingerprint. A missing/failed facade
  * just leaves the sealed placeholder — a valid look, so no error tint.
  */
-export function asyncLoadDataFacadeForBuilding(
+function asyncLoadDataFacadeForBuilding(
   ads: InstancedFacadePanels,
   b: Building,
   layer: number,

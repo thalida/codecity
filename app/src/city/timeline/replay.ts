@@ -36,7 +36,7 @@ export function buildPathTimelines(bundle: TimelineBundle): Map<string, PathTime
   return timelines;
 }
 
-export function isPresent(pt: PathTimeline, pos: number): boolean {
+function isPresent(pt: PathTimeline, pos: number): boolean {
   return pt.intervals.some((iv) => pos >= iv.start && (iv.end === null || pos < iv.end));
 }
 

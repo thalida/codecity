@@ -185,7 +185,7 @@ function _buildStadiumGeometry(
 // and rounded only at the open end. Layout stamps each non-root street with
 // `joinSide`. The SAME cap style feeds both sidewalk + asphalt so their flat ends
 // line up and the visible sidewalk strip stays uniform around the cap.
-export function capStyleFor(street: StreetWithJoin): CapStyle {
+function capStyleFor(street: StreetWithJoin): CapStyle {
   if (street.isRoot) return CapStyle.Both;
   if (street.joinSide === JoinSide.High) return CapStyle.Low; // round the low/open end
   return CapStyle.High; // round the high/open end
@@ -311,7 +311,7 @@ export function sidewalkStreetForFace(
 // color and not pickable, so every street's asphalt merges into a single mesh —
 // see the streets component. Concentric with the sidewalk cap (asphaltDims) so
 // the sidewalk strip stays a uniform width around the perimeter.
-export function buildAsphaltGeometry(street: StreetWithJoin, yBase: number): THREE.BufferGeometry {
+function buildAsphaltGeometry(street: StreetWithJoin, yBase: number): THREE.BufferGeometry {
   const { asphaltWidth, asphaltLength } = asphaltDims(street);
   const geo = _buildStadiumGeometry(
     asphaltLength,

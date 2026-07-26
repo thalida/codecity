@@ -1,34 +1,5 @@
 /* ── File preview pane ── */
 
-/* Middle-truncation ellipsis placeholder — shared by the header breadcrumb
- * and the file-preview pane path. Shown when middle segments are hidden to
- * prevent the row from overflowing. Hovering reveals a tooltip listing the
- * hidden segment names. */
-.file-path-ellipsis {
-  flex: 0 0 auto;
-  color: var(--cc-text-muted);
-  padding: 0 var(--cc-space-1);
-  cursor: help;
-  user-select: none;
-}
-
-/* File-preview pane path segments rendered inside .text-pane-title. */
-.file-path-segment {
-  flex: 0 0 auto;
-  color: var(--cc-text-secondary);
-  white-space: nowrap;
-}
-.file-path-segment.is-leaf {
-  color: var(--cc-text-primary);
-}
-.file-path-sep {
-  flex: 0 0 auto;
-  color: var(--cc-text-faint);
-  font-size: var(--cc-font-sm);
-  pointer-events: none;
-  padding: 0 var(--cc-space-px);
-}
-
 /* ── File preview pane (right sidebar) ──────────────────────────────────
    Outer container that wraps the pane header (filename + × close) and the
    editor body. The wrapper itself fills the sidebar's vertical space; the
