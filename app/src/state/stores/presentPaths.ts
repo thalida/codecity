@@ -2,7 +2,13 @@
 // dirs). The sidebar tree/search filter to this set. Empty outside Timeline.
 
 import { computed, type ReadonlySignal } from '@preact/signals';
-import { TIMELINE_MODE, TIMELINE_BUNDLE, SCRUB_COMMIT, SCRUB_POS } from './timeline';
+import {
+  TIMELINE_MODE,
+  TIMELINE_BUNDLE,
+  SCRUB_COMMIT,
+  SCRUB_POS,
+  SETTLED_COMMIT,
+} from './timeline';
 import {
   buildPathTimelines,
   ruinStateAt,
@@ -73,7 +79,8 @@ export function scrubbedStatsFor(path: string): ScrubbedFileStats | null {
 export function scrubbedBlobShaFor(path: string | null | undefined): string | null {
   if (!path || !TIMELINE_MODE.value) return null;
   const pt = _TIMELINES.value?.get(path);
-  return pt ? blobShaAt(pt, SCRUB_POS.value) : null;
+  // Settled, not live: content fetches wait for the drag to end.
+  return pt ? blobShaAt(pt, SETTLED_COMMIT.value) : null;
 }
 
 /** No content to fetch at this scrub position, so callers must NOT fall back to

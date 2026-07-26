@@ -143,7 +143,7 @@ function FileTextPreview({ file }: FileTextPreviewProps) {
     // Also key on modified (mtime): a live-update poll yields a fresh FileNode
     // with the same path but a newer mtime when the file was edited, so the
     // still-selected preview re-fetches instead of waiting for a re-select.
-  }, [file.fullPath, file.modified]);
+  }, [file.fullPath, file.modified, scrubbedBlobShaFor(file.path)]);
 
   return (
     <div class="pane preview-shell">
@@ -381,7 +381,7 @@ function FontPreview({ file }: FontPreviewProps) {
     };
     // Also key on modified (mtime) so a live-update poll (same path, edited
     // bytes) re-loads the face without waiting for a re-select.
-  }, [file.fullPath, file.modified, family]);
+  }, [file.fullPath, file.modified, family, scrubbedBlobShaFor(file.path)]);
 
   return (
     <div class="pane preview-shell">
@@ -453,7 +453,7 @@ function BinaryDataCard({ file }: { file: FileNode }) {
       cancelled = true;
     };
     // Key on modified so a live edit re-fingerprints (the server keys on it too).
-  }, [file.fullPath, file.modified]);
+  }, [file.fullPath, file.modified, scrubbedBlobShaFor(file.path)]);
 
   const size = typeof file.size === 'number' ? formatBytes(file.size) : '—';
 

@@ -31,6 +31,7 @@ import {
   focusCommit,
 } from '@/state/stores/scene';
 import { MANIFEST } from '@/state/stores/manifest';
+import { HISTORY_MANIFEST } from '@/state/stores/historyManifest';
 import { SOURCE_INFO } from '@/state/stores/source';
 import { ROOT_PATH } from '@/constants/manifest';
 import { TIMELINE_MODE } from '@/state/stores/timeline';
@@ -102,22 +103,22 @@ export function RightSidebar() {
     return null;
   });
   const fileState = useComputed<FilePreviewPaneState>(() => {
-    const m = MANIFEST.value as Manifest | DirNode | null; // re-derive on live-update publishes
+    // History manifest, so the pane follows the scrub: a file absent at this
+    // commit reads as deleted here instead of quietly showing HEAD's version.
+    const m = HISTORY_MANIFEST.value as Manifest | DirNode | null;
     const sel = SCENE_HANDLE.value?.picker.selection.value ?? null;
     if (sel?.kind !== NodeKind.File) return { file: null };
     const fresh = findNodeByPath(m, sel.file.path);
-    // MANIFEST stays HEAD in Timeline (the union goes to cityState, not this
-    // store), so a union file missing here is deleted at HEAD → /api/file 404s.
     // Excludes never reach here: they're filtered out of the timeline union too,
     // so an excluded file has no building to select.
-    const atHead = fresh?.type === NodeKind.File;
+    const present = fresh?.type === NodeKind.File;
     return {
-      file: atHead ? fresh : sel.file,
+      file: present ? fresh : sel.file,
       rootLabel: SOURCE_INFO.value.label,
       rootPath: (m as Manifest)?.tree?.path ?? ROOT_PATH,
       remoteUrl: (m as Manifest)?.repo?.remote_url ?? null,
       branch: SOURCE_INFO.value.branch,
-      isDeleted: TIMELINE_MODE.value && !atHead,
+      isDeleted: TIMELINE_MODE.value && !present,
     };
   });
   const commitState = useComputed<CommitPaneState>(() => {
