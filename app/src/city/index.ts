@@ -8,6 +8,7 @@ import { effect, untracked } from '@preact/signals';
 
 import type { Manifest, RangeStat } from '@/types';
 import { CURRENT_SOURCE_KEY } from '@/state/stores/source';
+import { MANIFEST } from '@/state/stores/manifest';
 import { TIMELINE_MODE, SCRUB_DRAGGING, SCRUB_POS } from '@/state/stores/timeline';
 
 import { registerShaderChunks } from './utils/shaders/registerShaderChunks';
@@ -255,20 +256,20 @@ export async function createCity(canvas: HTMLCanvasElement, manifest: Manifest):
       buildings.setScrubController(null);
       _scrubController?.dispose();
       _scrubController = null;
-      // Restore the full forest immediately — don't wait on exit's manifest reload.
-      trees.setScrubCommit(null);
-      fireflies.setScrubCommit(null);
     },
     setStreetsTransparent: (on: boolean): void => streets.setStreetsTransparent(on),
     setFootprintsTransparent: (on: boolean): void => footprint.setFootprintsTransparent(on),
   };
 
-  // Reacts to every Timeline-mode exit (toggle, source switch) so the scene teardown is uniform regardless of trigger.
+  // Every Timeline exit. The union city holds buildings that do not exist at
+  // HEAD, so only a rebuild from the live MANIFEST is a valid live city.
   const stopTimelineTeardown = effect(() => {
     if (TIMELINE_MODE.value || !_scrubController) return;
     timelineApi.uninstallScrubController();
-    timelineApi.setStreetsTransparent(false);
-    timelineApi.setFootprintsTransparent(false);
+    const live = MANIFEST.peek() as Manifest | null;
+    // Best-effort: a dispose or a newer apply can supersede this mid-flight,
+    // and neither is a failure worth surfacing from a teardown.
+    if (live) void applyManifest(live).catch(() => {});
   });
 
   return {

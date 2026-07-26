@@ -10,6 +10,14 @@
 import { useEffect } from 'preact/hooks';
 import { effect } from '@preact/signals';
 import { SWITCHER_SHOWCASE } from '@/state/stores/ui';
+import {
+  TIMELINE_MODE,
+  TIMELINE_BUNDLE,
+  SCRUB_POS,
+  resetTimelineMode,
+} from '@/state/stores/timeline';
+import { reapplyTimelineScene } from '@/hooks/useTimelineMode';
+import type { TimelineBundle } from '@/types';
 import { SCENE_HANDLE, type SceneHandle } from '@/state/stores/scene';
 import { CURRENT_SOURCE_KEY } from '@/state/stores/source';
 import { NodeKind, type PickerSelectionKey } from '@/types';
@@ -37,6 +45,9 @@ export function useSwitcherShowcase(): void {
     let savedPose: CameraPose | null = null;
     let savedSelKey: PickerSelectionKey | null = null;
     let savedSourceKey: string | null = null;
+    // The backdrop is always plain live, so Timeline is parked on open and put
+    // back on dismiss.
+    let savedTimeline: { bundle: TimelineBundle; scrubPos: number } | null = null;
 
     // peek the handle (untracked): showcase only turns true over a loaded city,
     // so the handle is present — no need to re-run when it changes.
@@ -50,6 +61,11 @@ export function useSwitcherShowcase(): void {
         savedSourceKey = CURRENT_SOURCE_KEY.peek();
         savedPose = handle.rig.getPose();
         savedSelKey = handle.picker.selectionKey.peek();
+        const bundle = TIMELINE_BUNDLE.peek();
+        if (TIMELINE_MODE.peek() && bundle) {
+          savedTimeline = { bundle, scrubPos: SCRUB_POS.peek() };
+          resetTimelineMode(); // the city layer reacts by rebuilding live
+        }
         handle.picker.clearSelection();
         setChromeHidden(true);
         handle.rig.enterShowcase({ autoRotate: !prefersReducedMotion() });
@@ -63,11 +79,21 @@ export function useSwitcherShowcase(): void {
           if (CURRENT_SOURCE_KEY.peek() === savedSourceKey) {
             if (savedPose) handle.rig.applyPose(savedPose);
             restoreSelection(handle, savedSelKey);
+            if (savedTimeline) {
+              // Re-pack from the saved bundle rather than refetching it.
+              const { bundle, scrubPos } = savedTimeline;
+              TIMELINE_BUNDLE.value = bundle;
+              TIMELINE_MODE.value = true;
+              void reapplyTimelineScene().then(() => {
+                if (TIMELINE_MODE.peek()) SCRUB_POS.value = scrubPos;
+              });
+            }
           }
         }
         savedPose = null;
         savedSelKey = null;
         savedSourceKey = null;
+        savedTimeline = null;
       }
     });
 
