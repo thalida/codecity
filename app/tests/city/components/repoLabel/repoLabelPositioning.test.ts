@@ -13,9 +13,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import * as THREE from 'three';
 import { createRepoLabel } from '@/city/components/repoLabel';
 import { REPO_LABEL } from '@/state/stores/settings/gem';
-import { makeCityState, resetBuildingsConfig } from '../../../_helpers/cityFixtures';
-import type { Picker } from '@/city/interaction/picker';
-import type { SceneContext } from '@/city/types';
+import { resetBuildingsConfig, makeSceneContext } from '../../../_helpers/cityFixtures';
 
 // Positioning math below assumes BUILDING_DIMENSIONS.MAX_FLOORS=96,
 // FLOOR_HEIGHT=16 → maxBldgH = 1536. resetBuildingsConfig pins both so
@@ -34,21 +32,12 @@ function resetStore() {
 }
 
 // The repoLabel uses nothing from ctx at construction; a minimal stub suffices.
-function makeCtx(): SceneContext {
-  return {
-    scene: new THREE.Scene(),
-    picker: null as unknown as Picker,
-    camera: null as unknown as THREE.PerspectiveCamera,
-    renderer: null as unknown as THREE.WebGLRenderer,
-    cityState: makeCityState(),
-  } as unknown as SceneContext;
-}
 
 describe('RepoLabel positioning', () => {
   let label: ReturnType<typeof createRepoLabel>;
   beforeEach(() => {
     resetStore();
-    label = createRepoLabel(makeCtx(), { getGem: () => null });
+    label = createRepoLabel(makeSceneContext(), { getGem: () => null });
     label.setRepoName('codecity');
   });
   afterEach(() => label.dispose());

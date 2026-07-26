@@ -1,36 +1,12 @@
-// Shared test fixtures for city scene tests. Replaces inline copies of
-// bbox()/emptyLayout()/mkFile()/mkDir() and the trees/buildings
-// config resets that had begun to drift between callers (audit 2026-05-25).
-// Task 8 migrates the consumers; this file only adds the helpers.
-//
-// Audit reality vs. plan:
-//   - bbox()         : 4 byte-identical inline copies (treePlacement,
-//                      treePlacementClient, worldBounds, and one more).
-//   - emptyLayout()  : 3 byte-identical inline copies (same files minus
-//                      worldBounds).
-//   - mkFile/mkDir   : 4 inline copies across layoutPacker.test.ts,
-//                      layout.test.ts (two variants inside one file), and
-//                      bench/layout.bench.test.ts. Three are the simple
-//                      `(name)` shape; the bench variant takes `(name,
-//                      depth)` to pre-stamp paths and skips child-path
-//                      prefixing in mkDir. We export the simple/canonical
-//                      forms here (matches 3 of 4 call sites); the bench
-//                      and the recursive quickjs-scenario `mkDir` in
-//                      layout.test.ts (1233) stay local in Task 8.
-//   - resets         : plan named these `resetTreesConfig` /
-//                      `resetBuildingsConfig` but actual call sites use
-//                      `resetTrees` / `resetBuildings` (treePlacement).
-//                      We export two small functions in Task 8.
-//
-// The mkFile/mkDir helpers return `any` on purpose: the inline versions
-// all do, because the real FileNode/DirNode interfaces require fields
-// (fullPath, binary, git, descendants_file_count, ...) that the test
-// fixtures intentionally omit. Tightening the return type would require
-// padding every fixture with stub fields the production code under test
-// never reads.
+// Shared fixtures for city scene tests: scene contexts, bboxes, layouts, tree
+// nodes, and the trees/buildings config resets.
 
+import * as THREE from 'three';
+import { signal } from '@preact/signals';
 import { NodeKind } from '@/types';
-import type { CityBbox, CityLayout } from '@/types';
+import type { CityBbox, CityLayout, PickTarget } from '@/types';
+import type { SceneContext } from '@/city/types';
+import type { Picker } from '@/city/interaction/picker';
 import { TREES } from '@/state/stores/settings/trees';
 import { BUILDING_DIMENSIONS } from '@/state/stores/settings/buildings';
 import { createCityState, type CityState } from '@/city/state';
@@ -46,6 +22,50 @@ const STUB_LAYOUT_CLIENT = {
 /** cityState with a no-op layout client, for tests that don't drive applyManifest. */
 export function makeCityState(): CityState {
   return createCityState(STUB_LAYOUT_CLIENT as never);
+}
+
+/** A canvas whose clientWidth/clientHeight track a mutable `size`, so a test can
+ *  resize it and call onResize(). jsdom reports 0 for both otherwise. */
+function makeSizedCanvas(): { canvas: HTMLCanvasElement; size: { w: number; h: number } } {
+  const size = { w: 800, h: 600 };
+  const canvas = document.createElement('canvas');
+  Object.defineProperty(canvas, 'clientWidth', { get: () => size.w, configurable: true });
+  Object.defineProperty(canvas, 'clientHeight', { get: () => size.h, configurable: true });
+  return { canvas, size };
+}
+
+/** SceneContext for components that never touch the picker. Camera and renderer
+ *  are null: nothing under test reads them, and a real WebGL renderer cannot be
+ *  constructed in jsdom. */
+export function makeSceneContext(cityState: CityState = makeCityState()): SceneContext {
+  return {
+    scene: new THREE.Scene(),
+    canvas: makeSizedCanvas().canvas,
+    picker: null as unknown as Picker,
+    camera: null as unknown as THREE.PerspectiveCamera,
+    renderer: null as unknown as THREE.WebGLRenderer,
+    cityState,
+  } as unknown as SceneContext;
+}
+
+/** SceneContext whose picker carries real signals, returned alongside them so a
+ *  test can drive hover/selection and assert what the component does. */
+export function makePickableSceneContext(cityState: CityState = makeCityState()): {
+  ctx: SceneContext;
+  selection: ReturnType<typeof signal<PickTarget | null>>;
+  hover: ReturnType<typeof signal<PickTarget | null>>;
+  size: { w: number; h: number };
+} {
+  const selection = signal<PickTarget | null>(null);
+  const hover = signal<PickTarget | null>(null);
+  const { canvas, size } = makeSizedCanvas();
+  const ctx = {
+    scene: new THREE.Scene(),
+    canvas,
+    picker: { selection, hover } as unknown as Picker,
+    cityState,
+  } as unknown as SceneContext;
+  return { ctx, selection, hover, size };
 }
 
 /** Builds a CityBbox from extents, deriving cx/cy/width/depth. */

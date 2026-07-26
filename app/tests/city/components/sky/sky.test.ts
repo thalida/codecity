@@ -11,8 +11,8 @@ import * as THREE from 'three';
 import { createSky } from '@/city/components/sky';
 import { SCENE } from '@/state/stores/settings/scene';
 import { RENDER_ORDERS } from '@/city/types/renderOrders';
-import type { Picker } from '@/city/interaction/picker';
-import type { FrameContext, SceneContext } from '@/city/types';
+import type { FrameContext } from '@/city/types';
+import { makeSceneContext } from '../../../_helpers/cityFixtures';
 
 function resetStores() {
   SCENE.value = {
@@ -26,21 +26,13 @@ function resetStores() {
 }
 
 // The sky uses nothing from ctx at construction; a minimal stub suffices.
-function makeCtx(): SceneContext {
-  return {
-    scene: new THREE.Scene(),
-    picker: null as unknown as Picker,
-    camera: null as unknown as THREE.PerspectiveCamera,
-    renderer: null as unknown as THREE.WebGLRenderer,
-  } as unknown as SceneContext;
-}
 
 describe('createSky()', () => {
   let sky: ReturnType<typeof createSky>;
 
   beforeEach(() => {
     resetStores();
-    sky = createSky(makeCtx());
+    sky = createSky(makeSceneContext());
   });
 
   afterEach(() => {

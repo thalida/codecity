@@ -14,10 +14,9 @@
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import * as THREE from 'three';
-import { signal } from '@preact/signals';
 
 import { createFireflies } from '@/city/components/fireflies';
-import { makeCityState } from '../../../_helpers/cityFixtures';
+import { makeCityState, makePickableSceneContext } from '../../../_helpers/cityFixtures';
 import { FIREFLIES } from '@/state/stores/settings/fireflies';
 import { NodeKind } from '@/types';
 import type { CommitEntry } from '@/types';
@@ -38,22 +37,6 @@ const COMMITS: CommitEntry[] = [
 const PLACEMENTS: TreePlacement[] = [{ x: 0, y: 0, seed: 0, commitIndex: 0 } as TreePlacement];
 
 const _origFireflies = FIREFLIES.value;
-
-function makeCtx(): {
-  ctx: SceneContext;
-  selection: ReturnType<typeof signal<PickTarget | null>>;
-  hover: ReturnType<typeof signal<PickTarget | null>>;
-} {
-  const selection = signal<PickTarget | null>(null);
-  const hover = signal<PickTarget | null>(null);
-  const ctx = {
-    scene: new THREE.Scene(),
-    canvas: document.createElement('canvas'),
-    picker: { selection, hover } as unknown as Picker,
-    cityState: makeCityState(),
-  } as unknown as SceneContext;
-  return { ctx, selection, hover };
-}
 
 function makePrePickerCtx(): SceneContext {
   return {
@@ -111,7 +94,7 @@ describe('createFireflies() component door', () => {
   });
 
   it('rebuild() builds the inner assembly under the group; clear() empties + nulls', () => {
-    const { ctx } = makeCtx();
+    const { ctx } = makePickableSceneContext();
     comp = createFireflies(ctx);
     comp.rebuild(PLACEMENTS, COMMITS, commitStats(COMMITS));
     // The inner assembly's group is the sole child of the component group.
@@ -124,7 +107,7 @@ describe('createFireflies() component door', () => {
   });
 
   it('rebuild() disposes the prior assembly (no accumulation)', () => {
-    const { ctx } = makeCtx();
+    const { ctx } = makePickableSceneContext();
     comp = createFireflies(ctx);
     comp.rebuild(PLACEMENTS, COMMITS, commitStats(COMMITS));
     const first = comp.group.children[0];
@@ -135,7 +118,7 @@ describe('createFireflies() component door', () => {
   });
 
   it('theme effect pushes fresh animation uniforms on FIREFLIES Save', () => {
-    const { ctx } = makeCtx();
+    const { ctx } = makePickableSceneContext();
     comp = createFireflies(ctx);
     comp.rebuild(PLACEMENTS, COMMITS, commitStats(COMMITS));
     const u = orbUniforms(comp);
@@ -144,7 +127,7 @@ describe('createFireflies() component door', () => {
   });
 
   it('tick() writes frame.time into the bob uTime uniform', () => {
-    const { ctx } = makeCtx();
+    const { ctx } = makePickableSceneContext();
     comp = createFireflies(ctx);
     comp.rebuild(PLACEMENTS, COMMITS, commitStats(COMMITS));
     comp.tick(0, FRAME(CAMERA, 4.5));
@@ -152,7 +135,7 @@ describe('createFireflies() component door', () => {
   });
 
   it('does NOT boost a hover set before the first tick; arming pushes it in', () => {
-    const { ctx, hover } = makeCtx();
+    const { ctx, hover } = makePickableSceneContext();
     comp = createFireflies(ctx);
     comp.rebuild(PLACEMENTS, COMMITS, commitStats(COMMITS));
     const u = orbUniforms(comp);
@@ -171,7 +154,7 @@ describe('createFireflies() component door', () => {
   });
 
   it('select boost follows picker.selection after arming', () => {
-    const { ctx, selection } = makeCtx();
+    const { ctx, selection } = makePickableSceneContext();
     comp = createFireflies(ctx);
     comp.rebuild(PLACEMENTS, COMMITS, commitStats(COMMITS));
     comp.tick(0, FRAME(CAMERA));
@@ -184,7 +167,7 @@ describe('createFireflies() component door', () => {
   });
 
   it('REBUILD-SURVIVAL: boost effects reach the NEW inner on the next signal change', () => {
-    const { ctx, hover } = makeCtx();
+    const { ctx, hover } = makePickableSceneContext();
     comp = createFireflies(ctx);
     comp.rebuild(PLACEMENTS, COMMITS, commitStats(COMMITS));
     comp.tick(0, FRAME(CAMERA)); // arm
@@ -203,7 +186,7 @@ describe('createFireflies() component door', () => {
   });
 
   it('onResize(w, h) is safe before and after the inner assembly is built', () => {
-    const { ctx } = makeCtx();
+    const { ctx } = makePickableSceneContext();
     comp = createFireflies(ctx);
     expect(() => comp.onResize(800, 600)).not.toThrow(); // null inner → no-op
     comp.rebuild(PLACEMENTS, COMMITS, commitStats(COMMITS));
@@ -211,7 +194,7 @@ describe('createFireflies() component door', () => {
   });
 
   it('dispose() empties the group and stops all effects', () => {
-    const { ctx, hover } = makeCtx();
+    const { ctx, hover } = makePickableSceneContext();
     comp = createFireflies(ctx);
     comp.rebuild(PLACEMENTS, COMMITS, commitStats(COMMITS));
     comp.tick(0, FRAME(CAMERA)); // arm

@@ -15,19 +15,16 @@
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import * as THREE from 'three';
-import { signal } from '@preact/signals';
 import { LineSegments2 } from 'three/addons/lines/LineSegments2.js';
 
 import { createPathLine } from '@/city/components/pathLine';
 import { createCityState } from '@/city/state';
-import { makeCityState } from '../../../_helpers/cityFixtures';
+import { makeCityState, makePickableSceneContext } from '../../../_helpers/cityFixtures';
 import { computePathLinewidthPixels } from '@/city/components/pathLine/renderer';
 import { STREETS } from '@/state/stores/settings/streets';
 import { NodeKind, StreetAxis } from '@/types';
 import type { CityLayout, Street } from '@/types';
 import type { PickTarget } from '@/types/picker';
-import type { Picker } from '@/city/interaction/picker';
-import type { SceneContext } from '@/city/types';
 
 const DEFAULTS = {
   ASPHALT_COLOR: '#313544',
@@ -43,25 +40,6 @@ const DEFAULTS = {
   HOVER_PATH_COLOR: '#ffffff',
   HOVER_PATH_OPACITY: 0.25,
 };
-
-function makeCtx(cityState: ReturnType<typeof createCityState>): {
-  ctx: SceneContext;
-  selection: ReturnType<typeof signal<PickTarget | null>>;
-  hover: ReturnType<typeof signal<PickTarget | null>>;
-} {
-  const selection = signal<PickTarget | null>(null);
-  const hover = signal<PickTarget | null>(null);
-  const canvas = document.createElement('canvas');
-  Object.defineProperty(canvas, 'clientWidth', { value: 800 });
-  Object.defineProperty(canvas, 'clientHeight', { value: 600 });
-  const ctx = {
-    scene: new THREE.Scene(),
-    canvas,
-    picker: { selection, hover } as unknown as Picker,
-    cityState,
-  } as unknown as SceneContext;
-  return { ctx, selection, hover };
-}
 
 const SRC_STREET = {
   x: 0,
@@ -125,7 +103,7 @@ describe('createPathLine() component door', () => {
 
   it('constructs with an empty named group; nothing armed, nothing subscribed', () => {
     const { cityState, counters } = makeSeeded();
-    const { ctx, selection } = makeCtx(cityState);
+    const { ctx, selection } = makePickableSceneContext(cityState);
     comp = createPathLine(ctx);
     expect(comp.group.name).toBe('city-path-line');
     expect(comp.group.children).toHaveLength(0);
@@ -142,7 +120,7 @@ describe('createPathLine() component door', () => {
 
   it('first tick() arms the inner renderer: two line meshes + a live rebuild effect', () => {
     const { cityState, counters } = makeSeeded();
-    const { ctx } = makeCtx(cityState);
+    const { ctx } = makePickableSceneContext(cityState);
     comp = createPathLine(ctx);
     comp.tick(0, FRAME());
     expect(lines(comp)).toHaveLength(2);
@@ -158,7 +136,7 @@ describe('createPathLine() component door', () => {
 
   it('a selection after arming shows the selection path line; clearing hides it', () => {
     const { cityState } = makeSeeded();
-    const { ctx, selection } = makeCtx(cityState);
+    const { ctx, selection } = makePickableSceneContext(cityState);
     comp = createPathLine(ctx);
     comp.tick(0, FRAME());
     const [pathLine] = lines(comp);
@@ -177,7 +155,7 @@ describe('createPathLine() component door', () => {
 
   it('theme effect pushes a fresh linewidth into both materials on STREETS Save', () => {
     const { cityState } = makeSeeded();
-    const { ctx } = makeCtx(cityState);
+    const { ctx } = makePickableSceneContext(cityState);
     comp = createPathLine(ctx);
     comp.tick(0, FRAME());
     STREETS.value = { ...STREETS.value, PATH_LINEWIDTH_PCT: 25 };
@@ -192,7 +170,7 @@ describe('createPathLine() component door', () => {
 
   it('untracked discipline: a hover change fires ONLY the hover effect, not the theme effect', () => {
     const { cityState, counters } = makeSeeded();
-    const { ctx, hover } = makeCtx(cityState);
+    const { ctx, hover } = makePickableSceneContext(cityState);
     comp = createPathLine(ctx);
     comp.tick(0, FRAME());
 
@@ -206,7 +184,7 @@ describe('createPathLine() component door', () => {
 
   it('dispose() stops the rebuild effect + all picker effects', () => {
     const { cityState, counters } = makeSeeded();
-    const { ctx, selection } = makeCtx(cityState);
+    const { ctx, selection } = makePickableSceneContext(cityState);
     comp = createPathLine(ctx);
     comp.tick(0, FRAME());
 
