@@ -40,10 +40,6 @@ class ConfigResponse(BaseModel):
     allowLocalRepos: bool
 
 
-class CacheClearResponse(BaseModel):
-    deleted: int
-
-
 class CommitDetailResponse(BaseModel):
     sha: str
     authors: list[str]

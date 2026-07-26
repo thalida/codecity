@@ -393,10 +393,9 @@ def _manifest_cache_path(abs_root: Path, content_signature: str) -> Path:
 
 
 def _ref_manifest_cache_path(abs_root: Path, ref_sha: str) -> Path:
-    # `__ref-` (not `__`) so cache_clear_manifests's `{repo_key}__*.json.gz`
-    # glob still sweeps these alongside content-signature entries, while the
-    # prefix keeps a ref-sha visually distinct from a content signature in
-    # directory listings.
+    # `__ref-` prefix keeps a ref-sha visually distinct from a content
+    # signature in directory listings, while staying inside the
+    # `{repo_key}__*.json.gz` shape the other per-root globs match.
     return CACHE_ROOT / "manifests" / f"{repo_key(abs_root)}__ref-{ref_sha}.json.gz"
 
 
@@ -482,8 +481,7 @@ def cache_save_manifest(
 def cache_load_ref_manifest(abs_root: Path, ref_sha: str) -> "Manifest | None":
     """Load the cached manifest for this (root, ref_sha). A resolved commit
     sha's manifest is immutable (the commit's content never changes), so
-    unlike the content-signature cache this key never needs invalidating —
-    only `cache_clear_manifests`/`cache_clear_all` remove it."""
+    unlike the content-signature cache this key never needs invalidating."""
     return _load_gz_manifest(_ref_manifest_cache_path(abs_root, ref_sha))
 
 
@@ -555,51 +553,4 @@ def cache_clear_timeline(abs_root: Path) -> int:
             count += 1
         except OSError:
             pass
-    return count
-
-
-def cache_clear_manifests(abs_root: Path) -> int:
-    """Delete every cached manifest file for this root, across all
-    signatures, every ref-keyed manifest, AND every timeline bundle (the
-    `__*.json.gz` glob below matches `__<signature>.json.gz`,
-    `__ref-<sha>.json.gz`, and `__timeline-<sha>.json.gz`).
-    Returns the count deleted.
-
-    Silently ignores I/O errors per the rest of this module's hygiene —
-    cache cleanup failures must never break the response."""
-    manifests_dir = CACHE_ROOT / "manifests"
-    if not manifests_dir.exists():
-        return 0
-    pattern = f"{repo_key(abs_root)}__*.json.gz"
-    count = 0
-    for path in manifests_dir.glob(pattern):
-        try:
-            path.unlink()
-            count += 1
-        except OSError:
-            pass
-    return count
-
-
-def cache_clear_all(abs_root: Path) -> int:
-    """Delete EVERY per-root cache for this root — manifest (all
-    signatures), file-stat, git-history, and blob-stats. Returns the count
-    deleted.
-
-    Backs the "clear cache" flow's clean-slate guarantee for a source.
-    The git clone working tree lives outside CACHE_ROOT, so the caller
-    removes it separately (see clone.remove_clone). Same swallow-errors
-    hygiene as the rest of this module — cleanup failures must never
-    break the response."""
-    count = cache_clear_manifests(abs_root)
-    for path in (
-        _file_cache_path(abs_root),
-        _git_history_cache_path(abs_root),
-        _blob_cache_path(abs_root),
-    ):
-        try:
-            path.unlink()
-            count += 1
-        except OSError:
-            pass  # missing file or I/O error — best-effort cleanup
     return count

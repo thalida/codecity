@@ -8,7 +8,6 @@ import { SERVER_CONFIG } from '@/state/stores/serverConfig';
 import { setManifest } from '@/state/stores/manifest';
 import { EMPTY_MANIFEST } from '@/constants/manifest';
 import { RecentsList } from '@/components/RecentsList/RecentsList';
-import * as manifestApi from '@/api/manifest';
 import type { Manifest } from '@/types';
 import { flush } from '../_helpers/preact';
 
@@ -77,8 +76,7 @@ describe('RecentsList', () => {
     expect(container.querySelector('.recent-row--active')).toBeTruthy();
   });
 
-  it('remove is non-destructive: forgets the entry, does not touch the cache', async () => {
-    const spy = vi.spyOn(manifestApi, 'clearManifestCache');
+  it('remove forgets the entry behind a confirm step', async () => {
     render(<RecentsList onOpen={() => {}} />, container);
     await flush();
 
@@ -100,6 +98,5 @@ describe('RecentsList', () => {
     await flush();
 
     expect(RECENTS.value.find((r) => r.label === 'o/alpha')).toBeUndefined();
-    expect(spy).not.toHaveBeenCalled();
   });
 });

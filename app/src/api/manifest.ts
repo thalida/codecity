@@ -220,12 +220,3 @@ export function streamManifest(
     },
   };
 }
-
-/**
- * Clear the server-side scan cache for one (src, branch) pair. Best-effort —
- * failures are swallowed (cache-clear is a UX nicety, not a correctness path).
- */
-export function clearManifestCache(src: string, branch?: string): void {
-  const url = apiUrl('manifest/cache', { [URL_PARAMS.SRC]: src, [URL_PARAMS.BRANCH]: branch });
-  fetch(url, { method: 'DELETE' }).catch(() => {});
-}
