@@ -24,6 +24,7 @@ import buildingFragSrc from '@/city/components/buildings/building.frag.glsl?raw'
 import { BUILDINGS } from '@/state/stores/settings/buildings';
 import { SCENE } from '@/state/stores/settings/scene';
 import { RUINS } from '@/state/stores/settings/ruins';
+import { TIMELINE_MODE } from '@/state/stores/timeline';
 import { NodeKind } from '@/types';
 import type { Building, CityLayout, DateRanges, FileTarget } from '@/types';
 import type { Picker } from '@/city/interaction/picker';
@@ -106,6 +107,7 @@ describe('createBuildings()', () => {
 
   afterEach(() => {
     buildings?.dispose();
+    TIMELINE_MODE.value = false;
   });
 
   // ---------------------------------------------------------------------------
@@ -165,36 +167,31 @@ describe('createBuildings()', () => {
     expect(resolved!.slot).toBe(b0.slotId);
   });
 
-  it('a building from a previous city does not resolve into the new one', async () => {
-    // Switching repos out of Timeline leaves the scrub controller holding the
-    // OLD city's Building objects, and buildings.tick() keeps calling its
-    // update() until teardown lands. cellId/slotId are small integers that
-    // collide across cities, so a stale building used to resolve to a LIVE mesh
-    // in the new city and get the old city's ruin state written into that slot.
+  it('rebuild() drops a scrub controller installed for the previous city', async () => {
+    // Same hazard the tween queue already guards: the controller holds the old
+    // manifest's Buildings, whose cellId/slotId resolve into the NEW cells.
     const { ctx } = makePickableSceneContext();
     buildings = createBuildings(ctx);
+    TIMELINE_MODE.value = true;
 
     const oldA = building({ x: 10, y: 10, h: 4, file: fileOf('old/a.ts') as never });
-    const oldB = building({ x: -20, y: -20, h: 9, file: fileOf('old/b.ts') as never });
-    await buildings.rebuild(buildingLayout([oldA, oldB]), EMPTY_DATE_RANGES);
-    expect(buildings.getMeshForBuilding(oldA), 'sanity: resolves while its city is live').not.toBeNull();
-    const staleCellId = oldA.cellId;
+    await buildings.rebuild(buildingLayout([oldA]), EMPTY_DATE_RANGES);
 
-    // A different repo: fresh Building objects, fresh cells.
+    const controller = { update: vi.fn() };
+    buildings.setScrubController(controller);
+    buildings.tick(0, { camera: CAMERA } as never);
+    expect(controller.update, 'sanity: driven while its city is live').toHaveBeenCalled();
+    controller.update.mockClear();
+
+    // A different repo lands while Timeline is still flagged on.
     const newA = building({ x: 10, y: 10, h: 4, file: fileOf('new/a.ts') as never });
-    const newB = building({ x: -20, y: -20, h: 9, file: fileOf('new/b.ts') as never });
-    await buildings.rebuild(buildingLayout([newA, newB]), EMPTY_DATE_RANGES);
-
-    // The collision this guards: the old cell id is still a live cell.
-    expect(buildings.getCells().has(staleCellId!), 'the id collides, which is the trap').toBe(true);
+    await buildings.rebuild(buildingLayout([newA]), EMPTY_DATE_RANGES);
+    buildings.tick(0, { camera: CAMERA } as never);
 
     expect(
-      buildings.getMeshForBuilding(oldA),
-      'a stale building must not resolve into the new city'
-    ).toBeNull();
-    expect(buildings.getMeshForBuilding(oldB)).toBeNull();
-    // The new city still resolves normally.
-    expect(buildings.getMeshForBuilding(newA)).not.toBeNull();
+      controller.update,
+      'a controller from the previous city must not keep writing into this one'
+    ).not.toHaveBeenCalled();
   });
 
   it('rebuild() colors the buildings (writes b.color from the date ranges)', async () => {

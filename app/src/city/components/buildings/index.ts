@@ -228,13 +228,7 @@ export function createBuildings(ctx: SceneContext): Buildings {
   function getMeshForBuilding(b: Building): { mesh: THREE.InstancedMesh; slot: number } | null {
     if (_cells.size > 0 && b.cellId != null && b.slotId != null) {
       const cell = _cells.get(b.cellId);
-      // The slot must still hold THIS building. cellId/slotId are small integers
-      // that collide across cities, so a Building left over from a previous
-      // manifest would otherwise resolve to whatever now occupies its old slot
-      // and get written into it.
-      if (cell?.detailMesh && cell.buildings[b.slotId] === b) {
-        return { mesh: cell.detailMesh, slot: b.slotId };
-      }
+      if (cell?.detailMesh) return { mesh: cell.detailMesh, slot: b.slotId };
     }
     return null;
   }
@@ -475,6 +469,11 @@ export function createBuildings(ctx: SceneContext): Buildings {
     // fresh diff above re-seeds from the current on-screen matrices, so clearing
     // loses no animation continuity.
     _tweens.clear();
+    // Same hazard, same cure: the scrub controller holds the OLD manifest's
+    // Buildings and tick() drives it every frame. reapplyTimelineScene installs
+    // a fresh one right after applyManifest, so the only path that leaves this
+    // null is the one that should — a repo switch out of Timeline.
+    _scrubController = null;
     if (!_firstBuildDone) {
       _firstBuildDone = true;
     } else if (!TIMELINE_MODE.peek()) {
