@@ -194,6 +194,36 @@ describe('createBuildings()', () => {
     ).not.toHaveBeenCalled();
   });
 
+  it('restoreLiveView() undoes what a scrub wrote into the instance buffers', async () => {
+    // Leaving Timeline restored the other four subsystems but never buildings,
+    // so the outgoing city sat frozen mid-scrub through the next repo's load.
+    const { ctx } = makePickableSceneContext();
+    buildings = createBuildings(ctx);
+
+    const b0 = building({ x: 10, y: 10, h: 4, file: fileOf('src/a.ts') as never });
+    await buildings.rebuild(buildingLayout([b0]), EMPTY_DATE_RANGES);
+
+    const { mesh, slot } = buildings.getMeshForBuilding(b0)!;
+    const iKind = mesh.geometry.getAttribute('iKind') as THREE.BufferAttribute;
+    const iFade = mesh.geometry.getAttribute('iFade') as THREE.BufferAttribute;
+    const liveKind = iKind.getX(slot);
+    const liveMatrix = new THREE.Matrix4();
+    mesh.getMatrixAt(slot, liveMatrix);
+
+    // Stand in for a scrub frame: ruin kind, faded out, stub height.
+    iKind.setX(slot, 1);
+    iFade.setXYZ(slot, 0.15, 0, 0);
+    mesh.setMatrixAt(slot, new THREE.Matrix4().makeScale(b0.w, 0.5, b0.d));
+
+    buildings.restoreLiveView();
+
+    expect(iKind.getX(slot), 'ruin kind must not survive the exit').toBe(liveKind);
+    expect(iFade.getX(slot), 'opacity must return to fully drawn').toBe(1);
+    const after = new THREE.Matrix4();
+    mesh.getMatrixAt(slot, after);
+    expect(after.elements, 'the live transform must come back').toEqual(liveMatrix.elements);
+  });
+
   it('rebuild() colors the buildings (writes b.color from the date ranges)', async () => {
     const { ctx } = makePickableSceneContext();
     buildings = createBuildings(ctx);

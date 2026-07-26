@@ -33,12 +33,13 @@ import { RUINS } from '@/state/stores/settings/ruins';
 import { TIMELINE_MODE } from '@/state/stores/timeline';
 import type { Building, CityLayout, DateRanges, EnteringBuilding, StayingBuilding } from '@/types';
 
-import type { FrameContext, SceneComponent, SceneContext } from '../../types';
+import type { FrameContext, ModeDrivable, SceneComponent, SceneContext } from '../../types';
 import { armOnFirstTick } from '../../utils/armOnFirstTick';
 import type { WorldBounds } from './spatialGrid';
 import type { CellTile } from './cellTile';
 import { BuildingIndex } from './buildingIndex';
 import { buildCellsFromLayout } from './cellAssembly';
+import { writeBuildingToSlot } from './cellMesh';
 import type { InstancedFacadePanels } from './facadePanels';
 import { refreshBuildingMaterial } from './material';
 import { disposeObject3D } from '@/city/utils/disposeObject3D';
@@ -57,7 +58,7 @@ interface BuildingDiff {
 }
 
 /** Public contract for the buildings component. */
-export interface Buildings extends SceneComponent {
+export interface Buildings extends SceneComponent, ModeDrivable {
   /** Color the buildings, assemble the cells, swap them into the group, and
    *  rebuild the lookups. Always rebuilds (the cell root is always rebuilt —
    *  not scenic-gated). Computes its OWN enter/stay diff against the prior
@@ -481,6 +482,23 @@ export function createBuildings(ctx: SceneContext): Buildings {
     }
   }
 
+  // Reuses the build-time writer rather than restating what "live" means.
+  function restoreLiveView(): void {
+    for (const cell of _cells.values()) {
+      if (!cell.detailMesh) continue;
+      for (const b of cell.buildings) {
+        if (b) writeBuildingToSlot(cell, b);
+      }
+      const mesh = cell.detailMesh;
+      mesh.instanceMatrix.needsUpdate = true;
+      if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+      for (const name of ['iFade', 'iKind', 'iFloors', 'iIconUV', 'iRefColor', 'iCols', 'iDoor']) {
+        const attr = mesh.geometry.getAttribute(name) as THREE.BufferAttribute | undefined;
+        if (attr) attr.needsUpdate = true;
+      }
+    }
+  }
+
   function dispose(): void {
     _disposeInner();
     _tweens.clear();
@@ -507,5 +525,6 @@ export function createBuildings(ctx: SceneContext): Buildings {
     setScrubController: (c) => {
       _scrubController = c;
     },
+    restoreLiveView,
   };
 }

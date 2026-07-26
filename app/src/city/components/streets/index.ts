@@ -69,6 +69,8 @@ export interface Streets extends SceneComponent {
   setStreetLabelOpacity(street: Street, opacity: number): void;
   /** Move both street materials into (or out of) the transparent render pass. */
   setStreetsTransparent(on: boolean): void;
+  /** Back to live: see ModeDrivable. */
+  restoreLiveView(): void;
 }
 
 export function createStreets(ctx: SceneContext): Streets {
@@ -496,5 +498,6 @@ export function createStreets(ctx: SceneContext): Streets {
     setStreetOpacity,
     setStreetLabelOpacity,
     setStreetsTransparent,
+    restoreLiveView: () => setStreetsTransparent(false),
   };
 }

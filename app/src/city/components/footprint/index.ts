@@ -60,6 +60,8 @@ export interface Footprint extends SceneComponent {
   setStreetFootprintOpacity(dirPath: string, opacity: number, ruin?: boolean): void;
   /** Move the footprint material into (or out of) the transparent render pass. */
   setFootprintsTransparent(on: boolean): void;
+  /** Back to live: see ModeDrivable. */
+  restoreLiveView(): void;
 }
 
 export function createFootprint(ctx: SceneContext): Footprint {
@@ -284,5 +286,6 @@ export function createFootprint(ctx: SceneContext): Footprint {
     setBuildingFootprintOpacity,
     setStreetFootprintOpacity,
     setFootprintsTransparent,
+    restoreLiveView: () => setFootprintsTransparent(false),
   };
 }
