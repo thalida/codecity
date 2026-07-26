@@ -34,13 +34,6 @@ export interface FrameContext {
 }
 
 /** Minimal uniform contract every scene component satisfies. */
-/** A scene subsystem a mode can take over. Required, not optional: forgetting
- *  one is how a mode exit leaves part of the city frozen in the mode's state. */
-export interface ModeDrivable {
-  /** Return to the plain live view, discarding whatever a mode was drawing. */
-  restoreLiveView(): void;
-}
-
 export interface SceneComponent {
   /** The composer adds this to the scene. */
   group: THREE.Object3D;

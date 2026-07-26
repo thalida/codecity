@@ -113,18 +113,20 @@ describe('createCity', () => {
   // TIMELINE_MODE off directly (scene-free); this effect is what actually tears
   // the scene down, uniformly for the toggle button AND a source switch.
   describe('Timeline-mode scene teardown', () => {
-    // What each subsystem does to restore itself is its own test; uninstall
-    // walks every ModeDrivable, so this only has to prove the walk happens.
-    it('reacts to TIMELINE_MODE going true→false by uninstalling the controller', async () => {
+    it('reacts to TIMELINE_MODE going true→false by uninstalling the controller and un-transparenting streets/footprints', async () => {
       const handle = await createCity(makeCanvas(), EMPTY_MANIFEST);
       handle.timeline.installScrubController(new Map(), []);
       const uninstallSpy = vi.spyOn(handle.timeline, 'uninstallScrubController');
+      const streetsSpy = vi.spyOn(handle.timeline, 'setStreetsTransparent');
+      const footprintsSpy = vi.spyOn(handle.timeline, 'setFootprintsTransparent');
 
       TIMELINE_MODE.value = true; // entering must not trip the teardown
       expect(uninstallSpy).not.toHaveBeenCalled();
 
       TIMELINE_MODE.value = false; // same flip a source switch performs
       expect(uninstallSpy).toHaveBeenCalledTimes(1);
+      expect(streetsSpy).toHaveBeenCalledWith(false);
+      expect(footprintsSpy).toHaveBeenCalledWith(false);
 
       handle.dispose();
     });
