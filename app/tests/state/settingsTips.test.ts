@@ -1,16 +1,9 @@
-// Guards the house rule that user-facing copy uses colons or commas, never an
-// em-dash. Two halves, because neither alone is sufficient:
+// User-facing copy uses colons or commas, never an em-dash.
 //
-//   1. Settings field tips, checked at runtime against the real registry. The
-//      store list used to be hand-written imports and had drifted: blueprints,
-//      ruins, scrubber and theme were missing, so their tips went unchecked
-//      while the suite stayed green. import.meta.glob cannot drift.
-//
-//   2. All other user-facing copy, read as source text. The almanac builds its
-//      tips inside computeAlmanac, so reaching them at runtime would need a
-//      manifest fixture rich enough to hit every branch, and a fixture that
-//      missed a branch would silently under-enforce: the exact bug this fixes.
-//      Reading source has no such blind spot.
+// Two halves because neither alone is enough: settings tips are reachable at
+// runtime, but the almanac builds its tips inside computeAlmanac, where a
+// fixture missing a branch would under-enforce silently. Reading source has no
+// such blind spot. Globs, not hand-written lists, which had already drifted.
 
 import { describe, it, expect } from 'vitest';
 import { forEachSettingStore, getFieldKeys, getFieldDef } from '@/state/settingsSchema';

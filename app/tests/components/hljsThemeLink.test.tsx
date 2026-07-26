@@ -1,9 +1,6 @@
-// Note on scope: vitest stubs CSS assets, so `?url` imports evaluate to "" here
-// and asserting on the resolved URLs would pass vacuously. Two other things do
-// the real enforcing: THEME_HREF is typed `Record<SyntaxThemeValue, string>`, so
-// a missing theme fails typecheck, and the hrefs come from bundler-resolved
-// imports, which cannot produce an off-origin URL the way the old hardcoded
-// jsDelivr template string did. What's left to test at runtime is the lookup.
+// vitest stubs CSS assets, so `?url` imports are "" here and asserting on the
+// resolved URLs would pass vacuously. Completeness is enforced by the
+// Record<SyntaxThemeValue, string> type; only the lookup is testable at runtime.
 
 import { describe, it, expect } from 'vitest';
 import { THEME_HREF, hrefForTheme } from '@/components/HljsThemeLink/HljsThemeLink';

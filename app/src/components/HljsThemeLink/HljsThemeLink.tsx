@@ -4,14 +4,10 @@
 // follows the SYNTAX_THEME signal automatically — no module-load effect,
 // no manual <link> element management.
 //
-// The stylesheets are bundled from the pinned highlight.js dependency and
-// served same-origin, matching how constants/fileIcons.ts sources its Material
-// icons. They were previously fetched from jsDelivr per theme change, which
-// told a third party the viewer's IP and theme choice, broke offline use, and
-// trusted un-pinned remote CSS (attribute-selector `url()` rules can exfiltrate).
-//
-// `?url` emits each theme as its own asset rather than inlining all 21 into the
-// JS bundle, so the browser only fetches the one that's selected.
+// Bundled same-origin rather than fetched from a CDN: remote CSS leaks the
+// viewer's IP and theme choice, breaks offline use, and can exfiltrate via
+// attribute-selector url(). `?url` keeps each theme a separate asset, so only
+// the selected one is fetched.
 
 import './HljsThemeLink.css';
 import { createPortal } from 'preact/compat';

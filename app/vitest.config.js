@@ -58,10 +58,14 @@ export default defineConfig({
         'src/three-augment.d.ts',
         'src/vite-env.d.ts',
       ],
-      // No thresholds — coverage is measured + reported, not enforced.
-      // Current baseline ~51% lines / 39% branches; raising the bar is
-      // future work (would require tests for entrypoints, renderLoop,
-      // scene effects, UI shell).
+      // Floors, not targets: a few points under measured, so ordinary movement
+      // passes and a regression fails.
+      thresholds: {
+        lines: 82,
+        statements: 79,
+        functions: 80,
+        branches: 68,
+      },
     },
   },
 });

@@ -461,16 +461,9 @@ def _save_gz_manifest(path: Path, manifest: "Manifest") -> None:
     )
 
 
-# Retention per repo, per family. Every entry here is keyed by repo CONTENT, not
-# by repo — a new content signature on each edit, a new ref key per commit
-# visited, a new bundle per HEAD — so without a cap the directory grows for the
-# life of the install (this was 844 files / 281 MB on one dev machine).
-#
-# Everything under manifests/ is a pure performance cache: evicting costs a
-# rescan, never correctness. So these are deliberately small, and sized by how
-# far back a re-read is actually plausible — a couple of branches in flight for
-# content signatures, a scrub session's worth of commits for refs, and HEAD plus
-# a little slack for the (large) timeline bundles.
+# Entries are keyed by repo CONTENT, so without a cap this directory grows for
+# the life of the install. Sized by how far back a re-read is plausible; these
+# are pure performance caches, so evicting costs a rescan, never correctness.
 _KEEP_CONTENT_MANIFESTS = 5
 _KEEP_REF_MANIFESTS = 20
 _KEEP_TIMELINE_BUNDLES = 3

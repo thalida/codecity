@@ -105,14 +105,9 @@ async function pumpManifestStream(
   return lastManifest;
 }
 
-// ── Timeline refresh, injected ───────────────────────────────────────
-// An excludes change refreshes differently in Timeline mode (refetch the bundle)
-// than live (re-scan HEAD). The handler is injected rather than imported so the
-// dependency runs one way, useTimelineMode -> here: this is the lower layer and
-// must not know the mode exists. Importing it was a real cycle.
-//
-// Registration cannot be missed: TIMELINE_MODE only turns on by calling into
-// useTimelineMode, which registers as it loads.
+// Injected, not imported: useTimelineMode imports this module, so importing it
+// back was a cycle. TIMELINE_MODE only turns on via that module, so by the time
+// this can be reached it has registered.
 let timelineRefresh: (() => Promise<void>) | null = null;
 
 export function setTimelineRefreshHandler(fn: (() => Promise<void>) | null): void {

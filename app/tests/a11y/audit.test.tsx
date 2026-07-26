@@ -53,12 +53,9 @@ interface Surface {
   axeMount?: (c: HTMLElement) => void;
 }
 
-// axe is a process-wide singleton guarded by an `_running` latch. A run that
-// vitest aborts mid-flight (timeout) never settles, so the latch stays set and
-// every later `axe.run` throws "Axe is already running" — one slow surface
-// fails all of them. `axe.teardown()` clears the caches and element tree but
-// NOT that latch, so releasing it is the only thing that actually breaks the
-// cascade. `_running` is deliberately absent from axe's public types.
+// A timed-out run never settles, so axe's `_running` latch stays set and every
+// later surface throws. teardown() clears caches but not that latch, so
+// releasing it is what breaks the cascade. `_running` is not in axe's types.
 function resetAxe(): void {
   axe.teardown();
   (axe as unknown as { _running: boolean })._running = false;
