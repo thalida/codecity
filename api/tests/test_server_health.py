@@ -8,6 +8,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from api.app import create_app
+from api.config import MAX_BATCH_PATHS
 
 
 @pytest.fixture()
@@ -40,7 +41,7 @@ def test_config_default_disabled(
     app = create_app(static_dir=static)
     r = TestClient(app).get("/api/config")
     assert r.status_code == 200
-    assert r.json() == {"allowLocalRepos": False}
+    assert r.json() == {"allowLocalRepos": False, "maxBatchPaths": MAX_BATCH_PATHS}
 
 
 def test_root_serves_index(client: TestClient) -> None:
