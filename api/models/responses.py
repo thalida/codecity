@@ -38,6 +38,7 @@ class HealthResponse(BaseModel):
 
 class ConfigResponse(BaseModel):
     allowLocalRepos: bool
+    maxBatchPaths: int
 
 
 class CommitDetailResponse(BaseModel):

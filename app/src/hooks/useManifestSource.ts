@@ -401,7 +401,7 @@ export function useManifestSource(): {
       if (cancelled) return;
 
       const serverConfig = await getServerConfig();
-      SERVER_CONFIG.value = { allowLocalRepos: serverConfig.allowLocalRepos };
+      SERVER_CONFIG.value = serverConfig;
 
       // One poll loop for the app's lifetime; no-ops until a source is loaded,
       // re-reads CURRENT_SOURCE + MANIFEST.content_signature each tick (covers

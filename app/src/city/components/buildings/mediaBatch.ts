@@ -11,9 +11,8 @@
 // omits (non-image, too large, out of root) resolves to null; the caller then
 // falls back to the streaming GET /api/file for that one file.
 
-/** Max paths per POST /api/images request — mirrors the server-side cap so a
- *  single batch response stays bounded. */
-const BATCH_SIZE = 32;
+import { SERVER_CONFIG } from '@/state/stores/serverConfig';
+
 /** Coalescing window: media buildings register in a burst at scene build, so a
  *  one-frame delay gathers essentially all of them before the first flush. */
 const FLUSH_MS = 16;
@@ -52,8 +51,11 @@ function _flush(): void {
   const pending = new Map(_queue);
   _queue.clear();
   const paths = [...pending.keys()];
-  for (let i = 0; i < paths.length; i += BATCH_SIZE) {
-    void _sendBatch(paths.slice(i, i + BATCH_SIZE), pending);
+  // The server truncates past its cap, so chunk to the number it published
+  // rather than a local guess that could silently drop the tail.
+  const batchSize = SERVER_CONFIG.value.maxBatchPaths;
+  for (let i = 0; i < paths.length; i += batchSize) {
+    void _sendBatch(paths.slice(i, i + batchSize), pending);
   }
 }
 

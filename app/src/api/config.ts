@@ -7,23 +7,28 @@
 // path input that the server will reject anyway.
 
 import { apiUrl } from '@/api/apiUrl';
-
-export interface ServerConfig {
-  allowLocalRepos: boolean;
-}
-
-const DISABLED: ServerConfig = { allowLocalRepos: false };
+import { DEFAULT_SERVER_CONFIG, type ServerConfig } from '@/state/stores/serverConfig';
 
 let _cached: Promise<ServerConfig> | null = null;
 
 export async function fetchServerConfig(): Promise<ServerConfig> {
   try {
     const resp = await fetch(apiUrl('config'));
-    if (!resp.ok) return DISABLED;
+    if (!resp.ok) return DEFAULT_SERVER_CONFIG;
     const body = (await resp.json()) as Partial<ServerConfig>;
-    return { allowLocalRepos: !!body.allowLocalRepos };
+    // Spread over the defaults rather than re-projecting field by field: the
+    // old shape listed each key by hand, so a field added on the server was
+    // silently dropped here. Only override what the body actually carries, so
+    // a truncated response can't yield a zero batch size.
+    return {
+      ...DEFAULT_SERVER_CONFIG,
+      allowLocalRepos: !!body.allowLocalRepos,
+      ...(typeof body.maxBatchPaths === 'number' && body.maxBatchPaths > 0
+        ? { maxBatchPaths: body.maxBatchPaths }
+        : {}),
+    };
   } catch (_) {
-    return DISABLED;
+    return DEFAULT_SERVER_CONFIG;
   }
 }
 

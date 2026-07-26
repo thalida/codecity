@@ -4,8 +4,8 @@
 // A path the endpoint omits resolves to null. Shared by the city's data-building
 // facade loader and the preview pane's data card.
 
-/** Max paths per request — mirrors the server-side cap. */
-const BATCH_SIZE = 32;
+import { SERVER_CONFIG } from '@/state/stores/serverConfig';
+
 /** Coalescing window: data buildings register in a burst at scene build. */
 const FLUSH_MS = 16;
 
@@ -38,8 +38,10 @@ function _flush(): void {
   const pending = new Map(_queue);
   _queue.clear();
   const paths = [...pending.keys()];
-  for (let i = 0; i < paths.length; i += BATCH_SIZE) {
-    void _sendBatch(paths.slice(i, i + BATCH_SIZE), pending);
+  // Same cap the server enforces, published via /api/config (see mediaBatch).
+  const batchSize = SERVER_CONFIG.value.maxBatchPaths;
+  for (let i = 0; i < paths.length; i += batchSize) {
+    void _sendBatch(paths.slice(i, i + batchSize), pending);
   }
 }
 

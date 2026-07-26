@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter
 
-from api.config import local_repos_allowed
+from api.config import MAX_BATCH_PATHS, local_repos_allowed
 from api.models.responses import ConfigResponse, HealthResponse
 
 router = APIRouter(prefix="/api", tags=["meta"])
@@ -19,4 +19,7 @@ def health() -> HealthResponse:
 
 @router.get("/config", response_model=ConfigResponse)
 def config() -> ConfigResponse:
-    return ConfigResponse(allowLocalRepos=local_repos_allowed())
+    return ConfigResponse(
+        allowLocalRepos=local_repos_allowed(),
+        maxBatchPaths=MAX_BATCH_PATHS,
+    )
