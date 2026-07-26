@@ -27,7 +27,7 @@ import { createStreets } from './components/streets';
 import { createTrees } from './components/trees';
 import { createFireflies } from './components/fireflies';
 import { createPathLine } from './components/pathLine';
-import type { City, SceneComponent, SceneContext, ModeDrivable } from './types';
+import type { City, SceneComponent, SceneContext } from './types';
 import { createCameraRig } from './render/cameraRig';
 import { createPicker } from './interaction/picker';
 import { createInputHandlers } from './interaction/inputHandlers';
@@ -182,10 +182,6 @@ export async function createCity(canvas: HTMLCanvasElement, manifest: Manifest):
   });
 
   // Scrub controller: built on entering Timeline mode (useTimelineMode); held here to dispose on uninstall.
-  // Every subsystem Timeline takes over. Typed, so a new one cannot be added
-  // without saying how it returns to live.
-  const MODE_DRIVABLE: ModeDrivable[] = [buildings, streets, footprint, trees, fireflies];
-
   let _scrubController: ReturnType<typeof createScrubController> | null = null;
 
   // Reused scratch vector to avoid per-frame allocations from renderer.getSize().
@@ -259,9 +255,9 @@ export async function createCity(canvas: HTMLCanvasElement, manifest: Manifest):
       buildings.setScrubController(null);
       _scrubController?.dispose();
       _scrubController = null;
-      // Immediately, rather than waiting on a reload that a repo switch never
-      // performs for the outgoing city.
-      for (const c of MODE_DRIVABLE) c.restoreLiveView();
+      // Restore the full forest immediately — don't wait on exit's manifest reload.
+      trees.setScrubCommit(null);
+      fireflies.setScrubCommit(null);
     },
     setStreetsTransparent: (on: boolean): void => streets.setStreetsTransparent(on),
     setFootprintsTransparent: (on: boolean): void => footprint.setFootprintsTransparent(on),
@@ -271,6 +267,8 @@ export async function createCity(canvas: HTMLCanvasElement, manifest: Manifest):
   const stopTimelineTeardown = effect(() => {
     if (TIMELINE_MODE.value || !_scrubController) return;
     timelineApi.uninstallScrubController();
+    timelineApi.setStreetsTransparent(false);
+    timelineApi.setFootprintsTransparent(false);
   });
 
   return {
