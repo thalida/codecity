@@ -32,12 +32,15 @@ export function manifestUrlFor(opts: {
   branch?: string;
   noCache?: boolean;
   exclude?: string[];
+  /** Reconstruct the repo as of this commit instead of scanning the working tree. */
+  ref?: string;
 }): string {
   return apiUrl('manifest', {
     [URL_PARAMS.SRC]: opts.src,
     [URL_PARAMS.BRANCH]: opts.branch,
     [URL_PARAMS.NO_CACHE]: opts.noCache ? 'true' : undefined,
     [URL_PARAMS.EXCLUDE]: opts.exclude,
+    ref: opts.ref,
   });
 }
 
