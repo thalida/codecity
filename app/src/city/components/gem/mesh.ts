@@ -78,10 +78,10 @@ export function createRootGem(street: Street): THREE.Group {
   const group = new THREE.Group();
 
   // Gem size scales with the street's width. The layout reserves extra dead
-  // space at the root street's origin end (see GEM_SIZING), so the origin
-  // cap has no buildings overlapping it — the road's rounded cap IS the
-  // plaza. RADIUS_AS_STREET_FRAC MUST match what layout.ts uses to reserve
-  // that pad.
+  // space at the root street's origin end, so the origin cap has no buildings
+  // overlapping it — the road's rounded cap IS the plaza. layout/algorithm.ts
+  // sizes that pad from this same GEM_SIZING signal, so the two agree by
+  // construction rather than by being kept in step.
   const radiusFrac = sizing.RADIUS_AS_STREET_FRAC;
   const minRadius = sizing.MIN_RADIUS;
   const hoverFrac = GEM_HOVER_LIFT_FRAC;
