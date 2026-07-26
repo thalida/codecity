@@ -2,8 +2,8 @@ import { describe, test, expect } from 'vitest';
 import {
   buildPathTimelines,
   linesAt,
-  bytesAt,
   blobShaAt,
+  entryAt,
   presenceAt,
   statsAtDeletion,
 } from '@/city/timeline/replay';
@@ -150,16 +150,6 @@ describe('presenceAt', () => {
   });
 });
 
-describe('bytesAt', () => {
-  test('interpolates on the same curve as linesAt, and is 0 while absent', () => {
-    const pt = buildPathTimelines(bundle).get('f.txt')!;
-    expect(bytesAt(pt, 0)).toBe(40);
-    expect(bytesAt(pt, 0.5)).toBe(80);
-    expect(bytesAt(pt, 1)).toBe(120);
-    expect(bytesAt(pt, 2)).toBe(0);
-  });
-});
-
 describe('statsAtDeletion', () => {
   test('reports the last live values, not the zeroes the deletion entry records', () => {
     const pt = buildPathTimelines(bundle).get('f.txt')!;
@@ -191,6 +181,23 @@ describe('statsAtDeletion', () => {
     expect(statsAtDeletion(pt, 1)).toEqual({ lines: 2, bytes: 40 });
     expect(statsAtDeletion(pt, 2)).toBeNull(); // alive again
     expect(statsAtDeletion(pt, 3)).toEqual({ lines: 6, bytes: 120 });
+  });
+});
+
+describe('entryAt', () => {
+  test('steps: an unchanged commit still reports the entry in effect', () => {
+    const pt = buildPathTimelines(bundle).get('f.txt')!;
+    // changes at 0 and 1, so 0.5 sits between them: the entry does NOT move.
+    expect(entryAt(pt, 0)?.lines).toBe(2);
+    expect(entryAt(pt, 0.5)?.lines).toBe(2);
+    expect(entryAt(pt, 1)?.lines).toBe(6);
+    // linesAt lerps the same span, which is why displays must not use it.
+    expect(linesAt(pt, 0.5)).toBe(4);
+  });
+
+  test('is null once the path is gone', () => {
+    const pt = buildPathTimelines(bundle).get('f.txt')!;
+    expect(entryAt(pt, 2)).toBeNull();
   });
 });
 

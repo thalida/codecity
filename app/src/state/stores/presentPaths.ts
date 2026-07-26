@@ -53,10 +53,9 @@ export interface ScrubbedFileStats {
   atDeletion: boolean;
 }
 
-// .value, not .peek(): the footer calls this in render and must re-render as the
-// scrub moves. Resolved at the SETTLED commit, the same discrete point the blob
-// fetch uses — linesAt interpolates between commits so heights tween smoothly,
-// which is right for geometry and wrong for a number someone reads.
+// .value, not .peek(): the footer calls this in render and re-renders as the
+// scrub moves. entryAt at the SETTLED commit, so the number always describes the
+// same real blob the content fetch serves.
 export function scrubbedStatsFor(path: string): ScrubbedFileStats | null {
   if (!TIMELINE_MODE.value) return null;
   const pt = _TIMELINES.value?.get(path);

@@ -5,9 +5,6 @@ export interface PathTimeline {
   intervals: { start: number; end: number | null }[];
 }
 
-/** The per-commit measures a change entry carries, both replayed the same way. */
-type ChangeMeasure = 'lines' | 'bytes';
-
 // Mirrors the backend replay: walking deltas[0..i] reproduces the file set + lines at commit i.
 // Intervals (not a single created/deleted pair) let a resurrected path have a dead gap in between.
 export function buildPathTimelines(bundle: TimelineBundle): Map<string, PathTimeline> {
@@ -43,11 +40,16 @@ export function isPresent(pt: PathTimeline, pos: number): boolean {
   return pt.intervals.some((iv) => pos >= iv.start && (iv.end === null || pos < iv.end));
 }
 
-// Scrub position is continuous, so interpolate between the surrounding entries.
-function _measureAt(pt: PathTimeline, pos: number, measure: ChangeMeasure): number {
+/**
+ * Line count for the HEIGHT curve: interpolated between the surrounding change
+ * entries so a building tweens across a drag. Anything a user reads wants
+ * entryAt() instead — this deliberately returns values no commit ever had.
+ */
+export function linesAt(pt: PathTimeline, pos: number): number {
+  if (!isPresent(pt, pos)) return 0;
   const { changes } = pt;
-  if (pos <= changes[0].i) return changes[0][measure];
-  if (pos >= changes[changes.length - 1].i) return changes[changes.length - 1][measure];
+  if (pos <= changes[0].i) return changes[0].lines;
+  if (pos >= changes[changes.length - 1].i) return changes[changes.length - 1].lines;
 
   let lo = 0;
   let hi = changes.length - 1;
@@ -59,16 +61,7 @@ function _measureAt(pt: PathTimeline, pos: number, measure: ChangeMeasure): numb
 
   const a = changes[lo];
   const b = changes[hi];
-  const t = (pos - a.i) / (b.i - a.i);
-  return a[measure] + (b[measure] - a[measure]) * t;
-}
-
-export function linesAt(pt: PathTimeline, pos: number): number {
-  return isPresent(pt, pos) ? _measureAt(pt, pos, 'lines') : 0;
-}
-
-export function bytesAt(pt: PathTimeline, pos: number): number {
-  return isPresent(pt, pos) ? _measureAt(pt, pos, 'bytes') : 0;
+  return a.lines + (b.lines - a.lines) * ((pos - a.i) / (b.i - a.i));
 }
 
 /** What a path measured when it was deleted, or null if it is not gone at `pos`. */
