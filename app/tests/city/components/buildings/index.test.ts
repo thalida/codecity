@@ -165,6 +165,38 @@ describe('createBuildings()', () => {
     expect(resolved!.slot).toBe(b0.slotId);
   });
 
+  it('a building from a previous city does not resolve into the new one', async () => {
+    // Switching repos out of Timeline leaves the scrub controller holding the
+    // OLD city's Building objects, and buildings.tick() keeps calling its
+    // update() until teardown lands. cellId/slotId are small integers that
+    // collide across cities, so a stale building used to resolve to a LIVE mesh
+    // in the new city and get the old city's ruin state written into that slot.
+    const { ctx } = makePickableSceneContext();
+    buildings = createBuildings(ctx);
+
+    const oldA = building({ x: 10, y: 10, h: 4, file: fileOf('old/a.ts') as never });
+    const oldB = building({ x: -20, y: -20, h: 9, file: fileOf('old/b.ts') as never });
+    await buildings.rebuild(buildingLayout([oldA, oldB]), EMPTY_DATE_RANGES);
+    expect(buildings.getMeshForBuilding(oldA), 'sanity: resolves while its city is live').not.toBeNull();
+    const staleCellId = oldA.cellId;
+
+    // A different repo: fresh Building objects, fresh cells.
+    const newA = building({ x: 10, y: 10, h: 4, file: fileOf('new/a.ts') as never });
+    const newB = building({ x: -20, y: -20, h: 9, file: fileOf('new/b.ts') as never });
+    await buildings.rebuild(buildingLayout([newA, newB]), EMPTY_DATE_RANGES);
+
+    // The collision this guards: the old cell id is still a live cell.
+    expect(buildings.getCells().has(staleCellId!), 'the id collides, which is the trap').toBe(true);
+
+    expect(
+      buildings.getMeshForBuilding(oldA),
+      'a stale building must not resolve into the new city'
+    ).toBeNull();
+    expect(buildings.getMeshForBuilding(oldB)).toBeNull();
+    // The new city still resolves normally.
+    expect(buildings.getMeshForBuilding(newA)).not.toBeNull();
+  });
+
   it('rebuild() colors the buildings (writes b.color from the date ranges)', async () => {
     const { ctx } = makePickableSceneContext();
     buildings = createBuildings(ctx);

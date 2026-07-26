@@ -228,7 +228,13 @@ export function createBuildings(ctx: SceneContext): Buildings {
   function getMeshForBuilding(b: Building): { mesh: THREE.InstancedMesh; slot: number } | null {
     if (_cells.size > 0 && b.cellId != null && b.slotId != null) {
       const cell = _cells.get(b.cellId);
-      if (cell?.detailMesh) return { mesh: cell.detailMesh, slot: b.slotId };
+      // The slot must still hold THIS building. cellId/slotId are small integers
+      // that collide across cities, so a Building left over from a previous
+      // manifest would otherwise resolve to whatever now occupies its old slot
+      // and get written into it.
+      if (cell?.detailMesh && cell.buildings[b.slotId] === b) {
+        return { mesh: cell.detailMesh, slot: b.slotId };
+      }
     }
     return null;
   }
