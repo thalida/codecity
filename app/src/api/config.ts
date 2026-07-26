@@ -7,9 +7,31 @@
 // path input that the server will reject anyway.
 
 import { apiUrl } from '@/api/apiUrl';
-import { DEFAULT_SERVER_CONFIG, type ServerConfig } from '@/state/stores/serverConfig';
+import type { components } from '@/types/manifest.generated';
+
+// Derived from the OpenAPI schema rather than re-declared, so a field added to
+// the backend's ConfigResponse cannot drift from what this layer exposes.
+export type ServerConfig = components['schemas']['ConfigResponse'];
+
+// Pre-boot defaults, replaced by the real /api/config response. maxBatchPaths
+// starts low because guessing high fails silently: the batch routes truncate
+// anything past their cap, so an over-large chunk loses its tail. Guessing low
+// only costs an extra request.
+export const DEFAULT_SERVER_CONFIG: ServerConfig = {
+  allowLocalRepos: false,
+  maxBatchPaths: 16,
+};
 
 let _cached: Promise<ServerConfig> | null = null;
+// The resolved value, for callers that need it synchronously mid-request (the
+// batch coalescers). Not a second source of truth: it is written only from the
+// memoized fetch below, which is the same one the SERVER_CONFIG signal mirrors.
+let _resolved: ServerConfig = DEFAULT_SERVER_CONFIG;
+
+/** The server config as last resolved, or the defaults before boot completes. */
+export function serverConfigNow(): ServerConfig {
+  return _resolved;
+}
 
 export async function fetchServerConfig(): Promise<ServerConfig> {
   try {
@@ -39,7 +61,12 @@ export async function fetchServerConfig(): Promise<ServerConfig> {
  * tests that want a fresh roundtrip.
  */
 export function getServerConfig(): Promise<ServerConfig> {
-  if (_cached === null) _cached = fetchServerConfig();
+  if (_cached === null) {
+    _cached = fetchServerConfig().then((cfg) => {
+      _resolved = cfg;
+      return cfg;
+    });
+  }
   return _cached;
 }
 
@@ -47,4 +74,5 @@ export function getServerConfig(): Promise<ServerConfig> {
  *  return different responses without leaking state. */
 export function _resetServerConfigForTests(): void {
   _cached = null;
+  _resolved = DEFAULT_SERVER_CONFIG;
 }

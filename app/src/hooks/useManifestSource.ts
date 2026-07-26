@@ -39,7 +39,6 @@ import { SERVER_CONFIG } from '@/state/stores/serverConfig';
 import { MANIFEST, setManifest, markError, markRebuilding } from '@/state/stores/manifest';
 import { SCAN_PROGRESS } from '@/state/stores/scanProgress';
 import { TIMELINE_MODE, resetTimelineMode } from '@/state/stores/timeline';
-import { loadTimelineScene } from '@/hooks/useTimelineMode';
 import { activeExcludePathsFor, ACTIVE_EXCLUDES } from '@/state/stores/excludes';
 import { srcKind, SourceKind, srcNeedsBranch, identityBranch, sourceKey } from '@/utils/sources';
 import { isEmptyManifest } from '@/utils/manifest';
@@ -104,6 +103,20 @@ async function pumpManifestStream(
 
   if (!lastManifest) throw new Error('No manifest received');
   return lastManifest;
+}
+
+// ── Timeline refresh, injected ───────────────────────────────────────
+// An excludes change refreshes differently in Timeline mode (refetch the bundle)
+// than live (re-scan HEAD). The handler is injected rather than imported so the
+// dependency runs one way, useTimelineMode -> here: this is the lower layer and
+// must not know the mode exists. Importing it was a real cycle.
+//
+// Registration cannot be missed: TIMELINE_MODE only turns on by calling into
+// useTimelineMode, which registers as it loads.
+let timelineRefresh: (() => Promise<void>) | null = null;
+
+export function setTimelineRefreshHandler(fn: (() => Promise<void>) | null): void {
+  timelineRefresh = fn;
 }
 
 // ── Single-writer generation guard ───────────────────────────────────
@@ -345,8 +358,8 @@ export function setupLiveUpdates(): () => void {
     // Timeline owns the scene: excludes change the union data, so refetch its bundle
     // + re-pack (it owns its own rebuilding footer). Live: in-place re-scan.
     let refresh: Promise<void>;
-    if (TIMELINE_MODE.peek()) {
-      refresh = loadTimelineScene({ inPlace: true });
+    if (TIMELINE_MODE.peek() && timelineRefresh) {
+      refresh = timelineRefresh();
     } else {
       markRebuilding(); // flip the footer now, not after the re-scan streams back
       refresh = fetchAndApply(cur.src, cur.branch);

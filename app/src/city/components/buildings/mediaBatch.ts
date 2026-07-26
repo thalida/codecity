@@ -11,7 +11,7 @@
 // omits (non-image, too large, out of root) resolves to null; the caller then
 // falls back to the streaming GET /api/file for that one file.
 
-import { SERVER_CONFIG } from '@/state/stores/serverConfig';
+import { serverConfigNow } from '@/api/config';
 
 /** Coalescing window: media buildings register in a burst at scene build, so a
  *  one-frame delay gathers essentially all of them before the first flush. */
@@ -53,7 +53,7 @@ function _flush(): void {
   const paths = [...pending.keys()];
   // The server truncates past its cap, so chunk to the number it published
   // rather than a local guess that could silently drop the tail.
-  const batchSize = SERVER_CONFIG.value.maxBatchPaths;
+  const batchSize = serverConfigNow().maxBatchPaths;
   for (let i = 0; i < paths.length; i += batchSize) {
     void _sendBatch(paths.slice(i, i + batchSize), pending);
   }

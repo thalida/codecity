@@ -4,7 +4,7 @@
 // A path the endpoint omits resolves to null. Shared by the city's data-building
 // facade loader and the preview pane's data card.
 
-import { SERVER_CONFIG } from '@/state/stores/serverConfig';
+import { serverConfigNow } from '@/api/config';
 
 /** Coalescing window: data buildings register in a burst at scene build. */
 const FLUSH_MS = 16;
@@ -39,7 +39,7 @@ function _flush(): void {
   _queue.clear();
   const paths = [...pending.keys()];
   // Same cap the server enforces, published via /api/config (see mediaBatch).
-  const batchSize = SERVER_CONFIG.value.maxBatchPaths;
+  const batchSize = serverConfigNow().maxBatchPaths;
   for (let i = 0; i < paths.length; i += batchSize) {
     void _sendBatch(paths.slice(i, i + batchSize), pending);
   }
