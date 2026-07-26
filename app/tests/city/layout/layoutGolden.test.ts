@@ -1,9 +1,5 @@
-// layoutGolden.test.ts — bit-identical output guard for the layout. Computes a stable digest of layoutCity's full output for a set of
-// deterministic trees and compares it against the captured baseline below. Any
-// coordinate/dimension drift fails the test, so the perf refactor can prove it
-// keeps output identical. The digests are tied to the production settings
-// defaults; an intentional default change is a real output change and would
-// (correctly) require recapturing EXPECTED.
+// Digests are tied to the production settings defaults, so an intentional
+// default change is a real output change and requires recapturing EXPECTED.
 
 import { describe, it, expect } from 'vitest';
 import { layoutCity } from '@/city/layout/algorithm.js';
@@ -54,6 +50,8 @@ const EXPECTED: Record<string, string> = {
 };
 
 describe('layoutCity golden (bit-identical guard)', () => {
+  // Explicit timeout: 30k buildings is compute-bound and CI adds coverage
+  // instrumentation, which took this past the unit project's 15s default.
   it('output digests match the captured baseline', () => {
     const digests: Record<string, string> = {};
     for (const [label, budget] of CASES) {
@@ -65,5 +63,5 @@ describe('layoutCity golden (bit-identical guard)', () => {
       digests[label] = digest(layoutCity({ tree, stats: statsFromTree(tree) }));
     }
     expect(digests).toEqual(EXPECTED);
-  });
+  }, 60_000);
 });

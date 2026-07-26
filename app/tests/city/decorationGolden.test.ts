@@ -24,6 +24,8 @@ import { commitStats, fileStats } from '../_helpers/statsFixtures';
 const EXPECTED = '12k:trees43000:orbs51600:eb52d6b7';
 
 describe('decoration golden (bit-identical guard)', () => {
+  // Explicit timeout: compute-bound like the layout golden, and CI's coverage
+  // instrumentation multiplies it well past what a jsdom default assumes.
   it('placeTrees + placeFireflies + renderer buffers match baseline', () => {
     const rng = makeRng(0xc0ffee);
     const tree = genNestedTree('root', 'root', 12000, 0, rng);
@@ -75,5 +77,5 @@ describe('decoration golden (bit-identical guard)', () => {
 
     const digest = `12k:trees${placements.length}:orbs${orbs.length}:${hasher.hex()}`;
     expect(digest).toEqual(EXPECTED);
-  });
+  }, 60_000);
 });
