@@ -134,7 +134,7 @@ def test_files_batch_no_root_omits_all(client: TestClient, project: Path) -> Non
     assert r.json() == {}
 
 
-# ── GET /api/blob (Timeline: file bytes at a past commit) ────────────────────
+# ── GET /api/file?sha= (Timeline: file bytes at a past commit) ──────────────
 
 
 def _git_repo_with_history(root: Path) -> tuple[str, str]:
@@ -170,10 +170,10 @@ def test_blob_serves_a_file_that_no_longer_exists(
     TRUST.register(repo)
 
     assert not Path(gone_path).exists()
-    r = client.get("/api/blob", params={"path": gone_path, "sha": sha})
+    r = client.get("/api/file", params={"path": gone_path, "sha": sha})
     assert r.status_code == 200
     assert r.text == "historical content\n"
-    # And the HEAD-serving endpoint still 404s for it, which is why /blob exists.
+    # Without a sha the same URL reads the working tree, where it is gone.
     assert client.get("/api/file", params={"path": gone_path}).status_code == 404
 
 
@@ -184,7 +184,7 @@ def test_blob_rejects_a_malformed_sha(client: TestClient, tmp_path: Path) -> Non
     TRUST.register(repo)
 
     for bad in ["", "abc", "z" * 40, "../../etc/passwd"]:
-        r = client.get("/api/blob", params={"path": gone_path, "sha": bad})
+        r = client.get("/api/file", params={"path": gone_path, "sha": bad})
         assert r.status_code in (400, 422), bad
 
 
@@ -199,7 +199,7 @@ def test_blob_refuses_paths_outside_the_root(
     TRUST.register(repo)
 
     escaped = str(repo / ".." / "elsewhere" / "secret.txt")
-    r = client.get("/api/blob", params={"path": escaped, "sha": sha})
+    r = client.get("/api/file", params={"path": escaped, "sha": sha})
     assert r.status_code == 403
 
 
@@ -211,5 +211,5 @@ def test_blob_404s_for_a_sha_not_in_the_repo(
     TRUST.reset()
     TRUST.register(repo)
 
-    r = client.get("/api/blob", params={"path": gone_path, "sha": "0" * 40})
+    r = client.get("/api/file", params={"path": gone_path, "sha": "0" * 40})
     assert r.status_code == 404

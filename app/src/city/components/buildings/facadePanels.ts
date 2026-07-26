@@ -16,7 +16,8 @@ import {
   MAX_PAGES as FACADE_PANEL_MAX_PAGES,
 } from './facadePanelTextureArray';
 import { fetchMediaBlob } from './mediaBatch';
-import { scrubbedBlobShaFor } from '@/state/stores/presentPaths';
+import { hasNoContentAtScrub, scrubbedBlobShaFor } from '@/state/stores/presentPaths';
+import { fileUrl } from '@/api/file';
 import { fetchFingerprintB64 } from '@/api/fingerprint';
 import { dataFacadeKind, renderFontGlyphFacade, renderWaveformFacade } from './dataFacade';
 import type { Building } from '@/types/index';
@@ -714,13 +715,13 @@ export function asyncLoadMediaForBuilding(
 ): void {
   const kind = mediaKindOf(b.file);
   if (!kind) return;
+  // Absent at this commit: there is no blob, and asking by path would hit HEAD
+  // and 404. The building just shows no image.
+  if (hasNoContentAtScrub(b.file.path)) return;
 
   const filePath = b.file.fullPath || b.file.path || '';
-  // Scrubbed commits address their own blob; Live falls through to the path.
-  const sha = scrubbedBlobShaFor(b.file.path);
-  const url = sha
-    ? `/api/blob?path=${encodeURIComponent(filePath)}&sha=${sha}`
-    : `/api/file?path=${encodeURIComponent(filePath)}`;
+  // Scrubbed commits pin a version; Live reads the working tree.
+  const url = fileUrl(filePath, undefined, scrubbedBlobShaFor(b.file.path));
 
   if (kind === MediaKind.Image) {
     void _loadImageBuilding(ads, filePath, url, layer, panelSlots, b.file.path);
@@ -741,6 +742,7 @@ export function asyncLoadDataFacadeForBuilding(
   layer: number,
   panelSlots: number[]
 ): void {
+  if (hasNoContentAtScrub(b.file.path)) return;
   const filePath = b.file.fullPath || b.file.path || '';
   const version = b.file.modified || '';
   switch (dataFacadeKind(b.file.extension || '')) {

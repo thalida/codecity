@@ -1,8 +1,8 @@
-"""GET /api/file — serve a file from disk, restricted to scanned roots.
+"""GET /api/file — serve a file's bytes, restricted to scanned roots.
 
-POST /api/files is the batch sibling used by the scene's media-texture loader.
-GET /api/blob is the Timeline sibling: same bytes, addressed by blob sha, so a
-scrubbed commit shows its own content instead of HEAD's.
+Optional `sha` selects a version: absent reads the working tree, present reads
+that git blob, so a scrubbed Timeline commit shows its own content. POST /api/files
+is the batch sibling used by the scene's media-texture loader.
 """
 
 from __future__ import annotations
@@ -50,9 +50,16 @@ class FileBatchRequest(BaseModel):
 @router.get("/file")
 def get_file(
     path: str = Query(..., description="Absolute path inside a scanned root"),
+    sha: str | None = Query(
+        None, description="Blob sha to read instead of the working tree"
+    ),
 ) -> Response:
+    if sha is not None and not _SHA_RE.fullmatch(sha):
+        raise HTTPException(400, "sha must be 40 hex characters")
     try:
-        target = TRUST.assert_inside(Path(path))
+        # With a sha the path need not exist (it names a past commit's file);
+        # `..` is still normalized, so containment holds either way.
+        target = TRUST.assert_inside(Path(path), must_exist=sha is None)
     except NoRootsRegisteredError:
         raise HTTPException(
             403, "no scan root registered yet: fetch /api/manifest first"
@@ -62,10 +69,18 @@ def get_file(
     except (OSError, RuntimeError):
         raise HTTPException(404, "not found")
 
-    if not target.is_file():
-        raise HTTPException(404, "not a file")
+    if sha is not None:
+        root = TRUST.root_for(target)
+        blob = read_blob(root, sha) if root else None
+        if blob is None:
+            raise HTTPException(404, "no such blob")
+        body = blob
+    else:
+        if not target.is_file():
+            raise HTTPException(404, "not a file")
+        body = target.read_bytes()
 
-    size = target.stat().st_size
+    size = len(body)
     if size > MAX_FILE_BYTES:
         return JSONResponse(
             status_code=413,
@@ -74,8 +89,8 @@ def get_file(
             ).model_dump(),
         )
 
+    # Mime comes off the path's extension either way — a blob carries no name.
     guessed, _ = mimetypes.guess_type(str(target))
-    body = target.read_bytes()
     if is_media(guessed) and guessed:
         # Already-compressed media (image/video/audio/pdf): a set Content-
         # Encoding makes the app-wide GZipMiddleware skip it, so we don't burn
@@ -88,56 +103,6 @@ def get_file(
         )
     # Non-media (code, configs, extensionless) → text/plain so the preview
     # renders the bytes as code; GZipMiddleware compresses it (text gzips well).
-    return Response(content=body, media_type="text/plain; charset=utf-8")
-
-
-@router.get("/blob")
-def get_blob(
-    path: str = Query(..., description="Absolute path inside a scanned root"),
-    sha: str = Query(..., description="40-hex blob sha to read"),
-) -> Response:
-    """Bytes of a historical blob, for Timeline scrubbing.
-
-    `path` is trust-checked exactly like GET /api/file, but does NOT have to
-    exist: the whole point is serving a file as it stood at a past commit, and
-    it may have been deleted or renamed since. It also picks the repo and the
-    mime type. `sha` is what actually selects the content.
-    """
-    if not _SHA_RE.fullmatch(sha):
-        raise HTTPException(400, "sha must be 40 hex characters")
-    try:
-        target = TRUST.assert_inside(Path(path), must_exist=False)
-    except NoRootsRegisteredError:
-        raise HTTPException(
-            403, "no scan root registered yet: fetch /api/manifest first"
-        )
-    except (OutsideRootError, OSError, RuntimeError):
-        raise HTTPException(403, "outside scan root")
-
-    root = TRUST.root_for(target)
-    if root is None:
-        raise HTTPException(403, "outside scan root")
-
-    body = read_blob(root, sha)
-    if body is None:
-        raise HTTPException(404, "no such blob")
-    if len(body) > MAX_FILE_BYTES:
-        return JSONResponse(
-            status_code=413,
-            content=FileTooLargeResponse(
-                error="file too large", size=len(body), limit=MAX_FILE_BYTES
-            ).model_dump(),
-        )
-
-    # Mime off the path's extension, same as GET /api/file — the blob itself
-    # carries no name.
-    guessed, _ = mimetypes.guess_type(str(target))
-    if is_media(guessed) and guessed:
-        return Response(
-            content=body,
-            media_type=guessed,
-            headers={"Content-Encoding": "identity"},
-        )
     return Response(content=body, media_type="text/plain; charset=utf-8")
 
 

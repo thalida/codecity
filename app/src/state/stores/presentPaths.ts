@@ -76,6 +76,12 @@ export function scrubbedBlobShaFor(path: string | null | undefined): string | nu
   return pt ? blobShaAt(pt, SCRUB_POS.value) : null;
 }
 
+/** No content to fetch at this scrub position, so callers must NOT fall back to
+ *  a by-path read: that hits HEAD, where a union file may not exist (#122). */
+export function hasNoContentAtScrub(path: string | null | undefined): boolean {
+  return TIMELINE_MODE.value && scrubbedBlobShaFor(path) === null;
+}
+
 export const PRESENT_PATHS: ReadonlySignal<ReadonlySet<string>> = computed(() => {
   if (!TIMELINE_MODE.value) return EMPTY;
   const bundle = TIMELINE_BUNDLE.value;

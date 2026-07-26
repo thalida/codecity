@@ -12,7 +12,7 @@ import { Marked } from 'marked';
 import type { DirNode, Manifest } from '@/types';
 import { PaneEmpty } from '@/components/Pane';
 import { isEmptyManifest, relPathIn } from '@/utils/manifest';
-import { scrubbedBlobShaFor } from '@/state/stores/presentPaths';
+import { hasNoContentAtScrub, scrubbedBlobShaFor } from '@/state/stores/presentPaths';
 import { resolveReadmeAssetUrl, rewriteHtmlImageUrls } from '@/utils/readmeAssets';
 
 /**
@@ -79,11 +79,15 @@ export function ReadmePane({ manifest }: ReadmePaneProps) {
         setBody({ kind: InfoBodyKind.NoReadme });
         return;
       }
-      setBody({ kind: InfoBodyKind.Loading });
-      // Version by mtime so an edited README re-fetches fresh bytes rather than
-      // a cached body for the same path (doFetch already re-runs per manifest).
       // Relative path keys the replay; readmePath is absolute for the fetch.
       const rel = relPathIn(m as Manifest, readmePath);
+      // No README yet at this commit: say so rather than fetching HEAD's.
+      if (hasNoContentAtScrub(rel)) {
+        setBody({ kind: InfoBodyKind.NoReadme });
+        return;
+      }
+      setBody({ kind: InfoBodyKind.Loading });
+      // mtime busts the browser cache after a live edit (doFetch re-runs per manifest).
       fetchFileText(
         readmePath,
         (m as Manifest).readmeModified ?? undefined,
