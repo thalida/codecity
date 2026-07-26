@@ -8,8 +8,9 @@ import { apiUrl } from '@/api/apiUrl';
  * distinct URL forces the browser to re-fetch after a live edit instead of
  * serving the old body for the unchanged path. Omitted → same URL as before.
  */
-export function fileUrl(path: string, version?: string): string {
-  return apiUrl('file', { path, v: version });
+export function fileUrl(path: string, version?: string, sha?: string | null): string {
+  // A blob sha IS the cache key, so the mtime buster is redundant there.
+  return sha ? apiUrl('blob', { path, sha }) : apiUrl('file', { path, v: version });
 }
 
 /**
@@ -17,10 +18,14 @@ export function fileUrl(path: string, version?: string): string {
  * (README rendering) and filePreviewPane (syntax-highlighted preview). Pass the
  * file's mtime as `version` so a live edit re-fetches (see fileUrl).
  */
-export async function fetchFileText(path: string, version?: string): Promise<string> {
+export async function fetchFileText(
+  path: string,
+  version?: string,
+  sha?: string | null
+): Promise<string> {
   // High priority: the file preview is the user's active focus, so it should
   // jump ahead of any background manifest/blob fetches in flight.
-  const resp = await fetch(fileUrl(path, version), { priority: 'high' });
+  const resp = await fetch(fileUrl(path, version, sha), { priority: 'high' });
   if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
   return resp.text();
 }
@@ -32,9 +37,13 @@ export async function fetchFileText(path: string, version?: string): Promise<str
  * attempts — and noisily fails — to decode them. Pass the file's mtime as
  * `version` so a live edit re-fetches (see fileUrl).
  */
-export async function fetchFileBytes(path: string, version?: string): Promise<ArrayBuffer> {
+export async function fetchFileBytes(
+  path: string,
+  version?: string,
+  sha?: string | null
+): Promise<ArrayBuffer> {
   // High priority: same as fetchFileText, the font preview is the active pane.
-  const resp = await fetch(fileUrl(path, version), { priority: 'high' });
+  const resp = await fetch(fileUrl(path, version, sha), { priority: 'high' });
   if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
   return resp.arrayBuffer();
 }

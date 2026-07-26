@@ -30,7 +30,7 @@ let _timer: ReturnType<typeof setTimeout> | null = null;
 
 /** Request a media image's bytes via the batch endpoint. Resolves with a Blob
  *  (use URL.createObjectURL + revoke), or null when the server omitted it. */
-export function fetchMediaBlob(path: string): Promise<Blob | null> {
+export function fetchMediaBlob(path: string, sha?: string | null): Promise<Blob | null> {
   return new Promise((resolve) => {
     const waiters = _queue.get(path);
     if (waiters) {
@@ -38,9 +38,13 @@ export function fetchMediaBlob(path: string): Promise<Blob | null> {
     } else {
       _queue.set(path, [resolve]);
     }
+    if (sha) _shas.set(path, sha);
     if (_timer === null) _timer = setTimeout(_flush, FLUSH_MS);
   });
 }
+
+// path -> blob sha for the scrubbed commit; empty in Live.
+const _shas = new Map<string, string>();
 
 function _flush(): void {
   _timer = null;
@@ -59,7 +63,7 @@ async function _sendBatch(paths: string[], pending: Map<string, Waiter[]>): Prom
     const res = await fetch('/api/files', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ paths }),
+      body: JSON.stringify({ paths, shas: _shasFor(paths) }),
     });
     if (res.ok) result = (await res.json()) as Record<string, BatchEntry>;
   } catch {
@@ -69,8 +73,18 @@ async function _sendBatch(paths: string[], pending: Map<string, Waiter[]>): Prom
   for (const path of paths) {
     const entry = result[path];
     const blob = entry ? _decode(entry) : null;
+    _shas.delete(path);
     for (const resolve of pending.get(path) ?? []) resolve(blob);
   }
+}
+
+function _shasFor(paths: string[]): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const p of paths) {
+    const sha = _shas.get(p);
+    if (sha) out[p] = sha;
+  }
+  return out;
 }
 
 function _decode(entry: BatchEntry): Blob | null {

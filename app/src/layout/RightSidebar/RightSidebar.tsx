@@ -117,7 +117,6 @@ export function RightSidebar() {
       rootPath: (m as Manifest)?.tree?.path ?? ROOT_PATH,
       remoteUrl: (m as Manifest)?.repo?.remote_url ?? null,
       branch: SOURCE_INFO.value.branch,
-      inTimeline: TIMELINE_MODE.value,
       isDeleted: TIMELINE_MODE.value && !atHead,
     };
   });

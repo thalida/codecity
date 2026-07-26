@@ -47,16 +47,22 @@ class TrustStore:
         with self._lock:
             return set(self._roots)
 
-    def assert_inside(self, raw: Path) -> Path:
-        """Resolve `raw` (strict) and confirm it sits under a registered root.
+    def assert_inside(self, raw: Path, *, must_exist: bool = True) -> Path:
+        """Resolve `raw` and confirm it sits under a registered root.
 
         Raises NoRootsRegisteredError if none registered, OutsideRootError
         if the resolved path escapes every root. Returns the resolved path.
+
+        `must_exist=False` resolves non-strict, for paths that are legitimately
+        absent from the working tree — a Timeline blob request names a path as
+        it stood at some past commit. Containment still holds: resolve()
+        normalizes `..` either way, and a path that does not exist has no
+        symlink of its own to redirect through.
         """
         roots = self.snapshot()
         if not roots:
             raise NoRootsRegisteredError
-        target = raw.resolve(strict=True)
+        target = raw.resolve(strict=must_exist)
         for root in roots:
             try:
                 target.relative_to(root)
@@ -64,6 +70,16 @@ class TrustStore:
                 continue
             return target
         raise OutsideRootError
+
+    def root_for(self, target: Path) -> Path | None:
+        """The registered root containing an already-resolved path."""
+        for root in self.snapshot():
+            try:
+                target.relative_to(root)
+            except ValueError:
+                continue
+            return root
+        return None
 
 
 # Module-level singleton — the one trust set for the process.

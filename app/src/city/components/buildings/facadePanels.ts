@@ -16,6 +16,7 @@ import {
   MAX_PAGES as FACADE_PANEL_MAX_PAGES,
 } from './facadePanelTextureArray';
 import { fetchMediaBlob } from './mediaBatch';
+import { scrubbedBlobShaFor } from '@/state/stores/presentPaths';
 import { fetchFingerprintB64 } from '@/api/fingerprint';
 import { dataFacadeKind, renderFontGlyphFacade, renderWaveformFacade } from './dataFacade';
 import type { Building } from '@/types/index';
@@ -715,10 +716,14 @@ export function asyncLoadMediaForBuilding(
   if (!kind) return;
 
   const filePath = b.file.fullPath || b.file.path || '';
-  const url = `/api/file?path=${encodeURIComponent(filePath)}`;
+  // Scrubbed commits address their own blob; Live falls through to the path.
+  const sha = scrubbedBlobShaFor(b.file.path);
+  const url = sha
+    ? `/api/blob?path=${encodeURIComponent(filePath)}&sha=${sha}`
+    : `/api/file?path=${encodeURIComponent(filePath)}`;
 
   if (kind === MediaKind.Image) {
-    void _loadImageBuilding(ads, filePath, url, layer, panelSlots);
+    void _loadImageBuilding(ads, filePath, url, layer, panelSlots, b.file.path);
   } else {
     void _loadVideoBuilding(ads, url, layer, panelSlots);
   }
@@ -742,13 +747,18 @@ export function asyncLoadDataFacadeForBuilding(
     case 'font':
       void _loadCanvasFacade(
         ads,
-        () => renderFontGlyphFacade(filePath, version),
+        () => renderFontGlyphFacade(filePath, version, b.file.path),
         layer,
         panelSlots
       );
       break;
     case 'audio':
-      void _loadCanvasFacade(ads, () => renderWaveformFacade(filePath, version), layer, panelSlots);
+      void _loadCanvasFacade(
+        ads,
+        () => renderWaveformFacade(filePath, version, b.file.path),
+        layer,
+        panelSlots
+      );
       break;
     default:
       void _loadFingerprintBuilding(ads, filePath, layer, panelSlots);
@@ -798,11 +808,12 @@ async function _loadImageBuilding(
   filePath: string,
   fallbackUrl: string,
   layer: number,
-  panelSlots: number[]
+  panelSlots: number[],
+  relPath?: string
 ): Promise<void> {
   // Fetch (batched) happens outside the GPU semaphore so the coalescing window
   // sees every media building at once; only decode + upload is slot-gated.
-  const blob = await fetchMediaBlob(filePath);
+  const blob = await fetchMediaBlob(filePath, scrubbedBlobShaFor(relPath));
   const objUrl = blob ? URL.createObjectURL(blob) : null;
   await _acquireSlot();
   let errored = false;

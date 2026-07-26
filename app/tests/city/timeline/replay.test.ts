@@ -3,6 +3,7 @@ import {
   buildPathTimelines,
   linesAt,
   bytesAt,
+  blobShaAt,
   presenceAt,
   statsAtDeletion,
 } from '@/city/timeline/replay';
@@ -190,5 +191,20 @@ describe('statsAtDeletion', () => {
     expect(statsAtDeletion(pt, 1)).toEqual({ lines: 2, bytes: 40 });
     expect(statsAtDeletion(pt, 2)).toBeNull(); // alive again
     expect(statsAtDeletion(pt, 3)).toEqual({ lines: 6, bytes: 120 });
+  });
+});
+
+describe('blobShaAt', () => {
+  test('names the blob in effect at a position, not the newest one', () => {
+    const pt = buildPathTimelines(bundle).get('f.txt')!;
+    expect(blobShaAt(pt, 0)).toBe('s1');
+    expect(blobShaAt(pt, 1)).toBe('s2');
+    // Held between changes, so a mid-scrub position still resolves.
+    expect(blobShaAt(pt, 1.5)).toBe('s2');
+  });
+
+  test('is null once the path is gone, so nothing is fetched for it', () => {
+    const pt = buildPathTimelines(bundle).get('f.txt')!;
+    expect(blobShaAt(pt, 2)).toBeNull();
   });
 });

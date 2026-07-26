@@ -6,6 +6,7 @@
 //   - audio → a waveform of the decoded samples (Web Audio decodeAudioData)
 
 import { fetchFileBytes } from '@/api/file';
+import { scrubbedBlobShaFor } from '@/state/stores/presentPaths';
 import { FONT_EXTS, AUDIO_EXTS } from '@/constants/fileKinds';
 import { PANEL_TEX_SIZE } from './facadePanelTextureArray';
 
@@ -36,14 +37,15 @@ let _fontSeq = 0;
  *  it after drawing so no global face leaks. null on any failure. */
 export async function renderFontGlyphFacade(
   fullPath: string,
-  version: string
+  version: string,
+  relPath?: string
 ): Promise<HTMLCanvasElement | null> {
   if (typeof FontFace === 'undefined' || typeof document.fonts === 'undefined') return null;
   const surface = _canvas();
   if (!surface) return null;
   let face: FontFace | null = null;
   try {
-    const buf = await fetchFileBytes(fullPath, version);
+    const buf = await fetchFileBytes(fullPath, version, scrubbedBlobShaFor(relPath));
     const family = `cc-facade-font-${(_fontSeq += 1)}`;
     face = await new FontFace(family, buf).load();
     document.fonts.add(face);
@@ -79,13 +81,14 @@ function _getAudioCtx(): AudioContext | null {
  *  output column. null on any failure. */
 export async function renderWaveformFacade(
   fullPath: string,
-  version: string
+  version: string,
+  relPath?: string
 ): Promise<HTMLCanvasElement | null> {
   const audioCtx = _getAudioCtx();
   const surface = _canvas();
   if (!audioCtx || !surface) return null;
   try {
-    const buf = await fetchFileBytes(fullPath, version);
+    const buf = await fetchFileBytes(fullPath, version, scrubbedBlobShaFor(relPath));
     // decodeAudioData detaches its input, so hand it a copy.
     const audio = await audioCtx.decodeAudioData(buf.slice(0));
     const data = audio.getChannelData(0);

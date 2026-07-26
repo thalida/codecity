@@ -1,13 +1,15 @@
 """GET /api/file — serve a file from disk, restricted to scanned roots.
 
-POST /api/files is the batch sibling used by the scene's media-texture loader:
-one round trip for many small images instead of one request per billboard.
+POST /api/files is the batch sibling used by the scene's media-texture loader.
+GET /api/blob is the Timeline sibling: same bytes, addressed by blob sha, so a
+scrubbed commit shows its own content instead of HEAD's.
 """
 
 from __future__ import annotations
 
 import base64
 import mimetypes
+import re
 from functools import lru_cache
 from pathlib import Path
 
@@ -23,6 +25,7 @@ from api.models.responses import (
 )
 from api.security import NoRootsRegisteredError, OutsideRootError, TRUST
 from api.services.binfmt import FINGERPRINT_SAMPLE_BYTES, fingerprint_png
+from api.services.gitobj import read_blob
 from api.services.media import is_media
 
 router = APIRouter(prefix="/api", tags=["file"])
@@ -34,9 +37,14 @@ router = APIRouter(prefix="/api", tags=["file"])
 _MAX_BATCH_PATHS = 64
 _MAX_BATCH_FILE_BYTES = 8 * 1024 * 1024
 
+_SHA_RE = re.compile(r"[0-9a-f]{40}")
+
 
 class FileBatchRequest(BaseModel):
     paths: list[str]
+    # Timeline: path -> blob sha, so a scrubbed commit batches its own bytes
+    # instead of HEAD's. Absent/unlisted paths read the working tree.
+    shas: dict[str, str] | None = None
 
 
 @router.get("/file")
@@ -83,6 +91,56 @@ def get_file(
     return Response(content=body, media_type="text/plain; charset=utf-8")
 
 
+@router.get("/blob")
+def get_blob(
+    path: str = Query(..., description="Absolute path inside a scanned root"),
+    sha: str = Query(..., description="40-hex blob sha to read"),
+) -> Response:
+    """Bytes of a historical blob, for Timeline scrubbing.
+
+    `path` is trust-checked exactly like GET /api/file, but does NOT have to
+    exist: the whole point is serving a file as it stood at a past commit, and
+    it may have been deleted or renamed since. It also picks the repo and the
+    mime type. `sha` is what actually selects the content.
+    """
+    if not _SHA_RE.fullmatch(sha):
+        raise HTTPException(400, "sha must be 40 hex characters")
+    try:
+        target = TRUST.assert_inside(Path(path), must_exist=False)
+    except NoRootsRegisteredError:
+        raise HTTPException(
+            403, "no scan root registered yet: fetch /api/manifest first"
+        )
+    except (OutsideRootError, OSError, RuntimeError):
+        raise HTTPException(403, "outside scan root")
+
+    root = TRUST.root_for(target)
+    if root is None:
+        raise HTTPException(403, "outside scan root")
+
+    body = read_blob(root, sha)
+    if body is None:
+        raise HTTPException(404, "no such blob")
+    if len(body) > MAX_FILE_BYTES:
+        return JSONResponse(
+            status_code=413,
+            content=FileTooLargeResponse(
+                error="file too large", size=len(body), limit=MAX_FILE_BYTES
+            ).model_dump(),
+        )
+
+    # Mime off the path's extension, same as GET /api/file — the blob itself
+    # carries no name.
+    guessed, _ = mimetypes.guess_type(str(target))
+    if is_media(guessed) and guessed:
+        return Response(
+            content=body,
+            media_type=guessed,
+            headers={"Content-Encoding": "identity"},
+        )
+    return Response(content=body, media_type="text/plain; charset=utf-8")
+
+
 @router.post("/files")
 def get_files(req: FileBatchRequest) -> dict[str, FileBatchEntry]:
     """Batch image fetch — return {path: {mime, b64}} for many small images in
@@ -97,18 +155,26 @@ def get_files(req: FileBatchRequest) -> dict[str, FileBatchEntry]:
     """
     out: dict[str, FileBatchEntry] = {}
     for path in req.paths[:_MAX_BATCH_PATHS]:
+        sha = (req.shas or {}).get(path)
         try:
-            target = TRUST.assert_inside(Path(path))
+            target = TRUST.assert_inside(Path(path), must_exist=sha is None)
         except (NoRootsRegisteredError, OutsideRootError, OSError, RuntimeError):
-            continue
-        if not target.is_file() or target.stat().st_size > _MAX_BATCH_FILE_BYTES:
             continue
         guessed, _ = mimetypes.guess_type(str(target))
         if not guessed or not guessed.startswith("image/"):
             continue
-        out[path] = FileBatchEntry(
-            mime=guessed, b64=base64.b64encode(target.read_bytes()).decode()
-        )
+        if sha is not None:
+            root = TRUST.root_for(target)
+            if root is None or not _SHA_RE.fullmatch(sha):
+                continue
+            body = read_blob(root, sha)
+            if body is None or len(body) > _MAX_BATCH_FILE_BYTES:
+                continue
+        else:
+            if not target.is_file() or target.stat().st_size > _MAX_BATCH_FILE_BYTES:
+                continue
+            body = target.read_bytes()
+        out[path] = FileBatchEntry(mime=guessed, b64=base64.b64encode(body).decode())
     return out
 
 

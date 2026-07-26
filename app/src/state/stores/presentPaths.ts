@@ -8,6 +8,7 @@ import {
   ruinStateAt,
   linesAt,
   bytesAt,
+  blobShaAt,
   statsAtDeletion,
 } from '@/city/timeline/replay';
 import type { PathTimeline } from '@/city/timeline/replay';
@@ -66,6 +67,13 @@ export function scrubbedStatsFor(path: string): ScrubbedFileStats | null {
     bytes: Math.round(bytesAt(pt, pos)),
     atDeletion: false,
   };
+}
+
+/** Blob sha for a path at the scrub position; null in Live or when absent. */
+export function scrubbedBlobShaFor(path: string | null | undefined): string | null {
+  if (!path || !TIMELINE_MODE.value) return null;
+  const pt = _TIMELINES.value?.get(path);
+  return pt ? blobShaAt(pt, SCRUB_POS.value) : null;
 }
 
 export const PRESENT_PATHS: ReadonlySignal<ReadonlySet<string>> = computed(() => {

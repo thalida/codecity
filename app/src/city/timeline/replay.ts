@@ -1,7 +1,7 @@
 import type { TimelineBundle } from '@/types';
 
 export interface PathTimeline {
-  changes: { i: number; lines: number; bytes: number }[];
+  changes: { i: number; lines: number; bytes: number; sha: string | null }[];
   intervals: { start: number; end: number | null }[];
 }
 
@@ -24,7 +24,7 @@ export function buildPathTimelines(bundle: TimelineBundle): Map<string, PathTime
       if (change.sha === null) {
         const open = pt.intervals[pt.intervals.length - 1];
         if (open && open.end === null) open.end = i;
-        pt.changes.push({ i, lines: 0, bytes: 0 });
+        pt.changes.push({ i, lines: 0, bytes: 0, sha: null });
         continue;
       }
 
@@ -32,7 +32,7 @@ export function buildPathTimelines(bundle: TimelineBundle): Map<string, PathTime
       const bytes = bundle.blobSizes[change.sha] ?? 0;
       const open = pt.intervals[pt.intervals.length - 1];
       if (!open || open.end !== null) pt.intervals.push({ start: i, end: null });
-      pt.changes.push({ i, lines, bytes });
+      pt.changes.push({ i, lines, bytes, sha: change.sha });
     }
   });
 
@@ -133,4 +133,17 @@ export function presenceAt(pt: PathTimeline, pos: number, ruinFloor: number): nu
   }
 
   return ruinFloor;
+}
+
+/** Blob sha in effect at `pos`, or null when the path is absent there. Lets a
+ *  scrubbed view fetch the file as it stood, rather than HEAD's bytes. */
+export function blobShaAt(pt: PathTimeline, pos: number): string | null {
+  if (!isPresent(pt, pos)) return null;
+  const { changes } = pt;
+  let sha: string | null = null;
+  for (const c of changes) {
+    if (c.i > pos) break;
+    sha = c.sha;
+  }
+  return sha;
 }
