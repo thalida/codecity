@@ -144,7 +144,7 @@ Just about every aspect of the rendering is tunable in the Settings pane, opened
 
 ## Timeline
 
-<img src=".github/readme/timeline.png" alt="An older commit rebuilt: a part-built city with deleted files left as gray stubs and future files marked by low tinted slabs" width="800" />
+<img src=".github/readme/timeline.png" alt="An older commit rebuilt: a part-built city with deleted files crossed out where they stood and future files marked by low tinted slabs" width="800" />
 
 **Scrub the whole history and watch the city grow.** The scene toggle flips from Live to Timeline, and a dated slider spans the repo, a tick per commit. Drag it and the city rebuilds at that commit.
 
