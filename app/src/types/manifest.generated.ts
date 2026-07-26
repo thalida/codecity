@@ -55,7 +55,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/files": {
+    "/api/images": {
         parameters: {
             query?: never;
             header?: never;
@@ -65,18 +65,18 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Get Files
-         * @description Batch image fetch — return {path: {mime, b64}} for many small images in
-         *     one round trip. The scene loads one billboard texture per media file; firing
-         *     a separate GET per file exhausts the browser's HTTP/1.1 connection pool on
-         *     media-heavy repos, so the loader coalesces image paths into POST batches.
+         * Get Images
+         * @description Batch image fetch — {path: {mime, b64}} for many small images in one round
+         *     trip. NOT a plural of GET /api/file: it inlines base64, serves images only,
+         *     and omits anything it can't serve. It exists so the scene's billboard loader
+         *     doesn't exhaust the browser's HTTP/1.1 connection pool on a media-heavy repo.
          *
          *     Each path is trust-checked exactly like GET /api/file. Paths that are out of
          *     root, missing, non-image, or larger than _MAX_BATCH_FILE_BYTES are silently
          *     omitted; the client falls back to the streaming GET for those. Videos are
          *     never batched (they stream their poster frame), so this is images only.
          */
-        post: operations["get_files_api_files_post"];
+        post: operations["get_images_api_images_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -433,22 +433,6 @@ export interface components {
             /** Size */
             size: number;
         };
-        /**
-         * FileBatchEntry
-         * @description One image in a POST /api/files batch response: its content-type and
-         *     base64-encoded bytes, keyed by request path in the response map.
-         */
-        FileBatchEntry: {
-            /** Mime */
-            mime: string;
-            /** B64 */
-            b64: string;
-        };
-        /** FileBatchRequest */
-        FileBatchRequest: {
-            /** Paths */
-            paths: string[];
-        };
         /** FileLeader */
         FileLeader: {
             /** Path */
@@ -535,6 +519,17 @@ export interface components {
             /** Ok */
             ok: boolean;
         };
+        /**
+         * ImageBatchEntry
+         * @description One image in a POST /api/images batch response: its content-type and
+         *     base64-encoded bytes, keyed by request path in the response map.
+         */
+        ImageBatchEntry: {
+            /** Mime */
+            mime: string;
+            /** B64 */
+            b64: string;
+        };
         /** Manifest */
         Manifest: {
             /** Root */
@@ -573,6 +568,15 @@ export interface components {
          */
         PartialManifestEvent: {
             manifest: components["schemas"]["Manifest"];
+        };
+        /** PathBatchRequest */
+        PathBatchRequest: {
+            /** Paths */
+            paths: string[];
+            /** Shas */
+            shas?: {
+                [key: string]: string;
+            } | null;
         };
         /** RangeStat */
         RangeStat: {
@@ -796,6 +800,8 @@ export interface operations {
             query: {
                 /** @description Absolute path inside a scanned root */
                 path: string;
+                /** @description Blob sha to read instead of the working tree */
+                sha?: string | null;
             };
             header?: never;
             path?: never;
@@ -823,7 +829,7 @@ export interface operations {
             };
         };
     };
-    get_files_api_files_post: {
+    get_images_api_images_post: {
         parameters: {
             query?: never;
             header?: never;
@@ -832,7 +838,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["FileBatchRequest"];
+                "application/json": components["schemas"]["PathBatchRequest"];
             };
         };
         responses: {
@@ -843,7 +849,7 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        [key: string]: components["schemas"]["FileBatchEntry"];
+                        [key: string]: components["schemas"]["ImageBatchEntry"];
                     };
                 };
             };
@@ -867,7 +873,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["FileBatchRequest"];
+                "application/json": components["schemas"]["PathBatchRequest"];
             };
         };
         responses: {

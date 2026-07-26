@@ -696,7 +696,7 @@ function _releaseSlot(): void {
  * Trigger async load of a media building's image/video and upload to the given
  * InstancedFacadePanels instance once ready.
  *
- * Images: bytes come from the batched POST /api/files endpoint (see
+ * Images: bytes come from the batched POST /api/images endpoint (see
  * mediaBatch.ts) — the network fetch is coalesced across all media buildings,
  * not slot-gated, so a media-heavy repo doesn't fire thousands of singleton
  * GETs. Only the decode + GPU upload is funneled through the concurrency

@@ -1,5 +1,5 @@
 // city/components/buildings/mediaBatch.ts — coalesces media-image fetches into
-// POST /api/files batches. The scene loads one billboard texture per media
+// POST /api/images batches. The scene loads one billboard texture per media
 // file; firing a separate GET /api/file per image exhausts the browser's
 // HTTP/1.1 connection pool on media-heavy repos (Infisical: 2.6k images), so we
 // collect the paths requested within a short window and fetch them in a handful
@@ -11,7 +11,7 @@
 // omits (non-image, too large, out of root) resolves to null; the caller then
 // falls back to the streaming GET /api/file for that one file.
 
-/** Max paths per POST /api/files request — mirrors the server-side cap so a
+/** Max paths per POST /api/images request — mirrors the server-side cap so a
  *  single batch response stays bounded. */
 const BATCH_SIZE = 32;
 /** Coalescing window: media buildings register in a burst at scene build, so a
@@ -60,7 +60,7 @@ function _flush(): void {
 async function _sendBatch(paths: string[], pending: Map<string, Waiter[]>): Promise<void> {
   let result: Record<string, BatchEntry> = {};
   try {
-    const res = await fetch('/api/files', {
+    const res = await fetch('/api/images', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ paths, shas: _shasFor(paths) }),

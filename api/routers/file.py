@@ -1,8 +1,9 @@
 """GET /api/file — serve a file's bytes, restricted to scanned roots.
 
 Optional `sha` selects a version: absent reads the working tree, present reads
-that git blob, so a scrubbed Timeline commit shows its own content. POST /api/files
-is the batch sibling used by the scene's media-texture loader.
+that git blob, so a scrubbed Timeline commit shows its own content. POST
+/api/images and /api/fingerprints are batch loaders for the scene, named for
+what they return rather than as plurals of this.
 """
 
 from __future__ import annotations
@@ -19,7 +20,7 @@ from pydantic import BaseModel
 
 from api.config import MAX_FILE_BYTES
 from api.models.responses import (
-    FileBatchEntry,
+    ImageBatchEntry,
     FileTooLargeResponse,
     FingerprintEntry,
 )
@@ -30,7 +31,7 @@ from api.services.media import is_media
 
 router = APIRouter(prefix="/api", tags=["file"])
 
-# Caps for POST /api/files. The client chunks its requests, but a server-side
+# Caps for POST /api/images. The client chunks its requests, but a server-side
 # bound keeps any single response from ballooning: at most this many paths, and
 # only images up to this size are base64-inlined — anything larger or non-image
 # is omitted so the client falls back to the streaming GET /api/file path.
@@ -40,7 +41,7 @@ _MAX_BATCH_FILE_BYTES = 8 * 1024 * 1024
 _SHA_RE = re.compile(r"[0-9a-f]{40}")
 
 
-class FileBatchRequest(BaseModel):
+class PathBatchRequest(BaseModel):
     paths: list[str]
     # Timeline: path -> blob sha, so a scrubbed commit batches its own bytes
     # instead of HEAD's. Absent/unlisted paths read the working tree.
@@ -112,19 +113,19 @@ def get_file(
     return Response(content=body, media_type="text/plain; charset=utf-8")
 
 
-@router.post("/files")
-def get_files(req: FileBatchRequest) -> dict[str, FileBatchEntry]:
-    """Batch image fetch — return {path: {mime, b64}} for many small images in
-    one round trip. The scene loads one billboard texture per media file; firing
-    a separate GET per file exhausts the browser's HTTP/1.1 connection pool on
-    media-heavy repos, so the loader coalesces image paths into POST batches.
+@router.post("/images")
+def get_images(req: PathBatchRequest) -> dict[str, ImageBatchEntry]:
+    """Batch image fetch — {path: {mime, b64}} for many small images in one round
+    trip. NOT a plural of GET /api/file: it inlines base64, serves images only,
+    and omits anything it can't serve. It exists so the scene's billboard loader
+    doesn't exhaust the browser's HTTP/1.1 connection pool on a media-heavy repo.
 
     Each path is trust-checked exactly like GET /api/file. Paths that are out of
     root, missing, non-image, or larger than _MAX_BATCH_FILE_BYTES are silently
     omitted; the client falls back to the streaming GET for those. Videos are
     never batched (they stream their poster frame), so this is images only.
     """
-    out: dict[str, FileBatchEntry] = {}
+    out: dict[str, ImageBatchEntry] = {}
     for path in req.paths[:_MAX_BATCH_PATHS]:
         sha = (req.shas or {}).get(path)
         try:
@@ -137,7 +138,7 @@ def get_files(req: FileBatchRequest) -> dict[str, FileBatchEntry]:
         body = _read_versioned(target, sha)
         if body is None or len(body) > _MAX_BATCH_FILE_BYTES:
             continue
-        out[path] = FileBatchEntry(mime=guessed, b64=base64.b64encode(body).decode())
+        out[path] = ImageBatchEntry(mime=guessed, b64=base64.b64encode(body).decode())
     return out
 
 
@@ -152,7 +153,7 @@ def _fingerprint_b64(path: str, mtime: float, size: int) -> str:
 
 
 @router.post("/fingerprints")
-def get_fingerprints(req: FileBatchRequest) -> dict[str, FingerprintEntry]:
+def get_fingerprints(req: PathBatchRequest) -> dict[str, FingerprintEntry]:
     """Batch byte-pattern fingerprint fetch — {path: {b64}}, one round trip for
     many buildings. Trust-checked like GET /api/file; out-of-root / missing /
     unreadable paths are silently omitted. Raw binary bytes never leave the

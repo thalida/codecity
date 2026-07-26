@@ -68,7 +68,7 @@ def test_files_batch_returns_images_only(
     outside.write_bytes(b"nope")
     pic = str(project / "src" / "pic.png")
     r = client.post(
-        "/api/files",
+        "/api/images",
         json={
             "paths": [
                 pic,
@@ -129,7 +129,7 @@ def test_fingerprints_no_root_omits_all(client: TestClient, project: Path) -> No
 def test_files_batch_no_root_omits_all(client: TestClient, project: Path) -> None:
     # No TRUST.register → every path is out-of-root → empty map (still 200, so a
     # cold client can batch-request without first racing the manifest).
-    r = client.post("/api/files", json={"paths": [str(project / "src" / "pic.png")]})
+    r = client.post("/api/images", json={"paths": [str(project / "src" / "pic.png")]})
     assert r.status_code == 200
     assert r.json() == {}
 
