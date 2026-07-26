@@ -2,10 +2,11 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { render } from 'preact';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { setManifest } from '@/state/stores/manifest';
-import { PENDING_SOURCE_LABEL } from '@/state/stores/source';
+
 import { EMPTY_MANIFEST } from '@/constants/manifest';
 import type { Manifest } from '@/types';
 import { drainAsync } from '../_helpers/preact';
+import { PENDING_SOURCE_LABEL } from '@/state/stores/ui';
 
 // useDocumentTitle is the single owner of document.title. It reacts to the
 // canonical signals — PENDING_SOURCE_LABEL while a source is loading, MANIFEST

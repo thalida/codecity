@@ -29,12 +29,7 @@ import { effect } from '@preact/signals';
 import { manifestUrlFor, signatureUrlFor, streamManifest, ScanPhase } from '@/api/manifest';
 import { getServerConfig } from '@/api/config';
 import { LIVE_UPDATES } from '@/state/stores/settings/updates';
-import {
-  PENDING_SOURCE_LABEL,
-  SOURCE_ERROR,
-  setCurrentSource,
-  CURRENT_SOURCE,
-} from '@/state/stores/source';
+import { RECENTS, SOURCE_ERROR, setCurrentSource, CURRENT_SOURCE } from '@/state/stores/source';
 import { SERVER_CONFIG } from '@/state/stores/serverConfig';
 import { MANIFEST, setManifest, markError, markRebuilding } from '@/state/stores/manifest';
 import { SCAN_PROGRESS } from '@/state/stores/scanProgress';
@@ -45,6 +40,7 @@ import { isEmptyManifest } from '@/utils/manifest';
 import { URL_PARAMS } from '@/constants/urlParams';
 import type { Manifest } from '@/types';
 import type { SourcePayload } from '@/state/stores/ui';
+import { PENDING_SOURCE_LABEL } from '@/state/stores/ui';
 
 // ── Shared helpers ───────────────────────────────────────────────────
 
@@ -149,6 +145,9 @@ export async function loadSource(payload: SourcePayload): Promise<void> {
   // legacy recent could carry one) so the fetch URL, overlay, committed source,
   // and prefill all stay branch-less. The checked-out branch is display-only.
   const branch = identityBranch(payload.src, payload.branch);
+  // Seed the overlay header from recents: the server's label arrives with the
+  // first stream event, which is after the overlay is already on screen.
+  PENDING_SOURCE_LABEL.value = RECENTS.peek().find((r) => r.src === payload.src)?.label ?? null;
   const meta = {
     kind: srcKind(payload.src),
     branch,
@@ -206,7 +205,6 @@ export async function loadSource(payload: SourcePayload): Promise<void> {
     // not clear it out from under the newer load that's still streaming.
     if (myGen === loadGeneration) {
       SCAN_PROGRESS.value = null;
-      PENDING_SOURCE_LABEL.value = null;
       if (loadController === controller) loadController = null;
     }
   }

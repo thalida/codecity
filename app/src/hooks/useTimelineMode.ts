@@ -10,7 +10,7 @@ import { batch } from '@preact/signals';
 
 import { fetchTimelineBundle } from '@/api/timeline';
 import { buildPathTimelines } from '@/city/timeline/replay';
-import { CURRENT_SOURCE, SOURCE_INFO, PENDING_SOURCE_LABEL } from '@/state/stores/source';
+import { CURRENT_SOURCE, SOURCE_INFO } from '@/state/stores/source';
 import { SCENE_HANDLE } from '@/state/stores/scene';
 import { markError, markRebuilding } from '@/state/stores/manifest';
 import {
@@ -19,6 +19,7 @@ import {
   setLoadingStepTail,
   hideLoadingOverlay,
   setLoadingCancel,
+  PENDING_SOURCE_LABEL,
 } from '@/state/stores/ui';
 import { LoadingStep, TIMELINE_LOADING_STEPS } from '@/constants/loadingSteps';
 import { srcKind } from '@/utils/sources';
@@ -80,7 +81,6 @@ export async function loadTimelineScene({ inPlace = false } = {}): Promise<void>
         cancelled = true;
         abort.abort();
         hideLoadingOverlay();
-        PENDING_SOURCE_LABEL.value = null;
       }
     );
     setLoadingStep(LoadingStep.TimelineLoading);
@@ -123,7 +123,6 @@ export async function loadTimelineScene({ inPlace = false } = {}): Promise<void>
       // Hold the overlay through the union city's first painted frame, then reveal.
       requestAnimationFrame(() => {
         hideLoadingOverlay();
-        PENDING_SOURCE_LABEL.value = null;
       });
     }
   } catch (err) {
@@ -141,7 +140,6 @@ export async function loadTimelineScene({ inPlace = false } = {}): Promise<void>
         /* teardown failed; surfacing err + hiding the overlay below is what matters */
       }
       hideLoadingOverlay();
-      PENDING_SOURCE_LABEL.value = null;
     }
     markError(err);
   }

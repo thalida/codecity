@@ -67,15 +67,6 @@ effect(() => {
   history.replaceState(null, '', url.toString());
 });
 
-/**
- * Label of the source currently being LOADED (from the server's progress `src`),
- * or null when no load is in flight. Drives the "(pending)" document title while
- * streaming; useDocumentTitle prefers it over MANIFEST so a source switch shows
- * the new project name immediately, before its manifest lands. Cleared when the
- * stream settles (success or failure).
- */
-export const PENDING_SOURCE_LABEL = signal<string | null>(null);
-
 export interface SourceInfo {
   /** Human-readable project label (owner/repo or directory name). */
   label: string;

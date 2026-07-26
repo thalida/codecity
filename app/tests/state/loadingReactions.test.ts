@@ -1,8 +1,9 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { attachLoadingReactions } from '@/state/loadingReactions';
 import { SCAN_PROGRESS } from '@/state/stores/scanProgress';
+
 import { REBUILD_STATUS, RebuildStatus } from '@/state/stores/manifest';
-import { LOADING_OVERLAY } from '@/state/stores/ui';
+import { LOADING_OVERLAY, PENDING_SOURCE_LABEL } from '@/state/stores/ui';
 import { SourceKind } from '@/utils/sources';
 import { ScanPhase, CloneStage } from '@/api/manifest';
 import { LoadingStep } from '@/constants/loadingSteps';
@@ -68,6 +69,22 @@ describe('loadingReactions', () => {
     // City painted → status leaves Rebuilding → overlay hides.
     REBUILD_STATUS.value = RebuildStatus.Decorating;
     expect(LOADING_OVERLAY.value.visible).toBe(false);
+  });
+
+  it('keeps the repo name up for the whole overlay, not just the stream', () => {
+    // The stream ends well before the city is assembled, so clearing the label
+    // with the stream blanked the header while Building was still on screen.
+    PENDING_SOURCE_LABEL.value = 'owner/repo';
+    SCAN_PROGRESS.value = { kind: SourceKind.Remote, phase: ScanPhase.CompleteManifest };
+    REBUILD_STATUS.value = RebuildStatus.Rebuilding;
+    SCAN_PROGRESS.value = null;
+
+    expect(LOADING_OVERLAY.value.visible, 'still building').toBe(true);
+    expect(PENDING_SOURCE_LABEL.value, 'header must survive the build phase').toBe('owner/repo');
+
+    REBUILD_STATUS.value = RebuildStatus.Decorating;
+    expect(LOADING_OVERLAY.value.visible).toBe(false);
+    expect(PENDING_SOURCE_LABEL.value, 'and clear with the overlay').toBeNull();
   });
 
   it('does NOT show the overlay for a settings rebuild (no stream)', () => {

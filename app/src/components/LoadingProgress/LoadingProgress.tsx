@@ -5,7 +5,7 @@
 // state mapping has exactly one definition and the two surfaces never drift.
 
 import './LoadingProgress.css';
-import { PENDING_SOURCE_LABEL } from '@/state/stores/source';
+
 import { SourceKind } from '@/utils/sources';
 import {
   LoadingStep,
@@ -13,6 +13,7 @@ import {
   LOADING_STEPS,
   LOADING_STEP_LABELS,
 } from '@/constants/loadingSteps';
+import { PENDING_SOURCE_LABEL } from '@/state/stores/ui';
 
 export interface LoadingProgressProps {
   activeStep: LoadingStep;
