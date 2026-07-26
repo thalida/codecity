@@ -2,7 +2,7 @@ import { afterEach, expect, test } from 'vitest';
 import { NodeKind } from '@/types';
 import type { TimelineBundle } from '@/types';
 import { TIMELINE_MODE, TIMELINE_BUNDLE, SCRUB_POS } from '@/state/stores/timeline';
-import { PRESENT_PATHS } from '@/state/stores/presentPaths';
+import { PRESENT_PATHS, scrubbedBlobShaFor, scrubbedStatsFor } from '@/state/stores/presentPaths';
 
 // At commit 2: src/present.txt is live; src/gone.txt was deleted at commit 2;
 // future/y.txt is first created at commit 3.
@@ -73,4 +73,34 @@ test('empty outside Timeline mode', () => {
   TIMELINE_BUNDLE.value = bundle;
   TIMELINE_MODE.value = false;
   expect(PRESENT_PATHS.value.size).toBe(0);
+});
+
+// A file that grows across commits, so an interpolated read differs visibly
+// from the discrete one.
+const growing = {
+  commits: [{ sha: 'a' }, { sha: 'b' }],
+  unionManifest: { tree: { name: '', path: '', type: NodeKind.Directory, children: [] } },
+  deltas: [
+    { sha: 'a', changes: [{ path: 'f.txt', sha: 'small' }] },
+    { sha: 'b', changes: [{ path: 'f.txt', sha: 'big' }] },
+  ],
+  blobLines: { small: 36, big: 46 },
+  blobSizes: { small: 100, big: 200 },
+  note: null,
+} as unknown as TimelineBundle;
+
+test('displayed stats resolve at the same commit the content does, never between', () => {
+  TIMELINE_BUNDLE.value = growing;
+  TIMELINE_MODE.value = true;
+  // Mid-commit: the height curve interpolates here, but the pane shows bytes
+  // from one specific blob, so its numbers have to name that same commit.
+  SCRUB_POS.value = 0.7;
+
+  expect(scrubbedBlobShaFor('f.txt')).toBe('small');
+  expect(scrubbedStatsFor('f.txt')?.lines).toBe(36); // NOT the ~43 a lerp gives
+  expect(scrubbedStatsFor('f.txt')?.bytes).toBe(100);
+
+  SCRUB_POS.value = 1;
+  expect(scrubbedBlobShaFor('f.txt')).toBe('big');
+  expect(scrubbedStatsFor('f.txt')?.lines).toBe(46);
 });

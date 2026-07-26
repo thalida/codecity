@@ -2,13 +2,7 @@
 // dirs). The sidebar tree/search filter to this set. Empty outside Timeline.
 
 import { computed, type ReadonlySignal } from '@preact/signals';
-import {
-  TIMELINE_MODE,
-  TIMELINE_BUNDLE,
-  SCRUB_COMMIT,
-  SCRUB_POS,
-  SETTLED_COMMIT,
-} from './timeline';
+import { TIMELINE_MODE, TIMELINE_BUNDLE, SCRUB_COMMIT, SETTLED_COMMIT } from './timeline';
 import {
   buildPathTimelines,
   ruinStateAt,
@@ -60,12 +54,15 @@ export interface ScrubbedFileStats {
   atDeletion: boolean;
 }
 
-// .value, not .peek(): the footer calls this in render and must re-render as the scrub moves.
+// .value, not .peek(): the footer calls this in render and must re-render as the
+// scrub moves. Resolved at the SETTLED commit, the same discrete point the blob
+// fetch uses — linesAt interpolates between commits so heights tween smoothly,
+// which is right for geometry and wrong for a number someone reads.
 export function scrubbedStatsFor(path: string): ScrubbedFileStats | null {
   if (!TIMELINE_MODE.value) return null;
   const pt = _TIMELINES.value?.get(path);
   if (!pt) return null;
-  const pos = SCRUB_POS.value;
+  const pos = SETTLED_COMMIT.value;
   const gone = statsAtDeletion(pt, pos);
   if (gone) return { lines: gone.lines, bytes: gone.bytes, atDeletion: true };
   return {
