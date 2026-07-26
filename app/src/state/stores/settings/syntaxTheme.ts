@@ -12,11 +12,14 @@ export interface SyntaxThemeOption {
   label: string;
 }
 
-// Curated DARK theme list. All filenames verified against
-// node_modules/highlight.js/styles/ (highlight.js 11.11.1). Light themes
-// are intentionally not offered — codecity's UI is a dark theme and bright
-// code panels clash visually. Alphabetized by display label.
-export const SYNTAX_THEME_OPTIONS: SyntaxThemeOption[] = [
+// Curated DARK theme list. Light themes are intentionally not offered —
+// codecity's UI is a dark theme and bright code panels clash visually.
+// Alphabetized by display label.
+//
+// `as const` makes the values a literal union, which HljsThemeLink's stylesheet
+// map is keyed on: adding a theme here fails typecheck until its CSS is
+// imported there, so the two cannot drift.
+export const SYNTAX_THEME_OPTIONS = [
   { value: 'a11y-dark', label: 'A11y Dark' },
   { value: 'agate', label: 'Agate' },
   { value: 'androidstudio', label: 'Android Studio' },
@@ -38,13 +41,18 @@ export const SYNTAX_THEME_OPTIONS: SyntaxThemeOption[] = [
   { value: 'stackoverflow-dark', label: 'Stack Overflow Dark' },
   { value: 'tokyo-night-dark', label: 'Tokyo Night' },
   { value: 'vs2015', label: 'VS 2015' },
-];
+] as const satisfies readonly SyntaxThemeOption[];
+
+export type SyntaxThemeValue = (typeof SYNTAX_THEME_OPTIONS)[number]['value'];
 
 // Default matches the hand-rolled theme bundled in HljsThemeLink.css.
-// Changing to a CDN theme overrides those .hljs-* rules because the <link>
-// is injected into <head> after the bundled CSS (later in the cascade wins
-// at equal specificity, and these are the same specificity).
-export const SYNTAX_THEME_DEFAULT = 'atom-one-dark';
+// Selecting a theme overrides those .hljs-* rules because the <link> is
+// injected into <head> after the bundled CSS (later in the cascade wins at
+// equal specificity, and these are the same specificity).
+export const SYNTAX_THEME_DEFAULT: SyntaxThemeValue = 'atom-one-dark';
+// Typed `string`, not SyntaxThemeValue: the persisted value comes from
+// localStorage and may name a theme from an older build. HljsThemeLink
+// resolves anything unrecognized back to the default.
 export const SYNTAX_THEME = persistedSignal<string>('SYNTAX_THEME', SYNTAX_THEME_DEFAULT);
 
 // SYNTAX_THEME is a setting (it lives in the Appearance tab) but uses a plain
