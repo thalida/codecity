@@ -3,12 +3,13 @@
 # Bypass with: git push --no-verify
 #
 # What runs (in this order — fail fast):
-#   1. Python tests (api/) — pytest in container
-#   2. Python format — ruff format --check in container
-#   3. Frontend tests (app/) — vitest in container
-#   4. Frontend lint — eslint
-#   5. Frontend prettier — prettier --check
-#   6. Frontend typecheck — tsc --noEmit
+#   1. Python tests (api/) — pytest
+#   2. Python format — ruff format --check
+#   3. Frontend tests (app/) — vitest
+#   4. Frontend lint + prettier + typecheck (app/)
+#
+# Every step runs in a container, so the gate doesn't depend on whatever the
+# host happens to have installed — a fresh worktree could not push before this.
 
 set -e
 
@@ -17,22 +18,20 @@ cd "$ROOT"
 
 echo "[pre-push] running quality gate..."
 
-echo "[pre-push] 1/6  pytest (api/)"
+echo "[pre-push] 1/4  pytest (api/)"
 docker compose -f docker-compose.test.yml run --rm pytest >/dev/null
 
-echo "[pre-push] 2/6  ruff format --check (api/)"
+echo "[pre-push] 2/4  ruff format --check (api/)"
 docker compose -f docker-compose.test.yml run --rm ruff >/dev/null
 
-echo "[pre-push] 3/6  vitest (app/)"
+echo "[pre-push] 3/4  vitest (app/)"
 docker compose -f docker-compose.test.yml run --rm vitest >/dev/null
 
-echo "[pre-push] 4/6  eslint (app/)"
-( cd app && npm run lint >/dev/null )
-
-echo "[pre-push] 5/6  prettier --check (app/)"
-( cd app && npm run format:check >/dev/null )
-
-echo "[pre-push] 6/6  typecheck (app/)"
-( cd app && npm run typecheck >/dev/null )
+# One container for all three: each is seconds of work behind a slow start.
+# Same command `just lint` runs, so the gate and the recipe can't diverge.
+echo "[pre-push] 4/4  eslint + prettier + typecheck (app/)"
+NPM_VERSION=$(grep '^NPM_VERSION=' .env | cut -d= -f2)
+docker compose -f docker-compose.test.yml run --rm vitest \
+    sh -c "npm install -g npm@$NPM_VERSION && npm ci && npm run lint && npm run typecheck && npm run format:check" >/dev/null
 
 echo "[pre-push] all checks passed — pushing"
