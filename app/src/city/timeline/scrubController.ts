@@ -19,7 +19,7 @@ import { BUILDING_DIMENSIONS, BUILDINGS } from '@/state/stores/settings/building
 import { RUINS } from '@/state/stores/settings/ruins';
 import { BLUEPRINTS } from '@/state/stores/settings/blueprints';
 import { FadeDetail, NodeKind } from '@/types';
-import type { Building, RangeStat, Street } from '@/types';
+import type { Building, FileNode, RangeStat, Street } from '@/types';
 import type { BuildingIndex } from '@/city/components/buildings/buildingIndex';
 import type { InstancedFacadePanels } from '@/city/components/buildings/facadePanels';
 import type { createPicker } from '@/city/interaction/picker';
@@ -151,293 +151,400 @@ export function createScrubController(deps: ScrubControllerDeps) {
   const _color = new THREE.Color();
   const _futureColor = new THREE.Color();
 
-  function update(): void {
-    const pos = SCRUB_POS.peek();
-    deps.trees.setScrubCommit(Math.floor(pos));
-    deps.fireflies.setScrubCommit(Math.floor(pos));
+  // Everything `update` reads once per frame: the commit's height range, the
+  // ruin/future settings, the replayed date ranges, and the hover/selection
+  // targets the neighborhood fade cascade needs.
+  interface ScrubFrame {
+    pos: number;
+    lineStats: RangeStat;
+    ruinsOn: boolean;
+    ruinBuildingOpacity: number;
+    ruinHeight: number;
+    ruinGrayMix: number;
+    futureOn: boolean;
+    futureBuildingOpacity: number;
+    futureHeight: number;
+    futureTint: number;
+    minMod: number;
+    minCreated: number;
+    modSpread: number;
+    createdSpread: number;
+    bldgTargetFile: FileNode | null;
+    dirTarget: ReturnType<typeof resolveDirTarget>;
+    hoverFile: FileNode | null;
+    fadeCfg: ReturnType<typeof BUILDINGS.peek>;
+  }
+
+  function readScrubFrame(pos: number): ScrubFrame {
     // Height range for this commit → matches Live-at-that-commit. Degenerate {0,0} → {1,1}.
     const ri = Math.max(0, Math.min(deps.commitLineRanges.length - 1, Math.floor(pos)));
     const r = deps.commitLineRanges[ri];
-    const lineStats: RangeStat = r && (r.min > 0 || r.max > 0) ? r : { min: 1, max: 1 };
-    const dirtyMeshes = new Set<THREE.InstancedMesh>();
-    const dirtyFades = new Set<THREE.BufferAttribute>();
-    const dirtyColors = new Set<THREE.InstancedMesh>();
-    const dirtyFloors = new Set<THREE.BufferAttribute>();
-    const dirtyModifiedAges = new Set<THREE.BufferAttribute>();
-    const dirtyIconUVs = new Set<THREE.BufferAttribute>();
-    const dirtyKinds = new Set<THREE.BufferAttribute>();
-    // A street fades with its PRESENT descendants; a ruin-only or future-only
-    // street renders fully opaque, set apart by color instead of fading.
-    const maxPresentOp = new Map<Street, number>();
-    const ruinStreets = new Set<Street>();
-    // Ad-panel opacity by path: the building's op when present, else 0 (a ruin or
-    // absent building shows no media image). Feeds applyBuildingFades only.
-    const opByPath = new Map<string, number>();
-    const presentStreets = new Set<Street>();
-    RUINED_STREET_DIRS.clear();
-    FUTURE_STREET_DIRS.clear();
 
     const floorHeight = BUILDING_DIMENSIONS.peek().FLOOR_HEIGHT;
     const ruins = RUINS.peek();
-    const ruinsOn = ruins.ENABLED;
-    const ruinBuildingOpacity = ruins.BUILDING_OPACITY;
-    const ruinHeight = ruins.STUB_HEIGHT * floorHeight;
-    const ruinGrayMix = ruins.DESATURATION;
-
     const bp = BLUEPRINTS.peek();
-    const futureOn = bp.ENABLED;
-    const futureBuildingOpacity = bp.BUILDING_OPACITY;
-    const futureHeight = FUTURE_SLAB_FLOORS * floorHeight;
-    const futureTint = bp.BUILDING_TINT;
     _futureColor.set(bp.BUILDING_COLOR);
 
     // Backend-replayed date ranges over the present set, like heights use
     // commitLineRanges. At HEAD the present set == live, so weathering matches.
     const dateRange = _dateRanges[Math.min(Math.floor(pos), _dateRanges.length - 1)];
     const minMod = dateRange?.minModified ?? 0;
-    const maxMod = dateRange?.maxModified ?? 0;
     const minCreated = dateRange?.minCreated ?? 0;
-    const maxCreated = dateRange?.maxCreated ?? 0;
-    // Spread 0 (all present files share a date) → the live view's getSaturation/
-    // getModifiedAge treat that as freshest (recency 1); createdAge as newest (0).
-    const modSpread = maxMod - minMod;
-    const createdSpread = maxCreated - minCreated;
 
-    // Neighborhood fade cascade — the SAME tier decision buildingFader uses in
-    // Live, so a hover/selection dims the surrounding city identically while
-    // scrubbing. The fader is dormant in Timeline (it owns iFade in Live; the
-    // scrub controller owns it here), so this is where the cascade gets applied.
+    // The SAME tier decision buildingFader uses in Live, so a hover/selection
+    // dims the surrounding city identically while scrubbing. The fader is
+    // dormant in Timeline (it owns iFade in Live; this controller owns it here).
     const sel = deps.picker.selection.peek();
     const hov = deps.picker.hover.peek();
-    const bldgTargetFile = sel?.kind === NodeKind.File ? sel.file : null;
-    const dirTarget = resolveDirTarget(sel, hov, deps.streetsByDir);
-    const hoverFile = hov?.kind === NodeKind.File ? hov.file : null;
-    const fadeCfg = BUILDINGS.peek();
 
-    for (const { b, pt, streets, createdIdx, finalIdx } of entries) {
-      const state = ruinStateAt(pt, pos);
-      const present = state === 'present';
-      const ruin = state === 'ruin' && ruinsOn;
-      // Future: not yet created at this scrub position (genesis is ahead). Shown
-      // as an ultra-low tinted slab at its eventual footprint — a marker of where
-      // it WILL land, rendered via the building mesh (not the footprint plots).
-      const future = !present && !ruin && futureOn && createdIdx > pos;
-      // present → fully present; ruin → faint stub; future → faint slab;
-      // before-genesis (out of range) or ruins-off deletion → gone.
-      const op = present
-        ? presenceAt(pt, pos, 0)
-        : ruin
-          ? ruinBuildingOpacity
-          : future
-            ? futureBuildingOpacity
-            : 0;
+    return {
+      pos,
+      lineStats: r && (r.min > 0 || r.max > 0) ? r : { min: 1, max: 1 },
+      ruinsOn: ruins.ENABLED,
+      ruinBuildingOpacity: ruins.BUILDING_OPACITY,
+      ruinHeight: ruins.STUB_HEIGHT * floorHeight,
+      ruinGrayMix: ruins.DESATURATION,
+      futureOn: bp.ENABLED,
+      futureBuildingOpacity: bp.BUILDING_OPACITY,
+      futureHeight: FUTURE_SLAB_FLOORS * floorHeight,
+      futureTint: bp.BUILDING_TINT,
+      minMod,
+      minCreated,
+      // Spread 0 (all present files share a date) → the live view's
+      // getSaturation/getModifiedAge treat that as freshest (recency 1);
+      // createdAge as newest (0).
+      modSpread: (dateRange?.maxModified ?? 0) - minMod,
+      createdSpread: (dateRange?.maxCreated ?? 0) - minCreated,
+      bldgTargetFile: sel?.kind === NodeKind.File ? sel.file : null,
+      dirTarget: resolveDirTarget(sel, hov, deps.streetsByDir),
+      hoverFile: hov?.kind === NodeKind.File ? hov.file : null,
+      fadeCfg: BUILDINGS.peek(),
+    };
+  }
 
-      // Neighborhood fade cascade for PRESENT buildings: dim / silhouette /
-      // outline this building by its dir-tree distance from the hover/selection
-      // target, exactly as Live's fader does (op is 1 for a present file, so
-      // op * tier.bodyOpacity reproduces the Live absolute). Non-present states
-      // (ruin/future/absent) keep their own faint opacity, no cascade.
-      let bodyOp = op;
-      let silhouette = 0;
-      let tierOutlineOp = 0;
-      if (present) {
-        const tier = tierFor(b.file, bldgTargetFile, dirTarget, hoverFile, fadeCfg);
-        bodyOp = tier.detail === FadeDetail.Hidden ? 0 : op * tier.bodyOpacity;
-        silhouette = tier.detail === FadeDetail.Silhouette ? 1 : 0;
-        tierOutlineOp = tier.outlineEnabled ? tier.outlineOpacity : 0;
-      }
+  // What one pass over the buildings accumulates: the GPU attributes that need
+  // re-upload, and the per-street rollup the street pass then consumes.
+  interface ScrubSinks {
+    meshes: Set<THREE.InstancedMesh>;
+    fades: Set<THREE.BufferAttribute>;
+    colors: Set<THREE.InstancedMesh>;
+    floors: Set<THREE.BufferAttribute>;
+    modifiedAges: Set<THREE.BufferAttribute>;
+    iconUVs: Set<THREE.BufferAttribute>;
+    kinds: Set<THREE.BufferAttribute>;
+    // A street fades with its PRESENT descendants; a ruin-only or future-only
+    // street renders fully opaque, set apart by color instead of fading.
+    maxPresentOp: Map<Street, number>;
+    ruinStreets: Set<Street>;
+    presentStreets: Set<Street>;
+    // Ad-panel opacity by path: the building's op when present, else 0 (a ruin
+    // or absent building shows no media image). Feeds applyBuildingFades only.
+    opByPath: Map<string, number>;
+  }
 
-      // Driven for EVERY union building (even one with no detail mesh on a large
-      // repo), else the footprint/street strand at their defaults. A street's
-      // future state isn't tracked per-building: any non-present, non-ruin street
-      // is a future road (see the final loop), so the whole road network shows.
-      for (const street of streets) {
-        if (present) {
-          maxPresentOp.set(street, Math.max(maxPresentOp.get(street) ?? 0, op));
-          presentStreets.add(street);
-        } else if (ruin) {
-          ruinStreets.add(street);
-        }
-      }
-      // opByPath feeds ONLY the facade panels — gate on presence so a ruin/absent/
-      // future building shows no media image, just its stub or slab. Uses the
-      // neighborhood-dimmed bodyOp so a media panel fades with its building body.
-      opByPath.set(b.file.path, present ? bodyOp : 0);
-      // Footprint plot: present + ruin only. A future building IS the slab, so it
-      // gets no plot (keeps future independent of the footprint controls).
-      deps.footprints.setBuildingFootprintOpacity(b.file.path, future ? 0 : op, ruin);
+  function createSinks(): ScrubSinks {
+    return {
+      meshes: new Set(),
+      fades: new Set(),
+      colors: new Set(),
+      floors: new Set(),
+      modifiedAges: new Set(),
+      iconUVs: new Set(),
+      kinds: new Set(),
+      maxPresentOp: new Map(),
+      ruinStreets: new Set(),
+      presentStreets: new Set(),
+      opByPath: new Map(),
+    };
+  }
 
-      const resolved = deps.getMeshForBuilding(b);
-      if (!resolved) continue;
-      const { mesh, slot } = resolved;
-
-      // createdAge (0=newest, 1=oldest) is scrub-relative here — needed for both
-      // the lean shear (below) and the window/grime weathering (iIconUV.w later).
-      const createdMs = createdMsFor(b, createdIdx);
-      const createdAge =
-        present && createdSpread > 0
-          ? 1 - Math.max(0, Math.min(1, (createdMs - minCreated) / createdSpread))
-          : 0;
-
-      const iFloorsAttr = mesh.geometry.getAttribute('iFloors') as
-        | THREE.BufferAttribute
-        | undefined;
-      // Height tweens, so it takes the interpolated count. The union node's
-      // `size` is a max-over-history footprint, so only the replay can say what
-      // this file measured HERE.
-      const scrubFile = present ? { ...b.file, lines: linesAt(pt, pos) } : b.file;
-      // Emptiness is a fact about the blob in effect, not a point on a curve:
-      // between a 0-line commit and a later big one, a lerp reads non-empty.
-      const emptyFile = present ? { ...b.file, lines: entryAt(pt, pos)?.lines ?? 0 } : b.file;
-      if (present) {
-        // Gate height on presence (intervals), not line count: media/empty files are present with 0 lines.
-        // Height uses lineStats (this commit's range); width stays layout-baked (b.w), so dims.w is unused.
-        const dims = getBuildingDimensions(scrubFile, lineStats, deps.heightCtx.byteStats);
-        if (iFloorsAttr) {
-          iFloorsAttr.setX(slot, dims.floors);
-          dirtyFloors.add(iFloorsAttr);
-        }
-        // Bake the age-lean shear into the matrix so the picker + outline follow it.
-        const { tiltX, tiltZ } = getBuildingTiltAtAge(b.file.path, createdAge);
-        _pos.set(b.x, dims.h / 2, b.y);
-        _scale.set(b.w, dims.h, b.d);
-        composeShearMatrix(_pos, _scale, tiltX, tiltZ, _m);
-      } else if (ruin) {
-        // A deleted building: uniform low stub, blank facade (0 window rows) — reads as rubble.
-        if (iFloorsAttr) {
-          iFloorsAttr.setX(slot, 0);
-          dirtyFloors.add(iFloorsAttr);
-        }
-        _m.makeScale(b.w, ruinHeight, b.d);
-        _m.setPosition(b.x, ruinHeight / 2, b.y);
-      } else if (future) {
-        // A future building: ultra-low slab at its real footprint, blank facade.
-        if (iFloorsAttr) {
-          iFloorsAttr.setX(slot, 0);
-          dirtyFloors.add(iFloorsAttr);
-        }
-        _m.makeScale(b.w, futureHeight, b.d);
-        _m.setPosition(b.x, futureHeight / 2, b.y);
-      } else {
-        // Absent → fully zero-scaled, not a flat (w, 0, d) quad that would still
-        // write depth and outline as a cutout on the road.
-        _m.makeScale(0, 0, 0);
-      }
-      mesh.setMatrixAt(slot, _m);
-      dirtyMeshes.add(mesh);
-
-      // iKind render mode, rewritten every frame so a state change resets it:
-      // Ruin/Future for scrub states, else Empty for a file with no content at
-      // this position, else Data for a present binary, else Normal.
-      const iKindAttr = mesh.geometry.getAttribute('iKind') as THREE.BufferAttribute | undefined;
-      if (iKindAttr) {
-        let kind: number = BuildingKind.Normal;
-        if (ruin) kind = BuildingKind.Ruin;
-        else if (future) kind = BuildingKind.Future;
-        else if (isEmptyFile(emptyFile)) kind = BuildingKind.Empty;
-        else if (isDataBuilding(b.file)) kind = BuildingKind.Data;
-        iKindAttr.setX(slot, kind);
-        dirtyKinds.add(iKindAttr);
-      }
-
-      const iFade = mesh.geometry.getAttribute('iFade') as THREE.BufferAttribute | undefined;
-      if (iFade) {
-        // Present → neighborhood-tiered body(.x)/silhouette(.y)/outline(.z), owning
-        // all three so a hover cascade actually shows. Non-present → its faint op
-        // with no silhouette/outline, so a leftover Live-mode overlay can't linger.
-        if (present) iFade.setXYZ(slot, bodyOp, silhouette, tierOutlineOp);
-        else iFade.setXYZ(slot, op, 0, 0);
-        dirtyFades.add(iFade);
-      }
-
-      // Weather: color / lit-windows / grime-age from the file's DATES at this
-      // scrub position (not a commit-index proxy), normalized against the
-      // present-file ranges — the exact formulas the live view bakes, so HEAD
-      // matches. Absent buildings are already scaled/faded to 0, so skip them.
-      if (present) {
-        // recency = modified-date t (0=oldest, 1=newest) → getBuildingColor's curve.
-        const modMs = modifiedMsAt(b, pt, finalIdx, pos);
-        const recency = modSpread > 0 ? Math.max(0, Math.min(1, (modMs - minMod) / modSpread)) : 1;
-        _color.set(
-          getBuildingColorForRecency(
-            b.file as unknown as Parameters<typeof getBuildingColorForRecency>[0],
-            recency
-          )
-        );
-        mesh.setColorAt(slot, _color);
-        dirtyColors.add(mesh);
-
-        // getModifiedAge polarity: 0=most recent, 1=longest-untouched.
-        const iModifiedAgeAttr = mesh.geometry.getAttribute('iModifiedAge') as
-          | THREE.BufferAttribute
-          | undefined;
-        if (iModifiedAgeAttr) {
-          iModifiedAgeAttr.setX(slot, 1 - recency);
-          dirtyModifiedAges.add(iModifiedAgeAttr);
-        }
-
-        // createdAge (hoisted above) drives grime/weathering: 0=newest, 1=oldest.
-        const iIconUVAttr = mesh.geometry.getAttribute('iIconUV') as
-          | THREE.BufferAttribute
-          | undefined;
-        if (iIconUVAttr) {
-          iIconUVAttr.setW(slot, createdAge);
-          dirtyIconUVs.add(iIconUVAttr);
-        }
-      } else if (ruin) {
-        // A ghost ruin keeps a muted memory of its file's hue, pulled toward gray.
-        _color
-          .set(
-            getBuildingColorForRecency(
-              b.file as unknown as Parameters<typeof getBuildingColorForRecency>[0],
-              RUIN_BASE_RECENCY
-            )
-          )
-          .lerp(_RUIN_GRAY, ruinGrayMix);
-        mesh.setColorAt(slot, _color);
-        dirtyColors.add(mesh);
-      } else if (future) {
-        // A future slab keeps its file's own hue, pulled toward the future color.
-        _color
-          .set(
-            getBuildingColorForRecency(
-              b.file as unknown as Parameters<typeof getBuildingColorForRecency>[0],
-              FUTURE_BASE_RECENCY
-            )
-          )
-          .lerp(_futureColor, futureTint);
-        mesh.setColorAt(slot, _color);
-        dirtyColors.add(mesh);
-      }
-    }
-
-    for (const mesh of dirtyMeshes) mesh.instanceMatrix.needsUpdate = true;
-    for (const iFade of dirtyFades) iFade.needsUpdate = true;
-    for (const mesh of dirtyColors) {
+  function flushSinks(s: ScrubSinks): void {
+    for (const mesh of s.meshes) mesh.instanceMatrix.needsUpdate = true;
+    for (const iFade of s.fades) iFade.needsUpdate = true;
+    for (const mesh of s.colors) {
       if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
     }
-    for (const attr of dirtyFloors) attr.needsUpdate = true;
-    for (const attr of dirtyModifiedAges) attr.needsUpdate = true;
-    for (const attr of dirtyIconUVs) attr.needsUpdate = true;
-    for (const attr of dirtyKinds) attr.needsUpdate = true;
-    // ?? 0 (not null): a panel the scrub never drives must HIDE, not linger at
-    // its shown default — mirrors the footprint default-hidden fix. (Live-mode
-    // buildingFader still uses null = "leave untouched".)
-    deps.getFacadePanels()?.applyBuildingFades((p) => opByPath.get(p) ?? 0);
+    for (const attr of s.floors) attr.needsUpdate = true;
+    for (const attr of s.modifiedAges) attr.needsUpdate = true;
+    for (const attr of s.iconUVs) attr.needsUpdate = true;
+    for (const attr of s.kinds) attr.needsUpdate = true;
+  }
+
+  /** Height + matrix for one building, by scrub state. Writes iFloors too,
+   *  since a ruin and a future slab both blank their window rows. */
+  function writeBuildingShape(
+    b: Building,
+    slot: number,
+    iFloorsAttr: THREE.BufferAttribute | undefined,
+    present: boolean,
+    ruin: boolean,
+    future: boolean,
+    scrubFile: FileNode,
+    createdAge: number,
+    f: ScrubFrame,
+    s: ScrubSinks
+  ): void {
+    if (present) {
+      // Gate height on presence (intervals), not line count: media/empty files are present with 0 lines.
+      // Height uses lineStats (this commit's range); width stays layout-baked (b.w), so dims.w is unused.
+      const dims = getBuildingDimensions(scrubFile, f.lineStats, deps.heightCtx.byteStats);
+      if (iFloorsAttr) {
+        iFloorsAttr.setX(slot, dims.floors);
+        s.floors.add(iFloorsAttr);
+      }
+      // Bake the age-lean shear into the matrix so the picker + outline follow it.
+      const { tiltX, tiltZ } = getBuildingTiltAtAge(b.file.path, createdAge);
+      _pos.set(b.x, dims.h / 2, b.y);
+      _scale.set(b.w, dims.h, b.d);
+      composeShearMatrix(_pos, _scale, tiltX, tiltZ, _m);
+    } else if (ruin) {
+      // A deleted building: uniform low stub, blank facade (0 window rows) — reads as rubble.
+      if (iFloorsAttr) {
+        iFloorsAttr.setX(slot, 0);
+        s.floors.add(iFloorsAttr);
+      }
+      _m.makeScale(b.w, f.ruinHeight, b.d);
+      _m.setPosition(b.x, f.ruinHeight / 2, b.y);
+    } else if (future) {
+      // A future building: ultra-low slab at its real footprint, blank facade.
+      if (iFloorsAttr) {
+        iFloorsAttr.setX(slot, 0);
+        s.floors.add(iFloorsAttr);
+      }
+      _m.makeScale(b.w, f.futureHeight, b.d);
+      _m.setPosition(b.x, f.futureHeight / 2, b.y);
+    } else {
+      // Absent → fully zero-scaled, not a flat (w, 0, d) quad that would still
+      // write depth and outline as a cutout on the road.
+      _m.makeScale(0, 0, 0);
+    }
+  }
+
+  /** Color / lit-windows / grime-age from the file's DATES at this scrub
+   *  position (not a commit-index proxy), normalized against the present-file
+   *  ranges — the exact formulas the live view bakes, so HEAD matches. Absent
+   *  buildings are already scaled/faded to 0, so they are skipped. */
+  function writeBuildingWeathering(
+    b: Building,
+    pt: PathTimeline,
+    mesh: THREE.InstancedMesh,
+    slot: number,
+    finalIdx: number,
+    present: boolean,
+    ruin: boolean,
+    future: boolean,
+    createdAge: number,
+    f: ScrubFrame,
+    s: ScrubSinks
+  ): void {
+    if (present) {
+      // recency = modified-date t (0=oldest, 1=newest) → getBuildingColor's curve.
+      const modMs = modifiedMsAt(b, pt, finalIdx, f.pos);
+      const recency =
+        f.modSpread > 0 ? Math.max(0, Math.min(1, (modMs - f.minMod) / f.modSpread)) : 1;
+      _color.set(
+        getBuildingColorForRecency(
+          b.file as unknown as Parameters<typeof getBuildingColorForRecency>[0],
+          recency
+        )
+      );
+      mesh.setColorAt(slot, _color);
+      s.colors.add(mesh);
+
+      // getModifiedAge polarity: 0=most recent, 1=longest-untouched.
+      const iModifiedAgeAttr = mesh.geometry.getAttribute('iModifiedAge') as
+        | THREE.BufferAttribute
+        | undefined;
+      if (iModifiedAgeAttr) {
+        iModifiedAgeAttr.setX(slot, 1 - recency);
+        s.modifiedAges.add(iModifiedAgeAttr);
+      }
+
+      // createdAge drives grime/weathering: 0=newest, 1=oldest.
+      const iIconUVAttr = mesh.geometry.getAttribute('iIconUV') as
+        | THREE.BufferAttribute
+        | undefined;
+      if (iIconUVAttr) {
+        iIconUVAttr.setW(slot, createdAge);
+        s.iconUVs.add(iIconUVAttr);
+      }
+    } else if (ruin) {
+      // A ghost ruin keeps a muted memory of its file's hue, pulled toward gray.
+      _color
+        .set(
+          getBuildingColorForRecency(
+            b.file as unknown as Parameters<typeof getBuildingColorForRecency>[0],
+            RUIN_BASE_RECENCY
+          )
+        )
+        .lerp(_RUIN_GRAY, f.ruinGrayMix);
+      mesh.setColorAt(slot, _color);
+      s.colors.add(mesh);
+    } else if (future) {
+      // A future slab keeps its file's own hue, pulled toward the future color.
+      _color
+        .set(
+          getBuildingColorForRecency(
+            b.file as unknown as Parameters<typeof getBuildingColorForRecency>[0],
+            FUTURE_BASE_RECENCY
+          )
+        )
+        .lerp(_futureColor, f.futureTint);
+      mesh.setColorAt(slot, _color);
+      s.colors.add(mesh);
+    }
+  }
+
+  // Reused scratch: this resolves once per building per frame, so returning a
+  // fresh object would allocate tens of thousands of times a frame.
+  const _scrubState = { present: false, ruin: false, future: false, op: 0 };
+
+  function resolveScrubState(
+    pt: PathTimeline,
+    createdIdx: number,
+    f: ScrubFrame
+  ): typeof _scrubState {
+    const state = ruinStateAt(pt, f.pos);
+    const present = state === 'present';
+    const ruin = state === 'ruin' && f.ruinsOn;
+    // Future: not yet created at this scrub position (genesis is ahead). Shown
+    // as an ultra-low tinted slab at its eventual footprint — a marker of where
+    // it WILL land, rendered via the building mesh (not the footprint plots).
+    const future = !present && !ruin && f.futureOn && createdIdx > f.pos;
+    _scrubState.present = present;
+    _scrubState.ruin = ruin;
+    _scrubState.future = future;
+    // present → fully present; ruin → faint stub; future → faint slab;
+    // before-genesis (out of range) or ruins-off deletion → gone.
+    _scrubState.op = present
+      ? presenceAt(pt, f.pos, 0)
+      : ruin
+        ? f.ruinBuildingOpacity
+        : future
+          ? f.futureBuildingOpacity
+          : 0;
+    return _scrubState;
+  }
+
+  /** iKind render mode, recomputed every frame so a state change resets it:
+   *  Ruin/Future for scrub states, else Empty for a file with no content at this
+   *  position, else Data for a binary, else Normal. */
+  function resolveBuildingKind(
+    file: FileNode,
+    emptyFile: FileNode,
+    ruin: boolean,
+    future: boolean
+  ): number {
+    if (ruin) return BuildingKind.Ruin;
+    if (future) return BuildingKind.Future;
+    if (isEmptyFile(emptyFile)) return BuildingKind.Empty;
+    if (isDataBuilding(file)) return BuildingKind.Data;
+    return BuildingKind.Normal;
+  }
+
+  function applyBuildingAtScrub(
+    entry: (typeof entries)[number],
+    f: ScrubFrame,
+    s: ScrubSinks
+  ): void {
+    const { b, pt, streets, createdIdx, finalIdx } = entry;
+    const pos = f.pos;
+    const { present, ruin, future, op } = resolveScrubState(pt, createdIdx, f);
+
+    // Neighborhood fade cascade for PRESENT buildings: dim / silhouette /
+    // outline this building by its dir-tree distance from the hover/selection
+    // target, exactly as Live's fader does (op is 1 for a present file, so
+    // op * tier.bodyOpacity reproduces the Live absolute). Non-present states
+    // (ruin/future/absent) keep their own faint opacity, no cascade.
+    let bodyOp = op;
+    let silhouette = 0;
+    let tierOutlineOp = 0;
+    if (present) {
+      const tier = tierFor(b.file, f.bldgTargetFile, f.dirTarget, f.hoverFile, f.fadeCfg);
+      bodyOp = tier.detail === FadeDetail.Hidden ? 0 : op * tier.bodyOpacity;
+      silhouette = tier.detail === FadeDetail.Silhouette ? 1 : 0;
+      tierOutlineOp = tier.outlineEnabled ? tier.outlineOpacity : 0;
+    }
+
+    // Driven for EVERY union building (even one with no detail mesh on a large
+    // repo), else the footprint/street strand at their defaults. A street's
+    // future state isn't tracked per-building: any non-present, non-ruin street
+    // is a future road (see applyStreetsAtScrub), so the whole road network shows.
+    for (const street of streets) {
+      if (present) {
+        s.maxPresentOp.set(street, Math.max(s.maxPresentOp.get(street) ?? 0, op));
+        s.presentStreets.add(street);
+      } else if (ruin) {
+        s.ruinStreets.add(street);
+      }
+    }
+    // opByPath feeds ONLY the facade panels — gate on presence so a ruin/absent/
+    // future building shows no media image, just its stub or slab. Uses the
+    // neighborhood-dimmed bodyOp so a media panel fades with its building body.
+    s.opByPath.set(b.file.path, present ? bodyOp : 0);
+    // Footprint plot: present + ruin only. A future building IS the slab, so it
+    // gets no plot (keeps future independent of the footprint controls).
+    deps.footprints.setBuildingFootprintOpacity(b.file.path, future ? 0 : op, ruin);
+
+    const resolved = deps.getMeshForBuilding(b);
+    if (!resolved) return;
+    const { mesh, slot } = resolved;
+
+    // createdAge (0=newest, 1=oldest) is scrub-relative here — needed for both
+    // the lean shear and the window/grime weathering (iIconUV.w).
+    const createdMs = createdMsFor(b, createdIdx);
+    const createdAge =
+      present && f.createdSpread > 0
+        ? 1 - Math.max(0, Math.min(1, (createdMs - f.minCreated) / f.createdSpread))
+        : 0;
+
+    const iFloorsAttr = mesh.geometry.getAttribute('iFloors') as THREE.BufferAttribute | undefined;
+    // Height tweens, so it takes the interpolated count. The union node's
+    // `size` is a max-over-history footprint, so only the replay can say what
+    // this file measured HERE.
+    const scrubFile = present ? { ...b.file, lines: linesAt(pt, pos) } : b.file;
+    // Emptiness is a fact about the blob in effect, not a point on a curve:
+    // between a 0-line commit and a later big one, a lerp reads non-empty.
+    const emptyFile = present ? { ...b.file, lines: entryAt(pt, pos)?.lines ?? 0 } : b.file;
+
+    writeBuildingShape(b, slot, iFloorsAttr, present, ruin, future, scrubFile, createdAge, f, s);
+    mesh.setMatrixAt(slot, _m);
+    s.meshes.add(mesh);
+
+    const iKindAttr = mesh.geometry.getAttribute('iKind') as THREE.BufferAttribute | undefined;
+    if (iKindAttr) {
+      iKindAttr.setX(slot, resolveBuildingKind(b.file, emptyFile, ruin, future));
+      s.kinds.add(iKindAttr);
+    }
+
+    const iFade = mesh.geometry.getAttribute('iFade') as THREE.BufferAttribute | undefined;
+    if (iFade) {
+      // Present → neighborhood-tiered body(.x)/silhouette(.y)/outline(.z), owning
+      // all three so a hover cascade actually shows. Non-present → its faint op
+      // with no silhouette/outline, so a leftover Live-mode overlay can't linger.
+      if (present) iFade.setXYZ(slot, bodyOp, silhouette, tierOutlineOp);
+      else iFade.setXYZ(slot, op, 0, 0);
+      s.fades.add(iFade);
+    }
+
+    writeBuildingWeathering(b, pt, mesh, slot, finalIdx, present, ruin, future, createdAge, f, s);
+  }
+
+  function applyStreetsAtScrub(f: ScrubFrame, s: ScrubSinks): void {
     // Every street gets written each frame (defaulting to 0) so an orphaned street can't stick at a stale opacity.
     // ROOT is forced to 1: the repo root directory always exists, even when scrubbed back to an empty tree.
     for (const street of allStreets) {
-      const hasPresent = presentStreets.has(street);
+      const hasPresent = s.presentStreets.has(street);
       // Present descendants fade the road with the buildings; else a deleted-folder
       // road is a ruin, and any remaining non-root road is future (a folder not yet
       // created at this scrub position). Ruin + future roads render fully opaque,
       // set apart by their color, not by fading. Present wins over ruin over future.
-      const streetRuin = ruinsOn && !street.isRoot && !hasPresent && ruinStreets.has(street);
-      const streetFuture = futureOn && !street.isRoot && !hasPresent && !streetRuin;
+      const streetRuin = f.ruinsOn && !street.isRoot && !hasPresent && s.ruinStreets.has(street);
+      const streetFuture = f.futureOn && !street.isRoot && !hasPresent && !streetRuin;
       const op = street.isRoot
         ? 1
         : hasPresent
-          ? (maxPresentOp.get(street) ?? 0)
+          ? (s.maxPresentOp.get(street) ?? 0)
           : streetRuin || streetFuture
             ? 1
             : 0;
@@ -457,6 +564,27 @@ export function createScrubController(deps: ScrubControllerDeps) {
         else if (streetFuture) FUTURE_STREET_DIRS.add(street.dir.path);
       }
     }
+  }
+
+  function update(): void {
+    const pos = SCRUB_POS.peek();
+    deps.trees.setScrubCommit(Math.floor(pos));
+    deps.fireflies.setScrubCommit(Math.floor(pos));
+
+    RUINED_STREET_DIRS.clear();
+    FUTURE_STREET_DIRS.clear();
+
+    const frame = readScrubFrame(pos);
+    const sinks = createSinks();
+
+    for (const entry of entries) applyBuildingAtScrub(entry, frame, sinks);
+
+    flushSinks(sinks);
+    // ?? 0 (not null): a panel the scrub never drives must HIDE, not linger at
+    // its shown default — mirrors the footprint default-hidden fix. (Live-mode
+    // buildingFader still uses null = "leave untouched".)
+    deps.getFacadePanels()?.applyBuildingFades((p) => sinks.opByPath.get(p) ?? 0);
+    applyStreetsAtScrub(frame, sinks);
   }
 
   function dispose(): void {
