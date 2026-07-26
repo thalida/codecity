@@ -43,13 +43,16 @@ export function setManifest(m: ManifestValue): void {
  *                decoration pass (trees, etc.) is still in flight.
  */
 export enum RebuildStatus {
+  /** Nothing has been built yet. Distinct from Idle so "a build finished" is
+   *  answerable: consumers that wait for Idle used to pass at boot. */
+  Pending = 'pending',
   Idle = 'idle',
   Rebuilding = 'rebuilding',
   Decorating = 'decorating',
   Error = 'error',
 }
 
-export const REBUILD_STATUS = signal<RebuildStatus>(RebuildStatus.Idle);
+export const REBUILD_STATUS = signal<RebuildStatus>(RebuildStatus.Pending);
 
 /** Error message from the most recent failed rebuild; null when idle/success. */
 export const LAST_REBUILD_ERROR = signal<string | null>(null);

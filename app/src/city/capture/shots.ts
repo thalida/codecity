@@ -187,9 +187,6 @@ export const SHOTS: Record<string, ShotPose> = {
     const a = h.rig.captureAnchors();
     const target = a.gem ?? a.center;
     if (!target) return false;
-    // Streets land before buildings, and until they do the bbox is just the root
-    // street. Posing then locks the whole orbit onto an empty close-up.
-    if (a.tallestHeight <= 0) return false;
     const anchor = target.clone();
     const elevation = o.elev ?? 30;
     const distance = o.dist ?? a.cityRadius * 0.95;
