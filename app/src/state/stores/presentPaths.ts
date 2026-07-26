@@ -6,9 +6,8 @@ import { TIMELINE_MODE, TIMELINE_BUNDLE, SCRUB_COMMIT, SETTLED_COMMIT } from './
 import {
   buildPathTimelines,
   ruinStateAt,
-  linesAt,
-  bytesAt,
   blobShaAt,
+  entryAt,
   statsAtDeletion,
 } from '@/city/timeline/replay';
 import type { PathTimeline } from '@/city/timeline/replay';
@@ -65,11 +64,9 @@ export function scrubbedStatsFor(path: string): ScrubbedFileStats | null {
   const pos = SETTLED_COMMIT.value;
   const gone = statsAtDeletion(pt, pos);
   if (gone) return { lines: gone.lines, bytes: gone.bytes, atDeletion: true };
-  return {
-    lines: Math.round(linesAt(pt, pos)),
-    bytes: Math.round(bytesAt(pt, pos)),
-    atDeletion: false,
-  };
+  const entry = entryAt(pt, pos);
+  if (!entry) return null;
+  return { lines: entry.lines, bytes: entry.bytes, atDeletion: false };
 }
 
 /** Blob sha for a path at the scrub position; null in Live or when absent. */

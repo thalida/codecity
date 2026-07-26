@@ -75,32 +75,40 @@ test('empty outside Timeline mode', () => {
   expect(PRESENT_PATHS.value.size).toBe(0);
 });
 
-// A file that grows across commits, so an interpolated read differs visibly
-// from the discrete one.
+// f.txt is written at commit 0 and rewritten at commit 3, so commits 1 and 2
+// are UNCHANGED for it. That gap is the case that broke: an interpolating read
+// drifts toward the later edit across those commits even though the file's
+// bytes are still the commit-0 blob.
 const growing = {
-  commits: [{ sha: 'a' }, { sha: 'b' }],
+  commits: [{ sha: 'a' }, { sha: 'b' }, { sha: 'c' }, { sha: 'd' }],
   unionManifest: { tree: { name: '', path: '', type: NodeKind.Directory, children: [] } },
   deltas: [
     { sha: 'a', changes: [{ path: 'f.txt', sha: 'small' }] },
-    { sha: 'b', changes: [{ path: 'f.txt', sha: 'big' }] },
+    { sha: 'b', changes: [] },
+    { sha: 'c', changes: [] },
+    { sha: 'd', changes: [{ path: 'f.txt', sha: 'big' }] },
   ],
   blobLines: { small: 36, big: 46 },
   blobSizes: { small: 100, big: 200 },
   note: null,
 } as unknown as TimelineBundle;
 
-test('displayed stats resolve at the same commit the content does, never between', () => {
+test('displayed stats describe the blob being served, across unchanged commits', () => {
   TIMELINE_BUNDLE.value = growing;
   TIMELINE_MODE.value = true;
-  // Mid-commit: the height curve interpolates here, but the pane shows bytes
-  // from one specific blob, so its numbers have to name that same commit.
-  SCRUB_POS.value = 0.7;
 
-  expect(scrubbedBlobShaFor('f.txt')).toBe('small');
-  expect(scrubbedStatsFor('f.txt')?.lines).toBe(36); // NOT the ~43 a lerp gives
-  expect(scrubbedStatsFor('f.txt')?.bytes).toBe(100);
+  // Every commit before the rewrite still serves the commit-0 blob, so every
+  // one of them must report that blob's numbers — no drift toward the later
+  // edit, which is what put "42 lines" over a 36-line body.
+  for (const pos of [0, 0.7, 1, 2, 2.9]) {
+    SCRUB_POS.value = pos;
+    expect(scrubbedBlobShaFor('f.txt')).toBe('small');
+    expect(scrubbedStatsFor('f.txt')?.lines).toBe(36);
+    expect(scrubbedStatsFor('f.txt')?.bytes).toBe(100);
+  }
 
-  SCRUB_POS.value = 1;
+  SCRUB_POS.value = 3;
   expect(scrubbedBlobShaFor('f.txt')).toBe('big');
   expect(scrubbedStatsFor('f.txt')?.lines).toBe(46);
+  expect(scrubbedStatsFor('f.txt')?.bytes).toBe(200);
 });

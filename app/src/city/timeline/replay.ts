@@ -135,15 +135,23 @@ export function presenceAt(pt: PathTimeline, pos: number, ruinFloor: number): nu
   return ruinFloor;
 }
 
+/**
+ * The change entry actually in effect at `pos` — a STEP lookup, unlike linesAt,
+ * which lerps between entries so heights can tween. Anything a user reads must
+ * come from here, so the number and the bytes describe the same blob.
+ */
+export function entryAt(pt: PathTimeline, pos: number): PathTimeline['changes'][number] | null {
+  if (!isPresent(pt, pos)) return null;
+  let found: PathTimeline['changes'][number] | null = null;
+  for (const c of pt.changes) {
+    if (c.i > pos) break;
+    found = c;
+  }
+  return found;
+}
+
 /** Blob sha in effect at `pos`, or null when the path is absent there. Lets a
  *  scrubbed view fetch the file as it stood, rather than HEAD's bytes. */
 export function blobShaAt(pt: PathTimeline, pos: number): string | null {
-  if (!isPresent(pt, pos)) return null;
-  const { changes } = pt;
-  let sha: string | null = null;
-  for (const c of changes) {
-    if (c.i > pos) break;
-    sha = c.sha;
-  }
-  return sha;
+  return entryAt(pt, pos)?.sha ?? null;
 }
