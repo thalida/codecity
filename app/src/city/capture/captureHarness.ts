@@ -54,6 +54,11 @@ export function initCaptureHarness(): void {
       REBUILD_STATUS.value !== RebuildStatus.Idle
     )
       return;
+    // A skeleton apply also reaches Idle, and its city is streets without
+    // buildings — the bbox is the root street, so any shot framing on it locks
+    // onto a close-up. Reading anchors here subscribes to bbox, so this re-fires
+    // once the buildings land.
+    if (handle.rig.captureAnchors().tallestHeight <= 0) return;
     posed = true;
     const h = handle; // non-null past the guard
 

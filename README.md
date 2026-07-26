@@ -104,6 +104,7 @@ Just about every aspect of the rendering is tunable in the Settings pane, opened
 - **Hue**: file extension
 - **Saturation**: last-modified (recent → vivid)
 - **Lightness**: last-modified (recent → bright)
+- **Roof border**: the color the file would have if you touched it today, so the gap between the border and the faded walls is how far it has aged
 - **Windows**: lit-pane density, plus a glow that tracks how recently the file was created (newer files glow brighter)
 - **Aging**: older files get grime streaks and a slight lean
 - **Media files** (images, video) render an ad-panel face on the front above the door
@@ -143,13 +144,13 @@ Just about every aspect of the rendering is tunable in the Settings pane, opened
 
 ## Timeline
 
-<img src=".github/readme/timeline.png" alt="An older commit rebuilt: a part-built city with deleted files left as gray stubs and future files marked by low tinted slabs" width="800" />
+<img src=".github/readme/timeline.png" alt="An older commit rebuilt: a part-built city with deleted files crossed out where they stood and future files marked by low tinted slabs" width="800" />
 
 **Scrub the whole history and watch the city grow.** The scene toggle flips from Live to Timeline, and a dated slider spans the repo, a tick per commit. Drag it and the city rebuilds at that commit.
 
 Files that don't exist at that commit still get a place, set in the World tab under Timeline:
 
-- **Deleted files** leave a faint gray stub where the building stood, so a folder that's been cleared out reads as a block instead of a hole.
+- **Deleted files** keep their plot and get crossed out, so a folder that's since been emptied still shows what it used to hold.
 - **Future files** mark where a not-yet-created file will land with an ultra-low slab, tinted toward its own color. Off by default; turn it on to see the shape the city is growing toward.
 
 ## How it works
@@ -205,7 +206,6 @@ The pre-push hook runs the full lint + tests before pushing; bypass with `git pu
 - [FastAPI](https://fastapi.tiangolo.com/) on uvicorn, single process by design (the in-memory scan-root trust set in `api/security.py` can't be split across workers)
 - scan progress streams over Server-Sent Events (`GET /api/manifest`)
 - API docs at `/api/docs` ([Scalar](https://github.com/scalar/scalar)); raw schema at `/api/openapi.json`
-- that schema is the source of truth for the generated frontend wire types (`just gen-types`, drift-guarded by `app/src/types/manifest.contract.ts`)
 
 ## Release
 
