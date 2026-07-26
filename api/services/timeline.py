@@ -300,8 +300,8 @@ def compute_commit_line_ranges(
 
 
 def _iso_ms(value: str | None) -> int | None:
-    """Epoch ms for a Z-suffixed UTC stamp, or None. Matches JS Date.parse,
-    which the client used before this moved server-side."""
+    """Epoch ms for a Z-suffixed UTC stamp, or None. Semantics match JS
+    Date.parse, since these values are compared against client-side dates."""
     if not value:
         return None
     try:
@@ -321,10 +321,13 @@ def compute_commit_date_ranges(
     commit — what the weathering (color, lit windows, grime) normalizes against,
     so range[HEAD] equals the live manifest's dateRanges.
 
-    Mirrors the client replay it replaces: a file uses its own full-precision
-    date once it has reached its final change, and the date of its latest change
-    commit before that; creation is fixed at its own date, falling back to its
-    genesis commit."""
+    A file uses its own full-precision date once it has reached its final
+    change, and the date of its latest change commit before that; creation is
+    fixed at its own date, falling back to its genesis commit.
+
+    The client walks these same deltas in city/timeline/replay.ts, but to build
+    a per-path index for per-frame scrub queries. Different output, different
+    consumer — neither is a copy of the other."""
     commit_ms = [_iso_ms(c["date"]) or 0 for c in commits]
 
     final_idx: dict[str, int] = {}

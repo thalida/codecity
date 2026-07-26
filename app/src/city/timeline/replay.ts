@@ -5,8 +5,13 @@ export interface PathTimeline {
   intervals: { start: number; end: number | null }[];
 }
 
-// Mirrors the backend replay: walking deltas[0..i] reproduces the file set + lines at commit i.
+// Walking deltas[0..i] reproduces the file set + lines at commit i.
 // Intervals (not a single created/deleted pair) let a resurrected path have a dead gap in between.
+//
+// The server walks the same deltas, but for a different output: per-commit
+// aggregate ranges, shipped in the bundle. This builds a per-path index the
+// scrub queries below read at any fractional position, several times per frame
+// per building, so it has to be local — it is not a copy of the server's pass.
 export function buildPathTimelines(bundle: TimelineBundle): Map<string, PathTimeline> {
   const timelines = new Map<string, PathTimeline>();
 
