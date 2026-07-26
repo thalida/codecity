@@ -42,7 +42,7 @@ describe('loadManifestAt', () => {
   it('a failed scan leaves the last good manifest rather than blanking the pane', async () => {
     streamManifest.mockImplementation(completes({ root: '/good' }));
     await loadManifestAt('/r', 'main', 'c'.repeat(40));
-    streamManifest.mockImplementation(async function* () {
+    streamManifest.mockImplementation(() => {
       throw new Error('network');
     });
     await loadManifestAt('/r', 'main', 'd'.repeat(40));
