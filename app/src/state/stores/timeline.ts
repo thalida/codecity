@@ -42,6 +42,15 @@ effect(() => {
   if (!SCRUB_DRAGGING.value) SETTLED_COMMIT.value = commit;
 });
 
+// Every entry path, called only once the union city is packed: flipping the mode
+// before that leaves Timeline pointed at live geometry. `pos` defaults to the present.
+export function enterTimelineMode(pos?: number): void {
+  batch(() => {
+    TIMELINE_MODE.value = true;
+    setScrubPos(pos ?? SCRUB_MAX.peek());
+  });
+}
+
 // Shared by every exit path (toggle-off, source switch); scene-free, the scene layer reacts to TIMELINE_MODE.
 export function resetTimelineMode(): void {
   batch(() => {

@@ -6,7 +6,7 @@ import { createScrubController, FUTURE_SLAB_FLOORS } from '@/city/timeline/scrub
 import { getBuildingDimensions } from '@/city/layout/dimensions';
 import type { HeightContext } from '@/city/layout/dimensions';
 import { BuildingKind } from '@/city/components/buildings/buildingKind';
-import { SCRUB_POS, TIMELINE_BUNDLE, setScrubPos } from '@/state/stores/timeline';
+import { TIMELINE_BUNDLE, setScrubPos } from '@/state/stores/timeline';
 import { RUINS } from '@/state/stores/settings/ruins';
 import { BLUEPRINTS } from '@/state/stores/settings/blueprints';
 import { BuildingIndex } from '@/city/components/buildings/buildingIndex';

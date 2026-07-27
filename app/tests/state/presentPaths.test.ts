@@ -1,7 +1,7 @@
 import { afterEach, expect, test } from 'vitest';
 import { NodeKind } from '@/types';
 import type { TimelineBundle } from '@/types';
-import { TIMELINE_MODE, TIMELINE_BUNDLE, SCRUB_POS, setScrubPos } from '@/state/stores/timeline';
+import { TIMELINE_MODE, TIMELINE_BUNDLE, setScrubPos } from '@/state/stores/timeline';
 import { PRESENT_PATHS, scrubbedBlobShaFor, scrubbedStatsFor } from '@/state/stores/presentPaths';
 
 // At commit 2: src/present.txt is live; src/gone.txt was deleted at commit 2;

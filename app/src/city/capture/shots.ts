@@ -12,13 +12,7 @@
 import type { SceneHandle } from '@/state/stores/scene';
 import { NodeKind, type Manifest, type DirNode } from '@/types';
 import { CAMERA } from '@/state/stores/settings/camera';
-import {
-  TIMELINE_MODE,
-  SCRUB_POS,
-  SCRUB_MAX,
-  TIMELINE_BUNDLE,
-  setScrubPos,
-} from '@/state/stores/timeline';
+import { TIMELINE_MODE, SCRUB_MAX, TIMELINE_BUNDLE, setScrubPos } from '@/state/stores/timeline';
 import { loadTimelineScene } from '@/hooks/useTimelineMode';
 
 /** Set the default-view angle (degrees); the rig re-frames the whole city to

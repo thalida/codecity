@@ -14,7 +14,7 @@ import {
   TIMELINE_MODE,
   TIMELINE_BUNDLE,
   SCRUB_POS,
-  setScrubPos,
+  enterTimelineMode,
   resetTimelineMode,
 } from '@/state/stores/timeline';
 import { reapplyTimelineScene } from '@/hooks/useTimelineMode';
@@ -81,12 +81,12 @@ export function useSwitcherShowcase(): void {
             if (savedPose) handle.rig.applyPose(savedPose);
             restoreSelection(handle, savedSelKey);
             if (savedTimeline) {
-              // Re-pack from the saved bundle rather than refetching it.
+              // Re-pack from the saved bundle rather than refetching it, and only
+              // enter once it is packed. A switcher reopened meanwhile owns the mode.
               const { bundle, scrubPos } = savedTimeline;
               TIMELINE_BUNDLE.value = bundle;
-              TIMELINE_MODE.value = true;
               void reapplyTimelineScene().then(() => {
-                if (TIMELINE_MODE.peek()) setScrubPos(scrubPos);
+                if (!active) enterTimelineMode(scrubPos);
               });
             }
           }

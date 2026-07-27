@@ -6,8 +6,6 @@
 // tear the controller down and reload live HEAD. Called by the header toggle.
 // teardownTimelineMode only flips TIMELINE_MODE; the city-layer effect (city/index.ts) does the actual scene teardown for every exit path.
 
-import { batch } from '@preact/signals';
-
 import { fetchTimelineBundle } from '@/api/timeline';
 import { buildPathTimelines } from '@/city/timeline/replay';
 import { CURRENT_SOURCE, SOURCE_INFO } from '@/state/stores/source';
@@ -25,10 +23,10 @@ import { LoadingStep, TIMELINE_LOADING_STEPS } from '@/constants/loadingSteps';
 import { srcKind } from '@/utils/sources';
 import {
   TIMELINE_MODE,
-  SCRUB_POS,
-  SCRUB_MAX,
   TIMELINE_BUNDLE,
+  SCRUB_POS,
   resetTimelineMode,
+  enterTimelineMode,
   setScrubPos,
 } from '@/state/stores/timeline';
 import { loadSource, cancelLoad, setTimelineRefreshHandler } from '@/hooks/useManifestSource';
@@ -111,12 +109,9 @@ export async function loadTimelineScene({ inPlace = false } = {}): Promise<void>
     handle.timeline.setStreetsTransparent(true);
     handle.timeline.setFootprintsTransparent(true);
     handle.timeline.installScrubController(timelines, bundle.commitLineRanges);
-    batch(() => {
-      TIMELINE_MODE.value = true;
-      // An in-place refetch holds position; SCRUB_POS self-clamps if the new
-      // bundle's commit list is shorter.
-      if (!inPlace) setScrubPos(SCRUB_MAX.peek()); // start at present
-    });
+    // An in-place refetch holds position (self-clamping if the bundle shrank);
+    // a fresh enter starts at the present.
+    enterTimelineMode(inPlace ? SCRUB_POS.peek() : undefined);
     if (!inPlace) {
       // Hold the overlay through the union city's first painted frame, then reveal.
       requestAnimationFrame(() => {

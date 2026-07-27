@@ -1,7 +1,7 @@
 import { afterEach, expect, test } from 'vitest';
 import { NodeKind } from '@/types';
 import type { TimelineBundle, TreeNode } from '@/types';
-import { TIMELINE_MODE, TIMELINE_BUNDLE, SCRUB_POS, setScrubPos } from '@/state/stores/timeline';
+import { TIMELINE_MODE, TIMELINE_BUNDLE, setScrubPos } from '@/state/stores/timeline';
 import { RUINS } from '@/state/stores/settings/ruins';
 import { BLUEPRINTS } from '@/state/stores/settings/blueprints';
 import { HISTORY_MANIFEST } from '@/state/stores/historyManifest';
