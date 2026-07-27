@@ -6,7 +6,14 @@
 
 import './TimeTravelBar.css';
 import { useEffect, useMemo, useRef } from 'preact/hooks';
-import { TIMELINE_MODE, SCRUB_POS, TIMELINE_BUNDLE, SCRUB_DRAGGING } from '@/state/stores/timeline';
+import {
+  TIMELINE_MODE,
+  SCRUB_POS,
+  SCRUB_MAX,
+  TIMELINE_BUNDLE,
+  SCRUB_DRAGGING,
+  setScrubPos,
+} from '@/state/stores/timeline';
 import { ACCENT_THEME } from '@/state/stores/settings/theme';
 import { SCRUBBER } from '@/state/stores/settings/scrubber';
 import { formatShortDate } from '@/utils/dates';
@@ -39,8 +46,8 @@ export function TimeTravelBar() {
   const trackRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
-  const maxIndex = Math.max(0, commits.length - 1);
-  const pos = Math.min(Math.max(SCRUB_POS.value, 0), maxIndex);
+  const maxIndex = SCRUB_MAX.value;
+  const pos = SCRUB_POS.value;
   // A single-commit repo has no history to scrub: the handle pins to the present
   // (right edge, via the scale) and the track is inert rather than grab-and-freeze.
   const inert = maxIndex === 0;
@@ -107,7 +114,7 @@ export function TimeTravelBar() {
     if (!el) return;
     const r = el.getBoundingClientRect();
     if (r.width === 0) return;
-    SCRUB_POS.value = fractionToIndex(scale, (clientX - r.left) / r.width);
+    setScrubPos(fractionToIndex(scale, (clientX - r.left) / r.width));
   };
 
   const onPointerDown = (e: PointerEvent) => {
@@ -146,7 +153,7 @@ export function TimeTravelBar() {
     else return;
     e.preventDefault();
     e.stopPropagation();
-    SCRUB_POS.value = Math.max(0, Math.min(maxIndex, next));
+    setScrubPos(next);
   };
 
   return (
@@ -156,7 +163,7 @@ export function TimeTravelBar() {
           type="button"
           class="time-travel-edge"
           title="Jump to the first commit"
-          onClick={() => (SCRUB_POS.value = 0)}
+          onClick={() => setScrubPos(0)}
         >
           {formatShortDate(commits[0].date)}
         </button>
@@ -187,7 +194,7 @@ export function TimeTravelBar() {
           type="button"
           class="time-travel-edge"
           title="Jump to the latest commit"
-          onClick={() => (SCRUB_POS.value = maxIndex)}
+          onClick={() => setScrubPos(maxIndex)}
         >
           {formatShortDate(commits[maxIndex].date)}
         </button>

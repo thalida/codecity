@@ -12,7 +12,13 @@
 import type { SceneHandle } from '@/state/stores/scene';
 import { NodeKind, type Manifest, type DirNode } from '@/types';
 import { CAMERA } from '@/state/stores/settings/camera';
-import { TIMELINE_MODE, SCRUB_POS, TIMELINE_BUNDLE } from '@/state/stores/timeline';
+import {
+  TIMELINE_MODE,
+  SCRUB_POS,
+  SCRUB_MAX,
+  TIMELINE_BUNDLE,
+  setScrubPos,
+} from '@/state/stores/timeline';
 import { loadTimelineScene } from '@/hooks/useTimelineMode';
 
 /** Set the default-view angle (degrees); the rig re-frames the whole city to
@@ -120,7 +126,7 @@ export const SHOTS: Record<string, ShotPose> = {
     }
     const bundle = TIMELINE_BUNDLE.peek();
     if (!bundle || bundle.commits.length === 0) return false;
-    SCRUB_POS.value = Math.floor((bundle.commits.length - 1) * 0.5);
+    setScrubPos(Math.floor(SCRUB_MAX.peek() * 0.5));
     angle(o.elev ?? 44, o.az ?? 32);
     handle.rig.reset();
   },

@@ -26,8 +26,10 @@ import { srcKind } from '@/utils/sources';
 import {
   TIMELINE_MODE,
   SCRUB_POS,
+  SCRUB_MAX,
   TIMELINE_BUNDLE,
   resetTimelineMode,
+  setScrubPos,
 } from '@/state/stores/timeline';
 import { loadSource, cancelLoad, setTimelineRefreshHandler } from '@/hooks/useManifestSource';
 import { activeExcludePathsFor } from '@/state/stores/excludes';
@@ -111,13 +113,9 @@ export async function loadTimelineScene({ inPlace = false } = {}): Promise<void>
     handle.timeline.installScrubController(timelines, bundle.commitLineRanges);
     batch(() => {
       TIMELINE_MODE.value = true;
-      if (inPlace) {
-        // Excludes filter files, not commits, but clamp in case the list shrank.
-        const maxPos = Math.max(0, bundle.commits.length - 1);
-        if (SCRUB_POS.peek() > maxPos) SCRUB_POS.value = maxPos;
-      } else {
-        SCRUB_POS.value = Math.max(0, bundle.commits.length - 1); // start at present
-      }
+      // An in-place refetch holds position; SCRUB_POS self-clamps if the new
+      // bundle's commit list is shorter.
+      if (!inPlace) setScrubPos(SCRUB_MAX.peek()); // start at present
     });
     if (!inPlace) {
       // Hold the overlay through the union city's first painted frame, then reveal.
@@ -164,7 +162,7 @@ export async function viewCommitInTimeline(sha: string): Promise<void> {
   const bundle = TIMELINE_BUNDLE.peek();
   if (!bundle) return;
   const idx = bundle.commits.findIndex((c) => c.sha === sha);
-  if (idx >= 0) SCRUB_POS.value = idx;
+  if (idx >= 0) setScrubPos(idx);
 }
 
 // Re-pack the union city + re-install the scrub controller from the warm bundle
@@ -198,7 +196,7 @@ export function exitTimelineMode(): void {
   setLoadingCancel(() => {
     cancelLoad();
     void loadTimelineScene().then(() => {
-      if (TIMELINE_MODE.peek()) SCRUB_POS.value = scrubPos;
+      if (TIMELINE_MODE.peek()) setScrubPos(scrubPos);
     });
   });
   void loadSource({ src: cur.src, branch: cur.branch });

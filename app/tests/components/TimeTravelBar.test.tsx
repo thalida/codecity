@@ -4,7 +4,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { render } from 'preact';
 import { TimeTravelBar } from '@/components/TimeTravelBar/TimeTravelBar';
-import { TIMELINE_MODE, SCRUB_POS, TIMELINE_BUNDLE } from '@/state/stores/timeline';
+import { TIMELINE_MODE, SCRUB_POS, TIMELINE_BUNDLE, setScrubPos } from '@/state/stores/timeline';
 import { flush } from '../_helpers/preact';
 import type { CommitEntry, TimelineBundle } from '@/types';
 
@@ -42,14 +42,14 @@ describe('TimeTravelBar', () => {
     document.body.appendChild(container);
     TIMELINE_MODE.value = true;
     TIMELINE_BUNDLE.value = BUNDLE;
-    SCRUB_POS.value = 2;
+    setScrubPos(2);
   });
 
   afterEach(() => {
     render(null, container);
     document.body.removeChild(container);
     TIMELINE_MODE.value = false;
-    SCRUB_POS.value = 0;
+    setScrubPos(0);
     TIMELINE_BUNDLE.value = null;
   });
 
@@ -81,7 +81,7 @@ describe('TimeTravelBar', () => {
   });
 
   it('jumps to the first / latest commit when an edge date is clicked', async () => {
-    SCRUB_POS.value = 1;
+    setScrubPos(1);
     render(<TimeTravelBar />, container);
     await flush();
     const edges = container.querySelectorAll<HTMLButtonElement>('button.time-travel-edge');
@@ -149,7 +149,7 @@ describe('TimeTravelBar', () => {
   });
 
   it('shows the interpolated date + "no commits" when scrubbed into a gap', async () => {
-    SCRUB_POS.value = 1.5; // halfway between the Feb 1 and Mar 1 commits (a >2-day gap)
+    setScrubPos(1.5); // halfway between the Feb 1 and Mar 1 commits (a >2-day gap)
     render(<TimeTravelBar />, container);
     await flush();
     const nocommit = container.querySelector('.time-travel-nocommit');
@@ -170,7 +170,7 @@ describe('TimeTravelBar', () => {
       blobSizes: {},
       note: null,
     } as unknown as TimelineBundle;
-    SCRUB_POS.value = 0;
+    setScrubPos(0);
     render(<TimeTravelBar />, container);
     await flush();
 
@@ -208,7 +208,7 @@ describe('TimeTravelBar', () => {
       blobSizes: {},
       note: null,
     } as unknown as TimelineBundle;
-    SCRUB_POS.value = 2;
+    setScrubPos(2);
     render(<TimeTravelBar />, container);
     await flush();
 
@@ -232,11 +232,11 @@ describe('TimeTravelBar', () => {
   });
 
   it('tracks SCRUB_POS updates from outside the component', async () => {
-    SCRUB_POS.value = 0;
+    setScrubPos(0);
     render(<TimeTravelBar />, container);
     await flush();
 
-    SCRUB_POS.value = 1;
+    setScrubPos(1);
     await flush();
 
     expect(track(container).getAttribute('aria-valuenow')).toBe('1');

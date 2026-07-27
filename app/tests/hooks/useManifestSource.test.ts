@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { loadSource, cancelLoad } from '@/hooks/useManifestSource';
 import { SOURCE_ERROR, CURRENT_SOURCE, RECENTS } from '@/state/stores/source';
 import { MANIFEST } from '@/state/stores/manifest';
-import { TIMELINE_MODE, SCRUB_POS, TIMELINE_BUNDLE } from '@/state/stores/timeline';
+import { TIMELINE_MODE, SCRUB_POS, TIMELINE_BUNDLE, setScrubPos } from '@/state/stores/timeline';
 import type { TimelineBundle } from '@/types';
 import { PENDING_SOURCE_LABEL } from '@/state/stores/ui';
 
@@ -156,13 +156,13 @@ describe('loadSource exits Timeline mode', () => {
   afterEach(() => {
     (globalThis as unknown as { EventSource: unknown }).EventSource = originalEventSource;
     TIMELINE_MODE.value = false;
-    SCRUB_POS.value = 0;
+    setScrubPos(0);
     TIMELINE_BUNDLE.value = null;
   });
 
   it('flips TIMELINE_MODE off and clears the scrub store before the fetch starts', async () => {
     TIMELINE_MODE.value = true;
-    SCRUB_POS.value = 3;
+    setScrubPos(3);
     TIMELINE_BUNDLE.value = { commits: [{ sha: 'a' }] } as unknown as TimelineBundle;
 
     const p = loadSource({ src: 'https://github.com/o/r' });

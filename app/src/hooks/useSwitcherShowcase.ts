@@ -14,6 +14,7 @@ import {
   TIMELINE_MODE,
   TIMELINE_BUNDLE,
   SCRUB_POS,
+  setScrubPos,
   resetTimelineMode,
 } from '@/state/stores/timeline';
 import { reapplyTimelineScene } from '@/hooks/useTimelineMode';
@@ -85,7 +86,7 @@ export function useSwitcherShowcase(): void {
               TIMELINE_BUNDLE.value = bundle;
               TIMELINE_MODE.value = true;
               void reapplyTimelineScene().then(() => {
-                if (TIMELINE_MODE.peek()) SCRUB_POS.value = scrubPos;
+                if (TIMELINE_MODE.peek()) setScrubPos(scrubPos);
               });
             }
           }
