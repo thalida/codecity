@@ -5,7 +5,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { render } from 'preact';
 import { TimeTravelBar } from '@/components/TimeTravelBar/TimeTravelBar';
 import { TIMELINE_MODE, SCRUB_POS, TIMELINE_BUNDLE, setScrubPos } from '@/state/stores/timeline';
-import { flush } from '../_helpers/preact';
+import { flush, drainAsync } from '../_helpers/preact';
 import type { CommitEntry, TimelineBundle } from '@/types';
 
 const commit = (sha: string, date: string, subject: string): CommitEntry => ({
@@ -241,5 +241,39 @@ describe('TimeTravelBar', () => {
 
     expect(track(container).getAttribute('aria-valuenow')).toBe('1');
     expect(container.querySelector('.time-travel-sha')!.textContent).toBe(mid.sha.slice(0, 7));
+  });
+
+  // Regression: the mode check used to sit above the hooks, so this instance kept
+  // its effect deps while rendering nothing. Re-entering on the same bundle and
+  // position left the rebuilt canvas blank until a drag changed a dep.
+  it('repaints the tick canvas after leaving and re-entering on identical deps', async () => {
+    const proto = HTMLElement.prototype;
+    const saved = {
+      w: Object.getOwnPropertyDescriptor(proto, 'clientWidth'),
+      h: Object.getOwnPropertyDescriptor(proto, 'clientHeight'),
+    };
+    // jsdom reports 0, which makes the draw bail before it paints anything.
+    Object.defineProperty(proto, 'clientWidth', { configurable: true, get: () => 200 });
+    Object.defineProperty(proto, 'clientHeight', { configurable: true, get: () => 24 });
+    const ticks = () => container.querySelector<HTMLCanvasElement>('canvas.time-travel-ticks');
+    try {
+      render(<TimeTravelBar />, container);
+      await drainAsync(3, 20); // useEffect lands on rAF, which jsdom runs at ~16ms
+      const first = ticks()!;
+      expect(first.width).toBe(200);
+
+      TIMELINE_MODE.value = false;
+      await drainAsync(3, 20); // useEffect lands on rAF, which jsdom runs at ~16ms
+      expect(ticks()).toBeNull();
+
+      TIMELINE_MODE.value = true; // same bundle, same position: no dep changes
+      await drainAsync(3, 20); // useEffect lands on rAF, which jsdom runs at ~16ms
+      const second = ticks()!;
+      expect(second, 'the canvas is rebuilt, not reused').not.toBe(first);
+      expect(second.width, 'and must be repainted').toBe(200);
+    } finally {
+      if (saved.w) Object.defineProperty(proto, 'clientWidth', saved.w);
+      if (saved.h) Object.defineProperty(proto, 'clientHeight', saved.h);
+    }
   });
 });

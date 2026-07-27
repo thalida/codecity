@@ -27,8 +27,7 @@ import {
 } from './scrubberScale';
 
 export function TimeTravelBar() {
-  if (!TIMELINE_MODE.value) return null;
-
+  const inTimeline = TIMELINE_MODE.value;
   const bundle = TIMELINE_BUNDLE.value;
   const commits = bundle?.commits ?? [];
 
@@ -52,6 +51,9 @@ export function TimeTravelBar() {
   // (right edge, via the scale) and the track is inert rather than grab-and-freeze.
   const inert = maxIndex === 0;
   const accentTheme = ACCENT_THEME.value; // repaint the canvas when the accent changes
+  // Leaving Timeline destroys the canvas and returning builds a fresh blank one,
+  // so the draw has to re-run on this even when nothing else changed.
+  const mounted = inTimeline && commits.length > 0;
 
   // Paint the track: an accent played-fill + past ticks, neutral future ticks.
   // One canvas draw for all commits, DPR-crisp, null-guards a missing 2d context.
@@ -94,9 +96,11 @@ export function TimeTravelBar() {
     const ro = new ResizeObserver(draw);
     ro.observe(track);
     return () => ro.disconnect();
-  }, [scale, pos, accentTheme]);
+  }, [scale, pos, accentTheme, mounted]);
 
-  if (commits.length === 0) return null;
+  // Bail only AFTER the hooks: returning above them froze this instance's effect
+  // deps while it rendered nothing.
+  if (!mounted) return null;
 
   const commit = commits[Math.min(Math.round(pos), maxIndex)];
   const remote = bundle?.unionManifest?.repo?.remote_url ?? null;
