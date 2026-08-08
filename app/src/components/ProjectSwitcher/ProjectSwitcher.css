@@ -15,10 +15,10 @@
   flex: 0 0 auto;
 }
 
-/* The gem is the chip's leading glyph. Scoped to .btn-chip (not just
-   .btn-chip-gem) so it wins over .gem-icon's own 1em sizing at equal
-   specificity — sized to the chip's other icons and held at its intrinsic
-   width so a long repo name shrinks the label, not it. */
+/* The gem is the chip's leading glyph, sized to the chip's other icons and
+   held at its intrinsic width so a long repo name shrinks the label, not it.
+   The descendant selector outranks .gem-icon's own 1em sizing on specificity,
+   so the size holds regardless of CSS import order. */
 .btn-chip .gem-icon {
   width: var(--cc-font-md);
   height: var(--cc-font-md);
