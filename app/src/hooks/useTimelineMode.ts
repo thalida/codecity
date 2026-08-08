@@ -6,11 +6,9 @@
 // tear the controller down and reload live HEAD. Called by the header toggle.
 // teardownTimelineMode only flips TIMELINE_MODE; the city-layer effect (city/index.ts) does the actual scene teardown for every exit path.
 
-import { batch } from '@preact/signals';
-
 import { fetchTimelineBundle } from '@/api/timeline';
 import { buildPathTimelines } from '@/city/timeline/replay';
-import { CURRENT_SOURCE, SOURCE_INFO, PENDING_SOURCE_LABEL } from '@/state/stores/source';
+import { CURRENT_SOURCE, SOURCE_INFO } from '@/state/stores/source';
 import { SCENE_HANDLE } from '@/state/stores/scene';
 import { markError, markRebuilding } from '@/state/stores/manifest';
 import {
@@ -19,16 +17,19 @@ import {
   setLoadingStepTail,
   hideLoadingOverlay,
   setLoadingCancel,
+  PENDING_SOURCE_LABEL,
 } from '@/state/stores/ui';
 import { LoadingStep, TIMELINE_LOADING_STEPS } from '@/constants/loadingSteps';
 import { srcKind } from '@/utils/sources';
 import {
   TIMELINE_MODE,
-  SCRUB_POS,
   TIMELINE_BUNDLE,
+  SCRUB_POS,
   resetTimelineMode,
+  enterTimelineMode,
+  setScrubPos,
 } from '@/state/stores/timeline';
-import { loadSource, cancelLoad } from '@/hooks/useManifestSource';
+import { loadSource, cancelLoad, setTimelineRefreshHandler } from '@/hooks/useManifestSource';
 import { activeExcludePathsFor } from '@/state/stores/excludes';
 import type { Manifest, TimelineProgress } from '@/types';
 
@@ -80,7 +81,6 @@ export async function loadTimelineScene({ inPlace = false } = {}): Promise<void>
         cancelled = true;
         abort.abort();
         hideLoadingOverlay();
-        PENDING_SOURCE_LABEL.value = null;
       }
     );
     setLoadingStep(LoadingStep.TimelineLoading);
@@ -109,21 +109,13 @@ export async function loadTimelineScene({ inPlace = false } = {}): Promise<void>
     handle.timeline.setStreetsTransparent(true);
     handle.timeline.setFootprintsTransparent(true);
     handle.timeline.installScrubController(timelines, bundle.commitLineRanges);
-    batch(() => {
-      TIMELINE_MODE.value = true;
-      if (inPlace) {
-        // Excludes filter files, not commits, but clamp in case the list shrank.
-        const maxPos = Math.max(0, bundle.commits.length - 1);
-        if (SCRUB_POS.peek() > maxPos) SCRUB_POS.value = maxPos;
-      } else {
-        SCRUB_POS.value = Math.max(0, bundle.commits.length - 1); // start at present
-      }
-    });
+    // An in-place refetch holds position (self-clamping if the bundle shrank);
+    // a fresh enter starts at the present.
+    enterTimelineMode(inPlace ? SCRUB_POS.peek() : undefined);
     if (!inPlace) {
       // Hold the overlay through the union city's first painted frame, then reveal.
       requestAnimationFrame(() => {
         hideLoadingOverlay();
-        PENDING_SOURCE_LABEL.value = null;
       });
     }
   } catch (err) {
@@ -141,11 +133,14 @@ export async function loadTimelineScene({ inPlace = false } = {}): Promise<void>
         /* teardown failed; surfacing err + hiding the overlay below is what matters */
       }
       hideLoadingOverlay();
-      PENDING_SOURCE_LABEL.value = null;
     }
     markError(err);
   }
 }
+
+// Excludes change in Timeline → refetch the bundle, not a HEAD re-scan. A
+// callback because a direct import was a cycle; registered before the mode can turn on.
+setTimelineRefreshHandler(() => loadTimelineScene({ inPlace: true }));
 
 // Enter Timeline mode if it isn't already on, then scrub to the given commit.
 // Called by the commit pane's "view in timeline" button — in Live mode it enters
@@ -159,7 +154,7 @@ export async function viewCommitInTimeline(sha: string): Promise<void> {
   const bundle = TIMELINE_BUNDLE.peek();
   if (!bundle) return;
   const idx = bundle.commits.findIndex((c) => c.sha === sha);
-  if (idx >= 0) SCRUB_POS.value = idx;
+  if (idx >= 0) setScrubPos(idx);
 }
 
 // Re-pack the union city + re-install the scrub controller from the warm bundle
@@ -193,7 +188,7 @@ export function exitTimelineMode(): void {
   setLoadingCancel(() => {
     cancelLoad();
     void loadTimelineScene().then(() => {
-      if (TIMELINE_MODE.peek()) SCRUB_POS.value = scrubPos;
+      if (TIMELINE_MODE.peek()) setScrubPos(scrubPos);
     });
   });
   void loadSource({ src: cur.src, branch: cur.branch });

@@ -136,8 +136,8 @@
   margin: var(--cc-space-7) 0;
 }
 
-/* Shell from .code-inline; this rule adds the info-markdown specific
-   larger font and primary text color. */
+/* Standalone: marked emits bare <code>, which no class reaches, so the pill
+   styling is redeclared here rather than composed from an atom. */
 .info-markdown code {
   border: 1px solid var(--cc-accent-bg);
   color: var(--cc-text-strong);

@@ -1,29 +1,46 @@
-// api/config.ts — One-shot fetch of /api/config, memoized.
-//
-// Read once at boot in useManifestSource and passed into UI components that need
-// to know server-side feature flags (currently: whether local-repo
-// sources are permitted). Any fetch / parse failure fails closed —
-// we prefer to render the "local is disabled" UI than to expose a
-// path input that the server will reject anyway.
+// One-shot memoized fetch of /api/config. Failures fail closed: better the
+// "local is disabled" UI than a path input the server will reject.
 
 import { apiUrl } from '@/api/apiUrl';
+import type { components } from '@/types/manifest.generated';
 
-export interface ServerConfig {
-  allowLocalRepos: boolean;
-}
+// Derived from the OpenAPI schema rather than re-declared, so a field added to
+// the backend's ConfigResponse cannot drift from what this layer exposes.
+export type ServerConfig = components['schemas']['ConfigResponse'];
 
-const DISABLED: ServerConfig = { allowLocalRepos: false };
+// Pre-boot defaults. maxBatchPaths guesses low: too high silently truncates a
+// batch's tail, too low only costs an extra request.
+export const DEFAULT_SERVER_CONFIG: ServerConfig = {
+  allowLocalRepos: false,
+  maxBatchPaths: 16,
+};
 
 let _cached: Promise<ServerConfig> | null = null;
+// For synchronous mid-request readers (the batch coalescers); written only by
+// the memoized fetch below, so never a second source of truth.
+let _resolved: ServerConfig = DEFAULT_SERVER_CONFIG;
+
+/** The server config as last resolved, or the defaults before boot completes. */
+export function serverConfigNow(): ServerConfig {
+  return _resolved;
+}
 
 export async function fetchServerConfig(): Promise<ServerConfig> {
   try {
     const resp = await fetch(apiUrl('config'));
-    if (!resp.ok) return DISABLED;
+    if (!resp.ok) return DEFAULT_SERVER_CONFIG;
     const body = (await resp.json()) as Partial<ServerConfig>;
-    return { allowLocalRepos: !!body.allowLocalRepos };
+    // Spread over the defaults (a hand-listed shape drops server-added fields);
+    // override only what the body carries so a truncated response can't zero it.
+    return {
+      ...DEFAULT_SERVER_CONFIG,
+      allowLocalRepos: !!body.allowLocalRepos,
+      ...(typeof body.maxBatchPaths === 'number' && body.maxBatchPaths > 0
+        ? { maxBatchPaths: body.maxBatchPaths }
+        : {}),
+    };
   } catch (_) {
-    return DISABLED;
+    return DEFAULT_SERVER_CONFIG;
   }
 }
 
@@ -34,7 +51,12 @@ export async function fetchServerConfig(): Promise<ServerConfig> {
  * tests that want a fresh roundtrip.
  */
 export function getServerConfig(): Promise<ServerConfig> {
-  if (_cached === null) _cached = fetchServerConfig();
+  if (_cached === null) {
+    _cached = fetchServerConfig().then((cfg) => {
+      _resolved = cfg;
+      return cfg;
+    });
+  }
   return _cached;
 }
 
@@ -42,4 +64,5 @@ export function getServerConfig(): Promise<ServerConfig> {
  *  return different responses without leaking state. */
 export function _resetServerConfigForTests(): void {
   _cached = null;
+  _resolved = DEFAULT_SERVER_CONFIG;
 }

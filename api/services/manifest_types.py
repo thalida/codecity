@@ -1,22 +1,10 @@
 """Scanner-internal TypedDict shapes for the JSON manifest it builds.
 
-These are the dict shapes the scanner constructs and walks INTERNALLY
-during a scan. The wire/OpenAPI source of truth is `api/models/`
-(Pydantic) — this TypedDict/Pydantic duplication is intentional: the
-scanner builds plain dicts (fast, no validation), the API layer
-re-projects them through Pydantic for the response schema.
-
-Why a standalone module (rather than living in scan.py): both `scan.py`
-(builds these) and `cache.py` (annotates cached commits/manifests with
-them) need them, and scan.py already imports cache.py at runtime — so
-defining them in either would create an import cycle. This is the shared
-leaf both import from. It imports only the pure models layer (never
-services), so it stays cycle-free for both.
-
-Mirrors app/types/manifest.ts. Keep both in sync — the web app consumes
-the JSON exactly as these TypedDicts describe it. Drift here is shape
-drift in the wire format and will be caught by pyright on the Python
-side and tsc on the TS side, but only within each language.
+Deliberately duplicates `api/models/` (the wire/OpenAPI source of truth): the
+scanner builds plain dicts with no validation cost; the API layer re-projects
+them through Pydantic. A standalone leaf because scan.py and cache.py both need
+these and import each other. Nothing checks this module against `api/models/`
+— keep the two in step by hand.
 """
 
 from __future__ import annotations

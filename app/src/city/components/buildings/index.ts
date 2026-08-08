@@ -469,6 +469,9 @@ export function createBuildings(ctx: SceneContext): Buildings {
     // fresh diff above re-seeds from the current on-screen matrices, so clearing
     // loses no animation continuity.
     _tweens.clear();
+    // Same hazard as the tweens: it holds the old manifest's Buildings.
+    // reapplyTimelineScene reinstalls one, so only a repo switch leaves it null.
+    _scrubController = null;
     if (!_firstBuildDone) {
       _firstBuildDone = true;
     } else if (!TIMELINE_MODE.peek()) {

@@ -70,7 +70,6 @@ __all__ = [
     "fetch_lfs_history",
     "hydrate_blobs",
     "list_remote_branches",
-    "remove_clone",
 ]
 
 
@@ -853,17 +852,6 @@ def _partial_clone_filter(target: Path) -> str | None:
         ).strip()
     except CloneError:
         return None
-
-
-def remove_clone(url: str, branch: str | None) -> bool:
-    """Delete the cached clone working tree for ``(url, branch)``. Returns
-    True if a directory existed and was removed, False if there was nothing
-    to remove. Best-effort: rmtree errors are swallowed (ignore_errors)."""
-    target = clone_dir_for(url, branch)
-    if not target.exists():
-        return False
-    shutil.rmtree(target, ignore_errors=True)
-    return True
 
 
 # ls-remote timeout: bounded so a black-holed remote can't wedge a request.

@@ -5,8 +5,8 @@ export interface PathTimeline {
   intervals: { start: number; end: number | null }[];
 }
 
-// Mirrors the backend replay: walking deltas[0..i] reproduces the file set + lines at commit i.
-// Intervals (not a single created/deleted pair) let a resurrected path have a dead gap in between.
+// Walking deltas[0..i] reproduces the file set + lines at commit i; intervals let
+// a resurrected path have a dead gap. Read per-frame, hence local (not timeline.py's walk).
 export function buildPathTimelines(bundle: TimelineBundle): Map<string, PathTimeline> {
   const timelines = new Map<string, PathTimeline>();
 
@@ -36,7 +36,7 @@ export function buildPathTimelines(bundle: TimelineBundle): Map<string, PathTime
   return timelines;
 }
 
-export function isPresent(pt: PathTimeline, pos: number): boolean {
+function isPresent(pt: PathTimeline, pos: number): boolean {
   return pt.intervals.some((iv) => pos >= iv.start && (iv.end === null || pos < iv.end));
 }
 

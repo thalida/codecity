@@ -53,6 +53,13 @@ interface Surface {
   axeMount?: (c: HTMLElement) => void;
 }
 
+// A timed-out run leaves axe's `_running` latch set (teardown() doesn't clear
+// it), cascading failures into every later surface. Not in axe's types.
+function resetAxe(): void {
+  axe.teardown();
+  (axe as unknown as { _running: boolean })._running = false;
+}
+
 const SURFACES: Surface[] = [
   {
     name: 'ControlsPane',
@@ -113,6 +120,7 @@ describe('accessibility audit (issue #79)', () => {
     }
     closeDebug();
     closeShortcuts();
+    resetAxe();
   });
 
   function mountSurface(mount: (c: HTMLElement) => void): HTMLElement {
@@ -124,9 +132,8 @@ describe('accessibility audit (issue #79)', () => {
   }
 
   for (const surface of SURFACES) {
-    // Generous timeout: the settings DOM is large and CI is slower than a dev
-    // box. axe is also a singleton — a run that times out mid-flight leaves it
-    // "running" and the next surface throws, so it must be allowed to finish.
+    // Generous: CI wall-clock is far worse than a dev box. Blowing it fails
+    // only this surface; afterEach unwedges axe.
     it(`${surface.name}: no axe violations`, async () => {
       const c = mountSurface(surface.axeMount ?? surface.mount);
       const results = await axe.run(c, {
@@ -171,4 +178,18 @@ describe('accessibility audit (issue #79)', () => {
       expect(positiveTab).toHaveLength(0);
     });
   }
+
+  // Guards the cascade fix: a timed-out run leaves `_running` set, which used
+  // to make every subsequent surface throw instead of scanning.
+  it('a wedged axe latch does not poison the next surface (issue #108)', async () => {
+    (axe as unknown as { _running: boolean })._running = true;
+    resetAxe();
+
+    const c = mountSurface(SURFACES[SURFACES.length - 1].mount);
+    const results = await axe.run(c, {
+      resultTypes: ['violations'],
+      rules: { 'color-contrast': { enabled: false }, region: { enabled: false } },
+    });
+    expect(results.violations).toEqual([]);
+  });
 });

@@ -29,23 +29,18 @@ import { effect } from '@preact/signals';
 import { manifestUrlFor, signatureUrlFor, streamManifest, ScanPhase } from '@/api/manifest';
 import { getServerConfig } from '@/api/config';
 import { LIVE_UPDATES } from '@/state/stores/settings/updates';
-import {
-  PENDING_SOURCE_LABEL,
-  SOURCE_ERROR,
-  setCurrentSource,
-  CURRENT_SOURCE,
-} from '@/state/stores/source';
+import { RECENTS, SOURCE_ERROR, setCurrentSource, CURRENT_SOURCE } from '@/state/stores/source';
 import { SERVER_CONFIG } from '@/state/stores/serverConfig';
 import { MANIFEST, setManifest, markError, markRebuilding } from '@/state/stores/manifest';
 import { SCAN_PROGRESS } from '@/state/stores/scanProgress';
 import { TIMELINE_MODE, resetTimelineMode } from '@/state/stores/timeline';
-import { loadTimelineScene } from '@/hooks/useTimelineMode';
 import { activeExcludePathsFor, ACTIVE_EXCLUDES } from '@/state/stores/excludes';
 import { srcKind, SourceKind, srcNeedsBranch, identityBranch, sourceKey } from '@/utils/sources';
 import { isEmptyManifest } from '@/utils/manifest';
 import { URL_PARAMS } from '@/constants/urlParams';
 import type { Manifest } from '@/types';
 import type { SourcePayload } from '@/state/stores/ui';
+import { PENDING_SOURCE_LABEL } from '@/state/stores/ui';
 
 // ── Shared helpers ───────────────────────────────────────────────────
 
@@ -106,6 +101,14 @@ async function pumpManifestStream(
   return lastManifest;
 }
 
+// Injected, not imported (importing useTimelineMode back was a cycle); it
+// registers before TIMELINE_MODE can turn on.
+let timelineRefresh: (() => Promise<void>) | null = null;
+
+export function setTimelineRefreshHandler(fn: (() => Promise<void>) | null): void {
+  timelineRefresh = fn;
+}
+
 // ── Single-writer generation guard ───────────────────────────────────
 // MANIFEST has many would-be writers — the cold-boot load, each user switch,
 // and the background live-update poll — all targeting one signal. A monotonic
@@ -141,6 +144,9 @@ export async function loadSource(payload: SourcePayload): Promise<void> {
   // legacy recent could carry one) so the fetch URL, overlay, committed source,
   // and prefill all stay branch-less. The checked-out branch is display-only.
   const branch = identityBranch(payload.src, payload.branch);
+  // Seed the overlay header from recents: the server's label arrives with the
+  // first stream event, which is after the overlay is already on screen.
+  PENDING_SOURCE_LABEL.value = RECENTS.peek().find((r) => r.src === payload.src)?.label ?? null;
   const meta = {
     kind: srcKind(payload.src),
     branch,
@@ -198,7 +204,6 @@ export async function loadSource(payload: SourcePayload): Promise<void> {
     // not clear it out from under the newer load that's still streaming.
     if (myGen === loadGeneration) {
       SCAN_PROGRESS.value = null;
-      PENDING_SOURCE_LABEL.value = null;
       if (loadController === controller) loadController = null;
     }
   }
@@ -345,8 +350,8 @@ export function setupLiveUpdates(): () => void {
     // Timeline owns the scene: excludes change the union data, so refetch its bundle
     // + re-pack (it owns its own rebuilding footer). Live: in-place re-scan.
     let refresh: Promise<void>;
-    if (TIMELINE_MODE.peek()) {
-      refresh = loadTimelineScene({ inPlace: true });
+    if (TIMELINE_MODE.peek() && timelineRefresh) {
+      refresh = timelineRefresh();
     } else {
       markRebuilding(); // flip the footer now, not after the re-scan streams back
       refresh = fetchAndApply(cur.src, cur.branch);
@@ -401,7 +406,7 @@ export function useManifestSource(): {
       if (cancelled) return;
 
       const serverConfig = await getServerConfig();
-      SERVER_CONFIG.value = { allowLocalRepos: serverConfig.allowLocalRepos };
+      SERVER_CONFIG.value = serverConfig;
 
       // One poll loop for the app's lifetime; no-ops until a source is loaded,
       // re-reads CURRENT_SOURCE + MANIFEST.content_signature each tick (covers

@@ -7,7 +7,7 @@
 
 import { useSignalEffect } from '@preact/signals';
 import { MANIFEST } from '@/state/stores/manifest';
-import { PENDING_SOURCE_LABEL } from '@/state/stores/source';
+import { PENDING_SOURCE_LABEL } from '@/state/stores/ui';
 
 export function useDocumentTitle(): void {
   useSignalEffect(() => {

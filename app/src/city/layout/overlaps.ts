@@ -24,8 +24,8 @@ import { WorldRectKind } from './occupancyIndex';
 //     widths). This is the documented flat join the renderer fuses.
 // Anything else is 'unexpected'.
 //
-// `_isStreetJoinPair` mirrors the geometry test in tests/city/layout.test.ts
-// (kept independent so the runtime helper has no test-file dependency).
+// `_isStreetJoinPair` re-derives the T-junction geometry rather than sharing a
+// helper, so this runtime diagnostic never depends on layout internals moving.
 function _isStreetJoinPair(a: Street, b: Street): boolean {
   if (a.orientation === b.orientation) return false;
   const aLong = a.orientation === StreetAxis.X ? 'x' : 'y';

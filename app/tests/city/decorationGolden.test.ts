@@ -1,8 +1,5 @@
-// decorationGolden.bench.test.ts — bit-identical guard for the decoration-pass
-// perf work. Digests the full output of placeTrees, placeFireflies, and the
-// tree renderer's instance matrix/color buffers for deterministic inputs, and
-// compares against the captured baseline. Any drift fails, so the
-// memoization/compute-once/slim-payload changes can prove output is unchanged.
+// Bit-identical guard for the decoration pass: digests placeTrees, placeFireflies,
+// and the tree renderer's instance buffers against the captured baseline.
 
 import * as THREE from 'three';
 import { describe, it, expect } from 'vitest';
@@ -16,25 +13,23 @@ import {
   bboxOf,
   genCommits,
   makeDigestHasher,
-} from '../tests/_helpers/layoutTreeFixtures';
-import { commitStats, fileStats } from '../tests/_helpers/statsFixtures';
+} from '../_helpers/layoutTreeFixtures';
+import { commitStats, fileStats } from '../_helpers/statsFixtures';
 
-// Baseline is settings-default-sensitive: it digests the canopy instance
-// matrices, so a TREES width/height default change legitimately moves the hash
-// (counts and placements stay put) and the value must be recaptured.
+// Settings-default-sensitive: a TREES width/height default change legitimately
+// moves the hash (placements stay put) and the value must be recaptured.
 const EXPECTED = '12k:trees43000:orbs51600:eb52d6b7';
 
 describe('decoration golden (bit-identical guard)', () => {
+  // Explicit timeout: compute-bound like the layout golden, and CI's coverage
+  // instrumentation multiplies it well past what a jsdom default assumes.
   it('placeTrees + placeFireflies + renderer buffers match baseline', () => {
     const rng = makeRng(0xc0ffee);
     const tree = genNestedTree('root', 'root', 12000, 0, rng);
     const commits = genCommits(43000, makeRng(7));
     const busyness = { avg: 3, busy: 6 };
-    // Backend-precomputed in production: layoutCity sizes buildings from the
-    // file ranges, and the trees + fireflies read the age/size ranges + author
-    // counts — all from one stats object instead of re-scanning the tree/commits.
-    // (layoutCity MUST get the file ranges or every building collapses to
-    // min-width and the layout — hence tree placement — drifts.)
+    // Backend-precomputed in production. layoutCity MUST get the file ranges or
+    // every building collapses to min-width and tree placement drifts.
     const stats = { ...commitStats(commits), ...fileStats(tree) };
     const layout = layoutCity({ tree, stats });
     const bbox = bboxOf(layout);
@@ -76,5 +71,5 @@ describe('decoration golden (bit-identical guard)', () => {
 
     const digest = `12k:trees${placements.length}:orbs${orbs.length}:${hasher.hex()}`;
     expect(digest).toEqual(EXPECTED);
-  });
+  }, 60_000);
 });

@@ -4,11 +4,10 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render } from 'preact';
 import { RECENTS, CURRENT_SOURCE } from '@/state/stores/source';
-import { SERVER_CONFIG } from '@/state/stores/serverConfig';
+import { SERVER_CONFIG, DEFAULT_SERVER_CONFIG } from '@/state/stores/serverConfig';
 import { setManifest } from '@/state/stores/manifest';
 import { EMPTY_MANIFEST } from '@/constants/manifest';
 import { RecentsList } from '@/components/RecentsList/RecentsList';
-import * as manifestApi from '@/api/manifest';
 import type { Manifest } from '@/types';
 import { flush } from '../_helpers/preact';
 
@@ -38,7 +37,7 @@ describe('RecentsList', () => {
     RECENTS.value = [];
     CURRENT_SOURCE.value = null;
     setManifest(EMPTY_MANIFEST);
-    SERVER_CONFIG.value = { allowLocalRepos: false };
+    SERVER_CONFIG.value = { ...DEFAULT_SERVER_CONFIG, allowLocalRepos: false };
   });
 
   it('marks the CURRENT_SOURCE row active', async () => {
@@ -62,7 +61,7 @@ describe('RecentsList', () => {
   });
 
   it('renders a branch-less local recent with no @branch pill, matched active by path', async () => {
-    SERVER_CONFIG.value = { allowLocalRepos: true };
+    SERVER_CONFIG.value = { ...DEFAULT_SERVER_CONFIG, allowLocalRepos: true };
     // A local recent is branch-less; CURRENT_SOURCE is too, so they match by src
     // even though the loaded manifest reports a checkout branch (display only).
     RECENTS.value = [{ src: '/Users/me/proj', label: 'proj', lastOpenedAt: 3 }];
@@ -77,8 +76,7 @@ describe('RecentsList', () => {
     expect(container.querySelector('.recent-row--active')).toBeTruthy();
   });
 
-  it('remove is non-destructive: forgets the entry, does not touch the cache', async () => {
-    const spy = vi.spyOn(manifestApi, 'clearManifestCache');
+  it('remove forgets the entry behind a confirm step', async () => {
     render(<RecentsList onOpen={() => {}} />, container);
     await flush();
 
@@ -100,6 +98,5 @@ describe('RecentsList', () => {
     await flush();
 
     expect(RECENTS.value.find((r) => r.label === 'o/alpha')).toBeUndefined();
-    expect(spy).not.toHaveBeenCalled();
   });
 });

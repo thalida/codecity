@@ -1,7 +1,7 @@
 import { afterEach, expect, test } from 'vitest';
 import { NodeKind } from '@/types';
 import type { TimelineBundle, TreeNode } from '@/types';
-import { TIMELINE_MODE, TIMELINE_BUNDLE, SCRUB_POS } from '@/state/stores/timeline';
+import { TIMELINE_MODE, TIMELINE_BUNDLE, setScrubPos } from '@/state/stores/timeline';
 import { RUINS } from '@/state/stores/settings/ruins';
 import { BLUEPRINTS } from '@/state/stores/settings/blueprints';
 import { HISTORY_MANIFEST } from '@/state/stores/historyManifest';
@@ -57,13 +57,13 @@ function paths(m: unknown): Set<string> {
 afterEach(() => {
   TIMELINE_MODE.value = false;
   TIMELINE_BUNDLE.value = null;
-  SCRUB_POS.value = 0;
+  setScrubPos(0);
 });
 
 test('only present-at-scrub paths survive (deleted + future dropped, empty dirs pruned)', () => {
   TIMELINE_BUNDLE.value = bundle;
   TIMELINE_MODE.value = true;
-  SCRUB_POS.value = 2;
+  setScrubPos(2);
 
   const p = paths(HISTORY_MANIFEST.value);
   expect(p.has('present.txt')).toBe(true);
@@ -75,7 +75,7 @@ test('only present-at-scrub paths survive (deleted + future dropped, empty dirs 
 test('present-only regardless of the ruins / future toggles', () => {
   TIMELINE_BUNDLE.value = bundle;
   TIMELINE_MODE.value = true;
-  SCRUB_POS.value = 2;
+  setScrubPos(2);
   RUINS.value = { ...RUINS.value, ENABLED: true };
   BLUEPRINTS.value = { ...BLUEPRINTS.value, ENABLED: true };
 

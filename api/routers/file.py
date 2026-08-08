@@ -18,7 +18,7 @@ from fastapi import APIRouter, HTTPException, Query, Response
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
-from api.config import MAX_FILE_BYTES
+from api.config import MAX_BATCH_PATHS, MAX_FILE_BYTES
 from api.models.responses import (
     ImageBatchEntry,
     FileTooLargeResponse,
@@ -31,9 +31,8 @@ from api.services.media import is_media
 
 router = APIRouter(prefix="/api", tags=["file"])
 
-# Server-side bounds on one batch response; oversized or non-image paths are
-# omitted and the client falls back to the streaming GET /api/file.
-_MAX_BATCH_PATHS = 64
+# Bound on one batch response; omitted paths fall back to GET /api/file. Lives
+# in config.py because /api/config publishes it.
 _MAX_BATCH_IMAGE_BYTES = 8 * 1024 * 1024
 
 _SHA_RE = re.compile(r"[0-9a-f]{40}")
@@ -124,7 +123,7 @@ def get_images(req: PathBatchRequest) -> dict[str, ImageBatchEntry]:
     never batched (they stream their poster frame), so this is images only.
     """
     out: dict[str, ImageBatchEntry] = {}
-    for path in req.paths[:_MAX_BATCH_PATHS]:
+    for path in req.paths[:MAX_BATCH_PATHS]:
         sha = (req.shas or {}).get(path)
         try:
             target = TRUST.assert_inside(Path(path), must_exist=sha is None)
@@ -157,7 +156,7 @@ def get_fingerprints(req: PathBatchRequest) -> dict[str, FingerprintEntry]:
     unreadable paths are silently omitted. Raw binary bytes never leave the
     server — only the head is read, and only the fingerprint image returned."""
     out: dict[str, FingerprintEntry] = {}
-    for path in req.paths[:_MAX_BATCH_PATHS]:
+    for path in req.paths[:MAX_BATCH_PATHS]:
         try:
             target = TRUST.assert_inside(Path(path))
         except (NoRootsRegisteredError, OutsideRootError, OSError, RuntimeError):

@@ -48,18 +48,40 @@ export class WorldOccupancy {
   }
 
   query(minX: number, minY: number, maxX: number, maxY: number): WorldRect[] {
-    return this.tree.search({ minX, minY, maxX, maxY }).filter(
-      (r) =>
-        // Strict overlap (touching edges return false).
+    // Compact in place: rbush allocated this array, and ~3M queries over ~32M
+    // results make a second array + pass per query not free.
+    const found = this.tree.search({ minX, minY, maxX, maxY });
+    let kept = 0;
+    for (let i = 0; i < found.length; i++) {
+      const r = found[i];
+      // Strict overlap (touching edges return false).
+      if (
         r.minX < maxX - OVERLAP_EPS &&
         r.maxX > minX + OVERLAP_EPS &&
         r.minY < maxY - OVERLAP_EPS &&
         r.maxY > minY + OVERLAP_EPS
-    );
+      ) {
+        found[kept++] = r;
+      }
+    }
+    found.length = kept;
+    return found;
   }
 
   hasOverlap(minX: number, minY: number, maxX: number, maxY: number): boolean {
-    return this.query(minX, minY, maxX, maxY).length > 0;
+    // Stops at the first hit instead of compacting the whole result just to
+    // read `.length > 0`.
+    for (const r of this.tree.search({ minX, minY, maxX, maxY })) {
+      if (
+        r.minX < maxX - OVERLAP_EPS &&
+        r.maxX > minX + OVERLAP_EPS &&
+        r.minY < maxY - OVERLAP_EPS &&
+        r.maxY > minY + OVERLAP_EPS
+      ) {
+        return true;
+      }
+    }
+    return false;
   }
 
   size(): number {

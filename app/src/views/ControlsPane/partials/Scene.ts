@@ -8,7 +8,7 @@ export const SCENE_SECTION: SectionNode = {
   key: 'scene',
   label: 'Scene',
   description:
-    'Sky, stars, ground, and atmosphere — everything that frames the city. (Sun lighting is fixed in code.)',
+    'Sky, stars, ground, and atmosphere: everything that frames the city. (Sun lighting is fixed in code.)',
   children: [
     { key: 'sky', label: 'Sky', children: [field(SCENE, 'SKY_COLOR')] },
     {

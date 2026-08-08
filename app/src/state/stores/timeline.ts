@@ -1,10 +1,27 @@
-import { signal, batch, computed, effect } from '@preact/signals';
+import { signal, batch, computed, effect, type ReadonlySignal } from '@preact/signals';
 import type { TimelineBundle } from '@/types';
 
 // Distinct render mode (union city + scrub). SCRUB_POS is a float commit index so scrubbing interpolates.
 export const TIMELINE_MODE = signal(false);
-export const SCRUB_POS = signal(0);
 export const TIMELINE_BUNDLE = signal<TimelineBundle | null>(null);
+
+/** Highest valid scrub index for the loaded bundle, 0 when there is none. */
+export const SCRUB_MAX = computed(() =>
+  Math.max(0, (TIMELINE_BUNDLE.value?.commits.length ?? 0) - 1)
+);
+
+const _scrubPos = signal(0);
+
+// Clamped against the current bundle, not at each write, so a bundle swap alone
+// can't leave a stale position out of range. Readers never clamp defensively.
+export const SCRUB_POS: ReadonlySignal<number> = computed(() =>
+  Math.min(Math.max(_scrubPos.value, 0), SCRUB_MAX.value)
+);
+
+/** The only way to move the scrubber; readonly SCRUB_POS makes that a type error to bypass. */
+export function setScrubPos(pos: number): void {
+  _scrubPos.value = pos;
+}
 
 // The whole commit index SCRUB_POS lands on. Per-path presence only changes at
 // integer commits, so the sidebar's present-path filter (keyed on this) recomputes
@@ -25,11 +42,20 @@ effect(() => {
   if (!SCRUB_DRAGGING.value) SETTLED_COMMIT.value = commit;
 });
 
+// Every entry path, called only once the union city is packed: flipping the mode
+// before that leaves Timeline pointed at live geometry. `pos` defaults to the present.
+export function enterTimelineMode(pos?: number): void {
+  batch(() => {
+    TIMELINE_MODE.value = true;
+    setScrubPos(pos ?? SCRUB_MAX.peek());
+  });
+}
+
 // Shared by every exit path (toggle-off, source switch); scene-free, the scene layer reacts to TIMELINE_MODE.
 export function resetTimelineMode(): void {
   batch(() => {
     TIMELINE_MODE.value = false;
-    SCRUB_POS.value = 0;
+    setScrubPos(0);
     TIMELINE_BUNDLE.value = null;
     SCRUB_DRAGGING.value = false;
   });

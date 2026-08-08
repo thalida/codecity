@@ -9,7 +9,7 @@ export const TREES_SECTION: SectionNode = {
   key: 'trees',
   label: 'Trees',
   description:
-    'One tree per commit — height tracks age, width tracks file count, color tracks commits-per-day (same-day commits share a color).',
+    'One tree per commit: height tracks age, width tracks file count, color tracks commits-per-day (same-day commits share a color).',
   children: [
     { key: 'visibility', label: 'Visibility', children: [field(TREES, 'ENABLED')] },
     {

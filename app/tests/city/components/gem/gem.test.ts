@@ -1,9 +1,8 @@
 import { describe, it, expect, afterEach } from 'vitest';
 import * as THREE from 'three';
-import { signal } from '@preact/signals';
 
 import { createGem } from '@/city/components/gem';
-import { makeCityState } from '../../../_helpers/cityFixtures';
+import { makeCityState, makePickableSceneContext } from '../../../_helpers/cityFixtures';
 import { GEM } from '@/state/stores/settings/gem';
 import { NodeKind, StreetAxis } from '@/types';
 import type { Street, PickTarget } from '@/types';
@@ -25,19 +24,6 @@ function makeStreet(): Street {
 }
 
 // Build a SceneContext whose picker exposes a controllable hover signal.
-function makeCtx(hover: PickTarget | null): {
-  ctx: SceneContext;
-  hover: ReturnType<typeof signal<PickTarget | null>>;
-} {
-  const hoverSig = signal<PickTarget | null>(hover);
-  const ctx = {
-    scene: new THREE.Scene(),
-    canvas: document.createElement('canvas'),
-    picker: { hover: hoverSig } as unknown as Picker,
-    cityState: makeCityState(),
-  } as unknown as SceneContext;
-  return { ctx, hover: hoverSig };
-}
 
 const CAMERA = new THREE.PerspectiveCamera();
 
@@ -67,7 +53,7 @@ describe('createGem()', () => {
   });
 
   it('rebuild(street) builds an inner gem with a Gem-typed body and per-face color attribute', () => {
-    const { ctx } = makeCtx(null);
+    const { ctx } = makePickableSceneContext();
     gem = createGem(ctx);
     gem.rebuild(makeStreet());
 
@@ -81,7 +67,7 @@ describe('createGem()', () => {
   });
 
   it('rebuild disposes the prior inner gem and swaps in the new one', () => {
-    const { ctx } = makeCtx(null);
+    const { ctx } = makePickableSceneContext();
     gem = createGem(ctx);
     gem.rebuild(makeStreet());
     const first = gem.getRootGroup()!;
@@ -92,7 +78,8 @@ describe('createGem()', () => {
   });
 
   it('tick lerps gem.scale toward HOVER_SCALE when a Gem is hovered', () => {
-    const { ctx } = makeCtx({ kind: NodeKind.Gem } as PickTarget);
+    const { ctx, hover } = makePickableSceneContext();
+    hover.value = { kind: NodeKind.Gem } as PickTarget;
     gem = createGem(ctx);
     gem.rebuild(makeStreet());
 
@@ -105,7 +92,7 @@ describe('createGem()', () => {
   });
 
   it('dispose() stops the effect — later GEM mutations do not throw', () => {
-    const { ctx } = makeCtx(null);
+    const { ctx } = makePickableSceneContext();
     gem = createGem(ctx);
     gem.rebuild(makeStreet());
     gem.dispose();

@@ -1,8 +1,5 @@
-// state/stores/settings/syntaxTheme.ts — User-selected highlight.js syntax theme.
-// Rendered by the HljsThemeLink component to swap a <link id="hljs-theme"> element's href
-// so the CSS theme applies immediately without a page reload or re-render.
-// Persisted via attachPersistence (Config barrel) so the choice survives
-// sessions.
+// User-selected highlight.js syntax theme, persisted; HljsThemeLink swaps the
+// <link> href so it applies without a reload.
 
 import { persistedSignal } from '@/state/persist';
 import { markSettingStore, markAutosave } from '@/state/settingsSchema';
@@ -12,11 +9,9 @@ export interface SyntaxThemeOption {
   label: string;
 }
 
-// Curated DARK theme list. All filenames verified against
-// node_modules/highlight.js/styles/ (highlight.js 11.11.1). Light themes
-// are intentionally not offered — codecity's UI is a dark theme and bright
-// code panels clash visually. Alphabetized by display label.
-export const SYNTAX_THEME_OPTIONS: SyntaxThemeOption[] = [
+// Curated DARK themes only (bright panels clash with the UI), alphabetized. `as
+// const` keys HljsThemeLink's map: a new theme fails typecheck until its CSS imports.
+export const SYNTAX_THEME_OPTIONS = [
   { value: 'a11y-dark', label: 'A11y Dark' },
   { value: 'agate', label: 'Agate' },
   { value: 'androidstudio', label: 'Android Studio' },
@@ -38,13 +33,15 @@ export const SYNTAX_THEME_OPTIONS: SyntaxThemeOption[] = [
   { value: 'stackoverflow-dark', label: 'Stack Overflow Dark' },
   { value: 'tokyo-night-dark', label: 'Tokyo Night' },
   { value: 'vs2015', label: 'VS 2015' },
-];
+] as const satisfies readonly SyntaxThemeOption[];
 
-// Default matches the hand-rolled theme bundled in HljsThemeLink.css.
-// Changing to a CDN theme overrides those .hljs-* rules because the <link>
-// is injected into <head> after the bundled CSS (later in the cascade wins
-// at equal specificity, and these are the same specificity).
-export const SYNTAX_THEME_DEFAULT = 'atom-one-dark';
+export type SyntaxThemeValue = (typeof SYNTAX_THEME_OPTIONS)[number]['value'];
+
+// Default matches HljsThemeLink.css's bundled theme; a selected theme's <link>
+// lands later in <head>, so it wins the cascade at equal specificity.
+export const SYNTAX_THEME_DEFAULT: SyntaxThemeValue = 'atom-one-dark';
+// `string`, not SyntaxThemeValue: localStorage may hold a theme from an older
+// build; HljsThemeLink resolves unknowns to the default.
 export const SYNTAX_THEME = persistedSignal<string>('SYNTAX_THEME', SYNTAX_THEME_DEFAULT);
 
 // SYNTAX_THEME is a setting (it lives in the Appearance tab) but uses a plain

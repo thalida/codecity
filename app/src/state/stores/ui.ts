@@ -82,6 +82,10 @@ export function clearProjectsViewError(): void {
 
 import { LoadingStep } from '@/constants/loadingSteps';
 
+/** Repo name in the loading overlay's header, shown before the manifest lands.
+ *  Overlay-owned: showLoadingOverlay/hideLoadingOverlay control its lifetime. */
+export const PENDING_SOURCE_LABEL = signal<string | null>(null);
+
 export interface LoadingOverlayState {
   visible: boolean;
   showOpts: LoadingOverlayShowOpts | null;
@@ -133,6 +137,9 @@ export function setLoadingCancel(onCancel: (() => void) | null): void {
 export function hideLoadingOverlay(): void {
   LOADING_OVERLAY.value = { ...LOADING_OVERLAY.peek(), visible: false };
   LOADING_CANCEL.value = null;
+  // The header belongs to the overlay: every caller used to clear it by hand
+  // right after this, and the one that forgot blanked the header mid-load.
+  PENDING_SOURCE_LABEL.value = null;
 }
 
 export function setLoadingStep(step: LoadingStep): void {

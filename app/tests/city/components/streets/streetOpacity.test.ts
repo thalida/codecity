@@ -8,15 +8,12 @@
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import * as THREE from 'three';
-import { signal } from '@preact/signals';
 
 import { createStreets } from '@/city/components/streets';
-import { makeCityState } from '../../../_helpers/cityFixtures';
+import { makeSceneContext } from '../../../_helpers/cityFixtures';
 import { STREETS } from '@/state/stores/settings/streets';
 import { NodeKind, StreetAxis } from '@/types';
-import type { CityLayout, PickTarget, Street } from '@/types';
-import type { Picker } from '@/city/interaction/picker';
-import type { SceneContext } from '@/city/types';
+import type { CityLayout, Street } from '@/types';
 
 const DEFAULTS = {
   ASPHALT_COLOR: '#313544',
@@ -32,18 +29,6 @@ const DEFAULTS = {
   HOVER_PATH_COLOR: '#ffffff',
   HOVER_PATH_OPACITY: 0.25,
 };
-
-function makeCtx(): SceneContext {
-  return {
-    scene: new THREE.Scene(),
-    canvas: document.createElement('canvas'),
-    picker: {
-      selection: signal<PickTarget | null>(null),
-      hover: signal<PickTarget | null>(null),
-    } as unknown as Picker,
-    cityState: makeCityState(),
-  } as unknown as SceneContext;
-}
 
 function mkStreet(path: string, over: Partial<Street> = {}): Street {
   return {
@@ -104,7 +89,7 @@ describe('street opacity', () => {
   });
 
   it('seeds aOpacity to 1 on both merged meshes and keeps materials opaque by default', () => {
-    streets = createStreets(makeCtx());
+    streets = createStreets(makeSceneContext());
     streets.rebuild(threeStreetLayout());
 
     const sidewalk = streets.getPickables()[0] as FlatMesh;
@@ -123,7 +108,7 @@ describe('street opacity', () => {
   });
 
   it('setStreetOpacity writes only the target street span on both meshes', () => {
-    streets = createStreets(makeCtx());
+    streets = createStreets(makeSceneContext());
     streets.rebuild(threeStreetLayout());
 
     const sidewalk = streets.getPickables()[0] as FlatMesh;
@@ -156,7 +141,7 @@ describe('street opacity', () => {
   });
 
   it("setStreetLabelOpacity fades one street's labels without touching another street's", () => {
-    streets = createStreets(makeCtx());
+    streets = createStreets(makeSceneContext());
     streets.rebuild(threeStreetLayout());
 
     const ranges = streets.getStreetRanges();
@@ -181,7 +166,7 @@ describe('street opacity', () => {
   });
 
   it("setStreetLabelOpacity(street, 0) force-hides that street's label group", () => {
-    streets = createStreets(makeCtx());
+    streets = createStreets(makeSceneContext());
     streets.rebuild(threeStreetLayout());
 
     const ranges = streets.getStreetRanges();
@@ -200,7 +185,7 @@ describe('street opacity', () => {
   });
 
   it('setStreetsTransparent(true) moves both materials into the transparent pass', () => {
-    streets = createStreets(makeCtx());
+    streets = createStreets(makeSceneContext());
     streets.rebuild(threeStreetLayout());
 
     const sidewalk = streets.getPickables()[0] as FlatMesh;

@@ -12,24 +12,12 @@
 //   #6  supersede → the winning apply's layout is the one that lands
 
 import { describe, it, expect, afterEach, vi } from 'vitest';
-import * as THREE from 'three';
 
 import { createCityState } from '@/city/state';
 import { createStreets } from '@/city/components/streets';
 import { NodeKind, StreetAxis } from '@/types';
 import type { CityLayout, DateRanges, Manifest, Street } from '@/types';
-import type { Picker } from '@/city/interaction/picker';
-import type { SceneContext } from '@/city/types';
-
-function makeCtx(cityState: ReturnType<typeof createCityState>): SceneContext {
-  return {
-    scene: new THREE.Scene(),
-    picker: null as unknown as Picker,
-    camera: null as unknown as THREE.PerspectiveCamera,
-    renderer: null as unknown as THREE.WebGLRenderer,
-    cityState,
-  } as unknown as SceneContext;
-}
+import { makeSceneContext } from '../_helpers/cityFixtures';
 
 function makeRootStreet(): Street {
   return {
@@ -95,7 +83,7 @@ describe('cityState.applyManifest — scenic reactivity parity', () => {
     );
 
     const cityState = createCityState(layoutClient as never);
-    const streets = createStreets(makeCtx(cityState));
+    const streets = createStreets(makeSceneContext(cityState));
     disposers.push(() => streets.dispose());
 
     return { cityState, streets, layoutClient };

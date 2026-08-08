@@ -167,15 +167,15 @@ export function createPicker({
       return;
     }
     if (key.kind === NodeKind.File) {
-      const b = world.getBuildingByPath(key.path);
+      const resolved = world.getBuildingByPath(key.path);
       _suspendKeyDerive = true;
-      if (b) {
+      if (resolved) {
         selection.value = {
           kind: NodeKind.File,
-          mesh: b.mesh,
-          data: b.building,
-          file: b.building.file,
-          instanceId: b.instanceId,
+          mesh: resolved.mesh,
+          data: resolved.building,
+          file: resolved.building.file,
+          instanceId: resolved.instanceId,
         };
       } else {
         selection.value = null;
@@ -296,20 +296,20 @@ export function createPicker({
   // rig.focusSelection.
   function targetForPath(path: string): PickTarget | null {
     if (!path) return null;
-    const b = world.getBuildingByPath(path);
-    if (b) {
+    const resolved = world.getBuildingByPath(path);
+    if (resolved) {
       return {
         kind: NodeKind.File,
-        mesh: b.mesh,
-        data: b.building,
-        file: b.building.file,
-        instanceId: b.instanceId,
+        mesh: resolved.mesh,
+        data: resolved.building,
+        file: resolved.building.file,
+        instanceId: resolved.instanceId,
       };
     }
-    const sw = world.getSidewalkByDir(path);
-    const st = world.getStreetByDir(path);
-    if (sw && st && st.dir) {
-      return { kind: NodeKind.Directory, sidewalk: sw, street: st, dir: st.dir };
+    const sidewalk = world.getSidewalkByDir(path);
+    const street = world.getStreetByDir(path);
+    if (sidewalk && street && street.dir) {
+      return { kind: NodeKind.Directory, sidewalk, street, dir: street.dir };
     }
     return null;
   }
@@ -317,8 +317,8 @@ export function createPicker({
   // Resolve a path and set it as the selection. Used by tree-row clicks and
   // breadcrumb-segment clicks. No-op if the path doesn't match anything.
   function selectByPath(path: string): void {
-    const t = targetForPath(path);
-    if (t) setSelection(t);
+    const target = targetForPath(path);
+    if (target) setSelection(target);
   }
 
   // Resolve a commit sha to its live tree target and select it. No-op if
@@ -338,8 +338,8 @@ export function createPicker({
   // Resolve a path and set it as the hover target (tree-row hover → city
   // highlight). No-op if the path doesn't match anything.
   function hoverByPath(path: string): void {
-    const t = targetForPath(path);
-    if (t) setHover(t);
+    const target = targetForPath(path);
+    if (target) setHover(target);
   }
 
   // ── Timeline scrub-hidden guard ─────────────────────────────────────
@@ -461,74 +461,75 @@ export function createPicker({
   // the same shape held by hover / selection signals. Returns null for
   // hits that aren't selectable (e.g. street labels, which don't have
   // userData.type populated for picking).
+  /** A tree instance carries the commit that grew it. */
+  function commitTargetFor(mesh: THREE.InstancedMesh, slot: number | undefined): PickTarget | null {
+    if (slot == null) return null;
+    if (TIMELINE_MODE.peek() && _treeScrubHidden(mesh, slot)) return null;
+    const commit = world.getTrees()?.commitForInstance(mesh, slot);
+    if (!commit) return null;
+    return { kind: NodeKind.Commit, mesh, instanceId: slot, commit };
+  }
+
+  /** A CellTile detail mesh: the Building comes from BuildingIndex by
+   *  "cellId:slotId", since one mesh carries many buildings. */
+  function buildingTargetFor(
+    mesh: THREE.InstancedMesh,
+    cellId: unknown,
+    slot: number | undefined
+  ): PickTarget | null {
+    if (slot == null) return null;
+    if (TIMELINE_MODE.peek() && _buildingScrubHidden(mesh, slot)) return null;
+    const building = world.getBuildingIndex()?.byCellSlot(`${cellId}:${slot}`);
+    if (!building?.file) return null;
+    return {
+      kind: NodeKind.File,
+      mesh: mesh as THREE.Mesh,
+      data: building,
+      file: building.file,
+      instanceId: slot,
+      isRuin: TIMELINE_MODE.peek() && _buildingIsRuin(mesh, slot),
+    };
+  }
+
+  /** Merged sidewalk: every street shares one mesh, so the hit face resolves to
+   *  its street through the faceIndex map baked onto userData. */
+  function sidewalkTargetFor(hit: THREE.Intersection<THREE.Object3D>): PickTarget | null {
+    const mesh = hit.object as THREE.Mesh;
+    if (TIMELINE_MODE.peek() && _streetScrubHidden(mesh, hit.face?.a)) return null;
+    const street = sidewalkStreetForFace(hit.object, hit.faceIndex ?? 0);
+    if (!street?.dir) return null;
+    // A future folder's road is only a pad: it does not exist at this scrub
+    // position, so it is not selectable.
+    if (TIMELINE_MODE.peek() && FUTURE_STREET_DIRS.has(street.dir.path)) return null;
+    return {
+      kind: NodeKind.Directory,
+      sidewalk: mesh,
+      street,
+      dir: street.dir,
+      isRuin: TIMELINE_MODE.peek() && RUINED_STREET_DIRS.has(street.dir.path),
+      vertexHint: hit.face?.a,
+    };
+  }
+
   function interpretHit(hit: THREE.Intersection<THREE.Object3D> | null): PickTarget | null {
     if (!hit || !hit.object) return null;
     const ud = hit.object.userData;
-    if (ud.type === NodeKind.Gem) {
-      return { kind: NodeKind.Gem, mesh: hit.object };
-    }
-    if (
-      hit.object instanceof THREE.InstancedMesh &&
-      (ud.meshKind === 'tree-canopy' || ud.meshKind === 'tree-trunk')
-    ) {
-      const slot = hit.instanceId;
-      if (slot == null) return null;
-      if (TIMELINE_MODE.peek() && _treeScrubHidden(hit.object, slot)) return null;
-      const trees = world.getTrees();
-      const commit = trees?.commitForInstance(hit.object, slot);
-      if (!commit) return null;
-      return {
-        kind: NodeKind.Commit,
-        mesh: hit.object,
-        instanceId: slot,
-        commit,
-      };
-    }
-    // InstancedMesh hit from a CellTile. detailMesh carries userData.cellId
-    // and userData.meshKind === 'detail'. The Building is looked up via
-    // BuildingIndex.byCellSlot("cellId:slotId").
-    if (
-      hit.object instanceof THREE.InstancedMesh &&
-      ud.cellId != null &&
-      ud.meshKind === 'detail'
-    ) {
-      const slot = hit.instanceId;
-      if (slot == null) return null;
-      if (TIMELINE_MODE.peek() && _buildingScrubHidden(hit.object, slot)) return null;
-      const idx = world.getBuildingIndex();
-      const building = idx?.byCellSlot(`${ud.cellId}:${slot}`);
-      if (!building?.file) return null;
-      return {
-        kind: NodeKind.File,
-        mesh: hit.object as THREE.Mesh,
-        data: building,
-        file: building.file,
-        instanceId: slot,
-        isRuin: TIMELINE_MODE.peek() && _buildingIsRuin(hit.object, slot),
-      };
-    }
-    // Merged sidewalk: all streets share one mesh, so resolve the hit face to
-    // its street via the faceIndex→street map baked onto userData.
-    if (ud.type === NodeKind.Directory && ud.pickStreets) {
-      if (TIMELINE_MODE.peek() && _streetScrubHidden(hit.object as THREE.Mesh, hit.face?.a)) {
-        return null;
+
+    // Each branch owns its kind outright: a null from inside one means "this is
+    // that kind, but nothing selectable here", never "try the next one".
+    if (ud.type === NodeKind.Gem) return { kind: NodeKind.Gem, mesh: hit.object };
+
+    if (hit.object instanceof THREE.InstancedMesh) {
+      if (ud.meshKind === 'tree-canopy' || ud.meshKind === 'tree-trunk') {
+        return commitTargetFor(hit.object, hit.instanceId);
       }
-      const street = sidewalkStreetForFace(hit.object, hit.faceIndex ?? 0);
-      // A future folder's road is only a pad — it doesn't exist at this scrub position, so it's not selectable.
-      if (street?.dir && TIMELINE_MODE.peek() && FUTURE_STREET_DIRS.has(street.dir.path))
-        return null;
-      if (street?.dir) {
-        return {
-          kind: NodeKind.Directory,
-          sidewalk: hit.object as THREE.Mesh,
-          street,
-          dir: street.dir,
-          isRuin: TIMELINE_MODE.peek() && RUINED_STREET_DIRS.has(street.dir.path),
-          vertexHint: hit.face?.a,
-        };
+      if (ud.cellId != null && ud.meshKind === 'detail') {
+        return buildingTargetFor(hit.object, ud.cellId, hit.instanceId);
       }
-      return null;
     }
+
+    if (ud.type === NodeKind.Directory && ud.pickStreets) return sidewalkTargetFor(hit);
+
     if (ud.street && ud.street.dir) {
       return {
         kind: NodeKind.Directory,

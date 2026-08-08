@@ -38,10 +38,7 @@ class HealthResponse(BaseModel):
 
 class ConfigResponse(BaseModel):
     allowLocalRepos: bool
-
-
-class CacheClearResponse(BaseModel):
-    deleted: int
+    maxBatchPaths: int
 
 
 class CommitDetailResponse(BaseModel):

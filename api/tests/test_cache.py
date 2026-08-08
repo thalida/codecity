@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import unittest
 from pathlib import Path
 
@@ -508,29 +509,6 @@ class ManifestCacheTests(CacheTestBase):
         # Loader must reject.
         self.assertIsNone(cache_load_manifest(root, sig))
 
-    def test_clear_manifests_deletes_every_signature(self) -> None:
-        root = Path("/x")
-        manifest = self._make_manifest()
-        cache_mod.cache_save_manifest(root, "a" * 32, manifest)
-        cache_mod.cache_save_manifest(root, "b" * 32, manifest)
-        # Unrelated root — must NOT be deleted.
-        cache_mod.cache_save_manifest(Path("/y"), "c" * 32, manifest)
-
-        deleted = cache_mod.cache_clear_manifests(root)
-        self.assertEqual(deleted, 2)
-        self.assertIsNone(cache_mod.cache_load_manifest(root, "a" * 32))
-        self.assertIsNone(cache_mod.cache_load_manifest(root, "b" * 32))
-        # Unrelated root's cache survives.
-        self.assertIsNotNone(cache_mod.cache_load_manifest(Path("/y"), "c" * 32))
-
-    def test_clear_manifests_no_entries_returns_zero(self) -> None:
-        self.assertEqual(cache_mod.cache_clear_manifests(Path("/never/scanned")), 0)
-
-    def test_clear_manifests_missing_dir_returns_zero(self) -> None:
-        # CACHE_ROOT/manifests doesn't exist yet (no saves have happened).
-        self.assertFalse((cache_mod.CACHE_ROOT / "manifests").exists())
-        self.assertEqual(cache_mod.cache_clear_manifests(Path("/x")), 0)
-
     def test_ref_manifest_roundtrip(self) -> None:
         root = Path("/some/repo")
         sha = "a" * 40
@@ -542,19 +520,6 @@ class ManifestCacheTests(CacheTestBase):
         self.assertIsNone(
             cache_mod.cache_load_ref_manifest(Path("/never/scanned"), "b" * 40)
         )
-
-    def test_clear_manifests_also_sweeps_ref_manifests(self) -> None:
-        # cache_clear_manifests's `{repo_key}__*.json.gz` glob covers BOTH
-        # content-signature and `__ref-<sha>` keyed files.
-        root = Path("/x")
-        manifest = self._make_manifest()
-        cache_mod.cache_save_manifest(root, "a" * 32, manifest)
-        cache_mod.cache_save_ref_manifest(root, "b" * 40, manifest)
-
-        deleted = cache_mod.cache_clear_manifests(root)
-        self.assertEqual(deleted, 2)
-        self.assertIsNone(cache_mod.cache_load_manifest(root, "a" * 32))
-        self.assertIsNone(cache_mod.cache_load_ref_manifest(root, "b" * 40))
 
     def _make_bundle(self) -> dict:
         return {
@@ -616,18 +581,6 @@ class ManifestCacheTests(CacheTestBase):
         self.assertIsNone(
             cache_mod.cache_load_timeline(root, sha, frozenset({"other"}))
         )
-
-    def test_clear_manifests_also_sweeps_timeline(self) -> None:
-        # cache_clear_manifests's `{repo_key}__*.json.gz` glob covers
-        # content-signature, `__ref-<sha>`, AND `__timeline-<sha>` keyed files.
-        root = Path("/x")
-        cache_mod.cache_save_manifest(root, "a" * 32, self._make_manifest())
-        cache_mod.cache_save_timeline(root, "b" * 40, self._make_bundle())
-
-        deleted = cache_mod.cache_clear_manifests(root)
-        self.assertEqual(deleted, 2)
-        self.assertIsNone(cache_mod.cache_load_manifest(root, "a" * 32))
-        self.assertIsNone(cache_mod.cache_load_timeline(root, "b" * 40))
 
     def test_clear_timeline_evicts_all_heads_only(self) -> None:
         # A no_cache scan clears every timeline bundle for the root (all HEADs)
@@ -794,3 +747,90 @@ def test_blob_stats_cache_version_mismatch_is_miss(tmp_path, monkeypatch):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ManifestCachePruneTests(CacheTestBase):
+    """Retention on the manifests/ dir.
+
+    Every entry there is keyed by repo CONTENT, so the directory grew for the
+    life of the install — 844 files / 281 MB on one dev machine before this.
+    """
+
+    def _manifest(self) -> dict:
+        return {
+            "root": "/some/repo",
+            "scanned_at": "2026-05-17T00:00:00Z",
+            "content_signature": "deadbeef" * 4,
+            "tree": {"name": "repo", "type": "dir", "path": "", "children": []},
+        }
+
+    def _names(self, root: Path) -> list[str]:
+        prefix = f"{cache_mod.repo_key(root)}__"
+        d = cache_mod.CACHE_ROOT / "manifests"
+        return sorted(p.name[len(prefix) :] for p in d.glob(f"{prefix}*.json.gz"))
+
+    def test_content_signatures_are_capped(self) -> None:
+        root = Path("/x")
+        keep = cache_mod._KEEP_CONTENT_MANIFESTS
+        for i in range(keep + 4):
+            cache_mod.cache_save_manifest(root, f"{i:032x}", self._manifest())
+
+        self.assertEqual(len(self._names(root)), keep)
+
+    def test_the_entry_just_written_always_survives(self) -> None:
+        # Pruning runs after the save, so the newest write is never the victim.
+        root = Path("/x")
+        for i in range(cache_mod._KEEP_CONTENT_MANIFESTS + 3):
+            sig = f"{i:032x}"
+            cache_mod.cache_save_manifest(root, sig, self._manifest())
+            self.assertIsNotNone(cache_mod.cache_load_manifest(root, sig))
+
+    def test_families_are_capped_independently(self) -> None:
+        # A scrub session writing many ref manifests must not evict the live
+        # content-signature manifest out from under the running scan.
+        root = Path("/x")
+        cache_mod.cache_save_manifest(root, "a" * 32, self._manifest())
+        for i in range(cache_mod._KEEP_REF_MANIFESTS + 5):
+            cache_mod.cache_save_ref_manifest(root, f"{i:040x}", self._manifest())
+
+        self.assertIsNotNone(cache_mod.cache_load_manifest(root, "a" * 32))
+        refs = [n for n in self._names(root) if n.startswith("ref-")]
+        self.assertEqual(len(refs), cache_mod._KEEP_REF_MANIFESTS)
+
+    def test_pruning_one_repo_leaves_another_alone(self) -> None:
+        other = Path("/y")
+        cache_mod.cache_save_manifest(other, "c" * 32, self._manifest())
+        for i in range(cache_mod._KEEP_CONTENT_MANIFESTS + 3):
+            cache_mod.cache_save_manifest(Path("/x"), f"{i:032x}", self._manifest())
+
+        self.assertIsNotNone(cache_mod.cache_load_manifest(other, "c" * 32))
+
+    def test_prune_on_a_never_scanned_root_is_a_noop(self) -> None:
+        self.assertEqual(cache_mod.prune_manifest_cache(Path("/never/scanned")), 0)
+
+    def test_prune_with_no_manifests_dir_is_a_noop(self) -> None:
+        self.assertFalse((cache_mod.CACHE_ROOT / "manifests").exists())
+        self.assertEqual(cache_mod.prune_manifest_cache(Path("/x")), 0)
+
+    def test_protect_survives_even_when_it_ranks_oldest(self) -> None:
+        # mtime can tie (one-second resolution), ranking the just-written entry
+        # anywhere. Pinned to the worst case, it must still survive.
+        root = Path("/x")
+        d = cache_mod.CACHE_ROOT / "manifests"
+        d.mkdir(parents=True, exist_ok=True)
+
+        # Write past the cap directly, so setup does not prune as it goes.
+        paths = []
+        for i in range(cache_mod._KEEP_CONTENT_MANIFESTS + 3):
+            path = cache_mod._manifest_cache_path(root, f"{i:032x}")
+            cache_mod._save_gz_manifest(path, self._manifest())
+            paths.append(path)
+
+        victim = paths[0]
+        os.utime(victim, (1, 1))  # oldest by a wide margin -> first to go
+
+        cache_mod.prune_manifest_cache(root, protect=victim)
+
+        self.assertTrue(victim.exists(), "protected entry was evicted")
+        remaining = list(d.glob(f"{cache_mod.repo_key(root)}__*.json.gz"))
+        self.assertEqual(len(remaining), cache_mod._KEEP_CONTENT_MANIFESTS)

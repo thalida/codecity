@@ -49,7 +49,6 @@ body {
 #app.cc-showcase #left-sidebar,
 #app.cc-showcase #right-sidebar,
 #app.cc-showcase #app-footer,
-#app.cc-showcase #scene-controls,
-#app.cc-showcase .timeline-notice {
+#app.cc-showcase #scene-controls {
   display: none;
 }

@@ -14,11 +14,10 @@
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import * as THREE from 'three';
-import { signal } from '@preact/signals';
 import { LineSegments2 } from 'three/addons/lines/LineSegments2.js';
 
 import { createTrees } from '@/city/components/trees';
-import { makeCityState } from '../../../_helpers/cityFixtures';
+import { makeCityState, makePickableSceneContext } from '../../../_helpers/cityFixtures';
 import { TREES } from '@/state/stores/settings/trees';
 import { NodeKind } from '@/types';
 import type { CommitEntry } from '@/types';
@@ -50,26 +49,6 @@ const _origTrees = TREES.value;
 // A SceneContext whose picker exposes controllable selection + hover signals,
 // and a fake renderer.domElement canvas (with resizable client dims) so the
 // outline LineMaterial can read clientWidth/Height during arming.
-function makeCtx(): {
-  ctx: SceneContext;
-  selection: ReturnType<typeof signal<PickTarget | null>>;
-  hover: ReturnType<typeof signal<PickTarget | null>>;
-  size: { w: number; h: number };
-} {
-  const selection = signal<PickTarget | null>(null);
-  const hover = signal<PickTarget | null>(null);
-  const size = { w: 800, h: 600 };
-  const canvas = document.createElement('canvas');
-  Object.defineProperty(canvas, 'clientWidth', { get: () => size.w });
-  Object.defineProperty(canvas, 'clientHeight', { get: () => size.h });
-  const ctx = {
-    scene: new THREE.Scene(),
-    canvas,
-    picker: { selection, hover } as unknown as Picker,
-    cityState: makeCityState(),
-  } as unknown as SceneContext;
-  return { ctx, selection, hover, size };
-}
 
 // Pre-picker ctx: picker null (the construction-time window).
 function makePrePickerCtx(): SceneContext {
@@ -108,7 +87,7 @@ describe('createTrees() component door', () => {
   });
 
   it('constructs with an empty named group and a null handle (pre-rebuild)', () => {
-    const { ctx } = makeCtx();
+    const { ctx } = makePickableSceneContext();
     trees = createTrees(ctx);
     expect(trees.group).toBeInstanceOf(THREE.Group);
     expect(trees.group.name).toBe('city-trees');
@@ -124,7 +103,7 @@ describe('createTrees() component door', () => {
   });
 
   it('signal-driven rebuild runs without a cycle (clears + bumps decorationRevision)', async () => {
-    const { ctx } = makeCtx();
+    const { ctx } = makePickableSceneContext();
     const cs = ctx.cityState;
     trees = createTrees(ctx);
     const before = cs.decorationRevision.value;
@@ -141,7 +120,7 @@ describe('createTrees() component door', () => {
   });
 
   it('rebuild() builds the inner renderer under the group; getRenderer() is live', () => {
-    const { ctx } = makeCtx();
+    const { ctx } = makePickableSceneContext();
     trees = createTrees(ctx);
     trees.rebuild(PLACEMENTS, COMMITS, BUSY, commitStats(COMMITS));
     const handle = trees.getRenderer();
@@ -154,7 +133,7 @@ describe('createTrees() component door', () => {
   });
 
   it('clear() disposes the inner renderer, empties the group, nulls the handle', () => {
-    const { ctx } = makeCtx();
+    const { ctx } = makePickableSceneContext();
     trees = createTrees(ctx);
     trees.rebuild(PLACEMENTS, COMMITS, BUSY, commitStats(COMMITS));
     trees.clear();
@@ -165,7 +144,7 @@ describe('createTrees() component door', () => {
   });
 
   it('rebuild() disposes the prior inner renderer (no accumulation)', () => {
-    const { ctx } = makeCtx();
+    const { ctx } = makePickableSceneContext();
     trees = createTrees(ctx);
     trees.rebuild(PLACEMENTS, COMMITS, BUSY, commitStats(COMMITS));
     const first = trees.getRenderer()!;
@@ -176,7 +155,7 @@ describe('createTrees() component door', () => {
   });
 
   it('theme effect refreshes the inner renderer on TREES Save', () => {
-    const { ctx } = makeCtx();
+    const { ctx } = makePickableSceneContext();
     trees = createTrees(ctx);
     trees.rebuild(PLACEMENTS, COMMITS, BUSY, commitStats(COMMITS));
     const refreshSpy = vi.spyOn(trees.getRenderer()!, 'refresh');
@@ -185,7 +164,7 @@ describe('createTrees() component door', () => {
   });
 
   it('does NOT show an outline for a selection set before the first tick (not yet armed)', () => {
-    const { ctx, selection } = makeCtx();
+    const { ctx, selection } = makePickableSceneContext();
     trees = createTrees(ctx);
     trees.rebuild(PLACEMENTS, COMMITS, BUSY, commitStats(COMMITS));
     selection.value = commitTarget(SHA_A);
@@ -195,7 +174,7 @@ describe('createTrees() component door', () => {
   });
 
   it('arms the outline on first tick; the pending Commit selection becomes visible', () => {
-    const { ctx, selection } = makeCtx();
+    const { ctx, selection } = makePickableSceneContext();
     trees = createTrees(ctx);
     trees.rebuild(PLACEMENTS, COMMITS, BUSY, commitStats(COMMITS));
     selection.value = commitTarget(SHA_A);
@@ -222,7 +201,7 @@ describe('createTrees() component door', () => {
   });
 
   it('onResize() pushes fresh canvas dimensions into the outline materials', () => {
-    const { ctx, size } = makeCtx();
+    const { ctx, size } = makePickableSceneContext();
     trees = createTrees(ctx);
     trees.rebuild(PLACEMENTS, COMMITS, BUSY, commitStats(COMMITS));
     trees.tick(0, FRAME(CAMERA)); // arm
@@ -236,7 +215,7 @@ describe('createTrees() component door', () => {
   });
 
   it('dispose() clears the inner renderer, stops the theme effect, removes outlines', () => {
-    const { ctx, selection } = makeCtx();
+    const { ctx, selection } = makePickableSceneContext();
     trees = createTrees(ctx);
     trees.rebuild(PLACEMENTS, COMMITS, BUSY, commitStats(COMMITS));
     trees.tick(0, FRAME(CAMERA)); // arm

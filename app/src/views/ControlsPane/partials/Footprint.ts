@@ -9,7 +9,7 @@ export const FOOTPRINT_SECTION: SectionNode = {
   key: 'footprint',
   label: 'City footprint',
   description:
-    'The dark paved apron beneath the city — overlapping inflated rects around every building, street, and path compose into one slab that follows the city silhouette.',
+    'The dark paved apron beneath the city: overlapping inflated rects around every building, street, and path compose into one slab that follows the city silhouette.',
   children: [
     field(FOOTPRINT, 'ENABLED'),
     field(FOOTPRINT, 'COLOR'),

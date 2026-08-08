@@ -1,7 +1,7 @@
 import { afterEach, expect, test } from 'vitest';
 import { NodeKind } from '@/types';
 import type { TimelineBundle } from '@/types';
-import { TIMELINE_MODE, TIMELINE_BUNDLE, SCRUB_POS } from '@/state/stores/timeline';
+import { TIMELINE_MODE, TIMELINE_BUNDLE, setScrubPos } from '@/state/stores/timeline';
 import { PRESENT_PATHS, scrubbedBlobShaFor, scrubbedStatsFor } from '@/state/stores/presentPaths';
 
 // At commit 2: src/present.txt is live; src/gone.txt was deleted at commit 2;
@@ -52,13 +52,13 @@ const bundle = {
 afterEach(() => {
   TIMELINE_MODE.value = false;
   TIMELINE_BUNDLE.value = null;
-  SCRUB_POS.value = 0;
+  setScrubPos(0);
 });
 
 test('present files + their ancestor dirs are in the set; deleted/future are not', () => {
   TIMELINE_BUNDLE.value = bundle;
   TIMELINE_MODE.value = true;
-  SCRUB_POS.value = 2;
+  setScrubPos(2);
 
   const p = PRESENT_PATHS.value;
   expect(p.has('src/present.txt')).toBe(true);
@@ -101,13 +101,13 @@ test('displayed stats describe the blob being served, across unchanged commits',
   // one of them must report that blob's numbers — no drift toward the later
   // edit, which is what put "42 lines" over a 36-line body.
   for (const pos of [0, 0.7, 1, 2, 2.9]) {
-    SCRUB_POS.value = pos;
+    setScrubPos(pos);
     expect(scrubbedBlobShaFor('f.txt')).toBe('small');
     expect(scrubbedStatsFor('f.txt')?.lines).toBe(36);
     expect(scrubbedStatsFor('f.txt')?.bytes).toBe(100);
   }
 
-  SCRUB_POS.value = 3;
+  setScrubPos(3);
   expect(scrubbedBlobShaFor('f.txt')).toBe('big');
   expect(scrubbedStatsFor('f.txt')?.lines).toBe(46);
   expect(scrubbedStatsFor('f.txt')?.bytes).toBe(200);

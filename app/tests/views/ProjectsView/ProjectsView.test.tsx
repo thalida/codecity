@@ -13,11 +13,12 @@ import {
   openProjectsView,
   closeProjectsView,
   setLoadingStepTail,
+  PENDING_SOURCE_LABEL,
 } from '@/state/stores/ui';
 import { LoadingStep } from '@/constants/loadingSteps';
 import { SCAN_PROGRESS } from '@/state/stores/scanProgress';
-import { PENDING_SOURCE_LABEL } from '@/state/stores/source';
-import { SERVER_CONFIG } from '@/state/stores/serverConfig';
+
+import { SERVER_CONFIG, DEFAULT_SERVER_CONFIG } from '@/state/stores/serverConfig';
 import { RECENTS } from '@/state/stores/source';
 import { ScanPhase } from '@/api/manifest';
 import { SourceKind } from '@/utils/sources';
@@ -29,7 +30,7 @@ describe('ProjectsView', () => {
   beforeEach(() => {
     container = document.createElement('div');
     document.body.appendChild(container);
-    SERVER_CONFIG.value = { allowLocalRepos: true };
+    SERVER_CONFIG.value = { ...DEFAULT_SERVER_CONFIG, allowLocalRepos: true };
   });
 
   afterEach(() => {

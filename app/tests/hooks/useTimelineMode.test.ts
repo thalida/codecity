@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
 import { loadTimelineScene, exitTimelineMode, teardownTimelineMode } from '@/hooks/useTimelineMode';
 import { EXCLUDES, addExclude } from '@/state/stores/excludes';
-import { TIMELINE_MODE, SCRUB_POS, TIMELINE_BUNDLE } from '@/state/stores/timeline';
+import { TIMELINE_MODE, SCRUB_POS, TIMELINE_BUNDLE, setScrubPos } from '@/state/stores/timeline';
 import { CURRENT_SOURCE } from '@/state/stores/source';
 import { SCENE_HANDLE } from '@/state/stores/scene';
 import { MANIFEST, REBUILD_STATUS, RebuildStatus } from '@/state/stores/manifest';
@@ -73,7 +73,7 @@ describe('loadTimelineScene', () => {
   beforeEach(() => {
     CURRENT_SOURCE.value = { src: 's', branch: undefined };
     TIMELINE_MODE.value = false;
-    SCRUB_POS.value = 0;
+    setScrubPos(0);
     TIMELINE_BUNDLE.value = null;
     LOADING_OVERLAY.value = { visible: false, showOpts: null, activeStep: null, stepTails: {} };
     REBUILD_STATUS.value = RebuildStatus.Idle;
@@ -216,7 +216,7 @@ describe('exitTimelineMode', () => {
     (globalThis as unknown as { EventSource: unknown }).EventSource = StubEventSource;
     CURRENT_SOURCE.value = { src: 's', branch: undefined };
     TIMELINE_MODE.value = true;
-    SCRUB_POS.value = 2;
+    setScrubPos(2);
     TIMELINE_BUNDLE.value = BUNDLE;
   });
   afterEach(() => {
@@ -247,7 +247,7 @@ describe('teardownTimelineMode', () => {
 
   it('is a pure signal flip — no source reload, scene-free', () => {
     TIMELINE_MODE.value = true;
-    SCRUB_POS.value = 2;
+    setScrubPos(2);
     TIMELINE_BUNDLE.value = BUNDLE;
 
     teardownTimelineMode();
@@ -304,7 +304,7 @@ describe('loadTimelineScene inPlace refetch', () => {
   beforeEach(() => {
     CURRENT_SOURCE.value = { src: 's', branch: undefined };
     TIMELINE_MODE.value = true;
-    SCRUB_POS.value = 2;
+    setScrubPos(2);
     TIMELINE_BUNDLE.value = BUNDLE;
     REBUILD_STATUS.value = RebuildStatus.Idle; // inPlace uses the footer (markRebuilding)
     (fetchTimelineBundle as unknown as ReturnType<typeof vi.fn>).mockReset();
@@ -354,7 +354,7 @@ describe('exclude edit in Timeline routes to a bundle refetch (regression: #128)
     MANIFEST.value = { content_signature: 'sig0', tree: {} } as never;
     SCAN_PROGRESS.value = null;
     TIMELINE_MODE.value = true;
-    SCRUB_POS.value = 2;
+    setScrubPos(2);
     TIMELINE_BUNDLE.value = BUNDLE;
     EXCLUDES.value = {};
     (fetchTimelineBundle as unknown as ReturnType<typeof vi.fn>).mockReset();

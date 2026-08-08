@@ -1,9 +1,10 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { loadSource, cancelLoad } from '@/hooks/useManifestSource';
-import { SOURCE_ERROR, CURRENT_SOURCE } from '@/state/stores/source';
+import { SOURCE_ERROR, CURRENT_SOURCE, RECENTS } from '@/state/stores/source';
 import { MANIFEST } from '@/state/stores/manifest';
-import { TIMELINE_MODE, SCRUB_POS, TIMELINE_BUNDLE } from '@/state/stores/timeline';
+import { TIMELINE_MODE, SCRUB_POS, TIMELINE_BUNDLE, setScrubPos } from '@/state/stores/timeline';
 import type { TimelineBundle } from '@/types';
+import { PENDING_SOURCE_LABEL } from '@/state/stores/ui';
 
 // EventSource stub with driveable events: records listeners so a test can emit
 // a named SSE event (e.g. a `manifest-partial` skeleton), and records
@@ -40,6 +41,36 @@ describe('useManifestSource loadSource cancellation', () => {
 
   afterEach(() => {
     (globalThis as unknown as { EventSource: unknown }).EventSource = originalEventSource;
+  });
+
+  describe('loading header label', () => {
+    it('is up before the server sends one, seeded from recents', async () => {
+      RECENTS.value = [
+        { src: 'https://github.com/o/r', label: 'o/r', lastOpenedAt: 1 },
+      ] as typeof RECENTS.value;
+      PENDING_SOURCE_LABEL.value = null;
+
+      const p = loadSource({ src: 'https://github.com/o/r' });
+      // No event has arrived yet: the overlay is already on screen.
+      expect(PENDING_SOURCE_LABEL.value, 'header must not be blank while resolving').toBe('o/r');
+
+      cancelLoad();
+      await p;
+    });
+
+    it('survives the stream ending, since the city is still being built', async () => {
+      RECENTS.value = [];
+      const p = loadSource({ src: 'https://github.com/o/r' });
+      StubEventSource.instances[0]!.emit(
+        'manifest-complete',
+        JSON.stringify({ manifest: { tree: { name: 'o/r' } } })
+      );
+      await p;
+
+      // loadSource is done; the overlay lives on through Building/Decorating,
+      // and the header has to live exactly as long as the overlay.
+      expect(PENDING_SOURCE_LABEL.value, 'cleared with the stream, not the overlay').toBe('o/r');
+    });
   });
 
   it('canceling a load leaves SOURCE_ERROR null and CURRENT_SOURCE unchanged', async () => {
@@ -125,13 +156,13 @@ describe('loadSource exits Timeline mode', () => {
   afterEach(() => {
     (globalThis as unknown as { EventSource: unknown }).EventSource = originalEventSource;
     TIMELINE_MODE.value = false;
-    SCRUB_POS.value = 0;
+    setScrubPos(0);
     TIMELINE_BUNDLE.value = null;
   });
 
   it('flips TIMELINE_MODE off and clears the scrub store before the fetch starts', async () => {
     TIMELINE_MODE.value = true;
-    SCRUB_POS.value = 3;
+    setScrubPos(3);
     TIMELINE_BUNDLE.value = { commits: [{ sha: 'a' }] } as unknown as TimelineBundle;
 
     const p = loadSource({ src: 'https://github.com/o/r' });

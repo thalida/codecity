@@ -8,8 +8,9 @@ import {
   hideLoadingOverlay,
   setLoadingStep,
   setLoadingStepTail,
+  PENDING_SOURCE_LABEL,
 } from '@/state/stores/ui';
-import { PENDING_SOURCE_LABEL } from '@/state/stores/source';
+
 import { LoadingStep } from '@/constants/loadingSteps';
 import { SourceKind } from '@/utils/sources';
 import { flush } from '../_helpers/preact';

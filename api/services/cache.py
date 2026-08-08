@@ -29,10 +29,14 @@ import json
 import os
 import re
 import tempfile
+from enum import StrEnum
 from pathlib import Path
 from typing import TYPE_CHECKING, NotRequired, TypedDict, cast
 
 from api.config import CACHE_ROOT
+
+KEY_SEP = "__"  # between the repo key and the entry name
+MANIFEST_EXT = ".json.gz"
 
 if TYPE_CHECKING:
     from api.services.manifest_types import CommitEntry, Manifest, TimelineBundle
@@ -386,18 +390,42 @@ def cache_save_git_history(
     _atomic_write(_git_history_cache_path(abs_root), json.dumps(payload))
 
 
+class ManifestFamily(StrEnum):
+    """Retention pool for a manifests/ entry. `tag` is how it reads on disk."""
+
+    CONTENT = "content"
+    REF = "ref"
+    TIMELINE = "timeline"
+
+    @property
+    def tag(self) -> str:
+        """Name prefix marking the family; content entries carry none."""
+        return "" if self is ManifestFamily.CONTENT else f"{self.value}-"
+
+
+def _manifest_dir() -> Path:
+    """A function, not a constant, so a test patching CACHE_ROOT cascades."""
+    return CACHE_ROOT / "manifests"
+
+
+def _manifest_path(abs_root: Path, name: str) -> Path:
+    """One manifests/ entry for this root. Every writer goes through here so the
+    name shape stays in lockstep with the globs below."""
+    return _manifest_dir() / f"{repo_key(abs_root)}{KEY_SEP}{name}{MANIFEST_EXT}"
+
+
+def _manifest_glob(abs_root: Path, name: str = "*") -> str:
+    """Glob matching this root's manifests/ entries, optionally one family."""
+    return f"{repo_key(abs_root)}{KEY_SEP}{name}{MANIFEST_EXT}"
+
+
 def _manifest_cache_path(abs_root: Path, content_signature: str) -> Path:
-    return (
-        CACHE_ROOT / "manifests" / f"{repo_key(abs_root)}__{content_signature}.json.gz"
-    )
+    return _manifest_path(abs_root, content_signature)
 
 
 def _ref_manifest_cache_path(abs_root: Path, ref_sha: str) -> Path:
-    # `__ref-` (not `__`) so cache_clear_manifests's `{repo_key}__*.json.gz`
-    # glob still sweeps these alongside content-signature entries, while the
-    # prefix keeps a ref-sha visually distinct from a content signature in
-    # directory listings.
-    return CACHE_ROOT / "manifests" / f"{repo_key(abs_root)}__ref-{ref_sha}.json.gz"
+    # Tagged so a ref sha reads differently from a content signature in a listing.
+    return _manifest_path(abs_root, f"{ManifestFamily.REF.tag}{ref_sha}")
 
 
 def _load_gz_envelope(
@@ -462,6 +490,71 @@ def _save_gz_manifest(path: Path, manifest: "Manifest") -> None:
     )
 
 
+# Keyed by repo CONTENT, so uncapped this grows for the life of the install.
+# Pure performance caches: evicting costs a rescan, never correctness.
+_KEEP_CONTENT_MANIFESTS = 5
+_KEEP_REF_MANIFESTS = 20
+_KEEP_TIMELINE_BUNDLES = 3
+
+
+def _entry_family(name: str) -> ManifestFamily:
+    """Which retention pool an entry name (the part after the repo key) is in."""
+    for family in (ManifestFamily.REF, ManifestFamily.TIMELINE):
+        if name.startswith(family.tag):
+            return family
+    return ManifestFamily.CONTENT
+
+
+_FAMILY_KEEP = {
+    ManifestFamily.CONTENT: _KEEP_CONTENT_MANIFESTS,
+    ManifestFamily.REF: _KEEP_REF_MANIFESTS,
+    ManifestFamily.TIMELINE: _KEEP_TIMELINE_BUNDLES,
+}
+
+
+def prune_manifest_cache(abs_root: Path, *, protect: Path | None = None) -> int:
+    """Drop this root's oldest manifest-dir entries, per family. Returns the
+    count deleted.
+
+    `protect` is never evicted: one-second mtime resolution lets a burst of
+    saves tie, which could sort the just-written entry into the tail.
+
+    Ordered by mtime, not atime (relatime doesn't track it), so a much-read old
+    signature still ages out. Best-effort, like the rest of this module."""
+    if not _manifest_dir().exists():
+        return 0
+
+    prefix = f"{repo_key(abs_root)}{KEY_SEP}"
+    families: dict[ManifestFamily, list[tuple[float, Path]]] = {
+        family: [] for family in ManifestFamily
+    }
+    for path in _manifest_dir().glob(_manifest_glob(abs_root)):
+        if protect is not None and path == protect:
+            continue  # counts against nothing; it always stays
+        try:
+            mtime = path.stat().st_mtime
+        except OSError:
+            continue  # vanished under us; nothing to prune
+        families[_entry_family(path.name[len(prefix) :])].append((mtime, path))
+
+    deleted = 0
+    for family, entries in families.items():
+        # The protected entry is out of `entries`, so leave room for it.
+        keep = _FAMILY_KEEP[family]
+        if protect is not None and _entry_family(protect.name[len(prefix) :]) == family:
+            keep -= 1
+        if len(entries) <= keep:
+            continue
+        entries.sort(key=lambda e: e[0], reverse=True)  # newest first
+        for _, path in entries[keep:]:
+            try:
+                path.unlink()
+                deleted += 1
+            except OSError:
+                pass
+    return deleted
+
+
 def cache_load_manifest(
     abs_root: Path,
     content_signature: str,
@@ -476,20 +569,23 @@ def cache_save_manifest(
     manifest: "Manifest",
 ) -> None:
     """Atomically write the manifest cache for this (root, content_signature)."""
-    _save_gz_manifest(_manifest_cache_path(abs_root, content_signature), manifest)
+    path = _manifest_cache_path(abs_root, content_signature)
+    _save_gz_manifest(path, manifest)
+    prune_manifest_cache(abs_root, protect=path)
 
 
 def cache_load_ref_manifest(abs_root: Path, ref_sha: str) -> "Manifest | None":
     """Load the cached manifest for this (root, ref_sha). A resolved commit
     sha's manifest is immutable (the commit's content never changes), so
-    unlike the content-signature cache this key never needs invalidating —
-    only `cache_clear_manifests`/`cache_clear_all` remove it."""
+    unlike the content-signature cache this key never needs invalidating."""
     return _load_gz_manifest(_ref_manifest_cache_path(abs_root, ref_sha))
 
 
 def cache_save_ref_manifest(abs_root: Path, ref_sha: str, manifest: "Manifest") -> None:
     """Atomically write the ref-keyed manifest cache for (root, ref_sha)."""
-    _save_gz_manifest(_ref_manifest_cache_path(abs_root, ref_sha), manifest)
+    path = _ref_manifest_cache_path(abs_root, ref_sha)
+    _save_gz_manifest(path, manifest)
+    prune_manifest_cache(abs_root, protect=path)
 
 
 def _excludes_key(excludes: frozenset[str]) -> str:
@@ -501,15 +597,10 @@ def _excludes_key(excludes: frozenset[str]) -> str:
 def _timeline_cache_path(
     abs_root: Path, head_sha: str, excludes: frozenset[str] = frozenset()
 ) -> Path:
-    # Same dir + `__*.json.gz` glob as the manifest caches, so the clear paths sweep it.
-    # Excludes reshape the filtered union, so they're part of the key; an empty set
-    # keeps the bare head-sha name (existing caches + clear glob stay valid).
+    # Excludes reshape the filtered union, so they're part of the key; an empty
+    # set keeps the bare head-sha name so existing caches stay valid.
     suffix = f"-{_excludes_key(excludes)}" if excludes else ""
-    return (
-        CACHE_ROOT
-        / "manifests"
-        / f"{repo_key(abs_root)}__timeline-{head_sha}{suffix}.json.gz"
-    )
+    return _manifest_path(abs_root, f"{ManifestFamily.TIMELINE.tag}{head_sha}{suffix}")
 
 
 def cache_load_timeline(
@@ -531,12 +622,14 @@ def cache_save_timeline(
     excludes: frozenset[str] = frozenset(),
 ) -> None:
     """Atomically write the timeline bundle cache for (root, head_sha, excludes)."""
+    path = _timeline_cache_path(abs_root, head_sha, excludes)
     _save_gz_envelope(
-        _timeline_cache_path(abs_root, head_sha, excludes),
+        path,
         envelope_key="bundle",
         version=_TIMELINE_CACHE_VERSION,
         payload=cast("dict[str, object]", bundle),
     )
+    prune_manifest_cache(abs_root, protect=path)
 
 
 def cache_clear_timeline(abs_root: Path) -> int:
@@ -545,61 +638,15 @@ def cache_clear_timeline(abs_root: Path) -> int:
     rebuilds fresh — the bundle is immutable per HEAD, so nothing else evicts a
     stale one built by older code. Same swallow-errors hygiene as the rest of
     this module."""
-    manifests_dir = CACHE_ROOT / "manifests"
-    if not manifests_dir.exists():
+    if not _manifest_dir().exists():
         return 0
     count = 0
-    for path in manifests_dir.glob(f"{repo_key(abs_root)}__timeline-*.json.gz"):
-        try:
-            path.unlink()
-            count += 1
-        except OSError:
-            pass
-    return count
-
-
-def cache_clear_manifests(abs_root: Path) -> int:
-    """Delete every cached manifest file for this root, across all
-    signatures, every ref-keyed manifest, AND every timeline bundle (the
-    `__*.json.gz` glob below matches `__<signature>.json.gz`,
-    `__ref-<sha>.json.gz`, and `__timeline-<sha>.json.gz`).
-    Returns the count deleted.
-
-    Silently ignores I/O errors per the rest of this module's hygiene —
-    cache cleanup failures must never break the response."""
-    manifests_dir = CACHE_ROOT / "manifests"
-    if not manifests_dir.exists():
-        return 0
-    pattern = f"{repo_key(abs_root)}__*.json.gz"
-    count = 0
-    for path in manifests_dir.glob(pattern):
-        try:
-            path.unlink()
-            count += 1
-        except OSError:
-            pass
-    return count
-
-
-def cache_clear_all(abs_root: Path) -> int:
-    """Delete EVERY per-root cache for this root — manifest (all
-    signatures), file-stat, git-history, and blob-stats. Returns the count
-    deleted.
-
-    Backs the "clear cache" flow's clean-slate guarantee for a source.
-    The git clone working tree lives outside CACHE_ROOT, so the caller
-    removes it separately (see clone.remove_clone). Same swallow-errors
-    hygiene as the rest of this module — cleanup failures must never
-    break the response."""
-    count = cache_clear_manifests(abs_root)
-    for path in (
-        _file_cache_path(abs_root),
-        _git_history_cache_path(abs_root),
-        _blob_cache_path(abs_root),
+    for path in _manifest_dir().glob(
+        _manifest_glob(abs_root, f"{ManifestFamily.TIMELINE.tag}*")
     ):
         try:
             path.unlink()
             count += 1
         except OSError:
-            pass  # missing file or I/O error — best-effort cleanup
+            pass
     return count

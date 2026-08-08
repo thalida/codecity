@@ -6,7 +6,14 @@
 
 import './TimeTravelBar.css';
 import { useEffect, useMemo, useRef } from 'preact/hooks';
-import { TIMELINE_MODE, SCRUB_POS, TIMELINE_BUNDLE, SCRUB_DRAGGING } from '@/state/stores/timeline';
+import {
+  TIMELINE_MODE,
+  SCRUB_POS,
+  SCRUB_MAX,
+  TIMELINE_BUNDLE,
+  SCRUB_DRAGGING,
+  setScrubPos,
+} from '@/state/stores/timeline';
 import { ACCENT_THEME } from '@/state/stores/settings/theme';
 import { SCRUBBER } from '@/state/stores/settings/scrubber';
 import { formatShortDate } from '@/utils/dates';
@@ -20,8 +27,7 @@ import {
 } from './scrubberScale';
 
 export function TimeTravelBar() {
-  if (!TIMELINE_MODE.value) return null;
-
+  const inTimeline = TIMELINE_MODE.value;
   const bundle = TIMELINE_BUNDLE.value;
   const commits = bundle?.commits ?? [];
 
@@ -39,12 +45,15 @@ export function TimeTravelBar() {
   const trackRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
-  const maxIndex = Math.max(0, commits.length - 1);
-  const pos = Math.min(Math.max(SCRUB_POS.value, 0), maxIndex);
+  const maxIndex = SCRUB_MAX.value;
+  const pos = SCRUB_POS.value;
   // A single-commit repo has no history to scrub: the handle pins to the present
   // (right edge, via the scale) and the track is inert rather than grab-and-freeze.
   const inert = maxIndex === 0;
   const accentTheme = ACCENT_THEME.value; // repaint the canvas when the accent changes
+  // Leaving Timeline destroys the canvas and returning builds a fresh blank one,
+  // so the draw has to re-run on this even when nothing else changed.
+  const mounted = inTimeline && commits.length > 0;
 
   // Paint the track: an accent played-fill + past ticks, neutral future ticks.
   // One canvas draw for all commits, DPR-crisp, null-guards a missing 2d context.
@@ -87,9 +96,11 @@ export function TimeTravelBar() {
     const ro = new ResizeObserver(draw);
     ro.observe(track);
     return () => ro.disconnect();
-  }, [scale, pos, accentTheme]);
+  }, [scale, pos, accentTheme, mounted]);
 
-  if (commits.length === 0) return null;
+  // Bail only AFTER the hooks: returning above them froze this instance's effect
+  // deps while it rendered nothing.
+  if (!mounted) return null;
 
   const commit = commits[Math.min(Math.round(pos), maxIndex)];
   const remote = bundle?.unionManifest?.repo?.remote_url ?? null;
@@ -107,7 +118,7 @@ export function TimeTravelBar() {
     if (!el) return;
     const r = el.getBoundingClientRect();
     if (r.width === 0) return;
-    SCRUB_POS.value = fractionToIndex(scale, (clientX - r.left) / r.width);
+    setScrubPos(fractionToIndex(scale, (clientX - r.left) / r.width));
   };
 
   const onPointerDown = (e: PointerEvent) => {
@@ -146,7 +157,7 @@ export function TimeTravelBar() {
     else return;
     e.preventDefault();
     e.stopPropagation();
-    SCRUB_POS.value = Math.max(0, Math.min(maxIndex, next));
+    setScrubPos(next);
   };
 
   return (
@@ -156,7 +167,7 @@ export function TimeTravelBar() {
           type="button"
           class="time-travel-edge"
           title="Jump to the first commit"
-          onClick={() => (SCRUB_POS.value = 0)}
+          onClick={() => setScrubPos(0)}
         >
           {formatShortDate(commits[0].date)}
         </button>
@@ -187,7 +198,7 @@ export function TimeTravelBar() {
           type="button"
           class="time-travel-edge"
           title="Jump to the latest commit"
-          onClick={() => (SCRUB_POS.value = maxIndex)}
+          onClick={() => setScrubPos(maxIndex)}
         >
           {formatShortDate(commits[maxIndex].date)}
         </button>

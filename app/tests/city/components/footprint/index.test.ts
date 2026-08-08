@@ -11,9 +11,7 @@ import { createFootprint } from '@/city/components/footprint';
 import { FOOTPRINT } from '@/state/stores/settings/footprint';
 import { StreetAxis } from '@/types';
 import type { CityLayout } from '@/types';
-import type { Picker } from '@/city/interaction/picker';
-import type { SceneContext } from '@/city/types';
-import { makeCityState } from '../../../_helpers/cityFixtures';
+import { makeSceneContext } from '../../../_helpers/cityFixtures';
 
 function resetFootprint() {
   FOOTPRINT.value = { ENABLED: true, HALO_WIDTH: 32, CORNER_RADIUS: 1.25, COLOR: '#0a0b0f' };
@@ -21,15 +19,6 @@ function resetFootprint() {
 
 // footprint reads ctx.cityState for its layout effect; layout stays null here
 // (effect no-ops) and tests drive rebuild() directly.
-function makeCtx(): SceneContext {
-  return {
-    scene: new THREE.Scene(),
-    picker: null as unknown as Picker,
-    camera: null as unknown as THREE.PerspectiveCamera,
-    renderer: null as unknown as THREE.WebGLRenderer,
-    cityState: makeCityState(),
-  } as unknown as SceneContext;
-}
 
 function singleBuildingLayout(): CityLayout {
   return {
@@ -56,7 +45,7 @@ describe('createFootprint()', () => {
 
   beforeEach(() => {
     resetFootprint();
-    fp = createFootprint(makeCtx());
+    fp = createFootprint(makeSceneContext());
   });
 
   afterEach(() => {

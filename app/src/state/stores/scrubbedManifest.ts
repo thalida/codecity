@@ -9,8 +9,34 @@ import { manifestUrlFor, streamManifest, ScanPhase } from '@/api/manifest';
 import type { Manifest } from '@/types';
 import { activeExcludePathsFor } from '@/state/stores/excludes';
 
-// Reconstruction is immutable per commit, so a visited commit is free to revisit.
+// Immutable per commit, so revisits are free. Bounded: an entry is a whole repo
+// tree. Insertion order is recency; the oldest key is first.
 const _cache = new Map<string, Manifest>();
+const _CACHE_MAX = 16;
+
+function cacheGet(key: string): Manifest | undefined {
+  const hit = _cache.get(key);
+  if (hit) {
+    _cache.delete(key);
+    _cache.set(key, hit);
+  }
+  return hit;
+}
+
+function cacheSet(key: string, manifest: Manifest): void {
+  _cache.delete(key);
+  _cache.set(key, manifest);
+  while (_cache.size > _CACHE_MAX) {
+    const oldest = _cache.keys().next().value;
+    if (oldest === undefined) break;
+    _cache.delete(oldest);
+  }
+}
+
+/** Test-only: drop every cached reconstruction. */
+export function _clearScrubbedManifestCache(): void {
+  _cache.clear();
+}
 
 export const SCRUBBED_MANIFEST = signal<Manifest | null>(null);
 export const SCRUBBED_MANIFEST_PENDING = signal(false);
@@ -26,7 +52,7 @@ export async function loadManifestAt(
   // Excludes reshape the tree, so they're part of the identity of what we cached.
   const exclude = activeExcludePathsFor(src);
   const key = `${src}@${sha}@${exclude.join(',')}`;
-  const cached = _cache.get(key);
+  const cached = cacheGet(key);
   if (cached) {
     SCRUBBED_MANIFEST.value = cached;
     return;
@@ -42,7 +68,7 @@ export async function loadManifestAt(
       signal: ctrl.signal,
     })) {
       if (ev.phase === ScanPhase.CompleteManifest) {
-        _cache.set(key, ev.manifest);
+        cacheSet(key, ev.manifest);
         if (!ctrl.signal.aborted) SCRUBBED_MANIFEST.value = ev.manifest;
       }
     }

@@ -174,23 +174,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/manifest/cache": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        /** Clear Cache */
-        delete: operations["clear_cache_api_manifest_cache_delete"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/manifest": {
         parameters: {
             query?: never;
@@ -237,11 +220,6 @@ export interface components {
             avg: number;
             /** Busy */
             busy: number;
-        };
-        /** CacheClearResponse */
-        CacheClearResponse: {
-            /** Deleted */
-            deleted: number;
         };
         /**
          * CloneProgressEvent
@@ -327,6 +305,8 @@ export interface components {
         ConfigResponse: {
             /** Allowlocalrepos */
             allowLocalRepos: boolean;
+            /** Maxbatchpaths */
+            maxBatchPaths: number;
         };
         /** DateRangeMs */
         DateRangeMs: {
@@ -1016,38 +996,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["TimelineProgressEvent"] | components["schemas"]["TimelineCompleteEvent"] | components["schemas"]["ErrorEvent"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    clear_cache_api_manifest_cache_delete: {
-        parameters: {
-            query: {
-                src: string;
-                branch?: string | null;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["CacheClearResponse"];
                 };
             };
             /** @description Validation Error */

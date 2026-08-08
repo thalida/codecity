@@ -1,16 +1,3 @@
-/* ── Street labels (rendered on canvas; these are the overlay fallback) ── */
-
-.street-label {
-  position: absolute;
-  font-size: var(--cc-font-2xs);
-  font-weight: var(--cc-fw-medium);
-  color: var(--cc-text-base);
-  pointer-events: none;
-  white-space: nowrap;
-  text-shadow: var(--cc-shadow-text);
-  user-select: none;
-}
-
 /* ── Street pane (right sidebar) ────────────────────────────────────────
    Shown when a directory (road) is selected. Composition-forward:
      - pane header (badge + leaf, like FilePreviewPane)

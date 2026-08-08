@@ -92,7 +92,12 @@ HEALTHCHECK --interval=10s --timeout=2s --start-period=3s --retries=3 \
 # process by design, see api/security.py (the allowed_roots trust set is
 # in-memory; multi-worker would split it).
 ENTRYPOINT ["/srv/.venv/bin/python", "-m", "api"]
-CMD ["--port", "8080"]
+# --host is explicit because the CLI defaults to loopback (an unauthenticated
+# API that serves any scanned root should not reach the network by default).
+# In a container that default would make the port unreachable from the host:
+# here 0.0.0.0 is the container's own namespace, and only published ports get
+# out. Any `command:` override must repeat this — see docker-compose.dev.yml.
+CMD ["--port", "8080", "--host", "0.0.0.0"]
 
 # Populated by CI via --build-arg.
 ARG GIT_SHA=dev

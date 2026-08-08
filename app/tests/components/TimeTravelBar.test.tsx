@@ -4,8 +4,8 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { render } from 'preact';
 import { TimeTravelBar } from '@/components/TimeTravelBar/TimeTravelBar';
-import { TIMELINE_MODE, SCRUB_POS, TIMELINE_BUNDLE } from '@/state/stores/timeline';
-import { flush } from '../_helpers/preact';
+import { TIMELINE_MODE, SCRUB_POS, TIMELINE_BUNDLE, setScrubPos } from '@/state/stores/timeline';
+import { flush, drainAsync } from '../_helpers/preact';
 import type { CommitEntry, TimelineBundle } from '@/types';
 
 const commit = (sha: string, date: string, subject: string): CommitEntry => ({
@@ -42,14 +42,14 @@ describe('TimeTravelBar', () => {
     document.body.appendChild(container);
     TIMELINE_MODE.value = true;
     TIMELINE_BUNDLE.value = BUNDLE;
-    SCRUB_POS.value = 2;
+    setScrubPos(2);
   });
 
   afterEach(() => {
     render(null, container);
     document.body.removeChild(container);
     TIMELINE_MODE.value = false;
-    SCRUB_POS.value = 0;
+    setScrubPos(0);
     TIMELINE_BUNDLE.value = null;
   });
 
@@ -81,7 +81,7 @@ describe('TimeTravelBar', () => {
   });
 
   it('jumps to the first / latest commit when an edge date is clicked', async () => {
-    SCRUB_POS.value = 1;
+    setScrubPos(1);
     render(<TimeTravelBar />, container);
     await flush();
     const edges = container.querySelectorAll<HTMLButtonElement>('button.time-travel-edge');
@@ -149,7 +149,7 @@ describe('TimeTravelBar', () => {
   });
 
   it('shows the interpolated date + "no commits" when scrubbed into a gap', async () => {
-    SCRUB_POS.value = 1.5; // halfway between the Feb 1 and Mar 1 commits (a >2-day gap)
+    setScrubPos(1.5); // halfway between the Feb 1 and Mar 1 commits (a >2-day gap)
     render(<TimeTravelBar />, container);
     await flush();
     const nocommit = container.querySelector('.time-travel-nocommit');
@@ -170,7 +170,7 @@ describe('TimeTravelBar', () => {
       blobSizes: {},
       note: null,
     } as unknown as TimelineBundle;
-    SCRUB_POS.value = 0;
+    setScrubPos(0);
     render(<TimeTravelBar />, container);
     await flush();
 
@@ -208,7 +208,7 @@ describe('TimeTravelBar', () => {
       blobSizes: {},
       note: null,
     } as unknown as TimelineBundle;
-    SCRUB_POS.value = 2;
+    setScrubPos(2);
     render(<TimeTravelBar />, container);
     await flush();
 
@@ -232,14 +232,47 @@ describe('TimeTravelBar', () => {
   });
 
   it('tracks SCRUB_POS updates from outside the component', async () => {
-    SCRUB_POS.value = 0;
+    setScrubPos(0);
     render(<TimeTravelBar />, container);
     await flush();
 
-    SCRUB_POS.value = 1;
+    setScrubPos(1);
     await flush();
 
     expect(track(container).getAttribute('aria-valuenow')).toBe('1');
     expect(container.querySelector('.time-travel-sha')!.textContent).toBe(mid.sha.slice(0, 7));
+  });
+
+  // Regression: a mode check above the hooks froze effect deps while rendering
+  // nothing, so re-entry on identical deps left the rebuilt canvas blank.
+  it('repaints the tick canvas after leaving and re-entering on identical deps', async () => {
+    const proto = HTMLElement.prototype;
+    const saved = {
+      w: Object.getOwnPropertyDescriptor(proto, 'clientWidth'),
+      h: Object.getOwnPropertyDescriptor(proto, 'clientHeight'),
+    };
+    // jsdom reports 0, which makes the draw bail before it paints anything.
+    Object.defineProperty(proto, 'clientWidth', { configurable: true, get: () => 200 });
+    Object.defineProperty(proto, 'clientHeight', { configurable: true, get: () => 24 });
+    const ticks = () => container.querySelector<HTMLCanvasElement>('canvas.time-travel-ticks');
+    try {
+      render(<TimeTravelBar />, container);
+      await drainAsync(3, 20); // useEffect lands on rAF, which jsdom runs at ~16ms
+      const first = ticks()!;
+      expect(first.width).toBe(200);
+
+      TIMELINE_MODE.value = false;
+      await drainAsync(3, 20); // useEffect lands on rAF, which jsdom runs at ~16ms
+      expect(ticks()).toBeNull();
+
+      TIMELINE_MODE.value = true; // same bundle, same position: no dep changes
+      await drainAsync(3, 20); // useEffect lands on rAF, which jsdom runs at ~16ms
+      const second = ticks()!;
+      expect(second, 'the canvas is rebuilt, not reused').not.toBe(first);
+      expect(second.width, 'and must be repainted').toBe(200);
+    } finally {
+      if (saved.w) Object.defineProperty(proto, 'clientWidth', saved.w);
+      if (saved.h) Object.defineProperty(proto, 'clientHeight', saved.h);
+    }
   });
 });

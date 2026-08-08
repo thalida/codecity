@@ -6,7 +6,7 @@ import { createScrubController, FUTURE_SLAB_FLOORS } from '@/city/timeline/scrub
 import { getBuildingDimensions } from '@/city/layout/dimensions';
 import type { HeightContext } from '@/city/layout/dimensions';
 import { BuildingKind } from '@/city/components/buildings/buildingKind';
-import { SCRUB_POS, TIMELINE_BUNDLE } from '@/state/stores/timeline';
+import { TIMELINE_BUNDLE, setScrubPos } from '@/state/stores/timeline';
 import { RUINS } from '@/state/stores/settings/ruins';
 import { BLUEPRINTS } from '@/state/stores/settings/blueprints';
 import { BuildingIndex } from '@/city/components/buildings/buildingIndex';
@@ -508,7 +508,7 @@ let _origRuins: typeof RUINS.value | null = null;
 let _origBlueprints: typeof BLUEPRINTS.value | null = null;
 
 beforeEach(() => {
-  SCRUB_POS.value = 0;
+  setScrubPos(0);
   TIMELINE_BUNDLE.value = null;
   _origRuins = { ...RUINS.value };
   _origBlueprints = { ...BLUEPRINTS.value };
@@ -541,7 +541,7 @@ test('scaleY reflects the interpolated height at the scrub position', () => {
     anchorHiFile,
   ]);
   const fake = fakes.get('f.txt')!;
-  SCRUB_POS.value = 1.5;
+  setScrubPos(1.5);
   controller.update();
 
   const expected = heightForLines(file, 4); // lines lerp 2→6 at pos 1.5
@@ -556,7 +556,7 @@ test('at HEAD the height factor is ~1 (matches the union baseline)', () => {
     anchorHiFile,
   ]);
   const fake = fakes.get('f.txt')!;
-  SCRUB_POS.value = 2; // last live commit index, 6 lines
+  setScrubPos(2); // last live commit index, 6 lines
   controller.update();
   expect(fake.scaleY).toBeCloseTo(heightForLines(file, 6), 5);
 });
@@ -567,7 +567,7 @@ test('height normalizes against commitLineRanges[pos], not the union heightCtx',
   // per-commit range (at HEAD this range == the live scan's lineCountRange).
   const wide: RangeStat[] = Array.from({ length: 8 }, () => ({ min: 1, max: 20000 }));
   const { fake, controller } = setup(undefined, undefined, undefined, 0, wide);
-  SCRUB_POS.value = 2; // HEAD, 6 lines
+  setScrubPos(2); // HEAD, 6 lines
   controller.update();
   const expected = getBuildingDimensions(
     { ...file, lines: 6 } as unknown as FileNode,
@@ -584,7 +584,7 @@ test('a degenerate per-commit range (min==max) collapses to MIN_FLOORS, matching
   // of that 1-file state shows (getBuildingDimensions returns MIN_FLOORS).
   const degenerate: RangeStat[] = Array.from({ length: 8 }, () => ({ min: 6, max: 6 }));
   const { fake, controller } = setup(undefined, undefined, undefined, 0, degenerate);
-  SCRUB_POS.value = 2;
+  setScrubPos(2);
   controller.update();
   const minFloors = getBuildingDimensions(
     { ...file, lines: 6 } as unknown as FileNode,
@@ -596,7 +596,7 @@ test('a degenerate per-commit range (min==max) collapses to MIN_FLOORS, matching
 
 test('before its creation the building is flat and fully transparent', () => {
   const { fake, controller } = setup();
-  SCRUB_POS.value = 0.5; // before createdIdx = 1
+  setScrubPos(0.5); // before createdIdx = 1
   controller.update();
   expect(fake.scaleY).toBe(0);
   expect(fake.iFadeX).toBeCloseTo(0, 5);
@@ -604,7 +604,7 @@ test('before its creation the building is flat and fully transparent', () => {
 
 test('after deletion (ruins off) opacity drops to 0 and the body vanishes', () => {
   const { fake, controller } = setup();
-  SCRUB_POS.value = 3; // deletedIdx
+  setScrubPos(3); // deletedIdx
   controller.update();
   expect(fake.scaleY).toBe(0);
   expect(fake.iFadeX).toBe(0);
@@ -613,7 +613,7 @@ test('after deletion (ruins off) opacity drops to 0 and the body vanishes', () =
 test('ruins on: a deleted building becomes a faint, blank-facade stub shorter than its lived height', () => {
   RUINS.value = { ...RUINS.value, ENABLED: true, BUILDING_OPACITY: 0.3, STUB_HEIGHT: 0.35 };
   const { fake, controller } = setup();
-  SCRUB_POS.value = 3; // deletedIdx → ruin
+  setScrubPos(3); // deletedIdx → ruin
   controller.update();
   expect(fake.iFadeX).toBeCloseTo(0.3, 5); // the BUILDING_OPACITY setting, faint
   expect(fake.scaleY).toBeGreaterThan(0); // a stub, not vanished
@@ -625,7 +625,7 @@ test('ruins on: a deleted building becomes a faint, blank-facade stub shorter th
 test('ruins on: the stub height is the STUB_HEIGHT setting × a floor, not the lived height', () => {
   RUINS.value = { ...RUINS.value, ENABLED: true, STUB_HEIGHT: 0.5 };
   const { fake, controller } = setup();
-  SCRUB_POS.value = 3;
+  setScrubPos(3);
   controller.update();
   // Uniform: STUB_HEIGHT floors, independent of the file's size/lines.
   const expected = 0.5 * BUILDING_DIMENSIONS.value.FLOOR_HEIGHT;
@@ -636,7 +636,7 @@ test('ruins on: the stub height is the STUB_HEIGHT setting × a floor, not the l
 test('ruins on: a before-genesis building stays absent (nothing to ruin yet)', () => {
   RUINS.value = { ...RUINS.value, ENABLED: true };
   const { fake, controller } = setup();
-  SCRUB_POS.value = 0; // f.txt created at 1 → before it existed
+  setScrubPos(0); // f.txt created at 1 → before it existed
   controller.update();
   expect(fake.iFadeX).toBe(0);
   expect(fake.scaleY).toBe(0);
@@ -646,7 +646,7 @@ test('ruins on: a before-genesis building stays absent (nothing to ruin yet)', (
 // quad: a flat quad still writes depth and shows as a cutout/outline on the road.
 test('an absent building (before creation) gets a fully zero-scale matrix, not a flat quad', () => {
   const { fake, controller } = setup();
-  SCRUB_POS.value = 0.5; // before createdIdx = 1
+  setScrubPos(0.5); // before createdIdx = 1
   controller.update();
   expect(fake.scaleX).toBeCloseTo(0, 5);
   expect(fake.scaleY).toBeCloseTo(0, 5);
@@ -655,7 +655,7 @@ test('an absent building (before creation) gets a fully zero-scale matrix, not a
 
 test('an absent building (after deletion) gets a fully zero-scale matrix, not a flat quad', () => {
   const { fake, controller } = setup();
-  SCRUB_POS.value = 3; // deletedIdx
+  setScrubPos(3); // deletedIdx
   controller.update();
   expect(fake.scaleX).toBeCloseTo(0, 5);
   expect(fake.scaleY).toBeCloseTo(0, 5);
@@ -696,18 +696,18 @@ test('drives footprint opacity even when the building has no detail mesh (LOD ce
     fireflies: noopFireflies,
   });
 
-  SCRUB_POS.value = 0; // before genesis → absent
+  setScrubPos(0); // before genesis → absent
   controller.update();
   expect(fp.buildingOpacity.get('f.txt')).toBe(0);
 
-  SCRUB_POS.value = 2; // present
+  setScrubPos(2); // present
   controller.update();
   expect(fp.buildingOpacity.get('f.txt')).toBe(1);
 });
 
 test('a present building keeps its full footprint (scaleX/scaleZ), only height animates', () => {
   const { b, fake, controller } = setup();
-  SCRUB_POS.value = 1.5; // mid-growth: height interpolated, footprint stays full
+  setScrubPos(1.5); // mid-growth: height interpolated, footprint stays full
   controller.update();
   expect(fake.scaleX).toBeCloseTo(b.w, 5);
   expect(fake.scaleZ).toBeCloseTo(b.d, 5);
@@ -716,7 +716,7 @@ test('a present building keeps its full footprint (scaleX/scaleZ), only height a
 
 test('an absent building has its outline (iFade.z) driven to 0, even if left over from a Live-mode fade sweep', () => {
   const { fake, controller } = setup(undefined, undefined, undefined, 0.8);
-  SCRUB_POS.value = 3; // deletedIdx: absent
+  setScrubPos(3); // deletedIdx: absent
   controller.update();
   expect(fake.iFadeZ).toBe(0);
 });
@@ -724,7 +724,7 @@ test('an absent building has its outline (iFade.z) driven to 0, even if left ove
 test('facade panels fade in lockstep with a present building body', () => {
   const fakeFacadePanels = makeFakeFacadePanels();
   const { b, controller } = setup(() => fakeFacadePanels.facadePanels);
-  SCRUB_POS.value = 1.5;
+  setScrubPos(1.5);
   controller.update();
   expect(fakeFacadePanels.calls).toBe(1);
   expect(fakeFacadePanels.lastGetFade!(b.file.path)).toBeCloseTo(1, 5);
@@ -733,7 +733,7 @@ test('facade panels fade in lockstep with a present building body', () => {
 test('facade panels fade to 0 once the building is deleted (ruins off)', () => {
   const fakeFacadePanels = makeFakeFacadePanels();
   const { b, controller } = setup(() => fakeFacadePanels.facadePanels);
-  SCRUB_POS.value = 3; // deletedIdx
+  setScrubPos(3); // deletedIdx
   controller.update();
   expect(fakeFacadePanels.lastGetFade!(b.file.path)).toBe(0);
 });
@@ -742,7 +742,7 @@ test('facade panels stay hidden on a ruin (media is gone, only the stub shows)',
   RUINS.value = { ...RUINS.value, ENABLED: true, BUILDING_OPACITY: 0.3 };
   const fakeFacadePanels = makeFakeFacadePanels();
   const { b, controller } = setup(() => fakeFacadePanels.facadePanels);
-  SCRUB_POS.value = 3; // deleted → ruin
+  setScrubPos(3); // deleted → ruin
   controller.update();
   // The stub/footprint ghost at 0.3, but the media panel must be 0 (no image on a ruin).
   expect(fakeFacadePanels.lastGetFade!(b.file.path)).toBe(0);
@@ -750,14 +750,14 @@ test('facade panels stay hidden on a ruin (media is gone, only the stub shows)',
 
 test('preserves the silhouette/outline iFade channels', () => {
   const { fake, controller } = setup();
-  SCRUB_POS.value = 2;
+  setScrubPos(2);
   controller.update();
   expect(fake.iFadeY).toBe(0);
 });
 
 test('sets needsUpdate exactly once per mesh and per iFade attribute', () => {
   const { fake, controller } = setup();
-  SCRUB_POS.value = 1.5;
+  setScrubPos(1.5);
   controller.update();
   expect(fake.matUpdates).toBe(1);
   expect(fake.iFadeUpdates).toBe(1);
@@ -767,26 +767,28 @@ test('gates trees on the floored scrub position', () => {
   const fakeTrees = makeFakeTrees();
   const { controller } = setup(() => null, fakeTrees.trees);
 
-  SCRUB_POS.value = 1.9;
+  setScrubPos(1.9);
   controller.update();
   expect(fakeTrees.calls.at(-1)).toBe(1);
 
-  SCRUB_POS.value = -0.5;
+  // Out of range never reaches the scene: SCRUB_POS clamps, so the gate is 0.
+  setScrubPos(-0.5);
   controller.update();
-  expect(fakeTrees.calls.at(-1)).toBe(-1);
+  expect(fakeTrees.calls.at(-1)).toBe(0);
 });
 
 test('gates fireflies on the floored scrub position, same value as the tree gate', () => {
   const fakeFireflies = makeFakeFireflies();
   const { controller } = setup(() => null, noopTrees, fakeFireflies.fireflies);
 
-  SCRUB_POS.value = 1.9;
+  setScrubPos(1.9);
   controller.update();
   expect(fakeFireflies.calls.at(-1)).toBe(1);
 
-  SCRUB_POS.value = -0.5;
+  // Out of range never reaches the scene: SCRUB_POS clamps, so the gate is 0.
+  setScrubPos(-0.5);
   controller.update();
-  expect(fakeFireflies.calls.at(-1)).toBe(-1);
+  expect(fakeFireflies.calls.at(-1)).toBe(0);
 });
 
 test('a present media/0-line file gets a non-zero scaleY; an absent one stays flat', () => {
@@ -827,6 +829,7 @@ test('a present media/0-line file gets a non-zero scaleY; an absent one stays fl
   index.insert(b);
   const fake = makeFakeMesh();
   const timelines = buildPathTimelines(mediaBundle);
+  TIMELINE_BUNDLE.value = mediaBundle;
 
   const controller = createScrubController({
     getBuildingIndex: () => index,
@@ -843,7 +846,7 @@ test('a present media/0-line file gets a non-zero scaleY; an absent one stays fl
     fireflies: noopFireflies,
   });
 
-  SCRUB_POS.value = 1;
+  setScrubPos(1);
   controller.update();
   expect(fake.scaleY).toBeGreaterThan(0);
   expect(fake.iFadeX).toBeCloseTo(1, 5);
@@ -851,7 +854,7 @@ test('a present media/0-line file gets a non-zero scaleY; an absent one stays fl
 
 test('an absent building (never present) stays flat at scaleY 0', () => {
   const { fake, controller } = setup();
-  SCRUB_POS.value = -1; // strictly before f.txt's creation
+  setScrubPos(-1); // strictly before f.txt's creation
   controller.update();
   expect(fake.scaleY).toBe(0);
 });
@@ -998,6 +1001,7 @@ test('dedup: two buildings sharing one InstancedMesh set needsUpdate exactly onc
 
   const anchorMesh = makeFakeMesh();
   const timelines = buildPathTimelines(twoPathBundle);
+  TIMELINE_BUNDLE.value = twoPathBundle;
   const controller = createScrubController({
     getBuildingIndex: () => index,
     getFacadePanels: () => null,
@@ -1018,7 +1022,7 @@ test('dedup: two buildings sharing one InstancedMesh set needsUpdate exactly onc
     fireflies: noopFireflies,
   });
 
-  SCRUB_POS.value = 1.5;
+  setScrubPos(1.5);
   controller.update();
 
   expect(matUpdates).toBe(1);
@@ -1106,6 +1110,7 @@ test('couples street opacity to the max opacity of its buildings (block fade)', 
   };
 
   const timelines = buildPathTimelines(blockBundle);
+  TIMELINE_BUNDLE.value = blockBundle;
   const controller = createScrubController({
     getBuildingIndex: () => index,
     getFacadePanels: () => null,
@@ -1121,12 +1126,12 @@ test('couples street opacity to the max opacity of its buildings (block fade)', 
     fireflies: noopFireflies,
   });
 
-  SCRUB_POS.value = 2; // before K, everything present
+  setScrubPos(2); // before K, everything present
   controller.update();
   expect(opacityByStreet.get(dStreet)).toBeCloseTo(1, 5);
   expect(opacityByStreet.get(eStreet)).toBeCloseTo(1, 5);
 
-  SCRUB_POS.value = 3.5; // after K, d/'s buildings are both deleted
+  setScrubPos(3.5); // after K, d/'s buildings are both deleted
   controller.update();
   expect(opacityByStreet.get(dStreet)).toBe(0);
   expect(opacityByStreet.get(eStreet)).toBeCloseTo(1, 5);
@@ -1217,7 +1222,7 @@ test('block-fade is a true max, not last-write-wins: one deleted sibling cannot 
     fireflies: noopFireflies,
   });
 
-  SCRUB_POS.value = 3.5; // after K: f2 deleted, f1 still alive
+  setScrubPos(3.5); // after K: f2 deleted, f1 still alive
   controller.update();
   expect(opacityByStreet.get(dStreet)).toBeCloseTo(1, 5);
 });
@@ -1294,6 +1299,7 @@ test('descendant rollup: a container street with no direct files inherits its ch
   };
 
   const timelines = buildPathTimelines(rollupBundle);
+  TIMELINE_BUNDLE.value = rollupBundle;
   const controller = createScrubController({
     getBuildingIndex: () => index,
     getFacadePanels: () => null,
@@ -1309,13 +1315,13 @@ test('descendant rollup: a container street with no direct files inherits its ch
     fireflies: noopFireflies,
   });
 
-  SCRUB_POS.value = 2; // before deletion, everything present
+  setScrubPos(2); // before deletion, everything present
   controller.update();
   expect(opacityByStreet.get(srcAStreet)).toBeCloseTo(1, 5);
   expect(opacityByStreet.get(srcStreet)).toBeCloseTo(1, 5); // rolled up from src/a
   expect(opacityByStreet.get(eStreet)).toBeCloseTo(1, 5); // unrelated container unaffected
 
-  SCRUB_POS.value = 3.5; // after deletion, src/a/f.txt is gone
+  setScrubPos(3.5); // after deletion, src/a/f.txt is gone
   controller.update();
   expect(opacityByStreet.get(srcAStreet)).toBe(0);
   expect(opacityByStreet.get(srcStreet)).toBe(0); // dropped along with its only child
@@ -1380,6 +1386,7 @@ test('footprints: a deleted building/street fades to 0 while a live sibling stay
   const fakeFootprints = makeFakeFootprints();
 
   const timelines = buildPathTimelines(footprintBundle);
+  TIMELINE_BUNDLE.value = footprintBundle;
   const controller = createScrubController({
     getBuildingIndex: () => index,
     getFacadePanels: () => null,
@@ -1395,7 +1402,7 @@ test('footprints: a deleted building/street fades to 0 while a live sibling stay
     fireflies: noopFireflies,
   });
 
-  SCRUB_POS.value = 3.5; // after K: d/f1.txt deleted, e/f2.txt still alive
+  setScrubPos(3.5); // after K: d/f1.txt deleted, e/f2.txt still alive
   controller.update();
 
   expect(fakeFootprints.buildingOpacity.get('d/f1.txt')).toBe(0);
@@ -1451,7 +1458,7 @@ test('the ROOT street stays at opacity 1 even when every building is absent, unl
     fireflies: noopFireflies,
   });
 
-  SCRUB_POS.value = 0.5; // before f.txt's creation: every building absent
+  setScrubPos(0.5); // before f.txt's creation: every building absent
   controller.update();
 
   expect(opacityByStreet.get(rootStreet)).toBe(1);
@@ -1524,7 +1531,7 @@ test('weathering at HEAD is 1:1 with live: same-day commits still spread by full
   } as unknown as TimelineBundle;
 
   const { controller, fakes } = makeAnchoredScene(sameDayBundle, [fresh, stale]);
-  SCRUB_POS.value = 1; // HEAD
+  setScrubPos(1); // HEAD
   controller.update();
 
   const freshColor = fakes.get('fresh.txt')!.lastColor!;
@@ -1544,7 +1551,7 @@ test('weathering at HEAD is 1:1 with live: same-day commits still spread by full
 
 test('weathering: at the exact scrub position of last modification, color matches the freshest end of the reused age-color curve', () => {
   const { fake, controller } = setup();
-  SCRUB_POS.value = 2; // f.txt's last-modified index
+  setScrubPos(2); // f.txt's last-modified index
   controller.update();
 
   const expected = new THREE.Color(
@@ -1591,7 +1598,7 @@ test('weathering: recency-at-scrub runs through the exact same reused color func
 
   const { controller, fakes } = makeAnchoredScene(datedBundle, [file, anchorLoFile, anchorHiFile]);
   const fake = fakes.get('f.txt')!;
-  SCRUB_POS.value = 2.3; // subject last-modified at commit 1; anchorLo freshest at commit 2
+  setScrubPos(2.3); // subject last-modified at commit 1; anchorLo freshest at commit 2
   controller.update();
 
   const minMod = Date.parse(isoAt(0)); // anchorHi
@@ -1635,7 +1642,7 @@ test('weathering: far past its last modification, color approaches the weathered
 
   const { controller, fakes } = makeAnchoredScene(longBundle, [file, anchorLoFile, anchorHiFile]);
   const fake = fakes.get('f.txt')!;
-  SCRUB_POS.value = 10;
+  setScrubPos(10);
   controller.update();
 
   const minMod = Date.parse(isoAt(0)); // anchorHi, oldest present last-mod
@@ -1655,11 +1662,11 @@ test('weathering: far past its last modification, color approaches the weathered
 test('weathering: absent buildings (before creation / after deletion) are not colored', () => {
   const { fake, controller } = setup();
 
-  SCRUB_POS.value = 0.5; // before f.txt's creation
+  setScrubPos(0.5); // before f.txt's creation
   controller.update();
   expect(fake.colorSetCount).toBe(0);
 
-  SCRUB_POS.value = 3; // after deletion
+  setScrubPos(3); // after deletion
   controller.update();
   expect(fake.colorSetCount).toBe(0);
 });
@@ -1675,7 +1682,7 @@ test('iFloors reflects the scrub-position line count, not the union/final-commit
     anchorHiFile,
   ]);
   const fake = fakes.get('f.txt')!;
-  SCRUB_POS.value = 1.5; // lines lerp 2->6 at pos 1.5 => 4 lines
+  setScrubPos(1.5); // lines lerp 2->6 at pos 1.5 => 4 lines
   controller.update();
 
   const scrubDims = getBuildingDimensions(
@@ -1700,11 +1707,11 @@ test('iFloors changes as SCRUB_POS moves: an earlier (shorter) scrub state has f
   ]);
   const fake = fakes.get('f.txt')!;
 
-  SCRUB_POS.value = 1; // createdIdx, 2 lines
+  setScrubPos(1); // createdIdx, 2 lines
   controller.update();
   const earlyFloors = fake.floors;
 
-  SCRUB_POS.value = 2; // last live commit, 6 lines
+  setScrubPos(2); // last live commit, 6 lines
   controller.update();
   const lateFloors = fake.floors;
 
@@ -1714,14 +1721,14 @@ test('iFloors changes as SCRUB_POS moves: an earlier (shorter) scrub state has f
 
 test('iFloors: needsUpdate set exactly once per mesh per frame', () => {
   const { fake, controller } = setup();
-  SCRUB_POS.value = 1.5;
+  setScrubPos(1.5);
   controller.update();
   expect(fake.floorsUpdates).toBe(1);
 });
 
 test('iModifiedAge matches the recency direction: 0 at the exact last-modified scrub position (freshest)', () => {
   const { fake, controller } = setup();
-  SCRUB_POS.value = 2; // f.txt's last-modified index
+  setScrubPos(2); // f.txt's last-modified index
   controller.update();
   expect(fake.modifiedAge).toBeCloseTo(0, 5);
 });
@@ -1757,11 +1764,11 @@ test('iModifiedAge grows toward 1 (most stale) as scrub moves away from the last
 
   const { controller, fakes } = makeAnchoredScene(datedBundle, [file, anchorLoFile, anchorHiFile]);
   const fake = fakes.get('f.txt')!;
-  SCRUB_POS.value = 1.5; // anchorLo's latest touch is still commit 1, tied with the subject
+  setScrubPos(1.5); // anchorLo's latest touch is still commit 1, tied with the subject
   controller.update();
   const atModified = fake.modifiedAge;
 
-  SCRUB_POS.value = 2.5; // anchorLo re-touched at commit 2, now the freshest present file
+  setScrubPos(2.5); // anchorLo re-touched at commit 2, now the freshest present file
   controller.update();
   const afterModified = fake.modifiedAge;
 
@@ -1770,14 +1777,14 @@ test('iModifiedAge grows toward 1 (most stale) as scrub moves away from the last
 
 test('iModifiedAge: needsUpdate set exactly once per mesh per frame', () => {
   const { fake, controller } = setup();
-  SCRUB_POS.value = 2;
+  setScrubPos(2);
   controller.update();
   expect(fake.modifiedAgeUpdates).toBe(1);
 });
 
 test('iIconUV.w (createdAge) is 0 at the exact scrub-position creation index (newest)', () => {
   const { fake, controller } = setup();
-  SCRUB_POS.value = 1; // f.txt's createdIdx
+  setScrubPos(1); // f.txt's createdIdx
   controller.update();
   expect(fake.iconUvW).toBeCloseTo(0, 5);
 });
@@ -1813,11 +1820,11 @@ test('iIconUV.w grows toward 1 (oldest) as scrub moves away from the created ind
 
   const { controller, fakes } = makeAnchoredScene(datedBundle, [file, anchorLoFile, anchorNewFile]);
   const fake = fakes.get('f.txt')!;
-  SCRUB_POS.value = 1; // subject's creation index; only it + anchorOld are present
+  setScrubPos(1); // subject's creation index; only it + anchorOld are present
   controller.update();
   const atCreated = fake.iconUvW;
 
-  SCRUB_POS.value = 2; // anchorNew now present, created after the subject
+  setScrubPos(2); // anchorNew now present, created after the subject
   controller.update();
   const later = fake.iconUvW;
 
@@ -1831,14 +1838,14 @@ test('iIconUV.w grows toward 1 (oldest) as scrub moves away from the created ind
 
 test('iIconUV.w: needsUpdate set exactly once per mesh per frame', () => {
   const { fake, controller } = setup();
-  SCRUB_POS.value = 1.5;
+  setScrubPos(1.5);
   controller.update();
   expect(fake.iconUvUpdates).toBe(1);
 });
 
 test('absent buildings leave iFloors/iModifiedAge/iIconUV.w untouched (not overwritten with stale/garbage values)', () => {
   const { fake, controller } = setup();
-  SCRUB_POS.value = 0.5; // before createdIdx = 1: absent
+  setScrubPos(0.5); // before createdIdx = 1: absent
   controller.update();
   expect(fake.floorsUpdates).toBe(0);
   expect(fake.modifiedAgeUpdates).toBe(0);
@@ -1847,7 +1854,7 @@ test('absent buildings leave iFloors/iModifiedAge/iIconUV.w untouched (not overw
 
 test('weathering: sets instanceColor.needsUpdate exactly once per mesh', () => {
   const { fake, controller } = setup();
-  SCRUB_POS.value = 2;
+  setScrubPos(2);
   controller.update();
   expect(fake.colorUpdates).toBe(1);
 });
@@ -1863,7 +1870,7 @@ test('future: a not-yet-created building renders as an ultra-low tinted slab', (
     BUILDING_TINT: 1, // full tint → pure building color, independent of the file hue
   };
   const { b, fake, controller } = setup();
-  SCRUB_POS.value = 0.5; // before f.txt's creation at commit 1 → future
+  setScrubPos(0.5); // before f.txt's creation at commit 1 → future
   controller.update();
 
   const slabHeight = FUTURE_SLAB_FLOORS * BUILDING_DIMENSIONS.value.FLOOR_HEIGHT;
@@ -1887,7 +1894,7 @@ test('future: at tint 0 the slab keeps its own file hue, not the building color'
     BUILDING_TINT: 0,
   };
   const { fake, controller } = setup();
-  SCRUB_POS.value = 0.5;
+  setScrubPos(0.5);
   controller.update();
   const fileHue = new THREE.Color(
     getBuildingColorForRecency(
@@ -1902,10 +1909,10 @@ test('future: at tint 0 the slab keeps its own file hue, not the building color'
 test('future: opacity is uniform regardless of how far ahead the creation is', () => {
   BLUEPRINTS.value = { ...BLUEPRINTS.value, ENABLED: true, BUILDING_OPACITY: 0.3 };
   const { fake, controller } = setup();
-  SCRUB_POS.value = 0; // furthest before creation
+  setScrubPos(0); // furthest before creation
   controller.update();
   const far = fake.iFadeX;
-  SCRUB_POS.value = 0.9; // just before creation
+  setScrubPos(0.9); // just before creation
   controller.update();
   expect(fake.iFadeX).toBeCloseTo(far, 5); // no distance fade
   expect(fake.iFadeX).toBeCloseTo(0.3, 5);
@@ -1914,7 +1921,7 @@ test('future: opacity is uniform regardless of how far ahead the creation is', (
 test('future: with future files off, a not-yet-created building stays hidden', () => {
   BLUEPRINTS.value = { ...BLUEPRINTS.value, ENABLED: false };
   const { fake, controller } = setup();
-  SCRUB_POS.value = 0.5;
+  setScrubPos(0.5);
   controller.update();
   expect(fake.scaleY).toBe(0);
   expect(fake.iFadeX).toBe(0);
@@ -1968,7 +1975,7 @@ test('future roads always render: a non-present, non-ruin street is a future roa
     fireflies: noopFireflies,
   });
 
-  SCRUB_POS.value = 0.5; // before f.txt's creation: root empty, d never has a file
+  setScrubPos(0.5); // before f.txt's creation: root empty, d never has a file
   controller.update();
 
   expect(opacityByStreet.get(rootStreet)).toBe(1); // root always renders
@@ -2031,7 +2038,7 @@ test('a file empty at the scrub position renders as a slab, not a MIN_FLOORS bui
     fireflies: noopFireflies,
   });
 
-  SCRUB_POS.value = 1;
+  setScrubPos(1);
   controller.update();
 
   const slabHeight =
@@ -2041,7 +2048,7 @@ test('a file empty at the scrub position renders as a slab, not a MIN_FLOORS bui
   expect(fake.kind).toBe(BuildingKind.Empty);
 
   // ...and it grows into a real building once the file has content.
-  SCRUB_POS.value = 2;
+  setScrubPos(2);
   controller.update();
   expect(fake.scaleY).toBeGreaterThan(slabHeight);
   expect(fake.kind).toBe(BuildingKind.Normal);
@@ -2110,7 +2117,7 @@ function setupAlwaysEmpty() {
 test('an always-empty file that is deleted renders as a ruin, not a slab', () => {
   RUINS.value = { ...RUINS.value, ENABLED: true };
   const { fake, controller } = setupAlwaysEmpty();
-  SCRUB_POS.value = 2; // deletedIdx
+  setScrubPos(2); // deletedIdx
   controller.update();
   expect(fake.kind).toBe(BuildingKind.Ruin);
 });
@@ -2118,7 +2125,7 @@ test('an always-empty file that is deleted renders as a ruin, not a slab', () =>
 test('an always-empty file before its creation renders as future, not a slab', () => {
   BLUEPRINTS.value = { ...BLUEPRINTS.value, ENABLED: true };
   const { fake, controller } = setupAlwaysEmpty();
-  SCRUB_POS.value = 0.5; // before createdIdx = 1
+  setScrubPos(0.5); // before createdIdx = 1
   controller.update();
   expect(fake.kind).toBe(BuildingKind.Future);
 });

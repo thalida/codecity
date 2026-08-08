@@ -66,13 +66,13 @@
 }
 
 /* Tree rows use .row + .row--tight (the tight modifier collapses the
-   chevron-to-label gap). Selection highlight in .row--selected
-   near the top of the file. */
+   chevron-to-label gap). Selection highlight is .tree-item.tree-selected > .row
+   near the top of the file — the tree tracks selection on the item, not the row.
 
-/* Tree rows sit closer to the pane edge than the default .row inset: the tree
+   Rows also sit closer to the pane edge than the default .row inset: the tree
    reaches depth by expanding, so a big starting indent just wastes width. Half
    the default keeps the top level near the edge while still clearing the
-   .row--selected highlight's rounded corner. */
+   selected highlight's rounded corner. */
 .tree-item > .row {
   padding-left: var(--tree-row-inset);
   /* Squared hover/selected highlight (Zed-style), overriding .row's rounded

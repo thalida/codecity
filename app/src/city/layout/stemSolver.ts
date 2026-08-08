@@ -156,6 +156,17 @@ interface FindSmallestValidStemParams {
 // set the final stem (or null if the chosen stem equals the baseline), and
 // trace.stem with the returned value. The trace param has no effect on the
 // algorithm or return value; it is purely an out-parameter.
+// Interval endpoints for one call; module-level and reused (called in a loop,
+// never recursively, so one pair of buffers is safe).
+let _loScratch = new Float64Array(256);
+let _hiScratch = new Float64Array(256);
+
+function _growScratch(buf: Float64Array<ArrayBuffer>): Float64Array<ArrayBuffer> {
+  const next = new Float64Array(buf.length * 2);
+  next.set(buf);
+  return next;
+}
+
 export function findSmallestValidStem(
   p: FindSmallestValidStemParams,
   trace?: VariantTrace
@@ -175,15 +186,20 @@ export function findSmallestValidStem(
   // no sort); trace keeps full records for the stem-placement debugger.
   const tracing = trace !== undefined;
   const forbidden: ForbiddenIntervalRecord[] = [];
-  const lo: number[] = [];
-  const hi: number[] = [];
+  // Reused scratch rather than two fresh arrays per call: a large repo pushes
+  // ~32M endpoints across ~240k calls, so allocation and regrowth dominate.
+  let loCount = 0;
+
+  // Orientation is fixed for the whole call, and the inner loop runs per
+  // candidate (~32M times on a large repo), so decide it once.
+  const alongIsX = p.parentOrient === StreetAxis.X;
 
   for (let rIdx = 0; rIdx < p.childRects.length; rIdx++) {
     const r = p.childRects[rIdx];
     const flipped = applyFlips(r, flipX, flipY);
 
     let alongMin0: number, alongMax0: number, perpMin: number, perpMax: number;
-    if (p.parentOrient === StreetAxis.X) {
+    if (alongIsX) {
       alongMin0 = flipped.x - flipped.w / 2 + p.parentOriginX;
       alongMax0 = flipped.x + flipped.w / 2 + p.parentOriginX;
       perpMin = flipped.y - flipped.d / 2 + p.parentOriginY;
@@ -197,16 +213,15 @@ export function findSmallestValidStem(
 
     // Skip obstacles whose far edge is behind the frontier (−1 margin for FP).
     const loAlong = alongMin0 + baseline - maxSep - 1;
-    const candidates =
-      p.parentOrient === StreetAxis.X
-        ? p.occupancy.query(loAlong, perpMin, Infinity, perpMax)
-        : p.occupancy.query(perpMin, loAlong, perpMax, Infinity);
+    const candidates = alongIsX
+      ? p.occupancy.query(loAlong, perpMin, Infinity, perpMax)
+      : p.occupancy.query(perpMin, loAlong, perpMax, Infinity);
     _profCount('stem.queries', 1);
     _profCount('stem.candidates', candidates.length);
 
     for (const g of candidates) {
-      const gMinAlong = p.parentOrient === StreetAxis.X ? g.minX : g.minY;
-      const gMaxAlong = p.parentOrient === StreetAxis.X ? g.maxX : g.maxY;
+      const gMinAlong = alongIsX ? g.minX : g.minY;
+      const gMaxAlong = alongIsX ? g.maxX : g.maxY;
 
       // Separation to this obstacle. The parent-body phantom isn't a sibling —
       // the gap to it is just the building baseline (its branch-join spacing
@@ -221,8 +236,13 @@ export function findSmallestValidStem(
         if (tracing) {
           forbidden.push({ lower, upper, obstacle: g, fromChildRectIndex: rIdx });
         } else {
-          lo.push(lower);
-          hi.push(upper);
+          if (loCount === _loScratch.length) {
+            _loScratch = _growScratch(_loScratch);
+            _hiScratch = _growScratch(_hiScratch);
+          }
+          _loScratch[loCount] = lower;
+          _hiScratch[loCount] = upper;
+          loCount++;
         }
       }
     }
@@ -248,29 +268,31 @@ export function findSmallestValidStem(
     trace.bindingIndex = bindingIndex;
     trace.stem = s;
   } else {
-    const n = lo.length;
+    const n = loCount;
     for (let rounds = 0; ; rounds++) {
       let ns = s;
       for (let i = 0; i < n; i++) {
-        if (lo[i] <= s && hi[i] > ns) ns = hi[i];
+        if (_loScratch[i] <= s && _hiScratch[i] > ns) ns = _hiScratch[i];
       }
       if (ns === s) break;
       s = ns;
       // A long chain (e.g. a big flat dir) makes the round loop expensive; finish
       // it with a one-off sorted scan to keep the O(F log F) bound.
       if (rounds > STEM_SCAN_SORT_FALLBACK_ROUNDS) {
-        const order = Array.from(lo.keys()).sort((a, b) => lo[a] - lo[b]);
+        const order = Array.from({ length: n }, (_, i) => i).sort(
+          (a, b) => _loScratch[a] - _loScratch[b]
+        );
         s = baseline;
         for (const i of order) {
-          if (s < lo[i]) break;
-          if (s < hi[i]) s = hi[i];
+          if (s < _loScratch[i]) break;
+          if (s < _hiScratch[i]) s = _hiScratch[i];
         }
         break;
       }
     }
   }
 
-  _profCount('stem.forbidden', tracing ? forbidden.length : lo.length);
+  _profCount('stem.forbidden', tracing ? forbidden.length : loCount);
   _profEnd('findSmallestValidStem', _t0);
   return s;
 }

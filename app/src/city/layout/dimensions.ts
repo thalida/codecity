@@ -87,6 +87,60 @@ export function computeFileStats(stats: RepoStats | null | undefined): {
 // out below MAX_* (short/narrow city) instead of always stretching to the cap,
 // while the per-repo relative order is retained. Without a stats object, the
 // corresponding dimension falls back to MIN_*.
+type Dims = typeof BUILDING_DIMENSIONS.value;
+
+/** Floors from line count, sqrt-normalized. Full cap only when the largest file
+ *  is >= FULL_HEIGHT_LINES, so a small-file repo reads low-rise; order preserved. */
+function floorsForLines(
+  fileLines: number | null | undefined,
+  lineStats: RangeStat | undefined,
+  dims: Dims,
+  maxFloorsCap: number
+): number {
+  if (!lineStats || lineStats.max <= lineStats.min) return dims.MIN_FLOORS;
+  const lines = fileLines && fileLines > 0 ? fileLines : 1;
+  const sMin = Math.sqrt(lineStats.min);
+  const sMax = Math.sqrt(lineStats.max);
+  let tH = (Math.sqrt(lines) - sMin) / (sMax - sMin);
+  if (tH < 0) tH = 0;
+  else if (tH > 1) tH = 1;
+
+  const refLines =
+    dims.FULL_HEIGHT_LINES && dims.FULL_HEIGHT_LINES > 0 ? dims.FULL_HEIGHT_LINES : 2000;
+  let ceilH = Math.sqrt(lineStats.max) / Math.sqrt(refLines);
+  if (ceilH > 1) ceilH = 1;
+
+  const repoMaxFloors = dims.MIN_FLOORS + ceilH * (maxFloorsCap - dims.MIN_FLOORS);
+  const floors = Math.round(dims.MIN_FLOORS + tH * (repoMaxFloors - dims.MIN_FLOORS));
+  return floors < dims.MIN_FLOORS ? dims.MIN_FLOORS : floors;
+}
+
+/** Width from byte size, log-normalized; full width only past FULL_WIDTH_KB.
+ *  Range and size clamp >= 1: log(0) would carry NaN into every dimension. */
+function widthForBytes(
+  fileSize: number | null | undefined,
+  byteStats: RangeStat | undefined,
+  dims: Dims
+): number {
+  const bMin = Math.max(1, byteStats?.min ?? 1);
+  const bMax = Math.max(1, byteStats?.max ?? 1);
+  if (!byteStats || bMax <= bMin) return dims.MIN_WIDTH;
+
+  const bytes = fileSize && fileSize > 0 ? fileSize : 1;
+  const lMin = Math.log(bMin);
+  let tW = (Math.log(bytes) - lMin) / (Math.log(bMax) - lMin);
+  if (tW < 0) tW = 0;
+  else if (tW > 1) tW = 1;
+
+  const refBytes = (dims.FULL_WIDTH_KB && dims.FULL_WIDTH_KB > 0 ? dims.FULL_WIDTH_KB : 64) * 1024;
+  let ceilW = Math.log(bMax) / Math.log(refBytes);
+  if (ceilW < 0) ceilW = 0;
+  else if (ceilW > 1) ceilW = 1;
+
+  const repoMaxWidth = dims.MIN_WIDTH + ceilW * (dims.MAX_WIDTH - dims.MIN_WIDTH);
+  return dims.MIN_WIDTH + tW * (repoMaxWidth - dims.MIN_WIDTH);
+}
+
 export function getBuildingDimensions(
   file: {
     lines?: number | null;
@@ -107,57 +161,12 @@ export function getBuildingDimensions(
   // the whole floors curve and takes the slab branch below instead.
   const empty = isEmptyFile(file);
 
-  // ---- Floors from line count (sqrt-normalized over project range) ----
-  const lines = file.lines && file.lines > 0 ? file.lines : 1;
-  let floors = dims.MIN_FLOORS;
-  if (!empty && lineStats && lineStats.max > lineStats.min) {
-    const sMin = Math.sqrt(lineStats.min);
-    const sMax = Math.sqrt(lineStats.max);
-    const sLines = Math.sqrt(lines);
-    let tH = (sLines - sMin) / (sMax - sMin);
-    if (tH < 0) tH = 0;
-    else if (tH > 1) tH = 1;
-    // Absolute ceiling: the repo's tallest building reaches the full cap only if
-    // its largest file is >= FULL_HEIGHT_LINES; smaller-file repos top out lower
-    // (sqrt of the biggest file vs the reference). So the per-repo relative
-    // spread (tH) is preserved, but a repo of tiny files reads as a low-rise
-    // city instead of being stretched to full height.
-    const refLines =
-      dims.FULL_HEIGHT_LINES && dims.FULL_HEIGHT_LINES > 0 ? dims.FULL_HEIGHT_LINES : 2000;
-    let ceilH = Math.sqrt(lineStats.max) / Math.sqrt(refLines);
-    if (ceilH > 1) ceilH = 1;
-    const repoMaxFloors = dims.MIN_FLOORS + ceilH * (maxFloorsCap - dims.MIN_FLOORS);
-    floors = Math.round(dims.MIN_FLOORS + tH * (repoMaxFloors - dims.MIN_FLOORS));
-    if (floors < dims.MIN_FLOORS) floors = dims.MIN_FLOORS;
-  }
+  const floors = empty
+    ? dims.MIN_FLOORS
+    : floorsForLines(file.lines, lineStats, dims, maxFloorsCap);
   const height = floors * dims.FLOOR_HEIGHT;
 
-  // ---- Width from byte size (log-normalized over project range) ----
-  const bytes = file.size && file.size > 0 ? file.size : 1;
-  let width = dims.MIN_WIDTH;
-  // Clamp the range to >= 1 so Math.log stays finite even if the project byte
-  // range ever includes a 0-byte file (log(0) = -Infinity → NaN width → NaN
-  // geometry). Per-file `bytes` is already clamped to >= 1 above.
-  const bMin = Math.max(1, byteStats?.min ?? 1);
-  const bMax = Math.max(1, byteStats?.max ?? 1);
-  if (byteStats && bMax > bMin) {
-    const lMin = Math.log(bMin);
-    const lMax = Math.log(bMax);
-    const lBytes = Math.log(bytes);
-    let tW = (lBytes - lMin) / (lMax - lMin);
-    if (tW < 0) tW = 0;
-    else if (tW > 1) tW = 1;
-    // Absolute ceiling mirrors floors: full width only when the repo's largest
-    // file is >= FULL_WIDTH_KB; smaller-file repos keep proportionally narrower
-    // footprints while retaining the per-repo relative spread (tW).
-    const refBytes =
-      (dims.FULL_WIDTH_KB && dims.FULL_WIDTH_KB > 0 ? dims.FULL_WIDTH_KB : 64) * 1024;
-    let ceilW = Math.log(bMax) / Math.log(refBytes);
-    if (ceilW < 0) ceilW = 0;
-    else if (ceilW > 1) ceilW = 1;
-    const repoMaxWidth = dims.MIN_WIDTH + ceilW * (dims.MAX_WIDTH - dims.MIN_WIDTH);
-    width = dims.MIN_WIDTH + tW * (repoMaxWidth - dims.MIN_WIDTH);
-  }
+  const width = widthForBytes(file.size, byteStats, dims);
 
   // Media files (image/video) override the lines-driven height: the
   // building's silhouette mirrors the image's natural aspect ratio

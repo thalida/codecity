@@ -1,10 +1,9 @@
 """The manifest routes: GET /api/manifest (SSE stream), GET
-/api/manifest/signature, GET /api/timeline (SSE stream), DELETE
-/api/manifest/cache.
+/api/manifest/signature, GET /api/timeline (SSE stream).
 
 Source classification/resolution lives in api.services.source; these are the
 thin HTTP handlers over it. A ResolveError carries a status + message: the
-signature/cache routes turn it into an HTTPException, while the manifest and
+signature route turns it into an HTTPException, while the manifest and
 timeline SSE routes turn it into an `error` event (EventSource can't read 4xx
 bodies)."""
 
@@ -32,10 +31,8 @@ from api.models.events import (
     TimelineProgressEvent,
 )
 from api.models.manifest import SignatureResponse
-from api.models.responses import CacheClearResponse
 from api.security import TRUST
 from api.services.cache import (
-    cache_clear_all,
     cache_clear_timeline,
     cache_load_manifest,
     cache_load_ref_manifest,
@@ -49,11 +46,9 @@ from api.services.clone import (
     CloneError,
     HostUnreachableError,
     RepoNotFoundError,
-    clone_dir_for,
     ensure_clone,
     fetch_lfs_history,
     hydrate_blobs,
-    remove_clone,
 )
 from api.services.gitobj import resolve_ref
 from api.services.scan import (
@@ -245,34 +240,6 @@ async def timeline(
             )
 
     return EventSourceResponse(gen())
-
-
-@router.delete("/manifest/cache", response_model=CacheClearResponse)
-def clear_cache(
-    src: str = Query(...),
-    branch: str | None = Query(None),
-) -> CacheClearResponse:
-    if not src:
-        raise HTTPException(400, "missing 'src' query param")
-    kind = classify(src)
-    if kind is SourceKind.INVALID:
-        raise HTTPException(400, "unrecognized source: pass a local path or a git URL")
-    if kind is SourceKind.REMOTE:
-        abs_root = clone_dir_for(src, branch)
-    else:
-        # Non-strict resolve so a recents entry for a since-deleted path
-        # still drops its cache.
-        abs_root = Path(src).resolve(strict=False)
-    # Full clean slate for this source: every per-root cache (manifest,
-    # file-stat, git-history). For a REMOTE source also delete the clone working
-    # tree so a re-add re-clones from scratch — the recovery path for a corrupt
-    # clone. Hold the clone lock so we never rmtree a clone a concurrent request
-    # is mid-clone into.
-    deleted = cache_clear_all(abs_root)
-    if kind is SourceKind.REMOTE:
-        with TRUST.clone_lock:
-            remove_clone(src, branch)
-    return CacheClearResponse(deleted=deleted)
 
 
 def _sse(event: "ScanEvent | TimelineEvent", payload: dict[str, Any]) -> dict[str, Any]:

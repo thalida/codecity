@@ -18,26 +18,13 @@
 import { describe, it, expect, afterEach } from 'vitest';
 import * as THREE from 'three';
 
-import { createCityState } from '@/city/state';
-import { makeCityState } from '../../_helpers/cityFixtures';
+import { makeCityState, makeSceneContext } from '../../_helpers/cityFixtures';
 import { createStreets } from '@/city/components/streets';
 import { createGem } from '@/city/components/gem';
 import { createIsland } from '@/city/components/island';
 import { createRepoLabel } from '@/city/components/repoLabel';
 import { NodeKind, StreetAxis } from '@/types';
 import type { CityLayout, Manifest, Street } from '@/types';
-import type { Picker } from '@/city/interaction/picker';
-import type { SceneContext } from '@/city/types';
-
-function makeCtx(cityState: ReturnType<typeof createCityState>): SceneContext {
-  return {
-    scene: new THREE.Scene(),
-    picker: null as unknown as Picker,
-    camera: null as unknown as THREE.PerspectiveCamera,
-    renderer: null as unknown as THREE.WebGLRenderer,
-    cityState,
-  } as unknown as SceneContext;
-}
 
 function makeRootStreet(): Street {
   return {
@@ -91,7 +78,7 @@ describe('scenic reactivity — structureRevision gates rebuilds', () => {
 
   it('streets: rebuilds on a structure change, skips on a reuse apply', () => {
     const cityState = makeCityState();
-    const streets = createStreets(makeCtx(cityState));
+    const streets = createStreets(makeSceneContext(cityState));
     disposers.push(() => streets.dispose());
 
     // First structure apply (structureRevision bumps) → rebuild swaps in a fresh
@@ -114,7 +101,7 @@ describe('scenic reactivity — structureRevision gates rebuilds', () => {
 
   it('gem: rebuilds on a structure change, skips on a reuse apply', () => {
     const cityState = makeCityState();
-    const gem = createGem(makeCtx(cityState));
+    const gem = createGem(makeSceneContext(cityState));
     disposers.push(() => gem.dispose());
 
     applyStructure(cityState, makeLayout());
@@ -143,7 +130,7 @@ describe('scenic reactivity — structureRevision gates rebuilds', () => {
 
   it('island: resizes on a structure change, skips on a reuse apply', () => {
     const cityState = makeCityState();
-    const island = createIsland(makeCtx(cityState));
+    const island = createIsland(makeSceneContext(cityState));
     disposers.push(() => island.dispose());
 
     // The island mesh is group.children[0]; setBounds swaps its geometry.
@@ -168,7 +155,7 @@ describe('scenic reactivity — structureRevision gates rebuilds', () => {
 
   it('repoLabel: repositions on every manifest change (name + anchor)', () => {
     const cityState = makeCityState();
-    const label = createRepoLabel(makeCtx(cityState), { getGem: () => null });
+    const label = createRepoLabel(makeSceneContext(cityState), { getGem: () => null });
     disposers.push(() => label.dispose());
 
     cityState.manifest.value = makeManifest('repo-a');
