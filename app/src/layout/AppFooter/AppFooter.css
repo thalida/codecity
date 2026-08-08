@@ -54,9 +54,9 @@
   white-space: nowrap;
 }
 
-/* Shared muted-dot separator. Used between metadata items in the left
- * (selection) section and between the branch + repo link in the center
- * section. Pointer-events:none so a stray click between items doesn't
+/* Shared muted-dot separator. Used between the selection metadata items in
+ * the right section and between the version/links/credit in the center
+ * credit line. Pointer-events:none so a stray click between items doesn't
  * fall on the dot. */
 .app-footer-sep {
   flex: 0 0 auto;
@@ -168,10 +168,11 @@
 
 /* ── Footer responsive narrowing ───────────────────────────────────────────── */
 /* At narrow widths the status timestamp / "rebuilding…" text is secondary
-   information — hide it so the dot alone represents the status and the
-   left / center sections keep their space. */
+   information, so it's hidden and the credit line is dropped entirely,
+   leaving the status dot and the utility-icon cluster in a two-track grid. */
 @media (max-width: 580px) {
   #app-footer {
+    grid-template-columns: minmax(0, 1fr) auto;
     gap: var(--cc-space-3);
     padding: 0 var(--cc-space-4);
   }

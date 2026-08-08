@@ -27,7 +27,7 @@ export function ProjectSwitcher({ rootLabel, branch, onSwitchSource }: ProjectSw
         if (onSwitchSource) onSwitchSource();
       }}
     >
-      <GemIcon class="btn-chip-gem" />
+      <GemIcon />
       {rootLabel && <span class="btn-chip-label">{rootLabel}</span>}
       {branch && <span class="app-header-branch-pill">@{branch}</span>}
       <ChevronsUpDown class="icon btn-chip-affordance" />

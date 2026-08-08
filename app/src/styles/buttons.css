@@ -113,8 +113,8 @@
    LAYER-2 COMPONENTS — Icon-text chip (.btn-chip)
    ═══════════════════════════════════════════════════════════════════════════
    Used by the header project switcher (icon + label + optional badge).
-   Different from .btn-icon — has gap, asymmetric padding, max-width,
-   ellipsis truncation on its label. */
+   Different from .btn-icon — has gap, shrinks and truncates its label instead
+   of a hard-capped width. */
 
 .btn-chip {
   appearance: none;

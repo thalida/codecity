@@ -148,7 +148,7 @@ export function createInputHandlers({
     }
     if (hit.object.userData.type === NodeKind.Gem) {
       picker.setSelection(null);
-      // Gem click = reset view, same as the R key and the header gem button.
+      // Gem click = reset view, same as the R key.
       onResetView();
       return;
     }

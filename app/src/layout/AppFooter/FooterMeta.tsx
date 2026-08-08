@@ -4,9 +4,9 @@
 // released image without a bundled constant to keep in sync.
 
 import { SERVER_CONFIG } from '@/state/stores/serverConfig';
+import { REPO_URL } from '@/constants/ui';
 import { FooterSep } from './FooterSep';
 
-const REPO_URL = 'https://github.com/thalida/codecity';
 const CREATOR_URL = 'https://thalida.com';
 
 export function FooterMeta() {

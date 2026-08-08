@@ -1,8 +1,9 @@
 /* The project switcher button is .btn-chip (defined with the button components
-   in buttons.css), capped at a max-width there. The label and branch pill
-   truncate with an ellipsis so a long repo name or branch can't overflow the
-   chip and overlap the neighbouring repo link. The full name stays reachable
-   via the switcher itself. */
+   in buttons.css), which shrinks within the header's flex row rather than
+   pushing neighboring buttons out of view. The label and branch pill truncate
+   with an ellipsis so a long repo name or branch can't overflow the chip and
+   overlap the neighbouring repo link. The full name stays reachable via the
+   switcher itself. */
 .btn-chip-label {
   white-space: nowrap;
   min-width: 0;
@@ -14,9 +15,11 @@
   flex: 0 0 auto;
 }
 
-/* The gem is the chip's leading glyph. Sized to the chip's other icons and
-   held at its intrinsic width so a long repo name shrinks the label, not it. */
-.btn-chip-gem {
+/* The gem is the chip's leading glyph. Scoped to .btn-chip (not just
+   .btn-chip-gem) so it wins over .gem-icon's own 1em sizing at equal
+   specificity — sized to the chip's other icons and held at its intrinsic
+   width so a long repo name shrinks the label, not it. */
+.btn-chip .gem-icon {
   width: var(--cc-font-md);
   height: var(--cc-font-md);
   flex: 0 0 auto;

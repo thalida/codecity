@@ -9,6 +9,7 @@ import './ExcludesSection.css';
 import { EyeOff, RotateCcw } from 'lucide-preact';
 import { ACTIVE_EXCLUDES, removeExclude, clearExcludes } from '@/state/stores/excludes';
 import { Section } from '@/components/Section/Section';
+import { REPO_URL } from '@/constants/ui';
 
 export function ExcludesSection() {
   const paths = ACTIVE_EXCLUDES.value;
@@ -20,7 +21,7 @@ export function ExcludesSection() {
           Paths you hide from the city, saved in this browser. This does not change the repo.{' '}
           <a
             class="link--chrome"
-            href="https://github.com/thalida/codecity#skipped-by-default"
+            href={`${REPO_URL}#skipped-by-default`}
             target="_blank"
             rel="noopener noreferrer"
           >
