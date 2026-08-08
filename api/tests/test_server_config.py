@@ -20,18 +20,24 @@ def client(tmp_path: Path) -> TestClient:
 
 
 def test_config_enabled(client: TestClient, monkeypatch) -> None:
+    from api import __version__
+
     monkeypatch.setenv("CODECITY_ALLOW_LOCAL_REPOS", "1")
     assert client.get("/api/config").json() == {
         "allowLocalRepos": True,
         "maxBatchPaths": MAX_BATCH_PATHS,
+        "version": __version__,
     }
 
 
 def test_config_disabled(client: TestClient, monkeypatch) -> None:
+    from api import __version__
+
     monkeypatch.delenv("CODECITY_ALLOW_LOCAL_REPOS", raising=False)
     assert client.get("/api/config").json() == {
         "allowLocalRepos": False,
         "maxBatchPaths": MAX_BATCH_PATHS,
+        "version": __version__,
     }
 
 
@@ -41,3 +47,13 @@ def test_config_publishes_the_cap_the_batch_routes_enforce() -> None:
     from api.routers import file as file_router
 
     assert file_router.MAX_BATCH_PATHS == MAX_BATCH_PATHS
+
+
+def test_config_reports_the_running_package_version(client: TestClient) -> None:
+    """The footer shows which build is running, so /api/config carries the
+    package version rather than the client guessing from a bundled constant."""
+    from api import __version__
+
+    body = client.get("/api/config").json()
+    assert body["version"] == __version__
+    assert body["version"]

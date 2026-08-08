@@ -169,8 +169,10 @@ class ResponseModelTests(unittest.TestCase):
 
         self.assertEqual(HealthResponse(ok=True).model_dump(), {"ok": True})
         self.assertEqual(
-            ConfigResponse(allowLocalRepos=False, maxBatchPaths=64).model_dump(),
-            {"allowLocalRepos": False, "maxBatchPaths": 64},
+            ConfigResponse(
+                allowLocalRepos=False, maxBatchPaths=64, version="1.2.3"
+            ).model_dump(),
+            {"allowLocalRepos": False, "maxBatchPaths": 64, "version": "1.2.3"},
         )
 
     def test_sse_event_serialization(self) -> None:

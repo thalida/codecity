@@ -59,6 +59,22 @@ describe('fetchServerConfig', () => {
     const cfg = await fetchServerConfig();
     expect(cfg.maxBatchPaths).toBe(DEFAULT_SERVER_CONFIG.maxBatchPaths);
   });
+
+  it('carries the version through from the server', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+      new Response(JSON.stringify({ allowLocalRepos: false, version: '1.3.0' }), { status: 200 })
+    );
+    const cfg = await fetchServerConfig();
+    expect(cfg.version).toBe('1.3.0');
+  });
+
+  it('keeps the unknown-version default when the server omits it', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+      new Response(JSON.stringify({ allowLocalRepos: false }), { status: 200 })
+    );
+    const cfg = await fetchServerConfig();
+    expect(cfg.version).toBe('0.0.0+unknown');
+  });
 });
 
 describe('getServerConfig', () => {

@@ -9,10 +9,12 @@ import type { components } from '@/types/manifest.generated';
 export type ServerConfig = components['schemas']['ConfigResponse'];
 
 // Pre-boot defaults. maxBatchPaths guesses low: too high silently truncates a
-// batch's tail, too low only costs an extra request.
+// batch's tail, too low only costs an extra request. `version` matches the
+// backend's own metadata-lookup fallback.
 export const DEFAULT_SERVER_CONFIG: ServerConfig = {
   allowLocalRepos: false,
   maxBatchPaths: 16,
+  version: '0.0.0+unknown',
 };
 
 let _cached: Promise<ServerConfig> | null = null;
@@ -38,6 +40,7 @@ export async function fetchServerConfig(): Promise<ServerConfig> {
       ...(typeof body.maxBatchPaths === 'number' && body.maxBatchPaths > 0
         ? { maxBatchPaths: body.maxBatchPaths }
         : {}),
+      ...(typeof body.version === 'string' && body.version ? { version: body.version } : {}),
     };
   } catch (_) {
     return DEFAULT_SERVER_CONFIG;

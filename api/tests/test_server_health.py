@@ -34,6 +34,8 @@ def test_config_default_disabled(
     # The conftest sets CODECITY_ALLOW_LOCAL_REPOS=1 session-wide for
     # tests that exercise local scan paths. Override it here to verify the
     # default-disabled state that the real endpoint exposes.
+    from api import __version__
+
     monkeypatch.delenv("CODECITY_ALLOW_LOCAL_REPOS", raising=False)
     static = tmp_path / "static"
     static.mkdir()
@@ -41,7 +43,11 @@ def test_config_default_disabled(
     app = create_app(static_dir=static)
     r = TestClient(app).get("/api/config")
     assert r.status_code == 200
-    assert r.json() == {"allowLocalRepos": False, "maxBatchPaths": MAX_BATCH_PATHS}
+    assert r.json() == {
+        "allowLocalRepos": False,
+        "maxBatchPaths": MAX_BATCH_PATHS,
+        "version": __version__,
+    }
 
 
 def test_root_serves_index(client: TestClient) -> None:
