@@ -142,7 +142,9 @@
 
 /* ── Credit line (center section) ──────────────────────────────────── */
 /* Reads as a code comment: the // and the · separators sit at the faint
- * separator color, the words one step up so the two links clear 4.5:1. */
+ * separator color, the prose one step up. The links sit two steps up from
+ * the prose around them, which is what marks them as clickable: at the
+ * prose color they read as plain text. */
 .app-footer-meta {
   display: inline-flex;
   align-items: center;
@@ -157,7 +159,7 @@
   color: var(--cc-text-muted);
 }
 .app-footer-meta-link {
-  color: var(--cc-text-muted);
+  color: var(--cc-text-primary);
   text-decoration: none;
 }
 .app-footer-meta-link:hover,
