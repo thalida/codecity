@@ -1,10 +1,5 @@
-// api/config.ts — One-shot fetch of /api/config, memoized.
-//
-// Read once at boot in useManifestSource and passed into UI components that need
-// to know server-side feature flags (currently: whether local-repo
-// sources are permitted). Any fetch / parse failure fails closed —
-// we prefer to render the "local is disabled" UI than to expose a
-// path input that the server will reject anyway.
+// One-shot memoized fetch of /api/config. Failures fail closed: better the
+// "local is disabled" UI than a path input the server will reject.
 
 import { apiUrl } from '@/api/apiUrl';
 import type { components } from '@/types/manifest.generated';
@@ -13,19 +8,16 @@ import type { components } from '@/types/manifest.generated';
 // the backend's ConfigResponse cannot drift from what this layer exposes.
 export type ServerConfig = components['schemas']['ConfigResponse'];
 
-// Pre-boot defaults, replaced by the real /api/config response. maxBatchPaths
-// starts low because guessing high fails silently: the batch routes truncate
-// anything past their cap, so an over-large chunk loses its tail. Guessing low
-// only costs an extra request.
+// Pre-boot defaults. maxBatchPaths guesses low: too high silently truncates a
+// batch's tail, too low only costs an extra request.
 export const DEFAULT_SERVER_CONFIG: ServerConfig = {
   allowLocalRepos: false,
   maxBatchPaths: 16,
 };
 
 let _cached: Promise<ServerConfig> | null = null;
-// The resolved value, for callers that need it synchronously mid-request (the
-// batch coalescers). Not a second source of truth: it is written only from the
-// memoized fetch below, which is the same one the SERVER_CONFIG signal mirrors.
+// For synchronous mid-request readers (the batch coalescers); written only by
+// the memoized fetch below, so never a second source of truth.
 let _resolved: ServerConfig = DEFAULT_SERVER_CONFIG;
 
 /** The server config as last resolved, or the defaults before boot completes. */
@@ -38,10 +30,8 @@ export async function fetchServerConfig(): Promise<ServerConfig> {
     const resp = await fetch(apiUrl('config'));
     if (!resp.ok) return DEFAULT_SERVER_CONFIG;
     const body = (await resp.json()) as Partial<ServerConfig>;
-    // Spread over the defaults rather than re-projecting field by field: the
-    // old shape listed each key by hand, so a field added on the server was
-    // silently dropped here. Only override what the body actually carries, so
-    // a truncated response can't yield a zero batch size.
+    // Spread over the defaults (a hand-listed shape drops server-added fields);
+    // override only what the body carries so a truncated response can't zero it.
     return {
       ...DEFAULT_SERVER_CONFIG,
       allowLocalRepos: !!body.allowLocalRepos,

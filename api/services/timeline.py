@@ -318,16 +318,9 @@ def compute_commit_date_ranges(
     git_modified: dict[str, str],
 ) -> list[DateRangeMs]:
     """Per-commit created/modified ms ranges over the files present at each
-    commit — what the weathering (color, lit windows, grime) normalizes against,
-    so range[HEAD] equals the live manifest's dateRanges.
-
-    A file uses its own full-precision date once it has reached its final
-    change, and the date of its latest change commit before that; creation is
-    fixed at its own date, falling back to its genesis commit.
-
-    The client walks these same deltas in city/timeline/replay.ts, but to build
-    a per-path index for per-frame scrub queries. Different output, different
-    consumer — neither is a copy of the other."""
+    commit; range[HEAD] equals the live manifest's dateRanges (weathering
+    normalizes against these). replay.ts walks the same deltas for a different
+    output (per-frame scrub index) — neither is a copy of the other."""
     commit_ms = [_iso_ms(c["date"]) or 0 for c in commits]
 
     final_idx: dict[str, int] = {}

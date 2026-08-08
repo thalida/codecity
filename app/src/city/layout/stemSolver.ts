@@ -190,8 +190,6 @@ export function findSmallestValidStem(
   // Reused scratch rather than two fresh arrays per call: a large repo pushes
   // ~32M endpoints across ~240k calls, so allocation and regrowth dominate.
   let loCount = 0;
-  let lo = _loScratch;
-  let hi = _hiScratch;
 
   // Orientation is fixed for the whole call, and the inner loop runs per
   // candidate (~32M times on a large repo), so decide it once.
@@ -239,12 +237,12 @@ export function findSmallestValidStem(
         if (tracing) {
           forbidden.push({ lower, upper, obstacle: g, fromChildRectIndex: rIdx });
         } else {
-          if (loCount === lo.length) {
-            lo = _loScratch = _growScratch(lo);
-            hi = _hiScratch = _growScratch(hi);
+          if (loCount === _loScratch.length) {
+            _loScratch = _growScratch(_loScratch);
+            _hiScratch = _growScratch(_hiScratch);
           }
-          lo[loCount] = lower;
-          hi[loCount] = upper;
+          _loScratch[loCount] = lower;
+          _hiScratch[loCount] = upper;
           loCount++;
         }
       }
@@ -275,18 +273,20 @@ export function findSmallestValidStem(
     for (let rounds = 0; ; rounds++) {
       let ns = s;
       for (let i = 0; i < n; i++) {
-        if (lo[i] <= s && hi[i] > ns) ns = hi[i];
+        if (_loScratch[i] <= s && _hiScratch[i] > ns) ns = _hiScratch[i];
       }
       if (ns === s) break;
       s = ns;
       // A long chain (e.g. a big flat dir) makes the round loop expensive; finish
       // it with a one-off sorted scan to keep the O(F log F) bound.
       if (rounds > STEM_SCAN_SORT_FALLBACK_ROUNDS) {
-        const order = Array.from({ length: n }, (_, i) => i).sort((a, b) => lo[a] - lo[b]);
+        const order = Array.from({ length: n }, (_, i) => i).sort(
+          (a, b) => _loScratch[a] - _loScratch[b]
+        );
         s = baseline;
         for (const i of order) {
-          if (s < lo[i]) break;
-          if (s < hi[i]) s = hi[i];
+          if (s < _loScratch[i]) break;
+          if (s < _hiScratch[i]) s = _hiScratch[i];
         }
         break;
       }

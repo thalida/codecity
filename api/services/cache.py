@@ -29,10 +29,14 @@ import json
 import os
 import re
 import tempfile
+from enum import StrEnum
 from pathlib import Path
 from typing import TYPE_CHECKING, NotRequired, TypedDict, cast
 
 from api.config import CACHE_ROOT
+
+KEY_SEP = "__"  # between the repo key and the entry name
+MANIFEST_EXT = ".json.gz"
 
 if TYPE_CHECKING:
     from api.services.manifest_types import CommitEntry, Manifest, TimelineBundle
@@ -386,17 +390,42 @@ def cache_save_git_history(
     _atomic_write(_git_history_cache_path(abs_root), json.dumps(payload))
 
 
+class ManifestFamily(StrEnum):
+    """Retention pool for a manifests/ entry. `tag` is how it reads on disk."""
+
+    CONTENT = "content"
+    REF = "ref"
+    TIMELINE = "timeline"
+
+    @property
+    def tag(self) -> str:
+        """Name prefix marking the family; content entries carry none."""
+        return "" if self is ManifestFamily.CONTENT else f"{self.value}-"
+
+
+def _manifest_dir() -> Path:
+    """A function, not a constant, so a test patching CACHE_ROOT cascades."""
+    return CACHE_ROOT / "manifests"
+
+
+def _manifest_path(abs_root: Path, name: str) -> Path:
+    """One manifests/ entry for this root. Every writer goes through here so the
+    name shape stays in lockstep with the globs below."""
+    return _manifest_dir() / f"{repo_key(abs_root)}{KEY_SEP}{name}{MANIFEST_EXT}"
+
+
+def _manifest_glob(abs_root: Path, name: str = "*") -> str:
+    """Glob matching this root's manifests/ entries, optionally one family."""
+    return f"{repo_key(abs_root)}{KEY_SEP}{name}{MANIFEST_EXT}"
+
+
 def _manifest_cache_path(abs_root: Path, content_signature: str) -> Path:
-    return (
-        CACHE_ROOT / "manifests" / f"{repo_key(abs_root)}__{content_signature}.json.gz"
-    )
+    return _manifest_path(abs_root, content_signature)
 
 
 def _ref_manifest_cache_path(abs_root: Path, ref_sha: str) -> Path:
-    # `__ref-` prefix keeps a ref-sha visually distinct from a content
-    # signature in directory listings, while staying inside the
-    # `{repo_key}__*.json.gz` shape the other per-root globs match.
-    return CACHE_ROOT / "manifests" / f"{repo_key(abs_root)}__ref-{ref_sha}.json.gz"
+    # Tagged so a ref sha reads differently from a content signature in a listing.
+    return _manifest_path(abs_root, f"{ManifestFamily.REF.tag}{ref_sha}")
 
 
 def _load_gz_envelope(
@@ -469,19 +498,18 @@ _KEEP_REF_MANIFESTS = 20
 _KEEP_TIMELINE_BUNDLES = 3
 
 
-def _entry_family(name_rest: str) -> str:
-    """Which retention pool a `{repo_key}__<rest>` cache file belongs to."""
-    if name_rest.startswith("ref-"):
-        return "ref"
-    if name_rest.startswith("timeline-"):
-        return "timeline"
-    return "content"
+def _entry_family(name: str) -> ManifestFamily:
+    """Which retention pool an entry name (the part after the repo key) is in."""
+    for family in (ManifestFamily.REF, ManifestFamily.TIMELINE):
+        if name.startswith(family.tag):
+            return family
+    return ManifestFamily.CONTENT
 
 
 _FAMILY_KEEP = {
-    "content": _KEEP_CONTENT_MANIFESTS,
-    "ref": _KEEP_REF_MANIFESTS,
-    "timeline": _KEEP_TIMELINE_BUNDLES,
+    ManifestFamily.CONTENT: _KEEP_CONTENT_MANIFESTS,
+    ManifestFamily.REF: _KEEP_REF_MANIFESTS,
+    ManifestFamily.TIMELINE: _KEEP_TIMELINE_BUNDLES,
 }
 
 
@@ -489,29 +517,19 @@ def prune_manifest_cache(abs_root: Path, *, protect: Path | None = None) -> int:
     """Drop this root's oldest manifest-dir entries, per family. Returns the
     count deleted.
 
-    `protect` is never evicted. Callers pass the path they just wrote: mtime
-    resolution is only one second on some filesystems, so a burst of saves can
-    tie and sort the newest entry into the tail — which would delete the very
-    manifest the caller is about to read back.
+    `protect` is never evicted: one-second mtime resolution lets a burst of
+    saves tie, which could sort the just-written entry into the tail.
 
-    Ordering is by mtime rather than access time, which macOS and most Linux
-    mounts do not track (relatime), so this is write-recency, not LRU: an old
-    signature that keeps being re-read still ages out. That is the right trade
-    here, since re-reading it only ever saved a rescan.
-
-    Best-effort, like the rest of this module: a failed unlink (or a file a
-    concurrent request removed first) must never break the response."""
-    manifests_dir = CACHE_ROOT / "manifests"
-    if not manifests_dir.exists():
+    Ordered by mtime, not atime (relatime doesn't track it), so a much-read old
+    signature still ages out. Best-effort, like the rest of this module."""
+    if not _manifest_dir().exists():
         return 0
 
-    prefix = f"{repo_key(abs_root)}__"
-    families: dict[str, list[tuple[float, Path]]] = {
-        "content": [],
-        "ref": [],
-        "timeline": [],
+    prefix = f"{repo_key(abs_root)}{KEY_SEP}"
+    families: dict[ManifestFamily, list[tuple[float, Path]]] = {
+        family: [] for family in ManifestFamily
     }
-    for path in manifests_dir.glob(f"{prefix}*.json.gz"):
+    for path in _manifest_dir().glob(_manifest_glob(abs_root)):
         if protect is not None and path == protect:
             continue  # counts against nothing; it always stays
         try:
@@ -580,15 +598,10 @@ def _excludes_key(excludes: frozenset[str]) -> str:
 def _timeline_cache_path(
     abs_root: Path, head_sha: str, excludes: frozenset[str] = frozenset()
 ) -> Path:
-    # Same dir + `__*.json.gz` glob as the manifest caches, so the clear paths sweep it.
-    # Excludes reshape the filtered union, so they're part of the key; an empty set
-    # keeps the bare head-sha name (existing caches + clear glob stay valid).
+    # Excludes reshape the filtered union, so they're part of the key; an empty
+    # set keeps the bare head-sha name so existing caches stay valid.
     suffix = f"-{_excludes_key(excludes)}" if excludes else ""
-    return (
-        CACHE_ROOT
-        / "manifests"
-        / f"{repo_key(abs_root)}__timeline-{head_sha}{suffix}.json.gz"
-    )
+    return _manifest_path(abs_root, f"{ManifestFamily.TIMELINE.tag}{head_sha}{suffix}")
 
 
 def cache_load_timeline(
@@ -626,11 +639,12 @@ def cache_clear_timeline(abs_root: Path) -> int:
     rebuilds fresh — the bundle is immutable per HEAD, so nothing else evicts a
     stale one built by older code. Same swallow-errors hygiene as the rest of
     this module."""
-    manifests_dir = CACHE_ROOT / "manifests"
-    if not manifests_dir.exists():
+    if not _manifest_dir().exists():
         return 0
     count = 0
-    for path in manifests_dir.glob(f"{repo_key(abs_root)}__timeline-*.json.gz"):
+    for path in _manifest_dir().glob(
+        _manifest_glob(abs_root, f"{ManifestFamily.TIMELINE.tag}*")
+    ):
         try:
             path.unlink()
             count += 1

@@ -1,7 +1,5 @@
-// Per-instance building render kind (the iKind attribute). building.frag.glsl
-// redeclares these as `const int KIND_*`; building-shader.test.ts asserts the
-// two agree, since drift would silently render a whole class of buildings in
-// the wrong mode.
+// Per-instance render kind (iKind). building.frag.glsl redeclares these as
+// `const int KIND_*`; building-shader.test.ts asserts the two agree.
 export const BuildingKind = {
   Normal: 0,
   Ruin: 1, // Timeline: deleted → crumbled gray stub
