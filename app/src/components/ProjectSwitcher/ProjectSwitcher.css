@@ -14,6 +14,14 @@
   flex: 0 0 auto;
 }
 
+/* The gem is the chip's leading glyph. Sized to the chip's other icons and
+   held at its intrinsic width so a long repo name shrinks the label, not it. */
+.btn-chip-gem {
+  width: var(--cc-font-md);
+  height: var(--cc-font-md);
+  flex: 0 0 auto;
+}
+
 .app-header-branch-pill {
   display: inline-flex;
   align-items: center;

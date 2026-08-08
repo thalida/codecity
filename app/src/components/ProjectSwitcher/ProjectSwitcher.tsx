@@ -1,11 +1,13 @@
-// components/ProjectSwitcher.tsx — The project chip: label + optional @branch
-// pill + a switch cue. Click opens the project switcher. The trailing glyph is
-// ChevronsUpDown (a "switchable value" cue), not a down-caret, since clicking
-// opens a full switcher screen rather than a dropdown menu.
-// Renders nothing until a project is loaded (no label).
+// components/ProjectSwitcher.tsx — The project chip: gem + label + optional
+// @branch pill + a switch cue. Click opens the project switcher. The trailing
+// glyph is ChevronsUpDown (a "switchable value" cue), not a down-caret, since
+// clicking opens a full switcher screen rather than a dropdown menu.
+// The gem doubles as the app logo, so the chip renders even before a project
+// loads: gem alone, still opening the switcher.
 
 import './ProjectSwitcher.css';
 import { ChevronsUpDown } from 'lucide-preact';
+import { GemIcon } from '@/components/GemIcon/GemIcon';
 
 export interface ProjectSwitcherProps {
   rootLabel: string;
@@ -14,7 +16,6 @@ export interface ProjectSwitcherProps {
 }
 
 export function ProjectSwitcher({ rootLabel, branch, onSwitchSource }: ProjectSwitcherProps) {
-  if (!rootLabel) return null;
   return (
     <button
       type="button"
@@ -26,7 +27,8 @@ export function ProjectSwitcher({ rootLabel, branch, onSwitchSource }: ProjectSw
         if (onSwitchSource) onSwitchSource();
       }}
     >
-      <span class="btn-chip-label">{rootLabel}</span>
+      <GemIcon class="btn-chip-gem" />
+      {rootLabel && <span class="btn-chip-label">{rootLabel}</span>}
       {branch && <span class="app-header-branch-pill">@{branch}</span>}
       <ChevronsUpDown class="icon btn-chip-affordance" />
     </button>
