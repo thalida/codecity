@@ -105,9 +105,10 @@ network (`just dev` then fails with "network ... not found"; recover with
 
 ## Layout
 
-- `app/` — Preact + TypeScript frontend; the 3D city lives in `app/city/` (a
-  signals-driven mini-app: `state/ components/ render/ types/ constants/ utils/`).
-  Layout worker is `app/scene/layoutV4.ts` (snapshot-tested — keep output bit-identical).
+- `app/` — Preact + TypeScript frontend; the 3D city lives in `app/src/city/` (a
+  signals-driven mini-app: `state/ components/ render/ types/ utils/`).
+  Layout runs in a worker under `app/src/city/layout/` (snapshot-tested — keep
+  output bit-identical).
 - `api/` — FastAPI backend that walks the repo and serves the manifest.
 - `.github/` — readme assets + CI workflows.
 
