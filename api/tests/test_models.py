@@ -82,6 +82,7 @@ class ModelTests(unittest.TestCase):
         m = Manifest(
             readmePath=None,
             readmeModified=None,
+            pending=[],
             root="/r",
             scanned_at="2020",
             content_signature="s",

@@ -530,6 +530,11 @@ export interface components {
             dateRanges: components["schemas"]["DateRanges"];
             stats: components["schemas"]["RepoStats"];
             /**
+             * Pending
+             * @description Stages still to come. 'metadata': per-file lines/binary are placeholders. 'history': dates are filesystem dates and commits is empty. Empty list means every field is final.
+             */
+            pending: ("metadata" | "history")[];
+            /**
              * Readmepath
              * @description Absolute path of the root README, or null if there isn't one
              */

@@ -48,6 +48,8 @@ export const EMPTY_REPO_STATS: RepoStats = {
 
 export const EMPTY_MANIFEST: Manifest = {
   root: '',
+  // Nothing scanned yet, so every stage is still outstanding.
+  pending: ['metadata', 'history'],
   readmePath: null,
   readmeModified: null,
   scanned_at: new Date().toISOString(),

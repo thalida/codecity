@@ -6,6 +6,7 @@
 import { signal } from '@preact/signals';
 import { SourceKind } from '@/utils/sources';
 import { ScanPhase, CloneStage } from '@/api/manifest';
+import type { Manifest } from '@/types';
 
 export interface ScanProgress {
   /** Kind of source being loaded (drives the overlay's initial step). */
@@ -23,6 +24,11 @@ export interface ScanProgress {
   mbOnDisk?: number;
   /** Files scanned so far when phase === Scanning. */
   filesScanned?: number;
+  /** `pending` of the manifest most recently APPLIED this load (set after the
+   *  apply is kicked off, so REBUILD_STATUS already reflects it). Absent until
+   *  the load's first manifest event — which is what makes it per-load: a
+   *  previous repo's finished manifest can't leak in. */
+  appliedPending?: Manifest['pending'];
 }
 
 /** Non-null while a source is actively loading; null when idle/done. */

@@ -102,13 +102,30 @@ export function applyFlips(rect: Rect, flipX: boolean, flipY: boolean): Rect {
 export function isMirrorInvariant(rects: Rect[], parentOrient: StreetAxis): boolean {
   // Empty list is trivially invariant.
   if (rects.length === 0) return true;
+  // Invariance needs the extent about 0 to be symmetric. O(n), and it rejects
+  // subtrees (which grow away from the origin) before the O(n²) search.
+  const mirrorIsX = parentOrient === StreetAxis.X;
+  let lo = +Infinity;
+  let hi = -Infinity;
+  for (const r of rects) {
+    const c = mirrorIsX ? r.x : r.y;
+    const half = (mirrorIsX ? r.w : r.d) / 2;
+    if (c - half < lo) lo = c - half;
+    if (c + half > hi) hi = c + half;
+  }
+  // Slack: the pair test tolerates eps on both center and width. Erring wide is
+  // free, since a mirror variant of an invariant list ties and loses the
+  // tiebreak to its non-mirrored twin.
+  if (Math.abs(lo + hi) > 4 * OVERLAP_EPS) return false;
+
   // For each rect r in rects, the mirrored r must also exist in rects.
   // O(n²) but n is small per subtree; acceptable.
   for (const r of rects) {
     let found = false;
+    // Depends only on r.
+    const mirrorX = mirrorIsX ? -r.x : r.x;
+    const mirrorY = mirrorIsX ? r.y : -r.y;
     for (const s of rects) {
-      const mirrorX = parentOrient === StreetAxis.X ? -r.x : r.x;
-      const mirrorY = parentOrient === StreetAxis.Y ? -r.y : r.y;
       if (
         Math.abs(s.x - mirrorX) <= OVERLAP_EPS &&
         Math.abs(s.y - mirrorY) <= OVERLAP_EPS &&

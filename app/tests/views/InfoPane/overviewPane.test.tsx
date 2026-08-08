@@ -66,6 +66,7 @@ const manifest: Manifest = {
   content_signature: 's',
   structure_signature: 't',
   layout_signature: 'l',
+  pending: [],
   readmePath: null,
   readmeModified: null,
   tree: tree as unknown as Manifest['tree'],

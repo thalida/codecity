@@ -256,6 +256,13 @@ class Manifest(BaseModel):
     busyness: BusynessThresholds
     dateRanges: DateRanges
     stats: RepoStats
+    pending: list[Literal["metadata", "history"]] = Field(
+        description=(
+            "Stages still to come. 'metadata': per-file lines/binary are "
+            "placeholders. 'history': dates are filesystem dates and commits is "
+            "empty. Empty list means every field is final."
+        )
+    )
     readmePath: Optional[str] = Field(
         description="Absolute path of the root README, or null if there isn't one"
     )

@@ -44,6 +44,7 @@ from .gitobj import BINARY_CHUNK, is_binary_bytes
 from .media import media_kind, probe_media_dims
 from .stats import compute_repo_stats
 from .manifest_types import (
+    ScanStage,
     BusynessThresholds,
     CommitEntry,
     DateRanges,
@@ -904,22 +905,16 @@ def build_file_node(
 def _file_node(
     entry: os.DirEntry[str],
     rel_path: str,
-    git_created: dict[str, str],
-    git_modified: dict[str, str],
     dirty_paths: set[str],
     sig: Any,
 ) -> FileNode:
     """Live-scan FileNode skeleton — `lines`/`binary` (and media dims /
     binaryType) are placeholders filled in by _populate_file_metadata after the
-    walk, so content I/O batches once instead of per-node."""
+    walk, so content I/O batches once instead of per-node. Dates are the
+    filesystem's; _apply_git_dates overlays history once that walk has run."""
     size, fs_created, fs_modified, mtime = _stat_fields(entry)
     is_dirty = rel_path in dirty_paths
     _hash_file_entry(sig, rel_path, size, mtime, is_dirty)
-    # git history date, or the fs date when the file has no history entry
-    # (a tracked file that's never been committed).
-    created = git_created.get(rel_path) or fs_created
-    # A dirty file's last-commit date is stale, so use the working-tree mtime.
-    modified = fs_modified if is_dirty else (git_modified.get(rel_path) or fs_modified)
     return build_file_node(
         name=entry.name,
         rel_path=rel_path,
@@ -929,9 +924,42 @@ def _file_node(
         lines=0,
         binary=False,
         dirty=is_dirty,
-        created=created,
-        modified=modified,
+        created=fs_created,
+        modified=fs_modified,
     )
+
+
+def _apply_git_dates(
+    node: DirNode | FileNode,
+    git_created: dict[str, str],
+    git_modified: dict[str, str],
+) -> tuple[str | None, str | None]:
+    """In-place: replace the walk's filesystem dates with git history dates and
+    refresh every directory's descendant rollup. Returns the subtree's
+    (created_min, modified_max) so parents fold children in the same order
+    _build_tree does.
+
+    A file with no history entry (tracked, never committed) keeps its fs date,
+    and a dirty file keeps its working-tree mtime because its last-commit date
+    is stale."""
+    if node["type"] == NodeKind.FILE:
+        rel_path = node["path"]
+        node["created"] = git_created.get(rel_path) or node["created"]
+        if not node["dirty"]:
+            node["modified"] = git_modified.get(rel_path) or node["modified"]
+        return node["created"], node["modified"]
+
+    created_min: str | None = None
+    modified_max: str | None = None
+    for child in node["children"]:
+        child_created, child_modified = _apply_git_dates(
+            child, git_created, git_modified
+        )
+        created_min = min_iso(created_min, child_created)
+        modified_max = max_iso(modified_max, child_modified)
+    node["descendants_created_min"] = created_min
+    node["descendants_modified_max"] = modified_max
+    return created_min, modified_max
 
 
 # Worker pool size for parallel file content reads. Capped at 32 to
@@ -1158,6 +1186,7 @@ class _DirFrame:
         "name",
         "full_path",
         "pending_entries",
+        "next_entry",
         "files",
         "subdirs",
         "descendants_count",
@@ -1184,6 +1213,9 @@ class _DirFrame:
         # shared with _walk_for_signature so scan-to-scan and endpoint
         # fingerprints match.
         self.pending_entries = pending_entries
+        # Cursor rather than pop(0): popping the front of a list shifts every
+        # remaining element, so a wide directory cost O(entries²) to walk.
+        self.next_entry = 0
         self.files: list[FileNode] = []
         self.subdirs: list[DirNode] = []
         self.descendants_count = 0
@@ -1232,11 +1264,11 @@ def _build_tree(
 
     while True:
         top = stack[-1]
-        if top.pending_entries:
-            # Process the next entry in sorted order. Entries are popped
-            # from the front (not back) so the iteration order matches
-            # the original recursive code's — required for hash stability.
-            name, entry_rel, is_dir = top.pending_entries.pop(0)
+        if top.next_entry < len(top.pending_entries):
+            # Front-to-back, matching the original recursive code's order —
+            # required for hash stability.
+            name, entry_rel, is_dir = top.pending_entries[top.next_entry]
+            top.next_entry += 1
 
             if is_dir:
                 # Descend by pushing a new frame; rollup happens when it
@@ -1408,13 +1440,12 @@ def _wrap_manifest(
     signals: TreeSignals,
     repo_info: RepoInfo,
     commits: list[CommitEntry],
+    pending: list[ScanStage],
 ) -> Manifest:
     """Build a Manifest envelope around an already-built tree.
 
-    Skeleton vs final differ only in the `tree` they pass in (skeleton
-    has placeholder lines/binary set by _force_skeleton_placeholders;
-    final has the real per-file metadata). The envelope shape is the
-    same either way."""
+    The emits differ only in the `tree` they pass in and what `pending`
+    declares is still provisional. The envelope shape is the same either way."""
     _annotate_same_day_totals(commits)
     # Canonical repo display name, set once at manifest creation and cached with
     # it: prefer the git remote's "owner/repo" over the on-disk root basename (a
@@ -1434,6 +1465,7 @@ def _wrap_manifest(
         "tree": tree,
         "repo": repo_info,
         "commits": commits,
+        "pending": pending,
         "busyness": _compute_busyness(commits),
         "dateRanges": signals.date_ranges,
         "stats": compute_repo_stats(tree, commits),
@@ -1510,16 +1542,9 @@ def scan_tree(
     if not _is_git_repo(Path(root_abs)):
         raise NotAGitRepoError(root_abs)
 
-    _check_cancel(cancel_event)  # before _collect_git_history
+    _check_cancel(cancel_event)  # before the tree walk
 
-    _log("collecting git metadata…")
-    git_created, git_modified, commits_list = _collect_git_history(
-        Path(root_abs),
-        use_cache=use_cache,
-    )
     git = _collect_git_state(Path(root_abs))
-
-    _check_cancel(cancel_event)  # after git metadata, before tree walk
 
     ignore_names, ignore_paths, unignore_names, unignore_paths = _load_codecityignore(
         Path(root_abs)
@@ -1565,7 +1590,7 @@ def scan_tree(
 
     def _live_make_file_node(name: str, rel_path: str) -> FileNode:
         entry = entry_by_rel.pop(rel_path)
-        node = _file_node(entry, rel_path, git_created, git_modified, git.dirty, sig)
+        node = _file_node(entry, rel_path, git.dirty, sig)
         heartbeat.tick()
         return node
 
@@ -1591,6 +1616,8 @@ def scan_tree(
     # in-place. Cheap for small repos; for Linux this is ~50ms.
     skeleton_tree = copy.deepcopy(tree)
     _force_skeleton_placeholders(skeleton_tree)
+    # No commits: they are ~89% of the payload (318 MB of 358 MB on linux) and
+    # nothing the skeleton draws reads them.
     yield {
         "phase": ScanEvent.MANIFEST_PARTIAL,
         "manifest": _wrap_manifest(
@@ -1599,10 +1626,15 @@ def scan_tree(
             sig,
             signals,
             git.repo,
-            commits_list,
+            [],
+            ["metadata", "history"],
         ),
     }
 
+    # Per-file metadata before history: it is the shorter of the two remaining
+    # stages (~25s vs ~135s on linux) and it is what the city needs to draw real
+    # building heights, so this emit is the one the UI can reveal on.
+    _check_cancel(cancel_event)  # before per-file metadata
     _log("resolving file metadata")
     _populate_file_metadata(
         tree,
@@ -1610,7 +1642,36 @@ def scan_tree(
         use_cache=use_cache,
         cancel_event=cancel_event,
     )
-    _check_cancel(cancel_event)  # after populate, before final emit
+    _check_cancel(cancel_event)  # after populate, before the metadata emit
+    _log("emitting metadata manifest")
+    yield {
+        "phase": ScanEvent.MANIFEST_PARTIAL,
+        "manifest": _wrap_manifest(
+            root_abs,
+            copy.deepcopy(tree),
+            sig,
+            signals,
+            git.repo,
+            [],
+            ["history"],
+        ),
+    }
+
+    # History last: by far the longest stage, and only decorations and the
+    # timeline read it. The fs dates from the walk stand in until it lands.
+    _check_cancel(cancel_event)  # before the history walk
+    _log("collecting git metadata…")
+    git_created, git_modified, commits_list = _collect_git_history(
+        Path(root_abs),
+        use_cache=use_cache,
+    )
+    _apply_git_dates(tree, git_created, git_modified)
+    # Re-derived so date_ranges reflects history. Both signatures are date-free,
+    # so they come back identical and the frontend still reuses the layout it
+    # packed from the skeleton.
+    signals = _derive_tree_signals(tree)
+
+    _check_cancel(cancel_event)  # after history, before final emit
     _log("emitting final manifest")
 
     # Repo-level metadata — branch, remote, head, dirty — feeds the
@@ -1627,6 +1688,7 @@ def scan_tree(
             signals,
             git.repo,
             commits_list,
+            [],
         ),
     }
 
@@ -1905,4 +1967,4 @@ def reconstruct_manifest(root: str, ref: str, *, use_cache: bool = True) -> Mani
     )
     signals = _derive_tree_signals(tree)
     repo_info = _reconstructed_repo_info(root_path, commit_sha)
-    return _wrap_manifest(root_abs, tree, sig, signals, repo_info, commits)
+    return _wrap_manifest(root_abs, tree, sig, signals, repo_info, commits, [])

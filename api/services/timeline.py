@@ -270,7 +270,7 @@ def build_union_manifest(
             "dirty": False,
         }
     )
-    return _wrap_manifest(root_abs, tree, sig, signals, repo_info, commits)
+    return _wrap_manifest(root_abs, tree, sig, signals, repo_info, commits, [])
 
 
 def compute_commit_line_ranges(

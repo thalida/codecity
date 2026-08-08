@@ -63,6 +63,11 @@ async function pumpManifestStream(
   signal?: AbortSignal
 ): Promise<Manifest> {
   let lastManifest: Manifest | null = null;
+  // `pending` of the manifest most recently handed to onManifest's apply.
+  // Only partial manifests are applied inside the pump (the final is applied
+  // by the caller after the stream), so the complete event carries this
+  // forward instead of claiming its own pending as applied.
+  let appliedPending: Manifest['pending'] | undefined;
 
   for await (const event of streamManifest(url, { signal })) {
     if (event.phase === ScanPhase.Error) throw new Error(event.error);
@@ -88,13 +93,18 @@ async function pumpManifestStream(
     }
 
     // Skeleton or final.
-    SCAN_PROGRESS.value = { ...meta, phase: event.phase };
     // Once a manifest lands, its tree.name is the canonical repo name (the
     // remote's owner/repo), better than the src basename — which for a
     // local working tree is the folder name (e.g. a git-worktree dir).
     if (event.manifest.tree?.name) PENDING_SOURCE_LABEL.value = event.manifest.tree.name;
     await onManifest(event.manifest, event.phase);
     lastManifest = event.manifest;
+    if (event.phase === ScanPhase.PartialManifest) appliedPending = event.manifest.pending;
+    // Written AFTER onManifest: appliedPending describes the manifest now in
+    // the city's hands, and the apply marks REBUILD_STATUS synchronously — so
+    // the overlay reaction can never see "heights final" ahead of the paint
+    // that shows them.
+    SCAN_PROGRESS.value = { ...meta, phase: event.phase, appliedPending };
   }
 
   if (!lastManifest) throw new Error('No manifest received');
