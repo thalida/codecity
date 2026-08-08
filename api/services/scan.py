@@ -44,6 +44,7 @@ from .gitobj import BINARY_CHUNK, is_binary_bytes
 from .media import media_kind, probe_media_dims
 from .stats import compute_repo_stats
 from .manifest_types import (
+    ScanStage,
     BusynessThresholds,
     CommitEntry,
     DateRanges,
@@ -1185,6 +1186,7 @@ class _DirFrame:
         "name",
         "full_path",
         "pending_entries",
+        "next_entry",
         "files",
         "subdirs",
         "descendants_count",
@@ -1211,6 +1213,9 @@ class _DirFrame:
         # shared with _walk_for_signature so scan-to-scan and endpoint
         # fingerprints match.
         self.pending_entries = pending_entries
+        # Cursor rather than pop(0): popping the front of a list shifts every
+        # remaining element, so a wide directory cost O(entries²) to walk.
+        self.next_entry = 0
         self.files: list[FileNode] = []
         self.subdirs: list[DirNode] = []
         self.descendants_count = 0
@@ -1259,11 +1264,11 @@ def _build_tree(
 
     while True:
         top = stack[-1]
-        if top.pending_entries:
-            # Process the next entry in sorted order. Entries are popped
-            # from the front (not back) so the iteration order matches
-            # the original recursive code's — required for hash stability.
-            name, entry_rel, is_dir = top.pending_entries.pop(0)
+        if top.next_entry < len(top.pending_entries):
+            # Front-to-back, matching the original recursive code's order —
+            # required for hash stability.
+            name, entry_rel, is_dir = top.pending_entries[top.next_entry]
+            top.next_entry += 1
 
             if is_dir:
                 # Descend by pushing a new frame; rollup happens when it
@@ -1435,13 +1440,12 @@ def _wrap_manifest(
     signals: TreeSignals,
     repo_info: RepoInfo,
     commits: list[CommitEntry],
+    pending: list[ScanStage],
 ) -> Manifest:
     """Build a Manifest envelope around an already-built tree.
 
-    Skeleton vs final differ only in the `tree` they pass in (skeleton
-    has placeholder lines/binary set by _force_skeleton_placeholders;
-    final has the real per-file metadata). The envelope shape is the
-    same either way."""
+    The emits differ only in the `tree` they pass in and what `pending`
+    declares is still provisional. The envelope shape is the same either way."""
     _annotate_same_day_totals(commits)
     # Canonical repo display name, set once at manifest creation and cached with
     # it: prefer the git remote's "owner/repo" over the on-disk root basename (a
@@ -1461,6 +1465,7 @@ def _wrap_manifest(
         "tree": tree,
         "repo": repo_info,
         "commits": commits,
+        "pending": pending,
         "busyness": _compute_busyness(commits),
         "dateRanges": signals.date_ranges,
         "stats": compute_repo_stats(tree, commits),
@@ -1622,26 +1627,14 @@ def scan_tree(
             signals,
             git.repo,
             [],
+            ["metadata", "history"],
         ),
     }
 
-    # History runs AFTER the skeleton: it is by far the longest stage (~135s of
-    # a ~180s linux load) and nothing in the skeleton needs it. The packer keys
-    # off structure and size, and the fs dates from the walk stand in until the
-    # real ones land here.
-    _check_cancel(cancel_event)  # before the history walk
-    _log("collecting git metadata…")
-    git_created, git_modified, commits_list = _collect_git_history(
-        Path(root_abs),
-        use_cache=use_cache,
-    )
-    _apply_git_dates(tree, git_created, git_modified)
-    # Re-derived so date_ranges reflects history. The two signatures are
-    # date-free, so they come back identical and the frontend still reuses the
-    # layout it packed from the skeleton.
-    signals = _derive_tree_signals(tree)
-
-    _check_cancel(cancel_event)  # after history, before per-file metadata
+    # Per-file metadata before history: it is the shorter of the two remaining
+    # stages (~25s vs ~135s on linux) and it is what the city needs to draw real
+    # building heights, so this emit is the one the UI can reveal on.
+    _check_cancel(cancel_event)  # before per-file metadata
     _log("resolving file metadata")
     _populate_file_metadata(
         tree,
@@ -1649,7 +1642,36 @@ def scan_tree(
         use_cache=use_cache,
         cancel_event=cancel_event,
     )
-    _check_cancel(cancel_event)  # after populate, before final emit
+    _check_cancel(cancel_event)  # after populate, before the metadata emit
+    _log("emitting metadata manifest")
+    yield {
+        "phase": ScanEvent.MANIFEST_PARTIAL,
+        "manifest": _wrap_manifest(
+            root_abs,
+            copy.deepcopy(tree),
+            sig,
+            signals,
+            git.repo,
+            [],
+            ["history"],
+        ),
+    }
+
+    # History last: by far the longest stage, and only decorations and the
+    # timeline read it. The fs dates from the walk stand in until it lands.
+    _check_cancel(cancel_event)  # before the history walk
+    _log("collecting git metadata…")
+    git_created, git_modified, commits_list = _collect_git_history(
+        Path(root_abs),
+        use_cache=use_cache,
+    )
+    _apply_git_dates(tree, git_created, git_modified)
+    # Re-derived so date_ranges reflects history. Both signatures are date-free,
+    # so they come back identical and the frontend still reuses the layout it
+    # packed from the skeleton.
+    signals = _derive_tree_signals(tree)
+
+    _check_cancel(cancel_event)  # after history, before final emit
     _log("emitting final manifest")
 
     # Repo-level metadata — branch, remote, head, dirty — feeds the
@@ -1666,6 +1688,7 @@ def scan_tree(
             signals,
             git.repo,
             commits_list,
+            [],
         ),
     }
 
@@ -1944,4 +1967,4 @@ def reconstruct_manifest(root: str, ref: str, *, use_cache: bool = True) -> Mani
     )
     signals = _derive_tree_signals(tree)
     repo_info = _reconstructed_repo_info(root_path, commit_sha)
-    return _wrap_manifest(root_abs, tree, sig, signals, repo_info, commits)
+    return _wrap_manifest(root_abs, tree, sig, signals, repo_info, commits, [])

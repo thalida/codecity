@@ -1972,9 +1972,9 @@ class TreeSignatureTests(unittest.TestCase):
             (root / "world.py").write_text("y = 2\n")
             _commit_all(root)
             events = list(scan_tree(td))
-        self.assertEqual(len(events), 2)
+        self.assertEqual(len(events), 3)
         skeleton_sig = events[0]["manifest"]["structure_signature"]
-        final_sig = events[1]["manifest"]["structure_signature"]
+        final_sig = events[-1]["manifest"]["structure_signature"]
         self.assertEqual(
             skeleton_sig,
             final_sig,
@@ -2081,16 +2081,21 @@ class ScanTreeStreamingTests(unittest.TestCase):
         with TemporaryDirectory() as td:
             self._make_tiny_repo(td)
             events = list(scan_tree(td))
-        self.assertEqual(len(events), 2)
+        self.assertEqual(len(events), 3)
         self.assertEqual(events[0]["phase"], "manifest-partial")
-        self.assertEqual(events[1]["phase"], "manifest-complete")
+        self.assertEqual(events[1]["phase"], "manifest-partial")
+        self.assertEqual(events[2]["phase"], "manifest-complete")
+        # Each emit declares what is still provisional.
+        self.assertEqual(events[0]["manifest"]["pending"], ["metadata", "history"])
+        self.assertEqual(events[1]["manifest"]["pending"], ["history"])
+        self.assertEqual(events[2]["manifest"]["pending"], [])
 
     def test_skeleton_has_placeholder_metadata(self) -> None:
         from api.services.scan import scan_tree
 
         with TemporaryDirectory() as td:
             self._make_tiny_repo(td)
-            skeleton, _final = list(scan_tree(td))
+            skeleton, _metadata, _final = list(scan_tree(td))
 
         # Walk the tree and assert every file has placeholder lines/binary.
         def files(node):

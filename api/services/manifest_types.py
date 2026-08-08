@@ -14,6 +14,12 @@ from typing import Literal, NotRequired, TypedDict
 from api.models.events import ScanEvent
 
 
+# A scan stage a manifest can still be waiting on; see Manifest.pending. Plain
+# Literal (not enum.StrEnum) to match how the other wire discriminators here are
+# declared.
+ScanStage = Literal["metadata", "history"]
+
+
 class NodeKind:
     """String constants matching app/types/manifest.ts:NodeKind. Plain
     class with string attrs (not enum.Enum) so the Literal discriminators
@@ -285,6 +291,10 @@ class Manifest(TypedDict):
     busyness: BusynessThresholds
     dateRanges: DateRanges
     stats: RepoStats
+    # Stages still to come, so a consumer knows which fields are provisional.
+    # "metadata" — per-file lines/binary are placeholders; "history" — dates are
+    # the filesystem's and commits is empty. Empty on the final manifest.
+    pending: list[ScanStage]
     # Root README, resolved server-side so the client doesn't re-scan for it.
     readmePath: str | None
     readmeModified: str | None

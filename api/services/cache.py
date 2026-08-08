@@ -100,7 +100,8 @@ _MANIFEST_SCHEMA_VERSION = (
     # v20: exact line counts (was sampled >5MB) — values change, bump to rebuild
     # v21: readmePath / readmeModified resolved server-side
     # v22: AuthorStat.hue resolved server-side
-    22
+    # v23: Manifest.pending — which scan stages are still to come
+    23
 )
 # Composite: invalidates when EITHER the manifest schema OR the git-history
 # shape changes. Stored as a string in the cache file's `version` field.

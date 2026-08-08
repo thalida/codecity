@@ -15,6 +15,19 @@ export function isEmptyManifest(m: unknown): boolean {
   return m == null || m === EMPTY_MANIFEST;
 }
 
+/**
+ * True when a manifest's per-file metadata is real rather than placeholder, so
+ * the city it builds has true building heights. The scan streams structure
+ * first, then metadata, then git history; only the last of those is still
+ * outstanding here, and it feeds decorations and the timeline, not the
+ * buildings. False for shapes without `pending` (the cold-boot sentinel, a
+ * bare DirNode, a manifest cached before the field existed).
+ */
+export function hasResolvedMetadata(m: unknown): boolean {
+  const pending = (m as Manifest | null)?.pending;
+  return Array.isArray(pending) && !pending.includes('metadata');
+}
+
 // Locate the tree node at `path` (file or directory) in a manifest/DirNode.
 // Iterative DFS — called on selection change (rare), so O(nodes) is fine.
 export function findNodeByPath(manifest: Manifest | DirNode | null, path: string): TreeNode | null {

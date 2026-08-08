@@ -6,7 +6,8 @@
 
 import { effect } from '@preact/signals';
 import { SCAN_PROGRESS } from '@/state/stores/scanProgress';
-import { REBUILD_STATUS, RebuildStatus } from '@/state/stores/manifest';
+import { MANIFEST, REBUILD_STATUS, RebuildStatus } from '@/state/stores/manifest';
+import { hasResolvedMetadata } from '@/utils/manifest';
 import {
   showLoadingOverlay,
   hideLoadingOverlay,
@@ -18,8 +19,12 @@ import { LoadingStep, stepForPhase } from '@/constants/loadingSteps';
 
 export function attachLoadingReactions(): () => void {
   let wasActive = false;
+  // Latched per load: once the city is on screen the overlay must not come
+  // back, and the history stage that follows keeps ticking SCAN_PROGRESS.
+  let revealed = false;
   return effect(() => {
     const p = SCAN_PROGRESS.value;
+    const metadataResolved = hasResolvedMetadata(MANIFEST.value);
     // The stream finishing (p === null) does NOT mean the city is on screen:
     // setManifest only KICKS OFF applyManifest, whose layoutCity runs async for
     // a second-plus on a big repo. Hold the overlay through that build (status
@@ -32,6 +37,17 @@ export function attachLoadingReactions(): () => void {
         if (wasActive) setLoadingStep(LoadingStep.Building);
         return;
       }
+      if (wasActive) hideLoadingOverlay();
+      wasActive = false;
+      revealed = false;
+      return;
+    }
+    // The buildings are final once metadata has landed and painted; git history
+    // is still streaming behind this, and it only adds trees and the timeline.
+    // Waiting for it would hold a finished city behind the overlay for minutes.
+    if (revealed) return;
+    if (metadataResolved && !building) {
+      revealed = true;
       if (wasActive) hideLoadingOverlay();
       wasActive = false;
       return;
