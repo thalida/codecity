@@ -7,7 +7,7 @@
 #app-footer {
   flex: 0 0 auto;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center;
   gap: var(--cc-space-7);
   padding: 0 var(--cc-space-6);
@@ -42,6 +42,9 @@
 }
 .app-footer-section.app-footer-right {
   justify-content: flex-end;
+}
+.app-footer-section.app-footer-center {
+  justify-content: center;
 }
 
 .app-footer-item {
@@ -137,6 +140,32 @@
   }
 }
 
+/* ── Credit line (center section) ──────────────────────────────────── */
+/* Reads as a code comment: the // and the · separators sit at the faint
+ * separator color, the words one step up so the two links clear 4.5:1. */
+.app-footer-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cc-space-3);
+  min-width: 0;
+}
+.app-footer-meta-comment {
+  color: var(--cc-text-faint);
+}
+.app-footer-meta-version,
+.app-footer-meta-credit {
+  color: var(--cc-text-muted);
+}
+.app-footer-meta-link {
+  color: var(--cc-text-muted);
+  text-decoration: none;
+}
+.app-footer-meta-link:hover,
+.app-footer-meta-link:focus-visible {
+  color: var(--cc-text-strong);
+  text-decoration: underline;
+}
+
 /* ── Footer responsive narrowing ───────────────────────────────────────────── */
 /* At narrow widths the status timestamp / "rebuilding…" text is secondary
    information — hide it so the dot alone represents the status and the
@@ -147,6 +176,9 @@
     padding: 0 var(--cc-space-4);
   }
   .app-footer-status-detail {
+    display: none;
+  }
+  .app-footer-center {
     display: none;
   }
 }

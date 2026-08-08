@@ -1,4 +1,4 @@
-// layout/AppFooter.tsx — Sitewide bottom status bar. Two sections:
+// layout/AppFooter.tsx — Sitewide bottom status bar. Three sections:
 //   left   — combined status indicator: [dot] detail-text
 //            One dot, two channels of state:
 //              color    — rebuild state (green=idle, yellow=rebuilding,
@@ -9,11 +9,10 @@
 //            A detail <span> next to the dot shows human-readable status
 //            ("rebuilt 5s ago", "rebuilding…", "error: <msg>", "paused").
 //            title= on the wrapper is a fallback tooltip for narrow widths.
+//   center — credit line: build version, repo link, attribution
 //   right  — current selection metadata (language · lines · size · created
 //            · modified for files; file/dir counts + size for directories),
 //            then a far-right icon cluster (keyboard shortcuts, debug)
-//
-// The refresh/reset-view button has moved to the header (far right).
 
 import './AppFooter.css';
 import { useSignal } from '@preact/signals';
@@ -34,6 +33,8 @@ import {
 import { openShortcuts, openDebug } from '@/state/stores/ui';
 import { isDebugMode } from '@/utils/debugMode';
 import { humanLanguageFor } from '@/utils/syntaxLanguages';
+import { FooterSep } from './FooterSep';
+import { FooterMeta } from './FooterMeta';
 
 interface FooterFileSelection {
   kind: NodeKind.File;
@@ -112,10 +113,6 @@ function FooterItem({ text, title }: FooterItemData) {
       {text}
     </span>
   );
-}
-
-function FooterSep() {
-  return <span class="app-footer-sep">·</span>;
 }
 
 interface FooterStatusSectionProps {
@@ -308,6 +305,9 @@ export function AppFooter() {
     <footer id="app-footer" class="surface-chrome">
       <div class="app-footer-section app-footer-left">
         <FooterStatusSection status={status} />
+      </div>
+      <div class="app-footer-section app-footer-center">
+        <FooterMeta />
       </div>
       <div class="app-footer-section app-footer-right">
         <FooterSelectionSection selection={selection} />
