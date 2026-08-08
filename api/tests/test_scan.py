@@ -535,8 +535,9 @@ class ScanTreeIntegrationTests(_CacheRedirectMixin, unittest.TestCase):
 
     def test_date_ranges_present_on_every_emit(self):
         # Both SSE phases route through _wrap_manifest, so both must carry
-        # dateRanges — and the skeleton's tree already has the resolved
-        # dates, so the two are equal.
+        # dateRanges. The skeleton's are filesystem-derived: it is emitted
+        # before the git history walk, so its tree still holds the fs dates the
+        # scan recorded. The final's come from history.
         events = list(scan_tree(str(FIXTURE), use_cache=False))
         phases = [e["phase"] for e in events]
         self.assertIn("manifest-partial", phases)
@@ -547,7 +548,49 @@ class ScanTreeIntegrationTests(_CacheRedirectMixin, unittest.TestCase):
                 set(r.keys()),
                 {"minCreated", "maxCreated", "minModified", "maxModified"},
             )
-        self.assertEqual(ranges[0], ranges[1])
+        final = events[-1]["manifest"]
+        created = [n["created"] for n in _walk_files(final["tree"])]
+        modified = [n["modified"] for n in _walk_files(final["tree"])]
+        self.assertEqual(ranges[-1]["minCreated"], min(created))
+        self.assertEqual(ranges[-1]["maxModified"], max(modified))
+
+    def test_skeleton_emits_before_the_history_walk(self):
+        # The history walk is ~75% of a big cold load and nothing the skeleton
+        # draws reads it, so the skeleton must not wait on it. Commits ride the
+        # final manifest alone — they are ~89% of the payload.
+        from unittest import mock
+
+        from api.services import scan as scanmod
+
+        walked: list[str] = []
+        real_history = scanmod._collect_git_history
+
+        def _spy(*args, **kwargs):
+            walked.append("history")
+            return real_history(*args, **kwargs)
+
+        with mock.patch.object(scanmod, "_collect_git_history", _spy):
+            events = scan_tree(str(FIXTURE), use_cache=False)
+            skeleton = next(events)
+            self.assertEqual(skeleton["phase"], "manifest-partial")
+            self.assertEqual(walked, [], "history walked before the skeleton")
+            self.assertEqual(skeleton["manifest"]["commits"], [])
+            final = list(events)[-1]
+
+        self.assertEqual(walked, ["history"])
+        self.assertEqual(final["phase"], "manifest-complete")
+        self.assertGreater(len(final["manifest"]["commits"]), 0)
+        # The packer runs on the skeleton and the frontend keeps that layout iff
+        # this is unchanged, so deferring history must not disturb it.
+        self.assertEqual(
+            skeleton["manifest"]["layout_signature"],
+            final["manifest"]["layout_signature"],
+        )
+        # Dates still resolve to history, not to the fs dates the walk recorded.
+        self.assertEqual(
+            [n["created"] for n in _walk_files(final["manifest"]["tree"])],
+            [n["created"] for n in _walk_files(_final_manifest(str(FIXTURE))["tree"])],
+        )
 
     def test_same_day_total_baked_on_every_commit(self):
         m = _final_manifest(str(FIXTURE))
@@ -2286,15 +2329,16 @@ def test_build_tree_callable_seam_matches_live_scan(tmp_path):
 
     def make_file_node(name, rel_path):
         entry = entry_by_rel.pop(rel_path)
-        node = scanmod._file_node(
-            entry, rel_path, git_created, git_modified, git.dirty, sig
-        )
+        node = scanmod._file_node(entry, rel_path, git.dirty, sig)
         heartbeat.tick()
         return node
 
     built = scanmod._build_tree(
         root_abs, ".", list_children=list_children, make_file_node=make_file_node
     )
+    # The walk records fs dates; the live scan overlays history after emitting
+    # its skeleton, so the seam has to do the same to line up.
+    scanmod._apply_git_dates(built, git_created, git_modified)
 
     def normalize(node):
         n = dict(node)

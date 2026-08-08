@@ -430,12 +430,15 @@ async def manifest(
 
                 _put(_sse(ScanEvent.SCAN_PROGRESS, {"label": pending_label}))
 
-                # Signature (cache key) + warm-cache short-circuit.
-                sig = signature_tree(
-                    str(path), use_cache=use_cache, extra_exclude_paths=excludes
-                )["content_signature"]
-                holder["sig"] = sig
+                # Warm-cache short-circuit. The signature costs a full stat-walk
+                # of the tree, and scan_tree computes the same value as it walks
+                # — so only pay for it up front when there's a cache to look up,
+                # and take the scan's own below otherwise.
                 if use_cache:
+                    sig = signature_tree(
+                        str(path), use_cache=use_cache, extra_exclude_paths=excludes
+                    )["content_signature"]
+                    holder["sig"] = sig
                     cached = cache_load_manifest(path.resolve(), sig)
                     if cached is not None:
                         _put(_sse(ScanEvent.MANIFEST_COMPLETE, {"manifest": cached}))
@@ -453,6 +456,7 @@ async def manifest(
                     m = ev["manifest"]
                     if phase is ScanEvent.MANIFEST_COMPLETE:
                         holder["manifest"] = m
+                        holder["sig"] = m["content_signature"]
                     _put(_sse(phase, {"manifest": m}))
             except ScanCancelledError:
                 pass  # client disconnected mid-clone/scan; nothing to report

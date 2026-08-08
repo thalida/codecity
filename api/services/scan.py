@@ -904,22 +904,16 @@ def build_file_node(
 def _file_node(
     entry: os.DirEntry[str],
     rel_path: str,
-    git_created: dict[str, str],
-    git_modified: dict[str, str],
     dirty_paths: set[str],
     sig: Any,
 ) -> FileNode:
     """Live-scan FileNode skeleton — `lines`/`binary` (and media dims /
     binaryType) are placeholders filled in by _populate_file_metadata after the
-    walk, so content I/O batches once instead of per-node."""
+    walk, so content I/O batches once instead of per-node. Dates are the
+    filesystem's; _apply_git_dates overlays history once that walk has run."""
     size, fs_created, fs_modified, mtime = _stat_fields(entry)
     is_dirty = rel_path in dirty_paths
     _hash_file_entry(sig, rel_path, size, mtime, is_dirty)
-    # git history date, or the fs date when the file has no history entry
-    # (a tracked file that's never been committed).
-    created = git_created.get(rel_path) or fs_created
-    # A dirty file's last-commit date is stale, so use the working-tree mtime.
-    modified = fs_modified if is_dirty else (git_modified.get(rel_path) or fs_modified)
     return build_file_node(
         name=entry.name,
         rel_path=rel_path,
@@ -929,9 +923,42 @@ def _file_node(
         lines=0,
         binary=False,
         dirty=is_dirty,
-        created=created,
-        modified=modified,
+        created=fs_created,
+        modified=fs_modified,
     )
+
+
+def _apply_git_dates(
+    node: DirNode | FileNode,
+    git_created: dict[str, str],
+    git_modified: dict[str, str],
+) -> tuple[str | None, str | None]:
+    """In-place: replace the walk's filesystem dates with git history dates and
+    refresh every directory's descendant rollup. Returns the subtree's
+    (created_min, modified_max) so parents fold children in the same order
+    _build_tree does.
+
+    A file with no history entry (tracked, never committed) keeps its fs date,
+    and a dirty file keeps its working-tree mtime because its last-commit date
+    is stale."""
+    if node["type"] == NodeKind.FILE:
+        rel_path = node["path"]
+        node["created"] = git_created.get(rel_path) or node["created"]
+        if not node["dirty"]:
+            node["modified"] = git_modified.get(rel_path) or node["modified"]
+        return node["created"], node["modified"]
+
+    created_min: str | None = None
+    modified_max: str | None = None
+    for child in node["children"]:
+        child_created, child_modified = _apply_git_dates(
+            child, git_created, git_modified
+        )
+        created_min = min_iso(created_min, child_created)
+        modified_max = max_iso(modified_max, child_modified)
+    node["descendants_created_min"] = created_min
+    node["descendants_modified_max"] = modified_max
+    return created_min, modified_max
 
 
 # Worker pool size for parallel file content reads. Capped at 32 to
@@ -1510,16 +1537,9 @@ def scan_tree(
     if not _is_git_repo(Path(root_abs)):
         raise NotAGitRepoError(root_abs)
 
-    _check_cancel(cancel_event)  # before _collect_git_history
+    _check_cancel(cancel_event)  # before the tree walk
 
-    _log("collecting git metadata…")
-    git_created, git_modified, commits_list = _collect_git_history(
-        Path(root_abs),
-        use_cache=use_cache,
-    )
     git = _collect_git_state(Path(root_abs))
-
-    _check_cancel(cancel_event)  # after git metadata, before tree walk
 
     ignore_names, ignore_paths, unignore_names, unignore_paths = _load_codecityignore(
         Path(root_abs)
@@ -1565,7 +1585,7 @@ def scan_tree(
 
     def _live_make_file_node(name: str, rel_path: str) -> FileNode:
         entry = entry_by_rel.pop(rel_path)
-        node = _file_node(entry, rel_path, git_created, git_modified, git.dirty, sig)
+        node = _file_node(entry, rel_path, git.dirty, sig)
         heartbeat.tick()
         return node
 
@@ -1591,6 +1611,8 @@ def scan_tree(
     # in-place. Cheap for small repos; for Linux this is ~50ms.
     skeleton_tree = copy.deepcopy(tree)
     _force_skeleton_placeholders(skeleton_tree)
+    # No commits: they are ~89% of the payload (318 MB of 358 MB on linux) and
+    # nothing the skeleton draws reads them.
     yield {
         "phase": ScanEvent.MANIFEST_PARTIAL,
         "manifest": _wrap_manifest(
@@ -1599,10 +1621,27 @@ def scan_tree(
             sig,
             signals,
             git.repo,
-            commits_list,
+            [],
         ),
     }
 
+    # History runs AFTER the skeleton: it is by far the longest stage (~135s of
+    # a ~180s linux load) and nothing in the skeleton needs it. The packer keys
+    # off structure and size, and the fs dates from the walk stand in until the
+    # real ones land here.
+    _check_cancel(cancel_event)  # before the history walk
+    _log("collecting git metadata…")
+    git_created, git_modified, commits_list = _collect_git_history(
+        Path(root_abs),
+        use_cache=use_cache,
+    )
+    _apply_git_dates(tree, git_created, git_modified)
+    # Re-derived so date_ranges reflects history. The two signatures are
+    # date-free, so they come back identical and the frontend still reuses the
+    # layout it packed from the skeleton.
+    signals = _derive_tree_signals(tree)
+
+    _check_cancel(cancel_event)  # after history, before per-file metadata
     _log("resolving file metadata")
     _populate_file_metadata(
         tree,
