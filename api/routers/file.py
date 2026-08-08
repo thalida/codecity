@@ -31,9 +31,8 @@ from api.services.media import is_media
 
 router = APIRouter(prefix="/api", tags=["file"])
 
-# Server-side bound on one batch response; oversized or non-image paths are
-# omitted and the client falls back to the streaming GET /api/file. The path
-# count lives in config.py because /api/config publishes it to the client.
+# Bound on one batch response; omitted paths fall back to GET /api/file. Lives
+# in config.py because /api/config publishes it.
 _MAX_BATCH_IMAGE_BYTES = 8 * 1024 * 1024
 
 _SHA_RE = re.compile(r"[0-9a-f]{40}")

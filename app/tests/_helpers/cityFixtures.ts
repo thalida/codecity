@@ -34,9 +34,8 @@ function makeSizedCanvas(): { canvas: HTMLCanvasElement; size: { w: number; h: n
   return { canvas, size };
 }
 
-/** SceneContext for components that never touch the picker. Camera and renderer
- *  are null: nothing under test reads them, and a real WebGL renderer cannot be
- *  constructed in jsdom. */
+/** SceneContext for components that never touch the picker; camera/renderer are
+ *  null (jsdom can't build a WebGL renderer, and nothing under test reads them). */
 export function makeSceneContext(cityState: CityState = makeCityState()): SceneContext {
   return {
     scene: new THREE.Scene(),

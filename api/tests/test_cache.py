@@ -813,11 +813,8 @@ class ManifestCachePruneTests(CacheTestBase):
         self.assertEqual(cache_mod.prune_manifest_cache(Path("/x")), 0)
 
     def test_protect_survives_even_when_it_ranks_oldest(self) -> None:
-        # Why `protect` exists rather than trusting the mtime sort: some
-        # filesystems resolve mtime only to the second, so a burst of saves ties
-        # and the just-written entry can rank anywhere — including the evicted
-        # tail. Pin it to the oldest possible mtime, the worst case, and it must
-        # still survive, because the caller is about to read it back.
+        # mtime can tie (one-second resolution), ranking the just-written entry
+        # anywhere. Pinned to the worst case, it must still survive.
         root = Path("/x")
         d = cache_mod.CACHE_ROOT / "manifests"
         d.mkdir(parents=True, exist_ok=True)

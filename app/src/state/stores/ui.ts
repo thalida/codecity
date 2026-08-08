@@ -82,9 +82,8 @@ export function clearProjectsViewError(): void {
 
 import { LoadingStep } from '@/constants/loadingSteps';
 
-/** Repo name in the loading overlay's header, so a switch shows the incoming
- *  project immediately rather than waiting on its manifest. Lives here because
- *  its lifetime is the overlay's: showLoadingOverlay/hideLoadingOverlay own it. */
+/** Repo name in the loading overlay's header, shown before the manifest lands.
+ *  Overlay-owned: showLoadingOverlay/hideLoadingOverlay control its lifetime. */
 export const PENDING_SOURCE_LABEL = signal<string | null>(null);
 
 export interface LoadingOverlayState {

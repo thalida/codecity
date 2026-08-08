@@ -40,9 +40,8 @@ const CASES: Array<[string, number]> = [
   ['t-30k', 30000],
 ];
 
-// Format: `${nBuildings}/${nStreets}/${hash}`. Recaptured for #98's absolute
-// height/width ceiling (small-file repos no longer stretch to full height) —
-// the building/street counts are unchanged, only dimensions shifted.
+// Format: `${nBuildings}/${nStreets}/${hash}`. Recaptured for #98 (absolute
+// height/width ceiling): counts unchanged, dimensions shifted.
 const EXPECTED: Record<string, string> = {
   't-2k': '2000/644/1a3845ab',
   't-10k': '10000/3190/46986f99',
@@ -57,9 +56,8 @@ describe('layoutCity golden (bit-identical guard)', () => {
     for (const [label, budget] of CASES) {
       const rng = makeRng(0xc0ffee);
       const tree = genWeightedTree('root', 'root', budget, 0, rng);
-      // Supply the file-stat ranges the layout reads (the server provides these
-      // for real repos); without them dimensions fall back to SAFE_RANGE and the
-      // guard would only cover a degenerate uniform-size layout.
+      // Without the file-stat ranges (server-provided in production) dimensions
+      // fall back to SAFE_RANGE and the guard covers only a uniform layout.
       digests[label] = digest(layoutCity({ tree, stats: statsFromTree(tree) }));
     }
     expect(digests).toEqual(EXPECTED);

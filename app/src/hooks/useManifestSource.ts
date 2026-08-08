@@ -101,9 +101,8 @@ async function pumpManifestStream(
   return lastManifest;
 }
 
-// Injected, not imported: useTimelineMode imports this module, so importing it
-// back was a cycle. TIMELINE_MODE only turns on via that module, so by the time
-// this can be reached it has registered.
+// Injected, not imported (importing useTimelineMode back was a cycle); it
+// registers before TIMELINE_MODE can turn on.
 let timelineRefresh: (() => Promise<void>) | null = null;
 
 export function setTimelineRefreshHandler(fn: (() => Promise<void>) | null): void {

@@ -1,6 +1,5 @@
-// vitest stubs CSS assets, so `?url` imports are "" here and asserting on the
-// resolved URLs would pass vacuously. Completeness is enforced by the
-// Record<SyntaxThemeValue, string> type; only the lookup is testable at runtime.
+// vitest stubs CSS assets ("" here), so URL asserts would pass vacuously. The
+// Record<SyntaxThemeValue, string> type enforces completeness; only lookup is testable.
 
 import { describe, it, expect } from 'vitest';
 import { THEME_HREF, hrefForTheme } from '@/components/HljsThemeLink/HljsThemeLink';

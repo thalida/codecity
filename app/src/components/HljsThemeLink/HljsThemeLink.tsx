@@ -1,13 +1,5 @@
-// components/HljsThemeLink.tsx — Signals-native replacement for the
-// old imperative applyHljsTheme(). Renders a <link rel=stylesheet> into
-// document.head via Preact's createPortal so the syntax-highlighting CSS
-// follows the SYNTAX_THEME signal automatically — no module-load effect,
-// no manual <link> element management.
-//
-// Bundled same-origin rather than fetched from a CDN: remote CSS leaks the
-// viewer's IP and theme choice, breaks offline use, and can exfiltrate via
-// attribute-selector url(). `?url` keeps each theme a separate asset, so only
-// the selected one is fetched.
+// Portal-renders the syntax-theme <link> into <head>, following SYNTAX_THEME.
+// Bundled same-origin: remote CSS leaks IP/theme and can exfiltrate via url().
 
 import './HljsThemeLink.css';
 import { createPortal } from 'preact/compat';

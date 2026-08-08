@@ -48,9 +48,8 @@ export class WorldOccupancy {
   }
 
   query(minX: number, minY: number, maxX: number, maxY: number): WorldRect[] {
-    // Compact in place rather than `.filter()`: rbush already allocated this
-    // array, and the stem solver runs ~3M queries over ~32M results on a large
-    // repo, so a second array plus a second pass per query is not free.
+    // Compact in place: rbush allocated this array, and ~3M queries over ~32M
+    // results make a second array + pass per query not free.
     const found = this.tree.search({ minX, minY, maxX, maxY });
     let kept = 0;
     for (let i = 0; i < found.length; i++) {

@@ -1,13 +1,5 @@
-// api/pathBatcher.ts — coalesces per-path requests into POST batches.
-//
-// Both media images and binary fingerprints hit the same wall: the scene asks
-// for one asset per building, and firing a separate GET each exhausts the
-// browser's HTTP/1.1 connection pool on asset-heavy repos (Infisical: 2.6k
-// images). Each collects the paths requested inside a short window and sends
-// them as a handful of batched POSTs instead of thousands of singletons.
-//
-// The two differ only in endpoint, request body and how a response entry
-// decodes, so that is all a caller supplies.
+// Coalesces per-path requests into batched POSTs (one GET per building exhausts
+// the HTTP/1.1 pool). Callers supply only endpoint, body shape, and decode.
 
 import { serverConfigNow } from '@/api/config';
 

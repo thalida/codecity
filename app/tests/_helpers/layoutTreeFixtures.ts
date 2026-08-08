@@ -41,12 +41,8 @@ export function mkDir(name: string, children: any[], path: string): any {
   };
 }
 
-// The size/line extremes that the weighted + nested generators never produce:
-// they always emit `size >= 200`, `lines >= 5`, extension `.c`. Those are the
-// inputs that broke building geometry before — a 0-byte or 0-line file reaches
-// Math.log(0) in the dimension math, and a media file takes the aspect-ratio
-// branch instead. Kept separate from the generators above so the captured
-// golden digests stay valid.
+// Extremes the generators never emit (0-byte/0-line/media): the inputs that
+// broke geometry before. Separate from the generators so golden digests stand.
 export function edgeCaseFiles(path: string): any[] {
   return [
     // Empty file: both log inputs are zero.

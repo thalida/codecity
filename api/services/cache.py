@@ -490,9 +490,8 @@ def _save_gz_manifest(path: Path, manifest: "Manifest") -> None:
     )
 
 
-# Entries are keyed by repo CONTENT, so without a cap this directory grows for
-# the life of the install. Sized by how far back a re-read is plausible; these
-# are pure performance caches, so evicting costs a rescan, never correctness.
+# Keyed by repo CONTENT, so uncapped this grows for the life of the install.
+# Pure performance caches: evicting costs a rescan, never correctness.
 _KEEP_CONTENT_MANIFESTS = 5
 _KEEP_REF_MANIFESTS = 20
 _KEEP_TIMELINE_BUNDLES = 3

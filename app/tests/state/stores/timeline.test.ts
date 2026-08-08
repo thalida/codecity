@@ -36,9 +36,8 @@ describe('SCRUB_POS range', () => {
     expect(SCRUB_POS.value).toBe(1.5);
   });
 
-  // The bug this replaced: exitTimelineMode and the switcher save a position and
-  // replay it later, so a shorter bundle used to leave it out of range until the
-  // next write. Clamping against the CURRENT bundle makes the swap alone enough.
+  // Restore paths replay a saved position, so a shorter bundle left it out of
+  // range until the next write; clamping against the CURRENT bundle fixes that.
   it('re-clamps when the bundle shrinks, with no new write', () => {
     TIMELINE_BUNDLE.value = bundleOf(10);
     setScrubPos(9);

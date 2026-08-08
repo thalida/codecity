@@ -243,9 +243,8 @@ describe('TimeTravelBar', () => {
     expect(container.querySelector('.time-travel-sha')!.textContent).toBe(mid.sha.slice(0, 7));
   });
 
-  // Regression: the mode check used to sit above the hooks, so this instance kept
-  // its effect deps while rendering nothing. Re-entering on the same bundle and
-  // position left the rebuilt canvas blank until a drag changed a dep.
+  // Regression: a mode check above the hooks froze effect deps while rendering
+  // nothing, so re-entry on identical deps left the rebuilt canvas blank.
   it('repaints the tick canvas after leaving and re-entering on identical deps', async () => {
     const proto = HTMLElement.prototype;
     const saved = {

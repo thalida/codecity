@@ -53,9 +53,8 @@ interface Surface {
   axeMount?: (c: HTMLElement) => void;
 }
 
-// A timed-out run never settles, so axe's `_running` latch stays set and every
-// later surface throws. teardown() clears caches but not that latch, so
-// releasing it is what breaks the cascade. `_running` is not in axe's types.
+// A timed-out run leaves axe's `_running` latch set (teardown() doesn't clear
+// it), cascading failures into every later surface. Not in axe's types.
 function resetAxe(): void {
   axe.teardown();
   (axe as unknown as { _running: boolean })._running = false;
@@ -133,9 +132,8 @@ describe('accessibility audit (issue #79)', () => {
   }
 
   for (const surface of SURFACES) {
-    // Generous timeout: the settings DOM is large, and the gate runs pytest +
-    // vitest + coverage concurrently, so wall-clock here is far worse than on a
-    // dev box. Blowing it now fails only this surface — afterEach unwedges axe.
+    // Generous: CI wall-clock is far worse than a dev box. Blowing it fails
+    // only this surface; afterEach unwedges axe.
     it(`${surface.name}: no axe violations`, async () => {
       const c = mountSurface(surface.axeMount ?? surface.mount);
       const results = await axe.run(c, {

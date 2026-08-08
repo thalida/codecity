@@ -156,9 +156,8 @@ interface FindSmallestValidStemParams {
 // set the final stem (or null if the chosen stem equals the baseline), and
 // trace.stem with the returned value. The trace param has no effect on the
 // algorithm or return value; it is purely an out-parameter.
-// Interval endpoints for one findSmallestValidStem call. Module-level and
-// reused: the function is called in a loop by placeChild, never recursively, so
-// a single pair of buffers is safe. Same scratch pattern as the colour helpers.
+// Interval endpoints for one call; module-level and reused (called in a loop,
+// never recursively, so one pair of buffers is safe).
 let _loScratch = new Float64Array(256);
 let _hiScratch = new Float64Array(256);
 

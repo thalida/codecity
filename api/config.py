@@ -14,9 +14,8 @@ from pathlib import Path
 MAX_FILE_BYTES = 100 * 1024 * 1024
 # Bodies under this skip gzip — framing overhead exceeds the savings.
 GZIP_MIN_BYTES = 256
-# Paths accepted per POST /api/images or /api/fingerprints; the rest of the
-# body is ignored. Served over /api/config so the client chunks to the same
-# number instead of hardcoding its own guess and silently losing the tail.
+# Paths accepted per POST /api/images or /api/fingerprints; served over
+# /api/config so the client chunks to the same number instead of guessing.
 MAX_BATCH_PATHS = 64
 
 # Root for every on-disk cache — the single source of truth for where codecity

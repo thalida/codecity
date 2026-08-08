@@ -1,9 +1,5 @@
-// User-facing copy uses colons or commas, never an em-dash.
-//
-// Two halves because neither alone is enough: settings tips are reachable at
-// runtime, but the almanac builds its tips inside computeAlmanac, where a
-// fixture missing a branch would under-enforce silently. Reading source has no
-// such blind spot. Globs, not hand-written lists, which had already drifted.
+// User-facing copy uses colons or commas, never an em-dash. Runtime + source
+// halves (a fixture missing a branch under-enforces silently); globs, not lists.
 
 import { describe, it, expect } from 'vitest';
 import { forEachSettingStore, getFieldKeys, getFieldDef } from '@/state/settingsSchema';
@@ -36,9 +32,8 @@ describe('user-facing copy', () => {
   });
 
   it('registers at least one store per file in settings/, so the glob is doing its job', () => {
-    // Not an equality check: stores register from outside settings/ too, so
-    // pinning an exact number would encode a relationship this test has no
-    // business asserting.
+    // Not equality: stores register from outside settings/ too, so an exact
+    // count is not this test's business.
     let registered = 0;
     forEachSettingStore(() => registered++);
     expect(registered).toBeGreaterThanOrEqual(Object.keys(STORE_MODULES).length);

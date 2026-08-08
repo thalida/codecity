@@ -9,10 +9,8 @@ import { manifestUrlFor, streamManifest, ScanPhase } from '@/api/manifest';
 import type { Manifest } from '@/types';
 import { activeExcludePathsFor } from '@/state/stores/excludes';
 
-// Reconstruction is immutable per commit, so a visited commit is free to revisit.
-// Bounded, because an entry is a whole repo tree: scrubbing a long history or
-// switching repos would otherwise grow this for the life of the tab. Insertion
-// order is the recency order, so the oldest key is the first one.
+// Immutable per commit, so revisits are free. Bounded: an entry is a whole repo
+// tree. Insertion order is recency; the oldest key is first.
 const _cache = new Map<string, Manifest>();
 const _CACHE_MAX = 16;
 

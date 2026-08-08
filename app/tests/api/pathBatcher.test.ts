@@ -1,7 +1,5 @@
-// pathBatcher.test.ts — the coalescing core shared by the media and fingerprint
-// batchers. Chunking at the server's published cap is the case worth pinning:
-// the server silently truncates anything past it, so an over-large chunk loses
-// its tail with no error anywhere.
+// Chunking at the server's published cap is the case worth pinning: past it the
+// server silently truncates, losing the tail with no error anywhere.
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { createPathBatcher } from '@/api/pathBatcher';

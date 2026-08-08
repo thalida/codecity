@@ -138,11 +138,8 @@ export async function loadTimelineScene({ inPlace = false } = {}): Promise<void>
   }
 }
 
-// An excludes change while Timeline is active must refetch the bundle rather
-// than re-scan HEAD. useManifestSource is the lower layer and cannot import this
-// module (that was a cycle), so hand it the callback here. Registering at module
-// scope is safe: TIMELINE_MODE only turns on via loadTimelineScene above, so this
-// has always run by the time the handler can be reached.
+// Excludes change in Timeline → refetch the bundle, not a HEAD re-scan. A
+// callback because a direct import was a cycle; registered before the mode can turn on.
 setTimelineRefreshHandler(() => loadTimelineScene({ inPlace: true }));
 
 // Enter Timeline mode if it isn't already on, then scrub to the given commit.

@@ -89,11 +89,8 @@ export function computeFileStats(stats: RepoStats | null | undefined): {
 // corresponding dimension falls back to MIN_*.
 type Dims = typeof BUILDING_DIMENSIONS.value;
 
-/** Floors from line count, sqrt-normalized over the project range.
- *
- *  The repo's tallest building only reaches the full cap if its largest file is
- *  >= FULL_HEIGHT_LINES, so a repo of small files reads as a low-rise city
- *  rather than being stretched to full height. Relative order is preserved. */
+/** Floors from line count, sqrt-normalized. Full cap only when the largest file
+ *  is >= FULL_HEIGHT_LINES, so a small-file repo reads low-rise; order preserved. */
 function floorsForLines(
   fileLines: number | null | undefined,
   lineStats: RangeStat | undefined,
@@ -118,11 +115,8 @@ function floorsForLines(
   return floors < dims.MIN_FLOORS ? dims.MIN_FLOORS : floors;
 }
 
-/** Width from byte size, log-normalized over the project range. Mirrors the
- *  floors ceiling: full width only when the largest file is >= FULL_WIDTH_KB.
- *
- *  Both the range and the per-file size clamp to >= 1, because log(0) is
- *  -Infinity and would carry NaN into every downstream dimension. */
+/** Width from byte size, log-normalized; full width only past FULL_WIDTH_KB.
+ *  Range and size clamp >= 1: log(0) would carry NaN into every dimension. */
 function widthForBytes(
   fileSize: number | null | undefined,
   byteStats: RangeStat | undefined,

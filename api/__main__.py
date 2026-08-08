@@ -28,11 +28,8 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     p.add_argument("--version", action="version", version=f"codecity {__version__}")
     p.add_argument("--port", type=int, default=8080, help="HTTP port (default 8080).")
-    # Loopback by default: the API is unauthenticated, and once a scan registers
-    # a root, /api/file serves anything under it. Binding every interface would
-    # hand the whole scanned tree to anyone on the same network. Containers pass
-    # --host 0.0.0.0 explicitly, since there the bind is the container's own
-    # namespace and only published ports are reachable.
+    # Loopback by default: the API is unauthenticated and /api/file serves anything
+    # under a scanned root. Containers pass --host 0.0.0.0 (their own namespace).
     p.add_argument(
         "--host",
         default="127.0.0.1",

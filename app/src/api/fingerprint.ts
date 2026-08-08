@@ -1,8 +1,5 @@
-// api/fingerprint.ts — binary-file fingerprints via POST /api/fingerprints.
-// The server returns a small base64 byte-pattern PNG per path; callers feed it
-// to an <img> via a data URL. A path the endpoint omits resolves to null.
-// Shared by the city's data-building facade loader and the preview pane's data
-// card. Coalescing lives in createPathBatcher, shared with mediaBatch.
+// Binary-file fingerprints via POST /api/fingerprints: a base64 byte-pattern
+// PNG per path (null when omitted). Coalescing lives in createPathBatcher.
 
 import { createPathBatcher } from '@/api/pathBatcher';
 

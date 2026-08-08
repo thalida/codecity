@@ -1,14 +1,5 @@
-// city/timeline/scrubController.ts — per-frame building driver for Timeline mode.
-//
-// Reads SCRUB_POS and writes every scrub-varying per-instance attribute so a
-// building renders as a real scan at that commit would: instance matrix
-// (scaleY + floor count), presence opacity (iFade.x), weathered color
-// (instanceColor), lit-window recency (iModifiedAge), grime/tilt age
-// (iIconUV.w), and the iKind render mode — all with no re-pack. It owns
-// these fields while in mode; the
-// tween queue and fader are dormant (index.ts gates them on TIMELINE_MODE).
-// iCols/iDoor/iRefColor/iIconUV.xyz don't vary with scrub (driven by
-// bytes/ext/path, which the delta replay never changes) so they stay untouched.
+// Per-frame building driver for Timeline mode: reads SCRUB_POS and writes every
+// scrub-varying per-instance attribute, no re-pack (tween queue + fader dormant).
 
 import * as THREE from 'three';
 
@@ -34,30 +25,25 @@ import { streetChainForDirPath } from '@/city/layout/streetPath';
 import { entryAt, lastModifiedIndexAt, linesAt, presenceAt, ruinStateAt } from './replay';
 import type { PathTimeline } from './replay';
 
-// A deleted building's ghost-ruin: a uniform low stub with a blank facade (0
-// window rows), its hue pulled toward gray. Height/opacity/gray come from the
-// RUINS settings store; these two are fixed.
+// Deleted building's ghost-ruin: low gray stub, blank facade. Height/opacity/
+// gray come from the RUINS store; these two are fixed.
 const RUIN_BASE_RECENCY = 0.5; // sample the building's hue at mid-recency before graying
 const _RUIN_GRAY = new THREE.Color(0.3, 0.31, 0.34);
 
-// A future (not-yet-created) building: an ultra-low slab at the building's real
-// footprint, tinted the future color — a ground marker of where it will land,
-// via the building mesh (NOT the footprint plots, so it's independent of the
-// footprint controls). Height in floors, ×FLOOR_HEIGHT at draw time.
+// Future (not-yet-created) building: an ultra-low tinted slab via the building
+// mesh (NOT footprint plots), so it's independent of the footprint controls.
 export const FUTURE_SLAB_FLOORS = 0.05;
 
 // A future slab keeps its file's own hue, sampled at mid-recency (it has no real
 // last-modified date yet), then pulled toward the future color by BUILDING_TINT.
 const FUTURE_BASE_RECENCY = 0.5;
 
-// Dir paths of streets currently rendered as ruins — the picker rejects hits on
-// them so a ruined road isn't hoverable/selectable (buildings use iKind instead).
-// Owned here, repopulated each update(); read by interaction/picker.ts.
+// Streets rendered as ruins; the picker rejects hits on them (buildings use
+// iKind instead). Repopulated each update(), read by interaction/picker.ts.
 export const RUINED_STREET_DIRS = new Set<string>();
 
-// Dir paths of streets rendered as future roads — not yet created at the scrub
-// position, so the picker rejects hits (you can't select a folder that doesn't
-// exist yet). Future buildings use iKind Future, which the picker treats as hidden.
+// Streets not yet created at the scrub position; the picker rejects hits on a
+// folder that doesn't exist yet.
 export const FUTURE_STREET_DIRS = new Set<string>();
 
 export interface ScrubControllerDeps {
@@ -91,10 +77,8 @@ export interface ScrubControllerDeps {
 }
 
 export function createScrubController(deps: ScrubControllerDeps) {
-  // Pair each union building with its replay timeline + the full ancestor street
-  // chain (its own street PLUS every containing directory up to root) once; a
-  // container street (e.g. `src/` with only subdirs) must stay visible as long as
-  // ANY descendant file is live, not just direct children.
+  // Pair each building with its timeline + FULL ancestor street chain: a
+  // container street must stay visible while ANY descendant file is live.
   const entries: {
     b: Building;
     pt: PathTimeline;
@@ -126,10 +110,8 @@ export function createScrubController(deps: ScrubControllerDeps) {
   const _commitMs = (TIMELINE_BUNDLE.peek()?.commits ?? []).map((c) => Date.parse(c.date) || 0);
   const _dateRanges = TIMELINE_BUNDLE.peek()?.commitDateRanges ?? [];
 
-  // Scrub-relative modified date in ms. Once the file has reached its final (HEAD)
-  // modification, use its own full-precision date so HEAD weathering is 1:1 with
-  // Live; earlier in history only the day-precise commit date is available.
-  // Falls back to the commit date when the file carries no modified date.
+  // Scrub-relative modified ms: full-precision own date once past its final
+  // change (HEAD weathering 1:1 with Live), else the day-precise commit date.
   const modifiedMsAt = (b: Building, pt: PathTimeline, finalIdx: number, pos: number): number => {
     const lmIdx = lastModifiedIndexAt(pt, pos);
     if (lmIdx >= finalIdx) {
@@ -151,9 +133,7 @@ export function createScrubController(deps: ScrubControllerDeps) {
   const _color = new THREE.Color();
   const _futureColor = new THREE.Color();
 
-  // Everything `update` reads once per frame: the commit's height range, the
-  // ruin/future settings, the replayed date ranges, and the hover/selection
-  // targets the neighborhood fade cascade needs.
+  // Everything `update` reads once per frame.
   interface ScrubFrame {
     pos: number;
     lineStats: RangeStat;
@@ -191,9 +171,8 @@ export function createScrubController(deps: ScrubControllerDeps) {
     const minMod = dateRange?.minModified ?? 0;
     const minCreated = dateRange?.minCreated ?? 0;
 
-    // The SAME tier decision buildingFader uses in Live, so a hover/selection
-    // dims the surrounding city identically while scrubbing. The fader is
-    // dormant in Timeline (it owns iFade in Live; this controller owns it here).
+    // The SAME tier decision buildingFader uses in Live, so hover dims the
+    // city identically while scrubbing (the fader is dormant in Timeline).
     const sel = deps.picker.selection.peek();
     const hov = deps.picker.hover.peek();
 
@@ -210,9 +189,7 @@ export function createScrubController(deps: ScrubControllerDeps) {
       futureTint: bp.BUILDING_TINT,
       minMod,
       minCreated,
-      // Spread 0 (all present files share a date) → the live view's
-      // getSaturation/getModifiedAge treat that as freshest (recency 1);
-      // createdAge as newest (0).
+      // Spread 0 (all present files share a date) → freshest, matching Live.
       modSpread: (dateRange?.maxModified ?? 0) - minMod,
       createdSpread: (dateRange?.maxCreated ?? 0) - minCreated,
       bldgTargetFile: sel?.kind === NodeKind.File ? sel.file : null,
@@ -320,10 +297,8 @@ export function createScrubController(deps: ScrubControllerDeps) {
     }
   }
 
-  /** Color / lit-windows / grime-age from the file's DATES at this scrub
-   *  position (not a commit-index proxy), normalized against the present-file
-   *  ranges — the exact formulas the live view bakes, so HEAD matches. Absent
-   *  buildings are already scaled/faded to 0, so they are skipped. */
+  /** Weathering from the file's DATES at this position, the exact formulas the
+   *  live view bakes, so HEAD matches. Absent buildings are already faded to 0. */
   function writeBuildingWeathering(
     b: Building,
     pt: PathTimeline,
@@ -407,9 +382,7 @@ export function createScrubController(deps: ScrubControllerDeps) {
     const state = ruinStateAt(pt, f.pos);
     const present = state === 'present';
     const ruin = state === 'ruin' && f.ruinsOn;
-    // Future: not yet created at this scrub position (genesis is ahead). Shown
-    // as an ultra-low tinted slab at its eventual footprint — a marker of where
-    // it WILL land, rendered via the building mesh (not the footprint plots).
+    // Future: genesis is ahead — an ultra-low tinted slab at its eventual footprint.
     const future = !present && !ruin && f.futureOn && createdIdx > f.pos;
     _scrubState.present = present;
     _scrubState.ruin = ruin;
@@ -426,9 +399,8 @@ export function createScrubController(deps: ScrubControllerDeps) {
     return _scrubState;
   }
 
-  /** iKind render mode, recomputed every frame so a state change resets it:
-   *  Ruin/Future for scrub states, else Empty for a file with no content at this
-   *  position, else Data for a binary, else Normal. */
+  /** iKind recomputed every frame so a state change resets it: Ruin/Future,
+   *  else Empty (no content here), else Data (binary), else Normal. */
   function resolveBuildingKind(
     file: FileNode,
     emptyFile: FileNode,
@@ -451,11 +423,8 @@ export function createScrubController(deps: ScrubControllerDeps) {
     const pos = f.pos;
     const { present, ruin, future, op } = resolveScrubState(pt, createdIdx, f);
 
-    // Neighborhood fade cascade for PRESENT buildings: dim / silhouette /
-    // outline this building by its dir-tree distance from the hover/selection
-    // target, exactly as Live's fader does (op is 1 for a present file, so
-    // op * tier.bodyOpacity reproduces the Live absolute). Non-present states
-    // (ruin/future/absent) keep their own faint opacity, no cascade.
+    // Neighborhood fade for PRESENT buildings only, exactly as Live's fader
+    // (op is 1 when present, so op * tier.bodyOpacity is the Live absolute).
     let bodyOp = op;
     let silhouette = 0;
     let tierOutlineOp = 0;
@@ -466,10 +435,8 @@ export function createScrubController(deps: ScrubControllerDeps) {
       tierOutlineOp = tier.outlineEnabled ? tier.outlineOpacity : 0;
     }
 
-    // Driven for EVERY union building (even one with no detail mesh on a large
-    // repo), else the footprint/street strand at their defaults. A street's
-    // future state isn't tracked per-building: any non-present, non-ruin street
-    // is a future road (see applyStreetsAtScrub), so the whole road network shows.
+    // Driven for EVERY union building (even without a detail mesh), else the
+    // footprint/street strand at their defaults.
     for (const street of streets) {
       if (present) {
         s.maxPresentOp.set(street, Math.max(s.maxPresentOp.get(street) ?? 0, op));
@@ -478,9 +445,8 @@ export function createScrubController(deps: ScrubControllerDeps) {
         s.ruinStreets.add(street);
       }
     }
-    // opByPath feeds ONLY the facade panels — gate on presence so a ruin/absent/
-    // future building shows no media image, just its stub or slab. Uses the
-    // neighborhood-dimmed bodyOp so a media panel fades with its building body.
+    // Facade panels only: gate on presence (no media image on a ruin/slab),
+    // dimmed with the body so a panel fades with its building.
     s.opByPath.set(b.file.path, present ? bodyOp : 0);
     // Footprint plot: present + ruin only. A future building IS the slab, so it
     // gets no plot (keeps future independent of the footprint controls).
@@ -499,9 +465,8 @@ export function createScrubController(deps: ScrubControllerDeps) {
         : 0;
 
     const iFloorsAttr = mesh.geometry.getAttribute('iFloors') as THREE.BufferAttribute | undefined;
-    // Height tweens, so it takes the interpolated count. The union node's
-    // `size` is a max-over-history footprint, so only the replay can say what
-    // this file measured HERE.
+    // Interpolated count: the union node's size is max-over-history, so only
+    // the replay knows what this file measured HERE.
     const scrubFile = present ? { ...b.file, lines: linesAt(pt, pos) } : b.file;
     // Emptiness is a fact about the blob in effect, not a point on a curve:
     // between a 0-line commit and a later big one, a lerp reads non-empty.
@@ -519,9 +484,8 @@ export function createScrubController(deps: ScrubControllerDeps) {
 
     const iFade = mesh.geometry.getAttribute('iFade') as THREE.BufferAttribute | undefined;
     if (iFade) {
-      // Present → neighborhood-tiered body(.x)/silhouette(.y)/outline(.z), owning
-      // all three so a hover cascade actually shows. Non-present → its faint op
-      // with no silhouette/outline, so a leftover Live-mode overlay can't linger.
+      // Present → tiered body/silhouette/outline (owning all three so hover
+      // shows); non-present → faint op only, so a Live overlay can't linger.
       if (present) iFade.setXYZ(slot, bodyOp, silhouette, tierOutlineOp);
       else iFade.setXYZ(slot, op, 0, 0);
       s.fades.add(iFade);
@@ -535,10 +499,8 @@ export function createScrubController(deps: ScrubControllerDeps) {
     // ROOT is forced to 1: the repo root directory always exists, even when scrubbed back to an empty tree.
     for (const street of allStreets) {
       const hasPresent = s.presentStreets.has(street);
-      // Present descendants fade the road with the buildings; else a deleted-folder
-      // road is a ruin, and any remaining non-root road is future (a folder not yet
-      // created at this scrub position). Ruin + future roads render fully opaque,
-      // set apart by their color, not by fading. Present wins over ruin over future.
+      // Present descendants fade the road with the buildings; else ruin, else
+      // future. Ruin/future render opaque, set apart by color. Present > ruin > future.
       const streetRuin = f.ruinsOn && !street.isRoot && !hasPresent && s.ruinStreets.has(street);
       const streetFuture = f.futureOn && !street.isRoot && !hasPresent && !streetRuin;
       const op = street.isRoot
@@ -580,9 +542,8 @@ export function createScrubController(deps: ScrubControllerDeps) {
     for (const entry of entries) applyBuildingAtScrub(entry, frame, sinks);
 
     flushSinks(sinks);
-    // ?? 0 (not null): a panel the scrub never drives must HIDE, not linger at
-    // its shown default — mirrors the footprint default-hidden fix. (Live-mode
-    // buildingFader still uses null = "leave untouched".)
+    // ?? 0 (not null): an undriven panel must HIDE, not linger at its shown
+    // default (Live's fader still uses null = leave untouched).
     deps.getFacadePanels()?.applyBuildingFades((p) => sinks.opByPath.get(p) ?? 0);
     applyStreetsAtScrub(frame, sinks);
   }

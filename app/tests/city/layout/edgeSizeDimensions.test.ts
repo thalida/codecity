@@ -1,6 +1,5 @@
-// The file-size edge cases that produced NaN building geometry (#73).
-// Asserts the invariant rather than a digest: a baseline captured from a broken
-// run would enshrine the NaN as expected.
+// The size edge cases that produced NaN geometry (#73). Invariant, not digest:
+// a baseline captured from a broken run would enshrine the NaN.
 
 import { describe, it, expect } from 'vitest';
 import { layoutCity } from '@/city/layout/algorithm.js';
@@ -62,9 +61,8 @@ describe.each([
   });
 });
 
-// statsFromTree builds ranges from non-zero files only, like the server does,
-// so edge files alone never reach the >= 1 clamp. A zero min does: it puts
-// Math.log(0) into the normalization, and every width downstream goes NaN.
+// statsFromTree skips zero files like the server, so only a zero min reaches
+// the >= 1 clamp — Math.log(0) would NaN every width downstream.
 describe('layout dimensions given a zero-floored stats range', () => {
   const tree = () => mkDir('root', edgeCaseFiles('root'), 'root');
 
