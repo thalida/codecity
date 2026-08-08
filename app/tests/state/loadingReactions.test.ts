@@ -2,8 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { attachLoadingReactions } from '@/state/loadingReactions';
 import { SCAN_PROGRESS } from '@/state/stores/scanProgress';
 
-import { MANIFEST, REBUILD_STATUS, RebuildStatus } from '@/state/stores/manifest';
-import { EMPTY_MANIFEST } from '@/constants/manifest';
+import { REBUILD_STATUS, RebuildStatus } from '@/state/stores/manifest';
 import { LOADING_OVERLAY, PENDING_SOURCE_LABEL } from '@/state/stores/ui';
 import { SourceKind } from '@/utils/sources';
 import { ScanPhase, CloneStage } from '@/api/manifest';
@@ -13,50 +12,76 @@ describe('loadingReactions', () => {
   let dispose: () => void;
   beforeEach(() => {
     REBUILD_STATUS.value = RebuildStatus.Idle;
-    MANIFEST.value = EMPTY_MANIFEST;
     dispose = attachLoadingReactions();
   });
   afterEach(() => {
     dispose();
     SCAN_PROGRESS.value = null;
     REBUILD_STATUS.value = RebuildStatus.Idle;
-    MANIFEST.value = EMPTY_MANIFEST;
   });
 
-  // The scan streams structure, then per-file metadata, then git history. History
-  // is minutes on a big repo and only feeds decorations, so the overlay must not
-  // wait for it once the buildings are final.
-  const applied = (pending: string[]) => {
-    MANIFEST.value = { ...EMPTY_MANIFEST, pending } as never;
-  };
+  // The scan streams structure, then per-file metadata, then git history.
+  // History is minutes on a big repo and only feeds decorations, so the
+  // overlay lifts once the applied manifest's pending no longer lists
+  // metadata — the pump records that as appliedPending.
 
   it('keeps the overlay up while per-file metadata is still pending', () => {
-    SCAN_PROGRESS.value = { kind: SourceKind.Remote, phase: ScanPhase.PartialManifest };
-    applied(['metadata', 'history']);
+    SCAN_PROGRESS.value = {
+      kind: SourceKind.Remote,
+      phase: ScanPhase.PartialManifest,
+      appliedPending: ['metadata', 'history'],
+    };
     expect(LOADING_OVERLAY.value.visible).toBe(true);
   });
 
   it('reveals the city once metadata has landed, with history still streaming', () => {
-    SCAN_PROGRESS.value = { kind: SourceKind.Remote, phase: ScanPhase.PartialManifest };
-    applied(['metadata', 'history']);
+    SCAN_PROGRESS.value = {
+      kind: SourceKind.Remote,
+      phase: ScanPhase.PartialManifest,
+      appliedPending: ['metadata', 'history'],
+    };
     expect(LOADING_OVERLAY.value.visible).toBe(true);
+    // The metadata manifest applies: painting starts, then lands.
     REBUILD_STATUS.value = RebuildStatus.Rebuilding;
-    applied(['history']);
+    SCAN_PROGRESS.value = {
+      kind: SourceKind.Remote,
+      phase: ScanPhase.PartialManifest,
+      appliedPending: ['history'],
+    };
     expect(LOADING_OVERLAY.value.visible).toBe(true); // still painting
     REBUILD_STATUS.value = RebuildStatus.Idle;
     expect(LOADING_OVERLAY.value.visible).toBe(false);
   });
 
-  it('does not re-show the overlay on later history progress', () => {
-    SCAN_PROGRESS.value = { kind: SourceKind.Remote, phase: ScanPhase.PartialManifest };
-    applied(['history']);
-    expect(LOADING_OVERLAY.value.visible).toBe(false);
+  it('does not re-show the overlay while history streams behind the live city', () => {
     SCAN_PROGRESS.value = {
       kind: SourceKind.Remote,
-      phase: ScanPhase.ScanProgress,
-      filesScanned: 5,
+      phase: ScanPhase.PartialManifest,
+      appliedPending: ['history'],
     };
     expect(LOADING_OVERLAY.value.visible).toBe(false);
+    // The final apply repaints (Rebuilding) — the overlay must not return.
+    REBUILD_STATUS.value = RebuildStatus.Rebuilding;
+    SCAN_PROGRESS.value = {
+      kind: SourceKind.Remote,
+      phase: ScanPhase.CompleteManifest,
+      appliedPending: ['history'],
+    };
+    expect(LOADING_OVERLAY.value.visible).toBe(false);
+  });
+
+  it('a new load shows the overlay even though the previous repo finished', () => {
+    // First load runs to completion…
+    SCAN_PROGRESS.value = {
+      kind: SourceKind.Remote,
+      phase: ScanPhase.PartialManifest,
+      appliedPending: ['history'],
+    };
+    SCAN_PROGRESS.value = null;
+    // …then a second load starts. Nothing of it is applied yet, so no
+    // appliedPending — the finished previous manifest must not leak in.
+    SCAN_PROGRESS.value = { kind: SourceKind.Remote, phase: null };
+    expect(LOADING_OVERLAY.value.visible).toBe(true);
   });
 
   it('shows the overlay immediately on a just-started (phase null) load', () => {

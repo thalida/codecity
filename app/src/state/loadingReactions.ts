@@ -6,8 +6,7 @@
 
 import { effect } from '@preact/signals';
 import { SCAN_PROGRESS } from '@/state/stores/scanProgress';
-import { MANIFEST, REBUILD_STATUS, RebuildStatus } from '@/state/stores/manifest';
-import { hasResolvedMetadata } from '@/utils/manifest';
+import { REBUILD_STATUS, RebuildStatus } from '@/state/stores/manifest';
 import {
   showLoadingOverlay,
   hideLoadingOverlay,
@@ -18,45 +17,41 @@ import { ScanPhase } from '@/api/manifest';
 import { LoadingStep, stepForPhase } from '@/constants/loadingSteps';
 
 export function attachLoadingReactions(): () => void {
-  let wasActive = false;
-  // Latched per load: once the city is on screen the overlay must not come
-  // back, and the history stage that follows keeps ticking SCAN_PROGRESS.
-  let revealed = false;
+  let overlayUp = false;
   return effect(() => {
     const p = SCAN_PROGRESS.value;
-    const metadataResolved = hasResolvedMetadata(MANIFEST.value);
     // The stream finishing (p === null) does NOT mean the city is on screen:
     // setManifest only KICKS OFF applyManifest, whose layoutCity runs async for
     // a second-plus on a big repo. Hold the overlay through that build (status
     // stays Rebuilding until the city renders) so we never flash an empty 3D
     // world between "stream done" and "city painted".
     const building = REBUILD_STATUS.value === RebuildStatus.Rebuilding;
+    const hide = () => {
+      if (overlayUp) hideLoadingOverlay();
+      overlayUp = false;
+    };
     if (!p) {
       if (building) {
         // Stream done, city still assembling — keep the overlay on "Building".
-        if (wasActive) setLoadingStep(LoadingStep.Building);
+        if (overlayUp) setLoadingStep(LoadingStep.Building);
         return;
       }
-      if (wasActive) hideLoadingOverlay();
-      wasActive = false;
-      revealed = false;
+      hide();
       return;
     }
-    // The buildings are final once metadata has landed and painted; git history
-    // is still streaming behind this, and it only adds trees and the timeline.
-    // Waiting for it would hold a finished city behind the overlay for minutes.
-    if (revealed) return;
-    if (metadataResolved && !building) {
-      revealed = true;
-      if (wasActive) hideLoadingOverlay();
-      wasActive = false;
+    // The applied manifest has real building heights (its `pending` no longer
+    // lists metadata) — the scan behind it is only git history now, which adds
+    // trees and the timeline to an already-correct city. Lift the overlay as
+    // soon as that city's paint lands and stay out of the way after.
+    if (p.appliedPending && !p.appliedPending.includes('metadata')) {
+      if (!building) hide();
       return;
     }
-    if (!wasActive) {
+    if (!overlayUp) {
       // null→non-null: show the overlay at the kind-based initial step
       // (Resolving for git, Scanning for local).
       showLoadingOverlay({ kind: p.kind, branch: p.branch });
-      wasActive = true;
+      overlayUp = true;
     }
     setLoadingStep(stepForPhase(p.phase, p.kind));
     if (p.phase === ScanPhase.CloneProgress) {
