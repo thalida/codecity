@@ -102,10 +102,13 @@ lint: fmt-check
 # Single source of truth: api/models/*.py -> OpenAPI -> TS. Run after changing
 # any wire model. The drift guard (manifest.contract.ts) fails typecheck if the
 # hand-written types in manifest.ts fall out of sync with this generated file.
+# .local/openapi.generated.json is the intermediate between the two steps,
+# kept rather than piped so a failure in the second is inspectable. Nothing
+# else reads it. (Not to be confused with the live /api/openapi.json route.)
 gen-types:
     @mkdir -p .local
-    @uv run python scripts/gen_openapi.py > .local/openapi.json
-    @cd app && npx openapi-typescript ../.local/openapi.json -o src/types/manifest.generated.ts
+    @uv run python scripts/gen_openapi.py > .local/openapi.generated.json
+    @cd app && npx openapi-typescript ../.local/openapi.generated.json -o src/types/manifest.generated.ts
     @echo "[codecity] regenerated app/src/types/manifest.generated.ts"
 
 # ── Build ────────────────────────────────────────────────────────

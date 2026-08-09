@@ -56,6 +56,23 @@ MOUNT_KEY = "CODECITY_MOUNT"
 
 ENV_ASSIGNMENT = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*=")
 
+# Stamped on the override so the file explains itself when someone opens it:
+# it is compiled output, and the two places worth editing are named.
+OVERRIDE_HEADER = [
+    "# GENERATED FILE, do not edit.",
+    "#",
+    f"# Written by bin/docker-args.py on every `just dev`, from {ENV_FILE} plus",
+    "# any -v / -e flags on the command line. Rewritten from scratch each run,",
+    "# and deleted when there is nothing to pass, so edits here do not survive.",
+    "#",
+    f"# To change what it contains, edit {ENV_FILE}:",
+    "#     CODECITY_MOUNT=~/Documents/Repos",
+    "#     CODECITY_HOSTED=1",
+    "# or pass it for a single run:",
+    "#     just dev -v ~/Documents/Repos -e CODECITY_HOSTED=1",
+    "",
+]
+
 
 def parse_args(argv: list[str]) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
@@ -143,7 +160,7 @@ def emit_compose(mounts: list[str], env: list[str]) -> str:
     if not mounts and not env:
         OVERRIDE.unlink(missing_ok=True)
         return ""
-    lines = ["services:", "  api:"]
+    lines = [*OVERRIDE_HEADER, "services:", "  api:"]
     if mounts:
         lines.append("    volumes:")
         lines += [f'      - "{m}:{m}:ro"' for m in mounts]
