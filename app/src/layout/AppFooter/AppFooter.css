@@ -1,13 +1,13 @@
 /* ── Sitewide footer (status bar) ───────────────────────────────────────
    Lives at the bottom of the app shell (sibling of #app-header /
    #app-body). Always visible — doesn't get torn down when the right
-   sidebar collapses. Content is pushed by main._setSelection via
-   appFooter.setSelection({...}). */
+   sidebar collapses. Two tracks: run-state on the left, credit on the
+   right. Per-node stats live in the selection pane (see PaneStats). */
 
 #app-footer {
   flex: 0 0 auto;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   gap: var(--cc-space-7);
   padding: 0 var(--cc-space-6);
@@ -43,39 +43,16 @@
 .app-footer-section.app-footer-right {
   justify-content: flex-end;
 }
-.app-footer-section.app-footer-center {
-  justify-content: center;
-}
 
-.app-footer-item {
-  flex: 0 1 auto;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-/* Shared muted-dot separator. Used between the selection metadata items in
- * the right section and between the version/links/credit in the center
- * credit line. Pointer-events:none so a stray click between items doesn't
- * fall on the dot. */
+/* Muted-dot separator between the left section's items. Pointer-events:none
+ * so a stray click between items doesn't fall on the dot. */
 .app-footer-sep {
   flex: 0 0 auto;
   color: var(--cc-text-faint);
   pointer-events: none;
 }
 
-/* Footer button uses .btn-icon + .btn-icon--sm (defined with the icon
-   button component near the top of the file). */
-
-/* Utility-icon cluster (shortcuts, debug) pinned to the true far right,
-   separated from the selection metadata by extra margin. */
-.app-footer-icons {
-  display: flex;
-  flex: 0 0 auto;
-  align-items: center;
-  gap: var(--cc-space-2);
-  margin-left: var(--cc-space-5);
-}
+/* The debug button uses .btn-icon + .btn-icon--sm. */
 
 /* ── Combined status indicator (left section) ─────────────────────── */
 /* Layout: [dot] <status text>
@@ -140,48 +117,37 @@
   }
 }
 
-/* ── Credit line (center section) ──────────────────────────────────── */
-/* Reads as a code comment: the // and the · separators sit at the faint
- * separator color, the prose one step up. The links sit two steps up from
- * the prose around them, which is what marks them as clickable: at the
- * prose color they read as plain text. */
-.app-footer-meta {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--cc-space-3);
-  min-width: 0;
-}
-.app-footer-meta-comment {
-  color: var(--cc-text-faint);
-}
-.app-footer-meta-version,
-.app-footer-meta-credit {
+/* ── Version + credit ─────────────────────────────────────────────── */
+/* Version sits with the status dot on the left; the credit holds the right.
+   Both stay a step below the status text so the live state reads first, and
+   the link brightens like any other. */
+.app-footer-version,
+.app-footer-credit {
   color: var(--cc-text-muted);
+  white-space: nowrap;
 }
-.app-footer-meta-link {
+.app-footer-link {
   color: var(--cc-text-primary);
   text-decoration: none;
 }
-.app-footer-meta-link:hover,
-.app-footer-meta-link:focus-visible {
+.app-footer-link:hover,
+.app-footer-link:focus-visible {
   color: var(--cc-text-strong);
   text-decoration: underline;
 }
 
 /* ── Footer responsive narrowing ───────────────────────────────────────────── */
-/* At narrow widths the status timestamp / "rebuilding…" text is secondary
-   information, so it's hidden and the credit line is dropped entirely,
-   leaving the status dot and the utility-icon cluster in a two-track grid. */
+/* At narrow widths the status timestamp and the credit are both secondary to
+   knowing the build state at all, so the dot and version keep the bar. */
 @media (max-width: 580px) {
   #app-footer {
-    grid-template-columns: minmax(0, 1fr) auto;
     gap: var(--cc-space-3);
     padding: 0 var(--cc-space-4);
   }
   .app-footer-status-detail {
     display: none;
   }
-  .app-footer-center {
+  .app-footer-credit {
     display: none;
   }
 }

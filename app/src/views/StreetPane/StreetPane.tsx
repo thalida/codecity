@@ -16,6 +16,8 @@ import { TimelineStaleNote } from '@/components/TimelineStaleNote/TimelineStaleN
 import { KEY_BINDINGS } from '@/constants/keyboard';
 import { Route, FileType, CalendarRange } from 'lucide-preact';
 import { ExtensionBadge } from '@/components/Badge/Badge';
+import { PaneStats } from '@/components/PaneStats/PaneStats';
+import { directoryStatItems } from '@/components/PaneStats/statItems';
 import { PathBreadcrumbs } from '@/components/PathBreadcrumbs/PathBreadcrumbs';
 import { nodeUrl } from '@/utils/commit';
 import { extHueColor } from '@/city/components/buildings/color';
@@ -108,6 +110,7 @@ export function StreetPane({ state, onClose, onFocus, onExclude }: StreetPanePro
       }
       excludeTitle="Exclude this road from the city"
       bodyClass={`street-body${inTimeline ? ' has-stale-note' : ''}`}
+      footerSlot={<PaneStats items={directoryStatItems(d)} />}
     >
       {inTimeline && (
         <TimelineStaleNote>

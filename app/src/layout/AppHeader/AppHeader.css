@@ -19,6 +19,27 @@
   user-select: none;
 }
 
+/* Meta cluster pinned to the far right, opposite the project controls. */
+#app-header-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--cc-space-4);
+  margin-left: auto;
+  flex: 0 0 auto;
+}
+
+/* A text link among icon buttons: matched to the resting icon color so the
+   cluster reads as one weight, and brightened on hover like they are. */
+.app-header-link {
+  color: var(--cc-text-muted);
+  text-decoration: none;
+}
+.app-header-link:hover,
+.app-header-link:focus-visible {
+  color: var(--cc-text-strong);
+  text-decoration: underline;
+}
+
 /* Header buttons use .btn-icon + .btn-icon--no-drag, or
    .btn-icon + .btn-icon--link + .btn-icon--no-drag for the repo link.
    Inner svg rendering tweak applies to any svg child of a header btn-icon. */

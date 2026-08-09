@@ -64,6 +64,23 @@ describe('AppHeader', () => {
     expect(chip!.querySelector('.gem-icon')).not.toBeNull();
   });
 
+  it('puts about and the shortcuts button in the meta cluster', async () => {
+    loadProject();
+    render(<AppHeader />, container);
+    await flush();
+
+    const meta = container.querySelector('#app-header-meta')!;
+    expect(meta).not.toBeNull();
+
+    const about = meta.querySelector<HTMLAnchorElement>('a')!;
+    expect(about.textContent).toBe('about');
+    expect(about.getAttribute('href')).toBe('https://github.com/thalida/codecity');
+    expect(about.getAttribute('target')).toBe('_blank');
+    expect(about.getAttribute('rel')).toBe('noopener noreferrer');
+
+    expect(meta.querySelector('[aria-label="Keyboard shortcuts"]')).not.toBeNull();
+  });
+
   it('has no reset-view control', async () => {
     loadProject();
     render(<AppHeader />, container);

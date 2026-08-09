@@ -1,14 +1,17 @@
-// layout/AppHeader.tsx — Sitewide top header. Composition shell only: a single
-// left-aligned row holding the project switcher (gem + name + branch) and its
-// actions (copy-source, open-on-origin). What's selected is shown in the right
-// sidebar (open whenever there's a selection), not here.
+// layout/AppHeader.tsx — Sitewide top header. Composition shell only. Left: the
+// project switcher (gem + name + branch) and its actions (copy-source,
+// open-on-origin), all about the project you have open. Right: the meta any
+// user might want, about and the keyboard shortcuts. Developer-only tools and
+// run-state live in the footer instead; what's selected is shown in the right
+// sidebar (open whenever there's a selection).
 
 import './AppHeader.css';
-import { ExternalLink } from 'lucide-preact';
+import { ExternalLink, Keyboard } from 'lucide-preact';
 import { SOURCE_INFO } from '@/state/stores/source';
 import { MANIFEST } from '@/state/stores/manifest';
 import type { Manifest } from '@/types';
-import { openProjectsView } from '@/state/stores/ui';
+import { openProjectsView, openShortcuts } from '@/state/stores/ui';
+import { REPO_URL } from '@/constants/ui';
 import { ProjectSwitcher } from '@/components/ProjectSwitcher/ProjectSwitcher';
 import { CopyButton } from '@/components/CopyButton/CopyButton';
 
@@ -41,6 +44,26 @@ export function AppHeader({ onSwitchSource }: AppHeaderProps = {}) {
           <ExternalLink class="icon" />
         </a>
       )}
+      <div id="app-header-meta">
+        <a
+          class="app-header-link btn-icon--no-drag"
+          href={REPO_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          title="codecity on GitHub"
+        >
+          about
+        </a>
+        <button
+          type="button"
+          class="btn-icon btn-icon--sm btn-icon--no-drag"
+          title="Keyboard shortcuts"
+          aria-label="Keyboard shortcuts"
+          onClick={openShortcuts}
+        >
+          <Keyboard class="icon" />
+        </button>
+      </div>
     </header>
   );
 }

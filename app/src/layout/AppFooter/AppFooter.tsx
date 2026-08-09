@@ -1,5 +1,6 @@
-// layout/AppFooter.tsx — Sitewide bottom status bar. Three sections:
-//   left   — combined status indicator: [dot] detail-text
+// layout/AppFooter.tsx — Sitewide bottom status bar. Two sections:
+//   left   — what is running: [dot] detail-text, the build version, and the
+//            debug-tools button when debug mode is on.
 //            One dot, two channels of state:
 //              color    — rebuild state (green=idle, yellow=rebuilding,
 //                         red=error)
@@ -9,20 +10,17 @@
 //            A detail <span> next to the dot shows human-readable status
 //            ("rebuilt 5s ago", "rebuilding…", "error: <msg>", "paused").
 //            title= on the wrapper is a fallback tooltip for narrow widths.
-//   center — credit line: build version, repo link, attribution
-//   right  — current selection metadata (language · lines · size · created
-//            · modified for files; file/dir counts + size for directories),
-//            then a far-right icon cluster (keyboard shortcuts, debug)
+//   right  — authorship credit.
+//
+// Per-node stats live in the selection pane's own footer (<PaneStats>), beside
+// the file or road they describe. About and the shortcuts button live in the
+// app header.
 
 import './AppFooter.css';
+import { Bug } from 'lucide-preact';
 import { useSignal } from '@preact/signals';
 import { useEffect } from 'preact/hooks';
-import { Keyboard, Bug } from 'lucide-preact';
-import { NodeKind } from '@/types';
-import { formatShortDate, formatRelativeAgeShort } from '@/utils/dates';
-import { formatBytes } from '@/utils/bytes';
-import { SCENE_HANDLE } from '@/state/stores/scene';
-import { scrubbedStatsFor } from '@/state/stores/presentPaths';
+import { formatRelativeAgeShort } from '@/utils/dates';
 import { LIVE_UPDATES } from '@/state/stores/settings/updates';
 import {
   REBUILD_STATUS,
@@ -30,38 +28,10 @@ import {
   LAST_REBUILD_ERROR,
   LAST_UPDATED_AT,
 } from '@/state/stores/manifest';
-import { openShortcuts, openDebug } from '@/state/stores/ui';
+import { openDebug } from '@/state/stores/ui';
 import { isDebugMode } from '@/utils/debugMode';
-import { humanLanguageFor } from '@/utils/syntaxLanguages';
 import { FooterSep } from './FooterSep';
-import { FooterMeta } from './FooterMeta';
-
-interface FooterFileSelection {
-  kind: NodeKind.File;
-  /** File extension (with leading dot, e.g. ".ts"). Drives the color of the path-badge pill. */
-  extension?: string;
-  language?: string;
-  lines?: number | null;
-  size?: number | null;
-  modified?: string | null;
-  created?: string | null;
-}
-
-interface FooterDirectorySelection {
-  kind: NodeKind.Directory;
-  /** Files that are direct children of this directory. */
-  directFiles?: number | null;
-  /** All files recursively under this directory. */
-  totalFiles?: number | null;
-  /** Subdirectories that are direct children of this directory. */
-  directDirs?: number | null;
-  /** All subdirectories recursively under this directory. */
-  totalDirs?: number | null;
-  /** Total bytes of all descendant files. */
-  size?: number | null;
-}
-
-export type FooterSelection = FooterFileSelection | FooterDirectorySelection;
+import { FooterVersion, FooterCredit } from './FooterMeta';
 
 export interface FooterStatus {
   /** True when live-poll is active; renders as `live`. False renders as `paused`. */
@@ -74,46 +44,7 @@ export interface FooterStatus {
   errorMessage: string | null;
 }
 
-// ── Helpers ──────────────────────────────────────────────────────────────────
-
-/**
- * Build a directory-count item showing both direct-children and recursive
- * descendant counts. When the two counts match (leaf-ish dirs) it renders
- * just the single number. When they differ, the recursive total appears in
- * parentheses after the direct count: e.g. `12 files (1375 total)`.
- *
- * Returns null if both counts are absent.
- */
-function _directoryCountItem(
-  direct: number | null | undefined,
-  total: number | null | undefined,
-  label: string
-): { text: string; title?: string } | null {
-  if (direct == null && total == null) return null;
-  if (direct == null) return { text: `${total} ${label}`, title: `${total} total` };
-  if (total == null || direct === total) {
-    return { text: `${direct} ${label}`, title: `${direct} direct children` };
-  }
-  return {
-    text: `${direct} ${label} (${total} total)`,
-    title: `${direct} direct · ${total} total in this subtree`,
-  };
-}
-
 // ── Preact component ─────────────────────────────────────────────────────────
-
-interface FooterItemData {
-  text: string;
-  title?: string;
-}
-
-function FooterItem({ text, title }: FooterItemData) {
-  return (
-    <span class="app-footer-item" title={title ?? ''}>
-      {text}
-    </span>
-  );
-}
 
 interface FooterStatusSectionProps {
   status: FooterStatus | null;
@@ -196,52 +127,8 @@ function FooterStatusSection({ status }: FooterStatusSectionProps) {
   );
 }
 
-interface FooterSelectionSectionProps {
-  selection: FooterSelection | null;
-}
-
-function FooterSelectionSection({ selection }: FooterSelectionSectionProps) {
-  if (!selection) return null;
-
-  const items: FooterItemData[] = [];
-  if (selection.kind === NodeKind.File) {
-    if (selection.language) items.push({ text: selection.language });
-    if (selection.lines != null) items.push({ text: `${selection.lines} lines` });
-    if (selection.size != null) items.push({ text: formatBytes(selection.size) });
-    if (selection.modified) {
-      const relMod = `modified ${formatRelativeAgeShort(new Date(selection.modified).getTime(), Date.now())}`;
-      const absMod = `modified ${formatShortDate(selection.modified)}`;
-      items.push({ text: relMod, title: absMod });
-    }
-    if (selection.created) {
-      const relCre = `created ${formatRelativeAgeShort(new Date(selection.created).getTime(), Date.now())}`;
-      const absCre = `created ${formatShortDate(selection.created)}`;
-      items.push({ text: relCre, title: absCre });
-    }
-  } else if (selection.kind === NodeKind.Directory) {
-    items.push({ text: 'Directory' });
-    const filesItem = _directoryCountItem(selection.directFiles, selection.totalFiles, 'files');
-    if (filesItem) items.push(filesItem);
-    const dirsItem = _directoryCountItem(selection.directDirs, selection.totalDirs, 'dirs');
-    if (dirsItem) items.push(dirsItem);
-    if (selection.size != null) items.push({ text: formatBytes(selection.size) });
-  }
-
-  return (
-    <>
-      {items.map((item, i) => (
-        <>
-          {i > 0 && <FooterSep />}
-          <FooterItem key={i} {...item} />
-        </>
-      ))}
-    </>
-  );
-}
-
 // ── Self-reading AppFooter component ────────────────────────────────────────
-// Reads status signals and picker state directly; no props needed when
-// mounted from App.tsx. A 1-second tick signal drives the relative-age text.
+// Reads its status signals directly; no props needed when mounted from App.tsx. A 1-second tick signal drives the relative-age text.
 
 export function AppFooter() {
   // 1-second tick so relative timestamps ("5s ago") advance smoothly.
@@ -264,75 +151,26 @@ export function AppFooter() {
     errorMessage: LAST_REBUILD_ERROR.value,
   };
 
-  // Selection — hover takes priority over selection.
-  // Reading SCENE_HANDLE.value establishes tracking so AppFooter re-renders
-  // when the scene first becomes available (CenterPane mount). Then
-  // picker.hover.value and picker.selection.value are tracked for fine-grained
-  // re-renders on each hover/select change.
-  const handle = SCENE_HANDLE.value;
-  const hov = handle?.picker.hover.value ?? null;
-  const sel = handle?.picker.selection.value ?? null;
-  const target = hov ?? sel;
-
-  let selection: FooterSelection | null = null;
-  if (target?.kind === NodeKind.File) {
-    const f = target.file;
-    // In Timeline the static node holds max-over-history values, so prefer the
-    // replayed ones (at deletion for a file already gone).
-    const scrubbed = f.path != null ? scrubbedStatsFor(f.path) : null;
-    selection = {
-      kind: NodeKind.File,
-      extension: f.extension || '',
-      language: humanLanguageFor(f),
-      lines: scrubbed ? scrubbed.lines : f.lines,
-      size: scrubbed ? scrubbed.bytes : f.size || 0,
-      modified: f.modified,
-      created: f.created,
-    };
-  } else if (target?.kind === NodeKind.Directory) {
-    const d = target.dir;
-    selection = {
-      kind: NodeKind.Directory,
-      directFiles: d.children_file_count ?? 0,
-      totalFiles: d.descendants_file_count ?? 0,
-      directDirs: d.children_dir_count ?? 0,
-      totalDirs: d.descendants_dir_count ?? 0,
-      size: d.descendants_size ?? 0,
-    };
-  }
-
   return (
     <footer id="app-footer" class="surface-chrome">
       <div class="app-footer-section app-footer-left">
         <FooterStatusSection status={status} />
-      </div>
-      <div class="app-footer-section app-footer-center">
-        <FooterMeta />
-      </div>
-      <div class="app-footer-section app-footer-right">
-        <FooterSelectionSection selection={selection} />
-        <div class="app-footer-icons">
-          {isDebugMode() && (
-            <button
-              type="button"
-              class="btn-icon btn-icon--sm"
-              title="Debug tools"
-              aria-label="Debug tools"
-              onClick={openDebug}
-            >
-              <Bug class="icon" />
-            </button>
-          )}
+        <FooterSep />
+        <FooterVersion />
+        {isDebugMode() && (
           <button
             type="button"
             class="btn-icon btn-icon--sm"
-            title="Keyboard shortcuts"
-            aria-label="Keyboard shortcuts"
-            onClick={openShortcuts}
+            title="Debug tools"
+            aria-label="Debug tools"
+            onClick={openDebug}
           >
-            <Keyboard class="icon" />
+            <Bug class="icon" />
           </button>
-        </div>
+        )}
+      </div>
+      <div class="app-footer-section app-footer-right">
+        <FooterCredit />
       </div>
     </footer>
   );

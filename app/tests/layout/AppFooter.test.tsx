@@ -4,29 +4,7 @@ import { AppFooter } from '@/layout/AppFooter/AppFooter';
 import { SERVER_CONFIG, DEFAULT_SERVER_CONFIG } from '@/state/stores/serverConfig';
 import { flush } from '../_helpers/preact';
 
-describe('AppFooter — utility icon cluster', () => {
-  let container: HTMLDivElement;
-
-  beforeEach(() => {
-    container = document.createElement('div');
-    document.body.appendChild(container);
-  });
-
-  afterEach(() => {
-    render(null, container);
-    document.body.removeChild(container);
-  });
-
-  it('renders the keyboard-shortcuts button in the far-right cluster', async () => {
-    render(<AppFooter />, container);
-    await flush();
-
-    const btn = container.querySelector('.app-footer-icons [aria-label="Keyboard shortcuts"]');
-    expect(btn).not.toBeNull();
-  });
-});
-
-describe('AppFooter — credit line', () => {
+describe('AppFooter', () => {
   let container: HTMLDivElement;
 
   beforeEach(() => {
@@ -41,41 +19,43 @@ describe('AppFooter — credit line', () => {
     SERVER_CONFIG.value = DEFAULT_SERVER_CONFIG;
   });
 
-  it('shows the running build version', async () => {
+  it('shows the running build version beside the status', async () => {
     render(<AppFooter />, container);
     await flush();
 
-    expect(container.querySelector('.app-footer-center')!.textContent).toContain('v1.3.0');
+    const left = container.querySelector('.app-footer-left')!;
+    expect(left.textContent).toContain('v1.3.0');
+    // Beside the status dot, not merely somewhere in the bar.
+    expect(left.querySelector('.app-footer-status')).not.toBeNull();
   });
 
-  it('links about to the repo and the credit to thalida.com', async () => {
+  it('credits the creator on the right, linked to thalida.com', async () => {
     render(<AppFooter />, container);
     await flush();
 
-    const links = Array.from(container.querySelectorAll<HTMLAnchorElement>('.app-footer-center a'));
-    expect(links.map((a) => a.getAttribute('href'))).toEqual([
-      'https://github.com/thalida/codecity',
-      'https://thalida.com',
-    ]);
-    for (const a of links) {
-      expect(a.getAttribute('target')).toBe('_blank');
-      expect(a.getAttribute('rel')).toBe('noopener noreferrer');
-    }
+    const right = container.querySelector('.app-footer-right')!;
+    expect(right.textContent).toContain('🦄 thalida.');
+
+    const link = right.querySelector<HTMLAnchorElement>('a')!;
+    expect(link.getAttribute('href')).toBe('https://thalida.com');
+    expect(link.getAttribute('target')).toBe('_blank');
+    expect(link.getAttribute('rel')).toBe('noopener noreferrer');
   });
 
-  it('credits the creator with the unicorn', async () => {
+  it('no longer reads as a code comment', async () => {
     render(<AppFooter />, container);
     await flush();
 
-    expect(container.querySelector('.app-footer-center')!.textContent).toContain('🦄 thalida.');
+    expect(container.querySelector('#app-footer')!.textContent).not.toContain('//');
   });
 
-  it('reads as a comment', async () => {
+  // About and the shortcuts button moved to the header; per-node stats moved to
+  // the selection pane. Nothing should have been left behind here.
+  it('holds neither the about link nor the shortcuts button', async () => {
     render(<AppFooter />, container);
     await flush();
 
-    expect(container.querySelector('.app-footer-center')!.textContent!.trimStart()).toMatch(
-      /^\/\//
-    );
+    expect(container.querySelector('[aria-label="Keyboard shortcuts"]')).toBeNull();
+    expect(container.querySelector('a[href="https://github.com/thalida/codecity"]')).toBeNull();
   });
 });

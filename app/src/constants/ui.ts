@@ -7,9 +7,12 @@ import { SidebarTab } from '@/types/ui';
  *  (oldest dropped past this). */
 export const MAX_RECENT_SOURCES = 10;
 
-/** The codecity repo itself, base for the footer's "about" link and the
+/** The codecity repo itself, base for the header's "about" link and the
  *  README-anchor deep links used elsewhere in the UI. */
 export const REPO_URL = 'https://github.com/thalida/codecity';
+
+/** The author's site, linked from the footer credit. */
+export const CREATOR_URL = 'https://thalida.com';
 
 /**
  * Activity-bar tab definitions (left-side icon strip). Each entry pairs a tab

@@ -1,4 +1,4 @@
-// utils/debugMode.ts — Gate for developer-only UI (the header bug icon and
+// utils/debugMode.ts — Gate for developer-only UI (the footer bug icon and
 // its DebugModal). On in a dev server, when built with VITE_DEBUG, or with
 // ?debug in the URL — so a prod deploy can still be flipped on for support.
 

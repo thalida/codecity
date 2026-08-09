@@ -1,0 +1,30 @@
+/* Stat row pinned below a pane's scrolling body. Sits outside .pane-body, so
+   it stays put while the content scrolls under it. Its top rule mirrors the
+   header's bottom rule, bracketing the scroll region. */
+
+.pane-stats {
+  flex: 0 0 auto;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--cc-space-3);
+  padding: var(--cc-space-4) var(--cc-pane-inset);
+  border-top: 1px solid var(--cc-border-subtle);
+  font-family: var(--cc-font-mono);
+  font-size: var(--cc-font-2xs);
+  color: var(--cc-text-secondary);
+}
+
+.pane-stats-item {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Pointer-events off so a stray click between items can't land on the dot. */
+.pane-stats-sep {
+  flex: 0 0 auto;
+  color: var(--cc-text-faint);
+  pointer-events: none;
+}
