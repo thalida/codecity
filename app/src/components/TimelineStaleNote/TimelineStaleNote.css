@@ -9,9 +9,11 @@
   align-items: center;
   gap: var(--cc-space-3);
   padding: var(--cc-space-3) var(--cc-space-4);
+  /* Its fill is semantic (the error tint), so it can't take .surface-glass
+     wholesale, but it frosts by the shared radius. */
   background: var(--cc-error-bg);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(var(--cc-glass-blur));
+  -webkit-backdrop-filter: blur(var(--cc-glass-blur));
   color: var(--cc-error-light);
   border: 1px solid var(--cc-error-border);
   border-radius: var(--cc-radius-md);

@@ -8,8 +8,8 @@
 
 /* Elevated panel floating on a backdrop — the source-picker modal + the
    loading overlay. */
+/* Pair with .surface-glass for the fill: every consumer floats over the scene. */
 .card-overlay {
-  background: var(--cc-bg-modal);
   color: var(--cc-text-base);
   border-radius: var(--cc-radius-lg);
   box-shadow: var(--cc-shadow-lg);

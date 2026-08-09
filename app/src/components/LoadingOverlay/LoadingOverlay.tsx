@@ -25,7 +25,7 @@ export function LoadingOverlay({ onCancel }: LoadingOverlayProps) {
 
   return (
     <div class="loading-backdrop">
-      <div class="loading-card card-overlay">
+      <div class="loading-card card-overlay surface-glass">
         <LoadingProgress
           activeStep={lo.activeStep}
           kind={lo.showOpts?.kind ?? null}

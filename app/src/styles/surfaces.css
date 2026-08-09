@@ -15,3 +15,13 @@
 .surface-sidebar {
   background: var(--cc-bg-sidebar);
 }
+
+/* The fourth role: a panel with the scene behind it. Only for surfaces that
+   float over the canvas or the landing backdrop, never for chrome laid out in
+   the app body, where a blur would have nothing to sample and the translucency
+   would reveal the page background. */
+.surface-glass {
+  background: var(--cc-glass-fill);
+  backdrop-filter: blur(var(--cc-glass-blur));
+  -webkit-backdrop-filter: blur(var(--cc-glass-blur));
+}

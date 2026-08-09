@@ -107,12 +107,12 @@ export function ShortcutsModal() {
       }}
     >
       <div
-        class="modal-card card-overlay"
+        class="modal-card card-overlay surface-glass"
         role="dialog"
         aria-modal="true"
         aria-labelledby="shortcuts-title"
       >
-        <div class="modal-header surface-chrome">
+        <div class="modal-header">
           <span id="shortcuts-title">Keyboard & Mouse</span>
           <button
             type="button"
