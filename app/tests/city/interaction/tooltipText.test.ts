@@ -130,6 +130,8 @@ describe('hoverTooltipContent', () => {
     });
     const c = hoverTooltipContent(t, 'codecity')!;
     expect(c.title).toBe('app');
+    // A folder named `app` and a file named `app` look alike without it.
+    expect(c.stats[0]).toBe('directory');
     expect(c.stats.some((s) => s.includes('files'))).toBe(true);
   });
 

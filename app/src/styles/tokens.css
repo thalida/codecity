@@ -35,7 +35,6 @@
   --cc-bg-sidebar: oklch(0.181 0.019 279.4);
   --cc-bg-modal: var(--cc-bg-sidebar); /* alias — modal uses the same panel surface as sidebars */
   --cc-bg-backdrop: color-mix(in oklch, var(--cc-black) 55%, transparent);
-  --cc-bg-tooltip: color-mix(in oklch, var(--cc-bg-app) 94%, transparent);
   --cc-bg-base: var(--cc-bg-app);
 
   /* ── COLORS — Borders & tracks ────────────────────────────────────────── */

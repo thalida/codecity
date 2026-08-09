@@ -82,6 +82,10 @@ describe('statItems', () => {
     expect(texts.some((t) => t.startsWith('modified'))).toBe(false);
   });
 
+  it('names the kind before the counts that depend on it', () => {
+    expect(directoryStatItems(DIR)[0].text).toBe('directory');
+  });
+
   it('shows a directory total alongside its direct count when they differ', () => {
     const files = directoryStatItems(DIR).find((i) => i.text.includes('files'))!;
     expect(files.text).toBe('3 files (9 total)');

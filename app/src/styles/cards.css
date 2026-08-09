@@ -30,9 +30,9 @@
   padding: var(--cc-space-3) var(--cc-space-6);
 }
 
-/* Floating tooltip surface (the hover tooltip). */
+/* Floating tooltip surface (the hover tooltip). Pair with .surface-glass: it
+   rides directly on the canvas. */
 .card-tooltip {
-  background: var(--cc-bg-tooltip);
   border: 1px solid var(--cc-border-tooltip);
   border-radius: var(--cc-radius-sm);
   padding: var(--cc-space-3) var(--cc-space-4);

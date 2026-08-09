@@ -74,7 +74,9 @@ export function fileStatItems(file: FileNode, opts: FileStatOpts = {}): PaneStat
 }
 
 export function directoryStatItems(dir: DirNode): PaneStatItem[] {
-  const items: PaneStatItem[] = [];
+  // Lead with the kind: a folder named `app` and a file named `app` look alike,
+  // and the counts that follow only make sense once you know which this is.
+  const items: PaneStatItem[] = [{ text: 'directory' }];
   const files = countItem(dir.children_file_count, dir.descendants_file_count, 'files');
   if (files) items.push(files);
   const dirs = countItem(dir.children_dir_count, dir.descendants_dir_count, 'dirs');
