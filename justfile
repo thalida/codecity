@@ -169,10 +169,9 @@ demo-webp quality='50':
 # itself uses Docker via `just dev`) and the per-clone git hooks.
 setup: install-hooks
     cd app && npm install
-    @mkdir -p .local ; \
-     if [ ! -f .local/deploy.env ]; then \
-         cp deploy.env.example .local/deploy.env ; \
-         echo "[just] seeded .local/deploy.env — fill it in before 'just deploy'" ; \
+    @if [ ! -f .env.local ]; then \
+         cp .env.local.example .env.local ; \
+         echo "[just] seeded .env.local — your mount, flags and deploy credentials live there" ; \
      fi
     @echo "[just] setup complete — try 'just dev'"
 
@@ -238,18 +237,18 @@ release VERSION:
      echo "[just] watch: https://github.com/$REPO/actions/workflows/release.yml"
 
 # ── Deploy ───────────────────────────────────────────────────────
-# Config: .local/deploy.env, seeded by `just setup`. No app argument, so this
+# Credentials: .env.local, seeded by `just setup`. No app argument, so this
 # repo can only ever deploy its own FORGEJO_DEPLOY_APP.
 #
 # Redeploy production without cutting a release.
 deploy:
     @set -e ; \
-     set -a ; . ./.env ; [ -f .local/deploy.env ] && . ./.local/deploy.env ; set +a ; \
+     set -a ; . ./.env ; [ -f .env.local ] && . ./.env.local ; set +a ; \
      APP="${FORGEJO_DEPLOY_APP:-}" ; \
      MISSING="" ; \
-     [ -n "${FORGEJO_HOST:-}" ]  || MISSING="$MISSING FORGEJO_HOST(.local/deploy.env)" ; \
-     [ -n "${FORGEJO_REPO:-}" ]  || MISSING="$MISSING FORGEJO_REPO(.local/deploy.env)" ; \
-     [ -n "${FORGEJO_TOKEN:-}" ] || MISSING="$MISSING FORGEJO_TOKEN(.local/deploy.env)" ; \
+     [ -n "${FORGEJO_HOST:-}" ]  || MISSING="$MISSING FORGEJO_HOST(.env.local)" ; \
+     [ -n "${FORGEJO_REPO:-}" ]  || MISSING="$MISSING FORGEJO_REPO(.env.local)" ; \
+     [ -n "${FORGEJO_TOKEN:-}" ] || MISSING="$MISSING FORGEJO_TOKEN(.env.local)" ; \
      [ -n "$APP" ]           || MISSING="$MISSING FORGEJO_DEPLOY_APP(.env)" ; \
      if [ -n "$MISSING" ]; then \
          echo "[just] error: missing$MISSING" >&2 ; exit 1 ; \

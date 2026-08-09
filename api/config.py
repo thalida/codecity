@@ -1,14 +1,23 @@
-"""Process configuration: env-driven flags and size limits.
+"""Process configuration: typed CODECITY_* settings and size limits.
 
-Replaces the old api/env.py. Functions that read env are intentionally
-LIVE (re-read per call) so tests can monkeypatch os.environ without a
-restart — notably CODECITY_ALLOW_LOCAL_REPOS, which gates local scans.
+The api reads its configuration from the environment and nothing else. It does
+NOT load .env.local: that file configures how you *launch* codecity (which
+directory to mount, which flags to pass) and is read by bin/docker-args.py and
+the justfile, which turn it into real env vars. Keeping the boundary there
+means a test run can't pick up whatever happens to be in a developer's file.
+
+Settings are read LIVE (a fresh Settings per accessor call) so tests can
+monkeypatch os.environ without a restart, and so a flag applies on the next
+request rather than the next restart.
 """
 
 from __future__ import annotations
 
-import os
 from pathlib import Path
+from typing import Any
+
+from pydantic import model_validator
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # Cap individual /api/file responses (stray symlink to a giant blob).
 MAX_FILE_BYTES = 100 * 1024 * 1024
@@ -18,64 +27,75 @@ GZIP_MIN_BYTES = 256
 # /api/config so the client chunks to the same number instead of guessing.
 MAX_BATCH_PATHS = 64
 
-# Root for every on-disk cache — the single source of truth for where codecity
-# stores things. cache.py hangs its manifest/file-stat/git-history subdirs off
-# this; clone.py its `clones/` dir. Read once at import (a fixed location, not a
-# live flag); override with CODECITY_CACHE_ROOT (e.g. an XDG dir or a writable
-# mount in containers). Tests monkeypatch the per-module copies.
-CACHE_ROOT = Path(
-    os.environ.get("CODECITY_CACHE_ROOT") or Path.home() / ".cache" / "codecity"
-)
-
-# Permissive truthy set (case-insensitive, trimmed) — matches the prior
-# api/env.py semantics so e.g. `-e CODECITY_FOO=yes` keeps working.
-_TRUTHY = frozenset({"1", "true", "yes", "on"})
-
-
-def env_bool(name: str, default: bool = False) -> bool:
-    """True if env var `name` is a truthy string (1/true/yes/on, any case)."""
-    raw = os.environ.get(name)
-    if raw is None:
-        return default
-    return raw.strip().lower() in _TRUTHY
-
-
-# Discover ships on, so it needs the mirror of _TRUTHY: only an explicitly
-# falsey value hides it. A truthy-set default would read `CODECITY_DISCOVER=
-# enabled` as "off", silently emptying the landing's Discover tab.
-_FALSEY = frozenset({"0", "false", "no", "off"})
-
 DISCOVER_FILE = Path(__file__).parent / "discover.json"
+
+
+class Settings(BaseSettings):
+    """Every CODECITY_* env var, typed. Booleans accept 1/true/yes/on and
+    0/false/no/off in any case; anything else raises rather than quietly
+    reading as the default, which is how a typo used to disable a feature
+    silently."""
+
+    model_config = SettingsConfigDict(env_prefix="CODECITY_", extra="ignore")
+
+    @model_validator(mode="before")
+    @classmethod
+    def _strip_whitespace(cls, data: Any) -> Any:
+        """`CODECITY_QUIET=1 ` should not take the process down. Padding is
+        easy to leave behind in a hand-edited file and never meaningful here."""
+        if isinstance(data, dict):
+            return {k: v.strip() if isinstance(v, str) else v for k, v in data.items()}
+        return data
+
+    # Gates local-path scans. Off by default: the api serves any root it's
+    # been given, so filesystem access is opt-in.
+    allow_local_repos: bool = False
+    # Marks the public deployment, where a local path can never resolve.
+    # Distinct from `not allow_local_repos`: an unmounted local instance can
+    # enable local paths in ten seconds, a hosted one never can, and the two
+    # need different advice.
+    hosted: bool = False
+    # The landing's Discover tab, and the curated list behind it.
+    discover: bool = True
+    discover_file: Path = DISCOVER_FILE
+    # Silences disconnect/scan logs.
+    quiet: bool = False
+    # Root for every on-disk cache — the single source of truth for where
+    # codecity stores things. cache.py hangs its manifest/file-stat/git-history
+    # subdirs off this; clone.py its `clones/` dir.
+    cache_root: Path = Path.home() / ".cache" / "codecity"
+
+
+def settings() -> Settings:
+    """A fresh read of the environment. Cheap: no file I/O, just os.environ."""
+    return Settings()
+
+
+# Read once at import (a fixed location, not a live flag) — e.g. an XDG dir or
+# a writable mount in containers. Tests monkeypatch the per-module copies.
+CACHE_ROOT = settings().cache_root
 
 
 def local_repos_allowed() -> bool:
     """Live read of CODECITY_ALLOW_LOCAL_REPOS (re-read per call)."""
-    return env_bool("CODECITY_ALLOW_LOCAL_REPOS")
+    return settings().allow_local_repos
 
 
 def hosted() -> bool:
-    """Live read of CODECITY_HOSTED — set only in the deploy env.
-
-    Distinct from `not local_repos_allowed()`: an unmounted local instance can
-    enable local paths in ten seconds, a hosted one never can, and the two need
-    different advice."""
-    return env_bool("CODECITY_HOSTED")
+    """Live read of CODECITY_HOSTED — set only in the deploy env."""
+    return settings().hosted
 
 
 def discover_enabled() -> bool:
-    """Live read of CODECITY_DISCOVER — a disable flag, on unless set falsey."""
-    raw = os.environ.get("CODECITY_DISCOVER")
-    if raw is None:
-        return True
-    return raw.strip().lower() not in _FALSEY
+    """Live read of CODECITY_DISCOVER."""
+    return settings().discover
 
 
 def discover_file() -> Path:
     """Live read of CODECITY_DISCOVER_FILE — the curated Discover list."""
-    raw = os.environ.get("CODECITY_DISCOVER_FILE")
-    return Path(raw) if raw else DISCOVER_FILE
+    return settings().discover_file
 
 
 def quiet() -> bool:
     """Live read of CODECITY_QUIET — silences disconnect/scan logs."""
-    return env_bool("CODECITY_QUIET")
+    return settings().quiet

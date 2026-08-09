@@ -1,26 +1,39 @@
 #!/usr/bin/env python3
-"""Turn the arguments of `just dev` / `just run` into docker config.
+"""Turn `.env.local` plus the arguments of `just dev` / `just run` into docker
+config.
 
 Usage: docker-args.py (compose|run) [-v PATH ...] [-e NAME=VALUE ...]
 
-The recipes are thin wrappers over docker, and both things they forward are
-docker concepts, so they take docker's own flags:
+Two layers, both optional:
 
-    just dev -v ~/Documents/Repos/myproj
-    just dev -e CODECITY_HOSTED=1
-    just dev -v ~/Documents/Repos/myproj -e CODECITY_HOSTED=1 -e CODECITY_DISCOVER=off
+`.env.local` (gitignored, seeded from .env.local.example by `just setup`) holds
+your standing setup, so `just dev` alone starts the way you usually want it:
+
+    CODECITY_MOUNT=~/Documents/Repos          # comma-separated for several
+    CODECITY_HOSTED=1
+
+Only CODECITY_* keys are forwarded, and blank ones are skipped so the template
+can list every var without setting any. The same file carries deploy
+credentials for `just deploy`, and those must not reach the api container.
+
+Flags handle the one-off, and are docker's own since a mount and an env var are
+both docker concepts:
+
+    just dev -v ~/Documents/Repos/myproj -e CODECITY_DISCOVER=off
+
+-v adds to the file's mounts; -e replaces the file's value for that name. So
+the file is where the defaults live and a flag is how you deviate for one run.
 
 -v takes a bare path rather than docker's SRC:DST:MODE because codecity
 supports exactly one mount shape: read-only at the same absolute path, so a
 path the browser hands the api resolves to the same file inside the container.
 
-A mount implies CODECITY_ALLOW_LOCAL_REPOS=1, which an explicit -e for the
-same name replaces, so `just dev -v ~/repo -e CODECITY_ALLOW_LOCAL_REPOS=0`
-still turns it off.
+Any mount implies CODECITY_ALLOW_LOCAL_REPOS=1, which an explicit value from
+either layer replaces, so `-e CODECITY_ALLOW_LOCAL_REPOS=0` still turns it off.
 
 `compose` writes .local/dev.override.yml and prints the `-f` flag pointing at
 it; `run` prints `-v`/`-e` flags for `docker run`. Both print nothing when
-given no arguments, and describe what they did on stderr. Output is
+there is nothing to pass, and describe what they did on stderr. Output is
 shell-interpolated unquoted by the recipes, so paths containing spaces are
 not supported.
 """
@@ -30,7 +43,16 @@ import pathlib
 import re
 import sys
 
+ENV_FILE = pathlib.Path(".env.local")
 OVERRIDE = pathlib.Path(".local/dev.override.yml")
+
+# .env.local also holds deploy credentials, which have no business inside the
+# api container, so only the api's own namespace is forwarded.
+CONTAINER_PREFIX = "CODECITY_"
+
+# Mounts are declared in the same file for convenience, but they configure the
+# container rather than the api, so this key is consumed here, not passed on.
+MOUNT_KEY = "CODECITY_MOUNT"
 
 ENV_ASSIGNMENT = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*=")
 
@@ -38,7 +60,7 @@ ENV_ASSIGNMENT = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*=")
 def parse_args(argv: list[str]) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         prog="docker-args.py",
-        description="Build docker config from `just dev` / `just run` arguments.",
+        description="Build docker config from .env.local and `just dev` arguments.",
     )
     parser.add_argument("mode", choices=("compose", "run"))
     parser.add_argument(
@@ -60,21 +82,43 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     return parser.parse_args(argv)
 
 
+def read_env_file() -> dict[str, str]:
+    """Parse .env.local: NAME=VALUE per line, `#` comments and blanks skipped,
+    one layer of surrounding quotes stripped. Missing file is not an error."""
+    if not ENV_FILE.exists():
+        return {}
+    values: dict[str, str] = {}
+    for number, line in enumerate(ENV_FILE.read_text().splitlines(), start=1):
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+        if not ENV_ASSIGNMENT.match(stripped):
+            raise SystemExit(f"error: {ENV_FILE}:{number}: expected NAME=VALUE")
+        name, value = stripped.split("=", 1)
+        values[name] = value.strip().strip("\"'")
+    return values
+
+
 def resolve_mounts(paths: list[str]) -> list[str]:
-    mounts = []
+    """Absolute, de-duplicated, in the order given."""
+    mounts: list[str] = []
     for raw in paths:
         path = pathlib.Path(raw).expanduser()
         if not path.is_dir():
             hint = " (env vars go in -e)" if ENV_ASSIGNMENT.match(raw) else ""
-            raise SystemExit(f"error: -v {raw!r} is not a directory{hint}")
-        mounts.append(str(path.resolve()))
+            raise SystemExit(f"error: {raw!r} is not a directory{hint}")
+        resolved = str(path.resolve())
+        if resolved not in mounts:
+            mounts.append(resolved)
     return mounts
 
 
-def resolve_env(assignments: list[str], mounted: bool) -> list[str]:
+def resolve_env(
+    assignments: list[str], base: dict[str, str], mounted: bool
+) -> list[str]:
     # Keyed by name so a repeated var resolves here rather than relying on
     # whether docker takes the first or the last of a duplicate.
-    env: dict[str, str] = {}
+    env = dict(base)
     for raw in assignments:
         if not ENV_ASSIGNMENT.match(raw):
             hint = (
@@ -117,8 +161,15 @@ def emit_run(mounts: list[str], env: list[str]) -> str:
 
 def main() -> int:
     args = parse_args(sys.argv[1:])
-    mounts = resolve_mounts(args.volume)
-    env = resolve_env(args.env, mounted=bool(mounts))
+    from_file = read_env_file()
+    declared = from_file.pop(MOUNT_KEY, "")
+    mounts = resolve_mounts(
+        [p.strip() for p in declared.split(",") if p.strip()] + args.volume
+    )
+    base = {
+        k: v for k, v in from_file.items() if k.startswith(CONTAINER_PREFIX) and v != ""
+    }
+    env = resolve_env(args.env, base, mounted=bool(mounts))
     describe(mounts, env)
     print(
         emit_compose(mounts, env) if args.mode == "compose" else emit_run(mounts, env)

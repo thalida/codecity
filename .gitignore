@@ -1,7 +1,12 @@
 # Output
 .codecity/
 
-# Local dev state (worktree ports, etc.)
+# Your own settings and credentials, seeded from .env.local.example.
+# .env itself is tracked: it holds what everyone shares.
+.env.local
+
+# Generated local state (worktree ports, compose overrides). Never hand-edited,
+# always safe to delete.
 .local/
 
 # Tool artifacts

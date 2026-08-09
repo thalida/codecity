@@ -202,7 +202,7 @@ You need:
 ```sh
 git clone https://github.com/thalida/codecity.git
 cd codecity
-just setup   # one-time: pre-push hooks, app packages, deploy env
+just setup   # one-time: pre-push hooks, app packages, .env.local
 ```
 
 Regenerating the README's screenshots and demo also needs `ffmpeg` and `webp`
@@ -214,7 +214,7 @@ The pre-push hook runs the full lint + tests before pushing; bypass with `git pu
 
 | Command | What it does |
 | --- | --- |
-| `just setup` | one-time: pre-push hooks, app packages, deploy env |
+| `just setup` | one-time: pre-push hooks, app packages, `.env.local` |
 | `just dev` | Vite HMR + API auto-reload at `http://<slug>.localhost:<port>/` |
 | `just url` | print this worktree's dev URL (`open $(just url)`) |
 | `just test` | pytest + vitest in containers |
@@ -225,10 +225,36 @@ The pre-push hook runs the full lint + tests before pushing; bypass with `git pu
 `just --list` has the rest: per-suite tests, formatting, image builds, README
 assets, release and deploy.
 
+### Your settings
+
+Two env files, split by whether everyone shares the values:
+
+- **`.env`** is tracked. Version pins and the deploy target, identical for everyone.
+- **`.env.local`** is yours and gitignored, seeded from `.env.local.example` by `just setup`. Put your mount and your flags there and `just dev` picks them up:
+
+```sh
+CODECITY_MOUNT=~/Documents/Repos     # comma-separated for several
+CODECITY_HOSTED=1
+```
+
+`just dev` and `just run` also take docker's `-v` and `-e` for a one-off, which
+beat the file for that run:
+
+```sh
+just dev -v ~/Documents/Repos/myproj -e CODECITY_DISCOVER=off
+```
+
+A mount, from either place, turns on `CODECITY_ALLOW_LOCAL_REPOS`; without one,
+codecity is git-URL-only. Only the `CODECITY_*` vars reach the container, so the
+Forgejo credentials in the same file stay on your machine.
+
+`.local/` is generated state (worktree ports, the compose override). Nothing in
+there is hand-edited and it's always safe to delete.
+
 ### Worktrees
 
 - Each worktree gets its own `<slug>.localhost` URL, so source-picker recents stay isolated per project in localstorage
-- `just dev` and `just run` take docker's `-v` and `-e`: `just dev -v ~/Documents/Repos/myproj -e CODECITY_HOSTED=1`. A `-v` mounts that path read-only and sets `CODECITY_ALLOW_LOCAL_REPOS=1`; without one, codecity is git-URL-only
+- `.env.local` sits at the repo root, so each worktree has its own
 
 ### Backend
 
@@ -267,7 +293,7 @@ aren't set.
 **One-time setup**
 
 1. Create a Forgejo token under **Settings → Applications**, scoped `repository → Read and Write`, everything else `No access`
-2. Fill in `.local/deploy.env` (gitignored, seeded by `just setup`) with `FORGEJO_HOST`, `FORGEJO_REPO`, `FORGEJO_TOKEN`
+2. Fill in `.env.local` (gitignored, seeded by `just setup`) with `FORGEJO_HOST`, `FORGEJO_REPO`, `FORGEJO_TOKEN`
 3. Add those same three under **Settings → Secrets and variables → Actions → Secrets**
 
 **Redeploying without a release**
