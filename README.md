@@ -4,20 +4,28 @@
   <h1>
     <img src="app/public/gem.svg" alt="" width="32" align="center" /> codecity
   </h1>
+  <p><a href="https://codecity.io">codecity.io</a></p>
 </div>
 
 **codecity turns any git repo into a 3D city.** It walks the file tree and git history and builds a world: directories become streets, files become buildings, every commit grows a tree, and every author a firefly.
 
-Try it on any repo (local or remote).
-
 <video src="https://github.com/thalida/codecity/raw/main/.github/readme/demo.mp4" width="800" autoplay loop muted playsinline></video>
 
-## Requirements
+## Try it
 
-- [Docker](https://docs.docker.com/get-docker/) (Docker Desktop on macOS/Windows; engine + WSL on Windows; `docker` on Linux)
+**Open any public repo at [codecity.io](https://codecity.io).**
+
+To view private and local repos, follow the steps below.
+
+## Run it yourself
+
+You need:
+
+- [Docker](https://docs.docker.com/get-docker/)
+  - macOS: Docker Desktop
+  - Windows: Docker Desktop, or engine + WSL
+  - Linux: `docker`
 - A modern browser with WebGL2 (Chrome, Safari, Firefox, Edge)
-
-## Quick start
 
 ```sh
 docker run --rm --init --pull=always \
@@ -29,6 +37,8 @@ docker run --rm --init --pull=always \
 1. Open <http://localhost:8080/> to reach the Projects page
 2. Enter a repo URL and pick a branch
 3. Explore your city!
+
+Local folders take one more step, see [Local directories](#local-directories) below.
 
 **Tips**
 
