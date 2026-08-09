@@ -41,21 +41,43 @@ const DIR: DirNode = {
 
 describe('statItems', () => {
   it('describes a file by language, size, and age', () => {
-    const texts = fileStatItems(FILE, NOW).map((i) => i.text);
+    const texts = fileStatItems(FILE, { now: NOW }).map((i) => i.text);
     expect(texts).toContain('50 lines');
     expect(texts.some((t) => t.startsWith('modified '))).toBe(true);
     expect(texts.some((t) => t.startsWith('created '))).toBe(true);
   });
 
   it('carries the exact date as the tooltip behind a relative age', () => {
-    const modified = fileStatItems(FILE, NOW).find((i) => i.text.startsWith('modified '))!;
+    const modified = fileStatItems(FILE, { now: NOW }).find((i) => i.text.startsWith('modified '))!;
     expect(modified.title).toBeTruthy();
     expect(modified.title).not.toBe(modified.text);
   });
 
+  it('drops the dates when the caller asks for the short form', () => {
+    const texts = fileStatItems(FILE, { now: NOW, dates: false }).map((i) => i.text);
+    expect(texts).toContain('50 lines');
+    expect(texts.some((t) => t.startsWith('modified'))).toBe(false);
+    expect(texts.some((t) => t.startsWith('created'))).toBe(false);
+  });
+
+  it('reports pixel dimensions for media instead of a meaningless line count', () => {
+    const png: FileNode = {
+      ...FILE,
+      name: 'logo.png',
+      extension: '.png',
+      binary: true,
+      lines: 0,
+      media_width: 800,
+      media_height: 600,
+    };
+    const texts = fileStatItems(png, { now: NOW }).map((i) => i.text);
+    expect(texts).toContain('800×600');
+    expect(texts.some((t) => t.includes('lines'))).toBe(false);
+  });
+
   it('omits stats the node does not carry', () => {
     const bare: FileNode = { ...FILE, lines: null, size: null, created: null, modified: null };
-    const texts = fileStatItems(bare, NOW).map((i) => i.text);
+    const texts = fileStatItems(bare, { now: NOW }).map((i) => i.text);
     expect(texts.some((t) => t.includes('lines'))).toBe(false);
     expect(texts.some((t) => t.startsWith('modified'))).toBe(false);
   });

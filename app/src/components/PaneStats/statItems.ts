@@ -38,7 +38,16 @@ function ageItem(iso: string, label: string, now: number): PaneStatItem {
   };
 }
 
-export function fileStatItems(file: FileNode, now: number = Date.now()): PaneStatItem[] {
+export interface FileStatOpts {
+  /** Include the created/modified ages. The hover tooltip drops them to stay
+   *  to a single line; the pane has the room. Defaults to true. */
+  dates?: boolean;
+  /** Reference point for the relative ages. Defaults to now. */
+  now?: number;
+}
+
+export function fileStatItems(file: FileNode, opts: FileStatOpts = {}): PaneStatItem[] {
+  const { dates = true, now = Date.now() } = opts;
   const items: PaneStatItem[] = [];
   // In Timeline the static node carries max-over-history values, so the replayed
   // ones win where they exist (at deletion for a file already gone).
@@ -48,10 +57,19 @@ export function fileStatItems(file: FileNode, now: number = Date.now()): PaneSta
 
   const language = humanLanguageFor(file);
   if (language) items.push({ text: language });
-  if (lines != null) items.push({ text: `${lines} lines` });
+  // Media is binary, so its line count is a meaningless 0: the pixel dimensions
+  // are the size that means something. The backend only stamps media_width and
+  // media_height on recognized media, so their presence is the signal.
+  if (file.media_width != null && file.media_height != null) {
+    items.push({ text: `${file.media_width}×${file.media_height}` });
+  } else if (lines != null) {
+    items.push({ text: `${lines} lines` });
+  }
   if (size != null) items.push({ text: formatBytes(size) });
-  if (file.modified) items.push(ageItem(file.modified, 'modified', now));
-  if (file.created) items.push(ageItem(file.created, 'created', now));
+  if (dates) {
+    if (file.modified) items.push(ageItem(file.modified, 'modified', now));
+    if (file.created) items.push(ageItem(file.created, 'created', now));
+  }
   return items;
 }
 
