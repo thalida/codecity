@@ -21,6 +21,8 @@ import { ProjectsView } from '@/views/ProjectsView/ProjectsView';
 import { DebugModal } from '@/views/DebugModal/DebugModal';
 import { ShortcutsModal } from '@/views/ShortcutsModal/ShortcutsModal';
 import { TreePane } from '@/views/TreePane/TreePane';
+import { AppHeader } from '@/layout/AppHeader/AppHeader';
+import { AppFooter } from '@/layout/AppFooter/AppFooter';
 import {
   openProjectsView,
   openDebug,
@@ -28,7 +30,27 @@ import {
   closeDebug,
   closeShortcuts,
 } from '@/state/stores/ui';
-import type { DirNode } from '@/types';
+import { CURRENT_SOURCE } from '@/state/stores/source';
+import { DISCOVER } from '@/state/stores/discover';
+import { SERVER_CONFIG, DEFAULT_SERVER_CONFIG } from '@/state/stores/serverConfig';
+import { setManifest } from '@/state/stores/manifest';
+import type { DirNode, Manifest } from '@/types';
+
+/** Enough of a loaded project for the chrome bars to render everything they
+ *  have: the project cluster, the freshness readout and the refresh control. */
+function loadProject(): void {
+  CURRENT_SOURCE.value = { src: 'https://github.com/o/r', branch: 'main' };
+  setManifest({
+    tree: { name: 'o/r', type: 'directory', path: '.', children: [] },
+    repo: { remote_url: 'https://github.com/o/r' },
+  } as unknown as Manifest);
+}
+
+/** Click a control by its accessible name, so a surface can be audited in an
+ *  opened state rather than only at rest. */
+function openByLabel(c: HTMLElement, label: string): void {
+  c.querySelector<HTMLElement>(`[aria-label="${label}"]`)?.click();
+}
 
 const TREE = {
   name: 'p',
@@ -81,6 +103,32 @@ const SURFACES: Surface[] = [
     },
   },
   {
+    // Both dropdowns, opened: the menu, its items and the auto-refresh row in
+    // the footer slot are only in the DOM while open.
+    name: 'ProjectsView (Discover tab, open-project menu)',
+    mount: (c) => {
+      SERVER_CONFIG.value = { ...DEFAULT_SERVER_CONFIG, hosted: true };
+      DISCOVER.value = [
+        { url: 'https://github.com/preactjs/preact', label: 'preact', featured: true },
+      ];
+      openProjectsView({ dismissible: true });
+      render(<ProjectsView onSubmit={() => {}} onCancel={() => {}} onClose={() => {}} />, c);
+      openByLabel(c, 'More ways to open');
+    },
+  },
+  {
+    name: 'AppHeader (refresh menu open)',
+    mount: (c) => {
+      loadProject();
+      render(<AppHeader />, c);
+      openByLabel(c, 'More refresh options');
+    },
+  },
+  {
+    name: 'AppFooter',
+    mount: (c) => render(<AppFooter />, c),
+  },
+  {
     name: 'DebugModal',
     mount: (c) => {
       openDebug();
@@ -120,6 +168,9 @@ describe('accessibility audit (issue #79)', () => {
     }
     closeDebug();
     closeShortcuts();
+    CURRENT_SOURCE.value = null;
+    DISCOVER.value = [];
+    SERVER_CONFIG.value = DEFAULT_SERVER_CONFIG;
     resetAxe();
   });
 

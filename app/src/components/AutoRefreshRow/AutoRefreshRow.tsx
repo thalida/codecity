@@ -35,7 +35,8 @@ export function AutoRefreshRow({ onNavigate }: AutoRefreshRowProps) {
   return (
     <div class={`auto-refresh${isLocal ? '' : ' auto-refresh--inert'}`}>
       <span class="auto-refresh-text">
-        <label class="auto-refresh-label" htmlFor={isLocal ? TOGGLE_ID : undefined}>
+        {/* Associated in both states: a disabled control still needs a name. */}
+        <label class="auto-refresh-label" htmlFor={TOGGLE_ID}>
           Auto-refresh
         </label>{' '}
         {isLocal ? (

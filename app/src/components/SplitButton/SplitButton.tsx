@@ -172,32 +172,30 @@ export function SplitButton({
       </button>
 
       {open && (
-        <div
-          ref={menu}
-          class="split-button-menu surface-glass"
-          role="menu"
-          aria-label={menuLabel}
-          onKeyDown={onMenuKeyDown}
-        >
-          {items.map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              role="menuitem"
-              class="split-button-item focus-inset"
-              onClick={() => {
-                // Close without refocusing: the action that follows usually
-                // moves focus itself (a submit, a reload), and yanking it back
-                // to the caret first would fight that.
-                close(false);
-                item.onSelect();
-              }}
-            >
-              {item.icon && <item.icon class="icon split-button-item-icon" aria-hidden="true" />}
-              <span class="split-button-item-label">{item.label}</span>
-              {item.sublabel && <span class="split-button-item-sublabel">{item.sublabel}</span>}
-            </button>
-          ))}
+        <div ref={menu} class="split-button-menu surface-glass" onKeyDown={onMenuKeyDown}>
+          <div role="menu" aria-label={menuLabel}>
+            {items.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                role="menuitem"
+                class="split-button-item focus-inset"
+                onClick={() => {
+                  // Close without refocusing: the action that follows usually
+                  // moves focus itself (a submit, a reload), and yanking it back
+                  // to the caret first would fight that.
+                  close(false);
+                  item.onSelect();
+                }}
+              >
+                {item.icon && <item.icon class="icon split-button-item-icon" aria-hidden="true" />}
+                <span class="split-button-item-label">{item.label}</span>
+                {item.sublabel && <span class="split-button-item-sublabel">{item.sublabel}</span>}
+              </button>
+            ))}
+          </div>
+          {/* Outside role="menu": it takes only menuitem children, and this is a
+              control on the same subject rather than one of the actions. */}
           {footer && <div class="split-button-footer">{footer}</div>}
         </div>
       )}
