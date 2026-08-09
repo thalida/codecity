@@ -158,17 +158,12 @@ demo-video: && demo-webp
      cd app && npx playwright install chromium && \
      CODECITY_URL="$URL" node scripts/demo-video.mjs
 
-# Convert demo.mp4 to the animated demo.webp the README embeds. Both files stay
-# in the repo: the mp4 is the original, the webp is the only one GitHub renders.
-#
-# GitHub's markdown sanitizer strips <video>, so the README embeds this as a
-# plain image instead. It has to be webp rather than a gif: this scene is dark
-# gradients over hundreds of building hues, which a 256-colour palette cannot
-# hold, and the smallest watchable gif came out at 9.3MB against 3.8MB here.
-#
-# Requires: brew install ffmpeg webp. If img2webp installs but won't run
-# ("Library not loaded: libtiff"), its dependency didn't come with it:
+# GitHub strips <video> from markdown, so the README embeds this webp. Not a
+# gif: dark gradients over hundreds of hues break a 256-colour palette (9.3MB
+# and banded, against 3.8MB here). Needs ffmpeg + webp; if img2webp won't run,
 # brew install libtiff.
+#
+# Rebuild demo.webp from demo.mp4.
 demo-webp quality='50':
     @set -e ; \
      command -v ffmpeg >/dev/null || { echo "[just] error: ffmpeg not found (brew install ffmpeg)" >&2 ; exit 1 ; } ; \
@@ -205,16 +200,10 @@ install-hooks:
      fi
 
 # ── Release ──────────────────────────────────────────────────────
-# Tag + push a release. Pushing a `v*` tag triggers .github/workflows/release.yml
-# which builds the multi-arch image, signs it, smoke-tests, creates the GitHub
-# Release, and then DEPLOYS PRODUCTION (see the deploy recipe below). VERSION
-# must look like v1.2.3 or v1.2.3-alpha-4 / v1.2.3-rc.1.
-# Refuses to tag unless: on main, working tree clean, in sync with origin/main,
-# and the tag doesn't already exist on origin. If the local tag already exists
-# at HEAD (resumable state from a prior push failure — e.g. pre-push hook
-# failed after `git tag -a` succeeded), pushes it without re-tagging. If push
-# fails after this run created the tag, the local tag is rolled back so the
-# recipe can be retried cleanly.
+# The tag triggers release.yml: build, sign, GitHub Release, deploy production.
+# A tag left behind by a failed push is reused rather than duplicated.
+#
+# Tag and push a release (v1.2.3, v1.2.3-rc.1). Ships to production.
 release VERSION:
     @set -e ; \
      VERSION="{{VERSION}}" ; \
@@ -262,17 +251,10 @@ release VERSION:
      echo "[just] watch: https://github.com/$REPO/actions/workflows/release.yml"
 
 # ── Deploy ───────────────────────────────────────────────────────
-# Dispatch the Forgejo deploy.yml that owns this app's compose stack. `release`
-# already ends in a deploy, so this is for redeploying the current image without
-# cutting a new version.
+# Config: .local/deploy.env, seeded by `just setup`. No app argument, so this
+# repo can only ever deploy its own FORGEJO_DEPLOY_APP.
 #
-# Setup:  cp deploy.env.example .local/deploy.env   (gitignored; fill it in)
-#
-# Deploys FORGEJO_DEPLOY_APP from the tracked .env, and takes no argument: this
-# repo deploys itself, and a parameter would let it dispatch any app on the
-# instance.
-#
-# Dispatch the Forgejo deploy workflow for this app (no release needed).
+# Redeploy production without cutting a release.
 deploy:
     @set -e ; \
      set -a ; . ./.env ; [ -f .local/deploy.env ] && . ./.local/deploy.env ; set +a ; \

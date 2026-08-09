@@ -114,14 +114,8 @@ network (`just dev` then fails with "network ... not found"; recover with
 
 ## Commands (run via `just`, not raw npm)
 
-```sh
-just dev          # run the dev stack
-just test         # test-api + test-app
-just lint         # fmt-check + lint
-just fmt          # auto-format
-just gen-types    # regenerate frontend types from the backend (contract guard)
-just build        # production image
-```
+`just --list` is the source. The ones you'll want most: `just dev`, `just test`,
+`just lint`, `just gen-types`. `just release` ships to production.
 
 ## Conventions
 
