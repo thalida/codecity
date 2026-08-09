@@ -18,5 +18,4 @@
   font-family: var(--cc-font-mono);
   background: hsl(var(--badge-hue, 0), 60%, 35%);
   white-space: nowrap;
-  -webkit-app-region: no-drag;
 }

@@ -5,6 +5,8 @@
 
 import { signal, computed } from '@preact/signals';
 import { SourceKind } from '@/utils/sources';
+import { DEFAULT_SIDEBAR_TAB } from '@/constants/ui';
+import { SidebarTab } from '@/types/ui';
 import type { ScanErrorCode } from '@/api/manifest';
 
 // These are the UI-state CONTRACTS the views render against. They live here (in
@@ -94,6 +96,22 @@ export function clearProjectsViewError(): void {
     ...prev,
     opts: { ...prev.opts, error: undefined, errorCode: undefined },
   };
+}
+
+// ── Left sidebar ─────────────────────────────────────────────────────────────
+
+/** Which left-sidebar pane is mounted, and whether the sidebar is open. Lifted
+ *  out of LeftSidebar so anything can send you to a pane: the header's
+ *  auto-refresh row points at the settings that own the poll interval, rather
+ *  than growing a second control for a value the Updates tab already bounds. */
+export const SIDEBAR_TAB = signal<SidebarTab>(DEFAULT_SIDEBAR_TAB);
+export const SIDEBAR_COLLAPSED = signal<boolean>(true);
+
+/** Open the sidebar on a pane. Already there and open: no-op, rather than
+ *  toggling shut, so a caller that means "show me this" always shows it. */
+export function openSidebarTab(tab: SidebarTab): void {
+  SIDEBAR_TAB.value = tab;
+  SIDEBAR_COLLAPSED.value = false;
 }
 
 // ── Loading overlay ──────────────────────────────────────────────────────────

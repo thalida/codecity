@@ -277,6 +277,28 @@ describe('ProjectsView', () => {
       ).toBe('Active');
     });
 
+    it('forgets a picked tab when the switcher closes', async () => {
+      // Regression: the view returns null while hidden but stays mounted, so a
+      // tab picked once became the tab you got on every later open, Discover
+      // included, however many recents you had.
+      RECENTS.value = [RECENT];
+      DISCOVER.value = CURATED;
+      await open();
+      const discoverTab = Array.from(container.querySelectorAll<HTMLElement>('[role="tab"]')).find(
+        (el) => el.textContent === 'Discover'
+      )!;
+      discoverTab.click();
+      await flush();
+      expect(container.querySelector('.discover-list')).not.toBeNull();
+
+      closeProjectsView();
+      await flush();
+      openProjectsView({ dismissible: true });
+      await flush();
+      expect(container.querySelector('.recents-list')).not.toBeNull();
+      expect(container.querySelector('.discover-list')).toBeNull();
+    });
+
     it('opens the source a Discover row names', async () => {
       const onSubmit = vi.fn();
       DISCOVER.value = CURATED;

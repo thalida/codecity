@@ -45,7 +45,6 @@
      .btn-icon--text  — auto size via padding, inherits font/color
                         (text-style buttons like breadcrumb segments).
      .btn-icon--link  — anchor-tag variant (text-decoration removed).
-     .btn-icon--no-drag — Electron drag-region marker.
    ═══════════════════════════════════════════════════════════════════════════ */
 
 .btn-icon {
@@ -105,10 +104,6 @@
 .btn-icon--link {
   text-decoration: none;
 }
-.btn-icon--no-drag {
-  -webkit-app-region: no-drag;
-}
-
 /* ═══════════════════════════════════════════════════════════════════════════
    LAYER-2 COMPONENTS — Icon-text chip (.btn-chip)
    ═══════════════════════════════════════════════════════════════════════════
@@ -139,7 +134,6 @@
   font-size: var(--cc-font-sm);
   white-space: nowrap;
   cursor: pointer;
-  -webkit-app-region: no-drag;
 }
 /* The label is already at the brightest step, so the background lift is the
    whole hover signal. */

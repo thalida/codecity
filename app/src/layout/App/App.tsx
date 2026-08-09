@@ -32,7 +32,12 @@ import { LoadingOverlay } from '@/components/LoadingOverlay/LoadingOverlay';
 import { HljsThemeLink } from '@/components/HljsThemeLink/HljsThemeLink';
 import { SelectionAnnouncer } from '@/components/SelectionAnnouncer/SelectionAnnouncer';
 import { clearSelection, runCollisionCheck, runStemDiagnostic } from '@/state/stores/scene';
-import { openProjectsView, closeProjectsView, LOADING_CANCEL } from '@/state/stores/ui';
+import {
+  openProjectsView,
+  closeProjectsView,
+  PROJECTS_VIEW,
+  LOADING_CANCEL,
+} from '@/state/stores/ui';
 import { SOURCE_ERROR, CURRENT_SOURCE } from '@/state/stores/source';
 import { MANIFEST } from '@/state/stores/manifest';
 import { isEmptyManifest } from '@/utils/manifest';
@@ -61,6 +66,14 @@ export function App() {
       clearSelection();
       closeProjectsView();
     }
+  });
+
+  // The landing is a full-bleed fixed page with no background of its own, so
+  // the chrome behind it has to go: left up, its opaque strips would show
+  // through at the top and bottom instead of the city. Both modes, not just the
+  // dismissible one, and one writer for the class.
+  useSignalEffect(() => {
+    document.getElementById('app')?.classList.toggle('cc-showcase', PROJECTS_VIEW.value.visible);
   });
 
   // App coordinates the projects view; the fetch hook only reports outcomes.

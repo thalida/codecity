@@ -172,7 +172,7 @@ export function CommitPane({ state, onClose, onFocus, onViewInTimeline }: Commit
         typeof onViewInTimeline === 'function' ? (
           <button
             type="button"
-            class="btn-icon btn-icon--no-drag"
+            class="btn-icon"
             title={
               inTimeline ? 'Scrub the timeline to this commit' : 'View this commit on the timeline'
             }

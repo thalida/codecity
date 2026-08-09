@@ -52,7 +52,7 @@ export function CopyButton({
     <>
       <button
         type="button"
-        class={`btn-icon btn-icon--no-drag${copied ? ' is-copied' : ''}`}
+        class={`btn-icon${copied ? ' is-copied' : ''}`}
         title={label}
         aria-label={label}
         onClick={onClick}

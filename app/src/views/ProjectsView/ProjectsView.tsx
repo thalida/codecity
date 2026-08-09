@@ -61,6 +61,13 @@ export function ProjectsView({ onSubmit, onCancel, onClose }: ProjectsViewProps)
     ...(hasDiscover ? [{ id: SOURCE_TAB.discover, label: 'Discover', icon: Compass }] : []),
   ];
   const [pickedTab, setPickedTab] = useState<string | null>(null);
+  // Cleared on CLOSE, not on open: this component returns null while hidden
+  // rather than unmounting, so a tab picked once would otherwise be the tab you
+  // got every time after. Resetting on the way out means the next open renders
+  // the default straight away, with no visible flip.
+  useEffect(() => {
+    if (!pv.visible) setPickedTab(null);
+  }, [pv.visible]);
   // With nothing of your own yet, Discover is the tab with something in it.
   const defaultTab = !hasRecents && hasDiscover ? SOURCE_TAB.discover : SOURCE_TAB.recents;
   // Falls back rather than being corrected by an effect: the server's list can

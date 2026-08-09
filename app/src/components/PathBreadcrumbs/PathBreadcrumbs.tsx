@@ -63,7 +63,7 @@ export function PathBreadcrumbs({
               {onSegmentClick ? (
                 <button
                   type="button"
-                  class={`btn-icon btn-icon--text btn-icon--no-drag app-header-seg${leafClass}`}
+                  class={`btn-icon btn-icon--text app-header-seg${leafClass}`}
                   onClick={() => onSegmentClick(crumb.segPath)}
                 >
                   {crumb.label}

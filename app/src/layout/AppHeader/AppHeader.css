@@ -15,7 +15,6 @@
   font-family: var(--cc-font-mono);
   font-size: var(--cc-font-xs);
   color: var(--cc-text-primary);
-  -webkit-app-region: drag; /* in pywebview's native frame this lets you drag */
   user-select: none;
 }
 
@@ -28,16 +27,7 @@
   flex: 0 0 auto;
 }
 
-/* The about link takes the house .link--chrome (accent, underline on hover):
-   an icon button reads as clickable on its own, a bare word does not, so it
-   can't borrow the icons' resting colour. */
-#app-header-meta .meta-link {
-  -webkit-app-region: no-drag;
-}
-
-/* Header buttons use .btn-icon + .btn-icon--no-drag, or
-   .btn-icon + .btn-icon--link + .btn-icon--no-drag for the repo link.
-   Inner svg rendering tweak applies to any svg child of a header btn-icon. */
+/* Inner svg rendering tweak for any svg child of a header btn-icon. */
 #app-header .btn-icon svg {
   display: block;
 }

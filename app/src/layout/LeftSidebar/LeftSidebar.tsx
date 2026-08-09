@@ -19,6 +19,7 @@ import './LeftSidebar.css';
 import { useRef, useLayoutEffect } from 'preact/hooks';
 import { useComputed, useSignal, useSignalEffect } from '@preact/signals';
 import { ACTIVITY_BAR_TABS, DEFAULT_SIDEBAR_TAB, TabPlacement } from '@/constants/ui';
+import { SIDEBAR_TAB, SIDEBAR_COLLAPSED } from '@/state/stores/ui';
 import { CHANGED_SETTINGS_COUNT } from '@/state/stores/settingsIndicators';
 import { PERSISTED_KEYS } from '@/constants/storage';
 import { SidebarTab, NodeKind } from '@/types';
@@ -113,10 +114,10 @@ function ActivityBar({ activeTab, collapsed, onIconClick }: ActivityBarProps) {
 // ── Main component ───────────────────────────────────────────────────
 
 export function LeftSidebar() {
-  const activeTab = useSignal<SidebarTab>(DEFAULT_SIDEBAR_TAB);
-  // Always starts closed and is force-closed on every world load; the open
-  // state is intentionally not persisted or remembered across worlds.
-  const collapsed = useSignal<boolean>(true);
+  // Both live in the store so the header can send you to a pane; still not
+  // persisted, and still force-closed on every world load.
+  const activeTab = SIDEBAR_TAB;
+  const collapsed = SIDEBAR_COLLAPSED;
 
   // Tree selection + hover paths, derived from picker signals.
   const selectedPath = useSignal<string | null>(null);

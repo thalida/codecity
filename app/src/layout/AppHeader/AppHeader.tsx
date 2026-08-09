@@ -34,7 +34,7 @@ export function AppHeader({ onSwitchSource }: AppHeaderProps = {}) {
       {si.src && <CopyButton text={si.src} label="Copy repo source" />}
       {remoteUrl && (
         <a
-          class="btn-icon btn-icon--link btn-icon--no-drag"
+          class="btn-icon btn-icon--link"
           href={remoteUrl}
           target="_blank"
           rel="noopener noreferrer"
@@ -48,7 +48,7 @@ export function AppHeader({ onSwitchSource }: AppHeaderProps = {}) {
         <MetaAbout linkClass="link--chrome" />
         <button
           type="button"
-          class="btn-icon btn-icon--sm btn-icon--no-drag"
+          class="btn-icon btn-icon--sm"
           title="Keyboard shortcuts"
           aria-label="Keyboard shortcuts"
           onClick={openShortcuts}
