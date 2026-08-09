@@ -24,6 +24,7 @@ import {
   sourceKey,
   sameSourceIdentity,
 } from '@/utils/sources';
+import { FEATURED_CITY } from '@/state/stores/ui';
 import { isEmptyManifest } from '@/utils/manifest';
 import type { ScanErrorCode } from '@/api/manifest';
 import type { Manifest } from '@/types';
@@ -48,6 +49,19 @@ export const SOURCE_ERROR = signal<{
   code?: ScanErrorCode;
   prefill?: { src: string; branch?: string };
 } | null>(null);
+
+/**
+ * The source whose city is on screen right now: the project you opened, or the
+ * featured repo the landing renders when you haven't opened one. Lists mark
+ * their rows against this, so the same repo is marked the same way wherever it
+ * is listed, which is the only way a per-repo note can mean one thing.
+ */
+export const ACTIVE_SOURCE = computed<{ src: string; branch?: string } | null>(() => {
+  const current = CURRENT_SOURCE.value;
+  if (current) return current;
+  const featured = FEATURED_CITY.value;
+  return featured ? { src: featured.src, branch: featured.branch } : null;
+});
 
 /**
  * The currently-loaded source's stable hash, or null when no source is loaded.

@@ -49,6 +49,19 @@ describe('RecentsList', () => {
     expect(activeRow?.textContent).toContain('o/alpha');
   });
 
+  it('notes the current project as Active', async () => {
+    // Asserted because the note is passed down through SourceRow and a broken
+    // hand-off is invisible until someone looks at a screenshot.
+    CURRENT_SOURCE.value = { src: 'https://github.com/o/r', branch: 'main' };
+    RECENTS.value = [
+      { src: 'https://github.com/o/r', branch: 'main', label: 'r', lastOpenedAt: 1 },
+    ];
+    render(<RecentsList onOpen={() => {}} />, container);
+    await flush();
+    const note = container.querySelector('.source-row--active .source-row-note');
+    expect(note?.textContent).toBe('Active');
+  });
+
   it('the active row is clickable and re-opens (reloads) the current project', async () => {
     const onOpen = vi.fn();
     render(<RecentsList onOpen={onOpen} />, container);

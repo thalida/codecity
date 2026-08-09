@@ -166,27 +166,6 @@ demo-webp quality='50':
          -o .github/readme/demo.webp >/dev/null ; \
      echo "[codecity] wrote .github/readme/demo.webp ($(du -h .github/readme/demo.webp | cut -f1), q={{quality}})"
 
-# Rebuild the landing page's backdrop clip from .github/readme/demo.mp4. Plays
-# full-bleed behind the cold-boot landing, so it keeps the source's 16:9 and is
-# covered rather than cropped to a column. Needs ffmpeg + webp.
-#
-# CRF 36 is deliberately soft: it sits under the swirl backdrop and the hero
-# scrim, so detail is spent on something nobody sees, and this autoplays on
-# every cold boot.
-landing-clip crf='36' width='1280':
-    @set -e ; \
-     command -v ffmpeg >/dev/null || { echo "[just] error: ffmpeg not found (brew install ffmpeg)" >&2 ; exit 1 ; } ; \
-     command -v cwebp >/dev/null || { echo "[just] error: cwebp not found (brew install webp)" >&2 ; exit 1 ; } ; \
-     SCALE="scale={{width}}:-2:flags=lanczos" ; \
-     ffmpeg -y -v error -i .github/readme/demo.mp4 \
-         -vf "$SCALE,fps=24" -an \
-         -c:v libx264 -profile:v high -pix_fmt yuv420p -crf {{crf}} -preset slow \
-         -movflags +faststart app/public/landing-clip.mp4 ; \
-     TMP=$(mktemp -d) ; trap 'rm -rf "$TMP"' EXIT ; \
-     ffmpeg -y -v error -ss 2 -i .github/readme/demo.mp4 -vf "$SCALE" -frames:v 1 "$TMP/poster.png" ; \
-     cwebp -quiet -q 72 "$TMP/poster.png" -o app/public/landing-clip-poster.webp ; \
-     echo "[codecity] wrote app/public/landing-clip.mp4 ($(du -h app/public/landing-clip.mp4 | cut -f1), crf={{crf}}) + poster"
-
 # ── Onboarding ───────────────────────────────────────────────────
 # One-shot bootstrap for a fresh clone or new worktree: installs app
 # node_modules (so local vitest / IDE intellisense work — runtime

@@ -39,11 +39,13 @@ import { isEmptyManifest } from '@/utils/manifest';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { useManifestSource } from '@/hooks/useManifestSource';
 import { useSwitcherShowcase } from '@/hooks/useSwitcherShowcase';
+import { useFeaturedCity } from '@/hooks/useFeaturedCity';
 import { attachLoadingReactions } from '@/state/loadingReactions';
 
 export function App() {
   useDocumentTitle();
   useSwitcherShowcase();
+  useFeaturedCity();
   const { submitSource, cancelLoad } = useManifestSource();
 
   useEffect(() => attachLoadingReactions(), []);

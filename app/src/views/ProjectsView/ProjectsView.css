@@ -10,19 +10,15 @@
   overflow-y: auto;
 }
 
-/* Cold boot only. The clip covers this once it decodes; the fill is what shows
-   until then. Modal mode must NOT have it: there's a live city behind to
-   reveal, and an opaque page would hide the whole point. */
-.landing:not(.landing--modal) {
-  background: var(--cc-bg-app);
-}
+/* No background in either mode. Modal reveals the loaded city; cold boot
+   reveals the featured one (useFeaturedCity). Both are rendered by the city
+   canvas behind this page, and an opaque landing would hide the thing it is
+   staging. The canvas paints its own surface, so nothing shows through to
+   nothing while the scene is still empty. */
 
-/* Cold boot's backdrop, in two layers: the demo clip covered full-bleed, with
-   the swirl canvas over it. One fixed stage holding both, so the order is plain
-   document order inside it and the page's layers are 0 (stage), 0 (the scrim
-   below, painted later as a pseudo-element) and 1 (.landing-inner). No negative
-   z-index anywhere: those depend on painting above the ancestor's own
-   background, which is a rule worth not having to hold in your head. */
+/* Holds the swirl over whichever city is behind. A stage rather than a fixed
+   canvas of its own, so the page's layers are plain numbers: 0 (stage), 0 (the
+   scrim, painted after it as a pseudo-element) and 1 (.landing-inner). */
 .landing-stage {
   position: fixed;
   inset: 0;
@@ -30,25 +26,16 @@
   pointer-events: none;
 }
 
-.landing-clip {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
 /* The swirl ships as a fixed, negatively-stacked layer of its own; inside the
-   stage it's just the second child. */
+   stage it's just its only child. */
 .landing-stage .landing-backdrop {
   position: absolute;
   z-index: auto;
 }
 
-/* Both modes now have moving content behind the hero: the live city in modal
-   mode (useSwitcherShowcase), the demo clip on cold boot. Scrim only the hero
-   side, letting its text keep AA contrast over what's behind; the action cards
-   frost what shows through them and the center/right stays clear. */
+/* Both modes have a city behind the hero. Scrim only the hero side, letting its
+   text keep AA contrast over it; the action cards frost what shows through them
+   and the center/right stays clear. */
 .landing::after {
   content: '';
   position: fixed;
@@ -83,10 +70,6 @@
     );
   }
 }
-
-/* The cold-boot backdrop is a WebGL domain-warped gradient — see the
-   <LandingBackdrop> component (ProjectsView renders it on the full-page landing
-   only; the modal shows the live city). */
 
 .landing-close {
   position: absolute;
@@ -223,6 +206,18 @@
 }
 .landing-delight--authors > svg {
   color: var(--cc-layer-fireflies);
+}
+
+/* Names the city rendered behind the page, so "what am I looking at" has an
+   answer without opening Discover. */
+.landing-featured {
+  margin: 0;
+  font-size: var(--cc-font-sm);
+  color: var(--cc-text-secondary);
+}
+.landing-featured strong {
+  color: var(--cc-text-strong);
+  font-weight: var(--cc-fw-medium);
 }
 
 /* ── Action column ── stacked cards (open project, then recents). */

@@ -10,13 +10,13 @@ import './SourceRow.css';
 import { Folder } from 'lucide-preact';
 import { HostingIcon } from '@/components/HostingIcon';
 import { srcKind, SourceKind } from '@/utils/sources';
-import type { ComponentChildren } from 'preact';
 
 export interface SourceRowProps {
   src: string;
   label: string;
   branch?: string;
-  /** Currently loaded: highlighted, still clickable to reload. */
+  /** This repo's city is the one on screen: highlighted and noted "Active".
+   *  Still clickable, which reloads it. */
   active?: boolean;
   /** Can't load here (a local path while local repos are off). Dimmed and not
    *  clickable: attempting it only flashes the loading state before failing. */
@@ -24,8 +24,6 @@ export interface SourceRowProps {
   /** Why it's unavailable, as a hover title. */
   unavailableReason?: string;
   onOpen: () => void;
-  /** Trailing content inside the row, e.g. the recents' Active badge. */
-  trailing?: ComponentChildren;
 }
 
 export function SourceRow({
@@ -36,7 +34,6 @@ export function SourceRow({
   unavailable,
   unavailableReason,
   onOpen,
-  trailing,
 }: SourceRowProps) {
   const isLocal = srcKind(src) === SourceKind.Local;
 
@@ -62,7 +59,7 @@ export function SourceRow({
           <span class="source-row-src">{src}</span>
         </div>
       </div>
-      {trailing}
+      {active && <span class="source-row-note">Active</span>}
     </button>
   );
 }

@@ -70,6 +70,7 @@ describe('createPathBatcher', () => {
     vi.mocked(serverConfigNow).mockReturnValueOnce({
       allowLocalRepos: false,
       hosted: false,
+      featuredRepo: '',
       maxBatchPaths: 2,
       version: '1.0.0',
     });

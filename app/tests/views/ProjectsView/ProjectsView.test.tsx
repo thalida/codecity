@@ -19,8 +19,9 @@ import { LoadingStep } from '@/constants/loadingSteps';
 import { SCAN_PROGRESS } from '@/state/stores/scanProgress';
 
 import { SERVER_CONFIG, DEFAULT_SERVER_CONFIG } from '@/state/stores/serverConfig';
-import { RECENTS } from '@/state/stores/source';
+import { RECENTS, CURRENT_SOURCE } from '@/state/stores/source';
 import { DISCOVER } from '@/state/stores/discover';
+import { FEATURED_CITY } from '@/state/stores/ui';
 import { ScanPhase } from '@/api/manifest';
 import { SourceKind } from '@/utils/sources';
 import { flush, drainAsync } from '../../_helpers/preact';
@@ -176,7 +177,9 @@ describe('ProjectsView', () => {
 
   describe('the Recent / Discover card', () => {
     const RECENT = { src: 'https://github.com/o/r', label: 'r', lastOpenedAt: 1 };
-    const CURATED = [{ url: 'https://github.com/preactjs/preact', label: 'preact' }];
+    const CURATED = [
+      { url: 'https://github.com/preactjs/preact', label: 'preact', featured: false },
+    ];
 
     const tabLabels = () =>
       Array.from(container.querySelectorAll('[role="tab"]')).map((el) => el.textContent);
@@ -235,6 +238,45 @@ describe('ProjectsView', () => {
       expect(container.querySelector('.recents-list')).toBeNull();
     });
 
+    it('marks the same repo Active in both lists, branch or no branch', async () => {
+      // Regression: source identity includes the branch. Recents stores @main,
+      // a Discover row names the repo alone, and ACTIVE_SOURCE can only carry
+      // one shape. Comparing both the same way marked one list and missed the
+      // other, in whichever direction the shape happened to lean.
+      const src = 'https://github.com/preactjs/preact';
+      CURRENT_SOURCE.value = { src, branch: 'main' };
+      RECENTS.value = [{ src, branch: 'main', label: 'preactjs/preact', lastOpenedAt: 1 }];
+      DISCOVER.value = [{ url: src, label: 'preact', featured: false }];
+      await open();
+
+      const noteIn = (list: string) =>
+        container.querySelector(`${list} .source-row--active .source-row-note`)?.textContent;
+      expect(noteIn('.recents-list')).toBe('Active');
+
+      const discoverTab = Array.from(container.querySelectorAll<HTMLElement>('[role="tab"]')).find(
+        (el) => el.textContent === 'Discover'
+      )!;
+      discoverTab.click();
+      await flush();
+      expect(noteIn('.discover-list')).toBe('Active');
+
+      CURRENT_SOURCE.value = null;
+    });
+
+    it('marks the featured repo Active in recents, which stores a branch', async () => {
+      // The featured city is not an opened project, so it has no CURRENT_SOURCE.
+      // Its identity still has to carry the branch it loaded, or it fails to
+      // match its own row in recents.
+      const src = 'https://github.com/thalida/codecity';
+      RECENTS.value = [{ src, branch: 'main', label: 'thalida/codecity', lastOpenedAt: 1 }];
+      DISCOVER.value = [{ url: src, label: 'codecity', featured: true }];
+      FEATURED_CITY.value = { src, label: 'thalida/codecity', branch: 'main' };
+      await open();
+      expect(
+        container.querySelector('.recents-list .source-row--active .source-row-note')?.textContent
+      ).toBe('Active');
+    });
+
     it('opens the source a Discover row names', async () => {
       const onSubmit = vi.fn();
       DISCOVER.value = CURATED;
@@ -267,52 +309,52 @@ describe('ProjectsView', () => {
     });
   });
 
-  describe('the demo clip', () => {
-    const clip = () => container.querySelector<HTMLVideoElement>('.landing-clip');
+  describe('the featured city', () => {
+    const stage = () => container.querySelector('.landing-stage');
+    const featured = () => container.querySelector('.landing-featured');
 
-    // jsdom has no matchMedia, so this path also proves the component survives
-    // its absence rather than throwing on a cold boot.
-    it('plays on a cold boot, where nothing else shows what codecity makes', async () => {
+    afterEach(() => {
+      FEATURED_CITY.value = null;
+    });
+
+    it('stages a backdrop on a cold boot, where there is no city to reveal', async () => {
       openProjectsView({ dismissible: false });
       render(
         <ProjectsView onSubmit={() => {}} onCancel={() => {}} onClose={() => {}} />,
         container
       );
       await flush();
-      expect(clip()).not.toBeNull();
-      expect(clip()!.autoplay).toBe(true);
-      expect(clip()!.loop).toBe(true);
-      expect(clip()!.muted).toBe(true);
-      expect(clip()!.getAttribute('poster')).toMatch(/landing-clip-poster\.webp$/);
-      // Decoration behind a scrim: named for nobody, so it stays out of the
-      // accessibility tree rather than announcing itself.
-      expect(clip()!.getAttribute('aria-hidden')).toBe('true');
+      expect(stage()).not.toBeNull();
+      // Decoration: named for nobody, so it stays out of the a11y tree.
+      expect(stage()!.getAttribute('aria-hidden')).toBe('true');
     });
 
-    it('is absent over a loaded city, where the live one is already orbiting behind', async () => {
+    it('stages nothing over a loaded city, which is already the backdrop', async () => {
       openProjectsView({ dismissible: true });
       render(
         <ProjectsView onSubmit={() => {}} onCancel={() => {}} onClose={() => {}} />,
         container
       );
       await flush();
-      expect(clip()).toBeNull();
+      expect(stage()).toBeNull();
     });
 
-    it('holds still for prefers-reduced-motion, leaving the poster frame', async () => {
-      // jsdom ships no matchMedia at all, which is why the component guards
-      // the call; stub it rather than spy on something that isn't there.
-      vi.stubGlobal('matchMedia', (q: string) => ({
-        matches: q.includes('prefers-reduced-motion'),
-      }));
+    it('names the city on screen once it has actually painted', async () => {
       openProjectsView({ dismissible: false });
       render(
         <ProjectsView onSubmit={() => {}} onCancel={() => {}} onClose={() => {}} />,
         container
       );
       await flush();
-      expect(clip()!.autoplay).toBe(false);
-      expect(clip()!.loop).toBe(false);
+      // Nothing painted yet: naming a repo the viewer can't see would be a lie.
+      expect(featured()).toBeNull();
+
+      FEATURED_CITY.value = {
+        src: 'https://github.com/thalida/codecity',
+        label: 'thalida/codecity',
+      };
+      await flush();
+      expect(featured()!.textContent).toContain('thalida/codecity');
     });
   });
 

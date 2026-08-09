@@ -65,6 +65,17 @@ export function closeProjectsView(): void {
   PROJECTS_VIEW.value = { ...PROJECTS_VIEW.peek(), visible: false };
 }
 
+/** The featured city currently rendered behind the landing, or null when there
+ *  isn't one. Written by useFeaturedCity only once the city has actually
+ *  painted, so nothing can name or mark a repo you can't see. */
+export const FEATURED_CITY = signal<{
+  src: string;
+  label: string;
+  /** The loaded branch, normalised like CURRENT_SOURCE's: identity includes it,
+   *  so a row storing @main only matches when this carries it too. */
+  branch?: string;
+} | null>(null);
+
 /** True while the switcher is open OVER a loaded city (the dismissible / modal
  *  case) — the only case with a city behind it to turn into a backdrop. Drives
  *  the showcase: chrome hidden, camera into a hero turntable (useSwitcherShowcase).

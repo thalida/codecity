@@ -1,5 +1,5 @@
 // components/RecentsList/RecentRow.tsx — a recent source: the shared SourceRow
-// plus the two things only a recent has, an Active badge and a remove control.
+// plus the one thing only a recent has, a remove control.
 // Remove is non-destructive (it forgets the entry, it does not clear the scan
 // cache), and asking takes over the whole row so the list never reflows.
 
@@ -57,7 +57,6 @@ export function RecentRow(props: RecentRowProps) {
         unavailable={unavailable}
         unavailableReason={UNAVAILABLE_REASON}
         onOpen={props.onOpen}
-        trailing={active ? <span class="recent-row-badge">Active</span> : undefined}
       />
 
       <button

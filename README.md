@@ -56,6 +56,7 @@ Everything codecity reads is an env var, passed with `-e`:
 | --- | --- | --- |
 | `CODECITY_ALLOW_LOCAL_REPOS` | off | Render local folders. Needs a matching mount, see [Local directories](#local-directories) |
 | `CODECITY_HOSTED` | off | Marks a public deployment, where a local path can never resolve. Changes the advice shown when a repo can't be reached |
+| `CODECITY_FEATURED_REPO` | none | The repo the landing renders behind itself, and flags in Discover. Empty means no backdrop |
 | `CODECITY_DISCOVER` | on | The Discover tab of repos worth rendering. Set `off` to hide it |
 | `CODECITY_DISCOVER_FILE` | `api/discover.json` | Swap in your own curated list: a JSON array of `{"url", "label"}` |
 | `CODECITY_CACHE_ROOT` | `/cache` | Where clones and the manifest cache live |
@@ -234,7 +235,7 @@ Two env files, split by whether everyone shares the values:
 
 ```sh
 CODECITY_MOUNT=~/Documents/Repos     # comma-separated for several
-CODECITY_HOSTED=1
+CODECITY_FEATURED_REPO=https://github.com/thalida/codecity
 ```
 
 `just dev` and `just run` also take docker's `-v` and `-e` for a one-off, which

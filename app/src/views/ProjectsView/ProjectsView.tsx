@@ -21,6 +21,7 @@ import {
   PROJECTS_VIEW,
   LOADING_OVERLAY,
   clearProjectsViewError,
+  FEATURED_CITY,
   type SourcePayload,
 } from '@/state/stores/ui';
 import { SERVER_CONFIG } from '@/state/stores/serverConfig';
@@ -33,17 +34,6 @@ import { RecentsList } from '@/components/RecentsList/RecentsList';
 import { DiscoverList } from '@/components/DiscoverList/DiscoverList';
 import { PaneTabs } from '@/components/PaneTabs/PaneTabs';
 import { DISCOVER } from '@/state/stores/discover';
-
-// Served from app/public, so it has to carry the deploy base the same way
-// apiUrl does: the landing works under a subpath, not only at the domain root.
-const clipUrl = (file: string) => `${import.meta.env.BASE_URL || '/'}${file}`;
-
-/** True when the viewer asked for less motion. CSS can't stop a <video>, so the
- *  autoplay decision has to be made here. Read per mount rather than
- *  subscribed: the landing is short-lived and remounts on every open. */
-function prefersReducedMotion(): boolean {
-  return window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
-}
 
 const SOURCE_TAB = { recents: 'recents', discover: 'discover' } as const;
 const SOURCE_PANEL_ID = 'landing-sources';
@@ -59,7 +49,6 @@ export function ProjectsView({ onSubmit, onCancel, onClose }: ProjectsViewProps)
   const scan = SCAN_PROGRESS.value;
   const loading = scan !== null;
   const rootRef = useRef<HTMLDivElement>(null);
-  const reduceMotion = prefersReducedMotion();
 
   // Recents and Discover share one card so the action column can't grow a new
   // panel per feature. Recent is always offered, empty state and all, so a first
@@ -105,26 +94,12 @@ export function ProjectsView({ onSubmit, onCancel, onClose }: ProjectsViewProps)
       aria-modal={isModal ? 'true' : undefined}
       aria-label="codecity: open a project"
     >
-      {/* Cold boot has no city to reveal, so it plays one: the demo full-bleed,
-          with the swirl over it. Over a loaded city the switcher reveals the
-          real thing instead (useSwitcherShowcase), and a clip in front of a
-          city would just be a smaller worse one. */}
+      {/* Cold boot has no city of its own to reveal, so the server's featured
+          repo is rendered behind the page (useFeaturedCity) and the swirl sits
+          over it. Over a loaded city the switcher reveals the real thing
+          instead (useSwitcherShowcase). */}
       {!pv.opts.dismissible && (
         <div class="landing-stage" aria-hidden="true">
-          <video
-            class="landing-clip"
-            src={clipUrl('landing-clip.mp4')}
-            poster={clipUrl('landing-clip-poster.webp')}
-            // Muted is what makes autoplay legal; the clip has no audio track
-            // regardless. It is decoration behind a scrim, so it is hidden from
-            // assistive tech rather than labelled.
-            autoPlay={!reduceMotion}
-            loop={!reduceMotion}
-            muted
-            playsInline
-            preload="auto"
-            aria-hidden="true"
-          />
           <LandingBackdrop />
         </div>
       )}
@@ -149,6 +124,13 @@ export function ProjectsView({ onSubmit, onCancel, onClose }: ProjectsViewProps)
             <MetaLine linkClass="link" />
           </div>
           <p class="landing-tagline">Turn any git repo into a 3D city</p>
+          {/* Only ever set once the city is actually painted, so this cannot
+              name something you can't see. */}
+          {FEATURED_CITY.value && (
+            <p class="landing-featured">
+              You're looking at <strong>{FEATURED_CITY.value.label}</strong>
+            </p>
+          )}
           <ul class="landing-delights">
             <li class="landing-delight landing-delight--streets">
               <Waypoints class="icon" aria-hidden="true" />

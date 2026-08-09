@@ -80,3 +80,23 @@
   opacity: 0.55;
   cursor: not-allowed;
 }
+
+/* Row status, at the end of the row. Deliberately not a pill: it labels a state
+   the row is already in (highlighted, or flagged as featured), and a bordered
+   chip competes with the repo name for the eye. Uppercase micro-type reads as a
+   caption rather than as something to press. */
+.source-row-note {
+  flex: 0 0 auto;
+  margin-left: auto;
+  padding-left: var(--cc-space-4);
+  font-size: var(--cc-font-2xs);
+  font-weight: var(--cc-fw-semibold);
+  letter-spacing: var(--cc-track-label);
+  text-transform: uppercase;
+  color: var(--cc-text-muted);
+  white-space: nowrap;
+}
+/* The current one earns a touch more presence, without changing shape. */
+.source-row--active .source-row-note {
+  color: var(--cc-text-secondary);
+}

@@ -9,7 +9,7 @@
 
 import './RecentsList.css';
 import { useState } from 'preact/hooks';
-import { listRecents, removeRecent, CURRENT_SOURCE } from '@/state/stores/source';
+import { listRecents, removeRecent, ACTIVE_SOURCE } from '@/state/stores/source';
 import { SERVER_CONFIG } from '@/state/stores/serverConfig';
 import { srcKind, SourceKind, sourceIdentity, sameSourceIdentity } from '@/utils/sources';
 import type { SourcePayload } from '@/state/stores/ui';
@@ -21,12 +21,13 @@ export interface RecentsListProps {
 
 export function RecentsList({ onOpen }: RecentsListProps) {
   const recents = listRecents(); // reads RECENTS signal
-  const cur = CURRENT_SOURCE.value;
+  const active = ACTIVE_SOURCE.value;
   const allowLocal = SERVER_CONFIG.value.allowLocalRepos;
   const [confirming, setConfirming] = useState<string | null>(null); // key of row
 
   const keyOf = (r: { src: string; branch?: string }) => sourceIdentity(r.src, r.branch);
-  const isActive = (r: { src: string; branch?: string }) => !!cur && sameSourceIdentity(r, cur);
+  const isActive = (r: { src: string; branch?: string }) =>
+    !!active && sameSourceIdentity(r, active);
   // A local recent while local repos are off can't load; still clickable (the
   // server error explains why), just flagged with a hint glyph.
   const isUnavailable = (r: { src: string }) => srcKind(r.src) === SourceKind.Local && !allowLocal;
