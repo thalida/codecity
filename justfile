@@ -230,6 +230,42 @@ release VERSION:
      REPO=$(gh repo view --json nameWithOwner -q .nameWithOwner 2>/dev/null || echo "<owner>/<repo>") ; \
      echo "[just] released — watch: https://github.com/$REPO/actions/workflows/release.yml"
 
+# ── Deploy ───────────────────────────────────────────────────────
+# Dispatch the Forgejo deploy.yml that owns this app's compose stack. Separate
+# from `release`: that one only pushes a tag, and the GitHub release workflow
+# deploys on its own once the image is actually published. Use this to redeploy
+# without cutting a release.
+#
+# Config (repo-root .env):     FORGEJO_HOST, FORGEJO_REPO, FORGEJO_DEPLOY_APP
+# Token (.local/deploy.env, gitignored, or the environment): FORGEJO_TOKEN
+#
+#   just deploy              # deploys FORGEJO_DEPLOY_APP
+#   just deploy app-other    # deploys something else
+#
+# Dispatch the Forgejo deploy workflow for this app (no release needed).
+deploy APP='':
+    @set -e ; \
+     set -a ; . ./.env ; [ -f .local/deploy.env ] && . ./.local/deploy.env ; set +a ; \
+     APP="{{APP}}" ; APP="${APP:-${FORGEJO_DEPLOY_APP:-}}" ; \
+     MISSING="" ; \
+     [ -n "${FORGEJO_HOST:-}" ]  || MISSING="$MISSING FORGEJO_HOST(.env)" ; \
+     [ -n "${FORGEJO_REPO:-}" ]  || MISSING="$MISSING FORGEJO_REPO(.env)" ; \
+     [ -n "${FORGEJO_TOKEN:-}" ] || MISSING="$MISSING FORGEJO_TOKEN(.local/deploy.env)" ; \
+     [ -n "$APP" ]           || MISSING="$MISSING FORGEJO_DEPLOY_APP(.env) or an APP argument" ; \
+     if [ -n "$MISSING" ]; then \
+         echo "[just] error: missing$MISSING" >&2 ; exit 1 ; \
+     fi ; \
+     URL="${FORGEJO_HOST}/api/v1/repos/${FORGEJO_REPO}/actions/workflows/deploy.yml/dispatches" ; \
+     echo "[deploy] dispatching $APP via $FORGEJO_REPO" ; \
+     CODE=$(curl -sS -o /tmp/cc-deploy-resp -w '%{http_code}' -X POST "$URL" \
+         -H "Authorization: token $FORGEJO_TOKEN" \
+         -H "Content-Type: application/json" \
+         -d "{\"ref\":\"main\",\"inputs\":{\"app\":\"$APP\"}}") ; \
+     if [ "$CODE" != "204" ] && [ "$CODE" != "201" ] && [ "$CODE" != "200" ]; then \
+         echo "[just] error: Forgejo returned $CODE" >&2 ; cat /tmp/cc-deploy-resp >&2 ; echo >&2 ; exit 1 ; \
+     fi ; \
+     echo "[deploy] queued — watch: $FORGEJO_HOST/$FORGEJO_REPO/actions"
+
 # ── Cleanup ──────────────────────────────────────────────────────
 clean:
     @SLUG=$( ( git symbolic-ref --short -q HEAD 2>/dev/null || basename $(pwd) ) | tr '[:upper:]' '[:lower:]' | tr -c '[:alnum:]' '-' | sed 's/-*$//') ; \
