@@ -36,8 +36,9 @@
   top: calc(100% + var(--cc-space-2));
   right: 0;
   z-index: 1; /* only ever above its own siblings; both hosts are already layered */
-  min-width: max-content; /* sized by the longest sublabel, never wrapped mid-phrase */
-  max-width: 270px;
+  /* Sized by its longest sublabel: the menu is two or three short phrases, and
+     wrapping one mid-phrase costs more than the width saves. */
+  width: max-content;
   display: flex;
   flex-direction: column;
   padding: var(--cc-space-2);
@@ -59,7 +60,9 @@
   border: 0;
   border-radius: var(--cc-radius-sm);
   background: transparent;
-  color: var(--cc-text-primary);
+  /* Set once here: the label and the glyph both inherit it, so they cannot
+     drift apart. Only the sublabel steps down. */
+  color: var(--cc-text-strong);
   font: inherit;
   cursor: pointer;
   transition: background var(--cc-t-base);
@@ -73,12 +76,10 @@
   grid-area: 1 / 2;
   font-size: var(--cc-font-sm);
   font-weight: var(--cc-fw-medium);
-  color: var(--cc-text-strong);
 }
 .split-button-item-icon {
   grid-area: 1 / 1;
   align-self: center;
-  color: var(--cc-accent-light);
 }
 
 .split-button-item-sublabel {
