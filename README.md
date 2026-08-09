@@ -9,7 +9,7 @@
 
 **codecity turns any git repo into a 3D city.** It walks the file tree and git history and builds a world: directories become streets, files become buildings, every commit grows a tree, and every author a firefly.
 
-<video src="https://github.com/thalida/codecity/raw/main/.github/readme/demo.mp4" width="800" autoplay loop muted playsinline></video>
+<img src=".github/readme/demo.webp" alt="codecity orbiting its own repo: streets of buildings under a forest of commit trees" width="800" />
 
 ## Try it
 

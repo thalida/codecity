@@ -151,11 +151,32 @@ screenshots *shots='':
 # Regenerate the animated .github/readme/demo.mp4: a headless orbit of codecity
 # rendering its own repo, recorded with Playwright and encoded to a small h264
 # mp4 with ffmpeg (required: brew install ffmpeg). Needs `just dev` running.
-demo-video:
+# Also refreshes demo.webp, which is what the README actually embeds.
+demo-video: && demo-webp
     @URL=$(just url) ; \
      echo "[codecity] recording demo.mp4 from $URL" ; \
      cd app && npx playwright install chromium && \
      CODECITY_URL="$URL" node scripts/demo-video.mjs
+
+# Convert demo.mp4 to the animated demo.webp the README embeds. Both files stay
+# in the repo: the mp4 is the original, the webp is the only one GitHub renders.
+#
+# GitHub's markdown sanitizer strips <video>, so the README embeds this as a
+# plain image instead. It has to be webp rather than a gif: this scene is dark
+# gradients over hundreds of building hues, which a 256-colour palette cannot
+# hold, and the smallest watchable gif came out at 9.3MB against 3.8MB here.
+#
+# Requires: brew install ffmpeg webp
+demo-webp quality='50':
+    @set -e ; \
+     command -v img2webp >/dev/null || { echo "[just] error: img2webp not found (brew install webp)" >&2 ; exit 1 ; } ; \
+     FRAMES=$(mktemp -d) ; \
+     trap 'rm -rf "$FRAMES"' EXIT ; \
+     ffmpeg -y -v error -i .github/readme/demo.mp4 \
+         -vf "fps=15,scale=800:-1:flags=lanczos" "$FRAMES/f_%04d.png" ; \
+     img2webp -loop 0 -lossy -q {{quality}} -m 6 -d 67 "$FRAMES"/f_*.png \
+         -o .github/readme/demo.webp >/dev/null ; \
+     echo "[codecity] wrote .github/readme/demo.webp ($(du -h .github/readme/demo.webp | cut -f1), q={{quality}})"
 
 # ── Onboarding ───────────────────────────────────────────────────
 # One-shot bootstrap for a fresh clone or new worktree: installs app
