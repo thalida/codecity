@@ -5,9 +5,6 @@
 // is on, and the app's own line of version, about and credit. Freshness and
 // refresh moved up to the header, next to the project they describe.
 //
-// The right-hand run is <MetaLine> whole, rather than the hand-assembled
-// version + credit it used to be with `about` living upstairs in the header.
-//
 // Per-node stats live in the selection pane's own footer (<PaneStats>), beside
 // the file or road they describe.
 

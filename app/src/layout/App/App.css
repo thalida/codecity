@@ -25,10 +25,8 @@ body {
   align-items: stretch;
 }
 
-/* The bars sit above the body in paint order, not just above it in the column.
-   Without this a dropdown opened from the header (refresh) or the footer is
-   painted under #app-body, because the body comes later in the DOM and nothing
-   here had a stacking order. */
+/* Above the body in PAINT order, not just in the column: the body comes later
+   in the DOM, so without this a bar's dropdown renders under it. */
 #app-header,
 #app-footer {
   position: relative;

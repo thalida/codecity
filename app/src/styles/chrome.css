@@ -1,15 +1,12 @@
 /* ═══════════════════════════════════════════════════════════════════════════
    LAYER-2 COMPONENTS — Chrome clusters
    ═══════════════════════════════════════════════════════════════════════════
-   .chrome-cluster — a run of related controls in the header or footer bars,
-   outlined as one object with hairline dividers between its items.
+   .chrome-cluster — related controls in the header/footer bars, outlined as one
+   object with hairline dividers between items. The border says "these belong
+   together", the divider says "these are separate presses".
 
-   The group is outlined, not each button. A border says "these belong
-   together" and a divider says "these are separate presses"; giving every
-   control its own pill would put six outlines in a 32px bar and say nothing.
-   Before this, exactly one control (the project chip) was outlined and the
-   rest were bare glyphs beside it, so the bar read as one object followed by
-   loose furniture.
+   A split button contributes its two halves, not itself: the wrapper exists
+   only to position the menu.
    ═══════════════════════════════════════════════════════════════════════════ */
 
 .chrome-cluster {
@@ -17,60 +14,68 @@
   align-items: stretch;
   min-width: 0;
   flex: none;
-  /* border-input, not border-subtle: the cluster sits on the chrome bar, which
-     is only ~0.02 lightness below the subtle border, so that token vanished
-     against it. This one is a step brighter and actually reads as an edge. */
+  /* border-input, not border-subtle: subtle is ~0.02 lightness off the chrome
+     bar and reads as no edge at all. */
   border: 1px solid var(--cc-border-input);
   border-radius: var(--cc-radius-pill);
   background: var(--cc-bg-sidebar);
+  /* Explicit: a cluster of text + a split button has no fixed-height child, so
+     "as tall as its children" and "children fill it" would collapse. */
   height: var(--cc-chrome-cluster-h);
-  /* NOT overflow: hidden. A cluster can hold a control with a dropdown (the
-     header's refresh), and clipping to the pill cuts the menu off at the bar.
-     The end children round themselves instead. */
+  /* No overflow: hidden — it would clip the refresh menu at the bar. */
 }
 
-/* Hairline between items. A border on the child rather than a separate element,
-   so an item appearing or disappearing (the copy button with no source, debug
-   tools off) can't leave a divider with nothing on one side of it. */
-.chrome-cluster > * + * {
-  border-left: 1px solid var(--cc-border-input);
+.chrome-cluster > .split-button {
+  display: flex;
+  align-items: stretch;
+  padding: 0;
 }
 
-/* One rhythm for every item, whatever it is underneath. .btn-icon is a fixed
-   24x24 box and .btn-chip pads asymmetrically for its label, so left to
-   themselves the glyphs sit tight against the dividers while the chip breathes.
-   The cluster overrides both: same padding each side of each item, and auto
-   width so the padding is what sets it. */
-.chrome-cluster > * {
+.chrome-cluster > *,
+.chrome-cluster > .split-button > * {
   border-radius: 0;
+  /* Override .btn-icon's fixed box and .btn-chip's asymmetric padding so every
+     item sits the same distance from its dividers. height:auto matters: an
+     explicit height beats align-self:stretch, leaving the glyph top-aligned
+     with all the slack below it. */
   width: auto;
+  height: auto;
   min-width: 0;
-  /* Horizontal only. The items already carry the bar's height (24px for
-     .btn-icon and .btn-chip), and adding vertical padding on top of that made
-     the cluster 34px tall inside a 32px header. */
   padding-block: 0;
   padding-inline: var(--cc-space-5);
   align-self: stretch;
 }
 
-/* Round only where the cluster's own edge is. Written as logical corners so a
-   right-to-left layout rounds the right ends; the inner ones stay square so
-   items read as divided rather than as separate pills. The split button is one
-   item made of two presses, so the radius lands on its outer half. */
-.chrome-cluster > :first-child,
-.chrome-cluster > :first-child .split-button-primary {
-  border-start-start-radius: var(--cc-radius-pill);
-  border-end-start-radius: var(--cc-radius-pill);
-}
-.chrome-cluster > :last-child,
-.chrome-cluster > :last-child .split-button-caret {
-  border-start-end-radius: var(--cc-radius-pill);
-  border-end-end-radius: var(--cc-radius-pill);
+/* On the item, not a separate element, so a conditional item (copy with no
+   source, debug tools off) can't strand a divider. */
+.chrome-cluster > * + *,
+.chrome-cluster > .split-button > * + * {
+  border-left: 1px solid var(--cc-border-input);
 }
 
-/* The cluster draws the outline and the fill now, so a chip inside it drops
-   both rather than stacking a second pill inside the first. */
-.chrome-cluster .btn-chip {
+/* Only the cluster's own edge rounds; inner corners stay square so items read
+   as divided rather than as separate pills. Logical corners for RTL. The extra
+   inline padding clears the pill's curve, which otherwise cuts into whatever
+   sits at the very edge (the status dot). */
+.chrome-cluster > :first-child,
+.chrome-cluster > :first-child > :first-child {
+  border-start-start-radius: var(--cc-radius-pill);
+  border-end-start-radius: var(--cc-radius-pill);
+  padding-inline-start: var(--cc-space-6);
+}
+.chrome-cluster > :last-child,
+.chrome-cluster > :last-child > :last-child {
+  border-start-end-radius: var(--cc-radius-pill);
+  border-end-end-radius: var(--cc-radius-pill);
+  padding-inline-end: var(--cc-space-6);
+}
+
+/* The cluster draws the outline and fill; anything that draws its own drops it
+   rather than stacking a second shape inside the first. */
+.chrome-cluster .btn-chip,
+.chrome-cluster .btn-primary {
   border-color: transparent;
   background: transparent;
+  color: inherit;
+  font-weight: inherit;
 }

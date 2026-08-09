@@ -8,13 +8,10 @@
 // would be a second source of truth for a bounded value, and the two would
 // disagree the first time one of them changed.
 //
-// On a remote source the row keeps its shape and goes inert: same label, same
-// switch, muted, with the reason where the cadence would be. LIVE_UPDATES_ACTIVE
-// is ENABLED && local, so the poll never runs for a clone. The switch is
-// disabled rather than removed: dropping the row would leave the menu changing
-// height per source, and a live-looking toggle would imply it could be turned
-// on. The setting keeps its value either way, since it's global and the next
-// local project should honour it.
+// On a remote the row goes inert: LIVE_UPDATES_ACTIVE is ENABLED && local, so
+// the poll never runs for a clone. Disabled rather than removed, so the menu
+// keeps its height and nothing implies it could be switched on. The setting
+// keeps its value: it's global, and the next local project should honour it.
 
 import './AutoRefreshRow.css';
 import { LIVE_UPDATES } from '@/state/stores/settings/updates';

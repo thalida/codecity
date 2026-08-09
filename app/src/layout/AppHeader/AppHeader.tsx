@@ -2,13 +2,8 @@
 //
 // The header is the PROJECT; the footer is the APP. Everything here is about
 // the repo you have open: which one it is (gem + name + branch), what you can
-// do with its address (copy, open on origin), and how fresh it is (status +
-// refresh). About and the keyboard shortcuts moved to the footer, which is
-// where app-level things belong.
-//
-// Two clusters, each outlined as a group with hairline dividers inside. The
-// border says "these belong together" and the divider says "these are separate
-// presses"; six individual pills would just be noise in a 32px bar.
+// do with its address, and how fresh it is. Two clusters, each outlined as a
+// group: see .chrome-cluster.
 
 import './AppHeader.css';
 import { ExternalLink, RefreshCw } from 'lucide-preact';

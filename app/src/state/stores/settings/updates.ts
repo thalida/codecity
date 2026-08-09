@@ -45,10 +45,8 @@ export type LiveUpdatesConfig = ConfigOf<typeof LIVE_UPDATES_FIELDS>;
 
 /**
  * Whether the poll is actually running: the toggle AND a local source.
- * Remote is excluded on COST, not impossibility: ensure_clone fetches and
- * resets an existing clone on every open, so a remote's content_signature can
- * absolutely move. Polling one would mean a `git fetch` every few seconds for
- * a repo that changes on somebody else's schedule.
+ * Remote is excluded on cost, not impossibility: ensure_clone fetch+resets on
+ * every open, so polling one means a `git fetch` every few seconds.
  */
 export const LIVE_UPDATES_ACTIVE = computed<boolean>(
   () => LIVE_UPDATES.value.ENABLED && CURRENT_SOURCE_IS_LOCAL.value

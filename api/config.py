@@ -32,9 +32,8 @@ DISCOVER_FILE = Path(__file__).parent / "discover.json"
 
 class Settings(BaseSettings):
     """Every CODECITY_* env var, typed. Booleans accept 1/true/yes/on and
-    0/false/no/off in any case; anything else raises rather than quietly
-    reading as the default, which is how a typo used to disable a feature
-    silently."""
+    0/false/no/off in any case; anything else raises rather than silently
+    reading as the default."""
 
     model_config = SettingsConfigDict(env_prefix="CODECITY_", extra="ignore")
 

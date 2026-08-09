@@ -3,11 +3,9 @@
 // describing it. The switcher over a loaded city already looks like this; this
 // gives the landing the same staging when there is no city yet.
 //
-// It applies the manifest STRAIGHT TO THE SCENE and never writes MANIFEST. That
-// signal means "the project the user opened", and half the app reads it: the
-// sidebar unhides its panes, the document title changes, App decides whether a
-// failed load may be dismissed. A backdrop is not an opened project, so it stays
-// out of it, and the moment a real one lands City's own effect paints over this.
+// Applies the manifest STRAIGHT TO THE SCENE, never writing MANIFEST: that
+// signal means "the project you opened", and the sidebar, title and
+// dismissible-on-error logic all read it. A backdrop is not an opened project.
 //
 // Every failure is silent. This is decoration: a featured repo that won't clone
 // should leave the landing exactly as it would have been without the feature.

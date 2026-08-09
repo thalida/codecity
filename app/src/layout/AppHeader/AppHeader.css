@@ -36,8 +36,3 @@
   padding-block: 0;
   padding-inline: var(--cc-space-4);
 }
-
-/* Inner svg rendering tweak for any svg child of a header btn-icon. */
-#app-header .btn-icon svg {
-  display: block;
-}
