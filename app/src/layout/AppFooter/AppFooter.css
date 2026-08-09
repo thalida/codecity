@@ -119,21 +119,15 @@
 
 /* ── Version + credit ─────────────────────────────────────────────── */
 /* Version sits with the status dot on the left; the credit holds the right.
-   Both stay a step below the status text so the live state reads first, and
-   the link brightens like any other. */
-.app-footer-version,
-.app-footer-credit {
+   Both stay a step below the status text so the live state reads first, and the
+   link sits above the prose around it so it reads as one. Shape comes from
+   components/AppMeta. */
+#app-footer .meta-version,
+#app-footer .meta-credit {
   color: var(--cc-text-muted);
-  white-space: nowrap;
 }
-.app-footer-link {
+#app-footer .meta-link {
   color: var(--cc-text-primary);
-  text-decoration: none;
-}
-.app-footer-link:hover,
-.app-footer-link:focus-visible {
-  color: var(--cc-text-strong);
-  text-decoration: underline;
 }
 
 /* ── Footer responsive narrowing ───────────────────────────────────────────── */
@@ -147,7 +141,7 @@
   .app-footer-status-detail {
     display: none;
   }
-  .app-footer-credit {
+  .meta-credit {
     display: none;
   }
 }

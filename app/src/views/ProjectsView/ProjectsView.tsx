@@ -15,6 +15,7 @@ import { useEffect, useRef } from 'preact/hooks';
 import { X, Waypoints, Building2, TreePine, Sparkles } from 'lucide-preact';
 import { useDialogFocus } from '@/hooks/useDialogFocus';
 import { GemIcon } from '@/components/GemIcon/GemIcon';
+import { MetaLine } from '@/components/AppMeta/AppMeta';
 import { LandingBackdrop } from '@/components/LandingBackdrop/LandingBackdrop';
 import {
   PROJECTS_VIEW,
@@ -85,7 +86,12 @@ export function ProjectsView({ onSubmit, onCancel, onClose }: ProjectsViewProps)
             <span class="landing-gem">
               <GemIcon />
             </span>
-            <h1 class="landing-wordmark">codecity</h1>
+            <div class="landing-identity">
+              <h1 class="landing-wordmark">codecity</h1>
+              {/* The landing covers the app chrome, so without this nobody sees
+                  the version, the repo link or the credit until a repo loads. */}
+              <MetaLine />
+            </div>
           </div>
           <p class="landing-tagline">Turn any git repo into a 3D city</p>
           <ul class="landing-delights">

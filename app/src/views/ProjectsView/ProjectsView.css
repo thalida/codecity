@@ -85,8 +85,27 @@
 
 .landing-brand {
   display: flex;
-  align-items: center;
+  /* Top-aligned, not centred: the identity column is two lines tall now, and
+     centring would float the gem against the gap between them. */
+  align-items: flex-start;
   gap: var(--cc-space-4);
+}
+
+/* Wordmark over the meta line, so the credit reads as part of the brand rather
+   than as another item in the hero's list. */
+.landing-identity {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cc-space-3);
+  min-width: 0;
+}
+.landing-identity .meta-line {
+  font-family: var(--cc-font-mono);
+  font-size: var(--cc-font-2xs);
+  color: var(--cc-text-muted);
+}
+.landing-identity .meta-link {
+  color: var(--cc-text-secondary);
 }
 
 .landing-gem {

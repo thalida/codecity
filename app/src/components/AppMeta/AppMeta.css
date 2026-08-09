@@ -1,0 +1,32 @@
+/* Shared shape for the version / about / credit atoms. Each surface sets its
+   own colours, since the same link reads differently among header icons than it
+   does against footer prose. */
+
+.meta-line {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cc-space-3);
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.meta-version,
+.meta-credit {
+  white-space: nowrap;
+}
+
+.meta-link {
+  text-decoration: none;
+}
+.meta-link:hover,
+.meta-link:focus-visible {
+  color: var(--cc-text-strong);
+  text-decoration: underline;
+}
+
+/* Pointer-events off so a stray click between items can't land on the dot. */
+.meta-sep {
+  flex: 0 0 auto;
+  color: var(--cc-text-faint);
+  pointer-events: none;
+}

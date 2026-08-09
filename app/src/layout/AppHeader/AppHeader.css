@@ -29,15 +29,10 @@
 }
 
 /* A text link among icon buttons: matched to the resting icon color so the
-   cluster reads as one weight, and brightened on hover like they are. */
-.app-header-link {
+   cluster reads as one weight. Shape comes from components/AppMeta. */
+#app-header-meta .meta-link {
   color: var(--cc-text-muted);
-  text-decoration: none;
-}
-.app-header-link:hover,
-.app-header-link:focus-visible {
-  color: var(--cc-text-strong);
-  text-decoration: underline;
+  -webkit-app-region: no-drag;
 }
 
 /* Header buttons use .btn-icon + .btn-icon--no-drag, or
