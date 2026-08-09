@@ -298,15 +298,24 @@ class CleanCloneErrorDispatcherTests(unittest.TestCase):
         self.assertIn("early EOF", cleaned)
         self.assertIn("RPC failed", cleaned)
 
-    def test_auth_failure_passes_through(self) -> None:
-        # Auth failures are NOT translated. Caller sees no exception from
-        # the dispatcher — generic CloneError propagates from elsewhere.
-        result = _maybe_raise_clean_clone_error(
-            "https://example.com/x.git",
-            None,
+    def test_auth_failure_reads_as_unreachable(self) -> None:
+        # A host that asks for credentials is the same situation as one that
+        # 404s: this server has none by design, so the repo is unreachable and
+        # the UI's remedy is the same. Wording must not claim it is private,
+        # which is a guess the server cannot make.
+        for stderr in (
             "fatal: Authentication failed for 'https://example.com/x.git/'",
-        )
-        self.assertIsNone(result)
+            "remote: Credentials are incorrect or have expired",
+            "remote: HTTP Basic: Access denied",
+            "fatal: could not read Username for 'https://example.com': "
+            "terminal prompts disabled",
+            "git@example.com: Permission denied (publickey).",
+        ):
+            with self.assertRaises(RepoNotFoundError, msg=stderr) as ctx:
+                _maybe_raise_clean_clone_error(
+                    "https://example.com/x.git", None, stderr
+                )
+            self.assertNotIn("private", str(ctx.exception).lower())
 
     def test_subclass_relationship(self) -> None:
         self.assertTrue(issubclass(BranchNotFoundError, CloneError))
@@ -471,11 +480,11 @@ class EnsureCloneErrorRoutingTests(unittest.TestCase):
                 ):
                     ensure_clone("https://nope.example/x.git", None)
 
-    def test_auth_failure_passes_through_as_generic(self) -> None:
+    def test_auth_failure_routes_to_repo_not_found(self) -> None:
         with TemporaryDirectory() as td:
             tmp = Path(td)
             self._patch_cache(tmp)
-            with self.assertRaises(CloneError) as ctx:
+            with self.assertRaises(RepoNotFoundError):
                 with mock.patch.object(
                     clone_mod,
                     "_run_git_streaming",
@@ -485,9 +494,6 @@ class EnsureCloneErrorRoutingTests(unittest.TestCase):
                     ),
                 ):
                     ensure_clone("https://example.com/x.git", None)
-            self.assertNotIsInstance(ctx.exception, BranchNotFoundError)
-            self.assertNotIsInstance(ctx.exception, RepoNotFoundError)
-            self.assertNotIsInstance(ctx.exception, HostUnreachableError)
 
     def test_update_path_failure_keeps_existing_dir(self) -> None:
         with TemporaryDirectory() as td:

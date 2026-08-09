@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException, Query
 
+from api.models.events import CodedHTTPException, ErrorCode
 from api.models.responses import BranchListResponse
 from api.services.clone import (
     CloneError,
@@ -27,7 +28,9 @@ def get_branches(src: str = Query(...)) -> BranchListResponse:
     try:
         branches, default = list_remote_branches(src)
     except RepoNotFoundError as e:
-        raise HTTPException(404, str(e)) from e
+        # Coded, not message-only: the picker keys its remedy on the code, and
+        # this route is where an unreachable repo usually fails first.
+        raise CodedHTTPException(404, str(e), ErrorCode.REPO_NOT_FOUND) from e
     except HostUnreachableError as e:
         raise HTTPException(502, str(e)) from e
     except CloneError as e:

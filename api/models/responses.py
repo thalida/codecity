@@ -4,9 +4,14 @@ from __future__ import annotations
 
 from pydantic import BaseModel
 
+from api.models.events import ErrorCode
+
 
 class ErrorResponse(BaseModel):
     error: str
+    # Set where the UI answers the failure differently. Same member set as the
+    # stream's ErrorEvent, so a client keys on one vocabulary.
+    code: ErrorCode | None = None
 
 
 class FileTooLargeResponse(BaseModel):

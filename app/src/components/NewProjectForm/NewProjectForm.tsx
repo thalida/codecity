@@ -3,7 +3,8 @@
 // (srcKind): a URL gets a repo-resolved branch dropdown; a local path is opened
 // directly. When local repos are off, the field is URL-only: the label,
 // placeholder, and a standing UnreachableSource notice all reflect that, and a
-// typed path is blocked.
+// typed path is blocked. Everything that describes the field renders in one
+// slot beneath it, so a failure can never stack with the guidance it answers.
 //
 // Submits on Enter (a real <form>) or the split button, whose menu carries the
 // fresh-scan variant. Skipping the cache is a way of opening, not a setting, so
@@ -40,6 +41,8 @@ export interface NewProjectFormProps {
   onDirty?: () => void;
 }
 
+const ERROR_ID = 'new-project-error';
+
 export function NewProjectForm({
   allowLocalRepos,
   hosted,
@@ -56,6 +59,9 @@ export function NewProjectForm({
       : ''
   );
   const [branchError, setBranchError] = useState<string | null>(null); // from BranchSelect
+  // The branch lookup is the FIRST request to touch the remote, so a repo this
+  // server can't reach fails here, before anything is submitted.
+  const [branchErrorCode, setBranchErrorCode] = useState<ScanErrorCode | undefined>(undefined);
 
   // Label + placeholder reflect what the field actually accepts here.
   const sourceLabel = allowLocalRepos ? 'Repo URL or local path' : 'Repo URL';
@@ -77,8 +83,7 @@ export function NewProjectForm({
   const showStandingNotice = !allowLocalRepos && !(isRemote && activeSrc.length > 0);
   // A remote repo the server couldn't reach. Shown regardless of what the field
   // now reads as, because it answers the attempt the user just made.
-  const failedToReach = errorCode === 'repo-not-found';
-  const showUnreachable = failedToReach || showStandingNotice;
+  const failedToReach = errorCode === 'repo-not-found' || branchErrorCode === 'repo-not-found';
 
   // A path change on a URL resets the branch (no stale pick rides along) and
   // only resolves branches for a URL that passes validation.
@@ -92,6 +97,7 @@ export function NewProjectForm({
       setResolvedUrl('');
       setBranch('');
     }
+    setBranchErrorCode(undefined);
   }
 
   const urlError = isRemote || (!allowLocalRepos && !pathBlocked) ? validateGitUrl(source) : null;
@@ -119,15 +125,6 @@ export function NewProjectForm({
       {/* Directly under the card's heading, above the field: it says what this
           instance can open, which is context for filling the field in, not a
           footnote on the result. */}
-      {showUnreachable && (
-        <UnreachableSource
-          hosted={hosted}
-          allowLocal={allowLocalRepos}
-          variant={failedToReach ? 'error' : 'standing'}
-          src={activeSrc || prefill?.src}
-        />
-      )}
-
       <div class="new-project-field">
         <label htmlFor="new-project-source">{sourceLabel}</label>
         <input
@@ -135,17 +132,32 @@ export function NewProjectForm({
           class={hasError ? 'form-input form-input--error' : 'form-input'}
           type="text"
           aria-invalid={hasError ? 'true' : undefined}
-          aria-describedby={fieldError ? 'new-project-error' : undefined}
+          aria-describedby={fieldError || failedToReach ? ERROR_ID : undefined}
           autoComplete="off"
           spellcheck={false}
           placeholder={placeholder}
           value={source}
           onInput={(e) => onSourceInput((e.target as HTMLInputElement).value)}
         />
-        {fieldError && (
-          <p id="new-project-error" role="alert" class="new-project-error">
+        {/* One slot for everything that describes the field, in precedence
+            order: a repo we couldn't reach beats a validation complaint, which
+            beats standing guidance about what this instance accepts. */}
+        {failedToReach ? (
+          <UnreachableSource
+            id={ERROR_ID}
+            hosted={hosted}
+            allowLocal={allowLocalRepos}
+            variant="error"
+            src={activeSrc || prefill?.src}
+          />
+        ) : fieldError ? (
+          <p id={ERROR_ID} role="alert" class="new-project-error">
             {fieldError}
           </p>
+        ) : (
+          showStandingNotice && (
+            <UnreachableSource hosted={hosted} allowLocal={allowLocalRepos} variant="standing" />
+          )
         )}
       </div>
 
@@ -154,7 +166,10 @@ export function NewProjectForm({
           url={resolvedUrl}
           value={branch}
           onChange={setBranch}
-          onError={setBranchError}
+          onError={(message, code) => {
+            setBranchError(message);
+            setBranchErrorCode(code);
+          }}
           key={resolvedUrl}
         />
       )}

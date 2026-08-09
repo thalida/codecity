@@ -56,9 +56,10 @@ async def _api_error_handler(_request: Request, exc: Exception) -> JSONResponse:
     unknown /api/* path is a 404 JSON, not HTML)."""
     status = exc.status_code if isinstance(exc, HTTPException) else 500
     detail = exc.detail if isinstance(exc, HTTPException) else "internal server error"
-    return JSONResponse(
-        status_code=status, content=ErrorResponse(error=detail).model_dump()
-    )
+    body = ErrorResponse(error=detail, code=getattr(exc, "code", None))
+    # exclude_none so an uncoded error is absent-or-value on the wire, the way
+    # the stream's error event already is.
+    return JSONResponse(status_code=status, content=body.model_dump(exclude_none=True))
 
 
 def create_app(static_dir: Path | None = None) -> FastAPI:

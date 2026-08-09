@@ -162,7 +162,18 @@ class ResponseModelTests(unittest.TestCase):
     def test_error_response(self) -> None:
         from api.models.responses import ErrorResponse
 
-        self.assertEqual(ErrorResponse(error="x").model_dump(), {"error": "x"})
+        from api.models.events import ErrorCode
+
+        # Absent-or-value, like the stream's error event: no null to special-case.
+        self.assertEqual(
+            ErrorResponse(error="x").model_dump(exclude_none=True), {"error": "x"}
+        )
+        self.assertEqual(
+            ErrorResponse(error="x", code=ErrorCode.REPO_NOT_FOUND).model_dump(
+                exclude_none=True
+            ),
+            {"error": "x", "code": "repo-not-found"},
+        )
 
     def test_health_and_config(self) -> None:
         from api.models.responses import HealthResponse, ConfigResponse

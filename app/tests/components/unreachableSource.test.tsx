@@ -10,9 +10,9 @@ type Remedy = 'clone' | 'run-locally' | 'enable-local';
 
 const MATRIX: { hosted: boolean; allowLocal: boolean; remedy: Remedy }[] = [
   { hosted: false, allowLocal: true, remedy: 'clone' },
-  // hosted + allowLocal is not a shape the deploy produces, but the remedy is
-  // keyed on allowLocal first, so it must still resolve to something coherent.
-  { hosted: true, allowLocal: true, remedy: 'clone' },
+  // The deploy DOES produce this: a hosted instance can mount a folder for its
+  // own filesystem. hosted wins, because the visitor is not on that machine.
+  { hosted: true, allowLocal: true, remedy: 'run-locally' },
   { hosted: true, allowLocal: false, remedy: 'run-locally' },
   { hosted: false, allowLocal: false, remedy: 'enable-local' },
 ];
@@ -59,7 +59,7 @@ describe('UnreachableSource', () => {
     }
   }
 
-  it('shows the git clone line in exactly the allowLocal cells', async () => {
+  it("shows the git clone line only where a folder is the viewer's to open", async () => {
     const withClone: boolean[] = [];
     for (const { hosted, allowLocal } of MATRIX) {
       render(
@@ -75,7 +75,7 @@ describe('UnreachableSource', () => {
       withClone.push(text().includes('git clone https://github.com/owner/repo'));
       render(null, container);
     }
-    expect(withClone).toEqual(MATRIX.map((row) => row.allowLocal));
+    expect(withClone).toEqual(MATRIX.map((row) => row.allowLocal && !row.hosted));
   });
 
   it('omits the clone line when there is no source to clone', async () => {

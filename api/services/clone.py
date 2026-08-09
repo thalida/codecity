@@ -118,6 +118,19 @@ _REPO_NOT_FOUND_PATTERNS = (
     re.compile(r"Repository not found", re.IGNORECASE),
     re.compile(r"does not exist or you do not have access", re.IGNORECASE),
 )
+# A host that asks for credentials rather than 404ing. Same situation as above
+# from here: the server has no credentials by design, so the repo is
+# unreachable, and the remedy is identical. Forgejo/Gitea say "Credentials are
+# incorrect or have expired", GitLab "HTTP Basic: Access denied", and git itself
+# gives up with "could not read Username" once prompts are disabled.
+_AUTH_REQUIRED_PATTERNS = (
+    re.compile(r"Authentication failed", re.IGNORECASE),
+    re.compile(r"Credentials are incorrect or have expired", re.IGNORECASE),
+    re.compile(r"HTTP Basic: Access denied", re.IGNORECASE),
+    re.compile(r"could not read Username", re.IGNORECASE),
+    re.compile(r"terminal prompts disabled", re.IGNORECASE),
+    re.compile(r"Permission denied \(publickey", re.IGNORECASE),
+)
 _HOST_UNREACHABLE_PATTERNS = (
     re.compile(r"Could not resolve host", re.IGNORECASE),
     re.compile(
@@ -193,6 +206,11 @@ def _maybe_raise_clean_clone_error(
                 raise BranchNotFoundError(f"branch '{branch}' not found")
     for pat in _REPO_NOT_FOUND_PATTERNS:
         if pat.search(stderr_text):
+            raise RepoNotFoundError(f"repository not found at {url}")
+    for pat in _AUTH_REQUIRED_PATTERNS:
+        if pat.search(stderr_text):
+            # Deliberately the same wording: the server cannot tell a private
+            # repo from a typo, and saying "private" would be a guess.
             raise RepoNotFoundError(f"repository not found at {url}")
     for pat in _NOT_A_REPO_PATTERNS:
         if pat.search(stderr_text):

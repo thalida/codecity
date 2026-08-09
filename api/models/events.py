@@ -7,6 +7,8 @@ schema components."""
 from __future__ import annotations
 
 from enum import StrEnum
+
+from fastapi import HTTPException
 from typing import Annotated, Literal, Optional
 
 from pydantic import BaseModel, WithJsonSchema
@@ -132,3 +134,13 @@ class TimelineCompleteEvent(BaseModel):
     cache hit)."""
 
     bundle: TimelineBundle
+
+
+class CodedHTTPException(HTTPException):
+    """An HTTPException that carries an ErrorCode. The app's error handler puts
+    it in the response envelope, so a JSON route can say WHY in the same
+    vocabulary the SSE stream uses."""
+
+    def __init__(self, status_code: int, detail: str, code: ErrorCode) -> None:
+        super().__init__(status_code, detail)
+        self.code = code

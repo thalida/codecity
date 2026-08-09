@@ -5,6 +5,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render } from 'preact';
 import { BranchSelect } from '@/components/BranchSelect/BranchSelect';
 import * as branchesApi from '@/api/branches';
+import { ScanError } from '@/api/manifest';
 import { flush, drainAsync } from '../_helpers/preact';
 
 describe('BranchSelect', () => {
@@ -63,6 +64,29 @@ describe('BranchSelect', () => {
     expect(optionTexts).toContain('dev');
   });
 
+  it('passes the server code up, so the form can offer a remedy', async () => {
+    // The branch lookup is the first request to touch the remote, so an
+    // unreachable repo fails HERE rather than on submit.
+    vi.spyOn(branchesApi, 'fetchBranches').mockRejectedValue(
+      new ScanError('repository not found at https://github.com/o/nope', 'repo-not-found')
+    );
+    const onError = vi.fn();
+    render(
+      <BranchSelect
+        url="https://github.com/o/nope"
+        value=""
+        onChange={() => {}}
+        onError={onError}
+      />,
+      container
+    );
+    await drainAsync();
+    expect(onError).toHaveBeenCalledWith(
+      'repository not found at https://github.com/o/nope',
+      'repo-not-found'
+    );
+  });
+
   it('reports the server error to the parent (onError) and renders nothing itself', async () => {
     vi.spyOn(branchesApi, 'fetchBranches').mockRejectedValue(new Error('repository not found'));
     const onError = vi.fn();
@@ -80,7 +104,7 @@ describe('BranchSelect', () => {
 
     // The error is surfaced to the parent (shown as the URL field error), not
     // rendered here; no dropdown, and BranchSelect adds nothing to the DOM.
-    expect(onError).toHaveBeenCalledWith('repository not found');
+    expect(onError).toHaveBeenCalledWith('repository not found', undefined);
     expect(container.querySelector('select')).toBeNull();
     expect(container.querySelector('.branch-select')).toBeNull();
   });

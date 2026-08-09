@@ -5,6 +5,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render } from 'preact';
 import { NewProjectForm } from '@/components/NewProjectForm/NewProjectForm';
 import * as branchesApi from '@/api/branches';
+import { ScanError } from '@/api/manifest';
 import { SCAN_PROGRESS } from '@/state/stores/scanProgress';
 import { flush, drainAsync } from '../_helpers/preact';
 
@@ -174,6 +175,58 @@ describe('NewProjectForm', () => {
     await flush();
     expect(container.querySelector('.new-project-advanced-toggle')).toBeNull();
     expect(container.querySelector('input[type="checkbox"]')).toBeNull();
+  });
+
+  it('shows exactly one notice for one failure, under the field', async () => {
+    // Regression: the remedy rendered above the field while the raw server
+    // message stayed below it, so a single failure spoke twice.
+    vi.spyOn(branchesApi, 'fetchBranches').mockRejectedValue(
+      new ScanError('repository not found at https://github.com/o/private', 'repo-not-found')
+    );
+    render(<NewProjectForm allowLocalRepos hosted={false} onSubmit={() => {}} />, container);
+    await flush();
+    setInput(field(container), 'https://github.com/o/private');
+    await drainAsync();
+
+    expect(container.querySelectorAll('.unreachable')).toHaveLength(1);
+    // The remedy replaces the raw message rather than joining it.
+    expect(container.querySelector('.new-project-error')).toBeNull();
+    // And it describes the field it belongs to.
+    const notice = container.querySelector('.unreachable--error')!;
+    expect(field(container).getAttribute('aria-describedby')).toBe(notice.id);
+    expect(container.querySelector('.new-project-field')!.contains(notice)).toBe(true);
+  });
+
+  it('offers the remedy when the branch lookup says the repo is unreachable', async () => {
+    // The bug this guards: pasting a private repo URL failed at the branch
+    // lookup, which showed raw git stderr and no remedy, because the code was
+    // only threaded through the manifest stream.
+    vi.spyOn(branchesApi, 'fetchBranches').mockRejectedValue(
+      new ScanError('repository not found at https://github.com/o/private', 'repo-not-found')
+    );
+    render(<NewProjectForm allowLocalRepos hosted={false} onSubmit={() => {}} />, container);
+    await flush();
+    setInput(field(container), 'https://github.com/o/private');
+    await drainAsync();
+
+    const notice = container.querySelector('.unreachable--error');
+    expect(notice).not.toBeNull();
+    expect(notice?.textContent).toContain("Couldn't reach that repo.");
+  });
+
+  it('drops the remedy once the URL is edited again', async () => {
+    vi.spyOn(branchesApi, 'fetchBranches').mockRejectedValue(
+      new ScanError('nope', 'repo-not-found')
+    );
+    render(<NewProjectForm allowLocalRepos hosted={false} onSubmit={() => {}} />, container);
+    await flush();
+    setInput(field(container), 'https://github.com/o/private');
+    await drainAsync();
+    expect(container.querySelector('.unreachable--error')).not.toBeNull();
+
+    setInput(field(container), 'https://github.com/o/other');
+    await flush();
+    expect(container.querySelector('.unreachable--error')).toBeNull();
   });
 
   it('answers a remote not-found with the error remedy, keyed on the code', async () => {

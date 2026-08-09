@@ -2,16 +2,16 @@
    quiet prose; the error variant is the same content with a preamble and a
    warning tint, because it is answering something that just failed. */
 
-/* A left-ruled callout rather than a full box: it sits inside a card that
-   already has a border, and a second complete outline around a two-line note
-   reads as a nested panel. The rule carries the tint instead. */
+/* It sits directly under the field it describes, so it takes the field's own
+   shape: same radius, a full border rather than a left rule, which reads as
+   part of the input group instead of a callout floating beside it. */
 .unreachable {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
   column-gap: var(--cc-space-3);
   padding: var(--cc-space-3) var(--cc-space-4);
-  border-left: 2px solid var(--cc-accent-line);
-  border-radius: 0 var(--cc-radius-sm) var(--cc-radius-sm) 0;
+  border: 1px solid var(--cc-accent-line);
+  border-radius: var(--cc-radius-sm);
   background: var(--cc-accent-bg-soft);
   font-size: var(--cc-font-xs);
   line-height: 1.5;
@@ -35,7 +35,7 @@
 }
 
 .unreachable--error {
-  border-left-color: color-mix(in oklch, var(--cc-error) 55%, transparent);
+  border-color: var(--cc-error-border);
   background: var(--cc-error-bg);
 }
 .unreachable--error .unreachable-glyph {
@@ -50,7 +50,9 @@
 
 .unreachable-remedy {
   margin: 0;
-  color: var(--cc-text-secondary); /* AA on the card surface; muted fails 4.5:1 */
+  /* Body copy, not a caption: secondary clears AA on the error tint at 4.91:1
+     but reads washed out beside the strong preamble. primary is 9.04:1. */
+  color: var(--cc-text-primary);
 }
 
 .unreachable-remedy code {

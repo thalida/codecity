@@ -12,6 +12,7 @@ import './BranchSelect.css';
 import { useEffect, useState } from 'preact/hooks';
 import { LoaderCircle } from 'lucide-preact';
 import { fetchBranches } from '@/api/branches';
+import { ScanError, type ScanErrorCode } from '@/api/manifest';
 
 export interface BranchSelectProps {
   url: string; // a resolvable git URL, or '' to stay idle
@@ -19,7 +20,7 @@ export interface BranchSelectProps {
   onChange: (branch: string) => void;
   /** Reports the resolution error to the parent (null once it clears/resolves)
    *  so the parent can surface it as the URL field error and disable submit. */
-  onError: (message: string | null) => void;
+  onError: (message: string | null, code?: ScanErrorCode) => void;
 }
 
 enum BranchStatus {
@@ -57,7 +58,10 @@ export function BranchSelect({ url, value, onChange, onError }: BranchSelectProp
       (e: unknown) => {
         if (!live) return;
         setState({ status: BranchStatus.Error });
-        onError(e instanceof Error ? e.message : String(e));
+        onError(
+          e instanceof Error ? e.message : String(e),
+          e instanceof ScanError ? e.code : undefined
+        );
       }
     );
     return () => {
