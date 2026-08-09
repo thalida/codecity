@@ -35,7 +35,6 @@
   position: absolute;
   top: calc(100% + var(--cc-space-2));
   right: 0;
-  z-index: 1; /* only ever above its own siblings; both hosts are already layered */
   /* Sized by its longest sublabel: the menu is two or three short phrases, and
      wrapping one mid-phrase costs more than the width saves. */
   width: max-content;

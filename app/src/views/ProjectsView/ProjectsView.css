@@ -26,11 +26,9 @@
   pointer-events: none;
 }
 
-/* The swirl ships as a fixed, negatively-stacked layer of its own; inside the
-   stage it's just its only child. */
-.landing-stage .landing-backdrop {
+.landing-stage > * {
   position: absolute;
-  z-index: auto;
+  inset: 0;
 }
 
 /* Both modes have a city behind the hero. Scrim only the hero side, letting its

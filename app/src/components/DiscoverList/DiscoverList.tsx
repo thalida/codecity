@@ -12,7 +12,6 @@
 // whether it's the city you can see, and ACTIVE_SOURCE already answers that for
 // the featured repo too.
 
-import '@/components/SourceRow/SourceList.css';
 import { DISCOVER } from '@/state/stores/discover';
 import { ACTIVE_SOURCE } from '@/state/stores/source';
 import { sameSourceIdentity } from '@/utils/sources';

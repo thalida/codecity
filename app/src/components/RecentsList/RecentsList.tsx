@@ -8,7 +8,6 @@
 // always offered, so a first visit learns that codecity remembers what you open.
 
 import './RecentsList.css';
-import '@/components/SourceRow/SourceList.css';
 import { useState } from 'preact/hooks';
 import { listRecents, removeRecent, ACTIVE_SOURCE } from '@/state/stores/source';
 import { SERVER_CONFIG } from '@/state/stores/serverConfig';
