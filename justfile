@@ -236,8 +236,8 @@ release VERSION:
 # deploys on its own once the image is actually published. Use this to redeploy
 # without cutting a release.
 #
-# .env (tracked):                    FORGEJO_DEPLOY_APP
-# .local/deploy.env (gitignored):    FORGEJO_HOST, FORGEJO_REPO, FORGEJO_TOKEN
+# Setup:  cp deploy.env.example .local/deploy.env   (gitignored; fill it in)
+# .env (tracked) holds only FORGEJO_DEPLOY_APP.
 #
 #   just deploy              # deploys FORGEJO_DEPLOY_APP
 #   just deploy app-other    # deploys something else

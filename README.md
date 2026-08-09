@@ -194,6 +194,7 @@ The pre-push hook runs the full lint + tests before pushing; bypass with `git pu
 | `just run` | run the local image like an end user |
 | `just screenshots [names]` | regenerate the README screenshots |
 | `just demo-video` | record the README `demo.mp4` |
+| `just deploy` | redeploy production without cutting a release |
 | `just clean` | tear down this worktree's containers and volumes |
 
 ### Worktrees
@@ -225,6 +226,31 @@ Pushing the tag triggers GitHub Actions, which:
 - signs with cosign (keyless via OIDC)
 - smoke-tests via `/api/health`
 - creates a GitHub Release
+
+### Deploy
+
+A release deploys itself: after the image is published, the release workflow
+dispatches the `deploy.yml` workflow on Forgejo with `app: app-codecity`. It
+waits on the build, so the deploy never runs before the image exists, and it
+no-ops with a notice when the deploy secrets aren't set.
+
+To redeploy without cutting a release:
+
+```sh
+cp deploy.env.example .local/deploy.env   # fill in host, repo, token
+just deploy                               # or: just deploy app-other
+```
+
+`.local/` is gitignored. The host and repo live there rather than in the tracked
+`.env` because this repo is public.
+
+For the release workflow, the same three go in **Settings → Secrets and
+variables → Actions → Secrets**: `FORGEJO_HOST`, `FORGEJO_REPO`,
+`FORGEJO_TOKEN`. Secrets rather than variables, since only secrets are masked in
+the public Actions logs. `FORGEJO_DEPLOY_APP` is the one non-sensitive knob and
+lives in `.env`.
+
+The token needs `repository → Read and Write` and nothing else.
 
 ### Verify signatures
 
