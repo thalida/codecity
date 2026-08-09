@@ -7,6 +7,12 @@ on:
 jobs:
   release:
     runs-on: ubuntu-latest
+    # A release publishes an image and now deploys production, so only the repo
+    # owner's tags trigger it. This is the second line of defence: the first is
+    # a tag ruleset restricting who can create `v*` at all, which stops the tag
+    # rather than the run. Anyone with write access could otherwise cut a
+    # release by pushing a tag.
+    if: github.actor == github.repository_owner
     permissions:
       contents: write       # for creating the GitHub Release
       packages: write       # for pushing to GHCR
