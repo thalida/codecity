@@ -59,7 +59,7 @@ export function UnreachableSource({
       role={variant === 'error' ? 'alert' : undefined}
     >
       <Glyph class="icon unreachable-glyph" aria-hidden="true" />
-      <div class="unreachable-body">
+      <div class="unreachable-text">
         {variant === 'error' && <p class="unreachable-preamble">Couldn't reach that repo.</p>}
 
         {hosted ? (

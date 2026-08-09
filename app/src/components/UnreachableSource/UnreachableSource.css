@@ -6,9 +6,9 @@
    shape: same radius, a full border rather than a left rule, which reads as
    part of the input group instead of a callout floating beside it. */
 .unreachable {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  column-gap: var(--cc-space-3);
+  display: flex;
+  align-items: flex-start;
+  gap: var(--cc-space-3);
   padding: var(--cc-space-3) var(--cc-space-4);
   border: 1px solid var(--cc-accent-line);
   border-radius: var(--cc-radius-sm);
@@ -20,14 +20,12 @@
 /* The glyph reads as "note" on the standing variant and "that failed" on the
    error one, which is the only difference between them. */
 .unreachable-glyph {
-  grid-area: 1 / 1;
-  align-self: center;
+  flex: none;
   font-size: var(--cc-font-sm); /* icons are 1em (icons.css) */
   color: var(--cc-accent);
 }
 
-.unreachable-body {
-  grid-area: 1 / 2;
+.unreachable-text {
   display: flex;
   flex-direction: column;
   gap: var(--cc-space-2);

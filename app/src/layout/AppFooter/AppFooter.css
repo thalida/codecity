@@ -6,8 +6,7 @@
 
 #app-footer {
   flex: 0 0 auto;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  display: flex;
   align-items: center;
   gap: var(--cc-space-7);
   padding: 0 var(--cc-chrome-inset);
@@ -26,21 +25,18 @@
    * visual breathing room; the gap just keeps things from butting up
    * against the dots. */
   gap: var(--cc-space-3);
-  /* Stretch to fill the grid cell + clip at the cell boundary. The
-   * previous attempt used justify-self: start/center/end, which made
-   * each section's box content-sized (not cell-sized) — overflow:hidden
-   * then clipped against the content box, NOT the cell, so long text in
-   * the left section painted on top of the center section's repo name.
-   * Stretching the box to the cell + aligning children with
-   * justify-content fixes this properly. */
+  /* min-width:0 is what lets overflow:hidden actually bite: without it the
+   * section's min-content width wins and long text paints past the section. */
   min-width: 0;
-  width: 100%;
   overflow: hidden;
 }
+/* The left section absorbs the slack and clips; the right is content-sized. */
 .app-footer-section.app-footer-left {
+  flex: 1 1 auto;
   justify-content: flex-start;
 }
 .app-footer-section.app-footer-right {
+  flex: 0 0 auto;
   justify-content: flex-end;
 }
 
