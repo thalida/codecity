@@ -151,6 +151,15 @@
      paddings, row insets, and full-bleed row margins all key off this, so
      changing it here reflows every panel's content inset in lockstep. */
   --cc-pane-inset: var(--cc-space-6);
+  /* Height of BOTH chrome bars. One value: they sat at 32px and 24px, which
+     read as a mistake once each held a cluster of the same controls. Sized so a
+     26px cluster (24px items + its border) clears the edges on both sides. */
+  --cc-chrome-h: 36px;
+  /* Height of a cluster inside those bars. Explicit rather than derived from
+     its tallest child: the freshness cluster holds only text and a split
+     button, so "as tall as the children" and "children fill the cluster"
+     would define each other and collapse to the text's line height. */
+  --cc-chrome-cluster-h: 26px;
 
   /* ── SCALES — Radius ──────────────────────────────────────────────────── */
   --cc-radius-0: 0;

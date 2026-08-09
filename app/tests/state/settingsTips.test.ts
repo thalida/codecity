@@ -16,8 +16,11 @@ const SOURCES = import.meta.glob('../../src/**/*.{ts,tsx}', {
   eager: true,
 }) as Record<string, string>;
 
-// Object keys whose string values reach the user.
-const COPY_KEYS = ['tip', 'description', 'placeholder', 'hint'];
+// Object keys whose string values reach the user. `label` and `sublabel` cover
+// the split-button menus, whose copy is the whole point of those controls;
+// `label` also catches aria-labels, which reach the user through a screen
+// reader and deserve the same treatment.
+const COPY_KEYS = ['tip', 'description', 'placeholder', 'hint', 'label', 'sublabel'];
 
 describe('user-facing copy', () => {
   it('has no em-dashes in settings field tips', () => {

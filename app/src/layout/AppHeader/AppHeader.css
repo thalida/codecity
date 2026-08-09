@@ -8,10 +8,10 @@
   flex: 0 0 auto;
   display: flex;
   align-items: center;
-  gap: var(--cc-space-2);
+  gap: var(--cc-space-4);
   min-width: 0;
-  height: 32px;
-  padding: 0 var(--cc-space-4);
+  height: var(--cc-chrome-h);
+  padding: 0 var(--cc-space-6);
   border-bottom: 1px solid var(--cc-border-subtle);
   font-family: var(--cc-font-mono);
   font-size: var(--cc-font-xs);
@@ -23,21 +23,18 @@
    how fresh the city is, and the button that acts on it, together. */
 .app-header-freshness {
   margin-left: auto;
-  flex: 0 0 auto;
-  padding-left: var(--cc-space-3);
 }
 
-/* The status readout is a label inside the cluster, not a press, so it has no
-   divider of its own before the refresh button... it has one after. */
-.app-header-freshness .freshness-status {
-  padding-right: var(--cc-space-3);
+/* The split button is one cluster item made of two presses, so its own halves
+   carry the item padding and the seam between them is the cluster's divider. */
+.chrome-cluster > .app-header-refresh {
+  padding: 0;
 }
-
-/* The refresh split button carries the bar's height rather than the button
-   kit's own padding. */
 .app-header-refresh .split-button-primary,
 .app-header-refresh .split-button-caret {
-  height: 22px;
+  height: 100%;
+  padding-block: 0;
+  padding-inline: var(--cc-space-4);
 }
 
 /* Inner svg rendering tweak for any svg child of a header btn-icon. */

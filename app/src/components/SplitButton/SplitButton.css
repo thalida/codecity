@@ -91,6 +91,6 @@
    shout over the row it sits in. The seam is a divider rather than a hairline
    gap, matching the cluster's own dividers. */
 .split-button--chrome .split-button-caret {
-  border-left-color: var(--cc-border-subtle);
+  border-left-color: var(--cc-border-input);
   padding-inline: var(--cc-space-2);
 }
