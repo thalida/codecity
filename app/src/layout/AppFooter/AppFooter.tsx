@@ -2,8 +2,7 @@
 //
 // The header is the PROJECT; the footer is the APP. Nothing here is about the
 // repo you have open: the keyboard shortcuts, the debug tools when debug mode
-// is on, and the app's own line of version, about and credit. Freshness and
-// refresh moved up to the header, next to the project they describe.
+// is on, and the app's own line of version, about and credit.
 //
 // Per-node stats live in the selection pane's own footer (<PaneStats>), beside
 // the file or road they describe.

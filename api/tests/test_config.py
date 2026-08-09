@@ -33,9 +33,9 @@ class SettingsTests(unittest.TestCase):
                 self.assertFalse(hosted(), v)
 
     def test_a_bogus_boolean_raises_rather_than_defaulting(self) -> None:
-        """The old hand-rolled parser read anything unrecognized as false, so
-        CODECITY_DISCOVER=enabled silently emptied the Discover tab. Now it
-        fails loudly at the first read instead."""
+        """A parser that reads anything unrecognized as false would let
+        CODECITY_DISCOVER=enabled silently empty the Discover tab. It fails at
+        the first read instead."""
         with mock.patch.dict(os.environ, {"CODECITY_DISCOVER": "enabled"}):
             with self.assertRaises(ValidationError):
                 discover_enabled()

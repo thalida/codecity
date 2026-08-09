@@ -20,8 +20,7 @@ const COMMIT: CommitEntry = {
   same_day_total: 4,
 };
 
-// setCommit(commit, opts) on the old factory maps to assigning the signal
-// value (commit + opts fields) and flushing.
+// setCommit(commit, opts) assigns the signal and flushes.
 type SetOpts = Omit<CommitPaneState, 'commit'>;
 
 // Stand-in for the backend's AuthorStat.hue map, which RightSidebar threads in.
@@ -428,8 +427,6 @@ describe('CommitPane', () => {
     const subjectEl = container.querySelector('.commit-message-subject') as HTMLElement;
     expect(subjectEl).not.toBeNull();
     expect(subjectEl.textContent).toBe(COMMIT.subject);
-    // Confirm the old ellipsized class is gone.
-    expect(container.querySelector('.commit-subject')).toBeNull();
   });
 
   // ── Pane-wide loading state ───────────────────────────────────────────────
@@ -572,9 +569,8 @@ describe('CommitPane', () => {
   it('focus button is not actionable in the empty state', () => {
     const onFocus = vi.fn();
     mount({ onFocus });
-    // In the empty state CommitPane renders no focus button — focus is not
-    // actionable when there is no commit (the old factory rendered a present
-    // but disabled button; the Preact pane omits it entirely).
+    // No focus button in the empty state: focus isn't actionable with no
+    // commit, so the control is absent rather than present and disabled.
     const focusBtn = container.querySelector(
       '.pane-header button[aria-label*="Focus"]'
     ) as HTMLButtonElement | null;
@@ -682,8 +678,6 @@ describe('CommitPane', () => {
     const slot = container.querySelector('.commit-message-body-slot');
     expect(slot).not.toBeNull();
     expect(slot!.querySelector('.commit-message-body-slot--loading')).not.toBeNull();
-    // The old pane-wide loading class is gone.
-    expect(container.querySelector('.commit-loading')).toBeNull();
     // Skeleton content above is still visible (not blanked).
     expect(container.querySelector('.commit-author')).not.toBeNull();
     expect(container.querySelector('.commit-meta')).not.toBeNull();

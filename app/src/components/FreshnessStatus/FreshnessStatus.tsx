@@ -7,9 +7,8 @@
 //   animation — live state (slow heartbeat when polling, static when paused,
 //               fast pulse while rebuilding, static on error)
 //
-// It sits in the header, beside the refresh control that acts on it. Freshness
-// is a fact about the project, and a readout parked in the opposite corner from
-// its own button is the mistake the split button exists to fix.
+// It belongs beside the refresh control: freshness is a fact about the project,
+// and a readout in the opposite corner from its own button reads as unrelated.
 
 import './FreshnessStatus.css';
 import { useSignal } from '@preact/signals';

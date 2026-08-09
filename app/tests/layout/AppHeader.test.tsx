@@ -64,8 +64,8 @@ describe('AppHeader', () => {
     expect(chip!.querySelector('.gem-icon')).not.toBeNull();
   });
 
-  // The header is the project, the footer is the app. Neither of these is
-  // about the repo you have open, so both moved down.
+  // The header is the project, the footer is the app. Neither of these is about
+  // the repo you have open.
   it('holds neither the about link nor the shortcuts button', async () => {
     loadProject();
     render(<AppHeader />, container);

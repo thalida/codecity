@@ -35,7 +35,7 @@ docker run --rm --init --pull=always \
 ```
 
 1. Open <http://localhost:8080/> to reach the Projects page
-2. Enter a repo URL and pick a branch
+2. Paste a repo URL and pick a branch, or open one from Discover
 3. Explore your city!
 
 Local folders take one more step, see [Local directories](#local-directories) below.

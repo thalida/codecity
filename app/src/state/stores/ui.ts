@@ -173,8 +173,8 @@ export function setLoadingCancel(onCancel: (() => void) | null): void {
 export function hideLoadingOverlay(): void {
   LOADING_OVERLAY.value = { ...LOADING_OVERLAY.peek(), visible: false };
   LOADING_CANCEL.value = null;
-  // The header belongs to the overlay: every caller used to clear it by hand
-  // right after this, and the one that forgot blanked the header mid-load.
+  // The header belongs to the overlay, so it clears here rather than at each
+  // call site: one that forgets leaves a stale label over the next load.
   PENDING_SOURCE_LABEL.value = null;
 }
 

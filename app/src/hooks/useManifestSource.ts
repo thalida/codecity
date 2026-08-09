@@ -133,10 +133,10 @@ export function setTimelineRefreshHandler(fn: (() => Promise<void>) | null): voi
 // generation token makes the NEWEST load authoritative: every write (skeleton,
 // final, the source commit, the overlay teardown, a surfaced error) is gated on
 // "am I still the current generation?". A foreground load bumps it, which
-// silently drops any older in-flight load AND any in-flight poll write — so an
-// update firing mid-load can no longer clobber the world being loaded with the
-// previous source's manifest. Mirrors the same generation guard cityState's
-// applyManifest already uses one layer down.
+// silently drops any older in-flight load AND any in-flight poll write, so an
+// update firing mid-load cannot clobber the world being loaded with the
+// previous source's manifest. Mirrors the generation guard cityState's
+// applyManifest uses one layer down.
 let loadGeneration = 0;
 
 // The AbortController for the current foreground load, so the UI can cancel a

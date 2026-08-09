@@ -1578,9 +1578,8 @@ def scan_tree(
             unignore_paths=unignore_paths,
         ):
             is_dir = entry.is_dir(follow_symlinks=False)
-            # Preserve the old file/dir gate: an entry that is neither (a
-            # dangling symlink, socket, fifo) fell through both branches and
-            # was never noded. Drop it here so is_dir alone drives the loop.
+            # An entry that is neither file nor dir (a dangling symlink,
+            # socket, fifo) is dropped here, so is_dir alone drives the loop.
             if not is_dir and not entry.is_file(follow_symlinks=False):
                 continue
             if not is_dir:

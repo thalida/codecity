@@ -27,8 +27,7 @@ describe('AppFooter', () => {
     expect(right.textContent).toContain('v1.3.0');
   });
 
-  // The header is the project, the footer is the app. Freshness is a fact
-  // about the project and moved up beside the refresh button that acts on it.
+  // The header is the project, the footer is the app.
   it('holds no project state: the freshness readout lives in the header', async () => {
     render(<AppFooter />, container);
     await flush();

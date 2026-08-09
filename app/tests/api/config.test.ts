@@ -42,8 +42,8 @@ describe('fetchServerConfig', () => {
     expect(cfg).toEqual(DEFAULT_SERVER_CONFIG);
   });
 
-  // Regression: the parser used to list each field by hand, so a field added
-  // server-side was dropped here and the client kept its stale default.
+  // Regression: a hand-listed parser silently drops any field the server adds,
+  // leaving the client on its stale default.
   it('carries through a field the hardcoded parser would have dropped', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
       new Response(JSON.stringify({ allowLocalRepos: false, maxBatchPaths: 64 }), { status: 200 })

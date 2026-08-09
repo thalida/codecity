@@ -629,10 +629,9 @@ class ScanTreeIntegrationTests(_CacheRedirectMixin, unittest.TestCase):
         self.assertEqual(m1["content_signature"], m2["content_signature"])
 
     def test_resolved_dates_prefer_git(self):
-        # created/modified are resolved server-side: a committed file
-        # carries its git history dates (the fixture pins index.ts's
-        # commit date), not its filesystem dates — and the old dual
-        # `git` block is gone from the wire.
+        # created/modified are resolved server-side: a committed file carries
+        # its git history dates (the fixture pins index.ts's commit date),
+        # not its filesystem dates.
         m = _final_manifest(str(FIXTURE))
         for node in _walk_files(m["tree"]):
             if node["name"] == "index.ts":
@@ -1044,8 +1043,8 @@ class LineCountCapTests(unittest.TestCase):
 
     def test_final_line_without_trailing_newline_counts(self):
         # Count lines, not terminators: a final line with no trailing newline
-        # still counts. Regression — source maps / minified files are one long
-        # line with no trailing newline and used to report 0.
+        # still counts. Regression: a source map or minified file is one long
+        # line with no trailing newline, which a terminator count reports as 0.
         from api.services.scan import _line_count
 
         def count(content: bytes) -> int:

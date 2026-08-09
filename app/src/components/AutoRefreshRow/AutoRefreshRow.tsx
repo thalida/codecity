@@ -1,7 +1,6 @@
 // components/AutoRefreshRow/AutoRefreshRow.tsx — the auto-refresh toggle, in
-// the refresh menu's footer. It belongs with Refresh (same subject: keeping the
-// city current) without being one of its actions, which is why it sits below a
-// rule rather than among the menu items.
+// the refresh menu's footer: same subject as Refresh, not one of its actions,
+// so it sits below a rule rather than among the items.
 //
 // The cadence is a LINK, not a second control. POLL_SECONDS is schema-defined
 // with a min/max/step and clamped again at the caller; a number input here

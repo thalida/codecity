@@ -78,8 +78,8 @@ export function SplitButton({
       menu.current?.contains(node)
     );
 
-  // Closing always returns focus to the caret: the menu's items are gone, so
-  // leaving focus on a removed node would drop the user at the top of the page.
+  // Focus returns to the caret: the item that had it is gone, and a detached
+  // activeElement drops the user at the top of the page.
   function close(refocus = true) {
     setOpen(false);
     if (refocus) caret.current?.focus();

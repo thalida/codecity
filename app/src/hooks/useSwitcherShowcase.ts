@@ -7,8 +7,8 @@
 // of its modes, so App keys that off PROJECTS_VIEW directly.
 //
 // The restore is gated on the source key: if the user actually SWITCHED
-// projects (a new city committed), the old pose + selection belong to the gone
-// city, so we bow out and let the new city's own framing stand.
+// projects, the saved pose + selection describe a city that isn't there any
+// more, so we bow out and let the new one's own framing stand.
 
 import { useEffect } from 'preact/hooks';
 import { effect } from '@preact/signals';
