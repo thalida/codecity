@@ -3,7 +3,7 @@
    ═══════════════════════════════════════════════════════════════════════════
    Shared backdrop + card layout for DebugModal, ShortcutsModal, and
    LoadingOverlay (ProjectsView is a full-viewport surface, not a modal, so it
-   doesn't use these). Surface fill/radius/shadow comes from .card-overlay;
+   doesn't use these). Radius and shadow come from .card-overlay and the fill from .surface-glass;
    this file only adds backdrop positioning + the header/body column layout.
    ═══════════════════════════════════════════════════════════════════════════ */
 

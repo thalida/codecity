@@ -1,14 +1,14 @@
 /* ═══════════════════════════════════════════════════════════════════════════
    LAYER-2 COMPONENTS — Cards
    ═══════════════════════════════════════════════════════════════════════════
-   Reusable boxed surfaces. Each owns its background + border + radius (+ shadow
-   / padding); the consuming selector adds only its own layout. The element
-   composes the card class with its layout class, e.g. `modal-error card-error`.
+   Reusable boxed surfaces owning border + radius (+ shadow / padding), and a
+   background where the role has one; the consuming selector adds only its own
+   layout. The element composes the card class with its layout class, e.g.
+   `modal-error card-error`.
    ═══════════════════════════════════════════════════════════════════════════ */
 
-/* Elevated panel floating on a backdrop — the source-picker modal + the
-   loading overlay. */
-/* Pair with .surface-glass for the fill: every consumer floats over the scene. */
+/* Elevated panel floating on a backdrop: the Shortcuts and Debug modals plus
+   the loading overlay. Pair with .surface-glass, which supplies the fill. */
 .card-overlay {
   color: var(--cc-text-base);
   border-radius: var(--cc-radius-lg);
