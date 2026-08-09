@@ -111,6 +111,9 @@
      own fill (the timeline's error toast) still blurs by this radius. */
   --cc-glass-fill: color-mix(in oklch, var(--cc-bg-modal) 82%, transparent);
   --cc-glass-blur: 12px;
+  /* Alpha, not an absolute colour: an opaque border would hold one fixed hue
+     while the fill takes its cast from whatever is behind the panel. */
+  --cc-glass-border: var(--cc-overlay-border);
 
   /* ── COLORS — Pure neutrals ───────────────────────────────────────────── */
   --cc-black: oklch(0 0 0);
