@@ -237,12 +237,12 @@ no-ops with a notice when the deploy secrets aren't set.
 To redeploy without cutting a release:
 
 ```sh
-cp deploy.env.example .local/deploy.env   # fill in host, repo, token
-just deploy                               # or: just deploy app-other
+just setup      # seeds .local/deploy.env from deploy.env.example
+just deploy     # or: just deploy app-other
 ```
 
-`.local/` is gitignored. The host and repo live there rather than in the tracked
-`.env` because this repo is public.
+Fill in host, repo and token in `.local/deploy.env`, which is gitignored. They
+live there rather than in the tracked `.env` because this repo is public.
 
 For the release workflow, the same three go in **Settings → Secrets and
 variables → Actions → Secrets**: `FORGEJO_HOST`, `FORGEJO_REPO`,

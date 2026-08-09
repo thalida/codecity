@@ -163,6 +163,11 @@ demo-video:
 # itself uses Docker via `just dev`) and the per-clone git hooks.
 setup: install-hooks
     cd app && npm install
+    @mkdir -p .local ; \
+     if [ ! -f .local/deploy.env ]; then \
+         cp deploy.env.example .local/deploy.env ; \
+         echo "[just] seeded .local/deploy.env — fill it in before 'just deploy'" ; \
+     fi
     @echo "[just] setup complete — try 'just dev'"
 
 # ── Git hooks ────────────────────────────────────────────────────
