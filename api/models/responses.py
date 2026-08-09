@@ -46,6 +46,19 @@ class ConfigResponse(BaseModel):
     version: str
 
 
+class DiscoverEntry(BaseModel):
+    """One curated repo on the landing's Discover tab. Deliberately just a URL
+    and a name: stars and scan timings were considered and rejected, so there
+    is nothing here to rot or to fetch from a third party."""
+
+    url: str
+    label: str
+
+
+class DiscoverResponse(BaseModel):
+    repos: list[DiscoverEntry]
+
+
 class CommitDetailResponse(BaseModel):
     sha: str
     authors: list[str]

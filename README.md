@@ -56,6 +56,8 @@ Everything codecity reads is an env var, passed with `-e`:
 | --- | --- | --- |
 | `CODECITY_ALLOW_LOCAL_REPOS` | off | Render local folders. Needs a matching mount, see [Local directories](#local-directories) |
 | `CODECITY_HOSTED` | off | Marks a public deployment, where a local path can never resolve. Changes the advice shown when a repo can't be reached |
+| `CODECITY_DISCOVER` | on | The Discover tab of repos worth rendering. Set `off` to hide it |
+| `CODECITY_DISCOVER_FILE` | `api/discover.json` | Swap in your own curated list: a JSON array of `{"url", "label"}` |
 | `CODECITY_CACHE_ROOT` | `/cache` | Where clones and the manifest cache live |
 | `CODECITY_QUIET` | off | Silence disconnect and scan logs |
 

@@ -38,6 +38,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/discover": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Discover */
+        get: operations["discover_api_discover_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/file": {
         parameters: {
             query?: never;
@@ -399,6 +416,23 @@ export interface components {
             descendants_modified_max: string | null;
             /** Descendants Ext Breakdown */
             descendants_ext_breakdown: components["schemas"]["ExtBreakdownEntry"][];
+        };
+        /**
+         * DiscoverEntry
+         * @description One curated repo on the landing's Discover tab. Deliberately just a URL
+         *     and a name: stars and scan timings were considered and rejected, so there
+         *     is nothing here to rot or to fetch from a third party.
+         */
+        DiscoverEntry: {
+            /** Url */
+            url: string;
+            /** Label */
+            label: string;
+        };
+        /** DiscoverResponse */
+        DiscoverResponse: {
+            /** Repos */
+            repos: components["schemas"]["DiscoverEntry"][];
         };
         /**
          * ErrorCode
@@ -791,6 +825,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ConfigResponse"];
+                };
+            };
+        };
+    };
+    discover_api_discover_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DiscoverResponse"];
                 };
             };
         };
