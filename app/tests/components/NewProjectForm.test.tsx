@@ -79,7 +79,7 @@ describe('NewProjectForm', () => {
     setInput(field(container), 'https://github.com/o/second');
     await drainAsync();
 
-    const submitBtn = container.querySelector<HTMLButtonElement>('[aria-label="Open project"]')!;
+    const submitBtn = container.querySelector<HTMLButtonElement>('.split-button-primary')!;
     submitBtn.click();
     await flush();
 
@@ -104,7 +104,7 @@ describe('NewProjectForm', () => {
     expect(container.querySelector('.new-project-error')?.textContent).toMatch(
       /repository not found/i
     );
-    const submitBtn = container.querySelector<HTMLButtonElement>('[aria-label="Open project"]')!;
+    const submitBtn = container.querySelector<HTMLButtonElement>('.split-button-primary')!;
     expect(submitBtn.disabled).toBe(true);
 
     submitBtn.click();
@@ -123,27 +123,57 @@ describe('NewProjectForm', () => {
     await drainAsync();
 
     expect(container.querySelector('.new-project-error')?.textContent).toMatch(/# or \?/);
-    const submitBtn = container.querySelector<HTMLButtonElement>('[aria-label="Open project"]')!;
+    const submitBtn = container.querySelector<HTMLButtonElement>('.split-button-primary')!;
     expect(submitBtn.disabled).toBe(true);
     expect(resolve).not.toHaveBeenCalled();
     expect(container.querySelector('select')).toBeNull();
   });
 
-  it('demotes skip-cache to an off-by-default Advanced disclosure', async () => {
+  it('opens without skipCache by default', async () => {
+    const onSubmit = vi.fn();
+    render(<NewProjectForm allowLocalRepos hosted={false} onSubmit={onSubmit} />, container);
+    await flush();
+    setInput(field(container), '/Users/thalida/repo');
+    await flush();
+    container.querySelector<HTMLButtonElement>('.split-button-primary')!.click();
+    await flush();
+    expect(onSubmit).toHaveBeenCalledWith({ src: '/Users/thalida/repo', skipCache: undefined });
+  });
+
+  it('the fresh-scan menu item opens with skipCache', async () => {
+    const onSubmit = vi.fn();
+    render(<NewProjectForm allowLocalRepos hosted={false} onSubmit={onSubmit} />, container);
+    await flush();
+    setInput(field(container), '/Users/thalida/repo');
+    await flush();
+    container.querySelector<HTMLButtonElement>('.split-button-caret')!.click();
+    await flush();
+    const item = Array.from(container.querySelectorAll<HTMLElement>('[role="menuitem"]')).find(
+      (el) => el.textContent?.includes('fresh scan')
+    )!;
+    expect(item).not.toBeUndefined();
+    item.click();
+    await flush();
+    expect(onSubmit).toHaveBeenCalledWith({ src: '/Users/thalida/repo', skipCache: true });
+  });
+
+  it('the fresh-scan item never submits the form itself', async () => {
+    // It lives inside the real <form>, so a stray type="submit" would fire an
+    // extra plain open alongside the fresh one.
     render(<NewProjectForm allowLocalRepos hosted={false} onSubmit={() => {}} />, container);
     await flush();
-
-    expect(container.querySelector('input[type="checkbox"]')).toBeNull();
-
-    const toggle = container.querySelector<HTMLButtonElement>('.new-project-advanced-toggle')!;
-    expect(toggle.getAttribute('aria-expanded')).toBe('false');
-    toggle.click();
+    container.querySelector<HTMLButtonElement>('.split-button-caret')!.click();
     await flush();
+    for (const el of container.querySelectorAll<HTMLButtonElement>('[role="menuitem"]')) {
+      expect(el.type).toBe('button');
+    }
+  });
 
-    expect(toggle.getAttribute('aria-expanded')).toBe('true');
-    const checkbox = container.querySelector<HTMLInputElement>('input[type="checkbox"]')!;
-    expect(checkbox).not.toBeNull();
-    expect(checkbox.checked).toBe(false);
+  it('drops the Advanced disclosure and its checkbox', async () => {
+    render(<NewProjectForm allowLocalRepos hosted={false} onSubmit={() => {}} />, container);
+    await flush();
+    expect(container.querySelector('.new-project-advanced-toggle')).toBeNull();
+    expect(container.querySelector('input[type="checkbox"]')).toBeNull();
   });
 
   it('answers a remote not-found with the error remedy, keyed on the code', async () => {
@@ -197,7 +227,7 @@ describe('NewProjectForm', () => {
     // Typing a clear path blocks submit (the button stays present, just disabled).
     setInput(field(container), '/Users/thalida/repo');
     await flush();
-    const submitBtn = container.querySelector<HTMLButtonElement>('[aria-label="Open project"]')!;
+    const submitBtn = container.querySelector<HTMLButtonElement>('.split-button-primary')!;
     expect(submitBtn).not.toBeNull();
     expect(submitBtn.disabled).toBe(true);
   });

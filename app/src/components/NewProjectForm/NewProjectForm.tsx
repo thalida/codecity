@@ -1,15 +1,18 @@
 // components/NewProjectForm/NewProjectForm.tsx — new-source entry. One field
 // that takes either a git URL or a local path and classifies itself as you type
 // (srcKind): a URL gets a repo-resolved branch dropdown; a local path is opened
-// directly. When local repos are off, the field is URL-only — the label,
-// placeholder, and a standing "how to enable" notice all reflect that, and a
-// typed path is blocked. skip-cache is tucked behind an Advanced disclosure.
-// Submits on Enter (real <form>) or the button.
+// directly. When local repos are off, the field is URL-only: the label,
+// placeholder, and a standing UnreachableSource notice all reflect that, and a
+// typed path is blocked.
+//
+// Submits on Enter (a real <form>) or the split button, whose menu carries the
+// fresh-scan variant. Skipping the cache is a way of opening, not a setting, so
+// it lives on the open control rather than in a disclosure beside it.
 
 import './NewProjectForm.css';
 import { useState } from 'preact/hooks';
-import { ChevronRight } from 'lucide-preact';
 import { BranchSelect } from '@/components/BranchSelect/BranchSelect';
+import { SplitButton } from '@/components/SplitButton/SplitButton';
 import {
   srcKind,
   SourceKind,
@@ -51,8 +54,6 @@ export function NewProjectForm({
       ? prefill.src
       : ''
   );
-  const [skipCache, setSkipCache] = useState(false);
-  const [advanced, setAdvanced] = useState(false);
   const [branchError, setBranchError] = useState<string | null>(null); // from BranchSelect
 
   // Label + placeholder reflect what the field actually accepts here.
@@ -97,7 +98,7 @@ export function NewProjectForm({
   const canSubmit = !loading && activeSrc.length > 0 && !fieldError && !pathBlocked;
   const hasError = Boolean(fieldError) || pathBlocked;
 
-  function submit() {
+  function submit(skipCache = false) {
     if (!canSubmit) return;
     onSubmit({
       src: activeSrc,
@@ -154,30 +155,24 @@ export function NewProjectForm({
         />
       )}
 
-      <button
-        type="button"
-        class="new-project-advanced-toggle"
-        aria-expanded={advanced}
-        aria-controls="new-project-advanced"
-        onClick={() => setAdvanced((a) => !a)}
-      >
-        <ChevronRight class="icon new-project-advanced-caret" />
-        Advanced
-      </button>
-      {advanced && (
-        <label id="new-project-advanced" class="new-project-skip-cache">
-          <input
-            type="checkbox"
-            checked={skipCache}
-            onChange={(e) => setSkipCache((e.target as HTMLInputElement).checked)}
-          />
-          Skip cache (fresh scan)
-        </label>
-      )}
-
-      <button type="submit" class="btn-primary" aria-label="Open project" disabled={!canSubmit}>
-        Open project
-      </button>
+      <SplitButton
+        class="new-project-open"
+        label="Open project"
+        // The primary half is the form's real submit, so Enter in the field and
+        // a click on the button take the identical path.
+        primaryType="submit"
+        onPrimary={() => submit()}
+        menuLabel="More ways to open"
+        disabled={!canSubmit}
+        items={[
+          {
+            id: 'fresh',
+            label: 'Open with a fresh scan',
+            sublabel: 'ignore the cache and re-read the whole repo',
+            onSelect: () => submit(true),
+          },
+        ]}
+      />
     </form>
   );
 }
