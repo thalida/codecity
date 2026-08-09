@@ -1,12 +1,13 @@
-// components/LandingBackdrop — the cold-boot landing's "dark swirl" layer.
-// A full-screen WebGL layer that renders a domain-warped gem-palette gradient
-// OVER the landing's demo clip: the ribbons carry alpha, so the calm areas are
-// transparent and the city plays through them.
-// a color ramp pushed around by smooth fbm noise, which is what gives these
-// gradients their organic curved-ribbon flow (flat CSS radial gradients can't —
-// they're concentric circles). Theme-aware (reads the --cc-gem-* tokens),
-// honors prefers-reduced-motion (renders one static frame), non-interactive.
-// If WebGL is unavailable it renders nothing and the CSS fallback wash shows.
+// components/LandingBackdrop — the cold-boot landing's "dark swirl" layer: a
+// domain-warped gem-palette gradient, a color ramp pushed around by smooth fbm
+// noise, which is what gives it that organic curved-ribbon flow (flat CSS
+// radial gradients can't — they're concentric circles).
+//
+// It renders OVER the landing's demo clip, so the ribbons carry alpha rather
+// than painting a background: the calm areas are genuinely transparent and the
+// city plays through them. Theme-aware (reads the --cc-gem-* tokens), honors
+// prefers-reduced-motion (renders one static frame), non-interactive. If WebGL
+// is unavailable it renders nothing and the clip shows on its own.
 
 import './LandingBackdrop.css';
 import { useEffect, useRef } from 'preact/hooks';
@@ -25,6 +26,10 @@ uniform vec3 uCol[4];
 
 // Lower = larger, calmer forms; higher = smaller, busier.
 const float SCALE = 0.3;
+// Ceiling on the ribbons' opacity. They used to sit on a flat background and
+// could go fully opaque; over the demo clip that hides the city exactly where
+// the swirl is prettiest. Tints instead of covers.
+const float MAX_ALPHA = 0.55;
 
 float hash(vec2 p) {
   p = fract(p * vec2(123.34, 456.21));
@@ -84,7 +89,7 @@ void main() {
   // landing's demo clip), so the calm areas have to be genuinely transparent
   // rather than painted background-coloured. Premultiplied, which is the
   // WebGL default the canvas composites with.
-  float a = clamp(energy, 0.0, 1.0);
+  float a = clamp(energy, 0.0, 1.0) * MAX_ALPHA;
   fragColor = vec4(col * a, a);
 }
 `;

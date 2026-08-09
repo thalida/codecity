@@ -110,7 +110,7 @@ export function ProjectsView({ onSubmit, onCancel, onClose }: ProjectsViewProps)
           real thing instead (useSwitcherShowcase), and a clip in front of a
           city would just be a smaller worse one. */}
       {!pv.opts.dismissible && (
-        <>
+        <div class="landing-stage" aria-hidden="true">
           <video
             class="landing-clip"
             src={clipUrl('landing-clip.mp4')}
@@ -126,7 +126,7 @@ export function ProjectsView({ onSubmit, onCancel, onClose }: ProjectsViewProps)
             aria-hidden="true"
           />
           <LandingBackdrop />
-        </>
+        </div>
       )}
 
       {pv.opts.dismissible && !loading && (

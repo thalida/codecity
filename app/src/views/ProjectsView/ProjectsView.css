@@ -17,16 +17,32 @@
   background: var(--cc-bg-app);
 }
 
-/* The demo clip, full-bleed behind everything on a cold boot. Fixed and below
-   the backdrop canvas (z:-2 vs its -1), both above .landing's own fill. */
-.landing-clip {
+/* Cold boot's backdrop, in two layers: the demo clip covered full-bleed, with
+   the swirl canvas over it. One fixed stage holding both, so the order is plain
+   document order inside it and the page's layers are 0 (stage), 0 (the scrim
+   below, painted later as a pseudo-element) and 1 (.landing-inner). No negative
+   z-index anywhere: those depend on painting above the ancestor's own
+   background, which is a rule worth not having to hold in your head. */
+.landing-stage {
   position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.landing-clip {
+  position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
   object-fit: cover;
-  z-index: -2;
-  pointer-events: none;
+}
+
+/* The swirl ships as a fixed, negatively-stacked layer of its own; inside the
+   stage it's just the second child. */
+.landing-stage .landing-backdrop {
+  position: absolute;
+  z-index: auto;
 }
 
 /* Both modes now have moving content behind the hero: the live city in modal
@@ -37,7 +53,7 @@
   content: '';
   position: fixed;
   inset: 0;
-  z-index: -1;
+  z-index: 0;
   pointer-events: none;
   /* The scrim holds near-full strength across the whole hero column and only
      falls off past it, so building edges never cut through the tagline or the
@@ -81,6 +97,7 @@
 
 .landing-inner {
   position: relative;
+  z-index: 1; /* above the stage and the scrim, both at 0 */
   box-sizing: border-box;
   min-height: 100%;
   max-width: 1040px;
