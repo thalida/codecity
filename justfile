@@ -236,8 +236,8 @@ release VERSION:
 # deploys on its own once the image is actually published. Use this to redeploy
 # without cutting a release.
 #
-# Config (repo-root .env):     FORGEJO_HOST, FORGEJO_REPO, FORGEJO_DEPLOY_APP
-# Token (.local/deploy.env, gitignored, or the environment): FORGEJO_TOKEN
+# .env (tracked):                    FORGEJO_DEPLOY_APP
+# .local/deploy.env (gitignored):    FORGEJO_HOST, FORGEJO_REPO, FORGEJO_TOKEN
 #
 #   just deploy              # deploys FORGEJO_DEPLOY_APP
 #   just deploy app-other    # deploys something else
@@ -248,8 +248,8 @@ deploy APP='':
      set -a ; . ./.env ; [ -f .local/deploy.env ] && . ./.local/deploy.env ; set +a ; \
      APP="{{APP}}" ; APP="${APP:-${FORGEJO_DEPLOY_APP:-}}" ; \
      MISSING="" ; \
-     [ -n "${FORGEJO_HOST:-}" ]  || MISSING="$MISSING FORGEJO_HOST(.env)" ; \
-     [ -n "${FORGEJO_REPO:-}" ]  || MISSING="$MISSING FORGEJO_REPO(.env)" ; \
+     [ -n "${FORGEJO_HOST:-}" ]  || MISSING="$MISSING FORGEJO_HOST(.local/deploy.env)" ; \
+     [ -n "${FORGEJO_REPO:-}" ]  || MISSING="$MISSING FORGEJO_REPO(.local/deploy.env)" ; \
      [ -n "${FORGEJO_TOKEN:-}" ] || MISSING="$MISSING FORGEJO_TOKEN(.local/deploy.env)" ; \
      [ -n "$APP" ]           || MISSING="$MISSING FORGEJO_DEPLOY_APP(.env) or an APP argument" ; \
      if [ -n "$MISSING" ]; then \
