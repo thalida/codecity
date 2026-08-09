@@ -187,18 +187,18 @@ describe('ProjectsView', () => {
         container
       );
       await flush();
-      return container.querySelector('.landing-identity')!;
+      return container.querySelector('.landing-hero')!;
     };
 
     it('shows the running version under the wordmark', async () => {
-      const identity = await renderLanding({ dismissible: false });
-      expect(identity.querySelector('.landing-wordmark')!.textContent).toBe('codecity');
-      expect(identity.textContent).toContain('v1.4.0');
+      const hero = await renderLanding({ dismissible: false });
+      expect(hero.querySelector('.landing-wordmark')!.textContent).toBe('codecity');
+      expect(hero.textContent).toContain('v1.4.0');
     });
 
     it('links about to the repo and the credit to thalida.com', async () => {
-      const identity = await renderLanding({ dismissible: false });
-      const links = Array.from(identity.querySelectorAll<HTMLAnchorElement>('a'));
+      const hero = await renderLanding({ dismissible: false });
+      const links = Array.from(hero.querySelectorAll<HTMLAnchorElement>('a'));
       expect(links.map((a) => a.getAttribute('href'))).toEqual([
         'https://github.com/thalida/codecity',
         'https://thalida.com',
@@ -210,14 +210,14 @@ describe('ProjectsView', () => {
     });
 
     it('credits the creator with the unicorn', async () => {
-      const identity = await renderLanding({ dismissible: false });
-      expect(identity.textContent).toContain('🦄 thalida.');
+      const hero = await renderLanding({ dismissible: false });
+      expect(hero.textContent).toContain('🦄 thalida.');
     });
 
     it('shows on the dismissible switcher too, which also covers the chrome', async () => {
-      const identity = await renderLanding({ dismissible: true });
-      expect(identity.textContent).toContain('v1.4.0');
-      expect(identity.querySelectorAll('a')).toHaveLength(2);
+      const hero = await renderLanding({ dismissible: true });
+      expect(hero.textContent).toContain('v1.4.0');
+      expect(hero.querySelectorAll('a')).toHaveLength(2);
     });
   });
 });

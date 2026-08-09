@@ -128,17 +128,12 @@
 }
 
 /* ── Footer responsive narrowing ───────────────────────────────────────────── */
-/* At narrow widths the status timestamp and the credit are both secondary to
-   knowing the build state at all, so the dot and version keep the bar. */
+/* Tighter insets, nothing dropped. The bar holds two short items per side, and
+   each section already clips with an ellipsis, so hiding anything traded real
+   information for space that wasn't needed. */
 @media (max-width: 580px) {
   #app-footer {
     gap: var(--cc-space-3);
     padding: 0 var(--cc-space-4);
-  }
-  .app-footer-status-detail {
-    display: none;
-  }
-  .meta-credit {
-    display: none;
   }
 }
