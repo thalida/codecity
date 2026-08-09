@@ -113,7 +113,7 @@
      scrubber, the mode toggle, the modals and the landing cards frost the
      scene identically. Applied via .surface-glass; a surface that needs its
      own fill (the timeline's error toast) still blurs by this radius. */
-  --cc-glass-fill: color-mix(in oklch, var(--cc-bg-modal) 82%, transparent);
+  --cc-glass-fill: color-mix(in oklch, var(--cc-bg-modal) 90%, transparent);
   --cc-glass-blur: 12px;
 
   /* ── COLORS — Pure neutrals ───────────────────────────────────────────── */
