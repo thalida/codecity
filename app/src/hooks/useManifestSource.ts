@@ -28,7 +28,7 @@ import { effect } from '@preact/signals';
 
 import { manifestUrlFor, signatureUrlFor, streamManifest, ScanPhase } from '@/api/manifest';
 import { getServerConfig } from '@/api/config';
-import { LIVE_UPDATES } from '@/state/stores/settings/updates';
+import { LIVE_UPDATES, LIVE_UPDATES_ACTIVE } from '@/state/stores/settings/updates';
 import { RECENTS, SOURCE_ERROR, setCurrentSource, CURRENT_SOURCE } from '@/state/stores/source';
 import { SERVER_CONFIG } from '@/state/stores/serverConfig';
 import { MANIFEST, setManifest, markError, markRebuilding } from '@/state/stores/manifest';
@@ -259,9 +259,9 @@ interface SignatureResponse {
  * + the SCAN_PROGRESS gate) while a foreground load is in flight, so an update
  * firing mid-load can't clobber the world being loaded. Returns a dispose fn
  * (stop timer + tear down the ENABLED effect + the exclude-refresh reaction).
- * The poll loop itself is gated on LIVE_UPDATES.ENABLED, but the exclude-refresh
+ * The poll loop itself is gated on LIVE_UPDATES_ACTIVE, but the exclude-refresh
  * reaction below is NOT — it's the only trigger for an exclude edit and must run
- * regardless of the live-update toggle. Exported so the exclude-refresh reaction
+ * regardless of the live-update toggle or the source kind. Exported so the exclude-refresh reaction
  * is directly testable.
  */
 export function setupLiveUpdates(): () => void {
@@ -332,12 +332,14 @@ export function setupLiveUpdates(): () => void {
   }
 
   const disposeEnabledEffect = effect(() => {
-    if (LIVE_UPDATES.value.ENABLED) start();
+    // Tracks the source too, so switching between a local tree and a clone
+    // starts or stops the timer without a reload.
+    if (LIVE_UPDATES_ACTIVE.value) start();
     else stop();
   });
 
   // Re-fetch the loaded source in place when ITS exclude set changes. The poll
-  // is gated by LIVE_UPDATES.ENABLED (default off), so excludes need their own
+  // is gated by LIVE_UPDATES_ACTIVE, so excludes need their own
   // trigger. Uses fetchAndApply (final-only, no overlay/skeleton) for a smooth
   // in-place update. Key-guarded: ACTIVE_EXCLUDES also recomputes on a source
   // switch (repo key changes) — only a same-repo list change refreshes.

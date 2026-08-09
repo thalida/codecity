@@ -7,6 +7,8 @@
 // Schema-driven (see state/schema); POLL_SECONDS is clamped to a
 // hard [min, max] range at the caller (manifestPoll), where those bounds live.
 
+import { computed } from '@preact/signals';
+import { CURRENT_SOURCE_IS_LOCAL } from '@/state/stores/source';
 import {
   settingSignal,
   markAutosave,
@@ -40,3 +42,12 @@ export const LIVE_UPDATES = settingSignal('LIVE_UPDATES', LIVE_UPDATES_FIELDS);
 // Autosave (write-through): the Updates tab applies on change, no Save step.
 markAutosave(LIVE_UPDATES);
 export type LiveUpdatesConfig = ConfigOf<typeof LIVE_UPDATES_FIELDS>;
+
+/**
+ * Whether the poll is actually running: the toggle AND a source that can change.
+ * A remote source is cloned once and never re-fetched, so its content_signature
+ * cannot move and every poll would be a scan that reports nothing.
+ */
+export const LIVE_UPDATES_ACTIVE = computed<boolean>(
+  () => LIVE_UPDATES.value.ENABLED && CURRENT_SOURCE_IS_LOCAL.value
+);
