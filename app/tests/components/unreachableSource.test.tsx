@@ -20,7 +20,7 @@ const MATRIX: { hosted: boolean; allowLocal: boolean; remedy: Remedy }[] = [
 const MARKER: Record<Remedy, RegExp> = {
   clone: /clone it yourself and open the folder/i,
   'run-locally': /run codecity on your machine/i,
-  'enable-local': /Local paths aren't enabled on this instance/i,
+  'enable-local': /Local paths aren't enabled/i,
 };
 
 describe('UnreachableSource', () => {

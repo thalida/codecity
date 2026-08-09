@@ -71,12 +71,10 @@ export function UnreachableSource({ hosted, allowLocal, variant, src }: Unreacha
         </p>
       ) : (
         <p class="unreachable-remedy">
-          Local paths aren't enabled on this instance. Mount the folder and set{' '}
-          <code>CODECITY_ALLOW_LOCAL_REPOS=1</code> to open repos from disk:{' '}
+          Local paths aren't enabled.{' '}
           <a class="link--chrome" href={LOCAL_DOCS_URL} target="_blank" rel="noopener noreferrer">
-            how to enable
+            How to enable
           </a>
-          .
         </p>
       )}
     </div>
