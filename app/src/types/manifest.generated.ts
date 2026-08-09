@@ -401,12 +401,23 @@ export interface components {
             descendants_ext_breakdown: components["schemas"]["ExtBreakdownEntry"][];
         };
         /**
+         * ErrorCode
+         * @description Machine-readable discriminator on an `error` event. The client keys its
+         *     remedy on this, never on the message text. Only failures the UI answers
+         *     differently earn a member; everything else stays message-only.
+         * @enum {string}
+         */
+        ErrorCode: "repo-not-found";
+        /**
          * ErrorEvent
-         * @description `error` — a failure after the stream began; carries the message.
+         * @description `error` — a failure after the stream began; carries the message and,
+         *     where the UI can act on the reason, a code.
          */
         ErrorEvent: {
             /** Error */
             error: string;
+            /** @enum {string} */
+            code?: "repo-not-found";
         };
         /** ExtBreakdownEntry */
         ExtBreakdownEntry: {

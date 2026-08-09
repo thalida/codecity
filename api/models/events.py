@@ -79,10 +79,27 @@ class CompleteManifestEvent(BaseModel):
     manifest: Manifest
 
 
+class ErrorCode(StrEnum):
+    """Machine-readable discriminator on an `error` event. The client keys its
+    remedy on this, never on the message text. Only failures the UI answers
+    differently earn a member; everything else stays message-only."""
+
+    REPO_NOT_FOUND = "repo-not-found"
+
+
+_ERROR_CODES = [c.value for c in ErrorCode]
+_OptionalErrorCode = Annotated[
+    Optional[ErrorCode],
+    WithJsonSchema({"enum": _ERROR_CODES, "type": "string"}),
+]
+
+
 class ErrorEvent(BaseModel):
-    """`error` — a failure after the stream began; carries the message."""
+    """`error` — a failure after the stream began; carries the message and,
+    where the UI can act on the reason, a code."""
 
     error: str
+    code: _OptionalErrorCode = None
 
 
 class TimelineEvent(StrEnum):

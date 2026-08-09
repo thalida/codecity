@@ -170,16 +170,31 @@ class ResponseModelTests(unittest.TestCase):
         self.assertEqual(HealthResponse(ok=True).model_dump(), {"ok": True})
         self.assertEqual(
             ConfigResponse(
-                allowLocalRepos=False, maxBatchPaths=64, version="1.2.3"
+                allowLocalRepos=False, hosted=True, maxBatchPaths=64, version="1.2.3"
             ).model_dump(),
-            {"allowLocalRepos": False, "maxBatchPaths": 64, "version": "1.2.3"},
+            {
+                "allowLocalRepos": False,
+                "hosted": True,
+                "maxBatchPaths": 64,
+                "version": "1.2.3",
+            },
         )
 
     def test_sse_event_serialization(self) -> None:
-        from api.models.events import ScanProgressEvent, ErrorEvent
+        from api.models.events import ErrorCode, ScanProgressEvent, ErrorEvent
 
         self.assertEqual(
             ScanProgressEvent(label="r", files_scanned=3).model_dump(exclude_none=True),
             {"label": "r", "files_scanned": 3},
         )
-        self.assertEqual(ErrorEvent(error="boom").model_dump(), {"error": "boom"})
+        # An uncoded error stays absent-or-value on the wire, so the client
+        # never has to tell "no code" from "code: null".
+        self.assertEqual(
+            ErrorEvent(error="boom").model_dump(exclude_none=True), {"error": "boom"}
+        )
+        self.assertEqual(
+            ErrorEvent(error="boom", code=ErrorCode.REPO_NOT_FOUND).model_dump(
+                exclude_none=True
+            ),
+            {"error": "boom", "code": "repo-not-found"},
+        )
