@@ -6,8 +6,10 @@
 // project switcher runs all three under the wordmark. One definition each, so
 // the wording, the URLs and the link targets cannot drift apart.
 //
-// Colour is left to the surface (see each one's CSS): the header keeps its link
-// at icon weight, the footer lifts it above the prose around it.
+// Link treatment is the surface's call, via `linkClass`: the app chrome keeps
+// its links at icon/prose weight so a status bar doesn't turn into a row of
+// accents, while the landing uses the house `.link` (accent + always underlined,
+// see styles/text.css) because nothing around it signals a link.
 
 import './AppMeta.css';
 import { SERVER_CONFIG } from '@/state/stores/serverConfig';
@@ -18,11 +20,17 @@ export function MetaVersion() {
   return <span class="meta-version">v{SERVER_CONFIG.value.version}</span>;
 }
 
+export interface MetaLinkProps {
+  /** House link class from styles/text.css: `link` or `link--chrome`. Omit to
+   *  let the surface's own CSS colour it. */
+  linkClass?: string;
+}
+
 /** Outward link to the repo. */
-export function MetaAbout() {
+export function MetaAbout({ linkClass }: MetaLinkProps = {}) {
   return (
     <a
-      class="meta-link"
+      class={linkClass ? `meta-link ${linkClass}` : 'meta-link'}
       href={REPO_URL}
       target="_blank"
       rel="noopener noreferrer"
@@ -34,12 +42,12 @@ export function MetaAbout() {
 }
 
 /** Authorship, linked to the author's site. */
-export function MetaCredit() {
+export function MetaCredit({ linkClass }: MetaLinkProps = {}) {
   return (
     <span class="meta-credit">
       made by 🦄{' '}
       <a
-        class="meta-link"
+        class={linkClass ? `meta-link ${linkClass}` : 'meta-link'}
         href={CREATOR_URL}
         target="_blank"
         rel="noopener noreferrer"
@@ -52,14 +60,14 @@ export function MetaCredit() {
 }
 
 /** All three on one line, separated. Used where there's room for the full set. */
-export function MetaLine() {
+export function MetaLine({ linkClass }: MetaLinkProps = {}) {
   return (
     <span class="meta-line">
       <MetaVersion />
       <span class="meta-sep">·</span>
-      <MetaAbout />
+      <MetaAbout linkClass={linkClass} />
       <span class="meta-sep">·</span>
-      <MetaCredit />
+      <MetaCredit linkClass={linkClass} />
     </span>
   );
 }

@@ -101,10 +101,10 @@
 }
 .landing-identity .meta-line {
   font-family: var(--cc-font-mono);
-  font-size: var(--cc-font-2xs);
-  color: var(--cc-text-muted);
-}
-.landing-identity .meta-link {
+  /* Two steps up from the footer's size: the same 10px that suits a 24px status
+     bar is out of scale under a 28px wordmark. Still well below the tagline, so
+     it stays secondary to the pitch. */
+  font-size: var(--cc-font-sm);
   color: var(--cc-text-secondary);
 }
 

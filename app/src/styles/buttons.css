@@ -130,7 +130,10 @@
   padding: 0 var(--cc-space-3); /* symmetric padding each side */
   background: none;
   border: none;
-  color: var(--cc-text-muted);
+  /* Accent, not the icons' resting muted: this is a word, and a word needs its
+     own signal that it can be clicked, where an icon button carries that by
+     being an icon. Brightens to --cc-text-strong on hover below. */
+  color: var(--cc-accent-light);
   border-radius: var(--cc-radius-sm);
   font: inherit;
   font-size: var(--cc-font-sm);

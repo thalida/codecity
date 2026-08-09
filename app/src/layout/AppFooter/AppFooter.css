@@ -119,15 +119,12 @@
 
 /* ── Version + credit ─────────────────────────────────────────────── */
 /* Version sits with the status dot on the left; the credit holds the right.
-   Both stay a step below the status text so the live state reads first, and the
-   link sits above the prose around it so it reads as one. Shape comes from
-   components/AppMeta. */
+   Both stay a step below the status text so the live state reads first. The
+   name inside the credit takes the house .link--chrome, since nothing around
+   it in a status bar signals that a word is a link. */
 #app-footer .meta-version,
 #app-footer .meta-credit {
   color: var(--cc-text-muted);
-}
-#app-footer .meta-link {
-  color: var(--cc-text-primary);
 }
 
 /* ── Footer responsive narrowing ───────────────────────────────────────────── */

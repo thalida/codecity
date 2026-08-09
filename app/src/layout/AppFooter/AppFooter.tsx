@@ -170,7 +170,7 @@ export function AppFooter() {
         )}
       </div>
       <div class="app-footer-section app-footer-right">
-        <MetaCredit />
+        <MetaCredit linkClass="link--chrome" />
       </div>
     </footer>
   );

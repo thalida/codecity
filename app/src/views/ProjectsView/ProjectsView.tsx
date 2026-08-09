@@ -90,7 +90,7 @@ export function ProjectsView({ onSubmit, onCancel, onClose }: ProjectsViewProps)
               <h1 class="landing-wordmark">codecity</h1>
               {/* The landing covers the app chrome, so without this nobody sees
                   the version, the repo link or the credit until a repo loads. */}
-              <MetaLine />
+              <MetaLine linkClass="link" />
             </div>
           </div>
           <p class="landing-tagline">Turn any git repo into a 3D city</p>

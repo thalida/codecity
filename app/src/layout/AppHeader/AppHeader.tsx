@@ -45,7 +45,7 @@ export function AppHeader({ onSwitchSource }: AppHeaderProps = {}) {
         </a>
       )}
       <div id="app-header-meta">
-        <MetaAbout />
+        <MetaAbout linkClass="link--chrome" />
         <button
           type="button"
           class="btn-icon btn-icon--sm btn-icon--no-drag"

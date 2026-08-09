@@ -28,10 +28,10 @@
   flex: 0 0 auto;
 }
 
-/* A text link among icon buttons: matched to the resting icon color so the
-   cluster reads as one weight. Shape comes from components/AppMeta. */
+/* The about link takes the house .link--chrome (accent, underline on hover):
+   an icon button reads as clickable on its own, a bare word does not, so it
+   can't borrow the icons' resting colour. */
 #app-header-meta .meta-link {
-  color: var(--cc-text-muted);
   -webkit-app-region: no-drag;
 }
 
