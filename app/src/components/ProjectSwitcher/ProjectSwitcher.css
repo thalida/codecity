@@ -23,6 +23,9 @@
   width: var(--cc-font-md);
   height: var(--cc-font-md);
   flex: 0 0 auto;
+  /* Reads as the chip's icon rather than a glyph in the name: only this gap
+     widens, so the name, branch pill, and affordance stay a tight cluster. */
+  margin-right: var(--cc-space-2);
 }
 
 .app-header-branch-pill {
