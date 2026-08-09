@@ -76,8 +76,8 @@ function Remedy({ hosted, allowLocal, reason, src }: Omit<UnreachableSourceProps
     );
   }
 
-  // Both mean local paths are off, and cloning is no help for a path already here.
-  if (reason !== NoticeReason.Unreachable) {
+  // Cloning is no help for a path already on this machine.
+  if (reason === NoticeReason.Standing || reason === NoticeReason.PathBlocked) {
     return (
       <p class="unreachable-remedy">
         Turn on local paths to open a folder on this machine. <DocsLink href={LOCAL_DOCS_URL} />
