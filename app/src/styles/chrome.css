@@ -1,0 +1,46 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   LAYER-2 COMPONENTS — Chrome clusters
+   ═══════════════════════════════════════════════════════════════════════════
+   .chrome-cluster — a run of related controls in the header or footer bars,
+   outlined as one object with hairline dividers between its items.
+
+   The group is outlined, not each button. A border says "these belong
+   together" and a divider says "these are separate presses"; giving every
+   control its own pill would put six outlines in a 32px bar and say nothing.
+   Before this, exactly one control (the project chip) was outlined and the
+   rest were bare glyphs beside it, so the bar read as one object followed by
+   loose furniture.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.chrome-cluster {
+  display: flex;
+  align-items: stretch;
+  min-width: 0;
+  flex: none;
+  border: 1px solid var(--cc-border-subtle);
+  border-radius: var(--cc-radius-pill);
+  background: var(--cc-bg-sidebar);
+  /* Clips the children to the pill, so no child needs to know it sits at an
+     end, and a child appearing or disappearing can't leave a square corner. */
+  overflow: hidden;
+}
+
+/* Hairline between items. A border on the child rather than a separate element,
+   so an item appearing or disappearing (the copy button with no source, debug
+   tools off) can't leave a divider with nothing on one side of it. */
+.chrome-cluster > * + * {
+  border-left: 1px solid var(--cc-border-subtle);
+}
+
+/* Children sit flush inside the pill: the cluster's overflow does the
+   rounding, so their own radii would only fight it. */
+.chrome-cluster > * {
+  border-radius: 0;
+}
+
+/* The cluster draws the outline and the fill now, so a chip inside it drops
+   both rather than stacking a second pill inside the first. */
+.chrome-cluster .btn-chip {
+  border-color: transparent;
+  background: transparent;
+}

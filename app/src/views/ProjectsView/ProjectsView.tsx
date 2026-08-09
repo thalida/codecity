@@ -101,11 +101,12 @@ export function ProjectsView({ onSubmit, onCancel, onClose }: ProjectsViewProps)
       aria-modal={isModal ? 'true' : undefined}
       aria-label="codecity: open a project"
     >
-      {/* Cold boot has no city of its own to reveal, so the server's featured
-          repo is rendered behind the page (useFeaturedCity) and the swirl sits
-          over it. Over a loaded city the switcher reveals the real thing
-          instead (useSwitcherShowcase). */}
-      {!pv.opts.dismissible && (
+      {/* The swirl fills an empty background, so it yields the moment there is
+          something better behind: the featured city on cold boot
+          (useFeaturedCity), the loaded one in the dismissible switcher
+          (useSwitcherShowcase). It stays while a featured city is still
+          streaming, and stays for good if none is configured or it fails. */}
+      {!pv.opts.dismissible && !FEATURED_CITY.value && (
         <div class="landing-stage" aria-hidden="true">
           <LandingBackdrop />
         </div>

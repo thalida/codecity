@@ -43,6 +43,7 @@ describe('ProjectsView', () => {
     PENDING_SOURCE_LABEL.value = null;
     RECENTS.value = [];
     DISCOVER.value = [];
+    FEATURED_CITY.value = null;
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
   });
@@ -334,10 +335,6 @@ describe('ProjectsView', () => {
   describe('the featured city', () => {
     const stage = () => container.querySelector('.landing-stage');
     const featured = () => container.querySelector('.landing-featured');
-
-    afterEach(() => {
-      FEATURED_CITY.value = null;
-    });
 
     it('stages a backdrop on a cold boot, where there is no city to reveal', async () => {
       openProjectsView({ dismissible: false });

@@ -9,6 +9,7 @@
 import './SplitButton.css';
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { ChevronDown } from 'lucide-preact';
+import type { LucideIcon } from 'lucide-preact';
 import type { ComponentChildren } from 'preact';
 
 export interface SplitButtonItem {
@@ -21,6 +22,14 @@ export interface SplitButtonItem {
 
 export interface SplitButtonProps {
   label: string;
+  /** Glyph before the label. */
+  icon?: LucideIcon;
+  /** Show only the glyph, with `label` as the accessible name. For the 32px
+   *  bars, where the word would cost more room than it earns. Requires `icon`. */
+  iconOnly?: boolean;
+  /** `primary` is the page's CTA weight; `chrome` is the 32px bar's, where a
+   *  solid accent button would shout over everything around it. */
+  variant?: 'primary' | 'chrome';
   onPrimary: () => void;
   items: SplitButtonItem[];
   disabled?: boolean;
@@ -38,6 +47,9 @@ export interface SplitButtonProps {
 
 export function SplitButton({
   label,
+  icon: Icon,
+  iconOnly = false,
+  variant = 'primary',
   onPrimary,
   items,
   disabled,
@@ -46,6 +58,7 @@ export function SplitButton({
   class: className,
   footer,
 }: SplitButtonProps) {
+  const half = variant === 'chrome' ? 'btn-icon btn-icon--text' : 'btn-primary';
   const [open, setOpen] = useState(false);
   const root = useRef<HTMLDivElement>(null);
   const caret = useRef<HTMLButtonElement>(null);
@@ -112,19 +125,25 @@ export function SplitButton({
   }
 
   return (
-    <div class={className ? `split-button ${className}` : 'split-button'} ref={root}>
+    <div
+      class={`split-button split-button--${variant}${className ? ` ${className}` : ''}`}
+      ref={root}
+    >
       <button
         type={primaryType}
-        class="split-button-primary btn-primary"
+        class={`split-button-primary ${half}`}
         disabled={disabled}
+        title={iconOnly ? label : undefined}
+        aria-label={iconOnly ? label : undefined}
         onClick={primaryType === 'submit' ? undefined : onPrimary}
       >
-        {label}
+        {Icon && <Icon class="icon" aria-hidden="true" />}
+        {!iconOnly && label}
       </button>
       <button
         ref={caret}
         type="button"
-        class="split-button-caret btn-primary"
+        class={`split-button-caret ${half}`}
         aria-label={menuLabel}
         aria-haspopup="menu"
         aria-expanded={open}

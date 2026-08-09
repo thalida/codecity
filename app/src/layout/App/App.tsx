@@ -45,12 +45,14 @@ import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { useManifestSource } from '@/hooks/useManifestSource';
 import { useSwitcherShowcase } from '@/hooks/useSwitcherShowcase';
 import { useFeaturedCity } from '@/hooks/useFeaturedCity';
+import { useShortcutsKey } from '@/hooks/useShortcutsKey';
 import { attachLoadingReactions } from '@/state/loadingReactions';
 
 export function App() {
   useDocumentTitle();
   useSwitcherShowcase();
   useFeaturedCity();
+  useShortcutsKey();
   const { submitSource, cancelLoad } = useManifestSource();
 
   useEffect(() => attachLoadingReactions(), []);
@@ -104,7 +106,15 @@ export function App() {
       <a class="skip-link" href="#app-body">
         Skip to content
       </a>
-      <AppHeader onSwitchSource={() => openProjectsView({ dismissible: true })} />
+      <AppHeader
+        onSwitchSource={() => openProjectsView({ dismissible: true })}
+        // Re-open the source already loaded. The header owns the control; the
+        // reload itself is the same one path every other open goes through.
+        onRefresh={(skipCache) => {
+          const cur = CURRENT_SOURCE.peek();
+          if (cur) submitSource({ ...cur, skipCache: skipCache || undefined });
+        }}
+      />
       <main id="app-body" tabIndex={-1}>
         <LeftSidebar />
         <CenterPane />

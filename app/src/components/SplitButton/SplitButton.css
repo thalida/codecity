@@ -11,6 +11,9 @@
 /* The seam: square the facing corners and hairline them apart, so the two
    halves look like one button divided rather than two buttons touching. */
 .split-button-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cc-space-2);
   border-top-right-radius: 0;
   border-bottom-right-radius: 0;
 }
@@ -32,13 +35,15 @@
   right: 0;
   z-index: 1; /* only ever above its own siblings; both hosts are already layered */
   min-width: max-content; /* sized by the longest sublabel, never wrapped mid-phrase */
-  max-width: 320px;
+  max-width: 270px;
   display: flex;
   flex-direction: column;
   padding: var(--cc-space-2);
-  border: 1px solid var(--cc-border-subtle);
+  /* A step brighter than the panel it opens over, so a menu on a card still
+     reads as being in front of it rather than cut out of it. */
+  border: 1px solid var(--cc-border-input);
   border-radius: var(--cc-radius-md);
-  background: var(--cc-bg-modal);
+  background: oklch(from var(--cc-bg-sidebar) calc(l + 0.027) c h);
   box-shadow: var(--cc-shadow-lg);
 }
 
@@ -70,7 +75,8 @@
 
 .split-button-item-sublabel {
   font-size: var(--cc-font-xs);
-  color: var(--cc-text-secondary); /* AA on the modal surface; muted fails 4.5:1 */
+  line-height: 1.4;
+  color: var(--cc-text-secondary); /* AA on the menu surface; muted fails 4.5:1 */
 }
 
 /* A control that belongs with the menu without being one of its actions. Ruled
@@ -79,4 +85,12 @@
   margin-top: var(--cc-space-2);
   padding-top: var(--cc-space-3);
   border-top: 1px solid var(--cc-border-subtle);
+}
+
+/* Chrome variant: sized for the 32px bars, where the primary weight would
+   shout over the row it sits in. The seam is a divider rather than a hairline
+   gap, matching the cluster's own dividers. */
+.split-button--chrome .split-button-caret {
+  border-left-color: var(--cc-border-subtle);
+  padding-inline: var(--cc-space-2);
 }

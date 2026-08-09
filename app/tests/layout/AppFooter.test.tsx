@@ -19,14 +19,21 @@ describe('AppFooter', () => {
     SERVER_CONFIG.value = DEFAULT_SERVER_CONFIG;
   });
 
-  it('shows the running build version beside the status', async () => {
+  it('shows the running build version in the app line, on the right', async () => {
     render(<AppFooter />, container);
     await flush();
 
-    const left = container.querySelector('.app-footer-left')!;
-    expect(left.textContent).toContain('v1.3.0');
-    // Beside the status dot, not merely somewhere in the bar.
-    expect(left.querySelector('.app-footer-status')).not.toBeNull();
+    const right = container.querySelector('.app-footer-right')!;
+    expect(right.textContent).toContain('v1.3.0');
+  });
+
+  // The header is the project, the footer is the app. Freshness is a fact
+  // about the project and moved up beside the refresh button that acts on it.
+  it('holds no project state: the freshness readout lives in the header', async () => {
+    render(<AppFooter />, container);
+    await flush();
+
+    expect(container.querySelector('.freshness-status')).toBeNull();
   });
 
   it('credits the creator on the right, linked to thalida.com', async () => {
@@ -36,7 +43,9 @@ describe('AppFooter', () => {
     const right = container.querySelector('.app-footer-right')!;
     expect(right.textContent).toContain('🦄 thalida.');
 
-    const link = right.querySelector<HTMLAnchorElement>('a')!;
+    const link = Array.from(right.querySelectorAll<HTMLAnchorElement>('a')).find(
+      (a) => a.getAttribute('href') === 'https://thalida.com'
+    )!;
     expect(link.getAttribute('href')).toBe('https://thalida.com');
     expect(link.getAttribute('target')).toBe('_blank');
     expect(link.getAttribute('rel')).toBe('noopener noreferrer');
@@ -49,13 +58,15 @@ describe('AppFooter', () => {
     expect(container.querySelector('#app-footer')!.textContent).not.toContain('//');
   });
 
-  // About and the shortcuts button moved to the header; per-node stats moved to
-  // the selection pane. Nothing should have been left behind here.
-  it('holds neither the about link nor the shortcuts button', async () => {
+  // Both are app-level, so both belong here rather than in the project header.
+  it('holds the shortcuts button and the about link', async () => {
     render(<AppFooter />, container);
     await flush();
 
-    expect(container.querySelector('[aria-label="Keyboard shortcuts"]')).toBeNull();
-    expect(container.querySelector('a[href="https://github.com/thalida/codecity"]')).toBeNull();
+    const shortcuts = container.querySelector('[aria-label="Keyboard shortcuts"]')!;
+    expect(shortcuts).not.toBeNull();
+    // In the left cluster, grouped with the debug tools rather than loose.
+    expect(shortcuts.closest('.chrome-cluster')).not.toBeNull();
+    expect(container.querySelector('a[href="https://github.com/thalida/codecity"]')).not.toBeNull();
   });
 });

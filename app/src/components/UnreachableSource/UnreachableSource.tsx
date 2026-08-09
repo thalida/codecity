@@ -17,6 +17,7 @@
 // this server.
 
 import './UnreachableSource.css';
+import { Info, AlertCircle } from 'lucide-preact';
 import { CopyButton } from '@/components/CopyButton/CopyButton';
 import { REPO_URL } from '@/constants/ui';
 
@@ -37,44 +38,48 @@ const RUN_DOCS_URL = `${REPO_URL}#run-it-yourself`;
 
 export function UnreachableSource({ hosted, allowLocal, variant, src }: UnreachableSourceProps) {
   const cloneCommand = src ? `git clone ${src}` : null;
+  const Glyph = variant === 'error' ? AlertCircle : Info;
 
   return (
     <div
       class={`unreachable unreachable--${variant}`}
       role={variant === 'error' ? 'alert' : undefined}
     >
-      {variant === 'error' && <p class="unreachable-preamble">Couldn't reach that repo.</p>}
+      <Glyph class="icon unreachable-glyph" aria-hidden="true" />
+      <div class="unreachable-body">
+        {variant === 'error' && <p class="unreachable-preamble">Couldn't reach that repo.</p>}
 
-      {allowLocal ? (
-        <>
-          <p class="unreachable-remedy">
-            If it's private, clone it yourself and open the folder instead.
-          </p>
-          {/* Only in this column: on a hosted instance this would tell you to do
+        {allowLocal ? (
+          <>
+            <p class="unreachable-remedy">
+              If it's private, clone it yourself and open the folder instead.
+            </p>
+            {/* Only in this column: on a hosted instance this would tell you to do
               something the app then can't help with, and on an unmounted local
               one it's half a fix. */}
-          {cloneCommand && (
-            <div class="unreachable-command">
-              <code>{cloneCommand}</code>
-              <CopyButton text={cloneCommand} label="Copy clone command" />
-            </div>
-          )}
-        </>
-      ) : hosted ? (
-        <p class="unreachable-remedy">
-          Private and local repos need codecity running on your own machine.{' '}
-          <a class="link--chrome" href={RUN_DOCS_URL} target="_blank" rel="noopener noreferrer">
-            See&nbsp;docs
-          </a>
-        </p>
-      ) : (
-        <p class="unreachable-remedy">
-          Local paths aren't enabled.{' '}
-          <a class="link--chrome" href={LOCAL_DOCS_URL} target="_blank" rel="noopener noreferrer">
-            See&nbsp;docs
-          </a>
-        </p>
-      )}
+            {cloneCommand && (
+              <div class="unreachable-command">
+                <code>{cloneCommand}</code>
+                <CopyButton text={cloneCommand} label="Copy clone command" />
+              </div>
+            )}
+          </>
+        ) : hosted ? (
+          <p class="unreachable-remedy">
+            Private and local repos need codecity running on your own machine.{' '}
+            <a class="link--chrome" href={RUN_DOCS_URL} target="_blank" rel="noopener noreferrer">
+              See&nbsp;docs
+            </a>
+          </p>
+        ) : (
+          <p class="unreachable-remedy">
+            Local paths aren't enabled.{' '}
+            <a class="link--chrome" href={LOCAL_DOCS_URL} target="_blank" rel="noopener noreferrer">
+              See&nbsp;docs
+            </a>
+          </p>
+        )}
+      </div>
     </div>
   );
 }
