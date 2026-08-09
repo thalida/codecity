@@ -170,13 +170,18 @@ class ResponseModelTests(unittest.TestCase):
         self.assertEqual(HealthResponse(ok=True).model_dump(), {"ok": True})
         self.assertEqual(
             ConfigResponse(
-                allowLocalRepos=False, hosted=True, maxBatchPaths=64, version="1.2.3"
+                allowLocalRepos=False,
+                hosted=True,
+                maxBatchPaths=64,
+                version="1.2.3",
+                featuredRepo="https://github.com/o/r",
             ).model_dump(),
             {
                 "allowLocalRepos": False,
                 "hosted": True,
                 "maxBatchPaths": 64,
                 "version": "1.2.3",
+                "featuredRepo": "https://github.com/o/r",
             },
         )
 

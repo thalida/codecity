@@ -14,6 +14,7 @@ export type ServerConfig = components['schemas']['ConfigResponse'];
 export const DEFAULT_SERVER_CONFIG: ServerConfig = {
   allowLocalRepos: false,
   hosted: false,
+  featuredRepo: '',
   maxBatchPaths: 16,
   version: '0.0.0+unknown',
 };
@@ -39,6 +40,7 @@ export async function fetchServerConfig(): Promise<ServerConfig> {
       ...DEFAULT_SERVER_CONFIG,
       allowLocalRepos: !!body.allowLocalRepos,
       hosted: !!body.hosted,
+      ...(typeof body.featuredRepo === 'string' ? { featuredRepo: body.featuredRepo } : {}),
       ...(typeof body.maxBatchPaths === 'number' && body.maxBatchPaths > 0
         ? { maxBatchPaths: body.maxBatchPaths }
         : {}),

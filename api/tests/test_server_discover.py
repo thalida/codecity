@@ -41,7 +41,7 @@ def test_serves_the_curated_list(client: TestClient, curated, monkeypatch) -> No
     monkeypatch.delenv("CODECITY_DISCOVER", raising=False)
     curated(json.dumps([{"url": "https://example.com/a/b", "label": "b"}]))
     assert client.get("/api/discover").json() == {
-        "repos": [{"url": "https://example.com/a/b", "label": "b"}]
+        "repos": [{"url": "https://example.com/a/b", "label": "b", "featured": False}]
     }
 
 
@@ -104,3 +104,61 @@ def test_malformed_file_returns_empty(
     r = client.get("/api/discover")
     assert r.status_code == 200
     assert r.json() == {"repos": []}
+
+
+class TestFeatured:
+    """The featured repo is the one the landing renders behind itself, so it
+    also appears in Discover, flagged and first: someone wondering what they're
+    looking at should find it as the first row, not hunt for a badge."""
+
+    FEATURED = "https://github.com/thalida/codecity"
+
+    def test_leads_the_list_and_is_flagged(
+        self, client: TestClient, curated, monkeypatch
+    ) -> None:
+        curated(json.dumps([{"url": "https://example.com/a/b", "label": "b"}]))
+        monkeypatch.setenv("CODECITY_FEATURED_REPO", self.FEATURED)
+        repos = client.get("/api/discover").json()["repos"]
+        assert repos[0] == {
+            "url": self.FEATURED,
+            "label": "thalida/codecity",
+            "featured": True,
+        }
+        assert [r["featured"] for r in repos[1:]] == [False]
+
+    def test_a_curated_entry_is_marked_rather_than_duplicated(
+        self, client: TestClient, curated, monkeypatch
+    ) -> None:
+        """Hand-curating the featured repo into the file must not produce two
+        near-identical rows."""
+        curated(json.dumps([{"url": self.FEATURED, "label": "codecity"}]))
+        monkeypatch.setenv("CODECITY_FEATURED_REPO", self.FEATURED)
+        repos = client.get("/api/discover").json()["repos"]
+        assert len(repos) == 1
+        assert repos[0] == {"url": self.FEATURED, "label": "codecity", "featured": True}
+
+    def test_appears_even_when_the_curated_file_is_missing(
+        self, client: TestClient, tmp_path: Path, monkeypatch
+    ) -> None:
+        monkeypatch.setenv("CODECITY_DISCOVER_FILE", str(tmp_path / "nope.json"))
+        monkeypatch.setenv("CODECITY_FEATURED_REPO", self.FEATURED)
+        repos = client.get("/api/discover").json()["repos"]
+        assert [r["url"] for r in repos] == [self.FEATURED]
+
+    def test_switching_discover_off_hides_it_too(
+        self, client: TestClient, monkeypatch
+    ) -> None:
+        """The tab is gone, featured row included. The landing's backdrop is a
+        separate question, answered by /api/config."""
+        monkeypatch.setenv("CODECITY_FEATURED_REPO", self.FEATURED)
+        monkeypatch.setenv("CODECITY_DISCOVER", "off")
+        assert client.get("/api/discover").json() == {"repos": []}
+
+    def test_off_by_default_leaves_the_list_alone(
+        self, client: TestClient, curated, monkeypatch
+    ) -> None:
+        """A fresh install renders no backdrop, so nothing is injected."""
+        curated(json.dumps([{"url": "https://example.com/a/b", "label": "b"}]))
+        monkeypatch.delenv("CODECITY_FEATURED_REPO", raising=False)
+        repos = client.get("/api/discover").json()["repos"]
+        assert [r["featured"] for r in repos] == [False]

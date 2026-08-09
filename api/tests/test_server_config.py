@@ -9,7 +9,9 @@ import pytest
 from fastapi.testclient import TestClient
 
 from api.app import create_app
-from api.config import MAX_BATCH_PATHS
+from api.config import MAX_BATCH_PATHS, Settings
+
+FEATURED = Settings.model_fields["featured_repo"].default
 
 
 @pytest.fixture()
@@ -30,6 +32,7 @@ def test_config_enabled(client: TestClient, monkeypatch) -> None:
         "hosted": False,
         "maxBatchPaths": MAX_BATCH_PATHS,
         "version": __version__,
+        "featuredRepo": FEATURED,
     }
 
 
@@ -43,6 +46,7 @@ def test_config_disabled(client: TestClient, monkeypatch) -> None:
         "hosted": False,
         "maxBatchPaths": MAX_BATCH_PATHS,
         "version": __version__,
+        "featuredRepo": FEATURED,
     }
 
 
@@ -74,3 +78,16 @@ def test_config_reports_the_running_package_version(client: TestClient) -> None:
     body = client.get("/api/config").json()
     assert body["version"] == __version__
     assert body["version"]
+
+
+def test_config_carries_the_featured_repo(client: TestClient, monkeypatch) -> None:
+    monkeypatch.setenv("CODECITY_FEATURED_REPO", "https://github.com/o/r")
+    assert client.get("/api/config").json()["featuredRepo"] == "https://github.com/o/r"
+
+
+def test_config_featured_repo_can_be_switched_off(
+    client: TestClient, monkeypatch
+) -> None:
+    """Empty means the landing renders no backdrop at all."""
+    monkeypatch.setenv("CODECITY_FEATURED_REPO", "")
+    assert client.get("/api/config").json()["featuredRepo"] == ""

@@ -44,6 +44,9 @@ class ConfigResponse(BaseModel):
     hosted: bool
     maxBatchPaths: int
     version: str
+    # The repo the landing renders behind itself; empty means no backdrop. Same
+    # env var the Discover list flags, so the two can never disagree.
+    featuredRepo: str
 
 
 class DiscoverEntry(BaseModel):
@@ -53,6 +56,10 @@ class DiscoverEntry(BaseModel):
 
     url: str
     label: str
+    # The one the landing renders behind itself. At most one entry carries it,
+    # and the landing reads it from here rather than from a second config field
+    # that could disagree with the list.
+    featured: bool = False
 
 
 class DiscoverResponse(BaseModel):

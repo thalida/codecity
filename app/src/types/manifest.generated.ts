@@ -328,6 +328,8 @@ export interface components {
             maxBatchPaths: number;
             /** Version */
             version: string;
+            /** Featuredrepo */
+            featuredRepo: string;
         };
         /** DateRangeMs */
         DateRangeMs: {
@@ -428,6 +430,11 @@ export interface components {
             url: string;
             /** Label */
             label: string;
+            /**
+             * Featured
+             * @default false
+             */
+            featured: boolean;
         };
         /** DiscoverResponse */
         DiscoverResponse: {

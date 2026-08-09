@@ -58,6 +58,11 @@ class Settings(BaseSettings):
     # The landing's Discover tab, and the curated list behind it.
     discover: bool = True
     discover_file: Path = DISCOVER_FILE
+    # The repo the landing puts front and centre: rendered behind the page and
+    # flagged in Discover. Off by default, so a fresh install never clones
+    # anything for decoration the visitor didn't ask for. The public deployment
+    # sets it, where one warm cache serves everybody.
+    featured_repo: str = ""
     # Silences disconnect/scan logs.
     quiet: bool = False
     # Root for every on-disk cache — the single source of truth for where
@@ -94,6 +99,11 @@ def discover_enabled() -> bool:
 def discover_file() -> Path:
     """Live read of CODECITY_DISCOVER_FILE — the curated Discover list."""
     return settings().discover_file
+
+
+def featured_repo() -> str:
+    """Live read of CODECITY_FEATURED_REPO — the landing's backdrop city."""
+    return settings().featured_repo.strip()
 
 
 def quiet() -> bool:

@@ -8,7 +8,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from api.app import create_app
-from api.config import MAX_BATCH_PATHS
+from api.config import MAX_BATCH_PATHS, Settings
 
 
 @pytest.fixture()
@@ -49,6 +49,7 @@ def test_config_default_disabled(
         "hosted": False,
         "maxBatchPaths": MAX_BATCH_PATHS,
         "version": __version__,
+        "featuredRepo": Settings.model_fields["featured_repo"].default,
     }
 
 
