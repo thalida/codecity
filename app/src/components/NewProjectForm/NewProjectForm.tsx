@@ -11,6 +11,7 @@
 
 import './NewProjectForm.css';
 import { useState } from 'preact/hooks';
+import { DatabaseZap } from 'lucide-preact';
 import { BranchSelect } from '@/components/BranchSelect/BranchSelect';
 import { SplitButton } from '@/components/SplitButton/SplitButton';
 import {
@@ -170,6 +171,7 @@ export function NewProjectForm({
         items={[
           {
             id: 'fresh',
+            icon: DatabaseZap,
             label: 'Open with a fresh scan',
             sublabel: 'ignore the cache and re-read the whole repo',
             onSelect: () => submit(true),

@@ -16,6 +16,9 @@ import { CLUSTER_ITEM_PRESS } from '@/components/ChromeCluster/ChromeCluster';
 export interface SplitButtonItem {
   id: string;
   label: string;
+  /** Glyph before the label, so the rows are scannable rather than two
+   *  paragraphs of similar-looking text. */
+  icon?: LucideIcon;
   /** One line under the label saying what it does differently. */
   sublabel?: string;
   onSelect: () => void;
@@ -190,8 +193,11 @@ export function SplitButton({
                 item.onSelect();
               }}
             >
-              <span class="split-button-item-label">{item.label}</span>
-              {item.sublabel && <span class="split-button-item-sublabel">{item.sublabel}</span>}
+              {item.icon && <item.icon class="icon split-button-item-icon" aria-hidden="true" />}
+              <span class="split-button-item-text">
+                <span class="split-button-item-label">{item.label}</span>
+                {item.sublabel && <span class="split-button-item-sublabel">{item.sublabel}</span>}
+              </span>
             </button>
           ))}
           {footer && <div class="split-button-footer">{footer}</div>}

@@ -39,13 +39,15 @@
 }
 
 /* Accent marks what's pressable, so a readout beside a control (the freshness
-   text next to refresh) can't be mistaken for one. */
+   text next to refresh) can't be mistaken for one. accent-light, the same step
+   .link--chrome uses, so the icon buttons and the text links in these bars are
+   one colour rather than two. */
 .cluster-item--press {
-  color: var(--cc-accent);
+  color: var(--cc-accent-light);
   cursor: pointer;
 }
 .cluster-item--press:not(:disabled):hover {
-  color: var(--cc-accent-light);
+  color: var(--cc-text-strong);
   background: var(--cc-overlay-bg);
 }
 .cluster-item:disabled {

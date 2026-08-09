@@ -6,7 +6,7 @@
 // group: see .chrome-cluster.
 
 import './AppHeader.css';
-import { ExternalLink, RefreshCw } from 'lucide-preact';
+import { DatabaseZap, ExternalLink, RefreshCw } from 'lucide-preact';
 import { SOURCE_INFO } from '@/state/stores/source';
 import { MANIFEST } from '@/state/stores/manifest';
 import type { Manifest } from '@/types';
@@ -74,12 +74,14 @@ export function AppHeader({ onSwitchSource, onRefresh }: AppHeaderProps = {}) {
             items={[
               {
                 id: 'refresh',
+                icon: RefreshCw,
                 label: 'Refresh',
                 sublabel: 'check for changes and re-scan if anything moved',
                 onSelect: () => onRefresh?.(false),
               },
               {
                 id: 'fresh',
+                icon: DatabaseZap,
                 label: 'Fresh scan',
                 sublabel: 'ignore the cache and re-read the whole repo',
                 onSelect: () => onRefresh?.(true),
