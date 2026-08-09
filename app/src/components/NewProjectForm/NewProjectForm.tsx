@@ -115,6 +115,18 @@ export function NewProjectForm({
         submit();
       }}
     >
+      {/* Directly under the card's heading, above the field: it says what this
+          instance can open, which is context for filling the field in, not a
+          footnote on the result. */}
+      {showUnreachable && (
+        <UnreachableSource
+          hosted={hosted}
+          allowLocal={allowLocalRepos}
+          variant={failedToReach ? 'error' : 'standing'}
+          src={activeSrc || prefill?.src}
+        />
+      )}
+
       <div class="new-project-field">
         <label htmlFor="new-project-source">{sourceLabel}</label>
         <input
@@ -135,15 +147,6 @@ export function NewProjectForm({
           </p>
         )}
       </div>
-
-      {showUnreachable && (
-        <UnreachableSource
-          hosted={hosted}
-          allowLocal={allowLocalRepos}
-          variant={failedToReach ? 'error' : 'standing'}
-          src={activeSrc || prefill?.src}
-        />
-      )}
 
       {isRemote && (
         <BranchSelect

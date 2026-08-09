@@ -11,8 +11,8 @@
 // role of deep-link cold boot (no page open yet).
 
 import './ProjectsView.css';
-import { useEffect, useRef } from 'preact/hooks';
-import { X, Waypoints, Building2, TreePine, Sparkles } from 'lucide-preact';
+import { useEffect, useRef, useState } from 'preact/hooks';
+import { X, Waypoints, Building2, TreePine, Sparkles, History, Compass } from 'lucide-preact';
 import { useDialogFocus } from '@/hooks/useDialogFocus';
 import { GemIcon } from '@/components/GemIcon/GemIcon';
 import { MetaLine } from '@/components/AppMeta/AppMeta';
@@ -30,6 +30,12 @@ import { stepForPhase } from '@/constants/loadingSteps';
 import { LoadingProgress } from '@/components/LoadingProgress/LoadingProgress';
 import { NewProjectForm } from '@/components/NewProjectForm/NewProjectForm';
 import { RecentsList } from '@/components/RecentsList/RecentsList';
+import { DiscoverList } from '@/components/DiscoverList/DiscoverList';
+import { PaneTabs } from '@/components/PaneTabs/PaneTabs';
+import { DISCOVER } from '@/state/stores/discover';
+
+const SOURCE_TAB = { recents: 'recents', discover: 'discover' } as const;
+const SOURCE_PANEL_ID = 'landing-sources';
 
 export interface ProjectsViewProps {
   onSubmit: (payload: SourcePayload) => void;
@@ -41,8 +47,25 @@ export function ProjectsView({ onSubmit, onCancel, onClose }: ProjectsViewProps)
   const pv = PROJECTS_VIEW.value;
   const scan = SCAN_PROGRESS.value;
   const loading = scan !== null;
-  const hasRecents = listRecents().length > 0;
   const rootRef = useRef<HTMLDivElement>(null);
+
+  // Recents and Discover share one card so the action column can't grow a new
+  // panel per feature. Recent is always offered, empty state and all, so a first
+  // visit learns that codecity remembers what you open; Discover only appears
+  // when the server actually sent a list.
+  const hasRecents = listRecents().length > 0;
+  const hasDiscover = DISCOVER.value.length > 0;
+  const tabs = [
+    { id: SOURCE_TAB.recents, label: 'Recent', icon: History },
+    ...(hasDiscover ? [{ id: SOURCE_TAB.discover, label: 'Discover', icon: Compass }] : []),
+  ];
+  const [pickedTab, setPickedTab] = useState<string | null>(null);
+  // With nothing of your own yet, Discover is the tab with something in it.
+  const defaultTab = !hasRecents && hasDiscover ? SOURCE_TAB.discover : SOURCE_TAB.recents;
+  // Falls back rather than being corrected by an effect: the server's list can
+  // arrive after first paint and take the Discover tab with it, and a stored id
+  // would point at a tab that no longer exists until the effect caught up.
+  const activeTab = tabs.some((t) => t.id === pickedTab) ? pickedTab : defaultTab;
 
   // Dismissible = shown over an existing city, i.e. a real modal dialog: trap
   // and restore focus. The non-dismissible landing IS the page (nothing behind
@@ -161,12 +184,27 @@ export function ProjectsView({ onSubmit, onCancel, onClose }: ProjectsViewProps)
                   onDirty={clearProjectsViewError}
                 />
               </section>
-              {hasRecents && (
-                <section class="landing-card landing-card--recents surface-glass">
-                  <h2 class="landing-card-title">Recent projects</h2>
-                  <RecentsList onOpen={onSubmit} />
-                </section>
-              )}
+              <section class="landing-card landing-card--sources surface-glass">
+                <PaneTabs
+                  tabs={tabs}
+                  active={activeTab}
+                  onSelect={setPickedTab}
+                  panelId={SOURCE_PANEL_ID}
+                  class="landing-tabs"
+                />
+                <div
+                  id={SOURCE_PANEL_ID}
+                  role="tabpanel"
+                  aria-labelledby={`${SOURCE_PANEL_ID}-tab-${activeTab}`}
+                  class="landing-tabpanel"
+                >
+                  {activeTab === SOURCE_TAB.recents ? (
+                    <RecentsList onOpen={onSubmit} />
+                  ) : (
+                    <DiscoverList onOpen={onSubmit} />
+                  )}
+                </div>
+              </section>
             </>
           )}
         </div>

@@ -214,17 +214,17 @@
 }
 
 /* When the column is height-capped, the "Open a project" card keeps its natural
-   size and the recents card absorbs the remaining space (its list scrolls). */
-.landing-actions > .landing-card:not(.landing-card--recents) {
+   size and the sources card absorbs the remaining space (its list scrolls). */
+.landing-actions > .landing-card:not(.landing-card--sources) {
   flex: 0 0 auto;
 }
-.landing-card--recents {
+.landing-card--sources {
   flex: 1 1 auto;
   min-height: 0;
 }
 
-/* Shared card heading — "Open a project" and "Recent projects" read as one
-   consistent title style. */
+/* Card heading. Only the open card has one now: the sources card is titled by
+   its tab strip, since a heading above tabs would name the card twice. */
 .landing-card-title {
   margin: 0;
   font-size: var(--cc-font-lg);
@@ -232,7 +232,24 @@
   color: var(--cc-text-strong);
 }
 
-/* Inline load progress, replacing the form + recents while SCAN_PROGRESS is
+/* Recent / Discover share one card, so the tab strip is that card's heading.
+   The pane version indents for a pane's inset and rules off against a pane
+   body; here it sits flush in the card and carries the card's own gap. */
+.landing-tabs {
+  padding-top: 0;
+  margin-bottom: calc(-1 * var(--cc-space-2));
+}
+
+/* The panel takes the card's remaining height so a long list scrolls inside it
+   rather than growing the card past the viewport cap. */
+.landing-tabpanel {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+/* Inline load progress, replacing the form + sources while SCAN_PROGRESS is
    non-null. Spinner + pending-label reuse LoadingOverlay's classes (its CSS is
    loaded globally via App), so the switch flow and the deep-link-boot flow read
    as one system. */
@@ -283,7 +300,7 @@
     align-self: stretch;
     max-height: none;
   }
-  .landing-card--recents {
+  .landing-card--sources {
     flex: 0 0 auto;
   }
 }

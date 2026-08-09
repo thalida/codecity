@@ -20,6 +20,15 @@
   padding-right: var(--cc-space-2);
 }
 
+/* Shown instead of the list on a first visit, so the tab explains itself
+   rather than sitting empty. */
+.recents-empty {
+  margin: 0;
+  padding: var(--cc-space-6) var(--cc-space-4);
+  font-size: var(--cc-font-sm);
+  color: var(--cc-text-secondary);
+}
+
 /* Each recent is a .recent-item row: the shared .source-row click target plus
    a sibling remove control. Kept as siblings (not parent/child) so the row's
    hover highlight has symmetric padding and the remove control has its own

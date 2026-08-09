@@ -4,7 +4,8 @@
 // path is branch-less on both sides, so a checkout change never re-keys the row
 // or drops its active badge. Remove is non-destructive: it forgets the entry
 // only, it does not clear the scan cache (that's the skip-cache control's job).
-// Renders nothing when there are no recents.
+// With no recents it renders the empty state rather than nothing: the tab is
+// always offered, so a first visit learns that codecity remembers what you open.
 
 import './RecentsList.css';
 import { useState } from 'preact/hooks';
@@ -30,7 +31,9 @@ export function RecentsList({ onOpen }: RecentsListProps) {
   // server error explains why), just flagged with a hint glyph.
   const isUnavailable = (r: { src: string }) => srcKind(r.src) === SourceKind.Local && !allowLocal;
 
-  if (recents.length === 0) return null;
+  if (recents.length === 0) {
+    return <p class="recents-empty">Projects you open will show up here.</p>;
+  }
 
   return (
     <div class="recents-list">
