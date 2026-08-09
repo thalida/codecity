@@ -166,9 +166,12 @@ demo-video: && demo-webp
 # gradients over hundreds of building hues, which a 256-colour palette cannot
 # hold, and the smallest watchable gif came out at 9.3MB against 3.8MB here.
 #
-# Requires: brew install ffmpeg webp
+# Requires: brew install ffmpeg webp. If img2webp installs but won't run
+# ("Library not loaded: libtiff"), its dependency didn't come with it:
+# brew install libtiff.
 demo-webp quality='50':
     @set -e ; \
+     command -v ffmpeg >/dev/null || { echo "[just] error: ffmpeg not found (brew install ffmpeg)" >&2 ; exit 1 ; } ; \
      command -v img2webp >/dev/null || { echo "[just] error: img2webp not found (brew install webp)" >&2 ; exit 1 ; } ; \
      FRAMES=$(mktemp -d) ; \
      trap 'rm -rf "$FRAMES"' EXIT ; \

@@ -180,14 +180,18 @@ You need:
 
 - [Docker](https://docs.docker.com/get-docker/)
 - [just](https://github.com/casey/just#installation)
+- [Node](https://nodejs.org/) (`just setup` installs the app's packages with it)
 - [python3](https://www.python.org/downloads/)
 - [uv](https://docs.astral.sh/uv/) (for `just fmt` and `just gen-types`)
 
 ```sh
 git clone https://github.com/thalida/codecity.git
 cd codecity
-just install-hooks   # one-time: pre-push hooks (lint + prettier + tests)
+just setup   # one-time: pre-push hooks, app packages, deploy env
 ```
+
+Regenerating the README's screenshots and demo also needs `ffmpeg` and `webp`
+(`brew install ffmpeg webp`); nothing else does.
 
 The pre-push hook runs the full lint + tests before pushing; bypass with `git push --no-verify` (Docker must be running).
 
