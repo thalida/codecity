@@ -4,10 +4,7 @@
   display: inline-flex;
   gap: var(--cc-space-1);
   padding: var(--cc-space-1);
-  background: color-mix(in oklch, var(--cc-bg-modal) 82%, transparent);
   border-radius: var(--cc-radius-lg);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
 }
 
 .scene-mode-btn {

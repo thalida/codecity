@@ -43,8 +43,13 @@ export function DebugModal({ onRunCollisionCheck, onRunStemDiagnostic }: DebugMo
         if (e.target === e.currentTarget) closeDebug();
       }}
     >
-      <div class="modal-card card-overlay" role="dialog" aria-modal="true" aria-label="Debug">
-        <div class="modal-header surface-chrome">
+      <div
+        class="modal-card card-overlay surface-glass"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Debug"
+      >
+        <div class="modal-header">
           <span>Debug</span>
           <button
             type="button"

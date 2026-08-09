@@ -3,7 +3,7 @@
    ═══════════════════════════════════════════════════════════════════════════
    Shared backdrop + card layout for DebugModal, ShortcutsModal, and
    LoadingOverlay (ProjectsView is a full-viewport surface, not a modal, so it
-   doesn't use these). Surface fill/radius/shadow comes from .card-overlay;
+   doesn't use these). Radius and shadow come from .card-overlay and the fill from .surface-glass;
    this file only adds backdrop positioning + the header/body column layout.
    ═══════════════════════════════════════════════════════════════════════════ */
 
@@ -29,9 +29,9 @@
   flex-direction: column;
   overflow: hidden;
   font-family: inherit;
-  /* A faint full border (header-divider color) lifts the modal off the blurred
-     backdrop, and an even, slightly darker shadow (no downward offset) rings it
-     equally rather than casting downward. */
+  /* A faint border lifts the modal off the blurred backdrop, and an even
+     shadow (no downward offset) rings it equally rather than casting
+     downward. */
   border: 1px solid var(--cc-border-subtle);
   box-shadow: 0 0 40px oklch(0 0 0 / 0.7);
 }

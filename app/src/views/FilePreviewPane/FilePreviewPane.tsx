@@ -28,6 +28,8 @@ export enum PreviewKind {
   Text = 'text',
 }
 import { fileUrl, fetchFileText, fetchFileBytes } from '@/api/file';
+import { PaneStats } from '@/components/PaneStats/PaneStats';
+import { fileStatItems } from '@/components/PaneStats/statItems';
 import { scrubbedBlobShaFor } from '@/state/stores/presentPaths';
 import { fetchFingerprintB64 } from '@/api/fingerprint';
 import { IMAGE_EXTS, VIDEO_EXTS, AUDIO_EXTS, PDF_EXTS, FONT_EXTS } from '@/constants/fileKinds';
@@ -583,6 +585,7 @@ export function FilePreviewPane({ state, onClose, onFocus, onExclude }: FilePrev
       onExclude={file && typeof onExclude === 'function' ? () => onExclude(file) : undefined}
       excludeTitle="Exclude this file from the city"
       bodyClass="editor-body surface-app"
+      footerSlot={file && !deleted ? <PaneStats items={fileStatItems(file)} /> : null}
     >
       {deleted ? (
         <div class="empty-state empty-state--lg file-deleted-state">

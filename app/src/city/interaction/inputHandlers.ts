@@ -20,7 +20,7 @@ import { MODAL_OPEN } from '@/state/stores/ui';
 import { NodeKind } from '@/types';
 import { scrubbedStatsFor } from '@/state/stores/presentPaths';
 import type { PickTarget } from '@/types';
-import { formatHoverTooltip, isDeletedTarget } from './tooltipText';
+import { hoverTooltipContent, type TooltipContent } from './tooltipText';
 import type { createPicker } from './picker';
 import type { createCameraRig } from '../render/cameraRig';
 import type { CityState } from '../state';
@@ -41,7 +41,7 @@ export function createInputHandlers({
   rig: ReturnType<typeof createCameraRig>;
   renderer: THREE.WebGLRenderer;
   cityState: CityState;
-  showTooltip: (text: string, x: number, y: number, deleted?: boolean) => void;
+  showTooltip: (content: TooltipContent, x: number, y: number) => void;
   hideTooltip: () => void;
   onResize: () => void;
   /** Reset-view action triggered by R / gem-click. Does NOT rebuild the
@@ -112,9 +112,9 @@ export function createInputHandlers({
       newHover?.kind === NodeKind.File && newHover.file?.path != null
         ? (scrubbedStatsFor(newHover.file.path)?.lines ?? null)
         : null;
-    const tooltipText = formatHoverTooltip(newHover, rootName, scrubLines);
+    const tooltipText = hoverTooltipContent(newHover, rootName, scrubLines);
     if (tooltipText) {
-      showTooltip(tooltipText, e.clientX, e.clientY, isDeletedTarget(newHover));
+      showTooltip(tooltipText, e.clientX, e.clientY);
       canvas.style.cursor = 'pointer';
     } else {
       hideTooltip();
@@ -148,7 +148,7 @@ export function createInputHandlers({
     }
     if (hit.object.userData.type === NodeKind.Gem) {
       picker.setSelection(null);
-      // Gem click = reset view, same as the R key and the header gem button.
+      // Gem click = reset view, same as the R key.
       onResetView();
       return;
     }

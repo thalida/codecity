@@ -161,7 +161,7 @@ export function TimeTravelBar() {
   };
 
   return (
-    <div class="time-travel-bar">
+    <div class="time-travel-bar surface-glass">
       <div class="time-travel-scrubber">
         <button
           type="button"

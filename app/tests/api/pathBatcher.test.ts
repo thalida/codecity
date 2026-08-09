@@ -6,7 +6,7 @@ import { createPathBatcher } from '@/api/pathBatcher';
 import { serverConfigNow } from '@/api/config';
 
 vi.mock('@/api/config', () => ({
-  serverConfigNow: vi.fn(() => ({ allowLocalRepos: false, maxBatchPaths: 3 })),
+  serverConfigNow: vi.fn(() => ({ allowLocalRepos: false, maxBatchPaths: 3, version: '1.0.0' })),
 }));
 
 interface Entry {
@@ -67,7 +67,11 @@ describe('createPathBatcher', () => {
 
   it('re-reads the cap per flush, so a config that arrives late is honoured', async () => {
     const bodies = mockFetch(echo);
-    vi.mocked(serverConfigNow).mockReturnValueOnce({ allowLocalRepos: false, maxBatchPaths: 2 });
+    vi.mocked(serverConfigNow).mockReturnValueOnce({
+      allowLocalRepos: false,
+      maxBatchPaths: 2,
+      version: '1.0.0',
+    });
     const batcher = makeBatcher();
     const all = Promise.all(['a', 'b', 'c'].map((p) => batcher.request(p)));
     await vi.runAllTimersAsync();

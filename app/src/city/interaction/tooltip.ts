@@ -1,14 +1,15 @@
-// city/interaction/tooltip.ts — Tiny floating label that follows the cursor
-// on hover. Shown when the user is hovering a building/street; hidden
-// otherwise. Inspired by Cities: Skylines / SimCity — every interactive
-// object has a brief name label so the city feels alive without forcing
-// a sidebar open.
+// city/interaction/tooltip.ts — Tiny floating card that follows the cursor on
+// hover. Shown when the user is hovering a building/street/commit; hidden
+// otherwise. Inspired by Cities: Skylines / SimCity — every interactive object
+// has a brief label so the city feels alive without forcing a sidebar open.
 //
 // The imperative showTooltip/moveTooltip/hideTooltip API is kept for the
 // still-vanilla scene code (picker, inputHandlers) that calls it directly.
 // A Preact Tooltip component is not meaningful here because the tooltip is
 // driven by Three.js pointer events rather than React-tree state — the
 // imperative API IS the right interface for this component.
+
+import type { TooltipContent } from './tooltipText';
 
 // Tooltip placement — fixed, not user-tunable.
 const TOOLTIP_OFFSET_PX = 14;
@@ -21,31 +22,46 @@ function _ensure(): HTMLElement {
   if (_el && _el.isConnected) return _el;
   _el = document.createElement('div');
   _el.id = 'hover-tooltip';
-  _el.className = 'card-tooltip';
+  _el.className = 'card-tooltip surface-glass';
   _el.style.display = 'none';
   document.body.appendChild(_el);
   return _el;
 }
 
-// showTooltip(text, x, y, deleted?) — show with the given text, positioned near
-// cursor (with auto-clamp to viewport so it doesn't bleed off-screen). When
-// `deleted`, lead with a red "deleted" badge so a ruin reads at a glance.
-export function showTooltip(text: string, x: number, y: number, deleted = false): void {
+function _line(cls: string, text: string): HTMLElement {
+  const line = document.createElement('div');
+  line.className = cls;
+  line.textContent = text;
+  return line;
+}
+
+/**
+ * Show the tooltip near the cursor, clamped so it can't leave the viewport.
+ * Three stacked lines: identity, location, stats.
+ */
+export function showTooltip(content: TooltipContent, x: number, y: number): void {
   const el = _ensure();
-  if (deleted) {
-    el.textContent = '';
+  el.textContent = '';
+
+  const title = _line('tooltip-title', content.title);
+  if (content.deleted) {
     const badge = document.createElement('span');
     badge.className = 'tooltip-deleted';
     badge.textContent = 'deleted';
-    el.append(badge, document.createTextNode(`  ·  ${text}`));
-  } else {
-    el.textContent = text;
+    title.prepend(badge, document.createTextNode(' '));
   }
+  el.append(title);
+
+  if (content.path) el.append(_line('tooltip-path', content.path));
+  if (content.stats.length > 0) {
+    el.append(_line('tooltip-stats', content.stats.join('  ·  ')));
+  }
+
   el.style.display = 'block';
   moveTooltip(x, y);
 }
 
-// moveTooltip(x, y) — reposition without changing text. Cheap; safe to call
+// moveTooltip(x, y) — reposition without changing content. Cheap; safe to call
 // on every pointermove.
 export function moveTooltip(x: number, y: number): void {
   if (!_el) return;
@@ -55,10 +71,18 @@ export function moveTooltip(x: number, y: number): void {
   const h = _el.offsetHeight;
   const vw = window.innerWidth;
   const vh = window.innerHeight;
+
+  // Prefer below-right of the cursor, flipping to the other side when that
+  // would overflow. The final clamp matters independently: a card wider than
+  // the space on either side overflows whichever way it is flipped, and
+  // flipping alone would push it off the opposite edge.
   let px = x + OFFSET;
   let py = y + OFFSET;
   if (px + w + MARGIN > vw) px = x - OFFSET - w;
   if (py + h + MARGIN > vh) py = y - OFFSET - h;
+  px = Math.min(Math.max(px, MARGIN), Math.max(MARGIN, vw - w - MARGIN));
+  py = Math.min(Math.max(py, MARGIN), Math.max(MARGIN, vh - h - MARGIN));
+
   _el.style.left = `${px}px`;
   _el.style.top = `${py}px`;
 }

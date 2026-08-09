@@ -118,7 +118,7 @@ export function ProjectsView({ onSubmit, onCancel, onClose }: ProjectsViewProps)
 
         <div class="landing-actions">
           {loading && scan ? (
-            <section class="landing-card surface-sidebar">
+            <section class="landing-card surface-glass">
               <div class="landing-progress">
                 <LoadingProgress
                   activeStep={stepForPhase(scan.phase, scan.kind)}
@@ -135,7 +135,7 @@ export function ProjectsView({ onSubmit, onCancel, onClose }: ProjectsViewProps)
             </section>
           ) : (
             <>
-              <section class="landing-card surface-sidebar">
+              <section class="landing-card surface-glass">
                 <h2 class="landing-card-title">Open a project</h2>
                 {/* A stale error from a prior attempt is dropped once a new load
                     starts (see the loading branch above) or as soon as the user
@@ -154,7 +154,7 @@ export function ProjectsView({ onSubmit, onCancel, onClose }: ProjectsViewProps)
                 />
               </section>
               {hasRecents && (
-                <section class="landing-card landing-card--recents surface-sidebar">
+                <section class="landing-card landing-card--recents surface-glass">
                   <h2 class="landing-card-title">Recent projects</h2>
                   <RecentsList onOpen={onSubmit} />
                 </section>

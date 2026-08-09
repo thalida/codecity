@@ -31,12 +31,7 @@ import { DebugModal } from '@/views/DebugModal/DebugModal';
 import { LoadingOverlay } from '@/components/LoadingOverlay/LoadingOverlay';
 import { HljsThemeLink } from '@/components/HljsThemeLink/HljsThemeLink';
 import { SelectionAnnouncer } from '@/components/SelectionAnnouncer/SelectionAnnouncer';
-import {
-  resetView,
-  clearSelection,
-  runCollisionCheck,
-  runStemDiagnostic,
-} from '@/state/stores/scene';
+import { clearSelection, runCollisionCheck, runStemDiagnostic } from '@/state/stores/scene';
 import { openProjectsView, closeProjectsView, LOADING_CANCEL } from '@/state/stores/ui';
 import { SOURCE_ERROR, CURRENT_SOURCE } from '@/state/stores/source';
 import { MANIFEST } from '@/state/stores/manifest';
@@ -93,10 +88,7 @@ export function App() {
       <a class="skip-link" href="#app-body">
         Skip to content
       </a>
-      <AppHeader
-        onSwitchSource={() => openProjectsView({ dismissible: true })}
-        onResetView={resetView}
-      />
+      <AppHeader onSwitchSource={() => openProjectsView({ dismissible: true })} />
       <main id="app-body" tabIndex={-1}>
         <LeftSidebar />
         <CenterPane />

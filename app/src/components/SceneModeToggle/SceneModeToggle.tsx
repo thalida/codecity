@@ -10,7 +10,7 @@ export function SceneModeToggle() {
   if (!SOURCE_INFO.value.src) return null;
   const timeline = TIMELINE_MODE.value;
   return (
-    <div class="scene-mode-toggle" role="group" aria-label="Scene mode">
+    <div class="scene-mode-toggle surface-glass" role="group" aria-label="Scene mode">
       <button
         type="button"
         class={`scene-mode-btn${timeline ? '' : ' is-active'}`}

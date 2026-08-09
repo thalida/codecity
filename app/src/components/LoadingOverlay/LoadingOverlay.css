@@ -2,7 +2,8 @@
 
 /* The deep-link cold-boot surface: a centered card over a full-viewport
    backdrop. The inner column comes from <LoadingProgress> (LoadingProgress.css);
-   this only owns the card shell. Surface from .card-overlay. */
+   this only owns the card shell. Shape from .card-overlay, fill from
+   .surface-glass. */
 .loading-card {
   display: flex;
   flex-direction: column;

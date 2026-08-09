@@ -1,6 +1,7 @@
 /* ── codecity landing / project switcher ────────────────────────────────────
-   Full-bleed page (not a modal): a brand hero beside an action panel. The gem
-   palette (lime/cyan/purple/magenta) colors the three "what it does" cues. */
+   Full-bleed page (not a modal): a brand hero and an action panel, side by side
+   with room and stacked without. The gem palette (lime/cyan/purple/magenta)
+   colors the "what it does" cues. */
 
 .landing {
   position: fixed;
@@ -15,22 +16,34 @@
 /* Modal mode (dismissible, over a loaded city): the live city is driven into an
    auto-rotating backdrop (useSwitcherShowcase), revealed crisp. Scrim only the
    hero side, letting its text keep AA contrast over the city; the action cards
-   carry their own opaque surface and the center/right stays clear. */
+   frost what shows through them and the center/right stays clear. */
 .landing--modal {
+  /* The scrim holds near-full strength across the whole hero column and only
+     falls off past it, so building edges never cut through the tagline or the
+     feature cues. */
   background: linear-gradient(
     100deg,
-    color-mix(in oklch, var(--cc-bg-app) 82%, transparent) 0%,
-    color-mix(in oklch, var(--cc-bg-app) 62%, transparent) 24%,
-    color-mix(in oklch, var(--cc-bg-app) 24%, transparent) 46%,
-    transparent 64%
+    color-mix(in oklch, var(--cc-bg-app) 96%, transparent) 0%,
+    color-mix(in oklch, var(--cc-bg-app) 92%, transparent) 30%,
+    color-mix(in oklch, var(--cc-bg-app) 60%, transparent) 52%,
+    transparent 72%
   );
 }
 
-/* Stacked layout: the hero is full-width at the top with no card column beside
-   it, so a directional scrim can't cover it, fall back to an even veil. */
+/* Stacked layout: the hero sits above the cards rather than beside them, so the
+   scrim runs down the page instead of across it. Near-solid through the band the
+   hero occupies, thinning toward the bottom where the city reads as a deliberate
+   horizon. The cards frost the city behind them, so they stay legible over the
+   thin end. */
 @media (max-width: 900px) {
   .landing--modal {
-    background: color-mix(in oklch, var(--cc-bg-app) 70%, transparent);
+    background: linear-gradient(
+      180deg,
+      color-mix(in oklch, var(--cc-bg-app) 97%, transparent) 0%,
+      color-mix(in oklch, var(--cc-bg-app) 94%, transparent) 55%,
+      color-mix(in oklch, var(--cc-bg-app) 62%, transparent) 82%,
+      color-mix(in oklch, var(--cc-bg-app) 40%, transparent) 100%
+    );
   }
 }
 
@@ -60,14 +73,6 @@
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   align-items: center;
   gap: var(--cc-space-9);
-}
-
-@media (max-width: 900px) {
-  .landing-inner {
-    grid-template-columns: 1fr;
-    align-items: start;
-    gap: var(--cc-space-8);
-  }
 }
 
 /* ── Brand hero ── */
@@ -169,9 +174,10 @@
   display: flex;
   flex-direction: column;
   gap: var(--cc-space-6);
-  /* Cap the column at the viewport (minus the inner's own vertical padding) so a
-     long recents list scrolls inside its card instead of scrolling the page. The
-     column still shrink-wraps and stays centered while it fits. */
+  /* Beside the hero, cap the column at the viewport (minus the inner's own
+     vertical padding) so a long recents list scrolls inside its card instead of
+     scrolling the page. The column still shrink-wraps and stays centered while
+     it fits. Stacked, the breakpoint at the end of this file lifts the cap. */
   min-height: 0;
   max-height: calc(100vh - 2 * var(--cc-space-9));
 }
@@ -215,4 +221,48 @@
   align-items: center;
   gap: var(--cc-space-6);
   padding: var(--cc-space-7) 0;
+}
+
+/* ── Stacked layout ──────────────────────────────────────────────────────────
+   Last in the file on purpose: a media query carries no extra specificity, so
+   these have to follow the rules they override. */
+
+@media (max-width: 900px) {
+  .landing-close {
+    top: var(--cc-space-7);
+    right: var(--cc-space-7);
+  }
+
+  .landing-inner {
+    grid-template-columns: 1fr;
+    align-items: start;
+    /* Centered while the content fits. `safe` degrades to start-alignment
+       instead of clipping if a future change lets the rows overflow; the
+       unprefixed declaration first keeps engines without it on plain center. */
+    align-content: center;
+    align-content: safe center;
+    gap: var(--cc-space-8);
+    /* The top band clears the floating close button (its own inset plus its
+       height) so the brand never shares a line with it. */
+    padding: calc(var(--cc-space-9) * 2) var(--cc-space-7) var(--cc-space-9);
+  }
+
+  /* Indent the hero by the card's own padding so its text shares a left edge
+     with the card titles stacked beneath it. */
+  .landing-hero {
+    padding-inline: var(--cc-space-7);
+  }
+
+  /* The cards follow the hero down the page rather than sharing its row, so the
+     viewport cap and the centering that serve the side-by-side column would
+     strand them below a screen of empty space. The page scroller takes over and
+     each card shrink-wraps: recents is capped at MAX_RECENT_SOURCES, which
+     bounds the page without a scroller nested inside the card. */
+  .landing-actions {
+    align-self: stretch;
+    max-height: none;
+  }
+  .landing-card--recents {
+    flex: 0 0 auto;
+  }
 }

@@ -19,6 +19,7 @@ import {
 } from '@/utils/sources';
 import type { SourcePayload } from '@/state/stores/ui';
 import { SCAN_PROGRESS } from '@/state/stores/scanProgress';
+import { REPO_URL } from '@/constants/ui';
 
 export interface NewProjectFormProps {
   allowLocalRepos: boolean;
@@ -29,7 +30,7 @@ export interface NewProjectFormProps {
   onDirty?: () => void;
 }
 
-const LOCAL_DOCS_URL = 'https://github.com/thalida/codecity#local-directories';
+const LOCAL_DOCS_URL = `${REPO_URL}#local-directories`;
 
 export function NewProjectForm({
   allowLocalRepos,

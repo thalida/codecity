@@ -307,6 +307,8 @@ export interface components {
             allowLocalRepos: boolean;
             /** Maxbatchpaths */
             maxBatchPaths: number;
+            /** Version */
+            version: string;
         };
         /** DateRangeMs */
         DateRangeMs: {
