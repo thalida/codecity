@@ -61,31 +61,19 @@ export function UnreachableSource({ hosted, allowLocal, variant, src }: Unreacha
           )}
         </>
       ) : hosted ? (
-        <>
-          <p class="unreachable-remedy">
-            Private and local repos need codecity running on your own machine.
-          </p>
-          <a
-            class="unreachable-link link--chrome"
-            href={RUN_DOCS_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            How to run it
+        <p class="unreachable-remedy">
+          Private and local repos need codecity running on your own machine.{' '}
+          <a class="link--chrome" href={RUN_DOCS_URL} target="_blank" rel="noopener noreferrer">
+            See&nbsp;docs
           </a>
-        </>
+        </p>
       ) : (
-        <>
-          <p class="unreachable-remedy">Local paths aren't enabled.</p>
-          <a
-            class="unreachable-link link--chrome"
-            href={LOCAL_DOCS_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            How to enable
+        <p class="unreachable-remedy">
+          Local paths aren't enabled.{' '}
+          <a class="link--chrome" href={LOCAL_DOCS_URL} target="_blank" rel="noopener noreferrer">
+            See&nbsp;docs
           </a>
-        </>
+        </p>
       )}
     </div>
   );

@@ -28,13 +28,6 @@
   color: var(--cc-text-secondary); /* AA on the card surface; muted fails 4.5:1 */
 }
 
-/* The how-to link sits on its own line rather than trailing the sentence: the
-   card is narrow enough that an inline link breaks mid-phrase ("How to run /
-   it"). align-self keeps its underline the width of the words, not the row. */
-.unreachable-link {
-  align-self: start;
-}
-
 .unreachable-remedy code {
   font-family: var(--cc-font-mono);
   font-size: var(--cc-font-xs);
