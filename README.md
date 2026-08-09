@@ -48,6 +48,19 @@ Local folders take one more step, see [Local directories](#local-directories) be
 
 ## Advanced setup
 
+### Configuration
+
+Everything codecity reads is an env var, passed with `-e`:
+
+| Variable | Default | What it does |
+| --- | --- | --- |
+| `CODECITY_ALLOW_LOCAL_REPOS` | off | Render local folders. Needs a matching mount, see [Local directories](#local-directories) |
+| `CODECITY_HOSTED` | off | Marks a public deployment, where a local path can never resolve. Changes the advice shown when a repo can't be reached |
+| `CODECITY_CACHE_ROOT` | `/cache` | Where clones and the manifest cache live |
+| `CODECITY_QUIET` | off | Silence disconnect and scan logs |
+
+Booleans take `1`/`true`/`yes`/`on`.
+
 ### Local directories
 
 Local repo support is **disabled by default**. To enable it, set `CODECITY_ALLOW_LOCAL_REPOS=1` *and* mount the directory read-only into the container at the same absolute path:
@@ -213,7 +226,7 @@ assets, release and deploy.
 ### Worktrees
 
 - Each worktree gets its own `<slug>.localhost` URL, so source-picker recents stay isolated per project in localstorage
-- `just dev` and `just run` take a path arg to mount a local repo (`just dev ~/Documents/Repos/myproj`), which also sets `CODECITY_ALLOW_LOCAL_REPOS=1`; without it, codecity is git-URL-only
+- `just dev` and `just run` take docker's `-v` and `-e`: `just dev -v ~/Documents/Repos/myproj -e CODECITY_HOSTED=1`. A `-v` mounts that path read-only and sets `CODECITY_ALLOW_LOCAL_REPOS=1`; without one, codecity is git-URL-only
 
 ### Backend
 
