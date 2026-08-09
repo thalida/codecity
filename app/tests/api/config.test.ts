@@ -68,6 +68,24 @@ describe('fetchServerConfig', () => {
     expect(cfg.version).toBe('1.3.0');
   });
 
+  it('carries hosted through from the server', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+      new Response(JSON.stringify({ allowLocalRepos: false, hosted: true }), { status: 200 })
+    );
+    const cfg = await fetchServerConfig();
+    expect(cfg.hosted).toBe(true);
+  });
+
+  // Fails closed the way allowLocalRepos does: telling a local user to go run
+  // codecity locally is a worse error than the reverse.
+  it('coerces a missing hosted to false', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+      new Response(JSON.stringify({ allowLocalRepos: false }), { status: 200 })
+    );
+    const cfg = await fetchServerConfig();
+    expect(cfg.hosted).toBe(false);
+  });
+
   it('keeps the unknown-version default when the server omits it', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
       new Response(JSON.stringify({ allowLocalRepos: false }), { status: 200 })

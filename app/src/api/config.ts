@@ -13,6 +13,7 @@ export type ServerConfig = components['schemas']['ConfigResponse'];
 // backend's own metadata-lookup fallback.
 export const DEFAULT_SERVER_CONFIG: ServerConfig = {
   allowLocalRepos: false,
+  hosted: false,
   maxBatchPaths: 16,
   version: '0.0.0+unknown',
 };
@@ -37,6 +38,7 @@ export async function fetchServerConfig(): Promise<ServerConfig> {
     return {
       ...DEFAULT_SERVER_CONFIG,
       allowLocalRepos: !!body.allowLocalRepos,
+      hosted: !!body.hosted,
       ...(typeof body.maxBatchPaths === 'number' && body.maxBatchPaths > 0
         ? { maxBatchPaths: body.maxBatchPaths }
         : {}),

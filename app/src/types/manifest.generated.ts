@@ -305,6 +305,8 @@ export interface components {
         ConfigResponse: {
             /** Allowlocalrepos */
             allowLocalRepos: boolean;
+            /** Hosted */
+            hosted: boolean;
             /** Maxbatchpaths */
             maxBatchPaths: number;
             /** Version */

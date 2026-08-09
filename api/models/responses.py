@@ -38,6 +38,10 @@ class HealthResponse(BaseModel):
 
 class ConfigResponse(BaseModel):
     allowLocalRepos: bool
+    # Whether this is the public deployment, where a local path can never
+    # resolve. `allowLocalRepos` alone can't say that: it's also false on a
+    # local instance that simply hasn't mounted anything.
+    hosted: bool
     maxBatchPaths: int
     version: str
 

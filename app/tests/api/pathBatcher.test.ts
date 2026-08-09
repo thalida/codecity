@@ -69,6 +69,7 @@ describe('createPathBatcher', () => {
     const bodies = mockFetch(echo);
     vi.mocked(serverConfigNow).mockReturnValueOnce({
       allowLocalRepos: false,
+      hosted: false,
       maxBatchPaths: 2,
       version: '1.0.0',
     });

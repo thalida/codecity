@@ -40,9 +40,40 @@ def env_bool(name: str, default: bool = False) -> bool:
     return raw.strip().lower() in _TRUTHY
 
 
+# Discover ships on, so it needs the mirror of _TRUTHY: only an explicitly
+# falsey value hides it. A truthy-set default would read `CODECITY_DISCOVER=
+# enabled` as "off", silently emptying the landing's Discover tab.
+_FALSEY = frozenset({"0", "false", "no", "off"})
+
+DISCOVER_FILE = Path(__file__).parent / "discover.json"
+
+
 def local_repos_allowed() -> bool:
     """Live read of CODECITY_ALLOW_LOCAL_REPOS (re-read per call)."""
     return env_bool("CODECITY_ALLOW_LOCAL_REPOS")
+
+
+def hosted() -> bool:
+    """Live read of CODECITY_HOSTED — set only in the deploy env.
+
+    Distinct from `not local_repos_allowed()`: an unmounted local instance can
+    enable local paths in ten seconds, a hosted one never can, and the two need
+    different advice."""
+    return env_bool("CODECITY_HOSTED")
+
+
+def discover_enabled() -> bool:
+    """Live read of CODECITY_DISCOVER — a disable flag, on unless set falsey."""
+    raw = os.environ.get("CODECITY_DISCOVER")
+    if raw is None:
+        return True
+    return raw.strip().lower() not in _FALSEY
+
+
+def discover_file() -> Path:
+    """Live read of CODECITY_DISCOVER_FILE — the curated Discover list."""
+    raw = os.environ.get("CODECITY_DISCOVER_FILE")
+    return Path(raw) if raw else DISCOVER_FILE
 
 
 def quiet() -> bool:
