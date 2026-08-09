@@ -41,11 +41,8 @@
   display: flex;
   flex-direction: column;
   padding: var(--cc-space-2);
-  /* A step brighter than the panel it opens over, so a menu on a card still
-     reads as being in front of it rather than cut out of it. */
   border: 1px solid var(--cc-border-input);
   border-radius: var(--cc-radius-md);
-  background: oklch(from var(--cc-bg-sidebar) calc(l + 0.027) c h);
   box-shadow: var(--cc-shadow-lg);
 }
 

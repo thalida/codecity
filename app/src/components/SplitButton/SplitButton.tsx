@@ -171,7 +171,7 @@ export function SplitButton({
       {open && (
         <div
           ref={menu}
-          class="split-button-menu"
+          class="split-button-menu surface-glass"
           role="menu"
           aria-label={menuLabel}
           onKeyDown={onMenuKeyDown}
