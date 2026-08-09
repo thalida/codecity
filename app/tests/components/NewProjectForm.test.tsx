@@ -40,7 +40,7 @@ describe('NewProjectForm', () => {
       branches: ['main', 'dev'],
       default: 'main',
     });
-    render(<NewProjectForm allowLocalRepos onSubmit={() => {}} />, container);
+    render(<NewProjectForm allowLocalRepos hosted={false} onSubmit={() => {}} />, container);
     await flush();
     // No Repo URL / Local Path tabs — a single unified field.
     expect(container.querySelectorAll('.pane-tab').length).toBe(0);
@@ -59,7 +59,7 @@ describe('NewProjectForm', () => {
     resolve.mockResolvedValueOnce({ branches: ['main', 'feat'], default: 'main' });
     const onSubmit = vi.fn();
 
-    render(<NewProjectForm allowLocalRepos onSubmit={onSubmit} />, container);
+    render(<NewProjectForm allowLocalRepos hosted={false} onSubmit={onSubmit} />, container);
     await flush();
 
     setInput(field(container), 'https://github.com/o/first');
@@ -95,7 +95,7 @@ describe('NewProjectForm', () => {
     );
     const onSubmit = vi.fn();
 
-    render(<NewProjectForm allowLocalRepos onSubmit={onSubmit} />, container);
+    render(<NewProjectForm allowLocalRepos hosted={false} onSubmit={onSubmit} />, container);
     await flush();
 
     setInput(field(container), 'https://github.com/o/nope');
@@ -116,7 +116,7 @@ describe('NewProjectForm', () => {
     const resolve = vi
       .spyOn(branchesApi, 'fetchBranches')
       .mockResolvedValue({ branches: [], default: null });
-    render(<NewProjectForm allowLocalRepos onSubmit={() => {}} />, container);
+    render(<NewProjectForm allowLocalRepos hosted={false} onSubmit={() => {}} />, container);
     await flush();
 
     setInput(field(container), 'https://github.com/thalida/codecity#local-directories');
@@ -130,7 +130,7 @@ describe('NewProjectForm', () => {
   });
 
   it('demotes skip-cache to an off-by-default Advanced disclosure', async () => {
-    render(<NewProjectForm allowLocalRepos onSubmit={() => {}} />, container);
+    render(<NewProjectForm allowLocalRepos hosted={false} onSubmit={() => {}} />, container);
     await flush();
 
     expect(container.querySelector('input[type="checkbox"]')).toBeNull();
@@ -146,14 +146,51 @@ describe('NewProjectForm', () => {
     expect(checkbox.checked).toBe(false);
   });
 
+  it('answers a remote not-found with the error remedy, keyed on the code', async () => {
+    render(
+      <NewProjectForm
+        allowLocalRepos
+        hosted={false}
+        errorCode="repo-not-found"
+        prefill={{ src: 'https://github.com/owner/repo' }}
+        onSubmit={() => {}}
+      />,
+      container
+    );
+    await flush();
+    const notice = container.querySelector('.unreachable--error');
+    expect(notice).not.toBeNull();
+    expect(notice?.textContent).toContain("Couldn't reach that repo.");
+    // allowLocal, so this cell carries the clone command for the attempted src.
+    expect(notice?.textContent).toContain('git clone https://github.com/owner/repo');
+  });
+
+  it('does not offer the not-found remedy for a failure without that code', async () => {
+    // The message is the server's to reword, so nothing may key on its text.
+    render(
+      <NewProjectForm
+        allowLocalRepos
+        hosted={false}
+        prefill={{ src: 'https://github.com/owner/repo' }}
+        onSubmit={() => {}}
+      />,
+      container
+    );
+    await flush();
+    expect(container.querySelector('.unreachable--error')).toBeNull();
+  });
+
   it('when local repos are off: URL-only label + a standing "how to enable" notice, and a path blocks submit', async () => {
-    render(<NewProjectForm allowLocalRepos={false} onSubmit={() => {}} />, container);
+    render(
+      <NewProjectForm allowLocalRepos={false} hosted={false} onSubmit={() => {}} />,
+      container
+    );
     await flush();
 
     // Label reflects the URL-only mode.
     expect(container.querySelector('label')?.textContent).toBe('Repo URL');
     // The notice stands on its own (before any input), with the how-to link.
-    const note = container.querySelector('.new-project-note');
+    const note = container.querySelector('.unreachable--standing');
     expect(note?.textContent).toMatch(/local paths aren't enabled/i);
     expect(note?.querySelector('a')?.getAttribute('href')).toMatch(/local-directories/);
 
@@ -170,19 +207,25 @@ describe('NewProjectForm', () => {
       branches: ['main'],
       default: 'main',
     });
-    render(<NewProjectForm allowLocalRepos={false} onSubmit={() => {}} />, container);
+    render(
+      <NewProjectForm allowLocalRepos={false} hosted={false} onSubmit={() => {}} />,
+      container
+    );
     await flush();
-    expect(container.querySelector('.new-project-note')).not.toBeNull(); // standing while empty
+    expect(container.querySelector('.unreachable--standing')).not.toBeNull(); // standing while empty
 
     setInput(field(container), 'https://github.com/o/r');
     await drainAsync();
-    expect(container.querySelector('.new-project-note')).toBeNull(); // gone for a URL
+    expect(container.querySelector('.unreachable--standing')).toBeNull(); // gone for a URL
   });
 
   it('never uses an em-dash in the disabled-local notice copy', async () => {
-    render(<NewProjectForm allowLocalRepos={false} onSubmit={() => {}} />, container);
+    render(
+      <NewProjectForm allowLocalRepos={false} hosted={false} onSubmit={() => {}} />,
+      container
+    );
     await flush();
-    expect(container.querySelector('.new-project-note')?.textContent).not.toMatch(/—/);
+    expect(container.querySelector('.unreachable')?.textContent).not.toMatch(/—/);
   });
 
   it('keeps the field mounted (and shows no path error) while typing a git URL char-by-char when local repos are off', async () => {
@@ -190,7 +233,10 @@ describe('NewProjectForm', () => {
     // so a URL's first keystrokes read as a path. The field must never unmount
     // (it once did, dropping focus), and a half-typed URL must not flash the
     // "local paths" error — that's gated on looksLikePath.
-    render(<NewProjectForm allowLocalRepos={false} onSubmit={() => {}} />, container);
+    render(
+      <NewProjectForm allowLocalRepos={false} hosted={false} onSubmit={() => {}} />,
+      container
+    );
     await flush();
     expect(container.querySelector(FIELD)).not.toBeNull();
 

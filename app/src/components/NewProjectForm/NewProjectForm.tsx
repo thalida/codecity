@@ -17,12 +17,18 @@ import {
   looksResolvable,
   looksLikePath,
 } from '@/utils/sources';
+import { UnreachableSource } from '@/components/UnreachableSource/UnreachableSource';
+import type { ScanErrorCode } from '@/api/manifest';
 import type { SourcePayload } from '@/state/stores/ui';
 import { SCAN_PROGRESS } from '@/state/stores/scanProgress';
-import { REPO_URL } from '@/constants/ui';
 
 export interface NewProjectFormProps {
   allowLocalRepos: boolean;
+  /** This is the public deployment: a local path can never resolve here. */
+  hosted: boolean;
+  /** The code from the load that just failed, if it failed. Keyed on rather
+   *  than the message text, which is the server's to reword. */
+  errorCode?: ScanErrorCode;
   prefill?: SourcePayload;
   onSubmit: (payload: SourcePayload) => void;
   /** Fired when the user edits the source field, so the host can drop a stale
@@ -30,10 +36,10 @@ export interface NewProjectFormProps {
   onDirty?: () => void;
 }
 
-const LOCAL_DOCS_URL = `${REPO_URL}#local-directories`;
-
 export function NewProjectForm({
   allowLocalRepos,
+  hosted,
+  errorCode,
   prefill,
   onSubmit,
   onDirty,
@@ -64,9 +70,13 @@ export function NewProjectForm({
   // can't open. Gated on looksLikePath so a half-typed URL never trips it, and
   // it suppresses the "enter a git URL" nudge (the standing notice is the why).
   const pathBlocked = !isRemote && !allowLocalRepos && looksLikePath(activeSrc);
-  // The "local paths off" notice is only useful while the field could be a path
-  // — hide it once the input reads as a URL so the URL flow stays clean.
-  const showLocalNotice = !allowLocalRepos && !(isRemote && activeSrc.length > 0);
+  // The standing notice is only useful while the field could still be a path:
+  // hide it once the input reads as a URL so the URL flow stays clean.
+  const showStandingNotice = !allowLocalRepos && !(isRemote && activeSrc.length > 0);
+  // A remote repo the server couldn't reach. Shown regardless of what the field
+  // now reads as, because it answers the attempt the user just made.
+  const failedToReach = errorCode === 'repo-not-found';
+  const showUnreachable = failedToReach || showStandingNotice;
 
   // A path change on a URL resets the branch (no stale pick rides along) and
   // only resolves branches for a URL that passes validation.
@@ -125,13 +135,13 @@ export function NewProjectForm({
         )}
       </div>
 
-      {showLocalNotice && (
-        <p class="new-project-note">
-          Local paths aren't enabled.{' '}
-          <a class="link--chrome" href={LOCAL_DOCS_URL} target="_blank" rel="noopener noreferrer">
-            How to enable
-          </a>
-        </p>
+      {showUnreachable && (
+        <UnreachableSource
+          hosted={hosted}
+          allowLocal={allowLocalRepos}
+          variant={failedToReach ? 'error' : 'standing'}
+          src={activeSrc || prefill?.src}
+        />
       )}
 
       {isRemote && (

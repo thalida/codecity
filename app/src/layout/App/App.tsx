@@ -80,6 +80,7 @@ export function App() {
       dismissible: !isEmptyManifest(MANIFEST.peek()),
       prefill: err.prefill,
       error: err.error,
+      errorCode: err.code,
     });
   });
 

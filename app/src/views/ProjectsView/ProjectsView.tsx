@@ -154,6 +154,8 @@ export function ProjectsView({ onSubmit, onCancel, onClose }: ProjectsViewProps)
                   // user entered instead of clearing.
                   key={pv.opts.prefill?.src ?? ''}
                   allowLocalRepos={SERVER_CONFIG.value.allowLocalRepos}
+                  hosted={SERVER_CONFIG.value.hosted}
+                  errorCode={pv.opts.errorCode}
                   prefill={pv.opts.prefill}
                   onSubmit={onSubmit}
                   onDirty={clearProjectsViewError}

@@ -26,7 +26,13 @@
 import { useEffect, useCallback } from 'preact/hooks';
 import { effect } from '@preact/signals';
 
-import { manifestUrlFor, signatureUrlFor, streamManifest, ScanPhase } from '@/api/manifest';
+import {
+  manifestUrlFor,
+  signatureUrlFor,
+  streamManifest,
+  ScanPhase,
+  ScanError,
+} from '@/api/manifest';
 import { getServerConfig } from '@/api/config';
 import { getDiscover } from '@/api/discover';
 import { LIVE_UPDATES, LIVE_UPDATES_ACTIVE } from '@/state/stores/settings/updates';
@@ -72,7 +78,7 @@ async function pumpManifestStream(
   let appliedPending: Manifest['pending'] | undefined;
 
   for await (const event of streamManifest(url, { signal })) {
-    if (event.phase === ScanPhase.Error) throw new Error(event.error);
+    if (event.phase === ScanPhase.Error) throw new ScanError(event.error, event.code);
 
     if ('label' in event && event.label) {
       // The canonical "label of the source being loaded" — computed server-side
@@ -209,6 +215,7 @@ export async function loadSource(payload: SourcePayload): Promise<void> {
     }
     SOURCE_ERROR.value = {
       error: err instanceof Error ? err.message : String(err),
+      code: err instanceof ScanError ? err.code : undefined,
       prefill: { src: payload.src, branch },
     };
   } finally {
@@ -276,7 +283,7 @@ export function setupLiveUpdates(): () => void {
       for await (const event of streamManifest(
         manifestUrlFor({ src, branch, exclude: activeExcludePathsFor(src) })
       )) {
-        if (event.phase === ScanPhase.Error) throw new Error(event.error);
+        if (event.phase === ScanPhase.Error) throw new ScanError(event.error, event.code);
         // Live-update path: skip skeleton. The city is already drawn; applying
         // a skeleton would animate every building to placeholder heights and
         // back on every save. Only the final tweens into the new state.

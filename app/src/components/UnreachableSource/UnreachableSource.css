@@ -1,0 +1,57 @@
+/* UnreachableSource — guidance under the source field. The standing variant is
+   quiet prose; the error variant is the same content with a preamble and a
+   warning tint, because it is answering something that just failed. */
+
+.unreachable {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cc-space-3);
+  font-size: var(--cc-font-sm);
+  line-height: 1.5;
+}
+
+.unreachable--error {
+  padding: var(--cc-space-4) var(--cc-space-5);
+  border: 1px solid var(--cc-border-subtle);
+  border-radius: var(--cc-radius-md);
+  background: var(--cc-overlay-bg-soft);
+}
+
+.unreachable-preamble {
+  margin: 0;
+  font-weight: var(--cc-fw-medium);
+  color: var(--cc-text-strong);
+}
+
+.unreachable-remedy {
+  margin: 0;
+  color: var(--cc-text-secondary); /* AA on the card surface; muted fails 4.5:1 */
+}
+
+.unreachable-remedy code {
+  font-family: var(--cc-font-mono);
+  font-size: var(--cc-font-xs);
+  color: var(--cc-text-primary);
+}
+
+/* The `git clone <url>` line: a copyable command, so it gets a real field-ish
+   surface rather than inline code styling. */
+.unreachable-command {
+  display: flex;
+  align-items: center;
+  gap: var(--cc-space-3);
+  padding: var(--cc-space-2) var(--cc-space-3);
+  border: 1px solid var(--cc-border-input);
+  border-radius: var(--cc-radius-sm);
+  background: var(--cc-overlay-bg-soft);
+}
+
+.unreachable-command code {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-x: auto;
+  white-space: nowrap;
+  font-family: var(--cc-font-mono);
+  font-size: var(--cc-font-xs);
+  color: var(--cc-text-primary);
+}

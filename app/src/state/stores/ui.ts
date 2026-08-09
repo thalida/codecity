@@ -5,6 +5,7 @@
 
 import { signal, computed } from '@preact/signals';
 import { SourceKind } from '@/utils/sources';
+import type { ScanErrorCode } from '@/api/manifest';
 
 // These are the UI-state CONTRACTS the views render against. They live here (in
 // state) so state/ stays view-independent — the ProjectsView / LoadingOverlay
@@ -24,6 +25,9 @@ export interface OpenOpts {
   prefill?: SourcePayload;
   dismissible?: boolean; // default: false
   error?: string;
+  /** The failure's machine-readable reason, where the server gave one, so the
+   *  form can offer a remedy instead of only echoing the message. */
+  errorCode?: ScanErrorCode;
 }
 
 /** Options for showing the loading overlay. */
@@ -75,7 +79,10 @@ export const SWITCHER_SHOWCASE = computed(
 export function clearProjectsViewError(): void {
   const prev = PROJECTS_VIEW.peek();
   if (!prev.opts.error) return;
-  PROJECTS_VIEW.value = { ...prev, opts: { ...prev.opts, error: undefined } };
+  PROJECTS_VIEW.value = {
+    ...prev,
+    opts: { ...prev.opts, error: undefined, errorCode: undefined },
+  };
 }
 
 // ── Loading overlay ──────────────────────────────────────────────────────────

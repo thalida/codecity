@@ -16,6 +16,7 @@
 //   error    — fatal mid-stream failure; client should surface and stop.
 
 import type { Manifest } from '@/types/manifest';
+import type { components } from '@/types/manifest.generated';
 import { URL_PARAMS } from '@/constants/urlParams';
 import { apiUrl } from '@/api/apiUrl';
 
@@ -93,7 +94,24 @@ export type ScanStreamEvent =
   | { phase: ScanPhase.ScanProgress; label?: string; files_scanned?: number }
   | { phase: ScanPhase.PartialManifest; manifest: Manifest }
   | { phase: ScanPhase.CompleteManifest; manifest: Manifest }
-  | { phase: ScanPhase.Error; error: string };
+  | { phase: ScanPhase.Error; error: string; code?: ScanErrorCode };
+
+/** Machine-readable reason on a terminal error, for the cases the UI answers
+ *  differently. Keyed on, never on the message text: the wording is the
+ *  server's to change. */
+export type ScanErrorCode = components['schemas']['ErrorCode'];
+
+/** A stream failure that carries the server's code through the throw, so the
+ *  catch that writes SOURCE_ERROR can pass it on. A plain Error would flatten
+ *  it back to a string. */
+export class ScanError extends Error {
+  readonly code?: ScanErrorCode;
+  constructor(message: string, code?: ScanErrorCode) {
+    super(message);
+    this.name = 'ScanError';
+    this.code = code;
+  }
+}
 
 /** The non-terminal progress events that carry loading-step detail (clone
  *  percent, files scanned). The shared progress helper consumes these. */

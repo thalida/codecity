@@ -25,6 +25,7 @@ import {
   sameSourceIdentity,
 } from '@/utils/sources';
 import { isEmptyManifest } from '@/utils/manifest';
+import type { ScanErrorCode } from '@/api/manifest';
 import type { Manifest } from '@/types';
 
 // ── Currently-loaded source ──────────────────────────────────────────
@@ -42,6 +43,9 @@ export const CURRENT_SOURCE = signal<{ src: string; branch?: string } | null>(nu
  */
 export const SOURCE_ERROR = signal<{
   error: string;
+  /** The server's machine-readable reason, where it gave one. The view keys
+   *  its remedy on this rather than on the message text. */
+  code?: ScanErrorCode;
   prefill?: { src: string; branch?: string };
 } | null>(null);
 
