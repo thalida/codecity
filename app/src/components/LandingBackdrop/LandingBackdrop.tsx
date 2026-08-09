@@ -26,10 +26,6 @@ uniform vec3 uCol[4];
 
 // Lower = larger, calmer forms; higher = smaller, busier.
 const float SCALE = 0.3;
-// Ceiling on the ribbons' opacity. They used to sit on a flat background and
-// could go fully opaque; over the demo clip that hides the city exactly where
-// the swirl is prettiest. Tints instead of covers.
-const float MAX_ALPHA = 0.55;
 
 float hash(vec2 p) {
   p = fract(p * vec2(123.34, 456.21));
@@ -89,7 +85,7 @@ void main() {
   // landing's demo clip), so the calm areas have to be genuinely transparent
   // rather than painted background-coloured. Premultiplied, which is the
   // WebGL default the canvas composites with.
-  float a = clamp(energy, 0.0, 1.0) * MAX_ALPHA;
+  float a = clamp(energy, 0.0, 1.0);
   fragColor = vec4(col * a, a);
 }
 `;
