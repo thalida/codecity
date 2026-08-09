@@ -34,6 +34,17 @@ import { DiscoverList } from '@/components/DiscoverList/DiscoverList';
 import { PaneTabs } from '@/components/PaneTabs/PaneTabs';
 import { DISCOVER } from '@/state/stores/discover';
 
+// Served from app/public, so it has to carry the deploy base the same way
+// apiUrl does: the landing works under a subpath, not only at the domain root.
+const clipUrl = (file: string) => `${import.meta.env.BASE_URL || '/'}${file}`;
+
+/** True when the viewer asked for less motion. CSS can't stop a <video>, so the
+ *  autoplay decision has to be made here. Read per mount rather than
+ *  subscribed: the landing is short-lived and remounts on every open. */
+function prefersReducedMotion(): boolean {
+  return window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
+}
+
 const SOURCE_TAB = { recents: 'recents', discover: 'discover' } as const;
 const SOURCE_PANEL_ID = 'landing-sources';
 
@@ -48,6 +59,7 @@ export function ProjectsView({ onSubmit, onCancel, onClose }: ProjectsViewProps)
   const scan = SCAN_PROGRESS.value;
   const loading = scan !== null;
   const rootRef = useRef<HTMLDivElement>(null);
+  const reduceMotion = prefersReducedMotion();
 
   // Recents and Discover share one card so the action column can't grow a new
   // panel per feature. Recent is always offered, empty state and all, so a first
@@ -93,9 +105,29 @@ export function ProjectsView({ onSubmit, onCancel, onClose }: ProjectsViewProps)
       aria-modal={isModal ? 'true' : undefined}
       aria-label="codecity: open a project"
     >
-      {/* Cold-boot only: the swirl backdrop. The dismissible modal shows the
-          live city behind it instead (useSwitcherShowcase). */}
-      {!pv.opts.dismissible && <LandingBackdrop />}
+      {/* Cold boot has no city to reveal, so it plays one: the demo full-bleed,
+          with the swirl over it. Over a loaded city the switcher reveals the
+          real thing instead (useSwitcherShowcase), and a clip in front of a
+          city would just be a smaller worse one. */}
+      {!pv.opts.dismissible && (
+        <>
+          <video
+            class="landing-clip"
+            src={clipUrl('landing-clip.mp4')}
+            poster={clipUrl('landing-clip-poster.webp')}
+            // Muted is what makes autoplay legal; the clip has no audio track
+            // regardless. It is decoration behind a scrim, so it is hidden from
+            // assistive tech rather than labelled.
+            autoPlay={!reduceMotion}
+            loop={!reduceMotion}
+            muted
+            playsInline
+            preload="auto"
+            aria-hidden="true"
+          />
+          <LandingBackdrop />
+        </>
+      )}
 
       {pv.opts.dismissible && !loading && (
         <button class="landing-close btn-icon btn-icon--lg" aria-label="Close" onClick={onClose}>

@@ -43,6 +43,7 @@ describe('ProjectsView', () => {
     RECENTS.value = [];
     DISCOVER.value = [];
     vi.restoreAllMocks();
+    vi.unstubAllGlobals();
   });
 
   it('renders nothing when closed', async () => {
@@ -263,6 +264,55 @@ describe('ProjectsView', () => {
       const activeTab = container.querySelector('[role="tab"][aria-selected="true"]')!;
       expect(panel.getAttribute('aria-labelledby')).toBe(activeTab.id);
       expect(activeTab.getAttribute('aria-controls')).toBe(panel.id);
+    });
+  });
+
+  describe('the demo clip', () => {
+    const clip = () => container.querySelector<HTMLVideoElement>('.landing-clip');
+
+    // jsdom has no matchMedia, so this path also proves the component survives
+    // its absence rather than throwing on a cold boot.
+    it('plays on a cold boot, where nothing else shows what codecity makes', async () => {
+      openProjectsView({ dismissible: false });
+      render(
+        <ProjectsView onSubmit={() => {}} onCancel={() => {}} onClose={() => {}} />,
+        container
+      );
+      await flush();
+      expect(clip()).not.toBeNull();
+      expect(clip()!.autoplay).toBe(true);
+      expect(clip()!.loop).toBe(true);
+      expect(clip()!.muted).toBe(true);
+      expect(clip()!.getAttribute('poster')).toMatch(/landing-clip-poster\.webp$/);
+      // Decoration behind a scrim: named for nobody, so it stays out of the
+      // accessibility tree rather than announcing itself.
+      expect(clip()!.getAttribute('aria-hidden')).toBe('true');
+    });
+
+    it('is absent over a loaded city, where the live one is already orbiting behind', async () => {
+      openProjectsView({ dismissible: true });
+      render(
+        <ProjectsView onSubmit={() => {}} onCancel={() => {}} onClose={() => {}} />,
+        container
+      );
+      await flush();
+      expect(clip()).toBeNull();
+    });
+
+    it('holds still for prefers-reduced-motion, leaving the poster frame', async () => {
+      // jsdom ships no matchMedia at all, which is why the component guards
+      // the call; stub it rather than spy on something that isn't there.
+      vi.stubGlobal('matchMedia', (q: string) => ({
+        matches: q.includes('prefers-reduced-motion'),
+      }));
+      openProjectsView({ dismissible: false });
+      render(
+        <ProjectsView onSubmit={() => {}} onCancel={() => {}} onClose={() => {}} />,
+        container
+      );
+      await flush();
+      expect(clip()!.autoplay).toBe(false);
+      expect(clip()!.loop).toBe(false);
     });
   });
 
