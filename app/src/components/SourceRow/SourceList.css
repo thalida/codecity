@@ -1,0 +1,35 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   LAYER-2 COMPONENTS — Source list
+   ═══════════════════════════════════════════════════════════════════════════
+   .source-list — a scrolling column of SourceRows. Recents and Discover share
+   a card and swap places in it, so they must scroll identically or the card
+   resizes when you change tab.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.source-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cc-space-1);
+  /* Grow into the card's remaining height and scroll the rows rather than the
+     page, wherever the card is height-capped (the side-by-side landing layout).
+     Stacked, the card shrink-wraps and the page scroller takes over instead.
+     min-height: 0 lets this flex child shrink below its content so the overflow
+     is its own. */
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  /* Reserve the scrollbar gutter so rows don't reflow when it appears, and keep
+     the track off the rows' right edge. */
+  scrollbar-gutter: stable;
+  margin-right: calc(-1 * var(--cc-space-2));
+  padding-right: var(--cc-space-2);
+}
+
+/* One row plus whatever sits beside it (a recent's remove control; nothing on
+   a Discover row). Siblings, not parent/child, so the row's hover highlight has
+   symmetric padding and the control keeps its own hit area. */
+.source-list-item {
+  display: flex;
+  align-items: center;
+  gap: var(--cc-space-2);
+}

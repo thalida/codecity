@@ -698,7 +698,7 @@ describe('CommitPane', () => {
     // Find first occurrence of each marker class.
     const idx = (cls: string) => children.findIndex((c) => c.classList.contains(cls));
     const iSubject = idx('commit-message-subject');
-    const iAuthor = idx('commit-author');
+    const iAuthor = idx('commit-authors');
     const iMeta = idx('commit-meta');
     const iSameDay = idx('commit-same-day');
     const iBody = idx('commit-message-body-slot');

@@ -6,8 +6,9 @@
    already has a border, and a second complete outline around a two-line note
    reads as a nested panel. The rule carries the tint instead. */
 .unreachable {
-  display: flex;
-  gap: var(--cc-space-3);
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  column-gap: var(--cc-space-3);
   padding: var(--cc-space-3) var(--cc-space-4);
   border-left: 2px solid var(--cc-accent-line);
   border-radius: 0 var(--cc-radius-sm) var(--cc-radius-sm) 0;
@@ -19,13 +20,14 @@
 /* The glyph reads as "note" on the standing variant and "that failed" on the
    error one, which is the only difference between them. */
 .unreachable-glyph {
-  flex: 0 0 auto;
-  margin-top: 2px;
+  grid-area: 1 / 1;
+  align-self: center;
   font-size: var(--cc-font-sm); /* icons are 1em (icons.css) */
   color: var(--cc-accent);
 }
 
 .unreachable-body {
+  grid-area: 1 / 2;
   display: flex;
   flex-direction: column;
   gap: var(--cc-space-2);

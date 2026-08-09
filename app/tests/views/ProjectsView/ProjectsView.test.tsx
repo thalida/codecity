@@ -69,7 +69,7 @@ describe('ProjectsView', () => {
     ];
     render(<ProjectsView onSubmit={() => {}} onCancel={() => {}} onClose={() => {}} />, container);
     await flush();
-    expect(container.querySelector('.recents-list')).not.toBeNull();
+    expect(container.querySelector('[data-list="recents"]')).not.toBeNull();
 
     SCAN_PROGRESS.value = { kind: SourceKind.Remote, phase: ScanPhase.CloneProgress };
     PENDING_SOURCE_LABEL.value = 'o/r';
@@ -78,7 +78,7 @@ describe('ProjectsView', () => {
     // The "second load" surface is gone, not just disabled — nothing left to
     // click into while the current load streams.
     expect(container.querySelector('.new-project')).toBeNull();
-    expect(container.querySelector('.recents-list')).toBeNull();
+    expect(container.querySelector('[data-list="recents"]')).toBeNull();
 
     const progress = container.querySelector('.landing-progress');
     expect(progress).not.toBeNull();
@@ -211,7 +211,7 @@ describe('ProjectsView', () => {
       DISCOVER.value = CURATED;
       await open();
       expect(tabLabels()).toEqual(['Recent', 'Discover']);
-      expect(container.querySelector('.discover-list')).not.toBeNull();
+      expect(container.querySelector('[data-list="discover"]')).not.toBeNull();
       expect(container.querySelector('[role="tab"][aria-selected="true"]')?.textContent).toBe(
         'Discover'
       );
@@ -222,8 +222,8 @@ describe('ProjectsView', () => {
       DISCOVER.value = CURATED;
       await open();
       expect(tabLabels()).toEqual(['Recent', 'Discover']);
-      expect(container.querySelector('.recents-list')).not.toBeNull();
-      expect(container.querySelector('.discover-list')).toBeNull();
+      expect(container.querySelector('[data-list="recents"]')).not.toBeNull();
+      expect(container.querySelector('[data-list="discover"]')).toBeNull();
     });
 
     it('switches the panel when a tab is picked', async () => {
@@ -235,8 +235,8 @@ describe('ProjectsView', () => {
       )!;
       discoverTab.click();
       await flush();
-      expect(container.querySelector('.discover-list')).not.toBeNull();
-      expect(container.querySelector('.recents-list')).toBeNull();
+      expect(container.querySelector('[data-list="discover"]')).not.toBeNull();
+      expect(container.querySelector('[data-list="recents"]')).toBeNull();
     });
 
     it('marks the same repo Active in both lists, branch or no branch', async () => {
@@ -252,14 +252,14 @@ describe('ProjectsView', () => {
 
       const noteIn = (list: string) =>
         container.querySelector(`${list} .source-row--active .source-row-note`)?.textContent;
-      expect(noteIn('.recents-list')).toBe('Active');
+      expect(noteIn('[data-list="recents"]')).toBe('Active');
 
       const discoverTab = Array.from(container.querySelectorAll<HTMLElement>('[role="tab"]')).find(
         (el) => el.textContent === 'Discover'
       )!;
       discoverTab.click();
       await flush();
-      expect(noteIn('.discover-list')).toBe('Active');
+      expect(noteIn('[data-list="discover"]')).toBe('Active');
 
       CURRENT_SOURCE.value = null;
     });
@@ -274,7 +274,8 @@ describe('ProjectsView', () => {
       FEATURED_CITY.value = { src, label: 'thalida/codecity', branch: 'main' };
       await open();
       expect(
-        container.querySelector('.recents-list .source-row--active .source-row-note')?.textContent
+        container.querySelector('[data-list="recents"] .source-row--active .source-row-note')
+          ?.textContent
       ).toBe('Active');
     });
 
@@ -290,14 +291,14 @@ describe('ProjectsView', () => {
       )!;
       discoverTab.click();
       await flush();
-      expect(container.querySelector('.discover-list')).not.toBeNull();
+      expect(container.querySelector('[data-list="discover"]')).not.toBeNull();
 
       closeProjectsView();
       await flush();
       openProjectsView({ dismissible: true });
       await flush();
-      expect(container.querySelector('.recents-list')).not.toBeNull();
-      expect(container.querySelector('.discover-list')).toBeNull();
+      expect(container.querySelector('[data-list="recents"]')).not.toBeNull();
+      expect(container.querySelector('[data-list="discover"]')).toBeNull();
     });
 
     it('opens the source a Discover row names', async () => {
@@ -309,7 +310,7 @@ describe('ProjectsView', () => {
         container
       );
       await flush();
-      container.querySelector<HTMLButtonElement>('.discover-list .source-row')!.click();
+      container.querySelector<HTMLButtonElement>('[data-list="discover"] .source-row')!.click();
       expect(onSubmit).toHaveBeenCalledWith({ src: 'https://github.com/preactjs/preact' });
     });
 
@@ -317,7 +318,7 @@ describe('ProjectsView', () => {
       DISCOVER.value = CURATED;
       await open();
       expect(
-        container.querySelector('.discover-list [aria-label="Remove from recents"]')
+        container.querySelector('[data-list="discover"] [aria-label="Remove from recents"]')
       ).toBeNull();
     });
 

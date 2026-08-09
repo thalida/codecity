@@ -1,24 +1,4 @@
-/* ── Recent projects ── the list of recent-source rows (the card owns the
-   heading — see .landing-card-title). */
-
-.recents-list {
-  display: flex;
-  flex-direction: column;
-  gap: var(--cc-space-1);
-  /* Grow into the card's remaining height and scroll the rows rather than the
-     page, wherever the card is height-capped (the side-by-side landing layout).
-     Stacked, the card shrink-wraps and the page scroller takes over instead.
-     min-height: 0 lets this flex child shrink below its content so the overflow
-     is its own. */
-  flex: 1 1 auto;
-  min-height: 0;
-  overflow-y: auto;
-  /* Reserve the scrollbar gutter so rows don't reflow when it appears, and keep
-     the track off the rows' right edge. */
-  scrollbar-gutter: stable;
-  margin-right: calc(-1 * var(--cc-space-2));
-  padding-right: var(--cc-space-2);
-}
+/* ── Recent projects ── what a recent has that a Discover row doesn't. */
 
 /* Shown instead of the list on a first visit, so the tab explains itself
    rather than sitting empty. */
@@ -29,23 +9,13 @@
   color: var(--cc-text-secondary);
 }
 
-/* Each recent is a .recent-item row: the shared .source-row click target plus
-   a sibling remove control. Kept as siblings (not parent/child) so the row's
-   hover highlight has symmetric padding and the remove control has its own
-   independent hit area. */
-.recent-item {
-  display: flex;
-  align-items: center;
-  gap: var(--cc-space-2);
-}
-
 /* Remove-from-list button next to each recent. Neutral, not destructive:
    removing only forgets the entry, it doesn't delete anything. */
-.recent-item > .btn-icon[aria-label='Remove from recents'] {
+.source-list-item > .btn-icon[aria-label='Remove from recents'] {
   padding: var(--cc-space-4) var(--cc-space-2);
   color: var(--cc-text-muted);
 }
-.recent-item > .btn-icon[aria-label='Remove from recents']:hover {
+.source-list-item > .btn-icon[aria-label='Remove from recents']:hover {
   color: var(--cc-text-strong);
   background: var(--cc-overlay-bg);
 }

@@ -25,7 +25,7 @@ export function RecentRow(props: RecentRowProps) {
 
   if (confirmingRemove) {
     return (
-      <div class="recent-item">
+      <div class="source-list-item">
         <div class="recent-confirm">
           <span class="recent-confirm-text">
             Remove <strong>{r.label}</strong> from recents?
@@ -48,7 +48,7 @@ export function RecentRow(props: RecentRowProps) {
   }
 
   return (
-    <div class="recent-item">
+    <div class="source-list-item">
       <SourceRow
         src={r.src}
         label={r.label}

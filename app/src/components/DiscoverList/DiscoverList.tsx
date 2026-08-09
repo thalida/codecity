@@ -12,7 +12,7 @@
 // whether it's the city you can see, and ACTIVE_SOURCE already answers that for
 // the featured repo too.
 
-import './DiscoverList.css';
+import '@/components/SourceRow/SourceList.css';
 import { DISCOVER } from '@/state/stores/discover';
 import { ACTIVE_SOURCE } from '@/state/stores/source';
 import { sameSourceIdentity } from '@/utils/sources';
@@ -32,9 +32,9 @@ export function DiscoverList({ onOpen }: DiscoverListProps) {
   if (repos.length === 0) return null;
 
   return (
-    <div class="discover-list">
+    <div class="source-list" data-list="discover">
       {repos.map((repo) => (
-        <div class="discover-item" key={repo.url}>
+        <div class="source-list-item" key={repo.url}>
           <SourceRow
             src={repo.url}
             label={repo.label}

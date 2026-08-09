@@ -274,11 +274,16 @@
 }
 
 /* Recent / Discover share one card, so the tab strip is that card's heading.
-   The pane version indents for a pane's inset and rules off against a pane
-   body; here it sits flush in the card and carries the card's own gap. */
+   The pane version indents for a pane's inset; here it sits flush. */
 .landing-tabs {
   padding-top: 0;
-  margin-bottom: calc(-1 * var(--cc-space-2));
+}
+
+/* Tighter than the other cards: a tab strip already rules itself off from the
+   panel below, so the card's usual heading gap doubles the separation. Set on
+   the card rather than pulled back with a negative margin on the strip. */
+.landing-card--sources {
+  gap: var(--cc-space-2);
 }
 
 /* The panel takes the card's remaining height so a long list scrolls inside it

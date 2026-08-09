@@ -78,7 +78,9 @@
   top: calc(-1 * var(--cc-space-3));
   bottom: calc(-1 * var(--cc-space-3));
   width: 3px;
-  margin-left: -1.5px;
+  /* Centre the line on its point: a transform, not a half-pixel margin that
+     has to be recomputed whenever the width changes. */
+  transform: translateX(-50%);
   border-radius: var(--cc-radius-sm);
   background: var(--cc-accent);
   box-shadow: 0 0 2px color-mix(in oklch, var(--cc-accent) 30%, transparent);

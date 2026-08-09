@@ -46,13 +46,14 @@
   box-shadow: var(--cc-shadow-lg);
 }
 
-/* Glyph column, then a text column: the sublabel lines up under the label
-   because it is in the same box, not because of a padding that guesses the
-   glyph's width. */
+/* Glyph in column 1, label and sublabel stacked in column 2. The sublabel
+   lines up under the label because the grid puts it there, and the glyph
+   centres on the label's row rather than being nudged by a magic margin. */
 .split-button-item {
-  display: flex;
-  align-items: start;
-  gap: var(--cc-space-3);
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  column-gap: var(--cc-space-3);
+  row-gap: var(--cc-space-1);
   text-align: left;
   padding: var(--cc-space-3) var(--cc-space-4);
   border: 0;
@@ -68,27 +69,20 @@
   background: var(--cc-hover-overlay);
 }
 
-.split-button-item-text {
-  display: flex;
-  flex-direction: column;
-  gap: var(--cc-space-1);
-  min-width: 0;
-}
-
 .split-button-item-label {
+  grid-area: 1 / 2;
   font-size: var(--cc-font-sm);
   font-weight: var(--cc-fw-medium);
   color: var(--cc-text-strong);
 }
-/* Nudged to the label's optical centre rather than the row's, so it reads as
-   the label's glyph and not as a bullet for both lines. */
 .split-button-item-icon {
-  flex: 0 0 auto;
-  margin-top: 1px;
+  grid-area: 1 / 1;
+  align-self: center;
   color: var(--cc-accent-light);
 }
 
 .split-button-item-sublabel {
+  grid-area: 2 / 2;
   font-size: var(--cc-font-xs);
   line-height: 1.4;
   color: var(--cc-text-secondary); /* AA on the menu surface; muted fails 4.5:1 */

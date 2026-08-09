@@ -194,10 +194,8 @@ export function SplitButton({
               }}
             >
               {item.icon && <item.icon class="icon split-button-item-icon" aria-hidden="true" />}
-              <span class="split-button-item-text">
-                <span class="split-button-item-label">{item.label}</span>
-                {item.sublabel && <span class="split-button-item-sublabel">{item.sublabel}</span>}
-              </span>
+              <span class="split-button-item-label">{item.label}</span>
+              {item.sublabel && <span class="split-button-item-sublabel">{item.sublabel}</span>}
             </button>
           ))}
           {footer && <div class="split-button-footer">{footer}</div>}

@@ -187,15 +187,17 @@ export function CommitPane({ state, onClose, onFocus, onViewInTimeline }: Commit
       bodyClass="commit-body pane-inset"
     >
       <div class="commit-message-subject">{commit.subject || '(no subject)'}</div>
-      {(commit.authors ?? []).map((author) => (
-        <div key={author} class="commit-author">
-          <span
-            class="commit-author-dot"
-            style={{ backgroundColor: colorForAuthor(authorHues[author] ?? 0).hex }}
-          />
-          <span class="commit-author-name">{author || '(unknown)'}</span>
-        </div>
-      ))}
+      <div class="commit-authors">
+        {(commit.authors ?? []).map((author) => (
+          <div key={author} class="commit-author">
+            <span
+              class="commit-author-dot"
+              style={{ backgroundColor: colorForAuthor(authorHues[author] ?? 0).hex }}
+            />
+            <span class="commit-author-name">{author || '(unknown)'}</span>
+          </div>
+        ))}
+      </div>
       <div class="commit-meta">
         <span class="commit-age" title={commit.date}>
           {formatRelativeAge(commit.date, now)}

@@ -83,7 +83,7 @@ describe('RecentsList', () => {
     render(<RecentsList onOpen={() => {}} />, container);
     await flush();
 
-    const rows = container.querySelectorAll('.recent-item');
+    const rows = container.querySelectorAll('.source-list-item');
     expect(rows).toHaveLength(1);
     expect(container.querySelector('.app-header-branch-pill')).toBeNull();
     expect(container.querySelector('.source-row--active')).toBeTruthy();

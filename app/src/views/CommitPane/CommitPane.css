@@ -34,11 +34,14 @@
   gap: var(--cc-space-3); /* inline gap between dot and name */
 }
 
-/* Tighten consecutive author rows. The parent .commit-body's flex gap
-   separates sections (authors / meta / same-day / body); stacked
-   author rows look airy at that gap, so pull them in tighter here. */
-.commit-author + .commit-author {
-  margin-top: calc(-1 * var(--cc-space-2));
+/* The authors are one section, with their own tighter gap. The parent's gap
+   separates sections (authors / meta / same-day / body) and is too airy between
+   stacked author rows; a box with its own gap says that, where a negative
+   margin cancelling the parent's only implied it. */
+.commit-authors {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cc-space-1);
 }
 
 .commit-author-dot {
