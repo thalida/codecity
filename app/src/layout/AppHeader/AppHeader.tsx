@@ -11,7 +11,7 @@ import { SOURCE_INFO } from '@/state/stores/source';
 import { MANIFEST } from '@/state/stores/manifest';
 import type { Manifest } from '@/types';
 import { openProjectsView, openShortcuts } from '@/state/stores/ui';
-import { REPO_URL } from '@/constants/ui';
+import { MetaAbout } from '@/components/AppMeta/AppMeta';
 import { ProjectSwitcher } from '@/components/ProjectSwitcher/ProjectSwitcher';
 import { CopyButton } from '@/components/CopyButton/CopyButton';
 
@@ -45,15 +45,7 @@ export function AppHeader({ onSwitchSource }: AppHeaderProps = {}) {
         </a>
       )}
       <div id="app-header-meta">
-        <a
-          class="app-header-link btn-icon--no-drag"
-          href={REPO_URL}
-          target="_blank"
-          rel="noopener noreferrer"
-          title="codecity on GitHub"
-        >
-          about
-        </a>
+        <MetaAbout linkClass="link--chrome" />
         <button
           type="button"
           class="btn-icon btn-icon--sm btn-icon--no-drag"

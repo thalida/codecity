@@ -28,16 +28,11 @@
   flex: 0 0 auto;
 }
 
-/* A text link among icon buttons: matched to the resting icon color so the
-   cluster reads as one weight, and brightened on hover like they are. */
-.app-header-link {
-  color: var(--cc-text-muted);
-  text-decoration: none;
-}
-.app-header-link:hover,
-.app-header-link:focus-visible {
-  color: var(--cc-text-strong);
-  text-decoration: underline;
+/* The about link takes the house .link--chrome (accent, underline on hover):
+   an icon button reads as clickable on its own, a bare word does not, so it
+   can't borrow the icons' resting colour. */
+#app-header-meta .meta-link {
+  -webkit-app-region: no-drag;
 }
 
 /* Header buttons use .btn-icon + .btn-icon--no-drag, or

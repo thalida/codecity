@@ -174,4 +174,50 @@ describe('ProjectsView', () => {
   it('reflects the PROJECTS_VIEW signal directly', () => {
     expect(PROJECTS_VIEW.value.visible).toBe(false);
   });
+
+  // The landing is fixed over the whole viewport, so it covers the app header
+  // and footer: without these, a cold boot shows no version, repo link or
+  // credit until a repo is loaded.
+  describe('identity line', () => {
+    const renderLanding = async (opts: { dismissible: boolean }) => {
+      SERVER_CONFIG.value = { ...DEFAULT_SERVER_CONFIG, allowLocalRepos: true, version: '1.4.0' };
+      openProjectsView(opts);
+      render(
+        <ProjectsView onSubmit={() => {}} onCancel={() => {}} onClose={() => {}} />,
+        container
+      );
+      await flush();
+      return container.querySelector('.landing-hero')!;
+    };
+
+    it('shows the running version under the wordmark', async () => {
+      const hero = await renderLanding({ dismissible: false });
+      expect(hero.querySelector('.landing-wordmark')!.textContent).toBe('codecity');
+      expect(hero.textContent).toContain('v1.4.0');
+    });
+
+    it('links about to the repo and the credit to thalida.com', async () => {
+      const hero = await renderLanding({ dismissible: false });
+      const links = Array.from(hero.querySelectorAll<HTMLAnchorElement>('a'));
+      expect(links.map((a) => a.getAttribute('href'))).toEqual([
+        'https://github.com/thalida/codecity',
+        'https://thalida.com',
+      ]);
+      for (const a of links) {
+        expect(a.getAttribute('target')).toBe('_blank');
+        expect(a.getAttribute('rel')).toBe('noopener noreferrer');
+      }
+    });
+
+    it('credits the creator with the unicorn', async () => {
+      const hero = await renderLanding({ dismissible: false });
+      expect(hero.textContent).toContain('🦄 thalida.');
+    });
+
+    it('shows on the dismissible switcher too, which also covers the chrome', async () => {
+      const hero = await renderLanding({ dismissible: true });
+      expect(hero.textContent).toContain('v1.4.0');
+      expect(hero.querySelectorAll('a')).toHaveLength(2);
+    });
+  });
 });

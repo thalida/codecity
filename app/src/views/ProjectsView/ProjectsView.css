@@ -86,7 +86,28 @@
 .landing-brand {
   display: flex;
   align-items: center;
-  gap: var(--cc-space-4);
+  gap: var(--cc-space-7);
+}
+
+/* Brand row and the meta line as one block, tighter than the hero's own gap so
+   the line reads as attached to the wordmark rather than floating between it
+   and the tagline. Full-width, so it keeps the hero's left edge: nested beside
+   the gem the line inherited that indent, and two offset lines read as a
+   mistake where the wordmark alone reads as the gem's partner. */
+.landing-identity {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cc-space-3);
+  min-width: 0;
+}
+
+.landing-identity > .meta-line {
+  font-family: var(--cc-font-mono);
+  /* Two steps up from the footer's size: the same 10px that suits a 24px status
+     bar is out of scale under a 28px wordmark. Still well below the tagline, so
+     it stays secondary to the pitch. */
+  font-size: var(--cc-font-sm);
+  color: var(--cc-text-secondary);
 }
 
 .landing-gem {

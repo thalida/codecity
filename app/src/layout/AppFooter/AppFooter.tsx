@@ -31,7 +31,7 @@ import {
 import { openDebug } from '@/state/stores/ui';
 import { isDebugMode } from '@/utils/debugMode';
 import { FooterSep } from './FooterSep';
-import { FooterVersion, FooterCredit } from './FooterMeta';
+import { MetaVersion, MetaCredit } from '@/components/AppMeta/AppMeta';
 
 export interface FooterStatus {
   /** True when live-poll is active; renders as `live`. False renders as `paused`. */
@@ -156,7 +156,7 @@ export function AppFooter() {
       <div class="app-footer-section app-footer-left">
         <FooterStatusSection status={status} />
         <FooterSep />
-        <FooterVersion />
+        <MetaVersion />
         {isDebugMode() && (
           <button
             type="button"
@@ -170,7 +170,7 @@ export function AppFooter() {
         )}
       </div>
       <div class="app-footer-section app-footer-right">
-        <FooterCredit />
+        <MetaCredit linkClass="link--chrome" />
       </div>
     </footer>
   );

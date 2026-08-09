@@ -119,35 +119,21 @@
 
 /* ── Version + credit ─────────────────────────────────────────────── */
 /* Version sits with the status dot on the left; the credit holds the right.
-   Both stay a step below the status text so the live state reads first, and
-   the link brightens like any other. */
-.app-footer-version,
-.app-footer-credit {
+   Both stay a step below the status text so the live state reads first. The
+   name inside the credit takes the house .link--chrome, since nothing around
+   it in a status bar signals that a word is a link. */
+#app-footer .meta-version,
+#app-footer .meta-credit {
   color: var(--cc-text-muted);
-  white-space: nowrap;
-}
-.app-footer-link {
-  color: var(--cc-text-primary);
-  text-decoration: none;
-}
-.app-footer-link:hover,
-.app-footer-link:focus-visible {
-  color: var(--cc-text-strong);
-  text-decoration: underline;
 }
 
 /* ── Footer responsive narrowing ───────────────────────────────────────────── */
-/* At narrow widths the status timestamp and the credit are both secondary to
-   knowing the build state at all, so the dot and version keep the bar. */
+/* Tighter insets, nothing dropped. The bar holds two short items per side, and
+   each section already clips with an ellipsis, so hiding anything traded real
+   information for space that wasn't needed. */
 @media (max-width: 580px) {
   #app-footer {
     gap: var(--cc-space-3);
     padding: 0 var(--cc-space-4);
-  }
-  .app-footer-status-detail {
-    display: none;
-  }
-  .app-footer-credit {
-    display: none;
   }
 }
