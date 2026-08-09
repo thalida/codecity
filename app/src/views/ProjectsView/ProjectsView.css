@@ -17,20 +17,32 @@
    hero side, letting its text keep AA contrast over the city; the action cards
    carry their own opaque surface and the center/right stays clear. */
 .landing--modal {
+  /* The scrim holds near-full strength across the whole hero column and only
+     falls off past it, so building edges never cut through the tagline or the
+     feature cues. */
   background: linear-gradient(
     100deg,
-    color-mix(in oklch, var(--cc-bg-app) 82%, transparent) 0%,
-    color-mix(in oklch, var(--cc-bg-app) 62%, transparent) 24%,
-    color-mix(in oklch, var(--cc-bg-app) 24%, transparent) 46%,
-    transparent 64%
+    color-mix(in oklch, var(--cc-bg-app) 96%, transparent) 0%,
+    color-mix(in oklch, var(--cc-bg-app) 92%, transparent) 30%,
+    color-mix(in oklch, var(--cc-bg-app) 60%, transparent) 52%,
+    transparent 72%
   );
 }
 
-/* Stacked layout: the hero is full-width at the top with no card column beside
-   it, so a directional scrim can't cover it, fall back to an even veil. */
+/* Stacked layout: the hero sits above the cards rather than beside them, so the
+   scrim runs down the page instead of across it. Near-solid through the band the
+   hero occupies, thinning toward the bottom where the city reads as a deliberate
+   horizon. The cards carry their own opaque surface, so they stay legible over
+   the thin end. */
 @media (max-width: 900px) {
   .landing--modal {
-    background: color-mix(in oklch, var(--cc-bg-app) 70%, transparent);
+    background: linear-gradient(
+      180deg,
+      color-mix(in oklch, var(--cc-bg-app) 97%, transparent) 0%,
+      color-mix(in oklch, var(--cc-bg-app) 94%, transparent) 55%,
+      color-mix(in oklch, var(--cc-bg-app) 62%, transparent) 82%,
+      color-mix(in oklch, var(--cc-bg-app) 40%, transparent) 100%
+    );
   }
 }
 
@@ -63,10 +75,47 @@
 }
 
 @media (max-width: 900px) {
+  /* The page is fixed to the viewport, so it spans the status bar and home
+     indicator: every edge inset clears its safe area. */
+  .landing-close {
+    top: calc(var(--cc-space-7) + env(safe-area-inset-top));
+    right: calc(var(--cc-space-7) + env(safe-area-inset-right));
+  }
+
   .landing-inner {
     grid-template-columns: 1fr;
     align-items: start;
+    /* Centered while the content fits, top-aligned the moment it doesn't. The
+       plain keyword would clip the overflow at the start edge, putting the hero
+       above the scroll origin and out of reach once the recents list is full. */
+    align-content: safe center;
     gap: var(--cc-space-8);
+    /* The top band clears the floating close button (its own inset plus its
+       height) so the brand never shares a line with it. */
+    padding: calc(var(--cc-space-9) * 2 + env(safe-area-inset-top))
+      calc(var(--cc-space-7) + env(safe-area-inset-right))
+      calc(var(--cc-space-9) + env(safe-area-inset-bottom))
+      calc(var(--cc-space-7) + env(safe-area-inset-left));
+  }
+
+  /* Indent the hero by the card's own padding so its text shares a left edge
+     with the card titles stacked beneath it. */
+  .landing-hero {
+    padding-inline: var(--cc-space-7);
+  }
+
+  /* Stacked, the cards follow the hero down the page instead of sharing its row,
+     so the viewport-height cap and the centering that serve the side-by-side
+     column would strand them below a screen of empty space. The page scroller
+     takes over and each card shrink-wraps its content: the recents list is capped
+     at MAX_RECENT_SOURCES, so the page stays a bounded length without needing a
+     scroller nested inside the card. */
+  .landing-actions {
+    align-self: stretch;
+    max-height: none;
+  }
+  .landing-card--recents {
+    flex: 0 0 auto;
   }
 }
 
