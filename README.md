@@ -199,17 +199,16 @@ The pre-push hook runs the full lint + tests before pushing; bypass with `git pu
 
 | Command | What it does |
 | --- | --- |
+| `just setup` | one-time: pre-push hooks, app packages, deploy env |
 | `just dev` | Vite HMR + API auto-reload at `http://<slug>.localhost:<port>/` |
+| `just url` | print this worktree's dev URL (`open $(just url)`) |
 | `just test` | pytest + vitest in containers |
 | `just lint` | ruff, eslint, prettier, and typecheck |
-| `just fmt` | apply Python formatting (ruff) |
 | `just gen-types` | regenerate the frontend wire types from the OpenAPI schema |
-| `just build` | build the local Docker image |
-| `just run` | run the local image like an end user |
-| `just screenshots [names]` | regenerate the README screenshots |
-| `just demo-video` | record the README `demo.mp4` |
-| `just deploy` | redeploy production without cutting a release |
 | `just clean` | tear down this worktree's containers and volumes |
+
+`just --list` has the rest: per-suite tests, formatting, image builds, README
+assets, release and deploy.
 
 ### Worktrees
 
@@ -228,6 +227,8 @@ The pre-push hook runs the full lint + tests before pushing; bypass with `git pu
 just release v0.2.0
 ```
 
+This ships to production. The tag is the trigger for everything below.
+
 `just release`:
 
 - verifies you're on a clean `main` in sync with origin
@@ -240,31 +241,25 @@ Pushing the tag triggers GitHub Actions, which:
 - signs with cosign (keyless via OIDC)
 - smoke-tests via `/api/health`
 - creates a GitHub Release
+- deploys production, see [Deploy](#deploy) below
 
 ### Deploy
 
-A release deploys itself: after the image is published, the release workflow
-dispatches the `deploy.yml` workflow on Forgejo with `app: app-codecity`. It
-waits on the build, so the deploy never runs before the image exists, and it
-no-ops with a notice when the deploy secrets aren't set.
+A release deploys itself: once the image is published, the release workflow
+dispatches `deploy.yml` on Forgejo. It skips itself when the secrets below
+aren't set.
 
-To redeploy without cutting a release:
+**One-time setup**
+
+1. Create a Forgejo token under **Settings → Applications**, scoped `repository → Read and Write`, everything else `No access`
+2. Fill in `.local/deploy.env` (gitignored, seeded by `just setup`) with `FORGEJO_HOST`, `FORGEJO_REPO`, `FORGEJO_TOKEN`
+3. Add those same three under **Settings → Secrets and variables → Actions → Secrets**
+
+**Redeploying without a release**
 
 ```sh
-just setup      # seeds .local/deploy.env from deploy.env.example
-just deploy     # or: just deploy app-other
+just deploy
 ```
-
-Fill in host, repo and token in `.local/deploy.env`, which is gitignored. They
-live there rather than in the tracked `.env` because this repo is public.
-
-For the release workflow, the same three go in **Settings → Secrets and
-variables → Actions → Secrets**: `FORGEJO_HOST`, `FORGEJO_REPO`,
-`FORGEJO_TOKEN`. Secrets rather than variables, since only secrets are masked in
-the public Actions logs. `FORGEJO_DEPLOY_APP` is the one non-sensitive knob and
-lives in `.env`.
-
-The token needs `repository → Read and Write` and nothing else.
 
 ### Verify signatures
 

@@ -206,8 +206,9 @@ install-hooks:
 
 # ── Release ──────────────────────────────────────────────────────
 # Tag + push a release. Pushing a `v*` tag triggers .github/workflows/release.yml
-# which builds the multi-arch image, signs it, smoke-tests, and creates the
-# GitHub Release. VERSION must look like v1.2.3 or v1.2.3-alpha-4 / v1.2.3-rc.1.
+# which builds the multi-arch image, signs it, smoke-tests, creates the GitHub
+# Release, and then DEPLOYS PRODUCTION (see the deploy recipe below). VERSION
+# must look like v1.2.3 or v1.2.3-alpha-4 / v1.2.3-rc.1.
 # Refuses to tag unless: on main, working tree clean, in sync with origin/main,
 # and the tag doesn't already exist on origin. If the local tag already exists
 # at HEAD (resumable state from a prior push failure — e.g. pre-push hook
@@ -257,30 +258,30 @@ release VERSION:
          exit 1 ; \
      fi ; \
      REPO=$(gh repo view --json nameWithOwner -q .nameWithOwner 2>/dev/null || echo "<owner>/<repo>") ; \
-     echo "[just] released — watch: https://github.com/$REPO/actions/workflows/release.yml"
+     echo "[just] released — builds, then deploys production" ; \
+     echo "[just] watch: https://github.com/$REPO/actions/workflows/release.yml"
 
 # ── Deploy ───────────────────────────────────────────────────────
-# Dispatch the Forgejo deploy.yml that owns this app's compose stack. Separate
-# from `release`: that one only pushes a tag, and the GitHub release workflow
-# deploys on its own once the image is actually published. Use this to redeploy
-# without cutting a release.
+# Dispatch the Forgejo deploy.yml that owns this app's compose stack. `release`
+# already ends in a deploy, so this is for redeploying the current image without
+# cutting a new version.
 #
 # Setup:  cp deploy.env.example .local/deploy.env   (gitignored; fill it in)
-# .env (tracked) holds only FORGEJO_DEPLOY_APP.
 #
-#   just deploy              # deploys FORGEJO_DEPLOY_APP
-#   just deploy app-other    # deploys something else
+# Deploys FORGEJO_DEPLOY_APP from the tracked .env, and takes no argument: this
+# repo deploys itself, and a parameter would let it dispatch any app on the
+# instance.
 #
 # Dispatch the Forgejo deploy workflow for this app (no release needed).
-deploy APP='':
+deploy:
     @set -e ; \
      set -a ; . ./.env ; [ -f .local/deploy.env ] && . ./.local/deploy.env ; set +a ; \
-     APP="{{APP}}" ; APP="${APP:-${FORGEJO_DEPLOY_APP:-}}" ; \
+     APP="${FORGEJO_DEPLOY_APP:-}" ; \
      MISSING="" ; \
      [ -n "${FORGEJO_HOST:-}" ]  || MISSING="$MISSING FORGEJO_HOST(.local/deploy.env)" ; \
      [ -n "${FORGEJO_REPO:-}" ]  || MISSING="$MISSING FORGEJO_REPO(.local/deploy.env)" ; \
      [ -n "${FORGEJO_TOKEN:-}" ] || MISSING="$MISSING FORGEJO_TOKEN(.local/deploy.env)" ; \
-     [ -n "$APP" ]           || MISSING="$MISSING FORGEJO_DEPLOY_APP(.env) or an APP argument" ; \
+     [ -n "$APP" ]           || MISSING="$MISSING FORGEJO_DEPLOY_APP(.env)" ; \
      if [ -n "$MISSING" ]; then \
          echo "[just] error: missing$MISSING" >&2 ; exit 1 ; \
      fi ; \
