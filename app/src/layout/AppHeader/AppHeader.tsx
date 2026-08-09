@@ -11,6 +11,7 @@ import { SOURCE_INFO } from '@/state/stores/source';
 import { MANIFEST } from '@/state/stores/manifest';
 import type { Manifest } from '@/types';
 import { openProjectsView } from '@/state/stores/ui';
+import { ChromeCluster, ClusterLink } from '@/components/ChromeCluster/ChromeCluster';
 import { ProjectSwitcher } from '@/components/ProjectSwitcher/ProjectSwitcher';
 import { CopyButton } from '@/components/CopyButton/CopyButton';
 import { FreshnessStatus } from '@/components/FreshnessStatus/FreshnessStatus';
@@ -34,16 +35,15 @@ export function AppHeader({ onSwitchSource, onRefresh }: AppHeaderProps = {}) {
 
   return (
     <header id="app-header" class="surface-chrome">
-      <div class="chrome-cluster">
+      <ChromeCluster>
         <ProjectSwitcher
           rootLabel={si.label}
           branch={si.branch}
           onSwitchSource={onSwitchSource ?? (() => openProjectsView({ dismissible: true }))}
         />
-        {si.src && <CopyButton text={si.src} label="Copy repo source" />}
+        {si.src && <CopyButton variant="cluster" text={si.src} label="Copy repo source" />}
         {remoteUrl && (
-          <a
-            class="btn-icon btn-icon--link"
+          <ClusterLink
             href={remoteUrl}
             target="_blank"
             rel="noopener noreferrer"
@@ -51,19 +51,18 @@ export function AppHeader({ onSwitchSource, onRefresh }: AppHeaderProps = {}) {
             aria-label="Open repo on origin"
           >
             <ExternalLink class="icon" />
-          </a>
+          </ClusterLink>
         )}
-      </div>
+      </ChromeCluster>
 
       {hasProject && (
-        <div class="chrome-cluster app-header-freshness">
+        <ChromeCluster class="app-header-freshness">
           <FreshnessStatus />
           {/* Same copy whichever kind of source is loaded. "Check for changes"
               is honest whether that means stat-walking a working tree or
               fetching a remote, and which one it is is mechanism the menu has
               no business narrating. */}
           <SplitButton
-            class="app-header-refresh"
             variant="chrome"
             // Glyph only: in a 32px bar the word costs more room than it earns,
             // and the status readout beside it already says what it acts on.
@@ -88,7 +87,7 @@ export function AppHeader({ onSwitchSource, onRefresh }: AppHeaderProps = {}) {
             ]}
             footer={<AutoRefreshRow />}
           />
-        </div>
+        </ChromeCluster>
       )}
     </header>
   );

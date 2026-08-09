@@ -155,11 +155,10 @@
      read as a mistake once each held a cluster of the same controls. Sized so a
      26px cluster (24px items + its border) clears the edges on both sides. */
   --cc-chrome-h: 36px;
-  /* Height of a cluster inside those bars. Explicit rather than derived from
-     its tallest child: the freshness cluster holds only text and a split
-     button, so "as tall as the children" and "children fill the cluster"
-     would define each other and collapse to the text's line height. */
-  --cc-chrome-cluster-h: 26px;
+  /* Height of a cluster item. The bars derive their inline padding from it so
+     the gap around a cluster is the same on all four sides. */
+  --cc-chrome-item-h: 24px;
+  --cc-chrome-inset: calc((var(--cc-chrome-h) - var(--cc-chrome-item-h) - 2px) / 2);
 
   /* ── SCALES — Radius ──────────────────────────────────────────────────── */
   --cc-radius-0: 0;

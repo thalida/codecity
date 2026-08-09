@@ -7,6 +7,7 @@
 import './CopyButton.css';
 import { useState, useRef, useEffect } from 'preact/hooks';
 import { Copy } from 'lucide-preact';
+import { CLUSTER_ITEM_PRESS } from '@/components/ChromeCluster/ChromeCluster';
 
 // How long the "Copied!" badge lingers after the copy button is clicked.
 const DEFAULT_COPY_FEEDBACK_DURATION_MS = 1500;
@@ -16,12 +17,15 @@ export interface CopyButtonProps {
   label?: string;
   /** How long the "Copied!" state lingers after a click, in ms. */
   feedbackDurationMs?: number;
+  /** `cluster` takes the chrome bars' item box instead of the icon-button one. */
+  variant?: 'icon' | 'cluster';
 }
 
 export function CopyButton({
   text,
   label = 'Copy path',
   feedbackDurationMs = DEFAULT_COPY_FEEDBACK_DURATION_MS,
+  variant = 'icon',
 }: CopyButtonProps) {
   const [copied, setCopied] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -52,7 +56,7 @@ export function CopyButton({
     <>
       <button
         type="button"
-        class={`btn-icon${copied ? ' is-copied' : ''}`}
+        class={`${variant === 'cluster' ? CLUSTER_ITEM_PRESS : 'btn-icon'}${copied ? ' is-copied' : ''}`}
         title={label}
         aria-label={label}
         onClick={onClick}

@@ -236,6 +236,14 @@
   max-height: calc(100vh - 2 * var(--cc-space-9));
 }
 
+/* A card holding an open menu has to outrank its siblings: they are stacked in
+   DOM order with no z-index, so the next card down paints over anything this
+   one overflows. */
+.landing-card:has([role='menu']) {
+  position: relative;
+  z-index: 1;
+}
+
 .landing-card {
   min-width: 0;
   display: flex;

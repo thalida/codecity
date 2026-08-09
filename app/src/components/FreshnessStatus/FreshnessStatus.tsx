@@ -16,6 +16,7 @@ import { useSignal } from '@preact/signals';
 import { useEffect } from 'preact/hooks';
 import { formatRelativeAgeShort } from '@/utils/dates';
 import { LIVE_UPDATES_ACTIVE } from '@/state/stores/settings/updates';
+import { CLUSTER_ITEM } from '@/components/ChromeCluster/ChromeCluster';
 import {
   REBUILD_STATUS,
   RebuildStatus,
@@ -100,7 +101,7 @@ export function FreshnessStatus() {
 
   return (
     <span
-      class={`freshness-status ${buildClass} ${liveClass}`}
+      class={`${CLUSTER_ITEM} freshness-status ${buildClass} ${liveClass}`}
       role="status"
       title={titleText}
       aria-label={titleText}

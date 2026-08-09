@@ -110,52 +110,6 @@
 .btn-icon--link {
   text-decoration: none;
 }
-/* ═══════════════════════════════════════════════════════════════════════════
-   LAYER-2 COMPONENTS — Icon-text chip (.btn-chip)
-   ═══════════════════════════════════════════════════════════════════════════
-   Used by the header project switcher (icon + label + optional badge).
-   Different from .btn-icon — has gap, shrinks and truncates its label instead
-   of a hard-capped width. */
-
-.btn-chip {
-  appearance: none;
-  /* Grows with its content, no hard cap, then shrinks and truncates within
-     the header's flex row (min-width: 0 lets it shrink below its content
-     width) rather than pushing neighboring header buttons out of view. */
-  flex: 0 1 auto;
-  min-width: 0;
-  display: inline-flex;
-  align-items: center;
-  gap: var(--cc-space-2);
-  height: 24px;
-  padding: 0 var(--cc-space-3); /* symmetric padding each side */
-  background: none;
-  border: none;
-  /* The brightest text step, not the icons' resting muted: the repo name is
-     the header's main control, and a word needs its own signal that it can be
-     clicked where an icon button carries that by being an icon. */
-  color: var(--cc-text-strong);
-  border-radius: var(--cc-radius-sm);
-  font: inherit;
-  font-size: var(--cc-font-sm);
-  white-space: nowrap;
-  cursor: pointer;
-}
-/* The label is already at the brightest step, so the background lift is the
-   whole hover signal. */
-.btn-chip:not(:disabled):hover {
-  background: var(--cc-overlay-bg);
-}
-.btn-chip:disabled {
-  cursor: default;
-}
-/* Trailing switch cue — signals the chip is a switcher you can change (opens
-   the project switcher), not a static label. */
-.btn-chip-affordance {
-  font-size: var(--cc-font-xs);
-  opacity: 0.7;
-}
-
 /* .btn-secondary — standalone outlined neutral button. Used for any
    "less prominent action" (Cancel, Reset all, Discard, dev tools). */
 .btn-secondary {

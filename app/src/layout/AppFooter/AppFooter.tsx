@@ -10,6 +10,7 @@
 
 import './AppFooter.css';
 import { Bug, Keyboard } from 'lucide-preact';
+import { ChromeCluster, ClusterButton } from '@/components/ChromeCluster/ChromeCluster';
 import { openDebug, openShortcuts } from '@/state/stores/ui';
 import { isDebugMode } from '@/utils/debugMode';
 import { MetaLine } from '@/components/AppMeta/AppMeta';
@@ -18,28 +19,20 @@ export function AppFooter() {
   return (
     <footer id="app-footer" class="surface-chrome">
       <div class="app-footer-section app-footer-left">
-        <div class="chrome-cluster">
-          <button
-            type="button"
-            class="btn-icon btn-icon--sm"
+        <ChromeCluster>
+          <ClusterButton
             title="Keyboard shortcuts (?)"
             aria-label="Keyboard shortcuts"
             onClick={openShortcuts}
           >
             <Keyboard class="icon" />
-          </button>
+          </ClusterButton>
           {isDebugMode() && (
-            <button
-              type="button"
-              class="btn-icon btn-icon--sm"
-              title="Debug tools"
-              aria-label="Debug tools"
-              onClick={openDebug}
-            >
+            <ClusterButton title="Debug tools" aria-label="Debug tools" onClick={openDebug}>
               <Bug class="icon" />
-            </button>
+            </ClusterButton>
           )}
-        </div>
+        </ChromeCluster>
       </div>
       <div class="app-footer-section app-footer-right">
         <MetaLine linkClass="link--chrome" />

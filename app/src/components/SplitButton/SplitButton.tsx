@@ -11,6 +11,7 @@ import { useEffect, useRef, useState } from 'preact/hooks';
 import { ChevronDown } from 'lucide-preact';
 import type { LucideIcon } from 'lucide-preact';
 import type { ComponentChildren } from 'preact';
+import { CLUSTER_ITEM_PRESS } from '@/components/ChromeCluster/ChromeCluster';
 
 export interface SplitButtonItem {
   id: string;
@@ -27,8 +28,9 @@ export interface SplitButtonProps {
   /** Show only the glyph, with `label` as the accessible name. For the 32px
    *  bars, where the word would cost more room than it earns. Requires `icon`. */
   iconOnly?: boolean;
-  /** `primary` is the page's CTA weight; `chrome` is the 32px bar's, where a
-   *  solid accent button would shout over everything around it. */
+  /** `primary` is the page's CTA weight; `chrome` makes each half a cluster
+   *  item, so a split button in a bar has the same box as everything beside
+   *  it. */
   variant?: 'primary' | 'chrome';
   onPrimary: () => void;
   items: SplitButtonItem[];
@@ -58,11 +60,20 @@ export function SplitButton({
   class: className,
   footer,
 }: SplitButtonProps) {
-  const half = variant === 'chrome' ? 'btn-icon btn-icon--text' : 'btn-primary';
+  const half = variant === 'chrome' ? CLUSTER_ITEM_PRESS : 'btn-primary';
   const [open, setOpen] = useState(false);
-  const root = useRef<HTMLDivElement>(null);
+  const primary = useRef<HTMLButtonElement>(null);
   const caret = useRef<HTMLButtonElement>(null);
   const menu = useRef<HTMLDivElement>(null);
+
+  // "Inside" is the parts themselves, not a wrapper: the chrome variant has no
+  // wrapper, so its halves can be real cluster children.
+  const contains = (node: Node | null) =>
+    Boolean(
+      primary.current?.contains(node) ||
+      caret.current?.contains(node) ||
+      menu.current?.contains(node)
+    );
 
   // Closing always returns focus to the caret: the menu's items are gone, so
   // leaving focus on a removed node would drop the user at the top of the page.
@@ -79,11 +90,11 @@ export function SplitButton({
     first?.focus();
 
     function onPointerDown(e: PointerEvent) {
-      if (!root.current?.contains(e.target as Node)) setOpen(false);
+      if (!contains(e.target as Node)) setOpen(false);
     }
     // Anything that moves the page out from under an open menu should close it.
     function onFocusIn(e: FocusEvent) {
-      if (!root.current?.contains(e.target as Node)) setOpen(false);
+      if (!contains(e.target as Node)) setOpen(false);
     }
     document.addEventListener('pointerdown', onPointerDown);
     document.addEventListener('focusin', onFocusIn);
@@ -124,12 +135,10 @@ export function SplitButton({
     }
   }
 
-  return (
-    <div
-      class={`split-button split-button--${variant}${className ? ` ${className}` : ''}`}
-      ref={root}
-    >
+  const parts = (
+    <>
       <button
+        ref={primary}
         type={primaryType}
         class={`split-button-primary ${half}`}
         disabled={disabled}
@@ -188,6 +197,18 @@ export function SplitButton({
           {footer && <div class="split-button-footer">{footer}</div>}
         </div>
       )}
+    </>
+  );
+
+  // No wrapper in a chrome bar: the halves are direct children of the cluster,
+  // so its dividers and end-rounding are plain sibling rules rather than
+  // selectors reaching through a box. The cluster is the menu's positioning
+  // ancestor instead.
+  if (variant === 'chrome') return parts;
+
+  return (
+    <div class={`split-button split-button--${variant}${className ? ` ${className}` : ''}`}>
+      {parts}
     </div>
   );
 }

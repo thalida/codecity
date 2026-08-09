@@ -11,7 +11,7 @@
   gap: var(--cc-space-4);
   min-width: 0;
   height: var(--cc-chrome-h);
-  padding: 0 var(--cc-space-6);
+  padding: 0 var(--cc-chrome-inset);
   border-bottom: 1px solid var(--cc-border-subtle);
   font-family: var(--cc-font-mono);
   font-size: var(--cc-font-xs);
@@ -23,16 +23,4 @@
    how fresh the city is, and the button that acts on it, together. */
 .app-header-freshness {
   margin-left: auto;
-}
-
-/* The split button is one cluster item made of two presses, so its own halves
-   carry the item padding and the seam between them is the cluster's divider. */
-.chrome-cluster > .app-header-refresh {
-  padding: 0;
-}
-.app-header-refresh .split-button-primary,
-.app-header-refresh .split-button-caret {
-  height: 100%;
-  padding-block: 0;
-  padding-inline: var(--cc-space-4);
 }

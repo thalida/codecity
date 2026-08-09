@@ -10,7 +10,7 @@
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   gap: var(--cc-space-7);
-  padding: 0 var(--cc-space-6);
+  padding: 0 var(--cc-chrome-inset);
   height: var(--cc-chrome-h);
   border-top: 1px solid var(--cc-track);
   font-family: var(--cc-font-mono);
@@ -71,6 +71,6 @@
 @media (max-width: 580px) {
   #app-footer {
     gap: var(--cc-space-3);
-    padding: 0 var(--cc-space-4);
+    padding: 0 var(--cc-chrome-inset);
   }
 }

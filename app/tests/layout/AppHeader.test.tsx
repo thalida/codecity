@@ -37,7 +37,7 @@ describe('AppHeader', () => {
     render(<AppHeader />, container);
     await flush();
 
-    const chip = container.querySelector('.btn-chip');
+    const chip = container.querySelector('.project-switcher');
     expect(chip).not.toBeNull();
     expect(chip!.querySelector('.gem-icon')).not.toBeNull();
     expect(chip!.textContent).toContain('codecity');
@@ -49,7 +49,7 @@ describe('AppHeader', () => {
     render(<AppHeader onSwitchSource={onSwitchSource} />, container);
     await flush();
 
-    container.querySelector<HTMLButtonElement>('.btn-chip')!.click();
+    container.querySelector<HTMLButtonElement>('.project-switcher')!.click();
     await flush();
 
     expect(onSwitchSource).toHaveBeenCalledTimes(1);
@@ -59,7 +59,7 @@ describe('AppHeader', () => {
     render(<AppHeader />, container);
     await flush();
 
-    const chip = container.querySelector('.btn-chip');
+    const chip = container.querySelector('.project-switcher');
     expect(chip).not.toBeNull();
     expect(chip!.querySelector('.gem-icon')).not.toBeNull();
   });
