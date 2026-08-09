@@ -28,8 +28,10 @@ import { effect } from '@preact/signals';
 
 import { manifestUrlFor, signatureUrlFor, streamManifest, ScanPhase } from '@/api/manifest';
 import { getServerConfig } from '@/api/config';
+import { getDiscover } from '@/api/discover';
 import { LIVE_UPDATES, LIVE_UPDATES_ACTIVE } from '@/state/stores/settings/updates';
 import { RECENTS, SOURCE_ERROR, setCurrentSource, CURRENT_SOURCE } from '@/state/stores/source';
+import { DISCOVER } from '@/state/stores/discover';
 import { SERVER_CONFIG } from '@/state/stores/serverConfig';
 import { MANIFEST, setManifest, markError, markRebuilding } from '@/state/stores/manifest';
 import { SCAN_PROGRESS } from '@/state/stores/scanProgress';
@@ -417,8 +419,13 @@ export function useManifestSource(): {
       }
       if (cancelled) return;
 
-      const serverConfig = await getServerConfig();
+      // Both are one-shot boot reads with no dependency on each other, so they
+      // go out together rather than making the landing wait for two round
+      // trips in series.
+      const [serverConfig, discover] = await Promise.all([getServerConfig(), getDiscover()]);
+      if (cancelled) return;
       SERVER_CONFIG.value = serverConfig;
+      DISCOVER.value = discover;
 
       // One poll loop for the app's lifetime; no-ops until a source is loaded,
       // re-reads CURRENT_SOURCE + MANIFEST.content_signature each tick (covers
