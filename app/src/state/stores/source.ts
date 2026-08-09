@@ -78,6 +78,16 @@ export interface SourceInfo {
   src: string | undefined;
 }
 
+/**
+ * Whether the applied source is a working tree on disk rather than a clone of a
+ * remote. Only a working tree can change under the app, so anything that watches
+ * for change keys off this.
+ */
+export const CURRENT_SOURCE_IS_LOCAL = computed<boolean>(() => {
+  const cur = CURRENT_SOURCE.value;
+  return cur ? srcKind(cur.src) === SourceKind.Local : false;
+});
+
 export const SOURCE_INFO = computed<SourceInfo>(() => {
   const cur = CURRENT_SOURCE.value;
   const m = MANIFEST.value;

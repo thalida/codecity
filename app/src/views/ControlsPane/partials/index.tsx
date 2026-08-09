@@ -39,7 +39,7 @@ export function field<T>(store: Signal<T>, key: keyof T & string): FieldRef {
 export interface GroupNode {
   key: string;
   label: string;
-  description?: string;
+  description?: ComponentChildren;
   collapsible?: boolean;
   children: SectionChild[];
 }
@@ -52,7 +52,9 @@ export type SectionChild = GroupNode | FieldRef;
 export interface SectionNode {
   key: string;
   label?: string;
-  description?: string;
+  /** Prose under the section title. A component here can react to state, e.g.
+   *  a section that only applies to some sources explaining when it doesn't. */
+  description?: ComponentChildren;
   children?: SectionChild[];
   render?: ComponentChildren;
   /** Start the accordion expanded instead of collapsed. */

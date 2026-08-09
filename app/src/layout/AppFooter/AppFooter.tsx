@@ -21,7 +21,7 @@ import { Bug } from 'lucide-preact';
 import { useSignal } from '@preact/signals';
 import { useEffect } from 'preact/hooks';
 import { formatRelativeAgeShort } from '@/utils/dates';
-import { LIVE_UPDATES } from '@/state/stores/settings/updates';
+import { LIVE_UPDATES_ACTIVE } from '@/state/stores/settings/updates';
 import {
   REBUILD_STATUS,
   RebuildStatus,
@@ -145,7 +145,7 @@ export function AppFooter() {
   // Status — reads all four status signals (auto-tracked in render)
   void tick.value; // ensure 1-second re-renders for relative timestamps
   const status: FooterStatus = {
-    liveEnabled: LIVE_UPDATES.value.ENABLED,
+    liveEnabled: LIVE_UPDATES_ACTIVE.value,
     rebuildStatus: REBUILD_STATUS.value,
     lastUpdatedAt: LAST_UPDATED_AT.value,
     errorMessage: LAST_REBUILD_ERROR.value,

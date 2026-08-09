@@ -7,6 +7,12 @@ on:
 jobs:
   release:
     runs-on: ubuntu-latest
+    # A release publishes an image and now deploys production, so only the repo
+    # owner's tags trigger it. This is the second line of defence: the first is
+    # a tag ruleset restricting who can create `v*` at all, which stops the tag
+    # rather than the run. Anyone with write access could otherwise cut a
+    # release by pushing a tag.
+    if: github.actor == github.repository_owner
     permissions:
       contents: write       # for creating the GitHub Release
       packages: write       # for pushing to GHCR
@@ -100,3 +106,38 @@ jobs:
               --certificate-oidc-issuer https://token.actions.githubusercontent.com \
               ghcr.io/${{ github.repository_owner }}/codecity:${{ steps.tag.outputs.tag }}
             ```
+
+  deploy:
+    name: Deploy to production
+    needs: [release]
+    runs-on: ubuntu-latest
+    # The image has to exist before the deploy pulls it, so this waits on the
+    # release job rather than running alongside it. Skipped when the Forgejo
+    # target isn't configured, so a fork's release still succeeds.
+    #
+    # Host and repo are secrets, not variables: this repo is public, so its
+    # Actions logs are too, and only secrets are masked in them. Nothing here
+    # echoes either one.
+    steps:
+      - name: Dispatch the Forgejo deploy workflow
+        env:
+          FORGEJO_HOST: ${{ secrets.FORGEJO_HOST }}
+          FORGEJO_REPO: ${{ secrets.FORGEJO_REPO }}
+          FORGEJO_DEPLOY_APP: ${{ vars.FORGEJO_DEPLOY_APP }}
+          FORGEJO_TOKEN: ${{ secrets.FORGEJO_TOKEN }}
+        run: |
+          if [ -z "$FORGEJO_HOST" ] || [ -z "$FORGEJO_REPO" ] || [ -z "$FORGEJO_TOKEN" ]; then
+            echo "::notice::Forgejo deploy not configured (FORGEJO_HOST/FORGEJO_REPO/FORGEJO_TOKEN secrets) — skipping"
+            exit 0
+          fi
+          APP="${FORGEJO_DEPLOY_APP:-app-codecity}"
+          echo "Dispatching $APP"
+          CODE=$(curl -sS -o /tmp/resp -w '%{http_code}' -X POST \
+            "$FORGEJO_HOST/api/v1/repos/$FORGEJO_REPO/actions/workflows/deploy.yml/dispatches" \
+            -H "Authorization: token $FORGEJO_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d "{\"ref\":\"main\",\"inputs\":{\"app\":\"$APP\"}}")
+          if [ "$CODE" != "204" ] && [ "$CODE" != "201" ] && [ "$CODE" != "200" ]; then
+            echo "::error::Forgejo returned $CODE"; cat /tmp/resp; exit 1
+          fi
+          echo "Deploy queued on the Forgejo instance"
