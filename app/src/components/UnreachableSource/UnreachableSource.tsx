@@ -1,37 +1,33 @@
-// components/UnreachableSource/UnreachableSource.tsx — what to do when a repo
-// can't be opened. One component, three remedies, two triggers.
+// hosted beats a mount: the server reads its own filesystem, but the visitor
+// can't see that folder.
 //
-// The remedy is a function of the SERVER, not of what went wrong. The trigger
-// only decides whether a preamble sits in front of it.
-//
-//   hosted                 -> run codecity on your own machine
-//   !hosted && allowLocal  -> clone it and open the folder
-//   !hosted && !allowLocal -> enable local paths
-//
-// hosted is checked FIRST, and beats a mount. A hosted instance can have local
-// repos enabled for its own filesystem, but the visitor is on a different
-// machine: telling them to clone and "open the folder" points at a folder only
-// the server could ever see.
-//
-// Two things this must never say. It must not assert the repo is private:
-// GitHub returns 404 to an unauthenticated caller whether the repo is private
-// or the URL is a typo, so the two are indistinguishable from here. And it must
-// not say "you do not have access", which blames the user for a property of
-// this server.
+// Never claim the repo is private (GitHub 404s private and typo alike to an
+// anonymous caller) or say "you don't have access", which blames the user for a
+// property of this server.
 
 import './UnreachableSource.css';
 import { Info, AlertCircle } from 'lucide-preact';
 import { CopyButton } from '@/components/CopyButton/CopyButton';
 import { REPO_URL } from '@/constants/ui';
 
+/** Why the notice is on screen. `Standing` is the resting state and carries no
+ *  failure; the other two each name a distinct thing that went wrong. */
+export enum NoticeReason {
+  /** Nothing typed or tried: what this instance can open. */
+  Standing = 'standing',
+  /** A repo was pasted and the server couldn't reach it. */
+  Unreachable = 'unreachable',
+  /** A local path was typed where local paths are off. */
+  PathBlocked = 'path-blocked',
+}
+
 export interface UnreachableSourceProps {
   /** This is the public deployment, where a local path can never resolve. */
   hosted: boolean;
-  /** This instance can read local paths. */
+  /** This instance can read local paths. Standing and PathBlocked only arise
+   *  when it's false, so only Unreachable reads it. */
   allowLocal: boolean;
-  /** `standing` sits under the field as guidance; `error` answers a load that
-   *  already failed, and adds the preamble. Never changes the remedy. */
-  variant: 'standing' | 'error';
+  reason: NoticeReason;
   /** The source that failed, used for the `git clone` line. */
   src?: string;
   /** So a field can point aria-describedby at it when the notice IS the
@@ -42,59 +38,79 @@ export interface UnreachableSourceProps {
 const LOCAL_DOCS_URL = `${REPO_URL}#local-directories`;
 const RUN_DOCS_URL = `${REPO_URL}#run-it-yourself`;
 
-export function UnreachableSource({
-  hosted,
-  allowLocal,
-  variant,
-  src,
-  id,
-}: UnreachableSourceProps) {
-  const cloneCommand = src ? `git clone ${src}` : null;
-  const Glyph = variant === 'error' ? AlertCircle : Info;
+const PREAMBLE: Record<NoticeReason, string | null> = {
+  [NoticeReason.Standing]: null,
+  [NoticeReason.Unreachable]: "Couldn't reach that repo.",
+  [NoticeReason.PathBlocked]: "That's a local path.",
+};
+
+export function UnreachableSource({ hosted, allowLocal, reason, src, id }: UnreachableSourceProps) {
+  const preamble = PREAMBLE[reason];
+  const failed = reason !== NoticeReason.Standing;
+  const Glyph = failed ? AlertCircle : Info;
 
   return (
     <div
       id={id}
-      class={`unreachable unreachable--${variant}`}
-      role={variant === 'error' ? 'alert' : undefined}
+      class={`unreachable unreachable--${failed ? 'error' : 'standing'}`}
+      role={failed ? 'alert' : undefined}
     >
       <span class="unreachable-glyph-slot">
         <Glyph class="icon unreachable-glyph" aria-hidden="true" />
       </span>
       <div class="unreachable-text">
-        {variant === 'error' && <p class="unreachable-preamble">Couldn't reach that repo.</p>}
-
-        {hosted ? (
-          <p class="unreachable-remedy">
-            Private and local repos need codecity running on your own machine.{' '}
-            <a class="link--chrome" href={RUN_DOCS_URL} target="_blank" rel="noopener noreferrer">
-              See&nbsp;docs
-            </a>
-          </p>
-        ) : allowLocal ? (
-          <>
-            <p class="unreachable-remedy">
-              If it's private, clone it yourself and open the folder instead.
-            </p>
-            {/* Only in this column: on a hosted instance the folder would be one
-              only the server can see, and on an unmounted local one it's half a
-              fix. */}
-            {cloneCommand && (
-              <div class="unreachable-command">
-                <code>{cloneCommand}</code>
-                <CopyButton text={cloneCommand} label="Copy clone command" />
-              </div>
-            )}
-          </>
-        ) : (
-          <p class="unreachable-remedy">
-            Local paths aren't enabled.{' '}
-            <a class="link--chrome" href={LOCAL_DOCS_URL} target="_blank" rel="noopener noreferrer">
-              See&nbsp;docs
-            </a>
-          </p>
-        )}
+        {preamble && <p class="unreachable-preamble">{preamble}</p>}
+        <Remedy hosted={hosted} allowLocal={allowLocal} reason={reason} src={src} />
       </div>
     </div>
+  );
+}
+
+function Remedy({ hosted, allowLocal, reason, src }: Omit<UnreachableSourceProps, 'id'>) {
+  if (hosted) {
+    return (
+      <p class="unreachable-remedy">
+        Private and local repos need codecity running on your own machine.{' '}
+        <DocsLink href={RUN_DOCS_URL} />
+      </p>
+    );
+  }
+
+  // Both mean local paths are off, and cloning is no help for a path already here.
+  if (reason !== NoticeReason.Unreachable) {
+    return (
+      <p class="unreachable-remedy">
+        Turn on local paths to open a folder on this machine. <DocsLink href={LOCAL_DOCS_URL} />
+      </p>
+    );
+  }
+
+  return (
+    <>
+      <p class="unreachable-remedy">
+        {allowLocal ? (
+          "If it's private, clone it yourself and open the folder instead."
+        ) : (
+          <>
+            Turn on local paths and, if it's private, clone it yourself and open the folder.{' '}
+            <DocsLink href={LOCAL_DOCS_URL} />
+          </>
+        )}
+      </p>
+      {src && (
+        <div class="unreachable-command">
+          <code>{`git clone ${src}`}</code>
+          <CopyButton text={`git clone ${src}`} label="Copy clone command" />
+        </div>
+      )}
+    </>
+  );
+}
+
+function DocsLink({ href }: { href: string }) {
+  return (
+    <a class="link--chrome" href={href} target="_blank" rel="noopener noreferrer">
+      See&nbsp;docs
+    </a>
   );
 }

@@ -274,7 +274,7 @@ describe('NewProjectForm', () => {
     expect(container.querySelector('label')?.textContent).toBe('Repo URL');
     // The notice stands on its own (before any input), with the how-to link.
     const note = container.querySelector('.unreachable--standing');
-    expect(note?.textContent).toMatch(/local paths aren't enabled/i);
+    expect(note?.textContent).toMatch(/turn on local paths to open a folder/i);
     expect(note?.querySelector('a')?.getAttribute('href')).toMatch(/local-directories/);
 
     // Typing a clear path blocks submit (the button stays present, just disabled).
@@ -283,6 +283,33 @@ describe('NewProjectForm', () => {
     const submitBtn = container.querySelector<HTMLButtonElement>('.split-button-primary')!;
     expect(submitBtn).not.toBeNull();
     expect(submitBtn.disabled).toBe(true);
+  });
+
+  // A blocked path used to leave the informational notice standing under a
+  // field already painted red, and aria-describedby unset, so the invalid
+  // field pointed at nothing.
+  it('turns the notice into an error once a blocked path is typed', async () => {
+    render(
+      <NewProjectForm allowLocalRepos={false} hosted={false} onSubmit={() => {}} />,
+      container
+    );
+    await flush();
+    expect(container.querySelector('.unreachable--standing')).not.toBeNull();
+
+    setInput(field(container), '/Users/thalida/repo');
+    await flush();
+
+    const note = container.querySelector('.unreachable--error');
+    expect(note).not.toBeNull();
+    expect(container.querySelector('.unreachable--standing')).toBeNull();
+    expect(note?.textContent).toMatch(/that's a local path/i);
+    // Cloning is not the answer to a repo already on this machine.
+    expect(note?.textContent).not.toMatch(/clone it yourself/i);
+
+    // The invalid field points at the message describing it.
+    const input = field(container);
+    expect(input.getAttribute('aria-invalid')).toBe('true');
+    expect(input.getAttribute('aria-describedby')).toBe(note?.id);
   });
 
   it('hides the local notice once the input reads as a URL', async () => {

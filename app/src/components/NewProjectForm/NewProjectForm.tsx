@@ -22,7 +22,7 @@ import {
   looksResolvable,
   looksLikePath,
 } from '@/utils/sources';
-import { UnreachableSource } from '@/components/UnreachableSource/UnreachableSource';
+import { UnreachableSource, NoticeReason } from '@/components/UnreachableSource/UnreachableSource';
 import type { ScanErrorCode } from '@/api/manifest';
 import type { SourcePayload } from '@/state/stores/ui';
 import { SCAN_PROGRESS } from '@/state/stores/scanProgress';
@@ -132,23 +132,29 @@ export function NewProjectForm({
           class={hasError ? 'form-input form-input--error' : 'form-input'}
           type="text"
           aria-invalid={hasError ? 'true' : undefined}
-          aria-describedby={fieldError || failedToReach ? ERROR_ID : undefined}
+          aria-describedby={hasError || failedToReach ? ERROR_ID : undefined}
           autoComplete="off"
           spellcheck={false}
           placeholder={placeholder}
           value={source}
           onInput={(e) => onSourceInput((e.target as HTMLInputElement).value)}
         />
-        {/* One slot for everything that describes the field, in precedence
-            order: a repo we couldn't reach beats a validation complaint, which
-            beats standing guidance about what this instance accepts. */}
+        {/* One slot, in precedence order: what already failed beats a
+            validation complaint, which beats standing guidance. */}
         {failedToReach ? (
           <UnreachableSource
             id={ERROR_ID}
             hosted={hosted}
             allowLocal={allowLocalRepos}
-            variant="error"
+            reason={NoticeReason.Unreachable}
             src={activeSrc || prefill?.src}
+          />
+        ) : pathBlocked ? (
+          <UnreachableSource
+            id={ERROR_ID}
+            hosted={hosted}
+            allowLocal={allowLocalRepos}
+            reason={NoticeReason.PathBlocked}
           />
         ) : fieldError ? (
           <p id={ERROR_ID} role="alert" class="new-project-error">
@@ -156,7 +162,11 @@ export function NewProjectForm({
           </p>
         ) : (
           showStandingNotice && (
-            <UnreachableSource hosted={hosted} allowLocal={allowLocalRepos} variant="standing" />
+            <UnreachableSource
+              hosted={hosted}
+              allowLocal={allowLocalRepos}
+              reason={NoticeReason.Standing}
+            />
           )
         )}
       </div>
