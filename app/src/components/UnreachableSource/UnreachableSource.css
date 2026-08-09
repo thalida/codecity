@@ -17,10 +17,19 @@
   line-height: 1.5;
 }
 
+/* One text line tall, so the glyph centres on the FIRST line rather than on the
+   whole block. The slot deliberately leaves font-size alone, which is what makes
+   1lh resolve against the text's size and equal the first line's real box. */
+.unreachable-glyph-slot {
+  flex: none;
+  display: flex;
+  align-items: center;
+  height: 1lh;
+}
+
 /* The glyph reads as "note" on the standing variant and "that failed" on the
    error one, which is the only difference between them. */
 .unreachable-glyph {
-  flex: none;
   font-size: var(--cc-font-sm); /* icons are 1em (icons.css) */
   color: var(--cc-accent);
 }
