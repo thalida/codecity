@@ -1,0 +1,82 @@
+/* SourceRow — one openable source. Shared by Recents and Discover, so nothing
+   here may assume which list it's in. */
+
+.source-row {
+  flex: 1 1 auto;
+  min-width: 0;
+  appearance: none;
+  background: none;
+  border: none;
+  text-align: left;
+  color: inherit;
+  font: inherit;
+  gap: var(--cc-space-5);
+  padding: var(--cc-space-3) var(--cc-space-4);
+  border-radius: var(--cc-radius-md);
+}
+.source-row:hover {
+  background: var(--cc-overlay-bg);
+}
+
+/* Kind glyph. Sized by font-size so any glyph, the lucide Folder or the
+   HostingIcon brand SVGs, sizes uniformly off one token (icons are 1em; see
+   icons.css). */
+.source-row-icon {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  font-size: var(--cc-font-md);
+}
+.source-row-icon > svg {
+  width: 1em;
+  height: 1em;
+}
+
+.source-row-body {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* Repo name + branch pill share the title line; the pill's header-context
+   margin is dropped in favor of the row's flex gap. */
+.source-row-label-row {
+  display: flex;
+  align-items: center;
+  gap: var(--cc-space-2);
+  min-width: 0;
+}
+.source-row-label {
+  font-weight: var(--cc-fw-medium);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.source-row-label-row .app-header-branch-pill {
+  margin-left: 0;
+}
+
+.source-row-sub {
+  display: flex;
+  align-items: center;
+  gap: var(--cc-space-2);
+  font-size: var(--cc-font-xs);
+  color: var(--cc-text-secondary);
+}
+.source-row-src {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Currently loaded: highlighted, still clickable to reload. */
+.source-row--active,
+.source-row--active:hover {
+  background: var(--cc-accent-bg-soft);
+}
+
+/* Can't load here (a local path while local repos are off): dimmed as a hint,
+   with the title carrying the reason. */
+.source-row--unavailable {
+  opacity: 0.55;
+  cursor: not-allowed;
+}

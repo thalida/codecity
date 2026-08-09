@@ -62,12 +62,10 @@ export function UnreachableSource({ hosted, allowLocal, variant, src }: Unreacha
         </>
       ) : hosted ? (
         <p class="unreachable-remedy">
-          This is the hosted instance, so it can only open repos it can reach anonymously. To open a
-          private or local one,{' '}
+          Private and local repos need codecity running on your own machine.{' '}
           <a class="link--chrome" href={RUN_DOCS_URL} target="_blank" rel="noopener noreferrer">
-            run codecity on your machine
+            How to run it
           </a>
-          .
         </p>
       ) : (
         <p class="unreachable-remedy">

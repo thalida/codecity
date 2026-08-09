@@ -44,7 +44,7 @@ describe('RecentsList', () => {
     render(<RecentsList onOpen={() => {}} />, container);
     await flush();
 
-    const activeRow = container.querySelector('.recent-row--active');
+    const activeRow = container.querySelector('.source-row--active');
     expect(activeRow).toBeTruthy();
     expect(activeRow?.textContent).toContain('o/alpha');
   });
@@ -54,7 +54,7 @@ describe('RecentsList', () => {
     render(<RecentsList onOpen={onOpen} />, container);
     await flush();
 
-    const activeRow = container.querySelector<HTMLButtonElement>('.recent-row--active')!;
+    const activeRow = container.querySelector<HTMLButtonElement>('.source-row--active')!;
     expect(activeRow.disabled).toBe(false);
     activeRow.click();
     expect(onOpen).toHaveBeenCalledWith({ src: 'https://github.com/o/alpha', branch: 'main' });
@@ -73,7 +73,7 @@ describe('RecentsList', () => {
     const rows = container.querySelectorAll('.recent-item');
     expect(rows).toHaveLength(1);
     expect(container.querySelector('.app-header-branch-pill')).toBeNull();
-    expect(container.querySelector('.recent-row--active')).toBeTruthy();
+    expect(container.querySelector('.source-row--active')).toBeTruthy();
   });
 
   it('remove forgets the entry behind a confirm step', async () => {
