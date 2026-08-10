@@ -244,8 +244,8 @@ describe('cameraRig showcase orbit', () => {
   });
 
   it("pulls the radius in to the island's shorter half-extent", () => {
-    // 448 wide × 3048 deep: the orbit has to clamp to the width, not the depth.
-    const cs = seedFramedCity({ xLength: 400, zLength: 3000 });
+    // 448 wide × 8048 deep: the orbit has to clamp to the width, not the depth.
+    const cs = seedFramedCity({ xLength: 400, zLength: 8000 });
     const rig = makeRig(cs);
     const gem = cs.gemWorldPos.value as THREE.Vector3;
     const bounds = cs.latestWorldBounds.value as { halfWidth: number; halfDepth: number };

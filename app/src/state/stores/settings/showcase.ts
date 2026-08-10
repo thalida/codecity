@@ -37,7 +37,7 @@ const SHOWCASE_FIELDS = {
   DISTANCE: {
     route: ChangeRoute.Live,
     kind: FieldKind.Slider,
-    default: 800,
+    default: 3000,
     min: 50,
     max: 5000,
     step: 50,
@@ -47,7 +47,7 @@ const SHOWCASE_FIELDS = {
   ROTATE_SPEED: {
     route: ChangeRoute.Live,
     kind: FieldKind.Slider,
-    default: 0.3,
+    default: 0.2,
     min: 0,
     max: 3,
     step: 0.1,
