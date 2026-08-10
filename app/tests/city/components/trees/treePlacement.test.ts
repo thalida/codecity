@@ -136,7 +136,6 @@ describe('placeTrees (commit-driven)', () => {
 
     FOOTPRINT.value = { ...FOOTPRINT.value, HALO_WIDTH: 32 };
   });
-
 });
 
 export type { TreePlacement };
