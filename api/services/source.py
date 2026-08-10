@@ -17,6 +17,7 @@ from enum import StrEnum
 from pathlib import Path
 
 from api.config import local_repos_allowed
+from api.models.events import ErrorCode
 from api.security import TRUST
 from api.services.clone import (
     BranchNotFoundError,
@@ -44,6 +45,10 @@ _LOCAL_DISABLED_ERROR = "local repositories are disabled"
 class ResolveError(Exception):
     status: int
     message: str
+    # Set only where the UI answers the failure differently. Carried here so a
+    # caller that flattens a clone exception into a ResolveError doesn't lose
+    # which failure it was.
+    code: ErrorCode | None = None
 
 
 class SourceKind(StrEnum):
@@ -151,7 +156,9 @@ def resolve_source(src: str, branch: str | None) -> Path:
         try:
             with TRUST.clone_lock:
                 return ensure_clone(src, branch)
-        except (BranchNotFoundError, RepoNotFoundError, HostUnreachableError) as e:
+        except RepoNotFoundError as e:
+            raise ResolveError(400, str(e), ErrorCode.REPO_NOT_FOUND)
+        except (BranchNotFoundError, HostUnreachableError) as e:
             raise ResolveError(400, str(e))
         except CloneError as e:
             raise ResolveError(502, str(e))

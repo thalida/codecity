@@ -37,7 +37,7 @@ describe('AppHeader', () => {
     render(<AppHeader />, container);
     await flush();
 
-    const chip = container.querySelector('.btn-chip');
+    const chip = container.querySelector('.project-switcher');
     expect(chip).not.toBeNull();
     expect(chip!.querySelector('.gem-icon')).not.toBeNull();
     expect(chip!.textContent).toContain('codecity');
@@ -49,7 +49,7 @@ describe('AppHeader', () => {
     render(<AppHeader onSwitchSource={onSwitchSource} />, container);
     await flush();
 
-    container.querySelector<HTMLButtonElement>('.btn-chip')!.click();
+    container.querySelector<HTMLButtonElement>('.project-switcher')!.click();
     await flush();
 
     expect(onSwitchSource).toHaveBeenCalledTimes(1);
@@ -59,26 +59,75 @@ describe('AppHeader', () => {
     render(<AppHeader />, container);
     await flush();
 
-    const chip = container.querySelector('.btn-chip');
+    const chip = container.querySelector('.project-switcher');
     expect(chip).not.toBeNull();
     expect(chip!.querySelector('.gem-icon')).not.toBeNull();
   });
 
-  it('puts about and the shortcuts button in the meta cluster', async () => {
+  // The header is the project, the footer is the app. Neither of these is about
+  // the repo you have open.
+  it('holds neither the about link nor the shortcuts button', async () => {
     loadProject();
     render(<AppHeader />, container);
     await flush();
 
-    const meta = container.querySelector('#app-header-meta')!;
-    expect(meta).not.toBeNull();
+    expect(container.querySelector('[aria-label="Keyboard shortcuts"]')).toBeNull();
+    expect(container.querySelector('a[href="https://github.com/thalida/codecity"]')).toBeNull();
+  });
 
-    const about = meta.querySelector<HTMLAnchorElement>('a')!;
-    expect(about.textContent).toBe('about');
-    expect(about.getAttribute('href')).toBe('https://github.com/thalida/codecity');
-    expect(about.getAttribute('target')).toBe('_blank');
-    expect(about.getAttribute('rel')).toBe('noopener noreferrer');
+  it('puts the freshness readout and refresh together, opposite the project', async () => {
+    loadProject();
+    render(<AppHeader />, container);
+    await flush();
 
-    expect(meta.querySelector('[aria-label="Keyboard shortcuts"]')).not.toBeNull();
+    const freshness = container.querySelector('.app-header-freshness')!;
+    expect(freshness).not.toBeNull();
+    // A readout parked in the opposite corner from its own button is the
+    // mistake this resort exists to fix, so they share one cluster.
+    expect(freshness.querySelector('.freshness-status')).not.toBeNull();
+    expect(freshness.querySelector('[aria-label="Refresh"]')).not.toBeNull();
+    expect(freshness.classList.contains('chrome-cluster')).toBe(true);
+  });
+
+  it('groups the project controls in one outlined cluster', async () => {
+    loadProject();
+    render(<AppHeader />, container);
+    await flush();
+
+    const cluster = container.querySelector('.chrome-cluster')!;
+    expect(cluster.querySelector('.gem-icon')).not.toBeNull();
+    expect(cluster.querySelector('[aria-label="Copy repo source"]')).not.toBeNull();
+  });
+
+  it('puts the default on the button and only the alternative in the menu', async () => {
+    loadProject();
+    const onRefresh = vi.fn();
+    render(<AppHeader onRefresh={onRefresh} />, container);
+    await flush();
+
+    // Glyph only in the bar, so the accessible name is the whole label.
+    const primary = container.querySelector<HTMLButtonElement>('.split-button-primary')!;
+    expect(primary.getAttribute('aria-label')).toBe('Refresh');
+    expect(primary.textContent).toBe('');
+    primary.click();
+    expect(onRefresh).toHaveBeenCalledWith(false);
+
+    // The menu carries what the button isn't, and never repeats it.
+    container.querySelector<HTMLButtonElement>('.split-button-caret')!.click();
+    await flush();
+    const items = Array.from(container.querySelectorAll<HTMLElement>('[role="menuitem"]'));
+    expect(items.map((el) => el.querySelector('.split-button-item-label')?.textContent)).toEqual([
+      'Fresh scan',
+    ]);
+
+    items[0].click();
+    expect(onRefresh).toHaveBeenCalledWith(true);
+  });
+
+  it('shows nothing to refresh before a project is loaded', async () => {
+    render(<AppHeader />, container);
+    await flush();
+    expect(container.querySelector('.app-header-freshness')).toBeNull();
   });
 
   it('has no reset-view control', async () => {

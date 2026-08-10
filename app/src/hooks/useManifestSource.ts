@@ -26,10 +26,18 @@
 import { useEffect, useCallback } from 'preact/hooks';
 import { effect } from '@preact/signals';
 
-import { manifestUrlFor, signatureUrlFor, streamManifest, ScanPhase } from '@/api/manifest';
+import {
+  manifestUrlFor,
+  signatureUrlFor,
+  streamManifest,
+  ScanPhase,
+  ScanError,
+} from '@/api/manifest';
 import { getServerConfig } from '@/api/config';
+import { getDiscover } from '@/api/discover';
 import { LIVE_UPDATES, LIVE_UPDATES_ACTIVE } from '@/state/stores/settings/updates';
 import { RECENTS, SOURCE_ERROR, setCurrentSource, CURRENT_SOURCE } from '@/state/stores/source';
+import { DISCOVER } from '@/state/stores/discover';
 import { SERVER_CONFIG } from '@/state/stores/serverConfig';
 import { MANIFEST, setManifest, markError, markRebuilding } from '@/state/stores/manifest';
 import { SCAN_PROGRESS } from '@/state/stores/scanProgress';
@@ -70,7 +78,7 @@ async function pumpManifestStream(
   let appliedPending: Manifest['pending'] | undefined;
 
   for await (const event of streamManifest(url, { signal })) {
-    if (event.phase === ScanPhase.Error) throw new Error(event.error);
+    if (event.phase === ScanPhase.Error) throw new ScanError(event.error, event.code);
 
     if ('label' in event && event.label) {
       // The canonical "label of the source being loaded" — computed server-side
@@ -125,10 +133,10 @@ export function setTimelineRefreshHandler(fn: (() => Promise<void>) | null): voi
 // generation token makes the NEWEST load authoritative: every write (skeleton,
 // final, the source commit, the overlay teardown, a surfaced error) is gated on
 // "am I still the current generation?". A foreground load bumps it, which
-// silently drops any older in-flight load AND any in-flight poll write — so an
-// update firing mid-load can no longer clobber the world being loaded with the
-// previous source's manifest. Mirrors the same generation guard cityState's
-// applyManifest already uses one layer down.
+// silently drops any older in-flight load AND any in-flight poll write, so an
+// update firing mid-load cannot clobber the world being loaded with the
+// previous source's manifest. Mirrors the generation guard cityState's
+// applyManifest uses one layer down.
 let loadGeneration = 0;
 
 // The AbortController for the current foreground load, so the UI can cancel a
@@ -207,6 +215,7 @@ export async function loadSource(payload: SourcePayload): Promise<void> {
     }
     SOURCE_ERROR.value = {
       error: err instanceof Error ? err.message : String(err),
+      code: err instanceof ScanError ? err.code : undefined,
       prefill: { src: payload.src, branch },
     };
   } finally {
@@ -274,7 +283,7 @@ export function setupLiveUpdates(): () => void {
       for await (const event of streamManifest(
         manifestUrlFor({ src, branch, exclude: activeExcludePathsFor(src) })
       )) {
-        if (event.phase === ScanPhase.Error) throw new Error(event.error);
+        if (event.phase === ScanPhase.Error) throw new ScanError(event.error, event.code);
         // Live-update path: skip skeleton. The city is already drawn; applying
         // a skeleton would animate every building to placeholder heights and
         // back on every save. Only the final tweens into the new state.
@@ -417,8 +426,13 @@ export function useManifestSource(): {
       }
       if (cancelled) return;
 
-      const serverConfig = await getServerConfig();
+      // Both are one-shot boot reads with no dependency on each other, so they
+      // go out together rather than making the landing wait for two round
+      // trips in series.
+      const [serverConfig, discover] = await Promise.all([getServerConfig(), getDiscover()]);
+      if (cancelled) return;
       SERVER_CONFIG.value = serverConfig;
+      DISCOVER.value = discover;
 
       // One poll loop for the app's lifetime; no-ops until a source is loaded,
       // re-reads CURRENT_SOURCE + MANIFEST.content_signature each tick (covers

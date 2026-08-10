@@ -1,13 +1,7 @@
-/* Full-screen WebGL "dark swirl" backdrop for the cold-boot landing. Fixed +
-   behind the content (z:-1 sits above .landing's opaque base fill, below the
-   in-flow content). Non-interactive. No CSS fallback needed: if WebGL is
-   unavailable the city can't render at all, so the canvas just stays transparent
-   and .landing's flat surface shows through. */
+/* The swirl canvas. Its box comes from whatever stages it (.landing-stage);
+   this is the part that is true wherever it sits. */
 .landing-backdrop {
-  position: fixed;
-  inset: 0;
   width: 100%;
   height: 100%;
-  z-index: -1;
   pointer-events: none;
 }

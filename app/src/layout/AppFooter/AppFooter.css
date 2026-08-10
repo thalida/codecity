@@ -6,12 +6,11 @@
 
 #app-footer {
   flex: 0 0 auto;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  display: flex;
   align-items: center;
   gap: var(--cc-space-7);
-  padding: 0 var(--cc-space-6);
-  height: 24px;
+  padding: 0 var(--cc-chrome-inset);
+  height: var(--cc-chrome-h);
   border-top: 1px solid var(--cc-track);
   font-family: var(--cc-font-mono);
   font-size: var(--cc-font-2xs);
@@ -26,21 +25,18 @@
    * visual breathing room; the gap just keeps things from butting up
    * against the dots. */
   gap: var(--cc-space-3);
-  /* Stretch to fill the grid cell + clip at the cell boundary. The
-   * previous attempt used justify-self: start/center/end, which made
-   * each section's box content-sized (not cell-sized) — overflow:hidden
-   * then clipped against the content box, NOT the cell, so long text in
-   * the left section painted on top of the center section's repo name.
-   * Stretching the box to the cell + aligning children with
-   * justify-content fixes this properly. */
+  /* min-width:0 is what lets overflow:hidden actually bite: without it the
+   * section's min-content width wins and long text paints past the section. */
   min-width: 0;
-  width: 100%;
   overflow: hidden;
 }
+/* The left section absorbs the slack and clips; the right is content-sized. */
 .app-footer-section.app-footer-left {
+  flex: 1 1 auto;
   justify-content: flex-start;
 }
 .app-footer-section.app-footer-right {
+  flex: 0 0 auto;
   justify-content: flex-end;
 }
 
@@ -53,69 +49,6 @@
 }
 
 /* The debug button uses .btn-icon + .btn-icon--sm. */
-
-/* ── Combined status indicator (left section) ─────────────────────── */
-/* Layout: [dot] <status text>
- * One dot, two channels:
- *   color     = rebuild state (green/yellow/red)
- *   animation = live state (heartbeat when polling, static when paused)
- * Rebuilding takes precedence: dot pulses fast regardless of live state.
- * Error: static red (the alert effect comes from the color, not motion). */
-.app-footer-status {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--cc-space-3);
-}
-/* Shape in .dot above; state-driven colors come from the .is-* parent
-   modifiers below. */
-.app-footer-status-detail {
-  color: var(--cc-text-secondary);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-/* Color by rebuild state. */
-.app-footer-status.is-ready .app-footer-status-dot {
-  background: var(--cc-success);
-}
-.app-footer-status.is-rebuilding .app-footer-status-dot {
-  background: var(--cc-warning);
-}
-.app-footer-status.is-error .app-footer-status-dot {
-  background: var(--cc-error);
-}
-
-/* Animation by combined state. */
-.app-footer-status.is-rebuilding .app-footer-status-dot {
-  /* Fast pulse during a rebuild — wins over the heartbeat. */
-  animation: app-footer-pulse 0.9s ease-in-out infinite;
-}
-.app-footer-status.is-ready.is-live .app-footer-status-dot {
-  /* Slow gentle heartbeat when polling is on + idle. */
-  animation: app-footer-heartbeat 2.4s ease-in-out infinite;
-}
-/* is-ready.is-paused → no animation (static green dot).
- * is-error           → no animation (static red dot). */
-
-@keyframes app-footer-pulse {
-  0%,
-  100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.25;
-  }
-}
-@keyframes app-footer-heartbeat {
-  0%,
-  100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.45;
-  }
-}
 
 /* ── Version + credit ─────────────────────────────────────────────── */
 /* Version sits with the status dot on the left; the credit holds the right.
@@ -134,6 +67,6 @@
 @media (max-width: 580px) {
   #app-footer {
     gap: var(--cc-space-3);
-    padding: 0 var(--cc-space-4);
+    padding: 0 var(--cc-chrome-inset);
   }
 }

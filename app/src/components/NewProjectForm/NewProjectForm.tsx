@@ -1,15 +1,20 @@
 // components/NewProjectForm/NewProjectForm.tsx — new-source entry. One field
 // that takes either a git URL or a local path and classifies itself as you type
 // (srcKind): a URL gets a repo-resolved branch dropdown; a local path is opened
-// directly. When local repos are off, the field is URL-only — the label,
-// placeholder, and a standing "how to enable" notice all reflect that, and a
-// typed path is blocked. skip-cache is tucked behind an Advanced disclosure.
-// Submits on Enter (real <form>) or the button.
+// directly. When local repos are off, the field is URL-only: the label,
+// placeholder, and a standing UnreachableSource notice all reflect that, and a
+// typed path is blocked. Everything that describes the field renders in one
+// slot beneath it, so a failure can never stack with the guidance it answers.
+//
+// Submits on Enter (a real <form>) or the split button, whose menu carries the
+// fresh-scan variant. Skipping the cache is a way of opening, not a setting, so
+// it lives on the open control rather than in a disclosure beside it.
 
 import './NewProjectForm.css';
 import { useState } from 'preact/hooks';
-import { ChevronRight } from 'lucide-preact';
+import { DatabaseZap } from 'lucide-preact';
 import { BranchSelect } from '@/components/BranchSelect/BranchSelect';
+import { SplitButton } from '@/components/SplitButton/SplitButton';
 import {
   srcKind,
   SourceKind,
@@ -17,12 +22,21 @@ import {
   looksResolvable,
   looksLikePath,
 } from '@/utils/sources';
+import { UnreachableSource, NoticeReason } from '@/components/UnreachableSource/UnreachableSource';
+import type { ScanErrorCode } from '@/api/manifest';
 import type { SourcePayload } from '@/state/stores/ui';
 import { SCAN_PROGRESS } from '@/state/stores/scanProgress';
-import { REPO_URL } from '@/constants/ui';
 
 export interface NewProjectFormProps {
   allowLocalRepos: boolean;
+  /** This is the public deployment: a local path can never resolve here. */
+  hosted: boolean;
+  /** The message from the load that just failed. Rendered in the field's own
+   *  slot: it is about what's in the field, so it belongs under it. */
+  error?: string;
+  /** The code for that same failure, where there is one. Keyed on rather than
+   *  the message text, which is the server's to reword. */
+  errorCode?: ScanErrorCode;
   prefill?: SourcePayload;
   onSubmit: (payload: SourcePayload) => void;
   /** Fired when the user edits the source field, so the host can drop a stale
@@ -30,10 +44,13 @@ export interface NewProjectFormProps {
   onDirty?: () => void;
 }
 
-const LOCAL_DOCS_URL = `${REPO_URL}#local-directories`;
+const ERROR_ID = 'new-project-error';
 
 export function NewProjectForm({
   allowLocalRepos,
+  hosted,
+  error,
+  errorCode,
   prefill,
   onSubmit,
   onDirty,
@@ -45,9 +62,10 @@ export function NewProjectForm({
       ? prefill.src
       : ''
   );
-  const [skipCache, setSkipCache] = useState(false);
-  const [advanced, setAdvanced] = useState(false);
   const [branchError, setBranchError] = useState<string | null>(null); // from BranchSelect
+  // The branch lookup is the FIRST request to touch the remote, so a repo this
+  // server can't reach fails here, before anything is submitted.
+  const [branchErrorCode, setBranchErrorCode] = useState<ScanErrorCode | undefined>(undefined);
 
   // Label + placeholder reflect what the field actually accepts here.
   const sourceLabel = allowLocalRepos ? 'Repo URL or local path' : 'Repo URL';
@@ -64,9 +82,12 @@ export function NewProjectForm({
   // can't open. Gated on looksLikePath so a half-typed URL never trips it, and
   // it suppresses the "enter a git URL" nudge (the standing notice is the why).
   const pathBlocked = !isRemote && !allowLocalRepos && looksLikePath(activeSrc);
-  // The "local paths off" notice is only useful while the field could be a path
-  // — hide it once the input reads as a URL so the URL flow stays clean.
-  const showLocalNotice = !allowLocalRepos && !(isRemote && activeSrc.length > 0);
+  // The standing notice is only useful while the field could still be a path:
+  // hide it once the input reads as a URL so the URL flow stays clean.
+  const showStandingNotice = !allowLocalRepos && !(isRemote && activeSrc.length > 0);
+  // A remote repo the server couldn't reach. Shown regardless of what the field
+  // now reads as, because it answers the attempt the user just made.
+  const failedToReach = errorCode === 'repo-not-found' || branchErrorCode === 'repo-not-found';
 
   // A path change on a URL resets the branch (no stale pick rides along) and
   // only resolves branches for a URL that passes validation.
@@ -80,14 +101,15 @@ export function NewProjectForm({
       setResolvedUrl('');
       setBranch('');
     }
+    setBranchErrorCode(undefined);
   }
 
   const urlError = isRemote || (!allowLocalRepos && !pathBlocked) ? validateGitUrl(source) : null;
   const fieldError = urlError ?? (isRemote ? branchError : null);
   const canSubmit = !loading && activeSrc.length > 0 && !fieldError && !pathBlocked;
-  const hasError = Boolean(fieldError) || pathBlocked;
+  const hasError = Boolean(fieldError) || pathBlocked || Boolean(error);
 
-  function submit() {
+  function submit(skipCache = false) {
     if (!canSubmit) return;
     onSubmit({
       src: activeSrc,
@@ -104,6 +126,9 @@ export function NewProjectForm({
         submit();
       }}
     >
+      {/* Directly under the card's heading, above the field: it says what this
+          instance can open, which is context for filling the field in, not a
+          footnote on the result. */}
       <div class="new-project-field">
         <label htmlFor="new-project-source">{sourceLabel}</label>
         <input
@@ -111,63 +136,79 @@ export function NewProjectForm({
           class={hasError ? 'form-input form-input--error' : 'form-input'}
           type="text"
           aria-invalid={hasError ? 'true' : undefined}
-          aria-describedby={fieldError ? 'new-project-error' : undefined}
+          aria-describedby={hasError || failedToReach ? ERROR_ID : undefined}
           autoComplete="off"
           spellcheck={false}
           placeholder={placeholder}
           value={source}
           onInput={(e) => onSourceInput((e.target as HTMLInputElement).value)}
         />
-        {fieldError && (
-          <p id="new-project-error" role="alert" class="new-project-error">
-            {fieldError}
+        {/* One slot, in precedence order: what already failed beats a
+            validation complaint, which beats standing guidance. */}
+        {failedToReach ? (
+          <UnreachableSource
+            id={ERROR_ID}
+            hosted={hosted}
+            allowLocal={allowLocalRepos}
+            reason={NoticeReason.Unreachable}
+            src={activeSrc || prefill?.src}
+          />
+        ) : pathBlocked ? (
+          <UnreachableSource
+            id={ERROR_ID}
+            hosted={hosted}
+            allowLocal={allowLocalRepos}
+            reason={NoticeReason.PathBlocked}
+          />
+        ) : fieldError || error ? (
+          // Live validation beats the message from the last submit, which the
+          // next keystroke clears anyway (onDirty).
+          <p id={ERROR_ID} role="alert" class="new-project-error">
+            {fieldError ?? error}
           </p>
+        ) : (
+          showStandingNotice && (
+            <UnreachableSource
+              hosted={hosted}
+              allowLocal={allowLocalRepos}
+              reason={NoticeReason.Standing}
+            />
+          )
         )}
       </div>
-
-      {showLocalNotice && (
-        <p class="new-project-note">
-          Local paths aren't enabled.{' '}
-          <a class="link--chrome" href={LOCAL_DOCS_URL} target="_blank" rel="noopener noreferrer">
-            How to enable
-          </a>
-        </p>
-      )}
 
       {isRemote && (
         <BranchSelect
           url={resolvedUrl}
           value={branch}
           onChange={setBranch}
-          onError={setBranchError}
+          onError={(message, code) => {
+            setBranchError(message);
+            setBranchErrorCode(code);
+          }}
           key={resolvedUrl}
         />
       )}
 
-      <button
-        type="button"
-        class="new-project-advanced-toggle"
-        aria-expanded={advanced}
-        aria-controls="new-project-advanced"
-        onClick={() => setAdvanced((a) => !a)}
-      >
-        <ChevronRight class="icon new-project-advanced-caret" />
-        Advanced
-      </button>
-      {advanced && (
-        <label id="new-project-advanced" class="new-project-skip-cache">
-          <input
-            type="checkbox"
-            checked={skipCache}
-            onChange={(e) => setSkipCache((e.target as HTMLInputElement).checked)}
-          />
-          Skip cache (fresh scan)
-        </label>
-      )}
-
-      <button type="submit" class="btn-primary" aria-label="Open project" disabled={!canSubmit}>
-        Open project
-      </button>
+      <SplitButton
+        class="new-project-open"
+        label="Open project"
+        // The primary half is the form's real submit, so Enter in the field and
+        // a click on the button take the identical path.
+        primaryType="submit"
+        onPrimary={() => submit()}
+        menuLabel="More ways to open"
+        disabled={!canSubmit}
+        items={[
+          {
+            id: 'fresh',
+            icon: DatabaseZap,
+            label: 'Open with a fresh scan',
+            sublabel: 'ignore the cache and re-read the whole repo',
+            onSelect: () => submit(true),
+          },
+        ]}
+      />
     </form>
   );
 }

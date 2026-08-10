@@ -1,10 +1,8 @@
-// components/LandingBackdrop — the cold-boot landing's "dark swirl" backdrop.
-// A full-screen WebGL layer that renders a domain-warped gem-palette gradient:
-// a color ramp pushed around by smooth fbm noise, which is what gives these
-// gradients their organic curved-ribbon flow (flat CSS radial gradients can't —
-// they're concentric circles). Theme-aware (reads the --cc-gem-* tokens),
-// honors prefers-reduced-motion (renders one static frame), non-interactive.
-// If WebGL is unavailable it renders nothing and the CSS fallback wash shows.
+// The landing's swirl: a gem-palette gradient warped by fbm noise, which is
+// what a CSS radial gradient can't do (it's concentric circles).
+//
+// It renders over the featured city, so it must not paint a background.
+// Renders nothing without WebGL, one static frame under reduced motion.
 
 import './LandingBackdrop.css';
 import { useEffect, useRef } from 'preact/hooks';
@@ -19,7 +17,6 @@ precision highp float;
 out vec4 fragColor;
 uniform vec2 uResolution;
 uniform float uTime;
-uniform vec3 uBg;
 uniform vec3 uCol[4];
 
 // Lower = larger, calmer forms; higher = smaller, busier.
@@ -79,8 +76,10 @@ void main() {
   float band = smoothstep(0.06, 0.40, abs(uv.y - 0.5));
   energy *= mix(0.4, 1.0, band);
 
-  col = mix(uBg, col, clamp(energy, 0.0, 1.0));
-  fragColor = vec4(col, 1.0);
+  // Premultiplied alpha, not a mix into uBg: the calm areas have to be really
+  // transparent so the city behind shows through.
+  float a = clamp(energy, 0.0, 1.0);
+  fragColor = vec4(col * a, a);
 }
 `;
 
@@ -151,14 +150,11 @@ export function LandingBackdrop() {
 
     const uResolution = gl.getUniformLocation(prog, 'uResolution');
     const uTime = gl.getUniformLocation(prog, 'uTime');
-    const uBg = gl.getUniformLocation(prog, 'uBg');
     const uCol = gl.getUniformLocation(prog, 'uCol');
 
-    const bg = resolveVarToRgb('--cc-bg-app');
     const cols = ['--cc-gem-cyan', '--cc-gem-purple', '--cc-gem-magenta', '--cc-gem-lime'].map(
       resolveVarToRgb
     );
-    gl.uniform3f(uBg, bg[0], bg[1], bg[2]);
     gl.uniform3fv(uCol, new Float32Array(cols.flat()));
 
     const resize = () => {

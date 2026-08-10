@@ -162,7 +162,18 @@ class ResponseModelTests(unittest.TestCase):
     def test_error_response(self) -> None:
         from api.models.responses import ErrorResponse
 
-        self.assertEqual(ErrorResponse(error="x").model_dump(), {"error": "x"})
+        from api.models.events import ErrorCode
+
+        # Absent-or-value, like the stream's error event: no null to special-case.
+        self.assertEqual(
+            ErrorResponse(error="x").model_dump(exclude_none=True), {"error": "x"}
+        )
+        self.assertEqual(
+            ErrorResponse(error="x", code=ErrorCode.REPO_NOT_FOUND).model_dump(
+                exclude_none=True
+            ),
+            {"error": "x", "code": "repo-not-found"},
+        )
 
     def test_health_and_config(self) -> None:
         from api.models.responses import HealthResponse, ConfigResponse
@@ -170,16 +181,36 @@ class ResponseModelTests(unittest.TestCase):
         self.assertEqual(HealthResponse(ok=True).model_dump(), {"ok": True})
         self.assertEqual(
             ConfigResponse(
-                allowLocalRepos=False, maxBatchPaths=64, version="1.2.3"
+                allowLocalRepos=False,
+                hosted=True,
+                maxBatchPaths=64,
+                version="1.2.3",
+                featuredRepo="https://github.com/o/r",
             ).model_dump(),
-            {"allowLocalRepos": False, "maxBatchPaths": 64, "version": "1.2.3"},
+            {
+                "allowLocalRepos": False,
+                "hosted": True,
+                "maxBatchPaths": 64,
+                "version": "1.2.3",
+                "featuredRepo": "https://github.com/o/r",
+            },
         )
 
     def test_sse_event_serialization(self) -> None:
-        from api.models.events import ScanProgressEvent, ErrorEvent
+        from api.models.events import ErrorCode, ScanProgressEvent, ErrorEvent
 
         self.assertEqual(
             ScanProgressEvent(label="r", files_scanned=3).model_dump(exclude_none=True),
             {"label": "r", "files_scanned": 3},
         )
-        self.assertEqual(ErrorEvent(error="boom").model_dump(), {"error": "boom"})
+        # An uncoded error stays absent-or-value on the wire, so the client
+        # never has to tell "no code" from "code: null".
+        self.assertEqual(
+            ErrorEvent(error="boom").model_dump(exclude_none=True), {"error": "boom"}
+        )
+        self.assertEqual(
+            ErrorEvent(error="boom", code=ErrorCode.REPO_NOT_FOUND).model_dump(
+                exclude_none=True
+            ),
+            {"error": "boom", "code": "repo-not-found"},
+        )

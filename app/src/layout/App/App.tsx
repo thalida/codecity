@@ -32,18 +32,27 @@ import { LoadingOverlay } from '@/components/LoadingOverlay/LoadingOverlay';
 import { HljsThemeLink } from '@/components/HljsThemeLink/HljsThemeLink';
 import { SelectionAnnouncer } from '@/components/SelectionAnnouncer/SelectionAnnouncer';
 import { clearSelection, runCollisionCheck, runStemDiagnostic } from '@/state/stores/scene';
-import { openProjectsView, closeProjectsView, LOADING_CANCEL } from '@/state/stores/ui';
+import {
+  openProjectsView,
+  closeProjectsView,
+  PROJECTS_VIEW,
+  LOADING_CANCEL,
+} from '@/state/stores/ui';
 import { SOURCE_ERROR, CURRENT_SOURCE } from '@/state/stores/source';
 import { MANIFEST } from '@/state/stores/manifest';
 import { isEmptyManifest } from '@/utils/manifest';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { useManifestSource } from '@/hooks/useManifestSource';
 import { useSwitcherShowcase } from '@/hooks/useSwitcherShowcase';
+import { useFeaturedCity } from '@/hooks/useFeaturedCity';
+import { useShortcutsKey } from '@/hooks/useShortcutsKey';
 import { attachLoadingReactions } from '@/state/loadingReactions';
 
 export function App() {
   useDocumentTitle();
   useSwitcherShowcase();
+  useFeaturedCity();
+  useShortcutsKey();
   const { submitSource, cancelLoad } = useManifestSource();
 
   useEffect(() => attachLoadingReactions(), []);
@@ -59,6 +68,14 @@ export function App() {
       clearSelection();
       closeProjectsView();
     }
+  });
+
+  // The landing is a full-bleed fixed page with no background of its own, so
+  // the chrome behind it has to go: left up, its opaque strips would show
+  // through at the top and bottom instead of the city. Both modes, not just the
+  // dismissible one, and one writer for the class.
+  useSignalEffect(() => {
+    document.getElementById('app')?.classList.toggle('cc-showcase', PROJECTS_VIEW.value.visible);
   });
 
   // App coordinates the projects view; the fetch hook only reports outcomes.
@@ -80,6 +97,7 @@ export function App() {
       dismissible: !isEmptyManifest(MANIFEST.peek()),
       prefill: err.prefill,
       error: err.error,
+      errorCode: err.code,
     });
   });
 
@@ -88,7 +106,15 @@ export function App() {
       <a class="skip-link" href="#app-body">
         Skip to content
       </a>
-      <AppHeader onSwitchSource={() => openProjectsView({ dismissible: true })} />
+      <AppHeader
+        onSwitchSource={() => openProjectsView({ dismissible: true })}
+        // Re-open the source already loaded. The header owns the control; the
+        // reload itself is the same one path every other open goes through.
+        onRefresh={(skipCache) => {
+          const cur = CURRENT_SOURCE.peek();
+          if (cur) submitSource({ ...cur, skipCache: skipCache || undefined });
+        }}
+      />
       <main id="app-body" tabIndex={-1}>
         <LeftSidebar />
         <CenterPane />

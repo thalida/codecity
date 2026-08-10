@@ -1,6 +1,8 @@
 """Dump the OpenAPI schema to stdout without starting a server.
 
-Usage: uv run python scripts/gen_openapi.py > openapi.json
+Run via `just gen-types`, which feeds the output to openapi-typescript.
+
+Usage: uv run python scripts/gen_openapi.py > openapi.generated.json
 """
 
 from __future__ import annotations

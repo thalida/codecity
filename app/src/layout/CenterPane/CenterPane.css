@@ -30,7 +30,10 @@
   pointer-events: auto;
 }
 
-canvas {
+/* Scoped to this pane: a bare `canvas` selector reaches every canvas in the
+   app, and the opaque fill below then hides whatever a translucent one was
+   meant to sit over (it did exactly that to the landing backdrop). */
+#center-pane canvas {
   display: block;
   width: 100%;
   height: 100%;

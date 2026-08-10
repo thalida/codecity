@@ -22,4 +22,7 @@ export const KEY_BINDINGS: Record<string, KeyBinding> = {
   FOCUS_SELECTION: { label: 'F', keys: ['f', 'F'] },
   /** Close the sidebar / clear selection. */
   CLEAR_SELECTION: { label: 'Esc', keys: ['Escape'] },
+  /** Open the keyboard-shortcuts panel. Its button lives in the 24px footer
+   *  now, so the panel needs a way in that doesn't depend on finding it. */
+  SHOW_SHORTCUTS: { label: '?', keys: ['?'] },
 };

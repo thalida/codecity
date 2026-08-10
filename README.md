@@ -35,7 +35,7 @@ docker run --rm --init --pull=always \
 ```
 
 1. Open <http://localhost:8080/> to reach the Projects page
-2. Enter a repo URL and pick a branch
+2. Paste a repo URL and pick a branch, or open one from Discover
 3. Explore your city!
 
 Local folders take one more step, see [Local directories](#local-directories) below.
@@ -47,6 +47,22 @@ Local folders take one more step, see [Local directories](#local-directories) be
 - Port in use? `-p 8081:8080`
 
 ## Advanced setup
+
+### Configuration
+
+Everything codecity reads is an env var, passed with `-e`:
+
+| Variable | Default | What it does |
+| --- | --- | --- |
+| `CODECITY_ALLOW_LOCAL_REPOS` | off | Render local folders. Needs a matching mount, see [Local directories](#local-directories) |
+| `CODECITY_HOSTED` | off | Marks a public deployment, where a local path can never resolve. Changes the advice shown when a repo can't be reached |
+| `CODECITY_FEATURED_REPO` | none | The repo the landing renders behind itself, and flags in Discover. Empty means no backdrop |
+| `CODECITY_DISCOVER` | on | The Discover tab of repos worth rendering. Set `off` to hide it |
+| `CODECITY_DISCOVER_FILE` | `api/discover.json` | Swap in your own curated list: a JSON array of `{"url", "label"}` |
+| `CODECITY_CACHE_ROOT` | `/cache` | Where clones and the manifest cache live |
+| `CODECITY_QUIET` | off | Silence disconnect and scan logs |
+
+Booleans take `1`/`true`/`yes`/`on`.
 
 ### Local directories
 
@@ -187,7 +203,7 @@ You need:
 ```sh
 git clone https://github.com/thalida/codecity.git
 cd codecity
-just setup   # one-time: pre-push hooks, app packages, deploy env
+just setup   # one-time: pre-push hooks, app packages, .env.local
 ```
 
 Regenerating the README's screenshots and demo also needs `ffmpeg` and `webp`
@@ -199,7 +215,7 @@ The pre-push hook runs the full lint + tests before pushing; bypass with `git pu
 
 | Command | What it does |
 | --- | --- |
-| `just setup` | one-time: pre-push hooks, app packages, deploy env |
+| `just setup` | one-time: pre-push hooks, app packages, `.env.local` |
 | `just dev` | Vite HMR + API auto-reload at `http://<slug>.localhost:<port>/` |
 | `just url` | print this worktree's dev URL (`open $(just url)`) |
 | `just test` | pytest + vitest in containers |
@@ -210,10 +226,36 @@ The pre-push hook runs the full lint + tests before pushing; bypass with `git pu
 `just --list` has the rest: per-suite tests, formatting, image builds, README
 assets, release and deploy.
 
+### Your settings
+
+Two env files, split by whether everyone shares the values:
+
+- **`.env`** is tracked. Version pins and the deploy target, identical for everyone.
+- **`.env.local`** is yours and gitignored, seeded from `.env.local.example` by `just setup`. Put your mount and your flags there and `just dev` picks them up:
+
+```sh
+CODECITY_MOUNT=~/Documents/Repos     # comma-separated for several
+CODECITY_FEATURED_REPO=https://github.com/thalida/codecity
+```
+
+`just dev` and `just run` also take docker's `-v` and `-e` for a one-off, which
+beat the file for that run:
+
+```sh
+just dev -v ~/Documents/Repos/myproj -e CODECITY_DISCOVER=off
+```
+
+A mount, from either place, turns on `CODECITY_ALLOW_LOCAL_REPOS`; without one,
+codecity is git-URL-only. Only the `CODECITY_*` vars reach the container, so the
+Forgejo credentials in the same file stay on your machine.
+
+`.local/` is generated state (worktree ports, the compose override). Nothing in
+there is hand-edited and it's always safe to delete.
+
 ### Worktrees
 
 - Each worktree gets its own `<slug>.localhost` URL, so source-picker recents stay isolated per project in localstorage
-- `just dev` and `just run` take a path arg to mount a local repo (`just dev ~/Documents/Repos/myproj`), which also sets `CODECITY_ALLOW_LOCAL_REPOS=1`; without it, codecity is git-URL-only
+- `.env.local` sits at the repo root, so each worktree has its own
 
 ### Backend
 
@@ -252,7 +294,7 @@ aren't set.
 **One-time setup**
 
 1. Create a Forgejo token under **Settings → Applications**, scoped `repository → Read and Write`, everything else `No access`
-2. Fill in `.local/deploy.env` (gitignored, seeded by `just setup`) with `FORGEJO_HOST`, `FORGEJO_REPO`, `FORGEJO_TOKEN`
+2. Fill in `.env.local` (gitignored, seeded by `just setup`) with `FORGEJO_HOST`, `FORGEJO_REPO`, `FORGEJO_TOKEN`
 3. Add those same three under **Settings → Secrets and variables → Actions → Secrets**
 
 **Redeploying without a release**

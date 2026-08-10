@@ -2,10 +2,10 @@
 /api/manifest/signature, GET /api/timeline (SSE stream).
 
 Source classification/resolution lives in api.services.source; these are the
-thin HTTP handlers over it. A ResolveError carries a status + message: the
-signature route turns it into an HTTPException, while the manifest and
-timeline SSE routes turn it into an `error` event (EventSource can't read 4xx
-bodies)."""
+thin HTTP handlers over it. A ResolveError carries a status + message, plus a
+code where the UI answers the failure differently: the signature route turns it
+into an HTTPException, while the manifest and timeline SSE routes turn it into
+an `error` event (EventSource can't read 4xx bodies)."""
 
 from __future__ import annotations
 
@@ -22,6 +22,7 @@ from sse_starlette.sse import EventSourceResponse
 from api.models.events import (
     CloneProgressEvent,
     CompleteManifestEvent,
+    ErrorCode,
     ErrorEvent,
     PartialManifestEvent,
     ScanEvent,
@@ -168,7 +169,7 @@ async def timeline(
                 try:
                     target = resolve_source(src, branch)
                 except ResolveError as e:
-                    _put(_sse_error(e.message))
+                    _put(_sse_error(e.message, e.code))
                     return
                 holder["path"] = target
                 head = resolve_ref(target, "HEAD")
@@ -249,9 +250,14 @@ def _sse(event: "ScanEvent | TimelineEvent", payload: dict[str, Any]) -> dict[st
     return {"event": event, "data": json.dumps(payload)}
 
 
-def _sse_error(message: str) -> dict[str, Any]:
-    """An `error` SSE event, single-sourced through the ErrorEvent model."""
-    return _sse(ScanEvent.ERROR, ErrorEvent(error=message).model_dump())
+def _sse_error(message: str, code: ErrorCode | None = None) -> dict[str, Any]:
+    """An `error` SSE event, single-sourced through the ErrorEvent model.
+    `exclude_none` keeps an uncoded error absent-or-value on the wire rather
+    than shipping a null the client would have to special-case."""
+    return _sse(
+        ScanEvent.ERROR,
+        ErrorEvent(error=message, code=code).model_dump(exclude_none=True),
+    )
 
 
 # Documented SSE event union: surfacing all five event models in the
@@ -320,7 +326,7 @@ async def manifest(
             try:
                 local_path = await asyncio.to_thread(resolve_local, src)
             except ResolveError as e:
-                yield _sse_error(e.message)
+                yield _sse_error(e.message, e.code)
                 return
 
         cancel = threading.Event()
@@ -377,11 +383,10 @@ async def manifest(
                                 on_heartbeat=_on_clone_heartbeat,
                                 cancel_event=cancel,
                             )
-                    except (
-                        BranchNotFoundError,
-                        RepoNotFoundError,
-                        HostUnreachableError,
-                    ) as e:
+                    except RepoNotFoundError as e:
+                        _put(_sse_error(str(e), ErrorCode.REPO_NOT_FOUND))
+                        return
+                    except (BranchNotFoundError, HostUnreachableError) as e:
                         _put(_sse_error(str(e)))
                         return
                     except CloneError as e:

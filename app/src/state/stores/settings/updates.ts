@@ -44,9 +44,9 @@ markAutosave(LIVE_UPDATES);
 export type LiveUpdatesConfig = ConfigOf<typeof LIVE_UPDATES_FIELDS>;
 
 /**
- * Whether the poll is actually running: the toggle AND a source that can change.
- * A remote source is cloned once and never re-fetched, so its content_signature
- * cannot move and every poll would be a scan that reports nothing.
+ * Whether the poll is actually running: the toggle AND a local source.
+ * Remote is excluded on cost, not impossibility: ensure_clone fetch+resets on
+ * every open, so polling one means a `git fetch` every few seconds.
  */
 export const LIVE_UPDATES_ACTIVE = computed<boolean>(
   () => LIVE_UPDATES.value.ENABLED && CURRENT_SOURCE_IS_LOCAL.value

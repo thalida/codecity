@@ -4,9 +4,14 @@ from __future__ import annotations
 
 from pydantic import BaseModel
 
+from api.models.events import ErrorCode
+
 
 class ErrorResponse(BaseModel):
     error: str
+    # Set where the UI answers the failure differently. Same member set as the
+    # stream's ErrorEvent, so a client keys on one vocabulary.
+    code: ErrorCode | None = None
 
 
 class FileTooLargeResponse(BaseModel):
@@ -38,8 +43,32 @@ class HealthResponse(BaseModel):
 
 class ConfigResponse(BaseModel):
     allowLocalRepos: bool
+    # Whether this is the public deployment, where a local path can never
+    # resolve. `allowLocalRepos` alone can't say that: it's also false on a
+    # local instance that simply hasn't mounted anything.
+    hosted: bool
     maxBatchPaths: int
     version: str
+    # The repo the landing renders behind itself; empty means no backdrop. Same
+    # env var the Discover list flags, so the two can never disagree.
+    featuredRepo: str
+
+
+class DiscoverEntry(BaseModel):
+    """One curated repo on the landing's Discover tab. Deliberately just a URL
+    and a name: stars and scan timings were considered and rejected, so there
+    is nothing here to rot or to fetch from a third party."""
+
+    url: str
+    label: str
+    # The one the landing renders behind itself. At most one entry carries it,
+    # and the landing reads it from here rather than from a second config field
+    # that could disagree with the list.
+    featured: bool = False
+
+
+class DiscoverResponse(BaseModel):
+    repos: list[DiscoverEntry]
 
 
 class CommitDetailResponse(BaseModel):

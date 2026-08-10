@@ -49,9 +49,10 @@ services:
       context: .
     user: "root"
     init: true
-    entrypoint: ["sh", "-c", "uv sync --frozen && exec /srv/.venv/bin/ruff format --check api scripts \"$@\"", "--"]
+    entrypoint: ["sh", "-c", "uv sync --frozen && exec /srv/.venv/bin/ruff format --check api bin scripts \"$@\"", "--"]
     volumes:
       - "./api:/srv/api:ro"
+      - "./bin:/srv/bin:ro"
       - "./scripts:/srv/scripts:ro"
       - "./uv.lock:/srv/uv.lock:ro"
       - "./pyproject.toml:/srv/pyproject.toml:ro"

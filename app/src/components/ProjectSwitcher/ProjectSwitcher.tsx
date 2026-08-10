@@ -7,6 +7,7 @@
 
 import './ProjectSwitcher.css';
 import { ChevronsUpDown } from 'lucide-preact';
+import { CLUSTER_ITEM_PRESS } from '@/components/ChromeCluster/ChromeCluster';
 import { GemIcon } from '@/components/GemIcon/GemIcon';
 
 export interface ProjectSwitcherProps {
@@ -19,7 +20,7 @@ export function ProjectSwitcher({ rootLabel, branch, onSwitchSource }: ProjectSw
   return (
     <button
       type="button"
-      class="btn-chip"
+      class={`${CLUSTER_ITEM_PRESS} project-switcher`}
       title="Switch project"
       aria-label="Switch project"
       disabled={!onSwitchSource}
@@ -28,9 +29,9 @@ export function ProjectSwitcher({ rootLabel, branch, onSwitchSource }: ProjectSw
       }}
     >
       <GemIcon />
-      {rootLabel && <span class="btn-chip-label">{rootLabel}</span>}
+      {rootLabel && <span class="project-switcher-label">{rootLabel}</span>}
       {branch && <span class="app-header-branch-pill">@{branch}</span>}
-      <ChevronsUpDown class="icon btn-chip-affordance" />
+      <ChevronsUpDown class="icon project-switcher-cue" />
     </button>
   );
 }

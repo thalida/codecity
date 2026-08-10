@@ -15,6 +15,7 @@ dependencies = [
     "fastapi>=0.115",
     "uvicorn[standard]>=0.30",
     "sse-starlette>=2.1",
+    "pydantic-settings>=2.15",
 ]
 
 [project.scripts]
@@ -45,7 +46,7 @@ dev = [
 # compatible defaults (88 cols, double quotes, magic trailing commas, etc.).
 target-version = "py311"
 line-length = 88
-src = ["api", "scripts"]
+src = ["api", "bin", "scripts"]
 
 [tool.pytest.ini_options]
 testpaths = ["api/tests"]

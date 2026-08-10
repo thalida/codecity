@@ -4,29 +4,24 @@ default:
 
 # ── Local run ────────────────────────────────────────────────────
 # Dev mode: Vite HMR + api auto-reload. Worktree-aware.
-# Optional positional `mount` arg: a path to mount read-only into the api
-# container at the same absolute path (same UX as `just run`). Generates
-# a compose override at .local/dev-mount.override.yml (gitignored) so the
-# extra mount can be layered onto the base dev compose without editing it.
+# Takes docker's own flags (see bin/docker-args.py): `-v PATH` mounts a
+# directory read-only at the same absolute path, `-e NAME=VALUE` sets an env
+# var on the api. Both reach it through a generated compose override at
+# .local/dev.override.yml (gitignored), layered onto the base dev compose.
+#     just dev -v ~/Documents/Repos/myproj -e CODECITY_HOSTED=1
 # Picks a free host port per worktree (persisted to .local/worktree-ports.json
 # under key 'vite'), uses a branch-derived compose project name (so containers
 # + volumes don't collide across branches/worktrees), and prints a subdomain
 # URL so browser storage is isolated per branch. Falls back to the directory
 # basename for detached HEAD. Auto-re-picks if the saved port becomes occupied.
-dev mount='': install-hooks setup
-    @PORT=$(python3 bin/pick-port.py vite) ; \
+dev *args='': install-hooks setup
+    @set -e ; \
+     OVERRIDE=$(python3 bin/docker-args.py compose {{args}}) ; \
+     PORT=$(python3 bin/pick-port.py vite) ; \
      SLUG=$( ( git symbolic-ref --short -q HEAD 2>/dev/null || basename $(pwd) ) | tr '[:upper:]' '[:lower:]' | tr -c '[:alnum:]' '-' | sed 's/-*$//') ; \
-     COMPOSE_ARGS="-f docker-compose.dev.yml" ; \
-     if [ -n "{{mount}}" ]; then \
-         ABS=$(realpath "{{mount}}") || exit 1 ; \
-         mkdir -p .local ; \
-         printf 'services:\n  api:\n    volumes:\n      - "%s:%s:ro"\n    environment:\n      - CODECITY_ALLOW_LOCAL_REPOS=1\n' "$ABS" "$ABS" > .local/dev-mount.override.yml ; \
-         COMPOSE_ARGS="$COMPOSE_ARGS -f .local/dev-mount.override.yml" ; \
-         echo "[codecity-dev] mounted $ABS (local repos enabled)" ; \
-     fi ; \
      echo "[codecity-dev] http://$SLUG.localhost:$PORT/" ; \
      VITE_HOST_PORT=$PORT \
-     docker compose -p codecity-$SLUG $COMPOSE_ARGS up --build
+     docker compose -p codecity-$SLUG -f docker-compose.dev.yml $OVERRIDE up --build
 
 # Print this worktree's dev-server URL (same SLUG + port `just dev` binds).
 # Reserves the vite port if `just dev` hasn't run yet. Handy: `open $(just url)`.
@@ -36,34 +31,26 @@ url:
      echo "http://$SLUG.localhost:$PORT/"
 
 # Prod-like local run: one container, mirrors the README Quick Start.
-# Optional positional `mount` arg: a path to mount read-only at the same
-# absolute path inside the container, so codecity can render that local
-# git repo. Without it, the container has no host filesystem access and
-# can only render git URLs.
+# Takes the same `-v` / `-e` flags as `just dev`. Without a mount the container
+# has no host filesystem access and can only render git URLs.
+#     just run -v ~/Documents/Repos/myproj -e CODECITY_DISCOVER=off
 # Picks a free host port per worktree (persisted to .local/worktree-ports.json
 # under key 'run') so bookmarked URLs survive restarts AND concurrent worktrees
 # don't fight over port 8080. Subdomain URL is branch-derived (falls back to
 # directory basename on detached HEAD). Auto-re-picks if the saved port becomes
 # occupied.
-run mount='':
-    @PORT=$(python3 bin/pick-port.py run) ; \
+run *args='':
+    @set -e ; \
+     DOCKER_ARGS=$(python3 bin/docker-args.py run {{args}}) ; \
+     PORT=$(python3 bin/pick-port.py run) ; \
      SLUG=$( ( git symbolic-ref --short -q HEAD 2>/dev/null || basename $(pwd) ) | tr '[:upper:]' '[:lower:]' | tr -c '[:alnum:]' '-' | sed 's/-*$//') ; \
-     MOUNT_ARG="" ; \
-     LOCAL_ENV_ARG="" ; \
-     if [ -n "{{mount}}" ]; then \
-         ABS=$(realpath "{{mount}}") || exit 1 ; \
-         MOUNT_ARG="-v $ABS:$ABS:ro" ; \
-         LOCAL_ENV_ARG="-e CODECITY_ALLOW_LOCAL_REPOS=1" ; \
-         echo "[codecity] mounted $ABS (local repos enabled)" ; \
-     fi ; \
      echo "[codecity] http://$SLUG.localhost:$PORT/" ; \
      IMAGE_ID=$(docker build -q \
          --build-arg GIT_SHA=$(git rev-parse HEAD) \
          --build-arg VERSION=0.0.0+g$(git rev-parse --short HEAD) .) ; \
      docker run --rm --init \
          -v codecity-cache:/cache \
-         $MOUNT_ARG \
-         $LOCAL_ENV_ARG \
+         $DOCKER_ARGS \
          -p $PORT:8080 \
          $IMAGE_ID
 
@@ -77,11 +64,11 @@ shell:
 # state where the entrypoint shell can't see /usr/local/bin/npm despite the
 # image being intact — recreating the container fresh restores the PATH.
 # Removes just the app container (api + cache volume are preserved) and
-# re-runs dev. Accepts the same optional `mount` arg as `dev`.
-reset-dev mount='':
+# re-runs dev. Accepts the same trailing args as `dev`.
+reset-dev *args='':
     @SLUG=$( ( git symbolic-ref --short -q HEAD 2>/dev/null || basename $(pwd) ) | tr '[:upper:]' '[:lower:]' | tr -c '[:alnum:]' '-' | sed 's/-*$//') ; \
      docker compose -p codecity-$SLUG -f docker-compose.dev.yml rm -fs app
-    @just dev "{{mount}}"
+    @just dev {{args}}
 
 # ── Tests ────────────────────────────────────────────────────────
 test: test-api test-app
@@ -97,7 +84,7 @@ test-app:
 # uv run (like `gen-types`) so the reformatted files stay owned by you, not the
 # container's root.
 fmt:
-    uv run ruff format api scripts
+    uv run ruff format api bin scripts
 
 # Check Python formatting (ruff) — the equivalent of the frontend format:check.
 fmt-check:
@@ -115,10 +102,13 @@ lint: fmt-check
 # Single source of truth: api/models/*.py -> OpenAPI -> TS. Run after changing
 # any wire model. The drift guard (manifest.contract.ts) fails typecheck if the
 # hand-written types in manifest.ts fall out of sync with this generated file.
+# .local/openapi.generated.json is the intermediate between the two steps,
+# kept rather than piped so a failure in the second is inspectable. Nothing
+# else reads it. (Not to be confused with the live /api/openapi.json route.)
 gen-types:
     @mkdir -p .local
-    @uv run python scripts/gen_openapi.py > .local/openapi.json
-    @cd app && npx openapi-typescript ../.local/openapi.json -o src/types/manifest.generated.ts
+    @uv run python scripts/gen_openapi.py > .local/openapi.generated.json
+    @cd app && npx openapi-typescript ../.local/openapi.generated.json -o src/types/manifest.generated.ts
     @echo "[codecity] regenerated app/src/types/manifest.generated.ts"
 
 # ── Build ────────────────────────────────────────────────────────
@@ -182,10 +172,9 @@ demo-webp quality='50':
 # itself uses Docker via `just dev`) and the per-clone git hooks.
 setup: install-hooks
     cd app && npm install
-    @mkdir -p .local ; \
-     if [ ! -f .local/deploy.env ]; then \
-         cp deploy.env.example .local/deploy.env ; \
-         echo "[just] seeded .local/deploy.env — fill it in before 'just deploy'" ; \
+    @if [ ! -f .env.local ]; then \
+         cp .env.local.example .env.local ; \
+         echo "[just] seeded .env.local — your mount, flags and deploy credentials live there" ; \
      fi
     @echo "[just] setup complete — try 'just dev'"
 
@@ -251,18 +240,18 @@ release VERSION:
      echo "[just] watch: https://github.com/$REPO/actions/workflows/release.yml"
 
 # ── Deploy ───────────────────────────────────────────────────────
-# Config: .local/deploy.env, seeded by `just setup`. No app argument, so this
+# Credentials: .env.local, seeded by `just setup`. No app argument, so this
 # repo can only ever deploy its own FORGEJO_DEPLOY_APP.
 #
 # Redeploy production without cutting a release.
 deploy:
     @set -e ; \
-     set -a ; . ./.env ; [ -f .local/deploy.env ] && . ./.local/deploy.env ; set +a ; \
+     set -a ; . ./.env ; [ -f .env.local ] && . ./.env.local ; set +a ; \
      APP="${FORGEJO_DEPLOY_APP:-}" ; \
      MISSING="" ; \
-     [ -n "${FORGEJO_HOST:-}" ]  || MISSING="$MISSING FORGEJO_HOST(.local/deploy.env)" ; \
-     [ -n "${FORGEJO_REPO:-}" ]  || MISSING="$MISSING FORGEJO_REPO(.local/deploy.env)" ; \
-     [ -n "${FORGEJO_TOKEN:-}" ] || MISSING="$MISSING FORGEJO_TOKEN(.local/deploy.env)" ; \
+     [ -n "${FORGEJO_HOST:-}" ]  || MISSING="$MISSING FORGEJO_HOST(.env.local)" ; \
+     [ -n "${FORGEJO_REPO:-}" ]  || MISSING="$MISSING FORGEJO_REPO(.env.local)" ; \
+     [ -n "${FORGEJO_TOKEN:-}" ] || MISSING="$MISSING FORGEJO_TOKEN(.env.local)" ; \
      [ -n "$APP" ]           || MISSING="$MISSING FORGEJO_DEPLOY_APP(.env)" ; \
      if [ -n "$MISSING" ]; then \
          echo "[just] error: missing$MISSING" >&2 ; exit 1 ; \

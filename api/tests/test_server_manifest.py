@@ -11,6 +11,12 @@ from fastapi.testclient import TestClient
 
 from api.app import create_app
 from api.routers.manifest import _norm_excludes
+from api.services.clone import (
+    BranchNotFoundError,
+    CloneError,
+    HostUnreachableError,
+    RepoNotFoundError,
+)
 
 
 def _git(*a: str, cwd: Path) -> None:
@@ -219,3 +225,69 @@ def test_manifest_bad_ref_emits_error_event(
         events = _parse_sse("".join(r.iter_text()))
     assert events[-1][0] == "error"
     assert "ref" in events[-1][1]["error"]
+
+
+class TestErrorCode:
+    """The `code` on an error event is what the client keys its remedy on, so
+    it must appear for a remote not-found and for nothing else. GitHub 404s a
+    private repo to an unauthenticated caller exactly as it 404s a typo, so
+    the remedy this unlocks can never assert the repo is private."""
+
+    REMOTE = "https://github.com/thalida/definitely-not-a-real-repo"
+
+    def _error_payload(self, client: TestClient, params: dict) -> dict:
+        with client.stream("GET", "/api/manifest", params=params) as r:
+            events = _parse_sse("".join(r.iter_text()))
+        assert events[-1][0] == "error"
+        return events[-1][1]
+
+    def test_remote_not_found_carries_the_code(
+        self, client: TestClient, monkeypatch
+    ) -> None:
+        def _boom(*a, **kw):
+            raise RepoNotFoundError("repository not found")
+
+        monkeypatch.setattr("api.routers.manifest.ensure_clone", _boom)
+        payload = self._error_payload(client, {"src": self.REMOTE})
+        assert payload["code"] == "repo-not-found"
+
+    @pytest.mark.parametrize(
+        "exc", [BranchNotFoundError, HostUnreachableError, CloneError]
+    )
+    def test_other_remote_failures_carry_no_code(
+        self, client: TestClient, monkeypatch, exc
+    ) -> None:
+        def _boom(*a, **kw):
+            raise exc("nope")
+
+        monkeypatch.setattr("api.routers.manifest.ensure_clone", _boom)
+        assert "code" not in self._error_payload(client, {"src": self.REMOTE})
+
+    def test_missing_local_path_carries_no_code(
+        self, client: TestClient, tmp_path: Path, allow_local_repos
+    ) -> None:
+        """A local path that isn't there is a typo the user can see and fix,
+        not a repo the server might lack access to."""
+        payload = self._error_payload(client, {"src": str(tmp_path / "gone")})
+        assert "code" not in payload
+
+    def test_local_disabled_carries_no_code(
+        self, client: TestClient, repo: Path, monkeypatch
+    ) -> None:
+        monkeypatch.delenv("CODECITY_ALLOW_LOCAL_REPOS", raising=False)
+        assert "code" not in self._error_payload(client, {"src": str(repo)})
+
+    def test_timeline_remote_not_found_carries_the_code(
+        self, client: TestClient, monkeypatch
+    ) -> None:
+        """The timeline route resolves through resolve_source, which flattens
+        clone failures into a ResolveError; the code has to survive that."""
+
+        def _boom(*a, **kw):
+            raise RepoNotFoundError("repository not found")
+
+        monkeypatch.setattr("api.services.source.ensure_clone", _boom)
+        with client.stream("GET", "/api/timeline", params={"src": self.REMOTE}) as r:
+            events = _parse_sse("".join(r.iter_text()))
+        assert events[-1][0] == "error"
+        assert events[-1][1]["code"] == "repo-not-found"

@@ -1,16 +1,18 @@
-/* The project switcher button is .btn-chip (defined with the button components
-   in buttons.css), which shrinks within the header's flex row rather than
-   pushing neighboring buttons out of view. The label and branch pill truncate
-   with an ellipsis so a long repo name or branch can't overflow the chip and
-   overlap the neighbouring repo link. The full name stays reachable via the
-   switcher itself. */
-.btn-chip-label {
+/* The project switcher is a .cluster-item (see ChromeCluster). The label and
+   branch pill truncate with an ellipsis so a long repo name can't overflow and
+   overlap its neighbours; the full name stays reachable via the switcher. */
+
+/* The repo name is the one thing in either bar that names what you're looking
+   at, so it takes the brightest step while everything around it stays muted or
+   accent. */
+.project-switcher-label {
+  color: var(--cc-text-strong);
   white-space: nowrap;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.btn-chip .icon {
+.project-switcher .icon {
   font-size: var(--cc-font-md);
   flex: 0 0 auto;
 }
@@ -19,7 +21,7 @@
    held at its intrinsic width so a long repo name shrinks the label, not it.
    The descendant selector outranks .gem-icon's own 1em sizing on specificity,
    so the size holds regardless of CSS import order. */
-.btn-chip .gem-icon {
+.project-switcher .gem-icon {
   width: var(--cc-font-md);
   height: var(--cc-font-md);
   flex: 0 0 auto;
@@ -35,18 +37,20 @@
   padding: 0 var(--cc-space-3);
   margin-left: var(--cc-space-3);
   border-radius: var(--cc-radius-md);
-  background: var(--cc-accent-bg-soft);
-  color: var(--cc-accent-light);
+  /* Neutral, not accent: accent marks what's pressable in these bars, and the
+     branch is a label on the name beside it. */
+  background: var(--cc-overlay-bg);
+  color: var(--cc-text-strong);
   font-size: var(--cc-font-2xs);
   font-family: var(--cc-font-mono);
   white-space: nowrap;
 }
 
-/* Inside the header chip the branch pill can shrink and truncate when the chip
+/* Inside the switcher the branch pill can shrink and truncate when the chip
    runs out of room (rather than pushing the chip wider). In the recents list
    the same pill has room and is left alone. inline-block (not inline-flex) so
    text-overflow applies to the text. */
-.btn-chip .app-header-branch-pill {
+.project-switcher .app-header-branch-pill {
   display: inline-block;
   min-width: 0;
   /* The chip's flex gap already spaces the pill; drop the pill's own margin so

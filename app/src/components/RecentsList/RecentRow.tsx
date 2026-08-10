@@ -1,14 +1,13 @@
-// components/RecentsList/RecentRow.tsx — one recent-source row: kind glyph,
-// label, sub (src + branch pill + "(default)" tag), active badge, and a
-// remove control. A row re-opens (reloads) its project on click; an unavailable
-// row (a local path while local repos are off) is NOT clickable: it can't load,
-// so it's dimmed + aria-disabled with a title explaining why (only its remove
-// control works). Asking to remove takes over the whole row (no reflow).
+// components/RecentsList/RecentRow.tsx — a recent source: the shared SourceRow
+// plus the one thing only a recent has, a remove control.
+// Remove is non-destructive (it forgets the entry, it does not clear the scan
+// cache), and asking takes over the whole row so the list never reflows.
 
-import { Folder, X } from 'lucide-preact';
-import { HostingIcon } from '@/components/HostingIcon';
-import { srcKind, SourceKind } from '@/utils/sources';
+import { X } from 'lucide-preact';
+import { SourceRow } from '@/components/SourceRow/SourceRow';
 import type { RecentSource } from '@/state/stores/source';
+
+const UNAVAILABLE_REASON = "Local paths aren't enabled, so this one can't be opened here.";
 
 export interface RecentRowProps {
   recent: RecentSource;
@@ -24,11 +23,9 @@ export interface RecentRowProps {
 export function RecentRow(props: RecentRowProps) {
   const { recent: r, active, unavailable, confirmingRemove } = props;
 
-  // Asking to remove replaces the entire row content with a confirm bar of the
-  // same footprint, so the surrounding rows never shift.
   if (confirmingRemove) {
     return (
-      <div class="recent-item">
+      <div class="source-list-item">
         <div class="recent-confirm">
           <span class="recent-confirm-text">
             Remove <strong>{r.label}</strong> from recents?
@@ -50,39 +47,17 @@ export function RecentRow(props: RecentRowProps) {
     );
   }
 
-  const isLocal = srcKind(r.src) === SourceKind.Local;
-
   return (
-    <div class="recent-item">
-      <button
-        type="button"
-        class={`row recent-row${active ? ' recent-row--active' : ''}${
-          unavailable ? ' recent-row--unavailable' : ''
-        }`}
-        title={
-          unavailable
-            ? 'Local repos are disabled. Restart codecity with CODECITY_ALLOW_LOCAL_REPOS=1 to load this.'
-            : undefined
-        }
-        aria-disabled={unavailable ? 'true' : undefined}
-        // Unavailable rows can't load, so don't attempt it (which briefly flashed
-        // the loading/error state) — the title explains why; only remove works.
-        onClick={unavailable ? undefined : props.onOpen}
-      >
-        <span class="recent-icon">
-          {isLocal ? <Folder class="icon" /> : <HostingIcon src={r.src} />}
-        </span>
-        <div class="recent-row-body">
-          <div class="recent-label-row">
-            <span class="recent-label">{r.label}</span>
-            {r.branch && <span class="app-header-branch-pill">@{r.branch}</span>}
-          </div>
-          <div class="recent-sub">
-            <span class="recent-src">{r.src}</span>
-          </div>
-        </div>
-        {active && <span class="recent-row-badge">Active</span>}
-      </button>
+    <div class="source-list-item">
+      <SourceRow
+        src={r.src}
+        label={r.label}
+        branch={r.branch}
+        active={active}
+        unavailable={unavailable}
+        unavailableReason={UNAVAILABLE_REASON}
+        onOpen={props.onOpen}
+      />
 
       <button
         type="button"

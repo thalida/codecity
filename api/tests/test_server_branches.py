@@ -8,6 +8,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from api.app import create_app
+from api.services.clone import RepoNotFoundError
 
 
 @pytest.fixture()
@@ -36,3 +37,21 @@ def test_branches_rejects_local_path(client: TestClient) -> None:
 
 def test_branches_missing_src(client: TestClient) -> None:
     assert client.get("/api/branches").status_code == 422  # FastAPI required-query
+
+
+def test_unreachable_repo_carries_the_code(client: TestClient, monkeypatch) -> None:
+    """The branch lookup is the first request to touch a remote, so this is
+    where a repo the server can't reach usually fails. The picker keys its
+    remedy on the code, so a message-only 404 leaves the user with raw git
+    stderr and no way forward."""
+
+    def _boom(*a, **kw):
+        raise RepoNotFoundError("repository not found at https://github.com/o/r")
+
+    monkeypatch.setattr("api.routers.branches.list_remote_branches", _boom)
+    r = client.get("/api/branches", params={"src": "https://github.com/o/r"})
+    assert r.status_code == 404
+    assert r.json()["code"] == "repo-not-found"
+    # Never asserts privacy: a 404 to an anonymous caller is indistinguishable
+    # from a typo.
+    assert "private" not in r.json()["error"].lower()

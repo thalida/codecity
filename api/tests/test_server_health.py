@@ -8,7 +8,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from api.app import create_app
-from api.config import MAX_BATCH_PATHS
+from api.config import MAX_BATCH_PATHS, Settings
 
 
 @pytest.fixture()
@@ -37,6 +37,7 @@ def test_config_default_disabled(
     from api import __version__
 
     monkeypatch.delenv("CODECITY_ALLOW_LOCAL_REPOS", raising=False)
+    monkeypatch.delenv("CODECITY_HOSTED", raising=False)
     static = tmp_path / "static"
     static.mkdir()
     (static / "index.html").write_text("<html/>")
@@ -45,8 +46,10 @@ def test_config_default_disabled(
     assert r.status_code == 200
     assert r.json() == {
         "allowLocalRepos": False,
+        "hosted": False,
         "maxBatchPaths": MAX_BATCH_PATHS,
         "version": __version__,
+        "featuredRepo": Settings.model_fields["featured_repo"].default,
     }
 
 

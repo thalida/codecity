@@ -1,11 +1,14 @@
 // hooks/useSwitcherShowcase.ts — turns the live city into a backdrop while the
 // project switcher is open over it. On open: snapshot the user's camera pose +
-// selection, clear the selection, hide the chrome, and drive the camera into a
-// slow auto-rotating hero shot. On dismiss: restore all of it verbatim.
+// selection, clear the selection, and drive the camera into a slow
+// auto-rotating hero shot. On dismiss: restore all of it verbatim.
+//
+// Hiding the chrome is NOT this hook's job: the landing covers the app in both
+// of its modes, so App keys that off PROJECTS_VIEW directly.
 //
 // The restore is gated on the source key: if the user actually SWITCHED
-// projects (a new city committed), the old pose + selection belong to the gone
-// city, so we bow out and let the new city's own framing stand.
+// projects, the saved pose + selection describe a city that isn't there any
+// more, so we bow out and let the new one's own framing stand.
 
 import { useEffect } from 'preact/hooks';
 import { effect } from '@preact/signals';
@@ -23,12 +26,6 @@ import { SCENE_HANDLE, type SceneHandle } from '@/state/stores/scene';
 import { CURRENT_SOURCE_KEY } from '@/state/stores/source';
 import { NodeKind, type PickerSelectionKey } from '@/types';
 import type { CameraPose } from '@/city/render/cameraRig';
-
-const SHOWCASE_CLASS = 'cc-showcase';
-
-function setChromeHidden(hidden: boolean): void {
-  document.getElementById('app')?.classList.toggle(SHOWCASE_CLASS, hidden);
-}
 
 function prefersReducedMotion(): boolean {
   return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -68,11 +65,9 @@ export function useSwitcherShowcase(): void {
           resetTimelineMode(); // the city layer reacts by rebuilding live
         }
         handle.picker.clearSelection();
-        setChromeHidden(true);
         handle.rig.enterShowcase({ autoRotate: !prefersReducedMotion() });
       } else if (!showcase && active) {
         active = false;
-        setChromeHidden(false);
         if (handle) {
           handle.rig.exitShowcase();
           // Same city → restore verbatim. Switched → the new city owns its
@@ -101,7 +96,6 @@ export function useSwitcherShowcase(): void {
     return () => {
       stop();
       // Safety net if App unmounts mid-showcase (HMR / teardown).
-      setChromeHidden(false);
       SCENE_HANDLE.peek()?.rig.exitShowcase();
     };
   }, []);

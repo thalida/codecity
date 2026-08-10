@@ -5,6 +5,9 @@
 
 import { signal, computed } from '@preact/signals';
 import { SourceKind } from '@/utils/sources';
+import { DEFAULT_SIDEBAR_TAB } from '@/constants/ui';
+import { SidebarTab } from '@/types/ui';
+import type { ScanErrorCode } from '@/api/manifest';
 
 // These are the UI-state CONTRACTS the views render against. They live here (in
 // state) so state/ stays view-independent — the ProjectsView / LoadingOverlay
@@ -24,6 +27,9 @@ export interface OpenOpts {
   prefill?: SourcePayload;
   dismissible?: boolean; // default: false
   error?: string;
+  /** The failure's machine-readable reason, where the server gave one, so the
+   *  form can offer a remedy instead of only echoing the message. */
+  errorCode?: ScanErrorCode;
 }
 
 /** Options for showing the loading overlay. */
@@ -61,6 +67,17 @@ export function closeProjectsView(): void {
   PROJECTS_VIEW.value = { ...PROJECTS_VIEW.peek(), visible: false };
 }
 
+/** The featured city currently rendered behind the landing, or null when there
+ *  isn't one. Written by useFeaturedCity only once the city has actually
+ *  painted, so nothing can name or mark a repo you can't see. */
+export const FEATURED_CITY = signal<{
+  src: string;
+  label: string;
+  /** The loaded branch, normalised like CURRENT_SOURCE's: identity includes it,
+   *  so a row storing @main only matches when this carries it too. */
+  branch?: string;
+} | null>(null);
+
 /** True while the switcher is open OVER a loaded city (the dismissible / modal
  *  case) — the only case with a city behind it to turn into a backdrop. Drives
  *  the showcase: chrome hidden, camera into a hero turntable (useSwitcherShowcase).
@@ -75,7 +92,26 @@ export const SWITCHER_SHOWCASE = computed(
 export function clearProjectsViewError(): void {
   const prev = PROJECTS_VIEW.peek();
   if (!prev.opts.error) return;
-  PROJECTS_VIEW.value = { ...prev, opts: { ...prev.opts, error: undefined } };
+  PROJECTS_VIEW.value = {
+    ...prev,
+    opts: { ...prev.opts, error: undefined, errorCode: undefined },
+  };
+}
+
+// ── Left sidebar ─────────────────────────────────────────────────────────────
+
+/** Which left-sidebar pane is mounted, and whether the sidebar is open. Lifted
+ *  out of LeftSidebar so anything can send you to a pane: the header's
+ *  auto-refresh row points at the settings that own the poll interval, rather
+ *  than growing a second control for a value the Updates tab already bounds. */
+export const SIDEBAR_TAB = signal<SidebarTab>(DEFAULT_SIDEBAR_TAB);
+export const SIDEBAR_COLLAPSED = signal<boolean>(true);
+
+/** Open the sidebar on a pane. Already there and open: no-op, rather than
+ *  toggling shut, so a caller that means "show me this" always shows it. */
+export function openSidebarTab(tab: SidebarTab): void {
+  SIDEBAR_TAB.value = tab;
+  SIDEBAR_COLLAPSED.value = false;
 }
 
 // ── Loading overlay ──────────────────────────────────────────────────────────
@@ -137,8 +173,8 @@ export function setLoadingCancel(onCancel: (() => void) | null): void {
 export function hideLoadingOverlay(): void {
   LOADING_OVERLAY.value = { ...LOADING_OVERLAY.peek(), visible: false };
   LOADING_CANCEL.value = null;
-  // The header belongs to the overlay: every caller used to clear it by hand
-  // right after this, and the one that forgot blanked the header mid-load.
+  // The header belongs to the overlay, so it clears here rather than at each
+  // call site: one that forgets leaves a stale label over the next load.
   PENDING_SOURCE_LABEL.value = null;
 }
 

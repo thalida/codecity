@@ -1,0 +1,91 @@
+/* UnreachableSource — guidance under the source field. The standing variant is
+   quiet prose; the error variant is the same content with a preamble and a
+   warning tint, because it is answering something that just failed. */
+
+/* It sits directly under the field it describes, so it takes the field's own
+   shape: same radius, a full border rather than a left rule, which reads as
+   part of the input group instead of a callout floating beside it. */
+.unreachable {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--cc-space-3);
+  padding: var(--cc-space-3) var(--cc-space-4);
+  border: 1px solid var(--cc-accent-line);
+  border-radius: var(--cc-radius-sm);
+  background: var(--cc-accent-bg-soft);
+  font-size: var(--cc-font-xs);
+  line-height: 1.5;
+}
+
+/* One text line tall, so the glyph centres on the FIRST line rather than on the
+   whole block. The slot deliberately leaves font-size alone, which is what makes
+   1lh resolve against the text's size and equal the first line's real box. */
+.unreachable-glyph-slot {
+  flex: none;
+  display: flex;
+  align-items: center;
+  height: 1lh;
+}
+
+/* The glyph reads as "note" on the standing variant and "that failed" on the
+   error one, which is the only difference between them. */
+.unreachable-glyph {
+  font-size: var(--cc-font-sm); /* icons are 1em (icons.css) */
+  color: var(--cc-accent);
+}
+
+.unreachable-text {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cc-space-2);
+  min-width: 0;
+}
+
+.unreachable--error {
+  border-color: var(--cc-error-border);
+  background: var(--cc-error-bg);
+}
+.unreachable--error .unreachable-glyph {
+  color: var(--cc-error-light);
+}
+
+.unreachable-preamble {
+  margin: 0;
+  font-weight: var(--cc-fw-medium);
+  color: var(--cc-text-strong);
+}
+
+.unreachable-remedy {
+  margin: 0;
+  /* Body copy, not a caption: secondary clears AA on the error tint at 4.91:1
+     but reads washed out beside the strong preamble. primary is 9.04:1. */
+  color: var(--cc-text-primary);
+}
+
+.unreachable-remedy code {
+  font-family: var(--cc-font-mono);
+  font-size: var(--cc-font-xs);
+  color: var(--cc-text-primary);
+}
+
+/* The `git clone <url>` line: a copyable command, so it gets a real field-ish
+   surface rather than inline code styling. */
+.unreachable-command {
+  display: flex;
+  align-items: center;
+  gap: var(--cc-space-3);
+  padding: var(--cc-space-2) var(--cc-space-3);
+  border: 1px solid var(--cc-border-subtle);
+  border-radius: var(--cc-radius-sm);
+  background: var(--cc-bg-app);
+}
+
+.unreachable-command code {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-x: auto;
+  white-space: nowrap;
+  font-family: var(--cc-font-mono);
+  font-size: var(--cc-font-xs);
+  color: var(--cc-text-primary);
+}

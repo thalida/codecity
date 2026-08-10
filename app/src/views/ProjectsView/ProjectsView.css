@@ -8,16 +8,38 @@
   inset: 0;
   z-index: 1000;
   overflow-y: auto;
-  /* Full-page mode (non-dismissible: cold boot / nothing loaded to fall back to).
-     A solid surface — nothing meaningful is behind to reveal, so no blur. */
-  background: var(--cc-bg-app);
 }
 
-/* Modal mode (dismissible, over a loaded city): the live city is driven into an
-   auto-rotating backdrop (useSwitcherShowcase), revealed crisp. Scrim only the
-   hero side, letting its text keep AA contrast over the city; the action cards
-   frost what shows through them and the center/right stays clear. */
-.landing--modal {
+/* No background in either mode. Modal reveals the loaded city; cold boot
+   reveals the featured one (useFeaturedCity). Both are rendered by the city
+   canvas behind this page, and an opaque landing would hide the thing it is
+   staging. The canvas paints its own surface, so nothing shows through to
+   nothing while the scene is still empty. */
+
+/* Holds the swirl over whichever city is behind. A stage rather than a fixed
+   canvas of its own, so the page's layers are plain numbers: 0 (stage), 0 (the
+   scrim, painted after it as a pseudo-element) and 1 (.landing-inner). */
+.landing-stage {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.landing-stage > * {
+  position: absolute;
+  inset: 0;
+}
+
+/* Both modes have a city behind the hero. Scrim only the hero side, letting its
+   text keep AA contrast over it; the action cards frost what shows through them
+   and the center/right stays clear. */
+.landing::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
   /* The scrim holds near-full strength across the whole hero column and only
      falls off past it, so building edges never cut through the tagline or the
      feature cues. */
@@ -36,7 +58,7 @@
    horizon. The cards frost the city behind them, so they stay legible over the
    thin end. */
 @media (max-width: 900px) {
-  .landing--modal {
+  .landing::after {
     background: linear-gradient(
       180deg,
       color-mix(in oklch, var(--cc-bg-app) 97%, transparent) 0%,
@@ -47,10 +69,6 @@
   }
 }
 
-/* The cold-boot backdrop is a WebGL domain-warped gradient — see the
-   <LandingBackdrop> component (ProjectsView renders it on the full-page landing
-   only; the modal shows the live city). */
-
 .landing-close {
   position: absolute;
   top: var(--cc-space-5);
@@ -60,6 +78,7 @@
 
 .landing-inner {
   position: relative;
+  z-index: 1; /* above the stage and the scrim, both at 0 */
   box-sizing: border-box;
   min-height: 100%;
   max-width: 1040px;
@@ -187,6 +206,18 @@
   color: var(--cc-layer-fireflies);
 }
 
+/* Names the city rendered behind the page, so "what am I looking at" has an
+   answer without opening Discover. */
+.landing-featured {
+  margin: 0;
+  font-size: var(--cc-font-sm);
+  color: var(--cc-text-secondary);
+}
+.landing-featured strong {
+  color: var(--cc-text-strong);
+  font-weight: var(--cc-fw-medium);
+}
+
 /* ── Action column ── stacked cards (open project, then recents). */
 
 .landing-actions {
@@ -203,6 +234,14 @@
   max-height: calc(100vh - 2 * var(--cc-space-9));
 }
 
+/* A card holding an open menu has to outrank its siblings: they are stacked in
+   DOM order with no z-index, so the next card down paints over anything this
+   one overflows. */
+.landing-card:has([role='menu']) {
+  position: relative;
+  z-index: 1;
+}
+
 .landing-card {
   min-width: 0;
   display: flex;
@@ -214,17 +253,17 @@
 }
 
 /* When the column is height-capped, the "Open a project" card keeps its natural
-   size and the recents card absorbs the remaining space (its list scrolls). */
-.landing-actions > .landing-card:not(.landing-card--recents) {
+   size and the sources card absorbs the remaining space (its list scrolls). */
+.landing-actions > .landing-card:not(.landing-card--sources) {
   flex: 0 0 auto;
 }
-.landing-card--recents {
+.landing-card--sources {
   flex: 1 1 auto;
   min-height: 0;
 }
 
-/* Shared card heading — "Open a project" and "Recent projects" read as one
-   consistent title style. */
+/* Card heading. Only the open card has one now: the sources card is titled by
+   its tab strip, since a heading above tabs would name the card twice. */
 .landing-card-title {
   margin: 0;
   font-size: var(--cc-font-lg);
@@ -232,7 +271,29 @@
   color: var(--cc-text-strong);
 }
 
-/* Inline load progress, replacing the form + recents while SCAN_PROGRESS is
+/* Recent / Discover share one card, so the tab strip is that card's heading.
+   The pane version indents for a pane's inset; here it sits flush. */
+.landing-tabs {
+  padding-top: 0;
+}
+
+/* Tighter than the other cards: a tab strip already rules itself off from the
+   panel below, so the card's usual heading gap doubles the separation. Set on
+   the card rather than pulled back with a negative margin on the strip. */
+.landing-card--sources {
+  gap: var(--cc-space-2);
+}
+
+/* The panel takes the card's remaining height so a long list scrolls inside it
+   rather than growing the card past the viewport cap. */
+.landing-tabpanel {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+/* Inline load progress, replacing the form + sources while SCAN_PROGRESS is
    non-null. Spinner + pending-label reuse LoadingOverlay's classes (its CSS is
    loaded globally via App), so the switch flow and the deep-link-boot flow read
    as one system. */
@@ -283,7 +344,7 @@
     align-self: stretch;
     max-height: none;
   }
-  .landing-card--recents {
+  .landing-card--sources {
     flex: 0 0 auto;
   }
 }

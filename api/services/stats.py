@@ -231,7 +231,7 @@ def compute_repo_stats(tree: DirNode, commits: list[CommitEntry]) -> RepoStats:
 
     return {
         # Project line/byte ranges for building-size normalization. Over ALL
-        # files with non-zero values (matching the old client computeFileStats
+        # files with non-zero values (matching the client's computeFileStats
         # exactly so the world renders identically) — media included for bytes,
         # zero-line/zero-byte files excluded so the frontend's log/sqrt never
         # sees 0. {0,0} when none (the frontend treats that as the empty range).

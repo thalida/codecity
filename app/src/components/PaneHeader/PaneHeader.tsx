@@ -91,7 +91,7 @@ export function PaneHeader({
         {copyText != null && <CopyButton text={copyText} label={copyLabel} />}
         {openUrl && (
           <a
-            class="btn-icon btn-icon--link btn-icon--no-drag"
+            class="btn-icon btn-icon--link"
             href={openUrl}
             target="_blank"
             rel="noopener noreferrer"

@@ -42,8 +42,8 @@ describe('fetchServerConfig', () => {
     expect(cfg).toEqual(DEFAULT_SERVER_CONFIG);
   });
 
-  // Regression: the parser used to list each field by hand, so a field added
-  // server-side was dropped here and the client kept its stale default.
+  // Regression: a hand-listed parser silently drops any field the server adds,
+  // leaving the client on its stale default.
   it('carries through a field the hardcoded parser would have dropped', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
       new Response(JSON.stringify({ allowLocalRepos: false, maxBatchPaths: 64 }), { status: 200 })
@@ -66,6 +66,24 @@ describe('fetchServerConfig', () => {
     );
     const cfg = await fetchServerConfig();
     expect(cfg.version).toBe('1.3.0');
+  });
+
+  it('carries hosted through from the server', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+      new Response(JSON.stringify({ allowLocalRepos: false, hosted: true }), { status: 200 })
+    );
+    const cfg = await fetchServerConfig();
+    expect(cfg.hosted).toBe(true);
+  });
+
+  // Fails closed the way allowLocalRepos does: telling a local user to go run
+  // codecity locally is a worse error than the reverse.
+  it('coerces a missing hosted to false', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+      new Response(JSON.stringify({ allowLocalRepos: false }), { status: 200 })
+    );
+    const cfg = await fetchServerConfig();
+    expect(cfg.hosted).toBe(false);
   });
 
   it('keeps the unknown-version default when the server omits it', async () => {

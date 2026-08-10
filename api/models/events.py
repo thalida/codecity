@@ -7,6 +7,8 @@ schema components."""
 from __future__ import annotations
 
 from enum import StrEnum
+
+from fastapi import HTTPException
 from typing import Annotated, Literal, Optional
 
 from pydantic import BaseModel, WithJsonSchema
@@ -79,10 +81,27 @@ class CompleteManifestEvent(BaseModel):
     manifest: Manifest
 
 
+class ErrorCode(StrEnum):
+    """Machine-readable discriminator on an `error` event. The client keys its
+    remedy on this, never on the message text. Only failures the UI answers
+    differently earn a member; everything else stays message-only."""
+
+    REPO_NOT_FOUND = "repo-not-found"
+
+
+_ERROR_CODES = [c.value for c in ErrorCode]
+_OptionalErrorCode = Annotated[
+    Optional[ErrorCode],
+    WithJsonSchema({"enum": _ERROR_CODES, "type": "string"}),
+]
+
+
 class ErrorEvent(BaseModel):
-    """`error` — a failure after the stream began; carries the message."""
+    """`error` — a failure after the stream began; carries the message and,
+    where the UI can act on the reason, a code."""
 
     error: str
+    code: _OptionalErrorCode = None
 
 
 class TimelineEvent(StrEnum):
@@ -115,3 +134,13 @@ class TimelineCompleteEvent(BaseModel):
     cache hit)."""
 
     bundle: TimelineBundle
+
+
+class CodedHTTPException(HTTPException):
+    """An HTTPException that carries an ErrorCode. The app's error handler puts
+    it in the response envelope, so a JSON route can say WHY in the same
+    vocabulary the SSE stream uses."""
+
+    def __init__(self, status_code: int, detail: str, code: ErrorCode) -> None:
+        super().__init__(status_code, detail)
+        self.code = code
