@@ -688,11 +688,11 @@ describe('orient correctness for mirrored subtrees', () => {
 describe('layout invariants (current packer baseline)', () => {
   it('TEST_TREE has no overlapping rectangles', () => {
     const layout = layoutCity({ tree: TEST_TREE });
-    expect(() => assertNoOverlap(layout)).not.toThrow();
+    assertNoOverlap(layout);
   });
   it('TEST_TREE child streets are stem-ordered alphabetically', () => {
     const layout = layoutCity({ tree: TEST_TREE });
-    expect(() => assertStemOrder(layout)).not.toThrow();
+    assertStemOrder(layout);
   });
   it('multi-subdir tree has stem-ordered child streets', () => {
     const tree = mkDir('root', [
@@ -702,7 +702,7 @@ describe('layout invariants (current packer baseline)', () => {
       mkDir('dddd', [mkFile('f5.ts')]),
     ]);
     const layout = layoutCity({ tree });
-    expect(() => assertStemOrder(layout)).not.toThrow();
+    assertStemOrder(layout);
   });
   it('flat-files dir has no overlapping rectangles', () => {
     const file = (n: string) => ({
@@ -725,7 +725,7 @@ describe('layout invariants (current packer baseline)', () => {
       children: ['a.ts', 'b.ts', 'c.ts', 'd.ts', 'e.ts', 'f.ts'].map(file),
     };
     const layout = layoutCity({ tree: dir });
-    expect(() => assertNoOverlap(layout)).not.toThrow();
+    assertNoOverlap(layout);
   });
   it('deeply-nested mirror tree has no overlapping rectangles', () => {
     const tree = mkDir('root', [
@@ -735,7 +735,7 @@ describe('layout invariants (current packer baseline)', () => {
       mkDir('dddd', [mkFile('f5.ts')]),
     ]);
     const layout = layoutCity({ tree });
-    expect(() => assertNoOverlap(layout)).not.toThrow();
+    assertNoOverlap(layout);
   });
   it('layout is deterministic (same input → identical output)', () => {
     const a = layoutCity({ tree: TEST_TREE });
@@ -763,8 +763,8 @@ describe('layout invariants (current packer baseline)', () => {
     const root = mkDir('root', [mkFile('a.ts'), big, small]);
     const layout = layoutCity({ tree: root });
 
-    expect(() => assertNoOverlap(layout)).not.toThrow();
-    expect(() => assertStemOrder(layout)).not.toThrow();
+    assertNoOverlap(layout);
+    assertStemOrder(layout);
 
     const rootStreet = layout.streets.find((s) => s.dir?.name === 'root')!;
     const bigStreet = layout.streets.find((s) => s.dir?.name === 'big')!;
@@ -807,8 +807,8 @@ describe('layout invariants (current packer baseline)', () => {
       mkDir('ddd', [mkFile('z.ts')]),
     ]);
     const layout = layoutCity({ tree });
-    expect(() => assertNoOverlap(layout)).not.toThrow();
-    expect(() => assertStemOrder(layout)).not.toThrow();
+    assertNoOverlap(layout);
+    assertStemOrder(layout);
     const rootStreet = layout.streets.find((s) => s.isRoot)!;
     // Measured ~115.4 under the packer with the prior STREET_TIERS defaults; after
     // widening tiers (0→32, 4→48, 8→80, 16→96) the natural length is
@@ -819,12 +819,12 @@ describe('layout invariants (current packer baseline)', () => {
 
   it('TEST_TREE is tree-respecting', () => {
     const layout = layoutCity({ tree: TEST_TREE });
-    expect(() => assertTreeRespecting(layout)).not.toThrow();
+    assertTreeRespecting(layout);
   });
 
   it('TEST_TREE has valid T-junctions', () => {
     const layout = layoutCity({ tree: TEST_TREE });
-    expect(() => assertTJunctionsValid(layout)).not.toThrow();
+    assertTJunctionsValid(layout);
   });
 });
 
@@ -926,10 +926,10 @@ describe('layoutCity end-to-end', () => {
       mkDir('sub', [mkFile('c.ts'), mkFile('d.ts')]),
     ]);
     const layout = layoutCity({ tree });
-    expect(() => assertNoOverlap(layout)).not.toThrow();
-    expect(() => assertStemOrder(layout)).not.toThrow();
-    expect(() => assertTreeRespecting(layout)).not.toThrow();
-    expect(() => assertTJunctionsValid(layout)).not.toThrow();
+    assertNoOverlap(layout);
+    assertStemOrder(layout);
+    assertTreeRespecting(layout);
+    assertTJunctionsValid(layout);
   });
 
   // estimateDirReaches: bottom-up pre-pass that sizes the phantom in each
@@ -1059,7 +1059,7 @@ describe('layoutCity end-to-end', () => {
     // bug would surface (apps must extend well past the original
     // parentMaxBoundary*2 + 1000 ≈ 1000 reach).
     expect(apps!.length).toBeGreaterThan(2000);
-    expect(() => assertNoOverlap(layout)).not.toThrow();
+    assertNoOverlap(layout);
   });
 });
 

@@ -48,13 +48,12 @@ describe('createRepoLabel()', () => {
     label = null;
   });
 
-  it('returns an empty group until setRepoName is called', () => {
+  it('returns an empty group until setRepoName is called, and ticking keeps it that way', () => {
     expect(label!.group).toBeInstanceOf(THREE.Group);
     expect(label!.group.children.length).toBe(0);
-  });
 
-  it('tick is a no-op before setRepoName is called', () => {
-    expect(() => label!.tick(0.016, makeFrame(new THREE.PerspectiveCamera()))).not.toThrow();
+    label!.tick(0.016, makeFrame(new THREE.PerspectiveCamera()));
+    expect(label!.group.children.length).toBe(0);
   });
 
   it('setRepoName builds a beam + a text panel', () => {

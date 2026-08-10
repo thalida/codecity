@@ -69,8 +69,9 @@ describe('tooltip', () => {
     expect(parseFloat(el.style.top)).toBeGreaterThanOrEqual(0);
   });
 
-  it('moveTooltip is safe before showTooltip (no-op)', () => {
-    expect(() => moveTooltip(10, 20)).not.toThrow();
+  it('moveTooltip before showTooltip does not conjure a tooltip', () => {
+    moveTooltip(10, 20);
+    expect(document.getElementById('hover-tooltip')).toBeNull();
   });
 
   it('hideTooltip sets display:none', () => {

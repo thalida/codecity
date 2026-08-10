@@ -62,8 +62,8 @@ describe('repoLabel textCanvas', () => {
     expect(out.texture).toBe(oldTexture);
   });
 
-  it('handles empty name without throwing', () => {
-    expect(() => createRepoNameTexture('')).not.toThrow();
+  it('still produces a texture for an empty name', () => {
+    expect(createRepoNameTexture('').texture).toBeTruthy();
   });
 
   it('keeps the requested font size for names that fit at full FONT_PX', () => {
