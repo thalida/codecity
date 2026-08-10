@@ -284,11 +284,10 @@ describe('getBuildingDimensions — media files', () => {
       { min: 10, max: 10000 },
       { min: 10, max: 10000 }
     );
-    // Square aspect → floors = round(width / FLOOR_HEIGHT), min MIN_FLOORS.
+    // Square aspect: raw_h = w = 24.8, floors = round(2.48) = 2, h = 20.
     expect(dim.d).toBe(dim.w);
-    expect(dim.floors).toBeGreaterThanOrEqual(TEST_BUILDING_DIMS.MIN_FLOORS);
-    // raw_h ≈ width; height = floors × FLOOR_HEIGHT.
-    expect(dim.h).toBe(dim.floors * TEST_BUILDING_DIMS.FLOOR_HEIGHT);
+    expect(dim.floors).toBe(2);
+    expect(dim.h).toBe(20);
   });
 
   it('portrait image gives a tall building (height > width)', () => {
@@ -339,12 +338,8 @@ describe('getBuildingDimensions — media files', () => {
       { min: 10, max: 10000 },
       { min: 10, max: 10000 }
     );
-    // raw_h = w × 2.5, floors = round(raw_h / FLOOR_HEIGHT), h = floors × FLOOR_HEIGHT.
-    const expectedFloors = Math.max(
-      TEST_BUILDING_DIMS.MIN_FLOORS,
-      Math.round((dim.w * 2.5) / TEST_BUILDING_DIMS.FLOOR_HEIGHT)
-    );
-    expect(dim.floors).toBe(expectedFloors);
+    // 10:1 portrait clamps to aspect 2.5: raw_h = 24.8 * 2.5 = 62, floors = 6.
+    expect(dim.floors).toBe(6);
   });
 
   it('clamps very wide panorama at aspect 0.4', () => {
@@ -360,11 +355,8 @@ describe('getBuildingDimensions — media files', () => {
       { min: 10, max: 10000 },
       { min: 10, max: 10000 }
     );
-    const expectedFloors = Math.max(
-      TEST_BUILDING_DIMS.MIN_FLOORS,
-      Math.round((dim.w * 0.4) / TEST_BUILDING_DIMS.FLOOR_HEIGHT)
-    );
-    expect(dim.floors).toBe(expectedFloors);
+    // 1:10 panorama clamps to aspect 0.4: raw_h = 24.8 * 0.4 = 9.92, floors = 1.
+    expect(dim.floors).toBe(1);
   });
 
   it('non-media file ignores media_width/media_height', () => {
@@ -374,12 +366,11 @@ describe('getBuildingDimensions — media files', () => {
       { min: 10, max: 1000 },
       { min: 10, max: 10000 }
     );
-    // Height should be lines-derived (sqrt-interpolation), not byte-aspect-derived.
-    // For a non-media file the media_* fields are ignored entirely.
-    expect(dim.h).toBe(dim.floors * TEST_BUILDING_DIMS.FLOOR_HEIGHT);
-    // The clamp-aspect-0.0001 case would have produced a 1-floor building;
-    // for a 100-line file the test fixture's sqrt interpolation lands at 8 floors.
-    expect(dim.floors).toBeGreaterThan(1);
+    // Lines-derived via sqrt interpolation, not byte-aspect-derived: a 9999:1
+    // aspect would clamp to 0.4 and give a 1-floor building, but the media_*
+    // fields are ignored outright, so 100 lines lands at 6 floors.
+    expect(dim.floors).toBe(6);
+    expect(dim.h).toBe(60);
   });
 });
 
