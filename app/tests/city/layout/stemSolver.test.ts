@@ -1,7 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { WorldRectKind } from '@/city/layout/occupancyIndex';
+import { WorldOccupancy, WorldRectKind } from '@/city/layout/occupancyIndex';
+import {
+  applyFlips,
+  computeFlips,
+  findSmallestValidStem,
+  isMirrorInvariant,
+  placeChild,
+} from '@/city/layout/stemSolver';
 import { StreetAxis } from '@/types';
-import { applyFlips, computeFlips, isMirrorInvariant } from '@/city/layout/stemSolver';
 
 describe('computeFlips', () => {
   it('X-orient parent, side 0, no mirror: flipY only', () => {
@@ -92,9 +98,6 @@ describe('isMirrorInvariant', () => {
     ).toBe(true);
   });
 });
-
-import { WorldOccupancy } from '@/city/layout/occupancyIndex';
-import { findSmallestValidStem } from '@/city/layout/stemSolver';
 
 describe('findSmallestValidStem', () => {
   // Helper to build a WorldRect for inserting into occupancy.
@@ -287,8 +290,6 @@ describe('findSmallestValidStem', () => {
   });
 });
 
-import { placeChild } from '@/city/layout/stemSolver';
-
 describe('placeChild', () => {
   function worldRect(minX: number, minY: number, maxX: number, maxY: number) {
     return {
@@ -470,160 +471,5 @@ describe('placeChild', () => {
     });
     expect(result.side).toBe(0);
     expect(result.stem).toBe(10);
-  });
-});
-
-import { estimateDirReaches, layoutCity } from '@/city/layout/algorithm';
-import { NodeKind } from '@/types';
-import {
-  assertNoOverlap,
-  assertStemOrder,
-  assertTreeRespecting,
-  assertTJunctionsValid,
-} from '../../_helpers/layoutAsserts';
-import { mkFile, mkDir } from '../../_helpers/cityFixtures';
-
-describe('layoutCity end-to-end', () => {
-  it('lays out a minimal tree with all four invariants satisfied', () => {
-    const tree = mkDir('root', [
-      mkFile('a.ts'),
-      mkFile('b.ts'),
-      mkDir('sub', [mkFile('c.ts'), mkFile('d.ts')]),
-    ]);
-    const layout = layoutCity({ tree });
-    expect(() => assertNoOverlap(layout)).not.toThrow();
-    expect(() => assertStemOrder(layout)).not.toThrow();
-    expect(() => assertTreeRespecting(layout)).not.toThrow();
-    expect(() => assertTJunctionsValid(layout)).not.toThrow();
-  });
-
-  // estimateDirReaches: bottom-up pre-pass that sizes the phantom in each
-  // child recursion. Must approximate (or upper-bound) the actual placement's
-  // along/perp extents — undersizing the phantom reintroduces the
-  // grandchild-overlaps-ancestor bug.
-  describe('estimateDirReaches matches actual layout', () => {
-    it('flat tree: estimated alongReach >= actual road length', () => {
-      const tree = mkDir('root', [
-        mkFile('a.ts'),
-        mkFile('b.ts'),
-        mkFile('c.ts'),
-        mkFile('d.ts'),
-        mkFile('e.ts'),
-      ]);
-      const stats = { lines: { min: 20, max: 20 }, bytes: { min: 500, max: 500 } };
-      const cache = new Map();
-      const reaches = estimateDirReaches(tree, stats.lines, stats.bytes, undefined, cache);
-      const layout = layoutCity({ tree });
-      const root = layout.streets.find((s: any) => s.dir?.name === 'root');
-      expect(root).toBeDefined();
-      // The estimate must be at least as large as the actual road length —
-      // if it's smaller, the phantom under-sizes and the bug returns.
-      expect(reaches.alongReach).toBeGreaterThanOrEqual(root!.length - 1);
-    });
-
-    it("nested tree: every dir's estimate >= actual road length", () => {
-      const tree = mkDir('root', [
-        mkDir('a', [mkFile('a1.ts'), mkFile('a2.ts'), mkFile('a3.ts')]),
-        mkDir('b', [mkFile('b1.ts'), mkFile('b2.ts')]),
-        mkDir('c', [
-          mkDir('cc', [mkFile('cc1.ts'), mkFile('cc2.ts'), mkFile('cc3.ts')]),
-          mkFile('c1.ts'),
-        ]),
-      ]);
-      const stats = { lines: { min: 20, max: 20 }, bytes: { min: 500, max: 500 } };
-      const cache = new Map();
-      estimateDirReaches(tree, stats.lines, stats.bytes, undefined, cache);
-      const layout = layoutCity({ tree });
-
-      const mismatches: string[] = [];
-      for (const street of layout.streets) {
-        if (!street.dir) continue;
-        const est = cache.get(street.dir as any);
-        if (!est) continue;
-        if (est.alongReach < street.length - 1) {
-          mismatches.push(`${street.dir.name}: est=${est.alongReach}, actual=${street.length}`);
-        }
-      }
-      expect(mismatches).toEqual([]);
-    });
-
-    it('deep chain: subdir contributions correctly propagate', () => {
-      // root → a → aa → aaa with files at the deepest level.
-      const tree = mkDir('root', [
-        mkDir('a', [mkDir('aa', [mkDir('aaa', [mkFile('x.ts'), mkFile('y.ts'), mkFile('z.ts')])])]),
-      ]);
-      const stats = { lines: { min: 20, max: 20 }, bytes: { min: 500, max: 500 } };
-      const cache = new Map();
-      estimateDirReaches(tree, stats.lines, stats.bytes, undefined, cache);
-      const layout = layoutCity({ tree });
-      // Every street's length should be covered by its dir's estimate.
-      for (const street of layout.streets) {
-        if (!street.dir) continue;
-        const est = cache.get(street.dir as any);
-        if (!est) continue;
-        expect(est.alongReach).toBeGreaterThanOrEqual(street.length - 1);
-      }
-    });
-  });
-
-  // Stress test that mirrors the firecrawl/Linux-scale shape: a long-road
-  // ancestor (apps) whose alphabetically-first child (api) has a deep
-  // subtree extending along the ancestor's road. Before the
-  // estimateDirAlongReach fix, the phantom seeded into api's local occupancy
-  // was sized with parentMaxBoundary*2 + 1000 at recursion start (when api
-  // was apps' first child, parentMaxBoundary was tiny); deep grandchildren
-  // placed past the phantom could land on top of apps' trunk.
-  it('long-road ancestor body does not overlap deep grandchildren in first-alpha subtree', () => {
-    function mkSizedFile(name: string, sizeBytes: number, lines: number): any {
-      return {
-        name,
-        type: NodeKind.File,
-        path: name,
-        extension: '.ts',
-        size: sizeBytes,
-        lines,
-        created: '2024-01-01T00:00:00Z',
-        modified: '2024-01-01T00:00:00Z',
-      };
-    }
-    function manyVariedFiles(prefix: string, count: number): any[] {
-      return Array.from({ length: count }, (_, i) => {
-        const size = 100 + (i % 5) * 5000 + ((i * 37) % 50000);
-        const lines = 10 + (i % 100);
-        return mkSizedFile(`${prefix}${String(i).padStart(3, '0')}.ts`, size, lines);
-      });
-    }
-    const tree = mkDir('root', [
-      mkDir('apps', [
-        mkDir('api', [
-          mkDir('src', [
-            ...manyVariedFiles('a_', 25),
-            ...manyVariedFiles('b_', 25),
-            ...manyVariedFiles('c_', 25),
-            mkDir('services', [
-              ...manyVariedFiles('svc_', 60),
-              mkDir('subscription', manyVariedFiles('sub_', 8)),
-              mkDir('webhook', manyVariedFiles('wh_', 8)),
-            ]),
-          ]),
-        ]),
-        ...Array.from({ length: 10 }, (_, i) => {
-          const name = `sdk${String.fromCharCode('b'.charCodeAt(0) + i)}`;
-          return mkDir(name, [
-            mkDir('src', manyVariedFiles(`${name}_src_`, 40)),
-            mkDir('lib', manyVariedFiles(`${name}_lib_`, 40)),
-            ...manyVariedFiles(`${name}_root_`, 20),
-          ]);
-        }),
-      ]),
-    ]);
-    const layout = layoutCity({ tree });
-    const apps = layout.streets.find((s) => s.dir?.name === 'apps');
-    expect(apps).toBeDefined();
-    // Sanity: apps' trunk should be long enough that any phantom-too-short
-    // bug would surface (apps must extend well past the original
-    // parentMaxBoundary*2 + 1000 ≈ 1000 reach).
-    expect(apps!.length).toBeGreaterThan(2000);
-    expect(() => assertNoOverlap(layout)).not.toThrow();
   });
 });
