@@ -1,13 +1,8 @@
-// components/LandingBackdrop — the cold-boot landing's "dark swirl" layer: a
-// domain-warped gem-palette gradient, a color ramp pushed around by smooth fbm
-// noise, which is what gives it that organic curved-ribbon flow (flat CSS
-// radial gradients can't — they're concentric circles).
+// The landing's swirl: a gem-palette gradient warped by fbm noise, which is
+// what a CSS radial gradient can't do (it's concentric circles).
 //
-// It renders OVER the landing's demo clip, so the ribbons carry alpha rather
-// than painting a background: the calm areas are genuinely transparent and the
-// city plays through them. Theme-aware (reads the --cc-gem-* tokens), honors
-// prefers-reduced-motion (renders one static frame), non-interactive. If WebGL
-// is unavailable it renders nothing and the clip shows on its own.
+// It renders over the featured city, so it must not paint a background.
+// Renders nothing without WebGL, one static frame under reduced motion.
 
 import './LandingBackdrop.css';
 import { useEffect, useRef } from 'preact/hooks';
@@ -81,10 +76,8 @@ void main() {
   float band = smoothstep(0.06, 0.40, abs(uv.y - 0.5));
   energy *= mix(0.4, 1.0, band);
 
-  // Alpha, not a mix into uBg: the ribbons float over whatever is behind (the
-  // landing's demo clip), so the calm areas have to be genuinely transparent
-  // rather than painted background-coloured. Premultiplied, which is the
-  // WebGL default the canvas composites with.
+  // Premultiplied alpha, not a mix into uBg: the calm areas have to be really
+  // transparent so the city behind shows through.
   float a = clamp(energy, 0.0, 1.0);
   fragColor = vec4(col * a, a);
 }

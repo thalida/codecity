@@ -99,21 +99,28 @@ describe('AppHeader', () => {
     expect(cluster.querySelector('[aria-label="Copy repo source"]')).not.toBeNull();
   });
 
-  it('offers refresh and fresh scan with the same words for any source', async () => {
+  it('puts the default on the button and only the alternative in the menu', async () => {
     loadProject();
     const onRefresh = vi.fn();
     render(<AppHeader onRefresh={onRefresh} />, container);
     await flush();
 
+    // Glyph only in the bar, so the accessible name is the whole label.
+    const primary = container.querySelector<HTMLButtonElement>('.split-button-primary')!;
+    expect(primary.getAttribute('aria-label')).toBe('Refresh');
+    expect(primary.textContent).toBe('');
+    primary.click();
+    expect(onRefresh).toHaveBeenCalledWith(false);
+
+    // The menu carries what the button isn't, and never repeats it.
     container.querySelector<HTMLButtonElement>('.split-button-caret')!.click();
     await flush();
     const items = Array.from(container.querySelectorAll<HTMLElement>('[role="menuitem"]'));
     expect(items.map((el) => el.querySelector('.split-button-item-label')?.textContent)).toEqual([
-      'Refresh',
       'Fresh scan',
     ]);
 
-    items[1].click();
+    items[0].click();
     expect(onRefresh).toHaveBeenCalledWith(true);
   });
 

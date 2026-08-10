@@ -4,7 +4,6 @@ import {
   CURRENT_SOURCE,
   SOURCE_INFO,
   setCurrentSource,
-  listRecents,
   RECENTS,
 } from '@/state/stores/source';
 import { sourceKey } from '@/utils/sources';
@@ -88,7 +87,7 @@ describe('setCurrentSource', () => {
       repo: { branch: 'main' },
     } as unknown as Manifest);
     expect(CURRENT_SOURCE.value).toEqual({ src: 'https://github.com/o/r', branch: undefined });
-    const recents = listRecents();
+    const recents = RECENTS.value;
     expect(recents[0].src).toBe('https://github.com/o/r');
     expect(recents[0].branch).toBe('main');
   });
@@ -99,7 +98,7 @@ describe('setCurrentSource', () => {
       repo: { branch: 'dev' },
     } as unknown as Manifest);
     expect(CURRENT_SOURCE.value).toEqual({ src: 'https://github.com/o/r', branch: 'dev' });
-    expect(listRecents()[0].branch).toBe('dev');
+    expect(RECENTS.value[0].branch).toBe('dev');
   });
 
   it('records a local source with no branch (branch is not part of its identity)', () => {
@@ -110,7 +109,7 @@ describe('setCurrentSource', () => {
       repo: { branch: 'feat/issue-77' },
     } as unknown as Manifest);
     expect(CURRENT_SOURCE.value).toEqual({ src: '/Users/me/worktrees/feat-x', branch: undefined });
-    expect(listRecents()[0].branch).toBeUndefined();
+    expect(RECENTS.value[0].branch).toBeUndefined();
   });
 
   it('dedupes a local path across checkouts into one recent', () => {
@@ -124,8 +123,8 @@ describe('setCurrentSource', () => {
       tree: { name: 'proj' },
       repo: { branch: 'feat/x' },
     } as unknown as Manifest);
-    expect(listRecents()).toHaveLength(1);
-    expect(listRecents()[0].branch).toBeUndefined();
+    expect(RECENTS.value).toHaveLength(1);
+    expect(RECENTS.value[0].branch).toBeUndefined();
   });
 
   it('drops the branch from CURRENT_SOURCE + the URL for a local source', () => {

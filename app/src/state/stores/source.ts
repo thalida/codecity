@@ -133,10 +133,6 @@ export interface RecentSource {
 /** Persisted list of recently-opened sources. Hydrates at module load. */
 export const RECENTS = persistedSignal<RecentSource[]>(PERSISTED_KEYS.RECENTS, []);
 
-export function listRecents(): RecentSource[] {
-  return RECENTS.value;
-}
-
 /**
  * Push (or update) an entry. Dedupes by source identity (src, plus branch for a
  * remote — a local path is one row regardless of checkout). The pushed entry

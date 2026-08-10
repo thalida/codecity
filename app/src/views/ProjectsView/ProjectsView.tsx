@@ -1,14 +1,9 @@
-// views/ProjectsView/ProjectsView.tsx — the codecity landing + project switcher.
-// A full-bleed page (not a modal): a brand hero next to an action panel that
-// opens a new project or returns to a recent one. Reads PROJECTS_VIEW +
-// SERVER_CONFIG for open-state/prefill; App owns onSubmit/onCancel/onClose.
-// Renders null when closed so the form/list state resets on next open.
+// The landing and the project switcher, one page. Renders null when closed so
+// the form and list state reset on the next open.
 //
-// This page is also the loading surface for every switch it initiates (design
-// invariant): while SCAN_PROGRESS is non-null the action panel shows inline
-// progress + Cancel, and <LoadingOverlay> (App-level) suppresses itself while
-// this page is visible so the two never stack. LoadingOverlay keeps its narrow
-// role of deep-link cold boot (no page open yet).
+// It is also the loading surface for every switch it starts, which is why
+// LoadingOverlay suppresses itself while this is visible: the two must never
+// stack. That leaves the overlay owning deep-link cold boot alone.
 
 import './ProjectsView.css';
 import { useEffect, useRef, useState } from 'preact/hooks';
@@ -26,7 +21,7 @@ import {
 } from '@/state/stores/ui';
 import { SERVER_CONFIG } from '@/state/stores/serverConfig';
 import { SCAN_PROGRESS } from '@/state/stores/scanProgress';
-import { listRecents } from '@/state/stores/source';
+import { RECENTS } from '@/state/stores/source';
 import { stepForPhase } from '@/constants/loadingSteps';
 import { LoadingProgress } from '@/components/LoadingProgress/LoadingProgress';
 import { NewProjectForm } from '@/components/NewProjectForm/NewProjectForm';
@@ -50,32 +45,28 @@ export function ProjectsView({ onSubmit, onCancel, onClose }: ProjectsViewProps)
   const loading = scan !== null;
   const rootRef = useRef<HTMLDivElement>(null);
 
-  // Recents and Discover share one card so the action column can't grow a new
-  // panel per feature. Recent is always offered, empty state and all, so a first
-  // visit learns that codecity remembers what you open; Discover only appears
-  // when the server actually sent a list.
-  const hasRecents = listRecents().length > 0;
+  // Recent is always offered, empty state and all, so a first visit learns that
+  // codecity remembers what you open.
+  const hasRecents = RECENTS.value.length > 0;
   const hasDiscover = DISCOVER.value.length > 0;
   const tabs = [
     { id: SOURCE_TAB.recents, label: 'Recent', icon: History },
     ...(hasDiscover ? [{ id: SOURCE_TAB.discover, label: 'Discover', icon: Compass }] : []),
   ];
   const [pickedTab, setPickedTab] = useState<string | null>(null);
-  // Cleared on CLOSE: this returns null while hidden rather than unmounting,
-  // and resetting on the way out means the next open renders the default with
-  // no visible flip.
+  // Cleared on close, not on open: this returns null rather than unmounting, so
+  // resetting on the way in would be a visible flip.
   useEffect(() => {
     if (!pv.visible) setPickedTab(null);
   }, [pv.visible]);
   // With nothing of your own yet, Discover is the tab with something in it.
   const defaultTab = !hasRecents && hasDiscover ? SOURCE_TAB.discover : SOURCE_TAB.recents;
-  // Falls back during render, not via an effect: the server's list arrives
-  // after first paint and can take the Discover tab with it.
+  // During render, not via an effect: the server's list lands after first paint
+  // and can take the Discover tab with it.
   const activeTab = tabs.some((t) => t.id === pickedTab) ? pickedTab : defaultTab;
 
-  // Dismissible = shown over an existing city, i.e. a real modal dialog: trap
-  // and restore focus. The non-dismissible landing IS the page (nothing behind
-  // to trap against), so it stays a plain region.
+  // Dismissible means it floats over a city, so it's a real dialog and traps
+  // focus. The landing IS the page, with nothing behind to trap against.
   const isModal = pv.visible && pv.opts.dismissible;
   useDialogFocus(isModal, rootRef);
 
@@ -99,11 +90,8 @@ export function ProjectsView({ onSubmit, onCancel, onClose }: ProjectsViewProps)
       aria-modal={isModal ? 'true' : undefined}
       aria-label="codecity: open a project"
     >
-      {/* The swirl fills an empty background, so it yields the moment there is
-          something better behind: the featured city on cold boot
-          (useFeaturedCity), the loaded one in the dismissible switcher
-          (useSwitcherShowcase). It stays while a featured city is still
-          streaming, and stays for good if none is configured or it fails. */}
+      {/* The swirl is the fallback, so it yields to any real city behind it and
+          stays put while one is still streaming. */}
       {!pv.opts.dismissible && !FEATURED_CITY.value && (
         <div class="landing-stage" aria-hidden="true">
           <LandingBackdrop />
@@ -125,13 +113,13 @@ export function ProjectsView({ onSubmit, onCancel, onClose }: ProjectsViewProps)
               </span>
               <h1 class="landing-wordmark">codecity</h1>
             </div>
-            {/* The landing covers the app chrome, so without this nobody sees
-                the version, the repo link or the credit until a repo loads. */}
+            {/* The landing covers the chrome, so this is the only place the
+                version and credit appear before a repo loads. */}
             <MetaLine linkClass="link" />
           </div>
           <p class="landing-tagline">Turn any git repo into a 3D city</p>
-          {/* Only ever set once the city is actually painted, so this cannot
-              name something you can't see. */}
+          {/* Set only once the city is painted, so it can't name something you
+              can't see. */}
           {FEATURED_CITY.value && (
             <p class="landing-featured">
               You're looking at <strong>{FEATURED_CITY.value.label}</strong>
@@ -173,10 +161,8 @@ export function ProjectsView({ onSubmit, onCancel, onClose }: ProjectsViewProps)
                   activeStep={stepForPhase(scan.phase, scan.kind)}
                   kind={scan.kind}
                   branch={scan.branch}
-                  // Per-step tails (clone %, files scanned) are computed into
-                  // LOADING_OVERLAY by loadingReactions even while this inline
-                  // surface owns the load; forward them so the numbers show here
-                  // too (the App-level overlay is suppressed).
+                  // The tails (clone %, files scanned) are computed into
+                  // LOADING_OVERLAY even while this surface owns the load.
                   stepTails={LOADING_OVERLAY.value.stepTails}
                   onCancel={onCancel}
                 />
@@ -187,10 +173,8 @@ export function ProjectsView({ onSubmit, onCancel, onClose }: ProjectsViewProps)
               <section class="landing-card surface-glass">
                 <h2 class="landing-card-title">Open a project</h2>
                 <NewProjectForm
-                  // Re-key on the prefill source so a failed submit (which
-                  // reopens the view with the attempted src as prefill) remounts
-                  // the form with that value restored — the field keeps what the
-                  // user entered instead of clearing.
+                  // Remount on a new prefill so a failed submit restores what
+                  // was typed instead of clearing it.
                   key={pv.opts.prefill?.src ?? ''}
                   allowLocalRepos={SERVER_CONFIG.value.allowLocalRepos}
                   hosted={SERVER_CONFIG.value.hosted}

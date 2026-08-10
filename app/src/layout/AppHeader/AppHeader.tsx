@@ -13,9 +13,9 @@ import type { Manifest } from '@/types';
 import { openProjectsView } from '@/state/stores/ui';
 import { ChromeCluster, ClusterLink } from '@/components/ChromeCluster/ChromeCluster';
 import { ProjectSwitcher } from '@/components/ProjectSwitcher/ProjectSwitcher';
-import { CopyButton } from '@/components/CopyButton/CopyButton';
+import { CopyButton, CopyButtonVariant } from '@/components/CopyButton/CopyButton';
 import { FreshnessStatus } from '@/components/FreshnessStatus/FreshnessStatus';
-import { SplitButton } from '@/components/SplitButton/SplitButton';
+import { SplitButton, SplitButtonVariant } from '@/components/SplitButton/SplitButton';
 import { AutoRefreshRow } from '@/components/AutoRefreshRow/AutoRefreshRow';
 
 export interface AppHeaderProps {
@@ -41,7 +41,9 @@ export function AppHeader({ onSwitchSource, onRefresh }: AppHeaderProps = {}) {
           branch={si.branch}
           onSwitchSource={onSwitchSource ?? (() => openProjectsView({ dismissible: true }))}
         />
-        {si.src && <CopyButton variant="cluster" text={si.src} label="Copy repo source" />}
+        {si.src && (
+          <CopyButton variant={CopyButtonVariant.Cluster} text={si.src} label="Copy repo source" />
+        )}
         {remoteUrl && (
           <ClusterLink
             href={remoteUrl}
@@ -58,27 +60,15 @@ export function AppHeader({ onSwitchSource, onRefresh }: AppHeaderProps = {}) {
       {hasProject && (
         <ChromeCluster class="app-header-freshness">
           <FreshnessStatus />
-          {/* Same copy whichever kind of source is loaded. "Check for changes"
-              is honest whether that means stat-walking a working tree or
-              fetching a remote, and which one it is is mechanism the menu has
-              no business narrating. */}
           <SplitButton
-            variant="chrome"
-            // Glyph only: in a 32px bar the word costs more room than it earns,
-            // and the status readout beside it already says what it acts on.
-            iconOnly
+            variant={SplitButtonVariant.Chrome}
             label="Refresh"
             icon={RefreshCw}
             onPrimary={() => onRefresh?.(false)}
             menuLabel="More refresh options"
+            // Only what the button itself isn't: the menu lists alternatives,
+            // not the default it sits next to.
             items={[
-              {
-                id: 'refresh',
-                icon: RefreshCw,
-                label: 'Refresh',
-                sublabel: 'check for changes and re-scan if anything moved',
-                onSelect: () => onRefresh?.(false),
-              },
               {
                 id: 'fresh',
                 icon: DatabaseZap,

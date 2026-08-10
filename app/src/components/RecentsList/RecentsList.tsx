@@ -9,7 +9,7 @@
 
 import './RecentsList.css';
 import { useState } from 'preact/hooks';
-import { listRecents, removeRecent, ACTIVE_SOURCE } from '@/state/stores/source';
+import { RECENTS, removeRecent, ACTIVE_SOURCE } from '@/state/stores/source';
 import { SERVER_CONFIG } from '@/state/stores/serverConfig';
 import { srcKind, SourceKind, sourceIdentity, sameSourceIdentity } from '@/utils/sources';
 import type { SourcePayload } from '@/state/stores/ui';
@@ -20,7 +20,7 @@ export interface RecentsListProps {
 }
 
 export function RecentsList({ onOpen }: RecentsListProps) {
-  const recents = listRecents(); // reads RECENTS signal
+  const recents = RECENTS.value;
   const active = ACTIVE_SOURCE.value;
   const allowLocal = SERVER_CONFIG.value.allowLocalRepos;
   const [confirming, setConfirming] = useState<string | null>(null); // key of row

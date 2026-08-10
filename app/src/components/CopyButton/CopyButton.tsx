@@ -12,20 +12,27 @@ import { CLUSTER_ITEM_PRESS } from '@/components/ChromeCluster/ChromeCluster';
 // How long the "Copied!" badge lingers after the copy button is clicked.
 const DEFAULT_COPY_FEEDBACK_DURATION_MS = 1500;
 
+/** Which box the button takes. */
+export enum CopyButtonVariant {
+  /** The standalone icon-button box. */
+  Icon = 'icon',
+  /** The chrome bars' item box, so it matches everything beside it. */
+  Cluster = 'cluster',
+}
+
 export interface CopyButtonProps {
   text: string;
   label?: string;
   /** How long the "Copied!" state lingers after a click, in ms. */
   feedbackDurationMs?: number;
-  /** `cluster` takes the chrome bars' item box instead of the icon-button one. */
-  variant?: 'icon' | 'cluster';
+  variant?: CopyButtonVariant;
 }
 
 export function CopyButton({
   text,
   label = 'Copy path',
   feedbackDurationMs = DEFAULT_COPY_FEEDBACK_DURATION_MS,
-  variant = 'icon',
+  variant = CopyButtonVariant.Icon,
 }: CopyButtonProps) {
   const [copied, setCopied] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -56,7 +63,7 @@ export function CopyButton({
     <>
       <button
         type="button"
-        class={`${variant === 'cluster' ? CLUSTER_ITEM_PRESS : 'btn-icon'}${copied ? ' is-copied' : ''}`}
+        class={`${variant === CopyButtonVariant.Cluster ? CLUSTER_ITEM_PRESS : 'btn-icon'}${copied ? ' is-copied' : ''}`}
         title={label}
         aria-label={label}
         onClick={onClick}

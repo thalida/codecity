@@ -24,17 +24,21 @@ export interface SplitButtonItem {
   onSelect: () => void;
 }
 
+/** Which box the two halves take. */
+export enum SplitButtonVariant {
+  /** The page's CTA weight, label showing. */
+  Primary = 'primary',
+  /** A cluster item, so a split button in a bar matches everything beside it.
+   *  Glyph only: in a 32px bar the word costs more room than it earns. */
+  Chrome = 'chrome',
+}
+
 export interface SplitButtonProps {
+  /** Visible on Primary, the accessible name on Chrome. */
   label: string;
-  /** Glyph before the label. */
+  /** Glyph before the label. Required for Chrome, which shows nothing else. */
   icon?: LucideIcon;
-  /** Show only the glyph, with `label` as the accessible name. For the 32px
-   *  bars, where the word would cost more room than it earns. Requires `icon`. */
-  iconOnly?: boolean;
-  /** `primary` is the page's CTA weight; `chrome` makes each half a cluster
-   *  item, so a split button in a bar has the same box as everything beside
-   *  it. */
-  variant?: 'primary' | 'chrome';
+  variant?: SplitButtonVariant;
   onPrimary: () => void;
   items: SplitButtonItem[];
   disabled?: boolean;
@@ -53,8 +57,7 @@ export interface SplitButtonProps {
 export function SplitButton({
   label,
   icon: Icon,
-  iconOnly = false,
-  variant = 'primary',
+  variant = SplitButtonVariant.Primary,
   onPrimary,
   items,
   disabled,
@@ -63,7 +66,8 @@ export function SplitButton({
   class: className,
   footer,
 }: SplitButtonProps) {
-  const half = variant === 'chrome' ? CLUSTER_ITEM_PRESS : 'btn-primary';
+  const iconOnly = variant === SplitButtonVariant.Chrome;
+  const half = iconOnly ? CLUSTER_ITEM_PRESS : 'btn-primary';
   const [open, setOpen] = useState(false);
   const primary = useRef<HTMLButtonElement>(null);
   const caret = useRef<HTMLButtonElement>(null);
@@ -206,7 +210,7 @@ export function SplitButton({
   // so its dividers and end-rounding are plain sibling rules rather than
   // selectors reaching through a box. The cluster is the menu's positioning
   // ancestor instead.
-  if (variant === 'chrome') return parts;
+  if (variant === SplitButtonVariant.Chrome) return parts;
 
   return (
     <div class={`split-button split-button--${variant}${className ? ` ${className}` : ''}`}>
