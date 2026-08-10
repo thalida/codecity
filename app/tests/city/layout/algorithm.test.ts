@@ -824,23 +824,15 @@ describe('quickjs-scenario regression', () => {
   // child whose own src/ subdir picked the side facing node_modules,
   // forcing the quickjs road to extend back. With the packer, src/ should
   // mirror or pick the other side, keeping quickjs road short.
-  function mkFile(name: string) {
-    return {
-      name,
-      type: NodeKind.File,
-      path: name,
-      extension: '.ts',
-      size: 500,
-      lines: 20,
-      created: '2024-01-01T00:00:00Z',
-      modified: '2024-01-01T00:00:00Z',
-    };
-  }
-  function mkDir(name: string, children: any[], path?: string): any {
+  // Not the shared mkDir: this scenario is three levels deep, so it re-prefixes
+  // paths all the way down and accumulates descendants_count recursively. The
+  // shared one only prefixes its immediate children, which is enough for the
+  // flat trees everywhere else in this file.
+  function mkDeepDir(name: string, children: any[], path?: string): any {
     const dirPath = path || name;
     const prefixed = children.map((c) => {
       if (c.type === NodeKind.Directory) {
-        return mkDir(c.name, c.children, `${dirPath}/${c.name}`);
+        return mkDeepDir(c.name, c.children, `${dirPath}/${c.name}`);
       }
       return { ...c, path: `${dirPath}/${c.name}` };
     });
@@ -868,18 +860,18 @@ describe('quickjs-scenario regression', () => {
     //         qf1.ts qf2.ts qf3.ts
     //         src/
     //           sf1.ts sf2.ts
-    const tree = mkDir('root', [
-      mkDir(
+    const tree = mkDeepDir('root', [
+      mkDeepDir(
         'a-other-pkg',
         Array.from({ length: 10 }, (_, i) => mkFile(`f${i}.ts`))
       ),
-      mkDir('node_modules', [
+      mkDeepDir('node_modules', [
         ...Array.from({ length: 8 }, (_, i) => mkFile(`big${i}.ts`)),
-        mkDir('quickjs', [
+        mkDeepDir('quickjs', [
           mkFile('qf1.ts'),
           mkFile('qf2.ts'),
           mkFile('qf3.ts'),
-          mkDir(
+          mkDeepDir(
             'src',
             Array.from({ length: 2 }, (_, i) => mkFile(`sf${i}.ts`))
           ),
