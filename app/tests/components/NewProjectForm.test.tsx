@@ -302,7 +302,7 @@ describe('NewProjectForm', () => {
     const note = container.querySelector('.unreachable--error');
     expect(note).not.toBeNull();
     expect(container.querySelector('.unreachable--standing')).toBeNull();
-    expect(note?.textContent).toMatch(/that's a local path/i);
+    expect(note?.textContent).toMatch(/local paths are turned off/i);
     // Cloning is not the answer to a repo already on this machine.
     expect(note?.textContent).not.toMatch(/clone it yourself/i);
 

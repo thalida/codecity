@@ -14,11 +14,11 @@ const BODY: Record<Body, RegExp> = {
 const PREAMBLE: Record<NoticeReason, RegExp | null> = {
   [NoticeReason.Standing]: null,
   [NoticeReason.Unreachable]: /couldn't reach that repo/i,
-  [NoticeReason.PathBlocked]: /that's a local path/i,
+  [NoticeReason.PathBlocked]: /local paths are turned off/i,
 };
 
 // The extra step, only where turning it on is both possible and needed.
-const PREREQ = /turn on local paths and, if it's private/i;
+const PREREQ = /turn on local paths, clone it yourself/i;
 
 // Every state the form can actually reach. standing and path-blocked both
 // require local paths to be off (the form gates them on it), so a mounted
@@ -193,6 +193,15 @@ describe('UnreachableSource', () => {
       await show(reason, hosted, allowLocal);
       expect(text()).not.toMatch(/is private/i);
       expect(text()).not.toMatch(/you (do not|don't) have access/i);
+      render(null, container);
+    }
+  });
+
+  it('always points somewhere to read more', async () => {
+    for (const { reason, hosted, allowLocal } of STATES) {
+      await show(reason, hosted, allowLocal);
+      const link = container.querySelector('.unreachable-remedy a');
+      expect(link?.getAttribute('href')).toMatch(/#(local-directories|run-it-yourself)$/);
       render(null, container);
     }
   });

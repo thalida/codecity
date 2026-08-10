@@ -41,7 +41,7 @@ const RUN_DOCS_URL = `${REPO_URL}#run-it-yourself`;
 const PREAMBLE: Record<NoticeReason, string | null> = {
   [NoticeReason.Standing]: null,
   [NoticeReason.Unreachable]: "Couldn't reach that repo.",
-  [NoticeReason.PathBlocked]: "That's a local path.",
+  [NoticeReason.PathBlocked]: 'Local paths are turned off',
 };
 
 export function UnreachableSource({ hosted, allowLocal, reason, src, id }: UnreachableSourceProps) {
@@ -85,25 +85,37 @@ function Remedy({ hosted, allowLocal, reason, src }: Omit<UnreachableSourceProps
     );
   }
 
+  if (allowLocal) {
+    return (
+      <>
+        <p class="unreachable-remedy">
+          If it's private, clone it yourself and open the folder instead.{' '}
+          <DocsLink href={LOCAL_DOCS_URL} />
+        </p>
+        <CloneCommand src={src} />
+      </>
+    );
+  }
+
   return (
     <>
       <p class="unreachable-remedy">
-        {allowLocal ? (
-          "If it's private, clone it yourself and open the folder instead."
-        ) : (
-          <>
-            Turn on local paths and, if it's private, clone it yourself and open the folder.{' '}
-            <DocsLink href={LOCAL_DOCS_URL} />
-          </>
-        )}
+        If it's private, turn on local paths, clone it yourself and open the folder instead.{' '}
+        <DocsLink href={LOCAL_DOCS_URL} />
       </p>
-      {src && (
-        <div class="unreachable-command">
-          <code>{`git clone ${src}`}</code>
-          <CopyButton text={`git clone ${src}`} label="Copy clone command" />
-        </div>
-      )}
+      <CloneCommand src={src} />
     </>
+  );
+}
+
+function CloneCommand({ src }: { src?: string }) {
+  if (!src) return null;
+  const command = `git clone ${src}`;
+  return (
+    <div class="unreachable-command">
+      <code>{command}</code>
+      <CopyButton text={command} label="Copy clone command" />
+    </div>
   );
 }
 
