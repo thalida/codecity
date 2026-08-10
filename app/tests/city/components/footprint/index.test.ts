@@ -264,7 +264,10 @@ describe('createFootprint()', () => {
   // dispose()
   // ---------------------------------------------------------------------------
 
-  it('dispose() stops the effect — later FOOTPRINT mutations do not throw', () => {
+  // Not a check that the effect stopped: dispose() nulls `material`, and the
+  // effect body is behind `if (material)`, so a leaked subscription would be
+  // absorbed and look identical from out here. What this pins is that guard.
+  it('a FOOTPRINT mutation after dispose() is absorbed by the material guard', () => {
     fp.rebuild(singleBuildingLayout());
     fp.dispose();
     expect(() => {
