@@ -67,11 +67,9 @@ describe('createFireflies() component door', () => {
     FIREFLIES.value = { ..._origFireflies };
   });
 
-  it('constructs with an empty named group and a null handle; theme effect safe pre-picker', () => {
-    expect(() => {
-      comp = createFireflies(makePrePickerCtx());
-      FIREFLIES.value = { ...FIREFLIES.value };
-    }).not.toThrow();
+  it('constructs an empty named group, and the theme effect is inert pre-picker', () => {
+    comp = createFireflies(makePrePickerCtx());
+    FIREFLIES.value = { ...FIREFLIES.value };
     expect(comp.group.name).toBe('city-fireflies');
     expect(comp.group.children).toHaveLength(0);
   });

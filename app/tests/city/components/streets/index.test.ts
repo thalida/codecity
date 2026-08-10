@@ -119,13 +119,10 @@ describe('createStreets()', () => {
       renderer: null as unknown as THREE.WebGLRenderer,
       cityState: makeCityState(),
     } as unknown as SceneContext;
-    expect(() => {
-      streets = createStreets(ctx);
-      STREETS.value = { ...STREETS.value };
-    }).not.toThrow();
+    streets = createStreets(ctx);
+    STREETS.value = { ...STREETS.value };
+    expect(streets.group.children).toHaveLength(0);
   });
-
-  // rebuild() — populates group + arrays + lookups
 
   it('rebuild() populates group.children, pickables, asphalt, and labels', () => {
     const { ctx } = makePickableSceneContext();
@@ -339,14 +336,12 @@ describe('createStreets()', () => {
 
     // Effects are stopped — selection + STREETS mutations don't throw and
     // don't re-tint the (now-detached) sidewalk to SELECTED.
-    expect(() => {
-      selection.value = {
-        kind: NodeKind.Directory,
-        sidewalk: sw,
-        dir: firstStreetDir(streets),
-      } as unknown as PickTarget;
-      STREETS.value = { ...STREETS.value, ASPHALT_COLOR: '#000000' };
-    }).not.toThrow();
+    selection.value = {
+      kind: NodeKind.Directory,
+      sidewalk: sw,
+      dir: firstStreetDir(streets),
+    } as unknown as PickTarget;
+    STREETS.value = { ...STREETS.value, ASPHALT_COLOR: '#000000' };
     expect(sidewalkColorHex(streets)).not.toBe(
       new THREE.Color(DEFAULTS.SIDEWALK_SELECTED).getHex()
     );

@@ -110,15 +110,12 @@ describe('createBuildings()', () => {
     expect(buildings.getBuildingIndex()).toBeNull();
   });
 
-  it('material theme effect runs at construction with a null picker without throwing', () => {
+  it('material theme effect is inert while the picker is still null', () => {
     const ctx = makePrePickerCtx();
-    expect(() => {
-      buildings = createBuildings(ctx);
-      BUILDINGS.value = { ...BUILDINGS.value };
-    }).not.toThrow();
+    buildings = createBuildings(ctx);
+    BUILDINGS.value = { ...BUILDINGS.value };
+    expect(buildings.group.children).toHaveLength(0);
   });
-
-  // rebuild() — populates group + cells + lookups
 
   it('rebuild() populates the group, cells, index, and lookups', async () => {
     const { ctx } = makePickableSceneContext();

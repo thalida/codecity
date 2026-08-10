@@ -54,13 +54,12 @@ describe('createFootprint()', () => {
     expect(fp.group.children).toHaveLength(0);
   });
 
-  it('effect runs at construction without throwing (null-guard)', () => {
-    expect(() => {
-      FOOTPRINT.value = { ...FOOTPRINT.value };
-    }).not.toThrow();
+  it('effect is inert before the first rebuild', () => {
+    // No mesh yet, so the effect fires against a null material and its
+    // `if (material)` guard is what holds.
+    FOOTPRINT.value = { ...FOOTPRINT.value };
+    expect(fp.group.children).toHaveLength(0);
   });
-
-  // rebuild() — builds correct geometry
 
   it('rebuild() emits one InstancedMesh instance per layout rect', () => {
     const layout: CityLayout = {

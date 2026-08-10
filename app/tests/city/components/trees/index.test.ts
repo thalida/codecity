@@ -68,11 +68,13 @@ describe('createTrees() component door', () => {
     expect(trees.getRenderer()).toBeNull();
   });
 
-  it('theme effect runs at construction with a null picker without throwing', () => {
-    expect(() => {
-      trees = createTrees(makePrePickerCtx());
-      TREES.value = { ...TREES.value };
-    }).not.toThrow();
+  it('theme effect is inert while the picker is still null', () => {
+    // createTrees runs before the picker exists, so the effect fires against a
+    // null inner renderer. Its optional chaining is what holds here.
+    trees = createTrees(makePrePickerCtx());
+    TREES.value = { ...TREES.value };
+    expect(trees.getRenderer()).toBeNull();
+    expect(trees.group.children).toHaveLength(0);
   });
 
   it('signal-driven rebuild runs without a cycle (clears + bumps decorationRevision)', async () => {
@@ -200,11 +202,9 @@ describe('createTrees() component door', () => {
     expect(trees.getRenderer()).toBeNull();
     expect(trees.group.children).toHaveLength(0);
     expect(ctx.scene.children.filter((c) => c instanceof LineSegments2)).toHaveLength(0);
-    // Theme effect stopped — a later TREES Save no longer refreshes.
-    expect(() => {
-      TREES.value = { ...TREES.value, TRUNK_COLOR: '#00ff00' };
-      selection.value = commitTarget(SHA_A);
-    }).not.toThrow();
+    // A TREES save after teardown must not reach the renderer.
+    TREES.value = { ...TREES.value, TRUNK_COLOR: '#00ff00' };
+    selection.value = commitTarget(SHA_A);
     expect(refreshSpy).not.toHaveBeenCalled();
   });
 });
