@@ -13,6 +13,7 @@ import { RUINED_STREET_DIRS } from '@/city/timeline/scrubController';
 import { TIMELINE_MODE } from '@/state/stores/timeline';
 import { BuildingKind } from '@/city/components/buildings/buildingKind';
 import { makeCityState } from '../../_helpers/cityFixtures';
+import { commitSeries } from '../../_helpers/commits';
 import { NodeKind, StreetAxis } from '@/types';
 import type { Building, CommitEntry, PickerWorld, Street } from '@/types';
 
@@ -163,17 +164,6 @@ describe('picker: Timeline scrub-hidden guard — trees', () => {
     return m;
   }
 
-  function commit(i: number): CommitEntry {
-    return {
-      date: `2026-03-${String(i + 1).padStart(2, '0')}`,
-      files: i + 1,
-      sha: `${i.toString(16).padStart(8, '0')}${'0'.repeat(32)}`,
-      authors: [`Author ${i}`],
-      subject: `commit ${i}`,
-      same_day_total: 1,
-    };
-  }
-
   function makeWorld(canopy: THREE.InstancedMesh, commits: CommitEntry[]) {
     const cityState = makeCityState();
     const api: PickerWorld = {
@@ -198,7 +188,7 @@ describe('picker: Timeline scrub-hidden guard — trees', () => {
 
   it('a zero-scaled (future-commit) tree instance is not pickable', () => {
     const canopy = makeCanopy();
-    const commits = [commit(0), commit(1)];
+    const commits = [commitSeries(1)[0], commitSeries(2)[1]];
     canopy.setMatrixAt(1, new THREE.Matrix4().makeScale(0, 0, 0));
     const world = makeWorld(canopy, commits);
     const picker = createPicker({ canvas, camera: FAKE_CAMERA, world, cityState: world.cityState });
@@ -216,7 +206,7 @@ describe('picker: Timeline scrub-hidden guard — trees', () => {
 
   it('a full-scale tree instance resolves normally in Timeline mode', () => {
     const canopy = makeCanopy();
-    const commits = [commit(0), commit(1)];
+    const commits = [commitSeries(1)[0], commitSeries(2)[1]];
     const world = makeWorld(canopy, commits);
     const picker = createPicker({ canvas, camera: FAKE_CAMERA, world, cityState: world.cityState });
     TIMELINE_MODE.value = true;
@@ -234,7 +224,7 @@ describe('picker: Timeline scrub-hidden guard — trees', () => {
 
   it('live mode still picks a zero-scaled tree instance — guard is a no-op', () => {
     const canopy = makeCanopy();
-    const commits = [commit(0), commit(1)];
+    const commits = [commitSeries(1)[0], commitSeries(2)[1]];
     canopy.setMatrixAt(1, new THREE.Matrix4().makeScale(0, 0, 0));
     const world = makeWorld(canopy, commits);
     const picker = createPicker({ canvas, camera: FAKE_CAMERA, world, cityState: world.cityState });

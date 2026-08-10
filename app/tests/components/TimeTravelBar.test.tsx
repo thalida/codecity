@@ -6,20 +6,14 @@ import { render } from 'preact';
 import { TimeTravelBar } from '@/components/TimeTravelBar/TimeTravelBar';
 import { TIMELINE_MODE, SCRUB_POS, TIMELINE_BUNDLE, setScrubPos } from '@/state/stores/timeline';
 import { flush, drainAsync } from '../_helpers/preact';
-import type { CommitEntry, TimelineBundle } from '@/types';
+import type { TimelineBundle } from '@/types';
+import { commits as buildCommits } from '../_helpers/commits';
 
-const commit = (sha: string, date: string, subject: string): CommitEntry => ({
-  sha,
-  date,
-  subject,
-  files: 1,
-  authors: ['Someone'],
-  same_day_total: 1,
-});
-
-const old = commit('aaaaaaa1111111111111111111111111111111', '2026-01-01', 'oldest');
-const mid = commit('bbbbbbb2222222222222222222222222222222', '2026-02-01', 'middle');
-const head = commit('ccccccc3333333333333333333333333333333', '2026-03-01', 'head');
+const [old, mid, head] = buildCommits(
+  { date: '2026-01-01', files: 1, subject: 'oldest', authors: ['Someone'] },
+  { date: '2026-02-01', files: 1, subject: 'middle', authors: ['Someone'] },
+  { date: '2026-03-01', files: 1, subject: 'head', authors: ['Someone'] }
+);
 
 const BUNDLE = {
   commits: [old, mid, head],
@@ -161,7 +155,7 @@ describe('TimeTravelBar', () => {
   });
 
   it('single-commit repo: handle pins right, track is inert (no drag)', async () => {
-    const only = commit('ddddddd4444444444444444444444444444444', '2026-07-24', 'init');
+    const [only] = buildCommits({ date: '2026-07-24', files: 1, subject: 'init' });
     TIMELINE_BUNDLE.value = {
       commits: [only],
       unionManifest: { tree: { name: 'r' }, repo: { remote_url: null } },
@@ -197,11 +191,11 @@ describe('TimeTravelBar', () => {
   it('same-day repo stays scrubbable: track is live, a press moves SCRUB_POS', async () => {
     const day = '2026-07-24';
     TIMELINE_BUNDLE.value = {
-      commits: [
-        commit('1111111aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', day, 'c1'),
-        commit('2222222bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb', day, 'c2'),
-        commit('3333333ccccccccccccccccccccccccccccccccc', day, 'c3'),
-      ],
+      commits: buildCommits(
+        { date: day, files: 1, subject: 'c1' },
+        { date: day, files: 1, subject: 'c2' },
+        { date: day, files: 1, subject: 'c3' }
+      ),
       unionManifest: { tree: { name: 'r' }, repo: { remote_url: null } },
       deltas: [],
       blobLines: {},

@@ -26,6 +26,7 @@ import { OverviewPane } from '@/views/InfoPane/OverviewPane';
 import { InfoPane } from '@/views/InfoPane/InfoPane';
 import { NodeKind } from '@/types';
 import type { Manifest } from '@/types';
+import { commits as buildCommits } from '../../_helpers/commits';
 import { uniformFileStats } from '../../_helpers/statsFixtures';
 
 const tree = {
@@ -170,14 +171,7 @@ describe('OverviewPane', () => {
     const withCommits: Manifest = {
       ...manifest,
       commits: [
-        {
-          date: '2022-01-01',
-          files: 9,
-          sha: 'abc1234',
-          authors: ['Ada'],
-          subject: 'x',
-          same_day_total: 1,
-        },
+        buildCommits({ date: '2022-01-01', files: 9, sha: 'abc1234', authors: ['Ada'] })[0],
       ],
       stats: commitStats,
     };
@@ -197,14 +191,7 @@ describe('OverviewPane', () => {
     const withCommits: Manifest = {
       ...manifest,
       commits: [
-        {
-          date: '2022-01-01',
-          files: 9,
-          sha: 'abc1234',
-          authors: ['Ada'],
-          subject: 'x',
-          same_day_total: 1,
-        },
+        buildCommits({ date: '2022-01-01', files: 9, sha: 'abc1234', authors: ['Ada'] })[0],
       ],
       stats: commitStats,
     };
@@ -224,14 +211,7 @@ describe('OverviewPane', () => {
     const withCommits: Manifest = {
       ...manifest,
       commits: [
-        {
-          date: '2022-01-01',
-          files: 9,
-          sha: 'abc1234',
-          authors: ['Ada'],
-          subject: 'x',
-          same_day_total: 1,
-        },
+        buildCommits({ date: '2022-01-01', files: 9, sha: 'abc1234', authors: ['Ada'] })[0],
       ],
       stats: commitStats,
     };

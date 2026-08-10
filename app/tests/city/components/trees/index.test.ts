@@ -7,30 +7,22 @@ import * as THREE from 'three';
 import { LineSegments2 } from 'three/addons/lines/LineSegments2.js';
 
 import { createTrees } from '@/city/components/trees';
-import { makeCityState, makePickableSceneContext } from '../../../_helpers/cityFixtures';
+import {
+  commitTarget,
+  makeCityState,
+  makePickableSceneContext,
+  treePlacement,
+} from '../../../_helpers/cityFixtures';
 import { TREES } from '@/state/stores/settings/trees';
-import { NodeKind } from '@/types';
-import type { CommitEntry } from '@/types';
+import { commits as buildCommits } from '../../../_helpers/commits';
 import { commitStats } from '../../../_helpers/statsFixtures';
-import type { PickTarget } from '@/types/picker';
-import type { TreePlacement } from '@/city/components/trees/treePlacement';
 import type { Picker } from '@/city/interaction/picker';
 import type { SceneContext } from '@/city/types';
 
 const SHA_A = 'a'.repeat(40);
 
-const COMMITS: CommitEntry[] = [
-  {
-    date: '2026-01-01',
-    files: 1,
-    sha: SHA_A,
-    authors: ['Alice'],
-    subject: 'a',
-    same_day_total: 1,
-  },
-];
-
-const PLACEMENTS: TreePlacement[] = [{ x: 0, y: 0, seed: 0, commitIndex: 0 } as TreePlacement];
+const COMMITS = buildCommits({ date: '2026-01-01', files: 1, sha: SHA_A, authors: ['Alice'] });
+const PLACEMENTS = [treePlacement(0)];
 
 const BUSY = { avg: 1, busy: 1 };
 
@@ -52,15 +44,6 @@ function makePrePickerCtx(): SceneContext {
 
 // A throwaway camera for tick() frames where the camera value doesn't matter.
 const CAMERA = new THREE.PerspectiveCamera();
-
-function commitTarget(sha: string): PickTarget {
-  return {
-    kind: NodeKind.Commit,
-    mesh: new THREE.InstancedMesh(new THREE.BufferGeometry(), new THREE.MeshBasicMaterial(), 1),
-    instanceId: 0,
-    commit: { sha, date: '2026-01-01', files: 1, authors: ['Alice'], subject: 'a' },
-  } as unknown as PickTarget;
-}
 
 const FRAME = (camera: THREE.PerspectiveCamera) => ({ dt: 0, time: 0, camera });
 

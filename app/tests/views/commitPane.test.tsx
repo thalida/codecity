@@ -9,16 +9,18 @@ import type { CommitEntry } from '@/types';
 // or rejects on a non-ok response) and Preact picking up the resulting
 // useState change. drainAsync alternates microtask + macrotask yields to
 // cover both the success and the longer reject path deterministically.
+import { colorForAuthor } from '@/city/components/fireflies/authorColor';
+import { commits as buildCommits } from '../_helpers/commits';
 import { drainAsync } from '../_helpers/preact';
 
-const COMMIT: CommitEntry = {
+const [COMMIT] = buildCommits({
   date: '2026-03-12',
   files: 4,
   sha: 'a1b2c3d4567890abcdef1234567890abcdef1234',
   authors: ['Alice Author'],
   subject: 'fix(scan): handle empty repos cleanly',
   same_day_total: 4,
-};
+});
 
 // setCommit(commit, opts) assigns the signal and flushes.
 type SetOpts = Omit<CommitPaneState, 'commit'>;
@@ -292,7 +294,6 @@ describe('CommitPane', () => {
   // ── Author row ────────────────────────────────────────────────────────────
 
   it('renders the author row with a colored dot matching the author', async () => {
-    const { colorForAuthor } = await import('@/city/components/fireflies/authorColor.js');
     mount();
     await setCommit(COMMIT, { now: new Date('2026-05-24T12:00:00Z') });
     await drainAsync();
@@ -323,15 +324,11 @@ describe('CommitPane', () => {
   });
 
   it('renders one .commit-author row per author for a multi-author commit', async () => {
-    const { colorForAuthor } = await import('@/city/components/fireflies/authorColor.js');
-    const multi: CommitEntry = {
-      date: '2026-03-12',
-      files: 4,
-      sha: 'a1b2c3d4567890abcdef1234567890abcdef1234',
+    const [multi] = buildCommits({
+      ...COMMIT,
       authors: ['Alice Author', 'Bob Builder', 'Carol Coder'],
       subject: 'feat: team effort',
-      same_day_total: 4,
-    };
+    });
     mount();
     await setCommit(multi, { now: new Date('2026-05-24T12:00:00Z') });
     await drainAsync();

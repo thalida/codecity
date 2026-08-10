@@ -4,12 +4,13 @@
 import * as THREE from 'three';
 import { signal } from '@preact/signals';
 import { NodeKind } from '@/types';
-import type { CityBbox, CityLayout, PickTarget } from '@/types';
+import type { CityBbox, CityLayout, CommitEntry, PickTarget } from '@/types';
 import type { SceneContext } from '@/city/types';
 import type { Picker } from '@/city/interaction/picker';
 import { TREES } from '@/state/stores/settings/trees';
 import { BUILDING_DIMENSIONS } from '@/state/stores/settings/buildings';
 import { createCityState, type CityState } from '@/city/state';
+import { commits } from './commits';
 
 // A no-op layout client for tests that exercise cityState's signals/components
 // but never call applyManifest (the only consumer of the client — so the worker
@@ -186,4 +187,15 @@ export function treePlacement(
   seed = 0
 ): import('@/city/components/trees/treePlacement').TreePlacement {
   return { x, y, seed, commitIndex };
+}
+
+/** A Commit PickTarget for the given sha, as the picker hands one to a
+ *  component. The mesh is a throwaway: only `kind` and `commit` are read. */
+export function commitTarget(sha: string, overrides: Partial<CommitEntry> = {}): PickTarget {
+  return {
+    kind: NodeKind.Commit,
+    mesh: new THREE.InstancedMesh(new THREE.BufferGeometry(), new THREE.MeshBasicMaterial(), 1),
+    instanceId: 0,
+    commit: commits({ date: '2026-01-01', files: 1, authors: ['Alice'], ...overrides, sha })[0],
+  };
 }

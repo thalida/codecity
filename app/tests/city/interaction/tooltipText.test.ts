@@ -5,6 +5,7 @@ import {
   middleTruncatePath,
 } from '@/city/interaction/tooltipText';
 import { NodeKind } from '@/types';
+import { commits as buildCommits } from '../../_helpers/commits';
 import type { FileNode, DirNode } from '@/types';
 import type { PickTarget } from '@/types';
 
@@ -150,14 +151,13 @@ describe('hoverTooltipContent', () => {
   it('leads a commit with its subject, details beneath', () => {
     const t = {
       kind: NodeKind.Commit,
-      commit: {
-        sha: 'a7f3c9d1234567',
+      commit: buildCommits({
         date: '2024-03-20T10:00:00Z',
         files: 6,
+        sha: 'a7f3c9d1234567',
         authors: ['thalida'],
         subject: 'Widen the default tree canopy',
-        same_day_total: 1,
-      },
+      })[0],
     } as PickTarget;
     const c = hoverTooltipContent(t, 'codecity')!;
     expect(c.title).toBe('Widen the default tree canopy');
@@ -169,14 +169,13 @@ describe('hoverTooltipContent', () => {
   it('falls back to the sha when a commit has no subject', () => {
     const t = {
       kind: NodeKind.Commit,
-      commit: {
-        sha: 'a7f3c9d1234567',
+      commit: buildCommits({
         date: '2024-03-20T10:00:00Z',
         files: 1,
+        sha: 'a7f3c9d1234567',
         authors: [],
         subject: '',
-        same_day_total: 1,
-      },
+      })[0],
     } as PickTarget;
     expect(hoverTooltipContent(t, 'codecity')!.title).toBe('commit a7f3c9d');
   });

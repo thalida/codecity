@@ -11,6 +11,7 @@ import { TREES } from '@/state/stores/settings/trees';
 import { RAINBOW } from '@/state/stores/settings/effects';
 import { NodeKind } from '@/types';
 import type { PickTarget } from '@/types/picker';
+import { commitTarget } from '../../../_helpers/cityFixtures';
 
 function fakeCanvas(): HTMLCanvasElement {
   const c = document.createElement('canvas');
@@ -47,22 +48,6 @@ function fakePicker() {
   const hover = signal<PickTarget | null>(null);
   const selection = signal<PickTarget | null>(null);
   return { hover, selection };
-}
-
-function commitTarget(sha: string): PickTarget {
-  return {
-    kind: NodeKind.Commit,
-    mesh: new THREE.InstancedMesh(new THREE.BufferGeometry(), new THREE.MeshBasicMaterial(), 1),
-    instanceId: 0,
-    commit: {
-      sha,
-      date: '2026-05-27',
-      files: 1,
-      authors: ['Test Author'],
-      subject: 'test commit',
-      same_day_total: 1,
-    },
-  };
 }
 
 describe('treeOutlineRenderer', () => {
