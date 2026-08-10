@@ -1,16 +1,5 @@
-// Canonical Building test factory — replaces 4 variant factories that had
-// begun to drift across:
-//   - app/tests/city/cellAssembly.test.ts            (fakeBuilding, `as Building`)
-//   - app/tests/city/cellMesh.test.ts (fakeBuilding, `as Building`)
-//   - app/tests/city/buildingIndex.test.ts           (makeBuilding, `as unknown as Building`)
-//   - app/tests/city/trees/treePlacement.test.ts     (makeBuilding, `as never`)
-//
-// The `as Building` / `as unknown as Building` / `as never` casts in the
-// prior versions were not load-bearing — every variant actually produced a
-// shape compatible with Building. The casts existed only because spreading
-// `...overrides: Partial<Building>` defeats TS narrowing. This helper avoids
-// that by not spreading — it merges overrides field-by-field via `??`.
-// Task 9 migrates the call sites.
+// Overrides are merged field by field rather than spread: spreading a
+// Partial<Building> defeats TS narrowing and forces a cast at every call site.
 
 import { BuildingOrient, NodeKind } from '@/types';
 import type { Building, FileNode } from '@/types';

@@ -1,5 +1,3 @@
-// app/tests/city/components/footprint/index.test.ts
-//
 // Tests for the persistent createFootprint(ctx) component.
 // API: createFootprint(ctx) → { group, rebuild(layout), dispose() }
 // Settings reactivity (COLOR / CORNER_RADIUS / ENABLED) is owned by the

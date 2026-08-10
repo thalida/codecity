@@ -1,18 +1,6 @@
-// app/tests/city/components/buildings/index.test.ts
-//
-// Tests for the persistent createBuildings(ctx) component.
-// API: createBuildings(ctx) → { group, rebuild(layout, dateRanges),
-//      disposeFacadePanels, tick(dt, frame), onResize(), dispose(),
-//      getBuildingByPath, getCells, getBuildingIndex,
-//      getMeshForBuilding }.
-//
-// The shared-material theme effect reacts to BUILDINGS/SCENE/BLOOM at
-// construction (safe — no picker). The fader/outline/ghost overlays are
-// picker-driven and ARMED on the first tick() (NOT at construction — ctx.picker
-// is null there, so a construction-time subscriber would track no signal and
-// never re-fire). The arming test below directly guards that: a hover set
-// AFTER the first tick must drive the ghost overlay; before any tick, no
-// overlay exists at all.
+// createCity builds buildings before the picker exists, so the picker-driven
+// effects are armed on the first tick() instead of at construction. Effects
+// armed at construction would track no signal and never fire again.
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import * as THREE from 'three';

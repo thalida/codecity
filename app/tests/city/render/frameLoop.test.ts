@@ -1,9 +1,5 @@
-// frameLoop.test.ts — verifies the generic requestAnimationFrame driver
-// (city/render/frameLoop.ts, unwired until Task 15): per-frame call order
-// (before → rig.update → component ticks in array order → after →
-// postFx.render), the synchronous first frame with dt = 0, and stop()
-// cancelling the pending rAF. requestAnimationFrame/cancelAnimationFrame
-// are mocked for determinism (no real frame scheduling).
+// Per-frame call order and the rAF contract: exactly one frame queued at a
+// time, and stop() cancels the pending one.
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import * as THREE from 'three';

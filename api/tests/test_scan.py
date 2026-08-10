@@ -9,6 +9,7 @@ import shutil
 import subprocess
 import tempfile
 import unittest
+from unittest import mock
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
@@ -26,6 +27,7 @@ from api.services.scan import (
     scan_tree,
     signature_tree,
 )
+from api.services.gitobj import BINARY_CHUNK, is_binary_bytes
 from api.services.manifest_types import Manifest
 
 
@@ -174,20 +176,36 @@ def test_extension(name, expected):
     assert _extension(name) == expected
 
 
+# The heuristic is pure and public (gitobj.is_binary_bytes); _is_binary only
+# adds the read. Classification is tested against bytes, with no filesystem.
 @pytest.mark.parametrize(
-    ("label", "content", "is_binary"),
+    ("label", "content", "expected"),
     [
         ("plain text", b"hello world\nline two\n", False),
         ("a null byte anywhere", b"hello\x00world", True),
         ("empty", b"", False),
-        # Control bytes outside _TEXT_CHARACTERS.
-        ("mostly control bytes", bytes(range(1, 7)) * 40, True),
+        ("control bytes outside the text set", bytes(range(1, 7)) * 40, True),
     ],
 )
-def test_is_binary(tmp_path, label, content, is_binary):
-    p = tmp_path / "f"
-    p.write_bytes(content)
-    assert _is_binary(p) is is_binary
+def test_is_binary_bytes(label, content, expected):
+    assert is_binary_bytes(content) is expected
+
+
+def test_is_binary_reads_only_the_first_chunk():
+    handle = mock.mock_open(read_data=b"\x00" * 10)
+    path = mock.Mock(spec=Path)
+    path.open.return_value = handle.return_value
+
+    assert _is_binary(path) is True
+    path.open.assert_called_once_with("rb")
+    handle.return_value.read.assert_called_once_with(BINARY_CHUNK)
+
+
+def test_is_binary_treats_an_unreadable_file_as_binary():
+    """Fail safe: a file we cannot read must not be fed to the line counter."""
+    path = mock.Mock(spec=Path)
+    path.open.side_effect = OSError("permission denied")
+    assert _is_binary(path) is True
 
 
 def _commits_per_day(*per_day: int) -> list:

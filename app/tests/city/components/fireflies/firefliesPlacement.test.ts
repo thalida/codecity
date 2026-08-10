@@ -1,34 +1,19 @@
 import { describe, it, expect } from 'vitest';
 import { placeFireflies } from '@/city/components/fireflies/firefliesPlacement';
+import { colorForAuthor } from '@/city/components/fireflies/authorColor';
 import { FIREFLIES } from '@/state/stores/settings/fireflies';
-import type { CommitEntry } from '@/types';
-import type { TreePlacement } from '@/city/components/trees/treePlacement';
+import { commits as buildCommits } from '../../../_helpers/commits';
 import { commitStats } from '../../../_helpers/statsFixtures';
+import { treePlacement } from '../../../_helpers/cityFixtures';
 
-const COMMITS: CommitEntry[] = [
-  {
-    date: '2026-01-01',
-    files: 1,
-    sha: 'a'.repeat(40),
-    authors: ['Alice'],
-    subject: 'one',
-    same_day_total: 1,
-  },
-  {
-    date: '2026-01-02',
-    files: 2,
-    sha: 'b'.repeat(40),
-    authors: ['Bob'],
-    subject: 'two',
-    same_day_total: 1,
-  },
-];
+const COMMITS = buildCommits(
+  { date: '2026-01-01', files: 1, authors: ['Alice'] },
+  { date: '2026-01-02', files: 2, authors: ['Bob'] }
+);
 
-// TreePlacement has { x, y, seed, commitIndex } — no height/radius fields.
-// Those are derived at render/placement time from commits + config.
-function placement(commitIndex: number, x: number, z: number): TreePlacement {
-  return { x, y: z, seed: 0, commitIndex };
-}
+// TreePlacement carries no height or radius; placeFireflies derives both from
+// the commits plus TREES config.
+const placement = (commitIndex: number, x: number, z: number) => treePlacement(commitIndex, x, z);
 
 describe('placeFireflies', () => {
   it('single-author commits emit exactly 1 orb per tree (regression)', () => {
@@ -46,7 +31,7 @@ describe('placeFireflies', () => {
 
   it('returns different orbital params for different commit SHAs', () => {
     const a = placeFireflies([placement(0, 0, 0)], COMMITS, commitStats(COMMITS));
-    const altCommits: CommitEntry[] = [{ ...COMMITS[0], sha: 'c'.repeat(40) }, COMMITS[1]];
+    const altCommits = [{ ...COMMITS[0], sha: 'c'.repeat(40) }, COMMITS[1]];
     const b = placeFireflies([placement(0, 0, 0)], altCommits, commitStats(altCommits));
     let anyDifferent = false;
     for (let i = 0; i < a.length; i++) {
@@ -85,8 +70,7 @@ describe('placeFireflies', () => {
     }
   });
 
-  it('emits authorColor per-orb from the commit author', async () => {
-    const { colorForAuthor } = await import('@/city/components/fireflies/authorColor.js');
+  it('emits authorColor per-orb from the commit author', () => {
     const stats = commitStats(COMMITS);
     const orbs = placeFireflies([placement(0, 0, 0)], COMMITS, stats);
     const hue = stats.authors.find((a) => a.name === COMMITS[0].authors[0])!.hue;
@@ -122,32 +106,11 @@ describe('placeFireflies', () => {
 
   it('scale-by-commits assigns larger scale to authors with more commits', () => {
     // Alice has 1 commit (i=0); Bob has 2 commits (i=1, i=2).
-    const commits = [
-      {
-        date: '2026-01-01',
-        files: 1,
-        sha: 'a'.repeat(40),
-        authors: ['Alice'],
-        subject: 'a',
-        same_day_total: 1,
-      },
-      {
-        date: '2026-01-02',
-        files: 1,
-        sha: 'b'.repeat(40),
-        authors: ['Bob'],
-        subject: 'b1',
-        same_day_total: 1,
-      },
-      {
-        date: '2026-01-03',
-        files: 1,
-        sha: 'c'.repeat(40),
-        authors: ['Bob'],
-        subject: 'b2',
-        same_day_total: 1,
-      },
-    ];
+    const commits = buildCommits(
+      { date: '2026-01-01', files: 1, authors: ['Alice'] },
+      { date: '2026-01-02', files: 1, authors: ['Bob'] },
+      { date: '2026-01-03', files: 1, authors: ['Bob'] }
+    );
     // 1 orb per tree: orbs map 1:1 to placements for easy indexing.
     const orbs = placeFireflies(
       [placement(0, 0, 0), placement(1, 10, 0), placement(2, 20, 0)],
@@ -173,24 +136,10 @@ describe('placeFireflies', () => {
 
   it('all orbs from the same author share the same scale', () => {
     // Use a fixture with 2 commits from the same author.
-    const sameAuthor = [
-      {
-        date: '2026-01-01',
-        files: 1,
-        sha: 'a'.repeat(40),
-        authors: ['Alice'],
-        subject: 'a1',
-        same_day_total: 1,
-      },
-      {
-        date: '2026-01-02',
-        files: 1,
-        sha: 'b'.repeat(40),
-        authors: ['Alice'],
-        subject: 'a2',
-        same_day_total: 1,
-      },
-    ];
+    const sameAuthor = buildCommits(
+      { date: '2026-01-01', files: 1, authors: ['Alice'] },
+      { date: '2026-01-02', files: 1, authors: ['Alice'] }
+    );
     const orbs = placeFireflies(
       [placement(0, 0, 0), placement(1, 10, 0)],
       sameAuthor,
@@ -203,24 +152,10 @@ describe('placeFireflies', () => {
     // When every author has the same commit count (single author or tied
     // distribution), there's no meaningful ranking — render everyone at
     // SCALE_MAX rather than collapsing to SCALE_MIN.
-    const soloAuthor = [
-      {
-        date: '2026-01-01',
-        files: 1,
-        sha: 'a'.repeat(40),
-        authors: ['Solo'],
-        subject: 'a',
-        same_day_total: 1,
-      },
-      {
-        date: '2026-01-02',
-        files: 1,
-        sha: 'b'.repeat(40),
-        authors: ['Solo'],
-        subject: 'b',
-        same_day_total: 1,
-      },
-    ];
+    const soloAuthor = buildCommits(
+      { date: '2026-01-01', files: 1, authors: ['Solo'] },
+      { date: '2026-01-02', files: 1, authors: ['Solo'] }
+    );
     const orbs = placeFireflies(
       [placement(0, 0, 0), placement(1, 10, 0)],
       soloAuthor,
@@ -232,32 +167,21 @@ describe('placeFireflies', () => {
   });
 
   it('emits one orb per distinct author on a multi-author commit', () => {
-    const multiAuthor: CommitEntry[] = [
-      {
-        date: '2026-01-01',
-        files: 1,
-        sha: 'a'.repeat(40),
-        authors: ['Alice', 'Bob', 'Carol'],
-        subject: 'team work',
-        same_day_total: 1,
-      },
-    ];
+    const multiAuthor = buildCommits({
+      date: '2026-01-01',
+      files: 1,
+      authors: ['Alice', 'Bob', 'Carol'],
+    });
     const orbs = placeFireflies([placement(0, 0, 0)], multiAuthor, commitStats(multiAuthor));
     expect(orbs.length).toBe(3);
   });
 
-  it("colors each per-author orb with that author's color", async () => {
-    const { colorForAuthor } = await import('@/city/components/fireflies/authorColor.js');
-    const multiAuthor: CommitEntry[] = [
-      {
-        date: '2026-01-01',
-        files: 1,
-        sha: 'a'.repeat(40),
-        authors: ['Alice', 'Bob', 'Carol'],
-        subject: 'team work',
-        same_day_total: 1,
-      },
-    ];
+  it("colors each per-author orb with that author's color", () => {
+    const multiAuthor = buildCommits({
+      date: '2026-01-01',
+      files: 1,
+      authors: ['Alice', 'Bob', 'Carol'],
+    });
     const stats = commitStats(multiAuthor);
     const orbs = placeFireflies([placement(0, 0, 0)], multiAuthor, stats);
     const hueOf = (n: string) => stats.authors.find((a) => a.name === n)!.hue;
@@ -267,16 +191,11 @@ describe('placeFireflies', () => {
   });
 
   it('per-author orbs share orbit center but have distinct angles', () => {
-    const multiAuthor: CommitEntry[] = [
-      {
-        date: '2026-01-01',
-        files: 1,
-        sha: 'a'.repeat(40),
-        authors: ['Alice', 'Bob', 'Carol'],
-        subject: 'team work',
-        same_day_total: 1,
-      },
-    ];
+    const multiAuthor = buildCommits({
+      date: '2026-01-01',
+      files: 1,
+      authors: ['Alice', 'Bob', 'Carol'],
+    });
     const orbs = placeFireflies([placement(0, 100, 200)], multiAuthor, commitStats(multiAuthor));
     // Same orbit center (tree position).
     expect(orbs[0].treeX).toBe(100);
@@ -294,24 +213,10 @@ describe('placeFireflies', () => {
     // Commit 0 is co-authored by Alice and Bob; commit 1 is Bob solo.
     // Tally: Alice=1, Bob=2. After scale lerp, Bob's orbs should scale
     // larger than Alice's.
-    const commits: CommitEntry[] = [
-      {
-        date: '2026-01-01',
-        files: 1,
-        sha: 'a'.repeat(40),
-        authors: ['Alice', 'Bob'],
-        subject: 'pair',
-        same_day_total: 1,
-      },
-      {
-        date: '2026-01-02',
-        files: 1,
-        sha: 'b'.repeat(40),
-        authors: ['Bob'],
-        subject: 'solo',
-        same_day_total: 1,
-      },
-    ];
+    const commits = buildCommits(
+      { date: '2026-01-01', files: 1, authors: ['Alice', 'Bob'] },
+      { date: '2026-01-02', files: 1, authors: ['Bob'] }
+    );
     const orbs = placeFireflies(
       [placement(0, 0, 0), placement(1, 10, 0)],
       commits,

@@ -1,12 +1,5 @@
-// Guard test: every Material icon basename the resolvers (utils/fileIcons.ts)
-// can produce must be bundled in MATERIAL_ICON_URLS — otherwise an edit to a
-// lookup map that adds a new icon without regenerating constants/materialIcons
-// would ship a broken <img>/atlas glyph (undefined URL). This is the class of
-// bug that produced the blank scene/ + state/ folder icons.
-//
-// The generated `?url` imports in materialIcons.ts are themselves build-checked
-// against the pinned material-icon-theme package — a name with no file fails
-// the build. Lucide glyphs need no test at all: they're imported as components.
+// Every icon name the resolvers can produce must be bundled, or an edit to a
+// lookup map ships an undefined URL and a blank glyph.
 
 import { describe, it, expect } from 'vitest';
 import {

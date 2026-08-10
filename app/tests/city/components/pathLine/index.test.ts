@@ -1,17 +1,6 @@
-// app/tests/city/components/pathLine/index.test.ts
-//
-// Tests for the persistent createPathLine(ctx) component (door).
-// API: createPathLine(ctx) → { group, tick(dt, frame), onResize(),
-//      dispose() }.
-//
-// The inner renderer owns the picker-driven geometry effects and a cityState
-// rebuild effect (gemWorldPos + cityRevision), so it is ARMED on the first
-// tick() (NOT at construction — ctx.picker is null there, so its effects would
-// track no signal and never re-fire). The theme effect tracks ONLY STREETS:
-// refreshMaterials
-// internally re-evaluates the hover line (which reads picker signals), so it
-// runs UNTRACKED — the untracked-discipline test guards that a hover change
-// does not re-fire the theme effect.
+// createCity builds the path line before the picker exists, so the picker-driven
+// effects are armed on the first tick() instead of at construction. Effects
+// armed at construction would track no signal and never fire again.
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import * as THREE from 'three';

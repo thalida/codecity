@@ -1,15 +1,5 @@
-// app/tests/city/components/armOnFirstTick.test.ts
-//
-// Tests for armOnFirstTick(ctx, setup) — the shared "arm picker-dependent work
-// on the first tick" lifecycle extracted from buildings/streets/fireflies/
-// trees/pathLine. Components are constructed before ctx.picker exists; the
-// helper defers setup() to the first arm() after the picker is live, runs it
-// exactly ONCE (sticky), and survives dispose() so a stray post-dispose arm()
-// cannot re-arm.
-//
-// The fake SceneContext carries a mutable picker so a test can flip it from null
-// (construction window) to live (createCity backfilled it) and assert the guard
-// fires at exactly the right moment.
+// The arming latch itself: setup runs once, only after ctx.picker is live, and
+// never again after dispose.
 
 import { describe, it, expect, vi } from 'vitest';
 

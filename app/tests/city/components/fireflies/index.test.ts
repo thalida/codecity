@@ -1,16 +1,6 @@
-// app/tests/city/components/fireflies/index.test.ts
-//
-// Tests for the persistent createFireflies(ctx) component (door).
-// API: createFireflies(ctx) → { group, rebuild(placements, commits, stats),
-//      clear(), tick(dt, frame), onResize(w, h), dispose() }.
-//
-// FIREFLIES settings reactivity (bob/pulse/emission uniforms) is owned by
-// the component's theme effect; the hover/select boost effects are
-// picker-driven and ARMED on the first tick() (NOT at construction —
-// ctx.picker is null there, so they'd track no signal and never re-fire).
-// The rebuild-survival test guards the dynamic-_inner contract: the effect
-// bodies must reach the CURRENT inner renderer after a rebuild, exactly like
-// the old renderLoop effects re-fetched world.getFireflies() each fire.
+// createCity builds fireflies before the picker exists, so the picker-driven
+// effects are armed on the first tick() instead of at construction. Effects
+// armed at construction would track no signal and never fire again.
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import * as THREE from 'three';

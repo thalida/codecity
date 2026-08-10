@@ -1,16 +1,6 @@
-// app/tests/city/components/trees/index.test.ts
-//
-// Tests for the persistent createTrees(ctx) component (door).
-// API: createTrees(ctx) → { group, rebuild(placements, commits, busyness),
-//      clear(), getRenderer(), tick(dt, frame), onResize(), dispose() }.
-//
-// TREES settings reactivity (canopy/trunk recolor + outline materials) is
-// owned by the component's theme effect; the hover/selected outline renderer
-// is picker-driven and ARMED on the first tick() (NOT at construction —
-// ctx.picker is null there, so its construction-time effects would track no
-// signal and never re-fire). The arming test below directly guards that: a
-// Commit selection set BEFORE the first tick produces no outline; after the
-// first tick the outline is live.
+// createCity builds trees before the picker exists, so the picker-driven
+// effects are armed on the first tick() instead of at construction. Effects
+// armed at construction would track no signal and never fire again.
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import * as THREE from 'three';

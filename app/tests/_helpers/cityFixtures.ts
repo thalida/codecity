@@ -176,3 +176,14 @@ export function resetBuildingsConfig(): void {
     DATA_HEIGHT_RATIO: 0.7,
   };
 }
+
+/** A TreePlacement at (x, y) for the given commit. Seed defaults to 0 so
+ *  placements are deterministic unless a test varies it deliberately. */
+export function treePlacement(
+  commitIndex: number,
+  x = 0,
+  y = 0,
+  seed = 0
+): import('@/city/components/trees/treePlacement').TreePlacement {
+  return { x, y, seed, commitIndex };
+}

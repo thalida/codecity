@@ -1,15 +1,11 @@
-// app/tests/city/fireflies/orbitRings.test.ts
-//
 // Unit tests for the lazy 2-slot orbit-ring pool. The pool is exercised
 // in isolation (not through createFireflies) so failures point at the
 // pool itself, not the surrounding renderer wiring.
 
 import { describe, it, expect } from 'vitest';
 import * as THREE from 'three';
-import { createOrbitRings } from '@/city/components/fireflies/orbitRings';
+import { createOrbitRings, ORBIT_RINGS_GROUP } from '@/city/components/fireflies/orbitRings';
 import type { FireflyPlacement } from '@/city/components/fireflies/firefliesPlacement';
-
-const RING_GROUP_NAME = 'firefly-orbit-rings';
 
 function makePlacement(commitIndex: number): FireflyPlacement {
   return {
@@ -37,7 +33,7 @@ function meshesIn(rings: ReturnType<typeof createOrbitRings>): THREE.Mesh[] {
 describe('createOrbitRings — lazy pool', () => {
   it('returns an empty group at construction (no upfront geometry)', () => {
     const rings = createOrbitRings(PLACEMENTS);
-    expect(rings.group.name).toBe(RING_GROUP_NAME);
+    expect(rings.group.name).toBe(ORBIT_RINGS_GROUP);
     expect(meshesIn(rings).length).toBe(0);
     rings.dispose();
   });
