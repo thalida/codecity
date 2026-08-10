@@ -53,6 +53,9 @@ export function Section({
   const showReset = customReset || keys.length > 0;
   const canReset = customReset ? !!resetEnabled : keysResettable;
   const open = useSignal(defaultOpen ?? false);
+  // A collapsed body is display:none, so mounting it costs ~150 hidden controls
+  // per World-tab open. Mount on first open; stay mounted so reopening is free.
+  const everOpened = useSignal(defaultOpen ?? false);
 
   // A disclosure, NOT a <details>: the header is a flex row with a real
   // aria-expanded toggle button and the reset button as SIBLINGS. (An
@@ -68,6 +71,7 @@ export function Section({
           aria-expanded={open.value}
           onClick={() => {
             open.value = !open.value;
+            if (open.value) everOpened.value = true;
           }}
         >
           <ChevronRight class="icon chevron" />
@@ -93,8 +97,12 @@ export function Section({
         )}
       </div>
       <div class="controls-disclosure-body">
-        {hint && <div class="controls-section-hint">{hint}</div>}
-        {children}
+        {everOpened.value && (
+          <>
+            {hint && <div class="controls-section-hint">{hint}</div>}
+            {children}
+          </>
+        )}
       </div>
     </div>
   );
