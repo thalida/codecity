@@ -20,6 +20,7 @@ import { FilePreviewSection } from './partials/FilePreviewSection';
 import { InterfaceThemeSection } from './partials/InterfaceThemeSection';
 import { DynamicSection, type SectionNode } from './partials';
 import { CAMERA_SECTION } from './partials/Camera';
+import { SHOWCASE_SECTION } from './partials/Showcase';
 import { SCENE_SECTION } from './partials/Scene';
 import { ISLAND_SECTION } from './partials/Island';
 import { BUILDINGS_SECTION } from './partials/Buildings';
@@ -36,6 +37,24 @@ import { SCAN_COUNT, APPEARANCE_COUNT, WORLD_COUNT } from '@/state/stores/settin
 import { Pane } from '@/components/Pane';
 import { PaneCloseButton } from '@/components/PaneHeader/PaneHeader';
 import { PaneTabs } from '@/components/PaneTabs/PaneTabs';
+
+/** The World tab's sections. Hoisted out of the render because a test asserts
+ *  the invariant that every field under here is draft-backed: World settings all
+ *  stage into the footer's Save/Discard/Reset, with no write-through exceptions. */
+export const WORLD_SECTIONS: SectionNode[] = [
+  CAMERA_SECTION,
+  SHOWCASE_SECTION,
+  SCENE_SECTION,
+  ISLAND_SECTION,
+  BUILDINGS_SECTION,
+  STREETS_SECTION,
+  FOOTPRINT_SECTION,
+  GEM_SECTION,
+  TREES_SECTION,
+  FIREFLIES_SECTION,
+  EFFECTS_SECTION,
+  TIMELINE_SECTION,
+];
 
 interface Subtab {
   id: string;
@@ -92,19 +111,7 @@ export function ControlsPane({ onClose, collapsed }: ControlsPaneProps) {
       icon: Boxes,
       badge: WORLD_COUNT.value,
       draftable: true,
-      sections: [
-        CAMERA_SECTION,
-        SCENE_SECTION,
-        ISLAND_SECTION,
-        BUILDINGS_SECTION,
-        STREETS_SECTION,
-        FOOTPRINT_SECTION,
-        GEM_SECTION,
-        TREES_SECTION,
-        FIREFLIES_SECTION,
-        EFFECTS_SECTION,
-        TIMELINE_SECTION,
-      ],
+      sections: WORLD_SECTIONS,
     },
   ];
 

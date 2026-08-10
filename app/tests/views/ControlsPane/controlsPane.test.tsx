@@ -139,6 +139,15 @@ describe('subgroup group reset button', () => {
         .find((t) => t.textContent?.includes('World'))
         ?.click();
     });
+    // Sections mount their body on first open, so the subgroups only exist once
+    // the sections are opened.
+    act(() => {
+      pane
+        .querySelectorAll<HTMLButtonElement>(
+          '.controls-section-summary .controls-disclosure-toggle'
+        )
+        .forEach((t) => t.click());
+    });
     return pane;
   }
 
