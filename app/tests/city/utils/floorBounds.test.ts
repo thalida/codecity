@@ -49,9 +49,8 @@ describe('worldBounds', () => {
   });
 
   it('tiny cities get tiny bounds (no floor; slider always meaningful)', () => {
-    // 10-wide bbox. characteristic = 10, 10*0.30 = 3.
-    // halfWidth = 10/2 + 3 = 8. Previously a MIN_BUFFER=800 floor kicked in
-    // here and broke the slider for small repos; now removed.
+    // 10-wide bbox. characteristic = 10, 10*0.30 = 3, halfWidth = 10/2 + 3 = 8.
+    // Any minimum buffer here would swamp a small repo and flatten its slider.
     const b = getWorldBounds(bbox(0, 0, 10, 10));
     expect(b.halfWidth).toBe(8);
     expect(b.halfDepth).toBe(8);

@@ -824,10 +824,8 @@ describe('quickjs-scenario regression', () => {
   // child whose own src/ subdir picked the side facing node_modules,
   // forcing the quickjs road to extend back. With the packer, src/ should
   // mirror or pick the other side, keeping quickjs road short.
-  // Not the shared mkDir: this scenario is three levels deep, so it re-prefixes
-  // paths all the way down and accumulates descendants_count recursively. The
-  // shared one only prefixes its immediate children, which is enough for the
-  // flat trees everywhere else in this file.
+  // Three levels deep, so paths re-prefix all the way down and
+  // descendants_count accumulates. The shared mkDir only does one level.
   function mkDeepDir(name: string, children: any[], path?: string): any {
     const dirPath = path || name;
     const prefixed = children.map((c) => {

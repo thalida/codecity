@@ -17,7 +17,7 @@ function flushFrame(): void {
   for (const cb of pending) cb(performance.now());
 }
 
-// frameLoop reads only ctx.scene (the camera now lives on perFrame.rig).
+// frameLoop reads only ctx.scene; the camera reaches it via perFrame.rig.
 function makeCtx(): SceneContext {
   return { scene: new THREE.Scene() } as unknown as SceneContext;
 }

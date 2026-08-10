@@ -44,9 +44,8 @@ describe('treePlacementClient (sync fallback path)', () => {
 
   it('forwards commitCount to placeTrees', async () => {
     const client = createTreePlacementClient();
-    // Bbox sized generously so the polygon-in rejection doesn't crowd
-    // out the 25 candidates we expect. Previously the MIN_BUFFER=800 floor
-    // padded tiny bboxes; now removed, so this test sizes its own bbox big enough.
+    // Bbox sized generously so the polygon-in rejection doesn't crowd out the
+    // 25 candidates we expect. Nothing pads a tiny bbox on our behalf.
     const layout: CityLayout = {
       buildings: [],
       streets: [],

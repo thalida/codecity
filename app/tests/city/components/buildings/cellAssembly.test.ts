@@ -35,8 +35,6 @@ const FILE_DEFAULTS: FileNode = {
 // Any bounds <= ~192×192 keeps cellSize at MIN_CELL_SIZE (12).
 const CELL_SIZE = 12;
 
-// ---------------------------------------------------------------------------
-
 describe('buildCellsFromLayout', () => {
   it('returns a Map, SpatialGrid, BuildingIndex, and a sceneRoot Group', () => {
     const bounds = { minX: 0, maxX: 100, minZ: 0, maxZ: 100 };

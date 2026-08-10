@@ -64,10 +64,9 @@ describe('createCity', () => {
     expect(forceContextLossSpy).toHaveBeenCalled();
   });
 
-  // Issue #113: a source switch used to leave the union city + scrub controller
-  // stuck on the newly loaded repo. useManifestSource.loadSource now flips
-  // TIMELINE_MODE off directly (scene-free); this effect is what actually tears
-  // the scene down, uniformly for the toggle button AND a source switch.
+  // loadSource flips TIMELINE_MODE off without touching the scene, so this
+  // effect is the only thing that tears the union city and scrub controller
+  // down — for the toggle button and a source switch alike.
   describe('Timeline-mode scene teardown', () => {
     // Only the uninstall is asserted here: the rebuild it triggers needs a
     // populated manifest to observe, which this harness does not build.

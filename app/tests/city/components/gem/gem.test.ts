@@ -91,10 +91,9 @@ describe('createGem()', () => {
     expect(gem.getRootGroup()!.scale.x).toBeLessThanOrEqual(GEM.value.HOVER_SCALE + 1e-6);
   });
 
-  // Not a check that the effect stopped: dispose() nulls edges/body, and the
-  // effect body is all `edges?.material`-style guards, so a leaked subscription
-  // would be absorbed by them and look identical from out here. What this pins
-  // is those guards — a settings write after teardown must not crash.
+  // Not a check that the effect stopped: dispose() nulls edges/body and the
+  // effect body is all `edges?.material` guards, so a leak would be absorbed
+  // and look identical from here. What this pins is the guards.
   it('a GEM mutation after dispose() is absorbed by the null guards', () => {
     const { ctx } = makePickableSceneContext();
     gem = createGem(ctx);

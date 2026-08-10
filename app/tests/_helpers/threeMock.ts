@@ -1,17 +1,15 @@
-// jsdom cannot create a WebGL context, so any test that builds a real city has
-// to stub the renderer and the post pipeline.
+// jsdom cannot create a WebGL context, so any test that builds a real city
+// stubs the renderer and the post pipeline.
 //
-// These are imported from inside a `vi.mock` factory rather than at the top of
-// the test file: `vi.mock` is hoisted above the import block, so a top-level
-// import is not initialised yet when the factory runs. The factories are async,
-// so `await import(...)` inside them resolves at mock time and is fine.
+// Pull these in with `await import(...)` from inside the mock factory, not a
+// top-level import: `vi.mock` hoists above the import block, so a top-level
+// binding is not initialised yet when the factory runs.
 
 import type * as THREE from 'three';
 
 /** Keeps exactly the methods createCity and the frame loop call. `getSize`
- *  fills the passed Vector2, which makes the per-frame size guard a no-op.
- *  Pass a spy to assert the GL context was released and not just its
- *  resources. */
+ *  fills the passed Vector2, making the per-frame size guard a no-op. Pass a
+ *  spy to assert the GL context was released, not just its resources. */
 export function fakeWebGLRenderer(onForceContextLoss: () => void = () => {}) {
   return class FakeWebGLRenderer {
     domElement: HTMLCanvasElement;
