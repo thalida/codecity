@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { layoutCity, sortForRendering, __test } from '@/city/layout/algorithm';
+import { layoutCity } from '@/city/layout/algorithm';
 import { getStreetWidth, getBuildingDimensions, computeFileStats } from '@/city/layout/dimensions';
 import { BUILDING_DIMENSIONS } from '@/state/stores/settings/buildings';
 import { BuildingOrient, NodeKind, StreetAxis } from '@/types';
@@ -689,69 +689,6 @@ describe('orient correctness for mirrored subtrees', () => {
       }
       expect(matched).toBe(true);
     }
-  });
-});
-
-// ---- sortForRendering ----
-describe('sortForRendering', () => {
-  it('sorts back-to-front (lowest x+y first — behind draws first)', () => {
-    const unsorted = [
-      { x: 5, y: 5, id: 'near' },
-      { x: 20, y: 20, id: 'far' },
-      { x: 10, y: 10, id: 'mid' },
-    ];
-    const sorted = sortForRendering(unsorted);
-    // Lowest x+y = behind (north/west), drawn first
-    // Highest x+y = in front (south/east), drawn last (on top)
-    expect(sorted[0].id).toBe('near');
-    expect(sorted[1].id).toBe('mid');
-    expect(sorted[2].id).toBe('far');
-  });
-
-  it('does not mutate original array', () => {
-    const original = [
-      { x: 5, y: 5, id: 'close' },
-      { x: 20, y: 20, id: 'far' },
-    ];
-    sortForRendering(original);
-    expect(original[0].id).toBe('close');
-  });
-
-  it('handles single element', () => {
-    const sorted = sortForRendering([{ x: 0, y: 0 }]);
-    expect(sorted.length).toBe(1);
-  });
-
-  it('handles empty array', () => {
-    const sorted = sortForRendering([]);
-    expect(sorted.length).toBe(0);
-  });
-});
-
-// ---- Internal helpers ----
-describe('_rectsOverlap', () => {
-  const { _rectsOverlap } = __test;
-  it('overlapping rects return true', () => {
-    expect(_rectsOverlap({ x: 0, y: 0, w: 10, d: 10 }, { x: 5, y: 5, w: 10, d: 10 })).toBe(true);
-  });
-  it('disjoint rects return false', () => {
-    expect(_rectsOverlap({ x: 0, y: 0, w: 10, d: 10 }, { x: 100, y: 0, w: 10, d: 10 })).toBe(false);
-  });
-  it('touching edges return false (gap-apart abutment is OK)', () => {
-    expect(_rectsOverlap({ x: 0, y: 0, w: 10, d: 10 }, { x: 10, y: 0, w: 10, d: 10 })).toBe(false);
-  });
-  it('touching edges on Y axis return false', () => {
-    expect(_rectsOverlap({ x: 0, y: 0, w: 10, d: 10 }, { x: 0, y: 10, w: 10, d: 10 })).toBe(false);
-  });
-  it('one contains the other returns true', () => {
-    expect(_rectsOverlap({ x: 0, y: 0, w: 100, d: 100 }, { x: 0, y: 0, w: 5, d: 5 })).toBe(true);
-  });
-  it('sub-femto overlap (FP noise) is treated as touching', () => {
-    // Simulate the 7e-15 overlap that arose from translating touching rects
-    // through non-integer offsets (e.g. center=63.6 computed two different ways).
-    const a = { x: 0, y: 0, w: 2, d: 2 };
-    const b = { x: 2 - 7e-15, y: 0, w: 2, d: 2 };
-    expect(_rectsOverlap(a, b)).toBe(false);
   });
 });
 

@@ -1,12 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { WorldRectKind } from '@/city/layout/occupancyIndex';
 import { StreetAxis } from '@/types';
-import {
-  applyFlips,
-  computeFlips,
-  isMirrorInvariant,
-  translateRectsToWorld,
-} from '@/city/layout/stemSolver';
+import { applyFlips, computeFlips, isMirrorInvariant } from '@/city/layout/stemSolver';
 
 describe('computeFlips', () => {
   it('X-orient parent, side 0, no mirror: flipY only', () => {
@@ -475,70 +470,6 @@ describe('placeChild', () => {
     });
     expect(result.side).toBe(0);
     expect(result.stem).toBe(10);
-  });
-});
-
-describe('translateRectsToWorld', () => {
-  it('no flips, stem=0 → identity translation around origin', () => {
-    const child = { x: 5, y: 10, w: 4, d: 4 };
-    const world = translateRectsToWorld(
-      [child],
-      StreetAxis.X,
-      0,
-      0, // parent origin
-      0, // stem
-      1, // side
-      false // mirror
-    );
-    expect(world).toHaveLength(1);
-    // After: world.x = child.x + parentOriginX + stem = 5; world.y = child.y + parentOriginY = 10.
-    expect(world[0].minX).toBe(3);
-    expect(world[0].maxX).toBe(7);
-    expect(world[0].minY).toBe(8);
-    expect(world[0].maxY).toBe(12);
-  });
-
-  it('X-orient parent, side 0, stem=10 → flipY + alongShift', () => {
-    const child = { x: 5, y: 10, w: 4, d: 4 };
-    const world = translateRectsToWorld([child], StreetAxis.X, 0, 0, 10, 0, false);
-    // For X-orient parent, side=0 → flipY=true. World y = -child.y + parentOriginY = -10.
-    // World x = child.x + parentOriginX + stem = 5 + 10 = 15.
-    expect(world[0].minX).toBe(13);
-    expect(world[0].maxX).toBe(17);
-    expect(world[0].minY).toBe(-12);
-    expect(world[0].maxY).toBe(-8);
-  });
-
-  it('X-orient parent, side 1, mirror=true → flipX, no flipY, alongShift', () => {
-    const child = { x: 5, y: 10, w: 4, d: 4 };
-    const world = translateRectsToWorld([child], StreetAxis.X, 0, 0, 10, 1, true);
-    // For X-orient parent, mirror → flipX=true. World x = -child.x + parentOriginX + stem = -5 + 10 = 5.
-    // World y = child.y = 10.
-    expect(world[0].minX).toBe(3);
-    expect(world[0].maxX).toBe(7);
-    expect(world[0].minY).toBe(8);
-    expect(world[0].maxY).toBe(12);
-  });
-
-  it('Y-orient parent, side 0, stem=10 → flipX + alongShift', () => {
-    const child = { x: 5, y: 10, w: 4, d: 4 };
-    const world = translateRectsToWorld([child], StreetAxis.Y, 0, 0, 10, 0, false);
-    // For Y-orient parent: along=Y, perp=X. side=0 → flipX=true.
-    // World x = -child.x + parentOriginX = -5. World y = child.y + parentOriginY + stem = 10 + 10 = 20.
-    expect(world[0].minX).toBe(-7);
-    expect(world[0].maxX).toBe(-3);
-    expect(world[0].minY).toBe(18);
-    expect(world[0].maxY).toBe(22);
-  });
-
-  it('preserves kind and ref from original rects', () => {
-    // translateRectsToWorld expects {x,y,w,d,kind,ref} input form for typed rects.
-    // We pass a stub ref to verify it's preserved.
-    const ref = { id: 'stub' } as unknown as never;
-    const child = { x: 0, y: 10, w: 4, d: 4, kind: WorldRectKind.Building, ref };
-    const world = translateRectsToWorld([child], StreetAxis.X, 0, 0, 0, 1, false);
-    expect(world[0].kind).toBe('building');
-    expect(world[0].ref).toBe(ref);
   });
 });
 

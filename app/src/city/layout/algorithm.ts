@@ -20,7 +20,7 @@ import { GEM_SIZING } from '@/state/stores/settings/gem';
 import { BuildingOrient, JoinSide, NodeKind, StreetAxis } from '@/types';
 import type { Building, CityLayout, RangeStat, RepoStats, Street } from '@/types';
 import { parentDirPath } from '../utils/path';
-import { rectOfBuilding, rectOfStreet, _rectsOverlap } from './rect';
+import { rectOfBuilding, rectOfStreet } from './rect';
 import type { Rect } from './rect';
 import { WorldOccupancy, WorldRectKind } from './occupancyIndex';
 import type { WorldRect } from './occupancyIndex';
@@ -780,27 +780,3 @@ function _mirrorOrient(orient: BuildingOrient, negateX: boolean, negateY: boolea
   }
   return orient;
 }
-
-// -----------------------------------------------------------------------------
-// sortForRendering(buildings) -> buildings[]
-//
-// Painter's algorithm: sorts buildings so that those further from the viewer
-// (higher x + y sum) are drawn first. Returns a new sorted array.
-// -----------------------------------------------------------------------------
-export function sortForRendering<T extends { x: number; y: number }>(buildings: T[]): T[] {
-  const sorted = buildings.slice();
-  sorted.sort((a, b) => {
-    // Ascending: lowest x+y drawn first.
-    // In our projection sx=(x-y)*cos30, sy=(x+y)*sin30-z:
-    //   Lower x+y = higher on screen (north-west) = behind
-    //   Higher x+y = lower on screen (south-east) = in front
-    // Painter's: draw behind first (low x+y), in-front last (high x+y).
-    return a.x + a.y - (b.x + b.y);
-  });
-  return sorted;
-}
-
-// Internal helpers exposed for tests only. Not part of the public API.
-export const __test = {
-  _rectsOverlap,
-};

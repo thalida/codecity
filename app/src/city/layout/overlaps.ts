@@ -1,7 +1,6 @@
-// city/layout/overlaps.ts — runtime overlap diagnostic. Walks a finished
-// layout and reports any rect-rect intersection, classifying documented
-// T-junction joins separately from unexpected overlaps. Pure data; no DOM or
-// Three.js.
+// city/layout/overlaps.ts — every rect-rect intersection in a finished layout,
+// with T-junction joins classified apart from unexpected overlaps. Pure data;
+// no DOM or Three.js.
 
 import { StreetAxis } from '@/types';
 import type { Building, Street } from '@/types';
@@ -9,24 +8,10 @@ import { rectOfBuilding, rectOfStreet, _rectsOverlap, rectEdges } from './rect';
 import type { Rect } from './rect';
 import { WorldRectKind } from './occupancyIndex';
 
-// -----------------------------------------------------------------------------
-// findLayoutOverlaps(layout) -> LayoutOverlap[]
-//
-// Runtime overlap diagnostic. Walks every (street, building, path) pair,
-// reports any rect-rect intersection, and classifies it. Intended to be
-// called from world after layoutCity for live debugging — the test
-// suite (assertNoOverlap) covers synthetic trees but visual bugs surface
-// only against real manifests, where this helper helps locate them.
-//
-// Whitelist:
-//   - 't-junction': two perpendicular streets joined at a T (one street's
-//     length-axis endpoint sits on the other's centerline within both half-
-//     widths). This is the documented flat join the renderer fuses.
-// Anything else is 'unexpected'.
-//
-// `_isStreetJoinPair` re-derives the T-junction geometry rather than sharing a
-// helper, so this runtime diagnostic never depends on layout internals moving.
-function _isStreetJoinPair(a: Street, b: Street): boolean {
+// Perpendicular streets whose endpoint sits on the other's centerline: the flat
+// join the renderer fuses, and so the one overlap a layout may contain. The
+// half-unit slop absorbs coordinate drift; a well-formed join has a zero gap.
+export function isStreetJoinPair(a: Street, b: Street): boolean {
   if (a.orientation === b.orientation) return false;
   const aLong = a.orientation === StreetAxis.X ? 'x' : 'y';
   const aCross = a.orientation === StreetAxis.X ? 'y' : 'x';
@@ -117,7 +102,7 @@ export function findLayoutOverlaps(layout: {
       if (
         A.kind === WorldRectKind.Street &&
         B.kind === WorldRectKind.Street &&
-        _isStreetJoinPair(A.ref, B.ref)
+        isStreetJoinPair(A.ref, B.ref)
       ) {
         category = LayoutOverlapCategory.TJunction;
       }
