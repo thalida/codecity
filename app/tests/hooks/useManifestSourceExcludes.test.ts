@@ -3,26 +3,8 @@ import { loadSource, setupLiveUpdates } from '@/hooks/useManifestSource';
 import { CURRENT_SOURCE } from '@/state/stores/source';
 import { MANIFEST } from '@/state/stores/manifest';
 import { EXCLUDES, addExclude } from '@/state/stores/excludes';
+import { StubEventSource, installEventSource } from '../_helpers/eventSource';
 
-// EventSource stub mirrors useManifestSource.test.ts: records listeners so a
-// test can emit a named SSE event and records instances for URL assertions.
-class StubEventSource {
-  static instances: StubEventSource[] = [];
-  closed = false;
-  private listeners: Record<string, ((e: unknown) => void)[]> = {};
-  constructor(public url: string) {
-    StubEventSource.instances.push(this);
-  }
-  addEventListener(name: string, handler: (e: unknown) => void): void {
-    (this.listeners[name] ??= []).push(handler);
-  }
-  close(): void {
-    this.closed = true;
-  }
-  emit(name: string, data: string): void {
-    for (const h of this.listeners[name] ?? []) h({ data });
-  }
-}
 const flush = (): Promise<void> => new Promise((r) => setTimeout(r, 0));
 
 // Minimal manifest-complete payload so loadSource commits the source. The
@@ -39,17 +21,15 @@ const MANIFEST_JSON = JSON.stringify({
 });
 
 describe('exclude-driven re-fetch', () => {
-  let original: typeof EventSource;
+  let restoreEventSource: () => void;
   beforeEach(() => {
-    original = globalThis.EventSource;
-    StubEventSource.instances = [];
-    (globalThis as unknown as { EventSource: unknown }).EventSource = StubEventSource;
+    restoreEventSource = installEventSource();
     EXCLUDES.value = {};
     CURRENT_SOURCE.value = null;
     MANIFEST.value = { tree: {} } as never;
   });
   afterEach(() => {
-    (globalThis as unknown as { EventSource: unknown }).EventSource = original;
+    restoreEventSource();
   });
 
   it('re-fetches the loaded source with the exclude param when an exclude is added', async () => {

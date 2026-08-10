@@ -5,42 +5,20 @@ import { MANIFEST } from '@/state/stores/manifest';
 import { TIMELINE_MODE, SCRUB_POS, TIMELINE_BUNDLE, setScrubPos } from '@/state/stores/timeline';
 import type { TimelineBundle } from '@/types';
 import { PENDING_SOURCE_LABEL } from '@/state/stores/ui';
-
-// EventSource stub with driveable events: records listeners so a test can emit
-// a named SSE event (e.g. a `manifest-partial` skeleton), and records
-// instances so a test can assert the stream was closed on abort.
-class StubEventSource {
-  static instances: StubEventSource[] = [];
-  closed = false;
-  private listeners: Record<string, ((e: unknown) => void)[]> = {};
-  constructor(public url: string) {
-    StubEventSource.instances.push(this);
-  }
-  addEventListener(name: string, handler: (e: unknown) => void): void {
-    (this.listeners[name] ??= []).push(handler);
-  }
-  close(): void {
-    this.closed = true;
-  }
-  emit(name: string, data: string): void {
-    for (const h of this.listeners[name] ?? []) h({ data });
-  }
-}
+import { StubEventSource, installEventSource } from '../_helpers/eventSource';
 
 const flush = (): Promise<void> => new Promise((r) => setTimeout(r, 0));
 
 describe('useManifestSource loadSource cancellation', () => {
-  let originalEventSource: typeof EventSource;
+  let restoreEventSource: () => void;
 
   beforeEach(() => {
-    originalEventSource = globalThis.EventSource;
-    StubEventSource.instances = [];
-    (globalThis as unknown as { EventSource: unknown }).EventSource = StubEventSource;
+    restoreEventSource = installEventSource();
     SOURCE_ERROR.value = null;
   });
 
   afterEach(() => {
-    (globalThis as unknown as { EventSource: unknown }).EventSource = originalEventSource;
+    restoreEventSource();
   });
 
   describe('loading header label', () => {
