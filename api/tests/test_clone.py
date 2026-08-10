@@ -156,36 +156,27 @@ class EnsureCloneTests(unittest.TestCase):
         self.assertEqual(files_after, [])
 
     def test_clone_without_origin_head_still_checks_out(self) -> None:
-        """A populated clone that has no refs/remotes/origin/HEAD must still
-        get checked out. Only `git clone` writes that ref (`git fetch` never
-        does), so a clone whose remote HEAD git couldn't resolve holds every
-        branch but no record of the default. Reading that as "the remote has
-        no commits" leaves the tree empty on every subsequent load — a real
-        repo rendering as an empty city, with no error to trigger a re-clone.
-        """
+        """A populated clone with no refs/remotes/origin/HEAD still gets checked
+        out, and lands HEAD on a real branch."""
         local = ensure_clone(self.url)
         self.assertTrue((local / "README.md").is_file())
 
         # Reproduce the broken on-disk shape: branches present, origin/HEAD
-        # gone, HEAD parked on the dangling ref git uses when it gives up,
-        # nothing checked out.
+        # gone, HEAD parked on the dangling ref git uses when it gives up.
         # `--delete` removes the symref itself; `update-ref -d` would deref it
         # and delete origin/main instead, which a fetch just puts back.
         _run("git", "symbolic-ref", "--delete", "refs/remotes/origin/HEAD", cwd=local)
         _run("git", "read-tree", "--empty", cwd=local)
         (local / "README.md").unlink()
-        # Written directly: git parks HEAD here itself but `git symbolic-ref`
-        # rejects the name (a refname component may not start with a dot).
+        # Written directly: `git symbolic-ref` rejects the name git parks HEAD
+        # on itself (a refname component may not start with a dot).
         (local / ".git" / "HEAD").write_text("ref: refs/heads/.invalid\n")
         self.assertEqual([p.name for p in local.iterdir() if p.name != ".git"], [])
 
         ensure_clone(self.url)
         self.assertTrue((local / "README.md").is_file())
-        # Restoring the files is not enough: HEAD must land on a real branch
-        # too. `reset --hard` moves whatever HEAD points at rather than
-        # repointing it, so a dangling HEAD survives a reset and every history
-        # command keeps failing — the scan then reads zero commits and the city
-        # renders with no ages, trees or timeline.
+        # A dangling HEAD survives `reset --hard`, leaving every history command
+        # failing even once the files are back.
         log = subprocess.run(
             ["git", "-C", str(local), "log", "--oneline"],
             capture_output=True,
@@ -774,10 +765,8 @@ def test_ensure_clone_emits_throttled_progress_via_callback(tmp_path):
     on_progress = MagicMock()
     with (
         mock.patch.object(clone_mod, "CLONES_ROOT", cache),
-        # This test fakes the whole subprocess layer to exercise clone-progress
-        # emission; the post-clone checkout repair and LFS pull are separate
-        # concerns and would try to spawn a real git against the fake tree, so
-        # stub them out.
+        # The subprocess layer is faked, so the checkout repair and LFS pull
+        # would spawn a real git against a tree that doesn't exist.
         mock.patch.object(clone_mod, "_ensure_checkout"),
         mock.patch.object(clone_mod, "_pull_lfs"),
         mock.patch.object(subprocess, "Popen", return_value=FakeProc()),
@@ -849,10 +838,8 @@ def test_ensure_clone_emits_terminal_percent_of_each_stage(tmp_path):
     on_progress = MagicMock()
     with (
         mock.patch.object(clone_mod, "CLONES_ROOT", cache),
-        # This test fakes the whole subprocess layer to exercise clone-progress
-        # emission; the post-clone checkout repair and LFS pull are separate
-        # concerns and would try to spawn a real git against the fake tree, so
-        # stub them out.
+        # The subprocess layer is faked, so the checkout repair and LFS pull
+        # would spawn a real git against a tree that doesn't exist.
         mock.patch.object(clone_mod, "_ensure_checkout"),
         mock.patch.object(clone_mod, "_pull_lfs"),
         mock.patch.object(subprocess, "Popen", return_value=FakeProc()),
