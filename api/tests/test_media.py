@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 import struct
-import unittest
 import zlib
+
+import pytest
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
@@ -36,162 +37,115 @@ def _write_svg(path: Path, content: str) -> None:
     path.write_text(content, encoding="utf-8")
 
 
-class ImageProbingTests(unittest.TestCase):
-    def test_png_dimensions_extracted(self):
-        with TemporaryDirectory() as tmp:
-            p = Path(tmp) / "img.png"
-            _write_minimal_png(p, 320, 240)
-            w, h = probe_media_dims(p)
-            self.assertEqual(w, 320)
-            self.assertEqual(h, 240)
-
-    def test_svg_with_explicit_dimensions(self):
-        with TemporaryDirectory() as tmp:
-            p = Path(tmp) / "icon.svg"
-            _write_svg(
-                p,
-                '<svg xmlns="http://www.w3.org/2000/svg" width="100" height="50"></svg>',
-            )
-            w, h = probe_media_dims(p)
-            self.assertEqual(w, 100)
-            self.assertEqual(h, 50)
-
-    def test_svg_with_viewbox_only(self):
-        with TemporaryDirectory() as tmp:
-            p = Path(tmp) / "icon.svg"
-            _write_svg(
-                p, '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 32"></svg>'
-            )
-            w, h = probe_media_dims(p)
-            self.assertEqual(w, 64)
-            self.assertEqual(h, 32)
-
-    def test_svg_with_no_dimensions_returns_none(self):
-        with TemporaryDirectory() as tmp:
-            p = Path(tmp) / "icon.svg"
-            _write_svg(p, '<svg xmlns="http://www.w3.org/2000/svg"></svg>')
-            w, h = probe_media_dims(p)
-            self.assertIsNone(w)
-            self.assertIsNone(h)
-
-    def test_corrupt_image_returns_none(self):
-        with TemporaryDirectory() as tmp:
-            p = Path(tmp) / "broken.png"
-            p.write_bytes(b"\x89PNG not really a png")
-            w, h = probe_media_dims(p)
-            self.assertIsNone(w)
-            self.assertIsNone(h)
-
-    def test_non_media_extension_returns_none(self):
-        with TemporaryDirectory() as tmp:
-            p = Path(tmp) / "code.py"
-            p.write_text("print('hi')\n")
-            w, h = probe_media_dims(p)
-            self.assertIsNone(w)
-            self.assertIsNone(h)
-
-    def test_svg_with_negative_viewbox_returns_none(self):
-        with TemporaryDirectory() as tmp:
-            p = Path(tmp) / "icon.svg"
-            _write_svg(
-                p,
-                '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 -100 200"></svg>',
-            )
-            w, h = probe_media_dims(p)
-            self.assertIsNone(w)
-            self.assertIsNone(h)
+def test_png_dimensions_come_from_the_ihdr_chunk():
+    with TemporaryDirectory() as tmp:
+        p = Path(tmp) / "img.png"
+        _write_minimal_png(p, 320, 240)
+        assert probe_media_dims(p) == (320, 240)
 
 
-class ParseSvgLengthTests(unittest.TestCase):
-    """Unit tests for the private _parse_svg_length helper."""
-
-    def test_plain_integer(self):
-        self.assertEqual(_parse_svg_length("100"), 100)
-
-    def test_with_px_unit(self):
-        self.assertEqual(_parse_svg_length("100px"), 100)
-
-    def test_decimal_rounds(self):
-        # 100.5 rounds to 100 (banker's rounding) or 101 — accept either.
-        result = _parse_svg_length("100.5")
-        self.assertIn(result, (100, 101))
-
-    def test_with_em_unit(self):
-        self.assertEqual(_parse_svg_length("100em"), 100)
-
-    def test_percentage_returns_none(self):
-        self.assertIsNone(_parse_svg_length("100%"))
-
-    def test_empty_string_returns_none(self):
-        self.assertIsNone(_parse_svg_length(""))
-
-    def test_none_returns_none(self):
-        self.assertIsNone(_parse_svg_length(None))
-
-    def test_alpha_only_returns_none(self):
-        self.assertIsNone(_parse_svg_length("abc"))
-
-    def test_scientific_notation_returns_none(self):
-        # "1e2" == 100 in Python float, but SVG lengths don't permit this.
-        self.assertIsNone(_parse_svg_length("1e2"))
-
-    def test_negative_value_returns_none(self):
-        self.assertIsNone(_parse_svg_length("-1"))
-
-    def test_negative_with_unit_returns_none(self):
-        self.assertIsNone(_parse_svg_length("-1px"))
+_SVG = '<svg xmlns="http://www.w3.org/2000/svg" %s></svg>'
 
 
-class MediaKindTests(unittest.TestCase):
-    """The single-source extension classifier shared with the frontend
-    via FileNode.mediaKind."""
-
-    def test_image_extensions(self):
-        for ext in (
-            ".png",
-            ".jpg",
-            ".jpeg",
-            ".gif",
-            ".webp",
-            ".bmp",
-            ".ico",
-            ".avif",
-            ".tiff",
-            ".svg",
-        ):
-            self.assertEqual(media_kind(ext), "image", ext)
-
-    def test_video_extensions(self):
-        for ext in (".mp4", ".webm", ".mov", ".ogv", ".m4v", ".mkv"):
-            self.assertEqual(media_kind(ext), "video", ext)
-
-    def test_non_media_extensions(self):
-        for ext in (".ts", ".md", ".py", ""):
-            self.assertIsNone(media_kind(ext), ext)
-
-    def test_case_insensitive(self):
-        self.assertEqual(media_kind(".PNG"), "image")
-        self.assertEqual(media_kind(".Mp4"), "video")
-        self.assertEqual(media_kind(".SVG"), "image")
+@pytest.mark.parametrize(
+    ("attrs", "expected"),
+    [
+        ('width="100" height="50"', (100, 50)),
+        ('viewBox="0 0 64 32"', (64, 32)),
+        # Explicit dimensions win over a viewBox that disagrees.
+        ('width="100" height="50" viewBox="0 0 64 32"', (100, 50)),
+        ("", (None, None)),
+        ('viewBox="0 0 -100 200"', (None, None)),
+    ],
+)
+def test_svg_dimensions(attrs, expected):
+    with TemporaryDirectory() as tmp:
+        p = Path(tmp) / "icon.svg"
+        _write_svg(p, _SVG % attrs)
+        assert probe_media_dims(p) == expected
 
 
-class VideoProbingTests(unittest.TestCase):
-    def test_corrupt_video_returns_none(self):
-        with TemporaryDirectory() as tmp:
-            p = Path(tmp) / "broken.mp4"
-            p.write_bytes(b"not really an mp4")
-            w, h = probe_media_dims(p)
-            self.assertIsNone(w)
-            self.assertIsNone(h)
-
-    def test_empty_video_returns_none(self):
-        with TemporaryDirectory() as tmp:
-            p = Path(tmp) / "empty.webm"
-            p.write_bytes(b"")
-            w, h = probe_media_dims(p)
-            self.assertIsNone(w)
-            self.assertIsNone(h)
+@pytest.mark.parametrize(
+    ("name", "content"),
+    [("broken.png", b"\x89PNG not really a png"), ("code.py", b"print('hi')\n")],
+)
+def test_unreadable_or_non_media_returns_no_dims(name, content):
+    with TemporaryDirectory() as tmp:
+        p = Path(tmp) / name
+        p.write_bytes(content)
+        assert probe_media_dims(p) == (None, None)
 
 
-if __name__ == "__main__":
-    unittest.main()
+@pytest.mark.parametrize(
+    ("raw", "expected"),
+    [
+        ("100", 100),
+        ("100px", 100),
+        ("100em", 100),
+        # A unit SVG does not define still parses: the number is what matters.
+        ("100pt", 100),
+        ("100%", None),
+        ("", None),
+        (None, None),
+        ("abc", None),
+        # "1e2" is 100.0 to float(), but SVG lengths do not permit exponents.
+        ("1e2", None),
+        ("-1", None),
+        ("-1px", None),
+    ],
+)
+def test_parse_svg_length(raw, expected):
+    assert _parse_svg_length(raw) == expected
+
+
+def test_parse_svg_length_rounds_a_decimal():
+    # Banker's rounding puts 100.5 either side; both are acceptable.
+    assert _parse_svg_length("100.5") in (100, 101)
+
+
+# media_kind is the single-source extension classifier the frontend reads back
+# off FileNode.mediaKind, so the whole supported set is worth naming.
+@pytest.mark.parametrize(
+    "ext",
+    [
+        ".png",
+        ".jpg",
+        ".jpeg",
+        ".gif",
+        ".webp",
+        ".bmp",
+        ".ico",
+        ".avif",
+        ".tiff",
+        ".svg",
+    ],
+)
+def test_media_kind_images(ext):
+    assert media_kind(ext) == "image"
+
+
+@pytest.mark.parametrize("ext", [".mp4", ".webm", ".mov", ".ogv", ".m4v", ".mkv"])
+def test_media_kind_videos(ext):
+    assert media_kind(ext) == "video"
+
+
+@pytest.mark.parametrize("ext", [".ts", ".md", ".py", ""])
+def test_media_kind_non_media(ext):
+    assert media_kind(ext) is None
+
+
+@pytest.mark.parametrize(
+    ("ext", "expected"), [(".PNG", "image"), (".Mp4", "video"), (".SVG", "image")]
+)
+def test_media_kind_is_case_insensitive(ext, expected):
+    assert media_kind(ext) == expected
+
+
+@pytest.mark.parametrize(
+    ("name", "content"), [("broken.mp4", b"not really an mp4"), ("empty.webm", b"")]
+)
+def test_unreadable_video_returns_no_dims(name, content):
+    with TemporaryDirectory() as tmp:
+        p = Path(tmp) / name
+        p.write_bytes(content)
+        assert probe_media_dims(p) == (None, None)
