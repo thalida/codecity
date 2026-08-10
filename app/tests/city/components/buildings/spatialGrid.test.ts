@@ -9,17 +9,18 @@ describe('SpatialGrid', () => {
       minZ: 0,
       maxZ: 60,
     });
-    expect(grid.gridW).toBe(Math.ceil(100 / MIN_CELL_SIZE));
-    expect(grid.gridH).toBe(Math.ceil(60 / MIN_CELL_SIZE));
-    expect(grid.cellCount).toBe(grid.gridW * grid.gridH);
+    // 100 / 12 -> 9 columns, 60 / 12 -> 5 rows.
+    expect(grid.gridW).toBe(9);
+    expect(grid.gridH).toBe(5);
+    expect(grid.cellCount).toBe(45);
   });
 
   it('maps world position to cell index', () => {
     const grid = new SpatialGrid({ minX: 0, maxX: 100, minZ: 0, maxZ: 60 });
     const cell = grid.worldToCell(15, 25);
-    expect(cell.cx).toBe(Math.floor(15 / MIN_CELL_SIZE));
-    expect(cell.cz).toBe(Math.floor(25 / MIN_CELL_SIZE));
-    expect(cell.cellId).toBe(cell.cz * grid.gridW + cell.cx);
+    expect(cell.cx).toBe(1); // 15 / 12
+    expect(cell.cz).toBe(2); // 25 / 12
+    expect(cell.cellId).toBe(19); // row 2 of a 9-wide grid, column 1
   });
 
   it('clamps out-of-bounds coords to edge cells', () => {

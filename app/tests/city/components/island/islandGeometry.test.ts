@@ -38,12 +38,11 @@ describe('buildTopPolygon', () => {
 
   it('polygon FULLY CONTAINS the bounds rect (sqrt(2) corner correction × edge correction)', () => {
     const pts = buildTopPolygon(baseParams);
-    // baseScale = sqrt(2) × 1/cos(π/12) ≈ 1.464.
-    const expectedR = (100 * Math.SQRT2) / Math.cos(Math.PI / 12);
+    // sqrt(2) for the corner, 1/cos(pi/12) for the flat edge between vertices:
+    // 100 * 1.4142 * 1.0353 = 146.4, comfortably outside the 141.4 corner.
     pts.forEach((p) => {
-      expect(Math.hypot(p.x, p.z)).toBeCloseTo(expectedR, 1);
+      expect(Math.hypot(p.x, p.z)).toBeCloseTo(146.4, 1);
     });
-    expect(expectedR).toBeGreaterThan(Math.hypot(100, 100));
   });
 
   it('irregularity is additive — vertices push outward, bounds rect stays contained', () => {
