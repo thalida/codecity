@@ -312,6 +312,51 @@ describe('NewProjectForm', () => {
     expect(input.getAttribute('aria-describedby')).toBe(note?.id);
   });
 
+  // The message from a failed open used to render in a banner above the card,
+  // so a single failure spoke from two places and the field it described was
+  // never marked invalid.
+  it('puts the message from a failed open in the field slot, not above it', async () => {
+    render(
+      <NewProjectForm
+        allowLocalRepos
+        hosted={false}
+        error="path not found"
+        prefill={{ src: '/Users/thalida/nope' }}
+        onSubmit={() => {}}
+      />,
+      container
+    );
+    await flush();
+
+    const note = container.querySelector('.new-project-error');
+    expect(note?.textContent).toBe('path not found');
+    // Inside the field's own block, after the input.
+    expect(container.querySelector('.new-project-field')?.contains(note!)).toBe(true);
+
+    const input = field(container);
+    expect(input.getAttribute('aria-invalid')).toBe('true');
+    expect(input.getAttribute('aria-describedby')).toBe(note?.id);
+  });
+
+  it('answers a coded failure with the remedy, never the raw message too', async () => {
+    render(
+      <NewProjectForm
+        allowLocalRepos
+        hosted={false}
+        error="repository not found at https://github.com/o/private"
+        errorCode="repo-not-found"
+        prefill={{ src: 'https://github.com/o/private' }}
+        onSubmit={() => {}}
+      />,
+      container
+    );
+    await flush();
+
+    expect(container.querySelector('.unreachable--error')).not.toBeNull();
+    expect(container.querySelector('.new-project-error')).toBeNull();
+    expect(container.textContent).not.toContain('repository not found at');
+  });
+
   it('hides the local notice once the input reads as a URL', async () => {
     vi.spyOn(branchesApi, 'fetchBranches').mockResolvedValue({
       branches: ['main'],

@@ -186,10 +186,6 @@ export function ProjectsView({ onSubmit, onCancel, onClose }: ProjectsViewProps)
             <>
               <section class="landing-card surface-glass">
                 <h2 class="landing-card-title">Open a project</h2>
-                {/* A stale error from a prior attempt is dropped once a new load
-                    starts (see the loading branch above) or as soon as the user
-                    edits the source (onDirty); here it sits above the fresh form. */}
-                {pv.opts.error && <div class="card-error">{pv.opts.error}</div>}
                 <NewProjectForm
                   // Re-key on the prefill source so a failed submit (which
                   // reopens the view with the attempted src as prefill) remounts
@@ -198,6 +194,7 @@ export function ProjectsView({ onSubmit, onCancel, onClose }: ProjectsViewProps)
                   key={pv.opts.prefill?.src ?? ''}
                   allowLocalRepos={SERVER_CONFIG.value.allowLocalRepos}
                   hosted={SERVER_CONFIG.value.hosted}
+                  error={pv.opts.error}
                   errorCode={pv.opts.errorCode}
                   prefill={pv.opts.prefill}
                   onSubmit={onSubmit}

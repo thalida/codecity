@@ -31,8 +31,11 @@ export interface NewProjectFormProps {
   allowLocalRepos: boolean;
   /** This is the public deployment: a local path can never resolve here. */
   hosted: boolean;
-  /** The code from the load that just failed, if it failed. Keyed on rather
-   *  than the message text, which is the server's to reword. */
+  /** The message from the load that just failed. Rendered in the field's own
+   *  slot: it is about what's in the field, so it belongs under it. */
+  error?: string;
+  /** The code for that same failure, where there is one. Keyed on rather than
+   *  the message text, which is the server's to reword. */
   errorCode?: ScanErrorCode;
   prefill?: SourcePayload;
   onSubmit: (payload: SourcePayload) => void;
@@ -46,6 +49,7 @@ const ERROR_ID = 'new-project-error';
 export function NewProjectForm({
   allowLocalRepos,
   hosted,
+  error,
   errorCode,
   prefill,
   onSubmit,
@@ -103,7 +107,7 @@ export function NewProjectForm({
   const urlError = isRemote || (!allowLocalRepos && !pathBlocked) ? validateGitUrl(source) : null;
   const fieldError = urlError ?? (isRemote ? branchError : null);
   const canSubmit = !loading && activeSrc.length > 0 && !fieldError && !pathBlocked;
-  const hasError = Boolean(fieldError) || pathBlocked;
+  const hasError = Boolean(fieldError) || pathBlocked || Boolean(error);
 
   function submit(skipCache = false) {
     if (!canSubmit) return;
@@ -156,9 +160,11 @@ export function NewProjectForm({
             allowLocal={allowLocalRepos}
             reason={NoticeReason.PathBlocked}
           />
-        ) : fieldError ? (
+        ) : fieldError || error ? (
+          // Live validation beats the message from the last submit, which the
+          // next keystroke clears anyway (onDirty).
           <p id={ERROR_ID} role="alert" class="new-project-error">
-            {fieldError}
+            {fieldError ?? error}
           </p>
         ) : (
           showStandingNotice && (

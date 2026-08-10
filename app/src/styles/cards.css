@@ -3,8 +3,7 @@
    ═══════════════════════════════════════════════════════════════════════════
    Reusable boxed surfaces owning border + radius (+ shadow / padding), and a
    background where the role has one; the consuming selector adds only its own
-   layout. The element composes the card class with its layout class, e.g.
-   `modal-error card-error`.
+   layout. The element composes the card class with its layout class.
    ═══════════════════════════════════════════════════════════════════════════ */
 
 /* Elevated panel floating on a backdrop: the Shortcuts and Debug modals plus
@@ -13,14 +12,6 @@
   color: var(--cc-text-base);
   border-radius: var(--cc-radius-lg);
   box-shadow: var(--cc-shadow-lg);
-}
-
-/* Error notice box (modal error banner). */
-.card-error {
-  background: var(--cc-error-bg);
-  border: 1px solid var(--cc-error-border);
-  border-radius: var(--cc-radius-md);
-  padding: var(--cc-space-4) var(--cc-space-5);
 }
 
 /* Accent-tinted info strip with a bottom rule (file-preview banner). */
