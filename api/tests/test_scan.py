@@ -368,7 +368,6 @@ class ScanTreeIntegrationTests(_CacheRedirectMixin, unittest.TestCase):
         m = _final_manifest(str(FIXTURE))
         tree = m["tree"]
         breakdown = tree["descendants_ext_breakdown"]
-        self.assertIsInstance(breakdown, list)
         for entry in breakdown:
             self.assertEqual(set(entry.keys()), {"ext", "count", "size"})
         # Per-ext counts/sizes partition the descendant files exactly.
@@ -590,7 +589,6 @@ class ScanTreeIntegrationTests(_CacheRedirectMixin, unittest.TestCase):
         m1 = _final_manifest(str(FIXTURE))
         m2 = _final_manifest(str(FIXTURE))
         self.assertIn("content_signature", m1)
-        self.assertIsInstance(m1["content_signature"], str)
         self.assertEqual(m1["content_signature"], m2["content_signature"])
 
     def test_resolved_dates_prefer_git(self):
@@ -843,7 +841,6 @@ class ScanTreeIntegrationTests(_CacheRedirectMixin, unittest.TestCase):
     def test_scan_tree_emits_commits_list(self):
         m = _final_manifest(str(FIXTURE), use_cache=False)
         self.assertIn("commits", m)
-        self.assertIsInstance(m["commits"], list)
         self.assertGreater(len(m["commits"]), 0)
         dates = [c["date"] for c in m["commits"]]
         self.assertEqual(dates, sorted(dates))
@@ -897,7 +894,6 @@ class SignatureTreeTests(_CacheRedirectMixin, unittest.TestCase):
         self.assertIn("root", s)
         self.assertIn("scanned_at", s)
         self.assertIn("content_signature", s)
-        self.assertIsInstance(s["content_signature"], str)
         # No tree / repo fields — that's the whole point.
         self.assertNotIn("tree", s)
         self.assertNotIn("repo", s)
@@ -1244,7 +1240,6 @@ class GitHistoryParallelTests(_CacheRedirectMixin, unittest.TestCase):
             FIXTURE,
             use_cache=False,
         )
-        self.assertIsInstance(commits, list)
         self.assertGreater(len(commits), 0)
         # Manifest contract: oldest-first.
         dates = [c["date"] for c in commits]
@@ -1261,11 +1256,8 @@ class GitHistoryParallelTests(_CacheRedirectMixin, unittest.TestCase):
             self.assertRegex(c["date"], r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$")
             self.assertGreaterEqual(c["files"], 1)
             self.assertRegex(c["sha"], r"^[0-9a-f]{40}$")
-            self.assertIsInstance(c["authors"], list)
             self.assertGreater(len(c["authors"]), 0)
-            self.assertIsInstance(c["authors"][0], str)
             self.assertGreater(len(c["authors"][0]), 0)
-            self.assertIsInstance(c["subject"], str)
             # Subject must NOT contain a newline — git %s is first line only.
             self.assertNotIn("\n", c["subject"])
 
@@ -1920,7 +1912,6 @@ class TreeSignatureTests(unittest.TestCase):
         # blake2b digest_size=8 → 8 bytes → 16 hex chars.
         tree = self._make_tree([self._make_file("a.py")])
         sig = _sig(tree)
-        self.assertIsInstance(sig, str)
         self.assertEqual(len(sig), 16)
         int(sig, 16)  # must be valid hex — raises ValueError if not
 

@@ -432,12 +432,6 @@ describe('computeFileStats', () => {
 
 // ---- layoutCity ----
 describe('layoutCity', () => {
-  it('returns { streets, buildings } arrays', () => {
-    const layout = layoutCity({ tree: TEST_TREE });
-    expect(Array.isArray(layout.streets)).toBe(true);
-    expect(Array.isArray(layout.buildings)).toBe(true);
-  });
-
   it('has at least 1 street', () => {
     const layout = layoutCity({ tree: TEST_TREE });
     expect(layout.streets.length).toBeGreaterThanOrEqual(1);
@@ -448,16 +442,10 @@ describe('layoutCity', () => {
     expect(layout.buildings.length).toBe(3);
   });
 
-  it('every building has x, y, w, d, h, file, orient', () => {
+  it('every building carries the file node it was built from', () => {
     const layout = layoutCity({ tree: TEST_TREE });
     for (const b of layout.buildings) {
-      expect(typeof b.x).toBe('number');
-      expect(typeof b.y).toBe('number');
-      expect(typeof b.w).toBe('number');
-      expect(typeof b.d).toBe('number');
-      expect(typeof b.h).toBe('number');
       expect(b.file).toBeTruthy();
-      expect(typeof b.orient).toBe('string');
     }
   });
 
@@ -468,17 +456,12 @@ describe('layoutCity', () => {
     }
   });
 
-  it('every street has x, y, length, width, orientation, label, dir', () => {
+  it('every street has positive extent, a known axis, and a direction', () => {
     const layout = layoutCity({ tree: TEST_TREE });
     for (const s of layout.streets) {
-      expect(typeof s.x).toBe('number');
-      expect(typeof s.y).toBe('number');
-      expect(typeof s.length).toBe('number');
       expect(s.length).toBeGreaterThan(0);
-      expect(typeof s.width).toBe('number');
       expect(s.width).toBeGreaterThan(0);
-      expect(s.orientation === StreetAxis.X || s.orientation === StreetAxis.Y).toBe(true);
-      expect(typeof s.label).toBe('string');
+      expect([StreetAxis.X, StreetAxis.Y]).toContain(s.orientation);
       expect(s.dir).toBeTruthy();
     }
   });

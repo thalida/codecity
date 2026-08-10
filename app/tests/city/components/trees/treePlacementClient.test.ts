@@ -19,10 +19,10 @@ describe('treePlacementClient (sync fallback path)', () => {
     }
   });
 
-  it('returns TreePlacement[] via the sync fallback when Worker is unavailable', async () => {
+  it('falls back to the sync path when Worker is unavailable', async () => {
     const client = createTreePlacementClient();
     const result = await client.compute(emptyLayout(bbox(-100, -100, 100, 100)), undefined, 0, 0);
-    expect(Array.isArray(result)).toBe(true);
+    expect(result).toEqual([]);
     client.dispose();
   });
 

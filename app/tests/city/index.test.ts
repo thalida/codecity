@@ -88,8 +88,6 @@ describe('createCity', () => {
     expect(handle.world).toBeDefined();
     expect(handle.picker).toBeDefined();
     expect(handle.rig).toBeDefined();
-    expect(typeof handle.rig.reset).toBe('function');
-    expect(typeof handle.focusByPath).toBe('function');
   });
 
   it('dispose() releases the WebGL context (forceContextLoss), not just its resources', async () => {

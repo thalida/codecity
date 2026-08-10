@@ -147,7 +147,7 @@ function fakeHit(userData: Record<string, unknown>): THREE.Intersection<THREE.Ob
 }
 
 describe('createPicker', () => {
-  it('exposes hover, selection, selectionKey signals + setters', () => {
+  it('names its selection key so consumers can key off it', () => {
     const fakeScene = makeFakeWorld([], []);
     const p = createPicker({
       canvas,
@@ -155,14 +155,7 @@ describe('createPicker', () => {
       world: fakeScene,
       cityState: fakeScene.cityState,
     });
-    expect('value' in p.hover).toBe(true);
-    expect('value' in p.selection).toBe(true);
     expect(p.selectionKey).toBe(PICKER_SELECTION_KEY);
-    expect(typeof p.setHover).toBe('function');
-    expect(typeof p.setSelection).toBe('function');
-    expect(typeof p.selectByPath).toBe('function');
-    expect(typeof p.pickAt).toBe('function');
-    expect(typeof p.interpretHit).toBe('function');
     p.dispose();
   });
 

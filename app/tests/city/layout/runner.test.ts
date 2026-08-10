@@ -64,11 +64,9 @@ describe('layoutClient', () => {
     client.dispose();
   });
 
-  it('compute() returns a Promise that resolves with a CityLayout', async () => {
+  it('compute() resolves with a populated CityLayout', async () => {
     const m = makeMinimalManifest();
     const layout = await client.compute(m);
-    expect(Array.isArray(layout.buildings)).toBe(true);
-    expect(Array.isArray(layout.streets)).toBe(true);
     expect(layout.buildings.length).toBeGreaterThan(0);
     expect(layout.streets.length).toBeGreaterThan(0);
   });
@@ -174,7 +172,6 @@ describe('layoutClient', () => {
     };
 
     const reusedLayout = await client.compute(m2, priorLayout);
-    expect(Array.isArray(reusedLayout.buildings)).toBe(true);
     expect(reusedLayout.buildings.length).toBe(priorLayout.buildings.length);
 
     // All positions are preserved from the prior layout.

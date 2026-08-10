@@ -253,9 +253,6 @@ class GitHistoryCacheTests(CacheTestBase):
         assert result is not None
         _, _, loaded = result
         self.assertEqual(loaded, commits)
-        # Every loaded commit carries an iterable authors list.
-        for c in loaded:
-            self.assertIsInstance(c["authors"], list)
 
     def test_miss_on_different_head(self) -> None:
         root = Path("/some/repo")

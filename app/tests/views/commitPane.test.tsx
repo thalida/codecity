@@ -302,16 +302,11 @@ describe('CommitPane', () => {
     expect(authorEl).not.toBeNull();
     expect(authorEl!.textContent).toContain('Alice Author');
 
+    // Not an exact-colour match: jsdom normalises background-color to
+    // 'rgb(r, g, b)' while colorForAuthor returns hex.
     const dot = container.querySelector('.commit-author-dot') as HTMLElement;
     expect(dot).not.toBeNull();
     expect(dot.style.backgroundColor).toBeTruthy();
-    // The dot color should match colorForAuthor for this name.
-    // Browsers normalize 'background-color' to 'rgb(r, g, b)', so just
-    // assert it was set to *some* color (exact-match assertion is brittle
-    // due to rgb-vs-hex normalization).
-    expect(dot.style.backgroundColor).not.toBe('');
-    // Sanity: dependency on colorForAuthor is real.
-    expect(typeof colorForAuthor(0).hex).toBe('string');
   });
 
   it('renders one .commit-author row for a single-author commit (regression)', async () => {
