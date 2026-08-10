@@ -35,18 +35,7 @@ from api.services.manifest_types import Manifest
 # in api/tests/conftest.py.
 
 
-def _final_manifest(root: str, **kwargs) -> Manifest:
-    """Drain scan_tree() and return only the final-phase manifest.
-
-    Most tests pre-date the streaming refactor and assert against the
-    full manifest, not the skeleton — this wrapper keeps them
-    point-free of the phase iteration."""
-    final: Manifest | None = None
-    for event in scan_tree(root, **kwargs):
-        if event["phase"] == "manifest-complete":
-            final = event["manifest"]
-    assert final is not None, "scan_tree must yield a final event"
-    return final
+from api.tests.conftest import final_manifest as _final_manifest
 
 
 def _init_repo(root: Path) -> None:
