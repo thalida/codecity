@@ -7,7 +7,6 @@
 // jsdom has no WebGL — mock the renderer + post pipeline like city/index.test.ts.
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import * as THREE from 'three';
 import { EMPTY_MANIFEST } from '@/constants/manifest';
 import { CURRENT_SOURCE } from '@/state/stores/source';
 import { STREET_TIERS } from '@/state/stores/settings/streets';
@@ -16,36 +15,11 @@ import { mkDir } from '../_helpers/cityFixtures';
 
 vi.mock('three', async () => {
   const actual = await vi.importActual<typeof import('three')>('three');
-  class FakeWebGLRenderer {
-    domElement: HTMLCanvasElement;
-    constructor(opts: { canvas: HTMLCanvasElement }) {
-      this.domElement = opts.canvas;
-    }
-    setPixelRatio() {}
-    setSize() {}
-    getSize(v: THREE.Vector2) {
-      return v;
-    }
-    render() {}
-    dispose() {}
-    forceContextLoss() {}
-    copyTextureToTexture() {}
-    setRenderTarget() {}
-    getContext() {
-      return {};
-    }
-  }
-  return { ...actual, WebGLRenderer: FakeWebGLRenderer };
+  const { fakeWebGLRenderer } = await import('../_helpers/threeMock');
+  return { ...actual, WebGLRenderer: fakeWebGLRenderer() };
 });
 
-vi.mock('@/city/render/postFx', () => ({
-  createPostFx: () => ({
-    render: () => {},
-    setSize: () => {},
-    refresh: () => {},
-    dispose: () => {},
-  }),
-}));
+vi.mock('@/city/render/postFx', async () => (await import('../_helpers/threeMock')).postFxMock());
 
 // buildIconAtlas loads icon images, which never fire onload in jsdom and hang
 // applyManifest. Icons are irrelevant to camera framing — stub it out.
