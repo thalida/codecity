@@ -21,7 +21,7 @@ import { createPathLine } from '@/city/components/pathLine';
 import { createCityState } from '@/city/state';
 import { makeCityState, makePickableSceneContext } from '../../../_helpers/cityFixtures';
 import { computePathLinewidthPixels } from '@/city/components/pathLine/renderer';
-import { STREETS } from '@/state/stores/settings/streets';
+import { STREETS, STREET_TIERS } from '@/state/stores/settings/streets';
 import { NodeKind, StreetAxis } from '@/types';
 import type { CityLayout, Street } from '@/types';
 import type { PickTarget } from '@/types/picker';
@@ -200,5 +200,30 @@ describe('createPathLine() component door', () => {
       selection.value = dirTarget();
       STREETS.value = { ...STREETS.value, PATH_LINEWIDTH_PCT: 30 };
     }).not.toThrow();
+  });
+});
+
+describe('computePathLinewidthPixels', () => {
+  const _originalTiers = STREET_TIERS.value;
+  afterEach(() => {
+    STREET_TIERS.value = _originalTiers;
+  });
+
+  // The linewidth tracks the NARROWEST street, not the first tier, so a tier
+  // list whose smallest width is not first still reads correctly.
+  it.each([
+    ['smallest tier is not first', [10, 4, 6], 25, 1.0],
+    ['default percentage', [10, 4], 10, 0.4],
+    ['no tiers at all falls back to pct/100', [], 50, 0.5],
+  ])('%s', (_label, widths, pct, expected) => {
+    STREET_TIERS.value = {
+      TIERS: widths.map((width, i) => ({ min_descendants: i * 4, width })),
+    };
+    expect(computePathLinewidthPixels(pct)).toBeCloseTo(expected);
+  });
+
+  it('uses the shipped tiers when nothing overrides them', () => {
+    // Default widths are 32, 48, 80, 96, 128, so the narrowest is 32.
+    expect(computePathLinewidthPixels(10)).toBeCloseTo(3.2);
   });
 });

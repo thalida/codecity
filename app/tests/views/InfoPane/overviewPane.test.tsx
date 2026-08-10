@@ -247,3 +247,32 @@ describe('OverviewPane', () => {
     expect(canopyRow).toBeUndefined();
   });
 });
+
+describe('InfoPane shell', () => {
+  let container: HTMLDivElement;
+  beforeEach(() => {
+    container = document.createElement('div');
+    document.body.appendChild(container);
+  });
+  afterEach(() => {
+    render(null, container);
+    container.remove();
+  });
+
+  const tabByLabel = (label: string) =>
+    Array.from(container.querySelectorAll('[role="tab"]')).find(
+      (el) => el.textContent === label
+    ) as HTMLButtonElement;
+
+  it('opens on Overview and switches to Legend on click', async () => {
+    render(<InfoPane manifest={signal(null) as never} />, container);
+    await flush();
+    expect(tabByLabel('Overview').getAttribute('aria-selected')).toBe('true');
+    expect(tabByLabel('Legend').getAttribute('aria-selected')).toBe('false');
+
+    tabByLabel('Legend').click();
+    await flush();
+    expect(tabByLabel('Legend').getAttribute('aria-selected')).toBe('true');
+    expect(tabByLabel('Overview').getAttribute('aria-selected')).toBe('false');
+  });
+});
