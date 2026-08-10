@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import gzip
 import json
 import os
 import unittest
@@ -12,6 +13,114 @@ import pytest
 from api.services import cache as cache_mod
 from api.services.cache import _git_history_cache_path
 from api.services.manifest_types import CommitEntry
+
+
+_ROOT = Path("/some/repo")
+_SIG = "a" * 32
+_SHA = "a" * 40
+
+
+def _stub_manifest() -> dict:
+    return {
+        "root": str(_ROOT),
+        "scanned_at": "2026-05-17T00:00:00Z",
+        "content_signature": "deadbeef" * 4,
+        "tree": {
+            "name": "repo",
+            "type": "dir",
+            "path": "",
+            "fullPath": str(_ROOT),
+            "children": [],
+        },
+        "repo": None,
+    }
+
+
+def _seed_files() -> tuple:
+    cache_mod.cache_save_files(_ROOT, {})
+    path = cache_mod.CACHE_ROOT / "files" / f"{cache_mod.repo_key(_ROOT)}.json"
+    # A well-formed entry, so the version guard is the only thing that can
+    # reject it. A malformed one would be dropped by the entry filter instead,
+    # and the assertion could not tell the two apart.
+    stale = {
+        "version": 999,
+        "root": str(_ROOT),
+        "entries": {
+            "a.py": {"size": 1, "mtime": 1.0, "lines": 1, "binary": False, "ext": ".py"}
+        },
+    }
+    return path, lambda: cache_mod.cache_load_files(_ROOT), {}, False, stale
+
+
+def _seed_git_history() -> tuple:
+    cache_mod.cache_save_git_history(_ROOT, "abc", {}, {}, [])
+    path = cache_mod.CACHE_ROOT / "git-history" / f"{cache_mod.repo_key(_ROOT)}.json"
+    stale = {
+        "version": 999,
+        "root": str(_ROOT),
+        "commit_sha": "abc",
+        "created": {},
+        "modified": {},
+    }
+    return (
+        path,
+        lambda: cache_mod.cache_load_git_history(_ROOT, "abc"),
+        None,
+        False,
+        stale,
+    )
+
+
+def _seed_manifest() -> tuple:
+    cache_mod.cache_save_manifest(_ROOT, _SIG, _stub_manifest())
+    path = cache_mod._manifest_cache_path(_ROOT, _SIG)
+    stale = {"version": 999, "manifest": {}}
+    return path, lambda: cache_mod.cache_load_manifest(_ROOT, _SIG), None, True, stale
+
+
+def _seed_timeline() -> tuple:
+    bundle = {
+        "commits": [],
+        "unionManifest": _stub_manifest(),
+        "deltas": [],
+        "blobLines": {},
+        "blobSizes": {},
+        "note": None,
+    }
+    cache_mod.cache_save_timeline(_ROOT, _SHA, bundle)
+    path = cache_mod._timeline_cache_path(_ROOT, _SHA, frozenset())
+    # One version back, not 999: v6 added blobSizes and full commit timestamps,
+    # so serving a v5 blob would hand the scrubber day-precision dates and stack
+    # every same-day commit.
+    stale = {"version": cache_mod._TIMELINE_CACHE_VERSION - 1, "bundle": bundle}
+    return path, lambda: cache_mod.cache_load_timeline(_ROOT, _SHA), None, True, stale
+
+
+# Every cache read is best-effort: a file that is gone, truncated, or written by
+# older code has to miss, never raise, or a stale cache bricks the scan.
+@pytest.mark.parametrize(
+    "seed",
+    [_seed_files, _seed_git_history, _seed_manifest, _seed_timeline],
+    ids=["files", "git-history", "manifest", "timeline"],
+)
+@pytest.mark.parametrize("damage", ["missing", "truncated", "stale-version"])
+def test_damaged_cache_reads_miss(redirect_cache_root, seed, damage) -> None:
+    path, load, empty, gzipped, stale = seed()
+    path.parent.mkdir(parents=True, exist_ok=True)
+
+    if damage == "missing":
+        path.unlink(missing_ok=True)
+    elif damage == "truncated":
+        path.write_bytes(b"{not valid, and definitely not gzip")
+    else:
+        payload = json.dumps(stale).encode("utf-8")
+        if gzipped:
+            with gzip.open(path, "wb") as fh:
+                fh.write(payload)
+        else:
+            path.write_bytes(payload)
+
+    assert load() == empty
 
 
 class CacheTestBase(unittest.TestCase):
@@ -62,24 +171,6 @@ class FileCacheTests(CacheTestBase):
         }
         cache_mod.cache_save_files(root, entries)
         self.assertEqual(cache_mod.cache_load_files(root), entries)
-
-    def test_load_missing_returns_empty(self) -> None:
-        self.assertEqual(cache_mod.cache_load_files(Path("/never/scanned")), {})
-
-    def test_load_corrupted_returns_empty(self) -> None:
-        root = Path("/some/repo")
-        cache_mod.cache_save_files(root, {})  # ensure dir exists
-        path = cache_mod.CACHE_ROOT / "files" / f"{cache_mod.repo_key(root)}.json"
-        path.write_text("{not valid json")
-        self.assertEqual(cache_mod.cache_load_files(root), {})
-
-    def test_load_version_mismatch_returns_empty(self) -> None:
-        root = Path("/some/repo")
-        cache_mod.cache_save_files(root, {})
-        path = cache_mod.CACHE_ROOT / "files" / f"{cache_mod.repo_key(root)}.json"
-        bad = {"version": 999, "root": str(root), "entries": {"a": "b"}}
-        path.write_text(json.dumps(bad))
-        self.assertEqual(cache_mod.cache_load_files(root), {})
 
     def test_atomic_write_no_temp_left_behind(self) -> None:
         root = Path("/some/repo")
@@ -170,32 +261,6 @@ class GitHistoryCacheTests(CacheTestBase):
         root = Path("/some/repo")
         cache_mod.cache_save_git_history(root, "abc123", {}, {}, [])
         self.assertIsNone(cache_mod.cache_load_git_history(root, "def456"))
-
-    def test_load_missing_returns_none(self) -> None:
-        self.assertIsNone(
-            cache_mod.cache_load_git_history(Path("/never/scanned"), "abc123")
-        )
-
-    def test_load_corrupted_returns_none(self) -> None:
-        root = Path("/some/repo")
-        cache_mod.cache_save_git_history(root, "abc", {}, {}, [])
-        path = cache_mod.CACHE_ROOT / "git-history" / f"{cache_mod.repo_key(root)}.json"
-        path.write_text("{garbage")
-        self.assertIsNone(cache_mod.cache_load_git_history(root, "abc"))
-
-    def test_load_version_mismatch_returns_none(self) -> None:
-        root = Path("/some/repo")
-        cache_mod.cache_save_git_history(root, "abc", {}, {}, [])
-        path = cache_mod.CACHE_ROOT / "git-history" / f"{cache_mod.repo_key(root)}.json"
-        bad = {
-            "version": 999,
-            "root": str(root),
-            "commit_sha": "abc",
-            "created": {},
-            "modified": {},
-        }
-        path.write_text(json.dumps(bad))
-        self.assertIsNone(cache_mod.cache_load_git_history(root, "abc"))
 
     def test_load_drops_non_string_entries(self) -> None:
         # Mixed string + non-string values in created/modified maps;
@@ -442,11 +507,6 @@ class ManifestCacheTests(CacheTestBase):
         cache_mod.cache_save_manifest(root, sig, manifest)
         self.assertEqual(cache_mod.cache_load_manifest(root, sig), manifest)
 
-    def test_load_missing_returns_none(self) -> None:
-        self.assertIsNone(
-            cache_mod.cache_load_manifest(Path("/never/scanned"), "x" * 32)
-        )
-
     def test_load_wrong_signature_returns_none(self) -> None:
         cache_mod.cache_save_manifest(
             Path("/x"),
@@ -454,22 +514,6 @@ class ManifestCacheTests(CacheTestBase):
             self._make_manifest(),
         )
         self.assertIsNone(cache_mod.cache_load_manifest(Path("/x"), "b" * 32))
-
-    def test_load_corrupt_gzip_returns_none(self) -> None:
-        # Write a file at the cache path that is NOT valid gzip.
-        path = cache_mod._manifest_cache_path(Path("/x"), "a" * 32)
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_bytes(b"not gzipped, definitely not JSON")
-        self.assertIsNone(cache_mod.cache_load_manifest(Path("/x"), "a" * 32))
-
-    def test_load_version_mismatch_returns_none(self) -> None:
-        path = cache_mod._manifest_cache_path(Path("/x"), "a" * 32)
-        path.parent.mkdir(parents=True, exist_ok=True)
-        import gzip
-
-        with gzip.open(path, "wb") as fh:
-            fh.write(json.dumps({"version": 999, "manifest": {}}).encode("utf-8"))
-        self.assertIsNone(cache_mod.cache_load_manifest(Path("/x"), "a" * 32))
 
     def test_manifest_rejects_when_git_history_version_changed(self):
         """A manifest cache file written under a prior _GIT_HISTORY_CACHE_VERSION
@@ -537,30 +581,6 @@ class ManifestCacheTests(CacheTestBase):
         bundle = self._make_bundle()
         cache_mod.cache_save_timeline(root, sha, bundle)
         self.assertEqual(cache_mod.cache_load_timeline(root, sha), bundle)
-
-    def test_timeline_rejects_old_version(self) -> None:
-        """A bundle written by older code must miss, not be served. v6 added
-        blobSizes and full commit timestamps, so serving a v5 blob would hand
-        the scrubber day-precision dates and stack every same-day commit."""
-        import gzip
-
-        root = Path("/some/repo")
-        sha = "a" * 40
-        path = cache_mod._timeline_cache_path(root, sha, frozenset())
-        path.parent.mkdir(parents=True, exist_ok=True)
-        stale = {
-            "version": cache_mod._TIMELINE_CACHE_VERSION - 1,
-            "bundle": self._make_bundle(),
-        }
-        with gzip.open(path, "wb") as fh:
-            fh.write(json.dumps(stale).encode("utf-8"))
-
-        self.assertIsNone(cache_mod.cache_load_timeline(root, sha))
-
-    def test_timeline_load_missing_returns_none(self) -> None:
-        self.assertIsNone(
-            cache_mod.cache_load_timeline(Path("/never/scanned"), "b" * 40)
-        )
 
     def test_timeline_excludes_key_separately(self) -> None:
         # Excludes reshape the filtered union, so they're part of the cache key:
