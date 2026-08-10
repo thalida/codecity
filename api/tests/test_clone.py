@@ -155,6 +155,44 @@ class EnsureCloneTests(unittest.TestCase):
         files_after = [p.name for p in local.iterdir() if p.name != ".git"]
         self.assertEqual(files_after, [])
 
+    def test_clone_without_origin_head_still_checks_out(self) -> None:
+        """A populated clone with no refs/remotes/origin/HEAD still gets checked
+        out, and lands HEAD on a real branch."""
+        local = ensure_clone(self.url)
+        self.assertTrue((local / "README.md").is_file())
+
+        # Reproduce the broken on-disk shape: branches present, origin/HEAD
+        # gone, HEAD parked on the dangling ref git uses when it gives up.
+        # `--delete` removes the symref itself; `update-ref -d` would deref it
+        # and delete origin/main instead, which a fetch just puts back.
+        _run("git", "symbolic-ref", "--delete", "refs/remotes/origin/HEAD", cwd=local)
+        _run("git", "read-tree", "--empty", cwd=local)
+        (local / "README.md").unlink()
+        # Written directly: `git symbolic-ref` rejects the name git parks HEAD
+        # on itself (a refname component may not start with a dot).
+        (local / ".git" / "HEAD").write_text("ref: refs/heads/.invalid\n")
+        self.assertEqual([p.name for p in local.iterdir() if p.name != ".git"], [])
+
+        ensure_clone(self.url)
+        self.assertTrue((local / "README.md").is_file())
+        # A dangling HEAD survives `reset --hard`, leaving every history command
+        # failing even once the files are back.
+        log = subprocess.run(
+            ["git", "-C", str(local), "log", "--oneline"],
+            capture_output=True,
+            text=True,
+            check=True,
+        ).stdout
+        self.assertIn("initial", log)
+        # The repair is recorded, so the next load resolves it off the ref.
+        head = subprocess.run(
+            ["git", "-C", str(local), "symbolic-ref", "refs/remotes/origin/HEAD"],
+            capture_output=True,
+            text=True,
+            check=True,
+        ).stdout.strip()
+        self.assertEqual(head, f"refs/remotes/origin/{self.default_branch}")
+
 
 class CleanCloneErrorDispatcherTests(unittest.TestCase):
     def test_branch_not_found_first_clone_stderr(self) -> None:
@@ -727,9 +765,9 @@ def test_ensure_clone_emits_throttled_progress_via_callback(tmp_path):
     on_progress = MagicMock()
     with (
         mock.patch.object(clone_mod, "CLONES_ROOT", cache),
-        # This test fakes the whole subprocess layer to exercise clone-progress
-        # emission; the post-clone LFS pull is a separate concern and would try
-        # to spawn a real git against the fake tree, so stub it out.
+        # The subprocess layer is faked, so the checkout repair and LFS pull
+        # would spawn a real git against a tree that doesn't exist.
+        mock.patch.object(clone_mod, "_ensure_checkout"),
         mock.patch.object(clone_mod, "_pull_lfs"),
         mock.patch.object(subprocess, "Popen", return_value=FakeProc()),
     ):
@@ -800,9 +838,9 @@ def test_ensure_clone_emits_terminal_percent_of_each_stage(tmp_path):
     on_progress = MagicMock()
     with (
         mock.patch.object(clone_mod, "CLONES_ROOT", cache),
-        # This test fakes the whole subprocess layer to exercise clone-progress
-        # emission; the post-clone LFS pull is a separate concern and would try
-        # to spawn a real git against the fake tree, so stub it out.
+        # The subprocess layer is faked, so the checkout repair and LFS pull
+        # would spawn a real git against a tree that doesn't exist.
+        mock.patch.object(clone_mod, "_ensure_checkout"),
         mock.patch.object(clone_mod, "_pull_lfs"),
         mock.patch.object(subprocess, "Popen", return_value=FakeProc()),
     ):

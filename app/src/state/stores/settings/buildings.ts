@@ -205,7 +205,7 @@ const BUILDINGS_FIELDS = {
   LIGHTNESS_MAX: {
     route: ChangeRoute.Rebuild,
     kind: FieldKind.Slider,
-    default: 50,
+    default: 40,
     min: 0,
     max: 100,
     step: 5,
