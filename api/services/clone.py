@@ -559,25 +559,118 @@ def clone_dir_for(url: str, branch: str | None) -> Path:
     return CLONES_ROOT / digest
 
 
-def _resolve_default_branch(repo: Path) -> str | None:
-    """Return the default branch name on origin (e.g. 'main'), or None
-    when the remote has no commits yet (an unborn HEAD).
+_ORIGIN_PREFIX = "refs/remotes/origin/"
 
-    A brand-new empty github.com/<owner>/<name> repo clones successfully
-    but has no symbolic refs/remotes/origin/HEAD — `git symbolic-ref`
-    exits non-zero. Treat that as "nothing to check out" rather than an
-    error: the caller skips the post-clone reset and the working tree
-    stays empty, which the scanner happily walks into an empty manifest
-    so the frontend renders an empty world.
+
+def _local_origin_branches(repo: Path) -> list[str]:
+    """Names of the remote-tracking branches already fetched into ``repo``."""
+    out = _run_git(
+        "for-each-ref", "--format=%(refname:strip=3)", _ORIGIN_PREFIX, cwd=repo
+    )
+    return [name for name in out.split("\n") if name.strip() and name != "HEAD"]
+
+
+def _resolve_default_branch(repo: Path, url: str) -> str | None:
+    """Return the default branch name on origin (e.g. 'main'), or None when the
+    remote genuinely has no branches (an unborn HEAD on a brand-new repo).
+
+    ``refs/remotes/origin/HEAD`` records the answer, but only ``git clone``
+    writes it — ``git fetch`` never does. So a clone that never got one (git
+    warned "remote HEAD refers to nonexistent ref" and parked HEAD on
+    refs/heads/.invalid, or the ref was lost/pruned) has no local record of the
+    default even though it holds thousands of branches. Missing is NOT empty:
+    treating it as empty leaves the working tree unchecked-out forever, and
+    since that isn't an error nothing ever self-heals.
+
+    So when the ref is absent, re-derive: ask the remote what HEAD points at,
+    else pick a conventional name from the branches already fetched, else the
+    lone branch. Writes the answer back to ``refs/remotes/origin/HEAD`` so the
+    repair is permanent and the next load skips the extra round trip.
     """
     try:
-        out = _run_git("symbolic-ref", "refs/remotes/origin/HEAD", cwd=repo).strip()
+        out = _run_git("symbolic-ref", _ORIGIN_PREFIX + "HEAD", cwd=repo).strip()
+        if out.startswith(_ORIGIN_PREFIX):
+            return out[len(_ORIGIN_PREFIX) :]
     except CloneError as e:
-        if "is not a symbolic ref" in str(e):
-            return None
-        raise
-    # e.g. "refs/remotes/origin/main" → "main"
-    return out.rsplit("/", 1)[-1] if out else None
+        if "is not a symbolic ref" not in str(e):
+            raise
+
+    local = _local_origin_branches(repo)
+    if not local:
+        return None  # nothing fetched — the remote really is empty
+    try:
+        _, advertised = list_remote_branches(url)
+    except CloneError:
+        advertised = None  # offline / transient: fall back to what we hold
+    default = next(
+        (
+            name
+            for name in (advertised, *_DEFAULT_BRANCH_FALLBACKS)
+            if name and name in local
+        ),
+        local[0] if len(local) == 1 else None,
+    )
+    if default:
+        _log(f"origin/HEAD missing; resolved default branch to {default}")
+        _record_origin_head(repo, default)
+    return default
+
+
+def _record_origin_head(repo: Path, branch: str) -> None:
+    """Point ``refs/remotes/origin/HEAD`` at ``branch``. Best effort: this is a
+    cached lookup, so failing to write it costs another resolve, not the load."""
+    try:
+        _run_git(
+            "symbolic-ref",
+            _ORIGIN_PREFIX + "HEAD",
+            _ORIGIN_PREFIX + branch,
+            cwd=repo,
+        )
+    except CloneError as e:
+        _log(f"could not record origin/HEAD: {e}")
+
+
+def _head_has_commit(repo: Path) -> bool:
+    """True when HEAD resolves to a commit. A clone whose remote HEAD couldn't
+    be resolved checks nothing out and leaves HEAD dangling — an empty working
+    tree, reported as success."""
+    try:
+        _run_git("rev-parse", "--verify", "-q", "HEAD", cwd=repo)
+        return True
+    except CloneError:
+        return False
+
+
+def _reset_to(repo: Path, branch: str) -> None:
+    """Hard-reset the working tree to ``origin/<branch>``, first putting HEAD on
+    ``branch`` when it isn't on a usable one.
+
+    ``reset --hard`` moves whatever HEAD already points at — it does not repoint
+    HEAD. A clone whose remote HEAD git couldn't resolve has HEAD parked on the
+    dangling ``refs/heads/.invalid``, so resetting fills the working tree while
+    every history command still fails ("your current branch appears to be
+    broken"). The scan reads that as zero commits and the city loses its ages,
+    trees and timeline while looking otherwise fine."""
+    if not _head_has_commit(repo):
+        _log(f"HEAD is not on a usable branch; pointing it at {branch}")
+        _run_git("symbolic-ref", "HEAD", f"refs/heads/{branch}", cwd=repo)
+    _run_git("reset", "--hard", f"origin/{branch}", cwd=repo)
+
+
+def _ensure_checkout(target: Path, url: str, branch: str | None) -> None:
+    """Check out the default branch when the clone didn't.
+
+    `git clone` exits 0 even when it can't resolve the remote's HEAD: it warns
+    "remote HEAD refers to nonexistent ref, unable to checkout", parks HEAD on
+    a dangling ref and checks nothing out. Without this the repo scans as zero
+    files and renders as an empty city, with no error to prompt a re-clone."""
+    if branch or _head_has_commit(target):
+        return
+    default = _resolve_default_branch(target, url)
+    if not default:
+        return  # genuinely empty remote — nothing to check out
+    _log(f"clone left no checkout; resetting to origin/{default}")
+    _reset_to(target, default)
 
 
 def _repo_uses_lfs(target: Path) -> bool:
@@ -728,6 +821,7 @@ def _fresh_clone(
         shutil.rmtree(target, ignore_errors=True)
         _maybe_raise_clean_clone_error(url, branch, str(e))
         raise
+    _ensure_checkout(target, url, branch)
     _pull_lfs(target, on_heartbeat=on_heartbeat, cancel_event=cancel_event)
     return target
 
@@ -774,13 +868,13 @@ def ensure_clone(
                 on_heartbeat=on_heartbeat,
                 cancel_event=cancel_event,
             )
-            default = None if branch else _resolve_default_branch(target)
-            if branch or default:
-                ref = f"origin/{branch or default}"
-                _log(f"resetting to {ref}")
-                _run_git("reset", "--hard", ref, cwd=target)
+            default = None if branch else _resolve_default_branch(target, url)
+            target_branch = branch or default
+            if target_branch:
+                _log(f"resetting to origin/{target_branch}")
+                _reset_to(target, target_branch)
             else:
-                # Remote has no commits yet — nothing to reset to. Leave
+                # Remote has no branches at all — nothing to reset to. Leave
                 # the working tree empty; the scanner will produce an
                 # empty manifest and the frontend renders an empty world.
                 _log("remote has no commits; skipping reset")
