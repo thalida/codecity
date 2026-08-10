@@ -148,6 +148,14 @@ describe('createRepoLabel()', () => {
     expect(label!.group.position.z).toBeCloseTo(30);
   });
 
+  it('raises the label from the anchor, not from y=0', () => {
+    label!.setRepoName('codecity');
+    REPO_LABEL.value = { ...REPO_LABEL.value, HEIGHT_PCT: 50, FONT_SIZE: 80 };
+    label!.setAnchor(new THREE.Vector3(0, 40, 0));
+    // anchor.y (40) + heightWorld (768) + FONT_SIZE/2 (40) = 848
+    expect(label!.group.position.y).toBeCloseTo(848);
+  });
+
   it('HEIGHT_PCT=0 puts the panel flush with the floor (panel bottom = anchor.y)', () => {
     label!.setRepoName('codecity');
     REPO_LABEL.value = { ...REPO_LABEL.value, HEIGHT_PCT: 0, FONT_SIZE: 100 };

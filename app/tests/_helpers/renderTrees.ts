@@ -7,7 +7,7 @@
 import { createTreeRenderer, type Trees } from '@/city/components/trees/treeRenderer';
 import type { TreePlacement } from '@/city/components/trees/treePlacement';
 import type { CommitEntry, BusynessThresholds } from '@/types';
-import { commitStats } from '../../_helpers/statsFixtures';
+import { commitStats } from './statsFixtures';
 
 export function renderTrees(
   placements: TreePlacement[],

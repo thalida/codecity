@@ -142,9 +142,13 @@ function writeRainbowToTube(mesh: THREE.Mesh, timeMs: number): void {
   attr.needsUpdate = true;
 }
 
+/** Name of the lazy ring pool's group, so consumers can find it on the scene
+ *  graph without repeating the literal. */
+export const ORBIT_RINGS_GROUP = 'firefly-orbit-rings';
+
 export function createOrbitRings(orbs: FireflyPlacement[]): OrbitRings {
   const group = new THREE.Group();
-  group.name = 'firefly-orbit-rings';
+  group.name = ORBIT_RINGS_GROUP;
 
   const cfg = FIREFLIES.value;
 

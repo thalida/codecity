@@ -1,15 +1,5 @@
-// applyManifestScenic.test.ts — integration parity tests for Stage 4 Commit 2
-// at the cityState.applyManifest level. Drives the real pipeline (owned by
-// cityState) with the REAL streets component (so the batch ordering + bbox-
-// after-streets-group-populated invariant is genuinely exercised) and a
-// controllable stub layout client.
-//
-// Covers the parity-bar items that are applyManifest-level (not pure component
-// reactivity):
-//   #1  scenic-reuse → no streets rebuild (same layout reference reused)
-//   #2  non-reuse → streets rebuild
-//   #5  bbox computed AFTER the streets group is populated (batch ordering)
-//   #6  supersede → the winning apply's layout is the one that lands
+// applyManifest's reuse gate keys on layout_signature: the same signature
+// reuses the packed layout and leaves the scenic components alone.
 
 import { describe, it, expect, afterEach, vi } from 'vitest';
 

@@ -6,7 +6,7 @@ import { describe, it } from 'vitest';
 import { layoutCity } from '@/city/layout/algorithm.js';
 import { placeTrees } from '@/city/components/trees/treePlacement';
 import { createTreeRenderer } from '@/city/components/trees/treeRenderer';
-import { createFireflies } from '@/city/components/fireflies/fireflies';
+import { createFireflyAssembly } from '@/city/components/fireflies/fireflies';
 import { placeFireflies } from '@/city/components/fireflies/firefliesPlacement';
 import { createOrbitRings } from '@/city/components/fireflies/orbitRings';
 import { createFireflyRenderer } from '@/city/components/fireflies/firefliesRenderer';
@@ -34,7 +34,7 @@ describe('tree decoration profile', () => {
     const t2 = performance.now();
     const firefliesEnabled = FIREFLIES.value.ENABLED;
     const tf0 = performance.now();
-    createFireflies(placements, commits, stats);
+    createFireflyAssembly(placements, commits, stats);
     const tf1 = performance.now();
     // Split fireflies into its three parts.
     const ts0 = performance.now();
@@ -69,7 +69,7 @@ describe('tree decoration profile', () => {
       `\n=== ${label}: ${commitCount} commits → ${placements.length} trees (${layout.buildings.length} bld / ${layout.streets.length} streets) ===\n` +
         `  placeTrees:           ${(t1 - t0).toFixed(0)}ms\n` +
         `  createTreeRenderer:   ${(t2 - t1).toFixed(0)}ms\n` +
-        `  createFireflies:      ${(tf1 - tf0).toFixed(0)}ms (enabled=${firefliesEnabled}) → ${orbs.length} orbs\n` +
+        `  createFireflyAssembly:      ${(tf1 - tf0).toFixed(0)}ms (enabled=${firefliesEnabled}) → ${orbs.length} orbs\n` +
         `      placeFireflies:     ${(ts1 - ts0).toFixed(0)}ms\n` +
         `      createOrbitRings:   ${(ts2 - ts1).toFixed(0)}ms\n` +
         `      createFireflyRenderer:${(ts3 - ts2).toFixed(0)}ms\n` +

@@ -1,10 +1,5 @@
-// tween.test.ts — unit tests for createBuildingTweens (the dissolved
-// system/animator.ts, now city/components/buildings/tween.ts). Drives the
-// queue directly via onDiff/update/clear with a stubbed getMeshForBuilding
-// resolver and a mocked performance.now clock so easing endpoints are exact.
-//
-// Matrix layout reminder (column-major, makeScale + setPosition):
-//   elements[0] = scaleX, [5] = scaleY, [10] = scaleZ, [12..14] = pos x/y/z.
+// createBuildingTweens owns the enter animation queue: one entry per building
+// that appeared in the last diff, retired when its duration elapses.
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import * as THREE from 'three';

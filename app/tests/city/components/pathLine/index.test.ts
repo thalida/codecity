@@ -1,17 +1,6 @@
-// app/tests/city/components/pathLine/index.test.ts
-//
-// Tests for the persistent createPathLine(ctx) component (door).
-// API: createPathLine(ctx) → { group, tick(dt, frame), onResize(),
-//      dispose() }.
-//
-// The inner renderer owns the picker-driven geometry effects and a cityState
-// rebuild effect (gemWorldPos + cityRevision), so it is ARMED on the first
-// tick() (NOT at construction — ctx.picker is null there, so its effects would
-// track no signal and never re-fire). The theme effect tracks ONLY STREETS:
-// refreshMaterials
-// internally re-evaluates the hover line (which reads picker signals), so it
-// runs UNTRACKED — the untracked-discipline test guards that a hover change
-// does not re-fire the theme effect.
+// createCity builds the path line before the picker exists, so the picker-driven
+// effects are armed on the first tick() instead of at construction. Effects
+// armed at construction would track no signal and never fire again.
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import * as THREE from 'three';
@@ -21,7 +10,7 @@ import { createPathLine } from '@/city/components/pathLine';
 import { createCityState } from '@/city/state';
 import { makeCityState, makePickableSceneContext } from '../../../_helpers/cityFixtures';
 import { computePathLinewidthPixels } from '@/city/components/pathLine/renderer';
-import { STREETS } from '@/state/stores/settings/streets';
+import { STREETS, STREET_TIERS } from '@/state/stores/settings/streets';
 import { NodeKind, StreetAxis } from '@/types';
 import type { CityLayout, Street } from '@/types';
 import type { PickTarget } from '@/types/picker';
@@ -200,5 +189,30 @@ describe('createPathLine() component door', () => {
       selection.value = dirTarget();
       STREETS.value = { ...STREETS.value, PATH_LINEWIDTH_PCT: 30 };
     }).not.toThrow();
+  });
+});
+
+describe('computePathLinewidthPixels', () => {
+  const _originalTiers = STREET_TIERS.value;
+  afterEach(() => {
+    STREET_TIERS.value = _originalTiers;
+  });
+
+  // The linewidth tracks the NARROWEST street, not the first tier, so a tier
+  // list whose smallest width is not first still reads correctly.
+  it.each([
+    ['smallest tier is not first', [10, 4, 6], 25, 1.0],
+    ['default percentage', [10, 4], 10, 0.4],
+    ['no tiers at all falls back to pct/100', [], 50, 0.5],
+  ])('%s', (_label, widths, pct, expected) => {
+    STREET_TIERS.value = {
+      TIERS: widths.map((width, i) => ({ min_descendants: i * 4, width })),
+    };
+    expect(computePathLinewidthPixels(pct)).toBeCloseTo(expected);
+  });
+
+  it('uses the shipped tiers when nothing overrides them', () => {
+    // Default widths are 32, 48, 80, 96, 128, so the narrowest is 32.
+    expect(computePathLinewidthPixels(10)).toBeCloseTo(3.2);
   });
 });

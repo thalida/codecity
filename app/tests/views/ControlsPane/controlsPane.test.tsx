@@ -2,6 +2,9 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { render } from 'preact';
 import { act } from 'preact/test-utils';
 import { ControlsPane } from '@/views/ControlsPane/ControlsPane';
+import { FilePreviewSection } from '@/views/ControlsPane/partials/FilePreviewSection';
+import { SYNTAX_THEME, SYNTAX_THEME_DEFAULT } from '@/state/stores/settings/syntaxTheme';
+import { _resetForTests } from '@/state/settingsDrafts';
 // Load every settings store for its registration side-effect (settingSignal
 // registers each store at module-load) so every field renders.
 import '@/state/stores/settings/updates';
@@ -171,5 +174,36 @@ describe('subgroup group reset button', () => {
     const resetBtns = pane.querySelectorAll<HTMLButtonElement>('.controls-subgroup-reset');
     expect(resetBtns.length).toBeGreaterThan(0);
     for (const b of resetBtns) expect(b.disabled).toBe(true);
+  });
+});
+
+describe('FilePreviewSection', () => {
+  let container: HTMLDivElement;
+
+  beforeEach(() => {
+    container = document.createElement('div');
+    document.body.appendChild(container);
+    SYNTAX_THEME.value = SYNTAX_THEME_DEFAULT;
+    _resetForTests();
+  });
+
+  afterEach(() => {
+    render(null, container);
+    container.remove();
+  });
+
+  // Appearance autosaves: no Save step, the store takes the value on change.
+  it('applies the picked theme immediately', async () => {
+    act(() => render(<FilePreviewSection />, container));
+    const select = container.querySelector('select') as HTMLSelectElement;
+    expect(select).toBeTruthy();
+
+    act(() => {
+      select.value = 'monokai';
+      select.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+    await flush();
+
+    expect(SYNTAX_THEME.value).toBe('monokai');
   });
 });

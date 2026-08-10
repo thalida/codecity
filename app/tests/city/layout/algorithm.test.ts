@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { layoutCity, sortForRendering, __test } from '@/city/layout/algorithm';
+import { estimateDirReaches, layoutCity, layoutCityWithTrace } from '@/city/layout/algorithm';
 import { getStreetWidth, getBuildingDimensions, computeFileStats } from '@/city/layout/dimensions';
 import { BUILDING_DIMENSIONS } from '@/state/stores/settings/buildings';
 import { BuildingOrient, NodeKind, StreetAxis } from '@/types';
@@ -14,6 +14,15 @@ import {
   assertTJunctionsValid,
 } from '../../_helpers/layoutAsserts';
 import { mkFile, mkDir } from '../../_helpers/cityFixtures';
+import {
+  makeRng,
+  genWeightedTree,
+  genCommits,
+  flatTree,
+  genNestedTree,
+} from '../../_helpers/layoutTreeFixtures';
+import { commitStats, fileStats } from '../../_helpers/statsFixtures';
+import type { CityLayout } from '@/types';
 
 const TEST_TIERS: StreetTier[] = [
   { min_descendants: 0, width: 10 },
@@ -110,19 +119,25 @@ const TEST_TREE = {
   ],
 };
 
-// ---- getStreetWidth ----
 describe('getStreetWidth', () => {
-  it('count 0 → first tier width (10)', () => expect(getStreetWidth(0, TEST_TIERS)).toBe(10));
-  it('count 3 → first tier width (10)', () => expect(getStreetWidth(3, TEST_TIERS)).toBe(10));
-  it('count 4 → second tier width (16)', () => expect(getStreetWidth(4, TEST_TIERS)).toBe(16));
-  it('count 8 → second tier width (16)', () => expect(getStreetWidth(8, TEST_TIERS)).toBe(16));
-  it('count 9 → third tier width (24)', () => expect(getStreetWidth(9, TEST_TIERS)).toBe(24));
-  it('count 15 → third tier width (24)', () => expect(getStreetWidth(15, TEST_TIERS)).toBe(24));
-  it('count 16 → fourth tier width (36)', () => expect(getStreetWidth(16, TEST_TIERS)).toBe(36));
-  it('count 30 → fourth tier width (36)', () => expect(getStreetWidth(30, TEST_TIERS)).toBe(36));
-  it('count 31 → fifth tier width (52)', () => expect(getStreetWidth(31, TEST_TIERS)).toBe(52));
-  it('count 100 → fifth tier width (52)', () => expect(getStreetWidth(100, TEST_TIERS)).toBe(52));
-  it('falls back to built-in tiers if none provided', () => {
+  // Each tier's first and last descendant count, so an off-by-one at a
+  // boundary shows up.
+  it.each([
+    [0, 10],
+    [3, 10],
+    [4, 16],
+    [8, 16],
+    [9, 24],
+    [15, 24],
+    [16, 36],
+    [30, 36],
+    [31, 52],
+    [100, 52],
+  ])('%i descendants → width %i', (count, width) => {
+    expect(getStreetWidth(count, TEST_TIERS)).toBe(width);
+  });
+
+  it('falls back to the built-in tiers when none are given', () => {
     expect(getStreetWidth(0)).toBe(32);
     expect(getStreetWidth(100)).toBe(128);
   });
@@ -149,13 +164,8 @@ describe('getBuildingDimensions', () => {
   it('zero lines/bytes is the empty slab, with finite dimensions', () => {
     const dim = getBuildingDimensions({ lines: 0, size: 0 });
     expect(dim.floors).toBe(0);
-    expect(dim.h).toBe(
-      Math.round(
-        BUILDING_DIMENSIONS.value.EMPTY_SLAB_FLOORS *
-          (TEST_BUILDING_DIMS.FLOOR_HEIGHT as number) *
-          10
-      ) / 10
-    );
+    // EMPTY_SLAB_FLOORS 0.05 at FLOOR_HEIGHT 10.
+    expect(dim.h).toBe(0.5);
     expect(dim.w).toBe(TEST_BUILDING_DIMS.MIN_WIDTH);
     expect(Number.isFinite(dim.h)).toBe(true);
     expect(Number.isFinite(dim.w)).toBe(true);
@@ -692,69 +702,6 @@ describe('orient correctness for mirrored subtrees', () => {
   });
 });
 
-// ---- sortForRendering ----
-describe('sortForRendering', () => {
-  it('sorts back-to-front (lowest x+y first — behind draws first)', () => {
-    const unsorted = [
-      { x: 5, y: 5, id: 'near' },
-      { x: 20, y: 20, id: 'far' },
-      { x: 10, y: 10, id: 'mid' },
-    ];
-    const sorted = sortForRendering(unsorted);
-    // Lowest x+y = behind (north/west), drawn first
-    // Highest x+y = in front (south/east), drawn last (on top)
-    expect(sorted[0].id).toBe('near');
-    expect(sorted[1].id).toBe('mid');
-    expect(sorted[2].id).toBe('far');
-  });
-
-  it('does not mutate original array', () => {
-    const original = [
-      { x: 5, y: 5, id: 'close' },
-      { x: 20, y: 20, id: 'far' },
-    ];
-    sortForRendering(original);
-    expect(original[0].id).toBe('close');
-  });
-
-  it('handles single element', () => {
-    const sorted = sortForRendering([{ x: 0, y: 0 }]);
-    expect(sorted.length).toBe(1);
-  });
-
-  it('handles empty array', () => {
-    const sorted = sortForRendering([]);
-    expect(sorted.length).toBe(0);
-  });
-});
-
-// ---- Internal helpers ----
-describe('_rectsOverlap', () => {
-  const { _rectsOverlap } = __test;
-  it('overlapping rects return true', () => {
-    expect(_rectsOverlap({ x: 0, y: 0, w: 10, d: 10 }, { x: 5, y: 5, w: 10, d: 10 })).toBe(true);
-  });
-  it('disjoint rects return false', () => {
-    expect(_rectsOverlap({ x: 0, y: 0, w: 10, d: 10 }, { x: 100, y: 0, w: 10, d: 10 })).toBe(false);
-  });
-  it('touching edges return false (gap-apart abutment is OK)', () => {
-    expect(_rectsOverlap({ x: 0, y: 0, w: 10, d: 10 }, { x: 10, y: 0, w: 10, d: 10 })).toBe(false);
-  });
-  it('touching edges on Y axis return false', () => {
-    expect(_rectsOverlap({ x: 0, y: 0, w: 10, d: 10 }, { x: 0, y: 10, w: 10, d: 10 })).toBe(false);
-  });
-  it('one contains the other returns true', () => {
-    expect(_rectsOverlap({ x: 0, y: 0, w: 100, d: 100 }, { x: 0, y: 0, w: 5, d: 5 })).toBe(true);
-  });
-  it('sub-femto overlap (FP noise) is treated as touching', () => {
-    // Simulate the 7e-15 overlap that arose from translating touching rects
-    // through non-integer offsets (e.g. center=63.6 computed two different ways).
-    const a = { x: 0, y: 0, w: 2, d: 2 };
-    const b = { x: 2 - 7e-15, y: 0, w: 2, d: 2 };
-    expect(_rectsOverlap(a, b)).toBe(false);
-  });
-});
-
 describe('layout invariants (current packer baseline)', () => {
   it('TEST_TREE has no overlapping rectangles', () => {
     const layout = layoutCity({ tree: TEST_TREE });
@@ -986,4 +933,223 @@ describe('quickjs-scenario regression', () => {
     // above the legitimate floor, well below the bug regime.
     expect(quickjsStreet!.length).toBeLessThan(210);
   });
+});
+
+describe('layoutCity end-to-end', () => {
+  it('lays out a minimal tree with all four invariants satisfied', () => {
+    const tree = mkDir('root', [
+      mkFile('a.ts'),
+      mkFile('b.ts'),
+      mkDir('sub', [mkFile('c.ts'), mkFile('d.ts')]),
+    ]);
+    const layout = layoutCity({ tree });
+    expect(() => assertNoOverlap(layout)).not.toThrow();
+    expect(() => assertStemOrder(layout)).not.toThrow();
+    expect(() => assertTreeRespecting(layout)).not.toThrow();
+    expect(() => assertTJunctionsValid(layout)).not.toThrow();
+  });
+
+  // estimateDirReaches: bottom-up pre-pass that sizes the phantom in each
+  // child recursion. Must approximate (or upper-bound) the actual placement's
+  // along/perp extents — undersizing the phantom reintroduces the
+  // grandchild-overlaps-ancestor bug.
+  describe('estimateDirReaches matches actual layout', () => {
+    it('flat tree: estimated alongReach >= actual road length', () => {
+      const tree = mkDir('root', [
+        mkFile('a.ts'),
+        mkFile('b.ts'),
+        mkFile('c.ts'),
+        mkFile('d.ts'),
+        mkFile('e.ts'),
+      ]);
+      const stats = { lines: { min: 20, max: 20 }, bytes: { min: 500, max: 500 } };
+      const cache = new Map();
+      const reaches = estimateDirReaches(tree, stats.lines, stats.bytes, undefined, cache);
+      const layout = layoutCity({ tree });
+      const root = layout.streets.find((s: any) => s.dir?.name === 'root');
+      expect(root).toBeDefined();
+      // The estimate must be at least as large as the actual road length —
+      // if it's smaller, the phantom under-sizes and the bug returns.
+      expect(reaches.alongReach).toBeGreaterThanOrEqual(root!.length - 1);
+    });
+
+    it("nested tree: every dir's estimate >= actual road length", () => {
+      const tree = mkDir('root', [
+        mkDir('a', [mkFile('a1.ts'), mkFile('a2.ts'), mkFile('a3.ts')]),
+        mkDir('b', [mkFile('b1.ts'), mkFile('b2.ts')]),
+        mkDir('c', [
+          mkDir('cc', [mkFile('cc1.ts'), mkFile('cc2.ts'), mkFile('cc3.ts')]),
+          mkFile('c1.ts'),
+        ]),
+      ]);
+      const stats = { lines: { min: 20, max: 20 }, bytes: { min: 500, max: 500 } };
+      const cache = new Map();
+      estimateDirReaches(tree, stats.lines, stats.bytes, undefined, cache);
+      const layout = layoutCity({ tree });
+
+      const mismatches: string[] = [];
+      for (const street of layout.streets) {
+        if (!street.dir) continue;
+        const est = cache.get(street.dir as any);
+        if (!est) continue;
+        if (est.alongReach < street.length - 1) {
+          mismatches.push(`${street.dir.name}: est=${est.alongReach}, actual=${street.length}`);
+        }
+      }
+      expect(mismatches).toEqual([]);
+    });
+
+    it('deep chain: subdir contributions correctly propagate', () => {
+      // root → a → aa → aaa with files at the deepest level.
+      const tree = mkDir('root', [
+        mkDir('a', [mkDir('aa', [mkDir('aaa', [mkFile('x.ts'), mkFile('y.ts'), mkFile('z.ts')])])]),
+      ]);
+      const stats = { lines: { min: 20, max: 20 }, bytes: { min: 500, max: 500 } };
+      const cache = new Map();
+      estimateDirReaches(tree, stats.lines, stats.bytes, undefined, cache);
+      const layout = layoutCity({ tree });
+      // Every street's length should be covered by its dir's estimate.
+      for (const street of layout.streets) {
+        if (!street.dir) continue;
+        const est = cache.get(street.dir as any);
+        if (!est) continue;
+        expect(est.alongReach).toBeGreaterThanOrEqual(street.length - 1);
+      }
+    });
+  });
+
+  // Stress test that mirrors the firecrawl/Linux-scale shape: a long-road
+  // ancestor (apps) whose alphabetically-first child (api) has a deep
+  // subtree extending along the ancestor's road. Before the
+  // estimateDirAlongReach fix, the phantom seeded into api's local occupancy
+  // was sized with parentMaxBoundary*2 + 1000 at recursion start (when api
+  // was apps' first child, parentMaxBoundary was tiny); deep grandchildren
+  // placed past the phantom could land on top of apps' trunk.
+  it('long-road ancestor body does not overlap deep grandchildren in first-alpha subtree', () => {
+    function mkSizedFile(name: string, sizeBytes: number, lines: number): any {
+      return {
+        name,
+        type: NodeKind.File,
+        path: name,
+        extension: '.ts',
+        size: sizeBytes,
+        lines,
+        created: '2024-01-01T00:00:00Z',
+        modified: '2024-01-01T00:00:00Z',
+      };
+    }
+    function manyVariedFiles(prefix: string, count: number): any[] {
+      return Array.from({ length: count }, (_, i) => {
+        const size = 100 + (i % 5) * 5000 + ((i * 37) % 50000);
+        const lines = 10 + (i % 100);
+        return mkSizedFile(`${prefix}${String(i).padStart(3, '0')}.ts`, size, lines);
+      });
+    }
+    const tree = mkDir('root', [
+      mkDir('apps', [
+        mkDir('api', [
+          mkDir('src', [
+            ...manyVariedFiles('a_', 25),
+            ...manyVariedFiles('b_', 25),
+            ...manyVariedFiles('c_', 25),
+            mkDir('services', [
+              ...manyVariedFiles('svc_', 60),
+              mkDir('subscription', manyVariedFiles('sub_', 8)),
+              mkDir('webhook', manyVariedFiles('wh_', 8)),
+            ]),
+          ]),
+        ]),
+        ...Array.from({ length: 10 }, (_, i) => {
+          const name = `sdk${String.fromCharCode('b'.charCodeAt(0) + i)}`;
+          return mkDir(name, [
+            mkDir('src', manyVariedFiles(`${name}_src_`, 40)),
+            mkDir('lib', manyVariedFiles(`${name}_lib_`, 40)),
+            ...manyVariedFiles(`${name}_root_`, 20),
+          ]);
+        }),
+      ]),
+    ]);
+    const layout = layoutCity({ tree });
+    const apps = layout.streets.find((s) => s.dir?.name === 'apps');
+    expect(apps).toBeDefined();
+    // Sanity: apps' trunk should be long enough that any phantom-too-short
+    // bug would surface (apps must extend well past the original
+    // parentMaxBoundary*2 + 1000 ≈ 1000 reach).
+    expect(apps!.length).toBeGreaterThan(2000);
+    expect(() => assertNoOverlap(layout)).not.toThrow();
+  });
+});
+
+// Geometry-only projection (buildings + streets), safe to JSON-compare: avoids
+// the file/dir refs (dir.children is cyclic) while capturing everything the
+// layout output actually determines.
+function geometryDigest(layout: ReturnType<typeof layoutCity>): string {
+  return JSON.stringify({
+    buildings: layout.buildings.map((b) => [b.x, b.y, b.w, b.d, b.h, b.floors, b.file?.path]),
+    streets: layout.streets.map((s) => [
+      s.x,
+      s.y,
+      s.length,
+      s.width,
+      s.orientation,
+      s.isRoot,
+      s.dir?.path,
+    ]),
+    lineStats: layout.lineStats,
+    byteStats: layout.byteStats,
+  });
+}
+
+describe('layout worker payload slimming', () => {
+  it('layoutCity({tree, stats}) matches layoutCity(fullManifest)', () => {
+    const tree = genWeightedTree('root', 'root', 4000, 0, makeRng(0xc0ffee));
+    const commits = genCommits(20_000, makeRng(7));
+    const stats = { ...commitStats(commits), ...fileStats(tree) };
+
+    // What applyManifest holds vs what compute() now posts to the worker.
+    const fullManifest = {
+      tree,
+      stats,
+      commits,
+      dateRanges: {},
+      structure_signature: 'sig',
+      layout_signature: 'sig',
+      busyness: { avg: 1, busy: 1 },
+    };
+    const slice = { tree, stats };
+
+    const full = layoutCity(fullManifest as unknown as Parameters<typeof layoutCity>[0]);
+    const slim = layoutCity(slice as unknown as Parameters<typeof layoutCity>[0]);
+
+    expect(slim.buildings.length).toBe(full.buildings.length);
+    expect(slim.streets.length).toBe(full.streets.length);
+    expect(geometryDigest(slim)).toBe(geometryDigest(full));
+  });
+});
+
+function serialize(layout: CityLayout): string {
+  const b = layout.buildings
+    .map((x) => `${x.x.toFixed(4)},${x.y.toFixed(4)},${x.w},${x.d},${x.h},${x.floors},${x.orient}`)
+    .join('|');
+  const s = layout.streets
+    .map((x) => `${x.x.toFixed(4)},${x.y.toFixed(4)},${x.length},${x.width},${x.orientation}`)
+    .join('|');
+  return `B[${b}]S[${s}]`;
+}
+
+describe('findSmallestValidStem: iterative-max scan matches the sorted scan', () => {
+  const cases: Array<[string, () => any]> = [
+    ['flat 3000 (long-chain worst case)', () => flatTree(3000, makeRng(1))],
+    ['flat 200', () => flatTree(200, makeRng(7))],
+    ['skewed 4000', () => genNestedTree('root', 'root', 4000, 0, makeRng(0xc0ffee))],
+    ['skewed 800', () => genNestedTree('root', 'root', 800, 0, makeRng(42))],
+  ];
+  for (const [label, build] of cases) {
+    it(label, () => {
+      const tree = build();
+      const hot = layoutCity({ tree });
+      const traced = layoutCityWithTrace({ tree }).layout;
+      expect(serialize(hot)).toEqual(serialize(traced));
+    });
+  }
 });

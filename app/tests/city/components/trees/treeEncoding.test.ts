@@ -18,8 +18,8 @@ import {
 } from '@/city/components/trees/treeEncoding';
 import type { TreesConfig } from '@/state/stores/settings/trees';
 import type { CommitEntry } from '@/types';
-import { commits as buildCommits } from './_commitFixtures';
-import { commitStats } from '../../_helpers/statsFixtures';
+import { commits as buildCommits } from '../../../_helpers/commits';
+import { commitStats } from '../../../_helpers/statsFixtures';
 
 const commits: CommitEntry[] = buildCommits(
   { date: '2026-01-01', files: 1 },
@@ -120,49 +120,13 @@ describe('ageT()', () => {
 
   it('returns 0.5 when the range has zero span', () => {
     const zero: AgeRange = { oldest: 0, newest: 0, span: 0, daysIdle: 0 };
-    expect(
-      ageT(
-        {
-          date: '2026-01-01',
-          files: 1,
-          sha: 'a'.repeat(40),
-          authors: ['Test Author'],
-          subject: 'test commit',
-          same_day_total: 1,
-        },
-        zero
-      )
-    ).toBe(0.5);
+    expect(ageT(buildCommits({ date: '2026-01-01', files: 1 })[0], zero)).toBe(0.5);
   });
 
   it('clamps out-of-range dates to [0,1]', () => {
     const range = computeAgeRange(commitStats(commits));
-    expect(
-      ageT(
-        {
-          date: '2025-01-01',
-          files: 1,
-          sha: 'a'.repeat(40),
-          authors: ['Test Author'],
-          subject: 'test commit',
-          same_day_total: 1,
-        },
-        range
-      )
-    ).toBe(0);
-    expect(
-      ageT(
-        {
-          date: '2027-01-01',
-          files: 1,
-          sha: 'a'.repeat(40),
-          authors: ['Test Author'],
-          subject: 'test commit',
-          same_day_total: 1,
-        },
-        range
-      )
-    ).toBe(1);
+    expect(ageT(buildCommits({ date: '2025-01-01', files: 1 })[0], range)).toBe(0);
+    expect(ageT(buildCommits({ date: '2027-01-01', files: 1 })[0], range)).toBe(1);
   });
 });
 
@@ -179,19 +143,7 @@ describe('sizeT()', () => {
 
   it('returns 0.5 when the range has zero span', () => {
     const zero: SizeRange = { min: 0, max: 0, span: 0 };
-    expect(
-      sizeT(
-        {
-          date: '2026-01-01',
-          files: 1,
-          sha: 'a'.repeat(40),
-          authors: ['Test Author'],
-          subject: 'test commit',
-          same_day_total: 1,
-        },
-        zero
-      )
-    ).toBe(0.5);
+    expect(sizeT(buildCommits({ date: '2026-01-01', files: 1 })[0], zero)).toBe(0.5);
   });
 });
 
@@ -229,7 +181,7 @@ describe('dailyCountT()', () => {
 });
 
 describe('dailyCountTByIndex()', () => {
-  // _commitFixtures bakes same_day_total from the date grouping (mirroring the
+  // The commits helper bakes same_day_total from the date grouping (as the
   // backend), so these dates produce same_day_total = {1,1,1,4,4,4,4}.
   const cs = buildCommits(
     { date: '2026-01-01', files: 1 }, // same_day_total=1 → t=0

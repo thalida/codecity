@@ -17,6 +17,8 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest import mock
 
+import pytest
+
 from api.services import clone as clone_mod
 from api.services.clone import (
     BranchNotFoundError,
@@ -194,55 +196,102 @@ class EnsureCloneTests(unittest.TestCase):
         self.assertEqual(head, f"refs/remotes/origin/{self.default_branch}")
 
 
-class CleanCloneErrorDispatcherTests(unittest.TestCase):
-    def test_branch_not_found_first_clone_stderr(self) -> None:
-        with self.assertRaises(BranchNotFoundError) as ctx:
-            _maybe_raise_clean_clone_error(
-                "https://example.com/x.git",
-                "feature-x",
-                "fatal: Remote branch feature-x not found in upstream origin",
-            )
-        self.assertIn("feature-x", str(ctx.exception))
+SAMPLE_URL = "https://example.com/x.git"
 
-    def test_branch_not_found_reset_stderr(self) -> None:
-        with self.assertRaises(BranchNotFoundError):
-            _maybe_raise_clean_clone_error(
-                "https://example.com/x.git",
-                "feature-x",
-                "fatal: ambiguous argument 'origin/feature-x': "
-                "unknown revision or path not in the working tree.",
-            )
 
-    def test_repo_not_found(self) -> None:
-        with self.assertRaises(RepoNotFoundError):
-            _maybe_raise_clean_clone_error(
-                "https://example.com/x.git",
-                None,
-                "ERROR: Repository not found.\n"
-                "fatal: Could not read from remote repository.",
-            )
+@pytest.mark.parametrize(
+    ("label", "branch", "stderr", "expected", "needle"),
+    [
+        (
+            "branch missing on the first clone",
+            "feature-x",
+            "fatal: Remote branch feature-x not found in upstream origin",
+            BranchNotFoundError,
+            "feature-x",
+        ),
+        (
+            "branch missing on the reset path",
+            "feature-x",
+            "fatal: ambiguous argument 'origin/feature-x': "
+            "unknown revision or path not in the working tree.",
+            BranchNotFoundError,
+            None,
+        ),
+        (
+            "repo missing",
+            None,
+            "ERROR: Repository not found.\nfatal: Could not read from remote repository.",
+            RepoNotFoundError,
+            None,
+        ),
+        (
+            # A copied web-page URL (with a #anchor) reaches a server that is
+            # not serving a git repo.
+            "url reaches a server that is not a repo",
+            None,
+            "fatal: https://github.com/thalida/codecity#local-directories/"
+            "info/refs not valid: is this a git repository?",
+            RepoNotFoundError,
+            "git repository",
+        ),
+        (
+            "host does not resolve",
+            None,
+            "fatal: unable to access 'https://no-such-host.example/x.git/': "
+            "Could not resolve host: no-such-host.example",
+            HostUnreachableError,
+            None,
+        ),
+        (
+            # The real linux-kernel failure tail: a drop mid-transfer has to
+            # read as retryable, not as a missing repo.
+            "connection drops mid-transfer",
+            "master",
+            "error: RPC failed; curl 92 HTTP/2 stream 5 was not closed cleanly\n"
+            "error: 3948 bytes of body are still expected\n"
+            "fetch-pack: unexpected disconnect while reading sideband packet\n"
+            "fatal: early EOF\n"
+            "fatal: fetch-pack: invalid index-pack output",
+            CloneInterruptedError,
+            "try again",
+        ),
+    ],
+)
+def test_clone_stderr_classification(label, branch, stderr, expected, needle):
+    with pytest.raises(expected) as excinfo:
+        _maybe_raise_clean_clone_error(SAMPLE_URL, branch, stderr)
+    if needle:
+        assert needle in str(excinfo.value).lower()
 
-    def test_not_a_git_repository(self) -> None:
-        # A copied web-page URL (with a #anchor) reaches a server but isn't a
-        # git repo; git says "not valid: is this a git repository?".
-        with self.assertRaises(RepoNotFoundError) as ctx:
-            _maybe_raise_clean_clone_error(
-                "https://github.com/thalida/codecity#local-directories",
-                None,
-                "fatal: https://github.com/thalida/codecity#local-directories/"
-                "info/refs not valid: is this a git repository?",
-            )
-        self.assertIn("git repository", str(ctx.exception))
 
-    def test_host_unreachable(self) -> None:
-        with self.assertRaises(HostUnreachableError):
-            _maybe_raise_clean_clone_error(
-                "https://no-such-host.example/x.git",
-                None,
-                "fatal: unable to access 'https://no-such-host.example/x.git/': "
-                "Could not resolve host: no-such-host.example",
-            )
+# A host asking for credentials is the same situation as one that 404s: this
+# server has none by design. The wording must not claim the repo is private,
+# which is a guess the server cannot make.
+@pytest.mark.parametrize(
+    "stderr",
+    [
+        "fatal: Authentication failed for 'https://example.com/x.git/'",
+        "remote: Credentials are incorrect or have expired",
+        "remote: HTTP Basic: Access denied",
+        "fatal: could not read Username for 'https://example.com': terminal prompts disabled",
+        "git@example.com: Permission denied (publickey).",
+    ],
+)
+def test_auth_failure_reads_as_unreachable(stderr):
+    with pytest.raises(RepoNotFoundError) as excinfo:
+        _maybe_raise_clean_clone_error(SAMPLE_URL, None, stderr)
+    assert "private" not in str(excinfo.value).lower()
 
+
+# Routers catch CloneError to map every clone failure onto one HTTP shape.
+@pytest.mark.parametrize(
+    "exc", [BranchNotFoundError, RepoNotFoundError, HostUnreachableError]
+)
+def test_clone_errors_share_a_base(exc):
+    assert issubclass(exc, CloneError)
+
+
+class NetGitRetryTests(unittest.TestCase):
     def test_retryable_over_http1_1_then_succeeds(self) -> None:
         # A transient network drop retries (forcing HTTP/1.1) and then succeeds.
         calls: list[tuple[str, ...]] = []
@@ -304,21 +353,6 @@ class CleanCloneErrorDispatcherTests(unittest.TestCase):
                 clone_mod._run_net_git("clone", before_retry=lambda: cleaned.append(1))
         self.assertEqual(len(cleaned), clone_mod._NET_RETRY_ATTEMPTS - 1)
 
-    def test_network_interrupted(self) -> None:
-        # A dropped connection mid-transfer (huge repo) — the real linux-kernel
-        # failure tail. Must classify to a clean, retryable message.
-        with self.assertRaises(CloneInterruptedError) as ctx:
-            _maybe_raise_clean_clone_error(
-                "https://github.com/torvalds/linux",
-                "master",
-                "error: RPC failed; curl 92 HTTP/2 stream 5 was not closed cleanly\n"
-                "error: 3948 bytes of body are still expected\n"
-                "fetch-pack: unexpected disconnect while reading sideband packet\n"
-                "fatal: early EOF\n"
-                "fatal: fetch-pack: invalid index-pack output",
-            )
-        self.assertIn("try again", str(ctx.exception).lower())
-
     def test_clean_git_stderr_strips_progress_noise(self) -> None:
         # A wall of --progress lines with the real error at the end → only the
         # error survives, no percentages.
@@ -335,30 +369,6 @@ class CleanCloneErrorDispatcherTests(unittest.TestCase):
         self.assertNotIn("Resolving deltas", cleaned)
         self.assertIn("early EOF", cleaned)
         self.assertIn("RPC failed", cleaned)
-
-    def test_auth_failure_reads_as_unreachable(self) -> None:
-        # A host that asks for credentials is the same situation as one that
-        # 404s: this server has none by design, so the repo is unreachable and
-        # the UI's remedy is the same. Wording must not claim it is private,
-        # which is a guess the server cannot make.
-        for stderr in (
-            "fatal: Authentication failed for 'https://example.com/x.git/'",
-            "remote: Credentials are incorrect or have expired",
-            "remote: HTTP Basic: Access denied",
-            "fatal: could not read Username for 'https://example.com': "
-            "terminal prompts disabled",
-            "git@example.com: Permission denied (publickey).",
-        ):
-            with self.assertRaises(RepoNotFoundError, msg=stderr) as ctx:
-                _maybe_raise_clean_clone_error(
-                    "https://example.com/x.git", None, stderr
-                )
-            self.assertNotIn("private", str(ctx.exception).lower())
-
-    def test_subclass_relationship(self) -> None:
-        self.assertTrue(issubclass(BranchNotFoundError, CloneError))
-        self.assertTrue(issubclass(RepoNotFoundError, CloneError))
-        self.assertTrue(issubclass(HostUnreachableError, CloneError))
 
 
 class RunGitEnvTests(unittest.TestCase):

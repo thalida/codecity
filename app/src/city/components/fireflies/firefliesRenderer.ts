@@ -25,6 +25,9 @@ export interface FireflyRenderer {
   dispose(): void;
 }
 
+/** Name of the instanced orb mesh, so consumers can find it on the graph. */
+export const FIREFLY_ORBS_MESH = 'fireflies-orbs';
+
 export function createFireflyRenderer(orbs: FireflyPlacement[]): FireflyRenderer {
   const group = new THREE.Group();
   group.name = 'fireflies';
@@ -109,7 +112,7 @@ export function createFireflyRenderer(orbs: FireflyPlacement[]): FireflyRenderer
   });
 
   const mesh = new THREE.InstancedMesh(geometry, material, orbs.length);
-  mesh.name = 'fireflies-orbs';
+  mesh.name = FIREFLY_ORBS_MESH;
   // Culling is disabled because the shader-side y-bob shifts vertices
   // outside the mesh's bounding sphere, which would otherwise cause
   // three.js to cull instances mid-bob.

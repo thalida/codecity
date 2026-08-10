@@ -3,14 +3,15 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { placeTrees, type TreePlacement } from '@/city/components/trees/treePlacement';
 import { TREES } from '@/state/stores/settings/trees';
+import { FOOTPRINT } from '@/state/stores/settings/footprint';
 import type { CityLayout } from '@/types';
 import {
   bbox,
   emptyLayout,
   resetTreesConfig,
   resetBuildingsConfig,
-} from '../../_helpers/cityFixtures';
-import { building } from '../../_helpers/buildingFixture';
+} from '../../../_helpers/cityFixtures';
+import { building } from '../../../_helpers/buildingFixture';
 
 describe('placeTrees (commit-driven)', () => {
   beforeEach(() => {
@@ -107,8 +108,7 @@ describe('placeTrees (commit-driven)', () => {
     }
   });
 
-  it('rejects candidates inside the FOOTPRINT halo around a layout rect', async () => {
-    const { FOOTPRINT } = await import('@/state/stores/settings/footprint.js');
+  it('rejects candidates inside the FOOTPRINT halo around a layout rect', () => {
     FOOTPRINT.value = { ...FOOTPRINT.value, HALO_WIDTH: 100 };
 
     const bb = bbox(-500, -500, 500, 500);

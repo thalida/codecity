@@ -3,6 +3,7 @@ import { computeAlmanac } from '@/views/InfoPane/almanac';
 import { NodeKind } from '@/types';
 import type { Manifest, FileNode, DirNode, RepoStats } from '@/types';
 import { EMPTY_REPO_STATS } from '@/constants/manifest';
+import { commits as buildCommits } from '../../_helpers/commits';
 import { fileLeader, uniformFileStats } from '../../_helpers/statsFixtures';
 
 function file(partial: Partial<FileNode> & { name: string; path: string }): FileNode {
@@ -323,19 +324,12 @@ describe('computeAlmanac — streets, forest, fireflies', () => {
   };
   const tree = dir('repo', '', [src as DirNode, file({ name: 'r.ts', path: 'r.ts' })]);
 
-  const commits = [
-    { date: '2022-01-01', files: 2, sha: 'aaa', authors: ['Ada'], subject: 'a', same_day_total: 1 },
-    {
-      date: '2022-01-02',
-      files: 40,
-      sha: 'bbb',
-      authors: ['Ada', 'Bo'],
-      subject: 'b',
-      same_day_total: 3,
-    },
-    { date: '2022-01-03', files: 1, sha: 'ccc', authors: ['Bo'], subject: 'c', same_day_total: 3 },
-    { date: '2022-02-10', files: 5, sha: 'ddd', authors: ['Ada'], subject: 'd', same_day_total: 1 },
-  ];
+  const commits = buildCommits(
+    { date: '2022-01-01', files: 2, sha: 'aaa', authors: ['Ada'], same_day_total: 1 },
+    { date: '2022-01-02', files: 40, sha: 'bbb', authors: ['Ada', 'Bo'], same_day_total: 3 },
+    { date: '2022-01-03', files: 1, sha: 'ccc', authors: ['Bo'], same_day_total: 3 },
+    { date: '2022-02-10', files: 5, sha: 'ddd', authors: ['Ada'], same_day_total: 1 }
+  );
 
   // Streets: maxDepthDir = src/a/b (3 deep); maxChildrenDir = src (6 direct
   //          children); minChildrenDir = src/a/b (1 direct child)

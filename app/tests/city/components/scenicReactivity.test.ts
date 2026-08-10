@@ -1,19 +1,10 @@
-// scenicReactivity.test.ts — parity tests for Stage 4 Commit 2.
+// applyManifest reassigns layout/bbox/latestWorldBounds only on a non-reuse
+// apply, so on a reuse apply the references stay stable and each scenic
+// component's effect does not re-fire. That reference stability is the gate.
 //
-// The SYNC scenic components (streets / gem / footprint / island / repoLabel)
-// no longer get called in order by applyManifest. Each runs an effect reading
-// the cityState signal it depends on and rebuilds when that signal's VALUE
-// (object reference) changes. applyManifest reassigns layout/bbox/
-// latestWorldBounds ONLY on a non-reuse apply, so on a scenic-reuse apply the
-// references stay stable and the effects DON'T re-fire — that reference-
-// stability IS the gate that replaced the old scenic-config-hash comparison.
+// Rebuilds are observed through a per-rebuild side effect rather than a spy:
+// each effect calls its rebuild via a closure binding, not the public property.
 //
-// These tests drive the cityState signals directly (the new reactive entry
-// point applyManifest writes through). Each component's effect calls its
-// rebuild via a closure binding (not the public object property), so we observe
-// rebuilds through a per-rebuild SIDE EFFECT — the fresh object reference each
-// rebuild swaps in (pickables array / inner gem group / footprint mesh / island
-// geometry). Same-reference signal writes must NOT swap, proving the skip.
 
 import { describe, it, expect, afterEach } from 'vitest';
 import * as THREE from 'three';

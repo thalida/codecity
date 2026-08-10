@@ -1,13 +1,9 @@
-// tests/a11y/audit.test.tsx — Automated accessibility audit (issue #79).
+// axe-core over the app's interactive surfaces, plus structural guards for the
+// classes axe-in-jsdom misses: controls inside a <summary>, unnamed form
+// fields, orphan labels, positive tabindex.
 //
-// Runs axe-core (the engine behind Chrome's a11y audit) against the app's main
-// interactive surfaces, plus tool-independent structural guards for the classes
-// axe-in-jsdom can miss: interactive controls nested in a <summary>, form fields
-// with no id/name, orphan <label>s, and positive tabindex. This is the backstop
-// that keeps the surfaces reviewed here from silently regressing.
-//
-// Note: axe's color-contrast rule needs real layout, which jsdom lacks — contrast
-// is verified separately (OKLCH token math). It's disabled here to avoid noise.
+// Contrast needs real layout, which jsdom lacks, so that rule is off here and
+// verified separately through the OKLCH token math.
 
 import { describe, it, expect, afterEach } from 'vitest';
 import { render } from 'preact';

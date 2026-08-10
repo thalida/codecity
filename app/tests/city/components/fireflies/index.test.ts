@@ -1,40 +1,32 @@
-// app/tests/city/components/fireflies/index.test.ts
-//
-// Tests for the persistent createFireflies(ctx) component (door).
-// API: createFireflies(ctx) → { group, rebuild(placements, commits, stats),
-//      clear(), tick(dt, frame), onResize(w, h), dispose() }.
-//
-// FIREFLIES settings reactivity (bob/pulse/emission uniforms) is owned by
-// the component's theme effect; the hover/select boost effects are
-// picker-driven and ARMED on the first tick() (NOT at construction —
-// ctx.picker is null there, so they'd track no signal and never re-fire).
-// The rebuild-survival test guards the dynamic-_inner contract: the effect
-// bodies must reach the CURRENT inner renderer after a rebuild, exactly like
-// the old renderLoop effects re-fetched world.getFireflies() each fire.
+// createCity builds fireflies before the picker exists, so the picker-driven
+// effects are armed on the first tick() instead of at construction. Effects
+// armed at construction would track no signal and never fire again.
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import * as THREE from 'three';
 
 import { createFireflies } from '@/city/components/fireflies';
-import { makeCityState, makePickableSceneContext } from '../../../_helpers/cityFixtures';
+import { FIREFLY_ORBS_MESH } from '@/city/components/fireflies/firefliesRenderer';
+import {
+  commitTarget,
+  makeCityState,
+  makePickableSceneContext,
+  treePlacement,
+} from '../../../_helpers/cityFixtures';
 import { FIREFLIES } from '@/state/stores/settings/fireflies';
-import { NodeKind } from '@/types';
-import type { CommitEntry } from '@/types';
+import { commits as buildCommits } from '../../../_helpers/commits';
 import { commitStats } from '../../../_helpers/statsFixtures';
-import type { PickTarget } from '@/types/picker';
-import type { TreePlacement } from '@/city/components/trees/treePlacement';
 import type { Picker } from '@/city/interaction/picker';
 import type { SceneContext } from '@/city/types';
 
 const SHA_A = 'a'.repeat(40);
 const SHA_B = 'b'.repeat(40);
 
-const COMMITS: CommitEntry[] = [
-  { date: '2026-01-01', files: 1, sha: SHA_A, authors: ['Alice'], subject: 'a', same_day_total: 1 },
-  { date: '2026-01-02', files: 1, sha: SHA_B, authors: ['Bob'], subject: 'b', same_day_total: 1 },
-];
-
-const PLACEMENTS: TreePlacement[] = [{ x: 0, y: 0, seed: 0, commitIndex: 0 } as TreePlacement];
+const COMMITS = buildCommits(
+  { date: '2026-01-01', files: 1, sha: SHA_A, authors: ['Alice'] },
+  { date: '2026-01-02', files: 1, sha: SHA_B, authors: ['Bob'] }
+);
+const PLACEMENTS = [treePlacement(0)];
 
 const _origFireflies = FIREFLIES.value;
 
@@ -47,22 +39,13 @@ function makePrePickerCtx(): SceneContext {
   } as unknown as SceneContext;
 }
 
-function commitTarget(sha: string): PickTarget {
-  return {
-    kind: NodeKind.Commit,
-    mesh: new THREE.InstancedMesh(new THREE.BufferGeometry(), new THREE.MeshBasicMaterial(), 1),
-    instanceId: 0,
-    commit: { sha, date: '2026-01-01', files: 1, authors: ['Alice'], subject: 'a' },
-  } as unknown as PickTarget;
-}
-
 // Reach the orb shader uniforms through the inner assembly's InstancedMesh.
 function orbUniforms(comp: ReturnType<typeof createFireflies>): Record<string, { value: number }> {
   let mesh: THREE.InstancedMesh | null = null;
   comp.group.traverse((obj) => {
-    if (obj.name === 'fireflies-orbs') mesh = obj as THREE.InstancedMesh;
+    if (obj.name === FIREFLY_ORBS_MESH) mesh = obj as THREE.InstancedMesh;
   });
-  if (!mesh) throw new Error("expected 'fireflies-orbs' InstancedMesh under the group");
+  if (!mesh) throw new Error(`expected ${FIREFLY_ORBS_MESH} InstancedMesh under the group`);
   return ((mesh as THREE.InstancedMesh).material as THREE.ShaderMaterial).uniforms as Record<
     string,
     { value: number }

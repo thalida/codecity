@@ -5,27 +5,8 @@ import { StreetPane } from '@/views/StreetPane/StreetPane';
 import type { StreetPaneState } from '@/views/StreetPane/StreetPane';
 import { NodeKind } from '@/types';
 import type { DirNode, FileNode, ExtBreakdownEntry } from '@/types';
+import { ROOT_PATH } from '@/constants/manifest';
 import { flush } from '../_helpers/preact';
-
-// Mirror the backend's per-dir extension aggregation (api/scan.py) so test
-// fixtures carry a realistic descendants_ext_breakdown — StreetPane reads
-// that baked field rather than walking the subtree itself.
-function _extBreakdown(children: (FileNode | DirNode)[]): ExtBreakdownEntry[] {
-  const byExt = new Map<string | null, { count: number; size: number }>();
-  function walk(node: FileNode | DirNode): void {
-    if (node.type === NodeKind.File) {
-      const ext = node.extension ? node.extension.toLowerCase() : null;
-      const cur = byExt.get(ext) || { count: 0, size: 0 };
-      cur.count += 1;
-      cur.size += node.size || 0;
-      byExt.set(ext, cur);
-      return;
-    }
-    for (const c of node.children || []) walk(c);
-  }
-  for (const c of children) walk(c);
-  return Array.from(byExt, ([ext, v]) => ({ ext, ...v })).sort((a, b) => b.count - a.count);
-}
 
 function f(name: string, ext: string, size: number, lines = 0): FileNode {
   return {
@@ -42,7 +23,13 @@ function f(name: string, ext: string, size: number, lines = 0): FileNode {
   } as unknown as FileNode;
 }
 
-function dir(name: string, children: (FileNode | DirNode)[] = []): DirNode {
+// descendants_ext_breakdown is baked by the backend and read verbatim by
+// StreetPane, so it is passed as data rather than recomputed here.
+function dir(
+  name: string,
+  children: (FileNode | DirNode)[] = [],
+  breakdown: ExtBreakdownEntry[] = []
+): DirNode {
   return {
     name,
     type: NodeKind.Directory,
@@ -54,7 +41,7 @@ function dir(name: string, children: (FileNode | DirNode)[] = []): DirNode {
     descendants_file_count: 0,
     descendants_dir_count: 0,
     descendants_size: 0,
-    descendants_ext_breakdown: _extBreakdown(children),
+    descendants_ext_breakdown: breakdown,
   } as unknown as DirNode;
 }
 
@@ -97,13 +84,21 @@ describe('StreetPane', () => {
 
   it('lists every extension as a ranked row sorted by count desc', async () => {
     mount();
-    const d = dir('src', [
-      f('a.ts', '.ts', 100),
-      f('b.ts', '.ts', 100),
-      f('c.ts', '.ts', 100),
-      f('readme.md', '.md', 50),
-      f('config.json', '.json', 30),
-    ]);
+    const d = dir(
+      'src',
+      [
+        f('a.ts', '.ts', 100),
+        f('b.ts', '.ts', 100),
+        f('c.ts', '.ts', 100),
+        f('readme.md', '.md', 50),
+        f('config.json', '.json', 30),
+      ],
+      [
+        { ext: '.ts', count: 3, size: 300 },
+        { ext: '.md', count: 1, size: 50 },
+        { ext: '.json', count: 1, size: 30 },
+      ]
+    );
     await setDirectory(d);
     const extRows = Array.from(container.querySelectorAll('.street-ext-row')) as HTMLElement[];
     expect(extRows.length).toBeGreaterThanOrEqual(3);
@@ -120,7 +115,14 @@ describe('StreetPane', () => {
 
   it('labels an extensionless file row as "No extension"', async () => {
     mount();
-    const d = dir('bin', [f('LICENSE', '', 10), f('run.sh', '.sh', 10)]);
+    const d = dir(
+      'bin',
+      [f('LICENSE', '', 10), f('run.sh', '.sh', 10)],
+      [
+        { ext: null, count: 1, size: 10 },
+        { ext: '.sh', count: 1, size: 10 },
+      ]
+    );
     await setDirectory(d);
     const titles = Array.from(container.querySelectorAll('.street-ext-track')).map((t) =>
       t.getAttribute('title')
@@ -131,7 +133,7 @@ describe('StreetPane', () => {
   it('onFocus callback fires with the active directory when focus button clicked', async () => {
     const onFocus = vi.fn();
     mount({ onFocus });
-    const d = dir('lib', [f('x.ts', '.ts', 100)]);
+    const d = dir('lib', [f('x.ts', '.ts', 100)], [{ ext: '.ts', count: 1, size: 100 }]);
     await setDirectory(d);
     const btn =
       (container.querySelector('.pane-header button[aria-label*="Focus"]') as HTMLButtonElement) ??
@@ -143,9 +145,36 @@ describe('StreetPane', () => {
 
   it('setDirectory(null) returns to the empty state', async () => {
     mount();
-    await setDirectory(dir('src', [f('a.ts', '.ts', 100)]));
+    await setDirectory(dir('src', [f('a.ts', '.ts', 100)], [{ ext: '.ts', count: 1, size: 100 }]));
     await setDirectory(null);
     expect(container.querySelector('.empty-state')).not.toBeNull();
     expect(container.querySelector('.street-ext-row')).toBeNull();
+  });
+
+  describe('exclude action', () => {
+    function mountWithExclude(directory: DirNode) {
+      const onExclude = vi.fn();
+      const s = signal<StreetPaneState>({ directory });
+      render(<StreetPane state={s} onExclude={onExclude} />, container);
+      return {
+        onExclude,
+        button: container.querySelector<HTMLButtonElement>('button[aria-label*="Exclude"]'),
+      };
+    }
+
+    it('hands the directory to onExclude', () => {
+      const d = dir('vendor');
+      const { onExclude, button } = mountWithExclude(d);
+      expect(button).not.toBeNull();
+      button!.click();
+      expect(onExclude).toHaveBeenCalledWith(d);
+    });
+
+    // Excluding the root would empty the city, so the affordance is absent.
+    it('offers nothing to exclude on the repo root', () => {
+      const root = dir('repo');
+      (root as { path: string }).path = ROOT_PATH;
+      expect(mountWithExclude(root).button).toBeNull();
+    });
   });
 });

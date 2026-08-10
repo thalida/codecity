@@ -7,6 +7,9 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { createPicker, PICKER_SELECTION_KEY } from '@/city/interaction/picker';
 import { createCityState } from '@/city/state';
 import { makeCityState } from '../../_helpers/cityFixtures';
+import { commitSeries } from '../../_helpers/commits';
+
+const SERIES = commitSeries(3);
 import { NodeKind } from '@/types';
 import type { CommitEntry, PickerWorld, CommitTarget } from '@/types';
 
@@ -22,17 +25,6 @@ function makeTrunk(): THREE.InstancedMesh {
   const m = new THREE.InstancedMesh(new THREE.BoxGeometry(), new THREE.MeshBasicMaterial(), 3);
   m.userData.meshKind = 'tree-trunk';
   return m;
-}
-
-function commit(i: number): CommitEntry {
-  return {
-    date: `2026-03-${String(i + 1).padStart(2, '0')}`,
-    files: i + 1,
-    sha: `${i.toString(16).padStart(8, '0')}${'0'.repeat(32)}`,
-    authors: [`Author ${i}`],
-    subject: `commit ${i}`,
-    same_day_total: 1, // each commit is on a distinct date
-  };
 }
 
 interface FakeTrees {
@@ -123,7 +115,7 @@ describe('picker: tree commit picking', () => {
   it('interpretHit on a canopy InstancedMesh returns a CommitTarget', () => {
     const canopy = makeCanopy();
     const trunk = makeTrunk();
-    const commits = [commit(0), commit(1), commit(2)];
+    const commits = [SERIES[0], SERIES[1], SERIES[2]];
     const trees = makeFakeTrees(canopy, trunk, commits);
     const world = makeWorld(trees);
     const p = createPicker({ canvas, camera: FAKE_CAMERA, world, cityState: world.cityState });
@@ -147,7 +139,7 @@ describe('picker: tree commit picking', () => {
   it('interpretHit on a trunk InstancedMesh returns a CommitTarget', () => {
     const canopy = makeCanopy();
     const trunk = makeTrunk();
-    const commits = [commit(0), commit(1), commit(2)];
+    const commits = [SERIES[0], SERIES[1], SERIES[2]];
     const trees = makeFakeTrees(canopy, trunk, commits);
     const world = makeWorld(trees);
     const p = createPicker({ canvas, camera: FAKE_CAMERA, world, cityState: world.cityState });
@@ -182,7 +174,7 @@ describe('picker: tree commit picking', () => {
   it('interpretHit returns null when commitForInstance returns null for a stale slot', () => {
     const canopy = makeCanopy();
     const trunk = makeTrunk();
-    const commits = [commit(0), commit(1), commit(2)];
+    const commits = [SERIES[0], SERIES[1], SERIES[2]];
     const trees = makeFakeTrees(canopy, trunk, commits);
     const world = makeWorld(trees);
     const p = createPicker({ canvas, camera: FAKE_CAMERA, world, cityState: world.cityState });
@@ -202,7 +194,7 @@ describe('picker: tree commit picking', () => {
   it('setSelection on a CommitTarget writes a Commit selection key', () => {
     const canopy = makeCanopy();
     const trunk = makeTrunk();
-    const commits = [commit(0), commit(1)];
+    const commits = [SERIES[0], SERIES[1]];
     const trees = makeFakeTrees(canopy, trunk, commits);
     const world = makeWorld(trees);
     const p = createPicker({ canvas, camera: FAKE_CAMERA, world, cityState: world.cityState });
@@ -224,7 +216,7 @@ describe('picker: tree commit picking', () => {
   it('hydrating a Commit key re-resolves the selection via findTreeBySha', () => {
     const canopy = makeCanopy();
     const trunk = makeTrunk();
-    const commits = [commit(0), commit(1)];
+    const commits = [SERIES[0], SERIES[1]];
     const trees = makeFakeTrees(canopy, trunk, commits);
     const world = makeWorld(trees);
 
@@ -242,7 +234,7 @@ describe('picker: tree commit picking', () => {
   it('world rebuild re-resolves a Commit selection to the fresh trees', () => {
     const canopyA = makeCanopy();
     const trunkA = makeTrunk();
-    const commits = [commit(0), commit(1)];
+    const commits = [SERIES[0], SERIES[1]];
     const treesA = makeFakeTrees(canopyA, trunkA, commits);
     const world = makeWorld(treesA);
     const p = createPicker({ canvas, camera: FAKE_CAMERA, world, cityState: world.cityState });
@@ -275,7 +267,7 @@ describe('picker: tree commit picking', () => {
   it('refreshes pickables when trees attach asynchronously after world rebuild', () => {
     const canopyA = makeCanopy();
     const trunkA = makeTrunk();
-    const commits = [commit(0)];
+    const commits = [SERIES[0]];
     const treesA = makeFakeTrees(canopyA, trunkA, commits);
     const world = makeWorld(treesA);
     const p = createPicker({ canvas, camera: FAKE_CAMERA, world, cityState: world.cityState });
@@ -308,7 +300,7 @@ describe('picker: tree commit picking', () => {
   it('hydrating a Commit key for a missing sha clears the selection + key', () => {
     const canopy = makeCanopy();
     const trunk = makeTrunk();
-    const commits = [commit(0)];
+    const commits = [SERIES[0]];
     const trees = makeFakeTrees(canopy, trunk, commits);
     const world = makeWorld(trees);
 

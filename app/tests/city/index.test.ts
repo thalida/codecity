@@ -1,14 +1,5 @@
-// city/index.test.ts — smoke test for the createCity composer. Asserts it
-// builds without throwing on EMPTY_MANIFEST and returns the expected handle
-// shape ({ world, picker, rig, focusByPath }).
-//
-// jsdom has no WebGL context, so a real THREE.WebGLRenderer + the bloom post
-// pipeline can't run here (no other test constructs a real renderer either —
-// the component tests pass a fake `{ domElement: canvas }`). We mock the
-// renderer, the post-fx pipeline, and the ad-panel renderer registration so
-// createCity's full construction order (component build → boot applyManifest →
-// rig/picker/inputHandlers → frame loop) is exercised end to end. The layout
-// runs through the sync in-process fallback (Worker is undefined in jsdom).
+// The composer: what createCity returns, and that dispose releases the WebGL
+// context rather than just its resources.
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import * as THREE from 'three';

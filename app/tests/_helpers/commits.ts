@@ -26,6 +26,23 @@ export function commits(
     subject: `commit ${i}`,
     same_day_total: perDay.get(e.date) ?? 1,
     ...e,
-    sha: e.sha ?? 'a'.repeat(40),
+    // Distinct per entry: the sha-keyed lookups (findTreeBySha, colorForSha)
+    // cannot be exercised when every fixture commit shares one.
+    sha: e.sha ?? String(i).padStart(40, '0'),
   }));
+}
+
+/** `n` commits on consecutive days, oldest first. `filesAt` sets each entry's
+ *  file count; the default gives every commit a distinct one. */
+export function commitSeries(
+  n: number,
+  filesAt: (i: number) => number = (i) => i + 1
+): CommitEntry[] {
+  const base = Date.UTC(2026, 0, 1);
+  return commits(
+    ...Array.from({ length: n }, (_, i) => ({
+      date: new Date(base + i * 86_400_000).toISOString().slice(0, 10),
+      files: filesAt(i),
+    }))
+  );
 }

@@ -1,15 +1,6 @@
-// app/tests/city/components/streets/index.test.ts
-//
-// Tests for the persistent createStreets(ctx) component.
-// API: createStreets(ctx) → { group, rebuild(layout), tick(dt, frame),
-//      dispose(), getPickables(), getSidewalkByDir(p) }.
-//
-// STREETS settings reactivity (sidewalk/asphalt colors, label height) is owned
-// by the component's theme effect; the hover/selection sidewalk tints are owned
-// by two picker-driven effects ARMED on the first tick() (NOT at construction —
-// at construction ctx.picker is null, so a construction-time effect would track
-// no signal and never re-fire). The arming test below directly guards that bug
-// fix: a selection set AFTER the first tick must re-tint the sidewalk.
+// createCity builds streets before the picker exists, so the picker-driven
+// effects are armed on the first tick() instead of at construction. Effects
+// armed at construction would track no signal and never fire again.
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import * as THREE from 'three';
 

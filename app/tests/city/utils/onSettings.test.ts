@@ -1,5 +1,3 @@
-// app/tests/city/components/onSettings.test.ts
-//
 // onSettings(store, apply) is the shared setting-reactivity wrapper for the
 // city components. It must:
 //   - run `apply` once synchronously at wire time,

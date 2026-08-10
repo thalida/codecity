@@ -1,20 +1,6 @@
-// Regression for the Save-does-nothing bug: world.applyManifest caches
-// the prior CityLayout keyed by structure_signature, and a config-only Save
-// fires applyManifest with the same manifest → cache hit → reuseLayout
-// returns the old positions unchanged. The fix is for attachSettingsReactions
-// to call world.invalidateLayoutCache() before each applyManifest, forcing
-// a full worker recompute on every Save commit.
-//
-// This test stubs the `world` argument to attachSettingsReactions with a
-// recorder so we can assert ordering:
-//   1) invalidateLayoutCache() runs BEFORE applyManifest() on each
-//      rebuildStore commit.
-//   2) The manifest passed to applyManifest is the current MANIFEST signal
-//      (the fetch layer's source of truth), read via peek() at that moment.
-//
-// Pre-fix: attachSettingsReactions never called invalidateLayoutCache(),
-// so this test fails with `["applyManifest"]` instead of
-// `["invalidateLayoutCache", "applyManifest"]`. Post-fix: passes.
+// A config-only Save re-applies the same manifest, which hits applyManifest's
+// structure_signature cache and returns the old positions. The ordering below
+// is the fix: invalidate before applying, so a Save always re-packs.
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { attachSettingsReactions } from '@/state/settingsReactions';

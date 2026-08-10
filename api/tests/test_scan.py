@@ -9,6 +9,7 @@ import shutil
 import subprocess
 import tempfile
 import unittest
+from unittest import mock
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
@@ -26,6 +27,7 @@ from api.services.scan import (
     scan_tree,
     signature_tree,
 )
+from api.services.gitobj import BINARY_CHUNK, is_binary_bytes
 from api.services.manifest_types import Manifest
 
 
@@ -158,195 +160,158 @@ class _CacheRedirectMixin:
         self.cache_root = redirect_cache_root
 
 
-class ExtensionTests(unittest.TestCase):
-    def test_plain_file(self):
-        self.assertEqual(_extension("index.ts"), ".ts")
-
-    def test_multiple_dots(self):
-        self.assertEqual(_extension("index.test.ts"), ".ts")
-
-    def test_dotfile_without_second_dot(self):
-        # .gitignore has no extension in the scanner's view.
-        self.assertEqual(_extension(".gitignore"), "")
-        self.assertEqual(_extension(".env"), "")
-
-    def test_dotfile_with_second_dot(self):
-        self.assertEqual(_extension(".env.local"), ".local")
-
-    def test_no_dot_at_all(self):
-        self.assertEqual(_extension("Makefile"), "")
+@pytest.mark.parametrize(
+    ("name", "expected"),
+    [
+        ("index.ts", ".ts"),
+        ("index.test.ts", ".ts"),
+        # A dotfile's leading dot does not open an extension.
+        (".gitignore", ""),
+        (".env", ""),
+        (".env.local", ".local"),
+        ("Makefile", ""),
+    ],
+)
+def test_extension(name, expected):
+    assert _extension(name) == expected
 
 
-class BinaryDetectionTests(unittest.TestCase):
-    def _tmp_file(self, content: bytes) -> Path:
-        fd, name = tempfile.mkstemp()
-        os.close(fd)
-        p = Path(name)
-        p.write_bytes(content)
-        self.addCleanup(p.unlink, missing_ok=True)
-        return p
-
-    def test_text_file_is_text(self):
-        p = self._tmp_file(b"hello world\nline two\n")
-        self.assertFalse(_is_binary(p))
-
-    def test_file_with_null_bytes_is_binary(self):
-        p = self._tmp_file(b"hello\x00world")
-        self.assertTrue(_is_binary(p))
-
-    def test_empty_file_is_text(self):
-        p = self._tmp_file(b"")
-        self.assertFalse(_is_binary(p))
-
-    def test_mostly_control_chars_is_binary(self):
-        # 200 random control bytes (outside the _TEXT_CHARACTERS set)
-        p = self._tmp_file(bytes(range(1, 7)) * 40)
-        self.assertTrue(_is_binary(p))
+# The heuristic is pure and public (gitobj.is_binary_bytes); _is_binary only
+# adds the read. Classification is tested against bytes, with no filesystem.
+@pytest.mark.parametrize(
+    ("label", "content", "expected"),
+    [
+        ("plain text", b"hello world\nline two\n", False),
+        ("a null byte anywhere", b"hello\x00world", True),
+        ("empty", b"", False),
+        ("control bytes outside the text set", bytes(range(1, 7)) * 40, True),
+    ],
+)
+def test_is_binary_bytes(label, content, expected):
+    assert is_binary_bytes(content) is expected
 
 
-class ComputeBusynessTests(unittest.TestCase):
-    @staticmethod
-    def _commits(*per_day: int) -> list:
-        # Build commits across distinct dates with the given per-day counts.
-        out = []
-        for day, n in enumerate(per_day, start=1):
-            for _ in range(n):
-                out.append(
-                    {
-                        "date": f"2026-01-{day:02d}",
-                        "files": 1,
-                        "sha": "0" * 40,
-                        "authors": [],
-                        "subject": "",
-                    }
-                )
-        return out
+def test_is_binary_reads_only_the_first_chunk():
+    handle = mock.mock_open(read_data=b"\x00" * 10)
+    path = mock.Mock(spec=Path)
+    path.open.return_value = handle.return_value
 
-    def test_empty_history(self):
-        self.assertEqual(_compute_busyness([]), {"avg": 1, "busy": 1})
-
-    def test_percentile_bands(self):
-        # Per-day counts sorted: [1, 1, 2, 5]
-        #   avg  = q(0.50) = counts[floor(4*0.5)=2] = 2
-        #   busy = max(q(0.75)=counts[floor(4*0.75)=3]=5, avg+1=3) = 5
-        self.assertEqual(
-            _compute_busyness(self._commits(1, 1, 2, 5)), {"avg": 2, "busy": 5}
-        )
-
-    def test_busy_clamped_to_avg_plus_one(self):
-        # Uniform 2-per-day → median 2, 75th pct 2 → busy clamps to 3.
-        self.assertEqual(
-            _compute_busyness(self._commits(2, 2, 2, 2)), {"avg": 2, "busy": 3}
-        )
+    assert _is_binary(path) is True
+    path.open.assert_called_once_with("rb")
+    handle.return_value.read.assert_called_once_with(BINARY_CHUNK)
 
 
-class ComputeDateRangesTests(unittest.TestCase):
-    @staticmethod
-    def _tree(*files: tuple[str, str, str]) -> dict:
-        # Minimal DirNode with (name, created, modified) file children. `size`
-        # is required because _derive_tree_signals reads every FileNode field
-        # in one pass, but this test only inspects the date-range output.
-        return {
-            "type": "directory",
-            "path": ".",
-            "name": "root",
-            "children": [
-                {
-                    "type": "file",
-                    "path": name,
-                    "name": name,
-                    "created": created,
-                    "modified": modified,
-                    "size": 0,
-                }
-                for name, created, modified in files
-            ],
+def test_is_binary_treats_an_unreadable_file_as_binary():
+    """Fail safe: a file we cannot read must not be fed to the line counter."""
+    path = mock.Mock(spec=Path)
+    path.open.side_effect = OSError("permission denied")
+    assert _is_binary(path) is True
+
+
+def _commits_per_day(*per_day: int) -> list:
+    """Commits spread over consecutive dates, `per_day[i]` of them on day i."""
+    return [
+        {
+            "date": f"2026-01-{day:02d}",
+            "files": 1,
+            "sha": "0" * 40,
+            "authors": [],
+            "subject": "",
         }
+        for day, n in enumerate(per_day, start=1)
+        for _ in range(n)
+    ]
 
-    def test_empty_tree_is_all_none(self):
-        self.assertEqual(
-            _derive_tree_signals(self._tree()).date_ranges,
+
+@pytest.mark.parametrize(
+    ("per_day", "expected"),
+    [
+        ((), {"avg": 1, "busy": 1}),
+        # Sorted per-day counts [1,1,2,5]: avg is the median 2, busy the 75th
+        # percentile 5.
+        ((1, 1, 2, 5), {"avg": 2, "busy": 5}),
+        # Uniform: median and 75th both 2, so busy clamps to avg + 1.
+        ((2, 2, 2, 2), {"avg": 2, "busy": 3}),
+    ],
+)
+def test_compute_busyness(per_day, expected):
+    assert _compute_busyness(_commits_per_day(*per_day)) == expected
+
+
+def _date_tree(*files: tuple[str, str, str]) -> dict:
+    """DirNode of (name, created, modified) files. `size` is required because
+    _derive_tree_signals reads every FileNode field in one pass."""
+    return {
+        "type": "directory",
+        "path": ".",
+        "name": "root",
+        "children": [
             {
-                "minCreated": None,
-                "maxCreated": None,
-                "minModified": None,
-                "maxModified": None,
-            },
-        )
+                "type": "file",
+                "path": name,
+                "name": name,
+                "created": created,
+                "modified": modified,
+                "size": 0,
+            }
+            for name, created, modified in files
+        ],
+    }
 
-    def test_single_file_min_equals_max(self):
-        ranges = _derive_tree_signals(
-            self._tree(("a.py", "2024-01-10T09:00:00Z", "2024-03-22T14:30:00Z"))
-        ).date_ranges
-        self.assertEqual(
-            ranges,
-            {
-                "minCreated": "2024-01-10T09:00:00Z",
-                "maxCreated": "2024-01-10T09:00:00Z",
-                "minModified": "2024-03-22T14:30:00Z",
-                "maxModified": "2024-03-22T14:30:00Z",
-            },
-        )
 
-    def test_multi_file_lexical_extremes(self):
-        ranges = _derive_tree_signals(
-            self._tree(
+@pytest.mark.parametrize(
+    ("files", "expected"),
+    [
+        ((), (None, None, None, None)),
+        (
+            (("a.py", "2024-01-10T09:00:00Z", "2024-03-22T14:30:00Z"),),
+            (
+                "2024-01-10T09:00:00Z",
+                "2024-01-10T09:00:00Z",
+                "2024-03-22T14:30:00Z",
+                "2024-03-22T14:30:00Z",
+            ),
+        ),
+        (
+            (
                 ("a.py", "2024-02-15T10:00:00Z", "2024-02-15T10:00:00Z"),
                 ("b.py", "2024-01-10T09:00:00Z", "2024-03-22T14:30:00Z"),
                 ("c.py", "2024-01-20T12:00:00Z", "2024-01-20T12:00:00Z"),
-            )
-        ).date_ranges
-        self.assertEqual(
-            ranges,
-            {
-                "minCreated": "2024-01-10T09:00:00Z",
-                "maxCreated": "2024-02-15T10:00:00Z",
-                "minModified": "2024-01-20T12:00:00Z",
-                "maxModified": "2024-03-22T14:30:00Z",
-            },
-        )
+            ),
+            (
+                "2024-01-10T09:00:00Z",
+                "2024-02-15T10:00:00Z",
+                "2024-01-20T12:00:00Z",
+                "2024-03-22T14:30:00Z",
+            ),
+        ),
+    ],
+)
+def test_derive_tree_signals_date_ranges(files, expected):
+    min_c, max_c, min_m, max_m = expected
+    assert _derive_tree_signals(_date_tree(*files)).date_ranges == {
+        "minCreated": min_c,
+        "maxCreated": max_c,
+        "minModified": min_m,
+        "maxModified": max_m,
+    }
 
 
-class AnnotateSameDayTotalsTests(unittest.TestCase):
-    def test_sets_per_day_group_size_on_each_commit(self):
-        # Three commits on 01-01, one on 01-02.
-        commits = [
-            {
-                "date": "2026-01-01",
-                "files": 1,
-                "sha": "0" * 40,
-                "authors": [],
-                "subject": "",
-            },
-            {
-                "date": "2026-01-01",
-                "files": 1,
-                "sha": "1" * 40,
-                "authors": [],
-                "subject": "",
-            },
-            {
-                "date": "2026-01-01",
-                "files": 1,
-                "sha": "2" * 40,
-                "authors": [],
-                "subject": "",
-            },
-            {
-                "date": "2026-01-02",
-                "files": 1,
-                "sha": "3" * 40,
-                "authors": [],
-                "subject": "",
-            },
-        ]
-        _annotate_same_day_totals(commits)
-        self.assertEqual([c["same_day_total"] for c in commits], [3, 3, 3, 1])
-
-    def test_empty_history_is_a_noop(self):
-        commits: list = []
-        _annotate_same_day_totals(commits)
-        self.assertEqual(commits, [])
+@pytest.mark.parametrize(
+    ("dates", "expected"),
+    [
+        ([], []),
+        (["2026-01-01"] * 3 + ["2026-01-02"], [3, 3, 3, 1]),
+        (["2026-01-01", "2026-01-02", "2026-01-01"], [2, 1, 2]),
+    ],
+)
+def test_annotate_same_day_totals(dates, expected):
+    commits = [
+        {"date": d, "files": 1, "sha": str(i) * 40, "authors": [], "subject": ""}
+        for i, d in enumerate(dates)
+    ]
+    _annotate_same_day_totals(commits)
+    assert [c["same_day_total"] for c in commits] == expected
 
 
 class ScanTreeIntegrationTests(_CacheRedirectMixin, unittest.TestCase):

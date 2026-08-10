@@ -6,9 +6,29 @@
 import { describe, it, expect, afterEach } from 'vitest';
 import * as THREE from 'three';
 import { buildCellsFromLayout } from '@/city/components/buildings/cellAssembly';
+import { BuildingIndex } from '@/city/components/buildings/buildingIndex';
+import { createEmptyCellTile } from '@/city/components/buildings/cellTile';
+import { dataFacadeKind } from '@/city/components/buildings/dataFacade';
+import { SpatialGrid } from '@/city/components/buildings/spatialGrid';
 import { BUILDINGS } from '@/state/stores/settings/buildings';
 import { NodeKind } from '@/types/index';
+import type { FileNode } from '@/types/manifest';
 import { building } from '../../../_helpers/buildingFixture';
+
+// BuildingIndex reads only file.path; the rest satisfies the type.
+const FILE_DEFAULTS: FileNode = {
+  path: '',
+  name: '',
+  type: NodeKind.File,
+  fullPath: '',
+  extension: '.ts',
+  size: 0,
+  lines: 0,
+  binary: false,
+  dirty: false,
+  created: '',
+  modified: '',
+};
 
 // Use MIN_CELL_SIZE-sized bounds so computeOptimalCellSize returns 12
 // and tests can reason about cell assignments with known granularity.
@@ -320,5 +340,55 @@ describe('buildCellsFromLayout', () => {
       expect(out.index.byPath.get('empty.db')).toBeDefined();
       expect(out.index.byPath.get('data.db')).toBeDefined();
     });
+  });
+});
+
+describe('BuildingIndex', () => {
+  it('round-trips path → building and (cellId, slotId) → building', () => {
+    const idx = new BuildingIndex();
+    const b = building({
+      file: { ...FILE_DEFAULTS, path: 'src/foo.ts', name: 'foo.ts' },
+      cellId: 3,
+      slotId: 7,
+    });
+    idx.insert(b);
+    expect(idx.byPath.get('src/foo.ts')).toBe(b);
+    expect(idx.byCellSlot('3:7')).toBe(b);
+  });
+});
+
+describe('createEmptyCellTile', () => {
+  const grid = () => new SpatialGrid({ minX: 0, maxX: 48, minZ: 0, maxZ: 48 });
+
+  it('preallocates the full capacity with every slot empty and zero-scaled', () => {
+    const tile = createEmptyCellTile(grid(), 5, 128);
+    expect(tile.cellId).toBe(5);
+    expect(tile.capacity).toBe(128);
+    expect(tile.used).toBe(0);
+    expect(tile.buildings).toHaveLength(128);
+    expect(tile.buildings.every((b) => b === null)).toBe(true);
+    expect(tile.detailMesh.count).toBe(128);
+
+    // An unpopulated slot must be scale-zero, or it draws a unit cube at the
+    // origin. Scale sits on the matrix diagonal (0, 5, 10).
+    const m = new THREE.Matrix4();
+    tile.detailMesh.getMatrixAt(0, m);
+    expect([m.elements[0], m.elements[5], m.elements[10]]).toEqual([0, 0, 0]);
+  });
+
+  it('stamps cellId and meshKind for the picker to resolve a hit', () => {
+    const tile = createEmptyCellTile(grid(), 7, 64);
+    expect(tile.detailMesh.userData.cellId).toBe(7);
+    expect(tile.detailMesh.userData.meshKind).toBe('detail');
+  });
+});
+
+describe('dataFacadeKind', () => {
+  it.each([
+    ['font', ['.woff2', '.woff', '.ttf', '.otf', '.TTF']],
+    ['audio', ['.mp3', '.wav', '.ogg', '.flac', '.aac', '.m4a', '.MP3']],
+    ['fingerprint', ['.db', '.wasm', '.so', '.bin', '']],
+  ] as const)('routes %s extensions', (kind, exts) => {
+    for (const ext of exts) expect(dataFacadeKind(ext)).toBe(kind);
   });
 });

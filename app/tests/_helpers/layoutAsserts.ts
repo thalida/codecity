@@ -1,139 +1,52 @@
-// Layout assertion helpers, formerly inlined in layout.test.ts.
-// Moved here because layoutPacker.test.ts also needs them — and importing
-// from a .test.ts file forces vitest to register the source file's
-// describe() blocks twice across workers.
-import { __test } from '@/city/layout/algorithm';
-import type { Rect } from '@/city/layout/rect';
+// Built on the production overlap diagnostic so the tests and the live
+// collision check cannot disagree about what counts as an overlap.
+import {
+  findLayoutOverlaps,
+  isStreetJoinPair,
+  LayoutOverlapCategory,
+} from '@/city/layout/overlaps';
 import { StreetAxis } from '@/types';
-import type { CityLayout, Street, Building } from '@/types';
-
-function _rectFromStreet(s: Street): Rect {
-  if (s.orientation === StreetAxis.X) {
-    return { x: s.x, y: s.y, w: s.length, d: s.width };
-  }
-  return { x: s.x, y: s.y, w: s.width, d: s.length };
-}
-
-function _rectFromBuilding(b: Building): Rect {
-  return { x: b.x, y: b.y, w: b.w, d: b.d };
-}
-
-// True iff a and b strictly intersect; touching edges (zero overlap) returns false.
-function _strictlyOverlaps(a: Rect, b: Rect): boolean {
-  return __test._rectsOverlap(a, b);
-}
-
-// True iff `child` is the parent street of `parent` joining flat — i.e.
-// one of these two rects is a child street whose joining end overlaps the
-// parent street's body. We tolerate that overlap because the renderer
-// flattens the join. Detection: one rect is a street perpendicular to the
-// other, and one of its endpoints sits on the other's centerline within
-// half a width.
-function _isJoinPair(a: Street, b: Street): boolean {
-  if (a.orientation === b.orientation) return false;
-  // a perpendicular to b — check whether a's joining end touches b's centerline.
-  const aLong = a.orientation === StreetAxis.X ? 'x' : 'y';
-  const aCross = a.orientation === StreetAxis.X ? 'y' : 'x';
-  const bLong = b.orientation === StreetAxis.X ? 'x' : 'y';
-  const half = a.length / 2;
-  const lowEnd = a[aLong] - half;
-  const highEnd = a[aLong] + half;
-  // For a perpendicular to b, b's centerline runs along bLong at b[aCross].
-  // a's joining endpoint sits ON b's centerline (a constant value of bLong).
-  const bCenterAlongA = b[aLong];
-  // We assume one of (lowEnd, highEnd) is the join endpoint.
-  const dLow = Math.abs(lowEnd - bCenterAlongA);
-  const dHigh = Math.abs(highEnd - bCenterAlongA);
-  // Likewise the other axis: the joining endpoint's perpendicular value
-  // must be within b's half-length of b's center along b's long axis.
-  // (i.e. the child's stem x must sit inside the parent's length span)
-  const aPerpAtJoin = a[aCross];
-  const bCenterPerp = b[bLong];
-  // The +0.5 absorbs sub-unit floating-point drift from coordinate arithmetic;
-  // the physical gap is zero at a well-formed join.
-  const perpClose = Math.abs(aPerpAtJoin - bCenterPerp) <= b.length / 2 + 0.5;
-  const longClose = Math.min(dLow, dHigh) <= b.width / 2 + 0.5;
-  return perpClose && longClose;
-}
+import type { CityLayout, Street } from '@/types';
 
 export function assertNoOverlap(layout: CityLayout): void {
-  type Tagged =
-    | { rect: Rect; kind: 'street'; ref: Street }
-    | { rect: Rect; kind: 'building'; ref: Building };
-  const all: Tagged[] = [];
-  for (const s of layout.streets) all.push({ rect: _rectFromStreet(s), kind: 'street', ref: s });
-  for (const b of layout.buildings)
-    all.push({ rect: _rectFromBuilding(b), kind: 'building', ref: b });
-
-  for (let i = 0; i < all.length; i++) {
-    for (let j = i + 1; j < all.length; j++) {
-      const A = all[i],
-        B = all[j];
-      if (!_strictlyOverlaps(A.rect, B.rect)) continue;
-      // Allowed exception: street-street join.
-      if (A.kind === 'street' && B.kind === 'street' && _isJoinPair(A.ref, B.ref)) continue;
-      throw new Error(
-        `overlap between ${A.kind}@(${A.rect.x},${A.rect.y}) and ` +
-          `${B.kind}@(${B.rect.x},${B.rect.y})`
-      );
-    }
-  }
+  const bad = findLayoutOverlaps(layout).filter(
+    (o) => o.category === LayoutOverlapCategory.Unexpected
+  );
+  if (bad.length === 0) return;
+  const [first] = bad;
+  const more = bad.length > 1 ? ` (+${bad.length - 1} more)` : '';
+  throw new Error(
+    `overlap between ${first.kindA} ${first.labelA}@(${first.rectA.x},${first.rectA.y}) ` +
+      `and ${first.kindB} ${first.labelB}@(${first.rectB.x},${first.rectB.y})${more}`
+  );
 }
 
+// Streets only: a building cannot be attributed to its parent road by geometry
+// alone, so including them yields false positives.
 export function assertStemOrder(layout: CityLayout): void {
-  // For each non-leaf street, find the children placed along it (subdir
-  // streets with that street as parent + buildings whose orient points
-  // toward that street). Sort by name; verify their stem-x along the
-  // parent's long axis is monotonic.
   for (const parent of layout.streets) {
     const along = parent.orientation === StreetAxis.X ? 'x' : 'y';
-    const cross = parent.orientation === StreetAxis.X ? 'y' : 'x';
-    // Child subdir streets: perpendicular orientation, joining this parent.
-    const childStreets = layout.streets.filter(
-      (s) => s !== parent && s.orientation !== parent.orientation && _isJoinPair(s, parent)
-    );
-    // Child buildings: orient faces this parent. Building's own (x or y)
-    // perpendicular distance to parent's centerline ≈ parent's halfWidth + path + halfDepth.
-    const childBuildings = layout.buildings.filter((b) => {
-      const perpDist = Math.abs(b[cross] - parent[cross]);
-      const expected = parent.width / 2 + 0.5; // path/building offset varies; allow generous slop
-      return perpDist > 0 && perpDist < expected + 50; // any building near this parent
-    });
-    type ChildSpec = { name: string; stemAlong: number };
-    const specs: ChildSpec[] = [];
-    for (const cs of childStreets) {
-      specs.push({ name: cs.label || cs.dir?.name || '', stemAlong: cs[along] });
-    }
-    for (const cb of childBuildings) {
-      specs.push({ name: cb.file?.name || '', stemAlong: cb[along] });
-    }
-    if (specs.length < 2) continue;
-    // We can't reliably attribute every building to its true parent in
-    // this heuristic walk — too many false positives for tests to be
-    // useful in absolute terms. Instead, just verify that among CHILD
-    // STREETS specifically (which we can disambiguate via _isJoinPair),
-    // the alphabetical order matches the along-axis order.
-    const streetSpecs = specs
-      .filter((sp) =>
-        layout.streets.some(
-          (s) => s.orientation !== parent.orientation && (s.label || '') === sp.name
-        )
+    const children = layout.streets
+      .filter(
+        (s) => s !== parent && s.orientation !== parent.orientation && isStreetJoinPair(s, parent)
       )
+      .map((s) => ({ name: s.label || s.dir?.name || '', stemAlong: s[along] }))
       .sort((a, b) => a.name.localeCompare(b.name));
-    // Determine direction by the first non-zero gap between consecutive
-    // alphabetical siblings. The road may extend in +axis or -axis world
-    // direction depending on whether parent subtree was negated; either is
-    // valid as long as the order is monotonic in ONE direction throughout.
-    let direction = 0; // -1 = descending, +1 = ascending, 0 = unknown
-    for (let i = 1; i < streetSpecs.length; i++) {
-      const delta = streetSpecs[i].stemAlong - streetSpecs[i - 1].stemAlong;
-      if (delta === 0) continue; // ties allowed (paired stems)
+    if (children.length < 2) continue;
+
+    // A negated subtree runs its road in the -axis direction, so either
+    // direction passes as long as it holds for the whole run. Ties are paired
+    // stems, two children placed opposite each other.
+    let direction = 0;
+    for (let i = 1; i < children.length; i++) {
+      const delta = children[i].stemAlong - children[i - 1].stemAlong;
+      if (delta === 0) continue;
       if (direction === 0) direction = delta > 0 ? 1 : -1;
-      if ((direction > 0 && delta < 0) || (direction < 0 && delta > 0)) {
+      if (direction * delta < 0) {
         throw new Error(
           `stem-x out of order along ${parent.label || parent.dir?.path}: ` +
-            `${streetSpecs[i - 1].name}@${streetSpecs[i - 1].stemAlong} → ` +
-            `${streetSpecs[i].name}@${streetSpecs[i].stemAlong}`
+            `${children[i - 1].name}@${children[i - 1].stemAlong} → ` +
+            `${children[i].name}@${children[i].stemAlong}`
         );
       }
     }
