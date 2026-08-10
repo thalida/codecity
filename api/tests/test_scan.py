@@ -1104,69 +1104,37 @@ class ExtraExcludePathsTests(_CacheRedirectMixin, unittest.TestCase):
             self.assertNotIn("a.txt", names)
 
 
-class BuildAuthorsListTests(unittest.TestCase):
-    """Direct coverage for the build_authors_list helper.
+# The public authors list never contains an `@` or a domain, per CommitEntry's
+# docstring. The multi-author fixture commit covers the common path but not the
+# email-only trailer, which is the privacy-critical branch.
+@pytest.mark.parametrize(
+    "trailers,expected",
+    [
+        ("", ["Alice"]),
+        ("Bob <b@x>\x1fCarol <c@x>", ["Alice", "Bob", "Carol"]),
+        # A cherry-pick can repeat the primary author as a trailer. Dropped,
+        # with first-seen order preserved.
+        ("Bob <b@x>\x1fAlice <a@x>", ["Alice", "Bob"]),
+        # An email-only trailer must not leak the @domain.
+        ("<bot@example.com>", ["Alice", "bot"]),
+        ("<just-localpart>", ["Alice", "just-localpart"]),
+        ("<>", ["Alice"]),
+        ("Bob <b@x>\x1fBob <b@x>", ["Alice", "Bob"]),
+    ],
+    ids=[
+        "no-trailers",
+        "two-named",
+        "primary-repeated",
+        "email-only",
+        "bracketed-without-at",
+        "empty-brackets",
+        "duplicate-co-author",
+    ],
+)
+def test_build_authors_list(trailers, expected):
+    from api.services.scan import build_authors_list
 
-    Integration coverage exists via the multi-author fixture commit, but
-    that fixture doesn't exercise the email-only trailer path — the
-    privacy-critical branch where a Co-authored-by trailer has no name
-    (`<bot@host>`). These cases pin the contract: the public authors
-    list never contains an `@` or domain, per CommitEntry's docstring.
-    """
-
-    def test_no_trailers_returns_primary_only(self):
-        from api.services.scan import build_authors_list
-
-        self.assertEqual(build_authors_list("Alice", ""), ["Alice"])
-
-    def test_two_name_bearing_trailers(self):
-        from api.services.scan import build_authors_list
-
-        self.assertEqual(
-            build_authors_list("Alice", "Bob <b@x>\x1fCarol <c@x>"),
-            ["Alice", "Bob", "Carol"],
-        )
-
-    def test_primary_dedup_against_trailer(self):
-        from api.services.scan import build_authors_list
-
-        # Primary author repeated as a Co-authored-by trailer (cherry-
-        # pick artifact) is dropped — order preserves first-seen.
-        self.assertEqual(
-            build_authors_list("Alice", "Bob <b@x>\x1fAlice <a@x>"),
-            ["Alice", "Bob"],
-        )
-
-    def test_email_only_trailer_uses_local_part(self):
-        # Regression-protection for the privacy fix: an email-only
-        # trailer must not leak the @domain into the authors list.
-        from api.services.scan import build_authors_list
-
-        self.assertEqual(
-            build_authors_list("Alice", "<bot@example.com>"),
-            ["Alice", "bot"],
-        )
-
-    def test_bracketed_value_without_at_sign_kept_verbatim(self):
-        from api.services.scan import build_authors_list
-
-        self.assertEqual(
-            build_authors_list("Alice", "<just-localpart>"),
-            ["Alice", "just-localpart"],
-        )
-
-    def test_empty_brackets_dropped(self):
-        from api.services.scan import build_authors_list
-
-        self.assertEqual(build_authors_list("Alice", "<>"), ["Alice"])
-
-    def test_duplicate_co_author_deduped(self):
-        from api.services.scan import build_authors_list
-
-        self.assertEqual(
-            build_authors_list("Alice", "Bob <b@x>\x1fBob <b@x>"),
-            ["Alice", "Bob"],
-        )
+    assert build_authors_list("Alice", trailers) == expected
 
 
 class GitHistoryParallelTests(_CacheRedirectMixin, unittest.TestCase):
