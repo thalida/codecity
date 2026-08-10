@@ -10,7 +10,7 @@ import type { TreePlacement } from '@/city/components/trees/treePlacement';
 import type { CommitEntry, RepoStats } from '@/types';
 import { FIREFLIES } from '@/state/stores/settings/fireflies';
 
-/** Public handle returned by createFireflies. Extends the renderer with
+/** Public handle returned by createFireflyAssembly. Extends the renderer with
  *  sha-based hover/select methods so callers don't need to manage the
  *  sha→index map externally. */
 export interface Fireflies {
@@ -28,7 +28,7 @@ export interface Fireflies {
   dispose: FireflyRenderer['dispose'];
 }
 
-export function createFireflies(
+export function createFireflyAssembly(
   placements: TreePlacement[],
   commits: CommitEntry[] | null,
   stats: RepoStats | null | undefined,

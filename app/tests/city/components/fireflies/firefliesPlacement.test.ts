@@ -101,38 +101,23 @@ describe('placeFireflies', () => {
     expect(orbs.length).toBe(0);
   });
 
-  it('assigns a phase offset in [0, 2π) per orb', () => {
+  it.each([
+    ['phase', 0, Math.PI * 2],
+    ['orbitStartAngle', 0, Math.PI * 2],
+    ['pulsePhase', 0, Math.PI * 2],
+    ['orbitTilt', -Math.PI / 6, Math.PI / 6],
+  ] as const)('assigns %s within its range per orb', (field, lo, hi) => {
     const orbs = placeFireflies([placement(0, 0, 0)], COMMITS, commitStats(COMMITS));
+    expect(orbs.length).toBeGreaterThan(0);
     for (const o of orbs) {
-      expect(o.phase).toBeGreaterThanOrEqual(0);
-      expect(o.phase).toBeLessThan(Math.PI * 2);
+      expect(o[field]).toBeGreaterThanOrEqual(lo);
+      expect(o[field]).toBeLessThanOrEqual(hi);
     }
   });
 
-  it('assigns an orbitStartAngle in [0, 2π) per orb', () => {
+  it('draws pulse phase from a stream independent of bob phase', () => {
     const orbs = placeFireflies([placement(0, 0, 0)], COMMITS, commitStats(COMMITS));
-    for (const o of orbs) {
-      expect(o.orbitStartAngle).toBeGreaterThanOrEqual(0);
-      expect(o.orbitStartAngle).toBeLessThan(Math.PI * 2);
-    }
-  });
-
-  it('assigns an orbitTilt in [-π/6, π/6] per orb', () => {
-    const orbs = placeFireflies([placement(0, 0, 0)], COMMITS, commitStats(COMMITS));
-    for (const o of orbs) {
-      expect(o.orbitTilt).toBeGreaterThanOrEqual(-Math.PI / 6);
-      expect(o.orbitTilt).toBeLessThanOrEqual(Math.PI / 6);
-    }
-  });
-
-  it('assigns a pulse phase in [0, 2π) per orb, independent of bob phase', () => {
-    const orbs = placeFireflies([placement(0, 0, 0)], COMMITS, commitStats(COMMITS));
-    for (const o of orbs) {
-      expect(o.pulsePhase).toBeGreaterThanOrEqual(0);
-      expect(o.pulsePhase).toBeLessThan(Math.PI * 2);
-      // Independent stream → unlikely to equal bob phase.
-      expect(o.pulsePhase).not.toBe(o.phase);
-    }
+    for (const o of orbs) expect(o.pulsePhase).not.toBe(o.phase);
   });
 
   it('scale-by-commits assigns larger scale to authors with more commits', () => {

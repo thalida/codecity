@@ -24,7 +24,7 @@ import type { TreePlacement } from '@/city/components/trees/treePlacement';
 
 import type { FrameContext, SceneComponent, SceneContext } from '../../types';
 import { armOnFirstTick } from '../../utils/armOnFirstTick';
-import { createFireflies as assembleFireflies, type Fireflies } from './fireflies';
+import { createFireflyAssembly, type Fireflies } from './fireflies';
 
 export type { Fireflies };
 
@@ -78,7 +78,7 @@ export function createFireflies(ctx: SceneContext): FirefliesComponent {
     // no-push rule below; the next signal change pushes them.
     // The FIREFLIES.ENABLED gate stays inside fireflies.ts (an empty stub
     // assembly is returned when disabled).
-    _inner = assembleFireflies(placements, commits, stats, scannedAt);
+    _inner = createFireflyAssembly(placements, commits, stats, scannedAt);
     group.add(_inner.group);
   }
 
@@ -97,7 +97,7 @@ export function createFireflies(ctx: SceneContext): FirefliesComponent {
   // the deferred scan resolves), so they track trees in lockstep. commits is
   // read at that moment (peek — placements is the trigger, not the manifest).
   //
-  // rebuild() is wrapped untracked because assembleFireflies reads FIREFLIES.value
+  // rebuild() is wrapped untracked because createFireflyAssembly reads FIREFLIES.value
   // (ENABLED, scale, orbit). Without it this effect would subscribe to the whole
   // FIREFLIES store and reallocate the instanced mesh on every Refresh-route
   // theme Save (a flash + GPU churn on each slider drag) on top of the in-place
