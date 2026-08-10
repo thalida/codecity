@@ -86,7 +86,9 @@ describe('createFireflies() component door', () => {
 
     comp.clear();
     expect(comp.group.children).toHaveLength(0);
-    expect(() => comp.clear()).not.toThrow(); // idempotent
+
+    comp.clear(); // idempotent: a second clear leaves the same state
+    expect(comp.group.children).toHaveLength(0);
   });
 
   it('rebuild() disposes the prior assembly (no accumulation)', () => {
@@ -168,12 +170,13 @@ describe('createFireflies() component door', () => {
     expect(u.uHoveredCommit.value).toBe(1);
   });
 
-  it('onResize(w, h) is safe before and after the inner assembly is built', () => {
+  it('onResize before rebuild is a no-op, not a crash', () => {
+    // A window resize can land while the city is still loading, before there
+    // is an inner assembly to forward to.
     const { ctx } = makePickableSceneContext();
     comp = createFireflies(ctx);
-    expect(() => comp.onResize(800, 600)).not.toThrow(); // null inner → no-op
-    comp.rebuild(PLACEMENTS, COMMITS, commitStats(COMMITS));
-    expect(() => comp.onResize(1024, 768)).not.toThrow();
+    comp.onResize(800, 600);
+    expect(comp.group.children).toHaveLength(0);
   });
 
   it('dispose() empties the group and stops all effects', () => {

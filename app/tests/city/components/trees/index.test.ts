@@ -112,8 +112,10 @@ describe('createTrees() component door', () => {
     trees.clear();
     expect(trees.getRenderer()).toBeNull();
     expect(trees.group.children).toHaveLength(0);
-    // Idempotent.
-    expect(() => trees.clear()).not.toThrow();
+
+    trees.clear(); // idempotent: a second clear leaves the same state
+    expect(trees.getRenderer()).toBeNull();
+    expect(trees.group.children).toHaveLength(0);
   });
 
   it('rebuild() disposes the prior inner renderer (no accumulation)', () => {
@@ -166,10 +168,10 @@ describe('createTrees() component door', () => {
     expect(outlines.filter((o) => o.visible)).toHaveLength(0);
   });
 
-  it('tick() with a null picker does not arm (and does not throw)', () => {
+  it('tick() with a null picker does not arm', () => {
     const ctx = makePrePickerCtx();
     trees = createTrees(ctx);
-    expect(() => trees.tick(0, FRAME(new THREE.PerspectiveCamera()))).not.toThrow();
+    trees.tick(0, FRAME(new THREE.PerspectiveCamera()));
     expect(ctx.scene.children.filter((c) => c instanceof LineSegments2)).toHaveLength(0);
   });
 
