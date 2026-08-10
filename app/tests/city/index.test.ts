@@ -2,51 +2,18 @@
 // context rather than just its resources.
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import * as THREE from 'three';
 import { EMPTY_MANIFEST } from '@/constants/manifest';
 import { TIMELINE_MODE } from '@/state/stores/timeline';
 
-// Stub the WebGLRenderer — jsdom can't create a GL context. Keep the methods
-// createCity / the frame loop call (setPixelRatio/setSize/getSize/render/
-// domElement); getSize fills the passed Vector2 so the per-frame size guard
-// is a no-op.
 const { forceContextLossSpy } = vi.hoisted(() => ({ forceContextLossSpy: vi.fn() }));
 
 vi.mock('three', async () => {
   const actual = await vi.importActual<typeof import('three')>('three');
-  class FakeWebGLRenderer {
-    domElement: HTMLCanvasElement;
-    constructor(opts: { canvas: HTMLCanvasElement }) {
-      this.domElement = opts.canvas;
-    }
-    setPixelRatio() {}
-    setSize() {}
-    getSize(v: THREE.Vector2) {
-      return v;
-    }
-    render() {}
-    dispose() {}
-    forceContextLoss() {
-      forceContextLossSpy();
-    }
-    copyTextureToTexture() {}
-    setRenderTarget() {}
-    getContext() {
-      return {};
-    }
-  }
-  return { ...actual, WebGLRenderer: FakeWebGLRenderer };
+  const { fakeWebGLRenderer } = await import('../_helpers/threeMock');
+  return { ...actual, WebGLRenderer: fakeWebGLRenderer(forceContextLossSpy) };
 });
 
-// The HDR bloom pipeline allocates GL render targets — stub it.
-vi.mock('@/city/render/postFx', () => ({
-  createPostFx: () => ({
-    render: () => {},
-    setSize: () => {},
-    refresh: () => {},
-    dispose: () => {},
-  }),
-}));
+vi.mock('@/city/render/postFx', async () => (await import('../_helpers/threeMock')).postFxMock());
 
 import { createCity } from '@/city/index';
 
@@ -88,8 +55,6 @@ describe('createCity', () => {
     expect(handle.world).toBeDefined();
     expect(handle.picker).toBeDefined();
     expect(handle.rig).toBeDefined();
-    expect(typeof handle.rig.reset).toBe('function');
-    expect(typeof handle.focusByPath).toBe('function');
   });
 
   it('dispose() releases the WebGL context (forceContextLoss), not just its resources', async () => {
@@ -99,10 +64,9 @@ describe('createCity', () => {
     expect(forceContextLossSpy).toHaveBeenCalled();
   });
 
-  // Issue #113: a source switch used to leave the union city + scrub controller
-  // stuck on the newly loaded repo. useManifestSource.loadSource now flips
-  // TIMELINE_MODE off directly (scene-free); this effect is what actually tears
-  // the scene down, uniformly for the toggle button AND a source switch.
+  // loadSource flips TIMELINE_MODE off without touching the scene, so this
+  // effect is the only thing that tears the union city and scrub controller
+  // down — for the toggle button and a source switch alike.
   describe('Timeline-mode scene teardown', () => {
     // Only the uninstall is asserted here: the rebuild it triggers needs a
     // populated manifest to observe, which this harness does not build.

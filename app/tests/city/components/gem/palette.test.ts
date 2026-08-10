@@ -30,9 +30,8 @@ describe('paletteColors()', () => {
   });
 
   it('parses each hex exactly like new THREE.Color(hex)', () => {
-    // The consumers (geometry color attribute, glow lerp) previously built
-    // THREE.Colors inline; the helper must reproduce that parse bit-for-bit
-    // so the rendered colors are unchanged.
+    // The geometry color attribute and the glow lerp both feed THREE's own
+    // parse, so any drift here shifts the rendered colours.
     const colors = paletteColors(PALETTE);
     const reference = new THREE.Color(PALETTE.FACE_8);
     expect(colors[7][0]).toBe(reference.r);

@@ -80,7 +80,7 @@ describe('armOnFirstTick', () => {
     const setup = vi.fn(() => [vi.fn()]);
     const arm = armOnFirstTick(ctx, setup);
 
-    expect(() => arm.dispose()).not.toThrow();
+    arm.dispose();
     expect(setup).not.toHaveBeenCalled();
   });
 

@@ -35,18 +35,7 @@ from api.services.manifest_types import Manifest
 # in api/tests/conftest.py.
 
 
-def _final_manifest(root: str, **kwargs) -> Manifest:
-    """Drain scan_tree() and return only the final-phase manifest.
-
-    Most tests pre-date the streaming refactor and assert against the
-    full manifest, not the skeleton — this wrapper keeps them
-    point-free of the phase iteration."""
-    final: Manifest | None = None
-    for event in scan_tree(root, **kwargs):
-        if event["phase"] == "manifest-complete":
-            final = event["manifest"]
-    assert final is not None, "scan_tree must yield a final event"
-    return final
+from api.tests.conftest import final_manifest as _final_manifest
 
 
 def _init_repo(root: Path) -> None:
@@ -368,7 +357,6 @@ class ScanTreeIntegrationTests(_CacheRedirectMixin, unittest.TestCase):
         m = _final_manifest(str(FIXTURE))
         tree = m["tree"]
         breakdown = tree["descendants_ext_breakdown"]
-        self.assertIsInstance(breakdown, list)
         for entry in breakdown:
             self.assertEqual(set(entry.keys()), {"ext", "count", "size"})
         # Per-ext counts/sizes partition the descendant files exactly.
@@ -590,7 +578,6 @@ class ScanTreeIntegrationTests(_CacheRedirectMixin, unittest.TestCase):
         m1 = _final_manifest(str(FIXTURE))
         m2 = _final_manifest(str(FIXTURE))
         self.assertIn("content_signature", m1)
-        self.assertIsInstance(m1["content_signature"], str)
         self.assertEqual(m1["content_signature"], m2["content_signature"])
 
     def test_resolved_dates_prefer_git(self):
@@ -843,7 +830,6 @@ class ScanTreeIntegrationTests(_CacheRedirectMixin, unittest.TestCase):
     def test_scan_tree_emits_commits_list(self):
         m = _final_manifest(str(FIXTURE), use_cache=False)
         self.assertIn("commits", m)
-        self.assertIsInstance(m["commits"], list)
         self.assertGreater(len(m["commits"]), 0)
         dates = [c["date"] for c in m["commits"]]
         self.assertEqual(dates, sorted(dates))
@@ -897,7 +883,6 @@ class SignatureTreeTests(_CacheRedirectMixin, unittest.TestCase):
         self.assertIn("root", s)
         self.assertIn("scanned_at", s)
         self.assertIn("content_signature", s)
-        self.assertIsInstance(s["content_signature"], str)
         # No tree / repo fields — that's the whole point.
         self.assertNotIn("tree", s)
         self.assertNotIn("repo", s)
@@ -1119,69 +1104,37 @@ class ExtraExcludePathsTests(_CacheRedirectMixin, unittest.TestCase):
             self.assertNotIn("a.txt", names)
 
 
-class BuildAuthorsListTests(unittest.TestCase):
-    """Direct coverage for the build_authors_list helper.
+# The public authors list never contains an `@` or a domain, per CommitEntry's
+# docstring. The multi-author fixture commit covers the common path but not the
+# email-only trailer, which is the privacy-critical branch.
+@pytest.mark.parametrize(
+    "trailers,expected",
+    [
+        ("", ["Alice"]),
+        ("Bob <b@x>\x1fCarol <c@x>", ["Alice", "Bob", "Carol"]),
+        # A cherry-pick can repeat the primary author as a trailer. Dropped,
+        # with first-seen order preserved.
+        ("Bob <b@x>\x1fAlice <a@x>", ["Alice", "Bob"]),
+        # An email-only trailer must not leak the @domain.
+        ("<bot@example.com>", ["Alice", "bot"]),
+        ("<just-localpart>", ["Alice", "just-localpart"]),
+        ("<>", ["Alice"]),
+        ("Bob <b@x>\x1fBob <b@x>", ["Alice", "Bob"]),
+    ],
+    ids=[
+        "no-trailers",
+        "two-named",
+        "primary-repeated",
+        "email-only",
+        "bracketed-without-at",
+        "empty-brackets",
+        "duplicate-co-author",
+    ],
+)
+def test_build_authors_list(trailers, expected):
+    from api.services.scan import build_authors_list
 
-    Integration coverage exists via the multi-author fixture commit, but
-    that fixture doesn't exercise the email-only trailer path — the
-    privacy-critical branch where a Co-authored-by trailer has no name
-    (`<bot@host>`). These cases pin the contract: the public authors
-    list never contains an `@` or domain, per CommitEntry's docstring.
-    """
-
-    def test_no_trailers_returns_primary_only(self):
-        from api.services.scan import build_authors_list
-
-        self.assertEqual(build_authors_list("Alice", ""), ["Alice"])
-
-    def test_two_name_bearing_trailers(self):
-        from api.services.scan import build_authors_list
-
-        self.assertEqual(
-            build_authors_list("Alice", "Bob <b@x>\x1fCarol <c@x>"),
-            ["Alice", "Bob", "Carol"],
-        )
-
-    def test_primary_dedup_against_trailer(self):
-        from api.services.scan import build_authors_list
-
-        # Primary author repeated as a Co-authored-by trailer (cherry-
-        # pick artifact) is dropped — order preserves first-seen.
-        self.assertEqual(
-            build_authors_list("Alice", "Bob <b@x>\x1fAlice <a@x>"),
-            ["Alice", "Bob"],
-        )
-
-    def test_email_only_trailer_uses_local_part(self):
-        # Regression-protection for the privacy fix: an email-only
-        # trailer must not leak the @domain into the authors list.
-        from api.services.scan import build_authors_list
-
-        self.assertEqual(
-            build_authors_list("Alice", "<bot@example.com>"),
-            ["Alice", "bot"],
-        )
-
-    def test_bracketed_value_without_at_sign_kept_verbatim(self):
-        from api.services.scan import build_authors_list
-
-        self.assertEqual(
-            build_authors_list("Alice", "<just-localpart>"),
-            ["Alice", "just-localpart"],
-        )
-
-    def test_empty_brackets_dropped(self):
-        from api.services.scan import build_authors_list
-
-        self.assertEqual(build_authors_list("Alice", "<>"), ["Alice"])
-
-    def test_duplicate_co_author_deduped(self):
-        from api.services.scan import build_authors_list
-
-        self.assertEqual(
-            build_authors_list("Alice", "Bob <b@x>\x1fBob <b@x>"),
-            ["Alice", "Bob"],
-        )
+    assert build_authors_list("Alice", trailers) == expected
 
 
 class GitHistoryParallelTests(_CacheRedirectMixin, unittest.TestCase):
@@ -1244,7 +1197,6 @@ class GitHistoryParallelTests(_CacheRedirectMixin, unittest.TestCase):
             FIXTURE,
             use_cache=False,
         )
-        self.assertIsInstance(commits, list)
         self.assertGreater(len(commits), 0)
         # Manifest contract: oldest-first.
         dates = [c["date"] for c in commits]
@@ -1261,11 +1213,8 @@ class GitHistoryParallelTests(_CacheRedirectMixin, unittest.TestCase):
             self.assertRegex(c["date"], r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$")
             self.assertGreaterEqual(c["files"], 1)
             self.assertRegex(c["sha"], r"^[0-9a-f]{40}$")
-            self.assertIsInstance(c["authors"], list)
             self.assertGreater(len(c["authors"]), 0)
-            self.assertIsInstance(c["authors"][0], str)
             self.assertGreater(len(c["authors"][0]), 0)
-            self.assertIsInstance(c["subject"], str)
             # Subject must NOT contain a newline — git %s is first line only.
             self.assertNotIn("\n", c["subject"])
 
@@ -1920,7 +1869,6 @@ class TreeSignatureTests(unittest.TestCase):
         # blake2b digest_size=8 → 8 bytes → 16 hex chars.
         tree = self._make_tree([self._make_file("a.py")])
         sig = _sig(tree)
-        self.assertIsInstance(sig, str)
         self.assertEqual(len(sig), 16)
         int(sig, 16)  # must be valid hex — raises ValueError if not
 

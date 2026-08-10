@@ -1,6 +1,7 @@
 import { test, expect, describe, it } from 'vitest';
 import { timelineUrlFor, fetchTimelineBundle } from '@/api/timeline';
 import type { TimelineBundle } from '@/types';
+import { makeES } from '../_helpers/eventSource';
 
 test('timelineUrlFor builds the endpoint URL with src', () => {
   const u = timelineUrlFor('/repo', undefined);
@@ -13,35 +14,6 @@ test('timelineUrlFor emits one repeated exclude param per path', () => {
   expect(u).toContain('exclude=a.txt');
   expect(u).toContain('exclude=secrets');
 });
-
-// Minimal EventSource stub, mirrors tests/api/manifest.test.ts.
-class StubEventSource {
-  url: string;
-  closed = false;
-  private listeners: Record<string, ((e: unknown) => void)[]> = {};
-  constructor(url: string) {
-    this.url = url;
-  }
-  addEventListener(name: string, handler: (e: unknown) => void): void {
-    (this.listeners[name] ??= []).push(handler);
-  }
-  close(): void {
-    this.closed = true;
-  }
-  emit(name: string, data?: string): void {
-    const e = data === undefined ? {} : { data };
-    for (const h of this.listeners[name] ?? []) h(e);
-  }
-}
-
-function makeES(): { ctor: typeof EventSource; last: () => StubEventSource } {
-  let last: StubEventSource | undefined;
-  const ctor = function (url: string): StubEventSource {
-    last = new StubEventSource(url);
-    return last;
-  } as unknown as typeof EventSource;
-  return { ctor, last: () => last! };
-}
 
 const BUNDLE = {
   commits: [{ sha: 'a' }],

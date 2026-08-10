@@ -4,14 +4,13 @@ import os
 import subprocess
 from pathlib import Path
 
-from api.services.manifest_types import Manifest
 from api.services.scan import (
     _collect_git_state,
     _hash_repo_info,
     _parse_dirty_paths,
-    scan_tree,
     signature_tree,
 )
+from api.tests.conftest import final_manifest as _final_manifest
 
 
 def test_parse_dirty_paths_reads_modified_and_staged_skips_untracked():
@@ -47,17 +46,6 @@ def test_parse_dirty_paths_empty():
 
 def _git(root: Path, *args: str) -> None:
     subprocess.run(["git", "-C", str(root), *args], check=True, capture_output=True)
-
-
-def _final_manifest(root: str, **kwargs) -> Manifest:
-    """Drain scan_tree() (a streaming generator) and return the final-phase
-    manifest — mirrors test_scan.py's helper of the same name."""
-    final: Manifest | None = None
-    for event in scan_tree(root, **kwargs):
-        if event["phase"] == "manifest-complete":
-            final = event["manifest"]
-    assert final is not None, "scan_tree must yield a final event"
-    return final
 
 
 def test_collect_git_state_one_snapshot(tmp_path: Path):

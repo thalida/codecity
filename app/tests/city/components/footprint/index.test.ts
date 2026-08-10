@@ -1,8 +1,5 @@
-// Tests for the persistent createFootprint(ctx) component.
-// API: createFootprint(ctx) → { group, rebuild(layout), dispose() }
-// Settings reactivity (COLOR / CORNER_RADIUS / ENABLED) is owned by the
-// component's effect; tests mutate FOOTPRINT.value and assert via effect
-// (mirrors sky/island/repoLabel test style).
+// COLOR / CORNER_RADIUS / ENABLED reactivity belongs to the component's own
+// effect, so these tests drive it by mutating FOOTPRINT.value.
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import * as THREE from 'three';
 import { createFootprint } from '@/city/components/footprint';
@@ -50,24 +47,19 @@ describe('createFootprint()', () => {
     fp.dispose();
   });
 
-  // ---------------------------------------------------------------------------
   // Construction
-  // ---------------------------------------------------------------------------
 
   it('constructs with an empty group (pre-rebuild), no throws', () => {
     expect(fp.group).toBeInstanceOf(THREE.Group);
     expect(fp.group.children).toHaveLength(0);
   });
 
-  it('effect runs at construction without throwing (null-guard)', () => {
-    expect(() => {
-      FOOTPRINT.value = { ...FOOTPRINT.value };
-    }).not.toThrow();
+  it('effect is inert before the first rebuild', () => {
+    // No mesh yet, so the effect fires against a null material and its
+    // `if (material)` guard is what holds.
+    FOOTPRINT.value = { ...FOOTPRINT.value };
+    expect(fp.group.children).toHaveLength(0);
   });
-
-  // ---------------------------------------------------------------------------
-  // rebuild() — builds correct geometry
-  // ---------------------------------------------------------------------------
 
   it('rebuild() emits one InstancedMesh instance per layout rect', () => {
     const layout: CityLayout = {
@@ -158,9 +150,7 @@ describe('createFootprint()', () => {
     expect(fp.group.visible).toBe(false);
   });
 
-  // ---------------------------------------------------------------------------
   // rebuild() — stub/empty case
-  // ---------------------------------------------------------------------------
 
   it('rebuild() leaves the group EMPTY when halo <= 0 (stub case — no mesh)', () => {
     FOOTPRINT.value = { ...FOOTPRINT.value, HALO_WIDTH: 0 };
@@ -193,10 +183,6 @@ describe('createFootprint()', () => {
     expect(firstMesh.parent).toBeNull();
     expect(fp.group.children).toHaveLength(0);
   });
-
-  // ---------------------------------------------------------------------------
-  // Settings effect — replaces refresh()
-  // ---------------------------------------------------------------------------
 
   it('effect picks up COLOR change via FOOTPRINT signal mutation', () => {
     fp.rebuild(singleBuildingLayout());
@@ -260,11 +246,12 @@ describe('createFootprint()', () => {
     expect(color.b).toBeCloseTo(expected.b);
   });
 
-  // ---------------------------------------------------------------------------
   // dispose()
-  // ---------------------------------------------------------------------------
 
-  it('dispose() stops the effect — later FOOTPRINT mutations do not throw', () => {
+  // Not a check that the effect stopped: dispose() nulls `material` and the
+  // effect body sits behind `if (material)`, so a leak would be absorbed and
+  // look identical from here. What this pins is the guard.
+  it('a FOOTPRINT mutation after dispose() is absorbed by the material guard', () => {
     fp.rebuild(singleBuildingLayout());
     fp.dispose();
     expect(() => {
@@ -272,9 +259,7 @@ describe('createFootprint()', () => {
     }).not.toThrow();
   });
 
-  // ---------------------------------------------------------------------------
   // Timeline opacity (Timeline mode fading)
-  // ---------------------------------------------------------------------------
 
   function layoutWithBuildingAndStreet(): CityLayout {
     return {

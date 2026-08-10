@@ -2,36 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { streamManifest, ScanPhase, type ScanStreamEvent } from '@/api/manifest';
 
 // Minimal EventSource stub: records listeners; the test drives events via emit().
-class StubEventSource {
-  url: string;
-  closed = false;
-  private listeners: Record<string, ((e: unknown) => void)[]> = {};
-  constructor(url: string) {
-    this.url = url;
-  }
-  addEventListener(name: string, handler: (e: unknown) => void): void {
-    (this.listeners[name] ??= []).push(handler);
-  }
-  close(): void {
-    this.closed = true;
-  }
-  /** Dispatch a server-sent named event (with JSON data) or, when data is
-   *  omitted, a transport-level error (bare event, no data). */
-  emit(name: string, data?: string): void {
-    const e = data === undefined ? {} : { data };
-    for (const h of this.listeners[name] ?? []) h(e);
-  }
-}
-
-/** Build an injectable ctor that captures the constructed stub for driving. */
-function makeES(): { ctor: typeof EventSource; last: () => StubEventSource } {
-  let last: StubEventSource | undefined;
-  const ctor = function (url: string): StubEventSource {
-    last = new StubEventSource(url);
-    return last;
-  } as unknown as typeof EventSource;
-  return { ctor, last: () => last! };
-}
+import { makeES } from '../_helpers/eventSource';
 
 const fakeManifest = { root: '/r', tree: { type: 'directory' } };
 

@@ -100,9 +100,7 @@ describe('createStreets()', () => {
     streets?.dispose();
   });
 
-  // ---------------------------------------------------------------------------
   // Construction
-  // ---------------------------------------------------------------------------
 
   it('constructs with an empty named group (pre-rebuild), no throws', () => {
     const { ctx } = makePickableSceneContext();
@@ -121,15 +119,10 @@ describe('createStreets()', () => {
       renderer: null as unknown as THREE.WebGLRenderer,
       cityState: makeCityState(),
     } as unknown as SceneContext;
-    expect(() => {
-      streets = createStreets(ctx);
-      STREETS.value = { ...STREETS.value };
-    }).not.toThrow();
+    streets = createStreets(ctx);
+    STREETS.value = { ...STREETS.value };
+    expect(streets.group.children).toHaveLength(0);
   });
-
-  // ---------------------------------------------------------------------------
-  // rebuild() — populates group + arrays + lookups
-  // ---------------------------------------------------------------------------
 
   it('rebuild() populates group.children, pickables, asphalt, and labels', () => {
     const { ctx } = makePickableSceneContext();
@@ -176,9 +169,7 @@ describe('createStreets()', () => {
     expect(streets.group.children.length).toBe(firstChildCount);
   });
 
-  // ---------------------------------------------------------------------------
   // Theme effect — recolors asphalt + sidewalk on STREETS Save
-  // ---------------------------------------------------------------------------
 
   it('theme effect recolors asphalt on STREETS.ASPHALT_COLOR mutation', () => {
     const { ctx } = makePickableSceneContext();
@@ -214,9 +205,7 @@ describe('createStreets()', () => {
     expect(plane.scale.y).toBeCloseTo(1.0 / label.userData.origHeightFrac);
   });
 
-  // ---------------------------------------------------------------------------
   // Picker-tint effects — ARMED on first tick (the arming-bug guard)
-  // ---------------------------------------------------------------------------
 
   it('does NOT re-tint on selection before the first tick (effects not yet armed)', () => {
     const { ctx, selection } = makePickableSceneContext();
@@ -301,9 +290,7 @@ describe('createStreets()', () => {
     expect(label.visible).toBe(true);
   });
 
-  // ---------------------------------------------------------------------------
   // tick() — label camera-orientation hysteresis
-  // ---------------------------------------------------------------------------
 
   it('tick() flips a label past the −0.15 hysteresis and un-flips past +0.15', () => {
     const { ctx } = makePickableSceneContext();
@@ -335,9 +322,7 @@ describe('createStreets()', () => {
     expect(label.userData.flipped).toBe(false);
   });
 
-  // ---------------------------------------------------------------------------
   // dispose()
-  // ---------------------------------------------------------------------------
 
   it('dispose() empties the group and stops effects (later STREETS mutations no-op)', () => {
     const { ctx, selection } = makePickableSceneContext();
@@ -351,14 +336,12 @@ describe('createStreets()', () => {
 
     // Effects are stopped — selection + STREETS mutations don't throw and
     // don't re-tint the (now-detached) sidewalk to SELECTED.
-    expect(() => {
-      selection.value = {
-        kind: NodeKind.Directory,
-        sidewalk: sw,
-        dir: firstStreetDir(streets),
-      } as unknown as PickTarget;
-      STREETS.value = { ...STREETS.value, ASPHALT_COLOR: '#000000' };
-    }).not.toThrow();
+    selection.value = {
+      kind: NodeKind.Directory,
+      sidewalk: sw,
+      dir: firstStreetDir(streets),
+    } as unknown as PickTarget;
+    STREETS.value = { ...STREETS.value, ASPHALT_COLOR: '#000000' };
     expect(sidewalkColorHex(streets)).not.toBe(
       new THREE.Color(DEFAULTS.SIDEWALK_SELECTED).getHex()
     );

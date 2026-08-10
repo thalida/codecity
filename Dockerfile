@@ -41,6 +41,14 @@ RUN apt-get update \
         git git-lfs ca-certificates wget \
     && rm -rf /var/lib/apt/lists/*
 
+# uv is the package manager here, so pip is dead weight — and its vendored
+# msgpack/setuptools are what Trivy fails us on. The find guards the glob:
+# a base-image bump must not silently no-op and hand the CVEs back.
+RUN rm -rf /usr/local/lib/python3.*/site-packages/pip \
+           /usr/local/lib/python3.*/site-packages/pip-*.dist-info \
+    && rm -f /usr/local/bin/pip /usr/local/bin/pip3 /usr/local/bin/pip3.* \
+    && ! find /usr/local/lib -name 'pip' -maxdepth 5 -print | grep -q .
+
 # uv: bring in the static binary from the official image.
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /usr/local/bin/
 

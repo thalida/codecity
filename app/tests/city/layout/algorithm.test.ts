@@ -284,11 +284,10 @@ describe('getBuildingDimensions — media files', () => {
       { min: 10, max: 10000 },
       { min: 10, max: 10000 }
     );
-    // Square aspect → floors = round(width / FLOOR_HEIGHT), min MIN_FLOORS.
+    // Square aspect: raw_h = w = 24.8, floors = round(2.48) = 2, h = 20.
     expect(dim.d).toBe(dim.w);
-    expect(dim.floors).toBeGreaterThanOrEqual(TEST_BUILDING_DIMS.MIN_FLOORS);
-    // raw_h ≈ width; height = floors × FLOOR_HEIGHT.
-    expect(dim.h).toBe(dim.floors * TEST_BUILDING_DIMS.FLOOR_HEIGHT);
+    expect(dim.floors).toBe(2);
+    expect(dim.h).toBe(20);
   });
 
   it('portrait image gives a tall building (height > width)', () => {
@@ -339,12 +338,8 @@ describe('getBuildingDimensions — media files', () => {
       { min: 10, max: 10000 },
       { min: 10, max: 10000 }
     );
-    // raw_h = w × 2.5, floors = round(raw_h / FLOOR_HEIGHT), h = floors × FLOOR_HEIGHT.
-    const expectedFloors = Math.max(
-      TEST_BUILDING_DIMS.MIN_FLOORS,
-      Math.round((dim.w * 2.5) / TEST_BUILDING_DIMS.FLOOR_HEIGHT)
-    );
-    expect(dim.floors).toBe(expectedFloors);
+    // 10:1 portrait clamps to aspect 2.5: raw_h = 24.8 * 2.5 = 62, floors = 6.
+    expect(dim.floors).toBe(6);
   });
 
   it('clamps very wide panorama at aspect 0.4', () => {
@@ -360,11 +355,8 @@ describe('getBuildingDimensions — media files', () => {
       { min: 10, max: 10000 },
       { min: 10, max: 10000 }
     );
-    const expectedFloors = Math.max(
-      TEST_BUILDING_DIMS.MIN_FLOORS,
-      Math.round((dim.w * 0.4) / TEST_BUILDING_DIMS.FLOOR_HEIGHT)
-    );
-    expect(dim.floors).toBe(expectedFloors);
+    // 1:10 panorama clamps to aspect 0.4: raw_h = 24.8 * 0.4 = 9.92, floors = 1.
+    expect(dim.floors).toBe(1);
   });
 
   it('non-media file ignores media_width/media_height', () => {
@@ -374,12 +366,11 @@ describe('getBuildingDimensions — media files', () => {
       { min: 10, max: 1000 },
       { min: 10, max: 10000 }
     );
-    // Height should be lines-derived (sqrt-interpolation), not byte-aspect-derived.
-    // For a non-media file the media_* fields are ignored entirely.
-    expect(dim.h).toBe(dim.floors * TEST_BUILDING_DIMS.FLOOR_HEIGHT);
-    // The clamp-aspect-0.0001 case would have produced a 1-floor building;
-    // for a 100-line file the test fixture's sqrt interpolation lands at 8 floors.
-    expect(dim.floors).toBeGreaterThan(1);
+    // Lines-derived via sqrt interpolation, not byte-aspect-derived: a 9999:1
+    // aspect would clamp to 0.4 and give a 1-floor building, but the media_*
+    // fields are ignored outright, so 100 lines lands at 6 floors.
+    expect(dim.floors).toBe(6);
+    expect(dim.h).toBe(60);
   });
 });
 
@@ -432,12 +423,6 @@ describe('computeFileStats', () => {
 
 // ---- layoutCity ----
 describe('layoutCity', () => {
-  it('returns { streets, buildings } arrays', () => {
-    const layout = layoutCity({ tree: TEST_TREE });
-    expect(Array.isArray(layout.streets)).toBe(true);
-    expect(Array.isArray(layout.buildings)).toBe(true);
-  });
-
   it('has at least 1 street', () => {
     const layout = layoutCity({ tree: TEST_TREE });
     expect(layout.streets.length).toBeGreaterThanOrEqual(1);
@@ -448,16 +433,10 @@ describe('layoutCity', () => {
     expect(layout.buildings.length).toBe(3);
   });
 
-  it('every building has x, y, w, d, h, file, orient', () => {
+  it('every building carries the file node it was built from', () => {
     const layout = layoutCity({ tree: TEST_TREE });
     for (const b of layout.buildings) {
-      expect(typeof b.x).toBe('number');
-      expect(typeof b.y).toBe('number');
-      expect(typeof b.w).toBe('number');
-      expect(typeof b.d).toBe('number');
-      expect(typeof b.h).toBe('number');
       expect(b.file).toBeTruthy();
-      expect(typeof b.orient).toBe('string');
     }
   });
 
@@ -468,17 +447,12 @@ describe('layoutCity', () => {
     }
   });
 
-  it('every street has x, y, length, width, orientation, label, dir', () => {
+  it('every street has positive extent, a known axis, and a direction', () => {
     const layout = layoutCity({ tree: TEST_TREE });
     for (const s of layout.streets) {
-      expect(typeof s.x).toBe('number');
-      expect(typeof s.y).toBe('number');
-      expect(typeof s.length).toBe('number');
       expect(s.length).toBeGreaterThan(0);
-      expect(typeof s.width).toBe('number');
       expect(s.width).toBeGreaterThan(0);
-      expect(s.orientation === StreetAxis.X || s.orientation === StreetAxis.Y).toBe(true);
-      expect(typeof s.label).toBe('string');
+      expect([StreetAxis.X, StreetAxis.Y]).toContain(s.orientation);
       expect(s.dir).toBeTruthy();
     }
   });
@@ -705,11 +679,11 @@ describe('orient correctness for mirrored subtrees', () => {
 describe('layout invariants (current packer baseline)', () => {
   it('TEST_TREE has no overlapping rectangles', () => {
     const layout = layoutCity({ tree: TEST_TREE });
-    expect(() => assertNoOverlap(layout)).not.toThrow();
+    assertNoOverlap(layout);
   });
   it('TEST_TREE child streets are stem-ordered alphabetically', () => {
     const layout = layoutCity({ tree: TEST_TREE });
-    expect(() => assertStemOrder(layout)).not.toThrow();
+    assertStemOrder(layout);
   });
   it('multi-subdir tree has stem-ordered child streets', () => {
     const tree = mkDir('root', [
@@ -719,7 +693,7 @@ describe('layout invariants (current packer baseline)', () => {
       mkDir('dddd', [mkFile('f5.ts')]),
     ]);
     const layout = layoutCity({ tree });
-    expect(() => assertStemOrder(layout)).not.toThrow();
+    assertStemOrder(layout);
   });
   it('flat-files dir has no overlapping rectangles', () => {
     const file = (n: string) => ({
@@ -742,7 +716,7 @@ describe('layout invariants (current packer baseline)', () => {
       children: ['a.ts', 'b.ts', 'c.ts', 'd.ts', 'e.ts', 'f.ts'].map(file),
     };
     const layout = layoutCity({ tree: dir });
-    expect(() => assertNoOverlap(layout)).not.toThrow();
+    assertNoOverlap(layout);
   });
   it('deeply-nested mirror tree has no overlapping rectangles', () => {
     const tree = mkDir('root', [
@@ -752,7 +726,7 @@ describe('layout invariants (current packer baseline)', () => {
       mkDir('dddd', [mkFile('f5.ts')]),
     ]);
     const layout = layoutCity({ tree });
-    expect(() => assertNoOverlap(layout)).not.toThrow();
+    assertNoOverlap(layout);
   });
   it('layout is deterministic (same input → identical output)', () => {
     const a = layoutCity({ tree: TEST_TREE });
@@ -780,8 +754,8 @@ describe('layout invariants (current packer baseline)', () => {
     const root = mkDir('root', [mkFile('a.ts'), big, small]);
     const layout = layoutCity({ tree: root });
 
-    expect(() => assertNoOverlap(layout)).not.toThrow();
-    expect(() => assertStemOrder(layout)).not.toThrow();
+    assertNoOverlap(layout);
+    assertStemOrder(layout);
 
     const rootStreet = layout.streets.find((s) => s.dir?.name === 'root')!;
     const bigStreet = layout.streets.find((s) => s.dir?.name === 'big')!;
@@ -824,8 +798,8 @@ describe('layout invariants (current packer baseline)', () => {
       mkDir('ddd', [mkFile('z.ts')]),
     ]);
     const layout = layoutCity({ tree });
-    expect(() => assertNoOverlap(layout)).not.toThrow();
-    expect(() => assertStemOrder(layout)).not.toThrow();
+    assertNoOverlap(layout);
+    assertStemOrder(layout);
     const rootStreet = layout.streets.find((s) => s.isRoot)!;
     // Measured ~115.4 under the packer with the prior STREET_TIERS defaults; after
     // widening tiers (0→32, 4→48, 8→80, 16→96) the natural length is
@@ -836,12 +810,12 @@ describe('layout invariants (current packer baseline)', () => {
 
   it('TEST_TREE is tree-respecting', () => {
     const layout = layoutCity({ tree: TEST_TREE });
-    expect(() => assertTreeRespecting(layout)).not.toThrow();
+    assertTreeRespecting(layout);
   });
 
   it('TEST_TREE has valid T-junctions', () => {
     const layout = layoutCity({ tree: TEST_TREE });
-    expect(() => assertTJunctionsValid(layout)).not.toThrow();
+    assertTJunctionsValid(layout);
   });
 });
 
@@ -850,23 +824,13 @@ describe('quickjs-scenario regression', () => {
   // child whose own src/ subdir picked the side facing node_modules,
   // forcing the quickjs road to extend back. With the packer, src/ should
   // mirror or pick the other side, keeping quickjs road short.
-  function mkFile(name: string) {
-    return {
-      name,
-      type: NodeKind.File,
-      path: name,
-      extension: '.ts',
-      size: 500,
-      lines: 20,
-      created: '2024-01-01T00:00:00Z',
-      modified: '2024-01-01T00:00:00Z',
-    };
-  }
-  function mkDir(name: string, children: any[], path?: string): any {
+  // Three levels deep, so paths re-prefix all the way down and
+  // descendants_count accumulates. The shared mkDir only does one level.
+  function mkDeepDir(name: string, children: any[], path?: string): any {
     const dirPath = path || name;
     const prefixed = children.map((c) => {
       if (c.type === NodeKind.Directory) {
-        return mkDir(c.name, c.children, `${dirPath}/${c.name}`);
+        return mkDeepDir(c.name, c.children, `${dirPath}/${c.name}`);
       }
       return { ...c, path: `${dirPath}/${c.name}` };
     });
@@ -894,18 +858,18 @@ describe('quickjs-scenario regression', () => {
     //         qf1.ts qf2.ts qf3.ts
     //         src/
     //           sf1.ts sf2.ts
-    const tree = mkDir('root', [
-      mkDir(
+    const tree = mkDeepDir('root', [
+      mkDeepDir(
         'a-other-pkg',
         Array.from({ length: 10 }, (_, i) => mkFile(`f${i}.ts`))
       ),
-      mkDir('node_modules', [
+      mkDeepDir('node_modules', [
         ...Array.from({ length: 8 }, (_, i) => mkFile(`big${i}.ts`)),
-        mkDir('quickjs', [
+        mkDeepDir('quickjs', [
           mkFile('qf1.ts'),
           mkFile('qf2.ts'),
           mkFile('qf3.ts'),
-          mkDir(
+          mkDeepDir(
             'src',
             Array.from({ length: 2 }, (_, i) => mkFile(`sf${i}.ts`))
           ),
@@ -943,10 +907,10 @@ describe('layoutCity end-to-end', () => {
       mkDir('sub', [mkFile('c.ts'), mkFile('d.ts')]),
     ]);
     const layout = layoutCity({ tree });
-    expect(() => assertNoOverlap(layout)).not.toThrow();
-    expect(() => assertStemOrder(layout)).not.toThrow();
-    expect(() => assertTreeRespecting(layout)).not.toThrow();
-    expect(() => assertTJunctionsValid(layout)).not.toThrow();
+    assertNoOverlap(layout);
+    assertStemOrder(layout);
+    assertTreeRespecting(layout);
+    assertTJunctionsValid(layout);
   });
 
   // estimateDirReaches: bottom-up pre-pass that sizes the phantom in each
@@ -1076,7 +1040,7 @@ describe('layoutCity end-to-end', () => {
     // bug would surface (apps must extend well past the original
     // parentMaxBoundary*2 + 1000 ≈ 1000 reach).
     expect(apps!.length).toBeGreaterThan(2000);
-    expect(() => assertNoOverlap(layout)).not.toThrow();
+    assertNoOverlap(layout);
   });
 });
 

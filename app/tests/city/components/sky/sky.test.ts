@@ -135,10 +135,14 @@ describe('createSky()', () => {
     expect(disposedMat).toBe(true);
   });
 
-  it('dispose() stops the effect — later SCENE mutations do not throw', () => {
+  it('dispose() stops the effect: a later SCENE mutation never reaches the uniforms', () => {
+    const mat = sky.group.material as THREE.ShaderMaterial;
+    const before = (mat.uniforms.uSkyColor.value as THREE.Color).getHex();
+    expect(before).not.toBe(0xabcdef); // otherwise the assertion below is vacuous
+
     sky.dispose();
-    expect(() => {
-      SCENE.value = { ...SCENE.value, SKY_COLOR: '#abcdef' };
-    }).not.toThrow();
+    SCENE.value = { ...SCENE.value, SKY_COLOR: '#abcdef' };
+
+    expect((mat.uniforms.uSkyColor.value as THREE.Color).getHex()).toBe(before);
   });
 });

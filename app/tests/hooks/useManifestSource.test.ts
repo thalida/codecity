@@ -1,46 +1,25 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { loadSource, cancelLoad } from '@/hooks/useManifestSource';
+import { loadSource, cancelLoad, setupLiveUpdates } from '@/hooks/useManifestSource';
 import { SOURCE_ERROR, CURRENT_SOURCE, RECENTS } from '@/state/stores/source';
 import { MANIFEST } from '@/state/stores/manifest';
+import { EXCLUDES, addExclude } from '@/state/stores/excludes';
 import { TIMELINE_MODE, SCRUB_POS, TIMELINE_BUNDLE, setScrubPos } from '@/state/stores/timeline';
 import type { TimelineBundle } from '@/types';
 import { PENDING_SOURCE_LABEL } from '@/state/stores/ui';
-
-// EventSource stub with driveable events: records listeners so a test can emit
-// a named SSE event (e.g. a `manifest-partial` skeleton), and records
-// instances so a test can assert the stream was closed on abort.
-class StubEventSource {
-  static instances: StubEventSource[] = [];
-  closed = false;
-  private listeners: Record<string, ((e: unknown) => void)[]> = {};
-  constructor(public url: string) {
-    StubEventSource.instances.push(this);
-  }
-  addEventListener(name: string, handler: (e: unknown) => void): void {
-    (this.listeners[name] ??= []).push(handler);
-  }
-  close(): void {
-    this.closed = true;
-  }
-  emit(name: string, data: string): void {
-    for (const h of this.listeners[name] ?? []) h({ data });
-  }
-}
+import { StubEventSource, installEventSource } from '../_helpers/eventSource';
 
 const flush = (): Promise<void> => new Promise((r) => setTimeout(r, 0));
 
 describe('useManifestSource loadSource cancellation', () => {
-  let originalEventSource: typeof EventSource;
+  let restoreEventSource: () => void;
 
   beforeEach(() => {
-    originalEventSource = globalThis.EventSource;
-    StubEventSource.instances = [];
-    (globalThis as unknown as { EventSource: unknown }).EventSource = StubEventSource;
+    restoreEventSource = installEventSource();
     SOURCE_ERROR.value = null;
   });
 
   afterEach(() => {
-    (globalThis as unknown as { EventSource: unknown }).EventSource = originalEventSource;
+    restoreEventSource();
   });
 
   describe('loading header label', () => {
@@ -184,5 +163,67 @@ describe('loadSource exits Timeline mode', () => {
 
     cancelLoad();
     await p;
+  });
+});
+
+// Minimal manifest-complete payload so loadSource commits the source. The
+// stream reader treats a `manifest-complete` event as terminal (it closes the
+// EventSource itself) — no separate "done" event exists on the wire.
+const MANIFEST_JSON = JSON.stringify({
+  manifest: {
+    content_signature: 'sig0',
+    structure_signature: 't0',
+    layout_signature: 't0',
+    tree: { name: 'r', type: 'directory', path: '.', children: [] },
+    repo: {},
+  },
+});
+
+describe('exclude-driven re-fetch', () => {
+  let restoreEventSource: () => void;
+  beforeEach(() => {
+    restoreEventSource = installEventSource();
+    EXCLUDES.value = {};
+    CURRENT_SOURCE.value = null;
+    MANIFEST.value = { tree: {} } as never;
+  });
+  afterEach(() => {
+    restoreEventSource();
+  });
+
+  it('re-fetches the loaded source with the exclude param when an exclude is added', async () => {
+    const load = loadSource({ src: 's', branch: undefined });
+    await flush();
+    StubEventSource.instances[0].emit('manifest-complete', MANIFEST_JSON);
+    await load;
+    expect(CURRENT_SOURCE.value?.src).toBe('s');
+
+    const dispose = setupLiveUpdates();
+    const before = StubEventSource.instances.length;
+    addExclude('vendor');
+    await flush();
+    const fresh = StubEventSource.instances.slice(before);
+    expect(fresh.length).toBeGreaterThan(0);
+    expect(new URL(fresh[0].url).searchParams.getAll('exclude')).toEqual(['vendor']);
+    dispose();
+  });
+
+  it('does not re-fetch merely because the source switched', async () => {
+    // Load s1 first so the reaction records a non-null key for it — otherwise
+    // the switch run exits on the `prev === null` branch and the actual
+    // switch-guard (`prevRepo !== repoKey`) is never exercised.
+    const load = loadSource({ src: 's1', branch: undefined });
+    await flush();
+    StubEventSource.instances[0].emit('manifest-complete', MANIFEST_JSON);
+    await load;
+    expect(CURRENT_SOURCE.value?.src).toBe('s1');
+
+    const dispose = setupLiveUpdates();
+    const before = StubEventSource.instances.length;
+    CURRENT_SOURCE.value = { src: 's2', branch: undefined }; // real repo-key change, no exclude edit
+    await flush();
+    // The switch alone must NOT refetch — the load owns sending s2's excludes.
+    expect(StubEventSource.instances.length).toBe(before);
+    dispose();
   });
 });

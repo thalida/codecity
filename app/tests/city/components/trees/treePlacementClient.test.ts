@@ -19,10 +19,10 @@ describe('treePlacementClient (sync fallback path)', () => {
     }
   });
 
-  it('returns TreePlacement[] via the sync fallback when Worker is unavailable', async () => {
+  it('falls back to the sync path when Worker is unavailable', async () => {
     const client = createTreePlacementClient();
     const result = await client.compute(emptyLayout(bbox(-100, -100, 100, 100)), undefined, 0, 0);
-    expect(Array.isArray(result)).toBe(true);
+    expect(result).toEqual([]);
     client.dispose();
   });
 
@@ -44,9 +44,8 @@ describe('treePlacementClient (sync fallback path)', () => {
 
   it('forwards commitCount to placeTrees', async () => {
     const client = createTreePlacementClient();
-    // Bbox sized generously so the polygon-in rejection doesn't crowd
-    // out the 25 candidates we expect. Previously the MIN_BUFFER=800 floor
-    // padded tiny bboxes; now removed, so this test sizes its own bbox big enough.
+    // Bbox sized generously so the polygon-in rejection doesn't crowd out the
+    // 25 candidates we expect. Nothing pads a tiny bbox on our behalf.
     const layout: CityLayout = {
       buildings: [],
       streets: [],

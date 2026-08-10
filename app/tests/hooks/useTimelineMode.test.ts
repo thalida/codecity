@@ -12,6 +12,7 @@ import { LIVE_UPDATES } from '@/state/stores/settings/updates';
 import { SCAN_PROGRESS } from '@/state/stores/scanProgress';
 import { setupLiveUpdates } from '@/hooks/useManifestSource';
 import type { TimelineBundle, TimelineProgress } from '@/types';
+import { StubEventSource, installEventSource } from '../_helpers/eventSource';
 
 // jsdom's rAF fires for real on a ~16ms timer; wait for one tick to observe
 // the post-paint hide (mirrors filePreviewPane.test.tsx's rAF handling).
@@ -21,19 +22,6 @@ vi.mock('@/api/timeline', () => ({ fetchTimelineBundle: vi.fn() }));
 import { fetchTimelineBundle } from '@/api/timeline';
 
 const flush = (): Promise<void> => new Promise((r) => setTimeout(r, 0));
-
-// EventSource stub — exit reloads live HEAD via loadSource → streamManifest.
-class StubEventSource {
-  static instances: StubEventSource[] = [];
-  closed = false;
-  constructor(public url: string) {
-    StubEventSource.instances.push(this);
-  }
-  addEventListener(): void {}
-  close(): void {
-    this.closed = true;
-  }
-}
 
 const BUNDLE = {
   commits: [{ sha: 'a' }, { sha: 'b' }, { sha: 'c' }],
@@ -209,18 +197,16 @@ describe('loadTimelineScene', () => {
 });
 
 describe('exitTimelineMode', () => {
-  let originalEventSource: typeof EventSource;
+  let restoreEventSource: () => void;
   beforeEach(() => {
-    originalEventSource = globalThis.EventSource;
-    StubEventSource.instances = [];
-    (globalThis as unknown as { EventSource: unknown }).EventSource = StubEventSource;
+    restoreEventSource = installEventSource();
     CURRENT_SOURCE.value = { src: 's', branch: undefined };
     TIMELINE_MODE.value = true;
     setScrubPos(2);
     TIMELINE_BUNDLE.value = BUNDLE;
   });
   afterEach(() => {
-    (globalThis as unknown as { EventSource: unknown }).EventSource = originalEventSource;
+    restoreEventSource();
     TIMELINE_MODE.value = false;
     SCENE_HANDLE.value = null;
   });
@@ -259,12 +245,10 @@ describe('teardownTimelineMode', () => {
 });
 
 describe('live poll suspends in Timeline mode', () => {
-  let originalEventSource: typeof EventSource;
+  let restoreEventSource: () => void;
   let fetchSpy: ReturnType<typeof vi.spyOn> | undefined;
   beforeEach(() => {
-    originalEventSource = globalThis.EventSource;
-    StubEventSource.instances = [];
-    (globalThis as unknown as { EventSource: unknown }).EventSource = StubEventSource;
+    restoreEventSource = installEventSource();
     CURRENT_SOURCE.value = { src: 's', branch: undefined };
     MANIFEST.value = { content_signature: 'sig0', tree: {} } as never;
     SCAN_PROGRESS.value = null;
@@ -274,7 +258,7 @@ describe('live poll suspends in Timeline mode', () => {
     LIVE_UPDATES.value = { ...LIVE_UPDATES.value, ENABLED: false };
     TIMELINE_MODE.value = false;
     fetchSpy?.mockRestore();
-    (globalThis as unknown as { EventSource: unknown }).EventSource = originalEventSource;
+    restoreEventSource();
     vi.useRealTimers();
   });
 
@@ -345,11 +329,9 @@ describe('loadTimelineScene inPlace refetch', () => {
 });
 
 describe('exclude edit in Timeline routes to a bundle refetch (regression: #128)', () => {
-  let originalEventSource: typeof EventSource;
+  let restoreEventSource: () => void;
   beforeEach(() => {
-    originalEventSource = globalThis.EventSource;
-    StubEventSource.instances = [];
-    (globalThis as unknown as { EventSource: unknown }).EventSource = StubEventSource;
+    restoreEventSource = installEventSource();
     CURRENT_SOURCE.value = { src: 's', branch: undefined };
     MANIFEST.value = { content_signature: 'sig0', tree: {} } as never;
     SCAN_PROGRESS.value = null;
@@ -361,7 +343,7 @@ describe('exclude edit in Timeline routes to a bundle refetch (regression: #128)
     (fetchTimelineBundle as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(BUNDLE);
   });
   afterEach(() => {
-    (globalThis as unknown as { EventSource: unknown }).EventSource = originalEventSource;
+    restoreEventSource();
     TIMELINE_MODE.value = false;
     SCENE_HANDLE.value = null;
     EXCLUDES.value = {};

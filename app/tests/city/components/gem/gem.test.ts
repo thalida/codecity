@@ -91,7 +91,10 @@ describe('createGem()', () => {
     expect(gem.getRootGroup()!.scale.x).toBeLessThanOrEqual(GEM.value.HOVER_SCALE + 1e-6);
   });
 
-  it('dispose() stops the effect — later GEM mutations do not throw', () => {
+  // Not a check that the effect stopped: dispose() nulls edges/body and the
+  // effect body is all `edges?.material` guards, so a leak would be absorbed
+  // and look identical from here. What this pins is the guards.
+  it('a GEM mutation after dispose() is absorbed by the null guards', () => {
     const { ctx } = makePickableSceneContext();
     gem = createGem(ctx);
     gem.rebuild(makeStreet());

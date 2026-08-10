@@ -94,14 +94,17 @@ describe('createIsland', () => {
     island.dispose();
   });
 
-  it('dispose releases geometry + material and stops the effect', () => {
+  it('dispose() stops the effect: a later ISLAND mutation never toggles the group', () => {
     const island = createIsland(fakeCtx);
-    expect(() => island.dispose()).not.toThrow();
+    const group = island.group;
+    expect(group.visible).toBe(true);
 
-    // After dispose, ISLAND signal changes must NOT throw (stopEffect called).
-    expect(() => {
-      ISLAND.value = { ...ISLAND.value, ENABLED: false };
-    }).not.toThrow();
+    island.dispose();
+    // The effect writes group.visible with no null guard, so a subscription
+    // that outlived dispose would flip it here.
+    ISLAND.value = { ...ISLAND.value, ENABLED: false };
+
+    expect(group.visible).toBe(true);
     ISLAND.value = { ...ISLAND.value, ENABLED: true };
   });
 });

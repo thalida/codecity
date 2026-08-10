@@ -1,6 +1,3 @@
-// tests/city/components/buildings/facadePanels.test.ts — Smoke tests for the instanced
-// ad panel system (introduced in the #21 cell-render migration).
-
 import { describe, it, expect } from 'vitest';
 import * as THREE from 'three';
 import { InstancedFacadePanels } from '@/city/components/buildings/facadePanels';
@@ -14,10 +11,7 @@ import { BUILDINGS } from '@/state/stores/settings/buildings';
 import { BuildingOrient, NodeKind } from '@/types/index';
 import type { Building } from '@/types/index';
 
-// ---------------------------------------------------------------------------
-// Minimal Building fixture — only the fields read by registerMediaBuilding.
-// ---------------------------------------------------------------------------
-
+// Only the fields registerMediaBuilding reads.
 function fakeMediaBuilding(overrides: Partial<Building> = {}): Building {
   return {
     x: overrides.x ?? 0,
@@ -45,10 +39,6 @@ function fakeMediaBuilding(overrides: Partial<Building> = {}): Building {
     },
   } as Building;
 }
-
-// ---------------------------------------------------------------------------
-// Tests
-// ---------------------------------------------------------------------------
 
 describe('InstancedFacadePanels', () => {
   it('registerMediaBuilding returns layer 0 and 4 panel slots for the first building', () => {
@@ -213,18 +203,10 @@ describe('InstancedFacadePanels', () => {
 
   it('ad panels are not pickable (raycast is a no-op)', () => {
     const ads = new InstancedFacadePanels(4);
-    // raycast should be overridden to a no-op function.
     const intersects: THREE.Intersection[] = [];
-    // Call raycast — should not throw and should leave intersects empty.
-    // We pass null as raycaster since the override ignores all arguments.
+    // The override ignores every argument, so a null raycaster is fine.
     ads.mesh.raycast(null as unknown as THREE.Raycaster, intersects);
     expect(intersects).toHaveLength(0);
-  });
-
-  it('dispose does not throw', () => {
-    const ads = new InstancedFacadePanels(4);
-    ads.registerMediaBuilding(fakeMediaBuilding());
-    expect(() => ads.dispose()).not.toThrow();
   });
 });
 

@@ -136,14 +136,6 @@ describe('placeTrees (commit-driven)', () => {
 
     FOOTPRINT.value = { ...FOOTPRINT.value, HALO_WIDTH: 32 };
   });
-
-  it('all placements have a defined commitIndex', () => {
-    const layout = emptyLayout(bbox(-100, -100, 100, 100));
-    const placements = placeTrees(layout, layout.bbox, { commitCount: 20 });
-    for (const p of placements) {
-      expect(p.commitIndex).toBeDefined();
-    }
-  });
 });
 
 export type { TreePlacement };

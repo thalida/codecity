@@ -98,9 +98,7 @@ describe('createBuildings()', () => {
     TIMELINE_MODE.value = false;
   });
 
-  // ---------------------------------------------------------------------------
   // Construction
-  // ---------------------------------------------------------------------------
 
   it('constructs with an empty named group (pre-rebuild), no throws', () => {
     const { ctx } = makePickableSceneContext();
@@ -112,17 +110,12 @@ describe('createBuildings()', () => {
     expect(buildings.getBuildingIndex()).toBeNull();
   });
 
-  it('material theme effect runs at construction with a null picker without throwing', () => {
+  it('material theme effect is inert while the picker is still null', () => {
     const ctx = makePrePickerCtx();
-    expect(() => {
-      buildings = createBuildings(ctx);
-      BUILDINGS.value = { ...BUILDINGS.value };
-    }).not.toThrow();
+    buildings = createBuildings(ctx);
+    BUILDINGS.value = { ...BUILDINGS.value };
+    expect(buildings.group.children).toHaveLength(0);
   });
-
-  // ---------------------------------------------------------------------------
-  // rebuild() — populates group + cells + lookups
-  // ---------------------------------------------------------------------------
 
   it('rebuild() populates the group, cells, index, and lookups', async () => {
     const { ctx } = makePickableSceneContext();
@@ -226,9 +219,7 @@ describe('createBuildings()', () => {
     expect((secondMesh.material as THREE.ShaderMaterial).uniforms).toBeDefined();
   });
 
-  // ---------------------------------------------------------------------------
   // Shared-material theme effect
-  // ---------------------------------------------------------------------------
 
   it('material effect re-applies uOutlineWidth on BUILDINGS Save', async () => {
     const { ctx } = makePickableSceneContext();
@@ -287,9 +278,7 @@ describe('createBuildings()', () => {
     expect(buildingFragSrc).toMatch(/applyFog\(outColor\.rgb, vWorldPos, vScale\.y\)/);
   });
 
-  // ---------------------------------------------------------------------------
   // Picker overlays — ARMED on the first tick (the arming-bug guard)
-  // ---------------------------------------------------------------------------
 
   it('does NOT arm the overlays before the first tick (no ghost mesh in scene)', async () => {
     const { ctx, hover } = makePickableSceneContext();
@@ -334,10 +323,8 @@ describe('createBuildings()', () => {
     expect(ghost!.visible).toBe(false);
   });
 
-  // ---------------------------------------------------------------------------
   // Self-tween — rebuild() computes its own enter/stay diff and drives the
   // tweens through tick(). The boot rebuild does NOT animate; the 2nd+ do.
-  // ---------------------------------------------------------------------------
 
   it('the FIRST rebuild (boot) does NOT fire enter tweens — the city snaps in', async () => {
     const { ctx } = makePickableSceneContext();
@@ -414,9 +401,7 @@ describe('createBuildings()', () => {
     }
   });
 
-  // ---------------------------------------------------------------------------
   // dispose()
-  // ---------------------------------------------------------------------------
 
   it('dispose() empties the group, removes overlays, and stops the material effect', async () => {
     const { ctx } = makePickableSceneContext();

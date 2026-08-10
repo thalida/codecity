@@ -1,9 +1,6 @@
 """Shared pytest fixtures for codecity api tests.
 
-Centralizes test helpers that have been duplicated or scattered across the
-suite. Future tasks (11-13) will migrate the existing test files to use
-these fixtures; until then this module is purely additive and does NOT
-disturb existing behavior.
+Centralizes test helpers that would otherwise be duplicated across the suite.
 
 Provides:
 
@@ -335,3 +332,19 @@ def git_working_tree(_session_bare_repo: Path, tmp_path: Path) -> Iterator[Path]
         )
     except subprocess.CalledProcessError:
         pass
+
+
+def final_manifest(root: str, **kwargs: Any) -> Any:
+    """Drain scan_tree()'s stream and return the final-phase manifest.
+
+    Most tests assert against the full manifest rather than the skeleton, and
+    do not care about the phase iteration.
+    """
+    from api.services.scan import scan_tree
+
+    final = None
+    for event in scan_tree(root, **kwargs):
+        if event["phase"] == "manifest-complete":
+            final = event["manifest"]
+    assert final is not None, "scan_tree must yield a final event"
+    return final

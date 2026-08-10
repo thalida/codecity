@@ -16,14 +16,8 @@ import type { IconAtlas } from '@/city/components/buildings/atlas';
 import type { FileNode } from '@/types';
 import { building } from '../../../_helpers/buildingFixture';
 
-// ---------------------------------------------------------------------------
-// Tests
-// ---------------------------------------------------------------------------
-
-// ---------------------------------------------------------------------------
 // Fake IconAtlas — minimal implementation of the IconAtlas interface that
 // returns a known UV for any icon name it was seeded with.
-// ---------------------------------------------------------------------------
 
 function fakeAtlas(uvMap: Record<string, [number, number]>): IconAtlas {
   return {
@@ -244,7 +238,6 @@ describe('cellMesh factory', () => {
   });
 });
 
-// ---------------------------------------------------------------------------
 // Stress test: shared material across 300 cells (simulates a ~17×17 grid
 // as seen for large repos like firecrawl). Verifies that:
 //   1. Every cell's detailMesh uses the SAME material instance — the one
@@ -252,7 +245,6 @@ describe('cellMesh factory', () => {
 //   2. 300 InstancedMesh objects are created (per-cell, as required for
 //      per-cell visibility toggling).
 //   3. The full loop completes in under 1 second.
-// ---------------------------------------------------------------------------
 
 describe('cellMesh shared-material stress test (300 cells)', () => {
   it('all 300 cells share exactly one ShaderMaterial instance', () => {

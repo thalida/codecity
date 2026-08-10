@@ -24,6 +24,9 @@ const TEST_HUE_EXT_MAP: Record<string, number> = {
 const TEST_SAT_RANGE: RangeStat = { min: 20, max: 100 };
 const TEST_LIGHT_RANGE: RangeStat = { min: 25, max: 70 };
 
+// getHue's fallback hash for an extension outside the palette.
+const XYZ_HUE = 259;
+
 let _origPalette: BuildingsConfig | null = null;
 beforeEach(() => {
   _origPalette = { ...BUILDINGS.value };
@@ -41,386 +44,128 @@ afterEach(() => {
   BUILDINGS.value = _origPalette;
 });
 
-const TEST_TREE = {
-  name: 'project',
-  type: NodeKind.Directory,
-  path: '.',
-  fullPath: '/tmp/project',
-  children_count: 3,
-  children_file_count: 2,
-  children_dir_count: 1,
-  descendants_count: 4,
-  descendants_file_count: 3,
-  descendants_dir_count: 1,
-  descendants_size: 5000,
-  children: [
-    {
-      name: 'index.ts',
-      type: NodeKind.File,
-      path: 'index.ts',
-      fullPath: '/tmp/project/index.ts',
-      extension: '.ts',
-      size: 2000,
-      lines: 80,
-      binary: false,
-      created: '2024-01-10T09:00:00Z',
-      modified: '2024-03-22T14:30:00Z',
-    },
-    {
-      name: 'README.md',
-      type: NodeKind.File,
-      path: 'README.md',
-      fullPath: '/tmp/project/README.md',
-      extension: '.md',
-      size: 500,
-      lines: 20,
-      binary: false,
-      created: '2024-01-10T09:00:00Z',
-      modified: '2024-01-10T09:00:00Z',
-    },
-    {
-      name: 'src',
-      type: NodeKind.Directory,
-      path: 'src',
-      fullPath: '/tmp/project/src',
-      children_count: 1,
-      children_file_count: 1,
-      children_dir_count: 0,
-      descendants_count: 1,
-      descendants_file_count: 1,
-      descendants_dir_count: 0,
-      descendants_size: 800,
-      children: [
-        {
-          name: 'utils.ts',
-          type: NodeKind.File,
-          path: 'src/utils.ts',
-          fullPath: '/tmp/project/src/utils.ts',
-          extension: '.ts',
-          size: 800,
-          lines: 30,
-          binary: false,
-          created: '2024-02-15T10:00:00Z',
-          modified: '2024-03-20T12:00:00Z',
-        },
-      ],
-    },
-  ],
-};
-
-// ---- getHue ----
 describe('getHue', () => {
-  it('returns palette value for known extension .ts', () => {
-    expect(getHue('.ts', TEST_HUE_EXT_MAP)).toBe(215);
+  it.each(Object.entries(TEST_HUE_EXT_MAP))('reads %s straight off the palette', (ext, hue) => {
+    expect(getHue(ext, TEST_HUE_EXT_MAP)).toBe(hue);
   });
 
-  it('returns palette value for known extension .js', () => {
-    expect(getHue('.js', TEST_HUE_EXT_MAP)).toBe(220);
+  it('hashes an extension the palette does not carry', () => {
+    expect(getHue('.xyz', TEST_HUE_EXT_MAP)).toBe(XYZ_HUE);
   });
 
-  it('returns palette value for known extension .md', () => {
-    expect(getHue('.md', TEST_HUE_EXT_MAP)).toBe(275);
-  });
-
-  it('returns palette value for known extension .json', () => {
-    expect(getHue('.json', TEST_HUE_EXT_MAP)).toBe(50);
-  });
-
-  it('returns palette value for known extension .png', () => {
-    expect(getHue('.png', TEST_HUE_EXT_MAP)).toBe(30);
-  });
-
-  it('returns deterministic hash for unknown extension', () => {
-    const hue1 = getHue('.xyz', TEST_HUE_EXT_MAP);
-    const hue2 = getHue('.xyz', TEST_HUE_EXT_MAP);
-    expect(hue1).toBe(hue2);
-    expect(hue1).toBeGreaterThanOrEqual(0);
-    expect(hue1).toBeLessThanOrEqual(359);
-  });
-
-  it('does not crash on empty extension', () => {
-    const hue = getHue('', TEST_HUE_EXT_MAP);
-    expect(typeof hue).toBe('number');
+  it('hues an extensionless file off the empty string', () => {
+    expect(getHue('', TEST_HUE_EXT_MAP)).toBe(0);
   });
 });
 
-// ---- extHueColor ----
 describe('extHueColor', () => {
-  it('paints a known extension at the badge saturation/lightness', () => {
-    expect(extHueColor('.ts', TEST_HUE_EXT_MAP)).toBe('hsl(215, 60%, 35%)');
-  });
-
-  it('hues a null (extensionless) ext off the empty-string bucket', () => {
-    expect(extHueColor(null, TEST_HUE_EXT_MAP)).toBe(
-      `hsl(${getHue('', TEST_HUE_EXT_MAP)}, 60%, 35%)`
-    );
+  it.each([
+    ['.ts', 'hsl(215, 60%, 35%)'],
+    ['.xyz', `hsl(${XYZ_HUE}, 60%, 35%)`],
+    [null, 'hsl(0, 60%, 35%)'],
+  ])('paints %s at the badge saturation/lightness', (ext, expected) => {
+    expect(extHueColor(ext, TEST_HUE_EXT_MAP)).toBe(expected);
   });
 });
 
-// ---- getSaturation ----
-describe('getSaturation', () => {
-  const cfg = TEST_SAT_RANGE;
+// Saturation and lightness share one curve (lerpRange) over the same
+// last-modified axis, so they get the same table with different bounds.
+const OLDEST = '2024-01-01T00:00:00Z';
+const NEWEST = '2024-03-01T00:00:00Z';
+const MIDPOINT = '2024-01-31T00:00:00Z'; // exactly half of a 60-day leap-year span
 
-  it('returns min saturation for oldest file', () => {
-    expect(
-      getSaturation('2024-01-10T09:00:00Z', '2024-01-10T09:00:00Z', '2024-02-15T10:00:00Z', cfg)
-    ).toBe(20);
+describe.each([
+  ['getSaturation', getSaturation, TEST_SAT_RANGE, { min: 20, mid: 60, max: 100 }],
+  ['getLightness', getLightness, TEST_LIGHT_RANGE, { min: 25, mid: 48, max: 70 }],
+])('%s', (_name, fn, cfg, expected) => {
+  it('lands on the range floor at the oldest date', () => {
+    expect(fn(OLDEST, OLDEST, NEWEST, cfg)).toBe(expected.min);
   });
 
-  it('returns max saturation for newest file', () => {
-    expect(
-      getSaturation('2024-02-15T10:00:00Z', '2024-01-10T09:00:00Z', '2024-02-15T10:00:00Z', cfg)
-    ).toBe(100);
+  it('lands on the range ceiling at the newest date', () => {
+    expect(fn(NEWEST, OLDEST, NEWEST, cfg)).toBe(expected.max);
   });
 
-  it('interpolates linearly for midpoint', () => {
-    // t = 0.5 => 20 + 0.5 * 80 = 60
-    const minDate = '2024-01-01T00:00:00Z';
-    const maxDate = '2024-03-01T00:00:00Z';
-    const midDate = '2024-01-31T00:00:00Z'; // ~halfway
-    const sat = getSaturation(midDate, minDate, maxDate, cfg);
-    expect(sat).toBeGreaterThan(cfg.min);
-    expect(sat).toBeLessThan(cfg.max);
+  it('interpolates linearly in between', () => {
+    expect(fn(MIDPOINT, OLDEST, NEWEST, cfg)).toBe(expected.mid);
   });
 
-  it('returns midpoint of the saturation range for null date', () => {
-    const midpoint = Math.round((cfg.min + cfg.max) / 2);
-    expect(getSaturation(null, '2024-01-10T09:00:00Z', '2024-02-15T10:00:00Z', cfg)).toBe(midpoint);
+  it('falls back to the range midpoint when the file has no date', () => {
+    expect(fn(null, OLDEST, NEWEST, cfg)).toBe(expected.mid);
   });
 
-  it('returns max for degenerate range', () => {
-    expect(
-      getSaturation('2024-01-10T09:00:00Z', '2024-01-10T09:00:00Z', '2024-01-10T09:00:00Z', cfg)
-    ).toBe(100);
+  it('treats a degenerate range as freshest rather than dividing by zero', () => {
+    expect(fn(OLDEST, OLDEST, OLDEST, cfg)).toBe(expected.max);
   });
 });
 
-// ---- getLightness ----
-describe('getLightness', () => {
-  const cfg = TEST_LIGHT_RANGE;
-
-  it('returns max lightness for most recently modified', () => {
-    expect(
-      getLightness('2024-03-22T14:30:00Z', '2024-01-10T09:00:00Z', '2024-03-22T14:30:00Z', cfg)
-    ).toBe(70);
-  });
-
-  it('returns min lightness for longest untouched', () => {
-    expect(
-      getLightness('2024-01-10T09:00:00Z', '2024-01-10T09:00:00Z', '2024-03-22T14:30:00Z', cfg)
-    ).toBe(25);
-  });
-
-  it('interpolates linearly for midpoint', () => {
-    const minDate = '2024-01-01T00:00:00Z';
-    const maxDate = '2024-03-01T00:00:00Z';
-    const midDate = '2024-01-31T00:00:00Z';
-    const l = getLightness(midDate, minDate, maxDate, cfg);
-    expect(l).toBeGreaterThan(cfg.min);
-    expect(l).toBeLessThan(cfg.max);
-  });
-
-  it('returns midpoint of the lightness range for null date', () => {
-    const midpoint = Math.round((cfg.min + cfg.max) / 2);
-    expect(getLightness(null, '2024-01-10T09:00:00Z', '2024-03-22T14:30:00Z', cfg)).toBe(midpoint);
-  });
-
-  it('returns max for degenerate range', () => {
-    expect(
-      getLightness('2024-01-10T09:00:00Z', '2024-01-10T09:00:00Z', '2024-01-10T09:00:00Z', cfg)
-    ).toBe(70);
-  });
-});
-
-// ---- getBuildingColor ----
 describe('getBuildingColor', () => {
-  // Hand-written min/max of TEST_TREE's created/modified dates — what the
-  // backend would ship as Manifest.dateRanges for that tree (the client
-  // tree walk moved server-side; see api/services/scan.py).
-  const TEST_TREE_DATE_RANGES = {
-    minCreated: '2024-01-10T09:00:00Z',
-    maxCreated: '2024-02-15T10:00:00Z',
-    minModified: '2024-01-10T09:00:00Z',
-    maxModified: '2024-03-22T14:30:00Z',
+  // Saturation and lightness anchor on the MODIFIED range, not created. This
+  // fixture separates the two: maxModified sits strictly inside the created
+  // range, so anchoring on created would land b.ts at t≈0.7 instead of 1.0.
+  const RANGES = {
+    minCreated: '2020-01-01T00:00:00Z',
+    maxCreated: '2024-12-31T00:00:00Z',
+    minModified: '2022-01-01T00:00:00Z',
+    maxModified: '2023-06-01T00:00:00Z',
   };
+  const file = (extension: string, created: string, modified: string) => ({
+    name: `f${extension}`,
+    type: NodeKind.File,
+    extension,
+    created,
+    modified,
+  });
+  const stalest = file('.ts', '2020-01-01T00:00:00Z', RANGES.minModified);
+  const freshest = file('.ts', '2024-12-31T00:00:00Z', RANGES.maxModified);
 
-  it('returns valid "hsl(...)" string', () => {
-    const color = getBuildingColor(TEST_TREE.children[0], TEST_TREE_DATE_RANGES);
-    expect(color).toMatch(/^hsl\(\d+,\s*[\d.]+%,\s*[\d.]+%\)$/);
+  it('sends the least recently modified file to both range floors', () => {
+    expect(getBuildingColor(stalest, RANGES)).toBe('hsl(215, 20%, 25%)');
   });
 
-  it('uses correct hue for .ts files', () => {
-    const color = getBuildingColor(TEST_TREE.children[0], TEST_TREE_DATE_RANGES);
-    expect(color).toMatch(/^hsl\(215,/);
+  it('sends the most recently modified file to both range ceilings', () => {
+    expect(getBuildingColor(freshest, RANGES)).toBe('hsl(215, 100%, 70%)');
   });
 
-  it('uses correct hue for .md files', () => {
-    const color = getBuildingColor(TEST_TREE.children[1], TEST_TREE_DATE_RANGES);
-    expect(color).toMatch(/^hsl\(275,/);
-  });
-
-  it('handles unknown extension', () => {
-    const unknownFile = {
-      name: 'foo.xyz',
-      type: NodeKind.File,
-      extension: '.xyz',
-      size: 1000,
-      lines: 10,
-      created: '2024-01-10T09:00:00Z',
-      modified: '2024-03-22T14:30:00Z',
-    };
-    const color = getBuildingColor(unknownFile, TEST_TREE_DATE_RANGES);
-    expect(color).toMatch(/^hsl\(/);
-  });
-
-  it('lands at LIGHTNESS_MAX when modified date == maxModified', () => {
-    // Fixture: maxModified (2023-06-01) is strictly inside the created range
-    // [2020-01-01, 2024-12-31], so the created anchor normalizes it to t≈0.7
-    // (L≈57) while the correct modified anchor normalizes it to t=1.0 (L=70).
-    //   a.ts: created=2020-01-01 (minCreated), modified=2022-01-01 (minModified)
-    //   b.ts: created=2024-12-31 (maxCreated), modified=2023-06-01 (maxModified)
-    // b.ts with modified anchor: t=1.0 → S=100, L=70 ✓
-    // b.ts with created anchor:  t≈0.7 → S≈76, L≈57 ✗  (proves the test fails today)
-    const tree = {
-      name: 'p',
-      type: NodeKind.Directory,
-      path: '.',
-      children: [
-        {
-          name: 'a.ts',
-          type: NodeKind.File,
-          extension: '.ts',
-          created: '2020-01-01T00:00:00Z',
-          modified: '2022-01-01T00:00:00Z',
-        },
-        {
-          name: 'b.ts',
-          type: NodeKind.File,
-          extension: '.ts',
-          created: '2024-12-31T00:00:00Z',
-          modified: '2023-06-01T00:00:00Z',
-        },
-      ],
-    };
-    const dr = {
-      minCreated: '2020-01-01T00:00:00Z',
-      maxCreated: '2024-12-31T00:00:00Z',
-      minModified: '2022-01-01T00:00:00Z',
-      maxModified: '2023-06-01T00:00:00Z',
-    };
-    // b.ts modified at maxModified → t=1.0 → lightness = LIGHTNESS_MAX (70 in test palette).
-    const color = getBuildingColor(tree.children[1], dr);
-    expect(color).toMatch(/^hsl\(215,\s*100%,\s*70%\)$/);
-  });
-
-  it('lands at LIGHTNESS_MIN when modified date == minModified', () => {
-    // Same fixture as above.
-    // a.ts modified=2022-01-01 is minModified but NOT minCreated (2020-01-01).
-    // a.ts with modified anchor: t=0.0 → S=20,  L=25 ✓
-    // a.ts with created anchor:  t≈0.4 → S≈52, L≈43 ✗  (proves the test fails today)
-    const tree = {
-      name: 'p',
-      type: NodeKind.Directory,
-      path: '.',
-      children: [
-        {
-          name: 'a.ts',
-          type: NodeKind.File,
-          extension: '.ts',
-          created: '2020-01-01T00:00:00Z',
-          modified: '2022-01-01T00:00:00Z',
-        },
-        {
-          name: 'b.ts',
-          type: NodeKind.File,
-          extension: '.ts',
-          created: '2024-12-31T00:00:00Z',
-          modified: '2023-06-01T00:00:00Z',
-        },
-      ],
-    };
-    const dr = {
-      minCreated: '2020-01-01T00:00:00Z',
-      maxCreated: '2024-12-31T00:00:00Z',
-      minModified: '2022-01-01T00:00:00Z',
-      maxModified: '2023-06-01T00:00:00Z',
-    };
-    // a.ts modified at minModified → t=0.0 → lightness = LIGHTNESS_MIN (25 in test palette).
-    const color = getBuildingColor(tree.children[0], dr);
-    expect(color).toMatch(/^hsl\(215,\s*20%,\s*25%\)$/);
+  it.each([
+    ['.md', 275],
+    ['.xyz', XYZ_HUE],
+  ])('takes the hue from the extension (%s)', (ext, hue) => {
+    const f = file(ext, '2024-12-31T00:00:00Z', RANGES.maxModified);
+    expect(getBuildingColor(f, RANGES)).toBe(`hsl(${hue}, 100%, 70%)`);
   });
 });
 
-// ---- getModifiedAge ----
 describe('getModifiedAge', () => {
-  const baseDr = {
+  const RANGES = {
     minCreated: '2024-01-01T00:00:00Z',
     maxCreated: '2024-12-31T00:00:00Z',
     minModified: '2024-01-10T09:00:00Z',
     maxModified: '2024-03-22T14:30:00Z',
   };
-
-  it('returns 1.0 for file modified at minModified (most stale)', () => {
-    const file = {
-      type: NodeKind.File,
-      created: '2024-01-01T00:00:00Z',
-      modified: '2024-01-10T09:00:00Z',
-    };
-    expect(getModifiedAge(file, baseDr)).toBe(1);
+  const at = (modified: string | null) => ({
+    type: NodeKind.File,
+    created: '2024-01-01T00:00:00Z',
+    modified,
   });
 
-  it('returns 0.0 for file modified at maxModified (most recent)', () => {
-    const file = {
-      type: NodeKind.File,
-      created: '2024-01-01T00:00:00Z',
-      modified: '2024-03-22T14:30:00Z',
-    };
-    expect(getModifiedAge(file, baseDr)).toBe(0);
+  // Polarity is inverted against the date axis: 1.0 = stalest, 0.0 = freshest.
+  it.each([
+    ['the earliest modification in the repo', RANGES.minModified, 1],
+    ['the latest modification in the repo', RANGES.maxModified, 0],
+    ['the exact midpoint of the range', '2024-02-15T11:45:00Z', 0.5],
+    ['a date before the range', '2023-01-01T00:00:00Z', 1],
+    ['a date after the range', '2025-01-01T00:00:00Z', 0],
+  ])('scores %s at %s -> %s', (_label, modified, expected) => {
+    expect(getModifiedAge(at(modified), RANGES)).toBe(expected);
   });
 
-  it('interpolates for midpoint', () => {
-    const file = {
-      type: NodeKind.File,
-      created: '2024-01-01T00:00:00Z',
-      modified: '2024-02-15T11:45:00Z',
-    };
-    const age = getModifiedAge(file, baseDr);
-    expect(age).toBeGreaterThan(0);
-    expect(age).toBeLessThan(1);
+  it('scores a file with no modified date at the midpoint', () => {
+    expect(getModifiedAge({ type: NodeKind.File }, RANGES)).toBe(0.5);
   });
 
-  it('returns 0.5 for file with no modified date', () => {
-    const file = { type: NodeKind.File } as const;
-    expect(getModifiedAge(file, baseDr)).toBe(0.5);
-  });
-
-  it('returns 0 for degenerate range (minModified === maxModified)', () => {
-    const file = {
-      type: NodeKind.File,
-      created: '2024-01-01T00:00:00Z',
-      modified: '2024-01-10T09:00:00Z',
-    };
-    const degenerate = {
-      minCreated: '2024-01-01T00:00:00Z',
-      maxCreated: '2024-12-31T00:00:00Z',
-      minModified: '2024-01-10T09:00:00Z',
-      maxModified: '2024-01-10T09:00:00Z',
-    };
-    expect(getModifiedAge(file, degenerate)).toBe(0);
-  });
-
-  it('clamps to [0, 1] for dates outside the range', () => {
-    const beforeMin = {
-      type: NodeKind.File,
-      created: '2023-01-01T00:00:00Z',
-      modified: '2023-01-01T00:00:00Z',
-    };
-    const afterMax = {
-      type: NodeKind.File,
-      created: '2025-01-01T00:00:00Z',
-      modified: '2025-01-01T00:00:00Z',
-    };
-    expect(getModifiedAge(beforeMin, baseDr)).toBe(1);
-    expect(getModifiedAge(afterMax, baseDr)).toBe(0);
+  it('scores a degenerate range as freshest', () => {
+    const degenerate = { ...RANGES, maxModified: RANGES.minModified };
+    expect(getModifiedAge(at(RANGES.minModified), degenerate)).toBe(0);
   });
 });

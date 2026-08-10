@@ -48,13 +48,12 @@ describe('createRepoLabel()', () => {
     label = null;
   });
 
-  it('returns an empty group until setRepoName is called', () => {
+  it('returns an empty group until setRepoName is called, and ticking keeps it that way', () => {
     expect(label!.group).toBeInstanceOf(THREE.Group);
     expect(label!.group.children.length).toBe(0);
-  });
 
-  it('tick is a no-op before setRepoName is called', () => {
-    expect(() => label!.tick(0.016, makeFrame(new THREE.PerspectiveCamera()))).not.toThrow();
+    label!.tick(0.016, makeFrame(new THREE.PerspectiveCamera()));
+    expect(label!.group.children.length).toBe(0);
   });
 
   it('setRepoName builds a beam + a text panel', () => {
@@ -254,12 +253,18 @@ describe('createRepoLabel()', () => {
     expect(tint.b).toBeCloseTo(0);
   });
 
-  it('dispose() stops the effect — later REPO_LABEL mutations do not throw', () => {
+  it('dispose() stops the effect: a later REPO_LABEL mutation never moves the group', () => {
     label!.setRepoName('codecity');
+    const group = label!.group;
+    const y = group.position.y;
     label!.dispose();
     label = null;
-    expect(() => {
-      REPO_LABEL.value = { ...REPO_LABEL.value, OPACITY: 0.1 };
-    }).not.toThrow();
+
+    // HEIGHT_PCT drives _applyTransform, which writes group.position with no
+    // null guard, so a subscription that outlived dispose would show up here.
+    // OPACITY would not: it only reaches the materials, behind their guards.
+    REPO_LABEL.value = { ...REPO_LABEL.value, HEIGHT_PCT: REPO_LABEL.value.HEIGHT_PCT + 25 };
+
+    expect(group.position.y).toBe(y);
   });
 });

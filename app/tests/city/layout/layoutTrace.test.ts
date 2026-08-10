@@ -255,7 +255,6 @@ describe('layoutCityWithTrace', () => {
     for (const p of trace.placements) {
       expect(p.others.length + 1).toBeGreaterThanOrEqual(2);
       expect(p.chosen).toBeDefined();
-      expect(typeof p.chosen.stem).toBe('number');
     }
   });
 

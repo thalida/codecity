@@ -49,8 +49,10 @@ export function fileLeader(
   return { path, lines, bytes, created, modified };
 }
 
-// Mirrors _author_hue in api/services/stats.py: FNV-1a over the name's UTF-8
-// bytes, mod 360 — same reason the rest of this file mirrors stats.py.
+// Not a mirror of _author_hue that has to track the backend: no test here reads
+// a hue it did not get from the stats object below. These values are frozen
+// because decorationGolden digests the orb colours they produce, so changing
+// them means regenerating a golden for no gain.
 function authorHue(name: string): number {
   let h = 0x811c9dc5 >>> 0;
   for (const byte of new TextEncoder().encode(name)) {
@@ -60,12 +62,10 @@ function authorHue(name: string): number {
   return h % 360;
 }
 
-/** Build the commit-derived RepoStats fields the tree renderer + firefly field
- *  read (commitDates, sparsest/grandest commit, authors), mirroring
- *  api/services/stats.py. Lets the rendering tests build terse commit fixtures
- *  and derive the stats the components now consume — exactly as the trees /
- *  fireflies components pass manifest.stats. The backend's test_stats.py owns
- *  extraction correctness; this only reproduces it for fixtures. */
+/** The commit-derived RepoStats fields the tree renderer and firefly field read.
+ *  Lets a test declare a handful of commits instead of a whole RepoStats.
+ *  Extraction correctness is the backend's (api/tests/services/test_stats.py);
+ *  this only has to produce the shape the components consume. */
 export function commitStats(commits: CommitEntry[]): RepoStats {
   if (commits.length === 0) return EMPTY_REPO_STATS;
   let oldest = commits[0].date;
