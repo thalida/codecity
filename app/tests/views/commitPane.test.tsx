@@ -203,136 +203,72 @@ describe('CommitPane', () => {
 
   // ── Same-day count ────────────────────────────────────────────────────────
 
-  it('shows "<label> day: N commits" when sameDayTotal > 1', async () => {
-    mount();
-    await setCommit(COMMIT, { sameDayTotal: 5, now: new Date('2026-05-24T12:00:00Z') });
-    await drainAsync();
+  const NOW = new Date('2026-05-24T12:00:00Z');
 
-    const sameDayEl = container.querySelector('.commit-same-day') as HTMLElement;
-    expect(sameDayEl).not.toBeNull();
-    expect(sameDayEl.textContent).toMatch(/day:\s*\d+ commits$/);
-    // No "that day" suffix — the date moved into the tooltip.
-    expect(sameDayEl.textContent).not.toMatch(/that day/);
+  it.each([
+    ['plural above one', 5, /day:\s*\d+ commits$/],
+    ['singular at one', 1, /day:\s*1 commit$/],
+  ])('counts the day %s', async (_label, sameDayTotal, pattern) => {
+    mount();
+    await setCommit(COMMIT, { sameDayTotal, now: NOW });
+    await drainAsync();
+    const el = container.querySelector('.commit-same-day') as HTMLElement;
+    expect(el).not.toBeNull();
+    expect(el.textContent).toMatch(pattern);
+    // The date moved into the tooltip, so no "that day" suffix on the line.
+    expect(el.textContent).not.toMatch(/that day/);
   });
 
-  it('shows "<label> day: 1 commit" (singular) when sameDayTotal === 1', async () => {
+  it('puts the full date in the same-day tooltip', async () => {
     mount();
-    await setCommit(COMMIT, { sameDayTotal: 1, now: new Date('2026-05-24T12:00:00Z') });
+    await setCommit(COMMIT, { sameDayTotal: 24, now: NOW });
     await drainAsync();
-
-    const sameDayEl = container.querySelector('.commit-same-day') as HTMLElement;
-    expect(sameDayEl).not.toBeNull();
-    expect(sameDayEl.textContent).toMatch(/day:\s*1 commit$/);
+    // Locale-aware formatting reorders the parts, so assert the parts.
+    const { title } = container.querySelector('.commit-same-day') as HTMLElement;
+    expect(title).toMatch(/^24 commits on /);
+    for (const part of [/March/, /12/, /2026/]) expect(title).toMatch(part);
   });
 
-  it('exposes the full date as the same-day tooltip', async () => {
+  // The swatch is the day's tree colour, so it needs both a colour to show and
+  // a non-zero count to belong to. It lives in the line, never the header.
+  it.each([
+    ['both a colour and a count', { color: '#5e8a3a', sameDayTotal: 3 }, true],
+    ['no colour', { sameDayTotal: 3 }, false],
+    ['no count', { color: '#5e8a3a' }, false],
+    ['a zero count', { color: '#5e8a3a', sameDayTotal: 0 }, false],
+  ])('shows the swatch only with %s', async (_label, opts, shown) => {
     mount();
-    await setCommit(COMMIT, { sameDayTotal: 24, now: new Date('2026-05-24T12:00:00Z') });
+    await setCommit(COMMIT, { ...opts, now: NOW });
     await drainAsync();
-
-    const sameDayEl = container.querySelector('.commit-same-day') as HTMLElement;
-    expect(sameDayEl.title).toMatch(/^24 commits on /);
-    // The COMMIT fixture is 2026-03-12 — assert the formatted date shows
-    // the right year, month name, and day. Locale-aware formatting may
-    // produce "March 12, 2026" or "12 March 2026" depending on the
-    // runner's locale; just check the salient parts are present.
-    expect(sameDayEl.title).toMatch(/March/);
-    expect(sameDayEl.title).toMatch(/12/);
-    expect(sameDayEl.title).toMatch(/2026/);
-  });
-
-  it('omits .commit-same-day when sameDayTotal is not provided', async () => {
-    mount();
-    await setCommit(COMMIT, { now: new Date('2026-05-24T12:00:00Z') });
-    await drainAsync();
-
-    expect(container.querySelector('.commit-same-day')).toBeNull();
-  });
-
-  it('shows a colored swatch inside .commit-same-day when color is provided', async () => {
-    mount();
-    await setCommit(COMMIT, {
-      color: '#5e8a3a',
-      sameDayTotal: 3,
-      now: new Date('2026-05-24T12:00:00Z'),
-    });
-    await drainAsync();
-
-    // Swatch lives inside .commit-same-day, NOT in the pane header.
     const swatch = container.querySelector('.commit-same-day > .commit-swatch') as HTMLElement;
-    expect(swatch).not.toBeNull();
-    expect(swatch.style.backgroundColor).toBe('rgb(94, 138, 58)'); // jsdom converts hex to rgb
-
-    // No swatch in the header.
+    expect(swatch != null).toBe(shown);
+    if (shown) expect(swatch.style.backgroundColor).toBe('rgb(94, 138, 58)');
     expect(container.querySelector('.pane-header .commit-swatch')).toBeNull();
   });
 
-  it('omits .commit-swatch when color is undefined', async () => {
+  it('omits the same-day line entirely when no total is given', async () => {
     mount();
-    await setCommit(COMMIT, { sameDayTotal: 3, now: new Date('2026-05-24T12:00:00Z') });
+    await setCommit(COMMIT, { now: NOW });
     await drainAsync();
-
-    expect(container.querySelector('.commit-swatch')).toBeNull();
+    expect(container.querySelector('.commit-same-day')).toBeNull();
   });
 
-  it('omits .commit-swatch when sameDayTotal is undefined or 0', async () => {
-    mount();
-    // sameDayTotal undefined
-    await setCommit(COMMIT, { color: '#5e8a3a', now: new Date('2026-05-24T12:00:00Z') });
-    await drainAsync();
-    expect(container.querySelector('.commit-swatch')).toBeNull();
-
-    // sameDayTotal === 0
-    await setCommit(COMMIT, {
-      color: '#5e8a3a',
-      sameDayTotal: 0,
-      now: new Date('2026-05-24T12:00:00Z'),
-    });
-    await drainAsync();
-    expect(container.querySelector('.commit-swatch')).toBeNull();
-  });
-
-  // ── Busyness label ────────────────────────────────────────────────────────
-  // Tests pass explicit busynessThresholds so the label logic is exercised
-  // deterministically. In production the thresholds are derived per-repo
-  // from manifest.commits via dailyCommitThresholds() — see rightSidebar.tsx.
-
-  const TEST_THRESHOLDS = { avg: 3, busy: 8 };
-
-  it('labels sameDayTotal=1 as a Light day', async () => {
+  // Production derives these per repo from manifest.commits via
+  // dailyCommitThresholds(); passing them explicitly pins the banding.
+  it.each([
+    [1, 'Light day'],
+    [5, 'Avg day'],
+    [20, 'Busy day'],
+  ])('bands %i commits as a %s', async (sameDayTotal, label) => {
     mount();
     await setCommit(COMMIT, {
-      sameDayTotal: 1,
-      busynessThresholds: TEST_THRESHOLDS,
+      sameDayTotal,
+      busynessThresholds: { avg: 3, busy: 8 },
       color: '#abc',
-      now: new Date('2026-05-24T12:00:00Z'),
+      now: NOW,
     });
     await drainAsync();
-    expect(container.querySelector('.commit-same-day')!.textContent).toMatch(/Light day/);
-  });
-
-  it('labels sameDayTotal=5 as an Avg day', async () => {
-    mount();
-    await setCommit(COMMIT, {
-      sameDayTotal: 5,
-      busynessThresholds: TEST_THRESHOLDS,
-      color: '#abc',
-      now: new Date('2026-05-24T12:00:00Z'),
-    });
-    await drainAsync();
-    expect(container.querySelector('.commit-same-day')!.textContent).toMatch(/Avg day/);
-  });
-
-  it('labels sameDayTotal=20 as a Busy day', async () => {
-    mount();
-    await setCommit(COMMIT, {
-      sameDayTotal: 20,
-      busynessThresholds: TEST_THRESHOLDS,
-      color: '#abc',
-      now: new Date('2026-05-24T12:00:00Z'),
-    });
-    await drainAsync();
-    expect(container.querySelector('.commit-same-day')!.textContent).toMatch(/Busy day/);
+    expect(container.querySelector('.commit-same-day')!.textContent).toContain(label);
   });
 
   // ── Pane header title ─────────────────────────────────────────────────────
@@ -637,36 +573,20 @@ describe('CommitPane', () => {
 
   // ── Skeleton-on-mount (perf + layout refactor) ────────────────────────────
 
-  it('renders authors synchronously on setCommit, BEFORE the fetch resolves', async () => {
-    // Block the fetch indefinitely so the skeleton MUST appear without it.
-    globalThis.fetch = (() => new Promise(() => {})) as unknown as typeof fetch;
-    mount();
-    await setCommit(COMMIT, { now: new Date('2026-05-24T12:00:00Z') });
-    // The drainAsync above only settles the render; the fetch never
-    // resolves, so these assertions exercise the pre-fetch skeleton.
-    expect(container.querySelector('.commit-author')).not.toBeNull();
-    expect(container.querySelector('.commit-author-name')!.textContent).toBe('Alice Author');
-  });
-
-  it('renders meta (age + files) synchronously on setCommit', async () => {
-    globalThis.fetch = (() => new Promise(() => {})) as unknown as typeof fetch;
-    mount();
-    await setCommit(COMMIT, { now: new Date('2026-05-24T12:00:00Z') });
-    expect(container.querySelector('.commit-age')!.textContent).toContain('2 months 12 days ago');
-    expect(container.querySelector('.commit-files')!.textContent).toBe('4 files changed');
-  });
-
-  it('renders subject synchronously on setCommit', async () => {
-    globalThis.fetch = (() => new Promise(() => {})) as unknown as typeof fetch;
-    mount();
-    await setCommit(COMMIT, { now: new Date('2026-05-24T12:00:00Z') });
-    expect(container.querySelector('.commit-message-subject')!.textContent).toBe(COMMIT.subject);
-  });
-
-  it('renders same-day badge synchronously when sameDayTotal > 0', async () => {
+  // Everything except the body comes off the CommitEntry the picker already
+  // has, so a blocked fetch must not delay any of it. fetch never resolves
+  // here, so these assertions can only pass on the pre-fetch render.
+  it.each([
+    ['the author', '.commit-author-name', 'Alice Author'],
+    ['the age', '.commit-age', '2 months 12 days ago'],
+    ['the file count', '.commit-files', '4 files changed'],
+    ['the subject', '.commit-message-subject', COMMIT.subject],
+  ])('paints %s before the body fetch resolves', async (_label, selector, text) => {
     globalThis.fetch = (() => new Promise(() => {})) as unknown as typeof fetch;
     mount();
     await setCommit(COMMIT, { sameDayTotal: 5, now: new Date('2026-05-24T12:00:00Z') });
+    expect(container.querySelector(selector)!.textContent).toContain(text);
+    // The same-day line is part of the same synchronous paint.
     expect(container.querySelector('.commit-same-day')).not.toBeNull();
   });
 
