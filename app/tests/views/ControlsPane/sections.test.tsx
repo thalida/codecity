@@ -11,7 +11,8 @@ import { TREES } from '@/state/stores/settings/trees';
 import { STREETS, STREET_TIERS, STREET_LAYOUT } from '@/state/stores/settings/streets';
 import { BUILDING_DIMENSIONS, BUILDINGS } from '@/state/stores/settings/buildings';
 import { FOOTPRINT } from '@/state/stores/settings/footprint';
-import { getFieldKeys } from '@/state/settingsSchema';
+import { WORLD_SECTIONS } from '@/views/ControlsPane/ControlsPane';
+import { getFieldKeys, isAutosave } from '@/state/settingsSchema';
 import { flush } from '../../_helpers/preact';
 
 // Walk a section's node tree and collect every field reference (depth-first).
@@ -90,6 +91,28 @@ describe('BUILDINGS_SECTION placement', () => {
   });
 });
 
+// A section mounts its body on first open, so these tests open it the way a
+// user does before asserting on the fields inside.
+async function openSections(root: HTMLElement): Promise<void> {
+  root
+    .querySelectorAll<HTMLButtonElement>('.controls-section-summary .controls-disclosure-toggle')
+    .forEach((t) => t.click());
+  await flush();
+}
+
+describe('World tab uniformity', () => {
+  it('has no write-through fields: every one stages into the footer', () => {
+    const writeThrough = WORLD_SECTIONS.flatMap((s) =>
+      collectRefs(s.children ?? [])
+        .filter((r) => isAutosave(r.store as object))
+        .map((r) => `${s.key}.${r.key}`)
+    );
+    // An autosave store here would skip staging AND be ignored by Reset all
+    // (stageResetAll / anyResettable both bow out of autosave stores).
+    expect(writeThrough, writeThrough.join(', ')).toEqual([]);
+  });
+});
+
 describe('DynamicSection rendering', () => {
   let container: HTMLDivElement;
   afterEach(() => {
@@ -104,6 +127,7 @@ describe('DynamicSection rendering', () => {
     document.body.appendChild(container);
     render(<DynamicSection node={TREES_SECTION} />, container);
     await flush();
+    await openSections(container);
 
     // Section + subgroup headers.
     expect(container.textContent).toContain('Trees');
@@ -121,6 +145,7 @@ describe('DynamicSection rendering', () => {
     // Buildings nests Section > Facade (depth 2) > Geometry (depth 3).
     render(<DynamicSection node={BUILDINGS_SECTION} />, container);
     await flush();
+    await openSections(container);
 
     const toggles = Array.from(container.querySelectorAll('.controls-disclosure-toggle')).map(
       (s) => s.textContent ?? ''

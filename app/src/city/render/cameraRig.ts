@@ -354,10 +354,9 @@ export function createCameraRig({
     untracked(_captureFraming);
   });
 
-  // Re-frame live when the user drags the default camera angle. CAMERA is an
-  // autosave store, so the slider writes through immediately; reset() reads the
-  // fresh angle (via _captureFraming) and hard-snaps to the new pose. Subscribes
-  // to CAMERA only; on construction bbox is empty so reset() no-ops.
+  // Re-frame when a saved draft changes the default camera angle: reset() reads
+  // the fresh angle (via _captureFraming) and hard-snaps to the new pose.
+  // Subscribes to CAMERA only; on construction bbox is empty so reset() no-ops.
   const _disposeCameraAngleEffect = effect(() => {
     void CAMERA.value;
     untracked(reset);
@@ -698,8 +697,8 @@ export function createCameraRig({
     controls.autoRotate = false;
   }
 
-  // SHOWCASE is autosave, so a slider drag writes through and the orbit re-frames
-  // live behind the switcher.
+  // Saving a Showcase draft re-frames a running turntable in place, so the
+  // backdrop reflects the new pose without leaving and reopening the switcher.
   const _disposeShowcasePoseEffect = effect(() => {
     void SHOWCASE_POSE.value;
     untracked(() => {

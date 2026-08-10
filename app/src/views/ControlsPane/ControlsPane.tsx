@@ -38,6 +38,24 @@ import { Pane } from '@/components/Pane';
 import { PaneCloseButton } from '@/components/PaneHeader/PaneHeader';
 import { PaneTabs } from '@/components/PaneTabs/PaneTabs';
 
+/** The World tab's sections. Hoisted out of the render because a test asserts
+ *  the invariant that every field under here is draft-backed: World settings all
+ *  stage into the footer's Save/Discard/Reset, with no write-through exceptions. */
+export const WORLD_SECTIONS: SectionNode[] = [
+  CAMERA_SECTION,
+  SHOWCASE_SECTION,
+  SCENE_SECTION,
+  ISLAND_SECTION,
+  BUILDINGS_SECTION,
+  STREETS_SECTION,
+  FOOTPRINT_SECTION,
+  GEM_SECTION,
+  TREES_SECTION,
+  FIREFLIES_SECTION,
+  EFFECTS_SECTION,
+  TIMELINE_SECTION,
+];
+
 interface Subtab {
   id: string;
   label: string;
@@ -93,20 +111,7 @@ export function ControlsPane({ onClose, collapsed }: ControlsPaneProps) {
       icon: Boxes,
       badge: WORLD_COUNT.value,
       draftable: true,
-      sections: [
-        CAMERA_SECTION,
-        SHOWCASE_SECTION,
-        SCENE_SECTION,
-        ISLAND_SECTION,
-        BUILDINGS_SECTION,
-        STREETS_SECTION,
-        FOOTPRINT_SECTION,
-        GEM_SECTION,
-        TREES_SECTION,
-        FIREFLIES_SECTION,
-        EFFECTS_SECTION,
-        TIMELINE_SECTION,
-      ],
+      sections: WORLD_SECTIONS,
     },
   ];
 

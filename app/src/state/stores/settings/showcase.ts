@@ -1,12 +1,11 @@
 // state/stores/settings/showcase.ts — the hero turntable the switcher and the
 // featured city drive the world into: a ground-level orbit circling the root
-// gem. Autosave (write-through) so dragging a slider re-frames it live.
+// gem. Draft-backed like the rest of the World tab; the rig re-frames on save.
 //
 // ChangeRoute.Live: no rebuild/refresh reaction; the rig drives the update.
 
 import {
   settingSignal,
-  markAutosave,
   FieldKind,
   ChangeRoute,
   type ConfigOf,
@@ -57,5 +56,4 @@ const SHOWCASE_FIELDS = {
 } satisfies FieldMap;
 
 export const SHOWCASE = settingSignal('SHOWCASE', SHOWCASE_FIELDS);
-markAutosave(SHOWCASE);
 export type ShowcaseConfig = ConfigOf<typeof SHOWCASE_FIELDS>;
