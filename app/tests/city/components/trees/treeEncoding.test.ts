@@ -18,8 +18,8 @@ import {
 } from '@/city/components/trees/treeEncoding';
 import type { TreesConfig } from '@/state/stores/settings/trees';
 import type { CommitEntry } from '@/types';
-import { commits as buildCommits } from './_commitFixtures';
-import { commitStats } from '../../_helpers/statsFixtures';
+import { commits as buildCommits } from '../../../_helpers/commits';
+import { commitStats } from '../../../_helpers/statsFixtures';
 
 const commits: CommitEntry[] = buildCommits(
   { date: '2026-01-01', files: 1 },
@@ -229,7 +229,7 @@ describe('dailyCountT()', () => {
 });
 
 describe('dailyCountTByIndex()', () => {
-  // _commitFixtures bakes same_day_total from the date grouping (mirroring the
+  // The commits helper bakes same_day_total from the date grouping (as the
   // backend), so these dates produce same_day_total = {1,1,1,4,4,4,4}.
   const cs = buildCommits(
     { date: '2026-01-01', files: 1 }, // same_day_total=1 → t=0

@@ -3,7 +3,7 @@ import { placeFireflies } from '@/city/components/fireflies/firefliesPlacement';
 import { FIREFLIES } from '@/state/stores/settings/fireflies';
 import type { CommitEntry } from '@/types';
 import type { TreePlacement } from '@/city/components/trees/treePlacement';
-import { commitStats } from '../../_helpers/statsFixtures';
+import { commitStats } from '../../../_helpers/statsFixtures';
 
 const COMMITS: CommitEntry[] = [
   {

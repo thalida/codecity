@@ -9,8 +9,8 @@ import {
   emptyLayout,
   resetTreesConfig,
   resetBuildingsConfig,
-} from '../../_helpers/cityFixtures';
-import { building } from '../../_helpers/buildingFixture';
+} from '../../../_helpers/cityFixtures';
+import { building } from '../../../_helpers/buildingFixture';
 
 describe('placeTrees (commit-driven)', () => {
   beforeEach(() => {

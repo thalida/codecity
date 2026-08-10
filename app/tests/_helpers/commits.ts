@@ -26,6 +26,8 @@ export function commits(
     subject: `commit ${i}`,
     same_day_total: perDay.get(e.date) ?? 1,
     ...e,
-    sha: e.sha ?? 'a'.repeat(40),
+    // Distinct per entry: the sha-keyed lookups (findTreeBySha, colorForSha)
+    // cannot be exercised when every fixture commit shares one.
+    sha: e.sha ?? String(i).padStart(40, '0'),
   }));
 }
