@@ -20,6 +20,7 @@ import { FilePreviewSection } from './partials/FilePreviewSection';
 import { InterfaceThemeSection } from './partials/InterfaceThemeSection';
 import { DynamicSection, type SectionNode } from './partials';
 import { CAMERA_SECTION } from './partials/Camera';
+import { SHOWCASE_SECTION } from './partials/Showcase';
 import { SCENE_SECTION } from './partials/Scene';
 import { ISLAND_SECTION } from './partials/Island';
 import { BUILDINGS_SECTION } from './partials/Buildings';
@@ -94,6 +95,7 @@ export function ControlsPane({ onClose, collapsed }: ControlsPaneProps) {
       draftable: true,
       sections: [
         CAMERA_SECTION,
+        SHOWCASE_SECTION,
         SCENE_SECTION,
         ISLAND_SECTION,
         BUILDINGS_SECTION,

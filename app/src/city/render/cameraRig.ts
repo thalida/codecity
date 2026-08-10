@@ -27,7 +27,7 @@
 // default gem-framing position.
 
 import * as THREE from 'three';
-import { effect, untracked } from '@preact/signals';
+import { computed, effect, untracked } from '@preact/signals';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import {
   CAMERA_FOV,
@@ -40,17 +40,20 @@ import {
   CAMERA_INITIAL_DISTANCE_MULT,
   CAMERA_BASE_DURATION_MS,
   CAMERA_EASING_POWER,
-  SHOWCASE_FILL_MULT,
-  SHOWCASE_ELEVATION_DEG,
-  SHOWCASE_AZIMUTH_DEG,
-  SHOWCASE_TARGET_Y_FRAC,
-  SHOWCASE_ROTATE_SPEED,
 } from '@/constants/camera';
 import { NodeKind, StreetAxis } from '@/types';
 import type { Building, PickTarget, Street } from '@/types';
 import type { CityState } from '@/city/state';
 import { computeFramingDir } from './framingDir';
 import { CAMERA } from '@/state/stores/settings/camera';
+import { SHOWCASE } from '@/state/stores/settings/showcase';
+
+// The showcase fields that PLACE the camera. Rotation speed is out: dragging it
+// mid-spin should change the speed, not yank the orbit back to its start azimuth.
+const SHOWCASE_POSE = computed(() => {
+  const s = SHOWCASE.value;
+  return `${s.ELEVATION}|${s.AZIMUTH}|${s.DISTANCE}`;
+});
 
 /** Narrow accessor surface the rig needs from the composer for component
  *  geometry (repoLabel/trees). World framing inputs (bbox, gem, root street,
@@ -622,6 +625,10 @@ export function createCameraRig({
   // hard-snaps back with applyPose() on dismiss. Both transitions snap (no
   // tween): the entry animation read as jarring on top of the chrome-hide.
 
+  // Non-null while the turntable runs; carries the caller's autoRotate so a
+  // settings change can re-enter on the same terms.
+  let showcaseMode: { autoRotate: boolean } | null = null;
+
   function getPose(): CameraPose {
     return {
       position: camera.position.clone(),
@@ -650,45 +657,67 @@ export function createCameraRig({
     _snapTo(pose.target, pose.position, pose.up);
   }
 
-  /** Snap to a tight, low, whole-city frame and (optionally) start spinning. */
+  /** The radius the showcase orbits the gem at: the configured distance, pulled in
+   *  when it would swing the camera off the island. The widest circle a
+   *  rectangular floor contains is its shorter half-extent. */
+  function _showcaseRadius(distance: number): number {
+    const bounds = cityState.latestWorldBounds.value;
+    const islandRadius = bounds ? Math.min(bounds.halfWidth, bounds.halfDepth) : distance;
+    return Math.max(Math.min(distance, islandRadius), controls.minDistance);
+  }
+
+  /** Snap to a ground-level orbit circling the root gem and (optionally) start
+   *  spinning. Distance is held constant rather than fitted to the city, so
+   *  every project reads at the same scale — a big repo just puts more city
+   *  between the camera and the gem. */
   function enterShowcase({ autoRotate }: { autoRotate: boolean }): void {
-    const a = captureAnchors();
-    if (a.center && a.cityRadius > 0) {
-      // Frame against the viewport the canvas is ABOUT to fill once the chrome
-      // is hidden, not its current sidebar-constrained aspect — otherwise the
-      // zoom distance depends on how much room the city had when the switcher
-      // opened (e.g. whether the right sidebar was showing).
-      const aspect = window.innerWidth / Math.max(1, window.innerHeight);
-      const halfV = (camera.fov * Math.PI) / 180 / 2;
-      const halfH = Math.atan(Math.tan(halfV) * aspect);
-      const halfFov = Math.min(halfV, halfH);
-      const dist = Math.max(
-        (a.cityRadius / Math.sin(halfFov)) * SHOWCASE_FILL_MULT,
-        controls.minDistance
-      );
-      const target = new THREE.Vector3(
-        a.center.x,
-        a.tallestHeight * SHOWCASE_TARGET_Y_FRAC,
-        a.center.z
-      );
+    showcaseMode = { autoRotate };
+    // Off across the snap: _snapTo ends in controls.update(), which would advance
+    // an already-spinning orbit past the azimuth just placed.
+    controls.autoRotate = false;
+    const gem = cityState.gemWorldPos.value;
+    const showcase = SHOWCASE.value;
+    if (gem) {
       const dir = computeFramingDir(
-        SHOWCASE_ELEVATION_DEG,
-        SHOWCASE_AZIMUTH_DEG,
+        showcase.ELEVATION,
+        showcase.AZIMUTH,
         cityState.rootStreet.value?.orientation ?? null
       );
-      _snapTo(target, target.clone().addScaledVector(dir, dist), new THREE.Vector3(0, 1, 0));
+      const target = gem.clone();
+      _snapTo(
+        target,
+        target.clone().addScaledVector(dir, _showcaseRadius(showcase.DISTANCE)),
+        new THREE.Vector3(0, 1, 0)
+      );
     }
     controls.autoRotate = autoRotate;
-    controls.autoRotateSpeed = SHOWCASE_ROTATE_SPEED;
   }
 
   function exitShowcase(): void {
+    showcaseMode = null;
     controls.autoRotate = false;
   }
+
+  // SHOWCASE is autosave, so a slider drag writes through and the orbit re-frames
+  // live behind the switcher.
+  const _disposeShowcasePoseEffect = effect(() => {
+    void SHOWCASE_POSE.value;
+    untracked(() => {
+      if (showcaseMode) enterShowcase(showcaseMode);
+    });
+  });
+
+  // Sole writer of autoRotateSpeed: runs on construction and on every change, so
+  // enterShowcase never has to set it.
+  const _disposeShowcaseSpeedEffect = effect(() => {
+    controls.autoRotateSpeed = SHOWCASE.value.ROTATE_SPEED;
+  });
 
   function dispose() {
     _disposeReframeEffect();
     _disposeCameraAngleEffect();
+    _disposeShowcasePoseEffect();
+    _disposeShowcaseSpeedEffect();
     if (typeof controls.dispose === 'function') controls.dispose();
   }
 

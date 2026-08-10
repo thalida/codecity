@@ -4,6 +4,8 @@ import { DynamicSection, type SectionChild, type FieldRef } from '@/views/Contro
 import { TREES_SECTION } from '@/views/ControlsPane/partials/Trees';
 import { STREETS_SECTION } from '@/views/ControlsPane/partials/Streets';
 import { FOOTPRINT_SECTION } from '@/views/ControlsPane/partials/Footprint';
+import { SHOWCASE_SECTION } from '@/views/ControlsPane/partials/Showcase';
+import { SHOWCASE } from '@/state/stores/settings/showcase';
 import { BUILDINGS_SECTION } from '@/views/ControlsPane/partials/Buildings';
 import { TREES } from '@/state/stores/settings/trees';
 import { STREETS, STREET_TIERS, STREET_LAYOUT } from '@/state/stores/settings/streets';
@@ -59,6 +61,16 @@ describe('FOOTPRINT_SECTION placement', () => {
     expect(placed.slice().sort()).toEqual(getFieldKeys(FOOTPRINT as object).sort());
     expect(new Set(placed).size).toBe(placed.length);
     expect(refs.every((r) => r.store === (FOOTPRINT as unknown))).toBe(true);
+  });
+});
+
+describe('SHOWCASE_SECTION placement', () => {
+  it('places every SHOWCASE field exactly once', () => {
+    const refs = collectRefs(SHOWCASE_SECTION.children ?? []);
+    const placed = refs.map((r) => r.key);
+    expect(placed.slice().sort()).toEqual(getFieldKeys(SHOWCASE as object).sort());
+    expect(new Set(placed).size).toBe(placed.length);
+    expect(refs.every((r) => r.store === (SHOWCASE as unknown))).toBe(true);
   });
 });
 
