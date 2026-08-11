@@ -38,17 +38,14 @@ _NOT_GIT_ERROR = (
 
 # A linked worktree fails the same check as a plain directory, so without this
 # the answer would be `git init` — wrong advice for somewhere already tracked.
-# Names the directory to add rather than the one that was missing: the fix is a
-# mount, and the gitdir alone doesn't say which path to mount.
+# Names the repository, not the gitdir pointer inside it: the repository is what
+# has to be mounted. Terse for the same reason as _LOCAL_DISABLED_ERROR, the UI
+# pairs it with the remedy and a docs link.
 _WORKTREE_GITDIR_ERROR = (
-    "path is a git worktree, and the repository it belongs to is not "
-    "reachable at {repo}. Make that directory available too (mount it, or "
-    "add it to CODECITY_MOUNT), or open it instead of the worktree."
+    "path is a git worktree, but its repository at {repo} is not mounted."
 )
 _WORKTREE_GITDIR_ERROR_BARE = (
-    "path is a git worktree, and its git directory is not reachable at "
-    "{gitdir}. Make that directory available too, or open the repository "
-    "it belongs to instead."
+    "path is a git worktree, but its git directory at {gitdir} is not mounted."
 )
 
 # Terse on purpose: the UI pairs this with a "how to enable" notice + link, so

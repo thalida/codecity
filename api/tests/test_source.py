@@ -56,16 +56,14 @@ class LocalGitErrorTests(unittest.TestCase):
     """The message is the fix: `just dev` mounts exactly what a deployed
     instance mounts, so a contributor hits this the same way a user does."""
 
-    def test_worktree_names_the_repository_to_make_available(self) -> None:
+    def test_worktree_names_the_repository_to_open(self) -> None:
         with TemporaryDirectory() as tmp:
             root = Path(tmp)
             (root / ".git").write_text("gitdir: /Users/me/code/proj/.git/worktrees/x\n")
             message = source._local_git_error(root)
             self.assertIn("/Users/me/code/proj", message)
-            # Naming the pointer instead would leave the reader to work out
-            # which directory to actually mount.
+            # The pointer is not something the reader can act on.
             self.assertNotIn("worktrees/x", message)
-            self.assertIn("CODECITY_MOUNT", message)
 
     def test_worktree_with_an_odd_gitdir_still_names_something_actionable(self) -> None:
         with TemporaryDirectory() as tmp:
