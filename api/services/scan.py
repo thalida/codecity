@@ -25,7 +25,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable, Iterable, Iterator, NamedTuple
 
-from api.config import quiet
+from api.config import MAX_WIRE_COMMITS, quiet
 from api.models.events import ScanEvent
 from .date_utils import max_iso, min_iso
 from . import gitobj
@@ -1433,6 +1433,17 @@ def _compute_busyness(commits: list[CommitEntry]) -> BusynessThresholds:
     return {"avg": avg, "busy": busy}
 
 
+def _sample_commits(commits: list[CommitEntry]) -> list[CommitEntry]:
+    """At most MAX_WIRE_COMMITS, evenly strided with both ends kept. The
+    renderer already strides deep histories down to its placement grid; this
+    moves that sampling upstream of the wire."""
+    total = len(commits)
+    if total <= MAX_WIRE_COMMITS:
+        return commits
+    stride = (total - 1) / max(1, MAX_WIRE_COMMITS - 1)
+    return [commits[round(i * stride)] for i in range(MAX_WIRE_COMMITS)]
+
+
 def _wrap_manifest(
     root_abs: str,
     tree: DirNode,
@@ -1441,11 +1452,16 @@ def _wrap_manifest(
     repo_info: RepoInfo,
     commits: list[CommitEntry],
     pending: list[ScanStage],
+    *,
+    sample_commits: bool = True,
 ) -> Manifest:
     """Build a Manifest envelope around an already-built tree.
 
     The emits differ only in the `tree` they pass in and what `pending`
-    declares is still provisional. The envelope shape is the same either way."""
+    declares is still provisional. The envelope shape is the same either way.
+
+    `commits` is the full history: aggregates read it whole, only the wire
+    array is sampled."""
     _annotate_same_day_totals(commits)
     # Canonical repo display name, set once at manifest creation and cached with
     # it: prefer the git remote's "owner/repo" over the on-disk root basename (a
@@ -1464,7 +1480,7 @@ def _wrap_manifest(
         "layout_signature": signals.layout_signature,
         "tree": tree,
         "repo": repo_info,
-        "commits": commits,
+        "commits": _sample_commits(commits) if sample_commits else commits,
         "pending": pending,
         "busyness": _compute_busyness(commits),
         "dateRanges": signals.date_ranges,

@@ -26,6 +26,10 @@ GZIP_MIN_BYTES = 256
 # Paths accepted per POST /api/images or /api/fingerprints; served over
 # /api/config so the client chunks to the same number instead of guessing.
 MAX_BATCH_PATHS = 64
+# Commits carried on the manifest wire. Matches the renderer's tree cap
+# (treePlacement.ts TREE_MAX_CELLS) — beyond it the array is parsed only to
+# be skipped. Aggregates are still computed over the full history.
+MAX_WIRE_COMMITS = 100_000
 
 DISCOVER_FILE = Path(__file__).parent / "discover.json"
 

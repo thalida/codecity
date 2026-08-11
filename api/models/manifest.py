@@ -230,6 +230,9 @@ class RepoStats(BaseModel):
     minChildrenDir: Optional[DirLeader]
     maxFilesPerCommit: Optional[CommitLeader]
     minFilesPerCommit: Optional[CommitLeader]
+    commitCount: int = Field(
+        description="Commits in the full history, however many `commits` carries"
+    )
     commitDates: CommitDateRange
     maxCommitsPerDay: Optional[DayLeader]
     maxCommitStreakDays: int
@@ -252,7 +255,12 @@ class Manifest(BaseModel):
     layout_signature: str
     tree: DirNode
     repo: RepoInfo
-    commits: list[CommitEntry]
+    commits: list[CommitEntry] = Field(
+        description=(
+            "Oldest-first. Above 100k, an evenly strided sample of the history; "
+            "stats.commitCount is the true total."
+        )
+    )
     busyness: BusynessThresholds
     dateRanges: DateRanges
     stats: RepoStats

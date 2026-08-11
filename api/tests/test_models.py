@@ -147,6 +147,7 @@ class ModelTests(unittest.TestCase):
                 "minChildrenDir": None,
                 "maxFilesPerCommit": None,
                 "minFilesPerCommit": None,
+                "commitCount": 0,
                 "commitDates": {"oldest": None, "newest": None},
                 "maxCommitsPerDay": None,
                 "maxCommitStreakDays": 0,

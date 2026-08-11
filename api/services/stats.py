@@ -261,6 +261,7 @@ def compute_repo_stats(tree: DirNode, commits: list[CommitEntry]) -> RepoStats:
         "minChildrenDir": _dir_leader(smallest),
         "maxFilesPerCommit": _commit_leader(grandest),
         "minFilesPerCommit": _commit_leader(sparsest),
+        "commitCount": len(commits),
         # YYYY-MM-DD sorts lexically in chronological order, so min/max are exact.
         "commitDates": {"oldest": oldest_commit, "newest": newest_commit},
         "maxCommitsPerDay": busiest_day,

@@ -270,6 +270,8 @@ class RepoStats(TypedDict):
     minChildrenDir: DirLeader | None
     maxFilesPerCommit: CommitLeader | None
     minFilesPerCommit: CommitLeader | None
+    # Full history; Manifest.commits may carry a sample of it.
+    commitCount: int
     commitDates: CommitDateRange
     maxCommitsPerDay: DayLeader | None
     maxCommitStreakDays: int
