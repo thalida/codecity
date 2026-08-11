@@ -175,7 +175,7 @@ const BUILDINGS_FIELDS = {
   HALF_LIFE_DAYS: {
     route: ChangeRoute.Rebuild,
     kind: FieldKind.Slider,
-    default: 30,
+    default: 90,
     min: 1,
     max: 730,
     step: 1,
