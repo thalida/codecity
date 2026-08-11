@@ -190,7 +190,7 @@ export const SHOTS: Record<string, ShotPose> = {
     const anchor = target.clone();
     const elevation = o.elev ?? 30;
     const distance = o.dist ?? anchors.cityRadius * 0.95;
-    const durationMs = (o.az ?? 18) * 1000;
+    const durationMs = (o.az ?? 24) * 1000;
     let startMs: number | null = null;
     const step = (nowMs: number): void => {
       if (startMs === null) {
@@ -237,13 +237,13 @@ export const SHOTS: Record<string, ShotPose> = {
     // focusTree) at a low angle, so the single tree fills the frame.
     const span = tree.radius * 2;
     const boundingRadius = 0.5 * Math.sqrt(span * span * 2 + tree.height * tree.height);
-    tree.pos.y = tree.height * 0.45;
+    tree.pos.y = tree.height * 0.85;
     handle.rig.captureView({
       target: tree.pos,
       distance: o.dist, // omitted -> fit the bounding sphere below
       fitRadius: boundingRadius,
-      padding: 1.6,
-      elevation: o.elev ?? 8,
+      padding: 2.2,
+      elevation: o.elev ?? 4,
       azimuth: o.az ?? 30,
     });
   },

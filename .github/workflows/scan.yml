@@ -12,7 +12,7 @@ jobs:
     permissions:
       contents: read
       packages: read
-      issues: write       # to open an issue on new findings
+      issues: write # to open an issue on new findings
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -25,7 +25,7 @@ jobs:
           format: json
           severity: HIGH,CRITICAL
           ignore-unfixed: true
-          exit-code: 0    # don't fail; we open an issue instead
+          exit-code: 0 # don't fail; we open an issue instead
           output: trivy-results.json
 
       - name: Check for findings

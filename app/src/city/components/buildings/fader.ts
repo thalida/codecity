@@ -66,8 +66,7 @@ export function createBuildingFader({
     const cells = world.getCells();
     for (const cell of cells.values()) {
       const iFadeAttr = cell.detailMesh.geometry.getAttribute('iFade') as
-        | THREE.BufferAttribute
-        | undefined;
+        THREE.BufferAttribute | undefined;
       if (!iFadeAttr) continue;
 
       for (let slot = 0; slot < cell.buildings.length; slot++) {

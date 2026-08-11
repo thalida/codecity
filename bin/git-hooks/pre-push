@@ -6,7 +6,8 @@
 #   1. Python tests (api/) — pytest
 #   2. Python format — ruff format --check
 #   3. Frontend tests (app/) — vitest
-#   4. Frontend lint + prettier + typecheck (app/)
+#   4. Frontend lint + typecheck (app/)
+#   5. Formatting — prettier --check (whole repo, from the root)
 #
 # Every step runs in a container, so the gate doesn't depend on whatever the
 # host happens to have installed — a fresh worktree could not push before this.
@@ -27,11 +28,15 @@ docker compose -f docker-compose.test.yml run --rm ruff >/dev/null
 echo "[pre-push] 3/4  vitest (app/)"
 docker compose -f docker-compose.test.yml run --rm vitest >/dev/null
 
-# One container for all three: each is seconds of work behind a slow start.
+# One container for both: each is seconds of work behind a slow start.
 # Same command `just lint` runs, so the gate and the recipe can't diverge.
-echo "[pre-push] 4/4  eslint + prettier + typecheck (app/)"
+echo "[pre-push] 4/5  eslint + typecheck (app/)"
 NPM_VERSION=$(grep '^NPM_VERSION=' .env | cut -d= -f2)
 docker compose -f docker-compose.test.yml run --rm vitest \
-    sh -c "npm install -g npm@$NPM_VERSION && npm ci && npm run lint && npm run typecheck && npm run format:check" >/dev/null
+    sh -c "npm install -g npm@$NPM_VERSION && npm ci && npm run lint && npm run typecheck" >/dev/null
+
+# Its own container: the app-scoped vitest service can't see the root config.
+echo "[pre-push] 5/5  prettier --check (repo root)"
+docker compose -f docker-compose.test.yml run --rm prettier >/dev/null
 
 echo "[pre-push] all checks passed — pushing"

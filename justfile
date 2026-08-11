@@ -80,22 +80,24 @@ test-app:
     docker compose -f docker-compose.test.yml run --rm vitest
 
 # ── Format / lint / typecheck ────────────────────────────────────
-# Apply the Python formatter (ruff = the prettier of Python) in place. Local
-# uv run (like `gen-types`) so the reformatted files stay owned by you, not the
-# container's root.
+# Both run locally (like `gen-types`) so reformatted files stay owned by you,
+# not the container's root. Prettier only from the root: elsewhere it resolves
+# a different version and misses .prettierignore (#165).
 fmt:
     uv run ruff format api bin scripts
+    npx prettier --write .
 
-# Check Python formatting (ruff) — the equivalent of the frontend format:check.
+# Check both formatters, in containers, exactly as the pre-push gate does.
 fmt-check:
     docker compose -f docker-compose.test.yml run --rm ruff
+    docker compose -f docker-compose.test.yml run --rm prettier
 
 # Reads NPM_VERSION from the repo-root .env file (canonical source for
 # compose + just). Dockerfile ARG default and ci.yml `env:` block mirror it.
 lint: fmt-check
     @NPM_VERSION=$(grep '^NPM_VERSION=' .env | cut -d= -f2) ; \
      docker compose -f docker-compose.test.yml run --rm vitest \
-         sh -c "npm install -g npm@$NPM_VERSION && npm ci && npm run lint && npm run typecheck && npm run format:check"
+         sh -c "npm install -g npm@$NPM_VERSION && npm ci && npm run lint && npm run typecheck"
 
 # ── Codegen ──────────────────────────────────────────────────────
 # Regenerate app/src/types/manifest.generated.ts from the live OpenAPI schema.
@@ -150,27 +152,30 @@ demo-video: && demo-webp
 
 # GitHub strips <video> from markdown, so the README embeds this webp. Not a
 # gif: dark gradients over hundreds of hues break a 256-colour palette (9.3MB
-# and banded, against 3.8MB here). Needs ffmpeg + webp; if img2webp won't run,
+# and banded, against 4.2MB here). Needs ffmpeg + webp; if img2webp won't run,
 # brew install libtiff.
 #
-# Rebuild demo.webp from demo.mp4.
-demo-webp quality='50':
+# Rebuild demo.webp from demo.mp4. Delay is derived from fps: they must agree
+# or the webp plays at the wrong speed.
+demo-webp quality='50' fps='12':
     @set -e ; \
      command -v ffmpeg >/dev/null || { echo "[just] error: ffmpeg not found (brew install ffmpeg)" >&2 ; exit 1 ; } ; \
      command -v img2webp >/dev/null || { echo "[just] error: img2webp not found (brew install webp)" >&2 ; exit 1 ; } ; \
+     DELAY=$(( 1000 / {{fps}} )) ; \
      FRAMES=$(mktemp -d) ; \
      trap 'rm -rf "$FRAMES"' EXIT ; \
      ffmpeg -y -v error -i .github/readme/demo.mp4 \
-         -vf "fps=15,scale=800:-1:flags=lanczos" "$FRAMES/f_%04d.png" ; \
-     img2webp -loop 0 -lossy -q {{quality}} -m 6 -d 67 "$FRAMES"/f_*.png \
+         -vf "fps={{fps}},scale=800:-1:flags=lanczos" "$FRAMES/f_%04d.png" ; \
+     img2webp -loop 0 -lossy -q {{quality}} -m 6 -d $DELAY "$FRAMES"/f_*.png \
          -o .github/readme/demo.webp >/dev/null ; \
-     echo "[codecity] wrote .github/readme/demo.webp ($(du -h .github/readme/demo.webp | cut -f1), q={{quality}})"
+     echo "[codecity] wrote .github/readme/demo.webp ($(du -h .github/readme/demo.webp | cut -f1), {{fps}}fps, q={{quality}})"
 
 # ── Onboarding ───────────────────────────────────────────────────
-# One-shot bootstrap for a fresh clone or new worktree: installs app
-# node_modules (so local vitest / IDE intellisense work — runtime
-# itself uses Docker via `just dev`) and the per-clone git hooks.
+# One-shot bootstrap for a fresh clone or new worktree: installs node_modules
+# at the root (prettier) and in app/ (so local vitest / IDE intellisense work —
+# runtime itself uses Docker via `just dev`), plus the per-clone git hooks.
 setup: install-hooks
+    npm install
     cd app && npm install
     @if [ ! -f .env.local ]; then \
          cp .env.local.example .env.local ; \

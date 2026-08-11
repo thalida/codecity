@@ -14,13 +14,13 @@ services:
     # `--host` repeats the Dockerfile CMD's value because this replaces CMD
     # outright: without it the CLI's loopback default would make the api
     # unreachable from the app container.
-    command: ["--reload", "--port", "8000", "--host", "0.0.0.0"]
+    command: ['--reload', '--port', '8000', '--host', '0.0.0.0']
     volumes:
       # Bind source for auto-reload. Read-only inside the container — host
       # owns the files.
-      - "./api:/srv/api:ro"
+      - './api:/srv/api:ro'
       # The codecity-cache named volume holds clones + manifest cache.
-      - "codecity-cache:/cache"
+      - 'codecity-cache:/cache'
     init: true
     environment:
       - CODECITY_QUIET=0
@@ -28,7 +28,7 @@ services:
     # so override it here. `depends_on: service_healthy` on the app service
     # requires this to actually flip healthy.
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8000/api/health"]
+      test: ['CMD', 'wget', '-qO-', 'http://127.0.0.1:8000/api/health']
       interval: 10s
       timeout: 2s
       start_period: 3s
@@ -46,10 +46,10 @@ services:
     ports:
       # ${VITE_HOST_PORT} is set by `just dev` to a per-worktree free port.
       # Default 5173 covers ad-hoc `docker compose up` in a single worktree.
-      - "${VITE_HOST_PORT:-5173}:5173"
+      - '${VITE_HOST_PORT:-5173}:5173'
     volumes:
-      - "./app:/app"
-      - "/app/node_modules"             # anonymous volume — npm-installed in container
+      - './app:/app'
+      - '/app/node_modules' # anonymous volume — npm-installed in container
     environment:
       - VITE_API_PROXY=http://api:8000
     depends_on:

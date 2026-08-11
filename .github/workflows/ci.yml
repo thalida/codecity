@@ -21,7 +21,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
         with:
-          fetch-depth: 0    # full history for hatch-vcs
+          fetch-depth: 0 # full history for hatch-vcs
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
@@ -80,10 +80,14 @@ jobs:
           path: app/coverage/
           if-no-files-found: warn
 
-      - name: Lint + typecheck + format check
+      - name: Lint + typecheck
         run: |
           docker compose -f docker-compose.test.yml run --rm vitest \
-            sh -c "apt-get update && apt-get install -y --no-install-recommends libexpat1 fontconfig fonts-dejavu-core && npm install -g npm@$NPM_VERSION && npm ci && npm run lint && npm run typecheck && npm run format:check"
+            sh -c "apt-get update && apt-get install -y --no-install-recommends libexpat1 fontconfig fonts-dejavu-core && npm install -g npm@$NPM_VERSION && npm ci && npm run lint && npm run typecheck"
+
+      # Its own service: the app-scoped vitest service can't see the root config.
+      - name: Format check (prettier)
+        run: docker compose -f docker-compose.test.yml run --rm prettier
 
       - name: Trivy scan
         uses: aquasecurity/trivy-action@v0.36.0

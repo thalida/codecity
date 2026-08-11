@@ -52,21 +52,21 @@ Local folders take one more step, see [Local directories](#local-directories) be
 
 Everything codecity reads is an env var, passed with `-e`:
 
-| Variable | Default | What it does |
-| --- | --- | --- |
-| `CODECITY_ALLOW_LOCAL_REPOS` | off | Render local folders. Needs a matching mount, see [Local directories](#local-directories) |
-| `CODECITY_HOSTED` | off | Marks a public deployment, where a local path can never resolve. Changes the advice shown when a repo can't be reached |
-| `CODECITY_FEATURED_REPO` | none | The repo the landing renders behind itself, and flags in Discover. Empty means no backdrop |
-| `CODECITY_DISCOVER` | on | The Discover tab of repos worth rendering. Set `off` to hide it |
-| `CODECITY_DISCOVER_FILE` | `api/discover.json` | Swap in your own curated list: a JSON array of `{"url", "label"}` |
-| `CODECITY_CACHE_ROOT` | `/cache` | Where clones and the manifest cache live |
-| `CODECITY_QUIET` | off | Silence disconnect and scan logs |
+| Variable                     | Default             | What it does                                                                                                           |
+| ---------------------------- | ------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `CODECITY_ALLOW_LOCAL_REPOS` | off                 | Render local folders. Needs a matching mount, see [Local directories](#local-directories)                              |
+| `CODECITY_HOSTED`            | off                 | Marks a public deployment, where a local path can never resolve. Changes the advice shown when a repo can't be reached |
+| `CODECITY_FEATURED_REPO`     | none                | The repo the landing renders behind itself, and flags in Discover. Empty means no backdrop                             |
+| `CODECITY_DISCOVER`          | on                  | The Discover tab of repos worth rendering. Set `off` to hide it                                                        |
+| `CODECITY_DISCOVER_FILE`     | `api/discover.json` | Swap in your own curated list: a JSON array of `{"url", "label"}`                                                      |
+| `CODECITY_CACHE_ROOT`        | `/cache`            | Where clones and the manifest cache live                                                                               |
+| `CODECITY_QUIET`             | off                 | Silence disconnect and scan logs                                                                                       |
 
 Booleans take `1`/`true`/`yes`/`on`.
 
 ### Local directories
 
-Local repo support is **disabled by default**. To enable it, set `CODECITY_ALLOW_LOCAL_REPOS=1` *and* mount the directory read-only into the container at the same absolute path:
+Local repo support is **disabled by default**. To enable it, set `CODECITY_ALLOW_LOCAL_REPOS=1` _and_ mount the directory read-only into the container at the same absolute path:
 
 ```sh
 docker run --rm --init --pull=always \
@@ -197,14 +197,14 @@ You need:
 
 - [Docker](https://docs.docker.com/get-docker/)
 - [just](https://github.com/casey/just#installation)
-- [Node](https://nodejs.org/) (`just setup` installs the app's packages with it)
+- [Node](https://nodejs.org/) (`just setup` installs the repo's packages with it)
 - [python3](https://www.python.org/downloads/)
 - [uv](https://docs.astral.sh/uv/) (for `just fmt` and `just gen-types`)
 
 ```sh
 git clone https://github.com/thalida/codecity.git
 cd codecity
-just setup   # one-time: pre-push hooks, app packages, .env.local
+just setup   # one-time: pre-push hooks, npm packages, .env.local
 ```
 
 Regenerating the README's screenshots and demo also needs `ffmpeg` and `webp`
@@ -214,15 +214,15 @@ The pre-push hook runs the full lint + tests before pushing; bypass with `git pu
 
 ### Commands
 
-| Command | What it does |
-| --- | --- |
-| `just setup` | one-time: pre-push hooks, app packages, `.env.local` |
-| `just dev` | Vite HMR + API auto-reload at `http://<slug>.localhost:<port>/` |
-| `just url` | print this worktree's dev URL (`open $(just url)`) |
-| `just test` | pytest + vitest in containers |
-| `just lint` | ruff, eslint, prettier, and typecheck |
-| `just gen-types` | regenerate the frontend wire types from the OpenAPI schema |
-| `just clean` | tear down this worktree's containers and volumes |
+| Command          | What it does                                                    |
+| ---------------- | --------------------------------------------------------------- |
+| `just setup`     | one-time: pre-push hooks, npm packages, `.env.local`            |
+| `just dev`       | Vite HMR + API auto-reload at `http://<slug>.localhost:<port>/` |
+| `just url`       | print this worktree's dev URL (`open $(just url)`)              |
+| `just test`      | pytest + vitest in containers                                   |
+| `just lint`      | ruff, eslint, prettier, and typecheck                           |
+| `just gen-types` | regenerate the frontend wire types from the OpenAPI schema      |
+| `just clean`     | tear down this worktree's containers and volumes                |
 
 `just --list` has the rest: per-suite tests, formatting, image builds, README
 assets, release and deploy.
