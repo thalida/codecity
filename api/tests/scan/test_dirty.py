@@ -1,15 +1,11 @@
-# api/tests/test_scan_dirty.py
 import inspect
 import os
 import subprocess
 from pathlib import Path
 
-from api.services.scan import (
-    _collect_git_state,
-    _hash_repo_info,
-    _parse_dirty_paths,
-    signature_tree,
-)
+from api.git.meta import collect_git_state, parse_dirty_paths
+from api.scan.scanner import signature_tree
+from api.scan.signatures import hash_repo_info
 from api.tests.conftest import final_manifest as _final_manifest
 
 
@@ -18,7 +14,7 @@ def test_parse_dirty_paths_reads_modified_and_staged_skips_untracked():
     z = (
         "\0".join(
             [
-                " M api/services/scan.py",  # unstaged modification
+                " M api/scan/scanner.py",  # unstaged modification
                 "A  api/new_staged.py",  # staged addition
                 "?? scratch.txt",  # untracked -> excluded
                 "!! build/artifact",  # ignored -> excluded
@@ -26,22 +22,22 @@ def test_parse_dirty_paths_reads_modified_and_staged_skips_untracked():
         )
         + "\0"
     )
-    assert _parse_dirty_paths(z) == {"api/services/scan.py", "api/new_staged.py"}
+    assert parse_dirty_paths(z) == {"api/scan/scanner.py", "api/new_staged.py"}
 
 
 def test_parse_dirty_paths_rename_takes_destination():
     z = "R  api/renamed_to.py\0api/renamed_from.py\0"
-    assert _parse_dirty_paths(z) == {"api/renamed_to.py"}
+    assert parse_dirty_paths(z) == {"api/renamed_to.py"}
 
 
 def test_parse_dirty_paths_worktree_rename_takes_destination():
     # Worktree-side rename (X=space, Y=R): the source field still follows.
     z = " R api/renamed_to.py\0api/renamed_from.py\0"
-    assert _parse_dirty_paths(z) == {"api/renamed_to.py"}
+    assert parse_dirty_paths(z) == {"api/renamed_to.py"}
 
 
 def test_parse_dirty_paths_empty():
-    assert _parse_dirty_paths("") == set()
+    assert parse_dirty_paths("") == set()
 
 
 def _git(root: Path, *args: str) -> None:
@@ -58,7 +54,7 @@ def test_collect_git_state_one_snapshot(tmp_path: Path):
     _git(tmp_path, "commit", "-qm", "init")
     (tmp_path / "a.py").write_text("1\n2\n")  # dirty one file
 
-    state = _collect_git_state(tmp_path)
+    state = collect_git_state(tmp_path)
     assert "a.py" in state.tracked and "b.py" in state.tracked
     assert state.dirty == {"a.py"}
     assert state.repo["dirty"] is True
@@ -104,10 +100,10 @@ def test_dirty_file_count_matches_flags(tmp_path: Path):
     assert manifest["stats"]["dirtyFileCount"] == 1
 
 
-def test_hash_repo_info_has_no_repo_level_dirty_set_param():
+def testhash_repo_info_has_no_repo_level_dirty_set_param():
     # Dirtiness is per-file, so a repo-wide dirty_paths set would recompute the
     # signature for every file whenever any one of them changed.
-    assert list(inspect.signature(_hash_repo_info).parameters) == ["sig", "repo_info"]
+    assert list(inspect.signature(hash_repo_info).parameters) == ["sig", "repo_info"]
 
 
 def test_mode_only_change_moves_signature(tmp_path: Path):

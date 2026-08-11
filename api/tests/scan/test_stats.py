@@ -1,4 +1,12 @@
-from api.services.stats import _author_hue, compute_repo_stats
+import pytest
+
+from api.scan.stats import (
+    _author_hue,
+    annotate_same_day_totals,
+    busyness_thresholds,
+    commit_day_counts,
+    compute_repo_stats,
+)
 
 
 def _file(
@@ -236,3 +244,52 @@ def test_author_hue_matches_the_javascript_hash_it_replaced():
     # Unicode hashes over UTF-8 bytes, not UTF-16 code units.
     assert _author_hue("Yan \U0001f680 M\u00fcller") == 181
     assert all(0 <= _author_hue(f"user-{i}") < 360 for i in range(200))
+
+
+def _commits_per_day(*per_day: int) -> list:
+    """Commits spread over consecutive dates, `per_day[i]` of them on day i."""
+    return [
+        {
+            "date": f"2026-01-{day:02d}",
+            "files": 1,
+            "sha": "0" * 40,
+            "authors": [],
+            "subject": "",
+        }
+        for day, n in enumerate(per_day, start=1)
+        for _ in range(n)
+    ]
+
+
+@pytest.mark.parametrize(
+    ("per_day", "expected"),
+    [
+        ((), {"avg": 1, "busy": 1}),
+        # Sorted per-day counts [1,1,2,5]: avg is the median 2, busy the 75th
+        # percentile 5.
+        ((1, 1, 2, 5), {"avg": 2, "busy": 5}),
+        # Uniform: median and 75th both 2, so busy clamps to avg + 1.
+        ((2, 2, 2, 2), {"avg": 2, "busy": 3}),
+    ],
+)
+def test_busyness_thresholds(per_day, expected):
+    assert (
+        busyness_thresholds(commit_day_counts(_commits_per_day(*per_day))) == expected
+    )
+
+
+@pytest.mark.parametrize(
+    ("dates", "expected"),
+    [
+        ([], []),
+        (["2026-01-01"] * 3 + ["2026-01-02"], [3, 3, 3, 1]),
+        (["2026-01-01", "2026-01-02", "2026-01-01"], [2, 1, 2]),
+    ],
+)
+def test_annotate_same_day_totals(dates, expected):
+    commits = [
+        {"date": d, "files": 1, "sha": str(i) * 40, "authors": [], "subject": ""}
+        for i, d in enumerate(dates)
+    ]
+    annotate_same_day_totals(commits, commit_day_counts(commits))
+    assert [c["same_day_total"] for c in commits] == expected

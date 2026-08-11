@@ -6,7 +6,7 @@ import io
 
 from PIL import Image
 
-from api.services.binfmt import detect_binary_type, fingerprint_png
+from api.binfmt import detect_binary_type, fingerprint_png
 
 
 class TestDetectBinaryType:
@@ -36,7 +36,7 @@ class TestFingerprintPng:
         return Image.open(io.BytesIO(data))
 
     def test_white_on_transparent_png_with_alpha_floor(self):
-        from api.services.binfmt import _ALPHA_FLOOR
+        from api.binfmt import _ALPHA_FLOOR
 
         img = self._decode(fingerprint_png(b"the quick brown fox " * 200))
         assert img.format == "PNG"

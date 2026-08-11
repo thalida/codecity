@@ -13,8 +13,8 @@ import subprocess
 from pathlib import Path
 from typing import NamedTuple
 
-from .binfmt import detect_binary_type
-from .media import probe_media_dims_from_bytes
+from api.binfmt import detect_binary_type
+from api.media import probe_media_dims_from_bytes
 
 _SHA40 = re.compile(r"^[0-9a-f]{40}$")
 

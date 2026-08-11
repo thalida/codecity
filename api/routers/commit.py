@@ -9,7 +9,7 @@ from fastapi import APIRouter, HTTPException, Query
 
 from api.models.responses import CommitDetailResponse
 from api.security import TRUST
-from api.services.scan import build_authors_list
+from api.git import build_authors_list
 
 router = APIRouter(prefix="/api", tags=["commit"])
 

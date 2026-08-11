@@ -6,10 +6,11 @@ from __future__ import annotations
 
 from collections import Counter
 from datetime import date
-from typing import Any, Iterator, Optional, cast
+from typing import Any, Optional, cast
 
-from api.services.manifest_types import (
+from api.manifest_types import (
     AuthorStat,
+    BusynessThresholds,
     CommitEntry,
     CommitLeader,
     DayLeader,
@@ -20,22 +21,50 @@ from api.services.manifest_types import (
     RangeStat,
     RepoStats,
 )
+from api.scan.treebuild import iter_dir_nodes, iter_file_nodes
 
 
-def _iter_files(node: DirNode) -> Iterator[FileNode]:
-    for child in node["children"]:
-        if child["type"] == "file":
-            yield child  # type: ignore[misc]
-        else:
-            yield from _iter_files(child)  # type: ignore[arg-type]
+# ── Commit-day aggregates ────────────────────────────────────────────────────
+#
+# Both of the derived signals below are per-calendar-day commit counts, so the
+# counting pass is done once by the caller and handed to each. `date` carries a
+# full timestamp, so the day has to be sliced back out.
 
 
-def _iter_dirs(node: DirNode) -> Iterator[DirNode]:
-    # descendant directories, NOT the passed-in root
-    for child in node["children"]:
-        if child["type"] == "directory":
-            yield child  # type: ignore[misc]
-            yield from _iter_dirs(child)  # type: ignore[arg-type]
+def commit_day_counts(commits: list[CommitEntry]) -> dict[str, int]:
+    """Calendar day → number of commits on that day."""
+    per_day: dict[str, int] = {}
+    for c in commits:
+        day = c["date"][:10]
+        per_day[day] = per_day.get(day, 0) + 1
+    return per_day
+
+
+def annotate_same_day_totals(
+    commits: list[CommitEntry], day_counts: dict[str, int]
+) -> None:
+    """In-place: set each commit's same_day_total to the number of commits
+    sharing its calendar date. Both the commit pane's badge and the scene
+    tree-color read this one field (#35)."""
+    for c in commits:
+        c["same_day_total"] = day_counts[c["date"][:10]]
+
+
+def busyness_thresholds(day_counts: dict[str, int]) -> BusynessThresholds:
+    """Repo-relative per-day commit-count thresholds. avg = median commits/day
+    (over days with >= 1 commit); busy = 75th percentile, clamped to avg+1 so
+    the three bands stay distinct. Both the scene tree-color gradient and the
+    commit pane's label read these, so a busy day looks consistent in both.
+    Returns {avg:1, busy:1} for an empty history so consumers needn't guard."""
+    if not day_counts:
+        return {"avg": 1, "busy": 1}
+    counts = sorted(day_counts.values())
+
+    def quantile(p: float) -> int:
+        return counts[min(len(counts) - 1, int(len(counts) * p))]
+
+    avg = quantile(0.5)
+    return {"avg": avg, "busy": max(quantile(0.75), avg + 1)}
 
 
 def _file_leader(f: Optional[FileNode]) -> FileLeader | None:
@@ -118,7 +147,7 @@ def compute_repo_stats(tree: DirNode, commits: list[CommitEntry]) -> RepoStats:
     sharpest_media = coarsest_media = None  # media, by pixels (most / fewest)
     sharpest_px = coarsest_px = None
     largest_binary = smallest_binary = None  # binary/data files, by bytes
-    for f in _iter_files(tree):
+    for f in iter_file_nodes(tree):
         if f["dirty"]:
             dirty_count += 1
         lines, size = f["lines"], f["size"]
@@ -175,7 +204,7 @@ def compute_repo_stats(tree: DirNode, commits: list[CommitEntry]) -> RepoStats:
     # not total descendants. Smallest breaks ties by fewest descendants, so it
     # favours genuine leaf streets over a one-child dir that fans out below.
     deepest = biggest = smallest = None
-    for d in _iter_dirs(tree):
+    for d in iter_dir_nodes(tree):
         if deepest is None or _depth(d["path"]) > _depth(deepest["path"]):
             deepest = d
         if biggest is None or d["children_count"] > biggest["children_count"]:

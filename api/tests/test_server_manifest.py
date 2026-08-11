@@ -11,7 +11,7 @@ from fastapi.testclient import TestClient
 
 from api.app import create_app
 from api.routers.manifest import _norm_excludes
-from api.services.clone import (
+from api.git.clone import (
     BranchNotFoundError,
     CloneError,
     HostUnreachableError,
@@ -286,7 +286,7 @@ class TestErrorCode:
         def _boom(*a, **kw):
             raise RepoNotFoundError("repository not found")
 
-        monkeypatch.setattr("api.services.source.ensure_clone", _boom)
+        monkeypatch.setattr("api.git.source.ensure_clone", _boom)
         with client.stream("GET", "/api/timeline", params={"src": self.REMOTE}) as r:
             events = _parse_sse("".join(r.iter_text()))
         assert events[-1][0] == "error"

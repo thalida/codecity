@@ -9,7 +9,7 @@ import pytest
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-from api.services.media import _parse_svg_length, media_kind, probe_media_dims
+from api.media import _parse_svg_length, media_kind, probe_media_dims
 
 
 def _write_minimal_png(path: Path, width: int, height: int) -> None:

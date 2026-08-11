@@ -1,11 +1,11 @@
-"""Tests for api/services/timeline.py — the per-commit blob-delta walk
+"""Tests for api/scan/timeline.py — the per-commit blob-delta walk
 that the client replays to reconstruct any commit's file set."""
 
 import os
 import subprocess
 from pathlib import Path
 
-from api.services.timeline import walk_deltas
+from api.scan.timeline import walk_deltas
 
 
 def _init(root: Path) -> None:
@@ -50,7 +50,7 @@ def test_walk_deltas_file_to_symlink_typechange_is_a_deletion(tmp_path: Path) ->
     """A tracked file replaced in-place by a symlink at the same path (:100644
     120000 ... T) must be recorded as a deletion, so replay drops it exactly
     like reconstruct_manifest (via ls_tree_files) excludes symlinks."""
-    from api.services.scan import reconstruct_manifest
+    from api.scan.scanner import reconstruct_manifest
 
     _init(tmp_path)
     (tmp_path / "x.txt").write_text("hello\n")
@@ -93,7 +93,7 @@ def test_walk_deltas_file_to_symlink_typechange_is_a_deletion(tmp_path: Path) ->
 
 
 def test_union_manifest_is_all_paths_max_size(tmp_path: Path) -> None:
-    from api.services.timeline import (
+    from api.scan.timeline import (
         walk_deltas,
         build_union_manifest,
         _collect_blob_tables,
@@ -111,9 +111,9 @@ def test_union_manifest_is_all_paths_max_size(tmp_path: Path) -> None:
 
     deltas = walk_deltas(tmp_path)
     lines, sizes, blob_stats = _collect_blob_tables(tmp_path, deltas)
-    from api.services.scan import _collect_git_history
+    from api.git.meta import collect_git_history
 
-    created, modified, commits = _collect_git_history(tmp_path, use_cache=False)
+    created, modified, commits = collect_git_history(tmp_path, use_cache=False)
     m = build_union_manifest(
         tmp_path, deltas, lines, sizes, blob_stats, commits, created, modified
     )
@@ -143,22 +143,22 @@ def test_union_manifest_is_all_paths_max_size(tmp_path: Path) -> None:
 def test_union_manifest_keeps_every_commit(tmp_path: Path, monkeypatch) -> None:
     """The scrubber indexes the bundle's commits and the city the union
     manifest's, so the union manifest must never be sampled."""
-    from api.services.timeline import (
+    from api.scan.timeline import (
         walk_deltas,
         build_union_manifest,
         _collect_blob_tables,
     )
-    from api.services.scan import _collect_git_history
+    from api.git.meta import collect_git_history
 
     _init(tmp_path)
     for i in range(4):
         (tmp_path / f"f{i}.txt").write_text("x\n")
         _commit(tmp_path, f"c{i}")
 
-    monkeypatch.setattr("api.services.scan.MAX_WIRE_COMMITS", 1)
+    monkeypatch.setattr("api.scan.manifest.MAX_WIRE_COMMITS", 1)
     deltas = walk_deltas(tmp_path)
     lines, sizes, blob_stats = _collect_blob_tables(tmp_path, deltas)
-    created, modified, commits = _collect_git_history(tmp_path, use_cache=False)
+    created, modified, commits = collect_git_history(tmp_path, use_cache=False)
     m = build_union_manifest(
         tmp_path, deltas, lines, sizes, blob_stats, commits, created, modified
     )
@@ -168,7 +168,7 @@ def test_union_manifest_keeps_every_commit(tmp_path: Path, monkeypatch) -> None:
 def test_compute_commit_line_ranges() -> None:
     """Per-commit range tracks the present set: files add/grow/delete, and
     zero-line files (binary/empty) are excluded — mirroring compute_repo_stats."""
-    from api.services.timeline import CommitDelta, compute_commit_line_ranges
+    from api.scan.timeline import CommitDelta, compute_commit_line_ranges
 
     blob_lines = {"a1": 3, "a2": 10, "b1": 5, "bin": 0, "empty": 0}
     deltas = [
@@ -189,12 +189,12 @@ def test_head_line_range_matches_live_scan(tmp_path: Path) -> None:
     """The core Timeline-HEAD-equals-Live contract: commitLineRanges[-1] (HEAD)
     equals the live scan's stats.lineCountRange for the same repo — same exact
     counter on both paths, same present set, so height normalizes identically."""
-    from api.services.timeline import (
+    from api.scan.timeline import (
         walk_deltas,
         _collect_blob_tables,
         compute_commit_line_ranges,
     )
-    from api.services.scan import scan_tree
+    from api.scan.scanner import scan_tree
 
     _init(tmp_path)
     (tmp_path / "a.txt").write_text("l1\nl2\nl3\n")  # 3 lines
@@ -223,12 +223,13 @@ def test_head_date_range_matches_live_scan(tmp_path: Path) -> None:
     equals the live scan's dateRanges for the same repo, so weathering at HEAD
     normalizes identically. Compared as epoch ms, which is what the client
     consumes."""
-    from api.services.timeline import (
+    from api.scan.timeline import (
         _iso_ms,
         compute_commit_date_ranges,
         walk_deltas,
     )
-    from api.services.scan import _collect_git_history, scan_tree
+    from api.git.meta import collect_git_history
+    from api.scan.scanner import scan_tree
 
     _init(tmp_path)
     (tmp_path / "a.txt").write_text("one\n")
@@ -246,7 +247,7 @@ def test_head_date_range_matches_live_scan(tmp_path: Path) -> None:
     live_dates = live["dateRanges"]
 
     deltas = walk_deltas(tmp_path)
-    git_created, git_modified, commits = _collect_git_history(tmp_path, use_cache=False)
+    git_created, git_modified, commits = collect_git_history(tmp_path, use_cache=False)
     ranges = compute_commit_date_ranges(deltas, commits, git_created, git_modified)
 
     assert ranges[-1] == {
@@ -262,8 +263,8 @@ def test_head_date_range_matches_live_scan(tmp_path: Path) -> None:
 
 def test_commit_date_ranges_track_the_present_set(tmp_path: Path) -> None:
     """A deleted file drops out of the range at the commit that removed it."""
-    from api.services.timeline import compute_commit_date_ranges, walk_deltas
-    from api.services.scan import _collect_git_history
+    from api.scan.timeline import compute_commit_date_ranges, walk_deltas
+    from api.git.meta import collect_git_history
 
     _init(tmp_path)
     (tmp_path / "old.txt").write_text("x\n")
@@ -274,7 +275,7 @@ def test_commit_date_ranges_track_the_present_set(tmp_path: Path) -> None:
     _commit(tmp_path, "c3")
 
     deltas = walk_deltas(tmp_path)
-    git_created, git_modified, commits = _collect_git_history(tmp_path, use_cache=False)
+    git_created, git_modified, commits = collect_git_history(tmp_path, use_cache=False)
     ranges = compute_commit_date_ranges(deltas, commits, git_created, git_modified)
 
     # At c1 only old.txt exists, so the span is a single instant.
@@ -289,8 +290,8 @@ def test_bundle_replay_matches_reconstruct(tmp_path: Path) -> None:
     fixture commits paths the live scan drops (ALWAYS_SKIP lockfile, a symlink,
     a .codecityignore entry) to guard that the timeline path applies the
     identical skip filter at every commit."""
-    from api.services.timeline import build_timeline_bundle
-    from api.services.scan import reconstruct_manifest
+    from api.scan.timeline import build_timeline_bundle
+    from api.scan.scanner import reconstruct_manifest
 
     _init(tmp_path)
     (tmp_path / "a.txt").write_text("1\n2\n")
@@ -352,7 +353,7 @@ def test_bundle_excludes_drop_paths_everywhere(tmp_path: Path) -> None:
     union, every delta, and the blob tables — the same skip filter as
     .codecityignore — so an excluded file is absent everywhere in the bundle.
     Excludes filter changes within each commit, never the commit list itself."""
-    from api.services.timeline import build_timeline_bundle
+    from api.scan.timeline import build_timeline_bundle
 
     _init(tmp_path)
     (tmp_path / "keep.txt").write_text("1\n2\n")
@@ -385,7 +386,7 @@ def test_bundle_excludes_drop_paths_everywhere(tmp_path: Path) -> None:
 
 
 def test_bundle_caps_to_recent_window(tmp_path: Path, monkeypatch) -> None:
-    from api.services import timeline
+    from api.scan import timeline
 
     monkeypatch.setattr(timeline, "_UNION_FILE_CAP", 1)  # force the cap
     _init(tmp_path)
@@ -402,7 +403,7 @@ def test_bundle_window_never_empty_even_if_newest_commit_alone_exceeds_cap(
 ) -> None:
     """Even a single (newest) commit that alone busts the cap must still leave
     a non-empty timeline, not window itself down to zero commits."""
-    from api.services import timeline
+    from api.scan import timeline
 
     monkeypatch.setattr(timeline, "_UNION_FILE_CAP", 0)  # every commit exceeds this
     _init(tmp_path)

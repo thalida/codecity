@@ -79,7 +79,7 @@ export function StreetPane({ state, onClose, onFocus, onExclude }: StreetPanePro
 
   const dirPath = d.path ?? '';
 
-  // Backend-computed (api/scan.py), sorted by count desc. Guard against a
+  // Backend-computed (api/scan/treebuild.py), sorted by count desc. Guard against a
   // manifest that predates the field (stale cache / skeleton / in-flight) so a
   // missing breakdown renders without the section instead of crashing the pane.
   const stats = d.descendants_ext_breakdown ?? [];

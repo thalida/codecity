@@ -4,7 +4,7 @@
 // Same-day commit counts (the busyness badge) are no longer computed here —
 // each CommitEntry carries a backend-baked same_day_total, and the per-day
 // "Busy/Average/Quiet" thresholds come from manifest.busyness. See
-// api/scan.py (_annotate_same_day_totals + _compute_busyness).
+// api/scan/stats.py (annotate_same_day_totals + busyness_thresholds).
 
 /**
  * Build a browseable commit URL from a normalized remote URL + full SHA.

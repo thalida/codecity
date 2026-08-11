@@ -2,7 +2,7 @@
 
 Deliberately duplicates `api/models/` (the wire/OpenAPI source of truth): the
 scanner builds plain dicts with no validation cost; the API layer re-projects
-them through Pydantic. A standalone leaf because scan.py and cache.py both need
+them through Pydantic. A standalone leaf because api.scan and api.cache both need
 these and import each other. Nothing checks this module against `api/models/`
 — keep the two in step by hand.
 """
@@ -43,7 +43,7 @@ class FileNode(TypedDict):
     # Media classification by extension (image/video/None for non-media).
     # Single source of truth for the frontend, which reads this instead of
     # hand-listing extensions. Always emitted (None for non-media files).
-    # See api/services/media.py:media_kind.
+    # See api/scan/media.py:media_kind.
     mediaKind: str | None
     size: int
     lines: int
@@ -64,7 +64,7 @@ class FileNode(TypedDict):
     media_width: NotRequired[int]
     media_height: NotRequired[int]
     # Friendly magic-byte type for binary files ("SQLite database"), absent for
-    # non-binary or unrecognized files. See api/services/binfmt.py.
+    # non-binary or unrecognized files. See api/scan/binfmt.py.
     binaryType: NotRequired[str]
 
 
@@ -236,7 +236,7 @@ class AuthorStat(TypedDict):
 
 class RepoStats(TypedDict):
     """Per-repo derived stats computed once at manifest-wrap
-    (api/services/stats.py): the Overview almanac superlatives + min/max
+    (api/scan/stats.py): the Overview almanac superlatives + min/max
     ranges. The web app reads these instead of re-walking the tree."""
 
     # Building-size NORMALIZATION ranges (non-zero), NOT honest min/max file

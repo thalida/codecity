@@ -19,7 +19,7 @@ from pathlib import Path
 from api.config import local_repos_allowed
 from api.models.events import ErrorCode
 from api.security import TRUST
-from api.services.clone import (
+from api.git.clone import (
     BranchNotFoundError,
     CloneError,
     HostUnreachableError,

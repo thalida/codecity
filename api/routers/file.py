@@ -25,9 +25,9 @@ from api.models.responses import (
     FingerprintEntry,
 )
 from api.security import NoRootsRegisteredError, OutsideRootError, TRUST
-from api.services.binfmt import FINGERPRINT_SAMPLE_BYTES, fingerprint_png
-from api.services.gitobj import read_blob
-from api.services.media import is_media
+from api.binfmt import FINGERPRINT_SAMPLE_BYTES, fingerprint_png
+from api.git import read_blob
+from api.media import is_media
 
 router = APIRouter(prefix="/api", tags=["file"])
 

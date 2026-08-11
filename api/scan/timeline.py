@@ -10,9 +10,9 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Callable, NamedTuple
 
-from .cache import BlobEntry, cache_load_blobs, cache_save_blobs
-from .gitobj import _git_argv, blob_sizes_batch, blob_stats_batch
-from .manifest_types import (
+from api.cache import BlobEntry, blob_entry, cache_load_blobs, cache_save_blobs
+from api.git.objects import _git_argv, blob_sizes_batch, blob_stats_batch
+from api.manifest_types import (
     CommitEntry,
     DateRangeMs,
     FileNode,
@@ -20,25 +20,15 @@ from .manifest_types import (
     RangeStat,
     TimelineBundle,
 )
-from .media import media_kind
-from .scan import (
-    SCAN_PROGRESS_THROTTLE_S,
-    NotAGitRepoError,
-    _basename,
-    _build_tree,
-    build_file_node,
-    _collect_git_history,
-    _derive_tree_signals,
-    _dir_children_from_paths,
-    _extension,
-    _hash_file_entry,
-    _is_git_repo,
-    _load_codecityignore,
-    _log,
-    _path_is_skipped,
-    _reconstructed_repo_info,
-    _wrap_manifest,
-)
+from api.media import media_kind
+from api.scan.filemeta import basename, extension
+from api.git.meta import collect_git_history, is_git_repo, reconstructed_repo_info
+from api.scan.manifest import wrap_manifest
+from api.progress import SCAN_PROGRESS_THROTTLE_S, log
+from api.errors import NotAGitRepoError
+from api.scan.signatures import derive_tree_signals, hash_file_entry
+from api.scan.skiprules import SkipRules
+from api.scan.treebuild import build_file_node, build_tree, dir_children_from_paths
 
 _UNION_FILE_CAP = 50000  # union files above this window to the most recent commits
 
@@ -68,7 +58,7 @@ def walk_deltas(
     ``on_progress`` gets a heartbeat every ``_HISTORY_HEARTBEAT_EVERY``
     commits (also time-throttled, for repos where git log outpaces that
     count), plus a final tick with the true total."""
-    _log("walking commit history for timeline deltas…")
+    log("walking commit history for timeline deltas…")
     argv = _git_argv(
         root,
         "log",
@@ -105,7 +95,7 @@ def walk_deltas(
                 newest_first.append(cur)
                 commits += 1
                 if commits % _HISTORY_HEARTBEAT_EVERY == 0:
-                    _log(f"  walked {commits:,} commits…")
+                    log(f"  walked {commits:,} commits…")
                     if on_progress is not None:
                         now = time.monotonic()
                         if now - last_emit >= SCAN_PROGRESS_THROTTLE_S:
@@ -134,7 +124,7 @@ def walk_deltas(
         if proc.poll() is None:
             proc.kill()
         proc.wait()
-    _log(f"  done — {commits:,} commits walked")
+    log(f"  done — {commits:,} commits walked")
     if on_progress is not None:
         on_progress({"stage": "history", "commits": commits})  # final, unthrottled
     newest_first.reverse()
@@ -159,27 +149,19 @@ def _collect_blob_tables(
         sha
         for d in deltas
         for path, sha in d.changes
-        if sha and media_kind(_extension(_basename(path)))
+        if sha and media_kind(extension(basename(path)))
     )
     cached = cache_load_blobs(root) if use_cache else {}
     misses = [s for s in shas if s not in cached]
-    _log(f"resolving {len(misses):,}/{total:,} blobs ({total - len(misses):,} cached)…")
+    log(f"resolving {len(misses):,}/{total:,} blobs ({total - len(misses):,} cached)…")
     if on_progress is not None:
         on_progress({"stage": "blobs", "done": total - len(misses), "total": total})
     fresh = blob_stats_batch(root, misses, media_shas=media_shas) if misses else {}
     for sha, st in fresh.items():
-        entry: BlobEntry = {"lines": st.lines, "binary": st.binary, "size": st.size}
-        if st.media_width is not None and st.media_height is not None:
-            entry["media_width"], entry["media_height"] = (
-                st.media_width,
-                st.media_height,
-            )
-        if st.binary_type is not None:
-            entry["binaryType"] = st.binary_type
-        cached[sha] = entry
+        cached[sha] = blob_entry(st)
     if fresh:
         cache_save_blobs(root, cached)
-    _log(f"  done — {total:,} blobs resolved")
+    log(f"  done — {total:,} blobs resolved")
     if on_progress is not None:
         on_progress({"stage": "blobs", "done": total, "total": total})
     lines = {s: cached[s]["lines"] for s in shas if s in cached}
@@ -228,7 +210,7 @@ def build_union_manifest(
             max_lines[path] = max(max_lines.get(path, 0), blob_lines.get(sha, 0))
 
     root_abs = str(Path(root).resolve())
-    children_map = _dir_children_from_paths(max_size.keys())
+    children_map = dir_children_from_paths(max_size.keys())
     sig = hashlib.blake2b(digest_size=16)
 
     def list_children(rel_dir: str) -> list[tuple[str, str, bool]]:
@@ -236,13 +218,13 @@ def build_union_manifest(
 
     def make_file_node(name: str, rel_path: str) -> FileNode:
         size = max_size.get(rel_path, 0)
-        _hash_file_entry(sig, rel_path, size, 0.0, False)
+        hash_file_entry(sig, rel_path, size, 0.0, False)
         st = rep_stats.get(rel_path, {"lines": 0, "binary": False})
         return build_file_node(
             name=name,
             rel_path=rel_path,
             full_path=f"{root_abs}/{rel_path}",
-            ext=_extension(name),
+            ext=extension(name),
             size=size,
             lines=max_lines.get(rel_path, 0),
             binary=st["binary"],
@@ -254,13 +236,13 @@ def build_union_manifest(
             binary_type=st.get("binaryType"),
         )
 
-    tree = _build_tree(
+    tree = build_tree(
         root_abs, ".", list_children=list_children, make_file_node=make_file_node
     )
-    signals = _derive_tree_signals(tree)
+    signals = derive_tree_signals(tree)
     head_sha = commits[-1]["sha"] if commits else ""
     repo_info = (
-        _reconstructed_repo_info(Path(root_abs), head_sha)
+        reconstructed_repo_info(Path(root_abs), head_sha)
         if head_sha
         else {
             "branch": None,
@@ -272,8 +254,8 @@ def build_union_manifest(
     )
     # Uncapped: the scrubber indexes the bundle's commits and the city the
     # union manifest's, so sampling one would slide every tree off its commit.
-    return _wrap_manifest(
-        root_abs, tree, sig, signals, repo_info, commits, [], sample_commits=False
+    return wrap_manifest(
+        root_abs, tree, sig, signals, repo_info, commits, [], sample=False
     )
 
 
@@ -398,33 +380,23 @@ def build_timeline_bundle(
     ``on_progress`` threads through to the history walk + blob resolution — see
     their docstrings for the payload shape."""
     root_path = Path(root).resolve()
-    if not _is_git_repo(root_path):
+    if not is_git_repo(root_path):
         raise NotAGitRepoError(str(root_path))
 
-    _log(f"building timeline bundle for {root_path}")
+    log(f"building timeline bundle for {root_path}")
     deltas = walk_deltas(root_path, on_progress=on_progress)
-    git_created, git_modified, commits = _collect_git_history(
-        root_path, use_cache=use_cache
-    )
+    history = collect_git_history(root_path, use_cache=use_cache)
+    commits = history.commits
     # same commit set + order across both walks, so index i lines up
     assert len(deltas) == len(commits), "delta/commit walks misaligned"
 
-    # Apply the live scan's skip filter ONCE, upstream, so every downstream stage shares one filtered set.
-    ignore_names, ignore_paths, unignore_names, unignore_paths = _load_codecityignore(
-        root_path
-    )
-    if extra_exclude_paths:
-        ignore_paths = ignore_paths | extra_exclude_paths
+    # Apply the live scan's skip filter ONCE, upstream, so every downstream
+    # stage shares one filtered set.
+    rules = SkipRules.load(root_path, extra_exclude_paths=extra_exclude_paths)
     deltas = [
         CommitDelta(
             sha=d.sha,
-            changes=[
-                (p, s)
-                for p, s in d.changes
-                if not _path_is_skipped(
-                    p, ignore_names, ignore_paths, unignore_names, unignore_paths
-                )
-            ],
+            changes=[(p, s) for p, s in d.changes if not rules.skips_path(p)],
         )
         for d in deltas
     ]
@@ -461,14 +433,14 @@ def build_timeline_bundle(
         blob_sizes,
         blob_stats,
         commits,
-        git_created,
-        git_modified,
+        history.created,
+        history.modified,
     )
     commit_line_ranges = compute_commit_line_ranges(deltas, blob_lines)
     commit_date_ranges = compute_commit_date_ranges(
-        deltas, commits, git_created, git_modified
+        deltas, commits, history.created, history.modified
     )
-    _log("timeline bundle complete")
+    log("timeline bundle complete")
 
     return {
         "commits": commits,

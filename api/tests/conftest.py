@@ -1,45 +1,29 @@
-"""Shared pytest fixtures for codecity api tests.
+"""Shared pytest fixtures and helpers for the codecity api tests.
 
-Centralizes test helpers that would otherwise be duplicated across the suite.
+Fixtures:
+  - quiet_logs          (autouse, session) CODECITY_QUIET=1 for the whole run
+  - allow_local_repos   (autouse, session)
+  - redirect_cache_root (function) per-test CACHE_ROOT / CLONES_ROOT tempdir
+  - init_git_repo       (function) factory for a working or bare repo
+  - make_fake_remote    (function) bare repo with 'main' + 'feature'
+  - http_helpers        (function) _get / _request / _request_stream / _delete
+  - git_working_tree    (function) checkout of a session-scoped bare repo
 
-Provides:
-
-  - quiet_logs            (autouse, session): sets CODECITY_QUIET=1 for
-                          the whole run, replacing the module-level
-                          `os.environ["CODECITY_QUIET"] = "1"` statements
-                          currently sitting at the top of test_scan.py /
-                          test_server.py / test_clone.py.
-
-  - redirect_cache_root   (opt-in, function): monkeypatches
-                          `api.services.cache.CACHE_ROOT` and
-                          `api.services.clone.CLONES_ROOT` at a per-test tempdir. Mirrors the behavior of
-                          the three near-identical `_CacheRedirectMixin` /
-                          `CacheTestBase` classes the migration will
-                          delete. Opt-in (not autouse) so the existing
-                          mixins keep working unchanged during the
-                          incremental migration; once tasks 11-13 land,
-                          this can be flipped to autouse if desired.
-
-  - init_git_repo         (function): factory matching test_server.py's
-                          `_init_git_repo(path, *, bare=False)`.
-
-  - make_fake_remote      (function): factory matching test_clone.py's
-                          `_make_fake_remote(tmp)` — builds a bare repo
-                          with 'main' + 'feature' branches and a couple
-                          of commits, returns (bare_path, "main").
-
-  - http_helpers          (function): namespace bundling _get, _request,
-                          _request_stream, _get_with_headers, and _delete
-                          from test_server.py with their EXACT existing
-                          return-shape contracts preserved.
+Helpers (imported directly, not injected): init_repo, commit_all,
+ensure_fixture + FIXTURE, walk_files, walk_dirs, final_manifest, and
+CacheRedirectMixin for unittest-style classes.
 """
 
 from __future__ import annotations
 
+import fcntl
 import gzip
+import hashlib
 import json
 import os
+import shutil
 import subprocess
+import tempfile
 import urllib.error
 import urllib.request
 from collections.abc import Iterator
@@ -56,10 +40,9 @@ import pytest
 def quiet_logs() -> Iterator[None]:
     """Suppress codecity's stderr scan/clone logs across the test run.
 
-    Replaces the module-level ``os.environ["CODECITY_QUIET"] = "1"``
-    statements at the top of test_scan.py / test_server.py / test_clone.py.
-    Those leak across processes and can't be unset; a session fixture
-    restores prior state on teardown.
+    A fixture rather than a module-level ``os.environ`` assignment: those leak
+    across processes and can't be unset, while this restores prior state on
+    teardown.
     """
     prev = os.environ.get("CODECITY_QUIET")
     os.environ["CODECITY_QUIET"] = "1"
@@ -112,8 +95,8 @@ def redirect_cache_root(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> Path:
-    """Point ``api.services.cache.CACHE_ROOT`` (and
-    ``api.services.clone.CLONES_ROOT``) at a per-test tempdir so
+    """Point ``api.cache.CACHE_ROOT`` (and
+    ``api.git.clone.CLONES_ROOT``) at a per-test tempdir so
     scan/manifest/clone writes don't pollute ``~/.cache/codecity/`` during
     tests.
 
@@ -122,8 +105,8 @@ def redirect_cache_root(
     setting the env var in a fixture is a no-op for already-imported modules.
     We monkeypatch the per-module attribute directly.
     """
-    from api.services import cache as cache_mod
-    from api.services import clone as clone_mod
+    from api import cache as cache_mod
+    from api.git import clone as clone_mod
 
     cache_dir = tmp_path / "cache"
     cache_dir.mkdir(parents=True, exist_ok=True)
@@ -340,7 +323,7 @@ def final_manifest(root: str, **kwargs: Any) -> Any:
     Most tests assert against the full manifest rather than the skeleton, and
     do not care about the phase iteration.
     """
-    from api.services.scan import scan_tree
+    from api.scan.scanner import scan_tree
 
     final = None
     for event in scan_tree(root, **kwargs):
@@ -348,3 +331,103 @@ def final_manifest(root: str, **kwargs: Any) -> Any:
             final = event["manifest"]
     assert final is not None, "scan_tree must yield a final event"
     return final
+
+
+# ── Scanner test scaffolding ─────────────────────────────────────────
+
+
+def init_repo(root: Path) -> None:
+    """``root`` as a git working tree with user.name/email set. The scanner
+    rejects non-git roots, so every tempdir test builds one of these first."""
+    subprocess.run(["git", "init", "-q", str(root)], check=True)
+    subprocess.run(["git", "-C", str(root), "config", "user.email", "t@t"], check=True)
+    subprocess.run(["git", "-C", str(root), "config", "user.name", "t"], check=True)
+
+
+def commit_all(root: Path, message: str = "x") -> None:
+    subprocess.run(["git", "-C", str(root), "add", "-A"], check=True)
+    subprocess.run(["git", "-C", str(root), "commit", "-q", "-m", message], check=True)
+
+
+FIXTURES_DIR = Path(__file__).resolve().parent / "fixtures"
+_CANONICAL_FIXTURE = FIXTURES_DIR / "sample-repo"
+
+
+def _resolve_fixture() -> Path:
+    """The sample-repo path this worker should use.
+
+    Tests mutate FIXTURE (write .codecityignore, commit cache-bust files), and
+    under xdist those writes race across processes, so each worker gets a
+    private copy. Serial runs use the canonical in-tree path unchanged."""
+    worker = os.environ.get("PYTEST_XDIST_WORKER")
+    if not worker:
+        return _CANONICAL_FIXTURE
+    return (
+        Path(tempfile.gettempdir()) / "codecity-test-fixtures" / worker / "sample-repo"
+    )
+
+
+FIXTURE = _resolve_fixture()
+
+
+def ensure_fixture() -> None:
+    """Build the canonical sample repo if setup.sh has changed, then make sure
+    this worker's copy matches it.
+
+    The flock serializes the setup.sh run across xdist workers; the per-worker
+    marker records the same hash, so editing setup.sh invalidates stale copies
+    too (a .git-exists check alone would silently reuse them)."""
+    sentinel = FIXTURES_DIR / ".sample-repo-ready"
+    lockfile_path = FIXTURES_DIR / ".sample-repo-setup.lock"
+    setup_script = FIXTURES_DIR / "setup.sh"
+    setup_hash = hashlib.sha256(setup_script.read_bytes()).hexdigest()
+    lockfile_path.touch(exist_ok=True)
+    with open(lockfile_path) as fp:
+        fcntl.flock(fp.fileno(), fcntl.LOCK_EX)
+        try:
+            recorded = sentinel.read_text().strip() if sentinel.is_file() else ""
+            if recorded != setup_hash:
+                # Wipe partial state from an interrupted run so setup.sh's
+                # `rm -rf` isn't the only safety net.
+                if _CANONICAL_FIXTURE.exists():
+                    shutil.rmtree(_CANONICAL_FIXTURE)
+                subprocess.check_call(["bash", str(setup_script)])
+                sentinel.write_text(setup_hash)
+        finally:
+            fcntl.flock(fp.fileno(), fcntl.LOCK_UN)
+    if FIXTURE == _CANONICAL_FIXTURE:
+        return
+    # Safe outside the lock: the sentinel guards future setup.sh runs and each
+    # worker writes only its own FIXTURE path.
+    worker_marker = FIXTURE.parent / ".sample-repo-ready"
+    recorded = worker_marker.read_text().strip() if worker_marker.is_file() else ""
+    if recorded != setup_hash or not (FIXTURE / ".git").is_dir():
+        if FIXTURE.exists():
+            shutil.rmtree(FIXTURE)
+        FIXTURE.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copytree(_CANONICAL_FIXTURE, FIXTURE)
+        worker_marker.write_text(setup_hash)
+
+
+class CacheRedirectMixin:
+    """Pulls the ``redirect_cache_root`` fixture into unittest-style classes,
+    which autouse fixtures reach but parameter-injected ones don't."""
+
+    @pytest.fixture(autouse=True)
+    def _redirect_cache_root(self, redirect_cache_root: Path) -> None:
+        self.cache_root = redirect_cache_root
+
+
+def walk_files(node: Any) -> Iterator[Any]:
+    for child in node["children"]:
+        if child["type"] == "file":
+            yield child
+        else:
+            yield from walk_files(child)
+
+
+def walk_dirs(node: Any) -> Iterator[Any]:
+    for child in node["children"]:
+        if child["type"] == "directory":
+            yield child
+            yield from walk_dirs(child)

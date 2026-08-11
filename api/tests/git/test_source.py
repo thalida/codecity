@@ -10,8 +10,8 @@ import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-from api.services import source
-from api.services.source import label_from_source
+from api.git import source
+from api.git.source import label_from_source
 
 
 class LabelFromSourceTests(unittest.TestCase):

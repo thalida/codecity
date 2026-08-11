@@ -1,4 +1,4 @@
-"""Tests for api/services/gitobj.py — read-only git-object plumbing used
+"""Tests for api/git/objects.py — read-only git-object plumbing used
 to reconstruct a manifest at a past ref (resolve_ref, ls_tree_files,
 blob_stats_batch)."""
 
@@ -6,7 +6,7 @@ import os
 import subprocess
 from pathlib import Path
 
-from api.services.gitobj import (
+from api.git.objects import (
     resolve_ref,
     ls_tree_files,
     blob_stats_batch,
@@ -166,7 +166,7 @@ def test_resolve_lfs_pointer(tmp_path):
     """A git-lfs pointer resolves to its LOCAL object's bytes + declared size, so
     timeline blob stats match Live's smudged working tree. Missing object (a
     blobless clone's unfetched history) → (b'', declared size), not the pointer."""
-    from api.services.gitobj import _parse_lfs_pointer, _resolve_lfs
+    from api.git.objects import _parse_lfs_pointer, _resolve_lfs
 
     oid = "a" * 64
     real = b"line1\nline2\nline3\n"

@@ -24,7 +24,7 @@ from api.models.responses import (
     DiscoverResponse,
     HealthResponse,
 )
-from api.services.source import label_from_source
+from api.git import label_from_source
 
 router = APIRouter(prefix="/api", tags=["meta"])
 

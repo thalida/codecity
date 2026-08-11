@@ -9,7 +9,7 @@ interface TreeLike {
 }
 
 /** Non-zero file line/byte ranges over a fixture tree, mirroring
- *  api/services/stats.py — for bench/layout fixtures that feed layoutCity,
+ *  api/scan/stats.py — for bench/layout fixtures that feed layoutCity,
  *  which reads stats.lineCountRange/byteSizeRange to size buildings. Without this the
  *  layout falls back to the {1,1} safe range (every building min-width). */
 export function fileStats(tree: TreeLike): Pick<RepoStats, 'lineCountRange' | 'byteSizeRange'> {

@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from api.services.clone import (
+from api.git.clone import (
     RepoNotFoundError,
     _parse_ls_remote,
     list_remote_branches,
