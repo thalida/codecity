@@ -111,9 +111,9 @@ def test_union_manifest_is_all_paths_max_size(tmp_path: Path) -> None:
 
     deltas = walk_deltas(tmp_path)
     lines, sizes, blob_stats = _collect_blob_tables(tmp_path, deltas)
-    from api.services.scan import _collect_git_history
+    from api.services.gitmeta import collect_git_history
 
-    created, modified, commits = _collect_git_history(tmp_path, use_cache=False)
+    created, modified, commits = collect_git_history(tmp_path, use_cache=False)
     m = build_union_manifest(
         tmp_path, deltas, lines, sizes, blob_stats, commits, created, modified
     )
@@ -148,17 +148,17 @@ def test_union_manifest_keeps_every_commit(tmp_path: Path, monkeypatch) -> None:
         build_union_manifest,
         _collect_blob_tables,
     )
-    from api.services.scan import _collect_git_history
+    from api.services.gitmeta import collect_git_history
 
     _init(tmp_path)
     for i in range(4):
         (tmp_path / f"f{i}.txt").write_text("x\n")
         _commit(tmp_path, f"c{i}")
 
-    monkeypatch.setattr("api.services.scan.MAX_WIRE_COMMITS", 1)
+    monkeypatch.setattr("api.services.manifest_build.MAX_WIRE_COMMITS", 1)
     deltas = walk_deltas(tmp_path)
     lines, sizes, blob_stats = _collect_blob_tables(tmp_path, deltas)
-    created, modified, commits = _collect_git_history(tmp_path, use_cache=False)
+    created, modified, commits = collect_git_history(tmp_path, use_cache=False)
     m = build_union_manifest(
         tmp_path, deltas, lines, sizes, blob_stats, commits, created, modified
     )
@@ -228,7 +228,8 @@ def test_head_date_range_matches_live_scan(tmp_path: Path) -> None:
         compute_commit_date_ranges,
         walk_deltas,
     )
-    from api.services.scan import _collect_git_history, scan_tree
+    from api.services.gitmeta import collect_git_history
+    from api.services.scan import scan_tree
 
     _init(tmp_path)
     (tmp_path / "a.txt").write_text("one\n")
@@ -246,7 +247,7 @@ def test_head_date_range_matches_live_scan(tmp_path: Path) -> None:
     live_dates = live["dateRanges"]
 
     deltas = walk_deltas(tmp_path)
-    git_created, git_modified, commits = _collect_git_history(tmp_path, use_cache=False)
+    git_created, git_modified, commits = collect_git_history(tmp_path, use_cache=False)
     ranges = compute_commit_date_ranges(deltas, commits, git_created, git_modified)
 
     assert ranges[-1] == {
@@ -263,7 +264,7 @@ def test_head_date_range_matches_live_scan(tmp_path: Path) -> None:
 def test_commit_date_ranges_track_the_present_set(tmp_path: Path) -> None:
     """A deleted file drops out of the range at the commit that removed it."""
     from api.services.timeline import compute_commit_date_ranges, walk_deltas
-    from api.services.scan import _collect_git_history
+    from api.services.gitmeta import collect_git_history
 
     _init(tmp_path)
     (tmp_path / "old.txt").write_text("x\n")
@@ -274,7 +275,7 @@ def test_commit_date_ranges_track_the_present_set(tmp_path: Path) -> None:
     _commit(tmp_path, "c3")
 
     deltas = walk_deltas(tmp_path)
-    git_created, git_modified, commits = _collect_git_history(tmp_path, use_cache=False)
+    git_created, git_modified, commits = collect_git_history(tmp_path, use_cache=False)
     ranges = compute_commit_date_ranges(deltas, commits, git_created, git_modified)
 
     # At c1 only old.txt exists, so the span is a single instant.

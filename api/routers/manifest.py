@@ -52,13 +52,8 @@ from api.services.clone import (
     hydrate_blobs,
 )
 from api.services.gitobj import resolve_ref
-from api.services.scan import (
-    NotAGitRepoError,
-    ScanCancelledError,
-    reconstruct_manifest,
-    scan_tree,
-    signature_tree,
-)
+from api.services.scan import reconstruct_manifest, scan_tree, signature_tree
+from api.services.scan_errors import NotAGitRepoError, ScanCancelledError
 from api.services.source import (
     ResolveError,
     SourceKind,

@@ -32,7 +32,7 @@ from api.services.clone import (
     ensure_clone,
     hydrate_blobs,
 )
-from api.services.scan import ScanCancelledError
+from api.services.scan_errors import ScanCancelledError
 
 
 os.environ["CODECITY_QUIET"] = "1"

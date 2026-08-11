@@ -29,7 +29,7 @@ from api.config import CACHE_ROOT, quiet
 # Cancellation is signalled by the same threading.Event the scan honors, so a
 # client disconnect aborts the clone phase too. scan.py does not import clone,
 # so this import is cycle-free.
-from api.services.scan import ScanCancelledError
+from api.services.scan_errors import ScanCancelledError
 
 
 class CloneError(RuntimeError):

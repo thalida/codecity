@@ -2,7 +2,7 @@
 
 Two caches with shared infrastructure:
   - Files: per-file (size, mtime) -> (lines, binary, ext) so warm
-    re-scans skip _is_binary + _line_count for unchanged files.
+    re-scans skip is_binary + line_count for unchanged files.
   - Git history: per-repo HEAD-keyed (created_map, modified_map) so
     polling doesn't re-walk git log on every cycle.
 
@@ -39,6 +39,7 @@ KEY_SEP = "__"  # between the repo key and the entry name
 MANIFEST_EXT = ".json.gz"
 
 if TYPE_CHECKING:
+    from api.services.gitobj import BlobStats
     from api.services.manifest_types import CommitEntry, Manifest, TimelineBundle
 
 
@@ -74,6 +75,22 @@ class BlobEntry(TypedDict):
     media_width: NotRequired[int]
     media_height: NotRequired[int]
     binaryType: NotRequired[str]
+
+
+def blob_entry(stats: "BlobStats") -> BlobEntry:
+    """Freshly-read blob stats → a cache entry, dropping the fields that are
+    absent rather than storing them as null."""
+    entry: BlobEntry = {
+        "lines": stats.lines,
+        "binary": stats.binary,
+        "size": stats.size,
+    }
+    if stats.media_width is not None and stats.media_height is not None:
+        entry["media_width"] = stats.media_width
+        entry["media_height"] = stats.media_height
+    if stats.binary_type is not None:
+        entry["binaryType"] = stats.binary_type
+    return entry
 
 
 # CACHE_ROOT is imported from config (the single source of truth). The subdir
