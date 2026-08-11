@@ -152,21 +152,23 @@ demo-video: && demo-webp
 
 # GitHub strips <video> from markdown, so the README embeds this webp. Not a
 # gif: dark gradients over hundreds of hues break a 256-colour palette (9.3MB
-# and banded, against 3.8MB here). Needs ffmpeg + webp; if img2webp won't run,
+# and banded, against 4.2MB here). Needs ffmpeg + webp; if img2webp won't run,
 # brew install libtiff.
 #
-# Rebuild demo.webp from demo.mp4.
-demo-webp quality='50':
+# Rebuild demo.webp from demo.mp4. Delay is derived from fps: they must agree
+# or the webp plays at the wrong speed.
+demo-webp quality='50' fps='12':
     @set -e ; \
      command -v ffmpeg >/dev/null || { echo "[just] error: ffmpeg not found (brew install ffmpeg)" >&2 ; exit 1 ; } ; \
      command -v img2webp >/dev/null || { echo "[just] error: img2webp not found (brew install webp)" >&2 ; exit 1 ; } ; \
+     DELAY=$(( 1000 / {{fps}} )) ; \
      FRAMES=$(mktemp -d) ; \
      trap 'rm -rf "$FRAMES"' EXIT ; \
      ffmpeg -y -v error -i .github/readme/demo.mp4 \
-         -vf "fps=15,scale=800:-1:flags=lanczos" "$FRAMES/f_%04d.png" ; \
-     img2webp -loop 0 -lossy -q {{quality}} -m 6 -d 67 "$FRAMES"/f_*.png \
+         -vf "fps={{fps}},scale=800:-1:flags=lanczos" "$FRAMES/f_%04d.png" ; \
+     img2webp -loop 0 -lossy -q {{quality}} -m 6 -d $DELAY "$FRAMES"/f_*.png \
          -o .github/readme/demo.webp >/dev/null ; \
-     echo "[codecity] wrote .github/readme/demo.webp ($(du -h .github/readme/demo.webp | cut -f1), q={{quality}})"
+     echo "[codecity] wrote .github/readme/demo.webp ($(du -h .github/readme/demo.webp | cut -f1), {{fps}}fps, q={{quality}})"
 
 # ── Onboarding ───────────────────────────────────────────────────
 # One-shot bootstrap for a fresh clone or new worktree: installs node_modules
