@@ -36,6 +36,15 @@ _NOT_GIT_ERROR = (
     "URL instead."
 )
 
+# `git init` is wrong advice for a directory git already tracks. Names the
+# repository, since that is what has to be mounted.
+_WORKTREE_GITDIR_ERROR = (
+    "path is a git worktree, but its repository at {repo} is not mounted."
+)
+_WORKTREE_GITDIR_ERROR_BARE = (
+    "path is a git worktree, but its git directory at {gitdir} is not mounted."
+)
+
 # Terse on purpose: the UI pairs this with a "how to enable" notice + link, so
 # the restart instructions here would just duplicate it.
 _LOCAL_DISABLED_ERROR = "local repositories are disabled"
@@ -124,6 +133,39 @@ def _is_git_working_tree(path: Path) -> bool:
     return r.returncode == 0 and r.stdout.strip() == "true"
 
 
+def _unreachable_worktree_gitdir(path: Path) -> str | None:
+    """The gitdir a linked worktree points at, if that gitdir is missing.
+
+    A linked worktree's `.git` is a file holding `gitdir: <abs path>`. In a
+    container mounting only the worktree, that path is absent — the worktree is
+    real, its repository just isn't there."""
+    marker = path / ".git"
+    if not marker.is_file():
+        return None
+    try:
+        content = marker.read_text()
+    except OSError:
+        return None
+    for line in content.splitlines():
+        if line.startswith("gitdir:"):
+            gitdir = line.removeprefix("gitdir:").strip()
+            return None if Path(gitdir).exists() else gitdir
+    return None
+
+
+def _local_git_error(path: Path) -> str:
+    """Why `path` isn't scannable, said in terms of what to do about it."""
+    gitdir = _unreachable_worktree_gitdir(path)
+    if not gitdir:
+        return _NOT_GIT_ERROR
+    # A worktree's gitdir is <repo>/.git/worktrees/<name>, and the directory
+    # worth naming is the repo, not the pointer inside it.
+    repo, marker, _ = gitdir.partition("/.git/")
+    if marker and repo:
+        return _WORKTREE_GITDIR_ERROR.format(repo=repo)
+    return _WORKTREE_GITDIR_ERROR_BARE.format(gitdir=gitdir)
+
+
 def resolve_local(src: str) -> Path:
     """Validate a local source path (no network) and return the resolved dir.
     Raises ResolveError on any validation failure."""
@@ -136,7 +178,7 @@ def resolve_local(src: str) -> Path:
     if not target.is_dir():
         raise ResolveError(400, "path is not a directory")
     if not _is_git_working_tree(target):
-        raise ResolveError(400, _NOT_GIT_ERROR)
+        raise ResolveError(400, _local_git_error(target))
     return target
 
 

@@ -125,7 +125,10 @@ export const SOURCE_INFO = computed<SourceInfo>(() => {
 
 export interface RecentSource {
   src: string; // exactly what was typed / passed; goes into ?src=
-  branch?: string; // the loaded branch (remote: picked in the picker; local: checkout)
+  branch?: string; // identity; identityBranch strips it for a local source
+  // Display only. The label comes from the git remote, so every worktree of one
+  // repo shares it and this is all that tells those rows apart.
+  checkout?: string;
   label: string; // derived at save time: basename(src) or "owner/repo"
   lastOpenedAt: number; // ms since epoch, for MRU sort
 }
@@ -169,6 +172,7 @@ export function setCurrentSource(
     // raw src only as a defensive fallback.
     label: manifest.tree?.name || src,
     branch: identityBranch(src, resolveBranch(manifest, branch)),
+    checkout: resolveBranch(manifest, branch),
   });
 }
 

@@ -63,6 +63,23 @@ describe('sourceRecents', () => {
     expect(RECENTS.value[0].branch).toBe('dev');
   });
 
+  it('keeps the checkout off identity, so one path stays one row across branches', () => {
+    // Worktrees of one repo all label as owner/repo (the server bakes it from
+    // the git remote), so the checkout is the only thing telling them apart —
+    // but folding it into identity would split a single path into a row per
+    // branch and re-key its cache every time you switch.
+    pushRecent({ src: '/repo', label: 'owner/repo', checkout: 'main' });
+    pushRecent({ src: '/repo', label: 'owner/repo', checkout: 'feature' });
+    expect(RECENTS.value).toHaveLength(1);
+    expect(RECENTS.value[0].checkout).toBe('feature');
+  });
+
+  it('keeps two worktrees of one repo apart, since their paths differ', () => {
+    pushRecent({ src: '/repo', label: 'owner/repo', checkout: 'main' });
+    pushRecent({ src: '/repo/.wt/feature', label: 'owner/repo', checkout: 'feature' });
+    expect(RECENTS.value.map((r) => r.checkout)).toEqual(['feature', 'main']);
+  });
+
   it('recovers gracefully from corrupt storage', () => {
     localStorage.setItem(STORAGE_PREFIX + PERSISTED_KEYS.RECENTS, '{not valid json');
     expect(RECENTS.value).toEqual([]);

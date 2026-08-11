@@ -225,30 +225,22 @@ export async function createCity(canvas: HTMLCanvasElement, manifest: Manifest):
     ): void {
       _scrubController?.dispose();
       _scrubController = createScrubController({
-        getBuildingIndex: () => buildings.getBuildingIndex(),
-        getMeshForBuilding: (b) => buildings.getMeshForBuilding(b),
-        getFacadePanels: () => buildings.getFacadePanels(),
+        buildings: {
+          getBuildingIndex: () => buildings.getBuildingIndex(),
+          applyScrub: (states) => buildings.applyScrub(states),
+        },
+        streets: { applyScrub: (states) => streets.applyScrub(states) },
+        footprints: { applyScrub: (states) => footprint.applyScrub(states) },
         picker,
         timelines,
         commitLineRanges,
         heightCtx: makeHeightContext(cityState.manifest.peek()?.stats),
-        streets: {
-          setStreetOpacity: (s, o, tint) => streets.setStreetOpacity(s, o, tint),
-          setStreetLabelOpacity: (s, o) => streets.setStreetLabelOpacity(s, o),
-        },
+        scannedAt: cityState.manifest.peek()?.scanned_at,
         streetsByDir: cityState.streetsByDirMap.peek(),
-        footprints: {
-          setBuildingFootprintOpacity: (p, o, ruin) =>
-            footprint.setBuildingFootprintOpacity(p, o, ruin),
-          setStreetFootprintOpacity: (p, o, ruin) =>
-            footprint.setStreetFootprintOpacity(p, o, ruin),
-        },
-        trees: {
-          setScrubCommit: (maxCommitIndex) => trees.setScrubCommit(maxCommitIndex),
-        },
-        fireflies: {
-          setScrubCommit: (maxCommitIndex) => fireflies.setScrubCommit(maxCommitIndex),
-        },
+        scrubGates: [
+          { setScrubCommit: (i) => trees.setScrubCommit(i) },
+          { setScrubCommit: (i) => fireflies.setScrubCommit(i) },
+        ],
       });
       buildings.setScrubController(_scrubController);
     },

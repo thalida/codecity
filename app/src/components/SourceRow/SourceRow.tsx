@@ -53,7 +53,13 @@ export function SourceRow({
       <div class="source-row-body">
         <div class="source-row-label-row">
           <span class="source-row-label">{label}</span>
-          {branch && <span class="app-header-branch-pill">@{branch}</span>}
+          {branch && (
+            // Inner span so the pill can ellipsize: text-overflow doesn't reach
+            // the anonymous text run of a flex container.
+            <span class="app-header-branch-pill source-row-branch" title={branch}>
+              <span class="source-row-branch-name">@{branch}</span>
+            </span>
+          )}
         </div>
         <div class="source-row-sub">
           <span class="source-row-src">{src}</span>

@@ -28,8 +28,7 @@ export const TREES_SECTION: SectionNode = {
       children: [
         field(TREES, 'MIN_HEIGHT'),
         field(TREES, 'MAX_HEIGHT'),
-        field(TREES, 'STALE_HORIZON_DAYS'),
-        field(TREES, 'STALENESS_CAP'),
+        field(TREES, 'HALF_LIFE_DAYS'),
         field(TREES, 'TRUNK_HEIGHT_FRAC'),
         field(TREES, 'CANOPY_TRUNK_OVERLAP_FRAC'),
       ],

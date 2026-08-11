@@ -3,10 +3,9 @@
 //   Saturation → last-modified date      (recent = vivid, stale = faded)
 //   Lightness  → last-modified date      (recent = bright, stale = dim)
 //
-// Both saturation and lightness key off the same axis (last-modified),
-// normalized against the repo's minModified/Max (Manifest.dateRanges,
-// computed on the backend during the scan) — so the dim/desaturated
-// end represents "this file hasn't been touched in a long time".
+// Both key off the same axis (last-modified) through city/utils/recency, so the
+// dim end means "nobody has touched this in a long time" rather than merely
+// "this is the oldest one here".
 // `getCreatedAge` (also exported here) tracks a SEPARATE axis: how long
 // the file has existed in the repo. That drives grime + tilt + lit-window
 // glow color in the shader, independent of recent edits.
@@ -15,6 +14,7 @@
 // set the signals directly in setup + restore in teardown.
 
 import { BUILDINGS } from '@/state/stores/settings/buildings';
+import { recencyT } from '@/city/utils/recency';
 import { NodeKind } from '@/types';
 import type { DateRanges } from '@/types';
 
@@ -75,98 +75,18 @@ export function extHueColor(extension: string | null, palette: Record<string, nu
   return `hsl(${getHue(extension ?? '', palette)}, 60%, 35%)`;
 }
 
-// ── Saturation ────────────────────────────────────────────────────────────────
-
-/**
- * Compute saturation (%) interpolated linearly between a min/max date range.
- *
- * Dates closer to maxDate → config.max saturation (vivid).
- * Dates closer to minDate → config.min saturation (faded/grey).
- * Linear interpolation between the two extremes.
- *
- * @param {string|null} date   - ISO-8601 date string to sample within the range.
- * @param {string|null} minDate - Earliest date in the range (ISO-8601).
- * @param {string|null} maxDate - Latest date in the range (ISO-8601).
- * @param {Object}      config      - { min: number, max: number } (e.g. { min: 20, max: 100 }).
- * @returns {number} Saturation percentage, clamped to [config.min, config.max].
- */
 interface MinMaxRange {
   min: number;
   max: number;
 }
 
-// Shared by getSaturation/getLightness/getBuildingColorForRecency: t=0 → config.min
+// t=0 → config.min
 // (oldest/weathered), t=1 → config.max (newest/vivid). Clamped so out-of-range t
 // (e.g. dates outside the observed range, or a scrub position past the recorded
 // history) still lands inside the configured bounds.
 function lerpRange(t: number, config: MinMaxRange): number {
   const clamped = Math.max(0, Math.min(1, t));
   return Math.round(config.min + clamped * (config.max - config.min));
-}
-
-export function getSaturation(
-  date: string | null,
-  minDate: string | null,
-  maxDate: string | null,
-  config: MinMaxRange
-): number {
-  // Fallback: no date available → mid-point of the configured range
-  if (!date) {
-    return Math.round((config.min + config.max) / 2);
-  }
-
-  const dateVal = Date.parse(date);
-  const min = Date.parse(minDate);
-  const max = Date.parse(maxDate);
-
-  // Guard: if all files share the same date (or range is degenerate), use max
-  if (!min || !max || max === min) {
-    return config.max;
-  }
-
-  // t=0 → oldest (min saturation), t=1 → newest (max saturation)
-  const t = (dateVal - min) / (max - min);
-  return lerpRange(t, config);
-}
-
-// ── Lightness ─────────────────────────────────────────────────────────────────
-
-/**
- * Compute lightness (%) interpolated linearly between a min/max date range.
- *
- * Dates closer to maxDate → config.max lightness (bright).
- * Dates closer to minDate → config.min lightness (dim).
- * Linear interpolation between the two extremes.
- *
- * @param {string|null} date   - ISO-8601 date string to sample within the range.
- * @param {string|null} minDate - Earliest date in the range (ISO-8601).
- * @param {string|null} maxDate - Latest date in the range (ISO-8601).
- * @param {Object}      config       - { min: number, max: number } (e.g. { min: 25, max: 70 }).
- * @returns {number} Lightness percentage, clamped to [config.min, config.max].
- */
-export function getLightness(
-  date: string | null,
-  minDate: string | null,
-  maxDate: string | null,
-  config: MinMaxRange
-): number {
-  // Fallback: no date available → mid-point of the configured range
-  if (!date) {
-    return Math.round((config.min + config.max) / 2);
-  }
-
-  const dateVal = Date.parse(date);
-  const min = Date.parse(minDate);
-  const max = Date.parse(maxDate);
-
-  // Guard: degenerate range → use max (treat as recently modified)
-  if (!min || !max || max === min) {
-    return config.max;
-  }
-
-  // t=0 → oldest modification (min lightness), t=1 → newest (max lightness)
-  const t = (dateVal - min) / (max - min);
-  return lerpRange(t, config);
 }
 
 // ── Building color ────────────────────────────────────────────────────────────
@@ -189,24 +109,10 @@ export function getCreatedAge(file: FileLike, dateRanges: DateRanges): number {
   return Math.max(0, Math.min(1, 1 - t));
 }
 
-/**
- * Mirror of getCreatedAge for the LAST-MODIFIED axis. Sampled at the
- * file's modified date, normalized against minModified/Max. Polarity
- * matches getCreatedAge: 1.0 = file modified earliest in the repo
- * (most stale); 0.0 = most recently modified.
- *
- * Shader-side: passed in via iModifiedAge (per-instance attribute) and
- * read as `vModifiedAge` in the building fragment shader.
- */
-export function getModifiedAge(file: FileLike, dateRanges: DateRanges): number {
-  const modified = file.modified || null;
-  if (!modified) return 0.5;
-  const m = Date.parse(modified);
-  const min = Date.parse(dateRanges.minModified || '');
-  const max = Date.parse(dateRanges.maxModified || '');
-  if (isNaN(m) || isNaN(min) || isNaN(max) || max === min) return 0;
-  const t = (m - min) / (max - min);
-  return Math.max(0, Math.min(1, 1 - t));
+/** The colour axis inverted for the shader's iModifiedAge: 1 = longest
+ *  untouched. Shares modifiedRecency so Live and Timeline agree at HEAD. */
+export function getModifiedAge(file: FileLike, nowMs: number): number {
+  return 1 - modifiedRecency(file, nowMs);
 }
 
 /**
@@ -217,37 +123,19 @@ export function getModifiedAge(file: FileLike, dateRanges: DateRanges): number {
  * @param {Object} dateRanges - Manifest.dateRanges (backend-computed).
  * @returns {string} CSS HSL string, e.g. "hsl(215, 80%, 55%)".
  */
-export function getBuildingColor(file: FileLike, dateRanges: DateRanges): string {
-  const modified = file.modified || null;
+export function getBuildingColor(file: FileLike, nowMs: number): string {
+  return getBuildingColorForRecency(file, modifiedRecency(file, nowMs));
+}
 
-  const palette = BUILDINGS.value;
-  const h = getHue(file.extension || '', palette.HUE_EXT_MAP);
-  // Saturation and lightness both key off LAST-MODIFIED, normalized
-  // against the repo's MODIFIED-date range (minModified/Max). This
-  // gives the color signal full spread: a file modified at the
-  // earliest modification timestamp in the repo lands at
-  // (SATURATION_MIN, LIGHTNESS_MIN); the most-recently-modified file
-  // lands at (SATURATION_MAX, LIGHTNESS_MAX).
-  //
-  // Decoupled by design from createdAge-driven effects (grime, tilt,
-  // lit-window glow color), which still anchor against minCreated/Max:
-  //   - Color           = "how recently was this touched"
-  //   - Grime/tilt/glow = "how long has this file existed"
-  // A long-existing file edited yesterday looks vivid AND grimy; a
-  // recently-created file untouched for a month looks dim/desaturated
-  // but clean. Each axis encodes a distinct fact.
-  const minAnchor = dateRanges.minModified;
-  const maxAnchor = dateRanges.maxModified;
-  const s = getSaturation(modified, minAnchor, maxAnchor, {
-    min: palette.SATURATION_MIN,
-    max: palette.SATURATION_MAX,
-  });
-  const l = getLightness(modified, minAnchor, maxAnchor, {
-    min: palette.LIGHTNESS_MIN,
-    max: palette.LIGHTNESS_MAX,
-  });
-
-  return `hsl(${h}, ${s}%, ${l}%)`;
+/**
+ * How recently a file was touched, from its own age alone.
+ *
+ * A separate axis from getCreatedAge (grime, tilt, window glow), which ranks by
+ * CREATION: colour is "how recently was this touched", those are "how long has
+ * this existed". A long-lived file edited yesterday reads vivid AND grimy.
+ */
+export function modifiedRecency(file: FileLike, nowMs: number): number {
+  return recencyT(Date.parse(file.modified || ''), nowMs, BUILDINGS.value.HALF_LIFE_DAYS);
 }
 
 /**

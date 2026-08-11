@@ -47,6 +47,8 @@ import { createBuildingFader } from './fader';
 import { createOutlineRenderer } from './outline';
 import { createGhostRenderer } from './ghost';
 import { createBuildingTweens } from './tween';
+import { createBuildingScrubApply } from './scrubApply';
+import type { BuildingScrubState } from './scrubState';
 
 /** The enter/stay diff rebuild() computes internally (against the prior cells)
  *  and feeds straight to the tween queue. Only entering/staying matter to the
@@ -62,7 +64,7 @@ export interface Buildings extends SceneComponent {
    *  rebuild the lookups. Always rebuilds (the cell root is always rebuilt —
    *  not scenic-gated). Computes its OWN enter/stay diff against the prior
    *  cells and fires the tweens (boot rebuild snaps in without animating). */
-  rebuild(layout: CityLayout, dateRanges: DateRanges): Promise<void>;
+  rebuild(layout: CityLayout, dateRanges: DateRanges, scannedAt?: string | null): Promise<void>;
   /** Dispose the current instanced facade panels immediately; the next rebuild()
    *  recreates them from the fresh layout. */
   disposeFacadePanels(): void;
@@ -76,6 +78,9 @@ export interface Buildings extends SceneComponent {
   getFacadePanels(): InstancedFacadePanels | null;
   /** Resolve a building's live InstancedMesh + slot. Null if no live mesh. */
   getMeshForBuilding(b: Building): { mesh: THREE.InstancedMesh; slot: number } | null;
+  /** Paint one frame of Timeline scrub: shape, fade, kind, weathering and the
+   *  ad panels. The scrub pass decides the states; this owns the writes. */
+  applyScrub(states: ReadonlyMap<string, BuildingScrubState>): void;
   /** Install (or clear with null) the Timeline scrub controller, which drives
    *  scaleY + iFade per frame while TIMELINE_MODE is on. */
   setScrubController(controller: { update(): void } | null): void;
@@ -163,7 +168,8 @@ export function createBuildings(ctx: SceneContext): Buildings {
   const stopRebuild = effect(() => {
     const layout = ctx.cityState.layout.value;
     const manifest = ctx.cityState.manifest.value;
-    if (layout && manifest) untracked(() => void rebuild(layout, manifest.dateRanges));
+    if (layout && manifest)
+      untracked(() => void rebuild(layout, manifest.dateRanges, manifest.scanned_at));
   });
 
   // (2)(3)(4) Picker-driven hover/selection overlays — fader (body opacity),
@@ -236,6 +242,14 @@ export function createBuildings(ctx: SceneContext): Buildings {
   // Enter/stay tween queue. No picker dep, so (unlike fader/outline/ghost) it is
   // created at construction, not armed.
   const _tweens = createBuildingTweens({ getMeshForBuilding });
+
+  // Resolves meshes through the same accessors the tweens use, so a rebuild
+  // swaps both onto the fresh cells at once.
+  const applyScrub = createBuildingScrubApply({
+    getBuildingIndex: () => _buildingIndex,
+    getMeshForBuilding,
+    getFacadePanels: () => _facadePanels,
+  });
 
   // Timeline scrub controller (installed by the timeline lifecycle). While
   // TIMELINE_MODE, it drives scaleY + iFade per frame instead of the tweens.
@@ -374,8 +388,15 @@ export function createBuildings(ctx: SceneContext): Buildings {
     _outline?.onResize();
   }
 
-  async function rebuild(layout: CityLayout, dateRanges: DateRanges): Promise<void> {
+  async function rebuild(
+    layout: CityLayout,
+    dateRanges: DateRanges,
+    scannedAt?: string | null
+  ): Promise<void> {
     const buildings = layout?.buildings ?? [];
+    // Colour and weathering measure against the scan, not a live clock, so a
+    // rebuild is deterministic and the goldens hold.
+    const nowMs = Date.parse(scannedAt ?? '') || Date.now();
 
     // ---- Color the buildings. ----
     for (const b of buildings) {
@@ -383,7 +404,7 @@ export function createBuildings(ctx: SceneContext): Buildings {
       // not buildings — see city/layout/layout.ts).
       b.color = getBuildingColor(
         b.file as unknown as Parameters<typeof getBuildingColor>[0],
-        dateRanges
+        nowMs
       );
       // createdAge is independent of color: it tracks file age (creation
       // date) so grime/weathering can mark old files even if they were
@@ -394,7 +415,7 @@ export function createBuildings(ctx: SceneContext): Buildings {
       );
       b.modifiedAge = getModifiedAge(
         b.file as unknown as Parameters<typeof getModifiedAge>[0],
-        dateRanges
+        nowMs
       );
     }
 
@@ -504,6 +525,7 @@ export function createBuildings(ctx: SceneContext): Buildings {
     getBuildingIndex: () => _buildingIndex,
     getFacadePanels: () => _facadePanels,
     getMeshForBuilding,
+    applyScrub,
     setScrubController: (c) => {
       _scrubController = c;
     },

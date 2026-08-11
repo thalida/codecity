@@ -48,7 +48,7 @@ import { NodeKind } from '@/types';
 import { sidewalkStreetForFace } from '@/city/components/streets/streets';
 import { BuildingKind } from '@/city/components/buildings/buildingKind';
 import { TIMELINE_MODE, SCRUB_POS } from '@/state/stores/timeline';
-import { RUINED_STREET_DIRS, FUTURE_STREET_DIRS } from '@/city/timeline/scrubController';
+import { RUINED_STREET_DIRS, FUTURE_STREET_DIRS } from '@/city/components/streets/scrubState';
 
 import type { PickTarget, PickerWorld, PickerSelectionKey } from '@/types';
 import type { CityState } from '@/city/state';

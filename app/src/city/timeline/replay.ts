@@ -103,15 +103,23 @@ export function lastModifiedIndexAt(pt: PathTimeline, pos: number): number {
   return changes[lo].i;
 }
 
-// 'absent' = before the path's first commit (nothing to show). 'present' = live
-// at pos. 'ruin' = existed once, then deleted (in a dead gap or past the last
-// interval) — the only state ghost-ruins render.
-export function ruinStateAt(pt: PathTimeline, pos: number): 'present' | 'ruin' | 'absent' {
-  if (pt.intervals.length === 0 || pos < pt.intervals[0].start) return 'absent';
+/** All the history can distinguish about a path at a position. How each state
+ *  RENDERS is settings-dependent and decided separately (BuildingLane). */
+export const PathState = {
+  /** Before the path's first commit. */
+  Absent: 0,
+  Present: 1,
+  /** Existed once, then deleted — the only state ghost-ruins render. */
+  Ruin: 2,
+} as const;
+export type PathState = (typeof PathState)[keyof typeof PathState];
+
+export function ruinStateAt(pt: PathTimeline, pos: number): PathState {
+  if (pt.intervals.length === 0 || pos < pt.intervals[0].start) return PathState.Absent;
   for (const iv of pt.intervals) {
-    if (pos >= iv.start && (iv.end === null || pos < iv.end)) return 'present';
+    if (pos >= iv.start && (iv.end === null || pos < iv.end)) return PathState.Present;
   }
-  return 'ruin';
+  return PathState.Ruin;
 }
 
 export function presenceAt(pt: PathTimeline, pos: number, ruinFloor: number): number {

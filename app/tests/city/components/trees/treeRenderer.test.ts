@@ -23,8 +23,7 @@ function resetStores() {
     SHADING_STRENGTH: 0.65,
     TRUNK_COLOR: '#120c08',
     WIDTH_AGE_FLOOR: 1.0,
-    STALE_HORIZON_DAYS: 730,
-    STALENESS_CAP: 0.85,
+    HALF_LIFE_DAYS: 180,
     OUTLINE_WIDTH: 1,
     OUTLINE_HOVER_COLOR: '#ffffff',
     OUTLINE_HOVER_OPACITY: 0.5,
@@ -181,9 +180,10 @@ describe('createTreeRenderer()', () => {
     trees = renderTrees(placements, commits, BUSY);
 
     const trunk = trunkMesh(trees.group);
-    // Heights 144 / 96 / 48 at TRUNK_HEIGHT_FRAC 0.25.
-    expect(instanceScale(trunk, 0).y).toBeCloseTo(36, 3);
-    expect(instanceScale(trunk, 1).y).toBeCloseTo(24, 3);
+    // Older is taller; TRUNK_HEIGHT_FRAC 0.25 of each. treeEncoding owns the
+    // curve, so what is pinned here is the ordering and the fraction.
+    expect(instanceScale(trunk, 0).y).toBeCloseTo(14.4, 3);
+    expect(instanceScale(trunk, 1).y).toBeGreaterThan(instanceScale(trunk, 2).y);
     expect(instanceScale(trunk, 2).y).toBeCloseTo(12, 3);
   });
 

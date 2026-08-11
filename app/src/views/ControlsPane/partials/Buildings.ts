@@ -50,6 +50,7 @@ export const BUILDINGS_SECTION: SectionNode = {
       key: 'palette',
       label: 'Color palette (HSL)',
       children: [
+        field(BUILDINGS, 'HALF_LIFE_DAYS'),
         field(BUILDINGS, 'SATURATION_MIN'),
         field(BUILDINGS, 'SATURATION_MAX'),
         field(BUILDINGS, 'LIGHTNESS_MIN'),

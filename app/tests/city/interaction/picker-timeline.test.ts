@@ -1,6 +1,6 @@
 // picker-timeline.test.ts — Timeline mode fades buildings/trees/streets by
-// writing opacity/scale onto their still-in-scene meshes (scrubController,
-// treeRenderer.setScrubCommit), so a raycast still hits them. Guards that
+// writing opacity/scale onto their still-in-scene meshes (each component's
+// applyScrub, treeRenderer.setScrubCommit), so a raycast still hits them. Guards that
 // interpretHit rejects a scrub-hidden hit while TIMELINE_MODE is on, and
 // leaves live-mode resolution untouched.
 
@@ -9,7 +9,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { createPicker, PICKER_SELECTION_KEY } from '@/city/interaction/picker';
 import { buildCellsFromLayout } from '@/city/components/buildings/cellAssembly';
 import { createMergedSidewalkMesh } from '@/city/components/streets/streets';
-import { RUINED_STREET_DIRS } from '@/city/timeline/scrubController';
+import { RUINED_STREET_DIRS } from '@/city/components/streets/scrubState';
 import { TIMELINE_MODE } from '@/state/stores/timeline';
 import { BuildingKind } from '@/city/components/buildings/buildingKind';
 import { makeCityState } from '../../_helpers/cityFixtures';

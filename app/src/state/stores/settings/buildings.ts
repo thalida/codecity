@@ -172,6 +172,16 @@ export type BuildingDimensionsConfig = ConfigOf<typeof BUILDING_DIMENSIONS_FIELD
 // routeSignature(Refresh/Rebuild), so a fade tweak never forces a rebuild.
 const BUILDINGS_FIELDS = {
   // ── Palette (HSL) — rebuild ──
+  HALF_LIFE_DAYS: {
+    route: ChangeRoute.Rebuild,
+    kind: FieldKind.Slider,
+    default: 90,
+    min: 1,
+    max: 730,
+    step: 1,
+    label: 'Color half-life (days)',
+    tip: 'Days untouched before a file is halfway to its stalest color.',
+  },
   SATURATION_MIN: {
     route: ChangeRoute.Rebuild,
     kind: FieldKind.Slider,
