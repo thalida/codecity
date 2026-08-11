@@ -24,6 +24,7 @@ import { parentDirPath } from '@/city/utils/path';
 import { streetChainForDirPath } from '@/city/layout/streetPath';
 import { entryAt, lastModifiedIndexAt, linesAt, presenceAt, ruinStateAt } from './replay';
 import type { PathTimeline } from './replay';
+import { resolveStreetScrubState } from './scrubStreets';
 
 // Deleted building's ghost-ruin: low gray stub, blank facade. Height/opacity/
 // gray come from the RUINS store; these two are fixed.
@@ -46,10 +47,22 @@ export const RUINED_STREET_DIRS = new Set<string>();
 // folder that doesn't exist yet.
 export const FUTURE_STREET_DIRS = new Set<string>();
 
-export interface ScrubControllerDeps {
+/** The three buildings accessors the controller needs. They are one component's
+ *  surface and always travel together. */
+export interface ScrubBuildings {
   getBuildingIndex(): BuildingIndex | null;
   getMeshForBuilding(b: Building): { mesh: THREE.InstancedMesh; slot: number } | null;
   getFacadePanels(): InstancedFacadePanels | null;
+}
+
+/** Anything that dims itself to a scrub position. Trees and fireflies are both
+ *  this and nothing more, and both get the identical floored position. */
+export interface ScrubGate {
+  setScrubCommit(maxCommitIndex: number | null): void;
+}
+
+export interface ScrubControllerDeps {
+  buildings: ScrubBuildings;
   // The picker's selection/hover — drives the neighborhood fade cascade so a
   // hover dims the surrounding city here exactly as buildingFader does in Live.
   picker: Pick<ReturnType<typeof createPicker>, 'selection' | 'hover'>;
@@ -68,12 +81,7 @@ export interface ScrubControllerDeps {
     setBuildingFootprintOpacity(path: string, opacity: number, ruin?: boolean): void;
     setStreetFootprintOpacity(dirPath: string, opacity: number, ruin?: boolean): void;
   };
-  trees: {
-    setScrubCommit(maxCommitIndex: number | null): void;
-  };
-  fireflies: {
-    setScrubCommit(maxCommitIndex: number | null): void;
-  };
+  scrubGates: ScrubGate[];
 }
 
 export function createScrubController(deps: ScrubControllerDeps) {
@@ -87,7 +95,7 @@ export function createScrubController(deps: ScrubControllerDeps) {
     finalIdx: number;
   }[] = [];
   const allStreets: Street[] = [];
-  const index = deps.getBuildingIndex();
+  const index = deps.buildings.getBuildingIndex();
   if (index) {
     for (const b of index.byPath.values()) {
       const path = b.file?.path;
@@ -452,7 +460,7 @@ export function createScrubController(deps: ScrubControllerDeps) {
     // gets no plot (keeps future independent of the footprint controls).
     deps.footprints.setBuildingFootprintOpacity(b.file.path, future ? 0 : op, ruin);
 
-    const resolved = deps.getMeshForBuilding(b);
+    const resolved = deps.buildings.getMeshForBuilding(b);
     if (!resolved) return;
     const { mesh, slot } = resolved;
 
@@ -495,43 +503,33 @@ export function createScrubController(deps: ScrubControllerDeps) {
   }
 
   function applyStreetsAtScrub(f: ScrubFrame, s: ScrubSinks): void {
-    // Every street gets written each frame (defaulting to 0) so an orphaned street can't stick at a stale opacity.
-    // ROOT is forced to 1: the repo root directory always exists, even when scrubbed back to an empty tree.
+    // Every street is written each frame, defaulting to 0, so an orphaned street
+    // cannot stick at a stale opacity.
     for (const street of allStreets) {
-      const hasPresent = s.presentStreets.has(street);
-      // Present descendants fade the road with the buildings; else ruin, else
-      // future. Ruin/future render opaque, set apart by color. Present > ruin > future.
-      const streetRuin = f.ruinsOn && !street.isRoot && !hasPresent && s.ruinStreets.has(street);
-      const streetFuture = f.futureOn && !street.isRoot && !hasPresent && !streetRuin;
-      const op = street.isRoot
-        ? 1
-        : hasPresent
-          ? (s.maxPresentOp.get(street) ?? 0)
-          : streetRuin || streetFuture
-            ? 1
-            : 0;
-      // Asphalt tint (streets machinery): 1 = ruin, 2 = future. Independent of the footprint controls.
-      const tint = streetRuin ? 1 : streetFuture ? 2 : 0;
-      deps.streets.setStreetOpacity(street, op, tint);
-      deps.streets.setStreetLabelOpacity(street, op);
+      const st = resolveStreetScrubState(street, s, {
+        ruinsOn: f.ruinsOn,
+        futureOn: f.futureOn,
+      });
+      deps.streets.setStreetOpacity(street, st.opacity, st.tint);
+      deps.streets.setStreetLabelOpacity(street, st.opacity);
       if (street.dir?.path != null) {
         // Footprint plot: present + ruin only. A future road is the tinted asphalt,
         // so its plot stays hidden (keeps future independent of footprint controls).
         deps.footprints.setStreetFootprintOpacity(
           street.dir.path,
-          streetFuture ? 0 : op,
-          streetRuin
+          st.future ? 0 : st.opacity,
+          st.ruin
         );
-        if (streetRuin) RUINED_STREET_DIRS.add(street.dir.path);
-        else if (streetFuture) FUTURE_STREET_DIRS.add(street.dir.path);
+        if (st.ruin) RUINED_STREET_DIRS.add(street.dir.path);
+        else if (st.future) FUTURE_STREET_DIRS.add(street.dir.path);
       }
     }
   }
 
   function update(): void {
     const pos = SCRUB_POS.peek();
-    deps.trees.setScrubCommit(Math.floor(pos));
-    deps.fireflies.setScrubCommit(Math.floor(pos));
+    const gatePos = Math.floor(pos);
+    for (const gate of deps.scrubGates) gate.setScrubCommit(gatePos);
 
     RUINED_STREET_DIRS.clear();
     FUTURE_STREET_DIRS.clear();
@@ -544,7 +542,7 @@ export function createScrubController(deps: ScrubControllerDeps) {
     flushSinks(sinks);
     // ?? 0 (not null): an undriven panel must HIDE, not linger at its shown
     // default (Live's fader still uses null = leave untouched).
-    deps.getFacadePanels()?.applyBuildingFades((p) => sinks.opByPath.get(p) ?? 0);
+    deps.buildings.getFacadePanels()?.applyBuildingFades((p) => sinks.opByPath.get(p) ?? 0);
     applyStreetsAtScrub(frame, sinks);
   }
 

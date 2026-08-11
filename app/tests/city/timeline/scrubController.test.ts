@@ -3,6 +3,7 @@ import { afterEach, beforeEach, expect, test } from 'vitest';
 
 import { buildPathTimelines } from '@/city/timeline/replay';
 import { createScrubController, FUTURE_SLAB_FLOORS } from '@/city/timeline/scrubController';
+import type { ScrubGate } from '@/city/timeline/scrubController';
 import { getBuildingDimensions } from '@/city/layout/dimensions';
 import type { HeightContext } from '@/city/layout/dimensions';
 import { BuildingKind } from '@/city/components/buildings/buildingKind';
@@ -113,26 +114,11 @@ const noopFootprints = {
   setStreetFootprintOpacity: () => {},
 };
 
-// Most tests don't assert on the tree scrub gate; this stub keeps their deps minimal.
-const noopTrees = { setScrubCommit: () => {} };
-
-// Most tests don't assert on the fireflies scrub gate; this stub keeps their deps minimal.
-const noopFireflies = { setScrubCommit: () => {} };
-
-function makeFakeTrees() {
+/** A recording scrub gate. Trees and fireflies are the same interface, so the
+ *  gate tests differ only in which slot of `scrubGates` they inspect. */
+function makeFakeGate(): { gate: ScrubGate; calls: (number | null)[] } {
   const calls: (number | null)[] = [];
-  return {
-    trees: { setScrubCommit: (maxCommitIndex: number | null) => calls.push(maxCommitIndex) },
-    calls,
-  };
-}
-
-function makeFakeFireflies() {
-  const calls: (number | null)[] = [];
-  return {
-    fireflies: { setScrubCommit: (maxCommitIndex: number | null) => calls.push(maxCommitIndex) },
-    calls,
-  };
+  return { gate: { setScrubCommit: (i: number | null) => calls.push(i) }, calls };
 }
 
 function makeFakeFootprints() {
@@ -356,13 +342,17 @@ function makeFakeFacadePanels() {
   };
 }
 
-function setup(
-  getFacadePanels: () => InstancedFacadePanels | null = () => null,
-  trees: { setScrubCommit(maxCommitIndex: number | null): void } = noopTrees,
-  fireflies: { setScrubCommit(maxCommitIndex: number | null): void } = noopFireflies,
+function setup({
+  getFacadePanels = () => null,
+  scrubGates = [],
   initialFadeZ = 0,
-  ranges: RangeStat[] = commitLineRanges
-) {
+  ranges = commitLineRanges,
+}: {
+  getFacadePanels?: () => InstancedFacadePanels | null;
+  scrubGates?: ScrubGate[];
+  initialFadeZ?: number;
+  ranges?: RangeStat[];
+} = {}) {
   const b = {
     x: 5,
     y: 7,
@@ -383,9 +373,11 @@ function setup(
   TIMELINE_BUNDLE.value = withCommitDateRanges(bundle, [file]);
 
   const controller = createScrubController({
-    getBuildingIndex: () => index,
-    getFacadePanels,
-    getMeshForBuilding: () => ({ mesh: fake.mesh, slot: 0 }),
+    buildings: {
+      getBuildingIndex: () => index,
+      getFacadePanels,
+      getMeshForBuilding: () => ({ mesh: fake.mesh, slot: 0 }),
+    },
     timelines,
     heightCtx,
     commitLineRanges: ranges,
@@ -393,8 +385,7 @@ function setup(
     streets: { setStreetOpacity: () => {}, setStreetLabelOpacity: () => {} },
     streetsByDir: {},
     picker: mockPicker(),
-    trees,
-    fireflies,
+    scrubGates,
   });
 
   return { b, fake, controller, timelines };
@@ -454,9 +445,11 @@ function makeAnchoredScene(
   TIMELINE_BUNDLE.value = withCommitDateRanges(sceneBundle, files);
 
   const controller = createScrubController({
-    getBuildingIndex: () => index,
-    getFacadePanels: () => null,
-    getMeshForBuilding: (b) => ({ mesh: meshByBuilding.get(b)!.mesh, slot: 0 }),
+    buildings: {
+      getBuildingIndex: () => index,
+      getFacadePanels: () => null,
+      getMeshForBuilding: (b) => ({ mesh: meshByBuilding.get(b)!.mesh, slot: 0 }),
+    },
     timelines,
     heightCtx,
     commitLineRanges,
@@ -464,8 +457,7 @@ function makeAnchoredScene(
     streets: { setStreetOpacity: () => {}, setStreetLabelOpacity: () => {} },
     streetsByDir: {},
     picker: mockPicker(),
-    trees: noopTrees,
-    fireflies: noopFireflies,
+    scrubGates: [],
   });
 
   return { controller, fakes };
@@ -566,7 +558,7 @@ test('height normalizes against commitLineRanges[pos], not the union heightCtx',
   // 6-line file normalizes differently — proves height tracks the backend
   // per-commit range (at HEAD this range == the live scan's lineCountRange).
   const wide: RangeStat[] = Array.from({ length: 8 }, () => ({ min: 1, max: 20000 }));
-  const { fake, controller } = setup(undefined, undefined, undefined, 0, wide);
+  const { fake, controller } = setup({ ranges: wide });
   setScrubPos(2); // HEAD, 6 lines
   controller.update();
   const expected = getBuildingDimensions(
@@ -583,7 +575,7 @@ test('a degenerate per-commit range (min==max) collapses to MIN_FLOORS, matching
   // the range is degenerate and the building flattens — exactly what a live scan
   // of that 1-file state shows (getBuildingDimensions returns MIN_FLOORS).
   const degenerate: RangeStat[] = Array.from({ length: 8 }, () => ({ min: 6, max: 6 }));
-  const { fake, controller } = setup(undefined, undefined, undefined, 0, degenerate);
+  const { fake, controller } = setup({ ranges: degenerate });
   setScrubPos(2);
   controller.update();
   const minFloors = getBuildingDimensions(
@@ -682,9 +674,11 @@ test('drives footprint opacity even when the building has no detail mesh (LOD ce
   const fp = makeFakeFootprints();
   TIMELINE_BUNDLE.value = bundle;
   const controller = createScrubController({
-    getBuildingIndex: () => index,
-    getFacadePanels: () => null,
-    getMeshForBuilding: () => null, // impostor LOD cell: no detail mesh
+    buildings: {
+      getBuildingIndex: () => index,
+      getFacadePanels: () => null,
+      getMeshForBuilding: () => null, // impostor LOD cell: no detail mesh
+    },
     timelines: buildPathTimelines(bundle),
     heightCtx,
     commitLineRanges,
@@ -692,8 +686,7 @@ test('drives footprint opacity even when the building has no detail mesh (LOD ce
     streets: { setStreetOpacity: () => {}, setStreetLabelOpacity: () => {} },
     streetsByDir: {},
     picker: mockPicker(),
-    trees: noopTrees,
-    fireflies: noopFireflies,
+    scrubGates: [],
   });
 
   setScrubPos(0); // before genesis → absent
@@ -715,7 +708,7 @@ test('a present building keeps its full footprint (scaleX/scaleZ), only height a
 });
 
 test('an absent building has its outline (iFade.z) driven to 0, even if left over from a Live-mode fade sweep', () => {
-  const { fake, controller } = setup(undefined, undefined, undefined, 0.8);
+  const { fake, controller } = setup({ initialFadeZ: 0.8 });
   setScrubPos(3); // deletedIdx: absent
   controller.update();
   expect(fake.iFadeZ).toBe(0);
@@ -723,7 +716,7 @@ test('an absent building has its outline (iFade.z) driven to 0, even if left ove
 
 test('facade panels fade in lockstep with a present building body', () => {
   const fakeFacadePanels = makeFakeFacadePanels();
-  const { b, controller } = setup(() => fakeFacadePanels.facadePanels);
+  const { b, controller } = setup({ getFacadePanels: () => fakeFacadePanels.facadePanels });
   setScrubPos(1.5);
   controller.update();
   expect(fakeFacadePanels.calls).toBe(1);
@@ -732,7 +725,7 @@ test('facade panels fade in lockstep with a present building body', () => {
 
 test('facade panels fade to 0 once the building is deleted (ruins off)', () => {
   const fakeFacadePanels = makeFakeFacadePanels();
-  const { b, controller } = setup(() => fakeFacadePanels.facadePanels);
+  const { b, controller } = setup({ getFacadePanels: () => fakeFacadePanels.facadePanels });
   setScrubPos(3); // deletedIdx
   controller.update();
   expect(fakeFacadePanels.lastGetFade!(b.file.path)).toBe(0);
@@ -741,7 +734,7 @@ test('facade panels fade to 0 once the building is deleted (ruins off)', () => {
 test('facade panels stay hidden on a ruin (media is gone, only the stub shows)', () => {
   RUINS.value = { ...RUINS.value, ENABLED: true, BUILDING_OPACITY: 0.3 };
   const fakeFacadePanels = makeFakeFacadePanels();
-  const { b, controller } = setup(() => fakeFacadePanels.facadePanels);
+  const { b, controller } = setup({ getFacadePanels: () => fakeFacadePanels.facadePanels });
   setScrubPos(3); // deleted → ruin
   controller.update();
   // The stub/footprint ghost at 0.3, but the media panel must be 0 (no image on a ruin).
@@ -763,32 +756,23 @@ test('sets needsUpdate exactly once per mesh and per iFade attribute', () => {
   expect(fake.iFadeUpdates).toBe(1);
 });
 
-test('gates trees on the floored scrub position', () => {
-  const fakeTrees = makeFakeTrees();
-  const { controller } = setup(() => null, fakeTrees.trees);
+test('gates every scrub gate on the floored position, all with the same value', () => {
+  // Two gates because production passes two (trees, fireflies) and they must
+  // not drift apart. Which component sits in which slot is not the point.
+  const a = makeFakeGate();
+  const b = makeFakeGate();
+  const { controller } = setup({ scrubGates: [a.gate, b.gate] });
 
   setScrubPos(1.9);
   controller.update();
-  expect(fakeTrees.calls.at(-1)).toBe(1);
+  expect(a.calls.at(-1)).toBe(1);
+  expect(b.calls.at(-1)).toBe(1);
 
   // Out of range never reaches the scene: SCRUB_POS clamps, so the gate is 0.
   setScrubPos(-0.5);
   controller.update();
-  expect(fakeTrees.calls.at(-1)).toBe(0);
-});
-
-test('gates fireflies on the floored scrub position, same value as the tree gate', () => {
-  const fakeFireflies = makeFakeFireflies();
-  const { controller } = setup(() => null, noopTrees, fakeFireflies.fireflies);
-
-  setScrubPos(1.9);
-  controller.update();
-  expect(fakeFireflies.calls.at(-1)).toBe(1);
-
-  // Out of range never reaches the scene: SCRUB_POS clamps, so the gate is 0.
-  setScrubPos(-0.5);
-  controller.update();
-  expect(fakeFireflies.calls.at(-1)).toBe(0);
+  expect(a.calls.at(-1)).toBe(0);
+  expect(b.calls.at(-1)).toBe(0);
 });
 
 test('a present media/0-line file gets a non-zero scaleY; an absent one stays flat', () => {
@@ -832,9 +816,11 @@ test('a present media/0-line file gets a non-zero scaleY; an absent one stays fl
   TIMELINE_BUNDLE.value = mediaBundle;
 
   const controller = createScrubController({
-    getBuildingIndex: () => index,
-    getFacadePanels: () => null,
-    getMeshForBuilding: () => ({ mesh: fake.mesh, slot: 0 }),
+    buildings: {
+      getBuildingIndex: () => index,
+      getFacadePanels: () => null,
+      getMeshForBuilding: () => ({ mesh: fake.mesh, slot: 0 }),
+    },
     timelines,
     heightCtx,
     commitLineRanges,
@@ -842,8 +828,7 @@ test('a present media/0-line file gets a non-zero scaleY; an absent one stays fl
     streets: { setStreetOpacity: () => {}, setStreetLabelOpacity: () => {} },
     streetsByDir: {},
     picker: mockPicker(),
-    trees: noopTrees,
-    fireflies: noopFireflies,
+    scrubGates: [],
   });
 
   setScrubPos(1);
@@ -1003,14 +988,16 @@ test('dedup: two buildings sharing one InstancedMesh set needsUpdate exactly onc
   const timelines = buildPathTimelines(twoPathBundle);
   TIMELINE_BUNDLE.value = twoPathBundle;
   const controller = createScrubController({
-    getBuildingIndex: () => index,
-    getFacadePanels: () => null,
-    // Subjects share one mesh (the dedup case); anchors live on a separate mesh
-    // so they don't inflate the shared mesh's needsUpdate counts.
-    getMeshForBuilding: (b) =>
-      b === anchorLo || b === anchorHi
-        ? { mesh: anchorMesh.mesh, slot: b.slotId }
-        : { mesh: sharedMesh, slot: b.slotId },
+    buildings: {
+      getBuildingIndex: () => index,
+      getFacadePanels: () => null,
+      // Subjects share one mesh (the dedup case); anchors live on a separate mesh
+      // so they don't inflate the shared mesh's needsUpdate counts.
+      getMeshForBuilding: (b) =>
+        b === anchorLo || b === anchorHi
+          ? { mesh: anchorMesh.mesh, slot: b.slotId }
+          : { mesh: sharedMesh, slot: b.slotId },
+    },
     timelines,
     heightCtx,
     commitLineRanges,
@@ -1018,8 +1005,7 @@ test('dedup: two buildings sharing one InstancedMesh set needsUpdate exactly onc
     streets: { setStreetOpacity: () => {}, setStreetLabelOpacity: () => {} },
     streetsByDir: {},
     picker: mockPicker(),
-    trees: noopTrees,
-    fireflies: noopFireflies,
+    scrubGates: [],
   });
 
   setScrubPos(1.5);
@@ -1112,9 +1098,11 @@ test('couples street opacity to the max opacity of its buildings (block fade)', 
   const timelines = buildPathTimelines(blockBundle);
   TIMELINE_BUNDLE.value = blockBundle;
   const controller = createScrubController({
-    getBuildingIndex: () => index,
-    getFacadePanels: () => null,
-    getMeshForBuilding: (b) => ({ mesh: meshByBuilding.get(b)!.mesh, slot: 0 }),
+    buildings: {
+      getBuildingIndex: () => index,
+      getFacadePanels: () => null,
+      getMeshForBuilding: (b) => ({ mesh: meshByBuilding.get(b)!.mesh, slot: 0 }),
+    },
     timelines,
     heightCtx,
     commitLineRanges,
@@ -1122,8 +1110,7 @@ test('couples street opacity to the max opacity of its buildings (block fade)', 
     streets,
     streetsByDir: { d: dStreet, e: eStreet },
     picker: mockPicker(),
-    trees: noopTrees,
-    fireflies: noopFireflies,
+    scrubGates: [],
   });
 
   setScrubPos(2); // before K, everything present
@@ -1208,9 +1195,11 @@ test('block-fade is a true max, not last-write-wins: one deleted sibling cannot 
 
   const timelines = buildPathTimelines(siblingBundle);
   const controller = createScrubController({
-    getBuildingIndex: () => index,
-    getFacadePanels: () => null,
-    getMeshForBuilding: (b) => ({ mesh: meshByBuilding.get(b)!.mesh, slot: 0 }),
+    buildings: {
+      getBuildingIndex: () => index,
+      getFacadePanels: () => null,
+      getMeshForBuilding: (b) => ({ mesh: meshByBuilding.get(b)!.mesh, slot: 0 }),
+    },
     timelines,
     heightCtx,
     commitLineRanges,
@@ -1218,8 +1207,7 @@ test('block-fade is a true max, not last-write-wins: one deleted sibling cannot 
     streets,
     streetsByDir: { d: dStreet },
     picker: mockPicker(),
-    trees: noopTrees,
-    fireflies: noopFireflies,
+    scrubGates: [],
   });
 
   setScrubPos(3.5); // after K: f2 deleted, f1 still alive
@@ -1301,9 +1289,11 @@ test('descendant rollup: a container street with no direct files inherits its ch
   const timelines = buildPathTimelines(rollupBundle);
   TIMELINE_BUNDLE.value = rollupBundle;
   const controller = createScrubController({
-    getBuildingIndex: () => index,
-    getFacadePanels: () => null,
-    getMeshForBuilding: (b) => ({ mesh: meshByBuilding.get(b)!.mesh, slot: 0 }),
+    buildings: {
+      getBuildingIndex: () => index,
+      getFacadePanels: () => null,
+      getMeshForBuilding: (b) => ({ mesh: meshByBuilding.get(b)!.mesh, slot: 0 }),
+    },
     timelines,
     heightCtx,
     commitLineRanges,
@@ -1311,8 +1301,7 @@ test('descendant rollup: a container street with no direct files inherits its ch
     streets,
     streetsByDir: { src: srcStreet, 'src/a': srcAStreet, e: eStreet },
     picker: mockPicker(),
-    trees: noopTrees,
-    fireflies: noopFireflies,
+    scrubGates: [],
   });
 
   setScrubPos(2); // before deletion, everything present
@@ -1388,9 +1377,11 @@ test('footprints: a deleted building/street fades to 0 while a live sibling stay
   const timelines = buildPathTimelines(footprintBundle);
   TIMELINE_BUNDLE.value = footprintBundle;
   const controller = createScrubController({
-    getBuildingIndex: () => index,
-    getFacadePanels: () => null,
-    getMeshForBuilding: (b) => ({ mesh: meshByBuilding.get(b)!.mesh, slot: 0 }),
+    buildings: {
+      getBuildingIndex: () => index,
+      getFacadePanels: () => null,
+      getMeshForBuilding: (b) => ({ mesh: meshByBuilding.get(b)!.mesh, slot: 0 }),
+    },
     timelines,
     heightCtx,
     commitLineRanges,
@@ -1398,8 +1389,7 @@ test('footprints: a deleted building/street fades to 0 while a live sibling stay
     streets: { setStreetOpacity: () => {}, setStreetLabelOpacity: () => {} },
     streetsByDir: { d: dStreet, e: eStreet },
     picker: mockPicker(),
-    trees: noopTrees,
-    fireflies: noopFireflies,
+    scrubGates: [],
   });
 
   setScrubPos(3.5); // after K: d/f1.txt deleted, e/f2.txt still alive
@@ -1444,9 +1434,11 @@ test('the ROOT street stays at opacity 1 even when every building is absent, unl
   const fake = makeFakeMesh();
   const timelines = buildPathTimelines(bundle);
   const controller = createScrubController({
-    getBuildingIndex: () => index,
-    getFacadePanels: () => null,
-    getMeshForBuilding: () => ({ mesh: fake.mesh, slot: 0 }),
+    buildings: {
+      getBuildingIndex: () => index,
+      getFacadePanels: () => null,
+      getMeshForBuilding: () => ({ mesh: fake.mesh, slot: 0 }),
+    },
     timelines,
     heightCtx,
     commitLineRanges,
@@ -1454,8 +1446,7 @@ test('the ROOT street stays at opacity 1 even when every building is absent, unl
     streets,
     streetsByDir: { [ROOT_PATH]: rootStreet, d: dStreet },
     picker: mockPicker(),
-    trees: noopTrees,
-    fireflies: noopFireflies,
+    scrubGates: [],
   });
 
   setScrubPos(0.5); // before f.txt's creation: every building absent
@@ -1961,9 +1952,11 @@ test('future roads always render: a non-present, non-ruin street is a future roa
   const fake = makeFakeMesh();
   const timelines = buildPathTimelines(bundle);
   const controller = createScrubController({
-    getBuildingIndex: () => index,
-    getFacadePanels: () => null,
-    getMeshForBuilding: () => ({ mesh: fake.mesh, slot: 0 }),
+    buildings: {
+      getBuildingIndex: () => index,
+      getFacadePanels: () => null,
+      getMeshForBuilding: () => ({ mesh: fake.mesh, slot: 0 }),
+    },
     timelines,
     heightCtx,
     commitLineRanges,
@@ -1971,8 +1964,7 @@ test('future roads always render: a non-present, non-ruin street is a future roa
     streets,
     streetsByDir: { [ROOT_PATH]: rootStreet, d: dStreet },
     picker: mockPicker(),
-    trees: noopTrees,
-    fireflies: noopFireflies,
+    scrubGates: [],
   });
 
   setScrubPos(0.5); // before f.txt's creation: root empty, d never has a file
@@ -2024,9 +2016,11 @@ test('a file empty at the scrub position renders as a slab, not a MIN_FLOORS bui
   TIMELINE_BUNDLE.value = emptyBundle;
 
   const controller = createScrubController({
-    getBuildingIndex: () => index,
-    getFacadePanels: () => null,
-    getMeshForBuilding: () => ({ mesh: fake.mesh, slot: 0 }),
+    buildings: {
+      getBuildingIndex: () => index,
+      getFacadePanels: () => null,
+      getMeshForBuilding: () => ({ mesh: fake.mesh, slot: 0 }),
+    },
     timelines: buildPathTimelines(emptyBundle),
     heightCtx,
     commitLineRanges,
@@ -2034,8 +2028,7 @@ test('a file empty at the scrub position renders as a slab, not a MIN_FLOORS bui
     streets: { setStreetOpacity: () => {}, setStreetLabelOpacity: () => {} },
     streetsByDir: {},
     picker: mockPicker(),
-    trees: noopTrees,
-    fireflies: noopFireflies,
+    scrubGates: [],
   });
 
   setScrubPos(1);
@@ -2097,9 +2090,11 @@ function setupAlwaysEmpty() {
   TIMELINE_BUNDLE.value = alwaysEmptyBundle;
 
   const controller = createScrubController({
-    getBuildingIndex: () => index,
-    getFacadePanels: () => null,
-    getMeshForBuilding: () => ({ mesh: fake.mesh, slot: 0 }),
+    buildings: {
+      getBuildingIndex: () => index,
+      getFacadePanels: () => null,
+      getMeshForBuilding: () => ({ mesh: fake.mesh, slot: 0 }),
+    },
     timelines: buildPathTimelines(alwaysEmptyBundle),
     heightCtx,
     commitLineRanges,
@@ -2107,8 +2102,7 @@ function setupAlwaysEmpty() {
     streets: { setStreetOpacity: () => {}, setStreetLabelOpacity: () => {} },
     streetsByDir: {},
     picker: mockPicker(),
-    trees: noopTrees,
-    fireflies: noopFireflies,
+    scrubGates: [],
   });
 
   return { fake, controller };

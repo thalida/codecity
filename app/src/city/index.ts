@@ -225,9 +225,11 @@ export async function createCity(canvas: HTMLCanvasElement, manifest: Manifest):
     ): void {
       _scrubController?.dispose();
       _scrubController = createScrubController({
-        getBuildingIndex: () => buildings.getBuildingIndex(),
-        getMeshForBuilding: (b) => buildings.getMeshForBuilding(b),
-        getFacadePanels: () => buildings.getFacadePanels(),
+        buildings: {
+          getBuildingIndex: () => buildings.getBuildingIndex(),
+          getMeshForBuilding: (b) => buildings.getMeshForBuilding(b),
+          getFacadePanels: () => buildings.getFacadePanels(),
+        },
         picker,
         timelines,
         commitLineRanges,
@@ -243,12 +245,10 @@ export async function createCity(canvas: HTMLCanvasElement, manifest: Manifest):
           setStreetFootprintOpacity: (p, o, ruin) =>
             footprint.setStreetFootprintOpacity(p, o, ruin),
         },
-        trees: {
-          setScrubCommit: (maxCommitIndex) => trees.setScrubCommit(maxCommitIndex),
-        },
-        fireflies: {
-          setScrubCommit: (maxCommitIndex) => fireflies.setScrubCommit(maxCommitIndex),
-        },
+        scrubGates: [
+          { setScrubCommit: (i) => trees.setScrubCommit(i) },
+          { setScrubCommit: (i) => fireflies.setScrubCommit(i) },
+        ],
       });
       buildings.setScrubController(_scrubController);
     },
