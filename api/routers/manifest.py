@@ -1,7 +1,7 @@
 """The manifest routes: GET /api/manifest (SSE stream), GET
 /api/manifest/signature, GET /api/timeline (SSE stream).
 
-Source classification/resolution lives in api.services.source; these are the
+Source classification/resolution lives in api.git.source; these are the
 thin HTTP handlers over it. A ResolveError carries a status + message, plus a
 code where the UI answers the failure differently: the signature route turns it
 into an HTTPException, while the manifest and timeline SSE routes turn it into
@@ -33,7 +33,7 @@ from api.models.events import (
 )
 from api.models.manifest import SignatureResponse
 from api.security import TRUST
-from api.services.cache import (
+from api.cache import (
     cache_clear_timeline,
     cache_load_manifest,
     cache_load_ref_manifest,
@@ -42,27 +42,30 @@ from api.services.cache import (
     cache_save_ref_manifest,
     cache_save_timeline,
 )
-from api.services.clone import (
+from api.git import (
     BranchNotFoundError,
     CloneError,
     HostUnreachableError,
     RepoNotFoundError,
-    ensure_clone,
-    fetch_lfs_history,
-    hydrate_blobs,
-)
-from api.services.gitobj import resolve_ref
-from api.services.scan import reconstruct_manifest, scan_tree, signature_tree
-from api.services.scan_errors import NotAGitRepoError, ScanCancelledError
-from api.services.source import (
     ResolveError,
     SourceKind,
     classify,
+    ensure_clone,
+    fetch_lfs_history,
+    hydrate_blobs,
     label_from_source,
     resolve_local,
+    resolve_ref,
     resolve_source,
 )
-from api.services.timeline import build_timeline_bundle
+from api.scan import (
+    NotAGitRepoError,
+    ScanCancelledError,
+    build_timeline_bundle,
+    reconstruct_manifest,
+    scan_tree,
+    signature_tree,
+)
 
 router = APIRouter(prefix="/api", tags=["manifest"])
 

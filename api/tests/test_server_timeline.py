@@ -100,7 +100,7 @@ def test_timeline_stream_history_heartbeat(
 ) -> None:
     """Lower the commit-count heartbeat threshold so a small repo still trips
     the `history` stage (production cadence is every ~2000 commits)."""
-    from api.services import timeline as timeline_service
+    from api.scan import timeline as timeline_service
 
     monkeypatch.setattr(timeline_service, "_HISTORY_HEARTBEAT_EVERY", 1)
     p = tmp_path / "repo3"

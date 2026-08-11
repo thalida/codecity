@@ -10,13 +10,14 @@ from fastapi import APIRouter, HTTPException, Query
 
 from api.models.events import CodedHTTPException, ErrorCode
 from api.models.responses import BranchListResponse
-from api.services.clone import (
+from api.git import (
     CloneError,
     HostUnreachableError,
     RepoNotFoundError,
+    SourceKind,
+    classify,
     list_remote_branches,
 )
-from api.services.source import SourceKind, classify
 
 router = APIRouter(prefix="/api", tags=["branches"])
 

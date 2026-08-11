@@ -40,10 +40,9 @@ import pytest
 def quiet_logs() -> Iterator[None]:
     """Suppress codecity's stderr scan/clone logs across the test run.
 
-    Replaces the module-level ``os.environ["CODECITY_QUIET"] = "1"``
-    statements at the top of test_scan.py / test_server.py / test_clone.py.
-    Those leak across processes and can't be unset; a session fixture
-    restores prior state on teardown.
+    A fixture rather than a module-level ``os.environ`` assignment: those leak
+    across processes and can't be unset, while this restores prior state on
+    teardown.
     """
     prev = os.environ.get("CODECITY_QUIET")
     os.environ["CODECITY_QUIET"] = "1"
@@ -96,8 +95,8 @@ def redirect_cache_root(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> Path:
-    """Point ``api.services.cache.CACHE_ROOT`` (and
-    ``api.services.clone.CLONES_ROOT``) at a per-test tempdir so
+    """Point ``api.cache.CACHE_ROOT`` (and
+    ``api.git.clone.CLONES_ROOT``) at a per-test tempdir so
     scan/manifest/clone writes don't pollute ``~/.cache/codecity/`` during
     tests.
 
@@ -106,8 +105,8 @@ def redirect_cache_root(
     setting the env var in a fixture is a no-op for already-imported modules.
     We monkeypatch the per-module attribute directly.
     """
-    from api.services import cache as cache_mod
-    from api.services import clone as clone_mod
+    from api import cache as cache_mod
+    from api.git import clone as clone_mod
 
     cache_dir = tmp_path / "cache"
     cache_dir.mkdir(parents=True, exist_ok=True)
@@ -324,7 +323,7 @@ def final_manifest(root: str, **kwargs: Any) -> Any:
     Most tests assert against the full manifest rather than the skeleton, and
     do not care about the phase iteration.
     """
-    from api.services.scan import scan_tree
+    from api.scan.scanner import scan_tree
 
     final = None
     for event in scan_tree(root, **kwargs):

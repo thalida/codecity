@@ -2,7 +2,7 @@
 // Recognizes which files get a media-poster face rendered on their
 // building. Reads the backend-computed FileNode.mediaKind (the single
 // source of truth — the backend classifies extensions in
-// api/services/media.py and ships the result on the wire). Shared by the
+// api/media.py and ships the result on the wire). Shared by the
 // layout pass (which runs in the layout WORKER, so this module must stay
 // THREE-free) and the instanced ad-panel renderer
 // (components/buildings/facadePanels.ts). This module knows no extensions.

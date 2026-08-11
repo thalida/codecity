@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import unittest
 
-from api.services.date_utils import max_iso, min_iso
+from api.date_utils import max_iso, min_iso
 
 
 class DateUtilTests(unittest.TestCase):

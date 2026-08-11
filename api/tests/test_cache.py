@@ -10,9 +10,9 @@ from pathlib import Path
 
 import pytest
 
-from api.services import cache as cache_mod
-from api.services.cache import _git_history_cache_path
-from api.services.manifest_types import CommitEntry
+from api import cache as cache_mod
+from api.cache import _git_history_cache_path
+from api.manifest_types import CommitEntry
 
 
 _ROOT = Path("/some/repo")
@@ -440,8 +440,8 @@ class GitHistoryCacheTests(CacheTestBase):
         )
 
     def test_git_history_rejects_old_version(self):
-        from api.services import cache as cache_mod
-        from api.services.cache import (
+        from api import cache as cache_mod
+        from api.cache import (
             _git_history_cache_path,
             cache_load_git_history,
         )
@@ -516,7 +516,7 @@ class ManifestCacheTests(CacheTestBase):
         """A manifest cache file written under a prior _GIT_HISTORY_CACHE_VERSION
         must be dropped on load, because the composite version string changes
         when git-history bumps."""
-        from api.services.cache import (
+        from api.cache import (
             _manifest_cache_path,
             cache_load_manifest,
         )
@@ -736,7 +736,7 @@ class MediaDimsCacheTests(CacheTestBase):
 
 
 def test_blob_stats_cache_roundtrip(tmp_path, monkeypatch):
-    from api.services import cache
+    from api import cache
 
     monkeypatch.setattr(cache, "CACHE_ROOT", tmp_path)
     root = tmp_path / "repo"
@@ -752,7 +752,7 @@ def test_blob_stats_cache_roundtrip(tmp_path, monkeypatch):
 
 
 def test_blob_stats_cache_version_mismatch_is_miss(tmp_path, monkeypatch):
-    from api.services import cache
+    from api import cache
 
     monkeypatch.setattr(cache, "CACHE_ROOT", tmp_path)
     root = tmp_path / "repo"

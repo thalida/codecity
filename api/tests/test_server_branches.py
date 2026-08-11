@@ -8,7 +8,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from api.app import create_app
-from api.services.clone import RepoNotFoundError
+from api.git.clone import RepoNotFoundError
 
 
 @pytest.fixture()
