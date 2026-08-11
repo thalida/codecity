@@ -270,7 +270,11 @@ def build_union_manifest(
             "dirty": False,
         }
     )
-    return _wrap_manifest(root_abs, tree, sig, signals, repo_info, commits, [])
+    # Uncapped: the scrubber indexes the bundle's commits and the city the
+    # union manifest's, so sampling one would slide every tree off its commit.
+    return _wrap_manifest(
+        root_abs, tree, sig, signals, repo_info, commits, [], sample_commits=False
+    )
 
 
 def compute_commit_line_ranges(

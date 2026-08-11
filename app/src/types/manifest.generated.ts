@@ -580,7 +580,10 @@ export interface components {
             layout_signature: string;
             tree: components["schemas"]["DirNode"];
             repo: components["schemas"]["RepoInfo"];
-            /** Commits */
+            /**
+             * Commits
+             * @description Oldest-first. Above 100k, an evenly strided sample of the history; stats.commitCount is the true total.
+             */
             commits: components["schemas"]["CommitEntry"][];
             busyness: components["schemas"]["BusynessThresholds"];
             dateRanges: components["schemas"]["DateRanges"];
@@ -672,6 +675,11 @@ export interface components {
             minChildrenDir: components["schemas"]["DirLeader"] | null;
             maxFilesPerCommit: components["schemas"]["CommitLeader"] | null;
             minFilesPerCommit: components["schemas"]["CommitLeader"] | null;
+            /**
+             * Commitcount
+             * @description Commits in the full history, however many `commits` carries
+             */
+            commitCount: number;
             commitDates: components["schemas"]["CommitDateRange"];
             maxCommitsPerDay: components["schemas"]["DayLeader"] | null;
             /** Maxcommitstreakdays */

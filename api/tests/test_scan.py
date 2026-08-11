@@ -18,6 +18,7 @@ import pytest
 from api.services.scan import (
     _annotate_same_day_totals,
     _compute_busyness,
+    _sample_commits,
     _derive_tree_signals,
     _epoch_to_iso,
     _extension,
@@ -301,6 +302,33 @@ def test_annotate_same_day_totals(dates, expected):
     ]
     _annotate_same_day_totals(commits)
     assert [c["same_day_total"] for c in commits] == expected
+
+
+def _numbered_commits(n: int) -> list:
+    return [
+        {"date": "2026-01-01", "files": 1, "sha": str(i), "authors": [], "subject": ""}
+        for i in range(n)
+    ]
+
+
+@pytest.mark.parametrize("total", [0, 1, 9, 10])
+def test_sample_commits_leaves_short_histories_alone(total, monkeypatch):
+    monkeypatch.setattr("api.services.scan.MAX_WIRE_COMMITS", 10)
+    commits = _numbered_commits(total)
+    assert _sample_commits(commits) is commits
+
+
+def test_sample_commits_strides_a_deep_history(monkeypatch):
+    monkeypatch.setattr("api.services.scan.MAX_WIRE_COMMITS", 5)
+    shas = [c["sha"] for c in _sample_commits(_numbered_commits(100))]
+    # Both ends kept, evenly spaced, chronological order preserved.
+    assert shas == ["0", "25", "50", "74", "99"]
+
+
+def test_sample_commits_keeps_both_ends_at_the_cap_boundary(monkeypatch):
+    monkeypatch.setattr("api.services.scan.MAX_WIRE_COMMITS", 3)
+    shas = [c["sha"] for c in _sample_commits(_numbered_commits(4))]
+    assert shas == ["0", "2", "3"]
 
 
 class ScanTreeIntegrationTests(_CacheRedirectMixin, unittest.TestCase):
@@ -833,6 +861,20 @@ class ScanTreeIntegrationTests(_CacheRedirectMixin, unittest.TestCase):
         self.assertGreater(len(m["commits"]), 0)
         dates = [c["date"] for c in m["commits"]]
         self.assertEqual(dates, sorted(dates))
+
+    def test_deep_history_ships_a_sample_with_exact_aggregates(self):
+        full = _final_manifest(str(FIXTURE), use_cache=False)
+        self.assertGreater(len(full["commits"]), 2)
+        with mock.patch("api.services.scan.MAX_WIRE_COMMITS", 2):
+            capped = _final_manifest(str(FIXTURE), use_cache=False)
+        self.assertEqual(len(capped["commits"]), 2)
+        # Both ends survive, and everything derived from the history still
+        # reads the whole of it.
+        self.assertEqual(capped["commits"][0], full["commits"][0])
+        self.assertEqual(capped["commits"][-1], full["commits"][-1])
+        self.assertEqual(capped["stats"]["commitCount"], len(full["commits"]))
+        self.assertEqual(capped["stats"], full["stats"])
+        self.assertEqual(capped["busyness"], full["busyness"])
 
     def test_scan_tree_rejects_non_git_root(self):
         """scan_tree must raise NotAGitRepoError on a non-git directory.

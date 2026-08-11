@@ -343,6 +343,7 @@ describe('computeAlmanac — streets, forest, fireflies', () => {
     minChildrenDir: { path: 'src/a/b', depth: 3, children: 1, descendants: 1 },
     maxFilesPerCommit: { sha: 'bbb', files: 40 },
     minFilesPerCommit: { sha: 'ccc', files: 1 },
+    commitCount: 4,
     maxCommitsPerDay: { date: '2022-01-02', count: 3 },
     maxCommitStreakDays: 3,
     authors: [
@@ -419,6 +420,19 @@ describe('computeAlmanac — streets, forest, fireflies', () => {
     const streets = b.sections.find((s) => s.key === 'streets')!;
     expect(streets.facts).toHaveLength(0);
     expect(streets.note).toBeTruthy();
+  });
+  it('counts one tree per commit when the whole history shipped', () => {
+    expect(section('forest').overview).toContain('4 trees');
+    expect(section('forest').overview).not.toContain('sampled');
+  });
+  it('names both counts when the backend sampled a deep history', () => {
+    const deepStats = { ...sfStats, commitCount: 1_430_000 };
+    const b = computeAlmanac(manifest(tree, { commits, stats: deepStats }))!;
+    const forest = b.sections.find((s) => s.key === 'forest')!;
+    expect(forest.overview).toContain('1,430,000 commits · 4 trees (sampled)');
+    // The per-author average divides the true total, not the sample.
+    const fireflies = b.sections.find((s) => s.key === 'fireflies')!;
+    expect(fireflies.overview).toContain('~715,000 commits each');
   });
   it('gates the forest section behind the Trees layer', () => {
     const b = computeAlmanac(manifest(tree, { commits, stats: sfStats }), false)!;

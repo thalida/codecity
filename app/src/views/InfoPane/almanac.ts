@@ -502,9 +502,16 @@ function streetsSection(m: Manifest): AlmanacSection {
 
 function forestSection(m: Manifest, treesEnabled: boolean): AlmanacSection {
   const trees = m.commits.length;
+  const commits = m.stats.commitCount;
   const cd = m.stats.commitDates;
   const span = cd.oldest && cd.newest ? humanSpan(cd.oldest, cd.newest) : '';
-  const overview = `${pluralize(trees, 'tree')}${span ? ` · ${span} of history` : ''}`;
+  // Deep histories ship a sample of their commits, so the forest is one tree
+  // per sampled commit: name both counts rather than imply a tree per commit.
+  const forest =
+    commits > trees
+      ? `${pluralize(commits, 'commit')} · ${pluralize(trees, 'tree')} (sampled)`
+      : pluralize(trees, 'tree');
+  const overview = `${forest}${span ? ` · ${span} of history` : ''}`;
   const base = { ...layerHeader('forest'), overview };
   // Canopies fly the camera to a tree; with the Trees layer off those targets
   // don't exist, so the notice lives here (not the view) like any empty state.
@@ -554,7 +561,7 @@ function forestSection(m: Manifest, treesEnabled: boolean): AlmanacSection {
 function firefliesSection(m: Manifest): AlmanacSection {
   const s = m.stats;
   const count = s.authors.length;
-  const avgCommits = perEach(m.commits.length, count);
+  const avgCommits = perEach(m.stats.commitCount, count);
   // 'firefly' is irregular, so pluralize (naive +s) won't do.
   const noun = count === 1 ? 'firefly' : 'fireflies';
   const each = avgCommits !== null ? ` · ~${formatCount(avgCommits)} commits each` : '';

@@ -40,6 +40,7 @@ export const EMPTY_REPO_STATS: RepoStats = {
   minChildrenDir: null,
   maxFilesPerCommit: null,
   minFilesPerCommit: null,
+  commitCount: 0,
   commitDates: { oldest: null, newest: null },
   maxCommitsPerDay: null,
   maxCommitStreakDays: 0,

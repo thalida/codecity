@@ -140,6 +140,31 @@ def test_union_manifest_is_all_paths_max_size(tmp_path: Path) -> None:
     assert nodes["a.txt"]["binary"] is False
 
 
+def test_union_manifest_keeps_every_commit(tmp_path: Path, monkeypatch) -> None:
+    """The scrubber indexes the bundle's commits and the city the union
+    manifest's, so the union manifest must never be sampled."""
+    from api.services.timeline import (
+        walk_deltas,
+        build_union_manifest,
+        _collect_blob_tables,
+    )
+    from api.services.scan import _collect_git_history
+
+    _init(tmp_path)
+    for i in range(4):
+        (tmp_path / f"f{i}.txt").write_text("x\n")
+        _commit(tmp_path, f"c{i}")
+
+    monkeypatch.setattr("api.services.scan.MAX_WIRE_COMMITS", 1)
+    deltas = walk_deltas(tmp_path)
+    lines, sizes, blob_stats = _collect_blob_tables(tmp_path, deltas)
+    created, modified, commits = _collect_git_history(tmp_path, use_cache=False)
+    m = build_union_manifest(
+        tmp_path, deltas, lines, sizes, blob_stats, commits, created, modified
+    )
+    assert len(m["commits"]) == len(commits) == 4
+
+
 def test_compute_commit_line_ranges() -> None:
     """Per-commit range tracks the present set: files add/grow/delete, and
     zero-line files (binary/empty) are excluded — mirroring compute_repo_stats."""
