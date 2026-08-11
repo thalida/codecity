@@ -169,8 +169,7 @@ export class InstancedFacadePanels {
   // Constructor override: when set, replaces every panel's loader so tests can
   // observe LOD scheduling without hitting the network. null in production.
   private readonly _overrideStartLoad:
-    | ((b: Building, layer: number, panelSlots: number[]) => void)
-    | null;
+    ((b: Building, layer: number, panelSlots: number[]) => void) | null;
 
   constructor(
     mediaFileCapacity: number,

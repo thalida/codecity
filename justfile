@@ -80,22 +80,24 @@ test-app:
     docker compose -f docker-compose.test.yml run --rm vitest
 
 # ── Format / lint / typecheck ────────────────────────────────────
-# Apply the Python formatter (ruff = the prettier of Python) in place. Local
-# uv run (like `gen-types`) so the reformatted files stay owned by you, not the
-# container's root.
+# Both run locally (like `gen-types`) so reformatted files stay owned by you,
+# not the container's root. Prettier only from the root: elsewhere it resolves
+# a different version and misses .prettierignore (#165).
 fmt:
     uv run ruff format api bin scripts
+    npx prettier --write .
 
-# Check Python formatting (ruff) — the equivalent of the frontend format:check.
+# Check both formatters, in containers, exactly as the pre-push gate does.
 fmt-check:
     docker compose -f docker-compose.test.yml run --rm ruff
+    docker compose -f docker-compose.test.yml run --rm prettier
 
 # Reads NPM_VERSION from the repo-root .env file (canonical source for
 # compose + just). Dockerfile ARG default and ci.yml `env:` block mirror it.
 lint: fmt-check
     @NPM_VERSION=$(grep '^NPM_VERSION=' .env | cut -d= -f2) ; \
      docker compose -f docker-compose.test.yml run --rm vitest \
-         sh -c "npm install -g npm@$NPM_VERSION && npm ci && npm run lint && npm run typecheck && npm run format:check"
+         sh -c "npm install -g npm@$NPM_VERSION && npm ci && npm run lint && npm run typecheck"
 
 # ── Codegen ──────────────────────────────────────────────────────
 # Regenerate app/src/types/manifest.generated.ts from the live OpenAPI schema.
@@ -167,10 +169,11 @@ demo-webp quality='50':
      echo "[codecity] wrote .github/readme/demo.webp ($(du -h .github/readme/demo.webp | cut -f1), q={{quality}})"
 
 # ── Onboarding ───────────────────────────────────────────────────
-# One-shot bootstrap for a fresh clone or new worktree: installs app
-# node_modules (so local vitest / IDE intellisense work — runtime
-# itself uses Docker via `just dev`) and the per-clone git hooks.
+# One-shot bootstrap for a fresh clone or new worktree: installs node_modules
+# at the root (prettier) and in app/ (so local vitest / IDE intellisense work —
+# runtime itself uses Docker via `just dev`), plus the per-clone git hooks.
 setup: install-hooks
+    npm install
     cd app && npm install
     @if [ ! -f .env.local ]; then \
          cp .env.local.example .env.local ; \

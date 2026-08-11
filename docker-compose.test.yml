@@ -14,14 +14,15 @@ services:
     # image build (Dockerfile runs `uv sync` before `USER codecity`), so the
     # non-root runtime user can't write to it. This is a test-only ephemeral
     # container (--rm), not production — root is acceptable here.
-    user: "root"
+    user: 'root'
     init: true
     # The trailing `"--"` becomes `$0` to the sh -c script, so extra args
     # passed via `docker compose run --rm pytest <args>` propagate to pytest
     # through `"$@"`. Without this, `sh -c` silently drops them (e.g. CI's
     # `--cov-report=xml:...` flag — no xml emitted, upload-artifact warns
     # "no files found").
-    entrypoint: ["sh", "-c", "uv sync --frozen && exec /srv/.venv/bin/python -m pytest -v \"$@\"", "--"]
+    entrypoint:
+      ['sh', '-c', 'uv sync --frozen && exec /srv/.venv/bin/python -m pytest -v "$@"', '--']
     environment:
       # A couple of tests in api/tests/test_scan.py shell out to `git commit`
       # to test cache invalidation. On a developer's host this works via
@@ -36,9 +37,9 @@ services:
       # cache-bust files, modifying tracked files to test stat-cache
       # invalidation). They clean up via addCleanup, but they need write
       # access. The manifests are read-only — they never change at runtime.
-      - "./api:/srv/api"
-      - "./uv.lock:/srv/uv.lock:ro"
-      - "./pyproject.toml:/srv/pyproject.toml:ro"
+      - './api:/srv/api'
+      - './uv.lock:/srv/uv.lock:ro'
+      - './pyproject.toml:/srv/pyproject.toml:ro'
 
   # `ruff format --check` is the Python equivalent of the frontend's
   # `prettier --check`. Read-only mounts: it only verifies formatting, never
@@ -47,15 +48,35 @@ services:
     image: codecity:test
     build:
       context: .
-    user: "root"
+    user: 'root'
     init: true
-    entrypoint: ["sh", "-c", "uv sync --frozen && exec /srv/.venv/bin/ruff format --check api bin scripts \"$@\"", "--"]
+    entrypoint:
+      [
+        'sh',
+        '-c',
+        'uv sync --frozen && exec /srv/.venv/bin/ruff format --check api bin scripts "$@"',
+        '--',
+      ]
     volumes:
-      - "./api:/srv/api:ro"
-      - "./bin:/srv/bin:ro"
-      - "./scripts:/srv/scripts:ro"
-      - "./uv.lock:/srv/uv.lock:ro"
-      - "./pyproject.toml:/srv/pyproject.toml:ro"
+      - './api:/srv/api:ro'
+      - './bin:/srv/bin:ro'
+      - './scripts:/srv/scripts:ro'
+      - './uv.lock:/srv/uv.lock:ro'
+      - './pyproject.toml:/srv/pyproject.toml:ro'
+
+  # Separate from `vitest` because that service only mounts ./app, and
+  # prettier's install and config are at the root.
+  prettier:
+    image: node:24-bookworm-slim
+    working_dir: /repo
+    init: true
+    command: sh -c "npm install -g npm@${NPM_VERSION:-11.6.2} && npm ci && npx prettier --check ."
+    volumes:
+      # Not :ro — same fresh-clone mountpoint problem as vitest. Check never writes.
+      - '.:/repo'
+      - '/repo/node_modules'
+      - '/repo/app/node_modules'
+      - 'codecity-test-npm-cache:/root/.npm'
 
   vitest:
     image: node:24-bookworm-slim
@@ -81,10 +102,10 @@ services:
       # read-only parent mount on a fresh checkout (no existing node_modules
       # dir to overlay on). Vitest tests are pure-functional and don't write
       # to source.
-      - "./app:/app"
-      - "/app/node_modules"             # anonymous volume — npm-installed in container
-      - "codecity-test-npm-cache:/root/.npm"     # persist npm + prebuild-install cache
-      - "codecity-test-node-cache:/root/.cache"  # prebuild-install may cache here too
+      - './app:/app'
+      - '/app/node_modules' # anonymous volume — npm-installed in container
+      - 'codecity-test-npm-cache:/root/.npm' # persist npm + prebuild-install cache
+      - 'codecity-test-node-cache:/root/.cache' # prebuild-install may cache here too
 
 # Named caches so canvas's prebuilt binary is downloaded once, not per push.
 volumes:

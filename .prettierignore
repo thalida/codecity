@@ -1,12 +1,27 @@
+# At the root, not app/: prettier resolves this relative to its cwd (#165).
+
 node_modules
-../api/static
 package-lock.json
 coverage
 dist
+api/static
+
+# Python, tooling and local-run scratch.
+.venv
+.local
+.codecity
+.claude
+.superpowers
+.mypy_cache
+.pytest_cache
+.ruff_cache
+uv.lock
+
 # Scanner fixtures: a nested git repo whose file contents, line counts and
 # mtimes the scan tests assert on. Formatting them rewrites those and fails
 # test_scan, while the outer `git status` stays clean because it is its own repo.
-../api/tests/fixtures
+api/tests/fixtures
+
 # Auto-generated from the OpenAPI schema by `just gen-types` (openapi-typescript).
 # Edit api/models/*.py and regenerate; never hand-format this file.
-src/types/manifest.generated.ts
+app/src/types/manifest.generated.ts

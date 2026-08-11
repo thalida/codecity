@@ -14,14 +14,14 @@ jobs:
     # release by pushing a tag.
     if: github.actor == github.repository_owner
     permissions:
-      contents: write       # for creating the GitHub Release
-      packages: write       # for pushing to GHCR
-      id-token: write       # for cosign keyless signing via OIDC
+      contents: write # for creating the GitHub Release
+      packages: write # for pushing to GHCR
+      id-token: write # for cosign keyless signing via OIDC
     steps:
       - name: Checkout
         uses: actions/checkout@v6
         with:
-          fetch-depth: 0    # full history for hatch-vcs
+          fetch-depth: 0 # full history for hatch-vcs
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v4

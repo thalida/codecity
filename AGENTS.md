@@ -24,12 +24,12 @@ If you discover new work, file an issue rather than leaving an inline `TODO`.
 Start each issue in its own git worktree on a branch that GitHub links back to the
 issue. Pick the branch prefix from the issue's `cat:` (category) label:
 
-| Category label      | Prefix  |
-| ------------------- | ------- |
-| `cat:bug`           | `fix/`  |
-| `cat:enhancement`   | `feat/` |
-| `cat:documentation` | `docs/` |
-| anything else       | `chore/`|
+| Category label      | Prefix   |
+| ------------------- | -------- |
+| `cat:bug`           | `fix/`   |
+| `cat:enhancement`   | `feat/`  |
+| `cat:documentation` | `docs/`  |
+| anything else       | `chore/` |
 
 (Priority is a separate axis: `P1`–`P4` are priority tags, not types — pick the prefix from the `cat:` label.)
 

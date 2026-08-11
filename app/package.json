@@ -12,9 +12,7 @@
     "bench": "vitest run --project=bench",
     "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.node.json",
     "lint": "eslint .",
-    "lint:fix": "eslint . --fix",
-    "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "lint:fix": "eslint . --fix"
   },
   "repository": {
     "type": "git",
@@ -41,7 +39,6 @@
     "material-icon-theme": "^5.30.0",
     "openapi-typescript": "^7.13.0",
     "playwright": "^1.49.0",
-    "prettier": "^3.8.3",
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.59.2",
     "vite": "^8.0.8",
