@@ -1,18 +1,15 @@
-// How a street renders at a scrub position, decided from the rollup over its
-// descendant buildings. Pure: no meshes, no signals — the timeline pass gathers
-// the rollup, this decides, the streets component applies.
+// How a street renders at a scrub position, from the rollup over its descendant
+// buildings. No meshes, no signals: the pass gathers, this decides, the
+// component applies.
 
 import type { Street } from '@/types';
 
-// Streets rendered as ruins; the picker rejects hits on them (buildings use
-// iKind instead). Repopulated by the streets component every scrub frame.
+// The picker rejects hits on these; buildings use iKind instead. Republished by
+// the streets component every scrub frame.
 export const RUINED_STREET_DIRS = new Set<string>();
-
-// Streets not yet created at the scrub position; the picker rejects hits on a
-// folder that doesn't exist yet.
 export const FUTURE_STREET_DIRS = new Set<string>();
 
-/** Asphalt tint lane, read by the streets machinery. */
+/** Asphalt tint lane. */
 export const StreetTint = {
   None: 0,
   Ruin: 1,
@@ -26,9 +23,8 @@ export interface StreetScrubState {
   future: boolean;
 }
 
-/** What one pass over the buildings accumulates per street. A container street
- *  stays visible while ANY descendant file is live, so these are rollups over
- *  the whole ancestor chain, not just direct children. */
+/** Accumulated over the whole ancestor chain, not just direct children: a
+ *  container street stays visible while ANY descendant file is live. */
 export interface StreetRollup {
   presentStreets: ReadonlySet<Street>;
   maxPresentOp: ReadonlyMap<Street, number>;
@@ -40,13 +36,9 @@ export interface StreetScrubFlags {
   futureOn: boolean;
 }
 
-/**
- * Present beats ruin beats future. A street with live descendants fades with
- * them (the max of their opacities, so one fully-present file keeps the road
- * solid); a ruin-only or future-only street renders opaque and is set apart by
- * tint instead. ROOT is always 1: the repo root exists even scrubbed back to an
- * empty tree.
- */
+/** Present beats ruin beats future. A street with live descendants fades with
+ *  them; a ruin-only or future-only one stays opaque and is set apart by tint.
+ *  ROOT is always 1: the repo root exists even scrubbed back to an empty tree. */
 export function resolveStreetScrubState(
   street: Street,
   rollup: StreetRollup,

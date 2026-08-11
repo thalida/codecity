@@ -1,6 +1,5 @@
-// Orchestration only. The controller reads a frame, runs the pass and hands
-// each component its own slice — it writes nobody's buffers, so what is left to
-// test is that the slices arrive and the gates agree. The decisions live in
+// Orchestration only. The controller writes nobody's buffers, so all that is
+// left to test is that the slices arrive and the gates agree. Decisions live in
 // scrubState.test.ts (buildings and streets), the rollup in scrubPass.test.ts.
 
 import { describe, it, expect, afterEach } from 'vitest';
@@ -77,8 +76,7 @@ describe('one update', () => {
     expect(buildingSlices).toHaveLength(1);
     expect(streetSlices).toHaveLength(1);
     expect(footprintSlices).toHaveLength(1);
-    // Footprints derive from both halves, so they get the whole result while the
-    // other two get exactly the map they own.
+    // Footprints derive from both halves; the other two get only what they own.
     expect(footprintSlices[0].buildings).toBe(buildingSlices[0]);
     expect(footprintSlices[0].streets).toBe(streetSlices[0]);
   });
@@ -105,8 +103,8 @@ describe('the scrub gates', () => {
   });
 
   it('gives every gate the identical value, so trees and fireflies cannot drift', () => {
-    // Production passes two. Which component sits in which slot is not the
-    // point; that they are one interface receiving one value is.
+    // Which component sits in which slot is not the point; that they are one
+    // interface receiving one value is.
     const a = makeFakeGate();
     const b = makeFakeGate();
     const { controller } = setup([a.gate, b.gate]);

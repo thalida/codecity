@@ -78,9 +78,8 @@ export interface Buildings extends SceneComponent {
   getFacadePanels(): InstancedFacadePanels | null;
   /** Resolve a building's live InstancedMesh + slot. Null if no live mesh. */
   getMeshForBuilding(b: Building): { mesh: THREE.InstancedMesh; slot: number } | null;
-  /** Paint one frame of Timeline scrub: shape, fade, kind and weathering per
-   *  building, plus the ad panels. The states are decided by the scrub pass;
-   *  this component owns every buffer write they turn into. */
+  /** Paint one frame of Timeline scrub: shape, fade, kind, weathering and the
+   *  ad panels. The scrub pass decides the states; this owns the writes. */
   applyScrub(states: ReadonlyMap<string, BuildingScrubState>): void;
   /** Install (or clear with null) the Timeline scrub controller, which drives
    *  scaleY + iFade per frame while TIMELINE_MODE is on. */
@@ -243,8 +242,8 @@ export function createBuildings(ctx: SceneContext): Buildings {
   // created at construction, not armed.
   const _tweens = createBuildingTweens({ getMeshForBuilding });
 
-  // Timeline scrub apply. Resolves the live meshes through the same accessors
-  // the tweens use, so a rebuild swaps both onto the fresh cells at once.
+  // Resolves meshes through the same accessors the tweens use, so a rebuild
+  // swaps both onto the fresh cells at once.
   const applyScrub = createBuildingScrubApply({
     getBuildingIndex: () => _buildingIndex,
     getMeshForBuilding,

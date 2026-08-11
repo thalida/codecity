@@ -69,8 +69,7 @@ export interface Streets extends SceneComponent {
   setStreetOpacity(street: Street, opacity: number, tint?: number): void;
   /** Fade one street's road labels in lockstep with setStreetOpacity; 0 force-hides (overriding the visibility LOD). */
   setStreetLabelOpacity(street: Street, opacity: number): void;
-  /** Paint one frame of Timeline scrub across every street, and republish the
-   *  ruined/future directory sets the picker rejects hits against. */
+  /** Paint one frame of Timeline scrub across every street. */
   applyScrub(states: ReadonlyMap<Street, StreetScrubState>): void;
   /** Move both street materials into (or out of) the transparent render pass. */
   setStreetsTransparent(on: boolean): void;
@@ -177,9 +176,8 @@ export function createStreets(ctx: SceneContext): Streets {
     }
   }
 
-  // One frame of Timeline scrub. The decision (which street is a ruin, which is
-  // a future road, how far each fades) is made by the scrub pass; all that
-  // happens here is the fade and the two directory sets the picker consults.
+  // The scrub pass decides; this fades, and republishes the two sets the picker
+  // rejects hits against.
   function applyScrub(states: ReadonlyMap<Street, StreetScrubState>): void {
     RUINED_STREET_DIRS.clear();
     FUTURE_STREET_DIRS.clear();

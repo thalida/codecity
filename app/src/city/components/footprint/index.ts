@@ -60,9 +60,7 @@ export interface Footprint extends SceneComponent {
   setBuildingFootprintOpacity(path: string, opacity: number, ruin?: boolean): void;
   /** Fade one street's footprint slab, keyed by its directory path (ruin = tint toward the ruin color). No-op for an unknown street. */
   setStreetFootprintOpacity(dirPath: string, opacity: number, ruin?: boolean): void;
-  /** Paint one frame of Timeline scrub across every plot. A FUTURE building or
-   *  road IS its tinted slab, so it gets no plot: that keeps the blueprint look
-   *  independent of the footprint controls. */
+  /** Paint one frame of Timeline scrub across every plot. */
   applyScrub(states: ScrubStates): void;
   /** Move the footprint material into (or out of) the transparent render pass. */
   setFootprintsTransparent(on: boolean): void;
@@ -118,8 +116,9 @@ export function createFootprint(ctx: SceneContext): Footprint {
     _setInstance(streetDirToInstance.get(dirPath), opacity, ruin);
   }
 
-  // One frame of Timeline scrub. Plots track the LANE opacity, not the faded
-  // body: a hover dimming the neighborhood shouldn't take the ground with it.
+  // Plots track the lane opacity, not the faded body: a hover dimming the
+  // neighborhood shouldn't take the ground with it. A future building or road
+  // IS its tinted slab, so it gets no plot at all.
   function applyScrub(states: ScrubStates): void {
     for (const [path, s] of states.buildings) {
       setBuildingFootprintOpacity(

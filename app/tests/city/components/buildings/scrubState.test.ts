@@ -1,7 +1,6 @@
-// The per-building scrub decision. No scene, no meshes, no signals driven into
-// position: every condition is a field on the frame literal, so these read as
-// the decision table they are. scrubApply.test.ts covers the buffer writes and
-// scrubPass.test.ts the rollup that feeds streets.
+// The per-building scrub decision. Every condition is a field on the frame
+// literal, so no scene is involved. scrubApply.test.ts covers the buffer
+// writes, scrubPass.test.ts the rollup that feeds streets.
 
 import { describe, it, expect } from 'vitest';
 
@@ -28,8 +27,7 @@ import {
 const file = makeFile({ path: 'f.txt' });
 const NO_COMMIT_MS: readonly number[] = [];
 
-/** Resolve the standard subject (created@1 with 2 lines, 6 lines@2, deleted@3)
- *  at a scrub position under the given frame overrides. */
+/** The standard subject: created@1 with 2 lines, 6 lines@2, deleted@3. */
 function resolve(
   pos: number,
   over: Parameters<typeof makeScrubFrame>[0] = {},
@@ -50,10 +48,8 @@ describe('lane', () => {
     ['after deletion with ruins off', 3, {}, BuildingLane.Absent],
     ['after deletion with ruins on', 3, { ruinsOn: true }, BuildingLane.Ruin],
     ['before genesis with blueprints on', 0.5, { futureOn: true }, BuildingLane.Future],
-    // Ruins only ever apply to something that HAS been deleted, so a building
-    // still ahead of its own genesis has nothing to ruin.
+    // Nothing to ruin: the building is still ahead of its own genesis.
     ['before genesis with ruins on', 0, { ruinsOn: true }, BuildingLane.Absent],
-    // Deletion outranks the blueprint lane: the file did exist, it just doesn't now.
     ['after deletion with both on', 3, { ruinsOn: true, futureOn: true }, BuildingLane.Ruin],
   ])('%s', (_label, pos, over, expected) => {
     expect(resolve(pos, over).lane).toBe(expected);
@@ -67,8 +63,7 @@ describe('height', () => {
   });
 
   it('normalizes against the frame line range, not the union baseline', () => {
-    // At HEAD this range IS the live scan's, which is what makes Timeline and
-    // Live agree there; widen it and the same 6-line file must shrink.
+    // At HEAD this range IS the live scan's, which is what makes the two agree.
     const wide = { min: 1, max: 20_000 };
     const state = resolve(2, { lineStats: wide });
     expect(state.height).toBeCloseTo(heightForLines(6, wide), 5);
@@ -144,8 +139,6 @@ describe('opacity', () => {
   });
 
   it('drives the non-present lanes through the body channel and nothing else', () => {
-    // An outline or silhouette left over from a Live fade sweep must not
-    // survive here — only a present building owns those channels.
     const ruin = resolve(3, { ruinsOn: true });
     expect(ruin.bodyOp).toBeCloseTo(0.3, 5);
     expect(ruin.silhouette).toBe(0);
@@ -157,8 +150,8 @@ describe('the neighborhood fade cascade', () => {
   const cfg = makeScrubFrame().fadeCfg;
 
   it('multiplies the lane opacity by the tier the live fader would pick', () => {
-    // Hovering the building itself is the DEFAULT tier, and the hover outline
-    // belongs to outlineRenderer, so this owns body only.
+    // Hovering the building itself is the DEFAULT tier; its outline belongs to
+    // outlineRenderer, so this owns body only.
     const state = resolve(2, { hoverFile: file });
     expect(state.bodyOp).toBeCloseTo(cfg.DEFAULT_BODY_OPACITY, 5);
     expect(state.outlineOp).toBe(0);
@@ -189,8 +182,6 @@ describe('kind', () => {
   });
 
   it('reads emptiness off the blob in effect, not the interpolated line count', () => {
-    // Between a 0-line commit and a later big one, a lerp reads non-empty
-    // halfway through — but the file on disk at that position IS empty.
     const emptyThenBig = makeBundle({
       commits: [{ sha: 'a' }, { sha: 'b' }],
       deltas: [
@@ -224,14 +215,13 @@ describe('kind', () => {
 describe('weathering', () => {
   const DAY = 86_400_000;
   const T0 = Date.UTC(2021, 0, 1);
-  // Commit dates for the subject bundle, one day apart.
   const commitMs = [T0, T0 + DAY, T0 + 2 * DAY, T0 + 3 * DAY];
-  // A span wide enough that the subject lands strictly inside it.
+  // Wide enough that the subject lands strictly inside it.
   const spread = { minMod: T0, modSpread: 4 * DAY, minCreated: T0, createdSpread: 4 * DAY };
 
   it('runs the base colour through the same curve the live view uses', () => {
-    // Not a reimplementation of the formula: the point is that Timeline and
-    // Live share one colour function, so HEAD matches.
+    // Deliberately not a second copy of the formula: what matters is that both
+    // modes call one function, so HEAD matches.
     const state = resolve(2, spread, commitMs);
     const recency = 1 - state.modifiedAge;
     expect(state.colorBase).toBe(getBuildingColorForRecency(file, recency));
@@ -239,22 +229,20 @@ describe('weathering', () => {
   });
 
   it('reads staler as the rest of the city moves forward around it', () => {
-    // Recency is relative, so an untouched file ages by everything else being
-    // edited: same modified date, wider present-set span, older-looking building.
+    // Recency is relative: an untouched file ages by everything else being edited.
     const narrow = resolve(2, spread, commitMs).modifiedAge;
     const wide = resolve(2, { ...spread, modSpread: 8 * DAY }, commitMs).modifiedAge;
     expect(narrow).toBeLessThan(wide);
   });
 
   it('pins recency to freshest when every present file shares a date', () => {
-    // Spread 0 is the lone-file case; Live does the same rather than dividing by zero.
+    // The lone-file case; Live does the same rather than dividing by zero.
     expect(resolve(2, { modSpread: 0 }, commitMs).modifiedAge).toBe(0);
   });
 
   it('prefers the full-precision file date once past the final change', () => {
-    // Same-day commits collapse to one timestamp, so day-precise commit dates
-    // would flatten HEAD weathering that Live shows spread out. Before the final
-    // change there is no such date to prefer, so the commit date stands.
+    // Same-day commits collapse to one timestamp, flattening HEAD weathering
+    // that Live shows spread out. Before the final change there is no such date.
     const surviving = makeBundle({
       commits: [{ sha: 'a' }, { sha: 'b' }, { sha: 'c' }],
       deltas: [
@@ -307,8 +295,6 @@ describe('weathering', () => {
   });
 
   it('samples a ruin and a future slab at mid-recency: neither sits on the date curve', () => {
-    // A deleted file has no date HERE and an uncreated one has none yet, so
-    // both keep a fixed sample of their own hue instead of a scrubbed one.
     const mid = getBuildingColorForRecency(file, 0.5);
     expect(resolve(3, { ...spread, ruinsOn: true }, commitMs).colorBase).toBe(mid);
     expect(resolve(0.5, { ...spread, futureOn: true }, commitMs).colorBase).toBe(mid);

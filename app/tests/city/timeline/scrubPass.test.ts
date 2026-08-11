@@ -1,7 +1,7 @@
 // The pass over a whole city: pairing buildings with their timelines and
-// ancestor streets, then rolling the building states up into street states.
-// The per-building and per-street decisions have their own tests beside their
-// components; what is only true here is the rollup.
+// ancestor streets, then rolling their states up into street states. The
+// per-building and per-street decisions are tested beside their components;
+// only the rollup is new here.
 
 import { describe, it, expect } from 'vitest';
 
@@ -66,7 +66,10 @@ describe('the street rollup', () => {
     expect(states.streets.get(E)!.opacity).toBeCloseTo(1, 5);
   });
 
-  it('takes a true max: one deleted sibling cannot drag its road down', () => {
+  it('keeps a road lit when one child is deleted and another survives', () => {
+    // The deleted child lands in the ruin set, where it cannot pull the road
+    // down. Graded opacities are the streets' own decision test: every present
+    // building sits at exactly 1, so the pass cannot vary them.
     const halfDead = makeBundle({
       commits: [{ sha: 'a' }, { sha: 'b' }, { sha: 'c' }],
       deltas: [
@@ -119,8 +122,8 @@ describe('the street rollup', () => {
   });
 
   it('rolls up buildings with no detail mesh too: the pass never sees meshes', () => {
-    // The rollup is over the union building set, so an impostor-LOD cell still
-    // holds its road up. There is nothing to stub here — that is the point.
+    // An impostor-LOD cell still holds its road up, and there is nothing to
+    // stub to arrange that.
     const states = makeCity(PATHS, BY_DIR).run(makeScrubFrame({ pos: 2 }));
     expect(states.streets.get(D)!.opacity).toBeCloseTo(1, 5);
   });

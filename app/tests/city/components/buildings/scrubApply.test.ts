@@ -1,8 +1,7 @@
-// Turning scrub states into buffer writes. Real InstancedMeshes rather than a
-// hand-rolled mock: setMatrixAt/setColorAt are CPU-side, and BufferAttribute's
-// `needsUpdate` bumps a real `version`, so the re-upload dedup is observable
-// instead of counted by a stub. The decisions themselves live in
-// scrubState.test.ts — everything here is already-decided input.
+// Scrub states into buffer writes. Real InstancedMeshes rather than a mock:
+// setMatrixAt/setColorAt are CPU-side and needsUpdate bumps a real `version`,
+// so the re-upload dedup is observed rather than counted by a stub. The
+// decisions themselves live in scrubState.test.ts.
 
 import * as THREE from 'three';
 import { describe, it, expect, beforeEach } from 'vitest';
@@ -106,11 +105,9 @@ describe('applying a scrub frame', () => {
   it('bakes the age lean into the matrix, so the picker and outline follow it', () => {
     run({ ...PRESENT, tiltX: 0.1, tiltZ: -0.2 });
     const e = matrix().elements;
-    // The lean shears the Y column (column-major slots 4 and 6); zero tilt
-    // would leave both at 0 and the building bolt upright.
+    // The lean shears the Y column (column-major slots 4 and 6).
     expect(e[4]).toBeCloseTo(8 * 0.1, 5);
     expect(e[6]).toBeCloseTo(8 * -0.2, 5);
-    // The top of the building moves, its base does not.
     expect(e[12]).toBeCloseTo(b.x + 4 * 0.1, 5);
   });
 
@@ -242,22 +239,28 @@ describe('re-upload flags', () => {
     expect(attrOf(mesh, 'iFade').version - before.fade).toBe(1);
   });
 
-  it('starts each frame from a clean slate, so the counts do not accumulate', () => {
-    const mesh = makeMesh(1);
+  it('forgets last frame s meshes, so a rebuild s disposed cells stop being flagged', () => {
+    // A rebuild swaps every cell. Holding the old meshes in the touched-set
+    // would keep uploading to geometry the GPU has already released.
+    const oldMesh = makeMesh(1);
+    const newMesh = makeMesh(1);
+    let live = oldMesh;
     const index = new BuildingIndex();
-    const b = makeBuilding(makeFile({ path: 'a.txt' }), { slotId: 0 });
-    index.insert(b);
+    index.insert(makeBuilding(makeFile({ path: 'a.txt' }), { slotId: 0 }));
     const apply = createBuildingScrubApply({
       getBuildingIndex: () => index,
-      getMeshForBuilding: () => ({ mesh, slot: 0 }),
+      getMeshForBuilding: () => ({ mesh: live, slot: 0 }),
       getFacadePanels: () => null,
     });
     const states = new Map([['a.txt', state(PRESENT)]]);
 
     apply(states);
-    const after = mesh.instanceMatrix.version;
+    const stale = oldMesh.instanceMatrix.version;
+    live = newMesh;
     apply(states);
-    expect(mesh.instanceMatrix.version - after).toBe(1);
+
+    expect(oldMesh.instanceMatrix.version).toBe(stale);
+    expect(newMesh.instanceMatrix.version).toBeGreaterThan(0);
   });
 });
 

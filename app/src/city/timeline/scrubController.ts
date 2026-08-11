@@ -1,7 +1,5 @@
-// Timeline mode's per-frame driver. It reads the frame, runs the scrub pass and
-// hands each component its own slice of the result — it does not write anyone
-// else's buffers. Trees and fireflies gate themselves on the floored position,
-// which is the shape every scrub-aware component now has.
+// Timeline mode's per-frame driver: read the frame, run the pass, hand each
+// component its slice. It writes nobody else's buffers.
 
 import { TIMELINE_BUNDLE } from '@/state/stores/timeline';
 import type { RangeStat, Street } from '@/types';
@@ -15,25 +13,23 @@ import { readScrubFrame } from './scrubFrame';
 import { createScrubPass, type ScrubStates } from './scrubPass';
 
 /** Anything that dims itself to a scrub position. Trees and fireflies are both
- *  this and nothing more, and both get the identical floored position. */
+ *  this and nothing more. */
 export interface ScrubGate {
   setScrubCommit(maxCommitIndex: number | null): void;
 }
 
 export interface ScrubControllerDeps {
   buildings: {
-    /** The union building set the pass decides over. */
+    /** The union set the pass decides over. */
     getBuildingIndex(): BuildingIndex | null;
     applyScrub(states: ReadonlyMap<string, BuildingScrubState>): void;
   };
   streets: { applyScrub(states: ReadonlyMap<Street, StreetScrubState>): void };
   footprints: { applyScrub(states: ScrubStates): void };
-  // The picker's selection/hover — drives the neighborhood fade cascade so a
-  // hover dims the surrounding city here exactly as buildingFader does in Live.
+  // Drives the neighborhood fade cascade, since Live's fader is dormant here.
   picker: Pick<ReturnType<typeof createPicker>, 'selection' | 'hover'>;
   timelines: Map<string, PathTimeline>;
-  // Per-commit line range (backend-computed); height normalizes against
-  // range[floor(pos)] to match Live-at-that-commit. heightCtx is byteStats only.
+  // Backend-computed per commit. heightCtx contributes byteStats only.
   commitLineRanges: RangeStat[];
   heightCtx: HeightContext;
   // { street dir.path → Street } from the union layout.
@@ -42,8 +38,8 @@ export interface ScrubControllerDeps {
 }
 
 export function createScrubController(deps: ScrubControllerDeps) {
-  // Bundle-derived model data, read once. readScrubFrame owns every PER-FRAME
-  // signal read; these are fixed for the life of the controller.
+  // Fixed for the life of the controller; readScrubFrame owns everything that
+  // varies per frame.
   const bundle = TIMELINE_BUNDLE.peek();
   const commitMs = (bundle?.commits ?? []).map((c) => Date.parse(c.date) || 0);
   const commitDateRanges = bundle?.commitDateRanges ?? [];

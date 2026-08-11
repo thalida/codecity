@@ -103,16 +103,13 @@ export function lastModifiedIndexAt(pt: PathTimeline, pos: number): number {
   return changes[lo].i;
 }
 
-/** What the history says about a path at a position — three states, all the
- *  history can distinguish. How each one RENDERS depends on settings and is a
- *  separate decision (BuildingLane in the buildings component). */
+/** All the history can distinguish about a path at a position. How each state
+ *  RENDERS is settings-dependent and decided separately (BuildingLane). */
 export const PathState = {
-  /** Before the path's first commit: nothing to show yet. */
+  /** Before the path's first commit. */
   Absent: 0,
-  /** Live at pos. */
   Present: 1,
-  /** Existed once, then deleted (in a dead gap or past the last interval) —
-   *  the only state ghost-ruins render. */
+  /** Existed once, then deleted — the only state ghost-ruins render. */
   Ruin: 2,
 } as const;
 export type PathState = (typeof PathState)[keyof typeof PathState];

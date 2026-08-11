@@ -1,6 +1,6 @@
-// Fixtures for the Timeline scrub decision. The point of the frame factory is
-// that a test states the condition it cares about as a literal instead of
-// driving SCRUB_POS + four settings stores into position and hoping.
+// Fixtures for the Timeline scrub decision. A test states the condition it
+// cares about as a literal rather than driving SCRUB_POS and four settings
+// stores into position.
 
 import { BUILDINGS } from '@/state/stores/settings/buildings';
 import { buildPathTimelines } from '@/city/timeline/replay';
@@ -12,8 +12,7 @@ import type { Building, FileNode, RangeStat, TimelineBundle } from '@/types';
 export const LINE_STATS: RangeStat = { min: 1, max: 200 };
 export const BYTE_STATS: RangeStat = { min: 1, max: 5000 };
 
-/** Ruins and blueprints default OFF, the fade cascade has no target, and the
- *  date spreads are 0 (every present file shares a date → freshest). */
+/** Ruins and blueprints off, no fade target, zero date spread. */
 export function makeScrubFrame(over: Partial<ScrubFrame> = {}): ScrubFrame {
   return {
     pos: 0,
@@ -81,8 +80,7 @@ export const SUBJECT_BUNDLE = makeBundle({
   blobLines: { s1: 2, s2: 6 },
 } as unknown as Partial<TimelineBundle>);
 
-/** The same pairing the scrub pass builds: genesis is the first interval's
- *  start, final is the last change index. */
+/** The same pairing the scrub pass builds. */
 export function makeScrubInput(
   b: Building,
   timelines: Map<string, PathTimeline>

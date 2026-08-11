@@ -1,6 +1,6 @@
-// Reading the world into a frame. This is the one module that touches the
-// scrub position, the ruin/blueprint settings and the picker, so it is also the
-// only place those still have to be driven into position.
+// Reading the world into a frame. The one module that touches the scrub
+// position, the ruin/blueprint settings and the picker, so also the only place
+// those still have to be driven into position.
 
 import * as THREE from 'three';
 import { describe, it, expect, afterEach, beforeEach } from 'vitest';
@@ -18,8 +18,8 @@ import type { FileNode, PickTarget, RangeStat, Street, TimelineBundle } from '@/
 const _ruins = RUINS.peek();
 const _blueprints = BLUEPRINTS.peek();
 
-// SCRUB_POS clamps against the loaded bundle, so a three-commit one is what
-// makes a position of 1.5 (or 2) reachable at all.
+// SCRUB_POS clamps against the loaded bundle, so a position past 0 is only
+// reachable with one loaded.
 beforeEach(() => {
   TIMELINE_BUNDLE.value = {
     commits: [{ sha: 'a' }, { sha: 'b' }, { sha: 'c' }],
@@ -68,8 +68,6 @@ describe('the scrub position', () => {
   });
 
   it('picks the line range of the commit it is standing on', () => {
-    // Height normalizes against range[floor(pos)] so Timeline matches
-    // Live-at-that-commit rather than the union baseline.
     expect(at(1.9).lineStats).toEqual({ min: 1, max: 20 });
   });
 
@@ -106,8 +104,8 @@ describe('the blueprint settings', () => {
   });
 
   it('converts the blueprint colour into working space, ready to lerp toward', () => {
-    // Carrying components rather than the CSS string is what keeps the scrub
-    // decision free of THREE; the conversion has to happen exactly once, here.
+    // Components rather than the CSS string keep the decision free of THREE, so
+    // the conversion has to happen exactly once, here.
     BLUEPRINTS.value = { ..._blueprints, BUILDING_COLOR: '#3366ff' };
     const expected = new THREE.Color('#3366ff');
     const { futureColor } = at(0);
@@ -131,8 +129,7 @@ describe('the weathering span', () => {
   });
 
   it('falls back to a zero span when the backend sent no ranges', () => {
-    // Spread 0 means every present file reads freshest, which is what Live does
-    // for a single-file repo rather than dividing by zero.
+    // Spread 0 reads freshest, as Live does for a one-file repo.
     const frame = at(0, { commitDateRanges: [] });
     expect(frame.minMod).toBe(0);
     expect(frame.modSpread).toBe(0);
@@ -151,8 +148,8 @@ describe('the fade cascade targets', () => {
   });
 
   it('lets a hovered directory take over the cascade from a selected file', () => {
-    // Hover is the more immediate intent, so it wins — the same rule the live
-    // fader applies, which is why both route through resolveDirTarget.
+    // Hover is the more immediate intent. Both modes route through
+    // resolveDirTarget so the rule can only be stated once.
     const frame = at(0, {
       streetsByDir: { other: dirStreet },
       picker: {

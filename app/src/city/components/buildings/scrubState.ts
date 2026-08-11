@@ -1,10 +1,6 @@
-// How one building renders at a scrub position. Pure: no THREE, no meshes, no
-// signals beyond the shared palette/dimension helpers the live view also uses,
-// so the whole decision table is exercisable without a scene.
-//
-// Everything here is a fact about a building, which is why it lives beside the
-// buildings component rather than in city/timeline/ — the timeline pass decides
-// WHEN, this decides WHAT, and scrubApply.ts turns it into buffer writes.
+// How one building renders at a scrub position. No THREE, no meshes, and no
+// signals past the palette/dimension helpers Live shares, so the whole decision
+// table is exercisable without a scene. scrubApply.ts turns it into writes.
 
 import { getBuildingDimensions } from '@/city/layout/dimensions';
 import type { Building, FileNode } from '@/types';
@@ -26,10 +22,9 @@ import { getBuildingColorForRecency } from './color';
 import { tierFor } from './fadeTiers';
 import { getBuildingTiltAtAge } from './tilt';
 
-/** How a building RENDERS at a scrub position: the history's PathState read
- *  through the ruin/blueprint settings, which is why there is a fourth value.
- *  Absent is a real lane, not an absence of one — it has to be driven to zero
- *  every frame so a Live-mode fade sweep can't leave it lingering. */
+/** PathState read through the ruin/blueprint settings, hence the fourth value.
+ *  Absent still has to be driven to zero every frame, or a Live fade sweep
+ *  lingers on it. */
 export const BuildingLane = {
   Absent: 0,
   Present: 1,
@@ -38,38 +33,31 @@ export const BuildingLane = {
 } as const;
 export type BuildingLane = (typeof BuildingLane)[keyof typeof BuildingLane];
 
-// A deleted building's ghost-ruin samples its file's hue at mid-recency before
-// graying; a future slab does the same before tinting. Neither has a meaningful
-// date at this position, so neither can sit on the recency curve.
+// Neither a ruin nor a future slab has a date here, so both sample their own
+// hue at mid-recency rather than sitting on the curve.
 const RUIN_BASE_RECENCY = 0.5;
 const FUTURE_BASE_RECENCY = 0.5;
 const RUIN_GRAY: ColorTriple = { r: 0.3, g: 0.31, b: 0.34 };
 
 export interface BuildingScrubState {
   lane: BuildingLane;
-  /** Lane opacity before the neighborhood fade: 1 present, the ruin/future
-   *  setting for those, 0 absent. The footprint plot tracks this, not bodyOp. */
+  /** Lane opacity before the neighborhood fade. Footprint plots track this. */
   op: number;
-  /** World height. Absent is 0, but the apply zero-scales all three axes rather
-   *  than laying a (w, 0, d) quad that would still write depth and outline. */
   height: number;
-  /** Window rows. A ruin and a future slab both blank their facade. */
+  /** Window rows; a ruin and a future slab both blank their facade. */
   floors: number;
   tiltX: number;
   tiltZ: number;
-  /** iFade.xyz. Present buildings own all three so a hover still shows; the
-   *  other lanes carry a faint body and nothing else. */
+  /** iFade.xyz. Only a present building owns the last two. */
   bodyOp: number;
   silhouette: number;
   outlineOp: number;
-  /** Colour as base-plus-pull, so the decision stays free of THREE: the apply
-   *  sets colorBase (a CSS string) then lerps toward colorToward by colorMix.
-   *  An absent building keeps a blank base and is never recoloured. */
+  /** The apply sets colorBase then lerps toward colorToward by colorMix. */
   colorBase: string;
   colorToward: ColorTriple | null;
   colorMix: number;
   kind: number;
-  /** 0 = most recent, 1 = longest-untouched. Only meaningful when present. */
+  /** 0 = most recent, 1 = longest-untouched. */
   modifiedAge: number;
   /** 0 = newest, 1 = oldest. Drives both the age-lean and the grime. */
   createdAge: number;
@@ -85,9 +73,9 @@ export interface BuildingScrubInput {
   finalIdx: number;
 }
 
-/** A blank state to resolve into. The pass keeps one per building for the life
- *  of the controller: this resolves once per building per frame, so returning a
- *  fresh object would allocate tens of thousands of times a frame. */
+/** A state to resolve into. The pass keeps one per building for the life of the
+ *  controller: returning a fresh object would allocate tens of thousands of
+ *  times a frame. */
 export function blankBuildingScrubState(): BuildingScrubState {
   return {
     lane: BuildingLane.Absent,
@@ -113,13 +101,12 @@ function laneAt(input: BuildingScrubInput, f: ScrubFrame): BuildingLane {
   if (state === PathState.Present) return BuildingLane.Present;
   // A deleted file is never a blueprint: it did exist, it just doesn't now.
   if (state === PathState.Ruin) return f.ruinsOn ? BuildingLane.Ruin : BuildingLane.Absent;
-  // Genesis is ahead: an ultra-low tinted slab at its eventual footprint.
   if (f.futureOn && input.createdIdx > f.pos) return BuildingLane.Future;
   return BuildingLane.Absent;
 }
 
-/** Scrub-relative modified ms: full-precision own date once past its final
- *  change (HEAD weathering 1:1 with Live), else the day-precise commit date. */
+/** Past its final change, the file's own date beats the day-precise commit
+ *  date, so HEAD weathering is 1:1 with Live. */
 function modifiedMsAt(input: BuildingScrubInput, pos: number, commitMs: readonly number[]): number {
   const lmIdx = lastModifiedIndexAt(input.pt, pos);
   if (lmIdx >= input.finalIdx) {
@@ -129,15 +116,14 @@ function modifiedMsAt(input: BuildingScrubInput, pos: number, commitMs: readonly
   return commitMs[lmIdx] ?? 0;
 }
 
-/** Creation is a fixed event: prefer the file's full-precision created date
- *  (matches Live's createdAge), fall back to its genesis commit date. */
+/** Creation is a fixed event, so the file's own date always wins where it has
+ *  one; genesis is the fallback. */
 function createdMsFor(input: BuildingScrubInput, commitMs: readonly number[]): number {
   const full = Date.parse(input.b.file?.created ?? '');
   return Number.isNaN(full) ? (commitMs[input.createdIdx] ?? 0) : full;
 }
 
-/** iKind is recomputed every frame so a lane change resets it: Ruin/Future,
- *  else Empty (no content here), else Data (binary), else Normal. */
+/** Recomputed every frame so a lane change resets it. */
 function kindFor(file: FileNode, emptyFile: FileNode, lane: BuildingLane): number {
   if (lane === BuildingLane.Ruin) return BuildingKind.Ruin;
   if (lane === BuildingLane.Future) return BuildingKind.Future;
@@ -165,25 +151,23 @@ export function resolveBuildingScrubState(
         ? f.futureBuildingOpacity
         : 0;
 
-  // createdAge is scrub-relative and feeds both the lean shear and the grime.
   const createdMs = createdMsFor(input, commitMs);
   out.createdAge =
     present && f.createdSpread > 0
       ? 1 - Math.max(0, Math.min(1, (createdMs - f.minCreated) / f.createdSpread))
       : 0;
 
-  // Emptiness is a fact about the blob in effect, not a point on a curve:
-  // between a 0-line commit and a later big one, a lerp reads non-empty.
+  // Emptiness is a fact about the blob in effect, not a point on a curve: a
+  // lerp between a 0-line commit and a later big one reads non-empty.
   const emptyFile = present
     ? ({ ...b.file, lines: entryAt(pt, f.pos)?.lines ?? 0 } as FileNode)
     : b.file;
   out.kind = kindFor(b.file, emptyFile, lane);
 
   if (present) {
-    // Gate height on presence (intervals), not line count: media/empty files are
-    // present with 0 lines. Width stays layout-baked (b.w), so dims.w is unused.
     // The union node's size is max-over-history, so only the replay knows what
-    // this file measured HERE.
+    // this file measured HERE. Height gates on presence, not lines: a media or
+    // empty file is present with 0 of them.
     const scrubFile = { ...b.file, lines: linesAt(pt, f.pos) } as FileNode;
     const dims = getBuildingDimensions(scrubFile, f.lineStats, f.byteStats);
     out.height = dims.h;
@@ -192,8 +176,8 @@ export function resolveBuildingScrubState(
     out.tiltX = tilt.tiltX;
     out.tiltZ = tilt.tiltZ;
   } else {
-    // A ruin is a uniform low stub and a future building an ultra-low slab; both
-    // read as rubble/blueprint precisely because their facades are blank.
+    // Uniform stub or ultra-low slab: both read as what they are because the
+    // facade is blank, not because of the height alone.
     out.height =
       lane === BuildingLane.Ruin ? f.ruinHeight : lane === BuildingLane.Future ? f.futureHeight : 0;
     out.floors = 0;
@@ -202,15 +186,13 @@ export function resolveBuildingScrubState(
   }
 
   if (present) {
-    // The SAME tier decision buildingFader uses in Live, so a hover dims the
-    // city identically while scrubbing (op is 1 when present, so op *
-    // tier.bodyOpacity is the Live absolute).
+    // The tier decision buildingFader uses in Live, so a hover dims the city
+    // identically while scrubbing.
     const tier = tierFor(b.file, f.bldgTargetFile, f.dirTarget, f.hoverFile, f.fadeCfg);
     out.bodyOp = tier.detail === FadeDetail.Hidden ? 0 : out.op * tier.bodyOpacity;
     out.silhouette = tier.detail === FadeDetail.Silhouette ? 1 : 0;
     out.outlineOp = tier.outlineEnabled ? tier.outlineOpacity : 0;
 
-    // recency = modified-date t (0 = oldest, 1 = newest) → the colour curve.
     const modMs = modifiedMsAt(input, f.pos, commitMs);
     const recency =
       f.modSpread > 0 ? Math.max(0, Math.min(1, (modMs - f.minMod) / f.modSpread)) : 1;
@@ -224,12 +206,11 @@ export function resolveBuildingScrubState(
     out.outlineOp = 0;
     out.modifiedAge = 0;
     if (lane === BuildingLane.Ruin) {
-      // A ghost ruin keeps a muted memory of its file's hue, pulled toward gray.
+      // Both lanes keep a muted memory of the file's own hue.
       out.colorBase = getBuildingColorForRecency(b.file, RUIN_BASE_RECENCY);
       out.colorToward = RUIN_GRAY;
       out.colorMix = f.ruinGrayMix;
     } else if (lane === BuildingLane.Future) {
-      // A future slab keeps its file's own hue, pulled toward the future colour.
       out.colorBase = getBuildingColorForRecency(b.file, FUTURE_BASE_RECENCY);
       out.colorToward = f.futureColor;
       out.colorMix = f.futureTint;

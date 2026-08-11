@@ -1,6 +1,5 @@
-// Turning resolved scrub states into GPU writes. The buildings component owns
-// its meshes and per-instance buffers, so this is the only place that reaches
-// them — the timeline pass hands over data and never sees an InstancedMesh.
+// Resolved scrub states into GPU writes. The buildings component owns its
+// meshes and buffers, so this is the only place that reaches them.
 
 import * as THREE from 'three';
 
@@ -27,8 +26,9 @@ export function createBuildingScrubApply(ctx: BuildingScrubApplyCtx) {
   const _color = new THREE.Color();
   const _toward = new THREE.Color();
 
-  // Touched-this-frame sets, so a mesh shared by many buildings flags each
-  // buffer for re-upload exactly once.
+  // Touched this frame, so a mesh shared by many buildings flags each buffer
+  // for re-upload exactly once. Cleared per frame: a rebuild's disposed cells
+  // must not linger here.
   const _meshes = new Set<THREE.InstancedMesh>();
   const _colors = new Set<THREE.InstancedMesh>();
   const _attrs = new Set<THREE.BufferAttribute>();
@@ -39,13 +39,12 @@ export function createBuildingScrubApply(ctx: BuildingScrubApplyCtx) {
     const { mesh, slot } = resolved;
 
     if (s.lane === BuildingLane.Absent) {
-      // Fully zero-scaled, not a flat (w, 0, d) quad that would still write
-      // depth and outline as a cutout on the road.
+      // Not a flat (w, 0, d) quad, which would still write depth and outline as
+      // a cutout on the road.
       _m.makeScale(0, 0, 0);
     } else {
-      // The age-lean shear is baked into the matrix so the picker + outline
-      // follow it. Ruins and future slabs carry zero tilt, which reduces this
-      // to a plain scale + position.
+      // The lean is baked in so the picker and outline follow it; zero tilt
+      // reduces this to a plain scale + position.
       _pos.set(b.x, s.height / 2, b.y);
       _scale.set(b.w, s.height, b.d);
       composeShearMatrix(_pos, _scale, s.tiltX, s.tiltZ, _m);
@@ -65,8 +64,7 @@ export function createBuildingScrubApply(ctx: BuildingScrubApplyCtx) {
       _attrs.add(iFade);
     }
 
-    // An absent building is already faded to 0, so its shape/colour buffers are
-    // left alone rather than overwritten with values nothing can see.
+    // Already faded to 0, so its shape and colour buffers stay as they are.
     if (s.lane === BuildingLane.Absent) return;
 
     const iFloors = attr(mesh, 'iFloors');
@@ -90,7 +88,6 @@ export function createBuildingScrubApply(ctx: BuildingScrubApplyCtx) {
       _attrs.add(iModifiedAge);
     }
 
-    // createdAge drives grime/weathering: 0 = newest, 1 = oldest.
     const iIconUV = attr(mesh, 'iIconUV');
     if (iIconUV) {
       iIconUV.setW(slot, s.createdAge);
@@ -117,9 +114,8 @@ export function createBuildingScrubApply(ctx: BuildingScrubApplyCtx) {
     }
     for (const a of _attrs) a.needsUpdate = true;
 
-    // Ad panels gate on presence (no media image on a ruin or a slab) and dim
-    // with the body. ?? 0 (not null): an undriven panel must HIDE, not linger
-    // at its shown default — Live's fader still uses null = leave untouched.
+    // 0, not null: Live's fader reads null as leave-untouched, which would
+    // strand an undriven panel at its shown default.
     ctx.getFacadePanels()?.applyBuildingFades((p) => {
       const s = states.get(p);
       return s && s.lane === BuildingLane.Present ? s.bodyOp : 0;

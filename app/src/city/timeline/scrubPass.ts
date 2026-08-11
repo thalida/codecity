@@ -1,12 +1,9 @@
-// The scrub decision for a whole city, as data. Given a ScrubFrame it produces
-// a state per building and a state per street, touching no meshes, no
-// components and no per-frame signals — which is what makes the rules testable
-// without a scene.
+// The scrub decision for a whole city, as data: a state per building and per
+// street, from no meshes and no per-frame signals.
 //
-// A coordinator is warranted here (rather than each component deciding for
-// itself) for one reason: a street's opacity is a rollup over its descendant
-// buildings, so somebody has to walk the buildings before the streets can be
-// resolved. That rollup is the entire justification for this module.
+// A street's opacity is a rollup over its descendant buildings, so somebody has
+// to walk the buildings before the streets resolve. That is the whole reason a
+// coordinator exists rather than each component deciding for itself.
 
 import type { Building, Street } from '@/types';
 import type { BuildingIndex } from '@/city/components/buildings/buildingIndex';
@@ -28,7 +25,7 @@ import type { PathTimeline } from './replay';
 import type { ScrubFrame } from './scrubFrame';
 
 export interface ScrubStates {
-  /** Keyed by file path — every union building, whether or not it has a mesh. */
+  /** Every union building, whether or not it has a mesh. */
   buildings: ReadonlyMap<string, BuildingScrubState>;
   streets: ReadonlyMap<Street, StreetScrubState>;
 }
@@ -42,8 +39,8 @@ export interface ScrubPassDeps {
   commitMs: readonly number[];
 }
 
-/** One building paired with its timeline, its FULL ancestor street chain and
- *  the state object it resolves into each frame. */
+/** A building with its timeline, ancestor street chain, and the state object it
+ *  resolves into each frame. */
 interface ScrubEntry {
   input: BuildingScrubInput;
   streets: Street[];
@@ -68,8 +65,8 @@ export function createScrubPass(deps: ScrubPassDeps) {
           createdIdx: pt.intervals.length ? pt.intervals[0].start : 0,
           finalIdx: pt.changes.length ? pt.changes[pt.changes.length - 1].i : 0,
         },
-        // A container street stays visible while ANY descendant file is live,
-        // so this is the whole ancestor chain, not just the direct parent.
+        // The whole chain, not the direct parent: a container street stays
+        // visible while ANY descendant file is live.
         streets: streetChainForDirPath(parentDirPath(path), deps.streetsByDir),
         state,
       });
@@ -79,8 +76,8 @@ export function createScrubPass(deps: ScrubPassDeps) {
 
   const allStreets: Street[] = Object.values(deps.streetsByDir);
 
-  // Rollup scratch, reused across frames — this runs every frame over every
-  // building, so nothing here may allocate in steady state.
+  // Reused across frames: this runs over every building every frame, so nothing
+  // here may allocate in steady state.
   const maxPresentOp = new Map<Street, number>();
   const ruinStreets = new Set<Street>();
   const presentStreets = new Set<Street>();
@@ -94,8 +91,8 @@ export function createScrubPass(deps: ScrubPassDeps) {
 
     for (const entry of entries) {
       const s = resolveBuildingScrubState(entry.input, frame, deps.commitMs, entry.state);
-      // Rolled up for EVERY union building, even one without a detail mesh,
-      // else the footprints and streets above it strand at their defaults.
+      // Every union building rolls up, even one without a detail mesh, else the
+      // footprints and streets above it strand at their defaults.
       for (const street of entry.streets) {
         if (s.lane === BuildingLane.Present) {
           maxPresentOp.set(street, Math.max(maxPresentOp.get(street) ?? 0, s.op));
@@ -106,8 +103,8 @@ export function createScrubPass(deps: ScrubPassDeps) {
       }
     }
 
-    // Every street is resolved each frame, defaulting to 0, so an orphaned
-    // street cannot stick at a stale opacity.
+    // Every street resolves each frame, defaulting to 0, so an orphan cannot
+    // stick at a stale opacity.
     streetStates.clear();
     const flags = { ruinsOn: frame.ruinsOn, futureOn: frame.futureOn };
     for (const street of allStreets) {
