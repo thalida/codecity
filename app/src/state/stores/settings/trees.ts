@@ -31,7 +31,7 @@ const TREES_FIELDS = {
   CITY_CLEARANCE: {
     route: ChangeRoute.Rebuild,
     kind: FieldKind.Slider,
-    default: 32,
+    default: 64,
     min: 0,
     max: 200,
     step: 2,

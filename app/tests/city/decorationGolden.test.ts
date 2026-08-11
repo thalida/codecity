@@ -18,9 +18,9 @@ import { commitStats, fileStats } from '../_helpers/statsFixtures';
 
 // Settings-default-sensitive: a TREES width/height default change legitimately
 // moves the hash (placements stay put) and the value must be recaptured.
-// Recaptured when DENSITY_FALLOFF became a setting again at its 1.5 default,
-// which clusters the forest toward the city instead of scattering it evenly.
-const EXPECTED = '12k:trees43000:orbs51600:eb9dd076';
+// Recaptured when DENSITY_FALLOFF became a setting again at its 1.5 default
+// (clustering the forest toward the city) and CITY_CLEARANCE landed at 64.
+const EXPECTED = '12k:trees43000:orbs51600:b7a27bc1';
 
 describe('decoration golden (bit-identical guard)', () => {
   // Explicit timeout: compute-bound like the layout golden, and CI's coverage
