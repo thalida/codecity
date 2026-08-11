@@ -1,13 +1,16 @@
-"""label_from_source — THE primitive for the repo's display name.
+"""label_from_source — THE primitive for the repo's display name — plus the
+local-path validation that decides whether a directory is scannable at all.
 
-The scanner bakes it onto tree.name from the git remote (see test_scan); the
-manifest route uses it for the pending progress label. This covers the pure
-URL/path → "owner/repo" | basename transform."""
+The scanner bakes the label onto tree.name from the git remote (see test_scan);
+the manifest route uses it for the pending progress label."""
 
 from __future__ import annotations
 
 import unittest
+from pathlib import Path
+from tempfile import TemporaryDirectory
 
+from api.services import source
 from api.services.source import label_from_source
 
 
@@ -47,6 +50,40 @@ class LabelFromSourceTests(unittest.TestCase):
     def test_empty_and_none(self) -> None:
         self.assertIsNone(label_from_source(""))
         self.assertIsNone(label_from_source(None))
+
+
+class UnreachableWorktreeGitdirTests(unittest.TestCase):
+    """A linked worktree mounted without its repository fails the same check as
+    a plain directory, and `git init` is the wrong answer for it."""
+
+    def test_missing_gitdir_is_reported(self) -> None:
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / ".git").write_text("gitdir: /elsewhere/.git/worktrees/feature\n")
+            self.assertEqual(
+                source._unreachable_worktree_gitdir(root),
+                "/elsewhere/.git/worktrees/feature",
+            )
+
+    def test_present_gitdir_is_not_a_problem(self) -> None:
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            gitdir = root / "real-gitdir"
+            gitdir.mkdir()
+            (root / ".git").write_text(f"gitdir: {gitdir}\n")
+            self.assertIsNone(source._unreachable_worktree_gitdir(root))
+
+    def test_ordinary_checkout_is_not_a_worktree(self) -> None:
+        # An ordinary .git is a directory, so there is no pointer to follow and
+        # the plain "not a git project" message stands.
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / ".git").mkdir()
+            self.assertIsNone(source._unreachable_worktree_gitdir(root))
+
+    def test_no_git_at_all(self) -> None:
+        with TemporaryDirectory() as tmp:
+            self.assertIsNone(source._unreachable_worktree_gitdir(Path(tmp)))
 
 
 if __name__ == "__main__":

@@ -36,6 +36,14 @@ _NOT_GIT_ERROR = (
     "URL instead."
 )
 
+# A linked worktree fails the same check as a plain directory, so without this
+# the answer would be `git init` — wrong advice for somewhere already tracked.
+_WORKTREE_GITDIR_ERROR = (
+    "path is a git worktree whose git directory is not reachable at "
+    "{gitdir}. Mount the main repository alongside it, or open the main "
+    "working tree instead."
+)
+
 # Terse on purpose: the UI pairs this with a "how to enable" notice + link, so
 # the restart instructions here would just duplicate it.
 _LOCAL_DISABLED_ERROR = "local repositories are disabled"
@@ -124,6 +132,26 @@ def _is_git_working_tree(path: Path) -> bool:
     return r.returncode == 0 and r.stdout.strip() == "true"
 
 
+def _unreachable_worktree_gitdir(path: Path) -> str | None:
+    """The gitdir a linked worktree points at, if that gitdir is missing.
+
+    A linked worktree's `.git` is a file holding `gitdir: <abs path>`. In a
+    container mounting only the worktree, that path is absent — the worktree is
+    real, its repository just isn't there."""
+    marker = path / ".git"
+    if not marker.is_file():
+        return None
+    try:
+        content = marker.read_text()
+    except OSError:
+        return None
+    for line in content.splitlines():
+        if line.startswith("gitdir:"):
+            gitdir = line.removeprefix("gitdir:").strip()
+            return None if Path(gitdir).exists() else gitdir
+    return None
+
+
 def resolve_local(src: str) -> Path:
     """Validate a local source path (no network) and return the resolved dir.
     Raises ResolveError on any validation failure."""
@@ -136,6 +164,9 @@ def resolve_local(src: str) -> Path:
     if not target.is_dir():
         raise ResolveError(400, "path is not a directory")
     if not _is_git_working_tree(target):
+        gitdir = _unreachable_worktree_gitdir(target)
+        if gitdir:
+            raise ResolveError(400, _WORKTREE_GITDIR_ERROR.format(gitdir=gitdir))
         raise ResolveError(400, _NOT_GIT_ERROR)
     return target
 

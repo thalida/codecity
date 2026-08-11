@@ -28,6 +28,9 @@ the file is where the defaults live and a flag is how you deviate for one run.
 supports exactly one mount shape: read-only at the same absolute path, so a
 path the browser hands the api resolves to the same file inside the container.
 
+A linked git worktree needs a second mount to be scannable at all, so mounting
+one brings its shared git directory along — see git_common_dir.
+
 Any mount implies CODECITY_ALLOW_LOCAL_REPOS=1, which an explicit value from
 either layer replaces, so `-e CODECITY_ALLOW_LOCAL_REPOS=0` still turns it off.
 
@@ -41,6 +44,7 @@ not supported.
 import argparse
 import pathlib
 import re
+import subprocess
 import sys
 
 ENV_FILE = pathlib.Path(".env.local")
@@ -116,17 +120,44 @@ def read_env_file() -> dict[str, str]:
     return values
 
 
+def git_common_dir(path: pathlib.Path) -> str | None:
+    """The shared git directory `path` uses, when it lies outside `path`.
+
+    A linked worktree's `.git` is a FILE holding `gitdir: <main>/.git/worktrees/
+    <name>`, and the objects live further up in `<main>/.git`. Mounting the
+    worktree alone leaves both unreachable, so git in the container reports the
+    directory as not a repository at all. None when there is nothing extra to
+    mount: an ordinary checkout keeps its `.git` inside the mount already."""
+    try:
+        result = subprocess.run(
+            ["git", "rev-parse", "--path-format=absolute", "--git-common-dir"],
+            cwd=path,
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=5,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    if result.returncode != 0:
+        return None
+    common = pathlib.Path(result.stdout.strip()).resolve()
+    return None if common.is_relative_to(path) else str(common)
+
+
 def resolve_mounts(paths: list[str]) -> list[str]:
-    """Absolute, de-duplicated, in the order given."""
+    """Absolute, de-duplicated, in the order given, each followed by its shared
+    git directory where that sits outside it."""
     mounts: list[str] = []
     for raw in paths:
         path = pathlib.Path(raw).expanduser()
         if not path.is_dir():
             hint = " (env vars go in -e)" if ENV_ASSIGNMENT.match(raw) else ""
             raise SystemExit(f"error: {raw!r} is not a directory{hint}")
-        resolved = str(path.resolve())
-        if resolved not in mounts:
-            mounts.append(resolved)
+        resolved = path.resolve()
+        for mount in (str(resolved), git_common_dir(resolved)):
+            if mount and mount not in mounts:
+                mounts.append(mount)
     return mounts
 
 
