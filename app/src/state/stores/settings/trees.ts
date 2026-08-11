@@ -83,7 +83,7 @@ const TREES_FIELDS = {
   HALF_LIFE_DAYS: {
     route: ChangeRoute.Rebuild,
     kind: FieldKind.Slider,
-    default: 90,
+    default: 30,
     min: 1,
     max: 3650,
     step: 5,
