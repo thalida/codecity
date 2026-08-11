@@ -214,7 +214,34 @@ describe('NewProjectForm', () => {
     expect(notice?.textContent).toContain("Couldn't reach that repo.");
   });
 
-  it('drops the remedy once the URL is edited again', async () => {
+  it('drops the remedy the moment the URL is edited, before the new lookup lands', async () => {
+    // Holding the next lookup open is what pins "straight away": a mock that
+    // rejects every URL makes this pass only by winning a race.
+    let arriveAtOther = () => {};
+    const other = new Promise<branchesApi.BranchList>((resolve) => {
+      arriveAtOther = () => resolve({ branches: ['main'], default: 'main' });
+    });
+    vi.spyOn(branchesApi, 'fetchBranches').mockImplementation((url: string) =>
+      url.includes('/private') ? Promise.reject(new ScanError('nope', 'repo-not-found')) : other
+    );
+    render(<NewProjectForm allowLocalRepos hosted={false} onSubmit={() => {}} />, container);
+    await flush();
+    setInput(field(container), 'https://github.com/o/private');
+    await drainAsync();
+    expect(container.querySelector('.unreachable--error')).not.toBeNull();
+
+    setInput(field(container), 'https://github.com/o/other');
+    await drainAsync();
+    expect(container.querySelector('.unreachable--error')).toBeNull();
+
+    arriveAtOther();
+    await drainAsync();
+    expect(container.querySelector('.unreachable--error')).toBeNull();
+  });
+
+  it('drops the remedy when the field turns into a local path', async () => {
+    // The only route with nothing else to clear it: a path unmounts BranchSelect,
+    // so its remount is not there to report the error away.
     vi.spyOn(branchesApi, 'fetchBranches').mockRejectedValue(
       new ScanError('nope', 'repo-not-found')
     );
@@ -224,8 +251,8 @@ describe('NewProjectForm', () => {
     await drainAsync();
     expect(container.querySelector('.unreachable--error')).not.toBeNull();
 
-    setInput(field(container), 'https://github.com/o/other');
-    await flush();
+    setInput(field(container), '/Users/me/code/proj');
+    await drainAsync();
     expect(container.querySelector('.unreachable--error')).toBeNull();
   });
 

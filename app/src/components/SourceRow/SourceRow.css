@@ -45,14 +45,26 @@
   gap: var(--cc-space-2);
   min-width: 0;
 }
+/* The repo name is the row's identity, so it keeps its full width and the
+   branch beside it gives way. Branches are the long half anyway: worktrees of
+   one repo share a name and differ only in the branch. */
 .source-row-label {
+  flex: 0 0 auto;
   font-weight: var(--cc-fw-medium);
-  overflow: hidden;
-  text-overflow: ellipsis;
   white-space: nowrap;
 }
 .source-row-label-row .app-header-branch-pill {
   margin-left: 0;
+}
+.source-row-branch {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+.source-row-branch-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .source-row-sub {

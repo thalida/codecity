@@ -52,7 +52,9 @@ export function RecentRow(props: RecentRowProps) {
       <SourceRow
         src={r.src}
         label={r.label}
-        branch={r.branch}
+        // Display, not identity: a local row has no identity branch, and its
+        // checkout is what distinguishes two worktrees of the same repo.
+        branch={r.checkout ?? r.branch}
         active={active}
         unavailable={unavailable}
         unavailableReason={UNAVAILABLE_REASON}
