@@ -3,6 +3,6 @@
   { "url": "https://github.com/preactjs/preact", "label": "preact" },
   { "url": "https://github.com/BurntSushi/ripgrep", "label": "ripgrep" },
   { "url": "https://github.com/donnemartin/system-design-primer", "label": "system-design-primer" },
-  { "url": "https://github.com/vuejs/vue", "label": "vue" },
+  { "url": "https://github.com/vuejs/core", "label": "vue" },
   { "url": "https://codeberg.org/dnkl/foot", "label": "foot" }
 ]
