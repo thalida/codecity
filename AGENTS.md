@@ -73,8 +73,10 @@ origin/main` on main) before continuing.
 
 ## Tearing down a merged issue
 
-Once the PR is merged, clean up that issue's workspace — worktree, branches, and
-the docker stack `just dev` spun up for it.
+Once the PR is merged, clean up that issue's workspace: worktree, branches, and
+the docker stack `just dev` spun up for it, volumes included. Skipping the
+volumes is how you end up with dozens of `*_codecity-cache` and
+`*_codecity-test-*-cache` orphans from branches that no longer exist.
 
 ```sh
 N=61; BRANCH=fix/issue-$N-image-tooltips          # the issue's branch
@@ -83,12 +85,21 @@ N=61; BRANCH=fix/issue-$N-image-tooltips          # the issue's branch
 gh issue view $N --json state -q .state                              # CLOSED
 gh pr list --state merged --head $BRANCH --json number,mergedAt      # the authoritative check
 
+WT=.claude/worktrees/fix+issue-$N-image-tooltips  # the issue's worktree
+
 # 2. docker: containers are named codecity-<branch-with-dashes>-{app,api}-1
 docker rm -f $(docker ps -aq --filter "name=codecity-${BRANCH//\//-}")
 docker network rm codecity-${BRANCH//\//-}_default 2>/dev/null || true   # THIS issue's network only
 
-# 3. worktree + branches
-git worktree remove .claude/worktrees/fix+issue-$N-image-tooltips
+# 3. volumes — two families, and they use DIFFERENT project names.
+# dev cache keys off the branch; test caches key off the worktree dir basename
+# with non-alphanumerics stripped (fix+issue-61-foo -> fixissue-61-foo).
+docker volume rm codecity-${BRANCH//\//-}_codecity-cache 2>/dev/null || true
+TESTP=$(basename $WT | tr -cd '[:alnum:]-')
+docker volume rm ${TESTP}_codecity-test-node-cache ${TESTP}_codecity-test-npm-cache 2>/dev/null || true
+
+# 4. worktree + branches
+git worktree remove $WT
 git branch -D $BRANCH                               # -D: squash-merges look "unmerged" to -d
 git remote prune origin                             # remote head is usually auto-deleted on merge
 ```
@@ -97,7 +108,8 @@ The merged-PR query is the authoritative "is it safe to delete" check — don't 
 on `git cherry origin/main $BRANCH`: a multi-commit branch squash-merges to a single
 commit, so cherry reports every commit as `+` (not upstream) even though it's merged.
 
-Remove **only this issue's** network — do NOT run `docker network prune -f`. The
+Name the network and volumes explicitly; do not reach for `docker network prune -f`
+or `docker volume prune`. The
 global prune reaches beyond the torn-down issue: it once deleted `codecity-main_default`
 while the main dev stack was mid-restart, leaving those containers pointing at a gone
 network (`just dev` then fails with "network ... not found"; recover with
