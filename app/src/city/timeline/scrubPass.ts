@@ -1,9 +1,6 @@
-// The scrub decision for a whole city, as data: a state per building and per
-// street, from no meshes and no per-frame signals.
-//
-// A street's opacity is a rollup over its descendant buildings, so somebody has
-// to walk the buildings before the streets resolve. That is the whole reason a
-// coordinator exists rather than each component deciding for itself.
+// The scrub decision for a whole city, as data. A coordinator exists only
+// because street opacity is a rollup over descendant buildings, so the
+// buildings must be walked before the streets resolve.
 
 import type { Building, Street } from '@/types';
 import type { BuildingIndex } from '@/city/components/buildings/buildingIndex';
@@ -39,8 +36,6 @@ export interface ScrubPassDeps {
   commitMs: readonly number[];
 }
 
-/** A building with its timeline, ancestor street chain, and the state object it
- *  resolves into each frame. */
 interface ScrubEntry {
   input: BuildingScrubInput;
   streets: Street[];
@@ -76,8 +71,7 @@ export function createScrubPass(deps: ScrubPassDeps) {
 
   const allStreets: Street[] = Object.values(deps.streetsByDir);
 
-  // Reused across frames: this runs over every building every frame, so nothing
-  // here may allocate in steady state.
+  // Reused: this runs over every building every frame.
   const maxPresentOp = new Map<Street, number>();
   const ruinStreets = new Set<Street>();
   const presentStreets = new Set<Street>();
@@ -91,8 +85,7 @@ export function createScrubPass(deps: ScrubPassDeps) {
 
     for (const entry of entries) {
       const s = resolveBuildingScrubState(entry.input, frame, deps.commitMs, entry.state);
-      // Every union building rolls up, even one without a detail mesh, else the
-      // footprints and streets above it strand at their defaults.
+      // Even a building without a detail mesh, else its street strands.
       for (const street of entry.streets) {
         if (s.lane === BuildingLane.Present) {
           maxPresentOp.set(street, Math.max(maxPresentOp.get(street) ?? 0, s.op));
@@ -103,8 +96,7 @@ export function createScrubPass(deps: ScrubPassDeps) {
       }
     }
 
-    // Every street resolves each frame, defaulting to 0, so an orphan cannot
-    // stick at a stale opacity.
+    // Every street each frame, so an orphan cannot stick at a stale opacity.
     streetStates.clear();
     const flags = { ruinsOn: frame.ruinsOn, futureOn: frame.futureOn };
     for (const street of allStreets) {

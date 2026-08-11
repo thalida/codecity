@@ -36,11 +36,8 @@ _NOT_GIT_ERROR = (
     "URL instead."
 )
 
-# A linked worktree fails the same check as a plain directory, so without this
-# the answer would be `git init` — wrong advice for somewhere already tracked.
-# Names the repository, not the gitdir pointer inside it: the repository is what
-# has to be mounted. Terse for the same reason as _LOCAL_DISABLED_ERROR, the UI
-# pairs it with the remedy and a docs link.
+# `git init` is wrong advice for a directory git already tracks. Names the
+# repository, since that is what has to be mounted.
 _WORKTREE_GITDIR_ERROR = (
     "path is a git worktree, but its repository at {repo} is not mounted."
 )

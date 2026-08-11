@@ -1,6 +1,5 @@
-// How one building renders at a scrub position. No THREE, no meshes, and no
-// signals past the palette/dimension helpers Live shares, so the whole decision
-// table is exercisable without a scene. scrubApply.ts turns it into writes.
+// How one building renders at a scrub position. No THREE and no meshes, so the
+// decision table is exercisable without a scene; scrubApply.ts does the writes.
 
 import { getBuildingDimensions } from '@/city/layout/dimensions';
 import type { Building, FileNode } from '@/types';
@@ -24,8 +23,7 @@ import { tierFor } from './fadeTiers';
 import { getBuildingTiltAtAge } from './tilt';
 
 /** PathState read through the ruin/blueprint settings, hence the fourth value.
- *  Absent still has to be driven to zero every frame, or a Live fade sweep
- *  lingers on it. */
+ *  Absent is still driven every frame, or a Live fade sweep lingers on it. */
 export const BuildingLane = {
   Absent: 0,
   Present: 1,
@@ -34,8 +32,7 @@ export const BuildingLane = {
 } as const;
 export type BuildingLane = (typeof BuildingLane)[keyof typeof BuildingLane];
 
-// Neither a ruin nor a future slab has a date here, so both sample their own
-// hue at mid-recency rather than sitting on the curve.
+// Neither has a date here, so both sample their own hue at mid-recency.
 const RUIN_BASE_RECENCY = 0.5;
 const FUTURE_BASE_RECENCY = 0.5;
 const RUIN_GRAY: ColorTriple = { r: 0.3, g: 0.31, b: 0.34 };
@@ -74,9 +71,8 @@ export interface BuildingScrubInput {
   finalIdx: number;
 }
 
-/** A state to resolve into. The pass keeps one per building for the life of the
- *  controller: returning a fresh object would allocate tens of thousands of
- *  times a frame. */
+/** The pass keeps one per building: returning a fresh object would allocate
+ *  tens of thousands of times a frame. */
 export function blankBuildingScrubState(): BuildingScrubState {
   return {
     lane: BuildingLane.Absent,
@@ -106,8 +102,7 @@ function laneAt(input: BuildingScrubInput, f: ScrubFrame): BuildingLane {
   return BuildingLane.Absent;
 }
 
-/** Past its final change, the file's own date beats the day-precise commit
- *  date, so HEAD weathering is 1:1 with Live. */
+/** Past its final change the file's own date wins, so HEAD matches Live. */
 function modifiedMsAt(input: BuildingScrubInput, pos: number, commitMs: readonly number[]): number {
   const lmIdx = lastModifiedIndexAt(input.pt, pos);
   if (lmIdx >= input.finalIdx) {
@@ -117,8 +112,7 @@ function modifiedMsAt(input: BuildingScrubInput, pos: number, commitMs: readonly
   return commitMs[lmIdx] ?? 0;
 }
 
-/** Creation is a fixed event, so the file's own date always wins where it has
- *  one; genesis is the fallback. */
+/** A fixed event, so the file's own date wins; genesis is the fallback. */
 function createdMsFor(input: BuildingScrubInput, commitMs: readonly number[]): number {
   const full = Date.parse(input.b.file?.created ?? '');
   return Number.isNaN(full) ? (commitMs[input.createdIdx] ?? 0) : full;
@@ -167,8 +161,7 @@ export function resolveBuildingScrubState(
 
   if (present) {
     // The union node's size is max-over-history, so only the replay knows what
-    // this file measured HERE. Height gates on presence, not lines: a media or
-    // empty file is present with 0 of them.
+    // this file measured HERE. Presence gates height, not lines: media is 0.
     const scrubFile = { ...b.file, lines: linesAt(pt, f.pos) } as FileNode;
     const dims = getBuildingDimensions(scrubFile, f.lineStats, f.byteStats);
     out.height = dims.h;
@@ -177,8 +170,7 @@ export function resolveBuildingScrubState(
     out.tiltX = tilt.tiltX;
     out.tiltZ = tilt.tiltZ;
   } else {
-    // Uniform stub or ultra-low slab: both read as what they are because the
-    // facade is blank, not because of the height alone.
+    // Stub or slab: the blank facade is what makes each read as what it is.
     out.height =
       lane === BuildingLane.Ruin ? f.ruinHeight : lane === BuildingLane.Future ? f.futureHeight : 0;
     out.floors = 0;
@@ -187,8 +179,7 @@ export function resolveBuildingScrubState(
   }
 
   if (present) {
-    // The tier decision buildingFader uses in Live, so a hover dims the city
-    // identically while scrubbing.
+    // The tier buildingFader uses in Live, so a hover dims identically here.
     const tier = tierFor(b.file, f.bldgTargetFile, f.dirTarget, f.hoverFile, f.fadeCfg);
     out.bodyOp = tier.detail === FadeDetail.Hidden ? 0 : out.op * tier.bodyOpacity;
     out.silhouette = tier.detail === FadeDetail.Silhouette ? 1 : 0;
