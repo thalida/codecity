@@ -2,16 +2,22 @@ import { describe, it, expect, afterEach } from 'vitest';
 import { render } from 'preact';
 import { DynamicSection, type SectionChild, type FieldRef } from '@/views/ControlsPane/partials';
 import { TREES_SECTION } from '@/views/ControlsPane/partials/Trees';
-import { STREETS_SECTION } from '@/views/ControlsPane/partials/Streets';
-import { FOOTPRINT_SECTION } from '@/views/ControlsPane/partials/Footprint';
-import { SHOWCASE_SECTION } from '@/views/ControlsPane/partials/Showcase';
-import { SHOWCASE } from '@/state/stores/settings/showcase';
 import { BUILDINGS_SECTION } from '@/views/ControlsPane/partials/Buildings';
-import { TREES } from '@/state/stores/settings/trees';
-import { STREETS, STREET_TIERS, STREET_LAYOUT } from '@/state/stores/settings/streets';
-import { BUILDING_DIMENSIONS, BUILDINGS } from '@/state/stores/settings/buildings';
-import { FOOTPRINT } from '@/state/stores/settings/footprint';
 import { WORLD_SECTIONS } from '@/views/ControlsPane/ControlsPane';
+import { CAMERA } from '@/state/stores/settings/camera';
+import { SHOWCASE } from '@/state/stores/settings/showcase';
+import { SCENE } from '@/state/stores/settings/scene';
+import { ISLAND, WORLD } from '@/state/stores/settings/island';
+import { STREETS, STREET_TIERS, STREET_LAYOUT } from '@/state/stores/settings/streets';
+import { FOOTPRINT } from '@/state/stores/settings/footprint';
+import { BUILDING_DIMENSIONS, BUILDINGS } from '@/state/stores/settings/buildings';
+import { GEM, GEM_SIZING, REPO_LABEL } from '@/state/stores/settings/gem';
+import { TREES } from '@/state/stores/settings/trees';
+import { FIREFLIES } from '@/state/stores/settings/fireflies';
+import { RUINS } from '@/state/stores/settings/ruins';
+import { BLUEPRINTS } from '@/state/stores/settings/blueprints';
+import { SCRUBBER } from '@/state/stores/settings/scrubber';
+import { RAINBOW, BLOOM } from '@/state/stores/settings/effects';
 import { getFieldKeys, isAutosave } from '@/state/settingsSchema';
 import { flush } from '../../_helpers/preact';
 
@@ -25,69 +31,74 @@ function collectRefs(children: SectionChild[]): FieldRef[] {
   return out;
 }
 
-describe('TREES_SECTION placement', () => {
-  it('places every TREES field (incl. folded outline) exactly once', () => {
-    const refs = collectRefs(TREES_SECTION.children ?? []);
-    const placed = refs.map((r) => r.key);
+// Every store the World tab is responsible for surfacing. A store added here
+// but left unplaced (or a field dropped while moving a section) fails below.
+const WORLD_STORES: [string, object][] = [
+  ['CAMERA', CAMERA],
+  ['SHOWCASE', SHOWCASE],
+  ['SCENE', SCENE],
+  ['WORLD', WORLD],
+  ['ISLAND', ISLAND],
+  ['STREETS', STREETS],
+  ['STREET_TIERS', STREET_TIERS],
+  ['STREET_LAYOUT', STREET_LAYOUT],
+  ['FOOTPRINT', FOOTPRINT],
+  ['BUILDING_DIMENSIONS', BUILDING_DIMENSIONS],
+  ['BUILDINGS', BUILDINGS],
+  ['GEM', GEM],
+  ['GEM_SIZING', GEM_SIZING],
+  ['REPO_LABEL', REPO_LABEL],
+  ['TREES', TREES],
+  ['FIREFLIES', FIREFLIES],
+  ['RUINS', RUINS],
+  ['BLUEPRINTS', BLUEPRINTS],
+  ['SCRUBBER', SCRUBBER],
+  ['RAINBOW', RAINBOW],
+  ['BLOOM', BLOOM],
+];
 
-    // Every defined (tunable) field is placed …
-    expect(placed.slice().sort()).toEqual(getFieldKeys(TREES as object).sort());
-    // … and none is placed twice.
-    expect(new Set(placed).size).toBe(placed.length);
-    // Every ref points at the TREES store (no stray stores).
-    expect(refs.every((r) => r.store === (TREES as unknown))).toBe(true);
-  });
-});
+describe('World tab coverage', () => {
+  const refs = WORLD_SECTIONS.flatMap((s) => collectRefs(s.children ?? []));
 
-describe('STREETS_SECTION placement', () => {
-  it('places every field of the three streets stores exactly once', () => {
-    const refs = collectRefs(STREETS_SECTION.children ?? []);
-    const stores = [STREETS, STREET_TIERS, STREET_LAYOUT];
-    let total = 0;
-    for (const store of stores) {
+  it('places every field of every World store exactly once', () => {
+    for (const [name, store] of WORLD_STORES) {
       const placed = refs.filter((r) => r.store === (store as unknown)).map((r) => r.key);
-      expect(placed.slice().sort()).toEqual(getFieldKeys(store as object).sort());
-      expect(new Set(placed).size).toBe(placed.length); // none twice
-      total += getFieldKeys(store as object).length;
+      expect(placed.slice().sort(), name).toEqual(getFieldKeys(store).sort());
+      expect(new Set(placed).size, `${name} placed a field twice`).toBe(placed.length);
     }
-    // No refs point at a store outside the three (footprint is its own section).
-    expect(refs.length).toBe(total);
   });
-});
 
-describe('FOOTPRINT_SECTION placement', () => {
-  it('places every FOOTPRINT field exactly once', () => {
-    const refs = collectRefs(FOOTPRINT_SECTION.children ?? []);
-    const placed = refs.map((r) => r.key);
-    expect(placed.slice().sort()).toEqual(getFieldKeys(FOOTPRINT as object).sort());
-    expect(new Set(placed).size).toBe(placed.length);
-    expect(refs.every((r) => r.store === (FOOTPRINT as unknown))).toBe(true);
+  it('places nothing from a store outside that set', () => {
+    const known = new Set(WORLD_STORES.map(([, s]) => s as unknown));
+    expect(refs.filter((r) => !known.has(r.store))).toEqual([]);
   });
-});
 
-describe('SHOWCASE_SECTION placement', () => {
-  it('places every SHOWCASE field exactly once', () => {
-    const refs = collectRefs(SHOWCASE_SECTION.children ?? []);
-    const placed = refs.map((r) => r.key);
-    expect(placed.slice().sort()).toEqual(getFieldKeys(SHOWCASE as object).sort());
-    expect(new Set(placed).size).toBe(placed.length);
-    expect(refs.every((r) => r.store === (SHOWCASE as unknown))).toBe(true);
+  it('has no write-through fields: every one stages into the footer', () => {
+    // An autosave store here would skip staging AND be ignored by Reset all
+    // (stageResetAll / anyResettable both bow out of autosave stores).
+    const writeThrough = WORLD_SECTIONS.flatMap((s) =>
+      collectRefs(s.children ?? [])
+        .filter((r) => isAutosave(r.store as object))
+        .map((r) => `${s.key}.${r.key}`)
+    );
+    expect(writeThrough, writeThrough.join(', ')).toEqual([]);
   });
-});
 
-describe('BUILDINGS_SECTION placement', () => {
-  it('places every field of all four building stores exactly once', () => {
-    const refs = collectRefs(BUILDINGS_SECTION.children ?? []);
-    const stores = [BUILDING_DIMENSIONS, BUILDINGS];
-    let total = 0;
-    for (const store of stores) {
-      const placed = refs.filter((r) => r.store === (store as unknown)).map((r) => r.key);
-      expect(placed.slice().sort()).toEqual(getFieldKeys(store as object).sort());
-      expect(new Set(placed).size).toBe(placed.length); // none twice
-      total += getFieldKeys(store as object).length;
+  it('gives every section and group a unique key', () => {
+    const keys: string[] = [];
+    const walk = (children: SectionChild[]) => {
+      for (const c of children) {
+        if (!('children' in c)) continue;
+        keys.push(c.key);
+        walk(c.children);
+      }
+    };
+    for (const s of WORLD_SECTIONS) {
+      keys.push(s.key);
+      walk(s.children ?? []);
     }
-    // No refs point at a store outside the four.
-    expect(refs.length).toBe(total);
+    const dupes = keys.filter((k, i) => keys.indexOf(k) !== i);
+    expect(dupes, dupes.join(', ')).toEqual([]);
   });
 });
 
@@ -99,19 +110,6 @@ async function openSections(root: HTMLElement): Promise<void> {
     .forEach((t) => t.click());
   await flush();
 }
-
-describe('World tab uniformity', () => {
-  it('has no write-through fields: every one stages into the footer', () => {
-    const writeThrough = WORLD_SECTIONS.flatMap((s) =>
-      collectRefs(s.children ?? [])
-        .filter((r) => isAutosave(r.store as object))
-        .map((r) => `${s.key}.${r.key}`)
-    );
-    // An autosave store here would skip staging AND be ignored by Reset all
-    // (stageResetAll / anyResettable both bow out of autosave stores).
-    expect(writeThrough, writeThrough.join(', ')).toEqual([]);
-  });
-});
 
 describe('DynamicSection rendering', () => {
   let container: HTMLDivElement;
@@ -129,10 +127,9 @@ describe('DynamicSection rendering', () => {
     await flush();
     await openSections(container);
 
-    // Section + subgroup headers.
     expect(container.textContent).toContain('Trees');
+    expect(container.textContent).toContain('Placement');
     expect(container.textContent).toContain('Height by age');
-    expect(container.textContent).toContain('Outlines');
 
     // One .setting-row per placed field (RangePair counts as one row).
     const placed = collectRefs(TREES_SECTION.children ?? []).length;
@@ -142,7 +139,7 @@ describe('DynamicSection rendering', () => {
   it('caps collapsible nesting at MAX_COLLAPSE_DEPTH: deeper groups render flat', async () => {
     container = document.createElement('div');
     document.body.appendChild(container);
-    // Buildings nests Section > Facade (depth 2) > Geometry (depth 3).
+    // Buildings nests Section > Interaction (2) > Selection fade (3) > tier (4).
     render(<DynamicSection node={BUILDINGS_SECTION} />, container);
     await flush();
     await openSections(container);
@@ -150,11 +147,11 @@ describe('DynamicSection rendering', () => {
     const toggles = Array.from(container.querySelectorAll('.controls-disclosure-toggle')).map(
       (s) => s.textContent ?? ''
     );
-    // Facade (depth 2) is still a collapsible accordion (a disclosure toggle).
-    expect(toggles.some((t) => t.includes('Facade'))).toBe(true);
-    // Geometry (depth 3) is past the cap → a flat labeled cluster, no toggle…
-    expect(toggles.some((t) => t.includes('Geometry'))).toBe(false);
+    // Selection fade (depth 3) is still a collapsible accordion.
+    expect(toggles.some((t) => t.includes('Selection fade'))).toBe(true);
+    // A fade tier (depth 4) is past the cap → a flat labeled cluster, no toggle…
+    expect(toggles.some((t) => t.includes('Level 1'))).toBe(false);
     // …but its label + fields still render.
-    expect(container.textContent).toContain('Geometry');
+    expect(container.textContent).toContain('Level 1');
   });
 });

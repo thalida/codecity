@@ -11,6 +11,9 @@ import { renderTrees } from '../../../_helpers/renderTrees';
 function resetStores() {
   TREES.value = {
     ENABLED: true,
+    CITY_CLEARANCE: 32,
+    DENSITY_FALLOFF: 0,
+    EDGE_INSET_PERCENT: 1,
     MIN_HEIGHT: 48,
     MAX_HEIGHT: 144,
     MIN_WIDTH: 32,

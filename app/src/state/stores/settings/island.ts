@@ -1,9 +1,7 @@
-// state/stores/settings/island.ts — Floating-island world-plane configuration: one
-// flat store for the whole island (silhouette/depth geometry + baked vertex
-// colors + hemispheric lighting). The Geometry/Materials split is purely a
-// Settings-panel grouping, declared in sections/island.ts — not separate
-// stores. Schema-driven (see state/schema); applied automatically via the
-// island component's own settings effect (city/components/island/index.ts).
+// state/stores/settings/island.ts — Floating-island world-plane. ISLAND is the
+// island itself (silhouette, depth, baked colors, hemispheric lighting); WORLD
+// sizes the ground it's cut from. Schema-driven (see state/schema); applied via
+// the island component's settings effect (city/components/island/index.ts).
 
 import {
   settingSignal,
@@ -123,3 +121,21 @@ const ISLAND_FIELDS = {
 
 export const ISLAND = settingSignal('ISLAND', ISLAND_FIELDS);
 export type IslandConfig = ConfigOf<typeof ISLAND_FIELDS>;
+
+// Sets the island's extent (getWorldBounds → buildTopPolygon). Separate store
+// so the tree-placement worker snapshot doesn't carry the island's visuals.
+const WORLD_FIELDS = {
+  GROUND_BUFFER_PERCENT: {
+    route: ChangeRoute.Rebuild,
+    kind: FieldKind.Slider,
+    default: 0,
+    min: 0,
+    max: 100,
+    step: 1,
+    label: 'Ground buffer (% of city)',
+    tip: "Padding around the city as a percentage of the city's longest dimension. 0% fits the island exactly to the city; 50% adds a generous halo of bare ground.",
+  },
+} satisfies FieldMap;
+
+export const WORLD = settingSignal('WORLD', WORLD_FIELDS);
+export type WorldConfig = ConfigOf<typeof WORLD_FIELDS>;

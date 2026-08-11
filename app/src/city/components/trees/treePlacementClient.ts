@@ -9,13 +9,8 @@
 import { placeTrees, type TreePlacement, type LayoutGeometry } from './treePlacement';
 import { MSG } from './treePlacementProtocol';
 import { TREES, type TreesConfig } from '@/state/stores/settings/trees';
-import {
-  BUILDING_DIMENSIONS,
-  type BuildingDimensionsConfig,
-} from '@/state/stores/settings/buildings';
 import { FOOTPRINT, type FootprintConfig } from '@/state/stores/settings/footprint';
-import { ISLAND, type IslandConfig } from '@/state/stores/settings/island';
-import { WORLD, type WorldConfig } from '@/state/stores/settings/scene';
+import { ISLAND, WORLD, type IslandConfig, type WorldConfig } from '@/state/stores/settings/island';
 import type { CityBbox, CityLayout } from '@/types';
 
 interface PendingRequest {
@@ -25,7 +20,6 @@ interface PendingRequest {
 
 interface ConfigSnapshot {
   trees: TreesConfig;
-  buildingDims: BuildingDimensionsConfig;
   footprint: FootprintConfig;
   islandGeo: IslandConfig;
   world: WorldConfig;
@@ -64,7 +58,6 @@ function _slimLayout(layout: CityLayout): LayoutGeometry {
 function _snapshot(): ConfigSnapshot {
   return {
     trees: TREES.value,
-    buildingDims: BUILDING_DIMENSIONS.value,
     footprint: FOOTPRINT.value,
     islandGeo: ISLAND.value,
     world: WORLD.value,

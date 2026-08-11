@@ -4,6 +4,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { placeTrees, type TreePlacement } from '@/city/components/trees/treePlacement';
 import { TREES } from '@/state/stores/settings/trees';
 import { FOOTPRINT } from '@/state/stores/settings/footprint';
+import { WORLD } from '@/state/stores/settings/island';
 import type { CityLayout } from '@/types';
 import {
   bbox,
@@ -17,6 +18,7 @@ describe('placeTrees (commit-driven)', () => {
   beforeEach(() => {
     resetTreesConfig();
     resetBuildingsConfig();
+    WORLD.value = { ...WORLD.value, GROUND_BUFFER_PERCENT: 0 };
   });
 
   it('returns empty when ENABLED is false', () => {
@@ -63,6 +65,22 @@ describe('placeTrees (commit-driven)', () => {
       // Each commit index appears exactly once.
       expect(new Set(placements.map((p) => p.commitIndex)).size).toBe(commitCount);
     }
+  });
+
+  it('still places every commit at the maximum density falloff', () => {
+    // Falloff thins candidates probabilistically; at the top of the range it
+    // rejects nearly everything and the forest disappears entirely. Thinned
+    // positions are kept as spares and topped up to reach the commit count.
+    WORLD.value = { ...WORLD.value, GROUND_BUFFER_PERCENT: 100 };
+    TREES.value = { ...TREES.value, DENSITY_FALLOFF: 50 };
+    const bb = bbox(-40, -40, 40, 40);
+    const layout: CityLayout = {
+      ...emptyLayout(bb),
+      buildings: [building({ x: 0, y: 0, w: 40, d: 40, h: 10 })],
+    };
+    const placements = placeTrees(layout, bb, { commitCount: 200 });
+    expect(placements.length).toBe(200);
+    expect(new Set(placements.map((p) => p.commitIndex)).size).toBe(200);
   });
 
   it('tree placements are sorted by distance from gem (closest first)', () => {

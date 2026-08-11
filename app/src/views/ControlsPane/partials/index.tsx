@@ -79,11 +79,11 @@ function collectRefs(children: SectionChild[]): FieldRef[] {
 }
 
 /** Deepest nesting level that stays a collapsible accordion. The top section is
- *  level 1; one subgroup level (2) also collapses. Groups deeper than this render
- *  as flat labeled clusters (always shown when their parent is open), so the
- *  panel never becomes a maze of nested accordions. Raise it to allow deeper
- *  collapsibility. */
-export const MAX_COLLAPSE_DEPTH = 2;
+ *  level 1. Groups deeper than this render as flat labeled clusters (always
+ *  shown when their parent is open), so the panel never becomes a maze of
+ *  nested accordions. 3 keeps the leaf clusters flat while letting the big
+ *  sections collapse their Facade/Interaction subgroups. */
+export const MAX_COLLAPSE_DEPTH = 3;
 
 /** Render a node's children at their nesting level. The section is level 1, so
  *  its direct children default to level 2. Every render path (accordion, inline,

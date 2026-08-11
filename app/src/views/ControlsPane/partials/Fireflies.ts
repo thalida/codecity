@@ -1,4 +1,4 @@
-// views/ControlsPane/partials/Fireflies.ts — Fireflies section declaration.
+// views/ControlsPane/partials/Fireflies.ts — motes orbiting each commit-tree.
 import { field, type SectionNode } from '.';
 import { FIREFLIES } from '@/state/stores/settings/fireflies';
 
@@ -7,9 +7,9 @@ export const FIREFLIES_SECTION: SectionNode = {
   label: 'Fireflies',
   description: 'Glowing motes that orbit each commit-tree, colored per author.',
   children: [
-    { key: 'visibility', label: 'Visibility', children: [field(FIREFLIES, 'ENABLED')] },
+    field(FIREFLIES, 'ENABLED'),
     {
-      key: 'size',
+      key: 'fireflies-size',
       label: 'Size',
       children: [field(FIREFLIES, 'SCALE_MIN'), field(FIREFLIES, 'SCALE_MAX')],
     },
