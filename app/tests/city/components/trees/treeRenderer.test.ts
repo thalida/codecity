@@ -23,8 +23,10 @@ function resetStores() {
     SHADING_STRENGTH: 0.65,
     TRUNK_COLOR: '#120c08',
     WIDTH_AGE_FLOOR: 1.0,
-    STALE_HORIZON_DAYS: 730,
-    STALENESS_CAP: 0.85,
+    HORIZON_DAYS: 1825,
+    // Rank-only: these tests pin the renderer's wiring, so heights stay the
+    // legible MIN/mid/MAX. The blend itself is treeEncoding.test.ts's subject.
+    RELATIVE_WEIGHT: 1,
     OUTLINE_WIDTH: 1,
     OUTLINE_HOVER_COLOR: '#ffffff',
     OUTLINE_HOVER_OPACITY: 0.5,

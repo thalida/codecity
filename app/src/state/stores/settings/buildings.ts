@@ -172,6 +172,26 @@ export type BuildingDimensionsConfig = ConfigOf<typeof BUILDING_DIMENSIONS_FIELD
 // routeSignature(Refresh/Rebuild), so a fade tweak never forces a rebuild.
 const BUILDINGS_FIELDS = {
   // ── Palette (HSL) — rebuild ──
+  HORIZON_DAYS: {
+    route: ChangeRoute.Rebuild,
+    kind: FieldKind.Slider,
+    default: 730,
+    min: 30,
+    max: 3650,
+    step: 10,
+    label: 'Age horizon (days)',
+    tip: 'How long since a file was last touched before it reaches the fully-stale color. Shorter makes recent work stand out more sharply.',
+  },
+  RELATIVE_WEIGHT: {
+    route: ChangeRoute.Rebuild,
+    kind: FieldKind.Slider,
+    default: 0.5,
+    min: 0,
+    max: 1,
+    step: 0.05,
+    label: 'Relative weight',
+    tip: 'How much color comes from a file rank within this repo versus how long ago it was actually touched. 1 colors purely by rank, so a dormant repo looks as fresh as an active one and one edit restates every other building. 0 colors purely by age.',
+  },
   SATURATION_MIN: {
     route: ChangeRoute.Rebuild,
     kind: FieldKind.Slider,

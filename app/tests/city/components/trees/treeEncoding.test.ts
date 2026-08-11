@@ -48,35 +48,32 @@ describe('computeAgeRange()', () => {
   });
 });
 
-describe('computeAgeRange() daysIdle', () => {
-  // daysIdle = max(0, scanned_at − newest commit), in whole days. It's the raw,
-  // settings-independent fact; treeHeight turns it into a staleness lift using
-  // the TREES horizon/cap. Newest commit in this fixture is 2026-01-21.
-  it('is 0 when scanned_at is omitted (feature off / backward compatible)', () => {
-    expect(computeAgeRange(commitStats(commits)).daysIdle).toBe(0);
+describe('computeAgeRange() scanned', () => {
+  // What "now" means to every commit. Newest commit in this fixture is 2026-01-21.
+  const day = (d: string) => Math.floor(Date.parse(d) / 86_400_000);
+
+  it('is the scan date', () => {
+    expect(computeAgeRange(commitStats(commits), '2027-01-21').scanned).toBe(day('2027-01-21'));
   });
 
-  it('is 0 when scanned on the newest commit day (fresh repo)', () => {
-    expect(computeAgeRange(commitStats(commits), '2026-01-21').daysIdle).toBe(0);
+  it('falls back to the newest commit when no scan date is given', () => {
+    // An unknown scan date must not make the forest look abandoned.
+    expect(computeAgeRange(commitStats(commits)).scanned).toBe(day('2026-01-21'));
   });
 
-  it('clamps to 0 when scanned before the newest commit', () => {
-    expect(computeAgeRange(commitStats(commits), '2025-06-01').daysIdle).toBe(0);
-  });
-
-  it('counts whole days between the newest commit and the scan', () => {
-    // 2026-01-21 → 2027-01-21 is exactly 365 days.
-    expect(computeAgeRange(commitStats(commits), '2027-01-21').daysIdle).toBe(365);
+  it('never sits before the newest commit, so a stale scan cannot age it backwards', () => {
+    expect(computeAgeRange(commitStats(commits), '2025-06-01').scanned).toBe(day('2026-01-21'));
   });
 
   it('is 0 when there are no commits, regardless of scanned_at', () => {
-    expect(computeAgeRange(commitStats([]), '2036-01-21').daysIdle).toBe(0);
-    expect(computeAgeRange(null, '2036-01-21').daysIdle).toBe(0);
+    expect(computeAgeRange(commitStats([]), '2036-01-21').scanned).toBe(0);
+    expect(computeAgeRange(null, '2036-01-21').scanned).toBe(0);
   });
 
   it('accepts an ISO datetime scanned_at (day precision)', () => {
-    // Same 365-day gap, but scanned_at as a full ISO timestamp.
-    expect(computeAgeRange(commitStats(commits), '2027-01-21T13:45:00Z').daysIdle).toBe(365);
+    expect(computeAgeRange(commitStats(commits), '2027-01-21T13:45:00Z').scanned).toBe(
+      day('2027-01-21')
+    );
   });
 });
 
@@ -119,7 +116,7 @@ describe('ageT()', () => {
   });
 
   it('returns 0.5 when the range has zero span', () => {
-    const zero: AgeRange = { oldest: 0, newest: 0, span: 0, daysIdle: 0 };
+    const zero: AgeRange = { oldest: 0, newest: 0, span: 0, scanned: 0 };
     expect(ageT(buildCommits({ date: '2026-01-01', files: 1 })[0], zero)).toBe(0.5);
   });
 
@@ -222,9 +219,11 @@ describe('treeHeight() / treeRadius()', () => {
     MIN_WIDTH: 32,
     MAX_WIDTH: 64,
     WIDTH_AGE_FLOOR: 0.5,
-    STALE_HORIZON_DAYS: 730,
-    STALENESS_CAP: 0.85,
+    HORIZON_DAYS: 730,
+    RELATIVE_WEIGHT: 0.7,
   } as TreesConfig;
+  /** Rank alone, which is what tree height was before the blend. */
+  const rankOnly = { ...cfg, RELATIVE_WEIGHT: 1 } as TreesConfig;
 
   const sizing = buildCommits(
     { date: '2026-01-01', files: 1 }, // oldest, smallest
@@ -235,17 +234,16 @@ describe('treeHeight() / treeRadius()', () => {
   const sizeRange = computeSizeRange(commitStats(sizing));
 
   describe('treeHeight()', () => {
-    it('oldest commit (ageT=0) → MAX_HEIGHT', () => {
-      expect(treeHeight(sizing[0], ageRange, cfg)).toBe(96);
+    it('at rank alone: oldest → MAX_HEIGHT, newest → MIN_HEIGHT, middle → midpoint', () => {
+      expect(treeHeight(sizing[0], ageRange, rankOnly)).toBe(96);
+      expect(treeHeight(sizing[2], ageRange, rankOnly)).toBe(8);
+      expect(treeHeight(sizing[1], ageRange, rankOnly)).toBeCloseTo(52, 5);
     });
 
-    it('newest commit (ageT=1) → MIN_HEIGHT', () => {
-      expect(treeHeight(sizing[2], ageRange, cfg)).toBe(8);
-    });
-
-    it('middle commit (ageT≈0.5) → midpoint height', () => {
-      // 96 - 0.5 * (96 - 8) = 52
-      expect(treeHeight(sizing[1], ageRange, cfg)).toBeCloseTo(52, 5);
+    it('at rank alone the scan date changes nothing', () => {
+      const ancient = computeAgeRange(commitStats(sizing), '2036-01-21');
+      expect(treeHeight(sizing[0], ancient, rankOnly)).toBe(96);
+      expect(treeHeight(sizing[2], ancient, rankOnly)).toBe(8);
     });
 
     it('null commit collapses to the height midpoint', () => {
@@ -254,92 +252,91 @@ describe('treeHeight() / treeRadius()', () => {
       expect(treeHeight(undefined, ageRange, cfg)).toBe(52);
     });
 
-    // Absolute-age (staleness) lift: a repo untouched for a while reads old
-    // across the whole forest, while keeping intra-repo oldest→newest spread.
-    // maturity = staleness + (1 − staleness)·relT, where relT is the existing
-    // repo-relative height fraction (oldest = 1, newest = 0). staleness =
-    // clamp(daysIdle / STALE_HORIZON_DAYS, 0, STALENESS_CAP), both from cfg.
-    describe('staleness lift', () => {
-      // scanned exactly on the newest commit → staleness 0 → identical to today.
+    // Height blends rank within the repo with the commit's real age, so a repo
+    // nobody has touched in years grows tall on its own rather than through a
+    // separate forest-wide lift.
+    describe('the age blend', () => {
       const fresh = computeAgeRange(commitStats(sizing), '2026-01-21');
-      // scanned 365 days after the newest commit → staleness 0.5.
-      const stale = computeAgeRange(commitStats(sizing), '2027-01-21');
-      // scanned far in the future → staleness capped at 0.85.
-      const ancient = computeAgeRange(commitStats(sizing), '2036-01-21');
+      const stale = computeAgeRange(commitStats(sizing), '2027-01-21'); // +365d
+      const ancient = computeAgeRange(commitStats(sizing), '2036-01-21'); // +10y
 
-      it('a fresh repo is a no-op (heights identical to today)', () => {
-        expect(treeHeight(sizing[0], fresh, cfg)).toBe(96); // oldest → MAX
-        expect(treeHeight(sizing[1], fresh, cfg)).toBeCloseTo(52, 5); // middle
-        expect(treeHeight(sizing[2], fresh, cfg)).toBe(8); // newest → MIN
+      it('keeps oldest→newest ordering at every scan date', () => {
+        for (const range of [fresh, stale, ancient]) {
+          const h = sizing.map((c) => treeHeight(c, range, cfg));
+          expect(h[0]).toBeGreaterThan(h[1]);
+          expect(h[1]).toBeGreaterThan(h[2]);
+        }
       });
 
-      it('lifts the whole forest while keeping the oldest at MAX', () => {
-        // staleness 0.5: oldest maturity 1 → 96, middle 0.75 → 74, newest 0.5 → 52.
-        expect(treeHeight(sizing[0], stale, cfg)).toBeCloseTo(96, 5);
-        expect(treeHeight(sizing[1], stale, cfg)).toBeCloseTo(74, 5);
-        expect(treeHeight(sizing[2], stale, cfg)).toBeCloseTo(52, 5);
+      it('reads a three-week-old repo as saplings: nothing in it is old yet', () => {
+        // Rank alone would put its oldest commit at MAX_HEIGHT, claiming a
+        // brand-new repo has an ancient tree in it.
+        expect(treeHeight(sizing[0], fresh, rankOnly)).toBe(96);
+        expect(treeHeight(sizing[0], fresh, cfg)).toBeLessThan(80);
+        expect(treeHeight(sizing[2], fresh, cfg)).toBe(8);
       });
 
-      it('preserves oldest→newest ordering and lifts every tree vs fresh', () => {
-        const h = sizing.map((c) => treeHeight(c, stale, cfg));
-        expect(h[0]).toBeGreaterThan(h[1]);
-        expect(h[1]).toBeGreaterThan(h[2]);
-        // Every tree is at least as tall as it was fresh; the newest strictly taller.
-        expect(treeHeight(sizing[2], stale, cfg)).toBeGreaterThan(
-          treeHeight(sizing[2], fresh, cfg)
-        );
+      it('grows every tree as the repo sits untouched', () => {
+        for (const commit of sizing) {
+          expect(treeHeight(commit, stale, cfg)).toBeGreaterThan(treeHeight(commit, fresh, cfg));
+          expect(treeHeight(commit, ancient, cfg)).toBeGreaterThan(treeHeight(commit, stale, cfg));
+        }
       });
 
-      it('honors the staleness cap: the newest tree never fully flattens', () => {
-        // maturity = 0.85 → 8 + 0.85·88 = 82.8.
-        expect(treeHeight(sizing[2], ancient, cfg)).toBeCloseTo(82.8, 5);
-        // The oldest tree stays pinned at MAX regardless of staleness.
+      it('pins the whole forest once every commit is past the horizon', () => {
+        // Absolute term floors at 0 for all of them, so only rank separates
+        // them: oldest at MAX, newest lifted to 1 − RELATIVE_WEIGHT.
         expect(treeHeight(sizing[0], ancient, cfg)).toBeCloseTo(96, 5);
+        expect(treeHeight(sizing[2], ancient, cfg)).toBeCloseTo(8 + 0.3 * 88, 5);
       });
 
-      it('degrades sanely for a same-day (span 0) stale repo', () => {
+      it('degrades sanely for a same-day (span 0) repo', () => {
         const sameDay = buildCommits(
           { date: '2026-01-01', files: 1 },
           { date: '2026-01-01', files: 9 }
         );
-        const range = computeAgeRange(commitStats(sameDay), '2027-01-01'); // staleness 0.5
-        // relT = 0.5 (span 0) → maturity = 0.5 + 0.5·0.5 = 0.75 → 8 + 0.75·88 = 74.
-        const height = treeHeight(sameDay[0], range, cfg);
-        expect(Number.isFinite(height)).toBe(true);
-        expect(height).toBeCloseTo(74, 5);
+        const range = computeAgeRange(commitStats(sameDay), '2027-01-01');
+        // Span 0 has no rank to read, so it takes the midpoint.
+        expect(treeHeight(sameDay[0], range, cfg)).toBeCloseTo(52, 5);
       });
 
-      it('is driven by the cfg horizon and cap (settings tune the lift)', () => {
-        // Halve the horizon → the same 365 idle days now reads fully stale, but
-        // the cap still holds it below 1: newest maturity = cap 0.85 → 82.8.
-        const tuned = { ...cfg, STALE_HORIZON_DAYS: 365, STALENESS_CAP: 0.85 } as TreesConfig;
-        expect(treeHeight(sizing[2], stale, tuned)).toBeCloseTo(82.8, 5);
+      it('is tuned by the horizon: a shorter one ages the forest faster', () => {
+        const short = { ...cfg, HORIZON_DAYS: 365 } as TreesConfig;
+        expect(treeHeight(sizing[2], stale, short)).toBeGreaterThan(
+          treeHeight(sizing[2], stale, cfg)
+        );
+      });
 
-        // A cap of 0 disables the lift entirely: heights match the fresh repo.
-        const off = { ...cfg, STALENESS_CAP: 0 } as TreesConfig;
-        expect(treeHeight(sizing[2], ancient, off)).toBe(8);
-        expect(treeHeight(sizing[1], ancient, off)).toBeCloseTo(52, 5);
+      it('is tuned by the weight: 1 restores pure rank, 0 pure age', () => {
+        expect(treeHeight(sizing[0], ancient, rankOnly)).toBe(96);
+        const ageOnly = { ...cfg, RELATIVE_WEIGHT: 0 } as TreesConfig;
+        // Past the horizon every commit floors together, so age alone flattens.
+        expect(treeHeight(sizing[0], ancient, ageOnly)).toBe(96);
+        expect(treeHeight(sizing[2], ancient, ageOnly)).toBe(96);
       });
     });
   });
 
+  // Radius attenuates by how tall the tree ended up, so these read against
+  // rank-only heights (96 / 52 / 8) to keep the width arithmetic legible. What
+  // the blend does to height is the previous block's business.
   describe('treeRadius()', () => {
     it('oldest+smallest: baseRadius=MIN_WIDTH/2, but age-attenuated by floor', () => {
       // sizeT=0 → baseRadius = 32/2 = 16.
       // height = 96 (oldest) → heightRatio = (96-8)/(96-8) = 1.
       // ageAttenuation = floor + (1-floor)*1 = 1 → radius = 16.
-      expect(treeRadius(sizing[0], ageRange, sizeRange, cfg)).toBeCloseTo(16, 5);
+      expect(treeRadius(sizing[0], ageRange, sizeRange, rankOnly)).toBeCloseTo(16, 5);
     });
 
     it('newest+largest: baseRadius=MAX_WIDTH/2, but shortest tree → floor attenuation', () => {
       // sizeT=1 → baseRadius = 64/2 = 32.
       // height = 8 (newest) → heightRatio = (8-8)/(96-8) = 0.
       // ageAttenuation = floor + (1-floor)*0 = 0.5 → radius = 16.
-      expect(treeRadius(sizing[2], ageRange, sizeRange, cfg)).toBeCloseTo(16, 5);
+      expect(treeRadius(sizing[2], ageRange, sizeRange, rankOnly)).toBeCloseTo(16, 5);
     });
 
     it('floor=1.0 disables age attenuation (radius = baseRadius)', () => {
-      const noFloor = { ...cfg, WIDTH_AGE_FLOOR: 1 } as TreesConfig;
+      const noFloor = { ...rankOnly, WIDTH_AGE_FLOOR: 1 } as TreesConfig;
       // sizeT=1 → baseRadius = 32; attenuation = 1 → radius = 32.
       expect(treeRadius(sizing[2], ageRange, sizeRange, noFloor)).toBeCloseTo(32, 5);
     });
@@ -348,7 +345,13 @@ describe('treeHeight() / treeRadius()', () => {
       // baseRadius = (16 + 32) * 0.5 = 24.
       // height = midpoint 52 → heightRatio = (52-8)/(96-8) = 0.5.
       // attenuation = 0.5 + 0.5*0.5 = 0.75 → radius = 24 * 0.75 = 18.
-      expect(treeRadius(null, ageRange, sizeRange, cfg)).toBeCloseTo(18, 5);
+      expect(treeRadius(null, ageRange, sizeRange, rankOnly)).toBeCloseTo(18, 5);
+    });
+
+    it('narrows a tree the blend made shorter, since width follows height', () => {
+      expect(treeRadius(sizing[0], ageRange, sizeRange, cfg)).toBeLessThan(
+        treeRadius(sizing[0], ageRange, sizeRange, rankOnly)
+      );
     });
   });
 });
