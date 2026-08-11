@@ -33,6 +33,8 @@ import {
   type AsphaltRange,
 } from './streets';
 import { createStreetLabels } from './streetLabels';
+import { FUTURE_STREET_DIRS, RUINED_STREET_DIRS } from './scrubState';
+import type { StreetScrubState } from './scrubState';
 import { disposeObject3D } from '@/city/utils/disposeObject3D';
 
 type FlatMesh = THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial>;
@@ -67,6 +69,9 @@ export interface Streets extends SceneComponent {
   setStreetOpacity(street: Street, opacity: number, tint?: number): void;
   /** Fade one street's road labels in lockstep with setStreetOpacity; 0 force-hides (overriding the visibility LOD). */
   setStreetLabelOpacity(street: Street, opacity: number): void;
+  /** Paint one frame of Timeline scrub across every street, and republish the
+   *  ruined/future directory sets the picker rejects hits against. */
+  applyScrub(states: ReadonlyMap<Street, StreetScrubState>): void;
   /** Move both street materials into (or out of) the transparent render pass. */
   setStreetsTransparent(on: boolean): void;
 }
@@ -169,6 +174,22 @@ export function createStreets(ctx: SceneContext): Streets {
     if (asphaltMesh && r.asphalt) {
       _writeSpan(asphaltMesh, 'aOpacity', r.asphalt.vStart, r.asphalt.vCount, opacity);
       _writeSpan(asphaltMesh, 'aRuin', r.asphalt.vStart, r.asphalt.vCount, tint);
+    }
+  }
+
+  // One frame of Timeline scrub. The decision (which street is a ruin, which is
+  // a future road, how far each fades) is made by the scrub pass; all that
+  // happens here is the fade and the two directory sets the picker consults.
+  function applyScrub(states: ReadonlyMap<Street, StreetScrubState>): void {
+    RUINED_STREET_DIRS.clear();
+    FUTURE_STREET_DIRS.clear();
+    for (const [street, st] of states) {
+      setStreetOpacity(street, st.opacity, st.tint);
+      setStreetLabelOpacity(street, st.opacity);
+      const dir = street.dir?.path;
+      if (dir == null) continue;
+      if (st.ruin) RUINED_STREET_DIRS.add(dir);
+      else if (st.future) FUTURE_STREET_DIRS.add(dir);
     }
   }
 
@@ -495,6 +516,7 @@ export function createStreets(ctx: SceneContext): Streets {
     getAsphaltRanges: () => asphaltRanges,
     setStreetOpacity,
     setStreetLabelOpacity,
+    applyScrub,
     setStreetsTransparent,
   };
 }

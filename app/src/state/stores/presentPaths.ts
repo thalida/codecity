@@ -6,6 +6,7 @@ import { TIMELINE_MODE, TIMELINE_BUNDLE, SCRUB_COMMIT, SETTLED_COMMIT } from './
 import {
   buildPathTimelines,
   ruinStateAt,
+  PathState,
   blobShaAt,
   entryAt,
   statsAtDeletion,
@@ -33,7 +34,7 @@ function _collect(
 ): boolean {
   if (node.type === NodeKind.File) {
     const pt = node.path != null ? timelines.get(node.path) : undefined;
-    const present = pt ? ruinStateAt(pt, pos) === 'present' : false;
+    const present = pt ? ruinStateAt(pt, pos) === PathState.Present : false;
     if (present && node.path != null) out.add(node.path);
     return present;
   }

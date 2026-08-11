@@ -43,6 +43,8 @@ import type { Rect } from '@/city/layout/rect';
 
 import type { SceneComponent, SceneContext } from '../../types';
 import { onSettings } from '../../utils/onSettings';
+import { BuildingLane } from '../buildings/scrubState';
+import type { ScrubStates } from '@/city/timeline/scrubPass';
 import FOOTPRINT_VERT from './footprint.vert.glsl?raw';
 import FOOTPRINT_FRAG from './footprint.frag.glsl?raw';
 
@@ -58,6 +60,10 @@ export interface Footprint extends SceneComponent {
   setBuildingFootprintOpacity(path: string, opacity: number, ruin?: boolean): void;
   /** Fade one street's footprint slab, keyed by its directory path (ruin = tint toward the ruin color). No-op for an unknown street. */
   setStreetFootprintOpacity(dirPath: string, opacity: number, ruin?: boolean): void;
+  /** Paint one frame of Timeline scrub across every plot. A FUTURE building or
+   *  road IS its tinted slab, so it gets no plot: that keeps the blueprint look
+   *  independent of the footprint controls. */
+  applyScrub(states: ScrubStates): void;
   /** Move the footprint material into (or out of) the transparent render pass. */
   setFootprintsTransparent(on: boolean): void;
 }
@@ -110,6 +116,23 @@ export function createFootprint(ctx: SceneContext): Footprint {
 
   function setStreetFootprintOpacity(dirPath: string, opacity: number, ruin = false): void {
     _setInstance(streetDirToInstance.get(dirPath), opacity, ruin);
+  }
+
+  // One frame of Timeline scrub. Plots track the LANE opacity, not the faded
+  // body: a hover dimming the neighborhood shouldn't take the ground with it.
+  function applyScrub(states: ScrubStates): void {
+    for (const [path, s] of states.buildings) {
+      setBuildingFootprintOpacity(
+        path,
+        s.lane === BuildingLane.Future ? 0 : s.op,
+        s.lane === BuildingLane.Ruin
+      );
+    }
+    for (const [street, st] of states.streets) {
+      const dir = street.dir?.path;
+      if (dir == null) continue;
+      setStreetFootprintOpacity(dir, st.future ? 0 : st.opacity, st.ruin);
+    }
   }
 
   // Enter/exit Timeline mode. Flips the material to alpha-blended AND resets
@@ -283,6 +306,7 @@ export function createFootprint(ctx: SceneContext): Footprint {
     dispose,
     setBuildingFootprintOpacity,
     setStreetFootprintOpacity,
+    applyScrub,
     setFootprintsTransparent,
   };
 }

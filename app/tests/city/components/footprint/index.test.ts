@@ -5,7 +5,14 @@ import * as THREE from 'three';
 import { createFootprint } from '@/city/components/footprint';
 import { FOOTPRINT } from '@/state/stores/settings/footprint';
 import { StreetAxis } from '@/types';
-import type { CityLayout } from '@/types';
+import type { CityLayout, Street } from '@/types';
+import {
+  BuildingLane,
+  blankBuildingScrubState,
+  type BuildingScrubState,
+} from '@/city/components/buildings/scrubState';
+import { StreetTint, type StreetScrubState } from '@/city/components/streets/scrubState';
+import type { ScrubStates } from '@/city/timeline/scrubPass';
 import { makeSceneContext } from '../../../_helpers/cityFixtures';
 
 function resetFootprint() {
@@ -335,11 +342,68 @@ describe('createFootprint()', () => {
     expect(ruin().getX(1)).toBe(0);
   });
 
-  it('opacity setters no-op for an unknown path (pre-rebuild or stale lookup)', () => {
-    expect(() => {
-      fp.setBuildingFootprintOpacity('nope', 0.5);
-      fp.setStreetFootprintOpacity('nope', 0.5);
-    }).not.toThrow();
+  it('opacity setters leave every instance alone for an unknown path', () => {
+    fp.rebuild(layoutWithBuildingAndStreet());
+    const attr = () =>
+      (fp.group.children[0] as THREE.InstancedMesh).geometry.getAttribute(
+        'aOpacity'
+      ) as THREE.InstancedBufferAttribute;
+    fp.setBuildingFootprintOpacity('nope', 0.5);
+    fp.setStreetFootprintOpacity('nope', 0.5);
+    expect(attr().getX(0)).toBe(1);
+    expect(attr().getX(1)).toBe(1);
+  });
+
+  describe('applying a scrub frame', () => {
+    const bStreet = { dir: { path: 'a' } } as unknown as Street;
+    const opacityAt = (i: number) =>
+      (
+        (fp.group.children[0] as THREE.InstancedMesh).geometry.getAttribute(
+          'aOpacity'
+        ) as THREE.InstancedBufferAttribute
+      ).getX(i);
+    const ruinAt = (i: number) =>
+      (
+        (fp.group.children[0] as THREE.InstancedMesh).geometry.getAttribute(
+          'aRuin'
+        ) as THREE.InstancedBufferAttribute
+      ).getX(i);
+
+    const states = (
+      building: Partial<BuildingScrubState>,
+      street: Partial<StreetScrubState>
+    ): ScrubStates => ({
+      buildings: new Map([['a/b.txt', { ...blankBuildingScrubState(), ...building }]]),
+      streets: new Map([
+        [bStreet, { opacity: 1, tint: StreetTint.None, ruin: false, future: false, ...street }],
+      ]),
+    });
+
+    beforeEach(() => {
+      fp.rebuild(layoutWithBuildingAndStreet());
+    });
+
+    it('tracks the lane opacity, not the neighborhood-faded body', () => {
+      // A hover dimming the buildings around a selection must not take the
+      // ground with it, so the plot follows `op` rather than `bodyOp`.
+      fp.applyScrub(states({ lane: BuildingLane.Present, op: 1, bodyOp: 0.2 }, { opacity: 0.5 }));
+      expect(opacityAt(0)).toBe(1);
+      expect(opacityAt(1)).toBeCloseTo(0.5);
+    });
+
+    it('marks a deleted building and road so their plots read as rubble', () => {
+      fp.applyScrub(states({ lane: BuildingLane.Ruin, op: 0.3 }, { opacity: 0.4, ruin: true }));
+      expect(opacityAt(0)).toBeCloseTo(0.3);
+      expect(ruinAt(0)).toBe(1);
+      expect(ruinAt(1)).toBe(1);
+    });
+
+    it('gives a future building and road no plot at all: the slab IS the blueprint', () => {
+      // Keeps the blueprint look independent of the footprint controls.
+      fp.applyScrub(states({ lane: BuildingLane.Future, op: 0.2 }, { opacity: 1, future: true }));
+      expect(opacityAt(0)).toBe(0);
+      expect(opacityAt(1)).toBe(0);
+    });
   });
 
   it('material defaults to opaque (transparent: false)', () => {

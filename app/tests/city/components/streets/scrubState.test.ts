@@ -1,13 +1,13 @@
-// The street rollup decision, exercised directly. scrubController.test.ts still
-// covers the wiring (that this reaches the streets/footprint components at all);
-// what lives here is the decision table, which needs no scene.
+// The street rollup decision, exercised directly. scrubPass.test.ts covers how
+// the rollup itself is accumulated from buildings; what lives here is the
+// decision table, which needs no scene.
 
 import { describe, it, expect } from 'vitest';
 import {
   resolveStreetScrubState,
   StreetTint,
   type StreetRollup,
-} from '@/city/timeline/scrubStreets';
+} from '@/city/components/streets/scrubState';
 import type { Street } from '@/types';
 
 const street = (isRoot = false) => ({ isRoot, dir: { path: 'src' } }) as unknown as Street;

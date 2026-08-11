@@ -1,8 +1,16 @@
 // How a street renders at a scrub position, decided from the rollup over its
-// descendant buildings. Pure: no meshes, no components, no signals — the scrub
-// controller gathers the rollup, this decides, the controller applies.
+// descendant buildings. Pure: no meshes, no signals — the timeline pass gathers
+// the rollup, this decides, the streets component applies.
 
 import type { Street } from '@/types';
+
+// Streets rendered as ruins; the picker rejects hits on them (buildings use
+// iKind instead). Repopulated by the streets component every scrub frame.
+export const RUINED_STREET_DIRS = new Set<string>();
+
+// Streets not yet created at the scrub position; the picker rejects hits on a
+// folder that doesn't exist yet.
+export const FUTURE_STREET_DIRS = new Set<string>();
 
 /** Asphalt tint lane, read by the streets machinery. */
 export const StreetTint = {

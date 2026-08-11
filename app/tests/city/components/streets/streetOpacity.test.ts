@@ -10,6 +10,12 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import * as THREE from 'three';
 
 import { createStreets } from '@/city/components/streets';
+import {
+  FUTURE_STREET_DIRS,
+  RUINED_STREET_DIRS,
+  StreetTint,
+  type StreetScrubState,
+} from '@/city/components/streets/scrubState';
 import { makeSceneContext } from '../../../_helpers/cityFixtures';
 import { STREETS } from '@/state/stores/settings/streets';
 import { NodeKind, StreetAxis } from '@/types';
@@ -202,5 +208,76 @@ describe('street opacity', () => {
     streets.setStreetsTransparent(false);
     expect(sidewalk.material.transparent).toBe(false);
     expect(asphalt.material.transparent).toBe(false);
+  });
+});
+
+describe('applying a scrub frame', () => {
+  let streets: ReturnType<typeof createStreets>;
+
+  beforeEach(() => {
+    STREETS.value = { ...DEFAULTS } as unknown as typeof STREETS.value;
+    streets = createStreets(makeSceneContext());
+    streets.rebuild(threeStreetLayout());
+    RUINED_STREET_DIRS.clear();
+    FUTURE_STREET_DIRS.clear();
+  });
+  afterEach(() => {
+    streets?.dispose();
+    RUINED_STREET_DIRS.clear();
+    FUTURE_STREET_DIRS.clear();
+  });
+
+  const scrub = (over: Partial<StreetScrubState> = {}): StreetScrubState => ({
+    opacity: 1,
+    tint: StreetTint.None,
+    ruin: false,
+    future: false,
+    ...over,
+  });
+
+  it('fades each street and tints its asphalt from its own state', () => {
+    const ranges = streets.getStreetRanges();
+    const asphaltRanges = streets.getAsphaltRanges();
+    const asphalt = asphaltMeshOf(streets);
+
+    streets.applyScrub(
+      new Map([
+        [ranges[0].street, scrub({ opacity: 1 })],
+        [ranges[1].street, scrub({ opacity: 0.4, tint: StreetTint.Ruin, ruin: true })],
+        [ranges[2].street, scrub({ opacity: 0, tint: StreetTint.Future, future: true })],
+      ])
+    );
+
+    const op = opacityAttr(asphalt);
+    expect(spanIs(op, asphaltRanges[0].vStart, asphaltRanges[0].vCount, 1)).toBe(true);
+    expect(spanIs(op, asphaltRanges[1].vStart, asphaltRanges[1].vCount, 0.4)).toBe(true);
+    expect(spanIs(op, asphaltRanges[2].vStart, asphaltRanges[2].vCount, 0)).toBe(true);
+
+    const ruin = asphalt.geometry.getAttribute('aRuin') as THREE.BufferAttribute;
+    expect(spanIs(ruin, asphaltRanges[1].vStart, asphaltRanges[1].vCount, StreetTint.Ruin)).toBe(
+      true
+    );
+    expect(spanIs(ruin, asphaltRanges[2].vStart, asphaltRanges[2].vCount, StreetTint.Future)).toBe(
+      true
+    );
+  });
+
+  it('republishes the directory sets the picker rejects hits against', () => {
+    const ranges = streets.getStreetRanges();
+    streets.applyScrub(
+      new Map([
+        [ranges[1].street, scrub({ ruin: true, tint: StreetTint.Ruin })],
+        [ranges[2].street, scrub({ future: true, tint: StreetTint.Future })],
+      ])
+    );
+    expect([...RUINED_STREET_DIRS]).toEqual([ranges[1].street.dir.path]);
+    expect([...FUTURE_STREET_DIRS]).toEqual([ranges[2].street.dir.path]);
+  });
+
+  it('clears those sets each frame, so a resurrected folder becomes clickable again', () => {
+    const ranges = streets.getStreetRanges();
+    streets.applyScrub(new Map([[ranges[1].street, scrub({ ruin: true })]]));
+    streets.applyScrub(new Map([[ranges[1].street, scrub()]]));
+    expect(RUINED_STREET_DIRS.size).toBe(0);
   });
 });

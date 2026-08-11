@@ -47,6 +47,8 @@ import { createBuildingFader } from './fader';
 import { createOutlineRenderer } from './outline';
 import { createGhostRenderer } from './ghost';
 import { createBuildingTweens } from './tween';
+import { createBuildingScrubApply } from './scrubApply';
+import type { BuildingScrubState } from './scrubState';
 
 /** The enter/stay diff rebuild() computes internally (against the prior cells)
  *  and feeds straight to the tween queue. Only entering/staying matter to the
@@ -76,6 +78,10 @@ export interface Buildings extends SceneComponent {
   getFacadePanels(): InstancedFacadePanels | null;
   /** Resolve a building's live InstancedMesh + slot. Null if no live mesh. */
   getMeshForBuilding(b: Building): { mesh: THREE.InstancedMesh; slot: number } | null;
+  /** Paint one frame of Timeline scrub: shape, fade, kind and weathering per
+   *  building, plus the ad panels. The states are decided by the scrub pass;
+   *  this component owns every buffer write they turn into. */
+  applyScrub(states: ReadonlyMap<string, BuildingScrubState>): void;
   /** Install (or clear with null) the Timeline scrub controller, which drives
    *  scaleY + iFade per frame while TIMELINE_MODE is on. */
   setScrubController(controller: { update(): void } | null): void;
@@ -236,6 +242,14 @@ export function createBuildings(ctx: SceneContext): Buildings {
   // Enter/stay tween queue. No picker dep, so (unlike fader/outline/ghost) it is
   // created at construction, not armed.
   const _tweens = createBuildingTweens({ getMeshForBuilding });
+
+  // Timeline scrub apply. Resolves the live meshes through the same accessors
+  // the tweens use, so a rebuild swaps both onto the fresh cells at once.
+  const applyScrub = createBuildingScrubApply({
+    getBuildingIndex: () => _buildingIndex,
+    getMeshForBuilding,
+    getFacadePanels: () => _facadePanels,
+  });
 
   // Timeline scrub controller (installed by the timeline lifecycle). While
   // TIMELINE_MODE, it drives scaleY + iFade per frame instead of the tweens.
@@ -504,6 +518,7 @@ export function createBuildings(ctx: SceneContext): Buildings {
     getBuildingIndex: () => _buildingIndex,
     getFacadePanels: () => _facadePanels,
     getMeshForBuilding,
+    applyScrub,
     setScrubController: (c) => {
       _scrubController = c;
     },
