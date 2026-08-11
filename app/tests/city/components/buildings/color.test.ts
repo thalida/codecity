@@ -2,9 +2,9 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import {
   getHue,
   extHueColor,
-  getSaturation,
-  getLightness,
+  modifiedRecency,
   getBuildingColor,
+  getBuildingColorForRecency,
   getModifiedAge,
 } from '@/city/components/buildings/color';
 import { BUILDINGS } from '@/state/stores/settings/buildings';
@@ -37,6 +37,7 @@ beforeEach(() => {
     SATURATION_MAX: TEST_SAT_RANGE.max,
     LIGHTNESS_MIN: TEST_LIGHT_RANGE.min,
     LIGHTNESS_MAX: TEST_LIGHT_RANGE.max,
+    HALF_LIFE_DAYS: 30,
   };
 });
 afterEach(() => {
@@ -68,104 +69,95 @@ describe('extHueColor', () => {
   });
 });
 
-// Saturation and lightness share one curve (lerpRange) over the same
-// last-modified axis, so they get the same table with different bounds.
+// Saturation and lightness share one curve over the recency scale, so the curve
+// is exercised once through the colour string rather than twice per channel.
 const OLDEST = '2024-01-01T00:00:00Z';
 const NEWEST = '2024-03-01T00:00:00Z';
 const MIDPOINT = '2024-01-31T00:00:00Z'; // exactly half of a 60-day leap-year span
+const DAY = 86_400_000;
+const NOW = Date.parse(NEWEST);
+const at = (modified: string | null) => ({ type: NodeKind.File, extension: '.ts', modified });
 
-describe.each([
-  ['getSaturation', getSaturation, TEST_SAT_RANGE, { min: 20, mid: 60, max: 100 }],
-  ['getLightness', getLightness, TEST_LIGHT_RANGE, { min: 25, mid: 48, max: 70 }],
-])('%s', (_name, fn, cfg, expected) => {
-  it('lands on the range floor at the oldest date', () => {
-    expect(fn(OLDEST, OLDEST, NEWEST, cfg)).toBe(expected.min);
+describe('getBuildingColorForRecency', () => {
+  it.each([
+    ['floor', 0, 'hsl(215, 20%, 25%)'],
+    ['midpoint', 0.5, 'hsl(215, 60%, 48%)'],
+    ['ceiling', 1, 'hsl(215, 100%, 70%)'],
+  ])('drives both channels off one t (%s)', (_label, t, expected) => {
+    expect(getBuildingColorForRecency({ type: NodeKind.File, extension: '.ts' }, t)).toBe(expected);
   });
 
-  it('lands on the range ceiling at the newest date', () => {
-    expect(fn(NEWEST, OLDEST, NEWEST, cfg)).toBe(expected.max);
+  it('clamps a t outside the range rather than overshooting the bounds', () => {
+    const f = { type: NodeKind.File, extension: '.ts' };
+    expect(getBuildingColorForRecency(f, -1)).toBe(getBuildingColorForRecency(f, 0));
+    expect(getBuildingColorForRecency(f, 2)).toBe(getBuildingColorForRecency(f, 1));
+  });
+});
+
+describe('modifiedRecency', () => {
+  it.each([
+    ['dated now', 0, 1],
+    ['at the half-life', 30, 0.5],
+    ['a year old', 365, 30 / 395],
+  ])('%s', (_label, days, expected) => {
+    expect(modifiedRecency(at(new Date(NOW - days * DAY).toISOString()), NOW)).toBeCloseTo(
+      expected,
+      6
+    );
   });
 
-  it('interpolates linearly in between', () => {
-    expect(fn(MIDPOINT, OLDEST, NEWEST, cfg)).toBe(expected.mid);
+  it('takes the midpoint when the file has no date', () => {
+    expect(modifiedRecency(at(null), NOW)).toBe(0.5);
   });
 
-  it('falls back to the range midpoint when the file has no date', () => {
-    expect(fn(null, OLDEST, NEWEST, cfg)).toBe(expected.mid);
+  it('depends on nothing but its own age, so one edit cannot restate another file', () => {
+    const f = at(MIDPOINT);
+    expect(modifiedRecency(f, NOW)).toBe(modifiedRecency(f, NOW));
   });
 
-  it('treats a degenerate range as freshest rather than dividing by zero', () => {
-    expect(fn(OLDEST, OLDEST, OLDEST, cfg)).toBe(expected.max);
+  it('stretches with the half-life instead of clipping at a horizon', () => {
+    BUILDINGS.value = { ...BUILDINGS.value, HALF_LIFE_DAYS: 365 };
+    const long = modifiedRecency(at(OLDEST), NOW);
+    BUILDINGS.value = { ...BUILDINGS.value, HALF_LIFE_DAYS: 30 };
+    expect(long).toBeGreaterThan(modifiedRecency(at(OLDEST), NOW));
+  });
+
+  it('keeps a year and a decade apart, where a horizon would flatten both', () => {
+    const year = modifiedRecency(at(new Date(NOW - 365 * DAY).toISOString()), NOW);
+    const decade = modifiedRecency(at(new Date(NOW - 3650 * DAY).toISOString()), NOW);
+    expect(decade).toBeGreaterThan(0);
+    expect(year / decade).toBeGreaterThan(3);
+  });
+});
+
+describe('getModifiedAge', () => {
+  it('is the colour axis inverted, so Live and Timeline cannot drift', () => {
+    const f = at(MIDPOINT);
+    expect(getModifiedAge(f, NOW)).toBeCloseTo(1 - modifiedRecency(f, NOW), 10);
   });
 });
 
 describe('getBuildingColor', () => {
-  // Saturation and lightness anchor on the MODIFIED range, not created. This
-  // fixture separates the two: maxModified sits strictly inside the created
-  // range, so anchoring on created would land b.ts at t≈0.7 instead of 1.0.
-  const RANGES = {
-    minCreated: '2020-01-01T00:00:00Z',
-    maxCreated: '2024-12-31T00:00:00Z',
-    minModified: '2022-01-01T00:00:00Z',
-    maxModified: '2023-06-01T00:00:00Z',
-  };
-  const file = (extension: string, created: string, modified: string) => ({
+  const file = (extension: string, modified: string) => ({
     name: `f${extension}`,
     type: NodeKind.File,
     extension,
-    created,
     modified,
   });
-  const stalest = file('.ts', '2020-01-01T00:00:00Z', RANGES.minModified);
-  const freshest = file('.ts', '2024-12-31T00:00:00Z', RANGES.maxModified);
 
-  it('sends the least recently modified file to both range floors', () => {
-    expect(getBuildingColor(stalest, RANGES)).toBe('hsl(215, 20%, 25%)');
+  it('sends a file touched now to both range ceilings', () => {
+    expect(getBuildingColor(file('.ts', NEWEST), NOW)).toBe('hsl(215, 100%, 70%)');
   });
 
-  it('sends the most recently modified file to both range ceilings', () => {
-    expect(getBuildingColor(freshest, RANGES)).toBe('hsl(215, 100%, 70%)');
+  it('walks both channels down together as a file ages', () => {
+    const old = getBuildingColor(file('.ts', new Date(NOW - 3650 * DAY).toISOString()), NOW);
+    expect(old).toBe('hsl(215, 21%, 25%)');
   });
 
   it.each([
     ['.md', 275],
     ['.xyz', XYZ_HUE],
   ])('takes the hue from the extension (%s)', (ext, hue) => {
-    const f = file(ext, '2024-12-31T00:00:00Z', RANGES.maxModified);
-    expect(getBuildingColor(f, RANGES)).toBe(`hsl(${hue}, 100%, 70%)`);
-  });
-});
-
-describe('getModifiedAge', () => {
-  const RANGES = {
-    minCreated: '2024-01-01T00:00:00Z',
-    maxCreated: '2024-12-31T00:00:00Z',
-    minModified: '2024-01-10T09:00:00Z',
-    maxModified: '2024-03-22T14:30:00Z',
-  };
-  const at = (modified: string | null) => ({
-    type: NodeKind.File,
-    created: '2024-01-01T00:00:00Z',
-    modified,
-  });
-
-  // Polarity is inverted against the date axis: 1.0 = stalest, 0.0 = freshest.
-  it.each([
-    ['the earliest modification in the repo', RANGES.minModified, 1],
-    ['the latest modification in the repo', RANGES.maxModified, 0],
-    ['the exact midpoint of the range', '2024-02-15T11:45:00Z', 0.5],
-    ['a date before the range', '2023-01-01T00:00:00Z', 1],
-    ['a date after the range', '2025-01-01T00:00:00Z', 0],
-  ])('scores %s at %s -> %s', (_label, modified, expected) => {
-    expect(getModifiedAge(at(modified), RANGES)).toBe(expected);
-  });
-
-  it('scores a file with no modified date at the midpoint', () => {
-    expect(getModifiedAge({ type: NodeKind.File }, RANGES)).toBe(0.5);
-  });
-
-  it('scores a degenerate range as freshest', () => {
-    const degenerate = { ...RANGES, maxModified: RANGES.minModified };
-    expect(getModifiedAge(at(RANGES.minModified), degenerate)).toBe(0);
+    expect(getBuildingColor(file(ext, NEWEST), NOW)).toBe(`hsl(${hue}, 100%, 70%)`);
   });
 });

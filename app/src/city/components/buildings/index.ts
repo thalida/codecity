@@ -64,7 +64,7 @@ export interface Buildings extends SceneComponent {
    *  rebuild the lookups. Always rebuilds (the cell root is always rebuilt —
    *  not scenic-gated). Computes its OWN enter/stay diff against the prior
    *  cells and fires the tweens (boot rebuild snaps in without animating). */
-  rebuild(layout: CityLayout, dateRanges: DateRanges): Promise<void>;
+  rebuild(layout: CityLayout, dateRanges: DateRanges, scannedAt?: string | null): Promise<void>;
   /** Dispose the current instanced facade panels immediately; the next rebuild()
    *  recreates them from the fresh layout. */
   disposeFacadePanels(): void;
@@ -168,7 +168,8 @@ export function createBuildings(ctx: SceneContext): Buildings {
   const stopRebuild = effect(() => {
     const layout = ctx.cityState.layout.value;
     const manifest = ctx.cityState.manifest.value;
-    if (layout && manifest) untracked(() => void rebuild(layout, manifest.dateRanges));
+    if (layout && manifest)
+      untracked(() => void rebuild(layout, manifest.dateRanges, manifest.scanned_at));
   });
 
   // (2)(3)(4) Picker-driven hover/selection overlays — fader (body opacity),
@@ -387,8 +388,15 @@ export function createBuildings(ctx: SceneContext): Buildings {
     _outline?.onResize();
   }
 
-  async function rebuild(layout: CityLayout, dateRanges: DateRanges): Promise<void> {
+  async function rebuild(
+    layout: CityLayout,
+    dateRanges: DateRanges,
+    scannedAt?: string | null
+  ): Promise<void> {
     const buildings = layout?.buildings ?? [];
+    // Colour and weathering measure against the scan, not a live clock, so a
+    // rebuild is deterministic and the goldens hold.
+    const nowMs = Date.parse(scannedAt ?? '') || Date.now();
 
     // ---- Color the buildings. ----
     for (const b of buildings) {
@@ -396,7 +404,7 @@ export function createBuildings(ctx: SceneContext): Buildings {
       // not buildings — see city/layout/layout.ts).
       b.color = getBuildingColor(
         b.file as unknown as Parameters<typeof getBuildingColor>[0],
-        dateRanges
+        nowMs
       );
       // createdAge is independent of color: it tracks file age (creation
       // date) so grime/weathering can mark old files even if they were
@@ -407,7 +415,7 @@ export function createBuildings(ctx: SceneContext): Buildings {
       );
       b.modifiedAge = getModifiedAge(
         b.file as unknown as Parameters<typeof getModifiedAge>[0],
-        dateRanges
+        nowMs
       );
     }
 

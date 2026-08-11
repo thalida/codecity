@@ -235,6 +235,7 @@ export async function createCity(canvas: HTMLCanvasElement, manifest: Manifest):
         timelines,
         commitLineRanges,
         heightCtx: makeHeightContext(cityState.manifest.peek()?.stats),
+        scannedAt: cityState.manifest.peek()?.scanned_at,
         streetsByDir: cityState.streetsByDirMap.peek(),
         scrubGates: [
           { setScrubCommit: (i) => trees.setScrubCommit(i) },

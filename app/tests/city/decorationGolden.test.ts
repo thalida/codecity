@@ -18,7 +18,7 @@ import { commitStats, fileStats } from '../_helpers/statsFixtures';
 
 // Settings-default-sensitive: a TREES width/height default change legitimately
 // moves the hash (placements stay put) and the value must be recaptured.
-const EXPECTED = '12k:trees43000:orbs51600:35f1ebf5';
+const EXPECTED = '12k:trees43000:orbs51600:c41d9662';
 
 describe('decoration golden (bit-identical guard)', () => {
   // Explicit timeout: compute-bound like the layout golden, and CI's coverage

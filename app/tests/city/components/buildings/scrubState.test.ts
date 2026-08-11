@@ -217,7 +217,12 @@ describe('weathering', () => {
   const T0 = Date.UTC(2021, 0, 1);
   const commitMs = [T0, T0 + DAY, T0 + 2 * DAY, T0 + 3 * DAY];
   // Wide enough that the subject lands strictly inside it.
-  const spread = { minMod: T0, modSpread: 4 * DAY, minCreated: T0, createdSpread: 4 * DAY };
+  const spread = {
+    nowMs: T0 + 4 * DAY,
+    minCreated: T0,
+    createdSpread: 4 * DAY,
+    fadeCfg: { ...makeScrubFrame().fadeCfg, HALF_LIFE_DAYS: 2 },
+  };
 
   it('runs the base colour through the same curve the live view uses', () => {
     // Deliberately not a second copy of the formula: what matters is that both
@@ -228,16 +233,10 @@ describe('weathering', () => {
     expect(state.colorToward).toBeNull();
   });
 
-  it('reads staler as the rest of the city moves forward around it', () => {
-    // Recency is relative: an untouched file ages by everything else being edited.
-    const narrow = resolve(2, spread, commitMs).modifiedAge;
-    const wide = resolve(2, { ...spread, modSpread: 8 * DAY }, commitMs).modifiedAge;
-    expect(narrow).toBeLessThan(wide);
-  });
-
-  it('pins recency to freshest when every present file shares a date', () => {
-    // The lone-file case; Live does the same rather than dividing by zero.
-    expect(resolve(2, { modSpread: 0 }, commitMs).modifiedAge).toBe(0);
+  it('reads staler the further now is from the file, and nothing else', () => {
+    const near = resolve(2, spread, commitMs).modifiedAge;
+    const far = resolve(2, { ...spread, nowMs: T0 + 40 * DAY }, commitMs).modifiedAge;
+    expect(near).toBeLessThan(far);
   });
 
   it('prefers the full-precision file date once past the final change', () => {
@@ -255,8 +254,10 @@ describe('weathering', () => {
     const dated = makeFile({ path: 'f.txt', modified: new Date(T0 + 2.5 * DAY).toISOString() });
     const subject = scrubSubject(surviving, dated);
 
-    expect(resolve(2, spread, commitMs, subject).modifiedAge).toBeCloseTo(1 - 2.5 / 4, 5);
-    expect(resolve(1, spread, commitMs, subject).modifiedAge).toBeCloseTo(1 - 1 / 4, 5);
+    // now is T0+4d, half-life 2d. Past the final change the file's own
+    // 2.5-day-old date wins (age 1.5d); before it, commit 1's (age 3d).
+    expect(resolve(2, spread, commitMs, subject).modifiedAge).toBeCloseTo(1 - 1 / 1.75, 5);
+    expect(resolve(1, spread, commitMs, subject).modifiedAge).toBeCloseTo(1 - 1 / 2.5, 5);
   });
 
   it('ages a building from its own created date, oldest first', () => {

@@ -145,16 +145,10 @@ export function dailyCountTByIndex(
 
 /** Canopy height for a tree.
  *
- *  Older commits grow taller. Maturity is the inverse of the blended recency
- *  (see city/utils/recency), so the same scale drives tree height and building
- *  colour:
- *
- *    maturity = 1 − recencyT(commit date, scan date, repo range, cfg)
- *    height   = MIN_HEIGHT + maturity·(MAX_HEIGHT − MIN_HEIGHT)
- *
- *  A repo abandoned years ago floors every commit's absolute term, so the whole
- *  forest reads mature without a separate repo-level lift. A null/missing
- *  commit has no date and collapses to the midpoint.
+ *  Older commits grow taller, from real age via city/utils/recency, the same
+ *  scale building colour uses: maturity = 1 − recency. A repo abandoned years
+ *  ago is a tall forest throughout, with no separate staleness rule. A
+ *  null/missing commit has no date and collapses to the midpoint.
  *
  *  Single source of truth for the tree renderer's canopy/trunk height
  *  AND the firefly orbit height — both must derive from the identical
@@ -171,15 +165,13 @@ export function treeHeight(
   return minHeight + maturity * (maxHeight - minHeight);
 }
 
-/** A commit's blended recency. The range is kept in epoch days here (the
- *  scanner emits YYYY-MM-DD), so it converts on the way into the shared scale. */
+/** Epoch days here (the scanner emits YYYY-MM-DD), converted on the way into
+ *  the shared scale. */
 function commitRecency(commit: CommitEntry, ageRange: AgeRange, cfg: TreesConfig): number {
-  if (ageRange.span <= 0) return 0.5;
   return recencyT(
     dateToDays(commit.date) * MS_PER_DAY,
     ageRange.scanned * MS_PER_DAY,
-    { min: ageRange.oldest * MS_PER_DAY, max: ageRange.newest * MS_PER_DAY },
-    { horizonDays: cfg.HORIZON_DAYS, relativeWeight: cfg.RELATIVE_WEIGHT }
+    cfg.HALF_LIFE_DAYS
   );
 }
 

@@ -128,8 +128,9 @@ Just about every aspect of the rendering is tunable in the Settings pane, opened
 - **Height**: line count (sqrt-interp across the floor range)
 - **Width & depth**: byte size (log-interp, square footprint)
 - **Hue**: file extension
-- **Saturation**: last-modified (recent → vivid)
-- **Lightness**: last-modified (recent → bright)
+- **Saturation**: time since last touched (recent → vivid)
+- **Lightness**: time since last touched (recent → bright)
+- **Fading is real time, not rank within the repo**: an abandoned project reads faded all over, and one edit recolors one building instead of shifting the whole city
 - **Roof border**: the color the file would have if you touched it today, so the gap between the border and the faded walls is how far it has aged
 - **Windows**: lit-pane density, plus a glow that tracks how recently the file was created (newer files glow brighter)
 - **Aging**: older files get grime streaks and a slight lean
@@ -149,7 +150,7 @@ Just about every aspect of the rendering is tunable in the Settings pane, opened
 <img src=".github/readme/trees.png" alt="A repo with thousands of commits rendered as a dense forest overtaking the city" width="600" />
 
 - **Placement**: oldest commit closest to the gem, newest at the edges
-- **Height**: commit age (older = taller)
+- **Height**: commit age (older = taller), on the same clock the buildings fade by
 - **Canopy width**: files changed in that commit
 - **Color**: commits-per-day (solo-day vs busy-day color blend)
 

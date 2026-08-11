@@ -32,6 +32,8 @@ export interface ScrubControllerDeps {
   // Backend-computed per commit. heightCtx contributes byteStats only.
   commitLineRanges: RangeStat[];
   heightCtx: HeightContext;
+  /** The manifest's scan date: "now" at HEAD, so colour matches Live there. */
+  scannedAt?: string | null;
   // { street dir.path → Street } from the union layout.
   streetsByDir: Record<string, Street>;
   scrubGates: ScrubGate[];
@@ -43,6 +45,7 @@ export function createScrubController(deps: ScrubControllerDeps) {
   const bundle = TIMELINE_BUNDLE.peek();
   const commitMs = (bundle?.commits ?? []).map((c) => Date.parse(c.date) || 0);
   const commitDateRanges = bundle?.commitDateRanges ?? [];
+  const scannedAtMs = Date.parse(deps.scannedAt ?? '') || (commitMs.at(-1) ?? 0);
 
   const pass = createScrubPass({
     buildingIndex: deps.buildings.getBuildingIndex(),
@@ -55,6 +58,8 @@ export function createScrubController(deps: ScrubControllerDeps) {
     const frame = readScrubFrame({
       commitLineRanges: deps.commitLineRanges,
       commitDateRanges,
+      commitMs,
+      scannedAtMs,
       byteStats: deps.heightCtx.byteStats,
       streetsByDir: deps.streetsByDir,
       picker: deps.picker,

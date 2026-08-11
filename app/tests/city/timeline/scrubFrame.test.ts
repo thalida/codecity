@@ -37,6 +37,8 @@ const RANGES: RangeStat[] = [
   { min: 1, max: 20 },
   { min: 1, max: 30 },
 ];
+const COMMIT_MS = [Date.UTC(2024, 0, 1), Date.UTC(2024, 0, 2), Date.UTC(2024, 0, 3)];
+const SCANNED_AT = Date.UTC(2024, 5, 1);
 const DATE_RANGES = [
   { minCreated: 0, maxCreated: 10, minModified: 0, maxModified: 10 },
   { minCreated: 5, maxCreated: 25, minModified: 5, maxModified: 45 },
@@ -50,6 +52,8 @@ function deps(over: Partial<ScrubFrameDeps> = {}): ScrubFrameDeps {
   return {
     commitLineRanges: RANGES,
     commitDateRanges: DATE_RANGES,
+    commitMs: COMMIT_MS,
+    scannedAtMs: SCANNED_AT,
     byteStats: { min: 1, max: 5000 },
     streetsByDir: { src: dirStreet },
     picker: { selection: signal<PickTarget | null>(null), hover: signal<PickTarget | null>(null) },
@@ -115,24 +119,34 @@ describe('the blueprint settings', () => {
   });
 });
 
-describe('the weathering span', () => {
-  it('reads the replayed date range for the commit it is standing on', () => {
+describe('the created span, which still ranks (it drives grime, not colour)', () => {
+  it('reads the replayed created range for the commit it is standing on', () => {
     const frame = at(1);
-    expect(frame.minMod).toBe(5);
-    expect(frame.modSpread).toBe(40);
     expect(frame.minCreated).toBe(5);
     expect(frame.createdSpread).toBe(20);
   });
 
   it('clamps past the end, so scrubbing to HEAD keeps the last real span', () => {
-    expect(at(99).minMod).toBe(5);
+    expect(at(99).minCreated).toBe(5);
   });
 
   it('falls back to a zero span when the backend sent no ranges', () => {
-    // Spread 0 reads freshest, as Live does for a one-file repo.
     const frame = at(0, { commitDateRanges: [] });
-    expect(frame.minMod).toBe(0);
-    expect(frame.modSpread).toBe(0);
+    expect(frame.minCreated).toBe(0);
+    expect(frame.createdSpread).toBe(0);
+  });
+});
+
+describe('what now means mid-scrub', () => {
+  it('is the scan date at HEAD, where the city is the working tree just as Live is', () => {
+    expect(at(2).nowMs).toBe(SCANNED_AT);
+  });
+
+  it('is the commit under the scrubber before that', () => {
+    // Otherwise a repo scrubbed to its first commit paints brand-new files as
+    // years old, measured against a date that has not happened yet there.
+    expect(at(0).nowMs).toBe(COMMIT_MS[0]);
+    expect(at(1.9).nowMs).toBe(COMMIT_MS[1]);
   });
 });
 

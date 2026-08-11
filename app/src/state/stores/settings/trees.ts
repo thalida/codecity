@@ -2,8 +2,7 @@
 //
 // One tree per commit, scattered around the world floor (denser near the city)
 // sorted by distance to the gem (oldest commit closest). Visual signals:
-//   HEIGHT  ← commit AGE (older = taller), blended from rank within the repo
-//             and real age (HORIZON_DAYS / RELATIVE_WEIGHT), so an abandoned
+//   HEIGHT  ← commit AGE (older = taller), from real age alone, so an abandoned
 //             repo reads old across the whole forest, not just at its old end.
 //   WIDTH   ← commit FILES (more files = wider)
 //   COLOR   ← COMMITS-PER-DAY (solo-day vs busy-day interpolation).
@@ -81,25 +80,15 @@ const TREES_FIELDS = {
     label: 'Max height',
     tip: 'Tree height for the oldest commit.',
   },
-  HORIZON_DAYS: {
+  HALF_LIFE_DAYS: {
     route: ChangeRoute.Rebuild,
     kind: FieldKind.Slider,
-    default: 1825,
-    min: 30,
+    default: 180,
+    min: 1,
     max: 3650,
-    step: 10,
-    label: 'Age horizon (days)',
-    tip: 'How old a commit must be to reach the fully-grown look. Longer keeps a decade of history spread across the height range; shorter makes anything past it read equally old.',
-  },
-  RELATIVE_WEIGHT: {
-    route: ChangeRoute.Rebuild,
-    kind: FieldKind.Slider,
-    default: 0.7,
-    min: 0,
-    max: 1,
-    step: 0.05,
-    label: 'Relative weight',
-    tip: 'How much height comes from a commit rank within this repo versus its actual age. 1 sizes purely by rank, so an abandoned repo looks as fresh as an active one. 0 sizes purely by age, which flattens any history older than the horizon.',
+    step: 5,
+    label: 'Growth half-life (days)',
+    tip: 'Age at which a commit tree is halfway to full height.',
   },
 
   TRUNK_HEIGHT_FRAC: {

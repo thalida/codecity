@@ -17,6 +17,7 @@ import {
   ruinStateAt,
 } from '@/city/timeline/replay';
 import type { ColorTriple, ScrubFrame } from '@/city/timeline/scrubFrame';
+import { recencyT } from '@/city/utils/recency';
 import { BuildingKind } from './buildingKind';
 import { getBuildingColorForRecency } from './color';
 import { tierFor } from './fadeTiers';
@@ -193,9 +194,12 @@ export function resolveBuildingScrubState(
     out.silhouette = tier.detail === FadeDetail.Silhouette ? 1 : 0;
     out.outlineOp = tier.outlineEnabled ? tier.outlineOpacity : 0;
 
-    const modMs = modifiedMsAt(input, f.pos, commitMs);
-    const recency =
-      f.modSpread > 0 ? Math.max(0, Math.min(1, (modMs - f.minMod) / f.modSpread)) : 1;
+    // The same blended scale Live colours by, so HEAD matches.
+    const recency = recencyT(
+      modifiedMsAt(input, f.pos, commitMs),
+      f.nowMs,
+      f.fadeCfg.HALF_LIFE_DAYS
+    );
     out.modifiedAge = 1 - recency;
     out.colorBase = getBuildingColorForRecency(b.file, recency);
     out.colorToward = null;
