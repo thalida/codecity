@@ -38,10 +38,17 @@ _NOT_GIT_ERROR = (
 
 # A linked worktree fails the same check as a plain directory, so without this
 # the answer would be `git init` — wrong advice for somewhere already tracked.
+# Names the directory to add rather than the one that was missing: the fix is a
+# mount, and the gitdir alone doesn't say which path to mount.
 _WORKTREE_GITDIR_ERROR = (
-    "path is a git worktree whose git directory is not reachable at "
-    "{gitdir}. Mount the main repository alongside it, or open the main "
-    "working tree instead."
+    "path is a git worktree, and the repository it belongs to is not "
+    "reachable at {repo}. Make that directory available too (mount it, or "
+    "add it to CODECITY_MOUNT), or open it instead of the worktree."
+)
+_WORKTREE_GITDIR_ERROR_BARE = (
+    "path is a git worktree, and its git directory is not reachable at "
+    "{gitdir}. Make that directory available too, or open the repository "
+    "it belongs to instead."
 )
 
 # Terse on purpose: the UI pairs this with a "how to enable" notice + link, so
@@ -152,6 +159,19 @@ def _unreachable_worktree_gitdir(path: Path) -> str | None:
     return None
 
 
+def _local_git_error(path: Path) -> str:
+    """Why `path` isn't scannable, said in terms of what to do about it."""
+    gitdir = _unreachable_worktree_gitdir(path)
+    if not gitdir:
+        return _NOT_GIT_ERROR
+    # A worktree's gitdir is <repo>/.git/worktrees/<name>, and the directory
+    # worth naming is the repo, not the pointer inside it.
+    repo, marker, _ = gitdir.partition("/.git/")
+    if marker and repo:
+        return _WORKTREE_GITDIR_ERROR.format(repo=repo)
+    return _WORKTREE_GITDIR_ERROR_BARE.format(gitdir=gitdir)
+
+
 def resolve_local(src: str) -> Path:
     """Validate a local source path (no network) and return the resolved dir.
     Raises ResolveError on any validation failure."""
@@ -164,10 +184,7 @@ def resolve_local(src: str) -> Path:
     if not target.is_dir():
         raise ResolveError(400, "path is not a directory")
     if not _is_git_working_tree(target):
-        gitdir = _unreachable_worktree_gitdir(target)
-        if gitdir:
-            raise ResolveError(400, _WORKTREE_GITDIR_ERROR.format(gitdir=gitdir))
-        raise ResolveError(400, _NOT_GIT_ERROR)
+        raise ResolveError(400, _local_git_error(target))
     return target
 
 

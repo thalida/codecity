@@ -52,6 +52,32 @@ class LabelFromSourceTests(unittest.TestCase):
         self.assertIsNone(label_from_source(None))
 
 
+class LocalGitErrorTests(unittest.TestCase):
+    """The message is the fix: `just dev` mounts exactly what a deployed
+    instance mounts, so a contributor hits this the same way a user does."""
+
+    def test_worktree_names_the_repository_to_make_available(self) -> None:
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / ".git").write_text("gitdir: /Users/me/code/proj/.git/worktrees/x\n")
+            message = source._local_git_error(root)
+            self.assertIn("/Users/me/code/proj", message)
+            # Naming the pointer instead would leave the reader to work out
+            # which directory to actually mount.
+            self.assertNotIn("worktrees/x", message)
+            self.assertIn("CODECITY_MOUNT", message)
+
+    def test_worktree_with_an_odd_gitdir_still_names_something_actionable(self) -> None:
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / ".git").write_text("gitdir: /somewhere/detached\n")
+            self.assertIn("/somewhere/detached", source._local_git_error(root))
+
+    def test_plain_directory_keeps_the_git_init_advice(self) -> None:
+        with TemporaryDirectory() as tmp:
+            self.assertIn("git init", source._local_git_error(Path(tmp)))
+
+
 class UnreachableWorktreeGitdirTests(unittest.TestCase):
     """A linked worktree mounted without its repository fails the same check as
     a plain directory, and `git init` is the wrong answer for it."""
