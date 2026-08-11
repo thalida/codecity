@@ -1,8 +1,6 @@
-// views/ControlsPane/partials/Buildings.ts — Buildings section declaration.
-// Per-file boxes: height from line count, width from byte size, color from
-// extension + age. The largest section — layout, transitions, palette,
-// per-extension hues, outlines, facade (incl. age weathering), selection fade. Subgroups are
-// arrangement only; the two stores (BUILDING_DIMENSIONS, BUILDINGS) own each field.
+// views/ControlsPane/partials/Buildings.ts — per-file boxes. Hover/selected
+// states and the enter transition live under Interaction, matching Streets
+// and Trees.
 import { field, type SectionNode } from '.';
 import { BUILDING_DIMENSIONS, BUILDINGS } from '@/state/stores/settings/buildings';
 
@@ -27,8 +25,8 @@ export const BUILDINGS_SECTION: SectionNode = {
     'Per-file boxes: height from line count, width from byte size, color from extension + age.',
   children: [
     {
-      key: 'layout',
-      label: 'Building layout',
+      key: 'buildings-size',
+      label: 'Size',
       children: [
         field(BUILDING_DIMENSIONS, 'MIN_FLOORS'),
         field(BUILDING_DIMENSIONS, 'MAX_FLOORS'),
@@ -42,13 +40,8 @@ export const BUILDINGS_SECTION: SectionNode = {
       ],
     },
     {
-      key: 'transitions',
-      label: 'Transitions',
-      children: [field(BUILDINGS, 'BUILDING_TRANSITION_MS')],
-    },
-    {
-      key: 'palette',
-      label: 'Color palette (HSL)',
+      key: 'buildings-color',
+      label: 'Color by age',
       children: [
         field(BUILDINGS, 'HALF_LIFE_DAYS'),
         field(BUILDINGS, 'SATURATION_MIN'),
@@ -61,16 +54,6 @@ export const BUILDINGS_SECTION: SectionNode = {
       key: 'hues',
       label: 'Extension hues (0–359°)',
       children: [field(BUILDINGS, 'HUE_EXT_MAP')],
-    },
-    {
-      key: 'outlines',
-      label: 'Outlines',
-      children: [
-        field(BUILDINGS, 'OUTLINE_WIDTH'),
-        field(BUILDINGS, 'OUTLINE_HOVER_COLOR'),
-        field(BUILDINGS, 'OUTLINE_HOVER_OPACITY'),
-        field(BUILDINGS, 'OUTLINE_SELECTED_OPACITY'),
-      ],
     },
     {
       key: 'facade',
@@ -149,14 +132,35 @@ export const BUILDINGS_SECTION: SectionNode = {
       ],
     },
     {
-      key: 'selection-fade',
-      label: 'Selection fade',
+      key: 'buildings-interaction',
+      label: 'Interaction',
       children: [
-        fadeTier('Default tier — selected, hovered, or idle', 'DEFAULT'),
-        fadeTier('Level 1 — same dir as selection', 'LEVEL1'),
-        fadeTier('Level 2 — one dir away (up or down)', 'LEVEL2'),
-        fadeTier('Level 3 — two dirs away', 'LEVEL3'),
-        fadeTier('Level 4 — three or more dirs away', 'LEVEL4'),
+        {
+          key: 'outlines',
+          label: 'Outlines',
+          children: [
+            field(BUILDINGS, 'OUTLINE_WIDTH'),
+            field(BUILDINGS, 'OUTLINE_HOVER_COLOR'),
+            field(BUILDINGS, 'OUTLINE_HOVER_OPACITY'),
+            field(BUILDINGS, 'OUTLINE_SELECTED_OPACITY'),
+          ],
+        },
+        {
+          key: 'transitions',
+          label: 'Transitions',
+          children: [field(BUILDINGS, 'BUILDING_TRANSITION_MS')],
+        },
+        {
+          key: 'selection-fade',
+          label: 'Selection fade',
+          children: [
+            fadeTier('Default tier — selected, hovered, or idle', 'DEFAULT'),
+            fadeTier('Level 1 — same dir as selection', 'LEVEL1'),
+            fadeTier('Level 2 — one dir away (up or down)', 'LEVEL2'),
+            fadeTier('Level 3 — two dirs away', 'LEVEL3'),
+            fadeTier('Level 4 — three or more dirs away', 'LEVEL4'),
+          ],
+        },
       ],
     },
   ],

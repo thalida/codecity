@@ -1,25 +1,22 @@
-// views/ControlsPane/partials/Streets.ts — Streets section declaration.
-// Road sizing + packing (STREET_TIERS, STREET_LAYOUT) and the asphalt /
-// sidewalk / label / path-line visuals (STREETS) that paint on top. Subgroups
-// are arrangement only; the stores own each field. (The city footprint slab is
-// its own top-level section — see ./footprint.)
+// views/ControlsPane/partials/Streets.ts — road sizing, packing, and surface
+// visuals. Hover/selected states live under Interaction, matching Buildings
+// and Trees.
 import { field, type SectionNode } from '.';
 import { STREETS, STREET_TIERS, STREET_LAYOUT } from '@/state/stores/settings/streets';
 
 export const STREETS_SECTION: SectionNode = {
   key: 'streets',
   label: 'Streets',
-  description:
-    'Road network sizing + packing, plus the asphalt, sidewalks, labels, and route-highlight visuals that paint on top.',
+  description: 'One street per folder: width from depth, length from contents.',
   children: [
     {
-      key: 'tiers',
-      label: 'Street width tiers',
+      key: 'width-tiers',
+      label: 'Width tiers',
       children: [field(STREET_TIERS, 'TIERS')],
     },
     {
       key: 'spacing',
-      label: 'Street spacing',
+      label: 'Spacing',
       children: [
         field(STREET_LAYOUT, 'BUILDING_GAP'),
         field(STREET_LAYOUT, 'STREET_GAP'),
@@ -33,17 +30,8 @@ export const STREETS_SECTION: SectionNode = {
       children: [field(STREETS, 'ASPHALT_COLOR')],
     },
     {
-      key: 'sidewalks',
-      label: 'Sidewalk colors',
-      children: [
-        field(STREETS, 'SIDEWALK_DEFAULT'),
-        field(STREETS, 'SIDEWALK_HOVER'),
-        field(STREETS, 'SIDEWALK_SELECTED'),
-      ],
-    },
-    {
       key: 'labels',
-      label: 'Street labels',
+      label: 'Labels',
       children: [
         field(STREETS, 'LABEL_FILL'),
         field(STREETS, 'LABEL_STROKE'),
@@ -52,13 +40,28 @@ export const STREETS_SECTION: SectionNode = {
       ],
     },
     {
-      key: 'path-lines',
-      label: 'Path lines',
+      key: 'streets-interaction',
+      label: 'Interaction',
       children: [
-        field(STREETS, 'PATH_LINEWIDTH_PCT'),
-        field(STREETS, 'PATH_OPACITY'),
-        field(STREETS, 'HOVER_PATH_COLOR'),
-        field(STREETS, 'HOVER_PATH_OPACITY'),
+        {
+          key: 'sidewalks',
+          label: 'Sidewalks',
+          children: [
+            field(STREETS, 'SIDEWALK_DEFAULT'),
+            field(STREETS, 'SIDEWALK_HOVER'),
+            field(STREETS, 'SIDEWALK_SELECTED'),
+          ],
+        },
+        {
+          key: 'path-lines',
+          label: 'Path lines',
+          children: [
+            field(STREETS, 'PATH_LINEWIDTH_PCT'),
+            field(STREETS, 'PATH_OPACITY'),
+            field(STREETS, 'HOVER_PATH_COLOR'),
+            field(STREETS, 'HOVER_PATH_OPACITY'),
+          ],
+        },
       ],
     },
   ],

@@ -1,10 +1,10 @@
 // views/ControlsPane/ControlsPane.tsx — "Settings" tab in the left sidebar.
 //
 // Composition shell: Scan, Appearance, World subtabs, each carrying a count of
-// its changed-from-default items. The active subtab's sections render into the scrolling
-// body. Scan + Appearance autosave (their sections open by default); World is
-// draft-backed (10 collapsed accordion sections + the sticky Reset all/Discard/
-// Save ActionsBar). Shortcuts and Debug moved to header-triggered modals.
+// its changed-from-default items. The active subtab's sections render into the
+// scrolling body. Scan + Appearance autosave (their sections open by default);
+// World is draft-backed (collapsed accordion sections + the sticky Reset all/
+// Discard/Save ActionsBar). Shortcuts and Debug are header-triggered modals.
 //
 // Section / subgroup open-state is intentionally NOT persisted: when the pane
 // hides we remount every section (via collapseNonce) so each returns to its
@@ -19,9 +19,8 @@ import { ExcludesSection } from './partials/ExcludesSection';
 import { FilePreviewSection } from './partials/FilePreviewSection';
 import { InterfaceThemeSection } from './partials/InterfaceThemeSection';
 import { DynamicSection, type SectionNode } from './partials';
-import { CAMERA_SECTION } from './partials/Camera';
-import { SHOWCASE_SECTION } from './partials/Showcase';
-import { SCENE_SECTION } from './partials/Scene';
+import { VIEW_SECTION } from './partials/View';
+import { SKY_SECTION } from './partials/Sky';
 import { ISLAND_SECTION } from './partials/Island';
 import { BUILDINGS_SECTION } from './partials/Buildings';
 import { STREETS_SECTION } from './partials/Streets';
@@ -29,7 +28,7 @@ import { FOOTPRINT_SECTION } from './partials/Footprint';
 import { GEM_SECTION } from './partials/Gem';
 import { TREES_SECTION } from './partials/Trees';
 import { FIREFLIES_SECTION } from './partials/Fireflies';
-import { EFFECTS_SECTION } from './partials/Effects';
+import { POST_PROCESSING_SECTION } from './partials/PostProcessing';
 import { TIMELINE_SECTION } from './partials/Timeline';
 import { UPDATES_SECTION } from './partials/Updates';
 import { ActionsBar } from './ActionsBar/ActionsBar';
@@ -41,19 +40,20 @@ import { PaneTabs } from '@/components/PaneTabs/PaneTabs';
 /** The World tab's sections. Hoisted out of the render because a test asserts
  *  the invariant that every field under here is draft-backed: World settings all
  *  stage into the footer's Save/Discard/Reset, with no write-through exceptions. */
+// Ordered outside-in: where you look from, then the world, then the city, then
+// what lives around it, then whole-frame passes.
 export const WORLD_SECTIONS: SectionNode[] = [
-  CAMERA_SECTION,
-  SHOWCASE_SECTION,
-  SCENE_SECTION,
+  VIEW_SECTION,
+  SKY_SECTION,
   ISLAND_SECTION,
-  BUILDINGS_SECTION,
   STREETS_SECTION,
   FOOTPRINT_SECTION,
+  BUILDINGS_SECTION,
   GEM_SECTION,
   TREES_SECTION,
   FIREFLIES_SECTION,
-  EFFECTS_SECTION,
   TIMELINE_SECTION,
+  POST_PROCESSING_SECTION,
 ];
 
 interface Subtab {

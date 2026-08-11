@@ -28,6 +28,37 @@ const TREES_FIELDS = {
     tip: 'Master toggle. When off, every tree canopy and trunk is hidden.',
   },
 
+  CITY_CLEARANCE: {
+    route: ChangeRoute.Rebuild,
+    kind: FieldKind.Slider,
+    default: 64,
+    min: 0,
+    max: 200,
+    step: 2,
+    label: 'Distance from city',
+    tip: 'Minimum gap from any building or street.',
+  },
+  DENSITY_FALLOFF: {
+    route: ChangeRoute.Rebuild,
+    kind: FieldKind.Slider,
+    default: 1.5,
+    min: 0,
+    max: 50,
+    step: 0.1,
+    label: 'Density falloff',
+    tip: 'How tightly trees cluster near the city. 0 spreads them evenly.',
+  },
+  EDGE_INSET_PERCENT: {
+    route: ChangeRoute.Rebuild,
+    kind: FieldKind.Slider,
+    default: 1,
+    min: 0,
+    max: 50,
+    step: 1,
+    label: 'Island edge inset',
+    tip: 'How far short of the island edge trees stop.',
+  },
+
   COLOR_BUSY_DAY: {
     route: ChangeRoute.Refresh,
     kind: FieldKind.Color,
@@ -189,7 +220,7 @@ const TREES_FIELDS = {
     max: 1,
     step: 0.05,
     label: 'Selected opacity',
-    tip: 'The selected outline always uses an animated rainbow color, tunable under Effects.',
+    tip: 'The selected outline always uses an animated rainbow color, tunable under Post-processing.',
   },
 } satisfies FieldMap;
 

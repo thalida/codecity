@@ -26,7 +26,6 @@ import RBush from 'rbush';
 import * as THREE from 'three';
 import { TREES } from '@/state/stores/settings/trees';
 import { FOOTPRINT } from '@/state/stores/settings/footprint';
-import { BUILDING_DIMENSIONS } from '@/state/stores/settings/buildings';
 import { ISLAND } from '@/state/stores/settings/island';
 import { getWorldBounds } from '../../utils/floorBounds';
 import { buildTopPolygon, pointInIslandPolygon } from '../island/islandGeometry';
@@ -35,18 +34,6 @@ import { StreetAxis } from '@/types';
 import { gemAnchorXZ } from '../gem/anchor';
 import type { Building, CityBbox, Street } from '@/types';
 import type { IslandConfig } from '@/state/stores/settings/island';
-
-// Rejection-sampling footprint half-size as a fraction of BUILDING_DIMENSIONS
-// .MAX_WIDTH — a fixed placement-tuning constant, not user-tunable (it lived in
-// the TREES settings store but was never exposed as a control).
-const SCATTER_FOOTPRINT_FRAC_OF_MAX_WIDTH = 0.5;
-
-// Baked placement-tuning constants (not user-tunable). EDGE_INSET: trees stop
-// short of the plane edge by this % of the shorter axis. DENSITY_FALLOFF:
-// clustering exponent toward the city — 0 = uniform spread; higher packs trees
-// near the city and thins them toward the edge.
-const TREE_EDGE_INSET_PERCENT = 1;
-const TREE_DENSITY_FALLOFF = 0;
 
 interface Rect {
   minX: number;
@@ -194,8 +181,8 @@ export function placeTrees(
   if (rects.length > 0) rtree.load(rects);
   const hasRects = rects.length > 0;
 
-  const dims = BUILDING_DIMENSIONS.value;
-  const halfFoot = (SCATTER_FOOTPRINT_FRAC_OF_MAX_WIDTH * dims.MAX_WIDTH) / 2;
+  // Stacks with the halo the rects are already inflated by.
+  const halfFoot = Math.max(0, cfg.CITY_CLEARANCE);
 
   const bounds = getWorldBounds(bbox, options.cityHeight ?? 0);
   const center = gemCenterFromLayout(layout, bbox);
@@ -229,7 +216,7 @@ export function placeTrees(
   // sampling region's edge. `maxFalloffDist` is the largest possible
   // distance from the city bbox within the sampling region — used to
   // normalize the per-candidate distance into [0,1].
-  const falloffPower = TREE_DENSITY_FALLOFF;
+  const falloffPower = cfg.DENSITY_FALLOFF;
   const worldMinX = bounds.cx - sampleHalfW;
   const worldMaxX = bounds.cx + sampleHalfW;
   const worldMinZ = bounds.cz - sampleHalfD;
@@ -269,7 +256,7 @@ export function placeTrees(
       });
       // Shrink every vertex radially inward by insetFrac so the rejection
       // polygon is uniformly inset from the actual island edge.
-      const insetFrac = TREE_EDGE_INSET_PERCENT / 100;
+      const insetFrac = cfg.EDGE_INSET_PERCENT / 100;
       islandPolygon = rawPolygon.map((v) => {
         const r = Math.hypot(v.x, v.z);
         if (r < 1e-6) return v.clone();
@@ -312,7 +299,12 @@ export function placeTrees(
   // Visit each grid cell exactly once. Each contributes a single
   // jittered candidate; the two rejection passes (layout, density
   // falloff) match the previous behavior.
+  //
+  // Falloff thins the forest, so on a small island it can leave fewer
+  // candidates than commits. Positions it rejects are kept as spares and
+  // topped up below rather than dropping a commit's tree.
   const accepted: { x: number; y: number; d2: number; seed: number }[] = [];
+  const spares: { x: number; y: number; d2: number; seed: number }[] = [];
   for (let cz = 0; cz < cellsZ; cz++) {
     for (let cx = 0; cx < cellsX; cx++) {
       const baseSeed = (masterSeed ^ ((cz * cellsX + cx + 1) | 0)) | 0;
@@ -342,6 +334,7 @@ export function placeTrees(
       // from the city bbox. Inside the bbox dist=0 → always accept;
       // far away the acceptance probability drops as
       // (1 - dist/maxDist)^power.
+      let thinned = false;
       if (falloffActive) {
         const distX = Math.max(bbox.minX - x, 0, x - bbox.maxX);
         const distY = Math.max(bbox.minY - y, 0, y - bbox.maxY);
@@ -349,7 +342,7 @@ export function placeTrees(
         const tnorm = Math.min(1, dist / maxFalloffDist);
         const acceptProb = Math.pow(1 - tnorm, falloffPower);
         const r = u32ToUnit(mulberry32(baseSeed ^ 0xfa110ff5));
-        if (r > acceptProb) continue;
+        thinned = r > acceptProb;
       }
 
       // Island polygon containment: reject candidates outside the visible
@@ -362,8 +355,13 @@ export function placeTrees(
 
       const dx = x - center.x;
       const dy = y - center.y;
-      accepted.push({ x, y, d2: dx * dx + dy * dy, seed: baseSeed });
+      (thinned ? spares : accepted).push({ x, y, d2: dx * dx + dy * dy, seed: baseSeed });
     }
+  }
+
+  if (accepted.length < treeTarget && spares.length > 0) {
+    spares.sort((a, b) => a.d2 - b.d2);
+    accepted.push(...spares.slice(0, treeTarget - accepted.length));
   }
 
   accepted.sort((a, b) => a.d2 - b.d2);

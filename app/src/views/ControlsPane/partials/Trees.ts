@@ -1,7 +1,4 @@
-// views/ControlsPane/partials/Trees.ts — Trees section declaration: where
-// each TREES field sits in the Settings panel. Field metadata
-// (kind/label/tip/bounds/default) lives with the store; this is arrangement only.
-
+// views/ControlsPane/partials/Trees.ts — one tree per commit.
 import { field, type SectionNode } from '.';
 import { TREES } from '@/state/stores/settings/trees';
 
@@ -9,17 +6,16 @@ export const TREES_SECTION: SectionNode = {
   key: 'trees',
   label: 'Trees',
   description:
-    'One tree per commit: height tracks age, width tracks file count, color tracks commits-per-day (same-day commits share a color).',
+    'One tree per commit: height tracks age, width tracks file count, color tracks commits-per-day.',
   children: [
-    { key: 'visibility', label: 'Visibility', children: [field(TREES, 'ENABLED')] },
+    field(TREES, 'ENABLED'),
     {
-      key: 'color',
-      label: 'Color by commits-per-day',
+      key: 'placement',
+      label: 'Placement',
       children: [
-        field(TREES, 'COLOR_BUSY_DAY'),
-        field(TREES, 'COLOR_SOLO_DAY'),
-        field(TREES, 'TRUNK_COLOR'),
-        field(TREES, 'SHADING_STRENGTH'),
+        field(TREES, 'CITY_CLEARANCE'),
+        field(TREES, 'DENSITY_FALLOFF'),
+        field(TREES, 'EDGE_INSET_PERCENT'),
       ],
     },
     {
@@ -44,8 +40,18 @@ export const TREES_SECTION: SectionNode = {
       ],
     },
     {
-      key: 'outlines',
-      label: 'Outlines',
+      key: 'trees-color',
+      label: 'Color by commits-per-day',
+      children: [
+        field(TREES, 'COLOR_BUSY_DAY'),
+        field(TREES, 'COLOR_SOLO_DAY'),
+        field(TREES, 'TRUNK_COLOR'),
+        field(TREES, 'SHADING_STRENGTH'),
+      ],
+    },
+    {
+      key: 'trees-interaction',
+      label: 'Interaction',
       children: [
         field(TREES, 'OUTLINE_WIDTH'),
         field(TREES, 'OUTLINE_HOVER_COLOR'),

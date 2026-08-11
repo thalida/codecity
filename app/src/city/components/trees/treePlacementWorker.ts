@@ -6,17 +6,12 @@
 
 import { placeTrees, type TreePlacement, type LayoutGeometry } from './treePlacement';
 import { TREES, type TreesConfig } from '@/state/stores/settings/trees';
-import {
-  BUILDING_DIMENSIONS,
-  type BuildingDimensionsConfig,
-} from '@/state/stores/settings/buildings';
 import { FOOTPRINT, type FootprintConfig } from '@/state/stores/settings/footprint';
-import { WORLD, type WorldConfig } from '@/state/stores/settings/scene';
+import { WORLD, type WorldConfig } from '@/state/stores/settings/island';
 import type { IslandConfig } from '@/state/stores/settings/island';
 import type { CityBbox } from '@/types';
 
 type TreesValue = TreesConfig;
-type BuildingDimsValue = BuildingDimensionsConfig;
 type FootprintValue = FootprintConfig;
 type WorldValue = WorldConfig;
 
@@ -31,7 +26,6 @@ interface PlaceRequest {
   cityHeight: number;
   configSnapshot: {
     trees: TreesValue;
-    buildingDims: BuildingDimsValue;
     footprint: FootprintValue;
     /** Island geometry config snapshot — used to rebuild the island polygon
      *  inside the worker without touching main-thread stores. */
@@ -50,7 +44,6 @@ type PlaceResponse =
 
 function _applySnapshot(snap: PlaceRequest['configSnapshot']): void {
   TREES.value = { ...TREES.value, ...snap.trees };
-  BUILDING_DIMENSIONS.value = { ...BUILDING_DIMENSIONS.value, ...snap.buildingDims };
   FOOTPRINT.value = { ...FOOTPRINT.value, ...snap.footprint };
   WORLD.value = { ...WORLD.value, ...snap.world };
 }

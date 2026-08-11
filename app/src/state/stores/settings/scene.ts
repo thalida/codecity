@@ -1,11 +1,6 @@
-// state/stores/settings/scene.ts — Scene backdrop (sky color, stars, atmospheric fog)
-// as one flat SCENE store, plus the WORLD ground-sizing store. WORLD stays
-// separate because it's a layout value threaded into the tree-placement worker
-// (keeping the worker snapshot lean) — not a backdrop visual; the Settings
-// panel still groups it under "Ground sizing" via sections/scene.ts.
-//
-// Schema-driven (see state/schema). Sky/stars/fog are all material-
-// refresh; GROUND_BUFFER_PERCENT triggers a rebuild.
+// state/stores/settings/scene.ts — Scene backdrop: sky color, stars, aurora,
+// atmospheric fog. Ground sizing lives in ./island.ts, which it dimensions.
+// Schema-driven (see state/schema); every field is a material refresh.
 
 import {
   settingSignal,
@@ -102,21 +97,3 @@ const SCENE_FIELDS = {
 
 export const SCENE = settingSignal('SCENE', SCENE_FIELDS);
 export type SceneConfig = ConfigOf<typeof SCENE_FIELDS>;
-
-// Ground sizing — a layout value (worldBounds + the placement worker read it),
-// kept as its own store so the worker snapshot doesn't carry backdrop visuals.
-const WORLD_FIELDS = {
-  GROUND_BUFFER_PERCENT: {
-    route: ChangeRoute.Rebuild,
-    kind: FieldKind.Slider,
-    default: 0,
-    min: 0,
-    max: 100,
-    step: 1,
-    label: 'Ground buffer (% of city)',
-    tip: "Padding around the city as a percentage of the city's longest dimension. 0% fits the island exactly to the city; 50% adds a generous halo of bare ground.",
-  },
-} satisfies FieldMap;
-
-export const WORLD = settingSignal('WORLD', WORLD_FIELDS);
-export type WorldConfig = ConfigOf<typeof WORLD_FIELDS>;

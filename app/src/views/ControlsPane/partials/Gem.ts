@@ -1,6 +1,4 @@
-// views/ControlsPane/partials/Gem.ts — Root gem section declaration. Three
-// stores (GEM visual, GEM_SIZING layout, REPO_LABEL feature); the subgroups
-// below are arrangement only.
+// views/ControlsPane/partials/Gem.ts — the root gem and its repo label.
 import { field, type SectionNode } from '.';
 import { GEM, GEM_SIZING, REPO_LABEL } from '@/state/stores/settings/gem';
 
@@ -19,8 +17,8 @@ export const GEM_SECTION: SectionNode = {
       ],
     },
     {
-      key: 'appearance',
-      label: 'Appearance',
+      key: 'body',
+      label: 'Body',
       children: [field(GEM, 'EDGE_COLOR'), field(GEM, 'BODY_OPACITY')],
     },
     {
