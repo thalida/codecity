@@ -2,18 +2,16 @@
 // Theme basename. Static data; the resolver lives in utils/fileIcons.ts and
 // constants/materialIcons.ts maps each basename to its bundled SVG.
 
-// Material's `document` glyph has more visual weight than the plain
-// `file` outline — feels at home next to the colorful per-type icons
-// instead of looking like an unloved placeholder.
+// `document`, not the plain `file` outline: it holds its own beside the
+// colourful per-type icons instead of reading as a placeholder.
 export const GENERIC_FILE = 'document';
 // Binary "data" files (tree row + building roof) — a hex-dump glyph reads as
 // "raw bytes" for any binary, whatever its specific format.
 export const GENERIC_BINARY = 'hex';
 export const GENERIC_FOLDER = 'folder';
 
-// Map file extension → Material icon basename. Keep this dense for the
-// extensions our scanner typically yields. Anything missing falls
-// through to the generic `file` icon.
+// Extension to Material basename. Anything missing falls through to the
+// generic file icon, so keep this dense for what the scanner yields.
 export const EXT_ICON: Record<string, string> = {
   // TS/JS family
   '.ts': 'typescript',
@@ -154,9 +152,8 @@ export const EXT_ICON: Record<string, string> = {
   '.patch': 'diff',
 };
 
-// Map exact filename (lowercased) → Material icon basename. Beats the
-// EXT_ICON map when both match, because filename hints carry richer
-// semantics than the bare extension (package.json → npm, not json).
+// Lowercased filename to basename. Beats EXT_ICON when both match: the name
+// carries more than the extension (package.json is npm, not json).
 export const NAME_ICON: Record<string, string> = {
   'package.json': 'nodejs',
   'package-lock.json': 'nodejs',
@@ -251,10 +248,8 @@ export const NAME_ICON: Record<string, string> = {
   '.env.test': 'tune',
 };
 
-// Map exact folder name (lowercased) → Material folder-icon basename.
-// Generic `folder` is the fallback. Material also has `-open` variants
-// but for our tree we stick to the closed form (the chevron already
-// conveys expanded/collapsed state).
+// Lowercased folder name to basename, falling back to generic `folder`. Always
+// the closed form: the chevron already says whether it's open.
 export const FOLDER_ICON: Record<string, string> = {
   src: 'folder-src',
   app: 'folder-app',

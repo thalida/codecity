@@ -1,9 +1,8 @@
 // eslint-rules/comment-length.js — caps how long a comment may run.
 // Density is the point: a long block buries the one non-obvious fact in it.
 
-/** Nothing but whitespace before it — a comment trailing code is its own thing,
- *  not part of a prose block that happens to start on the next line. Off the
- *  raw text: the CSS language has no `lines`. */
+/** Whitespace-only before it: a comment trailing code is its own thing. Off the
+ *  raw text, since the CSS language exposes no line array. */
 function ownLine(sourceCode, comment) {
   const start = comment.range?.[0] ?? comment.loc?.start?.offset;
   if (start == null) return true;
