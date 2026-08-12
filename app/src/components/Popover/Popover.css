@@ -146,7 +146,7 @@
     position: fixed;
     inset: 0;
     z-index: 299;
-    background: var(--cc-bg-scrim);
+    background: var(--cc-bg-backdrop);
     backdrop-filter: blur(var(--cc-glass-blur));
     -webkit-backdrop-filter: blur(var(--cc-glass-blur));
   }

@@ -35,9 +35,6 @@
   --cc-bg-sidebar: oklch(0.181 0.019 279.4);
   --cc-bg-modal: var(--cc-bg-sidebar); /* alias — modal uses the same panel surface as sidebars */
   --cc-bg-backdrop: color-mix(in oklch, var(--cc-black) 55%, transparent);
-  /* Heavier sibling, for a sheet that has to hold attention on its own: the
-     55% backdrop left a code pane behind it still legible enough to read. */
-  --cc-bg-scrim: color-mix(in oklch, var(--cc-black) 75%, transparent);
   --cc-bg-base: var(--cc-bg-app);
 
   /* ── COLORS — Borders & tracks ──────────────────────────────────────────
