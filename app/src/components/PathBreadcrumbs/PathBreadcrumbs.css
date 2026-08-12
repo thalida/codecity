@@ -11,10 +11,10 @@
   overflow: hidden;
 }
 
-/* applyMiddleEllipsis never hides the leaf, so a long filename clips mid-word.
-   The floor keeps the row overflowing, which is what collapses the middles. */
+/* The filename truncates only once every crumb has been hidden whole:
+   applyMiddleEllipsis keeps hiding while this one is losing characters. */
 .app-header-seg.is-leaf {
-  min-width: 10ch;
+  min-width: 6ch;
   overflow: hidden;
   text-overflow: ellipsis;
 }

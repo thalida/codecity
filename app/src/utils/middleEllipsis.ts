@@ -7,15 +7,21 @@
 //   - the separator elements (separators[i] sits between segments[i] and segments[i+1])
 //   - opts.ellipsisClass — CSS class to apply to the inserted `…` placeholder
 //
-// Algorithm: hide segments outward from the middle until the content fits.
-// Segments[0] and segments[N-1] always stay visible. A `…` placeholder
-// (with `class=opts.ellipsisClass`) is inserted at the first hidden position.
-// Separators on either side of the hidden block stay visible (looks like
-// `apps › api › … › fire-engine › leaf`).
+// Algorithm: hide segments whole, outward from the middle, then the leading
+// one. The last segment is never hidden — it names the thing you are looking
+// at, and it truncates (CSS) only once no crumb is left to give.
 
 interface ApplyMiddleEllipsisOpts {
   /** CSS class applied to the inserted `…` placeholder span. */
   ellipsisClass: string;
+}
+
+/** The leaf can shrink, so a row that stopped overflowing may have managed it
+ *  by cutting the one segment that has to go last. Both must hold. */
+function _fits(container: HTMLElement, leaf: HTMLElement | undefined): boolean {
+  if (container.scrollWidth > container.clientWidth) return false;
+  // +1: scrollWidth/clientWidth are rounded, so a sub-pixel width reads as cut.
+  return !leaf || leaf.scrollWidth <= leaf.clientWidth + 1;
 }
 
 function _removeEllipsis(container: HTMLElement, cls: string): void {
@@ -64,8 +70,6 @@ export function applyMiddleEllipsis(
   separators: HTMLElement[],
   opts: ApplyMiddleEllipsisOpts
 ): void {
-  if (segments.length <= 2) return;
-
   segments.forEach((s) => {
     s.style.display = '';
   });
@@ -74,9 +78,10 @@ export function applyMiddleEllipsis(
   });
   _removeEllipsis(container, opts.ellipsisClass);
 
-  if (container.scrollWidth <= container.clientWidth) return;
-
   const last = segments.length - 1;
+  const leaf = segments[last];
+  if (_fits(container, leaf)) return;
+
   const mid = Math.floor(segments.length / 2);
 
   let hiddenStart = -1;
@@ -94,7 +99,17 @@ export function applyMiddleEllipsis(
       _syncSeparators(segments, separators);
       _ensureEllipsisAt(container, segments, hiddenStart, hiddenEnd, opts.ellipsisClass);
 
-      if (container.scrollWidth <= container.clientWidth) return;
+      if (_fits(container, leaf)) return;
     }
+  }
+
+  // The leading crumb goes last of all the crumbs. Past here only the leaf is
+  // left, and CSS truncates it.
+  if (last > 0 && segments[0].style.display !== 'none') {
+    segments[0].style.display = 'none';
+    hiddenStart = 0;
+    if (hiddenEnd < 0) hiddenEnd = 0;
+    _syncSeparators(segments, separators);
+    _ensureEllipsisAt(container, segments, hiddenStart, hiddenEnd, opts.ellipsisClass);
   }
 }

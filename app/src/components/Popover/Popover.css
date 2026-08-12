@@ -156,15 +156,17 @@
     top: auto;
     left: 0;
     right: 0;
-    /* Rests ON the bar it came from rather than over it: the trigger stays
-       visible and keeps its open state showing. */
-    bottom: var(--cc-chrome-h);
+    /* Flush to the window: the scrim already says the bar behind is out of
+       play, so holding a gap for it only cost the sheet a row of content. */
+    bottom: 0;
     /* Every width bound off, so left/right alone decide it. */
     width: auto;
     min-width: 0;
     max-width: none;
     max-height: 70dvh;
-    padding: 0 0 var(--cc-space-6);
+    /* Flush to the window edge now, so the home indicator sits over the sheet
+       unless the padding clears it. */
+    padding: 0 0 max(var(--cc-space-6), env(safe-area-inset-bottom));
     border-inline: 0;
     border-bottom: 0;
     border-start-start-radius: var(--cc-radius-lg);
