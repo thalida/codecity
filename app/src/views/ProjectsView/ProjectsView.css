@@ -326,7 +326,9 @@
        unprefixed declaration first keeps engines without it on plain center. */
     align-content: center;
     align-content: safe center;
-    gap: var(--cc-space-8);
+    /* Wider than the side-by-side gap: stacked, this is the break between the
+       pitch and the thing you act on, not a column gutter. */
+    gap: calc(var(--cc-space-9) * 1.5);
     /* The top band clears the floating close button (its own inset plus its
        height) so the brand never shares a line with it. */
     padding: calc(var(--cc-space-9) * 2) var(--cc-space-7) var(--cc-space-9);
@@ -358,7 +360,6 @@
 @media (max-width: 640px) {
   .landing-inner {
     padding: calc(var(--cc-space-9) * 2) var(--cc-space-6) var(--cc-space-8);
-    gap: var(--cc-space-7);
   }
 
   .landing-hero {

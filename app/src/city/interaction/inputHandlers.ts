@@ -70,7 +70,6 @@ export function createInputHandlers({
 
   let _cameraMoving = false;
 
-
   function _sameHover(a: PickTarget | null, b: PickTarget | null): boolean {
     if (a === b) return true;
     if (!a || !b) return false;
