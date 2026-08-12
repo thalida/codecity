@@ -8,6 +8,7 @@ import { effect, untracked } from '@preact/signals';
 
 import type { Manifest, RangeStat } from '@/types';
 import { CURRENT_SOURCE_KEY } from '@/state/stores/source';
+import { URL_PARAMS } from '@/constants/urlParams';
 import { MANIFEST } from '@/state/stores/manifest';
 import { TIMELINE_MODE, SCRUB_DRAGGING, SCRUB_POS } from '@/state/stores/timeline';
 
@@ -62,7 +63,15 @@ export async function createCity(canvas: HTMLCanvasElement, manifest: Manifest):
   // Pixel-ratio cap for the same reason: phones report 3–3.5x, which cubes
   // the fp16 composer buffers past what their GPUs sustain. 2x matches
   // desktop retina; smoothing comes from that supersampling, not MSAA.
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  // ?dpr=<n> overrides the cap (diagnostic: dial GPU load up/down live).
+  const dprOverride = Number(
+    new URLSearchParams(window.location.search).get(URL_PARAMS.DPR) ?? NaN
+  );
+  const pixelRatio =
+    Number.isFinite(dprOverride) && dprOverride > 0
+      ? dprOverride
+      : Math.min(window.devicePixelRatio || 1, 2);
+  renderer.setPixelRatio(pixelRatio);
   renderer.setSize(canvas.clientWidth, canvas.clientHeight, false);
   registerFacadePanelRenderer(renderer);
 

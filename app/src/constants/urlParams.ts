@@ -12,4 +12,7 @@ export const URL_PARAMS = {
   NO_CACHE: 'no_cache',
   /** Repeated rel-path the UI hides from the rendered city (client-side pref). */
   EXCLUDE: 'exclude',
+  /** Render-resolution override (device-pixel-ratio cap), e.g. ?dpr=1.
+   *  Client-side GPU-load diagnostic for mobile driver glitches. */
+  DPR: 'dpr',
 } as const;
