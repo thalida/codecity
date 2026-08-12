@@ -20,13 +20,11 @@ import { commitStats, fileStats } from '../_helpers/statsFixtures';
 // moves the hash (placements stay put) and the value must be recaptured.
 // Recaptured when DENSITY_FALLOFF became a setting again at its 1.5 default
 // (clustering the forest toward the city) and CITY_CLEARANCE landed at 64.
-// Rebaselined when tree/firefly instancing was chunked spatially
-// (instanceChunkSize + grid-tile sort for per-chunk frustum culling): same
-// values per tree/orb, hashed in per-chunk spatial order instead of one
-// mesh's placement order. The placement/orb value hashes precede the
-// buffers, so real data drift still changes the digest independently of
-// mesh structure.
-const EXPECTED = '12k:trees43000:orbs51600:d615a75d';
+// Rebaselined when tree rendering went merged (no instanced buffers left to
+// hash — the mesh sweep below now contributes nothing). The digest still
+// pins every placement + orb value, which is where decoration determinism
+// lives; the renderers' vertex baking is covered by their own unit tests.
+const EXPECTED = '12k:trees43000:orbs51600:e03b3688';
 
 describe('decoration golden (bit-identical guard)', () => {
   // Explicit timeout: compute-bound like the layout golden, and CI's coverage

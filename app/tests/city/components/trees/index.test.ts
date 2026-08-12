@@ -101,8 +101,8 @@ describe('createTrees() component door', () => {
     const handle = trees.getRenderer();
     expect(handle).not.toBeNull();
     expect(handle!.group.parent).toBe(trees.group);
-    // The inner renderer carries the trunk + canopy InstancedMeshes.
-    const meshes = handle!.group.children.filter((c) => c instanceof THREE.InstancedMesh);
+    // The inner renderer carries the merged tree chunk meshes.
+    const meshes = handle!.group.children.filter((c) => c.userData?.meshKind === 'trees');
     expect(meshes.length).toBeGreaterThan(0);
     expect(handle!.findTreeBySha(SHA_A)).not.toBeNull();
   });

@@ -1,5 +1,5 @@
 // picker-commit.test.ts — verifies interpretHit produces a CommitTarget
-// for canopy + trunk mesh hits, and that selection-key derivation +
+// for merged tree-chunk hits, and that selection-key derivation +
 // re-resolution work through the Commit branch.
 
 import * as THREE from 'three';
@@ -15,48 +15,45 @@ import type { CommitEntry, PickerWorld, CommitTarget } from '@/types';
 
 const FAKE_CAMERA = {} as unknown as THREE.Camera;
 
-function makeCanopy(): THREE.InstancedMesh {
-  const m = new THREE.InstancedMesh(new THREE.BoxGeometry(), new THREE.MeshBasicMaterial(), 3);
-  m.userData.meshKind = 'tree-canopy';
-  return m;
-}
-
-function makeTrunk(): THREE.InstancedMesh {
-  const m = new THREE.InstancedMesh(new THREE.BoxGeometry(), new THREE.MeshBasicMaterial(), 3);
-  m.userData.meshKind = 'tree-trunk';
+function makeChunkMesh(): THREE.Mesh {
+  const m = new THREE.Mesh(new THREE.BoxGeometry(), new THREE.MeshBasicMaterial());
+  m.userData.meshKind = 'trees';
   return m;
 }
 
 interface FakeTrees {
   group: THREE.Group;
-  commitForInstance: (mesh: THREE.InstancedMesh, instanceId: number) => CommitEntry | null;
+  commitForFace: (
+    mesh: THREE.Object3D,
+    faceIndex: number | null | undefined
+  ) => { commit: CommitEntry; placementIndex: number } | null;
   findTreeBySha: (sha: string) => {
-    mesh: THREE.InstancedMesh;
+    mesh: THREE.Mesh;
     instanceId: number;
     commit: CommitEntry;
   } | null;
   getInstanceTransform: (sha: string, out: THREE.Matrix4) => boolean;
   colorForSha: (sha: string) => string | null;
+  isScrubHidden: (placementIndex: number) => boolean;
 }
 
-function makeFakeTrees(
-  canopy: THREE.InstancedMesh,
-  trunk: THREE.InstancedMesh,
-  commits: CommitEntry[]
-): FakeTrees {
+// Fake merged renderer: face f belongs to tree f (one "face" per tree keeps
+// the mapping trivial — the real face→range math is pinned in
+// treeRenderer.test's commitForFace coverage).
+function makeFakeTrees(chunk: THREE.Mesh, commits: CommitEntry[]): FakeTrees {
   const group = new THREE.Group();
-  group.add(canopy);
-  group.add(trunk);
+  group.add(chunk);
   return {
     group,
-    commitForInstance(mesh, instanceId) {
-      if (mesh !== canopy && mesh !== trunk) return null;
-      return commits[instanceId] ?? null;
+    commitForFace(mesh, faceIndex) {
+      if (mesh !== chunk || faceIndex == null) return null;
+      const commit = commits[faceIndex];
+      return commit ? { commit, placementIndex: faceIndex } : null;
     },
     findTreeBySha(sha) {
       const idx = commits.findIndex((c) => c.sha === sha);
       if (idx === -1) return null;
-      return { mesh: canopy, instanceId: idx, commit: commits[idx] };
+      return { mesh: chunk, instanceId: idx, commit: commits[idx] };
     },
     getInstanceTransform(sha, _out) {
       const idx = commits.findIndex((c) => c.sha === sha);
@@ -66,6 +63,7 @@ function makeFakeTrees(
       const idx = commits.findIndex((c) => c.sha === sha);
       return idx === -1 ? null : '#abcdef';
     },
+    isScrubHidden: () => false,
   };
 }
 
@@ -103,6 +101,15 @@ function makeWorld(initialTrees: FakeTrees | null): PickerWorld & {
   });
 }
 
+function treeHit(mesh: THREE.Object3D, faceIndex: number): THREE.Intersection<THREE.Object3D> {
+  return {
+    object: mesh,
+    faceIndex,
+    distance: 1,
+    point: new THREE.Vector3(),
+  } as unknown as THREE.Intersection<THREE.Object3D>;
+}
+
 let canvas: HTMLCanvasElement;
 beforeEach(() => {
   canvas = document.createElement('canvas');
@@ -112,96 +119,51 @@ beforeEach(() => {
 });
 
 describe('picker: tree commit picking', () => {
-  it('interpretHit on a canopy InstancedMesh returns a CommitTarget', () => {
-    const canopy = makeCanopy();
-    const trunk = makeTrunk();
+  it('interpretHit on a merged tree chunk returns a CommitTarget', () => {
+    const chunk = makeChunkMesh();
     const commits = [SERIES[0], SERIES[1], SERIES[2]];
-    const trees = makeFakeTrees(canopy, trunk, commits);
+    const trees = makeFakeTrees(chunk, commits);
     const world = makeWorld(trees);
     const p = createPicker({ canvas, camera: FAKE_CAMERA, world, cityState: world.cityState });
 
-    const hit = {
-      object: canopy,
-      instanceId: 1,
-      distance: 1,
-      point: new THREE.Vector3(),
-    } as unknown as THREE.Intersection<THREE.Object3D>;
-
-    const target = p.interpretHit(hit) as CommitTarget | null;
+    const target = p.interpretHit(treeHit(chunk, 1)) as CommitTarget | null;
     expect(target).not.toBeNull();
     expect(target!.kind).toBe(NodeKind.Commit);
-    expect(target!.mesh).toBe(canopy);
+    expect(target!.mesh).toBe(chunk);
     expect(target!.instanceId).toBe(1);
     expect(target!.commit).toEqual(commits[1]);
-    p.dispose();
-  });
-
-  it('interpretHit on a trunk InstancedMesh returns a CommitTarget', () => {
-    const canopy = makeCanopy();
-    const trunk = makeTrunk();
-    const commits = [SERIES[0], SERIES[1], SERIES[2]];
-    const trees = makeFakeTrees(canopy, trunk, commits);
-    const world = makeWorld(trees);
-    const p = createPicker({ canvas, camera: FAKE_CAMERA, world, cityState: world.cityState });
-
-    const hit = {
-      object: trunk,
-      instanceId: 2,
-      distance: 1,
-      point: new THREE.Vector3(),
-    } as unknown as THREE.Intersection<THREE.Object3D>;
-
-    const target = p.interpretHit(hit) as CommitTarget | null;
-    expect(target!.kind).toBe(NodeKind.Commit);
-    expect(target!.commit).toEqual(commits[2]);
     p.dispose();
   });
 
   it('interpretHit returns null when the trees handle is null', () => {
     const world = makeWorld(null);
     const p = createPicker({ canvas, camera: FAKE_CAMERA, world, cityState: world.cityState });
-    const canopy = makeCanopy();
-    const hit = {
-      object: canopy,
-      instanceId: 0,
-      distance: 1,
-      point: new THREE.Vector3(),
-    } as unknown as THREE.Intersection<THREE.Object3D>;
-    expect(p.interpretHit(hit)).toBeNull();
+    expect(p.interpretHit(treeHit(makeChunkMesh(), 0))).toBeNull();
     p.dispose();
   });
 
-  it('interpretHit returns null when commitForInstance returns null for a stale slot', () => {
-    const canopy = makeCanopy();
-    const trunk = makeTrunk();
+  it('interpretHit returns null when commitForFace returns null for a stale face', () => {
+    const chunk = makeChunkMesh();
     const commits = [SERIES[0], SERIES[1], SERIES[2]];
-    const trees = makeFakeTrees(canopy, trunk, commits);
+    const trees = makeFakeTrees(chunk, commits);
     const world = makeWorld(trees);
     const p = createPicker({ canvas, camera: FAKE_CAMERA, world, cityState: world.cityState });
 
-    // makeFakeTrees.commitForInstance returns null for instanceId >= commits.length.
-    const hit = {
-      object: canopy,
-      instanceId: 99,
-      distance: 1,
-      point: new THREE.Vector3(),
-    } as unknown as THREE.Intersection<THREE.Object3D>;
-
-    expect(p.interpretHit(hit)).toBeNull();
+    // makeFakeTrees.commitForFace returns null past commits.length.
+    expect(p.interpretHit(treeHit(chunk, 99))).toBeNull();
     p.dispose();
   });
 
   it('setSelection on a CommitTarget writes a Commit selection key', () => {
-    const canopy = makeCanopy();
-    const trunk = makeTrunk();
+    const chunk = makeChunkMesh();
     const commits = [SERIES[0], SERIES[1]];
-    const trees = makeFakeTrees(canopy, trunk, commits);
+    const trees = makeFakeTrees(chunk, commits);
     const world = makeWorld(trees);
     const p = createPicker({ canvas, camera: FAKE_CAMERA, world, cityState: world.cityState });
 
     p.setSelection({
       kind: NodeKind.Commit,
-      mesh: canopy,
+      mesh: chunk,
       instanceId: 1,
       commit: commits[1],
     });
@@ -214,10 +176,9 @@ describe('picker: tree commit picking', () => {
   });
 
   it('hydrating a Commit key re-resolves the selection via findTreeBySha', () => {
-    const canopy = makeCanopy();
-    const trunk = makeTrunk();
+    const chunk = makeChunkMesh();
     const commits = [SERIES[0], SERIES[1]];
-    const trees = makeFakeTrees(canopy, trunk, commits);
+    const trees = makeFakeTrees(chunk, commits);
     const world = makeWorld(trees);
 
     PICKER_SELECTION_KEY.value = { kind: NodeKind.Commit, sha: commits[1].sha };
@@ -227,31 +188,29 @@ describe('picker: tree commit picking', () => {
     expect(sel).not.toBeNull();
     expect(sel!.kind).toBe(NodeKind.Commit);
     expect(sel!.commit).toEqual(commits[1]);
-    expect(sel!.mesh).toBe(canopy);
+    expect(sel!.mesh).toBe(chunk);
     p.dispose();
   });
 
   it('world rebuild re-resolves a Commit selection to the fresh trees', () => {
-    const canopyA = makeCanopy();
-    const trunkA = makeTrunk();
+    const chunkA = makeChunkMesh();
     const commits = [SERIES[0], SERIES[1]];
-    const treesA = makeFakeTrees(canopyA, trunkA, commits);
+    const treesA = makeFakeTrees(chunkA, commits);
     const world = makeWorld(treesA);
     const p = createPicker({ canvas, camera: FAKE_CAMERA, world, cityState: world.cityState });
 
     // Pick the second commit from the first world snapshot.
     p.setSelection({
       kind: NodeKind.Commit,
-      mesh: canopyA,
+      mesh: chunkA,
       instanceId: 1,
       commit: commits[1],
     });
 
-    // World rebuild: fresh canopy + trunk, same commits list (so the
-    // selected SHA is still resolvable to a tree on the new meshes).
-    const canopyB = makeCanopy();
-    const trunkB = makeTrunk();
-    const treesB = makeFakeTrees(canopyB, trunkB, commits);
+    // World rebuild: fresh chunk mesh, same commits list (so the selected
+    // SHA is still resolvable to a tree on the new mesh).
+    const chunkB = makeChunkMesh();
+    const treesB = makeFakeTrees(chunkB, commits);
     world.setTrees(treesB);
     world.triggerRebuild();
 
@@ -259,16 +218,15 @@ describe('picker: tree commit picking', () => {
     expect(sel).not.toBeNull();
     expect(sel!.kind).toBe(NodeKind.Commit);
     expect(sel!.commit).toEqual(commits[1]);
-    // After rebuild, the mesh handle must be the fresh canopy, not the stale one.
-    expect(sel!.mesh).toBe(canopyB);
+    // After rebuild, the mesh handle must be the fresh chunk, not the stale one.
+    expect(sel!.mesh).toBe(chunkB);
     p.dispose();
   });
 
   it('refreshes pickables when trees attach asynchronously after world rebuild', () => {
-    const canopyA = makeCanopy();
-    const trunkA = makeTrunk();
+    const chunkA = makeChunkMesh();
     const commits = [SERIES[0]];
-    const treesA = makeFakeTrees(canopyA, trunkA, commits);
+    const treesA = makeFakeTrees(chunkA, commits);
     const world = makeWorld(treesA);
     const p = createPicker({ canvas, camera: FAKE_CAMERA, world, cityState: world.cityState });
 
@@ -278,30 +236,22 @@ describe('picker: tree commit picking', () => {
     world.setTrees(null);
     world.triggerRebuild();
     // Now trees arrive asynchronously and the world bumps decorationRevision.
-    const canopyB = makeCanopy();
-    const trunkB = makeTrunk();
-    const treesB = makeFakeTrees(canopyB, trunkB, commits);
+    const chunkB = makeChunkMesh();
+    const treesB = makeFakeTrees(chunkB, commits);
     world.setTrees(treesB);
     world.triggerDecoration();
 
-    // After the second triggerRebuild, picking the new canopy should
-    // produce a CommitTarget — proving pickables refreshed.
-    const hit = {
-      object: canopyB,
-      instanceId: 0,
-      distance: 1,
-      point: new THREE.Vector3(),
-    } as unknown as THREE.Intersection<THREE.Object3D>;
-    const target = p.interpretHit(hit);
+    // Picking the new chunk should produce a CommitTarget — proving
+    // pickables refreshed.
+    const target = p.interpretHit(treeHit(chunkB, 0));
     expect(target).not.toBeNull();
     p.dispose();
   });
 
   it('hydrating a Commit key for a missing sha clears the selection + key', () => {
-    const canopy = makeCanopy();
-    const trunk = makeTrunk();
+    const chunk = makeChunkMesh();
     const commits = [SERIES[0]];
-    const trees = makeFakeTrees(canopy, trunk, commits);
+    const trees = makeFakeTrees(chunk, commits);
     const world = makeWorld(trees);
 
     PICKER_SELECTION_KEY.value = { kind: NodeKind.Commit, sha: 'f'.repeat(40) };

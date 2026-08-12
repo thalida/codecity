@@ -105,10 +105,7 @@ export function createPicker({
     const trees = world.getTrees();
     if (trees) {
       for (const child of trees.group.children) {
-        const kind = child.userData?.meshKind;
-        if (kind === 'tree-canopy' || kind === 'tree-trunk') {
-          pickables.push(child);
-        }
+        if (child.userData?.meshKind === 'trees') pickables.push(child);
       }
     }
     // Invalidate the spatial index; rebuilt lazily on the next pickAt.
@@ -365,16 +362,6 @@ export function createPicker({
     return !!iKind && Math.round(iKind.getX(slot)) === BuildingKind.Ruin;
   }
 
-  // Trees are gated by zero-scaling their instance matrix (setScrubCommit).
-  // Read the X-column length directly rather than Matrix4.decompose, which
-  // special-cases a zero-determinant (fully collapsed) matrix back to scale (1,1,1).
-  function _treeScrubHidden(mesh: THREE.InstancedMesh, slot: number): boolean {
-    mesh.getMatrixAt(slot, _scrubMatrix);
-    const e = _scrubMatrix.elements;
-    const sx = Math.hypot(e[0], e[1], e[2]);
-    return sx < SCRUB_HIDE_EPS;
-  }
-
   // Streets fade per-vertex (aOpacity); read a face vertex directly so this
   // can't drift from what the shader is actually drawing. Takes a bare mesh +
   // vertex (not a hit) so a stored selection can be re-checked on scrub without
@@ -396,7 +383,8 @@ export function createPicker({
       );
     }
     if (sel.kind === NodeKind.Commit) {
-      return _treeScrubHidden(sel.mesh, sel.instanceId);
+      // The tree renderer owns the scrub threshold; ask it directly.
+      return world.getTrees()?.isScrubHidden(sel.instanceId) ?? false;
     }
     if (sel.kind === NodeKind.Directory) {
       return _streetScrubHidden(sel.sidewalk, sel.vertexHint);
@@ -461,13 +449,15 @@ export function createPicker({
   // the same shape held by hover / selection signals. Returns null for
   // hits that aren't selectable (e.g. street labels, which don't have
   // userData.type populated for picking).
-  /** A tree instance carries the commit that grew it. */
-  function commitTargetFor(mesh: THREE.InstancedMesh, slot: number | undefined): PickTarget | null {
-    if (slot == null) return null;
-    if (TIMELINE_MODE.peek() && _treeScrubHidden(mesh, slot)) return null;
-    const commit = world.getTrees()?.commitForInstance(mesh, slot);
-    if (!commit) return null;
-    return { kind: NodeKind.Commit, mesh, instanceId: slot, commit };
+  /** A tree carries the commit that grew it. The renderer maps the hit face
+   *  back to its placement (and filters scrub-hidden trees itself). */
+  function commitTargetFor(
+    mesh: THREE.Mesh,
+    faceIndex: number | null | undefined
+  ): PickTarget | null {
+    const hit = world.getTrees()?.commitForFace(mesh, faceIndex);
+    if (!hit) return null;
+    return { kind: NodeKind.Commit, mesh, instanceId: hit.placementIndex, commit: hit.commit };
   }
 
   /** A CellTile detail mesh: the Building comes from BuildingIndex by
@@ -519,10 +509,11 @@ export function createPicker({
     // that kind, but nothing selectable here", never "try the next one".
     if (ud.type === NodeKind.Gem) return { kind: NodeKind.Gem, mesh: hit.object };
 
+    if (ud.meshKind === 'trees') {
+      return commitTargetFor(hit.object as THREE.Mesh, hit.faceIndex);
+    }
+
     if (hit.object instanceof THREE.InstancedMesh) {
-      if (ud.meshKind === 'tree-canopy' || ud.meshKind === 'tree-trunk') {
-        return commitTargetFor(hit.object, hit.instanceId);
-      }
       if (ud.cellId != null && ud.meshKind === 'detail') {
         return buildingTargetFor(hit.object, ud.cellId, hit.instanceId);
       }

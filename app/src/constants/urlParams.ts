@@ -26,7 +26,4 @@ export const URL_PARAMS = {
   /** Instances-per-mesh override for the chunked instanced draws (trees,
    *  fireflies), e.g. ?chunk=128. Client-side diagnostic knob. */
   CHUNK: 'chunk',
-  /** Tree draw mode: 'merged' renders trees as pre-transformed static
-   *  meshes (roads-style, no instancing). Client-side diagnostic knob. */
-  TREES: 'trees',
 } as const;

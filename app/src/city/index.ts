@@ -82,8 +82,11 @@ export async function createCity(canvas: HTMLCanvasElement, manifest: Manifest):
   const _gl = renderer.getContext();
   if (typeof _gl.getExtension === 'function') {
     const _dbgExt = _gl.getExtension('WEBGL_debug_renderer_info');
+    const _gpu = _dbgExt
+      ? String(_gl.getParameter(_dbgExt.UNMASKED_RENDERER_WEBGL))
+      : String(_gl.getParameter(_gl.RENDERER));
     debugLog('gl', {
-      gpu: _dbgExt ? String(_gl.getParameter(_dbgExt.UNMASKED_RENDERER_WEBGL)) : 'unavailable',
+      gpu: _gpu,
       pixelRatio,
       drawingBuffer: `${_gl.drawingBufferWidth}x${_gl.drawingBufferHeight}`,
     });

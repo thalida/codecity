@@ -39,10 +39,11 @@ export interface GemTarget {
   mesh: THREE.Object3D;
 }
 
-/** Hovered/selected tree (a canopy or trunk InstancedMesh instance). */
+/** Hovered/selected tree. `mesh` is the merged chunk mesh that renders it;
+ *  `instanceId` is the tree's placement index within the layout. */
 export interface CommitTarget {
   kind: NodeKind.Commit;
-  mesh: THREE.InstancedMesh;
+  mesh: THREE.Mesh;
   instanceId: number;
   commit: CommitEntry;
 }
@@ -80,13 +81,17 @@ export interface PickerWorld {
    *  or when ENABLED is off). */
   getTrees(): {
     group: THREE.Group;
-    commitForInstance(mesh: THREE.InstancedMesh, instanceId: number): CommitEntry | null;
+    commitForFace(
+      mesh: THREE.Object3D,
+      faceIndex: number | null | undefined
+    ): { commit: CommitEntry; placementIndex: number } | null;
     findTreeBySha(sha: string): {
-      mesh: THREE.InstancedMesh;
+      mesh: THREE.Mesh;
       instanceId: number;
       commit: CommitEntry;
     } | null;
     getInstanceTransform(sha: string, out: THREE.Matrix4): boolean;
     colorForSha(sha: string): string | null;
+    isScrubHidden(placementIndex: number): boolean;
   } | null;
 }

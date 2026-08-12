@@ -158,14 +158,18 @@ describe('picker: Timeline scrub-hidden guard — buildings', () => {
 });
 
 describe('picker: Timeline scrub-hidden guard — trees', () => {
-  function makeCanopy(): THREE.InstancedMesh {
-    const m = new THREE.InstancedMesh(new THREE.BoxGeometry(), new THREE.MeshBasicMaterial(), 3);
-    m.userData.meshKind = 'tree-canopy';
+  function makeChunkMesh(): THREE.Mesh {
+    const m = new THREE.Mesh(new THREE.BoxGeometry(), new THREE.MeshBasicMaterial());
+    m.userData.meshKind = 'trees';
     return m;
   }
 
-  function makeWorld(canopy: THREE.InstancedMesh, commits: CommitEntry[]) {
+  // Mock merged renderer: face f is tree f; the scrub threshold hides
+  // higher commit indices from BOTH rendering and picking, exactly like the
+  // real renderer's commitForFace/isScrubHidden pair.
+  function makeWorld(chunk: THREE.Mesh, commits: CommitEntry[], scrubMax: number | null) {
     const cityState = makeCityState();
+    const hidden = (i: number) => scrubMax !== null && i > scrubMax;
     const api: PickerWorld = {
       getStreetPickables: () => [],
       getRootGem: () => null,
@@ -176,67 +180,60 @@ describe('picker: Timeline scrub-hidden guard — trees', () => {
       getCells: () => new Map(),
       getTrees: () => ({
         group: new THREE.Group(),
-        commitForInstance: (mesh, instanceId) =>
-          mesh === canopy ? (commits[instanceId] ?? null) : null,
+        commitForFace: (mesh, faceIndex) => {
+          if (mesh !== chunk || faceIndex == null || hidden(faceIndex)) return null;
+          const commit = commits[faceIndex];
+          return commit ? { commit, placementIndex: faceIndex } : null;
+        },
         findTreeBySha: () => null,
         getInstanceTransform: () => false,
         colorForSha: () => null,
+        isScrubHidden: hidden,
       }),
     };
     return Object.assign(api, { cityState });
   }
 
-  it('a zero-scaled (future-commit) tree instance is not pickable', () => {
-    const canopy = makeCanopy();
-    const commits = [commitSeries(1)[0], commitSeries(2)[1]];
-    canopy.setMatrixAt(1, new THREE.Matrix4().makeScale(0, 0, 0));
-    const world = makeWorld(canopy, commits);
-    const picker = createPicker({ canvas, camera: FAKE_CAMERA, world, cityState: world.cityState });
-    TIMELINE_MODE.value = true;
-
-    const hit = {
-      object: canopy,
-      instanceId: 1,
+  function treeHit(mesh: THREE.Object3D, faceIndex: number): THREE.Intersection<THREE.Object3D> {
+    return {
+      object: mesh,
+      faceIndex,
       distance: 1,
       point: new THREE.Vector3(),
     } as unknown as THREE.Intersection<THREE.Object3D>;
-    expect(picker.interpretHit(hit)).toBeNull();
+  }
+
+  it('a scrub-hidden (future-commit) tree is not pickable', () => {
+    const chunk = makeChunkMesh();
+    const commits = [commitSeries(1)[0], commitSeries(2)[1]];
+    const world = makeWorld(chunk, commits, 0);
+    const picker = createPicker({ canvas, camera: FAKE_CAMERA, world, cityState: world.cityState });
+    TIMELINE_MODE.value = true;
+
+    expect(picker.interpretHit(treeHit(chunk, 1))).toBeNull();
     picker.dispose();
   });
 
-  it('a full-scale tree instance resolves normally in Timeline mode', () => {
-    const canopy = makeCanopy();
+  it('a tree at or below the scrub threshold resolves normally in Timeline mode', () => {
+    const chunk = makeChunkMesh();
     const commits = [commitSeries(1)[0], commitSeries(2)[1]];
-    const world = makeWorld(canopy, commits);
+    const world = makeWorld(chunk, commits, 1);
     const picker = createPicker({ canvas, camera: FAKE_CAMERA, world, cityState: world.cityState });
     TIMELINE_MODE.value = true;
 
-    const hit = {
-      object: canopy,
-      instanceId: 1,
-      distance: 1,
-      point: new THREE.Vector3(),
-    } as unknown as THREE.Intersection<THREE.Object3D>;
-    const t = picker.interpretHit(hit);
+    const t = picker.interpretHit(treeHit(chunk, 1));
     expect(t?.kind).toBe(NodeKind.Commit);
     picker.dispose();
   });
 
-  it('live mode still picks a zero-scaled tree instance — guard is a no-op', () => {
-    const canopy = makeCanopy();
+  it('live mode (no scrub threshold) picks every tree — guard is a no-op', () => {
+    const chunk = makeChunkMesh();
     const commits = [commitSeries(1)[0], commitSeries(2)[1]];
-    canopy.setMatrixAt(1, new THREE.Matrix4().makeScale(0, 0, 0));
-    const world = makeWorld(canopy, commits);
+    const world = makeWorld(chunk, commits, null);
     const picker = createPicker({ canvas, camera: FAKE_CAMERA, world, cityState: world.cityState });
     TIMELINE_MODE.value = false;
 
-    const hit = {
-      object: canopy,
-      instanceId: 1,
-      distance: 1,
-      point: new THREE.Vector3(),
-    } as unknown as THREE.Intersection<THREE.Object3D>;
-    const t = picker.interpretHit(hit);
+    const t = picker.interpretHit(treeHit(chunk, 1));
     expect(t?.kind).toBe(NodeKind.Commit);
     picker.dispose();
   });
