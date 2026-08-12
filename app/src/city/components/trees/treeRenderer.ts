@@ -38,6 +38,8 @@ import { interpolateOklch } from '@/city/utils/color/colors';
 import { setColorFromHex } from '@/city/utils/color/setColorFromHex';
 import { instanceChunkSize } from '@/city/utils/instanceChunkSize';
 import { NEUTRAL_POLYGON_OFFSET } from '@/city/utils/neutralPolygonOffset';
+import treeVertSrc from './tree.vert.glsl?raw';
+import treeFragSrc from './tree.frag.glsl?raw';
 import { sunDir } from '@/city/utils/shaders/sunDir';
 import { LIGHTING_SUN_AZIMUTH_DEG, LIGHTING_SUN_ELEVATION_DEG } from '@/constants/lighting';
 
@@ -274,16 +276,21 @@ export function createTreeRenderer(
   const trunkGeometry = new THREE.CylinderGeometry(1.0, 1.0, 1.0, 12);
   trunkGeometry.translate(0, 0.5, 0);
 
-  const trunkMaterial = new THREE.MeshBasicMaterial({
-    color: 0xffffff,
-    toneMapped: false,
+  // Hand-written shaders (tree.vert/frag.glsl), NOT MeshBasicMaterial: the
+  // built-in program was the one instanced program shape a mobile driver
+  // corrupts; the custom-shader path (same as buildings) draws clean.
+  const trunkMaterial = new THREE.ShaderMaterial({
+    vertexShader: treeVertSrc,
+    fragmentShader: treeFragSrc,
+    uniforms: { uColor: { value: new THREE.Color(0xffffff) } },
     ...NEUTRAL_POLYGON_OFFSET,
   });
-  setColorFromHex(trunkMaterial.color, cfg.TRUNK_COLOR);
+  setColorFromHex(trunkMaterial.uniforms.uColor.value as THREE.Color, cfg.TRUNK_COLOR);
 
-  const canopyMaterial = new THREE.MeshBasicMaterial({
-    color: 0xffffff,
-    toneMapped: false,
+  const canopyMaterial = new THREE.ShaderMaterial({
+    vertexShader: treeVertSrc,
+    fragmentShader: treeFragSrc,
+    uniforms: { uColor: { value: new THREE.Color(0xffffff) } },
     vertexColors: true,
     ...NEUTRAL_POLYGON_OFFSET,
   });
@@ -445,7 +452,7 @@ export function createTreeRenderer(
     for (const m of canopyMeshes) m.visible = cfg.ENABLED;
     for (const m of trunkMeshes) m.visible = cfg.ENABLED;
 
-    setColorFromHex(trunkMaterial.color, cfg.TRUNK_COLOR);
+    setColorFromHex(trunkMaterial.uniforms.uColor.value as THREE.Color, cfg.TRUNK_COLOR);
     setColorFromHex(busyDayColor, cfg.COLOR_BUSY_DAY);
     setColorFromHex(soloDayColor, cfg.COLOR_SOLO_DAY);
 
