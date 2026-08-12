@@ -17,11 +17,11 @@
 import * as THREE from 'three';
 import { LineSegments2 } from 'three/addons/lines/LineSegments2.js';
 import { LineSegmentsGeometry } from 'three/addons/lines/LineSegmentsGeometry.js';
-import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
 
 import { TREES } from '@/state/stores/settings/trees';
 import { RENDER_ORDERS } from '@/city/types/renderOrders';
 import { rainbowRgbAt } from '@/city/utils/rainbowChase';
+import { createSafeLineMaterial } from '@/city/utils/safeLineMaterial';
 import { NodeKind } from '@/types';
 import { buildCanopyEdges } from './treeRenderer';
 import type { PickTarget } from '@/types/picker';
@@ -59,7 +59,7 @@ export function createTreeOutlineRenderer({ canvas, scene, picker, getTrees }: C
   _edges.dispose();
 
   // ── Hover outline ─────────────────────────────────────────────────────
-  const hoverLineMat = new LineMaterial({
+  const hoverLineMat = createSafeLineMaterial({
     color: new THREE.Color(_cfg.OUTLINE_HOVER_COLOR),
     linewidth: _cfg.OUTLINE_WIDTH,
     transparent: true,
@@ -75,7 +75,7 @@ export function createTreeOutlineRenderer({ canvas, scene, picker, getTrees }: C
   scene.add(hoverOutline);
 
   // ── Selected outline (rainbow vertex colors) ──────────────────────────
-  const selectedLineMat = new LineMaterial({
+  const selectedLineMat = createSafeLineMaterial({
     vertexColors: true,
     linewidth: _cfg.OUTLINE_WIDTH,
     transparent: true,

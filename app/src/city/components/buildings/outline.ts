@@ -20,11 +20,11 @@ import * as THREE from 'three';
 import { effect } from '@preact/signals';
 import { LineSegments2 } from 'three/addons/lines/LineSegments2.js';
 import { LineSegmentsGeometry } from 'three/addons/lines/LineSegmentsGeometry.js';
-import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
 
 import { BUILDINGS } from '@/state/stores/settings/buildings';
 import { RENDER_ORDERS } from '@/city/types/renderOrders';
 import { rainbowRgbAt } from '@/city/utils/rainbowChase';
+import { createSafeLineMaterial } from '@/city/utils/safeLineMaterial';
 import { NodeKind } from '@/types';
 import { getBuildingTilt, composeShearMatrix } from './tilt';
 import type { CellTile } from './cellTile';
@@ -69,7 +69,7 @@ export function createOutlineRenderer({
   // ── Hover outline (single shared mesh, retransformed per frame) ─────
   const _unitEdgesGeo = new LineSegmentsGeometry();
   _unitEdgesGeo.setPositions(UNIT_BOX_EDGE_POSITIONS);
-  const hoverLineMat = new LineMaterial({
+  const hoverLineMat = createSafeLineMaterial({
     color: new THREE.Color(_bo.OUTLINE_HOVER_COLOR),
     linewidth: _bo.OUTLINE_WIDTH,
     transparent: true,
@@ -85,7 +85,7 @@ export function createOutlineRenderer({
   scene.add(hoverOutline);
 
   // ── Selected outline (per-vertex rainbow chasing) ───────────────────
-  const selectedLineMat = new LineMaterial({
+  const selectedLineMat = createSafeLineMaterial({
     vertexColors: true,
     linewidth: _bo.OUTLINE_WIDTH,
     transparent: true,
