@@ -147,6 +147,29 @@ export async function createCity(canvas: HTMLCanvasElement, manifest: Manifest):
   ];
   for (const c of components) scene.add(c.group);
 
+  // ?hide=<name,...> — diagnostic: blank listed components (groups stay in the
+  // scene and tick; they just don't render). Names match this map.
+  const componentsByName: Record<string, SceneComponent> = {
+    fireflies,
+    repoLabel,
+    buildings,
+    trees,
+    pathLine,
+    streets,
+    gem,
+    island,
+    footprint,
+    sky,
+  };
+  const hideList = (new URLSearchParams(window.location.search).get(URL_PARAMS.HIDE) ?? '')
+    .split(',')
+    .filter(Boolean);
+  for (const name of hideList) {
+    const target = componentsByName[name];
+    if (target) target.group.visible = false;
+  }
+  if (hideList.length) debugLog('hide', { hidden: hideList.join(',') });
+
   // Boot apply — AFTER renderer + registerFacadePanelRenderer (the facade-panel race),
   // BEFORE the rig (so bbox is set and the rig's first frame can frame the city).
   await applyManifest(manifest);

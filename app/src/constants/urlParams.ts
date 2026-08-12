@@ -19,4 +19,8 @@ export const URL_PARAMS = {
    *  (no composer, no bloom), 'ldr' keeps the composer on 8-bit targets.
    *  Client-side diagnostic for mobile driver glitches. */
   FX: 'fx',
+  /** Comma-separated scene components to blank (e.g. ?hide=gem,fireflies).
+   *  Components still construct and tick; their groups just don't render.
+   *  Client-side diagnostic for bisecting mobile driver glitches. */
+  HIDE: 'hide',
 } as const;
