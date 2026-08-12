@@ -34,7 +34,7 @@ import { createCameraRig } from './render/cameraRig';
 import { createPicker } from './interaction/picker';
 import { createInputHandlers } from './interaction/inputHandlers';
 import { showTooltip, hideTooltip } from './interaction/tooltip';
-import { createPostFx } from './render/postFx';
+import { createPostFx, createDirectFx } from './render/postFx';
 import { startFrameLoop } from './render/frameLoop';
 import { registerRenderer as registerFacadePanelRenderer } from './components/buildings/facadePanelTextureArray';
 import { debugLog } from '@/utils/deviceDebugLog';
@@ -178,7 +178,13 @@ export async function createCity(canvas: HTMLCanvasElement, manifest: Manifest):
     }
   });
 
-  const postFx = createPostFx(renderer, scene, rig.camera);
+  // ?fx=off|ldr — diagnostic pipeline overrides (see constants/urlParams.ts).
+  const fxMode = new URLSearchParams(window.location.search).get(URL_PARAMS.FX);
+  debugLog('fx-mode', { mode: fxMode ?? 'hdr' });
+  const postFx =
+    fxMode === 'off'
+      ? createDirectFx(renderer, scene, rig.camera)
+      : createPostFx(renderer, scene, rig.camera, { ldr: fxMode === 'ldr' });
   postFx.setSize(canvas.clientWidth, canvas.clientHeight);
 
   const picker = createPicker({

@@ -32,10 +32,29 @@ export interface PostFx {
   dispose(): void;
 }
 
-export function createPostFx(
+/** Diagnostic pipeline bypass (?fx=off): render the scene straight to the
+ *  canvas — no composer, no offscreen targets, no bloom. Exists to isolate
+ *  whether a mobile driver's corruption comes from the offscreen-target
+ *  pipeline or from base scene rendering. */
+export function createDirectFx(
   renderer: THREE.WebGLRenderer,
   scene: THREE.Scene,
   camera: THREE.PerspectiveCamera
+): PostFx {
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.0;
+  return {
+    render: () => renderer.render(scene, camera),
+    setSize: () => {},
+    dispose: () => {},
+  };
+}
+
+export function createPostFx(
+  renderer: THREE.WebGLRenderer,
+  scene: THREE.Scene,
+  camera: THREE.PerspectiveCamera,
+  opts: { ldr?: boolean } = {}
 ): PostFx {
   const bloomCfg = BLOOM.value;
   // ACES tonemapping compresses HDR (>1.0) values back into display
@@ -48,9 +67,10 @@ export function createPostFx(
 
   // HalfFloat render targets preserve >1.0 emission values from the
   // shader; LDR targets would clip them to 1.0 and erase the
-  // per-pixel bloom intensity gradient.
+  // per-pixel bloom intensity gradient. ?fx=ldr (diagnostic) forces the
+  // 8-bit clip to test drivers that corrupt fp16 offscreen targets.
   const hdrTarget = new THREE.WebGLRenderTarget(1, 1, {
-    type: THREE.HalfFloatType,
+    type: opts.ldr ? THREE.UnsignedByteType : THREE.HalfFloatType,
   });
   const composer = new EffectComposer(renderer, hdrTarget);
   composer.addPass(new RenderPass(scene, camera));
