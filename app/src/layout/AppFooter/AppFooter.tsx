@@ -1,35 +1,37 @@
 // layout/AppFooter.tsx — Sitewide bottom status bar.
 //
 // The header is the PROJECT; the footer is the APP. Nothing here is about the
-// repo you have open: the keyboard shortcuts, the debug tools when debug mode
-// is on, and the app's own line of version, about and credit.
+// repo you have open: how the app looks, the keyboard reference, the debug
+// tools when debug mode is on, and the app's own line of version and credit.
 //
 // Per-node stats live in the selection pane's own footer (<PaneStats>), beside
 // the file or road they describe.
 
 import './AppFooter.css';
-import { Bug, Keyboard } from 'lucide-preact';
-import { ChromeCluster, ClusterButton } from '@/components/ChromeCluster/ChromeCluster';
-import { openDebug, openShortcuts } from '@/state/stores/ui';
+import { ChromeCluster } from '@/components/ChromeCluster/ChromeCluster';
+import { AppearanceMenu } from '@/components/AppearanceMenu/AppearanceMenu';
+import { ShortcutsMenu } from '@/components/ShortcutsMenu/ShortcutsMenu';
+import { DebugMenu } from '@/components/DebugMenu/DebugMenu';
 import { isDebugMode } from '@/utils/debugMode';
 import { MetaLine } from '@/components/AppMeta/AppMeta';
 
-export function AppFooter() {
+export interface AppFooterProps {
+  onRunCollisionCheck?: () => void;
+  onRunStemDiagnostic?: () => void;
+}
+
+export function AppFooter({ onRunCollisionCheck, onRunStemDiagnostic }: AppFooterProps = {}) {
   return (
     <footer id="app-footer" class="surface-chrome">
       <div class="app-footer-section app-footer-left">
         <ChromeCluster>
-          <ClusterButton
-            title="Keyboard shortcuts (?)"
-            aria-label="Keyboard shortcuts"
-            onClick={openShortcuts}
-          >
-            <Keyboard class="icon" />
-          </ClusterButton>
+          <AppearanceMenu />
+          <ShortcutsMenu />
           {isDebugMode() && (
-            <ClusterButton title="Debug tools" aria-label="Debug tools" onClick={openDebug}>
-              <Bug class="icon" />
-            </ClusterButton>
+            <DebugMenu
+              onRunCollisionCheck={onRunCollisionCheck}
+              onRunStemDiagnostic={onRunStemDiagnostic}
+            />
           )}
         </ChromeCluster>
       </div>

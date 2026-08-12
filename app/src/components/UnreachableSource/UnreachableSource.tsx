@@ -8,7 +8,7 @@
 import './UnreachableSource.css';
 import { Info, AlertCircle } from 'lucide-preact';
 import { CopyButton } from '@/components/CopyButton/CopyButton';
-import { REPO_URL } from '@/constants/ui';
+import { REPO_URL, LOCAL_DOCS_URL } from '@/constants/ui';
 
 /** Why the notice is on screen. `Standing` is the resting state and carries no
  *  failure; the other two each name a distinct thing that went wrong. */
@@ -35,7 +35,6 @@ export interface UnreachableSourceProps {
   id?: string;
 }
 
-const LOCAL_DOCS_URL = `${REPO_URL}#local-directories`;
 const RUN_DOCS_URL = `${REPO_URL}#run-it-yourself`;
 
 const PREAMBLE: Record<NoticeReason, string | null> = {

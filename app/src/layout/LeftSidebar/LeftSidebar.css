@@ -65,7 +65,9 @@
   position: relative; /* anchor for the settings-change count badge */
   background: none;
   border: none;
-  color: var(--cc-text-muted);
+  /* Same step as the chrome bars' glyphs (ChromeCluster.css), so the app's
+     three icon strips read as one set. */
+  color: var(--cc-text-primary);
   height: 40px;
   display: flex;
   align-items: center;
@@ -77,9 +79,13 @@
   padding: var(--cc-space-0);
 }
 
+/* The shared engaged state (see buttons.css). */
 .activity-bar-icon:hover {
-  color: var(--cc-text-primary);
-  background: var(--cc-overlay-bg-soft);
+  color: var(--cc-accent);
+  background: var(--cc-accent-bg-soft);
+}
+.activity-bar-icon:active {
+  background: var(--cc-accent-bg);
 }
 
 /* Selected tab: accent-colored glyph + the canonical accent selected fill

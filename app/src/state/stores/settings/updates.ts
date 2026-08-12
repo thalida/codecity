@@ -23,8 +23,8 @@ const LIVE_UPDATES_FIELDS = {
     route: ChangeRoute.Live,
     kind: FieldKind.Toggle,
     default: true,
-    label: 'Enabled',
-    tip: "When on, the city re-renders in place whenever the project's files change, checked every poll interval.",
+    label: 'Auto-refresh',
+    tip: "Re-render the city whenever the project's files change.",
   },
   POLL_SECONDS: {
     route: ChangeRoute.Live,
@@ -34,7 +34,7 @@ const LIVE_UPDATES_FIELDS = {
     max: 60,
     step: 1,
     label: 'Poll interval (s)',
-    tip: 'How often to check for changes. Lower is snappier but heavier on the local server; higher is lighter but the city can feel stale.',
+    tip: 'How often to check for changes. Lower is snappier, heavier on the server.',
   },
 } satisfies FieldMap;
 

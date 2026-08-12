@@ -1,10 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import {
-  CHANGED_SETTINGS_COUNT,
-  SCAN_COUNT,
-  APPEARANCE_COUNT,
-  WORLD_COUNT,
-} from '@/state/stores/settingsIndicators';
+import { CHANGED_SETTINGS_COUNT } from '@/state/stores/settingsIndicators';
 import { LIVE_UPDATES } from '@/state/stores/settings/updates';
 import { ACCENT_THEME, ACCENT_THEME_DEFAULT } from '@/state/stores/settings/theme';
 import { BUILDINGS } from '@/state/stores/settings/buildings';
@@ -21,30 +16,28 @@ beforeEach(() => {
   CURRENT_SOURCE.value = { src: 's', branch: undefined };
 });
 
-describe('settings indicators', () => {
-  it('excludes count into the Scan total and the overall total only', () => {
+describe('CHANGED_SETTINGS_COUNT', () => {
+  // The dot marks what the Settings icon can take you to. Everything below now
+  // lives in a chrome-bar popover, so none of it may light the dot.
+  it('ignores excludes and scan settings, which live in the header menu', () => {
     const base = CHANGED_SETTINGS_COUNT.value;
-    expect(SCAN_COUNT.value).toBe(0);
+
     addExclude('vendor');
-    expect(SCAN_COUNT.value).toBe(1);
-    expect(APPEARANCE_COUNT.value).toBe(0);
-    expect(CHANGED_SETTINGS_COUNT.value).toBe(base + 1);
+    expect(CHANGED_SETTINGS_COUNT.value).toBe(base);
     clearExcludes();
-    expect(SCAN_COUNT.value).toBe(0);
+
+    LIVE_UPDATES.value = { ...LIVE_UPDATES.value, POLL_SECONDS: 42 };
     expect(CHANGED_SETTINGS_COUNT.value).toBe(base);
   });
 
-  it('a changed theme counts on Appearance and the total', () => {
+  it('ignores the theme pickers, which live in the footer menu', () => {
     const base = CHANGED_SETTINGS_COUNT.value;
-    expect(APPEARANCE_COUNT.value).toBe(0);
     ACCENT_THEME.value = (ACCENT_THEME_DEFAULT as string) === 'blue' ? 'green' : 'blue';
-    expect(APPEARANCE_COUNT.value).toBe(1);
-    expect(WORLD_COUNT.value).toBe(0);
-    expect(CHANGED_SETTINGS_COUNT.value).toBe(base + 1);
+    expect(CHANGED_SETTINGS_COUNT.value).toBe(base);
   });
 
-  it('a changed World field counts on World', () => {
-    expect(WORLD_COUNT.value).toBe(0);
+  it('counts a changed World field, which the pane does hold', () => {
+    const base = CHANGED_SETTINGS_COUNT.value;
     const key = getFieldKeys(BUILDINGS)[0];
     const cur = (BUILDINGS.value as Record<string, unknown>)[key];
     const next =
@@ -59,6 +52,6 @@ describe('settings indicators', () => {
       ...(BUILDINGS.value as Record<string, unknown>),
       [key]: next,
     } as typeof BUILDINGS.value;
-    expect(WORLD_COUNT.value).toBeGreaterThan(0);
+    expect(CHANGED_SETTINGS_COUNT.value).toBeGreaterThan(base);
   });
 });

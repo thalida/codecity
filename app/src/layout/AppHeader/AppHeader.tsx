@@ -6,17 +6,19 @@
 // group: see .chrome-cluster.
 
 import './AppHeader.css';
-import { DatabaseZap, ExternalLink, RefreshCw } from 'lucide-preact';
+import { ExternalLink, RefreshCw } from 'lucide-preact';
 import { SOURCE_INFO } from '@/state/stores/source';
 import { MANIFEST } from '@/state/stores/manifest';
 import type { Manifest } from '@/types';
 import { openProjectsView } from '@/state/stores/ui';
-import { ChromeCluster, ClusterLink } from '@/components/ChromeCluster/ChromeCluster';
+import {
+  ChromeCluster,
+  ClusterButton,
+  ClusterLink,
+} from '@/components/ChromeCluster/ChromeCluster';
 import { ProjectSwitcher } from '@/components/ProjectSwitcher/ProjectSwitcher';
 import { CopyButton, CopyButtonVariant } from '@/components/CopyButton/CopyButton';
-import { FreshnessStatus } from '@/components/FreshnessStatus/FreshnessStatus';
-import { SplitButton, SplitButtonVariant } from '@/components/SplitButton/SplitButton';
-import { AutoRefreshRow } from '@/components/AutoRefreshRow/AutoRefreshRow';
+import { ScanMenu } from '@/components/ScanMenu/ScanMenu';
 
 export interface AppHeaderProps {
   /** Fires when the user clicks the project chip to switch source. */
@@ -59,26 +61,12 @@ export function AppHeader({ onSwitchSource, onRefresh }: AppHeaderProps = {}) {
 
       {hasProject && (
         <ChromeCluster class="app-header-freshness">
-          <FreshnessStatus />
-          <SplitButton
-            variant={SplitButtonVariant.Chrome}
-            label="Refresh"
-            icon={RefreshCw}
-            onPrimary={() => onRefresh?.(false)}
-            menuLabel="More refresh options"
-            // Only what the button itself isn't: the menu lists alternatives,
-            // not the default it sits next to.
-            items={[
-              {
-                id: 'fresh',
-                icon: DatabaseZap,
-                label: 'Fresh scan',
-                sublabel: 'ignore the cache and re-read the whole repo',
-                onSelect: () => onRefresh?.(true),
-              },
-            ]}
-            footer={<AutoRefreshRow />}
-          />
+          <ScanMenu onFreshScan={() => onRefresh?.(true)} />
+          {/* Beside the menu, not inside it: the menu lists what this button
+              isn't, and the common case stays one press. */}
+          <ClusterButton title="Refresh" aria-label="Refresh" onClick={() => onRefresh?.(false)}>
+            <RefreshCw class="icon" />
+          </ClusterButton>
         </ChromeCluster>
       )}
     </header>

@@ -11,6 +11,10 @@ export const MAX_RECENT_SOURCES = 10;
  *  README-anchor deep links used elsewhere in the UI. */
 export const REPO_URL = 'https://github.com/thalida/codecity';
 
+/** README anchors deep-linked from more than one surface. */
+export const LOCAL_DOCS_URL = `${REPO_URL}#local-directories`;
+export const EXCLUDES_DOCS_URL = `${REPO_URL}#skipped-by-default`;
+
 /** The author's site, linked from the footer credit. */
 export const CREATOR_URL = 'https://thalida.com';
 

@@ -26,11 +26,17 @@ body {
 }
 
 /* Above the body in PAINT order, not just in the column: the body comes later
-   in the DOM, so without this a bar's dropdown renders under it. */
-#app-header,
+   in the DOM, so without this a bar's dropdown renders under it.
+   The values clear the sidebars (90/100) and the center pane's overlays (200),
+   which sit in the root stacking context — a bar's panel is trapped inside its
+   bar's stacking context, so it can never out-stack them on its own. */
+#app-header {
+  position: relative;
+  z-index: 400;
+}
 #app-footer {
   position: relative;
-  z-index: 1;
+  z-index: 300;
 }
 
 #app-body {

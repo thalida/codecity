@@ -12,8 +12,16 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
+/* Follows the item on hover/press like every other cluster label, instead of
+   holding its rest colour through the engaged state. */
+.project-switcher:not(:disabled):hover .project-switcher-label,
+.project-switcher:not(:disabled):focus-visible .project-switcher-label,
+.project-switcher:not(:disabled):active .project-switcher-label {
+  color: inherit;
+}
+/* Size comes from .cluster-item .icon, so this chip's glyphs match every other
+   item's; only the shrink behaviour is the chip's own. */
 .project-switcher .icon {
-  font-size: var(--cc-font-md);
   flex: 0 0 auto;
 }
 
@@ -22,8 +30,8 @@
    The descendant selector outranks .gem-icon's own 1em sizing on specificity,
    so the size holds regardless of CSS import order. */
 .project-switcher .gem-icon {
-  width: var(--cc-font-md);
-  height: var(--cc-font-md);
+  width: var(--cc-font-sm);
+  height: var(--cc-font-sm);
   flex: 0 0 auto;
   /* Reads as the chip's icon rather than a glyph in the name: only this gap
      widens, so the name, branch pill, and affordance stay a tight cluster. */

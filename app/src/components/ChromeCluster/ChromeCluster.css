@@ -6,15 +6,15 @@
   align-items: center;
   min-width: 0;
   flex: none;
-  /* The positioning ancestor for any menu an item opens: the chrome variant of
-     SplitButton renders no wrapper of its own. */
+  /* The positioning ancestor for any panel an item opens: ScanMenu renders no
+     wrapper of its own, so its panel anchors here. */
   position: relative;
   /* border-input, not border-subtle: subtle is ~0.02 lightness off the chrome
      bar and reads as no edge at all. */
   border: 1px solid var(--cc-border-input);
   border-radius: var(--cc-radius-pill);
   background: var(--cc-bg-sidebar);
-  /* No overflow: hidden — it would clip the refresh menu at the bar. */
+  /* No overflow: hidden — it would clip the scan panel at the bar. */
 }
 
 /* The project chip's box, for every item: fixed height, width from content,
@@ -46,9 +46,10 @@
   color: var(--cc-accent-light);
   cursor: pointer;
 }
+/* The shared engaged state (see buttons.css): accent glyph on an accent fill. */
 .cluster-item--press:not(:disabled):hover {
-  color: var(--cc-text-strong);
-  background: var(--cc-overlay-bg);
+  color: var(--cc-accent);
+  background: var(--cc-accent-bg-soft);
 }
 .cluster-item:disabled {
   cursor: default;
@@ -79,8 +80,51 @@
   position: absolute;
 }
 
-/* Icons keep their own size; only the item's box is standardized. */
 .cluster-item > svg {
   display: block;
   flex: 0 0 auto;
+}
+
+/* Sized off the cluster, not the bar: icons are 1em (icons.css) and the header
+   and footer set different text sizes. Neutral, since every item is pressable
+   now and accent no longer carries the affordance. */
+.cluster-item .icon {
+  font-size: var(--cc-font-sm);
+  color: var(--cc-text-primary);
+}
+
+/* The "this opens something" glyph, on every item that has one — a popover
+   trigger or the project chip. ChevronsUpDown draws in the middle 10/24 of its
+   box, so the empty bearing on the trailing side reads as more padding there
+   than at the leading edge; pull the box back by it. */
+.cluster-cue {
+  margin-inline-end: -0.29em;
+  opacity: 0.7;
+}
+
+/* Copy feedback. Also on .icon, which carries its own colour above. */
+.cluster-item.is-copied,
+.cluster-item.is-copied .icon {
+  color: var(--cc-success);
+}
+.cluster-item.is-copied {
+  background: var(--cc-success-bg);
+}
+/* Hover, focus, press and open all read as engaged (see buttons.css). Open is
+   keyed off aria-expanded so it can't drift from the ARIA. */
+.cluster-item--press:not(:disabled):hover .icon,
+.cluster-item--press:not(:disabled):focus-visible,
+.cluster-item--press:not(:disabled):focus-visible .icon,
+.cluster-item--press:not(:disabled):active,
+.cluster-item--press:not(:disabled):active .icon,
+.cluster-item--press[aria-expanded='true'],
+.cluster-item--press[aria-expanded='true'] .icon {
+  color: var(--cc-accent);
+}
+.cluster-item--press:not(:disabled):focus-visible,
+.cluster-item--press[aria-expanded='true'] {
+  background: var(--cc-accent-bg-soft);
+}
+.cluster-item--press:not(:disabled):active {
+  background: var(--cc-accent-bg);
 }

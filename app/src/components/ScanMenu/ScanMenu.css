@@ -1,0 +1,64 @@
+/* ScanMenu — what the shared popover shell (Popover.css) doesn't cover. */
+
+/* Inside a button now, so the readout follows the item's hover colour. */
+.scan-menu-trigger:not(:disabled):hover .freshness-status-detail {
+  color: inherit;
+}
+
+/* Spans the panel on the same inset as everything else: at 21rem a centred
+   pill would float, and its edges lining up with the rows below is what keeps
+   it from reading as a stray heading. Scoped past .btn-secondary's inline-flex. */
+.popover-panel .scan-menu-action {
+  display: flex;
+  align-self: stretch;
+  width: auto;
+  margin-inline: var(--popover-inset);
+  gap: var(--cc-space-3);
+  padding-block: var(--cc-space-3);
+}
+
+/* ── Excluded from city ─────────────────────────────────────────────────
+   Rows are plain flex containers, not buttons: only the restore control is
+   clickable, so there is no row hover. */
+
+.excludes-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cc-space-1);
+  margin-top: var(--cc-space-2);
+}
+
+/* Same inset as the group head, so the per-row restore glyph lands under the
+   restore-all button rather than beside it. */
+.excludes-row {
+  display: flex;
+  align-items: center;
+  gap: var(--cc-space-2);
+  padding: var(--cc-space-2) var(--popover-inset);
+  font-size: var(--cc-font-xs);
+}
+
+/* One line that clips rather than wraps: useMiddleEllipsis measures
+   scrollWidth against clientWidth, which only diverge if the text can't wrap. */
+.excludes-path {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.excludes-seg {
+  flex: 0 0 auto;
+}
+
+.excludes-sep,
+.excludes-ellipsis {
+  flex: 0 0 auto;
+  color: var(--cc-text-muted);
+}
+
+.excludes-ellipsis {
+  padding-inline: var(--cc-space-1);
+}

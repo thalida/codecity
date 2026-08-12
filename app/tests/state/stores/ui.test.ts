@@ -1,6 +1,11 @@
 import { describe, it, expect, afterEach } from 'vitest';
 import { effect } from '@preact/signals';
-import { PROJECTS_VIEW, openProjectsView, closeProjectsView, MODAL_OPEN } from '@/state/stores/ui';
+import {
+  PROJECTS_VIEW,
+  openProjectsView,
+  closeProjectsView,
+  OVERLAY_OPEN,
+} from '@/state/stores/ui';
 import { CURRENT_SOURCE } from '@/state/stores/source';
 
 afterEach(() => {
@@ -13,10 +18,10 @@ describe('PROJECTS_VIEW', () => {
     openProjectsView({ dismissible: true });
     expect(PROJECTS_VIEW.value.visible).toBe(true);
     expect(PROJECTS_VIEW.value.opts.dismissible).toBe(true);
-    expect(MODAL_OPEN.value).toBe(true);
+    expect(OVERLAY_OPEN.value).toBe(true);
     closeProjectsView();
     expect(PROJECTS_VIEW.value.visible).toBe(false);
-    expect(MODAL_OPEN.value).toBe(false);
+    expect(OVERLAY_OPEN.value).toBe(false);
   });
 
   it('opening while a source is loaded does not self-close (closeProjectsView peeks)', () => {

@@ -1,45 +1,43 @@
-// views/ControlsPane/partials/InterfaceThemeSection.tsx — Accent + surface
-// preset pickers for the Appearance tab. Each axis is a radiogroup of color
-// swatches: one tab stop, arrow keys move focus AND selection (the WAI-ARIA
-// radio pattern). Picking one write-through-applies (autosave, no Save step).
-// A chip
-// carries the same data-cc-* attribute its preset uses, so its color resolves
-// from themes.css via var(--cc-accent) / var(--cc-bg-app) with no duplicated
-// hex. Reset is hand-rolled (ResetButton only supports keyed object stores;
-// these are scalar signals, so we stageReset with a null key like the syntax
-// picker).
+// components/SwatchRow/SwatchRow.tsx — one theme axis as a row of colour
+// swatches: a radiogroup with one tab stop, where arrow keys move focus AND
+// selection (the WAI-ARIA radio pattern).
+//
+// A chip carries the same data-cc-* attribute its preset uses, so its colour
+// resolves from themes.css with no duplicated hex. Reset is hand-rolled because
+// ResetButton only supports keyed object stores and these are scalar signals.
 
-import './InterfaceThemeSection.css';
+import './SwatchRow.css';
 import { useRef } from 'preact/hooks';
 import { RotateCcw } from 'lucide-preact';
-import { getEffective, setDraft, stageReset, DRAFTS_REV } from '@/state/settingsDrafts';
-import {
-  ACCENT_THEME,
-  ACCENT_THEME_DEFAULT,
-  ACCENT_PRESETS,
-  SURFACE_THEME,
-  SURFACE_THEME_DEFAULT,
-  SURFACE_PRESETS,
-  type ThemePresetOption,
-} from '@/state/stores/settings/theme';
+import { getEffective, setDraft, stageReset } from '@/state/settingsDrafts';
+import type { ThemePresetOption } from '@/state/stores/settings/theme';
 import { SettingRow } from '@/components/SettingRow/SettingRow';
-import { Section } from '@/components/Section/Section';
 
 interface SignalLike {
   get value(): string;
   set value(v: string);
 }
 
-interface SwatchRowProps {
+export interface SwatchRowProps {
   label: string;
   tip: string;
   axis: 'accent' | 'surface';
   store: SignalLike;
   options: ThemePresetOption[];
   defaultValue: string;
+  /** Drop the tip to hover-and-AT only (see SettingRow). */
+  compact?: boolean;
 }
 
-function SwatchRow({ label, tip, axis, store, options, defaultValue }: SwatchRowProps) {
+export function SwatchRow({
+  label,
+  tip,
+  axis,
+  store,
+  options,
+  defaultValue,
+  compact,
+}: SwatchRowProps) {
   const current = (getEffective(store, null) as string) ?? defaultValue;
   const activeIndex = Math.max(
     0,
@@ -73,8 +71,6 @@ function SwatchRow({ label, tip, axis, store, options, defaultValue }: SwatchRow
     btnRefs.current[next]?.focus();
   };
 
-  // Per-row reset lives in SettingRow's head slot (right of the label), the same
-  // place every schema-driven row's reset sits, so all tabs line up.
   const resetBtn = (
     <button
       type="button"
@@ -91,8 +87,9 @@ function SwatchRow({ label, tip, axis, store, options, defaultValue }: SwatchRow
       <RotateCcw class="icon" />
     </button>
   );
+
   return (
-    <SettingRow label={label} tip={tip} resetSlot={resetBtn}>
+    <SettingRow label={label} tip={tip} compact={compact} resetSlot={resetBtn}>
       <span class="swatch-group" role="radiogroup" aria-label={label} onKeyDown={onKeyDown}>
         {options.map((opt, i) => {
           const checked = opt.value === current;
@@ -122,40 +119,5 @@ function SwatchRow({ label, tip, axis, store, options, defaultValue }: SwatchRow
         })}
       </span>
     </SettingRow>
-  );
-}
-
-export function InterfaceThemeSection() {
-  void DRAFTS_REV.value; // re-render on write-through / reset
-  const accentDiffers = getEffective(ACCENT_THEME, null) !== ACCENT_THEME_DEFAULT;
-  const surfaceDiffers = getEffective(SURFACE_THEME, null) !== SURFACE_THEME_DEFAULT;
-  return (
-    <Section
-      name="Interface theme"
-      defaultOpen
-      onReset={() => {
-        stageReset(ACCENT_THEME, null);
-        stageReset(SURFACE_THEME, null);
-      }}
-      resetEnabled={accentDiffers || surfaceDiffers}
-      resetTitle="Reset interface theme to defaults"
-    >
-      <SwatchRow
-        label="Accent"
-        tip="Accent color for buttons, links, and highlights; applies immediately."
-        axis="accent"
-        store={ACCENT_THEME}
-        options={ACCENT_PRESETS}
-        defaultValue={ACCENT_THEME_DEFAULT}
-      />
-      <SwatchRow
-        label="Surface"
-        tip="Background palette for panels and chrome; applies immediately."
-        axis="surface"
-        store={SURFACE_THEME}
-        options={SURFACE_PRESETS}
-        defaultValue={SURFACE_THEME_DEFAULT}
-      />
-    </Section>
   );
 }

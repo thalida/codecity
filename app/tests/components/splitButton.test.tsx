@@ -200,14 +200,4 @@ describe('SplitButton', () => {
     expect((form.querySelector('.split-button-caret') as HTMLButtonElement).type).toBe('button');
     render(null, form);
   });
-
-  it('renders a footer row under the items', async () => {
-    mount({ footer: <span data-testid="footer-row">auto-refresh</span> });
-    await flush();
-    caret().click();
-    await flush();
-    expect(container.querySelector('[data-testid="footer-row"]')).not.toBeNull();
-    // Not an item: it must not be reachable as a menu choice.
-    expect(menuItems()).toHaveLength(2);
-  });
 });

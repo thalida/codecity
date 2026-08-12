@@ -24,6 +24,9 @@ export interface SettingRowProps {
   /** One-line description, shown inline under the control and as the hover
    *  title. Omit for controls that need no explanation. */
   tip?: string;
+  /** Drop the tip to hover-and-AT only. For rows in a popover, where a
+   *  paragraph under every control outweighs the controls. */
+  compact?: boolean;
   /** Toggle/color sit on the head row (a full-width control would look odd);
    *  everything else stacks the control full-width below the head row. */
   inline?: boolean;
@@ -47,6 +50,7 @@ export interface SettingRowProps {
 export function SettingRow({
   label,
   tip,
+  compact,
   inline,
   descId,
   htmlFor,
@@ -59,18 +63,25 @@ export function SettingRow({
   const reset =
     resetSlot ??
     (store && keys && keys.length > 0 ? <ResetButton store={store} keys={keys} /> : null);
+  // A <label> only where there's a control to point it at. Without `for` it
+  // implicitly labels its first labelable descendant — which is the reset
+  // button, so the row's text named the reset and hovering anywhere in the row
+  // forwarded :hover to it.
+  const Main = htmlFor ? 'label' : 'div';
   return (
     <div class={inline ? 'setting-row setting-row--inline' : 'setting-row'}>
-      <label class="setting-row-main" htmlFor={htmlFor} title={fullTip}>
+      <Main class="setting-row-main" htmlFor={htmlFor} title={fullTip}>
         <span class="setting-row-head">
           <span class="setting-row-label">{label}</span>
           {inline && <span class="setting-row-control">{children}</span>}
           {reset}
         </span>
         {!inline && <span class="setting-row-control">{children}</span>}
-      </label>
+      </Main>
+      {/* Compact keeps the tip for the hover title and aria-describedby, and
+          drops only the visible block. */}
       {tip && (
-        <span class="setting-row-desc" id={descId}>
+        <span class={compact ? 'sr-only' : 'setting-row-desc'} id={descId}>
           {tip}
         </span>
       )}

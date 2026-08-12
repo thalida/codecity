@@ -89,6 +89,18 @@ describe('AppHeader', () => {
     expect(freshness.classList.contains('chrome-cluster')).toBe(true);
   });
 
+  // The trigger and its panel are siblings, so the cluster's dividers and
+  // end-rounding still apply to the trigger; a wrapper would break both.
+  it('makes the readout a direct child of the cluster, not a wrapped one', async () => {
+    loadProject();
+    render(<AppHeader />, container);
+    await flush();
+
+    const cluster = container.querySelector('.app-header-freshness')!;
+    const trigger = cluster.querySelector('.scan-menu-trigger')!;
+    expect(trigger.parentElement).toBe(cluster);
+  });
+
   it('groups the project controls in one outlined cluster', async () => {
     loadProject();
     render(<AppHeader />, container);
@@ -99,28 +111,27 @@ describe('AppHeader', () => {
     expect(cluster.querySelector('[aria-label="Copy repo source"]')).not.toBeNull();
   });
 
-  it('puts the default on the button and only the alternative in the menu', async () => {
+  it('puts the default on the button and only the alternative in the panel', async () => {
     loadProject();
     const onRefresh = vi.fn();
     render(<AppHeader onRefresh={onRefresh} />, container);
     await flush();
 
     // Glyph only in the bar, so the accessible name is the whole label.
-    const primary = container.querySelector<HTMLButtonElement>('.split-button-primary')!;
-    expect(primary.getAttribute('aria-label')).toBe('Refresh');
-    expect(primary.textContent).toBe('');
-    primary.click();
+    const refresh = container.querySelector<HTMLButtonElement>('[aria-label="Refresh"]')!;
+    expect(refresh.textContent).toBe('');
+    refresh.click();
     expect(onRefresh).toHaveBeenCalledWith(false);
 
-    // The menu carries what the button isn't, and never repeats it.
-    container.querySelector<HTMLButtonElement>('.split-button-caret')!.click();
+    // The panel carries what the button isn't, and never repeats it.
+    container.querySelector<HTMLButtonElement>('.scan-menu-trigger')!.click();
     await flush();
-    const items = Array.from(container.querySelectorAll<HTMLElement>('[role="menuitem"]'));
-    expect(items.map((el) => el.querySelector('.split-button-item-label')?.textContent)).toEqual([
-      'Fresh scan',
-    ]);
+    const actions = Array.from(
+      container.querySelectorAll<HTMLElement>('.popover-panel .scan-menu-action')
+    );
+    expect(actions.map((el) => el.textContent?.trim())).toEqual(['Fresh scan']);
 
-    items[0].click();
+    actions[0].click();
     expect(onRefresh).toHaveBeenCalledWith(true);
   });
 

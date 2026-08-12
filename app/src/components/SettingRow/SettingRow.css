@@ -51,10 +51,13 @@
   width: 100%;
 }
 
-/* Inline kinds (toggle, color): control sits on the head row, pinned right
- * before the reset icon; no full-width control follows. */
+/* Inline kinds (toggle, color, select): control sits on the head row, pinned
+ * right before the reset icon; no full-width control follows. Shrinkable, since
+ * a <select> is as wide as its longest option and would otherwise run over the
+ * label rather than give ground. */
 .setting-row--inline .setting-row-head > .setting-row-control {
-  flex: 0 0 auto;
+  flex: 0 1 auto;
+  min-width: 0;
   margin-left: auto;
 }
 

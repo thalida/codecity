@@ -31,7 +31,7 @@ export function ProjectSwitcher({ rootLabel, branch, onSwitchSource }: ProjectSw
       <GemIcon />
       {rootLabel && <span class="project-switcher-label">{rootLabel}</span>}
       {branch && <span class="app-header-branch-pill">@{branch}</span>}
-      <ChevronsUpDown class="icon project-switcher-cue" />
+      <ChevronsUpDown class="icon cluster-cue" aria-hidden="true" />
     </button>
   );
 }
