@@ -81,22 +81,45 @@ export function createFireflyRenderer(orbs: FireflyPlacement[]): FireflyRenderer
     vertexColors: true,
   });
 
-  // Orbs are split into fixed-size chunks of instances (see
-  // utils/instanceChunkSize.ts — one huge instanced draw corrupts on some
-  // mobile drivers). Each chunk carries its own geometry because the orbit
-  // params are per-instance attributes on it; the material is shared.
+  // Orbs are split into chunks of instances (see utils/instanceChunkSize.ts).
+  // Each chunk carries its own geometry because the orbit params are
+  // per-instance attributes on it; the material is shared.
+  //
+  // Chunk membership is SPATIAL (coarse grid tiles) so each chunk covers a
+  // compact region and per-chunk frustum culling drops off-screen orbs —
+  // load-bearing on mobile drivers that corrupt when fed masses of
+  // far-out-of-frustum instances (see treeRenderer for the full story).
   const chunkSize = instanceChunkSize();
+  const SPATIAL_TILE = 256;
+  const spatialOrder = new Array<number>(orbs.length);
+  for (let i = 0; i < orbs.length; i++) spatialOrder[i] = i;
+  spatialOrder.sort((a, b) => {
+    const az = Math.floor(orbs[a].treeZ / SPATIAL_TILE);
+    const bz = Math.floor(orbs[b].treeZ / SPATIAL_TILE);
+    if (az !== bz) return az - bz;
+    const ax = Math.floor(orbs[a].treeX / SPATIAL_TILE);
+    const bx = Math.floor(orbs[b].treeX / SPATIAL_TILE);
+    if (ax !== bx) return ax - bx;
+    return a - b;
+  });
   const dummy = new THREE.Object3D();
   const color = new THREE.Color();
   // Full-scale matrix per ORB index, kept so setScrubCommit can restore a
   // gated-out orb without recomputing it.
   const fullMatrix = new Array<THREE.Matrix4>(orbs.length);
-  // Parallel arrays: meshes[c] renders orbs [chunkStart[c], chunkStart[c]+count).
+  // Parallel arrays: meshes[c]'s slot k renders orb chunkOrders[c][k]. The
+  // culling sphere is the instance sphere inflated by the chunk's worst-case
+  // shader-side displacement (orbit radius + bob), re-inflated on refresh()
+  // when the bob amplitude changes.
   const meshes: THREE.InstancedMesh[] = [];
-  const chunkStarts: number[] = [];
+  const chunkOrders: number[][] = [];
+  const chunkBaseRadius: number[] = [];
+  const chunkMaxOrbit: number[] = [];
 
   for (let start = 0; start < orbs.length; start += chunkSize) {
     const len = Math.min(chunkSize, orbs.length - start);
+    const chunkOrder = new Array<number>(len);
+    for (let k = 0; k < len; k++) chunkOrder[k] = spatialOrder[start + k];
     const geometry = new THREE.IcosahedronGeometry(1.0, 2);
 
     // Per-instance bob phase + pulse phase + orbit params for this chunk.
@@ -106,8 +129,10 @@ export function createFireflyRenderer(orbs: FireflyPlacement[]): FireflyRenderer
     const orbitStartAngleArray = new Float32Array(len);
     const orbitTiltArray = new Float32Array(len);
     const commitIndexArray = new Float32Array(len);
+    let maxWorldOrbit = 0;
     for (let k = 0; k < len; k++) {
-      const o = orbs[start + k];
+      const o = orbs[chunkOrder[k]];
+      if (o.orbitRadius > maxWorldOrbit) maxWorldOrbit = o.orbitRadius;
       phaseArray[k] = o.phase;
       pulsePhaseArray[k] = o.pulsePhase;
       // orbitRadius is the world-space target radius. The instance matrix
@@ -133,19 +158,15 @@ export function createFireflyRenderer(orbs: FireflyPlacement[]): FireflyRenderer
 
     const mesh = new THREE.InstancedMesh(geometry, material, len);
     mesh.name = FIREFLY_ORBS_MESH;
-    // Culling is disabled because the shader-side y-bob shifts vertices
-    // outside the mesh's bounding sphere, which would otherwise cause
-    // three.js to cull instances mid-bob.
-    mesh.frustumCulled = false;
     mesh.renderOrder = RENDER_ORDERS.FIREFLIES;
 
     for (let k = 0; k < len; k++) {
-      const o = orbs[start + k];
+      const o = orbs[chunkOrder[k]];
       dummy.position.set(o.treeX, o.height, o.treeZ);
       dummy.scale.setScalar(o.scale);
       dummy.updateMatrix();
       mesh.setMatrixAt(k, dummy.matrix);
-      fullMatrix[start + k] = dummy.matrix.clone();
+      fullMatrix[chunkOrder[k]] = dummy.matrix.clone();
       // rgb values from FireflyPlacement are already linear-RGB (0..1).
       // Pass LinearSRGBColorSpace explicitly so three.js skips any
       // working-color-space conversion that would double-apply gamma.
@@ -155,9 +176,18 @@ export function createFireflyRenderer(orbs: FireflyPlacement[]): FireflyRenderer
     mesh.instanceMatrix.needsUpdate = true;
     if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
 
+    // Culling sphere: instance sphere + the shader-side displacement the
+    // matrices don't know about (orbit radius in XZ/tilt, bob in Y).
+    mesh.computeBoundingSphere();
+    const baseRadius = mesh.boundingSphere ? mesh.boundingSphere.radius : 0;
+    if (mesh.boundingSphere)
+      mesh.boundingSphere.radius = baseRadius + maxWorldOrbit + uBobAmp.value;
+
     group.add(mesh);
     meshes.push(mesh);
-    chunkStarts.push(start);
+    chunkOrders.push(chunkOrder);
+    chunkBaseRadius.push(baseRadius);
+    chunkMaxOrbit.push(maxWorldOrbit);
   }
 
   const ZERO_SCALE_MATRIX = new THREE.Matrix4().makeScale(0, 0, 0);
@@ -183,10 +213,10 @@ export function createFireflyRenderer(orbs: FireflyPlacement[]): FireflyRenderer
       if (maxCommitIndex === _scrubCommit) return;
       for (let c = 0; c < meshes.length; c++) {
         const mesh = meshes[c];
-        const start = chunkStarts[c];
+        const chunkOrder = chunkOrders[c];
         let changed = false;
         for (let k = 0; k < mesh.count; k++) {
-          const i = start + k;
+          const i = chunkOrder[k];
           const wasVisible = scrubVisible(orbs[i].commitIndex, _scrubCommit);
           const nowVisible = scrubVisible(orbs[i].commitIndex, maxCommitIndex);
           if (wasVisible === nowVisible) continue;
@@ -206,6 +236,11 @@ export function createFireflyRenderer(orbs: FireflyPlacement[]): FireflyRenderer
       uOrbitSpeed.value = next.ORBIT_SPEED;
       uEmission.value = next.EMISSION_STRENGTH;
       uFlicker.value = next.FLICKER_AMOUNT;
+      // Bob amplitude feeds the culling spheres — re-inflate on change.
+      for (let c = 0; c < meshes.length; c++) {
+        const sphere = meshes[c].boundingSphere;
+        if (sphere) sphere.radius = chunkBaseRadius[c] + chunkMaxOrbit[c] + next.BOB_AMPLITUDE;
+      }
     },
     dispose() {
       material.dispose();

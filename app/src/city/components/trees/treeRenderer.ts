@@ -323,12 +323,30 @@ export function createTreeRenderer(
     { mesh: THREE.InstancedMesh; instanceId: number; commit: CommitEntry }
   >();
 
-  // Canopies + trunks are split into fixed-size chunks of instances (see
-  // utils/instanceChunkSize.ts — one huge instanced draw corrupts on some
-  // mobile drivers). Instance slot k of a chunk renders placement
+  // Canopies + trunks are split into chunks of instances (see
+  // utils/instanceChunkSize.ts). Instance slot k of a chunk renders placement
   // placementOrder[k]; commitForInstance reads that map generically, so the
   // picker never learns about chunking.
+  //
+  // Chunk membership is SPATIAL (coarse grid tiles), not placement order, so
+  // each chunk covers a compact region and per-chunk frustum culling drops
+  // off-screen forest. That culling is load-bearing on mobile: submitting
+  // masses of far-out-of-frustum instances is what distinguished the two
+  // flickering components (trees, fireflies — culling off) from the clean one
+  // (buildings — culled per cell) on the Xclipse driver.
   const chunkSize = instanceChunkSize();
+  const SPATIAL_TILE = 256;
+  const spatialOrder = new Array<number>(totalTrees);
+  for (let i = 0; i < totalTrees; i++) spatialOrder[i] = i;
+  spatialOrder.sort((a, b) => {
+    const az = Math.floor(placements[a].y / SPATIAL_TILE);
+    const bz = Math.floor(placements[b].y / SPATIAL_TILE);
+    if (az !== bz) return az - bz;
+    const ax = Math.floor(placements[a].x / SPATIAL_TILE);
+    const bx = Math.floor(placements[b].x / SPATIAL_TILE);
+    if (ax !== bx) return ax - bx;
+    return a - b;
+  });
   const canopyGeometry = buildCanopyGeometry();
   bakeVertexShading(canopyGeometry, cfg.SHADING_STRENGTH);
 
@@ -343,14 +361,14 @@ export function createTreeRenderer(
 
   for (let start = 0; start < totalTrees; start += chunkSize) {
     const len = Math.min(chunkSize, totalTrees - start);
-    // Chunk slot k ↔ placement start+k, shared by the canopy + trunk pair.
+    // Chunk slot k ↔ placement spatialOrder[start+k], shared by the canopy +
+    // trunk pair.
     const placementOrder = new Array<number>(len);
-    for (let k = 0; k < len; k++) placementOrder[k] = start + k;
+    for (let k = 0; k < len; k++) placementOrder[k] = spatialOrder[start + k];
 
     const canopyMesh = new THREE.InstancedMesh(canopyGeometry, canopyMaterial, len);
     canopyMesh.name = 'tree-canopy';
     canopyMesh.renderOrder = RENDER_ORDERS.PARK_FOLIAGE;
-    canopyMesh.frustumCulled = false;
     canopyMesh.visible = cfg.ENABLED;
     canopyMesh.userData.meshKind = 'tree-canopy';
     canopyMesh.userData.placementOrder = placementOrder;
@@ -358,13 +376,12 @@ export function createTreeRenderer(
     const trunkMesh = new THREE.InstancedMesh(trunkGeometry, trunkMaterial, len);
     trunkMesh.name = 'tree-trunk';
     trunkMesh.renderOrder = RENDER_ORDERS.PARK_FOLIAGE;
-    trunkMesh.frustumCulled = false;
     trunkMesh.visible = cfg.ENABLED;
     trunkMesh.userData.meshKind = 'tree-trunk';
     trunkMesh.userData.placementOrder = placementOrder;
 
     for (let k = 0; k < len; k++) {
-      const i = start + k;
+      const i = placementOrder[k];
       const p = placements[i];
       const h = heights[i];
       const r = radii[i];
@@ -401,6 +418,12 @@ export function createTreeRenderer(
     canopyMesh.instanceMatrix.needsUpdate = true;
     if (canopyMesh.instanceColor) canopyMesh.instanceColor.needsUpdate = true;
     trunkMesh.instanceMatrix.needsUpdate = true;
+
+    // Per-chunk instanced bounding sphere → real frustum culling. Trees are
+    // static, so the sphere computed from the instance matrices is exact
+    // (scrub only ever zero-scales instances, shrinking the content).
+    canopyMesh.computeBoundingSphere();
+    trunkMesh.computeBoundingSphere();
 
     canopyMeshes.push(canopyMesh);
     trunkMeshes.push(trunkMesh);
