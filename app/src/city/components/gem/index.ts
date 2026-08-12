@@ -48,6 +48,11 @@ function _setPaletteColor(
 
 type GemBody = THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial>;
 type GemEdges = THREE.LineSegments<THREE.BufferGeometry, THREE.LineBasicMaterial>;
+type GlowQuad = THREE.Mesh<THREE.PlaneGeometry, THREE.MeshBasicMaterial>;
+
+// Scratch for the per-frame glow-quad billboarding (see tick()).
+const _glowQuat = new THREE.Quaternion();
+const _Y_AXIS = new THREE.Vector3(0, 1, 0);
 
 export interface Gem extends SceneComponent {
   /** Build (or rebuild) the inner gem for `street`; disposes the prior one. */
@@ -68,8 +73,8 @@ export function createGem(ctx: SceneContext): Gem {
   let gem: THREE.Group | null = null;
   let body: GemBody | null = null;
   let edges: GemEdges | null = null;
-  let innerGlow: THREE.Sprite | null = null;
-  let outerGlow: THREE.Sprite | null = null;
+  let innerGlow: GlowQuad | null = null;
+  let outerGlow: GlowQuad | null = null;
 
   // Gem meshes don't share materials, so disposeObject3D's sharedMaterial
   // guard is a no-op here and each mesh's material disposes normally.
@@ -89,8 +94,8 @@ export function createGem(ctx: SceneContext): Gem {
     gem = inner;
     body = (inner?.userData.body as GemBody) ?? null;
     edges = (inner?.userData.edges as GemEdges) ?? null;
-    innerGlow = (inner?.userData.innerGlowSprite as THREE.Sprite | null) ?? null;
-    outerGlow = (inner?.userData.outerGlowSprite as THREE.Sprite | null) ?? null;
+    innerGlow = (inner?.userData.innerGlow as GlowQuad | null) ?? null;
+    outerGlow = (inner?.userData.outerGlow as GlowQuad | null) ?? null;
 
     if (inner) group.add(inner);
   }
@@ -160,12 +165,12 @@ export function createGem(ctx: SceneContext): Gem {
       if (inner) {
         inner.visible = gemAppearance.GLOW_ENABLED;
         inner.scale.set(r * gemAppearance.GLOW_INNER_SCALE, r * gemAppearance.GLOW_INNER_SCALE, 1);
-        (inner.material as THREE.SpriteMaterial).opacity = gemAppearance.GLOW_INNER_OPACITY;
+        inner.material.opacity = gemAppearance.GLOW_INNER_OPACITY;
       }
       if (outer) {
         outer.visible = gemAppearance.GLOW_ENABLED;
         outer.scale.set(r * gemAppearance.GLOW_OUTER_SCALE, r * gemAppearance.GLOW_OUTER_SCALE, 1);
-        (outer.material as THREE.SpriteMaterial).opacity = gemAppearance.GLOW_OUTER_OPACITY;
+        outer.material.opacity = gemAppearance.GLOW_OUTER_OPACITY;
       }
     }
   });
@@ -198,28 +203,32 @@ export function createGem(ctx: SceneContext): Gem {
     const inner = innerGlow;
     const outer = outerGlow;
     if (inner || outer) {
+      // Face the camera. The quads are children of the spinning gem group,
+      // so the local orientation is the group's Y-spin undone, then the
+      // camera's world orientation (the group's parents don't rotate).
+      _glowQuat.setFromAxisAngle(_Y_AXIS, -gem.rotation.y).multiply(frame.camera.quaternion);
+      if (inner) inner.quaternion.copy(_glowQuat);
+      if (outer) outer.quaternion.copy(_glowQuat);
       if (gemCfg.GLOW_ANIMATE_COLORS) {
         // Memoized computed — cached array, zero per-frame parsing/allocation.
         const colors = gemFaceColors.value;
         const period = Math.max(0.001, gemCfg.GLOW_CYCLE_PERIOD_SECONDS);
-        if (inner)
-          _setPaletteColor((inner.material as THREE.SpriteMaterial).color, colors, t, period, 0);
-        if (outer)
-          _setPaletteColor((outer.material as THREE.SpriteMaterial).color, colors, t, period, 0.5);
+        if (inner) _setPaletteColor(inner.material.color, colors, t, period, 0);
+        if (outer) _setPaletteColor(outer.material.color, colors, t, period, 0.5);
       } else {
         const edge = gemCfg.EDGE_COLOR;
-        if (inner) (inner.material as THREE.SpriteMaterial).color.set(edge);
-        if (outer) (outer.material as THREE.SpriteMaterial).color.set(edge);
+        if (inner) inner.material.color.set(edge);
+        if (outer) outer.material.color.set(edge);
       }
-      // HDR push for selective gem bloom. Sprite color was just set
+      // HDR push for selective gem bloom. Halo color was just set
       // to an LDR palette value; multiplying scales it past 1.0 in
       // linear space so the bloom pass picks it up. 1.0 = no bloom from
       // gem; higher = more. GEM.GLOW_EMISSION supplies the level, gated on
       // BLOOM.ENABLED so the "flat" comparison mode skips the HDR push.
       const gemEmission = BLOOM.value.ENABLED ? gemCfg.GLOW_EMISSION : 1.0;
       if (gemEmission !== 1) {
-        if (inner) (inner.material as THREE.SpriteMaterial).color.multiplyScalar(gemEmission);
-        if (outer) (outer.material as THREE.SpriteMaterial).color.multiplyScalar(gemEmission);
+        if (inner) inner.material.color.multiplyScalar(gemEmission);
+        if (outer) outer.material.color.multiplyScalar(gemEmission);
       }
     }
   }

@@ -150,11 +150,14 @@ export function createRootGem(street: Street): THREE.Group {
     new THREE.LineBasicMaterial({ color: new THREE.Color(edgeColor) })
   );
 
-  // Neon glow: two billboarded sprites stacked behind the gem with a
-  // soft radial-gradient alpha texture. Sprites always face the camera
-  // so the glow reads consistently from any angle. Additive blending
-  // makes the bright center clip toward white where it overlaps the
-  // colored gem, mimicking a real light source. Sizes are world units
+  // Neon glow: two billboarded quads stacked behind the gem with a soft
+  // radial-gradient alpha texture. Plain PlaneGeometry meshes, NOT
+  // THREE.Sprite: the sprite pipeline is a specialized GPU path that some
+  // mobile drivers corrupt (screen-covering flashes in the halo's palette
+  // colors); a vanilla mesh takes the same draw path as every building.
+  // createGem's tick() orients them at the camera each frame. Additive
+  // blending makes the bright center clip toward white where it overlaps
+  // the colored gem, mimicking a real light source. Sizes are world units
   // (radius × INNER/OUTER_SCALE) so the halo scales with the gem.
   //
   // Two layers:
@@ -167,8 +170,10 @@ export function createRootGem(street: Street): THREE.Group {
   const gem = new THREE.Group();
   const glowCfg = GEM.value;
   const glowTex = _makeGlowTexture();
-  const innerGlowSprite = new THREE.Sprite(
-    new THREE.SpriteMaterial({
+  const glowQuadGeo = new THREE.PlaneGeometry(1, 1);
+  const innerGlow = new THREE.Mesh(
+    glowQuadGeo,
+    new THREE.MeshBasicMaterial({
       map: glowTex,
       color: new THREE.Color(edgeColor),
       transparent: true,
@@ -183,18 +188,15 @@ export function createRootGem(street: Street): THREE.Group {
       depthTest: true,
     })
   );
-  innerGlowSprite.scale.set(
-    radius * glowCfg.GLOW_INNER_SCALE,
-    radius * glowCfg.GLOW_INNER_SCALE,
-    1
-  );
-  innerGlowSprite.visible = glowCfg.GLOW_ENABLED;
-  // Glow is purely visual — never absorbs hover / click. Sprites are
+  innerGlow.scale.set(radius * glowCfg.GLOW_INNER_SCALE, radius * glowCfg.GLOW_INNER_SCALE, 1);
+  innerGlow.visible = glowCfg.GLOW_ENABLED;
+  // Glow is purely visual — never absorbs hover / click. Meshes are
   // raycast-pickable by default, so override with a no-op.
-  innerGlowSprite.raycast = () => {};
+  innerGlow.raycast = () => {};
 
-  const outerGlowSprite = new THREE.Sprite(
-    new THREE.SpriteMaterial({
+  const outerGlow = new THREE.Mesh(
+    glowQuadGeo,
+    new THREE.MeshBasicMaterial({
       map: glowTex,
       color: new THREE.Color(edgeColor),
       transparent: true,
@@ -202,28 +204,24 @@ export function createRootGem(street: Street): THREE.Group {
       blending: THREE.AdditiveBlending,
       depthWrite: false,
       // Depth test OFF on the OUTER halo only: this big atmospheric
-      // sprite extends far enough that the island silhouette slices it
+      // quad extends far enough that the island silhouette slices it
       // in a harsh line at low camera angles when depth-tested. It's
       // dim/diffuse enough that the canopy bleed-through (the reason
-      // depth-test is ON for the inner sprite) is barely visible here.
-      // The inner sprite keeps depthTest: true so the bright core still
+      // depth-test is ON for the inner quad) is barely visible here.
+      // The inner quad keeps depthTest: true so the bright core still
       // gets occluded behind buildings/trees correctly.
       depthTest: false,
     })
   );
-  outerGlowSprite.scale.set(
-    radius * glowCfg.GLOW_OUTER_SCALE,
-    radius * glowCfg.GLOW_OUTER_SCALE,
-    1
-  );
-  outerGlowSprite.visible = glowCfg.GLOW_ENABLED;
-  outerGlowSprite.raycast = () => {};
+  outerGlow.scale.set(radius * glowCfg.GLOW_OUTER_SCALE, radius * glowCfg.GLOW_OUTER_SCALE, 1);
+  outerGlow.visible = glowCfg.GLOW_ENABLED;
+  outerGlow.raycast = () => {};
 
   // Draw outer halo first (largest, softest), then inner, then the
   // opaque body, then the edges. The additive layers blend cumulatively
   // beneath the body's colored faces.
-  gem.add(outerGlowSprite);
-  gem.add(innerGlowSprite);
+  gem.add(outerGlow);
+  gem.add(innerGlow);
   gem.add(body);
   gem.add(edges);
   gem.position.set(gemX, hoverY, gemZ);
@@ -238,11 +236,10 @@ export function createRootGem(street: Street): THREE.Group {
   // shifts depending on whether the glow sprites are also children.
   gem.userData.body = body;
   gem.userData.edges = edges;
-  // Glow sprite refs for theme updates on Save and per-frame color
-  // cycling. Either may be null when the host can't build a gradient
-  // texture (jsdom test env).
-  gem.userData.innerGlowSprite = innerGlowSprite;
-  gem.userData.outerGlowSprite = outerGlowSprite;
+  // Glow quad refs for theme updates on Save, per-frame color cycling,
+  // and the per-frame camera-facing orientation.
+  gem.userData.innerGlow = innerGlow;
+  gem.userData.outerGlow = outerGlow;
 
   group.add(gem);
   group.userData.gem = gem;
