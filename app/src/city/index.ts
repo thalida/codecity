@@ -48,8 +48,21 @@ export async function createCity(canvas: HTMLCanvasElement, manifest: Manifest):
   // (early for cached responses) needs the registered renderer to upload the
   // texture layer; without it the panel ramps iTextureFade but samples an
   // unwritten layer and renders transparent.
-  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false });
-  renderer.setPixelRatio(window.devicePixelRatio || 1);
+  // antialias OFF: every scene pixel goes through the EffectComposer's
+  // offscreen HDR targets, so the canvas only ever receives a fullscreen
+  // quad — default-framebuffer MSAA antialiases nothing yet allocates a
+  // 4x multisample buffer. On high-DPR phones that pressure makes Adreno/
+  // Mali drop tile memory mid-frame (whole-frame garbage flicker).
+  const renderer = new THREE.WebGLRenderer({
+    canvas,
+    antialias: false,
+    alpha: false,
+    powerPreference: 'high-performance',
+  });
+  // Pixel-ratio cap for the same reason: phones report 3–3.5x, which cubes
+  // the fp16 composer buffers past what their GPUs sustain. 2x matches
+  // desktop retina; smoothing comes from that supersampling, not MSAA.
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
   renderer.setSize(canvas.clientWidth, canvas.clientHeight, false);
   registerFacadePanelRenderer(renderer);
 
