@@ -27,9 +27,9 @@
   background: var(--cc-accent-bg-strong);
 }
 
-/* COARSE_POINTER_QUERY: a 6px drag zone is unhittable by thumb, and it sits in
-   the swipe path along the screen edge. */
-@media (hover: none) and (pointer: coarse) {
+/* Unhittable by thumb and in the screen-edge swipe path (COARSE_POINTER_QUERY);
+   nothing to drag once the sidebars are viewport-width drawers (PHONE_MAX_PX). */
+@media (hover: none) and (pointer: coarse), (max-width: 640px) {
   .resize-handle {
     display: none;
   }

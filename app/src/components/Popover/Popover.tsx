@@ -1,22 +1,17 @@
 // components/Popover/Popover.tsx — a chrome-bar item that opens a panel of
-// controls: the header's scan menu, the footer's appearance menu.
-//
-// Non-modal and backdrop-free, because these panels change the city behind
-// them. role="dialog" rather than menu — they mix actions with form controls,
-// and a menu takes only menuitems.
-//
-// Renders no wrapper: the trigger has to be a direct child of the chrome
-// cluster for its dividers and end-rounding to apply, so the trigger and the
-// panel are siblings and the cluster is the panel's positioning ancestor.
+// controls. Anchored it is non-modal (the panel changes the city behind it);
+// as a phone sheet it takes a scrim. Renders no wrapper: the trigger must be a
+// direct child of the cluster, which is therefore the panel's offset parent.
 
 import './Popover.css';
 import { ChevronsUpDown } from 'lucide-preact';
 import type { ComponentChildren } from 'preact';
 import { useSignal, type Signal } from '@preact/signals';
-import { useCallback, useLayoutEffect, useRef, useState } from 'preact/hooks';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
 import { CLUSTER_ITEM_PRESS } from '@/components/ChromeCluster/ChromeCluster';
 import { useDismissable } from '@/hooks/useDismissable';
 import { IS_PHONE } from '@/state/stores/viewport';
+import { SIDEBAR_COLLAPSED } from '@/state/stores/ui';
 
 /** Which edge of the trigger the panel grows from, and which end it aligns to.
  *  A bar at the bottom of the window can only open upward. */
@@ -102,6 +97,12 @@ export function Popover({
   );
   useDismissable(open, [triggerRef, panelRef], close);
 
+  // A sheet covers the drawer it would sit on, so the two never stack. The
+  // other order needs nothing: a tap on the rail is an outside press already.
+  useEffect(() => {
+    if (open && IS_PHONE.peek()) SIDEBAR_COLLAPSED.value = true;
+  }, [open]);
+
   // The panel's offset parent is the whole chrome cluster, so without this every
   // item in a cluster opens its panel at the same place. Measured rather than
   // declared: the trigger's position depends on which siblings rendered.
@@ -136,6 +137,10 @@ export function Popover({
             mean "opens" on both bars. Same glyph the project chip uses. */}
         <ChevronsUpDown class="icon cluster-cue" aria-hidden="true" />
       </button>
+
+      {/* Sheet-only (CSS). Not a control: useDismissable already closes on a
+          press outside, and the panel's grip is the labelled way out. */}
+      {open && <div class="popover-scrim" aria-hidden="true" />}
 
       {open && (
         <div

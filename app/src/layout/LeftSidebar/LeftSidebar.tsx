@@ -200,15 +200,6 @@ export function LeftSidebar() {
       widthSignal={LEFT_SIDEBAR_WIDTH}
     >
       <ActivityBar activeTab={tab} collapsed={effectiveCollapsed} onIconClick={onIconClick} />
-      {/* Phone-only by CSS: the drawer covers the city, so a tap there closes. */}
-      {!effectiveCollapsed && (
-        <button
-          type="button"
-          class="sidebar-scrim"
-          aria-label="Close panel"
-          onClick={onPaneClose}
-        />
-      )}
       <div class="pane">
         {tab === SidebarTab.Explore && (
           <ExplorePane

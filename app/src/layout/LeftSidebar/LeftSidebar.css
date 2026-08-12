@@ -40,11 +40,6 @@
   display: none;
 }
 
-/* Drawer-only; the phone block at the end of this file gives it geometry. */
-.sidebar-scrim {
-  display: none;
-}
-
 /* Activity bar splits into two nested flex columns: a top group that
  * stacks from the top and a bottom group that pins to the bottom. The
  * outer bar's `justify-content: space-between` pushes the two groups
@@ -172,34 +167,26 @@
     min-width: var(--cc-rail-w);
   }
 
-  /* Over the right sidebar (100), a drawer here too: this one is opened by a
-     deliberate tap. overflow, because the drawer hangs outside the rail's box. */
+  /* overflow, because the drawer hangs outside the rail's box. */
   #left-sidebar {
-    z-index: 110;
     overflow: visible;
   }
 
-  /* Anchored to the rail — the sidebar is the nearest positioned ancestor, and
-     it already spans the row. The trailing gap matches the right drawer's. */
+  /* Only while its pane is open does this outrank the right drawer (100). Rail
+     alone stays under, or it would paint over a full-width selection pane. */
+  #left-sidebar:not(.is-collapsed) {
+    z-index: 110;
+  }
+
+  /* Beside the rail and out to the far edge: the rail is this pane's own
+     navigation, so it stays reachable while the pane is open. */
   #left-sidebar > .pane {
     position: absolute;
     top: 0;
     bottom: 0;
     left: 100%;
-    width: calc(100vw - var(--cc-rail-w) - var(--cc-space-9));
+    width: calc(100vw - var(--cc-rail-w));
     background: var(--cc-bg-sidebar);
     z-index: 2;
-  }
-
-  /* Runs to the far edge, so the gap beside the drawer closes it too. */
-  .sidebar-scrim {
-    display: block;
-    position: absolute;
-    top: 0;
-    bottom: 0;
-    left: 100%;
-    width: calc(100vw - var(--cc-rail-w));
-    z-index: 1;
-    background: var(--cc-bg-backdrop);
   }
 }
