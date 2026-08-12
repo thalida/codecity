@@ -1,19 +1,10 @@
-// constants/buildings.ts — Default per-extension building hues.
-//
-// This is the DEFAULT for the (still user-tunable) BUILDINGS.HUE_EXT_MAP field —
-// extracted here so the settings store stays lean. Hue (0–359°) is picked to
-// match the standout color of the file's icon in Material Icon Theme: the color
-// you see on the file's pill/glyph is the hue the building ramps off in the
-// city. When an icon has multiple colors we pick the more distinctive one
-// (e.g. Python is yellow+blue → yellow, since blue is overused).
-//
-// Hues audited against the actual Material Icon Theme SVG fill colors at
-// jsdelivr (v5.30.0). Mixed-palette icons (Erlang, Clojure, Python) get the
-// more distinctive hue.
+// constants/buildings.ts — default per-extension building hues, the default for
+// the tunable BUILDINGS.HUE_EXT_MAP. Each hue matches the file's Material Icon
+// Theme colour, so the pill and the building agree; multi-colour icons take the
+// more distinctive one (Python yellow, not blue).
 
-// Ad-panel tint shown after a permanent image load/decode failure (sticky).
-// Never a UI control — the placeholder color (transient/loading) is tunable in
-// BUILDINGS; this failure color is fixed.
+// Sticky: the transient placeholder colour is tunable in BUILDINGS, this one
+// is what a permanent decode failure settles on.
 export const MEDIA_ERROR_COLOR = '#3a1d1d';
 
 export const DEFAULT_HUE_EXT_MAP: Record<string, number> = {
@@ -44,12 +35,8 @@ export const DEFAULT_HUE_EXT_MAP: Record<string, number> = {
   '.json': 39, // json: #f9a825 yellow
   '.yaml': 0, // yaml: #ff5252 red
   '.yml': 0,
-  // Generic-glyph icons (settings / document / markdown) are all
-  // mono-blue in Material — using their glyph color would dump four
-  // file types into the already-crowded blue band. Picking
-  // low-frequency hues here keeps the colors readable as filenames
-  // alone (config amber, parchment, notes green) without contradicting
-  // any strong brand identity.
+  // Material's generic glyphs are all mono-blue; following them would dump four
+  // types into the crowded blue band, so these take low-frequency hues.
   '.toml': 25, // settings → config amber
   '.ini': 25,
   '.env': 45, // tune: #fbc02d amber
@@ -72,10 +59,8 @@ export const DEFAULT_HUE_EXT_MAP: Record<string, number> = {
   '.cpp': 201, // cpp: also #0288d1
   '.cc': 201,
   '.hpp': 201,
-  // .cs / .php: Material's glyphs are blue, but the canonical brand
-  // colors are purple — and the 200–210 blue band is already crowded
-  // with TS / C / C++. Using brand colors here adds variety while
-  // staying faithful to the language identity users recognize.
+  // Glyphs are blue, brands are purple: the blue band already holds TS/C/C++,
+  // so these follow the brand.
   '.cs': 290, // C# Microsoft purple
   '.php': 237, // PHP indigo
   '.lua': 199, // lua: #4fc3f7/#01579b blues
@@ -129,8 +114,7 @@ export const DEFAULT_HUE_EXT_MAP: Record<string, number> = {
   '.gz': 64,
   '.7z': 64,
   '.rar': 64,
-  // Diff glyph is mono-blue too; pushing to a green-yellow keeps it
-  // semantically "additions" while spacing it from the blue cluster.
+  // Green-yellow reads as "additions" and clears the blue cluster.
   '.diff': 110, // diff → additions green
   '.patch': 110,
   '.log': 64, // log: #afb42b olive

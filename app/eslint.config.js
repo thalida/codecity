@@ -7,6 +7,8 @@ import js from '@eslint/js';
 import tseslint from 'typescript-eslint';
 import prettier from 'eslint-config-prettier';
 import globals from 'globals';
+import css from '@eslint/css';
+import house from './eslint-rules/comment-length.js';
 
 export default tseslint.config(
   {
@@ -20,16 +22,21 @@ export default tseslint.config(
       'src/types/manifest.generated.ts',
     ],
   },
-  js.configs.recommended,
-  ...tseslint.configs.recommended,
-  prettier,
   {
+    // Scoped, so the JS rules aren't handed a stylesheet: the CSS language has
+    // no getAllComments, and core rules crash reaching for it.
+    files: ['**/*.{js,mjs,cjs,ts,tsx}'],
+    extends: [js.configs.recommended, ...tseslint.configs.recommended, prettier],
+    plugins: { house },
     languageOptions: {
       ecmaVersion: 2022,
       sourceType: 'module',
       globals: { ...globals.browser, ...globals.node },
     },
     rules: {
+      // On here so an editor flags it as you type. The whole-tree `npm run
+      // lint` switches it off; the pre-push gate runs it over changed files.
+      'house/comment-length': ['error', { max: 2, header: 4 }],
       'no-var': 'error',
       'prefer-const': 'error',
       eqeqeq: ['error', 'smart'],
@@ -53,5 +60,11 @@ export default tseslint.config(
   {
     files: ['tests/**/*.{js,ts}'],
     languageOptions: { globals: { ...globals.node } },
+  },
+  {
+    files: ['**/*.css'],
+    language: 'css/css',
+    plugins: { css, house },
+    rules: { 'house/css-comment-length': ['error', { max: 2, header: 4 }] },
   }
 );

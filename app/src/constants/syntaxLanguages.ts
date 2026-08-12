@@ -1,12 +1,8 @@
-// constants/syntaxLanguages.ts — Static lookup tables mapping file
-// extension / exact filename → hljs language id. Used by the file
-// preview pane to drive highlight.js, and by the sitewide footer's
-// "language" status line. Resolver functions live in
-// utils/syntaxLanguages.ts.
+// constants/syntaxLanguages.ts — extension / filename to hljs language id.
+// Resolvers live in utils/syntaxLanguages.ts.
 
-/** hljs language hints by extension. Falls through to auto-detection if
- *  a file doesn't match anything here. Matches the languages bundled in
- *  highlight.js/lib/common (~37 langs). */
+/** Extension hints, matching what highlight.js/lib/common bundles. Anything
+ *  unlisted falls through to auto-detection. */
 export const EXT_LANG: Record<string, string> = {
   '.js': 'javascript',
   '.mjs': 'javascript',

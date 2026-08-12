@@ -28,12 +28,19 @@ docker compose -f docker-compose.test.yml run --rm ruff >/dev/null
 echo "[pre-push] 3/4  vitest (app/)"
 docker compose -f docker-compose.test.yml run --rm vitest >/dev/null
 
-# One container for both: each is seconds of work behind a slow start.
+# The comment cap runs over what this push changes, not the whole tree: the
+# rule arrived long after the comments did, and a 400-file rewrite is its own
+# job. Listed here (git lives on the host) and linted in there.
+CHANGED_APP=$(git diff --name-only --diff-filter=ACMR origin/main...HEAD -- 'app/**' \
+    | grep -E '\.(js|mjs|cjs|ts|tsx|css)$' | sed 's|^app/||' | tr '\n' ' ' || true)
+
+# One container for all of it: each is seconds of work behind a slow start.
 # Same command `just lint` runs, so the gate and the recipe can't diverge.
 echo "[pre-push] 4/5  eslint + typecheck (app/)"
 NPM_VERSION=$(grep '^NPM_VERSION=' .env | cut -d= -f2)
 docker compose -f docker-compose.test.yml run --rm vitest \
-    sh -c "npm install -g npm@$NPM_VERSION && npm ci && npm run lint && npm run typecheck" >/dev/null
+    sh -c "npm install -g npm@$NPM_VERSION && npm ci && npm run lint && npm run typecheck \
+        && { [ -z '$CHANGED_APP' ] || npx eslint $CHANGED_APP; }" >/dev/null
 
 # Its own container: the app-scoped vitest service can't see the root config.
 echo "[pre-push] 5/5  prettier --check (repo root)"
