@@ -7,11 +7,10 @@ import './Popover.css';
 import { ChevronsUpDown } from 'lucide-preact';
 import type { ComponentChildren } from 'preact';
 import { useSignal, type Signal } from '@preact/signals';
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
+import { useCallback, useLayoutEffect, useRef, useState } from 'preact/hooks';
 import { CLUSTER_ITEM_PRESS } from '@/components/ChromeCluster/ChromeCluster';
 import { useDismissable } from '@/hooks/useDismissable';
 import { IS_PHONE } from '@/state/stores/viewport';
-import { SIDEBAR_COLLAPSED } from '@/state/stores/ui';
 
 /** Which edge of the trigger the panel grows from, and which end it aligns to.
  *  A bar at the bottom of the window can only open upward. */
@@ -96,12 +95,6 @@ export function Popover({
     [isOpen]
   );
   useDismissable(open, [triggerRef, panelRef], close);
-
-  // A sheet covers the drawer it would sit on, so the two never stack. The
-  // other order needs nothing: a tap on the rail is an outside press already.
-  useEffect(() => {
-    if (open && IS_PHONE.peek()) SIDEBAR_COLLAPSED.value = true;
-  }, [open]);
 
   // The panel's offset parent is the whole chrome cluster, so without this every
   // item in a cluster opens its panel at the same place. Measured rather than
