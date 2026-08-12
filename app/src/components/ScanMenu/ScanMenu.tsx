@@ -18,7 +18,7 @@ import { useDismissable } from '@/hooks/useDismissable';
 import { LIVE_UPDATES } from '@/state/stores/settings/updates';
 import { CURRENT_SOURCE_IS_LOCAL } from '@/state/stores/source';
 import { ACTIVE_EXCLUDES, removeExclude, clearExcludes } from '@/state/stores/excludes';
-import { REPO_URL } from '@/constants/ui';
+import { LOCAL_DOCS_URL, EXCLUDES_DOCS_URL } from '@/constants/ui';
 
 const PANEL_LABEL = 'Scan and freshness';
 
@@ -93,13 +93,8 @@ function ExcludesGroup() {
       )}
       <p class="scan-menu-hint">
         Hidden in this browser only.{' '}
-        <a
-          class="link--chrome"
-          href={`${REPO_URL}#skipped-by-default`}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          What&rsquo;s excluded by default
+        <a class="link--chrome" href={EXCLUDES_DOCS_URL} target="_blank" rel="noopener noreferrer">
+          What&rsquo;s&nbsp;excluded&nbsp;by&nbsp;default
         </a>
       </p>
     </section>
@@ -185,7 +180,17 @@ export function ScanMenu({ onFreshScan }: ScanMenuProps) {
             {/* Only where it explains something: on a clone the controls above
                 look live but nothing can change under them. */}
             {!CURRENT_SOURCE_IS_LOCAL.value && (
-              <p class="scan-menu-hint">Local projects only: a clone never changes on its own.</p>
+              <p class="scan-menu-hint">
+                Local projects only.{' '}
+                <a
+                  class="link--chrome"
+                  href={LOCAL_DOCS_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  See&nbsp;local&nbsp;setup
+                </a>
+              </p>
             )}
           </section>
 

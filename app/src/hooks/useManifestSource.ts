@@ -43,7 +43,7 @@ import { MANIFEST, setManifest, markError, markRebuilding } from '@/state/stores
 import { SCAN_PROGRESS } from '@/state/stores/scanProgress';
 import { TIMELINE_MODE, resetTimelineMode } from '@/state/stores/timeline';
 import { activeExcludePathsFor, ACTIVE_EXCLUDES } from '@/state/stores/excludes';
-import { srcKind, SourceKind, srcNeedsBranch, identityBranch, sourceKey } from '@/utils/sources';
+import { srcKind, SourceKind, identityBranch, sourceKey } from '@/utils/sources';
 import { isEmptyManifest } from '@/utils/manifest';
 import { URL_PARAMS } from '@/constants/urlParams';
 import type { Manifest } from '@/types';
@@ -418,10 +418,9 @@ export function useManifestSource(): {
       const qp = new URLSearchParams(window.location.search);
       const bootSrc = qp.get(URL_PARAMS.SRC);
       const bootBranch = qp.get(URL_PARAMS.BRANCH) ?? undefined;
-      // A remote ?src with no ?branch can't load without a branch choice — App
-      // opens the picker (prefilled) for it, just like a no-src cold boot. Only
-      // auto-load a fully-specified source here.
-      if (bootSrc && !srcNeedsBranch(bootSrc, bootBranch)) {
+      // No ?branch is not an incomplete request: the server resolves origin's
+      // default branch when none is pinned.
+      if (bootSrc) {
         await loadSource({ src: bootSrc, branch: bootBranch });
       }
       if (cancelled) return;

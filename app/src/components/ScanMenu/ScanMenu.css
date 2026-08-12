@@ -112,11 +112,6 @@
   color: var(--cc-text-secondary); /* muted fails 4.5:1 on this surface */
 }
 
-/* Never broken across lines: half a link on each line reads as two links. */
-.scan-menu-hint a {
-  white-space: nowrap;
-}
-
 /* A state, not a caption: centred and boxed so it can't be mistaken for the
    group's own subtitle copy. */
 .scan-menu-empty {

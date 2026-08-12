@@ -94,17 +94,6 @@ export function sourceKey(src: string, branch?: string): string {
 }
 
 /**
- * True when a source can't be loaded without first choosing a branch: a remote
- * URL with no branch specified. The picker resolves the repo's branches and
- * preselects the default, so branch choice is explicit rather than an implicit
- * "whatever main happens to be". Local sources have no branch axis (they scan
- * the working-tree checkout), so they never need one.
- */
-export function srcNeedsBranch(src: string, branch?: string): boolean {
-  return srcKind(src) === SourceKind.Remote && !branch;
-}
-
-/**
  * A source string worth resolving branches for: a remote URL with a scheme
  * (https://, ssh://, ...) or the scp-style host form (user@host:path). Guards
  * against firing /api/branches on every keystroke of a half-typed URL.

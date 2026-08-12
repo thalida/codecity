@@ -3,21 +3,16 @@
 // means the opaque full-page landing is present on frame one and covers the
 // chrome, instead of the chrome flashing for a frame before the effect opens it.
 //
-// No ?src → open the picker. A remote ?src with no ?branch → open it prefilled
-// (the branch choice is explicit; the manifest hook won't auto-load it). A ?src
-// that can auto-load opens nothing here (the loading overlay owns that path).
+// No ?src → open the picker. Any ?src loads, branch or not: the server resolves
+// origin's default when none is pinned, so a bare ?src is a complete request
+// and the loading overlay owns that path.
 
 import { openProjectsView } from '@/state/stores/ui';
 import { URL_PARAMS } from '@/constants/urlParams';
-import { srcNeedsBranch } from '@/utils/sources';
 
 export function openBootPickerIfNeeded(): void {
   const qp = new URLSearchParams(window.location.search);
-  const src = qp.get(URL_PARAMS.SRC);
-  const branch = qp.get(URL_PARAMS.BRANCH) ?? undefined;
-  if (!src) {
+  if (!qp.get(URL_PARAMS.SRC)) {
     openProjectsView({ dismissible: false });
-  } else if (srcNeedsBranch(src, branch)) {
-    openProjectsView({ dismissible: false, prefill: { src } });
   }
 }
