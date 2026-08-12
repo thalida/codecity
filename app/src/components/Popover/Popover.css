@@ -130,10 +130,25 @@
   display: none;
 }
 
+/* Sheet-only; the phone block below gives it geometry. */
+.popover-scrim {
+  display: none;
+}
+
 /* ── Sheet ──────────────────────────────────────────────────────────────
    An anchored panel spans the viewport at this width anyway. Still no
    backdrop: the city keeps updating as these controls change it. */
 @media (max-width: 640px) {
+  /* The sheet covers most of the screen; without this the pane behind it stays
+     as loud as the controls in front. Under the panel, over everything else. */
+  .popover-scrim {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 299;
+    background: var(--cc-bg-backdrop);
+  }
+
   .popover-panel {
     position: fixed;
     top: auto;

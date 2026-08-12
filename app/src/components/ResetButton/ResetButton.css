@@ -13,6 +13,8 @@
   justify-content: center;
   background: none;
   border: 1px solid transparent;
+  min-width: var(--cc-tap-min);
+  min-height: var(--cc-tap-min);
   padding: var(--cc-space-1) var(--cc-space-2);
   border-radius: var(--cc-radius-sm);
   color: var(--cc-accent);

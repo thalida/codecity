@@ -4,7 +4,7 @@
    .btn-primary       — solid accent CTA (modal submit, save).
    .btn-secondary     — outlined neutral (modifier on .btn-accent-outline).
    .btn-accent-outline — accent-tinted outlined (controls-pane Save / debug).
-   .btn-icon          — 24x24 icon-only button.
+   .btn-icon          — 32x32 icon-only button.
    .btn-toggle        — one-of-N option button (segmented / setting-select).
    .btn-reset-inline  — tiny inline reset (controls-section + setting-row).
    ═══════════════════════════════════════════════════════════════════════════ */
@@ -37,9 +37,9 @@
 /* ═══════════════════════════════════════════════════════════════════════════
    LAYER-2 COMPONENTS — Icon buttons
    ═══════════════════════════════════════════════════════════════════════════
-   .btn-icon    — default 24×24 icon button with hover overlay.
+   .btn-icon    — default 32×32 icon button with hover overlay.
    Modifiers:
-     .btn-icon--sm    — 22×22 (footer chrome).
+     .btn-icon--sm    — 28×28 (footer chrome).
      .btn-icon--lg    — auto size via padding, larger font and radius
                         (large × glyph like modal close).
      .btn-icon--text  — auto size via padding, inherits font/color
@@ -53,11 +53,11 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 24px;
-  height: 24px;
+  width: var(--cc-tap-min);
+  height: var(--cc-tap-min);
   background: none;
   border: none;
-  color: var(--cc-text-muted);
+  color: var(--cc-text-strong);
   border-radius: var(--cc-radius-sm);
   font-size: var(--cc-font-md);
   cursor: pointer;
@@ -88,14 +88,15 @@
 }
 
 /* Modifiers */
+/* Same box as the base — only the glyph is smaller. A press target that varies
+   with the glyph is how the footer ended up with 22px buttons. */
 .btn-icon--sm {
-  width: 22px;
-  height: 22px;
   font-size: var(--cc-font-sm);
 }
 .btn-icon--lg {
   width: auto;
   height: auto;
+  min-height: var(--cc-tap-min);
   padding: var(--cc-space-2);
   border-radius: var(--cc-radius-md);
   font-size: var(--cc-font-lg);
@@ -104,9 +105,10 @@
 .btn-icon--text {
   width: auto;
   height: auto;
+  min-height: var(--cc-tap-min);
   padding: var(--cc-space-px) var(--cc-space-2);
   font: inherit;
-  color: var(--cc-text-secondary);
+  color: var(--cc-text-strong);
 }
 /* Non-leaf text buttons (breadcrumb segments) hint interactivity on hover with
    an underline — they sit in body-text color and otherwise read as static. The
@@ -127,7 +129,7 @@
   background: var(--cc-overlay-bg-soft);
   border: 1px solid var(--cc-overlay-bg-strong);
   border-radius: var(--cc-radius-md);
-  color: var(--cc-text-primary);
+  color: var(--cc-text-strong);
   padding: var(--cc-space-4) var(--cc-space-7); /* matches .btn-primary */
   cursor: pointer;
   font: inherit;
@@ -160,7 +162,9 @@
   appearance: none;
   background: none;
   border: none;
-  color: var(--cc-text-muted);
+  /* The unpicked options are the actions here, so they take the action colour;
+     the picked one is the readout and goes white on a fill. */
+  color: var(--cc-accent-light);
   font-family: inherit;
   cursor: pointer;
   font-size: var(--cc-font-sm);
@@ -172,10 +176,10 @@
     background var(--cc-t-base);
 }
 .btn-toggle:hover {
-  color: var(--cc-text-primary);
+  color: var(--cc-accent);
 }
 .btn-toggle.is-active {
-  background: var(--cc-accent-bg-soft);
+  background: var(--cc-accent-bg);
   color: var(--cc-text-strong);
 }
 /* .btn-toggle--separated — modifier that adds a vertical separator

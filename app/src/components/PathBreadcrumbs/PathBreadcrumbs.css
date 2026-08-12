@@ -9,6 +9,13 @@
   gap: var(--cc-space-1);
   white-space: nowrap;
   overflow: hidden;
+}
+
+/* applyMiddleEllipsis never hides the leaf, so a long filename clips mid-word.
+   The floor keeps the row overflowing, which is what collapses the middles. */
+.app-header-seg.is-leaf {
+  min-width: 10ch;
+  overflow: hidden;
   text-overflow: ellipsis;
 }
 

@@ -62,8 +62,8 @@
   border: none;
   /* Same step as the chrome bars' glyphs (ChromeCluster.css), so the app's
      three icon strips read as one set. */
-  color: var(--cc-text-primary);
-  height: 40px;
+  color: var(--cc-text-strong);
+  height: var(--cc-rail-w); /* square, and past the tap floor */
   display: flex;
   align-items: center;
   justify-content: center;
@@ -80,14 +80,14 @@
   background: var(--cc-accent-bg-soft);
 }
 .activity-bar-icon:active {
-  background: var(--cc-accent-bg);
+  background: var(--cc-accent-bg-strong);
 }
 
-/* Selected tab: accent-colored glyph + the canonical accent selected fill
-   (--cc-accent-bg), matching every other selected state. */
+/* Selected outranks hover: it shared hover's exact fill, so the open pane's tab
+   and whichever tab the cursor sat on looked the same. */
 .activity-bar-icon.active {
   color: var(--cc-accent);
-  background: var(--cc-accent-bg-soft);
+  background: var(--cc-accent-bg);
 }
 
 /* "Settings differ from default" dot over the Settings icon. Remounted with a
@@ -134,13 +134,6 @@
 @media (prefers-reduced-motion: reduce) {
   .activity-bar-dot {
     animation-name: cc-dot-flash;
-  }
-}
-
-/* COARSE_POINTER_QUERY: 40px is short of a thumb's target. */
-@media (hover: none) and (pointer: coarse) {
-  .activity-bar-icon {
-    height: 44px;
   }
 }
 
