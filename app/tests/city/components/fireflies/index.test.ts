@@ -39,14 +39,14 @@ function makePrePickerCtx(): SceneContext {
   } as unknown as SceneContext;
 }
 
-// Reach the orb shader uniforms through the inner assembly's InstancedMesh.
+// Reach the orb shader uniforms through the inner assembly's Points draw.
 function orbUniforms(comp: ReturnType<typeof createFireflies>): Record<string, { value: number }> {
-  let mesh: THREE.InstancedMesh | null = null;
+  let orbPoints: THREE.Points | null = null;
   comp.group.traverse((obj) => {
-    if (obj.name === FIREFLY_ORBS_MESH) mesh = obj as THREE.InstancedMesh;
+    if (obj.name === FIREFLY_ORBS_MESH) orbPoints = obj as THREE.Points;
   });
-  if (!mesh) throw new Error(`expected ${FIREFLY_ORBS_MESH} InstancedMesh under the group`);
-  return ((mesh as THREE.InstancedMesh).material as THREE.ShaderMaterial).uniforms as Record<
+  if (!orbPoints) throw new Error(`expected ${FIREFLY_ORBS_MESH} Points under the group`);
+  return ((orbPoints as THREE.Points).material as THREE.ShaderMaterial).uniforms as Record<
     string,
     { value: number }
   >;

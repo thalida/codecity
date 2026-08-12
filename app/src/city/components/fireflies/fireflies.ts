@@ -32,7 +32,10 @@ export function createFireflyAssembly(
   placements: TreePlacement[],
   commits: CommitEntry[] | null,
   stats: RepoStats | null | undefined,
-  scannedAt?: string | null
+  scannedAt?: string | null,
+  /** Drawing-buffer canvas — the orbs' point sizes scale to its device-pixel
+   *  height. Optional for tests. */
+  canvas?: HTMLCanvasElement
 ): Fireflies {
   const parent = new THREE.Group();
   parent.name = 'fireflies-system';
@@ -54,7 +57,7 @@ export function createFireflyAssembly(
   }
   const orbs: FireflyPlacement[] = placeFireflies(placements, commits ?? [], stats, scannedAt);
   const rings = createOrbitRings(orbs);
-  const renderer = createFireflyRenderer(orbs);
+  const renderer = createFireflyRenderer(orbs, canvas);
 
   // Rings render first so orbs (additive) composite on top.
   parent.add(rings.group);

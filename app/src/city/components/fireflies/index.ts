@@ -78,7 +78,7 @@ export function createFireflies(ctx: SceneContext): FirefliesComponent {
     // no-push rule below; the next signal change pushes them.
     // The FIREFLIES.ENABLED gate stays inside fireflies.ts (an empty stub
     // assembly is returned when disabled).
-    _inner = createFireflyAssembly(placements, commits, stats, scannedAt);
+    _inner = createFireflyAssembly(placements, commits, stats, scannedAt, ctx.canvas);
     group.add(_inner.group);
   }
 
