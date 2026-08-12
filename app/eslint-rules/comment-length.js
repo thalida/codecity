@@ -36,6 +36,7 @@ function toBlocks(sourceCode, comments) {
 /** Tooling directives are machine-readable, not prose. */
 const DIRECTIVE = /^\s*(eslint|global|prettier-ignore|@ts-|c8 |v8 |istanbul )/;
 
+/** @type {import('eslint').Rule.RuleModule} */
 export const commentLength = {
   meta: {
     type: 'suggestion',
@@ -76,6 +77,7 @@ export const commentLength = {
 };
 
 /** CSS has only block comments, so each one stands alone. */
+/** @type {import('eslint').Rule.RuleModule} */
 export const cssCommentLength = {
   meta: { ...commentLength.meta },
   create(context) {
