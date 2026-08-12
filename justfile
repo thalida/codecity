@@ -37,7 +37,7 @@ url:
 # Ctrl-C closes the tunnel.
 tunl:
     @PORT=$(python3 bin/pick-port.py vite) ; \
-     SLUG=$( ( git symbolic-ref --short -q HEAD 2>/dev/null || basename $(pwd) ) | tr '[:upper:]' '[:lower:]' | tr -c '[:alnum:]' '-' | sed 's/-*$//') ; \
+     SLUG=codecity-$( ( git symbolic-ref --short -q HEAD 2>/dev/null || basename $(pwd) ) | tr '[:upper:]' '[:lower:]' | tr -c '[:alnum:]' '-' | sed 's/-*$//') ; \
      echo "[codecity-tunl] https://$SLUG.tunl.sh/" ; \
      ssh -o ServerAliveInterval=60 -o ExitOnForwardFailure=yes -R $SLUG:80:localhost:$PORT tunl.sh
 
