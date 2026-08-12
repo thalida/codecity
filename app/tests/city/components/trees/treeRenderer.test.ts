@@ -135,10 +135,27 @@ describe('createTreeRenderer()', () => {
 
   it('handles an empty placement list', () => {
     trees = renderTrees([], commitSeries(0), BUSY);
+    // Chunked instancing: zero trees means zero chunk meshes, not one
+    // empty mesh.
+    expect(canopyMeshes(trees.group).length).toBe(0);
+    expect(trees.group.children.length).toBe(0);
+  });
+
+  it('splits big forests into chunks and resolves lookups across the boundary', () => {
+    const many = Array.from({ length: 600 }, (_, i) => placement(i, 0, i + 1, i));
+    const commits = commitSeries(600);
+    trees = renderTrees(many, commits, BUSY);
+    // 600 trees at 512 instances per chunk → two canopy meshes.
     const canopies = canopyMeshes(trees.group);
-    expect(canopies.length).toBe(1);
-    expect(canopies[0].count).toBe(0);
-    expect(trunkMesh(trees.group).count).toBe(0);
+    expect(canopies.length).toBe(2);
+    expect(canopies[0].count + canopies[1].count).toBe(600);
+    // A tree past the boundary lives in chunk 2 at a LOCAL slot, and the
+    // slot→commit mapping round-trips through that chunk's placementOrder.
+    const hit = trees.findTreeBySha(commits[599].sha);
+    expect(hit).not.toBeNull();
+    expect(hit!.mesh).toBe(canopies[1]);
+    expect(hit!.instanceId).toBe(599 - 512);
+    expect(trees.commitForInstance(hit!.mesh, hit!.instanceId)?.sha).toBe(commits[599].sha);
   });
 
   it('puts foliage meshes at PARK_FOLIAGE render order', () => {

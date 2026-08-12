@@ -1,6 +1,7 @@
-// city/components/fireflies/firefliesRenderer.ts — one InstancedMesh of
-// additive-blended smooth icospheres. Per-instance color + phase. The bob
-// animation lives in the vertex shader so the CPU never re-writes matrices.
+// city/components/fireflies/firefliesRenderer.ts — chunked InstancedMeshes of
+// additive-blended smooth icospheres (instanceChunkSize instances per mesh).
+// Per-instance color + phase. The bob animation lives in the vertex shader so
+// the CPU never re-writes matrices.
 //
 //   setTime(seconds): drive the uTime uniform from the render loop.
 //   refresh():        hot-reload animation uniforms from current config
@@ -10,6 +11,7 @@
 import * as THREE from 'three';
 import { RENDER_ORDERS } from '@/city/types/renderOrders';
 import { FIREFLIES } from '@/state/stores/settings/fireflies';
+import { instanceChunkSize } from '@/city/utils/instanceChunkSize';
 import type { FireflyPlacement } from './firefliesPlacement';
 import vertexShader from './fireflies.vert.glsl?raw';
 import fragmentShader from './fireflies.frag.glsl?raw';
@@ -45,38 +47,6 @@ export function createFireflyRenderer(orbs: FireflyPlacement[]): FireflyRenderer
   }
 
   const cfg = FIREFLIES.value;
-  const geometry = new THREE.IcosahedronGeometry(1.0, 2);
-
-  // Per-instance bob phase + pulse phase + orbit params.
-  const phaseArray = new Float32Array(orbs.length);
-  const pulsePhaseArray = new Float32Array(orbs.length);
-  const orbitRadiusArray = new Float32Array(orbs.length);
-  const orbitStartAngleArray = new Float32Array(orbs.length);
-  const orbitTiltArray = new Float32Array(orbs.length);
-  const commitIndexArray = new Float32Array(orbs.length);
-  for (let i = 0; i < orbs.length; i++) {
-    phaseArray[i] = orbs[i].phase;
-    pulsePhaseArray[i] = orbs[i].pulsePhase;
-    // orbitRadius is the world-space target radius. The instance matrix
-    // has scale = o.scale (sizing the icosphere), and that same scale
-    // multiplies the orbital offset in the vertex shader. Pre-divide here
-    // so the result cancels out: instanceScale × (orbitRadius / instanceScale)
-    // = orbitRadius in world space, regardless of per-author scale.
-    const safeScale = orbs[i].scale > 0 ? orbs[i].scale : 1.0;
-    orbitRadiusArray[i] = orbs[i].orbitRadius / safeScale;
-    orbitStartAngleArray[i] = orbs[i].orbitStartAngle;
-    orbitTiltArray[i] = orbs[i].orbitTilt;
-    commitIndexArray[i] = orbs[i].commitIndex;
-  }
-  geometry.setAttribute('aPhase', new THREE.InstancedBufferAttribute(phaseArray, 1));
-  geometry.setAttribute('aPulsePhase', new THREE.InstancedBufferAttribute(pulsePhaseArray, 1));
-  geometry.setAttribute('aOrbitRadius', new THREE.InstancedBufferAttribute(orbitRadiusArray, 1));
-  geometry.setAttribute(
-    'aOrbitStartAngle',
-    new THREE.InstancedBufferAttribute(orbitStartAngleArray, 1)
-  );
-  geometry.setAttribute('aOrbitTilt', new THREE.InstancedBufferAttribute(orbitTiltArray, 1));
-  geometry.setAttribute('aCommitIndex', new THREE.InstancedBufferAttribute(commitIndexArray, 1));
 
   const uTime = { value: 0 };
   const uBobAmp = { value: cfg.BOB_AMPLITUDE };
@@ -111,35 +81,84 @@ export function createFireflyRenderer(orbs: FireflyPlacement[]): FireflyRenderer
     vertexColors: true,
   });
 
-  const mesh = new THREE.InstancedMesh(geometry, material, orbs.length);
-  mesh.name = FIREFLY_ORBS_MESH;
-  // Culling is disabled because the shader-side y-bob shifts vertices
-  // outside the mesh's bounding sphere, which would otherwise cause
-  // three.js to cull instances mid-bob.
-  mesh.frustumCulled = false;
-  mesh.renderOrder = RENDER_ORDERS.FIREFLIES;
-
+  // Orbs are split into fixed-size chunks of instances (see
+  // utils/instanceChunkSize.ts — one huge instanced draw corrupts on some
+  // mobile drivers). Each chunk carries its own geometry because the orbit
+  // params are per-instance attributes on it; the material is shared.
+  const chunkSize = instanceChunkSize();
   const dummy = new THREE.Object3D();
   const color = new THREE.Color();
-  // Full-scale matrix per instance, kept so setScrubCommit can restore a gated-out orb without recomputing it.
+  // Full-scale matrix per ORB index, kept so setScrubCommit can restore a
+  // gated-out orb without recomputing it.
   const fullMatrix = new Array<THREE.Matrix4>(orbs.length);
-  for (let i = 0; i < orbs.length; i++) {
-    const o = orbs[i];
-    dummy.position.set(o.treeX, o.height, o.treeZ);
-    dummy.scale.setScalar(o.scale);
-    dummy.updateMatrix();
-    mesh.setMatrixAt(i, dummy.matrix);
-    fullMatrix[i] = dummy.matrix.clone();
-    // rgb values from FireflyPlacement are already linear-RGB (0..1).
-    // Pass LinearSRGBColorSpace explicitly so three.js skips any
-    // working-color-space conversion that would double-apply gamma.
-    color.setRGB(o.rgb[0], o.rgb[1], o.rgb[2], THREE.LinearSRGBColorSpace);
-    mesh.setColorAt(i, color);
-  }
-  mesh.instanceMatrix.needsUpdate = true;
-  if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+  // Parallel arrays: meshes[c] renders orbs [chunkStart[c], chunkStart[c]+count).
+  const meshes: THREE.InstancedMesh[] = [];
+  const chunkStarts: number[] = [];
 
-  group.add(mesh);
+  for (let start = 0; start < orbs.length; start += chunkSize) {
+    const len = Math.min(chunkSize, orbs.length - start);
+    const geometry = new THREE.IcosahedronGeometry(1.0, 2);
+
+    // Per-instance bob phase + pulse phase + orbit params for this chunk.
+    const phaseArray = new Float32Array(len);
+    const pulsePhaseArray = new Float32Array(len);
+    const orbitRadiusArray = new Float32Array(len);
+    const orbitStartAngleArray = new Float32Array(len);
+    const orbitTiltArray = new Float32Array(len);
+    const commitIndexArray = new Float32Array(len);
+    for (let k = 0; k < len; k++) {
+      const o = orbs[start + k];
+      phaseArray[k] = o.phase;
+      pulsePhaseArray[k] = o.pulsePhase;
+      // orbitRadius is the world-space target radius. The instance matrix
+      // has scale = o.scale (sizing the icosphere), and that same scale
+      // multiplies the orbital offset in the vertex shader. Pre-divide here
+      // so the result cancels out: instanceScale × (orbitRadius / instanceScale)
+      // = orbitRadius in world space, regardless of per-author scale.
+      const safeScale = o.scale > 0 ? o.scale : 1.0;
+      orbitRadiusArray[k] = o.orbitRadius / safeScale;
+      orbitStartAngleArray[k] = o.orbitStartAngle;
+      orbitTiltArray[k] = o.orbitTilt;
+      commitIndexArray[k] = o.commitIndex;
+    }
+    geometry.setAttribute('aPhase', new THREE.InstancedBufferAttribute(phaseArray, 1));
+    geometry.setAttribute('aPulsePhase', new THREE.InstancedBufferAttribute(pulsePhaseArray, 1));
+    geometry.setAttribute('aOrbitRadius', new THREE.InstancedBufferAttribute(orbitRadiusArray, 1));
+    geometry.setAttribute(
+      'aOrbitStartAngle',
+      new THREE.InstancedBufferAttribute(orbitStartAngleArray, 1)
+    );
+    geometry.setAttribute('aOrbitTilt', new THREE.InstancedBufferAttribute(orbitTiltArray, 1));
+    geometry.setAttribute('aCommitIndex', new THREE.InstancedBufferAttribute(commitIndexArray, 1));
+
+    const mesh = new THREE.InstancedMesh(geometry, material, len);
+    mesh.name = FIREFLY_ORBS_MESH;
+    // Culling is disabled because the shader-side y-bob shifts vertices
+    // outside the mesh's bounding sphere, which would otherwise cause
+    // three.js to cull instances mid-bob.
+    mesh.frustumCulled = false;
+    mesh.renderOrder = RENDER_ORDERS.FIREFLIES;
+
+    for (let k = 0; k < len; k++) {
+      const o = orbs[start + k];
+      dummy.position.set(o.treeX, o.height, o.treeZ);
+      dummy.scale.setScalar(o.scale);
+      dummy.updateMatrix();
+      mesh.setMatrixAt(k, dummy.matrix);
+      fullMatrix[start + k] = dummy.matrix.clone();
+      // rgb values from FireflyPlacement are already linear-RGB (0..1).
+      // Pass LinearSRGBColorSpace explicitly so three.js skips any
+      // working-color-space conversion that would double-apply gamma.
+      color.setRGB(o.rgb[0], o.rgb[1], o.rgb[2], THREE.LinearSRGBColorSpace);
+      mesh.setColorAt(k, color);
+    }
+    mesh.instanceMatrix.needsUpdate = true;
+    if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+
+    group.add(mesh);
+    meshes.push(mesh);
+    chunkStarts.push(start);
+  }
 
   const ZERO_SCALE_MATRIX = new THREE.Matrix4().makeScale(0, 0, 0);
   // Threshold applied by the last setScrubCommit call. Starts at null (every orb full-scale, matching the build above).
@@ -162,15 +181,20 @@ export function createFireflyRenderer(orbs: FireflyPlacement[]): FireflyRenderer
     },
     setScrubCommit(maxCommitIndex: number | null) {
       if (maxCommitIndex === _scrubCommit) return;
-      let changed = false;
-      for (let i = 0; i < orbs.length; i++) {
-        const wasVisible = scrubVisible(orbs[i].commitIndex, _scrubCommit);
-        const nowVisible = scrubVisible(orbs[i].commitIndex, maxCommitIndex);
-        if (wasVisible === nowVisible) continue;
-        mesh.setMatrixAt(i, nowVisible ? fullMatrix[i] : ZERO_SCALE_MATRIX);
-        changed = true;
+      for (let c = 0; c < meshes.length; c++) {
+        const mesh = meshes[c];
+        const start = chunkStarts[c];
+        let changed = false;
+        for (let k = 0; k < mesh.count; k++) {
+          const i = start + k;
+          const wasVisible = scrubVisible(orbs[i].commitIndex, _scrubCommit);
+          const nowVisible = scrubVisible(orbs[i].commitIndex, maxCommitIndex);
+          if (wasVisible === nowVisible) continue;
+          mesh.setMatrixAt(k, nowVisible ? fullMatrix[i] : ZERO_SCALE_MATRIX);
+          changed = true;
+        }
+        if (changed) mesh.instanceMatrix.needsUpdate = true;
       }
-      if (changed) mesh.instanceMatrix.needsUpdate = true;
       _scrubCommit = maxCommitIndex;
     },
     refresh() {
@@ -184,10 +208,12 @@ export function createFireflyRenderer(orbs: FireflyPlacement[]): FireflyRenderer
       uFlicker.value = next.FLICKER_AMOUNT;
     },
     dispose() {
-      geometry.dispose();
       material.dispose();
-      group.remove(mesh);
-      mesh.dispose();
+      for (const mesh of meshes) {
+        mesh.geometry.dispose();
+        group.remove(mesh);
+        mesh.dispose();
+      }
     },
   };
 }

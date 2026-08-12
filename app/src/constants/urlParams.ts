@@ -23,4 +23,7 @@ export const URL_PARAMS = {
    *  Components still construct and tick; their groups just don't render.
    *  Client-side diagnostic for bisecting mobile driver glitches. */
   HIDE: 'hide',
+  /** Instances-per-mesh override for the chunked instanced draws (trees,
+   *  fireflies), e.g. ?chunk=128. Client-side diagnostic knob. */
+  CHUNK: 'chunk',
 } as const;

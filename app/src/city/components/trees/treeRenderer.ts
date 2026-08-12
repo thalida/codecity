@@ -1,6 +1,6 @@
 // city/components/trees/treeRenderer.ts — turns a TreePlacement[] + the manifest's
-// commit list into one shared canopy InstancedMesh plus a shared trunk
-// InstancedMesh.
+// commit list into chunked canopy + trunk InstancedMeshes (instanceChunkSize
+// instances per mesh; one giant draw corrupts on some mobile drivers).
 //
 //   tree-canopy — low-poly lathe canopies at a single shared facet count
 //                 (TREE_CANOPY_FACETS), stretched to the per-tree (radius,
@@ -36,6 +36,7 @@ import {
 } from './treeEncoding';
 import { interpolateOklch } from '@/city/utils/color/colors';
 import { setColorFromHex } from '@/city/utils/color/setColorFromHex';
+import { instanceChunkSize } from '@/city/utils/instanceChunkSize';
 import { sunDir } from '@/city/utils/shaders/sunDir';
 import { LIGHTING_SUN_AZIMUTH_DEG, LIGHTING_SUN_ELEVATION_DEG } from '@/constants/lighting';
 
@@ -322,21 +323,14 @@ export function createTreeRenderer(
     { mesh: THREE.InstancedMesh; instanceId: number; commit: CommitEntry }
   >();
 
-  // One canopy mesh for every tree at a single shared facet count: instance i
-  // renders placement i (identity order, like the trunk), so commitForInstance
-  // maps slot → placement with no per-mesh bookkeeping.
-  const canopyOrder = new Array<number>(totalTrees);
-  for (let i = 0; i < totalTrees; i++) canopyOrder[i] = i;
-
+  // Canopies + trunks are split into fixed-size chunks of instances (see
+  // utils/instanceChunkSize.ts — one huge instanced draw corrupts on some
+  // mobile drivers). Instance slot k of a chunk renders placement
+  // placementOrder[k]; commitForInstance reads that map generically, so the
+  // picker never learns about chunking.
+  const chunkSize = instanceChunkSize();
   const canopyGeometry = buildCanopyGeometry();
   bakeVertexShading(canopyGeometry, cfg.SHADING_STRENGTH);
-  const canopyMesh = new THREE.InstancedMesh(canopyGeometry, canopyMaterial, totalTrees);
-  canopyMesh.name = 'tree-canopy';
-  canopyMesh.renderOrder = RENDER_ORDERS.PARK_FOLIAGE;
-  canopyMesh.frustumCulled = false;
-  canopyMesh.visible = cfg.ENABLED;
-  canopyMesh.userData.meshKind = 'tree-canopy';
-  canopyMesh.userData.placementOrder = canopyOrder;
 
   // Full-scale matrices cached per PLACEMENT index (not instance slot), so
   // setScrubCommit can restore a gated-out tree without recomputing its
@@ -344,76 +338,86 @@ export function createTreeRenderer(
   const canopyFullMatrix = new Array<THREE.Matrix4>(totalTrees);
   const trunkFullMatrix = new Array<THREE.Matrix4>(totalTrees);
 
-  for (let i = 0; i < totalTrees; i++) {
-    const p = placements[i];
-    const h = heights[i];
-    const r = radii[i];
-    const trunkH = h * trunkHeightFrac;
+  const canopyMeshes: THREE.InstancedMesh[] = [];
+  const trunkMeshes: THREE.InstancedMesh[] = [];
 
-    // Canopy base sits BELOW the trunk top by `canopyOverlapFrac × trunkH`,
-    // so the trunk visibly enters the canopy from below instead of touching
-    // it at a single point. Y-scale = h, XZ-scale = r → a vertical ellipsoid
-    // when h > r.
-    const canopyBaseY = trunkH * (1 - canopyOverlapFrac);
-    tmpV3.set(p.x, canopyBaseY, p.y);
-    tmpScale.set(r, h, r);
-    tmpMatrix.compose(tmpV3, tmpQ, tmpScale);
-    canopyMesh.setMatrixAt(i, tmpMatrix);
-    canopyFullMatrix[i] = tmpMatrix.clone();
+  for (let start = 0; start < totalTrees; start += chunkSize) {
+    const len = Math.min(chunkSize, totalTrees - start);
+    // Chunk slot k ↔ placement start+k, shared by the canopy + trunk pair.
+    const placementOrder = new Array<number>(len);
+    for (let k = 0; k < len; k++) placementOrder[k] = start + k;
 
-    perTreeColor(i, tmpColor);
-    // Cache the base color before writing it to the instance buffer; the
-    // buffer can later be modified by tints, the cache stays stable.
-    const c = commits?.[placements[i].commitIndex];
-    if (c?.sha) {
-      _baseColorBySha.set(c.sha, `#${tmpColor.getHexString()}`);
-      _treeIndexBySha.set(c.sha, { mesh: canopyMesh, instanceId: i, commit: c });
+    const canopyMesh = new THREE.InstancedMesh(canopyGeometry, canopyMaterial, len);
+    canopyMesh.name = 'tree-canopy';
+    canopyMesh.renderOrder = RENDER_ORDERS.PARK_FOLIAGE;
+    canopyMesh.frustumCulled = false;
+    canopyMesh.visible = cfg.ENABLED;
+    canopyMesh.userData.meshKind = 'tree-canopy';
+    canopyMesh.userData.placementOrder = placementOrder;
+
+    const trunkMesh = new THREE.InstancedMesh(trunkGeometry, trunkMaterial, len);
+    trunkMesh.name = 'tree-trunk';
+    trunkMesh.renderOrder = RENDER_ORDERS.PARK_FOLIAGE;
+    trunkMesh.frustumCulled = false;
+    trunkMesh.visible = cfg.ENABLED;
+    trunkMesh.userData.meshKind = 'tree-trunk';
+    trunkMesh.userData.placementOrder = placementOrder;
+
+    for (let k = 0; k < len; k++) {
+      const i = start + k;
+      const p = placements[i];
+      const h = heights[i];
+      const r = radii[i];
+      const trunkH = h * trunkHeightFrac;
+
+      // Canopy base sits BELOW the trunk top by `canopyOverlapFrac × trunkH`,
+      // so the trunk visibly enters the canopy from below instead of touching
+      // it at a single point. Y-scale = h, XZ-scale = r → a vertical ellipsoid
+      // when h > r.
+      const canopyBaseY = trunkH * (1 - canopyOverlapFrac);
+      tmpV3.set(p.x, canopyBaseY, p.y);
+      tmpScale.set(r, h, r);
+      tmpMatrix.compose(tmpV3, tmpQ, tmpScale);
+      canopyMesh.setMatrixAt(k, tmpMatrix);
+      canopyFullMatrix[i] = tmpMatrix.clone();
+
+      perTreeColor(i, tmpColor);
+      // Cache the base color before writing it to the instance buffer; the
+      // buffer can later be modified by tints, the cache stays stable.
+      const c = commits?.[placements[i].commitIndex];
+      if (c?.sha) {
+        _baseColorBySha.set(c.sha, `#${tmpColor.getHexString()}`);
+        _treeIndexBySha.set(c.sha, { mesh: canopyMesh, instanceId: k, commit: c });
+      }
+      canopyMesh.setColorAt(k, tmpColor);
+
+      const trunkR = r * trunkRadiusFrac;
+      tmpV3.set(p.x, 0, p.y);
+      tmpScale.set(trunkR, trunkH, trunkR);
+      tmpMatrix.compose(tmpV3, tmpQ, tmpScale);
+      trunkMesh.setMatrixAt(k, tmpMatrix);
+      trunkFullMatrix[i] = tmpMatrix.clone();
     }
-    canopyMesh.setColorAt(i, tmpColor);
-  }
-  canopyMesh.instanceMatrix.needsUpdate = true;
-  if (canopyMesh.instanceColor) canopyMesh.instanceColor.needsUpdate = true;
+    canopyMesh.instanceMatrix.needsUpdate = true;
+    if (canopyMesh.instanceColor) canopyMesh.instanceColor.needsUpdate = true;
+    trunkMesh.instanceMatrix.needsUpdate = true;
 
-  // Trunk: one shared mesh, one instance per tree in placement order.
-  // Identity array: trunk instance i is always placement i, but we
-  // materialize it so commitForInstance stays uniform across canopy +
-  // trunk lookups without a special-case branch.
-  const trunkPlacementOrder = new Array<number>(totalTrees);
-  for (let i = 0; i < totalTrees; i++) trunkPlacementOrder[i] = i;
-  const trunkMesh = new THREE.InstancedMesh(trunkGeometry, trunkMaterial, totalTrees);
-  trunkMesh.name = 'tree-trunk';
-  trunkMesh.renderOrder = RENDER_ORDERS.PARK_FOLIAGE;
-  trunkMesh.frustumCulled = false;
-  trunkMesh.visible = cfg.ENABLED;
-  trunkMesh.userData.meshKind = 'tree-trunk';
-  trunkMesh.userData.placementOrder = trunkPlacementOrder;
-
-  for (let i = 0; i < totalTrees; i++) {
-    const p = placements[i];
-    const h = heights[i];
-    const r = radii[i];
-    const trunkH = h * trunkHeightFrac;
-    const trunkR = r * trunkRadiusFrac;
-    tmpV3.set(p.x, 0, p.y);
-    tmpScale.set(trunkR, trunkH, trunkR);
-    tmpMatrix.compose(tmpV3, tmpQ, tmpScale);
-    trunkMesh.setMatrixAt(i, tmpMatrix);
-    trunkFullMatrix[i] = tmpMatrix.clone();
+    canopyMeshes.push(canopyMesh);
+    trunkMeshes.push(trunkMesh);
   }
-  trunkMesh.instanceMatrix.needsUpdate = true;
 
   const group = new THREE.Group();
   group.name = 'trees';
   group.userData.cyberpunkValley = 'trees';
   group.visible = cfg.ENABLED;
-  group.add(canopyMesh);
-  group.add(trunkMesh);
+  for (const m of canopyMeshes) group.add(m);
+  for (const m of trunkMeshes) group.add(m);
 
   function refresh(): void {
     cfg = TREES.value;
     group.visible = cfg.ENABLED;
-    canopyMesh.visible = cfg.ENABLED;
-    trunkMesh.visible = cfg.ENABLED;
+    for (const m of canopyMeshes) m.visible = cfg.ENABLED;
+    for (const m of trunkMeshes) m.visible = cfg.ENABLED;
 
     setColorFromHex(trunkMaterial.color, cfg.TRUNK_COLOR);
     setColorFromHex(busyDayColor, cfg.COLOR_BUSY_DAY);
@@ -423,22 +427,26 @@ export function createTreeRenderer(
     // colorForSha / findTreeBySha always reflect the current config colors.
     _baseColorBySha.clear();
     _treeIndexBySha.clear();
-    for (let i = 0; i < totalTrees; i++) {
-      perTreeColor(i, tmpColor);
-      const commit = commits?.[placements[i].commitIndex];
-      if (commit?.sha) {
-        _baseColorBySha.set(commit.sha, `#${tmpColor.getHexString()}`);
-        _treeIndexBySha.set(commit.sha, { mesh: canopyMesh, instanceId: i, commit });
+    for (const canopyMesh of canopyMeshes) {
+      const order = canopyMesh.userData.placementOrder as number[];
+      for (let k = 0; k < order.length; k++) {
+        const i = order[k];
+        perTreeColor(i, tmpColor);
+        const commit = commits?.[placements[i].commitIndex];
+        if (commit?.sha) {
+          _baseColorBySha.set(commit.sha, `#${tmpColor.getHexString()}`);
+          _treeIndexBySha.set(commit.sha, { mesh: canopyMesh, instanceId: k, commit });
+        }
+        canopyMesh.setColorAt(k, tmpColor);
       }
-      canopyMesh.setColorAt(i, tmpColor);
+      if (canopyMesh.instanceColor) canopyMesh.instanceColor.needsUpdate = true;
     }
-    if (canopyMesh.instanceColor) canopyMesh.instanceColor.needsUpdate = true;
   }
 
   function dispose(): void {
     if (group.parent) group.parent.remove(group);
-    canopyMesh.geometry.dispose();
-    trunkMesh.geometry.dispose();
+    canopyGeometry.dispose();
+    trunkGeometry.dispose();
     canopyMaterial.dispose();
     trunkMaterial.dispose();
   }
@@ -528,8 +536,8 @@ export function createTreeRenderer(
 
   function setScrubCommit(maxCommitIndex: number | null): void {
     if (maxCommitIndex === _scrubCommit) return;
-    applyScrubToMesh(canopyMesh, canopyFullMatrix, maxCommitIndex);
-    applyScrubToMesh(trunkMesh, trunkFullMatrix, maxCommitIndex);
+    for (const m of canopyMeshes) applyScrubToMesh(m, canopyFullMatrix, maxCommitIndex);
+    for (const m of trunkMeshes) applyScrubToMesh(m, trunkFullMatrix, maxCommitIndex);
     _scrubCommit = maxCommitIndex;
   }
 
