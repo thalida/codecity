@@ -26,41 +26,63 @@ import type { Street } from '@/types';
 // component (index.ts) to recompute baseY on Save.
 export const GEM_HOVER_LIFT_FRAC = 0.5;
 
-// Procedural glow texture: a single-channel radial gradient drawn on a
-// canvas, used as the alpha map for the gem's sprite halo. Cached at
-// module scope so a second gem build (manifest swap on rebuild) reuses
-// the same GPU texture rather than allocating a fresh one each time.
-//
-// Returns null when the host environment can't build a real gradient
-// (the jsdom canvas mock returns undefined from createRadialGradient).
-// Callers skip the glow sprites in that case.
-let _glowTexture: THREE.CanvasTexture | null = null;
-function _makeGlowTexture(): THREE.CanvasTexture | null {
+// Procedural glow texture: a radial falloff computed pixel-by-pixel into a
+// DataTexture. Deliberately NOT a canvas-2D gradient: Android's canvas
+// rasterizes low-alpha gradient stops with premultiplied rounding that
+// leaves the "transparent" region slightly non-zero, and under additive
+// blending that renders the sprite's square edges as a visible box over
+// the night sky (desktop canvases round the same texels to true zero).
+// Cached at module scope so a second gem build (manifest swap on rebuild)
+// reuses the same GPU texture rather than allocating a fresh one each time.
+
+// Falloff stops as (radiusFraction, alpha) pairs, linearly interpolated:
+// softer than a typical hard-core radial — even the center is held a
+// little below max alpha, and most of the area is at very low opacity so
+// the halo reads as a fuzzy haze rather than a bright disk. Tuned by eye.
+const GLOW_FALLOFF_STOPS: ReadonlyArray<readonly [number, number]> = [
+  [0, 0.85],
+  [0.08, 0.55],
+  [0.2, 0.3],
+  [0.4, 0.12],
+  [0.65, 0.04],
+  [0.85, 0.01],
+  [1, 0],
+];
+
+function _glowAlphaAt(t: number): number {
+  for (let i = 1; i < GLOW_FALLOFF_STOPS.length; i++) {
+    const [t1, a1] = GLOW_FALLOFF_STOPS[i];
+    if (t <= t1) {
+      const [t0, a0] = GLOW_FALLOFF_STOPS[i - 1];
+      return a0 + ((t - t0) / (t1 - t0)) * (a1 - a0);
+    }
+  }
+  return 0;
+}
+
+let _glowTexture: THREE.DataTexture | null = null;
+function _makeGlowTexture(): THREE.DataTexture {
   if (_glowTexture) return _glowTexture;
   const SIZE = 256;
-  const canvas = document.createElement('canvas');
-  canvas.width = SIZE;
-  canvas.height = SIZE;
-  const ctx = canvas.getContext('2d');
-  if (!ctx || typeof ctx.createRadialGradient !== 'function') return null;
-  const cx = SIZE / 2;
-  const cy = SIZE / 2;
-  const gradient = ctx.createRadialGradient(cx, cy, 0, cx, cy, SIZE / 2);
-  if (!gradient || typeof gradient.addColorStop !== 'function') return null;
-  // Softer, more gradual falloff than a typical hard-core radial: even the
-  // center is held a little below max alpha, and most of the area is at
-  // very low opacity so the halo reads as a fuzzy haze rather than a
-  // bright disk. Tuned by eye for a "fuzzy neon glow" feel.
-  gradient.addColorStop(0, 'rgba(255, 255, 255, 0.85)');
-  gradient.addColorStop(0.08, 'rgba(255, 255, 255, 0.55)');
-  gradient.addColorStop(0.2, 'rgba(255, 255, 255, 0.3)');
-  gradient.addColorStop(0.4, 'rgba(255, 255, 255, 0.12)');
-  gradient.addColorStop(0.65, 'rgba(255, 255, 255, 0.04)');
-  gradient.addColorStop(0.85, 'rgba(255, 255, 255, 0.01)');
-  gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
-  ctx.fillStyle = gradient;
-  ctx.fillRect(0, 0, SIZE, SIZE);
-  _glowTexture = new THREE.CanvasTexture(canvas);
+  const data = new Uint8Array(SIZE * SIZE * 4);
+  const center = (SIZE - 1) / 2;
+  for (let y = 0; y < SIZE; y++) {
+    for (let x = 0; x < SIZE; x++) {
+      const t = Math.hypot(x - center, y - center) / (SIZE / 2);
+      const alpha = Math.round(_glowAlphaAt(Math.min(t, 1)) * 255);
+      const i = (y * SIZE + x) * 4;
+      data[i] = 255;
+      data[i + 1] = 255;
+      data[i + 2] = 255;
+      // Quantized-to-zero rim: anything that would round below 1/255 IS
+      // zero, so the quad's edges can never glow the sky.
+      data[i + 3] = alpha;
+    }
+  }
+  _glowTexture = new THREE.DataTexture(data, SIZE, SIZE, THREE.RGBAFormat);
+  _glowTexture.magFilter = THREE.LinearFilter;
+  _glowTexture.minFilter = THREE.LinearFilter;
+  _glowTexture.needsUpdate = true;
   return _glowTexture;
 }
 
@@ -142,72 +164,66 @@ export function createRootGem(street: Street): THREE.Group {
   // Material refs are stashed on gem.userData so the theme effect + the render
   // loop can mutate scale/opacity/color without rebuilding. Glow visibility
   // is driven by the GEM_GLOW.ENABLED flag.
-  //
-  // Skipped when _makeGlowTexture returns null (jsdom test env).
   const gem = new THREE.Group();
   const glowCfg = GEM.value;
   const glowTex = _makeGlowTexture();
-  let innerGlowSprite: THREE.Sprite | null = null;
-  let outerGlowSprite: THREE.Sprite | null = null;
-  if (glowTex) {
-    innerGlowSprite = new THREE.Sprite(
-      new THREE.SpriteMaterial({
-        map: glowTex,
-        color: new THREE.Color(edgeColor),
-        transparent: true,
-        opacity: glowCfg.GLOW_INNER_OPACITY,
-        blending: THREE.AdditiveBlending,
-        depthWrite: false,
-        // Depth test ON: the halo must be occluded by opaque foreground
-        // surfaces (trees, buildings) instead of bleeding through them.
-        // A prior version had this off so the glow wouldn't be sliced by
-        // the island top at low camera angles, but the trade — gem glow
-        // visible THROUGH tree canopies — is the more obvious artifact.
-        depthTest: true,
-      })
-    );
-    innerGlowSprite.scale.set(
-      radius * glowCfg.GLOW_INNER_SCALE,
-      radius * glowCfg.GLOW_INNER_SCALE,
-      1
-    );
-    innerGlowSprite.visible = glowCfg.GLOW_ENABLED;
-    // Glow is purely visual — never absorbs hover / click. Sprites are
-    // raycast-pickable by default, so override with a no-op.
-    innerGlowSprite.raycast = () => {};
+  const innerGlowSprite = new THREE.Sprite(
+    new THREE.SpriteMaterial({
+      map: glowTex,
+      color: new THREE.Color(edgeColor),
+      transparent: true,
+      opacity: glowCfg.GLOW_INNER_OPACITY,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+      // Depth test ON: the halo must be occluded by opaque foreground
+      // surfaces (trees, buildings) instead of bleeding through them.
+      // A prior version had this off so the glow wouldn't be sliced by
+      // the island top at low camera angles, but the trade — gem glow
+      // visible THROUGH tree canopies — is the more obvious artifact.
+      depthTest: true,
+    })
+  );
+  innerGlowSprite.scale.set(
+    radius * glowCfg.GLOW_INNER_SCALE,
+    radius * glowCfg.GLOW_INNER_SCALE,
+    1
+  );
+  innerGlowSprite.visible = glowCfg.GLOW_ENABLED;
+  // Glow is purely visual — never absorbs hover / click. Sprites are
+  // raycast-pickable by default, so override with a no-op.
+  innerGlowSprite.raycast = () => {};
 
-    outerGlowSprite = new THREE.Sprite(
-      new THREE.SpriteMaterial({
-        map: glowTex,
-        color: new THREE.Color(edgeColor),
-        transparent: true,
-        opacity: glowCfg.GLOW_OUTER_OPACITY,
-        blending: THREE.AdditiveBlending,
-        depthWrite: false,
-        // Depth test OFF on the OUTER halo only: this big atmospheric
-        // sprite extends far enough that the island silhouette slices it
-        // in a harsh line at low camera angles when depth-tested. It's
-        // dim/diffuse enough that the canopy bleed-through (the reason
-        // depth-test is ON for the inner sprite) is barely visible here.
-        // The inner sprite keeps depthTest: true so the bright core still
-        // gets occluded behind buildings/trees correctly.
-        depthTest: false,
-      })
-    );
-    outerGlowSprite.scale.set(
-      radius * glowCfg.GLOW_OUTER_SCALE,
-      radius * glowCfg.GLOW_OUTER_SCALE,
-      1
-    );
-    outerGlowSprite.visible = glowCfg.GLOW_ENABLED;
-    outerGlowSprite.raycast = () => {};
+  const outerGlowSprite = new THREE.Sprite(
+    new THREE.SpriteMaterial({
+      map: glowTex,
+      color: new THREE.Color(edgeColor),
+      transparent: true,
+      opacity: glowCfg.GLOW_OUTER_OPACITY,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+      // Depth test OFF on the OUTER halo only: this big atmospheric
+      // sprite extends far enough that the island silhouette slices it
+      // in a harsh line at low camera angles when depth-tested. It's
+      // dim/diffuse enough that the canopy bleed-through (the reason
+      // depth-test is ON for the inner sprite) is barely visible here.
+      // The inner sprite keeps depthTest: true so the bright core still
+      // gets occluded behind buildings/trees correctly.
+      depthTest: false,
+    })
+  );
+  outerGlowSprite.scale.set(
+    radius * glowCfg.GLOW_OUTER_SCALE,
+    radius * glowCfg.GLOW_OUTER_SCALE,
+    1
+  );
+  outerGlowSprite.visible = glowCfg.GLOW_ENABLED;
+  outerGlowSprite.raycast = () => {};
 
-    // Draw outer halo first (largest, softest), then inner, then the
-    // opaque body, then the edges. The additive layers blend cumulatively
-    // beneath the body's colored faces.
-    gem.add(outerGlowSprite);
-    gem.add(innerGlowSprite);
-  }
+  // Draw outer halo first (largest, softest), then inner, then the
+  // opaque body, then the edges. The additive layers blend cumulatively
+  // beneath the body's colored faces.
+  gem.add(outerGlowSprite);
+  gem.add(innerGlowSprite);
   gem.add(body);
   gem.add(edges);
   gem.position.set(gemX, hoverY, gemZ);
