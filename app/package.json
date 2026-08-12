@@ -11,7 +11,7 @@
     "coverage": "vitest run --project=unit --coverage",
     "bench": "vitest run --project=bench",
     "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.node.json",
-    "lint": "eslint .",
+    "lint": "eslint . --rule '{\"house/comment-length\":\"off\",\"house/css-comment-length\":\"off\"}'",
     "lint:fix": "eslint . --fix"
   },
   "repository": {

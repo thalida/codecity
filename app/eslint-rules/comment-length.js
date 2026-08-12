@@ -1,12 +1,24 @@
 // eslint-rules/comment-length.js — caps how long a comment may run.
 // Density is the point: a long block buries the one non-obvious fact in it.
 
-/** Consecutive `//` lines count as one block, so the cap can't be split around. */
-function toBlocks(comments) {
+/** Nothing but whitespace before it — a comment trailing code is its own thing,
+ *  not part of a prose block that happens to start on the next line. Off the
+ *  raw text: the CSS language has no `lines`. */
+function ownLine(sourceCode, comment) {
+  const start = comment.range?.[0] ?? comment.loc?.start?.offset;
+  if (start == null) return true;
+  const lineStart = sourceCode.text.lastIndexOf('\n', start - 1) + 1;
+  return sourceCode.text.slice(lineStart, start).trim() === '';
+}
+
+/** Consecutive own-line `//` runs count as one block, so the cap can't be split
+ *  around by inserting newlines. */
+function toBlocks(sourceCode, comments) {
   const blocks = [];
   let run = null;
   for (const c of comments) {
-    if (c.type === 'Block') {
+    const alone = ownLine(sourceCode, c);
+    if (c.type === 'Block' || !alone) {
       blocks.push({ first: c, last: c, lines: c.loc.end.line - c.loc.start.line + 1 });
       run = null;
       continue;
@@ -48,7 +60,7 @@ export const commentLength = {
     const { max = 2, header = 4 } = context.options[0] ?? {};
     return {
       Program() {
-        for (const block of toBlocks(context.sourceCode.getAllComments())) {
+        for (const block of toBlocks(context.sourceCode, context.sourceCode.getAllComments())) {
           if (DIRECTIVE.test(block.first.value)) continue;
           // The file header gets more room: it names the module's whole job.
           const cap = block.first.loc.start.line === 1 ? header : max;
@@ -72,6 +84,8 @@ export const cssCommentLength = {
     return {
       StyleSheet() {
         for (const c of context.sourceCode.comments) {
+          // A note trailing a declaration is one line by construction.
+          if (!ownLine(context.sourceCode, c)) continue;
           const lines = c.loc.end.line - c.loc.start.line + 1;
           const cap = c.loc.start.line === 1 ? header : max;
           if (lines <= cap) continue;

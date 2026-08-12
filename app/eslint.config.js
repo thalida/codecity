@@ -34,6 +34,8 @@ export default tseslint.config(
       globals: { ...globals.browser, ...globals.node },
     },
     rules: {
+      // On here so an editor flags it as you type. The whole-tree `npm run
+      // lint` switches it off; the pre-push gate runs it over changed files.
       'house/comment-length': ['error', { max: 2, header: 4 }],
       'no-var': 'error',
       'prefer-const': 'error',
