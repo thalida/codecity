@@ -13,9 +13,7 @@ uniform vec3 uTint;
 uniform float uTime;
 uniform float uOpacity;
 
-float hash11(float n) {
-  return fract(sin(n) * 43758.5453);
-}
+#include <hash_glsl_inline>
 
 void main() {
   // Glitch jitter: derive a slow-clock bucket (0.25 Hz) and check

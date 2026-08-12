@@ -7,6 +7,7 @@
 import * as THREE from 'three';
 import hslGlslSrc from './hsl.glsl?raw';
 import fogGlslSrc from './fog.glsl?raw';
+import hashGlslSrc from './hash.glsl?raw';
 
 let _registered = false;
 
@@ -16,4 +17,5 @@ export function registerShaderChunks(): void {
   const chunks = THREE.ShaderChunk as unknown as Record<string, string>;
   chunks['hsl_glsl_inline'] = hslGlslSrc;
   chunks['fog_glsl_inline'] = fogGlslSrc;
+  chunks['hash_glsl_inline'] = hashGlslSrc;
 }

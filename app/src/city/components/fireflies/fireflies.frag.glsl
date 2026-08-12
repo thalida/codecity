@@ -20,12 +20,14 @@ varying float vCommitIndex;
 varying vec3 vViewNormal;
 varying vec3 vInstanceColor;
 
+#include <hash_glsl_inline>
+
 void main() {
   // Flicker: hold each random value for ~1/8 second so the brain reads
   // it as flicker rather than integrating to a steady average. Above
   // ~30 Hz the eye smooths it out.
   float noiseStep = floor(uTime * FLICKER_HZ);
-  float flickerNoise = fract(sin(noiseStep * 17.0 + vCommitIndex * 13.0) * 43758.5453);
+  float flickerNoise = hash11(noiseStep * 17.0 + vCommitIndex * 13.0);
   float flicker = mix(1.0, flickerNoise, uFlicker);
 
   // Hover / select brightness + rim. Select beats hover.

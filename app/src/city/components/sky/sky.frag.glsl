@@ -42,22 +42,10 @@ uniform float uTime;              // seconds; advanced once per frame
 uniform float uAuroraEnabled;
 uniform float uAuroraIntensity;   // peak add-on; low so it stays under bloom
 
-// Hash-without-sine (Dave Hoskins). The classic fract(sin(dot(...))) hash
-// bands into visible moiré at large coordinates; these stay well-distributed
-// across the whole cell grid, so the star field reads as pure noise with no
-// recurring pattern. Keyed on vec3 = (cell.x, cell.y, cubeFace) so the six
-// cube faces are fully decorrelated. hash13 → one value (star presence);
-// hash33 → three values at once (star center xy + twinkle phase).
-float hash13(vec3 p3) {
-  p3 = fract(p3 * 0.1031);
-  p3 += dot(p3, p3.zyx + 31.32);
-  return fract((p3.x + p3.y) * p3.z);
-}
-vec3 hash33(vec3 p3) {
-  p3 = fract(p3 * vec3(0.1031, 0.1030, 0.0973));
-  p3 += dot(p3, p3.yxz + 33.33);
-  return fract((p3.xxy + p3.yxx) * p3.zyx);
-}
+// Hashes come from the shared chunk. Keyed on vec3 = (cell.x, cell.y,
+// cubeFace) so the six cube faces are fully decorrelated. hash13 → one value
+// (star presence); hash33 → three values (star center xy + twinkle phase).
+#include <hash_glsl_inline>
 
 // --- Aurora (domain-warped gem nebula) ---
 // Ported from LandingBackdrop's fbm domain warp, but 3D over the world
