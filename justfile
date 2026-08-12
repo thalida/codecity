@@ -39,7 +39,7 @@ tunl:
     @PORT=$(python3 bin/pick-port.py vite) ; \
      SLUG=codecity-$( ( git symbolic-ref --short -q HEAD 2>/dev/null || basename $(pwd) ) | tr '[:upper:]' '[:lower:]' | tr -c '[:alnum:]' '-' | sed 's/-*$//') ; \
      echo "[codecity-tunl] https://$SLUG.tunl.sh/" ; \
-     ssh -o ServerAliveInterval=60 -o ExitOnForwardFailure=yes -R $SLUG:80:localhost:$PORT tunl.sh
+     ssh -p 2222 -o ServerAliveInterval=60 -o ExitOnForwardFailure=yes -R $SLUG:80:localhost:$PORT tunl.sh
 
 # Prod-like local run: one container, mirrors the README Quick Start.
 # Takes the same `-v` / `-e` flags as `just dev`. Without a mount the container
