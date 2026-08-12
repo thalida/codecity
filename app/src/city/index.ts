@@ -211,6 +211,14 @@ export async function createCity(canvas: HTMLCanvasElement, manifest: Manifest):
     onResize() {
       const cw = canvas.clientWidth;
       const ch = canvas.clientHeight;
+      // ResizeObserver fires on fractional layout jitter (on phones, every
+      // couple of seconds — the ticking freshness label nudges the canvas
+      // box). Reallocating render targets + presenting mid-frame for a
+      // no-op "resize" makes some mobile drivers emit garbage frames, so
+      // bail unless the CSS pixel size actually changed.
+      if (cw === _lastResizeW && ch === _lastResizeH) return;
+      _lastResizeW = cw;
+      _lastResizeH = ch;
       debugLog('resize', { cw, ch });
       postFx.setSize(cw, ch);
       for (const c of components) c.onResize?.(cw, ch);
@@ -229,6 +237,9 @@ export async function createCity(canvas: HTMLCanvasElement, manifest: Manifest):
   // Telemetry scratch: previous frame's camera position, for jump detection.
   const _prevCamPos = new THREE.Vector3();
   let _prevCamPosValid = false;
+  // Last size the resize handler acted on — its no-op jitter guard.
+  let _lastResizeW = 0;
+  let _lastResizeH = 0;
   // Last scrub position the removed-selection prune ran at — so it fires only when
   // the scrub actually MOVES, never on a static selection.
   let _lastPrunedScrubPos = -1;
