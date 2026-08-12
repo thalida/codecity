@@ -1,6 +1,6 @@
-// constants/keyboard.ts — KeyboardEvent.key values that act as
-// app-level shortcuts. Centralized so the input handler and the
-// help table in the Controls pane can't drift apart.
+// constants/keyboard.ts — KeyboardEvent.key values that act as app-level
+// shortcuts. Centralized so the input handler and the shortcuts panel that
+// documents it can't drift apart.
 
 /**
  * One shortcut binding: a primary key + optional aliases (e.g. lowercase
@@ -22,7 +22,6 @@ export const KEY_BINDINGS: Record<string, KeyBinding> = {
   FOCUS_SELECTION: { label: 'F', keys: ['f', 'F'] },
   /** Close the sidebar / clear selection. */
   CLEAR_SELECTION: { label: 'Esc', keys: ['Escape'] },
-  /** Open the keyboard-shortcuts panel. Its button lives in the 24px footer
-   *  now, so the panel needs a way in that doesn't depend on finding it. */
+  /** Open the shortcuts panel, whose own button is one glyph in the footer. */
   SHOW_SHORTCUTS: { label: '?', keys: ['?'] },
 };

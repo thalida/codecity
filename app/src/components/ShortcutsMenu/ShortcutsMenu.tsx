@@ -9,12 +9,14 @@ import { Keyboard } from 'lucide-preact';
 import { Popover, PopoverPlacement } from '@/components/Popover/Popover';
 import { SHORTCUTS_OPEN } from '@/state/stores/ui';
 import { KEY_BINDINGS } from '@/constants/keyboard';
+import { IS_TOUCH } from '@/state/stores/viewport';
 
 interface ShortcutItem {
   kbd?: string[];
-  /** Modifier keys held while performing the mouse gesture (rendered as kbd chips). */
+  /** Modifier keys held while performing the gesture (rendered as kbd chips). */
   mod?: string[];
-  mouse?: string;
+  /** A pointer gesture: a mouse action or a touch one. */
+  gesture?: string;
   action: string;
   or?: string;
 }
@@ -23,20 +25,27 @@ const KEYBOARD_SHORTCUTS: ShortcutItem[] = [
   { kbd: [KEY_BINDINGS.RESET_VIEW.label], action: 'Reset the camera view' },
   { kbd: [KEY_BINDINGS.FOCUS_SELECTION.label], action: 'Focus camera on the current selection' },
   { kbd: [KEY_BINDINGS.CLEAR_SELECTION.label], action: 'Clear selection' },
+  { kbd: [KEY_BINDINGS.SHOW_SHORTCUTS.label], action: 'Open this panel' },
 ];
 
 const MOUSE_SHORTCUTS: ShortcutItem[] = [
-  { mouse: 'Click', action: 'Select building / street / gem' },
-  { mouse: 'Double-click', action: 'Focus camera on the target' },
-  { mouse: 'Left drag', action: 'Orbit' },
-  { mouse: 'Right drag', action: 'Pan' },
+  { gesture: 'Click', action: 'Select building / street / gem' },
+  { gesture: 'Left drag', action: 'Orbit' },
+  { gesture: 'Right drag', action: 'Pan' },
   {
     mod: ['⌘', 'Ctrl', 'Shift'],
-    mouse: 'Left drag',
+    gesture: 'Left drag',
     action: 'Pan (for trackpads / one-button mice)',
   },
-  { mouse: 'Middle drag', action: 'Dolly (zoom)' },
-  { mouse: 'Scroll', action: 'Zoom toward cursor' },
+  { gesture: 'Middle drag', action: 'Dolly (zoom)' },
+  { gesture: 'Scroll', action: 'Zoom toward cursor' },
+];
+
+const TOUCH_SHORTCUTS: ShortcutItem[] = [
+  { gesture: 'Tap', action: 'Select building / street / gem' },
+  { gesture: 'Drag', action: 'Orbit' },
+  { gesture: 'Two-finger drag', action: 'Pan' },
+  { gesture: 'Pinch', action: 'Zoom' },
 ];
 
 function ShortcutsList({ items }: { items: ShortcutItem[] }) {
@@ -63,7 +72,7 @@ function ShortcutsList({ items }: { items: ShortcutItem[] }) {
                 </>
               ))}
               {item.mod && ' + '}
-              <span class="shortcuts-mouse">{item.mouse}</span>
+              <span class="shortcuts-gesture">{item.gesture}</span>
             </dt>
           );
         return (
@@ -78,17 +87,28 @@ function ShortcutsList({ items }: { items: ShortcutItem[] }) {
 }
 
 export function ShortcutsMenu() {
+  // Touch first where there is one: nothing on a touchscreen advertises that
+  // two fingers pan. Keyboard and mouse stay — a tablet can have both.
+  const touch = IS_TOUCH.value;
   return (
     <Popover
-      label="Keyboard and mouse"
+      label="Shortcuts and gestures"
       placement={PopoverPlacement.AboveStart}
       openSignal={SHORTCUTS_OPEN}
-      triggerTitle="Keyboard shortcuts (?)"
-      triggerLabel="Keyboard shortcuts"
+      triggerTitle={touch ? 'Shortcuts and gestures' : 'Keyboard shortcuts (?)'}
+      triggerLabel="Shortcuts and gestures"
       trigger={<Keyboard class="icon" aria-hidden="true" />}
     >
       {() => (
         <>
+          {touch && (
+            <section class="popover-group">
+              <div class="popover-group-head">
+                <h3 class="popover-group-title">Touch</h3>
+              </div>
+              <ShortcutsList items={TOUCH_SHORTCUTS} />
+            </section>
+          )}
           <section class="popover-group">
             <div class="popover-group-head">
               <h3 class="popover-group-title">Keyboard</h3>

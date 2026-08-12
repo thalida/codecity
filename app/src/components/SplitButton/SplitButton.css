@@ -55,6 +55,7 @@
   column-gap: var(--cc-space-3);
   row-gap: var(--cc-space-1);
   text-align: left;
+  min-height: var(--cc-tap-min);
   padding: var(--cc-space-3) var(--cc-space-4);
   border: 0;
   border-radius: var(--cc-radius-sm);

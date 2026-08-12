@@ -81,6 +81,8 @@
   display: flex;
   align-items: center;
   gap: var(--cc-space-4);
+  /* The whole row is the button, so the row carries the tap floor. */
+  min-height: var(--cc-tap-min);
   /* The row is a flex item, so it stretches to the section/duo width on its own
    * (definite width → the value truncates instead of overflowing — no calc()
    * hack needed). The negative margins then do one job: bleed the hover highlight
@@ -167,7 +169,7 @@
   flex: 0 0 auto;
   width: 14px;
   height: 14px;
-  color: var(--cc-text-muted);
+  color: var(--cc-text-strong);
   transition: color 0.12s ease;
 }
 

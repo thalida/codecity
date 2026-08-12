@@ -234,7 +234,7 @@
      scrolling the page. The column still shrink-wraps and stays centered while
      it fits. Stacked, the breakpoint at the end of this file lifts the cap. */
   min-height: 0;
-  max-height: calc(100vh - 2 * var(--cc-space-9));
+  max-height: calc(100dvh - 2 * var(--cc-space-9));
 }
 
 /* A card holding an open menu has to outrank its siblings: they are stacked in
@@ -326,7 +326,9 @@
        unprefixed declaration first keeps engines without it on plain center. */
     align-content: center;
     align-content: safe center;
-    gap: var(--cc-space-8);
+    /* Wider than the side-by-side gap: stacked, this is the break between the
+       pitch and the thing you act on, not a column gutter. */
+    gap: calc(var(--cc-space-9) * 1.5);
     /* The top band clears the floating close button (its own inset plus its
        height) so the brand never shares a line with it. */
     padding: calc(var(--cc-space-9) * 2) var(--cc-space-7) var(--cc-space-9);
@@ -349,5 +351,46 @@
   }
   .landing-card--sources {
     flex: 0 0 auto;
+  }
+}
+
+/* ── Phone (PHONE_MAX_PX) ────────────────────────────────────────────────────
+   The 900px stack assumes tablet room; at 390px the card padding and the hero's
+   own indent eat a third of the line length. */
+@media (max-width: 640px) {
+  .landing-inner {
+    padding: calc(var(--cc-space-9) * 2) var(--cc-space-6) var(--cc-space-8);
+  }
+
+  .landing-hero {
+    padding-inline: 0;
+    gap: var(--cc-space-5);
+  }
+
+  .landing-card {
+    padding: var(--cc-space-6);
+  }
+
+  .landing-brand {
+    gap: var(--cc-space-5);
+  }
+
+  .landing-gem,
+  .landing-gem .gem-icon {
+    width: 36px;
+    height: 36px;
+  }
+
+  .landing-wordmark {
+    font-size: var(--cc-font-xl);
+  }
+
+  .landing-tagline {
+    font-size: var(--cc-font-md);
+  }
+
+  .landing-delight {
+    font-size: var(--cc-font-sm);
+    align-items: flex-start;
   }
 }

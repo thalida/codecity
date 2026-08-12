@@ -11,6 +11,7 @@ import { SOURCE_INFO } from '@/state/stores/source';
 import { MANIFEST } from '@/state/stores/manifest';
 import type { Manifest } from '@/types';
 import { openProjectsView } from '@/state/stores/ui';
+import { IS_PHONE } from '@/state/stores/viewport';
 import {
   ChromeCluster,
   ClusterButton,
@@ -37,13 +38,15 @@ export function AppHeader({ onSwitchSource, onRefresh }: AppHeaderProps = {}) {
 
   return (
     <header id="app-header" class="surface-chrome">
-      <ChromeCluster>
+      <ChromeCluster class="app-header-project">
         <ProjectSwitcher
           rootLabel={si.label}
           branch={si.branch}
           onSwitchSource={onSwitchSource ?? (() => openProjectsView({ dismissible: true }))}
         />
-        {si.src && (
+        {/* Dropped on a phone: a repo path on a phone's clipboard has nowhere
+            to go, and the room buys the repo name back. */}
+        {si.src && !IS_PHONE.value && (
           <CopyButton variant={CopyButtonVariant.Cluster} text={si.src} label="Copy repo source" />
         )}
         {remoteUrl && (

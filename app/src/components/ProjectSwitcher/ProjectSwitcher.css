@@ -9,8 +9,25 @@
   color: var(--cc-text-strong);
   white-space: nowrap;
   min-width: 0;
+  display: flex;
+}
+
+/* Give-way order when the chip runs short: owner, then the branch pill, and the
+   repo name last — it's the part that says which project this is. */
+.project-switcher-owner,
+.project-switcher-name {
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+.project-switcher-owner {
+  flex: 0 999 auto;
+}
+.project-switcher .app-header-branch-pill {
+  flex: 0 100 auto;
+}
+.project-switcher-name {
+  flex: 0 1 auto;
 }
 /* Follows the item on hover/press like every other cluster label, instead of
    holding its rest colour through the engaged state. */

@@ -18,10 +18,6 @@ export const PERSISTED_KEYS = {
    *  local source no longer carries — dropping the stale slot is cheaper than
    *  migrating an MRU convenience list. */
   RECENTS: 'recents.v2',
-  /** Left (tree/info/controls) sidebar drag-handle width in px. */
-  LEFT_SIDEBAR_WIDTH: 'leftSidebarWidth',
-  /** Right (file/commit/street pane) sidebar drag-handle width in px. */
-  RIGHT_SIDEBAR_WIDTH: 'rightSidebarWidth',
   /** Per-repo UI exclude lists (repo key -> rel-paths hidden from the city). */
   EXCLUDES: 'excludes',
 } as const;

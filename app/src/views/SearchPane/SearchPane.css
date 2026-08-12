@@ -50,6 +50,7 @@
   text-align: left;
   background: none;
   border: none;
+  min-height: var(--cc-tap-min);
   padding: var(--cc-space-2) var(--cc-pane-inset);
   cursor: pointer;
   font-family: var(--cc-font-mono);

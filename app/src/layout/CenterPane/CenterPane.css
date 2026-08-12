@@ -30,6 +30,14 @@
   pointer-events: auto;
 }
 
+/* Phone (PHONE_MAX_PX): the desktop gutter costs a sixth of the scrubber. */
+@media (max-width: 640px) {
+  #scene-controls {
+    bottom: var(--cc-space-6);
+    width: calc(100% - var(--cc-space-6) * 2);
+  }
+}
+
 /* Scoped to this pane: a bare `canvas` selector reaches every canvas in the
    app, and the opaque fill below then hides whatever a translucent one was
    meant to sit over (it did exactly that to the landing backdrop). */

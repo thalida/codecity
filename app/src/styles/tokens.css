@@ -154,11 +154,21 @@
   /* Height of BOTH chrome bars. One value: they sat at 32px and 24px, which
      read as a mistake once each held a cluster of the same controls. Sized so a
      26px cluster (24px items + its border) clears the edges on both sides. */
-  --cc-chrome-h: 36px;
+  --cc-chrome-h: 44px;
   /* Height of a cluster item. The bars derive their inline padding from it so
      the gap around a cluster is the same on all four sides. */
-  --cc-chrome-item-h: 24px;
+  --cc-chrome-item-h: var(--cc-tap-min);
+  /* Floor for anything pressable. One size for both pointers: a cursor doesn't
+     notice the extra, a thumb can't hit anything less. */
+  --cc-tap-min: 32px;
   --cc-chrome-inset: calc((var(--cc-chrome-h) - var(--cc-chrome-item-h) - 2px) / 2);
+  /* Activity-bar width. Also the collapsed sidebar's width, and where a drawer
+     and its scrim start — four rules that have to agree. */
+  --cc-rail-w: 44px;
+  /* Default width of either sidebar, before a drag. A third of the window read
+     as a strip on a tablet; the floor is what a pane needs to be worth opening.
+     The sidebars' own min/max still clamp a dragged width. */
+  --cc-sidebar-w: clamp(320px, 40vw, 600px);
 
   /* ── SCALES — Radius ──────────────────────────────────────────────────── */
   --cc-radius-0: 0;

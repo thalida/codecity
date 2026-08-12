@@ -4,1133 +4,1141 @@
  */
 
 export interface paths {
-    "/api/health": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Health */
-        get: operations["health_api_health_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+  '/api/health': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/api/config": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Config */
-        get: operations["config_api_config_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /** Health */
+    get: operations['health_api_health_get'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/config': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/api/discover": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Discover */
-        get: operations["discover_api_discover_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /** Config */
+    get: operations['config_api_config_get'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/discover': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/api/file": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Get File */
-        get: operations["get_file_api_file_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /** Discover */
+    get: operations['discover_api_discover_get'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/file': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/api/images": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Get Images
-         * @description Batch image fetch — {path: {mime, b64}} for many small images in one round
-         *     trip. NOT a plural of GET /api/file: it inlines base64, serves images only,
-         *     and omits anything it can't serve. It exists so the scene's billboard loader
-         *     doesn't exhaust the browser's HTTP/1.1 connection pool on a media-heavy repo.
-         *
-         *     Each path is trust-checked exactly like GET /api/file. Paths that are out of
-         *     root, missing, non-image, or larger than _MAX_BATCH_IMAGE_BYTES are silently
-         *     omitted; the client falls back to the streaming GET for those. Videos are
-         *     never batched (they stream their poster frame), so this is images only.
-         */
-        post: operations["get_images_api_images_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /** Get File */
+    get: operations['get_file_api_file_get'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/images': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/api/fingerprints": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Get Fingerprints
-         * @description Batch byte-pattern fingerprint fetch — {path: {b64}}, one round trip for
-         *     many buildings. Trust-checked like GET /api/file; out-of-root / missing /
-         *     unreadable paths are silently omitted. Raw binary bytes never leave the
-         *     server — only the head is read, and only the fingerprint image returned.
-         */
-        post: operations["get_fingerprints_api_fingerprints_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    /**
+     * Get Images
+     * @description Batch image fetch — {path: {mime, b64}} for many small images in one round
+     *     trip. NOT a plural of GET /api/file: it inlines base64, serves images only,
+     *     and omits anything it can't serve. It exists so the scene's billboard loader
+     *     doesn't exhaust the browser's HTTP/1.1 connection pool on a media-heavy repo.
+     *
+     *     Each path is trust-checked exactly like GET /api/file. Paths that are out of
+     *     root, missing, non-image, or larger than _MAX_BATCH_IMAGE_BYTES are silently
+     *     omitted; the client falls back to the streaming GET for those. Videos are
+     *     never batched (they stream their poster frame), so this is images only.
+     */
+    post: operations['get_images_api_images_post'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/fingerprints': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/api/commit": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Get Commit */
-        get: operations["get_commit_api_commit_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    /**
+     * Get Fingerprints
+     * @description Batch byte-pattern fingerprint fetch — {path: {b64}}, one round trip for
+     *     many buildings. Trust-checked like GET /api/file; out-of-root / missing /
+     *     unreadable paths are silently omitted. Raw binary bytes never leave the
+     *     server — only the head is read, and only the fingerprint image returned.
+     */
+    post: operations['get_fingerprints_api_fingerprints_post'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/commit': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/api/branches": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Get Branches */
-        get: operations["get_branches_api_branches_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /** Get Commit */
+    get: operations['get_commit_api_commit_get'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/branches': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/api/manifest/signature": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Signature */
-        get: operations["signature_api_manifest_signature_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /** Get Branches */
+    get: operations['get_branches_api_branches_get'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/manifest/signature': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/api/timeline": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Timeline */
-        get: operations["timeline_api_timeline_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /** Signature */
+    get: operations['signature_api_manifest_signature_get'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/timeline': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/api/manifest": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Manifest */
-        get: operations["manifest_api_manifest_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /** Timeline */
+    get: operations['timeline_api_timeline_get'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/manifest': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
+    /** Manifest */
+    get: operations['manifest_api_manifest_get'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
 }
 export type webhooks = Record<string, never>;
 export interface components {
-    schemas: {
-        /** AuthorStat */
-        AuthorStat: {
-            /** Name */
-            name: string;
-            /** Commits */
-            commits: number;
-            /**
-             * Hue
-             * @description Stable 0-359 hue from the name hash; the display colour is built from it client-side
-             */
-            hue: number;
-        };
-        /** BranchListResponse */
-        BranchListResponse: {
-            /** Branches */
-            branches: string[];
-            /** Default */
-            default: string | null;
-        };
-        /** BusynessThresholds */
-        BusynessThresholds: {
-            /** Avg */
-            avg: number;
-            /** Busy */
-            busy: number;
-        };
-        /**
-         * CloneProgressEvent
-         * @description `clone-progress` — git source is being cloned; carries clone progress.
-         *
-         *     A normal progress tick has `stage` + `percent`. A heartbeat during the
-         *     silent promisor blob fetch instead carries `mb_on_disk` (and no percent),
-         *     so the UI shows the working tree materializing rather than freezing.
-         */
-        CloneProgressEvent: {
-            /** Label */
-            label?: string;
-            /**
-             * Stage
-             * @enum {string}
-             */
-            stage?: "receiving" | "resolving" | "counting" | "updating";
-            /** Percent */
-            percent?: number;
-            /** Mb On Disk */
-            mb_on_disk?: number;
-        };
-        /** CommitDateRange */
-        CommitDateRange: {
-            /**
-             * Oldest
-             * @description Oldest commit date (YYYY-MM-DD), or null when the repo has no commits
-             */
-            oldest: string | null;
-            /**
-             * Newest
-             * @description Newest commit date (YYYY-MM-DD), or null when the repo has no commits
-             */
-            newest: string | null;
-        };
-        /** CommitDetailResponse */
-        CommitDetailResponse: {
-            /** Sha */
-            sha: string;
-            /** Authors */
-            authors: string[];
-            /** Date */
-            date: string;
-            /** Subject */
-            subject: string;
-            /** Body */
-            body: string;
-        };
-        /** CommitEntry */
-        CommitEntry: {
-            /**
-             * Date
-             * @description ISO-8601 UTC, e.g. 2026-07-25T14:03:21Z
-             */
-            date: string;
-            /** Files */
-            files: number;
-            /** Sha */
-            sha: string;
-            /** Authors */
-            authors: string[];
-            /** Subject */
-            subject: string;
-            /** Same Day Total */
-            same_day_total: number;
-        };
-        /** CommitLeader */
-        CommitLeader: {
-            /** Sha */
-            sha: string;
-            /** Files */
-            files: number;
-        };
-        /**
-         * CompleteManifestEvent
-         * @description `manifest-complete` — a manifest with real, fully-populated metadata (a
-         *     fresh scan's final pass, or a warm cache hit).
-         */
-        CompleteManifestEvent: {
-            manifest: components["schemas"]["Manifest"];
-        };
-        /** ConfigResponse */
-        ConfigResponse: {
-            /** Allowlocalrepos */
-            allowLocalRepos: boolean;
-            /** Hosted */
-            hosted: boolean;
-            /** Maxbatchpaths */
-            maxBatchPaths: number;
-            /** Version */
-            version: string;
-            /** Featuredrepo */
-            featuredRepo: string;
-        };
-        /** DateRangeMs */
-        DateRangeMs: {
-            /** Mincreated */
-            minCreated: number;
-            /** Maxcreated */
-            maxCreated: number;
-            /** Minmodified */
-            minModified: number;
-            /** Maxmodified */
-            maxModified: number;
-        };
-        /** DateRanges */
-        DateRanges: {
-            /**
-             * Mincreated
-             * @description Earliest resolved create date (ISO), or null for an empty tree
-             */
-            minCreated: string | null;
-            /**
-             * Maxcreated
-             * @description Latest resolved create date (ISO), or null for an empty tree
-             */
-            maxCreated: string | null;
-            /**
-             * Minmodified
-             * @description Earliest resolved modify date (ISO), or null for an empty tree
-             */
-            minModified: string | null;
-            /**
-             * Maxmodified
-             * @description Latest resolved modify date (ISO), or null for an empty tree
-             */
-            maxModified: string | null;
-        };
-        /** DayLeader */
-        DayLeader: {
-            /** Date */
-            date: string;
-            /** Count */
-            count: number;
-        };
-        /** DirLeader */
-        DirLeader: {
-            /** Path */
-            path: string;
-            /** Depth */
-            depth: number;
-            /** Children */
-            children: number;
-            /** Descendants */
-            descendants: number;
-        };
-        /** DirNode */
-        DirNode: {
-            /** Name */
-            name: string;
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            type: "directory";
-            /** Path */
-            path: string;
-            /** Fullpath */
-            fullPath: string;
-            /** Children */
-            children: (components["schemas"]["FileNode"] | components["schemas"]["DirNode"])[];
-            /** Children Count */
-            children_count: number;
-            /** Children File Count */
-            children_file_count: number;
-            /** Children Dir Count */
-            children_dir_count: number;
-            /** Descendants Count */
-            descendants_count: number;
-            /** Descendants File Count */
-            descendants_file_count: number;
-            /** Descendants Dir Count */
-            descendants_dir_count: number;
-            /** Descendants Size */
-            descendants_size: number;
-            /** Descendants Created Min */
-            descendants_created_min: string | null;
-            /** Descendants Modified Max */
-            descendants_modified_max: string | null;
-            /** Descendants Ext Breakdown */
-            descendants_ext_breakdown: components["schemas"]["ExtBreakdownEntry"][];
-        };
-        /**
-         * DiscoverEntry
-         * @description One curated repo on the landing's Discover tab. Deliberately just a URL
-         *     and a name: stars and scan timings were considered and rejected, so there
-         *     is nothing here to rot or to fetch from a third party.
-         */
-        DiscoverEntry: {
-            /** Url */
-            url: string;
-            /** Label */
-            label: string;
-            /**
-             * Featured
-             * @default false
-             */
-            featured: boolean;
-        };
-        /** DiscoverResponse */
-        DiscoverResponse: {
-            /** Repos */
-            repos: components["schemas"]["DiscoverEntry"][];
-        };
-        /**
-         * ErrorCode
-         * @description Machine-readable discriminator on an `error` event. The client keys its
-         *     remedy on this, never on the message text. Only failures the UI answers
-         *     differently earn a member; everything else stays message-only.
-         * @enum {string}
-         */
-        ErrorCode: "repo-not-found";
-        /**
-         * ErrorEvent
-         * @description `error` — a failure after the stream began; carries the message and,
-         *     where the UI can act on the reason, a code.
-         */
-        ErrorEvent: {
-            /** Error */
-            error: string;
-            /** @enum {string} */
-            code?: "repo-not-found";
-        };
-        /** ExtBreakdownEntry */
-        ExtBreakdownEntry: {
-            /** Ext */
-            ext: string | null;
-            /** Count */
-            count: number;
-            /** Size */
-            size: number;
-        };
-        /** FileLeader */
-        FileLeader: {
-            /** Path */
-            path: string;
-            /** Lines */
-            lines: number;
-            /** Bytes */
-            bytes: number;
-            /** Created */
-            created: string;
-            /** Modified */
-            modified: string;
-            /** Media Width */
-            media_width?: number;
-            /** Media Height */
-            media_height?: number;
-        };
-        /** FileNode */
-        FileNode: {
-            /** Name */
-            name: string;
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            type: "file";
-            /** Path */
-            path: string;
-            /** Fullpath */
-            fullPath: string;
-            /** Extension */
-            extension: string;
-            /** Size */
-            size: number;
-            /** Lines */
-            lines: number;
-            /** Binary */
-            binary: boolean;
-            /**
-             * Dirty
-             * @description Working-tree differs from HEAD for this tracked file (staged or unstaged). Always False for clean/remote repos.
-             */
-            dirty: boolean;
-            /**
-             * Created
-             * @description ISO create date (UTC, Z-suffixed), resolved server-side: git history date when the file has one, filesystem date otherwise
-             */
-            created: string;
-            /**
-             * Modified
-             * @description ISO modify date (UTC, Z-suffixed), resolved server-side: git history date when the file has one, filesystem date otherwise. When dirty is true, this is always the working-tree filesystem date, regardless of git history
-             */
-            modified: string;
-            /**
-             * Mediakind
-             * @description Media classification by extension (single source for the frontend); null for non-media files
-             */
-            mediaKind?: ("image" | "video") | null;
-            /** Media Width */
-            media_width?: number;
-            /** Media Height */
-            media_height?: number;
-            /** Binarytype */
-            binaryType?: string;
-        };
-        /**
-         * FingerprintEntry
-         * @description One binary file's byte-pattern fingerprint in a POST /api/fingerprints
-         *     batch response: a base64-encoded grayscale PNG (image/png implied), keyed
-         *     by request path. Computed server-side from the file's head — raw binary
-         *     bytes never ship to the client.
-         */
-        FingerprintEntry: {
-            /** B64 */
-            b64: string;
-        };
-        /** HTTPValidationError */
-        HTTPValidationError: {
-            /** Detail */
-            detail?: components["schemas"]["ValidationError"][];
-        };
-        /** HealthResponse */
-        HealthResponse: {
-            /** Ok */
-            ok: boolean;
-        };
-        /**
-         * ImageBatchEntry
-         * @description One image in a POST /api/images batch response: its content-type and
-         *     base64-encoded bytes, keyed by request path in the response map.
-         */
-        ImageBatchEntry: {
-            /** Mime */
-            mime: string;
-            /** B64 */
-            b64: string;
-        };
-        /** Manifest */
-        Manifest: {
-            /** Root */
-            root: string;
-            /** Scanned At */
-            scanned_at: string;
-            /** Content Signature */
-            content_signature: string;
-            /** Structure Signature */
-            structure_signature: string;
-            /** Layout Signature */
-            layout_signature: string;
-            tree: components["schemas"]["DirNode"];
-            repo: components["schemas"]["RepoInfo"];
-            /**
-             * Commits
-             * @description Oldest-first. Above 100k, an evenly strided sample of the history; stats.commitCount is the true total.
-             */
-            commits: components["schemas"]["CommitEntry"][];
-            busyness: components["schemas"]["BusynessThresholds"];
-            dateRanges: components["schemas"]["DateRanges"];
-            stats: components["schemas"]["RepoStats"];
-            /**
-             * Pending
-             * @description Stages still to come. 'metadata': per-file lines/binary are placeholders. 'history': dates are filesystem dates and commits is empty. Empty list means every field is final.
-             */
-            pending: ("metadata" | "history")[];
-            /**
-             * Readmepath
-             * @description Absolute path of the root README, or null if there isn't one
-             */
-            readmePath: string | null;
-            /**
-             * Readmemodified
-             * @description That README's mtime, for cache-busting the fetch
-             */
-            readmeModified: string | null;
-        };
-        /**
-         * PartialManifestEvent
-         * @description `manifest-partial` — a manifest with the real tree structure but
-         *     placeholder file metadata, sent so the UI can paint the city before
-         *     per-file metadata is resolved.
-         */
-        PartialManifestEvent: {
-            manifest: components["schemas"]["Manifest"];
-        };
-        /** PathBatchRequest */
-        PathBatchRequest: {
-            /** Paths */
-            paths: string[];
-            /** Shas */
-            shas?: {
-                [key: string]: string;
-            } | null;
-        };
-        /** RangeStat */
-        RangeStat: {
-            /** Min */
-            min: number;
-            /** Max */
-            max: number;
-        };
-        /** RepoInfo */
-        RepoInfo: {
-            /** Branch */
-            branch: string | null;
-            /** Remote Url */
-            remote_url: string | null;
-            /** Head Sha */
-            head_sha: string | null;
-            /** Head Subject */
-            head_subject: string | null;
-            /** Dirty */
-            dirty: boolean;
-        };
-        /** RepoStats */
-        RepoStats: {
-            lineCountRange: components["schemas"]["RangeStat"];
-            byteSizeRange: components["schemas"]["RangeStat"];
-            oldestCreatedFile: components["schemas"]["FileLeader"] | null;
-            newestCreatedFile: components["schemas"]["FileLeader"] | null;
-            newestModifiedFile: components["schemas"]["FileLeader"] | null;
-            oldestModifiedFile: components["schemas"]["FileLeader"] | null;
-            maxLinesFile: components["schemas"]["FileLeader"] | null;
-            minLinesFile: components["schemas"]["FileLeader"] | null;
-            maxBytesFile: components["schemas"]["FileLeader"] | null;
-            minBytesFile: components["schemas"]["FileLeader"] | null;
-            maxMediaBytesFile: components["schemas"]["FileLeader"] | null;
-            minMediaBytesFile: components["schemas"]["FileLeader"] | null;
-            maxMediaPixelsFile: components["schemas"]["FileLeader"] | null;
-            minMediaPixelsFile: components["schemas"]["FileLeader"] | null;
-            maxBinaryBytesFile: components["schemas"]["FileLeader"] | null;
-            minBinaryBytesFile: components["schemas"]["FileLeader"] | null;
-            /** Mediacount */
-            mediaCount: number;
-            /** Binarycount */
-            binaryCount: number;
-            /** Totallines */
-            totalLines: number;
-            /** Dirtyfilecount */
-            dirtyFileCount: number;
-            /** Codebytes */
-            codeBytes: number;
-            maxDepthDir: components["schemas"]["DirLeader"] | null;
-            maxChildrenDir: components["schemas"]["DirLeader"] | null;
-            minChildrenDir: components["schemas"]["DirLeader"] | null;
-            maxFilesPerCommit: components["schemas"]["CommitLeader"] | null;
-            minFilesPerCommit: components["schemas"]["CommitLeader"] | null;
-            /**
-             * Commitcount
-             * @description Commits in the full history, however many `commits` carries
-             */
-            commitCount: number;
-            commitDates: components["schemas"]["CommitDateRange"];
-            maxCommitsPerDay: components["schemas"]["DayLeader"] | null;
-            /** Maxcommitstreakdays */
-            maxCommitStreakDays: number;
-            /** Authors */
-            authors: components["schemas"]["AuthorStat"][];
-        };
-        /**
-         * ScanProgressEvent
-         * @description `scan-progress` — the working tree is being walked; carries the
-         *     heartbeat files-scanned count.
-         */
-        ScanProgressEvent: {
-            /** Label */
-            label?: string;
-            /** Files Scanned */
-            files_scanned?: number;
-        };
-        /** SignatureResponse */
-        SignatureResponse: {
-            /** Root */
-            root: string;
-            /** Scanned At */
-            scanned_at: string;
-            /** Content Signature */
-            content_signature: string;
-        };
-        /**
-         * TimelineBundle
-         * @description Wire schema for the scrub bundle; mirrors manifest_types.TimelineBundle.
-         */
-        TimelineBundle: {
-            /** Commits */
-            commits: components["schemas"]["CommitEntry"][];
-            unionManifest: components["schemas"]["Manifest"];
-            /** Deltas */
-            deltas: components["schemas"]["TimelineDelta"][];
-            /** Bloblines */
-            blobLines: {
-                [key: string]: number;
-            };
-            /** Blobsizes */
-            blobSizes: {
-                [key: string]: number;
-            };
-            /** Commitlineranges */
-            commitLineRanges: components["schemas"]["RangeStat"][];
-            /** Commitdateranges */
-            commitDateRanges: components["schemas"]["DateRangeMs"][];
-            /** Note */
-            note: string | null;
-        };
-        /** TimelineChange */
-        TimelineChange: {
-            /** Path */
-            path: string;
-            /**
-             * Sha
-             * @description New blob sha, or null when deleted
-             */
-            sha: string | null;
-        };
-        /**
-         * TimelineCompleteEvent
-         * @description `timeline-complete` — the full replay bundle (fresh build or warm
-         *     cache hit).
-         */
-        TimelineCompleteEvent: {
-            bundle: components["schemas"]["TimelineBundle"];
-        };
-        /** TimelineDelta */
-        TimelineDelta: {
-            /** Sha */
-            sha: string;
-            /** Changes */
-            changes: components["schemas"]["TimelineChange"][];
-        };
-        /**
-         * TimelineProgressEvent
-         * @description `timeline-progress` — the history walk, blob-table resolution, or (for a
-         *     blobless remote clone) the up-front blob backfill is in progress. The
-         *     `fetch` stage carries `percent`; `history` carries `commits`; `blobs`
-         *     carries `blobsDone`/`blobsTotal` (the total is known up front from the batch
-         *     blob lookup, so that stage reports two ticks, not a live stream).
-         */
-        TimelineProgressEvent: {
-            /**
-             * Stage
-             * @enum {string}
-             */
-            stage: "fetch" | "history" | "blobs";
-            /** Percent */
-            percent?: number;
-            /** Commits */
-            commits?: number;
-            /** Blobsdone */
-            blobsDone?: number;
-            /** Blobstotal */
-            blobsTotal?: number;
-            /** Label */
-            label?: string;
-        };
-        /** ValidationError */
-        ValidationError: {
-            /** Location */
-            loc: (string | number)[];
-            /** Message */
-            msg: string;
-            /** Error Type */
-            type: string;
-            /** Input */
-            input?: unknown;
-            /** Context */
-            ctx?: Record<string, never>;
-        };
+  schemas: {
+    /** AuthorStat */
+    AuthorStat: {
+      /** Name */
+      name: string;
+      /** Commits */
+      commits: number;
+      /**
+       * Hue
+       * @description Stable 0-359 hue from the name hash; the display colour is built from it client-side
+       */
+      hue: number;
     };
-    responses: never;
-    parameters: never;
-    requestBodies: never;
-    headers: never;
-    pathItems: never;
+    /** BranchListResponse */
+    BranchListResponse: {
+      /** Branches */
+      branches: string[];
+      /** Default */
+      default: string | null;
+    };
+    /** BusynessThresholds */
+    BusynessThresholds: {
+      /** Avg */
+      avg: number;
+      /** Busy */
+      busy: number;
+    };
+    /**
+     * CloneProgressEvent
+     * @description `clone-progress` — git source is being cloned; carries clone progress.
+     *
+     *     A normal progress tick has `stage` + `percent`. A heartbeat during the
+     *     silent promisor blob fetch instead carries `mb_on_disk` (and no percent),
+     *     so the UI shows the working tree materializing rather than freezing.
+     */
+    CloneProgressEvent: {
+      /** Label */
+      label?: string;
+      /**
+       * Stage
+       * @enum {string}
+       */
+      stage?: 'receiving' | 'resolving' | 'counting' | 'updating';
+      /** Percent */
+      percent?: number;
+      /** Mb On Disk */
+      mb_on_disk?: number;
+    };
+    /** CommitDateRange */
+    CommitDateRange: {
+      /**
+       * Oldest
+       * @description Oldest commit date (YYYY-MM-DD), or null when the repo has no commits
+       */
+      oldest: string | null;
+      /**
+       * Newest
+       * @description Newest commit date (YYYY-MM-DD), or null when the repo has no commits
+       */
+      newest: string | null;
+    };
+    /** CommitDetailResponse */
+    CommitDetailResponse: {
+      /** Sha */
+      sha: string;
+      /** Authors */
+      authors: string[];
+      /** Date */
+      date: string;
+      /** Subject */
+      subject: string;
+      /** Body */
+      body: string;
+    };
+    /** CommitEntry */
+    CommitEntry: {
+      /**
+       * Date
+       * @description ISO-8601 UTC, e.g. 2026-07-25T14:03:21Z
+       */
+      date: string;
+      /** Files */
+      files: number;
+      /** Sha */
+      sha: string;
+      /** Authors */
+      authors: string[];
+      /** Subject */
+      subject: string;
+      /** Same Day Total */
+      same_day_total: number;
+    };
+    /** CommitLeader */
+    CommitLeader: {
+      /** Sha */
+      sha: string;
+      /** Files */
+      files: number;
+    };
+    /**
+     * CompleteManifestEvent
+     * @description `manifest-complete` — a manifest with real, fully-populated metadata (a
+     *     fresh scan's final pass, or a warm cache hit).
+     */
+    CompleteManifestEvent: {
+      manifest: components['schemas']['Manifest'];
+    };
+    /** ConfigResponse */
+    ConfigResponse: {
+      /** Allowlocalrepos */
+      allowLocalRepos: boolean;
+      /** Hosted */
+      hosted: boolean;
+      /** Maxbatchpaths */
+      maxBatchPaths: number;
+      /** Version */
+      version: string;
+      /** Featuredrepo */
+      featuredRepo: string;
+    };
+    /** DateRangeMs */
+    DateRangeMs: {
+      /** Mincreated */
+      minCreated: number;
+      /** Maxcreated */
+      maxCreated: number;
+      /** Minmodified */
+      minModified: number;
+      /** Maxmodified */
+      maxModified: number;
+    };
+    /** DateRanges */
+    DateRanges: {
+      /**
+       * Mincreated
+       * @description Earliest resolved create date (ISO), or null for an empty tree
+       */
+      minCreated: string | null;
+      /**
+       * Maxcreated
+       * @description Latest resolved create date (ISO), or null for an empty tree
+       */
+      maxCreated: string | null;
+      /**
+       * Minmodified
+       * @description Earliest resolved modify date (ISO), or null for an empty tree
+       */
+      minModified: string | null;
+      /**
+       * Maxmodified
+       * @description Latest resolved modify date (ISO), or null for an empty tree
+       */
+      maxModified: string | null;
+    };
+    /** DayLeader */
+    DayLeader: {
+      /** Date */
+      date: string;
+      /** Count */
+      count: number;
+    };
+    /** DirLeader */
+    DirLeader: {
+      /** Path */
+      path: string;
+      /** Depth */
+      depth: number;
+      /** Children */
+      children: number;
+      /** Descendants */
+      descendants: number;
+    };
+    /** DirNode */
+    DirNode: {
+      /** Name */
+      name: string;
+      /**
+       * @description discriminator enum property added by openapi-typescript
+       * @enum {string}
+       */
+      type: 'directory';
+      /** Path */
+      path: string;
+      /** Fullpath */
+      fullPath: string;
+      /** Children */
+      children: (components['schemas']['FileNode'] | components['schemas']['DirNode'])[];
+      /** Children Count */
+      children_count: number;
+      /** Children File Count */
+      children_file_count: number;
+      /** Children Dir Count */
+      children_dir_count: number;
+      /** Descendants Count */
+      descendants_count: number;
+      /** Descendants File Count */
+      descendants_file_count: number;
+      /** Descendants Dir Count */
+      descendants_dir_count: number;
+      /** Descendants Size */
+      descendants_size: number;
+      /** Descendants Created Min */
+      descendants_created_min: string | null;
+      /** Descendants Modified Max */
+      descendants_modified_max: string | null;
+      /** Descendants Ext Breakdown */
+      descendants_ext_breakdown: components['schemas']['ExtBreakdownEntry'][];
+    };
+    /**
+     * DiscoverEntry
+     * @description One curated repo on the landing's Discover tab. Deliberately just a URL
+     *     and a name: stars and scan timings were considered and rejected, so there
+     *     is nothing here to rot or to fetch from a third party.
+     */
+    DiscoverEntry: {
+      /** Url */
+      url: string;
+      /** Label */
+      label: string;
+      /**
+       * Featured
+       * @default false
+       */
+      featured: boolean;
+    };
+    /** DiscoverResponse */
+    DiscoverResponse: {
+      /** Repos */
+      repos: components['schemas']['DiscoverEntry'][];
+    };
+    /**
+     * ErrorCode
+     * @description Machine-readable discriminator on an `error` event. The client keys its
+     *     remedy on this, never on the message text. Only failures the UI answers
+     *     differently earn a member; everything else stays message-only.
+     * @enum {string}
+     */
+    ErrorCode: 'repo-not-found';
+    /**
+     * ErrorEvent
+     * @description `error` — a failure after the stream began; carries the message and,
+     *     where the UI can act on the reason, a code.
+     */
+    ErrorEvent: {
+      /** Error */
+      error: string;
+      /** @enum {string} */
+      code?: 'repo-not-found';
+    };
+    /** ExtBreakdownEntry */
+    ExtBreakdownEntry: {
+      /** Ext */
+      ext: string | null;
+      /** Count */
+      count: number;
+      /** Size */
+      size: number;
+    };
+    /** FileLeader */
+    FileLeader: {
+      /** Path */
+      path: string;
+      /** Lines */
+      lines: number;
+      /** Bytes */
+      bytes: number;
+      /** Created */
+      created: string;
+      /** Modified */
+      modified: string;
+      /** Media Width */
+      media_width?: number;
+      /** Media Height */
+      media_height?: number;
+    };
+    /** FileNode */
+    FileNode: {
+      /** Name */
+      name: string;
+      /**
+       * @description discriminator enum property added by openapi-typescript
+       * @enum {string}
+       */
+      type: 'file';
+      /** Path */
+      path: string;
+      /** Fullpath */
+      fullPath: string;
+      /** Extension */
+      extension: string;
+      /** Size */
+      size: number;
+      /** Lines */
+      lines: number;
+      /** Binary */
+      binary: boolean;
+      /**
+       * Dirty
+       * @description Working-tree differs from HEAD for this tracked file (staged or unstaged). Always False for clean/remote repos.
+       */
+      dirty: boolean;
+      /**
+       * Created
+       * @description ISO create date (UTC, Z-suffixed), resolved server-side: git history date when the file has one, filesystem date otherwise
+       */
+      created: string;
+      /**
+       * Modified
+       * @description ISO modify date (UTC, Z-suffixed), resolved server-side: git history date when the file has one, filesystem date otherwise. When dirty is true, this is always the working-tree filesystem date, regardless of git history
+       */
+      modified: string;
+      /**
+       * Mediakind
+       * @description Media classification by extension (single source for the frontend); null for non-media files
+       */
+      mediaKind?: ('image' | 'video') | null;
+      /** Media Width */
+      media_width?: number;
+      /** Media Height */
+      media_height?: number;
+      /** Binarytype */
+      binaryType?: string;
+    };
+    /**
+     * FingerprintEntry
+     * @description One binary file's byte-pattern fingerprint in a POST /api/fingerprints
+     *     batch response: a base64-encoded grayscale PNG (image/png implied), keyed
+     *     by request path. Computed server-side from the file's head — raw binary
+     *     bytes never ship to the client.
+     */
+    FingerprintEntry: {
+      /** B64 */
+      b64: string;
+    };
+    /** HTTPValidationError */
+    HTTPValidationError: {
+      /** Detail */
+      detail?: components['schemas']['ValidationError'][];
+    };
+    /** HealthResponse */
+    HealthResponse: {
+      /** Ok */
+      ok: boolean;
+    };
+    /**
+     * ImageBatchEntry
+     * @description One image in a POST /api/images batch response: its content-type and
+     *     base64-encoded bytes, keyed by request path in the response map.
+     */
+    ImageBatchEntry: {
+      /** Mime */
+      mime: string;
+      /** B64 */
+      b64: string;
+    };
+    /** Manifest */
+    Manifest: {
+      /** Root */
+      root: string;
+      /** Scanned At */
+      scanned_at: string;
+      /** Content Signature */
+      content_signature: string;
+      /** Structure Signature */
+      structure_signature: string;
+      /** Layout Signature */
+      layout_signature: string;
+      tree: components['schemas']['DirNode'];
+      repo: components['schemas']['RepoInfo'];
+      /**
+       * Commits
+       * @description Oldest-first. Above 100k, an evenly strided sample of the history; stats.commitCount is the true total.
+       */
+      commits: components['schemas']['CommitEntry'][];
+      busyness: components['schemas']['BusynessThresholds'];
+      dateRanges: components['schemas']['DateRanges'];
+      stats: components['schemas']['RepoStats'];
+      /**
+       * Pending
+       * @description Stages still to come. 'metadata': per-file lines/binary are placeholders. 'history': dates are filesystem dates and commits is empty. Empty list means every field is final.
+       */
+      pending: ('metadata' | 'history')[];
+      /**
+       * Readmepath
+       * @description Absolute path of the root README, or null if there isn't one
+       */
+      readmePath: string | null;
+      /**
+       * Readmemodified
+       * @description That README's mtime, for cache-busting the fetch
+       */
+      readmeModified: string | null;
+    };
+    /**
+     * PartialManifestEvent
+     * @description `manifest-partial` — a manifest with the real tree structure but
+     *     placeholder file metadata, sent so the UI can paint the city before
+     *     per-file metadata is resolved.
+     */
+    PartialManifestEvent: {
+      manifest: components['schemas']['Manifest'];
+    };
+    /** PathBatchRequest */
+    PathBatchRequest: {
+      /** Paths */
+      paths: string[];
+      /** Shas */
+      shas?: {
+        [key: string]: string;
+      } | null;
+    };
+    /** RangeStat */
+    RangeStat: {
+      /** Min */
+      min: number;
+      /** Max */
+      max: number;
+    };
+    /** RepoInfo */
+    RepoInfo: {
+      /** Branch */
+      branch: string | null;
+      /** Remote Url */
+      remote_url: string | null;
+      /** Head Sha */
+      head_sha: string | null;
+      /** Head Subject */
+      head_subject: string | null;
+      /** Dirty */
+      dirty: boolean;
+    };
+    /** RepoStats */
+    RepoStats: {
+      lineCountRange: components['schemas']['RangeStat'];
+      byteSizeRange: components['schemas']['RangeStat'];
+      oldestCreatedFile: components['schemas']['FileLeader'] | null;
+      newestCreatedFile: components['schemas']['FileLeader'] | null;
+      newestModifiedFile: components['schemas']['FileLeader'] | null;
+      oldestModifiedFile: components['schemas']['FileLeader'] | null;
+      maxLinesFile: components['schemas']['FileLeader'] | null;
+      minLinesFile: components['schemas']['FileLeader'] | null;
+      maxBytesFile: components['schemas']['FileLeader'] | null;
+      minBytesFile: components['schemas']['FileLeader'] | null;
+      maxMediaBytesFile: components['schemas']['FileLeader'] | null;
+      minMediaBytesFile: components['schemas']['FileLeader'] | null;
+      maxMediaPixelsFile: components['schemas']['FileLeader'] | null;
+      minMediaPixelsFile: components['schemas']['FileLeader'] | null;
+      maxBinaryBytesFile: components['schemas']['FileLeader'] | null;
+      minBinaryBytesFile: components['schemas']['FileLeader'] | null;
+      /** Mediacount */
+      mediaCount: number;
+      /** Binarycount */
+      binaryCount: number;
+      /** Totallines */
+      totalLines: number;
+      /** Dirtyfilecount */
+      dirtyFileCount: number;
+      /** Codebytes */
+      codeBytes: number;
+      maxDepthDir: components['schemas']['DirLeader'] | null;
+      maxChildrenDir: components['schemas']['DirLeader'] | null;
+      minChildrenDir: components['schemas']['DirLeader'] | null;
+      maxFilesPerCommit: components['schemas']['CommitLeader'] | null;
+      minFilesPerCommit: components['schemas']['CommitLeader'] | null;
+      /**
+       * Commitcount
+       * @description Commits in the full history, however many `commits` carries
+       */
+      commitCount: number;
+      commitDates: components['schemas']['CommitDateRange'];
+      maxCommitsPerDay: components['schemas']['DayLeader'] | null;
+      /** Maxcommitstreakdays */
+      maxCommitStreakDays: number;
+      /** Authors */
+      authors: components['schemas']['AuthorStat'][];
+    };
+    /**
+     * ScanProgressEvent
+     * @description `scan-progress` — the working tree is being walked; carries the
+     *     heartbeat files-scanned count.
+     */
+    ScanProgressEvent: {
+      /** Label */
+      label?: string;
+      /** Files Scanned */
+      files_scanned?: number;
+    };
+    /** SignatureResponse */
+    SignatureResponse: {
+      /** Root */
+      root: string;
+      /** Scanned At */
+      scanned_at: string;
+      /** Content Signature */
+      content_signature: string;
+    };
+    /**
+     * TimelineBundle
+     * @description Wire schema for the scrub bundle; mirrors manifest_types.TimelineBundle.
+     */
+    TimelineBundle: {
+      /** Commits */
+      commits: components['schemas']['CommitEntry'][];
+      unionManifest: components['schemas']['Manifest'];
+      /** Deltas */
+      deltas: components['schemas']['TimelineDelta'][];
+      /** Bloblines */
+      blobLines: {
+        [key: string]: number;
+      };
+      /** Blobsizes */
+      blobSizes: {
+        [key: string]: number;
+      };
+      /** Commitlineranges */
+      commitLineRanges: components['schemas']['RangeStat'][];
+      /** Commitdateranges */
+      commitDateRanges: components['schemas']['DateRangeMs'][];
+      /** Note */
+      note: string | null;
+    };
+    /** TimelineChange */
+    TimelineChange: {
+      /** Path */
+      path: string;
+      /**
+       * Sha
+       * @description New blob sha, or null when deleted
+       */
+      sha: string | null;
+    };
+    /**
+     * TimelineCompleteEvent
+     * @description `timeline-complete` — the full replay bundle (fresh build or warm
+     *     cache hit).
+     */
+    TimelineCompleteEvent: {
+      bundle: components['schemas']['TimelineBundle'];
+    };
+    /** TimelineDelta */
+    TimelineDelta: {
+      /** Sha */
+      sha: string;
+      /** Changes */
+      changes: components['schemas']['TimelineChange'][];
+    };
+    /**
+     * TimelineProgressEvent
+     * @description `timeline-progress` — the history walk, blob-table resolution, or (for a
+     *     blobless remote clone) the up-front blob backfill is in progress. The
+     *     `fetch` stage carries `percent`; `history` carries `commits`; `blobs`
+     *     carries `blobsDone`/`blobsTotal` (the total is known up front from the batch
+     *     blob lookup, so that stage reports two ticks, not a live stream).
+     */
+    TimelineProgressEvent: {
+      /**
+       * Stage
+       * @enum {string}
+       */
+      stage: 'fetch' | 'history' | 'blobs';
+      /** Percent */
+      percent?: number;
+      /** Commits */
+      commits?: number;
+      /** Blobsdone */
+      blobsDone?: number;
+      /** Blobstotal */
+      blobsTotal?: number;
+      /** Label */
+      label?: string;
+    };
+    /** ValidationError */
+    ValidationError: {
+      /** Location */
+      loc: (string | number)[];
+      /** Message */
+      msg: string;
+      /** Error Type */
+      type: string;
+      /** Input */
+      input?: unknown;
+      /** Context */
+      ctx?: Record<string, never>;
+    };
+  };
+  responses: never;
+  parameters: never;
+  requestBodies: never;
+  headers: never;
+  pathItems: never;
 }
 export type $defs = Record<string, never>;
 export interface operations {
-    health_api_health_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HealthResponse"];
-                };
-            };
-        };
+  health_api_health_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    config_api_config_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ConfigResponse"];
-                };
-            };
+        content: {
+          'application/json': components['schemas']['HealthResponse'];
         };
+      };
     };
-    discover_api_discover_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["DiscoverResponse"];
-                };
-            };
-        };
+  };
+  config_api_config_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    get_file_api_file_get: {
-        parameters: {
-            query: {
-                /** @description Absolute path inside a scanned root */
-                path: string;
-                /** @description Blob sha to read instead of the working tree */
-                sha?: string | null;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
+        content: {
+          'application/json': components['schemas']['ConfigResponse'];
         };
+      };
     };
-    get_images_api_images_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["PathBatchRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        [key: string]: components["schemas"]["ImageBatchEntry"];
-                    };
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
+  };
+  discover_api_discover_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    get_fingerprints_api_fingerprints_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["PathBatchRequest"];
-            };
+        content: {
+          'application/json': components['schemas']['DiscoverResponse'];
         };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        [key: string]: components["schemas"]["FingerprintEntry"];
-                    };
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
+      };
     };
-    get_commit_api_commit_get: {
-        parameters: {
-            query: {
-                sha: string;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["CommitDetailResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
+  };
+  get_file_api_file_get: {
+    parameters: {
+      query: {
+        /** @description Absolute path inside a scanned root */
+        path: string;
+        /** @description Blob sha to read instead of the working tree */
+        sha?: string | null;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    get_branches_api_branches_get: {
-        parameters: {
-            query: {
-                src: string;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["BranchListResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
+        content: {
+          'application/json': unknown;
         };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
     };
-    signature_api_manifest_signature_get: {
-        parameters: {
-            query: {
-                src: string;
-                branch?: string | null;
-                no_cache?: boolean;
-                exclude?: string[];
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SignatureResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
+  };
+  get_images_api_images_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    timeline_api_timeline_get: {
-        parameters: {
-            query: {
-                src: string;
-                branch?: string | null;
-                no_cache?: boolean;
-                exclude?: string[];
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Server-Sent Events stream (`text/event-stream`). Named events and their JSON `data` payloads: `timeline-progress` (TimelineProgressEvent, one or more while the history walk / blob resolution run), `timeline-complete` (TimelineCompleteEvent, the full bundle), `error` (ErrorEvent). A warm cache hit emits only `timeline-complete`, no progress. The client closes the connection on `timeline-complete`/`error`. */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["TimelineProgressEvent"] | components["schemas"]["TimelineCompleteEvent"] | components["schemas"]["ErrorEvent"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['PathBatchRequest'];
+      };
     };
-    manifest_api_manifest_get: {
-        parameters: {
-            query?: {
-                src?: string;
-                branch?: string | null;
-                no_cache?: boolean;
-                exclude?: string[];
-                ref?: string | null;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody?: never;
-        responses: {
-            /** @description Server-Sent Events stream (`text/event-stream`). Named events and their JSON `data` payloads: `clone-progress` (CloneProgressEvent), `scan-progress` (ScanProgressEvent), `manifest-partial` (PartialManifestEvent), `manifest-complete` (CompleteManifestEvent), `error` (ErrorEvent). The client closes the connection on `manifest-complete`/`error`. When `ref` is set, the manifest is reconstructed as of that commit instead of the working tree (a remote source still emits `clone-progress` if it isn't cloned yet, but never `scan-progress`/`manifest-partial` for the reconstruction itself — the city is already drawn, so a skeleton would flash placeholders). */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["CloneProgressEvent"] | components["schemas"]["ScanProgressEvent"] | components["schemas"]["PartialManifestEvent"] | components["schemas"]["CompleteManifestEvent"] | components["schemas"]["ErrorEvent"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
+        content: {
+          'application/json': {
+            [key: string]: components['schemas']['ImageBatchEntry'];
+          };
         };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
     };
+  };
+  get_fingerprints_api_fingerprints_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['PathBatchRequest'];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            [key: string]: components['schemas']['FingerprintEntry'];
+          };
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
+  get_commit_api_commit_get: {
+    parameters: {
+      query: {
+        sha: string;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['CommitDetailResponse'];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
+  get_branches_api_branches_get: {
+    parameters: {
+      query: {
+        src: string;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['BranchListResponse'];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
+  signature_api_manifest_signature_get: {
+    parameters: {
+      query: {
+        src: string;
+        branch?: string | null;
+        no_cache?: boolean;
+        exclude?: string[];
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['SignatureResponse'];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
+  timeline_api_timeline_get: {
+    parameters: {
+      query: {
+        src: string;
+        branch?: string | null;
+        no_cache?: boolean;
+        exclude?: string[];
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Server-Sent Events stream (`text/event-stream`). Named events and their JSON `data` payloads: `timeline-progress` (TimelineProgressEvent, one or more while the history walk / blob resolution run), `timeline-complete` (TimelineCompleteEvent, the full bundle), `error` (ErrorEvent). A warm cache hit emits only `timeline-complete`, no progress. The client closes the connection on `timeline-complete`/`error`. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json':
+            | components['schemas']['TimelineProgressEvent']
+            | components['schemas']['TimelineCompleteEvent']
+            | components['schemas']['ErrorEvent'];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
+  manifest_api_manifest_get: {
+    parameters: {
+      query?: {
+        src?: string;
+        branch?: string | null;
+        no_cache?: boolean;
+        exclude?: string[];
+        ref?: string | null;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Server-Sent Events stream (`text/event-stream`). Named events and their JSON `data` payloads: `clone-progress` (CloneProgressEvent), `scan-progress` (ScanProgressEvent), `manifest-partial` (PartialManifestEvent), `manifest-complete` (CompleteManifestEvent), `error` (ErrorEvent). The client closes the connection on `manifest-complete`/`error`. When `ref` is set, the manifest is reconstructed as of that commit instead of the working tree (a remote source still emits `clone-progress` if it isn't cloned yet, but never `scan-progress`/`manifest-partial` for the reconstruction itself — the city is already drawn, so a skeleton would flash placeholders). */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json':
+            | components['schemas']['CloneProgressEvent']
+            | components['schemas']['ScanProgressEvent']
+            | components['schemas']['PartialManifestEvent']
+            | components['schemas']['CompleteManifestEvent']
+            | components['schemas']['ErrorEvent'];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
 }

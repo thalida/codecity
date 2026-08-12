@@ -1,12 +1,9 @@
 // components/Sidebar.tsx — Shared sidebar chrome: the <aside> shell + a
-// drag-to-resize handle whose width persists via a caller-supplied signal.
-// LeftSidebar / RightSidebar fill in their own content and state class; the
-// resize mechanics (which edge, how a drag maps to width, where the width is
-// applied, persistence) live here once so the two can't drift.
+// drag-to-resize handle. LeftSidebar / RightSidebar fill in their own content
+// and state class; the resize mechanics live here once so the two can't drift.
 
 import './Sidebar.css';
 import type { ComponentChildren } from 'preact';
-import type { Signal } from '@preact/signals';
 import { useEffect, useRef, useState } from 'preact/hooks';
 
 /** Which screen edge the sidebar docks to. Determines the resize handle's edge
@@ -33,10 +30,9 @@ function _applyWidth(el: HTMLElement, w: number): void {
 interface ResizeHandleProps {
   side: SidebarSide;
   targetRef: { current: HTMLElement | null };
-  widthSignal: Signal<number | null>;
 }
 
-function ResizeHandle({ side, targetRef, widthSignal }: ResizeHandleProps) {
+function ResizeHandle({ side, targetRef }: ResizeHandleProps) {
   // `dragging` is a ref (sync guard for pointermove — no stale-closure race);
   // `isDragging` is state, driving the visual `.dragging` class declaratively.
   const dragging = useRef(false);
@@ -55,12 +51,10 @@ function ResizeHandle({ side, targetRef, widthSignal }: ResizeHandleProps) {
     _applyWidth(targetRef.current, _measureWidth(side, e));
   };
   const onPointerUp = (e: PointerEvent) => {
-    if (!dragging.current || !targetRef.current) return;
+    if (!dragging.current) return;
     dragging.current = false;
     setIsDragging(false);
     (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
-    // Persist the actual rendered width — already clamped to the CSS bounds.
-    widthSignal.value = targetRef.current.offsetWidth;
   };
 
   const cls =
@@ -89,22 +83,19 @@ export interface SidebarProps {
   ariaLabel?: string;
   /** State class for the <aside> (e.g. 'is-collapsed', 'open'); caller-computed. */
   class?: string;
-  /** Persisted drag-resize width (px); null ⇒ fall back to the CSS default.
-   *  The allowed range is the CSS min-width/max-width on the sidebar's id rule
-   *  — not duplicated here. */
-  widthSignal: Signal<number | null>;
+  /** Whether the panel is showing. A drag lasts only as long as one visit. */
+  open: boolean;
   children: ComponentChildren;
 }
 
-export function Sidebar({ id, side, class: cls, ariaLabel, widthSignal, children }: SidebarProps) {
+export function Sidebar({ id, side, class: cls, ariaLabel, open, children }: SidebarProps) {
   const ref = useRef<HTMLElement>(null);
 
-  // Apply the persisted width on mount. CSS min-width/max-width clamp it, so a
-  // stale/corrupted value (or one from a since-shrunk viewport) can't overflow.
+  // Each visit starts at the CSS default: a width dragged for one file is
+  // rarely the width wanted for the next.
   useEffect(() => {
-    const w = widthSignal.peek();
-    if (w != null && ref.current) _applyWidth(ref.current, w);
-  }, []);
+    if (open) ref.current?.style.removeProperty('--sidebar-width');
+  }, [open]);
 
   return (
     <aside
@@ -114,7 +105,7 @@ export function Sidebar({ id, side, class: cls, ariaLabel, widthSignal, children
       aria-label={ariaLabel}
     >
       {children}
-      <ResizeHandle side={side} targetRef={ref} widthSignal={widthSignal} />
+      <ResizeHandle side={side} targetRef={ref} />
     </aside>
   );
 }

@@ -705,7 +705,7 @@ const BUILDINGS_FIELDS = {
   LEVEL3_BODY_OPACITY: {
     route: ChangeRoute.Live,
     kind: FieldKind.Slider,
-    default: 0.3,
+    default: 0.5,
     min: 0,
     max: 1,
     step: 0.05,
@@ -738,7 +738,7 @@ const BUILDINGS_FIELDS = {
   LEVEL4_BODY_OPACITY: {
     route: ChangeRoute.Live,
     kind: FieldKind.Slider,
-    default: 0.2,
+    default: 0.25,
     min: 0,
     max: 1,
     step: 0.05,

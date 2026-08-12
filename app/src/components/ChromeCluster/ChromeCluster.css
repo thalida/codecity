@@ -24,6 +24,7 @@
   appearance: none;
   flex: 0 1 auto;
   min-width: 0;
+  position: relative; /* anchors the touch target below */
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -64,12 +65,14 @@
 }
 
 /* Only the cluster's own edge rounds, so the hover fill on an end item follows
-   the pill instead of squaring it off. Logical corners for RTL. */
+   the pill instead of squaring it off. Logical corners for RTL. The end match
+   is "no cluster-item after this": :last-of-type counts per element name, so it
+   rounded the last <button> even with a <a> item beside it. */
 .cluster-item:first-child {
   border-start-start-radius: var(--cc-radius-pill);
   border-end-start-radius: var(--cc-radius-pill);
 }
-.cluster-item:last-of-type {
+.cluster-item:not(:has(~ .cluster-item)) {
   border-start-end-radius: var(--cc-radius-pill);
   border-end-end-radius: var(--cc-radius-pill);
 }
@@ -86,11 +89,10 @@
 }
 
 /* Sized off the cluster, not the bar: icons are 1em (icons.css) and the header
-   and footer set different text sizes. Neutral, since every item is pressable
-   now and accent no longer carries the affordance. */
+   and footer set different text sizes. */
 .cluster-item .icon {
   font-size: var(--cc-font-sm);
-  color: var(--cc-text-primary);
+  color: var(--cc-text-strong);
 }
 
 /* The "this opens something" glyph, on every item that has one — a popover

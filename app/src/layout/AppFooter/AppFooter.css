@@ -63,13 +63,16 @@
   color: var(--cc-text-muted);
 }
 
-/* ── Footer responsive narrowing ───────────────────────────────────────────── */
-/* Tighter insets, nothing dropped. The bar holds two short items per side, and
-   each section already clips with an ellipsis, so hiding anything traded real
-   information for space that wasn't needed. */
-@media (max-width: 580px) {
+/* ── Phone (PHONE_MAX_PX) ────────────────────────────────────────────────────
+   Only the build number goes: it's the one item here nobody reads on a phone,
+   and it's still on the landing. Its separator goes with it. */
+@media (max-width: 640px) {
   #app-footer {
     gap: var(--cc-space-3);
-    padding: 0 var(--cc-chrome-inset);
+  }
+
+  #app-footer .meta-version,
+  #app-footer .meta-version + .meta-sep {
+    display: none;
   }
 }

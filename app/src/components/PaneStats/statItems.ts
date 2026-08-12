@@ -55,8 +55,10 @@ export function fileStatItems(file: FileNode, opts: FileStatOpts = {}): PaneStat
   const lines = scrubbed ? scrubbed.lines : file.lines;
   const size = scrubbed ? scrubbed.bytes : file.size;
 
+  // Shrink weights set the give-way order when the row runs short: the language
+  // first (the header's type badge repeats it), then the ages, numbers last.
   const language = humanLanguageFor(file);
-  if (language) items.push({ text: language });
+  if (language) items.push({ text: language, shrink: 200 });
   // Media is binary, so its line count is a meaningless 0: the pixel dimensions
   // are the size that means something. The backend only stamps media_width and
   // media_height on recognized media, so their presence is the signal.
@@ -67,8 +69,8 @@ export function fileStatItems(file: FileNode, opts: FileStatOpts = {}): PaneStat
   }
   if (size != null) items.push({ text: formatBytes(size) });
   if (dates) {
-    if (file.modified) items.push(ageItem(file.modified, 'modified', now));
-    if (file.created) items.push(ageItem(file.created, 'created', now));
+    if (file.modified) items.push({ ...ageItem(file.modified, 'modified', now), shrink: 20 });
+    if (file.created) items.push({ ...ageItem(file.created, 'created', now), shrink: 60 });
   }
   return items;
 }
@@ -76,7 +78,7 @@ export function fileStatItems(file: FileNode, opts: FileStatOpts = {}): PaneStat
 export function directoryStatItems(dir: DirNode): PaneStatItem[] {
   // Lead with the kind: a folder named `app` and a file named `app` look alike,
   // and the counts that follow only make sense once you know which this is.
-  const items: PaneStatItem[] = [{ text: 'directory' }];
+  const items: PaneStatItem[] = [{ text: 'directory', shrink: 200 }];
   const files = countItem(dir.children_file_count, dir.descendants_file_count, 'files');
   if (files) items.push(files);
   const dirs = countItem(dir.children_dir_count, dir.descendants_dir_count, 'dirs');

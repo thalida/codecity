@@ -1,10 +1,12 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { render } from 'preact';
+import { act } from 'preact/test-utils';
 import { signal } from '@preact/signals';
 import { RightSidebar } from '@/layout/RightSidebar/RightSidebar';
 import { SCENE_HANDLE } from '@/state/stores/scene';
 import { MANIFEST, setManifest } from '@/state/stores/manifest';
 import { TIMELINE_MODE } from '@/state/stores/timeline';
+import { DISMISSED_SELECTION, openSelectionPane } from '@/state/stores/ui';
 import { EMPTY_MANIFEST } from '@/constants/manifest';
 import { NodeKind } from '@/types';
 import type { DirNode, FileNode, Manifest, PickTarget } from '@/types';
@@ -103,6 +105,7 @@ describe('RightSidebar', () => {
   beforeEach(async () => {
     container = document.createElement('div');
     document.body.appendChild(container);
+    DISMISSED_SELECTION.value = null;
     SCENE_HANDLE.value = makeSceneHandle() as never;
     render(<RightSidebar />, container);
     await flush();
@@ -113,7 +116,21 @@ describe('RightSidebar', () => {
     document.body.removeChild(container);
     SCENE_HANDLE.value = null;
     TIMELINE_MODE.value = false;
+    DISMISSED_SELECTION.value = null;
   });
+
+  const selectFile = async (file: FileNode) => {
+    const handle = SCENE_HANDLE.peek() as unknown as ReturnType<typeof makeSceneHandle>;
+    handle.picker.setSelection({
+      kind: NodeKind.File,
+      file,
+      mesh: {} as never,
+      data: {} as never,
+    });
+    await flush();
+  };
+  const aside = () => container.querySelector<HTMLElement>('aside#right-sidebar')!;
+  const isOpen = () => aside().classList.contains('open');
 
   it('renders an <aside id="right-sidebar"> closed by default', () => {
     const aside = container.querySelector<HTMLElement>('aside#right-sidebar');
@@ -249,6 +266,60 @@ describe('RightSidebar', () => {
       await flush();
 
       expect(container.querySelector('.street-ext-meta')!.textContent).toContain('9');
+    });
+  });
+
+  // The pane's open state is its own: closing it hides the details without
+  // forgetting which node is selected (and outlined in the city).
+  describe('open state, separate from the selection', () => {
+    const close = () =>
+      act(() => container.querySelector<HTMLButtonElement>('[aria-label="Hide sidebar"]')!.click());
+
+    it('closing hides the pane and leaves the selection standing', async () => {
+      setManifest(manifestWithFile(FILE_NODE));
+      await selectFile(FILE_NODE);
+      expect(isOpen()).toBe(true);
+
+      close();
+      await flush();
+
+      expect(isOpen()).toBe(false);
+      const handle = SCENE_HANDLE.peek() as unknown as ReturnType<typeof makeSceneHandle>;
+      expect(handle.picker.selection.value).not.toBeNull();
+    });
+
+    it('re-asking for the selected node reopens it', async () => {
+      setManifest(manifestWithFile(FILE_NODE));
+      await selectFile(FILE_NODE);
+      close();
+      await flush();
+      expect(isOpen()).toBe(false);
+
+      // What a click on the already-selected building does (inputHandlers).
+      openSelectionPane();
+      await flush();
+
+      expect(isOpen()).toBe(true);
+    });
+
+    it('picking a different node reopens it', async () => {
+      const other: FileNode = { ...FILE_NODE, name: 'other.ts', path: 'src/other.ts' };
+      setManifest(manifestWithFile(FILE_NODE));
+      await selectFile(FILE_NODE);
+      close();
+      await flush();
+      expect(isOpen()).toBe(false);
+
+      setManifest(manifestWithFile(other));
+      await selectFile(other);
+
+      expect(isOpen()).toBe(true);
+    });
+
+    it('stays shut for no selection at all', async () => {
+      DISMISSED_SELECTION.value = null;
+      await flush();
+      expect(isOpen()).toBe(false);
     });
   });
 });

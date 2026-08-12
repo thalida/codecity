@@ -4,8 +4,8 @@
   position: relative;
   flex: 0 0 auto;
   /* Closed by default — width 0, animates open via the .open rule below.
-     The persisted/dragged width lives on a CSS variable so the resize
-     handle can mutate it without fighting the open/close transitions. */
+     The dragged width lives on a CSS variable so the resize handle can
+     mutate it without fighting the open/close transitions. */
   width: 0;
   height: 100%;
   border-left: 1px solid var(--cc-border-subtle);
@@ -18,9 +18,23 @@
 }
 
 #right-sidebar.open {
-  /* Default to a third of the viewport until the user drags a width; min/max
-     below clamp it on narrow/wide screens. */
-  width: var(--sidebar-width, calc(100vw / 3));
+  width: var(--sidebar-width, var(--cc-sidebar-w));
   min-width: 280px;
   max-width: 70vw;
+}
+
+/* ── Phone (PHONE_MAX_PX) ────────────────────────────────────────────────────
+   A drawer, since its 280px floor is most of the screen. No scrim: tapping
+   another building is how you change what this pane shows. */
+@media (max-width: 640px) {
+  #right-sidebar.open {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    right: 0;
+    left: 0;
+    width: auto;
+    min-width: 0;
+    max-width: none;
+  }
 }

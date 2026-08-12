@@ -22,7 +22,10 @@
    Dimmed + uppercased like the reference; brighten on hover to signal clickable. */
 .time-travel-edge {
   flex: 0 0 auto;
-  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--cc-tap-min);
+  padding: 0 var(--cc-space-2);
   border: 0;
   background: none;
   font-family: var(--cc-font-mono);
@@ -30,13 +33,13 @@
   font-weight: 600;
   letter-spacing: 0.02em;
   text-transform: uppercase;
-  color: var(--cc-text-muted);
+  color: var(--cc-text-strong);
   white-space: nowrap;
   cursor: pointer;
 }
 
 .time-travel-edge:hover {
-  color: var(--cc-text-strong);
+  color: var(--cc-accent);
 }
 
 /* The time axis, painted on the canvas: an accent played fill + past ticks
@@ -47,7 +50,8 @@
   position: relative;
   flex: 1;
   min-width: 0;
-  height: var(--cc-space-8);
+  /* A drag target, so it takes the tap floor rather than the 24px it had. */
+  height: var(--cc-tap-min);
   background: color-mix(in oklch, var(--cc-bg-base) 60%, transparent);
   cursor: pointer;
   touch-action: none;
@@ -108,8 +112,12 @@
   color: var(--cc-text-secondary);
 }
 
-a.time-travel-sha:hover {
+/* Linked, so it takes the pressable step; the bare span stays a readout. */
+a.time-travel-sha {
   color: var(--cc-text-strong);
+}
+a.time-travel-sha:hover {
+  color: var(--cc-accent);
   text-decoration: underline;
 }
 

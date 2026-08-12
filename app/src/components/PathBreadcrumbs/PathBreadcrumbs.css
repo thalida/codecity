@@ -9,6 +9,13 @@
   gap: var(--cc-space-1);
   white-space: nowrap;
   overflow: hidden;
+}
+
+/* The filename truncates only once every crumb has been hidden whole:
+   applyMiddleEllipsis keeps hiding while this one is losing characters. */
+.app-header-seg.is-leaf {
+  min-width: 6ch;
+  overflow: hidden;
   text-overflow: ellipsis;
 }
 
