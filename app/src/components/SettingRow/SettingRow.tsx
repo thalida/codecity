@@ -24,6 +24,9 @@ export interface SettingRowProps {
   /** One-line description, shown inline under the control and as the hover
    *  title. Omit for controls that need no explanation. */
   tip?: string;
+  /** Drop the tip to hover-and-AT only. For rows in a popover, where a
+   *  paragraph under every control outweighs the controls. */
+  compact?: boolean;
   /** Toggle/color sit on the head row (a full-width control would look odd);
    *  everything else stacks the control full-width below the head row. */
   inline?: boolean;
@@ -47,6 +50,7 @@ export interface SettingRowProps {
 export function SettingRow({
   label,
   tip,
+  compact,
   inline,
   descId,
   htmlFor,
@@ -69,8 +73,10 @@ export function SettingRow({
         </span>
         {!inline && <span class="setting-row-control">{children}</span>}
       </label>
+      {/* Compact keeps the tip for the hover title and aria-describedby, and
+          drops only the visible block. */}
       {tip && (
-        <span class="setting-row-desc" id={descId}>
+        <span class={compact ? 'sr-only' : 'setting-row-desc'} id={descId}>
           {tip}
         </span>
       )}

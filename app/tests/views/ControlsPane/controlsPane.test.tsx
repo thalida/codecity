@@ -53,35 +53,28 @@ describe('ControlsPane subtabs', () => {
     container.remove();
   });
 
-  it('renders exactly three subtabs in Scan, Appearance, World order with Scan active by default', () => {
+  // Scan is gone: those settings live in the header's scan menu, under the
+  // freshness readout they describe.
+  it('renders exactly two subtabs in Appearance, World order with Appearance active by default', () => {
     const pane = mount();
     expect(pane.classList.contains('controls-pane')).toBe(true);
     const labels = Array.from(pane.querySelectorAll('[role="tab"]')).map((t) =>
       t.textContent?.trim()
     );
-    expect(labels).toEqual(['Scan', 'Appearance', 'World']);
+    expect(labels).toEqual(['Appearance', 'World']);
+    expect(tab(pane, 'Scan')).toBeUndefined();
     expect(tab(pane, 'Shortcuts')).toBeUndefined();
     expect(tab(pane, 'Debug')).toBeUndefined();
-    expect(tab(pane, 'Scan').getAttribute('aria-selected')).toBe('true');
+    expect(tab(pane, 'Appearance').getAttribute('aria-selected')).toBe('true');
   });
 
-  it('shows the action bar only on World; Scan/Appearance autosave with no footer', () => {
+  it('shows the action bar only on World; Appearance autosaves with no footer', () => {
     const pane = mount();
-    expect(pane.querySelector('.controls-actions')).toBeNull(); // Scan (default)
+    expect(pane.querySelector('.controls-actions')).toBeNull(); // Appearance (default)
     clickTab(pane, 'World');
     expect(pane.querySelector('.controls-actions')).toBeTruthy();
     clickTab(pane, 'Appearance');
     expect(pane.querySelector('.controls-actions')).toBeNull();
-  });
-
-  it('renders the Scan tab as two collapsible sections: Auto-refresh and Excluded from city', () => {
-    const pane = mount();
-    clickTab(pane, 'Scan');
-    const sectionLabels = Array.from(
-      pane.querySelectorAll('.controls-section-summary .text-label')
-    ).map((el) => el.textContent);
-    expect(sectionLabels).toEqual(['Auto-refresh', 'Excluded from city']);
-    expect(pane.querySelectorAll('.setting-row').length).toBeGreaterThan(0);
   });
 
   it('renders three action-bar buttons; Save/Discard disabled when clean', () => {
@@ -106,7 +99,7 @@ describe('ControlsPane subtabs', () => {
     expect(pane.querySelector('.setting-row-rebuild-badge')).toBeNull();
   });
 
-  it('collapsed=true remounts sections at their defaults and resets to the Scan subtab', async () => {
+  it('collapsed=true remounts sections at their defaults and resets to the default subtab', async () => {
     const pane = mount({ collapsed: false });
     // Move to World and expand its (default-collapsed) sections — a non-default
     // state that the remount-on-collapse must discard.
@@ -122,8 +115,9 @@ describe('ControlsPane subtabs', () => {
     });
     await flush();
     const repane = container.querySelector('.pane') as HTMLElement;
-    // Reset to Scan, whose two sections are defaultOpen — so exactly those reopen.
-    expect(tab(repane, 'Scan').getAttribute('aria-selected')).toBe('true');
+    // Reset to Appearance, whose sections are defaultOpen — so exactly those
+    // reopen, and none of the World sections stay expanded.
+    expect(tab(repane, 'Appearance').getAttribute('aria-selected')).toBe('true');
     expect(repane.querySelectorAll('.controls-section.is-open').length).toBe(2);
   });
 });

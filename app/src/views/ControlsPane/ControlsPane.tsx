@@ -1,21 +1,14 @@
-// views/ControlsPane/ControlsPane.tsx — "Settings" tab in the left sidebar.
+// views/ControlsPane/ControlsPane.tsx — "Settings" tab in the left sidebar:
+// Appearance (autosaves) and World (draft-backed, hence the ActionsBar footer).
+// Scan settings live in the header's scan menu, not here.
 //
-// Composition shell: Scan, Appearance, World subtabs, each carrying a count of
-// its changed-from-default items. The active subtab's sections render into the
-// scrolling body. Scan + Appearance autosave (their sections open by default);
-// World is draft-backed (collapsed accordion sections + the sticky Reset all/
-// Discard/Save ActionsBar). Shortcuts and Debug are header-triggered modals.
-//
-// Section / subgroup open-state is intentionally NOT persisted: when the pane
-// hides we remount every section (via collapseNonce) so each returns to its
-// default open-state, and reset the active subtab to Scan, so the panel always
-// reopens fresh.
+// Open-state is deliberately not persisted: collapsing the pane bumps
+// collapseNonce to remount every section back at its default.
 
 import './ControlsPane.css';
 import { useEffect, useState } from 'preact/hooks';
-import { Boxes, RefreshCw, Palette } from 'lucide-preact';
+import { Boxes, Palette } from 'lucide-preact';
 import type { LucideIcon } from 'lucide-preact';
-import { ExcludesSection } from './partials/ExcludesSection';
 import { FilePreviewSection } from './partials/FilePreviewSection';
 import { InterfaceThemeSection } from './partials/InterfaceThemeSection';
 import { DynamicSection, type SectionNode } from './partials';
@@ -30,9 +23,8 @@ import { TREES_SECTION } from './partials/Trees';
 import { FIREFLIES_SECTION } from './partials/Fireflies';
 import { POST_PROCESSING_SECTION } from './partials/PostProcessing';
 import { TIMELINE_SECTION } from './partials/Timeline';
-import { UPDATES_SECTION } from './partials/Updates';
 import { ActionsBar } from './ActionsBar/ActionsBar';
-import { SCAN_COUNT, APPEARANCE_COUNT, WORLD_COUNT } from '@/state/stores/settingsIndicators';
+import { APPEARANCE_COUNT, WORLD_COUNT } from '@/state/stores/settingsIndicators';
 import { Pane } from '@/components/Pane';
 import { PaneCloseButton } from '@/components/PaneHeader/PaneHeader';
 import { PaneTabs } from '@/components/PaneTabs/PaneTabs';
@@ -56,6 +48,10 @@ export const WORLD_SECTIONS: SectionNode[] = [
   POST_PROCESSING_SECTION,
 ];
 
+/** Opened-on, and returned to when the pane collapses: the lighter of the two,
+ *  and the one that doesn't stage a draft. */
+const DEFAULT_TAB = 'appearance';
+
 interface Subtab {
   id: string;
   label: string;
@@ -76,24 +72,13 @@ export interface ControlsPaneProps {
 }
 
 export function ControlsPane({ onClose, collapsed }: ControlsPaneProps) {
-  const [activeId, setActiveId] = useState('updates');
+  const [activeId, setActiveId] = useState(DEFAULT_TAB);
   // Sections/subgroups own their open-state locally; bumping this nonce on
   // collapse remounts them so each reopens at its default (World collapsed,
-  // Scan/Appearance expanded via defaultOpen).
+  // Appearance expanded via defaultOpen).
   const [collapseNonce, setCollapseNonce] = useState(0);
 
   const subtabs: Subtab[] = [
-    {
-      id: 'updates',
-      label: 'Scan',
-      icon: RefreshCw,
-      badge: SCAN_COUNT.value,
-      draftable: false,
-      sections: [
-        UPDATES_SECTION,
-        { key: 'excludes', label: 'Excluded from city', render: <ExcludesSection /> },
-      ],
-    },
     {
       id: 'appearance',
       label: 'Appearance',
@@ -119,7 +104,7 @@ export function ControlsPane({ onClose, collapsed }: ControlsPaneProps) {
 
   useEffect(() => {
     if (!collapsed) return;
-    setActiveId('updates');
+    setActiveId(DEFAULT_TAB);
     setCollapseNonce((n) => n + 1);
   }, [collapsed]);
 

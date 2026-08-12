@@ -1,7 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import {
   CHANGED_SETTINGS_COUNT,
-  SCAN_COUNT,
   APPEARANCE_COUNT,
   WORLD_COUNT,
 } from '@/state/stores/settingsIndicators';
@@ -22,16 +21,19 @@ beforeEach(() => {
 });
 
 describe('settings indicators', () => {
-  it('excludes count into the Scan total and the overall total only', () => {
+  // The dot marks what the Settings icon can take you to. Both of these now
+  // live in the header's scan menu, so neither may light it.
+  it('leaves the dot alone for excludes and for scan settings', () => {
     const base = CHANGED_SETTINGS_COUNT.value;
-    expect(SCAN_COUNT.value).toBe(0);
+
     addExclude('vendor');
-    expect(SCAN_COUNT.value).toBe(1);
-    expect(APPEARANCE_COUNT.value).toBe(0);
-    expect(CHANGED_SETTINGS_COUNT.value).toBe(base + 1);
-    clearExcludes();
-    expect(SCAN_COUNT.value).toBe(0);
     expect(CHANGED_SETTINGS_COUNT.value).toBe(base);
+    clearExcludes();
+
+    LIVE_UPDATES.value = { ...LIVE_UPDATES.value, POLL_SECONDS: 42 };
+    expect(CHANGED_SETTINGS_COUNT.value).toBe(base);
+    expect(WORLD_COUNT.value).toBe(0);
+    expect(APPEARANCE_COUNT.value).toBe(0);
   });
 
   it('a changed theme counts on Appearance and the total', () => {

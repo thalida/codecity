@@ -27,9 +27,11 @@ interface SignalLike {
 export interface FieldProps {
   store: SignalLike;
   fieldKey: string;
+  /** Drop the tip to hover-and-AT only (see SettingRow). */
+  compact?: boolean;
 }
 
-export function Field({ store, fieldKey }: FieldProps) {
+export function Field({ store, fieldKey, compact }: FieldProps) {
   const def = getFieldDef(store as object, fieldKey);
   // useField must run unconditionally (hook rules); the early-return guard
   // below only fires for a misconfigured schema, which a completeness test
@@ -144,6 +146,7 @@ export function Field({ store, fieldKey }: FieldProps) {
     <SettingRow
       label={def.label}
       tip={def.tip}
+      compact={compact}
       inline={inline}
       descId={def.tip ? descId : undefined}
       // Select renders a button group (no single labelable field); it's named

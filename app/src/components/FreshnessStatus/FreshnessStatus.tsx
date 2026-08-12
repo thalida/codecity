@@ -1,21 +1,14 @@
-// components/FreshnessStatus/FreshnessStatus.tsx — how fresh the loaded city
-// is: one dot plus a short detail line. Self-reading, so wherever it's mounted
-// it shows the same thing.
+// components/FreshnessStatus/FreshnessStatus.tsx — how fresh the loaded city is.
+// One dot, two channels: colour = rebuild state, animation = live state.
 //
-// One dot, two channels of state:
-//   colour    — rebuild state (green = idle, yellow = rebuilding, red = error)
-//   animation — live state (slow heartbeat when polling, static when paused,
-//               fast pulse while rebuilding, static on error)
-//
-// It belongs beside the refresh control: freshness is a fact about the project,
-// and a readout in the opposite corner from its own button reads as unrelated.
+// Hook and markup are split because the scan menu's trigger needs the same
+// derived state for its accessible name, and two 1s ticks would drift apart.
 
 import './FreshnessStatus.css';
 import { useSignal } from '@preact/signals';
 import { useEffect } from 'preact/hooks';
 import { formatRelativeAgeShort } from '@/utils/dates';
 import { LIVE_UPDATES_ACTIVE } from '@/state/stores/settings/updates';
-import { CLUSTER_ITEM } from '@/components/ChromeCluster/ChromeCluster';
 import {
   REBUILD_STATUS,
   RebuildStatus,
@@ -46,9 +39,19 @@ const DETAIL_TEXT = {
   ready: 'ready',
 } as const;
 
-export function FreshnessStatus() {
-  // 1-second tick so relative timestamps ("5s ago") advance smoothly. useSignal
-  // is component-local, so writing it re-renders only this component.
+export interface Freshness {
+  /** Rebuild-state and live-state modifier classes for the dot. */
+  stateClass: string;
+  /** The short line beside the dot ("5s ago", "rebuilding…"). */
+  detailText: string;
+  /** The long form, for a tooltip or an accessible name. */
+  titleText: string;
+}
+
+/** Derive the freshness readout, ticking once a second so relative timestamps
+ *  ("5s ago") advance smoothly. */
+export function useFreshness(): Freshness {
+  // useSignal is component-local, so writing it re-renders only its owner.
   const tick = useSignal(0);
   useEffect(() => {
     const id = window.setInterval(() => {
@@ -84,8 +87,6 @@ export function FreshnessStatus() {
         lastUpdatedAt > 0 ? formatRelativeAgeShort(lastUpdatedAt, Date.now()) : DETAIL_TEXT.ready;
   }
 
-  const liveClass = liveEnabled ? LiveClass.Live : LiveClass.Paused;
-
   const liveLabel = `Auto-refresh: ${liveEnabled ? 'on' : 'off'}`;
   let titleText: string;
   if (rebuildStatus === RebuildStatus.Error && errorMessage) {
@@ -98,15 +99,21 @@ export function FreshnessStatus() {
     titleText = liveLabel;
   }
 
+  return {
+    stateClass: `${buildClass} ${liveEnabled ? LiveClass.Live : LiveClass.Paused}`,
+    detailText,
+    titleText,
+  };
+}
+
+/** The dot and its detail line. No role and no title: it renders inside the
+ *  scan menu's trigger, which owns both the accessible name and the live
+ *  region that announces changes. */
+export function FreshnessStatus({ freshness }: { freshness: Freshness }) {
   return (
-    <span
-      class={`${CLUSTER_ITEM} freshness-status ${buildClass} ${liveClass}`}
-      role="status"
-      title={titleText}
-      aria-label={titleText}
-    >
+    <span class={`freshness-status ${freshness.stateClass}`}>
       <span class="dot freshness-status-dot" aria-hidden="true" />
-      <span class="freshness-status-detail">{detailText}</span>
+      <span class="freshness-status-detail">{freshness.detailText}</span>
     </span>
   );
 }

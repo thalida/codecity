@@ -10,11 +10,13 @@ import {
   SYNTAX_THEME_OPTIONS,
 } from '@/state/stores/settings/syntaxTheme';
 import { RotateCcw } from 'lucide-preact';
+import { useId } from 'preact/hooks';
 import { SettingRow } from '@/components/SettingRow/SettingRow';
 import { Section } from '@/components/Section/Section';
 
 export function FilePreviewSection() {
   void DRAFTS_REV.value; // re-render on draft/commit changes
+  const selectId = useId();
   const current = (getEffective(SYNTAX_THEME, null) as string) ?? SYNTAX_THEME_DEFAULT;
   const defaultLabel =
     SYNTAX_THEME_OPTIONS.find((o) => o.value === SYNTAX_THEME_DEFAULT)?.label ??
@@ -49,9 +51,11 @@ export function FilePreviewSection() {
         label="Syntax theme"
         tip="Highlight theme for the file preview; applies immediately."
         inline
+        htmlFor={selectId}
         resetSlot={resetBtn}
       >
         <select
+          id={selectId}
           class="form-input form-input--select"
           value={current}
           onChange={(e) =>

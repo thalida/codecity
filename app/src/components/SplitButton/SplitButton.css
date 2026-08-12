@@ -46,9 +46,8 @@
   box-shadow: var(--cc-shadow-lg);
 }
 
-/* Glyph in column 1, label and sublabel stacked in column 2. The sublabel
-   lines up under the label because the grid puts it there, and the glyph
-   centres on the label's row rather than being nudged by a magic margin. */
+/* Glyph in column 1, label and sublabel stacked in column 2, so the glyph
+   centres on the label's row without a magic margin. */
 .split-button-item {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
@@ -59,8 +58,7 @@
   border: 0;
   border-radius: var(--cc-radius-sm);
   background: transparent;
-  /* Set once here: the label and the glyph both inherit it, so they cannot
-     drift apart. Only the sublabel steps down. */
+  /* Set once: label and glyph both inherit, so they cannot drift apart. */
   color: var(--cc-text-strong);
   font: inherit;
   cursor: pointer;
@@ -86,12 +84,4 @@
   font-size: var(--cc-font-xs);
   line-height: 1.4;
   color: var(--cc-text-secondary); /* AA on the menu surface; muted fails 4.5:1 */
-}
-
-/* A control that belongs with the menu without being one of its actions. Ruled
-   off so it doesn't read as a third item you can pick. */
-.split-button-footer {
-  margin-top: var(--cc-space-2);
-  padding-top: var(--cc-space-3);
-  border-top: 1px solid var(--cc-border-subtle);
 }
