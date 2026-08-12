@@ -40,6 +40,7 @@ import { instanceChunkSize } from '@/city/utils/instanceChunkSize';
 import { NEUTRAL_POLYGON_OFFSET } from '@/city/utils/neutralPolygonOffset';
 import treeVertSrc from './tree.vert.glsl?raw';
 import treeFragSrc from './tree.frag.glsl?raw';
+import { URL_PARAMS } from '@/constants/urlParams';
 import { sunDir } from '@/city/utils/shaders/sunDir';
 import { LIGHTING_SUN_AZIMUTH_DEG, LIGHTING_SUN_ELEVATION_DEG } from '@/constants/lighting';
 
@@ -360,6 +361,29 @@ export function createTreeRenderer(
   const canopyGeometry = buildCanopyGeometry();
   bakeVertexShading(canopyGeometry, cfg.SHADING_STRENGTH);
 
+  // ?trees=merged — roads-style draw mode: each chunk becomes ONE plain
+  // static mesh with every tree's vertices pre-transformed to world space and
+  // all colors baked per-vertex. No instancing anywhere in the draw. The
+  // instanced meshes are still built as INVISIBLE picking proxies (raycast,
+  // outlines, scrub-hides-from-picking all read their matrices), so the
+  // interaction layer never knows which mode is rendering.
+  const useMerged =
+    typeof window !== 'undefined' &&
+    new URLSearchParams(window.location.search).get(URL_PARAMS.TREES) === 'merged';
+  const mergedMaterial = useMerged
+    ? new THREE.ShaderMaterial({
+        vertexShader: treeVertSrc,
+        fragmentShader: treeFragSrc,
+        defines: { MERGED_TREES: '' },
+        uniforms: { uColor: { value: new THREE.Color(0xffffff) }, uScrubCommit: { value: -1 } },
+        vertexColors: true,
+        ...NEUTRAL_POLYGON_OFFSET,
+      })
+    : null;
+  const mergedMeshes: THREE.Mesh[] = [];
+  // Trunk vertices for merging: the trunk cylinder as a flat triangle list.
+  const _trunkFlat = useMerged ? trunkGeometry.toNonIndexed().getAttribute('position') : null;
+
   // Full-scale matrices cached per PLACEMENT index (not instance slot), so
   // setScrubCommit can restore a gated-out tree without recomputing its
   // transform. Only trees actually zero-scaled by scrubbing pay for a clone.
@@ -369,6 +393,60 @@ export function createTreeRenderer(
   const canopyMeshes: THREE.InstancedMesh[] = [];
   const trunkMeshes: THREE.InstancedMesh[] = [];
 
+  /** Bake one chunk's trees into a single world-space triangle list. */
+  function buildMergedChunk(placementOrder: number[]): THREE.Mesh {
+    const canopyPos = canopyGeometry.getAttribute('position');
+    const canopyCol = canopyGeometry.getAttribute('color');
+    const trunkPos = _trunkFlat as THREE.BufferAttribute;
+    const cv = canopyPos.count;
+    const tv = trunkPos.count;
+    const perTree = cv + tv;
+    const positions = new Float32Array(placementOrder.length * perTree * 3);
+    const colors = new Float32Array(placementOrder.length * perTree * 3);
+    const commitIdx = new Float32Array(placementOrder.length * perTree);
+    const trunkColor = new THREE.Color();
+    setColorFromHex(trunkColor, cfg.TRUNK_COLOR);
+    for (let t = 0; t < placementOrder.length; t++) {
+      const i = placementOrder[t];
+      const p = placements[i];
+      const h = heights[i];
+      const r = radii[i];
+      const trunkH = h * trunkHeightFrac;
+      const trunkR = r * trunkRadiusFrac;
+      const canopyBaseY = trunkH * (1 - canopyOverlapFrac);
+      perTreeColor(i, tmpColor);
+      const base = t * perTree;
+      for (let v = 0; v < cv; v++) {
+        const o = (base + v) * 3;
+        positions[o] = p.x + canopyPos.getX(v) * r;
+        positions[o + 1] = canopyBaseY + canopyPos.getY(v) * h;
+        positions[o + 2] = p.y + canopyPos.getZ(v) * r;
+        colors[o] = canopyCol.getX(v) * tmpColor.r;
+        colors[o + 1] = canopyCol.getY(v) * tmpColor.g;
+        colors[o + 2] = canopyCol.getZ(v) * tmpColor.b;
+      }
+      for (let v = 0; v < tv; v++) {
+        const o = (base + cv + v) * 3;
+        positions[o] = p.x + trunkPos.getX(v) * trunkR;
+        positions[o + 1] = trunkPos.getY(v) * trunkH;
+        positions[o + 2] = p.y + trunkPos.getZ(v) * trunkR;
+        colors[o] = trunkColor.r;
+        colors[o + 1] = trunkColor.g;
+        colors[o + 2] = trunkColor.b;
+      }
+      commitIdx.fill(placements[i].commitIndex, base, base + perTree);
+    }
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+    geo.setAttribute('aCommitIndex', new THREE.BufferAttribute(commitIdx, 1));
+    const mesh = new THREE.Mesh(geo, mergedMaterial as THREE.ShaderMaterial);
+    mesh.name = 'tree-merged';
+    mesh.renderOrder = RENDER_ORDERS.PARK_FOLIAGE;
+    mesh.visible = cfg.ENABLED;
+    return mesh;
+  }
+
   for (let start = 0; start < totalTrees; start += chunkSize) {
     const len = Math.min(chunkSize, totalTrees - start);
     // Chunk slot k ↔ placement spatialOrder[start+k], shared by the canopy +
@@ -376,17 +454,19 @@ export function createTreeRenderer(
     const placementOrder = new Array<number>(len);
     for (let k = 0; k < len; k++) placementOrder[k] = spatialOrder[start + k];
 
+    // In merged mode the instanced pair still exists but never renders —
+    // they're the picking/outline/scrub proxies.
     const canopyMesh = new THREE.InstancedMesh(canopyGeometry, canopyMaterial, len);
     canopyMesh.name = 'tree-canopy';
     canopyMesh.renderOrder = RENDER_ORDERS.PARK_FOLIAGE;
-    canopyMesh.visible = cfg.ENABLED;
+    canopyMesh.visible = cfg.ENABLED && !useMerged;
     canopyMesh.userData.meshKind = 'tree-canopy';
     canopyMesh.userData.placementOrder = placementOrder;
 
     const trunkMesh = new THREE.InstancedMesh(trunkGeometry, trunkMaterial, len);
     trunkMesh.name = 'tree-trunk';
     trunkMesh.renderOrder = RENDER_ORDERS.PARK_FOLIAGE;
-    trunkMesh.visible = cfg.ENABLED;
+    trunkMesh.visible = cfg.ENABLED && !useMerged;
     trunkMesh.userData.meshKind = 'tree-trunk';
     trunkMesh.userData.placementOrder = placementOrder;
 
@@ -437,6 +517,7 @@ export function createTreeRenderer(
 
     canopyMeshes.push(canopyMesh);
     trunkMeshes.push(trunkMesh);
+    if (useMerged) mergedMeshes.push(buildMergedChunk(placementOrder));
   }
 
   const group = new THREE.Group();
@@ -445,12 +526,14 @@ export function createTreeRenderer(
   group.visible = cfg.ENABLED;
   for (const m of canopyMeshes) group.add(m);
   for (const m of trunkMeshes) group.add(m);
+  for (const m of mergedMeshes) group.add(m);
 
   function refresh(): void {
     cfg = TREES.value;
     group.visible = cfg.ENABLED;
-    for (const m of canopyMeshes) m.visible = cfg.ENABLED;
-    for (const m of trunkMeshes) m.visible = cfg.ENABLED;
+    for (const m of canopyMeshes) m.visible = cfg.ENABLED && !useMerged;
+    for (const m of trunkMeshes) m.visible = cfg.ENABLED && !useMerged;
+    for (const m of mergedMeshes) m.visible = cfg.ENABLED;
 
     setColorFromHex(trunkMaterial.uniforms.uColor.value as THREE.Color, cfg.TRUNK_COLOR);
     setColorFromHex(busyDayColor, cfg.COLOR_BUSY_DAY);
@@ -482,6 +565,8 @@ export function createTreeRenderer(
     trunkGeometry.dispose();
     canopyMaterial.dispose();
     trunkMaterial.dispose();
+    for (const m of mergedMeshes) m.geometry.dispose();
+    mergedMaterial?.dispose();
   }
 
   function commitForInstance(mesh: THREE.InstancedMesh, instanceId: number): CommitEntry | null {
@@ -569,8 +654,11 @@ export function createTreeRenderer(
 
   function setScrubCommit(maxCommitIndex: number | null): void {
     if (maxCommitIndex === _scrubCommit) return;
+    // Proxies always scrub (raycast visibility follows the zero-scale
+    // matrices); the merged draw gates per-fragment via its uniform.
     for (const m of canopyMeshes) applyScrubToMesh(m, canopyFullMatrix, maxCommitIndex);
     for (const m of trunkMeshes) applyScrubToMesh(m, trunkFullMatrix, maxCommitIndex);
+    if (mergedMaterial) mergedMaterial.uniforms.uScrubCommit.value = maxCommitIndex ?? -1;
     _scrubCommit = maxCommitIndex;
   }
 

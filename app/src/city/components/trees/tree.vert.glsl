@@ -12,6 +12,14 @@ uniform vec3 uColor;
 
 varying vec3 vColor;
 
+#ifdef MERGED_TREES
+// Merged (roads-style) mode: vertices are pre-transformed to world space and
+// every color is baked per-vertex; the commit index rides along for the
+// timeline scrub gate (fragment discard).
+attribute float aCommitIndex;
+varying float vCommitIndex;
+#endif
+
 void main() {
   // Material tint × baked facet shading (geometry color, canopy only) ×
   // per-tree age color (instanceColor, canopy only). Trunks carry neither
@@ -25,5 +33,10 @@ void main() {
   #endif
   vColor = c;
 
+  #ifdef MERGED_TREES
+  vCommitIndex = aCommitIndex;
+  gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+  #else
   gl_Position = projectionMatrix * modelViewMatrix * instanceMatrix * vec4(position, 1.0);
+  #endif
 }
