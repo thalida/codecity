@@ -1,15 +1,7 @@
-// constants/buildings.ts — Default per-extension building hues.
-//
-// This is the DEFAULT for the (still user-tunable) BUILDINGS.HUE_EXT_MAP field —
-// extracted here so the settings store stays lean. Hue (0–359°) is picked to
-// match the standout color of the file's icon in Material Icon Theme: the color
-// you see on the file's pill/glyph is the hue the building ramps off in the
-// city. When an icon has multiple colors we pick the more distinctive one
-// (e.g. Python is yellow+blue → yellow, since blue is overused).
-//
-// Hues audited against the actual Material Icon Theme SVG fill colors at
-// jsdelivr (v5.30.0). Mixed-palette icons (Erlang, Clojure, Python) get the
-// more distinctive hue.
+// constants/buildings.ts — default per-extension building hues, the default for
+// the tunable BUILDINGS.HUE_EXT_MAP. Each hue matches the file's Material Icon
+// Theme colour, so the pill and the building agree; multi-colour icons take the
+// more distinctive one (Python yellow, not blue).
 
 // Ad-panel tint shown after a permanent image load/decode failure (sticky).
 // Never a UI control — the placeholder color (transient/loading) is tunable in

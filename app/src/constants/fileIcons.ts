@@ -1,9 +1,6 @@
-// constants/fileIcons.ts — Material Icon Theme (MIT) lookup tables.
-// Static data, no behavior: file-extension / exact-filename / folder-name
-// → Material icon basename. The resolver that reads them lives in
-// utils/fileIcons.ts; constants/materialIcons.ts maps each basename to a
-// bundled SVG URL (imported from the pinned material-icon-theme package, no
-// runtime CDN), and NodeIcon / iconAtlas render them.
+// constants/fileIcons.ts — extension / filename / folder-name to Material Icon
+// Theme basename. Static data; the resolver lives in utils/fileIcons.ts and
+// constants/materialIcons.ts maps each basename to its bundled SVG.
 
 // Material's `document` glyph has more visual weight than the plain
 // `file` outline — feels at home next to the colorful per-type icons

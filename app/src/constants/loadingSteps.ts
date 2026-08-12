@@ -1,8 +1,6 @@
-// constants/loadingSteps.ts — The loading-overlay step vocabulary: the ordered
-// set of phases the manifest stream advances through, plus their display
-// labels. A string enum (values match the NDJSON-ish phase names) so call
-// sites and the data-step attribute stay self-documenting; the overlay and the
-// uiState setters both render/advance from these.
+// constants/loadingSteps.ts — the ordered phases the manifest stream advances
+// through, with their labels. String enum: the values are the wire phase names,
+// so call sites and the data-step attribute stay readable.
 
 import { ScanPhase } from '@/api/manifest';
 import { SourceKind } from '@/utils/sources';

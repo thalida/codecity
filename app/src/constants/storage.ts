@@ -1,10 +1,6 @@
-// constants/storage.ts — localStorage key constants. Centralized so
-// reading or writing a key from a new place doesn't risk a typo
-// silently splitting state across two slots.
-//
-// Persistence prefix is shared across all keys so a one-shot grep on
-// `cc.` finds every codecity-owned localStorage entry. state/persist.ts
-// adds its own per-store keys with the same prefix.
+// constants/storage.ts — localStorage keys, centralised so a typo can't split
+// state across two slots. Every key shares the `cc.` prefix, so one grep finds
+// everything codecity owns.
 
 export const STORAGE_PREFIX = 'cc.';
 

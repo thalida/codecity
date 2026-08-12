@@ -1,16 +1,6 @@
-// constants/gem.ts — Canonical vocabulary for the root gem's SIDES setting.
-//
-// Single source of truth for WHICH polyhedra the gem can be: the key set,
-// each shape's name, and the default. Everything else derives from this:
-//   - the GEM settings store (state/stores/settings/gem.ts) builds the
-//     SIDES Select options + tip from GEM_SIDES / GEM_SIDES_NAMES,
-//   - the gem component's geometry table (city/components/gem/shapes.ts)
-//     is typed Record<GemSides, …>, so the compiler rejects a missing or
-//     extra shape there.
-//
-// Lives in constants/ (not the gem component) because both state/ and
-// city/ import from here already — stores never import city/components.
-// The THREE geometry builders stay gem-local in components/gem/shapes.ts.
+// constants/gem.ts — which polyhedra the root gem can be. The settings store
+// and the geometry table both key off this, so the compiler catches a shape
+// missing from either. In constants/ because stores never import city/.
 
 export const GEM_SIDES_NAMES = {
   '4': 'tetrahedron',
