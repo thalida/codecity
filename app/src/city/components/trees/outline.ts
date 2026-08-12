@@ -16,7 +16,7 @@
 
 import * as THREE from 'three';
 import { LineSegments2 } from 'three/addons/lines/LineSegments2.js';
-import { LineSegmentsGeometry } from 'three/addons/lines/LineSegmentsGeometry.js';
+import { SafeLineSegmentsGeometry } from '@/city/utils/safeLineSegmentsGeometry';
 
 import { TREES } from '@/state/stores/settings/trees';
 import { RENDER_ORDERS } from '@/city/types/renderOrders';
@@ -54,7 +54,7 @@ export function createTreeOutlineRenderer({ canvas, scene, picker, getTrees }: C
   // tree uses one facet count, so there's no per-tier swap. Wrapped in
   // LineSegmentsGeometry (line2 addon's flat-array format).
   const _edges = buildCanopyEdges();
-  const _edgesGeom = new LineSegmentsGeometry();
+  const _edgesGeom = new SafeLineSegmentsGeometry();
   _edgesGeom.setPositions(_edges.getAttribute('position').array as Float32Array);
   _edges.dispose();
 
@@ -138,7 +138,7 @@ export function createTreeOutlineRenderer({ canvas, scene, picker, getTrees }: C
   let _selColorBuf: Float32Array | null = null;
   let _selSegCount = 0;
 
-  function _ensureColorBuffer(geom: LineSegmentsGeometry): void {
+  function _ensureColorBuffer(geom: SafeLineSegmentsGeometry): void {
     // Each segment has start RGB + end RGB = 6 floats.
     const startAttr = geom.attributes.instanceStart;
     if (!startAttr) return;
@@ -163,10 +163,7 @@ export function createTreeOutlineRenderer({ canvas, scene, picker, getTrees }: C
       _selColorBuf[k + 4] = g;
       _selColorBuf[k + 5] = b;
     }
-    const geom = selectedOutline.geometry as LineSegmentsGeometry;
-    const colorAttr = geom.attributes.instanceColorStart as THREE.InterleavedBufferAttribute;
-    colorAttr.data.array.set(_selColorBuf);
-    colorAttr.data.needsUpdate = true;
+    (selectedOutline.geometry as SafeLineSegmentsGeometry).setColors(_selColorBuf);
   }
 
   function update(_dtMs: number): void {
@@ -175,7 +172,7 @@ export function createTreeOutlineRenderer({ canvas, scene, picker, getTrees }: C
     const sel = picker.selection.value;
     if (sel && sel.kind === NodeKind.Commit) {
       _syncOutline(selectedOutline, sel.commit.sha);
-      _ensureColorBuffer(selectedOutline.geometry as LineSegmentsGeometry);
+      _ensureColorBuffer(selectedOutline.geometry as SafeLineSegmentsGeometry);
       _writeRainbow(performance.now());
     }
 

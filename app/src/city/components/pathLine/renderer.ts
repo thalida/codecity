@@ -11,7 +11,7 @@
 import * as THREE from 'three';
 import { effect, untracked } from '@preact/signals';
 import { LineSegments2 } from 'three/addons/lines/LineSegments2.js';
-import { LineSegmentsGeometry } from 'three/addons/lines/LineSegmentsGeometry.js';
+import { SafeLineSegmentsGeometry } from '@/city/utils/safeLineSegmentsGeometry';
 
 import { STREETS, STREET_TIERS } from '@/state/stores/settings/streets';
 import { createSafeLineMaterial } from '@/city/utils/safeLineMaterial';
@@ -71,7 +71,7 @@ export function createPathLineRenderer({
     worldUnits: false,
   });
   pathLineMat.resolution.set(canvas.clientWidth, canvas.clientHeight);
-  let pathLineGeo = new LineSegmentsGeometry();
+  let pathLineGeo = new SafeLineSegmentsGeometry();
   pathLineGeo.setPositions([0, 0, 0, 0, 0, 0]);
   const pathLine = new LineSegments2(pathLineGeo, pathLineMat);
   pathLine.visible = false;
@@ -93,7 +93,7 @@ export function createPathLineRenderer({
     worldUnits: false,
   });
   hoverPathLineMat.resolution.set(canvas.clientWidth, canvas.clientHeight);
-  let hoverPathLineGeo = new LineSegmentsGeometry();
+  let hoverPathLineGeo = new SafeLineSegmentsGeometry();
   hoverPathLineGeo.setPositions([0, 0, 0, 0, 0, 0]);
   const hoverPathLine = new LineSegments2(hoverPathLineGeo, hoverPathLineMat);
   hoverPathLine.visible = false;
@@ -143,7 +143,7 @@ export function createPathLineRenderer({
     // setPositions can leave stale instance state when segment count
     // changes (segments silently dropped otherwise).
     if (pathLineGeo && pathLineGeo.dispose) pathLineGeo.dispose();
-    pathLineGeo = new LineSegmentsGeometry();
+    pathLineGeo = new SafeLineSegmentsGeometry();
     pathLineGeo.setPositions(flat);
     pathLine.geometry = pathLineGeo;
 
@@ -180,7 +180,7 @@ export function createPathLineRenderer({
       flat.push(a.x, elev, a.z, b.x, elev, b.z);
     }
     if (hoverPathLineGeo && hoverPathLineGeo.dispose) hoverPathLineGeo.dispose();
-    hoverPathLineGeo = new LineSegmentsGeometry();
+    hoverPathLineGeo = new SafeLineSegmentsGeometry();
     hoverPathLineGeo.setPositions(flat);
     hoverPathLine.geometry = hoverPathLineGeo;
     hoverPathLineMat.opacity = cfg.HOVER_PATH_OPACITY;

@@ -37,6 +37,7 @@ import { showTooltip, hideTooltip } from './interaction/tooltip';
 import { createPostFx } from './render/postFx';
 import { startFrameLoop } from './render/frameLoop';
 import { registerRenderer as registerFacadePanelRenderer } from './components/buildings/facadePanelTextureArray';
+import { debugLog } from '@/utils/deviceDebugLog';
 
 export async function createCity(canvas: HTMLCanvasElement, manifest: Manifest): Promise<City> {
   // Must precede any ShaderMaterial so #include <chunk> directives resolve.
@@ -74,6 +75,21 @@ export async function createCity(canvas: HTMLCanvasElement, manifest: Manifest):
   renderer.setPixelRatio(pixelRatio);
   renderer.setSize(canvas.clientWidth, canvas.clientHeight, false);
   registerFacadePanelRenderer(renderer);
+
+  // Device telemetry (dev-only no-ops in prod): GPU identity + the two GL
+  // events that explain whole-frame corruption if they fire. Feature-guarded:
+  // the test harness's mocked context has no getExtension.
+  const _gl = renderer.getContext();
+  if (typeof _gl.getExtension === 'function') {
+    const _dbgExt = _gl.getExtension('WEBGL_debug_renderer_info');
+    debugLog('gl', {
+      gpu: _dbgExt ? String(_gl.getParameter(_dbgExt.UNMASKED_RENDERER_WEBGL)) : 'unavailable',
+      pixelRatio,
+      drawingBuffer: `${_gl.drawingBufferWidth}x${_gl.drawingBufferHeight}`,
+    });
+  }
+  canvas.addEventListener?.('webglcontextlost', () => debugLog('context-lost'));
+  canvas.addEventListener?.('webglcontextrestored', () => debugLog('context-restored'));
 
   const layoutClient = createLayoutClient();
   const cityState = createCityState(layoutClient);
@@ -195,6 +211,7 @@ export async function createCity(canvas: HTMLCanvasElement, manifest: Manifest):
     onResize() {
       const cw = canvas.clientWidth;
       const ch = canvas.clientHeight;
+      debugLog('resize', { cw, ch });
       postFx.setSize(cw, ch);
       for (const c of components) c.onResize?.(cw, ch);
       // Synchronous paint so the canvas doesn't flash blank between resize and
@@ -209,19 +226,34 @@ export async function createCity(canvas: HTMLCanvasElement, manifest: Manifest):
 
   // Reused scratch vector to avoid per-frame allocations from renderer.getSize().
   const renderSize = new THREE.Vector2();
+  // Telemetry scratch: previous frame's camera position, for jump detection.
+  const _prevCamPos = new THREE.Vector3();
+  let _prevCamPosValid = false;
   // Last scrub position the removed-selection prune ran at — so it fires only when
   // the scrub actually MOVES, never on a static selection.
   let _lastPrunedScrubPos = -1;
   const stopFrameLoop = startFrameLoop(components, ctx, {
     rig,
     postFx,
-    before() {
+    before(f) {
+      // Telemetry: frame stalls + single-frame camera teleports, the two
+      // frame-level anomalies that would explain transient corruption.
+      if (f.dt > 0.25) debugLog('dt-spike', { ms: Math.round(f.dt * 1000) });
+      if (_prevCamPosValid && rig.camera.position.distanceTo(_prevCamPos) > 200) {
+        debugLog('camera-jump', {
+          from: _prevCamPos.toArray().map((v) => Math.round(v)),
+          to: rig.camera.position.toArray().map((v) => Math.round(v)),
+        });
+      }
+      _prevCamPos.copy(rig.camera.position);
+      _prevCamPosValid = true;
       // Idempotent per-frame size guard — resyncs renderer + composer to the
       // canvas whenever they diverge (ResizeObserver miss); cheap no-op else.
       const cw = canvas.clientWidth;
       const ch = canvas.clientHeight;
       renderer.getSize(renderSize);
       if (cw > 0 && ch > 0 && (renderSize.x !== cw || renderSize.y !== ch)) {
+        debugLog('size-resync', { cw, ch, was: `${renderSize.x}x${renderSize.y}` });
         renderer.setSize(cw, ch, false);
         rig.camera.aspect = cw / Math.max(1, ch);
         rig.camera.updateProjectionMatrix();

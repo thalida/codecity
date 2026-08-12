@@ -64,3 +64,6 @@ app/tests/visual/references-diff/
 
 # Claude Code session scratch (per-dev handoff notes, local settings)
 .claude/
+
+# Device debug telemetry sink (vite dev middleware)
+app/.local-debuglog.ndjson

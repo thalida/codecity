@@ -9,7 +9,12 @@ import './styles/index.css';
 // effect sets data-cc-* before Preact mounts.
 import '@/state/stores/settings/theme';
 import { openBootPickerIfNeeded } from '@/state/bootView';
+import { installDeviceDebugLog } from '@/utils/deviceDebugLog';
 import { App } from '@/layout/App/App';
+
+// Dev-only device telemetry (no-op in prod/test): streams errors + render
+// diagnostics to the vite dev server so phone sessions are debuggable.
+installDeviceDebugLog();
 
 // Decide the cold-boot picker BEFORE the first render so the full-page landing
 // covers the chrome from frame one (no chrome flash).

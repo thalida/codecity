@@ -19,7 +19,7 @@
 import * as THREE from 'three';
 import { effect } from '@preact/signals';
 import { LineSegments2 } from 'three/addons/lines/LineSegments2.js';
-import { LineSegmentsGeometry } from 'three/addons/lines/LineSegmentsGeometry.js';
+import { SafeLineSegmentsGeometry } from '@/city/utils/safeLineSegmentsGeometry';
 
 import { BUILDINGS } from '@/state/stores/settings/buildings';
 import { RENDER_ORDERS } from '@/city/types/renderOrders';
@@ -67,7 +67,7 @@ export function createOutlineRenderer({
   const _bo = BUILDINGS.value;
 
   // ── Hover outline (single shared mesh, retransformed per frame) ─────
-  const _unitEdgesGeo = new LineSegmentsGeometry();
+  const _unitEdgesGeo = new SafeLineSegmentsGeometry();
   _unitEdgesGeo.setPositions(UNIT_BOX_EDGE_POSITIONS);
   const hoverLineMat = createSafeLineMaterial({
     color: new THREE.Color(_bo.OUTLINE_HOVER_COLOR),
@@ -94,7 +94,7 @@ export function createOutlineRenderer({
     worldUnits: false,
   });
   selectedLineMat.resolution.set(canvas.clientWidth, canvas.clientHeight);
-  const _selectedEdgesGeo = new LineSegmentsGeometry();
+  const _selectedEdgesGeo = new SafeLineSegmentsGeometry();
   _selectedEdgesGeo.setPositions(UNIT_BOX_EDGE_POSITIONS);
   // A unit cube has CUBE_EDGE_COUNT edges; LineSegmentsGeometry stores
   // start+end RGB (6 floats) per edge. UNIT_BOX_EDGE_POSITIONS (above)
@@ -104,12 +104,6 @@ export function createOutlineRenderer({
   const _selectedColors = new Float32Array(CUBE_EDGE_COUNT * COLOR_FLOATS_PER_EDGE);
   for (let ci = 0; ci < _selectedColors.length; ci++) _selectedColors[ci] = 1;
   _selectedEdgesGeo.setColors(_selectedColors);
-  // attributes.instanceColorStart is exposed as the BufferAttribute|InterleavedBufferAttribute
-  // union; LineSegmentsGeometry uses the interleaved variant, whose .data is the
-  // underlying InterleavedBuffer (carries .array + .needsUpdate).
-  const _selColorBuf = (
-    _selectedEdgesGeo.attributes.instanceColorStart as THREE.InterleavedBufferAttribute
-  ).data;
   const selectedOutline = new LineSegments2(_selectedEdgesGeo, selectedLineMat);
   selectedOutline.visible = false;
   selectedOutline.renderOrder = RENDER_ORDERS.SELECTED_OUTLINE;
@@ -249,8 +243,7 @@ export function createOutlineRenderer({
         _setSegHueGradient(i + HUE_STEPS, timeMs, a, b); // top face (same gradient)
         _setSegHueGradient(i + HUE_STEPS * 2, timeMs, a, a); // vertical: solid hue
       }
-      _selColorBuf.array.set(_selectedColors);
-      _selColorBuf.needsUpdate = true;
+      _selectedEdgesGeo.setColors(_selectedColors);
     }
 
     // Hover: keep transform pinned in case the building is still animating.

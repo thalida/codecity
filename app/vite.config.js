@@ -1,5 +1,6 @@
 import { defineConfig } from 'vite';
 import { resolve } from 'node:path';
+import { appendFileSync } from 'node:fs';
 import preact from '@preact/preset-vite';
 
 // Vite root is this directory. Build output lands in ./dist/ — the
@@ -11,10 +12,40 @@ import preact from '@preact/preset-vite';
 
 const appDir = import.meta.dirname;
 
+// Dev-only sink for src/utils/deviceDebugLog.ts: phones over a tunnel have no
+// reachable console, so the page POSTs telemetry here and it lands in a local
+// NDJSON file the developer can tail.
+const deviceDebugLogPlugin = {
+  name: 'device-debug-log',
+  configureServer(server) {
+    const logFile = resolve(appDir, '.local-debuglog.ndjson');
+    server.middlewares.use('/__debuglog', (req, res) => {
+      if (req.method !== 'POST') {
+        res.statusCode = 405;
+        res.end();
+        return;
+      }
+      let body = '';
+      req.on('data', (chunk) => {
+        body += chunk;
+      });
+      req.on('end', () => {
+        try {
+          appendFileSync(logFile, body.endsWith('\n') ? body : `${body}\n`);
+        } catch {
+          // Diagnostic sink only — never fail a request over it.
+        }
+        res.statusCode = 204;
+        res.end();
+      });
+    });
+  },
+};
+
 export default defineConfig({
   root: appDir,
   base: './',
-  plugins: [preact()],
+  plugins: [preact(), deviceDebugLogPlugin],
   resolve: {
     // `@/` maps to app/src so cross-directory imports stay short and
     // survive file moves. Mirrored in tsconfig.json paths and
