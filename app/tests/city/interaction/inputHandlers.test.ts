@@ -1,7 +1,7 @@
 // city/interaction/inputHandlers.test.ts — the scene's document-level keydown
 // handler must not fire scene keybindings (Esc-deselect, R, F) while a modal
 // (Shortcuts/Debug/ProjectsView) is open. The handler bails out early when the
-// MODAL_OPEN signal is set — see the "modal owns keyboard input" guard in
+// OVERLAY_OPEN signal is set — see the "modal owns keyboard input" guard in
 // inputHandlers.ts, right after the text-input early-return.
 //
 // Exercises the guard through the real createCity → createInputHandlers path
@@ -54,7 +54,7 @@ describe('scene keydown handler — modal suppression', () => {
     const handle = await createCity(makeCanvas(), EMPTY_MANIFEST);
     const setSelectionSpy = vi.spyOn(handle.picker, 'setSelection');
 
-    // Open a modal — MODAL_OPEN goes true, so the scene handler bails.
+    // Open a modal — OVERLAY_OPEN goes true, so the scene handler bails.
     openShortcuts();
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
     expect(setSelectionSpy).not.toHaveBeenCalled();

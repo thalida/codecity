@@ -55,6 +55,10 @@
 .form-input--select {
   appearance: none;
   -webkit-appearance: none;
+  /* A form control's min-content width is its longest option, which beats a
+     flex parent's shrink unless it's told otherwise. */
+  min-width: 0;
+  max-width: 100%;
   padding-right: var(--cc-space-8); /* room for the chevron */
   cursor: pointer;
   background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%237279a2' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>");

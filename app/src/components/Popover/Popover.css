@@ -17,9 +17,12 @@
   --popover-inset: var(--cc-space-4);
   position: absolute;
   z-index: 300; /* over the sidebars, which sit at 90/100 */
-  /* Fits a setting row's label and control without wrapping the label. */
-  width: 21rem;
-  max-width: calc(100vw - 2 * var(--cc-chrome-inset));
+  /* Sized by its content between bounds, so a panel of two toggles doesn't
+     reserve the room a shortcuts table needs. The floor keeps a setting row's
+     label off its control; the ceiling is where prose stops being readable. */
+  width: max-content;
+  min-width: 20rem;
+  max-width: min(30rem, calc(100vw - 2 * var(--cc-chrome-inset)));
   display: flex;
   flex-direction: column;
   /* Block only: the inset is the children's, so the group rules run full-bleed
@@ -33,8 +36,12 @@
   overflow-y: auto;
   overscroll-behavior: contain;
   text-align: left;
-  /* Off a bar's mono chrome face: this is prose and settings rows. */
+  /* Off the host bar's type entirely: this is prose and settings rows, not a
+     status line. #app-footer sets white-space:nowrap to keep its one line from
+     breaking, and the panel renders inside it, so without this nothing in here
+     can wrap and every panel becomes a horizontal scroller. */
   font-family: var(--cc-font-sans);
+  white-space: normal;
 }
 
 .popover-panel--below-end {
@@ -55,6 +62,13 @@
      is shrink-to-fit at width:auto even as a block-level box. */
   display: flex;
   flex-direction: column;
+  /* Both of these are flex items (of the panel, and of each other), and a flex
+     item floors at its min-content width unless told otherwise — which is how
+     a wide table inside one pushes the whole panel into horizontal scroll. */
+  min-width: 0;
+}
+.popover-group > * {
+  min-width: 0;
 }
 .popover-group + .popover-group {
   margin-top: var(--cc-space-4);
@@ -92,6 +106,12 @@
   font-size: var(--cc-font-sm);
 }
 
+/* A label too long for the room left beside its control wraps onto a second
+   line rather than crowding it: there is no horizontal scroll to escape into. */
+.popover-panel .setting-row-label {
+  overflow-wrap: anywhere;
+}
+
 /* Trailing, not leading: prose above a control makes you read before you can
    act. Centred so it reads as a footnote rather than another row. */
 .popover-hint {
@@ -124,8 +144,15 @@
 @media (max-width: 580px) {
   .popover-panel {
     position: fixed;
-    inset: auto 0 0 0;
+    top: auto;
+    left: 0;
+    right: 0;
+    /* Rests ON the bar it came from rather than over it: the trigger stays
+       visible and keeps its open state showing. */
+    bottom: var(--cc-chrome-h);
+    /* Every width bound off, so left/right alone decide it. */
     width: auto;
+    min-width: 0;
     max-width: none;
     max-height: 70vh;
     padding: 0 0 var(--cc-space-6);

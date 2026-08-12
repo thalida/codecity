@@ -63,16 +63,21 @@ export function SettingRow({
   const reset =
     resetSlot ??
     (store && keys && keys.length > 0 ? <ResetButton store={store} keys={keys} /> : null);
+  // A <label> only where there's a control to point it at. Without `for` it
+  // implicitly labels its first labelable descendant — which is the reset
+  // button, so the row's text named the reset and hovering anywhere in the row
+  // forwarded :hover to it.
+  const Main = htmlFor ? 'label' : 'div';
   return (
     <div class={inline ? 'setting-row setting-row--inline' : 'setting-row'}>
-      <label class="setting-row-main" htmlFor={htmlFor} title={fullTip}>
+      <Main class="setting-row-main" htmlFor={htmlFor} title={fullTip}>
         <span class="setting-row-head">
           <span class="setting-row-label">{label}</span>
           {inline && <span class="setting-row-control">{children}</span>}
           {reset}
         </span>
         {!inline && <span class="setting-row-control">{children}</span>}
-      </label>
+      </Main>
       {/* Compact keeps the tip for the hover title and aria-describedby, and
           drops only the visible block. */}
       {tip && (

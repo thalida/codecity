@@ -14,8 +14,9 @@ import { ControlsPane } from '@/views/ControlsPane/ControlsPane';
 import { DynamicSection } from '@/views/ControlsPane/partials';
 import { BUILDINGS_SECTION } from '@/views/ControlsPane/partials/Buildings';
 import { ProjectsView } from '@/views/ProjectsView/ProjectsView';
-import { DebugModal } from '@/views/DebugModal/DebugModal';
-import { ShortcutsModal } from '@/views/ShortcutsModal/ShortcutsModal';
+import { DebugMenu } from '@/components/DebugMenu/DebugMenu';
+import { ShortcutsMenu } from '@/components/ShortcutsMenu/ShortcutsMenu';
+import { AppearanceMenu } from '@/components/AppearanceMenu/AppearanceMenu';
 import { TreePane } from '@/views/TreePane/TreePane';
 import { AppHeader } from '@/layout/AppHeader/AppHeader';
 import { AppFooter } from '@/layout/AppFooter/AppFooter';
@@ -125,17 +126,24 @@ const SURFACES: Surface[] = [
     mount: (c) => render(<AppFooter />, c),
   },
   {
-    name: 'DebugModal',
+    name: 'DebugMenu',
     mount: (c) => {
       openDebug();
-      render(<DebugModal onRunCollisionCheck={() => {}} onRunStemDiagnostic={() => {}} />, c);
+      render(<DebugMenu onRunCollisionCheck={() => {}} onRunStemDiagnostic={() => {}} />, c);
     },
   },
   {
-    name: 'ShortcutsModal',
+    name: 'ShortcutsMenu',
     mount: (c) => {
       openShortcuts();
-      render(<ShortcutsModal />, c);
+      render(<ShortcutsMenu />, c);
+    },
+  },
+  {
+    name: 'AppearanceMenu',
+    mount: (c) => {
+      render(<AppearanceMenu />, c);
+      openByLabel(c, 'Appearance');
     },
   },
   {

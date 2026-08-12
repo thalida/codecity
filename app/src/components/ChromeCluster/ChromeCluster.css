@@ -46,9 +46,10 @@
   color: var(--cc-accent-light);
   cursor: pointer;
 }
+/* The shared engaged state (see buttons.css): accent glyph on an accent fill. */
 .cluster-item--press:not(:disabled):hover {
-  color: var(--cc-text-strong);
-  background: var(--cc-overlay-bg);
+  color: var(--cc-accent);
+  background: var(--cc-accent-bg-soft);
 }
 .cluster-item:disabled {
   cursor: default;
@@ -91,15 +92,9 @@
   font-size: var(--cc-font-sm);
   color: var(--cc-text-primary);
 }
-.cluster-item--press:not(:disabled):hover .icon {
-  color: var(--cc-text-strong);
-}
-
-/* Focused, pressed and open are one accent state — the same glyph-on-accent-fill
-   the activity bar uses for a selected tab — so the press previews where it
-   lands. Keyed off aria-expanded, so open can't drift from the ARIA. Declared
-   after :hover and at matching specificity, so keyboard focus wins the tie when
-   the pointer happens to rest on the same item. */
+/* Hover, focus, press and open all read as engaged (see buttons.css). Open is
+   keyed off aria-expanded so it can't drift from the ARIA. */
+.cluster-item--press:not(:disabled):hover .icon,
 .cluster-item--press:not(:disabled):focus-visible,
 .cluster-item--press:not(:disabled):focus-visible .icon,
 .cluster-item--press:not(:disabled):active,
@@ -109,7 +104,9 @@
   color: var(--cc-accent);
 }
 .cluster-item--press:not(:disabled):focus-visible,
-.cluster-item--press:not(:disabled):active,
 .cluster-item--press[aria-expanded='true'] {
   background: var(--cc-accent-bg-soft);
+}
+.cluster-item--press:not(:disabled):active {
+  background: var(--cc-accent-bg);
 }

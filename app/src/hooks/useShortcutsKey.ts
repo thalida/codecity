@@ -5,7 +5,7 @@
 // realistically reached.
 
 import { useEffect } from 'preact/hooks';
-import { openShortcuts, MODAL_OPEN } from '@/state/stores/ui';
+import { openShortcuts, OVERLAY_OPEN } from '@/state/stores/ui';
 import { KEY_BINDINGS } from '@/constants/keyboard';
 import { TEXT_INPUT_TAGS } from '@/constants/dom';
 
@@ -25,7 +25,7 @@ export function useShortcutsKey(): void {
       // isContentEditable property is not.)
       if (el?.closest('[contenteditable="true"]')) return;
       // A modal already owns the keyboard, the shortcuts panel included.
-      if (MODAL_OPEN.value) return;
+      if (OVERLAY_OPEN.value) return;
       e.preventDefault();
       openShortcuts();
     };

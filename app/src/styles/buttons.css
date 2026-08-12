@@ -68,9 +68,16 @@
   display: block;
 }
 
-.btn-icon:not(:disabled):hover {
-  color: var(--cc-text-strong);
-  background: var(--cc-overlay-bg);
+/* The engaged state for every icon strip (.cluster-item--press,
+   .activity-bar-icon too): accent glyph on an accent fill, deepening on press.
+   A neutral tint just reads as "slightly lighter" on these surfaces. */
+.btn-icon:not(:disabled):hover,
+.btn-icon:not(:disabled):focus-visible {
+  color: var(--cc-accent);
+  background: var(--cc-accent-bg-soft);
+}
+.btn-icon:not(:disabled):active {
+  background: var(--cc-accent-bg);
 }
 .btn-icon:disabled {
   cursor: default;

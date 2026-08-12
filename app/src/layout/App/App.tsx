@@ -9,12 +9,10 @@
 //     <CenterPane>       — owns the canvas + boots the scene
 //     <RightSidebar>     — self-subscribes to SCENE_HANDLE + picker
 //   </main>
-//   <AppFooter>          — reads signals directly
+//   <AppFooter>          — appearance/shortcuts/debug menus; scene commands as props
 //   <ProjectsView />     — reads PROJECTS_VIEW + SERVER_CONFIG directly; owns
 //                          inline progress for a switch it initiates
 //   <LoadingOverlay />   — reads LOADING_OVERLAY directly; deep-link boot only
-//   <ShortcutsModal />   — reads SHORTCUTS_OPEN directly
-//   <DebugModal />       — reads DEBUG_OPEN directly; scene commands passed as props
 
 import './App.css';
 import { useEffect } from 'preact/hooks';
@@ -26,8 +24,6 @@ import { CenterPane } from '../CenterPane/CenterPane';
 import { LeftSidebar } from '../LeftSidebar/LeftSidebar';
 import { RightSidebar } from '../RightSidebar/RightSidebar';
 import { ProjectsView } from '@/views/ProjectsView/ProjectsView';
-import { ShortcutsModal } from '@/views/ShortcutsModal/ShortcutsModal';
-import { DebugModal } from '@/views/DebugModal/DebugModal';
 import { LoadingOverlay } from '@/components/LoadingOverlay/LoadingOverlay';
 import { HljsThemeLink } from '@/components/HljsThemeLink/HljsThemeLink';
 import { SelectionAnnouncer } from '@/components/SelectionAnnouncer/SelectionAnnouncer';
@@ -120,7 +116,7 @@ export function App() {
         <CenterPane />
         <RightSidebar />
       </main>
-      <AppFooter />
+      <AppFooter onRunCollisionCheck={runCollisionCheck} onRunStemDiagnostic={runStemDiagnostic} />
       <ProjectsView onSubmit={(p) => submitSource(p)} onCancel={cancelLoad} onClose={dismissView} />
       <LoadingOverlay
         onCancel={() => {
@@ -135,8 +131,6 @@ export function App() {
           }
         }}
       />
-      <ShortcutsModal />
-      <DebugModal onRunCollisionCheck={runCollisionCheck} onRunStemDiagnostic={runStemDiagnostic} />
       <HljsThemeLink />
       <SelectionAnnouncer />
     </>

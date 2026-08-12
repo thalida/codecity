@@ -224,6 +224,6 @@ export function closeDebug(): void {
 
 /** True while any modal (projects view, shortcuts, debug) is open. Scene input
  *  handlers read this so keyboard shortcuts don't fire underneath a modal. */
-export const MODAL_OPEN = computed(
+export const OVERLAY_OPEN = computed(
   () => PROJECTS_VIEW.value.visible || SHORTCUTS_OPEN.value || DEBUG_OPEN.value
 );

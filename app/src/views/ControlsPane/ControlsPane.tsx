@@ -64,7 +64,7 @@ export function ControlsPane({ onClose, collapsed }: ControlsPaneProps) {
   return (
     <Pane
       paneClass="controls-pane"
-      headerSlot={<PaneHeader title="World" onClose={onClose} />}
+      headerSlot={<PaneHeader title="World settings" onClose={onClose} />}
       bodyClass="pane-inset"
       footerSlot={<ActionsBar />}
     >

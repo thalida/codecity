@@ -64,18 +64,40 @@ describe('SettingRow layout B', () => {
     );
   });
 
-  it('keeps the description out of the label (accessible name stays just the label text)', async () => {
+  it('keeps the description out of the row body (accessible name stays just the label text)', async () => {
     mount(
       <SettingRow label="Max floors" tip="Floors for the largest file.">
         <input />
       </SettingRow>
     );
     await flush();
-    const label = container.querySelector('label');
-    expect(label?.textContent).not.toContain('Floors for the largest file.');
+    const main = container.querySelector('.setting-row-main');
+    expect(main?.textContent).not.toContain('Floors for the largest file.');
     expect(container.querySelector('.setting-row-desc')?.textContent).toBe(
       'Floors for the largest file.'
     );
+  });
+
+  // A <label> with no `for` implicitly labels its first labelable descendant,
+  // which in a row with a reset button is the reset: it took the row's name and
+  // lit up on hover anywhere in the row.
+  it('is only a <label> when there is a control to point it at', async () => {
+    mount(
+      <SettingRow label="Accent">
+        <button type="button">swatch</button>
+      </SettingRow>
+    );
+    await flush();
+    expect(container.querySelector('.setting-row-main')!.tagName).toBe('DIV');
+
+    render(null, container);
+    mount(
+      <SettingRow label="Poll interval" htmlFor="poll">
+        <input id="poll" />
+      </SettingRow>
+    );
+    await flush();
+    expect(container.querySelector('.setting-row-main')!.tagName).toBe('LABEL');
   });
 });
 

@@ -69,11 +69,14 @@
   }
 }
 
+/* Above .landing-inner, not level with it: the inner is a later sibling at the
+   same z-index, and once it spans the full width (below its 1040px cap) it
+   paints over this button and swallows the click. */
 .landing-close {
   position: absolute;
   top: var(--cc-space-5);
   right: var(--cc-space-5);
-  z-index: 1;
+  z-index: 2;
 }
 
 .landing-inner {

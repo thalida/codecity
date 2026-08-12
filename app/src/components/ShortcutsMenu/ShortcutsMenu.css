@@ -1,4 +1,4 @@
-/* ── ShortcutsModal ── */
+/* ── ShortcutsMenu ── */
 
 .shortcuts-list kbd,
 .shortcuts-list .shortcuts-mouse {
@@ -25,25 +25,28 @@
  * One grid per labelled section (Keyboard, Mouse). */
 .shortcuts-list {
   display: grid;
-  grid-template-columns: auto 1fr;
-  gap: var(--cc-space-3) var(--cc-space-7);
+  /* minmax(0,1fr) on the action column, not a bare 1fr, which would floor at
+     its own min-content and widen the grid past the panel. */
+  grid-template-columns: auto minmax(0, 1fr);
+  min-width: 0;
+  gap: var(--cc-space-3) var(--cc-space-6);
   align-items: center;
-  margin: var(--cc-space-4) 0 0;
+  margin: var(--cc-space-3) 0 0;
+  padding-inline: var(--popover-inset);
   font-size: var(--cc-font-xs);
 }
-
-/* Space a following section label off the list above it. */
-.shortcuts-list + .text-label {
-  margin-top: var(--cc-space-6);
-}
+/* Wraps between chips, not inside them: the key caps are inline-block, so a
+   break can only land in the " / " and " + " joins. Holding the whole modifier
+   run on one line is what made this column eat the panel. */
 .shortcuts-list dt {
   color: var(--cc-text-primary);
-  white-space: nowrap;
+  min-width: 0;
 }
 .shortcuts-list dd {
   color: var(--cc-text-secondary);
   margin: var(--cc-space-0);
-  line-height: var(--cc-lh-tight);
+  line-height: var(--cc-lh-base); /* it wraps now, so lines need separating */
+  min-width: 0;
 }
 .shortcuts-list .shortcuts-or {
   color: var(--cc-text-muted);

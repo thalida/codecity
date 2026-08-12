@@ -79,9 +79,13 @@
   padding: var(--cc-space-0);
 }
 
+/* The shared engaged state (see buttons.css). */
 .activity-bar-icon:hover {
-  color: var(--cc-text-strong);
-  background: var(--cc-overlay-bg-soft);
+  color: var(--cc-accent);
+  background: var(--cc-accent-bg-soft);
+}
+.activity-bar-icon:active {
+  background: var(--cc-accent-bg);
 }
 
 /* Selected tab: accent-colored glyph + the canonical accent selected fill
