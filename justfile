@@ -30,6 +30,17 @@ url:
      SLUG=$( ( git symbolic-ref --short -q HEAD 2>/dev/null || basename $(pwd) ) | tr '[:upper:]' '[:lower:]' | tr -c '[:alnum:]' '-' | sed 's/-*$//') ; \
      echo "http://$SLUG.localhost:$PORT/"
 
+# Expose this worktree's dev server at a STABLE public URL for phone testing:
+# https://<branch-slug>.tunl.sh, via the self-hosted sish tunnel (plain ssh —
+# your agent must hold the authorized key). Same SLUG + port `just dev` binds,
+# so the URL is fixed per branch across restarts. Run alongside `just dev`;
+# Ctrl-C closes the tunnel.
+tunl:
+    @PORT=$(python3 bin/pick-port.py vite) ; \
+     SLUG=$( ( git symbolic-ref --short -q HEAD 2>/dev/null || basename $(pwd) ) | tr '[:upper:]' '[:lower:]' | tr -c '[:alnum:]' '-' | sed 's/-*$//') ; \
+     echo "[codecity-tunl] https://$SLUG.tunl.sh/" ; \
+     ssh -o ServerAliveInterval=60 -o ExitOnForwardFailure=yes -R $SLUG:80:localhost:$PORT tunl.sh
+
 # Prod-like local run: one container, mirrors the README Quick Start.
 # Takes the same `-v` / `-e` flags as `just dev`. Without a mount the container
 # has no host filesystem access and can only render git URLs.
