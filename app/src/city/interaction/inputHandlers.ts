@@ -20,7 +20,7 @@ const TOUCH_CLICK_TIME_THRESHOLD_MS = 700;
 const INPUT_HOVER_COMMIT_MS = 35;
 import { KEY_BINDINGS } from '@/constants/keyboard';
 import { TEXT_INPUT_TAGS } from '@/constants/dom';
-import { OVERLAY_OPEN } from '@/state/stores/ui';
+import { OVERLAY_OPEN, openSelectionPane } from '@/state/stores/ui';
 import { NodeKind } from '@/types';
 import { scrubbedStatsFor } from '@/state/stores/presentPaths';
 import type { PickTarget } from '@/types';
@@ -156,11 +156,14 @@ export function createInputHandlers({
       onResetView();
       return;
     }
-    // Clicking the currently-selected building/street is a no-op — matches
-    // Blender / Maya / Unity / Unreal / Maps / Finder. Deselect via Esc, the
-    // clear-selection key binding, or by clicking empty ground.
+    // Clicking the current selection doesn't toggle it off (Blender / Maya /
+    // Finder); it asks for its details again, which is the way back to a pane
+    // you closed.
     const next = picker.interpretHit(hit);
-    if (_sameHover(next, picker.selection.value)) return;
+    if (_sameHover(next, picker.selection.value)) {
+      openSelectionPane();
+      return;
+    }
     picker.setSelection(next);
   }
 

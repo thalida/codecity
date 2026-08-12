@@ -63,6 +63,7 @@
   font: inherit;
   text-align: left;
   cursor: pointer;
+  min-height: var(--cc-tap-min);
   /* Fill the row's padding box so the whole header height is clickable. */
   margin: calc(-1 * var(--cc-space-2)) 0;
   padding: var(--cc-space-2) 0;

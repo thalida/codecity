@@ -1,0 +1,55 @@
+/* SelectionChip — a pill over the scene. Top-centred, opposite the scene
+   controls: it reports state rather than joining that stack of controls. */
+
+.selection-chip {
+  position: absolute;
+  top: var(--cc-space-6);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 50;
+  display: inline-flex;
+  align-items: center;
+  max-width: calc(100% - var(--cc-space-8) * 2);
+  border: 1px solid var(--cc-border-input);
+  border-radius: var(--cc-radius-pill);
+}
+
+.selection-chip-label {
+  min-width: 0;
+  min-height: var(--cc-tap-min);
+  padding: 0 var(--cc-space-3) 0 var(--cc-space-6);
+  background: none;
+  border: 0;
+  color: var(--cc-text-strong);
+  font-family: var(--cc-font-mono);
+  font-size: var(--cc-font-xs);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+
+.selection-chip-label:hover {
+  color: var(--cc-accent);
+}
+
+.selection-chip-clear {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--cc-tap-min);
+  height: var(--cc-tap-min);
+  padding: 0;
+  background: none;
+  border: 0;
+  border-start-end-radius: var(--cc-radius-pill);
+  border-end-end-radius: var(--cc-radius-pill);
+  color: var(--cc-text-strong);
+  cursor: pointer;
+}
+
+.selection-chip-clear:hover {
+  color: var(--cc-accent);
+  background: var(--cc-accent-bg-soft);
+}

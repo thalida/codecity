@@ -23,6 +23,7 @@ import { NodeKind } from '@/types';
 import type { CommitEntry, DirNode, FileNode, Manifest } from '@/types';
 import {
   SCENE_HANDLE,
+  SELECTION_KEY,
   type SceneHandle,
   clearSelection,
   focusPath,
@@ -49,6 +50,7 @@ import type { CommitPaneState } from '@/views/CommitPane/CommitPane';
 import { StreetPane } from '@/views/StreetPane/StreetPane';
 import type { StreetPaneState } from '@/views/StreetPane/StreetPane';
 import { Sidebar, SidebarSide } from '@/components/Sidebar/Sidebar';
+import { DISMISSED_SELECTION } from '@/state/stores/ui';
 
 /** Which pane the right sidebar is showing, from the current picker selection. */
 enum SidebarPaneKind {
@@ -166,15 +168,20 @@ export function RightSidebar() {
     void loadManifestAt(srcValue, branchValue, scrubShaValue);
   }, [needsScrubbedManifest, scrubShaValue, srcValue, branchValue]);
 
-  // The sidebar is open exactly when something is selected — the selection has no
-  // other on-screen indicator, so the two are bound. Closing therefore deselects
-  // (below), and re-selecting reopens.
-  const isOpen = useComputed(() => activeKind.value !== null);
+  // Something to show, and you haven't put THIS one away. Two facts, not one:
+  // closing used to deselect, which threw away the outline just because you
+  // wanted the details out of the way. Picking anything else opens on its own,
+  // since the key no longer matches.
+  const isOpen = useComputed(
+    () => activeKind.value !== null && SELECTION_KEY.value !== DISMISSED_SELECTION.value
+  );
 
-  const onClose = () => {
-    clearSelection();
+  const dismiss = () => {
+    DISMISSED_SELECTION.value = SELECTION_KEY.peek();
   };
 
+  // Clearing the drawers out of the way on a phone is the focus command's job
+  // (stores/scene), so every focus button in the app behaves the same.
   const onFileFocus = (file: FileNode) => focusPath(file.path);
   const onCommitFocus = (commit: CommitEntry) => focusCommit(commit.sha);
   const onStreetFocus = (dir: DirNode) => focusPath(dir.path);
@@ -198,7 +205,7 @@ export function RightSidebar() {
       {kind === SidebarPaneKind.File && (
         <FilePreviewPane
           state={fileState}
-          onClose={onClose}
+          onClose={dismiss}
           onFocus={onFileFocus}
           onExclude={(f) => onExcludeNode(f.path)}
         />
@@ -206,7 +213,7 @@ export function RightSidebar() {
       {kind === SidebarPaneKind.Commit && (
         <CommitPane
           state={commitState}
-          onClose={onClose}
+          onClose={dismiss}
           onFocus={onCommitFocus}
           onViewInTimeline={(commit) => void viewCommitInTimeline(commit.sha)}
         />
@@ -214,7 +221,7 @@ export function RightSidebar() {
       {kind === SidebarPaneKind.Street && (
         <StreetPane
           state={streetState}
-          onClose={onClose}
+          onClose={dismiss}
           onFocus={onStreetFocus}
           onExclude={(d) => onExcludeNode(d.path)}
         />

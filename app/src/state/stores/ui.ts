@@ -114,6 +114,17 @@ export function openSidebarTab(tab: SidebarTab): void {
   SIDEBAR_COLLAPSED.value = false;
 }
 
+// ── Selection pane (right sidebar) ───────────────────────────────────────────
+
+/** Identity of the selection whose pane was closed. Held as the key rather than
+ *  a flag, so picking anything else opens without a reaction to reset it. */
+export const DISMISSED_SELECTION = signal<string | null>(null);
+
+/** Bring the details back for a node that is already selected. */
+export function openSelectionPane(): void {
+  DISMISSED_SELECTION.value = null;
+}
+
 // ── Loading overlay ──────────────────────────────────────────────────────────
 
 import { LoadingStep } from '@/constants/loadingSteps';
