@@ -25,11 +25,11 @@ const KEYBOARD_SHORTCUTS: ShortcutItem[] = [
   { kbd: [KEY_BINDINGS.RESET_VIEW.label], action: 'Reset the camera view' },
   { kbd: [KEY_BINDINGS.FOCUS_SELECTION.label], action: 'Focus camera on the current selection' },
   { kbd: [KEY_BINDINGS.CLEAR_SELECTION.label], action: 'Clear selection' },
+  { kbd: [KEY_BINDINGS.SHOW_SHORTCUTS.label], action: 'Open this panel' },
 ];
 
 const MOUSE_SHORTCUTS: ShortcutItem[] = [
   { gesture: 'Click', action: 'Select building / street / gem' },
-  { gesture: 'Double-click', action: 'Focus camera on the target' },
   { gesture: 'Left drag', action: 'Orbit' },
   { gesture: 'Right drag', action: 'Pan' },
   {
@@ -43,7 +43,6 @@ const MOUSE_SHORTCUTS: ShortcutItem[] = [
 
 const TOUCH_SHORTCUTS: ShortcutItem[] = [
   { gesture: 'Tap', action: 'Select building / street / gem' },
-  { gesture: 'Double-tap', action: 'Focus camera on the target' },
   { gesture: 'Drag', action: 'Orbit' },
   { gesture: 'Two-finger drag', action: 'Pan' },
   { gesture: 'Pinch', action: 'Zoom' },

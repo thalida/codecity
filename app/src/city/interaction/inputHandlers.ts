@@ -1,5 +1,5 @@
-// city/interaction/inputHandlers.ts — pointer / dblclick / keydown / resize
-// wiring. Translates DOM events into picker and cameraRig calls.
+// city/interaction/inputHandlers.ts — pointer / keydown / resize wiring.
+// Translates DOM events into picker and cameraRig calls.
 //
 // Public contract:
 //   const handlers = createInputHandlers({
@@ -9,7 +9,7 @@
 //   });
 //   handlers.dispose();
 
-import * as THREE from 'three';
+import type * as THREE from 'three';
 // Pointer input timing — fixed, not user-tunable.
 const INPUT_CLICK_MOVE_THRESHOLD_PX = 5;
 const INPUT_CLICK_TIME_THRESHOLD_MS = 400;
@@ -69,6 +69,7 @@ export function createInputHandlers({
   let _hoverCommitId: ReturnType<typeof setTimeout> | 0 = 0;
 
   let _cameraMoving = false;
+
 
   function _sameHover(a: PickTarget | null, b: PickTarget | null): boolean {
     if (a === b) return true;
@@ -158,40 +159,10 @@ export function createInputHandlers({
     }
     // Clicking the currently-selected building/street is a no-op — matches
     // Blender / Maya / Unity / Unreal / Maps / Finder. Deselect via Esc, the
-    // clear-selection key binding, or by clicking empty ground. Without this
-    // no-op, double-click-to-focus would race with the per-click toggle and
-    // leave the target deselected on the dblclick frame.
+    // clear-selection key binding, or by clicking empty ground.
     const next = picker.interpretHit(hit);
     if (_sameHover(next, picker.selection.value)) return;
     picker.setSelection(next);
-  }
-
-  function _focusAtPointer(clientX: number, clientY: number): void {
-    const hit = picker.pickAt(clientX, clientY);
-    if (!hit) return;
-    const ud = hit.object.userData;
-    if (ud.type === NodeKind.Gem) {
-      onResetView();
-      return;
-    }
-    // Route through picker.interpretHit so InstancedMesh hits resolve to a
-    // building/file the same way clicks do — ud.building isn't set on
-    // InstancedMesh hits, so without this dblclick would fall through to
-    // the recenter fallback.
-    const target = picker.interpretHit(hit);
-    if (target?.kind === NodeKind.File) {
-      rig.focusBuilding(target.mesh, target.data);
-      return;
-    }
-    if (target?.kind === NodeKind.Directory) {
-      rig.focusStreet(target.street, hit.point);
-      return;
-    }
-    if (target?.kind === NodeKind.Commit) {
-      rig.focusTree(target.commit.sha);
-      return;
-    }
-    rig.recenterTo(new THREE.Vector3(hit.point.x, 0, hit.point.z));
   }
 
   // ── Bindings ───────────────────────────────────────────────────────
@@ -223,6 +194,7 @@ export function createInputHandlers({
     const move = touch ? TOUCH_CLICK_MOVE_THRESHOLD_PX : INPUT_CLICK_MOVE_THRESHOLD_PX;
     if (dx * dx + dy * dy > move * move) return;
     if (dtime > (touch ? TOUCH_CLICK_TIME_THRESHOLD_MS : INPUT_CLICK_TIME_THRESHOLD_MS)) return;
+
     _handlePick(ev.clientX, ev.clientY);
   });
 
@@ -244,11 +216,6 @@ export function createInputHandlers({
     }
     _hoverPending = null;
     picker.setHover(null);
-  });
-
-  _on(canvas, 'dblclick', (e: Event) => {
-    const ev = e as MouseEvent;
-    _focusAtPointer(ev.clientX, ev.clientY);
   });
 
   _on(document, 'keydown', (e: Event) => {
@@ -277,7 +244,7 @@ export function createInputHandlers({
       } else if (sel.kind === NodeKind.Commit) {
         rig.focusTree(sel.commit.sha);
       }
-      // Gem isn't selectable, so no Gem branch — gem focus is via dblclick.
+      // Gem isn't selectable, so no Gem branch — clicking it resets the view.
     }
   });
 
