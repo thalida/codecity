@@ -15,6 +15,7 @@
 
 import * as THREE from 'three';
 import { GEM, GEM_SIZING } from '@/state/stores/settings/gem';
+import { NEUTRAL_POLYGON_OFFSET } from '@/city/utils/neutralPolygonOffset';
 import { NodeKind } from '@/types';
 import { gemAnchorXZ } from './anchor';
 import { paletteColors, writeFaceColors } from './palette';
@@ -186,6 +187,7 @@ export function createRootGem(street: Street): THREE.Group {
       // the island top at low camera angles, but the trade — gem glow
       // visible THROUGH tree canopies — is the more obvious artifact.
       depthTest: true,
+      ...NEUTRAL_POLYGON_OFFSET,
     })
   );
   innerGlow.scale.set(radius * glowCfg.GLOW_INNER_SCALE, radius * glowCfg.GLOW_INNER_SCALE, 1);
@@ -211,6 +213,7 @@ export function createRootGem(street: Street): THREE.Group {
       // The inner quad keeps depthTest: true so the bright core still
       // gets occluded behind buildings/trees correctly.
       depthTest: false,
+      ...NEUTRAL_POLYGON_OFFSET,
     })
   );
   outerGlow.scale.set(radius * glowCfg.GLOW_OUTER_SCALE, radius * glowCfg.GLOW_OUTER_SCALE, 1);

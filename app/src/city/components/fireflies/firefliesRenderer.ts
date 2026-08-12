@@ -12,6 +12,7 @@ import * as THREE from 'three';
 import { RENDER_ORDERS } from '@/city/types/renderOrders';
 import { FIREFLIES } from '@/state/stores/settings/fireflies';
 import { instanceChunkSize } from '@/city/utils/instanceChunkSize';
+import { NEUTRAL_POLYGON_OFFSET } from '@/city/utils/neutralPolygonOffset';
 import type { FireflyPlacement } from './firefliesPlacement';
 import vertexShader from './fireflies.vert.glsl?raw';
 import fragmentShader from './fireflies.frag.glsl?raw';
@@ -79,6 +80,7 @@ export function createFireflyRenderer(orbs: FireflyPlacement[]): FireflyRenderer
     depthWrite: false,
     toneMapped: false,
     vertexColors: true,
+    ...NEUTRAL_POLYGON_OFFSET,
   });
 
   // Orbs are split into chunks of instances (see utils/instanceChunkSize.ts).

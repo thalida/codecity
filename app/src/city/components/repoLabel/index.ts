@@ -31,6 +31,7 @@ import { REPO_LABEL } from '@/state/stores/settings/gem';
 import { RENDER_ORDERS } from '@/city/types/renderOrders';
 
 import type { FrameContext, SceneComponent, SceneContext } from '../../types';
+import { NEUTRAL_POLYGON_OFFSET } from '@/city/utils/neutralPolygonOffset';
 import vertSrc from './holoQuad.vert.glsl?raw';
 import beamFragSrc from './holoBeam.frag.glsl?raw';
 import textFragSrc from './holoText.frag.glsl?raw';
@@ -254,6 +255,7 @@ export function createRepoLabel(ctx: SceneContext, deps: RepoLabelDeps): RepoLab
       blending: THREE.AdditiveBlending,
       depthWrite: false,
       side: THREE.DoubleSide,
+      ...NEUTRAL_POLYGON_OFFSET,
       uniforms: {
         uColor: { value: new THREE.Color(REPO_LABEL.value.BEAM_COLOR) },
         uTime: { value: 0 },
@@ -274,6 +276,7 @@ export function createRepoLabel(ctx: SceneContext, deps: RepoLabelDeps): RepoLab
       transparent: true,
       blending: THREE.AdditiveBlending,
       depthWrite: false,
+      ...NEUTRAL_POLYGON_OFFSET,
       uniforms: {
         uMap: { value: textTex.texture },
         uTime: { value: 0 },

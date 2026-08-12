@@ -37,6 +37,7 @@ import {
 import { interpolateOklch } from '@/city/utils/color/colors';
 import { setColorFromHex } from '@/city/utils/color/setColorFromHex';
 import { instanceChunkSize } from '@/city/utils/instanceChunkSize';
+import { NEUTRAL_POLYGON_OFFSET } from '@/city/utils/neutralPolygonOffset';
 import { sunDir } from '@/city/utils/shaders/sunDir';
 import { LIGHTING_SUN_AZIMUTH_DEG, LIGHTING_SUN_ELEVATION_DEG } from '@/constants/lighting';
 
@@ -276,6 +277,7 @@ export function createTreeRenderer(
   const trunkMaterial = new THREE.MeshBasicMaterial({
     color: 0xffffff,
     toneMapped: false,
+    ...NEUTRAL_POLYGON_OFFSET,
   });
   setColorFromHex(trunkMaterial.color, cfg.TRUNK_COLOR);
 
@@ -283,6 +285,7 @@ export function createTreeRenderer(
     color: 0xffffff,
     toneMapped: false,
     vertexColors: true,
+    ...NEUTRAL_POLYGON_OFFSET,
   });
 
   const tmpMatrix = new THREE.Matrix4();
