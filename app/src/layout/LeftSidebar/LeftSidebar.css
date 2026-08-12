@@ -1,16 +1,11 @@
 /* ── Left sidebar shell (activity bar + tab panel) ─────────────────────────── */
 
-/* Default width is set inline by leftSidebar.js after reading localStorage,
- * so users can drag the right-edge handle to resize and the chosen width
- * persists across reloads. The CSS fallback is the no-localStorage default. */
 #left-sidebar {
   position: relative;
   flex: 0 0 auto;
   /* Resizable: the drag handle mutates --sidebar-width; CSS owns `width` so the
-     handle never fights an inline style. Default is a third of the viewport
-     (matching the right sidebar) until the user drags a width; min/max below
-     clamp it on narrow/wide screens. */
-  width: var(--sidebar-width, calc(100vw / 3));
+     handle never fights an inline style. min/max below clamp a dragged width. */
+  width: var(--sidebar-width, var(--cc-sidebar-w));
   min-width: 280px;
   max-width: 600px;
   height: 100%;
@@ -158,35 +153,22 @@
 }
 
 /* ── Phone (PHONE_MAX_PX) ────────────────────────────────────────────────────
-   The rail keeps its place in the row; the panel it opens becomes a drawer over
-   the city, since its 280px floor would leave a sliver. */
+   Same rail-beside-pane composition as the desktop, but the sidebar overlays
+   the city at full width instead of squeezing it: its 280px floor would leave
+   a sliver. Only the whole sidebar moves — the pane keeps its normal flow, and
+   with it the rail's edge. */
 @media (max-width: 640px) {
-  #left-sidebar,
   #left-sidebar.is-collapsed {
     width: var(--cc-rail-w);
     min-width: var(--cc-rail-w);
   }
 
-  /* overflow, because the drawer hangs outside the rail's box. */
-  #left-sidebar {
-    overflow: visible;
-  }
-
-  /* Only while its pane is open does this outrank the right drawer (100). Rail
-     alone stays under, or it would paint over a full-width selection pane. */
+  /* Against #app-body, so it spans exactly the room between the bars. Keeps the
+     base z-index: a selection pane (100) covers this one, never the reverse. */
   #left-sidebar:not(.is-collapsed) {
-    z-index: 110;
-  }
-
-  /* Beside the rail and out to the far edge: the rail is this pane's own
-     navigation, so it stays reachable while the pane is open. */
-  #left-sidebar > .pane {
     position: absolute;
-    top: 0;
-    bottom: 0;
-    left: 100%;
-    width: calc(100vw - var(--cc-rail-w));
-    background: var(--cc-bg-sidebar);
-    z-index: 2;
+    inset: 0;
+    width: auto;
+    max-width: none;
   }
 }

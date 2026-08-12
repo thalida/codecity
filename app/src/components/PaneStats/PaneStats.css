@@ -2,11 +2,14 @@
    it stays put while the content scrolls under it. Its top rule mirrors the
    header's bottom rule, bracketing the scroll region. */
 
+/* One line, always: each item truncates to its share and the full text is on
+   its tooltip. Wrapping cost the pane two or three rows of its height. */
 .pane-stats {
   flex: 0 0 auto;
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
+  min-width: 0;
   gap: var(--cc-space-3);
   padding: var(--cc-space-4) var(--cc-pane-inset);
   border-top: 1px solid var(--cc-border-subtle);
@@ -15,8 +18,10 @@
   color: var(--cc-text-secondary);
 }
 
+/* Floor so a heavily-shrunk item keeps a couple of characters rather than
+   collapsing to a bare ellipsis. Shrink weights are per item (statItems.ts). */
 .pane-stats-item {
-  min-width: 0;
+  min-width: 3ch;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

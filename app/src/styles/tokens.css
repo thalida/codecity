@@ -162,6 +162,10 @@
   /* Activity-bar width. Also the collapsed sidebar's width, and where a drawer
      and its scrim start — four rules that have to agree. */
   --cc-rail-w: 44px;
+  /* Default width of either sidebar, before a drag. A third of the window read
+     as a strip on a tablet; the floor is what a pane needs to be worth opening.
+     The sidebars' own min/max still clamp a dragged width. */
+  --cc-sidebar-w: clamp(320px, 40vw, 600px);
 
   /* ── SCALES — Radius ──────────────────────────────────────────────────── */
   --cc-radius-0: 0;

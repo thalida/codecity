@@ -3,8 +3,8 @@
 // Owns:
 //   - active-tab state (which pane is mounted)
 //   - collapsed/expanded state (clicking the active icon collapses; the
-//     × in the panel header also collapses; persisted in localStorage)
-//   - drag-to-resize handle on the sidebar's right edge (also persisted)
+//     × in the panel header also collapses)
+//   - drag-to-resize handle on the sidebar's right edge
 //   - SCENE_HANDLE subscription: forwards picker selection/hover into
 //     the tree pane's signals, plus translates tree clicks into
 //     picker.selectByPath + rig.focusX
@@ -21,10 +21,8 @@ import { useComputed, useSignal, useSignalEffect } from '@preact/signals';
 import { ACTIVITY_BAR_TABS, DEFAULT_SIDEBAR_TAB, TabPlacement } from '@/constants/ui';
 import { SIDEBAR_TAB, SIDEBAR_COLLAPSED } from '@/state/stores/ui';
 import { CHANGED_SETTINGS_COUNT } from '@/state/stores/settingsIndicators';
-import { PERSISTED_KEYS } from '@/constants/storage';
 import { SidebarTab, NodeKind } from '@/types';
 import type { PickTarget, TreeNode } from '@/types';
-import { persistedSignal } from '@/state/persist';
 import { SCENE_HANDLE, selectPath, hoverPath, clearHover } from '@/state/stores/scene';
 import { MANIFEST } from '@/state/stores/manifest';
 import { HISTORY_MANIFEST } from '@/state/stores/historyManifest';
@@ -35,12 +33,6 @@ import { InfoPane } from '@/views/InfoPane/InfoPane';
 import { SearchPane } from '@/views/SearchPane/SearchPane';
 import { ControlsPane } from '@/views/ControlsPane/ControlsPane';
 import { Sidebar, SidebarSide } from '@/components/Sidebar/Sidebar';
-
-// Persisted left-sidebar UI state. Both go through persistedSignal (the store
-// abstraction) so persistence/hydration is handled for us — no hand-rolled
-// localStorage. Width is null until the user first drags the resize handle
-// (null ⇒ fall back to the CSS default width).
-const LEFT_SIDEBAR_WIDTH = persistedSignal<number | null>(PERSISTED_KEYS.LEFT_SIDEBAR_WIDTH, null);
 
 // ── Helpers ──────────────────────────────────────────────────────────
 
@@ -197,7 +189,7 @@ export function LeftSidebar() {
       side={SidebarSide.Left}
       ariaLabel="Explore"
       class={effectiveCollapsed ? 'is-collapsed' : ''}
-      widthSignal={LEFT_SIDEBAR_WIDTH}
+      open={!effectiveCollapsed}
     >
       <ActivityBar activeTab={tab} collapsed={effectiveCollapsed} onIconClick={onIconClick} />
       <div class="pane">

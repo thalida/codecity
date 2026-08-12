@@ -3,7 +3,6 @@
 // Owns:
 //   - the .open class that drives the open/close transition
 //   - the drag-to-resize handle on the inside (left) edge
-//   - persisting the chosen width across reloads
 //   - choosing which of three panes to mount based on picker selection:
 //       file → FilePreviewPane
 //       commit → CommitPane
@@ -20,10 +19,8 @@
 import './RightSidebar.css';
 import { useComputed } from '@preact/signals';
 import { useEffect } from 'preact/hooks';
-import { PERSISTED_KEYS } from '@/constants/storage';
 import { NodeKind } from '@/types';
 import type { CommitEntry, DirNode, FileNode, Manifest } from '@/types';
-import { persistedSignal } from '@/state/persist';
 import {
   SCENE_HANDLE,
   type SceneHandle,
@@ -52,14 +49,6 @@ import type { CommitPaneState } from '@/views/CommitPane/CommitPane';
 import { StreetPane } from '@/views/StreetPane/StreetPane';
 import type { StreetPaneState } from '@/views/StreetPane/StreetPane';
 import { Sidebar, SidebarSide } from '@/components/Sidebar/Sidebar';
-
-// Persisted drag-handle width via persistedSignal (the store abstraction) —
-// null until the user first drags (null ⇒ fall back to the CSS default width).
-// The width range is enforced by #right-sidebar.open's CSS min-width/max-width.
-const RIGHT_SIDEBAR_WIDTH = persistedSignal<number | null>(
-  PERSISTED_KEYS.RIGHT_SIDEBAR_WIDTH,
-  null
-);
 
 /** Which pane the right sidebar is showing, from the current picker selection. */
 enum SidebarPaneKind {
@@ -204,7 +193,7 @@ export function RightSidebar() {
       side={SidebarSide.Right}
       ariaLabel="Selection details"
       class={open ? 'open' : ''}
-      widthSignal={RIGHT_SIDEBAR_WIDTH}
+      open={open}
     >
       {kind === SidebarPaneKind.File && (
         <FilePreviewPane
