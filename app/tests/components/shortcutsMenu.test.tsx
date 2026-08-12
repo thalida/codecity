@@ -37,9 +37,10 @@ describe('ShortcutsMenu', () => {
     expect(panel()).not.toBeNull();
     // Non-modal: the city stays interactive behind it.
     expect(panel()!.getAttribute('aria-modal')).toBeNull();
+    // Keyboard + Mouse. jsdom reports a fine pointer, so Touch is absent here.
     expect(container.querySelectorAll('.shortcuts-list')).toHaveLength(2);
     expect(container.querySelector('kbd')).not.toBeNull();
-    expect(container.querySelector('.shortcuts-mouse')).not.toBeNull();
+    expect(container.querySelector('.shortcuts-gesture')).not.toBeNull();
   });
 
   it('opens from its own trigger too', async () => {

@@ -26,3 +26,11 @@
 .resize-handle.dragging {
   background: var(--cc-accent-bg-strong);
 }
+
+/* COARSE_POINTER_QUERY: a 6px drag zone is unhittable by thumb, and it sits in
+   the swipe path along the screen edge. */
+@media (hover: none) and (pointer: coarse) {
+  .resize-handle {
+    display: none;
+  }
+}

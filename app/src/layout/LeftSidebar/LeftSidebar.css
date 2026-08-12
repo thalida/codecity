@@ -32,11 +32,16 @@
  * so the dragged width is restored automatically on un-collapse — no need to
  * clear/restore anything. */
 #left-sidebar.is-collapsed {
-  width: 44px;
-  min-width: 44px;
+  width: var(--cc-rail-w);
+  min-width: var(--cc-rail-w);
 }
 #left-sidebar.is-collapsed > .pane,
 #left-sidebar.is-collapsed .resize-handle {
+  display: none;
+}
+
+/* Drawer-only; the phone block at the end of this file gives it geometry. */
+.sidebar-scrim {
   display: none;
 }
 
@@ -45,7 +50,7 @@
  * outer bar's `justify-content: space-between` pushes the two groups
  * apart — no margin-top: auto trick. */
 .activity-bar {
-  width: 44px;
+  width: var(--cc-rail-w);
   flex-shrink: 0;
   border-right: 1px solid var(--cc-border-subtle);
   display: flex;
@@ -142,10 +147,59 @@
   }
 }
 
+/* COARSE_POINTER_QUERY: 40px is short of a thumb's target. */
+@media (hover: none) and (pointer: coarse) {
+  .activity-bar-icon {
+    height: 44px;
+  }
+}
+
 /* Lucide glyph sizing: CSS width/height override the SVG's own size attrs so
  * the activity-bar icon keeps a fixed footprint. */
 .activity-bar-glyph {
   display: block;
   width: 20px;
   height: 20px;
+}
+
+/* ── Phone (PHONE_MAX_PX) ────────────────────────────────────────────────────
+   The rail keeps its place in the row; the panel it opens becomes a drawer over
+   the city, since its 280px floor would leave a sliver. */
+@media (max-width: 640px) {
+  #left-sidebar,
+  #left-sidebar.is-collapsed {
+    width: var(--cc-rail-w);
+    min-width: var(--cc-rail-w);
+  }
+
+  /* Over the right sidebar (100), a drawer here too: this one is opened by a
+     deliberate tap. overflow, because the drawer hangs outside the rail's box. */
+  #left-sidebar {
+    z-index: 110;
+    overflow: visible;
+  }
+
+  /* Anchored to the rail — the sidebar is the nearest positioned ancestor, and
+     it already spans the row. The trailing gap matches the right drawer's. */
+  #left-sidebar > .pane {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 100%;
+    width: calc(100vw - var(--cc-rail-w) - var(--cc-space-9));
+    background: var(--cc-bg-sidebar);
+    z-index: 2;
+  }
+
+  /* Runs to the far edge, so the gap beside the drawer closes it too. */
+  .sidebar-scrim {
+    display: block;
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 100%;
+    width: calc(100vw - var(--cc-rail-w));
+    z-index: 1;
+    background: var(--cc-bg-backdrop);
+  }
 }

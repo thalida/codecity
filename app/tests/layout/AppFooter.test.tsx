@@ -62,7 +62,7 @@ describe('AppFooter', () => {
     render(<AppFooter />, container);
     await flush();
 
-    const shortcuts = container.querySelector('[aria-label="Keyboard shortcuts"]')!;
+    const shortcuts = container.querySelector('[aria-label="Shortcuts and gestures"]')!;
     expect(shortcuts).not.toBeNull();
     // In the left cluster, grouped with the debug tools rather than loose.
     expect(shortcuts.closest('.chrome-cluster')).not.toBeNull();

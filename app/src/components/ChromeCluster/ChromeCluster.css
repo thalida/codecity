@@ -24,6 +24,7 @@
   appearance: none;
   flex: 0 1 auto;
   min-width: 0;
+  position: relative; /* anchors the touch target below */
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -127,4 +128,15 @@
 }
 .cluster-item--press:not(:disabled):active {
   background: var(--cc-accent-bg);
+}
+
+/* COARSE_POINTER_QUERY: a 24px item is half a thumb. The target grows past the
+   bar; the item's own box doesn't, so the bars keep their scale. */
+@media (hover: none) and (pointer: coarse) {
+  .cluster-item--press::after {
+    content: '';
+    position: absolute;
+    inset-block: calc((44px - var(--cc-chrome-item-h)) / -2);
+    inset-inline: 0;
+  }
 }

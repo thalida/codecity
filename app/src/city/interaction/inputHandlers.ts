@@ -13,6 +13,10 @@ import * as THREE from 'three';
 // Pointer input timing — fixed, not user-tunable.
 const INPUT_CLICK_MOVE_THRESHOLD_PX = 5;
 const INPUT_CLICK_TIME_THRESHOLD_MS = 400;
+// A finger rolls across several pixels and rests longer than a mouse click; at
+// the cursor's thresholds a deliberate tap reads as a drag and picks nothing.
+const TOUCH_CLICK_MOVE_THRESHOLD_PX = 12;
+const TOUCH_CLICK_TIME_THRESHOLD_MS = 700;
 const INPUT_HOVER_COMMIT_MS = 35;
 import { KEY_BINDINGS } from '@/constants/keyboard';
 import { TEXT_INPUT_TAGS } from '@/constants/dom';
@@ -215,9 +219,10 @@ export function createInputHandlers({
     const dx = ev.clientX - downX;
     const dy = ev.clientY - downY;
     const dtime = Date.now() - downTime;
-    const moveSq = INPUT_CLICK_MOVE_THRESHOLD_PX * INPUT_CLICK_MOVE_THRESHOLD_PX;
-    if (dx * dx + dy * dy > moveSq) return;
-    if (dtime > INPUT_CLICK_TIME_THRESHOLD_MS) return;
+    const touch = ev.pointerType === 'touch';
+    const move = touch ? TOUCH_CLICK_MOVE_THRESHOLD_PX : INPUT_CLICK_MOVE_THRESHOLD_PX;
+    if (dx * dx + dy * dy > move * move) return;
+    if (dtime > (touch ? TOUCH_CLICK_TIME_THRESHOLD_MS : INPUT_CLICK_TIME_THRESHOLD_MS)) return;
     _handlePick(ev.clientX, ev.clientY);
   });
 

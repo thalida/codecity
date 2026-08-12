@@ -159,6 +159,9 @@
      the gap around a cluster is the same on all four sides. */
   --cc-chrome-item-h: 24px;
   --cc-chrome-inset: calc((var(--cc-chrome-h) - var(--cc-chrome-item-h) - 2px) / 2);
+  /* Activity-bar width. Also the collapsed sidebar's width, and where a drawer
+     and its scrim start — four rules that have to agree. */
+  --cc-rail-w: 44px;
 
   /* ── SCALES — Radius ──────────────────────────────────────────────────── */
   --cc-radius-0: 0;

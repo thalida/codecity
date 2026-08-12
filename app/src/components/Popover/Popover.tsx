@@ -16,6 +16,7 @@ import { useSignal, type Signal } from '@preact/signals';
 import { useCallback, useLayoutEffect, useRef, useState } from 'preact/hooks';
 import { CLUSTER_ITEM_PRESS } from '@/components/ChromeCluster/ChromeCluster';
 import { useDismissable } from '@/hooks/useDismissable';
+import { IS_PHONE } from '@/state/stores/viewport';
 
 /** Which edge of the trigger the panel grows from, and which end it aligns to.
  *  A bar at the bottom of the window can only open upward. */
@@ -41,7 +42,7 @@ function measureAnchor(
   if (!trigger || !panel || !parent) return null;
   // Sheet: pinned to the window's edges, so an inline offset would fight the
   // media query rather than refine it.
-  if (window.matchMedia?.('(max-width: 580px)').matches) return null;
+  if (IS_PHONE.peek()) return null;
 
   const parentRect = parent.getBoundingClientRect();
   if (placement === PopoverPlacement.BelowEnd) {

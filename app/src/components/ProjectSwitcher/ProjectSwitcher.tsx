@@ -17,6 +17,12 @@ export interface ProjectSwitcherProps {
 }
 
 export function ProjectSwitcher({ rootLabel, branch, onSwitchSource }: ProjectSwitcherProps) {
+  // The label is "owner/repo" or a bare directory name, and the tail is what
+  // identifies it — so the owner is what gives way when the chip runs short.
+  const cut = rootLabel.lastIndexOf('/');
+  const owner = cut === -1 ? '' : rootLabel.slice(0, cut);
+  const name = cut === -1 ? rootLabel : rootLabel.slice(cut + 1);
+
   return (
     <button
       type="button"
@@ -29,7 +35,12 @@ export function ProjectSwitcher({ rootLabel, branch, onSwitchSource }: ProjectSw
       }}
     >
       <GemIcon />
-      {rootLabel && <span class="project-switcher-label">{rootLabel}</span>}
+      {rootLabel && (
+        <span class="project-switcher-label">
+          {owner && <span class="project-switcher-owner">{owner}/</span>}
+          <span class="project-switcher-name">{name}</span>
+        </span>
+      )}
       {branch && <span class="app-header-branch-pill">@{branch}</span>}
       <ChevronsUpDown class="icon cluster-cue" aria-hidden="true" />
     </button>
