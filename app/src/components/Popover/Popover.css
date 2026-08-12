@@ -2,14 +2,6 @@
    One panel, two geometries: anchored to its trigger, or a bottom sheet below
    580px (AppFooter's breakpoint). */
 
-/* ChevronsUpDown draws in the middle 10/24 of its box, so the empty bearing on
-   the trailing side reads as more padding there than at the leading edge. Pull
-   the box back by that bearing so the drawn edges sit symmetrically. */
-.popover-caret {
-  margin-inline-end: -0.29em;
-  opacity: 0.7;
-}
-
 .popover-panel {
   /* One inset for every child — group heads, setting rows, list rows, buttons.
      Each ships its own padding by default, which is what makes an assembled

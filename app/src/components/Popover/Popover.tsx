@@ -133,7 +133,7 @@ export function Popover({
         {trigger}
         {/* Not a down-caret: one of these opens upward, and the same cue has to
             mean "opens" on both bars. Same glyph the project chip uses. */}
-        <ChevronsUpDown class="icon popover-caret" aria-hidden="true" />
+        <ChevronsUpDown class="icon cluster-cue" aria-hidden="true" />
       </button>
 
       {open && (

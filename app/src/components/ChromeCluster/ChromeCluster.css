@@ -92,6 +92,24 @@
   font-size: var(--cc-font-sm);
   color: var(--cc-text-primary);
 }
+
+/* The "this opens something" glyph, on every item that has one — a popover
+   trigger or the project chip. ChevronsUpDown draws in the middle 10/24 of its
+   box, so the empty bearing on the trailing side reads as more padding there
+   than at the leading edge; pull the box back by it. */
+.cluster-cue {
+  margin-inline-end: -0.29em;
+  opacity: 0.7;
+}
+
+/* Copy feedback. Also on .icon, which carries its own colour above. */
+.cluster-item.is-copied,
+.cluster-item.is-copied .icon {
+  color: var(--cc-success);
+}
+.cluster-item.is-copied {
+  background: var(--cc-success-bg);
+}
 /* Hover, focus, press and open all read as engaged (see buttons.css). Open is
    keyed off aria-expanded so it can't drift from the ARIA. */
 .cluster-item--press:not(:disabled):hover .icon,
