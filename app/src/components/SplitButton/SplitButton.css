@@ -2,10 +2,11 @@
    its variants behind a caret on the right. Both halves are .btn-primary, so
    the pair reads as a single control that happens to have a seam. */
 
+/* No align-self default: it tied on specificity with the caller's own
+   align-self and left the resolution to stylesheet order. Callers place it. */
 .split-button {
   position: relative;
   display: inline-flex;
-  align-self: start; /* never stretch to a flex/grid parent's cross size */
 }
 
 /* The seam: square the facing corners and hairline them apart, so the two

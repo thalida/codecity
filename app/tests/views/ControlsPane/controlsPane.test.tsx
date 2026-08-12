@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { render } from 'preact';
 import { act } from 'preact/test-utils';
 import { ControlsPane } from '@/views/ControlsPane/ControlsPane';
-import { FilePreviewSection } from '@/views/ControlsPane/partials/FilePreviewSection';
+import { SyntaxThemeRow } from '@/components/SyntaxThemeRow/SyntaxThemeRow';
 import { SYNTAX_THEME, SYNTAX_THEME_DEFAULT } from '@/state/stores/settings/syntaxTheme';
 import { _resetForTests } from '@/state/settingsDrafts';
 // Load every settings store for its registration side-effect (settingSignal
@@ -21,7 +21,7 @@ import '@/state/stores/settings/fireflies';
 import '@/state/stores/settings/effects';
 import { flush } from '../../_helpers/preact';
 
-describe('ControlsPane subtabs', () => {
+describe('ControlsPane', () => {
   let container: HTMLDivElement;
 
   interface MountOpts {
@@ -36,13 +36,6 @@ describe('ControlsPane subtabs', () => {
     return container.querySelector('.pane') as HTMLElement;
   }
 
-  const tab = (pane: HTMLElement, label: string) =>
-    Array.from(pane.querySelectorAll<HTMLButtonElement>('[role="tab"]')).find((el) =>
-      el.textContent?.includes(label)
-    )!;
-
-  const clickTab = (pane: HTMLElement, label: string) => act(() => tab(pane, label).click());
-
   beforeEach(() => {
     container = document.createElement('div');
     document.body.appendChild(container);
@@ -53,33 +46,24 @@ describe('ControlsPane subtabs', () => {
     container.remove();
   });
 
-  // Scan is gone: those settings live in the header's scan menu, under the
-  // freshness readout they describe.
-  it('renders exactly two subtabs in Appearance, World order with Appearance active by default', () => {
+  // Scan settings moved to the header's menu and appearance to the footer's,
+  // leaving one subject here and nothing for tabs to choose between.
+  it('has no subtabs, just the World sections', () => {
     const pane = mount();
     expect(pane.classList.contains('controls-pane')).toBe(true);
-    const labels = Array.from(pane.querySelectorAll('[role="tab"]')).map((t) =>
-      t.textContent?.trim()
-    );
-    expect(labels).toEqual(['Appearance', 'World']);
-    expect(tab(pane, 'Scan')).toBeUndefined();
-    expect(tab(pane, 'Shortcuts')).toBeUndefined();
-    expect(tab(pane, 'Debug')).toBeUndefined();
-    expect(tab(pane, 'Appearance').getAttribute('aria-selected')).toBe('true');
+    expect(pane.querySelectorAll('[role="tab"]')).toHaveLength(0);
+    expect(pane.querySelectorAll('.controls-section').length).toBeGreaterThan(0);
   });
 
-  it('shows the action bar only on World; Appearance autosaves with no footer', () => {
+  // Every field in here is draft-backed, so the footer is unconditional now
+  // rather than something only one tab earned.
+  it('always shows the action bar', () => {
     const pane = mount();
-    expect(pane.querySelector('.controls-actions')).toBeNull(); // Appearance (default)
-    clickTab(pane, 'World');
     expect(pane.querySelector('.controls-actions')).toBeTruthy();
-    clickTab(pane, 'Appearance');
-    expect(pane.querySelector('.controls-actions')).toBeNull();
   });
 
   it('renders three action-bar buttons; Save/Discard disabled when clean', () => {
     const pane = mount();
-    clickTab(pane, 'World'); // the action bar lives on the draftable World tab
     const buttons = Array.from(
       pane.querySelectorAll<HTMLButtonElement>('.controls-actions .controls-button')
     );
@@ -99,11 +83,10 @@ describe('ControlsPane subtabs', () => {
     expect(pane.querySelector('.setting-row-rebuild-badge')).toBeNull();
   });
 
-  it('collapsed=true remounts sections at their defaults and resets to the default subtab', async () => {
+  it('collapsed=true remounts sections at their defaults', async () => {
     const pane = mount({ collapsed: false });
-    // Move to World and expand its (default-collapsed) sections — a non-default
-    // state that the remount-on-collapse must discard.
-    clickTab(pane, 'World');
+    // Expand the (default-collapsed) sections — a non-default state that the
+    // remount-on-collapse must discard.
     pane.querySelectorAll<HTMLButtonElement>('.controls-disclosure-toggle').forEach((b) => {
       if (b.getAttribute('aria-expanded') === 'false') b.click();
     });
@@ -115,10 +98,7 @@ describe('ControlsPane subtabs', () => {
     });
     await flush();
     const repane = container.querySelector('.pane') as HTMLElement;
-    // Reset to Appearance, whose sections are defaultOpen — so exactly those
-    // reopen, and none of the World sections stay expanded.
-    expect(tab(repane, 'Appearance').getAttribute('aria-selected')).toBe('true');
-    expect(repane.querySelectorAll('.controls-section.is-open').length).toBe(2);
+    expect(repane.querySelectorAll('.controls-section.is-open')).toHaveLength(0);
   });
 });
 
@@ -130,12 +110,6 @@ describe('subgroup group reset button', () => {
       render(<ControlsPane />, container);
     });
     const pane = container.querySelector('.pane') as HTMLElement;
-    // These tests inspect World-tab subgroups; Scan is the default tab now.
-    act(() => {
-      Array.from(pane.querySelectorAll<HTMLButtonElement>('[role="tab"]'))
-        .find((t) => t.textContent?.includes('World'))
-        ?.click();
-    });
     // Sections mount their body on first open, so the subgroups only exist once
     // the sections are opened.
     act(() => {
@@ -171,7 +145,7 @@ describe('subgroup group reset button', () => {
   });
 });
 
-describe('FilePreviewSection', () => {
+describe('SyntaxThemeRow', () => {
   let container: HTMLDivElement;
 
   beforeEach(() => {
@@ -188,7 +162,7 @@ describe('FilePreviewSection', () => {
 
   // Appearance autosaves: no Save step, the store takes the value on change.
   it('applies the picked theme immediately', async () => {
-    act(() => render(<FilePreviewSection />, container));
+    act(() => render(<SyntaxThemeRow />, container));
     const select = container.querySelector('select') as HTMLSelectElement;
     expect(select).toBeTruthy();
 

@@ -65,7 +65,9 @@
   position: relative; /* anchor for the settings-change count badge */
   background: none;
   border: none;
-  color: var(--cc-text-muted);
+  /* Same step as the chrome bars' glyphs (ChromeCluster.css), so the app's
+     three icon strips read as one set. */
+  color: var(--cc-text-primary);
   height: 40px;
   display: flex;
   align-items: center;
@@ -78,7 +80,7 @@
 }
 
 .activity-bar-icon:hover {
-  color: var(--cc-text-primary);
+  color: var(--cc-text-strong);
   background: var(--cc-overlay-bg-soft);
 }
 

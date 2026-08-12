@@ -1,22 +1,23 @@
 import { describe, it, expect, afterEach } from 'vitest';
 import { render } from 'preact';
 import { act } from 'preact/test-utils';
-import { InterfaceThemeSection } from '@/views/ControlsPane/partials/InterfaceThemeSection';
+import { AppearanceMenu } from '@/components/AppearanceMenu/AppearanceMenu';
 import {
   ACCENT_THEME,
   ACCENT_THEME_DEFAULT,
   SURFACE_THEME,
   SURFACE_THEME_DEFAULT,
 } from '@/state/stores/settings/theme';
-import { flush } from '../../_helpers/preact';
+import { flush } from '../_helpers/preact';
 
-describe('InterfaceThemeSection', () => {
+describe('AppearanceMenu', () => {
   let container: HTMLDivElement;
 
   const mount = () => {
     container = document.createElement('div');
     document.body.appendChild(container);
-    act(() => render(<InterfaceThemeSection />, container));
+    act(() => render(<AppearanceMenu />, container));
+    act(() => container.querySelector<HTMLButtonElement>('.popover-trigger')!.click());
   };
 
   const radio = (label: string) =>
@@ -31,9 +32,19 @@ describe('InterfaceThemeSection', () => {
     container.remove();
   });
 
-  it('renders two radiogroups (accent + surface)', () => {
+  // It opens upward from the footer, so the panel must not be anchored to the
+  // trigger's lower edge the way the header's is.
+  it('opens a panel that rises from the trigger', () => {
+    mount();
+    const panel = container.querySelector('[role="dialog"]')!;
+    expect(panel).not.toBeNull();
+    expect(panel.classList.contains('popover-panel--above-start')).toBe(true);
+  });
+
+  it('renders two radiogroups (accent + surface) and the syntax picker', () => {
     mount();
     expect(container.querySelectorAll('[role="radiogroup"]').length).toBe(2);
+    expect(container.querySelector('select')).not.toBeNull();
   });
 
   it('marks the active accent chip aria-checked', () => {

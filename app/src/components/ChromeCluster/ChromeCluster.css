@@ -79,8 +79,37 @@
   position: absolute;
 }
 
-/* Icons keep their own size; only the item's box is standardized. */
 .cluster-item > svg {
   display: block;
   flex: 0 0 auto;
+}
+
+/* Sized off the cluster, not the bar: icons are 1em (icons.css) and the header
+   and footer set different text sizes. Neutral, since every item is pressable
+   now and accent no longer carries the affordance. */
+.cluster-item .icon {
+  font-size: var(--cc-font-sm);
+  color: var(--cc-text-primary);
+}
+.cluster-item--press:not(:disabled):hover .icon {
+  color: var(--cc-text-strong);
+}
+
+/* Focused, pressed and open are one accent state — the same glyph-on-accent-fill
+   the activity bar uses for a selected tab — so the press previews where it
+   lands. Keyed off aria-expanded, so open can't drift from the ARIA. Declared
+   after :hover and at matching specificity, so keyboard focus wins the tie when
+   the pointer happens to rest on the same item. */
+.cluster-item--press:not(:disabled):focus-visible,
+.cluster-item--press:not(:disabled):focus-visible .icon,
+.cluster-item--press:not(:disabled):active,
+.cluster-item--press:not(:disabled):active .icon,
+.cluster-item--press[aria-expanded='true'],
+.cluster-item--press[aria-expanded='true'] .icon {
+  color: var(--cc-accent);
+}
+.cluster-item--press:not(:disabled):focus-visible,
+.cluster-item--press:not(:disabled):active,
+.cluster-item--press[aria-expanded='true'] {
+  background: var(--cc-accent-bg-soft);
 }

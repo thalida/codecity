@@ -127,7 +127,7 @@ describe('AppHeader', () => {
     container.querySelector<HTMLButtonElement>('.scan-menu-trigger')!.click();
     await flush();
     const actions = Array.from(
-      container.querySelectorAll<HTMLElement>('.scan-menu-panel .scan-menu-action')
+      container.querySelectorAll<HTMLElement>('.popover-panel .scan-menu-action')
     );
     expect(actions.map((el) => el.textContent?.trim())).toEqual(['Fresh scan']);
 

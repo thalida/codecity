@@ -1,0 +1,165 @@
+/* Popover — the panel a chrome-bar item opens, plus the furniture inside it.
+   One panel, two geometries: anchored to its trigger, or a bottom sheet below
+   580px (AppFooter's breakpoint). */
+
+/* ChevronsUpDown draws in the middle 10/24 of its box, so the empty bearing on
+   the trailing side reads as more padding there than at the leading edge. Pull
+   the box back by that bearing so the drawn edges sit symmetrically. */
+.popover-caret {
+  margin-inline-end: -0.29em;
+  opacity: 0.7;
+}
+
+.popover-panel {
+  /* One inset for every child — group heads, setting rows, list rows, buttons.
+     Each ships its own padding by default, which is what makes an assembled
+     panel look like three unrelated lists. */
+  --popover-inset: var(--cc-space-4);
+  position: absolute;
+  z-index: 300; /* over the sidebars, which sit at 90/100 */
+  /* Fits a setting row's label and control without wrapping the label. */
+  width: 21rem;
+  max-width: calc(100vw - 2 * var(--cc-chrome-inset));
+  display: flex;
+  flex-direction: column;
+  /* Block only: the inset is the children's, so the group rules run full-bleed
+     and every child's gap to the panel edge is the same one value. */
+  padding: var(--popover-inset) 0;
+  border: 1px solid var(--cc-border-input);
+  border-radius: var(--cc-radius-md);
+  box-shadow: var(--cc-shadow-lg);
+  /* A list inside one of these is unbounded. */
+  max-height: min(32rem, calc(100vh - 2 * var(--cc-chrome-h) - var(--cc-space-6)));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  text-align: left;
+  /* Off a bar's mono chrome face: this is prose and settings rows. */
+  font-family: var(--cc-font-sans);
+}
+
+.popover-panel--below-end {
+  top: calc(100% + var(--cc-space-2));
+  right: 0;
+}
+
+.popover-panel--above-start {
+  bottom: calc(100% + var(--cc-space-2));
+  left: 0;
+}
+
+/* Ruled, not boxed — a border per group would read as stacked panels. Equal
+   margin and padding, so the rule sits centred in the gap instead of hugging
+   whichever group brought less padding of its own. */
+.popover-group {
+  /* A column, so a stretched child (a full-width button) fills it: a <button>
+     is shrink-to-fit at width:auto even as a block-level box. */
+  display: flex;
+  flex-direction: column;
+}
+.popover-group + .popover-group {
+  margin-top: var(--cc-space-4);
+  padding-top: var(--cc-space-4);
+  border-top: 1px solid var(--cc-border-subtle);
+}
+
+.popover-group-head {
+  display: flex;
+  align-items: center;
+  gap: var(--cc-space-2);
+  padding-inline: var(--popover-inset);
+}
+
+/* Deliberately NOT .text-label: an uppercase group label next to sentence-case
+   setting rows reads as two labelling systems in one panel. This is the same
+   label the rows use, one group up. */
+.popover-group-title {
+  flex: 1 1 auto;
+  margin: 0;
+  font-size: var(--cc-font-sm);
+  font-weight: var(--cc-fw-medium);
+  color: var(--cc-text-strong);
+}
+
+.popover-group-icon {
+  flex: 0 0 auto;
+  color: var(--cc-text-muted);
+}
+
+/* The rows borrowed from the settings pane, pulled onto the inset and off the
+   sidebar's dense scale: a panel holds a few rows, not two hundred. */
+.popover-panel .setting-row {
+  padding-inline: var(--popover-inset);
+  font-size: var(--cc-font-sm);
+}
+
+/* Trailing, not leading: prose above a control makes you read before you can
+   act. Centred so it reads as a footnote rather than another row. */
+.popover-hint {
+  margin: var(--cc-space-3) 0 0;
+  padding-inline: var(--popover-inset);
+  font-size: var(--cc-font-xs);
+  line-height: var(--cc-lh-base);
+  text-align: center;
+  color: var(--cc-text-secondary); /* muted fails 4.5:1 on this surface */
+}
+
+/* A state, not a caption: boxed so it can't be mistaken for subtitle copy. */
+.popover-empty {
+  text-align: center;
+  margin: var(--cc-space-2) var(--popover-inset) 0;
+  padding: var(--cc-space-5);
+  border: 1px dashed var(--cc-border-input);
+  border-radius: var(--cc-radius-sm);
+  color: var(--cc-text-muted);
+  font-size: var(--cc-font-xs);
+}
+
+.popover-grip {
+  display: none;
+}
+
+/* ── Sheet ──────────────────────────────────────────────────────────────
+   An anchored panel spans the viewport at this width anyway. Still no
+   backdrop: the city keeps updating as these controls change it. */
+@media (max-width: 580px) {
+  .popover-panel {
+    position: fixed;
+    inset: auto 0 0 0;
+    width: auto;
+    max-width: none;
+    max-height: 70vh;
+    padding: 0 0 var(--cc-space-6);
+    border-inline: 0;
+    border-bottom: 0;
+    border-start-start-radius: var(--cc-radius-lg);
+    border-start-end-radius: var(--cc-radius-lg);
+    border-end-start-radius: 0;
+    border-end-end-radius: 0;
+    box-shadow: 0 -4px 24px oklch(0 0 0 / 0.6);
+  }
+
+  /* No tether to the trigger down here, so the handle says where it came from
+     — and closes the sheet, since the trigger is now behind it. Padded well
+     past the bar itself to clear a thumb-sized target. */
+  .popover-grip {
+    display: block;
+    appearance: none;
+    width: 100%;
+    padding: var(--cc-space-4) 0;
+    border: 0;
+    background: none;
+    cursor: pointer;
+  }
+  .popover-grip::before {
+    content: '';
+    display: block;
+    width: var(--cc-space-9);
+    height: 4px;
+    margin: 0 auto;
+    border-radius: var(--cc-radius-pill);
+    background: var(--cc-border-input);
+  }
+  .popover-grip:hover::before {
+    background: var(--cc-text-muted);
+  }
+}

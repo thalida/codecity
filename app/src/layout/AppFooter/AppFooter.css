@@ -30,10 +30,13 @@
   min-width: 0;
   overflow: hidden;
 }
-/* The left section absorbs the slack and clips; the right is content-sized. */
+/* The left section absorbs the slack; the right is content-sized. Clipping is
+ * for runs of text, and this side holds fixed-size buttons — one of which opens
+ * a panel that has to escape the bar to be seen at all. */
 .app-footer-section.app-footer-left {
   flex: 1 1 auto;
   justify-content: flex-start;
+  overflow: visible;
 }
 .app-footer-section.app-footer-right {
   flex: 0 0 auto;

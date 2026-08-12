@@ -1,16 +1,13 @@
 // views/ControlsPane/ControlsPane.tsx — "Settings" tab in the left sidebar:
-// Appearance (autosaves) and World (draft-backed, hence the ActionsBar footer).
-// Scan settings live in the header's scan menu, not here.
+// the World sections, all draft-backed, over the sticky Reset all/Discard/Save
+// ActionsBar. Scan settings live in the header's scan menu and appearance in
+// the footer's, so there is one subject here and no tabs to choose it with.
 //
 // Open-state is deliberately not persisted: collapsing the pane bumps
 // collapseNonce to remount every section back at its default.
 
 import './ControlsPane.css';
 import { useEffect, useState } from 'preact/hooks';
-import { Boxes, Palette } from 'lucide-preact';
-import type { LucideIcon } from 'lucide-preact';
-import { FilePreviewSection } from './partials/FilePreviewSection';
-import { InterfaceThemeSection } from './partials/InterfaceThemeSection';
 import { DynamicSection, type SectionNode } from './partials';
 import { VIEW_SECTION } from './partials/View';
 import { SKY_SECTION } from './partials/Sky';
@@ -24,14 +21,12 @@ import { FIREFLIES_SECTION } from './partials/Fireflies';
 import { POST_PROCESSING_SECTION } from './partials/PostProcessing';
 import { TIMELINE_SECTION } from './partials/Timeline';
 import { ActionsBar } from './ActionsBar/ActionsBar';
-import { APPEARANCE_COUNT, WORLD_COUNT } from '@/state/stores/settingsIndicators';
 import { Pane } from '@/components/Pane';
-import { PaneCloseButton } from '@/components/PaneHeader/PaneHeader';
-import { PaneTabs } from '@/components/PaneTabs/PaneTabs';
+import { PaneHeader } from '@/components/PaneHeader/PaneHeader';
 
-/** The World tab's sections. Hoisted out of the render because a test asserts
- *  the invariant that every field under here is draft-backed: World settings all
- *  stage into the footer's Save/Discard/Reset, with no write-through exceptions. */
+/** Hoisted out of the render because a test asserts the invariant that every
+ *  field under here is draft-backed: these all stage into the footer's
+ *  Save/Discard/Reset, with no write-through exceptions. */
 // Ordered outside-in: where you look from, then the world, then the city, then
 // what lives around it, then whole-frame passes.
 export const WORLD_SECTIONS: SectionNode[] = [
@@ -48,89 +43,32 @@ export const WORLD_SECTIONS: SectionNode[] = [
   POST_PROCESSING_SECTION,
 ];
 
-/** Opened-on, and returned to when the pane collapses: the lighter of the two,
- *  and the one that doesn't stage a draft. */
-const DEFAULT_TAB = 'appearance';
-
-interface Subtab {
-  id: string;
-  label: string;
-  icon: LucideIcon;
-  /** Count of changed-from-default items under this tab; shown as a tab badge. */
-  badge?: number;
-  /** Draftable subtabs get the Save/Discard/Reset footer. */
-  draftable: boolean;
-  sections: SectionNode[];
-}
-
 export interface ControlsPaneProps {
   onClose?: () => void;
-  /** When true the panel is hidden (sidebar collapsed). On that transition we
-   *  collapse every section and reset to the World subtab so the panel reopens
-   *  fresh. Declarative: the parent just passes its collapsed state. */
+  /** When true the panel is hidden (sidebar collapsed), which collapses every
+   *  section so the panel reopens fresh. Declarative: the parent just passes
+   *  its collapsed state. */
   collapsed?: boolean;
 }
 
 export function ControlsPane({ onClose, collapsed }: ControlsPaneProps) {
-  const [activeId, setActiveId] = useState(DEFAULT_TAB);
   // Sections/subgroups own their open-state locally; bumping this nonce on
-  // collapse remounts them so each reopens at its default (World collapsed,
-  // Appearance expanded via defaultOpen).
+  // collapse remounts them so each reopens collapsed.
   const [collapseNonce, setCollapseNonce] = useState(0);
-
-  const subtabs: Subtab[] = [
-    {
-      id: 'appearance',
-      label: 'Appearance',
-      icon: Palette,
-      badge: APPEARANCE_COUNT.value,
-      draftable: false,
-      sections: [
-        { key: 'interface-theme', render: <InterfaceThemeSection /> },
-        { key: 'file-preview', render: <FilePreviewSection /> },
-      ],
-    },
-    {
-      id: 'world',
-      label: 'World',
-      icon: Boxes,
-      badge: WORLD_COUNT.value,
-      draftable: true,
-      sections: WORLD_SECTIONS,
-    },
-  ];
-
-  const active = subtabs.find((t) => t.id === activeId) ?? subtabs[0];
 
   useEffect(() => {
     if (!collapsed) return;
-    setActiveId(DEFAULT_TAB);
     setCollapseNonce((n) => n + 1);
   }, [collapsed]);
 
   return (
     <Pane
       paneClass="controls-pane"
-      headerSlot={
-        <div class="pane-header pane-header--tabs">
-          <PaneTabs
-            tabs={subtabs}
-            active={activeId}
-            onSelect={setActiveId}
-            panelId="controls-panel"
-          />
-          {onClose && <PaneCloseButton onClose={onClose} />}
-        </div>
-      }
+      headerSlot={<PaneHeader title="World" onClose={onClose} />}
       bodyClass="pane-inset"
-      bodyProps={{
-        id: 'controls-panel',
-        role: 'tabpanel',
-        'aria-labelledby': `controls-panel-tab-${activeId}`,
-      }}
-      footerSlot={active.draftable ? <ActionsBar /> : null}
+      footerSlot={<ActionsBar />}
     >
-      {active.sections.map((node) => (
+      {WORLD_SECTIONS.map((node) => (
         <DynamicSection key={`${collapseNonce}-${node.key}`} node={node} />
       ))}
     </Pane>

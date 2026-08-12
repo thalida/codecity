@@ -1,10 +1,10 @@
-// state/stores/settingsIndicators.ts — "how customized is this render" signals.
-// Each subtab shows its own count of changed-from-default settings; the Settings
-// activity-bar icon shows a single dirty dot (CHANGED_SETTINGS_COUNT > 0).
+// state/stores/settingsIndicators.ts — "how customized is this render": the
+// dirty dot on the Settings activity-bar icon.
 //
 // A setting counts as changed when its committed value differs from its
-// registered default. Per-tab grouping mirrors the ControlsPane subtabs:
-// Appearance = the three theme pickers, World = every other registered store.
+// registered default. Only what the Settings pane can take you to counts —
+// stores that live in a chrome-bar popover are excluded by name, since the
+// dot's whole job is pointing at the pane.
 
 import { computed } from '@preact/signals';
 import { forEachSettingStore, getFieldKeys } from '@/state/settingsSchema';
@@ -16,12 +16,11 @@ import { SYNTAX_THEME } from '@/state/stores/settings/syntaxTheme';
 
 type AnyStore = { value: unknown };
 
-/** Registered, but under no subtab: the scan settings live in the header's
- *  scan menu. Listed so WORLD_COUNT's "everything else" rule can't sweep them
- *  into a tab that doesn't hold them. */
-const HEADER_STORES: AnyStore[] = [LIVE_UPDATES as AnyStore];
-
-const APPEARANCE_STORES: AnyStore[] = [
+/** Registered, but not in the Settings pane: scan settings live in the header's
+ *  scan menu, appearance in the footer's. Listed so the "everything else" rule
+ *  below can't sweep them back into a count they aren't reachable from. */
+const POPOVER_STORES: AnyStore[] = [
+  LIVE_UPDATES as AnyStore,
   ACCENT_THEME as AnyStore,
   SURFACE_THEME as AnyStore,
   SYNTAX_THEME as AnyStore,
@@ -43,24 +42,13 @@ function changedFieldCount(store: AnyStore): number {
   return n;
 }
 
-function countStores(stores: AnyStore[]): number {
-  return stores.reduce((n, s) => n + changedFieldCount(s), 0);
-}
-
-/** Appearance tab: changed theme pickers (accent / surface / syntax). */
-export const APPEARANCE_COUNT = computed(() => countStores(APPEARANCE_STORES));
-
-/** World tab: every registered store that isn't an Appearance or header store.
- *  Derived from the registry so new World stores are covered automatically. */
-export const WORLD_COUNT = computed(() => {
+/** Changed settings reachable from the Settings pane. Derived from the registry
+ *  so a new World store is covered without being listed. */
+export const CHANGED_SETTINGS_COUNT = computed(() => {
   let n = 0;
   forEachSettingStore((store) => {
-    if (HEADER_STORES.includes(store) || APPEARANCE_STORES.includes(store)) return;
+    if (POPOVER_STORES.includes(store)) return;
     n += changedFieldCount(store);
   });
   return n;
 });
-
-/** Total across the pane's tabs. Drives the dirty dot on the Settings icon, so
- *  it counts only what that icon can actually take you to. */
-export const CHANGED_SETTINGS_COUNT = computed(() => APPEARANCE_COUNT.value + WORLD_COUNT.value);
