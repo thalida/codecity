@@ -41,27 +41,18 @@ function isPresent(pt: PathTimeline, pos: number): boolean {
 }
 
 /**
- * Line count for the HEIGHT curve: interpolated between the surrounding change
- * entries so a building tweens across a drag. Anything a user reads wants
- * entryAt() instead — this deliberately returns values no commit ever had.
+ * Line count in effect at `pos`: what the file measured after its last change
+ * at or before it, and 0 where the path isn't present.
+ *
+ * A step, not a curve. This used to interpolate toward the next change so a
+ * building tweened across a drag, which meant scrubbing between two commits
+ * showed the file growing or shrinking toward an edit that hadn't been made
+ * yet: changes appeared to happen on days nothing was committed. Age and
+ * weathering follow the scrubbed date because a file really does get older as
+ * days pass; its size only moves when a commit moves it.
  */
 export function linesAt(pt: PathTimeline, pos: number): number {
-  if (!isPresent(pt, pos)) return 0;
-  const { changes } = pt;
-  if (pos <= changes[0].i) return changes[0].lines;
-  if (pos >= changes[changes.length - 1].i) return changes[changes.length - 1].lines;
-
-  let lo = 0;
-  let hi = changes.length - 1;
-  while (hi - lo > 1) {
-    const mid = (lo + hi) >> 1;
-    if (changes[mid].i <= pos) lo = mid;
-    else hi = mid;
-  }
-
-  const a = changes[lo];
-  const b = changes[hi];
-  return a.lines + (b.lines - a.lines) * ((pos - a.i) / (b.i - a.i));
+  return entryAt(pt, pos)?.lines ?? 0;
 }
 
 /** What a path measured when it was deleted, or null if it is not gone at `pos`. */
@@ -137,9 +128,9 @@ export function presenceAt(pt: PathTimeline, pos: number, ruinFloor: number): nu
 }
 
 /**
- * The change entry actually in effect at `pos` — a STEP lookup, unlike linesAt,
- * which lerps between entries so heights can tween. Anything a user reads must
- * come from here, so the number and the bytes describe the same blob.
+ * The change entry actually in effect at `pos`. Everything reads through here
+ * now, linesAt included, so a number, the bytes behind it and the height drawn
+ * from it all describe the same blob.
  */
 export function entryAt(pt: PathTimeline, pos: number): PathTimeline['changes'][number] | null {
   if (!isPresent(pt, pos)) return null;

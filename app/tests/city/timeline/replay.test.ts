@@ -26,7 +26,9 @@ test('per-path timeline: created, grows, deleted', () => {
   const pt = buildPathTimelines(bundle).get('f.txt')!;
   expect(pt.intervals).toEqual([{ start: 0, end: 2 }]);
   expect(linesAt(pt, 0)).toBe(2);
-  expect(linesAt(pt, 0.5)).toBe(4);
+  // Between two commits the file measures what its last change left it at: it
+  // does not creep toward an edit that hasn't happened.
+  expect(linesAt(pt, 0.5)).toBe(2);
   expect(linesAt(pt, 1)).toBe(6);
   expect(linesAt(pt, 2)).toBe(0);
   expect(presenceAt(pt, 1, 0)).toBe(1); // alive
@@ -191,8 +193,9 @@ describe('entryAt', () => {
     expect(entryAt(pt, 0)?.lines).toBe(2);
     expect(entryAt(pt, 0.5)?.lines).toBe(2);
     expect(entryAt(pt, 1)?.lines).toBe(6);
-    // linesAt lerps the same span, which is why displays must not use it.
-    expect(linesAt(pt, 0.5)).toBe(4);
+    // linesAt reads through it, so a height can't disagree with the blob it
+    // was drawn from.
+    expect(linesAt(pt, 0.5)).toBe(entryAt(pt, 0.5)?.lines);
   });
 
   test('is null once the path is gone', () => {

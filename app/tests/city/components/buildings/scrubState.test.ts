@@ -57,9 +57,11 @@ describe('lane', () => {
 });
 
 describe('height', () => {
-  it('interpolates the line count between commits', () => {
-    // lines lerp 2 → 6 across commit 1 → 2, so pos 1.5 measures 4.
-    expect(resolve(1.5).height).toBeCloseTo(heightForLines(4), 5);
+  // Height is a value, and a value only moves when a commit moves it. Tweening
+  // it made a building grow on days nothing was committed.
+  it('holds the line count between commits', () => {
+    expect(resolve(1.5).height).toBeCloseTo(resolve(1).height, 5);
+    expect(resolve(1.5).height).not.toBeCloseTo(resolve(2).height, 1);
   });
 
   it('normalizes against the frame line range, not the union baseline', () => {

@@ -9,7 +9,6 @@ import { isEmptyFile } from '@/utils/emptyKind';
 import type { PathTimeline } from '@/city/timeline/replay';
 import {
   PathState,
-  entryAt,
   lastModifiedIndexAt,
   linesAt,
   presenceAt,
@@ -152,17 +151,12 @@ export function resolveBuildingScrubState(
       ? 1 - Math.max(0, Math.min(1, (createdMs - f.minCreated) / f.createdSpread))
       : 0;
 
-  // Emptiness is a fact about the blob in effect, not a point on a curve: a
-  // lerp between a 0-line commit and a later big one reads non-empty.
-  const emptyFile = present
-    ? ({ ...b.file, lines: entryAt(pt, f.pos)?.lines ?? 0 } as FileNode)
-    : b.file;
-  out.kind = kindFor(b.file, emptyFile, lane);
+  // The union node's size is max-over-history, so only the replay knows what
+  // this file measured HERE. Presence gates height, not lines: media is 0.
+  const scrubFile = present ? ({ ...b.file, lines: linesAt(pt, f.pos) } as FileNode) : b.file;
+  out.kind = kindFor(b.file, scrubFile, lane);
 
   if (present) {
-    // The union node's size is max-over-history, so only the replay knows what
-    // this file measured HERE. Presence gates height, not lines: media is 0.
-    const scrubFile = { ...b.file, lines: linesAt(pt, f.pos) } as FileNode;
     const dims = getBuildingDimensions(scrubFile, f.lineStats, f.byteStats);
     out.height = dims.h;
     out.floors = dims.floors;
