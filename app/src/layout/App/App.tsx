@@ -36,7 +36,6 @@ import { useSwitcherShowcase } from '@/hooks/useSwitcherShowcase';
 import { useFeaturedCity } from '@/hooks/useFeaturedCity';
 import { useShortcutsKey } from '@/hooks/useShortcutsKey';
 import { attachLoadingReactions } from '@/state/loadingReactions';
-import { trackViewportHeight } from '@/state/stores/viewport';
 
 export function App() {
   useDocumentTitle();
@@ -46,7 +45,6 @@ export function App() {
   const { submitSource, refreshSource, cancelLoad } = useManifestSource();
 
   useEffect(() => attachLoadingReactions(), []);
-  useEffect(() => trackViewportHeight(), []);
 
   // CURRENT_SOURCE is written only on a successful load, so this one reaction
   // means "a world committed": drop the stale selection and reveal the city.

@@ -21,16 +21,6 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* The measured height wins where there is one. dvh only tracks the mobile
-   toolbar for a page that scrolls, and this one never does: scrolling a pane
-   can retract the toolbar and strand the shell a toolbar's height short of the
-   bottom. The class is set with the property (stores/viewport), so this can't
-   resolve against a property that was never measured. */
-html.cc-has-viewport-h,
-html.cc-has-viewport-h body {
-  height: var(--cc-viewport-h);
-}
-
 /* App layout: a column with a thin sitewide header on top, the 3-pane
    row underneath, and a thin footer at the bottom. The 3-pane row is
    itself a flex row — left sidebar | center canvas | right sidebar.
