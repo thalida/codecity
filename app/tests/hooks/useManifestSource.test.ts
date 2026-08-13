@@ -176,13 +176,13 @@ describe('loadSource exits Timeline mode', () => {
 // is the history bundle: a live re-scan would answer it by leaving the mode.
 describe('refreshCurrentSource', () => {
   let restoreEventSource: () => void;
-  let timelineRefreshes: number;
+  let timelineRefreshes: Array<{ noCache?: boolean } | undefined>;
 
   beforeEach(() => {
     restoreEventSource = installEventSource();
-    timelineRefreshes = 0;
-    setTimelineRefreshHandler(() => {
-      timelineRefreshes++;
+    timelineRefreshes = [];
+    setTimelineRefreshHandler((opts) => {
+      timelineRefreshes.push(opts);
       return Promise.resolve();
     });
     CURRENT_SOURCE.value = { src: 'https://github.com/o/r' };
@@ -201,7 +201,7 @@ describe('refreshCurrentSource', () => {
 
     refreshCurrentSource(false);
 
-    expect(timelineRefreshes).toBe(1);
+    expect(timelineRefreshes).toEqual([{ noCache: false }]);
     expect(TIMELINE_MODE.value).toBe(true);
     expect(StubEventSource.instances.length, 'no live re-scan').toBe(0);
   });
@@ -212,21 +212,30 @@ describe('refreshCurrentSource', () => {
     refreshCurrentSource(false);
     await flush();
 
-    expect(timelineRefreshes).toBe(0);
+    expect(timelineRefreshes).toEqual([]);
     expect(StubEventSource.instances.length).toBe(1);
 
     cancelLoad();
   });
 
-  // Fresh scan is the live scan's own no-cache axis; there is no cacheless
-  // history read to serve it, so it re-reads the repo from live.
-  it('falls back to a live no-cache scan for a fresh scan', async () => {
+  // Fresh scan is "ignore the cache", not "leave Timeline": the bundle caches
+  // per HEAD like the live scan does, so the flag rides the history read.
+  it('carries a fresh scan into the history read, staying in Timeline', () => {
     TIMELINE_MODE.value = true;
+
+    refreshCurrentSource(true);
+
+    expect(timelineRefreshes).toEqual([{ noCache: true }]);
+    expect(TIMELINE_MODE.value).toBe(true);
+    expect(StubEventSource.instances.length, 'no live re-scan').toBe(0);
+  });
+
+  it('sends no_cache on a live fresh scan', async () => {
+    TIMELINE_MODE.value = false;
 
     refreshCurrentSource(true);
     await flush();
 
-    expect(timelineRefreshes).toBe(0);
     expect(StubEventSource.instances[0]!.url).toContain('no_cache=true');
 
     cancelLoad();
@@ -237,7 +246,7 @@ describe('refreshCurrentSource', () => {
 
     refreshCurrentSource(false);
 
-    expect(timelineRefreshes).toBe(0);
+    expect(timelineRefreshes).toEqual([]);
     expect(StubEventSource.instances.length).toBe(0);
   });
 });

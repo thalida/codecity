@@ -52,12 +52,14 @@ function timelineLoadingTail(p: TimelineProgress): string | null {
 // Fetch the union bundle for the current source + excludes, pack the union city,
 // and install the scrub controller. Two modes:
 //   - fresh enter (from Live): full overlay + cancel-back-to-Live, scrub at present.
-//   - inPlace (already in Timeline — an exclude edit changed the union DATA, so the
-//     warm bundle is stale and must be refetched): footer "rebuilding" instead of the
-//     overlay, hold the scrub position, and stay in Timeline on error (no Live scene
-//     to fall back to). Settings changes don't come here — they re-pack the warm
-//     bundle via reapplyTimelineScene with no refetch.
-export async function loadTimelineScene({ inPlace = false } = {}): Promise<void> {
+//   - inPlace (already in Timeline — an exclude edit changed the union DATA, or a
+//     Fresh scan asked for the walk again, so the warm bundle must be refetched):
+//     footer "rebuilding" instead of the overlay, hold the scrub position, and stay
+//     in Timeline on error (no Live scene to fall back to). Settings changes don't
+//     come here — they re-pack the warm bundle via reapplyTimelineScene, no refetch.
+// `noCache` is the Fresh scan's flag: the bundle is cached per HEAD, so re-reading
+// history takes asking for it.
+export async function loadTimelineScene({ inPlace = false, noCache = false } = {}): Promise<void> {
   const cur = CURRENT_SOURCE.peek();
   if (!cur) return;
   const handle = SCENE_HANDLE.peek();
@@ -93,7 +95,7 @@ export async function loadTimelineScene({ inPlace = false } = {}): Promise<void>
       inPlace
         ? undefined
         : (p) => setLoadingStepTail(LoadingStep.TimelineLoading, timelineLoadingTail(p)),
-      { signal: abort.signal, exclude: activeExcludePathsFor(cur.src) }
+      { signal: abort.signal, exclude: activeExcludePathsFor(cur.src), noCache }
     );
     if (cancelled) return; // user backed out during the fetch — live view stands
     committed = true; // past here the scene is repacked; no longer cancellable
@@ -138,9 +140,9 @@ export async function loadTimelineScene({ inPlace = false } = {}): Promise<void>
   }
 }
 
-// Excludes change in Timeline → refetch the bundle, not a HEAD re-scan. A
-// callback because a direct import was a cycle; registered before the mode can turn on.
-setTimelineRefreshHandler(() => loadTimelineScene({ inPlace: true }));
+// A refresh in Timeline → refetch the bundle, not a HEAD re-scan. A callback
+// because a direct import was a cycle; registered before the mode can turn on.
+setTimelineRefreshHandler((opts) => loadTimelineScene({ inPlace: true, ...opts }));
 
 // Enter Timeline mode if it isn't already on, then scrub to the given commit.
 // Called by the commit pane's "view in timeline" button — in Live mode it enters

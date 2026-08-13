@@ -197,6 +197,36 @@ describe('loadTimelineScene', () => {
     expect(LOADING_OVERLAY.value.visible).toBe(false);
     expect(REBUILD_STATUS.value).toBe(RebuildStatus.Error);
   });
+
+  // The bundle caches per HEAD, so a Fresh scan that did not say so would be
+  // answered from the very cache it asked to ignore.
+  it('asks the history read to ignore its cache for a fresh scan', async () => {
+    (fetchTimelineBundle as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(BUNDLE);
+    SCENE_HANDLE.value = fakeHandle().handle as never;
+
+    await loadTimelineScene({ inPlace: true, noCache: true });
+
+    expect(fetchTimelineBundle).toHaveBeenCalledWith(
+      's',
+      undefined,
+      undefined,
+      expect.objectContaining({ noCache: true })
+    );
+  });
+
+  it('leaves the cache alone on an ordinary refetch', async () => {
+    (fetchTimelineBundle as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(BUNDLE);
+    SCENE_HANDLE.value = fakeHandle().handle as never;
+
+    await loadTimelineScene({ inPlace: true });
+
+    expect(fetchTimelineBundle).toHaveBeenCalledWith(
+      's',
+      undefined,
+      undefined,
+      expect.objectContaining({ noCache: false })
+    );
+  });
 });
 
 describe('exitTimelineMode', () => {

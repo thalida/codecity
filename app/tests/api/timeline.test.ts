@@ -15,6 +15,22 @@ test('timelineUrlFor emits one repeated exclude param per path', () => {
   expect(u).toContain('exclude=secrets');
 });
 
+// The bundle caches per HEAD, so a Fresh scan is only fresh if it says so.
+test('timelineUrlFor forwards noCache, and omits the param otherwise', () => {
+  expect(timelineUrlFor('/repo', undefined, undefined, true)).toContain('no_cache=true');
+  expect(timelineUrlFor('/repo', undefined, undefined, false)).not.toContain('no_cache');
+  expect(timelineUrlFor('/repo', undefined)).not.toContain('no_cache');
+});
+
+test('fetchTimelineBundle puts noCache on the stream URL', () => {
+  const { ctor, last } = makeES();
+  void fetchTimelineBundle('/repo', undefined, undefined, {
+    EventSourceImpl: ctor,
+    noCache: true,
+  });
+  expect(last()!.url).toContain('no_cache=true');
+});
+
 const BUNDLE = {
   commits: [{ sha: 'a' }],
   unionManifest: { tree: { name: 'r' } },

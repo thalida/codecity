@@ -10,12 +10,19 @@ import type { TimelineBundle, TimelineProgress } from '@/types';
 
 /** URL for the timeline bundle stream of an explicit source. Excludes ride the
  *  same repeated `exclude` param as the live manifest so the union city drops
- *  the user's excluded paths too. */
-export function timelineUrlFor(src: string, branch?: string, exclude?: string[]): string {
+ *  the user's excluded paths too, and `noCache` is the live scan's own flag:
+ *  the bundle is cached per HEAD, so a fresh scan has to say to walk it again. */
+export function timelineUrlFor(
+  src: string,
+  branch?: string,
+  exclude?: string[],
+  noCache?: boolean
+): string {
   return apiUrl('timeline', {
     [URL_PARAMS.SRC]: src,
     [URL_PARAMS.BRANCH]: branch,
     [URL_PARAMS.EXCLUDE]: exclude,
+    [URL_PARAMS.NO_CACHE]: noCache ? 'true' : undefined,
   });
 }
 
@@ -36,11 +43,12 @@ export function fetchTimelineBundle(
     EventSourceImpl?: typeof EventSource;
     signal?: AbortSignal;
     exclude?: string[];
+    noCache?: boolean;
   } = {}
 ): Promise<TimelineBundle> {
   const EventSourceImpl = opts.EventSourceImpl ?? EventSource;
   return new Promise((resolve, reject) => {
-    const es = new EventSourceImpl(timelineUrlFor(src, branch, opts.exclude));
+    const es = new EventSourceImpl(timelineUrlFor(src, branch, opts.exclude, opts.noCache));
     let done = false;
 
     const finish = (fn: () => void): void => {

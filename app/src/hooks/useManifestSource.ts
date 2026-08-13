@@ -121,9 +121,11 @@ async function pumpManifestStream(
 
 // Injected, not imported (importing useTimelineMode back was a cycle); it
 // registers before TIMELINE_MODE can turn on.
-let timelineRefresh: (() => Promise<void>) | null = null;
+type TimelineRefresh = (opts?: { noCache?: boolean }) => Promise<void>;
 
-export function setTimelineRefreshHandler(fn: (() => Promise<void>) | null): void {
+let timelineRefresh: TimelineRefresh | null = null;
+
+export function setTimelineRefreshHandler(fn: TimelineRefresh | null): void {
   timelineRefresh = fn;
 }
 
@@ -241,14 +243,14 @@ export function cancelLoad(): void {
  * Re-read the source already open, in whichever mode it is being viewed. In
  * Timeline that means its history bundle, refetched in place and holding the
  * scrub, since dropping to live HEAD would answer a refresh by leaving the mode.
- * `skipCache` is the live scan's own axis (the header's Fresh scan): there is no
- * no-cache history read, so asking for one re-reads the repo from live.
+ * `skipCache` (the header's Fresh scan) rides along either way: both reads cache
+ * per HEAD, so ignoring it is what makes the walk happen again.
  */
 export function refreshCurrentSource(skipCache = false): void {
   const cur = CURRENT_SOURCE.peek();
   if (!cur) return;
-  if (TIMELINE_MODE.peek() && !skipCache && timelineRefresh) {
-    void timelineRefresh();
+  if (TIMELINE_MODE.peek() && timelineRefresh) {
+    void timelineRefresh({ noCache: skipCache });
     return;
   }
   void loadSource({ src: cur.src, branch: cur.branch, skipCache: skipCache || undefined });
