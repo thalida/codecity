@@ -1,12 +1,7 @@
-// city/components/buildings/cellTile.ts — The rendering primitive for the spatial-grid
-// model. Each CellTile owns the detail InstancedMesh plus a slot
-// table. The InstancedMesh is preallocated to `capacity`; unused
-// slots have zero-scale matrix so they don't render. Slots are
-// allocated sequentially up to `capacity`.
-//
-// Mesh geometry/material assembly is deferred to the cell-aware
-// factory modules (cellMesh.ts, etc.). This file
-// is just the data carrier and the empty constructor.
+// city/components/buildings/cellTile.ts — the spatial grid's rendering
+// primitive: one preallocated InstancedMesh plus its slot table, with unused
+// slots held at zero scale so they don't render. Data carrier only; cellMesh.ts
+// and friends do the geometry and material assembly.
 
 import * as THREE from 'three';
 import type { Building } from '@/types/index';
@@ -26,14 +21,8 @@ export interface CellTile {
   buildings: (Building | null)[];
 }
 
-/**
- * Build an empty CellTile with a preallocated InstancedMesh. All
- * instance slots are scale-zero (invisible) until populated.
- *
- * Geometry/material wiring is intentionally minimal — the cell-aware
- * builders swap the placeholder geometry for the shared building
- * geometry once the cell is attached.
- */
+/** Every slot starts scale-zero, and the geometry is a placeholder the
+ *  cell-aware builders swap out once the cell is attached. */
 export function createEmptyCellTile(grid: SpatialGrid, cellId: number, capacity: number): CellTile {
   const cx = cellId % grid.gridW;
   const cz = Math.floor(cellId / grid.gridW);
@@ -45,6 +34,9 @@ export function createEmptyCellTile(grid: SpatialGrid, cellId: number, capacity:
   const placeholderMat = new THREE.MeshBasicMaterial({ visible: false });
 
   const detailMesh = new THREE.InstancedMesh(placeholderGeom, placeholderMat, capacity);
+  // The mesh itself never leaves the origin — buildings live in instanceMatrix —
+  // so recomposing its identity matrix every frame is pure cost.
+  detailMesh.matrixAutoUpdate = false;
   detailMesh.frustumCulled = true;
   detailMesh.userData = { cellId, meshKind: 'detail' };
   zeroAllInstances(detailMesh);

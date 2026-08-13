@@ -7,6 +7,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import * as THREE from 'three';
 import { signal } from '@preact/signals';
 import { createBuildingFader } from '@/city/components/buildings/fader';
+import { getBuildingMaterial } from '@/city/components/buildings/material';
 import { makeCityState } from '../../../_helpers/cityFixtures';
 import { BUILDINGS } from '@/state/stores/settings/buildings';
 import { FadeDetail, NodeKind } from '@/types';
@@ -92,9 +93,8 @@ function makeFader(opts: {
     hover: signal<PickTarget | null>(opts.hover ?? null),
   } as unknown as Parameters<typeof createBuildingFader>[0]['picker'];
 
-  // The fader resolves a file selection's parent dir via cityState.streetsByDirMap
-  // (keyed by street dir.path). Seed it from streetByDir — each value's dir.path
-  // matches its key — so the lookups resolve as the old getStreetByDir mock did.
+  // The fader resolves a selection's parent dir through streetsByDirMap, so the
+  // streets have to be seeded for any dirTarget lookup to land.
   const cityState = makeCityState();
   if (opts.streetByDir) {
     cityState.layout.value = {
@@ -117,12 +117,11 @@ function makeFader(opts: {
     };
   }
 
-  return { fader, readFor };
+  return { fader, readFor, picker };
 }
 
-/** Set distinctive opacity values per tier so each assertion pins down
- *  exactly one tier without ambiguity. Detail mode is the same so
- *  silhouette isn't a confounder; outline disabled across the board. */
+/** One distinct opacity per tier, so an assertion names exactly one tier.
+ *  Detail and outline stay uniform so neither can confound the reading. */
 function setKnownFade() {
   BUILDINGS.value = {
     ..._originalFade,
@@ -165,14 +164,8 @@ describe('buildingFader 5-tier cascade', () => {
   });
 
   it('selected file → symmetric LCA distance: same dir L1, 1 hop L2, 2 hops L3, 3+ hops L4', () => {
-    // dirTarget = src/foo. Distances from src/foo:
-    //   src/foo/a.ts   = 0 (self, but rendered as Default)
-    //   src/foo/b.ts   = 0 → L1
-    //   src/foo/bar/c.ts = 1 down → L2
-    //   src/foo/bar/baz/d.ts = 2 down → L3
-    //   src/lib/e.ts   = 1 up + 1 down → L3
-    //   README.md      = 2 up → L3
-    //   far/deep/x.ts  = 2 up + 2 down = 4 → L4
+    // Distance is symmetric hops through the LCA, so src/lib/e.ts (1 up, 1 down)
+    // lands on the same tier as a file two levels down.
     const a = makeFile('src/foo/a.ts');
     const b = makeFile('src/foo/b.ts');
     const c = makeFile('src/foo/bar/c.ts');
@@ -283,11 +276,8 @@ describe('buildingFader 5-tier cascade', () => {
   });
 
   it('root selection → distance is depth from root', () => {
-    // dirTarget = root. dp=[], so distance equals depth of each file's parent.
-    //   README.md (parent='.')         distance 0 → L1
-    //   src/x.ts (parent='src')        distance 1 → L2
-    //   src/foo/y.ts                   distance 2 → L3
-    //   src/foo/bar/z.ts               distance 3 → L4
+    // dirTarget = root, so there is nothing to walk up and distance collapses to
+    // the depth of each file's parent.
     const r = makeFile('README.md');
     const x = makeFile('src/x.ts');
     const y = makeFile('src/foo/y.ts');
@@ -311,11 +301,8 @@ describe('buildingFader 5-tier cascade', () => {
   });
 
   it('prefix-precision: "src-utils" is NOT confused with a child of "src"', () => {
-    // dirTarget = src. src/a.ts shares dir → L1 (distance 0).
-    // src-utils/x.ts: parent='src-utils', LCA with 'src' = root, so
-    // distance = 1 (up) + 1 (down) = 2 → L3, NOT L2. Without the
-    // segment-aware split, a naive prefix check would treat 'src-utils'
-    // as a child of 'src' and place it at L2.
+    // A naive prefix check would read 'src-utils' as a child of 'src' and put it
+    // at L2; the segment-aware split routes it through root instead, so L3.
     const a = makeFile('src/a.ts');
     const lookAlike = makeFile('src-utils/x.ts');
     const dir = makeDir('src');
@@ -353,5 +340,84 @@ describe('buildingFader 5-tier cascade', () => {
     });
 
     expect(readFor('src/a.ts')!.opacity).toBeCloseTo(0.5);
+  });
+});
+
+// Too late and a dimmed building reads as solid; too eager and the whole city
+// goes back through the transparent queue it was moved out of.
+describe('buildingFader → material transparency', () => {
+  beforeEach(setKnownFade);
+
+  it('turns blending on only while the cascade is dimming something', () => {
+    const a = makeFile('src/foo/a.ts');
+    const far = makeFile('other/deep/x.ts');
+    const selBuilding = makeBuilding(a);
+    const streetByDir = new Map([['src/foo', { dir: makeDir('src/foo') }]]);
+
+    const { picker } = makeFader({
+      buildings: [selBuilding, makeBuilding(far)],
+      selection: null,
+      streetByDir,
+    });
+
+    // Idle: every tier resolves to DEFAULT_BODY_OPACITY 1.0, nothing to blend.
+    expect(getBuildingMaterial().transparent).toBe(false);
+
+    // Selecting drops the far building to L4 (0.2), which only reads correctly
+    // with blending on.
+    picker.selection.value = {
+      kind: NodeKind.File,
+      mesh: new THREE.Object3D() as unknown as THREE.Mesh,
+      data: selBuilding,
+      file: a,
+    } as unknown as PickTarget;
+    expect(getBuildingMaterial().transparent).toBe(true);
+
+    // ...and back to opaque when the selection clears.
+    picker.selection.value = null;
+    expect(getBuildingMaterial().transparent).toBe(false);
+  });
+
+  it('stays opaque for a cascade whose tiers are all fully opaque', () => {
+    BUILDINGS.value = {
+      ..._originalFade,
+      DEFAULT_DETAIL: FadeDetail.Full,
+      DEFAULT_BODY_OPACITY: 1.0,
+      DEFAULT_OUTLINE: false,
+      DEFAULT_OUTLINE_OPACITY: 0.0,
+      LEVEL1_DETAIL: FadeDetail.Full,
+      LEVEL1_BODY_OPACITY: 1.0,
+      LEVEL1_OUTLINE: false,
+      LEVEL1_OUTLINE_OPACITY: 0.0,
+      LEVEL2_DETAIL: FadeDetail.Full,
+      LEVEL2_BODY_OPACITY: 1.0,
+      LEVEL2_OUTLINE: false,
+      LEVEL2_OUTLINE_OPACITY: 0.0,
+      LEVEL3_DETAIL: FadeDetail.Full,
+      LEVEL3_BODY_OPACITY: 1.0,
+      LEVEL3_OUTLINE: false,
+      LEVEL3_OUTLINE_OPACITY: 0.0,
+      LEVEL4_DETAIL: FadeDetail.Full,
+      LEVEL4_BODY_OPACITY: 1.0,
+      LEVEL4_OUTLINE: false,
+      LEVEL4_OUTLINE_OPACITY: 0.0,
+    };
+
+    const a = makeFile('src/foo/a.ts');
+    const far = makeFile('other/deep/x.ts');
+    const selBuilding = makeBuilding(a);
+
+    makeFader({
+      buildings: [selBuilding, makeBuilding(far)],
+      selection: {
+        kind: NodeKind.File,
+        mesh: new THREE.Object3D() as unknown as THREE.Mesh,
+        data: selBuilding,
+        file: a,
+      } as unknown as PickTarget,
+      streetByDir: new Map([['src/foo', { dir: makeDir('src/foo') }]]),
+    });
+
+    expect(getBuildingMaterial().transparent).toBe(false);
   });
 });

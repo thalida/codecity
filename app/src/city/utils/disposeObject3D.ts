@@ -1,17 +1,13 @@
-// city/utils/disposeObject3D.ts — per-Object3D GPU resource disposer.
-// Frees geometry + materials (array-aware) + any Texture-valued material
-// property. Honors two userData flags: `disposed` (idempotency — never double-
-// frees) and `sharedMaterial` (skips material disposal for meshes that share a
-// module-owned material, e.g. the building cell detail meshes — freeing it would
-// blank every building). Safe for unshared meshes (no flag → material disposes
-// normally). Pass to Object3D.traverse() to dispose a whole subtree.
+// city/utils/disposeObject3D.ts — frees an Object3D's geometry, materials and
+// their textures; pass it to traverse() for a whole subtree. userData flags:
+// `disposed` for idempotency, `sharedGeometry` / `sharedMaterial` to leave a
+// resource to its owner, since freeing it here would blank the other holders.
 import type * as THREE from 'three';
 
 export function disposeObject3D(obj: THREE.Object3D | null): void {
   if (!obj || obj.userData?.disposed) return;
-  // Disposable shape: any object that may carry .geometry / .material
-  // (Mesh, Line, LineSegments2, Group). Use a structural cast since
-  // this disposer is intentionally generic across all of them.
+  // Structural cast: this is deliberately generic over anything that may carry
+  // .geometry / .material (Mesh, Line, LineSegments2, Group).
   interface DisposableObj {
     geometry?: { dispose?: () => void };
     material?:
@@ -19,9 +15,7 @@ export function disposeObject3D(obj: THREE.Object3D | null): void {
       | Array<{ dispose?: () => void; [k: string]: unknown }>;
   }
   const d = obj as unknown as DisposableObj;
-  if (d.geometry?.dispose) d.geometry.dispose();
-  // Skip material disposal for meshes whose material is module-owned and
-  // shared across cell tiles (cellMesh.ts factory).
+  if (d.geometry?.dispose && !obj.userData?.sharedGeometry) d.geometry.dispose();
   if (!obj.userData?.sharedMaterial) {
     const mats = Array.isArray(d.material) ? d.material : d.material ? [d.material] : [];
     for (const m of mats) {

@@ -11,6 +11,10 @@ import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPa
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
 import { BLOOM } from '@/state/stores/settings/effects';
 
+// Fraction of the DRAWING BUFFER, not the CSS box: composer.setSize already
+// applies the pixel ratio, so CSS sizing cost DPR-1 displays 4x per scene pixel.
+const BLOOM_RESOLUTION_SCALE = 0.5;
+
 export interface PostFx {
   render(): void;
   setSize(width: number, height: number): void;
@@ -23,6 +27,8 @@ export function createPostFx(
   camera: THREE.PerspectiveCamera
 ): PostFx {
   const bloomCfg = BLOOM.value;
+  // Reused by setSize so the per-resize drawing-buffer read costs no alloc.
+  const _drawingBuffer = new THREE.Vector2();
   // ACES squashes >1.0 back into display range: walls (already [0,1]) are
   // untouched, and only the emissive windows read as blown out.
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -59,8 +65,14 @@ export function createPostFx(
   return {
     render: () => composer.render(),
     setSize: (w, h) => {
+      // Order matters: composer.setSize sizes every pass, bloom included, so
+      // the deliberate override below has to come second or it is overwritten.
       composer.setSize(w, h);
-      bloom.setSize(w, h);
+      renderer.getDrawingBufferSize(_drawingBuffer);
+      bloom.setSize(
+        Math.max(1, Math.round(_drawingBuffer.x * BLOOM_RESOLUTION_SCALE)),
+        Math.max(1, Math.round(_drawingBuffer.y * BLOOM_RESOLUTION_SCALE))
+      );
     },
     dispose: () => {
       stopBloom();

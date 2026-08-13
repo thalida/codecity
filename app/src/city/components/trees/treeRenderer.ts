@@ -324,6 +324,9 @@ export function createTreeRenderer(
     const commitIdx = new Float32Array(placementOrder.length * PER_TREE_VERTS);
     const geo = new THREE.BufferGeometry();
     const mesh = new THREE.Mesh(geo, mergedMaterial);
+    // Chunk vertices are baked in world space, so the mesh transform stays
+    // identity for its whole life.
+    mesh.matrixAutoUpdate = false;
     for (let slot = 0; slot < placementOrder.length; slot++) {
       const i = placementOrder[slot];
       const p = placements[i];
