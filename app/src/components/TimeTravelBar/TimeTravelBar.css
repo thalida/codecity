@@ -60,7 +60,10 @@
   font-weight: 600;
   letter-spacing: 0.02em;
   text-transform: uppercase;
-  color: var(--cc-text-strong);
+  /* Faded against the handle's date: the ends are where the history starts and
+     stops, the middle is where you are. Secondary, not muted: this bar is glass
+     over the scene, where muted only just clears contrast. */
+  color: var(--cc-text-secondary);
   white-space: nowrap;
   cursor: pointer;
 }
