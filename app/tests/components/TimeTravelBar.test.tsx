@@ -65,13 +65,35 @@ describe('TimeTravelBar', () => {
     expect(t.getAttribute('aria-valuetext')).toContain(head.sha.slice(0, 7));
   });
 
-  it('labels the track ends with the first and last commit dates', async () => {
+  it('labels the axis ends with the first and last commit dates', async () => {
     render(<TimeTravelBar />, container);
     await flush();
     const edges = container.querySelectorAll('.time-travel-edge');
     expect(edges).toHaveLength(2);
     expect(edges[0].textContent).toBe('Jan 1, 2026');
     expect(edges[1].textContent).toBe('Mar 1, 2026');
+    expect(edges[0].getAttribute('title')).toContain('January 1, 2026');
+  });
+
+  // Three rows: the track, the dates it lands between, then the commit. The
+  // track has its row to itself so it runs the bar's full width.
+  it('stacks the track, the axis and the commit in that order', async () => {
+    render(<TimeTravelBar />, container);
+    await flush();
+    const rows = Array.from(container.querySelector('.time-travel-bar')!.children).map(
+      (c) => c.className
+    );
+    expect(rows).toEqual(['time-travel-scrubber', 'time-travel-axis', 'time-travel-info']);
+    const scrubber = container.querySelector('.time-travel-scrubber')!;
+    expect(scrubber.querySelectorAll('.time-travel-edge')).toHaveLength(0);
+    expect(scrubber.querySelector('.time-travel-track')).not.toBeNull();
+    const axis = container.querySelector('.time-travel-axis')!;
+    expect(axis.querySelectorAll('.time-travel-edge')).toHaveLength(2);
+    // Row two is the three dates; the commit gets row three to itself, so a
+    // long subject can't crowd them.
+    expect(axis.querySelector('.time-travel-date')).not.toBeNull();
+    expect(axis.querySelector('.time-travel-info')).toBeNull();
+    expect(container.querySelector('.time-travel-info .time-travel-sha')).not.toBeNull();
   });
 
   it('jumps to the first / latest commit when an edge date is clicked', async () => {
@@ -133,12 +155,16 @@ describe('TimeTravelBar', () => {
     expect(SCRUB_POS.value).toBe(2);
   });
 
-  it('labels the current commit as date, then sha, then subject (date leads)', async () => {
+  // The scrubbed date sits on the axis with the two it falls between; the
+  // commit it belongs to reads sha then subject on the row underneath.
+  it('puts the scrubbed date on the axis and the commit below it', async () => {
     render(<TimeTravelBar />, container);
     await flush();
+    const axis = container.querySelector('.time-travel-axis')!;
+    expect(axis.querySelector('.time-travel-date')).not.toBeNull();
     const info = container.querySelector('.time-travel-info')!;
     const order = Array.from(info.children).map((c) => c.className.split(' ')[0]);
-    expect(order).toEqual(['time-travel-date', 'time-travel-sha', 'time-travel-subject']);
+    expect(order).toEqual(['time-travel-sha', 'time-travel-subject']);
     expect(info.querySelector('.time-travel-subject')!.textContent).toBe('head');
   });
 

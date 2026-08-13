@@ -20,15 +20,26 @@ varying float vCommitIndex;
 // NDC, and NDC z is nowhere near linear: far from the camera it buys a huge
 // distance, enough to pull a distant tree in front of whatever should hide it,
 // so trees popped into view while orbiting. Here it's the same small step at
-// any distance. Well under a trunk's width, so it can't reorder trees that are
-// genuinely apart, and it only has to beat the depth buffer's resolution.
-const float DEPTH_NUDGE = 0.05;
+// any distance.
+//
+// Quantised into rungs rather than taken raw. A raw hash spreads trees
+// continuously, so a pair can land a millionth of a unit apart, which the depth
+// buffer cannot tell from a tie: most pairs separated by far less than the
+// nudge suggests, and the fight came back on whichever pairs drew the short
+// straw. On a rung ladder, two trees either share a rung or clear each other by
+// a whole step.
+//
+// The whole ladder stays well under a trunk's width, so it can never reorder
+// trees that are genuinely apart. Trees that share a rung still fight: with
+// this many rungs that's roughly one overlapping pair in DEPTH_RUNGS.
+const float DEPTH_RUNGS = 32.0;
+const float DEPTH_RUNG = 0.02;
 
 void main() {
   vColor = color;
   vCommitIndex = aCommitIndex;
   vec4 eye = modelViewMatrix * vec4(position, 1.0);
   // The camera looks down -Z in eye space, so +Z is a step toward it.
-  eye.z += hash11(aCommitIndex) * DEPTH_NUDGE;
+  eye.z += floor(hash11(aCommitIndex) * DEPTH_RUNGS) * DEPTH_RUNG;
   gl_Position = projectionMatrix * eye;
 }

@@ -16,8 +16,8 @@ import {
 } from '@/state/stores/timeline';
 import { ACCENT_THEME } from '@/state/stores/settings/theme';
 import { SCRUBBER } from '@/state/stores/settings/scrubber';
-import { formatShortDate } from '@/utils/dates';
-import { commitUrl } from '@/utils/commit';
+import { formatFullDate, formatShortDate } from '@/utils/dates';
+import { showCommit } from '@/state/stores/scene';
 import {
   buildScrubberScale,
   commitFraction,
@@ -103,8 +103,6 @@ export function TimeTravelBar() {
   if (!mounted) return null;
 
   const commit = commits[Math.min(Math.round(pos), maxIndex)];
-  const remote = bundle?.unionManifest?.repo?.remote_url ?? null;
-  const url = remote ? commitUrl(remote, commit.sha) : null;
   const pct = indexToFraction(scale, pos) * 100;
 
   // "no commits" only when the handle is >4 days from the nearest commit (a real lull).
@@ -163,14 +161,6 @@ export function TimeTravelBar() {
   return (
     <div class="time-travel-bar surface-glass">
       <div class="time-travel-scrubber">
-        <button
-          type="button"
-          class="time-travel-edge"
-          title="Jump to the first commit"
-          onClick={() => setScrubPos(0)}
-        >
-          {formatShortDate(commits[0].date)}
-        </button>
         <div
           ref={trackRef}
           class={`time-travel-track${inert ? ' is-inert' : ''}`}
@@ -194,34 +184,39 @@ export function TimeTravelBar() {
           <canvas ref={canvasRef} class="time-travel-ticks" aria-hidden="true" />
           <div class="time-travel-handle" style={{ left: `${pct}%` }} />
         </div>
+      </div>
+      <div class="time-travel-axis">
         <button
           type="button"
           class="time-travel-edge"
-          title="Jump to the latest commit"
+          title={`Jump to the first commit: ${formatFullDate(commits[0].date)}`}
+          onClick={() => setScrubPos(0)}
+        >
+          {formatShortDate(commits[0].date)}
+        </button>
+        <span class="time-travel-date">{formatShortDate(inGap ? gapDay : commit.date)}</span>
+        <button
+          type="button"
+          class="time-travel-edge"
+          title={`Jump to the latest commit: ${formatFullDate(commits[maxIndex].date)}`}
           onClick={() => setScrubPos(maxIndex)}
         >
           {formatShortDate(commits[maxIndex].date)}
         </button>
       </div>
       <div class="time-travel-info">
-        <span class="time-travel-date">{formatShortDate(inGap ? gapDay : commit.date)}</span>
         {inGap ? (
           <span class="time-travel-subject time-travel-nocommit">no commits</span>
         ) : (
           <>
-            {url ? (
-              <a
-                class="time-travel-sha"
-                href={url}
-                target="_blank"
-                rel="noopener noreferrer"
-                title="View this commit on the remote"
-              >
-                {commit.sha.slice(0, 7)}
-              </a>
-            ) : (
-              <span class="time-travel-sha">{commit.sha.slice(0, 7)}</span>
-            )}
+            <button
+              type="button"
+              class="time-travel-sha"
+              title="Show this commit's details"
+              onClick={() => showCommit(commit.sha)}
+            >
+              {commit.sha.slice(0, 7)}
+            </button>
             <span class="time-travel-subject">{commit.subject || '(no subject)'}</span>
           </>
         )}

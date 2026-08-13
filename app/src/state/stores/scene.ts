@@ -127,6 +127,16 @@ export function goToCommit(sha: string): void {
   collapseDrawerOnPhone();
 }
 
+/** Show a commit's details, leaving the camera where it is. The timeline's sha
+ *  chip: you're already looking at what you want, and only the pane is missing.
+ *  goToPath's sibling for a control that isn't asking to travel. */
+export function showCommit(sha: string): void {
+  const handle = SCENE_HANDLE.peek();
+  if (!handle) return;
+  handle.picker.selectByCommit(sha);
+  openSelectionPane();
+}
+
 /** Reset the camera framing to the current mode's default pose. */
 export function resetView(): void {
   SCENE_HANDLE.peek()?.rig.reset();

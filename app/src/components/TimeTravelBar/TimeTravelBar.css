@@ -5,8 +5,11 @@
 .time-travel-bar {
   display: flex;
   flex-direction: column;
-  gap: var(--cc-space-4);
-  padding: var(--cc-space-5) var(--cc-space-5);
+  /* One leading for all three rows, so the gap between them is the gap and not
+     the gap plus whatever half-leading each row's type happened to carry. */
+  line-height: var(--cc-lh-tight);
+  gap: var(--cc-space-2);
+  padding: var(--cc-space-4) var(--cc-space-5);
   width: 100%;
   border-radius: var(--cc-radius-lg);
 }
@@ -15,17 +18,38 @@
 .time-travel-scrubber {
   display: flex;
   align-items: center;
+}
+
+/* The axis under the track: the history's two ends, and between them the date
+   you've scrubbed to. The commit itself gets the row below, so a long subject
+   can't crowd the dates. */
+.time-travel-axis {
+  display: grid;
+  /* The bookends take what they need and the middle takes the rest, rather than
+     the middle sizing to a commit subject and running over them. Both ends are
+     the same ten mono characters, so the middle still lands on the centre. */
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
   gap: var(--cc-space-4);
 }
 
-/* The two calendar bookends — click to jump to the first / latest commit.
-   Dimmed + uppercased like the reference; brighten on hover to signal clickable. */
+/* The two calendar bookends — click to jump to the first / latest commit. They
+   sit at the axis ends, so each hugs its own side rather than centring in the
+   column the grid gives it. Dimmed + uppercased like the reference; brighten on
+   hover to signal clickable. */
+.time-travel-edge:first-child {
+  justify-self: start;
+}
+.time-travel-edge:last-child {
+  justify-self: end;
+}
 .time-travel-edge {
-  flex: 0 0 auto;
   display: inline-flex;
   align-items: center;
-  min-height: var(--cc-tap-min);
+  /* No tap floor for a cursor: three stacked rows of 12px type shouldn't each
+     carry 32px of button around them. A finger gets it back below. */
   padding: 0 var(--cc-space-2);
+  line-height: inherit;
   border: 0;
   background: none;
   font-family: var(--cc-font-mono);
@@ -40,6 +64,14 @@
 
 .time-travel-edge:hover {
   color: var(--cc-accent);
+}
+
+/* COARSE_POINTER_QUERY (constants/breakpoints.ts): the bookends are buttons,
+   so a thumb needs the target a cursor doesn't. */
+@media (hover: none) and (pointer: coarse) {
+  .time-travel-edge {
+    min-height: var(--cc-tap-min);
+  }
 }
 
 /* The time axis, painted on the canvas: an accent played fill + past ticks
@@ -86,12 +118,18 @@
      has to be recomputed whenever the width changes. */
   transform: translateX(-50%);
   border-radius: var(--cc-radius-sm);
-  background: var(--cc-accent);
-  box-shadow: 0 0 2px color-mix(in oklch, var(--cc-accent) 30%, transparent);
+  /* White, not accent: the ticks are accent too, so an accent playhead read as
+     one of them. This is the one mark that says where you are. */
+  background: var(--cc-white);
+  box-shadow: 0 0 3px color-mix(in oklch, var(--cc-black) 60%, transparent);
   pointer-events: none;
 }
 
+/* The commit on the scrub's row of its own: sha then subject, centred under the
+   date it belongs to. */
 .time-travel-info {
+  justify-content: center;
+  min-width: 0;
   display: flex;
   align-items: center;
   gap: var(--cc-space-3);
@@ -104,26 +142,37 @@
 
 /* Date leads, bold + bright — the primary "where am I" anchor. */
 .time-travel-date {
+  justify-self: center;
   color: var(--cc-text-strong);
+  font-family: var(--cc-font-mono);
+  font-size: var(--cc-font-xs);
   font-weight: 600;
+  white-space: nowrap;
 }
 
 .time-travel-sha {
+  flex: 0 0 auto;
   color: var(--cc-text-secondary);
 }
 
-/* Linked, so it takes the pressable step; the bare span stays a readout. */
-a.time-travel-sha {
+/* Pressable, so it takes the brighter step; the bare span stays a readout. */
+button.time-travel-sha {
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
   color: var(--cc-text-strong);
+  cursor: pointer;
 }
-a.time-travel-sha:hover {
+button.time-travel-sha:hover {
   color: var(--cc-accent);
   text-decoration: underline;
 }
 
 .time-travel-subject {
-  flex: 1;
+  flex: 0 1 auto;
   min-width: 0;
+  white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   color: var(--cc-text-secondary);
