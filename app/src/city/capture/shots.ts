@@ -108,7 +108,7 @@ export const SHOTS: Record<string, ShotPose> = {
 
   // The whole city part-built at an older commit: enter Timeline mode, scrub to
   // mid-history, and frame the union city. No settings overrides — the shot
-  // reflects the defaults (deleted stubs on, future files off). loadTimelineScene
+  // reflects the defaults (deleted stubs on). loadTimelineScene
   // is async, so return false until the mode + bundle are live — the harness retries.
   timeline: (handle, _m, o) => {
     if (!TIMELINE_MODE.peek()) {

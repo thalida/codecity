@@ -122,7 +122,7 @@ export function attachBuildingMeshToCell(cell: CellTile): void {
     new THREE.InstancedBufferAttribute(new Float32Array(cell.capacity), 1)
   );
   // iKind: float render-mode enum (see BuildingKind) — Normal, Data (windowless
-  // binary), or Ruin/Future written by Timeline.
+  // binary), or Ruin written by Timeline.
   geom.setAttribute(
     'iKind',
     new THREE.InstancedBufferAttribute(new Float32Array(cell.capacity), 1)
@@ -216,7 +216,7 @@ export function writeBuildingToSlot(cell: CellTile, b: Building): void {
   const iDoorAttr = mesh.geometry.getAttribute('iDoor') as THREE.InstancedBufferAttribute;
   iDoorAttr.setXY(slot, orientToIndex(b.orient), b.w * doorWidthFrac);
 
-  // --- Render kind (Empty slab / Data windowless facade; Timeline overwrites Ruin/Future) ---
+  // --- Render kind (Empty slab / Data windowless facade; Timeline overwrites Ruin) ---
   // Empty first, so a 0-byte binary is a slab rather than a data block — same
   // precedence as getBuildingDimensions.
   const iKindAttr = mesh.geometry.getAttribute('iKind') as THREE.InstancedBufferAttribute;

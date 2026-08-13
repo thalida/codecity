@@ -15,7 +15,6 @@ import { GEM, GEM_SIZING, REPO_LABEL } from '@/state/stores/settings/gem';
 import { TREES } from '@/state/stores/settings/trees';
 import { FIREFLIES } from '@/state/stores/settings/fireflies';
 import { RUINS } from '@/state/stores/settings/ruins';
-import { BLUEPRINTS } from '@/state/stores/settings/blueprints';
 import { SCRUBBER } from '@/state/stores/settings/scrubber';
 import { RAINBOW, BLOOM } from '@/state/stores/settings/effects';
 import { getFieldKeys, isAutosave } from '@/state/settingsSchema';
@@ -51,7 +50,6 @@ const WORLD_STORES: [string, object][] = [
   ['TREES', TREES],
   ['FIREFLIES', FIREFLIES],
   ['RUINS', RUINS],
-  ['BLUEPRINTS', BLUEPRINTS],
   ['SCRUBBER', SCRUBBER],
   ['RAINBOW', RAINBOW],
   ['BLOOM', BLOOM],

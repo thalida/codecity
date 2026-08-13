@@ -11,7 +11,6 @@ import * as THREE from 'three';
 
 import { createStreets } from '@/city/components/streets';
 import {
-  FUTURE_STREET_DIRS,
   RUINED_STREET_DIRS,
   StreetTint,
   type StreetScrubState,
@@ -219,19 +218,16 @@ describe('applying a scrub frame', () => {
     streets = createStreets(makeSceneContext());
     streets.rebuild(threeStreetLayout());
     RUINED_STREET_DIRS.clear();
-    FUTURE_STREET_DIRS.clear();
   });
   afterEach(() => {
     streets?.dispose();
     RUINED_STREET_DIRS.clear();
-    FUTURE_STREET_DIRS.clear();
   });
 
   const scrub = (over: Partial<StreetScrubState> = {}): StreetScrubState => ({
     opacity: 1,
     tint: StreetTint.None,
     ruin: false,
-    future: false,
     ...over,
   });
 
@@ -244,7 +240,7 @@ describe('applying a scrub frame', () => {
       new Map([
         [ranges[0].street, scrub({ opacity: 1 })],
         [ranges[1].street, scrub({ opacity: 0.4, tint: StreetTint.Ruin, ruin: true })],
-        [ranges[2].street, scrub({ opacity: 0, tint: StreetTint.Future, future: true })],
+        [ranges[2].street, scrub({ opacity: 0, tint: StreetTint.None })],
       ])
     );
 
@@ -257,7 +253,7 @@ describe('applying a scrub frame', () => {
     expect(spanIs(ruin, asphaltRanges[1].vStart, asphaltRanges[1].vCount, StreetTint.Ruin)).toBe(
       true
     );
-    expect(spanIs(ruin, asphaltRanges[2].vStart, asphaltRanges[2].vCount, StreetTint.Future)).toBe(
+    expect(spanIs(ruin, asphaltRanges[2].vStart, asphaltRanges[2].vCount, StreetTint.None)).toBe(
       true
     );
   });
@@ -267,11 +263,10 @@ describe('applying a scrub frame', () => {
     streets.applyScrub(
       new Map([
         [ranges[1].street, scrub({ ruin: true, tint: StreetTint.Ruin })],
-        [ranges[2].street, scrub({ future: true, tint: StreetTint.Future })],
+        [ranges[2].street, scrub({ tint: StreetTint.None })],
       ])
     );
     expect([...RUINED_STREET_DIRS]).toEqual([ranges[1].street.dir.path]);
-    expect([...FUTURE_STREET_DIRS]).toEqual([ranges[2].street.dir.path]);
   });
 
   it('clears those sets each frame, so a resurrected folder becomes clickable again', () => {

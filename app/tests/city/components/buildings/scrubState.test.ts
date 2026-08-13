@@ -47,10 +47,9 @@ describe('lane', () => {
     ['while it exists', 2, {}, BuildingLane.Present],
     ['after deletion with ruins off', 3, {}, BuildingLane.Absent],
     ['after deletion with ruins on', 3, { ruinsOn: true }, BuildingLane.Ruin],
-    ['before genesis with blueprints on', 0.5, { futureOn: true }, BuildingLane.Future],
     // Nothing to ruin: the building is still ahead of its own genesis.
     ['before genesis with ruins on', 0, { ruinsOn: true }, BuildingLane.Absent],
-    ['after deletion with both on', 3, { ruinsOn: true, futureOn: true }, BuildingLane.Ruin],
+    ['after deletion with ruins on', 3, { ruinsOn: true }, BuildingLane.Ruin],
   ])('%s', (_label, pos, over, expected) => {
     expect(resolve(pos, over).lane).toBe(expected);
   });
@@ -86,7 +85,6 @@ describe('height', () => {
 
   it.each([
     ['a ruin is the uniform stub height, not the height it lived at', 3, { ruinsOn: true }, 1.4],
-    ['a future slab is the ultra-low blueprint height', 0.5, { futureOn: true }, 0.2],
   ])('%s', (_label, pos, over, expected) => {
     const state = resolve(pos, over);
     expect(state.height).toBe(expected);
@@ -118,10 +116,7 @@ describe('floors', () => {
     expect(late).toBe(getBuildingDimensions(file, LINE_STATS, BYTE_STATS).floors);
   });
 
-  it.each([
-    ['a ruin blanks its facade', 3, { ruinsOn: true }],
-    ['a future slab blanks its facade', 0.5, { futureOn: true }],
-  ])('%s', (_label, pos, over) => {
+  it.each([['a ruin blanks its facade', 3, { ruinsOn: true }]])('%s', (_label, pos, over) => {
     expect(resolve(pos, over).floors).toBe(0);
   });
 });
@@ -130,14 +125,9 @@ describe('opacity', () => {
   it.each([
     ['present is fully opaque', 2, {}, 1],
     ['a ruin takes the ruin setting', 3, { ruinsOn: true }, 0.3],
-    ['a future slab takes the blueprint setting', 0.5, { futureOn: true }, 0.2],
     ['absent is gone', 0.5, {}, 0],
   ])('%s', (_label, pos, over, expected) => {
     expect(resolve(pos, over).op).toBeCloseTo(expected, 5);
-  });
-
-  it('is uniform for a future slab however far ahead its creation is', () => {
-    expect(resolve(0, { futureOn: true }).op).toBe(resolve(0.9, { futureOn: true }).op);
   });
 
   it('drives the non-present lanes through the body channel and nothing else', () => {
@@ -178,7 +168,6 @@ describe('kind', () => {
   it.each([
     ['normal while present', 2, {}, BuildingKind.Normal],
     ['ruin once deleted', 3, { ruinsOn: true }, BuildingKind.Ruin],
-    ['future before genesis', 0.5, { futureOn: true }, BuildingKind.Future],
   ])('%s', (_label, pos, over, expected) => {
     expect(resolve(pos, over).kind).toBe(expected);
   });
@@ -195,22 +184,6 @@ describe('kind', () => {
     const subject = scrubSubject(emptyThenBig, makeFile({ path: 'e.txt' }));
     expect(resolve(0.5, {}, NO_COMMIT_MS, subject).kind).toBe(BuildingKind.Empty);
     expect(resolve(1, {}, NO_COMMIT_MS, subject).kind).toBe(BuildingKind.Normal);
-  });
-
-  it('outranks emptiness with ruin and future, so a state change always resets it', () => {
-    const alwaysEmpty = makeBundle({
-      commits: [{ sha: 'a' }, { sha: 'b' }, { sha: 'c' }],
-      deltas: [
-        { sha: 'a', changes: [] },
-        { sha: 'b', changes: [{ path: 'e.txt', sha: 'zero' }] },
-        { sha: 'c', changes: [{ path: 'e.txt', sha: null }] },
-      ],
-      blobLines: { zero: 0 },
-    } as never);
-    const subject = scrubSubject(alwaysEmpty, makeFile({ path: 'e.txt', lines: 0 }));
-    expect(resolve(1, {}, NO_COMMIT_MS, subject).kind).toBe(BuildingKind.Empty);
-    expect(resolve(2, { ruinsOn: true }, NO_COMMIT_MS, subject).kind).toBe(BuildingKind.Ruin);
-    expect(resolve(0, { futureOn: true }, NO_COMMIT_MS, subject).kind).toBe(BuildingKind.Future);
   });
 });
 
@@ -280,27 +253,6 @@ describe('weathering', () => {
     const state = resolve(0.5, spread, commitMs);
     expect(state.lane).toBe(BuildingLane.Absent);
     expect(state.colorBase).toBe('');
-  });
-
-  it('pulls a ruin toward gray and a future slab toward the blueprint colour', () => {
-    const ruin = resolve(3, { ...spread, ruinsOn: true, ruinGrayMix: 0.8 }, commitMs);
-    expect(ruin.colorToward).toEqual({ r: 0.3, g: 0.31, b: 0.34 });
-    expect(ruin.colorMix).toBe(0.8);
-
-    const futureColor = { r: 0, g: 0.5, b: 1 };
-    const future = resolve(
-      0.5,
-      { ...spread, futureOn: true, futureTint: 0.7, futureColor },
-      commitMs
-    );
-    expect(future.colorToward).toBe(futureColor);
-    expect(future.colorMix).toBe(0.7);
-  });
-
-  it('samples a ruin and a future slab at mid-recency: neither sits on the date curve', () => {
-    const mid = getBuildingColorForRecency(file, 0.5);
-    expect(resolve(3, { ...spread, ruinsOn: true }, commitMs).colorBase).toBe(mid);
-    expect(resolve(0.5, { ...spread, futureOn: true }, commitMs).colorBase).toBe(mid);
   });
 });
 

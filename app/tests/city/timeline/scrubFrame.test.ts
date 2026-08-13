@@ -1,22 +1,19 @@
 // Reading the world into a frame. The one module that touches the scrub
-// position, the ruin/blueprint settings and the picker, so also the only place
+// position, the ruin settings and the picker, so also the only place
 // those still have to be driven into position.
 
-import * as THREE from 'three';
 import { describe, it, expect, afterEach, beforeEach } from 'vitest';
 import { signal } from '@preact/signals';
 
-import { FUTURE_SLAB_FLOORS, readScrubFrame } from '@/city/timeline/scrubFrame';
+import { readScrubFrame } from '@/city/timeline/scrubFrame';
 import type { ScrubFrameDeps } from '@/city/timeline/scrubFrame';
 import { TIMELINE_BUNDLE, setScrubPos } from '@/state/stores/timeline';
 import { BUILDING_DIMENSIONS } from '@/state/stores/settings/buildings';
 import { RUINS } from '@/state/stores/settings/ruins';
-import { BLUEPRINTS } from '@/state/stores/settings/blueprints';
 import { NodeKind } from '@/types';
 import type { FileNode, PickTarget, RangeStat, Street, TimelineBundle } from '@/types';
 
 const _ruins = RUINS.peek();
-const _blueprints = BLUEPRINTS.peek();
 
 // SCRUB_POS clamps against the loaded bundle, so a position past 0 is only
 // reachable with one loaded.
@@ -27,7 +24,6 @@ beforeEach(() => {
 });
 afterEach(() => {
   RUINS.value = _ruins;
-  BLUEPRINTS.value = _blueprints;
   setScrubPos(0);
   TIMELINE_BUNDLE.value = null;
 });
@@ -92,30 +88,6 @@ describe('the ruin settings', () => {
     expect(frame.ruinsOn).toBe(true);
     expect(frame.ruinHeight).toBeCloseTo(0.5 * BUILDING_DIMENSIONS.peek().FLOOR_HEIGHT, 5);
     expect(frame.ruinBuildingOpacity).toBe(0.3);
-  });
-});
-
-describe('the blueprint settings', () => {
-  it('resolves the slab height from the fixed floor count', () => {
-    BLUEPRINTS.value = { ..._blueprints, ENABLED: true, BUILDING_OPACITY: 0.2 };
-    const frame = at(0);
-    expect(frame.futureOn).toBe(true);
-    expect(frame.futureHeight).toBeCloseTo(
-      FUTURE_SLAB_FLOORS * BUILDING_DIMENSIONS.peek().FLOOR_HEIGHT,
-      5
-    );
-    expect(frame.futureBuildingOpacity).toBe(0.2);
-  });
-
-  it('converts the blueprint colour into working space, ready to lerp toward', () => {
-    // Components rather than the CSS string keep the decision free of THREE, so
-    // the conversion has to happen exactly once, here.
-    BLUEPRINTS.value = { ..._blueprints, BUILDING_COLOR: '#3366ff' };
-    const expected = new THREE.Color('#3366ff');
-    const { futureColor } = at(0);
-    expect(futureColor.r).toBeCloseTo(expected.r, 6);
-    expect(futureColor.g).toBeCloseTo(expected.g, 6);
-    expect(futureColor.b).toBeCloseTo(expected.b, 6);
   });
 });
 

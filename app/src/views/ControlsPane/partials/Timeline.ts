@@ -1,11 +1,10 @@
 // views/ControlsPane/partials/Timeline.ts — Timeline section. How the scene
-// represents files that don't exist at the scrubbed commit: deleted files (a
-// faint gray stub) and future files (an ultra-low tinted slab). One accordion
-// with a subgroup per representation. Draft-backed like the rest of the World tab
-// (applies on Save); only meaningful in Timeline mode.
+// represents a file that doesn't exist at the scrubbed commit: a deleted one
+// leaves a faint gray stub, and one that hasn't been written yet simply isn't
+// there. Draft-backed like the rest of the World tab (applies on Save); only
+// meaningful in Timeline mode.
 import { field, type SectionNode } from '.';
 import { RUINS } from '@/state/stores/settings/ruins';
-import { BLUEPRINTS } from '@/state/stores/settings/blueprints';
 import { SCRUBBER } from '@/state/stores/settings/scrubber';
 
 export const TIMELINE_SECTION: SectionNode = {
@@ -35,20 +34,6 @@ export const TIMELINE_SECTION: SectionNode = {
         field(RUINS, 'X_WIDTH'),
         field(RUINS, 'ROAD_COLOR'),
         field(RUINS, 'SIDEWALK_COLOR'),
-      ],
-    },
-    {
-      key: 'timeline-future',
-      label: 'Future files',
-      description:
-        'A file created after the scrubbed commit shows as an ultra-low tinted slab where it will land; its folder’s roads tint in too.',
-      children: [
-        field(BLUEPRINTS, 'ENABLED'),
-        field(BLUEPRINTS, 'BUILDING_OPACITY'),
-        field(BLUEPRINTS, 'BUILDING_COLOR'),
-        field(BLUEPRINTS, 'BUILDING_TINT'),
-        field(BLUEPRINTS, 'ROAD_COLOR'),
-        field(BLUEPRINTS, 'SIDEWALK_COLOR'),
       ],
     },
   ],

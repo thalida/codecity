@@ -3,7 +3,6 @@ import { NodeKind } from '@/types';
 import type { TimelineBundle, TreeNode } from '@/types';
 import { TIMELINE_MODE, TIMELINE_BUNDLE, setScrubPos } from '@/state/stores/timeline';
 import { RUINS } from '@/state/stores/settings/ruins';
-import { BLUEPRINTS } from '@/state/stores/settings/blueprints';
 import { HISTORY_MANIFEST } from '@/state/stores/historyManifest';
 
 // At commit 2: present.txt present, gone.txt deleted, future/y.txt not yet created.
@@ -77,7 +76,6 @@ test('present-only regardless of the ruins / future toggles', () => {
   TIMELINE_MODE.value = true;
   setScrubPos(2);
   RUINS.value = { ...RUINS.value, ENABLED: true };
-  BLUEPRINTS.value = { ...BLUEPRINTS.value, ENABLED: true };
 
   const p = paths(HISTORY_MANIFEST.value);
   expect(p.has('gone.txt')).toBe(false);

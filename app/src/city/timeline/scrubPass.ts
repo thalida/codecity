@@ -98,7 +98,7 @@ export function createScrubPass(deps: ScrubPassDeps) {
 
     // Every street each frame, so an orphan cannot stick at a stale opacity.
     streetStates.clear();
-    const flags = { ruinsOn: frame.ruinsOn, futureOn: frame.futureOn };
+    const flags = { ruinsOn: frame.ruinsOn };
     for (const street of allStreets) {
       streetStates.set(street, resolveStreetScrubState(street, rollup, flags));
     }

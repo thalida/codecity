@@ -7,7 +7,6 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { STREETS } from '@/state/stores/settings/streets';
 import { RUINS } from '@/state/stores/settings/ruins';
-import { BLUEPRINTS } from '@/state/stores/settings/blueprints';
 import { ASPHALT_WIDTH_FRAC } from '@/constants/streets';
 import { RENDER_ORDERS } from '@/city/types/renderOrders';
 import { setColorFromHex } from '@/city/utils/color/setColorFromHex';
@@ -26,11 +25,11 @@ const STADIUM_SEGMENTS = 16;
 
 // Per-vertex alpha via onBeforeCompile; transparent stays false so live mode is
 // byte-identical. When `tintUniforms` is passed the shader also tints per-vertex
-// (aRuin: 1 = deleted folder → ruin color, 2 = future folder → future color),
+// (aRuin: 1 = deleted folder → ruin color),
 // for Timeline mode — aRuin stays 0 in live mode, so the result is unchanged there.
 function injectStreetOpacity(
   mat: THREE.MeshBasicMaterial,
-  tintUniforms?: { ruin: { value: THREE.Color }; future: { value: THREE.Color } }
+  tintUniforms?: { ruin: { value: THREE.Color } }
 ): void {
   // Distinguishes this variant in three's program cache so a plain MeshBasicMaterial
   // with the same param signature can't collide and skip the onBeforeCompile injection.
@@ -38,7 +37,6 @@ function injectStreetOpacity(
   mat.onBeforeCompile = (shader) => {
     if (tintUniforms) {
       shader.uniforms.uRuinColor = tintUniforms.ruin;
-      shader.uniforms.uFutureColor = tintUniforms.future;
     }
     const tintDecl = tintUniforms ? '\nattribute float aRuin;\nvarying float vRuin;' : '';
     const tintAssign = tintUniforms ? '\nvRuin = aRuin;' : '';
@@ -51,11 +49,9 @@ function injectStreetOpacity(
         '#include <begin_vertex>',
         `#include <begin_vertex>\nvOpacity = aOpacity;${tintAssign}`
       );
-    const fragDecl = tintUniforms
-      ? '\nvarying float vRuin;\nuniform vec3 uRuinColor;\nuniform vec3 uFutureColor;'
-      : '';
+    const fragDecl = tintUniforms ? '\nvarying float vRuin;\nuniform vec3 uRuinColor;' : '';
     const fragMix = tintUniforms
-      ? 'gl_FragColor.rgb = mix(gl_FragColor.rgb, vRuin > 1.5 ? uFutureColor : uRuinColor, step(0.5, vRuin));\n'
+      ? 'gl_FragColor.rgb = mix(gl_FragColor.rgb, uRuinColor, step(0.5, vRuin));\n'
       : '';
     shader.fragmentShader = shader.fragmentShader
       .replace('#include <common>', `#include <common>\nvarying float vOpacity;${fragDecl}`)
@@ -251,8 +247,8 @@ export function createMergedSidewalkMesh(
   }
   merged.setAttribute('color', new THREE.BufferAttribute(colors, 3));
   seedOpacityAttribute(merged);
-  // Per-vertex Timeline tint (0 none, 1 deleted, 2 future), written per-street by
-  // the scrub controller so the sidewalk border reads in the deleted/future color.
+  // Per-vertex Timeline tint (0 none, 1 deleted), written per-street by the
+  // scrub controller so the sidewalk border reads in the deleted color.
   // All 0 in live mode, where the vertex color (hover/select) shows unchanged.
   merged.setAttribute('aRuin', new THREE.BufferAttribute(new Float32Array(vAcc), 1));
 
@@ -267,11 +263,8 @@ export function createMergedSidewalkMesh(
   // Sidewalk border tint uses SIDEWALK_COLOR (distinct from the asphalt's road color).
   const ruinUniform = { value: new THREE.Color() };
   setColorFromHex(ruinUniform.value, RUINS.value.SIDEWALK_COLOR);
-  const futureUniform = { value: new THREE.Color() };
-  setColorFromHex(futureUniform.value, BLUEPRINTS.value.SIDEWALK_COLOR);
-  injectStreetOpacity(mat, { ruin: ruinUniform, future: futureUniform });
+  injectStreetOpacity(mat, { ruin: ruinUniform });
   mat.userData.uRuinColor = ruinUniform;
-  mat.userData.uFutureColor = futureUniform;
   const mesh = new THREE.Mesh(merged, mat) as FlatMesh;
   mesh.renderOrder = RENDER_ORDERS.SIDEWALK;
   mesh.name = 'city-sidewalk';
@@ -347,8 +340,8 @@ export function createMergedAsphaltMesh(
   const merged = mergeGeometries(geos, false);
   for (const g of geos) g.dispose();
   seedOpacityAttribute(merged);
-  // Per-vertex Timeline tint (0 none, 1 deleted folder → ruin color, 2 future
-  // folder → future color), written per-street by the scrub controller. All 0 in
+  // Per-vertex Timeline tint (0 none, 1 deleted folder → ruin color), written
+  // per-street by the scrub controller. All 0 in
   // live mode.
   merged.setAttribute('aRuin', new THREE.BufferAttribute(new Float32Array(vAcc), 1));
   const mat = flatGroundMaterial(STREETS.value.ASPHALT_COLOR, RENDER_ORDERS.ASPHALT);
@@ -356,11 +349,8 @@ export function createMergedAsphaltMesh(
   // effects, which keep .value current on a Save. Stored on userData for them.
   const ruinUniform = { value: new THREE.Color() };
   setColorFromHex(ruinUniform.value, RUINS.value.ROAD_COLOR);
-  const futureUniform = { value: new THREE.Color() };
-  setColorFromHex(futureUniform.value, BLUEPRINTS.value.ROAD_COLOR);
-  injectStreetOpacity(mat, { ruin: ruinUniform, future: futureUniform });
+  injectStreetOpacity(mat, { ruin: ruinUniform });
   mat.userData.uRuinColor = ruinUniform;
-  mat.userData.uFutureColor = futureUniform;
   const mesh = new THREE.Mesh(merged, mat) as FlatMesh;
   mesh.renderOrder = RENDER_ORDERS.ASPHALT;
   mesh.name = 'city-asphalt';

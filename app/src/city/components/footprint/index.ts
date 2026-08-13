@@ -121,16 +121,12 @@ export function createFootprint(ctx: SceneContext): Footprint {
   // IS its tinted slab, so it gets no plot at all.
   function applyScrub(states: ScrubStates): void {
     for (const [path, s] of states.buildings) {
-      setBuildingFootprintOpacity(
-        path,
-        s.lane === BuildingLane.Future ? 0 : s.op,
-        s.lane === BuildingLane.Ruin
-      );
+      setBuildingFootprintOpacity(path, s.op, s.lane === BuildingLane.Ruin);
     }
     for (const [street, st] of states.streets) {
       const dir = street.dir?.path;
       if (dir == null) continue;
-      setStreetFootprintOpacity(dir, st.future ? 0 : st.opacity, st.ruin);
+      setStreetFootprintOpacity(dir, st.opacity, st.ruin);
     }
   }
 

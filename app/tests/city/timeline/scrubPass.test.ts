@@ -6,7 +6,6 @@
 import { describe, it, expect } from 'vitest';
 
 import { createScrubPass } from '@/city/timeline/scrubPass';
-import { BuildingLane } from '@/city/components/buildings/scrubState';
 import { StreetTint } from '@/city/components/streets/scrubState';
 import { BuildingIndex } from '@/city/components/buildings/buildingIndex';
 import { buildPathTimelines } from '@/city/timeline/replay';
@@ -133,12 +132,6 @@ describe('the building states', () => {
   it('keys by file path and covers every union building', () => {
     const states = makeCity(PATHS, BY_DIR).run(makeScrubFrame({ pos: 2 }));
     expect([...states.buildings.keys()].sort()).toEqual(PATHS);
-  });
-
-  it('derives genesis from the timeline, so the future lane keys off the real creation', () => {
-    const states = makeCity(PATHS, BY_DIR).run(makeScrubFrame({ pos: 0, futureOn: true }));
-    expect(states.buildings.get('d/f1.txt')!.lane).toBe(BuildingLane.Future);
-    expect(states.buildings.get('d/f1.txt')!.op).toBeCloseTo(0.2, 5);
   });
 
   it('skips a building with no timeline rather than inventing one', () => {

@@ -38,9 +38,8 @@ flat varying int vKind;          // Render-mode enum (BuildingKind).
 flat varying vec3 vRefColor;     // un-aged colour (linear RGB), for the roof border
 const int KIND_NORMAL = 0;
 const int KIND_RUIN = 1;   // crumbled stub (Timeline)
-const int KIND_FUTURE = 2; // blank slab (Timeline)
-const int KIND_DATA = 3;   // windowless binary facade
-const int KIND_EMPTY = 4;  // 0-byte file → flat slab
+const int KIND_DATA = 2;   // windowless binary facade
+const int KIND_EMPTY = 3;  // 0-byte file → flat slab
 
 // Face indices (BoxGeometry material-slot order), mirroring building.vert.
 const int FACE_EAST = 0;   // +X
@@ -456,7 +455,7 @@ vec4 renderWallFace() {
   vec3 withWin  = mix(wallOut, winColor, winMask);
 
   // Door: ground floor of the door face only. Replaces windows for that row.
-  // Only Normal buildings get a door; ruin/future/data facades are blank.
+  // Only Normal buildings get a door; ruin and data facades are blank.
   if (isDoorFace() && onGroundFloor && vKind == KIND_NORMAL) {
     // Door world-width / face world-width = door UV width.
     // vScale = (w, h, d) recovered from instance matrix columns.
@@ -597,7 +596,7 @@ vec4 compositeOutline(vec4 body) {
 void main() {
   // Ghost-ruin: keep all four walls AND a roof (not a hollow open-top shell),
   // but punch sparse "missing brick" holes into the walls plus a jagged top-rim
-  // nibble so it reads as broken. Roof + bottom stay solid; future slab excluded.
+  // nibble so it reads as broken. Roof + bottom stay solid.
   if (vKind == KIND_RUIN && isWallFace()) {
     float seed = float(vFace) * RUIN_FACE_SEED;
     if (hash21(floor(vUv * RUIN_BRICK_CELLS) + seed) < RUIN_HOLE_CHANCE) discard; // missing bricks
@@ -612,7 +611,7 @@ void main() {
   else                        body = renderWallFace();
   vec4 outColor = compositeOutline(body);
 
-  // Ruin facade: coarse grime so the blank stub looks weathered, not painted. Ruins only, not the future slab.
+  // Ruin facade: coarse grime so the blank stub looks weathered, not painted.
   if (vKind == KIND_RUIN) outColor.rgb *= RUIN_GRIME_FLOOR + RUIN_GRIME_RANGE * hash21(floor(vUv * RUIN_GRIME_CELLS));
 
   // Buildings sit on the ground (base y = 0), so vScale.y normalizes worldPos.y

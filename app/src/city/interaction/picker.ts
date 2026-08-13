@@ -9,7 +9,7 @@ import { NodeKind } from '@/types';
 import { sidewalkStreetForFace } from '@/city/components/streets/streets';
 import { BuildingKind } from '@/city/components/buildings/buildingKind';
 import { TIMELINE_MODE, SCRUB_POS } from '@/state/stores/timeline';
-import { RUINED_STREET_DIRS, FUTURE_STREET_DIRS } from '@/city/components/streets/scrubState';
+import { RUINED_STREET_DIRS } from '@/city/components/streets/scrubState';
 
 import type { PickTarget, PickerWorld, PickerSelectionKey } from '@/types';
 import type { CityState } from '@/city/state';
@@ -269,13 +269,12 @@ export function createPicker({
   const SCRUB_HIDE_EPS = 0.02;
   const _scrubMatrix = new THREE.Matrix4();
 
-  // Only a Future slab is unpickable (a marker for a not-yet-created file); ruins
-  // and data buildings stay selectable. Presence is iFade.x (shader opacity).
+  // Scrubbed away means invisible, and invisible means unpickable. Ruins and
+  // data buildings stay selectable: they're drawn. Presence is iFade.x (shader
+  // opacity).
   function _buildingScrubHidden(mesh: THREE.InstancedMesh, slot: number): boolean {
     const iFade = mesh.geometry.getAttribute('iFade') as THREE.BufferAttribute | undefined;
-    if (iFade && iFade.getX(slot) < SCRUB_HIDE_EPS) return true;
-    const iKind = mesh.geometry.getAttribute('iKind') as THREE.BufferAttribute | undefined;
-    return !!iKind && Math.round(iKind.getX(slot)) === BuildingKind.Future;
+    return !!iFade && iFade.getX(slot) < SCRUB_HIDE_EPS;
   }
 
   // A visible ghost-ruin building (for the hover tooltip's "ruin" note).
@@ -399,9 +398,6 @@ export function createPicker({
     if (TIMELINE_MODE.peek() && _streetScrubHidden(mesh, hit.face?.a)) return null;
     const street = sidewalkStreetForFace(hit.object, hit.faceIndex ?? 0);
     if (!street?.dir) return null;
-    // A future folder's road is only a pad: it does not exist at this scrub
-    // position, so it is not selectable.
-    if (TIMELINE_MODE.peek() && FUTURE_STREET_DIRS.has(street.dir.path)) return null;
     return {
       kind: NodeKind.Directory,
       sidewalk: mesh,

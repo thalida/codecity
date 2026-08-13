@@ -21,19 +21,17 @@ import { getBuildingColorForRecency } from './color';
 import { tierFor } from './fadeTiers';
 import { getBuildingTiltAtAge } from './tilt';
 
-/** PathState read through the ruin/blueprint settings, hence the fourth value.
+/** PathState read through the ruin settings.
  *  Absent is still driven every frame, or a Live fade sweep lingers on it. */
 export const BuildingLane = {
   Absent: 0,
   Present: 1,
   Ruin: 2,
-  Future: 3,
 } as const;
 export type BuildingLane = (typeof BuildingLane)[keyof typeof BuildingLane];
 
 // Neither has a date here, so both sample their own hue at mid-recency.
 const RUIN_BASE_RECENCY = 0.5;
-const FUTURE_BASE_RECENCY = 0.5;
 const RUIN_GRAY: ColorTriple = { r: 0.3, g: 0.31, b: 0.34 };
 
 export interface BuildingScrubState {
@@ -41,7 +39,7 @@ export interface BuildingScrubState {
   /** Lane opacity before the neighborhood fade. Footprint plots track this. */
   op: number;
   height: number;
-  /** Window rows; a ruin and a future slab both blank their facade. */
+  /** Window rows; a ruin blanks its facade. */
   floors: number;
   tiltX: number;
   tiltZ: number;
@@ -95,9 +93,7 @@ export function blankBuildingScrubState(): BuildingScrubState {
 function laneAt(input: BuildingScrubInput, f: ScrubFrame): BuildingLane {
   const state = ruinStateAt(input.pt, f.pos);
   if (state === PathState.Present) return BuildingLane.Present;
-  // A deleted file is never a blueprint: it did exist, it just doesn't now.
   if (state === PathState.Ruin) return f.ruinsOn ? BuildingLane.Ruin : BuildingLane.Absent;
-  if (f.futureOn && input.createdIdx > f.pos) return BuildingLane.Future;
   return BuildingLane.Absent;
 }
 
@@ -120,7 +116,6 @@ function createdMsFor(input: BuildingScrubInput, commitMs: readonly number[]): n
 /** Recomputed every frame so a lane change resets it. */
 function kindFor(file: FileNode, emptyFile: FileNode, lane: BuildingLane): number {
   if (lane === BuildingLane.Ruin) return BuildingKind.Ruin;
-  if (lane === BuildingLane.Future) return BuildingKind.Future;
   if (isEmptyFile(emptyFile)) return BuildingKind.Empty;
   if (isDataBuilding(file)) return BuildingKind.Data;
   return BuildingKind.Normal;
@@ -141,9 +136,7 @@ export function resolveBuildingScrubState(
     ? presenceAt(pt, f.pos, 0)
     : lane === BuildingLane.Ruin
       ? f.ruinBuildingOpacity
-      : lane === BuildingLane.Future
-        ? f.futureBuildingOpacity
-        : 0;
+      : 0;
 
   const createdMs = createdMsFor(input, commitMs);
   out.createdAge =
@@ -165,8 +158,7 @@ export function resolveBuildingScrubState(
     out.tiltZ = tilt.tiltZ;
   } else {
     // Stub or slab: the blank facade is what makes each read as what it is.
-    out.height =
-      lane === BuildingLane.Ruin ? f.ruinHeight : lane === BuildingLane.Future ? f.futureHeight : 0;
+    out.height = lane === BuildingLane.Ruin ? f.ruinHeight : 0;
     out.floors = 0;
     out.tiltX = 0;
     out.tiltZ = 0;
@@ -195,14 +187,10 @@ export function resolveBuildingScrubState(
     out.outlineOp = 0;
     out.modifiedAge = 0;
     if (lane === BuildingLane.Ruin) {
-      // Both lanes keep a muted memory of the file's own hue.
+      // A ruin keeps a muted memory of the file's own hue.
       out.colorBase = getBuildingColorForRecency(b.file, RUIN_BASE_RECENCY);
       out.colorToward = RUIN_GRAY;
       out.colorMix = f.ruinGrayMix;
-    } else if (lane === BuildingLane.Future) {
-      out.colorBase = getBuildingColorForRecency(b.file, FUTURE_BASE_RECENCY);
-      out.colorToward = f.futureColor;
-      out.colorMix = f.futureTint;
     } else {
       out.colorBase = '';
       out.colorToward = null;
