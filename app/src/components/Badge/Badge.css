@@ -22,8 +22,11 @@
 }
 
 /* Commits are the one kind with no usable object color (see Badge.tsx), so this
-   variant is painted from chrome tokens rather than inline from the scene. */
+   variant is painted from theme tokens rather than inline from the scene. It has
+   to sit ABOVE the surface, not below: a fill darker than the pane reads as a
+   hole, its edge disappears, and the gap to the identifier then looks wider than
+   a file badge's by the badge's own padding. */
 .path-badge.is-commit {
-  background: var(--cc-bg-chrome);
-  color: var(--cc-text-primary);
+  background: var(--cc-track-hover);
+  color: var(--cc-text-strong);
 }
