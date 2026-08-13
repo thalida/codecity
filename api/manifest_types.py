@@ -204,10 +204,12 @@ class DirLeader(TypedDict):
 
 
 class CommitLeader(TypedDict):
-    """The commit that wins a superlative (most / fewest files changed)."""
+    """The commit that wins a superlative (most / fewest files changed, or an
+    end of the history)."""
 
     sha: str
     files: int
+    date: str
 
 
 class CommitDateRange(TypedDict):

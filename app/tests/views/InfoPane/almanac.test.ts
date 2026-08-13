@@ -357,8 +357,10 @@ describe('computeAlmanac — streets, forest, fireflies', () => {
       path: 'src/new',
       created: '2024-08-09T00:00:00Z',
     },
-    maxFilesPerCommit: { sha: 'bbb', files: 40 },
-    minFilesPerCommit: { sha: 'ccc', files: 1 },
+    maxFilesPerCommit: { sha: 'bbb', files: 40, date: '2022-01-02' },
+    minFilesPerCommit: { sha: 'ccc', files: 1, date: '2022-01-03' },
+    oldestCommit: { sha: 'aaa', files: 2, date: '2022-01-01' },
+    newestCommit: { sha: 'ddd', files: 5, date: '2022-02-10' },
     commitCount: 4,
     maxCommitsPerDay: { date: '2022-01-02', count: 3 },
     maxCommitStreakDays: 3,
@@ -413,6 +415,17 @@ describe('computeAlmanac — streets, forest, fireflies', () => {
     const b = computeAlmanac(manifest(tree, { commits, stats: EMPTY_REPO_STATS }))!;
     const streets = b.sections.find((s) => s.key === 'streets')!;
     expect(streets.facts.some((f) => f.label === 'Oldest')).toBe(false);
+  });
+
+  // The history's ends lead the section and are rows you can visit: the date is
+  // what you read, the sha is how the camera gets there.
+  it('opens the forest with visitable first and latest commits', () => {
+    const forest = section('forest');
+    expect(forest.facts[0].label).toBe('First');
+    expect(forest.facts[1].label).toBe('Latest');
+    expect(forest.facts[0].landmark).toEqual({ kind: 'commit', id: 'aaa' });
+    expect(forest.facts[1].landmark).toEqual({ kind: 'commit', id: 'ddd' });
+    expect(forest.facts[0].secondary).toBe('aaa');
   });
 
   it('longest streak counts consecutive days', () => {

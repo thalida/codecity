@@ -181,6 +181,9 @@ class DirLeader(BaseModel):
 class CommitLeader(BaseModel):
     sha: str
     files: int
+    # The commit's own date, so a leader can be shown by when it happened
+    # rather than only by what it changed.
+    date: str
 
 
 # Both fields required-nullable: the scanner always emits them (null for a repo
@@ -236,6 +239,8 @@ class RepoStats(BaseModel):
     newestCreatedDir: Optional[DirLeader]
     maxFilesPerCommit: Optional[CommitLeader]
     minFilesPerCommit: Optional[CommitLeader]
+    oldestCommit: Optional[CommitLeader]
+    newestCommit: Optional[CommitLeader]
     commitCount: int = Field(
         description="Commits in the full history, however many `commits` carries"
     )

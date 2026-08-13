@@ -198,8 +198,22 @@ def test_commit_leaders_authors_and_streak():
         },
     ]
     s = compute_repo_stats(_dir("repo", "", [_file("a.ts")]), commits)
-    assert s["maxFilesPerCommit"] == {"sha": "bbb", "files": 40}
-    assert s["minFilesPerCommit"] == {"sha": "ccc", "files": 1}
+    assert s["maxFilesPerCommit"] == {
+        "sha": "bbb",
+        "files": 40,
+        "date": "2022-01-02",
+    }
+    # The history's ends carry their sha, so the almanac can fly the camera to
+    # the tree rather than only naming a date.
+    assert s["oldestCommit"]["sha"] == "aaa"
+    assert s["oldestCommit"]["date"] == "2022-01-01"
+    assert s["newestCommit"]["sha"] == "ddd"
+    assert s["newestCommit"]["date"] == "2022-02-10"
+    assert s["minFilesPerCommit"] == {
+        "sha": "ccc",
+        "files": 1,
+        "date": "2022-01-03",
+    }
     assert s["commitDates"] == {"oldest": "2022-01-01", "newest": "2022-02-10"}
     assert s["maxCommitsPerDay"]["count"] == 2
     assert s["maxCommitStreakDays"] == 3

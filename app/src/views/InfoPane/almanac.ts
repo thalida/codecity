@@ -222,6 +222,28 @@ function commitFact(o: {
   };
 }
 
+const SHORT_SHA_LEN = 7;
+
+/** A commit shown by its date rather than its sha: for the history's ends, when
+ *  it happened is the point. Still a landmark, so the row flies you to the tree
+ *  like every other commit row. */
+function commitDateFact(o: {
+  label: string;
+  leader: CommitLeader | null;
+  tip: string;
+  group?: string;
+}): AlmanacFact | null {
+  if (!o.leader) return null;
+  return {
+    label: o.label,
+    primary: formatShortDate(o.leader.date),
+    secondary: o.leader.sha.slice(0, SHORT_SHA_LEN),
+    tip: o.tip,
+    group: o.group,
+    landmark: { kind: NodeKind.Commit, id: o.leader.sha },
+  };
+}
+
 function statFact(o: {
   label: string;
   primary: string;
@@ -493,7 +515,6 @@ function streetsSection(m: Manifest): AlmanacSection {
 
 function forestSection(m: Manifest, treesEnabled: boolean): AlmanacSection {
   const trees = m.commits.length;
-  const cd = m.stats.commitDates;
   const base = layerHeader('forest');
   // Canopies fly the camera to a tree; with the Trees layer off those targets
   // don't exist, so the notice lives here (not the view) like any empty state.
@@ -509,6 +530,18 @@ function forestSection(m: Manifest, treesEnabled: boolean): AlmanacSection {
   }
   const s = m.stats;
   const facts = compact([
+    commitDateFact({
+      group: 'History',
+      label: 'First',
+      leader: s.oldestCommit,
+      tip: 'Oldest commit: the tree at the heart of the forest.',
+    }),
+    commitDateFact({
+      group: 'History',
+      label: 'Latest',
+      leader: s.newestCommit,
+      tip: 'Newest commit: the tree at the forest edge.',
+    }),
     commitFact({
       group: 'Canopy',
       label: 'Sparsest',
@@ -536,24 +569,6 @@ function forestSection(m: Manifest, treesEnabled: boolean): AlmanacSection {
       primary: pluralize(s.maxCommitStreakDays, 'consecutive day'),
       tip: 'Longest run of consecutive days with commits.',
     }),
-    // Their own group, so the two bind to each other as a duo rather than
-    // joining Activity's run above them.
-    cd.oldest
-      ? statFact({
-          group: 'History',
-          label: 'First',
-          primary: formatShortDate(cd.oldest),
-          tip: 'Date of the oldest commit: the tree at the heart of the forest.',
-        })
-      : null,
-    cd.newest
-      ? statFact({
-          group: 'History',
-          label: 'Latest',
-          primary: formatShortDate(cd.newest),
-          tip: 'Date of the newest commit: the tree at the forest edge.',
-        })
-      : null,
   ]);
   return { ...base, facts };
 }

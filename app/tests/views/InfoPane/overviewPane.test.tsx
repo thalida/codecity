@@ -86,8 +86,10 @@ const manifest: Manifest = {
 // Commit leaders for tests that need forest rows.
 const commitStats = {
   ...uniformFileStats('a.ts', 3, 10),
-  maxFilesPerCommit: { sha: 'abc1234', files: 9 },
-  minFilesPerCommit: { sha: 'abc1234', files: 9 },
+  maxFilesPerCommit: { sha: 'abc1234', files: 9, date: '2022-01-01' },
+  minFilesPerCommit: { sha: 'abc1234', files: 9, date: '2022-01-01' },
+  oldestCommit: { sha: 'abc1234', files: 9, date: '2022-01-01' },
+  newestCommit: { sha: 'abc1234', files: 9, date: '2022-01-01' },
   maxCommitsPerDay: { date: '2022-01-01', count: 1 },
   maxCommitStreakDays: 1,
   authors: [{ name: 'Ada', commits: 1, hue: 0 }],

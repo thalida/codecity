@@ -239,6 +239,7 @@ def compute_repo_stats(tree: DirNode, commits: list[CommitEntry]) -> RepoStats:
 
     grandest = sparsest = None  # commits, by files changed
     oldest_commit = newest_commit = None  # commit-date range
+    first = last = None  # the commits AT those ends, so the almanac can link them
     author_counts: Counter[str] = Counter()
     day_totals: dict[str, int] = {}  # date → that date's same_day_total
     for c in commits:
@@ -252,12 +253,10 @@ def compute_repo_stats(tree: DirNode, commits: list[CommitEntry]) -> RepoStats:
         # (absent in raw cached entries); by manifest-wrap it is always present.
         d = c["date"][:10]  # calendar day: `date` carries a full timestamp
         day_totals[d] = max(day_totals.get(d, 0), c.get("same_day_total", 1))  # type: ignore[misc]
-        oldest_commit = (
-            d if oldest_commit is None or d < oldest_commit else oldest_commit
-        )
-        newest_commit = (
-            d if newest_commit is None or d > newest_commit else newest_commit
-        )
+        if oldest_commit is None or d < oldest_commit:
+            oldest_commit, first = d, c
+        if newest_commit is None or d > newest_commit:
+            newest_commit, last = d, c
 
     busiest_day: DayLeader | None = None
     if day_totals:
@@ -278,7 +277,7 @@ def compute_repo_stats(tree: DirNode, commits: list[CommitEntry]) -> RepoStats:
         )
 
     def _commit_leader(c: Optional[CommitEntry]) -> CommitLeader | None:
-        return {"sha": c["sha"], "files": c["files"]} if c else None
+        return {"sha": c["sha"], "files": c["files"], "date": c["date"]} if c else None
 
     return {
         # Project line/byte ranges for building-size normalization. Over ALL
@@ -314,6 +313,8 @@ def compute_repo_stats(tree: DirNode, commits: list[CommitEntry]) -> RepoStats:
         "newestCreatedDir": _dir_leader(newest_dir),
         "maxFilesPerCommit": _commit_leader(grandest),
         "minFilesPerCommit": _commit_leader(sparsest),
+        "oldestCommit": _commit_leader(first),
+        "newestCommit": _commit_leader(last),
         "commitCount": len(commits),
         # YYYY-MM-DD sorts lexically in chronological order, so min/max are exact.
         "commitDates": {"oldest": oldest_commit, "newest": newest_commit},

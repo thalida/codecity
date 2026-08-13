@@ -86,8 +86,8 @@ export function commitStats(commits: CommitEntry[]): RepoStats {
   return {
     ...EMPTY_REPO_STATS,
     commitDates: { oldest, newest },
-    maxFilesPerCommit: { sha: grandest.sha, files: grandest.files },
-    minFilesPerCommit: { sha: sparsest.sha, files: sparsest.files },
+    maxFilesPerCommit: { sha: grandest.sha, files: grandest.files, date: grandest.date },
+    minFilesPerCommit: { sha: sparsest.sha, files: sparsest.files, date: sparsest.date },
     authors,
   };
 }

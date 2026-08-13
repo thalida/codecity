@@ -309,6 +309,8 @@ export interface components {
       sha: string;
       /** Files */
       files: number;
+      /** Date */
+      date: string;
     };
     /**
      * CompleteManifestEvent
@@ -681,6 +683,8 @@ export interface components {
       newestCreatedDir: components['schemas']['DirLeader'] | null;
       maxFilesPerCommit: components['schemas']['CommitLeader'] | null;
       minFilesPerCommit: components['schemas']['CommitLeader'] | null;
+      oldestCommit: components['schemas']['CommitLeader'] | null;
+      newestCommit: components['schemas']['CommitLeader'] | null;
       /**
        * Commitcount
        * @description Commits in the full history, however many `commits` carries

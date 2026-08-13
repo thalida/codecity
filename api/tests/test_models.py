@@ -149,6 +149,8 @@ class ModelTests(unittest.TestCase):
                 "newestCreatedDir": None,
                 "maxFilesPerCommit": None,
                 "minFilesPerCommit": None,
+                "oldestCommit": None,
+                "newestCommit": None,
                 "commitCount": 0,
                 "commitDates": {"oldest": None, "newest": None},
                 "maxCommitsPerDay": None,
