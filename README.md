@@ -130,7 +130,7 @@ Just about every aspect of the rendering is tunable in the Settings pane, opened
 - **Hue**: file extension
 - **Saturation**: time since last touched (recent → vivid)
 - **Lightness**: time since last touched (recent → bright)
-- **Fading is real time, not rank within the repo**: an abandoned project reads faded all over, and one edit recolors one building instead of shifting the whole city
+- **Fade clock**: real time, so a repo nobody has touched in a year reads faded throughout, and today's edit brightens the one building you changed
 - **Roof border**: the color the file would have if you touched it today, so the gap between the border and the faded walls is how far it has aged
 - **Windows**: lit-pane density, plus a glow that tracks how recently the file was created (newer files glow brighter)
 - **Aging**: older files get grime streaks
@@ -175,7 +175,7 @@ Just about every aspect of the rendering is tunable in the Settings pane, opened
 
 **Scrub the whole history and watch the city grow.** The scene toggle flips from Live to Timeline, and a dated slider spans the repo, a tick per commit. Drag it and the city rebuilds at that commit.
 
-**Deleted files** keep their plot and get crossed out, so a folder that's since been emptied still shows what it used to hold. Set it in the World tab under Timeline. A file that hasn't been written yet simply isn't there.
+**Deleted files** keep their plot and get crossed out, so a folder that's since been emptied still shows what it used to hold. Set it in the World tab under Timeline.
 
 ## How it works
 
