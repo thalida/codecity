@@ -14,7 +14,6 @@ import { rainbowRgbAt } from '@/city/utils/rainbowChase';
 import { FLOATS_PER_SEGMENT } from '@/city/utils/bufferLayout';
 import { createSafeLineMaterial } from '@/city/utils/safeLineMaterial';
 import { NodeKind } from '@/types';
-import { getBuildingTilt, composeShearMatrix } from './tilt';
 import type { CellTile } from './cellTile';
 import type { createPicker } from '@/city/interaction/picker';
 import type { FileTarget } from '@/types';
@@ -94,6 +93,7 @@ export function createOutlineRenderer({
 
   // Scratch objects reused per frame to avoid GC pressure.
   const _tmpMatrix = new THREE.Matrix4();
+  const _TMP_QUAT = new THREE.Quaternion();
   const _tmpPos = new THREE.Vector3();
   const _tmpScale = new THREE.Vector3();
   const _tmpQuat = new THREE.Quaternion();
@@ -129,11 +129,10 @@ export function createOutlineRenderer({
     }
 
     // Bake the shader's Y-shear into the outline matrix so the box leans
-    // with the building (see composeShearMatrix in ./tilt.ts).
-    const { tiltX, tiltZ } = getBuildingTilt(b);
+    // with the building.
     _tmpPos.set(px, py, pz);
     _tmpScale.set(sx, sy, sz);
-    composeShearMatrix(_tmpPos, _tmpScale, tiltX, tiltZ, _tmpMatrix);
+    _tmpMatrix.compose(_tmpPos, _TMP_QUAT, _tmpScale);
     outline.matrix.copy(_tmpMatrix);
     outline.matrixAutoUpdate = false;
     outline.matrixWorldNeedsUpdate = true;

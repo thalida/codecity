@@ -1,8 +1,7 @@
 /* ── Info pane ── */
 
-/* World-layer accents — one --sec-accent per data-section, shared by the
- * Overview sections and the Legend rows (both live in .info-body) so the color
- * cue reads from a single source. */
+/* One accent per layer, shared by the Overview sections and the Legend rows so
+ * the colour cue has a single source. */
 .info-body [data-section] {
   --sec-accent: var(--cc-text-primary);
 }
@@ -25,6 +24,28 @@
   --sec-accent: var(--cc-layer-fireflies);
 }
 
+/* These name the block under them rather than captioning it, so they take the
+   strong step. One rule for both tabs, which had drifted apart. */
+.almanac-section-title,
+.legend-layer-title {
+  color: var(--cc-text-strong);
+}
+
+/* Label to value, one rule for both tabs: stated per pane, they ended up at
+   opposite emphases. The label names the axis; the value is what you read. */
+.almanac-fact-label,
+.legend-cue-label {
+  color: var(--cc-text-secondary);
+  font-size: var(--cc-font-sm);
+  font-weight: var(--cc-fw-normal);
+}
+
+.almanac-fact-primary,
+.legend-cue-detail {
+  color: var(--cc-text-strong);
+  font-size: var(--cc-font-sm);
+}
+
 .info-markdown code {
   display: inline-block;
   background: var(--cc-accent-bg-soft);
@@ -33,10 +54,8 @@
   padding: var(--cc-space-px) var(--cc-space-3);
 }
 
-/* ── Info pane (Info tab in left sidebar) ───────────────────────────────
-   Renders the project root README's markdown. Layout matches the other
-   panes: header on top, scrollable body underneath. The body's empty /
-   error states use the .empty-state + .empty-state--lg helper. */
+/* The README's markdown, in the same header-over-scrolling-body shape as every
+   other pane. */
 
 /* Layout in .pane-body; this rule keeps the empty-state child fill. */
 .info-body > .empty-state {

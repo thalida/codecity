@@ -3,7 +3,10 @@ import {
   buildScrubberScale,
   commitFraction,
   indexToFraction,
+  indexToMs,
   fractionToIndex,
+  msToIndex,
+  snapToStop,
 } from '@/components/TimeTravelBar/scrubberScale';
 
 const DAY = 86_400_000;
@@ -14,8 +17,10 @@ describe('scrubberScale', () => {
     // index 2 (Jan 3) sits before its predecessor (Jan 5) → clamped up to Jan 5.
     expect(s.ms[2]).toBe(s.ms[1]);
     expect(s.ms.every((m, i) => i === 0 || m >= s.ms[i - 1])).toBe(true);
-    expect(s.ms[0]).toBe(Date.parse('2020-01-01'));
-    expect(s.ms[3]).toBe(Date.parse('2020-01-10'));
+    // Day-precision dates land on local midnight, the instant the labels print
+    // from: read as UTC, the handle's day sits a day off the axis.
+    expect(s.ms[0]).toBe(new Date(2020, 0, 1).getTime());
+    expect(s.ms[3]).toBe(new Date(2020, 0, 10).getTime());
   });
 
   it('separates same-day commits once dates carry a time', () => {
@@ -110,9 +115,8 @@ describe('scrubberScale', () => {
   });
 
   it('fractionToIndex lands on the commit nearest a clicked date, not the nearest index', () => {
-    // Days 0,1,2 then a lone commit at day 100. Clicking the middle of the axis
-    // (day ~50) should resolve BETWEEN index 2 (day 2) and 3 (day 100), i.e. ~2.5,
-    // NOT index 1.5 (which an index-linear scrubber would give).
+    // Three days then a lone commit at day 100: the middle of the axis is a
+    // date, so it lands between the last two, not at the middle index.
     const s = buildScrubberScale(['2020-01-01', '2020-01-02', '2020-01-03', '2020-04-10']);
     const idx = fractionToIndex(s, 0.5);
     expect(idx).toBeGreaterThan(2);
@@ -123,6 +127,43 @@ describe('scrubberScale', () => {
     const s = buildScrubberScale(['2020-01-01', '2020-01-02', '2020-01-03']);
     expect(fractionToIndex(s, -1)).toBe(0);
     expect(fractionToIndex(s, 2)).toBe(2);
+  });
+
+  describe('today', () => {
+    // A repo goes on aging after its last commit, so the track's right end is
+    // today: stopping at the last commit would say nothing has changed since.
+    const dates = ['2020-01-01', '2020-01-02'];
+    const today = new Date(2020, 2, 1).getTime();
+
+    it('adds a stop past the last commit, and no tick for it', () => {
+      const s = buildScrubberScale(dates, 0, today);
+      expect(s.commitCount).toBe(2);
+      expect(s.ms).toHaveLength(3);
+      expect(s.ms[2]).toBe(today);
+      expect(indexToFraction(s, 2)).toBe(1);
+      // The last commit is no longer the end of the track.
+      expect(indexToFraction(s, 1)).toBeLessThan(1);
+    });
+
+    it('scrubs into the quiet stretch between the last commit and today', () => {
+      const s = buildScrubberScale(dates, 0, today);
+      const mid = indexToMs(s, 1.5);
+      expect(mid).toBeGreaterThan(s.ms[1]);
+      expect(mid).toBeLessThan(today);
+    });
+
+    it('adds nothing when the scan is no later than the last commit', () => {
+      const s = buildScrubberScale(dates, 0, new Date(2019, 0, 1).getTime());
+      expect(s.commitCount).toBe(2);
+      expect(s.ms).toHaveLength(2);
+      expect(indexToFraction(s, 1)).toBe(1);
+    });
+
+    it('is absent when no date is passed at all', () => {
+      const s = buildScrubberScale(dates);
+      expect(s.ms).toHaveLength(2);
+      expect(s.commitCount).toBe(2);
+    });
   });
 
   it('handles an empty commit set without throwing', () => {
@@ -139,5 +180,73 @@ describe('scrubberScale', () => {
     const s = buildScrubberScale(dates);
     expect(indexToFraction(s, 5)).toBeCloseTo(0.5, 5);
     expect(fractionToIndex(s, 0.5)).toBeCloseTo(5, 5);
+  });
+});
+
+// A drag runs through a history where one day can be a fraction of a pixel, so
+// it lands on a stop rather than sliding between them.
+describe('snapToStop', () => {
+  const scale = buildScrubberScale(['2020-01-01', '2020-02-01', '2020-03-01']);
+  const dayOf = (pos: number) => new Date(indexToMs(scale, pos)).toISOString().slice(0, 10);
+
+  it('lands on the day the moment falls in', () => {
+    const mid = Date.parse('2020-01-15T09:30:00Z');
+    expect(dayOf(snapToStop(scale, mid))).toBe('2020-01-15');
+  });
+
+  it('gives every day between two commits its own position', () => {
+    const a = snapToStop(scale, Date.parse('2020-01-15T00:00:00Z'));
+    const b = snapToStop(scale, Date.parse('2020-01-16T00:00:00Z'));
+    expect(b).toBeGreaterThan(a);
+    expect(dayOf(a)).toBe('2020-01-15');
+    expect(dayOf(b)).toBe('2020-01-16');
+  });
+
+  // The end of the day, so its floor is that day's last commit: the city on a
+  // given day is the city that day left behind.
+  it('leaves the last commit at or before it as the state to draw', () => {
+    const pos = snapToStop(scale, Date.parse('2020-02-14T12:00:00Z'));
+    expect(Math.floor(pos)).toBe(1); // the Feb 1 commit
+  });
+
+  // Days alone would strand these: a history inside one day snaps whole to that
+  // day, leaving every commit in it but the last out of reach.
+  it('reaches each commit of a busy day', () => {
+    const busy = buildScrubberScale([
+      '2020-01-01T01:00:00Z',
+      '2020-01-01T09:00:00Z',
+      '2020-01-01T17:00:00Z',
+    ]);
+    expect(snapToStop(busy, Date.parse('2020-01-01T02:00:00Z'))).toBe(0);
+    expect(snapToStop(busy, Date.parse('2020-01-01T08:30:00Z'))).toBe(1);
+    expect(snapToStop(busy, Date.parse('2020-01-01T16:00:00Z'))).toBe(2);
+  });
+
+  // A day stop hours from a commit's tick reads as the snap having missed it.
+  it('parks on the tick, not beside it, on a day that has commits', () => {
+    const busy = buildScrubberScale(['2020-01-01T09:00:00Z', '2020-02-01T09:00:00Z']);
+    // Evening of the commit's own day: the day's end is nearer in raw distance,
+    // but that day is already spoken for by its commit.
+    expect(busy.ms[0]).toBe(indexToMs(busy, snapToStop(busy, Date.parse('2020-01-01T20:00:00Z'))));
+  });
+
+  it('stays inside the history at either end', () => {
+    expect(snapToStop(scale, Date.parse('2019-01-01T00:00:00Z'))).toBe(0);
+    expect(snapToStop(scale, Date.parse('2030-01-01T00:00:00Z'))).toBe(2);
+  });
+});
+
+describe('msToIndex', () => {
+  const scale = buildScrubberScale(['2020-01-01', '2020-02-01', '2020-03-01']);
+
+  it('inverts indexToMs', () => {
+    for (const pos of [0, 0.25, 1, 1.5, 2]) {
+      expect(msToIndex(scale, indexToMs(scale, pos))).toBeCloseTo(pos, 6);
+    }
+  });
+
+  it('clamps outside the history', () => {
+    expect(msToIndex(scale, 0)).toBe(0);
+    expect(msToIndex(scale, Date.parse('2099-01-01'))).toBe(2);
   });
 });

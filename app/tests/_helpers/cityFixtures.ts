@@ -12,9 +12,8 @@ import { BUILDING_DIMENSIONS } from '@/state/stores/settings/buildings';
 import { createCityState, type CityState } from '@/city/state';
 import { commits } from './commits';
 
-// A no-op layout client for tests that exercise cityState's signals/components
-// but never call applyManifest (the only consumer of the client — so the worker
-// is never spawned). Keeps the real createCityState(layoutClient) contract.
+// A no-op layout client, for tests that never call applyManifest and so never
+// spawn the worker. Keeps the real contract.
 const STUB_LAYOUT_CLIENT = {
   compute: () => Promise.resolve(null),
   dispose: () => {},
@@ -93,12 +92,8 @@ export function emptyLayout(bb: CityBbox): CityLayout {
   };
 }
 
-/**
- * Builds a FileNode-shaped fixture. Returns `any` to match the inline
- * call-site behavior — the real FileNode requires fullPath/binary/git
- * that these fixtures intentionally omit (the code under test doesn't
- * read them).
- */
+/** A FileNode-shaped fixture, typed loose because it omits the fields no code
+ *  under test reads. */
 export function mkFile(name: string): any {
   return {
     name,
@@ -112,17 +107,8 @@ export function mkFile(name: string): any {
   };
 }
 
-/**
- * Builds a DirNode-shaped fixture and re-prefixes every child's `path`
- * with `${name}/` so the fixture mirrors a real manifest (file paths are
- * dir-prefixed, e.g. 'big/aa.ts'). Without this, mkFile children carry
- * only their bare name and tests that filter by path prefix to identify
- * a subdir's descendants find nothing.
- *
- * Returns `any` for the same reason mkFile does — the inline call sites
- * all do, and the real DirNode requires fullPath/_count fields the
- * fixtures don't bother stubbing.
- */
+/** A DirNode-shaped fixture that prefixes its children's paths, like a real
+ *  manifest: without it, a test filtering by path prefix finds nothing. */
 export function mkDir(name: string, children: any[]): any {
   const prefixed = children.map((c) => ({ ...c, path: `${name}/${c.path || c.name}` }));
   return {
@@ -141,7 +127,7 @@ export function mkDir(name: string, children: any[]): any {
 export function resetTreesConfig(): void {
   TREES.value = {
     ENABLED: true,
-    CITY_CLEARANCE: 2,
+    CITY_CLEARANCE_PERCENT: 1,
     DENSITY_FALLOFF: 0,
     EDGE_INSET_PERCENT: 1,
     MIN_HEIGHT: 48,

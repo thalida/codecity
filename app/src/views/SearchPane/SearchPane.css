@@ -1,13 +1,10 @@
 /* ── Search pane ── */
 
-/* ── Search pane (Search tab in left sidebar) ───────────────────────────
-   The search field IS the header row (no separate title bar): the input
-   fills the row with the × close button pinned right, and the result list
-   scrolls below. Matched query characters in each result are wrapped in <mark>. */
+/* The search field is the header row here, with the results scrolling below
+   and each match wrapped in a mark. */
 
-/* The input takes the place of a title, so the row hugs the field: a uniform
-   inset all round, and the icon→input gap matches it so the search glyph sits
-   with equal space on both sides. */
+/* The input stands in for a title, so the row hugs it: one inset all round,
+   with the icon gap matching so the glyph sits evenly. */
 .pane-header--search {
   padding: var(--cc-space-4);
 }
@@ -42,26 +39,28 @@
   margin: var(--cc-space-0);
   padding: var(--cc-pane-inset) 0; /* rows supply the matching horizontal inset */
 }
-/* A real <button> (native keyboard + role); reset its chrome to the plain row. */
+/* A real button wearing .row, for native keyboard behaviour and the shared
+   metrics. Typed like a tree row's label, since a result is an identity. */
 .search-result {
   appearance: none;
-  display: block;
   width: 100%;
   text-align: left;
   background: none;
   border: none;
-  min-height: var(--cc-tap-min);
-  padding: var(--cc-space-2) var(--cc-pane-inset);
-  cursor: pointer;
   font-family: var(--cc-font-mono);
-  font-size: var(--cc-font-xs);
-  color: var(--cc-text-secondary);
+  font-size: var(--cc-font-sm);
+  color: var(--cc-text-base);
+}
+
+/* The truncation belongs to the text, not the row: .row lays its children out
+   in a flex line, where an ellipsis set on the container never reaches them. */
+.search-result-path {
+  min-width: 0;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 .search-result:hover {
-  background: var(--cc-overlay-bg-soft);
   color: var(--cc-text-strong);
 }
 .search-result:focus-visible {

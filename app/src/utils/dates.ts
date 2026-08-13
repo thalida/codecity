@@ -1,21 +1,7 @@
-// utils/dates.ts — Date formatting helpers shared across the UI.
-//
-// All public functions take a string (typically ISO 8601 or YYYY-MM-DD)
-// and return display-ready text. They never throw — invalid input falls
-// back to the raw string so the UI degrades gracefully.
-//
-// Two relative-age formatters live here on purpose:
-//   - formatRelativeAge      — long form ("3 days ago"). Used where there's
-//                              room: commit metadata, hover tooltips.
-//   - formatRelativeAgeShort — short form ("3d ago"). Used in compact rows:
-//                              the app footer, status chips.
-//
-// Two absolute formatters live here on purpose:
-//   - formatFullDate         — long form ("March 12, 2026"). Used in
-//                              tooltips where the full month name reads
-//                              naturally.
-//   - formatShortDate        — short form ("Mar 12, 2026"). Used inline
-//                              where space is tighter.
+// utils/dates.ts — every date the app reads or prints goes through here, on one
+// parse rule: a date is a moment in the reader's timezone, and a day-precision
+// string is that day where they are. Two rules is how a commit made in the
+// evening is labelled one day on an axis and the next day under the handle.
 
 const MS_SECOND = 1_000;
 const MS_MINUTE = 60_000;
@@ -26,13 +12,9 @@ const MS_YEAR = 365 * MS_DAY;
 
 // ── Parsing ──────────────────────────────────────────────────────────────
 
-/** Parse a date string into local-midnight if it's YYYY-MM-DD, otherwise
- *  delegate to the native `Date` constructor. Day-precision strings parsed
- *  via `new Date('YYYY-MM-DD')` land at UTC midnight, which can shift to
- *  the previous calendar day in negative timezones — using local components
- *  keeps the displayed day matching the source string. Returns null if the
- *  result is invalid. */
-function parseLocalDate(input: string): Date | null {
+/** Local midnight for a day-precision string, native parse otherwise: through
+ *  `new Date`, a bare date lands at UTC midnight and can show the day before. */
+export function parseLocalDate(input: string): Date | null {
   if (/^\d{4}-\d{2}-\d{2}$/.test(input)) {
     const [y, m, d] = input.split('-').map(Number);
     const date = new Date(y, m - 1, d);
@@ -40,6 +22,34 @@ function parseLocalDate(input: string): Date | null {
   }
   const date = new Date(input);
   return Number.isNaN(date.getTime()) ? null : date;
+}
+
+/** `parseLocalDate` as milliseconds, NaN when unparseable: anything turning a
+ *  date into a position has to read it the way the labels do. */
+export function parseDateMs(input: string): number {
+  return parseLocalDate(input)?.getTime() ?? NaN;
+}
+
+/** The local calendar day as a day number, fractional through the day: the
+ *  scene ages in whole days, and they have to be the days the labels print. */
+export function epochDayAt(ms: number): number {
+  return (ms - new Date(ms).getTimezoneOffset() * MS_MINUTE) / MS_DAY;
+}
+
+/** `epochDayAt` for a date string, floored to the whole day. NaN when
+ *  unparseable, so callers can pick their own fallback. */
+export function epochDay(input: string): number {
+  const ms = parseDateMs(input);
+  return Number.isNaN(ms) ? NaN : Math.floor(epochDayAt(ms));
+}
+
+/** The local calendar day a moment falls on. toISOString would name the UTC
+ *  day, which for part of every day is the date beside it plus one. */
+export function localDay(ms: number): string {
+  const date = new Date(ms);
+  if (Number.isNaN(date.getTime())) return '';
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 }
 
 // ── Absolute formatters (calendar dates) ─────────────────────────────────
@@ -56,17 +66,14 @@ const SHORT_DATE_OPTIONS: Intl.DateTimeFormatOptions = {
   day: 'numeric',
 };
 
-/** Format a date string as a long calendar date (e.g. "March 12, 2026").
- *  YYYY-MM-DD input is parsed as local midnight to avoid timezone shift.
- *  Falls back to the raw input if parsing fails. */
+/** A long calendar date ("March 12, 2026"), or the raw input if it won't
+ *  parse, so the UI degrades rather than printing nothing. */
 export function formatFullDate(input: string): string {
   const date = parseLocalDate(input);
   return date ? date.toLocaleDateString(undefined, FULL_DATE_OPTIONS) : input;
 }
 
-/** Format a date string as a short calendar date (e.g. "Mar 12, 2026").
- *  Same parsing rules as `formatFullDate`. Falls back to the raw input
- *  if parsing fails. */
+/** A short calendar date ("Mar 12, 2026"), same rules as formatFullDate. */
 export function formatShortDate(input: string): string {
   const date = parseLocalDate(input);
   return date ? date.toLocaleDateString('en-US', SHORT_DATE_OPTIONS) : input;
@@ -78,27 +85,15 @@ function pluralizeAgo(n: number, unit: string): string {
   return `${n} ${unit}${n === 1 ? '' : 's'} ago`;
 }
 
-/** Whole years/months/days from `from` to `to` (to >= from), calendar-accurate
- *  (real month lengths, not fixed 30/365-day buckets — so month gaps between two
- *  same-year dates aren't lost). `utc` picks UTC vs local component reads and MUST
- *  match how the two Dates were parsed, or the day arithmetic drifts by the tz. */
-function _calendarSpan(
-  from: Date,
-  to: Date,
-  utc: boolean
-): { years: number; months: number; days: number } {
-  const y = (d: Date) => (utc ? d.getUTCFullYear() : d.getFullYear());
-  const mo = (d: Date) => (utc ? d.getUTCMonth() : d.getMonth());
-  const dy = (d: Date) => (utc ? d.getUTCDate() : d.getDate());
-  let years = y(to) - y(from);
-  let months = mo(to) - mo(from);
-  let days = dy(to) - dy(from);
+/** Whole years/months/days, on real month lengths rather than 30-day buckets,
+ *  which lose a month between two dates in the same year. */
+function _calendarSpan(from: Date, to: Date): { years: number; months: number; days: number } {
+  let years = to.getFullYear() - from.getFullYear();
+  let months = to.getMonth() - from.getMonth();
+  let days = to.getDate() - from.getDate();
   if (days < 0) {
     // Borrow days from the month before `to` (day 0 = last day of prev month).
-    const prevMonthDays = utc
-      ? new Date(Date.UTC(y(to), mo(to), 0)).getUTCDate()
-      : new Date(y(to), mo(to), 0).getDate();
-    days += prevMonthDays;
+    days += new Date(to.getFullYear(), to.getMonth(), 0).getDate();
     months -= 1;
   }
   if (months < 0) {
@@ -108,9 +103,8 @@ function _calendarSpan(
   return { years, months, days };
 }
 
-/** Join the largest `max` NON-zero units of a calendar span as "2 years 4
- *  months" (zeros are skipped, so an exact anniversary is just "2 years").
- *  Empty string when every unit is zero (a sub-day span). */
+/** The largest `max` non-zero units, so an exact anniversary is "2 years"
+ *  rather than "2 years 0 months". Empty for a sub-day span. */
 function _joinSpan(span: { years: number; months: number; days: number }, max: number): string {
   const parts: [number, string][] = [
     [span.years, 'year'],
@@ -124,27 +118,22 @@ function _joinSpan(span: { years: number; months: number; days: number }, max: n
     .join(' ');
 }
 
-/** Format a date string as an English relative-age. Under a day it's a single
- *  coarse unit ("just now", "5 minutes ago", "3 hours ago"); a day or more is
- *  calendar-accurate to two units ("2 years 4 months ago", "5 months 12 days
- *  ago", "3 days ago"). YYYY-MM-DD is treated as UTC midnight so the result is
- *  timezone-deterministic. */
+/** A relative age: one coarse unit under a day, two calendar-accurate ones
+ *  above it ("2 years 4 months ago"). */
 export function formatRelativeAge(dateStr: string, now: Date = new Date()): string {
-  const iso = /^\d{4}-\d{2}-\d{2}$/.test(dateStr) ? `${dateStr}T00:00:00Z` : dateStr;
-  const then = new Date(iso);
-  if (Number.isNaN(then.getTime())) return dateStr;
+  const then = parseLocalDate(dateStr);
+  if (!then) return dateStr;
   const diff = now.getTime() - then.getTime();
   if (diff < MS_MINUTE) return 'just now';
   if (diff < MS_HOUR) return pluralizeAgo(Math.floor(diff / MS_MINUTE), 'minute');
   if (diff < MS_DAY) return pluralizeAgo(Math.floor(diff / MS_HOUR), 'hour');
-  // A day or more: calendar-accurate, up to two units.
-  return `${_joinSpan(_calendarSpan(then, now, true), 2) || '1 day'} ago`;
+  // A day or more: calendar-accurate, up to two units. Local components, since
+  // parseLocalDate built a local date.
+  return `${_joinSpan(_calendarSpan(then, now), 2) || '1 day'} ago`;
 }
 
-/** Compact relative-time formatter ("3d ago", "5m ago", "just now"). Takes
- *  millisecond timestamps (not strings) since callers already have
- *  `Date.now()`-style values. Used by the app footer where horizontal
- *  space is tight; second-granularity bucket fires under 5 seconds. */
+/** The compact form ("3d ago"), in milliseconds since its callers already
+ *  hold those, for rows with no horizontal room. */
 export function formatRelativeAgeShort(thenMs: number, nowMs: number): string {
   const diff = Math.max(0, nowMs - thenMs);
   if (diff < 5 * MS_SECOND) return 'just now';
@@ -156,14 +145,12 @@ export function formatRelativeAgeShort(thenMs: number, nowMs: number): string {
   return `${Math.floor(diff / MS_YEAR)}y ago`;
 }
 
-/** Human duration between two dates, calendar-accurate to two units ("2 years
- *  4 months", "5 months 12 days", "3 days"). Deterministic (no "now"), so it's
- *  safe for spans in pure view-models. Returns '' if either date is unparseable. */
+/** A duration between two dates, to two units. Takes no "now", so it is safe
+ *  in a pure view-model; '' if either date won't parse. */
 export function humanSpan(fromISO: string, toISO: string): string {
   const a = parseLocalDate(fromISO);
   const b = parseLocalDate(toISO);
   if (!a || !b) return '';
   const [from, to] = a.getTime() <= b.getTime() ? [a, b] : [b, a];
-  // parseLocalDate builds LOCAL-midnight dates, so read local components.
-  return _joinSpan(_calendarSpan(from, to, false), 2) || '1 day';
+  return _joinSpan(_calendarSpan(from, to), 2) || '1 day';
 }

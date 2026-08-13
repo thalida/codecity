@@ -42,7 +42,7 @@ def _file(
     return n
 
 
-def _dir(name, path, children):
+def _dir(name, path, children, created=None, modified=None):
     files = [c for c in children if c["type"] == "file"]
     return {
         "name": name,
@@ -58,6 +58,8 @@ def _dir(name, path, children):
         "descendants_dir_count": len(children) - len(files),
         "descendants_size": 0,
         "descendants_ext_breakdown": [],
+        "descendants_created_min": created,
+        "descendants_modified_max": modified,
     }
 
 
@@ -136,6 +138,30 @@ def test_dir_leaders_exclude_root():
     assert s["minChildrenDir"]["path"] == "src/a/b"  # fewest direct children (1)
 
 
+def test_street_age_leaders_take_the_subtree_dates():
+    # A street's age is its subtree's: oldest file created under it, newest
+    # change anywhere in it.
+    old = _dir("old", "src/old", [_file("src/old/x.ts")], created="2019-01-01")
+    new = _dir("new", "src/new", [_file("src/new/y.ts")], created="2024-06-01")
+    src = _dir("src", "src", [old, new], created="2019-01-01", modified="2024-06-02")
+    tree = _dir("repo", "", [src], created="2019-01-01", modified="2024-06-02")
+    s = compute_repo_stats(tree, [])
+    assert s["oldestCreatedDir"]["path"] == "src/old"
+    assert s["oldestCreatedDir"]["created"] == "2019-01-01"
+    assert s["newestCreatedDir"]["path"] == "src/new"
+    assert s["newestCreatedDir"]["created"] == "2024-06-01"
+
+
+def test_street_age_leaders_skip_undated_dirs():
+    # A directory with no dated descendants can't win either end, and a tree of
+    # nothing but those leaves both empty rather than picking arbitrarily.
+    bare = _dir("bare", "src/bare", [])
+    tree = _dir("repo", "", [bare])
+    s = compute_repo_stats(tree, [])
+    assert s["oldestCreatedDir"] is None
+    assert s["newestCreatedDir"] is None
+
+
 def test_commit_leaders_authors_and_streak():
     commits = [
         {
@@ -172,8 +198,22 @@ def test_commit_leaders_authors_and_streak():
         },
     ]
     s = compute_repo_stats(_dir("repo", "", [_file("a.ts")]), commits)
-    assert s["maxFilesPerCommit"] == {"sha": "bbb", "files": 40}
-    assert s["minFilesPerCommit"] == {"sha": "ccc", "files": 1}
+    assert s["maxFilesPerCommit"] == {
+        "sha": "bbb",
+        "files": 40,
+        "date": "2022-01-02",
+    }
+    # The history's ends carry their sha, so the almanac can fly the camera to
+    # the tree rather than only naming a date.
+    assert s["oldestCommit"]["sha"] == "aaa"
+    assert s["oldestCommit"]["date"] == "2022-01-01"
+    assert s["newestCommit"]["sha"] == "ddd"
+    assert s["newestCommit"]["date"] == "2022-02-10"
+    assert s["minFilesPerCommit"] == {
+        "sha": "ccc",
+        "files": 1,
+        "date": "2022-01-03",
+    }
     assert s["commitDates"] == {"oldest": "2022-01-01", "newest": "2022-02-10"}
     assert s["maxCommitsPerDay"]["count"] == 2
     assert s["maxCommitStreakDays"] == 3

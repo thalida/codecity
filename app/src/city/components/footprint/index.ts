@@ -1,34 +1,7 @@
-// city/components/footprint/index.ts — Cyberpunk Valley city footprint COMPONENT.
-//
-// Self-contained scene component: owns its persistent group, builds the
-// inner InstancedMesh via rebuild(layout), reacts to FOOTPRINT settings via
-// an effect, and frees its own GPU resources + stops its effect in dispose().
-//
-// One InstancedMesh of axis-aligned quads on the XZ plane, one
-// instance per (building | street | path) rect from the CityLayout.
-// Each instance is the rect inflated by FOOTPRINT.HALO_WIDTH in both
-// axes. Coplanar overlaps with depthWrite: false compose visually
-// into one continuous asphalt slab — no CSG, no triangulation, no
-// explicit contour computation.
-//
-// Each instance carries its inflated half-extents (in world units)
-// as a vec2 per-instance attribute, and the fragment shader runs a
-// rounded-rectangle SDF in world-distance-from-edge space so that
-// FOOTPRINT.CORNER_RADIUS (a uniform in world units) stays a true
-// world-space radius regardless of the non-uniform per-instance
-// scale. Where two rects overlap heavily the rounded corner of one
-// is masked by its neighbor — outer silhouette corners read as
-// rounded; internal "step" corners still composite continuously.
-//
-// Structural changes (HALO_WIDTH) trigger a rebuild via state/settingsReactions.ts;
-// the settings effect handles COLOR, CORNER_RADIUS, and ENABLED only.
-//
-// Lifecycle matches the other persistent scene-component factories (e.g. createGem):
-//
-//   const fp = createFootprint(ctx);
-//   scene.add(fp.group);          // once at scene init
-//   // then rebuilds itself reactively off cityState.layout
-//   fp.dispose();                 // on teardown
+// city/components/footprint/index.ts — the ground slab under the city: one quad
+// per building, street and path rect, inflated by the halo. Coplanar overlaps
+// with depth-write off compose into one continuous surface, so there is no CSG
+// here; a per-instance SDF keeps the corner radius a true world-space radius.
 
 import * as THREE from 'three';
 import { effect } from '@preact/signals';
@@ -50,11 +23,8 @@ import FOOTPRINT_FRAG from './footprint.frag.glsl?raw';
 
 /** Public contract for the footprint component. */
 export interface Footprint extends SceneComponent {
-  /** Rebuild the InstancedMesh from the given layout, disposing any prior mesh.
-   *  Driven by the cityState.layout effect (the EVERY-apply signal): the slabs
-   *  wrap each building's rect, and per-building dims recompute every apply
-   *  (incl. a reuse apply), so the footprint must re-match. When halo <= 0 or no
-   *  rects, leaves the group EMPTY (prior mesh disposed). */
+  /** Rebuilt on every apply, reuse included: per-building dims recompute each
+   *  time and the slabs have to keep matching them. */
   rebuild(layout: CityLayout): void;
   /** Fade one building's footprint slab, keyed by file path (ruin = tint toward the ruin color). No-op for an unknown path. */
   setBuildingFootprintOpacity(path: string, opacity: number, ruin?: boolean): void;
@@ -74,18 +44,16 @@ export function createFootprint(ctx: SceneContext): Footprint {
   group.name = 'city-footprint';
   group.userData.cyberpunkValley = 'cityFootprint';
 
-  // Component-level mutable refs, reassigned each rebuild. The settings
-  // effect targets these (NOT stale closure captures) so it hits the
-  // live mesh/material after every rebuild.
+  // Reassigned each rebuild and read through by the effect, so it can't end up
+  // holding the mesh from a previous one.
   let mesh: THREE.InstancedMesh | null = null;
   let material: THREE.ShaderMaterial | null = null;
   // Instance index lookup for Timeline scrubbing: buildings occupy 0..buildingCount-1
   // (build order), streets follow. Rebuilt every rebuild() alongside the mesh.
   let pathToInstance = new Map<string, number>();
   let streetDirToInstance = new Map<string, number>();
-  // Timeline mode: footprints default INVISIBLE (the scrub controller drives the
-  // live ones up per frame), so a footprint it never keys can't strand opaque.
-  // Persisted here so it survives a rebuild. Live mode: opaque, byte-identical.
+  // Invisible by default in Timeline, where the scrub controller raises the live
+  // ones: one it never keys would otherwise strand opaque. Survives a rebuild.
   let _transparent = false;
 
   function _disposeInnerMesh(): void {
@@ -116,28 +84,21 @@ export function createFootprint(ctx: SceneContext): Footprint {
     _setInstance(streetDirToInstance.get(dirPath), opacity, ruin);
   }
 
-  // Plots track the lane opacity, not the faded body: a hover dimming the
-  // neighborhood shouldn't take the ground with it. A future building or road
-  // IS its tinted slab, so it gets no plot at all.
+  // Plots follow the lane, not the faded body: a hover dimming the
+  // neighbourhood shouldn't take the ground down with it.
   function applyScrub(states: ScrubStates): void {
     for (const [path, s] of states.buildings) {
-      setBuildingFootprintOpacity(
-        path,
-        s.lane === BuildingLane.Future ? 0 : s.op,
-        s.lane === BuildingLane.Ruin
-      );
+      setBuildingFootprintOpacity(path, s.op, s.lane === BuildingLane.Ruin);
     }
     for (const [street, st] of states.streets) {
       const dir = street.dir?.path;
       if (dir == null) continue;
-      setStreetFootprintOpacity(dir, st.future ? 0 : st.opacity, st.ruin);
+      setStreetFootprintOpacity(dir, st.opacity, st.ruin);
     }
   }
 
-  // Enter/exit Timeline mode. Flips the material to alpha-blended AND resets
-  // every instance's opacity (0 = hidden in timeline so the scrub controller
-  // opts each live footprint back in; 1 = opaque for live mode). Live mode never
-  // calls it, so footprints stay byte-identical.
+  // Timeline hides every instance so the scrub controller opts the live ones
+  // back in; live mode never calls this, and renders byte-identically.
   function setFootprintsTransparent(on: boolean): void {
     _transparent = on;
     if (!material || !mesh) return;
@@ -163,10 +124,8 @@ export function createFootprint(ctx: SceneContext): Footprint {
     pathToInstance = new Map();
     streetDirToInstance = new Map();
 
-    // Halo at zero (or negative — clamped to 0 above) means the footprint
-    // would render as a 0-area asphalt halo that's invisible to the user.
-    // Leave the group EMPTY (no mesh added) — the persistent component
-    // gracefully represents "no footprint" by an empty group.
+    // A zero halo is a zero-area slab nobody can see, so the group stays empty
+    // rather than holding a mesh that draws nothing.
     if (halo <= 0) {
       return;
     }
@@ -191,9 +150,8 @@ export function createFootprint(ctx: SceneContext): Footprint {
     const geometry = new THREE.PlaneGeometry(1, 1);
     geometry.rotateX(-Math.PI / 2);
 
-    // Per-instance half-extents in world units, so the fragment shader
-    // can SDF a rounded rectangle in world-space instead of unit-space
-    // (which would distort the corner radius under non-uniform scaling).
+    // World units, so the shader's SDF keeps a true radius: in unit space the
+    // non-uniform per-instance scale would distort every corner.
     const halfExtents = new Float32Array(rects.length * 2);
     for (let i = 0; i < rects.length; i++) {
       halfExtents[i * 2 + 0] = (rects[i].w + halo * 2) * 0.5;
@@ -224,9 +182,7 @@ export function createFootprint(ctx: SceneContext): Footprint {
       uniforms: {
         uColor: { value: colorUniform },
         uRuinColor: { value: ruinColorUniform },
-        // CORNER_RADIUS is a fraction of HALO_WIDTH (0 → sharp, 1 → one
-        // halo width, 2 → two). Compute world-units radius here so the
-        // shader's SDF can keep using a single uniform.
+        // Resolved to world units here, so the SDF stays one uniform.
         uCornerRadius: { value: Math.max(0, cfg.CORNER_RADIUS) * halo },
       },
     });
@@ -261,11 +217,8 @@ export function createFootprint(ctx: SceneContext): Footprint {
     group.visible = cfg.ENABLED;
   }
 
-  // Settings effect — reacts to FOOTPRINT signal changes (Save). Handles
-  // COLOR + CORNER_RADIUS + ENABLED only (NOT HALO_WIDTH — that's structural,
-  // rebuild path).
-  // Null-guards when no mesh exists (pre-first-rebuild OR empty/stub state).
-  // Runs once at construction, which is safe: refs are null, guards no-op.
+  // Colour, radius and enabled: halo width is structural and takes the rebuild
+  // path instead. Guarded, since it also runs once before any mesh exists.
   const stopEffect = onSettings(FOOTPRINT, () => {
     const c = FOOTPRINT.value;
     if (material) {
@@ -283,10 +236,8 @@ export function createFootprint(ctx: SceneContext): Footprint {
     if (material) setColorFromHex(material.uniforms.uRuinColor.value as THREE.Color, hex);
   });
 
-  // Layout effect — reactive rebuild entry point. Subscribes to cityState.layout
-  // (the EVERY-apply signal — NOT structureRevision): per-building dims recompute
-  // every apply, so the footprint slabs must re-match even on a reuse apply.
-  // Null-guard makes the construction-time run (layout still null) a no-op.
+  // On layout, not structureRevision: per-building dims recompute on every
+  // apply, so the slabs have to re-match even when nothing structural moved.
   const stopLayout = effect(() => {
     const layout = cityState.layout.value;
     if (layout) rebuild(layout);

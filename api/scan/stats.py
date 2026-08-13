@@ -95,6 +95,8 @@ def _dir_leader(d: Optional[DirNode]) -> DirLeader | None:
         "depth": _depth(d["path"]),
         "children": d["children_count"],
         "descendants": d["descendants_count"],
+        "created": d["descendants_created_min"],
+        "modified": d["descendants_modified_max"],
     }
 
 
@@ -204,6 +206,9 @@ def compute_repo_stats(tree: DirNode, commits: list[CommitEntry]) -> RepoStats:
     # not total descendants. Smallest breaks ties by fewest descendants, so it
     # favours genuine leaf streets over a one-child dir that fans out below.
     deepest = biggest = smallest = None
+    # Street age = its subtree's oldest creation date. A directory with no dated
+    # descendants (empty, or every child undated) can't win either end.
+    oldest_dir = newest_dir = None
     for d in iter_dir_nodes(tree):
         if deepest is None or _depth(d["path"]) > _depth(deepest["path"]):
             deepest = d
@@ -214,9 +219,27 @@ def compute_repo_stats(tree: DirNode, commits: list[CommitEntry]) -> RepoStats:
             smallest["descendants_count"],
         ):
             smallest = d
+        created = d["descendants_created_min"]
+        if created is not None:
+            # Every ancestor inherits its oldest descendant's date, so a bare
+            # date comparison ties the whole chain and the shallowest wins by
+            # iteration order. Break toward the deepest: the street that
+            # actually holds the file, not each parent that contains it.
+            depth = _depth(d["path"])
+            if oldest_dir is None or (created, -depth) < (
+                oldest_dir["descendants_created_min"],
+                -_depth(oldest_dir["path"]),
+            ):
+                oldest_dir = d
+            if newest_dir is None or (created, depth) > (
+                newest_dir["descendants_created_min"],
+                _depth(newest_dir["path"]),
+            ):
+                newest_dir = d
 
     grandest = sparsest = None  # commits, by files changed
     oldest_commit = newest_commit = None  # commit-date range
+    first = last = None  # the commits AT those ends, so the almanac can link them
     author_counts: Counter[str] = Counter()
     day_totals: dict[str, int] = {}  # date → that date's same_day_total
     for c in commits:
@@ -230,12 +253,10 @@ def compute_repo_stats(tree: DirNode, commits: list[CommitEntry]) -> RepoStats:
         # (absent in raw cached entries); by manifest-wrap it is always present.
         d = c["date"][:10]  # calendar day: `date` carries a full timestamp
         day_totals[d] = max(day_totals.get(d, 0), c.get("same_day_total", 1))  # type: ignore[misc]
-        oldest_commit = (
-            d if oldest_commit is None or d < oldest_commit else oldest_commit
-        )
-        newest_commit = (
-            d if newest_commit is None or d > newest_commit else newest_commit
-        )
+        if oldest_commit is None or d < oldest_commit:
+            oldest_commit, first = d, c
+        if newest_commit is None or d > newest_commit:
+            newest_commit, last = d, c
 
     busiest_day: DayLeader | None = None
     if day_totals:
@@ -256,7 +277,7 @@ def compute_repo_stats(tree: DirNode, commits: list[CommitEntry]) -> RepoStats:
         )
 
     def _commit_leader(c: Optional[CommitEntry]) -> CommitLeader | None:
-        return {"sha": c["sha"], "files": c["files"]} if c else None
+        return {"sha": c["sha"], "files": c["files"], "date": c["date"]} if c else None
 
     return {
         # Project line/byte ranges for building-size normalization. Over ALL
@@ -288,8 +309,12 @@ def compute_repo_stats(tree: DirNode, commits: list[CommitEntry]) -> RepoStats:
         "maxDepthDir": _dir_leader(deepest),
         "maxChildrenDir": _dir_leader(biggest),
         "minChildrenDir": _dir_leader(smallest),
+        "oldestCreatedDir": _dir_leader(oldest_dir),
+        "newestCreatedDir": _dir_leader(newest_dir),
         "maxFilesPerCommit": _commit_leader(grandest),
         "minFilesPerCommit": _commit_leader(sparsest),
+        "oldestCommit": _commit_leader(first),
+        "newestCommit": _commit_leader(last),
         "commitCount": len(commits),
         # YYYY-MM-DD sorts lexically in chronological order, so min/max are exact.
         "commitDates": {"oldest": oldest_commit, "newest": newest_commit},

@@ -4,11 +4,8 @@ import { signal } from '@preact/signals';
 import { CommitPane } from '@/views/CommitPane/CommitPane';
 import type { CommitPaneState } from '@/views/CommitPane/CommitPane';
 import type { CommitEntry } from '@/types';
-// Settling a CommitPane render involves two interleaved schedulers: the
-// commit-body fetch chain (fetchCommitDetail awaits fetch() then resp.json(),
-// or rejects on a non-ok response) and Preact picking up the resulting
-// useState change. drainAsync alternates microtask + macrotask yields to
-// cover both the success and the longer reject path deterministically.
+// Settling this render crosses two schedulers, the fetch chain and Preact, so
+// drainAsync alternates microtask and macrotask yields to cover both.
 import { colorForAuthor } from '@/city/components/fireflies/authorColor';
 import { commits as buildCommits } from '../_helpers/commits';
 import { drainAsync } from '../_helpers/preact';
@@ -75,9 +72,8 @@ describe('CommitPane', () => {
   });
 
   afterEach(() => {
-    // Unmount so the useEffect cleanup flips `cancelled` on any in-flight
-    // fetch — stray late resolutions are then dropped instead of touching
-    // an unmounted tree.
+    // Unmounted so the cleanup cancels the in-flight fetch, and a late
+    // resolution is dropped rather than touching an unmounted tree.
     render(null, container);
     container.remove();
   });
@@ -98,15 +94,15 @@ describe('CommitPane', () => {
 
   it('renders short SHA, age, files changed, and an open-on-origin link', async () => {
     mount();
-    const now = new Date('2026-05-24T12:00:00Z');
+    const now = new Date(2026, 4, 24, 12);
     await setCommit(COMMIT, { remoteUrl: 'https://github.com/org/repo', now });
 
     // SHA is inside the pane header title.
     expect(container.querySelector('.text-pane-title .commit-sha')!.textContent).toBe('a1b2c3d');
 
-    // Open link is in the pane header's right action group.
+    // Open link travels with the title: it acts on the commit, not on the pane.
     const link = container.querySelector(
-      '.pane-header-actions a[aria-label="Open commit on origin"]'
+      '.pane-header-identity a[aria-label="Open commit on origin"]'
     ) as HTMLAnchorElement;
     expect(link).not.toBeNull();
     expect(link.href).toBe(`https://github.com/org/repo/commit/${COMMIT.sha}`);
@@ -127,7 +123,7 @@ describe('CommitPane', () => {
   it('uses singular "1 file changed" when files is 1', async () => {
     mount();
     const oneFile: CommitEntry = { ...COMMIT, files: 1 };
-    await setCommit(oneFile, { now: new Date('2026-05-24T12:00:00Z') });
+    await setCommit(oneFile, { now: new Date(2026, 4, 24, 12) });
     await drainAsync();
     expect(container.querySelector('.commit-meta .commit-files')!.textContent).toBe(
       '1 file changed'
@@ -136,7 +132,7 @@ describe('CommitPane', () => {
 
   it('hides the open link when remoteUrl is null', async () => {
     mount();
-    await setCommit(COMMIT, { remoteUrl: null, now: new Date('2026-05-24T12:00:00Z') });
+    await setCommit(COMMIT, { remoteUrl: null, now: new Date(2026, 4, 24, 12) });
     expect(
       container.querySelector('.pane-header-actions a[aria-label="Open commit on origin"]')
     ).toBeNull();
@@ -150,7 +146,7 @@ describe('CommitPane', () => {
     mount();
     await setCommit(COMMIT, {
       remoteUrl: 'https://github.com/org/repo',
-      now: new Date('2026-05-24T12:00:00Z'),
+      now: new Date(2026, 4, 24, 12),
     });
     await setCommit(null);
     expect(container.querySelector('.commit-sha')).toBeNull();
@@ -160,7 +156,7 @@ describe('CommitPane', () => {
   it('shows the header timeline button (tooltip tracks mode) and fires onViewInTimeline with the commit', async () => {
     const onViewInTimeline = vi.fn();
     mount({ onViewInTimeline });
-    await setCommit(COMMIT, { now: new Date('2026-05-24T12:00:00Z') });
+    await setCommit(COMMIT, { now: new Date(2026, 4, 24, 12) });
     const btn = container.querySelector(
       '.pane-header [aria-label="View on timeline"]'
     ) as HTMLButtonElement;
@@ -169,7 +165,7 @@ describe('CommitPane', () => {
     btn.click();
     expect(onViewInTimeline).toHaveBeenCalledWith(COMMIT);
 
-    await setCommit(COMMIT, { inTimeline: true, now: new Date('2026-05-24T12:00:00Z') });
+    await setCommit(COMMIT, { inTimeline: true, now: new Date(2026, 4, 24, 12) });
     expect(
       container.querySelector('.pane-header [aria-label="View on timeline"]')!.getAttribute('title')
     ).toContain('Scrub the timeline to this commit');
@@ -177,7 +173,7 @@ describe('CommitPane', () => {
 
   it('omits the timeline button when no onViewInTimeline handler is given', async () => {
     mount();
-    await setCommit(COMMIT, { now: new Date('2026-05-24T12:00:00Z') });
+    await setCommit(COMMIT, { now: new Date(2026, 4, 24, 12) });
     expect(container.querySelector('[aria-label="View on timeline"]')).toBeNull();
   });
 
@@ -196,7 +192,7 @@ describe('CommitPane', () => {
 
   it("shows the full ISO date in the age span's title attribute", async () => {
     mount();
-    await setCommit(COMMIT, { now: new Date('2026-05-24T12:00:00Z') });
+    await setCommit(COMMIT, { now: new Date(2026, 4, 24, 12) });
     await drainAsync();
     const ageEl = container.querySelector('.commit-age') as HTMLElement;
     expect(ageEl).not.toBeNull();
@@ -205,7 +201,7 @@ describe('CommitPane', () => {
 
   // ── Same-day count ────────────────────────────────────────────────────────
 
-  const NOW = new Date('2026-05-24T12:00:00Z');
+  const NOW = new Date(2026, 4, 24, 12);
 
   it.each([
     ['plural above one', 5, /day:\s*\d+ commits$/],
@@ -275,17 +271,19 @@ describe('CommitPane', () => {
 
   // ── Pane header title ─────────────────────────────────────────────────────
 
-  it('sets the pane header title to "Commit <short-sha>"', async () => {
+  it('titles the pane with the kind badge and the short sha', async () => {
     mount();
-    await setCommit(COMMIT, { now: new Date('2026-05-24T12:00:00Z') });
+    await setCommit(COMMIT, { now: new Date(2026, 4, 24, 12) });
     const title = container.querySelector('.text-pane-title') as HTMLElement;
-    expect(title.textContent).toContain('Commit');
+    // The badge names the kind, the way a file title's does — not a word in a
+    // sentence, and the same shape the chip shows when this pane is closed.
+    expect(title.querySelector('.path-badge')!.textContent).toBe('commit');
     expect(title.querySelector('.commit-sha')!.textContent).toBe(COMMIT.sha.slice(0, 7));
   });
 
   it('resets the header title to plain "Commit" when setCommit(null)', async () => {
     mount();
-    await setCommit(COMMIT, { now: new Date('2026-05-24T12:00:00Z') });
+    await setCommit(COMMIT, { now: new Date(2026, 4, 24, 12) });
     await setCommit(null);
     const title = container.querySelector('.text-pane-title') as HTMLElement;
     expect(title.textContent?.trim()).toBe('Commit');
@@ -295,7 +293,7 @@ describe('CommitPane', () => {
 
   it('renders the author row with a colored dot matching the author', async () => {
     mount();
-    await setCommit(COMMIT, { now: new Date('2026-05-24T12:00:00Z') });
+    await setCommit(COMMIT, { now: new Date(2026, 4, 24, 12) });
     await drainAsync();
 
     const authorEl = container.querySelector('.commit-author');
@@ -311,7 +309,7 @@ describe('CommitPane', () => {
 
   it('renders one .commit-author row for a single-author commit (regression)', async () => {
     mount();
-    await setCommit(COMMIT, { now: new Date('2026-05-24T12:00:00Z') });
+    await setCommit(COMMIT, { now: new Date(2026, 4, 24, 12) });
     await drainAsync();
     const rows = container.querySelectorAll('.commit-author');
     expect(rows.length).toBe(1);
@@ -325,7 +323,7 @@ describe('CommitPane', () => {
       subject: 'feat: team effort',
     });
     mount();
-    await setCommit(multi, { now: new Date('2026-05-24T12:00:00Z') });
+    await setCommit(multi, { now: new Date(2026, 4, 24, 12) });
     await drainAsync();
 
     const rows = container.querySelectorAll('.commit-author');
@@ -350,7 +348,7 @@ describe('CommitPane', () => {
 
   it('renders the commit subject inside .commit-message-subject (full text, not ellipsized)', async () => {
     mount();
-    await setCommit(COMMIT, { now: new Date('2026-05-24T12:00:00Z') });
+    await setCommit(COMMIT, { now: new Date(2026, 4, 24, 12) });
     await drainAsync();
     const subjectEl = container.querySelector('.commit-message-subject') as HTMLElement;
     expect(subjectEl).not.toBeNull();
@@ -366,7 +364,7 @@ describe('CommitPane', () => {
     });
     globalThis.fetch = (async () => pending) as unknown as typeof fetch;
     mount();
-    await setCommit(COMMIT, { now: new Date('2026-05-24T12:00:00Z') });
+    await setCommit(COMMIT, { now: new Date(2026, 4, 24, 12) });
 
     // Skeleton is up; body slot shows the loading hint.
     expect(container.querySelector('.commit-author')).not.toBeNull();
@@ -415,14 +413,14 @@ describe('CommitPane', () => {
     );
     globalThis.fetch = fetchSpy as unknown as typeof fetch;
     mount();
-    await setCommit(COMMIT, { now: new Date('2026-05-24T12:00:00Z') });
+    await setCommit(COMMIT, { now: new Date(2026, 4, 24, 12) });
     await drainAsync();
     expect(fetchSpy).toHaveBeenCalledTimes(1);
     expect(container.querySelector('.commit-message-body')!.textContent).toBe('cached body');
 
     // Re-select the same commit. Body renders synchronously from cache —
     // the slot must NOT enter a loading state.
-    await setCommit(COMMIT, { now: new Date('2026-05-24T12:00:00Z') });
+    await setCommit(COMMIT, { now: new Date(2026, 4, 24, 12) });
     const slot = container.querySelector('.commit-message-body-slot')!;
     expect(slot.querySelector('.commit-message-body-slot--loading')).toBeNull();
     expect(container.querySelector('.commit-message-body')!.textContent).toBe('cached body');
@@ -442,7 +440,7 @@ describe('CommitPane', () => {
         { status: 200 }
       )) as unknown as typeof fetch;
     mount();
-    await setCommit(COMMIT, { now: new Date('2026-05-24T12:00:00Z') });
+    await setCommit(COMMIT, { now: new Date(2026, 4, 24, 12) });
     await drainAsync();
     // Subject is present.
     expect(container.querySelector('.commit-message-subject')).not.toBeNull();
@@ -460,7 +458,7 @@ describe('CommitPane', () => {
     globalThis.fetch = (async () =>
       new Response('boom', { status: 500 })) as unknown as typeof fetch;
     mount();
-    await setCommit(COMMIT, { now: new Date('2026-05-24T12:00:00Z') });
+    await setCommit(COMMIT, { now: new Date(2026, 4, 24, 12) });
     await drainAsync();
 
     const err = container.querySelector('.commit-message-error') as HTMLElement;
@@ -506,9 +504,8 @@ describe('CommitPane', () => {
   });
 
   it('drops a late fetch result when the pane has moved to a different commit', async () => {
-    // Fetch for the first commit hangs, then resolves AFTER the second
-    // commit's render has replaced the body. The late result must
-    // NOT clobber the second commit's body.
+    // The first commit's fetch resolves after the second has replaced the
+    // body, and must not clobber it.
     let resolveFirst!: (resp: Response) => void;
     const firstFetchPromise = new Promise<Response>((r) => {
       resolveFirst = r;
@@ -534,9 +531,9 @@ describe('CommitPane', () => {
 
     mount();
     // First commit — loading state, fetch in flight.
-    await setCommit(COMMIT, { now: new Date('2026-05-24T12:00:00Z') });
+    await setCommit(COMMIT, { now: new Date(2026, 4, 24, 12) });
     // Second commit — re-renders loading. First fetch's sha no longer current.
-    await setCommit(SECOND_COMMIT, { now: new Date('2026-05-24T12:00:00Z') });
+    await setCommit(SECOND_COMMIT, { now: new Date(2026, 4, 24, 12) });
     await drainAsync();
 
     // Second commit's body is showing.
@@ -565,9 +562,8 @@ describe('CommitPane', () => {
 
   // ── Skeleton-on-mount (perf + layout refactor) ────────────────────────────
 
-  // Everything except the body comes off the CommitEntry the picker already
-  // has, so a blocked fetch must not delay any of it. fetch never resolves
-  // here, so these assertions can only pass on the pre-fetch render.
+  // Everything but the body is already on the entry the picker holds, so a
+  // fetch that never resolves must not delay any of it.
   it.each([
     ['the author', '.commit-author-name', 'Alice Author'],
     ['the age', '.commit-age', '2 months 12 days ago'],
@@ -576,7 +572,7 @@ describe('CommitPane', () => {
   ])('paints %s before the body fetch resolves', async (_label, selector, text) => {
     globalThis.fetch = (() => new Promise(() => {})) as unknown as typeof fetch;
     mount();
-    await setCommit(COMMIT, { sameDayTotal: 5, now: new Date('2026-05-24T12:00:00Z') });
+    await setCommit(COMMIT, { sameDayTotal: 5, now: new Date(2026, 4, 24, 12) });
     expect(container.querySelector(selector)!.textContent).toContain(text);
     // The same-day line is part of the same synchronous paint.
     expect(container.querySelector('.commit-same-day')).not.toBeNull();
@@ -585,7 +581,7 @@ describe('CommitPane', () => {
   it('shows a body-slot loading indicator (NOT a pane-wide one) while fetching', async () => {
     globalThis.fetch = (() => new Promise(() => {})) as unknown as typeof fetch;
     mount();
-    await setCommit(COMMIT, { now: new Date('2026-05-24T12:00:00Z') });
+    await setCommit(COMMIT, { now: new Date(2026, 4, 24, 12) });
     // The slot wrapper exists with a loading indicator inside it.
     const slot = container.querySelector('.commit-message-body-slot');
     expect(slot).not.toBeNull();
@@ -598,7 +594,7 @@ describe('CommitPane', () => {
   it('DOM order is: subject → authors → meta → same-day → body slot', async () => {
     globalThis.fetch = (() => new Promise(() => {})) as unknown as typeof fetch;
     mount();
-    await setCommit(COMMIT, { sameDayTotal: 3, now: new Date('2026-05-24T12:00:00Z') });
+    await setCommit(COMMIT, { sameDayTotal: 3, now: new Date(2026, 4, 24, 12) });
     const body = container.querySelector('.commit-body') as HTMLElement;
     const children = Array.from(body.children) as HTMLElement[];
     // Find first occurrence of each marker class.
@@ -624,7 +620,7 @@ describe('CommitPane', () => {
     });
     globalThis.fetch = (async () => pending) as unknown as typeof fetch;
     mount();
-    await setCommit(COMMIT, { now: new Date('2026-05-24T12:00:00Z') });
+    await setCommit(COMMIT, { now: new Date(2026, 4, 24, 12) });
 
     // Snapshot the DOM positions of stable elements while body is loading.
     const subjectBefore = container.querySelector('.commit-message-subject')!;
@@ -646,9 +642,8 @@ describe('CommitPane', () => {
     );
     await drainAsync();
 
-    // Same DOM nodes are still in the DOM (not replaced) — Preact keyed/diffed
-    // reconciliation preserves the stable skeleton nodes when only the body
-    // slot's contents change.
+    // The same nodes, not replacements: reconciliation keeps the skeleton when
+    // only the body slot's contents change.
     expect(container.querySelector('.commit-message-subject')).toBe(subjectBefore);
     expect(container.querySelector('.commit-author')).toBe(authorBefore);
     expect(container.querySelector('.commit-meta')).toBe(metaBefore);

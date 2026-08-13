@@ -2,15 +2,13 @@
 
 #right-sidebar {
   position: relative;
+  /* Rigid: a drag stops at the other panel rather than pushing it narrower. */
   flex: 0 0 auto;
-  /* Closed by default — width 0, animates open via the .open rule below.
-     The dragged width lives on a CSS variable so the resize handle can
-     mutate it without fighting the open/close transitions. */
+  /* Closed at zero and opened below, with the dragged width on a variable.
+     Instant: a transition would re-raster the renderer every frame of it. */
   width: 0;
   height: 100%;
   border-left: 1px solid var(--cc-border-subtle);
-  /* No transition during drag (would lag the cursor); transition is added
-     by .is-animating which we toggle around open/close. */
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -23,9 +21,8 @@
   max-width: 70vw;
 }
 
-/* ── Phone (PHONE_MAX_PX) ────────────────────────────────────────────────────
-   A drawer, since its 280px floor is most of the screen. No scrim: tapping
-   another building is how you change what this pane shows. */
+/* A drawer on a phone, where its floor is most of the screen. No scrim: tapping
+   another building is how you change what this shows. */
 @media (max-width: 640px) {
   #right-sidebar.open {
     position: absolute;

@@ -3,7 +3,7 @@
 // and state class; the resize mechanics live here once so the two can't drift.
 
 import './Sidebar.css';
-import type { ComponentChildren } from 'preact';
+import { createContext, type ComponentChildren } from 'preact';
 import { useEffect, useRef, useState } from 'preact/hooks';
 
 /** Which screen edge the sidebar docks to. Determines the resize handle's edge
@@ -13,16 +13,30 @@ export enum SidebarSide {
   Right = 'right',
 }
 
-// A drag's pointer X → raw sidebar width. The left sidebar grows rightward from
-// the screen's left edge (width = clientX); the right sidebar grows leftward
-// from the right edge (width = viewport − clientX).
+/** Which edge the sidebar docks to, for descendants that draw differently by
+ *  side. Context, or every pane in between would have to forward it. */
+export const SidebarSideContext = createContext<SidebarSide | null>(null);
+
+// Pointer X to width: the left panel grows from the left edge, the right one
+// from the right.
 function _measureWidth(side: SidebarSide, e: PointerEvent): number {
   return side === SidebarSide.Left ? e.clientX : window.innerWidth - e.clientX;
 }
 
-// Both sidebars drive a `--sidebar-width` CSS var; CSS owns the actual `width`
-// (`width: var(--sidebar-width, <default>)`), so the handle never fights inline
-// styles or the open/close transition.
+// Everything the row has, less what the other panels hold. The canvas can
+// surrender all of its width; the other sidebar is a wall.
+function _maxWidth(el: HTMLElement): number {
+  const row = el.parentElement;
+  if (!row) return Number.POSITIVE_INFINITY;
+  let others = 0;
+  for (const sibling of Array.from(row.querySelectorAll(':scope > aside'))) {
+    if (sibling !== el) others += (sibling as HTMLElement).offsetWidth;
+  }
+  return Math.max(0, row.clientWidth - others);
+}
+
+// A drag writes a custom property and CSS owns the width, so it never fights
+// the open and collapsed rules.
 function _applyWidth(el: HTMLElement, w: number): void {
   el.style.setProperty('--sidebar-width', `${w}px`);
 }
@@ -46,9 +60,10 @@ function ResizeHandle({ side, targetRef }: ResizeHandleProps) {
   };
   const onPointerMove = (e: PointerEvent) => {
     if (!dragging.current || !targetRef.current) return;
-    // Feed the raw measured width to the var; CSS min-width/max-width clamp the
-    // rendered result (so the handle stops at the bounds without JS knowing them).
-    _applyWidth(targetRef.current, _measureWidth(side, e));
+    // CSS clamps its own bounds; the one it can't express is the room the
+    // other panel is holding, so that cap lives here.
+    const el = targetRef.current;
+    _applyWidth(el, Math.min(_measureWidth(side, e), _maxWidth(el)));
   };
   const onPointerUp = (e: PointerEvent) => {
     if (!dragging.current) return;
@@ -104,7 +119,7 @@ export function Sidebar({ id, side, class: cls, ariaLabel, open, children }: Sid
       class={cls ? `surface-sidebar ${cls}` : 'surface-sidebar'}
       aria-label={ariaLabel}
     >
-      {children}
+      <SidebarSideContext.Provider value={side}>{children}</SidebarSideContext.Provider>
       <ResizeHandle side={side} targetRef={ref} />
     </aside>
   );

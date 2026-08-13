@@ -1,13 +1,13 @@
-// components/PaneHeader.tsx — Shared header bar used by every pane
-// (Tree, Search, Info, Controls on the left sidebar; file-preview on
-// the right). Single source of truth for the `.pane-header` row +
-// `.text-pane-title` + `.pane-header-close` triplet, so the panes look
-// identical and adding a new pane is a one-call affair.
+// components/PaneHeader.tsx — the header every pane wears, so they can't drift
+// apart and a new pane is one call rather than a copied row.
 
 import './PaneHeader.css';
 import type { ComponentChildren } from 'preact';
-import { Focus, X, EyeOff, ExternalLink } from 'lucide-preact';
+import { Focus, X, EyeOff, ExternalLink, PanelLeftClose, PanelRightClose } from 'lucide-preact';
+import { createContext, type RefObject } from 'preact';
+import { useContext, useRef } from 'preact/hooks';
 import { CopyButton } from '@/components/CopyButton/CopyButton';
+import { SidebarSide, SidebarSideContext } from '@/components/Sidebar/Sidebar';
 
 // ── Props interface ─────────────────────────────────────────────────────────
 
@@ -32,22 +32,27 @@ export interface PaneHeaderProps {
   /** Extra action buttons rendered in the right-hand group, between the open link
    *  and exclude (e.g. CommitPane's view-on-timeline). */
   actionsSlot?: ComponentChildren;
-  /** fn() when the user clicks the × close button. Omit to render no button. */
+  /** fn() when the user clicks the close button. Omit to render no button. */
   onClose?: () => void;
-  /** Tooltip text on the × button. Defaults to "Hide sidebar". */
+  /** Tooltip text on the close button. Defaults to "Hide sidebar". */
   closeTitle?: string;
   /** fn() when the user clicks the "exclude from city" button. Omit to render none. */
   onExclude?: () => void;
   /** Tooltip / aria-label for the exclude button. */
   excludeTitle?: string;
-  /** Optional prefix element rendered before the title (e.g. an extension badge). */
-  prefixSlot?: ComponentChildren;
+  /** Why this node can't be excluded. The button stays, dimmed and carrying the
+   *  reason: one field, so a disabled button always says why. */
+  excludeDisabledReason?: string;
   /** Rich title content rendered inside the title element instead of the
    *  plain `title` string (e.g. a path breadcrumb, or "Commit <sha> · author"). */
   titleSlot?: ComponentChildren;
 }
 
 // ── Preact component ────────────────────────────────────────────────────────
+
+/** What a title measures itself against. The title hugs its content, so it
+ *  stops tracking the pane once shrunk; this group fills the row. */
+export const PaneTitleBudgetContext = createContext<RefObject<HTMLElement | null> | null>(null);
 
 export function PaneHeader({
   title,
@@ -63,24 +68,46 @@ export function PaneHeader({
   closeTitle = 'Hide sidebar',
   onExclude,
   excludeTitle,
-  prefixSlot,
+  excludeDisabledReason,
   titleSlot,
 }: PaneHeaderProps) {
+  const leadRef = useRef<HTMLDivElement>(null);
   return (
     <div class="pane-header">
-      {prefixSlot ?? null}
-      <h3 class={`text-pane-title${mono ? ' is-mono' : ''}`}>{titleSlot ?? title}</h3>
+      <div class="pane-header-lead" ref={leadRef}>
+        <h3 class={`text-pane-title${mono ? ' is-mono' : ''}`}>
+          <PaneTitleBudgetContext.Provider value={leadRef}>
+            {titleSlot ?? title}
+          </PaneTitleBudgetContext.Provider>
+        </h3>
+        {(copyText != null || openUrl) && (
+          <div class="pane-header-identity">
+            {copyText != null && <CopyButton text={copyText} label={copyLabel} />}
+            {openUrl && (
+              <a
+                class="btn-icon btn-icon--link"
+                href={openUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                title={openLabel}
+                aria-label={openLabel}
+              >
+                <ExternalLink class="icon" />
+              </a>
+            )}
+          </div>
+        )}
+      </div>
       <div class="pane-header-actions">
         {typeof onFocus === 'function' && (
           <button
             type="button"
-            class="btn-icon btn-icon--text"
+            class="btn-icon"
             title={focusTitle}
             aria-label={focusTitle}
             onClick={(e) => {
-              // Blur so a subsequent Space/Enter doesn't re-activate this button
-              // (re-firing focus) — let those keystrokes fall through to the
-              // document-level canvas keydown handler.
+              // Blurred, so the next Space or Enter reaches the canvas instead
+              // of firing this button again.
               (e.currentTarget as HTMLButtonElement).blur();
               onFocus();
             }}
@@ -88,27 +115,19 @@ export function PaneHeader({
             <Focus class="icon" />
           </button>
         )}
-        {copyText != null && <CopyButton text={copyText} label={copyLabel} />}
-        {openUrl && (
-          <a
-            class="btn-icon btn-icon--link"
-            href={openUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            title={openLabel}
-            aria-label={openLabel}
-          >
-            <ExternalLink class="icon" />
-          </a>
-        )}
         {actionsSlot ?? null}
         {typeof onExclude === 'function' && (
           <button
             type="button"
-            class="btn-icon"
-            title={excludeTitle ?? 'Exclude from city'}
+            class={`btn-icon${excludeDisabledReason ? ' btn-icon--inert' : ''}`}
+            // Tooltip only: the accessible name has to stay the action, or a
+            // screen reader announces the objection and never the button.
+            title={excludeDisabledReason ?? excludeTitle ?? 'Exclude from city'}
             aria-label={excludeTitle ?? 'Exclude from city'}
-            onClick={() => onExclude()}
+            // aria-disabled, not disabled: a disabled button drops its hover,
+            // and the tooltip is the whole point of still drawing it.
+            aria-disabled={excludeDisabledReason ? 'true' : undefined}
+            onClick={excludeDisabledReason ? undefined : () => onExclude()}
           >
             <EyeOff class="icon" />
           </button>
@@ -127,10 +146,12 @@ export interface PaneCloseButtonProps {
   title?: string;
 }
 
-/** The pane's × close button. Shared by the default header and by panes that
- *  compose their own header (e.g. InfoPane's tab strip). Plain .btn-icon so it
- *  matches the icon-only buttons in the app header. */
+/** The close button puts a panel away rather than closing anything, so it draws
+ *  it collapsing toward its edge. Outside a sidebar, × is right again. */
 export function PaneCloseButton({ onClose, title = 'Hide sidebar' }: PaneCloseButtonProps) {
+  const side = useContext(SidebarSideContext);
+  const Icon =
+    side === SidebarSide.Right ? PanelRightClose : side === SidebarSide.Left ? PanelLeftClose : X;
   return (
     <button
       type="button"
@@ -139,7 +160,7 @@ export function PaneCloseButton({ onClose, title = 'Hide sidebar' }: PaneCloseBu
       aria-label={title}
       onClick={() => onClose()}
     >
-      <X class="icon" />
+      <Icon class="icon" />
     </button>
   );
 }

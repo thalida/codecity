@@ -1,18 +1,6 @@
-// layout/App.tsx — Composition root. Mounts all shell components. The scene is booted
-// by <CenterPane /> (which owns the canvas); App just keeps document.title in
-// sync and wires the header callbacks to the live SCENE_HANDLE.
-//
-// Layout:
-//   <AppHeader>          — reads SCENE_HANDLE + SOURCE_INFO
-//   <main id="app-body">
-//     <LeftSidebar>      — self-subscribes to SCENE_HANDLE + picker
-//     <CenterPane>       — owns the canvas + boots the scene
-//     <RightSidebar>     — self-subscribes to SCENE_HANDLE + picker
-//   </main>
-//   <AppFooter>          — appearance/shortcuts/debug menus; scene commands as props
-//   <ProjectsView />     — reads PROJECTS_VIEW + SERVER_CONFIG directly; owns
-//                          inline progress for a switch it initiates
-//   <LoadingOverlay />   — reads LOADING_OVERLAY directly; deep-link boot only
+// layout/App.tsx — the composition root. CenterPane owns the canvas and boots
+// the scene; everything else subscribes to the signals it needs, so App only
+// keeps the title in sync and reacts to a world being committed.
 
 import './App.css';
 import { useEffect } from 'preact/hooks';
@@ -27,7 +15,12 @@ import { ProjectsView } from '@/views/ProjectsView/ProjectsView';
 import { LoadingOverlay } from '@/components/LoadingOverlay/LoadingOverlay';
 import { HljsThemeLink } from '@/components/HljsThemeLink/HljsThemeLink';
 import { SelectionAnnouncer } from '@/components/SelectionAnnouncer/SelectionAnnouncer';
-import { clearSelection, runCollisionCheck, runStemDiagnostic } from '@/state/stores/scene';
+import {
+  clearSelection,
+  runCollisionCheck,
+  runStemDiagnostic,
+  runTreeGroundingCheck,
+} from '@/state/stores/scene';
 import {
   openProjectsView,
   closeProjectsView,
@@ -53,12 +46,8 @@ export function App() {
 
   useEffect(() => attachLoadingReactions(), []);
 
-  // A committed switch: CURRENT_SOURCE is written ONLY on a successful load,
-  // so reacting here both resets the picker selection (panes derived from it —
-  // the right sidebar, tree highlight — must not carry a stale node into the
-  // new world) and auto-closes the view to reveal the new city. One reaction,
-  // one concern: "a world committed". No-op on deep-link boot (view already
-  // closed) and on live-updates (they don't rewrite CURRENT_SOURCE).
+  // CURRENT_SOURCE is written only on a successful load, so this one reaction
+  // means "a world committed": drop the stale selection and reveal the city.
   useSignalEffect(() => {
     if (CURRENT_SOURCE.value) {
       clearSelection();
@@ -66,10 +55,8 @@ export function App() {
     }
   });
 
-  // The landing is a full-bleed fixed page with no background of its own, so
-  // the chrome behind it has to go: left up, its opaque strips would show
-  // through at the top and bottom instead of the city. Both modes, not just the
-  // dismissible one, and one writer for the class.
+  // The landing is full-bleed with no background of its own, so the chrome
+  // behind it has to go or its opaque strips show through.
   useSignalEffect(() => {
     document.getElementById('app')?.classList.toggle('cc-showcase', PROJECTS_VIEW.value.visible);
   });
@@ -83,9 +70,8 @@ export function App() {
   // The cold-boot picker decision runs pre-paint in main.tsx (openBootPickerIfNeeded)
   // so the landing covers the chrome from frame one; App only handles reopens below.
 
-  // A source-load failure (boot or submit) reopens the view. Dismissible only
-  // when a city is already loaded to fall back to (a failed FIRST pick stays
-  // non-dismissible so the app can't end up blank).
+  // A failure reopens the view, dismissible only with a city to fall back to:
+  // a failed first pick would otherwise leave the app blank.
   useSignalEffect(() => {
     const err = SOURCE_ERROR.value;
     if (!err) return;
@@ -116,13 +102,16 @@ export function App() {
         <CenterPane />
         <RightSidebar />
       </main>
-      <AppFooter onRunCollisionCheck={runCollisionCheck} onRunStemDiagnostic={runStemDiagnostic} />
+      <AppFooter
+        onRunCollisionCheck={runCollisionCheck}
+        onRunStemDiagnostic={runStemDiagnostic}
+        onRunTreeGroundingCheck={runTreeGroundingCheck}
+      />
       <ProjectsView onSubmit={(p) => submitSource(p)} onCancel={cancelLoad} onClose={dismissView} />
       <LoadingOverlay
         onCancel={() => {
-          // A load that can be backed out of (timeline enter) registers its own
-          // restore-the-last-view handler; the cold-boot live load has no prior
-          // view, so it falls back to the project list.
+          // A load with something to go back to registers its own handler; a
+          // cold boot has none, so it falls back to the project list.
           const registered = LOADING_CANCEL.peek();
           if (registered) registered();
           else {

@@ -11,9 +11,14 @@ import { DEBUG_OPEN } from '@/state/stores/ui';
 export interface DebugMenuProps {
   onRunCollisionCheck?: () => void;
   onRunStemDiagnostic?: () => void;
+  onRunTreeGroundingCheck?: () => void;
 }
 
-export function DebugMenu({ onRunCollisionCheck, onRunStemDiagnostic }: DebugMenuProps) {
+export function DebugMenu({
+  onRunCollisionCheck,
+  onRunStemDiagnostic,
+  onRunTreeGroundingCheck,
+}: DebugMenuProps) {
   return (
     <Popover
       label="Debug"
@@ -43,6 +48,16 @@ export function DebugMenu({ onRunCollisionCheck, onRunStemDiagnostic }: DebugMen
               onClick={() => onRunStemDiagnostic()}
             >
               Diagnose stem placement
+            </button>
+          )}
+          {onRunTreeGroundingCheck && (
+            <button
+              type="button"
+              class="btn-secondary debug-action"
+              title="Measures every tree's lowest trunk vertex against the ground plane and logs any that float or sink."
+              onClick={() => onRunTreeGroundingCheck()}
+            >
+              Audit tree grounding
             </button>
           )}
           <p class="popover-hint">Output goes to the browser console.</p>

@@ -1,26 +1,32 @@
 import { describe, it, expect } from 'vitest';
 import { formatRelativeAge, humanSpan } from '@/utils/dates';
 
-const NOW = new Date('2026-05-24T12:00:00Z');
+// Local, like the dates it is measured against: from a UTC instant, these
+// answers would depend on the runner's timezone.
+const NOW = new Date(2026, 4, 24, 12, 0, 0);
+
+/** A local moment as the ISO string a timestamped date arrives as. */
+const iso = (y: number, mo: number, d: number, h = 0, mi = 0, se = 0) =>
+  new Date(y, mo, d, h, mi, se).toISOString();
 
 describe('formatRelativeAge', () => {
   it('returns "just now" for a date less than a minute ago', () => {
-    expect(formatRelativeAge('2026-05-24T11:59:30Z', NOW)).toBe('just now');
+    expect(formatRelativeAge(iso(2026, 4, 24, 11, 59, 30), NOW)).toBe('just now');
   });
 
   it('returns minutes for under an hour', () => {
-    expect(formatRelativeAge('2026-05-24T11:55:00Z', NOW)).toBe('5 minutes ago');
-    expect(formatRelativeAge('2026-05-24T11:59:00Z', NOW)).toBe('1 minute ago');
+    expect(formatRelativeAge(iso(2026, 4, 24, 11, 55), NOW)).toBe('5 minutes ago');
+    expect(formatRelativeAge(iso(2026, 4, 24, 11, 59), NOW)).toBe('1 minute ago');
   });
 
   it('returns hours for under a day', () => {
-    expect(formatRelativeAge('2026-05-24T09:00:00Z', NOW)).toBe('3 hours ago');
-    expect(formatRelativeAge('2026-05-24T11:00:00Z', NOW)).toBe('1 hour ago');
+    expect(formatRelativeAge(iso(2026, 4, 24, 9), NOW)).toBe('3 hours ago');
+    expect(formatRelativeAge(iso(2026, 4, 24, 11), NOW)).toBe('1 hour ago');
   });
 
   it('returns days for under 30 days', () => {
-    expect(formatRelativeAge('2026-05-21T12:00:00Z', NOW)).toBe('3 days ago');
-    expect(formatRelativeAge('2026-05-23T12:00:00Z', NOW)).toBe('1 day ago');
+    expect(formatRelativeAge(iso(2026, 4, 21, 12), NOW)).toBe('3 days ago');
+    expect(formatRelativeAge(iso(2026, 4, 23, 12), NOW)).toBe('1 day ago');
   });
 
   it('accepts day-precision YYYY-MM-DD input', () => {

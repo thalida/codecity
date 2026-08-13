@@ -1,33 +1,33 @@
 // Reading the world into a frame. The one module that touches the scrub
-// position, the ruin/blueprint settings and the picker, so also the only place
+// position, the ruin settings and the picker, so also the only place
 // those still have to be driven into position.
 
-import * as THREE from 'three';
 import { describe, it, expect, afterEach, beforeEach } from 'vitest';
 import { signal } from '@preact/signals';
 
-import { FUTURE_SLAB_FLOORS, readScrubFrame } from '@/city/timeline/scrubFrame';
+import { readScrubFrame } from '@/city/timeline/scrubFrame';
 import type { ScrubFrameDeps } from '@/city/timeline/scrubFrame';
 import { TIMELINE_BUNDLE, setScrubPos } from '@/state/stores/timeline';
 import { BUILDING_DIMENSIONS } from '@/state/stores/settings/buildings';
 import { RUINS } from '@/state/stores/settings/ruins';
-import { BLUEPRINTS } from '@/state/stores/settings/blueprints';
 import { NodeKind } from '@/types';
 import type { FileNode, PickTarget, RangeStat, Street, TimelineBundle } from '@/types';
 
 const _ruins = RUINS.peek();
-const _blueprints = BLUEPRINTS.peek();
 
-// SCRUB_POS clamps against the loaded bundle, so a position past 0 is only
-// reachable with one loaded.
+const COMMIT_MS = [Date.UTC(2024, 0, 1), Date.UTC(2024, 0, 2), Date.UTC(2024, 0, 3)];
+const SCANNED_AT = Date.UTC(2024, 5, 1);
+
+// SCRUB_POS clamps against the bundle, so a position past 0 needs one loaded,
+// with dates: the clamp runs a stop past the last commit.
 beforeEach(() => {
   TIMELINE_BUNDLE.value = {
-    commits: [{ sha: 'a' }, { sha: 'b' }, { sha: 'c' }],
+    commits: COMMIT_MS.map((ms, i) => ({ sha: 'abc'[i], date: new Date(ms).toISOString() })),
+    unionManifest: { scanned_at: new Date(SCANNED_AT).toISOString() },
   } as unknown as TimelineBundle;
 });
 afterEach(() => {
   RUINS.value = _ruins;
-  BLUEPRINTS.value = _blueprints;
   setScrubPos(0);
   TIMELINE_BUNDLE.value = null;
 });
@@ -37,8 +37,6 @@ const RANGES: RangeStat[] = [
   { min: 1, max: 20 },
   { min: 1, max: 30 },
 ];
-const COMMIT_MS = [Date.UTC(2024, 0, 1), Date.UTC(2024, 0, 2), Date.UTC(2024, 0, 3)];
-const SCANNED_AT = Date.UTC(2024, 5, 1);
 const DATE_RANGES = [
   { minCreated: 0, maxCreated: 10, minModified: 0, maxModified: 10 },
   { minCreated: 5, maxCreated: 25, minModified: 5, maxModified: 45 },
@@ -53,7 +51,7 @@ function deps(over: Partial<ScrubFrameDeps> = {}): ScrubFrameDeps {
     commitLineRanges: RANGES,
     commitDateRanges: DATE_RANGES,
     commitMs: COMMIT_MS,
-    scannedAtMs: SCANNED_AT,
+    trackEndMs: SCANNED_AT,
     byteStats: { min: 1, max: 5000 },
     streetsByDir: { src: dirStreet },
     picker: { selection: signal<PickTarget | null>(null), hover: signal<PickTarget | null>(null) },
@@ -95,30 +93,6 @@ describe('the ruin settings', () => {
   });
 });
 
-describe('the blueprint settings', () => {
-  it('resolves the slab height from the fixed floor count', () => {
-    BLUEPRINTS.value = { ..._blueprints, ENABLED: true, BUILDING_OPACITY: 0.2 };
-    const frame = at(0);
-    expect(frame.futureOn).toBe(true);
-    expect(frame.futureHeight).toBeCloseTo(
-      FUTURE_SLAB_FLOORS * BUILDING_DIMENSIONS.peek().FLOOR_HEIGHT,
-      5
-    );
-    expect(frame.futureBuildingOpacity).toBe(0.2);
-  });
-
-  it('converts the blueprint colour into working space, ready to lerp toward', () => {
-    // Components rather than the CSS string keep the decision free of THREE, so
-    // the conversion has to happen exactly once, here.
-    BLUEPRINTS.value = { ..._blueprints, BUILDING_COLOR: '#3366ff' };
-    const expected = new THREE.Color('#3366ff');
-    const { futureColor } = at(0);
-    expect(futureColor.r).toBeCloseTo(expected.r, 6);
-    expect(futureColor.g).toBeCloseTo(expected.g, 6);
-    expect(futureColor.b).toBeCloseTo(expected.b, 6);
-  });
-});
-
 describe('the created span, which still ranks (it drives grime, not colour)', () => {
   it('reads the replayed created range for the commit it is standing on', () => {
     const frame = at(1);
@@ -138,15 +112,38 @@ describe('the created span, which still ranks (it drives grime, not colour)', ()
 });
 
 describe('what now means mid-scrub', () => {
-  it('is the scan date at HEAD, where the city is the working tree just as Live is', () => {
-    expect(at(2).nowMs).toBe(SCANNED_AT);
+  it('is the scan date at the today stop, where the city is what Live shows', () => {
+    // One past the last commit. Nothing was committed in between, but the city
+    // has gone on aging, and that stop is where the track ends.
+    expect(at(3).nowMs).toBe(SCANNED_AT);
   });
 
-  it('is the commit under the scrubber before that', () => {
+  it('ages on past the last commit rather than jumping to the scan date', () => {
+    const last = COMMIT_MS[2];
+    expect(at(2).nowMs).toBe(last);
+    const part = at(2.5).nowMs;
+    expect(part).toBeGreaterThan(last);
+    expect(part).toBeLessThan(SCANNED_AT);
+    expect(part).toBe(last + (SCANNED_AT - last) * 0.5);
+  });
+
+  it('is the commit under the scrubber when parked on one', () => {
     // Otherwise a repo scrubbed to its first commit paints brand-new files as
     // years old, measured against a date that has not happened yet there.
     expect(at(0).nowMs).toBe(COMMIT_MS[0]);
-    expect(at(1.9).nowMs).toBe(COMMIT_MS[1]);
+    expect(at(1).nowMs).toBe(COMMIT_MS[1]);
+  });
+
+  // Held at the commit, a quiet stretch aged nothing and then aged everything
+  // at once. This is the date the bar prints, so the two agree.
+  it('follows the handle between commits, so the city ages as you drag', () => {
+    const half = at(0.5).nowMs;
+    expect(half).toBeGreaterThan(COMMIT_MS[0]);
+    expect(half).toBeLessThan(COMMIT_MS[1]);
+    expect(half).toBe(COMMIT_MS[0] + (COMMIT_MS[1] - COMMIT_MS[0]) * 0.5);
+    // Monotonic across the whole segment, not just at the midpoint.
+    expect(at(0.25).nowMs).toBeLessThan(half);
+    expect(at(0.75).nowMs).toBeGreaterThan(half);
   });
 });
 

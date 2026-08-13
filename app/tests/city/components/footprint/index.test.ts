@@ -255,9 +255,8 @@ describe('createFootprint()', () => {
 
   // dispose()
 
-  // Not a check that the effect stopped: dispose() nulls `material` and the
-  // effect body sits behind `if (material)`, so a leak would be absorbed and
-  // look identical from here. What this pins is the guard.
+  // Not a check that the effect stopped: dispose nulls the material and the
+  // body is guarded on it, so a leak would look identical. This pins the guard.
   it('a FOOTPRINT mutation after dispose() is absorbed by the material guard', () => {
     fp.rebuild(singleBuildingLayout());
     fp.dispose();
@@ -374,9 +373,7 @@ describe('createFootprint()', () => {
       street: Partial<StreetScrubState>
     ): ScrubStates => ({
       buildings: new Map([['a/b.txt', { ...blankBuildingScrubState(), ...building }]]),
-      streets: new Map([
-        [bStreet, { opacity: 1, tint: StreetTint.None, ruin: false, future: false, ...street }],
-      ]),
+      streets: new Map([[bStreet, { opacity: 1, tint: StreetTint.None, ruin: false, ...street }]]),
     });
 
     beforeEach(() => {
@@ -396,13 +393,6 @@ describe('createFootprint()', () => {
       expect(opacityAt(0)).toBeCloseTo(0.3);
       expect(ruinAt(0)).toBe(1);
       expect(ruinAt(1)).toBe(1);
-    });
-
-    it('gives a future building and road no plot at all: the slab IS the blueprint', () => {
-      // Keeps the blueprint look independent of the footprint controls.
-      fp.applyScrub(states({ lane: BuildingLane.Future, op: 0.2 }, { opacity: 1, future: true }));
-      expect(opacityAt(0)).toBe(0);
-      expect(opacityAt(1)).toBe(0);
     });
   });
 

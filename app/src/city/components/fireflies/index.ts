@@ -34,6 +34,8 @@ export interface FirefliesComponent extends SceneComponent {
   /** Timeline scrub gate — forwards to the inner assembly; no-op pre-rebuild
    *  (nothing to gate yet). See fireflies.ts Fireflies.setScrubCommit. */
   setScrubCommit(maxCommitIndex: number | null): void;
+  /** Timeline scrub date — sizes the orbs and their orbits. */
+  setScrubNow(nowMs: number | null): void;
 }
 
 export function createFireflies(ctx: SceneContext): FirefliesComponent {
@@ -128,5 +130,6 @@ export function createFireflies(ctx: SceneContext): FirefliesComponent {
     onResize,
     dispose,
     setScrubCommit: (maxCommitIndex) => _inner?.setScrubCommit(maxCommitIndex),
+    setScrubNow: (nowMs) => _inner?.setScrubNow(nowMs),
   };
 }

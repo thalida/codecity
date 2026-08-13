@@ -309,6 +309,8 @@ export interface components {
       sha: string;
       /** Files */
       files: number;
+      /** Date */
+      date: string;
     };
     /**
      * CompleteManifestEvent
@@ -382,6 +384,10 @@ export interface components {
       children: number;
       /** Descendants */
       descendants: number;
+      /** Created */
+      created: string | null;
+      /** Modified */
+      modified: string | null;
     };
     /** DirNode */
     DirNode: {
@@ -673,8 +679,12 @@ export interface components {
       maxDepthDir: components['schemas']['DirLeader'] | null;
       maxChildrenDir: components['schemas']['DirLeader'] | null;
       minChildrenDir: components['schemas']['DirLeader'] | null;
+      oldestCreatedDir: components['schemas']['DirLeader'] | null;
+      newestCreatedDir: components['schemas']['DirLeader'] | null;
       maxFilesPerCommit: components['schemas']['CommitLeader'] | null;
       minFilesPerCommit: components['schemas']['CommitLeader'] | null;
+      oldestCommit: components['schemas']['CommitLeader'] | null;
+      newestCommit: components['schemas']['CommitLeader'] | null;
       /**
        * Commitcount
        * @description Commits in the full history, however many `commits` carries

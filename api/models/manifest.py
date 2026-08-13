@@ -172,11 +172,18 @@ class DirLeader(BaseModel):
     depth: int
     children: int
     descendants: int
+    # A directory has no timestamps of its own, so it takes its subtree's:
+    # the oldest file created under it, and the newest change anywhere in it.
+    created: Optional[str]
+    modified: Optional[str]
 
 
 class CommitLeader(BaseModel):
     sha: str
     files: int
+    # The commit's own date, so a leader can be shown by when it happened
+    # rather than only by what it changed.
+    date: str
 
 
 # Both fields required-nullable: the scanner always emits them (null for a repo
@@ -228,8 +235,12 @@ class RepoStats(BaseModel):
     maxDepthDir: Optional[DirLeader]
     maxChildrenDir: Optional[DirLeader]
     minChildrenDir: Optional[DirLeader]
+    oldestCreatedDir: Optional[DirLeader]
+    newestCreatedDir: Optional[DirLeader]
     maxFilesPerCommit: Optional[CommitLeader]
     minFilesPerCommit: Optional[CommitLeader]
+    oldestCommit: Optional[CommitLeader]
+    newestCommit: Optional[CommitLeader]
     commitCount: int = Field(
         description="Commits in the full history, however many `commits` carries"
     )

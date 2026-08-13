@@ -1,15 +1,6 @@
-// components/Badge.tsx — Shared builder for the small pill that shows
-// "what kind of thing am I looking at": a file extension (color-coded
-// from the same hue palette the city uses) or a generic "dir" badge
-// (painted with the asphalt color). Used by both the floating header
-// and the status-bar footer so the two stay visually in sync with
-// the city's current theme — when a user changes the asphalt color
-// or a hue in Controls, badges repaint to match.
-//
-// Text color is auto-contrasted against the badge background using the
-// WCAG relative-luminance formula: dark text on bright backgrounds,
-// light text on dark backgrounds. That keeps the label readable no
-// matter what colors the user picks in Controls.
+// components/Badge.tsx — the pill saying what kind of thing you're looking at,
+// painted from that thing's own colour in the city so a Controls change repaints
+// it too. Its text colour is chosen by luminance against that fill.
 
 import './Badge.css';
 import { getHue } from '@/city/components/buildings/color';
@@ -20,12 +11,12 @@ import {
   FILE_TAG_SATURATION,
   FILE_TAG_LIGHTNESS,
 } from '@/utils/colors';
+import { NodeKind } from '@/types';
 import { BUILDINGS } from '@/state/stores/settings/buildings';
 import { STREETS } from '@/state/stores/settings/streets';
 
-// Badge color defaults. The file badge's CSS paints hsl(var(--badge-hue), …)
-// with the shared file-tag saturation/lightness; the JS-side luminance check
-// uses the same values (as 0-1 fractions) so it matches what the user sees.
+// The luminance check reads the same saturation and lightness the CSS paints,
+// so it judges the colour actually on screen.
 const DEFAULT_TEXT_DARK = '#0a0b10';
 const DEFAULT_TEXT_LIGHT = '#f4f6ff';
 const DEFAULT_FILE_BADGE_SATURATION = FILE_TAG_SATURATION / 100;
@@ -33,9 +24,11 @@ const DEFAULT_FILE_BADGE_LIGHTNESS = FILE_TAG_LIGHTNESS / 100;
 
 // ── Props interface ─────────────────────────────────────────────────────────
 
-export interface ExtensionBadgeProps {
-  extension: string | null | undefined;
-  isDir: boolean;
+export interface KindBadgeProps {
+  /** Which of the three selectable things this names. */
+  kind: NodeKind;
+  /** Files only: drives both the label and the hue. */
+  extension?: string | null;
   /** Label color used on bright backgrounds. */
   textDark?: string;
   /** Label color used on dark backgrounds. */
@@ -48,14 +41,14 @@ export interface ExtensionBadgeProps {
 
 // ── Preact component ────────────────────────────────────────────────────────
 
-export function ExtensionBadge({
+export function KindBadge({
+  kind,
   extension,
-  isDir,
   textDark = DEFAULT_TEXT_DARK,
   textLight = DEFAULT_TEXT_LIGHT,
   fileBadgeSaturation = DEFAULT_FILE_BADGE_SATURATION,
   fileBadgeLightness = DEFAULT_FILE_BADGE_LIGHTNESS,
-}: ExtensionBadgeProps) {
+}: KindBadgeProps) {
   // Read the live theme directly so callers don't have to thread these through —
   // the city's extension→hue palette and the dir badge's asphalt color.
   const huePalette = BUILDINGS.value.HUE_EXT_MAP;
@@ -63,7 +56,12 @@ export function ExtensionBadge({
   const contrastingText = (rgb: [number, number, number] | null): string =>
     pickContrastingText(rgb, textDark, textLight);
 
-  if (isDir) {
+  if (kind === NodeKind.Commit) {
+    // A commit's tree is two near-black tones, which paints a chip as a black
+    // rectangle; the other kinds borrow a colour that can carry a label.
+    return <span class="path-badge is-commit">commit</span>;
+  }
+  if (kind === NodeKind.Directory) {
     return (
       <span
         class="path-badge is-dir"

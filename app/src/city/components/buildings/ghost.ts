@@ -1,28 +1,12 @@
-// city/components/buildings/ghost.ts — owns the single shared ghost mesh:
-// a translucent solid-color box that tracks the hovered-but-not-selected
-// building per frame.
-//
-// Path B (active-ghost-only): exactly 1 THREE.Mesh exists regardless
-// of how many buildings are in the scene. On hover state changes it is
-// repositioned and recolored to match the hovered building; on
-// hover-end it is hidden. Per-frame work is O(1) — just a matrix sync
-// for the currently active ghost (if any).
-//
-// Field ownership:
-//   buildingFader   → block.detailMesh iFade.x attribute (building body fade)
-//   outlineRenderer → hoverOutline + selectedOutline transform + visibility
-//   ghostRenderer   → ghostMesh transform + color + visibility
-//
-// Subscribes to picker.hover and picker.selection (to correctly dedup
-// hover-while-selected so the ghost doesn't show on an already-selected
-// building). Does NOT need to react to rebuilds — the hover atom is cleared
-// by the picker on every rebuild, which triggers a hide automatically.
+// city/components/buildings/ghost.ts — one translucent box that follows the
+// hovered building, however many buildings there are. It owns that mesh and
+// nothing else, so it can't contend with the fader or the outline. A rebuild
+// clears the hover, which hides it, so it needs no rebuild handling.
 
 import * as THREE from 'three';
 import { effect } from '@preact/signals';
 import { NodeKind } from '@/types';
 import { RENDER_ORDERS } from '@/city/types/renderOrders';
-import { getBuildingTilt, composeShearMatrix } from './tilt';
 import type { Building } from '@/types';
 import type { createPicker } from '@/city/interaction/picker';
 import type { FileTarget } from '@/types';
@@ -37,12 +21,8 @@ interface GhostWorld {
 // reads as a "preview" hint without obscuring the building body beneath.
 const GHOST_OPACITY = 0.35;
 
-// Tiny outward scale on the ghost so its faces don't sit perfectly
-// coplanar with the underlying building's BoxGeometry — coplanar faces
-// z-fight, producing a stable checkerboard pattern across the whole
-// face once OrbitControls' damping settles. 1.005 keeps the ghost
-// visually flush with the building at any reasonable zoom while still
-// beating the depth-test tie.
+// Just off coplanar with the building beneath: exactly coplanar, the faces
+// settle into a stable checkerboard once the camera damping stops.
 const GHOST_SCALE_INSET = 1.005;
 
 export function createGhostRenderer({
@@ -69,20 +49,13 @@ export function createGhostRenderer({
 
   // Scratch objects reused per frame to avoid GC pressure.
   const _tmpMatrix = new THREE.Matrix4();
+  const _GHOST_QUAT = new THREE.Quaternion();
   const _tmpPos = new THREE.Vector3();
   const _tmpScale = new THREE.Vector3();
   const _tmpQuat = new THREE.Quaternion();
 
-  // _syncGhostToTarget: read the current animated transform of a FileTarget's
-  // building and apply it to the ghost mesh. Also reads instanceColor for
-  // the correct building tint.
-  //
-  // Resolves the building's live InstancedMesh + slot, then decomposes the
-  // live instance matrix so the ghost tracks the animator's tween position.
-  // Falls back to layout dimensions from target.data when no live mesh is
-  // available. The shader's Y-shear lean is then baked into the ghost matrix
-  // (same as the outline) — without it a tilted building's vertical ghost
-  // diverges from the leaning body and reads as an offset double-image.
+  // Decomposed from the live instance matrix, so the ghost tracks a building
+  // mid-tween; layout dimensions are the fallback when there is no mesh yet.
   function _syncGhostToTarget(target: FileTarget): void {
     const b = target.data;
     const resolved = world.getMeshForBuilding(b);
@@ -118,23 +91,16 @@ export function createGhostRenderer({
       _ghostMat.color.set(b.color ?? '#ffffff');
     }
 
-    // Bake the same Y-shear the vertex shader (and the outline) apply, so the
-    // ghost leans with the building. GHOST_SCALE_INSET keeps it flush. With
-    // tilt off / newest buildings (tiltX = tiltZ = 0) this is a plain TRS,
-    // identical to the previous position + scale path.
-    const { tiltX, tiltZ } = getBuildingTilt(b);
+    // GHOST_SCALE_INSET keeps it flush inside the building it shadows.
     _tmpPos.set(px, py, pz);
     _tmpScale.set(sx * GHOST_SCALE_INSET, sy * GHOST_SCALE_INSET, sz * GHOST_SCALE_INSET);
-    composeShearMatrix(_tmpPos, _tmpScale, tiltX, tiltZ, ghostMesh.matrix);
+    ghostMesh.matrix.compose(_tmpPos, _GHOST_QUAT, _tmpScale);
     ghostMesh.matrixAutoUpdate = false;
     ghostMesh.matrixWorldNeedsUpdate = true;
   }
 
-  // ── Reactive: show/hide ghost on hover changes ───────────────────────
-  //
-  // Ghost is shown only when there is a file hover AND the hovered
-  // building is NOT the currently selected building (same dedup rule
-  // as the hover outline in outlineRenderer).
+  // Shown for a hovered building that isn't the selected one, the same rule
+  // the hover outline uses.
   const _disposeHoverEffect = effect(() => {
     const h = picker.hover.value;
     const sel = picker.selection.value;
@@ -158,9 +124,7 @@ export function createGhostRenderer({
     }
   });
 
-  // ── Per-frame ────────────────────────────────────────────────────────
-  // O(1) — sync the active ghost transform in case the building is
-  // still animating (entering tween growing scale.y).
+  // One transform, in case the building under it is still growing in.
   function update(_dtMs: number): void {
     if (!ghostMesh.visible) return;
     const hov = picker.hover.value;

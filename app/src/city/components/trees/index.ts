@@ -1,18 +1,7 @@
-// city/components/trees/index.ts — Trees COMPONENT (public door).
-//
-// Self-contained scene component: owns a persistent group, swaps the inner
-// instanced tree meshes (one tree per commit) in via rebuild() on the
-// deferred decoration pass of every applyManifest, reacts to TREES settings
-// via its own theme effect (canopy/trunk recolor + outline materials), and
-// absorbs the tree hover/selected outline renderer (./outline).
-//
-// Construction-time bridge: trees are built by createCity BEFORE the picker
-// exists. The theme effect reads only TREES signals, so it's safe at
-// construction. The outline renderer subscribes to picker.hover/selection
-// inside its factory, so it is NOT constructed at component construction
-// (ctx.picker is null there — its effects would track NO signal and never
-// re-fire). It is ARMED on the first tick(), once createCity has backfilled
-// ctx.picker.
+// city/components/trees/index.ts — the trees component: its group, the merged
+// tree meshes, the theme effect and the hover outline. Trees are built before
+// the picker exists, so the outline is constructed on the first tick() instead:
+// at construction its effects would track no signal and never fire again.
 
 import * as THREE from 'three';
 import { effect } from '@preact/signals';
@@ -33,9 +22,7 @@ export type { Trees };
 
 /** Public contract for the trees component. */
 export interface TreesComponent extends SceneComponent {
-  /** Build (or rebuild) the inner instanced tree meshes from placements. Driven
-   *  by the component's own reactive deferred pass (off cityState.layout); not
-   *  scenic-gated (trees rebuild every apply). */
+  /** The inner meshes, rebuilt from placements on the deferred pass. */
   rebuild(
     placements: TreePlacement[],
     commits: CommitEntry[] | null,
@@ -45,15 +32,15 @@ export interface TreesComponent extends SceneComponent {
   ): void;
   /** Dispose the inner meshes + null the handle. */
   clear(): void;
-  /** Inner renderer, or null pre-rebuild / post-clear. Preserves the
-   *  null-until-built contract (picker pickables, RightSidebar colorForSha,
-   *  cameraRig getTreeBoundsBySha all consume it). */
+  /** Null until built and after a clear: three consumers depend on that. */
   getRenderer(): Trees | null;
   /** Window-resize hook — forwards to the outline LineMaterial resolutions. */
   onResize(): void;
   /** Timeline scrub gate — forwards to the inner renderer; no-op pre-rebuild
    *  (nothing to gate yet). See treeRenderer.ts Trees.setScrubCommit. */
   setScrubCommit(maxCommitIndex: number | null): void;
+  /** The scrubbed date, so each tree is the size it was then. */
+  setScrubNow(nowMs: number | null): void;
 }
 
 export function createTrees(ctx: SceneContext): TreesComponent {
@@ -92,23 +79,15 @@ export function createTrees(ctx: SceneContext): TreesComponent {
     group.add(_inner.group);
   }
 
-  // TREES theme effect — reacts to TREES Save (per-instance canopy/trunk
-  // recolor + outline width/color/opacity). Reads only TREES signals, so it's
-  // safe at construction (pre-picker); both refs null-guard pre-rebuild /
-  // pre-arming.
+  // Reads only TREES, so it is safe at construction, before the picker.
   const stopTheme = effect(() => {
     void TREES.value;
     _inner?.refresh();
     _outline?.refreshMaterials();
   });
 
-  // Reactive rebuild — the deferred decoration pass, now owned by trees. Fires
-  // on every apply (layout/manifest change). It clears first (dropping the
-  // treePlacements signal so fireflies clears, and bumping decorationRevision so
-  // the picker drops stale tree pickables — order-independent since pickables are
-  // read only on pointer events), then defers past the paint and runs the
-  // off-thread placement scan so a large repo stays interactive. A newer apply
-  // supersedes an in-flight scan via reactiveRebuild's generation guard.
+  // Clears first, then defers past the paint and scans off-thread, so a large
+  // repo stays interactive; a newer apply supersedes an in-flight scan.
   const stopRebuild = reactiveRebuild(
     () => {
       const layout = cityState.layout.value;
@@ -154,23 +133,16 @@ export function createTrees(ctx: SceneContext): TreesComponent {
         manifest.stats,
         manifest.scanned_at
       );
-      // Publish placements (fireflies rebuilds off this) and re-notify the picker
-      // now that the live tree meshes exist (re-resolve a Commit selection +
-      // include them in pickables).
+      // Fireflies rebuild off the placements, and the picker re-resolves a
+      // commit selection now that the meshes exist.
       cityState.treePlacements.value = placements;
       if (_inner !== null) cityState.decorationRevision.value++;
       markIdle();
     }
   );
 
-  // Outline renderer — ARMED on the first tick(), NOT at construction. Its
-  // factory creates the two picker-driven effects internally, so constructing
-  // it at arming (ctx.picker live) is what makes them live; at construction
-  // ctx.picker is null and the effects would be permanently dead. getTrees is
-  // a dynamic closure over _inner so the outline survives rebuilds.
-  // armOnFirstTick's sticky armed flag (not `if (_outline)`) survives
-  // dispose() nulling _outline, so a stray post-dispose tick() can't re-arm a
-  // dead component (same pattern as streets/buildings/fireflies).
+  // Constructed at arming, which is what makes its effects live. The armed flag
+  // is sticky, so a stray tick after dispose can't raise a dead component.
   const _arm = armOnFirstTick(ctx, () => {
     _outline = createTreeOutlineRenderer({
       canvas: ctx.canvas,
@@ -214,5 +186,6 @@ export function createTrees(ctx: SceneContext): TreesComponent {
     onResize,
     dispose,
     setScrubCommit: (maxCommitIndex) => _inner?.setScrubCommit(maxCommitIndex),
+    setScrubNow: (nowMs) => _inner?.setScrubNow(nowMs),
   };
 }

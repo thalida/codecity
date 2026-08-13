@@ -18,6 +18,9 @@ export interface FireflyRenderer {
   setSelectedCommit(commitIndex: number | null): void;
   /** Timeline scrub gate: hide orbs whose commitIndex is past maxCommitIndex. Null restores all. */
   setScrubCommit(maxCommitIndex: number | null): void;
+  /** Re-read scale and orbit geometry off the placements, which the scrub
+   *  resizes in place. */
+  uploadSizes(): void;
   refresh(): void;
   dispose(): void;
 }
@@ -39,6 +42,7 @@ export function createFireflyRenderer(
       setHoveredCommit() {},
       setSelectedCommit() {},
       setScrubCommit() {},
+      uploadSizes() {},
       refresh() {},
       dispose() {},
     };
@@ -80,8 +84,8 @@ export function createFireflyRenderer(
     positions[v] = o.treeX;
     positions[v + 1] = o.height;
     positions[v + 2] = o.treeZ;
-    // rgb values from FireflyPlacement are already linear-RGB (0..1) — the
-    // shader consumes them raw, no color-space conversion.
+    // uploadSizes re-reads height, radius and scale; the rest is fixed for the
+    // life of the field. The colours are already linear, so they pass raw.
     colors[v] = o.rgb[0];
     colors[v + 1] = o.rgb[1];
     colors[v + 2] = o.rgb[2];
@@ -158,6 +162,22 @@ export function createFireflyRenderer(
     },
     setScrubCommit(maxCommitIndex: number | null) {
       uScrubCommit.value = maxCommitIndex ?? -1;
+    },
+    uploadSizes() {
+      maxWorldOrbit = 0;
+      maxScale = 0;
+      for (let i = 0; i < orbs.length; i++) {
+        const o = orbs[i];
+        positions[i * VEC3_COMPONENTS + 1] = o.height;
+        orbitRadiusArray[i] = o.orbitRadius;
+        scaleArray[i] = o.scale;
+        if (o.orbitRadius > maxWorldOrbit) maxWorldOrbit = o.orbitRadius;
+        if (o.scale > maxScale) maxScale = o.scale;
+      }
+      geometry.getAttribute('position').needsUpdate = true;
+      geometry.getAttribute('aOrbitRadius').needsUpdate = true;
+      geometry.getAttribute('aScale').needsUpdate = true;
+      inflateBoundingSphere(uBobAmp.value);
     },
     refresh() {
       const next = FIREFLIES.value;

@@ -20,6 +20,9 @@ function makePlacement(commitIndex: number): FireflyPlacement {
     rgb: [1, 1, 1],
     lightRgb: [0.5, 0.5, 0.5],
     scale: 1,
+    author: `Author ${commitIndex}`,
+    heightFrac: 0.5,
+    orbitRadiusFrac: 1.2,
     commitIndex,
   };
 }
@@ -211,9 +214,8 @@ describe('createOrbitRings — lazy pool', () => {
       'color'
     ) as THREE.BufferAttribute;
     const buf1 = Float32Array.from(attr1.array as Float32Array);
-    // Advance by 1000ms. RAINBOW.SPEED is hue cycles per ms (default 0.0005),
-    // so a 1-second delta moves the chase by 0.5 cycles — guaranteed different
-    // from the t=0 sample.
+    // A second moves the chase half a hue cycle, so it cannot land back on
+    // the sample taken at t=0.
     rings.update(1000);
     const attr2 = (meshesIn(rings)[0].geometry as THREE.BufferGeometry).getAttribute(
       'color'
@@ -307,12 +309,8 @@ describe('createOrbitRings — lazy pool', () => {
   });
 
   it('factory does zero upfront geometry; setHoveredCommit stays fast at 100k placements', () => {
-    // Two assertions cover the spec invariants:
-    //   1. Structural: the factory must not build any ring meshes upfront.
-    //      A regression that loops over placements and builds geometry
-    //      would fail here regardless of timing noise.
-    //   2. Performance: a single hover after a 100k-placement factory
-    //      must still feel instant.
+    // Structural and timed: the factory must build no rings upfront, and a
+    // hover into 100k placements must still feel instant.
     const big: FireflyPlacement[] = Array.from({ length: 100_000 }, (_, i) => makePlacement(i));
     const rings = createOrbitRings(big);
     expect(meshesIn(rings).length).toBe(0);

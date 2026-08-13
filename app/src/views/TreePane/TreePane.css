@@ -4,7 +4,7 @@
   /* Row geometry the indent guide is derived from — single-sourced so the guide
      stays centered on the chevron if any of these change. */
   --tree-row-inset: var(--cc-space-4); /* row's left padding (the start indent) */
-  --tree-glyph: 14px; /* file/folder icon column width (matches .file-icon) */
+  --tree-glyph: var(--cc-node-icon); /* icon column width, for the indent guides */
   --tree-guide: 1px; /* indent-guide line width */
 }
 
@@ -41,22 +41,17 @@
 }
 
 .tree-root.tree-list {
-  /* Two-class rule so it wins over .tree-list. The tree starts flush at the top
-     of the pane body; a little bottom padding gives the last row scroll room.
-     Rows carry their own horizontal padding (.row), so the list adds none. */
+  /* Flush at the top with room to scroll past the last row. The rows carry
+     their own horizontal padding, so the list adds none. */
   padding: var(--cc-space-0) var(--cc-space-0) var(--cc-space-4);
 }
 
-/* Zed-style indent guide: every nested level draws a vertical rule down its full
-   left edge — spanning all of that folder's children — centered under the parent
-   row's disclosure chevron, so the open folder chain reads as one connected
-   column. The offset is the chevron's center (row inset + half the glyph column)
-   minus half the line's own width, so the rule sits ON the arrow. */
+/* A rule down each nested level, centred under the parent's chevron so an open
+   folder chain reads as one column. The offset puts it on the arrow. */
 .tree-item > .tree-list {
   margin-left: calc(var(--tree-row-inset) + var(--tree-glyph) / 2 - var(--tree-guide) / 2);
-  /* Open-folder guide uses the canonical accent selected fill (--cc-accent-bg);
-     as a 1px line it reads quieter than an 18% fill, so it recolors with the
-     theme yet never outshines a selected row. */
+  /* The accent's selected fill: as a 1px line it recolours with the theme
+     without ever outshining a selected row. */
   border-left: var(--tree-guide) solid var(--cc-accent-bg-soft);
 }
 
@@ -65,14 +60,8 @@
   padding: var(--cc-space-0);
 }
 
-/* Tree rows use .row + .row--tight (the tight modifier collapses the
-   chevron-to-label gap). Selection highlight is .tree-item.tree-selected > .row
-   near the top of the file — the tree tracks selection on the item, not the row.
-
-   Rows also sit closer to the pane edge than the default .row inset: the tree
-   reaches depth by expanding, so a big starting indent just wastes width. Half
-   the default keeps the top level near the edge while still clearing the
-   selected highlight's rounded corner. */
+/* Selection is tracked on the item, not the row. The inset is half the default,
+   since the tree reaches depth by expanding and an indent wastes width. */
 .tree-item > .row {
   padding-left: var(--tree-row-inset);
   /* Squared hover/selected highlight (Zed-style), overriding .row's rounded

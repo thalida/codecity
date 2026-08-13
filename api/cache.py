@@ -119,7 +119,9 @@ _MANIFEST_SCHEMA_VERSION = (
     # v22: AuthorStat.hue resolved server-side
     # v23: Manifest.pending — which scan stages are still to come
     # v24: commits sampled above 100k; RepoStats.commitCount is the true total
-    24
+    # v25: DirLeader.created/modified + RepoStats.oldestCreatedDir/newestCreatedDir
+    # v26: CommitLeader.date + RepoStats.oldestCommit/newestCommit
+    26
 )
 # Composite: invalidates when EITHER the manifest schema OR the git-history
 # shape changes. Stored as a string in the cache file's `version` field.

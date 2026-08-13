@@ -1,9 +1,7 @@
 /* ── File preview pane ── */
 
-/* ── File preview pane (right sidebar) ──────────────────────────────────
-   Outer container that wraps the pane header (filename + × close) and the
-   editor body. The wrapper itself fills the sidebar's vertical space; the
-   body grows inside it under the fixed-height header. */
+/* The wrapper fills the sidebar's height; the body grows inside it under the
+   fixed-height header. */
 
 /* Layout in .pane. */
 
@@ -14,9 +12,8 @@
   flex: 1 1 auto;
   min-height: 0;
 }
-/* When the stale-data toast is up (shared .timeline-stale-note in panes.css),
-   drop the code's first line below it so it isn't covered on load — the toast
-   floats over everything past that as you scroll. */
+/* Drops the first line clear of the stale-data toast, which floats over
+   everything past it as you scroll. */
 .editor-body.has-stale-note .code-editor {
   padding-top: calc(var(--cc-space-8) + var(--cc-space-8));
 }
@@ -24,9 +21,8 @@
 /* Empty/error/too-large states all use the .empty-state + .empty-state--lg
    helper (centered icon + headline + subtitle) in the search-pane section. */
 
-/* Deleted-file state (a ruin building selected while scrubbing): the file is
-   gone at this commit, so lead with a red icon + headline so "deleted" reads
-   at a glance rather than as a generic empty state. */
+/* A file gone at this commit reads as deleted at a glance, rather than as a
+   generic empty state. */
 .file-deleted-state .icon {
   color: var(--cc-error);
 }
@@ -34,9 +30,7 @@
   color: var(--cc-error-light);
 }
 
-/* ── File preview elements (children of .editor-body) ───────────────────
-   Each preview kind drops directly into the editor body and grabs the
-   full available height via .editor-body > * { flex: 1 1 auto }. */
+/* Every preview kind drops into the editor body and takes its full height. */
 
 .preview-image {
   display: block;
@@ -72,9 +66,8 @@
   border: none;
 }
 
-/* Wrapper that holds either the code editor (on success) or a centered
-   state message (loading / too-large / fetch-failed). Exists so we can
-   swap between those two without leaving an empty gutter behind. */
+/* Holds the editor or a centred state message, so swapping between them can't
+   leave an empty gutter behind. */
 /* Layout in .pane; this rule only sizes the placeholder used while a
    file-preview fetch is in flight. */
 .preview-shell:empty::before {
@@ -82,21 +75,10 @@
   flex: 1 1 auto;
 }
 
-/* Centered state messages (load errors, file-too-large notices, etc.)
-   use .empty-state + .empty-state--lg; see the empty-state rules in the
-   search-pane section above. */
+/* State messages use .empty-state--lg, defined with the search pane's. */
 
-/* ── Code editor (text preview) ─────────────────────────────────────────
-   Two-column flex: a sticky line-number gutter on the left and a
-   horizontally-scrollable <pre><code> on the right. Both share the
-   line-height so gutter numbers line up exactly with their source lines.
-   Theme is hand-rolled to match the city's dark UI; tokens are styled
-   via .hljs-* selectors below.
-
-   For big files (>1 MB) the editor renders in plain-text mode (no
-   highlight.js); above 5 MB the line-number gutter is dropped too —
-   the per-line <span> DOM cost is what hangs the browser on multi-MB
-   files. A small banner at the top explains the degraded mode. */
+/* A sticky gutter beside a scrollable pre, on one line-height so they line up.
+   Big files drop highlighting, then the gutter: the span DOM is what hangs. */
 
 .code-editor-shell {
   flex: 1 1 auto;
@@ -149,9 +131,7 @@
   ); /* was var(--cc-text-faint) (2.15:1 → now 3.41:1, WCAG AA for UI text) */
   text-align: right;
   user-select: none;
-  /* The gutter's width is content-driven (3 digits + padding) and stays
-     pinned at the left of the visible area while the code scrolls
-     horizontally underneath. */
+  /* Content-driven width, pinned while the code scrolls under it. */
   position: sticky;
   left: 0;
   z-index: 1;
@@ -178,9 +158,8 @@
   background: transparent;
   color: var(--cc-text-primary);
 }
-/* Trailing gap so the last line clears the bottom edge. A real block (not
-   padding) — a flex scroll-container can clip a child's end padding out of the
-   scrollable range, but never in-flow content. */
+/* A real block, not padding: a flex scroll container can clip a child's end
+   padding out of the scrollable range, but never in-flow content. */
 .code-editor-pre::after {
   content: '';
   display: block;
@@ -194,12 +173,8 @@
   padding: 0 !important;
 }
 
-/* ── Font specimen (font preview) ───────────────────────────────────────
-   A scrollable column with two sections: a Google-Fonts-style Preview
-   waterfall (uppercase / lowercase / digits / pangram) and a Font-Book-style
-   Repertoire grid of every glyph. The loaded face is applied via an inline
-   font-family (a per-mount family name), so these rules only own layout,
-   section chrome, and neutral color. */
+/* A waterfall and a glyph grid. The face itself is applied inline per mount,
+   so these rules own only layout and chrome. */
 
 .font-specimen {
   flex: 1 1 auto;
@@ -232,7 +207,7 @@
 
 .font-specimen-line {
   margin: var(--cc-space-0);
-  font-size: 28px;
+  font-size: var(--cc-font-2xl);
   line-height: var(--cc-lh-tight);
   word-break: break-word;
 }
@@ -245,9 +220,8 @@
   word-break: break-word;
 }
 
-/* Character grid — auto-fill so it reflows to the pane width; each glyph is
-   centered in a fixed-height cell so rows stay aligned regardless of glyph
-   metrics. */
+/* Auto-fill, so it reflows to the pane; fixed-height cells, so rows stay
+   aligned whatever the glyph metrics. */
 .font-specimen-repertoire {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(2rem, 1fr));
@@ -259,7 +233,7 @@
   align-items: center;
   justify-content: center;
   height: 2rem;
-  font-size: 18px;
+  font-size: var(--cc-font-lg);
   line-height: 1;
   border-radius: var(--cc-radius-sm);
 }

@@ -1,18 +1,7 @@
 /* ── Commit pane ── */
 
-/* ── Commit pane (right sidebar) ────────────────────────────────────────
-   Shown when a tree is selected in the city. Layout (top to bottom):
-     - pane-header (from buildPaneHeader) — title becomes "Commit <sha>"
-       with an inline open-on-origin link; close × at far right.
-     - .commit-body — pane-body, scrolls vertically. Renders in this order:
-         .commit-message-subject (commit title at the top — most prominent)
-         .commit-author rows (one per distinct author, primary first; smaller
-           than the title since they're secondary metadata)
-         .commit-meta (age · files)
-         .commit-same-day (busyness + N commits that day)
-         .commit-message-body-slot — mutable region holding the lazy body
-           (loading hint / <pre> body / error / hidden). The slot lives
-           at the bottom so body load doesn't shift content above it. */
+/* The commit pane, top to bottom: subject, authors, age and files, the day's
+   busyness, then the lazy-loaded body last, so its arrival shifts nothing. */
 
 .commit-body {
   display: flex;
@@ -34,10 +23,8 @@
   gap: var(--cc-space-3); /* inline gap between dot and name */
 }
 
-/* The authors are one section, with their own tighter gap. The parent's gap
-   separates sections (authors / meta / same-day / body) and is too airy between
-   stacked author rows; a box with its own gap says that, where a negative
-   margin cancelling the parent's only implied it. */
+/* The authors are one section with their own tighter gap: the parent's spaces
+   sections, and is too airy between stacked rows. */
 .commit-authors {
   display: flex;
   flex-direction: column;
@@ -67,9 +54,8 @@
   line-height: var(--cc-lh-base);
 }
 
-/* Persistent wrapper for the lazy-fetched body. Swaps between Loading…
-   text, the body <pre>, an error line, or display:none. The slot itself
-   carries no own styling — only the loading/error modifiers below. */
+/* The slot the lazy body lands in. It carries no styling of its own: only the
+   loading and error modifiers below. */
 .commit-message-body-slot--loading {
   font-size: var(--cc-font-xs);
   color: var(--cc-text-muted);
@@ -108,6 +94,10 @@
 }
 
 /* Inline span; title attribute holds the full ISO date for hover tooltip. */
+.commit-date {
+  color: var(--cc-text-strong);
+}
+
 .commit-age {
   color: var(--cc-text-secondary);
 }

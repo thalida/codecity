@@ -1,9 +1,6 @@
-// state/stores/settings/camera.ts — the default camera framing angle. The
-// camera always looks at the root gem; these two angles set the direction it
-// views from. Draft-backed like the rest of the World tab: the cameraRig
-// subscribes and snaps to the new pose when the draft is saved.
-//
-// ChangeRoute.Live: no rebuild/refresh reaction; the rig drives the update.
+// state/stores/settings/camera.ts — the default framing. The camera always looks
+// at the root gem, and these set where it looks from. Live: the rig subscribes
+// and snaps to the pose itself, so nothing rebuilds.
 
 import {
   settingSignal,
@@ -17,7 +14,7 @@ const CAMERA_FIELDS = {
   ELEVATION: {
     route: ChangeRoute.Live,
     kind: FieldKind.Slider,
-    default: 5,
+    default: 32,
     min: 0,
     max: 90,
     step: 1,

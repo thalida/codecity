@@ -13,7 +13,7 @@ export const TREES_SECTION: SectionNode = {
       key: 'placement',
       label: 'Placement',
       children: [
-        field(TREES, 'CITY_CLEARANCE'),
+        field(TREES, 'CITY_CLEARANCE_PERCENT'),
         field(TREES, 'DENSITY_FALLOFF'),
         field(TREES, 'EDGE_INSET_PERCENT'),
       ],

@@ -1,15 +1,6 @@
-// state/stores/settings/trees.ts — Commit-driven tree configuration.
-//
-// One tree per commit, scattered around the world floor (denser near the city)
-// sorted by distance to the gem (oldest commit closest). Visual signals:
-//   HEIGHT  ← commit AGE (older = taller), from real age alone, so an abandoned
-//             repo reads old across the whole forest, not just at its old end.
-//   WIDTH   ← commit FILES (more files = wider)
-//   COLOR   ← COMMITS-PER-DAY (solo-day vs busy-day interpolation).
-//
-// Schema-driven (see state/schema): a flat field map per store; the
-// persisted defaults + the config TYPE are both derived from it. How these
-// fields are grouped in the Settings panel lives in views/controls.
+// state/stores/settings/trees.ts — one tree per commit, oldest nearest the gem.
+// Height follows age, width follows files changed, colour follows how many
+// commits shared that day.
 
 import {
   settingSignal,
@@ -28,15 +19,15 @@ const TREES_FIELDS = {
     tip: 'Master toggle. When off, every tree canopy and trunk is hidden.',
   },
 
-  CITY_CLEARANCE: {
+  CITY_CLEARANCE_PERCENT: {
     route: ChangeRoute.Rebuild,
     kind: FieldKind.Slider,
-    default: 64,
+    default: 4,
     min: 0,
-    max: 200,
-    step: 2,
-    label: 'Distance from city',
-    tip: 'Minimum gap from any building or street.',
+    max: 50,
+    step: 1,
+    label: 'Distance from city (% of island)',
+    tip: 'Minimum gap from any building or street, as a share of the island, so the gap suits a small repo as well as a large one.',
   },
   DENSITY_FALLOFF: {
     route: ChangeRoute.Rebuild,
@@ -94,7 +85,7 @@ const TREES_FIELDS = {
   MIN_HEIGHT: {
     route: ChangeRoute.Rebuild,
     kind: FieldKind.Slider,
-    default: 8,
+    default: 32,
     min: 4,
     max: 400,
     step: 4,
@@ -104,7 +95,7 @@ const TREES_FIELDS = {
   MAX_HEIGHT: {
     route: ChangeRoute.Rebuild,
     kind: FieldKind.Slider,
-    default: 96,
+    default: 128,
     min: 16,
     max: 800,
     step: 4,
@@ -145,7 +136,7 @@ const TREES_FIELDS = {
   MIN_WIDTH: {
     route: ChangeRoute.Rebuild,
     kind: FieldKind.Slider,
-    default: 64,
+    default: 80,
     min: 2,
     max: 400,
     step: 2,
@@ -155,7 +146,7 @@ const TREES_FIELDS = {
   MAX_WIDTH: {
     route: ChangeRoute.Rebuild,
     kind: FieldKind.Slider,
-    default: 128,
+    default: 160,
     min: 4,
     max: 600,
     step: 2,
@@ -182,10 +173,8 @@ const TREES_FIELDS = {
     tip: 'Width multiplier for the shortest, newest trees. 1 means no shrink, 0.5 gives half-width saplings, 0 makes width strictly follow height. Tallest trees always render at full width.',
   },
 
-  // Hover / select wireframe outlines — two persistent LineSegments2 meshes
-  // snap to the active tree's transform per frame (treeOutlineRenderer). One
-  // shared width; hover/selected differ by color (white vs animated rainbow
-  // via RAINBOW). Folded in from the former TREE_OUTLINE store.
+  // Two persistent meshes snap to the active tree each frame. One width for
+  // both; hover and selected differ only by colour.
   OUTLINE_WIDTH: {
     route: ChangeRoute.Refresh,
     kind: FieldKind.Number,

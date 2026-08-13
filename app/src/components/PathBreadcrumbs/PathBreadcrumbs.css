@@ -1,9 +1,6 @@
 .app-header-crumbs {
   flex: 0 1 auto;
   min-width: 0;
-  /* Clear separation from the extension badge that precedes it (the pane title's
-     own gap is only 2px, too tight against the chip). */
-  margin-left: var(--cc-space-4);
   display: flex;
   align-items: center;
   gap: var(--cc-space-1);
@@ -19,9 +16,8 @@
   text-overflow: ellipsis;
 }
 
-/* Visual style in .btn-icon + .btn-icon--text: smaller
-   padding, inherited font, muted color, and the Electron drag-region marker.
-   .is-leaf disables interactivity, since the last crumb is the current node. */
+/* The visual style lives in .btn-icon--text; .is-leaf drops interactivity,
+   since the last crumb is where you already are. */
 .btn-icon.is-leaf {
   color: var(--cc-text-strong);
   cursor: default;

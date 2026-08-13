@@ -1,9 +1,6 @@
-// state/stores/settings/fireflies.ts — committer-fireflies tunables.
-//
-// Glowing motes that orbit each commit-tree, colored per author. BOB is the
-// y-axis sinusoid the shader applies to displace each orb; PULSE is a
-// brightness modulation; per-author commit-count scaling is always on (tune
-// spread via SCALE_MIN/MAX). Schema-driven (see state/schema).
+// state/stores/settings/fireflies.ts — the motes orbiting each commit tree, one
+// per author. BOB displaces an orb, PULSE modulates its brightness, and
+// SCALE_MIN/MAX set the spread between a light and a heavy contributor.
 
 import {
   settingSignal,
@@ -25,19 +22,19 @@ const FIREFLIES_FIELDS = {
   SCALE_MIN: {
     route: ChangeRoute.Rebuild,
     kind: FieldKind.Slider,
-    default: 0.5,
+    default: 2.0,
     min: 0.1,
-    max: 2.0,
+    max: 5.0,
     step: 0.05,
     label: 'Scale min',
-    tip: 'Size multiplier for the author with the fewest commits.',
+    tip: 'Size multiplier for an author with no commits yet: the size every orb grows from.',
   },
   SCALE_MAX: {
     route: ChangeRoute.Rebuild,
     kind: FieldKind.Slider,
-    default: 2.5,
+    default: 5.0,
     min: 0.5,
-    max: 5.0,
+    max: 10.0,
     step: 0.05,
     label: 'Scale max',
     tip: 'Size multiplier for the author with the most commits.',

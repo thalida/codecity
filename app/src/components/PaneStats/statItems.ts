@@ -3,17 +3,14 @@
 // formatting rules serve both panes without either reaching for the picker.
 
 import type { FileNode, DirNode } from '@/types';
-import { formatShortDate, formatRelativeAgeShort } from '@/utils/dates';
+import { formatShortDate, formatRelativeAgeShort, parseDateMs } from '@/utils/dates';
 import { formatBytes } from '@/utils/bytes';
 import { humanLanguageFor } from '@/utils/syntaxLanguages';
 import { scrubbedStatsFor } from '@/state/stores/presentPaths';
 import type { PaneStatItem } from './PaneStats';
 
-/**
- * Direct-children and recursive-descendant counts as one item. They collapse to
- * a single number when they match (a leaf-ish folder); otherwise the recursive
- * total follows in parentheses, e.g. `12 files (1375 total)`.
- */
+/** Direct and recursive counts as one item, collapsing to a single number when
+ *  a folder has no subfolders to distinguish them. */
 function countItem(
   direct: number | null | undefined,
   total: number | null | undefined,
@@ -33,7 +30,7 @@ function countItem(
 /** Relative age with the exact date as its tooltip. */
 function ageItem(iso: string, label: string, now: number): PaneStatItem {
   return {
-    text: `${label} ${formatRelativeAgeShort(new Date(iso).getTime(), now)}`,
+    text: `${label} ${formatRelativeAgeShort(parseDateMs(iso), now)}`,
     title: `${label} ${formatShortDate(iso)}`,
   };
 }
@@ -59,9 +56,8 @@ export function fileStatItems(file: FileNode, opts: FileStatOpts = {}): PaneStat
   // first (the header's type badge repeats it), then the ages, numbers last.
   const language = humanLanguageFor(file);
   if (language) items.push({ text: language, shrink: 200 });
-  // Media is binary, so its line count is a meaningless 0: the pixel dimensions
-  // are the size that means something. The backend only stamps media_width and
-  // media_height on recognized media, so their presence is the signal.
+  // A media file's line count is a meaningless 0, so its dimensions are the
+  // size worth showing. The backend stamps those only when it recognised it.
   if (file.media_width != null && file.media_height != null) {
     items.push({ text: `${file.media_width}×${file.media_height}` });
   } else if (lines != null) {

@@ -7,13 +7,6 @@
   --sec-accent: var(--cc-text-primary);
 }
 
-.legend-intro {
-  margin: 0 0 var(--cc-space-1);
-  color: var(--cc-text-primary);
-  line-height: var(--cc-lh-base);
-  font-size: var(--cc-font-md);
-}
-
 /* One world layer: header + lead + its cue rows, separated by a hairline like
  * the Overview sections so the two tabs read as one family. */
 .legend-layer {
@@ -21,6 +14,13 @@
   flex-direction: column;
   border-top: 1px solid var(--cc-border-subtle);
   padding-top: var(--cc-space-6);
+}
+
+/* The rules separate section from section, so the first has nothing above it:
+   it drew a bar under the tab strip. */
+.legend-layer:first-child {
+  border-top: 0;
+  padding-top: 0;
 }
 
 .legend-layer-title {
@@ -62,64 +62,9 @@
 
 .legend-cue-label {
   flex: 0 0 128px;
-  font-weight: var(--cc-fw-semibold);
-  color: var(--cc-text-strong);
 }
 
 .legend-cue-detail {
   margin: 0;
   min-width: 0;
-  color: var(--cc-text-primary);
-}
-
-/* "Reading the city" group heading, in the layer-title idiom. */
-.legend-group-title {
-  display: flex;
-  align-items: center;
-  margin: var(--cc-space-3) 0 0;
-  padding-top: var(--cc-space-6);
-  border-top: 1px solid var(--cc-border-subtle);
-}
-
-.legend-cue-list {
-  margin: var(--cc-space-4) 0 0;
-  padding: 0;
-  list-style: none;
-  display: flex;
-  flex-direction: column;
-  gap: var(--cc-space-6);
-}
-
-/* A non-layer cue row: glyph on its own rail, name + description stacked. */
-.legend-row {
-  display: flex;
-  gap: var(--cc-space-5);
-  align-items: flex-start;
-}
-
-.legend-row-icon {
-  flex: 0 0 auto;
-  width: 18px;
-  height: 18px;
-  margin-top: 1px; /* optical align with the title cap-height */
-  color: var(--sec-accent);
-}
-
-.legend-row-text {
-  display: flex;
-  flex-direction: column;
-  gap: var(--cc-space-px);
-  min-width: 0;
-}
-
-.legend-row-title {
-  font-size: var(--cc-font-sm);
-  font-weight: var(--cc-fw-semibold);
-  color: var(--cc-text-strong);
-}
-
-.legend-row-rule {
-  font-size: var(--cc-font-sm);
-  line-height: var(--cc-lh-base);
-  color: var(--cc-text-primary);
 }

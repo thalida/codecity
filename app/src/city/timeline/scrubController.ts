@@ -1,7 +1,7 @@
 // Timeline mode's per-frame driver: read the frame, run the pass, hand each
 // component its slice. It writes nobody else's buffers.
 
-import { TIMELINE_BUNDLE } from '@/state/stores/timeline';
+import { TIMELINE_BUNDLE, SCRUB_TODAY_MS } from '@/state/stores/timeline';
 import type { RangeStat, Street } from '@/types';
 import type { BuildingIndex } from '@/city/components/buildings/buildingIndex';
 import type { BuildingScrubState } from '@/city/components/buildings/scrubState';
@@ -11,11 +11,15 @@ import type { createPicker } from '@/city/interaction/picker';
 import type { PathTimeline } from './replay';
 import { readScrubFrame } from './scrubFrame';
 import { createScrubPass, type ScrubStates } from './scrubPass';
+import { parseDateMs } from '@/utils/dates';
 
 /** Anything that dims itself to a scrub position. Trees and fireflies are both
  *  this and nothing more. */
 export interface ScrubGate {
   setScrubCommit(maxCommitIndex: number | null): void;
+  /** The scrubbed date, for anything sized by how long ago its commit was.
+   *  Optional: a gate that only appears and disappears doesn't need it. */
+  setScrubNow?(nowMs: number | null): void;
 }
 
 export interface ScrubControllerDeps {
@@ -43,9 +47,11 @@ export function createScrubController(deps: ScrubControllerDeps) {
   // Fixed for the life of the controller; readScrubFrame owns everything that
   // varies per frame.
   const bundle = TIMELINE_BUNDLE.peek();
-  const commitMs = (bundle?.commits ?? []).map((c) => Date.parse(c.date) || 0);
+  const commitMs = (bundle?.commits ?? []).map((c) => parseDateMs(c.date) || 0);
   const commitDateRanges = bundle?.commitDateRanges ?? [];
-  const scannedAtMs = Date.parse(deps.scannedAt ?? '') || (commitMs.at(-1) ?? 0);
+  const scannedAtMs = parseDateMs(deps.scannedAt ?? '') || (commitMs.at(-1) ?? 0);
+  // The same last stop the bar ends on, so the two agree about the far end.
+  const trackEndMs = SCRUB_TODAY_MS.peek() ?? scannedAtMs;
 
   const pass = createScrubPass({
     buildingIndex: deps.buildings.getBuildingIndex(),
@@ -59,14 +65,18 @@ export function createScrubController(deps: ScrubControllerDeps) {
       commitLineRanges: deps.commitLineRanges,
       commitDateRanges,
       commitMs,
-      scannedAtMs,
+      trackEndMs,
       byteStats: deps.heightCtx.byteStats,
       streetsByDir: deps.streetsByDir,
       picker: deps.picker,
     });
 
-    const gatePos = Math.floor(frame.pos);
-    for (const gate of deps.scrubGates) gate.setScrubCommit(gatePos);
+    // Capped at the last commit: the today stop past it shows the same commits.
+    const gatePos = Math.min(Math.floor(frame.pos), Math.max(0, commitMs.length - 1));
+    for (const gate of deps.scrubGates) {
+      gate.setScrubCommit(gatePos);
+      gate.setScrubNow?.(frame.nowMs);
+    }
 
     const states = pass.run(frame);
     deps.buildings.applyScrub(states.buildings);

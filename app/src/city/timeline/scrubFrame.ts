@@ -1,20 +1,13 @@
-// The only per-frame reader of SCRUB_POS, the ruin/blueprint/building stores
+// The only per-frame reader of SCRUB_POS, the ruin/building stores
 // and the picker. Everything downstream takes a ScrubFrame value.
-
-import * as THREE from 'three';
 
 import { SCRUB_POS } from '@/state/stores/timeline';
 import { BUILDING_DIMENSIONS, BUILDINGS } from '@/state/stores/settings/buildings';
 import { RUINS } from '@/state/stores/settings/ruins';
-import { BLUEPRINTS } from '@/state/stores/settings/blueprints';
 import { NodeKind } from '@/types';
 import type { FileNode, RangeStat, Street, TimelineBundle } from '@/types';
 import { resolveDirTarget } from '@/city/components/buildings/fadeTiers';
 import type { createPicker } from '@/city/interaction/picker';
-
-/** A future building is drawn by the building mesh, not a footprint plot, so
- *  the blueprint look stays independent of the footprint controls. */
-export const FUTURE_SLAB_FLOORS = 0.05;
 
 export type CommitDateRange = NonNullable<TimelineBundle['commitDateRanges']>[number];
 
@@ -35,13 +28,8 @@ export interface ScrubFrame {
   ruinBuildingOpacity: number;
   ruinHeight: number;
   ruinGrayMix: number;
-  futureOn: boolean;
-  futureBuildingOpacity: number;
-  futureHeight: number;
-  futureTint: number;
-  futureColor: ColorTriple;
   /** What "now" means at this position: the commit under the scrubber, or the
-   *  scan date at HEAD, where the city is the working tree just as Live is. */
+   *  end of the track once past the last one. */
   nowMs: number;
   minCreated: number;
   createdSpread: number;
@@ -57,22 +45,21 @@ export interface ScrubFrameDeps {
   commitDateRanges: readonly CommitDateRange[];
   /** Commit dates as ms, for resolving what "now" is mid-scrub. */
   commitMs: readonly number[];
-  /** The scan date, which is "now" at HEAD. */
-  scannedAtMs: number;
+  /** What the far end of the track means. The bar's last stop is the same
+   *  moment, so the city and the readout end on one date. */
+  trackEndMs: number;
   byteStats: RangeStat;
   streetsByDir: Record<string, Street>;
   picker: Pick<ReturnType<typeof createPicker>, 'selection' | 'hover'>;
 }
 
-const _futureColor = new THREE.Color();
-
-/** At HEAD the city IS the working tree, so "now" is the scan date and colour
- *  matches Live. Earlier, it is the commit you are standing on, or a repo
- *  scrubbed to its first commit would paint brand-new files as ancient. */
+/** The date the handle sits on, interpolated toward the next commit so a quiet
+ *  stretch reads as time passing, and on past the last one to today. */
 function scrubNow(pos: number, deps: ScrubFrameDeps): number {
   const i = Math.floor(pos);
-  if (i >= deps.commitMs.length - 1) return deps.scannedAtMs;
-  return deps.commitMs[i] ?? deps.scannedAtMs;
+  const from = deps.commitMs[i] ?? deps.trackEndMs;
+  const to = deps.commitMs[i + 1] ?? deps.trackEndMs;
+  return from + (to - from) * (pos - i);
 }
 
 export function readScrubFrame(deps: ScrubFrameDeps): ScrubFrame {
@@ -83,8 +70,6 @@ export function readScrubFrame(deps: ScrubFrameDeps): ScrubFrame {
 
   const floorHeight = BUILDING_DIMENSIONS.peek().FLOOR_HEIGHT;
   const ruins = RUINS.peek();
-  const bp = BLUEPRINTS.peek();
-  _futureColor.set(bp.BUILDING_COLOR);
 
   const dateRange =
     deps.commitDateRanges[Math.min(Math.floor(pos), deps.commitDateRanges.length - 1)];
@@ -103,11 +88,6 @@ export function readScrubFrame(deps: ScrubFrameDeps): ScrubFrame {
     ruinBuildingOpacity: ruins.BUILDING_OPACITY,
     ruinHeight: ruins.STUB_HEIGHT * floorHeight,
     ruinGrayMix: ruins.DESATURATION,
-    futureOn: bp.ENABLED,
-    futureBuildingOpacity: bp.BUILDING_OPACITY,
-    futureHeight: FUTURE_SLAB_FLOORS * floorHeight,
-    futureTint: bp.BUILDING_TINT,
-    futureColor: { r: _futureColor.r, g: _futureColor.g, b: _futureColor.b },
     nowMs: scrubNow(pos, deps),
     minCreated,
     createdSpread: (dateRange?.maxCreated ?? 0) - minCreated,

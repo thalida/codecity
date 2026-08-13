@@ -32,17 +32,18 @@
   box-shadow: inset 0 0 0 1px var(--cc-overlay-border);
 }
 
-/* Selected-state ring on the chip itself (aria-checked), not a focus
-   indicator: the button keeps the global :focus-visible ring from
-   focus.css independently, so this persists regardless of focus. */
+/* The selected ring, not a focus one: the global focus ring is separate, so
+   this persists whether or not the chip has focus. */
 .swatch.is-active .swatch-chip {
   outline: 2px solid var(--cc-accent);
   outline-offset: 2px;
 }
 
 .swatch-label {
-  font-size: var(--cc-font-2xs);
-  color: var(--cc-text-muted);
+  /* Secondary, not muted: muted drops under 4.5:1 on a popover surface. Sized
+     with the hint there, so one surface isn't running three text sizes. */
+  font-size: var(--cc-font-xs);
+  color: var(--cc-text-secondary);
   white-space: nowrap;
 }
 

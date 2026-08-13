@@ -1,11 +1,6 @@
-// layout/AppFooter.tsx — Sitewide bottom status bar.
-//
-// The header is the PROJECT; the footer is the APP. Nothing here is about the
-// repo you have open: how the app looks, the keyboard reference, the debug
-// tools when debug mode is on, and the app's own line of version and credit.
-//
-// Per-node stats live in the selection pane's own footer (<PaneStats>), beside
-// the file or road they describe.
+// layout/AppFooter.tsx — the app's own bar. The header is the project; nothing
+// here is about the repo you have open. Per-node stats live in the selection
+// pane's footer, beside the thing they describe.
 
 import './AppFooter.css';
 import { ChromeCluster } from '@/components/ChromeCluster/ChromeCluster';
@@ -18,9 +13,14 @@ import { MetaLine } from '@/components/AppMeta/AppMeta';
 export interface AppFooterProps {
   onRunCollisionCheck?: () => void;
   onRunStemDiagnostic?: () => void;
+  onRunTreeGroundingCheck?: () => void;
 }
 
-export function AppFooter({ onRunCollisionCheck, onRunStemDiagnostic }: AppFooterProps = {}) {
+export function AppFooter({
+  onRunCollisionCheck,
+  onRunStemDiagnostic,
+  onRunTreeGroundingCheck,
+}: AppFooterProps = {}) {
   return (
     <footer id="app-footer" class="surface-chrome">
       <div class="app-footer-section app-footer-left">
@@ -31,6 +31,7 @@ export function AppFooter({ onRunCollisionCheck, onRunStemDiagnostic }: AppFoote
             <DebugMenu
               onRunCollisionCheck={onRunCollisionCheck}
               onRunStemDiagnostic={onRunStemDiagnostic}
+              onRunTreeGroundingCheck={onRunTreeGroundingCheck}
             />
           )}
         </ChromeCluster>

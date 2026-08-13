@@ -6,8 +6,8 @@ import { render } from 'preact';
 import { act } from 'preact/test-utils';
 import { signal } from '@preact/signals';
 import { SelectionChip } from '@/components/SelectionChip/SelectionChip';
-import { SCENE_HANDLE, SELECTION_KEY } from '@/state/stores/scene';
-import { DISMISSED_SELECTION } from '@/state/stores/ui';
+import { SCENE_HANDLE } from '@/state/stores/scene';
+import { SELECTION_PANE_DISMISSED, dismissSelectionPane } from '@/state/stores/ui';
 import { NodeKind } from '@/types';
 import type { FileNode, PickTarget } from '@/types';
 import { flush } from '../_helpers/preact';
@@ -53,14 +53,14 @@ describe('SelectionChip', () => {
     await flush();
   };
   const dismiss = async () => {
-    DISMISSED_SELECTION.value = SELECTION_KEY.peek();
+    dismissSelectionPane();
     await flush();
   };
 
   beforeEach(async () => {
     container = document.createElement('div');
     document.body.appendChild(container);
-    DISMISSED_SELECTION.value = null;
+    SELECTION_PANE_DISMISSED.value = false;
     SCENE_HANDLE.value = makeHandle() as never;
     render(<SelectionChip />, container);
     await flush();
@@ -70,7 +70,7 @@ describe('SelectionChip', () => {
     render(null, container);
     container.remove();
     SCENE_HANDLE.value = null;
-    DISMISSED_SELECTION.value = null;
+    SELECTION_PANE_DISMISSED.value = false;
   });
 
   it('stays out of the way with nothing selected', () => {
@@ -87,6 +87,50 @@ describe('SelectionChip', () => {
     await dismiss();
     expect(chip()).not.toBeNull();
     expect(chip()!.textContent).toContain('index.ts');
+  });
+
+  // The chip stands in for a closed pane, so it carries the same file/dir badge
+  // that pane's header would have.
+  it('carries the extension badge for a file', async () => {
+    await select();
+    await dismiss();
+
+    const badge = chip()!.querySelector('.path-badge');
+    expect(badge).not.toBeNull();
+    expect(badge!.textContent).toBe('ts');
+    expect(badge!.classList.contains('is-dir')).toBe(false);
+  });
+
+  it('carries the dir badge for a directory', async () => {
+    const handle = SCENE_HANDLE.peek() as unknown as ReturnType<typeof makeHandle>;
+    handle.picker.selection.value = {
+      kind: NodeKind.Directory,
+      dir: { name: 'styles', type: NodeKind.Directory, path: 'src/styles' } as never,
+      sidewalk: {} as never,
+      street: {} as never,
+    };
+    await flush();
+    await dismiss();
+
+    const badge = chip()!.querySelector('.path-badge');
+    expect(badge!.textContent).toBe('dir');
+    expect(badge!.classList.contains('is-dir')).toBe(true);
+    expect(chip()!.textContent).toContain('styles');
+  });
+
+  it('names the kind for a commit, whose label is only a hash', async () => {
+    const handle = SCENE_HANDLE.peek() as unknown as ReturnType<typeof makeHandle>;
+    handle.picker.selection.value = {
+      kind: NodeKind.Commit,
+      commit: { sha: 'abc1234def5678' } as never,
+      mesh: {} as never,
+      instanceId: 0,
+    };
+    await flush();
+    await dismiss();
+
+    expect(chip()!.querySelector('.path-badge')!.textContent).toBe('commit');
+    expect(chip()!.textContent).toContain('abc1234');
   });
 
   it('clears the selection from its ✕', async () => {
@@ -108,7 +152,7 @@ describe('SelectionChip', () => {
     act(() => container.querySelector<HTMLButtonElement>('.selection-chip-label')!.click());
     await flush();
 
-    expect(DISMISSED_SELECTION.value).toBeNull();
+    expect(SELECTION_PANE_DISMISSED.value).toBe(false);
     expect(chip()).toBeNull();
   });
 });

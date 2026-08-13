@@ -1,8 +1,6 @@
-// components/TimeTravelBar.tsx — bottom bar: scrubs SCRUB_POS across the timeline
-// bundle's commit history. The track is a TIME axis (start/end date labels +
-// one tick per commit positioned by date, so busy periods bunch up and quiet
-// stretches spread), yet it drives SCRUB_POS as a float commit index so the
-// scrub controller stays index-based. See scrubberScale for the date<->index map.
+// components/TimeTravelBar.tsx — the scrub track. A time axis, so busy periods
+// bunch and quiet stretches spread, driving SCRUB_POS as a float commit index so
+// the scrub controller stays index-based. See scrubberScale for the mapping.
 
 import './TimeTravelBar.css';
 import { useEffect, useMemo, useRef } from 'preact/hooks';
@@ -10,20 +8,22 @@ import {
   TIMELINE_MODE,
   SCRUB_POS,
   SCRUB_MAX,
+  SCRUB_TODAY_MS,
   TIMELINE_BUNDLE,
   SCRUB_DRAGGING,
   setScrubPos,
 } from '@/state/stores/timeline';
 import { ACCENT_THEME } from '@/state/stores/settings/theme';
 import { SCRUBBER } from '@/state/stores/settings/scrubber';
-import { formatShortDate } from '@/utils/dates';
-import { commitUrl } from '@/utils/commit';
+import { formatFullDate, formatShortDate, localDay } from '@/utils/dates';
+import { showCommit } from '@/state/stores/scene';
 import {
   buildScrubberScale,
   commitFraction,
   indexToFraction,
   indexToMs,
   fractionToIndex,
+  snapToStop,
 } from './scrubberScale';
 
 export function TimeTravelBar() {
@@ -32,14 +32,16 @@ export function TimeTravelBar() {
   const commits = bundle?.commits ?? [];
 
   const indexWeight = SCRUBBER.value.INDEX_WEIGHT;
+  const todayMs = SCRUB_TODAY_MS.value;
   const scale = useMemo(
     () =>
       buildScrubberScale(
         commits.map((c) => c.date),
-        indexWeight
+        indexWeight,
+        todayMs
       ),
     // Rebuild only when the commit set or the axis shape changes, not per scrub.
-    [commits, indexWeight]
+    [commits, indexWeight, todayMs]
   );
 
   const trackRef = useRef<HTMLDivElement>(null);
@@ -74,9 +76,8 @@ export function TimeTravelBar() {
       ctx.clearRect(0, 0, w, h);
 
       const cs = getComputedStyle(track);
-      // Played fill + past ticks track the theme accent (matches the handle). The
-      // resolved --cc-accent is passed straight to canvas; empty in headless
-      // jsdom (no stylesheet) → the fallback, which node-canvas can parse.
+      // Resolved from CSS and handed to canvas, with a literal fallback for
+      // headless jsdom, where there is no stylesheet to resolve.
       const accent = cs.getPropertyValue('--cc-accent').trim() || 'rgb(140, 110, 245)';
       const tick = cs.getPropertyValue('--tt-tick').trim() || 'rgba(148,151,168,0.5)';
 
@@ -87,10 +88,10 @@ export function TimeTravelBar() {
       ctx.globalAlpha = 0.3; // played region wash
       ctx.fillRect(0, 0, Math.round(indexToFraction(scale, pos) * w), h);
       ctx.globalAlpha = 0.95; // past ticks
-      for (let i = 0; i <= cut && i < scale.ms.length; i++) ctx.fillRect(at(i), 0, 1, h);
+      for (let i = 0; i <= cut && i < scale.commitCount; i++) ctx.fillRect(at(i), 0, 1, h);
       ctx.globalAlpha = 1;
       ctx.fillStyle = tick; // future ticks
-      for (let i = cut + 1; i < scale.ms.length; i++) ctx.fillRect(at(i), 0, 1, h);
+      for (let i = cut + 1; i < scale.commitCount; i++) ctx.fillRect(at(i), 0, 1, h);
     };
     draw();
     const ro = new ResizeObserver(draw);
@@ -102,23 +103,30 @@ export function TimeTravelBar() {
   // deps while it rendered nothing.
   if (!mounted) return null;
 
-  const commit = commits[Math.min(Math.round(pos), maxIndex)];
-  const remote = bundle?.unionManifest?.repo?.remote_url ?? null;
-  const url = remote ? commitUrl(remote, commit.sha) : null;
+  // floor, not round: the scene gates at floor(pos), so rounding up names a
+  // commit with no tree drawn. Capped, since the track runs one stop past.
+  const lastCommit = commits.length - 1;
+  const commit = commits[Math.min(Math.floor(pos), lastCommit)];
   const pct = indexToFraction(scale, pos) * 100;
 
-  // "no commits" only when the handle is >4 days from the nearest commit (a real lull).
-  const nearestIdx = Math.min(Math.round(pos), maxIndex);
+  // The day the handle sits on, read local like the edge labels: on two
+  // calendars, this row sat a day ahead of the dates on either side of it.
   const handleMs = indexToMs(scale, pos);
-  const inGap = Math.abs(handleMs - scale.ms[nearestIdx]) > 4 * 86_400_000;
-  const gapDay = new Date(handleMs).toISOString().slice(0, 10);
+  const handleDay = localDay(handleMs);
+  // A commit belongs to its own day and no other: carrying its message along
+  // made it snap from one to the next while the date moved smoothly.
+  const onCommitDay = localDay(scale.ms[Math.min(Math.floor(pos), lastCommit)]) === handleDay;
+  // The right end of the axis, and whether the handle is standing on it.
+  const endDay = todayMs == null ? commits[lastCommit].date : localDay(todayMs);
+  const onToday = todayMs != null && handleDay === localDay(todayMs);
 
   const setFromClientX = (clientX: number) => {
     const el = trackRef.current;
     if (!el) return;
     const r = el.getBoundingClientRect();
     if (r.width === 0) return;
-    setScrubPos(fractionToIndex(scale, (clientX - r.left) / r.width));
+    const raw = fractionToIndex(scale, (clientX - r.left) / r.width);
+    setScrubPos(snapToStop(scale, indexToMs(scale, raw)));
   };
 
   const onPointerDown = (e: PointerEvent) => {
@@ -135,16 +143,13 @@ export function TimeTravelBar() {
     SCRUB_DRAGGING.value = false;
     const el = e.currentTarget as HTMLElement;
     el.releasePointerCapture?.(e.pointerId);
-    // Hand focus back to the scene so a pointer user's next R/F hits the camera
-    // shortcuts (a focused slider would otherwise keep them here). Keyboard-only
-    // users still Tab in and get the arrow/Home/End controls below.
+    // Focus back to the scene, so the next R or F reaches the camera. Keyboard
+    // users still Tab in for the controls below.
     el.blur();
   };
 
-  // Keyboard: arrows step one commit, Page keys ten, Home/End jump to the ends.
-  // stopPropagation on the keys we own so Home/End don't ALSO fire the global
-  // scene shortcuts (Home is bound to reset-view); unhandled keys (R, F) fall
-  // through to the document handler.
+  // Arrows step one commit, Page ten, Home/End the ends. The keys this owns
+  // stop propagating, or Home would also reset the view.
   const onKeyDown = (e: KeyboardEvent) => {
     const cur = Math.round(pos);
     let next: number;
@@ -163,14 +168,6 @@ export function TimeTravelBar() {
   return (
     <div class="time-travel-bar surface-glass">
       <div class="time-travel-scrubber">
-        <button
-          type="button"
-          class="time-travel-edge"
-          title="Jump to the first commit"
-          onClick={() => setScrubPos(0)}
-        >
-          {formatShortDate(commits[0].date)}
-        </button>
         <div
           ref={trackRef}
           class={`time-travel-track${inert ? ' is-inert' : ''}`}
@@ -182,9 +179,9 @@ export function TimeTravelBar() {
           aria-valuemax={maxIndex}
           aria-valuenow={Math.round(pos)}
           aria-valuetext={
-            inGap
-              ? `${formatShortDate(gapDay)}, no commits`
-              : `${formatShortDate(commit.date)}, commit ${commit.sha.slice(0, 7)}`
+            onCommitDay
+              ? `${formatShortDate(handleDay)}, commit ${commit.sha.slice(0, 7)}`
+              : `${formatShortDate(handleDay)}, no commits`
           }
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
@@ -194,36 +191,51 @@ export function TimeTravelBar() {
           <canvas ref={canvasRef} class="time-travel-ticks" aria-hidden="true" />
           <div class="time-travel-handle" style={{ left: `${pct}%` }} />
         </div>
+      </div>
+      <div class="time-travel-axis">
         <button
           type="button"
           class="time-travel-edge"
-          title="Jump to the latest commit"
+          title={`Jump to the first commit: ${formatFullDate(commits[0].date)}`}
+          onClick={() => setScrubPos(0)}
+        >
+          {formatShortDate(commits[0].date)}
+        </button>
+        {/* The day the handle is on, always: the commit's own date held still
+            until the handle was days clear of it, then jumped. */}
+        <span class="time-travel-date" title={formatFullDate(handleDay)}>
+          {onToday ? 'Today' : formatShortDate(handleDay)}
+        </span>
+        {/* The end of the track: today when the repo has aged since its last
+            commit, so the city reads as it stands rather than as it was left. */}
+        <button
+          type="button"
+          class="time-travel-edge"
+          title={
+            todayMs == null
+              ? `Jump to the latest commit: ${formatFullDate(commits[lastCommit].date)}`
+              : `Jump to today: ${formatFullDate(endDay)}`
+          }
           onClick={() => setScrubPos(maxIndex)}
         >
-          {formatShortDate(commits[maxIndex].date)}
+          {formatShortDate(endDay)}
         </button>
       </div>
       <div class="time-travel-info">
-        <span class="time-travel-date">{formatShortDate(inGap ? gapDay : commit.date)}</span>
-        {inGap ? (
+        {!onCommitDay ? (
           <span class="time-travel-subject time-travel-nocommit">no commits</span>
         ) : (
-          <>
-            {url ? (
-              <a
-                class="time-travel-sha"
-                href={url}
-                target="_blank"
-                rel="noopener noreferrer"
-                title="View this commit on the remote"
-              >
-                {commit.sha.slice(0, 7)}
-              </a>
-            ) : (
-              <span class="time-travel-sha">{commit.sha.slice(0, 7)}</span>
-            )}
+          // The whole row, not just the sha: the message is the larger half of
+          // the target and reads as part of the same thing to click.
+          <button
+            type="button"
+            class="time-travel-commit"
+            title="Show this commit's details"
+            onClick={() => showCommit(commit.sha)}
+          >
+            <span class="time-travel-sha">{commit.sha.slice(0, 7)}</span>
             <span class="time-travel-subject">{commit.subject || '(no subject)'}</span>
-          </>
+          </button>
         )}
       </div>
     </div>

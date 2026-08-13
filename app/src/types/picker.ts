@@ -39,12 +39,12 @@ export interface GemTarget {
   mesh: THREE.Object3D;
 }
 
-/** Hovered/selected tree: `mesh` is its merged chunk, `instanceId` the
- *  placement index. */
+/** A commit. Its mesh is absent when the city drew no tree for it: it stays
+ *  selectable, and the pane reads the entry rather than the mesh. */
 export interface CommitTarget {
   kind: NodeKind.Commit;
-  mesh: THREE.Mesh;
-  instanceId: number;
+  mesh?: THREE.Mesh;
+  instanceId?: number;
   commit: CommitEntry;
 }
 

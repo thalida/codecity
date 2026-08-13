@@ -8,10 +8,10 @@ import { signal, effect, untracked } from '@preact/signals';
 import { NodeKind } from '@/types';
 import { sidewalkStreetForFace } from '@/city/components/streets/streets';
 import { BuildingKind } from '@/city/components/buildings/buildingKind';
-import { TIMELINE_MODE, SCRUB_POS } from '@/state/stores/timeline';
-import { RUINED_STREET_DIRS, FUTURE_STREET_DIRS } from '@/city/components/streets/scrubState';
+import { TIMELINE_MODE, SCRUB_POS, TIMELINE_BUNDLE } from '@/state/stores/timeline';
+import { RUINED_STREET_DIRS } from '@/city/components/streets/scrubState';
 
-import type { PickTarget, PickerWorld, PickerSelectionKey } from '@/types';
+import type { CommitEntry, PickTarget, PickerWorld, PickerSelectionKey } from '@/types';
 import type { CityState } from '@/city/state';
 
 // In-memory selection key. Reset to null on a fresh load; survives in-session
@@ -145,19 +145,13 @@ export function createPicker({
       _suspendKeyDerive = false;
       return;
     }
-    // trees is null pre-apply or when disabled; either way the SHA can't
-    // resolve, so clear — same collapse rule as the path branches.
+    // A rebuild that moved the tree re-snaps; one that dropped it keeps the
+    // commit, which outlives any mesh. Only an unknown sha collapses.
     if (key.kind === NodeKind.Commit) {
-      const trees = world.getTrees();
-      const hit = trees?.findTreeBySha(key.sha) ?? null;
+      const target = _commitTarget(key.sha);
       _suspendKeyDerive = true;
-      if (hit) {
-        selection.value = {
-          kind: NodeKind.Commit,
-          mesh: hit.mesh,
-          instanceId: hit.instanceId,
-          commit: hit.commit,
-        };
+      if (target) {
+        selection.value = target;
       } else {
         selection.value = null;
         PICKER_SELECTION_KEY.value = null;
@@ -245,16 +239,32 @@ export function createPicker({
 
   // Resolve a commit sha to its live tree target and select it. No-op if
   // trees aren't attached yet or the sha isn't found.
-  function selectByCommit(sha: string): void {
+  /** The commit itself, for one the city drew no tree for. Timeline's list is
+   *  the one the scrubber names; Live's comes off the manifest. */
+  function _commitBySha(sha: string): CommitEntry | null {
+    const commits = TIMELINE_BUNDLE.peek()?.commits ?? cityState.manifest.peek()?.commits ?? [];
+    return commits.find((c) => c.sha === sha) ?? null;
+  }
+
+  /** The target for a sha: its tree when one was placed, the bare commit when
+   *  not, null when the sha isn't in this repo at all. */
+  function _commitTarget(sha: string): PickTarget | null {
     const hit = world.getTrees()?.findTreeBySha(sha) ?? null;
     if (hit) {
-      setSelection({
+      return {
         kind: NodeKind.Commit,
         mesh: hit.mesh,
         instanceId: hit.instanceId,
         commit: hit.commit,
-      });
+      };
     }
+    const commit = _commitBySha(sha);
+    return commit ? { kind: NodeKind.Commit, commit } : null;
+  }
+
+  function selectByCommit(sha: string): void {
+    const target = _commitTarget(sha);
+    if (target) setSelection(target);
   }
 
   // Resolve a path and set it as the hover target (tree-row hover → city
@@ -269,13 +279,11 @@ export function createPicker({
   const SCRUB_HIDE_EPS = 0.02;
   const _scrubMatrix = new THREE.Matrix4();
 
-  // Only a Future slab is unpickable (a marker for a not-yet-created file); ruins
-  // and data buildings stay selectable. Presence is iFade.x (shader opacity).
+  // Scrubbed away is invisible, and invisible is unpickable. Ruins and data
+  // buildings stay selectable, because they are drawn.
   function _buildingScrubHidden(mesh: THREE.InstancedMesh, slot: number): boolean {
     const iFade = mesh.geometry.getAttribute('iFade') as THREE.BufferAttribute | undefined;
-    if (iFade && iFade.getX(slot) < SCRUB_HIDE_EPS) return true;
-    const iKind = mesh.geometry.getAttribute('iKind') as THREE.BufferAttribute | undefined;
-    return !!iKind && Math.round(iKind.getX(slot)) === BuildingKind.Future;
+    return !!iFade && iFade.getX(slot) < SCRUB_HIDE_EPS;
   }
 
   // A visible ghost-ruin building (for the hover tooltip's "ruin" note).
@@ -302,7 +310,9 @@ export function createPicker({
       );
     }
     if (sel.kind === NodeKind.Commit) {
-      // The tree renderer owns the scrub threshold; ask it directly.
+      // The tree renderer owns the scrub threshold; ask it directly. A commit
+      // with no tree has nothing to hide, and nothing dangling to prune.
+      if (sel.instanceId == null) return false;
       return world.getTrees()?.isScrubHidden(sel.instanceId) ?? false;
     }
     if (sel.kind === NodeKind.Directory) {
@@ -399,9 +409,6 @@ export function createPicker({
     if (TIMELINE_MODE.peek() && _streetScrubHidden(mesh, hit.face?.a)) return null;
     const street = sidewalkStreetForFace(hit.object, hit.faceIndex ?? 0);
     if (!street?.dir) return null;
-    // A future folder's road is only a pad: it does not exist at this scrub
-    // position, so it is not selectable.
-    if (TIMELINE_MODE.peek() && FUTURE_STREET_DIRS.has(street.dir.path)) return null;
     return {
       kind: NodeKind.Directory,
       sidewalk: mesh,

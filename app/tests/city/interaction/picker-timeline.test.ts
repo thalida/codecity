@@ -113,7 +113,7 @@ describe('picker: Timeline scrub-hidden guard — buildings', () => {
     picker.dispose();
   });
 
-  it('an empty-file slab is still selectable (only Future is unpickable)', () => {
+  it('an empty-file slab is still selectable: it is drawn, so it can be picked', () => {
     const { picker, iFade, iKind, slot } = setup();
     TIMELINE_MODE.value = true;
     iFade.setXYZ(slot, 1, 0, 0);

@@ -6,6 +6,7 @@ import * as THREE from 'three';
 import { placeFireflies, type FireflyPlacement } from './firefliesPlacement';
 import { createFireflyRenderer, type FireflyRenderer } from './firefliesRenderer';
 import { createOrbitRings } from './orbitRings';
+import { createFirefliesScrub } from './firefliesScrub';
 import type { TreePlacement } from '@/city/components/trees/treePlacement';
 import type { CommitEntry, RepoStats } from '@/types';
 import { FIREFLIES } from '@/state/stores/settings/fireflies';
@@ -21,6 +22,9 @@ export interface Fireflies {
   setSelectedCommit(sha: string | null): void;
   /** Timeline scrub gate: hide orbs whose commitIndex is past maxCommitIndex. Null restores all. */
   setScrubCommit(maxCommitIndex: number | null): void;
+  /** The date the scrub sits on, which sizes the orbs and their orbits.
+   *  Null (Live) restores the sizes the field was built with. */
+  setScrubNow(nowMs: number | null): void;
   /** Update LineMaterial resolution uniform on canvas resize. */
   onResize(width: number, height: number): void;
   refresh: FireflyRenderer['refresh'];
@@ -49,6 +53,7 @@ export function createFireflyAssembly(
       setHoveredCommit() {},
       setSelectedCommit() {},
       setScrubCommit() {},
+      setScrubNow() {},
       onResize() {},
       refresh: stub.refresh.bind(stub),
       dispose: stub.dispose.bind(stub),
@@ -57,6 +62,14 @@ export function createFireflyAssembly(
   const orbs: FireflyPlacement[] = placeFireflies(placements, commits ?? [], stats, scannedAt);
   const rings = createOrbitRings(orbs);
   const renderer = createFireflyRenderer(orbs, canvas);
+  const scrub = createFirefliesScrub(orbs, commits, stats, scannedAt);
+  // Both arrive per frame, from the same controller, and both feed one resize.
+  let _scrubCommit: number | null = null;
+  let _scrubNow: number | null = null;
+
+  function resize(): void {
+    if (scrub.resize(_scrubCommit, _scrubNow)) renderer.uploadSizes();
+  }
 
   // Rings render first so orbs (additive) composite on top.
   parent.add(rings.group);
@@ -86,6 +99,12 @@ export function createFireflyAssembly(
     },
     setScrubCommit(maxCommitIndex: number | null) {
       renderer.setScrubCommit(maxCommitIndex);
+      _scrubCommit = maxCommitIndex;
+      resize();
+    },
+    setScrubNow(nowMs: number | null) {
+      _scrubNow = nowMs;
+      resize();
     },
     onResize(width: number, height: number) {
       rings.onResize(width, height);

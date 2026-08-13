@@ -26,7 +26,9 @@ test('per-path timeline: created, grows, deleted', () => {
   const pt = buildPathTimelines(bundle).get('f.txt')!;
   expect(pt.intervals).toEqual([{ start: 0, end: 2 }]);
   expect(linesAt(pt, 0)).toBe(2);
-  expect(linesAt(pt, 0.5)).toBe(4);
+  // Between two commits the file measures what its last change left it at: it
+  // does not creep toward an edit that hasn't happened.
+  expect(linesAt(pt, 0.5)).toBe(2);
   expect(linesAt(pt, 1)).toBe(6);
   expect(linesAt(pt, 2)).toBe(0);
   expect(presenceAt(pt, 1, 0)).toBe(1); // alive
@@ -98,10 +100,8 @@ describe('linesAt', () => {
 
 describe('presenceAt', () => {
   test('a file is fully present at its creation commit (no genesis grow-in ramp)', () => {
-    // A file exists in the snapshot at the commit it was created, so landing on
-    // that commit must show it fully — not fade it in from 0. This holds at the
-    // first commit (start 0), mid-history, and at HEAD (a rename records the moved
-    // file as freshly created there).
+    // A file is in the snapshot at the commit that created it, so landing there
+    // must show it whole. True at the first commit, mid-history and at HEAD.
     const first = buildPathTimelines(bundle).get('f.txt')!; // created at commit 0
     expect(first.intervals[0].start).toBe(0);
     expect(presenceAt(first, 0, 0)).toBe(1);
@@ -191,8 +191,9 @@ describe('entryAt', () => {
     expect(entryAt(pt, 0)?.lines).toBe(2);
     expect(entryAt(pt, 0.5)?.lines).toBe(2);
     expect(entryAt(pt, 1)?.lines).toBe(6);
-    // linesAt lerps the same span, which is why displays must not use it.
-    expect(linesAt(pt, 0.5)).toBe(4);
+    // linesAt reads through it, so a height can't disagree with the blob it
+    // was drawn from.
+    expect(linesAt(pt, 0.5)).toBe(entryAt(pt, 0.5)?.lines);
   });
 
   test('is null once the path is gone', () => {

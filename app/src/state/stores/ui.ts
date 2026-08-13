@@ -9,9 +9,8 @@ import { DEFAULT_SIDEBAR_TAB } from '@/constants/ui';
 import { SidebarTab } from '@/types/ui';
 import type { ScanErrorCode } from '@/api/manifest';
 
-// These are the UI-state CONTRACTS the views render against. They live here (in
-// state) so state/ stays view-independent — the ProjectsView / LoadingOverlay
-// components import them from here, not the other way around.
+// The contracts the views render against. They live in state/ so state stays
+// view-independent: the components import them, never the reverse.
 
 /** What the source picker submits when the user opens a project. */
 export interface SourcePayload {
@@ -57,19 +56,14 @@ export function openProjectsView(opts: OpenOpts = {}): void {
   PROJECTS_VIEW.value = { visible: true, opts };
 }
 
-/** Close the projects view. Reads the prior state with .peek() (not .value):
- *  App's committed-source reaction calls this from inside a useSignalEffect, and
- *  a tracked .value read would subscribe that effect to PROJECTS_VIEW — so
- *  opening the view (while a city is loaded, CURRENT_SOURCE truthy) would
- *  re-fire the effect and close the view right back. peek() keeps the reaction
- *  keyed on CURRENT_SOURCE alone. Mirrors the LOADING_OVERLAY setters. */
+/** peek, not value: a reaction calls this from inside an effect, and tracking
+ *  it would make opening the view immediately close it again. */
 export function closeProjectsView(): void {
   PROJECTS_VIEW.value = { ...PROJECTS_VIEW.peek(), visible: false };
 }
 
-/** The featured city currently rendered behind the landing, or null when there
- *  isn't one. Written by useFeaturedCity only once the city has actually
- *  painted, so nothing can name or mark a repo you can't see. */
+/** The city behind the landing, written only once it has actually painted, so
+ *  nothing names a repo you can't see. */
 export const FEATURED_CITY = signal<{
   src: string;
   label: string;
@@ -78,17 +72,14 @@ export const FEATURED_CITY = signal<{
   branch?: string;
 } | null>(null);
 
-/** True while the switcher is open OVER a loaded city (the dismissible / modal
- *  case) — the only case with a city behind it to turn into a backdrop. Drives
- *  the showcase: chrome hidden, camera into a hero turntable (useSwitcherShowcase).
- *  The non-dismissible full-page boot has no city behind, so it stays false. */
+/** The switcher open over a loaded city: the only case with something behind it
+ *  to turn into a backdrop, which is what drives the showcase. */
 export const SWITCHER_SHOWCASE = computed(
   () => PROJECTS_VIEW.value.visible && PROJECTS_VIEW.value.opts.dismissible === true
 );
 
-/** Drop a stale open-error banner (e.g. once the user edits the source), leaving
- *  the view open and its prefill intact. No-ops when there's no error so it's
- *  cheap to call on every keystroke. peek() to avoid subscribing callers. */
+/** Drop a stale error banner without disturbing the view or its prefill. No-ops
+ *  with no error, so it is cheap on every keystroke. */
 export function clearProjectsViewError(): void {
   const prev = PROJECTS_VIEW.peek();
   if (!prev.opts.error) return;
@@ -100,10 +91,8 @@ export function clearProjectsViewError(): void {
 
 // ── Left sidebar ─────────────────────────────────────────────────────────────
 
-/** Which left-sidebar pane is mounted, and whether the sidebar is open. Lifted
- *  out of LeftSidebar so anything can send you to a pane: the header's
- *  auto-refresh row points at the settings that own the poll interval, rather
- *  than growing a second control for a value the Updates tab already bounds. */
+/** Which left pane is mounted, lifted out of the sidebar so anything can send
+ *  you to one rather than growing its own copy of that control. */
 export const SIDEBAR_TAB = signal<SidebarTab>(DEFAULT_SIDEBAR_TAB);
 export const SIDEBAR_COLLAPSED = signal<boolean>(true);
 
@@ -116,13 +105,18 @@ export function openSidebarTab(tab: SidebarTab): void {
 
 // ── Selection pane (right sidebar) ───────────────────────────────────────────
 
-/** Identity of the selection whose pane was closed. Held as the key rather than
- *  a flag, so picking anything else opens without a reaction to reset it. */
-export const DISMISSED_SELECTION = signal<string | null>(null);
+/** Whether the current selection's details are put away. Cleared whenever the
+ *  selection changes, so coming back to a node always shows them again. */
+export const SELECTION_PANE_DISMISSED = signal(false);
+
+/** Put the details away, leaving the node selected (and outlined in the city). */
+export function dismissSelectionPane(): void {
+  SELECTION_PANE_DISMISSED.value = true;
+}
 
 /** Bring the details back for a node that is already selected. */
 export function openSelectionPane(): void {
-  DISMISSED_SELECTION.value = null;
+  SELECTION_PANE_DISMISSED.value = false;
 }
 
 // ── Loading overlay ──────────────────────────────────────────────────────────
@@ -147,20 +141,15 @@ export const LOADING_OVERLAY = signal<LoadingOverlayState>({
   stepTails: {},
 });
 
-// Per-load Cancel handler for the overlay. A load that can be backed out of (the
-// timeline enter) registers its own abort-and-restore; when null, the overlay
-// falls back to the App default (cancel the live load, open the project list).
+// A load that can be backed out of registers its own abort; null falls back to
+// the App default.
 export const LOADING_CANCEL = signal<(() => void) | null>(null);
 
-// Setters use .peek() rather than .value to read the prior state — these
-// functions are sometimes called from inside other effects (e.g. the
-// REBUILD_STATUS → 'decorating' bridge), and a tracked `.value` read
-// would auto-subscribe that effect to LOADING_OVERLAY, producing a cycle
-// when the same effect later writes back.
+// peek, not value: these are called from inside other effects, and tracking the
+// prior state would subscribe an effect to a signal it goes on to write.
 
-// onCancel: pass to set the overlay's cancel handler; OMIT (undefined) to leave
-// any already-registered handler in place — the live-load reaction shows the
-// overlay without one, so a caller (exit-Timeline) can pre-register its cancel.
+// Omitting onCancel leaves any registered handler in place, so a caller can
+// pre-register one before the reaction shows the overlay.
 export function showLoadingOverlay(
   opts: LoadingOverlayShowOpts,
   onCancel?: (() => void) | null

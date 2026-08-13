@@ -6,7 +6,6 @@
 import { describe, it, expect } from 'vitest';
 
 import { createScrubPass } from '@/city/timeline/scrubPass';
-import { BuildingLane } from '@/city/components/buildings/scrubState';
 import { StreetTint } from '@/city/components/streets/scrubState';
 import { BuildingIndex } from '@/city/components/buildings/buildingIndex';
 import { buildPathTimelines } from '@/city/timeline/replay';
@@ -67,9 +66,8 @@ describe('the street rollup', () => {
   });
 
   it('keeps a road lit when one child is deleted and another survives', () => {
-    // The deleted child lands in the ruin set, where it cannot pull the road
-    // down. Graded opacities are the streets' own decision test: every present
-    // building sits at exactly 1, so the pass cannot vary them.
+    // The deleted child lands in the ruin set, where it can't pull the road
+    // down. Every present building sits at 1, so the pass can't vary them.
     const halfDead = makeBundle({
       commits: [{ sha: 'a' }, { sha: 'b' }, { sha: 'c' }],
       deltas: [
@@ -133,12 +131,6 @@ describe('the building states', () => {
   it('keys by file path and covers every union building', () => {
     const states = makeCity(PATHS, BY_DIR).run(makeScrubFrame({ pos: 2 }));
     expect([...states.buildings.keys()].sort()).toEqual(PATHS);
-  });
-
-  it('derives genesis from the timeline, so the future lane keys off the real creation', () => {
-    const states = makeCity(PATHS, BY_DIR).run(makeScrubFrame({ pos: 0, futureOn: true }));
-    expect(states.buildings.get('d/f1.txt')!.lane).toBe(BuildingLane.Future);
-    expect(states.buildings.get('d/f1.txt')!.op).toBeCloseTo(0.2, 5);
   });
 
   it('skips a building with no timeline rather than inventing one', () => {

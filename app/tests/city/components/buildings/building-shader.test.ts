@@ -78,7 +78,7 @@ describe('building.frag.glsl', () => {
 
   it('renders empty files as a bare slab via the KIND_EMPTY branch', () => {
     expect(src).toMatch(/vKind == KIND_EMPTY/);
-    expect(src).toContain('const int KIND_EMPTY = 4;');
+    expect(src).toContain('const int KIND_EMPTY = 3;');
   });
 
   it('mirrors every BuildingKind value as a KIND_* int const', () => {

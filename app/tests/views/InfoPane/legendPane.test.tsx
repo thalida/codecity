@@ -32,13 +32,6 @@ describe('LegendPane', () => {
     }
   });
 
-  it('covers the non-layer cues (root gem + hover fade)', () => {
-    render(<LegendPane />, container);
-    const text = container.textContent ?? '';
-    expect(text).toContain('Root gem');
-    expect(text).toContain('Hover fade');
-  });
-
   it('keeps all visible copy free of em-dashes (house style: colons/commas)', () => {
     render(<LegendPane />, container);
     expect(container.querySelector('.legend')!.textContent).not.toContain('—');

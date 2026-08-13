@@ -3,13 +3,13 @@ import { signal } from '@preact/signals';
 import { render } from 'preact';
 import { flush } from '../../_helpers/preact';
 
-const { selectPath, focusPath, selectCommit, focusCommit } = vi.hoisted(() => ({
-  selectPath: vi.fn(),
+// The row wears a focus icon, so it behaves like every other focus control:
+// one command that selects, takes the camera there, and clears the panel away.
+const { focusPath, focusCommit } = vi.hoisted(() => ({
   focusPath: vi.fn(),
-  selectCommit: vi.fn(),
   focusCommit: vi.fn(),
 }));
-vi.mock('@/state/stores/scene', () => ({ selectPath, focusPath, selectCommit, focusCommit }));
+vi.mock('@/state/stores/scene', () => ({ focusPath, focusCommit }));
 
 // Mutable stand-in for the TREES settings signal so we can toggle the Trees
 // layer per test (OverviewPane gates the Forest section on TREES.value.ENABLED).
@@ -86,8 +86,10 @@ const manifest: Manifest = {
 // Commit leaders for tests that need forest rows.
 const commitStats = {
   ...uniformFileStats('a.ts', 3, 10),
-  maxFilesPerCommit: { sha: 'abc1234', files: 9 },
-  minFilesPerCommit: { sha: 'abc1234', files: 9 },
+  maxFilesPerCommit: { sha: 'abc1234', files: 9, date: '2022-01-01' },
+  minFilesPerCommit: { sha: 'abc1234', files: 9, date: '2022-01-01' },
+  oldestCommit: { sha: 'abc1234', files: 9, date: '2022-01-01' },
+  newestCommit: { sha: 'abc1234', files: 9, date: '2022-01-01' },
   maxCommitsPerDay: { date: '2022-01-01', count: 1 },
   maxCommitStreakDays: 1,
   authors: [{ name: 'Ada', commits: 1, hue: 0 }],
@@ -98,9 +100,7 @@ describe('OverviewPane', () => {
   beforeEach(() => {
     container = document.createElement('div');
     document.body.appendChild(container);
-    selectPath.mockClear();
     focusPath.mockClear();
-    selectCommit.mockClear();
     focusCommit.mockClear();
     treesState.ENABLED = true;
   });
@@ -116,45 +116,54 @@ describe('OverviewPane', () => {
     expect(container.textContent).toContain('No project loaded');
   });
 
-  it('leads with a one-line descriptor (no repo name/metadata)', async () => {
+  // The pane opens straight into its first section. The Legend guards the same
+  // copy, and two of the Overview's empty-state notes had em-dashes.
+  it('keeps all visible copy free of em-dashes (house style: colons/commas)', async () => {
     const sig = signal(manifest);
     render(<OverviewPane manifest={sig as never} />, container);
     await flush();
-    expect(container.querySelector('.almanac-intro')).toBeTruthy();
-    // The old repo-name/meta header is gone.
+    expect(container.textContent).not.toContain('—');
+  });
+
+  it('opens with a section, not a preamble', async () => {
+    const sig = signal(manifest);
+    render(<OverviewPane manifest={sig as never} />, container);
+    await flush();
+    expect(container.querySelector('.almanac-intro')).toBeNull();
     expect(container.querySelector('.almanac-name')).toBeNull();
     expect(container.querySelector('.almanac-meta')).toBeNull();
+    expect(container.querySelector('.almanac > .almanac-section')).toBeTruthy();
   });
 
   it('updates when the manifest signal changes (live update)', async () => {
     const sig = signal<Manifest | null>(manifest);
     render(<OverviewPane manifest={sig as never} />, container);
     await flush();
-    expect(container.textContent).toContain('1 building ');
+    expect(container.textContent).toContain('a.ts');
 
-    sig.value = {
-      ...manifest,
-      tree: { ...tree, descendants_file_count: 2 } as unknown as Manifest['tree'],
-    };
+    // A fresh scan whose superlatives land on a different file: the facts
+    // themselves re-derive, so the rows name the new winner.
+    sig.value = { ...manifest, stats: uniformFileStats('b.ts', 9, 90) };
     await flush();
-    expect(container.textContent).toContain('2 buildings');
+    expect(container.textContent).toContain('b.ts');
+    expect(container.textContent).not.toContain('a.ts');
   });
 
   it('updates through the InfoPane shell when MANIFEST changes (parent does not re-render)', async () => {
     const sig = signal<Manifest | null>(manifest);
     render(<InfoPane manifest={sig as never} />, container);
     await flush();
-    expect(container.textContent).toContain('1 building ');
+    expect(container.textContent).toContain('a.ts');
 
-    sig.value = {
-      ...manifest,
-      tree: { ...tree, descendants_file_count: 2 } as unknown as Manifest['tree'],
-    };
+    // A fresh scan whose superlatives land on a different file: the facts
+    // themselves re-derive, so the rows name the new winner.
+    sig.value = { ...manifest, stats: uniformFileStats('b.ts', 9, 90) };
     await flush();
-    expect(container.textContent).toContain('2 buildings');
+    expect(container.textContent).toContain('b.ts');
+    expect(container.textContent).not.toContain('a.ts');
   });
 
-  it('clicking a building landmark focus button selects + focuses its file', async () => {
+  it('clicking a building landmark focuses its file', async () => {
     const sig = signal(manifest);
     render(<OverviewPane manifest={sig as never} />, container);
     await flush();
@@ -163,11 +172,10 @@ describe('OverviewPane', () => {
     ) as HTMLElement;
     expect(row).toBeTruthy();
     (row as HTMLElement).click();
-    expect(selectPath).toHaveBeenCalledWith('a.ts');
     expect(focusPath).toHaveBeenCalledWith('a.ts');
   });
 
-  it('clicking a commit landmark selects + focuses the commit', async () => {
+  it('clicking a commit landmark focuses the commit', async () => {
     const withCommits: Manifest = {
       ...manifest,
       commits: [
@@ -183,7 +191,6 @@ describe('OverviewPane', () => {
     ) as HTMLElement;
     expect(row).toBeTruthy();
     (row as HTMLElement).click();
-    expect(selectCommit).toHaveBeenCalledWith('abc1234');
     expect(focusCommit).toHaveBeenCalledWith('abc1234');
   });
 

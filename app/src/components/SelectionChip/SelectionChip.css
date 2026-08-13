@@ -1,11 +1,10 @@
-/* SelectionChip — a pill over the scene. Top-centred, opposite the scene
-   controls: it reports state rather than joining that stack of controls. */
+/* A pill parked where the pane's header was, on the same insets. It appears in
+   the frame the panel goes: nothing else here animates. */
 
 .selection-chip {
   position: absolute;
-  top: var(--cc-space-6);
-  left: 50%;
-  transform: translateX(-50%);
+  top: var(--cc-space-4);
+  right: var(--cc-space-4);
   z-index: 50;
   display: inline-flex;
   align-items: center;
@@ -15,21 +14,43 @@
 }
 
 .selection-chip-label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cc-space-3);
   min-width: 0;
   min-height: var(--cc-tap-min);
-  padding: 0 var(--cc-space-3) 0 var(--cc-space-6);
+  padding: 0 var(--cc-space-4) 0 var(--cc-space-3);
   background: none;
   border: 0;
   color: var(--cc-text-strong);
   font-family: var(--cc-font-mono);
   font-size: var(--cc-font-xs);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
   cursor: pointer;
 }
 
+/* The badge keeps its size; only the name gives way when the pill is capped.
+   Carries .text-pane-title's weight: the pill is that title, minified. */
+.selection-chip-name {
+  min-width: 0;
+  font-weight: var(--cc-fw-semibold);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .selection-chip-label:hover {
+  color: var(--cc-accent);
+}
+
+/* Lands on the edge the header's close button just left, same glyph mirrored.
+   Sized off the icon buttons, so it reads as a glyph and not punctuation. */
+.selection-chip-reopen {
+  flex: 0 0 auto;
+  font-size: var(--cc-font-md);
+  color: var(--cc-text-strong);
+}
+
+.selection-chip-label:hover .selection-chip-reopen {
   color: var(--cc-accent);
 }
 
@@ -43,9 +64,9 @@
   padding: 0;
   background: none;
   border: 0;
-  border-start-end-radius: var(--cc-radius-pill);
-  border-end-end-radius: var(--cc-radius-pill);
-  color: var(--cc-text-strong);
+  border-start-start-radius: var(--cc-radius-pill);
+  border-end-start-radius: var(--cc-radius-pill);
+  color: var(--cc-text-muted);
   cursor: pointer;
 }
 

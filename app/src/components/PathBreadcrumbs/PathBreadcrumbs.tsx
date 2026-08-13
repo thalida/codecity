@@ -1,14 +1,14 @@
-// components/PathBreadcrumbs.tsx — Display-only header title slot for a selected
-// file/dir: an extension badge + a middle-ellipsized path breadcrumb (leaf
-// emphasized). The header's focus/copy/close buttons live in the pane header's
-// right-hand action group, not here. The breadcrumb owns a ResizeObserver
-// (useMiddleEllipsis) that middle-truncates the path to fit the header width.
-// Segments are buttons only when onSegmentClick is given (else plain labels).
+// components/PathBreadcrumbs.tsx — the title slot for a selected node: a badge
+// and a path truncated in the middle to fit the header, with the leaf
+// emphasised. Segments are buttons only when there's something to do with one.
 
 import './PathBreadcrumbs.css';
 import { Fragment } from 'preact';
-import { ExtensionBadge } from '@/components/Badge/Badge';
+import { useContext } from 'preact/hooks';
+import { NodeKind } from '@/types';
+import { KindBadge } from '@/components/Badge/Badge';
 import { useMiddleEllipsis } from '@/hooks/useMiddleEllipsis';
+import { PaneTitleBudgetContext } from '@/components/PaneHeader/PaneHeader';
 import { buildPathCrumbs } from '@/utils/pathCrumbs';
 
 export interface PathBreadcrumbsProps {
@@ -30,11 +30,15 @@ export function PathBreadcrumbs({
   rootPath,
   onSegmentClick,
 }: PathBreadcrumbsProps) {
+  // Measured against the header's lead group: the title hugs its content, so
+  // once truncation shrinks it the crumbs could never come back.
+  const budgetRef = useContext(PaneTitleBudgetContext);
   const crumbsRef = useMiddleEllipsis<HTMLDivElement>(
     {
       segmentClass: 'app-header-seg',
       separatorClass: 'app-header-sep',
       ellipsisClass: 'app-header-ellipsis',
+      observeRef: budgetRef ?? undefined,
     },
     [path]
   );
@@ -44,7 +48,10 @@ export function PathBreadcrumbs({
 
   return (
     <>
-      <ExtensionBadge extension={isFileSel ? (extension ?? null) : null} isDir={!isFileSel} />
+      <KindBadge
+        kind={isFileSel ? NodeKind.File : NodeKind.Directory}
+        extension={isFileSel ? extension : null}
+      />
       <div
         ref={crumbsRef}
         class="app-header-crumbs"

@@ -1,24 +1,15 @@
-// views/CommitPane.tsx — right-sidebar pane shown when a tree
-// (commit) is selected in the city. Shows the short SHA (in the pane
-// header title), author, full commit message (subject + lazy-fetched
-// body), relative age, files changed, same-day commit count with a
-// busyness label, and an "Open on origin" link built from
-// manifest.repo.remote_url + the full SHA.
-// When the repo has no remote, the link is replaced with a muted hint.
-//
-// A colored swatch matching the tree's render color is shown inline
-// inside the "N commits that day" row (next to the same-day text)
-// when a color is provided.
-//
-// A Preact function component reading a `state` signal prop (the selected
-// commit); RightSidebar swaps panes by switching which one it renders.
+// views/CommitPane.tsx — the pane for a selected tree: its sha, authors, message,
+// age, files changed, and how busy its day was. The body is fetched lazily, and
+// the open-on-origin link becomes a hint when the repo has no remote.
 
 import './CommitPane.css';
 import { useState, useEffect, useRef } from 'preact/hooks';
 import type { ReadonlySignal } from '@preact/signals';
+import { NodeKind } from '@/types';
 import type { CommitEntry } from '@/types';
 import { GitCommitHorizontal, History } from 'lucide-preact';
 import { Pane, PaneEmpty } from '@/components/Pane';
+import { KindBadge } from '@/components/Badge/Badge';
 import { KEY_BINDINGS } from '@/constants/keyboard';
 import { commitUrl } from '@/utils/commit';
 import { formatRelativeAge, formatFullDate } from '@/utils/dates';
@@ -151,9 +142,12 @@ export function CommitPane({ state, onClose, onFocus, onViewInTimeline }: Commit
   const commitWord = sameDayTotal === 1 ? 'commit' : 'commits';
   const primaryAuthor = (commit.authors ?? [])[0] || '(unknown)';
 
+  // Badge then identifier, the shape a file title takes: the kind is a label on
+  // the thing, not a word in a sentence about it.
   const titleSlot = (
     <>
-      Commit <span class="commit-sha">{shortSha}</span>
+      <KindBadge kind={NodeKind.Commit} />
+      <span class="commit-sha">{shortSha}</span>
       <span class="commit-title-author"> · {primaryAuthor}</span>
     </>
   );
@@ -199,6 +193,12 @@ export function CommitPane({ state, onClose, onFocus, onViewInTimeline }: Commit
         ))}
       </div>
       <div class="commit-meta">
+        {/* The date itself, not only how long ago it was: "2 months 11 days
+            ago" tells you the distance and hides the landmark. */}
+        <span class="commit-date">{formatFullDate(commit.date)}</span>
+        <span class="commit-meta-sep" aria-hidden="true">
+          ·
+        </span>
         <span class="commit-age" title={commit.date}>
           {formatRelativeAge(commit.date, now)}
         </span>

@@ -12,7 +12,7 @@ import type { Building, FileNode, RangeStat, TimelineBundle } from '@/types';
 export const LINE_STATS: RangeStat = { min: 1, max: 200 };
 export const BYTE_STATS: RangeStat = { min: 1, max: 5000 };
 
-/** Ruins and blueprints off, no fade target, zero date spread. */
+/** Ruins off, no fade target, zero date spread. */
 export function makeScrubFrame(over: Partial<ScrubFrame> = {}): ScrubFrame {
   return {
     pos: 0,
@@ -22,11 +22,6 @@ export function makeScrubFrame(over: Partial<ScrubFrame> = {}): ScrubFrame {
     ruinBuildingOpacity: 0.3,
     ruinHeight: 1.4,
     ruinGrayMix: 0.8,
-    futureOn: false,
-    futureBuildingOpacity: 0.2,
-    futureHeight: 0.2,
-    futureTint: 0.7,
-    futureColor: { r: 0, g: 0.5, b: 1 },
     nowMs: 0,
     minCreated: 0,
     createdSpread: 0,

@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { signal } from '@preact/signals';
 
 import { loadTimelineScene, exitTimelineMode, teardownTimelineMode } from '@/hooks/useTimelineMode';
 import { EXCLUDES, addExclude } from '@/state/stores/excludes';
@@ -11,7 +12,7 @@ import { LoadingStep } from '@/constants/loadingSteps';
 import { LIVE_UPDATES } from '@/state/stores/settings/updates';
 import { SCAN_PROGRESS } from '@/state/stores/scanProgress';
 import { setupLiveUpdates } from '@/hooks/useManifestSource';
-import type { TimelineBundle, TimelineProgress } from '@/types';
+import type { PickTarget, TimelineBundle, TimelineProgress } from '@/types';
 import { StubEventSource, installEventSource } from '../_helpers/eventSource';
 
 // jsdom's rAF fires for real on a ~16ms timer; wait for one tick to observe
@@ -40,6 +41,9 @@ function fakeHandle() {
   const setFootprintsTransparent = vi.fn();
   const handle = {
     applyManifest,
+    // SELECTION_KEY reads through the handle's picker, so a handle without one
+    // isn't a SceneHandle any consumer can hold.
+    picker: { selection: signal<PickTarget | null>(null) },
     timeline: {
       installScrubController,
       uninstallScrubController,
@@ -177,9 +181,8 @@ describe('loadTimelineScene', () => {
   });
 
   it('still surfaces the error and hides the overlay when post-fetch work AND cleanup throw', async () => {
-    // A throw after the fetch resolves (applyManifest) lands in catch; if a
-    // cleanup call there ALSO throws, markError + hideLoadingOverlay must still
-    // run (the finally) — otherwise the overlay is stranded, no error shown.
+    // A throw inside the catch must not strand the overlay: the finally still
+    // has to mark the error and take it down.
     (fetchTimelineBundle as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(BUNDLE);
     const f = fakeHandle();
     f.applyManifest.mockRejectedValue(new Error('pack failed'));
@@ -211,9 +214,8 @@ describe('exitTimelineMode', () => {
     SCENE_HANDLE.value = null;
   });
 
-  // The scene-side teardown (uninstall controller, un-transparent streets/footprints,
-  // restore trees) is owned by the city-layer effect in city/index.ts, which reacts
-  // to TIMELINE_MODE — see tests/city/index.test.ts. This test covers the hook's contract.
+  // The scene-side teardown belongs to the city layer's own effect; this covers
+  // the hook's half of the contract.
   it('flips TIMELINE_MODE, clears the scrub store, and reloads live HEAD', async () => {
     exitTimelineMode();
 

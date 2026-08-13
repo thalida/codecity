@@ -27,6 +27,16 @@ export const ISLAND_SECTION: SectionNode = {
       ],
     },
     {
+      key: 'texture',
+      label: 'Texture',
+      children: [
+        field(ISLAND, 'GRASS_TEXTURE'),
+        field(ISLAND, 'GRASS_PATCH_SIZE'),
+        field(ISLAND, 'ROCK_TEXTURE'),
+        field(ISLAND, 'ROCK_PATCH_SIZE'),
+      ],
+    },
+    {
       key: 'colors',
       label: 'Colors',
       children: [

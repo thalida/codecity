@@ -1,27 +1,7 @@
-// city/components/buildings/index.ts — Buildings COMPONENT (public door).
-//
-// Self-contained scene component: owns its persistent group (the cell-root
-// holder), the shared building material + icon atlas, the per-cell
-// InstancedMesh cell scene (built via cellAssembly.ts on rebuild), the building
-// path/cell lookups, the instanced facade panels, and the hover/selection
-// overlays (fader / outline / ghost). rebuild(layout, dateRanges) colors the
-// buildings, assembles the cells, swaps them into the persistent group, and
-// rebuilds the lookups. The material reacts to BUILDINGS/SCENE/BLOOM
-// via an effect; the fader/outline/ghost are picker-driven and ARMED on the
-// first tick() (like streets), once ctx.picker is live.
-//
-// Buildings are built before the picker/camera/renderer exist. The material
-// theme effect reads only settings signals (safe at construction); the
-// fader/outline/ghost subscribe to picker.selection/hover, so they are armed on
-// the first tick() once ctx.picker is live, not at construction.
-//
-// Self-tween: the building enter/stay DIFF is computed HERE, inside rebuild(),
-// against the prior cells captured before disposal — the tween queue lives here
-// (tween.ts) and is fed directly from that internal diff. The boot rebuild does
-// NOT animate (it skips the very first diff), so the city paints in place on
-// first load and only later edits tween. The tweens resolve meshes through
-// getMeshForBuilding() here. The component owns its cells/buildingIndex; world's
-// getCells/getBuildingIndex accessors read straight off it.
+// city/components/buildings/index.ts — the buildings component: its group, the
+// shared material and icon atlas, the per-cell instanced meshes, the lookups,
+// and the hover/selection overlays. Buildings exist before the picker does, so
+// anything picker-driven is armed on the first tick() rather than constructed.
 
 import * as THREE from 'three';
 import { effect, untracked } from '@preact/signals';
@@ -49,10 +29,10 @@ import { createGhostRenderer } from './ghost';
 import { createBuildingTweens } from './tween';
 import { createBuildingScrubApply } from './scrubApply';
 import type { BuildingScrubState } from './scrubState';
+import { parseDateMs } from '@/utils/dates';
 
-/** The enter/stay diff rebuild() computes internally (against the prior cells)
- *  and feeds straight to the tween queue. Only entering/staying matter to the
- *  tweens — there is no exit animation in V1, so no exiting bucket. */
+/** The diff rebuild() computes against the prior cells and feeds to the tween
+ *  queue. No exiting bucket: nothing animates on the way out. */
 interface BuildingDiff {
   entering: { buildings: EnteringBuilding[] };
   staying: { buildings: StayingBuilding[] };
@@ -60,10 +40,8 @@ interface BuildingDiff {
 
 /** Public contract for the buildings component. */
 export interface Buildings extends SceneComponent {
-  /** Color the buildings, assemble the cells, swap them into the group, and
-   *  rebuild the lookups. Always rebuilds (the cell root is always rebuilt —
-   *  not scenic-gated). Computes its OWN enter/stay diff against the prior
-   *  cells and fires the tweens (boot rebuild snaps in without animating). */
+  /** Colour, assemble, swap in, relookup. Diffs against the prior cells to fire
+   *  the tweens; the boot rebuild snaps in rather than animating. */
   rebuild(layout: CityLayout, dateRanges: DateRanges, scannedAt?: string | null): Promise<void>;
   /** Dispose the current instanced facade panels immediately; the next rebuild()
    *  recreates them from the fresh layout. */
@@ -94,9 +72,8 @@ export function createBuildings(ctx: SceneContext): Buildings {
   const group = new THREE.Group();
   group.name = 'city-buildings';
 
-  // Component-level mutable refs, reassigned each rebuild. The effects /
-  // tick target these (NOT stale closure captures) so they hit the live
-  // meshes after every rebuild.
+  // Reassigned each rebuild, and read through by the effects and tick, so
+  // neither ends up holding a closure over meshes that have been swapped out.
   let _innerCellRoot: THREE.Group | null = null;
   let _cells: Map<number, CellTile> = new Map();
   let _buildingIndex: BuildingIndex | null = null;
@@ -109,10 +86,8 @@ export function createBuildings(ctx: SceneContext): Buildings {
     { mesh: THREE.Mesh; building: Building; instanceId: number }
   > = {};
 
-  // Dispose + remove the prior inner cell root and instanced facade panels.
-  // The cell detail meshes SHARE one ShaderMaterial (cellMesh.ts flags them
-  // userData.sharedMaterial = true); disposeObject3D's sharedMaterial guard
-  // skips disposing it so the new cell root's meshes keep a live material.
+  // The detail meshes share one material, flagged so disposeObject3D leaves it
+  // alone: disposing it here would leave the next cell root without one.
   function _disposeInner(): void {
     if (_innerCellRoot) {
       _innerCellRoot.traverse(disposeObject3D);
@@ -132,14 +107,8 @@ export function createBuildings(ctx: SceneContext): Buildings {
     }
   }
 
-  // (1) Shared-material theme effect — reacts to BUILDINGS / SCENE / BLOOM /
-  // BUILDING_DIMENSIONS / RUINS changes (Save). Reads each store's .value so the
-  // effect subscribes to all of them, then re-applies the material uniforms and
-  // the ad-panel emission (BLOOM.MEDIA_EMISSION). Safe at construction: reads only
-  // settings signals (no picker). If the shared material isn't created yet (first
-  // rebuild lazily creates it), refreshBuildingMaterial() no-ops via its
-  // `if (!_sharedMaterial) return` guard and _facadePanels is null, and the
-  // constructor seeds the identical values.
+  // Material theme. Reads each store's .value to subscribe to all of them; safe
+  // at construction, since none of it is the picker, and it no-ops pre-rebuild.
   const stopMaterialEffect = effect(() => {
     void BUILDINGS.value;
     void SCENE.value;
@@ -150,21 +119,8 @@ export function createBuildings(ctx: SceneContext): Buildings {
     _facadePanels?.refresh();
   });
 
-  // Layout effect — reactive rebuild entry point. Reads cityState.layout (the
-  // every-apply signal — per-building dims recompute even on a reuse apply) +
-  // manifest (for dateRanges). rebuild() is synchronous here: applyManifest sets
-  // the icon atlas BEFORE the layout signal fires, so the cells bake the right
-  // roof UVs and buildings paint in the same batch as streets (no flash). The
-  // boot rebuild snaps in (_firstBuildDone); the null-guard no-ops construction.
-  //
-  // rebuild() is wrapped untracked because its synchronous prefix reads
-  // BUILDINGS.value (getBuildingColor, cell facade) + SCENE/BLOOM. Without it
-  // this effect would subscribe to those stores and rebuild every cell on a
-  // Refresh-route material Save — recreating the pickable cell meshes without
-  // bumping cityRevision, so the picker would keep raycasting the disposed cells
-  // (hover/selection silently breaking). Refresh material changes are applied in
-  // place by stopMaterialEffect; the Rebuild-route palette/geometry fields reach
-  // here via layout.value, which applyManifest always reassigns.
+  // untracked, or this also subscribes to the material stores: a Refresh Save
+  // would recreate pickable meshes and leave the picker raycasting dead ones.
   const stopRebuild = effect(() => {
     const layout = ctx.cityState.layout.value;
     const manifest = ctx.cityState.manifest.value;
@@ -172,13 +128,8 @@ export function createBuildings(ctx: SceneContext): Buildings {
       untracked(() => void rebuild(layout, manifest.dateRanges, manifest.scanned_at));
   });
 
-  // (2)(3)(4) Picker-driven hover/selection overlays — fader (body opacity),
-  // outline (hover/selected boxes), ghost (hover preview). All three subscribe
-  // to picker.selection/hover, so they are ARMED on the first tick() once
-  // ctx.picker is live, not at construction (ctx.picker is null there — they'd
-  // track NO signal). Mirrors the streets arming pattern. On the first tick both
-  // the boot-rebuild cells and ctx.picker are live, so the initial sweeps see
-  // populated cells + null selection → default opacities.
+  // All three subscribe to picker.selection/hover, so they arm on the first
+  // tick: at construction ctx.picker is null and they'd track nothing.
   type Fader = ReturnType<typeof createBuildingFader>;
   type Outline = ReturnType<typeof createOutlineRenderer>;
   type Ghost = ReturnType<typeof createGhostRenderer>;
@@ -187,9 +138,7 @@ export function createBuildings(ctx: SceneContext): Buildings {
   let _ghost: Ghost | null = null;
 
   const _arm = armOnFirstTick(ctx, () => {
-    // Fader gets a world-facade for the component-local cells + facade panels;
-    // it reads the street-by-dir lookup off cityState. Re-sweeps on a city
-    // rebuild via cityState.cityRevision.
+    // A world-facade over the component-local cells, re-swept on cityRevision.
     _fader = createBuildingFader({
       world: {
         getCells: () => _cells,
@@ -198,9 +147,8 @@ export function createBuildings(ctx: SceneContext): Buildings {
       cityState: ctx.cityState,
       picker: ctx.picker!,
     });
-    // Outline + ghost reach the cells / mesh resolver locally. They add their
-    // overlay meshes to ctx.scene — they carry explicit renderOrders, so
-    // scene-graph parenting is irrelevant to draw order.
+    // Their overlays go straight on the scene: explicit renderOrders, so where
+    // they sit in the graph doesn't decide draw order.
     _outline = createOutlineRenderer({
       canvas: ctx.canvas,
       scene: ctx.scene,
@@ -228,9 +176,8 @@ export function createBuildings(ctx: SceneContext): Buildings {
     ];
   });
 
-  // getMeshForBuilding (named so the ghost facade + the door entry share one
-  // impl). Resolves a building's live InstancedMesh + slot via its cellId/slotId;
-  // the tween queue resolves every tween through it each frame.
+  // A building's live mesh + slot, which is how the tween queue reaches one
+  // every frame without holding a reference across a rebuild.
   function getMeshForBuilding(b: Building): { mesh: THREE.InstancedMesh; slot: number } | null {
     if (_cells.size > 0 && b.cellId != null && b.slotId != null) {
       const cell = _cells.get(b.cellId);
@@ -255,18 +202,8 @@ export function createBuildings(ctx: SceneContext): Buildings {
   // TIMELINE_MODE, it drives scaleY + iFade per frame instead of the tweens.
   let _scrubController: { update(): void } | null = null;
 
-  // _computeBuildingDiff — compares the PRIOR cells (captured before the dispose
-  // in rebuild) against the component's freshly-adopted _buildingIndex,
-  // producing entering / staying buckets the tween queue consumes. Reads prev
-  // transforms via detailMesh.getMatrixAt at each building's slot; classifies
-  // entering vs staying by file.path. prevIndex is accepted for symmetry but
-  // unused.
-  //
-  // Liveness: the prev detailMeshes are already disposed by rebuild's
-  // _disposeInner before this runs — but disposeObject3D only frees GPU
-  // geometry, NOT the JS-side instanceMatrix Float32Array, so getMatrixAt still
-  // reads the last-rendered transforms and a rapid edit tweens from where the
-  // buildings actually were rather than snapping to layout.
+  // The prior meshes are disposed by now, but that frees GPU geometry only: the
+  // matrices still read, so a rapid edit tweens from where things were.
   function _computeBuildingDiff(
     prevCells: Map<number, CellTile>,
     _prevIndex: BuildingIndex | null
@@ -274,9 +211,7 @@ export function createBuildings(ctx: SceneContext): Buildings {
     const entering: EnteringBuilding[] = [];
     const staying: StayingBuilding[] = [];
 
-    // file.path → prior transform (scale + position), read from the prior cell's
-    // detailMesh at the building's slot to capture wherever the last tween left
-    // it (so a rapid edit doesn't snap to layout).
+    // Where the last tween left each building, not where layout says it goes.
     const prevTransforms = new Map<
       string,
       { scaleX: number; scaleY: number; scaleZ: number; posX: number; posY: number; posZ: number }
@@ -362,25 +297,19 @@ export function createBuildings(ctx: SceneContext): Buildings {
     return { entering: { buildings: entering }, staying: { buildings: staying } };
   }
 
-  // tick() — arms the picker overlays on the first call, then drives the three
-  // per-frame syncs in field-ownership order: fader.update → outline.update →
-  // ghost.update. The composer (city/index.ts) runs treeOutlineRenderer/
-  // pathLineRenderer AFTER this tick — their writes are disjoint from these and
-  // are only consumed at postFx.render.
+  // Arms the overlays on the first call, then runs them in field-ownership
+  // order: fader, outline, ghost.
   function tick(_dt: number, frame: FrameContext): void {
-    // Entering/staying tweens run FIRST within the tick. Nothing between that
-    // slot and this one reads instance matrices; outline/ghost read them
-    // AFTER, within this tick. In Timeline mode the scrub controller owns the
-    // matrix + iFade instead, so the tween queue stays dormant.
+    // First in the tick: outline and ghost read these matrices further down. In
+    // Timeline the scrub controller owns them instead and this stays dormant.
     if (TIMELINE_MODE.peek() && _scrubController) _scrubController.update();
     else _tweens.update(0);
     _arm.arm();
     _fader?.update(0);
     _outline?.update(0);
     _ghost?.update(0);
-    // Distance LOD: hide the transparent facade panels once they're sub-pixel
-    // (zoomed far out) so their overdraw doesn't stall the GPU on media-heavy
-    // repos. Cheap O(1) visibility toggle off the panel AABB + camera.
+    // Sub-pixel panels still cost their overdraw, which stalls the GPU on a
+    // media-heavy repo. One AABB test hides the lot.
     _facadePanels?.updateLOD(frame.camera, ctx.canvas.clientHeight);
   }
 
@@ -396,7 +325,7 @@ export function createBuildings(ctx: SceneContext): Buildings {
     const buildings = layout?.buildings ?? [];
     // Colour and weathering measure against the scan, not a live clock, so a
     // rebuild is deterministic and the goldens hold.
-    const nowMs = Date.parse(scannedAt ?? '') || Date.now();
+    const nowMs = parseDateMs(scannedAt ?? '') || Date.now();
 
     // ---- Color the buildings. ----
     for (const b of buildings) {
@@ -406,9 +335,8 @@ export function createBuildings(ctx: SceneContext): Buildings {
         b.file as unknown as Parameters<typeof getBuildingColor>[0],
         nowMs
       );
-      // createdAge is independent of color: it tracks file age (creation
-      // date) so grime/weathering can mark old files even if they were
-      // recently edited.
+      // Independent of colour: creation age, so grime can mark an old file
+      // that was edited yesterday.
       b.createdAge = getCreatedAge(
         b.file as unknown as Parameters<typeof getCreatedAge>[0],
         dateRanges
@@ -419,9 +347,7 @@ export function createBuildings(ctx: SceneContext): Buildings {
       );
     }
 
-    // ---- Derive WorldBounds from the layout bbox. Fall back to building
-    // extents if bbox is absent (shouldn't happen for a real manifest, but
-    // safe). ----
+    // Building extents are the fallback for a manifest with no bbox.
     const lb = layout.bbox;
     const bounds: WorldBounds = lb
       ? { minX: lb.minX, maxX: lb.maxX, minZ: lb.minY, maxZ: lb.maxY }
@@ -442,10 +368,8 @@ export function createBuildings(ctx: SceneContext): Buildings {
     // ---- Assemble the cell scene (buildings only). ----
     const cellOut = buildCellsFromLayout(bounds, buildings);
 
-    // Capture the PRIOR cells/index BEFORE disposing them. _disposeInner only
-    // frees GPU geometry (not the JS-side instanceMatrix arrays), so these
-    // references stay readable for the diff below even post-dispose — but we
-    // must grab them now because the swap reassigns _cells/_buildingIndex.
+    // Grabbed before the swap reassigns them: the arrays stay readable through
+    // disposal, but these bindings don't.
     const prevCells = _cells;
     const prevIndex = _buildingIndex;
 
@@ -476,19 +400,10 @@ export function createBuildings(ctx: SceneContext): Buildings {
       }
     }
 
-    // ---- Self-tween: compute the enter/stay diff (prev cells vs the new
-    // _buildingIndex just adopted above) and fire the tweens — UNLESS this is
-    // the boot rebuild, which snaps in without animating (createCity
-    // subscribes to cityState changes only AFTER the initial build).
+    // The boot rebuild snaps in: nothing should animate into place on load.
     const diff = _computeBuildingDiff(prevCells, prevIndex);
-    // Drop any in-flight tweens from a PRIOR rebuild before queueing this one's.
-    // Tweens dedup by Building-object identity, but every rebuild produces fresh
-    // Building objects — so a stale tween would survive and keep writing its
-    // matrix, resolved by cellId/slotId into the NEW cells, into a slot now held
-    // by a different building (or a previously scale-zero unused slot). That
-    // leaves a phantom building stuck at an old transform (z-fighting). The
-    // fresh diff above re-seeds from the current on-screen matrices, so clearing
-    // loses no animation continuity.
+    // Tweens dedup by Building identity and every rebuild makes fresh ones, so
+    // a survivor would write its old matrix into whatever now holds that slot.
     _tweens.clear();
     // Same hazard as the tweens: it holds the old manifest's Buildings.
     // reapplyTimelineScene reinstalls one, so only a repo switch leaves it null.

@@ -33,9 +33,20 @@ describe('createIslandMaterial', () => {
   it('carries no ground-haze plumbing — the island opts out of fog entirely', () => {
     const mat = createIslandMaterial();
     expect(mat.fragmentShader).not.toMatch(/applyFog|uFog/);
-    // vWorldPos existed only to feed the fog.
-    expect(mat.vertexShader).not.toMatch(/vWorldPos/);
-    expect(Object.keys(mat.uniforms)).toEqual(['uHemiSkyColor', 'uHemiGroundColor']);
+    expect(Object.keys(mat.uniforms)).not.toContain('uFogColor');
+    mat.dispose();
+  });
+
+  // World position is the texture's sample coordinate, so the pattern belongs
+  // to the ground rather than swimming with the camera.
+  it('samples its texture on world position, per surface', () => {
+    const mat = createIslandMaterial();
+    expect(mat.vertexShader).toMatch(/vWorldPos/);
+    expect(mat.vertexShader).toMatch(/aSurface/);
+    expect(mat.fragmentShader).toMatch(/vWorldPos\.xz/);
+    expect(Object.keys(mat.uniforms)).toEqual(
+      expect.arrayContaining(['uGrassTexture', 'uGrassPatchSize', 'uRockTexture', 'uRockPatchSize'])
+    );
     mat.dispose();
   });
 

@@ -29,9 +29,8 @@ function resetStores(): void {
   RUINS.value = { ..._origRuins };
 }
 
-// A SceneContext whose picker exposes controllable selection + hover signals,
-// and a real (fake) renderer.domElement canvas so the outline LineMaterial can
-// read clientWidth/Height during arming.
+// A context whose picker exposes drivable selection and hover, and a canvas the
+// outline material can measure during arming.
 
 // Pre-picker ctx: picker null (the construction-time window). Used to prove the
 // theme effect is safe to run at construction and the overlays do NOT arm.
@@ -337,10 +336,8 @@ describe('createBuildings()', () => {
     try {
       await buildings.rebuild(buildingLayout([b0]), EMPTY_DATE_RANGES);
 
-      // The boot rebuild lands the building at its FINAL layout transform
-      // (cell assembly), and no tween touches it on tick — so a tick at t=0
-      // (where an entering tween would have written scaleY≈0.0001) leaves the
-      // full-height matrix in place.
+      // The boot rebuild lands the building at its final transform, so a tick
+      // where an entering tween would write scaleY≈0 leaves it full height.
       const resolved = buildings.getMeshForBuilding(b0)!;
       const mesh = resolved.mesh;
       const m = new THREE.Matrix4();
@@ -358,11 +355,6 @@ describe('createBuildings()', () => {
   it('a SECOND rebuild introducing a new building fires its enter tween through tick() and lands the final transform', async () => {
     const { ctx } = makePickableSceneContext();
     buildings = createBuildings(ctx);
-    // Isolate the tween's scale+position landing from the age-lean shear (baked
-    // into the instance matrix, tilt.ts) — otherwise the landed X/Z carry the
-    // lean offset. The lean itself is covered by tilt.test.
-    BUILDINGS.value = { ...BUILDINGS.value, TILT_ENABLED: false };
-
     // Boot rebuild (no animation) with one building.
     const b0 = building({ x: 10, y: 10, h: 8, file: fileOf('src/a.ts') as never });
     await buildings.rebuild(buildingLayout([b0]), EMPTY_DATE_RANGES);

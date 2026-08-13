@@ -40,28 +40,10 @@ function isPresent(pt: PathTimeline, pos: number): boolean {
   return pt.intervals.some((iv) => pos >= iv.start && (iv.end === null || pos < iv.end));
 }
 
-/**
- * Line count for the HEIGHT curve: interpolated between the surrounding change
- * entries so a building tweens across a drag. Anything a user reads wants
- * entryAt() instead — this deliberately returns values no commit ever had.
- */
+/** The line count in effect at `pos`. A step, not a curve: interpolating toward
+ *  the next change showed files growing on days nothing was committed. */
 export function linesAt(pt: PathTimeline, pos: number): number {
-  if (!isPresent(pt, pos)) return 0;
-  const { changes } = pt;
-  if (pos <= changes[0].i) return changes[0].lines;
-  if (pos >= changes[changes.length - 1].i) return changes[changes.length - 1].lines;
-
-  let lo = 0;
-  let hi = changes.length - 1;
-  while (hi - lo > 1) {
-    const mid = (lo + hi) >> 1;
-    if (changes[mid].i <= pos) lo = mid;
-    else hi = mid;
-  }
-
-  const a = changes[lo];
-  const b = changes[hi];
-  return a.lines + (b.lines - a.lines) * ((pos - a.i) / (b.i - a.i));
+  return entryAt(pt, pos)?.lines ?? 0;
 }
 
 /** What a path measured when it was deleted, or null if it is not gone at `pos`. */
@@ -125,10 +107,8 @@ export function ruinStateAt(pt: PathTimeline, pos: number): PathState {
 export function presenceAt(pt: PathTimeline, pos: number, ruinFloor: number): number {
   if (pt.intervals.length === 0 || pos < pt.intervals[0].start) return 0;
 
-  // A file is fully present at every commit inside a live interval — including the
-  // commit it was created at (a snapshot at that commit contains it). No genesis
-  // grow-in ramp: landing on a file's creation commit (or on HEAD after a rename
-  // records the moved file as freshly created) must show it, not fade it from 0.
+  // Fully present at every commit in a live interval, its creation commit
+  // included: a snapshot there contains it, so it must not fade in.
   for (const iv of pt.intervals) {
     if (pos >= iv.start && (iv.end === null || pos < iv.end)) return 1;
   }
@@ -136,11 +116,8 @@ export function presenceAt(pt: PathTimeline, pos: number, ruinFloor: number): nu
   return ruinFloor;
 }
 
-/**
- * The change entry actually in effect at `pos` — a STEP lookup, unlike linesAt,
- * which lerps between entries so heights can tween. Anything a user reads must
- * come from here, so the number and the bytes describe the same blob.
- */
+/** The change entry in effect at `pos`. Everything reads through this, so a
+ *  line count, its bytes and the height drawn from them agree. */
 export function entryAt(pt: PathTimeline, pos: number): PathTimeline['changes'][number] | null {
   if (!isPresent(pt, pos)) return null;
   let found: PathTimeline['changes'][number] | null = null;

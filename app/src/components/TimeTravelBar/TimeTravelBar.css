@@ -5,8 +5,11 @@
 .time-travel-bar {
   display: flex;
   flex-direction: column;
-  gap: var(--cc-space-4);
-  padding: var(--cc-space-5) var(--cc-space-5);
+  /* One leading for all three rows, so the gap between them is the gap and not
+     the gap plus whatever half-leading each row's type happened to carry. */
+  line-height: var(--cc-lh-tight);
+  gap: var(--cc-space-2);
+  padding: var(--cc-space-4) var(--cc-space-5);
   width: 100%;
   border-radius: var(--cc-radius-lg);
 }
@@ -15,17 +18,37 @@
 .time-travel-scrubber {
   display: flex;
   align-items: center;
+  /* The playhead overhangs the track, so the row gap alone would leave the
+     dates clearing the track but not the handle. Same token as the overhang. */
+  margin-bottom: var(--cc-space-3);
+}
+
+/* The history's two ends, and the date you've scrubbed to between them. The
+   commit gets its own row, so a long subject can't crowd them. */
+.time-travel-axis {
+  display: grid;
+  /* Equal side columns, so the middle is centred on the bar itself rather than
+     on whatever the two bookends happen to measure. */
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
   gap: var(--cc-space-4);
 }
 
-/* The two calendar bookends — click to jump to the first / latest commit.
-   Dimmed + uppercased like the reference; brighten on hover to signal clickable. */
+/* The bookends jump to the ends of the history. Each hugs its own side rather
+   than centring in the column the grid gives it. */
+.time-travel-edge:first-child {
+  justify-self: start;
+}
+.time-travel-edge:last-child {
+  justify-self: end;
+}
 .time-travel-edge {
-  flex: 0 0 auto;
   display: inline-flex;
   align-items: center;
-  min-height: var(--cc-tap-min);
+  /* No tap floor for a cursor: three stacked rows of 12px type shouldn't each
+     carry 32px of button around them. A finger gets it back below. */
   padding: 0 var(--cc-space-2);
+  line-height: inherit;
   border: 0;
   background: none;
   font-family: var(--cc-font-mono);
@@ -33,7 +56,9 @@
   font-weight: 600;
   letter-spacing: 0.02em;
   text-transform: uppercase;
-  color: var(--cc-text-strong);
+  /* Faded against the handle's date: the ends are where the history starts and
+     stops, the middle is where you are. Secondary, since this is glass. */
+  color: var(--cc-text-secondary);
   white-space: nowrap;
   cursor: pointer;
 }
@@ -42,9 +67,16 @@
   color: var(--cc-accent);
 }
 
-/* The time axis, painted on the canvas: an accent played fill + past ticks
-   (from --cc-accent) and neutral future ticks (--tt-tick, a canvas-parseable
-   soft gray that composites over the dark bar). */
+/* COARSE_POINTER_QUERY (constants/breakpoints.ts): the bookends are buttons,
+   so a thumb needs the target a cursor doesn't. */
+@media (hover: none) and (pointer: coarse) {
+  .time-travel-edge {
+    min-height: var(--cc-tap-min);
+  }
+}
+
+/* The axis is painted on canvas: an accent played fill and past ticks, neutral
+   ticks ahead of the handle. */
 .time-travel-track {
   --tt-tick: rgba(148, 151, 168, 0.5);
   position: relative;
@@ -86,12 +118,18 @@
      has to be recomputed whenever the width changes. */
   transform: translateX(-50%);
   border-radius: var(--cc-radius-sm);
-  background: var(--cc-accent);
-  box-shadow: 0 0 2px color-mix(in oklch, var(--cc-accent) 30%, transparent);
+  /* White, not accent: the ticks are accent too, so an accent playhead read as
+     one of them. This is the one mark that says where you are. */
+  background: var(--cc-white);
+  box-shadow: 0 0 3px color-mix(in oklch, var(--cc-black) 60%, transparent);
   pointer-events: none;
 }
 
+/* The commit on the scrub's row of its own: sha then subject, centred under the
+   date it belongs to. */
 .time-travel-info {
+  justify-content: center;
+  min-width: 0;
   display: flex;
   align-items: center;
   gap: var(--cc-space-3);
@@ -104,32 +142,57 @@
 
 /* Date leads, bold + bright — the primary "where am I" anchor. */
 .time-travel-date {
+  justify-self: center;
   color: var(--cc-text-strong);
+  font-family: var(--cc-font-mono);
+  font-size: var(--cc-font-xs);
   font-weight: 600;
+  white-space: nowrap;
 }
 
 .time-travel-sha {
+  flex: 0 0 auto;
   color: var(--cc-text-secondary);
 }
 
-/* Linked, so it takes the pressable step; the bare span stays a readout. */
-a.time-travel-sha {
+/* Sha and message press as one target. */
+.time-travel-commit {
+  display: flex;
+  align-items: center;
+  gap: var(--cc-space-3);
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  cursor: pointer;
+}
+.time-travel-commit .time-travel-sha {
   color: var(--cc-text-strong);
 }
-a.time-travel-sha:hover {
+.time-travel-commit:hover .time-travel-sha,
+.time-travel-commit:hover .time-travel-subject {
   color: var(--cc-accent);
   text-decoration: underline;
 }
+.time-travel-commit:focus-visible {
+  outline: 2px solid var(--cc-accent);
+  outline-offset: 2px;
+  border-radius: var(--cc-radius-sm);
+}
 
 .time-travel-subject {
-  flex: 1;
+  flex: 0 1 auto;
   min-width: 0;
+  white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   color: var(--cc-text-secondary);
 }
 
 .time-travel-nocommit {
-  color: var(--cc-text-muted);
+  /* Secondary like the label above it: muted only clears 4.5:1 against the
+     sidebar surface, and this bar is glass over the scene. */
+  color: var(--cc-text-secondary);
   font-style: italic;
 }

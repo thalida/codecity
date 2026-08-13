@@ -1,9 +1,6 @@
-// city/components/island/islandShader.ts — ShaderMaterial for the floating island.
-//
-// Hemispheric lighting model: warm HEMI_SKY_COLOR from +Y, cool
-// HEMI_GROUND_COLOR from -Y, blended by normal.y. No sun direction
-// involved — the island is self-lit and independent of the city's
-// day/night cycle.
+// city/components/island/islandShader.ts — the island's material: hemispheric
+// light alone, warm from above and cool from below. No sun, so it is unaffected
+// by the city's own lighting.
 
 import * as THREE from 'three';
 import { ISLAND } from '@/state/stores/settings/island';
@@ -17,16 +14,17 @@ export function createIslandMaterial(): THREE.ShaderMaterial {
     vertexShader: vertSrc,
     fragmentShader: fragSrc,
     uniforms: {
+      uGrassTexture: { value: mats.GRASS_TEXTURE },
+      uGrassPatchSize: { value: mats.GRASS_PATCH_SIZE },
+      uRockTexture: { value: mats.ROCK_TEXTURE },
+      uRockPatchSize: { value: mats.ROCK_PATCH_SIZE },
       uHemiSkyColor: { value: new THREE.Color(mats.HEMI_SKY_COLOR) },
       uHemiGroundColor: { value: new THREE.Color(mats.HEMI_GROUND_COLOR) },
     },
     side: THREE.FrontSide,
     toneMapped: true,
-    // Bias the island AWAY from the camera in the depth buffer so city
-    // surfaces (sidewalks, asphalt, footprint slab) at y≈0 always win the
-    // depth contest against the island top (~y=-2). Factor/units bumped
-    // 1→4 because at city-scale (thousands of wu wide) the depth
-    // precision near far-clip degrades and 1/1 wasn't enough margin.
+    // The city's flat surfaces are exactly coplanar with the island top, so
+    // this bias is the only thing settling the contest between them.
     polygonOffset: true,
     polygonOffsetFactor: 4,
     polygonOffsetUnits: 4,

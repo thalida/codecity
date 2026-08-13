@@ -5,9 +5,8 @@ import { SearchPane } from '@/views/SearchPane/SearchPane';
 import { NodeKind } from '@/types';
 import { flush } from '../_helpers/preact';
 
-// Minimal manifest fixture — fields that the search pane reads:
-// tree.children[].path, .name, .type. Extras carried so it parses as a
-// FileNode-shaped object where needed.
+// Only the fields the search pane reads, plus enough extras to pass as a
+// FileNode where one is wanted.
 const TREE = {
   name: 'project',
   type: NodeKind.Directory,
@@ -69,9 +68,8 @@ const TREE = {
       modified: '',
     },
     {
-      // Has '.', 'p', 'n', 'g' chars in order but no contiguous ".png":
-      // old fuzzy matcher would have matched this when typing ".png";
-      // the new token-substring matcher excludes it.
+      // The characters of ".png" in order but never contiguous: a fuzzy
+      // matcher took this, and a substring one doesn't.
       name: 'parsing.ts',
       type: NodeKind.File,
       path: 'src/parsing.ts',
@@ -132,15 +130,25 @@ describe('SearchPane', () => {
     expect(results[0].querySelectorAll('mark').length).toBeGreaterThan(0);
   });
 
+  // Same icon the tree draws, keyed off the same file: the two lists show the
+  // same things, so a result is recognisable by the shape the tree taught you.
+  it('draws each result with its file icon', async () => {
+    mount();
+    await typeQuery('coord');
+
+    const icon = container.querySelector<HTMLImageElement>('.search-result .file-icon');
+    expect(icon).not.toBeNull();
+    expect(icon!.getAttribute('data-icon-for')).toBe('coordinator.ts');
+  });
+
   it('treats ".png" as a contiguous substring (not per-character fuzzy)', async () => {
     mount();
     await typeQuery('.png');
 
     const results = container.querySelectorAll<HTMLButtonElement>('.search-result');
     const paths = Array.from(results).map((r) => r.textContent);
-    // Only assets/logo.png contains ".png" as a substring. parsing.ts
-    // contains '.', 'p', 'n', 'g' characters but never the contiguous
-    // ".png" → excluded.
+    // Only one path contains ".png" as a substring; the other merely has its
+    // characters scattered through it.
     expect(paths).toEqual(['assets/logo.png']);
   });
 

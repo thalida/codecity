@@ -1,12 +1,10 @@
-// views/InfoPane/almanac.ts — pure derivation of the Overview tab's almanac:
-// repo superlatives mapped from manifest.stats (server-computed leaders). No
-// signals, no DOM, no tree walk — this file decides WHAT to show; the UI (how
-// to render it) lives in OverviewPane.tsx. Landmark facts carry the key needed
-// to fly the camera there.
+// views/InfoPane/almanac.ts — the Overview tab's almanac, derived from the
+// server-computed leaders in manifest.stats. This file decides what to show and
+// OverviewPane renders it; landmark facts carry the key to fly the camera.
 
 import { NodeKind } from '@/types';
 import type { Manifest, DirNode, FileLeader, DirLeader, CommitLeader } from '@/types';
-import { formatShortDate, humanSpan } from '@/utils/dates';
+import { formatShortDate } from '@/utils/dates';
 import { formatBytes } from '@/utils/bytes';
 import { formatCount, pluralize } from '@/utils/format';
 
@@ -26,9 +24,8 @@ export interface AlmanacFact {
   secondary?: string;
   /** Hover tooltip explaining what the superlative means + its in-world encoding. */
   tip: string;
-  /** Present → the primary is a code identifier (a path or sha): rendered
-   *  monospace + left-truncated, and the row flies the camera to this landmark
-   *  on click. Absent → a plain count/date/name summary fact. */
+  /** Set when the primary is a path or sha: monospace, left-truncated, and the
+   *  row flies the camera there. Absent for a plain summary fact. */
   landmark?: LandmarkRef;
   /** Dimension name. Consecutive facts sharing it render as one bound min↔max
    *  duo (e.g. "Height" over Shortest + Tallest) instead of two loose rows. */
@@ -42,9 +39,6 @@ export interface AlmanacSection {
   title: string;
   /** One-line "what is this layer" blurb, shown as the section header tooltip. */
   tip: string;
-  /** Summary line under the header — a count + one aggregate ("315 fireflies ·
-   *  ~40 commits each"). Gives every section the same opening rhythm. */
-  overview: string;
   facts: AlmanacFact[];
   /** Shown in place of facts when the section has none — an empty state or a
    *  gated notice (e.g. the Trees layer is off). */
@@ -71,27 +65,26 @@ export interface LayerLegend {
   cues: LayerCue[];
 }
 
-// What each world layer encodes, in world-build order. The single source for
-// the Legend subtab and the Overview section-header tooltips (composed via
-// layerTip), so the two can't drift. Kept to the salient, viewer-noticeable
-// encodings, not every downstream shader detail.
+// What each layer encodes, in world-build order: one source for the Legend and
+// the Overview tooltips, kept to what a viewer can actually notice.
 export const LAYER_LEGEND: LayerLegend[] = [
   {
     key: 'buildings',
     title: 'Buildings',
-    lead: 'Every code file is a building.',
+    lead: 'Every file is a building',
     cues: [
       { label: 'Height', detail: 'line count' },
       { label: 'Footprint', detail: 'file size' },
       { label: 'Color & roof icon', detail: 'file type' },
       { label: 'Brightness', detail: 'how recently it changed' },
-      { label: 'Grime & lean', detail: "how long it's existed" },
+      { label: 'Grime', detail: "how long it's existed" },
+      { label: 'Flat slab', detail: 'an empty file: no walls, no windows' },
     ],
   },
   {
     key: 'media',
     title: 'Billboards',
-    lead: 'Image & video files render as billboard panels showing the file itself.',
+    lead: 'Image and video files wear themselves as a billboard facade',
     cues: [
       { label: 'Shape', detail: "the file's aspect ratio" },
       { label: 'Width', detail: 'file size' },
@@ -101,7 +94,7 @@ export const LAYER_LEGEND: LayerLegend[] = [
   {
     key: 'data',
     title: 'Data',
-    lead: 'Binary files render as windowless data blocks wearing their byte pattern.',
+    lead: 'Binary files are windowless, wearing a fingerprint of their bytes',
     cues: [
       { label: 'Size', detail: 'file size (both footprint and height)' },
       { label: 'Facade', detail: "a fingerprint of the file's bytes" },
@@ -110,7 +103,7 @@ export const LAYER_LEGEND: LayerLegend[] = [
   {
     key: 'streets',
     title: 'Streets',
-    lead: 'Directories are streets.',
+    lead: 'Directories are streets',
     cues: [
       { label: 'Width', detail: 'how many files it holds' },
       { label: 'Length', detail: 'how much it contains' },
@@ -120,7 +113,7 @@ export const LAYER_LEGEND: LayerLegend[] = [
   {
     key: 'forest',
     title: 'Forest',
-    lead: 'Each commit plants a tree.',
+    lead: 'Each commit plants a tree',
     cues: [
       { label: 'Height', detail: 'older commits grow taller' },
       { label: 'Canopy', detail: 'wider for bigger commits' },
@@ -131,7 +124,7 @@ export const LAYER_LEGEND: LayerLegend[] = [
   {
     key: 'fireflies',
     title: 'Fireflies',
-    lead: 'Each commit author is a firefly, orbiting the trees they touched.',
+    lead: 'Each commit author is a firefly, orbiting the trees (commits) they touched',
     cues: [
       { label: 'Color', detail: 'unique per author' },
       { label: 'Size', detail: 'how many commits they made' },
@@ -147,7 +140,7 @@ const LAYER_BY_KEY = Object.fromEntries(LAYER_LEGEND.map((l) => [l.key, l])) as 
 /** The layer's encodings as one tooltip string: the lead sentence followed by
  *  its cue → meaning pairs. */
 function layerTip(l: LayerLegend): string {
-  return `${l.lead} ${l.cues.map((c) => `${c.label}: ${c.detail}`).join('; ')}.`;
+  return `${l.lead}. ${l.cues.map((c) => `${c.label}: ${c.detail}`).join('; ')}.`;
 }
 
 /** A section's shared header — key, display title, and composed encoding tip —
@@ -165,11 +158,8 @@ function isManifest(m: unknown): m is Manifest {
   return !!m && typeof m === 'object' && 'tree' in (m as object) && (m as Manifest).tree != null;
 }
 
-// ---- fact builders ------------------------------------------------------
-// Landmark facts (file / dir / commit) carry a path or sha primary and a
-// landmark key, so the row is clickable. Each returns null when its leader is
-// absent, so an empty pool collapses the section to its note. Summary facts
-// (statFact) are a plain count/date/name with no landmark.
+// Landmark facts carry a path or sha and are clickable; each returns null with
+// no leader, so an empty pool collapses its section to a note.
 
 function fileFact(o: {
   label: string;
@@ -224,6 +214,27 @@ function commitFact(o: {
   };
 }
 
+const SHORT_SHA_LEN = 7;
+
+/** A commit by its date rather than its sha: at the history's ends, when it
+ *  happened is the point. Still a landmark. */
+function commitDateFact(o: {
+  label: string;
+  leader: CommitLeader | null;
+  tip: string;
+  group?: string;
+}): AlmanacFact | null {
+  if (!o.leader) return null;
+  return {
+    label: o.label,
+    primary: formatShortDate(o.leader.date),
+    secondary: o.leader.sha.slice(0, SHORT_SHA_LEN),
+    tip: o.tip,
+    group: o.group,
+    landmark: { kind: NodeKind.Commit, id: o.leader.sha },
+  };
+}
+
 function statFact(o: {
   label: string;
   primary: string;
@@ -244,20 +255,10 @@ function compact(facts: (AlmanacFact | null)[]): AlmanacFact[] {
   return facts.filter((f): f is AlmanacFact => f !== null);
 }
 
-/** Rounded "X per Y" for an overview average, or null when the inputs can't
- *  produce a real number (n ≤ 0, or a non-finite total from a pre-totals
- *  cached manifest) — so the caller drops the "· ~N each" clause instead of
- *  rendering NaN. */
-function perEach(total: number, n: number): number | null {
-  return n > 0 && Number.isFinite(total) ? Math.round(total / n) : null;
-}
-
 function buildingsSection(m: Manifest): AlmanacSection {
   const s = m.stats;
-  // Four min↔max duos — the dimension (Age / Last touched / Height / Footprint)
-  // carries the noun, so the endpoint labels stay terse and the metric column
-  // shows the bare value. Pair members must stay adjacent (the view groups
-  // consecutive same-`group` facts).
+  // The dimension carries the noun, so the endpoints stay terse. Pair members
+  // must stay adjacent: the view groups consecutive facts by `group`.
   const facts = compact([
     fileFact({
       group: 'Age',
@@ -327,16 +328,10 @@ function buildingsSection(m: Manifest): AlmanacSection {
   }
   // Buildings = code files; media (billboards) and binaries (data blocks) each
   // render in their own section.
-  const count = Math.max(0, m.tree.descendants_file_count - s.mediaCount - s.binaryCount);
-  const avgLines = perEach(s.totalLines, count);
-  const overview =
-    pluralize(count, 'building') +
-    (avgLines !== null ? ` · ~${formatCount(avgLines)} lines each` : '');
   return {
     ...layerHeader('buildings'),
-    overview,
     facts,
-    note: facts.length ? undefined : 'No code files yet.',
+    note: facts.length ? undefined : 'No code files yet',
   };
 }
 
@@ -344,13 +339,11 @@ function mediaSection(m: Manifest): AlmanacSection {
   // Media files render as billboards (image/video billboards) sized by aspect,
   // not lines — a separate class of building with its own superlatives.
   const s = m.stats;
-  const overview = pluralize(s.mediaCount, 'billboard');
   if (s.mediaCount === 0) {
     return {
       ...layerHeader('media'),
-      overview,
       facts: [],
-      note: 'No images or videos.',
+      note: 'No images or videos',
     };
   }
   const bytesFmt = (l: FileLeader) => formatBytes(l.bytes);
@@ -365,14 +358,11 @@ function mediaSection(m: Manifest): AlmanacSection {
   const loRes = s.minMediaPixelsFile;
   const hiRes = s.maxMediaPixelsFile;
   const resPair = hasRes(loRes) && hasRes(hiRes) && loRes.path !== hiRes.path;
-  // No spread (typically a single billboard): one row under a "Spotlight" group
-  // with the file's size + resolution combined — rather than two lopsided
-  // one-item Size/Resolution groups that read as broken pairs.
+  // With no spread, one combined row: two one-item groups read as broken pairs.
   if (!sizePair && !resPair && hi) {
     const dims = hasRes(hiRes) ? ` · ${resFmt(hiRes)}` : '';
     return {
       ...layerHeader('media'),
-      overview,
       facts: compact([
         fileFact({
           group: 'Spotlight',
@@ -420,16 +410,15 @@ function mediaSection(m: Manifest): AlmanacSection {
         })
       : null,
   ]);
-  return { ...layerHeader('media'), overview, facts };
+  return { ...layerHeader('media'), facts };
 }
 
 function dataSection(m: Manifest): AlmanacSection {
   // Binary files render as windowless data blocks sized by bytes, not lines —
   // their own class, with byte-only superlatives (no line/resolution axis).
   const s = m.stats;
-  const overview = pluralize(s.binaryCount, 'data file');
   if (s.binaryCount === 0) {
-    return { ...layerHeader('data'), overview, facts: [], note: 'No binary files.' };
+    return { ...layerHeader('data'), facts: [], note: 'No binary files' };
   }
   const bytesFmt = (l: FileLeader) => formatBytes(l.bytes);
   // Pair only when the endpoints are genuinely different files (a one-binary
@@ -455,21 +444,32 @@ function dataSection(m: Manifest): AlmanacSection {
       tip: "Biggest binary file by bytes; a data block's size sets its footprint.",
     }),
   ]);
-  return { ...layerHeader('data'), overview, facts };
+  return { ...layerHeader('data'), facts };
 }
 
 function streetsSection(m: Manifest): AlmanacSection {
   const s = m.stats;
-  const dirs = m.tree.descendants_dir_count;
-  const avgFiles = perEach(m.tree.descendants_file_count, dirs);
-  const overview =
-    pluralize(dirs, 'street') +
-    (avgFiles !== null ? ` · ~${formatCount(avgFiles)} files each` : '');
   // Street size = direct children (files + sub-dirs on that street), not total
   // descendants. 'child'/'children' is irregular, so format it by hand.
   const childCount = (l: DirLeader) =>
     `${formatCount(l.children)} ${l.children === 1 ? 'child' : 'children'}`;
   const facts = compact([
+    // A street's dates are its subtree's, so these name the street holding the
+    // oldest or newest file, not every parent above it.
+    dirFact({
+      group: 'Age',
+      label: 'Oldest',
+      leader: s.oldestCreatedDir,
+      secondary: (l) => (l.created ? formatShortDate(l.created) : ''),
+      tip: 'Street holding the oldest file in the project.',
+    }),
+    dirFact({
+      group: 'Age',
+      label: 'Newest',
+      leader: s.newestCreatedDir,
+      secondary: (l) => (l.created ? formatShortDate(l.created) : ''),
+      tip: 'Street whose oldest file is the most recent: the newest part of town.',
+    }),
     dirFact({
       group: 'Depth',
       label: 'Deepest',
@@ -494,39 +494,40 @@ function streetsSection(m: Manifest): AlmanacSection {
   ]);
   return {
     ...layerHeader('streets'),
-    overview,
     facts,
-    note: facts.length ? undefined : 'Everything lives at the root — no sub-directories.',
+    note: facts.length ? undefined : 'Everything lives at the root, with no sub-directories',
   };
 }
 
 function forestSection(m: Manifest, treesEnabled: boolean): AlmanacSection {
   const trees = m.commits.length;
-  const commits = m.stats.commitCount;
-  const cd = m.stats.commitDates;
-  const span = cd.oldest && cd.newest ? humanSpan(cd.oldest, cd.newest) : '';
-  // Deep histories ship a sample of their commits, so the forest is one tree
-  // per sampled commit: name both counts rather than imply a tree per commit.
-  const forest =
-    commits > trees
-      ? `${pluralize(commits, 'commit')} · ${pluralize(trees, 'tree')} (sampled)`
-      : pluralize(trees, 'tree');
-  const overview = `${forest}${span ? ` · ${span} of history` : ''}`;
-  const base = { ...layerHeader('forest'), overview };
+  const base = layerHeader('forest');
   // Canopies fly the camera to a tree; with the Trees layer off those targets
   // don't exist, so the notice lives here (not the view) like any empty state.
   if (!treesEnabled) {
     return {
       ...base,
       facts: [],
-      note: 'Enable the Trees layer in Settings to explore the forest.',
+      note: 'Enable the Trees layer in Settings to explore the forest',
     };
   }
   if (trees === 0) {
-    return { ...base, facts: [], note: 'No commits yet.' };
+    return { ...base, facts: [], note: 'No commits yet' };
   }
   const s = m.stats;
   const facts = compact([
+    commitDateFact({
+      group: 'History',
+      label: 'First',
+      leader: s.oldestCommit,
+      tip: 'Oldest commit: the tree at the heart of the forest.',
+    }),
+    commitDateFact({
+      group: 'History',
+      label: 'Latest',
+      leader: s.newestCommit,
+      tip: 'Newest commit: the tree at the forest edge.',
+    }),
     commitFact({
       group: 'Canopy',
       label: 'Sparsest',
@@ -561,18 +562,11 @@ function forestSection(m: Manifest, treesEnabled: boolean): AlmanacSection {
 function firefliesSection(m: Manifest): AlmanacSection {
   const s = m.stats;
   const count = s.authors.length;
-  const avgCommits = perEach(m.stats.commitCount, count);
-  // 'firefly' is irregular, so pluralize (naive +s) won't do.
-  const noun = count === 1 ? 'firefly' : 'fireflies';
-  const each = avgCommits !== null ? ` · ~${formatCount(avgCommits)} commits each` : '';
-  const overview = `${formatCount(count)} ${noun}${each}`;
-  const base = { ...layerHeader('fireflies'), overview };
+  const base = layerHeader('fireflies');
   if (count === 0) {
-    return { ...base, facts: [], note: 'No commits yet — no fireflies.' };
+    return { ...base, facts: [], note: 'No commits yet, so no fireflies' };
   }
-  // authors is pre-sorted descending by commits; [0] is the most active, the
-  // last the least. Lead with the most active, then pair the least below it
-  // when there's more than one author.
+  // Pre-sorted by commits: lead with the most active, pair the least below.
   const most = s.authors[0];
   const least = s.authors[count - 1];
   const mostFact = statFact({
@@ -598,12 +592,8 @@ function firefliesSection(m: Manifest): AlmanacSection {
   return { ...base, facts };
 }
 
-/**
- * Build the almanac from a manifest. Every section is always present — empty
- * ones carry a `note` empty-state rather than vanishing. `treesEnabled` gates
- * the Forest section's contents (canopies fly to trees that don't exist when
- * the layer is off). Returns null only when there's no project at all.
- */
+/** Every section is always present: an empty one carries a note rather than
+ *  vanishing. treesEnabled gates the forest, whose rows fly to trees. */
 export function computeAlmanac(
   m: Manifest | DirNode | null | undefined,
   treesEnabled = true

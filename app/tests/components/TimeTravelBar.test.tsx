@@ -4,7 +4,14 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { render } from 'preact';
 import { TimeTravelBar } from '@/components/TimeTravelBar/TimeTravelBar';
-import { TIMELINE_MODE, SCRUB_POS, TIMELINE_BUNDLE, setScrubPos } from '@/state/stores/timeline';
+import {
+  TIMELINE_MODE,
+  SCRUB_POS,
+  TIMELINE_BUNDLE,
+  setScrubPos,
+  setTodayMs,
+} from '@/state/stores/timeline';
+import { parseDateMs } from '@/utils/dates';
 import { flush, drainAsync } from '../_helpers/preact';
 import type { TimelineBundle } from '@/types';
 import { commits as buildCommits } from '../_helpers/commits';
@@ -36,6 +43,9 @@ describe('TimeTravelBar', () => {
     document.body.appendChild(container);
     TIMELINE_MODE.value = true;
     TIMELINE_BUNDLE.value = BUNDLE;
+    // Today IS the last commit's day, so these cases have no extra stop; the
+    // ones that need one move it forward.
+    setTodayMs(parseDateMs('2026-03-01'));
     setScrubPos(2);
   });
 
@@ -45,6 +55,43 @@ describe('TimeTravelBar', () => {
     TIMELINE_MODE.value = false;
     setScrubPos(0);
     TIMELINE_BUNDLE.value = null;
+  });
+
+  // The city keeps aging after the last commit, so the track runs one stop past
+  // it and the axis ends at today rather than at that commit's date.
+  describe('today', () => {
+    const aged = () => setTodayMs(parseDateMs('2026-06-15'));
+
+    it('ends the axis at today and scrubs into the stretch since the last commit', async () => {
+      aged();
+      setScrubPos(3);
+      render(<TimeTravelBar />, container);
+      await flush();
+      // Both ends name a date; the handle is the one that says where you are.
+      const edges = container.querySelectorAll('.time-travel-edge');
+      expect(edges[1].textContent).toBe('Jun 15, 2026');
+      expect(edges[1].getAttribute('title')).toContain('June 15, 2026');
+      expect(container.querySelector('.time-travel-date')!.textContent).toBe('Today');
+      // No commit was made on it, so the row says so rather than carrying the
+      // last commit's message forward.
+      expect(container.querySelector('.time-travel-nocommit')).not.toBeNull();
+    });
+
+    it('names the day, not today, once scrubbed back off it', async () => {
+      aged();
+      setScrubPos(2);
+      render(<TimeTravelBar />, container);
+      await flush();
+      expect(container.querySelector('.time-travel-date')!.textContent).toBe('Mar 1, 2026');
+    });
+
+    it('keeps the last commit as the end when nothing has aged since', async () => {
+      render(<TimeTravelBar />, container);
+      await flush();
+      const edges = container.querySelectorAll('.time-travel-edge');
+      expect(edges[1].textContent).toBe('Mar 1, 2026');
+      expect(SCRUB_POS.value).toBe(2);
+    });
   });
 
   it('renders nothing when timeline mode is off', async () => {
@@ -65,13 +112,35 @@ describe('TimeTravelBar', () => {
     expect(t.getAttribute('aria-valuetext')).toContain(head.sha.slice(0, 7));
   });
 
-  it('labels the track ends with the first and last commit dates', async () => {
+  it('labels the axis ends with the first and last commit dates', async () => {
     render(<TimeTravelBar />, container);
     await flush();
     const edges = container.querySelectorAll('.time-travel-edge');
     expect(edges).toHaveLength(2);
     expect(edges[0].textContent).toBe('Jan 1, 2026');
     expect(edges[1].textContent).toBe('Mar 1, 2026');
+    expect(edges[0].getAttribute('title')).toContain('January 1, 2026');
+  });
+
+  // Three rows: the track, the dates it lands between, then the commit. The
+  // track has its row to itself so it runs the bar's full width.
+  it('stacks the track, the axis and the commit in that order', async () => {
+    render(<TimeTravelBar />, container);
+    await flush();
+    const rows = Array.from(container.querySelector('.time-travel-bar')!.children).map(
+      (c) => c.className
+    );
+    expect(rows).toEqual(['time-travel-scrubber', 'time-travel-axis', 'time-travel-info']);
+    const scrubber = container.querySelector('.time-travel-scrubber')!;
+    expect(scrubber.querySelectorAll('.time-travel-edge')).toHaveLength(0);
+    expect(scrubber.querySelector('.time-travel-track')).not.toBeNull();
+    const axis = container.querySelector('.time-travel-axis')!;
+    expect(axis.querySelectorAll('.time-travel-edge')).toHaveLength(2);
+    // Row two is the three dates; the commit gets row three to itself, so a
+    // long subject can't crowd them.
+    expect(axis.querySelector('.time-travel-date')).not.toBeNull();
+    expect(axis.querySelector('.time-travel-info')).toBeNull();
+    expect(container.querySelector('.time-travel-info .time-travel-sha')).not.toBeNull();
   });
 
   it('jumps to the first / latest commit when an edge date is clicked', async () => {
@@ -133,13 +202,51 @@ describe('TimeTravelBar', () => {
     expect(SCRUB_POS.value).toBe(2);
   });
 
-  it('labels the current commit as date, then sha, then subject (date leads)', async () => {
+  // The scrubbed date sits on the axis with the two it falls between; the
+  // commit it belongs to reads sha then subject on the row underneath.
+  it('puts the scrubbed date on the axis and the commit below it', async () => {
     render(<TimeTravelBar />, container);
     await flush();
+    const axis = container.querySelector('.time-travel-axis')!;
+    expect(axis.querySelector('.time-travel-date')).not.toBeNull();
     const info = container.querySelector('.time-travel-info')!;
     const order = Array.from(info.children).map((c) => c.className.split(' ')[0]);
-    expect(order).toEqual(['time-travel-date', 'time-travel-sha', 'time-travel-subject']);
+    expect(order).toEqual(['time-travel-commit']);
+    const row = info.querySelector('.time-travel-commit')!;
+    expect(Array.from(row.children).map((c) => c.className)).toEqual([
+      'time-travel-sha',
+      'time-travel-subject',
+    ]);
     expect(info.querySelector('.time-travel-subject')!.textContent).toBe('head');
+  });
+
+  // A commit belongs to its own day. Carrying it along made the message snap
+  // between commits while the date moved smoothly, and named undrawn trees.
+  it('shows the commit only on the day it happened', async () => {
+    setScrubPos(1); // parked on the Feb 1 commit
+    render(<TimeTravelBar />, container);
+    await flush();
+    expect(container.querySelector('.time-travel-sha')!.textContent).toBe(mid.sha.slice(0, 7));
+    expect(container.querySelector('.time-travel-subject')!.textContent).toBe('middle');
+  });
+
+  it('says so on a day with no commit, rather than carrying the last one along', async () => {
+    setScrubPos(0.9); // late January, weeks past the Jan 1 commit
+    render(<TimeTravelBar />, container);
+    await flush();
+    expect(container.querySelector('.time-travel-sha')).toBeNull();
+    expect(container.querySelector('.time-travel-nocommit')).not.toBeNull();
+  });
+
+  // The date follows the handle rather than snapping to the nearest commit, so
+  // dragging through a quiet stretch reads as days passing.
+  it('shows the day the handle sits on, even alongside a commit', async () => {
+    setScrubPos(0.5); // midway between Jan 1 and Feb 1
+    render(<TimeTravelBar />, container);
+    await flush();
+    const shown = container.querySelector('.time-travel-date')!.textContent;
+    expect(shown).not.toBe('Jan 1, 2026');
+    expect(shown).toMatch(/Jan 1[5-9], 2026|Jan 2\d, 2026/);
   });
 
   it('shows the interpolated date + "no commits" when scrubbed into a gap', async () => {

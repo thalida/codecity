@@ -96,10 +96,8 @@ describe('computeAlmanac — buildings + media', () => {
     }),
   ]);
 
-  // oldestCreatedFile = old.ts (created 2020), newestCreatedFile = new.ts (created 2023)
-  // newestModifiedFile = new.ts (modified 2023), oldestModifiedFile = tall.ts (modified 2020-02)
-  // maxLinesFile = tall.ts (999 lines), minLinesFile = old.ts (5 lines)
-  // maxBytesFile = new.ts (4000 bytes), minBytesFile = old.ts (50 bytes)
+  // The leaders this fixture is built to produce: old.ts oldest and smallest,
+  // new.ts newest and largest by bytes, tall.ts the tallest.
   const buildingsStats: RepoStats = {
     ...EMPTY_REPO_STATS,
     oldestCreatedFile: fileLeader('old.ts', 5, 50, '2020-01-01T00:00:00Z', '2021-06-01T00:00:00Z'),
@@ -300,10 +298,8 @@ describe('computeAlmanac — buildings + media', () => {
     const buildings = m.sections.find((s) => s.key === 'buildings')!;
     const data = m.sections.find((s) => s.key === 'data')!;
     // 3 files − 2 binaries = 1 building; binaries never win a code superlative.
-    expect(buildings.overview).toContain('1 building');
     expect(buildings.facts.every((f) => f.landmark?.id !== 'big.wasm')).toBe(true);
     // Data section: byte Size pair over the binary leaders.
-    expect(data.overview).toContain('2 data files');
     const byLabel = (l: string) => data.facts.find((f) => f.label === l)!;
     expect(byLabel('Smallest').landmark).toEqual({ kind: 'file', id: 'small.db' });
     expect(byLabel('Largest').landmark).toEqual({ kind: 'file', id: 'big.wasm' });
@@ -331,18 +327,36 @@ describe('computeAlmanac — streets, forest, fireflies', () => {
     { date: '2022-02-10', files: 5, sha: 'ddd', authors: ['Ada'], same_day_total: 1 }
   );
 
-  // Streets: maxDepthDir = src/a/b (3 deep); maxChildrenDir = src (6 direct
-  //          children); minChildrenDir = src/a/b (1 direct child)
-  // Forest: maxFilesPerCommit = bbb (40 files), minFilesPerCommit = ccc (1 file)
-  //         maxCommitsPerDay = 2022-01-02 (3 commits), maxCommitStreakDays = 3
+  // The leaders this fixture is built to produce: src/a/b deepest and
+  // narrowest, src widest, bbb the biggest commit and ccc the smallest.
+  const DIR_LEADER_DEEP = {
+    path: 'src/a/b',
+    depth: 3,
+    children: 1,
+    descendants: 1,
+    created: '2020-01-01T00:00:00Z',
+    modified: '2020-02-02T00:00:00Z',
+  };
   // Fireflies: Ada (3 commits), Bo (2 commits)
   const sfStats: RepoStats = {
     ...EMPTY_REPO_STATS,
-    maxDepthDir: { path: 'src/a/b', depth: 3, children: 1, descendants: 1 },
-    maxChildrenDir: { path: 'src', depth: 1, children: 6, descendants: 12 },
-    minChildrenDir: { path: 'src/a/b', depth: 3, children: 1, descendants: 1 },
-    maxFilesPerCommit: { sha: 'bbb', files: 40 },
-    minFilesPerCommit: { sha: 'ccc', files: 1 },
+    maxDepthDir: DIR_LEADER_DEEP,
+    maxChildrenDir: { ...DIR_LEADER_DEEP, path: 'src', depth: 1, children: 6, descendants: 12 },
+    minChildrenDir: DIR_LEADER_DEEP,
+    oldestCreatedDir: {
+      ...DIR_LEADER_DEEP,
+      path: 'src/old',
+      created: '2019-03-04T00:00:00Z',
+    },
+    newestCreatedDir: {
+      ...DIR_LEADER_DEEP,
+      path: 'src/new',
+      created: '2024-08-09T00:00:00Z',
+    },
+    maxFilesPerCommit: { sha: 'bbb', files: 40, date: '2022-01-02' },
+    minFilesPerCommit: { sha: 'ccc', files: 1, date: '2022-01-03' },
+    oldestCommit: { sha: 'aaa', files: 2, date: '2022-01-01' },
+    newestCommit: { sha: 'ddd', files: 5, date: '2022-02-10' },
     commitCount: 4,
     maxCommitsPerDay: { date: '2022-01-02', count: 3 },
     maxCommitStreakDays: 3,
@@ -385,21 +399,40 @@ describe('computeAlmanac — streets, forest, fireflies', () => {
     expect(f.landmark).toBeUndefined();
     expect(f.secondary).toContain('3');
   });
+  // A street's dates come from its subtree, so the leader is the street that
+  // holds the file, not each parent that contains it (stats.py breaks the tie).
+  it('names the oldest and newest streets with their dates', () => {
+    expect(fact('streets', 'Oldest').primary).toBe('src/old');
+    expect(fact('streets', 'Oldest').secondary).toContain('2019');
+    expect(fact('streets', 'Newest').primary).toBe('src/new');
+    expect(fact('streets', 'Newest').secondary).toContain('2024');
+  });
+  it('drops the street age rows when the scan has no dated directories', () => {
+    const b = computeAlmanac(manifest(tree, { commits, stats: EMPTY_REPO_STATS }))!;
+    const streets = b.sections.find((s) => s.key === 'streets')!;
+    expect(streets.facts.some((f) => f.label === 'Oldest')).toBe(false);
+  });
+
+  // The history's ends lead the section and are rows you can visit: the date is
+  // what you read, the sha is how the camera gets there.
+  it('opens the forest with visitable first and latest commits', () => {
+    const forest = section('forest');
+    expect(forest.facts[0].label).toBe('First');
+    expect(forest.facts[1].label).toBe('Latest');
+    expect(forest.facts[0].landmark).toEqual({ kind: 'commit', id: 'aaa' });
+    expect(forest.facts[1].landmark).toEqual({ kind: 'commit', id: 'ddd' });
+    expect(forest.facts[0].secondary).toBe('aaa');
+  });
+
   it('longest streak counts consecutive days', () => {
     expect(fact('forest', 'Streak').primary).toContain('3');
   });
-  it('fireflies count distinct authors (overview) and name the most active', () => {
-    expect(section('fireflies').overview).toContain('2'); // 2 authors
+  it('names the most active contributor', () => {
     expect(fact('fireflies', 'Most active').primary).toContain('Ada');
   });
   it('pairs most + least active contributors when there are 2+ authors', () => {
     expect(fact('fireflies', 'Most active').primary).toContain('Ada'); // 3 commits
     expect(fact('fireflies', 'Least active').primary).toContain('Bo'); // 2 commits
-  });
-  it('every section opens with an overview summary', () => {
-    expect(section('streets').overview).toMatch(/street/);
-    expect(section('forest').overview).toMatch(/tree/);
-    expect(section('fireflies').overview).toMatch(/firefl/);
   });
   it('attaches a tooltip to every fact', () => {
     for (const s of a.sections)
@@ -420,19 +453,6 @@ describe('computeAlmanac — streets, forest, fireflies', () => {
     const streets = b.sections.find((s) => s.key === 'streets')!;
     expect(streets.facts).toHaveLength(0);
     expect(streets.note).toBeTruthy();
-  });
-  it('counts one tree per commit when the whole history shipped', () => {
-    expect(section('forest').overview).toContain('4 trees');
-    expect(section('forest').overview).not.toContain('sampled');
-  });
-  it('names both counts when the backend sampled a deep history', () => {
-    const deepStats = { ...sfStats, commitCount: 1_430_000 };
-    const b = computeAlmanac(manifest(tree, { commits, stats: deepStats }))!;
-    const forest = b.sections.find((s) => s.key === 'forest')!;
-    expect(forest.overview).toContain('1,430,000 commits · 4 trees (sampled)');
-    // The per-author average divides the true total, not the sample.
-    const fireflies = b.sections.find((s) => s.key === 'fireflies')!;
-    expect(fireflies.overview).toContain('~715,000 commits each');
   });
   it('gates the forest section behind the Trees layer', () => {
     const b = computeAlmanac(manifest(tree, { commits, stats: sfStats }), false)!;

@@ -24,7 +24,7 @@ const rollup = (over: Partial<Record<'present' | 'ruin', boolean>> & { op?: numb
   };
 };
 
-const BOTH_ON = { ruinsOn: true, futureOn: true };
+const BOTH_ON = { ruinsOn: true };
 
 describe('resolveStreetScrubState', () => {
   it.each([
@@ -42,7 +42,7 @@ describe('resolveStreetScrubState', () => {
     ],
     ['ruined descendants only', { ruin: true }, { opacity: 1, tint: StreetTint.Ruin }],
     // Neither present nor ruined and the road exists in the union => not built yet.
-    ['nothing yet', {}, { opacity: 1, tint: StreetTint.Future }],
+    ['nothing yet', {}, { opacity: 0, tint: StreetTint.None }],
   ])('%s', (_label, over, expected) => {
     const { s, r } = rollup(over);
     const state = resolveStreetScrubState(s, r, BOTH_ON);
@@ -82,29 +82,15 @@ describe('resolveStreetScrubState', () => {
       expect(state.opacity).toBe(1);
       expect(state.tint).toBe(StreetTint.None);
       expect(state.ruin).toBe(false);
-      expect(state.future).toBe(false);
     });
   });
 
-  describe('with the ruin/future settings off', () => {
+  describe('with ruins off', () => {
     it('a ruined-only street disappears rather than rendering as a ruin', () => {
       const { s, r } = rollup({ ruin: true });
-      const state = resolveStreetScrubState(s, r, { ruinsOn: false, futureOn: false });
+      const state = resolveStreetScrubState(s, r, { ruinsOn: false });
       expect(state.opacity).toBe(0);
       expect(state.tint).toBe(StreetTint.None);
-    });
-
-    it('a not-yet-built street disappears rather than rendering as a future road', () => {
-      const { s, r } = rollup({});
-      const state = resolveStreetScrubState(s, r, { ruinsOn: true, futureOn: false });
-      expect(state.opacity).toBe(0);
-      expect(state.tint).toBe(StreetTint.None);
-    });
-
-    it('with ruins off, a ruined street falls through to the future lane', () => {
-      const { s, r } = rollup({ ruin: true });
-      const state = resolveStreetScrubState(s, r, { ruinsOn: false, futureOn: true });
-      expect(state.tint).toBe(StreetTint.Future);
     });
   });
 });
