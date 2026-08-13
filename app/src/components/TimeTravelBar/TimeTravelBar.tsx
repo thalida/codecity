@@ -108,13 +108,15 @@ export function TimeTravelBar() {
   const commit = commits[Math.min(Math.floor(pos), maxIndex)];
   const pct = indexToFraction(scale, pos) * 100;
 
-  // "no commits" only when the handle is >4 days from the nearest commit (a real lull).
-  const nearestIdx = Math.min(Math.round(pos), maxIndex);
-  const handleMs = indexToMs(scale, pos);
-  const inGap = Math.abs(handleMs - scale.ms[nearestIdx]) > 4 * 86_400_000;
   // The calendar day the handle sits on, interpolated between the commits it
-  // falls between. Shown always, not just in a lull: it's where you are.
+  // falls between. This is the readout: scrubbing is moving through days.
+  const handleMs = indexToMs(scale, pos);
   const handleDay = new Date(handleMs).toISOString().slice(0, 10);
+  // A commit belongs to the day it happened, and to no other. Anywhere else the
+  // row says so rather than carrying the last commit's message along, which
+  // made the message snap from one to the next as you crossed each commit
+  // while the date underneath moved smoothly.
+  const onCommitDay = commit.date.slice(0, 10) === handleDay;
 
   const setFromClientX = (clientX: number) => {
     const el = trackRef.current;
@@ -177,9 +179,9 @@ export function TimeTravelBar() {
           aria-valuemax={maxIndex}
           aria-valuenow={Math.round(pos)}
           aria-valuetext={
-            inGap
-              ? `${formatShortDate(handleDay)}, no commits`
-              : `${formatShortDate(commit.date)}, commit ${commit.sha.slice(0, 7)}`
+            onCommitDay
+              ? `${formatShortDate(handleDay)}, commit ${commit.sha.slice(0, 7)}`
+              : `${formatShortDate(handleDay)}, no commits`
           }
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
@@ -213,7 +215,7 @@ export function TimeTravelBar() {
         </button>
       </div>
       <div class="time-travel-info">
-        {inGap ? (
+        {!onCommitDay ? (
           <span class="time-travel-subject time-travel-nocommit">no commits</span>
         ) : (
           <>

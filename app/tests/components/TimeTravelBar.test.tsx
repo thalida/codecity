@@ -168,15 +168,24 @@ describe('TimeTravelBar', () => {
     expect(info.querySelector('.time-travel-subject')!.textContent).toBe('head');
   });
 
-  // The scene draws trees up to floor(pos), so naming round(pos) would put a
-  // commit on the bar whose tree isn't there — and the sha chip would then
-  // select it, leaving an outline around nothing.
-  it('names the commit the scene has drawn, not the one it is heading toward', async () => {
-    setScrubPos(0.9);
+  // A commit belongs to the day it happened and no other. Carrying it along
+  // made the message snap from one commit to the next while the date under it
+  // moved smoothly, and let you select a commit whose tree the scene hadn't
+  // drawn (it gates at floor(pos), so off-day the two disagreed).
+  it('shows the commit only on the day it happened', async () => {
+    setScrubPos(1); // parked on the Feb 1 commit
     render(<TimeTravelBar />, container);
     await flush();
-    expect(container.querySelector('.time-travel-sha')!.textContent).toBe(old.sha.slice(0, 7));
-    expect(container.querySelector('.time-travel-subject')!.textContent).toBe('oldest');
+    expect(container.querySelector('.time-travel-sha')!.textContent).toBe(mid.sha.slice(0, 7));
+    expect(container.querySelector('.time-travel-subject')!.textContent).toBe('middle');
+  });
+
+  it('says so on a day with no commit, rather than carrying the last one along', async () => {
+    setScrubPos(0.9); // late January, weeks past the Jan 1 commit
+    render(<TimeTravelBar />, container);
+    await flush();
+    expect(container.querySelector('.time-travel-sha')).toBeNull();
+    expect(container.querySelector('.time-travel-nocommit')).not.toBeNull();
   });
 
   // The date follows the handle rather than snapping to the nearest commit, so
